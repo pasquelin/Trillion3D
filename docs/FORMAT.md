@@ -97,19 +97,19 @@ Static opaque, alpha-mask and clustered BLEND primitives can additionally carry 
 
 The page is the published cluster format — positions on an object grid, octahedral normals, integer texture coordinates, colours on a grid, local indices coded by delta within blocks of triangles, no tangent — rebuilt from the literature for the web: twenty-four little-endian `u32` header words, then bit streams that start on a word each, and nothing else. A field never spans more than two words, so a shader reads any vertex or corner of a resident page in place, in O(1), without unpacking it (`packages/sdk-browser/src/cluster/decodeWgsl.ts`); the JavaScript and WebAssembly decoders unpack the same bytes to floats for the autonomous backend.
 
-| Word  | Content                                                                                                         |
-| ----- | --------------------------------------------------------------------------------------------------------------- |
-| 0, 1  | magic `WGP3` (`0x33504757`), version `6`                                                                        |
-| 2, 3  | vertex count (1 to 65,535), index count (a positive multiple of 3)                                              |
+| Word  | Content                                                                                                                                             |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0, 1  | magic `WGP3` (`0x33504757`), version `6`                                                                                                            |
+| 2, 3  | vertex count (1 to 65,535), index count (a positive multiple of 3)                                                                                  |
 | 4     | attribute flags: `1` NORMAL, `2` TEXCOORD_0, `4` TEXCOORD_1, `8` COLOR_0, `16` joints/weights, `32` morph targets, `64` simulation-source semantics |
-| 5–8   | position record and minimum: one `f32` per axis                                                                 |
-| 9–11  | TEXCOORD_0 record and minimum                                                                                   |
-| 12–14 | TEXCOORD_1 record and minimum                                                                                   |
-| 15–19 | COLOR_0 record and minimum, four channels                                                                       |
-| 20    | `f32` quantization error: the largest distance between a source position and its decoded value, in object units |
-| 21    | bits of the corner stream                                                                                       |
-| 22    | stored positions: 1 to the vertex count                                                                         |
-| 23    | deformation: joint width in bits 0–5, target count in bits 6–13, joint base in bits 14–29                                                                                                  |
+| 5–8   | position record and minimum: one `f32` per axis                                                                                                     |
+| 9–11  | TEXCOORD_0 record and minimum                                                                                                                       |
+| 12–14 | TEXCOORD_1 record and minimum                                                                                                                       |
+| 15–19 | COLOR_0 record and minimum, four channels                                                                                                           |
+| 20    | `f32` quantization error: the largest distance between a source position and its decoded value, in object units                                     |
+| 21    | bits of the corner stream                                                                                                                           |
+| 22    | stored positions: 1 to the vertex count                                                                                                             |
+| 23    | deformation: joint width in bits 0–5, target count in bits 6–13, joint base in bits 14–29                                                           |
 
 A record word holds the width of each component in six-bit fields from bit 0 (each 0 to 24) and the grid exponent as a signed byte in the top byte; a component of zero width is constant and has no stream. Streams follow in this order — block table, corners, position `x`, `y`, `z`, links (if fewer positions than vertices), normal (if flagged), `u`, `v` of TEXCOORD_0 (if flagged), `u`, `v` of TEXCOORD_1 (if flagged), `r`, `g`, `b`, `a` (if flagged) —, each `ceil(count × bits / 32)` words, each field `i` at bit `i × bits`, least significant bit first. A normal is 16 bits. The position streams hold word 22's count of fields, not the vertex count: a page whose vertices repeat a position — a flat-shaded mesh repeats each corner under every face normal meeting there — stores each position once, in first-use order, and a link per vertex, the rank of its position on `bits_for(word 22 − 1)` bits (version 5, CMP-10, #960); a vertex decodes to the same floats as when it carried its own, one field further in O(1). The compiler and the reference encoder store the positions once only when the distinct positions and the links take fewer words than one position per vertex; otherwise word 22 equals the vertex count and there is no link stream. Compiled from the same sources, the repository's scenes' pages weigh 2.0 % less than in version 4 — the flat-shaded chalet 17.5 %, the crates 19.2 %, the street corner 24.7 % —, smooth ones such as the terrains not a byte more, and every page decodes to the same vertices. The triangles are coded by blocks of eight, in page order (version 4, #959): the block table holds one record per block — its smallest corner (`base`, `ceil(log2(vertexCount))` bits), the width `w` its corners take as their distance to that base (5 bits, 0 to 16) and `prefix`, the sum of the widths of the blocks before it (`bits_for(word 21 / 24)` bits) —, each record `ceil(log2(vertexCount)) + 5 + prefix bits` wide at bit `block × that`; the corner stream holds, for corner `k` of a block, `corner − base` at bit `24 × prefix + k × w`. A corner is therefore one record and one field away, still O(1) in a shader, and the code is lossless: every corner decodes to the index written, in its order. A page numbers its vertices by first use, so a block spans few of them: compiled from the same sources, Sponza's pages weigh 5.5 % less than in version 3, the CMP audit's meshes 3.4 % (building) to 6.7 % (sphere) less, and every page decodes to the same triangles. Every offset follows from the counts, the widths and words 21 and 22, so the header stores no other and a reader trusts none: the byte length must equal what the streams need, a header field outside the format (a width above 24, an exponent beyond ±64, a non-finite minimum, an unknown flag, a negative error, a stored-position count of zero or above the vertex count, a reserved word set) refuses the page before any stream is read, so does a block record whose base reaches the vertex count, whose width passes an index's or whose corners leave the corner stream, so does a link at or past word 22 — the gate a reader that decodes in place, the GPU, relies on —, and a corner at or past the vertex count refuses it before any float is produced.
 
@@ -496,8 +496,7 @@ channel: `colourCoverage` is the base colour (sRGB, `baseColorFactor` times texe
 the rays that hit, alpha the share of rays that hit; `normalDepth` is the object-space normal
 (vertex normals interpolated when declared, turned to face the ray) as `n · ½ + ½`, alpha the
 depth `D = ½ + height / 2R`, `height` the signed distance above the frame plane towards the
-capture; `orm` packs occlusion, roughness and metallic (factors times their textures), alpha
-255. An empty texel takes the three maps of the nearest covered texel of its own frame, its
+capture; `orm` packs occlusion, roughness and metallic (factors times their textures), alpha 255. An empty texel takes the three maps of the nearest covered texel of its own frame, its
 coverage staying 0, so filtering at the silhouette blends no black fringe.
 
 **Levels.** Each map carries its mip chain under the texture rule of [Textures](#textures),
@@ -547,3 +546,8 @@ rejects an unsupported mapping version or inconsistent lengths.
 `primitives[].deformation` contains flattened joint rest balls (`x,y,z,radius`), one maximum
 displacement per morph target, and optional `softVertices`. These bound deformation independently
 of the selected page and let the existing cut expand bounds and refine conservative error.
+
+For material-driven whole-mesh transmission, `primitive.deformation.softSourceIds` in version 6
+maps each original render vertex to the compact simulation vertex identified by `softVertices`.
+IDs must be integers within that simulation array. Clustered copies carry the equivalent IDs in
+the explicitly flagged soft-source stream; both representations use the same simulation record.

@@ -1,3 +1,4 @@
+import type { Primitive } from '../../../../sdk-core/src/index.ts';
 import type { HostMesh } from '../../host/resources.ts';
 import type { PageSurface } from '../../page/surface.ts';
 import type { MatrixElements } from '../../math/matrixElements.ts';
@@ -17,6 +18,11 @@ import { createBlendHierarchy } from './hierarchy.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
 export type BlendGpuItem = {
+  /** Whole-copy static inputs and computed outputs in the existing float pool. */
+  deformation?: Primitive['deformation'];
+  deformInput?: number;
+  deformOutput?: number;
+  deformBounds?: Float64Array;
   /** The material transmits: the item is drawn in the transmission pass, not in the blend. */
   transmissive?: boolean;
   /** Own positions; absent for a paged item that reads its quantized pages. */

@@ -42,3 +42,34 @@ test('a prepared geometry is the host’s: its normalised lists are edged and tu
   // (1, 0, 0) turned is (0, 1, 0), written normalised as 127.
   assert.deepEqual(Array.from(geometry.attributes.normal.array), [0, 127, 0, 0, 0, 127, 0, 0, 127]);
 });
+
+test('a missing morph semantic has zero displacement, not the base attribute', async () => {
+  const bytes = new Float32Array([2, 3, 4, 0, 1, 0, 1, 0, 0]);
+  const document = {
+    views: [{ offset: 0, length: 36, stride: null }],
+    accessors: [0, 12, 24].map((offset) => ({
+      view: 0,
+      offset,
+      componentType: 5126,
+      normalized: false,
+      count: 1,
+      type: 'VEC3',
+      min: null,
+      max: null,
+    })),
+    meshes: [
+      {
+        primitives: [
+          {
+            attributes: { POSITION: 0, NORMAL: 1 },
+            indices: null,
+            targets: [{ POSITION: 2 }, { NORMAL: 2 }],
+          },
+        ],
+      },
+    ],
+  } as unknown as TableDocument;
+  const g = await preparedGeometries(document, async () => bytes.buffer)(0, 0).loadVertices();
+  assert.deepEqual([...g.morphAttributes.position[1].array], [0, 0, 0]);
+  assert.deepEqual([...g.morphAttributes.normal[0].array], [0, 0, 0]);
+});

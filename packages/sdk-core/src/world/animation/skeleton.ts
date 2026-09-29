@@ -64,8 +64,8 @@ export class Skeleton {
  * The most a vertex moves under `palette` (`joints` joints from `at`): a vertex of joint `j`'s
  * rest ball — centre `c`, radius `r`, `reach[4j..4j+4]` — goes to `M·v`, which lies within
  * `|M·c − c| + ‖L − I‖·r` of it (`L` the linear part, its norm bounded by the Frobenius norm),
- * and a blend of joints moves it by at most the largest of them. A joint no vertex leans on
- * (radius 0 at the origin) moves nothing that is drawn.
+ * and a blend of joints moves it by at most the largest of them. Zero-radius balls still
+ * contain a vertex, including at the origin, and must retain their translation reach.
  */
 export function paletteReach(
   palette: Float32Array,
@@ -80,7 +80,6 @@ export function paletteReach(
       cy = reach[j * 4 + 1],
       cz = reach[j * 4 + 2],
       r = reach[j * 4 + 3];
-    if (!(r > 0) && !cx && !cy && !cz) continue;
     let moved = 0,
       frobenius = 0;
     for (let row = 0; row < 3; row++) {

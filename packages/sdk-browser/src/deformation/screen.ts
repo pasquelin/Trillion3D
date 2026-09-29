@@ -35,7 +35,7 @@ export function createDeformationSkip() {
     focal = 0,
     threshold = 0;
   const skipped = (i: number, reach: number) =>
-    threshold > 0 && pixelsOf(roots[i], reach, cam!, focal) < threshold;
+    threshold > 0 && !!roots[i] && pixelsOf(roots[i], reach, cam!, focal) < threshold;
   return (
     frameRoots: Roots,
     frameCam: EngineCamera,

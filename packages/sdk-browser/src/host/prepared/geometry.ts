@@ -16,7 +16,7 @@ import type {
 import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts';
 import { Sphere } from '../../../../sdk-core/src/world/math/volumes.ts';
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
-import { type BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
+import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { normalisedScale, preparedAccessors, type PreparedBinary } from './accessors.ts';
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
@@ -41,7 +41,7 @@ const runs = (set: Readonly<Record<string, number>>) =>
     .join('');
 
 /** The morph targets of a primitive, laid on its geometry as the loader lays them: one list per
- *  morphed attribute, the base attribute standing in for a target that leaves it alone. */
+ *  morphed attribute, zero displacement standing in for an absent target semantic. */
 function morph(
   geometry: Geometry,
   declared: TablePrimitive,
@@ -51,7 +51,14 @@ function morph(
   for (const [semantic, name] of MORPHED) {
     if (!targets.some((target) => target[semantic] !== undefined)) continue;
     geometry.morphAttributes[name] = targets.map((target) =>
-      target[semantic] !== undefined ? attributeOf(target[semantic]) : geometry.attributes[name],
+      target[semantic] !== undefined
+        ? attributeOf(target[semantic])
+        : new BufferAttribute(
+            new Float32Array(
+              (geometry.attributes.position?.count ?? 0) * (name === 'color' ? 4 : 3),
+            ),
+            name === 'color' ? 4 : 3,
+          ),
     );
   }
   if (Object.keys(geometry.morphAttributes).length) geometry.morphTargetsRelative = true;

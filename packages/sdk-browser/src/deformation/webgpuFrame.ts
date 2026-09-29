@@ -1,3 +1,4 @@
+import { updateWholeDeformationBounds } from './wholeBounds.ts';
 import { worldStretch } from '../page/cut/logic.ts';
 import { noteDeformed } from '../webgpu/pages/render/movedBatch.ts';
 import type { EngineCamera } from '../camera/world.ts';
@@ -50,7 +51,7 @@ export function updateWebgpuDeformation(rt: WebgpuPagesRuntime, cam: EngineCamer
   const roots = rt.layout.selectionRoots,
     frame = deformation.frame;
   const moved = frame.update(skip(roots, cam, rt.setup.viewport, rt.run.gate.pixelError));
-  for (let i = 0; i < frame.bases.length; i++) {
+  for (let i = 0; i < roots.length; i++) {
     if (!frame.bases[i]) continue;
     const root = roots[i],
       before = root.reach ?? 0;
@@ -58,6 +59,7 @@ export function updateWebgpuDeformation(rt: WebgpuPagesRuntime, cam: EngineCamer
     rt.run.gpuSelection?.markWorld(i, markReach(root.mark ?? 0, root.reach));
     if (frame.moving[i]) noteDeformed(rt, i, Math.max(before, root.reach) * worldStretch(root));
   }
+  updateWholeDeformationBounds(rt);
   if (moved) device.queue.writeBuffer(pool, deformation.base * 4, frame.block);
   return moved;
 }

@@ -39,6 +39,7 @@ ${clusterDecodeWgsl('indices')}
 fn pageHeader(page:PageInfo)->ClusterHeader{
  var h:ClusterHeader;
  if(${QUANTIZED}){h=clusterHeader(page.pageOffset);}
+ else if((page.deformOutput&0x80000000u)!=0u){let at=page.packedBase-1u;h.flags=u32(positions[at]);h.morphCount=u32(positions[at+1u]);}
  return h;
 }
 /** Local vertex index of a corner of the page, three per triangle. */
@@ -70,7 +71,8 @@ fn pagePreviousPosition(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{
 }
 /** A computed result stored in the resident geometry slot's tail. */
 fn pageDeformed(page:PageInfo,vertex:u32,field:u32)->vec3f{
- let at=page.deformOutput-1u+vertex*11u+field;
+ let at=(page.deformOutput&0x7fffffffu)-1u+vertex*11u+field;
+ if((page.deformOutput&0x80000000u)!=0u){return vec3f(positions[at],positions[at+1u],positions[at+2u]);}
  return vec3f(bitcast<f32>(indices[at]),bitcast<f32>(indices[at+1u]),bitcast<f32>(indices[at+2u]));
 }
 /** First texture coordinate of a page vertex. */
