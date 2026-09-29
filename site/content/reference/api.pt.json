@@ -59,7 +59,7 @@
       "proxyTriangleBudget": "Orçamento total de triângulos do proxy para uma cena inteira, somando todas as instâncias: pegada residente.",
       "proxyCellMetres": "Piso de resolução da malha proxy em metros: tamanho dos triângulos simplificados / células do cache de superfície. Dobrado pelo compilador se o orçamento for excedido.",
       "proxyLeafTriangles": "Triângulos por folha da BVH: os laços de travessia de folha são limitados por essa constante.",
-      "traversalSteps": "Nós de BVH visitados por raio: limitado antes da execução do quadro, nunca dinâmico. Um nó de largura 4 cobre 4× mais árvore por passo que uma BVH binária.",
+      "traversalSteps": "Nós de BVH visitados por raio na árvore tal como construída, limitados antes da execução do quadro. Um reajuste acrescenta os nós que deixou entrar num raio, nunca o número de nós (`bounce/proxy.ts`). Um nó de largura 4 cobre 4× mais árvore por passo que uma BVH binária.",
       "traversalStack": "Profundidade da pilha de travessia. Um nó de largura 4 empilha até 3 filhos; 32 cobre milhões de triângulos.",
       "cascadeLevels": "Níveis da cascata de sondas. Os primeiros `cascadeLevels - 1` seguem a posição da câmera; o último nível é fixo no mundo e cobre toda a extensão da cena.",
       "cascadeSize": "Sondas por eixo por nível: um nível é um cubo de `cascadeSize³` sondas.",
@@ -218,13 +218,14 @@
   },
   "BounceOccupancy": {
     "summary": "Onde vale a pena manter uma sonda: mapa de ocupação da cascata.",
-    "description": "Uma cascata sobre uma cidade gasta a maioria das células em céu vazio e núcleos sólidos de prédios, onde a irradiância nunca é consultada. O escalonador precisa saber, antes de gastar um raio, se uma célula toca a geometria. Isso é uma propriedade do mundo, não da câmera: calculada uma vez na construção, válida para todas as posições que os níveis móveis assumem depois. O mapa do nível mais fino é marcado pelas caixas delimitadoras dos triângulos do proxy mais uma borda de uma célula: os oito cantos de uma célula ocupada são sempre mantidos, então nada útil se perde. Os níveis seguintes são reduções exatas — duas células para uma por eixo, já que os espaçamentos são múltiplos de potência de dois do mais fino — depois dilatadas por uma célula pelo mesmo motivo. Nada aqui nomeia uma cena ou inspeciona a câmera: extensão, triângulos, células.",
+    "description": "Uma cascata sobre uma cidade gasta a maioria das células em céu vazio e núcleos sólidos de prédios, onde a irradiância nunca é consultada. O escalonador precisa saber, antes de gastar um raio, se uma célula toca a geometria. Isso é uma propriedade do mundo, não da câmera: calculada na construção e de novo quando a geometria movida se assenta, válida para todas as posições que os níveis móveis assumem depois. O mapa do nível mais fino é marcado pelas caixas delimitadoras dos triângulos do proxy mais uma borda de uma célula: os oito cantos de uma célula ocupada são sempre mantidos, então nada útil se perde. Os níveis seguintes são reduções exatas — duas células para uma por eixo, já que os espaçamentos são múltiplos de potência de dois do mais fino — depois dilatadas por uma célula pelo mesmo motivo. Nada aqui nomeia uma cena ou inspeciona a câmera: extensão, triângulos, células.",
     "members": {
+      "moved": "Proprietários se moveram: `boxes` traz seis limites de mundo por triângulo do proxy, `changed` marca os movidos.",
+      "settle": "Uma vez por quadro: o primeiro quadro após o movimento parar reconstrói o mapa exato sobre `extent`.",
       "occupied": "Verdadeiro quando a célula de um nível em sua grade global justifica uma sonda.",
       "marked": "Células marcadas e total de células do nível mais fino: ganho publicado.",
       "cells": "Células do nível mais fino.",
-      "bytes": "Bytes que ocupa.",
-      "allEligible": "A geometria se moveu: agenda de forma conservadora todas as células das cascatas, cuja quantidade é limitada."
+      "bytes": "Bytes que ocupa."
     }
   },
   "BoundedNode": {
@@ -4088,6 +4089,10 @@
     "summary": "Antisserrilhado temporal: deslocamento subpixel acumulado entre imagens; ativado por padrão.",
     "description": "Escrito, tem efeito na imagem seguinte, histórico descartado, sem reabrir a sessão. Lido, é o que a imagem carrega: false no WebGL2, e enquanto o programa compila depois de ativado."
   },
+  "world.renderScale": {
+    "summary": "A fração do ecrã por eixo a que a imagem é desenhada (`WorldOptions.renderScale`), a partir da imagem seguinte.",
+    "description": "Lida, a escala da última imagem desenhada: 1 em WebGL2."
+  },
   "world.effects": {
     "summary": "A cadeia de efeitos: passes desenhados sobre a imagem (`effect`)."
   },
@@ -4323,8 +4328,13 @@
       "controls": "O controlador que move a câmera a partir do canvas; `world.controls.kind` o muda depois.",
       "signal": "Para os carregamentos do mundo quando o sinal é abortado.",
       "physics": "Liga a física (`world.physics`): `true`, ou gravidade e orçamentos. Só então o Jolt é carregado.",
-      "temporalAntialiasing": "Antisserrilhado temporal, só WebGPU: deslocamento subpixel acumulado entre imagens. `false` desenha cada pixel no seu centro, sem histórico, o que pede uma captura exata ao pixel; alterado depois por `world.temporalAntialiasing`."
+      "temporalAntialiasing": "Antisserrilhado temporal, só WebGPU: deslocamento subpixel acumulado entre imagens. `false` desenha cada pixel no seu centro, sem histórico, o que pede uma captura exata ao pixel; alterado depois por `world.temporalAntialiasing`.",
+      "renderScale": "A fração do ecrã por eixo a que a imagem é desenhada, só WebGPU, antes de o antialiasing temporal a reconstruir para o ecrã: `'auto'` deixa o orçamento de imagem escolhê-la entre `min` e `max` (`{ min, max }`, 0,5 e 1 por omissão), um número fixa-a; uma imagem parada é desenhada no máximo. Alterada depois por `world.renderScale`."
     }
+  },
+  "RenderScale": {
+    "summary": "A escala de renderização que uma página pede: a fração do ecrã, por eixo, a que a imagem é desenhada antes de o antialiasing temporal a reconstruir para o ecrã.",
+    "description": "`'auto'` deixa o orçamento de imagem escolhê-la entre 0,5 e 1, `{ min, max }` limita essa escolha, um número fixa-a; todo o valor é mantido entre 0,5 e 1."
   },
   "WorldPageSource": {
     "summary": "De onde as páginas são lidas, e o endereço contra o qual são lidas.",
@@ -4962,7 +4972,8 @@
       "options.controls": "O controlador que move a câmera a partir do canvas; `world.controls.kind` o muda depois.",
       "options.signal": "Para os carregamentos do mundo quando o sinal é abortado.",
       "options.physics": "Liga a física (`world.physics`): `true`, ou gravidade e orçamentos. Só então o Jolt é carregado.",
-      "options.temporalAntialiasing": "Antisserrilhado temporal, só WebGPU: deslocamento subpixel acumulado entre imagens. `false` desenha cada pixel no seu centro, sem histórico, o que pede uma captura exata ao pixel; alterado depois por `world.temporalAntialiasing`."
+      "options.temporalAntialiasing": "Antisserrilhado temporal, só WebGPU: deslocamento subpixel acumulado entre imagens. `false` desenha cada pixel no seu centro, sem histórico, o que pede uma captura exata ao pixel; alterado depois por `world.temporalAntialiasing`.",
+      "options.renderScale": "A fração do ecrã por eixo a que a imagem é desenhada, só WebGPU, antes de o antialiasing temporal a reconstruir para o ecrã: `'auto'` deixa o orçamento de imagem escolhê-la entre `min` e `max` (`{ min, max }`, 0,5 e 1 por omissão), um número fixa-a; uma imagem parada é desenhada no máximo. Alterada depois por `world.renderScale`."
     }
   },
   "crossVector3": {

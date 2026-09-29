@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path';
 import type { SideBase } from './dists.ts';
 import type { ScreenErrorVariant } from '../../packages/sdk-core/src/index.ts';
 import type { TextureCompression } from '../../packages/sdk-browser/src/texture/blockFormats.ts';
-import { MIN_RENDER_SCALE } from '../../packages/sdk-browser/src/webgpu/pages/state/renderScale.ts';
+import { MIN_RENDER_SCALE } from '../../packages/sdk-browser/src/frame/renderScaleOption.ts';
 
 // Benchmark Chromium flags: unbridled background rendering, enabled GPU benchmarking, WebGPU enabled.
 const BASE_FLAGS = [
