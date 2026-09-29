@@ -345,7 +345,6 @@
       "drag-a-crate": "Arrastrar una caja"
     },
     "missing": {
-      "inside-a-component": "retirada del lienzo creado por el motor al liberar el mundo",
       "floating-crates": "geometría reescrita en cada fotograma",
       "thick-lines": "líneas anchas",
       "a-line-that-draws-itself": "rango de dibujo de una geometría",
