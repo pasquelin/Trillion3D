@@ -13,7 +13,7 @@ export function sample(tr: Track, t: number, bound: TrackBinding) {
     stride = cubic ? size * 3 : size,
     at = cubic ? size : 0;
   let i = bound.key > 0 && times[bound.key] < t ? bound.key : 0;
-  while (i < times.length - 1 && times[i + 1] < t) i++;
+  while (i < times.length - 1 && times[i + 1] <= t) i++;
   bound.key = i;
   const j = Math.min(i + 1, times.length - 1);
   const span = times[j] - times[i],
