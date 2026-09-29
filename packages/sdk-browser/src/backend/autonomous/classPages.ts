@@ -107,8 +107,8 @@ export function createClassPages(env: ClassPagesEnvironment) {
     };
     const pages = primitive.pages,
       url = (k: number) => pages[k].geometry!.url;
-    // A mesh with no registered source reads its one-triangle stand-in: refused, never cut.
     const read = (k: number[]) => readPages(context, k.map(url));
+    // A mesh with no registered source reads its one-triangle stand-in: refused, never cut.
     const grown = await withPlaced(carried, { indices, ends }, pages, read);
     const recut = { ends, finestError: finestError(primitive), scale };
     const cut = await cutPagesOffThread(packDrawn(grown, blended, recut));
