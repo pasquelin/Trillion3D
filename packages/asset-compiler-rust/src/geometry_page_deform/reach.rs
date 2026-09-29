@@ -38,9 +38,9 @@ impl Deformation {
                     if balls.len() <= j {
                         balls.resize(j + 1, ([f64::INFINITY; 3], [f64::NEG_INFINITY; 3]));
                     }
-                    for c in 0..3 {
-                        balls[j].0[c] = balls[j].0[c].min(f64::from(point[c]));
-                        balls[j].1[c] = balls[j].1[c].max(f64::from(point[c]));
+                    for (c, &coordinate) in point.iter().enumerate() {
+                        balls[j].0[c] = balls[j].0[c].min(f64::from(coordinate));
+                        balls[j].1[c] = balls[j].1[c].max(f64::from(coordinate));
                     }
                 }
             }

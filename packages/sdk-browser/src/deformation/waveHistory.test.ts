@@ -7,6 +7,8 @@ import { DEFORM_WGSL } from './deformWgsl.ts';
 import { DEFORM_GLSL } from './deformGlsl.ts';
 import { shaderRun } from '../texture/shaderRun.fixture.ts';
 import { WaterSurface } from '../../../sdk-core/src/fluids/waterSurface.ts';
+import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
+import { Quaternion } from '../../../sdk-core/src/world/math/quaternion.ts';
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts';
 import { transformAffinePoint } from '../../../sdk-core/src/index.ts';
 import { createWebglDeformation } from './webglFrame.ts';
@@ -68,9 +70,9 @@ test('fixed-clock translation/rotation and moving-clock controls preserve comple
     },
     () => {
       world.compose(
-        { x: 1, y: 0, z: 0 },
-        { x: 0, y: Math.sin(0.4), z: 0, w: Math.cos(0.4) },
-        { x: 1, y: 1, z: 1 },
+        new Vector3(1, 0, 0),
+        new Quaternion(0, Math.sin(0.4), 0, Math.cos(0.4)),
+        new Vector3(1, 1, 1),
       );
     },
     () => {

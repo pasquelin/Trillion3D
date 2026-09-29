@@ -23,18 +23,7 @@ fn rotating_and_scaling_bones_retain_source_motion_at_unwritten_times() {
         }
         let scene = ufbx::load_memory(text.as_bytes(), Default::default()).unwrap();
         contract::validate(&scene).expect("ordinary rotating/scaling skeleton accepted");
-        let bone = scene
-            .nodes
-            .iter()
-            .find(|node| &*node.element.name == "stem")
-            .unwrap();
-        let written = [Written {
-            typed: bone.element.typed_id as usize,
-            node: 0,
-            geometry: false,
-            pose: true,
-            channels: vec![],
-        }];
+        let written = moving_bone(&scene);
         let stack = &scene.anim_stacks[0];
         let output = sample(&scene, stack, &written, || Ok(())).unwrap();
         assert_eq!(output.first().unwrap().time, 0.0);
@@ -67,18 +56,7 @@ fn cubic_rotation_is_refined_instead_of_refused() {
         .replace("24836", "24840");
     let scene = ufbx::load_memory(text.as_bytes(), Default::default()).unwrap();
     contract::validate(&scene).unwrap();
-    let bone = scene
-        .nodes
-        .iter()
-        .find(|node| &*node.element.name == "stem")
-        .unwrap();
-    let written = [Written {
-        typed: bone.element.typed_id as usize,
-        node: 0,
-        geometry: false,
-        pose: true,
-        channels: vec![],
-    }];
+    let written = moving_bone(&scene);
     let stack = &scene.anim_stacks[0];
     let output = sample(&scene, stack, &written, || Ok(())).unwrap();
     for step in 1..300 {
@@ -90,4 +68,19 @@ fn cubic_rotation_is_refined_instead_of_refused() {
         let actual = evaluate(&scene, stack, &written, time).unwrap();
         assert!(error(&pair[0], &pair[1], &actual) <= ERROR);
     }
+}
+
+fn moving_bone(scene: &ufbx::Scene) -> [Written<'_>; 1] {
+    let bone = scene
+        .nodes
+        .iter()
+        .find(|node| &*node.element.name == "stem")
+        .unwrap();
+    [Written {
+        typed: bone.element.typed_id as usize,
+        node: 0,
+        geometry: false,
+        pose: true,
+        channels: vec![],
+    }]
 }
