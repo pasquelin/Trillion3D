@@ -1,4 +1,8 @@
-import { SHADOW_FACE_READ_BYTES as FACE_BYTES } from './recordPack.ts';
+import { SHADOW_FACE_READ_BYTES } from './recordPack.ts';
+
+/** Bytes of a face entry the draws read: what the depth pass reads, then the page's clip square in
+ *  the layer's, which a GPU-placed draw lands its casters by (`shader.ts`, `freshPlace`). */
+const FACE_BYTES = SHADOW_FACE_READ_BYTES + 16;
 
 /** Bytes of the cutout request word: the feedback word, then whether the pass asks at all. */
 const REQUEST_BYTES = 16;

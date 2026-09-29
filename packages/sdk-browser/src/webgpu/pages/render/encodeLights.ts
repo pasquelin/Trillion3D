@@ -7,6 +7,7 @@ import { uploadSceneLights } from '../state/lightBuffer.ts';
 import { planImageShadows } from './encodeShadows.ts';
 import { encodeShadowDemand } from '../../shadow/demandPass.ts';
 import { encodeShadowAllocation, flushShadowTable } from '../../shadow/allocPass.ts';
+import { encodeFreshPages } from '../../shadow/freshPass.ts';
 import { lightCutMetrics } from '../../shadow/casters.ts';
 import { encodeShadowBatches, noteShadowFrame } from './encodeShadowBatches.ts';
 import { syncPageProxy, syncLightingProxies } from '../prepare/proxyMotion.ts';
@@ -79,8 +80,10 @@ export function encodeDirectLights(
   // (reject or missing selection): its pages then stay stale, and their table words say what they
   // said — a page is readable only once its draw has landed.
   if (pages) encodeShadowBatches(rt, device, encoder, cam.eye);
-  // Records and table words go out after the draws are encoded, before the resolve reads them.
+  // Records and table words go out after the draws are encoded, before the resolve reads them;
+  // then the GPU draws what it mapped and no draw filled yet, readable in this frame.
   flushShadowTable(rt, encoder);
+  encodeFreshPages(rt, device, encoder);
   noteShadowFrame(lights);
   if (!listed || !tiles) return directParams;
   directParams[0] = active;

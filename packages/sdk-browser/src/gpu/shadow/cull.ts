@@ -1,7 +1,7 @@
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { DRAW_INDIRECT_STRIDE, PAGE_BIND_ALIGN } from '../draw/draw.ts';
 import { MAX_SHADOW_REGIONS } from './atlas.ts';
-import { SHADOW_CULL_SHADER } from './cullShader.ts';
+import { SHADOW_CULL_GROUP, SHADOW_CULL_SHADER } from './cullShader.ts';
 import { createGpuShadowCullCounts } from './cullCounts.ts';
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
 import { createShadowLightCull } from './lightCull.ts';
@@ -14,10 +14,8 @@ const DRAW_UNIFORM_WORDS = PAGE_BIND_ALIGN / 4;
 const WORD_DRAW_SLOT = 20,
   WORD_INDIRECT = 21;
 
-/**
- * The cull's single bind table: its order names both the layout and the group — spheres, source
- * list, source indirect, kept, produced indirect, per-face uniform, volumes, row mobility.
- */
+/** The cull's single bind table: its order names both the layout and the group — spheres, source
+ *  list, source indirect, kept, produced indirect, per-face uniform, volumes, row mobility. */
 const BINDING_TYPES: readonly GPUBufferBindingType[] = [
   'read-only-storage',
   'read-only-storage',
@@ -34,8 +32,8 @@ export interface ShadowCullSource {
   spheres: GPUBuffer;
   /** One word per row: its `MOBILITY_*` bits (`cullShader.ts`). */
   mobility: GPUBuffer;
-  /** Instance list, page-table rows, from word `base`. */
-  source: GPUBuffer;
+  /** Instance list, page-table rows, from word `base`; or none, every row below `base`. */
+  source: GPUBuffer | undefined;
   base: number;
   /** Its length, as `commands` indirect commands from word `indirectBase` of `indirect`. */
   indirect: GPUBuffer;
@@ -103,9 +101,8 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
         buffer: { type, hasDynamicOffset: type === 'uniform' },
       })),
     });
-    const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
     const scatter = device.createComputePipeline({
-      layout: pipelineLayout,
+      layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
       compute: { module, entryPoint: 'shadowCullScatter' },
     });
     const volumes = new Float32Array(MAX_SHADOW_REGIONS * SHADOW_CULL_FLOATS),
@@ -126,6 +123,7 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
       indirect,
       offsets,
       drawUniform,
+      faceVolumes,
       volumes,
       /** The same volumes as words: which casters each region keeps (`CASTERS_*`). */
       volumeWords,
@@ -140,9 +138,10 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
       },
       /**
        * Encodes the cull of regions `[first, first + faces)` against the list the CPU cut wrote for
-       * one face. `run` is the face's rank in the frame, its uniform slot; `rows` bounds the
-       * list, whose true length the GPU reads in its commands. An empty list encodes no pass: its
-       * regions keep the zero instances `begin` wrote.
+       * one face, or every row (`source` none). `run` is the face's rank in the frame, its uniform
+       * slot; `rows` bounds the list, whose true length the GPU reads in its commands. An empty
+       * list encodes no pass: its regions keep the zero instances `begin` wrote. With `dispatch`,
+       * the GPU says how many of the regions run: its words at that byte (`freshWgsl.ts`).
        */
       encode(
         encoder: GPUCommandEncoder,
@@ -151,18 +150,19 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
         first: number,
         faces: number,
         rows: number,
+        dispatch?: readonly [GPUBuffer, number],
       ) {
         if (!faces || !rows) return;
-        // Group buffers, in bind order. The group is rebuilt only if one of them has changed
-        // identity: the GPU cut and the CPU cut each hand the same two every frame.
+        // Group buffers, in bind order, rebuilt only when one changed identity.
+        const source = from.source ?? from.spheres;
         if (
           !group ||
           bound[0] !== from.spheres ||
-          bound[1] !== from.source ||
+          bound[1] !== source ||
           bound[2] !== from.indirect ||
           bound[7] !== from.mobility
         ) {
-          const buffers = [from.spheres, from.source, from.indirect];
+          const buffers = [from.spheres, source, from.indirect];
           buffers.push(targets.kept, indirect, uniforms, faceVolumes, from.mobility);
           bound = buffers;
           group = device.createBindGroup({
@@ -179,12 +179,14 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
         uniData[3] = from.indirectBase;
         uniData[4] = from.commands;
         uniData[5] = targets.capacity;
+        uniData[6] = from.source ? 0 : 1;
         shadowBatchWrites(device).write(uniforms, run * PAGE_BIND_ALIGN, uniData);
         const pass = encoder.beginComputePass({ label: 'Trillion3D shadow cull' });
         pass.setBindGroup(0, group, [run * PAGE_BIND_ALIGN]);
         pass.setPipeline(scatter);
-        const groups = Math.ceil(Math.min(rows, targets.capacity) / 64);
-        pass.dispatchWorkgroups(Math.max(1, groups), faces);
+        const groups = Math.ceil(Math.min(rows, targets.capacity) / SHADOW_CULL_GROUP);
+        if (dispatch) pass.dispatchWorkgroupsIndirect(...dispatch);
+        else pass.dispatchWorkgroups(Math.max(1, groups), faces);
         pass.end();
       },
       /** The GPU light cut's cull: every region of the frame in one pass (`lightCull.ts`). */
