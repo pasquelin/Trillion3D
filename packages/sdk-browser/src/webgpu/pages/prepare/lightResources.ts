@@ -186,9 +186,8 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
   contractResources.bounceGrid = bounce?.uniform;
   contractResources.probes = bounce?.probes;
   contractResources.surfaceCache = bounce?.surface.buffer;
-  // Far-shadow proxy: bound only if it exists, otherwise the zero replacements leave the far surface
-  // lit with no cast shadow. Both lighting passes read this same resolve, so they bind the same
-  // buffer and trace the same ray.
+  // Far-shadow proxy: bound only if it exists, else the far surface is lit unshadowed. Both
+  // lighting passes read this resolve, so they bind the same buffer and trace the same ray.
   contractResources.proxy = active ? rt.sunFar.gpu?.buffer() : undefined;
   return contractResources;
 }
