@@ -5,35 +5,11 @@ import { test } from 'node:test';
 import { object } from '../../../../sdk-core/src/world/object/index.ts';
 import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts';
 import { material } from '../../../../sdk-core/src/world/material/index.ts';
-import type { VertexRange } from '../../placement/backendSceneUpdates.ts';
-import type { ExplorerSource } from '../session/prepare.ts';
 import { listenWorldNotices } from '../diagnostic/worldNotices.ts';
-import { Scene } from './scene.ts';
 import { createWorldDynamic } from './worldDynamic.ts';
 import type { Cut } from './worldCuts.ts';
-import { runtimeOf, sessionStandIn, takeContentReopens, type Open } from './worldRuntime.fixture.ts';
-
-/** A world on a session stand-in that takes every rewrite in place, and the page addresses the
- *  world serves while `counting`: one per page it cuts. */
-export function dynamicWorld() {
-  const { session } = sessionStandIn();
-  const rewrites: VertexRange[][] = [],
-    sources: ExplorerSource[] = [];
-  Object.assign(session, {
-    updateVertices: (_: unknown, ranges: VertexRange[]) => rewrites.push(ranges) > 0,
-  });
-  const open = (async (_canvas: unknown, _options: unknown, source: ExplorerSource) => (
-    sources.push(source), session
-  )) as unknown as Open;
-  const scene = new Scene(() => Promise.reject(new Error('no loader')));
-  const runtime = runtimeOf(scene, Promise.resolve(), (error) => assert.fail(String(error)), open);
-  const serve = URL.createObjectURL.bind(URL);
-  const served = { count: 0 };
-  URL.createObjectURL = (blob: Blob) => (served.count++, serve(blob));
-  const frame = async () => (await runtime.settled(), runtime.render());
-  const end = () => ((URL.createObjectURL = serve), runtime.dispose());
-  return { scene, runtime, rewrites, sources, served, frame, end };
-}
+import { takeContentReopens } from './worldRuntime.fixture.ts';
+import { dynamicWorld } from './worldDynamic.fixture.ts';
 
 test('a geometry rewritten 300 frames is never cut again nor reopened, and uploads its changed bytes alone', async () => {
   const world = dynamicWorld();
