@@ -8,6 +8,7 @@ import { createExplorerSession, type ExplorerSession } from './session.ts';
 import { prepareExplorer, type ExplorerResources, type ExplorerSource } from './prepare.ts';
 import { createExplorerHostRuntime } from '../render/hostRuntime.ts';
 import { createExplorerApi } from '../api/api.ts';
+import { referenceCapture, referenceOptions } from '../../frame/referenceMode.ts';
 
 /** Opens a session on `target`. `source` hands in a scene the caller already holds — manifest and
  *  graph — in place of the one `manifestUrl` names: what a world built in code is drawn from. */
@@ -17,7 +18,7 @@ export async function openMeasuredWorld(
   source?: ExplorerSource,
 ) {
   const canvas = resolveExplorerTarget(target);
-  const options = interactiveOptions(canvas, original);
+  const { options, reference } = referenceOptions(interactiveOptions(canvas, original));
   options.signal?.throwIfAborted();
   const lifetime = options.interactive ? new AbortController() : undefined;
   if (lifetime)
@@ -91,7 +92,14 @@ export async function openMeasuredWorld(
       : () => {
           explorer.render();
         };
-    return Object.assign(explorer, { invalidate });
+    // Reference mode reads the resolved image; `renderViews` keeps the drawn one, at canvas size.
+    const capture = referenceCapture(
+      explorer.capture,
+      canvas,
+      reference,
+      () => runtime.state.active.metrics().shadowResolutionBias,
+    );
+    return Object.assign(explorer, { invalidate, capture, reference });
   } catch (error) {
     diagnose('error', 'MeasuredWorld preparation failed', {
       kind: 'error',
