@@ -1640,7 +1640,9 @@
       "PHYSICS_FORMAT": "Die vorbereitete Physik eines kompilierten Modells (`physics.json`) hat ein anderes Format oder wurde mit einem anderen Jolt als dem der Engine vorbereitet (`PHYSICS_FORMAT`): neu kompilieren. Ein exakter Raycast wurde bei ausgeschalteter Physik verlangt (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "Die vorbereitete Physik eines kompilierten Modells (`physics.json`) hat ein anderes Format oder wurde mit einem anderen Jolt als dem der Engine vorbereitet (`PHYSICS_FORMAT`): neu kompilieren. Ein exakter Raycast wurde bei ausgeschalteter Physik verlangt (`PHYSICS_OFF`).",
       "NO_VEHICLE": "`world.controls.kind` wurde auf `'vehicle'` gesetzt, während `world.controls.vehicle` `null` ist: Es gibt nichts zu fahren.",
-      "GUIDE_CEILING": "Ein Aufruf von `world.guides` würde mehr Eckpunkte halten als `GUIDE_VERTEX_CEILING`; nichts davon wurde hinzugefügt."
+      "GUIDE_CEILING": "Ein Aufruf von `world.guides` würde mehr Eckpunkte halten als `GUIDE_VERTEX_CEILING`; nichts davon wurde hinzugefügt.",
+      "REFERENCE_SHADOWS_REDUCED": "Das Referenzbild wurde abgelehnt: Der Schattenpool läuft unter seiner vollen Größe (`REFERENCE_SHADOWS_REDUCED`). Der Referenzmodus wurde für eine interaktive Sitzung angefordert, deren Größenänderung das Supersampling verwerfen würde (`REFERENCE_INTERACTIVE`).",
+      "REFERENCE_INTERACTIVE": "Das Referenzbild wurde abgelehnt: Der Schattenpool läuft unter seiner vollen Größe (`REFERENCE_SHADOWS_REDUCED`). Der Referenzmodus wurde für eine interaktive Sitzung angefordert, deren Größenänderung das Supersampling verwerfen würde (`REFERENCE_INTERACTIVE`)."
     }
   },
   "enginePose": {

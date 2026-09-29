@@ -84,8 +84,11 @@ export function unsettledMask(rt: WebgpuPagesRuntime) {
   // never reread on the list.
   if (services.cutPending.count) mask |= BIT.cutPending;
   // Bounce-light probes converge from frame to frame: their state is written by no revision, and
-  // a held frame would freeze it before convergence.
-  if (bounce.probes) mask |= BIT.bounceProbes;
+  // a held frame would freeze it before convergence. A closed series encodes nothing more
+  // (`working`): its frame depends on no probe still to come, and holds (#1281). Probes still being
+  // built (`pending`, no `reason`) will light the frame once they exist: it does not hold before.
+  if (bounce.probes ? bounce.probes.working : bounce.pending && !bounce.reason)
+    mask |= BIT.bounceProbes;
   return mask;
 }
 
