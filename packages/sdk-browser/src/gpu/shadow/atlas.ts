@@ -5,11 +5,8 @@ import {
   SHADOW_TABLE_ENTRIES,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SHADOW_DEPTH_SHADER } from './shader.ts';
-import {
-  MAX_SHADOW_REGIONS,
-  SHADOW_FACE_READ_BYTES as FACE_BYTES,
-  createShadowRecordPack,
-} from './recordPack.ts';
+import { MAX_SHADOW_REGIONS, createShadowRecordPack } from './recordPack.ts';
+import { createShadowFaceBindings } from './faceBindings.ts';
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
 import { arrayView, layerPasses, layerViews } from './layers.ts';
 import { createShadowTransmittance, type ShadowTransmittance } from './transmittance.ts';
@@ -63,31 +60,19 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
   });
   const pack = createShadowRecordPack(FACE_STRIDE, 1),
     { records, facePacked } = pack;
+  const faces = createShadowFaceBindings(device, faceUniform);
   const release = () => {
     texture?.destroy();
     transmittance?.destroy();
     faceUniform.destroy();
+    faces.destroy();
     dataBuffer.destroy();
   };
   try {
     const module = await createCheckedShaderModule(device, SHADOW_DEPTH_SHADER, 'SHADOW_DEPTH');
-    const faceLayout = device.createBindGroupLayout({
-      entries: [
-        {
-          binding: 0,
-          // Also read at the fragment: it is what discards the emitter envelope.
-          visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
-          buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: FACE_BYTES },
-        },
-      ],
-    });
-    const layout = device.createPipelineLayout({ bindGroupLayouts: [pageLayout, faceLayout] });
+    const layout = device.createPipelineLayout({ bindGroupLayouts: [pageLayout, faces.layout] });
     const depthDraws = shadowDepthDraws(device, module, layout);
-    const transmittanceDraws = shadowTransmittanceDraws(device, module, [pageLayout, faceLayout]);
-    const faceGroup = device.createBindGroup({
-      layout: faceLayout,
-      entries: [{ binding: 0, resource: { buffer: faceUniform, size: FACE_BYTES } }],
-    });
+    const transmittanceDraws = shadowTransmittanceDraws(device, module, [pageLayout, faces.layout]);
     /**
      * The pool's texture, `layers × poolSide²` pages, made not taken: what the grant allots under
      * its out-of-memory check (`poolGrants.ts`). `COPY_SRC` is there only for the proof: the host
@@ -130,7 +115,12 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       /** True when region `index`'s face carries an emitter envelope, which only a fragment
        *  discards. */
       hasEnvelope: pack.hasEnvelope,
-      faceGroup,
+      /** Group 1 of a region's draws: its face, and what the cutouts ask (`faceBindings.ts`). */
+      get faceGroup() {
+        return faces.group;
+      },
+      /** What this image's cutouts ask of the colour tiles (`faceBindings.ts`). */
+      cutoutRequests: faces.requests,
       faceUniform,
       faceStride: FACE_STRIDE,
       allocationBytes: SHADOW_BUFFER_BYTES,
