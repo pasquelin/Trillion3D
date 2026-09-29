@@ -23,12 +23,36 @@ export function refuseBlackCaptures(
   errors.unshift(...refused);
 }
 
-/** Delta between two RGBA captures: different pixels and maximum error on a channel. */
+/** The mean and the 99.9th percentile of the colour channels' errors, in 1/255 steps: what a
+ *  resampled image is held to against the native one (#816), where a pixel count says nothing. */
+function channelErrors(a: Uint8Array, b: Uint8Array) {
+  const counts = new Uint32Array(256);
+  let sum = 0;
+  for (let i = 0; i < a.length; i++) {
+    if ((i & 3) === 3) continue;
+    const error = Math.abs(a[i] - b[i]);
+    counts[error]++;
+    sum += error;
+  }
+  const channels = (a.length / 4) * 3;
+  let p999 = 0,
+    seen = counts[0];
+  while (seen < channels * 0.999) seen += counts[++p999];
+  return { meanChannel: sum / channels, p999Channel: p999 };
+}
+
+/** Delta between two RGBA captures: different pixels, maximum, mean and 99.9th-percentile error
+ *  on a channel. */
 export function imageDiff(a: Capture | undefined, b: Capture | undefined): ImageDiff {
   if (!a || !b) return null;
   if (a.w !== b.w || a.h !== b.h)
     return { erreur: `different sizes ${a.w}×${a.h} / ${b.w}×${b.h}` };
   if (black(a) || black(b)) return { erreur: 'black capture, RGB 0 everywhere' };
   const diff = compareImages(a.body, b.body);
-  return { pixels: diff.differentPixels, maxCanal: diff.maxChannelError, total: a.w * a.h };
+  return {
+    pixels: diff.differentPixels,
+    maxCanal: diff.maxChannelError,
+    ...channelErrors(a.body, b.body),
+    total: a.w * a.h,
+  };
 }

@@ -55,8 +55,12 @@ fn updateSurface(@builtin(global_invocation_id) id:vec3u){
  let triangle=texel>>1u;
  // Face zero: the geometric-normal side. Face one: the other. The source winding
  // order never comes into play — it is reliable on no imported scene.
- let normal=select(proxyNormal(triangle),-proxyNormal(triangle),(texel&1u)==1u);
- let point=proxyCentre(triangle);
+ // An owned triangle stands at its first owner's pose: the pose a settle writes, so a settle
+ // finds its cell current and restarts nothing.
+ let owner=proxyFirstOwner(triangle);
+ let geometric=proxyOwnerNormal(triangle,owner);
+ let normal=select(geometric,-geometric,(texel&1u)==1u);
+ let point=proxyOwnerCentre(triangle,owner);
  let reach=bounce.reach.x;
  // Exact direct of the frame, plus the indirect the grid has already converged: that is
  // the term that closes the bounce series, one more order on every sweep.

@@ -126,6 +126,7 @@ export type { PhysicsStats } from '../../sdk-browser/src/physics/protocol.ts';
 export type { PlacementGrowth } from '../../sdk-browser/src/placement/backendSceneUpdates.ts';
 export type { PlacementRows } from '../../sdk-browser/src/placement/rows.ts';
 export { presentationColorDiagnostic } from '../../sdk-browser/src/diagnostic/presentationDiagnostic.ts';
+export type { RenderScale } from '../../sdk-browser/src/frame/renderScaleOption.ts';
 export type { ResidentPage } from '../../sdk-browser/src/gpu/page/types.ts';
 export type { ShadowAtlasDigest } from '../../sdk-browser/src/gpu/shadow/digest.ts';
 export {

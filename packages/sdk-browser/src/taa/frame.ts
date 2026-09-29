@@ -1,10 +1,4 @@
-import {
-  TAA_SAMPLES,
-  jitterViewProjection,
-  taaJitter,
-  taaStillFrames,
-  upscalePhases,
-} from './jitter.ts';
+import { jitterViewProjection, taaJitter, taaStillFrames, upscalePhases } from './jitter.ts';
 import { writeTaaView } from './view.ts';
 import { SAMPLED_RANKS } from '../lighting/direct/lightSamplingWgsl.ts';
 import type { EngineCamera } from '../camera/world.ts';
@@ -12,60 +6,7 @@ import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import type { AccumulatedImage } from '../lighting/deferred/program.ts';
 import type { TemporalAntialiasing } from './temporalAntialiasing.ts';
 import { writtenFilter } from '../webgpu/blend/displayFilter.ts';
-
-/** What the temporal pass keeps from one image to the next on the CPU side. */
-export interface TaaFrameState {
-  /** Jitter rank of the next accumulated image; only advances on those, over `phases`. */
-  sample: number;
-  /** Jitter phases of the frame's render-to-display ratio (`upscalePhases`): eight at native size. */
-  phases: number;
-  /** This image's jitter, in the pixels it is drawn in. */
-  jitter: Float64Array;
-  /** Render view-projection of this image, jitter included: what the raster, shading, blend and
-   *  the partition read, decided once at image entry. */
-  viewProjection: Float64Array;
-  /** View-projection WITHOUT jitter of the last accumulated image: what the history describes. */
-  previousViewProjection: Float64Array;
-  hasHistory: boolean;
-  /** Quiet images accumulated in a row; see `taaStillFrames`. Zero as soon as something moves. */
-  stillFrames: number;
-  /** Scene revision of the last accumulated image: another one causes poses to be compared. */
-  sceneSeen: number;
-  /** True when the current image accumulates: rendered with jitter, resolved by the pass. */
-  active: boolean;
-  /** Rank of a MOVING image, whose lighting is drawn per pixel (`../lighting/direct/lightSamplingWgsl.ts`):
-   *  bounded, different from one to the next, replayed with the image. Zero when still. */
-  sampledRank: number;
-}
-
-/** What a convergence image replays of the last ordinary image: see `checkpoint`. */
-export function createTaaCheckpoint() {
-  return {
-    read: 0,
-    sample: 0,
-    stillFrames: 0,
-    hasHistory: false,
-    sceneSeen: -1,
-    quiet: false,
-    sampledRank: 0,
-    previousViewProjection: new Float64Array(16),
-  };
-}
-
-export function createTaaFrameState(): TaaFrameState {
-  return {
-    sample: 0,
-    phases: TAA_SAMPLES,
-    jitter: new Float64Array(2),
-    viewProjection: new Float64Array(16),
-    previousViewProjection: new Float64Array(16),
-    hasHistory: false,
-    stillFrames: 0,
-    sceneSeen: -1,
-    active: false,
-    sampledRank: 0,
-  };
-}
+import { drawFrameAt, imageScale } from '../webgpu/pages/state/renderScale.ts';
 
 /**
  * Image entry of the pass, called once per image, where the quiet of the image is known. A
@@ -76,19 +17,21 @@ export function createTaaFrameState(): TaaFrameState {
  */
 export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera, quiet: boolean) {
   const temporal = rt.gpu.temporal;
-  if (!temporal) return;
-  const state = temporal.frame;
   // Switched off, the pass is kept but nothing accumulates (`setWebgpuTemporalAntialiasing`).
-  state.active = rt.gpu.temporalWanted && !rt.capture.capturing && rt.run.diagnostic === 'beauty';
-  if (!state.active) return;
-  // A convergence image remakes the last ordinary image, it does not accumulate it further.
+  const active = rt.gpu.temporalWanted && !rt.capture.capturing && rt.run.diagnostic === 'beauty';
+  if (temporal) temporal.frame.active = active;
+  if (!temporal || !active) return drawFrameAt(rt, 1);
+  const state = temporal.frame;
+  // A convergence image remakes the last ordinary image, at its scale; it does not accumulate.
   if (rt.run.textureConverging || rt.feedbackAB?.force) quiet = temporal.replay();
   else {
     // A moving image draws its lights from a rank of its own; a still one shades them all, and
     // so does a moving one with no history yet — nothing would average its draws.
     state.sampledRank = quiet || !state.hasHistory ? 0 : (rt.run.frame % SAMPLED_RANKS) + 1;
+    state.scale = imageScale(rt, quiet);
     temporal.checkpoint(quiet);
   }
+  drawFrameAt(rt, state.scale, !quiet);
   if (!quiet) state.stillFrames = 0;
   else if (state.stillFrames++ === 0) {
     state.hasHistory = false;

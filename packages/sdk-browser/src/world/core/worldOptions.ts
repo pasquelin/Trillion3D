@@ -2,6 +2,7 @@ import type { MeasuredWorldOptions } from '../session/options.ts';
 import type { WorldRenderer } from '../capability/worldReady.ts';
 import type { WorldControls } from './worldCamera.ts';
 import type { WorldPhysicsOptions } from '../../physics/worldPhysicsOptions.ts';
+import type { RenderScale } from '../../frame/renderScaleOption.ts';
 
 /** What a page may set when it creates a world; saying nothing is the normal case. */
 export interface WorldOptions {
@@ -32,6 +33,11 @@ export interface WorldOptions {
    *  each pixel at its centre, with no history, what a pixel-exact capture asks; switched later
    *  by `world.temporalAntialiasing`. @defaultValue true */
   temporalAntialiasing?: boolean;
+  /** The fraction of the display per axis the image is drawn at, WebGPU only, before temporal
+   *  antialiasing rebuilds it to the display: `'auto'` lets the frame budget choose it between
+   *  `min` and `max` (`{ min, max }`, 0.5 and 1 by default), a number fixes it; a still image is
+   *  drawn at the maximum. Changed later by `world.renderScale`. @defaultValue 'auto' */
+  renderScale?: RenderScale;
 }
 
 /**

@@ -44,6 +44,7 @@ export function encodeWebgpuGuides(
     displaySize,
     rt.setup.pixelRatio(),
     jitter,
+    gpu.targetSize,
   );
   if (drawn) rt.run.gpuDrawCalls++;
 }
