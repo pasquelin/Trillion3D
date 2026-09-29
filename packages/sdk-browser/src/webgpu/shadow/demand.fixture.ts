@@ -5,7 +5,7 @@
 import { LIGHT_KIND, type ShadowViewpoint } from '../../../../sdk-core/src/index.ts';
 import { transformHomogeneousPoint } from '../../../../sdk-core/src/math/primitives/vector.ts';
 import type { SceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts';
-import { RECEIVER_FLOATS } from '../../../../sdk-core/src/scene/light-shadow/demand.ts';
+import { RECEIVER_FLOATS } from '../../../../sdk-core/src/scene/light-shadow/receiverCells.ts';
 import { writeFace } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
 import type { ShadowPlan } from '../../../../sdk-core/src/scene/light-shadow/plan.ts';
 import {
