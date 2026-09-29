@@ -1057,8 +1057,9 @@ a 16×16 screen tile lists up to 64 lights reaching it, and past that takes exac
 reaching it from a pool sized from the view (#849) —; 64 shadow slices,
 past which a caster lights without a shadow (`shadowCastersUnsliced`), and at most 24 shadow
 regions redrawn per frame. WebGL2 draws every light, each fragment only those whose range reaches its cell of a light grid (#835). The shadow pool is sized
-once, at the first frame that casts a shadow, from its screen and its shadowed lights: layers of
-128² pages as wide as the device draws, within the budget's shadow share; `metric.frame(world)`
+at the first frame that casts a shadow, from its screen and its shadowed lights: layers of
+128² pages as wide as the device draws, within the budget's shadow share; a canvas resized later
+resizes it by the same rule, every page it still holds kept as drawn (#1208); `metric.frame(world)`
 publishes its `shadowPoolBytes` and `shadowPoolLayers`, and its memory pressure by name
 (`shadowPeakBytes`, `shadowResolutionBias`, `shadowMemoryEvents`).
 
@@ -1253,11 +1254,12 @@ allocated under an out-of-memory check at prepare, and probed before every rebal
 device refuses it, the pool
 is drawn again at half its bytes, down to its floor (the root cover, the texture pool's `minimum`, the
 smallest screen's shadow pool). The shadow pool is granted the same way at the first frame that
-casts a shadow, and that frame is held until the device answers: the previous image stays, or
+casts a shadow, and at each canvas resize, and that frame is held until the device answers: the previous image stays, or
 nothing yet, never an image without its shadows; a capture waits for the answer too. Its static layer is refused whole: shadow pages
 are then drawn with every caster. The pool in place is only ever replaced by one the device grants. The frame goes on,
-coarser where the smaller pool no longer holds the view, and no exception reaches the page. When
-the device refuses even the smallest shadow pool, the shadowed mode cannot be drawn: it is refused
+coarser where the smaller pool no longer holds the view, and no exception reaches the page. A resize the
+device refuses keeps the shadow pool in place, with every page it holds. When
+the device refuses even the smallest shadow pool at the first frame, the shadowed mode cannot be drawn: it is refused
 by a `shadows-off` error (`kind: 'error'`, `reason: 'gpu-out-of-memory'`), and the session goes on
 without shadows. Shadows are never lost silently.
 The `gpu-out-of-memory` diagnostic names the pool, the bytes asked (`requestedBytes`) and the bytes
