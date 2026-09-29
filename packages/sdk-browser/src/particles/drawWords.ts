@@ -4,8 +4,8 @@ import { usedSlots } from './poolStates.ts';
 
 /** The words the particle draw (#755) gives a pool: clip matrix from its origin and inverse, made
  *  in double precision, eye from the origin, radius, colour at birth, softness; words 41–43 the
- *  image's exposure, display curve and unlit flag, written by the draw. */
-export const DRAW_FLOATS = 44;
+ *  image's exposure, display curve and unlit flag, 44–45 the size it draws, written by the draw. */
+export const DRAW_FLOATS = 48;
 
 /** A disc's two triangles, corner by corner, in both shading languages (`vec2` infers in WGSL). */
 export const DISC_CORNERS =

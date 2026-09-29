@@ -341,7 +341,7 @@
       "proxyTriangleBudget": "Budget totale di triangoli del proxy per un'intera scena, tutte le istanze incluse: l'impronta residente.",
       "proxyCellMetres": "Risoluzione minima della mesh proxy in metri: dimensione dei triangoli semplificati e delle celle della cache di superficie. Raddoppiata dal compilatore se il budget viene superato.",
       "proxyLeafTriangles": "Triangoli per foglia del BVH: i cicli sulle foglie sono limitati da questa costante.",
-      "traversalSteps": "Nodi del BVH visitati per raggio: limitati prima di eseguire il fotogramma, mai dinamici. Un nodo con 4 figli copre 4× più albero per passo rispetto a un BVH binario.",
+      "traversalSteps": "Nodi del BVH visitati per raggio sull’albero così come costruito, limitati prima di eseguire il fotogramma. Un riadattamento aggiunge i nodi che ha fatto entrare in un raggio, mai il numero di nodi (`bounce/proxy.ts`). Un nodo con 4 figli copre 4× più albero per passo rispetto a un BVH binario.",
       "traversalStack": "Profondità dello stack di attraversamento. Un nodo con 4 figli ne impila fino a 3; 32 copre milioni di triangoli.",
       "cascadeLevels": "Livelli delle cascate di sonde. I primi `cascadeLevels - 1` seguono la posizione della camera; l'ultimo è fisso nel mondo e copre l'intera scena.",
       "cascadeSize": "Sonde per asse e per livello: un livello è un cubo di `cascadeSize³` sonde.",
@@ -406,13 +406,14 @@
   },
   "BounceOccupancy": {
     "summary": "Dove mantenere una sonda vale la pena: la mappa di occupazione delle cascate.",
-    "description": "Una cascata sopra una città spende la maggior parte delle sue celle nel cielo vuoto e nel nucleo pieno degli edifici, dove l'irradianza non viene mai richiesta. Il pianificatore deve sapere, prima di spendere un raggio, se una cella tocca della geometria. È una proprietà del mondo, non della camera: calcolata una volta alla costruzione, valida per tutte le posizioni che i livelli mobili assumono in seguito. La mappa del livello più fine viene marcata dai riquadri di delimitazione dei triangoli del proxy più un bordo di una cella: i otto angoli di una cella occupata sono sempre mantenuti, quindi nulla di utile va perso. I livelli successivi sono riduzioni esatte — due celle per una su ciascun asse, poiché le distanze sono multipli in potenze di due della più fine — poi dilatate di una cella per lo stesso motivo. Nulla qui nomina una scena né esamina la camera: un'estensione, triangoli, celle.",
+    "description": "Una cascata sopra una città spende la maggior parte delle sue celle nel cielo vuoto e nel nucleo pieno degli edifici, dove l'irradianza non viene mai richiesta. Il pianificatore deve sapere, prima di spendere un raggio, se una cella tocca della geometria. È una proprietà del mondo, non della camera: calcolata alla costruzione e di nuovo quando la geometria spostata si ferma, valida per tutte le posizioni che i livelli mobili assumono in seguito. La mappa del livello più fine viene marcata dai riquadri di delimitazione dei triangoli del proxy più un bordo di una cella: i otto angoli di una cella occupata sono sempre mantenuti, quindi nulla di utile va perso. I livelli successivi sono riduzioni esatte — due celle per una su ciascun asse, poiché le distanze sono multipli in potenze di due della più fine — poi dilatate di una cella per lo stesso motivo. Nulla qui nomina una scena né esamina la camera: un'estensione, triangoli, celle.",
     "members": {
+      "moved": "Dei proprietari si sono mossi: `boxes` contiene sei limiti nel mondo per triangolo del proxy, `changed` segna quelli mossi.",
+      "settle": "Una volta per fotogramma: il primo fotogramma dopo la fine del movimento ricostruisce la mappa esatta su `extent`.",
       "occupied": "Vero quando una cella di un livello nella sua griglia merita una sonda.",
       "marked": "Celle marcate e celle totali del livello più fine: il guadagno pubblicato.",
       "cells": "Celle del livello più fine.",
-      "bytes": "Byte che occupa.",
-      "allEligible": "La geometria si è mossa: pianifica in modo conservativo tutte le celle delle cascate, il cui numero è limitato."
+      "bytes": "Byte che occupa."
     }
   },
   "BoundedNode": {
@@ -1250,7 +1251,8 @@
       "options.controls": "Il controller che sposta la camera dal canvas; `world.controls.kind` lo cambia in seguito.",
       "options.signal": "Ferma i caricamenti del mondo quando il segnale viene annullato.",
       "options.physics": "Accende la fisica (`world.physics`): `true`, oppure gravità e budget. Solo allora Jolt viene caricato.",
-      "options.temporalAntialiasing": "Antialiasing temporale, solo WebGPU: spostamento sub-pixel accumulato tra le immagini. `false` disegna ogni pixel al suo centro, senza cronologia, ciò che chiede una cattura esatta al pixel; cambiato in seguito da `world.temporalAntialiasing`."
+      "options.temporalAntialiasing": "Antialiasing temporale, solo WebGPU: spostamento sub-pixel accumulato tra le immagini. `false` disegna ogni pixel al suo centro, senza cronologia, ciò che chiede una cattura esatta al pixel; cambiato in seguito da `world.temporalAntialiasing`.",
+      "options.renderScale": "La frazione dello schermo per asse a cui l’immagine è disegnata, solo WebGPU, prima che l’antialiasing temporale la ricostruisca allo schermo: `'auto'` lascia che il budget d’immagine la scelga tra `min` e `max` (`{ min, max }`, 0,5 e 1 per impostazione predefinita), un numero la fissa; un’immagine ferma è disegnata al massimo. Cambiata poi con `world.renderScale`."
     }
   },
   "crossVector3": {
@@ -6646,6 +6648,10 @@
     "summary": "Antialiasing temporale: spostamento sub-pixel accumulato tra le immagini; attivo per impostazione predefinita.",
     "description": "Scritto, ha effetto dall’immagine successiva, cronologia scartata, nessuna sessione riaperta. Letto, è ciò che l’immagine porta: false su WebGL2, e mentre il programma si compila dopo l’attivazione."
   },
+  "world.renderScale": {
+    "summary": "La frazione dello schermo per asse a cui l’immagine è disegnata (`WorldOptions.renderScale`), dall’immagine successiva.",
+    "description": "Letta, la scala dell’ultima immagine disegnata: 1 in WebGL2."
+  },
   "world.effects": {
     "summary": "La catena di effetti: passate disegnate sull’immagine (`effect`)."
   },
@@ -6895,8 +6901,13 @@
       "controls": "Il controller che sposta la camera dal canvas; `world.controls.kind` lo cambia in seguito.",
       "signal": "Ferma i caricamenti del mondo quando il segnale viene annullato.",
       "physics": "Accende la fisica (`world.physics`): `true`, oppure gravità e budget. Solo allora Jolt viene caricato.",
-      "temporalAntialiasing": "Antialiasing temporale, solo WebGPU: spostamento sub-pixel accumulato tra le immagini. `false` disegna ogni pixel al suo centro, senza cronologia, ciò che chiede una cattura esatta al pixel; cambiato in seguito da `world.temporalAntialiasing`."
+      "temporalAntialiasing": "Antialiasing temporale, solo WebGPU: spostamento sub-pixel accumulato tra le immagini. `false` disegna ogni pixel al suo centro, senza cronologia, ciò che chiede una cattura esatta al pixel; cambiato in seguito da `world.temporalAntialiasing`.",
+      "renderScale": "La frazione dello schermo per asse a cui l’immagine è disegnata, solo WebGPU, prima che l’antialiasing temporale la ricostruisca allo schermo: `'auto'` lascia che il budget d’immagine la scelga tra `min` e `max` (`{ min, max }`, 0,5 e 1 per impostazione predefinita), un numero la fissa; un’immagine ferma è disegnata al massimo. Cambiata poi con `world.renderScale`."
     }
+  },
+  "RenderScale": {
+    "summary": "La scala di rendering che una pagina chiede: la frazione dello schermo, per asse, a cui l’immagine è disegnata prima che l’antialiasing temporale la ricostruisca allo schermo.",
+    "description": "`'auto'` lascia che il budget d’immagine la scelga tra 0,5 e 1, `{ min, max }` limita questa scelta, un numero la fissa; ogni valore è tenuto tra 0,5 e 1."
   },
   "WorldPageSource": {
     "summary": "Da dove vengono lette le pagine, e l'indirizzo rispetto al quale vengono lette.",
