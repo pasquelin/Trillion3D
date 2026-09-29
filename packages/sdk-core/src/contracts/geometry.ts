@@ -147,7 +147,7 @@ export interface StreamCatalogue {
   /** How far its deformation can move a vertex from its rest pose (#357): per joint of its skin
    *  the ball of the vertices that joint moves, `[x, y, z, radius]` flat, and each morph target's
    *  largest displacement; `null` or absent on a primitive that does not deform. */
-  deformation?: { joints: number[]; targets: number[] } | null;
+  deformation?: { joints: number[]; targets: number[]; softVertices?: number } | null;
   /** What the mesh's edges and corners look like. */ topology?: {
     triangles: number;
     edges: { boundary: number; manifold: number; nonManifold: number };

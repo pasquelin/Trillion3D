@@ -1,7 +1,6 @@
 use super::*;
 use crate::compiler_primitive_warn::primitive_event;
 pub(crate) mod cost;
-
 pub(super) struct PrimitiveInputs<'a> {
     pub o: &'a Options,
     pub g: &'a Value,
@@ -18,7 +17,6 @@ pub(super) struct PrimitiveInputs<'a> {
     pub validated: &'a BTreeSet<usize>,
     pub progress: &'a (dyn Fn(Value) + Sync),
 }
-
 /// A compiled primitive and what later stages read beside it once every primitive is done.
 pub(super) struct CompiledPrimitive {
     pub value: Value,
@@ -29,7 +27,6 @@ pub(super) struct CompiledPrimitive {
     pub collision: Value,
     pub root_cover: crate::compiler_world_roots::RootCover,
 }
-
 /// `compile_primitive` of one planned `(mesh, primitive)` job, its error naming the job.
 pub(super) fn compile_job(
     inputs: &PrimitiveInputs<'_>,
@@ -37,7 +34,6 @@ pub(super) fn compile_job(
 ) -> Result<CompiledPrimitive> {
     compile_primitive(inputs, &m, &p).map_err(|e| e.within(m, p))
 }
-
 pub(super) fn compile_primitive(
     inputs: &PrimitiveInputs<'_>,
     old: &usize,
@@ -130,7 +126,7 @@ pub(super) fn compile_primitive(
     let mesh = *mesh_map
         .get(old)
         .ok_or_else(|| invalid("Missing mesh mapping"))?;
-    let (attributes, deformation) = if unsplit {
+    let (attributes, mut deformation) = if unsplit {
         (Vec::new(), Default::default())
     } else {
         (
@@ -138,6 +134,7 @@ pub(super) fn compile_primitive(
             compiler_page_object::page_deformation(g, bin, p, positions.count, validated)?,
         )
     };
+    deformation.soft_source(g, *old, &pos)?;
     let carried = carried_attributes(&attributes, material);
     let uv_exponent = geometry_page_quant::primitive_uv_exponent(&carried, clustered_blend);
     let store = |slice: &[u32], pos: &[f32], carried: &[&_], origin: &[u32], exponent: i32| {

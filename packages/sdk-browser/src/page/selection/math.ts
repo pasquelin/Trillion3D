@@ -2,6 +2,7 @@ import { projectedErrorAt, viewDepth, viewLateral } from './projection.ts';
 
 export type ClusterCut = {
   lodError?: number;
+  level?: number;
   sphere?: number[];
   parentError?: number | null;
   parentSphere?: number[] | null;
@@ -46,7 +47,9 @@ export function projectedClusterError(
  * A cluster whose parent has no sphere of its own reuses its own: both sides then project the same
  * sphere, so its view distance is taken once and both errors read it, `projectedErrorAt` getting
  * the same operands in the same order as `projectedClusterError`. `sound` as in `projectedErrorAt`;
- * both spheres grow by `reach`, a deformation's (#357).
+ * both spheres grow by `reach`. Coarse and replacement errors add twice that reach: by the
+ * triangle inequality, arbitrary source displacement cannot separate corresponding points by
+ * more than the two displacement bounds. Level-zero vertices need no transfer allowance.
  */
 export function clusterPixels(
   rec: ClusterCut,
@@ -60,8 +63,8 @@ export function clusterPixels(
   reach = 0,
 ) {
   const sphere = rec.sphere,
-    own = rec.lodError ?? 0,
-    parent = rec.parentError;
+    own = (rec.lodError ?? 0) + ((rec.level ?? 0) > 0 ? 2 * reach : 0),
+    parent = rec.parentError == null ? rec.parentError : rec.parentError + 2 * reach;
   if (sphere && own !== 0 && own !== Infinity && rec.parentSphere == null) {
     const lateral = viewLateral(sphere, 0, e),
       depth = viewDepth(sphere, 0, e),

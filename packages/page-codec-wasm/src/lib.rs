@@ -43,7 +43,7 @@ pub use deform::{Morph, Skin, FLAG_MORPH, FLAG_SKIN};
 pub use unpack::decode;
 
 pub const MAGIC: u32 = 0x3350_4757;
-pub const VERSION: u32 = 5;
+pub const VERSION: u32 = 6;
 /// Twenty-four little-endian words open a page: counts, flags, the quantization records of the
 /// four vector attributes, the error, the bits of the corner stream, the count of distinct
 /// positions, and the deformation word: the skin record and the morph target count
@@ -57,7 +57,9 @@ pub const FLAG_NORMAL: u32 = 1;
 pub const FLAG_UV: u32 = 2;
 pub const FLAG_UV1: u32 = 4;
 pub const FLAG_COLOR: u32 = 8;
-pub const FLAGS_ALL: u32 = 63;
+/// The index/weight streams name simulated vertices, never joints. Requires FLAG_SKIN.
+pub const FLAG_SOFT_SOURCE: u32 = 64;
+pub const FLAGS_ALL: u32 = 127;
 
 /// Refusal causes, in the order the JavaScript decoder raises them. The numeric values cross the
 /// WebAssembly ABI: the JS loader retranslates them into `GEOMETRY_PAGE_*` messages.
@@ -170,6 +172,7 @@ impl Header {
             && header.index_count.is_multiple_of(3)
             && header.corner_bits <= header.index_count.saturating_mul(triangles::MAX_WIDTH)
             && header.flags & !FLAGS_ALL == 0
+            && (header.flags & FLAG_SOFT_SOURCE == 0 || header.flags & FLAG_SKIN != 0)
             && header.quantization_error.is_finite()
             && header.quantization_error >= 0.0
             && header.decoded_bytes() <= max_decoded_bytes

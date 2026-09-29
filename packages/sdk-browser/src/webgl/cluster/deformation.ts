@@ -59,12 +59,16 @@ export class WebglClusterDeformation {
     const texels = Math.ceil(source.block.length / 4);
     this.block.reserve(texels);
     if (this.words?.buffer !== source.block.buffer)
-      this.words = new Uint32Array(source.block.buffer, source.block.byteOffset, source.block.length);
+      this.words = new Uint32Array(
+        source.block.buffer,
+        source.block.byteOffset,
+        source.block.length,
+      );
     const data = this.block.data,
       words = this.words;
     data.set(source.block);
     for (const base of source.bases)
-      for (let k = base - 1; base && k < base + 4; k++) data[k] = words[k];
+      for (let k = base - 1; base && k < base + 6; k++) data[k] = words[k];
     this.block.upload(texels);
     this.sent = source.version;
   }

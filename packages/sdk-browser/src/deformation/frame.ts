@@ -5,14 +5,16 @@ import {
 } from '../../../sdk-core/src/world/animation/skeleton.ts';
 import type { Skeleton } from '../../../sdk-core/src/world/animation/skeleton.ts';
 import type { WaterSurface } from '../../../sdk-core/src/fluids/waterSurface.ts';
-import { invertMatrix4 } from '../../../sdk-core/src/math/matrix/matrix4Inverse.ts';
+import { writeWaves } from './waveFrame.ts';
+import { writeSoftSource, type SoftSource } from './softSource.ts';
 import type { MatrixElements } from '../math/matrixElements.ts';
 import {
   KIND_MORPH,
   KIND_SKIN,
   KIND_WAVE,
-  recordLayout,
+  KIND_SOFT,
   WAVE_FLOATS,
+  recordLayout,
   type RecordShape,
 } from './layout.ts';
 
@@ -21,6 +23,7 @@ export type DeformedMesh = {
   skeleton?: Skeleton;
   morphTargetInfluences?: number[];
   waves?: WaterSurface | null;
+  softSource?: SoftSource;
 };
 
 /** One deformed placement: where it stands, its mesh, the counts its record holds and how far
@@ -33,15 +36,6 @@ export type Deformed = {
   shape: RecordShape;
   reach: { joints: ArrayLike<number>; targets: ArrayLike<number> };
 };
-
-const inverse = new Float64Array(16);
-
-/** The smallest length a unit vector of the placement's frame takes in the world: a world
- *  distance over it is at least the object distance it came from (no shear in a scene pose). */
-function smallestScale(m: ArrayLike<number>) {
-  const column = (c: number) => Math.hypot(m[c * 4], m[c * 4 + 1], m[c * 4 + 2]);
-  return Math.min(column(0), column(1), column(2));
-}
 
 /** True when the `size` floats at `a` and at `b` of `block` differ. */
 function differs(block: Float32Array, a: number, b: number, size: number) {
@@ -71,34 +65,7 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
   });
   const block = new Float32Array(Math.max(1, floats)),
     words = new Uint32Array(block.buffer);
-  let first = true,
-    /** Whether the last waves written moved a phase: `writeWaves`'s second answer. */
-    waveMoved = false;
-  /** The waves of this frame at `wave`, the world matrix and its inverse at `world`; returns the
-   *  most they move a point, in the placement's units; `waveMoved` says whether a phase moved. */
-  const writeWaves = (entry: Deformed, world: number, wave: number) => {
-    const model = entry.mesh.waves!.waveModel;
-    block.set(entry.world.elements, world);
-    invertMatrix4(inverse, entry.world.elements);
-    block.set(inverse, world + 16);
-    let crest = 0;
-    waveMoved = false;
-    for (let w = 0; w < entry.shape.waves; w++) {
-      const at = wave + w * WAVE_FLOATS,
-        present = w < model.count;
-      block[at + 6] = block[at + 5];
-      block[at] = present ? model.dirX[w] : 1;
-      block[at + 1] = present ? model.dirZ[w] : 0;
-      block[at + 2] = present ? model.k[w] : 0;
-      block[at + 3] = present ? model.amplitude[w] : 0;
-      block[at + 4] = present ? model.lateral[w] : 0;
-      block[at + 5] = present ? model.phase[w] : 0;
-      if (first) block[at + 6] = block[at + 5];
-      waveMoved ||= block[at + 6] !== block[at + 5];
-      if (present) crest += model.amplitude[w] + model.lateral[w];
-    }
-    return crest / smallestScale(entry.world.elements);
-  };
+  let first = true;
   /** Writes placement `i`'s record for this frame; returns how far it moves a vertex. */
   const write = (i: number, entry: Deformed, skipped: (i: number, reach: number) => boolean) => {
     const at = bases[i] - 1,
@@ -112,7 +79,7 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
     words[at + 1] = words[at];
     let kinds = 0,
       most = 0,
-      moved = false;
+      moved = !first && stale(i, entry);
     if (shape.joints && mesh.skeleton) {
       mesh.skeleton.palette(entry.world.elements, block, palette, entry.boneWorlds);
       most = paletteReach(block, palette, shape.joints, entry.reach.joints);
@@ -133,10 +100,17 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
       kinds |= KIND_MORPH;
     }
     if (shape.waves && mesh.waves) {
-      most += writeWaves(entry, at + layout.world, at + layout.wave);
-      moved ||= waveMoved;
+      most += writeWaves(block, entry, at + layout.world, at + layout.wave, first);
       kinds |= KIND_WAVE;
     }
+    const soft = mesh.softSource;
+    if (shape.soft && soft) {
+      writeSoftSource(block, at + layout.simulation, soft, first || words[at + 6] === 0);
+      words[at + 6] = soft.version;
+      most += soft.reach;
+      kinds |= KIND_SOFT;
+    }
+    words[at + 5] = shape.soft ?? 0;
     if (kinds && skipped(i, most)) [kinds, most] = [0, 0];
     words[at] = kinds;
     if (first) words[at + 1] = kinds;
@@ -151,6 +125,7 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
   const stale = (i: number, entry: Deformed) => {
     const layout = recordLayout(entry.shape),
       at = bases[i] - 1;
+    if (entry.mesh.softSource && entry.mesh.softSource.version !== words[at + 6]) return true;
     const weights = entry.mesh.morphTargetInfluences;
     for (let t = 0; weights && t < entry.shape.targets; t++)
       if (Math.fround(weights[t] ?? 0) !== block[at + layout.weights + t]) return true;
