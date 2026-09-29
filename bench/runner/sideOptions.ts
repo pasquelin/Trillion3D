@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path';
 import type { SideBase } from './dists.ts';
 import type { ScreenErrorVariant } from '../../packages/sdk-core/src/index.ts';
 import type { TextureCompression } from '../../packages/sdk-browser/src/texture/blockFormats.ts';
+import { MIN_RENDER_SCALE } from '../../packages/sdk-browser/src/webgpu/pages/state/renderScale.ts';
 
 // Benchmark Chromium flags: unbridled background rendering, enabled GPU benchmarking, WebGPU enabled.
 const BASE_FLAGS = [
@@ -120,18 +121,24 @@ export function equipSide(
   return equipped;
 }
 
-/** A side's render scale: `--echelle-<side>`, otherwise `--echelle`, in [0.5, 1]; `null` without. */
+/** A side's render scale: `--echelle-<side>`, otherwise `--echelle`, in the engine's
+ *  [MIN_RENDER_SCALE, 1]; `null` without. */
 function scaleOf(flags: Map<string, string>, name: string) {
-  const value = flags.get(`echelle-${name}`) ?? flags.get('echelle');
-  if (value === undefined) return null;
+  const value = sideFlag(flags, name, 'echelle');
+  if (value === null) return null;
   const scale = Number(value);
-  if (!(scale >= 0.5 && scale <= 1)) throw new Error(`--echelle-${name} must be in [0.5, 1]`);
+  if (!(scale >= MIN_RENDER_SCALE && scale <= 1))
+    throw new Error(`--echelle-${name} must be in [${MIN_RENDER_SCALE}, 1]`);
   return scale;
 }
 
+/** A side's flag: `--<key>-<side>`, otherwise `--<key>`, otherwise `null`. */
+const sideFlag = (flags: Map<string, string>, name: string, key: string) =>
+  flags.get(`${key}-${name}`) ?? flags.get(key) ?? null;
+
 /** A side's choice among `allowed`: `--<key>-<side>`, otherwise `--<key>`, otherwise `null`. */
 function sideChoice(flags: Map<string, string>, name: string, key: string, allowed: string[]) {
-  const value = flags.get(`${key}-${name}`) ?? flags.get(key) ?? null;
+  const value = sideFlag(flags, name, key);
   if (value !== null && !allowed.includes(value))
     throw new Error(`--${key}-${name} must be ${allowed.join(', ')}`);
   return value;
