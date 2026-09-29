@@ -42,7 +42,10 @@ export function mockEvictions(byBinding: Map<number, { data: Uint8Array }>, pack
 }
 
 /** `dagSortRequests`: the staged requests into the sample, by rank, through the kernel's mirror. */
-export function sortStagedRequests(byBinding: Map<number, { data: Uint8Array }>, pageCount: number) {
+export function sortStagedRequests(
+  byBinding: Map<number, { data: Uint8Array }>,
+  pageCount: number,
+) {
   const ints = words(byBinding.get(DAG_BINDING.out)!.data),
     listCap = L.selectionListCap(pageCount),
     at = L.stagedRequestsWord(listCap),
