@@ -47,6 +47,9 @@ export interface TableCell {
   parents: readonly (readonly [number | null, readonly number[]])[];
   /** `[mesh rank, nodes]` per mesh it places: what the runtime sizes its rows by at open. */
   meshes: readonly (readonly [number, number])[];
+  /** The slots of the manifest's mesh pages its meshes lie in: its region page's list (#792),
+   *  which a runtime holding the manifest by the view reads with the cell (#751). */
+  meshPages: readonly string[];
 }
 
 /** The partition of a scene: its cells, the box around them all, and the meshes they place. */
@@ -157,19 +160,21 @@ export async function readLeaves(
 }
 
 /** The partition under `root`, its pages read side by side through `read` (which verifies them
- *  against their slot): the cells in order, the union of the root's boxes, the meshes placed. A
- *  region page names the mesh pages its cells use (#792), which #751 fetches by region. */
+ *  against their slot): the cells in order, each with the mesh pages its region page names (#792),
+ *  the union of the root's boxes, the meshes placed. */
 export async function readTablePartition(
   root: TablePartitionRoot,
   read: (page: TablePage) => Promise<Uint8Array>,
 ): Promise<TablePartition> {
   const slots = named(CELL_PAGES, root.pages);
   const pages = await readLeaves(CELL_PAGES, slots, read);
-  const cells = pages.flatMap((page) => page[CELL_PAGES.records] as TableCell[]);
-  if (!cells.every((cell) => Array.isArray(cell?.meshes) && Array.isArray(cell.parents)))
-    throw new EngineError(CELL_PAGES.invalid, 'scene partition misses its cells', {});
   if (!pages.every(({ meshPages }) => Array.isArray(meshPages) && meshPages.every(isSlot)))
     throw new EngineError(CELL_PAGES.invalid, 'a region page misses its mesh pages', {});
+  const cells = pages.flatMap(({ meshPages, [CELL_PAGES.records]: records }) =>
+    (records as TableCell[]).map((cell) => ({ ...cell, meshPages: meshPages as string[] })),
+  );
+  if (!cells.every((cell) => Array.isArray(cell?.meshes) && Array.isArray(cell.parents)))
+    throw new EngineError(CELL_PAGES.invalid, 'scene partition misses its cells', {});
   const bounds = [0, 1, 2, 3, 4, 5].map((axis) =>
     (axis < 3 ? Math.min : Math.max)(...slots.map((slot) => slot.bounds[axis])),
   );
