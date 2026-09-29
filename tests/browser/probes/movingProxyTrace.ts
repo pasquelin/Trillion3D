@@ -39,7 +39,7 @@ export type RayReading = {
 type Gpu = NonNullable<Awaited<ReturnType<typeof openDevice>>>;
 
 /** Rays are two `vec4f` each: origin, then normalized direction. */
-export function createTraceRig(gpu: Gpu, proxy: GPUBuffer, data: Float32Array) {
+export function createTraceRig(gpu: Gpu, proxy: GPUBuffer, data: Float32Array<ArrayBuffer>) {
   const { device } = gpu;
   const compilation: string[] = [];
   const usage = GPUBufferUsage;

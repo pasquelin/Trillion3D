@@ -48,16 +48,21 @@ test('a moving proxy syncs once on the first frame without a scene write, to set
   };
   const rt = {
     setup: { source: { traverse() {} }, worlds: { of: () => undefined } },
-    run: { gate: { revisions: { scene: 1 } } },
+    run: { frame: 1, gate: { revisions: { scene: 1 } } },
   } as unknown as WebgpuPagesRuntime;
   syncPageProxy(rt, proxy);
   syncPageProxy(rt, proxy);
+  assert.equal(syncs, 1, 'a second sync in the frame that moved does not settle it');
+  rt.run.frame++;
+  syncPageProxy(rt, proxy);
   assert.equal(syncs, 2, 'the still frame reaches the moving proxy');
+  rt.run.frame++;
   syncPageProxy(rt, proxy);
   assert.equal(syncs, 2, 'one settling try per still epoch, even when it cannot settle');
   proxy.dynamic = false;
   rt.run.gate.revisions.scene++;
   syncPageProxy(rt, proxy);
+  rt.run.frame++;
   syncPageProxy(rt, proxy);
   assert.equal(syncs, 3, 'a still proxy syncs once per scene write');
 });
