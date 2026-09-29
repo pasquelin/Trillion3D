@@ -19,3 +19,8 @@ create a world. These material methods belong to the `world` returned by
 `alphaCutoff` and `tiling`; creation also takes `name` but no `tiling` or map.
 See [Page materials](SDK.md#page-materials) for value ranges, class changes and
 named refusals, and the [runnable example](../site/examples/page-materials.html).
+
+A geometry rewritten every frame declares `geometry.usage = 'dynamic'` (default `'static'`), and
+may declare `geometry.maxBounds`, the `Box3` its vertices never leave; each frame's
+`metrics.dynamicUploadBytes` is what it uploaded, within `DYNAMIC_UPLOAD_BUDGET_BYTES`. See
+[Geometry rewritten every frame](SDK.md#geometry-rewritten-every-frame).
