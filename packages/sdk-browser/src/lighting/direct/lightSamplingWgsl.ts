@@ -46,9 +46,9 @@ fn listedWeight(base:u32,index:u32,N:vec3f,P:vec3f)->f32{
  return lightWeight(directLights.items[tileLights[base+TILE_OPAQUE_BASE+index]],N,P);
 }
 /** Whether a moving image draws a tile's opaque list: the tile pass's flag, one word read once
- *  (`lightWgsl.ts` `TILE_SHADOW_BASE`), where the resolve once walked the list a pixel at a
- *  time (#1249). A list `sampledTileLighting` sums in full anyway — of `LIGHT_SAMPLES` lights or
- *  fewer, or past `TILE_LIGHTS` — reads the flag too; the call then returns that full sum. */
+ *  (\`lightWgsl.ts\` \`TILE_SHADOW_BASE\`), where the resolve once walked the list a pixel at a
+ *  time (#1249). A list \`sampledTileLighting\` sums in full anyway — of \`LIGHT_SAMPLES\` lights
+ *  or fewer, or past \`TILE_LIGHTS\` — reads the flag too; the call then returns that full sum. */
 fn tileShadowed(tile:vec2u,tilesX:u32)->bool{
  return tileLights[(tile.y*tilesX+tile.x)*TILE_STRIDE+TILE_SHADOW_BASE]!=0u;
 }
