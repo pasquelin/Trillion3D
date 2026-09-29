@@ -161,6 +161,8 @@ fn composeRegion(k:u32){
 }
 @compute @workgroup_size(${FRESH_LANES}) fn composeShadowPages(@builtin(local_invocation_index) lane:u32){
  if(lane==0u){pickPages();}
+ // Lane 0's storage writes — the regions' pages, the claims — seen by every lane before they read.
+ storageBarrier();
  let regions=workgroupUniformLoad(&regionCount);
  for(var k=lane;k<regions;k+=FRESH_LANES){composeRegion(k);}
  if(lane<params.layers){
