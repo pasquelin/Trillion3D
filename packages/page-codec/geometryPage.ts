@@ -7,6 +7,7 @@
  * colour bytes — and packs the same streams, without sharing a line.
  */
 import { bitsFor, ceil32, octEncode, Packer, quantize, type QuantizedGrid } from './pageGrids.ts';
+import { storedPositions } from './pagePositions.ts';
 import {
   ATTRIBUTES,
   type PageAttribute,
@@ -15,7 +16,7 @@ import {
 } from './pageAttributes.ts';
 
 const MAGIC = 0x33504757,
-  VERSION = 4,
+  VERSION = 5,
   HEADER_WORDS = 24,
   COLOR_EXPONENT = -8;
 /** The format's texture grid, 2^-14: a quarter of a texel on a 4096-wide map. */
@@ -24,7 +25,8 @@ export const UV_EXPONENT = -14;
 /**
  * Encodes one page from source indices and `{ array, itemSize }` attributes (`POSITION`
  * required). Returns the bytes and the manifest counts. Corners are renumbered by first use,
- * then vertices that land on the same cells are kept once. Texture coordinates sit on
+ * then vertices that land on the same cells are kept once, and their positions once each when
+ * that is smaller (`pagePositions.ts`). Texture coordinates sit on
  * `2 ** uvExponent`, which the header carries for every decoder.
  */
 export function encodeGeometryPage(
@@ -132,11 +134,13 @@ export function encodeGeometryPage(
     corners.map((id) => remap[id]),
     bitsFor(unique.length - 1),
   );
+  const { stored, links, linkBits } = storedPositions(unique, positions.bits);
   for (let c = 0; c < 3; c++)
     pack.stream(
-      unique.map((cell) => cell.p[c]),
+      stored.map((p) => p[c]),
       positions.bits[c],
     );
+  if (links) pack.stream(links, linkBits);
   if (flags & 1)
     pack.stream(
       unique.map((cell) => cell.n),
@@ -177,6 +181,7 @@ export function encodeGeometryPage(
   record(15, colorRecord, 4, COLOR_EXPONENT);
   head.setFloat32(80, error, true);
   head.setUint32(84, cornerBits, true);
+  head.setUint32(88, stored.length, true);
   pack.words.forEach((word, i) => head.setUint32((HEADER_WORDS + i) * 4, word, true));
   let floats = 3;
   for (const [, size, bit] of ATTRIBUTES) if (flags & bit) floats += size;
