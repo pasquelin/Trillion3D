@@ -96,7 +96,6 @@ export async function loadPreparedScene(
   // it reads `'host'` wherever one of them samples the images themselves.
   const readAt = performance.now();
   const { tables, bytes } = await loadPreparedSceneTables(base, signal, options.meter);
-  await options.pages?.hold(tables.meshPages);
   const buildAt = performance.now();
   signal?.throwIfAborted();
   options.onTables?.(tables);
@@ -107,16 +106,20 @@ export async function loadPreparedScene(
     message: 'Read the scene tables',
   });
   const skipBaked = options.textureSource !== 'host';
-  const built = await buildPreparedScene({
-    tables,
-    metadata,
-    sceneFile,
-    base,
-    skipBaked,
-    signal,
-    track: resourceProgress(options, diagnose, scope, signal),
-    meter: options.meter,
-  });
+  // The manifest pages the node table needs are read while the scene builds, which reads none.
+  const [built] = await Promise.all([
+    buildPreparedScene({
+      tables,
+      metadata,
+      sceneFile,
+      base,
+      skipBaked,
+      signal,
+      track: resourceProgress(options, diagnose, scope, signal),
+      meter: options.meter,
+    }),
+    options.pages?.hold(tables.meshPages),
+  ]);
   if (skipBaked && metadata.textures)
     diagnose('preparation', `Images read from the cache: ${built.bakedImages}`, {
       kind: 'preparation',
