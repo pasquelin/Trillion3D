@@ -135,14 +135,8 @@ type Range = { sunRangeReference: (index: number, drawn: number, z: number) => n
 export const rangeReference = (record: object) =>
   shaderRun<Range>(SHADOW_WGSL, ['sunRangeReference'], recordScope(record)).sunRangeReference;
 
-const NAMES = [
-  'sunShadowFactor',
-  'shadowNormalTexels',
-  'shadowDepthMargin',
-  'sunOrigin',
-  'sunReadAt',
-  ...PAGE_MODEL_FUNCTIONS,
-];
+const NAMES = ['sunShadowFactor', 'shadowNormalTexels', 'shadowDepthMargin', 'sunOrigin'];
+NAMES.push('sunReadAt', ...PAGE_MODEL_FUNCTIONS);
 
 /** What `sunRead` swaps per call — the record and page table read, the spies — so that each text
  *  compiles once per footprint, a module-scope value the translated functions take as they start. */
@@ -157,6 +151,12 @@ const liveScope = { ...CONSTANTS, shadows: live };
 const liveRange = shaderRun<Range>(SHADOW_WGSL, ['sunRangeReference'], liveScope).sunRangeReference;
 const compiled = new Map<string, Map<number, Factor['sunShadowFactor']>>();
 
+/** A WGSL structure's constructor: its members by name, in order. */
+const struct =
+  (...names: string[]) =>
+  (...values: unknown[]) =>
+    Object.fromEntries(names.map((name, i) => [name, values[i]]));
+
 function factorOf(source: string, footprint: number) {
   const bySource = compiled.get(source) ?? new Map<number, Factor['sunShadowFactor']>();
   compiled.set(source, bySource);
@@ -165,17 +165,8 @@ function factorOf(source: string, footprint: number) {
     const scope = {
       ...liveScope,
       shadowFootprint: footprint,
-      ShadowAt: (map: object, t: number[], home: number[], Q: number[], texel: number) => ({
-        ...{ map, t, home },
-        ...{ Q, texel },
-      }),
-      ShadowMap: (base: number, ring: number, pages: number, ox: number, oy: number) => ({
-        base,
-        ring,
-        pages,
-        ox,
-        oy,
-      }),
+      ShadowAt: struct('map', 't', 'home', 'Q', 'texel'),
+      ShadowMap: struct('base', 'ring', 'pages', 'ox', 'oy'),
       shadowPageWord: (map: { base: number }, home: number[]) => live.word(map.base, home),
       shadowPcf: (...args: unknown[]) => live.pcf.push(args) / 64,
       sunRangeReference: (...args: [number, number, number]) => {

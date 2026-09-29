@@ -6,7 +6,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts';
-import { MAX_SHADOW_REGIONS } from '../../gpu/shadow/atlas.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { encodeFreshPages } from './freshPass.ts';
 import { FRESH_CASTERS, FRESH_CLEAR, freshDrawWord } from './freshLayout.ts';
@@ -17,7 +16,7 @@ const LAYERS = 2;
  *  encodes into `calls`. */
 function frame(calls: unknown[][]) {
   const named = (name: string) => ({ name, size: 800 }) as unknown as GPUBuffer & { name: string };
-  const [cache, position, uv, pageTable, views, kept, zeroFlags] = [0, 1, 2, 3, 4, 5, 6].map((k) =>
+  const [cache, position, uv, pageTable, views, kept] = [0, 1, 2, 3, 4, 5].map((k) =>
     named(`vis ${k}`),
   );
   const pass = (name: string) => (_: unknown, bound: { name: string }[], groups: unknown) =>
@@ -47,6 +46,9 @@ function frame(calls: unknown[][]) {
       passes: [0, 1].map((layer) => ({ label: `layer ${layer}` })),
       targets: ['view 0', 'view 1'],
       freshDraws: {
+        pageLayout: 'page',
+        poolLayout: 'pool',
+        tintLayout: 'tint',
         made: () =>
           Object.fromEntries(
             ['clear', 'casters', 'tintClear', 'tintDepth', 'tintColour'].map((k) => [k, k]),
@@ -57,16 +59,12 @@ function frame(calls: unknown[][]) {
     cull: { kept, drawUniform: named('draw slots'), offsets: named('offsets') },
     spheres: { buffer: named('spheres') },
     mobilityRows: named('mobility'),
-    // Every region's group, made once already (`regionGroups.ts`).
-    shadowGroupsKey: [cache, position, uv, pageTable, views, kept, undefined, zeroFlags],
-    shadowGroups: Array.from({ length: 2 * MAX_SHADOW_REGIONS }, (_, region) => `group ${region}`),
     shadowRenderPasses: 0,
     shadowDrawCalls: 0,
   };
   const vis = {
-    visBindGroupLayout: {},
     ...{ concatPos: position, concatUv: uv, pageTable, textures: { color: { views } } },
-    ...{ mapsSampler: {}, zeroFlags },
+    mapsSampler: {},
   };
   const rt = {
     lights,
@@ -76,8 +74,7 @@ function frame(calls: unknown[][]) {
     run: { gpuDrawCalls: 0 },
   } as unknown as WebgpuPagesRuntime;
   const device = {
-    createBindGroup: ({ entries }: { entries: { binding: number }[] }) =>
-      `fresh group ${entries[0].binding}`,
+    createBindGroup: ({ layout }: { layout: string }) => `${layout} group`,
   } as unknown as GPUDevice;
   const encoder = {
     beginRenderPass: (descriptor: { label: string }) => {
@@ -112,16 +109,16 @@ test('the GPU composes, culls and seals its pages, then draws each layer in two 
       'vis 5',
       'freshArgs',
       'mobility',
-      [lights.pageRequests.allocation.freshArgs, 0],
+      [(lights.pageRequests.allocation as Record<string, unknown>).freshArgs, 0],
     ],
     ['seal', ...composed, 'freshParams', 1],
   ]);
   for (let layer = 0; layer < LAYERS; layer++) {
     const at = calls.findIndex((call) => call[0] === 'pass' && call[1] === `layer ${layer}`);
     assert.deepEqual(calls.slice(at + 1, at + 9), [
-      ['group', 0, 'group 0'],
+      ['group', 0, 'page group'],
       ['group', 1, 'face group'],
-      ['group', 2, 'fresh group 1'],
+      ['group', 2, 'pool group'],
       ['pipeline', 'clear'],
       ['draw', 'freshArgs', 4 * freshDrawWord(layer, FRESH_CLEAR)],
       ['pipeline', 'casters'],
@@ -141,7 +138,7 @@ test("while a tinted layer is read, each layer's GPU pages are drawn into it too
     const at = calls.findIndex((call) => call[0] === 'pass' && call[1] === `tint ${layer}`);
     assert.ok(at > 0, `layer ${layer}: its tinted pass`);
     // The pool's opaque depth of that layer, then its pages cleared, then its blended casters.
-    assert.deepEqual(calls[at + 3], ['group', 2, 'fresh group 0']);
+    assert.deepEqual(calls[at + 3], ['group', 2, 'tint group']);
     const drawn = calls.slice(at, calls.indexOf(calls.slice(at).find((c) => c[0] === 'end')!));
     assert.deepEqual(
       drawn.filter((call) => call[0] === 'pipeline').map((call) => call[1]),
