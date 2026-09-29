@@ -35,9 +35,11 @@ fn a_bounded_distance_is_the_full_one_raised_to_its_floor_bit_for_bit() {
             f64::NAN,
         ] {
             let bounded = distance_above(&positions, &a, &b, floor);
+            // Not `floor.max(full)`: its zero's sign is the target's (`raised`, #977).
+            let expected = if floor > full { floor } else { full };
             assert_eq!(
                 bounded.to_bits(),
-                floor.max(full).to_bits(),
+                expected.to_bits(),
                 "case {case}, floor {floor}: {bounded} against {full}"
             );
         }
