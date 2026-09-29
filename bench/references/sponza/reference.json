@@ -1,0 +1,99 @@
+{
+  "scene": "sponza",
+  "commit": "5b07d815235a7b0add77ead835f01f93f2e3dc2e",
+  "dirty": false,
+  "from": "folder",
+  "command": "node bench/runner/reference.ts --scene sponza",
+  "generatedAt": "2026-09-29T17:05:18.526Z",
+  "pathVersion": 9,
+  "engine": "webgpu",
+  "settings": {
+    "width": 1728,
+    "height": 1117,
+    "dpr": 2,
+    "lights": 0,
+    "lightShadows": true,
+    "lightIntensity": 40,
+    "lightRangeFactor": 0.75,
+    "sun": true,
+    "bounce": true,
+    "importedLights": true,
+    "instances": 1
+  },
+  "supersampling": 2,
+  "approximations": [
+    "renderScale",
+    "temporalReuse",
+    "probeBudget",
+    "shadowResolution",
+    "supersampling"
+  ],
+  "views": {
+    "overview": {
+      "pose": {
+        "position": [
+          20.947968690287574,
+          11.808876555154209,
+          13.969051132244294
+        ],
+        "target": [
+          -0.484151390183456,
+          0.7468203833724537,
+          -0.3095244287641208
+        ],
+        "fov": 55,
+        "near": 0.01,
+        "far": 370.95782445203315
+      },
+      "file": "overview.png",
+      "sha256": "1b32c501e64b2a840ab65c0b8140f01c598c23fd1e5bfe75be4f0816276ae9d3",
+      "width": 3456,
+      "height": 2234,
+      "settleFrames": 211
+    },
+    "ground": {
+      "pose": {
+        "position": [
+          0.25737727032876245,
+          0.42804295274973914,
+          0.24662206662004293
+        ],
+        "target": [
+          -0.484151390183456,
+          0.7468203833724537,
+          -0.3095244287641208
+        ],
+        "fov": 55,
+        "near": 0.01,
+        "far": 370.95782445203315
+      },
+      "file": "ground.png",
+      "sha256": "a60c8211902920e4f2ffc622198c0b6df8fe103e97bf4d344ee390f5082d5b9d",
+      "width": 3456,
+      "height": 2234,
+      "settleFrames": 190
+    },
+    "street": {
+      "pose": {
+        "position": [
+          -0.49671967256501903,
+          0.5229777472462375,
+          0.34088418448176566
+        ],
+        "target": [
+          -0.484151390183456,
+          0.7468203833724537,
+          -0.3095244287641208
+        ],
+        "fov": 55,
+        "near": 0.01,
+        "far": 370.95782445203315
+      },
+      "file": "street.png",
+      "sha256": "20bde440ca57c992d8eb527f844f8595a2316a2500e3b317f2afacb9ac9a7fcd",
+      "width": 3456,
+      "height": 2234,
+      "settleFrames": 203
+    }
+  }
+}
