@@ -5558,7 +5558,7 @@
       "plan": "Plant ein Bild: macht ungültig, was sich bewegt hat, liest die Anforderung der Empfänger — sonst den letzten Bericht —, lässt jede zu zeichnende Seite zu.",
       "reissue": "Die Seiten des Bildes ab `from` konnten nicht kodiert werden: sie bleiben ungültig, ausstehend, und das nächste Bild zeichnet sie.",
       "reset": "Beginnt neu.",
-      "setThreshold": "Die Schwelle, bei der die Lichtschnitte ihre Schattenwerfer wählen (`thresholds.ts`).",
+      "setThreshold": "Die Schwelle, bei der die Lichtschnitte ihre Schattenwerfer wählen, und ihr Render-Ursprung (`thresholds.ts`).",
       "table": "Die Seitentabelle: ein Wort pro virtueller Seite und der Bereich, den jedes Licht darin hält.",
       "pool": "Die physischen Seiten des Pools und die virtuelle Seite, die jede hält.",
       "sun": "Die Clipmap jeder Sonne: ihr Bezugssystem, Tiefenbereich, feinste Stufe und Ausschnitte.",
@@ -7871,6 +7871,45 @@
       "alphaMode": "Wie der Alphakanal einer Oberfläche gelesen wird: opak ignoriert ihn, `mask` schneidet bei `alphaCutoff`, `blend` überblendet.",
       "alphaCutoff": "Pixel, die weniger deckend sind als dieser Wert, verschwinden.",
       "tiling": "Wie oft das Bild in Breite und Höhe passt."
+    }
+  },
+  "WorldRoots": {
+    "summary": "`world-roots.json`: der Welt-DAG, den der Compiler über den Wurzeln jedes Objekts fortsetzt — seine Bündel, Seiten und Zellen, die angeheftete Spitze zuerst.",
+    "members": {
+      "version": "Formatversion.",
+      "budgetBytes": "Die meisten Bytes, die das Kochen der angehefteten Spitze erlaubt.",
+      "pinned": "Die ersten Bündel, die Spitze der Welt: angeheftet.",
+      "pinnedTopBytes": "Die Bytes der angehefteten Spitze.",
+      "payload": "Die Binärdatei, in der die Bündel hintereinander liegen: ihre Adresse, ihr Hash und ihre Länge.",
+      "bundles": "Die Bündel, in der Reihenfolge der Binärdatei.",
+      "pages": "Jede Seite: ihr Bündel, ihr Versatz darin, ihre Stufe und ihr Fehler.",
+      "cells": "Jede Weltzelle: die platzierten Primitive, die sie hält."
+    }
+  },
+  "WorldRootsBundle": {
+    "summary": "Ein Bündel von `world-roots.bin`: sein Bereich in der Binärdatei, sein Hash, seine Seitenzahl und die Bündel, die es braucht.",
+    "members": {
+      "offset": "Wo es in der Binärdatei beginnt, in Bytes.",
+      "bytes": "Seine Länge in der Binärdatei.",
+      "sha256": "Der SHA-256 seiner Bytes, beim Lesen geprüft.",
+      "count": "Wie viele Seiten es hält.",
+      "dependencies": "Die Bündel, die seine Seiten brauchen, aufsteigend, bis zur Spitze der Welt."
+    }
+  },
+  "WorldRootsObject": {
+    "summary": "Ein platziertes Primitiv einer Weltzelle: die Weltbündel, die seine Wurzeln brauchen, bis zur Spitze.",
+    "members": {
+      "node": "Sein veröffentlichter Knoten.",
+      "primitive": "Sein Primitiv im Manifest.",
+      "roots": "Die Bündel der Streams dieses Primitivs, die seine Wurzeln halten.",
+      "dependencies": "Jedes Weltbündel, das diese Wurzeln brauchen, aufsteigend, bis zur Spitze."
+    }
+  },
+  "WorldRootsPage": {
+    "summary": "Eine Super-Wurzelseite, auf den Bytes ihres Bündels gelesen: ihre eigenen Eckpunkte im Weltraum und ihre Dreiecke als lokale Indizes.",
+    "members": {
+      "positions": "Ihre Eckpunkte, je drei Zahlen, im Weltraum.",
+      "indices": "Ihre Dreiecke, je drei lokale Indizes."
     }
   }
 }

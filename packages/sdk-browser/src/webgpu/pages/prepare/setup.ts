@@ -19,6 +19,7 @@ import { DEFAULT_TEXTURE_POOL_BUDGET } from '../../../residency/pools.ts';
 import type { TexturePools } from '../../residency/memoryBudgets.ts';
 import { textureTransferBytesFor, textureUploadMsFor } from '../../../residency/transferBudgets.ts';
 import { sessionGeometryPool } from '../../../residency/sessionPool.ts';
+import { floorDiagnostic, rootChildren } from '../../../residency/minimumCapacity.ts';
 import { DEFAULT_PIXEL_RATIO } from '../../../backend/common.ts';
 
 export type WebgpuDiagnostics = ReturnType<typeof createWebgpuDiagnostics> & {
@@ -91,6 +92,8 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   });
   const bootstrap = rootCoverage(roots, pageAddress),
     bootstrapUrls = new Set(bootstrap.map(pageAddress));
+  // The pool's floor: the root cover and the pages its groups replace (`minimumCapacity.ts`).
+  const floorPages = new Set([...bootstrapUrls, ...rootChildren(roots).map(pageAddress)]).size;
   const bootstrapKeys = new Int32Array(bootstrap.length),
     bootstrapKey = new Uint8Array(tracking.keyCount);
   for (let i = 0; i < bootstrap.length; i++) {
@@ -117,6 +120,7 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     // slot's byte width no longer says anything about.
     drawCorners: maxCorners,
   });
+  diag.engineDiagnostic(...floorDiagnostic(bootstrapUrls.size, floorPages));
   const sourceBytes = indexSourceBytes(allPages);
   // The engine's two fixed pools, in bytes, as in the reference: what does not fit renders coarser.
   // Image targets, themselves, follow resolution with no ceiling. Tables sized by drawable page start
@@ -125,7 +129,7 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     {
       pageBytes,
       uniquePages,
-      rootPages: bootstrapUrls.size,
+      rootPages: floorPages,
       maxResidentPages,
       limits: gpuDevice?.limits,
     },

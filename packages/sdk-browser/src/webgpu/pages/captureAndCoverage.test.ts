@@ -10,6 +10,7 @@ import {
   disposeQuadRun,
 } from './testScenes.fixture.ts';
 import { twoCoarseQuadsScene } from './testOccluder.fixture.ts';
+import { deepQuadScene } from './deepQuad.fixture.ts';
 import type { WebgpuPagesBackend } from './runtime.ts';
 import {
   DEFAULT_SCOPE,
@@ -90,7 +91,7 @@ test('a failed transparent material pipeline cannot leave an HDR pass with an rg
 test('camera jumps and obsolete uploads preserve coverage while detail slots are reclaimed', async () => {
   installGpuGlobals();
   const { device } = mockGpu(),
-    fixture = twoCoarseQuadsScene();
+    fixture = twoCoarseQuadsScene(deepQuadScene);
   // `twoCoarseQuadsScene` rebuilds `metadata` with only `primitives`, itself narrowed to `{url}`
   // pages by an inner callback's own annotation: the real page objects it spreads keep every
   // field at runtime, only their perceived type loses them. The rest of `ClusterManifest` is
@@ -110,7 +111,7 @@ test('camera jumps and obsolete uploads preserve coverage while detail slots are
     ...fixture,
     metadata,
     gpuDevice: device,
-    maxResidentPages: 4,
+    maxResidentPages: 6,
     viewport: [32, 32],
   }) as WebgpuPagesBackend;
   const cam = camera(),
@@ -128,7 +129,7 @@ test('camera jumps and obsolete uploads preserve coverage while detail slots are
     move(0);
     assert.deepEqual(backend.selectedPageIds().sort(), ['0', '1']);
     move(100);
-    assert.deepEqual(backend.selectedPageIds(), ['b2']);
+    assert.deepEqual(backend.selectedPageIds(), ['b3'], 'the root cover stands in on arrival');
     await backend.flush();
     move(100);
     assert.deepEqual(backend.selectedPageIds().sort(), ['b0', 'b1']);
