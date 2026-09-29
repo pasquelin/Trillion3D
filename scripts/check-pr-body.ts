@@ -13,6 +13,11 @@ import { issuesApi, namedIssues, prose, withoutComments } from './close-named-is
 
 const REVIEW_LINES = ['Simplification pass', 'Correctness review'];
 
+/** A tool's own signature never belongs to a body: its footer, its session link (rule 9). */
+const GENERATED_FOOTER = /^[^\S\n]*(?:🤖\s*)?generated (?:with|by)\b/im;
+const TOOL_SESSION =
+  /\b(?:claude\.ai|chatgpt\.com|chat\.openai\.com|copilot\.microsoft\.com|gemini\.google\.com)\b/i;
+
 /** The lines under `## <title>`, up to the next `## ` heading. */
 function section(lines: string[], title: string): string[] {
   const start = lines.findIndex((line) => line.startsWith(`## ${title}`));
@@ -85,8 +90,14 @@ export function bodyProblem(
 ): string | undefined {
   const body = withoutComments(raw);
   if (!/^Closes #\d+/m.test(body)) return 'The body must start with "Closes #<issue>".';
+  const text = prose(body);
+  // The tool gate holds for every pull request, a draft and a "Thumbnail only" body included.
+  if (GENERATED_FOOTER.test(text))
+    return 'The body carries a "Generated with …" footer: remove the tool\'s signature, it is not evidence (AGENTS.md rule 9).';
+  if (TOOL_SESSION.test(text))
+    return 'The body links a tool session (claude.ai, chatgpt.com, …): remove the link, it is not evidence (AGENTS.md rule 9).';
   // The same grammar as close-issues.yml, in any case.
-  if (/\bpart of #\d+/i.test(prose(body)))
+  if (/\bpart of #\d+/i.test(text))
     return 'The body says "Part of": one pull request closes one issue, with "Closes #<issue>" (AGENTS.md rule 5).';
   const lines = body.split('\n');
   const review = section(lines, 'Local review before push');

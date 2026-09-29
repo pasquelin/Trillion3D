@@ -1,3 +1,4 @@
+import { SHADING_POINT_WGSL } from './shadingPoint.ts';
 import { COTANGENT_FRAME_WGSL } from '../../cluster/decodeWgsl.ts';
 import { INVERSE_TRANSPOSE_WGSL } from '../../math/inverseTransposeWgsl.ts';
 import { TRIANGLE_PALETTE_WGSL } from '../../diagnostic/trianglePalette.ts';
@@ -45,6 +46,16 @@ export const UV_GRADIENTS_WGSL = `fn uvGradients(s0:vec2f,s1:vec2f,s2:vec2f,p:ve
  * vertex at the class depth, and the material-depth export that writes each pixel's class.
  */
 export const SHADE_DECL_WGSL = `${PAGE_INFO_STRUCT_WGSL}
+${SHADING_POINT_WGSL}
+@group(0) @binding(${SHADE_BINDINGS.subsurface}) var subsurfaceOutput:texture_storage_2d<rgba16float,write>;
+fn storeSubsurface(pos:vec2f,color:vec3f){
+ if(all(vec2u(pos)<textureDimensions(subsurfaceOutput))){textureStore(subsurfaceOutput,vec2i(pos),vec4f(color,1.0));}
+}
+@group(0) @binding(${SHADE_BINDINGS.shadingOffset}) var<storage,read_write> shadingOffset:array<f32>;
+fn storeShadingOffset(pos:vec2f,offset:vec3f){
+ let at=(u32(pos.y)*u32(uni.viewport.x)+u32(pos.x))*3u;
+ shadingOffset[at]=offset.x;shadingOffset[at+1u]=offset.y;shadingOffset[at+2u]=offset.z;
+}
 ${SHADE_SUN_WGSL}
 struct ShadeUni{viewProj:mat4x4f,viewport:vec2f,pixelRatio:f32,mipBias:f32,pageCount:u32,mode:u32,feedback:u32,pixelScale:f32,depthRamp:vec4f,sun:ShadeSun,}
 @group(0) @binding(${SHADE_BINDINGS.visView}) var vis:texture_2d<u32>;

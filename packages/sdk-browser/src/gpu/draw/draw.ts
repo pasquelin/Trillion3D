@@ -10,6 +10,6 @@ export {
   slotCount,
 } from './contract.ts';
 export type { DrawItem, GpuDraw } from './contract.ts';
-export { evaluateDrawCompact, compactSlotLayout, indirectForDraw } from './cpu.ts';
+export { evaluateDrawCompact, indirectForDraw } from './cpu.ts';
 export { DRAW_SHADER, drawBindEntries } from './shader.ts';
 export { createGpuDraw } from './factory.ts';
