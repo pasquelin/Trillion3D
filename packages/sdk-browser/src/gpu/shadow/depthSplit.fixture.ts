@@ -8,7 +8,8 @@ import { KEPT_LISTS_WGSL } from './cullShader.ts';
 import { SHADOW_DEPTH_SHADER } from './shader.ts';
 
 /** develop's corner before #965 (`shader.ts` at the parent of 9935e9392), frozen as the reference:
- *  every opaque caster, cutout or not, in one list, placed by this and drawn with `shadow_fs`. */
+ *  every opaque caster, cutout or not, in one list, placed by this and drawn with `shadow_fs`; with
+ *  #26's sun corner on the page's grid, which both sides place alike. */
 const DEVELOP_VERTEX = `fn developVertex(vertexIndex:u32,instanceIndex:u32,blended:bool)->ShadowOut{
  var out:ShadowOut;
  let pageIndex=drawPage(instanceIndex);
@@ -20,6 +21,7 @@ const DEVELOP_VERTEX = `fn developVertex(vertexIndex:u32,instanceIndex:u32,blend
  let id=pageCorner(page,h,vertexIndex);
  let vertex=pagePosition(page,h,id);
  out.position=shadow.viewProjection*page.world*vec4f(vertex,1.0);
+ if(out.position.w==1.0){out.position.x=shadowPageCorner(out.position.x);out.position.y=shadowPageCorner(out.position.y);}
  out.fromEmitter=(page.world*vec4f(vertex,1.0)).xyz-shadow.emitter.xyz;
  if((page.flags&4u)!=0u){out.uv=pageUv(page,h,id);}
  return out;
@@ -112,7 +114,7 @@ export function shadowEntries(scene: ShadowScene): ShadowEntries {
   const names = [
     ...['drawPage', 'cutoutPage', 'shadowVertex', 'developVertex', 'shadow_vs', 'shadow_depth_vs'],
     ...['shadow_cutout_vs', 'shadowKeep', 'maskKeep', 'lineDash', 'pageHeader', 'pageCorner'],
-    ...['pagePosition', 'pageUv', 'vertPos', 'vertUv', 'keptAt'],
+    ...['pagePosition', 'pageUv', 'vertPos', 'vertUv', 'keptAt', 'shadowPageCorner'],
   ];
   const scope = { ...scene, vec2f, vec3f, vec4f, mul, sub3, dot, floor: Math.floor };
   return shaderFunctions<ShadowEntries>(source, names, scope);
