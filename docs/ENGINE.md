@@ -471,7 +471,7 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   so drawn before anything samples it: no one-frame hole, the view, a light or a caster moving. A
   frame whose view, world and lights hold, whose host took no page's depth, after a snapshot that
   listed none, runs none of it: at rest it asks for the pages the frame before drew
-  (`freshWanted`, `ShadowPlan.quiet`).
+  (`freshWanted`, `gpu.moved`).
 - **Every stale page the image reads is drawn, in the frame that marks it** (#489). There is no
   per-frame page cap and no millisecond budget; the list goes the coarsest first, each light's
   floor leading (#525), an order that matters only to a frame its memory guard stops. The cost is
