@@ -33,10 +33,11 @@ export interface WorldOptions {
    *  each pixel at its centre, with no history, what a pixel-exact capture asks; switched later
    *  by `world.temporalAntialiasing`. @defaultValue true */
   temporalAntialiasing?: boolean;
-  /** The fraction of the display per axis the image is drawn at, WebGPU only, before temporal
-   *  antialiasing rebuilds it to the display: `'auto'` lets the frame budget choose it between
-   *  `min` and `max` (`{ min, max }`, 0.5 and 1 by default), a number fixes it; a still image is
-   *  drawn at the maximum. Changed later by `world.renderScale`. @defaultValue 'auto' */
+  /** The fraction of the display per axis the image is drawn at, before temporal antialiasing
+   *  rebuilds it to the display: `'auto'` lets the frame budget choose it between `min` and `max`
+   *  (`{ min, max }`, 0.5 and 1 by default; on WebGL2, which only resamples, `min` is 1 by
+   *  default), a number fixes it; a still image is drawn at the maximum. Changed later by
+   *  `world.renderScale`. @defaultValue 'auto' */
   renderScale?: RenderScale;
 }
 
