@@ -2,6 +2,7 @@
 // any other black capture: it is refused by name, never counted as 0 px (#1016).
 import { compareImages } from '../../packages/sdk-core/src/index.ts';
 import type { Capture } from '../../tests/kit/server/staticServer.ts';
+import { flipMap } from './flip.ts';
 import type { ImageDiff, Report } from './report/types.ts';
 
 /** True when no pixel carries light: RGB 0 everywhere, whatever the alpha. */
@@ -23,12 +24,58 @@ export function refuseBlackCaptures(
   errors.unshift(...refused);
 }
 
-/** Delta between two RGBA captures: different pixels and maximum error on a channel. */
+/** The mean and the 99.9th percentile of the colour channels' errors, in 1/255 steps: what a
+ *  resampled image is held to against the native one (#816), where a pixel count says nothing. */
+function channelErrors(a: Uint8Array, b: Uint8Array) {
+  const counts = new Uint32Array(256);
+  let sum = 0;
+  for (let i = 0; i < a.length; i++) {
+    if ((i & 3) === 3) continue;
+    const error = Math.abs(a[i] - b[i]);
+    counts[error]++;
+    sum += error;
+  }
+  const channels = (a.length / 4) * 3;
+  let p999 = 0,
+    seen = counts[0];
+  while (seen < channels * 0.999) seen += counts[++p999];
+  return { meanChannel: sum / channels, p999Channel: p999 };
+}
+
+/** Delta between two RGBA captures: different pixels, maximum, mean and 99.9th-percentile error
+ *  on a channel. */
 export function imageDiff(a: Capture | undefined, b: Capture | undefined): ImageDiff {
   if (!a || !b) return null;
-  if (a.w !== b.w || a.h !== b.h)
-    return { erreur: `different sizes ${a.w}×${a.h} / ${b.w}×${b.h}` };
-  if (black(a) || black(b)) return { erreur: 'black capture, RGB 0 everywhere' };
+  if (a.w !== b.w || a.h !== b.h) return { error: `different sizes ${a.w}×${a.h} / ${b.w}×${b.h}` };
+  if (black(a) || black(b)) return { error: 'black capture, RGB 0 everywhere' };
   const diff = compareImages(a.body, b.body);
-  return { pixels: diff.differentPixels, maxCanal: diff.maxChannelError, total: a.w * a.h };
+  return {
+    pixels: diff.differentPixels,
+    maxChannel: diff.maxChannelError,
+    ...channelErrors(a.body, b.body),
+    total: a.w * a.h,
+  };
+}
+
+/** An `ImageDiff` against a named reference image, with its mean LDR-FLIP error in [0, 1]. */
+export type ReferenceDiff =
+  | Exclude<ImageDiff, { pixels: number }>
+  | (Extract<ImageDiff, { pixels: number }> & { reference: string; flipMean: number });
+
+/** A rendering technique's bound against its named reference image (CONTRIBUTING.md, "Image and
+ *  fidelity", class 2): the channel errors of `imageDiff` plus the mean LDR-FLIP error. */
+export function referenceDiff(
+  reference: { name: string; capture: Capture | undefined },
+  test: Capture | undefined,
+): ReferenceDiff {
+  const { capture } = reference;
+  if (!capture || !test) return null;
+  const diff = imageDiff(capture, test);
+  if (!diff || 'error' in diff) return diff;
+  const map = flipMap(capture.body, test.body, test.w, test.h);
+  return {
+    ...diff,
+    reference: reference.name,
+    flipMean: map.reduce((s, e) => s + e, 0) / map.length,
+  };
 }

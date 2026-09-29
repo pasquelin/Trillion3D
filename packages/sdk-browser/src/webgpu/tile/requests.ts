@@ -36,6 +36,7 @@ export function createTileRequests(options: {
       if (!weight) continue;
       const atlas = index < color.pages.entries ? color : data;
       const key = atlas.pages.tileOf(index);
+      if (atlas.textures[key.slot].retired) continue;
       requested++;
       const served = atlas.servedLevel(key) - key.level;
       if (served === 0) atLevel++;
@@ -48,6 +49,9 @@ export function createTileRequests(options: {
     return out.sort((a, b) => b.weight - a.weight);
   };
   return {
+    reset: () => {
+      backlog = [];
+    },
     /** The list a pass serves, in weight order; empty when nothing is named or deferred. */
     take(frame: number): TileRequest[] {
       const counts = feedback.take();

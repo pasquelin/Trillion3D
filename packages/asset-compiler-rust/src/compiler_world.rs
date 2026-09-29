@@ -1,6 +1,11 @@
 use super::*;
 use crate::shared_math::{cross, linear_columns};
 
+mod rotation;
+pub(super) use rotation::{
+    axis_angle, axis_rotation, identity, product, quaternion_wxyz, rotation_matrix, turn,
+};
+
 /// A glTF node transform, column-major like the format itself.
 pub(super) type Mat4 = [f64; 16];
 pub(super) const IDENTITY: Mat4 = [
@@ -12,17 +17,7 @@ const MAX_DEPTH: usize = 256;
 /// `a · b`, operation `b` applying to point before `a`. Shared with scene drivers
 /// composing own matrices.
 pub(super) fn multiply(a: &Mat4, b: &Mat4) -> Mat4 {
-    let mut out = [0.0f64; 16];
-    for column in 0..4 {
-        for row in 0..4 {
-            let mut sum = 0.0;
-            for k in 0..4 {
-                sum += a[k * 4 + row] * b[column * 4 + k];
-            }
-            out[column * 4 + row] = sum;
-        }
-    }
-    out
+    rotation::compose(a, b, 0.0)
 }
 
 fn numbers(value: Option<&Value>, length: usize, what: &str) -> Result<Option<Vec<f64>>> {
@@ -60,29 +55,6 @@ pub(super) fn scaling(by: [f64; 3]) -> Mat4 {
         out[axis * 4 + axis] = by[axis];
     }
     out
-}
-
-/// The rotation of a glTF unit quaternion `(x, y, z, w)`, column by column. Shared with the scene
-/// plugins that compose their own matrices.
-pub(super) fn rotation_matrix([x, y, z, w]: [f64; 4]) -> Mat4 {
-    [
-        1. - 2. * (y * y + z * z),
-        2. * (x * y + z * w),
-        2. * (x * z - y * w),
-        0.,
-        2. * (x * y - z * w),
-        1. - 2. * (x * x + z * z),
-        2. * (y * z + x * w),
-        0.,
-        2. * (x * z + y * w),
-        2. * (y * z - x * w),
-        1. - 2. * (x * x + y * y),
-        0.,
-        0.,
-        0.,
-        0.,
-        1.,
-    ]
 }
 
 /// `matrix` when the node carries one, otherwise translation · rotation · scale, as glTF defines it.

@@ -1,4 +1,5 @@
 import { BOUNCE_SETTINGS, type SceneProxy } from '../../../../../sdk-core/src/index.ts';
+import { syncPageProxy } from './proxyMotion.ts';
 import { bounceProbeBytes } from '../../../bounce/limits.ts';
 import { createGpuBounceProbes } from '../../../bounce/probes.ts';
 import { grantCapability } from '../io/drops.ts';
@@ -17,7 +18,7 @@ const BOUNCE_APPROXIMATIONS = [
   'a probe ray that exhausts the published traversal bound reports no hit, which darkens',
   'a shadow ray that exhausts that bound reports no blocker, which lights a cell that should be dark',
   'the surface cache holds one radiance per proxy triangle and face, so lighting is constant over a cell',
-  'the surface cache is swept on a budget, so a freshly moved light reaches a cell within one sweep',
+  'static surface cells refresh on a budget; after geometry motion owner hits evaluate lighting directly',
   'a probe buried in a surface or lost in open sky goes to sleep and is skipped until a light changes',
   'the millisecond budget follows a timestamp read several frames late, and only every third or twelfth frame',
   'a point no cascade level reaches gets exactly zero bounce, never a guess',
@@ -66,20 +67,28 @@ export function ensureBounce(rt: WebgpuPagesRuntime, device: GPUDevice) {
     .then((proxy: SceneProxy) =>
       createGpuBounceProbes(device, proxy, () => lights.buffer!, bounce.budgetMs),
     )
-    .then(
-      (probes) => {
-        bounce.probes = probes;
-        grantCapability(rt.capabilities, BOUNCE_CAPABILITY);
-        publish(rt);
-      },
-      (error: unknown) => {
-        // A missing proxy is no longer the only cause: a device too small for the bounce bindings
-        // refuses here too, and the message carries the binding and the bytes that were missing.
-        bounce.reason = `bounce unavailable: ${String(error)}`;
-        rt.diag.diagnosticFailure('bounce-unavailable', error);
-        publish(rt);
-      },
-    );
+    .then((probes) => {
+      if (rt.gpu.device !== device) {
+        probes.dispose();
+        return;
+      }
+      try {
+        syncPageProxy(rt, probes, true);
+      } catch (error) {
+        probes.dispose();
+        throw error;
+      }
+      bounce.probes = probes;
+      grantCapability(rt.capabilities, BOUNCE_CAPABILITY);
+      rt.run.gate.resourcesChanged();
+      publish(rt);
+    })
+    .catch((error: unknown) => {
+      if (rt.gpu.device !== device) return;
+      bounce.reason = `bounce unavailable: ${String(error)}`;
+      rt.diag.diagnosticFailure('bounce-unavailable', error);
+      publish(rt);
+    });
 }
 
 /** What the bounce actually obtained: proxy size, grid, budget. Never an estimate. */

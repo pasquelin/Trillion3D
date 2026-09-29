@@ -1,5 +1,5 @@
 import type { ShadowRequestReport } from '../../../../sdk-core/src/scene/light-shadow/requests.ts';
-import { SHADOW_REQUEST_BITS } from '../../lighting/direct/shadowWgsl.ts';
+import { SHADOW_REQUEST_BITS } from '../../lighting/direct/shadowRequestWgsl.ts';
 import { shadowRequestCap } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 
 /** Readback slots in flight at most: a frame whose three predecessors are still mapping asks
@@ -53,7 +53,7 @@ export function createShadowPageRequests(device: GPUDevice, pages: number) {
     });
   let inFlight = 0;
   return {
-    /** What the shading records its requests in (`../../lighting/direct/shadowWgsl.ts`). */
+    /** What the shading records its requests in (`../../lighting/direct/shadowRequestWgsl.ts`). */
     buffer: requestBuffer,
     /** GPU bytes of the request buffer, counted in the pool (`shadowRequestBytes`). */
     bytes: requestBuffer.size,

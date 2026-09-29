@@ -91,7 +91,7 @@ fn a_raised_token_stops_a_mesh_before_its_last_face() {
         sharp: vec![true],
         sharp_corners: Vec::new(),
     };
-    let normals = normals::corners(&geometry.surface()).normals;
+    let normals = computed_normals(&geometry).normals;
     let mut out = Out::default();
     let refusal = build::mesh_json(
         &geometry,

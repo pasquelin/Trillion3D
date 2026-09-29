@@ -1,3 +1,4 @@
+import { EngineError } from '../../../../sdk-core/src/index.ts';
 import { poolLayerBytes, tileBytes, TILES_PER_LAYER } from '../../texture/tiles.ts';
 import {
   laneCounts,
@@ -9,24 +10,7 @@ import {
   type PoolLane,
 } from '../../texture/blockFormats.ts';
 import { checkTexturePoolBudget, type PoolClamp } from '../../residency/pools.ts';
-
-/** 512 MiB, split equally between the colour atlas and the data atlas, in 64 MiB layers. */
-export const DEFAULT_TEXTURE_POOL_BUDGET = 512 * 1024 * 1024;
-/** The two budgets of a frame's tile pass. Bytes: 16 MiB of tiles copied into the pools.
- *  Milliseconds: the same order as the shadow stage's budget, the reference's fixed number of tile
- *  uploads per frame in the frame's own unit. What they defer shows its coarser resident level
- *  until the next pass. */
-export const DEFAULT_TEXTURE_TRANSFER_BYTES = 16 * 1024 * 1024;
-export const DEFAULT_TEXTURE_UPLOAD_MS = 1;
-
-/** A tile pass budget for what the host declared: the default when it declared nothing finite,
- *  never below `floor` — one byte, or zero milliseconds: one tile per pass still lands. */
-const budgetFor = (declared: number | undefined, fallback: number, floor: number) =>
-  Math.max(floor, Number.isFinite(declared) ? declared! : fallback);
-export const textureTransferBytesFor = (declared: number | undefined) =>
-  budgetFor(declared, DEFAULT_TEXTURE_TRANSFER_BYTES, 1);
-export const textureUploadMsFor = (declared: number | undefined) =>
-  budgetFor(declared, DEFAULT_TEXTURE_UPLOAD_MS, 0);
+import type { CoverageReaders } from '../../texture/coverage.ts';
 
 /** The texture pool as it stands: budget and bytes held. */ export type TexturePool = {
   /** Bytes allowed. */ budgetBytes: number;
@@ -46,9 +30,18 @@ export type TexturePools = {
   encoding: PoolEncoding;
   pool: TexturePool;
   poolFor(budgetBytes: number): TexturePool;
+  /** What `poolFor` draws the lanes on — tiles and tails each lane's textures take —, grown in
+   *  place by a texture appended after open (#847), and the colour census's readers. */
+  demand: AtlasLanes;
+  tails: AtlasLanes;
+  coverage: CoverageReaders;
   /** Bytes of the live textures' working textures the pool was drawn without (#362). */
   liveBytes?: number;
 };
+
+const layersFor = (tiles: number) => Math.ceil(tiles / TILES_PER_LAYER);
+/** A lane's floor: its tails, and one tile to stream into when the lane streams. */
+const laneFloor = (tails: number, streams: boolean) => layersFor(tails + Number(streams));
 
 /**
  * Layers of each lane pool that the texture-pool budget yields: half the budget per atlas; in an
@@ -75,13 +68,11 @@ export function texturePoolFor(
   const limit = device?.limits?.maxTextureArrayLayers;
   const clamps = new Set<PoolClamp>();
   const layerBytes = (lane: PoolLane) => poolLayerBytes(texelBytes(lane));
-  const layersFor = (tiles: number) => Math.ceil(tiles / TILES_PER_LAYER);
   const atlas = (lanes: LaneCounts, kept: LaneCounts) => {
     const layers = laneCounts();
     const open = new Set(POOL_LANES.filter((lane) => lanes[lane] > 0));
     // The tails, and one slot to stream into when the lane streams: never frozen at its tails.
-    for (const lane of open)
-      layers[lane] = layersFor(kept[lane] + Number(lanes[lane] > kept[lane]));
+    for (const lane of open) layers[lane] = laneFloor(kept[lane], lanes[lane] > kept[lane]);
     const floor = { ...layers };
     let budget =
       budgetBytes / 2 - [...open].reduce((sum, lane) => sum + floor[lane] * layerBytes(lane), 0);
@@ -130,4 +121,48 @@ export function texturePoolFor(
   const clamp =
     (['device-limit', 'minimum', 'scene'] as const).find((name) => clamps.has(name)) ?? null;
   return { budgetBytes, layers, allocatedBytes, clamp };
+}
+
+/** A lane about to take one more texture: its atlas, its tiles held — tails and streamed —, its
+ *  textures' tails and whether any streams, the latter two with the new texture counted. */
+export type LaneTaking = {
+  kind: 'color' | 'data';
+  lane: PoolLane;
+  resident: number;
+  tails: number;
+  streams: boolean;
+};
+
+/**
+ * The pool a live atlas takes one more texture in, after open (#847): its lane grown only by the
+ * layers the texture's tail needs — a free place beside every tile the lane holds, so nothing drawn
+ * is evicted, and the floor `texturePoolFor` keeps, its tails and one tile to stream into —, every
+ * other lane as it is; the same pool when the lane has room. A growth that takes the pool past
+ * `budgetBytes` — what the budget leaves it beside the live textures (`budgetBeside`) —, or the
+ * lane past the device's layers, is refused by name (`TEXTURE_BUDGET`): nothing is drawn for it.
+ */
+export function poolTaking(
+  pool: TexturePool,
+  taking: LaneTaking,
+  layerBytes: number,
+  limits: { budgetBytes: number; maxLayers: number },
+): TexturePool {
+  const { kind, lane } = taking;
+  const current = pool.layers[kind][lane];
+  const wanted = Math.max(
+    current,
+    layersFor(taking.resident + 1),
+    laneFloor(taking.tails, taking.streams),
+  );
+  if (wanted === current) return pool;
+  const allocatedBytes = pool.allocatedBytes + (wanted - current) * layerBytes;
+  if (allocatedBytes > limits.budgetBytes || wanted > limits.maxLayers)
+    throw new EngineError('TEXTURE_BUDGET', 'the texture does not fit the texture budget', {
+      ...taking,
+      layers: wanted,
+      askedBytes: allocatedBytes,
+      ...limits,
+    });
+  const layers = { ...pool.layers, [kind]: { ...pool.layers[kind], [lane]: wanted } };
+  return { ...pool, layers, allocatedBytes };
 }

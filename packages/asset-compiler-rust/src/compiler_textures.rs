@@ -12,6 +12,7 @@ use crate::texture_preview::TexturePreview;
 /// deciding.
 pub(super) struct TextureStage<'a> {
     pub o: &'a Options,
+    pub reserved_bytes: usize,
     pub g: &'a Value,
     pub bin: &'a [u8],
     pub image_root: &'a Path,
@@ -36,6 +37,7 @@ pub(super) fn stage_textures(
         texture_preview::stage_texture_previews(
             &texture_preview::PreviewInputs {
                 o: stage.o,
+                reserved_bytes: stage.reserved_bytes,
                 g: stage.g,
                 bin: stage.bin,
                 image_root: stage.image_root,

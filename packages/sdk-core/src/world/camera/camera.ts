@@ -3,10 +3,9 @@ import { readVec3, type Vec3Input } from '../math/vector3.ts';
 import { Ray } from '../math/volumes.ts';
 import { Matrix4 } from '../math/matrix4.ts';
 import { referenceProjection } from './referenceProjection.ts';
-import { drawnBox, orthographicView, perspectiveSlope } from '../../math/primitives/camera.ts';
+import { drawnView, perspectiveSlope } from '../../math/primitives/camera.ts';
 
 const view = new Float64Array(4);
-const box = { left: 0, right: 0, top: 0, bottom: 0 };
 
 /** A named view: where the eye is, what it looks at, and optionally its field. */
 export interface CameraPose {
@@ -152,7 +151,7 @@ export class Camera extends Object3D {
       out.origin.setFromMatrixPosition(m);
       out.direction.set(x * t * aspect, y * t, -1);
     } else {
-      const [cx, cy, w, h] = orthographicView(drawnBox(this, aspect, box), this.zoom, view);
+      const [cx, cy, w, h] = drawnView(this, aspect, this.zoom, view);
       out.origin.set(cx + x * w, cy + y * h, 0).applyMatrix4(m);
       out.direction.set(0, 0, -1);
     }

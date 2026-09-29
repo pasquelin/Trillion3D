@@ -2,7 +2,8 @@
  * GROWING AN INSTANCE BUFFER IN PLACE — the one contract every engine follows.
  *
  * A session holds each resource's instance buffer at a capacity. When its owner needs more rows,
- * it does not open the session again: it replaces the buffer `from` by a larger one `to` whose
+ * it does not open the session again: once the engine said it takes the growth
+ * (`BackendSceneUpdates.growsInPlace`), it replaces the buffer `from` by a larger one `to` whose
  * first rows are `from`'s, the rows past them parked, and hands both to the engine
  * (`BackendSceneUpdates.growPlacements`). The engine then
  *   1. rebinds every root, page and copy that read a row of `from` onto the same row of `to`;
@@ -18,15 +19,10 @@ import type { PageRec, ClusterRoot } from '../page/selection/types.ts';
 import { forgetRowRoots } from './update.ts';
 import { placementWorld, type PlacementOf, type PlacementRows } from './rows.ts';
 
-/** A root's pages and itself posed by `placement`, whose world is a view on its row. */
+/** A root posed by `placement`, whose world is a view on its row: its pages read both from it. */
 function pose(root: ClusterRoot<PageRec>, placement: PlacementOf) {
-  const world = placementWorld(placement.rows, placement.index);
-  root.world = world;
+  root.world = placementWorld(placement.rows, placement.index);
   root.placement = placement;
-  for (const page of root.pages) {
-    page.matrix = world;
-    page.placement = placement;
-  }
 }
 
 /** A parked root for row `index` of `rows`, cloned from `template`: shared clusters and tables,

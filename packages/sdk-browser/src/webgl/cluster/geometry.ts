@@ -1,7 +1,7 @@
-import { isInstancedNode } from '../../host/graph/kinds.ts';
 import type { GpuBuffer, WholeMesh } from '../../cluster/batchMesh.ts';
 import { glType, upload, type CachedAttribute } from './buffers.ts';
 import { WebglClusterPlacements } from './placements.ts';
+import { WebglPageArenas } from './pageArenas.ts';
 
 /** What the cache binds: a batch record's geometry, or that of a host mesh drawn whole. */
 type Geometry = WholeMesh['geometry'];
@@ -14,13 +14,15 @@ type CachedGeometry = {
   instances: GpuBuffer | null;
   /** Frees this entry when its geometry is given back; removed at the renderer's dispose. */
   release?: () => void;
+  /** The frame its arrays were last checked against the geometry's versions. */
+  checked?: number;
 };
 /** A geometry of the engine's own graph announces its release; a host one never does. */
 type Releasing = { released?: Set<() => void> };
 /** The attributes the program reads, by name. */
-const ATTRIBUTES = ['position', 'normal', 'uv', 'uv1', 'color'] as const;
+export const ATTRIBUTES = ['position', 'normal', 'uv', 'uv1', 'color'] as const;
 /** An attribute the program can bind: one owning its buffer; an interleaved view reads as absent. */
-const drawnAttribute = (geometry: Geometry, name: string) => {
+export const drawnAttribute = (geometry: Geometry, name: string) => {
   const attribute = geometry.attributes[name];
   return attribute?.kind === 'attribute' ? attribute : undefined;
 };
@@ -31,12 +33,21 @@ export class WebglClusterGeometry {
   private locations: Record<string, number>;
   /** The placement matrices of the instanced meshes, one buffer each, freed with their mesh. */
   private placements: WebglClusterPlacements;
+  /** The shared buffers the pages are drawn from, by vertex layout (`pageArenas.ts`). */
+  readonly arenas: WebglPageArenas;
   constructor(gl: WebGL2RenderingContext, locations: Record<string, number>) {
     this.gl = gl;
     this.locations = locations;
     this.placements = new WebglClusterPlacements(gl, locations.instanceMatrix);
+    this.arenas = new WebglPageArenas(gl, locations);
   }
-  /** Binds `geometry`, and the placement matrices of an instanced mesh when `mesh` is one. */
+  /** Binds an arena's vertex array (`pageArena.ts`), whose absent attributes read the frame's
+   *  constants. */
+  bindArena(vao: WebGLVertexArrayObject) {
+    this.gl.bindVertexArray(vao);
+    if (!this.generics) this.setGenerics();
+  }
+  /** Binds `geometry`, and the placement matrices of `mesh`, an instanced mesh. */
   bind(geometry: Geometry, mesh?: Pick<WholeMesh, 'instanceMatrix' | 'released'>) {
     const gl = this.gl;
     let cached = this.cache.get(geometry);
@@ -64,14 +75,14 @@ export class WebglClusterGeometry {
     }
     gl.bindVertexArray(cached.vao);
     // The vertex array holds its buffers and pointers: they are specified again only when an
-    // attribute was replaced or rewritten since. The constant of an absent attribute is context
-    // state, not the array's, and is set once per frame.
-    if (!this.current(cached, geometry)) this.specify(cached, geometry);
+    // attribute was replaced or rewritten since, read once a frame — the frame's passes draw the
+    // same geometry (#840). The constant of an absent attribute is context state, not the
+    // array's, and is set once per frame.
+    if (cached.checked !== this.frame && !this.current(cached, geometry))
+      this.specify(cached, geometry);
+    cached.checked = this.frame;
     if (!this.generics) this.setGenerics();
-    cached.instances = this.placements.bind(
-      cached.instances,
-      mesh && isInstancedNode(mesh) ? mesh : undefined,
-    );
+    cached.instances = this.placements.bind(cached.instances, mesh);
   }
   /** Whether the vertex array still describes `geometry`: the same index and attributes, at the
    *  versions it uploaded. */
@@ -99,14 +110,15 @@ export class WebglClusterGeometry {
       const attribute = drawnAttribute(geometry, name),
         location = this.locations[name];
       if (location < 0) continue;
+      const held = cached.attributes.get(name);
+      if (held && held.source !== attribute) this.drop(held);
       if (!attribute) {
         gl.disableVertexAttribArray(location);
-        const stale = cached.attributes.get(name);
-        if (stale) gl.deleteBuffer(stale.buffer);
         cached.attributes.delete(name);
         continue;
       }
-      const entry = upload(gl, gl.ARRAY_BUFFER, attribute, cached.attributes.get(name));
+      const entry = upload(gl, gl.ARRAY_BUFFER, attribute, this.shared(attribute));
+      if (held?.source !== attribute) this.lists.get(attribute)!.users++;
       cached.attributes.set(name, entry);
       gl.bindBuffer(gl.ARRAY_BUFFER, entry.buffer);
       gl.enableVertexAttribArray(location);
@@ -122,9 +134,14 @@ export class WebglClusterGeometry {
   }
   /** Whether the constants of absent attributes were set this frame. */
   private generics = false;
-  /** A new frame: the context's constants may have been written by another program since. */
+  /** The frame drawn, counted by `beginFrame`. */
+  private frame = 0;
+  /** A new frame: the context's constants may have been written by another program since, and
+   *  the geometries rewritten. */
   beginFrame() {
     this.generics = false;
+    this.frame++;
+    this.arenas.beginFrame();
   }
   /** White for an absent colour, zero for any other absent attribute. */
   private setGenerics() {
@@ -137,10 +154,33 @@ export class WebglClusterGeometry {
     }
     this.generics = true;
   }
+  /**
+   * One buffer per vertex list, whatever number of geometries read it — the pages of a dynamic
+   * geometry all read its lists (#573) —: uploaded once per version, by its written ranges alone
+   * (`upload`), and freed with its last reader.
+   */
+  private lists = new Map<GpuBuffer, CachedAttribute & { users: number }>();
+  private shared(attribute: GpuBuffer) {
+    let entry = this.lists.get(attribute);
+    if (!entry) {
+      const buffer = this.gl.createBuffer()!;
+      this.lists.set(
+        attribute,
+        (entry = { buffer, source: attribute, version: -1, bytes: 0, users: 0 }),
+      );
+    }
+    return entry;
+  }
+  private drop(entry: CachedAttribute) {
+    const shared = this.lists.get(entry.source);
+    if (shared !== entry || --shared.users > 0) return;
+    this.lists.delete(entry.source);
+    this.gl.deleteBuffer(entry.buffer);
+  }
   private free(entry: CachedGeometry) {
     this.gl.deleteVertexArray(entry.vao);
     if (entry.index) this.gl.deleteBuffer(entry.index.buffer);
-    for (const attribute of entry.attributes.values()) this.gl.deleteBuffer(attribute.buffer);
+    for (const attribute of entry.attributes.values()) this.drop(attribute);
   }
   dispose() {
     for (const [geometry, entry] of this.cache) {
@@ -149,5 +189,6 @@ export class WebglClusterGeometry {
     }
     this.cache.clear();
     this.placements.dispose();
+    this.arenas.dispose();
   }
 }

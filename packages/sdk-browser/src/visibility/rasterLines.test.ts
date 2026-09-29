@@ -10,6 +10,7 @@ import type { VisPage } from './types.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { surfaceOf } from '../page/surface.ts';
 import { lineDash } from './shader/lineWgsl.ts';
+import { identityRoots } from '../page/selection/placements.fixture.ts';
 
 const VIEW: [number, number] = [96, 96];
 
@@ -23,7 +24,7 @@ function segment(lineWidth: number, dash?: { dashSize: number; gapSize: number }
   return {
     array: new Uint32Array([0, 1, 3, 0, 3, 2]),
     attributes: geometry.attributes,
-    matrix: new G.Matrix4(),
+    placementIndex: 0,
     material: surfaceOf(G.basicSurface({ side: G.DOUBLE_SIDE, lineWidth, ...dash })),
   };
 }
@@ -38,7 +39,7 @@ function camera() {
 
 test('the CPU raster widens a line corner by the CSS width times the pixel ratio', () => {
   for (const pixelRatio of [1, 2]) {
-    const tri = triangleAt(segment(3), 0, camera(), VIEW[0], VIEW[1], pixelRatio)!;
+    const tri = triangleAt(segment(3), new G.Matrix4(), 0, camera(), VIEW[0], VIEW[1], pixelRatio)!;
     // Corners 0 and 1 are the two sides of the first endpoint.
     const gap = Math.hypot(tri.a.x - tri.b.x, tri.a.y - tri.b.y);
     assert.ok(Math.abs(gap - 3 * pixelRatio) < 1e-9, `ratio ${pixelRatio}: ${gap}`);
@@ -47,13 +48,13 @@ test('the CPU raster widens a line corner by the CSS width times the pixel ratio
 
 test('the CPU raster covers a line with its width, where it drew nothing before', () => {
   for (const pixelRatio of [1, 2]) {
-    const { ids } = rasterVisibility([segment(3)], camera(), VIEW, pixelRatio);
+    const { ids } = rasterVisibility([segment(3)], identityRoots(), camera(), VIEW, pixelRatio);
     let covered = 0;
     for (let y = 0; y < VIEW[1]; y++) if (ids[y * VIEW[0] + 48]) covered++;
     // The rows whose centre falls within the band, both edges inclusive.
     assert.ok(covered >= 3 * pixelRatio && covered <= 3 * pixelRatio + 1, `${covered} rows`);
   }
-  const { ids } = rasterVisibility([segment(0)], camera(), VIEW);
+  const { ids } = rasterVisibility([segment(0)], identityRoots(), camera(), VIEW);
   assert.equal(ids.filter(Boolean).length, 0, 'a triangle surface of this quad has no area');
 });
 
@@ -61,7 +62,7 @@ test('the CPU raster covers a line with its width, where it drew nothing before'
 // along the line its quads carry: drawn on each dash, empty on each gap; a solid line stays whole.
 test('the CPU raster draws a dashed line on its dashes and leaves its gaps empty', () => {
   const row = (page: VisPage) => {
-    const { ids } = rasterVisibility([page], camera(), VIEW);
+    const { ids } = rasterVisibility([page], identityRoots(), camera(), VIEW);
     return Array.from({ length: VIEW[0] }, (_, x) => ids[48 * VIEW[0] + x] !== 0);
   };
   const solid = row(segment(3));

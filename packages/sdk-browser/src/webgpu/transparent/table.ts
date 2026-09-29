@@ -65,13 +65,13 @@ export function createTransparentTable(
   packedPages: readonly PageRec[],
   items: readonly BlendGpuItem[],
 ) {
-  /** Where each root's pages start in the catalogue, and how the cut walks them, by the world its
-   *  pages read: a paged item and the root of its placement read the same one. */
+  /** Where each root's pages start in the catalogue, and how the cut walks them, by the world of
+   *  their root: a paged item and the root of its placement read the same one. */
   const rootOfPlacement = new Map<object, { base: number; root: ClusterRoot<PageRec> }>();
   let base = 0;
   for (const root of roots) {
     const first = root.pages[0];
-    if (first?.transparent) rootOfPlacement.set(first.matrix, { base, root });
+    if (first?.transparent) rootOfPlacement.set(root.world, { base, root });
     base += root.pages.length;
   }
   const paged = items.filter((item) => item.paged);

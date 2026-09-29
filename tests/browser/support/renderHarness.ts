@@ -2,6 +2,8 @@
 // compiled `three-stack` golden some of them load, and the gallery scene others open.
 import { resolve } from 'node:path';
 import type { Page } from 'playwright';
+import { launchChrome } from '../../../bench/runner/chrome.ts';
+import { startServer } from '../../kit/server/staticServer.ts';
 import { compileFullCache } from '../../../scripts/native-compiler.ts';
 import type { Mount } from '../../../scripts/static-server.ts';
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts';
@@ -46,6 +48,27 @@ export function threeStackMounts(root: string, out: string): Mount[] {
 
 /** What a proof that opens a gallery scene serves: the built SDK and every scene root. */
 export const galleryMounts = (root: string): Mount[] => [...sdkMounts(root), ...sceneMounts(root)];
+
+/** A blank page at DPR 2 served with `galleryMounts` in headless Chrome, the errors it throws, and
+ *  `close`, which stops the browser and the server. */
+export async function openGalleryPage(root: string, viewport: { width: number; height: number }) {
+  const { server, port } = await startServer({ mounts: galleryMounts(root) });
+  const browser = await launchChrome({ headless: true });
+  const close = async () => {
+    await browser.close();
+    await new Promise((done) => server.close(done));
+  };
+  const errors: string[] = [];
+  try {
+    const page = await browser.newPage({ viewport, deviceScaleFactor: 2 });
+    page.on('pageerror', (error) => errors.push(error.message));
+    await page.goto(`http://127.0.0.1:${port}`);
+    return { page, errors, close };
+  } catch (error) {
+    await close();
+    throw error;
+  }
+}
 
 /** A gallery scene opened on the pages backend, full scope and imported lights, in a canvas of
  *  its own that replaces the page body, then posed; the world is left on `window.scene`. */

@@ -17,6 +17,10 @@ import {
   type VisPage,
 } from '../../../../packages/sdk-browser/src/visibility/types.ts';
 import type { fillReference, Keep } from './rasterBuffer.ts';
+import {
+  rootOf,
+  type Placements,
+} from '../../../../packages/sdk-browser/src/page/selection/placements.ts';
 
 type Triangle = NonNullable<ReturnType<typeof triangleAt>>;
 
@@ -50,7 +54,12 @@ type Fill = typeof fillReference;
 
 /** The frame loop of `packages/sdk-browser/src/visibility/raster.ts`, on the fill it is given. */
 export function rasterWith(fill: Fill) {
-  return (pages: VisPage[], cam: Parameters<typeof triangleAt>[2], viewport: [number, number]) => {
+  return (
+    pages: VisPage[],
+    roots: Placements,
+    cam: Parameters<typeof triangleAt>[3],
+    viewport: [number, number],
+  ) => {
     const [width, height] = viewport,
       ids = new Uint32Array(width * height),
       depth = new Float32Array(width * height);
@@ -68,7 +77,7 @@ export function rasterWith(fill: Fill) {
           : THREE.FrontSide;
       const triangles = assertVisibilityPageTriangles((index.length / 3) | 0);
       for (let t = 0; t < triangles && t <= VIS_TRIANGLE_MASK; t++) {
-        const tri = triangleAt(page, t, cam, width, height);
+        const tri = triangleAt(page, rootOf(roots, page).world, t, cam, width, height);
         if (!tri) continue;
         const area =
           (tri.b.x - tri.a.x) * (tri.c.y - tri.a.y) - (tri.c.x - tri.a.x) * (tri.b.y - tri.a.y);

@@ -58,7 +58,8 @@
       "missingCache": "Thiếu bộ nhớ đệm đã biên dịch: hãy chạy pnpm compile:caches"
     },
     "banner": {
-      "close": "Đóng"
+      "close": "Đóng",
+      "waiting": "Đang chờ engine (#{issue})"
     }
   },
   "a-city-from-rules": {
@@ -1262,6 +1263,25 @@
       "off": "tắt"
     }
   },
+  "page-materials": {
+    "banner": "Kéo để khám phá sảnh. Liệt kê, thay đổi, pha trộn hoặc tạo vật liệu.",
+    "controls": {
+      "set": "Đổi màu",
+      "switchToBlend": "Chuyển sang pha trộn",
+      "createAndAssign": "Tạo và gán"
+    },
+    "readouts": {
+      "selected material": "Vật liệu đã chọn",
+      "materials": "Vật liệu",
+      "sourceMaterials": "Vật liệu gốc",
+      "last action": "Thao tác gần nhất"
+    },
+    "words": {
+      "imported": "Đã nhập {count}",
+      "applied": "Đã áp dụng",
+      "ready": "Sẵn sàng"
+    }
+  },
   "lights-from-the-scene-file": {
     "banner": "Kéo để nhìn quanh. Những chiếc đèn này có sẵn trong tệp mô hình.",
     "controls": {
@@ -1391,6 +1411,7 @@
     "banner": "Kéo để đi quanh. Đổi chế độ xem để thấy trình kết xuất lưu gì.",
     "controls": {
       "see": "Xem",
+      "glass": "Tấm kính",
       "spin": "Xoay"
     },
     "choices": {
@@ -1745,7 +1766,8 @@
       "night": "Đêm",
       "bounce": "Ánh sáng dội",
       "sun": "Mặt Trời",
-      "lamp": "Đèn"
+      "lamp": "Đèn",
+      "spin": "Xoay"
     },
     "words": {
       "credit": "Mô hình đèn đường của W. Sitters, CC BY 3.0 — xem assets/examples/CREDITS.md"

@@ -7,8 +7,9 @@
 import assert from 'node:assert/strict';
 import type { encodeDagKernels } from './encode.ts';
 
-/** `liste`: offset of the group count armed before the dispatch, hence the list walked. */
-type Lancement = { noyau: string; groupes: number | 'indirect'; liste?: number };
+/** `liste`: offset of the group count armed before the dispatch, hence the list walked;
+ *  `rows`: the rows of a flat dispatch past one row (`shader/gridWgsl.ts`). */
+type Lancement = { kernel: string; groups: number | 'indirect'; liste?: number; rows?: number };
 type Copie = {
   de: string;
   decalage: number;
@@ -30,21 +31,21 @@ export function encodeurTemoin() {
   const passes: string[] = [];
   /** Each bind group a pass sets, in order. */
   const groupesLies: unknown[] = [];
-  let noyau = '';
+  let kernel = '';
   let arme = -1;
   let ouverte = false;
   const pass = {
     setBindGroup: (_: number, groupe: unknown) => void groupesLies.push(groupe),
     setPipeline(next: { entryPoint: string }) {
-      noyau = next.entryPoint;
+      kernel = next.entryPoint;
     },
-    dispatchWorkgroups(groupes: number) {
-      lancements.push({ noyau, groupes });
+    dispatchWorkgroups(groups: number, rows = 1) {
+      lancements.push({ kernel, groups, ...(rows > 1 && { rows }) });
     },
     dispatchWorkgroupsIndirect(buffer: { nom: string }, decalage: number) {
       assert.equal(buffer.nom, 'dispatchArgs');
       assert.equal(decalage, 0);
-      lancements.push({ noyau, groupes: 'indirect', liste: arme });
+      lancements.push({ kernel, groups: 'indirect', liste: arme });
     },
     end() {
       ouverte = false;

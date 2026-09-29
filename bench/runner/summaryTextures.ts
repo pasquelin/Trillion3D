@@ -6,6 +6,8 @@ export const go = (b: number | null | undefined) =>
 export const mo = (b: number | null | undefined) =>
   typeof b === 'number' ? `${(b / 1e6).toFixed(1)} MB` : 'unmeasured';
 const n = (v: number | null | undefined) => (typeof v === 'number' ? String(v) : 'unmeasured');
+/** MiB, the unit the live texture pool option takes, so a printed budget can be asked again as is. */
+const mib = (b: number) => (b / 1024 / 1024).toFixed(2);
 const n2 = (v: number | null | undefined) => (typeof v === 'number' ? v.toFixed(2) : 'unmeasured');
 
 /**
@@ -16,18 +18,18 @@ const n2 = (v: number | null | undefined) => (typeof v === 'number' ? v.toFixed(
  */
 export function textures(
   metrics: Partial<FrameMetrics> | null | undefined,
-  resultat: Partial<Row> = {},
+  row: Partial<Row> = {},
 ) {
   const m = metrics ?? ({} as Partial<FrameMetrics>);
-  const reseau = resultat.reseau
-    ? Object.entries(resultat.reseau)
+  const network = row.network
+    ? Object.entries(row.network)
         .sort((a, b) => b[1] - a[1])
         .map(([kind, bytes]) => `${kind} ${go(bytes)}`)
         .join(', ')
     : 'unmeasured';
   const preparation =
-    typeof resultat.preparationMs === 'number'
-      ? `${(resultat.preparationMs / 1000).toFixed(2)} s`
+    typeof row.preparationMs === 'number'
+      ? `${(row.preparationMs / 1000).toFixed(2)} s`
       : 'unmeasured';
   return [
     `- Textures: pool ${go(m.texturePoolBytes)} computed in ${m.texturePoolFormat ?? 'unmeasured'}, ` +
@@ -41,7 +43,25 @@ export function textures(
       `${n2(m.textureUploadMs)} ms, worst pass ${n2(m.textureUploadPeakMs)} ms; ` +
       `baked levels ${n(m.textureLevelReads)} in read, ${n(m.textureLevelsDecoded)} decoded, ` +
       `${mo(m.textureLevelCacheBytes)} held; ${n(m.textureScratchBuilds)} scratch textures`,
-    `- Prepare ${preparation}; network since prepare: ${reseau}`,
+    ...liveTexturePool(row),
+    `- Prepare ${preparation}; network since prepare: ${network}`,
     '',
+  ];
+}
+
+/** The texture pool set in session, and what setting it cost; nothing when none was set (a live
+ *  geometry pool alone still reports the texture pool in place). The eviction and upload time the
+ *  moving series then spends is the streamer's passes above. */
+function liveTexturePool({ liveTuning: reglage }: Partial<Row>) {
+  const pool = reglage?.texturePool;
+  if (!reglage || !pool || reglage.texturePoolAskedBytes === undefined) return [];
+  const fromResident =
+    reglage.residentTextureBytes === undefined
+      ? ''
+      : ` (from ${mo(reglage.residentTextureBytes)} resident)`;
+  return [
+    `- Texture pool set live: ${mo(reglage.texturePoolAskedBytes)} (${mib(reglage.texturePoolAskedBytes)} MiB) asked${fromResident}, ${mo(pool.allocatedBytes)} ` +
+      `held${pool.clamp ? ` (${pool.clamp})` : ''}; ${reglage.evictedTiles} tiles evicted in ` +
+      `${n2(reglage.durationMs)} ms, pose held again after ${n(reglage.recoveryFrames)} frames`,
   ];
 }

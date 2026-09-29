@@ -1,6 +1,7 @@
 import type { DagViewUniforms, PackedDag } from './types.ts';
-import { firstAheadRequest, requestPage } from './request.ts';
+import { requestPage } from './request.ts';
 import {
+  OUT_AHEAD_PLACED,
   OUT_COUNT,
   OUT_FLAGS,
   OUT_FRUSTUM_REJECTED,
@@ -9,7 +10,6 @@ import {
   OUT_TRANSPARENT_TRIANGLES,
   SELECTION_HEADER_WORDS,
   evictionWord,
-  selectionListCap,
 } from './layout.ts';
 import type { SelectionResult } from '../core/selection.ts';
 import { VIEW_APPEND, VIEW_LIGHT, VIEW_PAGES } from './shader/pagesWgsl.ts';
@@ -63,13 +63,15 @@ function writeAheadBlock(target: Float32Array, ints: Uint32Array, uniforms: DagV
 /**
  * One view's block of the uniform array (`shader/viewsWgsl.ts`). `views` says how many views the
  * cut runs and how many its buffers were sized for, and the capacity of each descent queue: a
- * camera runs one view on buffers sized for one, whose queues hold every node.
+ * camera runs one view on buffers sized for one, whose queues hold every node. `listCap` is the
+ * ranks its readout holds (`listCap.ts`).
  */
 export function writeDagUniforms(
   target: Float32Array,
   packed: PackedDag,
   uniforms: DagViewUniforms,
   residentCut: boolean,
+  listCap: number,
   views?: DagCutViews,
 ) {
   target.fill(0);
@@ -92,8 +94,8 @@ export function writeDagUniforms(
   }
   target[51] = uniforms.cameraStretch ?? 1;
   // Sample cap the kernel reads to bound its two halves and to say, when it happens, that it
-  // truncated (`layout.ts`).
-  ints[52] = selectionListCap(packed.pageCount);
+  // truncated (`listCap.ts`).
+  ints[52] = listCap;
   // The projection's clip-w weight: 1 perspective, 0 orthographic (`screenErrorBound.ts`).
   target[53] = uniforms.perspective ?? 1;
   // A light cut's view: its kind, then the face pages it draws into (`shader/pagesWgsl.ts`).
@@ -120,21 +122,18 @@ export function parseDagOutput(
   scratch: DagOutputScratch = createDagOutputScratch(),
 ): SelectionResult | null {
   const ints = new Uint32Array(bytes, byteOffset, Math.floor(byteLength / 4));
-  const head = SELECTION_HEADER_WORDS;
-  const count = Math.min(
-    ints[OUT_COUNT] ?? 0,
-    Math.max(0, (drawnWordOffset || ints.length) - head),
-  );
+  const head = SELECTION_HEADER_WORDS,
+    held = Math.max(0, (drawnWordOffset || ints.length) - head);
   // Arrays sized in advance: reading a frame does not grow an empty array element by element,
   // and a typed-array iterator is never unrolled.
   const { result, drawable, evict } = scratch,
     pageIds = result.pageIds;
   // Each rank is a REQUEST: the page and its priority in one word (`request.ts`). The GPU wrote
-  // them SORTED, highest `requestRank` first (`shader/snapshotWgsl.ts`): every visible request, then
-  // the view ahead's. The host reads them in that order and ranks nothing: it only finds where the
-  // view ahead's start.
-  const ahead = scratch.ahead;
-  const visible = firstAheadRequest(ints, head, head + count) - head;
+  // them SORTED (`shader/snapshotWgsl.ts`): the camera's, counted on their own, then as many of the
+  // view ahead's as the cap left. The host reads them in that order and ranks nothing.
+  const ahead = scratch.ahead,
+    visible = Math.min(ints[OUT_COUNT] ?? 0, held),
+    count = visible + Math.min(ints[OUT_AHEAD_PLACED] ?? 0, held - visible);
   pageIds.length = visible;
   ahead.length = count - visible;
   for (let i = 0; i < visible; i++) pageIds[i] = requestPage(ints[head + i]);

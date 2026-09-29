@@ -8,6 +8,9 @@ import {
 } from '../../visibility/pipelines.ts';
 import { frameTargetAllocation, makeTargets, releaseTargets, targetsFit } from './targets.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { drawnViewChanged, viewGpu, type WebgpuView } from '../state/view.ts';
+import { onView } from '../state/viewSwitch.ts';
+import { frameSizeOf, sameFrameSize, type FrameSize } from '../state/renderScale.ts';
 
 /** True while no frame can be drawn: its targets are asked of the device, or were refused at
  *  this size. The frame is then held (`holdWebgpuFrame`), and nothing is presented. */
@@ -16,7 +19,10 @@ export const frameTargetsAwaited = (rt: WebgpuPagesRuntime) => rt.gpu.targetGran
 /** A session lost or released: what it asked is never a refusal. */
 const stopped = (rt: WebgpuPagesRuntime) => rt.run.lost || rt.signal.aborted;
 
-type Asked = { width: number; height: number; requestedBytes: number };
+type Asked = FrameSize & { requestedBytes: number };
+
+/** The size asked this frame: copied only when a grant starts, never allocated per frame. */
+const wanted = {} as FrameSize;
 
 /** The frame targets `asked` refused by name, and why. */
 const refuseTargets = (rt: WebgpuPagesRuntime, asked: Asked, reason: string, error?: unknown) =>
@@ -29,51 +35,52 @@ const refuseTargets = (rt: WebgpuPagesRuntime, asked: Asked, reason: string, err
   });
 
 /**
- * Asks the device for the frame targets of the view's size, unless those in place fit, a grant
- * is still in flight — one at a time —, or this size was refused. A size the device cannot make
- * is refused at once, by name (`SURFACE_DEVICE_LIMIT`), before anything is released.
+ * Asks the device for the frame targets of the view's sizes (`frameSizeOf`), unless those in place
+ * fit, a grant is still in flight — one at a time —, or this size was refused. A size the device
+ * cannot make is refused at once, by name (`SURFACE_DEVICE_LIMIT`), before anything is released.
+ * The answer lands on the view that asked, whichever is drawn when it comes (`onView`).
  */
 export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { gpu, capture, diag, run } = rt,
-    width = Math.max(1, rt.setup.viewport[0]),
-    height = Math.max(1, rt.setup.viewport[1]);
-  const fit = targetsFit(rt, width, height),
+    size = frameSizeOf(rt, wanted),
+    { width, height, renderWidth, renderHeight } = size;
+  const fit = targetsFit(rt, size),
     hiz = rt.vis.gpuHiz;
-  // The Hi-Z pyramid, which the views share, fits too, or is absent.
-  if (fit && (!hiz || (hiz.width === width && hiz.height === height))) return;
+  // The view's Hi-Z pyramid fits too, at the render size, or Hi-Z is absent.
+  if (fit && (!hiz || (hiz.width === renderWidth && hiz.height === renderHeight))) return;
   const pending = gpu.targetGrant;
-  if (pending && (!pending.settled || (pending.width === width && pending.height === height)))
-    return pending.done;
-  // The view's targets are in place, and another view drew at its own size: the shared pyramid
-  // alone follows. Released, it leaves as for the targets.
+  if (pending && (!pending.settled || sameFrameSize(pending, size))) return pending.done;
+  const view = rt.views.active,
+    granted = () => void (viewGpu(rt, view).targetGrant = undefined);
+  // The view's targets are in place, its pyramid is not: it alone is asked.
   if (fit) {
-    const done = grantHiz(rt, device, width, height).then(() => void (gpu.targetGrant = undefined));
-    gpu.targetGrant = startGrant(done, { width, height });
+    const done = grantHiz(rt, device, renderWidth, renderHeight, view).then(granted);
+    gpu.targetGrant = startGrant(done, { ...size });
     return gpu.targetGrant.done;
   }
   diag.traceDiagnostic('targets-request', 'GPU frame targets request', () => ({
     frame: run.frame,
     width,
     height,
+    renderWidth,
+    renderHeight,
     previousSize: gpu.targetSize.slice(),
     additionalBytes: capture.captureAllocationBytes,
     hiZReserved: rt.setup.reserveHiz,
   }));
   // Thrown here, synchronously: a size beyond the device's limits releases nothing.
-  const extra = capture.captureAllocationBytes + backdropBytes(rt, width, height),
-    asked = { width, height, requestedBytes: frameTargetAllocation(rt, width, height, extra) };
+  const extra = capture.captureAllocationBytes + backdropBytes(rt, renderWidth, renderHeight),
+    asked = { ...size, requestedBytes: frameTargetAllocation(rt, size, extra) };
   // Granted, the record goes; refused, it stays, settled, and holds the frames at this size. A
   // creation that throws refuses them by name too, unless the session stopped.
-  const done = grantTargets(rt, device, asked).then(
-    (granted) => {
-      if (granted) gpu.targetGrant = undefined;
-    },
+  const done = grantTargets(rt, device, asked, view).then(
+    (made) => void (made && granted()),
     (error: unknown) => {
-      releaseTargets(rt);
+      onView(rt, view, () => releaseTargets(rt));
       if (!stopped(rt)) refuseTargets(rt, asked, 'gpu-error', error);
     },
   );
-  gpu.targetGrant = startGrant(done, { width, height });
+  gpu.targetGrant = startGrant(done, asked);
   return gpu.targetGrant.done;
 }
 
@@ -98,10 +105,20 @@ export async function grantFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevic
  * image, and asks again; refused without it, they are refused by name, never as a lost device.
  * Resolves to whether the device granted them.
  */
-async function grantTargets(rt: WebgpuPagesRuntime, device: GPUDevice, asked: Asked) {
-  const { vis, diag, run } = rt,
+async function grantTargets(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  asked: Asked,
+  view: WebgpuView,
+) {
+  const { vis, diag } = rt,
     hiz = !!vis.gpuHiz;
-  const make = () => makeTargets(rt, device, asked.width, asked.height, asked.requestedBytes);
+  // Made, and released when refused, on the view that asked.
+  const make = () =>
+    onView(rt, view, () => {
+      const made = makeTargets(rt, device, asked, asked.requestedBytes);
+      return { allocation: made.allocation, destroy: () => onView(rt, view, made.destroy) };
+    });
   let made = await deviceMade(device, make);
   // A session stopped meanwhile asks nothing again, and keeps its Hi-Z.
   if (!made && !stopped(rt) && vis.gpuHiz) {
@@ -122,14 +139,20 @@ async function grantTargets(rt: WebgpuPagesRuntime, device: GPUDevice, asked: As
     () => allocation,
   );
   diag.engineDiagnostic('frame-allocation', 'GPU targets allocated', allocation);
-  run.gate.resourcesChanged();
+  onView(rt, view, () => drawnViewChanged(rt));
   return true;
 }
 
-/** The shared Hi-Z pyramid at `width × height`, under the device's out-of-memory check; refused,
- *  Hi-Z leaves — its absence changes no image — and the raster pipelines follow. */
-async function grantHiz(rt: WebgpuPagesRuntime, device: GPUDevice, width: number, height: number) {
-  const { vis, run } = rt,
+/** `view`'s own Hi-Z pyramid at its size, under the device's out-of-memory check; refused, Hi-Z
+ *  leaves — its absence changes no image — and the raster pipelines follow. */
+async function grantHiz(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  width: number,
+  height: number,
+  view: WebgpuView,
+) {
+  const { vis } = rt,
     hiz = vis.gpuHiz!;
   // A resize that throws is refused like one the device declines: the grant never stays settled.
   const size = () => hiz.resize(device, width, height) || undefined;
@@ -138,7 +161,7 @@ async function grantHiz(rt: WebgpuPagesRuntime, device: GPUDevice, width: number
     hizRefused(rt, 'The device refused the Hi-Z pyramid');
     if (vis.visModule) await rasterWithoutHiz(rt, device, vis.visModule);
   }
-  run.gate.resourcesChanged();
+  onView(rt, view, () => drawnViewChanged(rt));
 }
 
 /** Hi-Z refused by the device leaves, said: its absence changes no image. */

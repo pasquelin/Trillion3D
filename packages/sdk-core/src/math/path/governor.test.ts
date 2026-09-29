@@ -15,12 +15,6 @@ function horlogeFine() {
   return () => (t += 0.001);
 }
 
-/** Coarse clock (1 ms step): its resolution stays above the arbitration threshold. */
-function horlogeGrossiere() {
-  let t = 0;
-  return () => (t += 1);
-}
-
 /** N identical observations of the same path, to establish or feed its median. */
 function observeN(
   gouverneur: ReturnType<typeof createPathGovernor>,
@@ -88,9 +82,10 @@ test('JS fallback when the WebAssembly module is absent', () => {
   assert.equal(g.choose('op'), 'js');
 });
 
-test('JS fallback when the clock is too coarse to arbitrate', () => {
-  const g = createPathGovernor(horlogeGrossiere(), 'auto');
+test('JS fallback when the clock never moves: nothing can be timed', () => {
+  const g = createPathGovernor(() => 0, 'auto');
   g.setWasm(true, true, null);
+  assert.equal(g.metrics().clockResolutionMs, null);
   assert.equal(g.metrics().clockCoarse, true);
   assert.equal(g.choose('op'), 'js');
 });

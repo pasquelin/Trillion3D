@@ -2,15 +2,18 @@ import { LIGHT_SETTINGS, MAX_SHADOW_SLICES, POINT_FACES } from '../../../../sdk-
 import {
   LAMP_MIPS,
   PAGE_INDEX_MASK,
+  PAGE_RANGE_MASK,
+  PAGE_RANGE_SHIFT,
   PAGE_VALID,
   SHADOW_PAGE,
-  SHADOW_TABLE_ENTRIES,
   SUN_LEVELS,
   lampMipOffset,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SHADOW_FACTOR_WGSL } from './shadowFactorWgsl.ts';
+import { shadowRequestWgsl } from './shadowRequestWgsl.ts';
 import { SHADOW_SAMPLE_WGSL, SHADOW_SUBTEXELS } from './shadowSampleWgsl.ts';
 import { shadowThroughWgsl } from '../../gpu/shadow/transmittance.ts';
+import { SHADOW_PAGE_WORD_WGSL } from './shadowPageWgsl.ts';
 
 /** The PCF's taps, in texels around the read point. */
 export const POISSON_16 = [
@@ -42,45 +45,19 @@ export const PCF_REACH = Math.max(
 const poissonWgsl = (name: string, scale: number) =>
   `const ${name}:array<vec2f,${POISSON_16.length}>=array<vec2f,${POISSON_16.length}>(${POISSON_16.map(([x, y]) => `vec2f(${x * scale},${y * scale})`).join(',')});`;
 
-/** Words of the request buffer after the count and a list as long as the pool's (`shadowRequestCap`,
- *  read at run time): one bit per table entry — a page is listed once however many pixels read it. */
-export const SHADOW_REQUEST_BITS = SHADOW_TABLE_ENTRIES / 32;
-
 /**
  * The shadow buffer as the GPU reads it: every slice's record (`SHADOW_RECORD_FLOATS`) — lamp
- * faces, the sun's frame, the window origin of each clipmap slot two by two, then the header —,
- * then the page table, one word per virtual page. One binding for both: the blend stage has no
- * storage binding to spare.
+ * faces or sun depth ranges, the sun's frame, the window origin of each clipmap slot two by two,
+ * then the header —, then the page table, one word per virtual page. One binding for both: the
+ * blend stage has no storage binding to spare.
  */
 const SHADOW_DATA_WGSL = `struct ShadowRecord{faces:array<mat4x4f,${POINT_FACES}>,frame:array<vec4f,3>,origins:array<vec4i,${SUN_LEVELS / 2}>,info:vec4f,}
 struct ShadowData{records:array<ShadowRecord,${MAX_SHADOW_SLICES}>,table:array<u32>,}`;
 
 /**
- * What a reading asks of the scheduler. The shading that marks writes the page into the request
- * buffer the first time any pixel reads it this frame — a bit per table entry, tested before the
- * atomic, so a page thousands of pixels read costs one list slot. A pass that does not mark —
- * the blend forward stage, which keeps its early depth reject — reads without asking.
- */
-const requestWgsl = (binding: number | null) =>
-  binding === null
-    ? 'fn requestShadowPage(e:u32){}'
-    : `@group(0) @binding(${binding}) var<storage,read_write> shadowRequests:array<atomic<u32>>;
-fn requestShadowPage(e:u32){
- let cap=arrayLength(&shadowRequests)-${1 + SHADOW_REQUEST_BITS}u;let word=1u+cap+(e>>5u);let bit=1u<<(e&31u);
- if((atomicLoad(&shadowRequests[word])&bit)!=0u){return;}
- if((atomicOr(&shadowRequests[word],bit)&bit)!=0u){return;}
- let at=atomicAdd(&shadowRequests[0],1u);
- if(at<cap){atomicStore(&shadowRequests[1u+at],e);}
-}`;
-
-/**
  * The virtual shadow read, shared by every pass that lights a surface: records and page table,
- * requests, the pool, and a PCF whose taps each find their own physical page.
- *
- * A map is `ShadowMap`: its first table entry, whether it is a ring — a sun level, whose pages
- * are addressed by absolute page modulo the window, `(ox, oy)` its origin — or a lamp face mip,
- * clamped at its edge, and its pages per side. Texel coordinates are relative to the map's first
- * page, texel centres at `+0.5`.
+ * requests, the pool, and a PCF whose taps each find their own physical page, each read through
+ * `shadowPageWord` (`shadowPageWgsl.ts`).
  *
  * A tap whose bilinear footprint lies in one page is one comparison in that page; one
  * that straddles a seam is split along it (\`shadowPcf\`): no seam, no guard band.
@@ -97,7 +74,7 @@ export const directShadowWgsl = (
 ) => `
 ${SHADOW_DATA_WGSL}
 @group(0) @binding(${dataBinding}) var<storage,read> shadows:ShadowData;
-${requestWgsl(requestBinding)}
+${shadowRequestWgsl(requestBinding)}
 const PCF_TAPS:u32=${LIGHT_SETTINGS.pcfTaps}u;
 const SHADOW_NORMAL_TEXELS:f32=${LIGHT_SETTINGS.shadowNormalOffsetTexels};
 const SHADOW_PCF_REACH:f32=${PCF_REACH};
@@ -107,6 +84,8 @@ const SHADOW_SUBTEXELS:f32=${SHADOW_SUBTEXELS}.0;
 const SHADOW_SUBTEXEL:f32=1.0/SHADOW_SUBTEXELS;
 const PAGE_VALID:u32=${PAGE_VALID}u;
 const PAGE_INDEX_MASK:u32=${PAGE_INDEX_MASK}u;
+const PAGE_RANGE_SHIFT:u32=${PAGE_RANGE_SHIFT}u;
+const PAGE_RANGE_MASK:u32=${PAGE_RANGE_MASK}u;
 const LAMP_MIP_OFFSET:array<u32,${LAMP_MIPS}>=array<u32,${LAMP_MIPS}>(${Array.from({ length: LAMP_MIPS }, (_, mip) => `${lampMipOffset(mip)}u`).join(',')});
 ${poissonWgsl('POISSON', 1)}
 ${poissonWgsl('POISSON_STEPS', SHADOW_SUBTEXELS)}
@@ -121,31 +100,9 @@ fn shadowNormalTexels(cosine:f32)->f32{
  *  unit across the map: its plane over the PCF's reach, up to \`cap\`, a slope of 1 in the
  *  caller's units. ADDED to the reference: shadow depth is reversed. */
 fn shadowDepthMargin(texel:f32,slope:f32,cap:f32)->f32{return texel*SHADOW_PCF_REACH*min(slope,cap);}
-struct ShadowMap{base:u32,ring:u32,pages:i32,ox:i32,oy:i32,}
-fn shadowRing(v:i32,n:i32)->i32{return ((v%n)+n)%n;}
-/** Word of page \`p\` of the map — asked for —, or zero when it holds nothing readable: unmapped,
- *  not drawn yet, or withdrawn while its depth is wrong — asked for again, never read. */
-fn shadowPageWord(m:ShadowMap,p:vec2i)->u32{
- var e=0;
- if(m.ring!=0u){
-  if(any(p<vec2i(0))||any(p>=vec2i(m.pages))){return 0u;}
-  e=i32(m.base)+shadowRing(p.y+m.oy,m.pages)*m.pages+shadowRing(p.x+m.ox,m.pages);
- }else{
-  let q=clamp(p,vec2i(0),vec2i(m.pages-1));
-  e=i32(m.base)+q.y*m.pages+q.x;
- }
- requestShadowPage(u32(e));
- let word=shadows.table[u32(e)];
- return select(0u,word,(word&PAGE_VALID)!=0u);
-}
+${SHADOW_PAGE_WORD_WGSL}
 ${SHADOW_SAMPLE_WGSL}
 ${shadowThroughWgsl(transmittanceBinding)}
-/** Offset of the neighbour page \`p\` and 1 when it is readable; else the home page's and 0. */
-fn shadowNeighbour(m:ShadowMap,p:vec2i,home:vec3f)->vec4f{
- let word=shadowPageWord(m,p);
- if(word==0u){return vec4f(home,0.0);}
- return vec4f(shadowOffset(word,p),1.0);
-}
 /**
  * Sixteen taps a texel apart around \`t\`; a lamp face clamps them at its edge (\`side\` > 0).
  * Every tap's bilinear footprint lies within 1.5 texels of \`t\`, so the filter reaches at most
@@ -158,11 +115,19 @@ fn shadowNeighbour(m:ShadowMap,p:vec2i,home:vec3f)->vec4f{
  * comparison in that page, clamped to its last texel centre on that axis, the other axis
  * still filtered bilinearly. A tap is thus two comparisons beside one edge, four at a corner,
  * which the pixel decides once for all its taps. A neighbour not readable is read at the home page's nearest texel.
+ * Without \`taps\` (\`declaredLight\`: no light reaches the point) it is zero, its pages still asked for.
  */
-fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32)->f32{
+fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32,taps:bool)->f32{
  let first=vec2f(home)*SHADOW_PAGE;
  let edge=(t-1.5<first)|(t+1.5>=first+SHADOW_PAGE);
  let offset=shadowOffset(homeWord,home);
+ let up=t-first>=vec2f(0.5*SHADOW_PAGE);
+ let step=select(vec2i(-1),vec2i(1),up);
+ var nx=vec4f(offset,0.0);var ny=nx;var nd=nx;
+ if(edge.x){nx=shadowNeighbour(m,home+vec2i(step.x,0),offset,homeWord,t);}
+ if(edge.y){ny=shadowNeighbour(m,home+vec2i(0,step.y),offset,homeWord,t);}
+ if(all(edge)){nd=shadowNeighbour(m,home+step,offset,homeWord,t);}
+ if(!taps){return 0.0;}
  var lit=0.0;
  if(!any(edge)){
   // \`shadowCompare\` per tap, in steps: \`(t + tap)·256\` is \`t·256 + tap·256\` to the bit.
@@ -172,14 +137,8 @@ fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32)
   }
   return shadowThroughLit(offset,first,t,reference,lit/f32(PCF_TAPS));
  }
- let up=t-first>=vec2f(0.5*SHADOW_PAGE);
- let step=select(vec2i(-1),vec2i(1),up);
  let toward=select(vec2f(-1.0),vec2f(1.0),up);
  let seam=first+select(vec2f(0.0),vec2f(SHADOW_PAGE),up);
- var nx=vec4f(offset,0.0);var ny=nx;var nd=nx;
- if(edge.x){nx=shadowNeighbour(m,home+vec2i(step.x,0),offset);}
- if(edge.y){ny=shadowNeighbour(m,home+vec2i(0,step.y),offset);}
- if(all(edge)){nd=shadowNeighbour(m,home+step,offset);}
  for(var tap=0u;tap<PCF_TAPS;tap++){
   var at=t+POISSON[tap];
   if(side>0.0){at=clamp(at,vec2f(0.5),vec2f(side-0.5));}

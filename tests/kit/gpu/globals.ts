@@ -79,7 +79,7 @@ export function compactDrawnPages(
 /**
  * Pages the CURRENT IMAGE's mask names, read where the GPU posts them: `flags[nodeCount + id]` in
  * the cut buffer. That is the selection the image draws, whichever raster consumes it — hardware by
- * its indirect commands, or compute in place under the `raster-calcul` variant — and not a past
+ * its indirect commands, or compute in place under the `raster-compute` variant — and not a past
  * image's sample.
  */
 export function drawnPageIds(

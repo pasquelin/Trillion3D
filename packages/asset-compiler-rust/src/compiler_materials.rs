@@ -12,6 +12,28 @@ pub(super) fn unsplit_material(material: Option<&Value>) -> bool {
         .map(|v| v > 0.0)
         .unwrap_or(false)
 }
+/// The cutoff of a material the engine draws with a coverage test, or `None` when it draws it
+/// opaque. A `MASK` cutoff at or under 0 cuts nothing: the engine draws it opaque
+/// (`alphaTest > 0`, `collectWebgpuMaterialTextures`), and so does a mode glTF does not name,
+/// which the material table writes `OPAQUE` (`compiler_tables/materials.rs`). A transmissive
+/// `BLEND` tints what crosses it by its base colour whatever its alpha
+/// (`webgpu/water/compositeWgsl.ts`): it draws the RGB under alpha 0 too. Any other `BLEND` takes
+/// coverage, at no cutoff of its own (`None` inside). The texture chains and the impostor bake
+/// both judge by it.
+pub(crate) fn coverage_cutoff(material: &Value) -> Option<Option<f32>> {
+    match material.get("alphaMode").and_then(Value::as_str) {
+        Some("MASK") => {
+            let cutoff = material
+                .get("alphaCutoff")
+                .and_then(Value::as_f64)
+                .unwrap_or(crate::cutout::CUTOUT_ALPHA) as f32;
+            (cutoff > 0.0).then_some(Some(cutoff))
+        }
+        Some("BLEND") => (!unsplit_material(Some(material))).then_some(None),
+        _ => None,
+    }
+}
+
 /// Whether a material reads texture coordinate set `set`: every `textureInfo` it holds — base
 /// colour, metal-roughness, normal, occlusion, emissive, or one an extension adds — names its set
 /// in `texCoord`, 0 when absent, unless its `KHR_texture_transform` overrides it. A page carries

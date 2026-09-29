@@ -1,6 +1,6 @@
 ---
 name: Task
-about: One bounded piece of work with its proof — written as docs/roles/writer.md shows
+about: One bounded piece of work with its proof — written as skills/t3d-writer/SKILL.md shows
 title: ''
 labels: ''
 ---
@@ -17,7 +17,7 @@ labels: ''
 
 ## Proof
 
-<!-- What shows the work is done: test names, the image proof the coder runs, the timing scene the measurer runs. -->
+<!-- What shows the work is done: test names, the timing scene and the image proof the acceptance session runs. One item per line: the pull request's Lead verification quotes each (the CI checks it). -->
 
 ## Links
 

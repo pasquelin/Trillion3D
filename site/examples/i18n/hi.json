@@ -58,7 +58,8 @@
       "missingCache": "संकलित कैश मौजूद नहीं है: pnpm compile:caches चलाएँ"
     },
     "banner": {
-      "close": "बंद करो"
+      "close": "बंद करो",
+      "waiting": "इंजन की प्रतीक्षा में (#{issue})"
     }
   },
   "a-city-from-rules": {
@@ -1262,6 +1263,25 @@
       "off": "बंद"
     }
   },
+  "page-materials": {
+    "banner": "हॉल देखने के लिए खींचें। सामग्री सूचीबद्ध करें, बदलें, ब्लेंड करें या बनाएँ।",
+    "controls": {
+      "set": "रंग बदलें",
+      "switchToBlend": "ब्लेंड पर जाएँ",
+      "createAndAssign": "बनाएँ और लागू करें"
+    },
+    "readouts": {
+      "selected material": "चुनी गई सामग्री",
+      "materials": "सामग्रियाँ",
+      "sourceMaterials": "मूल सामग्रियाँ",
+      "last action": "पिछली क्रिया"
+    },
+    "words": {
+      "imported": "{count} आयातित",
+      "applied": "लागू हुआ",
+      "ready": "तैयार"
+    }
+  },
   "lights-from-the-scene-file": {
     "banner": "चारों ओर देखने के लिए खींचो। ये दीये मॉडल की फ़ाइल के अंदर आए थे।",
     "controls": {
@@ -1391,6 +1411,7 @@
     "banner": "चारों ओर चलने के लिए खींचो। रेंडरर क्या रखता है, यह देखने के लिए दृश्य बदलो।",
     "controls": {
       "see": "देखो",
+      "glass": "काँच की पट्टी",
       "spin": "घुमाव"
     },
     "choices": {
@@ -1745,7 +1766,8 @@
       "night": "रात",
       "bounce": "उछाल",
       "sun": "सूरज",
-      "lamp": "लैंप"
+      "lamp": "लैंप",
+      "spin": "घुमाएँ"
     },
     "words": {
       "credit": "W. Sitters का सड़क-लैंप मॉडल, CC BY 3.0 — देखो assets/examples/CREDITS.md"

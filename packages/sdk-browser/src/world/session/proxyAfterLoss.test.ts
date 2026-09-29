@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { base, openSession, servedScene } from './proxySession.fixture.ts';
-import { createPageCache, manifestTableBytes } from '../../streaming/pageCache.ts';
+import { createPageCache } from '../../streaming/pageCache.ts';
+import { manifestTableBytes } from '../../streaming/manifestTables.ts';
 
 const proxyUrl = `${base}proxy.bin`;
 
@@ -21,8 +22,12 @@ test('a session reopened after a device loss reads the resident proxy from the k
   const after = await openSession(metadata, pageCache);
   const relit = await after.context.readSceneProxy!();
   assert.deepEqual(fetched, [proxyUrl], 'the proxy it held is not fetched again');
-  assert.deepEqual(relit.data.triangles, lit.data.triangles);
-  assert.equal(pageCache.keptBytes, metadata.proxy!.bytes, 'its bytes count against the CPU total');
+  assert.equal(relit, lit, 'decoded columns are reused across device sessions');
+  assert.equal(
+    pageCache.keptBytes,
+    metadata.proxy!.bytes + lit.data.bindWorlds.byteLength,
+    'its bytes count against the CPU total',
+  );
   after.close();
 });
 
@@ -30,7 +35,11 @@ test('pages that outgrow the CPU total never evict the kept proxy: a device loss
   const { metadata, urls, fetched } = await servedScene(6);
   const transfer = 64;
   // Room for the tables, one transfer, the proxy and two pages: fewer than the six read.
-  const cpu = manifestTableBytes(metadata.primitives[0].pages) + transfer + metadata.proxy!.bytes;
+  const cpu =
+    manifestTableBytes(metadata.primitives[0].pages) +
+    transfer +
+    metadata.proxy!.bytes +
+    metadata.proxy!.instances * 128;
   const pageCache = createPageCache(cpu + 2 * 12);
   const before = await openSession(metadata, pageCache, { maxPageTransferBytes: transfer });
   await before.context.readSceneProxy!();
@@ -92,7 +101,7 @@ test('a session reopened while the proxy is in flight joins that read, fetching 
   release('proxy.bin');
   await Promise.all([lost, relit]);
   assert.deepEqual(fetched, [proxyUrl]);
-  assert.equal(pageCache.keptBytes, metadata.proxy!.bytes);
+  assert.equal(pageCache.keptBytes, metadata.proxy!.bytes + metadata.proxy!.instances * 128);
   after.close();
 });
 

@@ -35,6 +35,8 @@ One rule: **a unit test sits next to the file it tests; every other kind of test
 `browser/` for what runs in Chromium, `fixtures/` for test data, `kit/` for the shared test tools
 (one fake GPU device family in `gpu/`, one static server and the fixture route in `server/`, one
 bit-exact comparison and one hostile-value list in `assert/`).
+The tracked git hooks (`.githooks/`, one-line shims onto `scripts/hooks/*.ts`) are proved in a
+throwaway repository by `tests/integration/workflow-gates.test.ts`.
 A module used only by tests is named `*.fixture.ts` and stays out of the build. Benchmarks measure
 speed, never correctness, and live under `bench/`, outside every published package. The golden
 fixtures of the native compiler are under `tests/fixtures/formats/`, each folder described in
@@ -101,8 +103,9 @@ category and reason, and the command prints it before starting — never in sile
 The learning portal under `site/` has its own proofs, run on demand in system Chrome. The two
 `scripts/docs-*.browser.ts` and `tests/browser/renders/explorer-startup.browser.ts` build the site into
 `dist/site/` before serving it, so they need no committed bundle; CI has no GPU and runs none of
-them, the coder runs them. `scripts/docs-examples.browser.ts` opens every page of `site/examples/`
-on WebGPU and on WebGL2 (`navigator.gpu` hidden) and fails on any error a page raises or logs — an
+them, the acceptance session runs them on `develop`. `scripts/docs-examples.browser.ts` opens every
+page of `site/examples/` on WebGPU and on WebGL2 (`navigator.gpu` hidden) and fails on any error a
+page raises or logs — an
 import that fails, a 404, the engine's own failures — but those `DECLARED_ERRORS` names for it
 (`scripts/docs/examples/capture.ts`), each with its reason. A behaviour-neutral change to the
 site is proved by `node scripts/site-diff.browser.ts <beforeDir> <afterDir>`: every portal route
@@ -138,7 +141,7 @@ geometry pages and from its source buffers, on WebGPU: to the pixel when blended
 opaque (the proof's header says why). Its four scenes are derived from `normal-tangent-mirror-test`:
 `node bench/runner/scenes/tangentScenes.ts` writes them and prints the `assets.ts --only` line that
 compiles them; then `node tests/browser/test-gpu.ts tests/browser/renders/page-tangents.browser.ts`
-runs it. The recette runs it after the merge.
+runs it. The acceptance session runs it on `develop` after the merge (AGENTS.md rule 2).
 
 `tests/browser/test-gpu.test.ts` enforces symmetric guarding across both directories: **executed ∪ excluded ==
 on-disk**, and no exclusion outlives the file it names. Without this guard, forgotten proofs would
@@ -173,7 +176,7 @@ and `explorer-startup` now drives the engine's interactive session directly. #49
 side of the symptom: a canvas whose CSS box grows after the world opens is resized and scheduled a
 frame (unit test in `world/session/interactive.test.ts`), so the frozen 300 × 150 buffer belonged
 to the lesson's own mounting, which no longer exists. `explorer-startup` leaves this list once the
-measurer re-reads it passing.
+acceptance session re-reads it passing.
 
 Before #281 the same reading gave 10 fail (`origin/develop` at `ea7e3ecf4` and the head of #322,
 54 pass / 10 fail each). A batch that leaves exactly these two failing has changed nothing
@@ -240,8 +243,8 @@ The report flags any machine load higher than 4: above this threshold, timings a
 
 Timers run in the process that just executed the oracle, following warmup. This is sufficient to
 track regressions between batches on the same machine; it is not a campaign measurement. A publishable
-campaign is run with the `bench/runner/` harness (see its README), on a quiet machine, comparing
-identical budgets, scenes, and poses.
+campaign is run with the `bench/runner/` harness (see its README), before and after interleaved at
+least five times, comparing identical budgets, scenes, and poses.
 
 ## 4. Quality Gates
 

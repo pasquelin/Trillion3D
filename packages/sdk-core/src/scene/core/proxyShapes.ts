@@ -22,7 +22,12 @@ const bad = (message: string, details: Record<string, unknown>) =>
 export function placedTriangles(shapes: ProxyShapes): number {
   let stored = 0,
     placed = 0;
-  for (const count of shapes.counts) stored += count;
+  for (const count of shapes.counts) {
+    if (count === 0) throw bad('A scene proxy shape is empty', {});
+    stored += count;
+  }
+  for (const value of shapes.maps)
+    if (!Number.isFinite(value)) throw bad('A scene proxy map is non-finite', {});
   if (stored * PROXY_TRIANGLE_FLOATS !== shapes.triangles.length)
     throw bad('The scene proxy shapes do not add up to their triangles', { stored });
   for (const shape of shapes.shapeOf) {

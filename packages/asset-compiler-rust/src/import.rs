@@ -21,7 +21,7 @@ use std::{
 const PROGRESS_INTERVAL_BYTES: u64 = 8 * 1024 * 1024;
 fn import_error(error: &ufbx::Error) -> CompilerError {
     if error.type_ == ufbx::ErrorType::Cancelled {
-        return CompilerError::new("CANCELLED", "Import cancelled");
+        return CompilerError::new(crate::CANCELLED, "Import cancelled");
     }
     let code = match error.type_ {
         ufbx::ErrorType::UnsupportedVersion => "IMPORT_UNSUPPORTED_VERSION",
@@ -37,22 +37,6 @@ fn import_error(error: &ufbx::Error) -> CompilerError {
     )
 }
 
-/// Multiplicative hash for the (position, normal, uv, colour) corner values: SipHash dominated mesh conversion.
-#[derive(Default, Clone, Copy)]
-struct CornerHasher(u64);
-impl std::hash::Hasher for CornerHasher {
-    fn finish(&self) -> u64 {
-        self.0
-    }
-    fn write(&mut self, bytes: &[u8]) {
-        for b in bytes {
-            self.0 = (self.0.rotate_left(5) ^ (*b as u64)).wrapping_mul(0x517cc1b727220a95);
-        }
-    }
-    fn write_u32(&mut self, v: u32) {
-        self.0 = (self.0.rotate_left(5) ^ (v as u64)).wrapping_mul(0x517cc1b727220a95);
-    }
-}
 /// Values of a corner — position, normal, uv, colour: twelve floats, zero when the
 /// attribute is missing. Two corners with the same bits are one vertex, whatever
 /// index the file gives them. Hashing walks word by word: the key has neither a
@@ -71,7 +55,7 @@ impl std::hash::Hash for CornerKey {
         }
     }
 }
-type CornerMap = HashMap<CornerKey, u32, std::hash::BuildHasherDefault<CornerHasher>>;
+type CornerMap = crate::shared_math::WordMap<CornerKey, u32>;
 /// Binary of an intermediate scene under construction, shared with scene drivers
 /// that write their own glTF: one view per byte block, aligned to four.
 #[derive(Default)]

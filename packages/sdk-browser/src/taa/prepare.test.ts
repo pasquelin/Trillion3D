@@ -2,22 +2,32 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { inertTaaDevice } from './device.fixture.ts';
 import { prepareTemporalAntialiasing, setWebgpuTemporalAntialiasing } from './prepare.ts';
-import { TAA_CAPABILITY } from './capability.ts';
+import { TAA_CAPABILITY, UPSCALE_CAPABILITY } from './capability.ts';
 import { beginTaaFrame, taaSettled } from './frame.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
+import { createScaleControl } from '../frame/scaleControl.ts';
 import type { EngineCamera } from '../camera/world.ts';
 
 function runtime(temporalAntialiasing: boolean) {
   let changed = 0;
   const view = {};
   const rt = {
-    views: { main: view, active: view },
+    views: { main: view, active: view, persistent: [] },
     context: { temporalAntialiasing },
-    gpu: { temporal: undefined, temporalWanted: true, device: inertTaaDevice(), targetBytes: 0 },
-    capabilities: { unsupported: [TAA_CAPABILITY] },
+    gpu: {
+      temporal: undefined,
+      temporalWanted: true,
+      device: inertTaaDevice(),
+      targetBytes: 0,
+      allocatedSize: [4, 2],
+      targetSize: [4, 2],
+    },
+    capabilities: { unsupported: [TAA_CAPABILITY, UPSCALE_CAPABILITY] },
     layout: { selectionRoots: [] },
     signal: new AbortController().signal,
     capture: { capturing: false },
+    vis: {},
+    scale: createScaleControl(undefined),
     run: { diagnostic: 'beauty', gate: { resourcesChanged: () => void changed++ } },
   } as unknown as WebgpuPagesRuntime;
   return { rt, changed: () => changed };
@@ -49,6 +59,17 @@ test('temporal antialiasing is switched during the session', async () => {
   assert.equal(changed(), 4);
 });
 
+// #832: the renderer's temporal upscaling is the pass's own, served and withdrawn with it.
+test('temporal upscaling is served with the pass', async () => {
+  const { rt } = runtime(true);
+  const upscales = () => !rt.capabilities.unsupported.includes(UPSCALE_CAPABILITY);
+  assert.equal(upscales(), false, 'not before the pass exists');
+  await prepareTemporalAntialiasing(rt, rt.gpu.device!);
+  assert.equal(upscales(), true);
+  setWebgpuTemporalAntialiasing(rt, false);
+  assert.equal(upscales(), false);
+});
+
 test('a pass switched off while it compiles is not kept', async () => {
   const { rt } = runtime(false);
   await prepareTemporalAntialiasing(rt, rt.gpu.device!);
@@ -66,7 +87,7 @@ test('a barrier after the switch does not replay the history from before it', as
   const { rt } = runtime(true);
   await prepareTemporalAntialiasing(rt, rt.gpu.device!);
   const temporal = rt.gpu.temporal!;
-  Object.assign(rt.gpu, { targetSize: [4, 2] });
+  Object.assign(rt.gpu, { targetSize: [4, 2], allocatedSize: [4, 2], displaySize: [4, 2] });
   Object.assign(rt.run, { frame: 3, textureConverging: false });
   temporal.frame.hasHistory = true;
   beginTaaFrame(rt, still, false);
@@ -83,7 +104,12 @@ test('a barrier after the switch does not replay the history from before it', as
 test('a pass rigged during a capture gets its history targets', async () => {
   const { rt } = runtime(false);
   await prepareTemporalAntialiasing(rt, rt.gpu.device!);
-  Object.assign(rt.gpu, { colorTexture: {}, targetSize: [4, 2] });
+  Object.assign(rt.gpu, {
+    colorTexture: {},
+    targetSize: [4, 2],
+    allocatedSize: [4, 2],
+    displaySize: [4, 2],
+  });
   rt.capture.capturing = true;
   setWebgpuTemporalAntialiasing(rt, true);
   for (let turn = 0; turn < 5; turn++) await new Promise(setImmediate);
@@ -97,7 +123,7 @@ test('temporal antialiasing rigged during a capture lands on the main view', asy
   const { rt } = runtime(false);
   await prepareTemporalAntialiasing(rt, rt.gpu.device!);
   const main = { gpu: { temporal: undefined, targetBytes: 0 } };
-  Object.assign(rt, { views: { main, active: {} } });
+  Object.assign(rt, { views: { main, active: {}, persistent: [] } });
   setWebgpuTemporalAntialiasing(rt, true);
   for (let turn = 0; turn < 5; turn++) await new Promise(setImmediate);
   assert.ok(main.gpu.temporal, 'held by the main view');
