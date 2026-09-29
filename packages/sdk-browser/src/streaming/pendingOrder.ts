@@ -76,8 +76,7 @@ export function note(s: PendingScratch, key: string, error: number, distance: nu
 /** Drops the map entries no call has named for a while: they outnumber this call's. */
 function prune(s: PendingScratch) {
   if (s.slotOf.size > 2 * s.count + 256)
-    for (const [key, at] of s.slotOf)
-      if (at >= s.count || s.urls[at] !== key) s.slotOf.delete(key);
+    for (const [key, at] of s.slotOf) if (at >= s.count || s.urls[at] !== key) s.slotOf.delete(key);
   if (s.viewOf.size > 2 * s.viewCount + 64)
     for (const [matrix, at] of s.viewOf)
       if (at >= s.viewCount || s.matrices[at] !== matrix) s.viewOf.delete(matrix);

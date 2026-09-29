@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
 import { orderPendingUrls, pixelScaleOf, type PriorityRecord } from './priority.ts';
 import { begin, createPendingScratch, note, sortInto } from './pendingOrder.ts';
-import { cameraMoteur } from '../camera/camera.fixture.ts';
+import { createEngineCamera, readCameraWorld } from '../camera/world.ts';
 import { random } from '../page/cut/cutRuleChecks.fixture.ts';
 
 const HOSTILE = [NaN, 0, -0, Infinity, -Infinity, 1, 2];
@@ -36,7 +36,7 @@ test('frames through the kept storage order as through storage made for each', (
   const cam = G.perspectiveCamera(55, 16 / 9, 0.1, 1000);
   cam.position.set(0, 2, 30);
   cam.updateMatrixWorld();
-  const engine = cameraMoteur(cam),
+  const engine = readCameraWorld(createEngineCamera(), cam),
     scale = pixelScaleOf(engine.projection, [1280, 720], [1, 1]);
   const draw = random(914),
     into: string[] = [];
@@ -83,7 +83,7 @@ test('a frame no larger than an earlier one writes into the arrays already there
   const cam = G.perspectiveCamera(55, 1, 0.1, 1000);
   cam.position.set(0, 0, 30);
   cam.updateMatrixWorld();
-  const engine = cameraMoteur(cam),
+  const engine = readCameraWorld(createEngineCamera(), cam),
     scale = [640, 640];
   const draw = random(7),
     matrices = [new G.Matrix4(), new G.Matrix4().makeTranslation(1, 0, 0)];
