@@ -67,7 +67,7 @@ export class WebglClusterLights {
     this.ltc = createLtcTexture(gl);
     this.probe = new WebglClusterProbe(gl, program);
     this.fog = new WebglClusterFog(gl, program);
-    allocated(gl); // refused, the context is marked once read: its engine draws a level coarser
+    allocated(gl, 'target'); // the frame's light data: a refusal is marked once read
   }
   /** Writes the frame's lights, then the list of the lights each of `draws` reaches. */
   upload(

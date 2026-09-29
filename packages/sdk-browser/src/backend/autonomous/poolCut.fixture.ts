@@ -113,7 +113,7 @@ export function mount(
   const image = (pixelError: number, arrivals = Infinity) => {
     const { requested, shown } = live;
     settleAllocations(gl);
-    if (takeOutOfMemory(gl)) pool.outOfMemory();
+    if (takeOutOfMemory(gl, 'geometry')) pool.outOfMemory();
     if (cut.readmit()) pool.follow(requested, shown);
     pool.trim();
     const drawn = (last = cut(cameraMoteur(camera), pixelError));

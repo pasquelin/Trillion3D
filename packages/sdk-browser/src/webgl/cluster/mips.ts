@@ -117,7 +117,7 @@ export class WebglMipReducer {
       gl.texImage2D(gl.TEXTURE_2D, 0, format, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
       // Refused (`../core/allocation.ts`): remade at the next chain.
       const made = scratch;
-      allocated(gl, () => (made.width = made.height = 0));
+      allocated(gl, 'texture', () => (made.width = made.height = 0));
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     } else gl.bindTexture(gl.TEXTURE_2D, scratch.texture);
     scratch.used = true;
