@@ -1937,7 +1937,7 @@
       "wasmAvailable": "WebAssembly 모듈이 올바른 계약 버전으로 로드되어 있다.",
       "wasmSimd": "그 모듈이 `simd128`으로 컴파일되었는지 여부; 모듈이 로드되기 전까지는 `null`.",
       "clockResolutionMs": "스레드 시계의 분해능, 밀리초 단위; 추정되기 전까지는 `null`.",
-      "clockCoarse": "시계가 판정하기에 너무 거칠 때 true: 모든 것이 JavaScript 경로에 머무른다.",
+      "clockCoarse": "시계가 한 번의 실행을 재기에 너무 거칠 때 true: 실행은 묶은 배치 단위로 측정된다.",
       "unavailableReason": "WebAssembly 경로를 쓸 수 없는 이유; 쓸 수 있으면 `null`.",
       "operations": "각 연산."
     }
