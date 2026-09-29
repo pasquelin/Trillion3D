@@ -26,6 +26,7 @@ import { encodeEffects } from './encodeEffects.ts';
 import {
   directLightResources,
   readsAsIs,
+  seedShare,
   wantsContractLighting,
 } from '../prepare/lightResources.ts';
 import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts';
@@ -139,7 +140,7 @@ export function encodeSurfaceLighting(
   cam: EngineCamera,
   uniformBase: number,
 ) {
-  const { gpu, run, capture, blendState, vis } = rt,
+  const { gpu, run, capture } = rt,
     clear = clearValueOf(run.clearColor);
   if (!gpu.surfaces || !gpu.deferred || !gpu.hdrView || !gpu.depthView || !gpu.displayView)
     throw new Error('DEFERRED_UNAVAILABLE');
@@ -169,8 +170,7 @@ export function encodeSurfaceLighting(
   );
   gpu.reflection?.update(viewProj, gpu.deferred.usesContract && !raw, gpu.targetSize);
   gpu.deferred.light(encoder, gpu.hdrView, gpu.reflection);
-  const blendShare = blendState.blendGpu.length && vis.blendPipelines ? gpu.asIsShare : undefined;
-  blendShare?.seed(encoder);
+  const blendShare = seedShare(rt, encoder);
   const filter = beginDisplayFilter(rt, device);
   if (gpu.reflection?.active && gpu.deferred.usesContract) run.gpuDrawCalls++;
   run.gpuDrawCalls++;

@@ -115,7 +115,7 @@ test('A jittered edge: the accumulated share follows the colour, no flip between
   assert.match(TAA_SHADER, /share\+=asIs\*weight;/);
   const [wcOf, whOf, colorOf, shareOf] = capture(
     TAA_SHADER,
-    /let wc=(.*?);\n let wh=(.*?);\n return TaaOut\((.*?),(\(share\*wc.*?\))\);/,
+    /let wc=(.*?);\n let wh=(.*?);\n return TaaOut\((.*?),vec2f\((\(share\*wc.*?\)),tag\)\);/,
   ).map(js);
   const blend = new Function(
     'alpha',
@@ -152,7 +152,7 @@ test('a lit transparent over a debug view contributes zero as-is share at its op
   assert.match(
     BLEND_SHADER,
     // `r.keep` is 1 but where a display mask routes the layer away (`displayFilter.ts`).
-    /BlendOut\(vec4f\(rgb,s\.alpha\*r\.keep\),s\.request,vec4f\(0\.0,0\.0,0\.0,s\.alpha\*r\.keep\),/,
+    /BlendOut\(vec4f\(rgb,s\.alpha\*r\.keep\),s\.request,vec4f\(0\.0,1\.0,0\.0,s\.alpha\*r\.keep\),/,
   );
   assert.equal(BLEND_EQUATIONS.normal?.color.srcFactor, 'src-alpha');
   assert.equal(BLEND_EQUATIONS.normal?.color.dstFactor, 'one-minus-src-alpha');
