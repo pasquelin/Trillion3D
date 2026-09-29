@@ -255,7 +255,7 @@ least five times, comparing identical budgets, scenes, and poses.
 | `pnpm run check:helpers`      | No small helper copied into a second module of the same package              |
 | `pnpm run check:english`      | No new French word in the code: a count per package that only goes down      |
 | `pnpm run check:translations` | No translation left behind when its English changes                          |
-| `pnpm run check:thumbnails`   | Every gallery example that is not parked has its thumbnail                   |
+| `pnpm run check:thumbnails`   | Report, not a gate: the examples the recette still has to capture            |
 | `pnpm run check:structure`    | sdk-core typed without DOM; the boundary tests run in the unit suite         |
 | `pnpm run check:unused`       | Dead exports and files (`knip`)                                              |
 | `pnpm run check:no-js`        | No JavaScript source under `site/`: the site is TypeScript                   |
