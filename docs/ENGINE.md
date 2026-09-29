@@ -741,6 +741,14 @@ height. A separate linear, unfogged, unreflected source prevents render-target f
 recursive reflections and applying the camera fog twice. The source is regenerated with each
 changed image and belongs to its camera view, including captures and resizing.
 
+On WebGL2 the mirror receivers alone are resolved once into a reduced-resolution image, at a pixel
+budget derived from the screen unit rather than the display: a receiver whose image already fits
+the budget keeps its own size, a larger one resolves at the aspect-preserving largest size within
+it. The display pass samples that image instead of tracing again, so a mirror receiver's reflection
+cost stops following the display and a transmissive ocean's two mirror terms share one trace. The
+reduced image is a rendering technique under the fluids quality exception (#1292): reflections blur
+at the resolve ratio, within the stated bound of the reference image.
+
 A screen hit replaces the proxy contribution in the one reflection model. On a screen miss,
 WebGPU with bounce enabled keeps the resident-proxy ray and probe fallback; without bounce,
 and on WebGL2, a miss contributes zero. Screen traces cannot reveal offscreen or occluded
