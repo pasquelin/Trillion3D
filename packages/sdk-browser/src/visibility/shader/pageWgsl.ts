@@ -7,13 +7,10 @@ import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts';
  * the visibility-buffer raster and by the shadow depth passes — two copies of this structure
  * would be two chances of seeing it drift.
  */
-/** The four `pad*Uv` are the atlas uv scales that virtual textures made useless: a texture is
- *  read in its own space. They stay at zero, never read, until the record is recompacted
- *  (Textures backlog). `dash` took the sixth: a dashed line's dash and gap (`lineWgsl.ts`);
- *  `sprite` the first: a sprite's turn and size rule (`spriteWgsl.ts`), zero on any other row.
- *  `deform` names the placement's deformation record in the float pool, its first float plus
- *  one, zero for none (`../../deformation/layout.ts`). */
-export const PAGE_INFO_STRUCT_WGSL = `struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,dash:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,sprite:vec2f,deformCount:u32,padMetalUv:u32,padNormalUv:vec2f,aoIndex:u32,aoIntensity:f32,padAoUv:vec2f,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,padEmissiveUv:vec2f,normalScaleY:f32,pad1:f32,screenError:f32,blendCoverage:f32,deform:u32,deformOutput:u32,depthBias:u32,lineWidth:f32,placement:u32,materialClass:u32,}`;
+/** Former atlas padding carries physical transmission and subsurface data. The final aligned
+ *  block holds deformation metadata without aliasing those material values. `deform` is the
+ *  float-pool record address plus one; zero means no deformation. */
+export const PAGE_INFO_STRUCT_WGSL = `struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,dash:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,sprite:vec2f,transmission:f32,thickness:f32,attenuationRG:vec2f,aoIndex:u32,aoIntensity:f32,attenuationB:f32,attenuationDistance:f32,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,subsurfaceRG:vec2f,normalScaleY:f32,pad1:f32,screenError:f32,blendCoverage:f32,subsurfaceB:f32,subsurfaceMap:u32,depthBias:u32,lineWidth:f32,placement:u32,materialClass:u32,deform:u32,deformCount:u32,deformOutput:u32,padDeform:u32,}`;
 
 /** Uniform of a visibility-buffer image, the same word for word for both rasters and the
  *  resolves: `../../webgpu/visibility/uniforms.ts` writes it once per slot. `pixelRatio` is the

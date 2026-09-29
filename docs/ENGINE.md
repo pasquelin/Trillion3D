@@ -741,6 +741,14 @@ height. A separate linear, unfogged, unreflected source prevents render-target f
 recursive reflections and applying the camera fog twice. The source is regenerated with each
 changed image and belongs to its camera view, including captures and resizing.
 
+On WebGL2 the mirror receivers alone are resolved once into a reduced-resolution image, at a pixel
+budget derived from the screen unit rather than the display: a receiver whose image already fits
+the budget keeps its own size, a larger one resolves at the aspect-preserving largest size within
+it. The display pass samples that image instead of tracing again, so a mirror receiver's reflection
+cost stops following the display and a transmissive ocean's two mirror terms share one trace. The
+reduced image is a rendering technique under the fluids quality exception (#1292): reflections blur
+at the resolve ratio, within the stated bound of the reference image.
+
 A screen hit replaces the proxy contribution in the one reflection model. On a screen miss,
 WebGPU with bounce enabled keeps the resident-proxy ray and probe fallback; without bounce,
 and on WebGL2, a miss contributes zero. Screen traces cannot reveal offscreen or occluded
@@ -749,17 +757,38 @@ a viewport edge or carried from an older image. The original `miroir.gltf` cited
 present in the reachable repository history; the production proof uses generated geometric
 scenes with analytic reflected-point positions and records that provenance explicitly.
 
-The mirror contribution uses the same GGX directional-albedo table as rectangular lights,
-with full contribution at the roughness floor (0.0525). It fades smoothly over one table sample
-(1/63) above that floor; this is a numerical transition, not the filtered rough lobe of #33.
-Water uses the same scene-radiance lookup with its material Fresnel. Diffuse and toon materials
-have no mirror lobe. Reflection sources are allocated only while the view contains an eligible
-receiver: WebGPU adds 8 bytes per pixel and an 80-byte uniform (an 8-byte disabled placeholder
-otherwise); WebGL2 reuses the backdrop allocator for 8-byte colour and 4-byte depth per pixel.
-These allocations are counted and released on resize/disable/dispose. WebGPU reports refusals
-through its existing frame-target grant. WebGL2 checks the required half-float colour-target
-capability for these linear-radiance sources, as it does for transmission; that check does not
-guarantee allocation success or framebuffer completeness.
+The rough reflection lobe uses the same GGX directional-albedo table as rectangular lights.
+Mirrors at the roughness floor (0.0525) retain their original exact ray path. Opaque WebGPU
+receivers take deterministic GGX samples and accumulate a dedicated mean with bounded confidence:
+32 bytes per pixel for two RGBA16F mean/weight images and one previous depth, normal/roughness,
+and identity image. Calculations are f32; mean storage is f16. Reprojection rejects incompatible
+identity, depth, normal and roughness, and source changes invalidate the accumulation. A static
+image closes its filter window after 64 accepted frames; a changed jitter still reprojects until
+the temporal image can be held. This is a bounded effective weight, not a claim of infinite
+Monte Carlo convergence. Captures/replay do not add duplicate samples. Drawn extent changes discard the history;
+shadow-page landings advance the source epoch before resolving the same image.
+
+Transparent receivers use their own position and direction, with a deterministic cone footprint
+from travel distance and GGX roughness. Both shader languages filter the existing unfogged source's
+radiance mips and reject incompatible near/far depth bounds. They never reuse the opaque surface's
+history. The extra cone hierarchy is the actual sum of its mip dimensions (including odd edges),
+not another full-resolution history. A screen miss retains the existing proxy/probe fallback;
+the rough probe response filters its existing low-order radiance coefficients and cannot recover
+fine off-screen detail absent from that field. Diffuse and toon materials have no specular lobe.
+
+Reflection targets belong to their camera view, resize and dispose with it, and their byte counts
+enter the existing frame-target reservation. No extra user budget controls the feature. GPU
+arithmetic, shader compilation, allocation/lifetime tests and deterministic replay checks are
+engineering diagnostics; image fidelity and the 120 FPS (8.33 ms) full-frame target remain for the
+independent acceptance session, not a performance claim from these tests.
+
+Thin two-sided transmission uses an independent color, optionally textured, through the existing
+material, direct-light and bounce paths. Its WebGPU storage image costs 8 bytes per pixel only
+while such a material is active (an 8-byte stand-in otherwise); it adds no G-buffer render target.
+The model follows the public reference Two Sided Foliage description. Shadow receiver correction uses
+Boubekeur/Alexa's tangent-plane Phong projection, stored as three f32 offsets (12 bytes per pixel),
+without changing visible vertices, raster depth or silhouettes. This position projection is
+separate from the Chiang et al. BRDF shadow-terminator correction.
 
 ## Fog
 

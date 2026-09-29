@@ -91,12 +91,12 @@ test('the resolve trusts the raster that kept the pixel: no second cutout', () =
   assert.doesNotMatch(fragment, /baseColor\.w/);
   assert.match(
     fragment,
-    /if\(SINGLE_CLASS&&id==0u\)\{discard;\}\s*let pageIndex=\(id>>8u\)-1u;\s*if\(SINGLE_CLASS&&pageIndex>=uni\.pageCount\)\{discard;\}/,
+    /if\(id==0u\)\{discard;\}\s*let pageIndex=\(id>>8u\)-1u;\s*if\(pageIndex>=uni\.pageCount\)\{discard;\}/,
   );
   assert.equal(
     fragment.match(/discard;/g)?.length,
-    2,
-    'only the one-class visibility guards discard',
+    3,
+    'visibility bounds and class ownership guard storage writes',
   );
 });
 

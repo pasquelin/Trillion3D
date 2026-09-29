@@ -1,6 +1,5 @@
 import { capture, mirrorMeshes, receivers, target } from '../../reflections/captureGl.ts';
 import { REFLECTION_RESOLVE_UNITS, reflectionResolveExtent } from '../../reflections/resolveGl.ts';
-import { bindWebglTexture } from '../core/renderTarget.ts';
 import type { ClusterDrawMesh, WholeMesh } from '../../cluster/batchMesh.ts';
 import { ATTRIBUTES, WebglClusterGeometry } from './geometry.ts';
 import { WebglClusterTextures } from './textures.ts';
@@ -62,7 +61,8 @@ export class WebglClusterRenderer {
     this.state = display?.state ?? new WebglClusterState(gl);
     this.backdrop = display?.backdrop ?? new WebglClusterBackdrop(gl, BACKDROP_UNITS);
     this.reflection = display?.reflection ?? target(gl);
-    this.resolve = display?.resolve ?? new WebglClusterBackdrop(gl, REFLECTION_RESOLVE_UNITS, true);
+    this.resolve =
+      display?.resolve ?? new WebglClusterBackdrop(gl, REFLECTION_RESOLVE_UNITS, undefined, true);
     this.pass = new ClusterMaterialPass({
       uniforms: new WebglClusterMaterialUniforms(gl, (name) => this.at(name)),
       matrices: new Matrix3UniformCache(gl, (name) => this.at(name)),
@@ -141,12 +141,12 @@ export class WebglClusterRenderer {
         this.submission.submit(diagnosticMeshes, camera, false, true);
       this.copySubmissions += this.submission.submit(plain, camera, false, true);
     });
-    // The receivers alone, traced once into the reduced image; a unit still holding the previous
-    // frame's resolve is released first, a bound texture being a feedback loop the context refuses.
+    // The receivers alone, traced once into the reduced image. `begin` releases the resolve's
+    // units; the frozen source is bound again for the trace they aliased before it (#1292).
     if (mirroring.length) {
       const viewport = gl.getParameter(gl.VIEWPORT) as Int32Array;
-      bindWebglTexture(gl, REFLECTION_RESOLVE_UNITS[0], null);
       this.resolve.begin(null, reflectionResolveExtent(viewport[2], viewport[3]));
+      this.reflection.bind();
       gl.uniform1i(this.at('reflectionEnabled'), 1);
       gl.uniform1i(this.at('reflectionOutput'), 1);
       this.setOutput(false);

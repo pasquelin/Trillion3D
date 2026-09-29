@@ -31,6 +31,8 @@ export const MODEL_FLAG = { diffuse: 4, toon: 5 } as const;
 /** Surface-buffer flag of a debug view, a normal or depth surface: shown as-is, never fogged,
  *  and composed with neither exposure nor the display curve (`shownAsIs`). */
 export const AS_IS_FLAG = 3;
+/** Low three G-buffer bits identify the surface model; higher bits are independent marks. */
+export const SURFACE_MODEL_MASK = 7;
 /** The r8 surface target's high bit carries a material's fog opt-out. */
 export const FOG_FREE_SURFACE_FLAG = 128;
 /** The forward item's model lane has one free bit after the three model bits. */

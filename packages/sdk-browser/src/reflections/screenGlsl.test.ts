@@ -3,16 +3,19 @@ import assert from 'node:assert/strict';
 import { SCREEN_REFLECTION_GLSL } from './screenGlsl.ts';
 import { CLUSTER_FRAGMENT } from '../webgl/cluster/shaders.ts';
 
-test('a resolved mirror samples the reduced image instead of tracing a second time', () => {
+test('a resolved mirror samples the reduced image on the source unit instead of tracing again', () => {
   assert.match(
     SCREEN_REFLECTION_GLSL,
-    /uniform sampler2D reflectionColor,reflectionDepth,reflectionResolveImage;/,
+    /uniform bool reflectionEnabled,reflectionCapture,reflectionResolve,reflectionOutput;/,
   );
   assert.match(
     SCREEN_REFLECTION_GLSL,
-    /if\(reflectionResolve\)return texture\(reflectionResolveImage,gl_FragCoord\.xy\/vec2\(textureSize\(reflectionResolveImage,0\)\)\)\.rgb;/,
+    /if\(reflectionResolve\)return texture\(reflectionColor,gl_FragCoord\.xy\/vec2\(textureSize\(reflectionColor,0\)\)\)\.rgb;/,
   );
-  assert.match(SCREEN_REFLECTION_GLSL, /return screenReflection\(P,R\)\.rgb;/);
+  assert.match(
+    SCREEN_REFLECTION_GLSL,
+    /return mix\(filtered,screenReflectionRay\(P,N,R\),weight\);/,
+  );
 });
 
 test('the cluster program traces once in its resolve pass and shades the display otherwise', () => {
@@ -21,7 +24,7 @@ test('the cluster program traces once in its resolve pass and shades the display
   );
   const curve = CLUSTER_FRAGMENT.indexOf('if(toneMapped)rgb=toneMap(rgb)');
   assert.ok(trace > 0 && trace < curve, 'the single trace is written before the display curve');
-  assert.match(CLUSTER_FRAGMENT, /if\(lit&&!reflectionOutput\)rgb\+=mirrorLighting/);
+  assert.match(CLUSTER_FRAGMENT, /if\(lit&&!reflectionOutput\)/);
   assert.match(CLUSTER_FRAGMENT, /if\(transmissive&&!reflectionOutput\)\{/);
   assert.match(
     CLUSTER_FRAGMENT,

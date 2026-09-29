@@ -81,15 +81,19 @@ export class WebglTextureQueue {
       for (const one of Array.isArray(material) ? material : [material])
         materials.add(one as Material);
     for (const material of materials)
-      eachMap(material, (unit, _map, texture, srgb, fallback, reader) => {
-        if (!texture || bytes >= poolBytes || counted.has(texture)) return;
-        const rgba = textureRgba(texture);
-        if (!rgba && !texture.image) return;
-        counted.add(texture);
-        const [width, height] = rgba ? [rgba.width, rgba.height] : pictureSize(texture.image);
-        bytes += heldBytes(width, height);
-        this.queue.push([unit, texture, srgb, fallback, reader, sentBytes(width, height)]);
-      });
+      eachMap(
+        material,
+        (unit, _map, texture, srgb, fallback, reader) => {
+          if (!texture || bytes >= poolBytes || counted.has(texture)) return;
+          const rgba = textureRgba(texture);
+          if (!rgba && !texture.image) return;
+          counted.add(texture);
+          const [width, height] = rgba ? [rgba.width, rgba.height] : pictureSize(texture.image);
+          bytes += heldBytes(width, height);
+          this.queue.push([unit, texture, srgb, fallback, reader, sentBytes(width, height)]);
+        },
+        true,
+      );
   }
   /** The end of the last frame's commands: the queue uploads again once the GPU passed it. */
   private fence: WebGLSync | null = null;

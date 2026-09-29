@@ -82,7 +82,7 @@ export async function placedSession(bindingRows: number) {
     ...scene,
     gpuDevice: gpu.device,
     maxResidentPages: 3,
-    viewport: [32, 32],
+    viewport: [1, 1], // The intentionally tiny storage limit also bounds receiver offsets.
   });
   const { port, held, outgrown: reopened } = io(bytes);
   ['near.json', 'far.json'].forEach((name) => held.add(cellUrl(name)));
