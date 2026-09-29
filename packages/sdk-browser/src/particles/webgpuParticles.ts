@@ -186,5 +186,6 @@ export function drawParticles(
     eye,
     filter,
     tone,
+    rt.lights.store.unlit,
   );
 }
