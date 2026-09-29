@@ -41,10 +41,16 @@ function field(rand: () => number, side: number, flat: boolean, uv: boolean, col
       const u = b.map((v, k) => v - a[k]),
         v = c.map((w, k) => w - a[k]);
       const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
-      for (const p of [a, b, c]) (positions.push(...p), normals.push(...n));
+      for (const p of [a, b, c]) {
+        positions.push(...p);
+        normals.push(...n);
+      }
     }
   } else
-    for (let i = 0; i < side * side; i++) (positions.push(...corner(i)), normals.push(0, 1, 0));
+    for (let i = 0; i < side * side; i++) {
+      positions.push(...corner(i));
+      normals.push(0, 1, 0);
+    }
   const attributes: PageAttributes = {
     POSITION: { itemSize: 3, array: new Float32Array(positions) },
     NORMAL: { itemSize: 3, array: new Float32Array(normals) },
