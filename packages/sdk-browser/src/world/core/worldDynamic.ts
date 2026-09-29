@@ -6,7 +6,8 @@ import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import type { PageCutPayload } from '../../../../sdk-core/src/page/decodeContracts.ts';
 import { packDrawn } from '../page/runtimeCut.ts';
-import { cutDynamicPrimitive, servePrimitive, type HeldBox } from '../page/runtimePrimitive.ts';
+import { servePrimitive, type HeldBox } from '../page/runtimePrimitive.ts';
+import { cutPagesOffThread } from '../../page/decode/host.ts';
 import type { WorldNotices } from '../diagnostic/worldNotices.ts';
 import { changedRanges, copyRanges, LISTS, type VertexUploads } from './worldDynamicRanges.ts';
 import { fits, heldBox, readInPlace, readingOf, type Reading } from './worldDynamicRead.ts';
@@ -80,9 +81,8 @@ export function createWorldDynamic(notices: WorldNotices | undefined, counts: { 
     // Its corners unchanged, a larger box serves the same pages again: nothing is cut.
     const again = held && fits(before.drawn, drawn, box);
     if (!again) counts.cuts++;
-    const { cut, runtime } = again
-      ? { cut: held.cut, runtime: servePrimitive(held.cut, drawn, box) }
-      : await cutDynamicPrimitive(packDrawn(drawn, blended), drawn, box);
+    const cut = again ? held.cut : await cutPagesOffThread(packDrawn(drawn, blended));
+    const runtime = servePrimitive(cut, drawn, box);
     const [key, users, version] = [`dynamic:${serial++}`, new Set<Mesh>(), geometry.version];
     const state: DynamicHeld = { ...readingOf(geometry, drawn), box, cut, version };
     return { key, drawn, runtime, users, held: false, dynamic: state } satisfies Cut;
