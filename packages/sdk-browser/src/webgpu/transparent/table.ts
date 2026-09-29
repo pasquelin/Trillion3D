@@ -97,7 +97,7 @@ export function createTransparentTable(
   const capacity = Math.max(TRANSPARENT_GROUP, length);
   const entries = new Uint32Array(capacity).fill(TRANSPARENT_NONE);
   /** Words of the resident page, then the index words it holds: what one instance draws. */
-  const spans = new Uint32Array(capacity * 2);
+  const spans = new Uint32Array(capacity * 4);
   const pageOfEntry = new Int32Array(capacity).fill(-1);
   const entryOfPage = new Int32Array(Math.max(1, packedPages.length)).fill(-1);
   /** The paged item whose range holds each entry, -1 for padding: a CPU cut files a page by it. */

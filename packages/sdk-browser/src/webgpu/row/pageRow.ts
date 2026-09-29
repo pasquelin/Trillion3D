@@ -130,6 +130,8 @@ export function createPageRowWriter(
     // row never culled reads none, nor does a deformed one: its box is its rest pose's.
     const deform = resources.deformation?.rowWord(rec.placementIndex) ?? 0;
     ints[base + ROW_DEFORM_WORD] = deform;
+    ints[base + 38] = rec.deformationOutput?.count ?? 0;
+    ints[base + 59] = rec.deformationOutput ? offsetWords + rec.deformationOutput.from + 1 : 0;
     ints[base + ROW_HIZ_SLOT_WORD] = neverCulled(mat) || deform ? NO_HIZ_SLOT : row;
     ints[base + 32] = maps.rough;
     ints[base + 33] = maps.metal;

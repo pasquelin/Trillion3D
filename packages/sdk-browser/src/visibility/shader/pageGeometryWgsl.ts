@@ -4,7 +4,6 @@ import { PAGE_UV_WGSL, PAGE_VERTEX_WGSL } from './pageWgsl.ts';
 import { LINE_CLIP_WGSL, LINE_DASH_WGSL } from './lineWgsl.ts';
 import { SPRITE_WGSL } from './spriteWgsl.ts';
 import { VERTEX_COLOR_WGSL } from '../../webgpu/core/vertexColors.ts';
-import { DEFORM_WGSL } from '../../deformation/deformWgsl.ts';
 
 const QUANTIZED = `(page.flags&${FLAG_CLUSTER_PAGE}u)!=0u`;
 
@@ -61,13 +60,19 @@ fn pageRestPosition(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{
 /** Position of a page vertex in the primitive's local space, as this frame deforms it
  *  (\`DEFORM_WGSL\`): what every pass draws. */
 fn pagePosition(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{
- return deformPoint(page,h,vertex,pageRestPosition(page,h,vertex),false);
+ if(page.deformOutput!=0u){return pageDeformed(page,vertex,0u);}
+ return pageRestPosition(page,h,vertex);
 }
 /** Where the last frame drew that vertex: what the temporal pass reprojects a pixel by. */
 fn pagePreviousPosition(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{
- return deformPoint(page,h,vertex,pageRestPosition(page,h,vertex),true);
+ if(page.deformOutput!=0u){return pageDeformed(page,vertex,3u);}
+ return pageRestPosition(page,h,vertex);
 }
-${DEFORM_WGSL}
+/** A computed result stored in the resident geometry slot's tail. */
+fn pageDeformed(page:PageInfo,vertex:u32,field:u32)->vec3f{
+ let at=page.deformOutput-1u+vertex*11u+field;
+ return vec3f(bitcast<f32>(indices[at]),bitcast<f32>(indices[at+1u]),bitcast<f32>(indices[at+2u]));
+}
 /** First texture coordinate of a page vertex. */
 fn pageUv(page:PageInfo,h:ClusterHeader,vertex:u32)->vec2f{
  if(${QUANTIZED}){return clusterUv(h,page.pageOffset,vertex);}
@@ -91,8 +96,9 @@ fn pageMaskAlpha(page:PageInfo,h:ClusterHeader,vertex:u32)->f32{
  * which supplies the second half.
  */
 export const PAGE_NORMAL_WGSL = `fn pageNormal(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{
- if(${QUANTIZED}){return deformNormal(page,h,vertex,clusterNormal(h,page.pageOffset,vertex));}
- return deformNormal(page,h,vertex,vertN(page.vertexBase,vertex));
+ if(page.deformOutput!=0u){return pageDeformed(page,vertex,6u);}
+ if(${QUANTIZED}){return clusterNormal(h,page.pageOffset,vertex);}
+ return vertN(page.vertexBase,vertex);
 }`;
 
 /**

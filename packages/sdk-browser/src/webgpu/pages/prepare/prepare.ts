@@ -1,3 +1,4 @@
+import { createDeformationCompute } from '../../../deformation/compute.ts';
 import { createDeferredLighting } from '../../../lighting/deferred/deferred.ts';
 import { prepareTemporalAntialiasing } from '../../../taa/prepare.ts';
 import { createSceneLightContractBuffer } from '../state/lightBuffer.ts';
@@ -128,9 +129,6 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     gpuCompaction: !!blendState.compaction?.encode,
     transmissiveMeshes: blendState.transmissive,
   });
-  // The float geometry of what no page covers, and the deformation records, concatenated once; then
-  // the geometry pool is drawn from what they leave of its budget. A concatenation that fails is a
-  // material failure, as the textures' are: the pool still granted, the visibility dropped below.
   throwIfStopped(rt);
   vis.geometryBlocks.clear();
   let geometryFailure: { error: unknown } | undefined;
@@ -146,10 +144,12 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   await grantWebgpuPagesCache(rt, gpuDevice);
   await grantFrameTargets(rt, gpuDevice);
   ensureUniform(rt, gpuDevice, cap);
+  vis.deformationCompute = allPages.some((page) => page.deformationOutput)
+    ? await createDeformationCompute(gpuDevice)
+    : undefined;
   try {
     if (geometryFailure) throw geometryFailure.error;
     await step('textures', () => prepareWebgpuTextures(rt, gpuDevice));
-    // Item rows cite atlas layers: they are therefore mounted AFTER the textures.
     await step('blend resources', () => prepareBlendResources(rt, gpuDevice));
     await step('visibility programs', () => prepareWebgpuVisibility(rt, gpuDevice));
   } catch (error) {

@@ -96,7 +96,7 @@ export function encodeTaaPass(
     displaySize,
     temporal.motion.moved,
     !!inputs.filter && filterHistory.written,
-    !!vis.deformation?.frame.moving.includes(1),
+    !!vis.deformationCompute,
   );
   inputs.upscale = targetSize[0] !== displaySize[0] || targetSize[1] !== displaySize[1];
   inputs.current = current;
