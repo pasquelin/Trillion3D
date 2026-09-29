@@ -7,6 +7,7 @@ import { HIZ_KERNEL_TEXELS } from '../../../packages/sdk-browser/src/hiz/counts.
 import { projectVisibilityVertex } from '../../../packages/sdk-browser/src/visibility/projection.ts';
 import { unpackVisibilityId } from '../../../packages/sdk-browser/src/visibility/types.ts';
 import type { VisPage } from '../../../packages/sdk-browser/src/visibility/buffer.ts';
+import type { MatrixElements } from '../../../packages/sdk-browser/src/math/matrixElements.ts';
 
 const viewProjScratch = new THREE.Matrix4(),
   projScratch = new THREE.Matrix4();
@@ -18,7 +19,8 @@ const depthCam = { viewProjection: viewProjFlat };
 /** `packages/sdk-browser/src/hiz/depth.ts:25-84` before batch A: three projections per pixel. */
 export function referenceVisibilityDepth(
   ids: Uint32Array,
-  pages: readonly (VisPage | undefined)[],
+  // Each with the world of its root, which pages carried before #1226.
+  pages: readonly ((VisPage & { matrix: MatrixElements }) | undefined)[],
   cam: THREE.PerspectiveCamera,
   viewport: [number, number],
 ) {

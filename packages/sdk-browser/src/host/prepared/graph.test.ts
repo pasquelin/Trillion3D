@@ -151,7 +151,15 @@ test('a node the table says hidden is built hidden, every primitive it draws wit
 test('a mesh a hidden core node names is placed visible by the cells', async () => {
   const { tables, meshes } = oneNode('hidden', null, false);
   const single = [{ ...meshes[0], primitives: [meshes[0].primitives[0]] }];
-  const partition = { bounds: [0, 0, 0, 1, 1, 1], meshes: [0], cells: [] };
+  const partition = {
+    bounds: [0, 0, 0, 1, 1, 1],
+    meshes: [0],
+    totals: new Map(),
+    rows: new Map(),
+    cube: 1,
+    parents: [],
+    pages: [],
+  };
   const geometryOf = () => {
     const geometry = new Geometry();
     geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3));

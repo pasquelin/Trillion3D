@@ -1,6 +1,6 @@
 import * as G from '../../host/graph/graph.fixture.ts';
 import assert from 'node:assert/strict';
-import { dagRoots } from './testDag.fixture.ts';
+import { dagRoots } from '../../backend/pagesBackend.fixture.ts';
 import { webgpuPagesBackend } from './pages.ts';
 import { collectClusterPages } from '../../page/selection/selection.ts';
 import { packDagSelection } from '../../gpu/dag/selection.ts';
@@ -28,7 +28,7 @@ export function quadScene() {
       bytes: 12,
       sha256: 'x',
     })),
-  );
+  ).pages;
   const metadata: ClusterManifest = {
     ...QUAD_MANIFEST,
     primitives: [
@@ -184,8 +184,8 @@ export function twoPrimitives(
     errorModel: 'dag-group-qem-v3',
     clusterStrategy: 'dag-groups',
     primitives: [
-      { mesh: 0, primitive: 0, pass: 'exact-clusters', pages: dagRoots([pageA]), structure },
-      { mesh: 1, primitive: 0, pass: 'exact-clusters', pages: dagRoots([pageB]), structure },
+      { mesh: 0, primitive: 0, pass: 'exact-clusters', pages: dagRoots([pageA]).pages, structure },
+      { mesh: 1, primitive: 0, pass: 'exact-clusters', pages: dagRoots([pageB]).pages, structure },
     ],
   };
   const indices = new Map([

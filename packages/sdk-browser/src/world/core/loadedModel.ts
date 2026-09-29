@@ -156,7 +156,7 @@ export async function loadModel(
         textureSource,
         meter,
         pages,
-        onTables: () => meter.plan(plannedFiles(declared, base)),
+        onTables: () => meter.plan(plannedFiles(declared, base, metadata)),
         onPreparation: (event) => onProgress?.({ ...event }),
       },
       metadata,

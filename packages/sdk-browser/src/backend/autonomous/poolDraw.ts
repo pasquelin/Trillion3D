@@ -4,7 +4,8 @@ import type { GeometryPool } from '../../residency/pools.ts';
 
 /**
  * The pool drawn from the budget (`sessionGeometryPool`): slots of the catalogue's largest decoded
- * page, for the copies the scene and its root cover hold. It is drawn again when the root cover's
+ * page, for the copies the scene holds, and its floor: the root cover and the pages its groups
+ * replace (`../../residency/minimumCapacity.ts`). It is drawn again when the root cover's
  * revision moves, and each page's share of the slots is weighed with it: the root cover is held
  * before the requests charge anything, so its pages charge nothing.
  */
@@ -30,7 +31,7 @@ export function drawGeometryPool(
   }
   const drawSession = () =>
     sessionGeometryPool(
-      { pageBytes, uniquePages: copies.scene(), rootPages: copies.root(), maxResidentPages },
+      { pageBytes, uniquePages: copies.scene(), rootPages: copies.floor(), maxResidentPages },
       budgetBytes,
       ceilingBytes,
     );

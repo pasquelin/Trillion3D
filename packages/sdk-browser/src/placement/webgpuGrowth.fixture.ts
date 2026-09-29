@@ -1,11 +1,10 @@
 import * as G from '../host/graph/graph.fixture.ts';
 import { MANIFEST_IDENTITY } from '../backend/pagesBackend.fixture.ts';
-import { dagRoots } from '../webgpu/pages/testDag.fixture.ts';
+import { dagRoots } from '../backend/pagesBackend.fixture.ts';
 import { QUAD_MANIFEST, triangleGeometry } from '../backend/pagesBackendScenes.fixture.ts';
 import { rootPage } from '../webgpu/pages/testScenes.fixture.ts';
 import { cameraAt } from '../webgpu/pages/twoPlaces.fixture.ts';
-import { world } from '../scene/partition/cells.fixture.ts';
-import type { PartitionCells } from '../scene/partition/cells.ts';
+import { cellUrl, io, noBudget, opened, settled, world } from '../scene/partition/cells.fixture.ts';
 import type { RowLink } from '../scene/partition/rows.ts';
 import { collectClusterPages } from '../page/selection/selection.ts';
 import { packDagSelection } from '../gpu/dag/selection.ts';
@@ -22,10 +21,6 @@ import { updateWebgpuPlacements } from './webgpuPlacements.ts';
 import { growWebgpuPlacements, webgpuGrowsInPlace } from './webgpuGrowth.ts';
 import type { ClusterManifest } from '../../../sdk-core/src/index.ts';
 
-type Io = Parameters<PartitionCells['frame']>[2];
-/** No arrival budget: what a test places never depends on the time the machine takes. */
-const noBudget = { admits: () => true, spend() {} };
-
 /** A ground triangle, and the two primitives of the mesh the partition places (`cells.fixture`),
  *  each a triangle of one root cluster, on the rows of `links`. */
 function placedScene(links: readonly RowLink[]) {
@@ -39,7 +34,7 @@ function placedScene(links: readonly RowLink[]) {
     mesh,
     primitive: rank,
     pass: 'exact-clusters',
-    pages: dagRoots([rootPage(url, [-1, -1, 0], [1, 1, 0])]),
+    pages: dagRoots([rootPage(url, [-1, -1, 0], [1, 1, 0])]).pages,
     structure,
   });
   const metadata: ClusterManifest = {
@@ -70,7 +65,7 @@ export async function placedSession(bindingRows: number) {
   installGpuGlobals();
   const partition = world(0, 0);
   const { cells, links, bytes } = partition;
-  await cells.prime([1e9, 0, 0], 100, () => Promise.reject(new Error('nothing is read')), true);
+  await opened(cells, bytes, 100, true, [1e9, 0, 0]); // rows for the view, nothing read
   const scene = placedScene(links);
   const collected = collectClusterPages(
     scene.source,
@@ -89,17 +84,12 @@ export async function placedSession(bindingRows: number) {
     maxResidentPages: 3,
     viewport: [32, 32],
   });
-  const reopened = { count: 0 };
-  const io: Io = {
-    bytes,
-    loading: () => false,
-    request() {},
-    update: (rows, from, to) => updateWebgpuPlacements(rt, rows, from, to),
-    grow: {
-      growsInPlace: (from) => webgpuGrowsInPlace(rt, from),
-      growPlacements: (from, to) => growWebgpuPlacements(rt, from, to),
-    },
-    outgrown: () => void reopened.count++,
+  const { port, held, outgrown: reopened } = io(bytes);
+  ['near.json', 'far.json'].forEach((name) => held.add(cellUrl(name)));
+  port.update = (rows, from, to) => updateWebgpuPlacements(rt, rows, from, to);
+  port.grow = {
+    growsInPlace: (from) => webgpuGrowsInPlace(rt, from),
+    growPlacements: (from, to) => growWebgpuPlacements(rt, from, to),
   };
   const view = cameraAt(0, 30);
   const draw = async () => {
@@ -113,19 +103,18 @@ export async function placedSession(bindingRows: number) {
   try {
     await prepareWebgpuBackend(rt, gpu.device);
     fallbackToCpuCut(rt, 'rows follow the camera');
-    cells.frame([0, 0, 0], 100, io, noBudget);
+    await settled(cells, [0, 0, 0], 100, port, noBudget);
     await draw();
   } catch (error) {
     dispose();
     throw error;
   }
-  return { rt, ...partition, io, draw, reopened, dispose };
+  return { rt, ...partition, io: port, draw, reopened, dispose };
 }
 
 /** Shrinks the core node a thousand times: the far cell comes within reach, one more node than
- *  the rows hold. Two frames, as a world runs them. */
-export function scaleDown({ cells, core, io }: Awaited<ReturnType<typeof placedSession>>) {
+ *  the rows hold. The frames a world runs until the page and the cell it brings are decoded. */
+export async function scaleDown({ cells, core, io }: Awaited<ReturnType<typeof placedSession>>) {
   core.scale.set(1e-3, 1e-3, 1e-3);
-  cells.frame([0, 0, 0], 100, io, noBudget);
-  cells.frame([0, 0, 0], 100, io, noBudget);
+  await settled(cells, [0, 0, 0], 100, io, noBudget);
 }

@@ -115,8 +115,7 @@ pub(super) fn compile_primitive(
     } else {
         None
     };
-    // A skinned or morphed primitive joins the DAG: its pages carry its joints, weights and
-    // targets, deformed on the GPU before culling and raster (#357).
+    // Skin and morph pages share the GPU deformation stage before cut/raster (#357).
     let unsplit = unsplit_material(material);
     let clustered_blend = !unsplit
         && material

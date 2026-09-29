@@ -5,12 +5,16 @@ import {
   unsettledMask,
   unsettledReasons,
 } from '../frame/hold.ts';
-import { dropTaaHistory } from '../../taa/frame.ts';
+import { convergeStillPhase, dropTaaHistory, taaPhaseCount } from '../../taa/frame.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { shadowsUnsettled } from '../pages/state/lights.ts';
 
 /** Convergence turns at most: beyond that, what is missing is published, never waited for forever. */
 const CONVERGE_LIMIT = 64;
+/** Images a convergence draws at most over the still image's `phases`: the turns, then room for
+ *  a whole quiet round closing on the replayed phase (`texturesConverged`) after the last tile
+ *  served — at a low render scale a round outnumbers the turns. */
+export const convergeBound = (phases: number) => CONVERGE_LIMIT + 2 * phases;
 /** Images a barrier grants at most to the shadow pages' round trips: a report read, casters
  *  loaded, pages staled by their arrival. A still camera takes a few; a moving camera voids pages
  *  every image and never converges: the bound is there for it. */
@@ -24,8 +28,26 @@ export const mustRestartTaaAfterSettle = (tilesServed: number, shadowFrames: num
   tilesServed > 0 || shadowFrames > 0;
 
 /**
- * Converges the textures of a pose: the image is rendered with all its pixels on feedback, what they
- * ask is served with no budget, and we start over until no requested tile is missing. A tile whose
+ * True once a convergence may stop: a whole round of the still image's `phases` jitter phases in a
+ * row asked for nothing new (one image without temporal accumulation, or at a barrier that takes
+ * no picture), ending on the replayed phase — image `image + 1` is a multiple of `phases`, so the
+ * last image drawn is the one the next image follows —, and nothing is waited for that will come.
+ */
+export const texturesConverged = (
+  quiet: number,
+  phases: number,
+  image: number,
+  pending: number,
+  reading: boolean,
+) => quiet >= phases && (image + 1) % phases === 0 && (!pending || !reading);
+
+/**
+ * Converges the textures of a pose: the image is rendered with all its pixels on feedback, each
+ * naming the first of its picks whose tile is missing (`everyPick`), what they ask is served with
+ * no budget, and we start over until no requested tile is missing. At a capture's barrier
+ * (`pictured`) each image draws the next jitter phase of the still image (`convergeStillPhase`),
+ * and a whole round of them must ask nothing: the still frames that average those phases then
+ * find every tile they read resident, and nothing lands during their average. A tile whose
  * level is still being read is waited for; a refused tile is not — the pool is full for this view,
  * nothing will come, the coarse level holds (`textureTilesRefused`). The pool never yields what the
  * previous image was looking at, so a turn cannot undo the previous turn: the barrier converges or
@@ -38,27 +60,48 @@ export const mustRestartTaaAfterSettle = (tilesServed: number, shadowFrames: num
  * settling. An extra tile changes no read: the camera reads the level it asked for, and it is
  * resident. Returns the number of tiles served.
  */
-async function convergeTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
+async function convergeTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, pictured: boolean) {
   const { vis, run } = rt;
   const textures = vis.textures!;
   // Nothing streamed — no texture, or all in their queue —: no feedback can name anything, and the
   // image need not be redone.
   if (textures.feedback.entries === 0) return 0;
-  let total = 0;
-  for (let round = 0; round < CONVERGE_LIMIT; round++) {
-    renderWebgpuPages(rt, run.lastCamera!);
-    await gpuDevice.queue.onSubmittedWorkDone();
-    await textures.settled();
-    const { served, pending } = textures.pump(run.frame, true);
-    total += served;
-    // A served tile is shown only by the next image: we stop only on an image that asked nothing more,
-    // or on a wait that nothing will fill. Nothing is deferred under a lifted budget: what is
-    // pending waits for its bytes.
-    if (!served && (!pending || !textures.reading)) break;
-    if (pending) await textures.settled();
+  let total = 0,
+    quiet = 0;
+  try {
+    const phasesOf = () => (pictured ? taaPhaseCount(rt) : 1);
+    for (let image = 0; image < convergeBound(phasesOf()); image++) {
+      // Image 0 draws the phase after the replayed one; the round closes on the replayed phase.
+      if (pictured) convergeStillPhase(rt, image + 1);
+      renderWebgpuPages(rt, run.lastCamera!);
+      await gpuDevice.queue.onSubmittedWorkDone();
+      await textures.settled();
+      const { served, pending } = textures.pump(run.frame, true);
+      total += served;
+      // A served tile is shown only by the next image: we stop only after a round that asked
+      // nothing more, or on a wait that nothing will fill. Nothing is deferred under a lifted
+      // budget: what is pending waits for its bytes.
+      quiet = served ? 0 : quiet + 1;
+      if (texturesConverged(quiet, phasesOf(), image, pending, textures.reading)) break;
+      if (pending) await textures.settled();
+    }
+  } finally {
+    // The barrier's other images — the shadow drains — draw the replayed phase.
+    if (pictured) convergeStillPhase(rt, 0);
   }
   return total;
 }
+
+/** True while the drain draws one more image: a report taken, whose casters may still load; a
+ *  page made or unmade resident after the last image (`seen`, `now`: the pool's residency
+ *  revision), which no plan saw yet — the pages it stales, those a light cut drew coarser among
+ *  them, are drawn again before the still average, not during it (#1016); or pages unsettled. */
+export const drainsAgain = (
+  offered: boolean,
+  seen: unknown,
+  now: unknown,
+  unsettled: () => boolean,
+) => offered || seen !== now || unsettled();
 
 /**
  * Drains shadow maps: images are rendered until the pages the image reads are all mapped and
@@ -74,10 +117,14 @@ async function convergeTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
  */
 async function drainShadows(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { lights, services } = rt;
+  const revision = () => rt.gpu.cache?.residencyRevision;
   let drains = 0,
-    offered = false;
-  for (; drains < SHADOW_DRAIN_LIMIT && (offered || shadowsUnsettled(lights)); drains++) {
+    offered = false,
+    seen = revision();
+  const again = () => drainsAgain(offered, seen, revision(), () => shadowsUnsettled(lights));
+  for (; drains < SHADOW_DRAIN_LIMIT && again(); drains++) {
     renderWebgpuPages(rt, rt.run.lastCamera!);
+    seen = revision();
     await gpuDevice.queue.onSubmittedWorkDone();
     await lights.pageRequests?.settled();
     await lights.lightCut?.settled();
@@ -99,13 +146,19 @@ async function drainShadows(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
  * accumulation does not advance, none is held. What the barrier did, and what still keeps the pose
  * from settling, goes in one diagnostic, `pose-settle`.
  */
-export async function settlePose(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice | undefined) {
+export async function settlePose(
+  rt: WebgpuPagesRuntime,
+  gpuDevice: GPUDevice | undefined,
+  pictured: boolean,
+) {
   const { run, vis, capture, diag } = rt;
   if (!gpuDevice || !run.lastCamera || run.lost || capture.capturing) return;
   let rounds = 0,
     served = 0,
     drains = 0;
   run.textureConverging = true;
+  // A capture's barrier draws at the still image's scale (`beginTaaFrame`), from its first image.
+  if (pictured) convergeStillPhase(rt, 0);
   try {
     // Rows the per-image time budget left owed are part of the pose: a barrier image, with the
     // budget lifted, writes them all, and the GPU cut the barrier then adopts sees every page.
@@ -114,13 +167,14 @@ export async function settlePose(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice | 
       await gpuDevice.queue.onSubmittedWorkDone();
     }
     for (; rounds < POSE_ROUNDS; rounds++) {
-      if (vis.textures) served += await convergeTextures(rt, gpuDevice);
+      if (vis.textures) served += await convergeTextures(rt, gpuDevice, pictured);
       const drained = await drainShadows(rt, gpuDevice);
       drains += drained;
       if (!drained) break;
     }
   } finally {
     run.textureConverging = false;
+    convergeStillPhase(rt, null);
   }
   // Tiles or shadow pages that landed during the barrier changed the raster: the still TAA
   // average must restart from this residency, not mix the frames that were still loading (#25).

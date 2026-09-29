@@ -16,6 +16,7 @@ import {
 } from './buffer.ts';
 import { camera, quadPages, centerId } from './buffer.fixture.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
+import { identityRoots } from '../page/selection/placements.fixture.ts';
 
 test('the WebGPU display buffer starts with the shared opaque scene background', () => {
   assert.deepEqual([...opaqueBackgroundRgba(2, 1)], [0x17, 0x1d, 0x28, 255, 0x17, 0x1d, 0x28, 255]);
@@ -44,7 +45,7 @@ test('CPU visibility shading uses the host background when no triangle is visibl
   const cam = camera(),
     size: [number, number] = [4, 4],
     ids = new Uint32Array(16);
-  const image = shadeVisibility(ids, pages, cameraMoteur(cam), size, 0x2d4059);
+  const image = shadeVisibility(ids, pages, identityRoots(), cameraMoteur(cam), size, 0x2d4059);
   assert.deepEqual([...image.slice(0, 4)], [0x2d, 0x40, 0x59, 255]);
   geometry.dispose();
   material.dispose();
@@ -90,8 +91,8 @@ test('visibility ids are stable for the same pose and differ per triangle', () =
   const { pages, geometry } = quadPages(material);
   const cam = camera(),
     size: [number, number] = [32, 32];
-  const a = rasterVisibilityIds(pages, cameraMoteur(cam), size),
-    b = rasterVisibilityIds(pages, cameraMoteur(cam), size);
+  const a = rasterVisibilityIds(pages, identityRoots(), cameraMoteur(cam), size),
+    b = rasterVisibilityIds(pages, identityRoots(), cameraMoteur(cam), size);
   assert.deepEqual(a, b);
   const id = centerId(a, 32, 32);
   assert.notEqual(id, VIS_INVALID);

@@ -14,10 +14,8 @@ export {
   installLighting,
 } from '../../../packages/sdk-browser/src/lighting/contractLightingApi.ts';
 export { Scene } from '../../../packages/sdk-browser/src/world/core/scene.ts';
-export {
-  collectClusterPages,
-  type PageRec,
-} from '../../../packages/sdk-browser/src/page/selection/selection.ts';
+export { collectClusterPages } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
+export { posedRoots, type WitnessPage as PageRec } from './pose.ts';
 export { createBlendCopy } from '../../../packages/sdk-browser/src/cluster/blendCopyMesh.ts';
 export type { DiagnosticMode } from '../../../packages/sdk-core/src/index.ts';
 export type { BackendFactory } from '../../../packages/sdk-browser/src/backend/types.ts';

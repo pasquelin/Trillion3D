@@ -1,33 +1,37 @@
 /**
  * THE CELLS OF A PARTITIONED SCENE, READ BY DISTANCE (#404).
  *
- * Before each frame (`frame`), the cells the camera needs (`plan.ts`, boxed where their parents
- * stand now: `boxes.ts`) are asked of the session's page streamer, nearest first, then those ahead
- * at the prefetch priority; those it holds are placed within the frame's one integration budget
- * (`FrameBudget`), each node on a row of its mesh (`rows.ts`) at the world matrix the engine
- * composes for a child of its core parent, casting as its host mesh says (`follow.ts`), the cell
- * holding its manifest pages (`cellPages.ts`). A cell past its reach parks its rows and releases
- * its pages; a moved parent, or a host mesh's `castShadow` changed, rewrites its rows.
- * `prime`, before the first frame, sizes the rows for every node the reach can hold at once
- * wherever the parents stand (`sizing.ts`; every node when no owner can reopen the session) and
- * reads the cells it needs. Parents moved, turned or scaled up never run the rows short; a reach past
- * them, or a parent shrunk or stretched unevenly, grows them in place, else reopens (`growth.ts`).
+ * Before each frame (`frame`), the pages of the cell index and the cells the camera needs
+ * (`plan.ts`, `cellIndex.ts`, boxed where their parents stand now: `boxes.ts`) are asked of the
+ * session's page streamer, nearest first, then those ahead at the prefetch priority; those it holds
+ * are decoded off the main thread (`cellDecode.ts`, `decodes.ts`), and those decoded opened or
+ * placed within the frame's one integration budget (`FrameBudget`): a page lists its pages or
+ * cells to the streamer's catalogue, a cell puts each node on a row of its mesh at the world matrix
+ * the engine composes for a child of its core parent, casting as its host mesh says
+ * (`placements.ts`, `follow.ts`), holding its manifest pages and the world bundles its roots need
+ * (`cellPages.ts`). A cell past its reach parks its rows and releases its pages; a page past it
+ * with no cell placed is closed and its files leave the catalogue; a moved parent, or a host mesh's
+ * `castShadow` changed, rewrites its rows.
+ * `prime`, before the first frame, sizes the rows for the first camera's view (`sizing.ts`; every
+ * node when no owner can reopen the session), then reads the pages on its way and the cells it
+ * reaches (#575). A reach past those rows, or a parent shrunk or stretched unevenly, grows them in
+ * place, else asks the owner to open the session again (`placement/growth.ts`).
  */
 import { MATRIX_VALUES } from '../../../../sdk-core/src/index.ts';
-import {
-  assertCellNodes,
-  type TablePartition,
-} from '../../../../sdk-core/src/scene/core/tablePartition.ts';
-import type { PlacementRows } from '../../placement/rows.ts';
+import { RUNGS, type TablePartition } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
 import type { PlacementGrowth } from '../../placement/backendSceneUpdates.ts';
+import type { PlacementRows } from '../../placement/rows.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import type { StreamPage } from '../../streaming/types.ts';
 import { hostWorldChainInto } from '../../host/world/chain.ts';
 import { createCellBoxes } from './boxes.ts';
+import { createCellIndex, type IndexPage, type PageBody } from './cellIndex.ts';
+import type { CellRows } from './cellDecode.ts';
+import { createDecodes, takeDecoded } from './decodes.ts';
 import { inCellFrame, planCells } from './plan.ts';
-import { holdsEvery, outstretched, residentRows, sizedStretch, type Stretch } from './sizing.ts';
-import { capacityOf, createTouchedRows, releaseRow, rowLocal, rowsFree } from './rows.ts';
-import { sizeRows, takeRow, type PlacedMesh } from './rows.ts';
-import { createPlacementWrites, type Placement } from './follow.ts';
+import { capacityOf, sizeRows, type PlacedMesh } from './rows.ts';
+import { heldSide, rowsAt, rungOf } from './sizing.ts';
+import { createCellPlacements } from './placements.ts';
 import { createCellPages, withHoldings } from './cellPages.ts';
 
 type Inputs = {
@@ -37,140 +41,158 @@ type Inputs = {
   /** The host node of each core rank. */ parents: readonly Object3D[];
   /** The placed mesh of each mesh rank the cells place. */ meshes: ReadonlyMap<number, PlacedMesh>;
   /** The manifest's pages the view holds (#751). */ pages?: Parameters<typeof createCellPages>[0];
+  /** The world bundles its roots need (#1237). */ world?: Parameters<typeof createCellPages>[2];
 };
-
 const rootWorld = new Float64Array(MATRIX_VALUES);
 
 export function createPartitionCells(inputs: Inputs) {
-  const { partition, base, root, parents, meshes } = inputs;
-  const cells = partition.cells.map((cell) => ({ ...cell, url: new URL(cell.url, base).href }));
-  const boxes = createCellBoxes(partition.cells, root, parents);
-  const manifest = createCellPages(inputs.pages, partition.cells);
-  const held = new Map<number, Placement[]>();
-  const touched = createTouchedRows();
-  const { write, follow } = createPlacementWrites(touched);
-  /** Cells short of rows; whether the owner was asked to reopen; the reach, in the cells' frame,
-   *  the rows are sized for (∞: all); the largest a frame asked; each parent's stretch sized for. */
+  const { partition, base, root, parents, meshes, world } = inputs;
+  const boxes = createCellBoxes(partition.parents, root, parents);
+  const index = createCellIndex(partition.pages, base, boxes);
+  const decodes = createDecodes<number, CellRows>(),
+    pageDecodes = createDecodes<IndexPage, PageBody>();
+  const manifest = createCellPages(inputs.pages, (cell) => index.cell(cell).meshPages, world);
+  const rows = createCellPlacements(root, parents, meshes);
+  const { held, touched } = rows;
+  /** Cells a mesh short of rows keeps waiting; the rung the rows are sized for (`RUNGS`: every
+   *  node); the widest a frame asked. */
   let waiting = 0,
-    short = false,
-    sized = 0,
-    wanted = 0,
-    stretched: ReadonlyMap<number, Stretch> = new Map();
-  /** Places `cell` from its bytes; false when a mesh is short of rows (a reach past `sized`). */
-  const place = (cell: number, bytes: Uint8Array) => {
-    const nodes = assertCellNodes(JSON.parse(new TextDecoder().decode(bytes)));
-    if (!rowsFree(meshes, nodes, cells[cell].url)) return false;
-    const placements = nodes.map((node) => {
-      const parent = node.parent === null ? root : parents[node.parent];
-      const mesh = meshes.get(node.mesh)!;
-      const placement = { mesh, row: takeRow(mesh), parent, local: rowLocal(node) };
-      write(placement);
-      return placement;
+    sized = -1,
+    wanted = -1;
+  /** Where the camera at `eye` stands in the cells' frame, and the rung its view asks. */
+  const view = (eye: ArrayLike<number>, reach: number) => {
+    const local = inCellFrame(hostWorldChainInto(rootWorld, root), eye, reach);
+    boxes.refresh();
+    const rung = rungOf(heldSide(local.reach, partition.cube, boxes.stretch), partition.cube);
+    return { ...local, rung };
+  };
+  /** Sizes the rows for `rung`, in place under `grow`; false, unsized, if refused. */
+  const resize = (rung: number, grow?: PlacementGrowth) => {
+    if (!sizeRows(meshes, rowsAt(partition, rung), grow)) return false;
+    // Rows that hold every node hold any view: no wider rung asks for more.
+    const every = [...partition.totals].every(([mesh, total]) => {
+      const placed = meshes.get(mesh);
+      return !placed || capacityOf(placed) >= total;
     });
-    held.set(cell, placements);
+    sized = every ? RUNGS : Math.max(sized, rung);
+    return true;
+  };
+  const cellUrl = (cell: number) => index.cell(cell).url;
+  const place = (cell: number, decoded: CellRows) => {
+    if (!rows.place(cell, decoded, cellUrl(cell))) return false;
     manifest.hold(cell);
     return true;
   };
   const leave = (cell: number) => {
-    for (const { mesh, row } of held.get(cell)!) {
-      releaseRow(mesh, row);
-      for (const link of mesh.links) touched.touch(link, row);
-    }
-    held.delete(cell);
+    rows.leave(cell);
     manifest.release(cell);
   };
-  /** Sizes the rows for `bound` and `stretch`, in place under `grow`; false, unsized, if refused. */
-  const resize = (bound: number, grow?: PlacementGrowth, stretch = sizedStretch(boxes.stretch)) => {
-    const rows = residentRows(partition.cells, bound, stretch);
-    if (!sizeRows(meshes, rows, grow)) return false;
-    stretched = stretch;
-    sized = holdsEvery(rows, cells) ? Infinity : bound;
-    short = false;
-    return true;
-  };
   const partitionCells = {
-    /** Every cell as the streamer's catalogue reads it. */
-    pages: cells.map(({ url, bytes, sha256 }) => ({ url, bytes, sha256 })),
-    /** The cells placed now, those a mesh short of rows keeps waiting, and the rows sized. */
+    /** The root's pages, the files the streamer's catalogue holds at open. */
+    pages: index.slots,
+    /** The pages of the index opened and the cells they list, the cells placed now, those a mesh
+     *  short of rows keeps waiting, and the rows sized. */
     stats: () => ({
-      cells: cells.length,
+      ...index.stats(),
       held: held.size,
       waiting,
       rows: [...meshes.values()].reduce((sum, mesh) => sum + capacityOf(mesh), 0),
     }),
-    /** Before a frame from `eye`: far cells leave, near ones are asked, those read placed while
-     *  the frame's `budget` admits them. True when a cell within reach is left for a later frame. */
+    /** Before a frame from `eye`: far cells leave and far pages close, rows past those sized grow,
+     *  near pages and cells are asked, those read handed to the decode pool, those decoded opened
+     *  or placed while the frame's `budget` admits them. True when a page or cell within reach is
+     *  left for a later frame. */
     frame(
       eye: ArrayLike<number>,
       reach: number,
-      /** The streamer's verified bytes, whether it reads an address, a request (`ahead`: read
-       *  before needed), rows written, a buffer grown in place where it can, else the owner told. */
+      /** Kept internal as `budget` is: the streamer's verified bytes and their decode off the main
+       *  thread, reads, requests (`ahead`: before needed), catalogue, rows, else the owner told. */
       io: {
         bytes(url: string): Uint8Array | undefined;
+        decode: (bytes: Uint8Array, url: string) => Promise<CellRows>;
+        decodePage: (bytes: Uint8Array, url: string) => Promise<PageBody>;
         loading(url: string): boolean;
         request(urls: readonly string[], ahead: boolean): void;
+        admit(pages: readonly StreamPage[]): void;
+        forget(urls: readonly string[]): void;
         update(rows: PlacementRows, from: number, to: number): void;
         grow?: PlacementGrowth;
         outgrown?: () => void;
       },
       budget: { admits(): boolean; spend(): void }, // structurally a `FrameBudget`, kept internal
     ) {
-      follow(meshes.values(), held.values());
-      const local = inCellFrame(hostWorldChainInto(rootWorld, root), eye, reach);
-      const plan = planCells(boxes(), local.eye, local.reach, new Set(held.keys()));
-      const beyond = local.reach > Math.max(sized, wanted);
-      if (beyond) wanted = local.reach;
-      const over = !short && sized < Infinity && outstretched(boxes.stretch, stretched);
-      if (beyond || over) {
-        // Twice what outgrew them, as buffers grow: an ongoing zoom or shrink resizes O(log) times.
-        const stretch = over ? sizedStretch(boxes.stretch, 2) : stretched;
-        const bound = beyond ? Math.max(2 * sized, wanted) : sized;
-        if (!io.grow || !resize(bound, io.grow, stretch)) {
-          short = true;
-          io.outgrown?.();
-        }
+      rows.follow();
+      const local = view(eye, reach);
+      if (local.rung > Math.max(sized, wanted)) {
+        wanted = local.rung;
+        // Twice the side that outgrew them, as buffers grow: an ongoing zoom resizes O(log) times.
+        const rung = Math.min(RUNGS, Math.max(local.rung, sized + 2));
+        if (!io.grow || !resize(rung, io.grow)) io.outgrown?.();
       }
+      const plan = planCells(index, local.eye, local.reach, held);
       plan.leave.forEach(leave);
+      io.forget(index.forgotten());
       waiting = 0;
       let later = false;
-      for (const [list, ahead] of [
-        [plan.visible, false],
-        [plan.ahead, true],
-      ] as const) {
-        const ask: string[] = [];
-        for (const cell of list) {
-          const { url } = cells[cell];
-          const bytes = io.bytes(url);
-          if (!bytes || !budget.admits()) {
-            if (!bytes && !io.loading(url)) ask.push(url);
-            later ||= !ahead;
-            continue;
-          }
-          if (place(cell, bytes)) budget.spend();
-          else waiting++;
-        }
-        if (ask.length) io.request(ask, ahead);
+      const open = (page: IndexPage, body: PageBody) => (io.admit(index.open(page, body)), true);
+      const placed = (cell: number, decoded: CellRows) => {
+        if (place(cell, decoded)) return true;
+        waiting++;
+        return false;
+      };
+      const pageUrl = (page: IndexPage) => page.slot.url;
+      for (const ahead of [false, true]) {
+        const pages = ahead ? plan.pages.ahead : plan.pages.visible;
+        const at = { io, budget, ahead };
+        later = takeDecoded(pages, at, pageDecodes, pageUrl, io.decodePage, open) || later;
+        // A page opened now brings its cells to the next frame's plan.
+        later ||= !ahead && pages.some((page) => page.body);
+        const list = ahead ? plan.ahead : plan.visible;
+        later = takeDecoded(list, at, decodes, cellUrl, io.decode, placed) || later;
       }
+      pageDecodes.keep(plan.pages.visible, plan.pages.ahead);
+      decodes.keep(plan.visible, plan.ahead);
       touched.flush(io.update);
       return later;
     },
-    /** Before the engines read the rows: sizes them for the camera at `eye` or the largest reach a
-     *  frame asked (every cell unless `owned`), then places the cells within reach; bytes read. */
+    /** Before the engines read the rows: sizes them for the camera at `eye` or the widest view a
+     *  frame asked (every node unless `owned`), then reads the pages of the index on its way and
+     *  places the cells within its reach; the bytes read. */
     async prime(
       eye: ArrayLike<number>,
       reach: number,
-      read: (url: string) => Promise<Uint8Array>,
+      /** Kept internal as `frame`'s: the streamer's verified read, the decodes, the catalogue. */
+      io: {
+        read(url: string): Promise<Uint8Array>;
+        decode: (bytes: Uint8Array, url: string) => Promise<CellRows>;
+        decodePage: (bytes: Uint8Array, url: string) => Promise<PageBody>;
+        admit(pages: readonly StreamPage[]): void;
+      },
       owned: boolean,
     ) {
-      const local = inCellFrame(hostWorldChainInto(rootWorld, root), eye, reach);
-      const plan = planCells(boxes(), local.eye, local.reach, new Set(held.keys()));
+      const local = view(eye, reach);
+      if (sized < RUNGS) resize(owned ? Math.max(local.rung, wanted) : RUNGS);
+      let bytes = 0;
+      const read = async <T>(url: string, decode: (got: Uint8Array, url: string) => Promise<T>) => {
+        const got = await io.read(url);
+        bytes += got.byteLength;
+        return decode(got, url);
+      };
+      let plan = planCells(index, local.eye, local.reach, held);
+      for (let unread = plan.pages.visible; unread.length; unread = plan.pages.visible) {
+        const bodies = await Promise.all(unread.map((p) => read(p.slot.url, io.decodePage)));
+        unread.forEach((page, at) => io.admit(index.open(page, bodies[at])));
+        plan = planCells(index, local.eye, local.reach, held);
+      }
       plan.leave.forEach(leave);
-      if (sized < Infinity) resize(owned ? Math.max(local.reach, wanted) : Infinity);
-      const bodies = await Promise.all(plan.visible.map((cell) => read(cells[cell].url)));
-      plan.visible.forEach((cell, at) => place(cell, bodies[at]));
+      const decoded = await Promise.all(plan.visible.map((c) => read(cellUrl(c), io.decode)));
+      plan.visible.forEach((cell, at) => place(cell, decoded[at]));
       touched.clear();
-      return bodies.reduce((sum, bytes) => sum + bytes.byteLength, 0);
+      return bytes;
     },
+    /** The decodes the frames asked since the last call: a still camera is drawn again once one
+     *  lands, so the page it brings is opened or the cell placed. */
+    decodes: () => [...pageDecodes.asked(), ...decodes.asked()],
   };
   return withHoldings({ meshes, manifest }, partitionCells);
 }

@@ -45,6 +45,7 @@ const config: KnipConfig = {
     'bench/runner/feedbackTargetPage.ts',
     'bench/runner/gazeNetworkPage.ts',
     'bench/runner/limits.ts',
+    'bench/runner/screenErrorPage.ts',
     // The witness entry: bundled into `dist/witnesses/measurement.js` and imported by URL by those
     // pages; it re-exports the engine's measurement seam.
     'bench/witnesses/measurement.ts',
@@ -56,6 +57,7 @@ const config: KnipConfig = {
     'bench/runner/lampFixture.ts',
     'bench/runner/anisotropyCost.ts',
     'bench/runner/waterCost.ts',
+    'bench/runner/screenError.ts',
     'bench/perf/*/*.perf.ts',
     'bench/runner/perf/*.ts',
     // Tests by rule: unit and integration tests, the browser proof runners (render proofs and

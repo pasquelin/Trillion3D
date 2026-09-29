@@ -141,6 +141,7 @@ export function reperes(): Repere[] {
             b: sommet(coins, 3),
             c: sommet(coins, 6),
             page,
+            world: matrix,
             triangleIndex: 0,
             i0: 0,
             i1: (v + 1) % 3,

@@ -6,6 +6,7 @@ pub(in crate::tests) mod mesh_pages;
 pub(in crate::tests) mod motion_tables;
 pub(in crate::tests) mod partition;
 pub(in crate::tests) mod partition_pages;
+pub(in crate::tests) mod partition_rows;
 pub(in crate::tests) mod scene_tables;
 pub(in crate::tests) mod surface_tables;
 pub(in crate::tests) mod visibility;

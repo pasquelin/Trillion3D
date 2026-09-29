@@ -44,7 +44,7 @@ rerun benchmarks.
 - Every run probes the browser limits first (`limits.ts`): WebGL2 half-float and float colour targets, `EXT_disjoint_timer_query_webgl2`, WebGPU `timestamp-query` and the WebGPU limits the adapter grants beyond the defaults, under `limits` in `measure.json` and "Browser limits" in `resume.md`.
 - `--cache-before` / `--cache-after`: path to compiled cache output (`native/full`), to compare two compilers on the same scene. Omission reads the scene cache from assets.
 - `--resources <dir>`: directory for glTF resources mounted under `/assets/`. Without it, un-based compiled caches yield 404 textures.
-- `--views` among `overview`, `ground`, `street`, `detail` (`poses.ts`, `PATH_VERSION` 7); `--pixelError` accepts a list; also `--warmup`, `--width`, `--height`, `--dpr` (positive, default 1), `--out`, and `--port`. The viewport keeps the requested CSS size while `--dpr 2` renders twice as many pixels on each axis.
+- `--views` among `overview`, `ground`, `street`, `detail` (`poses.ts`, `PATH_VERSION` 9). The eye-level views walk the model's street, read off its own geometry before the series (`street.ts`): the physics the compiler cooked with it (`physics.json`) is asked, column by column over the footprint, for the ground, the nearest wall at eye height and open sky over the square the camera may walk; the roomiest column under open sky is the street, the nearer the centre between equals; a column the physics answered nothing about is unknown, never the street, and no clearance reaches past the box. A model with no `physics.json`, or no street, is reported by name (`bounds.noStreet`) and walks its box centre, with half its narrower side as room (`boxStreet`). The other views fly one eye above the model's top. No scene is named and no share of the box is assumed open; `--pixelError` accepts a list; also `--warmup`, `--width`, `--height`, `--dpr` (positive, default 1), `--out`, and `--port`. The viewport keeps the requested CSS size while `--dpr 2` renders twice as many pixels on each axis.
 - `--bounce on|off` (default `off`): enables bounce lighting.
 - `--textures cache|host` (default `host`): whether the prepared scene reads the source images. `cache` skips every image whose chain the cache carries; `host` decodes them all, which the Three witnesses need. The engine reads the baked levels either way (#289), so the two sides render the same image and differ only in what the scene fetches — the harness keeps `host` by default because a side may be a witness, and a witness side reads its images whatever the flag says (the engine resolves `cache` back to `host` for a backend that draws the host scene).
 - `--texture-budget <ms>`: CPU milliseconds a frame may spend copying texture tiles into the pools (`maxTextureUploadMsPerFrame`). Without the option, the engine keeps its default (1.0 ms). Tiles beyond the budget wait for the next frame and show their coarser resident level meanwhile; the profile's "Textures" stage gives the pass's p50/p95 and the metrics its worst pass (`textureUploadPeakMs`) and what it deferred (`textureTilesDeferred`). A cold traversal (`--warmup 0 --moving-camera --textures cache`) is where it is read: on a still pose the barrier lifts it.
@@ -265,6 +265,33 @@ by corner and prints the largest and mean position gap and the angle between the
 input difference behind an image difference between that path and a witness, measured rather than
 supposed. On `tests/fixtures/scenes/kinetic-garden` (430 pages, 107 520 corners): `maxPositionGap`
 6.10 × 10⁻⁵, `maxNormalGapDegrees` 0.613, mean 0.284°.
+
+## The Screen Error of What Is Drawn
+
+    pnpm run build
+    TRILLION3D_ASSETS=<assets> node bench/runner/screenError.ts --scene sponza --poses bench \
+      [--backends webgpu,webgl2] [--pixel-errors 0,1] [--out .mesure/out/<issue>]
+
+The measured screen error of what WebGPU and WebGL2 draw, against the source glTF (#959), the
+audit's oracle: forward, sample points of the drawn triangles to the source surface; reverse,
+sample points of the source to the drawn triangles. Both count only the points in the frustum that
+no drawn surface hides. A single-sided triangle seen from behind, which every backend culls, is
+skipped on both sides: a source one is not sampled, a drawn one neither hides nor is sampled, each
+triangle flagged by its material's side (the source glTF for WebGPU's clusters, the engine's
+`sideOf` for WebGL2's meshes). Each distance becomes pixels through
+the cut's own projection (`screenErrorBound`), under the engine's camera, frustum and focal length,
+at 1728×1117, DPR 2; the nearest-surface and visibility queries run on the engine's triangle tree.
+A row passes when the cut held, the browser reported no errors, both directions sampled points,
+and both finite maxima stay within `pixelError + 0.1 px`. A failed or empty run exits nonzero.
+These are sampled surface distances, not a continuous maximum or a raster image comparison.
+Run this image acceptance harness only in the recette session, on `develop` after merge.
+Recook the scenes with that checkout before measuring, so the grid and published DAG errors
+come from the same compiler revision as the runtime. WebGPU hands back the clusters
+its cut selected (`selectedClusterIds`, decoded by the engine's page decoder, which the WGSL decode
+matches bit for bit),
+WebGL2 the triangles it drew. `--poses orbit` and `--poses terrain` are the audit's cameras placed
+on the source's box, `--poses bench` the bench's four named views. The compiler-side measure of the
+quantization alone is `packages/asset-compiler-rust/src/geometry_page_quant/screen/` (#930).
 
 ## What Anisotropy Costs
 
