@@ -55,10 +55,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
         pixelError,
         clearColor: scene.background?.getHex(), // read at opening; a change is written in place
         currentClearColor: () => scene.background?.getHex(),
-        beforeFrame: () => {
-          ahead(controls);
-          runtime.beforeFrame();
-        },
+        beforeFrame: () => (ahead(controls), runtime.beforeFrame()),
         onFrame: (metrics) => {
           frames.dispatch(metrics);
           if (animating) invalidate(); // a clip still playing asks for the next; the last pauses
@@ -76,13 +73,8 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
   const physics = createWorldPhysics(runtime, scene, () => camera, options.physics);
   const adopt = cameraAdopter(invalidate); // a camera outside the scene redraws when it moves
   adopt(camera);
-  const controls = worldControlsHandle(
-    options.controls ?? 'none',
-    () => camera,
-    canvas,
-    invalidate,
-    physics.character,
-  );
+  const kind = options.controls ?? 'none';
+  const controls = worldControlsHandle(kind, () => camera, canvas, invalidate, physics.character);
   const ahead = (by: typeof controls | null) => (animating = frames.step(by, scene, physics.frame));
   const live = () => {
     if (disposed) throw new Error('World disposed');
@@ -144,6 +136,14 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     },
     set temporalAntialiasing(on: boolean) {
       switches.temporalAntialiasing = on;
+    },
+    /** The fraction of the display per axis the image is drawn at (`WorldOptions.renderScale`),
+     *  from the next frame. Read, the scale of the last image drawn: 1 on WebGL2. */
+    get renderScale(): number {
+      return switches.renderScale;
+    },
+    set renderScale(scale: import('../../frame/renderScaleOption.ts').RenderScale) {
+      switches.renderScale = scale;
     },
     /** The effect chain: passes drawn over the image (`effect`). */ effects: switches.held.effects,
     /** Bodies, gravity and time of the physics (Jolt, in a worker). */ physics: physics.handle,
