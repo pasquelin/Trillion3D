@@ -12,7 +12,7 @@ import {
   SHADOW_TRANSMITTANCE_PASS,
 } from '../gpu/shadow/transmittance.ts';
 import { LIGHT_CUT_PASS } from '../gpu/dag/encode.ts';
-import { SHADOW_DEMAND_PASS } from '../webgpu/shadow/demandPass.ts';
+import { SHADOW_PAGE_PASSES } from '../webgpu/shadow/allocPass.ts';
 import { MATERIAL_DEPTH_PASS, MATERIAL_SURFACES_PASS } from '../webgpu/core/materialPasses.ts';
 import { PARTICLES_PASS } from '../particles/webgpuParticles.ts';
 import { PARTICLE_DRAW_PASS } from '../particles/webgpuParticleDraw.ts';
@@ -40,6 +40,7 @@ type PassRow = readonly [stage: string, block: GpuPassBlock, part?: ShadowPart];
  * profile and the blocks share it. An unknown label joins `geometry`, the only stage that draws
  * without a name of its own, and `other`, so a new pass does not silently swell a compared block.
  */
+const SHADOW_PAGE_ROW: PassRow = ['shadows', 'other', 'cull'];
 const PASSES: Readonly<Record<string, PassRow>> = Object.freeze({
   'Trillion3D DAG selection': ['selection', 'visibility'],
   'Trillion3D partition': ['partition', 'visibility'],
@@ -80,7 +81,7 @@ const PASSES: Readonly<Record<string, PassRow>> = Object.freeze({
   'Trillion3D shadow cull': ['shadows', 'other', 'cull'],
   'Trillion3D shadow page pyramids': ['shadows', 'other', 'cull'],
   'Trillion3D shadow occlusion': ['shadows', 'other', 'cull'],
-  [SHADOW_DEMAND_PASS]: ['shadows', 'other', 'cull'],
+  ...Object.fromEntries(SHADOW_PAGE_PASSES.map((name) => [name, SHADOW_PAGE_ROW])),
   [LIGHT_TILES_PASS]: ['lightLists', 'other'],
   [BOUNCE_SURFACE_PASS]: ['bounce', 'other'],
   [BOUNCE_PROBE_PASS]: ['bounce', 'other'],

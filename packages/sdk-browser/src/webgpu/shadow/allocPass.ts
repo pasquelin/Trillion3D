@@ -5,11 +5,19 @@ import { ALLOCATION_WGSL } from './allocWgsl.ts';
 import { SHADOW_WORDS_WGSL, WORDS_GROUP } from './wordsWgsl.ts';
 import { SHADOW_FRESH_WGSL } from './freshWgsl.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { SHADOW_DEMAND_PASS } from './demandPass.ts';
 
 /** Labels of the allocation and of the host's table words, as a frame's passes are timed. */
 const SHADOW_ALLOC_PASS = 'Trillion3D shadow allocation v1';
 const SHADOW_WORDS_PASS = 'Trillion3D shadow table words v1';
 const SHADOW_FRESH_PASS = 'Trillion3D shadow GPU pages v1';
+/** The GPU's page passes, the demand first: timed under the Shadows stage (`stage/mapping.ts`). */
+export const SHADOW_PAGE_PASSES = [
+  SHADOW_DEMAND_PASS,
+  SHADOW_ALLOC_PASS,
+  SHADOW_WORDS_PASS,
+  SHADOW_FRESH_PASS,
+] as const;
 
 /** A compute pass of storage buffers only, its bind group made again only when they moved. */
 async function computePass(
