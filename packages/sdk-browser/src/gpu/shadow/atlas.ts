@@ -12,6 +12,7 @@ import { arrayView, layerPasses, layerViews, shadowPoolTexture } from './layers.
 import { createShadowTransmittance, type ShadowTransmittance } from './transmittance.ts';
 import { shadowTransmittanceDraws } from './transmittanceDraws.ts';
 import { shadowDepthDraws } from './depthDraws.ts';
+import { shadowFreshDraws } from '../../webgpu/shadow/freshDraws.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
 import { SHADOW_FACE_STRIDE as FACE_STRIDE } from './batchBudget.ts';
 
@@ -73,6 +74,7 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
     const layout = device.createPipelineLayout({ bindGroupLayouts: [pageLayout, faces.layout] });
     const depthDraws = shadowDepthDraws(device, module, layout);
     const transmittanceDraws = shadowTransmittanceDraws(device, module, [pageLayout, faces.layout]);
+    const freshDraws = shadowFreshDraws(device, module, [pageLayout, faces.layout]);
     const makePool = (poolSide: number, layers: number) =>
       shadowPoolTexture(device, poolSide, layers);
     const atlas = {
@@ -99,6 +101,8 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       prepareDepth: depthDraws.prepare,
       /** The pool's draws, compiled by `prepareDepth` or, failing it, now. */
       depthDraws: depthDraws.made,
+      /** The draws of the pages the GPU draws itself (`../../webgpu/shadow/freshDraws.ts`). */
+      freshDraws,
       /** True when region `index`'s face carries an emitter envelope, which only a fragment
        *  discards. */
       hasEnvelope: pack.hasEnvelope,

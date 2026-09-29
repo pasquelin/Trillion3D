@@ -15,6 +15,8 @@ export interface ShadowPoolSnapshot {
   /** Pages that frame mapped, and entries it had no page for. */
   allocated: number;
   refused: number;
+  /** Pages that frame listed for the GPU to draw (`listDraw`). */
+  drawn: number;
 }
 
 /**
@@ -78,6 +80,9 @@ export function createShadowMirror(
     asks: { entries: new Uint32Array(shadowRequestCap(pool.pages)), count: 0 } as ShadowAsks,
     /** True while the GPU allocates. */
     on: false,
+    /** Pages the latest snapshot's frame listed for the GPU to draw: while some are, the GPU's
+     *  draws run even in a frame where nothing moves (`freshPass.ts`). */
+    listed: 0,
     /** The GPU allocates, its pool written from the host's, or no longer does, from frame `frame`
      *  on: snapshots before are left. */
     set(allocate: boolean, frame: number) {
@@ -93,6 +98,7 @@ export function createShadowMirror(
     /** Follows the GPU's pool in `report`; false when it is not the GPU's, or can no longer be. */
     follow(report: ShadowRequestReport, nowMs: number, frame: number) {
       const snapshot = report.pool;
+      if (snapshot) mirror.listed = snapshot.drawn;
       if (!snapshot || report.frame < from || snapshot.owner.length !== pool.pages) return false;
       if (report.layoutEpoch !== table.layoutEpoch) return false;
       apply(snapshot, report.frame, nowMs, frame);

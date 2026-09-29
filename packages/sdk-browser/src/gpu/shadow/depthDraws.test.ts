@@ -1,6 +1,6 @@
 // #965: opaque shadow casters are drawn with no fragment stage, cutout ones with the fragment test.
-// The cull files the two kinds in two lists of one slot; the pipelines are compiled at prepare, and
-// a frame compiles none. That the depth is develop's is `depthSplit.test.ts`'s.
+// The cull files the two kinds in two lists of one slot; the three pipelines are compiled at
+// prepare, and a frame compiles none. That the depth is develop's is `depthSplit.test.ts`'s.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
@@ -29,7 +29,7 @@ test("a region's opaque and cutout casters fill its slot from both ends, counted
   );
 });
 
-test('the caster draws are compiled at prepare, and a frame compiles none', async () => {
+test('the three caster draws are compiled at prepare, and a frame compiles none', async () => {
   const { device, renderPipelines } = fakeDevice();
   const atlas = await createGpuShadowAtlas(device, {} as GPUBindGroupLayout);
   assert.equal(renderPipelines.length, 0, 'nothing compiled before the step');
@@ -50,7 +50,4 @@ test('the caster draws are compiled at prepare, and a frame compiles none', asyn
   assert.deepEqual(shape(draws.opaque), ['shadow_depth_vs', undefined], 'no fragment stage');
   assert.deepEqual(shape(draws.envelope), ['shadow_vs', 'shadow_fs']);
   assert.deepEqual(shape(draws.cutout), ['shadow_cutout_vs', 'shadow_fs']);
-  // A page the GPU draws itself: placed in the vertex stage, kept to its page by the fragment.
-  assert.deepEqual(shape(draws.freshOpaque), ['shadow_fresh_vs', 'shadow_fresh_fs']);
-  assert.deepEqual(shape(draws.freshCutout), ['shadow_fresh_cutout_vs', 'shadow_fresh_fs']);
 });

@@ -18,10 +18,12 @@ const WGSL: PageOps<string> = {
   // An `i32` shifted by a `u32`, whatever literal it starts from.
   shr: (a, b) => `(i32(${a})>>u32(${b}))`,
   max: (a, b) => `max(${a},${b})`,
+  min: (a, b) => `min(${a},${b})`,
   clamp: (a, low, high) => `clamp(${a},${low},${high})`,
   floor: (a) => `floor(${a})`,
   log2: (a) => `log2(${a})`,
   exp2: (a) => `exp2(${a})`,
+  asin: (a) => `asin(${a})`,
   toInt: (a) => `i32(${a})`,
   toFloat: (a) => `f32(${a})`,
   lt: (a, b) => `(${a}<${b})`,
@@ -59,6 +61,16 @@ const SIGNATURES: Record<keyof PageModel<string>, string[]> = {
   shadowSunSquareCentre: ['x:f32', 'cells:f32', 'metres:f32', 'f32'],
   shadowAtlasClip: ['origin:f32', 'size:f32', 'f32'],
   shadowPcfStep: ['t:f32', 'first:f32', 'i32'],
+  shadowCropped: ['x:f32', 'w:f32', 'scale:f32', 'offset:f32', 'f32'],
+  shadowOrthoScale: ['h:f32', 'f32'],
+  shadowOrthoDepthScale: ['far:f32', 'f32'],
+  shadowOrthoDepthOffset: ['far:f32', 'f32'],
+  shadowConeRay: ['f:f32', 'r:f32', 'u:f32', 't:f32', 'x:f32', 'y:f32', 'f32'],
+  shadowConeHalfAngle: ['chord:f32', 'halfFov:f32', 'f32'],
+  shadowSunEye: ['r:f32', 'u:f32', 'f:f32', 'x:f32', 'y:f32', 'zNear:f32', 'f32'],
+  shadowAlong: ['p:f32', 'd:f32', 's:f32', 'f32'],
+  shadowBoxMid: ['low:f32', 'high:f32', 'h:f32', 'f32'],
+  shadowBoxHalf: ['low:f32', 'high:f32', 'h:f32', 'f32'],
 };
 
 /** The WGSL names of the page model's functions: what a test running the shaders in Node lists. */

@@ -47,8 +47,8 @@ export function writeSunSquare(
     far = depth[slice * 2 + 1] - zNear;
   for (let a = 0; a < 3; a++) {
     axis[a] = frame[f + 6 + a];
-    eye[a] = frame[f + a] * u + frame[f + 3 + a] * v + axis[a] * zNear;
-    boxCenter[a] = eye[a] + axis[a] * (far / 2);
+    eye[a] = PAGES.shadowSunEye(frame[f + a], frame[f + 3 + a], axis[a], u, v, zNear);
+    boxCenter[a] = PAGES.shadowAlong(eye[a], axis[a], far / 2);
   }
   const planes = shadowOrthographic((cells * page) / 2, far);
   composeFace(matrices, matBase, eye, axis);

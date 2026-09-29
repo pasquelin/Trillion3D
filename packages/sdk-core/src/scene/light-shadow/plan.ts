@@ -19,14 +19,11 @@ import { createShadowThresholds } from './thresholds.ts';
 export type ShadowPlan = ReturnType<typeof createShadowPlan>;
 
 /**
- * The shadow scheduler of the virtual maps. The shading records the pages it reads; their
- * report, read back frames later, allocates what is missing from the fixed pool. What moved stales
- * the mapped pages it covers. A frame then draws every stale page the image reads, all of them in
- * that frame (`admit.ts`): what holds the cost is the cache — a page is drawn again only when what
- * it holds changed —, and the pool is the only limit. A still scene, whose shading runs no more,
- * asks for nothing and draws nothing.
- *
- * All arrays are allocated once; `plan()` allocates nothing.
+ * The shadow scheduler of the virtual maps. The shading records the pages it reads; their report,
+ * read back frames later, allocates what is missing from the fixed pool. What moved stales the
+ * mapped pages it covers. A frame then draws every stale page the image reads, in that frame
+ * (`admit.ts`): a page is drawn again only when what it holds changed, and the pool is the only
+ * limit. A still scene asks for nothing and draws nothing. `plan()` allocates nothing.
  */
 export function createShadowPlan(poolSide: number, layers = 1) {
   const pool = createShadowPool(poolSide, layers),
@@ -47,6 +44,7 @@ export function createShadowPlan(poolSide: number, layers = 1) {
     byPage = true,
     report: ShadowRequestReport | null = null,
     resting = false,
+    quietPlan = false,
     views = 0,
     settledStamp = -1;
   const stampOf = (store: SceneLightStore) => table.version + views + store.epoch;
@@ -78,6 +76,10 @@ export function createShadowPlan(poolSide: number, layers = 1) {
     /** The camera rested at the last plan: its view was the one of the plan before. */
     get resting() {
       return resting;
+    },
+    /** Nothing moved at the last plan: neither the view nor a node (`changes.worldMoved`). */
+    get quiet() {
+      return quietPlan;
     },
     /** True while a representation change waits for the camera to rest. */
     get deferredChanges() {
@@ -117,6 +119,7 @@ export function createShadowPlan(poolSide: number, layers = 1) {
       const still = changes.observeView(view),
         quiet = still && !changes.worldMoved();
       resting = still;
+      quietPlan = quiet;
       if (!still) views++;
       planLights(lightsState, store, view, sceneMin, sceneMax, frame, nowMs, byPage);
       gpu.noteDrops(frame);
@@ -171,17 +174,11 @@ export function createShadowPlan(poolSide: number, layers = 1) {
     },
     /** Starts over. */
     reset() {
-      records.reset();
-      table.reset();
-      pool.reset();
-      thresholds.reset();
-      requests.reset();
-      changes.reset();
-      counts.reset();
-      admission.reset();
+      for (const part of [records, table, pool, thresholds, requests, changes, counts, admission])
+        part.reset();
       gpu.set(false, 0);
       report = null;
-      resting = false;
+      resting = quietPlan = false;
       settledStamp = -1;
     },
     /** The pool at another size, its pages kept, its arrays anew: returns where each page went. */

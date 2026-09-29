@@ -106,6 +106,8 @@ export async function prepareShadowPipelines(rt: WebgpuPagesRuntime, device: GPU
   // pipeline made meanwhile would lay its error there. The rest opens no scope: compiled together.
   await createHizPipelines(device).catch(() => undefined);
   const work: Array<() => unknown> = [shadows.prepareDepth, () => shadowOcclusionPipeline(device)];
+  // The pages the GPU draws itself (#1275): its pool's draws, and its layer's with the host's.
+  if (rt.lights.allocation) work.push(shadows.freshDraws.prepare);
   if (rt.vis.gpuDraw) work.push(() => lightRowMapPipeline(device));
   if (sceneCastsBlended(rt))
     work.push(shadows.prepareTransmittance, pageQuads.prepareTransmittance);
