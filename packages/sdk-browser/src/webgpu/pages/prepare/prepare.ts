@@ -27,8 +27,7 @@ import { prepareGpuTiming } from './timing.ts';
 import { reserveRootBoxes } from '../../../math/batchBoxes.ts';
 import { type WebgpuPagesRuntime } from '../runtime.ts';
 
-/** The backend's preparation on its session's handle: its timer, every resource, then its root
- *  world boxes. */
+/** Prepares the timer, resources, then root world boxes on the session handle. */
 export async function prepareWebgpuBackend(rt: WebgpuPagesRuntime, device: GPUDevice) {
   // A first claim hears of a device already lost a microtask later (`claimGpuDevice` has already
   // listened to `device.lost`): one tick, no listener of its own, and nothing is built.
