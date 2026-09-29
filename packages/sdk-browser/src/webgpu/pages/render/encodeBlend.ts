@@ -18,7 +18,7 @@ import { voidStaleBlendGroups } from '../../blend/identity.ts';
 import { viewProj } from '../helpers.ts';
 import { ensureUniform } from '../prepare/pipelineFor.ts';
 import { clearValueOf } from '../../../../../sdk-core/src/world/math/packedColour.ts';
-import { encodeDirectLights } from './encodeLights.ts';
+import { directTiles, encodeDirectLights } from './encodeLights.ts';
 import { encodeShadowReadback } from './encodeShadows.ts';
 import { composesOffscreen } from '../../../diagnostic/gpuVariant.ts';
 import { encodeTaaPass, taaSampledRank } from '../../../taa/frame.ts';
@@ -29,6 +29,7 @@ import {
   wantsContractLighting,
 } from '../prepare/lightResources.ts';
 import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts';
+import { beginDisplayFilter, endDisplayFilter } from './encodeDisplayFilter.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
 
@@ -69,8 +70,7 @@ export function encodeBlend(
   );
   if (!textured && !gpu.bindGroupLayout) return;
   const cpuStart = performance.now();
-  // World-space eye of the image, the same one the view uniform publishes: with no camera, no image
-  // is sorted and the lists keep the order they had.
+  // World-space eye of the image, the view uniform's: with no camera the lists keep their order.
   const eye = run.lastCamera ? run.gate.cam.eye : undefined;
   // The compaction reads the mask this very frame's cluster cut wrote, a few commands earlier in the
   // same buffer, and writes the instance list the pass below draws from.
@@ -91,10 +91,8 @@ export function encodeBlend(
     timing.transparentEncodeMs += performance.now() - cpuStart;
     return;
   }
-  // Far-to-near sort, taken here every image: a blend writes no depth, so nothing else splits two
-  // transparent surfaces. The frustum is tested in the same walk, in double precision, and its
-  // verdict goes to the GPU as one bit per item — that is also THE image's reject count, measured
-  // where it drops the draw.
+  // Far-to-near sort every image (a blend writes no depth), with the frustum test in the same
+  // double-precision walk: one bit per item to the GPU, and THE image's reject count.
   run.blendFrustumRejected = orderBlendPasses(blendState, eye);
   writeBlendView(rt, device);
   // Resolve lighting resources once; a real resource voids a placeholder's bind group.
@@ -173,11 +171,12 @@ export function encodeSurfaceLighting(
   const blendShare =
     blendState.blendGpu.length && rt.vis.blendPipelines ? gpu.asIsShare : undefined;
   blendShare?.seed(encoder);
+  const filter = beginDisplayFilter(rt, device);
   if (gpu.reflection?.active && gpu.deferred.usesContract) run.gpuDrawCalls++;
   run.gpuDrawCalls++;
   encodeShadowReadback(rt, encoder);
   encodeBlend(rt, device, encoder, uniformBase, true);
-  drawParticles(rt, encoder);
+  drawParticles(rt, encoder, directTiles());
   // Composition reads the temporal result, or the lit image without accumulation.
   const asIs = readsAsIs(rt);
   const accumulated = encodeTaaPass(rt, device, encoder, cam, gpu.hdrView, asIs, blendShare?.view);
@@ -195,6 +194,7 @@ export function encodeSurfaceLighting(
       : gpu.presenter?.targetView(...gpu.displaySize);
   run.gpuDrawCalls++;
   gpu.deferred.compose(encoder, gpu.displayView, clear, presentation, composed, asIs);
+  if (filter) endDisplayFilter(rt, filter, encoder, accumulated?.filter, presentation);
   if (guided) encodeWebgpuGuides(rt, device, encoder, cam);
   return !!presentation;
 }
