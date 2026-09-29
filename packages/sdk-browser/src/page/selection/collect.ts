@@ -157,16 +157,16 @@ export function collectClusterPages(
     }
     order++;
   }
+  /** Whether `alpha` moves the surface a record wears, or gives it another. */
+  const wears = ({ sourceMesh: mesh }: PageRec, alpha: AlphaChange) =>
+    !!mesh &&
+    (isAssignment(alpha)
+      ? alpha.meshes.has(mesh)
+      : alpha.surfaces.includes(mesh.material as object));
   /** Whether a record is drawn blended once `alpha` moved its surfaces, before or after they are
    *  written: the family this collection gives the class `alpha.to`, or the one it has. */
   const blendOf = (rec: PageRec, alpha: AlphaChange) => {
-    const mesh = rec.sourceMesh,
-      worn =
-        mesh &&
-        (isAssignment(alpha)
-          ? alpha.meshes.has(mesh)
-          : alpha.surfaces.includes(mesh.material as object)),
-      primitive = worn && collected.get(mesh);
+    const primitive = wears(rec, alpha) && collected.get(rec.sourceMesh!);
     return primitive
       ? pagesBlend(primitive, { transparent: alpha.to === 'blend' })
       : rec.transparent;
@@ -177,6 +177,7 @@ export function collectClusterPages(
     worlds,
     blendCopies,
     blendOf,
+    wears,
     /**
      * The open's assignment, run again once a material moved into or out of blended inside the
      * session (#846): each record takes `blendOf`; true when one moved. An engine that sorts its
