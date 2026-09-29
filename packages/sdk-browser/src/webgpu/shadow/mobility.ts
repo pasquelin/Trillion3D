@@ -43,12 +43,18 @@ export function createShadowMobility() {
       return rows;
     },
     /** Sizes the state for `placements` roots and `drawSlots` rows; a new layout starts still, at
-     *  the poses `worldOf` gives. */
+     *  the poses `worldOf` gives. Placements that joined the same rows in place
+     *  (`../../placement/webgpuGrowth.ts`) start still beside the others, which keep their state. */
     ensure(placements: number, drawSlots: number, worldOf: (rank: number) => ArrayLike<number>) {
       if (moving.length === placements && rows.length === drawSlots) return;
+      const kept = rows.length === drawSlots && moving.length < placements ? moving.length : 0;
+      const held = { moving, poses };
       moving = new Uint8Array(placements);
       poses = new Float64Array(placements * 16);
-      for (let rank = 0; rank < placements; rank++) poses.set(worldOf(rank), rank * 16);
+      moving.set(held.moving.subarray(0, kept));
+      poses.set(held.poses.subarray(0, kept * 16));
+      for (let rank = kept; rank < placements; rank++) poses.set(worldOf(rank), rank * 16);
+      if (kept) return;
       rows = new Uint32Array(Math.max(1, drawSlots));
       cutouts = 0;
       anyMoving = false;

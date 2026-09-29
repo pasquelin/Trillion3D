@@ -1,21 +1,16 @@
-import { FULLSCREEN_VERTEX, SRGB_WGSL } from '../../lighting/deferred/shaders.ts';
+import { SRGB_WGSL } from '../../lighting/deferred/shaders.ts';
 import { TONE_MAPPING_WGSL } from '../../lighting/toneMappingWgsl.ts';
 import { DISPLAY_FORMAT } from '../../scene/surfaceBuffer.ts';
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
 import { ADD_EQUATIONS, TINT_EQUATIONS } from './equations.ts';
 
 /**
- * The display layers (#558): the witness, three@0.174, blends on its canvas, which holds display
- * values — after the tone curve. ACES mixes the channels, so a multiply or subtractive equation
- * on the lit target, in linear light, gives another colour (a red subtractive disc over paper kept
- * R = 132 where the witness shows 0). In an image whose blends hold such a surface, a mask pass
- * first marks the pixels those surfaces cover (`MASK_FORMAT`). There, every transparent layer —
- * blends in paint order, then particles and water — leaves the lit target alone and maps two
- * display targets instead, the tint `t` and the added value `a` (`TINT_EQUATIONS`,
- * `ADD_EQUATIONS`); the image shows `c·t + a` over the composed opaque value `c`, which is what
- * the witness's canvas holds, layer by layer. Elsewhere the lit target draws as before, and
- * `t = 1`, `a = 0`. The temporal pass resolves both beside the colour. An image without such a
- * surface allocates, binds and draws none of it.
+ * The display layers (#558): the witness, three@0.174, multiplies and subtracts on a canvas of
+ * display values, after the tone curve, which mixes the channels. In an image whose blends hold
+ * such a surface, a mask pass marks the pixels it covers (`MASK_FORMAT`); there every transparent
+ * layer — blends, particles, water — maps the tint `t` and the added value `a` instead of the lit
+ * target (`TINT_EQUATIONS`, `ADD_EQUATIONS`), and the image shows `c·t + a` over the composed `c`.
+ * Elsewhere `t = 1`, `a = 0`. Any other image allocates, binds and draws none of it.
  */
 
 /** Eight bits of display value per channel, as the witness's canvas. */
@@ -48,17 +43,19 @@ export const displayMaskWgsl = (group: number) => `
 @group(${group}) @binding(0) var displayMask:texture_2d<f32>;
 fn maskAt(pixel:vec4f)->f32{return textureLoad(displayMask,vec2i(pixel.xy),0).r;}`;
 
-/** The composed image times the tint, plus the added value; on the capture target and the canvas
- *  at once when presented. */
-export const DISPLAY_FILTER_SHADER = `${FULLSCREEN_VERTEX}
+/** The composed image times the tint, plus the added value; on the capture target, and the canvas
+ *  too when presented (an output without a target is dropped). The layers, at the frame's size or resolved to the display's, are
+ *  sampled at the display pixel's place `uv`, the full-screen triangle's. */
+export const DISPLAY_FILTER_SHADER = `
 @group(0) @binding(0) var tintMap:texture_2d<f32>;
 @group(0) @binding(1) var addMap:texture_2d<f32>;
-fn layer(map:texture_2d<f32>,pixel:vec4f)->vec4f{return vec4f(textureLoad(map,vec2i(pixel.xy),0).rgb,1.0);}
+@group(0) @binding(2) var layerSampler:sampler;
+struct Screen{@builtin(position) position:vec4f,@location(0) uv:vec2f,}
+@vertex fn screen(@builtin(vertex_index) i:u32)->Screen{let c=vec2f(f32(i32(i&1u)*4-1),f32(i32(i>>1u)*4-1));return Screen(vec4f(c,0.0,1.0),vec2f(0.5,-0.5)*c+0.5);}
 struct Both{@location(0) capture:vec4f,@location(1) canvas:vec4f,}
-@fragment fn tint(@builtin(position) p:vec4f)->@location(0) vec4f{return layer(tintMap,p);}
-@fragment fn add(@builtin(position) p:vec4f)->@location(0) vec4f{return layer(addMap,p);}
-@fragment fn tintBoth(@builtin(position) p:vec4f)->Both{let v=layer(tintMap,p);return Both(v,v);}
-@fragment fn addBoth(@builtin(position) p:vec4f)->Both{let v=layer(addMap,p);return Both(v,v);}`;
+fn layer(map:texture_2d<f32>,uv:vec2f)->Both{let v=vec4f(textureSampleLevel(map,layerSampler,uv,0.0).rgb,1.0);return Both(v,v);}
+@fragment fn tint(s:Screen)->Both{return layer(tintMap,s.uv);}
+@fragment fn add(s:Screen)->Both{return layer(addMap,s.uv);}`;
 
 /** The program of one device, made by its first image with display layers, kept across sizes. */
 const programs = new WeakMap<GPUDevice, ReturnType<typeof createProgram>>();
@@ -69,13 +66,14 @@ function createProgram(device: GPUDevice) {
     visibility: GPUShaderStage.FRAGMENT,
     texture: { sampleType: 'float' },
   });
-  const layout = device.createBindGroupLayout({ entries: [texture(0), texture(1)] });
+  const sampler = { binding: 2, visibility: GPUShaderStage.FRAGMENT, sampler: {} };
+  const layout = device.createBindGroupLayout({ entries: [texture(0), texture(1), sampler] });
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
   // The display value times the tint, then plus the added value, as the witness's canvas blends.
   const pipeline = (entryPoint: string, blend: GPUBlendState, formats: GPUTextureFormat[]) =>
     device.createRenderPipeline({
       layout: pipelineLayout,
-      vertex: { module, entryPoint: 'fullscreen' },
+      vertex: { module, entryPoint: 'screen' },
       fragment: { module, entryPoint, targets: formats.map((format) => ({ format, blend })) },
       primitive: { topology: 'triangle-list' },
     });
@@ -83,9 +81,10 @@ function createProgram(device: GPUDevice) {
   const [tint, add] = [TINT_EQUATIONS.multiply!, ADD_EQUATIONS.additive!];
   return {
     layout,
+    sampler: device.createSampler({ magFilter: 'linear', minFilter: 'linear' }),
     mask: device.createBindGroupLayout({ entries: [texture(0)] }),
     draw: [pipeline('tint', tint, [DISPLAY_FORMAT]), pipeline('add', add, [DISPLAY_FORMAT])],
-    present: [pipeline('tintBoth', tint, both), pipeline('addBoth', add, both)],
+    present: [pipeline('tint', tint, both), pipeline('add', add, both)],
   };
 }
 
@@ -116,7 +115,7 @@ export function createDisplayFilter(device: GPUDevice, width: number, height: nu
   );
   const [tint, add, mask] = textures.map((texture) => texture.createView());
   const views = [tint, add] as const;
-  const { layout, mask: maskLayout, draw, present } = programOf(device);
+  const { layout, sampler, mask: maskLayout, draw, present } = programOf(device);
   // The raw layers, or either temporal history: one group each, kept as long as its tint view.
   const groups = new WeakMap<GPUTextureView, GPUBindGroup>();
   return {
@@ -158,7 +157,7 @@ export function createDisplayFilter(device: GPUDevice, width: number, height: nu
     ) {
       let group = groups.get(source[0]);
       if (!group) {
-        const entries = source.map((resource, binding) => ({ binding, resource }));
+        const entries = [...source, sampler].map((resource, binding) => ({ binding, resource }));
         groups.set(source[0], (group = device.createBindGroup({ layout, entries })));
       }
       const pass = encoder.beginRenderPass({
