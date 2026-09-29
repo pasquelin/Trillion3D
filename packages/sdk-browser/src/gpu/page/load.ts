@@ -3,8 +3,7 @@ import { commitGpuPage } from './commit.ts';
 import { refusedStatus, retriableError } from '../../cluster/checked.ts';
 
 /** `tier` pins the page inside the queued operation: no resize queued behind the load runs between
- *  its arrival and its pin, so a held page is never ranked as an unpinned one. `priority` goes with
- *  its read to the source: a prefetch stays one (#408). */
+ *  its arrival and its pin, so a held page is never ranked as an unpinned one. `priority` is its read's. */
 export function createGpuPageLoader(
   context: GpuPageContext,
   pin: (key: string, tier: 'held' | 'pinned') => void,
