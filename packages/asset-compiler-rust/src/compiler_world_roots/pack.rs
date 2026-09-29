@@ -5,42 +5,40 @@
 use super::merge::WorldDag;
 use super::*;
 use crate::dag::{build_culling_bvh, DagCluster};
+use crate::geometry_page::localise;
 
 /// Bytes of one super-root page: vertex and triangle counts, its own vertices as three floats,
 /// its triangles as 16-bit local indices, padded to four bytes.
-fn page_bytes(cluster: &DagCluster) -> usize {
-    let mut vertices = cluster.indices.clone();
-    vertices.sort_unstable();
-    vertices.dedup();
-    8 + vertices.len() * 12 + (cluster.indices.len() * 2).next_multiple_of(4)
+fn page_bytes(vertices: usize, corners: usize) -> usize {
+    8 + vertices * 12 + (corners * 2).next_multiple_of(4)
 }
 
-fn encode_page(cluster: &DagCluster, positions: &[f32], out: &mut Vec<u8>) {
-    let mut local: Vec<u32> = Vec::new();
-    let mut corners: Vec<u16> = Vec::with_capacity(cluster.indices.len());
-    for &vertex in &cluster.indices {
-        let at = local.iter().position(|&v| v == vertex).unwrap_or_else(|| {
-            local.push(vertex);
-            local.len() - 1
-        });
-        corners.push(at as u16);
-    }
-    out.extend((local.len() as u32).to_le_bytes());
+/// Writes one super-root page, its vertices renumbered as a primitive's page does (`localise`,
+/// which refuses a page over 65,535 vertices).
+fn encode_page(cluster: &DagCluster, positions: &[f32], out: &mut Vec<u8>) -> Result<()> {
+    let (vertices, corners) = localise(&cluster.indices, positions.len() / 3)?;
+    out.extend((vertices.len() as u32).to_le_bytes());
     out.extend(((corners.len() / 3) as u32).to_le_bytes());
-    for &vertex in &local {
+    for &vertex in &vertices {
         let at = vertex as usize * 3;
         positions[at..at + 3]
             .iter()
             .for_each(|v| out.extend(v.to_le_bytes()));
     }
-    corners.iter().for_each(|c| out.extend(c.to_le_bytes()));
+    corners
+        .iter()
+        .for_each(|&c| out.extend((c as u16).to_le_bytes()));
     out.resize(out.len().next_multiple_of(4), 0);
+    Ok(())
 }
 
 /// Refuses a pinned top over `budget`, naming the cell with the most pinned bytes over it: the
 /// one whose roots did not reduce.
-fn refuse_over_budget(world: &WorldDag, pinned: &[(usize, usize)], budget: usize) -> Result<()> {
-    let total: usize = pinned.iter().map(|(_, bytes)| bytes).sum();
+fn refuse_over_budget(
+    world: &WorldDag,
+    pinned: &[(usize, usize)],
+    (total, budget): (usize, usize),
+) -> Result<()> {
     if total <= budget {
         return Ok(());
     }
@@ -74,7 +72,11 @@ pub(super) fn pack_world(
     let (dag, groups) = (&world.clusters, &world.groups);
     let (order, _) = build_culling_bvh(&world.positions, dag);
     let bound = dependency_bound(dag, groups);
-    let (bundles, pinned, bundle_of) = pack_bundles(dag, groups, &order, bound, &page_bytes)?;
+    let weight = |cluster: &DagCluster| {
+        let vertices = localise(&cluster.indices, usize::MAX).map_or(0, |(v, _)| v.len());
+        page_bytes(vertices, cluster.indices.len())
+    };
+    let (bundles, pinned, bundle_of) = pack_bundles(dag, groups, &order, bound, &weight)?;
     let closed = close_dependencies(&direct_dependencies(dag, groups, &bundle_of, bundles.len()))?;
     verify_dependencies(dag, groups, &order, &bundle_of, &closed, pinned)?;
     let object_page = |slot: usize| world.origins[slot].is_some() && !dag[slot].is_root();
@@ -89,7 +91,7 @@ pub(super) fn pack_world(
         for &rank in members {
             let (slot, offset) = (order[rank], payload.len());
             let cluster = &dag[slot];
-            encode_page(cluster, &world.positions, &mut payload);
+            encode_page(cluster, &world.positions, &mut payload)?;
             if index < pinned {
                 top.push((slot, payload.len() - offset));
             }
@@ -109,9 +111,9 @@ pub(super) fn pack_world(
             "count":members.len(),"dependencies":closed[index]}),
         );
     }
-    refuse_over_budget(world, &top, budget)?;
-    let objects = object_dependencies(world, instances, &bundle_of, &closed, (pinned, cells))?;
     let pinned_bytes: usize = top.iter().map(|(_, bytes)| bytes).sum();
+    refuse_over_budget(world, &top, (pinned_bytes, budget))?;
+    let objects = object_dependencies(world, instances, &bundle_of, &closed, (pinned, cells))?;
     let table = json!({"version":WORLD_ROOTS_VERSION,"budgetBytes":budget,"pinned":pinned,
         "pinnedTopBytes":pinned_bytes,"bundles":records,"pages":pages,"cells":objects});
     let report = json!({"version":WORLD_ROOTS_VERSION,"file":WORLD_ROOTS_FILE,"cells":cells,
@@ -133,19 +135,26 @@ fn object_dependencies(
     closed: &[Vec<usize>],
     (pinned, cells): (usize, usize),
 ) -> Result<Vec<Value>> {
-    let mut needs: Vec<BTreeSet<usize>> = vec![BTreeSet::new(); instances.len()];
+    // Per instance, the bundles holding its roots that stay roots, and the distinct bundles of
+    // their parents: each parent's closed list is then added once, not once per root sharing it.
+    let mut own: Vec<BTreeSet<usize>> = vec![BTreeSet::new(); instances.len()];
+    let mut parents: Vec<BTreeSet<usize>> = vec![BTreeSet::new(); instances.len()];
     for (slot, origin) in world.origins.iter().enumerate() {
-        let Some(origin) = origin else { continue };
+        let Some(origin) = *origin else { continue };
         let cluster = &world.clusters[slot];
-        let list = &mut needs[*origin];
         if cluster.is_root() {
-            list.insert(bundle_of[slot]);
+            own[origin].insert(bundle_of[slot]);
         }
-        for &parent in parents_of(cluster, &world.groups) {
-            list.insert(bundle_of[parent]);
-            list.extend(&closed[bundle_of[parent]]);
-        }
+        let above = parents_of(cluster, &world.groups).iter();
+        parents[origin].extend(above.map(|&parent| bundle_of[parent]));
     }
+    let needs = own.into_iter().zip(parents).map(|(mut all, parents)| {
+        parents
+            .iter()
+            .for_each(|&bundle| all.extend(&closed[bundle]));
+        all.extend(parents);
+        all
+    });
     let mut table = vec![Vec::new(); cells];
     for (instance, needs) in instances.iter().zip(needs) {
         if instance.cover.clusters.is_empty() {

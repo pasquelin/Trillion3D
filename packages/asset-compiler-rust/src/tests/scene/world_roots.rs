@@ -18,6 +18,7 @@ fn a_partitioned_world_publishes_its_super_roots_cell_by_cell() {
     gltf["scenes"] = json!([{"nodes": (0..side * side).collect::<Vec<_>>()}]);
     write_gltf(&options, &gltf, None);
     options.scope = "full".into();
+    options.simplification = "qem-endpoints".into();
     let result = compile(&options, |_| {}).expect("compile");
     let directory = options.key_directory(result["key"].as_str().expect("key"));
     let table = read_json(&directory.join(WORLD_ROOTS_FILE));
