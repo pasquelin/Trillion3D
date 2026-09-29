@@ -42,7 +42,7 @@ test('a feature the URL forces off is neither asked for nor published', async ()
 
 test('the device asks the colour bytes the water surface stage writes, up to the adapter', async () => {
   const water = colorBytesPerSample(waterSurfaceTargets(true).map((target) => target.format));
-  assert.ok(water > 32, 'the water surface stage writes above WebGPU\'s default');
+  assert.ok(water > 32, "the water surface stage writes above WebGPU's default");
   const { adapter, limitsAsked } = adapterOffering([], { maxColorAttachmentBytesPerSample: 128 });
   await requestExplorerDevice(adapter, '');
   assert.ok(limitsAsked[0].maxColorAttachmentBytesPerSample >= water);
