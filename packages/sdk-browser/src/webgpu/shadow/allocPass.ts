@@ -14,7 +14,7 @@ const SHADOW_WORDS_PASS = 'Trillion3D shadow table words v1';
 const SHADOW_FRESH_PASS = 'Trillion3D shadow GPU pages v1';
 const SHADOW_FRESH_CULL_PASS = 'Trillion3D shadow GPU page cull v1';
 const SHADOW_FRESH_SEAL_PASS = 'Trillion3D shadow GPU page seal v1';
-/** The GPU's page passes, the demand first: timed under the Shadows stage (`stage/mapping.ts`). */
+/** The GPU's page passes, the floors first: timed under the Shadows stage (`stage/mapping.ts`). */
 export const SHADOW_PAGE_PASSES = [
   SHADOW_FLOORS_PASS,
   SHADOW_DEMAND_PASS,
@@ -89,7 +89,7 @@ function encodeShadowFloors(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) 
   const { lights, run } = rt,
     { allocation, pageRequests, shadows, plan } = lights,
     buffers = pageRequests?.allocation;
-  if (!allocation || !buffers || !pageRequests || !shadows?.texture) return;
+  if (!allocation || !buffers || !shadows?.texture) return undefined;
   if (!buffers.seeded) {
     buffers.seed(plan, shadows.dataBuffer, SHADOW_TABLE_OFFSET);
     plan.gpu.set(true, run.frame);
@@ -97,7 +97,9 @@ function encodeShadowFloors(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) 
   // The records it decodes entries with are this frame's, as every write lands before the pass.
   shadows.flushRecords();
   buffers.writeParams(run.frame, plan.records.generation, plan.gpu.asks);
-  allocation.floors(encoder, allocationBound(rt)!, 1);
+  const bound = allocationBound(rt);
+  if (bound) allocation.floors(encoder, bound, 1);
+  return bound;
 }
 
 /**
@@ -111,9 +113,8 @@ export function encodeShadowAsks(
   encoder: GPUCommandEncoder,
   listed: boolean,
 ) {
-  encodeShadowFloors(rt, encoder);
+  const bound = encodeShadowFloors(rt, encoder);
   if (listed) encodeShadowDemand(rt, encoder);
-  const bound = allocationBound(rt);
   if (bound) rt.lights.allocation!.allocate(encoder, bound, 1);
 }
 
