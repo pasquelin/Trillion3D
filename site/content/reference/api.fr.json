@@ -7939,5 +7939,13 @@
   },
   "world.materialMapBytes": {
     "summary": "Octets des images conservées ou en attente, limités à 64 Mio."
+  },
+  "world.setTransform": {
+    "summary": "Déplace le nœud `nodeName` pour que sa pose monde soit `matrix` : un nœud dont la page ne garde pas de référence est atteint par son nom (`object.name`), cherché dans la scène.",
+    "description": "La pose est une pose monde — le moteur la ramène dans l’espace du parent du nœud — si bien qu’un nom sous un parent déplacé arrive tout de même là où on le demande. Le même chemin que WebGPU et WebGL2 prennent pour un déplacement par nom d’une page, pas un second. La frame suivante le dessine ; une demande qui ne change rien n’en réclame aucune.",
+    "parameters": {
+      "nodeName": "Le `name` du nœud à déplacer.",
+      "matrix": "Sa pose monde, seize flottants en ordre colonne-majeur."
+    }
   }
 }
