@@ -1,11 +1,5 @@
-//! Source-key clips for the exactly representable FBX subset validated by `motion_contract`.
+//! Source-key clips refined against ufbx evaluation for rotation/scale and hierarchy motion.
 use super::*;
-
-/// Samples of one node across a stack: its pose at each key, and its channels' weights.
-struct Track {
-    poses: Vec<[Vec<f64>; 3]>,
-    weights: Vec<f32>,
-}
 
 impl Importer<'_> {
     /// One clip per animation stack of `scene` that moves one of the `written` nodes.
@@ -15,53 +9,20 @@ impl Importer<'_> {
         written: &[Written<'_>],
     ) -> Result<()> {
         for stack in scene.anim_stacks.iter() {
-            let span = stack.time_end - stack.time_begin;
-            if span < 0.0 {
-                continue;
-            }
-            let times = contract::times(stack)?;
-            let keys = times.len();
-            let mut tracks: Vec<Track> = written
-                .iter()
-                .map(|_| Track {
-                    poses: Vec::with_capacity(keys),
-                    weights: Vec::new(),
-                })
-                .collect();
-            for &time in &times {
-                self.check()?;
-                let at = stack.time_begin + time;
-                let evaluated = ufbx::evaluate_scene(scene, &stack.anim, at, Default::default())
-                    .map_err(|e| import_error(&e))?;
-                for (node, track) in written.iter().zip(&mut tracks) {
-                    let placed = &evaluated.nodes[node.typed];
-                    let matrix = if node.geometry {
-                        &placed.geometry_to_world
-                    } else {
-                        &placed.node_to_world
-                    };
-                    if node.pose {
-                        contract::matrix(matrix)?;
-                    }
-                    track.poses.push(trs(matrix));
-                    let weights = node.channels.iter().map(|(c, key)| {
-                        evaluated.blend_channels[c.element.typed_id as usize].keyframes[*key]
-                            .effective_weight as f32
-                    });
-                    track.weights.extend(weights);
-                }
-            }
+            let samples = sampling::sample(scene, stack, written, || self.check())?;
+            let times: Vec<f64> = samples.iter().map(|sample| sample.time).collect();
             let mut clip = Clip {
                 input: None,
                 samplers: Vec::new(),
                 channels: Vec::new(),
             };
-            for (node, track) in written.iter().zip(&tracks) {
+            for (index, node) in written.iter().enumerate() {
                 for (path, rank) in [("translation", 0), ("rotation", 1), ("scale", 2)] {
-                    let values: Vec<f32> = track
-                        .poses
+                    let values: Vec<f32> = samples
                         .iter()
-                        .flat_map(|p| p[rank].iter().map(|v| *v as f32))
+                        .flat_map(|sample| {
+                            sample.poses[index].parts[rank].iter().map(|v| *v as f32)
+                        })
                         .collect();
                     if node.pose {
                         self.pose_by_parts(node.node);
@@ -69,7 +30,11 @@ impl Importer<'_> {
                     }
                 }
                 if !node.channels.is_empty() {
-                    clip.push(self, &times, node.node, "weights", &track.weights);
+                    let weights: Vec<f32> = samples
+                        .iter()
+                        .flat_map(|sample| sample.poses[index].weights.iter().copied())
+                        .collect();
+                    clip.push(self, &times, node.node, "weights", &weights);
                 }
             }
             if !clip.channels.is_empty() {

@@ -76,14 +76,41 @@ fn fbx_long_clip_preserves_end_and_nonunit_blend_weight() {
 }
 
 #[test]
-fn nonlinear_fbx_curves_are_refused_instead_of_sampled() {
+fn discontinuous_fbx_curves_are_refused_instead_of_smoothed() {
     let (root, mut options) = fixture();
     let text = fs::read_to_string(golden_dir("import-fbx").join("bend.fbx"))
         .unwrap()
-        .replace("24836", "24840");
-    options.source = root.join("cubic.fbx");
+        .replace("24836", "24834");
+    options.source = root.join("step.fbx");
     fs::write(&options.source, text).unwrap();
-    let error = compile(&options, |_| {}).expect_err("cubic motion needs source-faithful support");
+    let error = compile(&options, |_| {}).expect_err("discontinuous motion must not be smoothed");
     assert!(format!("{error:?}").contains("IMPORT_UNSUPPORTED_ANIMATION"));
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn rotating_fbx_skin_emits_quaternion_tracks_in_compiled_tables() {
+    let (root, mut options) = fixture();
+    let text = fs::read_to_string(golden_dir("import-fbx").join("bend.fbx"))
+        .unwrap()
+        .replace("Lcl Translation", "Lcl Rotation")
+        .replace("a: 0,2\n", "a: 0,720\n");
+    options.source = root.join("rotation.fbx");
+    fs::write(&options.source, text).unwrap();
+    options.scope = "full".into();
+    compile(&options, |_| {}).expect("ordinary rotating skeletal clip");
+    let tables = tables_of(&options);
+    let rotation = tables["animations"][0]["channels"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|channel| channel["path"] == "rotation")
+        .unwrap();
+    assert!(rotation["times"].as_array().unwrap().len() > 24);
+    assert!(rotation["values"]
+        .as_array()
+        .unwrap()
+        .chunks(4)
+        .any(|quaternion| quaternion[0].as_f64().unwrap().abs() > 0.9));
     fs::remove_dir_all(root).unwrap();
 }

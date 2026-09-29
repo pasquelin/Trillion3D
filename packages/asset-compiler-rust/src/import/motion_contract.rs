@@ -1,8 +1,7 @@
-//! Exact FBX animation admission. Flattened world translation and one linear blend target are
-//! representable by glTF LINEAR keys. Nonlinear source semantics are refused, never resampled.
+//! Source-curve admission and representation checks for adaptive FBX TRS conversion.
 use super::*;
 
-fn unsupported(detail: &str) -> CompilerError {
+pub(super) fn unsupported(detail: &str) -> CompilerError {
     CompilerError::new("IMPORT_UNSUPPORTED_ANIMATION", detail)
 }
 
@@ -54,19 +53,29 @@ pub(in crate::import) fn validate(scene: &ufbx::Scene) -> Result<()> {
                     .keyframes
                     .iter()
                     .take(curve.keyframes.len().saturating_sub(1))
-                    .any(|key| key.interpolation != ufbx::Interpolation::Linear)
+                    .any(|key| {
+                        !matches!(
+                            key.interpolation,
+                            ufbx::Interpolation::Linear | ufbx::Interpolation::Cubic
+                        )
+                    })
                     || curve.pre_extrapolation.mode != ufbx::ExtrapolationMode::Constant
                     || curve.post_extrapolation.mode != ufbx::ExtrapolationMode::Constant
                 {
                     return Err(unsupported(
-                        "FBX nonlinear, stepped or extrapolated animation is unsupported",
+                        "FBX stepped or extrapolated animation is unsupported",
                     ));
                 }
                 if !varying {
                     continue;
                 }
-                if !matches!(&*prop.prop_name, "Lcl Translation" | "DeformPercent") {
-                    return Err(unsupported("FBX animated rotations, scales and other nonlinear properties require source-faithful curve support"));
+                if !matches!(
+                    &*prop.prop_name,
+                    "Lcl Translation" | "Lcl Rotation" | "Lcl Scaling" | "DeformPercent"
+                ) {
+                    return Err(unsupported(
+                        "FBX animated property is not a transform or blend weight",
+                    ));
                 }
             }
         }
@@ -110,7 +119,7 @@ pub(super) fn times(stack: &ufbx::AnimStack) -> Result<Vec<f64>> {
     checked_times(times)
 }
 
-fn checked_times(mut times: Vec<f64>) -> Result<Vec<f64>> {
+pub(super) fn checked_times(mut times: Vec<f64>) -> Result<Vec<f64>> {
     times.sort_by(f64::total_cmp);
     times.dedup();
     if times.len() > 36_000

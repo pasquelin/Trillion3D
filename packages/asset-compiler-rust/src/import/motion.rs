@@ -194,6 +194,7 @@ impl Importer<'_> {
 
 #[path = "motion_clips.rs"]
 mod clips;
-
 #[path = "motion_contract.rs"]
 pub(super) mod contract;
+#[path = "motion_sampling.rs"]
+mod sampling;
