@@ -342,7 +342,8 @@
       "hover-to-highlight": "Passa sopra per evidenziare una parte",
       "a-dolly-along-the-canal": "Una carrellata lungo il canale",
       "a-folder-merged-into-one-scene": "Una cartella unita in una scena",
-      "drag-a-crate": "Trascinare una cassa"
+      "drag-a-crate": "Trascinare una cassa",
+      "move-a-hierarchy-by-name": "Muovere una gerarchia per nome"
     },
     "missing": {
       "thick-lines": "linee larghe",

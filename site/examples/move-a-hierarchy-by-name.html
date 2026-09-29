@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Move a hierarchy by name</title>
+    <meta name="thumbnail" content="3" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #141b24;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, light, material, math, object } from '../runtime/engine.js';
+      import { controls, readout, seeded } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#141b24');
+
+      // A rig of named groups: the frame stays still, the joints are reached only by their names.
+      const steel = material.meshStandard({ color: '#8c95a3', roughness: 0.45, metalness: 0.7 });
+      const brass = material.meshStandard({ color: '#d99b3b', roughness: 0.5, metalness: 0.5 });
+      const rubber = material.meshStandard({ color: '#c85a44', roughness: 0.75 });
+      const part = (parent, shape, paint, at) => {
+        const mesh = object.mesh(shape, paint);
+        mesh.position.set(...at);
+        mesh.castShadow = mesh.receiveShadow = true;
+        parent.add(mesh);
+        return mesh;
+      };
+
+      const stand = object.group();
+      stand.name = 'stand';
+      part(stand, geometry.box(3.2, 0.3, 2.2), steel, [0, 0.15, 0]);
+      part(stand, geometry.cylinder(0.22, 0.22, 2.5, 16), brass, [0, 1.25, 0]);
+
+      const joint = (name, parent, at) => {
+        const node = object.group();
+        node.name = name;
+        node.position.set(...at);
+        parent.add(node);
+        return node;
+      };
+      const shoulder = joint('shoulder', stand, [0, 2.5, 0]);
+      const elbow = joint('elbow', shoulder, [2, 0, 0]);
+      const hand = joint('hand', elbow, [1.5, 0, 0]);
+      const counter = joint('counter', stand, [-1.5, 0, 0]);
+      const weight = joint('weight', counter, [-1, 0, 0]);
+      part(shoulder, geometry.box(0.6, 0.6, 0.6), brass, [0, 0, 0]);
+      part(shoulder, geometry.box(2, 0.24, 0.24), steel, [1, 0, 0]);
+      part(elbow, geometry.box(0.45, 0.45, 0.45), brass, [0, 0, 0]);
+      part(elbow, geometry.box(1.5, 0.2, 0.2), steel, [0.75, 0, 0]);
+      part(hand, geometry.box(0.7, 0.4, 0.5), rubber, [0.2, 0, 0]);
+      part(counter, geometry.box(1.5, 0.18, 0.18), steel, [-0.75, 0, 0]);
+      part(weight, geometry.box(0.65, 0.65, 0.65), rubber, [0, 0, 0]);
+      world.scene.add(stand);
+
+      const ground = object.mesh(
+        geometry.box(40, 0.2, 40),
+        material.meshStandard({ color: '#2b3440', roughness: 0.95 }),
+      );
+      ground.position.y = -0.1;
+      ground.receiveShadow = true;
+      ground.castShadow = false;
+      world.scene.add(
+        ground,
+        light.directional({ intensity: 3, color: '#fff1d6', position: [7, 11, 6], castShadow: true }),
+        light.hemisphere({ intensity: 1, color: '#9fb6d4', groundColor: '#2b3440' }),
+      );
+      world.camera.position.set(8, 5.5, 9.5);
+      world.camera.lookAt(0, 2.4, 0);
+      world.controls.target.set(0, 2.4, 0);
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+      // A deterministic sequence of exact poses: dyadic steps, power-of-two scales, half-turns, so
+      // the world's own name move and the page's direct writes land on the same bits.
+      const MOVERS = ['shoulder', 'elbow', 'hand', 'counter', 'weight'];
+      const PARENT = {
+        shoulder: 'stand',
+        elbow: 'shoulder',
+        hand: 'elbow',
+        counter: 'stand',
+        weight: 'counter',
+      };
+      const BASE = {
+        shoulder: [0, 2.5, 0],
+        elbow: [2, 0, 0],
+        hand: [1.5, 0, 0],
+        counter: [-1.5, 0, 0],
+        weight: [-1, 0, 0],
+      };
+      const HALF_TURNS = [
+        math.quaternion(),
+        math.quaternion(1, 0, 0, 0),
+        math.quaternion(0, 1, 0, 0),
+        math.quaternion(0, 0, 1, 0),
+      ];
+      const STEPS = 32;
+      const steps = (() => {
+        const draw = seeded(972);
+        const shift = () => (Math.floor(draw() * 17) - 8) / 8;
+        const grow = () => 2 ** (Math.floor(draw() * 3) - 1);
+        return Array.from({ length: STEPS }, () =>
+          new Map(
+            MOVERS.map((name) => {
+              const [x, y, z] = BASE[name],
+                scale = grow();
+              return [
+                name,
+                {
+                  position: math.vector3(x + shift(), y + shift(), z + shift()),
+                  quaternion: HALF_TURNS[Math.floor(draw() * HALF_TURNS.length)],
+                  scale: math.vector3(scale, scale, scale),
+                },
+              ];
+            }),
+          ),
+        );
+      })();
+      const movers = new Map([
+        ['shoulder', shoulder],
+        ['elbow', elbow],
+        ['hand', hand],
+        ['counter', counter],
+        ['weight', weight],
+      ]);
+
+      // `?step=<n>` freezes the sequence at one step and `?host` writes the same poses directly,
+      // the two sides of the acceptance proof: a world pose moved by name equals the host's write.
+      const params = new URLSearchParams(location.search);
+      const frozen = params.has('step')
+        ? math.clamp(Math.trunc(Number(params.get('step'))) || 0, 0, STEPS - 1)
+        : null;
+      let driver = params.has('host') ? 'host' : 'name',
+        step = frozen ?? 0,
+        appliedStep = -1,
+        appliedDriver = '',
+        paused = false,
+        speed = 1,
+        clock = 0;
+      const STEP_SECONDS = 0.7;
+      let noteStep;
+
+      const applyStep = () => {
+        const poses = steps[step],
+          worlds = new Map();
+        for (const name of MOVERS) {
+          const pose = poses.get(name),
+            local = math.matrix4().compose(pose.position, pose.quaternion, pose.scale),
+            above = worlds.get(PARENT[name]);
+          worlds.set(name, above ? math.matrix4().multiplyMatrices(above, local) : local);
+        }
+        for (const name of MOVERS) {
+          const pose = poses.get(name),
+            node = movers.get(name);
+          if (driver === 'host') {
+            node.matrixAutoUpdate = true;
+            node.position.copy(pose.position);
+            node.quaternion.copy(pose.quaternion);
+            node.scale.copy(pose.scale);
+          } else {
+            world.setTransform(name, new Float32Array(worlds.get(name).elements));
+          }
+        }
+      };
+      const show = () => {
+        if (step === appliedStep && driver === appliedDriver) return;
+        appliedStep = step;
+        appliedDriver = driver;
+        applyStep();
+        noteStep?.(String(step + 1));
+      };
+
+      if (frozen === null) {
+        controls(
+          {
+            driver: ['name', 'host'],
+            speed: [0.25, 2, 1, 0.05],
+            paused: false,
+            replay: () => void ((step = 0), (clock = 0), (appliedStep = -1)),
+          },
+          (values) => {
+            driver = values.driver;
+            speed = values.speed;
+            paused = values.paused;
+            world.invalidate();
+          },
+          world,
+        );
+        noteStep = readout('pose');
+      }
+
+      world.beforeFrame(({ delta }) => {
+        if (frozen === null && !paused) {
+          clock += delta * speed;
+          while (clock >= STEP_SECONDS) {
+            clock -= STEP_SECONDS;
+            step = (step + 1) % STEPS;
+          }
+          world.invalidate();
+        }
+        show();
+      });
+      world.invalidate();
+      addEventListener('pagehide', () => world.dispose());
+    </script>
+  </body>
+</html>

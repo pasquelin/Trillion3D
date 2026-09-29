@@ -2375,5 +2375,23 @@
       "unmount": "Ayır",
       "remount": "Yeniden bağla"
     }
+  },
+  "move-a-hierarchy-by-name": {
+    "banner": "Beş adlandırılmış grubun yinelenebilir bir diziyi izlemesini seyredin. Aynı duruşları elle yazmak için sürücüyü değiştirin.",
+    "controls": {
+      "driver": "Sürücü",
+      "speed": "Hız",
+      "paused": "Duraklatıldı",
+      "replay": "Yeniden oynat"
+    },
+    "choices": {
+      "driver": {
+        "name": "adıyla",
+        "host": "ana makine yazar"
+      }
+    },
+    "readouts": {
+      "pose": "Duruş"
+    }
   }
 }
