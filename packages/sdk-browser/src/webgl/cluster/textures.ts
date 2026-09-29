@@ -107,7 +107,7 @@ export class WebglClusterTextures {
       }
       if (mips) {
         const allocate = record.cutoff === undefined;
-        if (allocate) allocated(gl, uploadAgain(record));
+        if (allocate) allocated(gl, 'texture', uploadAgain(record));
         this.mips.reduce(unit, Object.assign(record, { cutoff }), allocate);
       }
     }
@@ -157,7 +157,7 @@ export class WebglClusterTextures {
     };
     const mips = mipFiltered(texture.minFilter),
       allocate = !inPlace || held?.cutoff == null;
-    if (!inPlace || (mips && allocate)) allocated(gl, uploadAgain(record));
+    if (!inPlace || (mips && allocate)) allocated(gl, 'texture', uploadAgain(record));
     if (mips) this.mips.reduce(unit, Object.assign(record, { cutoff }), allocate);
     if (!held || held.sampling !== texture.sampling) this.setSampler(texture);
     return record;

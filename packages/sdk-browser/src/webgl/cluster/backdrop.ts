@@ -70,8 +70,8 @@ export class WebglClusterBackdrop {
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, this.depth, 0);
     this.width = width;
     this.height = height;
-    // Refused: sized again once the refusal is read, the geometry a level coarser (`../core/allocation.ts`).
-    allocated(gl, () => (this.width = this.height = 0));
+    // Refused: sized again once the refusal is read (`../core/allocation.ts`).
+    allocated(gl, 'target', () => (this.width = this.height = 0));
   }
   /**
    * Binds the backdrop, sized to the current viewport and cleared to the linear background

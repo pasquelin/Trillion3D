@@ -37,51 +37,80 @@ test('an allocation reads no error: they are read before a frame, once the GPU r
   const { gl, seen } = context();
   let redone = 0;
   seen.refuse = true;
-  allocated(gl, () => redone++);
-  allocated(gl, () => redone++);
+  allocated(gl, 'geometry', () => redone++);
+  allocated(gl, 'geometry', () => redone++);
   assert.equal(seen.reads, 0, 'the allocations read nothing');
   fenceAllocations(gl);
   settleAllocations(gl);
   assert.equal(seen.reads, 0, 'a fence not passed is never waited on');
-  assert.equal(takeOutOfMemory(gl), false);
-  fenceAllocations(gl);
-  assert.deepEqual([seen.fences, seen.deleted], [2, 1], 'the fence moves to the last frame end');
-  allocated(gl, () => redone++); // sent after the fence, in the next frame
+  assert.equal(takeOutOfMemory(gl, 'geometry'), false);
+  allocated(gl, 'geometry', () => redone++); // sent after the fence, in the next frame
   seen.passed = true;
   settleAllocations(gl);
   assert.ok(seen.reads > 0, 'the fence passed: the errors are read');
   assert.equal(redone, 3, 'a refusal redoes every allocation not yet confirmed');
-  assert.equal(takeOutOfMemory(gl), true, 'the context is marked');
-  assert.equal(takeOutOfMemory(gl), false, 'once');
+  assert.equal(takeOutOfMemory(gl, 'geometry'), true, 'the context is marked');
+  assert.equal(takeOutOfMemory(gl, 'geometry'), false, 'once');
   const reads = seen.reads;
   settleAllocations(gl);
   fenceAllocations(gl);
   assert.equal(seen.reads, reads, 'nothing left to read');
-  assert.equal(seen.fences, 2, 'nothing left to fence');
+  assert.equal(seen.fences, 1, 'nothing left to fence');
 });
 
 test('allocations the GPU accepted are confirmed and never redone', () => {
   const { gl, seen } = context();
   let redone = 0;
-  allocated(gl, () => redone++);
+  allocated(gl, 'geometry', () => redone++);
   fenceAllocations(gl);
   seen.passed = true;
   settleAllocations(gl);
   assert.equal(redone, 0);
-  assert.equal(takeOutOfMemory(gl), false);
+  assert.equal(takeOutOfMemory(gl, 'geometry'), false);
 });
 
 test('a refusal read at once (a one-time build) redoes the allocations it read for, once', () => {
   const { gl, seen } = context();
   let redone = 0;
-  allocated(gl, () => redone++);
+  allocated(gl, 'geometry', () => redone++);
   fenceAllocations(gl);
-  allocated(gl, () => redone++);
+  allocated(gl, 'geometry', () => redone++);
   seen.refuse = true;
   assert.equal(refusedNow(gl), true);
   assert.equal(redone, 2, 'the flag it consumed was theirs: both are redone now');
   seen.passed = true;
   settleAllocations(gl);
   assert.equal(redone, 2, 'never twice');
-  assert.equal(takeOutOfMemory(gl), true);
+  assert.equal(takeOutOfMemory(gl, 'geometry'), true);
+});
+
+test('a GPU frames behind: the oldest fence is kept until passed, each frame fences its own', () => {
+  const { gl, seen } = context();
+  const pending = new Set<WebGLSync>(),
+    order: WebGLSync[] = [];
+  Object.assign(gl, {
+    fenceSync: () => {
+      const fence = {};
+      pending.add(fence);
+      order.push(fence);
+      return fence;
+    },
+    getSyncParameter: (fence: WebGLSync) => (pending.has(fence) ? UNSIGNALED : SIGNALED),
+  });
+  let redone = 0;
+  for (let frame = 0; frame < 3; frame++) {
+    settleAllocations(gl);
+    allocated(gl, 'texture', () => redone++);
+    fenceAllocations(gl);
+  }
+  assert.deepEqual([order.length, seen.deleted, seen.reads], [3, 0, 0], 'no fence replaced');
+  pending.delete(order[0]); // the GPU caught up with the first frame only
+  settleAllocations(gl);
+  assert.deepEqual([seen.reads > 0, seen.deleted], [true, 1], 'the oldest batch confirmed');
+  seen.refuse = true;
+  pending.clear();
+  settleAllocations(gl);
+  assert.equal(redone, 2, 'the two batches left are redone');
+  assert.equal(takeOutOfMemory(gl, 'geometry'), false, 'a texture refusal is no geometry one');
+  assert.equal(takeOutOfMemory(gl, 'texture'), true, 'the pool of the refused batches is marked');
 });
