@@ -123,10 +123,8 @@ export function createWorldCuts(notices?: WorldNotices) {
   /** `mesh` draws `cut`, or nothing: it leaves the resource it drew before. */
   const wear = (mesh: Mesh, cut: Cut | null) => {
     if (drawnBy.get(mesh) !== cut) leave(mesh);
-    if (cut) {
-      cut.users.add(mesh);
-      drawnBy.set(mesh, cut);
-    }
+    cut?.users.add(mesh);
+    if (cut) drawnBy.set(mesh, cut);
     return cut;
   };
   const made = (cut: Cut) => void byKey.set(cut.key, Promise.resolve(cut));
