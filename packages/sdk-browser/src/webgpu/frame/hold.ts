@@ -1,5 +1,6 @@
 import { sampleWebgpuFrame } from './signature.ts';
 import { CPU_STEP } from '../pages/render/cpuStepTable.ts';
+import { forgetShadowCpuSteps } from '../shadow/cpuSteps.ts';
 import { beginTaaFrame, restartTaaOnLanding, taaSettled } from '../../taa/frame.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { shadowsUnsettled } from '../pages/state/lights.ts';
@@ -116,6 +117,8 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
   timing.lastSubmitMs = submitMs;
   const steps = timing.cpuProfile.row;
   steps.fill(0);
+  // Nor did it plan or encode a shadow: those steps did not run, they read `NaN`.
+  forgetShadowCpuSteps(steps);
   // No tile was pumped: the textures stage stays unmeasured, as on an image with nothing to serve.
   steps[CPU_STEP.tilesPumpMs] = NaN;
   steps[CPU_STEP.queueSubmitMs] = submitMs;

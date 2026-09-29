@@ -2,26 +2,41 @@ import { shadeColorAttachments } from '../pages/prepare/attachments.ts';
 import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts';
 import { MATERIAL_CLASS_KEYS } from '../../visibility/shader/materialClass.ts';
 import { ROW_MATERIAL_CLASS_WORD } from '../row/pageRow.ts';
+import { rowsMoved, rowsUnread, type RowsReading } from '../row/dirty.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /** Labels of the two resolve passes, as the profile and the pass blocks read them. */
 export const MATERIAL_DEPTH_PASS = 'Trillion3D material depth';
 export const MATERIAL_SURFACES_PASS = 'Trillion3D material surfaces v1';
 
-/** Which classes an image draws: a stamp per class key, and the keys stamped by this image. */
-export type PresentClasses = { stamps: Uint32Array; keys: number[]; stamp: number };
+/** Which classes an image draws: a stamp per class key, the keys stamped by the last walk, and
+ *  the rows that walk read. */
+export type PresentClasses = {
+  stamps: Uint32Array;
+  keys: number[];
+  stamp: number;
+  read: RowsReading;
+};
 export const createPresentClasses = (): PresentClasses => ({
   stamps: new Uint32Array(MATERIAL_CLASS_KEYS),
   keys: [],
   stamp: 0,
+  read: rowsUnread(),
 });
 
 /**
  * Classes of the packed rows: one word read per row, on the same table the GPU draws from, each
  * key listed once. A class the image has no row of is not drawn: its full-screen triangle would
- * be refused pixel by pixel, at the cost of a clear.
+ * be refused pixel by pixel, at the cost of a clear. The rows are walked again only when one was
+ * written since (`writes`, `rowsMoved`); an image over the same rows reuses the keys.
  */
-export function markPresentClasses(ints: Uint32Array, packedCount: number, into: PresentClasses) {
+export function markPresentClasses(
+  ints: Uint32Array,
+  packedCount: number,
+  into: PresentClasses,
+  writes: number,
+) {
+  if (!rowsMoved(into.read, ints, packedCount, writes)) return into.keys;
   const stride = PAGE_INFO_STRIDE / 4,
     stamp = ++into.stamp;
   into.keys.length = 0;
@@ -47,7 +62,12 @@ export function encodeMaterialPasses(rt: WebgpuPagesRuntime, encoder: GPUCommand
   // its own target, its bind group and the class factory, and it fails by name without them.
   if (!vis.materialDepthView || !vis.shadeBindGroup || !vis.shadePipelineFor)
     throw new Error('MATERIAL_DEPTH_UNAVAILABLE');
-  const keys = markPresentClasses(rows.pageTableInts!, rows.packedCount, vis.presentClasses);
+  const keys = markPresentClasses(
+    rows.pageTableInts!,
+    rows.packedCount,
+    vis.presentClasses,
+    rows.rowWrites,
+  );
   const key = keys.length === 1 ? keys[0] : undefined;
   const singlePipeline = key === undefined ? undefined : vis.singleShadePipelines.get(key);
   if (!singlePipeline) {
