@@ -105,14 +105,20 @@ test('the rows are sized at open for the reach, and a reach past them tells the 
   assert.deepEqual(cells.stats(), { cells: 2, held: 2, waiting: 0, rows: 4 });
 });
 
-test('a parent scaled down grows the rows in place, on an engine that can, and reopens nothing', async () => {
+test('a parent scaled down grows the rows in place, on an engine that takes it, and reopens nothing', async () => {
   // Shrunk a thousand times, the core node both cells hang under brings the one 5 km off to 5 m:
-  // both are within 100 m, three nodes on rows sized for the near cell's two.
-  for (const grows of [true, false]) {
+  // both are within 100 m, three nodes on rows sized for the near cell's two. An engine that grows
+  // no buffer, or refuses this growth, is left with its rows as they were and asks for a reopen.
+  for (const grows of [true, false, undefined]) {
     const { cells, links, core, bytes } = world(0, 0);
     const { port, held, outgrown, updates } = io(bytes);
-    const grown: [PlacementRows, PlacementRows][] = [];
-    if (grows) port.grow = (from, to) => void grown.push([from, to]);
+    const grown: [PlacementRows, PlacementRows][] = [],
+      asked: [number, number][] = [];
+    if (grows !== undefined)
+      port.grow = {
+        growsInPlace: (from, capacity) => (asked.push([from.length, capacity]), grows),
+        growPlacements: (from, to) => void grown.push([from, to]),
+      };
     ['near.json', 'far.json'].forEach((name) => held.add(`https://cache.test/key/${name}`));
     await opened(cells, 100);
     const before = links.map((link) => link.placements!);
@@ -121,7 +127,16 @@ test('a parent scaled down grows the rows in place, on an engine that can, and r
     cells.frame([0, 0, 0], 100, port, noBudget);
     const { held: placed, waiting } = cells.stats();
     assert.deepEqual([placed, waiting, outgrown.count], grows ? [2, 0, 0] : [1, 1, 1]);
-    if (!grows) continue; // it asks its owner to reopen
+    if (grows !== undefined) assert.deepEqual(asked, [[2, 4]], 'both buffers asked at once');
+    if (!grows) {
+      assert.deepEqual(grown, [], 'no buffer replaced: the session reads the ones it holds');
+      assert.ok(links.every((link, at) => link.placements === before[at]));
+      // The session opened again sizes the rows for the reach and places the far cell.
+      await cells.prime([0, 0, 0], 100, async (url) => bytes(url)!, true);
+      const { held: placedAgain, rows } = cells.stats();
+      assert.deepEqual([placedAgain, rows], [2, 4]);
+      continue;
+    }
     const after = links.map((link) => link.placements!);
     assert.deepEqual(
       grown,

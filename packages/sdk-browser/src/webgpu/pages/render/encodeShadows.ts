@@ -12,6 +12,10 @@ import { createShadowOcclusion } from '../../../gpu/shadow/occlusion.ts';
 import { noteResidenceChange } from '../../shadow/bounds.ts';
 import { redrawShortPages } from '../../shadow/casters.ts';
 import { disposeStaticLayer } from '../state/lights.ts';
+import { releaseStaticLayer } from '../../shadow/poolResize.ts';
+import { staticLayerGranted } from '../../shadow/poolSize.ts';
+import { noteShadowPressure } from '../../shadow/memoryGrant.ts';
+import { shadowReceivers } from '../../shadow/receivers.ts';
 
 const viewpoint: ShadowViewpoint & {
   position: [number, number, number];
@@ -55,7 +59,7 @@ export function shadowViewpointOf(cam: EngineCamera, height: number) {
 }
 
 /**
- * Plans this image's shadow pages — every stale one the image reads — and writes every light's
+ * Plans this image's shadow pages — every stale one its receivers read — and writes every light's
  * record; the pages themselves are composed batch by batch as they are encoded
  * (`encodeShadowBatches.ts`). Returns the pages to draw.
  */
@@ -80,7 +84,7 @@ export function planShadowRegions(
   });
   lights.shadowPages = 0;
   lights.shadowFaces = 0;
-  lights.shadowDraws = 0;
+  lights.shadowWork.reset();
   lights.shadowDrawCalls = 0;
   lights.shadowRenderPasses = 0;
   // An atlas not sized yet holds no page: nothing to plan before the first frame on the canvas.
@@ -90,11 +94,14 @@ export function planShadowRegions(
   }
   // The light cuts measure their error at the camera's threshold.
   lights.shadowPixelError = followLightThreshold(lights, rt.run.gate.pixelError);
-  const view = shadowViewpointOf(cam, rt.gpu.targetSize[1]);
+  // Shadow detail is the display's, whatever size the frame is drawn at.
+  const view = shadowViewpointOf(cam, rt.gpu.displaySize[1]);
   const box = lights.sceneBox(rt.layout, rt.run.gate.revisions.scene);
   ensureStaticLayer(rt);
   redrawShortPages(rt, frame, nowMs, residencyMoved);
-  const count = plan.plan(store, view, box.min, box.max, frame, nowMs);
+  // The frame's receivers name the pages they read before the raster, in this frame.
+  const receivers = shadowReceivers(rt.run.drawn, cam, rt.gpu.targetSize[1], rt.gpu.displaySize[1]);
+  const count = plan.plan(store, view, box.min, box.max, frame, nowMs, receivers);
   lights.shadowSlots = writeShadowRecords(lights);
   lights.shadowsUpdated = plan.counts.lights;
   return count;
@@ -120,7 +127,8 @@ export function planImageShadows(rt: WebgpuPagesRuntime, cam: EngineCamera) {
 
 /**
  * Copies the shadow pages the resolve just asked for, stamped with the plan's state, for the
- * scheduler to read once the image is submitted (`../../shadow/pageRequests.ts`). An image that
+ * scheduler to read once the image is submitted (`../../shadow/pageRequests.ts`): the proof the
+ * image may hold, the early demand scheduling the frame (`planShadowRegions`). An image that
  * lit nothing — unlit view, no light, no pool (no light casts a shadow) — asked for nothing and
  * copies nothing.
  */
@@ -141,9 +149,9 @@ export function encodeShadowReadback(rt: WebgpuPagesRuntime, encoder: GPUCommand
 /**
  * The static layer is built the first time an object moves, with the pyramids of its pages and
  * the occlusion test of the moving casters; until they are ready, pages are drawn whole, every
- * caster at once. A device that refuses the layer keeps drawing them so: its texture is allocated
- * under an out-of-memory check (`deviceMade`), and a refusal is said under `gpu-out-of-memory`,
- * never handed to the frame.
+ * caster at once. It is asked of the shadows' grant first (`staticLayerGranted`), its texture
+ * made under an out-of-memory check (`deviceMade`): past the grant or refused, it is never made
+ * and the pages stay drawn whole, by name (`../../shadow/memoryGrant.ts`).
  */
 function ensureStaticLayer(rt: WebgpuPagesRuntime) {
   const { lights } = rt,
@@ -153,9 +161,11 @@ function ensureStaticLayer(rt: WebgpuPagesRuntime) {
   lights.staticLayerPending = true;
   const capacity = rt.layout.rows.casterSlots,
     { side, layers } = lights.plan.pool;
+  if (!staticLayerGranted(lights, rt.diag.engineDiagnostic)) return;
   deviceMade(device, () => shadowLayerTexture(device, side, layers))
     .then((texture) => {
       if (texture) return createShadowStaticLayer(device, texture);
+      noteShadowPressure(lights.memory, 'static-layer-refused');
       rt.diag.engineDiagnostic('gpu-out-of-memory', 'The device refused the shadow static layer', {
         kind: 'warning',
         pool: 'shadow-static-layer',
@@ -178,6 +188,9 @@ function ensureStaticLayer(rt: WebgpuPagesRuntime) {
       lights.staticLayer = layer;
       // A session disposed meanwhile tore its layer down already: what landed after is freed.
       if (rt.signal.aborted) disposeStaticLayer(lights);
+      // Made for a pool resized since: freed, and asked again at the new size (`poolResize.ts`).
+      else if (side !== lights.plan.pool.side || layers !== lights.plan.pool.layers)
+        releaseStaticLayer(lights);
     })
     .catch((error) => rt.diag.diagnosticFailure('shadow-static-layer-unavailable', error));
 }

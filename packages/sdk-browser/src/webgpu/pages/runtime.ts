@@ -1,6 +1,6 @@
 import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { shadowPoolSide } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { MOTION_CAPABILITY, TAA_CAPABILITY } from '../../taa/capability.ts';
+import { TAA_CAPABILITIES } from '../../taa/capability.ts';
 import { BOUNCE_CAPABILITY } from './prepare/bounce.ts';
 import type { BackendCapabilities, BackendContext, RenderBackend } from '../../backend/types.ts';
 import { createWebgpuPagesServices, type WebgpuPagesServices } from './services.ts';
@@ -16,6 +16,9 @@ import { createWebgpuSunFarState, type WebgpuSunFarState } from './state/sunFar.
 import { createWebgpuRunState, type WebgpuRunState } from './state/run.ts';
 import { createWebgpuCaptureState, type WebgpuCaptureState } from './state/capture.ts';
 import { createWebgpuViews, type WebgpuViews } from './state/view.ts';
+import { createScaleControl, type ScaleControl } from '../../frame/scaleControl.ts';
+import type { PresentRect } from '../../gpu/core/presentAt.ts';
+import type { HostCamera } from '../../camera/world.ts';
 import {
   createWebgpuStageProfiler,
   createWebgpuTimingState,
@@ -23,13 +26,23 @@ import {
 } from './state/timing.ts';
 import type { HostCpuProfile } from '../../host/cpuProfile.ts';
 import type { WebgpuPagesSetup } from './prepare/setup.ts';
+import type { FeedbackAbState, ResidencyIdentity } from './diagnostic/feedbackAb.ts';
+import type { SpatialFeedback } from './diagnostic/feedbackSpatial.ts';
 
 export type WebgpuPagesBackend = RenderBackend &
   HostCpuProfile & {
     flush(): Promise<void>;
+    setFeedbackTargetAb(target: boolean): Promise<void>;
+    feedbackAbResidency(): Promise<ResidencyIdentity>;
+    captureFeedbackAb(): Promise<Uint8Array>;
+    feedbackAbSpatial(): Promise<SpatialFeedback>;
     rasterRgba(): Uint8Array;
     selectedPageIds(): string[];
     visibilityIds(): Uint32Array;
+    /** A view drawn beside the main one, after it, each frame (`./state/persistentView.ts`). */
+    addView(
+      rect: PresentRect,
+    ): Promise<{ render(camera: HostCamera): void; release(): Promise<void> }>;
   };
 
 /** The runtime before its services exist: what the service factory and the draw helpers are handed. */
@@ -44,9 +57,12 @@ export const VIS_FEATURES = [
 ];
 
 /** The shared state of one WebGPU page-raster backend, handed to every module that implements a
- *  part of it. `setup` and `layout` never change after construction; the other groups do. */
+ *  part of it. `setup` and `layout` change only as placements grow in place
+ *  (`../../placement/webgpuGrowth.ts`); the other groups do as they draw. */
 export interface WebgpuPagesRuntime {
   context: BackendContext;
+  /** Opt-in, same-session frame-target measurement; absent from production sessions. */
+  feedbackAB?: FeedbackAbState;
   /** Aborted by `dispose`; `signal` is aborted by it or by the session's. */
   closer: AbortController;
   signal: AbortSignal;
@@ -66,6 +82,8 @@ export interface WebgpuPagesRuntime {
   /** Every camera-bound field above belongs to `views.active`; `./state/viewSwitch.ts` switches. */
   views: WebgpuViews;
   timing: WebgpuTimingState;
+  /** The render scale the page asked, its controller, and the scale of the image drawn. */
+  scale: ScaleControl;
   capabilities: BackendCapabilities;
   blendState: ReturnType<typeof createWebgpuBlendState>;
   /** The nodes the host may write, listed by frame entry at a scene change only (`gateCore.ts`):
@@ -84,7 +102,14 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     traceEnabled,
   };
   const setup = createWebgpuPagesSetup(context, diag);
-  const layout = createWebgpuPagesLayout(setup);
+  const layout = createWebgpuPagesLayout(setup, context.gpuDevice?.limits);
+  // A page table past one binding holds what the binding does, said: a page left without a row
+  // draws through its nearest resident ancestor (`../row/tableRows.ts`).
+  if (layout.pageTableBound)
+    diag.engineDiagnostic('page-table-bounded', 'The device bounds the page table', {
+      kind: 'warning',
+      ...layout.pageTableBound,
+    });
   const vis = createWebgpuVisState();
   const run = createWebgpuRunState(context.clearColor);
   const blendState = createWebgpuBlendState();
@@ -109,8 +134,7 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
       'small-triangle compute raster',
       'physical VRAM instrumentation',
       BOUNCE_CAPABILITY,
-      MOTION_CAPABILITY,
-      TAA_CAPABILITY,
+      ...TAA_CAPABILITIES,
       'sun shadows beyond the last clipmap level',
       'textured PBR maps',
       'visibility buffer',
@@ -138,8 +162,9 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     views: createWebgpuViews({ run, gpu, vis, setup }),
     timing: createWebgpuTimingState(
       context.stageProfile ? createWebgpuStageProfiler() : undefined,
-      layout.selectionRoots.length,
+      () => layout.selectionRoots.length,
     ),
+    scale: createScaleControl(context.renderScale),
     capabilities,
     blendState,
     watchedSources: () => [

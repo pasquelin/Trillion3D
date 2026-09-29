@@ -119,7 +119,7 @@ fn run_job(id: &str, options: &Options) -> Result<Value, CompilerError> {
         }
         Err(error) => {
             let mut event = error_value(&error);
-            event["event"] = json!(if error.code == "CANCELLED" {
+            event["event"] = json!(if error.code == trillion3d_compiler::CANCELLED {
                 "cancelled"
             } else {
                 "error"

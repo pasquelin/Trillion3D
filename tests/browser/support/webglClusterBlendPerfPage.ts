@@ -8,6 +8,8 @@ import {
 } from '../../../packages/sdk-browser/src/camera/world.ts';
 import { IDENTITY_MATRIX4 } from '../../../packages/sdk-core/src/index.ts';
 import { median } from '../../../scripts/median.ts';
+import { strictDegraded } from './webglClusterPixels.ts';
+import { keptClusterScene } from '../../../packages/sdk-browser/src/webgl/cluster/sceneDraw.ts';
 
 /** A batch draw is always indexed (`submitClusterMesh` calls `drawElements`): the identity
  *  index keeps the same triangle order as the flat position layout below. */
@@ -69,7 +71,7 @@ export async function measureBlend() {
   if (!gl) return { unavailable: 'WebGL2 unavailable' };
   const sharedIndex = sharedGeometry.index;
   if (!sharedIndex) throw new Error('blend perf geometry requires an indexed geometry');
-  const own = new WebglClusterRenderer(gl),
+  const own = new WebglClusterRenderer(gl, strictDegraded()),
     ownScene = new G.Scene(),
     ownCamera = readHostDrawCamera(createHostDrawCamera(), camera),
     // The two-sided transparent record draws back faces then front faces, read at the draw.
@@ -88,7 +90,7 @@ export async function measureBlend() {
     threeMesh = threeMeshCopy({ geometry: sharedGeometry, material: material.clone() });
   three.setSize(256, 256, false);
   threeScene.add(threeMesh);
-  const ownDraw = () => own.draw([ownMesh], ownScene, ownCamera, false, false),
+  const ownDraw = () => own.draw([ownMesh], keptClusterScene(ownScene), ownCamera, false, false),
     threeDraw = () => three.render(threeScene, threeCamera(camera)),
     ownA = await sample(ownDraw),
     reference = await sample(threeDraw),

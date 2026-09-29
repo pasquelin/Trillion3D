@@ -28,7 +28,8 @@ export function createWebgpuCutAdopter(options: {
   onDrawnDelta: () => void;
   /** Called when `drawn` has just been remade from `shown`: the frame no longer has to remake it. */
   onDrawnMirrored: () => void;
-  /** Called with the view ahead's requests of each new readback, empty once the camera stops. */
+  /** Called with the view ahead's requests of each new readback, and empty once the camera is
+   *  still — its readback may be the last of the move, adopted as the still camera's cut. */
   onAhead: (ids: readonly number[]) => void;
 }) {
   const metrics = {
@@ -62,6 +63,12 @@ export function createWebgpuCutAdopter(options: {
    *  what forbids holding `shown` on a sequence the frame never adopted. */
   let drawnSeq = 0,
     shownSeq = -1;
+  /** Whether the last list offered ahead was the one of a still camera: empty. */
+  let offeredStill = false;
+  const offerAhead = (cut: GpuCut) => {
+    offeredStill = !options.uniforms.ahead;
+    options.onAhead(offeredStill ? [] : (cut.result.aheadPageIds ?? []));
+  };
   const adopt = () => {
     metrics.cutHeld = false;
     metrics.listsRewritten = false;
@@ -76,15 +83,17 @@ export function createWebgpuCutAdopter(options: {
       return false;
     }
     const { desired, shown, drawn, delta, drawnDelta } = options;
+    // A new readback offers its requests ahead; a held one only empties them once the camera stops.
+    const offer = cut !== lastCut || (!options.uniforms.ahead && !offeredStill);
     if (cut === lastCut) {
       delta.hold();
       drawnDelta.hold();
     } else {
       delta.apply(cut.result.pageIds);
       drawnDelta.apply(cut.result.drawablePageIds);
-      options.onAhead(cut.result.aheadPageIds ?? []);
       lastCut = cut;
     }
+    if (offer) offerAhead(cut);
     if (drawnDelta.changed) drawnSeq++;
     // A difference is applied where it is computed. An image that adopts nothing — no readback has
     // landed — must not replay the previous one, which would count every page twice.

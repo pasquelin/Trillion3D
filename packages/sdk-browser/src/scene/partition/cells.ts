@@ -5,12 +5,12 @@
  * stand now: `boxes.ts`) are asked of the session's page streamer, nearest first, then those ahead
  * at the prefetch priority; those it holds are placed within the frame's one integration budget
  * (`FrameBudget`), each node on a row of its mesh (`rows.ts`) at the world matrix the engine
- * composes for a child of its core parent. A cell past its reach parks its rows; a moved parent
- * rewrites the rows under it. `prime`, before the first frame, sizes the rows for every node the
- * reach can hold at once wherever the parents stand (`sizing.ts`; every node when no owner can
- * reopen the session) and reads the cells it needs. Moved, turned or scaled up, parents never run
- * the rows short; a reach past them, or a parent scaled down or stretched unevenly, grows them in
- * place (`placement/growth.ts`), or asks the owner to reopen on an engine that cannot.
+ * composes for a child of its core parent, the cell holding its manifest pages (`cellPages.ts`).
+ * A cell past its reach parks its rows and releases its pages; a moved parent rewrites its rows.
+ * `prime`, before the first frame, sizes the rows for every node the reach can hold at once
+ * wherever the parents stand (`sizing.ts`; every node when no owner can reopen the session) and
+ * reads the cells it needs. Parents moved, turned or scaled up never run the rows short; a reach past
+ * them, or a parent shrunk or stretched unevenly, grows them in place, else reopens (`growth.ts`).
  */
 import { MATRIX_VALUES, multiplyMatrix4 } from '../../../../sdk-core/src/index.ts';
 import {
@@ -18,6 +18,7 @@ import {
   type TablePartition,
 } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
+import type { PlacementGrowth } from '../../placement/backendSceneUpdates.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { hostWorldChainInto } from '../../host/world/chain.ts';
 import { createCellBoxes } from './boxes.ts';
@@ -25,8 +26,8 @@ import { inCellFrame, planCells } from './plan.ts';
 import { holdsEvery, outstretched, residentRows, sizedStretch, type Stretch } from './sizing.ts';
 import { capacityOf, createTouchedRows, releaseRow, rowLocal, rowsFree } from './rows.ts';
 import { sizeRows, takeRow, type PlacedMesh } from './rows.ts';
+import { createCellPages, withHoldings } from './cellPages.ts';
 
-type Grow = (from: PlacementRows, to: PlacementRows) => void;
 type Placement = { mesh: PlacedMesh; row: number; parent: Object3D; local: Float64Array };
 type Inputs = {
   partition: TablePartition;
@@ -34,6 +35,7 @@ type Inputs = {
   /** The prepared scene's root: where the tables hang a cell node. */ root: Object3D;
   /** The host node of each core rank. */ parents: readonly Object3D[];
   /** The placed mesh of each mesh rank the cells place. */ meshes: ReadonlyMap<number, PlacedMesh>;
+  /** The manifest's pages the view holds (#751). */ pages?: Parameters<typeof createCellPages>[0];
 };
 
 const product = new Float64Array(MATRIX_VALUES),
@@ -43,6 +45,7 @@ export function createPartitionCells(inputs: Inputs) {
   const { partition, base, root, parents, meshes } = inputs;
   const cells = partition.cells.map((cell) => ({ ...cell, url: new URL(cell.url, base).href }));
   const boxes = createCellBoxes(partition.cells, root, parents);
+  const manifest = createCellPages(inputs.pages, partition.cells);
   const held = new Map<number, Placement[]>();
   /** The world matrix each parent in use had when its rows were written. */
   const worlds = new Map<Object3D, Float64Array>();
@@ -54,14 +57,10 @@ export function createPartitionCells(inputs: Inputs) {
     sized = 0,
     wanted = 0,
     stretched: ReadonlyMap<number, Stretch> = new Map();
-  const worldOf = (node: Object3D) => {
-    let world = worlds.get(node);
-    if (!world) worlds.set(node, (world = hostWorldChainInto(new Float64Array(16), node)));
-    return world;
-  };
-  const write = (placement: Placement) => {
-    const { mesh, row } = placement;
-    multiplyMatrix4(product, worldOf(placement.parent), placement.local);
+  const worldOf = (node: Object3D) =>
+    worlds.get(node) ?? worlds.set(node, hostWorldChainInto(new Float64Array(16), node)).get(node)!;
+  const write = ({ mesh, row, parent, local }: Placement) => {
+    multiplyMatrix4(product, worldOf(parent), local);
     for (const link of mesh.links) {
       const rows = link.placements!;
       rows.matrices.set(product, row * 16);
@@ -81,6 +80,7 @@ export function createPartitionCells(inputs: Inputs) {
       return placement;
     });
     held.set(cell, placements);
+    manifest.hold(cell);
     return true;
   };
   const leave = (cell: number) => {
@@ -89,6 +89,7 @@ export function createPartitionCells(inputs: Inputs) {
       for (const link of mesh.links) touched.touch(link, row);
     }
     held.delete(cell);
+    manifest.release(cell);
   };
   /** Rewrites the rows under every parent whose world moved since they were written. */
   const followParents = () => {
@@ -100,16 +101,16 @@ export function createPartitionCells(inputs: Inputs) {
         for (const placement of placements) if (placement.parent === node) write(placement);
     }
   };
-  /** Sizes the rows for any place of the parents within a reach `bound` and a `stretch`; `grown`
-   *  hands each buffer replaced to its engine, absent before one reads it. */
-  const resize = (bound: number, grown?: Grow, stretch = sizedStretch(boxes.stretch)) => {
+  /** Sizes the rows for `bound` and `stretch`, in place under `grow`; false, unsized, if refused. */
+  const resize = (bound: number, grow?: PlacementGrowth, stretch = sizedStretch(boxes.stretch)) => {
+    const rows = residentRows(partition.cells, bound, stretch);
+    if (!sizeRows(meshes, rows, grow)) return false;
     stretched = stretch;
-    const rows = residentRows(partition.cells, bound, stretched);
-    sizeRows(meshes, rows, grown);
     sized = holdsEvery(rows, cells) ? Infinity : bound;
     short = false;
+    return true;
   };
-  return {
+  const partitionCells = {
     /** Every cell as the streamer's catalogue reads it. */
     pages: cells.map(({ url, bytes, sha256 }) => ({ url, bytes, sha256 })),
     /** The cells placed now, those a mesh short of rows keeps waiting, and the rows sized. */
@@ -125,14 +126,13 @@ export function createPartitionCells(inputs: Inputs) {
       eye: ArrayLike<number>,
       reach: number,
       /** The streamer's verified bytes, whether it reads an address, a request (`ahead`: read
-       *  before needed), rows written, a buffer grown in place — where the engine can — and, where
-       *  it cannot, the owner told once the reach outgrew the rows. */
+       *  before needed), rows written, a buffer grown in place where it can, else the owner told. */
       io: {
         bytes(url: string): Uint8Array | undefined;
         loading(url: string): boolean;
         request(urls: readonly string[], ahead: boolean): void;
         update(rows: PlacementRows, from: number, to: number): void;
-        grow?(from: PlacementRows, to: PlacementRows): void;
+        grow?: PlacementGrowth;
         outgrown?: () => void;
       },
       budget: { admits(): boolean; spend(): void }, // structurally a `FrameBudget`, kept internal
@@ -146,8 +146,8 @@ export function createPartitionCells(inputs: Inputs) {
       if (beyond || over) {
         // Twice what outgrew them, as buffers grow: an ongoing zoom or shrink resizes O(log) times.
         const stretch = over ? sizedStretch(boxes.stretch, 2) : stretched;
-        if (io.grow) resize(beyond ? Math.max(2 * sized, wanted) : sized, io.grow, stretch);
-        else {
+        const bound = beyond ? Math.max(2 * sized, wanted) : sized;
+        if (!io.grow || !resize(bound, io.grow, stretch)) {
           short = true;
           io.outgrown?.();
         }
@@ -188,13 +188,13 @@ export function createPartitionCells(inputs: Inputs) {
       const plan = planCells(boxes(), local.eye, local.reach, new Set(held.keys()));
       plan.leave.forEach(leave);
       if (sized < Infinity) resize(owned ? Math.max(local.reach, wanted) : Infinity);
-      const { visible } = plan;
-      const bodies = await Promise.all(visible.map((cell) => read(cells[cell].url)));
-      visible.forEach((cell, at) => place(cell, bodies[at]));
+      const bodies = await Promise.all(plan.visible.map((cell) => read(cells[cell].url)));
+      plan.visible.forEach((cell, at) => place(cell, bodies[at]));
       touched.clear();
       return bodies.reduce((sum, bytes) => sum + bytes.byteLength, 0);
     },
   };
+  return withHoldings({ meshes, manifest }, partitionCells);
 }
 
 export type PartitionCells = ReturnType<typeof createPartitionCells>;

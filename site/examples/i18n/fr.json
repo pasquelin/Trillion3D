@@ -1263,6 +1263,25 @@
       "off": "éteint"
     }
   },
+  "page-materials": {
+    "banner": "Faites glisser pour explorer la salle. Listez, modifiez, mélangez ou créez un matériau.",
+    "controls": {
+      "set": "Changer la couleur",
+      "switchToBlend": "Passer au mélange",
+      "createAndAssign": "Créer et attribuer"
+    },
+    "readouts": {
+      "selected material": "Matériau sélectionné",
+      "materials": "Matériaux",
+      "sourceMaterials": "Matériaux d’origine",
+      "last action": "Dernière action"
+    },
+    "words": {
+      "imported": "{count} importés",
+      "applied": "Appliqué",
+      "ready": "Prêt"
+    }
+  },
   "lights-from-the-scene-file": {
     "banner": "Glisse pour regarder autour. Ces lampes sont venues dans le fichier du modèle.",
     "controls": {
@@ -1392,6 +1411,7 @@
     "banner": "Glisse pour tourner autour. Change la vue pour voir ce que garde le moteur de rendu.",
     "controls": {
       "see": "Voir",
+      "glass": "Vitre",
       "spin": "Rotation"
     },
     "choices": {
@@ -1746,7 +1766,8 @@
       "night": "Nuit",
       "bounce": "Rebond",
       "sun": "Soleil",
-      "lamp": "Lampe"
+      "lamp": "Lampe",
+      "spin": "Rotation"
     },
     "words": {
       "credit": "Modèle de réverbère par W. Sitters, CC BY 3.0 — voir assets/examples/CREDITS.md"

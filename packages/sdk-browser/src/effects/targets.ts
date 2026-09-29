@@ -33,8 +33,15 @@ const SCENE_TEXEL_BYTES = PASS_TEXEL_BYTES + 4 + 1;
  */
 export function effectTargetBytes(width: number, height: number, targets: number, scene: boolean) {
   if (!targets) return 0;
-  return width * height * (targets * PASS_TEXEL_BYTES + (scene ? SCENE_TEXEL_BYTES : 0));
+  return (
+    width * height * targets * PASS_TEXEL_BYTES + (scene ? sceneTargetBytes(width, height) : 0)
+  );
 }
+
+/** Bytes of one WebGL2 scene target on a `width × height` image: the chain's, or the one WebGL2
+ *  draws below the display in (`../world/render/renderScale.ts`). */
+export const sceneTargetBytes = (width: number, height: number) =>
+  width * height * SCENE_TEXEL_BYTES;
 
 /** Bytes each kind holds on a `width × height` image, whatever the number of its passes: they
  *  run one after the other on the same resources. */

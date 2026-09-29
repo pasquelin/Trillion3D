@@ -42,7 +42,8 @@ pub(crate) fn declared_matter(g: &Value, node: &Value) -> Value {
 /// its collider names, as declared; else the cooked hull of the mesh its collider names (its own
 /// without a collider), moved into the body's frame, and, a dynamic body's, the exact mass of the
 /// solid it bounds — one hull, whether or not the collider asks for `convexHull`; bodies drawing
-/// the same mesh in their own frame share it, whatever scale each is weighed at.
+/// the same mesh in their own frame share it, whatever scale each is weighed at. A collider
+/// naming another node's mesh records that node (`colliderNode`).
 fn body(
     o: &Options,
     source: (&Value, &[u8]),
@@ -60,11 +61,11 @@ fn body(
             "A breakable body is cut from its mesh: it declares no shape.".into(),
         ));
     }
-    let (shape, cut) = match field("shape").and_then(Value::as_u64) {
+    let (shape, cut, collider) = match field("shape").and_then(Value::as_u64) {
         Some(id) => (source.0)
             .pointer(&format!("/extensions/KHR_implicit_shapes/shapes/{id}"))
             .cloned()
-            .map(|shape| (shape, None))
+            .map(|shape| (shape, None, None))
             .ok_or_else(|| {
                 refused(format!(
                     "A body's collider names shape {id}, which is missing."
@@ -107,13 +108,17 @@ fn body(
             let shape = hull.weighed(weigh)?;
             // A piece falls once broken, a kinematic body's too: every piece is weighed.
             let cut = breakable.map(|t| hull.pieces(o, (index as u64, s)).map(|p| (t, p)));
-            (shape, cut.transpose()?)
+            // Another node's mesh collides as the body: the page takes its static ground out.
+            (shape, cut.transpose()?, (at != index).then_some(at))
         }
     };
     let mut entry = declared_matter(source.0, &nodes[index]);
     entry["node"] = json!(index);
     entry["motion"] = declared["motion"].clone();
     entry["shape"] = shape;
+    if let Some(at) = collider {
+        entry["colliderNode"] = json!(at);
+    }
     if let Some((threshold, pieces)) = cut {
         (entry["breakable"], entry["pieces"]) = (json!(threshold), json!(pieces));
     }

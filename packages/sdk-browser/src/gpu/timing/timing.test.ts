@@ -163,3 +163,18 @@ test('the sampling cadence bounds how many images are measured and an observer f
   assert.equal(stats.pending, 0);
   timer.dispose();
 });
+// #685: the name a pass without label falls back to; `passLabels.test.ts` keeps it out of a frame.
+test('a timed pass without label is named after the method that began it', async () => {
+  const f = fixture(),
+    samples: any[] = [];
+  const timer = createGpuTiming(f.device, { onSample: (sample) => void samples.push(sample) });
+  const encoder = timer.createEncoder(1);
+  encoder.beginRenderPass({ colorAttachments: [] }).end();
+  encoder.beginComputePass().end();
+  encoder.finish();
+  timer.submitted(encoder, { frame: 1 });
+  await timer.flush();
+  const names = samples[0].passes.map((pass: { name: string }) => pass.name);
+  assert.deepEqual(names, ['beginRenderPass', 'beginComputePass']);
+  timer.dispose();
+});

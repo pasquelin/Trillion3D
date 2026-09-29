@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
-import { frameTargetAllocation } from './targets.ts';
+import { frameTargetAllocation, targetsFit } from './targets.ts';
+import { requestFrameTargets } from './targetGrant.ts';
+import { standardSurface } from '../../../host/graph/graph.fixture.ts';
+import { surfaceOf } from '../../../page/surface.ts';
 import { ensureTaaTargets } from '../../../taa/prepare.ts';
 import { frameTargetBytes } from '../../../scene/surfaceBuffer.ts';
 import { TAA_HISTORY_BYTES_PER_PIXEL } from '../../../taa/temporalAntialiasing.ts';
@@ -10,9 +13,19 @@ import {
   MEASURE_WIDTH,
 } from '../../../../../../tests/browser/support/sceneProvenance.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { createScaleControl } from '../../../frame/scaleControl.ts';
+
+/** Both sizes of a frame drawn at the display's. */
+const native = (width: number, height: number) => ({
+  width,
+  height,
+  renderWidth: width,
+  renderHeight: height,
+  apart: false,
+});
 
 /** An engine reduced to its targets, with a dummy temporal pass that notes its resizes. */
-function runtime() {
+function runtime(reflective = false) {
   const resized: number[][] = [],
     failures: string[] = [];
   const temporal = {
@@ -25,6 +38,15 @@ function runtime() {
   };
   const rt = {
     setup: { reserveHiz: true },
+    run: { diagnostic: 'beauty' },
+    layout: {
+      rows: {
+        packedCount: reflective ? 1 : 0,
+        packedRecs: reflective ? [{ material: surfaceOf(standardSurface({ roughness: 0 })) }] : [],
+      },
+    },
+    blendState: { blendGpu: [] },
+    context: {},
     gpu: { device: fakeDevice({ limits: { maxTextureDimension2D: 8192 } }).device, temporal },
     capture: { capturing: false },
     capabilities: { unsupported: [] as string[] },
@@ -43,8 +65,8 @@ test('targets follow resolution, history included: 4K is admitted and costed', (
     [MEASURE_WIDTH, MEASURE_HEIGHT],
     [3840, 2160],
   ]) {
-    const base = frameTargetAllocation(rt, width, height);
-    assert.equal(base, frameTargetBytes(width, height, true));
+    const base = frameTargetAllocation(rt, native(width, height));
+    assert.equal(base, frameTargetBytes(width, height, true) + 8 + 80);
     assert.equal(ensureTaaTargets(rt, width, height), width * height * TAA_HISTORY_BYTES_PER_PIXEL);
   }
   assert.ok(frameTargetBytes(3840, 2160, true) > 288 * 1024 * 1024, '4K exceeds the old ceiling');
@@ -55,7 +77,7 @@ test('targets follow resolution, history included: 4K is admitted and costed', (
   // Reallocated targets no longer have history.
   assert.equal(temporal.frame.hasHistory, false);
   assert.equal(temporal.frame.stillFrames, 0);
-  assert.throws(() => frameTargetAllocation(rt, 8193, 16), /SURFACE_DEVICE_LIMIT/);
+  assert.throws(() => frameTargetAllocation(rt, native(8193, 16)), /SURFACE_DEVICE_LIMIT/);
 });
 
 test("a surface capture does not touch the view's history targets", () => {
@@ -63,4 +85,72 @@ test("a surface capture does not touch the view's history targets", () => {
   rt.capture.capturing = true;
   assert.equal(ensureTaaTargets(rt, 64, 64), 0, 'the capture reserve already carries the history');
   assert.deepEqual(resized, []);
+});
+
+test('an eligible receiver accounts for viewport reflection colour and its uniform', () => {
+  const { rt } = runtime(true);
+  assert.equal(
+    frameTargetAllocation(rt, native(64, 32)),
+    frameTargetBytes(64, 32, true) + 64 * 32 * 8 + 80,
+  );
+});
+
+// #365: a blended scene pays for the share target only when a debug view or the temporal pass reads it.
+test('a blended scene costs the share only when a debug view or the temporal pass reads it', () => {
+  const { rt } = runtime();
+  const base = frameTargetAllocation(rt, native(64, 32));
+  const glass = { surface: surfaceOf(standardSurface({ roughness: 1 })) };
+  Object.assign(rt, { blendState: { blendGpu: [glass] }, vis: { asIsShown: false } });
+  assert.equal(frameTargetAllocation(rt, native(64, 32)), base, 'blends alone: as before');
+  rt.vis.asIsShown = true;
+  assert.equal(frameTargetAllocation(rt, native(64, 32)), base + 64 * 32 * 2, 'a debug view shown');
+  rt.vis.asIsShown = false;
+  rt.gpu.temporalWanted = true;
+  assert.equal(frameTargetAllocation(rt, native(64, 32)), base + 64 * 32 * 2, 'its reactive value');
+});
+
+test('targets that fit ask nothing of the device: the steady frame is free', () => {
+  const rt = {
+    setup: { viewport: [32, 32] },
+    run: { diagnostic: 'beauty' },
+    layout: { rows: { packedCount: 0, packedRecs: [] } },
+    blendState: { blendGpu: [] },
+    context: {},
+    gpu: {
+      colorTexture: {},
+      feedbackTexture: {},
+      targetSize: [32, 32],
+      allocatedSize: [32, 32],
+      displaySize: [32, 32],
+      surfaces: {},
+      reflection: { active: false },
+      targetGrant: undefined,
+    },
+    vis: {},
+    scale: createScaleControl(undefined),
+  } as unknown as WebgpuPagesRuntime;
+  // A bare device: any creation or error scope would throw.
+  assert.equal(requestFrameTargets(rt, {} as GPUDevice), undefined);
+});
+
+// #816: every pass up to the resolve draws at the render size; the display colour is apart.
+test('a frame drawn below the display costs its render targets and one display colour', () => {
+  const { rt } = runtime();
+  const scaled = { width: 64, height: 32, renderWidth: 32, renderHeight: 16, apart: true };
+  assert.equal(
+    frameTargetAllocation(rt, scaled),
+    frameTargetAllocation(rt, native(32, 16)) + 64 * 32 * 4,
+  );
+  Object.assign(rt.gpu, {
+    colorTexture: {},
+    displayTexture: {},
+    surfaces: {},
+    feedbackTexture: {},
+    reflection: { active: false },
+    allocatedSize: [32, 16],
+    displaySize: [64, 32],
+  });
+  Object.assign(rt, { feedbackAB: undefined, vis: {} });
+  assert.equal(targetsFit(rt, scaled), true);
+  assert.equal(targetsFit(rt, native(64, 32)), false, 'the same display at native size is remade');
 });

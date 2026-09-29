@@ -1,5 +1,13 @@
-import { existsSync, mkdirSync, readdirSync, rmSync, symlinkSync } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readdirSync,
+  readlinkSync,
+  rmSync,
+  symlinkSync,
+} from 'node:fs';
+import { dirname, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 /**
@@ -8,7 +16,7 @@ import { pathToFileURL } from 'node:url';
  * A skill is a real folder, rebuilt on every run, whose files (at any depth) are links: a worktree
  * made by the desktop app copies `.claude/` files but drops links to folders, and would lose every
  * skill. An agent link or file already there under the same name is replaced; nothing else in
- * `.claude/` moves.
+ * `.claude/` moves, but a skill or agent whose source left `skills/` loses its link.
  * The workflow never needs this: it only serves a contributor who runs the company with Claude.
  */
 export function linkSkills(root: string): string[] {
@@ -21,6 +29,7 @@ export function linkSkills(root: string): string[] {
     symlinkSync(relative(dirname(to), from), to);
     linked.push(relative(root, to));
   };
+  pruneRemoved(root, source);
   for (const name of readdirSync(source)) {
     const from = join(source, name);
     if (name === 'agents' || !existsSync(join(from, 'SKILL.md'))) continue;
@@ -37,6 +46,27 @@ export function linkSkills(root: string): string[] {
     for (const file of readdirSync(agents).filter((f) => f.endsWith('.md')))
       link(join(agents, file), join(root, '.claude', 'agents', file));
   return linked;
+}
+
+/** Removes the `.claude/` links whose target in `skills/` no longer exists. */
+function pruneRemoved(root: string, source: string): void {
+  const gone = (link: string) => {
+    if (!lstatSync(link).isSymbolicLink()) return false;
+    const target = resolve(dirname(link), readlinkSync(link));
+    return !relative(source, target).startsWith('..') && !existsSync(target);
+  };
+  const skills = join(root, '.claude', 'skills');
+  if (existsSync(skills))
+    for (const name of readdirSync(skills)) {
+      const skill = join(skills, name);
+      const entry = lstatSync(skill).isSymbolicLink() ? skill : join(skill, 'SKILL.md');
+      if (lstatSync(entry, { throwIfNoEntry: false }) && gone(entry))
+        rmSync(skill, { recursive: true, force: true });
+    }
+  const agents = join(root, '.claude', 'agents');
+  if (existsSync(agents))
+    for (const file of readdirSync(agents))
+      if (gone(join(agents, file))) rmSync(join(agents, file));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

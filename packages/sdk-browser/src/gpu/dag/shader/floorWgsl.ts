@@ -15,29 +15,32 @@
  */
 /**
  * Layout of the `work` buffer, in words, as the kernel reads it — `blockBase()`,
- * `liveCounter()` and the nine frame counters from `levelWgsl.ts`, then the
+ * `liveCounter()` and the twelve frame counters from `levelWgsl.ts`, then the
  * per-view words (`viewsWgsl.ts`) and the frame count. Set HERE and
  * nowhere else: the engine allocates it (`../resources.ts`) and benches that mount the
  * kernel by hand reread it, so a word added to the kernel can no longer leave a caller
  * with a buffer that is too short — where out-of-bounds counters read as zero, and
  * top-down pruning would then drop everything.
  *
+ * Each list read indirectly keeps its dispatch argument's x then y behind its counter: its groups
+ * in rows (`gridWgsl.ts`), armed by one copy of both.
+ *
  * `views` is the view capacity the buffer serves: one for a camera, one row each for a light cut.
  */
 export function dagWorkLayout(blockCount: number, views = 1) {
   // Block counts, block offsets, then two draw-mask words per block (`compactWgsl.ts`).
   const base = blockCount * 4,
-    viewWords = base + 9,
+    viewWords = base + FRAME_COUNTERS,
     drawnGroupsMax = viewWords + VIEW_WORD_ROWS * views;
   return {
     base,
-    /** The nine frame counters, in the order `levelWgsl.ts` names them. */
+    /** The twelve frame counters, in the order `levelWgsl.ts` names them. */
     liveCounter: base,
     liveGroups: base + 1,
-    candCounter: base + 5,
-    candGroups: base + 6,
-    drawnCounter: base + 7,
-    drawnGroups: base + 8,
+    candCounter: base + 6,
+    candGroups: base + 7,
+    drawnCounter: base + 9,
+    drawnGroups: base + 10,
     /** First per-view word: row `r` (`VIEW_WORD_ROWS`) of view `v` is `viewWords + r * views + v`. */
     viewWords,
     /** The most sixty-four-wide groups any view drew, behind the per-view rows. */
@@ -48,9 +51,13 @@ export function dagWorkLayout(blockCount: number, views = 1) {
   };
 }
 
+/** Words of the frame counters: the live list's counter and argument, three queue counters, the
+ *  candidates' counter and argument, the drawn log's counter and argument. */
+const FRAME_COUNTERS = 12;
+
 import { VIEW_WORD_ROWS } from './viewsWgsl.ts';
 
-export const DAG_FLOOR_WGSL = `fn extraBase()->u32{return liveCounter()+9u;}
+export const DAG_FLOOR_WGSL = `fn extraBase()->u32{return liveCounter()+${FRAME_COUNTERS}u;}
 /** GPU mirror of \`errorFloorAt\` (../../../page/selection/projection.ts): same guards, same operands, same
  *  order. The smallest subtree error seen at the farthest depth its bounding sphere allows —
  *  never above the true value of one of its clusters. Without a sphere, negative radius, it

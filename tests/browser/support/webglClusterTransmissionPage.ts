@@ -6,6 +6,7 @@ import type { ClusterDrawMesh } from '../../../packages/sdk-browser/src/cluster/
 import { clear, clusterRecord, mountClusterRenderer, pixel, quad } from './webglClusterPixels.ts';
 import { readDegraded } from '../../../packages/sdk-browser/src/webgl/cluster/validation.ts';
 import { listenMaterialDegraded } from './materialDegradedNotices.ts';
+import { keptClusterScene } from '../../../packages/sdk-browser/src/webgl/cluster/sceneDraw.ts';
 
 const glassMesh = (options: Partial<G.SurfaceParameters> = {}) => {
   const mesh = G.mesh(
@@ -17,16 +18,15 @@ const glassMesh = (options: Partial<G.SurfaceParameters> = {}) => {
 };
 
 export async function execute() {
-  const mounted = mountClusterRenderer();
+  const notices = listenMaterialDegraded();
+  const mounted = mountClusterRenderer(readDegraded(notices.hear));
   if (!mounted) return { unavailable: 'WebGL2 unavailable' };
   const { gl, renderer, scene, drawCamera } = mounted;
   const red = clusterRecord(quad(-3), G.basicSurface({ color: 0xff0000 })),
     glass = glassMesh();
   scene.background = new G.Color(0x0000ff);
-  const notices = listenMaterialDegraded(),
-    degraded = readDegraded(notices.hear);
   const draw = (clusters: ClusterDrawMesh[], copies: G.HostMesh[], srgb = false) =>
-    renderer.draw(clusters, scene, drawCamera, false, srgb, [], copies, degraded);
+    renderer.draw(clusters, keptClusterScene(scene), drawCamera, false, srgb, [], copies);
   const passes = () => ({
     backdrop: renderer.backdropSubmissions,
     copies: renderer.copySubmissions,

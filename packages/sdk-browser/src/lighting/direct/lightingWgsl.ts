@@ -1,5 +1,6 @@
 import { residentProxyWgsl } from '../../bounce/nodeWgsl.ts';
-import { DIRECT_LIGHT_WGSL } from './lightWgsl.ts';
+import { directLightWgsl } from './lightWgsl.ts';
+import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { RECT_SHADING_WGSL } from './rectLightWgsl.ts';
 import { irradianceShader } from '../../../../sdk-core/src/scene/core/irradianceBasis.ts';
 import { MODEL_FLAG, SURFACE_MODEL_LIGHT_WGSL } from '../../scene/surfaceModel.ts';
@@ -18,49 +19,8 @@ export const CONTRACT_SHADOW_BINDINGS = {
   translucentDepth: 19,
 };
 
-/**
- * Base of the two lighting passes: contract types, shadow reads, and the contribution of a
- * single declared light at the point, its shadow included — the engine's only lighting
- * formula. The two loops below differ only by the light list they walk, never by the
- * physics or the surface type. A light out of range, or fully in shadow, yields exactly zero.
- *
- * The sun shadow beyond the last clipmap level is part of it: both passes bind the resident
- * proxy and fire the same ray. The parameters are the **ranks** of the bindings, which the
- * layouts number differently, and the right to write: the two count counters of the far ray,
- * and the shadow requests — the opaque resolve asks for the pages it reads; the blend and water
- * passes read what it asked for, and keep their early depth reject.
- */
-const lightingBase = (
-  proxyBinding: number,
-  shadowBinding: number,
-  requestBinding: number | null,
-  transmittanceBinding: number,
-) => `
-${DIRECT_LIGHT_WGSL}
-${residentProxyWgsl(proxyBinding, requestBinding !== null)}
-${sunFarShadowWgsl(requestBinding !== null)}
-${directShadowWgsl(shadowBinding, requestBinding, transmittanceBinding)}
-${SURFACE_MODEL_LIGHT_WGSL}
-${RECT_SHADING_WGSL}
-${FOG_WGSL}
-fn declaredLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32)->vec3f{
- if(isRect(light)){return rectLight(light,rgb,metal,rough,N,V,P,ao);}
- let incidence=directIncidence(light,P);
- if(incidence.w<=0.0){return vec3f(0.0);}
- let shade=shadowFactor(i32(light.params.y),light,P,N,incidence.xyz);
- if(shade<=0.0){return vec3f(0.0);}
- let energy=light.colorIntensity.w*incidence.w*shade;
- if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return modelLight(rgb,metal,N,incidence.xyz,energy,ao)*light.colorIntensity.rgb;}
- return standardLighting(rgb,metal,rough,N,V,vec4f(incidence.xyz,energy))*light.colorIntensity.rgb;
-}
-/** The environment's irradiance at the normal N (\`packages/sdk-core/src/scene/core/environment.ts\`), on the diffuse lobe:
- *  what an ambient, a sky over a ground or a probe gives a surface, never shadowed. */
-fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{
- let e=directLights.environment;
- let E=${irradianceShader((k) => `e[${k}].rgb`, 'N')};
- return rgb*(1.0-metal)*max(E,vec3f(0.0))*ao*${INVERSE_PI};
-}
-fn pixelTile(pixel:vec2f)->vec2u{return vec2u(u32(pixel.x)/TILE_SIZE,u32(pixel.y)/TILE_SIZE);}
+/** The wide resolve's slices: a list, a pool slice past `TILE_LIGHTS`, or every light. */
+const WIDE_SLICE_WGSL = `
 /** Where the lights of a slice of a tile's list start, and how many: its count at countSlot, its
  *  list from firstSlot — past \`TILE_LIGHTS\`, from the start the list's first word names in the
  *  pool (#849). \`TILE_NO_SLICE\` when the pool had no room: every declared light of the scene. */
@@ -81,7 +41,71 @@ fn sliceLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,sl
   result+=declaredLight(directLights.items[light],rgb,metal,rough,N,V,P,ao);
  }
  return result;
+}`;
+/**
+ * The narrow resolve's slices (#849): a scene of at most `TILE_LIGHTS` lights runs the narrow
+ * tile pass, so no tile passes its list and none walks the pool or the whole scene. The slice is
+ * the list itself, each light read at its listed rank, with no per-light branch — the same lights
+ * in the same order as the wide loop, so the same sum, bit for bit — run on a device against the
+ * wide loop by `tests/browser/probes/narrow-resolve-gpu.ts`.
+ */
+const NARROW_SLICE_WGSL = `
+fn tileSlice(base:u32,countSlot:u32,firstSlot:u32)->vec2u{return vec2u(base+firstSlot,tileLights[base+countSlot]);}
+fn sliceLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,slice:vec2u)->vec3f{
+ var result=vec3f(0.0);
+ for(var index=0u;index<slice.y;index++){
+  result+=declaredLight(directLights.items[tileLights[slice.x+index]],rgb,metal,rough,N,V,P,ao);
+ }
+ return result;
+}`;
+/**
+ * Base of the two lighting passes: contract types, shadow reads, and the contribution of a
+ * single declared light at the point, its shadow included — the engine's only lighting
+ * formula. The two loops below differ only by the light list they walk, never by the
+ * physics or the surface type. A light out of range, or fully in shadow, yields exactly zero.
+ *
+ * The sun shadow beyond the last clipmap level is part of it: both passes bind the resident
+ * proxy and fire the same ray. The parameters are the **ranks** of the bindings, which the
+ * layouts number differently, and the right to write: the two count counters of the far ray,
+ * and the shadow requests — the opaque resolve asks for the pages it reads; the blend and water
+ * passes read what it asked for, and keep their early depth reject.
+ */
+const lightingBase = (
+  proxyBinding: number,
+  shadowBinding: number,
+  requestBinding: number | null,
+  transmittanceBinding: number,
+  narrow = false,
+) => `
+${directLightWgsl(narrow ? LIGHT_SETTINGS.tileLights : undefined)}
+${residentProxyWgsl(proxyBinding, requestBinding !== null)}
+${sunFarShadowWgsl(requestBinding !== null)}
+${directShadowWgsl(shadowBinding, requestBinding, transmittanceBinding)}
+${SURFACE_MODEL_LIGHT_WGSL}
+${RECT_SHADING_WGSL}
+${FOG_WGSL}
+fn declaredLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32)->vec3f{
+ if(isRect(light)){return rectLight(light,rgb,metal,rough,N,V,P,ao);}
+ let incidence=directIncidence(light,P);
+ if(incidence.w<=0.0){return vec3f(0.0);}
+ // A surface facing away from the light gets its exact zero whatever the shadow: the filter's
+ // taps are skipped, never the page reads and requests (\`shadowPcf\`). Toon bands light it.
+ let facing=surfaceModel==${MODEL_FLAG.toon}u||select(dot(N,normalize(incidence.xyz)),dot(N,incidence.xyz),surfaceModel==${MODEL_FLAG.diffuse}u)>0.0;
+ let shade=shadowFactor(i32(light.params.y),light,P,N,incidence.xyz,facing);
+ if(shade<=0.0){return vec3f(0.0);}
+ let energy=light.colorIntensity.w*incidence.w*shade;
+ if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return modelLight(rgb,metal,N,incidence.xyz,energy,ao)*light.colorIntensity.rgb;}
+ return standardLighting(rgb,metal,rough,N,V,vec4f(incidence.xyz,energy))*light.colorIntensity.rgb;
 }
+/** The environment's irradiance at the normal N (\`packages/sdk-core/src/scene/core/environment.ts\`), on the diffuse lobe:
+ *  what an ambient, a sky over a ground or a probe gives a surface, never shadowed. */
+fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{
+ let e=directLights.environment;
+ let E=${irradianceShader((k) => `e[${k}].rgb`, 'N')};
+ return rgb*(1.0-metal)*max(E,vec3f(0.0))*ao*${INVERSE_PI};
+}
+fn pixelTile(pixel:vec2f)->vec2u{return vec2u(u32(pixel.x)/TILE_SIZE,u32(pixel.y)/TILE_SIZE);}
+${narrow ? NARROW_SLICE_WGSL : WIDE_SLICE_WGSL}
 fn tileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,tile:vec2u,tilesX:u32,countSlot:u32,firstSlot:u32)->vec3f{
  return sliceLighting(rgb,metal,rough,N,V,P,ao,tileSlice((tile.y*tilesX+tile.x)*TILE_STRIDE,countSlot,firstSlot));
 }`;
@@ -100,9 +124,13 @@ fn tileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,til
  * accumulates — and zero for every other: a still image, which converges to the exact sum,
  * and an image that does not accumulate, which is never noisy. At zero the loop is the one
  * over every light of the tile, character for character.
+ *
+ * `narrow` is the resolve of a scene of at most `TILE_LIGHTS` lights (#849): its light array is
+ * that long and its slice loop has no branch (`NARROW_SLICE_WGSL`), as the narrow tile pass
+ * writes (`../tiles/shader.ts`).
  */
-export const DIRECT_LIGHTING_WGSL = `
-${lightingBase(SUN_FAR_PROXY_BINDING, CONTRACT_SHADOW_BINDINGS.data, CONTRACT_SHADOW_BINDINGS.requests, CONTRACT_SHADOW_BINDINGS.transmittance)}
+export const directLightingWgsl = (narrow = false) => `
+${lightingBase(SUN_FAR_PROXY_BINDING, CONTRACT_SHADOW_BINDINGS.data, CONTRACT_SHADOW_BINDINGS.requests, CONTRACT_SHADOW_BINDINGS.transmittance, narrow)}
 ${DIRECT_LIGHT_SAMPLING_WGSL}
 /** Contribution of the contract lights to the pixel, tile by tile and light by light. */
 fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f)->vec3f{
@@ -115,6 +143,7 @@ fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
  if(rank==0u){return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE);}
  return sampledTileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,rank,pixel);
 }`;
+export const DIRECT_LIGHTING_WGSL = directLightingWgsl();
 
 /**
  * Declared lights that light a blend surface, taken from the **blend slice** of its tile

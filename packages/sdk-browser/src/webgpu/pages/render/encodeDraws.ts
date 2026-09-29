@@ -1,3 +1,5 @@
+import { wantsReflections } from '../../../reflections/gpu.ts';
+import { requestFrameTargets } from '../prepare/targetGrant.ts';
 import { selectCpuCasters, writeCpuCasters } from '../../shadow/cpuCasters.ts';
 import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts';
 import { projectedPageError } from '../../../page/selection/selection.ts';
@@ -22,10 +24,12 @@ import { refreshDrawItemWords } from '../../visibility/itemWords.ts';
 import { visLayerTop } from '../../visibility/uniforms.ts';
 import { uploadClusterSpheres, uploadRowMobility } from '../../shadow/bounds.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { displayApart } from '../state/renderScale.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
 
 /** The row table spans every row a page can claim — the visibility rows, then the blended
- *  casters' (`../../row/blendCasters.ts`) —, so it is allocated once and never resized. */
+ *  casters' (`../../row/blendCasters.ts`) —, so it is allocated once and never resized; the layout
+ *  bounds those rows to one binding of the device (`../../row/tableRows.ts`). */
 export function ensurePageTable(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { vis } = rt,
     { rows } = rt.layout;
@@ -61,7 +65,7 @@ export function followDirtyRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
 /** Uploads the rows whose bytes changed, run by run, and nothing when none did. */
 export function uploadDirtyRows(rt: WebgpuPagesRuntime) {
   const { rows } = rt.layout;
-  rt.timing.encodeCounts.lignesTeleversees = 0;
+  rt.timing.encodeCounts.rowsUploaded = 0;
   if (rows.dirtyTo < rows.dirtyFrom || !rt.vis.pageTable || !rows.pageTableFloats) return;
   forEachDirtyRun(rows.dirtyMarks, rows.dirtyFrom, rows.dirtyTo, rt, uploadRun);
   rows.clearDirty();
@@ -76,7 +80,7 @@ function uploadRun(rt: WebgpuPagesRuntime, from: number, to: number) {
     floats.byteOffset + from * PAGE_INFO_STRIDE,
     (to - from + 1) * PAGE_INFO_STRIDE,
   );
-  rt.timing.encodeCounts.lignesTeleversees += to - from + 1;
+  rt.timing.encodeCounts.rowsUploaded += to - from + 1;
 }
 
 /** Encodes and submits one image of the drawn cut; returns the triangles it submitted. */
@@ -114,6 +118,11 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
     rt.services.syncRows(!run.textureConverging);
     run.rowsSyncedFrame = run.frame;
   }
+  if (gpu.reflection && gpu.reflection.active !== wantsReflections(rt)) {
+    abandonFrameEncoder(rt);
+    void requestFrameTargets(rt, device);
+    return 0;
+  }
   if (run.diagnostic === 'screen-error' && rows.pageTableFloats) {
     const rowWords = PAGE_INFO_STRIDE / 4;
     for (let row = 0; row < rows.packedCount; row++) {
@@ -140,6 +149,13 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
       run.gpuDrawCalls = 0;
       if (context.gpuCanvas || capture.capturing || run.gpuFrameActive) throw error;
     }
+  }
+  // The fallback draws into the colour target: targets drawn below the display are remade at its
+  // size first, never presenting a display colour this image did not write.
+  if (displayApart(gpu)) {
+    abandonFrameEncoder(rt);
+    void requestFrameTargets(rt, device);
+    return 0;
   }
   if (!gpu.pipelineBack) return 0;
   followDirtyRows(rt, device);

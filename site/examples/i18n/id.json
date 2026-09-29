@@ -1263,6 +1263,25 @@
       "off": "mati"
     }
   },
+  "page-materials": {
+    "banner": "Seret untuk menjelajahi aula. Lihat, ubah, campur, atau buat material.",
+    "controls": {
+      "set": "Ubah warna",
+      "switchToBlend": "Beralih ke campuran",
+      "createAndAssign": "Buat dan terapkan"
+    },
+    "readouts": {
+      "selected material": "Material terpilih",
+      "materials": "Material",
+      "sourceMaterials": "Material asli",
+      "last action": "Tindakan terakhir"
+    },
+    "words": {
+      "imported": "{count} diimpor",
+      "applied": "Diterapkan",
+      "ready": "Siap"
+    }
+  },
   "lights-from-the-scene-file": {
     "banner": "Geser untuk melihat sekeliling. Lampu-lampu ini datang dari berkas model.",
     "controls": {
@@ -1392,6 +1411,7 @@
     "banner": "Geser untuk berkeliling. Ganti tampilan untuk melihat apa yang disimpan perender.",
     "controls": {
       "see": "Lihat",
+      "glass": "Kaca",
       "spin": "Putar"
     },
     "choices": {
@@ -1746,7 +1766,8 @@
       "night": "Malam",
       "bounce": "Pantulan",
       "sun": "Matahari",
-      "lamp": "Lampu"
+      "lamp": "Lampu",
+      "spin": "Putar"
     },
     "words": {
       "credit": "Model lampu jalan oleh W. Sitters, CC BY 3.0 — lihat assets/examples/CREDITS.md"

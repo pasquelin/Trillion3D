@@ -20,6 +20,7 @@ import {
   FLAG_HAS_ORM,
   FLAG_HAS_NORMAL_MAP,
   FLAG_SAMPLED,
+  FLAG_FOG_FREE,
   type VisMaterial,
 } from '../../visibility/buffer.ts';
 
@@ -129,6 +130,7 @@ export function rowMaterial(
     emissive = layerSlot(mapLayer, mat.emissiveMap);
   let flags = 0;
   if (mat.lit) flags |= FLAG_LIT;
+  if (mat.fog === false) flags |= FLAG_FOG_FREE;
   if (mat.doubleSided) flags |= FLAG_DOUBLE;
   if (geo?.hasUv) flags |= FLAG_HAS_UV;
   if (map) flags |= FLAG_HAS_MAP;

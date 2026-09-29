@@ -5,6 +5,8 @@ import { prepareExplorerWebglSurface } from '../../../packages/sdk-browser/src/w
 import { baseCapabilities } from '../../../bench/witnesses/capabilities.ts';
 import type { HostDrawCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
 import { IDENTITY_MATRIX4 } from '../../../packages/sdk-core/src/index.ts';
+import { strictHearer } from './webglClusterPixels.ts';
+import { keptClusterScene } from '../../../packages/sdk-browser/src/webgl/cluster/sceneDraw.ts';
 
 const readPixel = (gl: WebGL2RenderingContext) => {
   const value = new Uint8Array(4);
@@ -77,7 +79,7 @@ export async function heldRestore() {
     camera = G.perspectiveCamera(),
     scene = new G.Scene(),
     fixture = texturedTriangle(),
-    owner = new WebglClusterOwner(gl);
+    owner = new WebglClusterOwner(gl, strictHearer);
   let draws = 0;
   const backend = {
     id: 'restore',
@@ -91,7 +93,7 @@ export async function heldRestore() {
     dispose: () => {},
     drawHostGeometry: (drawCamera: HostDrawCamera) => {
       draws++;
-      owner.draw([fixture.mesh], scene, drawCamera, false, true);
+      owner.draw([fixture.mesh], keptClusterScene(scene), drawCamera, false, true);
     },
   };
   paint(fixture.image, 'red');

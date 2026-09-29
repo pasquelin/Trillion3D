@@ -36,13 +36,8 @@ function created(poolSide: number) {
     { createView: () => d, destroy() {}, depthOrArrayLayers: 1 }
   );
   const made = shadowTransmittanceDraws(device.target, {} as never, [{}, {}] as never).made();
-  const layer = createShadowTransmittance(
-    device.target,
-    made,
-    [{}] as never,
-    poolSide,
-    encoder.target,
-  );
+  const layer = createShadowTransmittance(device.target, made, [{}] as never, poolSide);
+  layer.clear(encoder.target);
   const of = (name: string) => device.calls.filter(([n]) => n === name).map(([, [d]]) => d);
   return { layer, of, passes: encoder.calls.map(([, [d]]) => d as GPURenderPassDescriptor) };
 }

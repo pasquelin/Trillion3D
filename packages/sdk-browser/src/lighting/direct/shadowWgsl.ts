@@ -2,6 +2,8 @@ import { LIGHT_SETTINGS, MAX_SHADOW_SLICES, POINT_FACES } from '../../../../sdk-
 import {
   LAMP_MIPS,
   PAGE_INDEX_MASK,
+  PAGE_RANGE_MASK,
+  PAGE_RANGE_SHIFT,
   PAGE_VALID,
   SHADOW_PAGE,
   SUN_LEVELS,
@@ -44,9 +46,9 @@ const poissonWgsl = (name: string, scale: number) =>
 
 /**
  * The shadow buffer as the GPU reads it: every slice's record (`SHADOW_RECORD_FLOATS`) — lamp
- * faces, the sun's frame, the window origin of each clipmap slot two by two, then the header —,
- * then the page table, one word per virtual page. One binding for both: the blend stage has no
- * storage binding to spare.
+ * faces or sun depth ranges, the sun's frame, the window origin of each clipmap slot two by two,
+ * then the header —, then the page table, one word per virtual page. One binding for both: the
+ * blend stage has no storage binding to spare.
  */
 const SHADOW_DATA_WGSL = `struct ShadowRecord{faces:array<mat4x4f,${POINT_FACES}>,frame:array<vec4f,3>,origins:array<vec4i,${SUN_LEVELS / 2}>,info:vec4f,}
 struct ShadowData{records:array<ShadowRecord,${MAX_SHADOW_SLICES}>,table:array<u32>,}`;
@@ -85,6 +87,8 @@ const SHADOW_SUBTEXELS:f32=${SHADOW_SUBTEXELS}.0;
 const SHADOW_SUBTEXEL:f32=1.0/SHADOW_SUBTEXELS;
 const PAGE_VALID:u32=${PAGE_VALID}u;
 const PAGE_INDEX_MASK:u32=${PAGE_INDEX_MASK}u;
+const PAGE_RANGE_SHIFT:u32=${PAGE_RANGE_SHIFT}u;
+const PAGE_RANGE_MASK:u32=${PAGE_RANGE_MASK}u;
 const LAMP_MIP_OFFSET:array<u32,${LAMP_MIPS}>=array<u32,${LAMP_MIPS}>(${Array.from({ length: LAMP_MIPS }, (_, mip) => `${lampMipOffset(mip)}u`).join(',')});
 ${poissonWgsl('POISSON', 1)}
 ${poissonWgsl('POISSON_STEPS', SHADOW_SUBTEXELS)}
@@ -118,12 +122,6 @@ fn shadowPageWord(m:ShadowMap,p:vec2i)->u32{
 }
 ${SHADOW_SAMPLE_WGSL}
 ${shadowThroughWgsl(transmittanceBinding)}
-/** Offset of the neighbour page \`p\` and 1 when it is readable; else the home page's and 0. */
-fn shadowNeighbour(m:ShadowMap,p:vec2i,home:vec3f)->vec4f{
- let word=shadowPageWord(m,p);
- if(word==0u){return vec4f(home,0.0);}
- return vec4f(shadowOffset(word,p),1.0);
-}
 /**
  * Sixteen taps a texel apart around \`t\`; a lamp face clamps them at its edge (\`side\` > 0).
  * Every tap's bilinear footprint lies within 1.5 texels of \`t\`, so the filter reaches at most
@@ -136,11 +134,19 @@ fn shadowNeighbour(m:ShadowMap,p:vec2i,home:vec3f)->vec4f{
  * comparison in that page, clamped to its last texel centre on that axis, the other axis
  * still filtered bilinearly. A tap is thus two comparisons beside one edge, four at a corner,
  * which the pixel decides once for all its taps. A neighbour not readable is read at the home page's nearest texel.
+ * Without \`taps\` (\`declaredLight\`: no light reaches the point) it is zero, its pages still asked for.
  */
-fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32)->f32{
+fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32,taps:bool)->f32{
  let first=vec2f(home)*SHADOW_PAGE;
  let edge=(t-1.5<first)|(t+1.5>=first+SHADOW_PAGE);
  let offset=shadowOffset(homeWord,home);
+ let up=t-first>=vec2f(0.5*SHADOW_PAGE);
+ let step=select(vec2i(-1),vec2i(1),up);
+ var nx=vec4f(offset,0.0);var ny=nx;var nd=nx;
+ if(edge.x){nx=shadowNeighbour(m,home+vec2i(step.x,0),offset,homeWord);}
+ if(edge.y){ny=shadowNeighbour(m,home+vec2i(0,step.y),offset,homeWord);}
+ if(all(edge)){nd=shadowNeighbour(m,home+step,offset,homeWord);}
+ if(!taps){return 0.0;}
  var lit=0.0;
  if(!any(edge)){
   // \`shadowCompare\` per tap, in steps: \`(t + tap)·256\` is \`t·256 + tap·256\` to the bit.
@@ -150,14 +156,8 @@ fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32)
   }
   return shadowThroughLit(offset,first,t,reference,lit/f32(PCF_TAPS));
  }
- let up=t-first>=vec2f(0.5*SHADOW_PAGE);
- let step=select(vec2i(-1),vec2i(1),up);
  let toward=select(vec2f(-1.0),vec2f(1.0),up);
  let seam=first+select(vec2f(0.0),vec2f(SHADOW_PAGE),up);
- var nx=vec4f(offset,0.0);var ny=nx;var nd=nx;
- if(edge.x){nx=shadowNeighbour(m,home+vec2i(step.x,0),offset);}
- if(edge.y){ny=shadowNeighbour(m,home+vec2i(0,step.y),offset);}
- if(all(edge)){nd=shadowNeighbour(m,home+step,offset);}
  for(var tap=0u;tap<PCF_TAPS;tap++){
   var at=t+POISSON[tap];
   if(side>0.0){at=clamp(at,vec2f(0.5),vec2f(side-0.5));}

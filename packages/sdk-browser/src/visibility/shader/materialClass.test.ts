@@ -147,7 +147,7 @@ test('one production class also compiles a direct surface pipeline without mater
     fakeDevice().device,
     {} as GPUShaderModule,
     [5],
-    'resolution-plate',
+    'resolve-flat',
   );
   assert.equal(diagnostic.singleShadePipelines.size, 0);
 });

@@ -1,5 +1,5 @@
 /**
- * GPU cut of a cluster DAG (`errorModel: dag-group-qem-v2`).
+ * GPU cut of a cluster DAG (`errorModel: dag-group-qem-v3`).
  *
  * Every cluster carries its own screen-error band, so no cluster depends on another. One thread per
  * candidate cluster evaluates `parentErrorPx > pixelError >= lodErrorPx` with the same projection as
@@ -15,6 +15,7 @@ import type { PackedDag } from './types.ts';
 import { selectionRepeat, type DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts';
 import { createDagResources } from './resources.ts';
 import { createDagRuntime } from './runtime.ts';
+import { dagDeviceRefusal } from './deviceRefusal.ts';
 import { createDagLightCut, type DagLightCut } from './lightCut.ts';
 export { packDagSelection, packedWorldsToRenderOrigin } from './pack.ts';
 export { DAG_SELECTION_SHADER } from './shader/shader.ts';
@@ -39,16 +40,29 @@ export function lightCutOf(selection: GpuSelection) {
 export async function createGpuDagSelection(
   device: GPUDevice,
   packed: PackedDag,
-  options: { residentCut?: boolean; diagnosticGpuVariant?: DiagnosticGpuVariant } = {},
+  options: {
+    residentCut?: boolean;
+    diagnosticGpuVariant?: DiagnosticGpuVariant;
+    /** Told why a scene that has a cut gets no GPU cut: the host says so (`gpuSelectionFallback`). */
+    onRefused?: (reason: string, details?: Record<string, unknown>) => void;
+  } = {},
 ): Promise<GpuSelection | undefined> {
   if (typeof device.createComputePipeline !== 'function' || packed.pageCount < 1) return undefined;
+  const refusal = dagDeviceRefusal(device.limits, packed);
+  if (refusal) {
+    options.onRefused?.('camera cut past the device limits', refusal);
+    return undefined;
+  }
   const resources = await createDagResources(
     device,
     packed,
     !!options.residentCut,
     selectionRepeat(options.diagnosticGpuVariant),
   );
-  if (!resources) return undefined;
+  if (!resources) {
+    options.onRefused?.('camera cut creation failed');
+    return undefined;
+  }
   const selection = createDagRuntime(resources);
   lightCuts.set(selection, { resources, cut: undefined });
   return selection;

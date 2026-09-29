@@ -20,10 +20,11 @@
 //!
 //! Failed decode — format outside image driver registry, corrupt PNG, missing
 //! image — is named report entry and zero levels: compilation never fails
-//! for texture, engine falls back to default white.
+//! for an unreadable texture, engine falls back to default white. Insufficient
+//! baking memory instead refuses the job before decoding; it never drops an image.
 use super::*;
-use std::sync::atomic::AtomicUsize;
 
+mod admission;
 pub(crate) mod bake;
 mod bake_write;
 pub(crate) mod blocks;
@@ -50,8 +51,10 @@ pub use levels::*;
 /// no increment: the `Coverage` chain (#42) is one, and so is each cutoff's
 /// coverage-preserving chain (#44), `srgb-coverage-<C>`. Version 5 counts that
 /// chain's coverage on the filtered cut (#43): its bytes move under the same
-/// names, and level files are written only when missing.
-pub const TEXTURE_PREVIEW_VERSION: u32 = 5;
+/// names, and level files are written only when missing. Version 6 lays a block
+/// level file out in tile records, one HTTP Range each (#962, `tile_records`);
+/// the manifest's `textures.version` names it for the engine.
+pub const TEXTURE_PREVIEW_VERSION: u32 = 6;
 pub use bake_write::{level_path, texture_version_dir, LEVEL_WRITE_FAILED, LOSSLESS, TEXTURE_DIR};
 pub use blocks::{BlockFormat, Layout};
 pub use reduce::AtlasKind;
@@ -75,6 +78,8 @@ const PREVIEW_MAX_ALLOC: u64 = 512 * 1024 * 1024;
 /// `source.gltf`, so origin names index engine sees.
 pub(super) struct PreviewInputs<'a> {
     pub o: &'a Options,
+    /// Source and geometry reservation already admitted by the compiler plan.
+    pub reserved_bytes: usize,
     pub g: &'a Value,
     pub bin: &'a [u8],
     /// Resolution root of intermediate scene images, named by `plugins::scene`:
@@ -92,7 +97,7 @@ pub(super) struct PreviewInputs<'a> {
 /// once regardless of citing textures. Returns entries sorted by texture then
 /// atlas, candidate cutout alpha shape — measured in this decode,
 /// never second —, and step report. Images processed in parallel on
-/// caller pool, each within decode allocation limit.
+/// caller pool, in waves admitted by their image working sets and retained tails.
 pub(super) fn stage_texture_previews(
     inputs: &PreviewInputs<'_>,
     progress: &(impl Fn(Value) + Sync),
@@ -136,18 +141,7 @@ pub(super) fn stage_texture_previews(
             Err(reason) => *skipped.entry(reason).or_default() += 1,
         }
     }
-    let done = AtomicUsize::new(0);
-    let total = by_image.len();
-    let results: Vec<_> = by_image
-        .par_iter()
-        .map(|(&image_index, readers)| {
-            check(inputs.o)?;
-            let outcome = bake::one_image(inputs, images, image_index, readers);
-            let completed = done.fetch_add(1, Ordering::Relaxed) + 1;
-            progress(json!({"phase":"textures","completed":completed,"total":total}));
-            Ok(outcome)
-        })
-        .collect::<Result<Vec<_>>>()?;
+    let results = admission::bake(inputs, images, &by_image, progress)?;
     let mut previews = Vec::new();
     let mut shapes = BTreeMap::new();
     let mut gates = Vec::new();

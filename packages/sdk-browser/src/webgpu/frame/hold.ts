@@ -150,7 +150,7 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
   if ((answered && !awaited) || rt.capture.capturing) {
     // Still frame: nothing it depends on has moved and nothing is in flight. That is the frame
     // input of temporal accumulation, which restarts there in a fixed phase and converges over a
-    // full cycle of those frames before one of them can be held (`TAA_STILL_FRAMES`).
+    // full cycle of those frames before one of them can be held (`taaStillFrames`).
     const quiet = run.gate.held() && unsettledMask(rt) === 0;
     // Guides or an effect chain the page changed, or a chain the last image lacked while its
     // programs compiled, are drawn by a full image; the accumulation stays still for it.
@@ -168,9 +168,10 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const start = performance.now();
   let presented = false;
   // Nothing drawn yet, or targets not granted: nothing is shown.
-  if (gpu.presenter && gpu.colorTexture && run.imageRevision > 0 && !awaited) {
+  if (gpu.presenter && gpu.displayTexture && run.imageRevision > 0 && !awaited) {
     const encoder = device.createCommandEncoder({ label: 'Trillion3D held frame' });
-    gpu.presenter.present(encoder, gpu.colorTexture, gpu.targetSize[0], gpu.targetSize[1]);
+    const [width, height] = gpu.displaySize;
+    gpu.presenter.present(encoder, gpu.displayTexture, width, height, rt.views.active.rect);
     device.queue.submit([encoder.finish()]);
     run.imageRevision++;
     presented = true;
@@ -184,7 +185,7 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
  *  ordinary frames remain two consecutive frames in its eyes. */
 export function keepWebgpuFrame(rt: WebgpuPagesRuntime) {
   const { gate, textureConverging } = rt.run;
-  if (textureConverging) return;
+  if (textureConverging || rt.feedbackAB?.force) return;
   sampleWebgpuFrame(rt, gate.hold.sample);
   gate.hold.keep(gate.revisions);
 }

@@ -5,8 +5,10 @@
 
 use crate::{CompilerError, Result};
 /// The grid rules, shared with the run-time cut (`trillion3d_page_codec::bits::grid`).
-use trillion3d_page_codec::bits::grid::{finest_exponent, primitive_grid_exponent};
+use trillion3d_page_codec::bits::grid::{primitive_grid_exponent, uv_grid_exponent};
 use trillion3d_page_codec::bits::{bits_for, dequant, oct_decode, pow2, Quant, MAX_BITS};
+#[cfg(test)]
+mod screen;
 pub mod tile;
 
 /// The grid of a primitive from its positions and the errors its DAG published; a zero error is
@@ -27,7 +29,7 @@ pub fn primitive_exponent(
 }
 
 /// Texture coordinates sit on a fixed grid of 2^-14: a quarter of a texel on a 4096 map.
-pub const UV_EXPONENT: i32 = -14;
+pub use trillion3d_page_codec::bits::grid::UV_EXPONENT;
 
 /// The texture grid of a primitive: the format's, or for a `blended` one the finest grid the
 /// widest span of its texture coordinates fits, never coarser than the format's (#875).
@@ -45,10 +47,7 @@ pub fn primitive_uv_exponent(carried: &[&crate::geometry_page::Attribute], blend
             span = span.max(f64::from(high[axis]) - f64::from(low[axis]));
         }
     }
-    match span > 0.0 {
-        true => finest_exponent(span).min(UV_EXPONENT),
-        false => UV_EXPONENT,
-    }
+    uv_grid_exponent(span, true)
 }
 /// Colours sit on a grid of 2^-8: 0 and 1 exact, a constant channel free.
 pub const COLOR_EXPONENT: i32 = -8;

@@ -39,6 +39,8 @@ export function createShadowRegionList(poolSide: number) {
     },
     pageOf: (region: number) => page[region],
     startOf: (region: number) => start[region],
+    /** The region draws moving casters alone, over its page restored from the static layer. */
+    moving: (region: number) => start[region] === REGION_RESTORE,
     /** Viewport of a region: its physical page, one square and layer in pool and static layer. */
     x: (region: number) => origin(region).x,
     y: (region: number) => origin(region).y,

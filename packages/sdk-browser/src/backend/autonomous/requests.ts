@@ -19,14 +19,14 @@ import type { HeldResidency } from '../../page/cut/held.ts';
 export function createAutonomousRequests(
   roots: readonly ClusterRoot<PageRec>[],
   revision: () => number,
-  /** Where the requests are written, rewritten at each `of`. */
-  requested: PageRec[],
   /** The cut's readiness, whose moves each layout routes again (`../../page/cut/held.ts`). */
   held?: HeldResidency,
 ) {
   let closure: GroupClosure | undefined,
     laidOut = -1,
-    placements = -1;
+    placements = -1,
+    /** Where the requests are written: the drawn view's, rewritten at each `of`. */
+    requested: PageRec[] = [];
   const seen = new Set<string>();
   const layOut = () => {
     let packed = 0;
@@ -59,9 +59,10 @@ export function createAutonomousRequests(
       return closure?.hostBytes ?? 0;
     },
     follow,
-    /** Writes the pages `wanted` closes over into `requested`, one per URL, coarsest first. */
-    of(wanted: readonly PageRec[]) {
+    /** Writes the pages `wanted` closes over into `into`, one per URL, coarsest first. */
+    of(wanted: readonly PageRec[], into: PageRec[]) {
       follow();
+      requested = into;
       requested.length = 0;
       seen.clear();
       closure!.closeOverRecords(wanted, visit);

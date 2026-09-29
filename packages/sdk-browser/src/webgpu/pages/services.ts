@@ -31,8 +31,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     { tracking, bootstrap, bootstrapUrls, bootstrapKey } = rt.setup,
     { sourceBytes, byUrl, geometryUrls } = rt.setup;
   const mirror = createWebgpuResidencyMirror({
-    pageIndicesByUrl: rows.pageIndicesByUrl,
-    residentOffsetWords: rows.residentOffsetWords,
+    table: rows,
     tracking,
     engineDiagnostic: diag.engineDiagnostic,
     getCache: () => gpu.cache,
@@ -69,22 +68,23 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
       run.gate.resourcesChanged(),
       rt.lights.residence.noteRow(rows.pageIndexOf(rec) ?? -1, packedPages.length)
     ),
-    // A blended caster's opacity moved: the shadow pages under it are drawn again.
-    (rec) => noteResidenceChange(rt.lights, rec),
+    // A blended caster's opacity moved: the shadow pages under it redraw their moving casters, as
+    // the static layer never holds a blended caster (#993).
+    (rec) => noteResidenceChange(rt.lights, rec, true),
     context.frameBudget,
   );
   /**
    * The bytes one pool slot holds for a cluster: its quantized geometry page, read from the
    * host's page reader at the address the manifest gives it, or — for a cache that carries no
    * geometry page — the index page the arrival already left in memory. The slot is written from
-   * one of the two, never from both.
+   * one of the two, never from both, at the admission's `priority`.
    */
-  const read = async (key: string) => {
+  const read = async (key: string, _signal?: AbortSignal, priority?: number) => {
     const geometryUrl = geometryUrls.get(key);
     if (geometryUrl === undefined)
       return sourceBytes.get(key) ?? Promise.reject(new Error('Missing page'));
     if (!context.readGeometryPage) throw new Error('Missing geometry page reader');
-    const bytes = await context.readGeometryPage(geometryUrl);
+    const bytes = await context.readGeometryPage(geometryUrl, undefined, priority);
     // The pool uploads these words as they are and the shaders decode them in place, so nothing
     // downstream would ever notice a forged or truncated page. The format's own gate is read
     // here, once per admission: magic, version, grids, and counts that measure exactly this many
