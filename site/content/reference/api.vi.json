@@ -5032,10 +5032,6 @@
   "emptyIrradiance": {
     "summary": "Một độ rọi không có gì trong đó, sẵn sàng nhận các nguồn."
   },
-  "encodeManifestBinary": {
-    "summary": "Tách một tệp kê khai thành JSON nhỏ mà một trình đọc phân tích cú pháp và các cột mà nó ánh xạ.",
-    "description": "Bộ mô tả được trả về mang theo một `sha256` trống: chỉ bên gọi, người giữ các byte đã hoàn thành, mới có thể băm chúng."
-  },
   "enginePose": {
     "summary": "Tư thế thế giới mà các dấu vết (trace) và chẩn đoán công bố, được đọc từ camera của bộ máy: mắt là phép tịnh tiến của `world`, và phép phân tách cốt lõi cho ra các phần của `Matrix4.decompose`, trong đó `getWorldQuaternion` chỉ là lệnh gọi."
   },
