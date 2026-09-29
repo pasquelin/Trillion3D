@@ -90,8 +90,13 @@ fn keepCaster(face:u32,row:u32,capacity:u32){
 }
 `;
 
+/** Invocations of a workgroup of the region cull, one caster row each. */
+export const SHADOW_CULL_GROUP = 64;
+
+/** `shadowCullScatter` over every row of the frame (`identity`): the `sourceBase` first rows, in
+ *  order, whatever the lists — the GPU's own draws, culled in light space alone (`freshPass.ts`). */
 export const SHADOW_CULL_SHADER = `${CULL_COMMON}
-${wordStruct('Uni', ['firstFace:u32', 'faces:u32', 'sourceBase:u32', 'indirectBase:u32', 'commands:u32', 'capacity:u32'], CULL_UNIFORM_WORDS)}
+${wordStruct('Uni', ['firstFace:u32', 'faces:u32', 'sourceBase:u32', 'indirectBase:u32', 'commands:u32', 'capacity:u32', 'identity:u32'], CULL_UNIFORM_WORDS)}
 @group(0) @binding(1) var<storage, read> source:array<u32>;
 @group(0) @binding(2) var<storage, read> sourceIndirect:array<u32>;
 @group(0) @binding(5) var<uniform> uni:Uni;
@@ -99,16 +104,19 @@ ${wordStruct('Uni', ['firstFace:u32', 'faces:u32', 'sourceBase:u32', 'indirectBa
 
 /** Instances of the face's list: the sum of its commands, contiguous from \`sourceBase\`. */
 fn listed()->u32{
+ if(uni.identity!=0u){return min(uni.sourceBase,uni.capacity);}
  var sum=0u;
  for(var command=0u;command<uni.commands;command++){sum=sum+sourceIndirect[uni.indirectBase+command*${DRAW_INDIRECT_WORDS}u+1u];}
  return min(sum,uni.capacity);
 }
 
-@compute @workgroup_size(64)
+@compute @workgroup_size(${SHADOW_CULL_GROUP})
 fn shadowCullScatter(@builtin(global_invocation_id) id:vec3u){
  let index=id.x;
  if(id.y>=uni.faces||index>=listed()){return;}
- keepCaster(uni.firstFace+id.y,source[uni.sourceBase+index],uni.capacity);
+ var row=index;
+ if(uni.identity==0u){row=source[uni.sourceBase+index];}
+ keepCaster(uni.firstFace+id.y,row,uni.capacity);
 }
 `;
 
