@@ -31,6 +31,7 @@ export function prepareWebgpuBlend(
   blendState: BlendState,
   scene: BlendHostScene,
 ) {
+  const capacities: Parameters<typeof placementDeformation>[2] = new Map();
   let transmissive = 0;
   for (const copy of blendCopies) {
     // A transmissive surface goes through the same prepare as the other blends: it differs only
@@ -41,8 +42,8 @@ export function prepareWebgpuBlend(
       idx = copy.geometry.getIndex();
     if (!attr || !idx) continue;
     const paged = !!copy.userData.pagedBlend;
-    const source = placementDeformation(copy.placement, copy.userData.sourceMesh ?? {});
-    const pooled = !paged && !!deformedOf(source.mesh, copy, copy.matrix, source.models);
+    const source = placementDeformation(copy.placement, copy.userData.sourceMesh ?? {}, capacities);
+    const pooled = !paged && !!deformedOf(source.mesh, copy, copy.matrix, source.capacity);
     // A paged primitive whose clusters carry quantized geometry pages reads every attribute from
     // them, in place in the page cache (`../../visibility/shader/pageGeometryWgsl.ts`): it owns no
     // buffer at all. One without reads the concatenated source geometry, and keeps its positions

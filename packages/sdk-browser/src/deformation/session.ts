@@ -17,12 +17,13 @@ export function createSessionDeformation(
   worlds: Pick<HostWorldPlacements, 'of'>,
   copies: readonly BlendCopy[] = [],
 ) {
+  const capacities: Parameters<typeof placementDeformation>[2] = new Map();
   const frame = createDeformationFrame([
     ...roots.map((root) => {
       const source = root.pages[0]?.sourceMesh as DeformedMesh | undefined;
       if (!source) return null;
-      const { mesh, models } = placementDeformation(root.placement, source);
-      const deformed = deformedOf(mesh, root, root.world, models);
+      const { mesh, capacity } = placementDeformation(root.placement, source, capacities);
+      const deformed = deformedOf(mesh, root, root.world, capacity);
       // Imported bones live in the indexed host tree; page-authored bones use the world's own tree.
       if (deformed && mesh.skeleton && !root.placement?.rows.sources)
         deformed.boneWorlds = mesh.skeleton.bones.map(worlds.of);
@@ -31,8 +32,8 @@ export function createSessionDeformation(
     ...copies.map((copy) => {
       const source = copy.userData.sourceMesh;
       if (!source) return null;
-      const { mesh, models } = placementDeformation(copy.placement, source);
-      const deformed = deformedOf(mesh, copy, copy.matrix, models);
+      const { mesh, capacity } = placementDeformation(copy.placement, source, capacities);
+      const deformed = deformedOf(mesh, copy, copy.matrix, capacity);
       if (deformed && mesh.skeleton && !copy.placement?.rows.sources)
         deformed.boneWorlds = mesh.skeleton.bones.map(worlds.of);
       return deformed;
@@ -54,9 +55,7 @@ export function createSessionDeformation(
       return frame.reach[byWorld.get(world as ClusterRoot<PageRec>['world']) ?? -1] ?? 0;
     },
     /** Whether any root deforms. */
-    get any() {
-      return frame.bases.some((b) => b > 0);
-    },
+    any: frame.bases.some((b) => b > 0),
     /** Floats the float pool keeps after its vertices for the block. */
     floats: frame.block.length,
     /** The block lies from float `offset` of the pool. */
