@@ -1,5 +1,8 @@
 import type { GpuPageContext, ResidentPage } from './types.ts';
 
+/** A page's last 1-3 bytes, zero-padded to the word `writeBuffer` requires; it copies them at once. */
+const tail = new Uint8Array(4);
+
 /** A page leaves residency: the change log and the sample both say so, wherever the
  *  departure came from. The slot is not returned here — the caller knows what it does with it. */
 export function evictResident(
@@ -60,7 +63,7 @@ export function commitGpuPage(
   requestStarted: number,
 ): ResidentPage {
   const { state, free, resident, pins, slots, changeKeys, changeSlots } = context;
-  const { tail, device, buffer, pageBytes, reader } = context;
+  const { device, buffer, pageBytes, reader } = context;
   const { emit, now, report } = reader;
   state.bytesRead += bytes.byteLength;
   let slot = free.pop();
@@ -91,7 +94,7 @@ export function commitGpuPage(
   // and only its last 1-3 bytes, zero-padded to a word, through the four-byte `tail`.
   const size = bytes.byteLength,
     body = size & ~3,
-    padded = size + (size % 4 ? 4 - (size % 4) : 0);
+    padded = (size + 3) & ~3;
   if (body > 0)
     device.queue.writeBuffer(buffer, slot * pageBytes, bytes as Uint8Array<ArrayBuffer>, 0, body);
   if (padded !== body) {

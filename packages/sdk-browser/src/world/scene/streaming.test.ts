@@ -15,7 +15,8 @@ import { createFrameBudget } from '../../page/integration/frameBudget.ts';
 import { decodeGeometryPage } from '../../page/decode/geometryPage.ts';
 import { prepareSdkWasm } from '../../page/decode/geometryPageWasm.ts';
 import { sha256Hex } from '../../measurement/sha256Hex.ts';
-import { edgePages, pageGap, randomPage, seeded } from '../../page/decode/randomPages.fixture.ts';
+import { assertSamePage, edgePages, randomPage } from '../../page/decode/randomPages.fixture.ts';
+import { seeded } from '../../../../../site/examples/kit/random.ts';
 import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
 import type { RenderBackend } from '../../backend/types.ts';
 import type { ExplorerSession } from '../session/session.ts';
@@ -92,7 +93,7 @@ test('each world page is served as it lands, and the batch is develop batch (E0)
     assert.deepEqual([...geometry.keys()].sort(), wgpUrls(bodies).sort());
     for (const url of wgpUrls(bodies)) {
       const oracle = decodeGeometryPage(bodies.get(url)!.slice(), MAX);
-      assert.equal(pageGap(geometry.get(url)!, oracle), null, url);
+      assertSamePage(geometry.get(url)!, oracle, url);
     }
     assert.equal(streaming.arrivals.pending, 1, 'the index page is queued once');
     budget.open();
