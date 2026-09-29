@@ -102,7 +102,7 @@ test('counters: tested and kept account for all pages', () => {
   const back = quad(backMat, [-0.2, -0.2, -2], [0.2, 0.2, -2], 'back');
   const cam = cameraAt(),
     size: [number, number] = [32, 32];
-  const pyramid = occluderPyramid([front.page], cam, size);
+  const pyramid = occluderPyramid([front.page], cameraMoteur(cam), size);
   const counts = createHizCounts();
   const kept = countUnoccluded(
     [front.page, back.page],
@@ -129,7 +129,7 @@ test('counters: triangle counts reflect cluster rejection', () => {
   back.page.array = new Uint32Array(12);
   const cam = cameraAt(),
     size: [number, number] = [32, 32];
-  const pyramid = occluderPyramid([front.page], cam, size);
+  const pyramid = occluderPyramid([front.page], cameraMoteur(cam), size);
   const counts = createHizCounts();
   countUnoccluded(
     [front.page, back.page],
