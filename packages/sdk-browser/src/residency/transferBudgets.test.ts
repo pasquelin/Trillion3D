@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { poolTaking } from '../webgpu/residency/memoryBudgets.ts';
 import {
   DEFAULT_TEXTURE_TRANSFER_BYTES,
   DEFAULT_TEXTURE_UPLOAD_MS,
-  poolTaking,
   textureTransferBytesFor,
   textureUploadMsFor,
 } from './transferBudgets.ts';

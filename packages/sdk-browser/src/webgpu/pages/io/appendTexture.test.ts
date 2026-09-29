@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import * as G from '../../../host/graph/graph.fixture.ts';
 import { importHostTexture } from '../../../host/textureImport.ts';
 import type { HostTexture } from '../../../host/resources.ts';
+import type { WebgpuPagesBackend } from '../runtime.ts';
 import type { BackendDiagnostic } from '../../../backend/types.ts';
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
@@ -33,8 +34,13 @@ test('a texture appended after open joins the atlas, regrows its table and rebin
     await backend.prepare();
     backend.render(camera());
     const before = backend.metrics();
-    const slot = await backend.appendTexture(map, 'color');
-    assert.equal(await backend.appendTexture(map, 'color'), slot, 'held: the same slot');
+    assert.equal(typeof before.textureTilesResident, 'number');
+    const slot = await (backend as WebgpuPagesBackend).appendTexture(map, 'color');
+    assert.equal(
+      await (backend as WebgpuPagesBackend).appendTexture(map, 'color'),
+      slot,
+      'held: the same slot',
+    );
     const appended = diagnostics.filter(({ phase }) => phase === 'material-texture-appended');
     assert.equal(appended.length, 1);
     const { catalogue, pageTables, pool } = appended[0].context as {
@@ -59,7 +65,7 @@ test('a texture appended after open joins the atlas, regrows its table and rebin
     backend.render(camera());
     assert.equal(groups.length, 0, 'once');
     const after = backend.metrics();
-    assert.equal(after.textureTilesResident, before.textureTilesResident + 1, 'its tail pinned');
+    assert.equal(after.textureTilesResident, before.textureTilesResident! + 1, 'its tail pinned');
     assert.equal(after.texturePoolBytes, pool.bytes, 'a free place: the pool as it was');
     assert.equal(after.texturePoolBytes, before.texturePoolBytes);
     const failed = diagnostics.filter(({ phase }) => /fail|refus/.test(phase));
