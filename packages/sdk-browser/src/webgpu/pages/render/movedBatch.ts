@@ -75,17 +75,14 @@ export function finishMoves(rt: WebgpuPagesRuntime) {
   }
 }
 
-/** Root `rank` moved, at the pose it now reads: whether that was its first move — the static
- *  shadow layer leaves it out from then on (`../../shadow/mobility.ts`). */
+/** Root `rank` moved: whether it was its first move, the static shadow layer's to leave it out. */
 const promote = (rt: WebgpuPagesRuntime, rank: number) =>
   rt.lights.mobility.move(rank, rt.layout.selectionRoots[rank].world.elements, true) ===
   MOVE_PROMOTED;
 
-/** `moved`, a motion box, declared to the shadow scheduler: a root's first move changes the
- *  static layer, so the pages it crossed are staled whole; its moving casters alone after. */
-function declare(rt: WebgpuPagesRuntime, promoted: boolean) {
-  if (!boxIsEmpty(moved, 0)) rt.lights.plan.worldChanged(movedMin, movedMax, !promoted);
-}
+/** `moved` declared to the shadow scheduler: a root's first move stales the pages whole. */
+const declare = (rt: WebgpuPagesRuntime, promoted: boolean) =>
+  !boxIsEmpty(moved, 0) && rt.lights.plan.worldChanged(movedMin, movedMax, !promoted);
 
 function passMoves(rt: WebgpuPagesRuntime) {
   const { run, layout } = rt,
@@ -143,15 +140,9 @@ function passMoves(rt: WebgpuPagesRuntime) {
   }
 }
 
-/** One root's local box in the world, allocated once. */
 const local = new Float64Array(BOX_VALUES);
-
-/**
- * The shadow pages a dynamic geometry's rewrite touches, and none other (#489, #573): each root
- * that draws `attributes` moves — a moving caster from its first rewrite on, as a node that moves
- * —, and the world box of `box`, its moved vertices where they were and where they go, is
- * declared as a node's motion box is.
- */
+/** A dynamic geometry's rewrite, its moved vertices within `box`, declared as a node's move: each
+ *  root drawing `attributes` moves, and the world box of `box` stales its shadow pages (#573). */
 export function noteRewritten(rt: WebgpuPagesRuntime, attributes: object, box: Float64Array) {
   const roots = rt.layout.selectionRoots;
   let promoted = false;
