@@ -5,6 +5,7 @@ import { refreshSurface, surfaceFrontOnly, surfaceOf, surfaceSide } from './surf
 import { visBin } from '../webgpu/pages/prepare/pipelineFor.ts';
 import { BIN_BACK, BIN_NONE } from '../gpu/draw/draw.ts';
 import type { PageRec } from './selection/selection.ts';
+import { identityRoots } from './selection/placements.fixture.ts';
 
 test('one record per declaration, shared by every page and placement that wears it', () => {
   const material = G.standardSurface({ color: 0x336699, metalness: 0.25 });
@@ -91,11 +92,12 @@ test('a record this module did not build is returned untouched', () => {
 
 test('the face bin of a draw follows a side switched in place, so no face is culled for nothing', () => {
   const material = G.basicSurface({ side: G.FRONT_SIDE });
-  const rec = { material: surfaceOf(material), matrix: new G.Matrix4() } as unknown as PageRec;
-  assert.equal(visBin(rec), BIN_BACK, 'front-only: the back faces are culled');
+  const rec = { material: surfaceOf(material), placementIndex: 0 } as unknown as PageRec,
+    roots = identityRoots();
+  assert.equal(visBin(rec, roots), BIN_BACK, 'front-only: the back faces are culled');
   material.side = G.DOUBLE_SIDE;
   assert.equal(
-    visBin(rec),
+    visBin(rec, roots),
     BIN_NONE,
     'double-sided: nothing is culled, both faces reach the image',
   );

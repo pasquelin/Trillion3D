@@ -1,11 +1,13 @@
 use super::*;
 
-/// Clusters, kept groups, one tally per level, and the stalled groups with their level.
+/// Clusters, kept groups, one tally per level, the stalled groups with their level, and the arrays
+/// grown with every vertex a seam-locked solve placed (`Grown`).
 pub type DagBuild = (
     Vec<DagCluster>,
     Vec<DagGroup>,
     Vec<GroupTally>,
     Vec<DagStall>,
+    Option<Grown>,
 );
 
 /// Builds cluster DAG. `strategy` decides whether coarse levels exist: in
@@ -63,16 +65,17 @@ pub fn build_dag_tallied(
         });
     }
     // Welding is only used for reduction: nothing to weld for exact clusters or for a primitive fitting in a single cluster.
-    let (mut dag, mut groups, tallies, stalls) =
+    let (mut dag, mut groups, tallies, stalls, grown) =
         if strategy == DagStrategy::ExactClusters || dag.len() < 2 {
-            (dag, Vec::new(), Vec::new(), Vec::new())
+            (dag, Vec::new(), Vec::new(), Vec::new(), None)
         } else {
             super::levels::coarsen(positions, attributes, indices, dag, checkpoint)?
         };
     // A primitive's spheres are tightened once its DAG is built; the super-roots' below keep the
-    // spheres their roots were published at, which a parent's sphere must hold.
+    // spheres their roots were published at, which a parent's sphere must hold. Only level 0 is
+    // read from the positions: placed vertices lie above it.
     tight::tighten(&mut dag, &mut groups, positions);
-    Ok((dag, groups, tallies, stalls))
+    Ok((dag, groups, tallies, stalls, grown))
 }
 
 /// Continues the DAG above clusters that already exist: the root clusters of placed objects, in
@@ -105,7 +108,7 @@ pub fn build_dag_from_roots(
         })
         .collect();
     if dag.len() < 2 {
-        return Ok((dag, Vec::new(), Vec::new(), Vec::new()));
+        return Ok((dag, Vec::new(), Vec::new(), Vec::new(), None));
     }
     let attributes = DagAttributes::default();
     super::levels::coarsen(positions, attributes, &indices, dag, checkpoint)

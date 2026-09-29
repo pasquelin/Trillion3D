@@ -36,7 +36,7 @@ pub(super) fn srgb_table() -> &'static [f32; 256] {
     })
 }
 
-pub(super) fn linear_to_srgb(value: f32) -> u8 {
+pub(crate) fn linear_to_srgb(value: f32) -> u8 {
     let encoded = if value <= 0.0031308 {
         value * 12.92
     } else {

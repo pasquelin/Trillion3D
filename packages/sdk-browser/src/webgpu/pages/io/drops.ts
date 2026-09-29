@@ -132,6 +132,7 @@ export function dropVis(rt: WebgpuPagesRuntime) {
   vis.zeroFlags?.destroy();
   vis.textures?.destroy();
   vis.textures = undefined;
+  vis.vertexPool = undefined;
   vis.concatPos =
     vis.concatUv =
     vis.concatNrm =

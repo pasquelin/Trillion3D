@@ -59,11 +59,12 @@
   keeps one report, the latest, each image stored once.
 - **Image proof and timing on `develop`, by batch, after the merge** (AGENTS.md rule 2). Merged
   issues carry `to audit`, and `to measure` when their diff can move the frame cost. The acceptance
-  session proves the image (`audited`), the measurement session times (`measure ok`), each by batch
-  against `develop` before the oldest of them. A failure reopens the issue in 🔴, labelled
-  `audit ko` or `measure ko`, with the numbers in a comment; a defect no issue covers gets a new
-  one. Neither holds a merge. `main` moves only when no issue carries `to audit`, `to measure`,
-  `audit ko` or `measure ko`. A pull request carries the gates.
+  session times (`measure ok`) and proves the image (`audited`), by batch, on one pair of trees
+  against `develop` before the oldest of them: timings first, on a quiet machine, then the image.
+  A failure reopens the issue in 🔴, labelled `audit ko` or `measure ko`, with the numbers in a
+  comment; a defect no issue covers gets a new one. Neither holds a merge. `main` moves only when
+  no issue carries `to audit`, `to measure`, `audit ko` or `measure ko`. A pull request carries the
+  gates.
 - **A campaign's outputs are deleted once published.** A cook, a bench or a proof writes under
   `.mesure/out/<issue>/` and nowhere else; the numbers, and any capture a claim rests on, go into
   the issue's comment, and the folder is removed once they are posted.
@@ -200,9 +201,9 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
 
 ## Contribution workflow
 
-1. Work from one issue per batch; only a CTO, the acceptance or the measurement session opens
-   issues, on `.github/ISSUE_TEMPLATE/task.md` (AGENTS.md rule 5). Create a branch named `<issue>-<short-name>` from
-   `origin/develop` in an isolated worktree under `.worktrees/<branch>/` (ignored by git and by
+1. Work from one issue per batch; only a CTO or the acceptance session opens issues, on
+   `.github/ISSUE_TEMPLATE/task.md` (AGENTS.md rule 5). Create a branch named `<issue>-<short-name>`
+   from `origin/develop` in an isolated worktree under `.worktrees/<branch>/` (ignored by git and by
    every tool), then run `pnpm install`. Logs and throwaway files go in `.worktrees/logs/`. Mark the
    issue `in progress`.
 2. Implement the issue and record the relevant proof. Keep changes limited to the batch.

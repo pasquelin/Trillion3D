@@ -13,14 +13,20 @@ type Table = ReturnType<typeof createTransparentTable>;
  * What `develop` wrote before the table named each entry's item: the item looked up by the
  * placement of the record, the last paged item of that placement, as its map kept it.
  */
-function developInstances(table: Table, drawn: PageRec[], entryOf: (rec: PageRec) => number) {
+function developInstances(
+  table: Table,
+  drawn: PageRec[],
+  entryOf: (rec: PageRec) => number,
+  roots: readonly ClusterRoot<PageRec>[],
+) {
   const byPlacement = new Map<unknown, BlendGpuItem>();
   for (const item of table.pagedItems) byPlacement.set(item.matrix, item);
   const instances = new Uint32Array(table.capacity),
     counts = new Uint32Array(table.pagedItems.length);
   let highest = 0;
   for (const rec of drawn) {
-    const item = rec.transparent ? byPlacement.get(rec.matrix) : undefined;
+    const world = roots[rec.placementIndex ?? -1]?.world,
+      item = rec.transparent ? byPlacement.get(world) : undefined;
     const entry = item ? entryOf(rec) : -1;
     if (entry < 0) continue;
     const base = table.itemRanges[item!.pagedIndex! * 2];
@@ -59,11 +65,11 @@ function scene(seed: number) {
             id: i,
             sourceOrder: pick(20),
             transparent: transparent && (i === 0 || next() < 0.9),
-            matrix,
+            placementIndex: roots.length,
             triangles: 1,
           }) as unknown as PageRec,
       );
-      roots.push({ pages } as unknown as ClusterRoot<PageRec>);
+      roots.push({ pages, world: matrix } as unknown as ClusterRoot<PageRec>);
       packedPages.push(...pages);
     }
     for (let i = 0, copies = pick(3); i < copies; i++)
@@ -84,16 +90,16 @@ function scene(seed: number) {
   }
   if (drawn.length) drawn.push(drawn[pick(drawn.length)]);
   drawn.push({ ...packedPages[0], transparent: true } as PageRec);
-  return { table, drawn: next() < 0.05 ? [] : drawn, entryOf };
+  return { table, drawn: next() < 0.05 ? [] : drawn, entryOf, roots };
 }
 
 test('CPU transparent instances are word for word those of the lookup by placement', () => {
   for (let seed = 1; seed <= 300; seed++) {
-    const { table, drawn, entryOf } = scene(seed);
+    const { table, drawn, entryOf, roots } = scene(seed);
     const blendState = createWebgpuBlendState();
     blendState.table = table;
     writeCpuTransparentInstances(blendState, drawn, entryOf);
-    const expected = developInstances(table, drawn, entryOf);
+    const expected = developInstances(table, drawn, entryOf, roots);
     assert.deepEqual(
       {
         instances: Array.from(blendState.cpuInstances.subarray(0, blendState.cpuInstanceCount)),

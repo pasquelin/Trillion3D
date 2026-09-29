@@ -1,4 +1,4 @@
-import { followLightThreshold } from '../prepare/lightResources.ts';
+import { followLightThreshold, followOcclusion } from '../prepare/lightResources.ts';
 import { normalizeVector3, type ShadowViewpoint } from '../../../../../sdk-core/src/index.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
@@ -40,9 +40,8 @@ export function shadowViewpointOf(cam: EngineCamera, height: number) {
   // Read in the world matrix image entry copied, ancestors included: the axis is that of
   // `Camera.getWorldDirection`, third column normalised then negated.
   const world = cam.world;
-  viewpoint.position[0] = cam.eye[0];
-  viewpoint.position[1] = cam.eye[1];
-  viewpoint.position[2] = cam.eye[2];
+  const { position } = viewpoint;
+  [position[0], position[1], position[2]] = [cam.eye[0], cam.eye[1], cam.eye[2]];
   const forward = viewpoint.forward;
   forward[0] = world[8];
   forward[1] = world[9];
@@ -72,7 +71,8 @@ export function planShadowRegions(
 ) {
   const { lights } = rt,
     { shadows, plan, store, runs, regions } = lights,
-    { rows, packedPages } = rt.layout;
+    { rows, packedPages, selectionRoots: roots } = rt.layout,
+    { targetSize, displaySize } = rt.gpu;
   runs.reset();
   regions.reset();
   lights.packedBatch.frame = -1;
@@ -81,7 +81,7 @@ export function planShadowRegions(
   const { residentFlags, residentOffsetWords } = rows;
   lights.residence.flush(residentFlags, residentOffsetWords, rt.run.gpuFrameActive, (page) => {
     residencyMoved = true;
-    noteResidenceChange(lights, packedPages[page]);
+    noteResidenceChange(lights, roots, packedPages[page]);
   });
   lights.shadowPages = 0;
   lights.shadowFaces = 0;
@@ -96,12 +96,12 @@ export function planShadowRegions(
   // The light cuts measure their error at the camera's threshold.
   lights.shadowPixelError = followLightThreshold(lights, rt.run.gate.pixelError);
   // Shadow detail is the display's, whatever size the frame is drawn at.
-  const view = shadowViewpointOf(cam, rt.gpu.displaySize[1]);
+  const view = shadowViewpointOf(cam, displaySize[1]);
   const box = lights.sceneBox(rt.layout, rt.run.gate.revisions.scene);
   ensureStaticLayer(rt);
   redrawShortPages(rt, frame, nowMs, residencyMoved);
   // The frame's receivers name the pages they read before the raster, in this frame.
-  const receivers = shadowReceivers(rt.run.drawn, cam, rt.gpu.targetSize[1], rt.gpu.displaySize[1]);
+  const receivers = shadowReceivers(rt.run.drawn, roots, cam, targetSize[1], displaySize[1]);
   const count = plan.plan(store, view, box.min, box.max, frame, nowMs, receivers);
   lights.shadowSlots = writeShadowRecords(lights);
   lights.shadowsUpdated = plan.counts.lights;
@@ -179,11 +179,11 @@ function ensureStaticLayer(rt: WebgpuPagesRuntime) {
     })
     .then(async (layer) => {
       if (!layer) return;
-      // The pyramids and the occlusion test read the layer: a device that refuses them keeps the
-      // layer, and draws the moving casters untested.
+      // A device that refuses the pyramids or the occlusion test keeps the layer, casters untested.
       try {
         lights.pageHiz = await createShadowPageHiz(device, layer.targets[0]);
         lights.occlusion = await createShadowOcclusion(device, capacity);
+        followOcclusion(rt);
       } catch (error) {
         lights.pageHiz?.dispose();
         lights.pageHiz = undefined;
