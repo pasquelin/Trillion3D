@@ -1,4 +1,4 @@
-// Every file of the two proof folders, imported by Node, opens no browser (AGENTS.md rule 2): the
+// Every file of the render proof folder, imported by Node, opens no browser (AGENTS.md rule 2): the
 // one launcher refuses (`bench/runner/chrome.ts`). Each file is imported in a child process whose
 // entry point is this test run by `node --test`, as a unit test would import it: a proof's work,
 // exit code and `test()` calls stay there; the child replaces Playwright's launch, so a broken
@@ -15,13 +15,13 @@ import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
 import { MEASURE_OUT } from '../../bench/core/paths.ts';
-import { BROWSER, JUSTESSE } from './test-gpu.ts';
+import { BROWSER } from './test-gpu.ts';
 
 const REPOSITORY = join(import.meta.dirname, '..', '..');
 
 const TARGET = 'TRILLION3D_IMPORT_PROOF',
   REPORT = 'import report: ';
-const FOLDERS = [JUSTESSE, BROWSER];
+const FOLDERS = [BROWSER];
 /** How long a child whose proof left a server open waits, once imported, for a late launch. */
 const SETTLE_MS = 3000;
 /** The most a child's import may take before it leaves: a proof stuck before its launch. */
@@ -89,13 +89,13 @@ async function importAll(files: string[], scratch: string, exitOnRefusal: string
 
 if (process.env[TARGET]) await importOne(process.env[TARGET]);
 else
-  test('importing any probe or render proof starts no browser: the launcher refuses', async () => {
+  test('importing any render proof starts no browser: the launcher refuses', async () => {
     const files = FOLDERS.flatMap((folder) =>
       readdirSync(join(REPOSITORY, folder))
         .filter((name) => name.endsWith('.ts'))
         .map((name) => join(REPOSITORY, folder, name)),
     );
-    // A file that never loads the launcher runs its body: its outputs land in the scratch.
+    // Render proofs retain launcher protection; probe import purity is checked separately.
     const logs = join(REPOSITORY, '.worktrees', 'logs');
     mkdirSync(logs, { recursive: true });
     const scratch = mkdtempSync(join(logs, 'import-proofs-'));
