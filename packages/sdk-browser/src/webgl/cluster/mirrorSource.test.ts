@@ -7,7 +7,6 @@ import { createHostDrawCamera } from '../../camera/world.ts';
 import * as G from '../../host/graph/graph.fixture.ts';
 import type { WholeMesh } from '../../cluster/batchMesh.ts';
 import { clusterWebglCompatibility } from './compatibility.ts';
-import { Scene } from '../../world/core/scene.ts';
 
 test('WebGL reflection captures are counted and their allocations leave when the receiver turns rough', () => {
   const context = createTestContext({ answers: { getExtension: () => ({}) } }),
@@ -20,7 +19,7 @@ test('WebGL reflection captures are counted and their allocations leave when the
   geometry.setAttribute('position', new G.BufferAttribute(new Float32Array(9), 3));
   geometry.setAttribute('normal', new G.BufferAttribute(new Float32Array(9), 3));
   const mesh = new G.Mesh(geometry, material) as unknown as WholeMesh;
-  const draw = () => renderer.draw([], new Scene(), createHostDrawCamera(), true, true, [mesh]);
+  const draw = () => renderer.draw([], { lights: [] }, createHostDrawCamera(), true, true, [mesh]);
   draw();
   assert.equal(renderer.backdropPasses, 1);
   assert.equal(renderer.backdropSubmissions, 1);
@@ -42,7 +41,7 @@ test('a mirror missing half-float support is refused before drawing with a refle
     geometry: { attributes: { position: new G.BufferAttribute(new Float32Array(9), 3) } },
   };
   assert.match(
-    clusterWebglCompatibility(context.gl, [], [copy], new Scene())!,
+    clusterWebglCompatibility(context.gl, [], [copy], { lights: [] })!,
     /reflections needs a half-float/,
   );
 });
