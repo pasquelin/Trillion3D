@@ -10,7 +10,6 @@ import { createTileCounters } from './counters.ts';
 import { createTileRequests } from './requests.ts';
 import { createTileGrowth } from './growth.ts';
 import { HEADERS_SWITCHED, HEADERS_WRITTEN, samplingHeaders } from './samplingHeaders.ts';
-
 /**
  * Tile streamer: what the image asked becomes resident, under a per-image budget in bytes AND in
  * milliseconds, most looked-at tile first. Image-feedback counters name the tiles; the streamer
@@ -171,7 +170,15 @@ export function createWebgpuTileStreamer(options: {
     get requestReduce() {
       return reduce !== undefined;
     },
-    ...createTileGrowth(options, { color, data, feedback, sources, flushAll, followHeaders }),
+    ...createTileGrowth(options, {
+      color,
+      data,
+      feedback,
+      sources,
+      flushAll,
+      followHeaders,
+      resetRequests: requests.reset,
+    }),
     metrics: () => counters.metrics(atlases, sources, encoding.name),
     /** True while a cooked level is read or a working texture built: a missing tile can still come. */
     get reading() {
@@ -189,5 +196,4 @@ export function createWebgpuTileStreamer(options: {
     },
   };
 }
-
 export type WebgpuTileStreamer = ReturnType<typeof createWebgpuTileStreamer>;

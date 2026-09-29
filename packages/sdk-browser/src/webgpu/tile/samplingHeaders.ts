@@ -37,7 +37,7 @@ export const HEADERS_WRITTEN = 1,
  * the pool to be copied again (#362); one copied counts as a written header.
  */
 export function samplingHeaders(color: WebgpuTileAtlas, data: WebgpuTileAtlas) {
-  const coverage = coverageRules(color);
+  let coverage = coverageRules(color);
   const atlasHeaders = (atlas: WebgpuTileAtlas, copied?: (slot: number) => void) => {
     const { textures } = atlas;
     /** `sampling + placement` of each slot's record when its header was written: both monotonic;
@@ -52,7 +52,7 @@ export function samplingHeaders(color: WebgpuTileAtlas, data: WebgpuTileAtlas) {
         const { texture, source } = textures[slot];
         if (!texture) continue;
         followHostTexture(texture);
-        pictures[slot] ??= texture.version;
+        if (force || pictures[slot] === undefined) pictures[slot] = texture.version;
         if (source.kind === 'host' && pictures[slot] !== texture.version) {
           pictures[slot] = texture.version;
           if (copies?.refresh(atlas, slot)) {
@@ -73,11 +73,12 @@ export function samplingHeaders(color: WebgpuTileAtlas, data: WebgpuTileAtlas) {
       return result;
     };
   };
-  const colour = atlasHeaders(color, coverage.copied),
+  const colour = atlasHeaders(color, (slot) => coverage.copied(slot)),
     other = atlasHeaders(data);
   let followed = -1;
   return (force: boolean, colorMoved?: Set<number>, copies?: TileCopies) => {
     // The readers first: a picture copied again below reduces under the rule they declare now.
+    if (force) coverage = coverageRules(color);
     if (copies) coverage.follow();
     let result = 0;
     if (force || followed !== hostTextureWrites()) {

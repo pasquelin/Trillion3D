@@ -48,6 +48,9 @@ export function createTileRequests(options: {
     return out.sort((a, b) => b.weight - a.weight);
   };
   return {
+    reset: () => {
+      backlog = [];
+    },
     /** The list a pass serves, in weight order; empty when nothing is named or deferred. */
     take(frame: number): TileRequest[] {
       const counts = feedback.take();

@@ -21,21 +21,23 @@ import type { WebgpuTileStreamer } from '../../tile/streamer.ts';
 /** Tiles each lane's textures would hold at full residency: their tails and streamed entries. */
 export const laneDemand = (textures: readonly TileTexture[]) => {
   const demand = laneCounts();
-  for (const texture of textures) demand[texture.lane] += 1 + texture.layout.entries;
+  for (const texture of textures)
+    if (!texture.retired) demand[texture.lane] += 1 + texture.layout.entries;
   return demand;
 };
 /** Textures per lane: the tails the pool keeps resident whole, one tile each. */
 export const laneTails = (textures: readonly TileTexture[]) => {
   const tails = laneCounts();
-  for (const texture of textures) tails[texture.lane]++;
+  for (const texture of textures) if (!texture.retired) tails[texture.lane]++;
   return tails;
 };
 
 /** What a diagnostic says of a catalogue: how many textures per source and per lane, their tiles. */
 export const catalogueReport = (textures: readonly TileTexture[]) => ({
-  count: textures.length - 1,
+  count: textures.filter((texture) => !texture.retired).length - 1,
   baked: textures.filter((texture) => texture.source.kind === 'baked').length,
-  tailOnly: textures.filter((texture) => texture.source.kind === 'bytes').length - 1,
+  tailOnly:
+    textures.filter((texture) => !texture.retired && texture.source.kind === 'bytes').length - 1,
   host: textures.filter((texture) => texture.source.kind === 'host').length,
   lanes: laneTails(textures),
   streamedTiles: textures.reduce((total, texture) => total + texture.layout.entries, 0),

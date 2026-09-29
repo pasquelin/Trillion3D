@@ -37,3 +37,22 @@ test('a table regrown for an appended texture keeps every held word, at its new 
   assert.deepEqual(table.tileOf(9 + 192 + 4), fresh);
   assert.equal(table.feedbackIndexOf(tile), 9 + 171 + 16 + 1, 'a held tile at its new rank');
 });
+
+test('reusing a dropped slot with another layout preserves later slots and their resident texels', () => {
+  const { device } = fakeDevice();
+  const layouts = [tileLayout(1, 1), tileLayout(512, 512), tileLayout(1024, 1024)];
+  const old = createWebgpuTilePageTable(device, layouts, { kind: 'color', feedbackOffset: 0 });
+  const key = { slot: 2, level: 1, tx: 1, ty: 1 },
+    place = { x: 2, y: 3, layer: 0 };
+  old.setTile(key, place);
+  const next = regrownPageTable(
+    device,
+    old,
+    [layouts[0], tileLayout(256, 128), layouts[2]],
+    { kind: 'color', feedbackOffset: 11 },
+    1,
+  );
+  assert.equal(next.entryOf(key), packEntry(place, 1));
+  assert.deepEqual(next.tileOf(next.feedbackIndexOf(key)), key);
+  assert.equal(next.entryOf({ slot: 1, level: 0, tx: 0, ty: 0 }), 0);
+});
