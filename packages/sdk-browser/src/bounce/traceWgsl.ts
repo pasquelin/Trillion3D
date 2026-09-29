@@ -16,14 +16,12 @@ import { BOUNCE_NODE_WGSL } from './nodeWgsl.ts';
  * opened. That is what replaces the one-step-per-node descent of the binary tree, where
  * the traversal bound ran out before the leaf on a city's proxy.
  *
- * Three bounds known before the frame (X2): visited nodes (a fixed larger constant once an
- * owner has moved, never the node count), triangles of a leaf, and stack depth — a wide node
- * stacks three at most, and the tree is balanced by construction, so the stack does not
- * overflow; if it did, the extra child would be dropped, which darkens and never leaks.
+ * Three bounds known before the frame (X2): visited nodes (the built tree's bound plus the
+ * nodes a refit let into a ray, written with the tree: `proxy.steps`), triangles of a leaf,
+ * and stack depth — a wide node stacks three at most, and the tree is balanced by
+ * construction, so the stack does not overflow; if it did, the extra child would be dropped, which darkens and never leaks.
  */
 export const BOUNCE_TRACE_WGSL = `
-const TRAVERSAL_STEPS:u32=${BOUNCE_SETTINGS.traversalSteps}u;
-const MOTION_TRAVERSAL_STEPS:u32=${BOUNCE_SETTINGS.motionTraversalSteps}u;
 const LEAF_TRIANGLES:u32=${BOUNCE_SETTINGS.proxyLeafTriangles}u;
 const TRIANGLE_FLOATS:u32=${PROXY_TRIANGLE_FLOATS}u;
 const CHILDREN:u32=${PROXY_CHILDREN}u;

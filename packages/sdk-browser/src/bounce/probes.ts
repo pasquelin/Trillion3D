@@ -120,6 +120,10 @@ export async function createGpuBounceProbes(
       surface.restart();
       return true;
     },
+    /** Rays read owner poses until the proxy settles (`proxyMotion.ts`). */
+    get dynamic() {
+      return resident.dynamic;
+    },
     cascades,
     occupancy,
     budget,
