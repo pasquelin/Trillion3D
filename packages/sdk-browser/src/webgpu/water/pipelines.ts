@@ -102,7 +102,7 @@ export const WATER_ROUTED_TARGETS: GPUColorTargetState[] = waterRoutedTargets(fa
  * today's composite plus, as an extra output, the coverage the blend pass and the particles also
  * write — green 1 over what the pixel holds.
  */
-export function createWaterSharePipeline(device: GPUDevice, layout: GPUBindGroupLayout) {
+function createWaterSharePipeline(device: GPUDevice, layout: GPUBindGroupLayout) {
   const module = device.createShaderModule({
     label: 'WATER_COMPOSITE',
     code: WATER_COMPOSITE_SHADER,
@@ -118,11 +118,7 @@ export function createWaterSharePipeline(device: GPUDevice, layout: GPUBindGroup
 /** The composite of an image with display layers (`WATER_ROUTED_SHADER`), made by the first one:
  *  the HDR target blended as above, then the tint and the added value of a normal layer; with a
  *  share, the reactive value last. */
-export function createWaterRoutedPipeline(
-  device: GPUDevice,
-  layout: GPUBindGroupLayout,
-  share = false,
-) {
+function createWaterRoutedPipeline(device: GPUDevice, layout: GPUBindGroupLayout, share = false) {
   const module = device.createShaderModule({ label: 'WATER_ROUTED', code: WATER_ROUTED_SHADER });
   const bindGroupLayouts = [layout, reflectionLayout(device), displayMaskLayout(device)];
   return device.createRenderPipeline({
