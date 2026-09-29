@@ -122,10 +122,12 @@ export function autonomousPlacements(env: Placements) {
       const cover = autonomousBootstrap(collected.roots);
       const covered = new Set(cover.map((rec) => rec.url)),
         urls = [...covered];
-      const admitted = [...read.descriptors.keys()];
-      context.pageCatalogue?.admit([...read.descriptors.values()]);
+      const admitted = [...read.descriptors.keys(), ...read.sourced.keys()];
+      context.pageCatalogue?.admit([...read.descriptors.values(), ...read.sourced.values()]);
       count(admitted, 1);
-      const pages = await readPages(context, urls).finally(() => count(admitted, -1));
+      const pages = await readPages(context, urls, read.sourced).finally(() =>
+        count(admitted, -1),
+      );
       context.signal?.throwIfAborted();
       for (const [url, descriptor] of read.descriptors) descriptors.set(url, descriptor);
       // One by one: a spread of a large resource's records overflows the stack.
