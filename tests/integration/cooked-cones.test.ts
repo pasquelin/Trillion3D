@@ -1,7 +1,8 @@
 // The WebGPU prepare posts the cone the compiler cooked (`normal_cone.rs`, #272) where it used to
 // build one with `triangleCone` from the host vertices. On every compiled scene, this rebuilds that
-// cone from `source.gltf` as the prepared scene views it and each index page, and requires the
-// cooked cone to bound every face and to be at most twice the compiler's margin wider (#929).
+// cone from `source.gltf` as the prepared scene views it and each index page — a vertex a solve
+// placed read from its geometry page (#877) —, and requires the cooked cone to bound every face
+// and to be at most twice the compiler's margin wider (#929).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -10,7 +11,12 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readCacheManifest } from '../../bench/runner/cacheManifest.ts';
 import { coneHolds } from '../kit/cone.ts';
 import { preparedGeometries } from '../../packages/sdk-browser/src/host/prepared/geometry.ts';
+import { decodeGeometryPage } from '../../packages/sdk-browser/src/page/decode/geometryPage.ts';
 import { sceneDocument } from '../../packages/sdk-browser/src/scene/tables.ts';
+import {
+  joinedCorners,
+  withPlaced,
+} from '../../packages/sdk-browser/src/world/page/placedVertices.ts';
 import type { PreparedSceneTables } from '../../packages/sdk-core/src/scene/core/tableContracts.ts';
 import { sceneCacheFiles } from '../kit/scenes/caches.ts';
 
@@ -49,22 +55,30 @@ async function checkScene(pointer: string) {
       xyz[i * 3 + 1] = position.getY(i);
       xyz[i * 3 + 2] = position.getZ(i);
     }
-    for (const page of primitive.pages) {
-      const held = page.stream === undefined ? undefined : primitive.streams?.pages[page.stream];
-      const indices = held
-        ? new Uint32Array(bundle(held.url), page.streamOffset, page.count)
-        : new Uint32Array(bundle(page.url), 0, page.count);
-      // A vertex a seam-locked solve placed (#877) lives in the page's geometry page alone: the
-      // source cannot rebuild its cone.
-      if (indices.some((v) => v >= position.count)) {
-        assert.ok(page.geometry, `${pointer} page ${page.id}: a placed vertex without its page`);
-        continue;
-      }
+    const { indices, ends } = joinedCorners(
+      primitive.pages.map((page) => {
+        const held = page.stream === undefined ? undefined : primitive.streams?.pages[page.stream];
+        return held
+          ? new Uint32Array(bundle(held.url), page.streamOffset, page.count)
+          : new Uint32Array(bundle(page.url), 0, page.count);
+      }),
+    );
+    // A vertex a seam-locked solve placed (#877) is read from the geometry page naming it.
+    const decode = (k: number) =>
+      decodeGeometryPage(new Uint8Array(bytesOf(join(dir, primitive.pages[k].geometry!.url))));
+    const { positions } = await withPlaced(
+      { positions: xyz, normals: new Float32Array(0), uvs: null, colors: null },
+      indices,
+      ends,
+      (k) => (primitive.pages[k].level ?? 0) > 0,
+      async (naming) => naming.map(decode),
+    );
+    primitive.pages.forEach((page, k) => {
       pages++;
       // A version-9 sidecar gives every page its cone.
-      if (!coneHolds(page.cone!, xyz, indices))
+      if (!coneHolds(page.cone!, positions, indices.subarray(k ? ends[k - 1] : 0, ends[k])))
         disagreements.push(`${pointer} page ${page.id}: cooked ${JSON.stringify(page.cone)}`);
-    }
+    });
   }
   return { pages, disagreements };
 }
