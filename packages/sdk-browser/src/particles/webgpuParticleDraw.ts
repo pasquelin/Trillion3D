@@ -17,7 +17,7 @@ export const PARTICLE_DRAW_PASS = 'Trillion3D particle draw';
 /** Per slot, a disc facing the eye, fading with age, at its edge and near the scene's depth. */
 export const PARTICLE_DRAW_WGSL = /* wgsl */ `
 struct Particle { position: vec4f, velocity: vec4f }
-struct Draw { clip: mat4x4f, unclip: mat4x4f, eye: vec3f, size: f32, color: vec4f, softness: f32, exposure: f32, curve: f32 }
+struct Draw { clip: mat4x4f, unclip: mat4x4f, eye: vec3f, size: f32, color: vec4f, softness: f32, exposure: f32, curve: f32, unlit: f32 }
 @group(0) @binding(0) var<uniform> draw: Draw;
 @group(0) @binding(1) var<storage, read> particles: array<Particle>;
 @group(0) @binding(2) var depth: texture_depth_2d;
@@ -53,7 +53,7 @@ export const PARTICLE_ROUTED_WGSL = /* wgsl */ `${PARTICLE_DRAW_WGSL}${DISPLAY_R
 struct Routed { @location(0) color: vec4f, @location(1) tint: vec4f, @location(2) add: vec4f }
 @fragment fn fsRouted(in: Out) -> Routed {
   let c = particle(in);
-  let r = displayRoute(draw.color.rgb, draw.exposure, u32(draw.curve), false, c.a, maskAt(in.at));
+  let r = displayRoute(draw.color.rgb, draw.exposure, u32(draw.curve), draw.unlit != 0, c.a, maskAt(in.at));
   return Routed(c * r.keep, r.tint, r.add);
 }`;
 
@@ -141,7 +141,7 @@ export function createWebgpuParticleDraw(
   return {
     /** Draws `pools` over `target` in `encoder`, seen through `viewProj` from `eye`, softened
      *  by `depth`, routed through `filter` where its mask is set, shown through `tone` (exposure,
-     *  curve); returns the draws encoded, none without a live particle. */
+     *  curve) or raw when `unlit`; returns the draws encoded, none without a live particle. */
     draw(
       pools: readonly ParticlePool[],
       encoder: GPUCommandEncoder,
@@ -151,6 +151,7 @@ export function createWebgpuParticleDraw(
       eye: ArrayLike<number>,
       filter?: DisplayFilter,
       tone?: ArrayLike<number>,
+      unlit = false,
     ) {
       if (failed) return 0;
       let pass: GPURenderPassEncoder | undefined,
@@ -164,6 +165,7 @@ export function createWebgpuParticleDraw(
         writeDrawWords(words, pool, viewProj, eye);
         words[41] = tone?.[3] ?? 1;
         words[42] = tone?.[4] ?? 0;
+        words[43] = unlit ? 1 : 0;
         device.queue.writeBuffer(kept.draw, 0, words);
         pass ??= encoder.beginRenderPass({
           label: PARTICLE_DRAW_PASS,
