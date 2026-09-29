@@ -174,6 +174,7 @@ pub(crate) mod reduce;
 mod tally;
 #[cfg(test)]
 mod tests;
+mod texture;
 pub(crate) mod tight;
 pub(crate) mod vanished;
 
