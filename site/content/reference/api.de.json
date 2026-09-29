@@ -342,6 +342,7 @@
       "proxyCellMetres": "Mindestauflösung des Proxy-Meshes in Metern: Größe der vereinfachten Dreiecke und der Zellen des Oberflächen-Caches. Vom Compiler verdoppelt, falls das Budget überschritten wird.",
       "proxyLeafTriangles": "Dreiecke pro Blatt des BVH: die Schleifen über die Blätter sind durch diese Konstante begrenzt.",
       "traversalSteps": "Vom Strahl besuchte BVH-Knoten: vor der Bildausführung begrenzt, nie dynamisch. Ein Knoten mit 4 Kindern deckt pro Schritt 4× mehr Baum ab als ein binärer BVH.",
+      "motionTraversalSteps": "Vom Strahl besuchte BVH-Knoten, sobald ein Besitzer bewegt wurde: Eine neu angepasste Box kann ihre Nachbarn überlappen, daher verdoppelt sich die feste Grenze. Weiterhin eine Konstante, nie die Knotenanzahl.",
       "traversalStack": "Tiefe des Durchlaufstapels. Ein Knoten mit 4 Kindern legt bis zu 3 ab; 32 deckt Millionen von Dreiecken ab.",
       "cascadeLevels": "Stufen der Sondenkaskaden. Die ersten `cascadeLevels - 1` folgen der Kameraposition; die letzte ist fest in der Welt und deckt die ganze Szene ab.",
       "cascadeSize": "Sonden pro Achse und Stufe: eine Stufe ist ein Würfel aus `cascadeSize³` Sonden.",
@@ -406,13 +407,14 @@
   },
   "BounceOccupancy": {
     "summary": "Wo eine Sonde sich lohnt: die Belegungskarte der Kaskaden.",
-    "description": "Eine Kaskade über einer Stadt verschwendet die meisten ihrer Zellen im leeren Himmel und im vollen Kern der Gebäude, wo Bestrahlungsstärke nie verlangt wird. Der Planer muss wissen, bevor er einen Strahl ausgibt, ob eine Zelle Geometrie berührt. Das ist eine Eigenschaft der Welt, nicht der Kamera: einmal beim Bau berechnet, gültig für alle Positionen, die die beweglichen Stufen später einnehmen. Die Karte der feinsten Stufe wird von den Begrenzungsboxen der Proxy-Dreiecke plus einem Rand von einer Zelle markiert: die acht Ecken einer belegten Zelle werden immer behalten, sodass nichts Nützliches verloren geht. Die folgenden Stufen sind exakte Reduktionen — zwei Zellen zu einer pro Achse, da die Abstände potenzierte Vielfache der feinsten sind — dann aus demselben Grund um eine Zelle erweitert. Nichts hier benennt eine Szene oder betrachtet die Kamera: eine Ausdehnung, Dreiecke, Zellen.",
+    "description": "Eine Kaskade über einer Stadt verschwendet die meisten ihrer Zellen im leeren Himmel und im vollen Kern der Gebäude, wo Bestrahlungsstärke nie verlangt wird. Der Planer muss wissen, bevor er einen Strahl ausgibt, ob eine Zelle Geometrie berührt. Das ist eine Eigenschaft der Welt, nicht der Kamera: beim Bau berechnet und erneut, sobald bewegte Geometrie zur Ruhe kommt, gültig für alle Positionen, die die beweglichen Stufen später einnehmen. Die Karte der feinsten Stufe wird von den Begrenzungsboxen der Proxy-Dreiecke plus einem Rand von einer Zelle markiert: die acht Ecken einer belegten Zelle werden immer behalten, sodass nichts Nützliches verloren geht. Die folgenden Stufen sind exakte Reduktionen — zwei Zellen zu einer pro Achse, da die Abstände potenzierte Vielfache der feinsten sind — dann aus demselben Grund um eine Zelle erweitert. Nichts hier benennt eine Szene oder betrachtet die Kamera: eine Ausdehnung, Dreiecke, Zellen.",
     "members": {
+      "moved": "Besitzer wurden bewegt: `boxes` enthält sechs Weltgrenzen pro Proxy-Dreieck, `changed` markiert die bewegten.",
+      "settle": "Einmal pro Bild: Das erste Bild nach dem Ende der Bewegung baut die exakte Karte über `extent` neu auf.",
       "occupied": "Wahr, wenn eine Zelle einer Stufe in ihrem Gitter eine Sonde verdient.",
       "marked": "Markierte Zellen und Gesamtzellen der feinsten Stufe: der veröffentlichte Gewinn.",
       "cells": "Zellen der feinsten Stufe.",
-      "bytes": "Bytes, die sie belegt.",
-      "allEligible": "Die Geometrie wurde bewegt: Plant vorsorglich alle Zellen der Kaskaden mit begrenzter Zellanzahl ein."
+      "bytes": "Bytes, die sie belegt."
     }
   },
   "BoundedNode": {
