@@ -5,6 +5,7 @@ import { encodeShadowCasters } from '../../shadow/casters.ts';
 import { drawRegionCasters, encodeOcclusion } from './encodeRegionDraws.ts';
 import { encodeTransmittance } from './encodeTransmittance.ts';
 import { frameTransmittance } from '../../shadow/transmittanceGrant.ts';
+import { feedbackPublished } from './encoder.ts';
 
 /**
  * Shadow depth pass of one batch, pages `[from, to)` of the frame's list in `count` regions: first
@@ -32,7 +33,7 @@ export function encodeShadowAtlas(
   to: number,
   runBase: number,
 ) {
-  const { lights, vis, run, capture } = rt,
+  const { lights, vis, run } = rt,
     { shadows, cull, regions, staticLayer, pageQuads: quads } = lights;
   if (!count || !shadows?.texture || !cull || !quads || !vis.visBindGroupLayout) return false;
   if (regions.layered && !staticLayer) return false;
@@ -41,8 +42,7 @@ export function encodeShadowAtlas(
   // The cutouts ask for the tiles they read, under the image's word (`faceBindings.ts`); an image
   // whose feedback is not published — a capture, or the feedback A/B's arm without it
   // (`encoder.ts`) — asks nothing.
-  const published = !capture.capturing && rt.feedbackAB?.target !== false;
-  const feedback = published ? vis.textures?.feedback : undefined;
+  const feedback = feedbackPublished(rt) ? vis.textures?.feedback : undefined;
   shadows.cutoutRequests(feedback?.phaseWord(run.textureConverging) ?? 0, feedback?.buffer);
   if (!encodeShadowCasters(rt, encoder, count, from, to, runBase)) return false;
   cull.counts.sample(encoder, cull.indirect, count, run.frame, regions.moving);

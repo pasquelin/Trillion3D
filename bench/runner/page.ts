@@ -28,9 +28,14 @@ export async function readBounds(options: BoundsOptions): Promise<Bounds> {
   };
   try {
     await world.ready;
-    const { min, max } = (await world.scene.load(options.manifestUrl)).bounds;
-    // Left on the page's global for `probeColumns`, which closes it.
-    if (options.street) Object.assign(globalThis, { __trillion3dStreetWorld: { world, close } });
+    const model = await world.scene.load(options.manifestUrl),
+      { min, max } = model.bounds;
+    // Left on the page's global for `probeColumns`, which closes it, with the folder the engine
+    // reads the model's cooked files from (`cookedPhysics`).
+    if (options.street)
+      Object.assign(globalThis, {
+        __trillion3dStreetWorld: { world, close, base: model.record.base },
+      });
     else close();
     return { min: { x: min.x, y: min.y, z: min.z }, max: { x: max.x, y: max.y, z: max.z } };
   } catch (error) {
