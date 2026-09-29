@@ -3213,7 +3213,7 @@
       "cpuShadowRegionsMs": "Tempo de CPU da escrita das regiões de cada lote de sombra: uniforms de faces e registros de páginas.",
       "cpuShadowPassesMs": "Tempo de CPU da codificação das passagens de cada lote de sombra: projetores, limpezas e restaurações, desenhos.",
       "shadowLightCuts": "Cortes de clusters feitos a partir das luzes: um por vista de luz desenhada, zero num quadro parado.",
-      "shadowPagesRequested": "Páginas de sombra virtuais que a imagem lê, como a demanda antecipada do quadro as nomeou — ou, sem ela, o seu último relatório de pedidos: o que os receptores da câmera marcam.",
+      "shadowPagesRequested": "Páginas de sombra virtuais que a imagem leu, como o seu último relatório de pedidos as nomeou: o que os receptores da câmera marcam.",
       "shadowPagesCached": "Destas, páginas lidas diretamente do pool: atuais, sem desenho.",
       "shadowPoolPages": "Páginas físicas do pool fixo que guardam uma página virtual.",
       "shadowPoolBytes": "Bytes de GPU do pool de sombras: as suas páginas de profundidade, as camadas estática e de transmitância quando criadas, e os buffers ao lado. Null até o primeiro quadro dimensionar o pool.",
@@ -3238,7 +3238,7 @@
       "releaseDeferred": "O quadro não planeja nenhuma sombra: a união retida entra na lista de imediato.",
       "setPageInvalidation": "Desliga a invalidação por página: um objeto em movimento invalida todas as páginas das luzes que toca. Ligada por padrão.",
       "pageInvalidation": "Se um objeto em movimento invalida apenas as páginas que a sua caixa cobre.",
-      "plan": "Planeja um quadro: invalida o que se moveu, lê a demanda dos receptores — ou, na falta dela, o último relatório —, admite cada página a desenhar.",
+      "plan": "Planeja um quadro: invalida o que se moveu, lê o último relatório, admite cada página a desenhar.",
       "reissue": "As páginas do quadro a partir de `from` não puderam ser codificadas: continuam obsoletas, pendentes, e o quadro seguinte as desenha.",
       "reset": "Recomeça.",
       "setThreshold": "O limiar em que os cortes de luz escolhem os projetores de sombra, e a sua origem de renderização (`thresholds.ts`).",
@@ -4363,7 +4363,7 @@
       "texturePoolClamp": "Motivo da limitação do pool de texturas: `minimum`, `device-limit`.",
       "hizCulled": "Clusters que o teste de oclusão achou escondidos neste quadro; `null` onde o caminho não os conta.",
       "shadowLightCuts": "Cortes de clusters feitos a partir das luzes: um por vista de luz desenhada, zero num quadro parado.",
-      "shadowPagesRequested": "Páginas de sombra virtuais que a imagem lê, como a demanda antecipada do quadro as nomeou — ou, sem ela, o seu último relatório de pedidos: o que os receptores da câmera marcam.",
+      "shadowPagesRequested": "Páginas de sombra virtuais que a imagem leu, como o seu último relatório de pedidos as nomeou: o que os receptores da câmera marcam.",
       "shadowPagesCached": "Destas, páginas lidas diretamente do pool: atuais, sem desenho.",
       "shadowPoolPages": "Páginas físicas do pool fixo que guardam uma página virtual.",
       "shadowPoolBytes": "Bytes de GPU do pool de sombras: as suas páginas de profundidade, as camadas estática e de transmitância quando criadas, e os buffers ao lado. Null até o primeiro quadro dimensionar o pool.",
@@ -4987,7 +4987,7 @@
   },
   "createShadowPlan": {
     "summary": "O escalonador de sombras dos mapas virtuais.",
-    "description": "Os receptores do quadro nomeiam as páginas que leem antes da sua rasterização (`demand.ts`) — sem eles, o relatório do sombreamento, relido alguns quadros depois — e o que falta é alocado do pool fixo. O que se moveu invalida as páginas alocadas que cobre. Um quadro desenha então cada página obsoleta que a imagem lê, todas nesse quadro (`admit.ts`): o que segura o custo é o cache — uma página só é redesenhada quando o que ela contém mudou —, e o pool é o único limite. Uma cena parada, cujo sombreamento não roda mais, não desenha nada. Todos os arrays são alocados uma vez — as células dos receptores só crescem para um quadro com mais receptores —; `plan()` não aloca mais nada."
+    "description": "O sombreamento anota as páginas que lê; seu relatório, relido alguns quadros depois, aloca o que falta do pool fixo. O que se moveu invalida as páginas alocadas que cobre. Um quadro desenha então cada página obsoleta que a imagem lê, todas nesse quadro: o que segura o custo é o cache — uma página só é redesenhada quando o que ela contém mudou —, e o pool é o único limite. Uma cena parada, cujo sombreamento não roda mais, não pede nada e não desenha nada. Todos os arrays são alocados uma vez; `plan()` não aloca nada."
   },
   "createTerminalProgress": {
     "summary": "Uma barra de progresso no terminal que segue os eventos do compilador.",
@@ -7534,17 +7534,6 @@
   },
   "SHADOW_RECORD_FLOATS": {
     "summary": "Floats de um registo de sombra, o que o sombreamento de uma luz lê: seis matrizes de faces de lâmpada — aí, os intervalos de profundidade de um sol, `zNear, zFar` cada um (`recordPack.ts`) —, depois o referencial do plano de luz do sol — `right, zNear`, `up, zFar`, `axis`, depois a posição do intervalo atual —, depois a origem da janela de cada posição do clipmap em dois inteiros, depois um cabeçalho `vec4f`: faces (lâmpada) ou níveis (sol), o semicampo tangente da lâmpada ou o nível mais fino do sol, o plano próximo da lâmpada e a primeira entrada do registo na tabela de páginas."
-  },
-  "ShadowReceivers": {
-    "summary": "As superfícies que o sombreamento de um quadro ilumina, como o anfitrião as entrega antes da rasterização das sombras.",
-    "members": {
-      "boxes": "Caixas no mundo, `RECEIVER_FLOATS` cada: toda superfície iluminada do quadro está em uma delas.",
-      "count": "Caixas listadas.",
-      "planes": "Os seis planos do frustum da câmera (`frustumPlanesFromMatrix`): o que fica fora não é iluminado.",
-      "pixelNear": "Tamanho no mundo de um pixel no plano próximo, onde começa a pegada de um ponto iluminado: o menor das passagens que leem sombras — o do alvo desenhado, o da tela.",
-      "pixelNearMost": "O mesmo, o maior dessas passagens.",
-      "orthographic": "Uma câmera ortográfica: a pegada de cada pixel é `pixelNear`."
-    }
   },
   "ShadowRequestReport": {
     "summary": "O que o sombreamento leu num quadro: as entradas da tabela que pediu, sem ordem.",
