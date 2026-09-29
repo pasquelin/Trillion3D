@@ -1,8 +1,8 @@
 //! What every reduction of a primitive reads beside its level's locks: the welds by position, by
-//! position and texture coordinates and by everything a page stores, the seams, the charts and
+//! position and texture coordinates and by everything a page stores, the seams, the islands and
 //! the extents of the parts — computed once, grown with every vertex a solved reduction places.
 use super::attributes::{seam_vertices, weld_exact};
-use super::charts::{vertex_charts, Chart};
+use super::charts::vertex_islands;
 use super::clusters::{weld_positions, weld_positions_and_uv};
 use super::grown::Placed;
 use super::{DagAttributes, GroupReductionInput};
@@ -24,9 +24,9 @@ pub(super) struct Columns {
     pub seams: Vec<bool>,
     /// The extent of the part each lies in (`vanished::part_extents`).
     pub extents: Vec<f64>,
-    /// Its chart (`charts::vertex_charts`), a placed vertex its origin's; empty without a texture
-    /// set.
-    pub charts: Vec<Chart>,
+    /// Its texture island (`charts::vertex_islands`), a placed vertex its origin's; empty without
+    /// a texture set.
+    pub islands: Vec<u32>,
 }
 
 /// What every reduction of a primitive reads beside its level's locks, computed once.
@@ -53,7 +53,7 @@ impl<'a> Welds<'a> {
             positions,
             attributes,
             columns: Columns {
-                charts: vertex_charts(&weld, &weld_seam, &uv_sets, indices),
+                islands: vertex_islands(&weld_seam, indices),
                 exact: weld_exact(positions, attributes.carried, indices),
                 extents: super::vanished::part_extents(positions, indices, &weld),
                 weld,
@@ -84,7 +84,7 @@ impl<'a> Welds<'a> {
             normal_bound,
             locks,
             seams: &c.seams,
-            charts: &c.charts,
+            islands: &c.islands,
             source_vertices: self.positions.len() / 3,
             weld: &c.weld,
             exact: &c.exact,
@@ -105,14 +105,14 @@ impl<'a> Welds<'a> {
         to.exact.extend(from.exact.into_iter().map(&shift));
         to.seams.extend(from.seams);
         to.extents.extend(from.extents);
-        to.charts.extend(from.charts);
+        to.islands.extend(from.islands);
     }
 }
 
 impl<'a> GroupReductionInput<'a> {
-    /// The charts, when `live` names a vertex a solve placed and the primitive has a texture set.
-    pub(super) fn placed_charts(&self, live: &[u32]) -> Option<&'a [Chart]> {
+    /// The islands, when `live` names a vertex a solve placed and the primitive has a texture set.
+    pub(super) fn placed_islands(&self, live: &[u32]) -> Option<&'a [u32]> {
         let placed = live.iter().any(|&v| v as usize >= self.source_vertices);
-        Some(self.charts).filter(|charts| placed && !charts.is_empty())
+        Some(self.islands).filter(|islands| placed && !islands.is_empty())
     }
 }
