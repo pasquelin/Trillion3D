@@ -1,9 +1,36 @@
-import type { createTestContext } from '../core/testContext.fixture.ts';
+import { createTestContext } from '../core/testContext.fixture.ts';
 import { LIGHT_ROW_TEXELS } from './lightTexture.ts';
+import { WebglClusterRenderer } from './renderer.ts';
+import { readDegraded } from './validation.ts';
+import { createHostDrawCamera } from '../../camera/world.ts';
 import * as G from '../../host/graph/graph.fixture.ts';
 import type { WholeMesh } from '../../cluster/batchMesh.ts';
+import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
+import { uniformScaleMatrix4 } from '../../../../sdk-core/src/math/matrix/matrix4Trs.ts';
 
 type Context = ReturnType<typeof createTestContext>;
+
+/** A renderer over `lights` and `meshes`; `frame(x)` draws them seen from `x` along the world's axes. */
+export function lightFrames(lights: readonly Light[], meshes: WholeMesh[]) {
+  const context = createTestContext({ answers: { getExtension: () => ({}) } }),
+    renderer = new WebglClusterRenderer(
+      context.gl,
+      readDegraded(() => {}),
+    );
+  const camera = createHostDrawCamera();
+  const frame = (x = 0) => {
+    camera.view.set(viewFrom(x));
+    renderer.draw([], { lights }, camera, true, true, meshes);
+  };
+  return { context, renderer, frame };
+}
+
+/** A point lamp at `position` reaching `distance`. */
+export function pointLamp(position: [number, number, number], distance: number) {
+  const lamp = new G.Light('point', { position, distance });
+  lamp.updateMatrixWorld(true);
+  return lamp as unknown as Light;
+}
 
 /** The last value the frame gave the uniform `name`, its arguments past the location. */
 export const lastUniform = (context: Context, call: string, name: string) =>
@@ -27,7 +54,7 @@ export const sent = (context: Context, format: string, from = 0) =>
 export function evaluated(context: Context, point: readonly [number, number, number]) {
   const [, m] = lastUniform(context, 'uniformMatrix4fv', 'viewToGrid') as [boolean, Float32Array];
   const cells = lastUniform(context, 'uniform3i', 'gridCells') as number[];
-  const [every, base] = lastUniform(context, 'uniform2i', 'lightGrid') as number[];
+  const [every] = lastUniform(context, 'uniform1i', 'lightGrid') as number[];
   const data = sent(context, 'RED_INTEGER').at(-1)![8] as Int32Array;
   const cell = [0, 1, 2].map((a) =>
     Math.floor(m[a] * point[0] + m[4 + a] * point[1] + m[8 + a] * point[2] + m[12 + a]),
@@ -35,7 +62,7 @@ export function evaluated(context: Context, point: readonly [number, number, num
   const slots = [...data.subarray(0, every)];
   const inGrid = cell.every((c, a) => c >= 0 && c < cells[a]);
   if (inGrid) {
-    const k = base + (cell[2] * cells[1] + cell[1]) * cells[0] + cell[0];
+    const k = every + (cell[2] * cells[1] + cell[1]) * cells[0] + cell[0];
     slots.push(...data.subarray(data[k], data[k + 1]));
   }
   // Each part in slot order, as the program's merge needs.
@@ -46,13 +73,13 @@ export function evaluated(context: Context, point: readonly [number, number, num
   return { slots: slots.sort((a, b) => a - b), inOrder, inGrid, box: { lo, hi }, side: 1 / m[0] };
 }
 
-/** A unit triangle at `x`, its surface a mirror when `roughness` is 0. */
-export function triangle(x: number, roughness = 1) {
+/** A unit triangle at `x`, height 1, at z 0; its surface a mirror when `mirror`. */
+export function triangle(x: number, mirror = false) {
   const geometry = new G.Geometry().setIndex(new G.BufferAttribute(new Uint32Array([0, 1, 2]), 1));
   const at = new Float32Array([-0.5, 0, 0, 0.5, 0, 0, 0, 1, 0]);
   geometry.setAttribute('position', new G.BufferAttribute(at, 3));
   geometry.setAttribute('normal', new G.BufferAttribute(new Float32Array(9), 3));
-  const surface = new G.GraphSurface('standard', { roughness, metalness: 1 });
+  const surface = new G.GraphSurface('standard', mirror ? { roughness: 0, metalness: 1 } : {});
   const made = new G.Mesh(geometry, surface);
   made.position.set(x, 0, 0);
   made.updateMatrixWorld(true);
@@ -60,9 +87,4 @@ export function triangle(x: number, roughness = 1) {
 }
 
 /** A view that looks from `x` along the world's axes: world to view, column-major. */
-export function viewFrom(x: number) {
-  const view = new Float64Array(16);
-  view[0] = view[5] = view[10] = view[15] = 1;
-  view[12] = -x;
-  return view;
-}
+export const viewFrom = (x: number) => uniformScaleMatrix4(new Float64Array(16), 1, [-x, 0, 0]);
