@@ -9,7 +9,8 @@ import { firstMaterial } from '../scene/materialSide.ts';
 import { isDrawnNode } from '../host/graph/kinds.ts';
 import { copyElements, type MatrixElements } from '../math/matrixElements.ts';
 import type { RenderBackend } from '../backend/types.ts';
-import type { PageRec } from './selection/selection.ts';
+import type { PageRec } from './selection/types.ts';
+import { rootOf, type Placements } from './selection/placements.ts';
 import type { PageSurface } from './surface.ts';
 import { rasterTriangle, type RasterTarget } from './rasterFill.ts';
 import { resolveCameraWorld, type HostCamera } from '../camera/world.ts';
@@ -124,7 +125,8 @@ export function rasterPageRecords(
 
 /** CPU raster of cluster page records (the triangles the WebGPU path pulls). Same fill rule as rasterPageRecords. */
 export function rasterPages(
-  pages: Array<Pick<PageRec, 'array' | 'attributes' | 'matrix' | 'material'>>,
+  pages: Array<Pick<PageRec, 'array' | 'attributes' | 'material' | 'placementIndex'>>,
+  roots: Placements,
   camera: HostCamera,
   viewport: [number, number],
   background = RASTER_BACKGROUND,
@@ -141,7 +143,7 @@ export function rasterPages(
       index = page.array;
     if (!position || !index) continue;
     const rgb = surfaceColorOf(page.material),
-      world = page.matrix.elements;
+      world = rootOf(roots, page).world.elements;
     for (let i = 0; i < index.length; i += 3)
       rasterTriangle(target, world, position, viewProj, index[i], index[i + 1], index[i + 2], rgb);
   }

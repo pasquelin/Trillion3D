@@ -20,13 +20,13 @@ const VUE: [number, number] = [96, 96];
 // Left: front winding. Right: reverse winding. Same area, same height, no overlap.
 const POSITIONS = [-2, -1, 0, -0.5, -1, 0, -1.25, 1, 0, 0.5, -1, 0, 1.25, 1, 0, 2, -1, 0];
 
-function page(matrix: G.Matrix4, side: number): VisPage {
+function page(side: number): VisPage {
   const geometrie = new G.Geometry();
   geometrie.setAttribute('position', G.floatAttribute(POSITIONS, 3));
   return {
     array: new Uint32Array([0, 1, 2, 3, 4, 5]),
     attributes: geometrie.attributes,
-    matrix,
+    placementIndex: 0,
     material: surfaceOf(G.basicSurface({ side })),
   };
 }
@@ -41,7 +41,7 @@ function camera() {
 
 /** Triangles actually written into the buffer, and how many pixels each covers. */
 function trianglesDessines(matrix: G.Matrix4, side: number) {
-  const { ids } = rasterVisibility([page(matrix, side)], cameraMoteur(camera()), VUE);
+  const { ids } = rasterVisibility([page(side)], [{ world: matrix }], cameraMoteur(camera()), VUE);
   const pixels = new Map<number, number>();
   for (const identifiant of ids) {
     const lu = unpackVisibilityId(identifiant);

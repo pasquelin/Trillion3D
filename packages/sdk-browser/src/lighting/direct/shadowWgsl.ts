@@ -13,6 +13,7 @@ import { SHADOW_FACTOR_WGSL } from './shadowFactorWgsl.ts';
 import { shadowRequestWgsl } from './shadowRequestWgsl.ts';
 import { SHADOW_SAMPLE_WGSL, SHADOW_SUBTEXELS } from './shadowSampleWgsl.ts';
 import { shadowThroughWgsl } from '../../gpu/shadow/transmittance.ts';
+import { SHADOW_PAGE_WORD_WGSL } from './shadowPageWgsl.ts';
 
 /** The PCF's taps, in texels around the read point. */
 export const POISSON_16 = [
@@ -55,12 +56,8 @@ struct ShadowData{records:array<ShadowRecord,${MAX_SHADOW_SLICES}>,table:array<u
 
 /**
  * The virtual shadow read, shared by every pass that lights a surface: records and page table,
- * requests, the pool, and a PCF whose taps each find their own physical page.
- *
- * A map is `ShadowMap`: its first table entry, whether it is a ring — a sun level, whose pages
- * are addressed by absolute page modulo the window, `(ox, oy)` its origin — or a lamp face mip,
- * clamped at its edge, and its pages per side. Texel coordinates are relative to the map's first
- * page, texel centres at `+0.5`.
+ * requests, the pool, and a PCF whose taps each find their own physical page, each read through
+ * `shadowPageWord` (`shadowPageWgsl.ts`).
  *
  * A tap whose bilinear footprint lies in one page is one comparison in that page; one
  * that straddles a seam is split along it (\`shadowPcf\`): no seam, no guard band.
@@ -103,23 +100,7 @@ fn shadowNormalTexels(cosine:f32)->f32{
  *  unit across the map: its plane over the PCF's reach, up to \`cap\`, a slope of 1 in the
  *  caller's units. ADDED to the reference: shadow depth is reversed. */
 fn shadowDepthMargin(texel:f32,slope:f32,cap:f32)->f32{return texel*SHADOW_PCF_REACH*min(slope,cap);}
-struct ShadowMap{base:u32,ring:u32,pages:i32,ox:i32,oy:i32,}
-fn shadowRing(v:i32,n:i32)->i32{return ((v%n)+n)%n;}
-/** Word of page \`p\` of the map — asked for —, or zero when it holds nothing readable: unmapped,
- *  not drawn yet, or withdrawn while its depth is wrong — asked for again, never read. */
-fn shadowPageWord(m:ShadowMap,p:vec2i)->u32{
- var e=0;
- if(m.ring!=0u){
-  if(any(p<vec2i(0))||any(p>=vec2i(m.pages))){return 0u;}
-  e=i32(m.base)+shadowRing(p.y+m.oy,m.pages)*m.pages+shadowRing(p.x+m.ox,m.pages);
- }else{
-  let q=clamp(p,vec2i(0),vec2i(m.pages-1));
-  e=i32(m.base)+q.y*m.pages+q.x;
- }
- requestShadowPage(u32(e));
- let word=shadows.table[u32(e)];
- return select(0u,word,(word&PAGE_VALID)!=0u);
-}
+${SHADOW_PAGE_WORD_WGSL}
 ${SHADOW_SAMPLE_WGSL}
 ${shadowThroughWgsl(transmittanceBinding)}
 /**
@@ -143,9 +124,9 @@ fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32,
  let up=t-first>=vec2f(0.5*SHADOW_PAGE);
  let step=select(vec2i(-1),vec2i(1),up);
  var nx=vec4f(offset,0.0);var ny=nx;var nd=nx;
- if(edge.x){nx=shadowNeighbour(m,home+vec2i(step.x,0),offset,homeWord);}
- if(edge.y){ny=shadowNeighbour(m,home+vec2i(0,step.y),offset,homeWord);}
- if(all(edge)){nd=shadowNeighbour(m,home+step,offset,homeWord);}
+ if(edge.x){nx=shadowNeighbour(m,home+vec2i(step.x,0),offset,homeWord,t);}
+ if(edge.y){ny=shadowNeighbour(m,home+vec2i(0,step.y),offset,homeWord,t);}
+ if(all(edge)){nd=shadowNeighbour(m,home+step,offset,homeWord,t);}
  if(!taps){return 0.0;}
  var lit=0.0;
  if(!any(edge)){

@@ -83,6 +83,8 @@ export function buildWorldMirror(input: MirrorInput) {
   const meshOf = (cut: Cut, material: Material) => {
     let geometry = geometries.get(cut);
     if (!geometry) geometries.set(cut, (geometry = hostGeometry(cut.drawn)));
+    // A dynamic resource's vertices are rewritten in place: the engine reads them as floats.
+    if (cut.dynamic) geometry.usage = 'dynamic';
     const tinted = !!material.vertexColors && !!cut.drawn.colors,
       reading = cut.drawn.lines
         ? 'lines'
@@ -162,7 +164,9 @@ export function buildWorldMirror(input: MirrorInput) {
     const [first, ...others] = moved.values();
     return refresh(values, first) && others.every((alpha) => refresh(false, alpha));
   };
-  return { root, twins, associations, repaint, placed, place, unplace };
+  /** The host geometry of `cut`, once placed: the vertices a dynamic resource rewrites (#573). */
+  const geometryOf = (cut: Cut) => geometries.get(cut);
+  return { root, twins, associations, repaint, placed, place, unplace, geometryOf };
 }
 
 /** Gives back the geometries, surfaces and textures a mirror built, each once however many

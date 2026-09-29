@@ -27,6 +27,7 @@ import {
   readCameraWorld,
   type HostCamera,
 } from '../../../packages/sdk-browser/src/camera/world.ts';
+import { identityRoots } from '../../../packages/sdk-browser/src/page/selection/placements.fixture.ts';
 
 const VIEWPORT: [number, number] = [1280, 720],
   RASTER: [number, number] = [64, 36];
@@ -54,11 +55,10 @@ function pagesDag(): { roots: ReturnType<typeof collectClusterPages>['roots']; v
     roughness: 0.35,
     side: G.DOUBLE_SIDE,
   });
-  const identite = new G.Matrix4();
   const vis: VisHizPage[] = [0, 1, 2, 3].map((t) => ({
     array: new Uint32Array([t * 3, t * 3 + 1, t * 3 + 2]),
     attributes: fixture.geometry.attributes,
-    matrix: identite,
+    placementIndex: 0,
     material: surfaceOf(material),
     min: [-2 + t, -0.5, 0],
     max: [-1 + t, 0.5, 0],
@@ -97,7 +97,7 @@ const sitesPurs: Site[] = [
     mesure: (state, camera: HostCamera) => {
       const { vis } = state as ReturnType<typeof pagesDag>;
       const bounds = boundsFor(vis.length);
-      projectBoxesFlat(vis, vis.length, engine(camera), VIEWPORT, bounds);
+      projectBoxesFlat(vis, identityRoots(), vis.length, engine(camera), VIEWPORT, bounds);
       return liste(bounds);
     },
   },
@@ -108,7 +108,7 @@ const sitesPurs: Site[] = [
     mesure: (state, camera: HostCamera) => {
       const { vis, history } = state as ReturnType<typeof pagesDag> & { history: TemporalHizState };
       const vue = engine(camera);
-      const { shown } = applyTemporalHiz(vis, vue, RASTER, history);
+      const { shown } = applyTemporalHiz(vis, identityRoots(), vue, RASTER, history);
       return { shown: shown.length, historiqueEgal: sameHizView(history.camera, vue) };
     },
   },
@@ -118,9 +118,9 @@ const sitesPurs: Site[] = [
     mesure: (state, camera: HostCamera) => {
       const { vis } = state as ReturnType<typeof pagesDag>;
       const vue = engine(camera);
-      const { ids } = rasterVisibility(vis, vue, RASTER);
-      const depth = visibilityDepth(ids, vis, vue, RASTER);
-      const rgba = shadeVisibility(ids, vis, vue, RASTER);
+      const { ids } = rasterVisibility(vis, identityRoots(), vue, RASTER);
+      const depth = visibilityDepth(ids, vis, identityRoots(), vue, RASTER);
+      const rgba = shadeVisibility(ids, vis, identityRoots(), vue, RASTER);
       return { ids: liste(ids), depth: liste(depth), rgba: liste(rgba) };
     },
   },
@@ -129,14 +129,15 @@ const sitesPurs: Site[] = [
     cree: pagesDag,
     mesure: (state, camera: HostCamera) => {
       const { vis } = state as ReturnType<typeof pagesDag>;
-      return liste(rasterPages(vis, camera, RASTER));
+      return liste(rasterPages(vis, identityRoots(), camera, RASTER));
     },
   },
   {
     name: 'projectedPageError (error diagnostic)',
     mesure: (_state, camera: HostCamera) =>
       projectedPageError(
-        { lodError: 0.05, sphere: [0.5, 0, 0, 0.6], matrix: new G.Matrix4() },
+        { lodError: 0.05, sphere: [0.5, 0, 0, 0.6] },
+        new G.Matrix4(),
         engine(camera),
         VIEWPORT,
       ),

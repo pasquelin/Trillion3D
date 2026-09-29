@@ -1,7 +1,6 @@
 import type { HostAttributes } from '../host/resources.ts';
 import type { PageSurface } from '../page/surface.ts';
 import type { Texture } from '../../../sdk-core/src/index.ts';
-import type { MatrixElements } from '../math/matrixElements.ts';
 import { HOST_FORMAT_RGBA } from '../host/surfaceConstants.ts';
 import { texelFormatOf } from '../host/textureImport.ts';
 
@@ -58,16 +57,17 @@ export const FLAG_LIT = 1,
   /** The material reads its vertex colours and the geometry carries some: the base colour is
    *  multiplied by the interpolated vertex colour, as the forward path does. */
   FLAG_HAS_COLOR = 32768,
-  /** A shadow-only row of a blended cluster (`../webgpu/row/blendCasters.ts`): it writes no
-   *  depth, only the transmittance of its coverage (`PageInfo.blendCoverage`,
-   *  `../gpu/shadow/transmittance.ts`). */
+  /** A blended cluster's shadow-only row (`../webgpu/row/blendCasters.ts`): no depth, only the
+   *  transmittance of its coverage (`PageInfo.blendCoverage`, `../gpu/shadow/transmittance.ts`). */
   FLAG_BLEND_CASTER = 65536;
-/** Material fog opt-out above the three model bits in the page row. */
-export const FLAG_FOG_FREE = 1 << 20;
+/** Fog opt-out above the model bits; a dynamic geometry's row, reactive to the temporal pass (#573). */
+export const FLAG_FOG_FREE = 1 << 20,
+  FLAG_DYNAMIC = 1 << 21;
 export type VisPage = {
   array: Uint32Array;
   attributes: HostAttributes;
-  matrix: MatrixElements;
+  /** Rank of the root whose world places it (`../page/selection/types.ts`, `rootOf`). */
+  placementIndex?: number;
   /** The engine's surface record, read once at the boundary (`../page/surface.ts`). */
   material: PageSurface;
   clusterId?: string;

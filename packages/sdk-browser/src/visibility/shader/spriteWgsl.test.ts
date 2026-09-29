@@ -120,9 +120,10 @@ function covered(eye: number[], turn = 0, parameters: MaterialParameters = {}) {
   geometry.setAttribute('position', G.floatAttribute(drawn.positions, 3));
   const matrix = new G.Matrix4();
   matrix.elements.set(place([0, 0, 0], turn, [1, 1, 1]));
-  const page = { array: drawn.indices, attributes: geometry.attributes, matrix };
+  const page = { array: drawn.indices, attributes: geometry.attributes, placementIndex: 0 };
   const ids = rasterVisibilityIds(
     [{ ...page, material: surfaceOf(surface) }],
+    [{ world: matrix }],
     camera(eye),
     [256, 256],
   );
