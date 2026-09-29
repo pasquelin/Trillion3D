@@ -1,46 +1,40 @@
 // What runs INSIDE the page. Playwright serialises this function: it cannot read any variable or
 // call any module function; everything reaches it through its single argument. That is the reason,
-// and the only one, why explorer creation is duplicated between `readBounds` below and
+// and the only one, why world creation is duplicated between `readBounds` below and
 // `measureView` in `lightingPage.ts`, which the page imports by URL.
 import type * as SdkBrowser from '../witnesses/measurement.ts';
 import type { Bounds } from './poses.ts';
 
-/** What `readBounds` needs to open a tiny explorer: the SDK and manifest it points the page at. */
+/** What `readBounds` needs to open a tiny world: the SDK and manifest it points the page at. */
 export interface BoundsOptions {
   sdkUrl: string;
   manifestUrl: string;
+  /** Keep the world, its physics on, for the street probe that follows in this page
+   *  (`probeColumns`, `streetPage.ts`): the model is loaded once for both (#1016). */
+  street?: boolean;
 }
 
-/** Model bounds, read on a tiny explorer: they give the bench poses. */
+/** Model bounds — the box the loaded model spans (`LoadedModel.bounds`) —, read on a tiny world:
+ *  they give the bench poses. */
 export async function readBounds(options: BoundsOptions): Promise<Bounds> {
   const sdk = (await import(options.sdkUrl)) as typeof SdkBrowser;
   const canvas = document.createElement('canvas');
+  canvas.style.cssText = 'display:block;width:64px;height:64px';
   document.body.append(canvas);
-  const explorer = await sdk.openMeasuredWorld(canvas, {
-    manifestUrl: options.manifestUrl,
-    scope: 'full',
-    width: 64,
-    height: 64,
-    pixelRatio: 1,
-    replicaCount: 1,
-    detail: 'source',
-    pixelError: 8,
-    lodAdaptive: false,
-    maxResidentPages: 64,
-    // Not `'none'`: the type only knows `'visible' | 'all'`, and either way a page never
-    // requested for this tiny probe is never preloaded.
-    preload: 'visible',
-    backends: [sdk.exactPagesBackend],
-    comparisonLayout: 'single',
-    clearColor: 0x2a303c,
-    diagnosticDetail: 'summary',
-  });
-  const box = explorer.bounds;
-  const bounds = {
-    min: { x: box.min.x, y: box.min.y, z: box.min.z },
-    max: { x: box.max.x, y: box.max.y, z: box.max.z },
+  const world = sdk.createWorld(canvas, { physics: options.street === true });
+  const close = () => {
+    world.dispose();
+    canvas.remove();
   };
-  explorer.dispose();
-  canvas.remove();
-  return bounds;
+  try {
+    await world.ready;
+    const { min, max } = (await world.scene.load(options.manifestUrl)).bounds;
+    // Left on the page's global for `probeColumns`, which closes it.
+    if (options.street) Object.assign(globalThis, { __trillion3dStreetWorld: { world, close } });
+    else close();
+    return { min: { x: min.x, y: min.y, z: min.z }, max: { x: max.x, y: max.y, z: max.z } };
+  } catch (error) {
+    close();
+    throw error;
+  }
 }
