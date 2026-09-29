@@ -20,6 +20,7 @@ import { SHADOW_CULL_SHADER, SHADOW_LIGHT_CULL_SHADER } from '../shadow/cullShad
 import { SHADOW_OCCLUSION_SHADER } from '../shadow/occlusionShader.ts';
 import { SHADOW_DEPTH_SHADER } from '../shadow/shader.ts';
 import { PAGE_QUAD_SHADER } from '../shadow/pageQuads.ts';
+import { PAGE_MOVE_SHADER } from '../shadow/pageMoves.ts';
 import { BOUNCE_PROBE_SHADER } from '../../bounce/probeWgsl.ts';
 import { BOUNCE_SURFACE_SHADER } from '../../bounce/surfaceWgsl.ts';
 import { AS_IS_SHARE_SHADER } from '../../lighting/deferred/asIsShare.ts';
@@ -75,6 +76,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   SHADOW_OCCLUSION_SHADER,
   SHADOW_DEPTH_SHADER,
   PAGE_QUAD_SHADER,
+  PAGE_MOVE_SHADER,
   BOUNCE_PROBE_SHADER,
   BOUNCE_SURFACE_SHADER,
   AS_IS_SHARE_SHADER,
