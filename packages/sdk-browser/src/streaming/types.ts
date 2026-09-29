@@ -1,5 +1,6 @@
 import type { BackendDiagnostic } from '../backend/types.ts';
 import type { PageCache } from './pageCache.ts';
+import type { LazyDiagnostic } from '../diagnostic/engineDiagnostic.ts';
 
 /**
  * What a frame tells the page cache it keeps: a REQUEST RANK delta, not an address list.
@@ -114,6 +115,7 @@ export type StreamContext = {
      *  the cache weighs itself: those tables follow the view. */
     reservedBytes: () => number;
   };
-  emit: (phase: string, message: string, context: () => Record<string, unknown>) => void;
+  /** `undefined` when nobody listens: `emit?.(…)` then builds nothing (`lazyDiagnostic`). */
+  emit: LazyDiagnostic | undefined;
   abortError: () => DOMException;
 };
