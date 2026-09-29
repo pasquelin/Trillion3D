@@ -58,7 +58,9 @@ export function encodeOcclusion(rt: WebgpuPagesRuntime, encoder: GPUCommandEncod
  * The pool's `draws` draw both of a region's lists (#965): the opaque one with no fragment stage,
  * or with the fragment that strips the face's emitter envelope, then the cutout one while any row
  * is a cutout; the transmittance layer's draw the first list, which holds the blended casters,
- * once each. A pipeline is set only when it changes. Returns the draws encoded.
+ * once each. A region whose light view has no caster on the CPU cut (`regions.casterless`) keeps
+ * zero instances in every command: it encodes no bind group and no draw (#1210). A pipeline is set
+ * only when it changes. Returns the draws encoded.
  */
 export function drawRegionCasters(
   rt: WebgpuPagesRuntime,
@@ -82,8 +84,9 @@ export function drawRegionCasters(
     drawn++;
   };
   for (let i = first[k]; i < first[k] + clears[k] + restores[k]; i++) {
-    const region = order[i],
-      visible = tested && slotOf[region] !== HIZ_UNTESTED;
+    const region = order[i];
+    if (regions.casterless(region)) continue;
+    const visible = tested && slotOf[region] !== HIZ_UNTESTED;
     const group = shadowRegionGroup(rt, device, region, visible);
     if (!group) continue;
     const x = regions.x(region) / scale,

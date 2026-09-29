@@ -136,6 +136,14 @@
       "onEvent": "Dipanggil pada setiap peristiwa."
     }
   },
+  "BatchRead": {
+    "summary": "Cara `request` membaca satu kelompok: pembatalannya, prioritasnya, dan apa yang berjalan saat setiap halaman tiba.",
+    "members": {
+      "signal": "Membatalkan pembacaan kelompok.",
+      "priority": "Prioritas antrean, bawaan 1.",
+      "onPage": "Berjalan saat pembacaan setiap halaman tiba, bukan setelah seluruh kelompok."
+    }
+  },
   "BatchOutcome": {
     "summary": "Bagaimana satu pekerjaan batch berakhir.",
     "members": {
@@ -2065,7 +2073,19 @@
       "evictedTiles": "Ubin tekstur yang dihapus.",
       "residentPages": "Yang tersimpan tepat sebelum dan tepat sesudah pengaturan.",
       "residentTiles": "Ubin tekstur yang disimpan, sebelum dan sesudah.",
-      "durationMs": "Waktu yang dibutuhkannya."
+      "durationMs": "Waktu yang dibutuhkannya.",
+      "tables": "Tabel per halaman yang dapat digambar yang diperbesar untuk kolam di atasnya (WebGPU), atau `null` jika tidak ada yang diperbesar.",
+      "transientBytes": "Byte yang ditahan sekaligus saat kolam geometri disalin: kolam lama dan kolam baru di sampingnya, diberikan bersama oleh perangkat sebelum halaman mana pun berpindah; 0 jika tidak ada kolam yang berpindah."
+    }
+  },
+  "TableGrowthReport": {
+    "summary": "Pertumbuhan tabel yang ukurannya ditentukan per baris yang dapat digambar, sebagaimana diminta pool di atasnya.",
+    "members": {
+      "drawSlots": "Baris visibilitas yang kini dimuat tabel.",
+      "casterSlots": "Baris yang dibaca pass bayangan, setelah baris visibilitas.",
+      "bytes": "Byte yang dimuat tabel GPU yang membesar — yang diminta, bila ditolak.",
+      "refused": "`true` bila perangkat menolaknya: tabel dan pool yang ada dipertahankan.",
+      "durationMs": "Milidetik yang dibutuhkan pertumbuhan, dari probe sampai penukaran."
     }
   },
   "Mesh": {
@@ -2271,7 +2291,7 @@
     "description": "Enam yang pertama adalah penolakan uraian-halaman, diambil kata demi kata dari `geometryPage.ts`: seorang pemanggil membedakannya seperti sebelumnya. `PAGE_DECODE_FAILED` membawa penolakan lain apa pun dari pustaka dekompresi. `PAGE_DECODE_CANCELLED` menjawab sebuah pembatalan, `PAGE_DECODE_WORKER` sebuah eksekutor yang lenyap — hanya yang itu yang mengizinkan fallback."
   },
   "PAGE_DECODE_PROTOCOL": {
-    "summary": "Kontrak uraian-halaman di luar thread utama, versi 6: geometri yang diurai bepergian sebagai satu blok dengan galat kuantisasinya, dan slot arena mencatat galat itu di kata 8; `cut` mengubah segitiga yang digambar menjadi halaman, yang kembali sebagai byte dengan deskriptornya, dan, sejak versi 6, dengan kerucut normalnya, segitiga yang dikemas menyatakan apakah halamannya menyimpan satu.",
+    "summary": "Kontrak uraian-halaman di luar thread utama, versi 6: geometri yang diurai bepergian sebagai satu blok dengan galat kuantisasinya; `cut` mengubah segitiga yang digambar menjadi halaman, yang kembali sebagai byte dengan deskriptornya, dan, sejak versi 6, dengan kerucut normalnya, segitiga yang dikemas menyatakan apakah halamannya menyimpan satu.",
     "description": "Thread pemanggil mengirim `PageDecodeRequest`, eksekutor mengembalikan `PageDecodeAnswer` yang membawa `id` yang sama. Tidak ada yang menyentuh platform di sini: tidak ada `Worker`, tidak ada fetch, tidak ada jam — adaptor peramban membawa semua itu, berkas ini hanya membawa bentuk pesan, daftar tertutup kegagalan dan batas pool. Kepemilikan buffer: `source` **ditransfer** dengan permintaan, jadi pengirim tidak lagi memilikinya. Sebuah respons `verify` mengembalikannya, ditransfer gilirannya; sebuah respons `decode` mengembalikan buffer yang diurai sebagai gantinya, juga ditransfer. Seorang eksekutor yang tidak mentransfer apa pun (fallback sinkron) mengembalikan persis nilai yang sama: kontrak tidak mengatakan bagaimana pekerjaannya bepergian, hanya apa yang dikembalikannya."
   },
   "PAGE_INTEGRATION_FAILURES": {
@@ -2476,18 +2496,6 @@
       "op": "Apa yang harus dilakukan.",
       "source": "Ditransfer bersama pesan: pengirim tidak lagi menjadi pemiliknya.",
       "maxDecodedBytes": "Batas atas byte yang diurai sebuah halaman geometri; diabaikan `verify`."
-    }
-  },
-  "PageDecodeShare": {
-    "summary": "Sewa memori bersama seorang worker: buffer arena, slot dan wilayah yang dimilikinya, dan jumlah slot, yang memberi ukuran zona kontrol.",
-    "description": "Diposting sekali, saat worker lahir, dan hanya di mana platform mengizinkan memori bersama. Tanpa sewa, worker menjawab dengan mentransfer buffer: kontraknya tidak berubah bentuk, hanya jalur byte-nya.",
-    "members": {
-      "protocol": "Versi format pesan.",
-      "id": "Selalu 0.",
-      "op": "Selalu `'share'`.",
-      "buffer": "Memori bersama itu.",
-      "slot": "Slot worker ini.",
-      "slots": "Slot secara keseluruhan."
     }
   },
   "PageIntegrationAnswer": {

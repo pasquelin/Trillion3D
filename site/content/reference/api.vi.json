@@ -136,6 +136,14 @@
       "onEvent": "Được gọi ở mỗi sự kiện."
     }
   },
+  "BatchRead": {
+    "summary": "Cách `request` đọc một lô: cách hủy, độ ưu tiên và việc chạy khi từng trang về tới.",
+    "members": {
+      "signal": "Hủy các lần đọc của lô.",
+      "priority": "Độ ưu tiên trong hàng đợi, mặc định là 1.",
+      "onPage": "Chạy khi từng trang được đọc xong, không đợi cả lô."
+    }
+  },
   "BatchOutcome": {
     "summary": "Cách một công việc trong lô kết thúc.",
     "members": {
@@ -2065,7 +2073,19 @@
       "evictedTiles": "Các ô kết cấu bị gỡ bỏ.",
       "residentPages": "Những gì đang lưu trú ngay trước và ngay sau cài đặt.",
       "residentTiles": "Các ô kết cấu được giữ, trước và sau.",
-      "durationMs": "Thời gian nó tốn."
+      "durationMs": "Thời gian nó tốn.",
+      "tables": "Các bảng theo trang vẽ được đã được mở rộng cho một bể lớn hơn chúng (WebGPU), hoặc `null` khi không có bảng nào được mở rộng.",
+      "transientBytes": "Số byte được giữ cùng lúc khi sao chép bể hình học: bể cũ và bể mới bên cạnh, được thiết bị cấp cùng nhau trước khi bất kỳ trang nào di chuyển; 0 khi không có bể nào di chuyển."
+    }
+  },
+  "TableGrowthReport": {
+    "summary": "Sự mở rộng của các bảng được định cỡ theo hàng có thể vẽ, đúng như một pool bên trên chúng yêu cầu.",
+    "members": {
+      "drawSlots": "Các hàng khả kiến mà các bảng đang giữ bây giờ.",
+      "casterSlots": "Các hàng mà lượt bóng đổ đọc, nằm sau các hàng khả kiến.",
+      "bytes": "Số byte mà các bảng GPU đã mở rộng nắm giữ — số byte được yêu cầu nếu bị từ chối.",
+      "refused": "`true` khi thiết bị từ chối: các bảng và pool hiện có được giữ nguyên.",
+      "durationMs": "Số mili giây việc mở rộng tốn, từ lúc dò đến lúc hoán đổi."
     }
   },
   "Mesh": {
@@ -2271,7 +2291,7 @@
     "description": "Sáu cái đầu tiên là các lượt từ chối giải mã trang, lấy nguyên văn từ `geometryPage.ts`: bên gọi phân biệt chúng như trước. `PAGE_DECODE_FAILED` mang bất kỳ lượt từ chối nào khác từ thư viện giải nén. `PAGE_DECODE_CANCELLED` trả lời một lần hủy, `PAGE_DECODE_WORKER` một bộ thực thi đã biến mất — chỉ cái đó cho phép phương án dự phòng."
   },
   "PAGE_DECODE_PROTOCOL": {
-    "summary": "Hợp đồng giải mã trang ngoài luồng chính, phiên bản 6: hình học đã giải mã di chuyển như một khối duy nhất cùng sai số lượng tử hóa của nó, và khe của vùng nhớ ghi lại sai số đó ở từ thứ 8; `cut` biến các tam giác đã vẽ thành các trang, trở lại dưới dạng byte cùng bộ mô tả của chúng, và từ phiên bản 6 kèm hình nón pháp tuyến của chúng, các tam giác đã đóng gói cho biết trang của chúng có giữ hình nón hay không.",
+    "summary": "Hợp đồng giải mã trang ngoài luồng chính, phiên bản 6: hình học đã giải mã di chuyển như một khối duy nhất cùng sai số lượng tử hóa của nó; `cut` biến các tam giác đã vẽ thành các trang, trở lại dưới dạng byte cùng bộ mô tả của chúng, và từ phiên bản 6 kèm hình nón pháp tuyến của chúng, các tam giác đã đóng gói cho biết trang của chúng có giữ hình nón hay không.",
     "description": "Luồng gọi gửi một `PageDecodeRequest`, bộ thực thi trả về một `PageDecodeAnswer` mang cùng `id`. Không có gì ở đây chạm vào nền tảng: không `Worker`, không fetch, không đồng hồ — bộ điều hợp trình duyệt mang tất cả những thứ đó, tệp này chỉ mang hình dạng thông điệp, danh sách đóng các lỗi và giới hạn của pool. Quyền sở hữu bộ đệm: `source` được **chuyển giao** cùng yêu cầu, nên bên gửi không còn sở hữu nó nữa. Một phản hồi `verify` trả nó lại, được chuyển giao ngược lại; một phản hồi `decode` trả về các bộ đệm đã giải mã thay vào đó, cũng được chuyển giao. Một bộ thực thi không chuyển giao gì cả (phương án dự phòng đồng bộ) trả về chính xác các giá trị giống nhau: hợp đồng không nói công việc di chuyển như thế nào, chỉ nói nó trả về gì."
   },
   "PAGE_INTEGRATION_FAILURES": {
@@ -2476,18 +2496,6 @@
       "op": "Việc cần làm.",
       "source": "Được chuyển giao cùng thông điệp: bên gửi không còn là chủ sở hữu nữa.",
       "maxDecodedBytes": "Trần số byte đã giải mã của một trang hình học; bị `verify` bỏ qua."
-    }
-  },
-  "PageDecodeShare": {
-    "summary": "Hợp đồng thuê bộ nhớ chung của một worker: bộ đệm vùng nhớ, khe và vùng nó sở hữu, và số lượng khe, thứ cho biết kích thước vùng điều khiển.",
-    "description": "Được gửi một lần, khi worker ra đời, và chỉ khi nền tảng cho phép bộ nhớ chung. Không có hợp đồng thuê, worker trả lời bằng cách chuyển giao các bộ đệm: hợp đồng không đổi hình dạng, chỉ có đường đi của byte thay đổi.",
-    "members": {
-      "protocol": "Phiên bản định dạng thông điệp.",
-      "id": "Luôn là 0.",
-      "op": "Luôn là `'share'`.",
-      "buffer": "Bộ nhớ chung đó.",
-      "slot": "Khe của worker này.",
-      "slots": "Tổng số khe."
     }
   },
   "PageIntegrationAnswer": {
