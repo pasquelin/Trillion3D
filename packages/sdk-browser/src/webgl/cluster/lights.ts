@@ -1,7 +1,7 @@
 import { LTC_UNIT, createLtcTexture } from './rectGlsl.ts';
 import { FLOAT_TEXELS, LIGHT_DATA_UNIT, WebglLightTexture } from './lightTexture.ts';
-import { REACH_FLOATS, WebglClusterLightLists } from './lightLists.ts';
-import type { ClusterDraw } from '../../cluster/batchMesh.ts';
+import { WebglClusterLightLists } from './lightLists.ts';
+import { REACH_FLOATS } from './lightGrid.ts';
 import { inReferenceOrder } from './lightOrder.ts';
 import { WebglClusterProbe } from './probe.ts';
 import { WebglClusterFog } from './fog.ts';
@@ -44,11 +44,11 @@ export const unsupportedClusterLight = (lights: readonly Light[]) => {
 
 /**
  * The frame's lights, as many as the scene holds: four vec4 records a slot in a float texture
- * grown with the count (`./lightTexture.ts`), and each slot's reach in the per-draw lists.
+ * grown with the count (`./lightTexture.ts`), and each slot's reach in the light grid (`./lightLists.ts`).
  */
 export class WebglClusterLights {
   private records: WebglLightTexture<Float32Array>;
-  /** The lights each draw reaches, listed once the frame's slots are written. */
+  /** The lights each fragment reaches, a grid listed again when a lamp's reach changes. */
   readonly lists: WebglClusterLightLists;
   /** The direct lights of the frame, in the graph's order; reused from frame to frame. */
   private lights: Light[] = [];
@@ -62,17 +62,13 @@ export class WebglClusterLights {
   constructor(gl: WebGL2RenderingContext, program: WebGLProgram) {
     this.gl = gl;
     this.records = new WebglLightTexture(gl, LIGHT_DATA_UNIT, FLOAT_TEXELS, Float32Array);
-    this.lists = new WebglClusterLightLists(gl);
+    this.lists = new WebglClusterLightLists(gl, program);
     this.ltc = createLtcTexture(gl);
     this.probe = new WebglClusterProbe(gl, program);
     this.fog = new WebglClusterFog(gl, program);
   }
-  /** Writes the frame's lights, then the list of the lights each of `draws` reaches. */
-  upload(
-    scene: WebglClusterScene,
-    view: ArrayLike<number>,
-    draws: readonly (readonly ClusterDraw[])[] = [],
-  ) {
+  /** Writes the frame's lights, then the grid of the lights each fragment reaches. */
+  upload(scene: WebglClusterScene, view: ArrayLike<number>) {
     let count = 0;
     const lists = this.lists;
     // Everything is written in place: nothing is allocated per light.
@@ -151,12 +147,14 @@ export class WebglClusterLights {
         dy /= length;
         dz /= length;
       }
-      // The world centre and range the draw lists test; a sun, or a lamp of no range, reaches all.
+      // The world centre and range the light grid tests; a sun, or a lamp of no range, reaches all
+      // and has no centre there: moving it never lists the grid again.
       const reach = lists.reach,
-        at = count * REACH_FLOATS;
-      reach[at] = px;
-      reach[at + 1] = py;
-      reach[at + 2] = pz;
+        at = count * REACH_FLOATS,
+        placed = range > 0 && range < Infinity;
+      reach[at] = placed ? px : 0;
+      reach[at + 1] = placed ? py : 0;
+      reach[at + 2] = placed ? pz : 0;
       reach[at + 3] = range > 0 ? range : 0;
       const base = count++ * 16;
       write(
@@ -184,7 +182,7 @@ export class WebglClusterLights {
     this.fog.upload(this.readFog, view);
     const gl = this.gl;
     this.records.upload(count * 4);
-    lists.build(count, draws);
+    lists.build(count, view);
     // The host's texture units are unknown at frame start: the lobe is bound again every frame,
     // last, so the active unit stays the one it always was.
     gl.activeTexture(gl.TEXTURE0 + LTC_UNIT);
