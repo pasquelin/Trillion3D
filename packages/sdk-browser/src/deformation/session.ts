@@ -2,6 +2,7 @@ import type { ClusterRoot } from '../page/selection/types.ts';
 import type { PageRec } from '../page/selection/selection.ts';
 import { createDeformationFrame, type DeformedMesh } from './frame.ts';
 import { deformedOf } from './source.ts';
+import type { HostWorldPlacements } from '../host/world/placements.ts';
 
 /**
  * A session's GPU deformation (#357): one record per deformed root of its cut (`frame.ts`), the
@@ -9,11 +10,17 @@ import { deformedOf } from './source.ts';
  * carries to name its root's record (`PageInfo.deform`). A root joining the session later has
  * none: the session that draws a deformed root is opened with it.
  */
-export function createSessionDeformation(roots: readonly ClusterRoot<PageRec>[]) {
+export function createSessionDeformation(
+  roots: readonly ClusterRoot<PageRec>[],
+  worlds: Pick<HostWorldPlacements, 'of'>,
+) {
   const frame = createDeformationFrame(
     roots.map((root) => {
-      const mesh = root.pages[0]?.sourceMesh as DeformedMesh | undefined;
-      return mesh ? deformedOf(mesh, root, root.world) : null;
+      const mesh = root.pages[0]?.sourceMesh as DeformedMesh | undefined,
+        deformed = mesh ? deformedOf(mesh, root, root.world) : null;
+      // The bones' worlds the engine composes, as it composes the root's (`worlds`).
+      if (deformed && mesh?.skeleton) deformed.boneWorlds = mesh.skeleton.bones.map(worlds.of);
+      return deformed;
     }),
   );
   let base = 0;
