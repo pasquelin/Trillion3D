@@ -13,15 +13,13 @@ import { buildBlendStatics } from '../blend/plan.ts';
 import { orderBlendPasses } from '../blend/order.ts';
 import { createWebgpuBlendState } from '../blend/state.ts';
 import { createWebgpuVisState } from '../pages/state/vis.ts';
+import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts';
+import { VIS_BINDINGS, SHADE_BINDINGS } from './bindLayout.ts';
 import { BASE_SLOTS } from '../../gpu/draw/draw.ts';
 import { createGpuRaster } from '../../gpu/raster/raster.ts';
 import type { WebgpuTileStreamer } from '../tile/streamer.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
-
-// Defect this test catches: a layout gains a binding and only one of its two constructors
-// binds it. The real device answers “Number of entries (10) did not match the expected number
-// of entries (12)”, then loses it; no test saw it.
 
 type Recorded = { layout: { entries: unknown[] }; entries: unknown[] };
 
@@ -47,7 +45,7 @@ function stubVis(layouts: Record<string, unknown>) {
     concatPos: token(),
     concatUv: token(),
     concatNrm: token(),
-    pageTable: token(),
+    pageTable: { size: 3 * PAGE_INFO_STRIDE } as GPUBuffer,
     visUniform: token(),
     shadeUniform: token(),
     zeroFlags: token(),
@@ -123,9 +121,27 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
   // Both constructors of `visBindGroupLayout`: the direct group and that of an indirect slot.
   ensureWebgpuVisibilityBindings(rt, device);
   assert.ok(visGroupFor(rt, device, BASE_SLOTS, false), 'the slot group is built');
-  // Both constructors of `shadeBindGroupLayout`: prepare goes through the same shared list as
-  // this one, replayed here after the group is invalidated.
+  // Resolve shares the prepare-time entries.
   ensureWebgpuShadeBindings(rt, device);
+  // PageInfo is a tightly packed storage array, not a dynamically offset binding per row.
+  assert.equal(PAGE_INFO_STRIDE, 272);
+  for (const [index, binding] of [
+    [0, VIS_BINDINGS.pageTable],
+    [1, VIS_BINDINGS.pageTable],
+    [2, SHADE_BINDINGS.pageTable],
+  ]) {
+    const group = groups[index] as unknown as GPUBindGroupDescriptor;
+    const entry = [...group.entries].find((entry) => entry.binding === binding)!;
+    const resource = entry.resource as GPUBufferBinding;
+    assert.equal(resource.buffer, vis.pageTable);
+    assert.equal(resource.offset ?? 0, 0);
+    assert.equal(resource.size ?? resource.buffer.size, 3 * 272);
+    const layout = groups[index].layout.entries as GPUBindGroupLayoutEntry[];
+    assert.equal(
+      layout.find((entry) => entry.binding === binding)!.buffer?.hasDynamicOffset ?? false,
+      false,
+    );
+  }
   // Both constructors of `blendBindGroupLayout`: the group ALL paged items share, then that of
   // an unpaged item, on its own buffers.
   const stub = (noms: string[]) =>
