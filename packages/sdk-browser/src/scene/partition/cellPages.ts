@@ -6,21 +6,34 @@
  * the next frame while its cell is placed. Without `pages` the manifest was read whole: nothing is
  * held, and every mesh the cells place has its primitive from the open.
  */
-import type { ManifestPages } from '../../../../sdk-core/src/index.ts';
+import type { ManifestPages } from '../../../../sdk-core/src/manifest/paged.ts';
 import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
 
 export function createCellPages(pages: ManifestPages | undefined, cells: readonly TableCell[]) {
-  /** The cells whose pages are held, and those whose hold failed while they are placed. */
-  const holding = new Set<number>(),
+  /** The hold of each cell whose pages are held, and the cells whose hold failed while placed. A
+   *  cell that leaves while its hold reads releases once it lands: a hold that fails counts
+   *  nothing, and releasing it too would drop a page another cell holds. */
+  type Hold = { landed: boolean; left: boolean };
+  const holding = new Map<number, Hold>(),
     failed = new Set<number>();
   let reads: Promise<void>[] = [];
   const hold = (cell: number) => {
     if (!pages || holding.has(cell)) return;
-    holding.add(cell);
-    const read = pages.hold(cells[cell].meshPages).catch(() => {
-      // Nothing was counted: held again at the next frame, unless the cell left meanwhile.
-      if (holding.delete(cell)) failed.add(cell);
-    });
+    const own: Hold = { landed: false, left: false };
+    holding.set(cell, own);
+    const slots = cells[cell].meshPages;
+    const read = pages.hold(slots).then(
+      () => {
+        own.landed = true;
+        if (own.left) pages.release(slots);
+      },
+      () => {
+        // Nothing was counted: held again at the next frame, unless the cell left meanwhile.
+        if (holding.get(cell) !== own) return;
+        holding.delete(cell);
+        failed.add(cell);
+      },
+    );
     reads.push(read);
   };
   return {
@@ -31,7 +44,11 @@ export function createCellPages(pages: ManifestPages | undefined, cells: readonl
     /** `cell` left: its pages are released. */
     release(cell: number) {
       failed.delete(cell);
-      if (holding.delete(cell)) pages!.release(cells[cell].meshPages);
+      const own = holding.get(cell);
+      if (!own) return;
+      holding.delete(cell);
+      if (own.landed) pages!.release(cells[cell].meshPages);
+      else own.left = true;
     },
     /** The reads asked since the last call, the holds that failed asked again first. */
     reads() {
