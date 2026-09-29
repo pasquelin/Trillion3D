@@ -23,12 +23,15 @@ test('the plan tiles the display, each tile’s supersampled target within the p
     assert.ok(tile.height * plan.factor <= PORTABLE_TEXTURE_SIDE);
     for (let row = 0; row < tile.height; row++)
       for (let col = 0; col < tile.width; col++) {
-        const at = (tile.y + row) * plan.width + tile.x + col;
-        assert.equal(covered[at], 0, `tile overlaps at ${tile.x + col}, ${tile.y + row}`);
-        covered[at] = 1;
+        const cell: number = (tile.y + row) * plan.width + tile.x + col;
+        assert.equal(covered[cell], 0, `tile overlaps at ${tile.x + col}, ${tile.y + row}`);
+        covered[cell] = 1;
       }
   }
-  assert.ok(covered.every((value) => value === 1), 'no gap');
+  assert.ok(
+    covered.every((value) => value === 1),
+    'no gap',
+  );
 });
 
 test('the factor falls only when the tile cap would be crossed', () => {
@@ -85,9 +88,6 @@ test('the resolved tiles are placed at their output origin, bottom row first', (
   placeTile(out, plan.width, tile, resolved);
   // Every pixel of the tile is written, and nothing outside it is.
   assert.equal(out[(tile.y * plan.width + tile.x) * 4], 7);
-  assert.equal(
-    out[((tile.y + tile.height - 1) * plan.width + tile.x + tile.width - 1) * 4],
-    7,
-  );
+  assert.equal(out[((tile.y + tile.height - 1) * plan.width + tile.x + tile.width - 1) * 4], 7);
   assert.equal(out[0], tile.x === 0 && tile.y === 0 ? 7 : 0);
 });

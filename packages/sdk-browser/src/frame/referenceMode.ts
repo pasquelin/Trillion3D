@@ -32,8 +32,8 @@ export const REFERENCE_APPROXIMATIONS = [
 export const REFERENCE_BOUNCE_BUDGET_MS = 1000;
 
 /** The boss's case (#1281): 1728 × 1117 CSS at DPR 2, a 55° vertical field. */
-export const REFERENCE_VIEW_HEIGHT_PX = 1117 * 2;
-export const REFERENCE_VIEW_FOV_DEG = 55;
+const REFERENCE_VIEW_HEIGHT_PX = 1117 * 2;
+const REFERENCE_VIEW_FOV_DEG = 55;
 
 /**
  * Pages a side of a clipmap level a view of `height` device pixels at vertical field `fov` needs
