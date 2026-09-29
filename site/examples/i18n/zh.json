@@ -2375,5 +2375,23 @@
       "unmount": "卸载",
       "remount": "重新挂载"
     }
+  },
+  "move-a-hierarchy-by-name": {
+    "banner": "观看五个命名组合走完可复现的序列。切换驱动方式，手动写入相同的位姿。",
+    "controls": {
+      "driver": "驱动方式",
+      "speed": "速度",
+      "paused": "暂停",
+      "replay": "重放"
+    },
+    "choices": {
+      "driver": {
+        "name": "按名称",
+        "host": "由宿主写入"
+      }
+    },
+    "readouts": {
+      "pose": "位姿"
+    }
   }
 }

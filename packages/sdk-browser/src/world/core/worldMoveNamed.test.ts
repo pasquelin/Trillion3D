@@ -12,6 +12,8 @@ import { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts';
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
 import { createExplorerLightApi } from '../api/lightApi.ts';
 import { Scene } from './scene.ts';
+import { worldSceneMethods } from './worldSceneMethods.ts';
+import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import { runtimeOf, sessionStandIn, type Open } from './worldRuntime.fixture.ts';
 import { seeded } from '../../host/world/randomTree.fixture.ts';
 import type { ExplorerSource } from '../session/prepare.ts';
@@ -75,7 +77,13 @@ function worldOf(node: Object3D, pose: ReturnType<typeof exactPose>) {
   return new Float32Array(new Matrix4().multiplyMatrices(node.parent!.matrixWorld, local).elements);
 }
 
-test('a hierarchy moved by name through the session API: the rows of the page’s own writes', async () => {
+type Robot = Awaited<ReturnType<typeof robot>>;
+
+/** Drives a seeded sequence of poses through `move` on one tree, the same poses written by the
+ *  host on another, and checks their rows match bit for bit, frame after frame. */
+async function sameRowsAsWritten(
+  move: (built: Robot, nodeName: string, world: Float32Array) => void,
+) {
   const [moved, written] = [await robot(), await robot()];
   const draw = seeded(972);
   for (let frame = 0; frame < 60; frame++) {
@@ -83,7 +91,7 @@ test('a hierarchy moved by name through the session API: the rows of the page’
       const at = Math.floor(draw() * NAMES.length),
         pose = exactPose(draw);
       const node = written.nodes[at];
-      moved.api.setTransform(NAMES[at], worldOf(moved.nodes[at], pose));
+      move(moved, NAMES[at], worldOf(moved.nodes[at], pose));
       node.position.copy(pose.position);
       node.quaternion.copy(pose.quaternion);
       node.scale.copy(pose.scale);
@@ -97,6 +105,10 @@ test('a hierarchy moved by name through the session API: the rows of the page’
     );
   }
   for (const { runtime } of [moved, written]) runtime.dispose();
+}
+
+test('a hierarchy moved by name through the session API: the rows of the page’s own writes', async () => {
+  await sameRowsAsWritten((built, nodeName, world) => built.api.setTransform(nodeName, world));
 });
 
 test('a name the page does not bear, or a pose of other than sixteen floats, is refused', async () => {
@@ -130,4 +142,22 @@ test('a name the page does not bear, or a pose of other than sixteen floats, is 
   runtime.render();
   assert.deepEqual(rows(), before, 'nothing moved');
   runtime.dispose();
+});
+
+test('the world’s public move by name forwards to the runtime’s name-indexed path', () => {
+  const calls: [string, Float32Array][] = [];
+  const methods = worldSceneMethods(
+    object.group(),
+    () => ({}) as Camera,
+    {} as HTMLCanvasElement,
+    () => null,
+    { moveNamed: (nodeName, matrix) => void calls.push([nodeName, matrix]) },
+  );
+  const matrix = new Float32Array(16);
+  methods.setTransform('arm', matrix);
+  assert.deepEqual(calls, [['arm', matrix]]);
+});
+
+test('the runtime move by name the world exposes writes the rows of the page’s own writes', async () => {
+  await sameRowsAsWritten((built, nodeName, world) => built.runtime.moveNamed(nodeName, world));
 });
