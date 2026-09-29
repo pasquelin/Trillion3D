@@ -7,7 +7,7 @@ import type { HostDrawCamera } from '../../camera/world.ts';
 import type { HostMaterials } from '../../host/resources.ts';
 import type { BackendContext } from '../../backend/types.ts';
 import { DEFAULT_TEXTURE_POOL_BUDGET } from '../../residency/pools.ts';
-import { WebglTextureQueue, WebglUploadBudget } from './textureQueue.ts';
+import { WebglTextureQueue } from './textureQueue.ts';
 import { readDegraded, type MaterialDegraded, type ReadDegraded } from './validation.ts';
 
 /** What the session grants the maps: the texture pool and a frame's upload budget. */
@@ -34,9 +34,8 @@ export class WebglClusterOwner {
     this.censused = false;
   };
   censused = false;
-  /** The maps the census orders ahead of the draws, and what a frame may upload of them. */
+  /** The maps the census orders ahead of the draws, under a frame's upload budget. */
   private ahead = new WebglTextureQueue();
-  private budget = new WebglUploadBudget();
   /** Files every declared surface, hidden or not yet attached ones too — WebGPU's census at
    *  prepare (#42) —; a later one at bind. Then orders their maps within the texture pool, which
    *  the frames upload ahead of their draws under the session's budget (`textureQueue.ts`). */
@@ -44,7 +43,10 @@ export class WebglClusterOwner {
     const declared = new Set(materials);
     for (const material of declared) this.display.textures.file(material);
     this.ahead.order(declared, hosts.texturePoolBytes ?? DEFAULT_TEXTURE_POOL_BUDGET);
-    this.budget.declare(hosts.maxTextureTransferBytesPerFrame, hosts.maxTextureUploadMsPerFrame);
+    this.ahead.budget.declare(
+      hosts.maxTextureTransferBytesPerFrame,
+      hosts.maxTextureUploadMsPerFrame,
+    );
     this.censused = true;
   }
   /** Reads the surfaces drawn without a physical feature, or left out, for `hear`, across
@@ -58,7 +60,7 @@ export class WebglClusterOwner {
   }
   /** Uploads the maps the census queued before any frame, a budget per task (`textureQueue.ts`). */
   prepareMaps() {
-    return this.ahead.prepare(this.context, this.display.textures, this.budget);
+    return this.ahead.prepare(this.context, this.display.textures);
   }
   /** The display curve of the frames to come, a rank of `TONE_MAPPING_RANK`. */
   toneCurve: number = TONE_MAPPING_RANK.aces;
@@ -98,8 +100,7 @@ export class WebglClusterOwner {
     renderer.pass.pixelRatio = this.pixelRatio;
     renderer.pass.mipBias = this.mipBias;
     // The maps uploaded ahead, first: the frame's commands not sent yet (`textureQueue.ts`).
-    this.budget.beginFrame();
-    this.ahead.drain(this.context, this.display.textures, this.budget);
+    this.ahead.drain(this.context, this.display.textures);
     const submitted = renderer.draw(
       meshes,
       scene,
