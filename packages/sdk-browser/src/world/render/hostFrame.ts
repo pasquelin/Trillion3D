@@ -42,6 +42,7 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
       pageBytesRead: state.pageBytesRead,
       streamingError: streaming.error,
       effectBytes: compose.effectBytes(),
+      gpu: drawBackend.gpu,
     }),
   );
   const streaming = createExplorerStreaming(session, {
