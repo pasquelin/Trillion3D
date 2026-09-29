@@ -3575,10 +3575,20 @@
     }
   },
   "TablePage": {
-    "summary": "Uma página que um slot nomeia: o seu arquivo, relativo às tabelas, o seu tamanho e a sua impressão digital."
+    "summary": "Uma página que um slot nomeia: o seu arquivo, relativo às tabelas, o seu tamanho e a sua impressão digital.",
+    "members": {
+      "url": "O seu arquivo, relativo às tabelas.",
+      "bytes": "O seu tamanho em bytes.",
+      "sha256": "A sua impressão digital SHA-256, em hexadecimal."
+    }
   },
   "TableSlot": {
-    "summary": "Uma página de um índice que um slot nomeia, a sua caixa nas poses declaradas e as ordens do núcleo listadas ao lado: para o índice de células, os pais sob os quais as suas células penduram nós (#575)."
+    "summary": "Uma página de um índice que um slot nomeia, a sua caixa nas poses declaradas e as ordens do núcleo listadas ao lado: para o índice de células, os pais sob os quais as suas células penduram nós (#575).",
+    "members": {
+      "page": "A página que o slot nomeia.",
+      "bounds": "A sua caixa nas poses declaradas: o canto mínimo, depois o máximo.",
+      "parents": "As classificações do núcleo listadas ao lado."
+    }
   },
   "TableTexture": {
     "summary": "Estado de amostragem de uma textura glTF, nas palavras do motor.",

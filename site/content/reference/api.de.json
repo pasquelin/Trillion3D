@@ -5965,10 +5965,20 @@
     }
   },
   "TablePage": {
-    "summary": "Eine Seite, die ein Platz benennt: ihre Datei relativ zu den Tabellen, ihre Größe und ihr Fingerabdruck."
+    "summary": "Eine Seite, die ein Platz benennt: ihre Datei relativ zu den Tabellen, ihre Größe und ihr Fingerabdruck.",
+    "members": {
+      "url": "Ihre Datei, relativ zu den Tabellen.",
+      "bytes": "Ihre Größe in Bytes.",
+      "sha256": "Ihr SHA-256-Fingerabdruck, hexadezimal."
+    }
   },
   "TableSlot": {
-    "summary": "Eine Seite eines Index, die ein Platz benennt, ihre Box in den deklarierten Posen und die daneben gelisteten Kernränge: beim Zellindex die Eltern, unter die ihre Zellen Knoten hängen (#575)."
+    "summary": "Eine Seite eines Index, die ein Platz benennt, ihre Box in den deklarierten Posen und die daneben gelisteten Kernränge: beim Zellindex die Eltern, unter die ihre Zellen Knoten hängen (#575).",
+    "members": {
+      "page": "Die Seite, die der Slot benennt.",
+      "bounds": "Ihre Box in den deklarierten Posen: die minimale Ecke, dann die maximale.",
+      "parents": "Die daneben aufgeführten Kernränge."
+    }
   },
   "TableTexture": {
     "summary": "Abtastzustand einer glTF-Textur, in den Worten der Engine.",

@@ -3659,10 +3659,20 @@
     }
   },
   "TablePage": {
-    "summary": "Một trang mà một ô nêu tên: tệp của nó, tương đối với các bảng, kích thước và dấu vân tay của nó."
+    "summary": "Một trang mà một ô nêu tên: tệp của nó, tương đối với các bảng, kích thước và dấu vân tay của nó.",
+    "members": {
+      "url": "Tệp của nó, tương đối với các bảng.",
+      "bytes": "Kích thước tính bằng byte.",
+      "sha256": "Dấu vân tay SHA-256, ở dạng thập lục phân."
+    }
   },
   "TableSlot": {
-    "summary": "Một trang của chỉ mục mà một ô nêu tên, hộp của nó ở các tư thế đã khai báo và các hạng lõi được liệt kê bên cạnh: với chỉ mục ô, các cha mà các ô của nó treo nút dưới đó (#575)."
+    "summary": "Một trang của chỉ mục mà một ô nêu tên, hộp của nó ở các tư thế đã khai báo và các hạng lõi được liệt kê bên cạnh: với chỉ mục ô, các cha mà các ô của nó treo nút dưới đó (#575).",
+    "members": {
+      "page": "Trang mà khe đặt tên.",
+      "bounds": "Hộp của nó ở các tư thế đã khai báo: góc nhỏ nhất, rồi góc lớn nhất.",
+      "parents": "Các hạng lõi được liệt kê bên cạnh."
+    }
   },
   "TableTexture": {
     "summary": "Trạng thái bộ lấy mẫu của một kết cấu glTF, theo lời của bộ máy.",
