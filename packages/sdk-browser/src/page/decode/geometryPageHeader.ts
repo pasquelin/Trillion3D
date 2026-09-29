@@ -1,9 +1,12 @@
 import { GEOMETRY_PAGE_FORMAT_VERSION } from '../../../../sdk-core/src/index.ts';
+import { morphWords, readDeformation, skinWords } from './geometryPageDeform.ts';
 import {
   CLUSTER_HEADER_WORDS,
   CLUSTER_PAGE_MAGIC,
   FLAGS_ALL,
   FLAG_COLOR,
+  FLAG_SKIN,
+  MORPH_WORDS,
   FLAG_NORMAL,
   FLAG_UV,
   FLAG_UV1,
@@ -48,7 +51,7 @@ export type Quant = { min: number[]; exponent: number; bits: number[] };
 const bitsFor = (range: number) => (range <= 0 ? 0 : 32 - Math.clz32(range));
 
 /** A quantization record from its packed word (six bits per width, the exponent in the top byte). */
-function record(word: number, min: number[]): Quant | null {
+export function record(word: number, min: number[]): Quant | null {
   const n = min.length,
     bits = Array.from({ length: n }, (_, c) => (word >>> (6 * c)) & 63),
     exponent = word >> 24;
@@ -64,7 +67,8 @@ function record(word: number, min: number[]): Quant | null {
 
 /**
  * The 24-word header of a `WGP3` page, read and checked: magic, format version, the four
- * quantization grids, the corner stream's bit count, and counts that agree with the page's own byte length — the stream layout is
+ * quantization grids, the corner stream's bit count, the skin and morph records
+ * (`geometryPageDeform.ts`), and counts that agree with the page's own byte length — the stream layout is
  * derived from the counts and widths the header declares, so a page whose body does not measure
  * exactly what its header describes is refused here rather than read out of bounds.
  *
@@ -88,7 +92,9 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
     color = record(w(15), [f(16), f(17), f(18), f(19)]),
     quantizationError = f(20),
     cornerBits = w(21);
-  if (!position || !uv || !uv2 || !color || w(22) || w(23)) throw new Error('GEOMETRY_PAGE_BOUNDS');
+  if (!position || !uv || !uv2 || !color) throw new Error('GEOMETRY_PAGE_BOUNDS');
+  const { skin, morphs } = readDeformation(head, flags),
+    headerWords = CLUSTER_HEADER_WORDS + morphs.length * MORPH_WORDS;
   // Word offset of each stream, derived from the counts and widths the header declares.
   const indexBits = bitsFor(vertexCount - 1),
     prefixBits = bitsFor(Math.floor(cornerBits / BLOCK_CORNERS)),
@@ -107,8 +113,16 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
     normal = stream(!!(flags & FLAG_NORMAL), vertexCount, 16),
     uvs = uv.bits.map((b) => stream(!!(flags & FLAG_UV), vertexCount, b)),
     uv2s = uv2.bits.map((b) => stream(!!(flags & FLAG_UV1), vertexCount, b)),
-    colors = color.bits.map((b) => stream(!!(flags & FLAG_COLOR), vertexCount, b));
-  let floats = 3;
+    colors = color.bits.map((b) => stream(!!(flags & FLAG_COLOR), vertexCount, b)),
+    skinned = stream(!!(flags & FLAG_SKIN), 1, 0);
+  if (flags & FLAG_SKIN) at += skinWords(skin, vertexCount);
+  // Each target's record names the word its streams start at: recomputed here, trusted if equal.
+  const placed = morphs.every((morph) => {
+    const start = at;
+    at += morphWords(morph, vertexCount);
+    return morph.start === start;
+  });
+  let floats = 3 + (flags & FLAG_SKIN ? 8 : 0) + 6 * morphs.length;
   for (const [, size, bit] of OPTIONAL) if (flags & bit) floats += size;
   const decodedBytes = vertexCount * floats * 4 + indexCount * 4;
   if (
@@ -121,12 +135,13 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
     !(quantizationError >= 0) ||
     !Number.isFinite(quantizationError) ||
     decodedBytes > maxDecodedBytes ||
-    (CLUSTER_HEADER_WORDS + at) * 4 !== data.byteLength
+    !placed ||
+    (headerWords + at) * 4 !== data.byteLength
   )
     throw new Error('GEOMETRY_PAGE_BOUNDS');
   // Each block's base, width and corners stay in bounds: the GPU reads the page in place on this.
   const table = Uint32Array.from({ length: cornerStream }, (_, i) =>
-    head.getUint32((CLUSTER_HEADER_WORDS + i) * 4, true),
+    head.getUint32((headerWords + i) * 4, true),
   );
   for (let b = 0; b < blockCount; b++) {
     const [base, width, start] = blockRecord(table, blocks, corners, b),
@@ -144,8 +159,11 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
     uv2,
     color,
     corners,
+    skin,
+    morphs,
+    headerWords,
     bodyWords: at,
     decodedBytes,
-    streams: { blocks, corners: cornerStream, positions, normal, uvs, uv2s, colors },
+    streams: { blocks, corners: cornerStream, positions, normal, uvs, uv2s, colors, skinned },
   };
 }
