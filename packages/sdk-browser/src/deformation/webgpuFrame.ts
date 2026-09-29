@@ -1,9 +1,7 @@
-import { pixelScaleOf } from '../streaming/priority.ts';
 import { worldStretch } from '../page/cut/logic.ts';
 import { noteDeformed } from '../webgpu/pages/render/movedBatch.ts';
 import type { EngineCamera } from '../camera/world.ts';
-import type { ClusterRoot } from '../page/selection/types.ts';
-import type { PageRec } from '../page/selection/selection.ts';
+import { createDeformationSkip } from './screen.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 
 /** A half float's value from its sixteen bits, positive ones: what `unpack2x16float` reads. */
@@ -33,22 +31,7 @@ export function halfAtLeast(x: number) {
 export const markReach = (mark: number, reach: number) =>
   ((mark & 0xffff) | (halfAtLeast(reach) << 16)) >>> 0;
 
-const scale: [number, number] = [1, 1];
-
-/** How many pixels `reach` of root's units spans at worst, seen from `cam`: from the nearest point
- *  of its rest box the reach can bring closer. */
-function pixelsOf(root: ClusterRoot<PageRec>, reach: number, cam: EngineCamera, focal: number) {
-  const box = root.worldBox;
-  if (!box) return Infinity;
-  const world = reach * worldStretch(root);
-  let squared = 0;
-  for (let c = 0; c < 3; c++) {
-    const gap = Math.max(0, box[c] - cam.eye[c], cam.eye[c] - box[c + 3]);
-    squared += gap * gap;
-  }
-  const distance = Math.sqrt(squared) - world;
-  return distance > cam.near ? (world * focal) / distance : Infinity;
-}
+const skip = createDeformationSkip();
 
 /**
  * Brings the session's GPU deformation to this image (#357), once its poses are uploaded: each
@@ -65,13 +48,8 @@ export function updateWebgpuDeformation(rt: WebgpuPagesRuntime, cam: EngineCamer
     pool = rt.vis.concatPos;
   if (!deformation?.any || !device || !pool) return false;
   const roots = rt.layout.selectionRoots,
-    frame = deformation.frame,
-    threshold = rt.run.gate.pixelError;
-  pixelScaleOf(cam.projection, rt.setup.viewport, scale);
-  const focal = Math.max(scale[0], scale[1]);
-  const moved = frame.update(
-    (i, reach) => threshold > 0 && pixelsOf(roots[i], reach, cam, focal) < threshold,
-  );
+    frame = deformation.frame;
+  const moved = frame.update(skip(roots, cam, rt.setup.viewport, rt.run.gate.pixelError));
   for (let i = 0; i < frame.bases.length; i++) {
     if (!frame.bases[i]) continue;
     const root = roots[i],

@@ -66,7 +66,8 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
   placed.forEach((entry, i) => {
     if (!entry) return;
     bases[i] = floats + 1;
-    floats += recordLayout(entry.shape).floats;
+    // Each record starts on a four-float boundary: the WebGL2 stage reads its palette by texel.
+    floats += Math.ceil(recordLayout(entry.shape).floats / 4) * 4;
   });
   const block = new Float32Array(Math.max(1, floats)),
     words = new Uint32Array(block.buffer);
