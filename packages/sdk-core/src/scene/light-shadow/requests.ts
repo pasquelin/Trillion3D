@@ -1,5 +1,7 @@
-import { LIGHT_KIND, type ShadowViewpoint } from '../light/contracts.ts';
+import type { ShadowViewpoint } from '../light/contracts.ts';
 import { createShadowNeeds } from './needs.ts';
+import { createEntryPages } from './entryPages.ts';
+import type { ShadowPoolSnapshot } from './mirror.ts';
 import type { ShadowPool } from './pool.ts';
 import type { ShadowRecords } from './records.ts';
 import type { ShadowTable } from './table.ts';
@@ -8,10 +10,7 @@ import {
   LAMP_FLOOR_MIP,
   PAGE_INDEX_MASK,
   PAGE_MAPPED,
-  decodeLampEntry,
-  lampCoarseness,
   lampFacesOf,
-  sunCoarseness,
   shadowRequestCap,
   sunFloorLevel,
 } from './virtual.ts';
@@ -29,7 +28,12 @@ export interface ShadowRequestReport {
   count: number;
   /** The entries asked for, the first `count` of them at most. */
   entries: Uint32Array;
+  /** The GPU allocator's pool after that frame's allocation, when the GPU allocates. */
+  pool?: ShadowPoolSnapshot;
 }
+
+/** Entries the host asks the GPU allocator for, beside what the pixels ask (`floors`). */
+export type ShadowAsks = { entries: Uint32Array; count: number };
 
 /**
  * Reads a request report back: every page the shading asked for is either touched — mapped, it
@@ -37,21 +41,23 @@ export interface ShadowRequestReport {
  * entry, so which pages a full pool refuses is the same from one run to the next: a sun's higher
  * levels and a lamp's higher mips cover the most pixels per page, and a finer page falls back to
  * them, so the pool never serves a fine page before the coarse one under it. Coarseness is
- * measured within each light (`sunCoarseness`, `lampCoarseness`).
+ * measured within each light (`shadowSunCoarseness`, `shadowLampCoarseness`).
  *
  * Every page named asks for its light's floor under it too (`sunFloorLevel`, `LAMP_FLOOR_MIP`):
  * what a reader falls back to last when that page is withdrawn. So the floor is mapped first, and
  * never evicted while anything above it is read; like every page named, it is drawn in the frame it
- * goes stale (`admit.ts`). The
- * floor covers all the light reaches, so it needs no report to know what the view will read: a
- * sun asks every frame for the floor pages its view reaches over the scene's box (`floors`) — past
- * it no caster lies, and a receiver there asks through the report —, and a new, moved or
- * reshaped lamp for each face's until a report written at its pose is read — a report from a past
- * pose names only the pages that pose's receivers read.
+ * goes stale (`admit.ts`). The floor covers all the light reaches, so it needs no report to know
+ * what the view will read: a sun asks every frame for the floor pages its view reaches over the
+ * scene's box (`floors`) — past it no caster lies, and a receiver there asks through the report —,
+ * and a new, moved or reshaped lamp for each face's until a report written at its pose is read — a
+ * report from a past pose names only the pages that pose's receivers read.
+ *
+ * When the GPU allocates (#1275), the report maps nothing: the GPU mapped what it names in the frame
+ * that named it, and the pool follows its snapshot (`mirror.ts`); the floors are asked of the GPU
+ * every frame, every lamp face's among them — no report names a floor for it any more.
  *
  * A report read against another table layout is dropped: its words name ranges that moved. A sun
- * entry is read with the extents of the frame that wrote it, and dropped when its page has since
- * left the clipmap. Allocates nothing past construction.
+ * entry is read with the extents of the frame that wrote it (`entryPages.ts`). Allocates nothing.
  */
 export function createShadowRequests(
   table: ShadowTable,
@@ -64,38 +70,26 @@ export function createShadowRequests(
 ) {
   const cap = shadowRequestCap(pool.pages),
     needs = createShadowNeeds(table, pool, 2 * cap), // each entry named, and its floor
+    entries = createEntryPages(table, records, sun),
     scratch = new Int32Array(4),
     /** What the entry being read names: its view, then its page. */
     at = new Int32Array(3);
-  let reportFrame = -1;
-  const isSun = (slice: number) => records.kind[slice] === LIGHT_KIND.directional;
-  /** Touches `entry` when it is mapped; else notes it to allocate, as `at` names it. */
+  let reportFrame = -1,
+    asking: ShadowAsks | undefined;
+  const { isSun } = entries;
+  /** Touches `entry` when mapped, else notes it to allocate as `at` names it; asking, lists it. */
   const ask = (entry: number, slice: number) => {
+    if (asking) {
+      if (asking.count < asking.entries.length) asking.entries[asking.count++] = entry;
+      return;
+    }
     const word = table.words[entry];
     if (word & PAGE_MAPPED) {
       const page = word & PAGE_INDEX_MASK;
       pool.requested[page] = Math.max(pool.requested[page], reportFrame);
       return;
     }
-    const rank = isSun(slice)
-      ? sunCoarseness(at[0], sun.finest[slice])
-      : lampCoarseness(at[0] & 15);
-    needs.note(entry, slice, at[0], at[1], at[2], rank);
-  };
-  /** Writes into `at` what unmapped `entry` of `slice` names; false when the clipmap left it. */
-  const decode = (entry: number, slice: number) => {
-    const relative = entry - table.baseOf(slice);
-    if (isSun(slice)) {
-      if (!sun.decode(slice, relative, reportFrame, scratch)) return false;
-      if (!sun.holds(slice, scratch[0], scratch[1], scratch[2])) return false;
-      for (let k = 0; k < 3; k++) at[k] = scratch[k];
-      return true;
-    }
-    decodeLampEntry(relative, scratch);
-    at[0] = scratch[0] * 16 + scratch[1];
-    at[1] = scratch[2];
-    at[2] = scratch[3];
-    return true;
+    needs.note(entry, slice, at[0], at[1], at[2], entries.rankOf(slice, at));
   };
   /** Asks for the floor page under the page `at` names, unless it is that page. */
   const askFloor = (slice: number) => {
@@ -136,10 +130,11 @@ export function createShadowRequests(
       // A report read back before a resize lists at most the old pool's cap.
       counts.requested = Math.min(report.count, cap, report.entries.length);
       counts.unlisted = report.count - counts.requested;
-      counts.allocated = 0;
-      counts.refused = 0;
+      counts.allocated = report.pool?.allocated ?? 0;
+      counts.refused = report.pool?.refused ?? 0;
       if (report.layoutEpoch !== table.layoutEpoch) return;
       counts.latest = reportFrame = report.frame;
+      if (report.pool) return;
       needs.clear();
       for (let i = 0; i < counts.requested; i++) {
         const entry = report.entries[i],
@@ -153,7 +148,7 @@ export function createShadowRequests(
           at[2] = pool.y[page];
         } else {
           slice = table.sliceAt(entry);
-          if (slice < 0 || !decode(entry, slice)) continue;
+          if (slice < 0 || !entries.decode(entry, slice, reportFrame, at)) continue;
         }
         ask(entry, slice);
         askFloor(slice);
@@ -164,12 +159,19 @@ export function createShadowRequests(
      *  report names yet: every sun's over the scene within the view's far distance
      *  (`sun.floorReach`), whatever moved, and each face's of a lamp posed after that report — new,
      *  moved or reshaped: what it named was read at a past pose. Evicts only what it did not name;
-     *  the next may evict it. */
-    floors(posed: ArrayLike<number>, view: ShadowViewpoint, nowMs: number, frame: number) {
+     *  the next may evict it. With `gpu`, lists them all, every lamp's, for the GPU to map. */
+    floors(
+      posed: ArrayLike<number>,
+      view: ShadowViewpoint,
+      nowMs: number,
+      frame: number,
+      gpu?: ShadowAsks,
+    ) {
       reportFrame = counts.latest;
+      asking = gpu;
       for (let slice = 0; slice < posed.length; slice++) {
         if (records.kind[slice] < 0) continue;
-        if (!isSun(slice) && posed[slice] <= counts.latest) continue;
+        if (!gpu && !isSun(slice) && posed[slice] <= counts.latest) continue;
         needs.clear();
         if (isSun(slice)) {
           const level = sunFloorLevel(sun.finest[slice]);
@@ -186,8 +188,9 @@ export function createShadowRequests(
             at[0] = face * 16;
             askFloor(slice);
           }
-        needs.allocate(reportFrame, nowMs, frame, counts);
+        if (!gpu) needs.allocate(reportFrame, nowMs, frame, counts);
       }
+      asking = undefined;
     },
     reset() {
       counts.requested = counts.allocated = counts.refused = counts.unlisted = 0;

@@ -26,6 +26,7 @@ import { contractLightingShader } from '../deferred/shaders.ts';
 import { BLEND_SHADER } from '../../webgpu/blend/shader.ts';
 import { WATER_COMPOSITE_SHADER } from '../../webgpu/water/compositeWgsl.ts';
 import { SHADOW_DEMAND_WGSL } from '../../webgpu/shadow/demandWgsl.ts';
+import { ALLOCATION_WGSL } from '../../webgpu/shadow/allocWgsl.ts';
 
 type Formula = (...args: number[]) => number;
 const shipped = shaderRun<Record<string, Formula>>(PAGE_MODEL_WGSL, PAGE_MODEL_FUNCTIONS, {});
@@ -54,6 +55,10 @@ const INPUTS: Record<string, () => number> = {
   side: () => lampPagesAt(int(0, LAMP_MIPS - 1)) * SHADOW_PAGE,
   first: () => int(-40, 40) * SHADOW_PAGE,
   t: () => (r() - 0.5) * 1e4,
+  rest: () => int(0, LAMP_FACE_ENTRIES - 1),
+  slot: () => int(0, 15),
+  r: () => int(0, 63),
+  count: () => int(1, 5000),
 };
 /** Texels on and about the edges the PCF and the page of a texel turn on, from a page's first. */
 const EDGES = [-1.5, -1.5 - 2 ** -20, 0, 1.5, 1.5 - 2 ** -20, 64, 64 - 2 ** -20, 126.5, 128];
@@ -114,7 +119,7 @@ test('the page a draw composes is the page a read of its square lands in', () =>
   }
 });
 
-test('every pass that reads the page table holds the page model once, and no copy of it', () => {
+test('every pass that reads or writes the page table holds the page model once, and no copy of it', () => {
   const opaque = contractLightingShader(true, false);
   for (const [pass, shader] of Object.entries({
     opaque,
@@ -122,6 +127,7 @@ test('every pass that reads the page table holds the page model once, and no cop
     blend: BLEND_SHADER,
     water: WATER_COMPOSITE_SHADER,
     demand: SHADOW_DEMAND_WGSL,
+    allocation: ALLOCATION_WGSL,
   })) {
     assert.equal(shader.split(PAGE_MODEL_WGSL).length, 2, pass);
     for (const name of PAGE_MODEL_FUNCTIONS)

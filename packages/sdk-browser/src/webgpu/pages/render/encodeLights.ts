@@ -6,6 +6,7 @@ import {
 import { uploadSceneLights } from '../state/lightBuffer.ts';
 import { planImageShadows } from './encodeShadows.ts';
 import { encodeShadowDemand } from '../../shadow/demandPass.ts';
+import { encodeShadowAllocation, flushShadowTable } from '../../shadow/allocPass.ts';
 import { lightCutMetrics } from '../../shadow/casters.ts';
 import { encodeShadowBatches, noteShadowFrame } from './encodeShadowBatches.ts';
 import { syncPageProxy, syncLightingProxies } from '../prepare/proxyMotion.ts';
@@ -21,10 +22,9 @@ const viewpoint = new Float64Array(3);
 
 /**
  * Direct lighting of an image, in order: shadow scheduling, per-tile light lists, the per-pixel
- * demand of shadow pages, depth pass into the atlas and record writes, then the parameters
- * deferred resolve will reread. A scene with no
- * declared light launches neither shadows nor lists: it pays nothing, and the unlit view outputs its
- * raw albedo.
+ * demand of shadow pages and their GPU allocation, depth pass into the atlas and record and table
+ * writes, then the parameters deferred resolve will reread. A scene with no declared light
+ * launches neither shadows nor lists: it pays nothing, and the unlit view outputs its raw albedo.
  */
 export function encodeDirectLights(
   rt: WebgpuPagesRuntime,
@@ -72,14 +72,15 @@ export function encodeDirectLights(
   // shadow light yet: nothing to record (`../../shadow/poolSize.ts`).
   if (lights.shadows?.texture) lights.pageRequests?.clear(encoder);
   const listed = encodeTileLists(rt, encoder, viewProjection, cam.eye);
-  // Per pixel, the pages the resolve will read, marked before any page is drawn.
+  // Per pixel, the pages the resolve will read, marked before any page is drawn, and mapped.
   if (listed) encodeShadowDemand(rt, encoder);
+  encodeShadowAllocation(rt, encoder);
   // Every page the plan marked is drawn now, batch after batch. A batch may refuse to encode
   // (reject or missing selection): its pages then stay stale, and their table words say what they
   // said — a page is readable only once its draw has landed.
   if (pages) encodeShadowBatches(rt, device, encoder, cam.eye);
   // Records and table words go out after the draws are encoded, before the resolve reads them.
-  if (lights.shadows?.texture) lights.shadows.flushData(lights.plan.table);
+  flushShadowTable(rt, encoder);
   noteShadowFrame(lights);
   if (!listed || !tiles) return directParams;
   directParams[0] = active;
