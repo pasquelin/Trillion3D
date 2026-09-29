@@ -29,7 +29,12 @@ export function collectClusterPages(
   metadata: ClusterManifest,
   indices: Map<string, Uint32Array>,
   associations: Map<Object3D, { meshes?: number; primitives?: number; placements?: PlacementRows }>,
-  options: { allowMissing?: boolean; blendCopy?: typeof createBlendCopyRecord } = {},
+  options: {
+    allowMissing?: boolean;
+    blendCopy?: typeof createBlendCopyRecord;
+    /** Leaves out a mesh placed by rows whose primitive is not read yet, mounted later (#751). */
+    pendingPlaced?: boolean;
+  } = {},
 ) {
   // World matrices of pages and roots are the ENGINE's, computed from the host's local poses:
   // no record any longer carries the live `matrixWorld` of its mesh.
@@ -39,20 +44,20 @@ export function collectClusterPages(
     blendCopies: BlendCopy[] = [],
     bootstrap: PageRec[] = [];
   const primitiveOf = primitiveFinder(metadata.primitives);
-  // A transparent surface leaves the collection as the engine's own record. A WebGL2 engine that
-  // draws its display graph whole hands in a builder of graph meshes instead
-  // (`../../cluster/blendCopyMesh.ts`).
+  // A transparent surface leaves the collection as the engine's own record; a WebGL2 engine that
+  // draws its display graph whole hands in graph meshes instead (`../../cluster/blendCopyMesh.ts`).
   const blendCopy = options.blendCopy ?? createBlendCopyRecord;
   // One template per source object, shared by all its placements: the DAG shape, its error
   // bands and cluster identities depend on no world matrix.
   const templates = createPrimitiveTemplates(indices, options.allowMissing === true);
   let order = 0;
   for (const mesh of objects(source)) {
-    const primitive = primitiveOf(associations.get(mesh));
+    const association = associations.get(mesh);
+    const primitive = primitiveOf(association);
+    if (!primitive && options.pendingPlaced && association?.placements) continue;
     if (!primitive) throw new Error(`Missing primitive association: ${mesh.name}`);
-    // One root per placement: the node's own pose, or each row of the instance buffer the
-    // association carries (`placementRoots`), each row's world a view on that buffer.
-    const placed = placementsOf(associations.get(mesh), () => worlds.of(mesh));
+    // One root per placement: the node's pose, or each row its association carries (`placementRoots`).
+    const placed = placementsOf(association, () => worlds.of(mesh));
     // The surface the declaration wears, read at the boundary into the engine's own record:
     // from here on this collection and everything it feeds hold records, not host materials.
     const surface = meshSurface(mesh);
@@ -67,8 +72,8 @@ export function collectClusterPages(
     const template = templates.pagesOf(primitive);
     collected.add(mesh);
     const transparent = pagesBlend(primitive, surface);
-    // The grid moved every position of this primitive by at most this much: its clusters' boxes
-    // grow by it, so culling still encloses the surface an engine draws from the pages.
+    // The grid moved each position by at most this much: its clusters' boxes grow by it, so
+    // culling still encloses the surface an engine draws from the pages.
     const slack = quantizationErrorOf(primitive);
     const widen = (bounds: number[], sign: number) =>
       slack > 0 ? bounds.map((value) => value + sign * slack) : bounds;
@@ -89,8 +94,7 @@ export function collectClusterPages(
           array: entry.array,
           triangles: page.count / 3,
           indexBytes: entry.array?.byteLength ?? page.bytes,
-          // A transparent cluster draws from its geometry page as an opaque one does
-          // (`../../webgpu/blend/shader.ts`).
+          // Transparent, it draws from its geometry page as opaque does (`webgpu/blend/shader.ts`).
           geometryPage: page.geometry,
           min: mins[pageIndex],
           max: maxs[pageIndex],
@@ -131,17 +135,14 @@ export function collectClusterPages(
       roots.push({
         world,
         pages,
-        // Nodes, their bounds and their links belong to the primitive and are shared by all its
-        // placements.
+        // Nodes, their bounds and their links are the primitive's, shared by all its placements.
         culling: culling && { ...culling, bounds: shape.bounds!, links: shape.links },
         worldBox,
         localBox: shape.local.slice(),
         structure,
-        // Each page carries its cooked cone, but only `prepareCones` declares it, raising this flag:
-        // the WebGL2 engine does not call it and therefore pays no `cone` read per tested cluster.
+        // Only `prepareCones` raises it: the WebGL2 engine reads no `cone` per tested cluster.
         cones: false,
-        // Each record receives `min` and `max` from the manifest, which the page contract makes
-        // mandatory: the root declares it, and the cut stops checking it per cluster.
+        // Every record has the manifest's `min` and `max` (the page contract): none is checked.
         boxes: true,
         parked,
         placement,
@@ -152,8 +153,7 @@ export function collectClusterPages(
             placement ? rowShadowless(placement) : !mesh.castShadow,
           ) || undefined,
       });
-      // The clusters nothing replaces are the coarsest complete cover; they stay resident so the cut
-      // always has something to fall back on.
+      // Nothing replaces these: the coarsest complete cover, resident, the cut's fallback.
       if (structure) for (const root of structure.roots) bootstrap.push(pages[root]);
     }
     order++;
