@@ -9,7 +9,7 @@ import { camera, disposeQuadRun } from '../testScenes.fixture.ts';
 // #487: `geometryAllocationBytes` counts the page slots AND the vertex buffers held beside them —
 // the float geometry of what no page covers, a one-vertex placeholder at least. The pool is drawn
 // from what the budget leaves those buffers, so the two never sum past the declared pool, whatever
-// its value: a multiple of the slot, one byte off it, or the budget a measurer halves.
+// its value: a multiple of the slot, one byte off it, or the budget the recette halves.
 
 /** The coarse quad over three 24-byte slots, one root, its leaves streamed on demand. */
 function budgetedQuad(geometryPoolBytes: number) {
