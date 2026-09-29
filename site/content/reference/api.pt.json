@@ -7939,5 +7939,13 @@
   },
   "world.materialMapBytes": {
     "summary": "Bytes de imagens mantidas ou pendentes, limitados a 64 MiB."
+  },
+  "world.setTransform": {
+    "summary": "Move o nó `nodeName` para que sua pose de mundo seja `matrix`: um nó de que a página não guarda referência é alcançado pelo nome (`object.name`), procurado na cena.",
+    "description": "A pose é uma pose de mundo — o motor a traz de volta ao espaço do pai do nó —, então um nome sob um pai movido ainda chega onde pedido. A mesma rota que WebGPU e WebGL2 tomam para um movimento por nome de uma página, não uma segunda. O próximo quadro o desenha; um pedido que não muda nada não pede nenhum.",
+    "parameters": {
+      "nodeName": "O `name` do nó a mover.",
+      "matrix": "Sua pose de mundo, dezesseis floats em ordem por colunas."
+    }
   }
 }

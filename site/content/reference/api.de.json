@@ -7939,5 +7939,13 @@
   },
   "world.materialMapBytes": {
     "summary": "Bytes gehaltener oder ausstehender Laufzeitbilder, auf 64 MiB begrenzt."
+  },
+  "world.setTransform": {
+    "summary": "Bewegt den Knoten `nodeName` so, dass seine Weltpose `matrix` ist: Ein Knoten, für den die Seite keine Referenz behält, wird über seinen Namen (`object.name`) erreicht, in der Szene gesucht.",
+    "description": "Die Pose ist eine Weltpose — die Engine bringt sie zurück in den Raum des Elternknotens —, sodass ein Name unter einem bewegten Elternteil dennoch dort landet, wo er verlangt wird. Derselbe Weg, den WebGPU und WebGL2 für eine Namensbewegung einer Seite nehmen, kein zweiter. Das nächste Frame zeichnet ihn; eine Anfrage, die nichts ändert, verlangt keines.",
+    "parameters": {
+      "nodeName": "Der `name` des zu bewegenden Knotens.",
+      "matrix": "Seine Weltpose, sechzehn Fließkommazahlen in spaltenmajorer Ordnung."
+    }
   }
 }

@@ -57,6 +57,11 @@
       "file": "examples/a-scene-of-your-own.html"
     },
     {
+      "id": "move-a-hierarchy-by-name",
+      "theme": "geometry",
+      "file": "examples/move-a-hierarchy-by-name.html"
+    },
+    {
       "id": "a-mesh-built-by-hand",
       "theme": "geometry",
       "file": "examples/a-mesh-built-by-hand.html"
