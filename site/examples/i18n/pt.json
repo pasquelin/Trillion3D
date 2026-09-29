@@ -1411,6 +1411,7 @@
     "banner": "Arraste para andar em volta. Troque a vista para ver o que o renderizador guarda.",
     "controls": {
       "see": "Ver",
+      "glass": "Vidro",
       "spin": "Girar"
     },
     "choices": {
