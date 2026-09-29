@@ -60,9 +60,6 @@ export function frameSizeOf(rt: WebgpuPagesRuntime, into: FrameSize) {
   return into;
 }
 
-/** True when the display colour is a target of its own, which the resolve reconstructs into. */
-export const drawnBelow = (size: FrameSize) => size.apart;
-
 /** True when `a` and `b` are the same frame size, all sizes alike. */
 export const sameFrameSize = (a: FrameSize, b: FrameSize) =>
   a.width === b.width &&
