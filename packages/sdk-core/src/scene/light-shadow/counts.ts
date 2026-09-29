@@ -7,7 +7,8 @@ import type { ShadowRecords } from './records.ts';
  * Why a page turns stale, each a frame's count in `counts.staledBy` (#991): its light moved or
  * changed shape or frame; a still caster moved or changed; moving casters alone did; its casters'
  * representation changed (detail); it was drawn at another cut threshold than the one at rest; it
- * was drawn in another depth range than its sun's current one (`sunDepth.ts`).
+ * was drawn in another depth range than its sun's current one (`sunDepth.ts`); its receivers'
+ * footprint grew past the one it was drawn for (`demandFootprint.ts`).
  */
 export const STALE_BY: Readonly<Record<ShadowStaleReason, number>> = {
   light: 0,
@@ -16,6 +17,7 @@ export const STALE_BY: Readonly<Record<ShadowStaleReason, number>> = {
   detail: 3,
   threshold: 4,
   range: 5,
+  footprint: 6,
 };
 export const STALE_REASONS = /* @__PURE__ */ Object.keys(STALE_BY) as ShadowStaleReason[];
 

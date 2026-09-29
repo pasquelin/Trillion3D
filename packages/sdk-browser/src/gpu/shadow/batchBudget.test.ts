@@ -20,6 +20,7 @@ import {
   SHADOW_BATCH_HOST_BYTES,
   SHADOW_BATCH_WRITE_BYTES,
   SHADOW_REGION_COMMANDS,
+  SHADOW_TESTED_WORD,
   SHADOW_FLAG_FRAMES,
   SHADOW_STAGING_BYTES,
   shadowBatchCapacity,
@@ -62,8 +63,9 @@ test('the GPU bytes the batches add are what the staging, flags, CPU lists and c
   writes.end();
   createLightCutRedraws((d) => device.createBuffer(d), target, DAG_MAX_VIEWS);
   const lists = createCpuCasterLists(device, 1);
-  // The cull's count sample, both lists a region (#965), and the occlusion test's.
-  createGpuShadowCullCounts(device, SHADOW_REGION_COMMANDS);
+  // The cull's count sample, both lists a region (#965) and its tested word (#1211), and the
+  // occlusion test's.
+  createGpuShadowCullCounts(device, SHADOW_REGION_COMMANDS, SHADOW_TESTED_WORD);
   createGpuShadowCullCounts(device);
   const made = buffers.filter(
     (buffer) => buffer !== (target as unknown) && buffer !== (lists.source as unknown),
