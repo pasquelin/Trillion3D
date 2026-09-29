@@ -15,16 +15,23 @@ import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts';
 import { FLAG_BLEND_CASTER } from '../../visibility/types.ts';
 import { BLEND_TRANSMITTANCE_WGSL } from './transmittance.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { SHADOW_SUBTEXELS } from '../../lighting/direct/shadowSampleWgsl.ts';
 
-/** Steps across a page of the rasterizer's grid: `SHADOW_SUBTEXELS` a texel, its 8 bits. */
-const PAGE_STEPS = SHADOW_PAGE * SHADOW_SUBTEXELS;
+/** The rasterizer's subpixel steps per texel: WebGPU's (D3D's) 8-bit fixed-point window grid. */
+const RASTER_SUBPIXELS = 256;
+/** Steps across a page of the rasterizer's grid. */
+export const PAGE_STEPS = SHADOW_PAGE * RASTER_SUBPIXELS;
 
-/** One axis of a sun page's corner, in clip space, put on the rasterizer's grid of the page. Its
- *  window position — the page's integer place in the pool plus that — is then exact in f32, so
- *  the rasterizer covers the same texels with the same depths in every slot of the pool (#26). */
+/** The clip position `p` of a caster's corner through `m`. A sun's projection is orthographic
+ *  (last row 0,0,0,1): its x and y are put on the rasterizer's grid of the page, so their window
+ *  position — the page's integer place in the pool plus that — is exact in f32 and the rasterizer
+ *  covers the same texels with the same depths in every slot of the pool (#26). A lamp's is divided
+ *  by the hardware, as it is. Halves round up (`floor(x+0.5)`), as the shadow reads do. */
 export const SHADOW_CORNER_WGSL = `fn shadowPageCorner(c:f32)->f32{
- return round((c*0.5+0.5)*${PAGE_STEPS}.0)*${2 / PAGE_STEPS}-1.0;
+ return floor((c*0.5+0.5)*${PAGE_STEPS}.0+0.5)*${2 / PAGE_STEPS}-1.0;
+}
+fn shadowSunCorner(m:mat4x4f,p:vec4f)->vec4f{
+ if(m[0].w!=0.0||m[1].w!=0.0||m[2].w!=0.0||m[3].w!=1.0){return p;}
+ return vec4f(shadowPageCorner(p.x),shadowPageCorner(p.y),p.z,p.w);
 }`;
 
 /**
@@ -90,9 +97,7 @@ fn shadowVertex(vertexIndex:u32,pageIndex:u32,blended:bool)->ShadowOut{
  // The out.position product is not reassociated: world position is composed apart, otherwise
  // the written depth would no longer be that from before this batch, to the bit.
  out.position=shadow.viewProjection*page.world*vec4f(vertex,1.0);
- // A sun's projection is orthographic: its corner is on the page's grid. A lamp's is divided by
- // the hardware, as it is.
- if(out.position.w==1.0){out.position.x=shadowPageCorner(out.position.x);out.position.y=shadowPageCorner(out.position.y);}
+ out.position=shadowSunCorner(shadow.viewProjection,out.position);
  out.fromEmitter=(page.world*vec4f(vertex,1.0)).xyz-shadow.emitter.xyz;
  if((page.flags&4u)!=0u){out.uv=pageUv(page,h,id);}
  return out;
