@@ -1,4 +1,5 @@
-import type { TileTexture, WebgpuTileAtlas } from './atlas.ts';
+import type { WebgpuTileAtlas } from './atlas.ts';
+import type { TileTexture } from './tileTexture.ts';
 import { levelSize } from '../../texture/tiles.ts';
 import { pictureSize } from '../../texture/pictureSize.ts';
 import { textureRgba } from '../../visibility/types.ts';

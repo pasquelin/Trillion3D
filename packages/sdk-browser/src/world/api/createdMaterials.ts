@@ -6,7 +6,6 @@ import { surfaceVariantOf, variantKey } from '../../host/prepared/materials.ts';
 import { alphaModeOf, type AlphaMode } from '../../../../sdk-core/src/contracts/material.ts';
 import { firstMaterial } from '../../scene/materialSide.ts';
 import type { HostMesh } from '../../host/resources.ts';
-import { EngineError } from '../../../../sdk-core/src/index.ts';
 import {
   invalid,
   MASK_CUTOFF,
@@ -15,12 +14,11 @@ import {
   type SceneMaterialPatch,
 } from './materialValues.ts';
 
-/** What `createMaterial` takes: a patch's values but tiling, a name, and a map — refused until
- *  the texture atlas takes one after open (#847). */
+/** Values of a runtime material; a map admission returns a promise. */
 export type CreatedMaterial = Omit<SceneMaterialPatch, 'tiling'> & {
   /** Page label for the new material. */
   name?: string;
-  /** Unsupported until textures can join a live page material. */
+  /** Caller-owned bitmap, decoded without premultiplication or colour conversion. Keep open until drop. */
   map?: ImageBitmap;
 };
 
@@ -30,15 +28,16 @@ export const RUNTIME_MATERIAL_CEILING = 256;
 
 /** What `createMaterial` takes, anything else refused by name: a change's values but tiling,
  *  and a name. */
-const CREATED_FIELDS = [...PATCH_FIELDS.filter((field) => field !== 'tiling'), 'name'];
+const CREATED_FIELDS = [...PATCH_FIELDS.filter((field) => field !== 'tiling'), 'name', 'map'];
 
 /** Every value the page named for a created material, checked as a change's are, or a named
- *  refusal before anything is built: a map is not taken yet (steps (b), (c) of #847). */
+ *  refusal before anything is built. */
 export function validateCreated(id: string, props: CreatedMaterial) {
-  if (props.map !== undefined)
-    throw new EngineError('UNSUPPORTED_SCENE_UPDATE', 'a created material takes no map yet', {
-      id,
-    });
+  if (
+    props.map !== undefined &&
+    (typeof ImageBitmap === 'undefined' || !(props.map instanceof ImageBitmap))
+  )
+    throw invalid(id, 'map', props.map);
   validate(id, props, CREATED_FIELDS);
   if (props.name !== undefined && typeof props.name !== 'string')
     throw invalid(id, 'name', props.name);
@@ -90,9 +89,8 @@ const CREATED_DEFAULTS = {
 
 /** The host surface of a created material: what the page named, glTF's default elsewhere, drawn
  *  as a repainted primitive is (`hostPageSurface`). */
-export function createdSurface({ name, ...props }: CreatedMaterial) {
-  // A value named `undefined` is one the page did not name: glTF's default, not a hole; a map
-  // is refused before (`validateCreated`), so none reaches here.
+export function createdSurface({ name, map: _map, ...props }: CreatedMaterial) {
+  // Maps are admitted separately; undefined values keep the glTF defaults.
   const named = Object.entries(props).filter(([, value]) => value !== undefined);
   const surface = hostPageSurface(
     { ...CREATED_DEFAULTS, ...Object.fromEntries(named) },
