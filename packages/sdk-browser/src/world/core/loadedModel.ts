@@ -6,7 +6,7 @@ import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
 import { lightFromRecord } from '../../../../sdk-core/src/world/light/lightRecord.ts';
 import { importedLightsUrl, loadImportedLights } from '../../lighting/importedLights.ts';
 import { sceneTablesUrl } from '../../scene/tables.ts';
-import { worldRootsUrls } from '../../scene/worldRoots.ts';
+import { worldRootsPlan } from '../../scene/worldRoots.ts';
 import type { ClusterManifest, AssetScope, JobProgress } from '../../../../sdk-core/src/index.ts';
 import { loadClusterManifest } from '../../scene/manifestLoad.ts';
 import { byteMeter, unmetered } from '../../cluster/byteMeter.ts';
@@ -118,13 +118,13 @@ export class LoadedModel extends Object3D {
 const SCENE_FILE = 'source.gltf';
 
 /** The files a model load reads once its manifest is, at the length the manifest declares each,
- *  addressed as their readers address them: the scene tables, the lights, the world roots' table
- *  and binary (its top alone read when a server answers the Range, the rest given back).
- *  An image is read only when a surface samples it, and the scene's binary only when a path reads
- *  host vertices (`Geometry.loadVertices`), so neither is planned. */
-function plannedFiles(declared: ReadonlyMap<string, number>, base: string) {
-  const read = [sceneTablesUrl(base), importedLightsUrl(base), ...worldRootsUrls(base)];
-  return new Map(read.flatMap((url) => (declared.has(url) ? [[url, declared.get(url)!]] : [])));
+ *  addressed as their readers address them: the scene tables, the lights, the world roots
+ *  (`worldRootsPlan`). An image is read only when a surface samples it, and the scene's binary only
+ *  when a path reads host vertices (`Geometry.loadVertices`), so neither is planned. */
+function plannedFiles(declared: ReadonlyMap<string, number>, base: string, manifest: object) {
+  const read = [sceneTablesUrl(base), importedLightsUrl(base)];
+  const files = read.flatMap((url) => (declared.has(url) ? [[url, declared.get(url)!]] : []));
+  return new Map([...files, ...worldRootsPlan(declared, base, manifest)] as [string, number][]);
 }
 
 /**
@@ -164,7 +164,7 @@ export async function loadModel(
         textureSource,
         meter,
         pages,
-        onTables: () => meter.plan(plannedFiles(declared, base)),
+        onTables: () => meter.plan(plannedFiles(declared, base, metadata)),
         onPreparation: (event) => onProgress?.({ ...event }),
       },
       metadata,
