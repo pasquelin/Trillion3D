@@ -3191,7 +3191,7 @@
       "shadowStaticDrawCalls": "静态投射体的绘制调用：绘制到静态层，或在没有静态层时整页绘制的页面。",
       "shadowMovingDrawCalls": "仅运动投射体的绘制调用，绘制在从静态层恢复的页面上。",
       "shadowMovingCastersKept": "在 `shadowCastersKept` 中，为只绘制运动投射体而保留的簇。",
-      "shadowPagesStaledBy": "本帧使其过期的页面，按原因划分：光源、静止投射体、运动投射体、细节、剪切阈值，或太阳的深度范围。",
+      "shadowPagesStaledBy": "本帧使其过期的页面，按原因划分：光源、静止投射体、运动投射体、细节、剪切阈值、太阳的深度范围，或其接收体扩大的足迹。",
       "shadowWaitMs": "图像读取的最老过期页面等待重绘的毫秒数。只计算图像读取它的时间;重绘后为 0。",
       "shadowCutDrops": "自打开浏览器以来丢弃了工作的光源裁剪批次数——其视图保留的簇多于列表容量——：每个批次送回其页面，在重绘前撤下(#525)。在没有 GPU 光源裁剪的引擎上为 null，下面三项亦然。",
       "shadowCutWithdrawnPages": "自打开浏览器以来，因光源裁剪画错而重绘的页面数：其批次丢弃了工作，或其标志从未被读取。这些页面在重绘前被撤下。",
@@ -3223,6 +3223,7 @@
       "shadowMemoryEvents": "自世界打开以来阴影的内存压力事件，按名称，按顺序；通常为空。",
       "shadowPagesRefetched": "自 explorer 打开以来，被池为腾出空间而逐出后重新映射的虚拟页：池相对于帧读取量过小所付出的重绘。",
       "shadowCastersKept": "逐页剔除保留的投射体（所有绘制页合计），取设备最后采样的帧 — 每十五帧一次；样本返回前为 `null`。",
+      "shadowCastersRejected": "逐页剔除测试过但未保留的投射体（位于接收体所读页面部分之外），取同一采样帧；样本返回前为 `null`。",
       "shadowCastersHidden": "遮挡测试发现隐藏在其页静态层后的移动投射体，取最后采样的帧；样本返回前为 `null`。"
     }
   },
@@ -4302,7 +4303,7 @@
       "shadowStaticDrawCalls": "静态投射体的绘制调用：绘制到静态层，或在没有静态层时整页绘制的页面。",
       "shadowMovingDrawCalls": "仅运动投射体的绘制调用，绘制在从静态层恢复的页面上。",
       "shadowMovingCastersKept": "在 `shadowCastersKept` 中，为只绘制运动投射体而保留的簇。",
-      "shadowPagesStaledBy": "本帧使其过期的页面，按原因划分：光源、静止投射体、运动投射体、细节、剪切阈值，或太阳的深度范围。",
+      "shadowPagesStaledBy": "本帧使其过期的页面，按原因划分：光源、静止投射体、运动投射体、细节、剪切阈值、太阳的深度范围，或其接收体扩大的足迹。",
       "shadowWaitMs": "图像读取的最老过期页面等待重绘的毫秒数。只计算图像读取它的时间;重绘后为 0。",
       "shadowCutDrops": "自打开浏览器以来丢弃了工作的光源裁剪批次数——其视图保留的簇多于列表容量——：每个批次送回其页面，在重绘前撤下(#525)。在没有 GPU 光源裁剪的引擎上为 null，下面三项亦然。",
       "shadowCutWithdrawnPages": "自打开浏览器以来，因光源裁剪画错而重绘的页面数：其批次丢弃了工作，或其标志从未被读取。这些页面在重绘前被撤下。",
@@ -4373,6 +4374,7 @@
       "shadowMemoryEvents": "自世界打开以来阴影的内存压力事件，按名称，按顺序；通常为空。",
       "shadowPagesRefetched": "自 explorer 打开以来，被池为腾出空间而逐出后重新映射的虚拟页：池相对于帧读取量过小所付出的重绘。",
       "shadowCastersKept": "逐页剔除保留的投射体（所有绘制页合计），取设备最后采样的帧 — 每十五帧一次；样本返回前为 `null`。",
+      "shadowCastersRejected": "逐页剔除测试过但未保留的投射体（位于接收体所读页面部分之外），取同一采样帧；样本返回前为 `null`。",
       "shadowCastersHidden": "遮挡测试发现隐藏在其页静态层后的移动投射体，取最后采样的帧；样本返回前为 `null`。",
       "dynamicUploadBytes": "本帧就地上传的动态几何体顶点字节数（#573），在世界的每帧预算（`DYNAMIC_UPLOAD_BUDGET_BYTES`）之内。没有世界绘制时不存在。"
     }
