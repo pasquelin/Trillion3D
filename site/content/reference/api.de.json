@@ -5562,7 +5562,7 @@
       "plan": "Plant ein Bild: macht ungültig, was sich bewegt hat, liest die Anforderung der Empfänger — sonst den letzten Bericht —, lässt jede zu zeichnende Seite zu.",
       "reissue": "Die Seiten des Bildes ab `from` konnten nicht kodiert werden: sie bleiben ungültig, ausstehend, und das nächste Bild zeichnet sie.",
       "reset": "Beginnt neu.",
-      "setThreshold": "Die Schwelle, bei der die Lichtschnitte ihre Schattenwerfer wählen (`thresholds.ts`).",
+      "setThreshold": "Die Schwelle, bei der die Lichtschnitte ihre Schattenwerfer wählen, und ihr Render-Ursprung (`thresholds.ts`).",
       "table": "Die Seitentabelle: ein Wort pro virtueller Seite und der Bereich, den jedes Licht darin hält.",
       "pool": "Die physischen Seiten des Pools und die virtuelle Seite, die jede hält.",
       "sun": "Die Clipmap jeder Sonne: ihr Bezugssystem, Tiefenbereich, feinste Stufe und Ausschnitte.",

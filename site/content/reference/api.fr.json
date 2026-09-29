@@ -5570,7 +5570,7 @@
       "plan": "Planifie une image : rend périmé ce qui a bougé, lit la demande des récepteurs — ou à défaut le dernier rapport —, admet chaque page à dessiner.",
       "reissue": "Les pages de l’image à partir de `from` n’ont pas pu être encodées : elles restent périmées, en attente, et l’image suivante les dessine.",
       "reset": "Recommence.",
-      "setThreshold": "Le seuil auquel les coupes de lumière choisissent leurs projeteurs d’ombre (`thresholds.ts`).",
+      "setThreshold": "Le seuil auquel les coupes de lumière choisissent leurs projeteurs d’ombre, et leur origine de rendu (`thresholds.ts`).",
       "table": "La table des pages : un mot par page virtuelle, et la plage que chaque lumière y tient.",
       "pool": "Les pages physiques du pool, et la page virtuelle que chacune porte.",
       "sun": "Le clipmap de chaque soleil : son repère, sa plage de profondeur, son niveau le plus fin et ses fenêtres.",
