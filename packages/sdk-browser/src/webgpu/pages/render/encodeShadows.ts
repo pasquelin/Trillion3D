@@ -16,7 +16,6 @@ import { releaseStaticLayer } from '../../shadow/poolResize.ts';
 import { staticLayerGranted } from '../../shadow/poolSize.ts';
 import { noteShadowPressure } from '../../shadow/memoryGrant.ts';
 import { recordShadowPlan } from '../../shadow/cpuSteps.ts';
-import { shadowReceivers } from '../../shadow/receivers.ts';
 
 const viewpoint: ShadowViewpoint & {
   position: [number, number, number];
@@ -59,7 +58,7 @@ export function shadowViewpointOf(cam: EngineCamera, height: number) {
 }
 
 /**
- * Plans this image's shadow pages — every stale one its receivers read — and writes every light's
+ * Plans this image's shadow pages — every stale one the image reads — and writes every light's
  * record; the pages themselves are composed batch by batch as they are encoded
  * (`encodeShadowBatches.ts`). Returns the pages to draw.
  */
@@ -71,8 +70,7 @@ export function planShadowRegions(
 ) {
   const { lights } = rt,
     { shadows, plan, store, runs, regions } = lights,
-    { rows, packedPages, selectionRoots: roots } = rt.layout,
-    { targetSize, displaySize } = rt.gpu;
+    { rows, packedPages, selectionRoots: roots } = rt.layout;
   runs.reset();
   regions.reset();
   lights.packedBatch.frame = -1;
@@ -96,13 +94,11 @@ export function planShadowRegions(
   // The light cuts measure their error at the camera's threshold, in the eye's render frame.
   lights.shadowPixelError = followLightThreshold(lights, rt.run.gate.pixelError, cam.eye);
   // Shadow detail is the display's, whatever size the frame is drawn at.
-  const view = shadowViewpointOf(cam, displaySize[1]);
+  const view = shadowViewpointOf(cam, rt.gpu.displaySize[1]);
   const box = lights.sceneBox(rt.layout, rt.run.gate.revisions.scene);
   ensureStaticLayer(rt);
   redrawShortPages(rt, frame, nowMs, residencyMoved);
-  // The frame's receivers name the pages they read before the raster, in this frame.
-  const receivers = shadowReceivers(rt.run.drawn, roots, cam, targetSize[1], displaySize[1]);
-  const count = plan.plan(store, view, box.min, box.max, frame, nowMs, receivers);
+  const count = plan.plan(store, view, box.min, box.max, frame, nowMs);
   lights.shadowSlots = writeShadowRecords(lights);
   lights.shadowsUpdated = plan.counts.lights;
   return count;
@@ -131,8 +127,7 @@ export function planImageShadows(rt: WebgpuPagesRuntime, cam: EngineCamera) {
 
 /**
  * Copies the shadow pages the resolve just asked for, stamped with the plan's state, for the
- * scheduler to read once the image is submitted (`../../shadow/pageRequests.ts`): the proof the
- * image may hold, the early demand scheduling the frame (`planShadowRegions`). An image that
+ * scheduler to read once the image is submitted (`../../shadow/pageRequests.ts`). An image that
  * lit nothing — unlit view, no light, no pool (no light casts a shadow) — asked for nothing and
  * copies nothing.
  */
