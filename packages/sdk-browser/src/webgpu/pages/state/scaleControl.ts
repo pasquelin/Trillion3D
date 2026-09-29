@@ -1,0 +1,56 @@
+import {
+  createRefreshClock,
+  createScaleController,
+  nextScale,
+} from '../../../frame/scaleController.ts';
+import { renderScaleBounds, type RenderScale } from '../../../frame/renderScaleOption.ts';
+
+/** The budget before the display's refresh is measured: 60 Hz. */
+const FALLBACK_REFRESH_MS = 1000 / 60;
+
+/**
+ * A session's render scale: the bounds the page asked (`renderScaleBounds`), the controller that
+ * picks the scale within them from the whole-frame GPU time when they are `'auto'`, the display's
+ * measured refresh that is its budget, and the scale of the last image drawn — what
+ * `world.renderScale` reads back.
+ */
+export function createScaleControl(option: RenderScale | undefined) {
+  const refresh = createRefreshClock(FALLBACK_REFRESH_MS);
+  let bounds = renderScaleBounds(option),
+    controller = createScaleController(bounds.min, bounds.max, refresh.interval);
+  const control = {
+    get bounds() {
+      return bounds;
+    },
+    /** The scale of the last image drawn: 1 before any. */
+    drawn: 1,
+    /** Whether the last image was drawn at the controller's scale: a moving, accumulated image. */
+    steered: false,
+    /** Asks another scale: the controller restarts at the bounds' maximum. */
+    set(next: RenderScale | undefined) {
+      bounds = renderScaleBounds(next);
+      controller = createScaleController(bounds.min, bounds.max, refresh.interval);
+    },
+    /** The scale a moving image is drawn at: the controller's, or the fixed one. */
+    wanted: () => (bounds.auto ? controller.s : bounds.max),
+    /** A frame of the display began at `now`, ms: the budget follows its measured refresh. */
+    tick(now: number) {
+      refresh.tick(now);
+      controller.budget = refresh.interval;
+    },
+    /**
+     * The whole-frame GPU time of an image drawn at `scale`, as it arrives, a few frames late.
+     * Only a moving image drawn at the controller's current scale (`steered`) steps it: one drawn
+     * before the last change, a still one at the maximum, or one without accumulation measures
+     * another cost.
+     */
+    observe(gpuMs: number | null, scale: unknown, steered = true) {
+      if (!bounds.auto || !steered || gpuMs === null || !(gpuMs > 0) || scale !== controller.s)
+        return;
+      nextScale(controller, gpuMs);
+    },
+  };
+  return control;
+}
+
+export type ScaleControl = ReturnType<typeof createScaleControl>;
