@@ -4088,6 +4088,10 @@
     "summary": "Zamansal kenar yumuşatma: kareler boyunca biriktirilen piksel altı kaydırma; varsayılan olarak açık.",
     "description": "Yazıldığında bir sonraki karede etkili olur, geçmiş atılır, oturum yeniden açılmaz. Okunduğunda görüntünün taşıdığıdır: WebGL2'de ve açıldıktan sonra program derlenirken false."
   },
+  "world.renderScale": {
+    "summary": "Görüntünün eksen başına ekranın hangi oranında çizildiği (`WorldOptions.renderScale`), bir sonraki kareden itibaren.",
+    "description": "Okunduğunda, son çizilen görüntünün ölçeği: WebGL2'de 1."
+  },
   "world.effects": {
     "summary": "Efekt zinciri: görüntünün üzerine çizilen geçişler (`effect`)."
   },
@@ -4323,8 +4327,13 @@
       "controls": "Kamerayı canvas'tan hareket ettiren kontrolcü; `world.controls.kind` onu daha sonra değiştirir.",
       "signal": "Sinyal iptal edildiğinde dünyanın yüklemelerini durdurur.",
       "physics": "Fiziği açar (`world.physics`): `true` ya da yerçekimi ve bütçeler. Jolt ancak o zaman yüklenir.",
-      "temporalAntialiasing": "Zamansal kenar yumuşatma, yalnızca WebGPU: kareler boyunca biriktirilen piksel altı kaydırma. `false` her pikseli merkezinde, geçmiş olmadan çizer; piksel hassasiyetinde bir yakalamanın istediği budur; sonradan `world.temporalAntialiasing` ile değiştirilir."
+      "temporalAntialiasing": "Zamansal kenar yumuşatma, yalnızca WebGPU: kareler boyunca biriktirilen piksel altı kaydırma. `false` her pikseli merkezinde, geçmiş olmadan çizer; piksel hassasiyetinde bir yakalamanın istediği budur; sonradan `world.temporalAntialiasing` ile değiştirilir.",
+      "renderScale": "Görüntünün eksen başına ekranın hangi oranında çizildiği, yalnızca WebGPU, zamansal kenar yumuşatma onu ekran boyutuna yeniden kurmadan önce: `'auto'` onu kare bütçesinin `min` ile `max` arasında seçmesine bırakır (`{ min, max }`, varsayılan 0,5 ve 1), bir sayı onu sabitler; hareketsiz bir görüntü en yüksek değerde çizilir. Sonradan `world.renderScale` ile değiştirilir."
     }
+  },
+  "RenderScale": {
+    "summary": "Bir sayfanın istediği işleme ölçeği: görüntünün, zamansal kenar yumuşatma onu ekran boyutuna yeniden kurmadan önce, eksen başına ekranın hangi oranında çizildiği.",
+    "description": "`'auto'` onu kare bütçesinin 0,5 ile 1 arasında seçmesine bırakır, `{ min, max }` bu seçimi sınırlar, bir sayı onu sabitler; her değer 0,5 ile 1 arasında tutulur."
   },
   "WorldPageSource": {
     "summary": "Sayfaların nereden okunduğu, ve karşı okundukları adres.",
@@ -4962,7 +4971,8 @@
       "options.controls": "Kamerayı canvas'tan hareket ettiren kontrolcü; `world.controls.kind` onu daha sonra değiştirir.",
       "options.signal": "Sinyal iptal edildiğinde dünyanın yüklemelerini durdurur.",
       "options.physics": "Fiziği açar (`world.physics`): `true` ya da yerçekimi ve bütçeler. Jolt ancak o zaman yüklenir.",
-      "options.temporalAntialiasing": "Zamansal kenar yumuşatma, yalnızca WebGPU: kareler boyunca biriktirilen piksel altı kaydırma. `false` her pikseli merkezinde, geçmiş olmadan çizer; piksel hassasiyetinde bir yakalamanın istediği budur; sonradan `world.temporalAntialiasing` ile değiştirilir."
+      "options.temporalAntialiasing": "Zamansal kenar yumuşatma, yalnızca WebGPU: kareler boyunca biriktirilen piksel altı kaydırma. `false` her pikseli merkezinde, geçmiş olmadan çizer; piksel hassasiyetinde bir yakalamanın istediği budur; sonradan `world.temporalAntialiasing` ile değiştirilir.",
+      "options.renderScale": "Görüntünün eksen başına ekranın hangi oranında çizildiği, yalnızca WebGPU, zamansal kenar yumuşatma onu ekran boyutuna yeniden kurmadan önce: `'auto'` onu kare bütçesinin `min` ile `max` arasında seçmesine bırakır (`{ min, max }`, varsayılan 0,5 ve 1), bir sayı onu sabitler; hareketsiz bir görüntü en yüksek değerde çizilir. Sonradan `world.renderScale` ile değiştirilir."
     }
   },
   "crossVector3": {
@@ -5057,10 +5067,6 @@
   },
   "emptyIrradiance": {
     "summary": "İçinde hiçbir şey olmayan, kaynak almaya hazır bir ışınım."
-  },
-  "encodeManifestBinary": {
-    "summary": "Bir manifestoyu, bir okuyucunun ayrıştırdığı küçük JSON'a ve eşlediği sütunlara böler.",
-    "description": "Döndürülen açıklayıcı boş bir `sha256` taşır: yalnızca tamamlanmış baytlara sahip olan çağıran onları özetleyebilir."
   },
   "enginePose": {
     "summary": "İzlerin ve tanının yayımladığı, motor kamerasından okunan dünya pozu: göz, `world`'ün ötelemesidir, ve çekirdek ayrıştırması, `getWorldQuaternion`'ın yalnızca çağrısı olduğu `Matrix4.decompose`'un bitlerini verir."

@@ -67,9 +67,16 @@ export function createScreenReflection(
       active,
       view,
       group,
-      update(matrix: ArrayLike<number>, enabled: boolean) {
+      /** The view, whether it reflects, and the size the image draws in the source (`renderScale.ts`). */
+      update(
+        matrix: ArrayLike<number>,
+        enabled: boolean,
+        [drawnWidth, drawnHeight]: readonly number[],
+      ) {
         packed.set(matrix);
         packed[16] = active && enabled ? 1 : 0;
+        packed[17] = drawnWidth;
+        packed[18] = drawnHeight;
         device.queue.writeBuffer(heldUniform, 0, packed);
       },
       dispose() {

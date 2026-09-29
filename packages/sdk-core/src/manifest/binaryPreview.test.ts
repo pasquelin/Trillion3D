@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { TEMPLATES, sha } from '../../../../tests/fixtures/manifestBinary.ts';
 import { preview } from '../../../../tests/fixtures/manifestBinaryPreview.ts';
-import { encodeManifestBinary, decodeManifestBinary, type SlimClusterManifest } from './binary.ts';
+import { decodeManifestBinary, type SlimClusterManifest } from './binary.ts';
+import { encodeManifestBinary } from '../../../../tests/fixtures/manifestBinaryEncode.ts';
 import {
   CLUSTERED_BLEND_FORMAT_VERSION,
   EngineError,

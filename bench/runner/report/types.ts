@@ -97,7 +97,9 @@ export interface LightsSummary {
 
 /** Delta between two RGBA captures (`imageDiff.ts::imageDiff`). */
 export type ImageDiff =
-  null | { erreur: string } | { pixels: number; maxCanal: number; total: number };
+  | null
+  | { erreur: string }
+  | { pixels: number; maxCanal: number; meanChannel: number; p999Channel: number; total: number };
 
 /** One row of the series table: one side, one view, one threshold (`series.ts::runSerie`). */
 export interface Row {
