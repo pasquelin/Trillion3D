@@ -29,15 +29,32 @@ fn a_wave_bounds_live_work_and_keeps_input_order() {
     assert_eq!(results, [0, 1, 2, 3]);
 }
 
+// Behaviour: texture waves are the compiler's shared waves (`compiler_budget::waves`), cut on the
+// room alone: images that fit together are one wave however many there are, with no barrier.
+#[test]
+fn texture_waves_are_the_shared_planners_cut() {
+    let costs = [Cost {
+        working: 5,
+        retained: 1,
+    }; 16];
+    let fitting = admit(&costs, 100).unwrap();
+    assert_eq!((fitting.len(), fitting[0].clone()), (1, 0..16));
+    let working = [5; 16];
+    assert_eq!(
+        admit(&costs, 60).unwrap(),
+        compiler_budget::waves::waves(&working, 60 - 16)
+    );
+}
+
 #[test]
 fn source_and_geometry_reservation_reduces_texture_concurrency() {
     let costs = [Cost {
         working: 30,
         retained: 10,
     }; 2];
-    assert_eq!(waves(&costs, 100, 4).unwrap().len(), 1);
+    assert_eq!(admit(&costs, 100).unwrap().len(), 1);
     assert_eq!(
-        waves(&costs, remaining_budget(100, 40).unwrap(), 4).unwrap(),
+        admit(&costs, remaining_budget(100, 40).unwrap()).unwrap(),
         [0..1, 1..2]
     );
     assert_eq!(
@@ -99,17 +116,16 @@ fn varying_weights_and_thin_images_keep_every_wave_within_its_allowance() {
             retained: 5,
         },
     ];
-    assert_eq!(waves(&costs, 100, 4).unwrap(), [0..2, 2..4]);
+    assert_eq!(admit(&costs, 100).unwrap(), [0..2, 2..4]);
     let cost = cost::estimate(1, 16384, 128, 3, 2);
     assert_eq!(
         cost.retained,
         3 * (preview_pixel_bytes(1, 16384) + 2 * preview_block_bytes(1, 16384))
     );
     assert!(cost.working >= 128 + 16384 * 20);
-    assert!(waves(
+    assert!(admit(
         &[cost::estimate(u32::MAX, u32::MAX, usize::MAX, 3, 2)],
-        1024,
-        4
+        1024
     )
     .is_err());
 }
@@ -171,5 +187,5 @@ fn supercompression_payload_is_charged_even_for_a_tiny_surface() {
         1,
         1,
     );
-    assert!(waves(&[cost], 64 * 1024 * 1024, 4).is_err());
+    assert!(admit(&[cost], 64 * 1024 * 1024).is_err());
 }
