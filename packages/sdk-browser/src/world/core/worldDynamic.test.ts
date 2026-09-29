@@ -35,7 +35,9 @@ test('a geometry rewritten 300 frames is never cut again nor reopened, and uploa
 
 test('a rewrite is no move: the row of its mesh is never sent again', async () => {
   const world = dynamicWorld();
-  const sheet = geometry.plane(1, 1, 4, 4);
+  // A 30 × 30 vertex sheet: a tiny one seats its dynamic resource only on a reopen the
+  // session stand-in cannot mount (#1293), which is not what this test proves.
+  const sheet = geometry.plane(4, 4, 30, 30);
   sheet.usage = 'dynamic';
   world.scene.add(object.mesh(sheet, material.meshStandard({ transparent: true })));
   await world.frame();
