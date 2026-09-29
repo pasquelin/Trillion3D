@@ -13,9 +13,11 @@ export type ProxySync = 'moved' | 'settled' | null;
  * A leaf holding a moved triangle turns owned (`proxyLeaves.ts`): canonical, traced under its
  * owners' poses. Once still, each owned leaf whose groups' owners agree is written at that pose
  * and rays read no owner word for it again; a leaf holding a group whose owners stand apart (a
- * door merged with its frame) stays owned, alone. Settling waits until the still streak exceeds
- * the last gap between two motions: motion slower than the frame rate never rewrites triangles
- * each cycle, and motion that simply stops settles on its first still frame.
+ * door merged with its frame) stays owned, alone. Motion that resumes the frame after a settle
+ * made that settle useless: settling then waits until the still streak exceeds that gap, so
+ * motion slower than the frame rate never rewrites triangles each cycle. Motion that resumes
+ * later proved the settle useful and clears the gap: motion that simply stops, however often,
+ * settles on its first still frame.
  */
 export function createSceneProxyMotion(proxy: SceneProxy) {
   const canonical = proxy.data.triangles,
@@ -165,18 +167,19 @@ export function createSceneProxyMotion(proxy: SceneProxy) {
         for (const group of groups) dirty.add(group);
       }
       if (!dirty.size) {
-        if (!pending || ++still <= gap || !settle()) return null;
+        if (++still <= gap || !pending || !settle()) return null;
         revision++;
         return 'settled';
       }
-      gap = still;
+      gap = still <= gap + 1 ? still : 0;
       still = 0;
       pending = true;
       // Motion resumes from the canonical triangles of each leaf it touches.
-      for (let t = 0; t < groupOf.length; t++) {
-        const leaf = leaves.leafOf[t];
-        if (dirty.has(groupOf[t]) && leaf !== 0xffffffff && !leaves.owned[leaf]) leaves.own(leaf);
-      }
+      for (const group of dirty)
+        for (let rank = refit.starts[group]; rank < refit.starts[group + 1]; rank++) {
+          const leaf = leaves.leafOf[refit.slots[rank]];
+          if (leaf !== 0xffffffff && !leaves.owned[leaf]) leaves.own(leaf);
+        }
       stretch = 1;
       for (const node of groupsOf.keys()) {
         const m = deltas[node];

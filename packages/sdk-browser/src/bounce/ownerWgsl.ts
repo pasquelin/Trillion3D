@@ -1,7 +1,7 @@
 import { PROXY_GROUP_OWNED } from '../../../sdk-core/src/scene/core/proxyLeaves.ts';
 
 /** Owner a hit on a posed leaf reports: its triangle stands at its pose, no owner word is read. */
-export const PROXY_POSED_OWNER = 0xfffffffe;
+const PROXY_POSED_OWNER = 0xfffffffe;
 
 /** Owner transforms share the traversal binding, never one expanded geometry per instance. Each
  *  triangle is posed or owned by its leaf (`proxyLeaves.ts`); a ray carries that as its owner, so
