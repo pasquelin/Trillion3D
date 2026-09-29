@@ -22,7 +22,8 @@ function context() {
     bindVertexArray: (next: typeof array) => (array = next),
     bindBuffer: (target: string, buffer: Buffer) =>
       target === 'E' ? (array.element = buffer) : (bound[target] = buffer),
-    bufferData: (target: string, bytes: number) => (at(target).bytes = new Uint8Array(bytes)),
+    bufferData: (target: string, data: ArrayBufferView) =>
+      (at(target).bytes = new Uint8Array(data.buffer.slice(0))),
     bufferSubData: (
       target: string,
       offset: number,
