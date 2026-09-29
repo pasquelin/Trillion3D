@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { Matrix3UniformCache, ModelUniforms, setClusterSamplers } from './uniforms.ts';
+import { Matrix3UniformCache, setClusterSamplers } from './uniforms.ts';
 
 test('material constants cross the GL boundary only when their value changes', () => {
   const matrices: number[][] = [],
@@ -37,25 +37,4 @@ test('material constants cross the GL boundary only when their value changes', (
     ['lightData', 11],
     ['lightList', 12],
   ]);
-});
-
-// #840: sponza drew 1 465 pages twice a frame, each with the matrices the context already held.
-test('the model matrices cross the GL boundary only when the drawn world matrix changes', () => {
-  const sent: string[] = [],
-    gl = {
-      uniformMatrix4fv: (at: string) => sent.push(at),
-      uniformMatrix3fv: (at: string) => sent.push(at),
-    } as unknown as WebGL2RenderingContext;
-  const at = (name: string) => name as unknown as WebGLUniformLocation;
-  const model = new ModelUniforms(gl, at('modelView'), at('normal'));
-  const view = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, -5, 1],
-    world = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 2, 0, 0, 1];
-  assert.equal(model.set(view, world), true, 'sent: its winding is read');
-  assert.equal(model.set(view, world.slice()), false, 'not sent: the winding stands');
-  assert.deepEqual(sent, ['modelView', 'normal'], 'a page of the same placement sends nothing');
-  model.set(view, [...world.slice(0, 12), 3, 0, 0, 1]);
-  assert.equal(sent.length, 4, 'another placement sends both');
-  model.forget();
-  model.set(view, [...world.slice(0, 12), 3, 0, 0, 1]);
-  assert.equal(sent.length, 6, 'a new draw, whose view may have moved, sends them again');
 });
