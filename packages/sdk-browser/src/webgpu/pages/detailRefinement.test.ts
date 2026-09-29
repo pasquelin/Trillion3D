@@ -12,6 +12,7 @@ import {
   streamingQuadBackend,
 } from './testScenes.fixture.ts';
 import { coarseQuadScene } from './testOccluder.fixture.ts';
+import { deepQuadScene } from './deepQuad.fixture.ts';
 
 test('detail replaces the complete GPU fallback only after every replacement is uploaded', async () => {
   installGpuGlobals();
@@ -45,9 +46,11 @@ test('detail replaces the complete GPU fallback only after every replacement is 
   }
 });
 
-test('a refinement exceeding the GPU budget retains the complete fallback and reports the limit', async () => {
+// #1237: a page cap under the pool's floor draws that floor — the root cover and the pages its
+// groups replace —: the coarse page stands in for the leaves, never the root the view refuses.
+test('a refinement exceeding the GPU budget keeps the floor, not the refused root, and reports the limit', async () => {
   installGpuGlobals();
-  const fixture = coarseQuadScene(),
+  const fixture = deepQuadScene(),
     { device } = mockGpu();
   const backend = webgpuPagesBackend({
     ...fixture,
@@ -57,13 +60,16 @@ test('a refinement exceeding the GPU budget retains the complete fallback and re
   }) as ReturnType<typeof webgpuPagesBackend> & { selectedPageIds(): string[] };
   try {
     await backend.prepare();
+    // The first image draws the root, and asks for the floor's page before any leaf.
+    backend.render(camera());
+    await backend.flush?.();
     for (let i = 0; i < 4; i++) {
       backend.render(camera());
-      await backend.flush?.();
-      assert.deepEqual(backend.selectedPageIds(), ['2']);
+      assert.deepEqual(backend.selectedPageIds(), ['2'], 'the root the view refuses is replaced');
       assert.equal(backend.metrics().submittedTriangles, 2);
       assert.equal(backend.metrics().coverageBudgetLimited, true);
       assert.deepEqual(backend.pendingUrls!(), []);
+      await backend.flush?.();
     }
   } finally {
     disposeQuadRun(backend, fixture);
