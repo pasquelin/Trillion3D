@@ -61,8 +61,7 @@ export function createShadowPlan(poolSide: number, layers = 1) {
     records,
     /** The request reports read back: what the latest one named, allocated or refused. */
     requests,
-    /** The GPU's allocation, when it maps the pages (`mirror.ts`): what the host asks of it, and
-     *  whether it allocates. */
+    /** The GPU's allocation (`mirror.ts`): whether it maps the pages, what the host asks of it. */
     gpu,
     /** What the last plan did, in pages. */
     counts,
@@ -130,16 +129,14 @@ export function createShadowPlan(poolSide: number, layers = 1) {
         const before = stampOf(store),
           read = report;
         report = null;
-        // When the GPU allocates, the pool follows its snapshot first; one it cannot is left. A
-        // reader that found its page drawn outside its texel names the page: it is redrawn whole
-        // (`demandFootprint.ts`), and the image cannot hold on it.
+        // The pool follows the GPU's snapshot first; a miss redraws its page (`demandFootprint.ts`).
         if (!gpu.on || gpu.follow(read, nowMs, frame)) {
           footprints.widened = 0;
           footprints.missed(read, nowMs, frame);
           requests.consume(read, nowMs, frame);
           counts.staled(STALE_BY.footprint, footprints.widened);
-          if (read.stamp === before && requests.complete && !footprints.widened)
-            settledStamp = stampOf(store);
+          const settled = read.stamp === before && requests.complete && !footprints.widened;
+          if (settled) settledStamp = stampOf(store);
         }
       }
       const admitStart = performance.now();
@@ -194,8 +191,7 @@ export function createShadowPlan(poolSide: number, layers = 1) {
       thresholds.follow(moved);
       shadowPlan.requests = requests = createShadowRequests(table, pool, records, sun, counted);
       const allocating = gpu.on;
-      shadowPlan.gpu = gpu = createShadowMirror(table, pool, records, sun);
-      gpu.set(allocating, 0);
+      (shadowPlan.gpu = gpu = createShadowMirror(table, pool, records, sun)).set(allocating, 0);
       shadowPlan.admission = admission = createShadowAdmission(pool.pages);
       return moved;
     },
