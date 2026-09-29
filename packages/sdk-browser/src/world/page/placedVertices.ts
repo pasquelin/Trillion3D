@@ -3,15 +3,11 @@
  * geometry pages naming them hold them (`source.bin` keeps the source). What reads a compiled
  * primitive's clusters over its source — the class re-cut (`classPages.ts`) — reads them here.
  */
+import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts';
 import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
 
 /** Vertex columns as `DrawnTriangles` holds them: empty normals, or a null set, carry none. */
-type Columns = {
-  positions: Float32Array;
-  normals: Float32Array;
-  uvs: Float32Array | null;
-  colors: Float32Array | null;
-};
+type Columns = Pick<DrawnTriangles, 'positions' | 'normals' | 'uvs' | 'colors'>;
 /** Each column, the decoded attribute it reads and its width (`cluster/format.ts`). */
 const COLUMNS = [
   ['positions', 'position', 3],
