@@ -126,9 +126,8 @@ export function createWorldBatches(touched: (batch: Batch, row: number) => void)
     batches,
     unseat,
     /**
-     * Seats `mesh` on the batch of `cut` × `entry`. True when it takes a row — the caller writes
-     * its matrix —, false when it waits or already holds its row there, which its pose writes keep:
-     * a dynamic geometry read again every frame is no move (#573).
+     * Seats `mesh` on `cut` × `entry`. True for a new row whose matrix needs writing; false when
+     * waiting or already seated. Rereading dynamic geometry does not move its pose (#573).
      */
     seat(mesh: Mesh, cut: Cut, entry: MaterialEntry) {
       const batch = batchOf(cut, entry, mesh);
