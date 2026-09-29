@@ -45,10 +45,12 @@ fn wantAhead(i:u32,w:u32,r:u32,cluster:Cluster){
  // Past the region ahead nothing more is emitted: the tests below would be spent for nothing.
  if(!aheadOn()||aheadFull()){return;}
  vi=AHEAD_VIEW;
- if((cluster.flags&2u)!=0u||outsideAhead(w,boxMin(r),boxMax(r))){return;}
+ if((cluster.flags&2u)!=0u){return;}
+ let bmin=boxMin(r);let bmax=boxMax(r);
+ if(outsideAhead(w,bmin,bmax)){return;}
  let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();
  let pixels=clusterPixels(cluster,e,stretch,focal);
  if(!selects(pixels,views[vi].pixelError)){return;}
- emitAhead(i,replacementPixels(cluster,pixels),aheadDue(w,boxMin(r),boxMax(r)));
+ emitAhead(i,replacementPixels(cluster,pixels),aheadDue(w,bmin,bmax));
 }
 `;

@@ -66,6 +66,9 @@ const continues = (change: number, before: number, now: number) => change <= Mat
  *  otherwise. */
 const steady = (held: number | undefined, moves: boolean, holds: boolean, stepMs: number) =>
   !moves ? 0 : holds ? (held ?? 0) + stepMs : stepMs;
+/** The rest a first read compares with, and the last read's turn as a vector (axis × rate). */
+const REST = new Float64Array(3),
+  spin = new Float64Array(3);
 
 /**
  * Reads one frame of the camera's motion: the eye's velocity and turn rate since the last read, both
@@ -78,6 +81,8 @@ export function readCameraMotion(cam: EngineCamera, motion: CameraMotion, now: n
     was = motion.turn ?? 0;
   const velocity = (motion.velocity ??= new Float64Array(3)),
     axis = (motion.axis ??= new Float64Array(3));
+  // The turn, like the velocity, is a vector: a reversal at the same rate is a cut too.
+  for (let k = 0; k < 3; k++) spin[k] = axis[k] * was;
   velocity.fill(0);
   axis.fill(0);
   motion.turn = 0;
@@ -101,14 +106,19 @@ export function readCameraMotion(cam: EngineCamera, motion: CameraMotion, now: n
   }
   const elapsed = now - (motion.lastMs ?? now),
     step = elapsed > 0 ? elapsed : 0,
-    a = motion.ahead ?? velocity.map(() => 0),
+    a = motion.ahead ?? REST,
     change = hypot3(velocity[0] - a[0], velocity[1] - a[1], velocity[2] - a[2]),
     moving = continues(
       change,
       hypot3(a[0], a[1], a[2]),
       hypot3(velocity[0], velocity[1], velocity[2]),
     ),
-    turning = continues(Math.abs(motion.turn - was), was, motion.turn);
+    turn = motion.turn,
+    turning = continues(
+      hypot3(axis[0] * turn - spin[0], axis[1] * turn - spin[1], axis[2] * turn - spin[2]),
+      was,
+      turn,
+    );
   motion.steadyMs = steady(motion.steadyMs, movesFinitely(velocity), moving, step);
   motion.turnSteadyMs = steady(motion.turnSteadyMs, motion.turn > 0, turning, step);
   // The filter restarts on a cut, as on a start.
