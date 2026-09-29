@@ -1,6 +1,7 @@
 import { LTC_UNIT, createLtcTexture } from './rectGlsl.ts';
 import { FLOAT_TEXELS, LIGHT_DATA_UNIT, WebglLightTexture } from './lightTexture.ts';
-import { REACH_FLOATS, WebglClusterLightLists } from './lightLists.ts';
+import { WebglClusterLightLists } from './lightLists.ts';
+import { REACH_FLOATS } from './lightGrid.ts';
 import { inReferenceOrder } from './lightOrder.ts';
 import { WebglClusterProbe } from './probe.ts';
 import { WebglClusterFog } from './fog.ts';
