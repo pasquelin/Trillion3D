@@ -8,7 +8,7 @@ export const vec = (...parts: Array<number | Record<string, number>>) => {
 };
 
 /** The text of the functions `names` in a shipped shader: each from its header to its closing brace. */
-function functionsOf(source: string, names: string[]) {
+export function functionsOf(source: string, names: string[]) {
   return names
     .map((name) => {
       const header = new RegExp(`(?:fn |\\b(?:uint|float|uvec2|bool) )${name}\\(`).exec(source);
