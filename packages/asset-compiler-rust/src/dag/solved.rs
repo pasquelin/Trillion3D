@@ -7,7 +7,9 @@
 //! other group keeps the endpoint reduction. A texture set weighs the surface length one unit of
 //! it spans in the group (`charts::densities`), normals keep `attributes::NORMAL_WEIGHT`.
 //!
-//! A face across two texture islands is charged its longest edge (`charts::folded_span`). The
+//! A face across two texture islands is charged its longest edge (`charts::folded_span`), and the
+//! error is measured on the solve's own arrays, its placed vertices included, as every reduction's
+//! is (`measured::step_error`: the removed parts, the Hausdorff distance, the texture deviation). The
 //! retries are the endpoint reduction's (`retries.rs`), but a face no longer than the group's
 //! error, under a pixel wherever its level is drawn, is not locked for being lit from behind: on a
 //! group the solve alone frees, that stalled it again (Sponza: four groups of five).
@@ -38,11 +40,12 @@ pub(super) fn stalled(
     live: &[u32],
     children: usize,
     stop: Stop,
+    child_error: f64,
 ) -> Result<std::result::Result<Solved, GroupOutcome>> {
     let cause = diagnosis::cause(input, live, children, stop)?;
     let seam_locked = matches!(cause, StallCause::SeamLocked);
     let solved = if seam_locked {
-        attempt(input, live, children)?
+        attempt(input, live, children, child_error)?
     } else {
         None
     };
@@ -51,8 +54,14 @@ pub(super) fn stalled(
 
 /// Reduces the seam-locked group `live` with the solve; `None` when it yields no fewer clusters
 /// than its `children`, or loses a lock on every retry. Its error is the pass's — the solve's, the
-/// copies its open border welded, its faces across two islands — and the parts it removed.
-fn attempt(input: &GroupReductionInput, live: &[u32], children: usize) -> Result<Option<Solved>> {
+/// copies its open border welded, its faces across two islands — raised by `measured::step_error`
+/// over the region and the vertices it placed, and `child_error`.
+fn attempt(
+    input: &GroupReductionInput,
+    live: &[u32],
+    children: usize,
+    child_error: f64,
+) -> Result<Option<Solved>> {
     let base = (input.positions.len() / 3) as u32;
     let required = required_locks(live, input.locks, input.weld);
     let densities = densities(input.positions, &input.attributes.uv_sets(), live);
@@ -85,12 +94,18 @@ fn attempt(input: &GroupReductionInput, live: &[u32], children: usize) -> Result
     if clusters.len() >= children {
         return Ok(None);
     }
-    let (source, kept) = (local.source, &local.indices);
-    let vanished =
-        vanished::vanished_error(source, kept, &local.positions, &local.weld, &local.extents);
+    let (weld_seam, uv_sets) = local.measured(input);
+    let surface = measured::Surface {
+        positions: &local.positions,
+        weld: &local.weld,
+        weld_seam: &weld_seam,
+        extents: &local.extents,
+        uv_sets: uv_sets.iter().map(Vec::as_slice).collect(),
+    };
+    let error = measured::step_error(&surface, local.source, &local.indices, error, child_error);
     let global = |cluster: Vec<u32>| cluster.into_iter().map(|v| local.global(v, base)).collect();
     Ok(Some(Solved {
-        error: error.max(vanished),
+        error,
         clusters: clusters.into_iter().map(global).collect(),
         placed: local.placed(input, base),
         relocked,

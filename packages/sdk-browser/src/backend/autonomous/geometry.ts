@@ -1,10 +1,6 @@
 import type { Scene } from '../../world/core/scene.ts';
-import {
-  hostPageBytes,
-  hostPageMesh,
-  releaseHostGeometry,
-  setHostPose,
-} from '../../host/pageObjects.ts';
+import { hostPageBytes, hostPageMesh, releaseHostGeometry } from '../../host/pageObjects.ts';
+import { forgetHostPose, setHostPose } from '../../host/pagePose.ts';
 import { EngineError, type GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
 import type { HostMaterial, HostMaterials } from '../../host/resources.ts';
 import { createWebglPageBatches } from '../../placement/webglPageBatches.ts';
@@ -45,6 +41,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
   const detach = (rec: PageRec) => {
     if (rec.attached && rec.mesh) {
       scene.remove(rec.mesh);
+      forgetHostPose(rec.mesh);
       rec.attached = false;
       attachees.delete(rec);
     }

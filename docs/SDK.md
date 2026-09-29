@@ -800,7 +800,9 @@ numbers wide lies in the plane z = 0. The sphere is
 centred on the box and reaches the farthest vertex. Setting an attribute other than `position`, the
 index or a group keeps the bounds. `clone()` copies every list, morph target, group, range, data,
 bound and recipe. `toNonIndexed()` gives every corner a vertex of its own. `dispose()` runs each
-hook of `released` once. The former engine class `GraphGeometry` is removed: write `Geometry`.
+hook of `released` once. A geometry no mesh wears any more has its pages and GPU memory given back
+by the world on both backends, with no call; a page that replaces a mesh's geometry, as a slider
+does, disposes the former one too, so its raycast tree and host copies go at once. The former engine class `GraphGeometry` is removed: write `Geometry`.
 
 ## Batch math for hosts
 
@@ -1055,8 +1057,9 @@ a 16×16 screen tile lists up to 64 lights reaching it, and past that takes exac
 reaching it from a pool sized from the view (#849) —; 64 shadow slices,
 past which a caster lights without a shadow (`shadowCastersUnsliced`), and at most 24 shadow
 regions redrawn per frame. WebGL2 draws every light, each fragment only those whose range reaches its cell of a light grid (#835). The shadow pool is sized
-once, at the first frame that casts a shadow, from its screen and its shadowed lights: layers of
-128² pages as wide as the device draws, within the budget's shadow share; `metric.frame(world)`
+at the first frame that casts a shadow, from its screen and its shadowed lights: layers of
+128² pages as wide as the device draws, within the budget's shadow share; a canvas resized later
+resizes it by the same rule, every page it still holds kept as drawn (#1208); `metric.frame(world)`
 publishes its `shadowPoolBytes` and `shadowPoolLayers`, and its memory pressure by name
 (`shadowPeakBytes`, `shadowResolutionBias`, `shadowMemoryEvents`).
 
@@ -1251,11 +1254,12 @@ allocated under an out-of-memory check at prepare, and probed before every rebal
 device refuses it, the pool
 is drawn again at half its bytes, down to its floor (the root cover, the texture pool's `minimum`, the
 smallest screen's shadow pool). The shadow pool is granted the same way at the first frame that
-casts a shadow, and that frame is held until the device answers: the previous image stays, or
+casts a shadow, and at each canvas resize, and that frame is held until the device answers: the previous image stays, or
 nothing yet, never an image without its shadows; a capture waits for the answer too. Its static layer is refused whole: shadow pages
 are then drawn with every caster. The pool in place is only ever replaced by one the device grants. The frame goes on,
-coarser where the smaller pool no longer holds the view, and no exception reaches the page. When
-the device refuses even the smallest shadow pool, the shadowed mode cannot be drawn: it is refused
+coarser where the smaller pool no longer holds the view, and no exception reaches the page. A resize the
+device refuses keeps the shadow pool in place, with every page it holds. When
+the device refuses even the smallest shadow pool at the first frame, the shadowed mode cannot be drawn: it is refused
 by a `shadows-off` error (`kind: 'error'`, `reason: 'gpu-out-of-memory'`), and the session goes on
 without shadows. Shadows are never lost silently.
 The `gpu-out-of-memory` diagnostic names the pool, the bytes asked (`requestedBytes`) and the bytes
@@ -1279,12 +1283,28 @@ never allocated at the full request outside the check:
   `FALLBACK_TRANSPARENT_LINES_UNSUPPORTED`, a transparent line it cannot widen, and
   `FALLBACK_BLEND_WITHOUT_CPU_CUT`, a frame the GPU cut selected, which leaves it no cluster list.
 
-WebGL2 has no out-of-memory check to allocate under: nothing there is absorbed. It reserves no
-pool — each page's buffers are made as the page arrives — and it does not read `gl.getError()` after
-an allocation, so a refused one is not seen by the engine. A browser that answers it by losing the
-context takes the WebGL2 context-loss path (`webglcontextlost`, then `webglcontextrestored`): nothing
-is drawn while the context is lost. That out of memory on WebGL2 costs one level and never a hole
-is not proven yet.
+WebGL2 has no out-of-memory scope to allocate under, so the engine reads `gl.getError()` for its
+allocations instead — a buffer, a texture level or a target sized again, never an upload in place.
+The read never holds a frame: `getError` waits for the GPU process, so each allocation is only
+recorded with its pool, each frame's end fences what that frame allocated, and the errors are read
+before a later frame's first command, once the oldest fence is passed — a fence is kept until the
+GPU passes it, however many frames behind it runs. An `OUT_OF_MEMORY` marks the pools of every
+allocation not yet confirmed, each made again at its next use, and the next frame answers each
+pool as WebGPU's refusal does, published as `gpu-out-of-memory` with the pool named: `geometry`
+halves the geometry pool, and the residency lets the finest pages go one DAG level per image;
+`texture`, a map, is sent again at its next bind — a surface is never drawn without its picture,
+there is no coarser one to show instead —; `target`, a frame target or the frame's light data, is
+sized again at its next draw, nothing to halve. The pages' vertices and indices share one set of
+buffers per vertex layout, made again larger when full with every page laid out again; a growth
+the context refuses gives that set up, and its pages are placed again in a new one. A browser that
+answers by losing the context takes the WebGL2 context-loss path (`webglcontextlost`, then
+`webglcontextrestored`): nothing is drawn while the context is lost.
+
+WebGL2 uploads the maps of every declared surface ahead of the draws, within `texturePoolBytes`:
+the session's preparation sends them, then each frame what is left, only once the GPU ran the step
+before, and only the maps that fit what is left of `maxTextureTransferBytesPerFrame` (16 MiB) and
+`maxTextureUploadMsPerFrame` (1 ms) — one larger than the whole budget alone. A map not sent yet
+is uploaded by the first draw that binds it: a surface is never drawn without its picture.
 
 Frame targets are **not** budgeted: colour, depth, visibility, HDR, material surfaces, Hi-Z, the
 temporal history and a capture follow the resolution, and `gpuFrameTargetBytes` says what they cost.
