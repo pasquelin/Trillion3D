@@ -290,7 +290,8 @@ Every primitive ends at its own roots, and `streams.pinned` keeps them resident:
 open world's root cover grows with the world, not with the view. The compiler therefore continues
 the DAG above the objects (`packages/asset-compiler-rust/src/compiler_world_roots.rs`, #23). The
 root clusters of every primitive of every placement, placed in world space, their error and the
-radius of their published sphere scaled by the placement's largest axis scale, enter the DAG builder as level 0 (`build_dag_from_roots`),
+radius of their published sphere scaled by the placement's largest axis scale, enter the DAG
+builder as level 0 (`build_dag_from_roots`),
 grouped per cell of the [world partition](#world-partition) and per material: the levels above
 them — the cell's **super-roots** — are built with the same grouping, simplification and monotone
 error as inside a primitive (a part leaves only at the error its extent costs). The roots of every
@@ -302,7 +303,8 @@ only their own roots, and a cook with `simplification: none` builds no super-roo
 The world DAG is packed and linked as a primitive's (`streams`, above): the top first, pinned,
 then every level from the coarsest, a bundle holding one level, its closed `dependencies` reaching
 a pinned bundle. The object roots are packed last, only for their lists: their pages are the
-objects' own and are not written again. The check that refuses a primitive's lists refuses the
+objects' own and are not written again, save an object root no world group takes, which stays a
+root of the top and is written with it. The check that refuses a primitive's lists refuses the
 world's (`INVALID_PAGE_DEPENDENCIES`): every page, object roots included, reaches the world top.
 
 Two products lie beside the tables. `world-roots.bin` holds the written bundles end to end; a page
