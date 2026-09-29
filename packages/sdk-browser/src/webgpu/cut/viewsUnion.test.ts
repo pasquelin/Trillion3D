@@ -68,11 +68,32 @@ test('a second view keeps its pages while the main view draws, all under the one
   assert.equal(sets.requestedCount, 6, 'a page both views draw is asked for once');
   assert.equal(budget(3), true, 'the union overruns the budget');
   assert.equal(tracking.wanted.count, 3, 'the budget is the one budget, never one per view');
-  assert.deepEqual(keysOf(tracking.wanted), keys([7, 6, 1]), 'the coarsest pages of the union');
+  assert.deepEqual(keysOf(tracking.wanted), keys([0, 1, 7]), 'the drawn view first, then the rest');
   publication.releaseView(side);
   budget(3);
   assert.deepEqual(keysOf(tracking.keep), keys([0, 1]), 'a view released lets its pages go');
   assert.deepEqual(keysOf(tracking.wanted), keys([0, 1]));
+});
+
+test('under budget pressure each view keeps the detail pages it kept alone', () => {
+  const { tracking, main, side, draw, keys, budget } = bench();
+  /** The pages `ids` keep at `room` when their view is the only one, as before views existed. */
+  const alone = (ids: number[], room: number) => {
+    const only = eightPages();
+    only.delta.apply(ids);
+    only.cut();
+    only.budget(room);
+    return keysOf(only.tracking.wanted);
+  };
+  const kept = (ids: number[]) => [...keys(ids)].filter((key) => tracking.wanted.has(key));
+  draw(main, [0, 1, 2, 3]);
+  draw(side, [4, 5, 6, 7]);
+  budget(3);
+  assert.equal(kept([4, 5, 6, 7]).length, 3, 'the capture keeps as many pages as alone');
+  assert.deepEqual(keysOf(tracking.wanted), alone([4, 5, 6, 7], 3), 'the same pages');
+  draw(main, [0, 1, 2, 3]);
+  budget(3);
+  assert.deepEqual(keysOf(tracking.wanted), alone([0, 1, 2, 3], 3), 'the main view, as alone');
 });
 
 test("another view's cut leaves the main view's pages ahead alone", () => {
