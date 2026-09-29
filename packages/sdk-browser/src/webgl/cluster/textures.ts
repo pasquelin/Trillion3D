@@ -6,16 +6,16 @@ import { pictureSize } from '../../texture/pictureSize.ts';
 import type { HostMaterials } from '../../host/resources.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import { CoverageReaders } from '../../texture/coverage.ts';
-import { WebglMipReducer, type MipChain } from './mips.ts';
-import { allocated } from '../core/allocation.ts';
+import { WebglMipReducer, chainAllocated, type MipChain } from './mips.ts';
 
 /**
  * A texture as uploaded, at its counters (#360, #361) and its size: a new version uploads the
  * picture again — in place at the same size and format (#362) —, a new `sampling` sets the sampler
- * alone. Its mip chain exists whenever its `minFilter` reads one (`mipFiltered`, #732). The UV
- * matrix is uploaded by the material binding at every draw (`materialBinding.ts`), not here.
+ * alone. Its mip chain exists whenever its `minFilter` reads one (`mipFiltered`, #732). The
+ * placement is not uploaded here — the material binding uploads the UV matrix at every draw
+ * (`materialBinding.ts`).
  */
-type TextureRecord = MipChain & { version: number; sampling: number };
+type TextureRecord = MipChain & { sampling: number };
 type Anisotropy = { TEXTURE_MAX_ANISOTROPY_EXT: number; MAX_TEXTURE_MAX_ANISOTROPY_EXT: number };
 
 const wrap = (gl: WebGL2RenderingContext, value: WrapMode) =>
@@ -32,12 +32,6 @@ const filter = (gl: WebGL2RenderingContext, value: TextureFilter) =>
   })[value];
 
 const WHITE: readonly number[] = [255, 255, 255, 255];
-/** Refused: the level and its chain hold nothing, so the next bind allocates both again — never
- *  a copy in place into storage the context never made. */
-const uploadAgain = (r: TextureRecord) => () => {
-  r.version = r.width = -1;
-  r.cutoff = undefined;
-};
 
 export class WebglClusterTextures {
   private records = new Map<string, TextureRecord>();
@@ -112,7 +106,6 @@ export class WebglClusterTextures {
       }
       if (mips) {
         const allocate = record.cutoff === undefined;
-        if (allocate) allocated(gl, 'texture', uploadAgain(record));
         record.cutoff = cutoff;
         this.mips.reduce(unit, record, allocate);
       }
@@ -161,13 +154,11 @@ export class WebglClusterTextures {
       height,
       format,
     };
-    const mips = mipFiltered(texture.minFilter),
-      allocate = !inPlace || held?.cutoff == null;
-    if (!inPlace || (mips && allocate)) allocated(gl, 'texture', uploadAgain(record));
-    if (mips) {
+    const allocate = !inPlace || held?.cutoff == null;
+    if (mipFiltered(texture.minFilter)) {
       record.cutoff = cutoff;
       this.mips.reduce(unit, record, allocate);
-    }
+    } else if (!inPlace) chainAllocated(gl, record);
     if (!held || held.sampling !== texture.sampling) this.setSampler(texture);
     return record;
   }

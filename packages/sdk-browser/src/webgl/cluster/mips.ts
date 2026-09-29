@@ -38,7 +38,16 @@ export type MipChain = {
   width: number;
   height: number;
   cutoff?: number | null;
+  /** The picture's version held: -1 sends it again at the next bind. */
+  version: number;
 };
+/** Records a level or chain just allocated (`../core/allocation.ts`). Refused, both hold nothing:
+ *  the next bind allocates them again, never a copy in place into storage never made. */
+export const chainAllocated = (gl: WebGL2RenderingContext, chain: MipChain) =>
+  allocated(gl, 'texture', () => {
+    chain.version = chain.width = -1;
+    chain.cutoff = undefined;
+  });
 type Scratch = { texture: WebGLTexture; width: number; height: number; used?: boolean };
 
 /** The reduction's program, its uniforms, its two framebuffers and its empty vertex array. */
@@ -85,6 +94,7 @@ export class WebglMipReducer {
   /** Builds levels 1… of `chain.texture`, bound on the active `unit`'s TEXTURE_2D, each from the
    *  one above weighted by alpha — the box chain if plain; `allocate`: a new picture. */
   reduce(unit: number, chain: MipChain, allocate: boolean) {
+    if (allocate) chainAllocated(this.gl, chain);
     const gl = this.gl,
       { texture, format, width, height, cutoff } = chain;
     const levels = mipLevelCountFor(width, height);
