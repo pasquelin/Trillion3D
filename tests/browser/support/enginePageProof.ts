@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { dansPageWebgpu, empaquetePage } from '../probes/pageWebgpu.ts';
+import { dansPageWebgpu, bundlePage } from '../probes/pageWebgpu.ts';
 
 const directory = dirname(fileURLToPath(import.meta.url));
 
@@ -40,10 +40,10 @@ export async function preuveDansLaPage(
   method = 'executer',
   workerUrls = false,
 ): Promise<ResultatPagePreuve> {
-  const script = await empaquetePage(resolve(directory, fixture), name, { workerUrls });
+  const script = await bundlePage(resolve(directory, fixture), name, { workerUrls });
   const resources = workerUrls
     ? {
-        '/pageDecodeWorker.js': await empaquetePage(
+        '/pageDecodeWorker.js': await bundlePage(
           resolve(directory, '../../../packages/sdk-browser/src/page/decode/pageDecodeWorker.ts'),
           undefined,
           { format: 'esm' },

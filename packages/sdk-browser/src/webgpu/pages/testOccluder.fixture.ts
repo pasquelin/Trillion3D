@@ -53,7 +53,7 @@ export function occluderScene() {
     },
   ]);
   const metadata = {
-    errorModel: 'dag-group-qem-v2',
+    errorModel: 'dag-group-qem-v3',
     clusterStrategy: 'dag-groups',
     primitives: [
       {
