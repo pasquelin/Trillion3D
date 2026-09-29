@@ -74,3 +74,25 @@ test("a region's vertex count is its largest kept caster's: all their triangles,
     }
   }
 });
+
+test('edge cases: an empty list draws nothing; zero, one-triangle and maximal casters keep their count', () => {
+  const corners = [0, 3, 384, 2 ** 30 - 1];
+  const mobility = createShadowMobility();
+  mobility.ensure(1, corners.length, () => new Float64Array(16));
+  const at = (row: number) => corners[row];
+  mobility.writeRows(
+    () => 0,
+    corners.length,
+    0,
+    corners.length - 1,
+    () => {},
+    at,
+    corners.length,
+  );
+  const drawn = (rows: number[]) =>
+    rows.reduce((most, row) => Math.max(most, mobility.rowWords[row] >>> MOBILITY_CORNER_SHIFT), 0);
+  assert.equal(drawn([]), 0, 'no kept caster: zero vertices, as begin wrote');
+  corners.forEach((count, row) => assert.equal(drawn([row]), count));
+  assert.equal(drawn([0, 1, 2]), 384);
+  assert.equal(mobility.rowWords[3] & MOBILITY_CUTOUT, 0, 'the count never reaches the flag bits');
+});
