@@ -21,6 +21,7 @@ import { dropGpuHiz, dropVis, grantCapability } from '../io/drops.ts';
 import { VIS_FEATURES, type WebgpuPagesRuntime } from '../runtime.ts';
 import { isCancelled } from '../../../backend/common.ts';
 import { prepareFeedbackAb } from '../diagnostic/feedbackAb.ts';
+import { wantsAsIsShare } from './asIsShareTarget.ts';
 
 /** Builds the forward material pipelines, the visibility raster and shade pipelines, the Hi-Z
  *  pyramid and the indirect draw; leaves `visEnabled` telling whether the image can use them. */
@@ -33,6 +34,9 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       gpuDevice,
       blendState.blendGpu,
       rt.context.diagnosticGpuVariant,
+      true,
+      undefined,
+      wantsAsIsShare(rt),
     );
     ({
       blendBindGroupLayout: vis.blendBindGroupLayout,
@@ -65,8 +69,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
   vis.zeroFlags = shaders.zeroFlags;
   vis.visUniform = shaders.visUniform;
   const { visModule, shadeModule } = shaders;
-  // Hi-Z is a frame target: its pyramid is sized to the view under the out-of-memory check, and
-  // left out, said, when refused — its absence changes no image.
+  // Hi-Z is sized to the view under the out-of-memory check; refused, it is left out, said.
   const hiz = await createGpuHiz(gpuDevice, 1, 1, drawSlots);
   const size = () => hiz?.resize(gpuDevice, Math.max(1, width), Math.max(1, height)) || undefined;
   if (await validated(gpuDevice, size, 'out-of-memory')) vis.gpuHiz = hiz;
@@ -172,8 +175,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
   vis.gpuDraw = await createGpuDraw(gpuDevice, drawSlots, vis.drawLayerSlots);
   if (vis.gpuDraw) grantCapability(capabilities, 'indirect draw');
   // The partition mounts last: it writes compaction buffers and rereads pyramid verdicts. Without
-  // it, rest bits stay at zero and every slot is compacted — the image draws in one pass, without
-  // occlusion, and nothing falls in silence.
+  // it, every slot is compacted: the image draws in one pass, without occlusion, nothing silent.
   if (vis.gpuDraw && vis.gpuHiz) {
     vis.gpuPartition = await createGpuPartition(gpuDevice, drawSlots, {
       items: vis.gpuDraw.itemsBuffer,
@@ -182,8 +184,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       slotUsed: vis.gpuDraw.slotUsedBuffer,
       pyramid: () => vis.gpuHiz?.pyramidBuffer(),
     });
-    // Compaction of the tested half reads the pyramid verdict and rewrites the instance list draw
-    // compaction just posted: it exists only with both.
+    // The tested half's compaction reads the pyramid verdict and draw compaction's list: both.
     vis.gpuRestCompact = await createGpuRestCompact(gpuDevice, {
       instances: vis.gpuDraw.instanceBuffer,
       indirect: vis.gpuDraw.indirectBuffer,
@@ -194,7 +195,6 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
     else
       diag.diagnosticFailure('partition-pipeline-unavailable', new Error('PARTITION_UNAVAILABLE'));
   }
-  // The transparent occlusion test comes last: it borrows the pyramid, the partition uniform and
-  // the compaction verdict buffer, and does not exist without the three.
+  // Transparent occlusion last: it borrows the pyramid, partition uniform and compaction verdicts.
   await prepareTransparentOcclusion(rt, gpuDevice);
 }
