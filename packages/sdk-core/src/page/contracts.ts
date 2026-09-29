@@ -2,7 +2,7 @@
  *  the top of the manifest; the page header's magic and the sidecar version are the gates. */
 export interface GeometryPageFormat {
   /** Page format version. */
-  formatVersion: 5;
+  formatVersion: 7;
   /** Always `'quantized'`. */
   codec: 'quantized';
 }

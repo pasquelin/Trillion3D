@@ -47,8 +47,8 @@ function runtime() {
   };
   const size = () => [64, 32];
   const rt = {
-    gpu: { temporal, temporalWanted: true, depthView: {}, hdrView: {} },
-    vis: { visView: { ids: true }, pageTable: { pages: true } },
+    gpu: { temporal, temporalWanted: true, depthView: {}, hdrView: {}, cache: { buffer: {} } },
+    vis: { visView: { ids: true }, pageTable: { pages: true }, concatPos: {}, concatUv: {} },
     run: { diagnostic: 'beauty', gpuDrawCalls: 0, frame: 0, gate: { revisions: { scene: 1 } } },
     capture: { capturing: false },
   } as unknown as WebgpuPagesRuntime;

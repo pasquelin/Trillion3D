@@ -26,6 +26,8 @@ export const SAMPLE_MODELS: Record<string, string> = {
   NormalTangentMirrorTest: 'mirrored texture coordinates: a fold the weld must not split',
   TextureCoordinateTest: 'texture-coordinate layouts read straight off the image',
   AlphaBlendModeTest: 'the three alpha modes side by side',
+  CesiumMan: 'a skinned character walking its clip: the GPU deformation stage (#357)',
+  AnimatedMorphCube: 'morph targets played by a clip: the GPU deformation stage (#357)',
 };
 
 /** `SciFiHelmet` → `sci-fi-helmet`, `ABeautifulGame` → `abeautiful-game`. */

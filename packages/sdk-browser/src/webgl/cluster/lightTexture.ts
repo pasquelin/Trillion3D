@@ -1,11 +1,13 @@
+import { DEFORMATION_ROW_TEXELS } from '../../deformation/textureBytes.ts';
 import { grown } from '../../../../sdk-core/src/math/transform-tree/transformTree.ts';
 import { LTC_UNIT } from './rectGlsl.ts';
 import { refuseCluster } from './refusal.ts';
+import type { RefusedPool } from '../../residency/outOfMemory.ts';
 import { allocated } from '../core/allocation.ts';
 
 /** Texels in a row of a light texture: WebGL2 guarantees 2048 a side, so one row fits every
  *  device and the rows grow with the scene. The program folds an index the same way (`LIGHT_TEXTURE_GLSL`). */
-export const LIGHT_ROW_TEXELS = 1024;
+export const LIGHT_ROW_TEXELS = DEFORMATION_ROW_TEXELS;
 /** The units of the light records and of the light grid's lists, past the reflection's two
  *  (`setClusterSamplers`, `./uniforms.ts`). */
 export const LIGHT_DATA_UNIT = LTC_UNIT + 3;
@@ -54,13 +56,19 @@ export class WebglLightTexture<T extends Float32Array | Int32Array> {
   private unit: number;
   private layout: Layout;
   private make: new (length: number) => T;
+  private pool: RefusedPool;
+  private refused: () => void;
   constructor(
     gl: WebGL2RenderingContext,
     unit: number,
     layout: Layout,
     make: new (length: number) => T,
+    pool: RefusedPool = 'target',
+    refused: () => void = () => {},
   ) {
     this.gl = gl;
+    this.pool = pool;
+    this.refused = refused;
     this.unit = unit;
     this.layout = layout;
     this.make = make;
@@ -96,7 +104,10 @@ export class WebglLightTexture<T extends Float32Array | Int32Array> {
       null,
     );
     // Refused: reallocated at the next frame's reserve (`../core/allocation.ts`).
-    allocated(gl, 'target', () => (this.rows = 0));
+    allocated(gl, this.pool, () => {
+      this.rows = 0;
+      this.refused();
+    });
   }
   /** Sends the rows holding the first `texels` and binds the texture on its unit: the host's
    *  units are unknown at frame start, so it is bound again every frame. */

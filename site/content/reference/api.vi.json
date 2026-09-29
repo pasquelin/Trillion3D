@@ -13,7 +13,8 @@
       "play": "Bắt đầu phát.",
       "stop": "Dừng lại, và quay về điểm bắt đầu.",
       "seek": "Đặt clip ngay tại `time` giây, theo chế độ lặp của nó, dù đang chạy hay không: hành động đang chạy tiếp tục từ đó, hành động đã dừng giữ tư thế cho đến khi một hành động đang chạy của bộ trộn ghi đè lên.",
-      "clipTime": "Vị trí của hành động trong clip, theo chế độ lặp của nó."
+      "clipTime": "Vị trí của hành động trong clip, theo chế độ lặp của nó.",
+      "blendMode": "`additive` cộng chuyển động tương đối với khóa đầu tiên vào các hành động khác thay vì trộn chúng."
     }
   },
   "AlphaMode": {
@@ -824,7 +825,9 @@
       "vertexCount": "Số đỉnh.",
       "flags": "Những thuộc tính nào nó mang theo.",
       "decodedBytes": "Kích thước của nó sau khi giải nén.",
-      "quantizationError": "Độ dịch chuyển vị trí lớn nhất trong tiêu đề, tính theo đơn vị đối tượng: một vị trí đã giải mã có thể nằm cách xa nguồn của nó đến mức đó, và do đó cách xa hộp mà trang đã khai báo."
+      "quantizationError": "Độ dịch chuyển vị trí lớn nhất trong tiêu đề, tính theo đơn vị đối tượng: một vị trí đã giải mã có thể nằm cách xa nguồn của nó đến mức đó, và do đó cách xa hộp mà trang đã khai báo.",
+      "morphTargets": "Số đích trong `attributes.morph`: sáu số thực cho mỗi đích và đỉnh; không có khi không morphing.",
+      "skinInfluences": "Số ảnh hưởng xương nguồn trên mỗi đỉnh."
     }
   },
   "DiagnosticCapabilities": {
@@ -1162,7 +1165,8 @@
       "mathBatch": "Trạng thái của bộ điều phối đường tính toán (`../math/path/governor.ts`): đường hiện tại của mỗi phép toán theo lô, trung vị của cả hai đường, số lần chuyển đổi. `null` trên một ứng dụng chủ chưa mở một lô nào — chưa được đo, không phải \"đường JavaScript\".",
       "pagesPlannedOffThread": "Việc tích hợp trang ngoài luồng chính. `pagesPlannedOffThread` đếm các lượt đến mà kế hoạch của chúng — vị trí của mỗi cụm trong gói và các thứ hạng trang mà nó di chuyển — đã được một worker tính toán, không bao giờ những kế hoạch mà phương án dự phòng lập trên luồng chính. `pagePlanMs` là thời gian tích lũy của các kế hoạch đó, do chính bộ thực thi đo, dù là luồng nào: nó không bao giờ được cộng vào `cpu*` hay `gpu*` theo từng khung hình. Cả hai đều là `null` chừng nào chưa có lượt đến nào được lập kế hoạch — chưa được đo, không phải bằng không.",
       "pagePlanMs": "Thời gian dành cho việc lập kế hoạch các lượt đến.",
-      "dynamicUploadBytes": "Số byte đỉnh của hình học động được tải lên tại chỗ trong khung hình này (#573), trong ngân sách mỗi khung hình của thế giới (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Không có khi không thế giới nào vẽ."
+      "dynamicUploadBytes": "Số byte đỉnh của hình học động được tải lên tại chỗ trong khung hình này (#573), trong ngân sách mỗi khung hình của thế giới (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Không có khi không thế giới nào vẽ.",
+      "gpuDeformationMs": "Thời gian biến dạng GPU của khung hình `gpuPassMs`; null trước khi đo hoặc khi không hỗ trợ."
     }
   },
   "Frustum": {
@@ -1802,7 +1806,8 @@
       "record": "Mọi thứ mà thế giới giữ về mô hình này: địa chỉ, tệp kê khai và đồ thị của nó.",
       "getObjectByName": "Nút đầu tiên bên dưới mang tên này: mô hình, một nút của tệp nguồn, rồi mọi con khác — đèn tệp mang theo, nút một trang đặt vào.",
       "metadata": "Tệp kê khai đã biên dịch của mô hình — các nguyên thủy của nó, `sourceTriangles` — và `clusters`, các cụm mà các trang của nó chứa, mỗi mức của các DAG của nó được đếm.",
-      "localBounds": "Hộp của nội dung riêng của node này, khung cục bộ; một node thông thường không chứa cái nào cả."
+      "localBounds": "Hộp của nội dung riêng của node này, khung cục bộ; một node thông thường không chứa cái nào cả.",
+      "animations": "Clip từ tệp gắn với các nút mô hình: `animation.createMixer(model).clipAction(model.animations[0]).play()`."
     }
   },
   "LodQualityId": {
@@ -2115,7 +2120,9 @@
       "morphTargetInfluences": "Trọng số của mỗi mục tiêu morph, khi hình học khai báo.",
       "morphTargetDictionary": "Thứ hạng của mỗi mục tiêu morph theo tên.",
       "updateMorphTargets": "Một trọng số bằng không cho mỗi mục tiêu morph của thuộc tính biến dạng đầu tiên, đặt tên theo thứ hạng.",
-      "copy": "Lấy các giá trị của `source`, và bản sao các con của nó trừ khi được bảo không."
+      "copy": "Lấy các giá trị của `source`, và bản sao các con của nó trừ khi được bảo không.",
+      "skeleton": "Các xương được chỉ bởi `skinIndex` và `skinWeight`, tính trên GPU mỗi khung hình.",
+      "waves": "Tham số sóng dùng chung với `WaterSurface` cho GPU và lực nổi."
     }
   },
   "Mixer": {
@@ -2498,7 +2505,9 @@
       "vertexCount": "Số đỉnh.",
       "flags": "Những thuộc tính nào nó mang theo.",
       "decodedBytes": "Kích thước của `block`.",
-      "quantizationError": "Độ dịch chuyển vị trí lớn nhất trong tiêu đề trang, tính theo đơn vị đối tượng."
+      "quantizationError": "Độ dịch chuyển vị trí lớn nhất trong tiêu đề trang, tính theo đơn vị đối tượng.",
+      "skinInfluences": "Độ rộng chính xác của các ảnh hưởng xương nguồn trên mỗi đỉnh.",
+      "morphTargets": "Số đích trong `morph`: sáu số thực cho mỗi đích và đỉnh; không có khi không morphing."
     }
   },
   "PageDecodeOp": {
@@ -2683,7 +2692,9 @@
       "matrices": "Mười sáu số thực dạng column-major mỗi hàng, do chủ sở hữu ghi.",
       "live": "1 ở nơi hàng đặt tài nguyên đó, 0 ở nơi nó bị đỗ tạm.",
       "shadowless": "1 ở nơi hàng không đổ bóng (`castShadow` của mesh của nó là `false`), 0 ở nơi nó đổ bóng.",
-      "capacity": "Số hàng vừa được trước khi nó phải lớn lên."
+      "capacity": "Số hàng vừa được trước khi nó phải lớn lên.",
+      "sources": "Chủ sở hữu ban đầu được giữ sống khi tái sử dụng hàng.",
+      "sourceModels": "Các mesh dùng chung tài nguyên, kể cả hàng đang chờ."
     }
   },
   "Plane": {
@@ -2754,7 +2765,8 @@
       "streams": "Các gói bó truyền tải của nó.",
       "quantization": "Null trên một nguyên thủy không có trang, thứ không được lượng tử hóa trên bất kỳ lưới nào.",
       "topology": "Các cạnh và góc của mesh trông như thế nào.",
-      "dynamic": "Hình học động của một thế giới (#573): chỉ các trang chỉ mục, các đỉnh được đọc dưới dạng số thực từ hình học máy chủ mà engine ghi lại tại chỗ."
+      "dynamic": "Hình học động của một thế giới (#573): chỉ các trang chỉ mục, các đỉnh được đọc dưới dạng số thực từ hình học máy chủ mà engine ghi lại tại chỗ.",
+      "deformation": "Cầu nghỉ của khớp `[x,y,z,radius]` và phạm vi morphing tối đa; không có hoặc null với hình học tĩnh."
     }
   },
   "PrimitiveDagStall": {
@@ -3425,7 +3437,8 @@
       "quantization": "Null trên một nguyên thủy không có trang, thứ không được lượng tử hóa trên bất kỳ lưới nào.",
       "topology": "Các cạnh và góc của mesh trông như thế nào.",
       "binary": "Nơi tìm các danh sách của nó.",
-      "dynamic": "Hình học động của một thế giới (#573): chỉ các trang chỉ mục, các đỉnh được đọc dưới dạng số thực từ hình học máy chủ mà engine ghi lại tại chỗ."
+      "dynamic": "Hình học động của một thế giới (#573): chỉ các trang chỉ mục, các đỉnh được đọc dưới dạng số thực từ hình học máy chủ mà engine ghi lại tại chỗ.",
+      "deformation": "Cầu nghỉ của khớp `[x,y,z,radius]` và phạm vi morphing tối đa; không có hoặc null với hình học tĩnh."
     }
   },
   "SlimPrimitiveBinary": {
@@ -3889,7 +3902,8 @@
       "name": "Nó tạo hoạt ảnh cho gì: `node.field`.",
       "kind": "Loại giá trị nào nó chứa.",
       "times": "Khi nào mỗi khóa xảy ra, tính bằng giây.",
-      "values": "Giá trị tại mỗi khóa, lần lượt liên tiếp."
+      "values": "Giá trị tại mỗi khóa, lần lượt liên tiếp.",
+      "interpolation": "Mặc định `linear`; `step` giữ khóa trước; `cubic` dùng bộ ba glTF tiếp tuyến vào/giá trị/tiếp tuyến ra."
     }
   },
   "TrackBinding": {
@@ -3898,11 +3912,12 @@
       "owner": "Đối tượng mà track ghi vào.",
       "field": "Trường của `owner` mà nó ghi.",
       "key": "Khóa mà mẫu cuối cùng đứng ở đó.",
-      "value": "Các con số của một mẫu."
+      "value": "Các con số của một mẫu.",
+      "reference": "Tư thế tham chiếu của khóa đầu cho hành động cộng."
     }
   },
   "TrackKind": {
-    "summary": "Những gì một track tạo hoạt ảnh: một con số, một vectơ, một phép xoay hoặc một màu."
+    "summary": "Một số, vectơ, phép quay, màu hoặc danh sách trọng số morphing."
   },
   "TrackballCameraControls": {
     "summary": "TRACKBALL: camera lăn quanh trục xoay của nó như thể cảnh là một quả bóng dưới con trỏ.",
@@ -4083,7 +4098,7 @@
   },
   "UNSPLIT_PASS": {
     "summary": "Cách bố trí một nguyên thủy không bị tách, được giữ bên ngoài DAG cụm bởi trình biên dịch: mesh đầy đủ, thứ tự nguồn được giữ nguyên.",
-    "description": "Ba thuộc tính vật liệu dẫn đến đó ngày nay — truyền dẫn, biến dạng theo khung xương (skinning), và các đích biến hình (morph target) —, không bao giờ là tên một vật thể."
+    "description": "Truyền sáng yêu cầu đường này; tên đối tượng không quyết định."
   },
   "UserNotice": {
     "summary": "Một thông điệp cho người đang dùng trang, cùng với những gì họ có thể làm.",
@@ -4335,7 +4350,8 @@
       "shadowCastersKept": "Các vật đổ bóng mà bước loại theo trang giữ lại, gộp mọi trang đã vẽ, ở khung hình thiết bị lấy mẫu gần nhất — một trên mười lăm; `null` cho đến khi có mẫu trả về.",
       "shadowCastersRejected": "Các vật đổ bóng mà bước loại theo trang đã kiểm tra nhưng không giữ lại — ngoài phần trang mà các vật nhận của nó đọc —, ở cùng khung hình được lấy mẫu; `null` cho đến khi có mẫu trả về.",
       "shadowCastersHidden": "Các vật đổ bóng chuyển động mà phép thử che khuất thấy bị ẩn sau lớp tĩnh của trang chúng, ở khung lấy mẫu gần nhất; `null` cho đến khi có mẫu trả về.",
-      "dynamicUploadBytes": "Số byte đỉnh của hình học động được tải lên tại chỗ trong khung hình này (#573), trong ngân sách mỗi khung hình của thế giới (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Không có khi không thế giới nào vẽ."
+      "dynamicUploadBytes": "Số byte đỉnh của hình học động được tải lên tại chỗ trong khung hình này (#573), trong ngân sách mỗi khung hình của thế giới (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Không có khi không thế giới nào vẽ.",
+      "gpuDeformationMs": "Thời gian biến dạng GPU của khung hình `gpuPassMs`; null trước khi đo hoặc khi không hỗ trợ."
     }
   },
   "WorldOptions": {
@@ -7485,7 +7501,8 @@
       "height": "Độ cao mặt nước phía trên điểm thế giới `(x, z)`, tính bằng mét.",
       "point": "Điểm thế giới `[x, y, z]` mà điểm nghỉ `(x, level, z)` được mang tới, vào `out`: một lưới dời từng điểm chính là mặt nước, đỉnh sóng sắc như sóng.",
       "wavesNow": "Các sóng đã khai báo, mỗi pha được mang tới lúc này: đặt lại vào `world.physics.water` (sóng của nó bắt đầu lại từ 0 s), mặt nước tiếp tục từ chỗ đang ở thay vì nhảy.",
-      "normal": "Pháp tuyến đơn vị `[x, y, z]` của mặt nước tại điểm nghỉ `(x, z)`, vào `out`."
+      "normal": "Pháp tuyến đơn vị `[x, y, z]` của mặt nước tại điểm nghỉ `(x, z)`, vào `out`.",
+      "waveModel": "Cùng giá trị sóng và thời gian cho GPU và vật lý."
     }
   },
   "WaveSpec": {
@@ -7942,6 +7959,73 @@
   },
   "world.materialMapBytes": {
     "summary": "Số byte ảnh đang giữ hoặc chờ, giới hạn 64 MiB."
+  },
+  "animation.weightsTrack": {
+    "summary": "Một track chứa tất cả trọng số morphing tại mỗi khóa.",
+    "parameters": {
+      "path": "Đường dẫn `node.morphTargetInfluences`.",
+      "times": "Thời điểm khóa tính bằng giây.",
+      "values": "Một trọng số cho mỗi đích và khóa."
+    }
+  },
+  "animation.skeleton": {
+    "summary": "Tạo bộ xương để gán cho `mesh.skeleton`.",
+    "parameters": {
+      "bones": "Xương theo thứ tự của `skinIndex`.",
+      "inverseBindMatrices": "Mười sáu số cho mỗi xương; nếu bỏ qua, tư thế hiện tại là tư thế liên kết."
+    }
+  },
+  "animation.twoBoneIK": {
+    "summary": "Cho chuỗi hai xương chạm một điểm sau khi tính các clip.",
+    "parameters": {
+      "root": "Xương đầu tiên trong chuỗi.",
+      "mid": "Xương thứ hai trong chuỗi.",
+      "end": "Nút cuối gắn với xương thứ hai.",
+      "target": "Điểm cần chạm tới.",
+      "pole": "Hướng uốn; mặc định là hướng hiện tại.",
+      "weight": "0 giữ tư thế hiện tại; 1 áp dụng toàn bộ lời giải."
+    }
+  },
+  "animation.windClip": {
+    "summary": "Clip lặp làm nghiêng và đung đưa các xương của cây.",
+    "parameters": {
+      "bones": "Xương từ thân cây tới đầu cành.",
+      "options": "Hướng, góc uốn tối đa và tần số."
+    },
+    "parameters.options.direction": "Hướng trên mặt đất `[x, z]`; mặc định `[1, 0]`.",
+    "parameters.options.angle": "Góc uốn tối đa tính bằng radian; mặc định 0,1.",
+    "parameters.options.frequency": "Số lần dao động mỗi giây; mặc định 0,5."
+  },
+  "Skeleton": {
+    "summary": "Các xương làm biến dạng lưới và ma trận liên kết nghịch đảo, chuyển tọa độ lưới sang hệ tọa độ của từng xương.",
+    "description": "Chỉ số khớp của đỉnh là vị trí trong `bones`. Nếu không có ma trận nghịch đảo, tư thế xương khi tạo bộ xương là tư thế liên kết.",
+    "members.isSkeleton": "Luôn là `true`: nhận diện bộ xương.",
+    "members.bones": "Các nút khớp theo thứ tự khớp.",
+    "members.boneInverses": "Mười sáu số cho mỗi xương, theo cột: nghịch đảo ma trận thế giới ở tư thế liên kết.",
+    "members.palette": "Ghi các hàng của `meshWorld⁻¹ · boneWorld · boneInverse` cho mỗi khớp vào `out`, từ `at`. Bảng ma trận chuyển đỉnh liên kết sang hệ cục bộ của lưới; sau đó áp dụng biến đổi thế giới của lưới. `boneWorlds` cung cấp ma trận thế giới của bộ đọc; nếu thiếu thì dùng ma trận riêng của xương."
+  },
+  "Waves": {
+    "summary": "Tập sóng Gerstner có thời gian do `setTime` đặt.",
+    "description": "Mỗi sóng `i` có hướng `(dx, dz)`, số sóng `k`, biên độ `A` và biên độ ngang `Q·A`. Độ dốc được chuẩn hóa để `Σ Qᵢ·Aᵢ·kᵢ ≤ 1`, tránh đỉnh sóng lật ngược.",
+    "members.phase": "Pha của mỗi sóng tại thời điểm đã đặt, trong [0, 2π): trạng thái duy nhất phụ thuộc thời gian.",
+    "members.crest": "Độ cao cực đại trên mặt nghỉ: `Σ Aᵢ`.",
+    "members.steepness": "`Σ Qᵢ·Aᵢ·kᵢ` sau chuẩn hóa, tối đa 1.",
+    "members.phasesAt": "Pha của mỗi sóng tại `t` giây, đưa về [0, 2π) với độ chính xác kép.",
+    "members.setTime": "Đặt thời gian là `t` giây; mặt ở khung trước tương ứng với `setTime(t - dt)`.",
+    "members.offset": "Ghi độ dịch chuyển `[x, y, z]` của điểm nghỉ `(x, 0, z)` vào `out`.",
+    "members.normal": "Ghi pháp tuyến đơn vị `[x, y, z]` tại điểm nghỉ `(x, z)` vào `out`.",
+    "members.count": "Số sóng được cộng lại.",
+    "members.dirX": "Thành phần x đã chuẩn hóa của hướng mỗi sóng.",
+    "members.dirZ": "Thành phần z đã chuẩn hóa của hướng mỗi sóng.",
+    "members.k": "Số sóng của mỗi sóng, tính bằng radian trên mét.",
+    "members.amplitude": "Biên độ thẳng đứng của mỗi sóng, tính bằng mét.",
+    "members.lateral": "Biên độ ngang đã chuẩn hóa của mỗi sóng, tính bằng mét."
+  },
+  "WindOptions": {
+    "summary": "Hướng gió (`x`, `z` trên mặt đất), góc uốn xương tối đa tính bằng radian và số lần dao động mỗi giây.",
+    "members.direction": "Hướng trên mặt đất `[x, z]`; mặc định `[1, 0]`.",
+    "members.angle": "Góc uốn tối đa tính bằng radian; mặc định 0,1.",
+    "members.frequency": "Số lần dao động mỗi giây; mặc định 0,5."
   },
   "world.setTransform": {
     "summary": "Di chuyển nút `nodeName` để tư thế thế giới của nó là `matrix`: một nút mà trang không giữ tham chiếu được tiếp cận bằng tên (`object.name`), tra trong cảnh.",

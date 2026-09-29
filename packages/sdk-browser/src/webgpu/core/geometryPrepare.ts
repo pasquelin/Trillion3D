@@ -1,10 +1,13 @@
+import { storageBufferCap } from '../../residency/pools.ts';
+import { wholeDeformationPool } from '../../deformation/wholePool.ts';
+import type { BlendGpuItem } from '../blend/state.ts';
 import type { HostAttributes } from '../../host/resources.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { GeometryBlock } from '../row/pageRowMaterial.ts';
+import type { SessionDeformation } from '../../deformation/session.ts';
 import { COLOR_FLOATS, UV_FLOATS, colorFloatAt, uvBufferFloats } from './vertexColors.ts';
 type GeometryBlocks = Map<HostAttributes, GeometryBlock>;
 type List = HostAttributes[string];
-
 /** How each list a pool block carries is laid out: its buffer, its floats per vertex, and the
  *  host lists it is written from, each with its width and the value of a missing component — a
  *  normal and a tangent share seven floats a vertex, a colour rides at the tail of the UVs. */
@@ -35,12 +38,15 @@ export function createVertexPool(
   capacity: number,
   coloured: boolean,
   blocks: GeometryBlocks,
+  deformFloats = 0,
 ) {
   let used = 0;
   const floats: Buffers<number> = {
-    ...{ concatPos: capacity * 3, concatNrm: capacity * 7 },
+    ...{ concatPos: capacity * 3 + deformFloats, concatNrm: capacity * 7 },
     concatUv: uvBufferFloats(capacity, coloured),
   };
+  for (const count of Object.values(floats))
+    if (count * 4 > storageBufferCap(device.limits)) throw new Error('GEOMETRY_POOL_DEVICE_LIMIT');
   const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
   const buffers = Object.fromEntries(
     BUFFERS.map((key) => {
@@ -146,11 +152,15 @@ export function prepareWebgpuGeometry(
   device: GPUDevice,
   allPages: PageRec[],
   geometryBlocks: GeometryBlocks,
+  deformation?: SessionDeformation,
+  items: readonly BlendGpuItem[] = [],
 ) {
   const sourced = new Map<HostAttributes, boolean>();
   for (const rec of allPages)
     if (!rec.geometryPage)
       sourced.set(rec.attributes, rec.sourceMesh?.geometry.usage === 'dynamic');
+  const whole = wholeDeformationPool(items, deformation);
+  for (const item of whole.placed) sourced.set(item.sourceGeometry.attributes, false);
   let vertices = 0,
     room = 0,
     coloured = false;
@@ -161,8 +171,30 @@ export function prepareWebgpuGeometry(
     coloured ||= !!attributes.color;
   }
   const capacity = Math.max(1, vertices + room);
-  const vertexPool = createVertexPool(device, capacity, coloured, geometryBlocks);
+  // The deformation records ride after the positions (#357): the passes read them through the
+  // binding they already read the positions through.
+  const deformFloats = deformation?.floats ?? 0;
+  const vertexPool = createVertexPool(
+    device,
+    capacity,
+    coloured,
+    geometryBlocks,
+    deformFloats + whole.floats,
+  );
+  deformation?.place(capacity * 3);
   vertexPool.pack(sourced);
   const { concatPos, concatUv, concatNrm } = vertexPool;
-  return { concatPos, concatUv, concatNrm, vertexPool };
+  const wholeDeformation = whole.placed.length
+    ? whole.upload(
+        device,
+        concatPos,
+        capacity * 3 + deformFloats,
+        (geometry) => geometryBlocks.get(geometry.attributes)!.vertexBase,
+      )
+    : undefined;
+  for (const item of whole.placed) {
+    item.uv = concatUv;
+    item.normal = concatNrm;
+  }
+  return { concatPos, concatUv, concatNrm, vertexPool, wholeDeformation };
 }

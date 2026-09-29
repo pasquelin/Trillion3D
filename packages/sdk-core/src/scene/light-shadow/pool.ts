@@ -17,9 +17,9 @@ export const DRAW_ALL = 0,
   DRAW_FULL = 1,
   DRAW_DYNAMIC = 2;
 
-/** Host bytes a pool of `pages` allocates, per page 10·4 + 5 + 2·8, one bit per table entry. */
+/** Host bytes a pool of `pages` allocates, per page 11·4 + 5 + 2·8, one bit per table entry. */
 export const shadowPoolHostBytes = (pages: number) =>
-  pages * (10 * 4 + 5 + 2 * 8) + SHADOW_TABLE_ENTRIES / 8;
+  pages * (11 * 4 + 5 + 2 * 8) + SHADOW_TABLE_ENTRIES / 8;
 
 /**
  * THE PHYSICAL PAGES of the shadow pool and what each one holds: the table entry that maps it,
@@ -36,9 +36,10 @@ export function createShadowPool(side: number, layers = 1) {
   /** One bit per table entry: its page was evicted to make room, and it has not been drawn since. */
   const evicted = new Uint32Array(SHADOW_TABLE_ENTRIES / 32);
   const init = () => {
-    const { owner, requested, dirty, valid, layered } = pool;
+    const { owner, requested, named, dirty, valid, layered } = pool;
     owner.fill(-1);
     requested.fill(-1);
+    named.fill(-1);
     for (const flags of [dirty, valid, layered]) flags.fill(0);
     pool.rebuildFree();
     evicted.fill(0);
@@ -122,9 +123,11 @@ export function createShadowPool(side: number, layers = 1) {
       pool.owner[page] = -1;
       pool.dirty[page] = pool.valid[page] = pool.layered[page] = 0;
       pool.requested[page] = -1;
+      pool.named[page] = -1;
       free[freeCount++] = page;
     },
-    /** Pages that may be taken for a report of frame `reportFrame` (`poolOrder.ts`). */
+    /** Pages that may be taken for a request of cycle `cycle`, read by the report of
+     *  `reportFrame`: every mapped page the cycle no longer names (`poolOrder.ts`, #26). */
     beginAllocation: order.begin,
     /** A page for `entry`, asked by the report of `reportFrame`: a free one — the lowest first —,
      *  else the oldest evictable one, else −1. It waits for its first draw from `frame`. */
@@ -135,7 +138,9 @@ export function createShadowPool(side: number, layers = 1) {
         pool.release(table, lost, true);
         page = free[--freeCount];
       }
-      if (page >= 0) pool.adopt(table, page, entry, reportFrame, nowMs, frame);
+      if (page < 0) return -1;
+      pool.adopt(table, page, entry, reportFrame, nowMs, frame);
+      pool.named[page] = order.cycle();
       return page;
     },
     /** Free `page` maps `entry` — out of the free list, which the caller rebuilds —, asked by the

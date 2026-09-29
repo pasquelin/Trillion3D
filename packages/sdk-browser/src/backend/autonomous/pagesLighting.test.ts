@@ -21,7 +21,7 @@ const PHOTOMETRIC = 2400;
 
 const metadata = {
   ...DAG,
-  geometryPages: { formatVersion: 5 as const, codec: 'quantized' as const },
+  geometryPages: { formatVersion: 7 as const, codec: 'quantized' as const },
   primitives: [],
 } as unknown as ClusterManifest;
 

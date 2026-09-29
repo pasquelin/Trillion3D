@@ -1107,6 +1107,19 @@ resizes it by the same rule, every page it still holds kept as drawn (#1208); `m
 publishes its `shadowPoolBytes` and `shadowPoolLayers`, and its memory pressure by name
 (`shadowPeakBytes`, `shadowResolutionBias`, `shadowMemoryEvents`).
 
+### A lamp's range is authored, and the frame shortens it only where it shows nothing
+
+`range` is the lamp's attenuation radius, in metres — the reference engine `AttenuationRadius`: the light's
+influence ends there through the smooth window `(1 − (d/range)⁴)²` the shaders apply, and a `point`
+or `spot` shadow map is built to it. It is a first-class control the page sets (`light.distance`);
+left unset, the world derives one from the scene's own extent. Before each frame the world shortens
+the **effective** range to the reach past which the lamp's own contribution stays under half an
+eight-bit display step after the frame's exposure and display curve (CMP-16, #958): never longer
+than the author set, never longer than the frame shows. The bound is the lamp's diffuse lobe plus
+its specular lobe at the roughness the drawn surfaces really wear — never the worst case at
+`ROUGHNESS_FLOOR`, a mirror no scene holds — and is re-derived whenever the exposure or the light
+changes, so a rising exposure lengthens a reach without a pop.
+
 `capability.lighting(world)` reports what the **active** renderer applies — `{ sceneLights,
 lightingView, shadows, transforms, reason? }` — not what the contract accepts: a call the light
 store accepts is not proof of lighting. `reason` names in one sentence what is not applied.
@@ -1457,7 +1470,11 @@ gravityScale, sensor, ccd, decorative, friction, restitution, damping }`. The sh
 - **Motion and events.** `mesh.physics.velocity` (read as the last step left it, written to launch
   the body), `applyImpulse(x, y, z)`, `wake()`, `asleep`, and `on('contact' | 'enter' | 'leave')`:
   the other object, an impulse estimate (approach speed times the pair's reduced mass) and the
-  point.
+  point. A step's contact events are delivered in a canonical order no thread decides: every
+  thread's records are merged after `Update`, ordered by the body pair's key (the lower engine
+  index first), each pair's own events in the order Jolt ran them, so a pool of any size gives the
+  same events in the same order. It is the engine's canonical order, not Jolt's internal callback
+  order.
 - **Joints.** `joint.fixed | point | hinge | slider | distance | cone(a, b, options)` connects two
   bodies, or a body and the world (`b` is `null`), with Jolt's own constraints; `world.physics.add(j)`
   puts it in the simulation and `remove(j)` takes it out. It is made once both bodies are simulated,
@@ -1622,10 +1639,71 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
 - **Character.** With physics on, `world.controls` `'character'` is the physics' own character
   (see [Camera controllers](#camera-controllers)): it pushes, rides and is pushed.
 
+## GPU deformation
+
+Imported glTF and FBX animation clips are exposed as `model.animations`. A mixer binds tracks
+under that loaded model, including its morph weights. FBX imports translation, Euler rotation,
+scale and blend-weight clips through ufbx source evaluation. Original keys and the full playback
+span remain. Linear and cubic curves are subdivided by their Bezier control hull (scalar chord
+error at most 2.5e-7 source units, or radians for rotations); total Euler travel is limited to 15 degrees per initial
+interval so complete rotations cannot disappear between quaternion keys. The converter refines
+world-space TRS against ufbx at each interval's quarter, midpoint and three-quarter samples,
+using emitted float32 endpoints and a 2.5e-7 component threshold (relative above magnitude one).
+Regression oracles additionally check non-key times against a 1e-6 component bound. These are
+conversion checks, not a measured image-fidelity claim. Single linear skins and positive
+single-target blends retain non-unit full weights. Skins with unbound vertices or more than
+65,536 joints refuse explicitly. Stepped/extrapolated curves, intermediate
+shapes, layered/constrained animation and sheared world transforms remain explicit
+`IMPORT_UNSUPPORTED_ANIMATION` refusals. Conversion also refuses more than 36,000 distinct keys
+or times that collapse at float32 precision; it never truncates a clip. glTF retains its original
+interpolation contracts. Stored skin weights remain exact float32 source values; both GPU paths
+normalize their sum when blending joints, keeping the bind pose and conservative bounds intact.
+A deformed scene refuses the untextured WebGPU fallback when its material pipeline is unavailable,
+so backend selection can recover instead of displaying rest geometry:
+
+```ts
+const model = await world.scene.load('/character/cache/native/full/manifest.json');
+const mixer = animation.createMixer(model);
+const walk = mixer.clipAction(model.animations[0]).play();
+walk.weight = 0.8;
+walk.timeScale = 1.2;
+// Stop at a repeatable pose, for inspection or a reference comparison.
+walk.stop().seek(0.5);
+world.invalidate();
+```
+
+A page-created mesh uses `mesh.skeleton = animation.skeleton(bones, inverseBindMatrices)` and
+four-component `skinIndex` / `skinWeight` geometry attributes. Morph displacements belong in
+`geometry.morphAttributes.position` (and optionally `.normal`), with
+`geometry.morphTargetsRelative = true`; absolute targets are accepted too. Call
+`mesh.updateMorphTargets()` after adding targets. Animate `node.morphTargetInfluences` through
+`animation.weightsTrack`, or write its weights directly. Geometry and its cut pages are shared;
+each placement reads its own palette, weights and water source.
+
+Actions blend by `weight`. Set `action.blendMode = 'additive'` to add its difference from the
+clip's first key over the normal blend. `animation.twoBoneIK(root, mid, end, target, pole, weight)`
+solves a bone chain; use it after sampling the clips. `animation.windClip(bones, options)` returns
+a looping bone animation with `direction: [x, z]`, `angle` in radians and `frequency` in Hz.
+Wind changes bones, not individual CPU vertices. A water mesh sets `mesh.waves` to the same
+`WaterSurface` whose `waveModel` buoyancy reads: rendering and physics share wave parameters.
+
+WebGPU computes resident vertex positions, previous positions and normals before selection and
+rasterization. WebGL2 applies the same sources in its vertex stage. The engine expands culling
+bounds by the deformation reach and retains the previous pose for temporal reprojection;
+a stationary pose settles its previous values on the following frame. Cooked cloth uses its
+compiler-recorded simulation mapping; a page does not rebuild the cloth geometry.
+
+`metrics.gpuDeformationMs` is the latest measured WebGPU deformation stage time, or `null` when
+no timestamp sample is available. Zero is a measured zero, never a replacement for missing
+support. See [the walking character](../site/examples/a-character-that-walks.html),
+[the morph sample](../site/examples/a-shape-that-morphs.html), and
+[the crowd](../site/examples/a-crowd-of-characters.html). The crowd accepts `?count=1`, `10` or
+`100`; its fixed-time hook is for the recette's source-pose and frame-envelope comparisons.
+
 ## Current limits
 
-- `scene.load` reads a versioned compiled manifest; non-triangle primitives, skinning, morph targets
-  and non-standard glTF extensions are not drawn.
+- `scene.load` reads a versioned compiled manifest. Imported non-triangle primitives and
+  unsupported glTF extensions are refused by the compiler.
 - Specular environment-map IBL and screen-space reflections are not implemented; the
   bounce lighting exists but is off by default ([ENGINE.md](ENGINE.md#light-that-bounces)), and only
   with it on does a surface at the roughness floor reflect the scene, at the proxy's detail.

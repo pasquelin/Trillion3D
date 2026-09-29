@@ -111,7 +111,7 @@ export async function createTransparentCompaction(device: GPUDevice, table: Tran
     const groupCounts = make('Trillion3D transparent group counts', table.groupCount * 4);
     const groupOffsets = make('Trillion3D transparent group offsets', table.groupCount * 4);
     const instanceBuffer = make('Trillion3D transparent instances', table.capacity * 4);
-    const spanBuffer = make('Trillion3D transparent cluster spans', table.capacity * 8);
+    const spanBuffer = make('Trillion3D transparent cluster spans', table.capacity * 16);
     // Occlusion verdict of each entry, written by the transparent Hi-Z test a little earlier in the
     // same submission. Zero before any image, and zero on an image without a pyramid: nothing is then
     // dropped from the table.
@@ -154,7 +154,13 @@ export async function createTransparentCompaction(device: GPUDevice, table: Tran
       encode,
       /** Uploads the spans the last residency change rewrote, and nothing else. */
       uploadSpans(first: number, count: number) {
-        device.queue.writeBuffer(spanBuffer, first * 8, table.spans.buffer, first * 8, count * 8);
+        device.queue.writeBuffer(
+          spanBuffer,
+          first * 16,
+          table.spans.buffer,
+          first * 16,
+          count * 16,
+        );
       },
       /** Writes the instance list and the draw counts a CPU cut chose, in the table's own order. */
       uploadInstances(source: Uint32Array, count: number, perItem: Uint32Array) {

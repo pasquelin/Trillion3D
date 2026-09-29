@@ -19,7 +19,7 @@ import { encodeDagKernels } from '../../../packages/sdk-browser/src/gpu/dag/enco
 import { DAG_VIEW_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts';
 import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts';
 import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
-import { ouvrirAppareil } from './webgpuDevice.ts';
+import { openGpuDevice } from './webgpuDevice.ts';
 
 interface ExecuterParams {
   tailles: number[];
@@ -39,7 +39,7 @@ export async function executer({
   plafond,
   erreurs: seuils,
 }: ExecuterParams) {
-  const appareil = await ouvrirAppareil();
+  const appareil = await openGpuDevice();
   if (!appareil) return { indisponible: 'no WebGPU adapter' };
   const { device, erreurs } = appareil;
 

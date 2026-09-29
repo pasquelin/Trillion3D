@@ -38,25 +38,17 @@ export type ShadowAsks = { entries: Uint32Array; count: number };
 
 /**
  * Reads a request report back: every page the shading asked for is either touched — mapped, it
- * becomes the most recently requested — or allocated. Allocation goes coarse first, then by table
- * entry, so which pages a full pool refuses is the same from one run to the next: a sun's higher
- * levels and a lamp's higher mips cover the most pixels per page, and a finer page falls back to
- * them, so the pool never serves a fine page before the coarse one under it. Coarseness is
- * measured within each light (`shadowSunCoarseness`, `shadowLampCoarseness`).
+ * becomes the most recently requested — or allocated. Allocation goes coarse first, then by
+ * table entry: which pages a full pool refuses is the same every run, and a finer page falls
+ * back to the coarser one under it (`shadowSunCoarseness`, `shadowLampCoarseness`).
  *
- * Every page named asks for its light's floor under it too (`sunFloorLevel`, `LAMP_FLOOR_MIP`):
- * what a reader falls back to last when that page is withdrawn. So the floor is mapped first, and
- * never evicted while anything above it is read; like every page named, it is drawn in the frame it
- * goes stale (`admit.ts`). The floor covers all the light reaches, so it needs no report to know
- * what the view will read: a sun asks every frame for the floor pages its view reaches over the
- * scene's box (`floors`) — past it no caster lies, and a receiver there asks through the report —,
- * and a new, moved or reshaped lamp for each face's until a report written at its pose is read — a
- * report from a past pose names only the pages that pose's receivers read.
+ * Every page named asks for its light's floor under it too (`sunFloorLevel`, `LAMP_FLOOR_MIP`),
+ * mapped first and never evicted while anything above it is read. A sun asks every frame for the
+ * floor pages its view reaches over the scene's box (`floors`); a new, moved or reshaped lamp,
+ * for each face's until a report at its pose is read. A report against another layout, and a
+ * sun entry whose page left the clipmap (`entryPages.ts`), are dropped.
  * When the GPU allocates (#1275), the report maps nothing: the GPU mapped what it names in that
  * frame, the pool follows its snapshot (`mirror.ts`), and every floor is asked of the GPU each frame.
- * A report read against another table layout is dropped: its words name ranges that moved. A sun
- * entry is read with the extents of the frame that wrote it (`entryPages.ts`), dropped if its page
- * left the clipmap since.
  */
 export function createShadowRequests(
   table: ShadowTable,
@@ -74,7 +66,8 @@ export function createShadowRequests(
     /** What the entry being read names: its view, then its page. */
     at = new Int32Array(3);
   let reportFrame = -1,
-    asking: ShadowAsks | undefined;
+    asking: ShadowAsks | undefined,
+    heldCycle = -1; // The still cycle the request belongs to (`plan.ts`, #26)
   const { isSun } = entries;
   /** Touches `entry` when mapped, else notes it to allocate as `at` names it; asking, lists it. */
   const ask = (entry: number, slice: number) => {
@@ -86,6 +79,7 @@ export function createShadowRequests(
     if (word & PAGE_MAPPED) {
       const page = word & PAGE_INDEX_MASK;
       pool.requested[page] = Math.max(pool.requested[page], reportFrame);
+      pool.named[page] = heldCycle;
       return;
     }
     needs.note(entry, slice, at[0], at[1], at[2], entries.rankOf(slice, at));
@@ -125,7 +119,7 @@ export function createShadowRequests(
     get complete() {
       return !counts.allocated && (!counts.unlisted || pool.heldBy(counts.latest));
     },
-    consume(report: ShadowRequestReport, nowMs: number, frame: number) {
+    consume(report: ShadowRequestReport, nowMs: number, frame: number, cycle = report.frame) {
       // A report read back before a resize lists at most the old pool's cap.
       counts.requested = Math.min(report.count, cap, report.entries.length);
       counts.unlisted = report.count - counts.requested;
@@ -133,6 +127,7 @@ export function createShadowRequests(
       counts.refused = report.pool?.refused ?? 0;
       if (report.layoutEpoch !== table.layoutEpoch) return;
       counts.latest = reportFrame = report.frame;
+      heldCycle = cycle;
       if (report.pool) return;
       needs.clear();
       for (let i = 0; i < counts.requested; i++) {
@@ -153,7 +148,7 @@ export function createShadowRequests(
         ask(entry, slice);
         askFloor(slice);
       }
-      needs.allocate(reportFrame, nowMs, frame, counts);
+      needs.allocate(reportFrame, nowMs, frame, counts, cycle);
     },
     /** Asks, as if the latest report named them, for the floor pages a reader may need that no
      *  report names yet: every sun's over the scene within the view's far distance
@@ -165,9 +160,11 @@ export function createShadowRequests(
       view: ShadowViewpoint,
       nowMs: number,
       frame: number,
+      cycle = counts.latest,
       gpu?: ShadowAsks,
     ) {
       reportFrame = counts.latest;
+      heldCycle = cycle;
       asking = gpu;
       for (let slice = 0; slice < posed.length; slice++) {
         if (records.kind[slice] < 0) continue;
@@ -188,7 +185,7 @@ export function createShadowRequests(
             at[0] = face * 16;
             askFloor(slice);
           }
-        if (!gpu) needs.allocate(reportFrame, nowMs, frame, counts);
+        if (!gpu) needs.allocate(reportFrame, nowMs, frame, counts, cycle);
       }
       asking = undefined;
     },

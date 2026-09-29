@@ -2376,6 +2376,30 @@
       "remount": "Yeniden bağla"
     }
   },
+  "a-character-that-walks": {
+    "controls": {
+      "playing": "Oynat"
+    },
+    "banner": "Sahnenin etrafında dönmek için sürükleyin. Oynat ile animasyonu duraklatın veya sürdürün."
+  },
+  "a-crowd-of-characters": {
+    "controls": {
+      "playing": "Oynat"
+    },
+    "banner": "Sahnenin etrafında dönmek için sürükleyin. Oynat ile animasyonu duraklatın veya sürdürün."
+  },
+  "a-shape-that-morphs": {
+    "controls": {
+      "playing": "Oynat"
+    },
+    "banner": "Sahnenin etrafında dönmek için sürükleyin. Oynat ile animasyonu duraklatın veya sürdürün."
+  },
+  "additive-poses": {
+    "controls": {
+      "playing": "Oynat"
+    },
+    "banner": "Sahnenin etrafında dönmek için sürükleyin. Oynat ile animasyonu duraklatın veya sürdürün."
+  },
   "move-a-hierarchy-by-name": {
     "banner": "Beş adlandırılmış grubun yinelenebilir bir diziyi izlemesini seyredin. Aynı duruşları elle yazmak için sürücüyü değiştirin.",
     "controls": {
