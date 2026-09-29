@@ -31,13 +31,9 @@ type Inputs = {
 
 export function createPartitionMounts({ partitions, opened, active, renew }: Inputs) {
   const held = opened
-    ? partitions.flatMap((cells): Held[] => {
-        const {
-          manifest: { pages },
-          meshes,
-        } = cellHoldings(cells);
-        return pages ? [{ pages, meshes }] : [];
-      })
+    ? partitions
+        .map(cellHoldings)
+        .flatMap(({ manifest: { pages }, meshes }): Held[] => (pages ? [{ pages, meshes }] : []))
     : [];
   if (!opened || !held.length) return { sync() {}, asked: () => [], stale: () => false };
   /** Whether the session draws each host mesh of the cells now, and its last turn. */
