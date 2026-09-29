@@ -1,4 +1,4 @@
-// The GPU probes run only in the measurer's browser, so this Node test holds their bind groups
+// The GPU probes run only in the recette's browser, so this Node test holds their bind groups
 // to the engine's (#20): the page gets `namedBufferEntries` itself, and no probe, oracle or light
 // cut lays its buffers out by position next to `DAG_BINDING` / `EXPAND_BINDING`.
 import assert from 'node:assert/strict';
