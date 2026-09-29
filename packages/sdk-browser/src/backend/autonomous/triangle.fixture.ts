@@ -18,8 +18,7 @@ export function liveRows(count: number) {
 /** One triangle cut into one page, and the WebGL2 page path opened on `mesh`, under `source`,
  *  placed by `link`, wearing `material` (a basic double-sided surface by default), under the page
  *  `ceiling` (a host ceiling of two pages by default); `pass` the primitive's (exact clusters).
- *  With `twinScale`, a second mesh draws the same primitive at that scale; `corners` is its index
- *  page, the source's numbers of the triangle's corners. */
+ *  With `twinScale`, a second mesh draws it at that scale; `corners` is its index page. */
 export function triangleBackend(
   {
     pass = 'exact-clusters',
