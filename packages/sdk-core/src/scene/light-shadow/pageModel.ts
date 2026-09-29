@@ -11,7 +11,7 @@ import {
 
 /** Texels around a read point that the PCF's bilinear footprints reach, on each axis: a point
  *  nearer a page's edge than this reads the neighbour across it (`shadowPcf`). */
-export const PCF_EDGE_TEXELS = 1.5;
+const PCF_EDGE_TEXELS = 1.5;
 
 /**
  * THE PAGE MODEL: where a page's word sits in the table, which level or mip a pixel reads, which
