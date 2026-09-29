@@ -1516,9 +1516,7 @@
     {
       "id": "floating-crates",
       "theme": "physics",
-      "file": "examples/floating-crates.html",
-      "status": "waiting-engine",
-      "issue": 573
+      "file": "examples/floating-crates.html"
     },
     {
       "id": "ten-thousand-bodies",
@@ -1534,23 +1532,19 @@
     {
       "id": "cloth-and-rope",
       "theme": "physics",
-      "file": "examples/cloth-and-rope.html",
-      "status": "waiting-engine",
-      "issue": 573
+      "file": "examples/cloth-and-rope.html"
     },
     {
       "id": "soft-bodies",
       "theme": "physics",
-      "file": "examples/soft-bodies.html",
-      "status": "waiting-engine",
-      "issue": 573
+      "file": "examples/soft-bodies.html"
     },
     {
       "id": "a-cooked-flag",
       "theme": "physics",
       "file": "examples/a-cooked-flag.html",
       "status": "waiting-engine",
-      "issue": 573
+      "issue": 357
     },
     {
       "id": "rolling-on-terrain",

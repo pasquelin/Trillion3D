@@ -1530,7 +1530,6 @@
     },
     "missing": {
       "inside-a-component": "إزالة اللوحة التي أنشأها المحرك عند التخلّص من العالم",
-      "floating-crates": "هندسة يُعاد كتابتها في كل إطار",
       "thick-lines": "خطوط عريضة",
       "a-line-that-draws-itself": "نطاق رسم الهندسة",
       "shapes-from-an-svg": "استيراد مسار SVG",
@@ -1677,8 +1676,6 @@
       "a-software-rasteriser": "واجهة حوسبة GPU",
       "sound-from-the-gpu": "واجهة حوسبة GPU",
       "breaking-things": "تكامل الفيزياء",
-      "cloth-and-rope": "هندسة يُعاد كتابتها في كل إطار",
-      "soft-bodies": "هندسة يُعاد كتابتها في كل إطار",
       "a-cooked-flag": "هندسة يُعاد كتابتها في كل إطار",
       "a-room-in-vr": "جلسة WebXR",
       "a-360-photo-in-vr": "جلسة WebXR",

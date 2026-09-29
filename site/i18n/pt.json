@@ -346,7 +346,6 @@
     },
     "missing": {
       "inside-a-component": "remoção do canvas criado pelo motor ao descartar o mundo",
-      "floating-crates": "geometria reescrita a cada quadro",
       "thick-lines": "linhas largas",
       "a-line-that-draws-itself": "intervalo de desenho de uma geometria",
       "shapes-from-an-svg": "importação de caminhos SVG",
@@ -493,8 +492,6 @@
       "a-software-rasteriser": "API de computação na GPU",
       "sound-from-the-gpu": "API de computação na GPU",
       "breaking-things": "integração de um motor de física",
-      "cloth-and-rope": "geometria reescrita a cada quadro",
-      "soft-bodies": "geometria reescrita a cada quadro",
       "a-cooked-flag": "geometria reescrita a cada quadro",
       "a-room-in-vr": "sessão WebXR",
       "a-360-photo-in-vr": "sessão WebXR",
