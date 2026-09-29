@@ -33,6 +33,6 @@ pub(super) fn step_error(
     if !bound.is_finite() {
         return bound;
     }
-    let bound = bound.max(super::texture::texture_deviation(input, live, kept));
+    let bound = super::texture::texture_deviation_above(input, live, kept, bound);
     distance_above(input.positions, live, kept, bound)
 }
