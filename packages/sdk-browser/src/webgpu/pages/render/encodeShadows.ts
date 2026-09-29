@@ -141,6 +141,7 @@ export function encodeShadowReadback(rt: WebgpuPagesRuntime, encoder: GPUCommand
     plan.table.layoutEpoch,
     plan.stamp(store),
     plan.receive,
+    plan.gpu.on,
   );
   if (settle) timing.shadowPageRequests = settle;
 }

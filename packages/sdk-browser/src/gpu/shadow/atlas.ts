@@ -19,8 +19,9 @@ export { MAX_SHADOW_PAGES, MAX_SHADOW_REGIONS } from './recordPack.ts';
 
 /** Label of the measured pass; `gpuShadowsMs` is read under this name. */
 export const SHADOW_PASS = 'Trillion3D shadow atlas v1';
-/** Bytes of the records, before the page table in the same buffer. */
-const RECORD_BYTES = MAX_SHADOW_SLICES * SHADOW_RECORD_FLOATS * 4;
+/** Bytes of the records, before the page table in the same buffer: where the table starts. */
+export const SHADOW_TABLE_OFFSET = MAX_SHADOW_SLICES * SHADOW_RECORD_FLOATS * 4;
+const RECORD_BYTES = SHADOW_TABLE_OFFSET;
 /** Bytes of the records then the page table, one buffer. */
 const DATA_BYTES = RECORD_BYTES + SHADOW_TABLE_ENTRIES * 4;
 /** Bytes of the buffers beside the pool — the faces, the records and page table: fixed by the
@@ -167,15 +168,22 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
         if (count)
           shadowBatchWrites(device).write(faceUniform, 0, facePacked, 0, (count * FACE_STRIDE) / 4);
       },
-      /** Pushes the records that changed, and the page-table words that did, and them alone. */
-      flushData(table: ShadowTable) {
+      /** Pushes the records that changed, and them alone. */
+      flushRecords() {
         pack.flush((slice) => {
           const first = slice * SHADOW_RECORD_FLOATS;
           device.queue.writeBuffer(dataBuffer, first * 4, records, first, SHADOW_RECORD_FLOATS);
         });
-        table.flush((first, count) =>
+      },
+      /** Pushes the records that changed, and the page-table words that did, and them alone —
+       *  into the table, or to `words` when the GPU allocates (`webgpu/shadow/allocPass.ts`). */
+      flushData(
+        table: ShadowTable,
+        words: (first: number, count: number) => void = (first, count) =>
           device.queue.writeBuffer(dataBuffer, RECORD_BYTES + first * 4, table.words, first, count),
-        );
+      ) {
+        atlas.flushRecords();
+        table.flush(words);
       },
       dispose: release,
     };

@@ -11,6 +11,7 @@ import { resizeShadowPool } from './poolResize.ts';
 import { createSunLevels } from './sunLevels.ts';
 import { createShadowRecords } from './records.ts';
 import { createShadowRequests, type ShadowRequestReport } from './requests.ts';
+import { createShadowMirror } from './mirror.ts';
 import { createShadowThresholds } from './thresholds.ts';
 
 /** The frame's shadow work: which virtual pages are drawn. */
@@ -39,6 +40,7 @@ export function createShadowPlan(poolSide: number, layers = 1) {
     spent = { requestsMs: NaN, admissionMs: NaN },
     lightsState = { records, counts, sun, posed, invalidate };
   let requests = createShadowRequests(table, pool, records, sun),
+    gpu = createShadowMirror(table, pool, records, sun),
     admission = createShadowAdmission(pool.pages),
     byPage = true,
     report: ShadowRequestReport | null = null,
@@ -57,6 +59,9 @@ export function createShadowPlan(poolSide: number, layers = 1) {
     records,
     /** The request reports read back: what the latest one named, allocated or refused. */
     requests,
+    /** The GPU's allocation, when it maps the pages (`mirror.ts`): what the host asks of it, and
+     *  whether it allocates. */
+    gpu,
     /** What the last plan did, in pages. */
     counts,
     /** CPU milliseconds the last plan spent reading the request report and admitting pages. */
@@ -113,6 +118,7 @@ export function createShadowPlan(poolSide: number, layers = 1) {
       resting = still;
       if (!still) views++;
       planLights(lightsState, store, view, sceneMin, sceneMax, frame, nowMs, byPage);
+      gpu.noteDrops(frame);
       changes.settled();
       if (still) counts.staled(STALE_BY.threshold, thresholds.restale(nowMs, frame));
       // Nothing moves: the pages of an older depth range are drawn in the current one.
@@ -122,12 +128,16 @@ export function createShadowPlan(poolSide: number, layers = 1) {
         const before = stampOf(store),
           read = report;
         report = null;
-        requests.consume(read, nowMs, frame);
-        if (read.stamp === before && requests.complete) settledStamp = stampOf(store);
+        // When the GPU allocates, the pool follows its snapshot first; one it cannot is left.
+        if (!gpu.on || gpu.follow(read, nowMs, frame)) {
+          requests.consume(read, nowMs, frame);
+          if (read.stamp === before && requests.complete) settledStamp = stampOf(store);
+        }
       }
       const admitStart = performance.now();
       spent.requestsMs = admitStart - readStart;
-      requests.floors(posed, view, nowMs, frame);
+      gpu.asks.count = 0;
+      requests.floors(posed, view, nowMs, frame, gpu.on ? gpu.asks : undefined);
       const count = admission.run(pool, table, requests.latest, frame, records.isFloor);
       for (let i = 0; i < count; i++) {
         const slice = pool.slice[admission.list[i]];
@@ -164,6 +174,7 @@ export function createShadowPlan(poolSide: number, layers = 1) {
       changes.reset();
       counts.reset();
       admission.reset();
+      gpu.set(false, 0);
       report = null;
       resting = false;
       settledStamp = -1;
@@ -174,6 +185,9 @@ export function createShadowPlan(poolSide: number, layers = 1) {
         counted = requests.counts;
       thresholds.follow(moved);
       shadowPlan.requests = requests = createShadowRequests(table, pool, records, sun, counted);
+      const allocating = gpu.on;
+      shadowPlan.gpu = gpu = createShadowMirror(table, pool, records, sun);
+      gpu.set(allocating, 0);
       shadowPlan.admission = admission = createShadowAdmission(pool.pages);
       return moved;
     },
