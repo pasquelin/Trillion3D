@@ -1,7 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DEFAULT_SCENE, sceneOf } from './scene.ts';
-import { ENGINES, engineOf, parseArgs, poseAt, readOptions, trajectoryPoses } from './options.ts';
+import {
+  ENGINES,
+  engineOf,
+  equipSide,
+  parseArgs,
+  poseAt,
+  readOptions,
+  trajectoryPoses,
+} from './options.ts';
 
 test('readOptions parses command line arguments correctly', () => {
   const root = '/tmp/test';
@@ -12,7 +20,7 @@ test('readOptions parses command line arguments correctly', () => {
   assert.strictEqual(result1.settings.dpr, 1);
 
   // Test setting engine to webgpu
-  const result2 = readOptions(['--moteur=webgpu'], root);
+  const result2 = readOptions(['--engine=webgpu'], root);
   assert.strictEqual(result2.settings.engine, 'webgpu');
 
   // Test views parsing
@@ -36,7 +44,7 @@ test('readOptions parses command line arguments correctly', () => {
 
 test('readOptions rejects unknown engine', () => {
   const root = '/tmp/test';
-  assert.throws(() => readOptions(['--moteur=unknown'], root), /--moteur must be/);
+  assert.throws(() => readOptions(['--engine=unknown'], root), /--engine must be/);
 });
 
 test('readOptions accepts an explicit port', () => {
@@ -85,15 +93,28 @@ test('readOptions reads --instances and rejects a grid that the SDK cannot place
 });
 
 test('engineOf gives a side its own engine, otherwise that of the campaign', () => {
-  const flags = parseArgs(['--moteur-avant', 'webgl']);
-  assert.strictEqual(engineOf(flags, 'avant', 'webgpu').id, 'exact-cluster-pages');
-  assert.strictEqual(engineOf(flags, 'apres', 'webgpu').id, 'webgpu-page-raster');
+  const flags = parseArgs(['--engine-before', 'webgl']);
+  assert.strictEqual(engineOf(flags, 'before', 'webgpu').id, 'exact-cluster-pages');
+  assert.strictEqual(engineOf(flags, 'after', 'webgpu').id, 'webgpu-page-raster');
+});
+
+// #724: the flags a campaign types are English, their per-side forms named after the side.
+test('the engine, the two sides and their variants are read under English flags', () => {
+  const argv = ['--engine', 'webgpu', '--before', 'dist', '--engine-before', 'webgl'];
+  const { settings, flags } = readOptions([...argv, '--variant-before', 'raster-calcul'], '/r');
+  assert.strictEqual(settings.engine, 'webgpu');
+  assert.strictEqual(flags.get('before'), 'dist');
+  assert.strictEqual(engineOf(flags, 'before', settings.engine).id, 'exact-cluster-pages');
+  assert.strictEqual(
+    equipSide({ name: 'before' } as never, flags, settings).variant,
+    'raster-calcul',
+  );
 });
 
 test('engineOf rejects an unknown engine for a side', () => {
   assert.throws(
-    () => engineOf(parseArgs(['--moteur-apres', 'inconnu']), 'apres', 'webgl'),
-    /--moteur-apres must be/,
+    () => engineOf(parseArgs(['--engine-after', 'inconnu']), 'after', 'webgl'),
+    /--engine-after must be/,
   );
 });
 

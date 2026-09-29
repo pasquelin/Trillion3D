@@ -132,7 +132,7 @@ export function exportReport(source: string, output: string, id: string): Campai
           witness: series.sides?.[`${side}-aa`] ? toWitness(series.temoinAA) : null,
           difference: toWitness(series.ecartAvantApres),
           differencePair:
-            series.sides?.avant && series.sides?.apres ? `${id}-${runId}-${index}` : null,
+            series.sides?.before && series.sides?.after ? `${id}-${runId}-${index}` : null,
           identicalCut: series.coupeIdentique ?? null,
           data: publicData(data) as ReportRecord['data'],
           image: image(dirname(file), data.png, output, recordId),

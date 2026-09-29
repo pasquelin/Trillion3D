@@ -76,7 +76,7 @@ async function main() {
     maxPages: number('max-pages', 100000),
     source,
   };
-  const sides = options.resolveSides({ after: flag('apres'), root: ROOT });
+  const sides = options.resolveSides({ after: flag('after'), root: ROOT });
   const side = sides[0];
   side.cache = cache;
   const manifestUrl = `/cache/${side.name}/native/full/manifest.json`;
@@ -94,14 +94,14 @@ async function main() {
     commande: string;
     head: string;
     settings: typeof settings;
-    charge: { avant: number[]; apres?: number[] };
+    charge: { before: number[]; after?: number[] };
     vues: VueOracle[];
   } = {
     startedAt: new Date().toISOString(),
     commande: `node bench/runner/oracle.ts ${args.join(' ')}`,
     head: execFileSync('git', ['-C', ROOT, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
     settings,
-    charge: { avant: machineLoad() },
+    charge: { before: machineLoad() },
     vues: [],
   };
   try {
@@ -162,7 +162,7 @@ async function main() {
     await browser.close();
     server.close();
   }
-  report.charge.apres = machineLoad();
+  report.charge.after = machineLoad();
   await writeFile(join(out, 'oracle.json'), JSON.stringify(report, null, 1));
   console.log(JSON.stringify(report, null, 1));
   if (report.vues.some((view) => view.erreur)) process.exitCode = 1;
