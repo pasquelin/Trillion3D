@@ -32,7 +32,12 @@ test("a cell's box follows its core parent, turned and moved, and the root's fra
 test('a page of the index holds its cells wherever the parents moved since the declaration', () => {
   const { root, core } = world();
   const boxes = createCellBoxes([0], root, [core]);
-  const page = { declared: [5000, 0, 0, 5001, 1, 1], box: new Float64Array(6), written: -1 };
+  const page = {
+    declared: [5000, 0, 0, 5001, 1, 1],
+    parents: [0],
+    box: new Float64Array(6),
+    written: -1,
+  };
   boxes.refresh();
   assert.deepEqual([...boxes.around(page)], [5000, 0, 0, 5001, 1, 1], 'as declared');
   core.position.set(-5000, 0, 0);
@@ -65,7 +70,12 @@ test('a page under a parent declared flat is read wherever that parent grows', (
   core.scale.set(0, 0, 0);
   const boxes = createCellBoxes([0], root, [core]);
   // Declared at scale 0, its cells collapse onto the parent's origin: the page's box is that point.
-  const page = { declared: [0, 0, 0, 0, 0, 0], box: new Float64Array(6), written: -1 };
+  const page = {
+    declared: [0, 0, 0, 0, 0, 0],
+    parents: [0],
+    box: new Float64Array(6),
+    written: -1,
+  };
   boxes.refresh();
   assert.deepEqual([...boxes.around(page)], [0, 0, 0, 0, 0, 0], 'as declared');
   core.scale.set(1, 1, 1);
@@ -75,4 +85,27 @@ test('a page under a parent declared flat is read wherever that parent grows', (
     [...boxes.around(page)],
     [-Infinity, -Infinity, -Infinity, Infinity, Infinity, Infinity],
   );
+});
+
+test('a page moves only with the parents its cells hang under', () => {
+  // Two core nodes; the page's cells hang under the second alone: the first moving leaves it as
+  // declared, and so boxed where it was, not across the 5 km that node moved.
+  const root = new Group();
+  const [first, second] = [new Object3D(), new Object3D()];
+  root.add(first, second);
+  const boxes = createCellBoxes([0, 1], root, [first, second]);
+  const page = {
+    declared: [0, 0, 0, 1, 1, 1],
+    parents: [1],
+    box: new Float64Array(6),
+    written: -1,
+  };
+  boxes.refresh();
+  boxes.around(page);
+  first.position.set(5000, 0, 0);
+  boxes.refresh();
+  assert.deepEqual([...boxes.around(page)], [0, 0, 0, 1, 1, 1], 'another parent moved');
+  second.position.set(10, 0, 0);
+  boxes.refresh();
+  assert.deepEqual([...boxes.around(page)], [0, 0, 0, 11, 1, 1], 'its own parent moved');
 });

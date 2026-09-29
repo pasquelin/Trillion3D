@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { RenderBackend } from '../../backend/types.ts';
 import { hostFramingCamera } from '../../host/scene/graphObjects.ts';
-import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { createPartitionCells, type PartitionCells } from '../../scene/partition/cells.ts';
 import { cellReach } from '../../scene/partition/plan.ts';
@@ -135,66 +134,49 @@ test('a camera zoomed out, or scaled up, reads the cells its wider frustum sees'
   assert.deepEqual(await asks('aside.json', bounds, camera), [seen]);
 });
 
-/** A grid of `side`² cells ten metres wide, each placing four nodes of one of two meshes. */
-function grid(side: number) {
-  const cells: TableCell[] = [];
-  const bodies = new Map<string, Uint8Array>();
-  for (let x = 0; x < side; x++)
-    for (let z = 0; z < side; z++) {
-      const url = `https://cache.test/key/cell-${x}-${z}.json`;
-      const mesh = (x + z) % 2;
-      const nodes = [0, 1, 2, 3].map((at) => ({
-        parent: null,
-        mesh,
-        matrix: null,
-        translation: [x * 10 + at * 2, 0, z * 10 + at * 2],
-        rotation: null,
-        scale: null,
-      }));
-      bodies.set(url, new TextEncoder().encode(JSON.stringify({ version: 2, nodes })));
-      const bounds = [x * 10, 0, z * 10, x * 10 + 8, 1, z * 10 + 8];
-      const parents: TableCell['parents'] = [[null, bounds]];
-      cells.push({ url, sha256: '', bytes: 1, parents, meshes: [[mesh, 4]], meshPages: [] });
-    }
-  const { partition, files } = paged(cells, 8);
-  for (const [name, bytes] of files) bodies.set(`https://cache.test/key/${name}`, bytes);
-  const meshes = new Map([0, 1].map((rank) => [rank, placedMesh([{ meshes: rank }])]));
-  const port = {
-    readBytes: async (url: string) => bodies.get(url)!,
-    getBytes: (url: string) => bodies.get(url),
-    loading: () => false,
-    request: async () => {},
-    admit() {},
-    forget() {},
-  } as unknown as ReturnType<typeof createPageStreamer>;
-  const root = new Group();
-  const partitioned = createPartitionCells({
-    partition,
-    base: 'https://cache.test/key/',
-    root,
-    parents: [],
-    meshes,
-  });
-  return { partitioned, port };
-}
-
-test('a walk never leaves a cell waiting for rows: they hold every node from the open', async () => {
-  const { partitioned, port } = grid(24);
-  const camera = hostFramingCamera(60, 16 / 9, 0.1, 30);
-  camera.position.set(5, 2, 5);
-  const frame = createPartitionFrame({
-    partitions: [partitioned],
-    streamer: port,
-    camera,
+test('a view past the rows sized at open asks the owner to open the session again', () => {
+  const renew = () => {};
+  const { cells, seen } = recording();
+  createPartitionFrame({
+    partitions: [cells],
+    streamer: streamer().port,
+    camera: hostFramingCamera(60, 1, 0.1, 100),
     active: () => ({}) as RenderBackend,
     budget,
+    renew,
+  })!();
+  assert.equal(seen[0].io.outgrown, renew);
+});
+
+test('a page the decode pool refuses keeps its code and names its file', async () => {
+  // A page of another version, decoded off the main thread: refused as the tables would be, by
+  // `UNSUPPORTED_SCENE_TABLES`, and by its address.
+  const parents = [[null, [0, 0, 0, 1, 1, 1]] as const];
+  const cell = { url: 'a.json', sha256: '', bytes: 1, meshes: [[0, 1] as const], meshPages: [] };
+  const { partition, files } = paged([{ ...cell, parents }], 1);
+  const [name] = [...files.keys()];
+  files.set(name, new TextEncoder().encode(JSON.stringify({ version: 3, cells: [] })));
+  const cells = createPartitionCells({
+    partition,
+    base: 'https://cache.test/key/',
+    root: new Group(),
+    parents: [],
+    meshes: new Map([[0, placedMesh([{ meshes: 0, primitives: 0 }])]]),
+  });
+  const camera = hostFramingCamera(60, 16 / 9, 0.1, 300);
+  const active = () => ({}) as RenderBackend;
+  const frame = createPartitionFrame({
+    partitions: [cells],
+    streamer: streamer(files).port,
+    camera,
+    active,
+    budget,
   })!;
-  for (let step = 0; step <= 46; step++) {
-    camera.position.set(5 + step * 5, 2, 5 + step * 5);
-    camera.updateMatrixWorld();
-    frame();
-    await frame.pending();
-    assert.equal(partitioned.stats().waiting, 0, `step ${step}`);
-  }
-  assert.ok(partitioned.stats().held > 1, 'the cells around the camera are placed');
+  frame();
+  await frame.pending();
+  assert.throws(frame, (error: { code?: string; details?: { url?: string } }) => {
+    assert.equal(error.code, 'UNSUPPORTED_SCENE_TABLES');
+    assert.equal(error.details?.url, `https://cache.test/key/${name}`);
+    return true;
+  });
 });

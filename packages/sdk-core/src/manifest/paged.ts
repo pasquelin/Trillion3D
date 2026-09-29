@@ -4,7 +4,7 @@
  *  (`tablePartition.ts`): whole (`readPagedManifest`), or its head and the mesh pages a view
  *  holds (`openPagedManifest`, #751). */
 import { EngineError, type ClusterManifest, type Primitive } from '../contracts/index.ts';
-import { named, readLeaves, type PageKind, type TablePage } from '../scene/core/tablePartition.ts';
+import { named, readLeaves, type PageKind, type TablePage } from '../scene/core/tablePages.ts';
 import { decodeManifestBinary } from './binaryDecode.ts';
 import { MANIFEST_BINARY_VERSION } from './binaryFormat.ts';
 import { assertManifestBinary, type SlimClusterManifest } from './binaryTypes.ts';

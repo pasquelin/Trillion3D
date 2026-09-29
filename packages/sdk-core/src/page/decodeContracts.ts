@@ -64,6 +64,8 @@ export interface PageDecodeRequest {
   source: ArrayBuffer;
   /** Ceiling of decoded bytes of a geometry page; ignored by `verify`. */
   maxDecodedBytes: number;
+  /** `cells`, `cellPage`: the file the source was read from, which a refusal names. */
+  name?: string;
 }
 
 /**
@@ -154,6 +156,9 @@ export type PageDecodeFailureCode = (typeof PAGE_DECODE_FAILURES)[number];
   /** Why it failed. */ code: PageDecodeFailureCode;
   /** The original message, as-is: the caller raises the same `Error` as the synchronous path. */
   message: string;
+  /** The code of the engine's named refusal the task met (`EngineError`), which the caller raises
+   *  again by that code; absent for any other failure. */
+  refusal?: string;
 }
 /** A worker's answer to a page request: done or failed. */
 export type PageDecodeAnswer = PageDecodeDone | PageDecodeFailed;

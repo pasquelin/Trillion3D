@@ -1,4 +1,8 @@
-import { PAGE_DECODE_PROTOCOL, pageDecodeFailureCode } from '../../../../sdk-core/src/index.ts';
+import {
+  EngineError,
+  PAGE_DECODE_PROTOCOL,
+  pageDecodeFailureCode,
+} from '../../../../sdk-core/src/index.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
 import { pageViews } from './geometryPageBlock.ts';
 import { sha256Hex } from '../../measurement/sha256Hex.ts';
@@ -86,13 +90,13 @@ export async function runPageDecodeTask(
     }
     if (request.op === 'cells') {
       const { decodeCellFile } = await import('../../scene/partition/cellDecode.ts');
-      const cells = decodeCellFile(request.source);
+      const cells = decodeCellFile(request.source, request.name);
       return done(request, started, { cells }, [cells.ranks, cells.locals]);
     }
     if (request.op === 'cellPage') {
       const { readCellPage } =
         await import('../../../../sdk-core/src/scene/core/tablePartition.ts');
-      const cellPage = readCellPage(new Uint8Array(request.source), 'a scene page');
+      const cellPage = readCellPage(new Uint8Array(request.source), request.name ?? 'a scene page');
       return done(request, started, { cellPage }, []);
     }
     if (request.op === 'verify') {
@@ -118,6 +122,8 @@ export async function runPageDecodeTask(
         ok: false,
         code: pageDecodeFailureCode(message),
         message,
+        // A named refusal keeps its code across the thread (#575).
+        ...(error instanceof EngineError ? { refusal: error.code } : {}),
       },
       transfer: [],
     };

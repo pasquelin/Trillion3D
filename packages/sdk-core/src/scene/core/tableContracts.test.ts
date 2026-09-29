@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { assertSceneTables } from './tableContracts.ts';
 import { assertCellNodes } from './tableCell.ts';
-import { readCellPage, tablePartition } from './tablePartition.ts';
+import { readCellPage, RUNGS, tablePartition } from './tablePartition.ts';
 
 const hasCode =
   (code: string, text = '') =>
@@ -60,21 +60,35 @@ function slot(digest: string, box: number[]) {
   return `${digest.padStart(64, '0')}00000001${box.map((v) => hex(v).padStart(16, '0')).join('')}`;
 }
 const EMPTY = '0'.repeat(168);
+/** A mesh entry of the root: its rank and total, then its rows at each rung. */
+const mesh = (rank: number, total: number, rows: (rung: number) => number) =>
+  [rank, total, ...Array.from({ length: RUNGS }, (_, rung) => rows(rung))]
+    .map((value) => value.toString(16).padStart(8, '0'))
+    .join('');
+/** The first rung's side, 16 m, as the bits of its `f64`. */
+const CUBE = '4030000000000000';
 const cells = (...ranks: number[]) =>
   ranks.map((at) => ({ url: `${at}`, parents: [], meshes: [[at, 1]] }));
 
 test('a partition root of another version or shape is refused, and a cell is read only at its own', () => {
-  const partition = { version: 4, pages: Array(8).fill(EMPTY), meshes: [], parents: [] };
+  const partition = {
+    version: 4,
+    pages: Array(8).fill(EMPTY),
+    parents: Array(8).fill(''),
+    meshes: [],
+    cube: CUBE,
+  };
   assert.deepEqual(assertSceneTables({ ...tables(), partition }).partition, partition);
   assert.throws(
     () => assertSceneTables({ ...tables(), partition: { ...partition, version: 3 } }),
     hasCode('UNSUPPORTED_SCENE_TABLES', 'partition version 3'),
   );
-  // The totals a root carries are fixed-width hexadecimal (#575).
-  assert.throws(
-    () => assertSceneTables({ ...tables(), partition: { ...partition, meshes: [7] } }),
-    hasCode('INVALID_SCENE_TABLES'),
-  );
+  // The rows and parents a root carries are fixed-width hexadecimal (#575).
+  for (const shape of [{ meshes: [7] }, { meshes: ['0'.repeat(16)] }, { parents: ['a'] }])
+    assert.throws(
+      () => assertSceneTables({ ...tables(), partition: { ...partition, ...shape } }),
+      hasCode('INVALID_SCENE_TABLES'),
+    );
   // A root is a fixed number of slots: fewer is not a root this runtime reads.
   assert.throws(
     () => assertSceneTables({ ...tables(), partition: { ...partition, pages: [EMPTY] } }),
@@ -84,16 +98,17 @@ test('a partition root of another version or shape is refused, and a cell is rea
   assert.throws(() => assertCellNodes({ version: 1, nodes: [] }), hasCode('INVALID_SCENE_TABLES'));
 });
 
-test('the root gives its slots, box, totals and parents; a page is read alone, checked', () => {
+test('the root gives its slots, box, rows and parents; a page is read alone, checked', () => {
   // The root names an index page `a` and a region page `b`; `a` names the region pages `c`, `d`.
   const [m, n] = [slot('e', [0, 0, 0, 0, 0, 0]), slot('f', [0, 0, 0, 0, 0, 0])];
   const [a, b] = [slot('a', [0, 0, 0, 2, 1, 1]), slot('b', [-3, 0, 0, -2, 5, 1])];
-  const meshes = ['0000000000000002', '0000000300000011'];
+  const meshes = [mesh(0, 2, () => 2), mesh(3, 17, (rung) => Math.min(17, rung + 1))];
   const root = {
     version: 4,
     pages: [a, b, ...Array(6).fill(EMPTY)],
+    parents: ['0000000a', '0000000a00000002', ...Array(6).fill('')],
     meshes,
-    parents: ['0000000a'],
+    cube: CUBE,
   };
   const partition = tablePartition(root);
   assert.deepEqual(partition.bounds, [-3, 0, 0, 2, 5, 1]);
@@ -107,16 +122,30 @@ test('the root gives its slots, box, totals and parents; a page is read alone, c
       ],
     ],
   );
-  assert.deepEqual(partition.parents, [10]);
+  assert.deepEqual(partition.parents, [2, 10]);
+  assert.deepEqual(
+    partition.pages.map(({ parents }) => parents),
+    [[10], [10, 2]],
+  );
+  assert.deepEqual([partition.cube, partition.rows.get(3)!.slice(0, 3)], [16, [1, 2, 3]]);
   assert.deepEqual(
     partition.pages.map(({ page }) => page.url),
     ['a', 'b'].map((digest) => `scene-page-${digest.padStart(64, '0')}.json`),
   );
   const read = (body: unknown) => readCellPage(new TextEncoder().encode(JSON.stringify(body)), 'p');
-  const index = read({ version: 4, pages: [slot('c', [0, 0, 0, 1, 1, 1]), EMPTY] });
+  const index = read({
+    version: 4,
+    pages: [slot('c', [0, 0, 0, 1, 1, 1]), EMPTY],
+    parents: ['', ''],
+  });
   assert.deepEqual(
     [index.pages!.map(({ bounds }) => bounds), index.cells],
     [[[0, 0, 0, 1, 1, 1]], null],
+  );
+  // An index page lists beside each page the parents its cells hang under.
+  assert.throws(
+    () => read({ version: 4, pages: [EMPTY] }),
+    hasCode('INVALID_SCENE_TABLES', 'parents'),
   );
   const region = read({ version: 4, cells: cells(0, 1), meshPages: [m, n] });
   assert.deepEqual(
@@ -136,7 +165,7 @@ test('the root gives its slots, box, totals and parents; a page is read alone, c
   const badSlot = { version: 4, cells: cells(3), meshPages: ['e'] };
   assert.throws(() => read(badSlot), hasCode('INVALID_SCENE_TABLES', 'mesh pages'));
   assert.throws(
-    () => read({ version: 4, pages: ['z'.repeat(168)] }),
+    () => read({ version: 4, pages: ['z'.repeat(168)], parents: [''] }),
     hasCode('INVALID_SCENE_TABLES'),
   );
 });

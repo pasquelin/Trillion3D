@@ -3,13 +3,16 @@
  * one host mesh per primitive whose association carries an instance buffer (`placement/rows.ts`):
  * a cell's node takes the same row in every one of them, and gives it back — parked — when its
  * cell leaves. The buffers are sized when a session opens, before its engines read them
- * (`sizeRows`), for every node the partition's root counts (#575): none ever grows.
+ * (`sizeRows`), for every node its view can hold at once (`sizing.ts`, #575): only a reach or a
+ * parent's stretch past that grows them, in place, under the engine that draws them.
  */
 import {
   createPlacementRows,
+  grownCapacity,
   growPlacementRows,
   type PlacementRows,
 } from '../../placement/rows.ts';
+import type { PlacementGrowth } from '../../placement/backendSceneUpdates.ts';
 import { EngineError } from '../../../../sdk-core/src/index.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
@@ -33,20 +36,33 @@ export function placedMesh(links: readonly RowLink[], nodes: readonly Object3D[]
 /** How many rows every buffer of `mesh` holds. */
 export const capacityOf = (mesh: PlacedMesh) => mesh.links[0]?.placements?.capacity ?? 0;
 
-/** Sizes every buffer of each mesh rank of `needed` to hold that many rows at least, before its
- *  session's engines read them: once, for every node the partition's root counts (`cells.ts`). */
+/** Sizes every buffer of each mesh rank of `needed` to hold that many rows at least, its rows
+ *  kept: before its session's engines read them, or under one that grows them in place (`grow`,
+ *  `placement/growth.ts`), mesh by mesh, all its buffers at once. False when that session left a
+ *  mesh as it was: it only grows in a session opened again. */
 export function sizeRows(
   meshes: ReadonlyMap<number, PlacedMesh>,
   needed: ReadonlyMap<number, number>,
+  grow?: PlacementGrowth,
 ) {
+  let sized = true;
   for (const [rank, rows] of needed) {
     const mesh = meshes.get(rank);
     if (!mesh) continue; // placing its cell refuses it (`PREPARED_SCENE_MISMATCH`)
     const held = capacityOf(mesh);
     if (rows <= held) continue;
-    for (const link of mesh.links) link.placements = growPlacementRows(link.placements!, rows);
+    const from = mesh.links.map((link) => link.placements!);
+    if (grow && !grow.growsInPlace(from, grownCapacity(held, rows))) {
+      sized = false;
+      continue;
+    }
+    mesh.links.forEach((link, at) => {
+      link.placements = growPlacementRows(from[at], rows);
+      grow?.growPlacements(from[at], link.placements);
+    });
     for (let row = capacityOf(mesh) - 1; row >= held; row--) mesh.free.push(row);
   }
+  return sized;
 }
 
 /** Whether each mesh a cell places — `ranks`, its parent's then its mesh's per node
