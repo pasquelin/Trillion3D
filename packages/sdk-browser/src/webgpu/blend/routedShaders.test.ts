@@ -78,7 +78,7 @@ test('water routes the colour it composed, lit or unlit', () => {
   const uni = { viewFlags: 0, exposure: 1, toneCurve: ACES };
   const { composeWaterRouted } = shaderRun<Water>(
     WATER_ROUTED_SHADER,
-    ['composeWaterRouted', ...ROUTE_FUNCTIONS],
+    ['composeWaterRouted', 'waterRoute', ...ROUTE_FUNCTIONS],
     { ...routeScope(1, leftHalf), waterColor: () => water, uni, Routed: layers },
   );
   for (const viewFlags of [0, FLAG_UNLIT_VIEW]) {
