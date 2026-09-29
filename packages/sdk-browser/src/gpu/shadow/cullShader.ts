@@ -4,6 +4,7 @@ import {
   CULL_UNIFORM_WORDS,
   LIGHT_CULL_UNIFORM_WORDS,
   SHADOW_REGION_COMMANDS,
+  SHADOW_TESTED_WORD,
   wordStruct,
 } from './batchBudget.ts';
 
@@ -46,7 +47,10 @@ export const KEPT_LISTS_WGSL = `fn keptCount(region:u32,cutout:bool)->u32{return
 fn keptCorners(region:u32,cutout:bool)->u32{return keptCount(region,cutout)-1u;}
 fn keptAt(region:u32,rank:u32,capacity:u32,cutout:bool)->u32{return region*capacity+select(rank,capacity-1u-rank,cutout);}`;
 /** What both entries share: the spheres and mobility words they test, the kept lists they fill,
- *  and the test itself — one caster row against one region. Each declares the volumes itself. */
+ *  and the test itself — one caster row against one region. Each declares the volumes itself.
+ *  Each counts the casters its group tests — of the kind the region draws, kept or not —, then
+ *  adds them once to the batch's tested word (\`flushTested\`, in uniform control flow): what the
+ *  kept counts leave of them is what the cull rejected (#1211). */
 const CULL_COMMON = `${KEPT_LISTS_WGSL}
 struct Sphere{center:vec3f,radius:f32,}
 struct Face{center:vec3f,far:f32,axis:vec3f,halfAngle:f32,right:vec3f,halfU:f32,up:vec3f,halfV:f32,casters:u32,view:u32,pad1:u32,pad2:u32,}
@@ -54,6 +58,13 @@ struct Face{center:vec3f,far:f32,axis:vec3f,halfAngle:f32,right:vec3f,halfU:f32,
 @group(0) @binding(3) var<storage, read_write> kept:array<u32>;
 @group(0) @binding(4) var<storage, read_write> indirect:array<atomic<u32>>;
 @group(0) @binding(7) var<storage, read> mobility:array<u32>;
+var<workgroup> tested:atomic<u32>;
+
+/** The group's tested casters, added to the batch's word by its first lane, past every lane's. */
+fn flushTested(lane:u32){
+ workgroupBarrier();
+ if(lane==0u){let n=atomicLoad(&tested);if(n>0u){atomicAdd(&indirect[${SHADOW_TESTED_WORD}u],n);}}
+}
 
 /** One instance, one region: kept or not. Result order is free — the GPU keeps a depth
  *  minimum, and a minimum does not depend on write order. */
@@ -62,6 +73,7 @@ fn keepCaster(face:u32,row:u32,capacity:u32){
  let word=mobility[row];
  // Which casters the region draws: every one, the static ones, or the moving ones.
  if(volume.casters!=${CASTERS_ALL}u&&((word&${MOBILITY_MOVING}u)!=0u)!=(volume.casters==${CASTERS_MOVING}u)){return;}
+ atomicAdd(&tested,1u);
  let sphere=spheres[row];
  let delta=sphere.center-volume.center;
  if(volume.halfAngle<0.0){
@@ -105,10 +117,10 @@ fn listed()->u32{
 }
 
 @compute @workgroup_size(64)
-fn shadowCullScatter(@builtin(global_invocation_id) id:vec3u){
+fn shadowCullScatter(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lane:u32){
  let index=id.x;
- if(id.y>=uni.faces||index>=listed()){return;}
- keepCaster(uni.firstFace+id.y,source[uni.sourceBase+index],uni.capacity);
+ if(id.y<uni.faces&&index<listed()){keepCaster(uni.firstFace+id.y,source[uni.sourceBase+index],uni.capacity);}
+ flushTested(lane);
 }
 `;
 
@@ -135,8 +147,11 @@ ${wordStruct('Uni', ['logBase:u32', 'offsetWord:u32', 'countWord:u32', 'capacity
 @group(0) @binding(9) var<storage, read> rowOf:array<u32>;
 
 @compute @workgroup_size(64)
-fn shadowCullLight(@builtin(global_invocation_id) id:vec3u){
- let s=id.x;let face=id.y;
+fn shadowCullLight(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lane:u32){
+ cullLight(id.x,id.y);
+ flushTested(lane);
+}
+fn cullLight(s:u32,face:u32){
  let view=faces[face].view;
  if(s>=min(work[uni.countWord+view],uni.capacity)){return;}
  let page=drawn[uni.logBase+work[uni.offsetWord+view]+s];
