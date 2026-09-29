@@ -79,7 +79,16 @@ test('a frame with no as-is pixel resolves flagless, and switching compiles no p
   const encoder = { beginRenderPass: () => pass } as unknown as GPUCommandEncoder;
   const view = () => ({}) as GPUTextureView,
     buffer = {} as GPUBuffer;
-  const inputs = { current: view(), depth: view(), ids: view(), pages: buffer, motion: buffer };
+  const inputs = {
+    current: view(),
+    depth: view(),
+    ids: view(),
+    pages: buffer,
+    motion: buffer,
+    pool: buffer,
+    positions: buffer,
+    uvs: buffer,
+  };
   temporal.encode(encoder, inputs);
   temporal.encode(encoder, { ...inputs, flags: view() });
   temporal.encode(encoder, { ...inputs, share: view() });

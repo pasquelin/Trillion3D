@@ -74,7 +74,7 @@ export function primitiveUsesClusterErrors(primitive: Pick<Primitive, 'pages'>) 
   return primitive.pages.length > 0 && primitive.pages.every(pageCarriesClusterError);
 }
 /** Layout of an unsplit primitive kept outside the cluster DAG by the compiler:
- *  full mesh, source order preserved. Three material properties lead there today —
+ *  full mesh, source order preserved. The material property that leads there is
  *  transmission —, never an object name. */
 export const UNSPLIT_PASS = 'shared-blend';
 /**

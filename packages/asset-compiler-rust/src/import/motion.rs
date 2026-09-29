@@ -61,9 +61,6 @@ impl<'a> MeshDeform<'a> {
             joints[j] = u16::try_from(value.cluster_index).expect("FBX joint exceeds format range");
             weights[j] = value.weight as f32;
         }
-        if at.num_weights == 0 {
-            weights[0] = 1.0;
-        }
         Some((joints, weights))
     }
     /// Position and normal offsets shape `target` gives `vertex`, zero where it gives none.

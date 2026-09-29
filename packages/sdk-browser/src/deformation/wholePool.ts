@@ -12,7 +12,7 @@ export function wholeDeformationPool(
   session: SessionDeformation | undefined,
 ) {
   const placed = items.filter((item) => !item.paged && !!session?.wordOfWorld(item.matrix));
-  const sources = new Map<Geometry, { data: Float32Array; at: number }>();
+  const sources = new Map<Geometry, { data: Float32Array<ArrayBuffer>; at: number }>();
   let floats = 0;
   for (const item of placed) {
     const geometry = item.sourceGeometry;
