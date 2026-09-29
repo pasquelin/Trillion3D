@@ -110,22 +110,32 @@ pub fn grids(
 /// words than one position per vertex; otherwise every vertex keeps its own, with no link. The
 /// decoded vertices are the same either way.
 pub fn stored_positions(unique: &[Cell], bits: [u32; 3]) -> (Vec<[u32; 3]>, Option<Vec<u32>>) {
-    let mut table = Vec::<[u32; 3]>::new();
-    let mut rank = std::collections::HashMap::<[u32; 3], u32>::new();
-    let links: Vec<u32> = unique
-        .iter()
-        .map(|cell| {
-            *rank.entry(cell.position).or_insert_with(|| {
-                table.push(cell.position);
-                (table.len() - 1) as u32
-            })
-        })
-        .collect();
+    let (table, links) = first_use(unique.iter().map(|cell| cell.position));
     let words = |count: usize| bits.iter().map(|&b| stream_words(count, b)).sum::<usize>();
     let link_bits = bits_for(table.len() as u32 - 1);
     if words(table.len()) + stream_words(unique.len(), link_bits) < words(unique.len()) {
         (table, Some(links))
+    } else if table.len() == unique.len() {
+        // Every position distinct: the table is already one per vertex, in order.
+        (table, None)
     } else {
         (unique.iter().map(|cell| cell.position).collect(), None)
     }
+}
+
+/// Each distinct item once, in first-use order, and every item's rank among them.
+pub fn first_use<T: Copy + Eq + std::hash::Hash>(
+    items: impl ExactSizeIterator<Item = T>,
+) -> (Vec<T>, Vec<u32>) {
+    let mut distinct = Vec::<T>::with_capacity(items.len());
+    let mut rank = std::collections::HashMap::<T, u32>::with_capacity(items.len());
+    let ranks = items
+        .map(|item| {
+            *rank.entry(item).or_insert_with(|| {
+                distinct.push(item);
+                (distinct.len() - 1) as u32
+            })
+        })
+        .collect();
+    (distinct, ranks)
 }

@@ -67,9 +67,7 @@ fn split(words: &[u32], h: &Header, out: &mut [u32]) -> Result<(), PageError> {
     };
     let positions = take(3);
     if h.links_positions() {
-        let mut table = vec![0u32; h.position_count * 3];
-        vector(&mut table, words, layout.position, &h.position);
-        crate::positions::link(positions, &table, words, &layout, h);
+        crate::positions::linked(positions, words, &layout, h);
     } else {
         vector(positions, words, layout.position, &h.position);
     }

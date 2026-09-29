@@ -1,6 +1,8 @@
 //! Develop's decoder, kept as the reference of the equivalence harness (`unpack_tests.rs`, #238):
-//! every field read at random, the first corner out of range refusing; a vertex's position read
-//! through its link when the page stores its positions once (#960).
+//! every field read at random, the first corner out of range refusing. Version 5 (#960) adds the
+//! read of a vertex's position through its link, the one line that is not develop's: the link
+//! rule itself is proved against develop by the frozen digests of the compiler's harness
+//! (`geometry_page_positions_tests.rs`) and of `positions.test.ts`.
 
 use super::*;
 use crate::bits::tests::random_field;
