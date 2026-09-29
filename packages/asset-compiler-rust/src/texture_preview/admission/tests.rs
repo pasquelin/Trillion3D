@@ -35,9 +35,9 @@ fn source_and_geometry_reservation_reduces_texture_concurrency() {
         working: 30,
         retained: 10,
     }; 2];
-    assert_eq!(waves(&costs, 100, 4).unwrap().len(), 1);
+    assert_eq!(admit(&costs, 100).unwrap().len(), 1);
     assert_eq!(
-        waves(&costs, remaining_budget(100, 40).unwrap(), 4).unwrap(),
+        admit(&costs, remaining_budget(100, 40).unwrap()).unwrap(),
         [0..1, 1..2]
     );
     assert_eq!(
@@ -99,19 +99,14 @@ fn varying_weights_and_thin_images_keep_every_wave_within_its_allowance() {
             retained: 5,
         },
     ];
-    assert_eq!(waves(&costs, 100, 4).unwrap(), [0..2, 2..4]);
+    assert_eq!(admit(&costs, 100).unwrap(), [0..2, 2..4]);
     let cost = cost::estimate(1, 16384, 128, 3, 2);
     assert_eq!(
         cost.retained,
         3 * (preview_pixel_bytes(1, 16384) + 2 * preview_block_bytes(1, 16384))
     );
     assert!(cost.working >= 128 + 16384 * 20);
-    assert!(waves(
-        &[cost::estimate(u32::MAX, u32::MAX, usize::MAX, 3, 2)],
-        1024,
-        4
-    )
-    .is_err());
+    assert!(admit(&[cost::estimate(u32::MAX, u32::MAX, usize::MAX, 3, 2)], 1024).is_err());
 }
 
 #[test]
@@ -171,5 +166,5 @@ fn supercompression_payload_is_charged_even_for_a_tiny_surface() {
         1,
         1,
     );
-    assert!(waves(&[cost], 64 * 1024 * 1024, 4).is_err());
+    assert!(admit(&[cost], 64 * 1024 * 1024).is_err());
 }
