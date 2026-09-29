@@ -7,7 +7,7 @@ import { createFrameGateCore } from '../../frame/gateCore.ts';
 import { HOLD_SIGNATURE_VALUES } from './signature.ts';
 import { CPU_STEP, CPU_STEP_NAMES } from '../pages/render/cpuStepTable.ts';
 import { holdWebgpuFrame } from './hold.ts';
-import { createScaleControl } from '../pages/state/scaleControl.ts';
+import { createScaleControl } from '../../frame/scaleControl.ts';
 import { metricsOf } from '../pages/io/metrics.ts';
 import { createShadowWork } from '../shadow/work.ts';
 import { STALE_REASONS } from '../../../../sdk-core/src/scene/light-shadow/counts.ts';
