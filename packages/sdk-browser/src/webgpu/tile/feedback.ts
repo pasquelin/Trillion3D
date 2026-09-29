@@ -10,17 +10,32 @@
  * The phase advances from one image to the next so the sixteen pixels of a square have all spoken in
  * sixteen images; a barrier that must converge asks for every pixel at once.
  */
+import { WRAP_MAP } from '../../visibility/wrapModes.ts';
+
 /** Phase word: the `FEEDBACK_EVERY` bit asks for every pixel; otherwise the two low bits give the
  *  column and the next two the row of the speaking pixel in each `FEEDBACK_STRIDE` square, therefore
- *  `FEEDBACK_EVERY` phases before the whole square has been heard. */
+ *  `FEEDBACK_EVERY` phases before the whole square has been heard. Above them, from `PICK_SHIFT`,
+ *  a convergence carries its pick turn (`PICK_CYCLE`). */
 export const FEEDBACK_STRIDE = 4;
 export const FEEDBACK_EVERY = FEEDBACK_STRIDE * FEEDBACK_STRIDE;
+export const PICK_SHIFT = 5;
+/**
+ * Names a pixel's position picks among (`requestPick`): one of the maps (`WRAP_MAP`) or the sun
+ * level a masked pixel asks, one of the two blend levels, one of the three anisotropic taps. A
+ * tile read by a sliver of pixels — the edge of a surface — can be named by none of them. A
+ * convergence therefore turns the pick by one per image: `PICK_CYCLE` images in a row, and every
+ * pixel has named every tile it reads, so what a settled pose reads is what it asked, never what
+ * the pool kept of an earlier pose (#1016).
+ */
+export const PICK_CYCLE = (Object.keys(WRAP_MAP).length + 1) * 2 * 3;
 
 export type WebgpuTileFeedback = {
   readonly buffer: GPUBuffer;
   readonly entries: number;
-  /** Word the uniform carries: the phase, or "every pixel" during a convergence. */
+  /** Word the uniform carries: the phase, or "every pixel" and the pick turn during a convergence. */
   phaseWord(every: boolean): number;
+  /** A convergence image was drawn: the next one names the next pick (`PICK_CYCLE`). */
+  turnPick(): void;
   /** Copies the counters to a free readback buffer and zeroes them, in the image. */
   encode(encoder: GPUCommandEncoder): void;
   /** The image is submitted: the copy it carried maps; the phase advances. */
@@ -56,11 +71,15 @@ export function createWebgpuTileFeedback(device: Device, entries: number): Webgp
   const held = [0, 1].map(() => new Uint32Array(entries));
   let next = 0,
     phase = 0,
+    pick = 0,
     latest: Uint32Array | undefined;
   return {
     buffer,
     entries,
-    phaseWord: (every) => (every ? FEEDBACK_EVERY : 0) | phase,
+    phaseWord: (every) => (every ? FEEDBACK_EVERY | (pick << PICK_SHIFT) : 0) | phase,
+    turnPick() {
+      pick = (pick + 1) % PICK_CYCLE;
+    },
     encode(encoder) {
       if (busy[next] || copied[next]) return;
       encoder.copyBufferToBuffer(buffer, 0, staging[next], 0, bytes);

@@ -1,5 +1,5 @@
 import { WRAP_MAP } from '../../visibility/wrapModes.ts';
-import { FEEDBACK_EVERY, FEEDBACK_STRIDE } from './feedback.ts';
+import { FEEDBACK_EVERY, FEEDBACK_STRIDE, PICK_SHIFT } from './feedback.ts';
 
 const STRIDE_MASK = FEEDBACK_STRIDE - 1;
 
@@ -39,7 +39,8 @@ const m = WRAP_MAP;
  * a pixel speaks only if it is its phase (`feedbackPhase`, all of them during a convergence), and it
  * asks for ONE map, chosen by its POSITION (`requestPick`): a tile covers dozens of pixels, so each
  * map, each of the two blend levels and each end of an anisotropic footprint is named by a share
- * of them, and two complete images of the same pose name the same set. The camera cutout reads the
+ * of them. A convergence shifts that position by its pick turn (`PICK_CYCLE`): a sliver too thin
+ * for its share names everything it reads within one cycle. The camera cutout reads the
  * base map as the shading does (`maskAlphaWgsl`), so a masked base map asks one level too. The
  * pick rank is `WRAP_MAP`'s; a missing map lets the base colour speak (`mapRequest`). Hosts build their slots from the page row or the transparent item.
  */
@@ -53,8 +54,8 @@ fn feedbackPhase(p:vec2f,word:u32)->bool{
  return ((u32(p.x)&${STRIDE_MASK}u)|((u32(p.y)&${STRIDE_MASK}u)<<2u))==(word&${FEEDBACK_EVERY - 1}u);
 }
 struct RequestPick{sel:u32,next:bool,along:u32,}
-fn requestPick(pos:vec2f,choices:u32)->RequestPick{
- let px=u32(pos.x)+u32(pos.y);
+fn requestPick(pos:vec2f,choices:u32,word:u32)->RequestPick{
+ let px=u32(pos.x)+u32(pos.y)+(word>>${PICK_SHIFT}u);
  return RequestPick(px%choices,((px/choices)&1u)==1u,(px/choices/2u)%3u);
 }
 /** \`color\`: base, emissive; \`data\`: roughness, metal, normals, occlusion. */
