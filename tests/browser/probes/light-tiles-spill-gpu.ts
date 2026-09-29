@@ -2,8 +2,10 @@
 // narrow pass's one batch — run on a real GPU against its TypeScript oracle
 // (`bench/oracles/browser/gpuLightTilesRankOracle.ts`: a line-by-line port of the wide pass, whose
 // batched walk gives the narrow pass's lists too), word for word: the tile record, the pool's
-// words and the pool's state (#849). The masks are the cases': the slice test is the harness's
-// (`lightTilesSpillHarness.ts`), the rest is the shipped `compactWgsl.ts`.
+// words and the pool's state (#849) — and the count of slice tests: a one-batch scene past its
+// list writes its pool slices from the masks it holds, never testing a light twice. The masks are
+// the cases': the slice test is the harness's (`lightTilesSpillHarness.ts`), the rest is the
+// shipped `compactWgsl.ts`.
 //
 //   node --experimental-strip-types --test tests/browser/probes/light-tiles-spill-gpu.ts
 import test from 'node:test';
@@ -16,7 +18,7 @@ import {
 } from '../../../packages/sdk-browser/src/lighting/tiles/shader.ts';
 import { compactTile, tileLayout } from '../../../bench/oracles/browser/gpuLightTilesRankOracle.ts';
 import { seeded } from '../../../site/examples/kit/random.ts';
-import { dansPageWebgpu, empaquetePage } from './pageWebgpu.ts';
+import { dansPageWebgpu, bundlePage } from './pageWebgpu.ts';
 import { spillHarness, type SpillCase } from './lightTilesSpillHarness.ts';
 import type { run } from './lightTilesSpillPage.ts';
 
@@ -75,7 +77,7 @@ const CASES = [
 ];
 
 test('the tile compaction WGSL writes the oracle’s lists, pool and overflow, on the GPU', async () => {
-  const script = await empaquetePage(resolve(here, 'lightTilesSpillPage.ts'), 'lightTilesSpill');
+  const script = await bundlePage(resolve(here, 'lightTilesSpillPage.ts'), 'lightTilesSpill');
   const pageErrors: string[] = [];
   const result = await dansPageWebgpu(
     (cases: SpillCase[]) => globalThis.lightTilesSpill.run(cases),
@@ -87,6 +89,7 @@ test('the tile compaction WGSL writes the oracle’s lists, pool and overflow, o
   assert.deepEqual([...errors, ...pageErrors], []);
   assert.equal(runs.length, CASES.length, 'every case ran');
   let spilled = 0,
+    oneBatchSpills = 0,
     overflowed = 0;
   for (const [k, c] of CASES.entries()) {
     const layout = tileLayout(spillHarness(c.words, c.pool));
@@ -106,9 +109,18 @@ test('the tile compaction WGSL writes the oracle’s lists, pool and overflow, o
         [layout.stride, c.capacity, pool.head, pool.overflow],
         `${c.name}: the pool's state`,
       );
-    spilled += +(Math.max(tiles[0], tiles[1]) > LIST);
+    // Each light is tested once; a second walk only past a list in a scene of more batches.
+    const past = Math.max(tiles[0], tiles[1]) > LIST;
+    const walks = past && c.count > 32 * WIDE ? 2 : 1;
+    assert.equal(runs[k].tested, walks * c.count, `${c.name}: slice tests`);
+    spilled += +past;
+    oneBatchSpills += +(past && walks === 1);
     overflowed += pool.overflow;
   }
-  // The cases reach what they are for: slices in the pool, and pools with no room.
-  assert.ok(spilled >= 8 && overflowed >= 4, `${spilled} spilled, ${overflowed} overflowed`);
+  // The cases reach what they are for: slices in the pool, some written from the masks of one
+  // batch, and pools with no room.
+  assert.ok(
+    spilled >= 8 && oneBatchSpills >= 3 && overflowed >= 4,
+    `${spilled} spilled, ${oneBatchSpills} from the masks, ${overflowed} overflowed`,
+  );
 });
