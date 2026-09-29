@@ -1,7 +1,6 @@
-// #991: the sun's page read, run from its shipped WGSL through `shaderFunctions`, beside develop's
-// before #991 (654d1311f), which read every page at one reference. The record the shader reads is
-// the one `createShadowRecordPack` writes. The harness has no vector arithmetic: the world lies on
-// one line — every vector its x, `dot` a product — and `vec2f` answers one axis, `lane`, of two.
+// #991: the sun's page read, run from its shipped WGSL through `shaderRun`, beside develop's before
+// #991 (654d1311f), which read every page at one reference. The record the shader reads is the
+// one `createShadowRecordPack().writeSun` packs, its arrays read as the WGSL struct lays them out.
 import { SHADOW_RECORD_FLOATS } from '../../../../sdk-core/src/index.ts';
 import {
   SHADOW_RECORD_FRAME,
@@ -13,14 +12,20 @@ import {
   PAGE_RANGE_SHIFT,
   PAGE_VALID,
   SUN_DEPTH_RANGES,
+  SUN_LEVELS,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { createShadowRecordPack } from '../../gpu/shadow/recordPack.ts';
-import { shaderFunctions } from '../../texture/shaderRule.fixture.ts';
+import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
+import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { hash } from './shadowPages.fixture.ts';
+import { SHADOW_SUBTEXELS } from './shadowSampleWgsl.ts';
 import { directShadowWgsl } from './shadowWgsl.ts';
 
 /** The shipped shadow read: `shadowPcf`, its helpers, and `SHADOW_FACTOR_WGSL` after them. */
 export const SHADOW_WGSL = directShadowWgsl(0, null, 1);
+
+/** Its literal constants, and `SHADOW_SUBTEXEL`, which it computes from one of them. */
+export const CONSTANTS = { ...wgslConstants(SHADOW_WGSL), SHADOW_SUBTEXEL: 1 / SHADOW_SUBTEXELS };
 
 /** Develop's `sunShadowFactor` before #991, its code verbatim: one reference,
  *  whatever range a page holds. */
@@ -57,24 +62,7 @@ export const DEVELOP_SHADOW_NEIGHBOUR = `fn shadowNeighbour(m:ShadowMap,p:vec2i,
  return vec4f(shadowOffset(word,p),1.0);
 }`;
 
-/** Every scalar `const` of a WGSL text, by name: what the shader compiles, not a copy of it. */
-export function wgslConstants(source: string) {
-  const constants: Record<string, number> = {};
-  for (const [, name, value] of source.matchAll(/const (\w+):(?:f32|u32|i32)=([^;]+);/g))
-    if (Number.isFinite(Number(value.replace(/u$/, ''))))
-      constants[name] = Number(value.replace(/u$/, ''));
-  return constants;
-}
-
-/** An array read as WGSL indexes one: `i/8u` truncated, as its integer division is. */
-const truncating = <T>(at: (i: number) => T) =>
-  new Proxy([], { get: (_, key) => at(Math.trunc(Number(key))) }) as unknown as T[];
-
-/** Slot `drawn`'s pair, or an origin pair, as the shader's `vec4`: `.xy` and `.zw`. */
-const pairs = (read: (i: number) => number, at: number) => ({
-  xy: { x: read(at), y: read(at + 1) },
-  zw: { x: read(at + 2), y: read(at + 3) },
-});
+export type Vec3 = [number, number, number];
 
 export type Sun = {
   /** `zNear, zFar` of each slot, `SUN_DEPTH_RANGES` of them. */
@@ -83,37 +71,42 @@ export type Sun = {
   levels: number;
   finest: number;
   tableBase: number;
+  /** The light's frame, orthonormal: `right`, `up`, then `axis`, toward which depth grows. */
+  frame: [Vec3, Vec3, Vec3];
 };
 
-/** The sun's record as `writeSun` packs it, read field by field as the WGSL struct lays it out:
- *  six matrices of four columns, three frame rows, the origins' vec4i, the header. On the line,
- *  `right` is +x, `up` −x and the light's `axis` −x: a receiver's depth is −P. */
+/** The sun's record as `writeSun` packs it, read as the WGSL struct lays it out: six matrices of
+ *  four columns, three frame rows, the origins' vec4i, the header. */
 export function sunRecord(sun: Sun) {
   const pack = createShadowRecordPack(256, 8),
     depth = new Float32Array(SUN_DEPTH_RANGES * 2);
   sun.ranges.forEach(([near, far], slot) => depth.set([near, far], slot * 2));
-  const origins = Array.from({ length: sun.levels * 2 }, (_, i) => (i % 3) - 1);
   const levels = {
     ranges: { pairs: depth, current: [sun.current] },
-    frame: [1, 0, 0, -1, 0, 0, -1, 0, 0],
+    frame: sun.frame.flat(),
     depth: sun.ranges[sun.current],
-    origins,
+    origins: Array.from({ length: sun.levels * 2 }, (_, i) => (i % 3) - 1),
     finest: [sun.finest],
   } as unknown as SunLevels;
   pack.writeSun(0, levels, sun.levels, sun.tableBase);
   const floats = pack.records.subarray(0, SHADOW_RECORD_FLOATS),
     ints = new Int32Array(pack.records.buffer, 0, SHADOW_RECORD_FLOATS),
-    f = (i: number) => floats[i];
+    vec4 = (from: ArrayLike<number>, at: number) =>
+      Array.from({ length: 4 }, (_, i) => from[at + i]);
   return {
-    faces: truncating((m) => truncating((c) => pairs(f, m * 16 + c * 4))),
-    frame: [0, 1, 2].map((row) => ({
-      xyz: f(SHADOW_RECORD_FRAME + row * 4),
-      w: f(SHADOW_RECORD_FRAME + row * 4 + 3),
-    })),
-    origins: truncating((k) => pairs((i) => ints[i], SHADOW_RECORD_ORIGINS + k * 4)),
-    info: Object.fromEntries([...'xyzw'].map((c, i) => [c, f(SHADOW_RECORD_INFO + i)])),
+    faces: Array.from({ length: 6 }, (_, m) =>
+      Array.from({ length: 4 }, (_, c) => vec4(floats, m * 16 + c * 4)),
+    ),
+    frame: [0, 1, 2].map((row) => vec4(floats, SHADOW_RECORD_FRAME + row * 4)),
+    origins: Array.from({ length: SUN_LEVELS / 2 }, (_, k) =>
+      vec4(ints, SHADOW_RECORD_ORIGINS + k * 4),
+    ),
+    info: vec4(floats, SHADOW_RECORD_INFO),
   };
 }
+
+/** The shader's module scope over one record: its constants and the shadow buffer. */
+export const recordScope = (record: object) => ({ ...CONSTANTS, shadows: { records: [record] } });
 
 /** A readable page word: its physical page and the depth range slot it was drawn in. */
 export const pageWord = (physical: number, slot: number) =>
@@ -122,47 +115,42 @@ export const pageWord = (physical: number, slot: number) =>
 /** The page table: `empty` of the pages unreadable, the rest drawn in `slotOf(h)`, all hashed
  *  from the map and the page so that develop's and the shipped read meet the same table. */
 export const pageTable =
-  (seed: number, empty: number, slotOf: (h: number) => number) => (base: number, page: number) => {
-    const h = hash(seed ^ Math.imul(base, 7919) ^ Math.imul(page, 104729));
+  (seed: number, empty: number, slotOf: (h: number) => number) =>
+  (base: number, [x, y]: number[]) => {
+    const h = hash(seed ^ Math.imul(base, 7919) ^ Math.imul(x, 104729) ^ Math.imul(y, 1299709));
     return h < empty ? 0 : pageWord(Math.floor(h * 65536), slotOf(hash(Math.floor(h * 2 ** 31))));
   };
 
-type Factor = { sunShadowFactor: (index: number, P: number, N: number, taps: boolean) => number };
+type Factor = { sunShadowFactor: (index: number, P: Vec3, N: Vec3, taps: boolean) => number };
 type Range = { sunRangeReference: (index: number, drawn: number, z: number) => number };
 
 /** `sunRangeReference` of the shipped text over `record`. */
 export const rangeReference = (record: object) =>
-  shaderFunctions<Range>(SHADOW_WGSL, ['sunRangeReference'], {
-    ...wgslConstants(SHADOW_WGSL),
-    shadows: { records: [record] },
-  }).sunRangeReference;
+  shaderRun<Range>(SHADOW_WGSL, ['sunRangeReference'], recordScope(record)).sunRangeReference;
+
+const NAMES = [
+  'sunShadowFactor',
+  'shadowNormalTexels',
+  'shadowDepthMargin',
+  'shadowRing',
+  'sunOrigin',
+];
 
 /** `sunShadowFactor` of `source` over `record` and the page table `word`: what it hands the PCF,
  *  `sunRangeReference` (the shipped one, spied) and the far ray, and its answer. */
 export function sunRead(
   source: string,
   record: ReturnType<typeof sunRecord>,
-  word: (base: number, page: number) => number,
-  at: { P: number; N: number; footprint: number; lane: 0 | 1; taps: boolean },
+  word: (base: number, page: number[]) => number,
+  at: { P: Vec3; N: Vec3; footprint: number; taps: boolean },
 ) {
-  const { footprint, lane } = at;
   const pcf: unknown[][] = [],
     ranged: number[][] = [],
     far: unknown[][] = [],
     shipped = rangeReference(record);
   const scope = {
-    ...wgslConstants(SHADOW_WGSL),
-    shadows: { records: [record] },
-    shadowFootprint: footprint,
-    dot: (a: number, b: number) => a * b,
-    clamp: (x: number, low: number, high: number) => Math.min(Math.max(x, low), high),
-    sqrt: Math.sqrt,
-    floor: Math.floor,
-    log2: Math.log2,
-    exp2: (x: number) => 2 ** x,
-    i32: Math.trunc,
-    vec2f: (x: number, y: number) => (lane ? y : x),
-    vec2i: (x: number) => x,
+    ...recordScope(record),
+    shadowFootprint: at.footprint,
     ShadowMap: (base: number, ring: number, pages: number, ox: number, oy: number) => ({
       base,
       ring,
@@ -170,7 +158,7 @@ export function sunRead(
       ox,
       oy,
     }),
-    shadowPageWord: (map: { base: number }, home: number) => word(map.base, home),
+    shadowPageWord: (map: { base: number }, home: number[]) => word(map.base, home),
     shadowPcf: (...args: unknown[]) => pcf.push(args) / 64,
     sunRangeReference: (...args: [number, number, number]) => {
       const reference = shipped(...args);
@@ -179,7 +167,6 @@ export function sunRead(
     },
     sunFarShadowFactor: (...args: unknown[]) => (far.push(args), 0.25),
   };
-  const names = ['sunShadowFactor', 'shadowNormalTexels', 'shadowDepthMargin', 'shadowRing'];
-  const read = shaderFunctions<Factor>(source, [...names, 'sunOrigin'], scope).sunShadowFactor;
+  const read = shaderRun<Factor>(source, NAMES, scope).sunShadowFactor;
   return { factor: read(0, at.P, at.N, at.taps), pcf, ranged, far };
 }
