@@ -63,7 +63,7 @@ function scatteredScene() {
     run: { noOccluderHistory: false, temporalHizState: {} },
     blendState: { occlusionEpoch: 1 },
     lights: { spheres: { buffer: sphereBuffer, packed: new Float32Array(ROWS * 4), rows: ROWS } },
-    timing: { encodeCounts: { lignesTeleversees: 0 } },
+    timing: { encodeCounts: { rowsUploaded: 0 } },
     gpu: { device },
     vis: {
       pageTable: {},
@@ -90,7 +90,7 @@ test('a model scattered across the table forgets and sends its own rows, run by 
   assert.deepEqual(spheres(), [2, 3, 1], 'the same 6 shadow spheres sent');
   assert.deepEqual(corners, [2, 3, 1], 'the same 6 rows of corners sent');
   assert.deepEqual(table(), [2, 3, 1], 'the same 6 rows of the table sent');
-  assert.equal(rt.timing.encodeCounts.lignesTeleversees, sum(table()));
+  assert.equal(rt.timing.encodeCounts.rowsUploaded, sum(table()));
   assert.equal(rows.dirtyTo, -1, 'every mark consumed');
   assert.equal(rows.dirtyMarks.indexOf(1), -1);
   // A still image: nothing marked, nothing forgotten, nothing sent.
@@ -98,7 +98,7 @@ test('a model scattered across the table forgets and sends its own rows, run by 
   uploadDirtyRows(rt);
   assert.equal(sum(forgotten), 6);
   assert.equal(sum(table()), 6);
-  assert.equal(rt.timing.encodeCounts.lignesTeleversees, 0);
+  assert.equal(rt.timing.encodeCounts.rowsUploaded, 0);
 });
 
 test('a table that grew forgets the rows that entered; a new age sends every row once', () => {

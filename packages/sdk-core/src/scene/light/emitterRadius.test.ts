@@ -28,7 +28,7 @@ test('a directional light has no envelope, and the contract refuses to lend it o
   assert.throws(
     () =>
       validateSceneLight({
-        id: 'soleil',
+        id: 'sun',
         kind: 'directional',
         direction: [0, -1, 0],
         color: [1, 1, 1],

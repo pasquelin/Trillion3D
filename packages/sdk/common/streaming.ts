@@ -60,7 +60,6 @@ export {
   decodeManifestBinary,
   decodeManifestPreviews,
 } from '../../sdk-core/src/manifest/binaryDecode.ts';
-export { encodeManifestBinary } from '../../sdk-core/src/manifest/binaryEncode.ts';
 export {
   GEOMETRY_PAGE_CODEC,
   GEOMETRY_PAGE_FORMAT_VERSION,

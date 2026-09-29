@@ -1,14 +1,12 @@
 import { LTC_UNIT, createLtcTexture } from './rectGlsl.ts';
 import { FLOAT_TEXELS, LIGHT_DATA_UNIT, WebglLightTexture } from './lightTexture.ts';
-import { REACH_FLOATS, WebglClusterLightLists } from './lightLists.ts';
-import type { ClusterDraw } from '../../cluster/batchMesh.ts';
+import { WebglClusterLightLists } from './lightLists.ts';
+import { REACH_FLOATS } from './lightGrid.ts';
 import { inReferenceOrder } from './lightOrder.ts';
 import { WebglClusterProbe } from './probe.ts';
 import { WebglClusterFog } from './fog.ts';
 import { sceneFogOf, type Fog } from '../../world/core/sceneFog.ts';
 import type { SceneFog } from '../../../../sdk-core/src/scene/core/fog.ts';
-import { isLightNode } from '../../host/graph/kinds.ts';
-import { shownChain } from '../../placement/hidden.ts';
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
 import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
 
@@ -17,8 +15,10 @@ const AMBIENT = new Float64Array(4);
 
 /** A host scene background read by shape: a colour, in linear components, or anything else. */
 export type SceneColour = { isColor?: boolean; r: number; g: number; b: number } | null | undefined;
+/** What a WebGL2 frame reads of the host scene; `lights`, its shown lights in graph order, is the
+ *  list the draw lists keep (`./drawLists.ts`): no frame walks the scene for its lights. */
 export type WebglClusterScene = {
-  traverse(visitor: (entry: object) => void): void;
+  lights: readonly Light[];
   /** Host background: a colour clears the transmission backdrop, anything else clears to black. */
   background?: SceneColour | object;
   /** The contract's fog, over every drawn surface; none when absent. */
@@ -28,27 +28,27 @@ export type WebglClusterScene = {
 /** The kinds that take a slot of this path; a probe adds into the irradiance instead. */
 const DRAWN = new Set(['directional', 'point', 'spot', 'rectArea', 'ambient']);
 
-export const unsupportedClusterLight = (scene: WebglClusterScene) => {
+export const unsupportedClusterLight = (lights: readonly Light[]) => {
   let reason: string | undefined;
-  scene.traverse((light) => {
+  for (const light of lights) {
     // A probe takes no light slot: its coefficients add into the program's irradiance.
-    if (!isLightNode(light) || light.kind === 'probe' || !shownChain(light)) return;
+    if (light.kind === 'probe') continue;
     // A world's sky over a ground reaches this path as the environment's irradiance, a probe.
     if (!DRAWN.has(light.kind))
       reason ??= `${light.kind} light is not drawn by the WebGL2 cluster path`;
     if ((light.kind === 'point' || light.kind === 'spot') && light.decay !== 2)
       reason = `${light.kind} light decay ${light.decay} is unsupported; inverse-square decay 2 is required`;
-  });
+  }
   return reason;
 };
 
 /**
  * The frame's lights, as many as the scene holds: four vec4 records a slot in a float texture
- * grown with the count (`./lightTexture.ts`), and each slot's reach in the per-draw lists.
+ * grown with the count (`./lightTexture.ts`), and each slot's reach in the light grid (`./lightLists.ts`).
  */
 export class WebglClusterLights {
   private records: WebglLightTexture<Float32Array>;
-  /** The lights each draw reaches, listed once the frame's slots are written. */
+  /** The lights each fragment reaches, a grid listed again when a lamp's reach changes. */
   readonly lists: WebglClusterLightLists;
   /** The direct lights of the frame, in the graph's order; reused from frame to frame. */
   private lights: Light[] = [];
@@ -62,17 +62,13 @@ export class WebglClusterLights {
   constructor(gl: WebGL2RenderingContext, program: WebGLProgram) {
     this.gl = gl;
     this.records = new WebglLightTexture(gl, LIGHT_DATA_UNIT, FLOAT_TEXELS, Float32Array);
-    this.lists = new WebglClusterLightLists(gl);
+    this.lists = new WebglClusterLightLists(gl, program);
     this.ltc = createLtcTexture(gl);
     this.probe = new WebglClusterProbe(gl, program);
     this.fog = new WebglClusterFog(gl, program);
   }
-  /** Writes the frame's lights, then the list of the lights each of `draws` reaches. */
-  upload(
-    scene: WebglClusterScene,
-    view: ArrayLike<number>,
-    draws: readonly (readonly ClusterDraw[])[] = [],
-  ) {
+  /** Writes the frame's lights, then the grid of the lights each fragment reaches. */
+  upload(scene: WebglClusterScene, view: ArrayLike<number>) {
     let count = 0;
     const lists = this.lists;
     // Everything is written in place: nothing is allocated per light.
@@ -98,15 +94,16 @@ export class WebglClusterLights {
     const lights = this.lights;
     lights.length = 0;
     const ambient = AMBIENT.fill(0);
-    scene.traverse((light) => {
-      if (!isLightNode(light) || !shownChain(light)) return;
-      if (light.kind === 'probe') return this.probe.add(light);
-      if (light.kind !== 'ambient') return void lights.push(light);
-      ambient[0] += light.color.r * light.intensity;
-      ambient[1] += light.color.g * light.intensity;
-      ambient[2] += light.color.b * light.intensity;
-      ambient[3] = 1;
-    });
+    for (const light of scene.lights) {
+      if (light.kind === 'probe') this.probe.add(light);
+      else if (light.kind !== 'ambient') lights.push(light);
+      else {
+        ambient[0] += light.color.r * light.intensity;
+        ambient[1] += light.color.g * light.intensity;
+        ambient[2] += light.color.b * light.intensity;
+        ambient[3] = 1;
+      }
+    }
     // A slot a light, the ambient lights one more: the texture and the reach grow to hold them.
     this.records.reserve((lights.length + 1) * 4);
     lists.reserve(lights.length + 1);
@@ -150,12 +147,14 @@ export class WebglClusterLights {
         dy /= length;
         dz /= length;
       }
-      // The world centre and range the draw lists test; a sun, or a lamp of no range, reaches all.
+      // The world centre and range the light grid tests; a sun, or a lamp of no range, reaches all
+      // and has no centre there: moving it never lists the grid again.
       const reach = lists.reach,
-        at = count * REACH_FLOATS;
-      reach[at] = px;
-      reach[at + 1] = py;
-      reach[at + 2] = pz;
+        at = count * REACH_FLOATS,
+        placed = range > 0 && range < Infinity;
+      reach[at] = placed ? px : 0;
+      reach[at + 1] = placed ? py : 0;
+      reach[at + 2] = placed ? pz : 0;
       reach[at + 3] = range > 0 ? range : 0;
       const base = count++ * 16;
       write(
@@ -183,7 +182,7 @@ export class WebglClusterLights {
     this.fog.upload(this.readFog, view);
     const gl = this.gl;
     this.records.upload(count * 4);
-    lists.build(count, draws);
+    lists.build(count, view);
     // The host's texture units are unknown at frame start: the lobe is bound again every frame,
     // last, so the active unit stays the one it always was.
     gl.activeTexture(gl.TEXTURE0 + LTC_UNIT);

@@ -34,34 +34,41 @@ test('a pool 10 km out is drawn from its origin: the words hold to the millimetr
 
 /** An encoder that logs its render passes, and each draw's pipeline, vertices and instances. */
 function renderRecorder() {
-  const log: string[] = [];
-  const beginRenderPass = ({ label }: GPURenderPassDescriptor) => {
+  const log: string[] = [],
+    attached: unknown[][] = [];
+  const beginRenderPass = ({ label, colorAttachments }: GPURenderPassDescriptor) => {
     let pipeline: GPURenderPipeline;
     log.push(`${label}`);
+    attached.push([...colorAttachments].map((attachment) => attachment?.view));
     return {
       setPipeline: (set: GPURenderPipeline) => void (pipeline = set),
       setBindGroup() {},
+      setViewport() {},
       draw: (...counts: number[]) => void log.push([pipeline.label, ...counts].join(' ')),
       end() {},
     };
   };
-  return { encoder: { beginRenderPass } as unknown as GPUCommandEncoder, log };
+  return { encoder: { beginRenderPass } as unknown as GPUCommandEncoder, log, attached };
 }
 
 const view = {} as GPUTextureView,
+  reactive = { label: 'reactive' } as unknown as GPUTextureView,
   kept = () => ({}) as never;
-const frame = (encoder: GPUCommandEncoder) => [encoder, view, view, IDENTITY, [0, 0, 0]] as const;
+const frame = (encoder: GPUCommandEncoder) =>
+  [encoder, view, reactive, view, [8, 8], IDENTITY, [0, 0, 0]] as const;
 
 test('WebGPU: one pass, fire then the nearer smoke, each with its blend; none without particles', async () => {
   const gpu = fakeDevice(),
     pools = scene();
   const draw = createWebgpuParticleDraw(gpu.device, kept, (e) => assert.fail(`${e}`));
   await tick();
-  const { encoder, log } = renderRecorder();
+  const { encoder, log, attached } = renderRecorder();
   assert.equal(draw.draw([], ...frame(encoder)) + draw.draw([pools[2]], ...frame(encoder)), 0);
   assert.deepEqual(log, [], 'no particle alive: no pass, no pixel');
   assert.equal(draw.draw(pools, ...frame(encoder)), 2);
   assert.deepEqual(log, [P, `${P} additive 6 2`, `${P} premultiplied 6 3`], 'far to near');
+  // The lit image, then the reactive value their coverage is written in (#833).
+  assert.deepEqual(attached, [[view, reactive]]);
   const blends = gpu.renderPipelines.map(({ fragment }) => {
     const { color, alpha } = (fragment!.targets as GPUColorTargetState[])[0].blend!;
     return [color.dstFactor, alpha.srcFactor, alpha.dstFactor].join(' ');

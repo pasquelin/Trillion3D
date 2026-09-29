@@ -25,8 +25,10 @@ export class EngineError extends Error {
 }
 /** Where a model's pages are read from, by key. */
 export interface PageSource {
-  /** Reads the bytes of one page. */
-  read(key: string, signal?: AbortSignal): Promise<Uint8Array>;
+  /** Reads the bytes of one page; `priority`, when given, is the streamer's (smallest first). A
+   *  more urgent read of a page already in flight is asked again to raise it: a source that takes
+   *  `priority` joins it to the read in flight rather than transfer the page twice. */
+  read(key: string, signal?: AbortSignal, priority?: number): Promise<Uint8Array>;
 }
 /** Refuses a cache format this runtime does not read. */
 export function assertFormat(formatVersion: number) {

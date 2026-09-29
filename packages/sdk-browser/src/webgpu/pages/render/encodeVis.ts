@@ -40,7 +40,7 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   // Row words, spheres, mobility and corners follow only the row table: this image's dirty rows.
   // An image with no visibility row sends them too: the blended casters' rows, behind, still feed
   // its shadows, and rows left dirty would keep the frame from being held (#198).
-  timing.encodeCounts.fichesTeleversees = 0;
+  timing.encodeCounts.itemsUploaded = 0;
   followDirtyRows(rt, device);
   if (!rows.packedCount) return encodeEmptySurfaces(rt, device, cam, depthTarget);
   ensureUniform(rt, device, Math.max(1, rows.packedCount + blendState.blendGpu.length));
@@ -74,7 +74,7 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   }
   // The hardware raster opens the opaque image and draws its share of the cut; the compute raster,
   // when it exists, blends its own between its passes — small triangles under the reference split,
-  // the whole cut under the `raster-calcul` variant.
+  // the whole cut under the `raster-compute` variant.
   run.gpuComputeDispatches = 0;
   const compute = vis.gpuRaster
     ? computeRasterStages(rt, twoPass, tableRows, maxVertexCount, idsView, depthTarget)

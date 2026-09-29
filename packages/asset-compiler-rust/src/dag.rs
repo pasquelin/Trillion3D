@@ -178,6 +178,7 @@ mod culling;
 mod diagnosis;
 pub(crate) mod groups;
 mod grown;
+mod levels;
 mod placed;
 pub(crate) mod quality;
 pub(crate) mod reduce;
@@ -191,7 +192,7 @@ mod welds;
 
 pub use attributes::DagAttributes;
 use bounds::*;
-pub use build::build_dag_tallied;
+pub use build::{build_dag_from_roots, build_dag_tallied, DagBuild};
 use clusters::*;
 pub use culling::build_culling_bvh;
 use groups::*;
