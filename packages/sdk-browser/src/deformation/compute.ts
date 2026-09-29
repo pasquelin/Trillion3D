@@ -75,8 +75,13 @@ export async function createDeformationCompute(device: GPUDevice) {
   const imageWords = new Uint32Array(4);
   const wholeBuffers: GPUBuffer[] = [];
   const held: { buffers: readonly GPUBuffer[]; group: GPUBindGroup }[] = [];
+  const moved = (buffers: readonly GPUBuffer[], slot: number) => {
+    if (!held[slot]) return true;
+    for (let i = 0; i < buffers.length; i++) if (buffers[i] !== held[slot].buffers[i]) return true;
+    return false;
+  };
   const bind = (buffers: readonly GPUBuffer[], slot: number) => {
-    if (!held[slot] || buffers.some((buffer, i) => buffer !== held[slot].buffers[i]))
+    if (moved(buffers, slot))
       held[slot] = {
         buffers: [...buffers],
         group: device.createBindGroup({

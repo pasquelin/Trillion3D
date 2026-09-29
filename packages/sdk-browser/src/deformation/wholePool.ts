@@ -8,6 +8,7 @@ import type { BlendGpuItem } from '../webgpu/blend/state.ts';
 import type { SessionDeformation } from './session.ts';
 import { wholeDeformationInputs } from './wholeInputs.ts';
 import { DEFORM_VERTEX_WORDS } from './slotLayout.ts';
+import { ROW_FLAGS_WORD, ROW_ID_BASE_WORD, ROW_INDEX_WORDS } from '../webgpu/row/pageRow.ts';
 import { boxEmpty } from '../../../sdk-core/src/index.ts';
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
 
@@ -60,10 +61,11 @@ export function wholeDeformationPool(
         item.deformBounds = new Float64Array(6);
         boxEmpty(item.deformBounds, 0);
         // Other attributes keep their shared geometry buffers; only position access has an offset.
-        rows[at + 23] = item.flags;
-        rows[at + 25] = item.count;
+        rows[at + ROW_FLAGS_WORD] = item.flags;
+        rows[at + ROW_INDEX_WORDS] = item.count;
         rows[at + 26] = item.vertexBase;
-        rows[at + 27] = item.deformInput;
+        // A whole copy has no identifier base: its word carries the source streams' first float.
+        rows[at + ROW_ID_BASE_WORD] = item.deformInput;
         rows[at + PAGE_DEFORM_COUNT_WORD] = item.sourceGeometry.attributes.position!.count;
         rows[at + PAGE_DEFORM_WORD] = session!.wordOfWorld(item.matrix);
         rows[at + PAGE_DEFORM_OUTPUT_WORD] = item.deformOutput;
