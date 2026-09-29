@@ -68,6 +68,7 @@ export function createGpuSunFarShadow(device: GPUDevice) {
     device.queue.writeBuffer(proxy.buffer, PROXY_COUNTING_OFFSET, countingFlag);
   };
 
+  let proxyRevision = -1;
   return {
     /**
      * Buffer to bind, or nothing until a proxy is resident. It is the proxy's own, returned
@@ -116,6 +117,12 @@ export function createGpuSunFarShadow(device: GPUDevice) {
      */
     prepare(encoder: GPUCommandEncoder, frame: number) {
       if (!proxy) return;
+      if (proxyRevision !== proxy.revision) {
+        proxyRevision = proxy.revision;
+        const b = proxy.bounds;
+        params[MAX_DISTANCE] = hypot3(b[3] - b[0], b[4] - b[1], b[5] - b[2]);
+        device.queue.writeBuffer(proxy.buffer, 0, params);
+      }
       if (copyOwed) {
         reader.copy(encoder, proxy.buffer, PROXY_COUNT_OFFSET, COUNT_BYTES);
         copyOwed = false;

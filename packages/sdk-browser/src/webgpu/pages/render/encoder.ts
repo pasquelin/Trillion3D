@@ -54,8 +54,9 @@ export function submitColorCopy(
   // The off-screen variant does not touch the swap chain in any way: neither a composition target
   // nor a separate presentation pass. That is what isolates what Presentation actually contains.
   const offscreen = composesOffscreen(context.diagnosticGpuVariant);
-  if (!presented && !offscreen && gpu.presenter && gpu.colorTexture && !capture.capturing) {
-    gpu.presenter.present(encoder, gpu.colorTexture, width, height);
+  if (!presented && !offscreen && gpu.presenter && gpu.displayTexture && !capture.capturing) {
+    // The display colour at its size: a frame drawn below it is the resolve's input, never shown.
+    gpu.presenter.present(encoder, gpu.displayTexture, ...gpu.displaySize, rt.views.active.rect);
     run.gpuDrawCalls++;
   }
   const owned = encoder === timing.frameEncoder;
@@ -75,7 +76,7 @@ export function submitColorCopy(
   timing.lastQueueSubmitMs = performance.now() - submitStart;
   // Counts of a sampled image are mapped only once the image that copied them is submitted.
   rt.vis.gpuPartition?.countsSubmitted();
-  if (!capture.capturing) rt.vis.textures?.feedback.submitted();
+  if (!capture.capturing && rt.feedbackAB?.target !== false) rt.vis.textures?.feedback.submitted();
   // Same for the far-shadow counts: their copy is mapped only once submitted.
   rt.sunFar.gpu?.submitted();
   rt.lights.cull?.counts.submitted();
@@ -122,6 +123,8 @@ export function submitColorCopy(
       scope: 'selection-and-render-passes',
       excludes: ['uploads and copies', 'CPU work', 'presentation latency'],
       drawCalls: run.gpuDrawCalls,
+      renderScale: rt.scale.drawn,
+      scaleSteered: rt.scale.steered,
       transparentDrawCalls: run.blendDrawCalls,
       transparentSubmittedTriangles: run.blendSubmittedTriangles,
     });

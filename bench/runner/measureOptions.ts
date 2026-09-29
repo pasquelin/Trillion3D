@@ -11,7 +11,8 @@ import type { SceneLight } from '../../packages/sdk-core/src/scene/light/contrac
 import type { ScreenErrorVariant } from '../../packages/sdk-core/src/index.ts';
 import type { TextureCompression } from '../../packages/sdk-browser/src/texture/blockFormats.ts';
 import type { MovingLightPlan } from './lamps.ts';
-import type { Coupe, MovingNode, ReglageVivant, Reseau } from './report/types.ts';
+import type { CutSelection, MovingNode, LiveTuning, NetworkBytes } from './report/types.ts';
+import type { LivePools } from './benchSettings.ts';
 
 /** What `runSerie` sends into the page: everything `measureView` needs, nothing it infers. */
 export interface MeasureViewOptions {
@@ -34,7 +35,7 @@ export interface MeasureViewOptions {
   geometryPoolBytes: number | null;
   texturePoolBytes: number | null;
   geometryPoolCeilingBytes: number | null;
-  poolVivant: { geometryPoolBytes?: number | null; texturePoolBytes?: number | null } | null;
+  livePools: LivePools | null;
   instances: number;
   width: number;
   height: number;
@@ -54,6 +55,8 @@ export interface MeasureViewOptions {
   textureUploadMs: number | null;
   /** Block format asked of the texture pools; `undefined` leaves the engine's own choice. */
   textureCompression: TextureCompression | undefined;
+  /** Fraction of the display per axis the frame is drawn at; `undefined` leaves the display's. */
+  renderScale?: number;
   temporalAntialiasing: boolean;
   mathPath: 'js' | 'wasm' | null;
   movingNode: string | null;
@@ -62,40 +65,40 @@ export interface MeasureViewOptions {
 
 /** What `measureView` returns for one series, when it managed to open the engine. */
 interface MeasureViewSuccess {
-  erreur?: undefined;
+  error?: undefined;
   cpuFrameMs: number[];
   cpuSelectMs: number[];
   gpuFrameMs: number[];
   syncFrameMs?: number[];
   rafIntervalMs: number[];
-  importedLights: { nombre: number; ids: string[] } | null;
-  lampesTemoin: unknown;
+  importedLights: { count: number; ids: string[] } | null;
+  witnessLights: unknown;
   shadowAtlas: unknown;
   movingNode: MovingNode;
   stageProfile: StageProfile | null;
   gpuPassSamples: GpuPassTimings[];
-  selection: Coupe;
+  selection: CutSelection;
   metrics: Partial<FrameMetrics> & Record<string, unknown>;
   preparationMs: number;
-  network: Reseau;
+  network: NetworkBytes;
   // Absent from the Three witnesses (`threeMeasurePage.ts`): they have no reservoir tuning, no
   // held-pose loop, no compiler warnings and no per-step CPU profile of their own.
-  imagesCalme?: number | null;
-  reglageVivant?: ReglageVivant | null;
+  settleFrames?: number | null;
+  liveTuning?: LiveTuning | null;
   /** Mean, p95 and max of each shadow counter over the measured frames; `null` per counter the
    *  dist does not publish. */
   shadowCounters?: Record<string, { mean: number; p95: number; max: number } | null>;
   mathBatch: FrameMetrics['mathBatch'] | null;
   size: { width: number; height: number; dpr?: number };
   lost: string[];
-  avertissementsDag?: unknown;
-  bornesCpu?: unknown;
+  dagWarnings?: unknown;
+  cpuBounds?: unknown;
   captureStatus: number;
 }
 
 /** The engine named by `backend` is missing from this dist: nothing was measured. */
 interface MeasureViewFailure {
-  erreur: string;
+  error: string;
 }
 
 export type MeasureViewResult = MeasureViewFailure | MeasureViewSuccess;

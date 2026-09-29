@@ -37,10 +37,10 @@ export { PATH_VERSION, FRAMES_PER_SEGMENT };
 
 /** Bench views this harness knows how to play, by index in the trajectory. */
 export const VIEWS = {
-  generale: { index: 0, segment: 'General view of the model' },
-  sol: { index: 2 * FRAMES_PER_SEGMENT, segment: 'Move at reference level' },
-  // Same segment as `sol`, at the lowest point of the trajectory: camera in the street.
-  rue: { index: 2 * FRAMES_PER_SEGMENT + 30, segment: 'Move at reference level' },
+  overview: { index: 0, segment: 'General view of the model' },
+  ground: { index: 2 * FRAMES_PER_SEGMENT, segment: 'Move at reference level' },
+  // Same segment as `ground`, at the lowest point of the trajectory: camera in the street.
+  street: { index: 2 * FRAMES_PER_SEGMENT + 30, segment: 'Move at reference level' },
   detail: { index: 4 * FRAMES_PER_SEGMENT, segment: 'Close-up on detailed geometry' },
 };
 
@@ -95,3 +95,7 @@ export function poseAt(bounds: Bounds, index: number): CameraPose {
     far: radius * 20,
   };
 }
+
+/** One pose per frame along the trajectory from index `index`. */
+export const trajectoryPoses = (bounds: Bounds, index: number, frames: number) =>
+  Array.from({ length: frames }, (_, i) => poseAt(bounds, index + i));

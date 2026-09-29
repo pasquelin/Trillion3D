@@ -123,7 +123,10 @@
             });
           // The solid is centred on its thickness, so it turns about its middle.
           solid.translate(0, 0, -values.depth / 2);
+          // The former solid is given back once replaced: nothing else wears it.
+          const worn = pieces[index].geometry;
           pieces[index].geometry = solid;
+          worn.dispose();
           count += solid.index ? solid.index.count / 3 : solid.attributes.position.count / 3;
         });
         triangles(count.toLocaleString(language()));

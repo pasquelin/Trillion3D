@@ -3,7 +3,7 @@ import type { TextureFrameMetrics } from '../texture/metricsContracts.ts';
 import type { ShadowFrameMetrics } from './shadowMetrics.ts';
 import type { OcclusionFrameMetrics } from './occlusionMetrics.ts';
 import type { GpuMemoryFrameMetrics } from './gpuMemory.ts';
-export type { ShadowFrameMetrics } from './shadowMetrics.ts';
+export type { ShadowFrameMetrics, ShadowStaleReason } from './shadowMetrics.ts';
 export type { OcclusionFrameMetrics } from './occlusionMetrics.ts';
 export type { TextureFrameMetrics } from '../texture/metricsContracts.ts';
 export type { GpuMemoryFrameMetrics } from './gpuMemory.ts';
@@ -123,7 +123,8 @@ export type GpuFrameMs = number | null;
   gpuPassMs?: GpuPassTimings | null;
   /** GPU duration of the image `gpuPassMs.frame` describes, never added to a `cpu*` field. Sampled
    *  every few images, so a number may be a few images old. Null before the first sample, from a
-   *  held image until the next device sample, without `timestamp-query`, and on WebGL2. */
+   *  held image until the next device sample, without `timestamp-query`, and on WebGL2 without
+   *  `EXT_disjoint_timer_query_webgl2`. */
   gpuFrameMs?: GpuFrameMs;
   /** CPU time the same image spent between two of its own submissions, and zero when it submits once.
    *  It is host time, not GPU time, which is why `gpuFrameMs` excludes it. Null when unmeasured. */

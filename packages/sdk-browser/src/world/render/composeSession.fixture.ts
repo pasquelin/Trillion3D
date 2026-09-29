@@ -11,8 +11,8 @@ import {
   createWorldNotices,
   listenWorldNotices,
   noticeEffectRefusal,
-  noticeMaterialDegraded,
 } from '../diagnostic/worldNotices.ts';
+import { noticeMaterialDegraded } from '../diagnostic/materialNotices.ts';
 import { createFrameComposer } from './compose.ts';
 
 const camera = G.perspectiveCamera();

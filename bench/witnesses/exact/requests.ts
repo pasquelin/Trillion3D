@@ -99,10 +99,10 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
   // The witness asks for and keeps the cut closed over its groups, as the engine does
   // (`page/cut/groupClosure.ts`): the rule draws a group only once all of it is resident.
   const closed: PageRec[] = [],
-    requests = createAutonomousRequests(roots, () => 0, closed);
+    requests = createAutonomousRequests(roots, () => 0);
   let closedAt = -1;
   const closedCut = () => {
-    if (closedAt !== ctx.frame) requests.of(desired.length ? desired : shown);
+    if (closedAt !== ctx.frame) requests.of(desired.length ? desired : shown, closed);
     closedAt = ctx.frame;
     return closed;
   };

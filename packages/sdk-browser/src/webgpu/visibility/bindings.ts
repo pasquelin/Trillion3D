@@ -1,29 +1,35 @@
-import { visBindEntries } from '../core/bindEntries.ts';
+import { visBindEntries, type VisBindResources } from '../core/bindEntries.ts';
+import { entriesReady } from '../core/bindIdentity.ts';
+import { liveResources } from '../core/liveEntries.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
-/**
- * Voids every visibility group when one of the resources it names changed identity: the page pool
- * after a resize, the page table after a reallocation, the colour atlas after a layer change, the
- * indirect buffers, the selection mask. Read before any group is served; nothing is dropped by name
- * elsewhere.
- */
+export function visibilityEntries(rt: WebgpuPagesRuntime, hiz: boolean, slot = -1) {
+  return visBindEntries(
+    liveResources<VisBindResources>({
+      cache: () => rt.gpu.cache?.buffer,
+      position: () => rt.vis.concatPos,
+      uv: () => rt.vis.concatUv,
+      pageTable: () => rt.vis.pageTable,
+      flags: () => (hiz ? rt.vis.gpuHiz?.flags : rt.vis.zeroFlags),
+      uniform: () => rt.vis.visUniform,
+      uniformOffset: () => (slot + 1) * 256,
+      textures: () => rt.vis.textures,
+      sampler: () => rt.vis.mapsSampler,
+      instances: () => (slot < 0 ? rt.vis.zeroFlags : rt.vis.gpuDraw?.instanceBuffer),
+      slotOffsets: () => (slot < 0 ? rt.vis.zeroFlags : rt.vis.gpuDraw?.slotOffsetsBuffer),
+    }),
+  );
+}
+
+/** The descriptors used to create the groups are also their identity, including atlas tables.
+ *  Slot groups differ from the representative slot 0 by their uniform offset alone. */
 function voidStaleVisibilityGroups(rt: WebgpuPagesRuntime) {
-  const { vis, gpu, run } = rt,
-    { next } = vis.visIdentity;
-  next[0] = vis.visBindGroupLayout;
-  next[1] = gpu.cache?.buffer;
-  next[2] = vis.concatPos;
-  next[3] = vis.concatUv;
-  next[4] = vis.pageTable;
-  next[5] = vis.visUniform;
-  next[6] = vis.zeroFlags;
-  next[7] = vis.gpuHiz?.flags;
-  next[8] = vis.textures?.color.views;
-  next[9] = vis.mapsSampler;
-  next[10] = vis.gpuDraw;
-  next[11] = run.gpuSelection;
-  next[12] = vis.gpuRaster;
-  if (!vis.visIdentity.moved()) return;
+  const { vis } = rt,
+    identity = vis.visIdentity;
+  identity.entries[0] ??= visibilityEntries(rt, false);
+  identity.entries[1] ??= visibilityEntries(rt, true);
+  identity.entries[2] ??= visibilityEntries(rt, false, 0);
+  if (!identity.entriesMoved(vis.visBindGroupLayout)) return;
   vis.visBindGroup = undefined;
   vis.visHizBindGroup = undefined;
   vis.visSlotGroups.fill(undefined);
@@ -34,47 +40,10 @@ function voidStaleVisibilityGroups(rt: WebgpuPagesRuntime) {
 export function ensureWebgpuVisibilityBindings(rt: WebgpuPagesRuntime, device: GPUDevice) {
   voidStaleVisibilityGroups(rt);
   const { vis } = rt,
-    cacheBuffer = rt.gpu.cache?.buffer,
-    hizFlags = vis.gpuHiz?.flags,
-    {
-      visBindGroupLayout: layout,
-      concatPos,
-      concatUv,
-      pageTable,
-      visUniform,
-      zeroFlags,
-      textures,
-      mapsSampler,
-    } = vis;
-  if (
-    layout &&
-    cacheBuffer &&
-    concatPos &&
-    concatUv &&
-    pageTable &&
-    visUniform &&
-    zeroFlags &&
-    textures &&
-    mapsSampler
-  ) {
-    const make = (flags: GPUBuffer) =>
-      device.createBindGroup({
-        layout,
-        entries: visBindEntries({
-          cache: cacheBuffer,
-          position: concatPos,
-          pageTable,
-          flags,
-          uniform: visUniform,
-          uniformOffset: 0,
-          uv: concatUv,
-          textures,
-          sampler: mapsSampler,
-          instances: zeroFlags,
-          slotOffsets: zeroFlags,
-        }),
-      });
-    vis.visBindGroup ??= make(zeroFlags);
-    if (hizFlags) vis.visHizBindGroup ??= make(hizFlags);
-  }
+    layout = vis.visBindGroupLayout,
+    direct = vis.visIdentity.entries[0],
+    hiz = vis.visIdentity.entries[1];
+  if (!layout || !entriesReady(direct)) return;
+  vis.visBindGroup ??= device.createBindGroup({ layout, entries: direct });
+  if (entriesReady(hiz)) vis.visHizBindGroup ??= device.createBindGroup({ layout, entries: hiz });
 }

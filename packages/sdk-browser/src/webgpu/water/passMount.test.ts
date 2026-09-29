@@ -19,8 +19,8 @@ test('the water pass is mounted with the blend pipelines only for a scene that t
   assert.ok(some.water, 'a transmissive item mounts the pass');
   assert.deepEqual(
     water.pipelines,
-    ['fs', 'fs', 'fs', 'fsWater', 'fsWater', 'fsWater', 'composeWater'],
-    'the surface stage at the three cull modes, then the composite',
+    ['fs', 'fs', 'fs', 'fsWater', 'fsWater', 'fsWater', 'composeWater', 'restore_fs'],
+    'the surface stage at the three cull modes, the composite, then the cropped depth restore',
   );
 });
 

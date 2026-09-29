@@ -1,3 +1,4 @@
+import { reflectionPipelines } from '../../reflections/pipelines.ts';
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts';
 import { createDeferredLightingLayout } from './setup.ts';
 import { SUN_FAR_PROXY_BINDING } from '../../gpu/shadow/sunFarShadowWgsl.ts';
@@ -27,6 +28,9 @@ export interface DirectLightResources {
   surfaceCache?: GPUBuffer;
   /** Resident proxy with the far-shadow settings and counters; absent, a zero substitute. */
   proxy?: GPUBuffer;
+  /** True when the narrow tile pass wrote the lists (at most `TILE_LIGHTS` lights): the
+   *  narrow resolve reads them (`contractVariants.ts`, #849). */
+  narrow?: boolean;
 }
 export interface DeferredSources {
   lighting: string;
@@ -38,8 +42,11 @@ export interface DeferredSources {
 /** What composition reads: a colour and its accumulated share, else the lit image's flags, and
  *  the chain's last blend when it left it to the composition (#963). */
 export type ComposedImage = { color: GPUTextureView; share?: GPUTextureView; bloom?: FusedBlend };
-/** What the temporal pass resolves: the colour, and each pixel's as-is share beside it. */
-export type AccumulatedImage = Required<Omit<ComposedImage, 'bloom'>>;
+/** What the temporal pass resolves: the colour, each pixel's as-is share beside it, and the
+ *  display layers of an image whose blends filter (`../../webgpu/blend/displayFilter.ts`). */
+export type AccumulatedImage = Required<Omit<ComposedImage, 'bloom'>> & {
+  filter?: readonly [GPUTextureView, GPUTextureView];
+};
 export interface DeferredBindings {
   uniform: GPUBuffer;
   placeholders: {
@@ -76,6 +83,9 @@ export async function createDeferredProgram(
   const light = await makeFullscreenPipeline(device, lighting, lightingLayout, 'lightSurface', [
     { format: 'rgba16float' },
   ]);
+  const reflection = sources.direct
+    ? await reflectionPipelines(device, sources.lighting, lightingLayout, !!sources.bounce)
+    : undefined;
   const compositions = await createCompositions(device, sources.compose, sources.label);
   /** What the light group names: rebuilt when one of them is replaced (`bindIdentity.ts`). */
   let identity = createWebgpuBindIdentity(),
@@ -89,6 +99,7 @@ export async function createDeferredProgram(
   let composed = new WeakMap<GPUTextureView, WeakMap<GPUTextureView, Composition>>();
   return {
     light,
+    reflection,
     get lightGroup() {
       return lightGroup;
     },

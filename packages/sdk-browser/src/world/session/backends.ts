@@ -5,6 +5,7 @@ import { createSceneProxyReader } from '../../scene/proxyLoad.ts';
 import { createTextureLevelReader } from '../../texture/levelReader.ts';
 import { resolveDiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts';
 import { declareImportedLights, loadImportedLights } from '../../lighting/importedLights.ts';
+import { noticeShadowRefusal } from '../diagnostic/worldNotices.ts';
 import type { BackendContext, BackendFactory, RenderBackend } from '../../backend/types.ts';
 import type { createExplorerPageSources } from './pageSources.ts';
 import type { ExplorerSession } from './session.ts';
@@ -99,12 +100,14 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     maxTextureTransferBytesPerFrame: options.maxTextureTransferBytesPerFrame,
     maxTextureUploadMsPerFrame: options.maxTextureUploadMsPerFrame,
     temporalAntialiasing: options.temporalAntialiasing ?? true,
+    renderScale: options.renderScale,
     effects: options.effects,
     geometryPoolBytes: options.geometryPoolBytes,
     geometryPoolCeilingBytes: options.geometryPoolCeilingBytes,
     texturePoolBytes: options.texturePoolBytes,
     textureCompression: options.textureCompression,
     stageProfile: options.stageProfile === true,
+    feedbackTargetAB: options.feedbackTargetAB === true,
     // The diagnostic variant is checked here, once: outside `trace`, it is refused.
     diagnosticGpuVariant: resolveDiagnosticGpuVariant(
       options.diagnosticGpuVariant,
@@ -127,6 +130,8 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     // come from. Its levels are held beside the pages the streamer reads (`textureLevels`).
     readTextureLevel: createTextureLevelReader(metadata, base, streamer.textureLevels, signal),
     sceneLights,
+    // A world hears its session's refused shadows; a session opened alone says them on its own.
+    shadowsRefused: options.shadowsRefused ?? noticeShadowRefusal({ say: diagnose }),
     importedLightIds,
     frameBudget: inputs.frameBudget,
   };

@@ -1263,6 +1263,25 @@
       "off": "desligado"
     }
   },
+  "page-materials": {
+    "banner": "Arraste para explorar o salão. Liste, altere, misture ou crie um material.",
+    "controls": {
+      "set": "Alterar cor",
+      "switchToBlend": "Mudar para mistura",
+      "createAndAssign": "Criar e atribuir"
+    },
+    "readouts": {
+      "selected material": "Material selecionado",
+      "materials": "Materiais",
+      "sourceMaterials": "Materiais originais",
+      "last action": "Última ação"
+    },
+    "words": {
+      "imported": "{count} importados",
+      "applied": "Aplicado",
+      "ready": "Pronto"
+    }
+  },
   "lights-from-the-scene-file": {
     "banner": "Arraste para olhar em volta. Estas lâmpadas vieram no arquivo do modelo.",
     "controls": {
@@ -1392,6 +1411,7 @@
     "banner": "Arraste para andar em volta. Troque a vista para ver o que o renderizador guarda.",
     "controls": {
       "see": "Ver",
+      "glass": "Vidro",
       "spin": "Girar"
     },
     "choices": {
@@ -1746,7 +1766,8 @@
       "night": "Noite",
       "bounce": "Reflexo",
       "sun": "Sol",
-      "lamp": "Lâmpada"
+      "lamp": "Lâmpada",
+      "spin": "Rodar"
     },
     "words": {
       "credit": "Modelo de poste de W. Sitters, CC BY 3.0 — veja assets/examples/CREDITS.md"

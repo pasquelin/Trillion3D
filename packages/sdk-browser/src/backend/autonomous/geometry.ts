@@ -1,28 +1,20 @@
 import type { Scene } from '../../world/core/scene.ts';
-import {
-  colouredTwin,
-  hostPageBytes,
-  hostPageGeometry,
-  hostPageMesh,
-  releaseHostGeometry,
-  setHostPose,
-} from '../../host/pageObjects.ts';
-import { wearDeclaration } from '../../page/surface.ts';
+import { hostPageBytes, hostPageMesh, releaseHostGeometry } from '../../host/pageObjects.ts';
+import { forgetHostPose, setHostPose } from '../../host/pagePose.ts';
 import { EngineError, type GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
 import type { HostMaterial, HostMaterials } from '../../host/resources.ts';
 import { createWebglPageBatches } from '../../placement/webglPageBatches.ts';
 import { drawnInstanced } from '../../placement/autonomousPlacements.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
-import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
 import { createHeldResidency } from '../../page/cut/held.ts';
+import { createPageStore } from './pageStore.ts';
 
 type GeometryEnvironment = {
   scene: Scene;
   allPages: PageRec[];
   bootstrap: PageRec[];
-  shown: PageRec[];
-  desired: PageRec[];
-  requested: PageRec[];
+  /** The drawn view's cut, which the scene holds, and every view's lists (`views.ts`). */
+  views: { readonly live: { readonly shown: readonly PageRec[] }; lists(): PageRec[][] };
   byUrl: Map<string, PageRec[]>;
   descriptors: Map<string, GeometryPageDescriptor>;
   baseMaterials: Map<PageRec, HostMaterials>;
@@ -32,23 +24,8 @@ type GeometryEnvironment = {
 
 const released = new WeakSet<object>();
 
-/** A decoded position may leave the page's box by the page's own quantization error, no more. */
-function assertWithinBox(data: DecodedGeometryPage, rec: PageRec) {
-  const positions = data.attributes.position,
-    slack = 1e-5 + data.quantizationError;
-  for (let i = 0; i < positions.length; i++) {
-    const axis = i % 3;
-    if (positions[i] < rec.min[axis] - slack || positions[i] > rec.max[axis] + slack)
-      throw new Error('AUTONOMOUS_PAGE_BOUNDS');
-  }
-}
-
-/** Components of a decoded attribute, by name; anything else is a UV pair. */
-const ITEM_SIZE: Record<string, number> = { position: 3, normal: 3, color: 4 };
-const itemSize = (name: string) => ITEM_SIZE[name] ?? 2;
-
 export function createAutonomousGeometry(env: GeometryEnvironment) {
-  const { scene, allPages, shown, byUrl, baseMaterials, colorMaterials } = env;
+  const { scene, allPages, byUrl, baseMaterials, colorMaterials } = env;
   const state = { allocationBytes: 0, submittedTriangles: 0, residentPages: 0 };
   const held = createHeldResidency();
   /** The one writer of a record's residency, its index array: the cut's readiness follows it. */
@@ -64,6 +41,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
   const detach = (rec: PageRec) => {
     if (rec.attached && rec.mesh) {
       scene.remove(rec.mesh);
+      forgetHostPose(rec.mesh);
       rec.attached = false;
       attachees.delete(rec);
     }
@@ -84,7 +62,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
   const batches = createWebglPageBatches(scene),
     rowed: PageRec[] = [];
   const sync = () => {
-    const display = shown;
+    const display = env.views.live.shown;
     affichees.clear();
     rowed.length = 0;
     for (const rec of display)
@@ -130,45 +108,10 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
       release(rec, !!rec.placement && list.some((other) => other.geometry === rec.geometry));
       baseMaterials.delete(rec);
     }
-    for (const list of [allPages, env.bootstrap, shown, env.desired, env.requested])
+    for (const list of [allPages, env.bootstrap, ...env.views.lists()])
       for (let i = list.length - 1; i >= 0; i--) if (removed.has(list[i])) list.splice(i, 1);
   };
-  const storeGeometryPage = (url: string, data: DecodedGeometryPage) => {
-    const recs = byUrl.get(url);
-    if (!recs) return false;
-    const descriptor = env.descriptors.get(url);
-    if (
-      !descriptor ||
-      data.vertexCount !== descriptor.vertexCount ||
-      data.indices.length !== descriptor.indexCount ||
-      data.flags !== descriptor.flags
-    )
-      throw new Error('AUTONOMOUS_PAGE_METADATA_MISMATCH');
-    if (recs[0] && !recs[0].array) state.residentPages++;
-    let rowedGeometry: ReturnType<typeof hostPageGeometry> | undefined;
-    for (const rec of recs) {
-      release(rec);
-      // Records placed by rows share the page: its geometry, its box and the check of it.
-      const shared = !!rec.placement && !!rowedGeometry;
-      if (!shared) assertWithinBox(data, rec);
-      const geometry = shared ? rowedGeometry! : hostPageGeometry(data, itemSize, rec.min, rec.max);
-      if (rec.placement) rowedGeometry = geometry;
-      const base = baseMaterials.get(rec)!;
-      // Lazily: a page without a colour attribute must not make a vertex-coloured twin.
-      const twin = (one: HostMaterial) => colouredTwin(colorMaterials, one);
-      const paint = () => (Array.isArray(base) ? base.map(twin) : twin(base));
-      wearDeclaration(rec, data.attributes.color ? paint() : base);
-      setArray(rec, data.indices);
-      rec.attributes = geometry.attributes;
-      rec.geometry = geometry;
-      // Each geometry uploads its own buffers: counted as `release` gives them back.
-      if (!shared) state.allocationBytes += hostPageBytes(geometry);
-    }
-    return recs.length > 0;
-  };
-  // True when the store now holds the page: the host did not replace it, and a record draws it.
-  const acceptGeometryPage = (url: string, data: DecodedGeometryPage) =>
-    !env.modifiedPages.has(url) && storeGeometryPage(url, data);
+  const store = createPageStore({ ...env, release, setArray, state });
   return {
     state,
     /** The cut's residency: each record's index array, its readiness moved as `setArray` writes. */
@@ -194,7 +137,6 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
       return had;
     },
     removeRecords,
-    storeGeometryPage,
-    acceptGeometryPage,
+    ...store,
   };
 }

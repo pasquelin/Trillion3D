@@ -6,6 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LAMP_SIDE, SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { pcf } from './shadowBias.fixture.ts';
+import { SHADOW_DEPTH_ROUNDING } from './shadowFactorWgsl.ts';
 import { lampAt, lampOver } from './shadowLamp.fixture.ts';
 import { pagedPcf } from './shadowPages.fixture.ts';
 
@@ -47,6 +48,42 @@ test('a filter across a page border reads the same depths as one inside a page',
         [1.9 - i * 0.05, 1.8 - i * 0.07],
       ] as [number, number][])
         assert.equal(pagedPcf(t, reference, placed, atlas), pcf(t, map, reference), `${t}`);
+});
+
+test('a neighbour page of another depth range is not read: the taps keep to the home page (#991)', () => {
+  // Page (1, 0) was drawn in another range, its depths `2d + 4` of its neighbour's: read as no
+  // page (`shadowNeighbour`), so every tap past the border reads the home page's edge texel, at
+  // the home page's one reference.
+  const S = SHADOW_PAGE,
+    home = (px: number, py: number) =>
+      px === 0 && py === 0 ? ([0, 0] as [number, number]) : undefined;
+  const map = (x: number, y: number) => (0.37 * x + 0.61 * y < 125 ? 1 : 5 + 0.01 * x - 0.02 * y);
+  const atlas = (x: number, y: number) => (x >= S ? 2 * map(x, y) + 4 : map(x, y)),
+    edge = (x: number, y: number) => map(Math.min(x, S - 0.5), y);
+  for (const reference of [3, 4.9])
+    for (let i = 0; i < 50; i++) {
+      const t: [number, number] = [S - 2 + i * 0.035, 64.3];
+      assert.equal(pagedPcf(t, reference, home, atlas), pcf(t, edge, reference), `${t}`);
+    }
+});
+
+test('a receiver past the far side of the range its page was drawn in reads as in a wider one', () => {
+  // `sunRangeReference` in float32: a sun's page drawn in `[0, span]`, a receiver `z` along the
+  // light; `SHADOW_PAST_FAR`, the least normal float. The hardware lights where `reference >
+  // stored` (reversed depth, cleared to 0).
+  const f = Math.fround,
+    reference = (z: number, span: number) =>
+      Math.max(f(f(1 - f(f(z) * f(1 / span))) + f(SHADOW_DEPTH_ROUNDING)), 2 ** -126),
+    stored = (z: number, span: number) => f(1 - z / span),
+    lit = (z: number, caster: number | null, span: number) =>
+      reference(z, span) > (caster === null ? 0 : stored(caster, span));
+  // A page kept in `[0, 16]` while the scene grew to `[0, 32]`, and a receiver 20 m along now:
+  // an empty texel lights it, a caster at 10 m shadows it — as the page redrawn in `[0, 32]`.
+  for (const caster of [null, 10])
+    assert.equal(lit(20, caster, 16), lit(20, caster, 32), `caster ${caster}`);
+  assert.equal(lit(20, null, 16), true);
+  // Within the range, the floor changes nothing: every reference there is above it already.
+  for (const z of [0, 3.7, 15.999]) assert.ok(f(1 - z / 16) + SHADOW_DEPTH_ROUNDING > 2 ** -126);
 });
 
 test('a point light’s shadow crosses a face border without a seam', () => {

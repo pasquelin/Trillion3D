@@ -53,7 +53,7 @@ fn divisions(edge: f64, size: f64) -> usize {
 
 /// Three grid cells of triangle, canonical order: duplicate key. Triangle
 /// with two vertices in same cell has no area and disappears.
-fn key_of(t: &[f32], size: f64) -> Option<[[i32; 3]; 3]> {
+pub(super) fn key_of(t: &[f32], size: f64) -> Option<[[i32; 3]; 3]> {
     let cells = [
         cell_of(&t[0..3], size),
         cell_of(&t[3..6], size),
@@ -155,11 +155,22 @@ fn subdivide(t: &[f32], n: usize, out: &mut Vec<f32>) {
 
 /// Reduces proxy to bounded size triangles by `size`, albedo following triangle.
 pub fn simplify(triangles: &mut Vec<f32>, albedo: &mut Vec<u32>, size: f64) {
+    simplify_sources(triangles, albedo, size);
+}
+
+/// Original triangle supplying each subdivided cell; deduplication keeps the first source.
+pub(super) fn simplify_sources(
+    triangles: &mut Vec<f32>,
+    albedo: &mut Vec<u32>,
+    size: f64,
+) -> Vec<usize> {
+    let mut sources = Vec::new();
     let mut out: Vec<f32> = Vec::with_capacity(triangles.len());
     let mut colours: Vec<u32> = Vec::with_capacity(albedo.len());
     for (index, snapped, n) in kept(triangles, size) {
         let before = out.len();
         subdivide(&snapped, n, &mut out);
+        sources.resize(out.len() / PROXY_TRIANGLE_FLOATS, index);
         let colour = albedo.get(index).copied().unwrap_or(0xffff_ffff);
         colours.resize(
             colours.len() + (out.len() - before) / PROXY_TRIANGLE_FLOATS,
@@ -168,4 +179,5 @@ pub fn simplify(triangles: &mut Vec<f32>, albedo: &mut Vec<u32>, size: f64) {
     }
     *triangles = out;
     *albedo = colours;
+    sources
 }

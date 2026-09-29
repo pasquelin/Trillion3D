@@ -68,3 +68,46 @@ test('a kilometre-wide primitive cut at run time sits on the tiled grid, within 
   assert.ok(worst <= half, `${worst} against ${half}`);
   assert.ok(cut.maxPositionError <= half * Math.sqrt(3));
 });
+
+// #846: a compiled primitive cut again in session keeps its own clusters and takes the grids the
+// compiler gives its class (`bits/grid.rs`): blended, the finest its extent and texture span hold;
+// otherwise the tiled grid of the scale that places it, or the eighth of its DAG's finest error.
+test('a recut takes the compiler grids of its class: finest when blended, tile and DAG error otherwise', async () => {
+  const drawn = {
+    positions: Float32Array.of(0, 0, 0, 100, 0, 0, 0, 0.001, 0, 50, 50, 0),
+    normals: new Float32Array(0),
+    uvs: Float32Array.of(0, 0, 0.5, 0, 0, 0.25, 0.1, 0.1),
+    colors: null,
+    indices: Uint32Array.of(0, 1, 2, 1, 3, 2),
+  };
+  const recut = (blended: boolean, finestError = 0, scale = 0) =>
+    cutDrawnTriangles(drawn, false, blended, { ends: Uint32Array.of(3, 6), finestError, scale });
+  const grids = async (cut: ReturnType<typeof recut>) => {
+    const { positionExponent, uvExponent, pages } = await cut;
+    return {
+      positionExponent,
+      uvExponent,
+      pages: pages.map((page) => [...new Uint32Array(page.index)]),
+    };
+  };
+  const clusters = [
+    [0, 1, 2],
+    [1, 3, 2],
+  ];
+  // 100 m in 2^23 steps; the texture span 0.5 in 2^23 steps too, finer than the format's 2^-14.
+  assert.deepEqual(await grids(recut(true)), {
+    positionExponent: 7 - 23,
+    uvExponent: -1 - 23,
+    pages: clusters,
+  });
+  // A metre per unit: tiles of 2^5 m in 2^16 steps; the format's texture grid.
+  assert.deepEqual(await grids(recut(false)), {
+    positionExponent: 5 - 16,
+    uvExponent: -14,
+    pages: clusters,
+  });
+  // A centimetre per unit: the extent's own 2^6 in 2^16 steps, under a tile of 3200 units.
+  assert.equal((await recut(false, 0, 0.01)).positionExponent, 6 - 16);
+  // A DAG whose finest error is 2^-10: an eighth of it.
+  assert.equal((await recut(false, 2 ** -10)).positionExponent, -13);
+});

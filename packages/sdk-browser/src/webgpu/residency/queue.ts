@@ -19,14 +19,14 @@ type QueueOptions = {
   getCache: () => Cache | undefined;
   getFrame: () => number;
   updatePins: () => void;
-  /** The groups the cut closes over: what the GPU cut's admission walks (`requestAdmission.ts`) and
-   *  the CPU cut's ranking is refilled from. */
-  closure: Pick<GroupClosure, 'closeOver' | 'forEachHeld'>;
+  /** The groups the cut closes over: what admission walks for either cut (`requestAdmission.ts`). */
+  closure: Pick<GroupClosure, 'closeOver' | 'closeOverRecords' | 'forEachHeld'>;
   ensureResident: (
     wanted: readonly PageRec[],
     frame: number,
     jobId: number,
     cameraWaiting: () => boolean,
+    landed: () => void,
   ) => Promise<void>;
   markLost: (error: unknown) => void;
   traceEnabled: boolean;
@@ -45,6 +45,20 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
   let scheduled = false,
     running = false,
     job = 0;
+  /** The running job's next camera page (`progress`), one wait shared by every frame until a
+   *  page lands and wakes it, or the job ends (`pending`, its failure included); none is made while
+   *  nobody waits. A page landed while nobody waited (`unheard`) answers the next wait at once, so
+   *  it is drawn without the next one. */
+  let next: Promise<unknown> | undefined,
+    wake: (() => void) | undefined,
+    unheard = false,
+    landings = 0;
+  const landed = () => {
+    landings++;
+    unheard = !wake;
+    wake?.();
+    next = wake = undefined;
+  };
 
   const follow = () => {
     const queuedAt = performance.now(),
@@ -83,7 +97,7 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
         while (scheduled) {
           scheduled = false;
           // The job yields its caster tier to a cut queued meanwhile, and runs again for it.
-          await ensureResident(items, jobFrame, jobId, () => scheduled);
+          await ensureResident(items, jobFrame, jobId, () => scheduled, landed);
         }
       } catch (error) {
         // The withdrawal precedes the report: a host drawing on it finds nothing stale.
@@ -92,6 +106,8 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
         throw error;
       } finally {
         running = false;
+        next = wake = undefined;
+        unheard = false;
         traceDiagnostic('residency-job-end', 'GPU residency job finished', () => ({
           frame: jobFrame,
           jobId,
@@ -119,14 +135,12 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
      * queue empties, and the image sticks to pinned coverage.
      */
     queueCutResidency(limited: boolean) {
-      sets.decideBy(true, options.closure);
-      sets.applyBudget(limited ? 0 : options.room());
+      admitRequests.held(limited ? 0 : options.room());
       follow();
     },
     /** The GPU cut's: it keeps loading at full budget, admission reading its readback's requests,
      *  coarsest first; the rest is drawn by its nearest resident ancestor. */
     queueGpuCutResidency(cut: GpuCut | null) {
-      sets.decideBy(false, options.closure);
       admitRequests(options.room(), cut);
       follow();
     },
@@ -140,6 +154,24 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
     },
     get pending() {
       return pending;
+    },
+    /**
+     * The running job's next camera page made resident, or its end: what the next image can draw
+     * already, a failure included. A loop waiting on it draws while a long job loads, the
+     * view refining page by page, where waiting on `pending` shows the coarse cut until the job's
+     * last page (#836).
+     */
+    progress: () => {
+      if (!running) return pending;
+      if (unheard) {
+        unheard = false;
+        return Promise.resolve();
+      }
+      return (next ??= Promise.race([pending, new Promise<void>((woken) => (wake = woken))]));
+    },
+    /** Camera pages made resident so far, every job counted: the view still arriving. */
+    get landings() {
+      return landings;
     },
     /** True while an upload is in flight or queued: residency can still change. */
     get busy() {

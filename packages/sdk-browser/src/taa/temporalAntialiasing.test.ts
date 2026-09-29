@@ -36,21 +36,22 @@ test('the checkpoint keeps the frame fields the replay restores, sampled rank in
   temporal.dispose();
 });
 
-// Each history carries its colour and, beside it, the as-is share composition reads (#365): the
-// pass writes both, and the bytes it declares count both.
+// Each history carries its colour and, beside it, the as-is share composition reads (#365) and the
+// placement tags (#833): the pass writes both targets, and the bytes it declares count both.
 test('each history is a colour and its as-is share, written together and counted', async () => {
   const { device, textures, renderPipelines } = fakeDevice();
   const temporal = await createTemporalAntialiasing(device, []);
   assert.deepEqual(
     [...renderPipelines.at(-1)!.fragment!.targets].map((target) => target!.format),
-    ['rgba16float', 'r8unorm'],
+    ['rgba16float', 'rg8unorm'],
   );
   temporal.resize(8, 4);
+  // First the 1×1 zero a frame without reactive value reads, then the two histories.
   assert.deepEqual(
     textures.map(({ format }) => format),
-    ['rgba16float', 'r8unorm', 'rgba16float', 'r8unorm'],
+    ['rg8unorm', 'rgba16float', 'rg8unorm', 'rgba16float', 'rg8unorm'],
   );
-  assert.equal(temporal.historyBytes, 8 * 4 * (2 * 8 + 2 * 1));
+  assert.equal(temporal.historyBytes, 8 * 4 * (2 * 8 + 2 * 2));
   temporal.dispose();
 });
 
@@ -60,7 +61,7 @@ test('a frame with no as-is pixel resolves flagless, and switching compiles no p
   const { device, renderPipelines } = fakeDevice();
   const temporal = await createTemporalAntialiasing(device, []);
   const modules = renderPipelines.map((pipeline) => pipeline.fragment!.module.label);
-  assert.deepEqual(modules, ['TAA_RESOLVE', 'TAA_RESOLVE_FLAGLESS']);
+  assert.deepEqual(modules, ['TAA_RESOLVE', 'TAA_RESOLVE_FLAGLESS', 'TAA_RESOLVE_BLENDED']);
   temporal.resize(8, 4);
   const drawn: Array<{ module?: string; bindings: number[]; layout: number[] }> = [];
   const pass = {
@@ -81,7 +82,8 @@ test('a frame with no as-is pixel resolves flagless, and switching compiles no p
   const inputs = { current: view(), depth: view(), ids: view(), pages: buffer, motion: buffer };
   temporal.encode(encoder, inputs);
   temporal.encode(encoder, { ...inputs, flags: view() });
-  assert.equal(renderPipelines.length, 2, 'no pipeline compiled in a frame');
+  temporal.encode(encoder, { ...inputs, share: view() });
+  assert.equal(renderPipelines.length, 3, 'no pipeline compiled in a frame');
   const share = [TAA_BINDINGS.flags, TAA_BINDINGS.shareHistory];
   assert.equal(drawn[0].module, 'TAA_RESOLVE_FLAGLESS');
   for (const binding of share) {
@@ -90,5 +92,7 @@ test('a frame with no as-is pixel resolves flagless, and switching compiles no p
   }
   assert.equal(drawn[1].module, 'TAA_RESOLVE');
   assert.ok(share.every((binding) => drawn[1].bindings.includes(binding)));
+  assert.equal(drawn[2].module, 'TAA_RESOLVE_BLENDED');
+  assert.ok(share.every((binding) => drawn[2].bindings.includes(binding)));
   temporal.dispose();
 });

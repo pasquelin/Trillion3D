@@ -7,13 +7,17 @@ import { createFrameGateCore } from '../../frame/gateCore.ts';
 import { HOLD_SIGNATURE_VALUES } from './signature.ts';
 import { CPU_STEP, CPU_STEP_NAMES } from '../pages/render/cpuStepTable.ts';
 import { holdWebgpuFrame } from './hold.ts';
+import { createScaleControl } from '../../frame/scaleControl.ts';
 import { metricsOf } from '../pages/io/metrics.ts';
+import { createShadowWork } from '../shadow/work.ts';
+import { STALE_REASONS } from '../../../../sdk-core/src/scene/light-shadow/counts.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /** An engine whose every `frameSettled` condition is true and whose last complete frame drew a
  *  lot: that is what hold must not republish. */
 function tenue() {
+  const staledBy = new Int32Array(STALE_REASONS.length);
   const gate = createFrameGateCore(HOLD_SIGNATURE_VALUES);
   gate.hold.keep(gate.revisions);
   gate.hold.keep(gate.revisions);
@@ -58,12 +62,16 @@ function tenue() {
   };
   const rt = {
     run,
+    views: { active: {} },
     timing,
     context: {},
+    scale: createScaleControl(undefined),
     gpu: {
       presenter: { present: () => {} },
-      colorTexture: {},
+      displayTexture: {},
       targetSize: [4, 4],
+      allocatedSize: [4, 4],
+      displaySize: [4, 4],
       cache: undefined,
       vertexBytes: 0,
       positionBuffers: new Map(),
@@ -90,10 +98,12 @@ function tenue() {
     },
     lights: {
       plan: {
-        counts: { pendingPages: 0, waitedMs: 0, cachedPages: 0, poolPages: 0 },
+        counts: { pendingPages: 0, waitedMs: 0, cachedPages: 0, poolPages: 0, staledBy },
         pool: { refetched: 0 },
         requests: { counts: { requested: 0 } },
       },
+      shadowWork: createShadowWork(),
+      memory: { peakBytes: 0, bias: 0, events: [] },
     },
     bounce: { probes: undefined },
     blendState: { visibleBlend: [] },
@@ -108,11 +118,9 @@ test('a held frame counts only its present, not the last full render', () => {
   assert.equal(run.frameHeld, true);
   assert.equal(run.gpuDrawCalls, 1, 'the present is the only draw call');
   assert.equal(run.blendDrawCalls, 0);
-  assert.equal(run.submittedTriangles, 0, 'no triangle was submitted');
-  assert.equal(run.blendSubmittedTriangles, 0);
+  assert.deepEqual([run.submittedTriangles, run.blendSubmittedTriangles], [0, 0], 'no triangle');
   assert.equal(run.cpuSelectMs, null, 'no CPU cut ran');
-  assert.equal(timing.lastGpuPassMs, null, 'no pass was timed');
-  assert.equal(timing.lastGpuFrameMs, null);
+  assert.deepEqual([timing.lastGpuPassMs, timing.lastGpuFrameMs], [null, null], 'no pass timed');
   assert.equal(timing.lastGpuHostGapMs, null);
 });
 
@@ -140,9 +148,8 @@ test('metrics of the redisplayed cut do not move', () => {
   const metrics = metricsOf(rt);
   assert.equal(metrics.frameHeld, true);
   assert.equal(metrics.clusters, 800, 'the redisplayed cut is the same');
-  assert.equal(metrics.selectedTriangles, 123456);
-  assert.equal(metrics.frustumRejected, 29987);
-  assert.equal(metrics.lodLevel, 2);
+  const { selectedTriangles, frustumRejected, lodLevel } = metrics;
+  assert.deepEqual([selectedTriangles, frustumRejected, lodLevel], [123456, 29987, 2]);
   assert.equal(metrics.drawCalls, 1);
   assert.equal(metrics.submittedTriangles, 0);
   assert.equal(run.frame, 6, 'a frame was produced');
@@ -171,7 +178,7 @@ test('the shadow counters of a frame are published under their public names', ()
   lights.plan.counts.pendingPages = 6;
   lights.shadowPages = 6;
   lights.lightRuns = 2;
-  lights.cull = { counts: { counts: () => ({ frame: 40, regions: 6, kept: 77 }) } };
+  lights.cull = { counts: { counts: () => ({ frame: 40, regions: 6, kept: 77, moving: 0 }) } };
   assert.deepEqual([metricsOf(rt).shadowPoolBytes, metricsOf(rt).shadowPoolLayers], [null, null]);
   (lights.plan as unknown as { pool: object }).pool = { refetched: 0, layers: 2 };
   lights.shadows = { texture: {}, allocationBytes: 700 };

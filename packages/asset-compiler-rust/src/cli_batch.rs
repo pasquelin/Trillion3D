@@ -56,7 +56,10 @@ pub(super) fn run_batch(spec_path: &str, cancellation: Arc<Cancellation>) -> Res
     let mut outcomes = outcomes.into_inner().unwrap();
     outcomes.sort_by(|a, b| a["job"].as_str().cmp(&b["job"].as_str()));
     let ready = outcomes.iter().filter(|o| o["status"] == "ready").count();
-    let cancelled = outcomes.iter().filter(|o| o["code"] == "CANCELLED").count();
+    let cancelled = outcomes
+        .iter()
+        .filter(|o| o["code"] == trillion3d_compiler::CANCELLED)
+        .count();
     let failed = outcomes.len() - ready - cancelled;
     emit(
         json!({"event":"done","completed":ready,"failed":failed,"cancelled":cancelled,"ms":elapsed_ms(started)}),

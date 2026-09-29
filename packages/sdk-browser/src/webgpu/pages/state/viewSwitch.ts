@@ -1,26 +1,14 @@
+import { tradeCamera, tradeView as trade } from '../../../frame/viewTrade.ts';
 import { releaseTargets } from '../prepare/targets.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { VIEW_GPU_KEYS, VIEW_RUN_KEYS, VIEW_VIS_KEYS, type WebgpuView } from './view.ts';
 
-/** Moves `keys` of the live group into `from`'s record, then `to`'s into the live group. */
-function trade<T, K extends keyof T>(
-  live: T,
-  from: Pick<T, K>,
-  to: Pick<T, K>,
-  keys: readonly K[],
-) {
-  for (const key of keys) {
-    from[key] = live[key];
-    live[key] = to[key];
-  }
-}
-
 /**
  * The one place a view is switched: every reader goes through the runtime groups, and they hold
- * `view`'s state once this returns. References are traded, nothing is allocated. The gate learns
- * the view was replaced (no view holds on another's image), the held host lists age with the cut
- * they described. The shared Hi-Z pyramid follows at the view's next frame, under the device's
- * out-of-memory check (`../prepare/targetGrant.ts`).
+ * `view`'s state once this returns. References are traded, nothing is allocated and the device is
+ * asked nothing. Each view keeps its own held-frame witness and Hi-Z pyramid, so drawing one never
+ * breaks another's hold; the host lists the last image published are read anew, since they
+ * described another view's cut.
  */
 export function useWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
   const { views, run, gpu, vis, setup } = rt,
@@ -29,22 +17,44 @@ export function useWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
   trade(run, from.run, view.run, VIEW_RUN_KEYS);
   trade(gpu, from.gpu, view.gpu, VIEW_GPU_KEYS);
   trade(vis, from.vis, view.vis, VIEW_VIS_KEYS);
-  from.cam = run.gate.cam;
-  run.gate.cam = view.cam;
   // The arrays are traded, never copied: the host's, which its resizes write, stays the main
   // view's, and a resize during a capture is not undone when the main view comes back.
   from.viewport = setup.viewport;
   setup.viewport = view.viewport;
   views.active = view;
-  run.gate.viewReplaced();
-  run.cutEpoch++;
+  tradeCamera(run.gate, from, view);
+  from.hold = run.gate.useViewHold(view.hold);
+  // Hi-Z dropped while `view` was aside: the pyramid it kept goes too.
+  from.hiz = vis.gpuHiz?.swap(view.hiz);
+  if (!vis.gpuHiz) view.hiz?.destroy();
+  view.hiz = undefined;
+  run.pendingHeld.cut = run.urlsHeld.cut = run.ranksHeld.cut = -1;
 }
 
-/** Releases the targets of `view`, which is not the main one, and takes its cut out of what the
- *  residency holds; the main view is drawn again. */
+/** Runs `work` with `view` drawn — a late answer of the device lands on the view that asked for
+ *  it — then draws again the view that was. */
+export function onView<T>(rt: WebgpuPagesRuntime, view: WebgpuView, work: () => T) {
+  const back = rt.views.active;
+  useWebgpuView(rt, view);
+  try {
+    return work();
+  } finally {
+    useWebgpuView(rt, back);
+  }
+}
+
+/** Releases the targets of `view`, which is not the main one, its own pyramid, history and effect
+ *  chain, and takes its cut out of what the residency holds; the view drawn before is drawn
+ *  again — the main one when it was `view` —, so a capture under way keeps its own. */
 export function releaseWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
+  const back = rt.views.active === view ? rt.views.main : rt.views.active;
   useWebgpuView(rt, view);
   releaseTargets(rt);
-  useWebgpuView(rt, rt.views.main);
+  useWebgpuView(rt, back);
+  view.hiz?.destroy();
+  view.hiz = undefined;
+  view.gpu.temporal?.dispose();
+  view.gpu.effects?.dispose();
+  view.gpu.temporal = view.gpu.effects = undefined;
   rt.services.releaseView(view);
 }

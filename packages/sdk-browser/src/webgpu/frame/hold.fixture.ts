@@ -1,4 +1,5 @@
 import type { GuideSet } from '../../guides/guideSet.ts';
+import { createScaleControl } from '../../frame/scaleControl.ts';
 import { createFrameGateCore } from '../../frame/gateCore.ts';
 import { HOLD_SIGNATURE_VALUES } from './signature.ts';
 import { createCpuStepProfile } from '../../stage/cpuProfile.ts';
@@ -12,7 +13,7 @@ import type { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts
 /**
  * An `rt` reduced to the strict necessary read by `frameSettled`/`holdWebgpuFrame`/`keepWebgpuFrame`:
  * every `frameSettled` condition is true there by construction. `gpu.presenter` and
- * `gpu.colorTexture` stay absent so hold encodes no present command.
+ * `gpu.displayTexture` stay absent so hold encodes no present command.
  */
 export function settledRt() {
   const run = {
@@ -54,8 +55,11 @@ export function settledRt() {
     packedCount: 1,
     rowCount: 1,
   };
+  // The main view alone, drawn.
+  const main = {};
   const rt = {
     run,
+    views: { main, active: main, persistent: [] },
     layout: { rows },
     vis: { visEnabled: true, gpuDraw: true, textureJobs: [] as unknown[], gpuHiz: undefined },
     lights: {
@@ -72,13 +76,13 @@ export function settledRt() {
     capture: { capturing: false, capturePending: false },
     services: {
       bootstrapState: { ready: true },
-      residency: { busy: false },
+      residency: { busy: false, progress: async () => {} },
       // Count of cut pages still waiting for their bytes, held by the difference.
       cutPending: { count: 0 },
     },
     timing: {
       frameEncoder: undefined as unknown,
-      partitionCounts: { occulteurs: 0, testees: 0, historiqueOcculteurs: 0 },
+      partitionCounts: { occluders: 0, tested: 0, previousOccluders: 0 },
       // `recordHeldFrameWork` writes the row of a held frame in the real profile, as in production: a
       // hand-built object would not have the exact width of `CPU_STEP`.
       cpuProfile: createCpuStepProfile(CPU_STEP_NAMES),
@@ -90,9 +94,13 @@ export function settledRt() {
       lastSubmitMs: null as number | null,
     },
     texturePump: { inFlight: false },
+    scale: createScaleControl(undefined),
     gpu: {
       presenter: undefined as unknown,
-      colorTexture: undefined as unknown,
+      displayTexture: undefined as unknown,
+      displaySize: [4, 4] as [number, number],
+      targetSize: [4, 4] as [number, number],
+      allocatedSize: [4, 4] as [number, number],
       deferred: undefined as Awaited<ReturnType<typeof createDeferredLighting>> | undefined,
       effects: undefined as WebgpuEffects | undefined,
       effectsRevision: 0,
