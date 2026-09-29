@@ -13,6 +13,7 @@ import {
   MEASURE_WIDTH,
 } from '../../../../../../tests/browser/support/sceneProvenance.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { createScaleControl } from '../state/scaleControl.ts';
 
 /** Both sizes of a frame drawn at the display's. */
 const native = (width: number, height: number) => ({
@@ -20,6 +21,7 @@ const native = (width: number, height: number) => ({
   height,
   renderWidth: width,
   renderHeight: height,
+  apart: false,
 });
 
 /** An engine reduced to its targets, with a dummy temporal pass that notes its resizes. */
@@ -102,12 +104,14 @@ test('targets that fit ask nothing of the device: the steady frame is free', () 
       colorTexture: {},
       feedbackTexture: {},
       targetSize: [32, 32],
+      allocatedSize: [32, 32],
       displaySize: [32, 32],
       surfaces: {},
       reflection: { active: false },
       targetGrant: undefined,
     },
     vis: {},
+    scale: createScaleControl(undefined),
   } as unknown as WebgpuPagesRuntime;
   // A bare device: any creation or error scope would throw.
   assert.equal(requestFrameTargets(rt, {} as GPUDevice), undefined);
@@ -116,17 +120,18 @@ test('targets that fit ask nothing of the device: the steady frame is free', () 
 // #816: every pass up to the resolve draws at the render size; the display colour is apart.
 test('a frame drawn below the display costs its render targets and one display colour', () => {
   const { rt } = runtime();
-  const scaled = { width: 64, height: 32, renderWidth: 32, renderHeight: 16 };
+  const scaled = { width: 64, height: 32, renderWidth: 32, renderHeight: 16, apart: true };
   assert.equal(
     frameTargetAllocation(rt, scaled),
     frameTargetAllocation(rt, native(32, 16)) + 64 * 32 * 4,
   );
   Object.assign(rt.gpu, {
     colorTexture: {},
+    displayTexture: {},
     surfaces: {},
     feedbackTexture: {},
     reflection: { active: false },
-    targetSize: [32, 16],
+    allocatedSize: [32, 16],
     displaySize: [64, 32],
   });
   Object.assign(rt, { feedbackAB: undefined, vis: {} });
