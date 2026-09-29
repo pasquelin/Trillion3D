@@ -149,10 +149,10 @@ test('a sampled cull count is named by the frame it describes, only once it has 
   assert.equal(counts.counts(), undefined, 'the copy of frame 40 is in flight: still nothing');
   mapped();
   await new Promise((resolve) => setTimeout(resolve, 0));
-  assert.deepEqual(counts.counts(), { frame: 40, regions: 1, kept: 22, moving: 0 });
+  assert.deepEqual(counts.counts(), { frame: 40, regions: 1, kept: 22, moving: 0, tested: 0 });
   // Frame 55 is due: its copy is encoded, but until it returns the count stays frame 40's.
   counts.sample(encoder, indirect, 3, 55);
-  assert.deepEqual(counts.counts(), { frame: 40, regions: 1, kept: 22, moving: 0 });
+  assert.deepEqual(counts.counts(), { frame: 40, regions: 1, kept: 22, moving: 0, tested: 0 });
   counts.dispose();
 });
 
@@ -181,6 +181,6 @@ test('a sampled cull count covers every batch of its frame, its moving regions a
   ]);
   mapped();
   await new Promise((resolve) => setTimeout(resolve, 0));
-  assert.deepEqual(counts.counts(), { frame: 40, regions: 2, kept: 29, moving: 7 });
+  assert.deepEqual(counts.counts(), { frame: 40, regions: 2, kept: 29, moving: 7, tested: 0 });
   counts.dispose();
 });

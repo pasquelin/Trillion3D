@@ -80,6 +80,7 @@ export function createExplorerMetrics(
     shadowMemoryEvents: null,
     shadowPagesRefetched: null,
     shadowCastersKept: null,
+    shadowCastersRejected: null,
     tileLightPoolReserved: null,
     tileLightPoolCapacity: null,
     tileLightPoolOverflowed: null,
