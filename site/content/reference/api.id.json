@@ -2542,7 +2542,7 @@
   "PageSource": {
     "summary": "Tempat halaman sebuah model dibaca, menurut kunci.",
     "members": {
-      "read": "Membaca byte satu halaman."
+      "read": "Membaca byte satu halaman; `priority`, bila diberikan, adalah milik streamer (terkecil lebih dulu). Pembacaan yang lebih mendesak atas halaman yang sedang dibaca diminta lagi untuk menaikkannya: sumber yang menerima `priority` menggabungkannya ke pembacaan yang sedang berjalan, bukan mengirim halaman dua kali."
     }
   },
   "PageStreamer": {
@@ -4295,7 +4295,7 @@
   "WorldPageSource": {
     "summary": "Tempat halaman dibaca, dan alamat yang menjadi acuannya.",
     "members": {
-      "read": "Membaca byte satu halaman.",
+      "read": "Membaca byte satu halaman; `priority`, bila diberikan, adalah milik streamer (terkecil lebih dulu). Pembacaan yang lebih mendesak atas halaman yang sedang dibaca diminta lagi untuk menaikkannya: sumber yang menerima `priority` menggabungkannya ke pembacaan yang sedang berjalan, bukan mengirim halaman dua kali.",
       "baseUrl": "Alamat yang menjadi acuan setiap halaman."
     }
   },
