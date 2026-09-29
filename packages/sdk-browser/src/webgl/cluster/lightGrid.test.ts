@@ -1,35 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createTestContext } from '../core/testContext.fixture.ts';
-import { WebglClusterRenderer } from './renderer.ts';
-import { readDegraded } from './validation.ts';
-import { createHostDrawCamera } from '../../camera/world.ts';
-import * as G from '../../host/graph/graph.fixture.ts';
-import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
-import { lastUniform, sent, triangle, viewFrom } from './lightGrid.fixture.ts';
+import {
+  evaluated,
+  lastUniform,
+  lightFrames,
+  pointLamp,
+  sent,
+  triangle,
+} from './lightGrid.fixture.ts';
 
 // #835: the WebGL2 light grid is listed again only when a lamp's reach changes, and no draw of a
 // frame — its reflection capture's included — does any light work of its own.
 
 /** 40 lamps in a row, a mirror between two triangles, drawn by one renderer. */
 function mirrorFrame() {
-  const context = createTestContext({ answers: { getExtension: () => ({}) } }),
-    renderer = new WebglClusterRenderer(
-      context.gl,
-      readDegraded(() => {}),
-    );
-  const lights = Array.from({ length: 40 }, (_, i) => {
-    const lamp = new G.Light('point', { position: [i * 0.5 - 10, 1, 0], distance: 2 });
-    lamp.updateMatrixWorld(true);
-    return lamp as unknown as Light;
-  });
-  const meshes = [triangle(0, 0), triangle(-6), triangle(6)];
-  const camera = createHostDrawCamera();
-  const frame = (x: number) => {
-    camera.view.set(viewFrom(x));
-    renderer.draw([], { lights }, camera, true, true, meshes);
-  };
-  return { context, renderer, lights, frame };
+  const lights = Array.from({ length: 40 }, (_, i) => pointLamp([i * 0.5 - 10, 1, 0], 2));
+  return { lights, ...lightFrames(lights, [triangle(0, true), triangle(-6), triangle(6)]) };
 }
 
 test('a frame that moves only the camera lists no lamp and sends no list row', () => {
@@ -59,14 +45,36 @@ test('a reflection capture and the frame after it do no per-draw light work', ()
   frame(0);
   assert.equal(renderer.backdropPasses, 1, 'the mirror captures the scene');
   assert.equal(context.of('drawElements').length, 6, 'three draws in the capture, three after');
-  const lightUniforms = context
-    .of('uniform2i')
-    .concat(context.of('uniform3i'), context.of('uniformMatrix4fv'))
+  const lightUniforms = ['uniform1i', 'uniform2i', 'uniform3i', 'uniformMatrix4fv']
+    .flatMap((call) => context.of(call))
     .filter((args) => {
       const name = (args[0] as { uniform: string } | null)?.uniform;
-      return name === 'lightSpan' || name === 'lightGrid' || name === 'gridCells';
+      return (
+        name === 'lightSpan' ||
+        name === 'lightGrid' ||
+        name === 'gridCells' ||
+        name === 'viewToGrid'
+      );
     });
-  assert.equal(lightUniforms.length, 2, 'one grid for the frame: no light uniform per draw');
+  assert.equal(lightUniforms.length, 3, 'one grid for the frame: no light uniform per draw');
   assert.equal(sent(context, 'RED_INTEGER').length, 1, 'the lists sent once, before any draw');
+  renderer.dispose();
+});
+
+test('the grid scales with its lamps, not with the space between them, and skips a lamp placed nowhere', () => {
+  // Two small lamps a kilometre apart, one on each axis, and one whose centre is not a number.
+  const lights = [
+    pointLamp([0, 0, 0], 0.1),
+    pointLamp([1000, 1000, 1000], 0.1),
+    pointLamp([NaN, 0, 0], 0.1),
+  ];
+  const { context, renderer, frame } = lightFrames(lights, [triangle(0)]);
+  frame();
+  const cells = lastUniform(context, 'uniform3i', 'gridCells') as number[];
+  assert.ok(cells[0] * cells[1] * cells[2] <= 2 * 512, `${cells.join('×')} cells for two lamps`);
+  assert.ok(Math.max(...cells) <= 4096, 'an axis stays where single precision finds the cell');
+  assert.deepEqual(evaluated(context, [0, 0, 0]).slots, [0], 'the near lamp reaches its cell');
+  assert.deepEqual(evaluated(context, [1000, 1000, 1000]).slots, [1], 'the far one its own');
+  assert.deepEqual(evaluated(context, [0, 500, 0]).slots, [], 'the lamp with no centre, nowhere');
   renderer.dispose();
 });

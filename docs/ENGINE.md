@@ -287,8 +287,11 @@ program too (a 64-light array, each listed light read with no branch), compiled 
 wide twin compiled beside it. A shadow caster past the 64 shadow slices lights without a shadow
 and is counted
 (`shadowCastersUnsliced`, #818). WebGL2 holds every light in a float texture grown with the
-count, and each draw evaluates only the lights whose range reaches its world box, listed per draw
-on the CPU in one integer texture (`webgl/cluster/lightLists.ts`, #835).
+count. A fragment evaluates only the lights whose range reaches its cell of a world grid laid over
+the lamps (a cell is their median range, at most 512 cells a lamp), plus the lights that reach
+every fragment. The grid is listed on the CPU into one integer texture only when a lamp's position
+or range changes; a frame that moves the camera alone sends only the view-to-grid matrix
+(`webgl/cluster/lightLists.ts`, #835).
 
 **A moving image shades a drawn subset of each pixel's lights.** A moving image weighs every light
 of its tile without its shadow (the cheap part) and shades in full, shadow included, four of them. A
