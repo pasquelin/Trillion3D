@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { dansPageWebgpu, empaquetePage as bundlePage } from '../probes/pageWebgpu.ts';
+import { dansPageWebgpu, bundlePage as bundlePage } from '../probes/pageWebgpu.ts';
 import type { blendMirror } from '../support/blendMirrorPage.ts';
 
 declare global {

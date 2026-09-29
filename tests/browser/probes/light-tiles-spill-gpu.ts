@@ -18,7 +18,7 @@ import {
 } from '../../../packages/sdk-browser/src/lighting/tiles/shader.ts';
 import { compactTile, tileLayout } from '../../../bench/oracles/browser/gpuLightTilesRankOracle.ts';
 import { seeded } from '../../../site/examples/kit/random.ts';
-import { dansPageWebgpu, empaquetePage } from './pageWebgpu.ts';
+import { dansPageWebgpu, bundlePage } from './pageWebgpu.ts';
 import { spillHarness, type SpillCase } from './lightTilesSpillHarness.ts';
 import type { run } from './lightTilesSpillPage.ts';
 
@@ -77,7 +77,7 @@ const CASES = [
 ];
 
 test('the tile compaction WGSL writes the oracle’s lists, pool and overflow, on the GPU', async () => {
-  const script = await empaquetePage(resolve(here, 'lightTilesSpillPage.ts'), 'lightTilesSpill');
+  const script = await bundlePage(resolve(here, 'lightTilesSpillPage.ts'), 'lightTilesSpill');
   const pageErrors: string[] = [];
   const result = await dansPageWebgpu(
     (cases: SpillCase[]) => globalThis.lightTilesSpill.run(cases),
