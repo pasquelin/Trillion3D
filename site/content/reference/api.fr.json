@@ -1312,7 +1312,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "Identité du cache pour les erreurs de DAG par cluster : l’erreur QEM absolue du groupe sur les positions, les normales et les coordonnées de texture, bornée à l’étendue du groupe ; un cache v1 est refusé."
+    "summary": "Identité du cache pour les erreurs de DAG par cluster : l’erreur QEM absolue du groupe sur les positions, les normales et les coordonnées de texture, bornée à l’étendue du groupe, jamais inférieure à la distance de Hausdorff échantillonnée entre les enfants d’un groupe et ses sorties (#929) ; les caches v1 et v2 sont refusés."
   },
   "DagReport": {
     "summary": "Rapport du DAG d’une primitive ; seuls ses avertissements sont utilisés par le moteur.",
@@ -5564,7 +5564,8 @@
       "stamp": "Ce que l’ombrage, les lumières et la vue confient à l’image suivante : un rapport qui porte ce tampon et ne nomme rien de neuf prouve que l’image ne lit que des pages dessinées.",
       "settled": "Vrai dès qu’un rapport prouve que l’état courant ne demande plus rien : l’image peut être tenue.",
       "receive": "Un rapport de demandes est revenu ; le prochain plan le lit. Un plus récent remplace un rapport non lu.",
-      "commit": "Les pages `[from, to)` de la liste de l’image ont été encodées, la page `from + i` dans `modes[i]` : leurs dessins arrivent avant que quiconque les lise. Le dernier lot ferme la liste."
+      "commit": "Les pages `[from, to)` de la liste de l’image ont été encodées, la page `from + i` dans `modes[i]` : leurs dessins arrivent avant que quiconque les lise. Le dernier lot ferme la liste.",
+      "resize": "Le pool à une autre taille, ses pages gardées, ses tableaux refaits : renvoie où chaque page est allée."
     }
   },
   "ShadowStaleReason": {
