@@ -38,14 +38,11 @@ export function pageCopies(
       else own++;
     owned.set(url, own);
     sceneOwned += own;
-    for (const [urls, held] of [
-      [rootUrls, root],
-      [childUrls, floor],
-    ] as const)
-      if (urls.has(url)) {
-        held.owned += own;
-        if (shared.has(url)) held.shared++;
-      }
+    const held = rootUrls.has(url) ? root : childUrls.has(url) ? floor : undefined;
+    if (held) {
+      held.owned += own;
+      if (shared.has(url)) held.shared++;
+    }
   }
   const each = () => 1 + instanceCount();
   const copiesOf = (held: typeof root) => held.owned * each() + held.shared;
