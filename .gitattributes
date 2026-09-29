@@ -12,7 +12,7 @@ scripts/english-baseline.json linguist-generated
 site/content/i18n/translation-sources.json linguist-generated
 # The translations of the generated API reference
 site/content/reference/api.*.json linguist-generated
-# The campaign folder bench/runner/publishReport.ts copies whole; the report modules beside it stay counted
+# The campaign folder bench/runner/publishReport.ts copies whole; the report modules beside it stay unfolded
 site/reports/*/** linguist-generated
 # The format goldens: the compiler's output, rewritten by a `regenerate_*` test or on a format bump
 tests/fixtures/formats/**/expected.json linguist-generated
