@@ -109,6 +109,15 @@ pub(crate) fn unit_where(v: [f64; 3], usable: impl Fn(f64) -> bool) -> Option<[f
     usable(length).then(|| scale(v, 1.0 / length))
 }
 
+/// The range window of a punctual light at `distance` from its centre: one there, zero at `range`
+/// and beyond. The engine's law (`rangeWindow` of `lightWgsl.ts` and `webgl/cluster/shaders.ts`),
+/// which the oracle traces and a light's reach is bounded against (`compiler_lights/reach.rs`).
+#[cfg(any(test, feature = "oracle"))]
+pub(crate) fn range_window(distance: f64, range: f64) -> f64 {
+    let ratio = distance / range;
+    (1.0 - ratio.powi(4)).clamp(0.0, 1.0).powi(2)
+}
+
 /// Multiplicative hash, word by word: SipHash dominated mesh conversion (the corner values) and the
 /// Hausdorff grid's cell lookups (#977). Neither iterates its map, so no output reads the hash.
 #[derive(Default, Clone, Copy)]
@@ -144,6 +153,13 @@ pub(crate) fn splitmix_unit(x: u64) -> f64 {
     let x = (x ^ (x >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
     let x = (x ^ (x >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
     ((x ^ (x >> 31)) >> 11) as f64 / (1u64 << 53) as f64
+}
+
+/// A seed mixed into [0, 1) after one golden-ratio step: the same seed, the same draw, whatever
+/// the thread count.
+#[cfg(any(test, feature = "oracle"))]
+pub(crate) fn hash_unit(seed: u64) -> f64 {
+    splitmix_unit(seed.wrapping_mul(GOLDEN))
 }
 
 /// Elapsed milliseconds from instant: compiler publishes durations in
