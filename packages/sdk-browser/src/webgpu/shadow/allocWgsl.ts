@@ -186,12 +186,9 @@ var<workgroup> candidateCount:u32;
  followPages(lane);storageBarrier();
  touchRequests(lane);storageBarrier();
  if(lane==0u){needCount=countRead(COUNT_NEEDS);}
- let needs=workgroupUniformLoad(&needCount);
- // Nothing to map: no candidate is listed, the pool walked no further.
- if(needs==0u){return;}
+ let needs=workgroupUniformLoad(&needCount);if(needs==0u){return;}
  listCandidates(lane);storageBarrier();
- if(lane==0u){candidateCount=countRead(COUNT_CANDIDATES);}
- let candidates=workgroupUniformLoad(&candidateCount);
+ if(lane==0u){candidateCount=countRead(COUNT_CANDIDATES);}let candidates=workgroupUniformLoad(&candidateCount);
  let needSpan=spanOf(needs);let candidateSpan=spanOf(candidates);
  padKeys(lane,0u,needs,needSpan);padKeys(lane,params.candidateBase,candidates,candidateSpan);storageBarrier();
  for(var k=2u;k<=needSpan;k=k<<1u){for(var j=k>>1u;j>0u;j=j>>1u){sortStep(lane,0u,needSpan,k,j);storageBarrier();}}
