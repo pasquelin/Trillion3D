@@ -11,7 +11,9 @@ import type { HostDrawCamera } from '../../camera/world.ts';
 import type { WebglClusterGeometry } from './geometry.ts';
 import type { WebglClusterState } from './state.ts';
 import type { ClusterMaterialPass, Material } from './materialBinding.ts';
-import { ModelUniforms } from './uniforms.ts';
+import { setMatrix3 } from './uniforms.ts';
+import { normalMatrix3 } from '../../../../sdk-core/src/index.ts';
+import { multiplyMatrix4Typed } from '../../../../sdk-core/src/math/matrix/matrix4Typed.ts';
 import { WebglClusterPlans } from './runs.ts';
 import { submitClusterMesh, submitDiagnosticMesh, type MultiDraw } from './submit.ts';
 
@@ -27,14 +29,16 @@ type Uniform = (name: string) => WebGLUniformLocation | null;
 export class WebglClusterSubmission {
   triangles = 0;
   private instanced: boolean | undefined;
-  private model: ModelUniforms;
+  private modelView = new Float64Array(16);
+  private upload = new Float32Array(16);
+  private normal = new Float32Array(9);
+  private at: Uniform;
   private plans: WebglClusterPlans;
   private multiDraw: MultiDraw | null;
   private gl: WebGL2RenderingContext;
   private geometry: WebglClusterGeometry;
   private state: WebglClusterState;
   private pass: ClusterMaterialPass;
-  private instancedAt: WebGLUniformLocation | null;
   constructor(
     gl: WebGL2RenderingContext,
     parts: {
@@ -47,19 +51,17 @@ export class WebglClusterSubmission {
   ) {
     this.gl = gl;
     ({ geometry: this.geometry, state: this.state, pass: this.pass } = parts);
-    this.model = new ModelUniforms(gl, at('modelViewMatrix'), at('normalMatrix'));
+    this.at = at;
     this.plans = new WebglClusterPlans(this.geometry.arenas, parts.leaves);
     this.multiDraw = gl.getExtension('WEBGL_multi_draw') as MultiDraw | null;
-    this.instancedAt = at('instanced');
   }
   /** A new frame: nothing counted, every list read again at its first pass. */
   beginFrame() {
     this.triangles = 0;
     this.plans.beginFrame();
   }
-  /** A new destination: the matrix and placements are sent again, the winding with them. */
+  /** A new destination: the placements are sent again. */
   forget() {
-    this.model.forget();
     this.instanced = undefined;
   }
   /** Draws `meshes`; `opaque` skips the transparent ones. Returns the submissions. */
@@ -91,10 +93,15 @@ export class WebglClusterSubmission {
   }
   /** The state of one draw of `mesh`: its placements and its matrix. */
   private place(mesh: ClusterDraw, instanced: boolean, view: ArrayLike<number>) {
-    if (this.instanced !== instanced) this.gl.uniform1i(this.instancedAt, instanced ? 1 : 0);
+    if (this.instanced !== instanced) this.gl.uniform1i(this.at('instanced'), instanced ? 1 : 0);
     this.instanced = instanced;
     const model = drawWorld(mesh);
-    if (this.model.set(view, model)) this.state.applyWinding(model);
+    multiplyMatrix4Typed(this.modelView, view, model);
+    this.state.applyWinding(model);
+    this.upload.set(this.modelView);
+    this.gl.uniformMatrix4fv(this.at('modelViewMatrix'), false, this.upload);
+    normalMatrix3(this.normal, this.modelView);
+    setMatrix3(this.gl, this.at('normalMatrix'), this.normal);
   }
   /** A mesh on its own buffers: once, or once per side of a two-sided transparent surface. */
   private mesh(mesh: ClusterDraw, camera: HostDrawCamera, toneMapped: boolean) {

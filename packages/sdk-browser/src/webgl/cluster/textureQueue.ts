@@ -15,11 +15,11 @@ export const heldBytes = (width: number, height: number) =>
 /**
  * WHAT A FRAME MAY UPLOAD OF THE MAPS (#840), WebGPU's tile budget on WebGL2: the bytes and the CPU
  * milliseconds the session declares (`maxTextureTransferBytesPerFrame`,
- * `maxTextureUploadMsPerFrame`), 16 MiB and 1 ms by default (`transferBudgets.ts`). Every upload
- * charges it (`WebglClusterTextures.bind`); a map a draw binds is never refused — WebGL2 holds no
- * coarser level of a map not yet sent, and drawn without it the surface would lose its picture —,
- * so what the budget defers is the queue's: the maps the census orders ahead of any draw, each
- * sent only if its bytes fit what the frame has left (`fits`). A map larger than the whole budget
+ * `maxTextureUploadMsPerFrame`), 16 MiB and 1 ms by default (`transferBudgets.ts`). A map a draw
+ * binds is never refused — WebGL2 holds no coarser level of a map not yet sent, and drawn without
+ * it the surface would lose its picture —, so what the budget holds is the queue's: the maps the
+ * census orders ahead of any draw, each sent only if its bytes fit what the frame has left
+ * (`fits`), then charged with them and the milliseconds it took. A map larger than the whole budget
  * is sent alone, in a frame that sent nothing else — as a WebGPU tile pass always lands one tile.
  * A frame opens it before anything is uploaded (`beginFrame`, by the draw's owner).
  */
@@ -105,8 +105,10 @@ export class WebglTextureQueue {
   ) {
     if (this.fence && gl.getSyncParameter(this.fence, gl.SYNC_STATUS) !== gl.SIGNALED) return;
     while (this.next < this.queue.length && budget.fits(this.queue[this.next][5])) {
-      const [unit, texture, srgb, fallback, reader] = this.queue[this.next++];
+      const [unit, texture, srgb, fallback, reader, sent] = this.queue[this.next++],
+        began = performance.now();
       textures.bind(unit, texture, srgb, fallback, reader);
+      budget.charge(sent, performance.now() - began);
     }
   }
   /**

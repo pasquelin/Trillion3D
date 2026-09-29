@@ -1,8 +1,6 @@
-import type { Texture } from '../../../../sdk-core/src/index.ts';
+import type { Texture, TextureFilter, WrapMode } from '../../../../sdk-core/src/index.ts';
 import { textureRgba } from '../../visibility/types.ts';
-import { mipFiltered } from '../../../../sdk-core/src/texture/contract.ts';
-import { WebglTextureSampler } from './textureSampler.ts';
-import { sentBytes, WebglTextureQueue, WebglUploadBudget } from './textureQueue.ts';
+import { grantedAnisotropy, mipFiltered } from '../../../../sdk-core/src/texture/contract.ts';
 import { followHostTexture } from '../../host/textureImport.ts';
 import { pictureSize } from '../../texture/pictureSize.ts';
 import type { HostMaterials } from '../../host/resources.ts';
@@ -18,6 +16,20 @@ import { WebglMipReducer, chainAllocated, type MipChain } from './mips.ts';
  * (`materialBinding.ts`).
  */
 type TextureRecord = MipChain & { sampling: number };
+type Anisotropy = { TEXTURE_MAX_ANISOTROPY_EXT: number; MAX_TEXTURE_MAX_ANISOTROPY_EXT: number };
+
+const wrap = (gl: WebGL2RenderingContext, value: WrapMode) =>
+  value === 'repeat' ? gl.REPEAT : value === 'mirror' ? gl.MIRRORED_REPEAT : gl.CLAMP_TO_EDGE;
+
+const filter = (gl: WebGL2RenderingContext, value: TextureFilter) =>
+  ({
+    nearest: gl.NEAREST,
+    linear: gl.LINEAR,
+    'nearest-mip-nearest': gl.NEAREST_MIPMAP_NEAREST,
+    'nearest-mip-linear': gl.NEAREST_MIPMAP_LINEAR,
+    'linear-mip-nearest': gl.LINEAR_MIPMAP_NEAREST,
+    'linear-mip-linear': gl.LINEAR_MIPMAP_LINEAR,
+  })[value];
 
 const WHITE: readonly number[] = [255, 255, 255, 255];
 
@@ -25,10 +37,9 @@ export class WebglClusterTextures {
   private records = new Map<string, TextureRecord>();
   private fallbacks = new Map<string, WebGLTexture>();
   private bound: Array<WebGLTexture | undefined> = [];
-  private sampler: WebglTextureSampler;
-  /** What a frame uploads, and the maps the census orders ahead of the draws (`textureQueue.ts`). */
-  readonly budget = new WebglUploadBudget();
-  readonly ahead = new WebglTextureQueue();
+  private anisotropy: Anisotropy | null;
+  /** The device's anisotropy ceiling, read once. */
+  private maxAnisotropy = 1;
   private gl: WebGL2RenderingContext;
   private mips: WebglMipReducer;
   private readers = new CoverageReaders();
@@ -38,7 +49,11 @@ export class WebglClusterTextures {
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
     this.mips = new WebglMipReducer(gl);
-    this.sampler = new WebglTextureSampler(gl);
+    this.anisotropy = gl.getExtension('EXT_texture_filter_anisotropic') as Anisotropy | null;
+    if (this.anisotropy)
+      this.maxAnisotropy = gl.getParameter(
+        this.anisotropy.MAX_TEXTURE_MAX_ANISOTROPY_EXT,
+      ) as number;
   }
   /** `reader`: a base or emissive map, its chain under its readers' rule (#42), as WebGPU's. */
   bind(unit: number, texture?: Texture, color = false, fallback = WHITE, reader = false) {
@@ -87,7 +102,7 @@ export class WebglClusterTextures {
       if (sampling || mips) gl.activeTexture(gl.TEXTURE0 + unit);
       if (sampling) {
         record.sampling = texture.sampling;
-        this.sampler.set(texture);
+        this.setSampler(texture);
       }
       if (mips) {
         const allocate = record.cutoff === undefined;
@@ -102,8 +117,7 @@ export class WebglClusterTextures {
    * copied IN PLACE (`texSubImage2D`) — a video frame, a canvas redrawn —, one of a new size
    * reallocates the level; the GL texture itself is made once. Texels held in memory
    * (`texture.data`) upload through the byte overload, read as the WebGPU path reads them
-   * (`textureRgba`); anything else is an image the browser decodes. It charges the frame's upload
-   * budget (`textureQueue.ts`) its bytes and its milliseconds.
+   * (`textureRgba`); anything else is an image the browser decodes.
    */
   private upload(
     unit: number,
@@ -112,8 +126,7 @@ export class WebglClusterTextures {
     cutoff: number | null,
     held?: TextureRecord,
   ) {
-    const gl = this.gl,
-      began = performance.now();
+    const gl = this.gl;
     const target = held?.texture ?? gl.createTexture()!;
     gl.activeTexture(gl.TEXTURE0 + unit);
     gl.bindTexture(gl.TEXTURE_2D, target);
@@ -146,9 +159,23 @@ export class WebglClusterTextures {
       record.cutoff = cutoff;
       this.mips.reduce(unit, record, allocate);
     } else if (!inPlace) chainAllocated(gl, record);
-    if (!held || held.sampling !== texture.sampling) this.sampler.set(texture);
-    this.budget.charge(sentBytes(width, height), performance.now() - began);
+    if (!held || held.sampling !== texture.sampling) this.setSampler(texture);
     return record;
+  }
+  /** Addressing, filters and anisotropy of the texture bound on TEXTURE_2D. Anisotropy follows
+   *  the rule the WebGPU path shares (`grantedAnisotropy`). */
+  private setSampler(texture: Texture) {
+    const gl = this.gl;
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wrap(gl, texture.wrapS));
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrap(gl, texture.wrapT));
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter(gl, texture.magFilter));
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter(gl, texture.minFilter));
+    if (this.anisotropy)
+      gl.texParameterf(
+        gl.TEXTURE_2D,
+        this.anisotropy.TEXTURE_MAX_ANISOTROPY_EXT,
+        grantedAnisotropy(texture, this.maxAnisotropy),
+      );
   }
   /** Files a declaration's readers at first bind, census (`WebglClusterOwner`) or rewrite; a
    *  surface filed mid-image has its maps' rule read again at their next bind. */
