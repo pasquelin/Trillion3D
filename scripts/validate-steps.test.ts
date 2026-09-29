@@ -1,7 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { NATIVE_STEPS, VALIDATE_GROUPS, VALIDATE_STEPS, stepsToRun } from './validate-steps.ts';
+import {
+  NATIVE_STEPS,
+  TREE_GATES,
+  VALIDATE_GROUPS,
+  VALIDATE_STEPS,
+  stepsToRun,
+} from './validate-steps.ts';
 
 test('validate runs every gate by default, native ones included', () => {
   assert.deepEqual(stepsToRun({}), VALIDATE_STEPS);
@@ -113,4 +119,9 @@ test('a push run never cancels the pull request run that proves the merge with d
   assert.doesNotMatch(of(push), /\$\{\{/, 'every expression of the key is rendered');
   assert.notEqual(of(push), of(pr));
   assert.notEqual(of(push), of({ ...push, ref: 'refs/heads/1055-other' }), 'one group per branch');
+});
+
+test('no gate asks for an example thumbnail: the recette captures them after the merge', () => {
+  for (const gates of [TREE_GATES, VALIDATE_STEPS] as readonly (readonly string[])[])
+    assert.ok(!gates.includes('check:thumbnails'));
 });
