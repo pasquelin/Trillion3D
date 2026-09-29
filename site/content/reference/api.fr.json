@@ -1866,6 +1866,9 @@
       "dynamicUploadBytes": "Octets de sommets de géométrie dynamique envoyés sur place à cette image (#573), dans le budget par image du monde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Absent là où aucun monde ne dessine."
     }
   },
+  "FramePass": {
+    "summary": "Nomme les passes de l’image en cours de dessin ; un appel ferme la précédente et ouvre la suivante."
+  },
   "frameStatistics": {
     "summary": "Fréquence et régularité des images à partir des temps entre elles."
   },

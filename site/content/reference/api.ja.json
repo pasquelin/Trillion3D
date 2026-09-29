@@ -1157,6 +1157,9 @@
       "dynamicUploadBytes": "このフレームでその場にアップロードされた動的ジオメトリの頂点バイト数（#573）。ワールドのフレームごとの予算（`DYNAMIC_UPLOAD_BUDGET_BYTES`）内。ワールドが描画しない場合はありません。"
     }
   },
+  "FramePass": {
+    "summary": "描画中のフレームのパスに名前を付けます。呼び出すたびに前のパスを閉じ、次のパスを開きます。"
+  },
   "Frustum": {
     "summary": "6つの平面。コア(`math/frustum/frustum.ts`)によって、ビュー射影行列から読み取られる。",
     "members": {

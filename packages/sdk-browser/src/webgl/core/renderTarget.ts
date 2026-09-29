@@ -1,6 +1,7 @@
 import type { SceneToneMapping } from '../../../../sdk-core/src/scene/core/environment.ts';
 import { allocated } from './allocation.ts';
 import type { FramePass } from './frameTimer.ts';
+export type { FramePass } from './frameTimer.ts';
 /**
  * An engine-owned render target: one colour texture and, unless declined, one 24-bit depth
  * renderbuffer on a framebuffer of the host context, sized in drawing-buffer pixels. It holds a
