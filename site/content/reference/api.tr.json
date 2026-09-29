@@ -2460,18 +2460,6 @@
       "maxDecodedBytes": "Bir geometri sayfasının çözülmüş bayt tavanı; `verify` tarafından yok sayılır."
     }
   },
-  "PageDecodeShare": {
-    "summary": "Bir worker'ın paylaşılan bellek kirası: arena tamponu, sahip olduğu slot ve bölge, ve kontrol bölgesinin boyutunu veren slot sayısı.",
-    "description": "Worker doğumunda bir kez ve yalnızca platformun paylaşılan belleğe izin verdiği yerde yayımlanır. Kira olmadan, worker tamponları aktararak yanıt verir: sözleşme şekil değiştirmez, yalnızca bayt yolu değişir.",
-    "members": {
-      "protocol": "Mesaj format sürümü.",
-      "id": "Her zaman 0.",
-      "op": "Her zaman `'share'`.",
-      "buffer": "Paylaşılan bellek.",
-      "slot": "Bu worker'ın slotu.",
-      "slots": "Toplam slot."
-    }
-  },
   "PageIntegrationAnswer": {
     "summary": "Bir worker'ın bir varışa yanıtı: planlandı ya da başarısız."
   },

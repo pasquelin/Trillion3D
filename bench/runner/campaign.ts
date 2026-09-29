@@ -50,7 +50,7 @@ raster-2496 | compute raster vs hardware raster at 2496×1404 | TWO_SIDES --vari
 aa-off | no temporal antialiasing: accumulation cost and pixels by difference with \`mobile\` | TWO_VIEWS --pixelError 1 MOVING FULL --antialiasing off
 profile-off | no per-step profile: profile cost and fidelity gate | TWO_VIEWS --pixelError 1 MOVING FULL --profile off
 textures-host | textures from source images, not the cooked pyramid | TWO_VIEWS --pixelError 1 MOVING FULL --textures host
-isolation | isolated page across origins: shared-memory path | TWO_VIEWS --pixelError 1 MOVING FULL --isolation on
+isolation | isolated page across origins: threaded physics path | TWO_VIEWS --pixelError 1 MOVING FULL --isolation on
 math-js | batched math forced to JavaScript | TWO_VIEWS --pixelError 1 MOVING FULL --math-path js
 math-wasm | batched math forced to WebAssembly | TWO_VIEWS --pixelError 1 MOVING FULL --math-path wasm
 lights-4 | four point lights with shadows, plus the sun | TWO_VIEWS --pixelError 1 MOVING FULL --lights 4

@@ -4582,18 +4582,6 @@
       "maxDecodedBytes": "Límite de bytes decodificados de una página de geometría; ignorado por `verify`."
     }
   },
-  "PageDecodeShare": {
-    "summary": "El contrato de memoria compartida de un worker: el búfer de la arena, el emplazamiento y la región que posee, y el número de emplazamientos, que da el tamaño de la zona de control.",
-    "description": "Enviado una vez, al nacer el worker, y solo donde la plataforma permite la memoria compartida. Sin contrato, el worker responde transfiriendo búferes: el contrato no cambia de forma, solo cambia el camino de los bytes.",
-    "members": {
-      "protocol": "Versión del formato del mensaje.",
-      "id": "Siempre 0.",
-      "op": "Siempre `'share'`.",
-      "buffer": "La memoria compartida.",
-      "slot": "El emplazamiento de este worker.",
-      "slots": "Emplazamientos en total."
-    }
-  },
   "pageDecodeWorkerCount": {
     "summary": "Tamaño de la reserva de decodificación: nunca más que los núcleos que anuncia la máquina, nunca más que el límite del paquete, nunca más que el límite de admisión ya vigente en las transferencias, y al menos uno.",
     "description": "Un valor ausente o no entero equivale a un solo ejecutor: en una plataforma que no dice nada, no se inventa paralelismo."
