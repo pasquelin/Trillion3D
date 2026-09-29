@@ -7,6 +7,7 @@ export interface PageOps<V> {
   float(n: number): V;
   add(a: V, b: V): V;
   sub(a: V, b: V): V;
+  neg(a: V): V;
   mul(a: V, b: V): V;
   /** Of floats, or of integers that divide exactly. */
   div(a: V, b: V): V;
@@ -31,6 +32,7 @@ export const NUMBERS: PageOps<number> = {
   float: (n) => n,
   add: (a, b) => a + b,
   sub: (a, b) => a - b,
+  neg: (a) => -a,
   mul: (a, b) => a * b,
   div: (a, b) => a / b,
   mod: (a, b) => a % b,

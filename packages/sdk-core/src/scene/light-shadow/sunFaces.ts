@@ -1,7 +1,7 @@
 import { composeFace, shadowOrthographic } from './math.ts';
 import { FULL_FACE, writeBoxVolume } from './volume.ts';
 import type { SunLevels } from './sunLevels.ts';
-import { sunPageMetres } from './pageModel.ts';
+import { PAGES, sunPageMetres } from './pageModel.ts';
 
 const eye: [number, number, number] = [0, 0, 0];
 const axis: [number, number, number] = [0, 0, 0];
@@ -34,8 +34,8 @@ export function writeSunSquare(
   const f = slice * 9,
     { frame, depth } = sun;
   const page = sunPageMetres(level),
-    u = (ax + cells / 2) * page,
-    v = -(ay + cells / 2) * page,
+    u = PAGES.shadowSunSquareCentre(ax, cells, page),
+    v = -PAGES.shadowSunSquareCentre(ay, cells, page),
     zNear = depth[slice * 2],
     far = depth[slice * 2 + 1] - zNear;
   for (let a = 0; a < 3; a++) {
