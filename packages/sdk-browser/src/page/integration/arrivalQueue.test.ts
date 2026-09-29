@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { createPartitionCells } from '../../scene/partition/cells.ts';
 import { placedMesh } from '../../scene/partition/rows.ts';
+import { decodeHere, whole } from '../../scene/partition/cells.fixture.ts';
 import { createArrivalQueue, type ArrivalTarget } from './arrivalQueue.ts';
 import { createFrameBudget } from './frameBudget.ts';
 import { referenceArrivalQueue } from '../../../../../bench/oracles/browser/arrival-admission.ts';
@@ -128,7 +129,7 @@ test('a drain spends what its frame left of the budget, and never opens it again
 });
 
 test('the cells a frame places and the pages it drains spend one budget, on one clock', async (t) => {
-  // Reading a cell's bytes costs 1.5 ms and a page 1 ms, against the 2 ms ceiling.
+  // Placing a decoded cell costs 1.5 ms and a page 1 ms, against the 2 ms ceiling.
   let now = 0;
   t.mock.method(performance, 'now', () => now);
   const body = (x: number) =>
@@ -157,6 +158,7 @@ test('the cells a frame places and the pages it drains spend one budget, on one 
         meshes: [[0, 1] as const],
         meshPages: [],
       })),
+      regions: whole([0, 1, 2]),
     },
     base: 'https://cache.test/key/',
     root: new Group(),
@@ -166,9 +168,17 @@ test('the cells a frame places and the pages it drains spend one budget, on one 
   // Opened with no owner: rows for every cell, none read.
   await cells.prime([1e9, 0, 0], 100, () => Promise.reject(new Error('unread')), false);
   const io = {
-    bytes(url: string) {
-      now += 1.5;
-      return new TextEncoder().encode(body(Number(url.split('/').at(-1)!.split('.')[0])));
+    bytes: (url: string) =>
+      new TextEncoder().encode(body(Number(url.split('/').at(-1)!.split('.')[0]))),
+    async decode(bytes: Uint8Array) {
+      const rows = await decodeHere(bytes);
+      return {
+        ...rows,
+        get nodes() {
+          now += 1.5;
+          return rows.nodes;
+        },
+      };
     },
     loading: () => false,
     request() {},
@@ -179,13 +189,17 @@ test('the cells a frame places and the pages it drains spend one budget, on one 
   const budget = createFrameBudget(2);
   const queue = createArrivalQueue(1 << 20, 64, budget);
   for (const url of ['p0', 'p1']) queue.queue(receiver, url, new Uint32Array(1));
+  // A first frame hands every cell to the decode, placing none.
+  cells.frame([0, 0.5, 0.5], 100, io, { admits: () => true, spend() {} });
+  await Promise.all(cells.decodes());
   const frame = () => {
     budget.open();
     cells.frame([0, 0.5, 0.5], 100, io, budget);
     queue.drain();
     return [cells.stats().held, accepted.length];
   };
-  assert.deepEqual(frame(), [1, 0], 'the first cell spends the frame: no page after it');
-  assert.deepEqual(frame(), [2, 0]);
+  // A piece is admitted while the clock is under the ceiling: the second cell still is.
+  assert.deepEqual(frame(), [2, 0], 'two cells spend the frame: no page after them');
   assert.deepEqual(frame(), [3, 1], 'the last cell leaves room for one page');
+  assert.deepEqual(frame(), [3, 2]);
 });
