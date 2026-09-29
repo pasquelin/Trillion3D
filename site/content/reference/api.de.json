@@ -1390,7 +1390,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Der Proxy, neu gelesen und erneut geprüft, bevor auch nur ein Strahl ihn berührt.",
-    "description": "Aufbau: acht Little-Endian-Headerwörter, gefolgt von den kanonischen Geometrie- und Baumspalten sowie versionierten Eigentümerdaten. `docs/FORMAT.md` legt jede Anzahl und Spalte fest. Der Header bestimmt die Länge jedes Abschnitts; eine Datei anderer Größe wird vollständig zurückgewiesen, da ein Knoten mit Verweis auf ein fehlendes Dreieck den Shader beliebige Daten lesen ließe."
+    "description": "Elf Little-Endian-Headerwörter stehen vor gemeinsamer oder einzelner Geometrie, Baumspalten und versionierten Eigentümerdaten. `docs/FORMAT.md` definiert alle Anzahlen und Spalten. Falsche Längen werden vor jedem Strahlzugriff abgewiesen."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S`, zerlegt in `position`, `quaternion`, `scale`."
@@ -5254,7 +5254,7 @@
     "summary": "Version des Vertrags der vom Host gehaltenen Szenenhierarchie."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "Ganzzahlen im Header: Signatur, Version, Anzahlen der Dreiecke/Knoten/Gruppen/Eigentümer/Quellen, reservierte Null."
+    "summary": "Header-Ganzzahlen: Eigentümer-Header v3, dann Anzahlen der Formen, gespeicherten Dreiecke und Platzierungen."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "'W','G','P','X', gelesen als vorzeichenlose 32-Bit-Little-Endian-Ganzzahl."
@@ -5390,7 +5390,7 @@
     }
   },
   "SceneProxy": {
-    "summary": "Der gelesene Proxy: sein Deskriptor und seine Spalten, Sichten auf die Bytes seines Cache-Objekts.",
+    "summary": "Der gelesene Proxy: sein Deskriptor und unveränderliche Spalten; gemeinsam gespeicherte Dreiecke werden beim Laden expandiert.",
     "members": {
       "data": "Seine Spalten."
     }
