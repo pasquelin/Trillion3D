@@ -14,18 +14,18 @@ const MOVE_WORDS = 8;
  * texel, as the restore does (`../core/depthRestoreWgsl.ts`), only shifted. WebGPU copies a depth
  * texture whole, never a region of it.
  */
-export const PAGE_MOVE_SHADER = `struct Move{from:vec4u,to:vec4u,}
+export const PAGE_MOVE_SHADER = `struct Move{was:vec4u,now:vec4u,}
 @group(0) @binding(0) var<storage,read> moves:array<Move>;
-@group(0) @binding(1) var source:texture_depth_2d_array;
+@group(0) @binding(1) var pool:texture_depth_2d_array;
 struct Moved{@builtin(position) p:vec4f,@location(0) @interpolate(flat) shift:vec3i,}
 @vertex fn move_vs(@builtin(vertex_index) i:u32,@builtin(instance_index) k:u32)->Moved{
  let m=moves[k];
  let corner=vec2f(f32((0x32u>>i)&1u),f32((0x2cu>>i)&1u));
- let texel=(vec2f(m.to.xy)+corner*f32(m.from.w))/f32(m.to.w);
- return Moved(vec4f(texel.x*2.0-1.0,1.0-texel.y*2.0,0.0,1.0),vec3i(vec2i(m.from.xy)-vec2i(m.to.xy),i32(m.from.z)));
+ let texel=(vec2f(m.now.xy)+corner*f32(m.was.w))/f32(m.now.w);
+ return Moved(vec4f(texel.x*2.0-1.0,1.0-texel.y*2.0,0.0,1.0),vec3i(vec2i(m.was.xy)-vec2i(m.now.xy),i32(m.was.z)));
 }
 @fragment fn move_fs(v:Moved)->@builtin(frag_depth) f32{
- return textureLoad(source,vec2i(v.p.xy)+v.shift.xy,v.shift.z,0);
+ return textureLoad(pool,vec2i(v.p.xy)+v.shift.xy,v.shift.z,0);
 }`;
 
 /** The moves of every page `moved` names (`resizeShadowPool`), from a pool of `fromSide` pages a
