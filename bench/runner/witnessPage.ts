@@ -16,7 +16,7 @@
 //
 // What the witness does not render, named rather than guessed: no cast shadows. The SDK's
 // Three renderer does not enable its shadow maps, and a light that asked for them would
-// compile a shader that reads a missing map. A fidelity campaign therefore runs `--ombres
+// compile a shader that reads a missing map. A fidelity campaign therefore runs `--shadows
 // off` on both sides, otherwise the measured delta first carries the shadows only the
 // engine draws.
 import type { MeasuredWorld } from '../witnesses/measurement.ts';
@@ -104,12 +104,12 @@ export function appliquer(objet: Lampe, light: SceneLight, douceur: number) {
 
 /** Summary published in the reading: what the witness received, never what one assumes it received. */
 const resume = (lights: SceneLight[]) => ({
-  nombre: lights.length,
-  ponctuelles: lights.filter((light) => light.kind === 'point').length,
-  projecteurs: lights.filter((light) => light.kind === 'spot').length,
-  directionnelles: lights.filter((light) => light.kind === 'directional').length,
+  count: lights.length,
+  points: lights.filter((light) => light.kind === 'point').length,
+  spots: lights.filter((light) => light.kind === 'spot').length,
+  directional: lights.filter((light) => light.kind === 'directional').length,
   ids: lights.map((light) => light.id),
-  ombres: false,
+  shadows: false,
 });
 
 /**
