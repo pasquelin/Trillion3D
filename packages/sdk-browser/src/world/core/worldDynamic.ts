@@ -98,8 +98,7 @@ export function createWorldDynamic(notices: WorldNotices | undefined, counts: { 
       ways.set(geometry, byWay);
       let asked = byWay.get(way),
         before = await asked;
-      // Another mesh of this geometry made its resource meanwhile: it is this one's too, never a
-      // second cut of the same geometry.
+      // Another mesh of this geometry made its resource meanwhile: it is this one's too, not cut.
       while (byWay.get(way) !== asked) before = await (asked = byWay.get(way));
       if (before && dynamicOf(before).version === geometry.version) return before;
       // Its corners and lists kept, a rewrite is read into the resource's own lists, then uploaded.
