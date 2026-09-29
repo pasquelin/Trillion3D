@@ -10,6 +10,11 @@ export type Ranked = { readonly url: string; readonly level?: number };
  * the slots fill, every list keeps what came before: the other views' requests are cut there, and
  * how many of the drawn view's fit is returned. The union asked for is never more than the one
  * budget. Its tables are allocated once, and grow with the number of views only.
+ *
+ * While a capture is drawn, its requests are ranked first, each lifted above every level of the
+ * union (`first`): the capture keeps what it kept alone under the one budget, and the other views'
+ * requests take what room is left, as WebGPU's queue does (`../../webgpu/residency/
+ * requestAdmission.ts`, #268). A persistent view and the main one rank the union.
  */
 export function createUnionFit(
   /** Each page's share of the slots, by URL (`poolDraw.ts`). */
@@ -20,15 +25,18 @@ export function createUnionFit(
     cursors: number[] = [],
     ends: number[] = [],
     charged = new Set<string>();
+  /** Added to the drawn view's levels: a capture's are filed above the union's (`fit`). */
+  let lift = 0;
   /** The list whose next page is the coarsest, the first on a tie; -1 once all are walked. */
   const coarsest = () => {
     let pick = -1,
       level = -Infinity;
     for (let l = 0; l < lists.length; l++) {
       const rec = lists[l][cursors[l]];
-      if (!rec || (rec.level ?? 0) <= level) continue;
+      const at = rec ? (rec.level ?? 0) + (l ? 0 : lift) : -Infinity;
+      if (at <= level) continue;
       pick = l;
-      level = rec.level ?? 0;
+      level = at;
     }
     return pick;
   };
@@ -36,8 +44,9 @@ export function createUnionFit(
     /** The slots the whole union charges, the root cover's included, as of the last `fit`. */
     used: 0,
     /** Charges the union against `room` slots, `used` already taken by the root cover; returns how
-     *  many of `requested` fit. */
-    fit(requested: readonly Ranked[], room: number, used: number) {
+     *  many of `requested` fit. `first`: the drawn view is a capture, ranked before the union. */
+    fit(requested: readonly Ranked[], room: number, used: number, first = false) {
+      lift = first ? Infinity : 0;
       lists.length = cursors.length = ends.length = 0;
       for (let l = -1; l < others.length; l++) {
         const list = l < 0 ? requested : others[l].requested;
