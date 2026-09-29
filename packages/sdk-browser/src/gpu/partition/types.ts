@@ -1,5 +1,6 @@
 import type { PartitionFrame } from './uniform.ts';
 import type { PartitionCountsFrame } from './counters.ts';
+import type { PendingGrowth } from '../core/tableGrowth.ts';
 
 /** Buffers the partition uses but does not own: those of the draw compact, the Hi-Z test's
  *  verdict buffer, which it rereads to feed the occluder history, and the pyramid the previous
@@ -47,6 +48,9 @@ export type GpuPartition = {
    *  Called once per run: rows scattered across the table forget nothing between them. */
   forgetRows(from: number, to: number): void;
   encode(encoder: GPUCommandEncoder, frame: PartitionFrame): void;
+  /** Row buffers for `rows` rows, made now; `commit` puts them in place, reading `sources` — the
+   *  grown draw compact's and Hi-Z test's — from then on. Every row reads as never projected. */
+  grow(rows: number, sources: Omit<PartitionSources, 'pyramid'>): PendingGrowth;
   /** True when the periodic-sample interval has elapsed and none is in flight. */
   countsDue(frame: number): boolean;
   /** Encodes the copy of the counters this frame just wrote. */

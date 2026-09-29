@@ -16,7 +16,17 @@ export type GpuRestCompact = {
    * created.
    */
   encode(encoder: GPUCommandEncoder, restSlots: number, rows: number, pages: GPUBuffer): void;
+  /** Reads `buffers` from now on: those of a draw compact and a Hi-Z test grown in place. */
+  rebind(buffers: RestCompactSources): void;
   dispose(): void;
+};
+
+/** What the compaction reads and writes: the draw compact's lists and the Hi-Z verdicts. */
+type RestCompactSources = {
+  instances: GPUBuffer;
+  indirect: GPUBuffer;
+  slotOffsets: GPUBuffer;
+  flags: GPUBuffer;
 };
 
 /**
@@ -27,13 +37,9 @@ export type GpuRestCompact = {
  */
 export async function createGpuRestCompact(
   device: GPUDevice,
-  buffers: {
-    instances: GPUBuffer;
-    indirect: GPUBuffer;
-    slotOffsets: GPUBuffer;
-    flags: GPUBuffer;
-  },
+  sources: RestCompactSources,
 ): Promise<GpuRestCompact | undefined> {
+  let buffers = sources;
   if (typeof device.createComputePipeline !== 'function') return undefined;
   let owned: GPUBuffer[] = [];
   const bail = () => {
@@ -71,7 +77,7 @@ export async function createGpuRestCompact(
     if (!made) return bail();
     const { layout, countPipeline, scanPipeline, scatterPipeline } = made;
     // The copy covers the instance list's own range; the counts and tile words follow it.
-    const copyWords = buffers.instances.size / 4;
+    let copyWords = buffers.instances.size / 4;
     const uniData = new Uint32Array(4);
     let disposed = false,
       work: GPUBuffer | undefined,
@@ -118,6 +124,13 @@ export async function createGpuRestCompact(
         pass.setPipeline(scatterPipeline);
         pass.dispatchWorkgroups(tiles, restSlots);
         pass.end();
+      },
+      rebind(next) {
+        buffers = next;
+        copyWords = next.instances.size / 4;
+        // The group and the uniform are made again at the next encode.
+        bound = undefined;
+        uniData[0] = 0;
       },
       dispose() {
         disposed = true;
