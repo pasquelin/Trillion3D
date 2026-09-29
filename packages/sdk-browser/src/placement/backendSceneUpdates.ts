@@ -88,7 +88,7 @@ export interface BackendSceneUpdates extends Partial<PlacementGrowth> {
   renderScale?(): number;
   /** The control behind both where the host composer draws the image (WebGL2): it draws at the
    *  scale it picks and resamples to the display (`../world/render/renderScale.ts`). */
-  readonly renderScaleControl?: import('../webgpu/pages/state/scaleControl.ts').ScaleControl;
+  readonly renderScaleControl?: import('../frame/scaleControl.ts').ScaleControl;
   /** The host surfaces the session was opened with had their values rewritten in place, their
    *  version bumped (`world/core/worldSurface.ts`, `repaintHostSurface`): what reads them is read
    *  again at the next frame, no table rebuilt. Absent, or false for this change — a map whose

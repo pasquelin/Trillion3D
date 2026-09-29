@@ -1,9 +1,5 @@
-import {
-  createRefreshClock,
-  createScaleController,
-  nextScale,
-} from '../../../frame/scaleController.ts';
-import { renderScaleBounds, type RenderScale } from '../../../frame/renderScaleOption.ts';
+import { createRefreshClock, createScaleController, nextScale } from './scaleController.ts';
+import { renderScaleBounds, type RenderScale } from './renderScaleOption.ts';
 
 /** The budget before the display's refresh is measured: 60 Hz. */
 const FALLBACK_REFRESH_MS = 1000 / 60;
@@ -34,6 +30,11 @@ export function createScaleControl(option: RenderScale | undefined, floor?: numb
     },
     /** The scale a moving image is drawn at: the controller's, or the fixed one. */
     wanted: () => (bounds.auto ? controller.s : bounds.max),
+    /** The scale this image is drawn at: a quiet one at the bounds' maximum — which the held image
+     *  then is —, a moving one at `wanted`'s. */
+    imageScale(quiet: boolean) {
+      return quiet ? bounds.max : control.wanted();
+    },
     /** A frame of the display began at `now`, ms: the budget follows its measured refresh. */
     tick(now: number) {
       refresh.tick(now);
