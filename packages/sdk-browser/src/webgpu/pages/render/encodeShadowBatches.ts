@@ -7,6 +7,7 @@ import { encodeShadowAtlas } from './encodeShadowPass.ts';
 import { encodeShadowRequests } from '../../shadow/casters.ts';
 import { recordShadowEncoding } from '../../shadow/cpuSteps.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+import type { WebgpuLightState } from '../state/lights.ts';
 
 /**
  * Light views one batch draws in: under the GPU cut, what its light cut runs at once without
@@ -108,4 +109,10 @@ export function encodeShadowBatches(
   lights.shadowPages = drawn;
   if (drawn < count) plan.reissue(drawn);
   return drawn === count;
+}
+
+/** Closes the frame's shadow work: what its batches drew joins the total a host reads across frames
+ *  and drains; a batch that could not be encoded is not counted (`encodeShadowBatches`). */
+export function noteShadowFrame(lights: WebgpuLightState) {
+  lights.shadowPagesTotal += lights.shadowPages;
 }
