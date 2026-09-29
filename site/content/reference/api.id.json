@@ -3337,7 +3337,8 @@
       "settled": "Benar setelah sebuah laporan membuktikan keadaan saat ini tidak meminta apa pun: gambar boleh ditahan.",
       "receive": "Sebuah laporan permintaan kembali; rencana berikutnya membacanya. Yang lebih baru menggantikan yang belum dibaca.",
       "commit": "Halaman `[from, to)` dari daftar frame telah dikodekan, halaman `from + i` dalam `modes[i]`: gambarnya selesai sebelum ada yang membacanya. Batch terakhir menutup daftar.",
-      "resize": "Pool dengan ukuran lain, halamannya dipertahankan, lariknya dibuat baru: mengembalikan ke mana setiap halaman pindah."
+      "resize": "Pool dengan ukuran lain, halamannya dipertahankan, lariknya dibuat baru: mengembalikan ke mana setiap halaman pindah.",
+      "gpu": "Alokasi GPU (`mirror.ts`): apakah GPU memetakan halaman, dan apa yang diminta host darinya."
     }
   },
   "ShadowStaleReason": {
@@ -7545,7 +7546,8 @@
       "layoutEpoch": "Tata letak tabel yang dipakai bingkai itu untuk membaca (`ShadowTable.layoutEpoch`).",
       "stamp": "Cap rencana saat bingkai itu dikodekan (`ShadowPlan.stamp`).",
       "count": "Entri yang diminta, mungkin lebih dari yang dimuat `entries`: sisanya meminta lagi pada bingkai berikutnya.",
-      "entries": "Entri yang diminta, paling banyak `count` pertama."
+      "entries": "Entri yang diminta, paling banyak `count` pertama.",
+      "pool": "Pool pengalokasi GPU setelah alokasi frame itu, saat GPU yang mengalokasikan."
     }
   },
   "VehicleDriver": {
