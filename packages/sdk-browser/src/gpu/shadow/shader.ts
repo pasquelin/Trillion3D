@@ -21,26 +21,9 @@ import {
   FLAG_SAMPLED,
 } from '../../visibility/types.ts';
 import { BLEND_TRANSMITTANCE_WGSL } from './transmittance.ts';
-import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 
-/** Subtexel steps the rasterizer snaps a corner to, per texel: WebGPU's (D3D's) 8-bit fixed-point
- *  window grid (#26 step C, #1016). */
+/** Subtexel steps the rasterizer snaps a corner to, per texel (#26 step C, #1016). */
 const SHADOW_SUBTEXELS = 256;
-/** Steps across a page of the rasterizer's grid. */
-export const PAGE_STEPS = SHADOW_PAGE * SHADOW_SUBTEXELS;
-
-/** The clip position `p` of a caster's corner through `m`. A sun's projection is orthographic
- *  (last row 0,0,0,1): its x and y are put on the rasterizer's grid of the page, so their window
- *  position — the page's integer place in the pool plus that — is exact in f32 and the rasterizer
- *  covers the same texels with the same depths in every slot of the pool (#26). A lamp's is divided
- *  by the hardware, as it is. Halves round up (`floor(x+0.5)`), as the shadow reads do. */
-export const SHADOW_CORNER_WGSL = `fn shadowPageCorner(c:f32)->f32{
- return floor((c*0.5+0.5)*${PAGE_STEPS}.0+0.5)*${2 / PAGE_STEPS}-1.0;
-}
-fn shadowSunCorner(m:mat4x4f,p:vec4f)->vec4f{
- if(m[0].w!=0.0||m[1].w!=0.0||m[2].w!=0.0||m[3].w!=1.0){return p;}
- return vec4f(shadowPageCorner(p.x),shadowPageCorner(p.y),p.z,p.w);
-}`;
 /** A row whose cutout reads a base map: masked, and with a map. */
 const CUTOUT_MAP = FLAG_MASK | FLAG_HAS_MAP;
 
