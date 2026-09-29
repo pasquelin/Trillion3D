@@ -70,7 +70,12 @@ impl<'a> Lookup<'a> {
                     .fold(f64::NEG_INFINITY, f64::max)
             }));
             match (low, high) {
-                (Some(l), Some(h)) if (h[0] - l[0] + 1) * (h[1] - l[1] + 1) <= WIDE => {
+                // Keys reach 1e15: each side is capped before the product, which would overflow.
+                (Some(l), Some(h))
+                    if h[0] - l[0] < WIDE
+                        && h[1] - l[1] < WIDE
+                        && (h[0] - l[0] + 1) * (h[1] - l[1] + 1) <= WIDE =>
+                {
                     for x in l[0]..=h[0] {
                         for y in l[1]..=h[1] {
                             lookup.cells.entry((home, x, y)).or_default().push(t);
@@ -166,6 +171,9 @@ impl<'a> Lookup<'a> {
             let on = [0, 1].map(|k| a[k] * weights[0] + b[k] * weights[1] + c[k] * weights[2]);
             length([at[0] - on[0], at[1] - on[1], 0.0])
         };
+        if miss > best.0 {
+            return;
+        }
         let corners = points_of(self.positions, tri);
         let there = [0, 1, 2].map(|k| (0..3).map(|c| corners[c][k] * weights[c]).sum::<f64>());
         let distance = length(sub(spot, there));

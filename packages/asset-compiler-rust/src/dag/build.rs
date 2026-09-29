@@ -67,6 +67,7 @@ pub fn build_dag_tallied(
     let mut reductions_kept: Vec<DagGroup> = Vec::new();
     // Welding is only used for reduction: nothing to weld for exact clusters or for a primitive fitting in a single cluster.
     if strategy == DagStrategy::ExactClusters || dag.len() < 2 {
+        tight::tighten(&mut dag, &mut reductions_kept, positions);
         return Ok((dag, reductions_kept, tallies, stalls));
     }
     let welds = {

@@ -17,9 +17,10 @@ use super::GroupReductionInput;
 use crate::physics_cook::hausdorff::distance_above;
 
 /// The error of reducing `live` to `kept`: the largest of the quadrics' estimate `qem`, the
-/// children's error, what the parts removed whole cost (`vanished.rs`) and the sampled Hausdorff
-/// distance between `live` and `kept`, and their texture deviation. A bound that is not finite is returned unmeasured, for the
-/// caller to refuse.
+/// children's error, what the parts removed whole cost (`vanished.rs`: their extent here, their
+/// distance to `kept` being within the live-to-kept side of the Hausdorff distance), the sampled
+/// Hausdorff distance between `live` and `kept`, and their texture deviation. A bound that is not
+/// finite is returned unmeasured, for the caller to refuse.
 pub(super) fn step_error(
     input: &GroupReductionInput,
     live: &[u32],
@@ -27,12 +28,11 @@ pub(super) fn step_error(
     qem: f64,
     child_error: f64,
 ) -> f64 {
-    let (positions, weld, extents) = (input.positions, input.weld, input.extents);
-    let vanished = super::vanished::vanished_error(live, kept, positions, weld, extents);
+    let vanished = super::vanished::vanished_extent(live, kept, input.weld, input.extents);
     let bound = vanished.max(qem.max(child_error));
     if !bound.is_finite() {
         return bound;
     }
     let bound = bound.max(super::texture::texture_deviation(input, live, kept));
-    distance_above(positions, live, kept, bound)
+    distance_above(input.positions, live, kept, bound)
 }
