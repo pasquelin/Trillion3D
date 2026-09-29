@@ -136,6 +136,14 @@
       "onEvent": "Được gọi ở mỗi sự kiện."
     }
   },
+  "BatchRead": {
+    "summary": "Cách `request` đọc một lô: cách hủy, độ ưu tiên và việc chạy khi từng trang về tới.",
+    "members": {
+      "signal": "Hủy các lần đọc của lô.",
+      "priority": "Độ ưu tiên trong hàng đợi, mặc định là 1.",
+      "onPage": "Chạy khi từng trang được đọc xong, không đợi cả lô."
+    }
+  },
   "BatchOutcome": {
     "summary": "Cách một công việc trong lô kết thúc.",
     "members": {
