@@ -85,7 +85,6 @@ const mount = (fabriqueCommit: RowCommitFactory) => {
     { sync: () => {}, dirty: true },
     pages,
     { drawn: [] },
-    SLOTS,
     () => true,
     commit,
   );

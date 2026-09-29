@@ -4081,7 +4081,19 @@
       "evictedTiles": "Tessere di texture rimosse.",
       "residentPages": "Ciò che era residente subito prima della regolazione e subito dopo.",
       "residentTiles": "Tessere di texture mantenute, prima e dopo.",
-      "durationMs": "Il tempo impiegato."
+      "durationMs": "Il tempo impiegato.",
+      "tables": "Le tabelle per pagina disegnabile ingrandite per una riserva più grande di loro (WebGPU), o `null` quando nessuna lo è stata.",
+      "transientBytes": "Byte tenuti insieme durante la copia della riserva di geometria: la vecchia riserva e la nuova accanto, concesse insieme dal dispositivo prima che si spostasse alcuna pagina; 0 quando nessuna riserva si è spostata."
+    }
+  },
+  "TableGrowthReport": {
+    "summary": "La crescita delle tabelle dimensionate per riga disegnabile, come l’ha chiesta un pool sopra di esse.",
+    "members": {
+      "drawSlots": "Righe di visibilità che le tabelle contengono ora.",
+      "casterSlots": "Righe lette dal passaggio delle ombre, dopo le righe di visibilità.",
+      "bytes": "Byte che le tabelle GPU ingrandite contengono — quelli richiesti, se rifiutati.",
+      "refused": "`true` quando il dispositivo le ha rifiutate: si mantengono le tabelle e il pool esistenti.",
+      "durationMs": "Millisecondi impiegati dalla crescita, dalla sonda allo scambio."
     }
   },
   "Mesh": {
