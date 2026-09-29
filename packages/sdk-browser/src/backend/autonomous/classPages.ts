@@ -49,7 +49,8 @@ const finestError = (primitive: Primitive) =>
 const ownClass = (primitive: Primitive, blended: boolean) =>
   blended === (primitive.pass === 'clustered-blend');
 
-/** The largest world scale that places the records: the compiler's tile follows it. */
+/** The largest world scale that places the records: the compiler's tile follows it, read over
+ *  every placement of the primitive (`mesh_scales`), not only those a change moves. */
 const largestScale = (records: readonly PageRec[]) =>
   records.reduce(
     (scale, rec) =>
@@ -74,9 +75,14 @@ export function createClassPages(env: ClassPagesEnvironment) {
   let turn = 0,
     pending: Promise<unknown> = Promise.resolve();
 
-  /** The pages of `primitive` for the class `blended`, by page id; null for the class it was
-   *  compiled for, whose pages are the ones it reads. */
-  async function pagesFor(primitive: Primitive, blended: boolean, records: readonly PageRec[]) {
+  /** The pages of `primitive` for the class `blended`, by page id, cut for a primitive that
+   *  `scale` places at most; null for the class it was compiled for, whose pages it reads. */
+  async function pagesFor(
+    primitive: Primitive,
+    blended: boolean,
+    records: readonly PageRec[],
+    scale: number,
+  ) {
     const mesh = records[0].sourceMesh as HostMesh;
     if (ownClass(primitive, blended)) return null;
     const [vertices, corners] = await Promise.all([
@@ -104,7 +110,7 @@ export function createClassPages(env: ClassPagesEnvironment) {
       uvs: flags & FLAG_UV ? drawn.uvs : null,
       colors: flags & FLAG_COLOR ? drawn.colors : null,
     };
-    const recut = { ends, finestError: finestError(primitive), scale: largestScale(records) };
+    const recut = { ends, finestError: finestError(primitive), scale };
     const cut = await cutPagesOffThread(packDrawn(carried, blended, recut));
     return new Map(
       primitive.pages.map((page, k) => [page.id, new Uint8Array(cut.pages[k].geometry)]),
@@ -148,11 +154,12 @@ export function createClassPages(env: ClassPagesEnvironment) {
           return 'MATERIAL_CLASS_PAGES: its pages carry a second texture coordinate';
       }
     },
-    /** `alpha` moved the class of some of `records`: each primitive among them draws the pages
-     *  of its new class. */
-    follow(alpha: AlphaChange, records: readonly PageRec[]) {
+    /** `alpha` moved the class of some of `all`, the session's records: each primitive among them
+     *  draws the pages of its new class, cut on the tile every placement of it sets, moved or
+     *  not, as the compiler's is. */
+    follow(alpha: AlphaChange, all: readonly PageRec[]) {
       const byPrimitive = new Map<Primitive, PageRec[]>();
-      for (const rec of moved(alpha, records)) {
+      for (const rec of moved(alpha, all)) {
         const primitive = compiledOf(rec);
         if (!primitive) continue;
         (byPrimitive.get(primitive) ?? byPrimitive.set(primitive, []).get(primitive)!).push(rec);
@@ -160,7 +167,8 @@ export function createClassPages(env: ClassPagesEnvironment) {
       for (const [primitive, records] of byPrimitive) {
         const mine = ++turn;
         for (const rec of records) turns.set(rec, mine);
-        const landed = pagesFor(primitive, alpha.to === 'blend', records)
+        const placed = all.filter((rec) => compiledOf(rec) === primitive);
+        const landed = pagesFor(primitive, alpha.to === 'blend', records, largestScale(placed))
           .then((pages) => swap(records, pages, mine))
           .catch((error: unknown) =>
             sendEngineDiagnostic(context.onDiagnostic, 'material-class-pages', String(error), {
