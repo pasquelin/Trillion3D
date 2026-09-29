@@ -1,6 +1,7 @@
 import { askedTableRows, rowScratch } from './layout.ts';
 import { grownTableRows } from '../../row/tableRows.ts';
 import { pageTableBuffer } from '../render/encodeDraws.ts';
+import { followOcclusion } from './lightResources.ts';
 import { invalidateOccluderHistory } from '../io/drops.ts';
 import { deviceMade } from '../../../gpu/core/errorScope.ts';
 import { pendingAll } from '../../../gpu/core/tableGrowth.ts';
@@ -109,17 +110,14 @@ async function growTables(
  *  diagnostic compute raster is made again at its next image, at the new capacity; no occluder
  *  history describes the new rows. */
 function follow(rt: WebgpuPagesRuntime) {
-  const { vis, run, lights } = rt,
+  const { vis, run } = rt,
     { gpuDraw, gpuHiz, gpuPartition } = vis,
     floats = rt.layout.rows.pageTableFloats;
   if (floats && vis.pageTable && vis.pageTable.size < floats.byteLength && rt.gpu.device) {
     vis.pageTable.destroy();
     vis.pageTable = pageTableBuffer(rt.gpu.device, floats.byteLength);
   }
-  // An occlusion test made while the growth was granted holds the cull's old lists: it follows.
-  const { cull, occlusion } = lights;
-  if (cull && occlusion && occlusion.visible.size !== cull.kept.size)
-    occlusion.grow(rt.layout.rows.casterSlots).commit();
+  followOcclusion(rt);
   if (gpuHiz && gpuPartition) gpuHiz.attach(gpuPartition.tested, gpuPartition.state);
   if (gpuDraw && gpuHiz)
     vis.gpuRestCompact?.rebind({

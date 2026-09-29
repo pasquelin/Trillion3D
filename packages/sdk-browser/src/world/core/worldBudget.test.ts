@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { sessionPools, worldBudget, worldPools, type Pools } from './worldBudget.ts';
-import { DEFAULT_TEXTURE_POOL_BUDGET } from '../../webgpu/residency/memoryBudgets.ts';
+import { DEFAULT_TEXTURE_POOL_BUDGET } from '../../residency/pools.ts';
 import { DEFAULT_GEOMETRY_POOL_BUDGET } from '../../residency/pools.ts';
 import {
   BOUNCE_PROBE_BYTES,
