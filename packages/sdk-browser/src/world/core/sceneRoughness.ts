@@ -13,18 +13,15 @@ type Wearer = { material?: { roughness?: unknown } | { roughness?: unknown }[] }
 /** The least `roughness` any drawn surface declares below `root`, or `undefined` when none does —
  *  the caller then bounds at `ROUGHNESS_FLOOR`, the conservative end. */
 export function minimumRoughness(root: Object3D): number | undefined {
-  let least: number | undefined;
+  let least = Infinity;
+  const read = (material?: { roughness?: unknown }) => {
+    const value = material?.roughness;
+    if (typeof value === 'number' && Number.isFinite(value)) least = Math.min(least, value);
+  };
   root.traverse((node) => {
     const worn = (node as unknown as Wearer).material;
-    for (const material of Array.isArray(worn) ? worn : [worn]) {
-      const value = material?.roughness;
-      if (
-        typeof value === 'number' &&
-        Number.isFinite(value) &&
-        (least === undefined || value < least)
-      )
-        least = value;
-    }
+    if (Array.isArray(worn)) worn.forEach(read);
+    else read(worn);
   });
-  return least;
+  return least === Infinity ? undefined : least;
 }

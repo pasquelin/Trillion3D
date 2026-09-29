@@ -7,6 +7,8 @@ import {
 import type { BlendGpuItem } from '../webgpu/blend/state.ts';
 import type { SessionDeformation } from './session.ts';
 import { wholeDeformationInputs } from './wholeInputs.ts';
+import { DEFORM_VERTEX_WORDS } from './slotLayout.ts';
+import { boxEmpty } from '../../../sdk-core/src/index.ts';
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
 
 /** High bit selects the existing float vertex pool instead of a resident page-cache tail. */
@@ -35,7 +37,7 @@ export function wholeDeformationPool(
   const output = new Map<BlendGpuItem, number>();
   for (const item of placed) {
     output.set(item, floats + 2);
-    floats += (item.sourceGeometry.attributes.position?.count ?? 0) * 11;
+    floats += (item.sourceGeometry.attributes.position?.count ?? 0) * DEFORM_VERTEX_WORDS;
   }
   return {
     placed,
@@ -55,14 +57,8 @@ export function wholeDeformationPool(
         item.deformInput = base + sources.get(item.sourceGeometry)!.at + 1;
         item.deformOutput = ((base + output.get(item)! + 1) | WHOLE_DEFORM_OUTPUT) >>> 0;
         item.position = pool;
-        item.deformBounds = new Float64Array([
-          Infinity,
-          Infinity,
-          Infinity,
-          -Infinity,
-          -Infinity,
-          -Infinity,
-        ]);
+        item.deformBounds = new Float64Array(6);
+        boxEmpty(item.deformBounds, 0);
         // Other attributes keep their shared geometry buffers; only position access has an offset.
         rows[at + 23] = item.flags;
         rows[at + 25] = item.count;

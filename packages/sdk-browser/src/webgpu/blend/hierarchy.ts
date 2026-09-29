@@ -124,6 +124,11 @@ export function refreshBlendBoxes(blendState: BlendState) {
   if (blendState.hierarchy.count === blendState.blendGpu.length) refitNodes(blendState);
 }
 
+/** The tree refit to item boxes rewritten outside a matrix move (a deformed item's reach). */
+export function refitBlendHierarchy(blendState: BlendState) {
+  if (blendState.hierarchy.count === blendState.blendGpu.length) refitNodes(blendState);
+}
+
 /** The tree of the scene's items, built first when the list changed without `buildBlendStatics`. */
 export function currentBlendHierarchy(blendState: BlendState) {
   if (blendState.hierarchy.count !== blendState.blendGpu.length) buildBlendHierarchy(blendState);

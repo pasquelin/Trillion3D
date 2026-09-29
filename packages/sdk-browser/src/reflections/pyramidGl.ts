@@ -1,4 +1,4 @@
-import { LIGHT_LIST_UNIT } from '../webgl/cluster/lightTexture.ts';
+import { PHYSICAL_MAP_UNIT } from '../webgl/cluster/physicalMaps.ts';
 import { RADIANCE_REDUCTION_GLSL } from '../texture/radianceReduction.ts';
 import { levelSize, mipLevelCountFor } from '../texture/tiles.ts';
 import {
@@ -8,7 +8,10 @@ import {
 } from '../webgl/core/fullscreenPass.ts';
 import { createWebglProgram } from '../webgl/core/program.ts';
 
-export const REFLECTION_BOUNDS_UNIT = LIGHT_LIST_UNIT + 1;
+/** Past the cluster program's units 0–15: 13 and 14 are the vertex stage's deformation units
+ * (`deformation.ts`), and a usampler may not share a unit with their samplers. WebGL2 guarantees
+ * 32 combined units. */
+export const REFLECTION_BOUNDS_UNIT = PHYSICAL_MAP_UNIT + 1;
 
 /** RG32UI preserves the exact depth bits without requiring float render targets.
  * Reduction reads only one accessible source mip, excluding the attached output mip. */
