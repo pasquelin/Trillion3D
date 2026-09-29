@@ -3,6 +3,7 @@ import type { createGpuTiming } from '../../../gpu/timing/timing.ts';
 import type { SelectionSubmission } from '../../../gpu/core/selection.ts';
 import { createCpuStepProfile } from '../../../stage/cpuProfile.ts';
 import { CPU_STEP_NAMES } from '../render/cpuStepTable.ts';
+import { forgetShadowCpuSteps } from '../../shadow/cpuSteps.ts';
 import { createStageProfiler, type StageProfiler } from '../../../stage/profiler.ts';
 import { WEBGPU_STAGES } from '../../../stage/mapping.ts';
 
@@ -119,6 +120,7 @@ export function createWebgpuTimingState(
   roots: () => number = () => 0,
 ): WebgpuTimingState {
   const cpuProfile = createCpuStepProfile(CPU_STEP_NAMES);
+  forgetShadowCpuSteps(cpuProfile.row);
   return {
     gpuTiming: undefined,
     lastGpuPassMs: null,

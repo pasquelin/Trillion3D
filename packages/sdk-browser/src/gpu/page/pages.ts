@@ -23,7 +23,6 @@ export function createGpuPageCache(
     pins = new Set<string>(),
     held = new Set<string>(),
     free = Array.from({ length: slots }, (_, i) => i),
-    staging = new Uint8Array(pageBytes),
     abort = new AbortController();
   const fetches = new Map<string, Promise<Uint8Array>>();
   const state = {
@@ -67,7 +66,6 @@ export function createGpuPageCache(
     pins,
     held,
     free,
-    staging,
     abort,
     fetches,
     state,

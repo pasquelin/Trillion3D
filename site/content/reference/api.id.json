@@ -136,6 +136,14 @@
       "onEvent": "Dipanggil pada setiap peristiwa."
     }
   },
+  "BatchRead": {
+    "summary": "Cara `request` membaca satu kelompok: pembatalannya, prioritasnya, dan apa yang berjalan saat setiap halaman tiba.",
+    "members": {
+      "signal": "Membatalkan pembacaan kelompok.",
+      "priority": "Prioritas antrean, bawaan 1.",
+      "onPage": "Berjalan saat pembacaan setiap halaman tiba, bukan setelah seluruh kelompok."
+    }
+  },
   "BatchOutcome": {
     "summary": "Bagaimana satu pekerjaan batch berakhir.",
     "members": {
@@ -2271,7 +2279,7 @@
     "description": "Enam yang pertama adalah penolakan uraian-halaman, diambil kata demi kata dari `geometryPage.ts`: seorang pemanggil membedakannya seperti sebelumnya. `PAGE_DECODE_FAILED` membawa penolakan lain apa pun dari pustaka dekompresi. `PAGE_DECODE_CANCELLED` menjawab sebuah pembatalan, `PAGE_DECODE_WORKER` sebuah eksekutor yang lenyap — hanya yang itu yang mengizinkan fallback."
   },
   "PAGE_DECODE_PROTOCOL": {
-    "summary": "Kontrak uraian-halaman di luar thread utama, versi 6: geometri yang diurai bepergian sebagai satu blok dengan galat kuantisasinya, dan slot arena mencatat galat itu di kata 8; `cut` mengubah segitiga yang digambar menjadi halaman, yang kembali sebagai byte dengan deskriptornya, dan, sejak versi 6, dengan kerucut normalnya, segitiga yang dikemas menyatakan apakah halamannya menyimpan satu.",
+    "summary": "Kontrak uraian-halaman di luar thread utama, versi 6: geometri yang diurai bepergian sebagai satu blok dengan galat kuantisasinya; `cut` mengubah segitiga yang digambar menjadi halaman, yang kembali sebagai byte dengan deskriptornya, dan, sejak versi 6, dengan kerucut normalnya, segitiga yang dikemas menyatakan apakah halamannya menyimpan satu.",
     "description": "Thread pemanggil mengirim `PageDecodeRequest`, eksekutor mengembalikan `PageDecodeAnswer` yang membawa `id` yang sama. Tidak ada yang menyentuh platform di sini: tidak ada `Worker`, tidak ada fetch, tidak ada jam — adaptor peramban membawa semua itu, berkas ini hanya membawa bentuk pesan, daftar tertutup kegagalan dan batas pool. Kepemilikan buffer: `source` **ditransfer** dengan permintaan, jadi pengirim tidak lagi memilikinya. Sebuah respons `verify` mengembalikannya, ditransfer gilirannya; sebuah respons `decode` mengembalikan buffer yang diurai sebagai gantinya, juga ditransfer. Seorang eksekutor yang tidak mentransfer apa pun (fallback sinkron) mengembalikan persis nilai yang sama: kontrak tidak mengatakan bagaimana pekerjaannya bepergian, hanya apa yang dikembalikannya."
   },
   "PAGE_INTEGRATION_FAILURES": {
@@ -2476,18 +2484,6 @@
       "op": "Apa yang harus dilakukan.",
       "source": "Ditransfer bersama pesan: pengirim tidak lagi menjadi pemiliknya.",
       "maxDecodedBytes": "Batas atas byte yang diurai sebuah halaman geometri; diabaikan `verify`."
-    }
-  },
-  "PageDecodeShare": {
-    "summary": "Sewa memori bersama seorang worker: buffer arena, slot dan wilayah yang dimilikinya, dan jumlah slot, yang memberi ukuran zona kontrol.",
-    "description": "Diposting sekali, saat worker lahir, dan hanya di mana platform mengizinkan memori bersama. Tanpa sewa, worker menjawab dengan mentransfer buffer: kontraknya tidak berubah bentuk, hanya jalur byte-nya.",
-    "members": {
-      "protocol": "Versi format pesan.",
-      "id": "Selalu 0.",
-      "op": "Selalu `'share'`.",
-      "buffer": "Memori bersama itu.",
-      "slot": "Slot worker ini.",
-      "slots": "Slot secara keseluruhan."
     }
   },
   "PageIntegrationAnswer": {
@@ -3261,10 +3257,16 @@
       "tileLightPoolCapacity": "Kata yang dimiliki pool indeks lampu pada frame sampel itu; `null` juga.",
       "tileLightPoolOverflowed": "Apakah sebuah tile tidak mendapat ruang di pool pada frame sampel itu dan menelusuri setiap lampu.",
       "tileLightPoolGrowths": "Berapa kali pool tumbuh hingga yang diminta frame yang meluap, sejak penjelajah dibuka.",
-      "gpuShadowsMs": "Waktu GPU bayangan.",
+      "gpuShadowsMs": "Waktu GPU tahap Bayangan, tepat pass bayangan dari tabel pass mesin: atlas bayangan, lapisan statisnya, pembersihan dan pass lapisan transmitans, penyaringan per halaman, piramida halaman, dan uji oklusi. Potongan dari cahaya adalah tahap tersendiri (`shadowCasters`); tidak ada pass di luar kerja bayangan yang dihitung di dalamnya.",
       "gpuShadowCullMs": "Waktu GPU untuk memilih pembentuk bayangan dari halaman bayangan yang digambar bingkai: potongan cahaya, penyaringan per halaman, dan uji oklusi pembentuk yang bergerak beserta piramida yang dibacanya.",
       "gpuShadowRasterMs": "Waktu GPU untuk menggambar pembentuk itu ke dalam halaman: lapisan statis, lalu pool.",
       "gpuLightingMs": "Waktu GPU pencahayaan.",
+      "cpuShadowPlanMs": "Waktu CPU rencana bayangan frame, di sekitar penjadwal: langkah bernama dari profil CPU (`cpuSteps()`, `cpu-timing`), seperti lima berikutnya. Masing-masing bernilai `null` saat frame tidak menjalankannya — tanpa cahaya, frame yang ditahan — atau pada mesin yang tidak dapat mengukurnya (WebGL2), tidak pernah 0. Semuanya berada di dalam waktu encoding, tidak pernah ditambahkan padanya.",
+      "cpuShadowRequestsMs": "Waktu CPU untuk membaca laporan permintaan bayangan yang kembali.",
+      "cpuShadowAdmissionMs": "Waktu CPU untuk menerima halaman usang yang dibaca frame.",
+      "cpuShadowBatchesMs": "Waktu CPU batch bayangan di sekitar region dan pass-nya: staging, commit, salinan permintaan.",
+      "cpuShadowRegionsMs": "Waktu CPU untuk menulis region setiap batch bayangan: uniform muka dan catatan halaman.",
+      "cpuShadowPassesMs": "Waktu CPU untuk meng-encode pass setiap batch bayangan: pembentuk, pembersihan dan pemulihan, gambar.",
       "shadowLightCuts": "Potongan klaster yang dijalankan dari cahaya: satu per tampilan cahaya yang digambar, nol pada bingkai diam.",
       "shadowPagesRequested": "Halaman bayangan virtual yang dibaca gambar, seperti yang disebut permintaan awal frame — atau, tanpanya, laporan permintaan terakhirnya: yang ditandai penerima kamera.",
       "shadowPagesCached": "Dari itu, halaman yang dibaca langsung dari pool: terkini, tanpa penggambaran.",
@@ -3283,6 +3285,7 @@
     "summary": "Pekerjaan bayangan frame: halaman virtual mana yang digambar.",
     "members": {
       "counts": "Apa yang dilakukan rencana terakhir, dalam halaman.",
+      "spent": "Milidetik CPU yang dihabiskan rencana terakhir untuk membaca laporan permintaan dan menerima halaman.",
       "worldChanged": "Sebuah node bergerak: kotaknya membuat usang halaman yang ditutupinya pada rencana berikutnya.",
       "representationChanged": "Dunia yang sama dengan presisi lain: kotaknya menunggu kamera diam.",
       "resting": "Kamera diam pada rencana terakhir: tampilannya sama dengan rencana sebelumnya.",
@@ -4220,10 +4223,16 @@
       "tileLightPoolCapacity": "Kata yang dimiliki pool indeks lampu pada frame sampel itu; `null` juga.",
       "tileLightPoolOverflowed": "Apakah sebuah tile tidak mendapat ruang di pool pada frame sampel itu dan menelusuri setiap lampu.",
       "tileLightPoolGrowths": "Berapa kali pool tumbuh hingga yang diminta frame yang meluap, sejak penjelajah dibuka.",
-      "gpuShadowsMs": "Waktu GPU bayangan.",
+      "gpuShadowsMs": "Waktu GPU tahap Bayangan, tepat pass bayangan dari tabel pass mesin: atlas bayangan, lapisan statisnya, pembersihan dan pass lapisan transmitans, penyaringan per halaman, piramida halaman, dan uji oklusi. Potongan dari cahaya adalah tahap tersendiri (`shadowCasters`); tidak ada pass di luar kerja bayangan yang dihitung di dalamnya.",
       "gpuShadowCullMs": "Waktu GPU untuk memilih pembentuk bayangan dari halaman bayangan yang digambar bingkai: potongan cahaya, penyaringan per halaman, dan uji oklusi pembentuk yang bergerak beserta piramida yang dibacanya.",
       "gpuShadowRasterMs": "Waktu GPU untuk menggambar pembentuk itu ke dalam halaman: lapisan statis, lalu pool.",
       "gpuLightingMs": "Waktu GPU pencahayaan.",
+      "cpuShadowPlanMs": "Waktu CPU rencana bayangan frame, di sekitar penjadwal: langkah bernama dari profil CPU (`cpuSteps()`, `cpu-timing`), seperti lima berikutnya. Masing-masing bernilai `null` saat frame tidak menjalankannya — tanpa cahaya, frame yang ditahan — atau pada mesin yang tidak dapat mengukurnya (WebGL2), tidak pernah 0. Semuanya berada di dalam waktu encoding, tidak pernah ditambahkan padanya.",
+      "cpuShadowRequestsMs": "Waktu CPU untuk membaca laporan permintaan bayangan yang kembali.",
+      "cpuShadowAdmissionMs": "Waktu CPU untuk menerima halaman usang yang dibaca frame.",
+      "cpuShadowBatchesMs": "Waktu CPU batch bayangan di sekitar region dan pass-nya: staging, commit, salinan permintaan.",
+      "cpuShadowRegionsMs": "Waktu CPU untuk menulis region setiap batch bayangan: uniform muka dan catatan halaman.",
+      "cpuShadowPassesMs": "Waktu CPU untuk meng-encode pass setiap batch bayangan: pembentuk, pembersihan dan pemulihan, gambar.",
       "hizTestedClusters": "Yang dilakukan uji oklusi pada sebuah bingkai: cluster yang diserahkan padanya, yang dieliminasinya, dan yang jejak layar level-0-nya melebihi kernel enam belas-texel dan karenanya menjawab dari sebuah mip lebih kasar. `hiz*Triangles` adalah segitiga cluster yang sama itu. Pada jalur GPU mereka menjelaskan sebuah bingkai LEBIH AWAL dari yang merendernya — `hizCountedFrame` menyebut yang mana — seperti `gpuPassMs`, dan dua bingkai bersebelahan sering membawa sampel yang sama. Tidak ada yang diperkirakan: `null` pada mesin yang tidak menguji oklusi, pada perangkat yang putusannya tidak bisa dibaca ulang, dan selama belum ada bingkai yang dihitung.",
       "hizRejectedClusters": "Cluster yang disembunyikan.",
       "hizOversizedClusters": "Cluster terlalu besar untuk diuji.",

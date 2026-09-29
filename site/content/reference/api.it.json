@@ -260,6 +260,14 @@
       "onEvent": "Chiamato a ogni evento."
     }
   },
+  "BatchRead": {
+    "summary": "Come `request` legge un lotto: il suo annullamento, la sua priorità e ciò che viene eseguito all’arrivo di ogni pagina.",
+    "members": {
+      "signal": "Annulla le letture del lotto.",
+      "priority": "Priorità in coda, 1 per impostazione predefinita.",
+      "onPage": "Viene eseguito all’arrivo della lettura di ogni pagina, non dopo l’intero lotto."
+    }
+  },
   "BatchOutcome": {
     "summary": "Come è terminata un'attività del lotto.",
     "members": {
@@ -4467,7 +4475,7 @@
     "description": "I primi sei sono i rifiuti della decodifica di pagina, ripresi parola per parola da `geometryPage.ts`: un chiamante li distingue come prima. `PAGE_DECODE_FAILED` porta qualsiasi altro rifiuto della libreria di decompressione. `PAGE_DECODE_CANCELLED` risponde a un annullamento, `PAGE_DECODE_WORKER` a un esecutore scomparso — solo quest'ultimo permette il ripiego."
   },
   "PAGE_DECODE_PROTOCOL": {
-    "summary": "Contratto di decodifica delle pagine fuori dal thread principale, versione 6: la geometria decodificata viaggia in un unico blocco con il suo errore di quantizzazione, e lo slot dell'arena registra questo errore nella parola 8; `cut` trasforma triangoli disegnati in pagine, che tornano in byte con i loro descrittori, e, dalla versione 6, con il loro cono delle normali, i triangoli impacchettati indicano se le loro pagine ne tengono uno.",
+    "summary": "Contratto di decodifica delle pagine fuori dal thread principale, versione 6: la geometria decodificata viaggia in un unico blocco con il suo errore di quantizzazione; `cut` trasforma triangoli disegnati in pagine, che tornano in byte con i loro descrittori, e, dalla versione 6, con il loro cono delle normali, i triangoli impacchettati indicano se le loro pagine ne tengono uno.",
     "description": "Il thread chiamante invia una `PageDecodeRequest`, l'esecutore restituisce una `PageDecodeAnswer` che porta lo stesso `id`. Nulla qui tocca la piattaforma: nessun `Worker`, nessun recupero, nessun orologio — l'adattatore del browser porta tutto questo, questo file porta solo la forma del messaggio, l'elenco chiuso dei fallimenti e il limite della riserva. Proprietà dei buffer: `source` viene **trasferito** con la richiesta, quindi il mittente non ne è più il proprietario. Una risposta `verify` lo restituisce, a sua volta trasferito; una risposta `decode` restituisce invece i buffer decodificati, anch'essi trasferiti. Un esecutore che non trasferisce nulla (il ripiego sincrono) restituisce esattamente gli stessi valori: il contratto non dice come viaggia il lavoro, solo cosa restituisce."
   },
   "PAGE_INTEGRATION_FAILURES": {
@@ -4580,18 +4588,6 @@
       "op": "Cosa bisogna fare.",
       "source": "Trasferito con il messaggio: il mittente non ne è più il proprietario.",
       "maxDecodedBytes": "Limite di byte decodificati di una pagina di geometria; ignorato da `verify`."
-    }
-  },
-  "PageDecodeShare": {
-    "summary": "Il contratto di memoria condivisa di un worker: il buffer dell'arena, lo slot e la regione che possiede, e il numero di slot, che dà la dimensione della zona di controllo.",
-    "description": "Inviato una volta, alla nascita del worker, e solo dove la piattaforma permette la memoria condivisa. Senza contratto, il worker risponde trasferendo buffer: il contratto non cambia forma, cambia solo il percorso dei byte.",
-    "members": {
-      "protocol": "Versione del formato del messaggio.",
-      "id": "Sempre 0.",
-      "op": "Sempre `'share'`.",
-      "buffer": "La memoria condivisa.",
-      "slot": "Lo slot di questo worker.",
-      "slots": "Slot totali."
     }
   },
   "pageDecodeWorkerCount": {
@@ -5507,10 +5503,16 @@
       "tileLightPoolCapacity": "Parole che la riserva di indici di luci teneva su quell’immagine campionata; `null` allo stesso modo.",
       "tileLightPoolOverflowed": "Se una tessera non ha trovato posto nella riserva su quell’immagine campionata e ha percorso ogni luce.",
       "tileLightPoolGrowths": "Volte in cui la riserva è cresciuta fino a ciò che chiedeva un’immagine traboccante, dall’apertura dell’esploratore.",
-      "gpuShadowsMs": "Tempo GPU delle ombre.",
+      "gpuShadowsMs": "Tempo GPU della fase Ombre, esattamente i passaggi d’ombra della tabella dei passaggi del motore: l’atlante delle ombre, il suo strato statico, la cancellazione e il passaggio dello strato di trasmittanza, lo scarto per pagina, le piramidi di pagine e il test di occlusione. Il taglio dalla luce è una fase a sé (`shadowCasters`); nessun passaggio esterno al lavoro delle ombre vi è contato.",
       "gpuShadowCullMs": "Tempo GPU per scegliere i proiettori delle pagine d’ombra che un fotogramma disegna: il taglio dalla luce, lo scarto per pagina e il test di occlusione dei proiettori in movimento con le piramidi che legge.",
       "gpuShadowRasterMs": "Tempo GPU per disegnare quei proiettori nelle pagine: lo strato statico, poi il pool.",
       "gpuLightingMs": "Tempo GPU dell'illuminazione.",
+      "cpuShadowPlanMs": "Tempo CPU del piano delle ombre dell’immagine, attorno al pianificatore: un passo con nome del profilo CPU (`cpuSteps()`, `cpu-timing`), come i cinque seguenti. Ciascuno è `null` quando l’immagine non l’ha eseguito — nessuna luce, un’immagine trattenuta — o su un motore che non sa misurarlo (WebGL2), mai 0. Fanno parte del tempo di codifica, mai sommati a esso.",
+      "cpuShadowRequestsMs": "Tempo CPU della lettura del rapporto delle richieste d’ombra tornato.",
+      "cpuShadowAdmissionMs": "Tempo CPU dell’ammissione delle pagine scadute che l’immagine legge.",
+      "cpuShadowBatchesMs": "Tempo CPU dei lotti d’ombra attorno alle loro regioni e passaggi: preparazione, conferme, copia delle richieste.",
+      "cpuShadowRegionsMs": "Tempo CPU della scrittura delle regioni di ogni lotto d’ombra: uniform delle facce e record delle pagine.",
+      "cpuShadowPassesMs": "Tempo CPU della codifica dei passaggi di ogni lotto d’ombra: proiettori, cancellazioni e ripristini, disegni.",
       "shadowLightCuts": "Tagli di cluster eseguiti dalle luci: uno per vista di luce disegnata, zero in un fotogramma fermo.",
       "shadowPagesRequested": "Pagine d’ombra virtuali che l’immagine legge, come le ha nominate la domanda anticipata del fotogramma — o, senza di essa, il suo ultimo rapporto di richieste: ciò che marcano i ricevitori della camera.",
       "shadowPagesCached": "Di queste, pagine lette direttamente dal pool: aggiornate, senza disegno.",
@@ -5529,6 +5531,7 @@
     "summary": "Il lavoro d’ombra del fotogramma: quali pagine virtuali vengono disegnate.",
     "members": {
       "counts": "Ciò che ha fatto l’ultimo piano, in pagine.",
+      "spent": "Millisecondi CPU che l’ultimo piano ha speso a leggere il rapporto delle richieste e ad ammettere le pagine.",
       "worldChanged": "Un nodo si è mosso: il suo box invalida le pagine che copre al piano successivo.",
       "representationChanged": "Lo stesso mondo a un’altra precisione: il suo box attende che la camera si fermi.",
       "resting": "La camera era ferma all'ultimo piano: la sua vista era quella del piano precedente.",
@@ -6837,10 +6840,16 @@
       "tileLightPoolCapacity": "Parole che la riserva di indici di luci teneva su quell’immagine campionata; `null` allo stesso modo.",
       "tileLightPoolOverflowed": "Se una tessera non ha trovato posto nella riserva su quell’immagine campionata e ha percorso ogni luce.",
       "tileLightPoolGrowths": "Volte in cui la riserva è cresciuta fino a ciò che chiedeva un’immagine traboccante, dall’apertura dell’esploratore.",
-      "gpuShadowsMs": "Tempo GPU delle ombre.",
+      "gpuShadowsMs": "Tempo GPU della fase Ombre, esattamente i passaggi d’ombra della tabella dei passaggi del motore: l’atlante delle ombre, il suo strato statico, la cancellazione e il passaggio dello strato di trasmittanza, lo scarto per pagina, le piramidi di pagine e il test di occlusione. Il taglio dalla luce è una fase a sé (`shadowCasters`); nessun passaggio esterno al lavoro delle ombre vi è contato.",
       "gpuShadowCullMs": "Tempo GPU per scegliere i proiettori delle pagine d’ombra che un fotogramma disegna: il taglio dalla luce, lo scarto per pagina e il test di occlusione dei proiettori in movimento con le piramidi che legge.",
       "gpuShadowRasterMs": "Tempo GPU per disegnare quei proiettori nelle pagine: lo strato statico, poi il pool.",
       "gpuLightingMs": "Tempo GPU dell'illuminazione.",
+      "cpuShadowPlanMs": "Tempo CPU del piano delle ombre dell’immagine, attorno al pianificatore: un passo con nome del profilo CPU (`cpuSteps()`, `cpu-timing`), come i cinque seguenti. Ciascuno è `null` quando l’immagine non l’ha eseguito — nessuna luce, un’immagine trattenuta — o su un motore che non sa misurarlo (WebGL2), mai 0. Fanno parte del tempo di codifica, mai sommati a esso.",
+      "cpuShadowRequestsMs": "Tempo CPU della lettura del rapporto delle richieste d’ombra tornato.",
+      "cpuShadowAdmissionMs": "Tempo CPU dell’ammissione delle pagine scadute che l’immagine legge.",
+      "cpuShadowBatchesMs": "Tempo CPU dei lotti d’ombra attorno alle loro regioni e passaggi: preparazione, conferme, copia delle richieste.",
+      "cpuShadowRegionsMs": "Tempo CPU della scrittura delle regioni di ogni lotto d’ombra: uniform delle facce e record delle pagine.",
+      "cpuShadowPassesMs": "Tempo CPU della codifica dei passaggi di ogni lotto d’ombra: proiettori, cancellazioni e ripristini, disegni.",
       "hizTestedClusters": "Ciò che ha fatto il test di occlusione su un fotogramma: i cluster che gli sono stati dati, quelli che ha eliminato, e quelli la cui impronta sullo schermo al livello 0 supera il kernel di sedici texel e quindi rispondono da un mip più grossolano. `hiz*Triangles` sono i triangoli di questi stessi cluster. Sul percorso GPU, descrivono un fotogramma PIÙ VECCHIO di quello che li renderizza — `hizCountedFrame` dice quale —, come `gpuPassMs`, e due fotogrammi vicini portano spesso la stessa misura. Nessuno è stimato: `null` per un motore che non testa l'occlusione, su un dispositivo i cui verdetti non possono essere riletti, e finché nessun fotogramma è stato contato.",
       "hizRejectedClusters": "Cluster nascosti.",
       "hizOversizedClusters": "Cluster troppo grandi per essere testati.",
