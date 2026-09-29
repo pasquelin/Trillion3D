@@ -21,6 +21,7 @@ import {
   FLAG_HAS_NORMAL_MAP,
   FLAG_SAMPLED,
   FLAG_FOG_FREE,
+  FLAG_DYNAMIC,
   type VisMaterial,
 } from '../../visibility/buffer.ts';
 
@@ -36,6 +37,8 @@ export type GeometryBlock = {
   /** The row reads its geometry from the quantized page in its pool slot, not from the source
    *  float buffers: `vertexBase` then addresses nothing. */
   quantized?: boolean;
+  /** A world's dynamic geometry, rewritten in place (#573): its rows carry `FLAG_DYNAMIC`. */
+  dynamic?: boolean;
 };
 
 /**
@@ -148,6 +151,7 @@ export function rowMaterial(
   const classKey = materialClassKey(flags, { rough, metal, ao, emissive, normal });
   // Where the row reads its geometry is not a material feature: it never splits a resolve class.
   if (geo?.quantized) flags |= FLAG_CLUSTER_PAGE;
+  if (geo?.dynamic) flags |= FLAG_DYNAMIC;
   return { map, rough, metal, normal, ao, emissive, flags, classKey };
 }
 

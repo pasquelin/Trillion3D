@@ -87,18 +87,18 @@ test('a root mark written once per change reaches the frame word the light cut r
   selection.dispatch(kernelUniforms(dag, roots, wideCamera(), 0));
   await selection.flush();
   const at = primitiveWordAt(0) + 3;
-  words.length = 0;
+  const earlier = words().length;
   for (const mark of [SHADOWLESS_ROOT, SHADOWLESS_ROOT, 0]) selection.markWorld(0, mark);
-  assert.deepEqual(
-    words,
-    [
-      [at, SHADOWLESS_ROOT],
-      [at, 0],
-    ],
-    'one write per change',
-  );
+  assert.deepEqual(words().slice(earlier), [], 'nothing sent before the next cut (CPU-15)');
   assert.equal(dag.mark[0], 0);
   assert.equal(selection.peek(), null, 'the cut in hand is void');
+  selection.markWorld(0, SHADOWLESS_ROOT);
+  selection.dispatch(kernelUniforms(dag, roots, wideCamera(), 0));
+  assert.deepEqual(
+    words().slice(earlier),
+    [[at, SHADOWLESS_ROOT]],
+    'the last word, once, at the next cut',
+  );
   selection.dispose();
   fixture.geometry.dispose();
 });
@@ -115,7 +115,7 @@ test('the resident mask recomputes for residency changes with an unchanged camer
     [
       ...new Uint32Array(
         (selection.maskBuffer as unknown as { data: Uint8Array }).data.buffer,
-      ).slice(selection.maskOffset),
+      ).slice(selection.maskOffset, selection.maskOffset + dag.pageCount),
     ]
       .flatMap((flag, id) => (flag ? [dag.pageUrls[id]] : []))
       .sort();

@@ -12,7 +12,8 @@ export type ReopenCause =
   | 'repaint-refused'
   | 'background'
   | 'mount-refused'
-  | 'rows-outgrown';
+  | 'rows-outgrown'
+  | 'vertices-refused';
 const NEEDED: ReadonlySet<ReopenCause> = new Set(['device-lost', 'option']);
 
 /** The measure of a reopen in flight: its causes, its start, the display frames it lasted. */

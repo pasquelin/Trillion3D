@@ -54,25 +54,25 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   // forward copies. Counted here, while the list is still only theirs.
   const sharedBlendMeshes = blendCopies.length;
   // Transparent pages share selection/residency with opaque pages, but retain one forward draw
-  // per placement (all back faces, then all front faces), keyed by the world its pages read: the
-  // source mesh's own, or one row of its instance buffer.
+  // per placement (all back faces, then all front faces), keyed by the world of the root that
+  // places its pages: the source mesh's own, or one row of its instance buffer.
   const pagedBlendCopies = new Map<MatrixElements, BlendCopy>();
-  for (const rec of allPages)
-    if (rec.transparent && rec.sourceMesh) {
-      if (pagedBlendCopies.has(rec.matrix)) continue;
-      const copy = createBlendCopyRecord(
-        rec.sourceMesh,
-        rec.renderOrder,
-        rec.matrix,
-        rec.material,
-        rec.placement,
-      );
-      copy.userData.pagedBlend = true;
-      // The compiler writes a geometry page for every cluster of a primitive, or for none.
-      copy.userData.pageGeometry = !!rec.geometryPage;
-      pagedBlendCopies.set(rec.matrix, copy);
-      blendCopies.push(copy);
-    }
+  for (const { world, placement, pages } of roots) {
+    const rec = pages[0];
+    if (!rec?.transparent || !rec.sourceMesh || pagedBlendCopies.has(world)) continue;
+    const copy = createBlendCopyRecord(
+      rec.sourceMesh,
+      rec.renderOrder,
+      world,
+      rec.material,
+      placement,
+    );
+    copy.userData.pagedBlend = true;
+    // The compiler writes a geometry page for every cluster of a primitive, or for none.
+    copy.userData.pageGeometry = !!rec.geometryPage;
+    pagedBlendCopies.set(world, copy);
+    blendCopies.push(copy);
+  }
   blendCopies.sort((a, b) => a.renderOrder - b.renderOrder);
   // Request rank → address, posted once for the scene's life: the delta the host receives after the
   // render carries only integers, and it is this table that translates them.
@@ -119,8 +119,8 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   });
   const sourceBytes = indexSourceBytes(allPages);
   // The engine's two fixed pools, in bytes, as in the reference: what does not fit renders coarser.
-  // Image targets, themselves, follow resolution with no ceiling. Tables sized by drawable page are
-  // sized once, to the ceiling the geometry pool can reach mid-session (`setMemoryBudgets`).
+  // Image targets, themselves, follow resolution with no ceiling. Tables sized by drawable page start
+  // at the ceiling the host names for the pool, and grow in place past it (`growTables.ts`).
   const geometry = sessionGeometryPool(
     {
       pageBytes,
@@ -131,6 +131,7 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     },
     context.geometryPoolBytes,
     context.geometryPoolCeilingBytes,
+    true,
   );
   // The texture pools are prepare's to draw, once the catalogue says which family the session
   // samples and which lane each texture takes; until then only the budget is held.
@@ -163,7 +164,8 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     requestUrls,
     // What the host pins, held from one image to the next and published as a rank delta.
     hostRanks: createHostRankDelta(requestCount, requestUrls),
-    // Ceiling of tables sized by drawable page: the slots the pool can reach mid-session.
+    // The slots the tables sized by drawable page are sized for: the ceiling the host named, then
+    // each larger pool they grew for (`growTables.ts`).
     cap: geometry.ceilingSlots,
     scene,
     pageBytes,
@@ -180,7 +182,7 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     // The two pools as they are held; `setMemoryBudgets` replaces them with another drawn from the
     // same rule, `slots` follows.
     geometryPool: geometry.pool,
-    // The same pool for another budget, under the session ceiling.
+    // The same pool for another budget: above `cap`, the tables grow first (`io/memory.ts`).
     geometryPoolFor: geometry.poolFor,
     texturePoolBudget,
     /** The family, the encoding and the lane pools, set by prepare; `setMemoryBudgets` redraws. */

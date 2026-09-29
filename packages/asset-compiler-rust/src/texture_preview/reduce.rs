@@ -74,7 +74,7 @@ impl AtlasKind {
 /// odd side repeats its last texel, like `min(p + 1, hi)` in the shader. No curve
 /// declared by the file: the atlas does not know it, and the pyramid follows
 /// display, not the file.
-pub(super) fn chain(source: &image::RgbaImage, kind: AtlasKind) -> Vec<Vec<u8>> {
+pub(crate) fn chain(source: &image::RgbaImage, kind: AtlasKind) -> Vec<Vec<u8>> {
     let (width, height) = (source.width(), source.height());
     let last = preview_last_level(width, height);
     let mut levels = Vec::with_capacity(last as usize + 1);

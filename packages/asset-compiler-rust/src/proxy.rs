@@ -12,6 +12,7 @@ pub mod cut;
 pub mod encode;
 pub mod provenance;
 pub mod simplify;
+pub(crate) mod tracer;
 pub mod wide;
 
 /// Product contract. Moving cut, sections or node order requires incrementing.

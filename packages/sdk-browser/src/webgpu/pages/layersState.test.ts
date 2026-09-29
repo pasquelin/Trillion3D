@@ -55,11 +55,12 @@ test('visSlotPipeline and visPipelineFor route a coplanar-layer slot to its own 
   })) as unknown as GPURenderPipeline[];
   const rt = {
     vis: { drawLayerSlots: 2, visLayerPipelines: pipelines },
+    layout: { selectionRoots: [{ world: new G.Matrix4() }] },
   } as unknown as WebgpuPagesCore;
   assert.equal(visSlotPipeline(rt, BASE_SLOTS), pipelines[0], 'layer 1, occluder, back cull');
   const rec = {
     material: G.basicSurface(),
-    matrix: new G.Matrix4(),
+    placementIndex: 0,
     depthLayer: 1,
   } as unknown as PageRec;
   assert.equal(

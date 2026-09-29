@@ -55,7 +55,7 @@ export function shadingNormal(
   let Nx = ny * cz - nz * cy,
     Ny = nz * cx - nx * cz,
     Nz = nx * cy - ny * cx;
-  const world = page.matrix.elements;
+  const world = tri.world.elements;
   const face = screenFace * (matrixWindingCw(world) ? -1 : 1),
     side = mat.backSide ? -1 : 1;
   const normalAttr = page.attributes.normal,

@@ -1,6 +1,6 @@
 import * as G from '../host/graph/graph.fixture.ts';
 import { MANIFEST_IDENTITY } from '../backend/pagesBackend.fixture.ts';
-import { dagRoots } from '../webgpu/pages/testDag.fixture.ts';
+import { dagRoots } from '../backend/pagesBackend.fixture.ts';
 import { QUAD_MANIFEST, triangleGeometry } from '../backend/pagesBackendScenes.fixture.ts';
 import { rootPage } from '../webgpu/pages/testScenes.fixture.ts';
 import { cameraAt } from '../webgpu/pages/twoPlaces.fixture.ts';
@@ -39,7 +39,7 @@ function placedScene(links: readonly RowLink[]) {
     mesh,
     primitive: rank,
     pass: 'exact-clusters',
-    pages: dagRoots([rootPage(url, [-1, -1, 0], [1, 1, 0])]),
+    pages: dagRoots([rootPage(url, [-1, -1, 0], [1, 1, 0])]).pages,
     structure,
   });
   const metadata: ClusterManifest = {
@@ -96,7 +96,7 @@ export async function placedSession(bindingRows: number) {
     request() {},
     update: (rows, from, to) => updateWebgpuPlacements(rt, rows, from, to),
     grow: {
-      growsInPlace: (from, capacity) => webgpuGrowsInPlace(rt, from, capacity),
+      growsInPlace: (from) => webgpuGrowsInPlace(rt, from),
       growPlacements: (from, to) => growWebgpuPlacements(rt, from, to),
     },
     outgrown: () => void reopened.count++,

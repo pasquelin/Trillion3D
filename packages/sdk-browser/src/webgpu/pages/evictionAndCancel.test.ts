@@ -5,7 +5,7 @@ import { collectClusterPages } from '../../page/selection/selection.ts';
 import { packDagSelection } from '../../gpu/dag/selection.ts';
 import { drawnPageIds, installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
-import { dagLevel } from './testDag.fixture.ts';
+import { dagLevel } from '../../backend/pagesBackend.fixture.ts';
 import { quadScene, camera } from './testScenes.fixture.ts';
 import { coarseQuadScene } from './testOccluder.fixture.ts';
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
@@ -50,7 +50,7 @@ test('a leaf carrying its own coarse representation keeps that GPU fallback duri
     { device } = mockGpu();
   // One cluster replaced by one coarser cluster: a group of a single child.
   const leaf = { ...fixture.metadata.primitives[0].pages[0], count: 6, bytes: 24 };
-  const level = dagLevel([leaf], { ...fixture.metadata.primitives[0].pages[2], id: 1 }, 1);
+  const level = dagLevel([leaf], [{ ...fixture.metadata.primitives[0].pages[2], id: 1 }], 1);
   const metadata: ClusterManifest = {
     ...fixture.metadata,
     primitives: [{ ...fixture.metadata.primitives[0], ...level }],

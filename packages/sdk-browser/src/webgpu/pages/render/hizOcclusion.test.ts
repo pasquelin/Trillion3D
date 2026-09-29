@@ -42,7 +42,7 @@ test('webgpu Hi-Z remaining pages stay a subset of the CPU selection oracle', as
   const selected = cpu.shown.map((page) => page.url).sort();
   assert.deepEqual(backend.selectedPageIds().sort(), selected);
   assert.deepEqual(selected, ['back', 'front']);
-  assertOccluderImage(backend, cpu.shown, cam, viewport);
+  assertOccluderImage(backend, cpu.shown, collected.roots, cam, viewport);
   assert.ok(
     (backend.metrics().submittedTriangles ?? 0) < (backend.metrics().selectedTriangles ?? 0),
   );
