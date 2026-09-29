@@ -3361,7 +3361,8 @@
       "settled": "Đúng khi một báo cáo chứng minh trạng thái hiện tại không yêu cầu gì: ảnh có thể được giữ.",
       "receive": "Một báo cáo yêu cầu đã trả về; kế hoạch tiếp theo đọc nó. Báo cáo mới hơn thay báo cáo chưa đọc.",
       "commit": "Các trang `[from, to)` trong danh sách của khung hình đã được mã hóa, trang `from + i` trong `modes[i]`: bản vẽ của chúng xong trước khi có ai đọc. Lô cuối đóng danh sách.",
-      "resize": "Pool ở kích thước khác, các trang được giữ, các mảng được tạo lại: trả về nơi mỗi trang đã chuyển đến."
+      "resize": "Pool ở kích thước khác, các trang được giữ, các mảng được tạo lại: trả về nơi mỗi trang đã chuyển đến.",
+      "gpu": "Việc cấp phát của GPU (`mirror.ts`): GPU có ánh xạ các trang không, và máy chủ yêu cầu gì ở nó."
     }
   },
   "ShadowStaleReason": {
@@ -7634,7 +7635,8 @@
       "layoutEpoch": "Bố cục bảng mà khung đó dùng để đọc (`ShadowTable.layoutEpoch`).",
       "stamp": "Con dấu của kế hoạch khi khung đó được mã hóa (`ShadowPlan.stamp`).",
       "count": "Các mục được yêu cầu, có thể nhiều hơn `entries` chứa: phần còn lại yêu cầu lại ở khung sau.",
-      "entries": "Các mục được yêu cầu, tối đa `count` mục đầu."
+      "entries": "Các mục được yêu cầu, tối đa `count` mục đầu.",
+      "pool": "Kho của bộ cấp phát GPU sau lần cấp phát của khung hình đó, khi GPU cấp phát."
     }
   },
   "VehicleDriver": {

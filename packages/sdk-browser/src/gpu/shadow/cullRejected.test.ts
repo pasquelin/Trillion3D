@@ -14,7 +14,8 @@ test('both cull entries count the casters they test, of the kind the region draw
   for (const shader of [SHADOW_CULL_SHADER, SHADOW_LIGHT_CULL_SHADER]) {
     const counted = shader.indexOf('atomicAdd(&tested,1u);');
     assert.ok(
-      counted > shader.indexOf('volume.casters!=') && counted < shader.indexOf('let sphere='),
+      counted > shader.indexOf('volume.casters!=') &&
+        counted < shader.indexOf('if(!sphereTouches('),
     );
     assert.match(shader, /\n flushTested\(lane\);\n\}/);
     assert.ok(shader.includes(`atomicAdd(&indirect[${SHADOW_TESTED_WORD}u],n)`));

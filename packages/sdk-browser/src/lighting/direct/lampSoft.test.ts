@@ -10,12 +10,16 @@ function sample(radius: number, receiver: number, blocker: number | null) {
     filter: V[] = [];
   const { pointSoftShadow } = shaderRun<{ pointSoftShadow: (...args: unknown[]) => number }>(
     LAMP_SOFT_WGSL,
-    ['pointSoftShadow'],
+    ['pointSoftShadow', 'lampSoftDisk'],
     {
       shadows: { records: [{ info: [6, 1, 0.1, 0] }] },
       PCF_TAPS: POISSON_16.length,
       POISSON: POISSON_16,
       shadowTransmission: [1, 1, 1],
+      LampDisk: (T: V, B: V, distance: number, closest: number, search: number) => ({
+        ...{ T, B, distance },
+        ...{ closest, search },
+      }),
       cross: (a: V, b: V) => [
         a[1] * b[2] - a[2] * b[1],
         a[2] * b[0] - a[0] * b[2],

@@ -431,16 +431,48 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   `sun-far-shadow` diagnostic publishes its bounds). The PCF taps each find their own page: a tap
   within a texel of a seam compares the four texels of its footprint in their own pages, weighted
   by hand — no seam, no guard band.
-- **Receivers mark the pages.** The opaque resolve records each page it reads — a bit per table
-  word, tested before the atomic, and a list — and the list comes back in one readback per image,
-  as the texture feedback does (`webgpu/shadow/pageRequests.ts`). A page asked for and unmapped is
-  allocated from the free list, or from the page least recently asked for, the finest first among
-  equals; a page the latest report named is never evicted, and coarse levels are served first.
-  Meanwhile the pixel reads the next coarser level. Blend and water surfaces read what the opaque
-  pixels asked for, and keep their early depth reject. The boxes of the drawn clusters do not name
-  pages (#1209): a box bounds far more than its pixels read — a ring round a lamp bounds the
-  lamp's whole map —, and scheduling from them drew the whole pool; the per-pixel demand known
-  before the raster is #1275's.
+- **Receivers mark the pages.** A compute pass after the light lists marks, per pixel, the pages
+  the resolve will read, and the resolve records each page it reads — a bit per table word, tested
+  before the atomic, and a list —; the list comes back in one readback per image, as the texture
+  feedback does (`webgpu/shadow/demandPass.ts`, `pageRequests.ts`). The boxes of the drawn
+  clusters do not name pages (#1209): a box bounds far more than its pixels read — a ring round a
+  lamp bounds the lamp's whole map.
+- **The GPU maps what the frame marks, in that frame** (#1275). Right after the demand, one
+  workgroup reads the list — the plan's floors, claimed at its head before the demand so pixels
+  that fill it never push one out, then the pixels' pages, deduplicated by the bitset — and maps each unmapped page from the free pages, or from the page least recently asked for, the
+  finest first among equals, by the keys the host sorts by too (`pageKeys.ts`); a page this frame
+  asks for is never evicted, and coarse levels are
+  served first (`webgpu/shadow/allocWgsl.ts`). It frees the pages of a light gone and of a sun level
+  whose window left them, and writes the table words itself; entries are decoded by the page model
+  the shaders share (`pageModel.ts`). The host keeps the buffers and the memory grant, and its pool
+  follows the GPU's from the snapshot each readback carries (`scene/light-shadow/mirror.ts`); a
+  word the host sends is kept only for the page the GPU says its entry owns (`wordsWgsl.ts`).
+  Blend and water surfaces read what the opaque pixels asked for, and keep their early depth
+  reject. Without the demand or the allocation pipeline, the readback's report maps the pages on
+  the host, frames later.
+- **The GPU draws what it maps, in that frame** (#1275). The allocation lists every page it maps,
+  and those it mapped before that no draw has filled since; the host's table words list every page
+  they take the depth of — withdrawn when a light moves, or overwritten for another entry — while
+  the frame reads it. After the host's batches and words, one workgroup composes the listed pages
+  into regions, as many as the pair list holds every caster row of — the rest wait, unread, for
+  the next frame, the reader on their floor (`webgpu/shadow/freshWgsl.ts`): its view composed from its
+  light's record by the page view model the host composes it with (`pageViewModel.ts`: a lamp
+  page is its face's clip cropped to it, a sun page its view cropped by the orthography), its cull
+  volume the page's own in light space, a lamp page's cone or a sun page's box. The pair cull then
+  tests every caster row of the frame against every region (`freshCullWgsl.ts`): the row table is
+  every resident page of every caster, whatever the camera or a light cut selected, so a caster the
+  camera does not see keeps its shadow on a receiver it sees; each row a region keeps is one
+  `(region, row)` pair of one list, never past its capacity. The seal makes each page readable,
+  and each pool layer's pass clears its pages and draws every pair in two indirect draws,
+  the casters placed on their page in the vertex stage and kept to it by the fragment: no indirect
+  draw sets a viewport (`freshPass.ts`, `freshDrawsWgsl.ts`). While a tinted transmittance layer is
+  read, each layer's pass of it clears the same pages and draws their blended casters, as the host's
+  does. The host draws a page again with its light cut and static layer once a report tells it the
+  page, and the GPU's draw stays readable meanwhile (`DRAWN_GPU`). A page read first in a frame is
+  so drawn before anything samples it: no one-frame hole, the view, a light or a caster moving. A
+  frame whose view, world and lights hold, whose host took no page's depth, after a snapshot that
+  listed none, runs none of it: at rest it asks for the pages the frame before drew
+  (`freshWanted`, `gpu.moved`).
 - **Every stale page the image reads is drawn, in the frame that marks it** (#489). There is no
   per-frame page cap and no millisecond budget; the list goes the coarsest first, each light's
   floor leading (#525), an order that matters only to a frame its memory guard stops. The cost is
@@ -740,6 +772,14 @@ Each crossed pixel tests its exact ray-depth interval; work is bounded by viewpo
 height. A separate linear, unfogged, unreflected source prevents render-target feedback,
 recursive reflections and applying the camera fog twice. The source is regenerated with each
 changed image and belongs to its camera view, including captures and resizing.
+
+On WebGL2 the mirror receivers alone are resolved once into a reduced-resolution image, at a pixel
+budget derived from the screen unit rather than the display: a receiver whose image already fits
+the budget keeps its own size, a larger one resolves at the aspect-preserving largest size within
+it. The display pass samples that image instead of tracing again, so a mirror receiver's reflection
+cost stops following the display and a transmissive ocean's two mirror terms share one trace. The
+reduced image is a rendering technique under the fluids quality exception (#1292): reflections blur
+at the resolve ratio, within the stated bound of the reference image.
 
 A screen hit replaces the proxy contribution in the one reflection model. On a screen miss,
 WebGPU with bounce enabled keeps the resident-proxy ray and probe fallback; without bounce,
