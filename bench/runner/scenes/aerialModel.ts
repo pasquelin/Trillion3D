@@ -123,20 +123,16 @@ export interface PropShape {
   share: number;
 }
 
+/** Radius, height pairs, bottom to top, from a flat list. */
+const pairs = (...values: number[]) =>
+  values.flatMap((value, i) => (i % 2 ? [] : [[value, values[i + 1]] as [number, number]]));
+
 /** Five props, from ~2 k to ~30 k triangles each, like a world's trees, houses and rocks. */
 export const PROPS: PropShape[] = [
   {
     name: 'pine',
     material: 1,
-    profile: [
-      [0.3, 0],
-      [0.3, 2],
-      [3, 2.2],
-      [0.8, 7],
-      [2.4, 7.2],
-      [0.4, 12],
-      [0, 13],
-    ],
+    profile: pairs(0.3, 0, 0.3, 2, 3, 2.2, 0.8, 7, 2.4, 7.2, 0.4, 12, 0, 13),
     segments: 64,
     rings: 16,
     wobble: 0.08,
@@ -145,14 +141,7 @@ export const PROPS: PropShape[] = [
   {
     name: 'oak',
     material: 1,
-    profile: [
-      [0.4, 0],
-      [0.4, 3],
-      [3.5, 4],
-      [4.5, 7],
-      [3, 10],
-      [0, 11],
-    ],
+    profile: pairs(0.4, 0, 0.4, 3, 3.5, 4, 4.5, 7, 3, 10, 0, 11),
     segments: 96,
     rings: 24,
     wobble: 0.12,
@@ -161,12 +150,7 @@ export const PROPS: PropShape[] = [
   {
     name: 'bush',
     material: 1,
-    profile: [
-      [0.1, 0],
-      [1.4, 0.4],
-      [1.6, 1.2],
-      [0, 2],
-    ],
+    profile: pairs(0.1, 0, 1.4, 0.4, 1.6, 1.2, 0, 2),
     segments: 40,
     rings: 12,
     wobble: 0.15,
@@ -175,12 +159,7 @@ export const PROPS: PropShape[] = [
   {
     name: 'house',
     material: 2,
-    profile: [
-      [5, 0],
-      [5, 6],
-      [5.6, 6],
-      [0, 10],
-    ],
+    profile: pairs(5, 0, 5, 6, 5.6, 6, 0, 10),
     segments: 4,
     rings: 64,
     wobble: 0,
@@ -189,12 +168,7 @@ export const PROPS: PropShape[] = [
   {
     name: 'rock',
     material: 3,
-    profile: [
-      [0.1, -0.5],
-      [2.2, 0.3],
-      [1.8, 1.6],
-      [0, 2.2],
-    ],
+    profile: pairs(0.1, -0.5, 2.2, 0.3, 1.8, 1.6, 0, 2.2),
     segments: 64,
     rings: 24,
     wobble: 0.2,
