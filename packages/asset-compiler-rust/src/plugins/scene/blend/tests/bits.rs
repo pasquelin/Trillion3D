@@ -77,8 +77,10 @@ fn written_bits(bytes: &[u8]) -> Vec<u32> {
         let count = accessor["count"].as_u64().expect("count") as usize * 3;
         bits.extend(
             bin[from..from + count * 4]
-                .chunks_exact(4)
-                .map(|word| u32::from_le_bytes(word.try_into().expect("a word"))),
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .map(|word| u32::from_le_bytes(*word)),
         );
     }
     bits
