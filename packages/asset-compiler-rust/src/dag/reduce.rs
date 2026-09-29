@@ -111,6 +111,9 @@ pub(super) fn reduce_group(
 /// islands (`charts::folded_span`): a later collapse may join islands a placed vertex's seams no
 /// longer hold. Zero elsewhere: a primitive no solve touched keeps its bytes.
 fn folded_after_solve(input: &GroupReductionInput, live: &[u32], kept: &[u32]) -> f64 {
+    if input.positions.len() / 3 == input.source_vertices {
+        return 0.0;
+    }
     let placed = live.iter().any(|&v| v as usize >= input.source_vertices);
     let islands = if placed { input.islands } else { &[] };
     charts::folded_span(kept, input.positions, islands, |v| v as usize)
