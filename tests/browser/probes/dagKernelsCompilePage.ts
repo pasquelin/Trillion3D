@@ -8,7 +8,7 @@ import { createDagStages } from '../../../packages/sdk-browser/src/gpu/dag/pipel
 import { dagBindEntries } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts';
 import { shaderErrors } from '../../../packages/sdk-browser/src/gpu/core/shaderModule.ts';
 import { validationScope } from '../../../packages/sdk-browser/src/gpu/core/errorScope.ts';
-import { ouvrirAppareil } from './webgpuDevice.ts';
+import { openGpuDevice } from './webgpuDevice.ts';
 
 /** One text to compile, under its name. */
 export type KernelText = { name: string; code: string };
@@ -16,7 +16,7 @@ export type KernelText = { name: string; code: string };
 export type KernelVerdict = { name: string; split: boolean; errors: string[] };
 
 export async function compileKernels(texts: KernelText[]) {
-  const gpu = await ouvrirAppareil();
+  const gpu = await openGpuDevice();
   if (!gpu) return { unavailable: 'no WebGPU adapter' };
   const { device } = gpu;
   const layout = device.createBindGroupLayout({ entries: dagBindEntries() });

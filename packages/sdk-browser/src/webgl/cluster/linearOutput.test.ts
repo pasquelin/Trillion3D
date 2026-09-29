@@ -63,7 +63,16 @@ test('a draw into the chain compiles its variant once, on the display program at
     CLUSTER_LINEAR_FRAGMENT,
   ]);
   const pinned = chained.of('bindAttribLocation').map(([, , name]) => name);
-  assert.deepEqual(pinned.sort(), ['color', 'instanceMatrix', 'normal', 'position', 'uv', 'uv1']);
+  assert.deepEqual(pinned.sort(), [
+    'color',
+    'instanceMatrix',
+    'normal',
+    'position',
+    'skinIndex',
+    'skinWeight',
+    'uv',
+    'uv1',
+  ]);
 });
 
 test('the variant writes linear radiance, coverage, and the surfaces the curve skips', () => {

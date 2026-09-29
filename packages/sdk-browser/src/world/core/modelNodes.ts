@@ -2,6 +2,9 @@ import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { sphereFromBounds } from '../../../../sdk-core/src/math/primitives/sphere.ts';
 import { emptyWorldBox, hostWorldBounds } from '../../host/world/bounds.ts';
 
+/** A node that may carry a mesh's morph weights. */
+type Weighted = { morphTargetInfluences?: number[] };
+
 /** The graph node each scene node of a loaded model stands for. */
 const sources = new WeakMap<Object3D, Object3D>();
 
@@ -33,6 +36,9 @@ export function modelNode(graph: Object3D): Object3D {
   } else graph.matrix.decompose(node.position, node.quaternion, node.scale);
   node.visible = graph.visible;
   node.castShadow = graph.castShadow;
+  // A morphed mesh's weights are one list for both: a clip writing them moves the drawn mesh.
+  const weights = (graph as Weighted).morphTargetInfluences;
+  if (weights) (node as Weighted).morphTargetInfluences = weights;
   sources.set(node, graph);
   return node;
 }
