@@ -2,15 +2,15 @@
 // Node chooses the columns and the street among them; the page only asks the physics
 // (`streetPage.ts`). Nothing names a scene, and no share of the box is assumed open.
 import type { Page } from 'playwright';
-import { STREET_REACH, eyeHeight, type Bounds } from './poses.ts';
+import { STREET_REACH, eyeHeight, plancherDuModele, type Bounds } from './poses.ts';
 import { probeColumns } from './streetPage.ts';
 
-/** One column of the model as the physics answered it: its ground (`null`: nothing under it),
- *  whether the sky is open one eye above that ground, and the nearest wall at that eye. */
+/** One column of the model as the physics answered it: its ground, whether the sky is open over
+ *  it one eye above that ground, and the nearest wall at that eye. */
 export interface ColumnProbe {
   x: number;
   z: number;
-  ground: number | null;
+  ground: number;
   open: boolean;
   clearance: number;
 }
@@ -32,6 +32,7 @@ export interface StreetProbeOptions {
   headings: Array<[number, number]>;
   centre: [number, number, number];
   top: number;
+  floor: number;
   height: number;
   reach: number;
   eye: number;
@@ -64,6 +65,7 @@ export function streetProbe(bounds: Bounds, urls: { sdkUrl: string; manifestUrl:
     headings: HEADINGS,
     centre: [(min.x + max.x) / 2, max.y + eye, (min.z + max.z) / 2],
     top: max.y + eye,
+    floor: plancherDuModele(bounds),
     height,
     reach: Math.hypot(max.x - min.x, max.z - min.z),
     eye,
@@ -74,17 +76,19 @@ export function streetProbe(bounds: Bounds, urls: { sdkUrl: string; manifestUrl:
 }
 
 /**
- * The street among the probed columns: under open sky, the one with the most room around it at
- * eye height; between two as roomy, the nearer the box centre. `null` when no column has open sky
- * and ground: the camera then walks the box centre, on its floor, with no room (`poseAt`).
+ * The street among the probed columns: on the model's floor (`plancherDuModele`, within one eye —
+ * a roof is no street), under open sky, the one with the most room around it at eye height;
+ * between two as roomy, the nearer the box centre. `null` when no column qualifies: the camera
+ * then walks the box centre, on its floor, with no room (`poseAt`).
  */
 export function pickStreet(probes: readonly ColumnProbe[], bounds: Bounds): Street | null {
   const cx = (bounds.min.x + bounds.max.x) / 2,
-    cz = (bounds.min.z + bounds.max.z) / 2;
+    cz = (bounds.min.z + bounds.max.z) / 2,
+    floor = plancherDuModele(bounds) + eyeHeight(bounds);
   let best: Street | null = null,
     bestDistance = Infinity;
   for (const probe of probes) {
-    if (!probe.open || probe.ground === null) continue;
+    if (!probe.open || probe.ground > floor) continue;
     const distance = Math.hypot(probe.x - cx, probe.z - cz);
     const roomier = !best || probe.clearance > best.clearance;
     if (roomier || (probe.clearance === best!.clearance && distance < bestDistance)) {

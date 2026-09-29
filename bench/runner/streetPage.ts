@@ -5,7 +5,7 @@ import type { ColumnProbe, StreetProbeOptions } from './street.ts';
 
 /**
  * Asks the physics the compiler cooked with the model (`physics.json`) about each column: the
- * ground under it, how far the nearest wall stands one eye above that ground among eight headings,
+ * ground under it — the model's floor when nothing is —, how far the nearest wall stands one eye above that ground among eight headings,
  * and whether the sky is open over the whole square the camera may walk there — `reachShare` of
  * that clearance each side, swept up from the eye. Exact queries on the cooked triangles
  * (`world.raycast(ray, { exact: true })`, `{ shape }`): the engine's own, no second copy of the
@@ -46,12 +46,9 @@ export async function probeColumns(options: StreetProbeOptions): Promise<ColumnP
     };
     const probes: ColumnProbe[] = [];
     for (const [x, z] of options.columns) {
-      const drop = await cast([x, options.top, z], [0, -1, 0], options.height);
-      if (drop === null) {
-        probes.push({ x, z, ground: null, open: false, clearance: 0 });
-        continue;
-      }
-      const ground = options.top - drop,
+      // Nothing under the column: it stands on the plane the model stands on.
+      const drop = await cast([x, options.top, z], [0, -1, 0], options.top - options.floor);
+      const ground = drop === null ? options.floor : options.top - drop,
         eye = ground + options.eye;
       const walls = await Promise.all(
         options.headings.map(([dx, dz]) => cast([x, eye, z], [dx, 0, dz], options.reach)),
