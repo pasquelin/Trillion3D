@@ -6,11 +6,11 @@ import { normalizeVector3 } from '../../math/primitives/vector.ts';
  * final normalisation. A vertex no face reaches keeps a zero normal. Written into `normals` when
  * given — a list rewritten every frame allocates nothing (#573).
  */
-export function computeNormals(
+export function computeNormals<T extends Float32Array | Float64Array = Float32Array>(
   positions: ArrayLike<number>,
   index: ArrayLike<number> | null,
-  normals = new Float32Array(Math.floor(positions.length / 3) * 3),
-): Float32Array {
+  normals = new Float32Array(Math.floor(positions.length / 3) * 3) as T,
+): T {
   const vertexCount = Math.floor(positions.length / 3);
   normals.fill(0);
   const corners = index ? index.length : vertexCount;

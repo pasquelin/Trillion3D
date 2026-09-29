@@ -21,7 +21,7 @@ export const DYNAMIC_UPLOAD_BUDGET_BYTES = 4 * 1024 * 1024;
 /** What a dynamic resource holds beside its pages: the box that culls it, the cut that serves them
  *  again in a larger one, and the geometry version read into its lists (`Reading`). */
 export type DynamicHeld = Reading & { box: HeldBox; cut: PageCutPayload; version: number };
-type Options = Parameters<typeof drawnTriangles>[2];
+type Options = NonNullable<Parameters<typeof drawnTriangles>[2]>;
 type Made = (cut: Cut) => void;
 
 /**
@@ -96,29 +96,29 @@ export function createWorldDynamic(notices: WorldNotices | undefined, counts: { 
       const geometry = mesh.geometry;
       const byWay = ways.get(geometry) ?? new Map<string, Promise<Cut | null>>();
       ways.set(geometry, byWay);
-      const asked = byWay.get(way),
+      let asked = byWay.get(way),
         before = await asked;
+      // Another mesh of this geometry made its resource meanwhile: it is this one's too, never a
+      // second cut of the same geometry.
+      while (byWay.get(way) !== asked) before = await (asked = byWay.get(way));
       if (before && dynamicOf(before).version === geometry.version) return before;
       // Its corners and lists kept, a rewrite is read into the resource's own lists, then uploaded.
-      const kept = before && byWay.get(way) === asked ? before : null;
-      if (kept && readInPlace(geometry, mesh.primitive, options, dynamicOf(kept)))
-        return pend(kept, geometry.version);
+      if (before && readInPlace(geometry, mesh.primitive, options, dynamicOf(before)))
+        return pend(before, geometry.version);
       const drawn = drawnTriangles(geometry, mesh.primitive, options);
       if (!drawn) return null;
-      if (kept && fits(kept.drawn, drawn, dynamicOf(kept).box)) {
-        const lists = dynamicOf(kept).next;
+      if (before && fits(before.drawn, drawn, dynamicOf(before).box)) {
+        const lists = dynamicOf(before).next;
         for (const [list] of LISTS) lists[list]?.set(drawn[list]!); // `fits`: the same lists
-        return pend(kept, geometry.version);
+        return pend(before, geometry.version);
       }
       // A new resource replaces it: what it read and did not upload is read there again.
       if (before) dirty.delete(before);
       const leave = () => byWay.get(way) === next && byWay.delete(way);
-      const next: Promise<Cut> = make(drawn, geometry, blended, before ?? undefined).then(
+      // A failed cut leaves no trace, as a static one: the mesh draws nothing, the next read retries.
+      const next: Promise<Cut | null> = make(drawn, geometry, blended, before ?? undefined).then(
         (cut) => (leaves.set(cut, leave), made(cut), cut),
-        (error) => {
-          leave();
-          throw error;
-        },
+        () => (leave(), null),
       );
       byWay.set(way, next);
       return next;
