@@ -2375,5 +2375,25 @@
       "unmount": "Отключить",
       "remount": "Переподключить"
     }
+  },
+  "a-character-that-walks": {
+    "controls": {
+      "playing": "Воспроизведение"
+    }
+  },
+  "a-crowd-of-characters": {
+    "controls": {
+      "playing": "Воспроизведение"
+    }
+  },
+  "a-shape-that-morphs": {
+    "controls": {
+      "playing": "Воспроизведение"
+    }
+  },
+  "additive-poses": {
+    "controls": {
+      "playing": "Воспроизведение"
+    }
   }
 }

@@ -1608,10 +1608,54 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
 - **Character.** With physics on, `world.controls` `'character'` is the physics' own character
   (see [Camera controllers](#camera-controllers)): it pushes, rides and is pushed.
 
+## GPU deformation
+
+Imported glTF and FBX animation clips are exposed as `model.animations`. A mixer binds tracks
+under that loaded model, including its morph weights:
+
+```ts
+const model = await world.scene.load('/character/cache/native/full/manifest.json');
+const mixer = animation.createMixer(model);
+const walk = mixer.clipAction(model.animations[0]).play();
+walk.weight = 0.8;
+walk.timeScale = 1.2;
+// Stop at a repeatable pose, for inspection or a reference comparison.
+walk.stop().seek(0.5);
+world.invalidate();
+```
+
+A page-created mesh uses `mesh.skeleton = animation.skeleton(bones, inverseBindMatrices)` and
+four-component `skinIndex` / `skinWeight` geometry attributes. Morph displacements belong in
+`geometry.morphAttributes.position` (and optionally `.normal`), with
+`geometry.morphTargetsRelative = true`; absolute targets are accepted too. Call
+`mesh.updateMorphTargets()` after adding targets. Animate `node.morphTargetInfluences` through
+`animation.weightsTrack`, or write its weights directly. Geometry and its cut pages are shared;
+each placement reads its own palette, weights and water source.
+
+Actions blend by `weight`. Set `action.blendMode = 'additive'` to add its difference from the
+clip's first key over the normal blend. `animation.twoBoneIK(root, mid, end, target, pole, weight)`
+solves a bone chain; use it after sampling the clips. `animation.windClip(bones, options)` returns
+a looping bone animation with `direction: [x, z]`, `angle` in radians and `frequency` in Hz.
+Wind changes bones, not individual CPU vertices. A water mesh sets `mesh.waves` to the same
+`WaterSurface` whose `waveModel` buoyancy reads: rendering and physics share wave parameters.
+
+WebGPU computes resident vertex positions, previous positions and normals before selection and
+rasterization. WebGL2 applies the same sources in its vertex stage. The engine expands culling
+bounds by the deformation reach and retains the previous pose for temporal reprojection;
+a stationary pose settles its previous values on the following frame. Cooked cloth uses its
+compiler-recorded simulation mapping; a page does not rebuild the cloth geometry.
+
+`metrics.gpuDeformationMs` is the latest measured WebGPU deformation stage time, or `null` when
+no timestamp sample is available. Zero is a measured zero, never a replacement for missing
+support. See [the walking character](../site/examples/a-character-that-walks.html),
+[the morph sample](../site/examples/a-shape-that-morphs.html), and
+[the crowd](../site/examples/a-crowd-of-characters.html). The crowd accepts `?count=1`, `10` or
+`100`; its fixed-time hook is for the recette's source-pose and frame-envelope comparisons.
+
 ## Current limits
 
-- `scene.load` reads a versioned compiled manifest; non-triangle primitives, skinning, morph targets
-  and non-standard glTF extensions are not drawn.
+- `scene.load` reads a versioned compiled manifest. Imported non-triangle primitives and
+  unsupported glTF extensions are refused by the compiler.
 - Specular environment-map IBL and screen-space reflections are not implemented; the
   bounce lighting exists but is off by default ([ENGINE.md](ENGINE.md#light-that-bounces)), and only
   with it on does a surface at the roughness floor reflect the scene, at the proxy's detail.

@@ -2375,5 +2375,25 @@
       "unmount": "外す",
       "remount": "取り付け直す"
     }
+  },
+  "a-character-that-walks": {
+    "controls": {
+      "playing": "再生"
+    }
+  },
+  "a-crowd-of-characters": {
+    "controls": {
+      "playing": "再生"
+    }
+  },
+  "a-shape-that-morphs": {
+    "controls": {
+      "playing": "再生"
+    }
+  },
+  "additive-poses": {
+    "controls": {
+      "playing": "再生"
+    }
   }
 }

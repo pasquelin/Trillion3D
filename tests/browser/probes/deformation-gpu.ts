@@ -1,6 +1,7 @@
 // Recette probe: the actual deformation kernel, compressed skin/morph decode and dynamic history.
 // node --experimental-strip-types tests/browser/probes/deformation-gpu.ts
 import assert from 'node:assert/strict';
+import { Waves } from '../../../packages/sdk-core/src/fluids/waves.ts';
 import { encodeGeometryPage } from '../../../packages/page-codec/geometryPage.ts';
 import {
   DEFORMATION_COMPUTE_WGSL,
@@ -37,7 +38,7 @@ const slot = 17,
 const pool = new Uint32Array(output + 3 * 11);
 pool.set(new Uint32Array(page.data.buffer, page.data.byteOffset, page.data.length / 4), slot);
 const layout = recordLayout({ joints: 1, targets: 1, waves: 0 });
-const positions = new Float32Array(layout.floats);
+const positions = new Float32Array(64);
 const words = new Uint32Array(positions.buffer);
 words.set([KIND_MORPH | KIND_SKIN, KIND_MORPH | KIND_SKIN, 1, 1]);
 positions.set([1, 0, 0, 2, 0, 1, 0, 0, 0, 0, 1, 0], layout.palette);
@@ -59,6 +60,7 @@ type Args = {
   row: number[];
   output: number;
   dynamic: number;
+  wave: number[];
 };
 async function probe(args: Args) {
   const gpu = await globalThis.ouvrirAppareil();
@@ -92,16 +94,40 @@ async function probe(args: Args) {
     usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
   });
   const images: number[][] = [];
-  for (let frame = 1; frame <= 4; frame++) {
+  for (let frame = 1; frame <= 6; frame++) {
     if (frame === 2) {
       const dynamicRow = new Uint32Array(args.row);
       dynamicRow[23] = args.dynamic;
       dynamicRow[58] = 0;
+      dynamicRow[47] = 1;
       device.queue.writeBuffer(buffers[3], 0, dynamicRow);
       device.queue.writeBuffer(buffers[1], 0, new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]));
     }
     if (frame === 3)
       device.queue.writeBuffer(buffers[1], 0, new Float32Array([0, 0, 2, 1, 0, 2, 0, 1, 2]));
+    if (frame === 5) {
+      device.queue.writeBuffer(buffers[3], 0, new Uint32Array(args.row));
+      device.queue.writeBuffer(
+        buffers[0],
+        (args.row[24] + 4) * 4,
+        new Uint32Array([args.pool[args.row[24] + 4] | 64]),
+      );
+      const soft = new Float32Array(64),
+        bits = new Uint32Array(soft.buffer);
+      bits.set([8, 8, 0, 0, 0, 1, 1, 0]);
+      soft.set([0, 0, 3, 0, 0, 2, 0, 0, 0, 0, 0, 1], 8);
+      device.queue.writeBuffer(buffers[1], 0, soft);
+    }
+    if (frame === 6) {
+      const wave = new Float32Array(64),
+        bits = new Uint32Array(wave.buffer);
+      bits.set([4, 4, 0, 0, 1, 0, 0, 0]);
+      const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+      wave.set(identity, 8);
+      wave.set(identity, 24);
+      wave.set(args.wave, 40);
+      device.queue.writeBuffer(buffers[1], 0, wave);
+    }
     device.queue.writeBuffer(buffers[5], 0, new Uint32Array([frame, 0, 0, 0]));
     const encoder = device.createCommandEncoder();
     const pass = encoder.beginComputePass();
@@ -118,6 +144,8 @@ async function probe(args: Args) {
   const adapter = await gpu.fermer();
   return { images, errors: gpu.erreurs, adapter: adapter.court };
 }
+const waves = new Waves([{ direction: [1, 0.3], wavelength: 3, amplitude: 0.2, steepness: 0.3 }]);
+waves.setTime(0.5);
 const result = await dansPageWebgpu(probe, {
   shader: DEFORMATION_COMPUTE_WGSL,
   bindings: deformationBindings(),
@@ -126,6 +154,16 @@ const result = await dansPageWebgpu(probe, {
   row: [...row],
   output,
   dynamic: FLAG_DYNAMIC,
+  wave: [
+    waves.dirX[0],
+    waves.dirZ[0],
+    waves.k[0],
+    waves.amplitude[0],
+    waves.lateral[0],
+    waves.phase[0],
+    waves.phase[0],
+    0,
+  ],
 });
 assert.equal(result.unavailable, undefined, result.unavailable);
 assert.deepEqual(result.errors, []);
@@ -133,9 +171,17 @@ const images = result.images!;
 for (let v = 0; v < 3; v++) {
   assert.deepEqual(images[0].slice(v * 11, v * 11 + 3), [rest[v * 3] + 2, rest[v * 3 + 1], 1]);
   assert.deepEqual(images[0].slice(v * 11 + 3, v * 11 + 6), rest.slice(v * 3, v * 3 + 3));
+  assert.deepEqual(images[1].slice(v * 11 + 3, v * 11 + 6), rest.slice(v * 3, v * 3 + 3));
+  assert.deepEqual(images[4].slice(v * 11, v * 11 + 3), [rest[v * 3], rest[v * 3 + 1], 3]);
+  const offset = waves.offset(rest[v * 3], rest[v * 3 + 2], []);
+  for (let c = 0; c < 3; c++)
+    assert.ok(Math.abs(images[5][v * 11 + c] - rest[v * 3 + c] - offset[c]) < 0.01);
   assert.deepEqual(images[2].slice(v * 11 + 3, v * 11 + 6), rest.slice(v * 3, v * 3 + 3));
   assert.deepEqual(images[3].slice(v * 11, v * 11 + 3), images[3].slice(v * 11 + 3, v * 11 + 6));
 }
 console.log(
-  JSON.stringify({ adapter: result.adapter, result: 'skin, morph and dynamic history match' }),
+  JSON.stringify({
+    adapter: result.adapter,
+    result: 'skin, morph, soft source, waves and dynamic history match',
+  }),
 );

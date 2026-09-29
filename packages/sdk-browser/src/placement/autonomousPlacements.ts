@@ -32,7 +32,7 @@ const counted = new Set<string>();
  * blended meshes by depth, never the instances of one draw. `transparent`, the flag it would take.
  */
 export const drawnInstanced = (rec: PageRec, transparent = rec.transparent) =>
-  !!rec.placement && !transparent;
+  !!rec.placement && !transparent && !rec.deformRecord;
 
 /**
  * The host meshes `recs` hang on the WebGL2 path's display graph, which its page ceiling bounds:

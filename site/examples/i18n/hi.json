@@ -2375,5 +2375,25 @@
       "unmount": "अनमाउंट करें",
       "remount": "फिर माउंट करें"
     }
+  },
+  "a-character-that-walks": {
+    "controls": {
+      "playing": "चलाएँ"
+    }
+  },
+  "a-crowd-of-characters": {
+    "controls": {
+      "playing": "चलाएँ"
+    }
+  },
+  "a-shape-that-morphs": {
+    "controls": {
+      "playing": "चलाएँ"
+    }
+  },
+  "additive-poses": {
+    "controls": {
+      "playing": "चलाएँ"
+    }
   }
 }
