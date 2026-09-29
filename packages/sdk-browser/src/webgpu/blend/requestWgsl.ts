@@ -8,16 +8,18 @@ import { FLAG_SAMPLED } from '../../visibility/types.ts';
  * `VSOut`, `uni.feedback` and inserts `TILE_REQUEST_WGSL` before this block.
  */
 export const BLEND_REQUEST_WGSL = `fn blendPick(in:VSOut,p:RequestPick,missing:bool,gradX:vec2f,gradY:vec2f)->u32{
+ if(p.sel==MAP_CHOICES){return colorRequestIndex(u32(in.emissive.w),in.uv,gradX,gradY,p.next,1u,false,(in.ids.y&${FLAG_SAMPLED}u)!=0u,missing);}
  return mapRequest(p,missing,vec2u(in.ids.x,in.ids.z),in.maps,in.uv,gradX,gradY,(in.ids.y&${FLAG_SAMPLED}u)!=0u);
 }
 fn blendRequest(in:VSOut,gradX:vec2f,gradY:vec2f)->u32{
  if(!feedbackPhase(in.position.xy,uni.feedback)){return 0u;}
+ let choices=MAP_CHOICES+select(0u,1u,in.emissive.w!=0.0);
  if(feedbackEvery(uni.feedback)){
-  for(var turn=0u;turn<MAP_CHOICES*PICK_TURNS;turn++){
-   let rank=blendPick(in,everyPick(in.position.xy,MAP_CHOICES,turn),true,gradX,gradY);
+  for(var turn=0u;turn<choices*PICK_TURNS;turn++){
+   let rank=blendPick(in,everyPick(in.position.xy,choices,turn),true,gradX,gradY);
    if(rank!=0u){return rank;}
   }
  }
- return blendPick(in,requestPick(in.position.xy,MAP_CHOICES,uni.feedback),false,gradX,gradY);
+ return blendPick(in,requestPick(in.position.xy,choices,uni.feedback),false,gradX,gradY);
 }
 `;

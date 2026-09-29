@@ -67,7 +67,8 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
   const block = new Float32Array(Math.max(1, floats)),
     words = new Uint32Array(block.buffer);
   const owners: (object | null | undefined)[] = new Array(placed.length);
-  let first = true;
+  let first = true,
+    revision = 0;
   /** Writes placement `i`'s record for this frame; returns how far it moves a vertex. */
   const write = (i: number, entry: Deformed, skipped: (i: number, reach: number) => boolean) => {
     const cold = first || owners[i] !== entry.mesh.sourceIdentity;
@@ -138,6 +139,10 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
     return wavesChanged(block, entry, at + layout.world, at + layout.wave);
   };
   return {
+    /** Revision of uploaded source poses, including deformation settling. */
+    get revision() {
+      return revision;
+    },
     block,
     bases,
     reach,
@@ -168,6 +173,7 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
         changed ||= moving[i] === 1;
       }
       first = false;
+      if (changed) revision++;
       return changed;
     },
   };

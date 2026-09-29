@@ -51,9 +51,9 @@ export class CoverageReaders {
       if (!held) continue;
       held.rule = true;
       for (const surface of held.surfaces) {
-        const { map: base, emissiveMap } = refreshSurface(surface);
-        if (base === map || emissiveMap === map)
-          held.rule &&= emissiveMap !== map && alphaIsCoverage(surface);
+        const { map: base, emissiveMap, subsurfaceMap } = refreshSurface(surface);
+        if (base === map || emissiveMap === map || subsurfaceMap === map)
+          held.rule &&= emissiveMap !== map && subsurfaceMap !== map && alphaIsCoverage(surface);
         else if (held.surfaces.delete(surface)) this.file(surface);
       }
       held.rule &&= held.surfaces.size > 0;
@@ -71,9 +71,10 @@ export class CoverageReaders {
     return held && Math.min(255, ...Array.from(held.surfaces, cutOf));
   }
   private file(surface: PageSurface) {
-    const { map, emissiveMap } = surface;
+    const { map, emissiveMap, subsurfaceMap } = surface;
     if (map) this.wear(map, surface, alphaIsCoverage(surface));
     if (emissiveMap) this.wear(emissiveMap, surface, false);
+    if (subsurfaceMap) this.wear(subsurfaceMap, surface, false);
   }
   private wear(texture: Texture, surface: PageSurface, coverage: boolean) {
     const held = this.readers.get(texture);

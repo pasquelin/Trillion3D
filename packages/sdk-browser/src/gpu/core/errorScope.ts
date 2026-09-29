@@ -1,3 +1,18 @@
+import { gpuDeviceLedgerOf } from './deviceLedger.ts';
+
+/** Roll back only resources made synchronously by this construction, never across an await. */
+export function constructGpuResources<T>(device: GPUDevice, build: () => T): T {
+  const allocation = gpuDeviceLedgerOf(device)?.transaction();
+  try {
+    return build();
+  } catch (error) {
+    allocation?.rollback();
+    throw error;
+  } finally {
+    allocation?.commit();
+  }
+}
+
 /**
  * A device's error scope — validation by default —, opened around a resource creation. The device's scopes are one
  * stack every session shares: a scope left open takes the errors of the next session, a scope
@@ -12,13 +27,13 @@ export async function validationScope<T>(
   filter: GPUErrorFilter = 'validation',
 ): Promise<{ value: T; error: GPUError | null }> {
   if (typeof device.pushErrorScope !== 'function' || typeof device.popErrorScope !== 'function')
-    return { value: await build(), error: null };
+    return { value: await constructGpuResources(device, build), error: null };
   device.pushErrorScope(filter);
   let value: T;
   try {
     // A build that returns at once is popped at once: no other scope opens between its push and
     // its pop, so a grant stays nested inside any scope still open around it.
-    const built = build();
+    const built = constructGpuResources(device, build);
     value = built instanceof Promise ? await built : built;
   } catch (error) {
     await device.popErrorScope().catch(() => null);
