@@ -4,11 +4,11 @@ use super::bake::{bake, Capture};
 use super::eligibility::{judge, precheck, reference_focal, texel_depth, triangle_depth};
 use super::eligibility::{Candidate, ATLAS_LIMIT, FRAMES, PROBE_SIDE};
 use super::mesh::Traceable;
-use super::surface::Surface;
+use super::surface::coverage_cut;
 use crate::compiler_validate::values;
 use crate::compiler_world::{transform_point, world_matrices, Mat4};
 use crate::proxy::{bvh, primitives_by_mesh, stage_proxy, world_scale, ProxyInputs, SceneProxy};
-use crate::shared_math::linear_columns;
+use crate::shared_math::{length, linear_columns, sub};
 use crate::{Options, Result};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
@@ -41,7 +41,10 @@ pub(crate) fn stage_stand_ins(
         json!({"phase":"proxy","completed":1,"total":1,"triangles":proxy.triangle_count(),
         "nodes":proxy.node_count(),"errorMetres":proxy.error_metres}),
     );
-    let impostors = pool.install(|| stage_impostors(o, bin, skinned, scene, proxy.bounds))?;
+    let impostors = {
+        let _t = crate::perf::Timer::new(crate::perf::Phase::Impostors);
+        pool.install(|| stage_impostors(o, bin, skinned, scene, proxy.bounds))?
+    };
     progress(json!({"phase":"impostors","completed":1,"total":1,"baked":impostors["baked"]}));
     Ok((proxy, impostors))
 }
@@ -87,11 +90,8 @@ pub(crate) fn entry(
         side: PROBE_SIDE,
         hemi,
     };
-    let probed = if mesh.radius > 0.0 {
-        bake(&mesh, probe).coverage()
-    } else {
-        0.0
-    };
+    let probe = (mesh.radius > 0.0).then(|| bake(&mesh, probe));
+    let probed = probe.as_ref().map_or(0.0, |atlas| atlas.coverage());
     let side = match judge(&candidate, probed) {
         Ok(side) => side,
         Err(refusal) => {
@@ -99,7 +99,18 @@ pub(crate) fn entry(
             return Ok(merge(entry, facts(&candidate)));
         }
     };
-    let mut atlas = bake(&mesh, Capture { side, ..probe });
+    // The smallest frame side is the probe's own: its atlas is the bake.
+    let mut atlas = match probe {
+        Some(atlas) if side == PROBE_SIDE => atlas,
+        _ => bake(
+            &mesh,
+            Capture {
+                side,
+                frames: FRAMES,
+                hemi,
+            },
+        ),
+    };
     let coverage = atlas.coverage();
     atlas.dilate();
     let (maps, bytes) = atlas.store(o)?;
@@ -125,9 +136,12 @@ fn masked(g: &Value, mesh: usize) -> bool {
         .as_array()
         .into_iter()
         .flatten();
-    primitives
-        .into_iter()
-        .any(|p| Surface::of(g, p["material"].as_u64(), &[]).cut.is_some())
+    primitives.into_iter().any(|p| {
+        let material = p["material"]
+            .as_u64()
+            .map(|id| &g["materials"][id as usize]);
+        material.is_some_and(|m| coverage_cut(m).is_some())
+    })
 }
 /// Judges every drawn mesh; returns the compile report's `impostors` section.
 fn stage_impostors(
@@ -149,7 +163,7 @@ fn stage_impostors(
             placed.entry(mesh as usize).or_default().push(world[node]);
         }
     }
-    let reach = ((b[3] - b[0]).powi(2) + (b[4] - b[1]).powi(2) + (b[5] - b[2]).powi(2)).sqrt();
+    let reach = length(sub([b[3], b[4], b[5]], [b[0], b[1], b[2]]));
     let by_mesh = primitives_by_mesh(inputs.primitives);
     let mut meshes = Vec::with_capacity(placed.len());
     for (mesh, placements) in placed {

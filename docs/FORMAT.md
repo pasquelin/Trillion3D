@@ -482,9 +482,12 @@ texel `(px, py)` of a `frameSide`-texel frame sits at `((px + ½) / frameSide �
 
 **Texels.** Four rotated-grid rays a texel go from `2R` along `d` towards the pivot, through the
 compiler's one CPU tracer over the proxy's BVH constructor (`tracer.rs`), which takes a hit only
-where its material covers: a `MASK` material cuts at its `alphaCutoff` times its
-`baseColorFactor` alpha, a `BLEND` one at 0.5 (the cutout threshold), on the base colour
-texel at the hit — the finest level of the texture's baked tail. Three RGBA8 maps, one byte a
+where its material covers. It cuts where the texture chains take coverage: a `MASK` material
+whose `alphaCutoff` is above 0 at that cutoff times its `baseColorFactor` alpha, a `BLEND` one
+that does not transmit at 0.5 (the cutout threshold); a `MASK` at 0 and a transmissive `BLEND`,
+drawn opaque, keep every texel. The test reads the base colour texel at the hit — the finest
+level of the texture's baked tail —, at the set and under the `KHR_texture_transform` the
+engine's texture applies. Three RGBA8 maps, one byte a
 channel: `colourCoverage` is the base colour (sRGB, `baseColorFactor` times texel) averaged over
 the rays that hit, alpha the share of rays that hit; `normalDepth` is the object-space normal
 (vertex normals interpolated when declared, turned to face the ray) as `n · ½ + ½`, alpha the
@@ -493,10 +496,12 @@ capture; `orm` packs occlusion, roughness and metallic (factors times their text
 255. An empty texel takes the three maps of the nearest covered texel of its own frame, its
 coverage staying 0, so filtering at the silhouette blends no black fringe.
 
-**Levels.** Each map carries its whole mip chain under the texture rule of
-[Textures](#textures): `colourCoverage` as the coverage chain at `C = 128` (the cut at 0.5),
-whose levels keep level 0's filtered coverage while a frame keeps four texels a side;
-`normalDepth` and `orm` as data chains. Every level is a lossless PNG stored as a content-addressed
+**Levels.** Each map carries its mip chain under the texture rule of [Textures](#textures),
+down to the level where a frame keeps four texels a side (`frameSide / 4`, three levels at the
+least): below it a bilinear tap reads the neighbouring frames, views of other directions, and
+the coverage rule no longer holds; a smaller card samples the last level. `colourCoverage` is the
+coverage chain at `C = 128` (the cut at 0.5), each level keeping level 0's filtered coverage;
+`normalDepth` and `orm` are data chains. Every level is a lossless PNG stored as a content-addressed
 object (`../../objects/<sha256>.bin`, the physics objects' spelling), listed in
 `maps.<name>.levels[k]` with its `url`, `sha256`, `bytes`, `width` and `height`; `bytes` sums
 them.

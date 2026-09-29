@@ -2,9 +2,8 @@
 //! through the alpha-aware filter, four rotated-grid rays a texel.
 use super::mesh::{Sample, Traceable};
 use super::octahedron::{basis, frame_direction};
-use crate::shared_math::scale;
+use crate::shared_math::{add, normalized_or, scale};
 use rayon::prelude::*;
-use trillion3d_page_codec::vec3::add;
 
 /// Rotated-grid subsamples of a texel, in texel units.
 const SUBSAMPLES: [[f64; 2]; 4] = [
@@ -47,20 +46,14 @@ fn resolve(hits: &[Sample], radius: f64) -> [[u8; 4]; 3] {
         scale(sum, 1.0 / hits.len() as f64)
     };
     let colour = mean(&|h| h.colour).map(|c| crate::texture_preview::linear_to_srgb(c as f32));
-    let normal = crate::tracer::normalise(mean(&|h| h.normal)).map(|n| byte(n * 0.5 + 0.5));
-    let depth = hits
-        .iter()
-        .map(|h| 0.5 + (2.0 * radius - h.distance) / (2.0 * radius))
-        .sum::<f64>();
+    let normal = normalized_or(mean(&|h| h.normal), [0.0, 1.0, 0.0]).map(|n| byte(n * 0.5 + 0.5));
+    // `D = ½ + height / 2R`, the height `2R − distance` above the frame plane.
+    let distance = hits.iter().map(|h| h.distance).sum::<f64>() / hits.len() as f64;
+    let depth = byte(1.5 - distance / (2.0 * radius));
     let orm = mean(&|h| h.orm).map(byte);
     [
         [colour[0], colour[1], colour[2], coverage],
-        [
-            normal[0],
-            normal[1],
-            normal[2],
-            byte(depth / hits.len() as f64),
-        ],
+        [normal[0], normal[1], normal[2], depth],
         [orm[0], orm[1], orm[2], 255],
     ]
 }
