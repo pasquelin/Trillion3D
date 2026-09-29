@@ -32,7 +32,6 @@ export type DynamicHeld = {
   version: number;
   pending: DrawnTriangles | null;
 };
-type Reading = { lines?: boolean; spriteRadius?: number };
 type Options = Parameters<typeof drawnTriangles>[2];
 
 /** The drawn box of `drawn`, joined to `declared` and `before`; widened by half its size when
@@ -51,23 +50,21 @@ function heldBox(drawn: DrawnTriangles, declared: Geometry['maxBounds'], before?
     boxExpandByPoint(box, 0, before[3], before[4], before[5]);
   }
   const pad = declared ? 0 : Math.max(box[3] - box[0], box[4] - box[1], box[5] - box[2], 1e-3) / 2;
-  for (let a = 0; a < 3; a++) ((box[a] -= pad), (box[a + 3] += pad));
+  for (let a = 0; a < 3; a++) {
+    box[a] -= pad;
+    box[a + 3] += pad;
+  }
   return box;
 }
 
-const sameLength = (a: Float32Array | null, b: Float32Array | null) => a?.length === b?.length;
 /** Whether `next` draws the triangles `held` draws — the same corners, the same lists —, and
  *  within `box`: its vertices can then be written in place. */
 function fits(held: DrawnTriangles, next: DrawnTriangles, box: HeldBox) {
+  const lists = ['positions', 'normals', 'uvs', 'colors'] as const;
   const same =
     held.indices.length === next.indices.length &&
     held.indices.every((v, i) => v === next.indices[i]) &&
-    [
-      [held.positions, next.positions],
-      [held.normals, next.normals],
-      [held.uvs, next.uvs],
-      [held.colors, next.colors],
-    ].every(([a, b]) => sameLength(a, b));
+    lists.every((list) => held[list]?.length === next[list]?.length);
   const p = next.positions;
   for (let i = 0; same && i < p.length; i++)
     if (p[i] < box[i % 3] || p[i] > box[(i % 3) + 3]) return false;
@@ -120,14 +117,12 @@ export function createWorldDynamic(notices: WorldNotices | undefined, counts: { 
   ) => {
     const held = before && dynamicOf(before);
     const box = heldBox(drawn, geometry.maxBounds, held?.box);
-    const kind: Reading = drawn;
-    let cut: PageCutPayload, runtime;
-    if (held && fits(before.drawn, drawn, box))
-      (({ cut } = held), (runtime = servePrimitive(cut, kind, box)));
-    else {
-      counts.cuts++;
-      ({ cut, runtime } = await cutDynamicPrimitive(packDrawn(drawn, blended), kind, box));
-    }
+    // Its corners unchanged, a larger box serves the same pages again: nothing is cut.
+    const again = held && fits(before.drawn, drawn, box);
+    if (!again) counts.cuts++;
+    const { cut, runtime } = again
+      ? { cut: held.cut, runtime: servePrimitive(held.cut, drawn, box) }
+      : await cutDynamicPrimitive(packDrawn(drawn, blended), drawn, box);
     const state: DynamicHeld = { box, cut, blended, version: geometry.version, pending: null };
     return {
       key: `dynamic:${serial++}`,
