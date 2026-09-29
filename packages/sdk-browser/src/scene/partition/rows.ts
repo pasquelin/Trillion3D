@@ -13,22 +13,8 @@ import {
   type PlacementRows,
 } from '../../placement/rows.ts';
 import type { PlacementGrowth } from '../../placement/backendSceneUpdates.ts';
-import { EngineError, MATRIX_VALUES } from '../../../../sdk-core/src/index.ts';
-import type { CellNode } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
-import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { pose } from '../../host/prepared/nodes.ts';
-import { hostLocalInto } from '../../host/world/matrices.ts';
-
-const scratch = new Object3D();
-
-/** The local matrix the engine composes for a cell node's declared pose, as for a host node. */
-export function rowLocal(node: CellNode) {
-  scratch.position.set(0, 0, 0);
-  scratch.quaternion.set(0, 0, 0, 1);
-  scratch.scale.set(1, 1, 1);
-  pose(scratch, node);
-  return hostLocalInto(new Float64Array(MATRIX_VALUES), scratch);
-}
+import { EngineError } from '../../../../sdk-core/src/index.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 /** The association of a host mesh placed by rows: its mesh and primitive ranks, and the rows. */
 export type RowLink = { meshes?: number; primitives?: number; placements?: PlacementRows };
@@ -79,18 +65,15 @@ export function sizeRows(
   return sized;
 }
 
-/** Whether each mesh `nodes` place has a free row for every one of them; a mesh the partition
- *  does not place is refused by name. */
-export function rowsFree(
-  meshes: ReadonlyMap<number, PlacedMesh>,
-  nodes: readonly CellNode[],
-  cell: string,
-) {
+/** Whether each mesh a cell places — `ranks`, its parent's then its mesh's per node
+ *  (`cellDecode.ts`) — has a free row for every one of its nodes; a mesh the partition does not
+ *  place is refused by name. */
+export function rowsFree(meshes: ReadonlyMap<number, PlacedMesh>, ranks: Int32Array, cell: string) {
   const needed = new Map<PlacedMesh, number>();
-  for (const node of nodes) {
-    const mesh = meshes.get(node.mesh);
+  for (let at = 1; at < ranks.length; at += 2) {
+    const mesh = meshes.get(ranks[at]);
     if (!mesh)
-      throw new EngineError('PREPARED_SCENE_MISMATCH', `a scene cell places mesh ${node.mesh}`, {
+      throw new EngineError('PREPARED_SCENE_MISMATCH', `a scene cell places mesh ${ranks[at]}`, {
         cell,
       });
     needed.set(mesh, (needed.get(mesh) ?? 0) + 1);
