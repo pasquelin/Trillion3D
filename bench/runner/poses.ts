@@ -2,30 +2,38 @@
 // any host that wants to replay the same bench copies it from here. `PATH_VERSION` rises at every
 // change of the points, so two readings only compare at equal trajectory.
 import type { CameraPose } from '../../packages/sdk-core/src/contracts/base.ts';
+import type { Street } from './street.ts';
 
-const PATH_VERSION = 7;
-/** Share of the box from its centre within which a street or courtyard runs clear of the
- *  arcades and galleries along the edges. A path point is in that street, or over the model's
- *  top: every segment then stays in one or the other and the camera never crosses a wall. */
-export const STREET_HALF_WIDTH = 0.06;
-/** `x` and `z` as shares of the box from its centre; `height` in eye heights above the floor
- *  (`street`) or above the model's top (`over`, always one eye). */
+const PATH_VERSION = 8;
+/** Where a path point stands. `street`: at the model's street (`street.ts`), `x` and `z` as shares
+ *  of its clearance — the radius no wall crosses at eye height — and `height` in eyes above its
+ *  ground; every share stays within `STREET_REACH` of the column, so a segment between two street
+ *  points stays in that disc. `over`: one eye above the model's top, `x` and `z` as shares of the
+ *  box from its centre, or above the street's column (`overStreet`), where the path comes down
+ *  into it and climbs out. The camera never crosses a wall: nothing here is read off one scene. */
 interface PathPoint {
   x: number;
   z: number;
   height: number;
-  over: boolean;
+  at: 'street' | 'over' | 'overStreet';
 }
-const street = (x: number, height: number, z: number) => ({ x, z, height, over: false });
-const over = (x: number, z: number) => ({ x, z, height: 1, over: true });
+export const STREET_REACH = 0.6;
+const street = (x: number, height: number, z: number): PathPoint => ({
+  x,
+  z,
+  height,
+  at: 'street',
+});
+const over = (x: number, z: number): PathPoint => ({ x, z, height: 1, at: 'over' });
+const overStreet: PathPoint = { x: 0, z: 0, height: 1, at: 'overStreet' };
 const POINTS: PathPoint[] = [
   over(0.72, 0.78),
-  over(0.06, 0.02),
-  street(0.05, 1.2, 0.04),
-  street(-0.06, 1.7, 0.06),
-  street(-0.03, 1.5, 0.04),
-  street(-0.03, 1.5, 0.04),
-  over(-0.03, 0.04),
+  overStreet,
+  street(0.4, 1.2, 0.3),
+  street(-0.4, 1.7, 0.4),
+  street(-0.2, 1.5, 0.3),
+  street(-0.2, 1.5, 0.3),
+  overStreet,
   over(-0.38, -0.36),
   over(-0.48, 0.46),
   over(0.72, 0.78),
@@ -50,10 +58,12 @@ interface FloorBounds {
   max: { y: number };
 }
 
-/** A model's axis-aligned box, as read off a `THREE.Box3` or a bench report's plain JSON bounds. */
+/** A model's axis-aligned box, as read off a `THREE.Box3` or a bench report's plain JSON bounds,
+ *  and the street the bench read off its geometry (`street.ts`), when it did. */
 export interface Bounds {
   min: { x: number; y: number; z: number };
   max: { x: number; y: number; z: number };
+  street?: Street | null;
 }
 
 /**
@@ -63,8 +73,17 @@ export interface Bounds {
 export const plancherDuModele = (bounds: FloorBounds) =>
   bounds.min.y < 0 && bounds.max.y > 0 ? 0 : bounds.min.y;
 
+/** The camera's eye height on a model: a share of its footprint, at most two metres on a tall one. */
+export function eyeHeight(bounds: Bounds) {
+  const sx = bounds.max.x - bounds.min.x,
+    sy = bounds.max.y - bounds.min.y,
+    sz = bounds.max.z - bounds.min.z;
+  return Math.max(Math.max(sx, sz) * 0.008, sy > 0 ? Math.min(2, sy * 0.03) : 1.6);
+}
+
 /** The bench pose at trajectory index `index`. The path is a loop (its last point is its first),
- *  so an index past `PATH_POSES` wraps: a run longer than the path goes round again. */
+ *  so an index past `PATH_POSES` wraps: a run longer than the path goes round again. Without a
+ *  street read off the model, the camera walks the box centre on its floor, with no room. */
 export function poseAt(bounds: Bounds, index: number): CameraPose {
   const min = bounds.min,
     max = bounds.max;
@@ -75,13 +94,14 @@ export function poseAt(bounds: Bounds, index: number): CameraPose {
     sz = max.z - min.z;
   const radius = Math.hypot(sx, sy, sz) / 2;
   const ground = plancherDuModele(bounds),
-    block = Math.max(sx, sz);
-  const eye = Math.max(block * 0.008, sy > 0 ? Math.min(2, sy * 0.03) : 1.6);
-  const place = ({ x, z, height, over }: PathPoint) => [
-    cx + x * sx,
-    (over ? max.y : ground) + height * eye,
-    cz + z * sz,
-  ];
+    eye = eyeHeight(bounds);
+  const road = bounds.street ?? { x: cx, z: cz, ground, clearance: 0 };
+  const place = ({ x, z, height, at }: PathPoint) =>
+    at === 'street'
+      ? [road.x + x * road.clearance, road.ground + height * eye, road.z + z * road.clearance]
+      : at === 'overStreet'
+        ? [road.x, max.y + height * eye, road.z]
+        : [cx + x * sx, max.y + height * eye, cz + z * sz];
   const step = index % PATH_POSES,
     segment = Math.floor(step / FRAMES_PER_SEGMENT);
   const t = (step % FRAMES_PER_SEGMENT) / (FRAMES_PER_SEGMENT - 1);
