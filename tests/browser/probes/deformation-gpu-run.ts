@@ -79,7 +79,10 @@ export async function probe(args: Args) {
       const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
       wave.set(identity, 8);
       wave.set(identity, 24);
-      wave.set(args.wave, 40);
+      wave.set(identity, 40);
+      wave.set(identity, 56);
+      wave.set(args.wave, 72);
+      wave.set(args.wave, 80);
       device.queue.writeBuffer(buffers[1], 0, wave);
     }
     if (frame === 7) {

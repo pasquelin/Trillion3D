@@ -61,8 +61,8 @@ fn deformMatrix(at:u32)->mat4x4f{
 fn deformWaves(at:u32,count:u32,p:vec3f,previous:bool,normal:bool)->vec3f{
  var d=vec3f(0.0);var n=vec3f(0.0,1.0,0.0);
  for(var i=0u;i<count;i++){
-  let b=at+i*${WAVE_FLOATS}u;let dx=positions[b];let dz=positions[b+1u];let k=positions[b+2u];
-  let amplitude=positions[b+3u];let lateral=positions[b+4u];let phase=positions[b+select(5u,6u,previous)];
+  let b=at+i*${WAVE_FLOATS}u+select(0u,count*${WAVE_FLOATS}u,previous);let dx=positions[b];let dz=positions[b+1u];let k=positions[b+2u];
+  let amplitude=positions[b+3u];let lateral=positions[b+4u];let phase=positions[b+5u];
   let f=k*(dx*p.x+dz*p.z)-phase;let c=cos(f);let s=sin(f);
   d+=vec3f(lateral*dx*c,amplitude*s,lateral*dz*c);
   n-=vec3f(dx*k*amplitude*c,k*lateral*s,dz*k*amplitude*c);
@@ -76,8 +76,9 @@ fn deformAt(r:u32,previous:bool)->DeformAt{
  a.kinds=deformWord(r+select(0u,1u,previous));a.joints=deformWord(r+2u);a.targets=deformWord(r+3u);a.waves=deformWord(r+4u);
  a.palette=r+${RECORD_HEAD}u+select(0u,a.joints*${PALETTE_FLOATS}u,previous);
  a.weights=r+${RECORD_HEAD}u+2u*a.joints*${PALETTE_FLOATS}u;
- a.world=a.weights+2u*a.targets;a.wave=a.world+32u;
- a.soft=deformWord(r+5u);a.simulation=a.world+select(0u,32u,a.waves>0u)+a.waves*${WAVE_FLOATS}u;
+ a.world=a.weights+2u*a.targets;a.wave=a.world+64u;
+ a.soft=deformWord(r+5u);a.simulation=a.world+select(0u,64u,a.waves>0u)+2u*a.waves*${WAVE_FLOATS}u;
+ a.world+=select(0u,32u,previous);
  a.weights+=select(0u,a.targets,previous);
  return a;
 }

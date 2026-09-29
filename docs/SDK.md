@@ -1622,13 +1622,20 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
 ## GPU deformation
 
 Imported glTF and FBX animation clips are exposed as `model.animations`. A mixer binds tracks
-under that loaded model, including its morph weights. FBX currently accepts a single linear skin,
-positive single-target blend channels (including non-unit full weights), and linear translation
-or blend-weight curves with constant extrapolation. It preserves source keys and the entire
-playback span. Unsupported nonlinear, stepped, layered, constrained, animated rotation/scale,
-or intermediate-shape animation is refused with `IMPORT_UNSUPPORTED_ANIMATION`; it is never
-silently converted to 30 Hz samples. More than 36,000 distinct keys or times that collapse at
-float32 precision are also refused. glTF retains its original interpolation contracts:
+under that loaded model, including its morph weights. FBX imports translation, Euler rotation,
+scale and blend-weight clips through ufbx source evaluation. Original keys and the full playback
+span remain. Linear and cubic curves are subdivided by their Bezier control hull (scalar chord
+error at most 2.5e-7 source units); total Euler travel is limited to 15 degrees per initial
+interval so complete rotations cannot disappear between quaternion keys. The converter refines
+world-space TRS against ufbx at each interval's quarter, midpoint and three-quarter samples,
+using emitted float32 endpoints and a 2.5e-7 component threshold (relative above magnitude one).
+Regression oracles additionally check non-key times against a 1e-6 component bound. These are
+conversion checks, not a measured image-fidelity claim. Single linear skins and positive
+single-target blends retain non-unit full weights. Stepped/extrapolated curves, intermediate
+shapes, layered/constrained animation and sheared world transforms remain explicit
+`IMPORT_UNSUPPORTED_ANIMATION` refusals. Conversion also refuses more than 36,000 distinct keys
+or times that collapse at float32 precision; it never truncates a clip. glTF retains its original
+interpolation contracts:
 
 ```ts
 const model = await world.scene.load('/character/cache/native/full/manifest.json');
