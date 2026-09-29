@@ -32,14 +32,17 @@ test('material constants cross the GL boundary only when their value changes', (
     ['backdrop', 6],
     ['backdropDepth', 7],
     ['physicalMaps', 15],
-    ['subsurfaceMap', 14],
+    ['subsurfaceMap', 17],
     ['ltcTable', 8],
     ['reflectionColor', 9],
     ['reflectionDepth', 10],
-    ['reflectionBounds', 13],
+    ['reflectionBounds', 16],
     ['lightData', 11],
     ['lightList', 12],
     ['deformBlock', 13],
     ['morphDeltas', 14],
   ]);
+  // One program: two samplers on one unit fail every draw when their types differ.
+  const units = samplers.map(([, unit]) => unit);
+  assert.equal(new Set(units).size, units.length, 'each sampler has a unit of its own');
 });

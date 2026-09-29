@@ -139,8 +139,14 @@ export function createWorldRuntime(inputs: Inputs) {
       poses.apply(scene, contents.seats, twins, (rows, from, to) =>
         session.updatePlacements(rows, from, to),
       );
-    if (lightsChanged)
-      session.setEnvironment(lights.environment(scene, session, inputs.display(), mirror?.root));
+    if (lightsChanged) {
+      // The lamps bounded to what the frame shows, at the roughness the drawn surfaces wear (#958).
+      const display = inputs.display();
+      session.setEnvironment({
+        ...display,
+        irradiance: lights.sync(scene, session, display, mirror?.root),
+      });
+    }
     lightsChanged = false;
     background.write(session, backgroundRefused);
   };

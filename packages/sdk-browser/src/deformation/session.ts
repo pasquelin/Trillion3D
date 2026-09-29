@@ -5,6 +5,7 @@ import { createDeformationFrame, type DeformedMesh } from './frame.ts';
 import { placementDeformation } from './placementSource.ts';
 import { deformedOf } from './source.ts';
 import type { HostWorldPlacements } from '../host/world/placements.ts';
+import type { MatrixElements } from '../math/matrixElements.ts';
 
 /**
  * A session's GPU deformation (#357): one record per deformed root of its cut (`frame.ts`), the
@@ -18,41 +19,37 @@ export function createSessionDeformation(
   copies: readonly BlendCopy[] = [],
 ) {
   const capacities: Parameters<typeof placementDeformation>[2] = new Map();
+  const deformedEntry = (
+    source: DeformedMesh | undefined,
+    owner: ClusterRoot<PageRec> | BlendCopy,
+    world: MatrixElements,
+  ) => {
+    if (!source) return null;
+    const { mesh, capacity } = placementDeformation(owner.placement, source, capacities);
+    const deformed = deformedOf(mesh, owner, world, capacity);
+    // Imported bones live in the indexed host tree; page-authored bones use the world's own tree.
+    if (deformed && mesh.skeleton && !owner.placement?.rows.sources)
+      deformed.boneWorlds = mesh.skeleton.bones.map(worlds.of);
+    return deformed;
+  };
   const frame = createDeformationFrame([
-    ...roots.map((root) => {
-      const source = root.pages[0]?.sourceMesh as DeformedMesh | undefined;
-      if (!source) return null;
-      const { mesh, capacity } = placementDeformation(root.placement, source, capacities);
-      const deformed = deformedOf(mesh, root, root.world, capacity);
-      // Imported bones live in the indexed host tree; page-authored bones use the world's own tree.
-      if (deformed && mesh.skeleton && !root.placement?.rows.sources)
-        deformed.boneWorlds = mesh.skeleton.bones.map(worlds.of);
-      return deformed;
-    }),
-    ...copies.map((copy) => {
-      const source = copy.userData.sourceMesh;
-      if (!source) return null;
-      const { mesh, capacity } = placementDeformation(copy.placement, source, capacities);
-      const deformed = deformedOf(mesh, copy, copy.matrix, capacity);
-      if (deformed && mesh.skeleton && !copy.placement?.rows.sources)
-        deformed.boneWorlds = mesh.skeleton.bones.map(worlds.of);
-      return deformed;
-    }),
+    ...roots.map((root) =>
+      deformedEntry(root.pages[0]?.sourceMesh as DeformedMesh | undefined, root, root.world),
+    ),
+    ...copies.map((copy) => deformedEntry(copy.userData.sourceMesh, copy, copy.matrix)),
   ]);
   let base = 0;
   /** Each root's placement rank by the world it reads: what a transparent item knows it by. */
-  const byWorld = new Map(roots.map((root, placement) => [root.world, placement] as const));
+  const byWorld = new Map<object, number>(roots.map((root, placement) => [root.world, placement]));
   copies.forEach((copy, i) => byWorld.set(copy.matrix, roots.length + i));
+  const rankOf = (world: object) => byWorld.get(world) ?? -1;
   return {
     frame,
     changedOfWorld(world: object) {
-      return frame.dirty[byWorld.get(world as ClusterRoot<PageRec>['world']) ?? -1] === 1;
-    },
-    movingOfWorld(world: object) {
-      return frame.moving[byWorld.get(world as ClusterRoot<PageRec>['world']) ?? -1] === 1;
+      return frame.dirty[rankOf(world)] === 1;
     },
     reachOfWorld(world: object) {
-      return frame.reach[byWorld.get(world as ClusterRoot<PageRec>['world']) ?? -1] ?? 0;
+      return frame.reach[rankOf(world)] ?? 0;
     },
     /** Whether any root deforms. */
     any: frame.bases.some((b) => b > 0),
@@ -74,7 +71,7 @@ export function createSessionDeformation(
     },
     /** `rowWord` of the root placed by `world`: a transparent item's. */
     wordOfWorld(world: object) {
-      return this.rowWord(byWorld.get(world as ClusterRoot<PageRec>['world']));
+      return this.rowWord(byWorld.get(world));
     },
   };
 }

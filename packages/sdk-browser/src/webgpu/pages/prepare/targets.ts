@@ -19,8 +19,6 @@ import { MATERIAL_DEPTH_PASS } from '../../core/materialPasses.ts';
 import { displayApart, type FrameSize } from '../state/renderScale.ts';
 import { makeAsIsShare, wantsAsIsShare } from './asIsShareTarget.ts';
 
-export { frameTargetAllocation } from './targetAllocation.ts';
-
 /** True when the drawn view's frame targets in place are those of `size`, both sizes alike. */
 export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
   const { gpu, vis } = rt;

@@ -40,11 +40,16 @@ const skip = createDeformationSkip();
  * deformed root's record rewritten — this frame's palette, weights and wave phases beside the last
  * frame's — and the block sent to the float pool when one moved; each root's reach set for the CPU
  * cut (`ClusterRoot.reach`) and in its mark for the GPU cut; each moving root declared to the
- * shadow scheduler with its rest box grown by what it reached. A root whose reach spans less than
+ * shadow scheduler with its rest box grown by what it reached; each whole copy's box follows its
+ * record and its node (`worldsMoved`). A root whose reach spans less than
  * the image's pixel error is drawn at rest, as a coarser cluster would be. Returns whether a
  * record moved.
  */
-export function updateWebgpuDeformation(rt: WebgpuPagesRuntime, cam: EngineCamera) {
+export function updateWebgpuDeformation(
+  rt: WebgpuPagesRuntime,
+  cam: EngineCamera,
+  worldsMoved = false,
+) {
   const deformation = rt.vis.deformation,
     device = rt.gpu.device,
     pool = rt.vis.concatPos;
@@ -57,12 +62,13 @@ export function updateWebgpuDeformation(rt: WebgpuPagesRuntime, cam: EngineCamer
     const root = roots[i],
       before = root.reach ?? 0;
     root.reach = frame.reach[i];
+    const grew = before !== root.reach;
     rt.run.gpuSelection?.markWorld(i, markReach(root.mark ?? 0, root.reach));
-    if (before !== root.reach) moveRootRows(rt, root);
-    if (frame.dirty[i] || before !== root.reach)
+    if (grew) moveRootRows(rt, root);
+    if (frame.dirty[i] || grew)
       noteDeformed(rt, i, Math.max(before, root.reach) * worldStretch(root));
   }
-  updateWholeDeformationBounds(rt);
+  updateWholeDeformationBounds(rt, deformation, worldsMoved);
   if (moved) device.queue.writeBuffer(pool, deformation.base * 4, frame.block);
   return moved;
 }

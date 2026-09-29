@@ -13,6 +13,7 @@ import {
   cycle,
   lampFloor,
   lampPages,
+  nudged,
   planFrame,
   report,
   sunFloor,
@@ -128,6 +129,24 @@ test('coarse pages are served first, and a full pool evicts only pages no report
   planFrame(plan, store, 3);
   assert.equal(mapped(coarse), coarse.length, 'the coarse pages the fine ones fall back to stay');
   assert.equal(mapped(lampPages(plan, slice, 2, 1)), 256, 'the new face takes the evictable slots');
+});
+
+test('moving, a frame with no report keeps what the latest report named from a new lamp', () => {
+  const store = createSceneLightStore();
+  const plan = createShadowPlan(4);
+  store.add({ ...SUN, id: 'a', kind: 'point', position: [0, 3, 0], range: 20 });
+  planFrame(plan, store, 0, nudged(0));
+  const fine = lampPages(plan, store.sliceOf(0), 0, 2);
+  report(plan, store, 0, fine);
+  planFrame(plan, store, 1, nudged(1));
+  assert.equal(plan.pool.used(), plan.pool.pages, 'the report fills the pool');
+  const mapped = () => fine.filter((e) => plan.table.words[e] & PAGE_MAPPED).length,
+    held = mapped();
+  // A lamp posed while the camera moves, on a frame whose report has not landed: its floors take
+  // no page the latest report named, as the report's own frame would not have given them (#26).
+  store.add({ ...SUN, id: 'b', kind: 'point', position: [5, 3, 0], range: 20 });
+  planFrame(plan, store, 2, nudged(2));
+  assert.equal(mapped(), held, 'the pages the view still reads stay');
 });
 
 test('a camera that moves by whole pages unmaps the sun pages that leave the clipmap', () => {

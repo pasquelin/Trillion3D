@@ -1,7 +1,7 @@
 import { ROUGHNESS_FLOOR, shaderFloat } from '../lighting/shaderConstants.ts';
 import { LTC_SIZE } from '../../../sdk-core/src/lighting/ltcTable.ts';
 import { MODEL_FLAG, SURFACE_MODEL } from '../scene/surfaceModel.ts';
-import { shaderLanguage } from './traceShader.ts';
+import { shaderLanguage } from '../math/shaderLanguage.ts';
 
 /** One roughness sample of the lobe table: transition resolution, not a rough-lobe filter. */
 export const MIRROR_TRANSITION_END = shaderFloat(Number(ROUGHNESS_FLOOR) + 1 / (LTC_SIZE - 1));

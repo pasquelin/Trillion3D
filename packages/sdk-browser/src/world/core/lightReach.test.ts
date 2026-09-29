@@ -44,7 +44,7 @@ const shown = (curve: keyof typeof curves, c: number[]) =>
 /** The specular lobe of `webgl/cluster/shaders.ts` (`specularLobe`, `fresnel`) times `N·L`, with
  *  `f0` at one, at `roughness`, for the cosines `nl`, `nv`, `nh`. */
 const lobeOf = (roughness: number) => {
-  const alpha = Number(roughness) ** 2,
+  const alpha = roughness ** 2,
     a2 = alpha * alpha;
   return (nl: number, nv: number, nh: number) => {
     const gv = nl * Math.sqrt(a2 + (1 - a2) * nv * nv),
