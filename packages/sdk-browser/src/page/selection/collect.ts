@@ -51,12 +51,12 @@ export function collectClusterPages(
   const templates = createPrimitiveTemplates(indices, options.allowMissing === true);
   let order = 0;
   for (const mesh of objects(source)) {
-    const primitive = primitiveOf(associations.get(mesh));
-    if (!primitive && options.pendingPlaced && associations.get(mesh)?.placements) continue;
+    const association = associations.get(mesh);
+    const primitive = primitiveOf(association);
+    if (!primitive && options.pendingPlaced && association?.placements) continue;
     if (!primitive) throw new Error(`Missing primitive association: ${mesh.name}`);
-    // One root per placement: the node's own pose, or each row of the instance buffer the
-    // association carries (`placementRoots`), each row's world a view on that buffer.
-    const placed = placementsOf(associations.get(mesh), () => worlds.of(mesh));
+    // One root per placement: the node's pose, or each row its association carries (`placementRoots`).
+    const placed = placementsOf(association, () => worlds.of(mesh));
     // The surface the declaration wears, read at the boundary into the engine's own record:
     // from here on this collection and everything it feeds hold records, not host materials.
     const surface = meshSurface(mesh);

@@ -133,16 +133,12 @@ pub(super) fn stage_scene_tables(
 
 /// The slots of the mesh pages the meshes `nodes` draw lie in, sorted and each once: what a runtime
 /// reads before its first frame, the cells naming the rest (#751).
-fn core_pages(
-    nodes: &[Value],
-    by_mesh: &crate::compiler_tables::partition::pages::MeshSlots,
-) -> Vec<String> {
+fn core_pages(nodes: &[Value], by_mesh: &partition::pages::MeshSlots) -> Vec<String> {
     let meshes = nodes.iter().filter_map(|node| node["mesh"].as_u64());
-    let pages: BTreeSet<&String> = meshes
-        .filter_map(|mesh| by_mesh.get(&mesh))
-        .flatten()
-        .collect();
-    pages.into_iter().cloned().collect()
+    partition::pages::slots_of(meshes, by_mesh)
+        .into_iter()
+        .cloned()
+        .collect()
 }
 
 /// The cell records of the tables in `directory` by file name, read through their partition's pages,
