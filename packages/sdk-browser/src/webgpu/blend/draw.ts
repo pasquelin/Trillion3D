@@ -135,7 +135,7 @@ export function drawBlendPass(
       },
       // Virtual-texture feedback, opened by the first pass that writes it.
       ...(rt.feedbackAB?.target === false ? [] : [feedbackAttachment(rt)]),
-      // The as-is share of an image that can show a debug view; an empty slot otherwise (#365).
+      // The share a debug view or the temporal pass reads; an empty slot otherwise (#365).
       share ? { view: share.view, loadOp: 'load', storeOp: 'store' } : null,
       // The display layers of an image whose blends filter (`displayFilter.ts`).
       ...(filter ? filter.attachments() : []),

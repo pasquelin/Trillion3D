@@ -46,6 +46,7 @@ function runtime(reflective = false) {
       },
     },
     blendState: { blendGpu: [] },
+    context: {},
     gpu: { device: fakeDevice({ limits: { maxTextureDimension2D: 8192 } }).device, temporal },
     capture: { capturing: false },
     capabilities: { unsupported: [] as string[] },
@@ -94,15 +95,18 @@ test('an eligible receiver accounts for viewport reflection colour and its unifo
   );
 });
 
-// #365: the as-is share target is a debug view's; a blended scene without one pays nothing for it.
-test('a blended scene costs a share byte per pixel only when it can show a debug view', () => {
+// #365: a blended scene pays for the share target only when a debug view or the temporal pass reads it.
+test('a blended scene costs the share only when a debug view or the temporal pass reads it', () => {
   const { rt } = runtime();
   const base = frameTargetAllocation(rt, native(64, 32));
   const glass = { surface: surfaceOf(standardSurface({ roughness: 1 })) };
   Object.assign(rt, { blendState: { blendGpu: [glass] }, vis: { asIsShown: false } });
   assert.equal(frameTargetAllocation(rt, native(64, 32)), base, 'blends alone: as before');
   rt.vis.asIsShown = true;
-  assert.equal(frameTargetAllocation(rt, native(64, 32)), base + 64 * 32, 'a debug view shown');
+  assert.equal(frameTargetAllocation(rt, native(64, 32)), base + 64 * 32 * 2, 'a debug view shown');
+  rt.vis.asIsShown = false;
+  rt.gpu.temporalWanted = true;
+  assert.equal(frameTargetAllocation(rt, native(64, 32)), base + 64 * 32 * 2, 'its reactive value');
 });
 
 test('targets that fit ask nothing of the device: the steady frame is free', () => {
@@ -111,6 +115,7 @@ test('targets that fit ask nothing of the device: the steady frame is free', () 
     run: { diagnostic: 'beauty' },
     layout: { rows: { packedCount: 0, packedRecs: [] } },
     blendState: { blendGpu: [] },
+    context: {},
     gpu: {
       colorTexture: {},
       feedbackTexture: {},

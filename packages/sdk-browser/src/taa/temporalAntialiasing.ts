@@ -1,32 +1,16 @@
-import { TAA_BINDINGS, TAA_PASS, TAA_VIEW_BYTES } from './shaderWgsl.ts';
+import { TAA_PASS, TAA_VIEW_BYTES } from './shaderWgsl.ts';
 import { SHARE_FORMAT, createTaaResolves } from './resolve.ts';
+import { AS_IS_SHARE_FORMAT } from '../lighting/deferred/asIsShare.ts';
+import { INPUTS, taaGroupEntries, type TaaInputs } from './inputs.ts';
 import { createTaaCheckpoint, createTaaFrameState } from './frameState.ts';
 import { createPlacementMotion, type MotionRoot } from './motion.ts';
-import { createTaaFilterHistory, type DisplayLayers } from './layers.ts';
+import { createTaaFilterHistory } from './layers.ts';
 import type { AccumulatedImage } from '../lighting/deferred/program.ts';
 
 /** A history target's attachment: cleared by the pass that writes it. */
 const CLEAR = { loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] } as const;
-/** Bytes per pixel of the two history targets: two `rgba16float`, and their two shares. */
-export const TAA_HISTORY_BYTES_PER_PIXEL = 18;
-
-/** What the pass reads in the frame: the lit and blended image, depth, visibility-buffer
- *  identifiers, the page-record table, placement motion matrices and the surface flags — absent
- *  when no as-is pixel is in the frame, which the flagless resolve reads none of (OMB-11). */
-export interface TaaInputs {
-  current: GPUTextureView;
-  depth: GPUTextureView;
-  ids: GPUTextureView;
-  pages: GPUBuffer;
-  motion: GPUBuffer;
-  flags?: GPUTextureView;
-  share?: GPUTextureView;
-  /** The frame was drawn below the display: the resolve reconstructs it (`upscaleWgsl.ts`). */
-  upscale?: boolean;
-  /** The display layers of a frame whose blends filter (`../webgpu/blend/displayFilter.ts`). */
-  filter?: DisplayLayers;
-}
-const INPUTS = ['current', 'depth', 'ids', 'pages', 'motion', 'flags', 'share', 'filter'] as const;
+/** Bytes per pixel of the two history targets: two `rgba16float`, and their two shares and tags. */
+export const TAA_HISTORY_BYTES_PER_PIXEL = 20;
 
 /**
  * Temporal antialiasing pass: two history targets in ping-pong, each a colour and its as-is share,
@@ -55,6 +39,14 @@ export async function createTemporalAntialiasing(
     addressModeU: 'clamp-to-edge',
     addressModeV: 'clamp-to-edge',
   });
+  // A frame with no transparent reads zero as its reactive value, from this one texel.
+  const noReactive = device.createTexture({
+    label: 'Trillion3D TAA no reactive',
+    size: { width: 1, height: 1 },
+    format: AS_IS_SHARE_FORMAT,
+    usage: GPUTextureUsage.TEXTURE_BINDING,
+  });
+  const noReactiveView = noReactive.createView();
   const textures: GPUTexture[] = [],
     images: AccumulatedImage[] = [],
     groups: (GPUBindGroup | undefined)[] = [undefined, undefined];
@@ -150,21 +142,7 @@ export async function createTemporalAntialiasing(
         bound = { ...inputs };
         const { layout } = resolve;
         for (let i = 0; i < 2; i++) {
-          const entries: GPUBindGroupEntry[] = [
-            { binding: TAA_BINDINGS.current, resource: inputs.current },
-            { binding: TAA_BINDINGS.history, resource: images[i].color },
-            { binding: TAA_BINDINGS.historySampler, resource: sampler },
-            { binding: TAA_BINDINGS.depth, resource: inputs.depth },
-            { binding: TAA_BINDINGS.ids, resource: inputs.ids },
-            { binding: TAA_BINDINGS.pages, resource: { buffer: inputs.pages } },
-            { binding: TAA_BINDINGS.motion, resource: { buffer: inputs.motion } },
-            { binding: TAA_BINDINGS.view, resource: { buffer: uniform } },
-          ];
-          if (inputs.flags || inputs.share)
-            entries.push(
-              { binding: TAA_BINDINGS.flags, resource: inputs.share ?? inputs.flags! },
-              { binding: TAA_BINDINGS.shareHistory, resource: images[i].share },
-            );
+          const entries = taaGroupEntries(inputs, images[i], sampler, uniform, noReactiveView);
           entries.push(...filterHistory.entries(inputs.filter, i));
           groups[i] = device.createBindGroup({ layout, entries });
         }
@@ -191,6 +169,7 @@ export async function createTemporalAntialiasing(
       dropTargets();
       motion.dispose();
       uniform.destroy();
+      noReactive.destroy();
       bound = undefined;
       this.inputs = {} as TaaInputs;
     },

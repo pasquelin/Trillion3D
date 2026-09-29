@@ -85,9 +85,12 @@ export const builtins = {
   min: numeric(Math.min),
   max: numeric(Math.max),
   clamp: numeric((x, lo, hi) => Math.min(Math.max(x, lo), hi)),
+  saturate: numeric((x) => Math.min(Math.max(x, 0), 1)),
+  abs: numeric(Math.abs),
   floor: numeric(Math.floor),
   sin: numeric(Math.sin),
   select: each((no, yes, when) => (when ? yes : no)),
   all: (v: Value) => (Array.isArray(v) ? v.every(Boolean) : !!v),
+  any: (v: Value) => (Array.isArray(v) ? v.some(Boolean) : !!v),
   length: (v: Value) => (Array.isArray(v) ? Math.hypot(...vec(v)) : Math.abs(n(v as Scalar))),
 };
