@@ -5,7 +5,7 @@ import { validated } from '../core/errorScope.ts';
 import { shaderFailed } from '../core/shaderModule.ts';
 import { drawBindEntries, drawShader } from './shader.ts';
 import { createLightRowMap, type LightRowMap } from './lightRows.ts';
-import type { PendingGrowth } from '../core/tableGrowth.ts';
+import { pendingBuffers } from '../core/tableGrowth.ts';
 
 /**
  * Stable GPU compact into one drawIndirect command per slot. `layerSlots` is one plus the deepest
@@ -109,23 +109,20 @@ export async function createGpuDraw(
       lightRows(pages) {
         return (rowMap ??= createLightRowMap(device, held.itemsBuf, pages, mapBuffers));
       },
-      grow(rows): PendingGrowth {
+      grow(rows) {
         const next = createGpuDrawBuffers(device, rows, layerSlots);
-        return {
-          bytes: next.all.reduce((total, buffer) => total + buffer.size, 0),
-          destroy: () => next.all.forEach((buffer) => buffer.destroy()),
-          commit() {
-            const old = held;
-            held = allocated = next;
-            slotCap = rows;
-            if (boundMask === old.itemsBuf) boundMask = next.itemsBuf;
-            bindGroup = makeBindGroup(boundMask);
-            // The map reads the draw records: it is made again, whole, at its next call.
-            for (const buffer of [...old.all, ...mapBuffers]) buffer.destroy();
-            mapBuffers.length = 0;
-            rowMap = undefined;
-          },
-        };
+        return pendingBuffers(next.all, () => {
+          const old = held;
+          held = allocated = next;
+          slotCap = rows;
+          if (boundMask === old.itemsBuf) boundMask = next.itemsBuf;
+          bindGroup = makeBindGroup(boundMask);
+          // The map reads the draw records: it is made again, whole, at its next call.
+          const replaced = [...old.all, ...mapBuffers];
+          mapBuffers.length = 0;
+          rowMap = undefined;
+          return replaced;
+        });
       },
       get itemsBuffer() {
         return held.itemsBuf;
