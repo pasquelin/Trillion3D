@@ -1526,7 +1526,8 @@
       "hover-to-highlight": "Arahkan penunjuk untuk menyorot bagian",
       "a-dolly-along-the-canal": "Dolly kamera di sepanjang kanal",
       "a-folder-merged-into-one-scene": "Folder digabung menjadi satu adegan",
-      "drag-a-crate": "Seret peti"
+      "drag-a-crate": "Seret peti",
+      "move-a-hierarchy-by-name": "Memindahkan hierarki berdasarkan nama"
     },
     "missing": {
       "thick-lines": "garis lebar",

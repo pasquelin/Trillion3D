@@ -7942,5 +7942,13 @@
   },
   "world.materialMapBytes": {
     "summary": "Byte gambar yang disimpan atau menunggu, dibatasi 64 MiB."
+  },
+  "world.setTransform": {
+    "summary": "Memindahkan simpul `nodeName` sehingga pose dunianya `matrix`: simpul yang tidak dipegang rujukannya oleh halaman dijangkau lewat namanya (`object.name`), dicari di adegan.",
+    "description": "Pose-nya pose dunia — mesin membawanya kembali ke ruang induk simpul — sehingga nama di bawah induk yang bergerak tetap mendarat di tempat yang diminta. Rute yang sama yang ditempuh WebGPU dan WebGL2 untuk pemindahan berdasarkan nama sebuah halaman, bukan rute kedua. Bingkai berikutnya menggambarnya; permintaan yang tidak mengubah apa pun tidak meminta bingkai.",
+    "parameters": {
+      "nodeName": "`name` simpul yang dipindahkan.",
+      "matrix": "Pose dunianya, enam belas float dalam urutan kolom."
+    }
   }
 }
