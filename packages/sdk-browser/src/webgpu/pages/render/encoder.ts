@@ -76,8 +76,7 @@ export function submitColorCopy(
   timing.lastQueueSubmitMs = performance.now() - submitStart;
   // Counts of a sampled image are mapped only once the image that copied them is submitted.
   rt.vis.gpuPartition?.countsSubmitted();
-  if (!capture.capturing && rt.feedbackAB?.target !== false)
-    rt.vis.textures?.feedback.submitted(run.textureConverging);
+  if (!capture.capturing && rt.feedbackAB?.target !== false) rt.vis.textures?.feedback.submitted();
   // Same for the far-shadow counts: their copy is mapped only once submitted.
   rt.sunFar.gpu?.submitted();
   rt.lights.cull?.counts.submitted();

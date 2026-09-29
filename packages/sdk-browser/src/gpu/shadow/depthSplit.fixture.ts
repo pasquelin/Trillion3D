@@ -5,7 +5,7 @@ import { DEPTH_CLEAR, depthNearer } from '../../camera/depthConvention.ts';
 import { FLAG_BLEND_CASTER } from '../../visibility/types.ts';
 import { shaderFunctions } from '../../texture/shaderRule.fixture.ts';
 import { KEPT_LISTS_WGSL } from './cullShader.ts';
-import { SHADOW_DEPTH_SHADER, SHADOW_SNAP } from './shader.ts';
+import { SHADOW_DEPTH_SHADER } from './shader.ts';
 /** WGSL's `round`: halves to the even neighbour. */
 const roundEven = (x: number) => (Math.abs(x % 1) === 0.5 ? 2 * Math.round(x / 2) : Math.round(x));
 
@@ -83,7 +83,7 @@ export type ShadowScene = {
   instances: number[];
   slotOffsets: number[];
   uni: { indirect: number; drawSlot: number };
-  shadow: { viewProjection: Mat; emitter: Vec };
+  shadow: { viewProjection: Mat; params: Vec; emitter: Vec };
 };
 
 type ShadowEntries = Record<'shadow_vs' | 'shadow_cutout_vs', Entry> & {
@@ -120,7 +120,6 @@ export function shadowEntries(scene: ShadowScene): ShadowEntries {
   const scope = {
     ...scene,
     ...{ vec2f, vec3f, vec4f, mul, sub3, dot, floor: Math.floor, round: roundEven },
-    SHADOW_SNAP,
   };
   return shaderFunctions<ShadowEntries>(source, names, scope);
 }
