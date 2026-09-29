@@ -43,7 +43,7 @@ export function world(far: number | null = 0, near: number | null = null) {
         meshPages: [],
       },
     ],
-    regions: [{ from: 0, to: 2, pages: [] }],
+    regions: whole([0, 1]),
   };
   const root = new Group();
   const core = new Object3D();
@@ -64,6 +64,9 @@ export function world(far: number | null = 0, near: number | null = null) {
     new TextEncoder().encode(JSON.stringify(bodies[url.split('/').at(-1)!]));
   return { cells, links, root, core, bytes, node };
 }
+
+/** The cell index of `cells` as one region page. */
+export const whole = (cells: readonly unknown[]) => [{ from: 0, to: cells.length, pages: [] }];
 
 /** Reads a cell file into its rows on this thread, by the decode pool's own task. */
 export const decodeHere = async (bytes: Uint8Array) =>

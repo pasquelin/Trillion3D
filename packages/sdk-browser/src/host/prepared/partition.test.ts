@@ -16,6 +16,7 @@ import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import { fetchVerified } from '../../cluster/pages.ts';
 import { loadPreparedSceneTables } from '../../scene/tables.ts';
 import { createPartitionCells } from '../../scene/partition/cells.ts';
+import { decodeHere } from '../../scene/partition/cells.fixture.ts';
 import { isDrawnNode } from '../graph/kinds.ts';
 import { hostWorldChainInto } from '../world/chain.ts';
 import { hostWorldBounds } from '../world/bounds.ts';
@@ -54,7 +55,8 @@ test('a partitioned cache places every mesh the loader placed, at its world matr
     parents: built.nodes,
     meshes: built.placed,
   });
-  const read = async (url: string) => new Uint8Array(await readFile(fileURLToPath(url)));
+  const read = async (url: string) =>
+    decodeHere(new Uint8Array(await readFile(fileURLToPath(url))));
   await cells.prime([0, 0, 0], Infinity, read, true);
   const prepared: string[] = [];
   built.source.traverse((node) => {

@@ -4,7 +4,7 @@ import { dagRoots } from '../webgpu/pages/testDag.fixture.ts';
 import { QUAD_MANIFEST, triangleGeometry } from '../backend/pagesBackendScenes.fixture.ts';
 import { rootPage } from '../webgpu/pages/testScenes.fixture.ts';
 import { cameraAt } from '../webgpu/pages/twoPlaces.fixture.ts';
-import { world } from '../scene/partition/cells.fixture.ts';
+import { decodeHere, placed, world } from '../scene/partition/cells.fixture.ts';
 import type { PartitionCells } from '../scene/partition/cells.ts';
 import type { RowLink } from '../scene/partition/rows.ts';
 import { collectClusterPages } from '../page/selection/selection.ts';
@@ -92,6 +92,7 @@ export async function placedSession(bindingRows: number) {
   const reopened = { count: 0 };
   const io: Io = {
     bytes,
+    decode: decodeHere,
     loading: () => false,
     request() {},
     update: (rows, from, to) => updateWebgpuPlacements(rt, rows, from, to),
@@ -113,7 +114,7 @@ export async function placedSession(bindingRows: number) {
   try {
     await prepareWebgpuBackend(rt, gpu.device);
     fallbackToCpuCut(rt, 'rows follow the camera');
-    cells.frame([0, 0, 0], 100, io, noBudget);
+    await placed(cells, [0, 0, 0], 100, io, noBudget);
     await draw();
   } catch (error) {
     dispose();
@@ -123,9 +124,8 @@ export async function placedSession(bindingRows: number) {
 }
 
 /** Shrinks the core node a thousand times: the far cell comes within reach, one more node than
- *  the rows hold. Two frames, as a world runs them. */
+ *  the rows hold. Two frames, as a world runs them, the decodes the first asked landed between. */
 export function scaleDown({ cells, core, io }: Awaited<ReturnType<typeof placedSession>>) {
   core.scale.set(1e-3, 1e-3, 1e-3);
-  cells.frame([0, 0, 0], 100, io, noBudget);
-  cells.frame([0, 0, 0], 100, io, noBudget);
+  return placed(cells, [0, 0, 0], 100, io, noBudget);
 }
