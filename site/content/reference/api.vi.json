@@ -7989,7 +7989,10 @@
     "parameters": {
       "bones": "Xương từ thân cây tới đầu cành.",
       "options": "Hướng, góc uốn tối đa và tần số."
-    }
+    },
+    "parameters.options.direction": "Hướng trên mặt đất `[x, z]`; mặc định `[1, 0]`.",
+    "parameters.options.angle": "Góc uốn tối đa tính bằng radian; mặc định 0,1.",
+    "parameters.options.frequency": "Số lần dao động mỗi giây; mặc định 0,5."
   },
   "Skeleton": {
     "summary": "Các xương làm biến dạng lưới và ma trận liên kết nghịch đảo, chuyển tọa độ lưới sang hệ tọa độ của từng xương.",
@@ -8008,9 +8011,18 @@
     "members.phasesAt": "Pha của mỗi sóng tại `t` giây, đưa về [0, 2π) với độ chính xác kép.",
     "members.setTime": "Đặt thời gian là `t` giây; mặt ở khung trước tương ứng với `setTime(t - dt)`.",
     "members.offset": "Ghi độ dịch chuyển `[x, y, z]` của điểm nghỉ `(x, 0, z)` vào `out`.",
-    "members.normal": "Ghi pháp tuyến đơn vị `[x, y, z]` tại điểm nghỉ `(x, z)` vào `out`."
+    "members.normal": "Ghi pháp tuyến đơn vị `[x, y, z]` tại điểm nghỉ `(x, z)` vào `out`.",
+    "members.count": "Số sóng được cộng lại.",
+    "members.dirX": "Thành phần x đã chuẩn hóa của hướng mỗi sóng.",
+    "members.dirZ": "Thành phần z đã chuẩn hóa của hướng mỗi sóng.",
+    "members.k": "Số sóng của mỗi sóng, tính bằng radian trên mét.",
+    "members.amplitude": "Biên độ thẳng đứng của mỗi sóng, tính bằng mét.",
+    "members.lateral": "Biên độ ngang đã chuẩn hóa của mỗi sóng, tính bằng mét."
   },
   "WindOptions": {
-    "summary": "Hướng gió (`x`, `z` trên mặt đất), góc uốn xương tối đa tính bằng radian và số lần dao động mỗi giây."
+    "summary": "Hướng gió (`x`, `z` trên mặt đất), góc uốn xương tối đa tính bằng radian và số lần dao động mỗi giây.",
+    "members.direction": "Hướng trên mặt đất `[x, z]`; mặc định `[1, 0]`.",
+    "members.angle": "Góc uốn tối đa tính bằng radian; mặc định 0,1.",
+    "members.frequency": "Số lần dao động mỗi giây; mặc định 0,5."
   }
 }

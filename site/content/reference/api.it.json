@@ -7988,7 +7988,10 @@
     "parameters": {
       "bones": "Ossa dal tronco alle estremità.",
       "options": "Direzione, angolo massimo di flessione e frequenza."
-    }
+    },
+    "parameters.options.direction": "Direzione sul terreno `[x, z]`; valore predefinito: `[1, 0]`.",
+    "parameters.options.angle": "Flessione massima in radianti; valore predefinito: 0,1.",
+    "parameters.options.frequency": "Oscillazioni al secondo; valore predefinito: 0,5."
   },
   "Skeleton": {
     "summary": "Le ossa che deformano una mesh e le matrici di legame inverse, dallo spazio della mesh a quello di ciascun osso.",
@@ -8007,9 +8010,18 @@
     "members.phasesAt": "Fase di ogni onda a `t` secondi, ridotta a [0, 2π) in doppia precisione.",
     "members.setTime": "Imposta il tempo a `t` secondi; la superficie precedente corrisponde a `setTime(t - dt)`.",
     "members.offset": "Scrive in `out` lo spostamento `[x, y, z]` del punto a riposo `(x, 0, z)`.",
-    "members.normal": "Scrive in `out` la normale unitaria `[x, y, z]` al punto a riposo `(x, z)`."
+    "members.normal": "Scrive in `out` la normale unitaria `[x, y, z]` al punto a riposo `(x, z)`.",
+    "members.count": "Numero di onde sommate.",
+    "members.dirX": "Componente x normalizzata della direzione di ogni onda.",
+    "members.dirZ": "Componente z normalizzata della direzione di ogni onda.",
+    "members.k": "Numero d’onda di ogni onda, in radianti per metro.",
+    "members.amplitude": "Ampiezza verticale di ogni onda, in metri.",
+    "members.lateral": "Ampiezza laterale normalizzata di ogni onda, in metri."
   },
   "WindOptions": {
-    "summary": "Direzione del vento (`x`, `z` sul terreno), flessione massima di un osso in radianti e oscillazioni al secondo."
+    "summary": "Direzione del vento (`x`, `z` sul terreno), flessione massima di un osso in radianti e oscillazioni al secondo.",
+    "members.direction": "Direzione sul terreno `[x, z]`; valore predefinito: `[1, 0]`.",
+    "members.angle": "Flessione massima in radianti; valore predefinito: 0,1.",
+    "members.frequency": "Oscillazioni al secondo; valore predefinito: 0,5."
   }
 }

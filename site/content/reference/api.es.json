@@ -7988,7 +7988,10 @@
     "parameters": {
       "bones": "Huesos del tronco hacia las puntas.",
       "options": "Dirección, ángulo máximo de flexión y frecuencia."
-    }
+    },
+    "parameters.options.direction": "Dirección sobre el suelo `[x, z]`; valor predeterminado: `[1, 0]`.",
+    "parameters.options.angle": "Flexión máxima en radianes; valor predeterminado: 0,1.",
+    "parameters.options.frequency": "Oscilaciones por segundo; valor predeterminado: 0,5."
   },
   "Skeleton": {
     "summary": "Los huesos que deforman una malla y sus matrices de enlace inversas, del espacio de la malla al de cada hueso.",
@@ -8007,9 +8010,18 @@
     "members.phasesAt": "Fase de cada onda a los `t` segundos, reducida a [0, 2π) con doble precisión.",
     "members.setTime": "Fija el tiempo en `t` segundos; la superficie anterior corresponde a `setTime(t - dt)`.",
     "members.offset": "Escribe en `out` el desplazamiento `[x, y, z]` del punto en reposo `(x, 0, z)`.",
-    "members.normal": "Escribe en `out` la normal unitaria `[x, y, z]` en el punto en reposo `(x, z)`."
+    "members.normal": "Escribe en `out` la normal unitaria `[x, y, z]` en el punto en reposo `(x, z)`.",
+    "members.count": "Número de ondas sumadas.",
+    "members.dirX": "Componente x normalizada de la dirección de cada onda.",
+    "members.dirZ": "Componente z normalizada de la dirección de cada onda.",
+    "members.k": "Número de onda de cada onda, en radianes por metro.",
+    "members.amplitude": "Amplitud vertical de cada onda, en metros.",
+    "members.lateral": "Amplitud lateral normalizada de cada onda, en metros."
   },
   "WindOptions": {
-    "summary": "Dirección del viento (`x`, `z` sobre el suelo), flexión máxima de un hueso en radianes y oscilaciones por segundo."
+    "summary": "Dirección del viento (`x`, `z` sobre el suelo), flexión máxima de un hueso en radianes y oscilaciones por segundo.",
+    "members.direction": "Dirección sobre el suelo `[x, z]`; valor predeterminado: `[1, 0]`.",
+    "members.angle": "Flexión máxima en radianes; valor predeterminado: 0,1.",
+    "members.frequency": "Oscilaciones por segundo; valor predeterminado: 0,5."
   }
 }
