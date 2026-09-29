@@ -141,6 +141,10 @@ export interface StreamCatalogue {
   /** Its stream bundles. */ streams?: StreamCatalogue | null;
   /** Null on a primitive without pages, which was quantized on no grid. */
   quantization?: PrimitiveQuantization | null;
+  /** How far its deformation can move a vertex from its rest pose (#357): per joint of its skin
+   *  the ball of the vertices that joint moves, `[x, y, z, radius]` flat, and each morph target's
+   *  largest displacement; `null` or absent on a primitive that does not deform. */
+  deformation?: { joints: number[]; targets: number[] } | null;
   /** What the mesh's edges and corners look like. */ topology?: {
     triangles: number;
     edges: { boundary: number; manifold: number; nonManifold: number };
