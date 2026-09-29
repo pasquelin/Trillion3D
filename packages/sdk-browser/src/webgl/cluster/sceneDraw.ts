@@ -19,10 +19,6 @@ import { linearRefusalOf } from './linearRefusal.ts';
 import { createDrawLists } from './drawLists.ts';
 import { degradedHearer } from '../../world/diagnostic/materialNotices.ts';
 
-/** The scene the owner reads for its lights and background, its world matrices resolved
- *  before the read. */
-export type ClusterDrawScene = WebglClusterScene & { updateMatrixWorld(): void };
-
 /** A drawn node, the engine's mesh, read by shape: drawn whole. */
 type DrawnNode = Partial<SceneCopy> & {
   readonly matrixWorld: SceneCopy['matrixWorld'];
@@ -41,7 +37,7 @@ const NO_BATCHES: readonly never[] = [];
  * engine's program (`owner.ts`) in the order the reference draws a scene — the opaque meshes by
  * `renderOrder`, surface and depth, then the see-through ones and the transparent copies `copies` names, by
  * `renderOrder` and from the farthest to the nearest; the program splits them into its
- * transmission and blend passes. The lights and the background are read off the same graph.
+ * transmission and blend passes. The lights come from the same lists, the background off the graph.
  *
  * `render(camera)` opens the frame: it zeroes the counters, so that a frame
  * the composer held — nothing drawn — publishes nothing, never the previous draw; `counters()` is
@@ -74,6 +70,16 @@ export function createSceneDraw(
   const screen = new Float64Array(16),
     order = createDrawOrder();
   const counters = { triangles: 0 };
+  // What the frame reads of the graph: its lights from the lists, never from a walk of its own.
+  const read: WebglClusterScene = {
+    lights: lists.lights,
+    get background() {
+      return display.background;
+    },
+    get fog() {
+      return display.fog;
+    },
+  };
   /** The image's one pass over what changed: its world matrices, then what it draws, sorted later. */
   const walk = () => {
     if (walked) return;
@@ -108,7 +114,7 @@ export function createSceneDraw(
         // encoding to the chain and marks the surfaces the curve skips.
         owner.draw(
           NO_BATCHES,
-          display,
+          read,
           drawCamera,
           output.toneMapped,
           !output.linear,
