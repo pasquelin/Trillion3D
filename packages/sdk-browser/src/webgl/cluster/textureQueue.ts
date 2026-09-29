@@ -107,6 +107,24 @@ export class WebglTextureQueue {
       textures.bind(unit, texture, srgb, fallback, reader);
     }
   }
+  /**
+   * Before the session's first frame: the queue drained a budget per task, each task waiting for
+   * the GPU to pass the last, so the frames find their maps sent (sponza `rue` drew one map first
+   * bound mid-trajectory in a frame of 160–220 ms). The main thread is yielded between tasks.
+   */
+  async prepare(
+    gl: WebGL2RenderingContext,
+    textures: Pick<WebglClusterTextures, 'bind'>,
+    budget: WebglUploadBudget,
+  ) {
+    while (this.next < this.queue.length && !gl.isContextLost()) {
+      budget.beginFrame();
+      this.drain(gl, textures, budget);
+      this.frameEnd(gl);
+      gl.flush();
+      await new Promise((resume) => setTimeout(resume, 0));
+    }
+  }
   /** After a frame's commands, while maps wait: the point the next drain waits for the GPU to pass. */
   frameEnd(gl: WebGL2RenderingContext) {
     if (this.fence) gl.deleteSync(this.fence);

@@ -12,7 +12,7 @@ import type { WebglClusterScene } from './lights.ts';
 import type { SceneCopy } from './copyCulling.ts';
 import { WebglClusterOwner } from './owner.ts';
 import { createDrawOrder } from './drawOrder.ts';
-import { meshes } from '../../scene/meshes.ts';
+import { loadHostVertices, meshes } from '../../scene/meshes.ts';
 import { DEFAULT_PIXEL_RATIO } from '../../backend/common.ts';
 import type { BackendHostDraw } from '../../backend/hostDraw.ts';
 import type { BackendContext } from '../../backend/types.ts';
@@ -109,8 +109,7 @@ export function createSceneDraw(
     drawHostGeometry(drawCamera: HostDrawCamera, output: HostDrawOutput) {
       if (!gl) throw new Error('HOST_SURFACE_MISSING');
       if (!opened) throw new Error('Draw before render');
-      owner ??= new WebglClusterOwner(gl, hosts.materialDegraded, hosts.onDiagnostic);
-      if (!owner.censused) owner.census(declared(), { ...hosts, texturePoolBytes });
+      owner = censused(gl);
       owner.toneCurve = TONE_MAPPING_RANK[output.toneMapping ?? DEFAULT_TONE_MAPPING];
       owner.pixelRatio = (hosts.pixelRatio ?? defaultRatio)();
       display.onBeforeRender?.();
@@ -138,7 +137,22 @@ export function createSceneDraw(
       counters.triangles = owner.submittedTriangles;
     },
   };
+  /** The owner, made at first need, its census taken at its first frame or preparation. */
+  const censused = (context: WebGL2RenderingContext) => {
+    owner ??= new WebglClusterOwner(context, hosts.materialDegraded, hosts.onDiagnostic);
+    if (!owner.censused) owner.census(declared(), { ...hosts, texturePoolBytes });
+    return owner;
+  };
   return {
+    /** Before the first frame: the host vertices of the copies drawn whole, which no session
+     *  fetches up front, the program made, and the declared maps uploaded, a budget per task
+     *  (`textureQueue.ts`), so no frame of the session waits on its first maps. */
+    async prepare() {
+      await Promise.all([
+        loadHostVertices(copies as Parameters<typeof loadHostVertices>[0]),
+        gl && censused(gl).prepareMaps(),
+      ]);
+    },
     render(_camera: HostCamera) {
       counters.triangles = 0;
       opened = true;
