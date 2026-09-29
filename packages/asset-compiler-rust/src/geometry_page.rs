@@ -1,4 +1,4 @@
-use crate::geometry_page_cells::{grids, stored_positions, Cell, Grids};
+use crate::geometry_page_cells::{first_use, grids, stored_positions, Grids};
 use crate::{CompilerError, Result};
 use std::collections::HashMap;
 use trillion3d_page_codec::triangles::Spans;
@@ -134,17 +134,7 @@ pub fn encode(
         uv_exponent,
     )?;
     // Vertices on the same grid cells decode to the same floats: one copy, indices remapped.
-    let mut unique = Vec::<Cell>::with_capacity(cells.len());
-    let mut rank = HashMap::<Cell, u32>::with_capacity(cells.len());
-    let remap: Vec<u32> = cells
-        .iter()
-        .map(|cell| {
-            *rank.entry(*cell).or_insert_with(|| {
-                unique.push(*cell);
-                (unique.len() - 1) as u32
-            })
-        })
-        .collect();
+    let (unique, remap) = first_use(cells.iter().copied());
     let corners: Vec<u32> = local.iter().map(|&i| remap[i as usize]).collect();
     let spans = Spans::of(&corners);
     let (stored, links) = stored_positions(&unique, position.bits);

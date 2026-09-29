@@ -10,7 +10,7 @@
 import assert from 'node:assert/strict';
 import { decodeGeometryPage } from '../../../packages/sdk-browser/src/page/decode/geometryPage.ts';
 import { encodeGeometryPage } from '../../../packages/page-codec/geometryPage.ts';
-import type { PageAttribute } from '../../../packages/page-codec/pageAttributes.ts';
+import type { PageAttribute, PageAttributes } from '../../../packages/page-codec/pageAttributes.ts';
 import { anneau } from '../../../bench/perf/browser/support/pagesWasm.ts';
 import { decodageClusterGpu, TRIANGLE_WORDS, VERTEX_WORDS } from './clusterDecodingGpu.ts';
 
@@ -28,7 +28,8 @@ function page(triangles: number, exponent: number, flat = false) {
 
 /** The ring flat-shaded: every triangle on three vertices of its own under its first corner's
  *  normal, so the page stores each position once and links its vertices to them (#960). */
-function flatShaded({ indices, attributes }: ReturnType<typeof anneau>, exponent: number) {
+type Ring = { indices: number[]; attributes: PageAttributes };
+function flatShaded({ indices, attributes }: Ring, exponent: number) {
   const corners = indices.map((_, k) => k),
     flat = Object.fromEntries(
       (Object.entries(attributes) as [string, PageAttribute][]).map(

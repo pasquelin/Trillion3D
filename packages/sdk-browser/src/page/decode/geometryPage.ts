@@ -94,12 +94,14 @@ export function decodeGeometryPage(
     }
   }
   if (positionCount < vertexCount) {
-    // Positions stored once, each vertex linked to its own (`positions.rs`).
-    const table = new Float32Array(positionCount * 3);
-    vector(table, words, positions, position);
+    // Positions stored once, each vertex dequantized from the one its link names (`positions.rs`).
+    const step = 2 ** position.exponent;
     for (let i = 0; i < vertexCount; i++) {
-      const p = field(words, links * 32 + i * linkBits, linkBits) * 3;
-      attributes.position.set(table.subarray(p, p + 3), i * 3);
+      const p = field(words, links * 32 + i * linkBits, linkBits);
+      for (let c = 0; c < 3; c++) {
+        const q = field(words, positions[c] * 32 + p * position.bits[c], position.bits[c]);
+        attributes.position[i * 3 + c] = fround(position.min[c] + fround(q * step));
+      }
     }
   } else vector(attributes.position, words, positions, position);
   if (flags & FLAG_NORMAL)

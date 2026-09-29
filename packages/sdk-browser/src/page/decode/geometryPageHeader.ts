@@ -131,19 +131,23 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
   )
     throw new Error('GEOMETRY_PAGE_BOUNDS');
   // Each block's base, width and corners stay in bounds: the GPU reads the page in place on this.
-  const read = linked ? links + Math.ceil((vertexCount * linkBits) / 32) : cornerStream,
-    table = Uint32Array.from({ length: read }, (_, i) =>
-      head.getUint32((CLUSTER_HEADER_WORDS + i) * 4, true),
-    );
+  // The link stream ends where the normal stream starts.
+  const words = (from: number, to: number) =>
+      Uint32Array.from({ length: to - from }, (_, i) =>
+        head.getUint32((CLUSTER_HEADER_WORDS + from + i) * 4, true),
+      ),
+    table = words(0, cornerStream);
   for (let b = 0; b < blockCount; b++) {
     const [base, width, start] = blockRecord(table, blocks, corners, b),
       end = start + Math.min(BLOCK_CORNERS, indexCount - b * BLOCK_CORNERS) * width;
     if (base >= vertexCount || width > indexBits || end > cornerBits)
       throw new Error('GEOMETRY_PAGE_BOUNDS');
   }
-  // Every vertex links to a stored position (`positions.rs`), read in place as well.
+  // Every vertex links to a stored position (`positions.rs`), read in place as well; the link
+  // stream ends where the normal stream starts.
+  const linkWords = linked ? words(links, normal) : table;
   for (let i = 0; linked && i < vertexCount; i++)
-    if (field(table, links * 32 + i * linkBits, linkBits) >= positionCount)
+    if (field(linkWords, i * linkBits, linkBits) >= positionCount)
       throw new Error('GEOMETRY_PAGE_BOUNDS');
   return {
     vertexCount,
