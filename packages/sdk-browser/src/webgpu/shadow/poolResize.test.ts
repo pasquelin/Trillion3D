@@ -5,6 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PAGE_INDEX_MASK } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import {
+  SUN,
   planFrame,
   report,
   sunFloor,
@@ -16,6 +17,8 @@ import { MAX_SHADOW_PAGES } from '../../gpu/shadow/recordPack.ts';
 import { shadowPageMoves } from '../../gpu/shadow/pageMoves.ts';
 import { shadowRequestBytes } from './pageRequests.ts';
 import { session } from './poolResize.fixture.ts';
+import { shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
+import { SHADOW_GRANT_BYTES } from '../../residency/memoryBudget.ts';
 
 test('a resize larger then smaller re-sizes the pool, and every capacity follows it', async () => {
   const s = await session([1280, 720]);
@@ -38,9 +41,17 @@ test('a resize larger then smaller re-sizes the pool, and every capacity follows
   assert.deepEqual(shape(), [51, 1, 2601]);
   follows(2601);
   const first = s.texture()!;
+  s.lights.store.remove('shadow sun');
+  await s.frame(640, 360);
+  assert.equal(s.lights.plan.pool.pages, 2601, 'no light casts: nothing asked');
+  s.lights.store.add({ ...SUN, id: 'shadow sun' });
+  await s.frame(640, 360);
+  assert.equal(s.lights.plan.pool.pages, 676, 'a caster back at that size resizes it');
+  await s.frame(1280, 720);
   await s.frame(3456, 2234);
   assert.deepEqual(shape(), [51, 2, 5202], 'two layers of 51² on a device 8 192 wide');
   follows(5202);
+  assert.equal(s.gpu.moves.length, 0, 'no page mapped: nothing to move, no buffer');
   assert.equal(first.destroyed, true, 'the old pool is freed once its pages are copied');
   assert.equal(frameBatchCapacity(s.rt).batches > 109, true, 'more pages, more batches a frame');
   await s.frame(640, 360);
@@ -48,6 +59,8 @@ test('a resize larger then smaller re-sizes the pool, and every capacity follows
   follows(676);
   const sized = s.said.filter(([phase]) => phase === 'shadow-pool').map(([, c]) => c.viewport);
   assert.deepEqual(sized, [
+    [1280, 720],
+    [640, 360],
     [1280, 720],
     [3456, 2234],
     [640, 360],
@@ -149,4 +162,23 @@ test('a transmittance layer the resized pool cannot get keeps the old pool, said
     [phase, context.pool, context.grantedBytes],
     ['gpu-out-of-memory', 'shadow-transmittance', null],
   );
+});
+
+test('a pool the device halves below the one in place is not taken: the pool in place stays', async () => {
+  const s = await session([1280, 720]);
+  const held = s.texture();
+  s.limit.bytes = shadowAtlasBytes(40);
+  await s.frame(3456, 2234);
+  assert.equal(s.texture(), held);
+  assert.equal(s.lights.plan.pool.pages, 2601);
+});
+
+test('a transmittance layer past the shadow grant keeps the pool in place, said by name', async () => {
+  const s = await session([1280, 720], true);
+  const held = s.texture();
+  Object.assign(s.lights.pageRequests!, { bytes: SHADOW_GRANT_BYTES });
+  await s.frame(3456, 2234);
+  assert.equal(s.texture(), held);
+  const [phase, context] = s.said.at(-1)!;
+  assert.deepEqual([phase, context.pressure], ['shadow-memory', 'transmittance-over-grant']);
 });
