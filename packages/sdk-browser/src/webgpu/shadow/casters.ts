@@ -96,10 +96,15 @@ export function encodeShadowCasters(
   source.indirect = lists.indirect;
   source.commands = 1;
   for (let r = 0; r < runs.count; r++) {
-    const face = runs.list[r];
+    const face = runs.list[r],
+      length = lists.lengths[runBase + r];
+    // An empty list keeps nothing: its regions draw nothing either (`drawRegionCasters`).
+    if (!length || !rows)
+      for (let region = face.first; region < face.first + face.count; region++)
+        lights.regions.markCasterless(region);
     source.base = lists.bases[runBase + r];
     source.indirectBase = (runBase + r) * DRAW_INDIRECT_WORDS;
-    cull.encode(encoder, source, r, face.first, face.count, lists.lengths[runBase + r]);
+    cull.encode(encoder, source, r, face.first, face.count, length);
   }
   lights.lightRuns += runs.count;
   return true;
