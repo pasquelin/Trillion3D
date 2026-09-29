@@ -72,7 +72,6 @@ pub(super) fn build_dag_primitive(
     let (dag, groups, tallies, stalls, grown) =
         crate::dag::build_dag_tallied(pos, attributes, index_values, strategy, &|| check(o))?;
     laps.lap("dagMs");
-    // Later stages read the source's vertices then those the solve placed (`dag::Grown`).
     let (pos, carried) = crate::dag::Grown::arrays(&grown, pos, attributes);
     let attributes = crate::dag::DagAttributes { carried: &carried };
     let quality =
@@ -101,12 +100,13 @@ pub(super) fn build_dag_primitive(
     // The collider and the pages read the same DAG and neither reads what the other writes: they
     // run side by side on the compiler's pool, each result kept in its own place, so every byte is
     // the serial cook's, and the cook's error still comes first (#956).
+    let snapped = grown.as_ref().map(|grown| grown.snapped(position_exponent));
+    let (pos, carried) = (snapped.as_deref().unwrap_or(pos), attributes.carried);
     let (collision, paged) = laps.join(
         ("physicsMs", || {
             crate::physics_cook::cook_primitive(o, &dag, &order, &culling, pos, index_values)
         }),
         ("pagesMs", || {
-            let carried = attributes.carried;
             let store = |slice: &[u32]| store_packed(slice, pos, carried, position_exponent);
             bundle_dag_pages(o, &dag, &groups, &order, pos, &store)
         }),

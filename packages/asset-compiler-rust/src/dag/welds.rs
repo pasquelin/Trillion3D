@@ -87,11 +87,9 @@ impl<'a> Welds<'a> {
             source_vertices: self.positions.len() / 3,
             weld: &c.weld,
             exact: &c.exact,
-            weld_seam: if c.weld_seam.is_empty() {
-                &c.weld
-            } else {
-                &c.weld_seam
-            },
+            weld_seam: Some(&c.weld_seam[..])
+                .filter(|w| !w.is_empty())
+                .unwrap_or(&c.weld),
             extents: &c.extents,
         }
     }
