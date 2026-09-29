@@ -70,7 +70,7 @@ test('a growth past the page table grows it in place: ranks, pins and pool kept'
       drawSlots: layout.drawSlots,
       ranks: layout.packedPages.map((page) => rows.rowOfPage[page.packedIndex!]),
       pinned: pinned(),
-      slots: setup.slots,
+      poolSlots: setup.slots,
       ...cache.stats(),
     };
     assert.ok(before.pinned.length && before.ranks.some((rank) => rank >= 0));
@@ -88,7 +88,7 @@ test('a growth past the page table grows it in place: ranks, pins and pool kept'
     assert.deepEqual(ranks, before.ranks);
     assert.deepEqual(pinned(), before.pinned);
     assert.equal(rt.gpu.cache, cache);
-    assert.equal(setup.slots, before.slots);
+    assert.equal(setup.slots, before.poolSlots);
     await draw();
     const after = cache.stats();
     assert.deepEqual(
