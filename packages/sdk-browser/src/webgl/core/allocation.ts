@@ -31,6 +31,9 @@ const unconfirmed = new WeakMap<WebGL2RenderingContext, Unconfirmed>();
 /** The pools each context refused an allocation of since their engine's last frame. */
 const refused = new WeakMap<WebGL2RenderingContext, Set<RefusedPool>>();
 
+/** How many refusals each context read: the images drawn since one may miss what it refused. */
+const readings = new WeakMap<WebGL2RenderingContext, number>();
+
 /** Error flags a context can hold at once: the read stops there even on a driver that never
  *  clears one. */
 const MAX_FLAGS = 8;
@@ -52,6 +55,7 @@ export function allocated(gl: WebGL2RenderingContext, pool: RefusedPool, redo: R
 function refuseAll(gl: WebGL2RenderingContext, state: Unconfirmed | undefined) {
   let pools = refused.get(gl);
   if (!pools) refused.set(gl, (pools = new Set()));
+  readings.set(gl, (readings.get(gl) ?? 0) + 1);
   if (!state) return;
   const sent: Sent[] = [];
   for (const batch of state.batches) {
@@ -115,3 +119,8 @@ const passed = (gl: WebGL2RenderingContext, batch: Batch) =>
 /** Whether `gl` refused an allocation of `pool` since the last call for it; the mark is cleared. */
 export const takeOutOfMemory = (gl: WebGL2RenderingContext | null | undefined, pool: RefusedPool) =>
   !!gl && !!refused.get(gl)?.delete(pool);
+
+/** How many refusals `gl` read so far: an engine that sees it move draws its image again, the
+ *  last ones drawn with what was refused. */
+export const refusalsRead = (gl: WebGL2RenderingContext | null | undefined) =>
+  (gl && readings.get(gl)) ?? 0;
