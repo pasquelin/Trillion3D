@@ -30,12 +30,8 @@ import { boxPointDistance } from '../../../../sdk-core/src/math/primitives/box.t
 import { drawnView, perspectiveSlope } from '../../../../sdk-core/src/math/primitives/camera.ts';
 import type { CameraOptics } from '../../camera/engineCamera.ts';
 import { stretchOf } from './boxes.ts';
-import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
+import type { CellIndex } from './cellIndex.ts';
 import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
-
-/** A cell as the plan reads it: its boxes in the scene root's frame now, six values per parent
- *  (`boxes.ts`), and how many nodes of each mesh it places. */
-export type BoxedCell = { bounds: ArrayLike<number>; meshes: TableCell['meshes'] };
 
 const inverse = new Float64Array(MATRIX_VALUES),
   view = new Float64Array(4);
@@ -93,25 +89,24 @@ export function boxDistance(bounds: ArrayLike<number>, eye: ArrayLike<number>) {
 
 /**
  * The cells `held` does not hold that a frame needs — `visible`, within `reach` — and those it
- * reads ahead — `ahead`, within `reach·(1 + AHEAD)` —, each nearest first; and the held cells
- * past `reach·(1 + KEEP)`, which leave. `reach` is the frame camera's (`cellReach`).
+ * reads ahead — `ahead`, within `reach·(1 + AHEAD)` —, each nearest first, found through the cell
+ * index (`cellIndex.ts`); and the held cells past `reach·(1 + KEEP)`, which leave. `reach` is the
+ * frame camera's (`cellReach`).
  */
 export function planCells(
-  cells: readonly BoxedCell[],
+  index: Pick<CellIndex, 'near' | 'distance'>,
   eye: ArrayLike<number>,
   reach: number,
-  held: ReadonlySet<number>,
+  held: Pick<ReadonlyMap<number, unknown>, 'has' | 'keys'>,
 ) {
   const visible: { cell: number; distance: number }[] = [],
     ahead: { cell: number; distance: number }[] = [];
+  index.near(eye, reach * (1 + AHEAD), (cell, distance) => {
+    if (!held.has(cell)) (distance <= reach ? visible : ahead).push({ cell, distance });
+  });
   const leave: number[] = [];
-  for (let cell = 0; cell < cells.length; cell++) {
-    const distance = boxDistance(cells[cell].bounds, eye);
-    if (held.has(cell)) {
-      if (distance > reach * (1 + KEEP)) leave.push(cell);
-    } else if (distance <= reach) visible.push({ cell, distance });
-    else if (distance <= reach * (1 + AHEAD)) ahead.push({ cell, distance });
-  }
+  for (const cell of held.keys())
+    if (index.distance(cell, eye) > reach * (1 + KEEP)) leave.push(cell);
   const nearest = (list: typeof visible) =>
     list.sort((a, b) => a.distance - b.distance).map((entry) => entry.cell);
   return { visible: nearest(visible), ahead: nearest(ahead), leave };

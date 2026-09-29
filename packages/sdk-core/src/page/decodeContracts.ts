@@ -1,10 +1,11 @@
 import type { Page } from '../contracts/geometry.ts';
 
 /**
- * Off-main-thread page-decode contract, version 6: the decoded geometry travels as one block
+ * Off-main-thread page-decode contract, version 7: the decoded geometry travels as one block
  * with its quantization error, and the arena slot records that error in word 8; `cut` turns
  * drawn triangles into pages, which come back as bytes with their descriptors and, since
- * version 6, their normal cone, the packed triangles carrying whether their pages keep one.
+ * version 6, their normal cone, the packed triangles carrying whether their pages keep one;
+ * since version 7, `cells` reads a partition's cell file into the rows it places (#575).
  *
  * The calling thread sends a `PageDecodeRequest`, the executor returns a `PageDecodeAnswer` carrying
  * the same `id`. Nothing here touches the platform: no `Worker`, no fetch, no clock — the browser
@@ -17,12 +18,13 @@ import type { Page } from '../contracts/geometry.ts';
  * returns exactly the same values: the contract does not say how the work travels, only what it
  * returns.
  */
-export const PAGE_DECODE_PROTOCOL = 6;
+export const PAGE_DECODE_PROTOCOL = 7;
 
 /** `verify`: a page's SHA-256 digest. `decode`: its indices and per-vertex attributes. `cut`:
  *  drawn triangles, packed as five lengths, whether their pages keep a cone, whether a blended
- *  material wears them, then five four-byte arrays (`packDrawn`), cut into pages. */
-export type PageDecodeOp = 'verify' | 'decode' | 'cut';
+ *  material wears them, then five four-byte arrays (`packDrawn`), cut into pages. `cells`: a
+ *  partition's cell file, read into each node's parent, mesh and local matrix. */
+export type PageDecodeOp = 'verify' | 'decode' | 'cut' | 'cells';
 
 /** One page a `cut` wrote: its index and geometry bytes, their digests, and its descriptor. */
 export interface PageCutPage {
@@ -109,6 +111,10 @@ export interface PageDecodeGeometryPayload {
   /** `decode`: the unpacked page. */ decoded: PageDecodeGeometryPayload | null;
   /** `cut`: the pages, their bytes transferred. Absent otherwise. */
   cut?: PageCutPayload;
+  /** `cells`: per node, its core parent's rank (`-1`: the scene root) and its mesh's in `ranks`,
+   *  two 32-bit integers, and the local matrix the engine composes for its pose in `locals`,
+   *  sixteen doubles; both transferred. Absent otherwise. */
+  cells?: { nodes: number; ranks: ArrayBuffer; locals: ArrayBuffer };
   /** True when the WebAssembly-compiled decoder did the work, false for the
    *  JavaScript decoder. Both yield the same bytes; only the counter distinguishes them. */
   wasm: boolean;
