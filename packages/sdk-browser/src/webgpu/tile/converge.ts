@@ -5,14 +5,12 @@ import {
   unsettledMask,
   unsettledReasons,
 } from '../frame/hold.ts';
-import { convergeAtStillScale, dropTaaHistory } from '../../taa/frame.ts';
+import { convergeStillPhase, dropTaaHistory, taaPhaseCount } from '../../taa/frame.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { shadowsUnsettled } from '../pages/state/lights.ts';
-import { PICK_CYCLE } from './feedback.ts';
 
-/** Convergence images at most: room for the tiles to land, then one quiet pick cycle; beyond that,
- *  what is missing is published, never waited for forever. */
-const CONVERGE_LIMIT = 64 + PICK_CYCLE;
+/** Convergence turns at most: beyond that, what is missing is published, never waited for forever. */
+const CONVERGE_LIMIT = 64;
 /** Images a barrier grants at most to the shadow pages' round trips: a report read, casters
  *  loaded, pages staled by their arrival. A still camera takes a few; a moving camera voids pages
  *  every image and never converges: the bound is there for it. */
@@ -25,26 +23,27 @@ const POSE_ROUNDS = 4;
 export const mustRestartTaaAfterSettle = (tilesServed: number, shadowFrames: number) =>
   tilesServed > 0 || shadowFrames > 0;
 
-/** True once a convergence may stop: `quietWanted` images in a row asked for nothing new — a whole
- *  pick cycle (`PICK_CYCLE`) the first time a capture settles a pose, one image otherwise —, and
- *  nothing is waited for that will come. */
+/**
+ * True once a convergence may stop: a whole round of the still image's `phases` jitter phases in a
+ * row asked for nothing new (one image without temporal accumulation, or at a barrier that takes
+ * no picture), ending on the replayed phase — image `image + 1` is a multiple of `phases`, so the
+ * last image drawn is the one the next image follows —, and nothing is waited for that will come.
+ */
 export const texturesConverged = (
-  quietImages: number,
-  quietWanted: number,
+  quiet: number,
+  phases: number,
+  image: number,
   pending: number,
   reading: boolean,
-) => quietImages >= quietWanted && (!pending || !reading);
-
-/** Quiet images a convergence waits for: the whole pick cycle once per pose, at a capture's
- *  barrier (`poseCycled` false), where the image is read back; one otherwise. */
-export const quietImagesWanted = (pictured: boolean, poseCycled: boolean) =>
-  pictured && !poseCycled ? PICK_CYCLE : 1;
+) => quiet >= phases && (image + 1) % phases === 0 && (!pending || !reading);
 
 /**
  * Converges the textures of a pose: the image is rendered with all its pixels on feedback, each
- * image turning which map a pixel names (`PICK_CYCLE`), what they ask is served with no budget, and
- * we go on until the quiet images wanted (`quietImagesWanted`: a whole cycle once per pose at a
- * capture) find no requested tile missing. A tile whose
+ * naming the first of its picks whose tile is missing (`everyPick`), what they ask is served with
+ * no budget, and we start over until no requested tile is missing. At a capture's barrier
+ * (`pictured`) each image draws the next jitter phase of the still image (`convergeStillPhase`),
+ * and a whole round of them must ask nothing: the still frames that average those phases then
+ * find every tile they read resident, and nothing lands during their average. A tile whose
  * level is still being read is waited for; a refused tile is not — the pool is full for this view,
  * nothing will come, the coarse level holds (`textureTilesRefused`). The pool never yields what the
  * previous image was looking at, so a turn cannot undo the previous turn: the barrier converges or
@@ -63,25 +62,28 @@ async function convergeTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, pi
   // Nothing streamed — no texture, or all in their queue —: no feedback can name anything, and the
   // image need not be redone.
   if (textures.feedback.entries === 0) return 0;
-  const { feedback } = textures,
-    wanted = quietImagesWanted(pictured, feedback.poseCycled);
   let total = 0,
     quiet = 0;
-  for (let image = 0; image < CONVERGE_LIMIT; image++) {
-    renderWebgpuPages(rt, run.lastCamera!);
-    await gpuDevice.queue.onSubmittedWorkDone();
-    await textures.settled();
-    const { served, pending } = textures.pump(run.frame, true);
-    total += served;
-    // A served tile is shown only by the next image: we stop only after a pick cycle that asked
-    // nothing more, or on a wait that nothing will fill. Nothing is deferred under a lifted budget:
-    // what is pending waits for its bytes.
-    quiet = served ? 0 : quiet + 1;
-    if (texturesConverged(quiet, wanted, pending, textures.reading)) {
-      feedback.poseCycled ||= pictured;
-      break;
+  try {
+    for (let image = 0; image < CONVERGE_LIMIT; image++) {
+      // Image 0 draws the phase after the replayed one; the round closes on the replayed phase.
+      if (pictured) convergeStillPhase(rt, image + 1);
+      renderWebgpuPages(rt, run.lastCamera!);
+      await gpuDevice.queue.onSubmittedWorkDone();
+      await textures.settled();
+      const { served, pending } = textures.pump(run.frame, true);
+      total += served;
+      // A served tile is shown only by the next image: we stop only after a round that asked
+      // nothing more, or on a wait that nothing will fill. Nothing is deferred under a lifted
+      // budget: what is pending waits for its bytes.
+      quiet = served ? 0 : quiet + 1;
+      const phases = pictured ? taaPhaseCount(rt) : 1;
+      if (texturesConverged(quiet, phases, image, pending, textures.reading)) break;
+      if (pending) await textures.settled();
     }
-    if (pending) await textures.settled();
+  } finally {
+    // The barrier's other images — the shadow drains — draw the replayed phase.
+    if (pictured) convergeStillPhase(rt, 0);
   }
   return total;
 }
@@ -136,7 +138,8 @@ export async function settlePose(
     served = 0,
     drains = 0;
   run.textureConverging = true;
-  if (pictured) convergeAtStillScale(rt);
+  // A capture's barrier draws at the still image's scale (`beginTaaFrame`), from its first image.
+  if (pictured) convergeStillPhase(rt, 0);
   try {
     // Rows the per-image time budget left owed are part of the pose: a barrier image, with the
     // budget lifted, writes them all, and the GPU cut the barrier then adopts sees every page.
@@ -152,6 +155,7 @@ export async function settlePose(
     }
   } finally {
     run.textureConverging = false;
+    convergeStillPhase(rt, null);
   }
   // Tiles or shadow pages that landed during the barrier changed the raster: the still TAA
   // average must restart from this residency, not mix the frames that were still loading (#25).

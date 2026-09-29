@@ -1,6 +1,6 @@
 import { sampleWebgpuFrame } from './signature.ts';
 import { CPU_STEP } from '../pages/render/cpuStepTable.ts';
-import { beginTaaFrame, taaSettled } from '../../taa/frame.ts';
+import { beginTaaFrame, restartTaaOnLanding, taaSettled } from '../../taa/frame.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { shadowsUnsettled } from '../pages/state/lights.ts';
 import { effectsMoved } from '../pages/render/encodeEffects.ts';
@@ -186,6 +186,8 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
 export function keepWebgpuFrame(rt: WebgpuPagesRuntime) {
   const { gate, textureConverging } = rt.run;
   if (textureConverging || rt.feedbackAB?.force) return;
+  // A shadow page this still image drew changed what it reads mid-average (#1016).
+  restartTaaOnLanding(rt, rt.lights.shadowPages);
   sampleWebgpuFrame(rt, gate.hold.sample);
   gate.hold.keep(gate.revisions);
 }

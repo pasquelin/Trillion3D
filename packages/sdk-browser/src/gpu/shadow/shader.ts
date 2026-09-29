@@ -12,8 +12,8 @@ import {
   tileDeclarations,
 } from '../../webgpu/tile/wgsl.ts';
 import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts';
-import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { FEEDBACK_RULE_WGSL, tileRequestIndexWgsl } from '../../webgpu/tile/requestWgsl.ts';
+import { PICK_BLENDS } from '../../webgpu/tile/feedback.ts';
 import {
   FLAG_BLEND_CASTER,
   FLAG_HAS_MAP,
@@ -49,8 +49,8 @@ import { BLEND_TRANSMITTANCE_WGSL } from './transmittance.ts';
  * so the exclusion is exactly the announced sphere — a raised near plane would have cut a cube.
  * A light without a radius carries a zero radius and nothing is discarded.
  */
-/** Clip units per 1/256 of a page texel: the rasterizer's subtexel step (#26 step C, #1016). */
-export const SHADOW_SNAP = (SHADOW_PAGE / 2) * 256;
+/** Subtexel steps the rasterizer snaps a corner to, per texel (#26 step C, #1016). */
+export const SHADOW_SUBTEXELS = 256;
 /** A row whose cutout reads a base map: masked, and with a map. */
 const CUTOUT_MAP = FLAG_MASK | FLAG_HAS_MAP;
 
@@ -70,7 +70,6 @@ struct ShadowView{viewProjection:mat4x4f,params:vec4f,emitter:vec4f,}
 @group(1) @binding(2) var<storage,read_write> tileFeedback:array<atomic<u32>>;
 @group(2) @binding(0) var shadowOpaque:texture_depth_2d;
 struct ShadowOut{@invariant @builtin(position) position:vec4f,@location(0) @interpolate(flat) instance:u32,@location(1) uv:vec2f,@location(2) fromEmitter:vec3f,}
-const SHADOW_SNAP:f32=${SHADOW_SNAP}.0;
 ${PAGE_LOOKUP_WGSL}
 ${PAGE_GEOMETRY_WGSL}
 ${tilePoolWgsl('0.0')}
@@ -80,11 +79,15 @@ ${MASK_KEEP_WGSL}
 ${tileRequestIndexWgsl('color')}
 ${FEEDBACK_RULE_WGSL}
 ${BLEND_TRANSMITTANCE_WGSL}
-/** A sun corner (w 1) snapped to the rasterizer's own 1/256 of a texel: the viewport adds the
- *  physical page's origin to it exactly, so a page rasterizes alike wherever the pool puts it. */
+/** A corner of an affine face — the sun's orthographic pages, whose matrix has no projective
+ *  row, w 1 — snapped to the rasterizer's own subtexel of its page viewport (\`params.w\` texels
+ *  over two clip units): the viewport adds the physical page's origin to it exactly, so a page
+ *  rasterizes alike wherever the pool puts it. A perspective face (a lamp's) is left as it is. */
 fn sunSnap(p:vec4f)->vec4f{
- if(p.w!=1.0){return p;}
- return vec4f(round(p.x*SHADOW_SNAP)/SHADOW_SNAP,round(p.y*SHADOW_SNAP)/SHADOW_SNAP,p.z,p.w);
+ let m=shadow.viewProjection;
+ if(m[0].w!=0.0||m[1].w!=0.0||m[2].w!=0.0){return p;}
+ let step=shadow.params.w*${SHADOW_SUBTEXELS / 2}.0;
+ return vec4f(round(p.x*step)/step,round(p.y*step)/step,p.z,p.w);
 }
 /** Corner \`vertexIndex\` of page-table row \`pageIndex\`, or none when its row is not of the kind
  *  drawn: \`blended\` casters alone into the transmittance layer, the others alone into the depth. */
@@ -126,14 +129,18 @@ fn shadowKeep(in:ShadowOut,gx:vec2f,gy:vec2f)->bool{
  return maskKeep(pages[in.instance],in.uv,1.0,gx,gy);
 }
 /** A masked caster's texel asks for the base-map tile its cutout reads — the isotropic level, one
- *  of the two the read mixes, picked as the camera's pixels pick —, in its phase, into the texture
- *  feedback's counters (\`faceBindings.ts\`): what it reads is then what the pose asked. */
+ *  of the two the read mixes, picked as the camera's pixels pick; both during a convergence
+ *  (\`everyPick\`) —, in its phase, into the texture feedback's counters (\`faceBindings.ts\`): what
+ *  it reads is then what the pose asked. */
+fn cutoutPost(page:PageInfo,in:ShadowOut,gx:vec2f,gy:vec2f,p:RequestPick){
+ let rank=colorRequestIndex(page.mapIndex,in.uv,gx,gy,p.next,1u,false,(page.flags&${FLAG_SAMPLED}u)!=0u,false);
+ if(rank!=0u){atomicAdd(&tileFeedback[rank-1u],1u);}
+}
 fn cutoutRequest(in:ShadowOut,gx:vec2f,gy:vec2f){
  let page=pages[in.instance];
  if(cutoutWord.y==0u||(page.flags&${CUTOUT_MAP}u)!=${CUTOUT_MAP}u||!feedbackPhase(in.position.xy,cutoutWord.x)){return;}
- let p=requestPick(in.position.xy,1u,cutoutWord.x);
- let rank=colorRequestIndex(page.mapIndex,in.uv,gx,gy,p.next,1u,false,(page.flags&${FLAG_SAMPLED}u)!=0u);
- if(rank!=0u){atomicAdd(&tileFeedback[rank-1u],1u);}
+ if(!feedbackEvery(cutoutWord.x)){cutoutPost(page,in,gx,gy,requestPick(in.position.xy,1u,cutoutWord.x));return;}
+ for(var turn=0u;turn<${PICK_BLENDS}u;turn++){cutoutPost(page,in,gx,gy,everyPick(in.position.xy,1u,turn));}
 }
 /** Writes no colour: it only discards the envelope and the cutout, and asks the cutout's tile. */
 @fragment fn shadow_fs(in:ShadowOut){
