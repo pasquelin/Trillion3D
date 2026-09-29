@@ -100,8 +100,8 @@ const FRONTIERE: Record<string, Record<string, string>> = {
 };
 
 /** Lines triggering a pattern, comments excluded. */
-const lignesFautives = (texte: string): string[] =>
-  texte
+const lignesFautives = (text: string): string[] =>
+  text
     .split('\n')
     .filter((ligne) => !/^\s*(?:\/\/|\*|\/\*)/.test(ligne))
     .map((ligne) => ligne.trim())
@@ -111,15 +111,15 @@ test('loading and explorer no longer compute using the host library', async () =
   const fuites: string[] = [],
     inutiles: string[] = [];
   for (const file of M4A) {
-    const texte = await readFile(new URL(file, browser), 'utf8');
+    const text = await readFile(new URL(file, browser), 'utf8');
     const permis = FRONTIERE[file] ?? {},
-      vues = new Set<string>();
-    for (const ligne of lignesFautives(texte)) {
-      if (permis[ligne]) vues.add(ligne);
+      seen = new Set<string>();
+    for (const ligne of lignesFautives(text)) {
+      if (permis[ligne]) seen.add(ligne);
       else fuites.push(`${file} computes through the host library: ${ligne}`);
     }
     for (const ligne of Object.keys(permis))
-      if (!vues.has(ligne))
+      if (!seen.has(ligne))
         inutiles.push(`${file} declares a boundary that no longer exists: ${ligne}`);
   }
   assert.deepEqual(fuites, [], `boundary declared in ${import.meta.url}`);
@@ -165,17 +165,17 @@ test('engine reads the host matrix, it does not compute with it', async () => {
   for (const file of fichiers) {
     if (TEMOINS.test(file)) continue;
     const permis = ECRIT_L_HOTE[file] ?? {},
-      vues = new Set<string>();
-    const texte = await readFile(new URL(file, browser), 'utf8');
-    for (const ligne of texte
+      seen = new Set<string>();
+    const text = await readFile(new URL(file, browser), 'utf8');
+    for (const ligne of text
       .split('\n')
       .filter((l) => !/^\s*(?:\/\/|\*|\/\*)/.test(l) && CALCULE_UNE_MATRICE.test(l))
       .map((l) => l.trim())) {
-      if (permis[ligne]) vues.add(ligne);
+      if (permis[ligne]) seen.add(ligne);
       else fuites.push(`${file} computes a host matrix: ${ligne}`);
     }
     for (const ligne of Object.keys(permis))
-      if (!vues.has(ligne))
+      if (!seen.has(ligne))
         inutiles.push(`${file} declares a write that no longer exists: ${ligne}`);
   }
   assert.deepEqual(fuites, [], `boundary declared in ${import.meta.url}`);
