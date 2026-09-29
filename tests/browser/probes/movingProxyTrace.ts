@@ -1,8 +1,8 @@
 /**
  * Page side of the moving-proxy probes (#27): the shipped traversal (`BOUNCE_TRACE_WGSL`) over
  * the engine's resident proxy, on a real device. Each ray reports whether it hit, at what
- * distance, which owner, whether the shadow query agrees, and the centre and red albedo of the
- * owner it hit — what the radiance of a hit reads. A variant replaces the step bound the proxy
+ * distance, which owner (-1 on a posed leaf, which reads no owner word), whether the shadow query
+ * agrees, and the centre and red albedo of the owner it hit — what the radiance of a hit reads. A variant replaces the step bound the proxy
  * carries by another, to compare the shipped bound with none.
  */
 import { residentProxyWgsl } from '../../../packages/sdk-browser/src/bounce/nodeWgsl.ts';
@@ -23,7 +23,7 @@ ${BOUNCE_TRACE_WGSL}
  let direction=rays[id.x*2u+1u].xyz;
  let hit=traceProxy(origin,direction,${REACH}.0);
  let blocked=proxyBlocked(origin,direction,${REACH}.0);
- hits[id.x*2u]=vec4f(select(0.0,1.0,hit.found),hit.distance,f32(hit.owner),select(0.0,1.0,blocked));
+ hits[id.x*2u]=vec4f(select(0.0,1.0,hit.found),hit.distance,select(f32(hit.owner),-1.0,hit.owner==PROXY_POSED),select(0.0,1.0,blocked));
  hits[id.x*2u+1u]=vec4f(proxyOwnerCentre(hit.triangle,hit.owner),proxyOwnerAlbedo(hit.owner).r);
 }`;
 

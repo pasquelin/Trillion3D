@@ -1,4 +1,7 @@
-import { createSceneProxyMotion } from '../../../sdk-core/src/scene/core/proxyMotion.ts';
+import {
+  createSceneProxyMotion,
+  type ProxySync,
+} from '../../../sdk-core/src/scene/core/proxyMotion.ts';
 import { ensureProxyFits } from './limits.ts';
 import {
   BOUNCE_SETTINGS,
@@ -6,7 +9,6 @@ import {
   type SceneProxy,
 } from '../../../sdk-core/src/index.ts';
 import {
-  PROXY_DYNAMIC_WORD,
   PROXY_HEADER_WORDS,
   PROXY_LAYOUT_WORD,
   PROXY_REVISION_WORD,
@@ -15,6 +17,10 @@ import {
 
 /** Columns motion rewrites: node bounds, node children and owner transforms. */
 const MOVING_COLUMNS = [1, 2, 6];
+/** Ranks of the triangle, node children and triangle group columns. */
+const TRIANGLES = 0,
+  CHILDREN = 2,
+  GROUPS = 3;
 
 /** Words of an array, whatever its type: a column is a sequence of words, nothing more. */
 const words = (data: Float32Array | Uint32Array) =>
@@ -79,11 +85,17 @@ export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
   mapped[PROXY_STEPS_WORD] = steps();
   buffer.unmap();
   const albedo = albedoBuffer(device, data?.albedo ?? new Uint32Array(0));
-  // Motion flag, then revision and steps, written after each change.
-  const motionFlag = new Uint32Array(1);
+  // Revision and steps, written after each change.
   const tail = new Uint32Array(2);
-  const write = (index: number) =>
-    device.queue.writeBuffer(buffer, (PROXY_HEADER_WORDS + starts[index]) * 4, columns[index]);
+  /** A column, or the word range `[from, to)` of it. */
+  const write = (index: number, from = 0, to = columns[index].length) =>
+    device.queue.writeBuffer(
+      buffer,
+      (PROXY_HEADER_WORDS + starts[index] + from) * 4,
+      columns[index],
+      from,
+      to - from,
+    );
   return {
     buffer,
     albedo,
@@ -97,8 +109,13 @@ export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
     bounds: motion.bounds,
     triangleBoxes: motion.triangleBoxes,
     changedTriangles: motion.changedTriangles,
+    /** Some leaf is traced under its owners' poses. */
     get dynamic() {
       return motion.dynamic;
+    },
+    /** Owned leaves wait for their still streak: the host keeps syncing each frame. */
+    get settling() {
+      return motion.settling;
     },
     get revision() {
       return motion.revision;
@@ -107,20 +124,20 @@ export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
     get steps() {
       return steps();
     },
-    sync(worldOf: (source: number) => ArrayLike<number> | undefined) {
-      const wasDynamic = motion.dynamic,
-        wasSettled = !wasDynamic && motion.revision > 0;
-      if (!motion.sync(worldOf)) return false;
-      // Settling, or resuming after a settle, rewrites the triangles; the first motion finds them
-      // canonical already. Only motion moves the tree and the poses.
-      if (motion.dynamic ? wasSettled : wasDynamic) write(0);
-      if (motion.dynamic) for (const index of MOVING_COLUMNS) write(index);
-      motionFlag[0] = motion.dynamic ? 1 : 0;
-      device.queue.writeBuffer(buffer, PROXY_DYNAMIC_WORD * 4, motionFlag);
+    /** Uploads only what changed: the triangles and leaf flags a settle or a resume rewrote, and on
+     *  motion the tree and the poses. A leaf never posed away from bind uploads no triangle. */
+    sync(worldOf: (source: number) => ArrayLike<number> | undefined): ProxySync {
+      const change = motion.sync(worldOf);
+      if (!change) return null;
+      const spans = motion.take();
+      if (spans.triangles) write(TRIANGLES, spans.triangles[0] * 9, spans.triangles[1] * 9);
+      if (spans.groups) write(GROUPS, ...spans.groups);
+      if (change === 'moved') for (const index of MOVING_COLUMNS) write(index);
+      else if (spans.childWords) write(CHILDREN, ...spans.childWords);
       tail[0] = motion.revision;
       tail[1] = steps();
       device.queue.writeBuffer(buffer, PROXY_REVISION_WORD * 4, tail);
-      return true;
+      return change;
     },
     get errorMetres() {
       return motion.errorMetres;
