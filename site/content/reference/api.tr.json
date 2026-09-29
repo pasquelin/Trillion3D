@@ -7988,7 +7988,10 @@
     "parameters": {
       "bones": "Gövdeden uçlara doğru kemikler.",
       "options": "Yön, en büyük bükülme açısı ve frekans."
-    }
+    },
+    "parameters.options.direction": "Zemin düzlemindeki yön `[x, z]`; varsayılan `[1, 0]`.",
+    "parameters.options.angle": "Radyan cinsinden en büyük bükülme; varsayılan 0,1.",
+    "parameters.options.frequency": "Saniyedeki salınım sayısı; varsayılan 0,5."
   },
   "Skeleton": {
     "summary": "Ağı büken kemikler ve ağ koordinatlarını her kemiğin çerçevesine taşıyan ters bağlama matrisleri.",
@@ -8007,9 +8010,18 @@
     "members.phasesAt": "`t` saniyede her dalganın fazı, çift duyarlıkla [0, 2π) aralığına indirgenir.",
     "members.setTime": "Zamanı `t` saniyeye ayarlar; önceki karenin yüzeyi `setTime(t - dt)` olur.",
     "members.offset": "Durgun `(x, 0, z)` noktasının `[x, y, z]` yer değiştirmesini `out` içine yazar.",
-    "members.normal": "Durgun `(x, z)` noktasındaki `[x, y, z]` birim normalini `out` içine yazar."
+    "members.normal": "Durgun `(x, z)` noktasındaki `[x, y, z]` birim normalini `out` içine yazar.",
+    "members.count": "Toplanan dalga sayısı.",
+    "members.dirX": "Her dalga yönünün normalleştirilmiş x bileşeni.",
+    "members.dirZ": "Her dalga yönünün normalleştirilmiş z bileşeni.",
+    "members.k": "Her dalganın metre başına radyan cinsinden dalga sayısı.",
+    "members.amplitude": "Her dalganın metre cinsinden düşey genliği.",
+    "members.lateral": "Her dalganın metre cinsinden normalleştirilmiş yanal genliği."
   },
   "WindOptions": {
-    "summary": "Rüzgâr yönü (zemindeki `x`, `z`), kemiğin radyan cinsinden en büyük bükülmesi ve saniyedeki salınım sayısı."
+    "summary": "Rüzgâr yönü (zemindeki `x`, `z`), kemiğin radyan cinsinden en büyük bükülmesi ve saniyedeki salınım sayısı.",
+    "members.direction": "Zemin düzlemindeki yön `[x, z]`; varsayılan `[1, 0]`.",
+    "members.angle": "Radyan cinsinden en büyük bükülme; varsayılan 0,1.",
+    "members.frequency": "Saniyedeki salınım sayısı; varsayılan 0,5."
   }
 }

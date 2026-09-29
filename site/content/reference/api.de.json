@@ -7988,7 +7988,10 @@
     "parameters": {
       "bones": "Knochen vom Stamm bis zu den Spitzen.",
       "options": "Richtung, maximaler Biegewinkel und Frequenz."
-    }
+    },
+    "parameters.options.direction": "Richtung in der Bodenebene `[x, z]`; Standard: `[1, 0]`.",
+    "parameters.options.angle": "Maximale Biegung in Radiant; Standard: 0,1.",
+    "parameters.options.frequency": "Schwingungen pro Sekunde; Standard: 0,5."
   },
   "Skeleton": {
     "summary": "Die Knochen eines verformten Netzes und ihre inversen Bindematrizen vom Netz- ins Knochenkoordinatensystem.",
@@ -8007,9 +8010,18 @@
     "members.phasesAt": "Phase jeder Welle bei `t` Sekunden, mit doppelter Genauigkeit auf [0, 2π) reduziert.",
     "members.setTime": "Setzt die Zeit auf `t` Sekunden; die vorherige Oberfläche entspricht `setTime(t - dt)`.",
     "members.offset": "Schreibt die Verschiebung `[x, y, z]` des Ruhepunkts `(x, 0, z)` nach `out`.",
-    "members.normal": "Schreibt die Einheitsnormale `[x, y, z]` am Ruhepunkt `(x, z)` nach `out`."
+    "members.normal": "Schreibt die Einheitsnormale `[x, y, z]` am Ruhepunkt `(x, z)` nach `out`.",
+    "members.count": "Anzahl der summierten Wellen.",
+    "members.dirX": "Normalisierte x-Komponente jeder Wellenrichtung.",
+    "members.dirZ": "Normalisierte z-Komponente jeder Wellenrichtung.",
+    "members.k": "Wellenzahl jeder Welle in Radiant pro Meter.",
+    "members.amplitude": "Vertikale Amplitude jeder Welle in Metern.",
+    "members.lateral": "Normalisierte seitliche Amplitude jeder Welle in Metern."
   },
   "WindOptions": {
-    "summary": "Windrichtung (`x`, `z` am Boden), maximale Knochenbiegung in Radiant und Schwingungen pro Sekunde."
+    "summary": "Windrichtung (`x`, `z` am Boden), maximale Knochenbiegung in Radiant und Schwingungen pro Sekunde.",
+    "members.direction": "Richtung in der Bodenebene `[x, z]`; Standard: `[1, 0]`.",
+    "members.angle": "Maximale Biegung in Radiant; Standard: 0,1.",
+    "members.frequency": "Schwingungen pro Sekunde; Standard: 0,5."
   }
 }
