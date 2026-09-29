@@ -27,6 +27,8 @@ export type DeformedMesh = {
  *  each source can move a vertex from its rest pose (`primitives[].deformation`). */
 export type Deformed = {
   world: MatrixElements;
+  /** The skeleton's bones' world matrices, as the reader of `world` holds them: the engine's. */
+  boneWorlds?: readonly MatrixElements[];
   mesh: DeformedMesh;
   shape: RecordShape;
   reach: { joints: ArrayLike<number>; targets: ArrayLike<number> };
@@ -111,7 +113,7 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
       most = 0,
       moved = false;
     if (shape.joints && mesh.skeleton) {
-      mesh.skeleton.palette(entry.world.elements, block, palette);
+      mesh.skeleton.palette(entry.world.elements, block, palette, entry.boneWorlds);
       most = paletteReach(block, palette, shape.joints, entry.reach.joints);
       if (first) block.copyWithin(palette + joints, palette, palette + joints);
       moved ||= differs(block, palette, palette + joints, joints);

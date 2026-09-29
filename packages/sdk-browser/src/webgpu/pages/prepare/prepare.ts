@@ -128,16 +128,18 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     gpuCompaction: !!blendState.compaction?.encode,
     transmissiveMeshes: blendState.transmissive,
   });
-  // The float geometry of what no page covers, concatenated once; then, every vertex buffer
-  // allocated, the geometry pool is drawn from what they leave of its budget. A concatenation that
-  // fails is a material failure, as the textures' are: the pool is still granted, the visibility
-  // buffer dropped below.
+  // The float geometry of what no page covers, and the deformation records, concatenated once; then
+  // the geometry pool is drawn from what they leave of its budget. A concatenation that fails is a
+  // material failure, as the textures' are: the pool still granted, the visibility dropped below.
   throwIfStopped(rt);
   vis.geometryBlocks.clear();
   let geometryFailure: { error: unknown } | undefined;
   try {
-    const deformation = (vis.deformation = createSessionDeformation(selectionRoots));
-    Object.assign(vis, prepareWebgpuGeometry(gpuDevice, allPages, vis.geometryBlocks, deformation));
+    vis.deformation = createSessionDeformation(selectionRoots, rt.setup.worlds);
+    Object.assign(
+      vis,
+      prepareWebgpuGeometry(gpuDevice, allPages, vis.geometryBlocks, vis.deformation),
+    );
   } catch (error) {
     geometryFailure = { error };
   }
