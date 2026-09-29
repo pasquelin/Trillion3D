@@ -7,6 +7,11 @@ import { pageAddress } from '../webgpu/row/pageSlots.ts';
 /** Current position, previous position and current normal: eleven words per vertex, including owner and frame tags. */
 export const DEFORM_VERTEX_WORDS = 11;
 
+/** The word a row or a transparent span carries to name a page's results (`deformationOutput`),
+ *  the page's slot starting at word `offset`: their first word plus one, zero for none. */
+export const deformOutputWord = (output: PageRec['deformationOutput'], offset: number) =>
+  output ? offset + output.from + 1 : 0;
+
 /**
  * Reserve deformation results in the geometry cache's own slots. All placements sharing a
  * compressed page have disjoint tails; eviction, relocation, root coverage and the one geometry

@@ -26,6 +26,7 @@ import { surfaceOpacity } from '../../page/surface.ts';
 import { shownAsIs } from '../../scene/surfaceModel.ts';
 import { neverCulled, writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts';
 import type { SessionDeformation } from '../../deformation/session.ts';
+import { deformOutputWord } from '../../deformation/slotLayout.ts';
 
 export const ROW_ID_BASE_WORD = 27,
   ROW_HIZ_SLOT_WORD = 31;
@@ -141,9 +142,7 @@ export function createPageRowWriter(
     const deform = resources.deformation?.rowWord(rec.placementIndex) ?? 0;
     ints[base + PAGE_DEFORM_WORD] = deform;
     ints[base + PAGE_DEFORM_COUNT_WORD] = rec.deformationOutput?.count ?? 0;
-    ints[base + PAGE_DEFORM_OUTPUT_WORD] = rec.deformationOutput
-      ? offsetWords + rec.deformationOutput.from + 1
-      : 0;
+    ints[base + PAGE_DEFORM_OUTPUT_WORD] = deformOutputWord(rec.deformationOutput, offsetWords);
     ints[base + ROW_HIZ_SLOT_WORD] = neverCulled(mat) || deform ? NO_HIZ_SLOT : row;
     ints[base + 32] = maps.rough;
     ints[base + 33] = maps.metal;
