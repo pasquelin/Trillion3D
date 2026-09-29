@@ -95,20 +95,19 @@ test('300 lamps draw on WebGL2, each draw lists the lamps the oracle says reach 
   renderer.dispose();
 });
 
+/** One frame of a scene draw, to a small default target. */
+function drawFrame(draw: ReturnType<typeof createSceneDraw>) {
+  draw.render({} as never);
+  const output = { toneMapped: true, framebuffer: null, width: 8, height: 4 };
+  draw.host.drawHostGeometry(createHostDrawCamera(), output);
+}
+
 test('a WebGL2 frame walks the scene 0 times for its lights, and still reads their changes', () => {
   const lit = scene(),
     context = createTestContext({ answers: { getExtension: () => ({}) } });
   lit.add(mesh(meshX(0)) as unknown as Object3D);
   const draw = createSceneDraw(context.gl, lit);
-  const frame = () => {
-    draw.render({} as never);
-    draw.host.drawHostGeometry(createHostDrawCamera(), {
-      toneMapped: true,
-      framebuffer: null,
-      width: 8,
-      height: 4,
-    });
-  };
+  const frame = () => drawFrame(draw);
   frame();
   const walk = Object3D.prototype.traverse;
   let visits = 0;
@@ -146,13 +145,7 @@ test('an invisible root scene gives 0 lights to the frame and to the light uploa
     return upload.call(this, read, ...rest);
   };
   try {
-    draw.render({} as never);
-    draw.host.drawHostGeometry(createHostDrawCamera(), {
-      toneMapped: true,
-      framebuffer: null,
-      width: 8,
-      height: 4,
-    });
+    drawFrame(draw);
   } finally {
     WebglClusterLights.prototype.upload = upload;
   }
