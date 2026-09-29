@@ -1,6 +1,6 @@
 import * as G from '../../host/graph/graph.fixture.ts';
 import { encodeGeometryPage } from '../../../../page-codec/geometryPage.ts';
-import { dagRoots } from './testDag.fixture.ts';
+import { dagRoots } from '../../backend/pagesBackend.fixture.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import { QUAD_MANIFEST, quadScene } from '../../backend/pagesBackendScenes.fixture.ts';
 import { webgpuPagesBackend } from './pages.ts';
@@ -55,7 +55,7 @@ export function pagedQuad(specs: readonly ClusterSpec[]) {
         },
       };
     }),
-  );
+  ).pages;
   const metadata: ClusterManifest = {
     ...QUAD_MANIFEST,
     primitives: [

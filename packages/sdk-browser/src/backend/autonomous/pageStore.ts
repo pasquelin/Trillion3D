@@ -11,6 +11,7 @@ import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts';
 import { rowPlaced } from '../../placement/autonomousPlacements.ts';
 import { wearDeclaration } from '../../page/surface.ts';
 import { assertWithinBox, itemSize, pageOf } from './pageData.ts';
+import { dynamicSource, sourcedPageGeometry } from './sourcedPages.ts';
 
 type PageStoreEnvironment = {
   /** The roots a record's `placementIndex` ranks: whether a row places it is its root's. */
@@ -47,15 +48,21 @@ export function createPageStore(env: PageStoreEnvironment) {
       const placed = rowPlaced(env.roots, rec);
       release(rec, placed && drawnByOthers(rec));
       const data = host ? read! : (replaced.get(rec.url) ?? pageOf(rec, read)),
-        shared = placed ? rowed.get(data) : undefined;
-      if (!shared) assertWithinBox(data, rec);
-      const geometry = shared ?? hostPageGeometry(data, itemSize, rec.min, rec.max);
+        shared = placed ? rowed.get(data) : undefined,
+        // A dynamic page, its index alone: drawn over its primitive's own lists (#573).
+        source = dynamicSource(rec);
+      if (!shared && !source) assertWithinBox(data, rec);
+      const geometry =
+        shared ??
+        (source
+          ? sourcedPageGeometry(data.indices, source, rec.min, rec.max)
+          : hostPageGeometry(data, itemSize, rec.min, rec.max));
       if (placed) rowed.set(data, geometry);
       const base = baseMaterials.get(rec)!;
       // Lazily: a page without a colour attribute must not make a vertex-coloured twin.
       const twin = (one: HostMaterial) => colouredTwin(colorMaterials, one);
       const paint = () => (Array.isArray(base) ? base.map(twin) : twin(base));
-      wearDeclaration(rec, data.attributes.color ? paint() : base);
+      wearDeclaration(rec, geometry.attributes.color ? paint() : base);
       setArray(rec, data.indices);
       rec.attributes = geometry.attributes;
       rec.geometry = geometry;
@@ -69,11 +76,14 @@ export function createPageStore(env: PageStoreEnvironment) {
     if (!recs) return false;
     const data = host ? given : (replaced.get(url) ?? given);
     const descriptor = descriptors.get(url);
+    // A dynamic page (`sourcedPages.ts`) has no descriptor: its corners are all it carries.
+    const dynamic = !descriptor && !!recs[0] && !!dynamicSource(recs[0]);
     if (
-      !descriptor ||
-      data.vertexCount !== descriptor.vertexCount ||
-      data.indices.length !== descriptor.indexCount ||
-      data.flags !== descriptor.flags
+      !dynamic &&
+      (!descriptor ||
+        data.vertexCount !== descriptor.vertexCount ||
+        data.indices.length !== descriptor.indexCount ||
+        data.flags !== descriptor.flags)
     )
       throw new Error('AUTONOMOUS_PAGE_METADATA_MISMATCH');
     if (recs[0] && !recs[0].array) state.residentPages++;

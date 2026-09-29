@@ -71,6 +71,7 @@ pub const VERTEX_PROTECT: u8 = 2;
 
 /// One per-vertex attribute counted in the simplification error: `width` floats per source
 /// vertex, each weighted by `weight` against the positions normalised to the region's extent.
+#[derive(Clone, Copy)]
 pub struct Attribute<'a> {
     pub values: &'a [f32],
     pub width: usize,
@@ -113,10 +114,6 @@ pub fn simplify_with_locked_vertices(
     let (compact_pos, compact_idx, remap) = compact_region(positions, indices);
     let flags: Vec<u8> = remap.iter().map(|&source| flags(source)).collect();
     let (values, weights) = compact_attributes(attributes, &remap);
-    let bytes = unsafe {
-        std::slice::from_raw_parts(compact_pos.as_ptr() as *const u8, compact_pos.len() * 4)
-    };
-    let vertices = VertexDataAdapter::new(bytes, 12, 0).map_err(|_| invalid("POSITION adapter"))?;
     let mut options = SimplifyOptions::ErrorAbsolute | SimplifyOptions::Permissive;
     if prune {
         options |= SimplifyOptions::Prune;
@@ -152,7 +149,7 @@ pub fn simplify_with_locked_vertices(
             error_object: 0.0,
         });
     }
-    let extent = meshopt::simplify::simplify_scale(&vertices) as f64;
+    let extent = region_extent(&compact_pos)?;
     Ok(SimplifiedMesh {
         indices: out.into_iter().map(|i| remap[i as usize]).collect(),
         triangles,
@@ -160,8 +157,16 @@ pub fn simplify_with_locked_vertices(
     })
 }
 
+/// The extent meshoptimizer normalises a region's positions by, the clamp of its error.
+pub(crate) fn region_extent(positions: &[f32]) -> Result<f64> {
+    let bytes =
+        unsafe { std::slice::from_raw_parts(positions.as_ptr() as *const u8, positions.len() * 4) };
+    let vertices = VertexDataAdapter::new(bytes, 12, 0).map_err(|_| invalid("POSITION adapter"))?;
+    Ok(meshopt::simplify::simplify_scale(&vertices) as f64)
+}
+
 /// The attributes of the region's vertices, interleaved in compact order, and one weight per float.
-fn compact_attributes(attributes: &[Attribute], remap: &[u32]) -> (Vec<f32>, Vec<f32>) {
+pub(crate) fn compact_attributes(attributes: &[Attribute], remap: &[u32]) -> (Vec<f32>, Vec<f32>) {
     let weights: Vec<f32> = attributes
         .iter()
         .flat_map(|a| std::iter::repeat_n(a.weight, a.width))
@@ -181,6 +186,9 @@ fn compact_attributes(attributes: &[Attribute], remap: &[u32]) -> (Vec<f32>, Vec
 #[cfg(test)]
 #[path = "qem_attribute_tests.rs"]
 mod attribute_tests;
+/// The variant that solves what it keeps, for seam-locked groups.
+#[path = "qem_solve.rs"]
+pub(crate) mod solve;
 #[cfg(test)]
 #[path = "qem_tests.rs"]
 mod tests;

@@ -125,6 +125,7 @@ export function buildWorldSource(plan: WorldPlan) {
     root: mirror.root,
     twins: mirror.twins,
     repaint: mirror.repaint,
+    geometryOf: mirror.geometryOf,
     /** A batch the session was not opened with, as it mounts it (`PlacementMount`): its host
      *  mesh hung in the graph, its primitive listed in the manifest. */
     mount(batch: Batch): PlacementMount {
