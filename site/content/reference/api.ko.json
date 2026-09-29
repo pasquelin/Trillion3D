@@ -2431,7 +2431,8 @@
       "id": "응답된 요청.",
       "ok": "항상 `false`.",
       "code": "실패한 이유.",
-      "message": "원래 메시지 그대로: 호출자는 동기 경로와 같은 `Error`를 던진다."
+      "message": "원래 메시지 그대로: 호출자는 동기 경로와 같은 `Error`를 던진다.",
+      "refusal": "작업이 만난 엔진의 이름 있는 거부 코드(`EngineError`)로, 호출자가 그 코드로 다시 던진다. 다른 실패에는 없다."
     }
   },
   "PageDecodeFailureCode": {
@@ -2459,7 +2460,8 @@
       "id": "요청 번호.",
       "op": "무엇을 할지.",
       "source": "메시지와 함께 전송됨: 보낸 쪽은 더 이상 소유자가 아니다.",
-      "maxDecodedBytes": "지오메트리 페이지의 디코딩된 바이트 상한; `verify`에서는 무시된다."
+      "maxDecodedBytes": "지오메트리 페이지의 디코딩된 바이트 상한; `verify`에서는 무시된다.",
+      "name": "`cells`, `cellPage`: 소스를 읽어 온 파일로, 거부가 이 파일을 지목한다."
     }
   },
   "PageDecodeShare": {

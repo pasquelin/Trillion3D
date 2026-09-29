@@ -2449,7 +2449,8 @@
       "id": "Yêu cầu được trả lời.",
       "ok": "Luôn là `false`.",
       "code": "Vì sao nó thất bại.",
-      "message": "Thông điệp gốc, nguyên trạng: bên gọi ném ra cùng `Error` như đường xử lý đồng bộ."
+      "message": "Thông điệp gốc, nguyên trạng: bên gọi ném ra cùng `Error` như đường xử lý đồng bộ.",
+      "refusal": "Mã của lời từ chối có tên của engine mà tác vụ gặp phải (`EngineError`), mà bên gọi ném lại theo mã đó; vắng mặt với mọi lỗi khác."
     }
   },
   "PageDecodeFailureCode": {
@@ -2477,7 +2478,8 @@
       "id": "Số hiệu yêu cầu.",
       "op": "Việc cần làm.",
       "source": "Được chuyển giao cùng thông điệp: bên gửi không còn là chủ sở hữu nữa.",
-      "maxDecodedBytes": "Trần số byte đã giải mã của một trang hình học; bị `verify` bỏ qua."
+      "maxDecodedBytes": "Trần số byte đã giải mã của một trang hình học; bị `verify` bỏ qua.",
+      "name": "`cells`, `cellPage`: tệp mà nguồn được đọc từ đó, tệp mà một lời từ chối nêu tên."
     }
   },
   "PageDecodeShare": {

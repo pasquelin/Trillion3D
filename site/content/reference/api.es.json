@@ -4550,7 +4550,8 @@
       "id": "La solicitud que recibe la respuesta.",
       "ok": "Siempre `false`.",
       "code": "Por qué falló.",
-      "message": "El mensaje original, tal cual: el llamador lanza el mismo `Error` que el camino síncrono."
+      "message": "El mensaje original, tal cual: el llamador lanza el mismo `Error` que el camino síncrono.",
+      "refusal": "El código del rechazo con nombre del motor que encontró la tarea (`EngineError`), que el llamador vuelve a lanzar con ese código; ausente en cualquier otro fallo."
     }
   },
   "pageDecodeFailureCode": {
@@ -4581,7 +4582,8 @@
       "id": "Número de la solicitud.",
       "op": "Qué hay que hacer.",
       "source": "Transferido con el mensaje: el remitente ya no es su propietario.",
-      "maxDecodedBytes": "Límite de bytes decodificados de una página de geometría; ignorado por `verify`."
+      "maxDecodedBytes": "Límite de bytes decodificados de una página de geometría; ignorado por `verify`.",
+      "name": "`cells`, `cellPage`: el archivo del que se leyó la fuente, que un rechazo nombra."
     }
   },
   "PageDecodeShare": {

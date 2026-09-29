@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { createPartitionCells } from '../../scene/partition/cells.ts';
 import { placedMesh } from '../../scene/partition/rows.ts';
-import { decodeHere, io, settled } from '../../scene/partition/cells.fixture.ts';
+import { decodeHere, io, opened, settled } from '../../scene/partition/cells.fixture.ts';
 import { paged } from '../../scene/partition/paged.fixture.ts';
 import { createArrivalQueue, type ArrivalTarget } from './arrivalQueue.ts';
 import { createFrameBudget } from './frameBudget.ts';
@@ -152,10 +152,12 @@ test('the cells a frame places and the pages it drains spend one budget, on one 
     parents: [],
     meshes: new Map([[0, placedMesh([{ meshes: 0 }])]]),
   });
-  const { port, held } = io((url) => {
+  const bytes = (url: string) => {
     const name = url.split('/').at(-1)!;
     return files.get(name) ?? new TextEncoder().encode(body(Number(name.split('.')[0])));
-  });
+  };
+  const { port, held } = io(bytes);
+  await opened(cells, bytes, 100, false, [1e9, 0, 0]); // rows for every node, nothing read
   port.decode = async (bytes: Uint8Array) => {
     const rows = await decodeHere(bytes);
     return {

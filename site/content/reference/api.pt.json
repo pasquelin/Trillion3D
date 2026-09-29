@@ -2431,7 +2431,8 @@
       "id": "A requisição respondida.",
       "ok": "Sempre `false`.",
       "code": "Por que falhou.",
-      "message": "A mensagem original, como está: o chamador lança o mesmo `Error` que o caminho síncrono."
+      "message": "A mensagem original, como está: o chamador lança o mesmo `Error` que o caminho síncrono.",
+      "refusal": "O código da recusa nomeada do motor que a tarefa encontrou (`EngineError`), que o chamador lança de novo com esse código; ausente em qualquer outra falha."
     }
   },
   "PageDecodeFailureCode": {
@@ -2459,7 +2460,8 @@
       "id": "Número da requisição.",
       "op": "O que fazer.",
       "source": "Transferido com a mensagem: o remetente não é mais o dono.",
-      "maxDecodedBytes": "Teto de bytes decodificados de uma página de geometria; ignorado por `verify`."
+      "maxDecodedBytes": "Teto de bytes decodificados de uma página de geometria; ignorado por `verify`.",
+      "name": "`cells`, `cellPage`: o arquivo de onde a fonte foi lida, que uma recusa nomeia."
     }
   },
   "PageDecodeShare": {
