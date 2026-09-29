@@ -1,3 +1,4 @@
+import { EngineError } from '../../../../sdk-core/src/index.ts';
 import type { HostMaterials } from '../../host/resources.ts';
 import type { Scene } from '../../world/core/scene.ts';
 import {
@@ -22,7 +23,6 @@ import { createDrawLists } from './drawLists.ts';
 import { degradedHearer } from '../../world/diagnostic/materialNotices.ts';
 import { upscaleMipBias } from '../../taa/jitter.ts';
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
-
 /** What a WebGL2 frame reads of a display graph: its lights as `lights` gives them (the draw
  *  lists', none while the graph itself is hidden), its background and fog as they stand when the
  *  frame reads them. */
@@ -37,9 +37,7 @@ const sceneRead = (display: Scene, lights: () => readonly Light[]): WebglCluster
     return display.fog;
   },
 });
-
 const kept = new WeakMap<Scene, WebglClusterScene>();
-
 /** A display graph as a WebGL2 draw outside `createSceneDraw` reads it — a witness, a test page:
  *  one set of draw lists per graph, brought to the graph at each read, never a walk of its own. */
 export function keptClusterScene(display: Scene) {
@@ -50,19 +48,16 @@ export function keptClusterScene(display: Scene) {
   }
   return read;
 }
-
 /** A drawn node, the engine's mesh, read by shape: drawn whole. */
 type DrawnNode = Partial<SceneCopy> & {
   readonly matrixWorld: SceneCopy['matrixWorld'];
   readonly renderOrder: number;
 };
-
 /** What the session gives the draw: its pixel ratio, its degraded-surface notice and its
  *  diagnostics, where that notice is said when the session gives none, the texture bytes its
  *  census may upload ahead and a frame's upload budget (`textureQueue.ts`). */
 type DrawHosts = Pick<BackendContext, 'pixelRatio' | 'materialDegraded' | 'onDiagnostic'> &
   TextureHosts & { deformation?: () => DeformationSource | undefined };
-
 /** A scene draw hands the program no page batch: shared, so a frame allocates no empty list. */
 const NO_BATCHES: readonly never[] = [];
 
@@ -85,8 +80,6 @@ const NO_BATCHES: readonly never[] = [];
  * surface) the draw is refused by name. `pixelRatio`, read each frame, scales a line's CSS-pixel
  * width to the image's pixels; `materialDegraded` hears a surface drawn without a physical feature
  * or left out of the frame, said on `onDiagnostic` when the session gives no hearer.
- * `declared` lists the surfaces the census counts (`owner.ts`): the graph's, unless the session
- * declares more — pages not attached yet.
  */
 export function createSceneDraw(
   gl: WebGL2RenderingContext | undefined,
@@ -183,6 +176,18 @@ export function createSceneDraw(
       counters.triangles = 0;
       opened = true;
       walked = false;
+    },
+    materials: {
+      async admitMaterial(material: HostMaterials) {
+        if (!gl) throw new EngineError('UNSUPPORTED_SCENE_UPDATE', 'no WebGL context is open', {});
+        const upload = censused(gl).admitMaterial(material);
+        hosts.onDiagnostic?.({
+          phase: 'material-texture-appended',
+          message: 'A runtime map was uploaded',
+          context: upload,
+        });
+      },
+      releaseMaterial: (material: HostMaterials) => owner?.releaseMaterial(material),
     },
     host,
     counters: () => (opened ? counters : null),
