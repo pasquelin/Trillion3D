@@ -1,9 +1,6 @@
+// A page record carries no placement value of its own (#1226): its world, its instance-buffer row
+// and its winding are those of its root, the one its `placementIndex` ranks in its engine's roots.
 import type { MatrixElements } from '../../math/matrixElements.ts';
-
-/**
- * A page record carries no placement value of its own (#1226): its world, its instance-buffer row
- * and its winding are those of its root, the one its `placementIndex` ranks in its engine's roots.
- */
 
 /** What a reader takes of the roots a record's `placementIndex` ranks: their worlds. */
 export type Placements = readonly { readonly world: MatrixElements }[];
