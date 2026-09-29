@@ -1,7 +1,8 @@
 import { TEMPLATES, sha, manifest } from '../../../../tests/fixtures/manifestBinary.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decodeManifestBinary, encodeManifestBinary, MANIFEST_BINARY_VERSION } from './binary.ts';
+import { decodeManifestBinary, MANIFEST_BINARY_VERSION } from './binary.ts';
+import { encodeManifestBinary } from '../../../../tests/fixtures/manifestBinaryEncode.ts';
 import { COLUMN_NAMES, MANIFEST_BINARY_HEADER_WORDS } from './binaryFormat.ts';
 import type { EngineError } from '../contracts/index.ts';
 

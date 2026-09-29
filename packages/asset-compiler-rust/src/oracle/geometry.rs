@@ -3,7 +3,13 @@ use super::scene::World;
 use super::trace::Hit;
 use crate::proxy::PROXY_TRIANGLE_FLOATS;
 
-use crate::shared_math::{cross, dot, normalized_or, scale, sub};
+use crate::shared_math::{cross, dot, scale, sub, unit_where};
+
+/// `a` at unit length, or `a` itself when its length is not positive. The oracle's own guard: a
+/// NaN or infinite length still divides, as the oracle always has.
+pub fn normalise(a: [f64; 3]) -> [f64; 3] {
+    unit_where(a, |norm| norm > 0.0 || norm.is_nan()).unwrap_or(a)
+}
 pub fn vertex(world: &World, triangle: usize, corner: usize) -> [f64; 3] {
     let base = triangle * PROXY_TRIANGLE_FLOATS + corner * 3;
     [
@@ -14,11 +20,10 @@ pub fn vertex(world: &World, triangle: usize, corner: usize) -> [f64; 3] {
 }
 pub fn normal_of(world: &World, triangle: usize) -> [f64; 3] {
     let a = vertex(world, triangle, 0);
-    let normal = cross(
+    normalise(cross(
         sub(vertex(world, triangle, 1), a),
         sub(vertex(world, triangle, 2), a),
-    );
-    normalized_or(normal, normal)
+    ))
 }
 /// Hit point and facing normal. Source has no reliable winding order:
 /// ray determines which surface side it arrives at.

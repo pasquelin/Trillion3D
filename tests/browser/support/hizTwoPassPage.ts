@@ -4,7 +4,7 @@
 // of the next image), then steps back in front of the wall, where the slab is hidden. The first
 // image there still draws the slab's rows in the main pass — last image's pyramid, read with
 // last image's rectangles, does not hide them — and its own pyramid then does: the next image
-// withdraws them (`retiresParLaPyramide`), the post pass rejects them, and they stay rejected.
+// withdraws them (`pyramidWithdrawn`), the post pass rejects them, and they stay rejected.
 // Temporal antialiasing is ON: its jitter is what once made rows trade halves every image, and
 // the image must still be held. Each held image is compared to a fresh engine's at the same pose.
 import type {
@@ -30,7 +30,7 @@ async function jusquaTenue(backend: RenderBackend, camera: Camera) {
   for (let i = 0; i < LIMITE; i++) {
     derniere = await image(backend, camera);
     const partition = comptesEtape(backend, 'partition');
-    retires = Math.max(retires, partition?.retiresParLaPyramide ?? 0);
+    retires = Math.max(retires, partition?.pyramidWithdrawn ?? 0);
     rejetees = Math.max(rejetees, derniere.metriques.hizRejectedClusters ?? 0);
     if (derniere.metriques.frameHeld) return { ...derniere, images: i + 1, retires, rejetees };
   }
@@ -63,7 +63,7 @@ export async function executer() {
         rejetees: tenue.rejetees,
         dalle: dallePixels(tenue.pixels),
         ecart: difference(tenue.pixels, temoin),
-        lignes: comptesEtape(backend, 'partition')?.lignes ?? null,
+        lignes: comptesEtape(backend, 'partition')?.rows ?? null,
       });
     }
   });

@@ -1,6 +1,6 @@
 // Proof by the real engine: the compute raster yields the same image as the hardware raster, to
-// the silhouette, whether it takes the whole cut (`raster-calcul`) or small triangles alone
-// (`raster-hybride`). Twelve tilted tiles, each two triangles that share a diagonal in two
+// the silhouette, whether it takes the whole cut (`raster-compute`) or small triangles alone
+// (`raster-hybrid`). Twelve tilted tiles, each two triangles that share a diagonal in two
 // distinct clusters, a face-on tile whose 45° diagonal goes through pixel centres, a huge tile
 // whose diagonal crosses the image from vertices thousands of pixels off-screen, and a tile that
 // crosses the near plane.
