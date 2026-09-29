@@ -34,7 +34,11 @@ const reading = (): ReportRecord => ({
   differencePair: null,
   identicalCut: null,
   image: null,
-  data: { errorMetric: 'certifiee', cpuFrameMs: { p50: 4, p95: 4 }, gpuFrameMs: { p50: 8, p95: 8 } },
+  data: {
+    errorMetric: 'certifiee',
+    cpuFrameMs: { p50: 4, p95: 4 },
+    gpuFrameMs: { p50: 8, p95: 8 },
+  },
 });
 
 test('export preserves source numbers and original pixels without inventing provenance', () => {
@@ -87,7 +91,11 @@ const ms = (p50: number, p95 = p50) => ({ p50, p95 });
 
 test('comparison admits only its declared variable and separates GPU and synchronized clocks', () => {
   const a = reading(),
-    b: ReportRecord = { ...reading(), id: 'b', data: { errorMetric: 'certifiee', cpuFrameMs: ms(3) } };
+    b: ReportRecord = {
+      ...reading(),
+      id: 'b',
+      data: { errorMetric: 'certifiee', cpuFrameMs: ms(3) },
+    };
   assert.deepEqual(comparison(a, b, 'cpu'), {
     status: 'descriptive',
     reasons: [],
