@@ -1,5 +1,5 @@
 import { WRAP_MAP } from '../../visibility/wrapModes.ts';
-import { FEEDBACK_EVERY, FEEDBACK_STRIDE, PICK_SHIFT } from './feedback.ts';
+import { FEEDBACK_EVERY, FEEDBACK_STRIDE, MAP_CHOICES, PICK_SHIFT } from './feedback.ts';
 
 const STRIDE_MASK = FEEDBACK_STRIDE - 1;
 
@@ -44,8 +44,6 @@ const m = WRAP_MAP;
  * base map as the shading does (`maskAlphaWgsl`), so a masked base map asks one level too. The
  * pick rank is `WRAP_MAP`'s; a missing map lets the base colour speak (`mapRequest`). Hosts build their slots from the page row or the transparent item.
  */
-/** Number of maps a pixel can name: the rank of `WRAP_MAP`, written once. */
-const MAP_CHOICES = Object.keys(WRAP_MAP).length;
 export const TILE_REQUEST_WGSL = `const MAP_CHOICES:u32=${MAP_CHOICES}u;
 ${request('color')}
 ${request('data')}

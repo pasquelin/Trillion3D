@@ -5,16 +5,6 @@ import type { Page } from 'playwright';
 import { STREET_REACH, eyeHeight, plancherDuModele, type Bounds } from './poses.ts';
 import { probeColumns } from './streetPage.ts';
 
-/** One column of the model as the physics answered it: its ground, whether the sky is open over
- *  it one eye above that ground, and the nearest wall at that eye. */
-export interface ColumnProbe {
-  x: number;
-  z: number;
-  ground: number;
-  open: boolean;
-  clearance: number;
-}
-
 /** The street the camera walks: a column under open sky, its ground, and the radius around it at
  *  eye height that no wall crosses. */
 export interface Street {
@@ -24,13 +14,20 @@ export interface Street {
   clearance: number;
 }
 
+/** One column of the model as the physics answered it: a street candidate, and whether the sky is
+ *  open over it one eye above its ground. */
+export interface ColumnProbe extends Street {
+  open: boolean;
+}
+
 /** What `probeColumns` needs, computed here: nothing in the page decides. */
 export interface StreetProbeOptions {
   sdkUrl: string;
   manifestUrl: string;
   columns: Array<[number, number]>;
   headings: Array<[number, number]>;
-  centre: [number, number, number];
+  /** Where the probe's camera stands, over the box centre, at `top`: `[x, z]`. */
+  centre: [number, number];
   top: number;
   floor: number;
   height: number;
@@ -63,7 +60,7 @@ export function streetProbe(bounds: Bounds, urls: { sdkUrl: string; manifestUrl:
     ...urls,
     columns,
     headings: HEADINGS,
-    centre: [(min.x + max.x) / 2, max.y + eye, (min.z + max.z) / 2],
+    centre: [(min.x + max.x) / 2, (min.z + max.z) / 2],
     top: max.y + eye,
     floor: plancherDuModele(bounds),
     height,
@@ -85,18 +82,17 @@ export function pickStreet(probes: readonly ColumnProbe[], bounds: Bounds): Stre
   const cx = (bounds.min.x + bounds.max.x) / 2,
     cz = (bounds.min.z + bounds.max.z) / 2,
     floor = plancherDuModele(bounds) + eyeHeight(bounds);
-  let best: Street | null = null,
-    bestDistance = Infinity;
-  for (const probe of probes) {
-    if (!probe.open || probe.ground > floor) continue;
-    const distance = Math.hypot(probe.x - cx, probe.z - cz);
-    const roomier = !best || probe.clearance > best.clearance;
-    if (roomier || (probe.clearance === best!.clearance && distance < bestDistance)) {
-      best = { x: probe.x, z: probe.z, ground: probe.ground, clearance: probe.clearance };
-      bestDistance = distance;
-    }
-  }
-  return best;
+  const off = (p: Street) => Math.hypot(p.x - cx, p.z - cz);
+  const best = probes
+    .filter((p) => p.open && p.ground <= floor)
+    .reduce<ColumnProbe | null>(
+      (a, p) =>
+        !a || p.clearance > a.clearance || (p.clearance === a.clearance && off(p) < off(a)) ? p : a,
+      null,
+    );
+  if (!best) return null;
+  const { open: _open, ...street } = best;
+  return street;
 }
 
 /** The model's street, probed in `page` on the SDK and manifest a side reads: `bounds` with it. */

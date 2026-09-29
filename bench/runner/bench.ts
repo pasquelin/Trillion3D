@@ -131,9 +131,11 @@ async function main() {
       sdkUrl: options.sdkEntryUrl(sides[0]),
       manifestUrl: sides[0].manifestUrl ?? MANIFEST,
     };
-    const box = await onFreshPage((page) => page.evaluate(readBounds, urls));
-    // The camera's street, read off the model's own geometry: the poses walk it (`poses.ts`).
-    const bounds = (report.bounds = await onFreshPage((page) => readStreet(page, box, urls)));
+    // The box, then the camera's street read off the model's own geometry, on one page: the poses
+    // walk it (`poses.ts`).
+    const bounds = (report.bounds = await onFreshPage(async (page) =>
+      readStreet(page, await page.evaluate(readBounds, urls), urls),
+    ));
     // Lights once bounds are known: geometric rule, no named scene.
     CTX.lights = benchLights(bounds, settings);
     report.lampes = CTX.lights ? CTX.lights.resume : null;

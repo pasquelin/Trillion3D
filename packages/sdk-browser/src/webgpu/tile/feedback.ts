@@ -18,7 +18,13 @@ import { WRAP_MAP } from '../../visibility/wrapModes.ts';
  *  a convergence carries its pick turn (`PICK_CYCLE`). */
 export const FEEDBACK_STRIDE = 4;
 export const FEEDBACK_EVERY = FEEDBACK_STRIDE * FEEDBACK_STRIDE;
-export const PICK_SHIFT = 5;
+/** First bit above the phase and the `FEEDBACK_EVERY` bit. */
+export const PICK_SHIFT = Math.log2(FEEDBACK_EVERY) + 1;
+/** Number of maps a pixel can name: the rank of `WRAP_MAP`, written once. */
+export const MAP_CHOICES = Object.keys(WRAP_MAP).length;
+/** A pick is a map (or the masked sun level), one of two blend levels, one of three taps. */
+const PICK_BLENDS = 2,
+  PICK_TAPS = 3;
 /**
  * Names a pixel's position picks among (`requestPick`): one of the maps (`WRAP_MAP`) or the sun
  * level a masked pixel asks, one of the two blend levels, one of the three anisotropic taps. A
@@ -27,7 +33,7 @@ export const PICK_SHIFT = 5;
  * pixel has named every tile it reads, so what a settled pose reads is what it asked, never what
  * the pool kept of an earlier pose (#1016).
  */
-export const PICK_CYCLE = (Object.keys(WRAP_MAP).length + 1) * 2 * 3;
+export const PICK_CYCLE = (MAP_CHOICES + 1) * PICK_BLENDS * PICK_TAPS;
 
 export type WebgpuTileFeedback = {
   readonly buffer: GPUBuffer;
