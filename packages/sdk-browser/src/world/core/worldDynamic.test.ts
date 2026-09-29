@@ -61,6 +61,28 @@ test('a geometry changed on consecutive frames turns dynamic by itself, and says
   assert.equal(world.rewrites.length, 8);
 });
 
+/** An upload's bytes, those of the lists themselves. */
+const weighed = (_: Cut, __: unknown, bytes: number) => bytes;
+
+test('a rewrite is read into the lists its resource holds: a steady frame makes no list', async () => {
+  const dynamic = createWorldDynamic(undefined, { cuts: 0 });
+  const plane = geometry.plane(1, 1, 3, 3);
+  plane.usage = 'dynamic';
+  const mesh = object.mesh(plane, material.meshStandard({}));
+  const read = () => (dynamic.wants(mesh), dynamic.of(mesh, 'faces', {}, false, () => {}));
+  const cut = (await read())!;
+  const lists = () => [cut.drawn.positions, cut.dynamic!.next.positions, cut.dynamic!.next.normals];
+  const before = lists();
+  for (let frame = 1; frame < 4; frame++) {
+    plane.attributes.position.setZ(5, frame / 100);
+    plane.attributes.position.needsUpdate = true;
+    assert.equal(await read(), cut, `frame ${frame}: the same resource`);
+    assert.equal(dynamic.upload(1 << 20, { weigh: weighed, write: () => true }), 12);
+  }
+  assert.deepEqual(lists(), before, 'the same lists');
+  assert.equal(cut.drawn.positions[17], Math.fround(0.03), 'the last rewrite held');
+});
+
 test('past the frame budget an upload waits for the next frame, in order, and is never dropped', async () => {
   const dynamic = createWorldDynamic(undefined, { cuts: 0 });
   const made: Cut[] = [];
@@ -78,7 +100,8 @@ test('past the frame budget an upload waits for the next frame, in order, and is
   }
   await Promise.all(planes.map(read));
   const written: Cut[] = [];
-  const frame = () => dynamic.upload(12, (cut) => written.push(cut) > 0);
+  const uploads = { weigh: weighed, write: (cut: Cut) => written.push(cut) > 0 };
+  const frame = () => dynamic.upload(12, uploads);
   assert.equal(frame(), 12, 'the first of the frame goes whatever its size');
   assert.deepEqual(written, [made[0]]);
   assert.equal(frame(), 12, 'the one deferred goes next');

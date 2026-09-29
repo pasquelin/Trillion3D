@@ -819,12 +819,15 @@ raster, Hi-Z, resolve, shadow depth and transparent draw, one lighting model. A 
 geometry read since the last upload with what the engine holds, list by list, and hands the engine
 the range from the first changed vertex to the last (`updateVertices`), within the world's per-frame
 budget (`DYNAMIC_UPLOAD_BUDGET_BYTES`, 4 MiB): past it the next geometries wait, in order, their
-previous vertices drawn.
+previous vertices drawn. A steady frame allocates nothing: the geometry is read into lists the
+resource holds (`worldDynamicRead.ts`), the ranges and the box are rewritten in place.
 
 - **WebGPU.** The float vertex pool (`webgpu/core/geometryPrepare.ts`) is sized once at open with
-  room for as many vertices again as its dynamic geometry holds; a rewrite is one `writeBuffer`
-  per list into its block, a record mounted after the open takes a block of that room (`place`),
-  and nothing is reallocated. Each root drawing the geometry turns moving for the shadow pool
+  room for as many vertices again as its dynamic geometry holds — none when it holds none —; a
+  rewrite is one `writeBuffer` per list into its block, a record mounted after the open takes a
+  block of that room (`place`), and nothing is reallocated; past that room, the session opens
+  again. The budget weighs what is sent (`vertexBytes`): a normal with its tangent, the positions
+  twice, the pool's and the fallback draw's. Each root drawing the geometry turns moving for the shadow pool
   (`shadow/mobility.ts`) and the world box of the moved vertices, where they were and where they
   go, stales the pages it covers (`light-shadow/invalidate.ts`, #489). Its rows carry
   `FLAG_DYNAMIC`: no motion matrix follows vertices within a placement, so the temporal pass takes
