@@ -24,6 +24,20 @@ export interface WebgpuBounceState {
   firstFrameLogged: boolean;
 }
 
+/** Bounce state, as the image diagnostics and the per-stage profile publish it. */
+export function bounceState(bounce: WebgpuBounceState) {
+  const probes = bounce.probes;
+  return {
+    probes: probes?.cascades.probes ?? null,
+    probesUpdated: bounce.probesUpdated,
+    rays: bounce.raysLaunched,
+    budgetLoad: probes?.budget.load ?? null,
+    budgetLastMs: probes?.budget.lastMs ?? null,
+    converged: probes ? !probes.working : null,
+    unavailable: bounce.reason,
+  };
+}
+
 export function createWebgpuBounceState(wanted: boolean, budgetMs: number): WebgpuBounceState {
   return {
     probes: undefined,
