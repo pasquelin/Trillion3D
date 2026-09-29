@@ -9,6 +9,12 @@ export type {
   BackendDiagnostic,
   DiagnosticDetail,
 } from '../../sdk-browser/src/diagnostic/types.ts';
+export type {
+  BatchRead,
+  HostRetentionDelta,
+  PageStreamerOptions,
+  StreamPage,
+} from '../../sdk-browser/src/streaming/types.ts';
 export type { BoxTransformLot, MultiplyLot } from '../../sdk-browser/src/math/batchRuntime.ts';
 export type { BudgetCanvas } from '../../sdk-browser/src/residency/memoryBudget.ts';
 export type { Capsule, CapsuleContact, CapsulePush } from '../../sdk-core/src/collision/capsule.ts';
@@ -105,11 +111,6 @@ export { enginePose, readCameraWorld } from '../../sdk-browser/src/camera/world.
 export type { HostDrawCamera, HostCamera } from '../../sdk-browser/src/camera/world.ts';
 export type { HostDrawOutput } from '../../sdk-browser/src/webgl/core/renderTarget.ts';
 export type { HostNodeMatrix, MatrixElements } from '../../sdk-browser/src/math/matrixElements.ts';
-export type {
-  HostRetentionDelta,
-  PageStreamerOptions,
-  StreamPage,
-} from '../../sdk-browser/src/streaming/types.ts';
 export type { HostRotation, HostVector } from '../../sdk-browser/src/host/scene/graphNodes.ts';
 export { joint, Joint } from '../../sdk-core/src/physics/joint.ts';
 export type {
