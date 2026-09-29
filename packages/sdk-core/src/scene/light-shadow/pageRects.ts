@@ -4,7 +4,7 @@ import { sunBoxRect } from './math.ts';
 import type { SunLevels } from './sunLevels.ts';
 import { FULL_FACE } from './volume.ts';
 import { LAMP_MIPS, SUN_LEVELS, SUN_WINDOW, lampFacesOf, lampPagesAt } from './virtual.ts';
-import { sunPageMetres } from './virtual.ts';
+import { sunPageMetres } from './pageModel.ts';
 
 /** Light views of one light: a sun's clipmap levels, a lamp face at each mip. */
 const VIEWS = Math.max(SUN_LEVELS, POINT_FACES * LAMP_MIPS);

@@ -3277,7 +3277,8 @@
       "settled": "Verdadeiro quando um relatório prova que o estado atual não pede nada: a imagem pode ser mantida.",
       "receive": "Voltou um relatório de pedidos; o plano seguinte o lê. Um mais recente substitui um não lido.",
       "commit": "As páginas `[from, to)` da lista do quadro foram codificadas, a página `from + i` em `modes[i]`: seus desenhos chegam antes que alguém as leia. O último lote fecha a lista.",
-      "resize": "O pool com outro tamanho, as suas páginas mantidas, os seus arrays refeitos: devolve para onde foi cada página."
+      "resize": "O pool com outro tamanho, as suas páginas mantidas, os seus arrays refeitos: devolve para onde foi cada página.",
+      "gpu": "A alocação da GPU (`mirror.ts`): se ela mapeia as páginas e o que o anfitrião lhe pede."
     }
   },
   "ShadowStaleReason": {
@@ -7633,7 +7634,8 @@
       "layoutEpoch": "Disposição da tabela com a qual esse quadro leu (`ShadowTable.layoutEpoch`).",
       "stamp": "O carimbo do plano quando esse quadro foi codificado (`ShadowPlan.stamp`).",
       "count": "Entradas pedidas, talvez mais do que `entries` guarda: o resto pede de novo no quadro seguinte.",
-      "entries": "As entradas pedidas, no máximo as primeiras `count`."
+      "entries": "As entradas pedidas, no máximo as primeiras `count`.",
+      "pool": "O pool do alocador da GPU após a alocação desse quadro, quando a GPU aloca."
     }
   },
   "VehicleDriver": {

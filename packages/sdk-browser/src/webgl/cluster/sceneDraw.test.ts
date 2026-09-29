@@ -83,7 +83,6 @@ test('without a context the draw is refused by name', () => {
   );
 });
 
-// #275: parent placement is applied in world space.
 test('a mesh under a translated and rotated group draws where the reference draws it', async () => {
   const three = await import('three');
   const pose = (
@@ -123,7 +122,6 @@ test('a mesh under a translated and rotated group draws where the reference draw
   draw.dispose();
 });
 
-// #337: glass reads separate reflection and transmission sources, after opaque geometry.
 test('a transmissive copy draws over the backdrop the opaque meshes were drawn into first', () => {
   const context = createTestContext({
     answers: {
@@ -143,27 +141,29 @@ test('a transmissive copy draws over the backdrop the opaque meshes were drawn i
   const draw = createSceneDraw(context.gl, scene, [glass]);
   draw.render({} as HostCamera);
   draw.host.drawHostGeometry(createHostDrawCamera(), { ...OUTPUT, toneMapped: true });
-  const draws = sourcePassDraws(context.calls);
+  const draws = sourcePassDraws(context.calls),
+    targets = [draws[0].target, draws[1].target, draws[2].target];
   assert.deepEqual(
     draws.map((draw) => draw.count),
-    [6, 6, 6, 9],
+    [6, 9, 6, 6, 9],
   );
-  assert.ok(draws[0].target && draws[1].target, 'both frozen sources have targets');
-  assert.notEqual(draws[0].target, draws[1].target, 'reflection and transmission never alias');
+  assert.ok(targets.every(Boolean), 'reflection, resolve and transmission each have a target');
+  assert.equal(new Set(targets).size, 3, 'they never alias');
   assert.deepEqual(
-    draws.slice(2).map((draw) => draw.target),
+    draws.slice(3).map((draw) => draw.target),
     [null, null],
   );
   assert.deepEqual(
     draws.map((draw) => draw.flags),
     [
       [1, 0, 0, 0, 0], // Reflection source: no recursive reflection, tone mapping or camera fog.
+      [0, 1, 1, 0, 0], // Reduced resolve: the glass traces once into it, no curve.
       [0, 0, 0, 0, 0], // Transmission backdrop: ordinary camera fog, no reflection recursion.
       [0, 1, 0, 1, 0], // Display opaque: reflection restored before the display curve.
       [0, 1, 1, 1, 0], // Glass reads both frozen sources on the display.
     ],
   );
-  assert.deepEqual(draw.counters(), { triangles: 9 });
+  assert.deepEqual(draw.counters(), { triangles: 12 });
   draw.dispose();
 });
 

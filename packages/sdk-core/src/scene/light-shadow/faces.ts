@@ -2,6 +2,7 @@ import { lightDirection, type SceneLight } from '../light/contracts.ts';
 import { composeFace, shadowProjection } from './math.ts';
 import { FULL_FACE, regionRect, writeConeVolume } from './volume.ts';
 import { lampPagesAt } from './virtual.ts';
+import { PAGES } from './pageModel.ts';
 import { PAGE_FOOTPRINT_FULL, footprintRect } from './footprint.ts';
 
 /**
@@ -103,15 +104,15 @@ export function writeLampPage(
   regionRect(pageRect, lampPagesAt(mip), x, x, y, y);
   const rect = footprintRect(culled, footprint, reach, pageRect);
   const planes = writeFace(matrices, matBase, cull, cullBase, light, face, rect);
-  const a = 2 / (pageRect[1] - pageRect[0]),
-    b = -(pageRect[0] + pageRect[1]) / (pageRect[1] - pageRect[0]),
-    c = 2 / (pageRect[3] - pageRect[2]),
-    d = -(pageRect[2] + pageRect[3]) / (pageRect[3] - pageRect[2]);
+  const a = PAGES.shadowCropScale(pageRect[0], pageRect[1]),
+    b = PAGES.shadowCropOffset(pageRect[0], pageRect[1]),
+    c = PAGES.shadowCropScale(pageRect[2], pageRect[3]),
+    d = PAGES.shadowCropOffset(pageRect[2], pageRect[3]);
   for (let column = 0; column < 4; column++) {
     const at = matBase + column * 4,
       w = matrices[at + 3];
-    matrices[at] = a * matrices[at] + b * w;
-    matrices[at + 1] = c * matrices[at + 1] + d * w;
+    matrices[at] = PAGES.shadowCropped(matrices[at], w, a, b);
+    matrices[at + 1] = PAGES.shadowCropped(matrices[at + 1], w, c, d);
   }
   return planes;
 }

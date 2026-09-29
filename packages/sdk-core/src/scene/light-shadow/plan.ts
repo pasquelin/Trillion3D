@@ -12,6 +12,7 @@ import { resizeShadowPool } from './poolResize.ts';
 import { createSunLevels } from './sunLevels.ts';
 import { createShadowRecords } from './records.ts';
 import { createShadowRequests, type ShadowRequestReport } from './requests.ts';
+import { createShadowMirror } from './mirror.ts';
 import { createShadowThresholds } from './thresholds.ts';
 
 /** The frame's shadow work: which virtual pages are drawn. */
@@ -23,9 +24,7 @@ export type ShadowPlan = ReturnType<typeof createShadowPlan>;
  * the mapped pages it covers. A frame then draws every stale page the image reads, all of them in
  * that frame (`admit.ts`): what holds the cost is the cache — a page is drawn again only when what
  * it holds changed —, and the pool is the only limit. A still scene, whose shading runs no more,
- * asks for nothing and draws nothing.
- *
- * All arrays are allocated once; `plan()` allocates nothing.
+ * asks for nothing and draws nothing. All arrays are allocated once; `plan()` allocates nothing.
  */
 export function createShadowPlan(poolSide: number, layers = 1) {
   const pool = createShadowPool(poolSide, layers),
@@ -41,13 +40,12 @@ export function createShadowPlan(poolSide: number, layers = 1) {
     lightsState = { records, counts, sun, posed, invalidate };
   const footprints = createDemandFootprints(table, pool);
   let requests = createShadowRequests(table, pool, records, sun),
+    gpu = createShadowMirror(table, pool, records, sun),
     admission = createShadowAdmission(pool.pages),
     byPage = true,
     report: ShadowRequestReport | null = null,
     resting = false,
-    /** The frame the view and the world last came to rest at, else −1: the cycle whose named pages
-     *  a full pool keeps, so jittering reports stop evicting each other (#26). */
-    restFrame = -1,
+    restFrame = -1, // The frame view and world came to rest at, else −1: the kept cycle (#26)
     views = 0,
     settledStamp = -1;
   const stampOf = (store: SceneLightStore) => table.version + views + store.epoch;
@@ -62,6 +60,8 @@ export function createShadowPlan(poolSide: number, layers = 1) {
     records,
     /** The request reports read back: what the latest one named, allocated or refused. */
     requests,
+    /** The GPU's allocation (`mirror.ts`): whether it maps the pages, what the host asks of it. */
+    gpu,
     /** What the last plan did, in pages. */
     counts,
     /** CPU milliseconds the last plan spent reading the request report and admitting pages. */
@@ -93,8 +93,7 @@ export function createShadowPlan(poolSide: number, layers = 1) {
     get pageInvalidation() {
       return byPage;
     },
-    /** What the shading, the lights and the view hand the next image: a report stamped with it
-     *  and naming nothing new proves the image reads only what is drawn. */
+    /** The state the next image gets: a report stamped with it naming nothing new, it holds. */
     stamp: stampOf,
     /** True once a report proves the current state asks for nothing: the image may hold. */
     settled: (store: SceneLightStore) => settledStamp === stampOf(store),
@@ -116,12 +115,12 @@ export function createShadowPlan(poolSide: number, layers = 1) {
       const still = changes.observeView(view),
         quiet = still && !changes.worldMoved();
       resting = still;
+      restFrame = quiet ? (restFrame < 0 ? frame : restFrame) : -1;
       if (!still) views++;
-      // At rest the cycle is the frame it began at, so the pool keeps every page the still cycle
-      // named; moving, it is the frame itself, so only what this frame names survives.
-      restFrame = !quiet ? -1 : restFrame < 0 ? frame : restFrame;
+      // A full pool keeps the pages its cycle named: the rest's first frame, else this one.
       const cycle = quiet ? restFrame : frame;
       planLights(lightsState, store, view, sceneMin, sceneMax, frame, nowMs, byPage);
+      gpu.noteFrame(frame, !quiet);
       changes.settled();
       if (still) counts.staled(STALE_BY.threshold, thresholds.restale(nowMs, frame));
       // Nothing moves: the pages of an older depth range are drawn in the current one.
@@ -131,18 +130,21 @@ export function createShadowPlan(poolSide: number, layers = 1) {
         const before = stampOf(store),
           read = report;
         report = null;
-        // A reader that found its page drawn outside its texel names the page: it is redrawn
-        // whole (`demandFootprint.ts`), and the image cannot hold on it.
-        footprints.widened = 0;
-        footprints.missed(read, nowMs, frame);
-        requests.consume(read, nowMs, frame, cycle);
-        counts.staled(STALE_BY.footprint, footprints.widened);
-        if (read.stamp === before && requests.complete && !footprints.widened)
-          settledStamp = stampOf(store);
+        // The pool follows the GPU's snapshot first; a miss redraws its page (`demandFootprint.ts`).
+        if (!gpu.on || gpu.follow(read, nowMs, frame)) {
+          footprints.widened = 0;
+          footprints.missed(read, nowMs, frame);
+          requests.consume(read, nowMs, frame, cycle);
+          counts.staled(STALE_BY.footprint, footprints.widened);
+          const settled = read.stamp === before && requests.complete && !footprints.widened;
+          if (settled) settledStamp = stampOf(store);
+        }
       }
       const admitStart = performance.now();
       spent.requestsMs = admitStart - readStart;
-      requests.floors(posed, view, nowMs, frame, quiet ? restFrame : undefined);
+      gpu.asks.count = 0;
+      const held = quiet ? restFrame : undefined; // moving: the latest report's cycle (#26)
+      requests.floors(posed, view, nowMs, frame, held, gpu.on ? gpu.asks : undefined);
       const count = admission.run(pool, table, requests.latest, frame, records.isFloor);
       for (let i = 0; i < count; i++) {
         const slice = pool.slice[admission.list[i]];
@@ -153,8 +155,7 @@ export function createShadowPlan(poolSide: number, layers = 1) {
       spent.admissionMs = performance.now() - admitStart;
       return count;
     },
-    /** Pages `[from, to)` of the frame's list were encoded, page `from + i` in `modes[i]`: their
-     *  draws land before anything reads them. The last batch closes the list. */
+    /** Pages `[from, to)` were encoded, `from + i` in `modes[i]`; the last batch closes the list. */
     commit(modes?: ArrayLike<number>, from = 0, to = admission.count) {
       for (let i = from; i < to; i++) {
         const page = admission.list[i];
@@ -163,8 +164,7 @@ export function createShadowPlan(poolSide: number, layers = 1) {
       }
       if (to >= admission.count) admission.reset();
     },
-    /** The frame's pages from `from` on could not be encoded: they stay stale, pending, ahead of
-     *  every page that turns stale after them in the next frame's list (`admit.ts`). */
+    /** The list's pages from `from` on were not encoded: stale, pending, first next (`admit.ts`). */
     reissue(from = 0) {
       counts.pendingPages = Math.max(0, admission.count - from);
       admission.reset(from);
@@ -179,6 +179,7 @@ export function createShadowPlan(poolSide: number, layers = 1) {
       changes.reset();
       counts.reset();
       admission.reset();
+      gpu.set(false, 0);
       report = null;
       resting = false;
       restFrame = -1;
@@ -190,6 +191,7 @@ export function createShadowPlan(poolSide: number, layers = 1) {
         counted = requests.counts;
       thresholds.follow(moved);
       shadowPlan.requests = requests = createShadowRequests(table, pool, records, sun, counted);
+      shadowPlan.gpu = gpu = createShadowMirror(table, pool, records, sun, gpu);
       shadowPlan.admission = admission = createShadowAdmission(pool.pages);
       return moved;
     },

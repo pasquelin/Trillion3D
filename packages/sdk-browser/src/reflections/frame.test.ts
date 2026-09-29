@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { reflectionFrame } from './frame.ts';
-import { noteShadowFrame } from '../webgpu/pages/state/lights.ts';
+import { noteShadowFrame } from '../webgpu/pages/render/encodeShadowBatches.ts';
 import { settledRt } from '../webgpu/frame/hold.fixture.ts';
+import { createShadowPlan } from '../../../sdk-core/src/scene/light-shadow/plan.ts';
 
-test('a shadow page landing changes the reflected source epoch without a host mutation', () => {
+/** A settled runtime with every surface its reflection reads, 4 shadow pages drawn so far. */
+function reflectingRt() {
   const rt = settledRt();
   rt.gpu.reflection = { history: {} } as NonNullable<typeof rt.gpu.reflection>;
   rt.gpu.depthTexture = {} as GPUTexture;
@@ -12,6 +14,11 @@ test('a shadow page landing changes the reflected source epoch without a host mu
   rt.vis.visTexture = {} as GPUTexture;
   rt.vis.pageTable = {} as GPUBuffer;
   rt.lights.shadowPagesTotal = 4;
+  return rt;
+}
+
+test('a shadow page landing changes the reflected source epoch without a host mutation', () => {
+  const rt = reflectingRt();
   const previous = reflectionFrame(rt)!.epoch;
   const revisions = { ...rt.run.gate.revisions };
   rt.lights.shadowPages = 2;
@@ -33,4 +40,31 @@ test('a shadow page landing changes the reflected source epoch without a host mu
   );
   const current = reflectionFrame(rt)!.epoch;
   assert.equal(reflectionFrame(rt)!.epoch, current, 'an unchanged pose permits convergence');
+});
+
+test('pages the GPU draws itself change the reflected source epoch, a lost snapshot included', () => {
+  const rt = reflectingRt();
+  const plan = (rt.lights.plan = createShadowPlan(4)),
+    // A frame's snapshot: the pages it listed, and those every frame listed since the seed.
+    snapshot = (drawn: number, listings: number) =>
+      ({
+        frame: 0,
+        pool: { owner: new Int32Array(0), requested: new Int32Array(0), drawn, listings },
+      }) as unknown as Parameters<typeof plan.gpu.follow>[0];
+  const before = reflectionFrame(rt)!.epoch;
+  plan.gpu.follow(snapshot(3, 3), 0, 1);
+  const landed = reflectionFrame(rt)!.epoch;
+  assert.notEqual(landed, before, 'the GPU drew pages the host never drew');
+  plan.gpu.follow(snapshot(0, 3), 0, 2);
+  assert.equal(
+    reflectionFrame(rt)!.epoch,
+    landed,
+    'a snapshot that lists none permits convergence',
+  );
+  // Frame 3 listed 2 pages; its snapshot never came back (every readback slot busy, or replaced).
+  plan.gpu.follow(snapshot(0, 5), 0, 4);
+  const lost = reflectionFrame(rt)!.epoch;
+  assert.notEqual(lost, landed, 'the next snapshot shows the draw its lost one listed');
+  plan.resize(plan.pool.side, plan.pool.layers);
+  assert.equal(reflectionFrame(rt)!.epoch, lost, 'a resized pool keeps the count');
 });

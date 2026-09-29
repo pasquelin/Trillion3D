@@ -8,6 +8,7 @@ import {
 import { writeFace } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
 import { faceBasis } from '../../../../sdk-core/src/scene/light-shadow/math.ts';
 import { LAMP_SIDE, SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { PAGES } from '../../../../sdk-core/src/scene/light-shadow/pageModel.ts';
 import { clampNumber as clamp } from '../../../../sdk-core/src/world/math/spherical.ts';
 import { SHADOW_DEPTH_ROUNDING } from './shadowFactorWgsl.ts';
 import { BIAS, DEVELOP_BIAS, along, depthMargin, pcf, sub } from './shadowBias.fixture.ts';
@@ -65,7 +66,7 @@ export function lampOver(light: SceneLight, planes: { at: Vec; normal: Vec }[], 
   return (P: Vec, N: Vec, mip: number) => {
     const radius = Math.hypot(...sub(P, at)),
       cosine = clamp(-dotVector3(N, sub(P, at)) / radius, 1e-3, 1);
-    const texel = ((2 * tan * radius) / (LAMP_SIDE * SHADOW_PAGE)) * 2 ** mip;
+    const texel = PAGES.shadowLampFinestTexel(tan, radius) * 2 ** mip;
     const [offset, metres] = (develop ? DEVELOP_BIAS : BIAS)(texel, cosine);
     const Q = along(P, N, offset),
       d = sub(Q, at);
@@ -86,7 +87,7 @@ export function lampOver(light: SceneLight, planes: { at: Vec; normal: Vec }[], 
       ? metres / (w * w)
       : depthMargin(texel, slope, 1 / (w * w)) + SHADOW_DEPTH_ROUNDING / k;
     const reference = 1 / (1 / w + margin);
-    const t = [(ndc[0] * 0.5 + 0.5) * side, (0.5 - ndc[1] * 0.5) * side];
+    const t = [PAGES.shadowLampMapTexel(ndc[0], side), PAGES.shadowLampMapTexel(-ndc[1], side)];
     const map = (cx: number, cy: number) => stored(face, (2 * cx) / side - 1, 1 - (2 * cy) / side);
     return { ndc, lit: pcf(t, map, reference, side) };
   };
