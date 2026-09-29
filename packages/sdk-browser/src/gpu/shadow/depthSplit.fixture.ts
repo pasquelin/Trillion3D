@@ -115,11 +115,11 @@ export function shadowEntries(scene: ShadowScene): ShadowEntries {
   const names = [
     ...['drawPage', 'cutoutPage', 'shadowVertex', 'developVertex', 'shadow_vs', 'shadow_depth_vs'],
     ...['shadow_cutout_vs', 'shadowKeep', 'maskKeep', 'lineDash', 'pageHeader', 'pageCorner'],
-    ...['pagePosition', 'pageUv', 'vertPos', 'vertUv', 'keptAt', 'sunSnap'],
+    ...['pagePosition', 'pageUv', 'vertPos', 'vertUv', 'keptAt', 'snapGrid', 'sunSnap'],
   ];
   const scope = {
     ...scene,
-    ...{ vec2f, vec3f, vec4f, mul, sub3, dot, floor: Math.floor, round: roundEven },
+    ...{ vec2f, vec3f, vec4f, mul, sub3, dot, abs: Math.abs, floor: Math.floor, round: roundEven },
   };
   return shaderFunctions<ShadowEntries>(source, names, scope);
 }

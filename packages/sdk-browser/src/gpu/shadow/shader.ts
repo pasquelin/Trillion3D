@@ -79,15 +79,25 @@ ${MASK_KEEP_WGSL}
 ${tileRequestIndexWgsl('color')}
 ${FEEDBACK_RULE_WGSL}
 ${BLEND_TRANSMITTANCE_WGSL}
+/** The texels a sun corner \`reach\` texels from any page origin of the pool snaps to: the
+ *  rasterizer's own subtexel, or, past what f32 holds at that subtexel, the f32 step there — the
+ *  same at every origin, as the reach counts the whole pool, not the page's origin (#1016). */
+fn snapGrid(reach:f32)->f32{
+ var grid=1.0/${SHADOW_SUBTEXELS}.0;var edge=${2 ** 24 / SHADOW_SUBTEXELS}.0;
+ for(var i=0u;i<32u&&reach>=edge;i++){grid*=2.0;edge*=2.0;}
+ return grid;
+}
 /** A corner of an affine face — the sun's orthographic pages, whose matrix has no projective
- *  row, w 1 — snapped to the rasterizer's own subtexel of its page viewport (\`params.w\` texels
- *  over two clip units): the viewport adds the physical page's origin to it exactly, so a page
- *  rasterizes alike wherever the pool puts it. A perspective face (a lamp's) is left as it is. */
+ *  row, w 1 — snapped on its page viewport (\`params.w\` texels over two clip units, a pool
+ *  \`params.w / params.z\` texels wide) to \`snapGrid\`: the viewport adds the physical page's
+ *  origin to it exactly, however far the caster reaches past the page, so a page rasterizes alike
+ *  wherever the pool puts it. A perspective face (a lamp's) is left as it is. */
 fn sunSnap(p:vec4f)->vec4f{
  let m=shadow.viewProjection;
  if(m[0].w!=0.0||m[1].w!=0.0||m[2].w!=0.0){return p;}
- let step=shadow.params.w*${SHADOW_SUBTEXELS / 2}.0;
- return vec4f(round(p.x*step)/step,round(p.y*step)/step,p.z,p.w);
+ let half=shadow.params.w*0.5;let pool=shadow.params.w/shadow.params.z+half;
+ let sx=half/snapGrid(abs(p.x)*half+pool);let sy=half/snapGrid(abs(p.y)*half+pool);
+ return vec4f(round(p.x*sx)/sx,round(p.y*sy)/sy,p.z,p.w);
 }
 /** Corner \`vertexIndex\` of page-table row \`pageIndex\`, or none when its row is not of the kind
  *  drawn: \`blended\` casters alone into the transmittance layer, the others alone into the depth. */
