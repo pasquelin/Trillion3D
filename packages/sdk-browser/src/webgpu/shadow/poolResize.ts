@@ -79,8 +79,8 @@ async function resizeTo(
   const from = lights.plan.pool.side,
     { moved, held } = adoptShadowPool(rt, atlas, device, granted, ask.viewport, layer);
   const before = held!,
-    pair = layer && before.transmittance ? ([before.transmittance, layer] as const) : undefined;
-  mover.move(moved, [from, side], [before.texture, granted.made], pair && [...pair]);
+    old = before.transmittance;
+  mover.move(moved, [from, side], [before.texture, granted.made], layer && old && [old, layer]);
   before.texture.destroy();
   before.transmittance?.destroy();
   // A layer that landed while the device answered was made for the old pool.
