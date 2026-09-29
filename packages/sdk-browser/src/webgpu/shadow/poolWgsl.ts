@@ -30,9 +30,15 @@ export const POOL_COUNTS = ['needs', 'candidates', 'allocated', 'refused', 'draw
 const fieldConsts = POOL_FIELDS.map((f, i) => `const POOL_${f.toUpperCase()}:u32=${i}u;`).join('');
 const countConsts = POOL_COUNTS.map((c, i) => `const COUNT_${c.toUpperCase()}:u32=${i}u;`).join('');
 
-/** The GPU pool as both passes read it, and what reads its fields and entries. */
+/** The GPU pool as every pass reads it — its counts, then one array per field —, what reads its
+ *  fields and entries, and its counts' atomics (each pass binds \`shadowPool\`). */
 export const SHADOW_POOL_WGSL = `
 ${fieldConsts}${countConsts}
+struct ShadowPool{counts:array<atomic<u32>,${POOL_COUNTS.length}>,pages:array<i32>,}
+fn countOne(i:u32){atomicAdd(&shadowPool.counts[i],1u);}
+fn countNext(i:u32)->u32{return atomicAdd(&shadowPool.counts[i],1u);}
+fn countRead(i:u32)->u32{return atomicLoad(&shadowPool.counts[i]);}
+fn countClear(i:u32){atomicStore(&shadowPool.counts[i],0u);}
 const PAGE_MAPPED:u32=${PAGE_MAPPED}u;
 const PAGE_VALID:u32=${PAGE_VALID}u;
 const DRAWN_HOST:i32=${DRAWN_HOST};
@@ -41,3 +47,7 @@ const DRAWN_GPU:i32=${DRAWN_GPU};
 const PAGE_INDEX_MASK:u32=${PAGE_INDEX_MASK}u;
 const ENTRY_MASK:u32=${SHADOW_TABLE_ENTRIES - 1}u;
 const SHADOW_TABLE_STRIDE:u32=${SHADOW_TABLE_STRIDE}u;`;
+
+/** Page \`p\` joins the frame's draw list (\`freshWgsl.ts\`): mapped, not drawn since. The pass that
+ *  lists binds \`drawList\`. */
+export const SHADOW_DRAW_LIST_WGSL = `fn listDraw(p:u32){drawList[countNext(COUNT_DRAWN)]=p;}`;
