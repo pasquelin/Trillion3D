@@ -20,8 +20,7 @@ import {
 import { decodeProxyOwnership } from './proxyOwnership.ts';
 import { EngineError } from '../../contracts/index.ts';
 
-const bad = (message: string, details: Record<string, unknown>) =>
-  new EngineError('INVALID_CACHE', message, details);
+import { invalidProxy as bad } from './proxyError.ts';
 
 /**
  * Rejects a proxy descriptor this engine could not read, before a single byte is
