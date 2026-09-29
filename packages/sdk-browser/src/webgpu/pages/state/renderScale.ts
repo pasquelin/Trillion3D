@@ -2,7 +2,7 @@ import { upscaleMipBias } from '../../../taa/jitter.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /** Smallest render scale: half the display per axis, the reference's minimum screen percentage. */
-const MIN_RENDER_SCALE = 0.5;
+export const MIN_RENDER_SCALE = 0.5;
 
 /** The session's render scale from the host's: in `[MIN_RENDER_SCALE, 1]`, 1 when absent or not a
  *  number. A fixed internal value in this step; its controller and public setting are #832. */
