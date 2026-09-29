@@ -62,7 +62,10 @@ test('the page ceiling counts an instance of a material turned blended by its ow
  *  family of each record, as a frame reads it. */
 const families = (triangle: ReturnType<typeof triangleBackend>) =>
   drawnPageMeshes(triangle)
-    .map((mesh) => `${'count' in mesh ? 'instanced' : 'one'}:${mesh.material.transparent}`)
+    .map(
+      (mesh) =>
+        `${'count' in mesh ? 'instanced' : 'one'}:${(mesh.material as { transparent: boolean }).transparent}`,
+    )
     .sort();
 
 // A primitive moved between blended and opaque inside the session draws in the family of its new
