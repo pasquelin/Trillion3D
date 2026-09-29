@@ -136,7 +136,8 @@ export async function createGpuLightTiles(device: GPUDevice) {
         tiles = device.createBuffer({
           label: 'Trillion3D light tiles v1',
           size: (tilesX * tilesY * TILE_STRIDE_WORDS + poolWords) * 4,
-          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+          // Copyable, as the pool state: a proof reads the lists back.
+          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
         });
         group = undefined;
       }
