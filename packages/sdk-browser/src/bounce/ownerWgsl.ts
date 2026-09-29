@@ -1,6 +1,11 @@
 /** Owner transforms share the traversal binding, never one expanded geometry per instance. */
 export const PROXY_OWNER_WGSL = `
-fn proxyOwnerRange(triangle:u32)->vec2u{
+/** Visited nodes per ray: a refitted tree overlaps more, so motion gets a larger fixed bound. */
+fn proxySteps()->u32{return select(TRAVERSAL_STEPS,MOTION_TRAVERSAL_STEPS,proxy.dynamic!=0u);}
+/** Owners a leaf triangle is tested under. A still proxy tests its canonical triangle once and
+ *  reads no owner word: the pose never changes it. */
+fn proxyOwners(triangle:u32)->vec2u{
+ if(proxy.dynamic==0u){return vec2u(0u,1u);}
  let group=proxy.words[proxy.groupsWord+triangle];
  return vec2u(proxy.words[proxy.rangesWord+group],proxy.words[proxy.rangesWord+group+1u]);
 }
