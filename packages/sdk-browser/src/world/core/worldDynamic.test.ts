@@ -61,21 +61,30 @@ test('a geometry changed on consecutive frames turns dynamic by itself, and says
   assert.equal(world.rewrites.length, 8);
 });
 
+type Plane = ReturnType<typeof geometry.plane>;
+/** Reads `plane`, declared dynamic, as a mesh drawing it would; `made` gets each new resource. */
+function reader(dynamic: ReturnType<typeof createWorldDynamic>, plane: Plane, made: Cut[] = []) {
+  plane.usage = 'dynamic';
+  const mesh = object.mesh(plane, material.meshStandard({}));
+  return () => (dynamic.wants(mesh), dynamic.of(mesh, 'faces', {}, false, (c) => made.push(c)));
+}
+/** Moves vertex `v` of `plane` to `z`, the list written. */
+const rewrite = (plane: Plane, v: number, z: number) => {
+  plane.attributes.position.setZ(v, z);
+  plane.attributes.position.needsUpdate = true;
+};
 /** An upload's bytes, those of the lists themselves. */
 const weighed = (_: Cut, __: unknown, bytes: number) => bytes;
 
 test('a rewrite is read into the lists its resource holds: a steady frame makes no list', async () => {
   const dynamic = createWorldDynamic(undefined, { cuts: 0 });
-  const plane = geometry.plane(1, 1, 3, 3);
-  plane.usage = 'dynamic';
-  const mesh = object.mesh(plane, material.meshStandard({}));
-  const read = () => (dynamic.wants(mesh), dynamic.of(mesh, 'faces', {}, false, () => {}));
+  const plane = geometry.plane(1, 1, 3, 3),
+    read = reader(dynamic, plane);
   const cut = (await read())!;
   const lists = () => [cut.drawn.positions, cut.dynamic!.next.positions, cut.dynamic!.next.normals];
   const before = lists();
   for (let frame = 1; frame < 4; frame++) {
-    plane.attributes.position.setZ(5, frame / 100);
-    plane.attributes.position.needsUpdate = true;
+    rewrite(plane, 5, frame / 100);
     assert.equal(await read(), cut, `frame ${frame}: the same resource`);
     assert.equal(dynamic.upload(1 << 20, { weigh: weighed, write: () => true }), 12);
   }
@@ -86,19 +95,11 @@ test('a rewrite is read into the lists its resource holds: a steady frame makes 
 test('past the frame budget an upload waits for the next frame, in order, and is never dropped', async () => {
   const dynamic = createWorldDynamic(undefined, { cuts: 0 });
   const made: Cut[] = [];
-  const read = (plane: ReturnType<typeof geometry.plane>) => {
-    const mesh = object.mesh(plane, material.meshStandard({}));
-    dynamic.wants(mesh);
-    return dynamic.of(mesh, 'faces', {}, false, (cut) => void made.push(cut));
-  };
   const planes = [geometry.plane(1, 1, 9, 9), geometry.plane(1, 1, 9, 9)];
-  for (const plane of planes) plane.usage = 'dynamic';
-  await Promise.all(planes.map(read));
-  for (const plane of planes) {
-    plane.attributes.position.setZ(0, 0.1);
-    plane.attributes.position.needsUpdate = true;
-  }
-  await Promise.all(planes.map(read));
+  const reads = planes.map((plane) => reader(dynamic, plane, made));
+  await Promise.all(reads.map((read) => read()));
+  for (const plane of planes) rewrite(plane, 0, 0.1);
+  await Promise.all(reads.map((read) => read()));
   const written: Cut[] = [];
   const uploads = { weigh: weighed, write: (cut: Cut) => written.push(cut) > 0 };
   const frame = () => dynamic.upload(12, uploads);
@@ -111,18 +112,11 @@ test('past the frame budget an upload waits for the next frame, in order, and is
 
 test('vertices that leave the held box serve the same pages in a larger one, nothing cut', async () => {
   const counts = { cuts: 0 },
-    dynamic = createWorldDynamic(undefined, counts);
-  const made: Cut[] = [];
-  const plane = geometry.plane(1, 1, 2, 2);
-  plane.usage = 'dynamic';
-  const mesh = object.mesh(plane, material.meshStandard({}));
-  const read = () => (
-    dynamic.wants(mesh),
-    dynamic.of(mesh, 'faces', {}, false, (c) => made.push(c))
-  );
+    made: Cut[] = [];
+  const plane = geometry.plane(1, 1, 2, 2),
+    read = reader(createWorldDynamic(undefined, counts), plane, made);
   await read();
-  plane.attributes.position.setZ(0, 40);
-  plane.attributes.position.needsUpdate = true;
+  rewrite(plane, 0, 40);
   const grown = (await read())!;
   assert.equal(counts.cuts, 1, 'cut once, at first sight');
   assert.equal(made.length, 2, 'served again');

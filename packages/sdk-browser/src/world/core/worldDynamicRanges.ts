@@ -14,18 +14,14 @@ export const LISTS = [
 ] as const;
 const INDEX = { position: 0, normal: 1, uv: 2, color: 3 } as const;
 
-/** One range per list, and `FIRST[n]` the first `n` of them: a frame's ranges, made once. */
+/** One range per list, `FIRST[n]` the first `n`, and the last `changedRanges`: made once. */
 const RANGES: VertexRange[] = LISTS.map(([, name]) => ({ name, from: 0, count: 0 }));
 const FIRST = [0, 1, 2, 3, 4].map((n) => RANGES.slice(0, n));
-/** What the last `changedRanges` found: rewritten by the next call, read before it. */
 const changed = { ranges: FIRST[0], bytes: 0, box: new Float64Array(6) };
 
-/**
- * What `next` changed of `held`, list by list: the range from its first changed vertex to its
- * last, the bytes those lists weigh — the upload, nothing else —, and the box of the moved
- * vertices where they were and where they go: the shadow pages they leave and those they reach.
- * Nothing is allocated: the answer is rewritten by the next call.
- */
+/** What `next` changed of `held`, list by list: the range from its first changed vertex to its
+ *  last, the bytes of those lists, and the box of the moved vertices where they were and where
+ *  they go. Nothing allocated: the answer is rewritten by the next call. */
 export function changedRanges(held: DrawnTriangles, next: DrawnTriangles) {
   let n = 0;
   changed.bytes = 0;
@@ -89,12 +85,9 @@ type Session = {
   updateVertices(attributes: Attributes, ranges: VertexRange[], box: Float64Array): boolean;
   vertexBytes?(attributes: Attributes, ranges: VertexRange[]): number | undefined;
 };
-/**
- * What a frame's `upload` hands each dynamic resource's rewritten ranges to (#573), made once:
- * `weigh` says the bytes they send the GPU — the session's count, else `bytes`, the lists' own —;
- * `write` marks its placed host geometry, then hands them to the session: false while it draws no
- * such resource — it waits —, `refused` when it cannot take them in place.
- */
+/** Where `upload` hands a resource's rewritten ranges (#573), made once: `weigh` says the bytes
+ *  they send the GPU, the session's count else the lists' own; `write` marks its host geometry and
+ *  hands them to the session — false while none draws it, `refused` when it cannot take them. */
 export const vertexUploads = (
   session: () => Session | null,
   geometryOf: (cut: Cut) => Geometry | undefined,
