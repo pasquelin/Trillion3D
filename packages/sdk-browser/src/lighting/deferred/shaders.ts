@@ -1,5 +1,6 @@
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts';
 import { directLightingWgsl } from '../direct/lightingWgsl.ts';
+import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { BOUNCE_APPLY_WGSL } from '../../bounce/applyWgsl.ts';
 import {
   BOUNCE_SURFACE_BINDING,
@@ -100,12 +101,12 @@ ${contractSurface(
  * exactly the previous shader, bit for bit — and so is the `narrow` one, the resolve of a scene
  * of at most `TILE_LIGHTS` lights (`directLightingWgsl`, #849).
  */
-export const contractLightingShader = (bounce: boolean, narrow: boolean) => `
+export const contractLightingShader = (bounce: boolean, narrow: boolean, pages = SUN_WINDOW) => `
 ${VIEW_WGSL}
 ${surfaceBindingsWgsl()}
 ${CONTRACT_BINDINGS_WGSL}
 ${STANDARD_LIGHTING_WGSL}
-${directLightingWgsl(narrow)}
+${directLightingWgsl(narrow, pages)}
 ${bounce ? BOUNCE_SURFACE_WGSL : contractSurface('')}`;
 export const DIRECT_LIGHTING_SHADER = contractLightingShader(false, false);
 export const BOUNCE_LIGHTING_SHADER = contractLightingShader(true, false);

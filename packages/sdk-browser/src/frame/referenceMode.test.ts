@@ -3,11 +3,13 @@ import assert from 'node:assert/strict';
 import {
   REFERENCE_APPROXIMATIONS,
   REFERENCE_BOUNCE_BUDGET_MS,
+  REFERENCE_SUN_WINDOW,
   referenceCapture,
   referenceOptions,
+  referenceSunWindow,
   resolveSupersampled,
 } from './referenceMode.ts';
-import { BOUNCE_SETTINGS } from '../../../sdk-core/src/index.ts';
+import { BOUNCE_SETTINGS, LIGHT_SETTINGS } from '../../../sdk-core/src/index.ts';
 
 const BOSS = { manifestUrl: 'm.json', width: 1728, height: 1117, pixelRatio: 2 };
 
@@ -52,6 +54,20 @@ test('the resolved image is the linear-light mean of each block, the same bytes 
   // Half the light of white, re-encoded: 188, not the 128 of a mean of the bytes.
   assert.deepEqual([...once], [188, 188, 188, 255, 128, 128, 128, 255]);
   assert.deepEqual(resolveSupersampled(rgba, 4, 2, 2), once);
+});
+
+test('the reference raises the sun window so every pixel reads the finest clipmap level', () => {
+  // The boss's case: 2234 device pixels at 55° reach 4291, and `pages · shadowPage / 2` must
+  // hold that — 68 pages, even so `sunLevels` centres them, past the ordinary 64.
+  assert.equal(referenceSunWindow(), 68);
+  assert.ok(referenceSunWindow() > LIGHT_SETTINGS.sunLevelPages);
+  assert.ok(
+    (REFERENCE_SUN_WINDOW * LIGHT_SETTINGS.shadowPage) / 2 >= 4291,
+    'the window reaches the whole view',
+  );
+  // A taller view needs a wider window; the ordinary one is never lowered.
+  assert.ok(referenceSunWindow(4470) > REFERENCE_SUN_WINDOW);
+  assert.equal(referenceSunWindow(1), LIGHT_SETTINGS.sunLevelPages);
 });
 
 test('reference mode refuses an interactive session, whose resize would drop the supersampling', () => {

@@ -1,13 +1,16 @@
 import type { ShadowRequestReport } from '../../../../sdk-core/src/scene/light-shadow/requests.ts';
-import { SHADOW_REQUEST_BITS } from '../../lighting/direct/shadowRequestWgsl.ts';
-import { shadowRequestCap } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { shadowRequestBits } from '../../lighting/direct/shadowRequestWgsl.ts';
+import {
+  SUN_WINDOW,
+  shadowRequestCap,
+} from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 
 /** Readback slots in flight at most: a frame whose three predecessors are still mapping asks
  *  again the next frame, which reads the same image. */
 const SLOTS = 3;
 /** Bytes of the request buffer of a pool of `pages`: the count, the list, one bit per table entry. */
-export const shadowRequestBytes = (pages: number) =>
-  (1 + shadowRequestCap(pages) + SHADOW_REQUEST_BITS) * 4;
+export const shadowRequestBytes = (pages: number, sunWindow = SUN_WINDOW) =>
+  (1 + shadowRequestCap(pages) + shadowRequestBits(sunWindow)) * 4;
 
 type Slot = {
   buffer: GPUBuffer;
@@ -25,12 +28,12 @@ type Slot = {
  * the scheduler reads it against the right windows and knows whether it proves a settled state.
  * The request buffer is made with the pool, its list as long as `shadowRequestCap` of its `pages`.
  */
-export function createShadowPageRequests(device: GPUDevice, pages: number) {
+export function createShadowPageRequests(device: GPUDevice, pages: number, sunWindow = SUN_WINDOW) {
   const cap = shadowRequestCap(pages),
     listBytes = (1 + cap) * 4;
   const requestBuffer = device.createBuffer({
     label: 'Trillion3D shadow requests v1',
-    size: shadowRequestBytes(pages),
+    size: shadowRequestBytes(pages, sunWindow),
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
   });
   const slots: Slot[] = [];

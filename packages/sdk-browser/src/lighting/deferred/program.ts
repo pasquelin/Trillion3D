@@ -38,6 +38,9 @@ export interface DeferredSources {
   label: string;
   direct: boolean;
   bounce?: boolean;
+  /** Pages a side of a sun's clipmap the shadow shader was built with, so the per-subgroup
+   *  request text the program swaps in matches it (`shadowRequestWgsl.ts`). */
+  pages?: number;
 }
 /** What composition reads: a colour and its accumulated share, else the lit image's flags, and
  *  the chain's last blend when it left it to the composition (#963). */
@@ -75,7 +78,9 @@ export async function createDeferredProgram(
   // Granted `subgroups`, a contract program, its reflection passes too, asks for its shadow pages
   // per subgroup (#966).
   const perSubgroup = sources.direct && device.features.has('subgroups');
-  const text = perSubgroup ? withSubgroupShadowRequests(sources.lighting) : sources.lighting;
+  const text = perSubgroup
+    ? withSubgroupShadowRequests(sources.lighting, sources.pages)
+    : sources.lighting;
   const lighting = await createCheckedShaderModule(
     device,
     text,
