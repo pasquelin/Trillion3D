@@ -29,7 +29,10 @@ test('the layout sizes scale with the session window, the constant untouched', (
   assert.equal(sunEntries(REFERENCE_WINDOW), 16 * sunLevelEntries(REFERENCE_WINDOW));
   assert.equal(shadowTableStride(REFERENCE_WINDOW), sunEntries(REFERENCE_WINDOW));
   assert.equal(shadowTableEntries(REFERENCE_WINDOW), 64 * shadowTableStride(REFERENCE_WINDOW));
-  assert.equal(tableEntriesOf(LIGHT_KIND.directional, REFERENCE_WINDOW), sunEntries(REFERENCE_WINDOW));
+  assert.equal(
+    tableEntriesOf(LIGHT_KIND.directional, REFERENCE_WINDOW),
+    sunEntries(REFERENCE_WINDOW),
+  );
   // An ordinary session is the constant it always was: the same entries, the same sun entry.
   assert.equal(sunEntries(SUN_WINDOW), SUN_ENTRIES);
   assert.equal(sunEntry(3, 5, 7, SUN_WINDOW), sunEntry(3, 5, 7));

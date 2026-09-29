@@ -24,11 +24,8 @@ import type { ShadowPageQuads } from '../../../gpu/shadow/pageQuads.ts';
 import { createShadowMemory, type ShadowMemory } from '../../shadow/memoryGrant.ts';
 import { createShadowWork, type ShadowWork } from '../../shadow/work.ts';
 
-/**
- * Direct-lighting state of the contract: the light store (shared with the host), per-tile lists, the
- * shadow atlas and the scheduler. Face-matrix buffers are allocated once for a batch; an
- * image allocates nothing.
- */
+/** Direct-lighting state of the contract: the light store (shared with the host), per-tile lists,
+ *  the shadow atlas and the scheduler. Face-matrix buffers are allocated once for a batch. */
 export interface WebgpuLightState {
   store: SceneLightStore;
   plan: ShadowPlan;

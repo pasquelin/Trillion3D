@@ -30,8 +30,7 @@ const UNBOUNDED = [-Infinity, Infinity, -Infinity, Infinity];
  * level is the near-plane footprint's (`finestSunLevel`); each level's extent is centred on the
  * camera, by whole pages.
  *
- * The layout of the last `HISTORY` frames is kept: a request report comes back frames later,
- * and its words are read with the extents of the frame that wrote them.
+ * The layout of the last `HISTORY` frames is kept: a report comes back frames later, read with its extents.
  */
 export function createSunLevels(pages = SUN_WINDOW) {
   const levelEntries = sunLevelEntries(pages);

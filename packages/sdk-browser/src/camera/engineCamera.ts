@@ -136,8 +136,7 @@ export function writeEngineCamera(into: EngineCamera, optics: CameraOptics): Eng
   return into;
 }
 
-/** Scales and shifts `projection` so a tile of a wider view fills the target it is drawn into
- *  (#1281): `out[8]`/`out[9]` perspective, `out[12]`/`out[13]` orthographic. */
+/** Scales and shifts `projection` so a tile of a wider view fills its target (#1281). */
 function applyViewTile(
   projection: Float64Array,
   tile: ViewTile | null | undefined,
@@ -147,7 +146,8 @@ function applyViewTile(
   const { scaleX, scaleY, offsetX, offsetY } = tile;
   projection[0] *= scaleX;
   projection[5] *= scaleY;
-  const x = orthographic ? 12 : 8, y = orthographic ? 13 : 9;
+  const x = orthographic ? 12 : 8,
+    y = orthographic ? 13 : 9;
   projection[x] = projection[x] * scaleX + offsetX;
   projection[y] = projection[y] * scaleY + offsetY;
 }

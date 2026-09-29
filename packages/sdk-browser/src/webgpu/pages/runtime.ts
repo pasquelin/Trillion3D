@@ -1,8 +1,5 @@
 import { BOUNCE_SETTINGS, type Texture } from '../../../../sdk-core/src/index.ts';
-import {
-  SUN_WINDOW,
-  shadowPoolSide,
-} from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { SUN_WINDOW, shadowPoolSide } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { REFERENCE_SUN_WINDOW } from '../../frame/referenceMode.ts';
 import { TAA_CAPABILITIES } from '../../taa/capability.ts';
 import { BOUNCE_CAPABILITY } from './prepare/bounce.ts';

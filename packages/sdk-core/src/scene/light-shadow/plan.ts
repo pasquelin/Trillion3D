@@ -46,15 +46,13 @@ export function createShadowPlan(poolSide: number, layers = 1, sunWindow = SUN_W
     byPage = true,
     report: ShadowRequestReport | null = null,
     resting = false,
-    /** The frame the view and the world last came to rest at, else −1: the cycle whose named pages
-     *  a full pool keeps, so jittering reports stop evicting each other (#26). */
+    /** The frame the view and world last rested at, else −1: the pool keeps that cycle's named pages (#26). */
     restFrame = -1,
     views = 0,
     settledStamp = -1;
   const stampOf = (store: SceneLightStore) => table.version + views + store.epoch;
   const shadowPlan = {
-    /** Pages a side of a sun's clipmap a session runs with: the ordinary constant, else the
-     *  reference window (`referenceMode.ts`); sizes the table and compiles the shadow shader. */
+    /** Pages a side of a sun's clipmap a session runs with (`referenceMode.ts`). */
     sunWindow,
     /** The page table: one word per virtual page, and the range each light holds in it. */
     table,
@@ -124,8 +122,7 @@ export function createShadowPlan(poolSide: number, layers = 1, sunWindow = SUN_W
         if (restFrame < 0) restFrame = frame;
       } else restFrame = -1;
       if (!still) views++;
-      // At rest the cycle is the frame it began at, so the pool keeps every page the still cycle
-      // named; moving, it is the frame itself, so only what this frame names survives.
+      // At rest the cycle is the frame it began at, so the pool keeps every page the still cycle named.
       const cycle = quiet ? restFrame : frame;
       planLights(lightsState, store, view, sceneMin, sceneMax, frame, nowMs, byPage);
       changes.settled();
@@ -137,8 +134,7 @@ export function createShadowPlan(poolSide: number, layers = 1, sunWindow = SUN_W
         const before = stampOf(store),
           read = report;
         report = null;
-        // A reader that found its page drawn outside its texel names the page: it is redrawn
-        // whole (`demandFootprint.ts`), and the image cannot hold on it.
+        // A reader whose page was drawn outside its texel names the page: redrawn whole (`demandFootprint.ts`).
         footprints.widened = 0;
         footprints.missed(read, nowMs, frame);
         requests.consume(read, nowMs, frame, cycle);
