@@ -2,7 +2,7 @@ import { LIGHT_KIND, MAX_SHADOW_SLICES, type SceneLight } from '../light/contrac
 import { sameShadowShape } from '../light/equal.ts';
 import type { SceneLightStore } from '../light/store.ts';
 import { castsShadow } from './casters.ts';
-import { LAMP_FLOOR_MIP, sunFloorLevel, tableEntriesOf } from './virtual.ts';
+import { LAMP_FLOOR_MIP, sunCoarseness, sunFloorLevel, tableEntriesOf } from './virtual.ts';
 import type { ShadowPool } from './pool.ts';
 import type { ShadowTable } from './table.ts';
 import type { SunLevels } from './sunLevels.ts';
@@ -86,6 +86,18 @@ export function createShadowRecords(table: ShadowTable, pool: ShadowPool, sun: S
       const before = last[slice];
       last[slice] = light;
       return !before || !sameShadowShape(before, light);
+    },
+    /** Sun `slice`'s clipmap moved (`sun.update`): a page its level left is released, one it keeps
+     *  ranked again — a change of the finest level moves every level's coarseness, and a view keeps
+     *  one rank (`admit.ts`). */
+    followSun(slice: number) {
+      for (let page = 0; page < pool.pages; page++) {
+        if (pool.owner[page] < 0 || pool.slice[page] !== slice) continue;
+        if (!sun.movedLevel(slice, pool.view[page])) continue;
+        if (!sun.holds(slice, pool.view[page], pool.x[page], pool.y[page]))
+          pool.release(table, page);
+        else pool.rank[page] = sunCoarseness(pool.view[page], sun.finest[slice]);
+      }
     },
     /** Frees every slice no live shadow-casting light holds any more. */
     release(store: SceneLightStore) {

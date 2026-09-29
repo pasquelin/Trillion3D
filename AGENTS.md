@@ -34,14 +34,12 @@ to the boss, in short, simple French; everything in the repository is English.
    `.worktrees/<branch>/`, logs in `.worktrees/logs/`, nothing elsewhere; run git with
    `git -C <worktree>`.
 5. **Issues:** only a CTO, recette or measure opens one (on `.github/ISSUE_TEMPLATE/task.md`,
-   `/t3d-writer` does it), when the boss asks or for a
-   defect no issue covers. One issue, one pull request (`Closes #n`, 1,500 hand-written lines at
-   most). A claimed issue (`in progress`, an assignee) is never taken by another team, until a CTO
-   frees it as abandoned (one hour without a commit, comment or pull request).
+   `/t3d-writer` does it), when the boss asks or for a defect no issue covers. One issue, one pull
+   request (`Closes #n`). A claimed issue (`in progress`, an assignee) is never taken by another
+   team, until a CTO frees it as abandoned (one hour without a commit, comment or pull request).
 6. **The whole issue, always.** Every To-do and Proof item is delivered in its pull request; none
    is left for later, moved to another issue or marked done in part without the boss's yes. One
-   item missing is a `KO`. Sole exception: at claim time, before any code, a CTO narrows an issue
-   too big for one pull request and moves the rest onto an existing issue.
+   item missing is a `KO`.
 7. **Reuse what exists.** A second BVH, distance or control beside the engine's API is a defect.
 8. **The witness library stays a witness** (bench and measurement only). Everything is TypeScript.
 9. **Commits:** no trailer, no co-author, no tool name, no forced identity. Branch

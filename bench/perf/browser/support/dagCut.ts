@@ -92,3 +92,13 @@ export function dagCamera(distance = 9, x = 0, y = 0) {
   cam.updateMatrixWorld();
   return cam;
 }
+
+/** The camera down a DAG strip from its near end, as the cut rule's tests see it: every leaf of a
+ *  `length`-unit strip along +x in view, 70°, 16:9. */
+export function stripCamera(length = 256) {
+  const cam = new THREE.PerspectiveCamera(70, 16 / 9, 0.1, 4000);
+  cam.position.set(-6, 4, 0);
+  cam.lookAt(length / 2, 0, 0);
+  cam.updateMatrixWorld();
+  return cam;
+}

@@ -115,7 +115,12 @@
         mirror: false,
       }, (values, key) => {
         if (key === 'layout' || key === 'mirror')
-          for (const entry of screens) entry.screen.geometry = face(entry.column, entry.row, values.layout === 'video wall', values.mirror);
+          for (const entry of screens) {
+            // Each screen's former face is given back once replaced.
+            const worn = entry.screen.geometry;
+            entry.screen.geometry = face(entry.column, entry.row, values.layout === 'video wall', values.mirror);
+            worn.dispose();
+          }
         world.invalidate();
       }, world);
       source = readout('source');
