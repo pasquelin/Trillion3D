@@ -14,6 +14,9 @@ scripts/english-baseline.json linguist-generated
 site/content/i18n/translation-sources.json linguist-generated
 # The translations of the generated API reference
 site/content/reference/api.*.json linguist-generated
+# The report data bench/runner/publishReport.ts copies from a campaign; its site modules stay counted
+site/reports/*/report.json linguist-generated
+site/reports/*/sources/** linguist-generated
 # The format goldens: the compiler's output, rewritten by a `regenerate_*` test or on a format bump
 tests/fixtures/formats/**/expected.json linguist-generated
 # A generated scene source, as in .prettierignore
