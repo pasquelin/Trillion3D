@@ -60,40 +60,27 @@ export async function sourceTriangles(full: string) {
   return { triangles: Float32Array.from(out), twoSided: Uint8Array.from(twoSided) };
 }
 
-/**
- * The pages named by `ids` (the WebGPU backend's `selectedPageIds`), decoded and placed. An id is
- * a cluster's index page, which two primitives of one topology share byte for byte (Sponza: 348
- * of 3,516); such an id stands for every geometry page behind it, and `shared` counts them.
- */
-export async function pageTriangles(full: string, ids: string[]) {
+/** The clusters named by `ids` (the WebGPU backend's `selectedClusterIds`, `mesh/primitive/page`),
+ *  their geometry pages decoded and placed. */
+export async function clusterTriangles(full: string, ids: string[]) {
   const { dir, manifest } = await readCacheManifest(full);
   const scales = meshScales(accessorReader(dir).gltf.nodes);
-  const bySha = new Map<string, Map<string, { url: string; scale: number }>>();
-  for (const primitive of manifest.primitives)
-    for (const page of primitive.pages) {
-      if (!page.geometry) continue;
-      const sha = page.sha256.toLowerCase(),
-        scale = scales.get(primitive.mesh) ?? 1;
-      if (!bySha.has(sha)) bySha.set(sha, new Map());
-      bySha.get(sha)!.set(`${page.geometry.url}@${scale}`, { url: page.geometry.url, scale });
-    }
+  const byId = new Map<string, { url: string; scale: number }>();
+  for (const { mesh, primitive, pages } of manifest.primitives)
+    for (const page of pages)
+      if (page.geometry)
+        byId.set(`${mesh}/${primitive}/${page.id}`, {
+          url: page.geometry.url,
+          scale: scales.get(mesh) ?? 1,
+        });
   const out: number[] = [];
-  let missing = 0,
-    shared = 0;
   for (const id of ids) {
-    const hits = bySha.get(id.match(/[0-9a-f]{64}/i)?.[0].toLowerCase() ?? '');
-    if (!hits) {
-      missing++;
-      continue;
-    }
-    if (hits.size > 1) shared++;
-    for (const hit of hits.values()) {
-      const page = decodeGeometryPage(new Uint8Array(readFileSync(join(dir, hit.url))));
-      const position = page.attributes.position;
-      for (const v of page.indices)
-        for (let k = 0; k < 3; k++) out.push(position[3 * v + k] * hit.scale);
-    }
+    const hit = byId.get(id);
+    if (!hit) throw new Error(`screen error: drawn cluster ${id} has no geometry page`);
+    const page = decodeGeometryPage(new Uint8Array(readFileSync(join(dir, hit.url))));
+    const position = page.attributes.position;
+    for (const v of page.indices)
+      for (let k = 0; k < 3; k++) out.push(position[3 * v + k] * hit.scale);
   }
-  if (missing) throw new Error(`screen error: ${missing} drawn pages absent from the cache`);
-  return { triangles: Float32Array.from(out), shared };
+  return Float32Array.from(out);
 }
