@@ -1454,6 +1454,7 @@
       "framebuffer": "어디에 그릴지; 화면이면 `null`.",
       "width": "너비, 픽셀 단위.",
       "height": "높이, 픽셀 단위.",
+      "displayWidth": "이미지를 그보다 작게 그릴 때(`world.renderScale`) 이미지가 보여지는 너비. 텍스처 레벨과 선 너비가 그 비율을 따릅니다. 없으면 `width`.",
       "linear": "톤 곡선도 인코딩도 거치지 않은, 투명한 검정 위의 선형 복사휘도. 알파가 커버리지인 이펙트 체인의 입력."
     }
   },
@@ -4091,7 +4092,7 @@
   },
   "world.renderScale": {
     "summary": "이미지를 그리는 축마다의 화면 비율(`WorldOptions.renderScale`), 다음 프레임부터 적용됩니다.",
-    "description": "읽으면 마지막으로 그린 이미지의 스케일: WebGL2에서는 1."
+    "description": "읽으면 마지막으로 그린 이미지의 스케일."
   },
   "world.effects": {
     "summary": "이펙트 체인: 이미지 위에 그려지는 패스(`effect`)."
@@ -4329,7 +4330,7 @@
       "signal": "그 신호가 중단되면 월드의 로드를 멈춘다.",
       "physics": "물리를 켭니다(`world.physics`): `true`, 또는 중력과 예산. 그때만 Jolt를 불러옵니다.",
       "temporalAntialiasing": "시간적 안티앨리어싱, WebGPU 전용: 프레임에 걸쳐 누적되는 서브픽셀 흔들림. `false`는 각 픽셀을 기록 없이 중심에서 그리며, 픽셀 단위로 정확한 캡처가 요구하는 것; 나중에 `world.temporalAntialiasing`으로 바꾼다.",
-      "renderScale": "이미지를 그리는 축마다의 화면 비율로, WebGPU 전용이며 시간적 안티에일리어싱이 화면 크기로 다시 구성하기 전의 값입니다. `'auto'`는 프레임 예산이 `min`과 `max` 사이에서 고르게 하고(`{ min, max }`, 기본값 0.5와 1), 숫자는 고정합니다. 멈춘 이미지는 최댓값으로 그려집니다. 나중에 `world.renderScale`로 바꿉니다."
+      "renderScale": "이미지를 그리는 축마다의 화면 비율로, 시간적 안티에일리어싱이 화면 크기로 다시 구성하기 전의 값입니다. `'auto'`는 프레임 예산이 `min`과 `max` 사이에서 고르게 하고(`{ min, max }`, 기본값 0.5와 1. 리샘플링만 하는 WebGL2에서는 `min`의 기본값이 1), 숫자는 고정합니다. 멈춘 이미지는 최댓값으로 그려집니다. 나중에 `world.renderScale`로 바꿉니다."
     }
   },
   "RenderScale": {
@@ -4973,7 +4974,7 @@
       "options.signal": "그 신호가 중단되면 월드의 로드를 멈춘다.",
       "options.physics": "물리를 켭니다(`world.physics`): `true`, 또는 중력과 예산. 그때만 Jolt를 불러옵니다.",
       "options.temporalAntialiasing": "시간적 안티앨리어싱, WebGPU 전용: 프레임에 걸쳐 누적되는 서브픽셀 흔들림. `false`는 각 픽셀을 기록 없이 중심에서 그리며, 픽셀 단위로 정확한 캡처가 요구하는 것; 나중에 `world.temporalAntialiasing`으로 바꾼다.",
-      "options.renderScale": "이미지를 그리는 축마다의 화면 비율로, WebGPU 전용이며 시간적 안티에일리어싱이 화면 크기로 다시 구성하기 전의 값입니다. `'auto'`는 프레임 예산이 `min`과 `max` 사이에서 고르게 하고(`{ min, max }`, 기본값 0.5와 1), 숫자는 고정합니다. 멈춘 이미지는 최댓값으로 그려집니다. 나중에 `world.renderScale`로 바꿉니다."
+      "options.renderScale": "이미지를 그리는 축마다의 화면 비율로, 시간적 안티에일리어싱이 화면 크기로 다시 구성하기 전의 값입니다. `'auto'`는 프레임 예산이 `min`과 `max` 사이에서 고르게 하고(`{ min, max }`, 기본값 0.5와 1. 리샘플링만 하는 WebGL2에서는 `min`의 기본값이 1), 숫자는 고정합니다. 멈춘 이미지는 최댓값으로 그려집니다. 나중에 `world.renderScale`로 바꿉니다."
     }
   },
   "crossVector3": {
