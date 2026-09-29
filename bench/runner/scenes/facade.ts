@@ -8,7 +8,8 @@
 //   node bench/runner/scenes/facade.ts [--seed 7] [--triangles 300000] [--islands brick]
 //
 // `--islands brick` lays every wall out one texture island per brick instead: every position is
-// a seam corner, the layout whose stalled groups the DAG names mostly `seam-locked`.
+// a seam corner, the layout whose groups the DAG names `seam-locked` and reduces with solved
+// vertices.
 //
 // It writes `.mesure/assets/facade-<seed>/` (`facade-<seed>-bricks/` under `--islands brick`:
 // glTF, binary and PNG), which
