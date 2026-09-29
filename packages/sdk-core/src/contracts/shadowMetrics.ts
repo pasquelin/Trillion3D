@@ -132,23 +132,21 @@ export interface ShadowFrameMetrics {
   /** GPU time of lighting. */
   gpuLightingMs?: number | null;
   /**
-   * CPU milliseconds of the frame's shadow planning, the named steps of the engine's CPU profile
-   * (`cpuSteps()`, `cpu-timing`): the plan around the scheduler, reading the request report back,
-   * admitting the pages to draw. Each is `null` when the frame did not run it — no light, a held
-   * frame — or on an engine that cannot time it (WebGL2), never 0. Part of `cpuSubmitMs`, never
-   * added to it, nor to a `gpu*`.
+   * CPU time of the frame's shadow plan, around the scheduler: a named step of the CPU profile
+   * (`cpuSteps()`, `cpu-timing`), as are the five below. Each is `null` when the frame did not run
+   * it — no light, a held frame — or on an engine that cannot time it (WebGL2), never 0. They lie
+   * inside the encode time, never added to it.
    */
   cpuShadowPlanMs?: number | null;
-  /** Reading the request report the shading wrote back. */
+  /** CPU time of reading the shadow request report back. */
   cpuShadowRequestsMs?: number | null;
-  /** Admitting the stale pages the image reads. */
+  /** CPU time of admitting the stale pages the image reads. */
   cpuShadowAdmissionMs?: number | null;
-  /** CPU milliseconds of the frame's shadow encoding, `null` likewise: the batches around their
-   *  regions and passes (staging, commits, request copy), each batch's regions, each batch's
-   *  passes (casters, clears and restores, draws). */
+  /** CPU time of the shadow batches around their regions and passes: staging, commits, request
+   *  copy. */
   cpuShadowBatchesMs?: number | null;
-  /** Writing each batch's regions: face uniforms and page records. */
+  /** CPU time of writing each shadow batch's regions: face uniforms and page records. */
   cpuShadowRegionsMs?: number | null;
-  /** Encoding each batch's passes. */
+  /** CPU time of encoding each shadow batch's passes: casters, clears and restores, draws. */
   cpuShadowPassesMs?: number | null;
 }
