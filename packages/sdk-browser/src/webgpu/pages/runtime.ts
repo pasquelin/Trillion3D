@@ -1,6 +1,6 @@
 import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { shadowPoolSide } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { MOTION_CAPABILITY, TAA_CAPABILITY } from '../../taa/capability.ts';
+import { TAA_CAPABILITIES } from '../../taa/capability.ts';
 import { BOUNCE_CAPABILITY } from './prepare/bounce.ts';
 import type { BackendCapabilities, BackendContext, RenderBackend } from '../../backend/types.ts';
 import { createWebgpuPagesServices, type WebgpuPagesServices } from './services.ts';
@@ -16,6 +16,7 @@ import { createWebgpuSunFarState, type WebgpuSunFarState } from './state/sunFar.
 import { createWebgpuRunState, type WebgpuRunState } from './state/run.ts';
 import { createWebgpuCaptureState, type WebgpuCaptureState } from './state/capture.ts';
 import { createWebgpuViews, type WebgpuViews } from './state/view.ts';
+import { createScaleControl, type ScaleControl } from '../../frame/scaleControl.ts';
 import type { PresentRect } from '../../gpu/core/presentAt.ts';
 import type { HostCamera } from '../../camera/world.ts';
 import {
@@ -81,6 +82,8 @@ export interface WebgpuPagesRuntime {
   /** Every camera-bound field above belongs to `views.active`; `./state/viewSwitch.ts` switches. */
   views: WebgpuViews;
   timing: WebgpuTimingState;
+  /** The render scale the page asked, its controller, and the scale of the image drawn. */
+  scale: ScaleControl;
   capabilities: BackendCapabilities;
   blendState: ReturnType<typeof createWebgpuBlendState>;
   /** The nodes the host may write, listed by frame entry at a scene change only (`gateCore.ts`):
@@ -131,8 +134,7 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
       'small-triangle compute raster',
       'physical VRAM instrumentation',
       BOUNCE_CAPABILITY,
-      MOTION_CAPABILITY,
-      TAA_CAPABILITY,
+      ...TAA_CAPABILITIES,
       'sun shadows beyond the last clipmap level',
       'textured PBR maps',
       'visibility buffer',
@@ -162,6 +164,7 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
       context.stageProfile ? createWebgpuStageProfiler() : undefined,
       () => layout.selectionRoots.length,
     ),
+    scale: createScaleControl(context.renderScale),
     capabilities,
     blendState,
     watchedSources: () => [

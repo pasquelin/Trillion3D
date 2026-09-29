@@ -24,6 +24,7 @@ import { refreshDrawItemWords } from '../../visibility/itemWords.ts';
 import { visLayerTop } from '../../visibility/uniforms.ts';
 import { uploadClusterSpheres, uploadRowMobility } from '../../shadow/bounds.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { displayApart } from '../state/renderScale.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
 
 /** The row table spans every row a page can claim — the visibility rows, then the blended
@@ -64,7 +65,7 @@ export function followDirtyRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
 /** Uploads the rows whose bytes changed, run by run, and nothing when none did. */
 export function uploadDirtyRows(rt: WebgpuPagesRuntime) {
   const { rows } = rt.layout;
-  rt.timing.encodeCounts.lignesTeleversees = 0;
+  rt.timing.encodeCounts.rowsUploaded = 0;
   if (rows.dirtyTo < rows.dirtyFrom || !rt.vis.pageTable || !rows.pageTableFloats) return;
   forEachDirtyRun(rows.dirtyMarks, rows.dirtyFrom, rows.dirtyTo, rt, uploadRun);
   rows.clearDirty();
@@ -79,7 +80,7 @@ function uploadRun(rt: WebgpuPagesRuntime, from: number, to: number) {
     floats.byteOffset + from * PAGE_INFO_STRIDE,
     (to - from + 1) * PAGE_INFO_STRIDE,
   );
-  rt.timing.encodeCounts.lignesTeleversees += to - from + 1;
+  rt.timing.encodeCounts.rowsUploaded += to - from + 1;
 }
 
 /** Encodes and submits one image of the drawn cut; returns the triangles it submitted. */
@@ -151,7 +152,7 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
   }
   // The fallback draws into the colour target: targets drawn below the display are remade at its
   // size first, never presenting a display colour this image did not write.
-  if (gpu.displayTexture && gpu.displayTexture !== gpu.colorTexture) {
+  if (displayApart(gpu)) {
     abandonFrameEncoder(rt);
     void requestFrameTargets(rt, device);
     return 0;

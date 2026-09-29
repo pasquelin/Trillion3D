@@ -23,6 +23,7 @@ import { encodeShadowReadback } from './encodeShadows.ts';
 import { composesOffscreen } from '../../../diagnostic/gpuVariant.ts';
 import { encodeTaaPass, taaSampledRank } from '../../../taa/frame.ts';
 import { encodeEffects } from './encodeEffects.ts';
+import { seedAsIsShare } from '../prepare/asIsShareTarget.ts';
 import {
   directLightResources,
   readsAsIs,
@@ -139,11 +140,12 @@ export function encodeSurfaceLighting(
   cam: EngineCamera,
   uniformBase: number,
 ) {
-  const { gpu, run, capture, blendState } = rt,
+  const { gpu, run, capture } = rt,
     clear = clearValueOf(run.clearColor);
   if (!gpu.surfaces || !gpu.deferred || !gpu.hdrView || !gpu.depthView || !gpu.displayView)
     throw new Error('DEFERRED_UNAVAILABLE');
-  const [width, height] = gpu.targetSize;
+  const [width, height] = gpu.targetSize,
+    raw = run.diagnostic !== 'beauty';
   invertMatrix4(inverseViewProj, viewProj);
   // Shadows and light lists encode before resolve: they are its inputs.
   const direct = encodeDirectLights(rt, device, encoder, cam, viewProj);
@@ -162,15 +164,13 @@ export function encodeSurfaceLighting(
     width,
     height,
     run.clearColor,
-    run.diagnostic !== 'beauty',
+    raw,
     direct,
     taaSampledRank(rt),
   );
-  gpu.reflection?.update(viewProj, gpu.deferred.usesContract && run.diagnostic === 'beauty');
+  gpu.reflection?.update(viewProj, gpu.deferred.usesContract && !raw, gpu.targetSize);
   gpu.deferred.light(encoder, gpu.hdrView, gpu.reflection);
-  const blendShare =
-    blendState.blendGpu.length && rt.vis.blendPipelines ? gpu.asIsShare : undefined;
-  blendShare?.seed(encoder);
+  const blendShare = seedAsIsShare(rt, device, encoder);
   const filter = beginDisplayFilter(rt, device);
   if (gpu.reflection?.active && gpu.deferred.usesContract) run.gpuDrawCalls++;
   run.gpuDrawCalls++;

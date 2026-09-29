@@ -50,7 +50,7 @@ fn the_punctual_uslux_schemas_become_gltf_lights_and_the_others_stay_counted() {
         float inputs:shaping:cone:softness = 0.25
     }}
 
-    def DistantLight "Soleil"
+    def DistantLight "Sun"
     {{
         float inputs:intensity = 5
     }}
@@ -70,7 +70,7 @@ fn the_punctual_uslux_schemas_become_gltf_lights_and_the_others_stay_counted() {
         json!([
             ["Ampoule", "point", {"castsShadow": false, "emitterRadius": 0.25}],
             ["Panneau", "spot", {"emitterRadius": 2.5}],
-            ["Soleil", "directional", null],
+            ["Sun", "directional", null],
         ]),
         "the converted lights have changed"
     );

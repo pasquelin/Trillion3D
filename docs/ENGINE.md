@@ -200,6 +200,36 @@ surface capture and a diagnostic view render unjittered and unaccumulated. The p
 means nothing on tile-based GPUs; its cost is read as an envelope difference with
 `temporalAntialiasing: false`.
 
+**Render scale.** Every pass up to the resolve may draw at `s × display` per axis (`s` in
+[0.5, 1], axes rounded to multiples of eight) while the resolve reconstructs the display: per
+display pixel, the 3×3 render texels around it, depth-dilated, Lanczos-2 resampled from each
+texel's jittered sample, deringed and clamped to the YCoCg box, blended into the display-size
+history (`taa/upscaleWgsl.ts`). The jitter runs `floor(8 · (W / w)²)` phases and texture reads
+add `log2(w / W)` to their level, so detail stays the display's. `createWorld(canvas,
+{ renderScale })` sets it: a number fixes it, `'auto'` (the default) or `{ min, max }` lets a
+controller choose it each frame after the reference's dynamic resolution
+(`frame/scaleController.ts`): budget = the display's measured refresh interval, target 90 % of it,
+`s' = s · √(target / t)` on the whole-frame GPU time `t` (timestamp queries, one sample per image
+under `'auto'`), a step only past 5 % and 30 samples after the last, up only below 80 % of the
+target, and at once on a frame over 1.25 budgets; samples of an image drawn at another scale are
+discarded. The render targets are made once at the bounds' maximum and each image draws in their
+top-left `w × h` (viewports, the Hi-Z pyramid's extent, the deferred and water passes, screen
+reflections, particles and guides read that size), so a scale change reallocates nothing and keeps
+the history. A quiet image draws at the maximum — 1 unless the page lowered it —, so the held image
+is the native one. `world.renderScale` reads back the scale of the last image; the capability
+`temporal upscaling` says whether the renderer has it (WebGL2 does not). A capture, a diagnostic
+view or GPU variant and the fallback draw stay at the display's size. Without timestamp queries the
+controller has no sample and holds the maximum.
+
+WebGL2 honours the same setting and controller, degraded: it keeps no history, so the image is
+resampled spatially (`webgl/core/resampleGlsl.ts`, `world/render/renderScale.ts`), with the same
+Lanczos-2 kernel over the 3×3 render texels, deringed to the 2×2 nearest, no jitter and no blend;
+material reads take the same `log2(w / W)` bias through GLSL `texture(…, bias)`, lines keep their
+display width, and the controller reads the whole-frame `EXT_disjoint_timer_query_webgl2` interval.
+Since a resample loses detail, its default minimum is 1: `'auto'` holds the display's size and only
+a page naming a lower `min`, or a fixed scale, draws below it. `temporal upscaling` stays
+unsupported there.
+
 ## Effect chain
 
 `world.effects` (`EffectChain`, `packages/sdk-core/src/world/effect/`) is one ordered list of passes
@@ -287,8 +317,11 @@ program too (a 64-light array, each listed light read with no branch), compiled 
 wide twin compiled beside it. A shadow caster past the 64 shadow slices lights without a shadow
 and is counted
 (`shadowCastersUnsliced`, #818). WebGL2 holds every light in a float texture grown with the
-count, and each draw evaluates only the lights whose range reaches its world box, listed per draw
-on the CPU in one integer texture (`webgl/cluster/lightLists.ts`, #835).
+count. A fragment evaluates only the lights whose range reaches its cell of a world grid laid over
+the lamps (a cell is their median range, at most 512 cells a lamp), plus the lights that reach
+every fragment. The grid is listed on the CPU into one integer texture only when a lamp's position
+or range changes; a frame that moves the camera alone sends only the view-to-grid matrix
+(`webgl/cluster/lightLists.ts`, #835).
 
 **A moving image shades a drawn subset of each pixel's lights.** A moving image weighs every light
 of its tile without its shadow (the cheap part) and shades in full, shadow included, four of them. A
@@ -1125,8 +1158,8 @@ What the web imposes, and the answer:
 Stages, each with its proof (0 px A/A at rest, budget held, before/after published):
 
 - **L0** — done (campaign of 18 Sept. 2026, Emerald 2496×1404): the sun is 4.7 ms of
-  envelope on the ground view and 5.8 ms on the street view (`mobile` − `sans-lumiere`); lighting
-  without maps ≤ 0.96 ms (`lampes-4-sans-ombres` − `sans-lumiere`); still camera: 0 page redrawn,
+  envelope on the ground view and 5.8 ms on the street view (`mobile` − `unlit`); lighting
+  without maps ≤ 0.96 ms (`lights-4-no-shadows` − `unlit`); still camera: 0 page redrawn,
   envelope no lower. What remained, the sampling, is L2 below — not a cascade ring.
 - **L1** — screen traces: reflections and short bounce from the already-rendered HDR, depth and
   normal; the cheapest piece of the reference, and the first.

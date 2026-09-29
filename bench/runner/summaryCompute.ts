@@ -19,7 +19,7 @@ function module(releve: MathBatch) {
 
 /**
  * The calculation path of each side: what the governor CHOSE, operation by operation, and the two
- * medians that decided it. A `--chemin-math js|wasm` campaign rereads its forced mode there,
+ * medians that decided it. A `--math-path js|wasm` campaign rereads its forced mode there,
  * `auto` rereads the arbitration. Nothing is inferred: a side without a reading says so, a side
  * that ran no batch says so too.
  */
@@ -30,7 +30,7 @@ export function cheminsCalcul(report: Report) {
   ];
   for (const serie of report.series)
     for (const [side, resultat] of Object.entries(serie.sides)) {
-      const releve = resultat.cheminCalcul;
+      const releve = resultat.mathBatch;
       const tete = `| ${serie.view} | ${serie.pixelError} | ${side} `;
       if (!releve) {
         lines.push(`${tete}| — | reading missing from this dist | — | — | — | — | — | — |`);

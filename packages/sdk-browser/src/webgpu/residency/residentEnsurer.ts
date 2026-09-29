@@ -99,7 +99,7 @@ export function createWebgpuResidentEnsurer({
       signal?.throwIfAborted();
       if (isLost() || getCache() !== cache) return;
       try {
-        spare -= Math.max(0, await admit(rec));
+        spare -= Math.max(0, await admit(rec, PRIORITY_PREFETCH));
         budget.spend();
       } catch (error) {
         // The camera's own burst took the last slot meanwhile: the tier waits, as it does.

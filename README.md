@@ -152,8 +152,8 @@ Core: contracts · jobs · cancellation · diagnostics · safety policy
 Nothing is optimised before it is measured, and no claim outlives its measurement.
 
 ```sh
-node bench/runner/bench.ts --moteur webgpu --avant <git-ref|dist> --apres <git-ref|dist> \
-     --vues generale,sol,rue --images 60 --pixelError 0,1
+node bench/runner/bench.ts --engine webgpu --before <git-ref|dist> --after <git-ref|dist> \
+     --views overview,ground,street --images 60 --pixelError 0,1
 node bench/runner/campaign.ts        # the whole campaign
 node bench/runner/summaryGlobal.ts   # one HTML report
 ```

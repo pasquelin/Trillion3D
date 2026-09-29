@@ -28,8 +28,10 @@ use textures::texture_table;
 /// scene graph and the geometry layout, which is what lets the runtime build the scene without a
 /// glTF parse; version 3 moves the nodes that only place a mesh into spatial cells read by
 /// distance (`partition.rs`), and the node table keeps the others, renumbered; version 4 keeps
-/// only the root of the cells' index, whose pages lie beside it (`partition/pages.rs`).
-const SCENE_TABLES_VERSION: u32 = 4;
+/// only the root of the cells' index, whose pages lie beside it (`partition/pages.rs`); version 5
+/// names the manifest's mesh pages the node table needs (`meshPages`), which a runtime reads at open
+/// while the cells' own are read with them (#751).
+const SCENE_TABLES_VERSION: u32 = 5;
 /// The node table's version: 4 says whether each node declares itself visible (`KHR_node_visibility`).
 const NODE_TABLE_VERSION: u32 = 4;
 const MATERIAL_TABLE_VERSION: u32 = 4;
@@ -70,13 +72,14 @@ impl Materials {
 /// written. Both documents share one node graph and one material
 /// table: the autonomous scene is the published one with its geometry reduced, so only the
 /// geometry layout differs. The partition's region pages name the mesh pages of `mesh_pages`.
+/// Returned beside the product: the published nodes each cell places.
 pub(super) fn stage_scene_tables(
     published: &Value,
     autonomous: Option<&Value>,
     mesh_pages: &crate::compiler_manifest_pages::MeshPages,
     directory: &Path,
     progress: impl Fn(Value),
-) -> Result<Product> {
+) -> Result<(Product, Vec<Vec<usize>>)> {
     let started = Instant::now();
     let mut surfaces = Materials {
         table: Vec::new(),
@@ -96,11 +99,12 @@ pub(super) fn stage_scene_tables(
     }
     let table = node_table(published)?;
     let roots = crate::compiler_nodes::scene_roots(published, values(published, "nodes")?)?;
-    let (nodes, roots, partition, cells) =
-        match partition::partition(published, &table, &roots, &mesh_pages.by_mesh, directory)? {
-            Some(split) => (split.nodes, split.roots, split.partition, split.cells),
-            None => (table, roots, Value::Null, 0),
-        };
+    let (split, members) =
+        partition::partition(published, &table, &roots, &mesh_pages.by_mesh, directory)?;
+    let (nodes, roots, partition, cells) = match split {
+        Some(split) => (split.nodes, split.roots, split.partition, split.cells),
+        None => (table, roots, Value::Null, 0),
+    };
     let lights = light_table(published)?;
     let cameras = camera_table(published)?;
     let textures = texture_table(published);
@@ -113,6 +117,7 @@ pub(super) fn stage_scene_tables(
         "scene": scene_roots(published, roots)?,
         "nodes": nodes,
         "partition": partition,
+        "meshPages": core_pages(&nodes, &mesh_pages.by_mesh),
         "lights": lights,
         "cameras": cameras,
         "materials": surfaces.table,
@@ -123,7 +128,17 @@ pub(super) fn stage_scene_tables(
     progress(
         json!({"phase":"tables","completed":1,"total":1,"ms":shared_math::elapsed_ms(started),"counts":counts}),
     );
-    Ok(written)
+    Ok((written, members))
+}
+
+/// The slots of the mesh pages the meshes `nodes` draw lie in, sorted and each once: what a runtime
+/// reads before its first frame, the cells naming the rest (#751).
+fn core_pages(nodes: &[Value], by_mesh: &partition::pages::MeshSlots) -> Vec<String> {
+    let meshes = nodes.iter().filter_map(|node| node["mesh"].as_u64());
+    partition::pages::slots_of(meshes, by_mesh)
+        .into_iter()
+        .cloned()
+        .collect()
 }
 
 /// The cell records of the tables in `directory` by file name, read through their partition's pages,

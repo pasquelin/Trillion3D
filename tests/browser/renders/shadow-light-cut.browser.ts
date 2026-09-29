@@ -30,7 +30,7 @@ try {
       await scene.awaitPages();
       const settle = (pose: unknown) => settleWorld(scene, pose);
       // The street pose of the bench, turned to look along the sun: the sun is behind the eye.
-      const street = poseAt(scene.bounds, VIEWS.rue.index);
+      const street = poseAt(scene.bounds, VIEWS.street.index);
       const d = sun.direction as number[];
       const behind = {
         ...street,
