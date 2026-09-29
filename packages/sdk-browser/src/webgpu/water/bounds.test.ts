@@ -39,8 +39,10 @@ function scene(enabled = true) {
   state.blendPlanes.set(camera.planes);
   const bounds = state.waterBounds,
     item = state.blendGpu[0];
-  const frame = (projection: ArrayLike<number> = camera.viewProjection) =>
-    orderBlendPasses(state, camera.eye, camera, projection, SIZE);
+  const frame = (projection: ArrayLike<number> = camera.viewProjection) => {
+    beginWaterBounds(bounds, camera, projection, SIZE);
+    return orderBlendPasses(state, camera.eye);
+  };
   return { state, bounds, item, camera, frame };
 }
 const full = [0, 0, ...SIZE];
