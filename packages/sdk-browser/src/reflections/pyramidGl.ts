@@ -1,7 +1,6 @@
 import { PHYSICAL_MAP_UNIT } from '../webgl/cluster/physicalMaps.ts';
 import { RADIANCE_REDUCTION_GLSL } from '../texture/radianceReduction.ts';
 import { levelSize, mipLevelCountFor } from '../texture/tiles.ts';
-import { mipTailBytes } from '../gpu/core/textureBytes.ts';
 import {
   FULLSCREEN_VERTEX,
   FULLSCREEN_DISABLED,
@@ -62,9 +61,12 @@ void main(){color=${bounds ? 'floatBitsToUint(radianceReduction(ivec2(gl_FragCoo
     return held;
   }
   get bytes() {
-    if (!this.bounds) return 0;
-    const [width, height] = this.size;
-    return Math.max(8, mipTailBytes(width, height, 'rg32uint', mipLevelCountFor(width, height)));
+    let bytes = 0;
+    for (let level = 1; level < mipLevelCountFor(...(this.size as [number, number])); level++) {
+      const [w, h] = levelSize(this.size[0], this.size[1], level);
+      bytes += w * h * 8;
+    }
+    return this.bounds ? Math.max(8, bytes) : 0;
   }
   encode(color: WebGLTexture, depth: WebGLTexture, width: number, height: number) {
     const gl = this.gl,
