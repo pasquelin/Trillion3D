@@ -32,7 +32,11 @@ import { ouvrirAppareil } from './webgpuDevice.ts';
 export type ResolveRecord = { narrow: boolean; words: number[] };
 export type ResolveScene = { lights: SceneLight[]; samples: number[]; records: ResolveRecord[] };
 
-const storage = (device: GPUDevice, data: Uint32Array | Float32Array, read = false) => {
+const storage = (
+  device: GPUDevice,
+  data: Uint32Array<ArrayBuffer> | Float32Array<ArrayBuffer>,
+  read = false,
+) => {
   const buffer = device.createBuffer({
     size: Math.max(data.byteLength, 16),
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | (read ? GPUBufferUsage.COPY_SRC : 0),
@@ -86,8 +90,7 @@ export async function run(scenes: ResolveScene[]) {
     };
     uploadSceneLights(device, lights as Parameters<typeof uploadSceneLights>[1]);
     // One tile: the view is one tile wide and high, every sample at its pixel, sampled rank 0.
-    const direct = [...ZERO_DIRECT];
-    [direct[0], direct[1], direct[2]] = [scene.lights.length, 1, 1];
+    const direct = [scene.lights.length, 1, 1, ...ZERO_DIRECT.slice(3)];
     view.write(new Float32Array(16), [0, 0, 0, 1], 16, 16, 0, false, direct, 0);
     const samples = storage(device, new Float32Array(scene.samples));
     const count = scene.samples.length / SAMPLE_FLOATS;
