@@ -84,7 +84,6 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
   // lets the halves converge under the antialiasing jitter, and an image be held.
   run.hizViewMoved = !sameHizView(run.previousHizView, cam);
   if (run.hizViewMoved) {
-    run.viewSince = run.frame;
     invalidateTemporalPyramid(run);
     // The world pose is copied into the already-held camera: the same comparison, without a clone per image.
     run.previousHizView = holdCameraWorld(run.previousHizView ?? createEngineCamera(), cam);

@@ -1,15 +1,33 @@
-import { entryLevel, type TilePlace } from '../../texture/tiles.ts';
+import type { Texture } from '../../../../sdk-core/src/index.ts';
+import type { CoverageReaders } from '../../texture/coverage.ts';
+import { entryLevel, type TileLayout, type TilePlace } from '../../texture/tiles.ts';
 import type { WebgpuTilePool } from './pool.ts';
 import { createWebgpuTilePageTable, type TileKey, type WebgpuTilePageTable } from './pageTable.ts';
 import { writeTailFromBytes } from './write.ts';
 import { writeTailFromBlocks } from './writeBlocks.ts';
-import type { LaneCounts, PoolEncoding } from '../../texture/blockFormats.ts';
+import type { LaneCounts, PoolEncoding, PoolLane, TailBytes } from '../../texture/blockFormats.ts';
 import { createTileLanes, type Lane } from './lanes.ts';
 import { tailId, tileId } from './ids.ts';
-import { evictTile, releaseUnseen } from './atlasResize.ts';
-import type { TileTexture } from './tileTexture.ts';
+import { evictTile } from './atlasResize.ts';
 
-export type { TileTexture } from './tileTexture.ts';
+/**
+ * Where a texture's texels come from. `bytes`: everything fits in the sidecar tail, nothing is
+ * streamed. `baked`: the tail comes from the sidecar, streamed levels are read cooked from the
+ * cache. `host`: neither, the host image goes through a working texture, mips weighted as its
+ * `coverage` readers say (#42). A tail holds every encoding; the atlas pins its lane's.
+ */
+type TileSource =
+  | { kind: 'bytes'; tail: TailBytes }
+  | { kind: 'baked'; sha256: string; atlas: number; tail: TailBytes }
+  | { kind: 'host'; map: Texture; coverage?: CoverageReaders };
+
+/** A texture of the atlas: tile geometry, pool lane, texels, and its record — none for the fill. */
+export type TileTexture = {
+  layout: TileLayout;
+  lane: PoolLane;
+  source: TileSource;
+  texture?: Texture;
+};
 
 /**
  * A virtual-texture atlas: one pool per lane, its page table and its catalogue. It knows which
@@ -42,8 +60,6 @@ export type WebgpuTileAtlas = {
   roomFor(slot: number, frame: number): boolean;
   /** Level that serves a tile today: its own, an ancestor, or the tail. */
   servedLevel(key: TileKey): number;
-  /** Gives back every streamed tile no image looked at since `frame`: their textures. */
-  release(frame: number): Set<number>;
   flush(device: Pick<GPUDevice, 'queue'>): void;
   /** Changes each lane's layers while keeping its tiles; returns the evicted tiles and how many
    *  pools were replaced. */
@@ -163,10 +179,6 @@ export function createWebgpuTileAtlas(
     servedLevel(key) {
       const word = pages.entryOf(key);
       return word === 0 ? textures[key.slot].layout.tail : entryLevel(word);
-    },
-    release(frame) {
-      victimsFrame = -1;
-      return releaseUnseen(lanes.lanes.values(), pages, frame, options.onEvicted);
     },
     flush: (target) => pages.flush(target),
     resize(target, layers) {
