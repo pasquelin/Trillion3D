@@ -103,6 +103,7 @@ pub(crate) fn unit(v: [f64; 3]) -> Option<[f64; 3]> {
 
 /// `v` times the reciprocal of its length, when `usable` accepts that length. The guard is the
 /// caller's: `unit` refuses a non-finite length, the oracle only a non-positive one.
+/// `normalized_or` divides each part instead: the two round apart, and each keeps its callers' bits.
 pub(crate) fn unit_where(v: [f64; 3], usable: impl Fn(f64) -> bool) -> Option<[f64; 3]> {
     let length = length(v);
     usable(length).then(|| scale(v, 1.0 / length))

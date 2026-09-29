@@ -12,7 +12,7 @@
 //! compiler's shared helpers at that precision: the output bits stay those Blender files have
 //! always compiled to.
 use super::*;
-use crate::compiler_world::{identity, product as multiply, quaternion_wxyz, turn};
+use crate::compiler_world::{identity, product, quaternion_wxyz, turn};
 
 /// The object type that holds a mesh.
 pub(super) const OB_MESH: i64 = 1;
@@ -30,7 +30,7 @@ const ORDERS: [[usize; 3]; 6] = [
 /// Maximum depth of a parent chain, cycle included.
 const MAX_DEPTH: usize = 64;
 
-pub(super) type Matrix = [f32; 16];
+type Matrix = [f32; 16];
 
 /// The world matrix of an object, in Blender space.
 pub(super) fn world(object: &At<'_>) -> Matrix {
@@ -51,7 +51,7 @@ fn composed(object: &At<'_>, depth: usize) -> Matrix {
         return local;
     };
     let inverse = square(object, "parentinv");
-    multiply(&multiply(&composed(&parent, depth + 1), &inverse), &local)
+    product(&product(&composed(&parent, depth + 1), &inverse), &local)
 }
 
 /// The local matrix: scale, rotation, translation, in that order.
@@ -62,7 +62,7 @@ fn local(object: &At<'_>) -> Matrix {
     } else {
         triple(object, "dsize", 1.0)
     };
-    let mut matrix = multiply(&rotation(object), &scaling(&scale, &delta));
+    let mut matrix = product(&rotation(object), &scaling(&scale, &delta));
     let position = triple(object, "loc", 0.0);
     let shift = triple(object, "dloc", 0.0);
     for axis in 0..3 {
@@ -90,7 +90,7 @@ fn rotation(object: &At<'_>) -> Matrix {
         ),
         _ => euler(&triple(object, "drot", 0.0), mode),
     };
-    multiply(&differed, &own)
+    product(&differed, &own)
 }
 
 /// Euler angles of a given order: each axis turns in turn, the first named first.
@@ -98,7 +98,7 @@ fn euler(angles: &[f32; 3], mode: i64) -> Matrix {
     let order = ORDERS[usize::try_from(mode - 1).unwrap_or(0).min(5)];
     let mut matrix = identity();
     for axis in order.iter().rev() {
-        matrix = multiply(&matrix, &turn(*axis, angles[*axis]));
+        matrix = product(&matrix, &turn(*axis, angles[*axis]));
     }
     matrix
 }
@@ -109,20 +109,15 @@ fn quaternion(value: [f32; 4]) -> Matrix {
     quaternion_wxyz(value, |length| length.is_finite() && length != 0.0)
 }
 
-/// Rotation of an angle around an arbitrary axis, by the quaternion of its half angle.
+/// Rotation of an angle around an arbitrary axis, by the quaternion of its half angle. Blender's
+/// own formula, apart from `compiler_world::axis_angle` (Rodrigues) on purpose: it rounds apart.
 fn axis_angle(axis: &[f32; 3], angle: f32) -> Matrix {
-    let length = (axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2]).sqrt();
-    if !length.is_finite() || length == 0.0 {
+    let Some([x, y, z]) = normals::unit(*axis) else {
         return identity();
-    }
+    };
     let half = angle / 2.0;
     let sin = half.sin();
-    quaternion([
-        half.cos(),
-        axis[0] / length * sin,
-        axis[1] / length * sin,
-        axis[2] / length * sin,
-    ])
+    quaternion([half.cos(), x * sin, y * sin, z * sin])
 }
 
 fn scaling(scale: &[f32; 3], delta: &[f32; 3]) -> Matrix {

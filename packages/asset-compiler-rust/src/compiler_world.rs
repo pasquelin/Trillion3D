@@ -17,17 +17,7 @@ const MAX_DEPTH: usize = 256;
 /// `a · b`, operation `b` applying to point before `a`. Shared with scene drivers
 /// composing own matrices.
 pub(super) fn multiply(a: &Mat4, b: &Mat4) -> Mat4 {
-    let mut out = [0.0f64; 16];
-    for column in 0..4 {
-        for row in 0..4 {
-            let mut sum = 0.0;
-            for k in 0..4 {
-                sum += a[k * 4 + row] * b[column * 4 + k];
-            }
-            out[column * 4 + row] = sum;
-        }
-    }
-    out
+    rotation::compose(a, b, 0.0)
 }
 
 fn numbers(value: Option<&Value>, length: usize, what: &str) -> Result<Option<Vec<f64>>> {
