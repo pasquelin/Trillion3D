@@ -86,11 +86,12 @@ export type LowerList = {
  * One job's lower tiers in order, each page once: a page an earlier tier names — a caster also
  * ahead of the camera — is counted and loaded once. A copy: a tier's list is rewritten in place by
  * every report taken while a job loads, and a loop resumed on another list keeps neither its order
- * nor its count of free slots. One list, remade only when a tier reported since: the jobs that
- * follow one another between two reports read it as it is. The queue runs one job at a time.
+ * nor its count of free slots. One list, made anew only when a tier reported since: the jobs that
+ * follow one another between two reports read it as it is, and a job still walking the one before
+ * — a capture's `ensureResident` runs beside the queue — keeps it whole.
  */
 export function createLowerMerge(keyOf: (page: PageRec) => number) {
-  const list: PageRec[] = [];
+  let list: PageRec[] = [];
   let seen: (readonly [LowerList, number])[] = [];
   const current = (tiers: readonly LowerList[]) =>
     seen.length === tiers.length &&
@@ -98,7 +99,7 @@ export function createLowerMerge(keyOf: (page: PageRec) => number) {
   return (tiers: readonly LowerList[]): readonly PageRec[] => {
     if (current(tiers)) return list;
     seen = tiers.map((tier) => [tier, tier.revision] as const);
-    list.length = 0;
+    list = [];
     for (let t = 0; t < tiers.length; t++)
       for (const rec of tiers[t].pages) {
         const key = keyOf(rec);
