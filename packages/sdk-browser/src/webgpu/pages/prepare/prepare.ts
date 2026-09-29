@@ -135,11 +135,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   vis.geometryBlocks.clear();
   let geometryFailure: { error: unknown } | undefined;
   try {
-    ({
-      concatPos: vis.concatPos,
-      concatUv: vis.concatUv,
-      concatNrm: vis.concatNrm,
-    } = prepareWebgpuGeometry(gpuDevice, allPages, vis.geometryBlocks));
+    Object.assign(vis, prepareWebgpuGeometry(gpuDevice, allPages, vis.geometryBlocks));
   } catch (error) {
     geometryFailure = { error };
   }

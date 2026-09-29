@@ -3,8 +3,9 @@
  * The compiler cuts a blended primitive on finer grids than an opaque or masked one (#875), so
  * the pages a session opened for one class are not the ones it writes for the other. Such a
  * primitive is cut again by the runtime cutter (`runtimeCut.ts`), off the main thread, from the
- * source vertices its pages were cut from, on its own clusters — each page's corners, read from
- * its index page — and on the grids the compiler gives the new class (`Recut`); its resident
+ * source vertices its pages were cut from — and the vertices a seam-locked solve placed, from the
+ * pages naming them (`placedVertices.ts`, #877) —, on its own clusters — each page's corners, read
+ * from its index page — and on the grids the compiler gives the new class (`Recut`); its resident
  * records then draw the new pages, and every page it reads later too (`PageRec.recut`). Moved
  * back to the class it was compiled for, it draws the pages it reads again. Until a cut lands,
  * the records draw their old pages in their new family; `settled` resolves once every cut has.
@@ -20,6 +21,7 @@ import { cutPagesOffThread } from '../../page/decode/host.ts';
 import { rootOf, type ClusterRoot, type PageRec } from '../../page/selection/selection.ts';
 import { blendMoves, type AlphaChange } from '../../placement/backendSceneUpdates.ts';
 import { primitiveFinder } from '../../scene/primitiveLookup.ts';
+import { joinedCorners, withPlaced } from '../../world/page/placedVertices.ts';
 import { packDrawn } from '../../world/page/runtimeCut.ts';
 import type { BackendContext } from '../types.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
@@ -99,16 +101,7 @@ export function createClassPages(env: ClassPagesEnvironment) {
     ]);
     const drawn = drawnTriangles(vertices, 'triangles');
     if (!drawn) throw new Error('MATERIAL_CLASS_SOURCE_MISSING');
-    const ends = new Uint32Array(corners.length),
-      indices = new Uint32Array(corners.reduce((sum, page) => sum + page.length, 0));
-    let offset = 0;
-    corners.forEach((page, k) => {
-      indices.set(page, offset);
-      ends[k] = offset += page.length;
-    });
-    // A mesh with no registered source reads its one-triangle stand-in: refused, never cut.
-    if (indices.some((v) => v * 3 >= drawn.positions.length))
-      throw new Error('MATERIAL_CLASS_SOURCE_MISSING');
+    const { indices, ends } = joinedCorners(corners);
     // The attributes the compiled pages carry, and those alone.
     const flags = primitive.pages[0].geometry!.flags;
     const carried = {
@@ -118,8 +111,13 @@ export function createClassPages(env: ClassPagesEnvironment) {
       uvs: flags & FLAG_UV ? drawn.uvs : null,
       colors: flags & FLAG_COLOR ? drawn.colors : null,
     };
+    const pages = primitive.pages,
+      url = (k: number) => pages[k].geometry!.url;
+    const read = (k: number[]) => readPages(context, k.map(url));
+    // A mesh with no registered source reads its one-triangle stand-in: refused, never cut.
+    const grown = await withPlaced(carried, { indices, ends }, pages, read);
     const recut = { ends, finestError: finestError(primitive), scale };
-    const cut = await cutPagesOffThread(packDrawn(carried, blended, recut));
+    const cut = await cutPagesOffThread(packDrawn(grown, blended, recut));
     return new Map(
       primitive.pages.map((page, k) => [page.id, new Uint8Array(cut.pages[k].geometry)]),
     );
