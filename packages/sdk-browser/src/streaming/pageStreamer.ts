@@ -1,6 +1,6 @@
 import { createStreamingFetcher } from './fetch.ts';
 import { createStreamingQueue } from './queue.ts';
-import type { StreamContext, Job, StreamPage, PageStreamerOptions } from './types.ts';
+import type { StreamContext, Job, StreamPage, BatchRead, PageStreamerOptions } from './types.ts';
 import { createStreamingCache } from './cache.ts';
 import { createIndexViews } from './indexView.ts';
 import { createPageCache, manifestTableBytes, type PageCache } from './pageCache.ts';
@@ -139,11 +139,9 @@ export function createPageStreamerWith(
     retainRanks,
     /** Hears every page read, whoever asks it, until the returned stop runs (`readWatch.ts`). */
     watch,
-    /** Reads `urls` the catalog holds, once each. */
-    async request(
-      urls: readonly string[],
-      options: { signal?: AbortSignal; priority?: number } = {},
-    ) {
+    /** Reads `urls` the catalog holds, once each, each landing handed to `onPage` at once; it
+     *  settles once every read and `onPage` has, rejecting with the first failure in `urls` order. */
+    async request(urls: readonly string[], options: BatchRead = {}) {
       const unique = [...new Set(urls.filter((url) => catalog.has(url)))];
       state.requested += unique.length;
       emit('page-request-batch', 'Batched page request received', () => ({
@@ -151,7 +149,11 @@ export function createPageStreamerWith(
         requested: urls.length,
         unique: unique.length,
       }));
-      await Promise.all(unique.map((url) => read(url, options.signal, options.priority ?? 1)));
+      const { signal, priority = 1, onPage } = options;
+      const landed = await Promise.allSettled(
+        unique.map((url) => read(url, signal, priority).then(() => onPage?.(url))),
+      );
+      for (const page of landed) if (page.status === 'rejected') throw page.reason;
     },
     stats() {
       return {

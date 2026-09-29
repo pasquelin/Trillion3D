@@ -136,6 +136,14 @@
       "onEvent": "Her olayda çağrılır."
     }
   },
+  "BatchRead": {
+    "summary": "`request` bir grubu nasıl okur: iptali, önceliği ve her sayfa geldiğinde ne çalışır.",
+    "members": {
+      "signal": "Grubun okumalarını iptal eder.",
+      "priority": "Kuyruk önceliği, varsayılan 1.",
+      "onPage": "Tüm grup bittikten sonra değil, her sayfanın okuması geldiğinde çalışır."
+    }
+  },
   "BatchOutcome": {
     "summary": "Bir yığın görevinin nasıl sonuçlandığı.",
     "members": {
@@ -2047,7 +2055,19 @@
       "evictedTiles": "Kaldırılan doku parçaları.",
       "residentPages": "Ayardan hemen önce ve hemen sonra yerleşik olan şey.",
       "residentTiles": "Öncesi ve sonrasında tutulan doku parçaları.",
-      "durationMs": "Ne kadar sürdüğü."
+      "durationMs": "Ne kadar sürdüğü.",
+      "tables": "Kendilerinden büyük bir havuz için büyütülen, çizilebilir sayfa başına tablolar (WebGPU); hiçbiri büyütülmediğinde `null`.",
+      "transientBytes": "Geometri havuzu kopyalanırken aynı anda tutulan baytlar: eski havuz ve yanındaki yeni havuz, hiçbir sayfa taşınmadan önce cihaz tarafından birlikte verilir; hiçbir havuz taşınmadığında 0."
+    }
+  },
+  "TableGrowthReport": {
+    "summary": "Çizilebilir satıra göre boyutlanan tabloların büyümesi, üstlerindeki bir havuzun istediği biçimde.",
+    "members": {
+      "drawSlots": "Tabloların şimdi tuttuğu görünürlük satırları.",
+      "casterSlots": "Gölge geçişinin okuduğu satırlar; görünürlük satırlarından sonra gelir.",
+      "bytes": "Büyütülen GPU tablolarının tuttuğu bayt sayısı; reddedildiyse istenen bayt sayısı.",
+      "refused": "Aygıt reddettiğinde `true`: mevcut tablolar ve havuz korunur.",
+      "durationMs": "Büyümenin sürdüğü milisaniye; yoklamadan takasa kadar."
     }
   },
   "Mesh": {
@@ -2253,7 +2273,7 @@
     "description": "İlk altısı, `geometryPage.ts`'ten kelimesi kelimesine alınan sayfa çözme reddidir: bir çağıran onları eskisi gibi ayırt eder. `PAGE_DECODE_FAILED`, sıkıştırma açma kütüphanesinden başka herhangi bir reddi taşır. `PAGE_DECODE_CANCELLED` bir iptale yanıt verir, `PAGE_DECODE_WORKER` kaybolan bir yürütücüye — yalnızca o, yedeğe izin verir."
   },
   "PAGE_DECODE_PROTOCOL": {
-    "summary": "Ana iş parçacığı dışında sayfa çözme sözleşmesi, sürüm 6: çözülmüş geometri, kuantalama hatasıyla tek bir blok olarak yolculuk eder, ve arena yuvası o hatayı 8. kelimede kaydeder; `cut`, çizilen üçgenleri, açıklayıcılarıyla birlikte bayt olarak geri dönen sayfalara dönüştürür. Sürüm 6'dan beri normal konileriyle birlikte döner; paketlenmiş üçgenler sayfalarının bir koni tutup tutmadığını taşır.",
+    "summary": "Ana iş parçacığı dışında sayfa çözme sözleşmesi, sürüm 6: çözülmüş geometri, kuantalama hatasıyla tek bir blok olarak yolculuk eder; `cut`, çizilen üçgenleri, açıklayıcılarıyla birlikte bayt olarak geri dönen sayfalara dönüştürür. Sürüm 6'dan beri normal konileriyle birlikte döner; paketlenmiş üçgenler sayfalarının bir koni tutup tutmadığını taşır.",
     "description": "Çağıran iş parçacığı bir `PageDecodeRequest` gönderir, yürütücü aynı `id`'yi taşıyan bir `PageDecodeAnswer` döndürür. Burada hiçbir şey platforma dokunmaz: `Worker` yok, fetch yok, saat yok — tarayıcı adaptörü bunların hepsini taşır, bu dosya yalnızca mesaj şeklini, kapalı hata listesini ve havuz sınırını taşır. Tampon sahipliği: `source`, istekle birlikte **aktarılır**, bu yüzden gönderen artık ona sahip değildir. Bir `verify` yanıtı onu, sırayla aktarılmış olarak döndürür; bir `decode` yanıtı bunun yerine çözülmüş tamponları, o da aktarılmış olarak döndürür. Hiçbir şey aktarmayan bir yürütücü (senkron yedek) tam olarak aynı değerleri döndürür: sözleşme işin nasıl yolculuk ettiğini söylemez, yalnızca ne döndürdüğünü."
   },
   "PAGE_INTEGRATION_FAILURES": {
@@ -2458,18 +2478,6 @@
       "op": "Ne yapılacağı.",
       "source": "Mesajla birlikte aktarılır: gönderen artık sahibi değildir.",
       "maxDecodedBytes": "Bir geometri sayfasının çözülmüş bayt tavanı; `verify` tarafından yok sayılır."
-    }
-  },
-  "PageDecodeShare": {
-    "summary": "Bir worker'ın paylaşılan bellek kirası: arena tamponu, sahip olduğu slot ve bölge, ve kontrol bölgesinin boyutunu veren slot sayısı.",
-    "description": "Worker doğumunda bir kez ve yalnızca platformun paylaşılan belleğe izin verdiği yerde yayımlanır. Kira olmadan, worker tamponları aktararak yanıt verir: sözleşme şekil değiştirmez, yalnızca bayt yolu değişir.",
-    "members": {
-      "protocol": "Mesaj format sürümü.",
-      "id": "Her zaman 0.",
-      "op": "Her zaman `'share'`.",
-      "buffer": "Paylaşılan bellek.",
-      "slot": "Bu worker'ın slotu.",
-      "slots": "Toplam slot."
     }
   },
   "PageIntegrationAnswer": {
@@ -3177,10 +3185,16 @@
       "tileLightPoolCapacity": "Işık dizini havuzunun o örneklenen karede tuttuğu sözcükler; aynı şekilde `null`.",
       "tileLightPoolOverflowed": "O örneklenen karede bir karonun havuzda yer bulamayıp her ışığı dolaşıp dolaşmadığı.",
       "tileLightPoolGrowths": "Gezgin açıldığından beri havuzun taşan bir karenin istediği kadar büyüdüğü sayı.",
-      "gpuShadowsMs": "Gölgelerin GPU süresi.",
+      "gpuShadowsMs": "Gölgeler aşamasının GPU süresi, tam olarak motorun geçiş tablosundaki gölge geçişleri: gölge atlası, statik katmanı, geçirgenlik katmanının temizlenmesi ve geçişi, sayfa başına ayıklama, sayfa piramitleri ve örtme testi. Işıktan kesim kendi aşamasıdır (`shadowCasters`); gölge işi dışındaki hiçbir geçiş burada sayılmaz.",
       "gpuShadowCullMs": "Bir karenin çizdiği gölge sayfalarının gölge düşürenlerini seçmenin GPU süresi: ışık kesimi, sayfa başına ayıklama ve hareketli gölge düşürenlerin okuduğu piramitlerle örtme testi.",
       "gpuShadowRasterMs": "Bu gölge düşürenleri sayfalara çizmenin GPU süresi: statik katman, ardından havuz.",
       "gpuLightingMs": "Aydınlatmanın GPU süresi.",
+      "cpuShadowPlanMs": "Karenin gölge planının, zamanlayıcının çevresindeki CPU süresi: CPU profilinin adlandırılmış bir adımı (`cpuSteps()`, `cpu-timing`), sonraki beş adım gibi. Her biri, kare onu çalıştırmadığında — ışık yok, tutulan kare — ya da onu ölçemeyen bir motorda (WebGL2) `null` olur, asla 0 değil. Kodlama süresinin içindedirler, ona asla eklenmezler.",
+      "cpuShadowRequestsMs": "Geri gelen gölge istek raporunun okunmasının CPU süresi.",
+      "cpuShadowAdmissionMs": "Karenin okuduğu eskimiş sayfaların kabulünün CPU süresi.",
+      "cpuShadowBatchesMs": "Gölge yığınlarının bölgeleri ve geçişleri çevresindeki CPU süresi: hazırlama, işlemeler, istek kopyası.",
+      "cpuShadowRegionsMs": "Her gölge yığınının bölgelerinin yazılmasının CPU süresi: yüz uniform'ları ve sayfa kayıtları.",
+      "cpuShadowPassesMs": "Her gölge yığınının geçişlerinin kodlanmasının CPU süresi: gölge düşürenler, temizleme ve geri yüklemeler, çizimler.",
       "shadowLightCuts": "Işıklardan yürütülen küme kesitleri: çizilen ışık görünümü başına bir, durağan bir karede sıfır.",
       "shadowPagesRequested": "Görüntünün okuduğu sanal gölge sayfaları, karenin erken talebinin adlandırdığı biçimde — o yoksa son istek raporunun: kameranın alıcılarının işaretledikleri.",
       "shadowPagesCached": "Bunlardan doğrudan havuzdan okunan sayfalar: güncel, çizim yok.",
@@ -3199,6 +3213,7 @@
     "summary": "Karenin gölge işi: hangi sanal sayfaların çizildiği.",
     "members": {
       "counts": "Son planın yaptığı, sayfa olarak.",
+      "spent": "Son planın istek raporunu okumak ve sayfaları kabul etmek için harcadığı CPU milisaniyeleri.",
       "worldChanged": "Bir düğüm hareket etti: kutusu bir sonraki planda kapladığı sayfaları eskitir.",
       "representationChanged": "Aynı dünya başka bir hassasiyette: kutusu kameranın durmasını bekler.",
       "resting": "Kamera son planda duruyordu: görünümü bir önceki planınkiyle aynıydı.",
@@ -4264,10 +4279,16 @@
       "tileLightPoolCapacity": "Işık dizini havuzunun o örneklenen karede tuttuğu sözcükler; aynı şekilde `null`.",
       "tileLightPoolOverflowed": "O örneklenen karede bir karonun havuzda yer bulamayıp her ışığı dolaşıp dolaşmadığı.",
       "tileLightPoolGrowths": "Gezgin açıldığından beri havuzun taşan bir karenin istediği kadar büyüdüğü sayı.",
-      "gpuShadowsMs": "Gölgelerin GPU süresi.",
+      "gpuShadowsMs": "Gölgeler aşamasının GPU süresi, tam olarak motorun geçiş tablosundaki gölge geçişleri: gölge atlası, statik katmanı, geçirgenlik katmanının temizlenmesi ve geçişi, sayfa başına ayıklama, sayfa piramitleri ve örtme testi. Işıktan kesim kendi aşamasıdır (`shadowCasters`); gölge işi dışındaki hiçbir geçiş burada sayılmaz.",
       "gpuShadowCullMs": "Bir karenin çizdiği gölge sayfalarının gölge düşürenlerini seçmenin GPU süresi: ışık kesimi, sayfa başına ayıklama ve hareketli gölge düşürenlerin okuduğu piramitlerle örtme testi.",
       "gpuShadowRasterMs": "Bu gölge düşürenleri sayfalara çizmenin GPU süresi: statik katman, ardından havuz.",
       "gpuLightingMs": "Aydınlatmanın GPU süresi.",
+      "cpuShadowPlanMs": "Karenin gölge planının, zamanlayıcının çevresindeki CPU süresi: CPU profilinin adlandırılmış bir adımı (`cpuSteps()`, `cpu-timing`), sonraki beş adım gibi. Her biri, kare onu çalıştırmadığında — ışık yok, tutulan kare — ya da onu ölçemeyen bir motorda (WebGL2) `null` olur, asla 0 değil. Kodlama süresinin içindedirler, ona asla eklenmezler.",
+      "cpuShadowRequestsMs": "Geri gelen gölge istek raporunun okunmasının CPU süresi.",
+      "cpuShadowAdmissionMs": "Karenin okuduğu eskimiş sayfaların kabulünün CPU süresi.",
+      "cpuShadowBatchesMs": "Gölge yığınlarının bölgeleri ve geçişleri çevresindeki CPU süresi: hazırlama, işlemeler, istek kopyası.",
+      "cpuShadowRegionsMs": "Her gölge yığınının bölgelerinin yazılmasının CPU süresi: yüz uniform'ları ve sayfa kayıtları.",
+      "cpuShadowPassesMs": "Her gölge yığınının geçişlerinin kodlanmasının CPU süresi: gölge düşürenler, temizleme ve geri yüklemeler, çizimler.",
       "hizTestedClusters": "Gizlenme testinin bir karede yaptığı şey: ona verilen cluster'lar, elediği olanlar, ve seviye-0 ekran ayak izi on altı tekselli çekirdeği aşan ve bu yüzden daha kaba bir mipten yanıt verenler. `hiz*Triangles`, aynı cluster'ların üçgenleridir. GPU yolunda, onları render edenden ÖNCEKİ bir kareyi betimlerler — `hizCountedFrame` hangisini adlandırır — `gpuPassMs` gibi, ve komşu iki kare genellikle aynı örneği taşır. Hiçbiri tahmin edilmez: gizlenmeyi test etmeyen bir motorda, verdileri yeniden okunamayan bir cihazda, ve hiçbir kare sayılmadığı sürece `null`.",
       "hizRejectedClusters": "Gizlenen cluster'lar.",
       "hizOversizedClusters": "Test edilemeyecek kadar büyük cluster'lar.",

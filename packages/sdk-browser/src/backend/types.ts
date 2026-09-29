@@ -151,7 +151,7 @@ export interface BackendContext {
   /** Geometry-page pool bytes, fixed regardless of the scene; 512 MiB by default. The root cover
    *  always fits; the rest draws coarser when it does not fit. Image targets follow resolution.
    *  The ceiling: the largest pool `setMemoryBudgets` may ask for, the starting budget without
-   *  it; per-drawable-page tables are sized once, to it. */
+   *  it; per-drawable-page tables start at it, and grow in place past it on WebGPU. */
   geometryPoolBytes?: number;
   geometryPoolCeilingBytes?: number;
   /** Virtual-texture pool bytes, shared by the colour and data atlases; 512 MiB by default. A
