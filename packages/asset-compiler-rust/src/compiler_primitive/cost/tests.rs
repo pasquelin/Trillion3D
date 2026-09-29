@@ -37,9 +37,11 @@ fn the_collider_and_the_packing_are_charged_with_the_dag() {
 #[test]
 fn a_worker_charge_holds_a_full_tile_and_its_jolt_cook() {
     const JOLT_FULL_TILE_PEAK: usize = 1_175_616;
-    assert!(TILE_TRIANGLES * JOLT_TRIANGLE_BYTES >= JOLT_FULL_TILE_PEAK);
-    assert!(WORKER_BYTES >= TILE_BYTES && WORKER_BYTES >= BUNDLE_BYTES);
-    assert!(WORKER_BYTES >= JOLT_FULL_TILE_PEAK + TILE_TRIANGLES * 3 * size_of::<u32>());
+    const {
+        assert!(TILE_TRIANGLES * JOLT_TRIANGLE_BYTES >= JOLT_FULL_TILE_PEAK);
+        assert!(WORKER_BYTES >= TILE_BYTES && WORKER_BYTES >= BUNDLE_BYTES);
+        assert!(WORKER_BYTES >= JOLT_FULL_TILE_PEAK + TILE_TRIANGLES * 3 * size_of::<u32>());
+    }
 }
 
 /// Entries of every object, array values of every array, texts, and the longest key of `value`.

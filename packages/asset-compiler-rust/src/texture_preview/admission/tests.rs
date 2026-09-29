@@ -37,7 +37,8 @@ fn texture_waves_are_the_shared_planners_cut() {
         working: 5,
         retained: 1,
     }; 16];
-    assert_eq!(admit(&costs, 100).unwrap(), [0..16]);
+    let fitting = admit(&costs, 100).unwrap();
+    assert_eq!((fitting.len(), fitting[0].clone()), (1, 0..16));
     let working = [5; 16];
     assert_eq!(
         admit(&costs, 60).unwrap(),
