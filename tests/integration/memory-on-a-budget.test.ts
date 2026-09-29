@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { readCacheManifest } from '../../bench/runner/cacheManifest.ts';
 import { Camera } from '../../packages/sdk-core/src/world/camera/camera.ts';
 import { Box3 } from '../../packages/sdk-core/src/world/math/box3.ts';
-import { Vector3 } from '../../packages/sdk-core/src/world/math/vector3.ts';
+import { Vector3, readVec3 } from '../../packages/sdk-core/src/world/math/vector3.ts';
 import { structureIndex } from '../../packages/sdk-browser/src/page/selection/structure.ts';
 import { pose } from '../../packages/sdk-browser/src/world/pose/index.ts';
 import { mount } from '../../packages/sdk-browser/src/backend/autonomous/poolCut.fixture.ts';
@@ -44,8 +44,9 @@ async function court() {
 /** The example's camera (`site/examples/memory-on-a-budget.html`): the court framed, then 40 % of
  *  the way to its target, turned `quarter` quarters around it. */
 function view(bounds: Box3, quarter: number) {
-  const { position, target } = pose.fromBounds(bounds);
-  const [x, y, z] = position.map((value, axis) => 0.6 * (value - target[axis]));
+  const framing = pose.fromBounds(bounds),
+    target = readVec3(framing.target!);
+  const [x, y, z] = readVec3(framing.position!).map((value, axis) => 0.6 * (value - target[axis]));
   const [cos, sin] = [
     Math.round(Math.cos((quarter * Math.PI) / 2)),
     Math.round(Math.sin((quarter * Math.PI) / 2)),
