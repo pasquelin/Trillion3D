@@ -30,6 +30,7 @@ import { GUIDE_WGSL } from '../../guides/guideShaders.ts';
 import {
   BOUNCE_LIGHTING_SHADER,
   CONTRACT_COMPOSITIONS,
+  contractLightingShader,
   DIRECT_LIGHTING_SHADER,
   UNLIT_COMPOSITIONS,
   UNLIT_LIGHTING_SHADER,
@@ -86,6 +87,15 @@ export const ENGINE_SHADERS: Record<string, string> = {
   REFLECTION_SOURCE_BOUNCE: reflectionSource(BOUNCE_LIGHTING_SHADER),
   REFLECTION_RESOLVE_DIRECT: withScreenReflections(DIRECT_LIGHTING_SHADER, true),
   REFLECTION_RESOLVE_BOUNCE: withScreenReflections(BOUNCE_LIGHTING_SHADER),
+  DIRECT_NARROW_LIGHTING: contractLightingShader(false, true),
+  BOUNCE_NARROW_LIGHTING: contractLightingShader(true, true),
+  REFLECTION_SOURCE_DIRECT_NARROW: reflectionSource(contractLightingShader(false, true)),
+  REFLECTION_SOURCE_BOUNCE_NARROW: reflectionSource(contractLightingShader(true, true)),
+  REFLECTION_RESOLVE_DIRECT_NARROW: withScreenReflections(
+    contractLightingShader(false, true),
+    true,
+  ),
+  REFLECTION_RESOLVE_BOUNCE_NARROW: withScreenReflections(contractLightingShader(true, true)),
   ...compositions('COMPOSE', CONTRACT_COMPOSITIONS.plain),
   ...compositions('UNLIT_COMPOSE', UNLIT_COMPOSITIONS.plain),
   ...compositions('COMPOSE_BLOOM', CONTRACT_COMPOSITIONS.bloom),

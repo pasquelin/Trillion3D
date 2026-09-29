@@ -5058,10 +5058,6 @@
   "emptyIrradiance": {
     "summary": "一个空的辐照度值,内容为空,准备好接收光源。"
   },
-  "encodeManifestBinary": {
-    "summary": "把一份清单拆分成读取器解析的小型 JSON,以及它所映射的各个列。",
-    "description": "返回的描述符携带一个空的 `sha256`:只有持有最终字节数据的调用者,才能对其进行哈希计算。"
-  },
   "enginePose": {
     "summary": "追踪和诊断所公开的世界姿态,从引擎摄像机中读取:眼睛的位置就是 `world` 的平移分量,而核心的分解运算给出的正是 `Matrix4.decompose` 的各个比特,`getWorldQuaternion` 只是对它的一次调用。"
   },
