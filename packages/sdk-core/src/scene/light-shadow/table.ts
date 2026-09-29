@@ -27,8 +27,9 @@ export function createShadowTable(poolPages: number) {
   let changedCount = 0,
     whole = true;
   const write = (entry: number, value: number) => {
-    if (words[entry] === value) return;
-    words[entry] = value;
+    const word = value >>> 0;
+    if (words[entry] === word) return;
+    words[entry] = word;
     table.version++;
     if (whole || queued[entry]) return;
     if (changedCount >= changedCap) {
