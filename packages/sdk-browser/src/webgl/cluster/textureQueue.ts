@@ -16,7 +16,8 @@ export const heldBytes = (width: number, height: number) => Math.ceil((width * h
  * `maxTextureUploadMsPerFrame`), 16 MiB and 1 ms by default (`transferBudgets.ts`). Every upload
  * charges it (`WebglClusterTextures.bind`); a map a draw binds is never refused — WebGL2 holds no
  * coarser level of a map not yet sent, and drawn without it the surface would lose its picture —,
- * so what the budget defers is the queue's: the maps the census orders ahead of any draw.
+ * so what the budget defers is the queue's: the maps the census orders ahead of any draw. A frame
+ * opens it before anything is uploaded (`beginFrame`, by the draw's owner).
  */
 export class WebglUploadBudget {
   private bytes = 0;
@@ -55,9 +56,10 @@ type Ahead = [
  * context's transfer memory; a map uploaded at the first draw that shows it held that frame
  * 100–140 ms on sponza `rue`. The census orders every map of the declared surfaces (`eachMap`, the
  * draw's own walk: same textures, same keys), attached or not, until the maps it counts reach the
- * texture pool — the bytes the session grants; each frame then uploads the next ones while its
- * budget is open (`WebglUploadBudget`), after its draws. A map with no picture yet is left to its
- * first draw, as is anything past the pool. A refused map halves the pool (`outOfMemory`).
+ * texture pool — the bytes the session grants; each frame then uploads the next ones, before its
+ * draws, while its budget is open (`WebglUploadBudget`) and only once the GPU passed the frame
+ * before (`drain`). A map with no picture yet is left to its first draw, as is anything past the
+ * pool. A refused map halves the pool (`outOfMemory`).
  */
 export class WebglTextureQueue {
   private queue: Ahead[] = [];
@@ -86,12 +88,30 @@ export class WebglTextureQueue {
         this.bytes.push(bytes);
       });
   }
-  /** Uploads the next maps while `budget` is open. */
-  drain(textures: Pick<WebglClusterTextures, 'bind'>, budget: WebglUploadBudget) {
+  /** The end of the last frame's commands: the queue uploads again once the GPU passed it. */
+  private fence: WebGLSync | null = null;
+  /**
+   * Before a frame's commands: uploads the next maps while `budget` is open, once the GPU ran every
+   * command of the last frame. An upload sent while the GPU process is behind waits for it: sponza
+   * `rue` held frames 90–120 ms on one map sent after the frame's draws; sent before them, the GPU
+   * idle, the same map took a millisecond.
+   */
+  drain(
+    gl: WebGL2RenderingContext,
+    textures: Pick<WebglClusterTextures, 'bind'>,
+    budget: WebglUploadBudget,
+  ) {
+    if (this.fence && gl.getSyncParameter(this.fence, gl.SYNC_STATUS) !== gl.SIGNALED) return;
     while (this.next < this.queue.length && budget.open) {
       const [unit, texture, srgb, fallback, reader] = this.queue[this.next++];
       textures.bind(unit, texture, srgb, fallback, reader);
     }
+  }
+  /** After a frame's commands, while maps wait: the point the next drain waits for the GPU to pass. */
+  frameEnd(gl: WebGL2RenderingContext) {
+    if (this.fence) gl.deleteSync(this.fence);
+    this.fence =
+      this.next < this.queue.length ? gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0) : null;
   }
   /** The pool as it stands: the bytes it may hold ahead, and those the queue holds. */
   private pool(budgetBytes: number): ShrunkPool {

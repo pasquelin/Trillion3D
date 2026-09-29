@@ -1285,9 +1285,10 @@ A browser that answers by losing the context takes the WebGL2 context-loss path
 
 WebGL2 uploads a map at the first draw that binds it — a surface is never drawn without its
 picture, there is no coarser level to show instead — and uploads the others ahead: the census
-orders the maps of every declared surface within `texturePoolBytes`, and each frame, after its
-draws, uploads the next ones while `maxTextureTransferBytesPerFrame` (16 MiB) and
-`maxTextureUploadMsPerFrame` (1 ms) are not spent, the draws' own uploads counted first.
+orders the maps of every declared surface within `texturePoolBytes`, and each frame, before its
+draws and once the GPU ran the frame before — an upload sent to a GPU behind waits for it —,
+uploads the next ones while `maxTextureTransferBytesPerFrame` (16 MiB) and
+`maxTextureUploadMsPerFrame` (1 ms) are not spent.
 
 Frame targets are **not** budgeted: colour, depth, visibility, HDR, material surfaces, Hi-Z, the
 temporal history and a capture follow the resolution, and `gpuFrameTargetBytes` says what they cost.
