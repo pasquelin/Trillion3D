@@ -11,6 +11,9 @@ import { writeShadowPages } from './pages.ts';
 import type { ShadowRun } from './runs.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
+/** The casters' rows, written from the packed ranks this cut publishes (`./cpuCasterRows.ts`). */
+export { writeCpuCasters } from './cpuCasterRows.ts';
+
 /**
  * The CPU cut's shadow casters: each redrawn face's pages, every batch's, then the same as
  * page-table rows at their own place in one buffer, with one indirect command per face. Allocated
@@ -139,16 +142,18 @@ export function selectCpuCasters(rt: WebgpuPagesRuntime, device: GPUDevice, cam:
         },
         shown[at],
       );
-      // The cut publishes packed ranks: a face keeps its casters by rank, and the record comes back
-      // through the catalogue only for the row sync downstream (`../../../page/selection` → here).
+      // The face keeps its WHOLE cut by rank (`kept`, parallel to `shown[at]`): the caster buffer
+      // `writeCpuCasters` fills draws every one of them. `casters` holds only the pages no row
+      // already draws — the extras `syncRowsFromCut` gives shadow-only rows to.
       const ids = selected.shownPacked,
         kept = shownPacked[at];
       kept.length = 0;
       for (let k = 0; k < ids.length; k++) {
         const page = ids[k];
-        if (page < 0 || marks[page] === stamp) continue;
-        marks[page] = stamp;
+        if (page < 0) continue;
         kept.push(page);
+        if (marks[page] === stamp) continue;
+        marks[page] = stamp;
         const rec = recordOf(page);
         if (rec) casters.push(rec);
       }
