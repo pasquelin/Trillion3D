@@ -3,7 +3,11 @@ import * as G from '../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import type { VisPage } from '../../packages/sdk-browser/src/visibility/buffer.ts';
 import { cameraMoteur } from '../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import type { EngineCamera } from '../../packages/sdk-browser/src/camera/world.ts';
+import { rasterVisibilityIds } from '../../packages/sdk-browser/src/visibility/buffer.ts';
+import { identityRoots } from '../../packages/sdk-browser/src/page/selection/placements.fixture.ts';
 import {
+  buildHizPyramid,
+  visibilityDepth,
   HIZ_BOUNDS_VALUES,
   projectBoxesFlat,
   type HizBounds,
@@ -23,7 +27,7 @@ export function quad(
   min: number[],
   max: number[],
   clusterId: string,
-): { page: VisPage & HizPage; geometry: G.Geometry } {
+): { page: VisPage & HizPage & { matrix: G.Matrix4 }; geometry: G.Geometry } {
   const z = (min[2] + max[2]) * 0.5;
   const geometry = new G.Geometry();
   geometry.setAttribute(
@@ -34,9 +38,11 @@ export function quad(
     ),
   );
   geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3]));
-  const page: VisPage & HizPage = {
+  // Rank 0 of the identity root; the oracles read that world on the page, as pages carried it.
+  const page = {
     array: new Uint32Array([0, 1, 2, 0, 2, 3]),
     attributes: geometry.attributes,
+    placementIndex: 0,
     matrix: new G.Matrix4(),
     material: surfaceOf(material),
     clusterId,
@@ -60,7 +66,14 @@ export function projectBoxToScreen(
   camera: G.Camera | EngineCamera,
   viewport: [number, number],
 ): HizBounds {
-  projectBoxesFlat([{ min, max, matrix }], 1, cameraMoteur(camera), viewport, boxScratch);
+  projectBoxesFlat(
+    [{ min, max, placementIndex: 0 }],
+    [{ world: matrix }],
+    1,
+    cameraMoteur(camera),
+    viewport,
+    boxScratch,
+  );
   return {
     minX: boxScratch[0],
     minY: boxScratch[1],
@@ -69,4 +82,11 @@ export function projectBoxToScreen(
     nearestDepth: boxScratch[4],
     clipsNear: boxScratch[5] !== 0,
   };
+}
+
+/** The Hi-Z pyramid of the depth `occluders`, placed at the identity, leave as `cam` sees them. */
+export function occluderPyramid(occluders: VisPage[], cam: EngineCamera, size: [number, number]) {
+  const roots = identityRoots();
+  const ids = rasterVisibilityIds(occluders, roots, cam, size);
+  return buildHizPyramid(visibilityDepth(ids, occluders, roots, cam, size), ...size);
 }

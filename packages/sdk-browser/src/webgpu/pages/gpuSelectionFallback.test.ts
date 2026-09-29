@@ -122,23 +122,24 @@ test('webgpu visbuffer ids match the CPU oracle for a stable pose', async () => 
     {
       array: indices.get('0')!,
       attributes: geometry.attributes,
-      matrix: mesh.matrixWorld,
+      placementIndex: 0,
       material: surfaceOf(material),
     },
     {
       array: indices.get('1')!,
       attributes: geometry.attributes,
-      matrix: mesh.matrixWorld,
+      placementIndex: 0,
       material: surfaceOf(material),
     },
   ];
-  const expected = rasterVisibilityIds(pages, cameraMoteur(cam), [32, 32]);
+  const roots = [{ world: mesh.matrixWorld }];
+  const expected = rasterVisibilityIds(pages, roots, cameraMoteur(cam), [32, 32]);
   const observed = backend.visibilityIds();
   assert.deepEqual(observed, expected);
   assert.deepEqual(observed, backend.visibilityIds());
   const image = compareImages(
     backend.rasterRgba(),
-    shadeVisibility(expected, pages, cameraMoteur(cam), [32, 32]),
+    shadeVisibility(expected, pages, roots, cameraMoteur(cam), [32, 32]),
   );
   assert.equal(image.maxChannelError, 0);
   const maps = textures.find((t) => t.format === 'rgba8unorm-srgb');

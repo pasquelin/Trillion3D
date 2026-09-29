@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import * as G from '../../host/graph/graph.fixture.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
+import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts';
 
 import { pageCopies } from './poolApi.ts';
 import { createHeldFloor } from './heldFloor.ts';
@@ -16,17 +16,22 @@ function pageGeometry(floats: number) {
   return geometry as unknown as Geometry;
 }
 
-const rec = (url: string, extra: Partial<PageRec> = {}) => ({ url, ...extra }) as PageRec;
+const rec = (url: string, extra: Partial<PageRec> = {}) =>
+  ({ url, placementIndex: 0, ...extra }) as PageRec;
+/** Rank 0 placed at its node, rank 1 by a row. */
+const roots = [{}, { placement: {} }].map(
+  (root) => ({ world: new G.Matrix4(), pages: [], ...root }) as ClusterRoot<PageRec>,
+);
 
 test('page copies follow the records that own a geometry, and the classic instances', () => {
   let instances = 0;
-  const placed = { placement: {} } as Partial<PageRec>;
+  const placed = { placementIndex: 1 };
   const byUrl = new Map([
     ['root', [rec('root')]],
     ['twice', [rec('twice'), rec('twice')]],
     ['rows', [rec('rows', placed), rec('rows', placed), rec('rows', placed)]],
   ]);
-  const copies = pageCopies(byUrl, new Set(['root']), () => instances);
+  const copies = pageCopies(byUrl, roots, new Set(['root']), () => instances);
   assert.deepEqual(
     [copies.of('root'), copies.of('twice'), copies.of('rows'), copies.root(), copies.scene()],
     [1, 2, 1, 1, 4],
@@ -46,7 +51,7 @@ test('the floor counts the root cover and the replaced pages, read again only on
   const bootstrap = [rec('root', { geometry: shared }), rec('root', { geometry: shared })];
   const byUrl = new Map([['page', [rec('page', { geometry: replaced })]]]);
   const modifiedPages = new Set<string>();
-  const floor = createHeldFloor({ bootstrap, modifiedPages, byUrl });
+  const floor = createHeldFloor({ roots, bootstrap, modifiedPages, byUrl });
   assert.equal(floor.bytes(), 9 * 4 + 12, 'a geometry two records share counts once');
   // A pose or a material announces nothing: nothing is walked.
   bootstrap.push(rec('root', { geometry: pageGeometry(3) }));
@@ -63,7 +68,12 @@ test('the floor counts the root cover and the replaced pages, read again only on
 });
 
 test('a replaced page moves the cover, not the placements the requests lay out', () => {
-  const floor = createHeldFloor({ bootstrap: [], modifiedPages: new Set(), byUrl: new Map() });
+  const floor = createHeldFloor({
+    roots,
+    bootstrap: [],
+    modifiedPages: new Set(),
+    byUrl: new Map(),
+  });
   const read = () => [floor.revision, floor.placements];
   floor.changed();
   assert.deepEqual(read(), [1, 0], 'prepare or a replaced page: the pool reads it, no layout');
@@ -83,7 +93,7 @@ test('the floor counts every geometry the store counts: copies sharing their arr
   const bootstrap = [first, second as unknown as Geometry, clone].map((geometry) =>
     rec('root', { geometry }),
   );
-  const floor = createHeldFloor({ bootstrap, modifiedPages: new Set(), byUrl: new Map() });
+  const floor = createHeldFloor({ roots, bootstrap, modifiedPages: new Set(), byUrl: new Map() });
   assert.equal(floor.bytes(), 3 * (9 * 4 + 12), 'three geometries held, three copies counted');
 });
 

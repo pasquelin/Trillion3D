@@ -9,6 +9,7 @@ import { VIS_MAX_PAGES } from '../../../visibility/buffer.ts';
 import { boundTableRows } from '../../row/tableRows.ts';
 import type { WebgpuPagesSetup } from './setup.ts';
 import type { BoxTransformLot } from '../../../math/batchRuntime.ts';
+import { postPlacements } from '../../../page/selection/placements.ts';
 
 export type WebgpuPagesLayout = ReturnType<typeof createWebgpuPagesLayout>;
 
@@ -61,11 +62,9 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
   // page's kind is read from the page, never from its rank.
   const selectionRoots = [...opaqueRoots, ...transparentRoots];
   const packedPages: PageRec[] = selectionRoots.flatMap((root) => root.pages);
-  // A page's placement is its root's rank: what the row carries to find the placement motion
-  // (`../../../taa/motion.ts`), posted once as `packedIndex`.
-  selectionRoots.forEach((root, placement) => {
-    for (const page of root.pages) page.placementIndex = placement;
-  });
+  // A page's placement is its root's rank: where every reader finds its world, row and winding,
+  // and what the row carries to find the placement motion (`../../../taa/motion.ts`).
+  postPlacements(selectionRoots);
   const opaquePageCount = opaqueRoots.reduce((total, root) => total + root.pages.length, 0);
   const worldUpdates = new Float32Array(Math.max(1, selectionRoots.length) * 16);
   const gpuWanted: PageRec[] = bootstrap;
