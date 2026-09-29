@@ -88,6 +88,23 @@ export function importHostSurface(material: HostMaterials): VisMaterial | undefi
     aoIntensity: lit ? (first.aoMapIntensity ?? 1) : 1,
     emissive: emissive ? [emissive.r * glow, emissive.g * glow, emissive.b * glow] : [0, 0, 0],
     emissiveMap: lit ? map(first.emissiveMap) : undefined,
+    subsurfaceColor:
+      lit && side === 'double' && isHostColour(first.subsurfaceColor)
+        ? [first.subsurfaceColor.r, first.subsurfaceColor.g, first.subsurfaceColor.b]
+        : [0, 0, 0],
+    subsurfaceMap: lit && side === 'double' ? map(first.subsurfaceMap) : undefined,
+    anisotropy: physical ? (first.anisotropy ?? 0) : 0,
+    anisotropyRotation: physical ? (first.anisotropyRotation ?? 0) : 0,
+    clearcoat: physical ? (first.clearcoat ?? 0) : 0,
+    anisotropyMap: physical ? map(first.anisotropyMap) : undefined,
+    clearcoatMap: physical ? map(first.clearcoatMap) : undefined,
+    clearcoatRoughnessMap: physical ? map(first.clearcoatRoughnessMap) : undefined,
+    clearcoatNormalMap: physical ? map(first.clearcoatNormalMap) : undefined,
+    clearcoatNormalScale: [
+      first.clearcoatNormalScale?.x ?? 1,
+      (written ? -1 : 1) * (first.clearcoatNormalScale?.y ?? 1),
+    ],
+    clearcoatRoughness: physical ? (first.clearcoatRoughness ?? 0) : 0,
     transmission: physical && typeof first.transmission === 'number' ? first.transmission : 0,
     ior: physical && typeof first.ior === 'number' ? first.ior : 1.5,
     thickness: physical && typeof first.thickness === 'number' ? first.thickness : 0,

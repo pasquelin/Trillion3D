@@ -10,6 +10,8 @@ export function ensureWebgpuShadeBindings(rt: WebgpuPagesRuntime, device: GPUDev
   const entries = (identity.entries[0] ??= shadeBindEntries(
     liveResources<ShadeBindResources>({
       visView: () => rt.vis.visView,
+      shadingOffset: () => rt.gpu.surfaces?.shadingOffset,
+      subsurface: () => rt.gpu.surfaces?.subsurfaceView,
       cache: () => rt.gpu.cache?.buffer,
       position: () => rt.vis.concatPos,
       uv: () => rt.vis.concatUv,

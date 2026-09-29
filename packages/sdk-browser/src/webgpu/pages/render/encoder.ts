@@ -1,3 +1,4 @@
+import { gpuDeviceLedgerOf } from '../../../gpu/core/deviceLedger.ts';
 import { viewProj } from '../helpers.ts';
 import { clearValueOf } from '../../../../../sdk-core/src/world/math/packedColour.ts';
 import { enginePose } from '../../../camera/world.ts';
@@ -74,6 +75,8 @@ export function submitColorCopy(
       gpu.targetSize,
       run.textureConverging,
     );
+  const refusal = gpuDeviceLedgerOf(device)?.refusal;
+  if (refusal) throw refusal;
   // Submit is timed alone: the encode that precedes it no longer carries it.
   const submitStart = performance.now();
   const command = encoder.finish();

@@ -10,6 +10,7 @@ import {
   lampMipOffset,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SHADOW_FACTOR_WGSL } from './shadowFactorWgsl.ts';
+import { LAMP_SOFT_WGSL } from './lampSoftWgsl.ts';
 import { shadowRequestWgsl } from './shadowRequestWgsl.ts';
 import { SHADOW_SAMPLE_WGSL, SHADOW_SUBTEXELS } from './shadowSampleWgsl.ts';
 import { shadowThroughWgsl } from '../../gpu/shadow/transmittance.ts';
@@ -91,6 +92,7 @@ ${poissonWgsl('POISSON', 1)}
 ${poissonWgsl('POISSON_STEPS', SHADOW_SUBTEXELS)}
 /** Pixel footprint at the lit point, in metres: set by the pass before it lights a surface. */
 var<private> shadowFootprint:f32=0.0;
+var<private> shadowReceiverOffset:vec3f=vec3f(0.0);
 /** Offset along the normal, in texels of the level read, of a receiver at incidence \`cosine\`:
  *  half a texel, plus, past 45°, the part of its plane's slope the depth margin leaves. */
 fn shadowNormalTexels(cosine:f32)->f32{
@@ -153,4 +155,5 @@ fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32,
  }
  return shadowThroughLit(offset,first,t,reference,lit/f32(PCF_TAPS));
 }
-${SHADOW_FACTOR_WGSL}`;
+${SHADOW_FACTOR_WGSL}
+${LAMP_SOFT_WGSL}`;

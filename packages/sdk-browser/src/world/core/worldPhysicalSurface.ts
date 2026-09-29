@@ -13,6 +13,8 @@ const PHYSICAL = [
   'transmission',
   'ior',
   'thickness',
+  'anisotropy',
+  'anisotropyRotation',
   'clearcoat',
   'clearcoatRoughness',
   'sheen',
@@ -29,8 +31,13 @@ const physicalFamily = (material: Material) =>
  *  to the physical family takes its extensions first, at the reference's values. */
 export function writePhysical(surface: GraphSurface, material: Material) {
   const family = physicalFamily(material);
+  (surface.subsurfaceColor as Material['subsurfaceColor']).copy(material.subsurfaceColor);
   if (family === 'physical' && surface.family !== family) Object.assign(surface, extensions());
   surface.family = family;
+  if (family === 'physical' && material.clearcoatNormalScale) {
+    const scale = material.clearcoatNormalScale as { x: number; y: number };
+    (surface.clearcoatNormalScale as { set(x: number, y: number): void }).set(scale.x, scale.y);
+  }
   if (family === 'physical')
     for (const field of PHYSICAL)
       if (typeof material[field] === 'number') surface[field] = material[field];
