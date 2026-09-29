@@ -1,21 +1,17 @@
 import type { Scene } from '../../world/core/scene.ts';
 import {
-  colouredTwin,
   hostPageBytes,
-  hostPageGeometry,
   hostPageMesh,
   releaseHostGeometry,
   setHostPose,
 } from '../../host/pageObjects.ts';
-import { wearDeclaration } from '../../page/surface.ts';
 import { EngineError, type GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
 import type { HostMaterial, HostMaterials } from '../../host/resources.ts';
 import { createWebglPageBatches } from '../../placement/webglPageBatches.ts';
 import { drawnInstanced } from '../../placement/autonomousPlacements.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
-import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
 import { createHeldResidency } from '../../page/cut/held.ts';
-import { assertWithinBox, itemSize } from './pageData.ts';
+import { createPageStore } from './pageStore.ts';
 
 type GeometryEnvironment = {
   scene: Scene;
@@ -118,49 +114,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
     for (const list of [allPages, env.bootstrap, ...env.views.lists()])
       for (let i = list.length - 1; i >= 0; i--) if (removed.has(list[i])) list.splice(i, 1);
   };
-  /** The pages the host replaced, as it wrote them: a record that joins one later — a mount —
-   *  draws the host's page, never the cache's, and neither do the others then (#837). */
-  const replaced = new Map<string, DecodedGeometryPage>();
-  /** Stores `given`, or the host's page where it replaced this one; `host` replaces it. */
-  const storeGeometryPage = (url: string, given: DecodedGeometryPage, host = false) => {
-    const recs = byUrl.get(url);
-    if (!recs) return false;
-    const data = host ? given : (replaced.get(url) ?? given);
-    const descriptor = env.descriptors.get(url);
-    if (
-      !descriptor ||
-      data.vertexCount !== descriptor.vertexCount ||
-      data.indices.length !== descriptor.indexCount ||
-      data.flags !== descriptor.flags
-    )
-      throw new Error('AUTONOMOUS_PAGE_METADATA_MISMATCH');
-    if (recs[0] && !recs[0].array) state.residentPages++;
-    let rowedGeometry: ReturnType<typeof hostPageGeometry> | undefined;
-    for (const rec of recs) {
-      release(rec);
-      // Records placed by rows share the page: its geometry, its box and the check of it.
-      const shared = !!rec.placement && !!rowedGeometry;
-      if (!shared) assertWithinBox(data, rec);
-      const geometry = shared ? rowedGeometry! : hostPageGeometry(data, itemSize, rec.min, rec.max);
-      if (rec.placement) rowedGeometry = geometry;
-      const base = baseMaterials.get(rec)!;
-      // Lazily: a page without a colour attribute must not make a vertex-coloured twin.
-      const twin = (one: HostMaterial) => colouredTwin(colorMaterials, one);
-      const paint = () => (Array.isArray(base) ? base.map(twin) : twin(base));
-      wearDeclaration(rec, data.attributes.color ? paint() : base);
-      setArray(rec, data.indices);
-      rec.attributes = geometry.attributes;
-      rec.geometry = geometry;
-      // Each geometry uploads its own buffers: counted as `release` gives them back.
-      if (!shared) state.allocationBytes += hostPageBytes(geometry);
-    }
-    // Kept once every check passed: a refused page never stands in for the cache's.
-    if (host) replaced.set(url, given);
-    return recs.length > 0;
-  };
-  // True when the store now holds the page: the host did not replace it, and a record draws it.
-  const acceptGeometryPage = (url: string, data: DecodedGeometryPage) =>
-    !env.modifiedPages.has(url) && storeGeometryPage(url, data);
+  const store = createPageStore({ ...env, release, setArray, state });
   return {
     state,
     /** The cut's residency: each record's index array, its readiness moved as `setArray` writes. */
@@ -186,14 +140,6 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
       return had;
     },
     removeRecords,
-    storeGeometryPage,
-    /** Records that joined pages the host replaced — a mount's — draw the host's pages. */
-    storeReplaced(urls: readonly string[]) {
-      for (const url of urls) {
-        const data = replaced.get(url);
-        if (data) storeGeometryPage(url, data);
-      }
-    },
-    acceptGeometryPage,
+    ...store,
   };
 }

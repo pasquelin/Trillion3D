@@ -12,6 +12,7 @@ import {
 } from '../../../../sdk-core/src/index.ts';
 import { attr2, sampleLinear, triangleAt } from '../math.ts';
 import type { VisMaterial, VisPage } from '../types.ts';
+import { frameNormalScaleY } from '../frameNormal.ts';
 import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
 
 const normalScratch = new Float64Array(9);
@@ -108,7 +109,7 @@ export function shadingNormal(
     // The three map components as scalars: an array here is an allocation per shaded pixel of a
     // surface that carries a normal map.
     const mapX = (nrm[0] * 2 - 1) * mat.normalScale,
-      mapY = (nrm[1] * 2 - 1) * mat.normalScaleY,
+      mapY = (nrm[1] * 2 - 1) * frameNormalScaleY(mat, !!tangentAttr && !!vertexNormals),
       mapZ = nrm[2] * 2 - 1;
     const T = frameT,
       B = frameB;
