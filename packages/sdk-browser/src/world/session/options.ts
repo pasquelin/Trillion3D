@@ -91,7 +91,8 @@ export interface MeasuredWorldOptions {
    *  Set during the session by `explorer.setMemoryBudgets`. */
   geometryPoolBytes?: number;
   /** Largest geometry pool `explorer.setMemoryBudgets` may ask for during the session —
-   *  the maximum of a settings slider. The starting budget without it. */
+   *  the maximum of a settings slider. The starting budget without it. The WebGPU engine sizes
+   *  its drawable-page tables to it at the start and grows them in place past it. */
   geometryPoolCeilingBytes?: number;
   /** Virtual-texture pool bytes of the WebGPU engine — texture memory, regardless of the
    *  scene. 512 MiB by default, split equally between the colour atlas and the data atlas,

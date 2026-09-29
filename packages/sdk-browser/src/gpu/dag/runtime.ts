@@ -118,7 +118,11 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       if (state.disposed || state.dead || !poolList?.note(page, held)) return;
       recut();
     },
-    dispatch,
+    // The root and mark words parked or marked since the last cut go up as one interval (CPU-15).
+    dispatch(next, shared) {
+      if (!state.disposed && !state.dead) frames.flushWords();
+      return dispatch(next, shared);
+    },
     peek() {
       return state.dead ? null : state.last;
     },

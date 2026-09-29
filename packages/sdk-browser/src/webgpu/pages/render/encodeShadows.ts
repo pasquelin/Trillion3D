@@ -1,4 +1,4 @@
-import { followLightThreshold } from '../prepare/lightResources.ts';
+import { followLightThreshold, followOcclusion } from '../prepare/lightResources.ts';
 import { normalizeVector3, type ShadowViewpoint } from '../../../../../sdk-core/src/index.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
@@ -179,11 +179,11 @@ function ensureStaticLayer(rt: WebgpuPagesRuntime) {
     })
     .then(async (layer) => {
       if (!layer) return;
-      // The pyramids and the occlusion test read the layer: a device that refuses them keeps the
-      // layer, and draws the moving casters untested.
+      // A device that refuses the pyramids or the occlusion test keeps the layer, casters untested.
       try {
         lights.pageHiz = await createShadowPageHiz(device, layer.targets[0]);
         lights.occlusion = await createShadowOcclusion(device, capacity);
+        followOcclusion(rt);
       } catch (error) {
         lights.pageHiz?.dispose();
         lights.pageHiz = undefined;

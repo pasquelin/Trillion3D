@@ -27,11 +27,21 @@ export function makeAsIsShare(
 export const activeAsIsShare = (rt: WebgpuPagesRuntime) =>
   blendWritesShare(rt) ? rt.gpu.asIsShare : undefined;
 
+/** Releases the share target and its cost, when there is one (#1162). */
+function releaseAsIsShare(rt: WebgpuPagesRuntime) {
+  const { gpu } = rt;
+  if (!gpu.asIsShare) return;
+  const [width, height] = gpu.allocatedSize;
+  gpu.asIsShare.dispose();
+  gpu.asIsShare = undefined;
+  gpu.targetBytes -= width * height * AS_IS_SHARE_BYTES;
+}
+
 /**
  * Seeds, from the opaque flags, the share the transparents and particles blend into this image,
  * and returns it: the one made with the targets, or one made at the first image that wants it and
- * kept with them. An image where neither writes it runs no seed pass, makes no share target and
- * returns nothing.
+ * kept with them. An image where neither writes it runs no seed pass and returns nothing; one that
+ * no longer wants it at all (`wantsAsIsShare`, a debug view turned off) releases it (#1162).
  */
 export function seedAsIsShare(
   rt: WebgpuPagesRuntime,
@@ -40,6 +50,7 @@ export function seedAsIsShare(
 ) {
   const { gpu } = rt;
   const written = (!!rt.vis.blendPipelines && blendWritesShare(rt)) || drawsParticles(rt);
+  if (!wantsAsIsShare(rt)) releaseAsIsShare(rt);
   if (!written || !gpu.surfaces) return undefined;
   if (!gpu.asIsShare) {
     const [width, height] = gpu.allocatedSize;
