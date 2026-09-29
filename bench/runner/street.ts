@@ -4,6 +4,7 @@
 import type { Page } from 'playwright';
 import { STREET_REACH, eyeHeight, modelFloor, type Bounds } from './poses.ts';
 import { probeColumns } from './streetPage.ts';
+import { readBounds } from './page.ts';
 
 /** The street the camera walks: a column under open sky, its ground, and the radius around it at
  *  eye height that no wall crosses. */
@@ -117,14 +118,14 @@ export function streetOf(bounds: Bounds, { probes, noStreet }: ColumnProbes): Bo
 export const streetBounds = async (bounds: Bounds, urls: { sdkUrl: string; manifestUrl: string }) =>
   streetOf(bounds, await probeColumns(streetProbe(bounds, urls)));
 
-/** The model's street, probed in `page` on the SDK and manifest a side reads: `bounds` with it.
- *  A model with no street to probe is said by name and walks its box's (`boxStreet`), never
- *  stops the bench. */
+/** The model's box, then its street probed in `page`, on the SDK and manifest a side reads. A
+ *  model with no street to probe is said by name and walks its box's (`boxStreet`), never stops
+ *  the bench. */
 export async function readStreet(
   page: Page,
-  bounds: Bounds,
   urls: { sdkUrl: string; manifestUrl: string },
 ): Promise<Bounds> {
+  const bounds = await page.evaluate(readBounds, urls);
   const read = await page.evaluate(probeColumns, streetProbe(bounds, urls));
   const walked = streetOf(bounds, read);
   if (walked.noStreet) console.log(`street: none (${walked.noStreet}), the box centre is walked`);

@@ -37,8 +37,8 @@ export const texturesConverged = (
 
 /** Quiet images a convergence waits for: the whole pick cycle once per pose, at a capture's
  *  barrier (`poseCycled` false), where the image is read back; one otherwise. */
-export const quietImagesWanted = (capture: boolean, poseCycled: boolean) =>
-  capture && !poseCycled ? PICK_CYCLE : 1;
+export const quietImagesWanted = (pictured: boolean, poseCycled: boolean) =>
+  pictured && !poseCycled ? PICK_CYCLE : 1;
 
 /**
  * Converges the textures of a pose: the image is rendered with all its pixels on feedback, each
@@ -57,14 +57,14 @@ export const quietImagesWanted = (capture: boolean, poseCycled: boolean) =>
  * settling. An extra tile changes no read: the camera reads the level it asked for, and it is
  * resident. Returns the number of tiles served.
  */
-async function convergeTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, capture: boolean) {
+async function convergeTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, pictured: boolean) {
   const { vis, run } = rt;
   const textures = vis.textures!;
   // Nothing streamed — no texture, or all in their queue —: no feedback can name anything, and the
   // image need not be redone.
   if (textures.feedback.entries === 0) return 0;
   const { feedback } = textures,
-    wanted = quietImagesWanted(capture, feedback.poseCycled);
+    wanted = quietImagesWanted(pictured, feedback.poseCycled);
   let total = 0,
     quiet = 0;
   for (let image = 0; image < CONVERGE_LIMIT; image++) {
@@ -78,7 +78,7 @@ async function convergeTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, ca
     // what is pending waits for its bytes.
     quiet = served ? 0 : quiet + 1;
     if (texturesConverged(quiet, wanted, pending, textures.reading)) {
-      feedback.poseCycled ||= wanted === PICK_CYCLE;
+      feedback.poseCycled ||= pictured;
       break;
     }
     if (pending) await textures.settled();
