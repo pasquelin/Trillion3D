@@ -6,6 +6,8 @@ import { firstMaterial } from '../../scene/materialSide.ts';
 import { physicsLink } from '../../physics/physicsLink.ts';
 import { createChangedSubtrees } from './changedSubtrees.ts';
 
+const NO_LIGHTS: readonly Light[] = [];
+
 /** A list member's surface still sends it where it stands: a see-through surface to the
  *  see-through list, an opaque one to the opaque list unless `copies` names it. */
 const see = (mesh: HostMesh) => !!firstMaterial(mesh.material)?.transparent;
@@ -75,8 +77,11 @@ export function createDrawLists(scene: Object3D, copies: readonly object[]) {
     opaque: opaque as readonly HostMesh[],
     /** Visible see-through meshes and copies, in graph order: read, never written. */
     seeThrough: seeThrough as readonly HostMesh[],
-    /** Visible lights, in graph order: read, never written. */
-    lights: lights as readonly Light[],
+    /** Visible lights, in graph order: read, never written. None while the graph itself is
+     *  hidden, as a light's shown chain says; its meshes still draw, as they always have. */
+    get lights(): readonly Light[] {
+      return scene.visible ? lights : NO_LIGHTS;
+    },
     /** Brings the graph's world matrices, then the lists, to the graph as it stands. */
     refresh() {
       matrices.run();
