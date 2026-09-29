@@ -42,6 +42,11 @@ export function createWorldMounts(
         cuts.hold(batch.cut, false);
       }
       for (const batch of contents.mountable()) {
+        // Control records are sized with a session; a new deformation resource needs a new layout.
+        if (batch.cut.drawn.deformation || [...batch.wearers].some((m) => m.waves)) {
+          reopen();
+          continue;
+        }
         held.add(batch.cut);
         cuts.hold(batch.cut, true);
         session.mountPlacements(source.mount(batch)).then(

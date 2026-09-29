@@ -41,7 +41,7 @@ test('transparent spans follow only changed resident pages through arrival, evic
     };
     assert.equal(
       flush().reduce((n, w) => n + w.bytes.length, 0),
-      8,
+      16,
       'only one real entry, no padding',
     );
     assert.equal(flush().length, 0);
@@ -50,13 +50,13 @@ test('transparent spans follow only changed resident pages through arrival, evic
     assert.equal(flush().length, 0, 'opaque eviction writes no transparent span');
     rt.gpu.cache!.unpin('1');
     rt.gpu.cache!.unload('1');
-    assert.equal(flush()[0]?.bytes.length, 8);
+    assert.equal(flush()[0]?.bytes.length, 16);
     assert.ok(
       table.spans.every((v) => v === 0),
       'an evicted page cannot read the next slot owner',
     );
     await rt.gpu.cache!.load('1');
-    assert.equal(flush()[0]?.bytes.length, 8);
+    assert.equal(flush()[0]?.bytes.length, 16);
     assert.equal(table.spans[1], 3);
     assert.equal(flush().length, 0);
   } finally {

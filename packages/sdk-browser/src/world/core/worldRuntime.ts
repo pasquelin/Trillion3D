@@ -12,7 +12,7 @@ import { watchFirstFrame } from '../session/openWatch.ts';
 import { worldReopens } from './worldReopen.ts';
 import { createCanvasFit, followPageCamera } from './worldCamera.ts';
 import type { PosedTwin } from './worldPoses.ts';
-import { poseNamed } from '../../host/world/moveByName.ts';
+import { namedMove } from './worldSceneMethods.ts';
 import type { WorldRuntimeInputs as Inputs } from './worldRuntimeInputs.ts';
 import { DYNAMIC_UPLOAD_BUDGET_BYTES } from './worldDynamic.ts';
 import { vertexUploads } from './worldDynamicRanges.ts';
@@ -37,17 +37,11 @@ export function createWorldRuntime(inputs: Inputs) {
     seatWanted = false,
     lightsChanged = true,
     disposed = false,
-    uploaded = 0, // dynamic vertex bytes written since the last frame's metrics (#573)
     /** Why no session is open: the first-frame watch says it on the console. */
     closed = 'the scene has not been read yet';
   const invalidate = () => explorer?.invalidate();
-  /** A move by name through the session (#972): the page's node the name index finds, posed as
-   *  the engines pose theirs, is written as a page write is — its rows, before the next frame. */
-  const moveNamed = (nodeName: string, matrix: Float32Array) => {
-    const node = poseNamed(scene, nodeName, matrix);
-    if (node) poses.moved(node);
-    invalidate();
-  };
+  // A move by name through the session (#972), and the one the world offers its page.
+  const moveNamed = namedMove(scene, poses, invalidate);
   const relight = () => ((lightsChanged = true), invalidate());
   /** One opening: the session in place closed, the next one opened on what the scene holds. */
   const reopen = async () => {
@@ -78,7 +72,10 @@ export function createWorldRuntime(inputs: Inputs) {
     try {
       const scope = built.source.metadata.scope; // its first model's scope, or the default
       await inputs.ready(); // a lost device is asked again: it opens on what is granted, or fails
-      const options = track.options({ ...inputs.options(), scope });
+      const given = inputs.options();
+      // The session's own loop hands its frames on as `render()` does: bytes told (#573).
+      const onFrame: typeof given.onFrame = (m) => (cuts.dynamic.drew(m), given.onFrame?.(m));
+      const options = track.options({ ...given, scope, onFrame });
       // The first frame is read for the page's camera, not a framing one (`prepare.ts`).
       explorer = await open(canvas, options, { ...built.source, placeCamera, moveNamed });
     } catch (error) {
@@ -137,13 +134,13 @@ export function createWorldRuntime(inputs: Inputs) {
         track.request('repaint-refused');
     }
     if (!session || explorer !== session) return;
-    uploaded += cuts.dynamic.upload(DYNAMIC_UPLOAD_BUDGET_BYTES, uploads);
+    cuts.dynamic.upload(DYNAMIC_UPLOAD_BUDGET_BYTES, uploads);
     if (poses.pending)
       poses.apply(scene, contents.seats, twins, (rows, from, to) =>
         session.updatePlacements(rows, from, to),
       );
     if (lightsChanged)
-      session.setEnvironment({ ...inputs.display(), irradiance: lights.sync(scene, session) });
+      session.setEnvironment(lights.environment(scene, session, inputs.display(), mirror?.root));
     lightsChanged = false;
     background.write(session, backgroundRefused);
   };
@@ -163,6 +160,8 @@ export function createWorldRuntime(inputs: Inputs) {
   return {
     beforeFrame,
     invalidate,
+    /** A move by name the world offers its page (`world.setTransform`, #972). */
+    moveNamed,
     /** A session option changed, or the device was lost: the next opening takes it. */
     renew: track.request,
     /** Settles once `session` has closed: what waited on it carries on with the next one. */
@@ -181,9 +180,7 @@ export function createWorldRuntime(inputs: Inputs) {
       beforeFrame(); // what it applies may close the session: that frame has no image
       if (!explorer) return null;
       const metrics = explorer.render();
-      metrics.dynamicUploadBytes = uploaded;
-      uploaded = 0;
-      cuts.dynamic.tick();
+      cuts.dynamic.drew(metrics);
       track.drew();
       inputs.frame(metrics);
       return metrics;

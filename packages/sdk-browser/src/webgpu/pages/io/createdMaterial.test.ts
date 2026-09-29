@@ -30,7 +30,9 @@ function openQuad(edit: (fixture: ReturnType<typeof quadScene>) => void = () => 
     backends: [backend],
     active: () => backend,
   });
-  const rows = () => {
+  const rows = async () => {
+    backend.render(camera());
+    await backend.flush?.();
     backend.render(camera());
     const table = buffers.find((buffer) => buffer.label === 'Trillion3D page table')!;
     const floats = new Float32Array(table.data.buffer, table.data.byteOffset, table.size / 4);
@@ -58,12 +60,16 @@ test('WebGPU rows draw a drawable in the material the page created and assigned 
   const { api, backend, rows, close } = openQuad();
   try {
     await backend.prepare();
-    assert.deepEqual(rows().colours, new Set(['1,0,0']));
+    assert.deepEqual((await rows()).colours, new Set(['1,0,0']));
     const blended = api.createMaterial({ alphaMode: 'blend', opacity: 0.5 }).id;
     assert.throws(() => api.assignMaterial('0/0', blended), refused);
     const made = api.createMaterial({ baseColor: [0, 0.5, 1] });
     assert.equal(api.assignMaterial('0/0', made.id), true);
-    assert.deepEqual(rows().colours, new Set(['0,0.5,1']), 'every row, off the created surface');
+    assert.deepEqual(
+      (await rows()).colours,
+      new Set(['0,0.5,1']),
+      'every row, off the created surface',
+    );
   } finally {
     close();
   }
@@ -76,12 +82,16 @@ test('a vertex-coloured drawable keeps its colours on WebGPU with a created mate
   });
   try {
     await backend.prepare();
-    assert.equal(rows().coloured, true);
+    assert.equal((await rows()).coloured, true);
     const made = api.createMaterial({ baseColor: [0, 0.5, 1] });
     assert.equal(api.assignMaterial('0/0', made.id), true);
-    assert.equal(rows().coloured, true, 'its rows still read its colours');
+    assert.equal((await rows()).coloured, true, 'its rows still read its colours');
     api.setMaterial(made.id, { baseColor: [0, 1, 0] });
-    assert.deepEqual(rows().colours, new Set(['0,1,0']), 'the coloured variant follows a write');
+    assert.deepEqual(
+      (await rows()).colours,
+      new Set(['0,1,0']),
+      'the coloured variant follows a write',
+    );
   } finally {
     close();
   }

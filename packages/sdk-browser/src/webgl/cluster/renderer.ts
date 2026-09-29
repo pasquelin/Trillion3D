@@ -1,6 +1,6 @@
 import { capture, receivers, target } from '../../reflections/captureGl.ts';
 import type { ClusterDrawMesh, WholeMesh } from '../../cluster/batchMesh.ts';
-import { WebglClusterGeometry } from './geometry.ts';
+import { ATTRIBUTES, WebglClusterGeometry } from './geometry.ts';
 import { WebglClusterTextures } from './textures.ts';
 import { unsupportedClusterLight, WebglClusterLights, type WebglClusterScene } from './lights.ts';
 import { WebglClusterState } from './state.ts';
@@ -16,6 +16,7 @@ import { refuseCluster } from './refusal.ts';
 import { WebglClusterCopies, type SceneCopy } from './copyCulling.ts';
 import { WebglClusterSubmission } from './submission.ts';
 import type { FramePass } from '../core/frameTimer.ts';
+import { WebglClusterDeformation, type DeformationSource } from './deformation.ts';
 
 export class WebglClusterRenderer {
   private gl: WebGL2RenderingContext;
@@ -36,6 +37,9 @@ export class WebglClusterRenderer {
   backdropPasses = 0;
   toneCurve: number = TONE_MAPPING_RANK.aces;
   readonly pass: ClusterMaterialPass;
+  /** The session's deformation records (#357), sent at each frame; shared with the display's. */
+  readonly deformation: WebglClusterDeformation;
+  deformationSource: DeformationSource | undefined;
   private readonly display: WebglClusterRenderer | undefined;
   private readonly locations: Record<string, number>;
   constructor(gl: WebGL2RenderingContext, degraded: ReadDegraded, display?: WebglClusterRenderer) {
@@ -45,10 +49,11 @@ export class WebglClusterRenderer {
     const program = (this.program = createClusterProgram(gl, display?.locations));
     this.locations = display?.locations ?? {};
     if (!display)
-      for (const name of ['position', 'normal', 'uv', 'uv1', 'color', 'instanceMatrix'])
+      for (const name of [...ATTRIBUTES, 'instanceMatrix'])
         this.locations[name] = gl.getAttribLocation(program, name);
     this.geometry = display?.geometry ?? new WebglClusterGeometry(gl, this.locations);
     this.textures = display?.textures ?? new WebglClusterTextures(gl);
+    this.deformation = display?.deformation ?? new WebglClusterDeformation(gl);
     this.lights = new WebglClusterLights(gl, this.program);
     this.state = display?.state ?? new WebglClusterState(gl);
     this.backdrop = display?.backdrop ?? new WebglClusterBackdrop(gl, BACKDROP_UNITS);
@@ -62,7 +67,12 @@ export class WebglClusterRenderer {
     });
     gl.useProgram(program);
     setClusterSamplers(gl, (name) => this.at(name));
-    const parts = { geometry: this.geometry, state: this.state, pass: this.pass };
+    const parts = {
+      geometry: this.geometry,
+      state: this.state,
+      pass: this.pass,
+      deformation: this.deformation,
+    };
     this.submission = new WebglClusterSubmission(
       gl,
       { ...parts, leaves: this.validation.leaves },
@@ -110,6 +120,7 @@ export class WebglClusterRenderer {
     const drawn = [meshes, diagnosticMeshes, plain, blended, transmissive];
     this.lights.upload(scene, camera.view);
     this.textures.beginFrame();
+    this.deformation.beginFrame(this.deformationSource);
     this.pass.beginFrame(camera, gl.getParameter(gl.VIEWPORT) as Int32Array);
     this.geometry.beginFrame();
     this.submission.beginFrame();
@@ -155,7 +166,13 @@ export class WebglClusterRenderer {
   }
   dispose() {
     if (!this.display)
-      for (const shared of [this.backdrop, this.reflection, this.geometry, this.textures])
+      for (const shared of [
+        this.backdrop,
+        this.reflection,
+        this.geometry,
+        this.textures,
+        this.deformation,
+      ])
         shared.dispose();
     this.lights.dispose();
     this.gl.deleteProgram(this.program);

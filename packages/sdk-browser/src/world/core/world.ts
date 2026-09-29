@@ -8,7 +8,7 @@ import { createWorldFrames, type BeforeFrameInfo, type FrameInfo } from './world
 import { createWorldRuntime } from './worldRuntime.ts';
 import { Scene, sceneFogOf, type LoadOptions } from './scene.ts';
 import { worldModelLoader } from './worldLoader.ts';
-import { createWorldRaycast } from './worldRaycast.ts';
+import { worldSceneMethods } from './worldSceneMethods.ts';
 import { awaitViewPages, registerWorld, type JobProgress } from './worldSession.ts';
 import { sessionOptions, type WorldOptions } from './worldOptions.ts';
 import { worldControlsHandle, worldDiagnostic } from './worldHandles.ts';
@@ -152,9 +152,9 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     diagnostic: diagnostic.handle,
     /** Lines, points and helpers drawn over the image (`Guides`). */ guides: switches.guides,
     ...worldMaterialMethods(live, invalidate),
-    /** The nearest object under a canvas point (CSS pixels) or along a world ray, or `null`:
-     *  the node the page added, the world point and normal hit, the distance (`worldRaycast`). */
-    raycast: createWorldRaycast(scene, () => camera, canvas, physics.session),
+    /** The object a canvas point or a world ray meets, and a node reached by its name
+     *  (`worldSceneMethods`): the world's methods over the nodes of its scene. */
+    ...worldSceneMethods(scene, () => camera, canvas, physics.session, runtime),
     /** Runs a function after every drawn frame, with its time and metrics; returns its remover. */
     onFrame: frames.add,
     /** Runs a function ahead of every drawn frame, with `{ delta, time }`; returns its remover.

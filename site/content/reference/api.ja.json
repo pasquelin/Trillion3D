@@ -13,7 +13,8 @@
       "play": "再生を開始する。",
       "stop": "停止し、最初に戻る。",
       "seek": "再生中かどうかにかかわらず、ループモードに従ってクリップを今すぐ `time` 秒の姿勢にする。再生中のアクションはそこから続き、停止中のものは同じミキサーの再生中のアクションが上書きするまでその姿勢を保つ。",
-      "clipTime": "ループモードに応じた、クリップ内でのアクションの位置。"
+      "clipTime": "ループモードに応じた、クリップ内でのアクションの位置。",
+      "blendMode": "`additive` は最初のキーからの相対的な動きを他のアクションに加算し、通常の混合は行いません。"
     }
   },
   "AlphaMode": {
@@ -817,7 +818,9 @@
       "vertexCount": "頂点数。",
       "flags": "どの属性を持つか。",
       "decodedBytes": "展開後のサイズ。",
-      "quantizationError": "ヘッダーが示す最大の位置ずれ量、オブジェクト単位: デコードされた位置は、元データやページが宣言するボックスから、その分だけ離れている可能性がある。"
+      "quantizationError": "ヘッダーが示す最大の位置ずれ量、オブジェクト単位: デコードされた位置は、元データやページが宣言するボックスから、その分だけ離れている可能性がある。",
+      "morphTargets": "`attributes.morph` のターゲット数。ターゲットと頂点ごとに浮動小数点数6個。モーフがなければ省略されます。",
+      "skinInfluences": "頂点ごとの元のボーン影響数。"
     }
   },
   "DiagnosticCapabilities": {
@@ -1154,7 +1157,8 @@
       "mathBatch": "計算経路ガバナー(`../math/path/governor.ts`)の状態: 各バッチ演算の現在のパス、両方のパスの中央値、切りかえ回数。ホストがまだバッチを開いていない場合は`null` — 未計測であって「JavaScriptパス」ではない。",
       "pagesPlannedOffThread": "メインスレッド外でのページ統合処理。`pagesPlannedOffThread`は、その到着計画(各クラスターがパック内で占める位置と、それが移動させるページのランク)がワーカーによって計算された到着数を数え、フォールバックがメインスレッドで計画したものは決して数えない。`pagePlanMs`は、それらの計画の累積時間で、どのスレッドであれ実行者自身が計測したもの: フレームごとの`cpu*`や`gpu*`に足されることは決してない。どちらも、まだ到着が1つも計画されていない間は`null`である — 未計測であって、ゼロではない。",
       "pagePlanMs": "到着の計画に費やされた時間。",
-      "dynamicUploadBytes": "このフレームでその場にアップロードされた動的ジオメトリの頂点バイト数（#573）。ワールドのフレームごとの予算（`DYNAMIC_UPLOAD_BUDGET_BYTES`）内。ワールドが描画しない場合はありません。"
+      "dynamicUploadBytes": "このフレームでその場にアップロードされた動的ジオメトリの頂点バイト数（#573）。ワールドのフレームごとの予算（`DYNAMIC_UPLOAD_BUDGET_BYTES`）内。ワールドが描画しない場合はありません。",
+      "gpuDeformationMs": "`gpuPassMs` のフレームに対応する GPU 変形時間。未計測または未対応なら null。"
     }
   },
   "FramePass": {
@@ -1618,7 +1622,7 @@
   },
   "LIGHT_FIELD": {
     "summary": "バッファ内のライトのフィールド。その基点からの浮動小数点数の位置として。",
-    "description": "ライトあたり4つの`vec4f`。",
+    "description": "ライトあたり5つの`vec4f`。",
     "members": {
       "position": "それが立っている場所。",
       "range": "それがどこまで届くか。",
@@ -1631,7 +1635,8 @@
       "castsShadow": "影を落とすかどうか。",
       "cosInner": "スポットライトの内側の円錐。半影が始まる位置: それがない場合は円錐自身の端。",
       "halfWidth": "矩形ライトの半幅の軸 — `right`にその幅の半分を掛けたもの — 、そして半高。",
-      "halfHeight": "矩形の高さの半分。"
+      "halfHeight": "矩形の高さの半分。",
+      "emitterRadius": "ポイントまたはスポット光源の半径。矩形専用の形状成分と格納位置を共有する。"
     }
   },
   "LIGHT_KIND": {
@@ -1788,7 +1793,8 @@
       "record": "世界がこのモデルについて保持しているすべて: そのアドレス、マニフェスト、グラフ。",
       "getObjectByName": "この名前を持つ下位の最初のノード：モデル、そのソースファイルのノード、次にその他の子 — ファイルが持つライト、ページが置いたノード。",
       "metadata": "モデルのコンパイル済みマニフェスト — そのプリミティブ、`sourceTriangles` — そして`clusters`(そのページが保持するクラスター、DAGのすべてのレベルを数えたもの)。",
-      "localBounds": "このノード自身の内容が占めるボックス、ローカルフレームで; 普通のノードは何も持たない。"
+      "localBounds": "このノード自身の内容が占めるボックス、ローカルフレームで; 普通のノードは何も持たない。",
+      "animations": "モデルのノードに結び付いたファイル内のクリップ：`animation.createMixer(model).clipAction(model.animations[0]).play()`。"
     }
   },
   "LodQualityId": {
@@ -1864,6 +1870,8 @@
       "parameters.ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "parameters.thickness": "透ける表面がどれだけ厚いか。",
       "parameters.clearcoat": "上に塗られた透明なニス: 0から1。",
+      "parameters.anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "parameters.anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "parameters.clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "parameters.sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "parameters.iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -1883,7 +1891,9 @@
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
-      "parameters.restitution": "物体の弾み具合。0 から 1。"
+      "parameters.restitution": "物体の弾み具合。0 から 1。",
+      "parameters.subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "parameters.subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     },
     "members": {
       "isMaterial": "常に`true`: 他の何かとマテリアルを区別する。",
@@ -1910,7 +1920,8 @@
       "physics": "これをまとう物体の物理素材プリセット。",
       "density": "kg/m³。物体の質量に使う。",
       "friction": "物理の摩擦。",
-      "restitution": "物理の反発。"
+      "restitution": "物理の反発。",
+      "subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。"
     }
   },
   "MaterialParameters": {
@@ -1931,6 +1942,8 @@
       "ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "thickness": "透ける表面がどれだけ厚いか。",
       "clearcoat": "上に塗られた透明なニス: 0から1。",
+      "anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -1950,7 +1963,9 @@
       "physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "density": "kg/m³。体積を掛けると質量になる。",
       "friction": "物体のすべりにくさ。0 以上。",
-      "restitution": "物体の弾み具合。0 から 1。"
+      "restitution": "物体の弾み具合。0 から 1。",
+      "subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     }
   },
   "MathPath": {
@@ -2101,7 +2116,9 @@
       "morphTargetInfluences": "ジオメトリが宣言している場合の各モーフターゲットの重み。",
       "morphTargetDictionary": "名前ごとの各モーフターゲットの順位。",
       "updateMorphTargets": "最初のモーフ属性のモーフターゲットごとに 0 の重みを 1 つ。順位で名付ける。",
-      "copy": "`source` の値と、指定がなければその子の複製を取り込む。"
+      "copy": "`source` の値と、指定がなければその子の複製を取り込む。",
+      "skeleton": "`skinIndex` と `skinWeight` が指定するボーン。毎フレーム GPU で評価します。",
+      "waves": "GPU と浮力で使う、`WaterSurface` と共通の波パラメーター。"
     }
   },
   "Mixer": {
@@ -2484,7 +2501,9 @@
       "vertexCount": "頂点数。",
       "flags": "どの属性を持つか。",
       "decodedBytes": "`block`のサイズ。",
-      "quantizationError": "ページヘッダーが示す最大の位置ずれ量、オブジェクト単位。"
+      "quantizationError": "ページヘッダーが示す最大の位置ずれ量、オブジェクト単位。",
+      "skinInfluences": "頂点ごとの元のボーン影響の正確な幅。",
+      "morphTargets": "`morph` のターゲット数。ターゲットと頂点ごとに浮動小数点数6個。モーフがなければ省略されます。"
     }
   },
   "PageDecodeOp": {
@@ -2669,7 +2688,9 @@
       "matrices": "行あたり16個の列優先浮動小数点数。所有者が書き込む。",
       "live": "その行がリソースを配置している場合は1、待機中の場合は0。",
       "shadowless": "その行が影を落とさない場合は1(メッシュの `castShadow` が `false`)、落とす場合は0。",
-      "capacity": "拡張が必要になる前に収まる行数。"
+      "capacity": "拡張が必要になる前に収まる行数。",
+      "sources": "行を再利用しても保持される元の所有者。",
+      "sourceModels": "待機中の行も含め、リソースを共有するメッシュ。"
     }
   },
   "Plane": {
@@ -2737,7 +2758,8 @@
       "streams": "そのストリームバンドル群。",
       "quantization": "ページを持たないプリミティブではnull。それはどんなグリッドにも量子化されなかった。",
       "topology": "メッシュの辺と頂点がどう見えるか。",
-      "dynamic": "ワールドの動的ジオメトリ（#573）：インデックスページのみで、頂点はエンジンがその場で書き換えるホストジオメトリから浮動小数点で読まれる。"
+      "dynamic": "ワールドの動的ジオメトリ（#573）：インデックスページのみで、頂点はエンジンがその場で書き換えるホストジオメトリから浮動小数点で読まれる。",
+      "deformation": "関節の静止球 `[x,y,z,radius]` と最大モーフ到達距離。静的な形状では省略または null。"
     }
   },
   "Primitive": {
@@ -3010,7 +3032,7 @@
       "range": "ポイント、スポット、矩形: エネルギーがちょうどゼロになる範囲、メートル単位。",
       "coneAngle": "スポットの開き角。",
       "penumbra": "スポットのみ: 円錐のうち、その縁から内側に向かって光が`[0, 1]`でフェードする割合; これがなければ縁は`spotEdgeSoftness`にわたって柔らかくなる。",
-      "emitterRadius": "ポイントとスポットのみ: 光源を収める外殻の半径、メートル単位。実際の光源は必ず何か(ランタンのガラス、反射板、傘)に収められており、その外殻は他と同じジオメトリだ: このフィールドがなければ、それは自分自身の光のシャドウマップに入り込み、それを無効にしてしまう。宣言されれば、それはそのマップの近平面になり、光源からその半径より近くにあるものは、そこで影を落とさなくなる。これはライトの性質であって、オブジェクト名やマテリアルの種類では決してない: エンジンは表面しか知らない。厳密に正で、かつ範囲より厳密に小さくなければならない; 省略された場合は何も変わらない。",
+      "emitterRadius": "ポイントとスポットのみ: 光源を収める外殻の半径、メートル単位。実際の光源は必ず何か(ランタンのガラス、反射板、傘)に収められており、その外殻は他と同じジオメトリだ: このフィールドがなければ、それは自分自身の光のシャドウマップに入り込み、それを無効にしてしまう。この球の内部にあるフラグメントは影を落とさない。マップの近平面は引き続き照射範囲に依存する。ポイントライトでは、この半径は接触付近で影を硬くするフィルターの光源サイズも決める。 これはライトの性質であって、オブジェクト名やマテリアルの種類では決してない: エンジンは表面しか知らない。厳密に正で、かつ範囲より厳密に小さくなければならない; 省略された場合は何も変わらない。",
       "right": "矩形のみ: `direction`に垂直な、その幅が走る単位軸。",
       "size": "矩形のみ: その幅と高さ、メートル単位。",
       "castsShadow": "影を落とすかどうか。"
@@ -3344,7 +3366,8 @@
       "quantization": "ページを持たないプリミティブではnull。それはどんなグリッドにも量子化されなかった。",
       "topology": "メッシュの辺と頂点がどう見えるか。",
       "binary": "そのリストが見つかる場所。",
-      "dynamic": "ワールドの動的ジオメトリ（#573）：インデックスページのみで、頂点はエンジンがその場で書き換えるホストジオメトリから浮動小数点で読まれる。"
+      "dynamic": "ワールドの動的ジオメトリ（#573）：インデックスページのみで、頂点はエンジンがその場で書き換えるホストジオメトリから浮動小数点で読まれる。",
+      "deformation": "関節の静止球 `[x,y,z,radius]` と最大モーフ到達距離。静的な形状では省略または null。"
     }
   },
   "SlimPrimitiveBinary": {
@@ -3506,9 +3529,13 @@
       "baseMetal": "RGBがベースカラー、Aが金属度。",
       "normalRough": "XYZがワールド法線、Aが粗さ。",
       "emissiveAo": "RGBが発光、Aがアンビエントオクルージョン。",
-      "flags": "0 背景、1 非ライティング（霧あり）、2 読み取り、3 そのまま表示: 診断、法線または深度のビュー。",
+      "flags": "0 背景、1 非ライティング（霧あり）、2 読み取り、3 そのまま表示: 診断、法線または深度のビュー。 4と5は拡散モデルとトゥーンモデル（`./surfaceModel.ts`）。",
       "views": "そのGPUテクスチャビュー群。",
-      "dispose": "それを解放する。"
+      "dispose": "それを解放する。",
+      "shadingOffset": "完全精度の影受信面オフセット。G-bufferと併せて書き込まれる。",
+      "subsurface": "薄い表面の独立した透過色。無効時は値がゼロの1×1テクスチャ。",
+      "subsurfaceView": "薄い表面の透過テクスチャのビュー。",
+      "hasSubsurface": "薄い表面の透過用ターゲットがフルサイズかどうか。"
     }
   },
   "SurfaceCapture": {
@@ -3808,7 +3835,8 @@
       "name": "それが何をアニメーションさせるか: `node.field`。",
       "kind": "どんな種類の値を保持するか。",
       "times": "各キーが起こる時刻、秒単位。",
-      "values": "各キーでの値、次々に。"
+      "values": "各キーでの値、次々に。",
+      "interpolation": "既定は `linear`。`step` は前のキーを保持し、`cubic` は glTF の入力接線・値・出力接線の組を使います。"
     }
   },
   "TrackBinding": {
@@ -3817,11 +3845,12 @@
       "owner": "そのトラックが書き込むオブジェクト。",
       "field": "それが書き込む、`owner`のフィールド。",
       "key": "最後のサンプルが位置していたキー。",
-      "value": "1サンプル分の数値。"
+      "value": "1サンプル分の数値。",
+      "reference": "加算アクション用の、最初のキーの基準ポーズ。"
     }
   },
   "TrackKind": {
-    "summary": "トラックが何をアニメーションさせるか: 数値、ベクトル、回転、あるいは色。"
+    "summary": "数値、ベクトル、回転、色、またはモーフウェイトのリスト。"
   },
   "TrackballCameraControls": {
     "summary": "トラックボール: シーンがカーソルの下のボールであるかのように、カメラがそのピボットのまわりを転がる。",
@@ -3946,7 +3975,7 @@
   },
   "UNSPLIT_PASS": {
     "summary": "コンパイラによってクラスターDAGの外に保たれる、分割されないプリミティブのレイアウト: メッシュ全体、元データの順序を保持。",
-    "description": "今日、そこに至る3つのマテリアルプロパティがある — 透過、スキニング、モーフターゲット — オブジェクト名では決してない。"
+    "description": "この経路が必要になるのは透過によるもので、オブジェクト名ではありません。"
   },
   "UserNotice": {
     "summary": "ページを使っている人へのメッセージ。何ができるかとともに。",
@@ -4382,7 +4411,8 @@
       "shadowCastersKept": "ページごとのカリングが残したキャスター（描画した全ページ合計）、デバイスが最後にサンプリングしたフレーム（15 フレームに 1 回）での値。サンプルが戻るまで `null`。",
       "shadowCastersRejected": "ページごとのカリングがテストして残さなかったキャスター（そのページのうちレシーバーが読む部分の外）、同じサンプリングされたフレームでの値。サンプルが戻るまで `null`。",
       "shadowCastersHidden": "遮蔽テストがページの静的レイヤーの後ろに隠れていると判定した移動キャスター、最後にサンプリングしたフレームでの値。サンプルが戻るまで `null`。",
-      "dynamicUploadBytes": "このフレームでその場にアップロードされた動的ジオメトリの頂点バイト数（#573）。ワールドのフレームごとの予算（`DYNAMIC_UPLOAD_BUDGET_BYTES`）内。ワールドが描画しない場合はありません。"
+      "dynamicUploadBytes": "このフレームでその場にアップロードされた動的ジオメトリの頂点バイト数（#573）。ワールドのフレームごとの予算（`DYNAMIC_UPLOAD_BUDGET_BYTES`）内。ワールドが描画しない場合はありません。",
+      "gpuDeformationMs": "`gpuPassMs` のフレームに対応する GPU 変形時間。未計測または未対応なら null。"
     }
   },
   "WorldOptions": {
@@ -5935,6 +5965,8 @@
       "parameters.ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "parameters.thickness": "透ける表面がどれだけ厚いか。",
       "parameters.clearcoat": "上に塗られた透明なニス: 0から1。",
+      "parameters.anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "parameters.anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "parameters.clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "parameters.sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "parameters.iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -5954,7 +5986,9 @@
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
-      "parameters.restitution": "物体の弾み具合。0 から 1。"
+      "parameters.restitution": "物体の弾み具合。0 から 1。",
+      "parameters.subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "parameters.subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     }
   },
   "material.meshPhysical": {
@@ -5976,6 +6010,8 @@
       "parameters.ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "parameters.thickness": "透ける表面がどれだけ厚いか。",
       "parameters.clearcoat": "上に塗られた透明なニス: 0から1。",
+      "parameters.anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "parameters.anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "parameters.clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "parameters.sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "parameters.iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -5995,7 +6031,9 @@
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
-      "parameters.restitution": "物体の弾み具合。0 から 1。"
+      "parameters.restitution": "物体の弾み具合。0 から 1。",
+      "parameters.subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "parameters.subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     }
   },
   "material.meshBasic": {
@@ -6017,6 +6055,8 @@
       "parameters.ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "parameters.thickness": "透ける表面がどれだけ厚いか。",
       "parameters.clearcoat": "上に塗られた透明なニス: 0から1。",
+      "parameters.anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "parameters.anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "parameters.clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "parameters.sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "parameters.iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -6036,7 +6076,9 @@
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
-      "parameters.restitution": "物体の弾み具合。0 から 1。"
+      "parameters.restitution": "物体の弾み具合。0 から 1。",
+      "parameters.subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "parameters.subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     }
   },
   "material.meshPhong": {
@@ -6058,6 +6100,8 @@
       "parameters.ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "parameters.thickness": "透ける表面がどれだけ厚いか。",
       "parameters.clearcoat": "上に塗られた透明なニス: 0から1。",
+      "parameters.anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "parameters.anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "parameters.clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "parameters.sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "parameters.iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -6077,7 +6121,9 @@
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
-      "parameters.restitution": "物体の弾み具合。0 から 1。"
+      "parameters.restitution": "物体の弾み具合。0 から 1。",
+      "parameters.subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "parameters.subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     }
   },
   "material.meshLambert": {
@@ -6099,6 +6145,8 @@
       "parameters.ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "parameters.thickness": "透ける表面がどれだけ厚いか。",
       "parameters.clearcoat": "上に塗られた透明なニス: 0から1。",
+      "parameters.anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "parameters.anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "parameters.clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "parameters.sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "parameters.iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -6118,7 +6166,9 @@
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
-      "parameters.restitution": "物体の弾み具合。0 から 1。"
+      "parameters.restitution": "物体の弾み具合。0 から 1。",
+      "parameters.subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "parameters.subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     }
   },
   "material.meshToon": {
@@ -6140,6 +6190,8 @@
       "parameters.ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "parameters.thickness": "透ける表面がどれだけ厚いか。",
       "parameters.clearcoat": "上に塗られた透明なニス: 0から1。",
+      "parameters.anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "parameters.anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "parameters.clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "parameters.sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "parameters.iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -6159,7 +6211,9 @@
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
-      "parameters.restitution": "物体の弾み具合。0 から 1。"
+      "parameters.restitution": "物体の弾み具合。0 から 1。",
+      "parameters.subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "parameters.subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     }
   },
   "material.meshNormal": {
@@ -6181,6 +6235,8 @@
       "parameters.ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "parameters.thickness": "透ける表面がどれだけ厚いか。",
       "parameters.clearcoat": "上に塗られた透明なニス: 0から1。",
+      "parameters.anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "parameters.anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "parameters.clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "parameters.sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "parameters.iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -6200,7 +6256,9 @@
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
-      "parameters.restitution": "物体の弾み具合。0 から 1。"
+      "parameters.restitution": "物体の弾み具合。0 から 1。",
+      "parameters.subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "parameters.subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     }
   },
   "material.meshMatcap": {
@@ -6222,6 +6280,8 @@
       "parameters.ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "parameters.thickness": "透ける表面がどれだけ厚いか。",
       "parameters.clearcoat": "上に塗られた透明なニス: 0から1。",
+      "parameters.anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "parameters.anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "parameters.clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "parameters.sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "parameters.iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -6241,7 +6301,9 @@
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
-      "parameters.restitution": "物体の弾み具合。0 から 1。"
+      "parameters.restitution": "物体の弾み具合。0 から 1。",
+      "parameters.subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "parameters.subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     }
   },
   "material.meshDepth": {
@@ -6263,6 +6325,8 @@
       "parameters.ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "parameters.thickness": "透ける表面がどれだけ厚いか。",
       "parameters.clearcoat": "上に塗られた透明なニス: 0から1。",
+      "parameters.anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "parameters.anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "parameters.clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "parameters.sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "parameters.iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -6282,7 +6346,9 @@
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
-      "parameters.restitution": "物体の弾み具合。0 から 1。"
+      "parameters.restitution": "物体の弾み具合。0 から 1。",
+      "parameters.subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "parameters.subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     }
   },
   "material.points": {
@@ -6304,6 +6370,8 @@
       "parameters.ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "parameters.thickness": "透ける表面がどれだけ厚いか。",
       "parameters.clearcoat": "上に塗られた透明なニス: 0から1。",
+      "parameters.anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "parameters.anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "parameters.clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "parameters.sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "parameters.iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -6323,7 +6391,9 @@
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
-      "parameters.restitution": "物体の弾み具合。0 から 1。"
+      "parameters.restitution": "物体の弾み具合。0 から 1。",
+      "parameters.subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "parameters.subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     }
   },
   "material.line": {
@@ -6345,6 +6415,8 @@
       "parameters.ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "parameters.thickness": "透ける表面がどれだけ厚いか。",
       "parameters.clearcoat": "上に塗られた透明なニス: 0から1。",
+      "parameters.anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "parameters.anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "parameters.clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "parameters.sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "parameters.iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -6364,7 +6436,9 @@
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
-      "parameters.restitution": "物体の弾み具合。0 から 1。"
+      "parameters.restitution": "物体の弾み具合。0 から 1。",
+      "parameters.subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "parameters.subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     }
   },
   "material.lineDashed": {
@@ -6386,6 +6460,8 @@
       "parameters.ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "parameters.thickness": "透ける表面がどれだけ厚いか。",
       "parameters.clearcoat": "上に塗られた透明なニス: 0から1。",
+      "parameters.anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "parameters.anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "parameters.clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "parameters.sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "parameters.iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -6405,7 +6481,9 @@
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
-      "parameters.restitution": "物体の弾み具合。0 から 1。"
+      "parameters.restitution": "物体の弾み具合。0 から 1。",
+      "parameters.subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "parameters.subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     }
   },
   "material.sprite": {
@@ -6427,6 +6505,8 @@
       "parameters.ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "parameters.thickness": "透ける表面がどれだけ厚いか。",
       "parameters.clearcoat": "上に塗られた透明なニス: 0から1。",
+      "parameters.anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "parameters.anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "parameters.clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "parameters.sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "parameters.iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -6446,7 +6526,9 @@
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
-      "parameters.restitution": "物体の弾み具合。0 から 1。"
+      "parameters.restitution": "物体の弾み具合。0 から 1。",
+      "parameters.subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "parameters.subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     }
   },
   "material.shadow": {
@@ -6468,6 +6550,8 @@
       "parameters.ior": "入るときに光がどれだけ曲がるか: ガラスなら1.5、水なら1.33。",
       "parameters.thickness": "透ける表面がどれだけ厚いか。",
       "parameters.clearcoat": "上に塗られた透明なニス: 0から1。",
+      "parameters.anisotropy": "指定された異方性の強さ。0〜1。まだ描画には反映されません。",
+      "parameters.anisotropyRotation": "指定された異方性の方向。ラジアン単位。まだ描画には反映されません。",
       "parameters.clearcoatRoughness": "そのニスがどれだけ粗いか。",
       "parameters.sheen": "ベルベットのような、浅い角度でのやわらかい輝き。",
       "parameters.iridescence": "シャボン玉のような、角度によって変わる虹色。",
@@ -6487,7 +6571,9 @@
       "parameters.physics": "これをまとう物体の素材：密度、摩擦、反発。",
       "parameters.density": "kg/m³。体積を掛けると質量になる。",
       "parameters.friction": "物体のすべりにくさ。0 以上。",
-      "parameters.restitution": "物体の弾み具合。0 から 1。"
+      "parameters.restitution": "物体の弾み具合。0 から 1。",
+      "parameters.subsurfaceColor": "薄い両面サーフェスを通る拡散透過。黒で無効になる。",
+      "parameters.subsurfaceMap": "任意の線形透過色。subsurfaceColorと乗算される。"
     }
   },
   "metric": {
@@ -7487,7 +7573,8 @@
       "height": "ワールドの点 `(x, z)` の上の水面の高さ(メートル)。",
       "point": "静止点 `(x, level, z)` が運ばれるワールドの点 `[x, y, z]` を `out` に:点ごとに動かしたグリッドがそのまま水面になり、波頭は波と同じ鋭さです。",
       "wavesNow": "宣言した波で、各位相を現在時刻まで進めたもの:`world.physics.water` に設定し直しても(その波は 0 秒から始まり直す)、水面は跳ばずに今の位置から続きます。",
-      "normal": "静止点 `(x, z)` における水面の単位法線 `[x, y, z]` を `out` に。"
+      "normal": "静止点 `(x, z)` における水面の単位法線 `[x, y, z]` を `out` に。",
+      "waveModel": "GPU と物理で同じ波の値と時刻を使います。"
     }
   },
   "WaveSpec": {
@@ -7943,5 +8030,80 @@
   },
   "world.materialMapBytes": {
     "summary": "保持中または処理待ちの画像のバイト数。上限は64 MiB。"
+  },
+  "animation.weightsTrack": {
+    "summary": "各キーにすべてのモーフウェイトを含むトラック。",
+    "parameters": {
+      "path": "パス `node.morphTargetInfluences`。",
+      "times": "秒単位のキー時刻。",
+      "values": "ターゲットとキーごとに1つのウェイト。"
+    }
+  },
+  "animation.skeleton": {
+    "summary": "`mesh.skeleton` に割り当てるスケルトンを作成します。",
+    "parameters": {
+      "bones": "`skinIndex` の順序で並べたボーン。",
+      "inverseBindMatrices": "ボーンごとに16個の数値。省略すると現在のポーズがバインドポーズになります。"
+    }
+  },
+  "animation.twoBoneIK": {
+    "summary": "クリップ評価後、2本のボーンのチェーンを指定点に届かせます。",
+    "parameters": {
+      "root": "チェーンの最初のボーン。",
+      "mid": "チェーンの2本目のボーン。",
+      "end": "2本目のボーンに接続された終端ノード。",
+      "target": "到達する点。",
+      "pole": "曲げる方向。既定は現在の方向。",
+      "weight": "0 は現在のポーズを保持し、1 は解を完全に適用します。"
+    }
+  },
+  "animation.windClip": {
+    "summary": "木のボーンを傾けて揺らすループクリップ。",
+    "parameters": {
+      "bones": "幹から枝先の順のボーン。",
+      "options": "方向、最大曲げ角度、周波数。"
+    },
+    "parameters.options.direction": "地面上の方向 `[x, z]`。既定値は `[1, 0]` です。",
+    "parameters.options.angle": "最大曲げ角（ラジアン）。既定値は 0.1 です。",
+    "parameters.options.frequency": "毎秒の揺れ回数。既定値は 0.5 です。"
+  },
+  "Skeleton": {
+    "summary": "スキンメッシュを変形するボーンと、メッシュ座標を各ボーン座標へ移す逆バインド行列。",
+    "description": "頂点の関節インデックスは `bones` の位置を指します。逆バインド行列を省略すると、スケルトン作成時のボーン姿勢がバインド姿勢になります。",
+    "members.isSkeleton": "常に `true`。スケルトンを識別します。",
+    "members.bones": "関節順に並んだ関節ノード。",
+    "members.boneInverses": "ボーンごとに列優先の16個の数値。バインド姿勢のワールド行列の逆行列です。",
+    "members.palette": "各関節の `meshWorld⁻¹ · boneWorld · boneInverse` の行を、`out` の `at` から書き込みます。パレットはバインド頂点をメッシュのローカル座標に変換し、その後メッシュのワールド変換が適用されます。`boneWorlds` は読み取り側のワールド行列を指定し、省略時は各ボーン自身の行列を使います。"
+  },
+  "Waves": {
+    "summary": "`setTime` で時刻を設定する Gerstner 波の集合。",
+    "description": "波 `i` ごとに方向 `(dx, dz)`、波数 `k`、振幅 `A`、横方向の振幅 `Q·A` を持ちます。波頭が折り返さないよう、急峻度を `Σ Qᵢ·Aᵢ·kᵢ ≤ 1` に正規化します。",
+    "members.phase": "設定時刻での各波の位相。範囲は [0, 2π) で、時刻に依存する唯一の状態です。",
+    "members.crest": "静止面からの最大高さ：`Σ Aᵢ`。",
+    "members.steepness": "正規化後の `Σ Qᵢ·Aᵢ·kᵢ`。最大1です。",
+    "members.phasesAt": "`t` 秒での各波の位相を、倍精度で [0, 2π) に収めます。",
+    "members.setTime": "時刻を `t` 秒に設定します。前フレームの面は `setTime(t - dt)` に対応します。",
+    "members.offset": "静止点 `(x, 0, z)` の変位 `[x, y, z]` を `out` に書き込みます。",
+    "members.normal": "静止点 `(x, z)` での単位法線 `[x, y, z]` を `out` に書き込みます。",
+    "members.count": "合成する波の数。",
+    "members.dirX": "各波の方向の正規化された x 成分。",
+    "members.dirZ": "各波の方向の正規化された z 成分。",
+    "members.k": "各波の波数。単位はラジアン毎メートルです。",
+    "members.amplitude": "各波の鉛直振幅。単位はメートルです。",
+    "members.lateral": "各波の正規化された横方向の振幅。単位はメートルです。"
+  },
+  "WindOptions": {
+    "summary": "風向（地面上の `x`、`z`）、ボーンの最大曲げ角（ラジアン）、毎秒の揺れ回数。",
+    "members.direction": "地面上の方向 `[x, z]`。既定値は `[1, 0]` です。",
+    "members.angle": "最大曲げ角（ラジアン）。既定値は 0.1 です。",
+    "members.frequency": "毎秒の揺れ回数。既定値は 0.5 です。"
+  },
+  "world.setTransform": {
+    "summary": "ノード `nodeName` のワールド姿勢が `matrix` になるように動かします。ページが参照を保持していないノードも、名前（`object.name`）でシーンから探して届きます。",
+    "description": "姿勢はワールド姿勢です — エンジンがノードの親の空間へ戻します — ので、動いた親の下の名前でも要求どおりの位置に着きます。ページの名前による移動を WebGPU と WebGL2 がたどる同じ経路で、別経路ではありません。次のフレームが描画します。何も変えない要求はフレームを求めません。",
+    "parameters": {
+      "nodeName": "動かすノードの `name`。",
+      "matrix": "そのワールド姿勢。列優先で 16 個の浮動小数。"
+    }
   }
 }

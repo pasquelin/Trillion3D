@@ -206,11 +206,12 @@ onChange)` gives sliders (`[min, max, value, step?]`), colour pickers (`'#rrggbb
    written example parked until the engine draws it keeps its `file` with `status`
    `waiting-engine` and the `issue` that delivers the feature: the kit's banner then shows, on its
    page and on no other, "Waiting for the engine (#n)" (`kit.banner.waiting`) linked to that
-   issue, read from the roadmap at build time (`site/examples/kit/waiting.inline.ts`). Then
-   capture its thumbnail:
-   `node scripts/docs-examples-thumbnails.ts <id>`. The capture hides the kit's panels and the
-   credit line and waits for the example's most telling moment, the seconds it declares in
-   `<meta name="thumbnail" content="3">` (1.5 when it declares none).
+   issue, read from the roadmap at build time (`site/examples/kit/waiting.inline.ts`). Declare
+   the example's most telling moment, the seconds in `<meta name="thumbnail" content="3">` (1.5
+   when it declares none); the author captures nothing. The card shows the shared placeholder
+   until the recette, after the merge, captures the thumbnail of every example its batch added or
+   changed with `node scripts/docs-examples-thumbnails.ts <id>` (the kit's panels and the credit
+   line hidden) and delivers them in one "Thumbnail only" pull request.
    A scene too heavy to cook here lives in its own repository and is published beside the
    portal, outside this gallery. The open world (#332) is one:
    https://github.com/pasquelin/Trillion3D-openworld, served at `/openworld/` (#426).

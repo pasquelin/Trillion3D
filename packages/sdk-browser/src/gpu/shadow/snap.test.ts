@@ -54,6 +54,20 @@ test('the snap follows the face: a perspective face is left as is, the step is i
   assert.notEqual(half.x, sunSnap(ORTHO, SHADOW_PAGE)(corner).x);
 });
 
+// #1016 measure ko: an ordinary corner lies within the pool's f32 subtexel, so the snap takes the
+// constant step without `snapGrid`'s loop or a division per axis — the fast path a moving camera's
+// every redrawn caster vertex walks.
+test('a corner within the pool snaps on the constant subtexel step', () => {
+  const snap = sunSnap(ORTHO, SHADOW_PAGE);
+  const step = (SHADOW_PAGE / 2) * 256;
+  for (let i = 0; i < 2000; i++) {
+    const x = f(Math.sin(i * 4.1357) * 0.9);
+    assert.equal(snap(vec4f(x, 0, 0.5, 1)).x, Math.round(x * step) / step, `corner ${x}`);
+  }
+  // Only a corner past the pool's f32 subtexel reaches `snapGrid`.
+  assert.match(SHADOW_DEPTH_SHADER, /if\(abs\(p\.x\)\*half\+pool>=edge\)/);
+});
+
 // #1016: a caster whose sphere touches a page is drawn whole (`cullShader.ts`), and a flat floor's
 // corner can lie tens of thousands of texels past the page. There the viewport's f32 sum steps by
 // more than the 1/256 snap, and rounded that corner by the page's origin: the snap takes the f32

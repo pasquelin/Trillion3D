@@ -1,6 +1,6 @@
 import { exclusiveScan, packDrawIndirect } from '../../../../sdk-core/src/index.ts';
-import { BASE_SLOTS, PAGE_BIND_ALIGN, slotCount } from './contract.ts';
-import type { DrawItem, CompactResult, SlotLayout } from './contract.ts';
+import { BASE_SLOTS, slotCount } from './contract.ts';
+import type { DrawItem, CompactResult } from './contract.ts';
 
 /** A slot is a cull mode, an occluder/tested half and a coplanar layer, in that order.
  *  CPU mirror of `slotOf` (shader.ts): same product, same sum, same layer cap.
@@ -63,26 +63,6 @@ export function evaluateDrawCompact(
     indirect,
     overflow: false,
   };
-}
-
-/** Pad each compact region so a storage bind offset is a multiple of `align` (WebGPU minStorageBufferOffsetAlignment). */
-export function compactSlotLayout(
-  counts: ArrayLike<number>,
-  stride: number,
-  align = PAGE_BIND_ALIGN,
-): SlotLayout {
-  const offsets = new Array(counts.length).fill(0) as number[];
-  const rows = new Array(counts.length).fill(0) as number[];
-  let bytes = 0,
-    used = 0;
-  for (let s = 0; s < counts.length; s++) {
-    if (bytes % align) bytes += align - (bytes % align);
-    offsets[s] = bytes;
-    rows[s] = stride ? bytes / stride : 0;
-    bytes += counts[s] * stride;
-    if (counts[s]) used = bytes;
-  }
-  return { offsets, rows, tableRows: Math.max(1, stride ? used / stride : 1) };
 }
 
 /** DrawIndirect words with firstInstance=0. Compact still records exclusive-scan starts in word[3]. */

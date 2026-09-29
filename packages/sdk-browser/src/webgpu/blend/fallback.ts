@@ -44,7 +44,7 @@ export function listFallbackBlendDraws(blendState: BlendState, gpuCut: boolean) 
     // failed before the blend resources never builds.
     const tableBase = table.itemRanges[pagedIndex * 2];
     for (let k = tableBase; k < tableBase + cpuItemCounts[pagedIndex]; k++) {
-      const span = cpuInstances[k] * 2;
+      const span = cpuInstances[k] * 4;
       if (table.spans[span + 1]) list.push(i, table.spans[span], table.spans[span + 1]);
     }
   }

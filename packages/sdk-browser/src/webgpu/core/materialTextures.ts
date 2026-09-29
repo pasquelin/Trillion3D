@@ -32,6 +32,7 @@ export function collectWebgpuMaterialTextures(
     if (!coverage.read(mat)) return;
     addColor(mat.map);
     addColor(mat.emissiveMap);
+    addColor(mat.subsurfaceMap);
     addData(mat.roughnessMap);
     addData(mat.metalnessMap);
     addData(mat.normalMap);

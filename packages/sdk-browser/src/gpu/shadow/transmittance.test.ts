@@ -104,7 +104,7 @@ test('the shadow read multiplies the PCF by the half-resolution layer once per f
     2,
     'away from a seam and along one',
   );
-  assert.equal(wgsl.match(/shadowThrough\(/g)?.length, 2, 'one read, never per tap');
+  assert.equal(wgsl.match(/shadowThrough\(/g)?.length, 3, 'one read per footprint in PCF and PCSS');
   assert.match(
     wgsl,
     /if\(lit==0\.0\|\|textureDimensions\(shadowTransmittance\)\.x==1u\)\{return lit;\}/,

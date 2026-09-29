@@ -46,6 +46,10 @@ function createBatchWrites(device: GPUDevice) {
     });
   };
   return {
+    /** Actual staging allocation; an unused reservation holds no GPU bytes. */
+    get bytes() {
+      return staging?.buffer.size ?? 0;
+    },
     /** Before a frame's batches: they stage at most `bytes` (`shadowBatchCapacity`). A staging
      *  buffer too small for them is dropped, made again at the grant at their first staged write. */
     reserve(bytes: number) {
