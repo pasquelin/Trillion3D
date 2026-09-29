@@ -165,6 +165,8 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
     active = wantsContractLighting(rt);
   contractResources.lights = lights.buffer;
   contractResources.tiles = active ? lights.tiles?.buffer : undefined;
+  // The narrow resolve reads the narrow pass's lists: no tile past its list, no pool (#849).
+  contractResources.narrow = active && !!lights.tiles && !lights.tiles.wide;
   contractResources.slices = active ? lights.shadows?.dataBuffer : undefined;
   contractResources.requests = active ? lights.pageRequests?.buffer : undefined;
   contractResources.atlas = active ? lights.shadows?.view : undefined;
