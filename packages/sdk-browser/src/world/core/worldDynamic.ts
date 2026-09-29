@@ -107,7 +107,7 @@ export function createWorldDynamic(notices: WorldNotices | undefined, counts: { 
       if (!drawn) return null;
       if (kept && fits(kept.drawn, drawn, dynamicOf(kept).box)) {
         const lists = dynamicOf(kept).next;
-        for (const [list] of LISTS) lists[list]?.set(drawn[list] ?? lists[list]);
+        for (const [list] of LISTS) lists[list]?.set(drawn[list]!); // `fits`: the same lists
         return pend(kept, geometry.version);
       }
       // A new resource replaces it: what it read and did not upload is read there again.
