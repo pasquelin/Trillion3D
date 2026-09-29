@@ -91,6 +91,7 @@ function encodeChain(
       ],
     });
     const pass = encoder.beginRenderPass({
+      label: 'Trillion3D texture mips',
       colorAttachments: [{ view: views[level], loadOp: 'clear', storeOp: 'store' }],
     });
     pass.setPipeline(pipeline);
