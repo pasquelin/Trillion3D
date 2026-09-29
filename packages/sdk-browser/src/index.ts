@@ -172,7 +172,6 @@ export {
   transformPointsBatch,
   transformPointsByMatricesBatch,
 } from '../../sdk-core/src/index.ts';
-
 // The camera controllers a session hands out: their contract is public because
 // `explorer.controls()` and its four siblings return it (`docs/SDK.md`, "Camera controllers").
 export type {
