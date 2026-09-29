@@ -6,11 +6,11 @@ import {
   PAGE_RANGE_SHIFT,
   PAGE_VALID,
   SHADOW_PAGE,
-  SHADOW_TABLE_ENTRIES,
   SUN_LEVELS,
   lampMipOffset,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SHADOW_FACTOR_WGSL } from './shadowFactorWgsl.ts';
+import { shadowRequestWgsl } from './shadowRequestWgsl.ts';
 import { SHADOW_SAMPLE_WGSL, SHADOW_SUBTEXELS } from './shadowSampleWgsl.ts';
 import { shadowThroughWgsl } from '../../gpu/shadow/transmittance.ts';
 
@@ -44,10 +44,6 @@ export const PCF_REACH = Math.max(
 const poissonWgsl = (name: string, scale: number) =>
   `const ${name}:array<vec2f,${POISSON_16.length}>=array<vec2f,${POISSON_16.length}>(${POISSON_16.map(([x, y]) => `vec2f(${x * scale},${y * scale})`).join(',')});`;
 
-/** Words of the request buffer after the count and a list as long as the pool's (`shadowRequestCap`,
- *  read at run time): one bit per table entry — a page is listed once however many pixels read it. */
-export const SHADOW_REQUEST_BITS = SHADOW_TABLE_ENTRIES / 32;
-
 /**
  * The shadow buffer as the GPU reads it: every slice's record (`SHADOW_RECORD_FLOATS`) — lamp
  * faces or sun depth ranges, the sun's frame, the window origin of each clipmap slot two by two,
@@ -56,24 +52,6 @@ export const SHADOW_REQUEST_BITS = SHADOW_TABLE_ENTRIES / 32;
  */
 const SHADOW_DATA_WGSL = `struct ShadowRecord{faces:array<mat4x4f,${POINT_FACES}>,frame:array<vec4f,3>,origins:array<vec4i,${SUN_LEVELS / 2}>,info:vec4f,}
 struct ShadowData{records:array<ShadowRecord,${MAX_SHADOW_SLICES}>,table:array<u32>,}`;
-
-/**
- * What a reading asks of the scheduler. The shading that marks writes the page into the request
- * buffer the first time any pixel reads it this frame — a bit per table entry, tested before the
- * atomic, so a page thousands of pixels read costs one list slot. A pass that does not mark —
- * the blend forward stage, which keeps its early depth reject — reads without asking.
- */
-const requestWgsl = (binding: number | null) =>
-  binding === null
-    ? 'fn requestShadowPage(e:u32){}'
-    : `@group(0) @binding(${binding}) var<storage,read_write> shadowRequests:array<atomic<u32>>;
-fn requestShadowPage(e:u32){
- let cap=arrayLength(&shadowRequests)-${1 + SHADOW_REQUEST_BITS}u;let word=1u+cap+(e>>5u);let bit=1u<<(e&31u);
- if((atomicLoad(&shadowRequests[word])&bit)!=0u){return;}
- if((atomicOr(&shadowRequests[word],bit)&bit)!=0u){return;}
- let at=atomicAdd(&shadowRequests[0],1u);
- if(at<cap){atomicStore(&shadowRequests[1u+at],e);}
-}`;
 
 /**
  * The virtual shadow read, shared by every pass that lights a surface: records and page table,
@@ -99,7 +77,7 @@ export const directShadowWgsl = (
 ) => `
 ${SHADOW_DATA_WGSL}
 @group(0) @binding(${dataBinding}) var<storage,read> shadows:ShadowData;
-${requestWgsl(requestBinding)}
+${shadowRequestWgsl(requestBinding)}
 const PCF_TAPS:u32=${LIGHT_SETTINGS.pcfTaps}u;
 const SHADOW_NORMAL_TEXELS:f32=${LIGHT_SETTINGS.shadowNormalOffsetTexels};
 const SHADOW_PCF_REACH:f32=${PCF_REACH};
