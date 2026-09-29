@@ -22,7 +22,7 @@ test('a session reopened after a device loss reads the resident proxy from the k
   const after = await openSession(metadata, pageCache);
   const relit = await after.context.readSceneProxy!();
   assert.deepEqual(fetched, [proxyUrl], 'the proxy it held is not fetched again');
-  assert.equal(relit, lit, 'decoded columns are reused across device sessions');
+  assert.equal(relit.data, lit.data, 'decoded columns are reused across device sessions');
   assert.equal(
     pageCache.keptBytes,
     metadata.proxy!.bytes + lit.data.bindWorlds.byteLength,

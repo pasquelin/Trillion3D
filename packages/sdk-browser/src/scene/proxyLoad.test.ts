@@ -38,14 +38,27 @@ test('shared expansion is decoded once across concurrent readers and sessions, a
   const read = createSceneProxyReader(descriptor, 'https://example.test/', cache)!;
   const [first, concurrent] = await Promise.all([read(), read()]);
   const reopened = createSceneProxyReader(descriptor, 'https://example.test/', cache)!;
-  assert.equal(await reopened(), first);
-  assert.equal(concurrent, first);
+  assert.equal((await reopened()).data, first.data);
+  assert.equal(concurrent.data, first.data);
   assert.equal(requests, 1);
   assert.equal(cache.keptBytes, bytes.byteLength + triangles * 40 + instances * 128);
   assert.equal(first.data.triangles.byteLength, triangles * 36);
   const uncached = createSceneProxyReader(descriptor, 'https://example.test/', undefined)!;
-  assert.equal(await uncached(), await uncached());
+  assert.equal((await uncached()).data, (await uncached()).data);
   assert.equal(requests, 2, 'one read and expansion without a world cache, too');
+  const changed = createSceneProxyReader(
+    { ...descriptor, errorMetres: 9 },
+    'https://example.test/',
+    cache,
+  )!;
+  assert.equal((await changed()).errorMetres, 9, 'each reader retains its manifest metadata');
+  assert.equal((await changed()).data, first.data, 'metadata changes do not expand geometry again');
+  const invalid = createSceneProxyReader(
+    { ...descriptor, triangles: triangles + 1 },
+    'https://example.test/',
+    cache,
+  )!;
+  await assert.rejects(invalid(), /disagrees with its manifest/);
   cache.keepOnly();
   assert.equal(cache.keptBytes, 0);
 });
