@@ -96,7 +96,7 @@ export async function placedSession(bindingRows: number) {
     request() {},
     update: (rows, from, to) => updateWebgpuPlacements(rt, rows, from, to),
     grow: {
-      growsInPlace: (from, capacity) => webgpuGrowsInPlace(rt, from, capacity),
+      growsInPlace: (from) => webgpuGrowsInPlace(rt, from),
       growPlacements: (from, to) => growWebgpuPlacements(rt, from, to),
     },
     outgrown: () => void reopened.count++,

@@ -7,6 +7,7 @@ import {
   boxUnionBatch,
 } from '../../../../../sdk-core/src/index.ts';
 import { moveRootRows } from './movedRoot.ts';
+import { staleTemporalBox } from '../../../hiz/staleRegions.ts';
 import { appendRootsUnder } from './movedNode.ts';
 import { transformRootBoxes } from '../../../math/batchBoxes.ts';
 import { grown } from '../../../../../sdk-core/src/math/transform-tree/transformTree.ts';
@@ -80,9 +81,13 @@ const promote = (rt: WebgpuPagesRuntime, rank: number) =>
   rt.lights.mobility.move(rank, rt.layout.selectionRoots[rank].world.elements, true) ===
   MOVE_PROMOTED;
 
-/** `moved` declared to the shadow scheduler: a root's first move stales the pages whole. */
-const declare = (rt: WebgpuPagesRuntime, promoted: boolean) =>
-  !boxIsEmpty(moved, 0) && rt.lights.plan.worldChanged(movedMin, movedMax, !promoted);
+/** `moved` declared to the shadow scheduler and the temporal Hi-Z: a root's first move changes
+ *  the static layer, so the pages it crossed are staled whole. */
+function declare(rt: WebgpuPagesRuntime, promoted: boolean) {
+  if (boxIsEmpty(moved, 0)) return;
+  rt.lights.plan.worldChanged(movedMin, movedMax, !promoted);
+  staleTemporalBox(rt.run.temporalHizState, movedMin, movedMax);
+}
 
 function passMoves(rt: WebgpuPagesRuntime) {
   const { run, layout } = rt,

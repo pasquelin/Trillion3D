@@ -1,4 +1,5 @@
 import type { LightRowMap } from './lightRows.ts';
+import type { PendingGrowth } from '../core/tableGrowth.ts';
 import { MAX_DEPTH_LAYER } from '../../../../sdk-core/src/index.ts';
 
 export const DRAW_INDIRECT_STRIDE = 16;
@@ -85,6 +86,8 @@ export type GpuDraw = {
    * the rows the map remaps.
    */
   lightRows(pages: number): LightRowMap;
+  /** Row buffers for `rows` rows, made now and put in place by `commit` (`../core/tableGrowth.ts`). */
+  grow(rows: number): PendingGrowth;
   /** Draw records as the GPU holds them: what the GPU partition reads to know each
    *  row's bin, layer and triangles. */
   itemsBuffer: GPUBuffer;
