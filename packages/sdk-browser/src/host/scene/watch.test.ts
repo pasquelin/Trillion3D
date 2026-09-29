@@ -15,10 +15,10 @@ function graphe() {
   const source = new G.Group();
   const mesh = G.mesh(new G.Geometry(), G.basicSurface());
   const lampe = G.pointLight(0xffffff, 1);
-  const soleil = G.directionalLight(0xffffff, 1);
-  source.add(mesh, lampe, soleil);
+  const sun = G.directionalLight(0xffffff, 1);
+  source.add(mesh, lampe, sun);
   source.updateMatrixWorld(true);
-  return { source, mesh, lampe, soleil };
+  return { source, mesh, lampe, sun };
 }
 
 /** The reread nodes: the source models of what is drawn, the lamps, and their ancestors. */
@@ -77,10 +77,10 @@ test("a lamp's intensity, colour, range and pose are seen", () => {
 });
 
 test("a directional lamp's target, outside the source graph, is seen", () => {
-  const { source, soleil } = graphe();
+  const { source, sun } = graphe();
   const watch = veille(source);
   watch.take();
-  soleil.target.position.set(0, -5, 0);
+  sun.target.position.set(0, -5, 0);
   assert.equal(watch.take(), 'moved', 'the sun direction has changed');
   assert.equal(watch.take(), 0);
 });
@@ -125,12 +125,12 @@ test('a write the engine made itself is settled with its revision, not announced
 
 test("a lamp's target moved under another node: the new parent is hooked, its later pose is seen", () => {
   const gate = createWebglFrameGate();
-  const { source, soleil } = graphe();
+  const { source, sun } = graphe();
   const parent = new G.Group();
   source.add(parent);
   gate.readScene(source, []);
   gate.readScene(source, []);
-  parent.add(soleil.target);
+  parent.add(sun.target);
   gate.readScene(source, []); // the reparent is a scene change: the list is rebuilt at once
   const after = gate.revisions.scene;
   // Written in the tick right after the reshape frame: the new parent is already hooked.

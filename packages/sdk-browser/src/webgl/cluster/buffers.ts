@@ -1,4 +1,5 @@
 import type { GpuBuffer } from '../../cluster/batchMesh.ts';
+import { allocated } from '../core/allocation.ts';
 
 /** A GPU buffer holding the bytes of one engine buffer, at the version last uploaded. */
 export type CachedAttribute = {
@@ -19,7 +20,8 @@ export const glType = (gl: WebGL2RenderingContext, array: ArrayBufferView) => {
   throw new Error(`Unsupported cluster attribute ${array.constructor.name}`);
 };
 
-/** Uploads what changed of `attribute` since `known`, into its buffer or a new one. */
+/** Uploads what changed of `attribute` since `known`, into its buffer or a new one; a buffer sized
+ *  again is recorded for the out-of-memory read (`../core/allocation.ts`). */
 export const upload = (
   gl: WebGL2RenderingContext,
   target: number,
@@ -29,13 +31,18 @@ export const upload = (
   const current = known ?? { buffer: gl.createBuffer()!, source: attribute, version: -1, bytes: 0 };
   if (current.source !== attribute || current.version !== attribute.version) {
     gl.bindBuffer(target, current.buffer);
-    if (current.bytes !== attribute.array.byteLength)
+    if (current.bytes !== attribute.array.byteLength) {
       gl.bufferData(
         target,
         attribute.array,
         target === gl.ELEMENT_ARRAY_BUFFER ? gl.DYNAMIC_DRAW : gl.STATIC_DRAW,
       );
-    else if (attribute.updateRanges.length) {
+      // Refused: the buffer holds nothing, and a frame after, a level coarser, sizes it again.
+      allocated(gl, 'geometry', () => {
+        current.bytes = 0;
+        current.version = -1;
+      });
+    } else if (attribute.updateRanges.length) {
       const bytes = attribute.array.BYTES_PER_ELEMENT;
       for (const range of attribute.updateRanges)
         gl.bufferSubData(target, range.start * bytes, attribute.array, range.start, range.count);

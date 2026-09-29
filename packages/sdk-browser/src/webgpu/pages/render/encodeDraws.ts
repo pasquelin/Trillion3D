@@ -65,7 +65,7 @@ export function followDirtyRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
 /** Uploads the rows whose bytes changed, run by run, and nothing when none did. */
 export function uploadDirtyRows(rt: WebgpuPagesRuntime) {
   const { rows } = rt.layout;
-  rt.timing.encodeCounts.lignesTeleversees = 0;
+  rt.timing.encodeCounts.rowsUploaded = 0;
   if (rows.dirtyTo < rows.dirtyFrom || !rt.vis.pageTable || !rows.pageTableFloats) return;
   forEachDirtyRun(rows.dirtyMarks, rows.dirtyFrom, rows.dirtyTo, rt, uploadRun);
   rows.clearDirty();
@@ -80,7 +80,7 @@ function uploadRun(rt: WebgpuPagesRuntime, from: number, to: number) {
     floats.byteOffset + from * PAGE_INFO_STRIDE,
     (to - from + 1) * PAGE_INFO_STRIDE,
   );
-  rt.timing.encodeCounts.lignesTeleversees += to - from + 1;
+  rt.timing.encodeCounts.rowsUploaded += to - from + 1;
 }
 
 /** Encodes and submits one image of the drawn cut; returns the triangles it submitted. */

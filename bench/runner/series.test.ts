@@ -8,7 +8,7 @@ import { rm } from 'node:fs/promises';
 import { runSerie } from './series.ts';
 import { contexte, page, pose } from './seriesTestFixtures.ts';
 
-test('runSerie publishes submittedTriangles, totalSubmittedTriangles, imageTenue and repliSelectionGpu from metrics', async () => {
+test('runSerie publishes submittedTriangles, totalSubmittedTriangles, frameHeld and gpuSelectionFallback from metrics', async () => {
   const { ctx, side, OUT } = await contexte();
   try {
     const { row } = await runSerie(
@@ -27,10 +27,10 @@ test('runSerie publishes submittedTriangles, totalSubmittedTriangles, imageTenue
     );
     assert.equal(row.submittedTriangles, 1000);
     assert.equal(row.totalSubmittedTriangles, 1200);
-    assert.equal(row.imageTenue, true);
-    assert.equal(row.repliSelectionGpu, false);
+    assert.equal(row.frameHeld, true);
+    assert.equal(row.gpuSelectionFallback, false);
     assert.equal(
-      row.imageDuReleve,
+      row.recordedFrame,
       ctx.settings.frames - 1,
       'names the frame described by metrics',
     );
@@ -45,8 +45,8 @@ test('runSerie publishes null, never inferred 0 or false, when engine counts non
     const { row } = await runSerie(ctx, page({}), side, 'salon', 1, pose, new Map());
     assert.equal(row.submittedTriangles, null);
     assert.equal(row.totalSubmittedTriangles, null);
-    assert.equal(row.imageTenue, null);
-    assert.equal(row.repliSelectionGpu, null);
+    assert.equal(row.frameHeld, null);
+    assert.equal(row.gpuSelectionFallback, null);
   } finally {
     await rm(OUT, { recursive: true, force: true });
   }

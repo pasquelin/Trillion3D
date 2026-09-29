@@ -70,15 +70,15 @@ interface ReportRecordData {
   gpuFrameMs?: TimingStat;
   cpuFrameMs?: TimingStat;
   imageSyncMs?: TimingStat | null;
-  erreur?: 'certifiee' | 'reference' | null;
-  imageTenue?: boolean;
-  profilParEtape?: {
+  errorMetric?: 'certifiee' | 'reference' | null;
+  frameHeld?: boolean;
+  stageProfile?: {
     gpuMethod?: string;
     gpuImageMs?: TimingStat;
     stages?: StageTiming[];
   };
   passesGpu?: { passes?: GpuPassTiming[] };
-  cheminCalcul?: { clockCoarse?: boolean };
+  mathBatch?: { clockCoarse?: boolean };
   cutAnalysis?: CutAnalysis;
 }
 

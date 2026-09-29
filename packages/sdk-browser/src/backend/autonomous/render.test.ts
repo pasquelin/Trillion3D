@@ -1,6 +1,6 @@
 // #1016: a capture after a moving camera held the first WebGL2 frame whose cut had not moved, with
 // pages of it still awaited; the two sides of the A/A drew what each had loaded (44 186 px on
-// sponza's `generale`). As on WebGPU, a frame is still only once nothing it asks is awaited.
+// sponza's `overview`). As on WebGPU, a frame is still only once nothing it asks is awaited.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { stillFrame } from './render.ts';

@@ -20,7 +20,7 @@ test('the fluids scene is named by the bench and reads no cache', () => {
   assert.match(sceneNote(FLUIDS_SCENE) ?? '', /stand-ins/);
   const flags = new Map([['scene', FLUIDS_SCENE]]);
   applySceneFlag(flags, '/nowhere');
-  assert.equal(flags.has('cache-apres'), false);
+  assert.equal(flags.has('cache-after'), false);
   assert.equal(sceneOf(undefined, FLUIDS_SCENE), FLUIDS_SCENE);
 });
 
