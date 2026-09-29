@@ -11,7 +11,7 @@ import {
   OCCLUSION_SLOT_WORDS,
   OCCLUSION_UNIFORM_WORDS,
   SHADOW_REGION_INDIRECT_BYTES,
-  regionCommands,
+  emptyRegionCommands,
 } from './batchBudget.ts';
 
 const BINDINGS: readonly GPUBufferBindingType[] = [
@@ -84,7 +84,6 @@ export async function createShadowOcclusion(device: GPUDevice, capacity: number)
     });
   const counts = createGpuShadowCullCounts(device);
   const slotWords = new Uint32Array(MAX_SHADOW_REGIONS * OCCLUSION_SLOT_WORDS),
-    commands = regionCommands(),
     uni = new Uint32Array(OCCLUSION_UNIFORM_WORDS);
   let bound: GPUBuffer[] = [],
     group: GPUBindGroup | undefined;
@@ -116,7 +115,6 @@ export async function createShadowOcclusion(device: GPUDevice, capacity: number)
       regions: number,
       slot: (region: number) => number,
       rows: number,
-      maxVertexCount: number,
       frame: number,
     ) {
       const inputs = [from.spheres, from.kept, from.indirect, from.views, from.pyramid];
@@ -134,7 +132,7 @@ export async function createShadowOcclusion(device: GPUDevice, capacity: number)
         slotWords[r * OCCLUSION_SLOT_WORDS + 1] = 0;
       }
       shadowBatchWrites(device).write(slots, 0, slotWords, 0, regions * OCCLUSION_SLOT_WORDS);
-      shadowBatchWrites(device).write(visibleIndirect, 0, commands.empty(regions, maxVertexCount));
+      shadowBatchWrites(device).write(visibleIndirect, 0, emptyRegionCommands(regions));
       uni[0] = regions;
       uni[1] = capacity;
       shadowBatchWrites(device).write(uniform, 0, uni);

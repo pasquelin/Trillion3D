@@ -48,7 +48,6 @@ test('a frame on the CPU cut keeps the light cut', () => {
     vis: { gpuDraw: {} },
     run: { gpuFrameActive: false, gpuSelection: {}, frame: 3 },
     layout: { rows: { packedCount: 0 } },
-    setup: { maxCorners: 0 },
     timing: {},
   } as unknown as WebgpuPagesRuntime;
   encodeShadowCasters(rt, {} as GPUCommandEncoder, 0, 0, 0, 0);
@@ -64,7 +63,7 @@ test('a light view with an empty caster list on the CPU cut encodes no draw for 
   for (const page of [0, 1, 2])
     lights.regions.push(page, DRAW_ALL, volumes, new Uint32Array(volumes.buffer));
   const culled: number[][] = [],
-    key = [{}, {}, {}, {}, {}, {}, undefined];
+    key = [{}, {}, {}, {}, {}, {}, undefined, {}];
   Object.assign(lights, {
     runs: {
       count: 2,
@@ -92,7 +91,7 @@ test('a light view with an empty caster list on the CPU cut encodes no draw for 
     timing: {},
   } as unknown as WebgpuPagesRuntime;
   Object.assign(rt.vis, { pageTable: key[3], textures: { color: { views: key[4] } } });
-  Object.assign(rt.vis, { mapsSampler: {}, zeroFlags: {} });
+  Object.assign(rt.vis, { mapsSampler: {}, zeroFlags: key[7] });
   assert.ok(encodeShadowCasters(rt, {} as GPUCommandEncoder, 3, 0, 3, 0));
   assert.deepEqual(
     culled,

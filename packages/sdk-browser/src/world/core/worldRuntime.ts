@@ -12,6 +12,7 @@ import { watchFirstFrame } from '../session/openWatch.ts';
 import { worldReopens } from './worldReopen.ts';
 import { createCanvasFit, followPageCamera } from './worldCamera.ts';
 import type { PosedTwin } from './worldPoses.ts';
+import { poseNamed } from '../../host/world/moveByName.ts';
 import type { WorldRuntimeInputs as Inputs } from './worldRuntimeInputs.ts';
 
 /** The session drawing a world, fed by a per-frame change list: what the scene asks is resolved
@@ -38,6 +39,13 @@ export function createWorldRuntime(inputs: Inputs) {
     /** Why no session is open: the first-frame watch says it on the console. */
     closed = 'the scene has not been read yet';
   const invalidate = () => explorer?.invalidate();
+  /** A move by name through the session (#972): the page's node the name index finds, posed as
+   *  the engines pose theirs, is written as a page write is — its rows, before the next frame. */
+  const moveNamed = (nodeName: string, matrix: Float32Array) => {
+    const node = poseNamed(scene, nodeName, matrix);
+    if (node) poses.moved(node);
+    invalidate();
+  };
   const relight = () => {
     lightsChanged = true;
     invalidate();
@@ -73,7 +81,7 @@ export function createWorldRuntime(inputs: Inputs) {
       await inputs.ready(); // a lost device is asked again: it opens on what is granted, or fails
       const options = track.options({ ...inputs.options(), scope });
       // The first frame is read for the page's camera, not a framing one (`prepare.ts`).
-      explorer = await open(canvas, options, { ...built.source, placeCamera });
+      explorer = await open(canvas, options, { ...built.source, placeCamera, moveNamed });
     } catch (error) {
       closed = 'its session failed to open';
       if (!disposed) inputs.diagnostic.failed(error); // cut short by disposal, it failed nothing

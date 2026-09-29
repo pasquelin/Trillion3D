@@ -24,7 +24,7 @@ fn directIrradiance(P:vec3f,N:vec3f,reach:f32)->vec3f{
   if(light.params.z>0.5&&shadows<LIGHTS_PER_TEXEL){
    shadows++;
    let span=select(length(light.positionRange.xyz-P),reach,isSun(light));
-   if(proxyBlocked(offset,incidence.xyz,span)){continue;}
+   if(proxyBlocked(offset,incidence.xyz,span,false)){continue;}
   }
   total+=light.colorIntensity.rgb*light.colorIntensity.w*incidence.w*cosine;
  }
