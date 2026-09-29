@@ -11,7 +11,8 @@ import { fillAffine, fillReference } from './support/rasterBuffer.ts';
 import { rasterWith } from './support/rasterFrameLoop.ts';
 import { quadrillage } from './support/scenesCut.ts';
 import { compteur, ecart, mesure, note, rapport, stress } from '../../core/index.ts';
-import { camera, coupe } from './support/scenes.ts';
+import { camera, coupe, roots } from './support/scenes.ts';
+import type { Placements } from '../../../packages/sdk-browser/src/page/selection/placements.ts';
 import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import type { EngineCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
 import type { VisPage } from '../../../packages/sdk-browser/src/visibility/types.ts';
@@ -68,9 +69,16 @@ const autresGraines: FrameInput[] = GRAINES.map((seed) => ({
 }));
 
 const tour =
-  <Sortie>(fn: (pages: VisPage[], cam: EngineCamera, viewport: [number, number]) => Sortie) =>
+  <Sortie>(
+    fn: (
+      pages: VisPage[],
+      roots: Placements,
+      cam: EngineCamera,
+      viewport: [number, number],
+    ) => Sortie,
+  ) =>
   (input: FrameInput) =>
-    fn(input.pages, input.cam, input.image);
+    fn(input.pages, roots, input.cam, input.image);
 
 const resC1 = await mesure({
   name: 'affine visbuffer candidate against perspective',
@@ -107,7 +115,7 @@ test('the copied reference is what the package rasterizes today', () => {
 
 await stress({
   name: 'rasterVisibility extremes',
-  calcul: (e) => rasterVisibility(e.pages, e.cam, e.image),
+  calcul: (e) => rasterVisibility(e.pages, roots, e.cam, e.image),
   extremes: [{ name: 'empty', input: vide }],
 });
 

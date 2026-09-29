@@ -28,10 +28,12 @@ export function createMockCommandEncoderFactory(inputs: {
   passes: MockPass[];
   computes: string[];
   imageCopies: unknown[];
+  /** The usage of each buffer-to-buffer copy's destination, in order. */
+  copyUsages: number[];
   packed?: PackedDag;
   failVisPass: boolean;
 }) {
-  const { draws, passes, computes, imageCopies, packed, failVisPass } = inputs;
+  const { draws, passes, computes, imageCopies, copyUsages, packed, failVisPass } = inputs;
   let currentRenderEntry = '',
     currentFragment = '',
     currentBlend: GPUBlendState | undefined;
@@ -136,10 +138,11 @@ export function createMockCommandEncoderFactory(inputs: {
     copyBufferToBuffer(
       src: { data?: Uint8Array },
       s: number,
-      dst: { data?: Uint8Array },
+      dst: { data?: Uint8Array; usage?: number },
       d: number,
       size: number,
     ) {
+      copyUsages.push(dst.usage ?? 0);
       if (src.data && dst.data) dst.data.set(src.data.subarray(s, s + size), d);
     },
     copyTextureToBuffer(...args: unknown[]) {

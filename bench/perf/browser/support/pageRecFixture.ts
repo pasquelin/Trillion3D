@@ -6,7 +6,6 @@ import type { PageRec } from '../../../../packages/sdk-browser/src/page/selectio
 import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts';
 
 const DUMMY_ATTRIBUTES: G.Geometry['attributes'] = {};
-const IDENTITY_MATRIX = new G.Matrix4();
 const DUMMY_BOUNDS: number[] = [0, 0, 0];
 
 export function pageRecFixture(fields: Partial<PageRec> = {}): PageRec {
@@ -22,7 +21,7 @@ export function pageRecFixture(fields: Partial<PageRec> = {}): PageRec {
     attributes: DUMMY_ATTRIBUTES,
     material: surfaceOf([]),
     declaration: [],
-    matrix: IDENTITY_MATRIX,
+    placementIndex: 0,
     renderOrder: 0,
     attached: false,
     ...fields,

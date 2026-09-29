@@ -65,14 +65,18 @@ const TILE_BYTES: usize = TILE_TRIANGLES
         + JOLT_TRIANGLE_BYTES);
 /// A bundle being packed: its payload, one page over and above it, and that page being encoded
 /// (`geometry_page::encode`): per corner, its local and remapped indices; per vertex, its source
-/// index and remap entry, its cell, its unique copy and rank entry, its remap and its output bits.
+/// index and remap entry, its cell, its unique copy and rank entry, its remap and its output bits,
+/// its distinct position and rank entry, its stored copy and its link (`stored_positions`).
 const BUNDLE_BYTES: usize = STREAM_BUNDLE_BYTES
     + 3 * DAG_CLUSTER_TRIANGLES
         * (3 * size_of::<u32>()
             + 3 * size_of::<u32>()
             + hashed(size_of::<(u32, u32)>())
             + 3 * size_of::<Cell>()
-            + hashed(size_of::<(Cell, u32)>()));
+            + hashed(size_of::<(Cell, u32)>())
+            + 2 * size_of::<[u32; 3]>()
+            + hashed(size_of::<([u32; 3], u32)>())
+            + size_of::<u32>());
 /// What one worker holds whatever the scene, one tile or one bundle at a time; `plan_buffers`
 /// charges it once per thread, since every primitive of a wave shares the pool's workers.
 pub(crate) const WORKER_BYTES: usize = if TILE_BYTES > BUNDLE_BYTES {

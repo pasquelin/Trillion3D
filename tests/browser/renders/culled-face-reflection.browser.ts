@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { rasterVisibility } from '../../../packages/sdk-browser/src/visibility/raster.ts';
 import { decisionCpu, vue } from '../probes/inverseTransposeCases.ts';
 import { tousLesCas } from '../probes/inverseTransposeSample.ts';
-import { chargeRaster, pageVisible, VUE } from '../probes/reflectionCases.ts';
+import { chargeRaster, pageVisible, rootsOf, VUE } from '../probes/reflectionCases.ts';
 import { rasterGpu } from '../probes/rasterKernelGpu.ts';
 
 const gpu = await rasterGpu(chargeRaster(tousLesCas));
@@ -25,7 +25,7 @@ const index = tousLesCas.map((_: unknown, i: number) => i);
 const fragments = gpu.fragments ?? [];
 const dessineGpu = index.map((i: number) => fragments[i] > 0);
 const dessineCpu = index.map((i: number) => {
-  const { ids } = rasterVisibility([pageVisible(tousLesCas[i])], vue, VUE);
+  const { ids } = rasterVisibility([pageVisible(tousLesCas[i])], rootsOf(tousLesCas[i]), vue, VUE);
   return ids.some((identifiant) => identifiant !== 0);
 });
 const coneRejette = tousLesCas.map((cas) => decisionCpu(cas).coneRejette);

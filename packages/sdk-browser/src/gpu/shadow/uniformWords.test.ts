@@ -59,7 +59,7 @@ test("the CPU lists' cull writes each Uni field at the word its shader reads", a
   const cull = await createGpuShadowCull(device, 64);
   const buffer = device.createBuffer({ size: 64, usage: 0 });
   const source = { spheres: buffer, mobility: buffer, source: buffer, indirect: buffer };
-  cull.begin(3, 3);
+  cull.begin(3);
   // Run 1: its uniform sits one dynamic-offset stride in.
   cull.encode(encoder, { ...source, base: 13, indirectBase: 14, commands: 15 }, 1, 11, 2, 5);
   agrees(
@@ -123,7 +123,7 @@ test('the occlusion test writes each Uni field at the word its shader reads', as
     views: buffer,
     pyramid: buffer,
   };
-  occlusion.encode(encoder, inputs, 3, () => 0, 10, 6, 1);
+  occlusion.encode(encoder, inputs, 3, () => 0, 10, 1);
   agrees(
     SHADOW_OCCLUSION_SHADER,
     writes.find(({ buffer: { size } }) => size === OCCLUSION_UNIFORM_WORDS * 4),

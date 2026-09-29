@@ -2,7 +2,7 @@ import { wantsReflections } from '../../../reflections/gpu.ts';
 import { requestFrameTargets } from '../prepare/targetGrant.ts';
 import { selectCpuCasters, writeCpuCasters } from '../../shadow/cpuCasters.ts';
 import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts';
-import { projectedPageError } from '../../../page/selection/selection.ts';
+import { projectedPageError, rootOf } from '../../../page/selection/selection.ts';
 import { screenErrorRatio } from '../../../diagnostic/colors.ts';
 import { drawWebgpuFallback } from '../../frame/fallbackDraw.ts';
 import { viewProj } from '../helpers.ts';
@@ -28,8 +28,9 @@ import { displayApart } from '../state/renderScale.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
 
 /** The row table spans every row a page can claim — the visibility rows, then the blended
- *  casters' (`../../row/blendCasters.ts`) —, so it is allocated once and never resized; the layout
- *  bounds those rows to one binding of the device (`../../row/tableRows.ts`). */
+ *  casters' (`../../row/blendCasters.ts`) —, so it is allocated once, and replaced only when the
+ *  table grows (`../prepare/growTables.ts`); the layout bounds those rows to one binding of the
+ *  device (`../../row/tableRows.ts`). */
 export function ensurePageTable(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { vis } = rt,
     { rows } = rt.layout;
@@ -38,12 +39,16 @@ export function ensurePageTable(rt: WebgpuPagesRuntime, device: GPUDevice) {
   rows.pageTableFloats = new Float32Array(bytes / 4);
   rows.pageTableInts = new Uint32Array(rows.pageTableFloats.buffer);
   vis.pageTable?.destroy();
-  vis.pageTable = device.createBuffer({
+  vis.pageTable = pageTableBuffer(device, bytes);
+}
+
+/** The GPU page table of `bytes` bytes: the rows every pass binds whole. */
+export const pageTableBuffer = (device: GPUDevice, bytes: number) =>
+  device.createBuffer({
     label: 'Trillion3D page table',
     size: bytes,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
-}
 
 /**
  * Brings every reader of the row table's dirty marks up to date, then uploads the rows and clears
@@ -129,7 +134,7 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
       const rec = rows.packedRecs[row];
       if (!rec) continue;
       rows.pageTableFloats[row * rowWords + 56] = screenErrorRatio(
-        projectedPageError(rec, cam, viewport),
+        projectedPageError(rec, rootOf(rt.layout.selectionRoots, rec).world, cam, viewport),
         run.diagnosticPixelError,
       );
       rows.markRowWords(row);

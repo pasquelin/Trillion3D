@@ -130,11 +130,12 @@ export function barycentricAt(
   return poids;
 }
 
-/** A projected triangle of a page; a line page's corners widened on screen at `pixelRatio` image
+/** A projected triangle of a page placed by `world`; a line page's corners widened on screen at `pixelRatio` image
  *  pixels per CSS pixel, as every GPU raster widens them (`LineCorners`), a sprite page's turned
  *  to face the camera. */
 export function triangleAt(
   page: VisPage,
+  world: MatrixElements,
   triangleIndex: number,
   cam: DepthCamera,
   width: number,
@@ -148,10 +149,9 @@ export function triangleAt(
   const lineWidth = page.material.lineWidth ?? 0,
     along = page.attributes.normal;
   const line = lineWidth > 0 && along ? { along, width: lineWidth, pixelRatio } : undefined;
-  const m = page.matrix,
-    sprite = page.material.sprite;
+  const sprite = page.material.sprite;
   const corner = (i: number) =>
-    projectVisibilityVertex(m, position, index[i], cam, width, height, line, sprite);
+    projectVisibilityVertex(world, position, index[i], cam, width, height, line, sprite);
   const a = corner(base),
     b = corner(base + 1),
     c = corner(base + 2);
@@ -161,6 +161,7 @@ export function triangleAt(
     b,
     c,
     page,
+    world,
     triangleIndex,
     i0: index[base],
     i1: index[base + 1],
