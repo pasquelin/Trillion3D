@@ -1,12 +1,7 @@
 import type { ScreenReflection } from '../../reflections/gpu.ts';
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts';
-import {
-  BOUNCE_LIGHTING_SHADER,
-  CONTRACT_COMPOSITIONS,
-  DIRECT_LIGHTING_SHADER,
-  UNLIT_COMPOSITIONS,
-  UNLIT_LIGHTING_SHADER,
-} from './shaders.ts';
+import { UNLIT_COMPOSITIONS, UNLIT_LIGHTING_SHADER } from './shaders.ts';
+import { createContractVariants } from './contractVariants.ts';
 import { createDeferredPlaceholders } from './setup.ts';
 import {
   createDeferredProgram,
@@ -39,10 +34,8 @@ export async function createDeferredLighting(device: GPUDevice, onReady?: () => 
       },
       bindings,
     );
-    // Three programs, never a branch: the unlit view, the contract, and the contract plus
-    // bounce. A session without bounce thus runs exactly the previous shader.
-    type Variant = { program?: DeferredProgram; pending?: Promise<unknown> };
-    const variants: Record<'direct' | 'bounce', Variant> = { direct: {}, bounce: {} };
+    // Programs, never a branch: the unlit view, and the contract ones (`contractVariants.ts`).
+    const variants = createContractVariants(device, bindings, onReady);
     let active: DeferredProgram = unlit;
     // Diagnostic views output raw values: no ACES, no sRGB, no composed background. The
     // indirect-irradiance view is one, and lighting says so, not the caller.
@@ -91,33 +84,12 @@ export async function createDeferredLighting(device: GPUDevice, onReady?: () => 
         onFailure?: (error: unknown) => void,
       ) {
         const wantsBounce = wantsContract && !!direct.bounceGrid && !!direct.probes;
-        const variant = variants[wantsBounce ? 'bounce' : 'direct'];
-        if (wantsContract && !variant.program && !variant.pending)
-          variant.pending = createDeferredProgram(
-            device,
-            {
-              lighting: wantsBounce ? BOUNCE_LIGHTING_SHADER : DIRECT_LIGHTING_SHADER,
-              compose: CONTRACT_COMPOSITIONS,
-              label: wantsBounce ? 'BOUNCE' : 'DIRECT',
-              direct: true,
-              bounce: wantsBounce,
-            },
-            bindings,
-          ).then(
-            (program) => {
-              variant.program = program;
-              onReady?.();
-            },
-            (error) => onFailure?.(error),
-          );
-        // The bounce program takes a frame or two to compile: the contract one renders
-        // the frame while waiting, without bounce, rather than make the frame wait.
-        active =
-          (wantsContract ? (variant.program ?? variants.direct.program) : undefined) ?? unlit;
+        // A program still compiling lends the frame the best one ready (`contractVariants.ts`).
+        active = (wantsContract && variants.pick(wantsBounce, !!direct.narrow, onFailure)) || unlit;
         active.bind(surface, depth, hdr, direct);
       },
       settle() {
-        return Promise.all([variants.direct.pending, variants.bounce.pending]).then(() => {});
+        return variants.settle();
       },
       light(encoder: GPUCommandEncoder, target: GPUTextureView, reflection?: ScreenReflection) {
         const group = active.lightGroup;
@@ -188,8 +160,7 @@ export async function createDeferredLighting(device: GPUDevice, onReady?: () => 
         view.dispose();
         placeholders.dispose();
         unlit.release();
-        variants.direct.program?.release();
-        variants.bounce.program?.release();
+        variants.release();
       },
     };
   } catch (error) {
