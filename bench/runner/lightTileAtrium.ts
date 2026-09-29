@@ -20,7 +20,7 @@ const HALF_X = 15,
 const box = (lo: Vec3, hi: Vec3): Box => ({ lo, hi });
 
 /** The atrium's boxes: floor, walls, two storeys of arcades on each side, drapes, gallery roofs. */
-export function atriumBoxes(): Box[] {
+function atriumBoxes(): Box[] {
   const boxes: Box[] = [
     box([-HALF_X, -0.3, -HALF_Z], [HALF_X, 0, HALF_Z]),
     box([-HALF_X - 0.3, 0, -HALF_Z], [-HALF_X, HEIGHT, HALF_Z]),
