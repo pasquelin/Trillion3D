@@ -45,6 +45,11 @@ export const PCF_REACH = Math.max(
 const poissonWgsl = (name: string, scale: number) =>
   `const ${name}:array<vec2f,${POISSON_16.length}>=array<vec2f,${POISSON_16.length}>(${POISSON_16.map(([x, y]) => `vec2f(${x * scale},${y * scale})`).join(',')});`;
 
+/** The PCF's tap count and taps, a texel apart: also the PCSS disk's (\`lampSoftWgsl.ts\`), which
+ *  the per-pixel demand walks (\`../../webgpu/shadow/demandWgsl.ts\`). */
+export const PCF_TAPS_WGSL = `const PCF_TAPS:u32=${LIGHT_SETTINGS.pcfTaps}u;
+${poissonWgsl('POISSON', 1)}`;
+
 /**
  * The shadow buffer as the GPU reads it: every slice's record (`SHADOW_RECORD_FLOATS`) — lamp
  * faces or sun depth ranges, the sun's frame, the window origin of each clipmap slot two by two,
@@ -96,11 +101,10 @@ export const directShadowWgsl = (
 ${SHADOW_DATA_WGSL}
 @group(0) @binding(${dataBinding}) var<storage,read> shadows:ShadowData;
 ${shadowRequestWgsl(requestBinding)}
-const PCF_TAPS:u32=${LIGHT_SETTINGS.pcfTaps}u;
+${PCF_TAPS_WGSL}
 const SHADOW_SUBTEXELS:f32=${SHADOW_SUBTEXELS}.0;
 /** One step: a multiply by it is exact, where WGSL lets a division err by 2.5 ulp. */
 const SHADOW_SUBTEXEL:f32=1.0/SHADOW_SUBTEXELS;
-${poissonWgsl('POISSON', 1)}
 ${poissonWgsl('POISSON_STEPS', SHADOW_SUBTEXELS)}
 /** Pixel footprint at the lit point, in metres: set by the pass before it lights a surface. */
 var<private> shadowFootprint:f32=0.0;
