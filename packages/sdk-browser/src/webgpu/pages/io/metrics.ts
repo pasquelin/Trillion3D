@@ -137,6 +137,8 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   rt.run.gate.release();
   services.residency.quietPending();
   timing.gpuTiming?.dispose();
+  rt.vis.wholeDeformation?.table.destroy();
+  rt.vis.wholeDeformation = undefined;
   rt.vis.deformationCompute?.dispose();
   rt.vis.deformationCompute = undefined;
   dropGpuSelection(rt);
