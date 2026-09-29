@@ -865,9 +865,12 @@ measured faster, operation by operation. `metric.frame(world).mathBatch` publish
 `MathPathMetrics` (`MATH_PATH_CONTRACT` 1): `operations[name].path` is the path the next call
 plays, `jsNsPerElement` and `wasmNsPerElement` the sliding medians in nanoseconds per element
 (`null` while unmeasured — never zero), `switches` how many times the decision changed, `elements`
-the total processed; `clockCoarse` says the thread clock is too coarse to arbitrate, and everything
-then stays on JavaScript. The other batches have no kernel: a kernel is written only where a loop's
-share of the engine's own frame is measured above 0.1 ms, and none of their loops reaches it (#80).
+the total processed; `clockCoarse` says the thread clock is too coarse to time one call (no
+cross-origin isolation), so the governor times pooled runs of ten clock steps instead (#919). A host
+that serves its page with the `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy`
+headers gets the fine clock back, one sample per call. The other batches have no kernel: a kernel
+is written only where a loop's share of the engine's own frame is measured above 0.1 ms, and none of
+their loops reaches it (#80).
 
 ## Maths reference
 
@@ -1559,7 +1562,11 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   is drawn without it — the loop never stops — and the world's diagnostic channel says
   `material-degraded` once per surface and feature (`context.material`, `context.feature`). The
   WebGPU page raster lists material extensions among its unsupported capabilities and says nothing
-  per surface.
+  per surface. A surface the WebGL2 program cannot draw at all (an environment, light, bump,
+  displacement or alpha map, wireframe, stencil writes, alpha hash, premultiplied alpha, alpha to
+  coverage, clipping planes, object-space normals) is left out of the frame while every other
+  object draws and the loop goes on; the channel says `material-refused` once per surface and
+  reason (`context.material`, `context.reason`).
 - Transparent surfaces are lit from the source file's own light graph with a fixed ambient, not yet
   by the declared-light rule above.
 - A lost device is recovered, the page never reloaded: the world asks for a device again, reopens its
