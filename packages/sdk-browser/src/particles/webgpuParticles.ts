@@ -11,7 +11,6 @@ import { createWebgpuParticleDraw, type DrawState } from './webgpuParticleDraw.t
 import { DRAW_FLOATS } from './drawWords.ts';
 import { viewProj } from '../webgpu/pages/helpers.ts';
 import { routedFilter } from '../webgpu/blend/displayFilter.ts';
-import { directTiles } from '../webgpu/pages/render/encodeLights.ts';
 
 /** The pass label the GPU timings name the particle step by (`passesGpu`). */
 export const PARTICLES_PASS = 'Trillion3D particles';
@@ -164,8 +163,13 @@ export function encodeParticles(
   rt.run.gpuComputeDispatches += rt.gpu.particles.run(pools, encoder);
 }
 
-/** The world's stepped pools drawn over the lit image and its transparents, in beauty only. */
-export function drawParticles(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
+/** The world's stepped pools drawn over the lit image and its transparents, in beauty only;
+ *  `tone`, the image's exposure and curve (`directTiles`), shows a routed disc. */
+export function drawParticles(
+  rt: WebgpuPagesRuntime,
+  encoder: GPUCommandEncoder,
+  tone: ArrayLike<number>,
+) {
   const { run } = rt,
     { hdrView, depthView, particles } = rt.gpu,
     pools = rt.context.particles;
@@ -181,6 +185,6 @@ export function drawParticles(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder
     viewProj,
     eye,
     filter,
-    directTiles(),
+    tone,
   );
 }

@@ -24,13 +24,6 @@ export const COVERAGE_EQUATIONS: Record<Blending, GPUBlendState | undefined> = {
 export const filtersDisplay = (blending: Blending) =>
   blending === 'subtractive' || blending === 'multiply';
 
-/** The lit target in an image with a display filter: a filtering mode leaves it untouched. */
-export const FILTERED_EQUATIONS: Record<Blending, GPUBlendState | undefined> = {
-  ...COVERAGE_EQUATIONS,
-  subtractive: { color: KEEP, alpha: KEEP },
-  multiply: { color: KEEP, alpha: KEEP },
-};
-
 /** How a pipeline of a filtered image routes its colour (`DISPLAY_ROUTE`, `displayFilter.ts`):
  *  a normal or additive layer goes to the display layers where a filter covers the pixel, a
  *  filtering mode always does, `none` resets them. */

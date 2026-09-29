@@ -35,6 +35,10 @@ export function blend(state: GPUBlendState, src: Rgba, dst: Rgba): Rgba {
   return [channel(0), channel(1), channel(2), channel(3)];
 }
 
+/** What `target` holds after `src` over `dst`: `dst` where its write mask is off. */
+export const written = (target: GPUColorTargetState, src: Rgba, dst: Rgba) =>
+  target.writeMask === 0 ? dst : blend(target.blend!, src, dst);
+
 /** The witness's display value of a linear colour: three@0.174's ACES filmic fit, then sRGB. */
 export function display([r, g, b]: readonly number[]): number[] {
   const c = [r, g, b].map((v) => v / 0.6);

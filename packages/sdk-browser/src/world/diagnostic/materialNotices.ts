@@ -1,4 +1,5 @@
 import type { BackendContext } from '../../backend/types.ts';
+import { sendEngineDiagnostic } from '../../diagnostic/engineDiagnostic.ts';
 import type { WorldNotices } from './worldNotices.ts';
 
 // Apart from `worldNotices.ts`, whose budgets reach the WebGPU engine: the WebGL2 draw
@@ -6,7 +7,7 @@ import type { WorldNotices } from './worldNotices.ts';
 
 /**
  * The WebGL2 program's word (`MaterialDegraded`) that it draws a surface without physical
- * `features` it cannot draw (`physicalFeaturesLost`): said once per surface and feature, as
+ * `features` it cannot draw (`physicalLostMask`): said once per surface and feature, as
  * `material-degraded`, and the frame goes on. With `leftOut`, the surface is one the gate refuses
  * (`clusterMaterialReason`): it is left out of the frame, every other one drawn, said once per
  * surface and reason as `material-refused`. Heard on each draw of a surface (`readDegraded`): a
@@ -47,5 +48,6 @@ export function noticeMaterialDegraded(notices: Pick<WorldNotices, 'say'>) {
 export const degradedHearer = (hosts: Pick<BackendContext, 'materialDegraded' | 'onDiagnostic'>) =>
   hosts.materialDegraded ??
   noticeMaterialDegraded({
-    say: (phase, message, context = {}) => hosts.onDiagnostic?.({ phase, message, context }),
+    say: (phase, message, context = {}) =>
+      sendEngineDiagnostic(hosts.onDiagnostic, phase, message, context),
   });
