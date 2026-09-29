@@ -81,7 +81,9 @@ export class WebglPageArenas {
     const index = geometry.index,
       released = geometry.released,
       position = geometry.attributes.position;
-    if (!index || !(index.array instanceof Uint32Array) || !released || !position)
+    // An empty page keeps its own buffers: a range of nothing has no offset to submit.
+    const empty = !index?.array.length || !position?.count;
+    if (!index || !(index.array instanceof Uint32Array) || !released || empty)
       return void this.refused.add(geometry);
     const layout: ArenaAttribute[] = [],
       arrays: ArrayBufferView[] = [],
@@ -100,7 +102,7 @@ export class WebglPageArenas {
     }
     const key = layout.map(({ name, size }) => `${name}${size}`).join(','),
       arena = this.arena(key, layout),
-      vertices = position.count,
+      vertices = position!.count,
       { vertex, first } = arena.place(arrays, vertices, index.array);
     const slot: ArenaSlot = {
       arena,
