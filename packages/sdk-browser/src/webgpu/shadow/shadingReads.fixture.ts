@@ -53,7 +53,7 @@ const matrices = new Float32Array(6 * 16),
 const dot = (a: Vec, b: ArrayLike<number>, at = 0) =>
   a[0] * b[at] + a[1] * b[at + 1] + a[2] * b[at + 2];
 
-/** The pages the lamp in `slice` has its pixel at `lit` read, at the mip it wants. */
+/** The pages the lamp in `slot` has its pixel at `lit` read, at the mip it wants. */
 function lampReads(plan: ShadowPlan, store: SceneLightStore, slot: number, lit: Lit, f: number) {
   const light = store.light(store.ids[slot])!,
     faces = lampFacesOf(LIGHT_KIND[light.kind]),
@@ -113,17 +113,16 @@ function sunReads(plan: ShadowPlan, slice: number, lit: Lit, f: number) {
 }
 
 /** Every page the frame's shading reads at the points `lits`, each named once: what its readback
- *  lists. `pixelNear` is a pixel's footprint at the near plane of `view`. */
+ *  lists, seen from `view`. */
 export function shadingReads(
   plan: ShadowPlan,
   store: SceneLightStore,
   view: ShadowViewpoint,
-  pixelNear: number,
   lits: Lit[],
 ) {
   const read = new Set<number>();
   for (const lit of lits) {
-    const f = (pixelNear * dot(sub(lit.P, view.position), view.forward)) / view.near;
+    const f = (view.pixelNear * dot(sub(lit.P, view.position), view.forward)) / view.near;
     for (let slot = 0; slot < store.count; slot++) {
       const slice = store.sliceOf(slot);
       if (slice < 0) continue;
