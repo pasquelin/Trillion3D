@@ -1,9 +1,6 @@
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { PAGE_MODEL_WGSL } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
-import {
-  PAGE_RANGE_SHIFT,
-  SHADOW_PAGE,
-} from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { CASTERS_ALL, SHADOW_CULL_GROUP } from '../../gpu/shadow/cullShader.ts';
 import { SHADOW_PLACE_WGSL } from '../../lighting/direct/shadowSampleWgsl.ts';
 import { SHADOW_DATA_WGSL } from '../../lighting/direct/shadowWgsl.ts';
@@ -57,11 +54,10 @@ const FACE_WORDS:u32=${FRESH_FACE_WORDS}u;
 const CULL_WORDS:u32=${SHADOW_CULL_FLOATS}u;
 const CULL_GROUP:u32=${SHADOW_CULL_GROUP}u;
 const PAGE_TEXELS:f32=${SHADOW_PAGE}.0;
-const RANGE_SHIFT:u32=${PAGE_RANGE_SHIFT}u;
 const MAX_REGIONS:u32=${MAX_FRESH_REGIONS}u;
 var<workgroup> layerCount:array<u32,${MAX_POOL_LAYERS}>;
 var<workgroup> regionCount:u32;
-fn poolField(field:u32,p:u32)->i32{return shadowPool.pages[field*params.pages+p];}
+fn shadowPoolPages()->u32{return params.pages;}
 fn poolLayer(p:u32)->u32{return u32(shadowPoolPlace(f32(p),f32(params.side)).z);}
 fn faceF(i:u32,v:f32){faces[i]=bitcast<u32>(v);}
 fn volumeF(i:u32,v:f32){volumes[i]=bitcast<u32>(v);}
@@ -74,9 +70,9 @@ fn pickPages(){
  let listed=min(countRead(COUNT_DRAWN),params.pages);
  var picked=0u;
  for(var i=0u;i<listed&&picked<MAX_REGIONS;i++){
-  let p=drawList[i];let e=poolField(POOL_OWNER,p);
+  let p=drawList[i];let e=shadowPool.pages[poolAt(POOL_OWNER,p)];
   if(e<0){continue;}
-  let word=shadows.table[u32(e)];let by=POOL_DRAWNBY*params.pages+p;
+  let word=shadows.table[u32(e)];let by=poolAt(POOL_DRAWNBY,p);
   if((word&(PAGE_MAPPED|PAGE_VALID))!=PAGE_MAPPED||(word&PAGE_INDEX_MASK)!=p||shadowPool.pages[by]!=DRAWN_NONE){continue;}
   shadowPool.pages[by]=DRAWN_GPU;drawList[picked]=p;picked++;
   layerCount[poolLayer(p)]+=1u;
@@ -147,15 +143,15 @@ fn composeLamp(k:u32,slice:u32,view:i32,x:f32,y:f32){
 }
 /** Region \`k\`: its page's view and volume, every caster of it kept (\`CASTERS_ALL\`). */
 fn composeRegion(k:u32){
- let p=args[FRESH_REGION_PAGES+k];let e=u32(poolField(POOL_OWNER,p));let slice=e/SHADOW_TABLE_STRIDE;
+ let p=args[FRESH_REGION_PAGES+k];let e=u32(shadowPool.pages[poolAt(POOL_OWNER,p)]);let slice=e/SHADOW_TABLE_STRIDE;
  let place=shadowPoolPlace(f32(p),f32(params.side))*PAGE_TEXELS;let size=f32(params.side)*PAGE_TEXELS;
  let at=k*FACE_WORDS;
  faceVec(at+16u,vec4f(place.xy/size,PAGE_TEXELS/size,PAGE_TEXELS));
  faceVec(at+20u,params.slices[slice].emitter);
  faceVec(at+24u,vec4f(shadowAtlasClip(place.x,size),-shadowAtlasClip(place.y,size),vec2f(PAGE_TEXELS/size)));
- let x=f32(poolField(POOL_X,p));let y=f32(poolField(POOL_Y,p));
- if(u32(shadows.records[slice].info.x)==u32(SUN_LEVEL_COUNT)){composeSun(k,slice,poolField(POOL_VIEW,p),x,y);}
- else{composeLamp(k,slice,poolField(POOL_VIEW,p),x,y);}
+ let x=f32(shadowPool.pages[poolAt(POOL_X,p)]);let y=f32(shadowPool.pages[poolAt(POOL_Y,p)]);
+ if(u32(shadows.records[slice].info.x)==u32(SUN_LEVEL_COUNT)){composeSun(k,slice,shadowPool.pages[poolAt(POOL_VIEW,p)],x,y);}
+ else{composeLamp(k,slice,shadowPool.pages[poolAt(POOL_VIEW,p)],x,y);}
  volumes[k*CULL_WORDS+16u]=${CASTERS_ALL}u;volumes[k*CULL_WORDS+17u]=0u;
  args[FRESH_REGION_PAGES+params.pages+k]=0u;
 }
@@ -182,11 +178,11 @@ fn composeRegion(k:u32){
 @compute @workgroup_size(${FRESH_LANES}) fn sealShadowPages(@builtin(local_invocation_index) lane:u32){
  let regions=args[FRESH_REGIONS];
  for(var k=lane;k<regions;k+=FRESH_LANES){
-  let p=args[FRESH_REGION_PAGES+k];let e=u32(poolField(POOL_OWNER,p));let slice=e/SHADOW_TABLE_STRIDE;
-  if(args[FRESH_REGION_PAGES+params.pages+k]!=0u){shadowPool.pages[POOL_DRAWNBY*params.pages+p]=DRAWN_NONE;continue;}
+  let p=args[FRESH_REGION_PAGES+k];let e=u32(shadowPool.pages[poolAt(POOL_OWNER,p)]);let slice=e/SHADOW_TABLE_STRIDE;
+  if(args[FRESH_REGION_PAGES+params.pages+k]!=0u){shadowPool.pages[poolAt(POOL_DRAWNBY,p)]=DRAWN_NONE;continue;}
   var range=0u;
   if(u32(shadows.records[slice].info.x)==u32(SUN_LEVEL_COUNT)){range=u32(shadows.records[slice].frame[2].w);}
-  shadows.table[e]=p|PAGE_MAPPED|PAGE_VALID|(range<<RANGE_SHIFT);
+  shadows.table[e]=shadowReadableWord(p,range,0u);
  }
  if(lane<params.layers){
   let casters=freshDraw(lane,${FRESH_CASTERS}u);

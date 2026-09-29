@@ -8,10 +8,8 @@
 import { LIGHT_KIND } from '../../../packages/sdk-core/src/index.ts';
 import { createSceneLightStore } from '../../../packages/sdk-core/src/scene/light/store.ts';
 import { createShadowPlan } from '../../../packages/sdk-core/src/scene/light-shadow/plan.ts';
+import { PAGES } from '../../../packages/sdk-core/src/scene/light-shadow/pageModel.ts';
 import {
-  PAGE_MAPPED,
-  PAGE_RANGE_SHIFT,
-  PAGE_VALID,
   SHADOW_PAGE,
   SHADOW_TABLE_ENTRIES,
   SHADOW_TABLE_STRIDE,
@@ -117,7 +115,7 @@ async function runScene(device: GPUDevice, scene: DemandScene) {
       const slice = Math.floor(entry / SHADOW_TABLE_STRIDE),
         sun = plan.records.kind[slice] === LIGHT_KIND.directional,
         range = sun ? plan.sun.ranges.current[slice] : 0;
-      table[entry] = (i % (ATLAS * ATLAS)) | PAGE_MAPPED | PAGE_VALID | (range << PAGE_RANGE_SHIFT);
+      table[entry] = PAGES.shadowReadableWord(i % (ATLAS * ATLAS), range, 0);
     });
     device.queue.writeBuffer(data, SHADOW_TABLE_OFFSET, table);
     const textures: [number, Entry][] = [

@@ -17,7 +17,11 @@ import {
 import {
   LAMP_FACE_ENTRIES,
   LAMP_MIPS,
+  PAGE_INDEX_MASK,
+  PAGE_RANGE_MASK,
   SHADOW_PAGE,
+  SHADOW_TABLE_ENTRIES,
+  SUN_LEVELS,
   lampPagesAt,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { mulberry32 } from '../../../../../site/examples/kit/random.ts';
@@ -79,6 +83,12 @@ const INPUTS: Record<string, () => number> = {
   p: () => (r() - 0.5) * 1e4,
   d: () => r() * 2 - 1,
   s: () => (r() - 0.5) * 1e3,
+  rank: () => int(0, (SUN_LEVELS - 1) * LAMP_MIPS),
+  entry: () => int(0, SHADOW_TABLE_ENTRIES - 1),
+  age: () => int(1, 600),
+  page: () => int(0, PAGE_INDEX_MASK),
+  range: () => int(0, PAGE_RANGE_MASK),
+  footprintBits: () => int(0, 255),
 };
 /** Texels on and about the edges the PCF and the page of a texel turn on, from a page's first. */
 const EDGES = [-1.5, -1.5 - 2 ** -20, 0, 1.5, 1.5 - 2 ** -20, 64, 64 - 2 ** -20, 126.5, 128];

@@ -30,21 +30,22 @@ struct ShadowWords{count:u32,pages:u32,frame:i32,pad0:u32,words:array<vec2u>,}
 @group(0) @binding(2) var<storage,read> shadowWords:ShadowWords;
 @group(0) @binding(3) var<storage,read_write> drawList:array<u32>;
 ${SHADOW_POOL_WGSL}
+fn shadowPoolPages()->u32{return shadowWords.pages;}
 ${SHADOW_DRAW_LIST_WGSL}
 /** Page \`p\`'s depth is no longer its owner's: drawn again in this frame when the frame asks for
  *  it, listed once — a page already waiting for its draw is listed. */
 fn loseDepth(p:u32){
- let by=POOL_DRAWNBY*shadowWords.pages+p;
+ let by=poolAt(POOL_DRAWNBY,p);
  if(shadowPool.pages[by]==DRAWN_NONE){return;}
  shadowPool.pages[by]=DRAWN_NONE;
- if(shadowPool.pages[POOL_REQUESTED*shadowWords.pages+p]==shadowWords.frame){listDraw(p);}
+ if(shadowPool.pages[poolAt(POOL_REQUESTED,p)]==shadowWords.frame){listDraw(p);}
 }
 fn applyShadowWord(i:u32){
  let pair=shadowWords.words[i];let e=pair.x;let word=pair.y;
  if((word&PAGE_MAPPED)==0u){return;}
  let p=word&PAGE_INDEX_MASK;
- let owner=shadowPool.pages[POOL_OWNER*shadowWords.pages+p];
- let by=POOL_DRAWNBY*shadowWords.pages+p;
+ let owner=shadowPool.pages[poolAt(POOL_OWNER,p)];
+ let by=poolAt(POOL_DRAWNBY,p);
  if(owner==i32(e)){
   if((word&PAGE_VALID)!=0u){shadowPool.pages[by]=DRAWN_HOST;}
   else if(shadowPool.pages[by]==DRAWN_GPU){return;}

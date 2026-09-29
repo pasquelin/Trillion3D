@@ -76,6 +76,9 @@ const SIGNATURES: Record<keyof PageModel<string>, string[]> = {
   shadowAlong: ['p:f32', 'd:f32', 's:f32', 'f32'],
   shadowBoxMid: ['low:f32', 'high:f32', 'h:f32', 'f32'],
   shadowBoxHalf: ['low:f32', 'high:f32', 'h:f32', 'f32'],
+  shadowNeedKey: ['rank:i32', 'entry:i32', 'i32'],
+  shadowEvictionKey: ['age:i32', 'rank:i32', 'page:i32', 'i32'],
+  shadowReadableWord: ['page:u32', 'range:u32', 'footprintBits:u32', 'u32'],
 };
 
 /** The WGSL names of the page model's functions: what a test running the shaders in Node lists. */
