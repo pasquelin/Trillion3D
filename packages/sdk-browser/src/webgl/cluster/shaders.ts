@@ -140,12 +140,15 @@ if((mapMask&16384)!=0)thinSubsurface*=texture(subsurfaceMap,mapUv(subsurfaceUv,s
 float p=-projectionMatrix[2][3];vec3 V=normalize(vec3(0.0,0.0,1.0-p)-viewPosition*p);float ao=1.0;if((mapMask&16)!=0)ao=(texture(aoMap,mapUv(aoUv,sourceUv(extraChannels.x)),mipBias).r-1.0)*aoStrength+1.0;
 vec3 rgb=lit?shade(N,V,base.rgb,metal,rough,ao):base.rgb*ao;
 if((mapMask&32)!=0)rgb+=emissiveFactor*texture(emissiveMap,mapUv(emissiveUv,sourceUv(extraChannels.y)),mipBias).rgb;else rgb+=emissiveFactor;
-if(lit){rgb+=mirrorLighting(base.rgb,metal,rough,N,V,viewPosition)*coatAttenuation(V);
+// A mirror resolve pass draws a receiver to write its single trace, and nothing else it shades:
+// the reflection is traced once into the reduced image instead of once per sample over it.
+if(lit&&!reflectionOutput){rgb+=mirrorLighting(base.rgb,metal,rough,N,V,viewPosition)*coatAttenuation(V);
 if(physicalRead.z>0.0)rgb+=physicalRead.z*mirrorLighting(vec3(0.0),0.0,physicalRead.w,coatNormal,V,viewPosition);}
-if(!fogFree&&!reflectionCapture)rgb=fogged(rgb);
+if(!fogFree&&!reflectionCapture&&!reflectionOutput)rgb=fogged(rgb);
 if(surfaceModel==${SURFACE_MODEL.normal})rgb=normalViewColor(N);
 if(surfaceModel==${SURFACE_MODEL.depth})rgb=vec3(clamp(depthRamp.x*toEye.z+depthRamp.y,0.0,1.0));
-float alpha=base.a;if(transmissive){vec4 through=transmissionColor(rgb,base.rgb,alpha,N,V,viewPosition,rough,ao);rgb=through.rgb;alpha=through.a;}
+float alpha=base.a;if(transmissive&&!reflectionOutput){vec4 through=transmissionColor(rgb,base.rgb,alpha,N,V,viewPosition,rough,ao);rgb=through.rgb;alpha=through.a;}
+if(reflectionOutput)rgb=reflectedRadiance(viewPosition,N,reflect(-V,N),rough);
 if(toneMapped)rgb=toneMap(rgb);if(srgbDestination)rgb=linearToSrgb(rgb);outColor=vec4(rgb,covering?1.0:alpha);}`;
 
 /** Replaces `from` in `text`, which must hold it once: a variant never drifts off its source. */

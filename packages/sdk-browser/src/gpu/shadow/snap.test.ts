@@ -15,12 +15,15 @@ const vec4f = (x: number, y: number, z: number, w: number): Vec => ({ x, y, z, w
 const POOL = 8192;
 /** The shipped `sunSnap`, over a face whose matrix is `viewProjection` and viewport `side` texels,
  *  in a pool `POOL` texels wide. */
-const sunSnap = (viewProjection: Vec[], side: number) =>
-  shaderFunctions<{ sunSnap: (p: Vec) => Vec }>(SHADOW_DEPTH_SHADER, ['snapGrid', 'sunSnap'], {
-    vec4f,
-    abs: Math.abs,
-    shadow: { viewProjection, params: vec4f(0, 0, f(side / POOL), side) },
-  }).sunSnap;
+const sunSnap = (viewProjection: Vec[], side: number) => {
+  const view = { viewProjection, params: vec4f(0, 0, f(side / POOL), side) };
+  const run = shaderFunctions<{ sunSnap: (view: object, p: Vec) => Vec }>(
+    SHADOW_DEPTH_SHADER,
+    ['snapGrid', 'sunSnap'],
+    { vec4f, abs: Math.abs },
+  );
+  return (p: Vec) => run.sunSnap(view, p);
+};
 /** Where the rasterizer puts clip `x` of a page at `origin`, relative to that origin. */
 const placed = (x: number, origin: number) => {
   const half = SHADOW_PAGE / 2;
@@ -40,7 +43,7 @@ test('an orthographic corner snapped by its viewport rasterizes alike at every p
     assert.equal(new Set(ORIGINS.map((o) => placed(snapped, o))).size, 1, `corner ${x}`);
   }
   assert.ok(moved > 0, 'unsnapped, some corners land elsewhere at another origin');
-  assert.match(SHADOW_DEPTH_SHADER, /out\.position=sunSnap\(shadow\.viewProjection\*/);
+  assert.match(SHADOW_DEPTH_SHADER, /out\.position=sunSnap\(view,view\.viewProjection\*/);
 });
 
 // #1016 review: the snap keyed on `w == 1` per corner; it follows the face's projection kind, and
@@ -65,7 +68,7 @@ test('a corner within the pool snaps on the constant subtexel step', () => {
     assert.equal(snap(vec4f(x, 0, 0.5, 1)).x, Math.round(x * step) / step, `corner ${x}`);
   }
   // Only a corner past the pool's f32 subtexel reaches `snapGrid`.
-  assert.match(SHADOW_DEPTH_SHADER, /let rx=abs\(p\.x\)\*half\+pool;.*if\(rx>=edge\)/s);
+  assert.match(SHADOW_DEPTH_SHADER, /if\(abs\(p\.x\)\*half\+pool>=edge\)/);
 });
 
 // #1016: a caster whose sphere touches a page is drawn whole (`cullShader.ts`), and a flat floor's
