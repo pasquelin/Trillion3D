@@ -92,7 +92,8 @@ export function createCellBoxes(
       frame.matrix.set(relative);
       frame.moved = shifted = now;
       if (same(relative, frame.declared)) displaced.delete(rank);
-      else displaced.set(rank, multiplyMatrix4(new Float64Array(MATRIX_VALUES), relative, frame.back));
+      else
+        displaced.set(rank, multiplyMatrix4(new Float64Array(MATRIX_VALUES), relative, frame.back));
     }
   };
   const moved = ([rank]: Parts[number], since: number) =>

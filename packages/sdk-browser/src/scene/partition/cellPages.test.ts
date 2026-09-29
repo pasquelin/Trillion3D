@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { ManifestPages } from '../../../../sdk-core/src/manifest/paged.ts';
-import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
 import { createCellPages } from './cellPages.ts';
 
 /** Pages held by a count, as `openPagedManifest` holds them: a hold whose read fails undoes its own
@@ -27,13 +26,17 @@ function countedPages(fail: ReadonlySet<string>) {
   return { pages, counts, land };
 }
 
-const cell = (meshPages: string[]) => ({ meshPages }) as unknown as TableCell;
+/** Each cell's mesh pages, `lists[cell]`. */
+const cell =
+  (...lists: string[][]) =>
+  (at: number) =>
+    lists[at];
 
 // #751: a cell that leaves while its read is in flight, the read then failing, drops no page
 // another placed cell still holds.
 test('a cell that leaves mid-read releases nothing more when its read fails', async () => {
   const { pages, counts, land } = countedPages(new Set(['y']));
-  const held = createCellPages(pages, [cell(['x', 'y']), cell(['x'])]);
+  const held = createCellPages(pages, cell(['x', 'y'], ['x']));
   held.hold(0);
   held.hold(1);
   held.release(0);
@@ -44,7 +47,7 @@ test('a cell that leaves mid-read releases nothing more when its read fails', as
 
 test('a cell that leaves mid-read releases its pages once they land', async () => {
   const { pages, counts, land } = countedPages(new Set());
-  const held = createCellPages(pages, [cell(['x'])]);
+  const held = createCellPages(pages, cell(['x']));
   held.hold(0);
   held.release(0);
   land();
