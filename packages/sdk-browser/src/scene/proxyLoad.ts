@@ -1,5 +1,7 @@
 import {
+  assertSceneProxy,
   decodeSceneProxy,
+  EngineError,
   type ClusterManifest,
   type SceneProxy,
 } from '../../../sdk-core/src/index.ts';
@@ -37,6 +39,7 @@ export function createSceneProxyReader(
     cache?.keepOnly();
     return undefined;
   }
+  assertSceneProxy(proxy);
   const url = new URL(proxy.url, base).href;
   const key = `${url}#${proxy.sha256}`;
   cache?.keepOnly(key);
@@ -59,6 +62,21 @@ export function createSceneProxyReader(
       result = decodeSceneProxy(proxy, buffer);
       decoded.set(buffer, result);
     }
+    for (const field of [
+      'version',
+      'bytes',
+      'triangles',
+      'nodes',
+      'groups',
+      'owners',
+      'instances',
+    ] as const)
+      if (proxy[field] !== result[field])
+        throw new EngineError(
+          'INVALID_CACHE',
+          'The scene proxy object disagrees with its manifest',
+          { field },
+        );
     const allocations = new Set(Object.values(result.data).map((column) => column.buffer));
     allocations.delete(buffer);
     const expandedBytes = [...allocations].reduce(
@@ -66,6 +84,6 @@ export function createSceneProxyReader(
       0,
     );
     cache?.resizeKept(key, buffer.byteLength + expandedBytes);
-    return result;
+    return { ...proxy, data: result.data };
   };
 }

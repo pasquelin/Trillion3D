@@ -549,7 +549,8 @@ channel: `colourCoverage` is the base colour (sRGB, `baseColorFactor` times texe
 the rays that hit, alpha the share of rays that hit; `normalDepth` is the object-space normal
 (vertex normals interpolated when declared, turned to face the ray) as `n · ½ + ½`, alpha the
 depth `D = ½ + height / 2R`, `height` the signed distance above the frame plane towards the
-capture; `orm` packs occlusion, roughness and metallic (factors times their textures), alpha 255. An empty texel takes the three maps of the nearest covered texel of its own frame, its
+capture; `orm` packs occlusion, roughness and metallic (factors times their textures), alpha
+255. An empty texel takes the three maps of the nearest covered texel of its own frame, its
 coverage staying 0, so filtering at the silhouette blends no black fringe.
 
 **Levels.** Each map carries its mip chain under the texture rule of [Textures](#textures),
