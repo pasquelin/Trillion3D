@@ -2,10 +2,6 @@ import { MAX_SHADOW_SLICES } from '../../../../sdk-core/src/index.ts';
 import { PAGE_MODEL_WGSL } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
 import {
   LAMP_FACE_ENTRIES,
-  LAMP_MIPS,
-  PAGE_INDEX_MASK,
-  SHADOW_TABLE_ENTRIES,
-  SUN_LEVELS,
   SUN_LEVEL_ENTRIES,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SUN_ORIGIN_WGSL } from '../../lighting/direct/shadowFactorWgsl.ts';
@@ -18,16 +14,6 @@ export const ALLOC_LANES = 256;
 /** Words of the parameters before the host's asks: frame, pages, list cap, asks, where the
  *  candidates' keys start, then each slice's generation. */
 export const ALLOC_PARAM_WORDS = 8 + MAX_SHADOW_SLICES;
-
-/** Bits of an entry, of a page, of a coarseness, in the keys the allocation sorts. */
-const ENTRY_BITS = Math.log2(SHADOW_TABLE_ENTRIES),
-  PAGE_BITS = Math.log2(PAGE_INDEX_MASK + 1),
-  RANK_BITS = 7;
-// Every key is one u32: the coarsest rank of either kind, and an entry, fit their bits.
-if (Math.max((SUN_LEVELS - 1) * LAMP_MIPS, (LAMP_MIPS - 1) * SUN_LEVELS) >= 2 ** RANK_BITS)
-  throw new Error('SHADOW_RANK_BITS');
-if (!Number.isInteger(ENTRY_BITS) || ENTRY_BITS + RANK_BITS > 32)
-  throw new Error('SHADOW_KEY_BITS');
 
 /**
  * THE GPU ALLOCATION OF SHADOW PAGES (#1275): one workgroup, right after the per-pixel demand
@@ -46,14 +32,14 @@ if (!Number.isInteger(ENTRY_BITS) || ENTRY_BITS + RANK_BITS > 32)
  * 3. `touchRequests` — an entry mapped becomes asked this frame, listed to draw while no draw
  *    for it landed (`listDraw`); one unmapped is a need, keyed coarsest first, then by entry.
  * 4. `listCandidates` — the pages a need may take: the free ones, by page, then every page not
- *    asked this frame, least recently asked first, the finest first, then by page (`poolOrder.ts`).
+ *    asked this frame, least recently asked first, the finest first, then by page — the keys the
+ *    host sorts by too (`shadowNeedKey`, `shadowEvictionKey`).
  * 5. Both lists sorted (`sortStep`, bitonic), then `assignPages`: need `i` takes candidate `i` —
  *    evicting what it mapped, whose word is zeroed —, its word written mapped and not readable,
  *    the page listed to draw, what it names decoded by the page model (`shadowEntryPage`). A need
  *    past the candidates is refused: every page is one this frame asks for.
  *
- * Sorted, the order is the atomics' no more: the same frame maps the same pages. A page asked
- * more than `AGE_CAP` frames ago is as old as any older.
+ * Sorted, the order is the atomics' no more: the same frame maps the same pages.
  */
 export const ALLOCATION_WGSL = `
 ${SHADOW_DATA_WGSL}
@@ -70,12 +56,8 @@ ${SHADOW_POOL_WGSL}
 const ALLOC_LANES:u32=${ALLOC_LANES}u;
 const SUN_LEVEL_ENTRIES:i32=${SUN_LEVEL_ENTRIES};
 const LAMP_FACE_ENTRIES:i32=${LAMP_FACE_ENTRIES};
-const ENTRY_BITS:u32=${ENTRY_BITS}u;
-const PAGE_BITS:u32=${PAGE_BITS}u;
-const RANK_TOP:u32=${2 ** RANK_BITS - 1}u;
-const AGE_CAP:i32=${2 ** (32 - PAGE_BITS - RANK_BITS) - 2};
 const NO_KEY:u32=0xffffffffu;
-fn poolAt(field:u32,page:u32)->u32{return field*params.pages+page;}
+fn shadowPoolPages()->u32{return params.pages;}
 fn requestCount()->u32{return atomicLoad(&shadowRequests[0]);}
 fn requestAt(i:u32)->u32{return atomicLoad(&shadowRequests[1u+i]);}
 ${SHADOW_DRAW_LIST_WGSL}
@@ -131,7 +113,7 @@ fn touchRequests(lane:u32){
   }
   let named=shadowEntryPage(e);
   if(named.w<0){continue;}
-  keys[countNext(COUNT_NEEDS)]=((RANK_TOP-u32(named.w))<<ENTRY_BITS)|e;
+  keys[countNext(COUNT_NEEDS)]=u32(shadowNeedKey(named.w,i32(e)));
  }
 }
 fn listCandidates(lane:u32){
@@ -140,8 +122,7 @@ fn listCandidates(lane:u32){
   if(e>=0){
    let age=params.frame-shadowPool.pages[poolAt(POOL_REQUESTED,p)];
    if(age<=0){continue;}
-   let rank=u32(shadowPool.pages[poolAt(POOL_RANK,p)]);
-   key=(u32(AGE_CAP-min(age,AGE_CAP)+1)<<(PAGE_BITS+${RANK_BITS}u))|(rank<<PAGE_BITS)|p;
+   key=u32(shadowEvictionKey(age,shadowPool.pages[poolAt(POOL_RANK,p)],i32(p)));
   }
   keys[params.candidateBase+countNext(COUNT_CANDIDATES)]=key;
  }

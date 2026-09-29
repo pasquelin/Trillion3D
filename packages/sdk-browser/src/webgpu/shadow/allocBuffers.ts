@@ -20,23 +20,27 @@ const snapshotWords = (pages: number) => POOL_COUNTS.length + 2 * pages;
  *  mapped page once (`table.ts`, `flush`). */
 const wordsCap = (pages: number) => 4 * pages;
 
-/** GPU bytes of the allocation of a pool of `pages`: its pool, keys, parameters and words, then
- *  the draw list, parameters, arguments, views and volumes of the pages the GPU draws itself. */
+type Usage = keyof typeof GPUBufferUsage;
+/** Words of each buffer of the allocation of a pool of `pages`, with its label and its usages
+ *  beside `STORAGE`: its pool, keys, parameters and words, then the draw list, parameters,
+ *  arguments, dispatch, views and volumes of the pages the GPU draws itself. */
+const allocationBuffers = (pages: number) =>
+  ({
+    state: ['GPU pool', POOL_COUNTS.length + POOL_FIELDS.length * pages, ['COPY_DST', 'COPY_SRC']],
+    keys: ['allocation keys', spanOf(shadowRequestCap(pages)) + spanOf(pages), []],
+    params: ['allocation', ALLOC_PARAM_WORDS + shadowRequestCap(pages), ['COPY_DST']],
+    words: ['table words', WORDS_HEADER + 2 * wordsCap(pages), ['COPY_DST']],
+    drawList: ['GPU draw list', pages, []],
+    freshParams: ['GPU pages', FRESH_PARAMS, ['COPY_DST']],
+    freshArgs: ['GPU page draws', freshArgWords(pages), ['INDIRECT']],
+    freshDispatch: ['GPU page cull', 3, ['INDIRECT']],
+    freshFaces: ['GPU page views', pages * FRESH_FACE_WORDS, []],
+    freshVolumes: ['GPU page volumes', pages * SHADOW_CULL_FLOATS, []],
+  }) satisfies Record<string, [string, number, Usage[]]>;
+
+/** GPU bytes of the allocation of a pool of `pages`: every buffer it makes. */
 export const shadowAllocationBytes = (pages: number) =>
-  4 *
-  (POOL_COUNTS.length +
-    POOL_FIELDS.length * pages +
-    spanOf(shadowRequestCap(pages)) +
-    spanOf(pages) +
-    ALLOC_PARAM_WORDS +
-    shadowRequestCap(pages) +
-    WORDS_HEADER +
-    2 * wordsCap(pages) +
-    pages +
-    FRESH_PARAMS +
-    freshArgWords(pages) +
-    3 +
-    pages * (FRESH_FACE_WORDS + SHADOW_CULL_FLOATS));
+  Object.values(allocationBuffers(pages)).reduce((sum, [, words]) => sum + 4 * words, 0);
 
 /**
  * THE BUFFERS OF THE GPU ALLOCATION of one pool (`allocWgsl.ts`), made with its request buffer
@@ -47,54 +51,28 @@ export const shadowAllocationBytes = (pages: number) =>
  */
 export function createShadowAllocationBuffers(device: GPUDevice, pages: number) {
   const cap = shadowRequestCap(pages),
-    needSpan = spanOf(cap);
-  const buffer = (label: string, words: number, usage: number) =>
-    device.createBuffer({ label, size: words * 4, usage: GPUBufferUsage.STORAGE | usage });
-  const state = buffer(
-    'Trillion3D shadow GPU pool v1',
-    POOL_COUNTS.length + POOL_FIELDS.length * pages,
-    GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
-  );
-  const keys = buffer('Trillion3D shadow allocation keys v1', needSpan + spanOf(pages), 0);
+    needSpan = spanOf(cap),
+    made = Object.entries(allocationBuffers(pages)).map(([name, [label, words, usages]]) => [
+      name,
+      device.createBuffer({
+        label: `Trillion3D shadow ${label} v1`,
+        size: words * 4,
+        usage: (usages as Usage[]).reduce((u, n) => u | GPUBufferUsage[n], GPUBufferUsage.STORAGE),
+      }),
+    ]);
+  const buffers = Object.fromEntries(made) as Record<
+    keyof ReturnType<typeof allocationBuffers>,
+    GPUBuffer
+  >;
+  const { state, params: paramBuffer, words: wordBuffer, freshParams } = buffers;
   const params = new Uint32Array(ALLOC_PARAM_WORDS + cap),
     words = new Uint32Array(WORDS_HEADER + 2 * wordsCap(pages)),
     fields = new Int32Array(POOL_FIELDS.length * pages),
     fresh = new Uint32Array(FRESH_PARAMS),
     freshFloats = new Float32Array(fresh.buffer);
-  const paramBuffer = buffer(
-    'Trillion3D shadow allocation v1',
-    params.length,
-    GPUBufferUsage.COPY_DST,
-  );
-  const wordBuffer = buffer(
-    'Trillion3D shadow table words v1',
-    words.length,
-    GPUBufferUsage.COPY_DST,
-  );
-  const drawList = buffer('Trillion3D shadow GPU draw list v1', pages, 0),
-    freshParams = buffer('Trillion3D shadow GPU pages v1', FRESH_PARAMS, GPUBufferUsage.COPY_DST),
-    freshArgs = buffer(
-      'Trillion3D shadow GPU page draws v1',
-      freshArgWords(pages),
-      GPUBufferUsage.INDIRECT,
-    ),
-    freshDispatch = buffer('Trillion3D shadow GPU page cull v1', 3, GPUBufferUsage.INDIRECT),
-    freshFaces = buffer('Trillion3D shadow GPU page views v1', pages * FRESH_FACE_WORDS, 0),
-    freshVolumes = buffer('Trillion3D shadow GPU page volumes v1', pages * SHADOW_CULL_FLOATS, 0),
-    made = [state, keys, paramBuffer, wordBuffer, drawList, freshParams, freshArgs];
-  made.push(freshDispatch, freshFaces, freshVolumes);
   const allocation = {
-    state,
-    keys,
-    params: paramBuffer,
-    words: wordBuffer,
-    drawList,
-    freshParams,
-    freshArgs,
-    freshDispatch,
-    freshFaces,
-    freshVolumes,
-    bytes: made.reduce((sum, buffer) => sum + buffer.size, 0),
+    ...buffers,
+    bytes: shadowAllocationBytes(pages),
     /** Table words this frame's host sent that take a page's depth away (`writeWords`). */
     lost: 0,
     /** Bytes of the pool a snapshot copies (`snapshotWords`). */
@@ -188,7 +166,7 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
       into.requested.set(signed.subarray(POOL_COUNTS.length + pages));
     },
     dispose() {
-      for (const buffer of made) buffer.destroy();
+      for (const buffer of Object.values(buffers)) buffer.destroy();
     },
   };
   return allocation;
