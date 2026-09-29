@@ -342,7 +342,8 @@
       "hover-to-highlight": "Survoler pour mettre une pièce en évidence",
       "a-dolly-along-the-canal": "Un travelling le long du canal",
       "a-folder-merged-into-one-scene": "Un dossier fusionné en une scène",
-      "drag-a-crate": "Faire glisser une caisse"
+      "drag-a-crate": "Faire glisser une caisse",
+      "move-a-hierarchy-by-name": "Déplacer une hiérarchie par son nom"
     },
     "missing": {
       "thick-lines": "lignes épaisses",

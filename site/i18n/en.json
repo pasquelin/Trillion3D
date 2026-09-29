@@ -342,7 +342,8 @@
       "hover-to-highlight": "Hover to highlight a part",
       "a-dolly-along-the-canal": "A dolly along the canal",
       "a-folder-merged-into-one-scene": "A folder merged into one scene",
-      "drag-a-crate": "Drag a crate"
+      "drag-a-crate": "Drag a crate",
+      "move-a-hierarchy-by-name": "Move a hierarchy by name"
     },
     "missing": {
       "thick-lines": "wide lines",

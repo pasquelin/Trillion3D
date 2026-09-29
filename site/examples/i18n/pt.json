@@ -2375,5 +2375,23 @@
       "unmount": "Desmontar",
       "remount": "Montar novamente"
     }
+  },
+  "move-a-hierarchy-by-name": {
+    "banner": "Veja cinco grupos nomeados percorrer uma sequência reproduzível. Mude a origem para escrever as mesmas poses à mão.",
+    "controls": {
+      "driver": "Origem",
+      "speed": "Velocidade",
+      "paused": "Em pausa",
+      "replay": "Repetir"
+    },
+    "choices": {
+      "driver": {
+        "name": "pelo nome",
+        "host": "escrito pelo hospedeiro"
+      }
+    },
+    "readouts": {
+      "pose": "Pose"
+    }
   }
 }
