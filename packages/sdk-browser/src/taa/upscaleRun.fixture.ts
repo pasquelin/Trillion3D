@@ -64,7 +64,10 @@ export function upscaleRun(frame: UpscaleFrame, asIs = false, filtered = false, 
       return read(x, y);
     };
   const history = (uv: number[]) => (reads.push(uv), frame.history!(uv));
-  const weights = taaWeights(...(frame.jitter ?? [0, 0]), new Float32Array(TAA_WEIGHTS), 0);
+  const jitter = frame.jitter ?? [0, 0],
+    weights = taaWeights(jitter[0], jitter[1], new Float32Array(TAA_WEIGHTS), 0);
+  // Unwritten, the layers' history is read all the same and must not show.
+  const layerHistory = frame.layerHistory ?? (() => [NaN, NaN, NaN, NaN]);
   const scope = {
     view: {
       prevViewProj: frame.prevViewProj ?? IDENTITY,
@@ -72,7 +75,7 @@ export function upscaleRun(frame: UpscaleFrame, asIs = false, filtered = false, 
       viewport: [W, H, 1 / W, 1 / H],
       params: [0.25, frame.history ? 1 : 0, frame.motion ? 1 : 0, frame.layerHistory ? 1 : 0],
       render: [w, h, 1 / w, 1 / h],
-      jitter: [...(frame.jitter ?? [0, 0]), frame.moving ? 1 : 0, 0],
+      jitter: [...jitter, frame.moving ? 1 : 0, 0],
       weights: [0, 4, 8].map((at) => [...weights.subarray(at, at + 4)]),
     },
     current: texel(frame.color),
@@ -90,9 +93,8 @@ export function upscaleRun(frame: UpscaleFrame, asIs = false, filtered = false, 
     motion: [frame.motion ?? IDENTITY],
     history,
     shareHistory: history,
-    // Unwritten, the layers' history is read all the same and must not show.
-    filterHistory: frame.layerHistory ?? (() => [NaN, NaN, NaN, NaN]),
-    addHistory: frame.layerHistory ?? (() => [NaN, NaN, NaN, NaN]),
+    filterHistory: layerHistory,
+    addHistory: layerHistory,
     historySampler: null,
     textureLoad: (texture: (at: Vec) => unknown, at: Vec) => texture(at),
     textureSampleLevel: (texture: (uv: number[]) => number[], _: null, uv: number[]) => texture(uv),

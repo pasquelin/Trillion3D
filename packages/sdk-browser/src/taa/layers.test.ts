@@ -33,56 +33,61 @@ const clampBox = (v: number) => Math.min(Math.max(v, 0.2), 0.6);
 const mixed = (now: number[], history: number) =>
   now.map((v) => 0.25 * v + 0.75 * clampBox(history));
 
-test('the native resolve weighs the layers as the colour, and mixes their written history', () => {
-  const frame = (more: Partial<UpscaleFrame> = {}): UpscaleFrame => ({
-    render: [6, 6],
-    display: [6, 6],
-    jitter: JITTER,
-    color: () => flat,
-    layer: checker,
-    ...more,
-  });
+/** The four resolves of `frame`: no history, a colour history only, and one whose layers' history
+ *  holds the last image's, of value `held.kept`. */
+function resolves(frame: UpscaleFrame, native: boolean, held: { kept: number }) {
+  const run = (more: Partial<UpscaleFrame>) =>
+    upscaleRun({ ...frame, ...more }, true, true, native);
+  return {
+    first: run({}),
+    unwritten: run({ history: () => flat }),
+    written: run({ history: () => flat, layerHistory: () => new Array<number>(4).fill(held.kept) }),
+  };
+}
+
+/** Each resolve of `frame` at `pixels` against `now`, the layers the current image owes there. */
+function assertLayers(
+  frame: UpscaleFrame,
+  native: boolean,
+  now: (x: number, y: number) => number[],
+) {
+  const held = { kept: 0 },
+    { first, unwritten, written } = resolves(frame, native, held);
   for (const [x, y] of [
     [0, 0],
     [2, 3],
     [5, 1],
   ]) {
-    const now = weighed(checker, x, y, 6);
-    for (const layer of upscaleRun(frame(), true, true, true)(x, y).layers)
-      near(layer, now, `no history at ${x},${y}`);
+    for (const layer of first(x, y).layers) near(layer, now(x, y), `no history at ${x},${y}`);
     // A history that does not hold the last image's layers is not read into them.
-    for (const layer of upscaleRun(frame({ history: () => flat }), true, true, true)(x, y).layers)
-      near(layer, now, `unwritten at ${x},${y}`);
-    for (const kept of [5, 0.45, -5]) {
-      const written = frame({ history: () => flat, layerHistory: () => [kept, kept, kept, kept] });
-      const out = upscaleRun(written, true, true, true)(x, y);
+    for (const layer of unwritten(x, y).layers) near(layer, now(x, y), `unwritten at ${x},${y}`);
+    for (held.kept of [5, 0.45, -5]) {
+      const out = written(x, y);
       near(out.color, flat, 'the colour');
-      for (const layer of out.layers) near(layer, mixed(now, kept), `history ${kept} at ${x},${y}`);
+      for (const layer of out.layers)
+        near(layer, mixed(now(x, y), held.kept), `history ${held.kept} at ${x},${y}`);
     }
   }
+}
+
+test('the native resolve weighs the layers as the colour, and mixes their written history', () => {
+  const frame: UpscaleFrame = {
+    render: [6, 6],
+    display: [6, 6],
+    jitter: JITTER,
+    color: () => flat,
+    layer: checker,
+  };
+  assertLayers(frame, true, (x, y) => weighed(checker, x, y, 6));
 });
 
 test('the upscaling resolve clamps the layers to their box and mixes their written history', () => {
   const frame: UpscaleFrame = {
-    render: [8, 8],
-    display: [12, 12],
+    render: [4, 4],
+    display: [6, 6],
     jitter: JITTER,
     color: () => flat,
-    history: () => flat,
     layer: checker,
   };
-  for (const [x, y] of [
-    [1, 1],
-    [6, 9],
-    [11, 4],
-  ]) {
-    const now = owed({ ...frame, color: checker }, x, y, 'box');
-    for (const layer of upscaleRun(frame, true, true)(x, y).layers)
-      near(layer, now, `unwritten at ${x},${y}`);
-    for (const kept of [5, 0.45, -5]) {
-      const written = { ...frame, layerHistory: () => [kept, kept, kept, kept] };
-      for (const layer of upscaleRun(written, true, true)(x, y).layers)
-        near(layer, mixed(now, kept), `history ${kept} at ${x},${y}`);
-    }
-  }
+  assertLayers(frame, false, (x, y) => owed({ ...frame, color: checker }, x, y, 'box'));
 });

@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { close, display, srgb } from './blendModel.fixture.ts';
-import { ACES, ROUTE_FUNCTIONS, routeScope, type Route } from './displayRun.fixture.ts';
+import { ACES, ROUTE_FUNCTIONS, routeScope } from './displayRun.fixture.ts';
 import { PARTICLE_ROUTED_WGSL } from '../../particles/webgpuParticleDraw.ts';
 import { WATER_ROUTED_SHADER } from '../water/compositeWgsl.ts';
 import { BLEND_SHADER } from './shader.ts';
@@ -42,7 +42,7 @@ test('a particle routes its straight colour, where the mask is set', () => {
   const color = [0.6, 0.3, 0.2, 0.5];
   const scope = {
     ...routeScope(1, leftHalf),
-    draw: { drawn: [8, 8], unclip: new Mat([...IDENTITY_MATRIX4]), eye: [0, 0, 5] },
+    draw: { drawn: [8, 8], unclip: new Mat([...IDENTITY_MATRIX4]), eye: [0, 0, 5], softness: 1 },
     depth: () => 0,
     Routed: (lit: number[], tint: number[], add: number[], reactive: number[]) => ({
       ...layers(lit, tint, add),
@@ -50,13 +50,14 @@ test('a particle routes its straight colour, where the mask is set', () => {
     }),
   };
   type Particle = { fsRouted: (at: object) => Layers & { reactive: number[] } };
+  const { fsRouted } = shaderRun<Particle>(
+    PARTICLE_ROUTED_WGSL,
+    ['fsRouted', 'particle', ...ROUTE_FUNCTIONS],
+    scope,
+  );
+  // The uniform is read at each call: one run serves both views.
   for (const unlit of [0, 1]) {
-    Object.assign(scope.draw, { softness: 1, color, exposure: 1, curve: ACES, unlit });
-    const { fsRouted } = shaderRun<Particle>(
-      PARTICLE_ROUTED_WGSL,
-      ['fsRouted', 'particle', ...ROUTE_FUNCTIONS],
-      scope,
-    );
+    Object.assign(scope.draw, { color, exposure: 1, curve: ACES, unlit });
     for (const at of PIXELS) {
       // A disc's centre, in full life, one unit from the eye and well in front of the scene.
       const out = fsRouted({ at, corner: [0, 0], local: [0, 0, 4], life: 1 });
@@ -74,17 +75,14 @@ test('a particle routes its straight colour, where the mask is set', () => {
 test('water routes the colour it composed, lit or unlit', () => {
   const water = [0.05, 0.2, 0.3, 0.8];
   type Water = { composeWaterRouted: (pixel: number[]) => Layers };
+  const uni = { viewFlags: 0, exposure: 1, toneCurve: ACES };
+  const { composeWaterRouted } = shaderRun<Water>(
+    WATER_ROUTED_SHADER,
+    ['composeWaterRouted', ...ROUTE_FUNCTIONS],
+    { ...routeScope(1, leftHalf), waterColor: () => water, uni, Routed: layers },
+  );
   for (const viewFlags of [0, FLAG_UNLIT_VIEW]) {
-    const { composeWaterRouted } = shaderRun<Water>(
-      WATER_ROUTED_SHADER,
-      ['composeWaterRouted', ...ROUTE_FUNCTIONS],
-      {
-        ...routeScope(1, leftHalf),
-        waterColor: () => water,
-        uni: { viewFlags, exposure: 1, toneCurve: ACES },
-        Routed: layers,
-      },
-    );
+    uni.viewFlags = viewFlags;
     const rgb = water.slice(0, 3);
     for (const pixel of PIXELS)
       assertLayers(
@@ -100,30 +98,30 @@ test('a blended surface routes through its pipeline, and the unfiltered one neve
   const fogFree = FOG_FREE_MODEL_BIT << MODEL_SHIFT;
   type Out = Layers & { request: number; asIs: number[] };
   type Fragment = (at: object, front: boolean) => Out;
-  for (const kind of [1, 2] as const)
+  for (const kind of [1, 2] as const) {
+    const run = shaderRun<{ fs: Fragment; fsFiltered: Fragment }>(
+      BLEND_SHADER,
+      ['fs', 'fsFiltered', 'blendFragment', ...ROUTE_FUNCTIONS],
+      {
+        ...routeScope(kind, leftHalf),
+        fwidth: () => [0, 0, 0],
+        lineDash: () => true,
+        blendSurface: () => surface,
+        uni: { camPos: [0, 0, 5, 1], exposure: 1, toneCurve: ACES },
+        BlendOut: (
+          color: number[],
+          request: number,
+          asIs: number[],
+          tint: number[],
+          add: number[],
+        ) => ({
+          ...layers(color, tint, add),
+          request,
+          asIs,
+        }),
+      },
+    );
     for (const flags of [fogFree, FLAG_UNLIT_VIEW]) {
-      const run = shaderRun<{ fs: Fragment; fsFiltered: Fragment }>(
-        BLEND_SHADER,
-        ['fs', 'fsFiltered', 'blendFragment', ...ROUTE_FUNCTIONS],
-        {
-          ...routeScope(kind, leftHalf),
-          fwidth: () => [0, 0, 0],
-          lineDash: () => true,
-          blendSurface: () => surface,
-          uni: { camPos: [0, 0, 5, 1], exposure: 1, toneCurve: ACES },
-          BlendOut: (
-            color: number[],
-            request: number,
-            asIs: number[],
-            tint: number[],
-            add: number[],
-          ) => ({
-            ...layers(color, tint, add),
-            request,
-            asIs,
-          }),
-        },
-      );
       const shown = flags === FLAG_UNLIT_VIEW ? srgb(surface.rgb) : display(surface.rgb);
       for (const position of PIXELS) {
         const at = {
@@ -138,19 +136,17 @@ test('a blended surface routes through its pipeline, and the unfiltered one neve
           [run.fsFiltered(at, true), leftHalf(position)],
           [run.fs(at, true), 0],
         ] as const) {
-          const route: Route =
+          // Route 2 filters the whole surface: the lit target keeps it, both layers its display value.
+          const route =
             kind === 2
-              ? { keep: 1, tint: [...shown, 1], add: [...shown, 1] }
-              : {
-                  keep: 1 - masked,
-                  tint: owed(surface.rgb, surface.alpha, masked, shown).tint,
-                  add: owed(surface.rgb, surface.alpha, masked, shown).add,
-                };
-          const kept = surface.alpha * route.keep;
-          assertLayers(out, layers([...surface.rgb, kept], route.tint, route.add), name);
+              ? layers([...surface.rgb, surface.alpha], [...shown, 1], [...shown, 1])
+              : owed(surface.rgb, surface.alpha, masked, shown);
+          const kept = route.color[3];
+          assertLayers(out, route, name);
           assert.equal(out.request, surface.request);
           close(out.asIs, [0, 1, 0, kept], `${name} as-is`);
         }
       }
     }
+  }
 });
