@@ -41,8 +41,10 @@ export class WebglClusterOwner {
   }
   /** The display curve of the frames to come, a rank of `TONE_MAPPING_RANK`. */
   toneCurve: number = TONE_MAPPING_RANK.aces;
-  /** Image pixels per CSS pixel of the frames to come: the scale of a line's width. */
+  /** Image pixels per CSS pixel of the frames to come: the scale of a line's width; and their
+   *  texture level offset, zero at the display's size. */
   pixelRatio = 1;
+  mipBias = 0;
   get backdropBytes() {
     return this.renderer.backdropBytes;
   }
@@ -73,6 +75,7 @@ export class WebglClusterOwner {
     const renderer = (this.renderer = linear ? this.linear! : this.display);
     renderer.toneCurve = this.toneCurve;
     renderer.pass.pixelRatio = this.pixelRatio;
+    renderer.pass.mipBias = this.mipBias;
     return renderer.draw(
       meshes,
       scene,

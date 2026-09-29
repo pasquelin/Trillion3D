@@ -341,7 +341,7 @@
       "proxyTriangleBudget": "Presupuesto total de triángulos del proxy para una escena entera, todas las instancias incluidas: la huella residente.",
       "proxyCellMetres": "Resolución mínima de la malla proxy en metros: tamaño de los triángulos simplificados y de las celdas de la caché de superficie. Duplicado por el compilador si se supera el presupuesto.",
       "proxyLeafTriangles": "Triángulos por hoja del BVH: los bucles sobre las hojas están acotados por esta constante.",
-      "traversalSteps": "Nodos del BVH visitados por rayo: acotados antes de ejecutar el fotograma, nunca dinámicos. Un nodo de 4 hijos cubre 4× más árbol por paso que un BVH binario.",
+      "traversalSteps": "Nodos del BVH visitados por rayo en el árbol tal como se construyó, acotados antes de ejecutar el fotograma. Un reajuste añade los nodos que dejó entrar en un rayo, nunca el número de nodos (`bounce/proxy.ts`). Un nodo de 4 hijos cubre 4× más árbol por paso que un BVH binario.",
       "traversalStack": "Profundidad de la pila de recorrido. Un nodo de 4 hijos apila hasta 3; 32 cubre millones de triángulos.",
       "cascadeLevels": "Niveles de las cascadas de sondas. Los primeros `cascadeLevels - 1` siguen la posición de la cámara; el último es fijo en el mundo y cubre toda la escena.",
       "cascadeSize": "Sondas por eje y por nivel: un nivel es un cubo de `cascadeSize³` sondas.",
@@ -406,13 +406,14 @@
   },
   "BounceOccupancy": {
     "summary": "Dónde merece la pena mantener una sonda: el mapa de ocupación de las cascadas.",
-    "description": "Una cascada sobre una ciudad gasta la mayoría de sus celdas en el cielo vacío y el núcleo lleno de los edificios, donde la irradiancia nunca se pide. El planificador debe saber, antes de gastar un rayo, si una celda toca geometría. Es una propiedad del mundo, no de la cámara: calculada una vez en la construcción, válida para todas las posiciones que toman después los niveles móviles. El mapa del nivel más fino se marca con las cajas envolventes de los triángulos del proxy más un borde de una celda: las ocho esquinas de una celda ocupada siempre se conservan, así que no se pierde nada útil. Los niveles siguientes son reducciones exactas — dos celdas por una en cada eje, ya que las separaciones son múltiplos en potencias de dos del más fino — luego dilatadas una celda por la misma razón. Nada aquí nombra una escena ni examina la cámara: una extensión, triángulos, celdas.",
+    "description": "Una cascada sobre una ciudad gasta la mayoría de sus celdas en el cielo vacío y el núcleo lleno de los edificios, donde la irradiancia nunca se pide. El planificador debe saber, antes de gastar un rayo, si una celda toca geometría. Es una propiedad del mundo, no de la cámara: calculada en la construcción y de nuevo cuando la geometría movida se asienta, válida para todas las posiciones que toman después los niveles móviles. El mapa del nivel más fino se marca con las cajas envolventes de los triángulos del proxy más un borde de una celda: las ocho esquinas de una celda ocupada siempre se conservan, así que no se pierde nada útil. Los niveles siguientes son reducciones exactas — dos celdas por una en cada eje, ya que las separaciones son múltiplos en potencias de dos del más fino — luego dilatadas una celda por la misma razón. Nada aquí nombra una escena ni examina la cámara: una extensión, triángulos, celdas.",
     "members": {
+      "moved": "Los propietarios se movieron: `boxes` contiene seis límites del mundo por triángulo del proxy, `changed` marca los movidos.",
+      "settle": "Una vez por fotograma: el primer fotograma tras detenerse el movimiento reconstruye el mapa exacto sobre `extent`.",
       "occupied": "Verdadero cuando una celda de un nivel en su rejilla merece una sonda.",
       "marked": "Celdas marcadas y celdas totales del nivel más fino: la ganancia publicada.",
       "cells": "Celdas del nivel más fino.",
-      "bytes": "Bytes que ocupa.",
-      "allEligible": "La geometría se ha movido: programa de forma conservadora todas las celdas de las cascadas, cuyo número está acotado."
+      "bytes": "Bytes que ocupa."
     }
   },
   "BoundedNode": {
@@ -1250,7 +1251,8 @@
       "options.controls": "El controlador que mueve la cámara desde el lienzo; `world.controls.kind` lo cambia después.",
       "options.signal": "Detiene las cargas del mundo cuando se cancela la señal.",
       "options.physics": "Activa la física (`world.physics`): `true`, o gravedad y presupuestos. Solo entonces se carga Jolt.",
-      "options.temporalAntialiasing": "Antialiasing temporal, solo WebGPU: desplazamiento subpíxel acumulado entre imágenes. `false` dibuja cada píxel en su centro, sin historial, lo que pide una captura exacta al píxel; se cambia después con `world.temporalAntialiasing`."
+      "options.temporalAntialiasing": "Antialiasing temporal, solo WebGPU: desplazamiento subpíxel acumulado entre imágenes. `false` dibuja cada píxel en su centro, sin historial, lo que pide una captura exacta al píxel; se cambia después con `world.temporalAntialiasing`.",
+      "options.renderScale": "La fracción de la pantalla por eje a la que se dibuja la imagen, antes de que el antialiasing temporal la reconstruya a la pantalla: `'auto'` deja que el presupuesto de imagen la elija entre `min` y `max` (`{ min, max }`, 0,5 y 1 por defecto; en WebGL2, que solo remuestrea, `min` es 1 por defecto), un número la fija; una imagen quieta se dibuja al máximo. Se cambia después con `world.renderScale`."
     }
   },
   "crossVector3": {
@@ -2500,6 +2502,7 @@
       "framebuffer": "Dónde dibujar; `null` para la pantalla.",
       "width": "Ancho en píxeles.",
       "height": "Alto en píxeles.",
+      "displayWidth": "El ancho al que se muestra la imagen cuando se dibuja por debajo de él (`world.renderScale`): los niveles de textura y los anchos de línea siguen la proporción. `width` si falta.",
       "linear": "Radiancia lineal, sin curva ni codificación, sobre negro transparente: la entrada de la cadena de efectos, cuyo alfa es la cobertura."
     }
   },
@@ -4648,7 +4651,7 @@
   "PageSource": {
     "summary": "De dónde se leen las páginas de un modelo, por clave.",
     "members": {
-      "read": "Lee los bytes de una página."
+      "read": "Lee los bytes de una página; `priority`, si se da, es la del streamer (la más pequeña primero). Una lectura más urgente de una página ya en curso se vuelve a pedir para subirla: una fuente que acepta `priority` la une a la lectura en curso en lugar de transferir la página dos veces."
     }
   },
   "PageStreamer": {
@@ -6646,6 +6649,10 @@
     "summary": "Antialiasing temporal: desplazamiento subpíxel acumulado entre imágenes; activado por defecto.",
     "description": "Al escribirlo, surte efecto en la imagen siguiente, se descarta el historial, sin reabrir la sesión. Al leerlo, es lo que lleva la imagen: false en WebGL2, y mientras el programa se compila tras activarlo."
   },
+  "world.renderScale": {
+    "summary": "La fracción de la pantalla por eje a la que se dibuja la imagen (`WorldOptions.renderScale`), desde la imagen siguiente.",
+    "description": "Leída, la escala de la última imagen dibujada."
+  },
   "world.effects": {
     "summary": "La cadena de efectos: pasadas dibujadas sobre la imagen (`effect`)."
   },
@@ -6895,13 +6902,18 @@
       "controls": "El controlador que mueve la cámara desde el lienzo; `world.controls.kind` lo cambia después.",
       "signal": "Detiene las cargas del mundo cuando se cancela la señal.",
       "physics": "Activa la física (`world.physics`): `true`, o gravedad y presupuestos. Solo entonces se carga Jolt.",
-      "temporalAntialiasing": "Antialiasing temporal, solo WebGPU: desplazamiento subpíxel acumulado entre imágenes. `false` dibuja cada píxel en su centro, sin historial, lo que pide una captura exacta al píxel; se cambia después con `world.temporalAntialiasing`."
+      "temporalAntialiasing": "Antialiasing temporal, solo WebGPU: desplazamiento subpíxel acumulado entre imágenes. `false` dibuja cada píxel en su centro, sin historial, lo que pide una captura exacta al píxel; se cambia después con `world.temporalAntialiasing`.",
+      "renderScale": "La fracción de la pantalla por eje a la que se dibuja la imagen, antes de que el antialiasing temporal la reconstruya a la pantalla: `'auto'` deja que el presupuesto de imagen la elija entre `min` y `max` (`{ min, max }`, 0,5 y 1 por defecto; en WebGL2, que solo remuestrea, `min` es 1 por defecto), un número la fija; una imagen quieta se dibuja al máximo. Se cambia después con `world.renderScale`."
     }
+  },
+  "RenderScale": {
+    "summary": "La escala de renderizado que pide una página: la fracción de la pantalla, por eje, a la que se dibuja la imagen antes de que el antialiasing temporal la reconstruya a la pantalla.",
+    "description": "`'auto'` deja que el presupuesto de imagen la elija entre 0,5 y 1, `{ min, max }` acota esa elección, un número la fija; todo valor se mantiene entre 0,5 y 1."
   },
   "WorldPageSource": {
     "summary": "De dónde se leen las páginas, y la dirección respecto a la cual se leen.",
     "members": {
-      "read": "Lee los bytes de una página.",
+      "read": "Lee los bytes de una página; `priority`, si se da, es la del streamer (la más pequeña primero). Una lectura más urgente de una página ya en curso se vuelve a pedir para subirla: una fuente que acepta `priority` la une a la lectura en curso en lugar de transferir la página dos veces.",
       "baseUrl": "La dirección respecto a la cual se lee cada página."
     }
   },

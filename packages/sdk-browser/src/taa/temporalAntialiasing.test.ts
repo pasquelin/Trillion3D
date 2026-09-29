@@ -36,21 +36,22 @@ test('the checkpoint keeps the frame fields the replay restores, sampled rank in
   temporal.dispose();
 });
 
-// Each history carries its colour and, beside it, the as-is share composition reads (#365): the
-// pass writes both, and the bytes it declares count both.
+// Each history carries its colour and, beside it, the as-is share composition reads (#365) and the
+// placement tags (#833): the pass writes both targets, and the bytes it declares count both.
 test('each history is a colour and its as-is share, written together and counted', async () => {
   const { device, textures, renderPipelines } = fakeDevice();
   const temporal = await createTemporalAntialiasing(device, []);
   assert.deepEqual(
     [...renderPipelines.at(-1)!.fragment!.targets].map((target) => target!.format),
-    ['rgba16float', 'r8unorm'],
+    ['rgba16float', 'rg8unorm'],
   );
   temporal.resize(8, 4);
+  // First the 1×1 zero a frame without reactive value reads, then the two histories.
   assert.deepEqual(
     textures.map(({ format }) => format),
-    ['rgba16float', 'r8unorm', 'rgba16float', 'r8unorm'],
+    ['rg8unorm', 'rgba16float', 'rg8unorm', 'rgba16float', 'rg8unorm'],
   );
-  assert.equal(temporal.historyBytes, 8 * 4 * (2 * 8 + 2 * 1));
+  assert.equal(temporal.historyBytes, 8 * 4 * (2 * 8 + 2 * 2));
   temporal.dispose();
 });
 

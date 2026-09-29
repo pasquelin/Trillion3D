@@ -24,16 +24,16 @@ export function placedMeshes(
   const [minX, minY, minZ, maxX, maxY, maxZ] = partition.bounds;
   const box: HostBox = { min: { x: minX, y: minY, z: minZ }, max: { x: maxX, y: maxY, z: maxZ } };
   for (const rank of partition.meshes) {
-    const links = parts(rank).map((part, primitives) => {
+    const nodes = parts(rank).map((part) => {
       const mesh = Object.assign(numbered(part.clone()) as HostMesh, { boundingBox: box });
       // A cell places only shown nodes; the part may be a hidden core node's own mesh (#519).
       mesh.visible = true;
-      const link: RowLink = { meshes: rank, primitives };
-      ranks.set(mesh, link);
       scene.add(mesh);
-      return link;
+      return mesh;
     });
-    placed.set(rank, placedMesh(links));
+    const links = nodes.map((mesh, primitives): RowLink => ({ meshes: rank, primitives }));
+    nodes.forEach((mesh, at) => ranks.set(mesh, links[at]));
+    placed.set(rank, placedMesh(links, nodes));
   }
   return placed;
 }

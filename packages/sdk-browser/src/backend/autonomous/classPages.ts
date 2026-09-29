@@ -49,11 +49,11 @@ const finestError = (primitive: Primitive) =>
 const ownClass = (primitive: Primitive, blended: boolean) =>
   blended === (primitive.pass === 'clustered-blend');
 
-/** The largest world scale that places the records: the compiler's tile follows it. */
-const largestScale = (records: readonly PageRec[]) =>
+/** The largest world scale that places the records: the compiler's tile follows it, read over
+ *  every placement of the primitive (`mesh_scales`), not only those a change moves. */
+const largestScale = (records: readonly PageRec[], scratch = new Matrix4()) =>
   records.reduce(
-    (scale, rec) =>
-      Math.max(scale, new Matrix4().fromArray(rec.matrix.elements).getMaxScaleOnAxis()),
+    (scale, rec) => Math.max(scale, scratch.fromArray(rec.matrix.elements).getMaxScaleOnAxis()),
     0,
   );
 
@@ -74,11 +74,19 @@ export function createClassPages(env: ClassPagesEnvironment) {
   let turn = 0,
     pending: Promise<unknown> = Promise.resolve();
 
-  /** The pages of `primitive` for the class `blended`, by page id; null for the class it was
-   *  compiled for, whose pages are the ones it reads. */
-  async function pagesFor(primitive: Primitive, blended: boolean, records: readonly PageRec[]) {
-    const mesh = records[0].sourceMesh as HostMesh;
+  /** The pages of `primitive` for the class `blended`, by page id, cut from the source `moved`
+   *  records draw, on the tile of `placed`, its every placement; null for the class it was
+   *  compiled for, whose pages it reads. */
+  async function pagesFor(
+    primitive: Primitive,
+    blended: boolean,
+    moved: readonly PageRec[],
+    placed: readonly PageRec[],
+  ) {
     if (ownClass(primitive, blended)) return null;
+    // Read before the first wait: the cut holds no placement.
+    const mesh = moved[0].sourceMesh as HostMesh,
+      scale = largestScale(placed);
     const [vertices, corners] = await Promise.all([
       pagedGeometry(mesh).loadVertices(),
       Promise.all(primitive.pages.map((page) => context.readPage!(page.url))),
@@ -104,7 +112,7 @@ export function createClassPages(env: ClassPagesEnvironment) {
       uvs: flags & FLAG_UV ? drawn.uvs : null,
       colors: flags & FLAG_COLOR ? drawn.colors : null,
     };
-    const recut = { ends, finestError: finestError(primitive), scale: largestScale(records) };
+    const recut = { ends, finestError: finestError(primitive), scale };
     const cut = await cutPagesOffThread(packDrawn(carried, blended, recut));
     return new Map(
       primitive.pages.map((page, k) => [page.id, new Uint8Array(cut.pages[k].geometry)]),
@@ -148,19 +156,24 @@ export function createClassPages(env: ClassPagesEnvironment) {
           return 'MATERIAL_CLASS_PAGES: its pages carry a second texture coordinate';
       }
     },
-    /** `alpha` moved the class of some of `records`: each primitive among them draws the pages
-     *  of its new class. */
-    follow(alpha: AlphaChange, records: readonly PageRec[]) {
+    /** `alpha` moved the class of some of `all`, the session's records: each primitive among them
+     *  draws the pages of its new class, cut on the tile every placement of it sets, moved or
+     *  not, as the compiler's is. */
+    follow(alpha: AlphaChange, all: readonly PageRec[]) {
+      const movedRecords = new Set(moved(alpha, all));
+      if (movedRecords.size === 0) return;
       const byPrimitive = new Map<Primitive, PageRec[]>();
-      for (const rec of moved(alpha, records)) {
+      for (const rec of all) {
         const primitive = compiledOf(rec);
         if (!primitive) continue;
         (byPrimitive.get(primitive) ?? byPrimitive.set(primitive, []).get(primitive)!).push(rec);
       }
-      for (const [primitive, records] of byPrimitive) {
+      for (const [primitive, placed] of byPrimitive) {
+        const records = placed.filter((rec) => movedRecords.has(rec));
+        if (records.length === 0) continue;
         const mine = ++turn;
         for (const rec of records) turns.set(rec, mine);
-        const landed = pagesFor(primitive, alpha.to === 'blend', records)
+        const landed = pagesFor(primitive, alpha.to === 'blend', records, placed)
           .then((pages) => swap(records, pages, mine))
           .catch((error: unknown) =>
             sendEngineDiagnostic(context.onDiagnostic, 'material-class-pages', String(error), {

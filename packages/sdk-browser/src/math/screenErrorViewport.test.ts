@@ -1,7 +1,7 @@
 // The cluster error metric follows the viewport: the focal in pixels is the viewport's, so a
 // viewport half as high projects every error half as far, and the cut at 1248×702 under a
 // threshold of one pixel is the cut at 2496×1404 under two. Measured on Emerald Square, sol and
-// generale views, one triangle count on both sides (#11); proved here at the formula site.
+// overview views, one triangle count on both sides (#11); proved here at the formula site.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';

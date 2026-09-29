@@ -425,6 +425,15 @@ each pixel at its centre with no history, what a pixel-exact capture asks. Writt
 at the next frame, history dropped, no session reopened. Read, it is what the image carries: `false`
 on WebGL2, which has none (its capabilities list `temporal antialiasing` as unsupported).
 
+`world.renderScale` (`createWorld(target, { renderScale })`, `'auto'` by default) is the fraction
+of the display per axis the image is drawn at before temporal antialiasing rebuilds it: `'auto'` lets the frame budget, the display's refresh interval, choose it between 0.5 and 1,
+`{ min, max }` bounds that choice, a number fixes it; a still image is drawn at the maximum, the
+native image. Written, it takes effect at the next frame, no target remade by the controller's
+steps. Read, it is the scale of the last image drawn. WebGL2, which keeps no history, resamples the
+image to the display instead (Lanczos-2) and so never lowers it unless asked: its `'auto'` holds 1,
+and only a `{ min }` below 1 or a fixed scale draws below the display (its capabilities list
+`temporal upscaling` as unsupported).
+
 `world.effects` is the ordered chain of passes drawn over the image after temporal antialiasing and
 before it reaches the canvas, on WebGPU and WebGL2. `effect.bloom({ intensity, radius })` makes a
 physically based glow on the linear image, before tone mapping, energy-conserving; `intensity` (0 to
@@ -1045,7 +1054,7 @@ overcast sky) carries only `direction` — the propagation direction — and is 
 a 16×16 screen tile lists up to 64 lights reaching it, and past that takes exactly the lights
 reaching it from a pool sized from the view (#849) —; 64 shadow slices,
 past which a caster lights without a shadow (`shadowCastersUnsliced`), and at most 24 shadow
-regions redrawn per frame. WebGL2 draws every light, each draw only those whose range reaches it (#835). The shadow pool is sized
+regions redrawn per frame. WebGL2 draws every light, each fragment only those whose range reaches its cell of a light grid (#835). The shadow pool is sized
 once, at the first frame that casts a shadow, from its screen and its shadowed lights: layers of
 128² pages as wide as the device draws, within the budget's shadow share; `metric.frame(world)`
 publishes its `shadowPoolBytes` and `shadowPoolLayers`, and its memory pressure by name

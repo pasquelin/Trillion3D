@@ -3,7 +3,7 @@
 // measurement case, and the reading says how the engine held it.
 import type { FrameMetrics } from '../../packages/sdk-core/src/index.ts';
 import type { BenchSettings } from './options.ts';
-import type { BudgetPages, PoolGeometrie } from './report/types.ts';
+import type { PageBudget, GeometryPool } from './report/types.ts';
 
 /** Reservoirs requested by the bench, for the measurement page; `null` leaves the engine default. */
 export const reservoirs = ({
@@ -11,28 +11,28 @@ export const reservoirs = ({
   geometryPoolBytes,
   texturePoolBytes,
   geometryPoolCeilingBytes,
-  poolVivant,
+  livePools,
 }: BenchSettings) => ({
   maxPages,
   geometryPoolBytes,
   texturePoolBytes,
   geometryPoolCeilingBytes,
-  poolVivant,
+  livePools,
 });
 
-/** The geometry pool as the engine held it, for `mesure.json`; `null` = unpublished. */
-export const poolGeometrie = (m: Partial<FrameMetrics>): PoolGeometrie => ({
-  octets: m.geometryPoolBytes ?? null,
-  fentes: m.geometryPoolSlots ?? null,
-  alloues: m.geometryPoolAllocatedBytes ?? null,
-  borne: m.geometryPoolClamp ?? null,
-  saturees: m.geometryPoolSaturated ?? null,
+/** The geometry pool as the engine held it, for `measure.json`; `null` = unpublished. */
+export const geometryPool = (m: Partial<FrameMetrics>): GeometryPool => ({
+  bytes: m.geometryPoolBytes ?? null,
+  slots: m.geometryPoolSlots ?? null,
+  allocated: m.geometryPoolAllocatedBytes ?? null,
+  bound: m.geometryPoolClamp ?? null,
+  saturated: m.geometryPoolSaturated ?? null,
 });
 
 /** The page budget as the last frame saw it: the cap asked, the pages held, whether the requested
  *  cut fits. */
-export const budgetPages = (m: Partial<FrameMetrics>, maxPages: number | null): BudgetPages => ({
-  demande: maxPages ?? null,
-  residentes: m.residentPages ?? null,
-  couvertureLimiteeParBudget: m.coverageBudgetLimited ?? null,
+export const pageBudget = (m: Partial<FrameMetrics>, maxPages: number | null): PageBudget => ({
+  requested: maxPages ?? null,
+  resident: m.residentPages ?? null,
+  budgetLimitedCoverage: m.coverageBudgetLimited ?? null,
 });

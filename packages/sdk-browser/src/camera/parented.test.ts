@@ -12,7 +12,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   POSES_PARENT,
-  cameraAplatie,
+  flattenedCamera,
   creeRig,
   poseRig,
 } from '../../../../tests/browser/probes/cameraRig.ts';
@@ -43,7 +43,7 @@ for (const hote of [false, true]) {
     test(`${site.nom}: parented camera, rig ${contrat}`, async () => {
       const rig = creeRig();
       const parentee = await releve(site, (pose) => poseRig(rig, pose, hote));
-      const aplatie = await releve(site, (pose) => cameraAplatie(pose));
+      const aplatie = await releve(site, (pose) => flattenedCamera(pose));
       for (let i = 0; i < POSES_PARENT.length; i++)
         assert.equal(
           parentee[i],

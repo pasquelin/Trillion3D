@@ -12,7 +12,7 @@ import { FRAME_VEC4, PRIMITIVE_VEC4 } from '../types.ts';
 import { primitiveFrameWords } from '../worlds.ts';
 import { framesBytes } from '../frameRanges.ts';
 import { wgslScope } from '../../../page/cut/wgslPredicate.fixture.ts';
-import { wgslConstants } from '../../../page/cut/cutRuleBackends.fixture.ts';
+import { wgslConstants } from '../../../texture/shaderRule.fixture.ts';
 import { random } from '../../../page/cut/cutRuleChecks.fixture.ts';
 import { frustumExcludesBox } from '../../../../../sdk-core/src/index.ts';
 

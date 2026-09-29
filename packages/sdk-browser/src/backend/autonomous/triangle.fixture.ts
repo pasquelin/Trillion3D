@@ -17,9 +17,14 @@ export function liveRows(count: number) {
 
 /** One triangle cut into one page, and the WebGL2 page path opened on `mesh`, under `source`,
  *  placed by `link`, wearing `material` (a basic double-sided surface by default), under the page
- *  `ceiling` (a host ceiling of two pages by default); `pass` the primitive's (exact clusters). */
+ *  `ceiling` (a host ceiling of two pages by default); `pass` the primitive's (exact clusters).
+ *  With `twinScale`, a second mesh draws the same primitive at that scale. */
 export function triangleBackend(
-  { pass = 'exact-clusters', ...link }: { placements?: PlacementRows; pass?: string } = {},
+  {
+    pass = 'exact-clusters',
+    twinScale,
+    ...link
+  }: { placements?: PlacementRows; pass?: string; twinScale?: number } = {},
   material: G.GraphSurface = G.basicSurface({ side: G.DOUBLE_SIDE }),
   ceiling: Pick<BackendContext, 'maxResidentPages' | 'residentPagesDefault'> = {
     maxResidentPages: 2,
@@ -32,6 +37,11 @@ export function triangleBackend(
   const mesh = G.mesh(geometry, material),
     source = new G.Group();
   source.add(mesh);
+  const twin = twinScale === undefined ? undefined : G.mesh(geometry, material);
+  if (twin) {
+    twin.scale.setScalar(twinScale!);
+    source.add(twin);
+  }
   const page = {
     id: 0,
     url: 'triangle',
@@ -71,7 +81,10 @@ export function triangleBackend(
     source,
     metadata: paged.metadata,
     indices: new Map(),
-    associations: new Map([[mesh, { meshes: 0, primitives: 0, ...link }]]),
+    associations: new Map([
+      [mesh, { meshes: 0, primitives: 0, ...link }],
+      ...(twin ? [[twin, { meshes: 0, primitives: 0 }] as const] : []),
+    ]),
     readGeometryPage: paged.readGeometryPage,
     // The index page: the corners of the triangle, as the source numbers them.
     readPage: async () => Uint32Array.of(0, 1, 2),
@@ -82,4 +95,12 @@ export function triangleBackend(
   camera.lookAt(0, 0, 0);
   const encoded = paged.encoded.get('triangle-geometry.bin')!;
   return { backend, camera, encoded, geometry, material, mesh, source, paged };
+}
+
+/** The meshes the display graph draws the pages with, once `camera` rendered a frame. */
+export function drawnPageMeshes({ backend, camera }: ReturnType<typeof triangleBackend>) {
+  backend.render(camera);
+  return (backend.scene as unknown as G.Group).children.filter(
+    (child): child is G.Mesh => 'geometry' in child,
+  );
 }

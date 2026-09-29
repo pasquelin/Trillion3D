@@ -124,6 +124,22 @@ fn normalized_or_falls_back_under_the_guard_and_normalizes_above_it() {
     );
 }
 
+// Audit of #940: `unit` and the oracle's `normalise` share one reciprocal division and keep
+// their own guards — an infinite length is refused by the first, divided by the second.
+#[test]
+fn unit_and_the_oracle_normalise_keep_their_own_guards() {
+    use crate::oracle::geometry::normalise;
+    // 49 · (1 / 49) is one ulp under 1: the reciprocal is kept, not a division.
+    assert_eq!(
+        unit([0.0, 49.0, 0.0]),
+        Some([0.0, 49.0 * (1.0 / 49.0), 0.0])
+    );
+    assert_ne!(49.0 * (1.0 / 49.0), 1.0);
+    assert_eq!(normalise([0.0, 0.0, 0.0]), [0.0, 0.0, 0.0]);
+    assert_eq!(unit([f64::INFINITY, 0.0, 0.0]), None);
+    assert!(normalise([f64::INFINITY, 0.0, 0.0])[0].is_nan());
+}
+
 /// `node_bounds` (`dag/culling.rs`) is private; it is exercised through the public
 /// `build_culling_bvh`, which calls it once for the root span and once per queued node — the two
 /// blocks the survey records as fused into it.

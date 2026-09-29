@@ -59,7 +59,7 @@
       "proxyTriangleBudget": "Tüm örnekler genelinde tam bir sahne için toplam proxy üçgen bütçesi: yerleşik ayak izi.",
       "proxyCellMetres": "Metre cinsinden proxy mesh çözünürlük tabanı: basitleştirilmiş üçgenlerin boyutu / yüzey önbelleği hücreleri. Bütçe aşılırsa derleyici tarafından ikiye katlanır.",
       "proxyLeafTriangles": "BVH yaprağı başına üçgen: yaprak dolaşım döngüleri bu sabitle sınırlıdır.",
-      "traversalSteps": "Işın başına ziyaret edilen BVH düğümleri: kare çalıştırmadan önce sınırlanır, asla dinamik değil. 4 genişlikli bir düğüm, adım başına ikili bir BVH'den 4 kat daha fazla ağaç kapsar.",
+      "traversalSteps": "Kurulduğu haliyle ağaçta ışın başına ziyaret edilen BVH düğümleri, kare çalıştırmadan önce sınırlanır. Yeniden uydurma, bir ışına soktuğu düğümleri ekler, asla düğüm sayısını değil (`bounce/proxy.ts`). 4 genişlikli bir düğüm, adım başına ikili bir BVH'den 4 kat daha fazla ağaç kapsar.",
       "traversalStack": "Dolaşım yığını derinliği. 4 genişlikli bir düğüm 3 çocuğa kadar iter; 32 milyonlarca üçgeni kapsar.",
       "cascadeLevels": "Prob kademe seviyeleri. İlk `cascadeLevels - 1` kamera pozisyonunu takip eder; son seviye dünyada sabittir ve tüm sahne sınırlarını kapsar.",
       "cascadeSize": "Seviye başına eksen başına prob: bir seviye `cascadeSize³` problük bir küptür.",
@@ -218,13 +218,14 @@
   },
   "BounceOccupancy": {
     "summary": "Bir probu tutmanın değdiği yer: kademe doluluk haritası.",
-    "description": "Bir şehir üzerindeki bir kademe, çoğu hücreyi ışınımın hiç sorgulanmadığı boş gökyüzüne ve katı bina çekirdeklerine harcar. Zamanlayıcının, bir ışın harcamadan önce, bir hücrenin geometriye değip değmediğini bilmesi gerekir. Bu, kameranın değil dünyanın bir özelliğidir: yapım sırasında bir kez hesaplanır, daha sonra hareketli seviyelerin aldığı tüm pozisyonlar için geçerlidir. En ince seviye haritası, proxy üçgenlerinin sınırlayıcı kutuları artı bir hücrelik bir sınırla işaretlenir: dolu bir hücrenin sekiz köşesi her zaman korunur, böylece hiçbir yararlı şey kaybolmaz. Sonraki seviyeler tam indirgemelerdir — aralıklar en incenin ikinin kuvveti katları olduğundan, eksen başına iki hücreden bire — sonra aynı nedenle bir hücre genişletilir. Burada hiçbir şey bir sahneyi adlandırmaz ya da kamerayı incelemez: genişlik, üçgenler, hücreler.",
+    "description": "Bir şehir üzerindeki bir kademe, çoğu hücreyi ışınımın hiç sorgulanmadığı boş gökyüzüne ve katı bina çekirdeklerine harcar. Zamanlayıcının, bir ışın harcamadan önce, bir hücrenin geometriye değip değmediğini bilmesi gerekir. Bu, kameranın değil dünyanın bir özelliğidir: yapım sırasında ve hareket eden geometri durduğunda yeniden hesaplanır, daha sonra hareketli seviyelerin aldığı tüm pozisyonlar için geçerlidir. En ince seviye haritası, proxy üçgenlerinin sınırlayıcı kutuları artı bir hücrelik bir sınırla işaretlenir: dolu bir hücrenin sekiz köşesi her zaman korunur, böylece hiçbir yararlı şey kaybolmaz. Sonraki seviyeler tam indirgemelerdir — aralıklar en incenin ikinin kuvveti katları olduğundan, eksen başına iki hücreden bire — sonra aynı nedenle bir hücre genişletilir. Burada hiçbir şey bir sahneyi adlandırmaz ya da kamerayı incelemez: genişlik, üçgenler, hücreler.",
     "members": {
+      "moved": "Sahipler hareket etti: `boxes` proxy üçgeni başına altı dünya sınırı taşır, `changed` hareket edenleri işaretler.",
+      "settle": "Kare başına bir kez: hareket durduktan sonraki ilk kare, `extent` üzerinde tam haritayı yeniden kurar.",
       "occupied": "Bir seviyenin küresel kafesindeki hücresi bir probu haklı çıkardığında doğru.",
       "marked": "En ince seviyenin işaretlenmiş hücreleri ve toplam hücreleri: yayımlanmış kazanç.",
       "cells": "En ince seviyenin hücreleri.",
-      "bytes": "Kapladığı bayt.",
-      "allEligible": "Geometri hareket etti: sayısı sınırlı olan kaskat hücrelerinin tümünü ihtiyatlı biçimde işleme alır."
+      "bytes": "Kapladığı bayt."
     }
   },
   "BoundedNode": {
@@ -1453,6 +1454,7 @@
       "framebuffer": "Nereye çizileceği; ekran için `null`.",
       "width": "Piksel cinsinden genişlik.",
       "height": "Piksel cinsinden yükseklik.",
+      "displayWidth": "Görüntü bunun altında çizildiğinde (`world.renderScale`) gösterildiği genişlik: doku seviyeleri ve çizgi genişlikleri bu oranı izler. Yoksa `width`.",
       "linear": "Doğrusal ışıma; eğriden geçirilmemiş, kodlanmamış, saydam siyah üzerinde: alfası kaplama olan efekt zincirinin girdisi."
     }
   },
@@ -2523,7 +2525,7 @@
   "PageSource": {
     "summary": "Bir modelin sayfalarının anahtara göre nereden okunduğu.",
     "members": {
-      "read": "Bir sayfanın baytlarını okur."
+      "read": "Bir sayfanın baytlarını okur; `priority` verildiğinde akış yöneticisinin önceliğidir (en küçük önce). Zaten okunmakta olan bir sayfanın daha acil okuması onu öne almak için yeniden istenir: `priority` alan bir kaynak, sayfayı iki kez aktarmak yerine onu süren okumaya katar."
     }
   },
   "PageStreamer": {
@@ -4088,6 +4090,10 @@
     "summary": "Zamansal kenar yumuşatma: kareler boyunca biriktirilen piksel altı kaydırma; varsayılan olarak açık.",
     "description": "Yazıldığında bir sonraki karede etkili olur, geçmiş atılır, oturum yeniden açılmaz. Okunduğunda görüntünün taşıdığıdır: WebGL2'de ve açıldıktan sonra program derlenirken false."
   },
+  "world.renderScale": {
+    "summary": "Görüntünün eksen başına ekranın hangi oranında çizildiği (`WorldOptions.renderScale`), bir sonraki kareden itibaren.",
+    "description": "Okunduğunda, son çizilen görüntünün ölçeği."
+  },
   "world.effects": {
     "summary": "Efekt zinciri: görüntünün üzerine çizilen geçişler (`effect`)."
   },
@@ -4323,13 +4329,18 @@
       "controls": "Kamerayı canvas'tan hareket ettiren kontrolcü; `world.controls.kind` onu daha sonra değiştirir.",
       "signal": "Sinyal iptal edildiğinde dünyanın yüklemelerini durdurur.",
       "physics": "Fiziği açar (`world.physics`): `true` ya da yerçekimi ve bütçeler. Jolt ancak o zaman yüklenir.",
-      "temporalAntialiasing": "Zamansal kenar yumuşatma, yalnızca WebGPU: kareler boyunca biriktirilen piksel altı kaydırma. `false` her pikseli merkezinde, geçmiş olmadan çizer; piksel hassasiyetinde bir yakalamanın istediği budur; sonradan `world.temporalAntialiasing` ile değiştirilir."
+      "temporalAntialiasing": "Zamansal kenar yumuşatma, yalnızca WebGPU: kareler boyunca biriktirilen piksel altı kaydırma. `false` her pikseli merkezinde, geçmiş olmadan çizer; piksel hassasiyetinde bir yakalamanın istediği budur; sonradan `world.temporalAntialiasing` ile değiştirilir.",
+      "renderScale": "Görüntünün eksen başına ekranın hangi oranında çizildiği, zamansal kenar yumuşatma onu ekran boyutuna yeniden kurmadan önce: `'auto'` onu kare bütçesinin `min` ile `max` arasında seçmesine bırakır (`{ min, max }`, varsayılan 0,5 ve 1; yalnızca yeniden örnekleyen WebGL2'de `min` varsayılan olarak 1'dir), bir sayı onu sabitler; hareketsiz bir görüntü en yüksek değerde çizilir. Sonradan `world.renderScale` ile değiştirilir."
     }
+  },
+  "RenderScale": {
+    "summary": "Bir sayfanın istediği işleme ölçeği: görüntünün, zamansal kenar yumuşatma onu ekran boyutuna yeniden kurmadan önce, eksen başına ekranın hangi oranında çizildiği.",
+    "description": "`'auto'` onu kare bütçesinin 0,5 ile 1 arasında seçmesine bırakır, `{ min, max }` bu seçimi sınırlar, bir sayı onu sabitler; her değer 0,5 ile 1 arasında tutulur."
   },
   "WorldPageSource": {
     "summary": "Sayfaların nereden okunduğu, ve karşı okundukları adres.",
     "members": {
-      "read": "Bir sayfanın baytlarını okur.",
+      "read": "Bir sayfanın baytlarını okur; `priority` verildiğinde akış yöneticisinin önceliğidir (en küçük önce). Zaten okunmakta olan bir sayfanın daha acil okuması onu öne almak için yeniden istenir: `priority` alan bir kaynak, sayfayı iki kez aktarmak yerine onu süren okumaya katar.",
       "baseUrl": "Her sayfanın karşı okunduğu adres."
     }
   },
@@ -4962,7 +4973,8 @@
       "options.controls": "Kamerayı canvas'tan hareket ettiren kontrolcü; `world.controls.kind` onu daha sonra değiştirir.",
       "options.signal": "Sinyal iptal edildiğinde dünyanın yüklemelerini durdurur.",
       "options.physics": "Fiziği açar (`world.physics`): `true` ya da yerçekimi ve bütçeler. Jolt ancak o zaman yüklenir.",
-      "options.temporalAntialiasing": "Zamansal kenar yumuşatma, yalnızca WebGPU: kareler boyunca biriktirilen piksel altı kaydırma. `false` her pikseli merkezinde, geçmiş olmadan çizer; piksel hassasiyetinde bir yakalamanın istediği budur; sonradan `world.temporalAntialiasing` ile değiştirilir."
+      "options.temporalAntialiasing": "Zamansal kenar yumuşatma, yalnızca WebGPU: kareler boyunca biriktirilen piksel altı kaydırma. `false` her pikseli merkezinde, geçmiş olmadan çizer; piksel hassasiyetinde bir yakalamanın istediği budur; sonradan `world.temporalAntialiasing` ile değiştirilir.",
+      "options.renderScale": "Görüntünün eksen başına ekranın hangi oranında çizildiği, zamansal kenar yumuşatma onu ekran boyutuna yeniden kurmadan önce: `'auto'` onu kare bütçesinin `min` ile `max` arasında seçmesine bırakır (`{ min, max }`, varsayılan 0,5 ve 1; yalnızca yeniden örnekleyen WebGL2'de `min` varsayılan olarak 1'dir), bir sayı onu sabitler; hareketsiz bir görüntü en yüksek değerde çizilir. Sonradan `world.renderScale` ile değiştirilir."
     }
   },
   "crossVector3": {

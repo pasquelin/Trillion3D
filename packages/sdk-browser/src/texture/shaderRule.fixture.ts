@@ -22,6 +22,18 @@ export function functionsOf(source: string, names: string[]) {
     .join('\n');
 }
 
+/** Every scalar `const` of a WGSL text whose value is a literal — `f32`, `u32` or `i32` —, by
+ *  name: what the shader compiles, not a copy of it. */
+export function wgslConstants(source: string) {
+  const found: Record<string, number> = {};
+  for (const [, name, literal] of source.matchAll(/\bconst (\w+):(?:f32|u32|i32)=([^;]+);/g)) {
+    // A hex digit `f` is no suffix: `0xff` is 255, not `0xf`.
+    const value = Number(literal.replace(/^0x/i.test(literal) ? /[ui]$/ : /[uif]$/, ''));
+    if (Number.isFinite(value)) found[name] = value;
+  }
+  return found;
+}
+
 /**
  * The functions `names` of a shipped WGSL or GLSL text as JavaScript: types stripped, integer
  * conversions truncating, shifts unsigned, `binOf(t)` answered by `scope.binOf`. What the shader
@@ -35,7 +47,7 @@ export function shaderFunctions<T>(source: string, names: string[], scope: objec
   const js = functionsOf(source, names)
     .replace(/fn (\w+)\(([^)]*)\)->\w+\{/g, header)
     .replace(/^(?:uint|float|uvec2|bool) (\w+)\(([^)]*)\)\{/gm, header)
-    .replace(/\b(?:let|var|uint|float|uvec2|uvec4|bool) (\w+)=/g, 'let $1=')
+    .replace(/\b(?:let|var|uint|float|uvec2|uvec4|bool) (\w+)(?::\w+)?=/g, 'let $1=')
     .replace(/\b(?:vec2u|vec4u|uvec2|uvec4)\(/g, 'vec(')
     .replace(/\b(?:u32|uint)\(/g, 'Math.trunc(')
     .replace(/\b(?:f32|float)\(/g, '(')

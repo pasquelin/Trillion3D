@@ -123,6 +123,8 @@ export function submitColorCopy(
       scope: 'selection-and-render-passes',
       excludes: ['uploads and copies', 'CPU work', 'presentation latency'],
       drawCalls: run.gpuDrawCalls,
+      renderScale: rt.scale.drawn,
+      scaleSteered: rt.scale.steered,
       transparentDrawCalls: run.blendDrawCalls,
       transparentSubmittedTriangles: run.blendSubmittedTriangles,
     });

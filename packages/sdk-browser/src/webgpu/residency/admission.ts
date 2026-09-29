@@ -24,6 +24,8 @@ type Tracking = ReturnType<typeof createWebgpuPageTracking>;
  * `admit` returns the number of pages it loaded, or -1 when a dependency has no bytes yet or was
  * reclaimed before the page could follow it: the page then waits for its requested bytes, drawn
  * through its resident ancestor. A full pool is not caught here: the load throws, and the caller stops.
+ * `priority` goes with every read the admission makes, its parents' included: a lower tier's stays
+ * a prefetch, so the view's loading `total` never counts it (#408).
  */
 export function createPageAdmission(options: {
   getCache: () => PoolCache | undefined;
@@ -42,29 +44,29 @@ export function createPageAdmission(options: {
   };
   const holds = (rec: PageRec) => !!getCache()?.get(pageAddress(rec));
   /** One load, pinned when the image holds the page: the wanted set or the root cover. */
-  const load = async (rec: PageRec) => {
+  const load = async (rec: PageRec, priority?: number) => {
     const address = pageAddress(rec),
       key = tracking.keyOf(rec),
       held = !!bootstrapKey[key];
     // The root cover is held on arrival, inside the cache's queue, never left unpinned in between.
-    await current().load(address, signal, held ? 'held' : undefined);
+    await current().load(address, signal, held ? 'held' : undefined, priority);
     if (held || tracking.wanted.has(key)) {
       if (!held) current().pin(address);
       tracking.markPinned(key);
     }
   };
-  const admit = async (rec: PageRec): Promise<number> => {
+  const admit = async (rec: PageRec, priority?: number): Promise<number> => {
     const parents = parentsOf(rec);
     let loaded = 0;
     for (const parent of parents) {
       if (holds(parent)) continue;
       if (!hasBytes(parent)) return -1;
-      const more = await admit(parent);
+      const more = await admit(parent, priority);
       if (more < 0) return -1;
       loaded += more;
     }
     for (const parent of parents) if (!holds(parent)) return -1;
-    await load(rec);
+    await load(rec, priority);
     return loaded + 1;
   };
   return admit;
