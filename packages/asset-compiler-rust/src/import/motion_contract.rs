@@ -15,6 +15,15 @@ pub(in crate::import) fn validate(scene: &ufbx::Scene) -> Result<()> {
         {
             return Err(unsupported("FBX requires a single linear skin deformer"));
         }
+        for skin in &mesh.skin_deformers {
+            if skin.clusters.len() > 65_536
+                || skin.vertices.iter().any(|vertex| vertex.num_weights == 0)
+            {
+                return Err(unsupported(
+                    "FBX skin has unbound vertices or more than 65,536 joints",
+                ));
+            }
+        }
         for deformer in &mesh.blend_deformers {
             for channel in &deformer.channels {
                 // Expanding intermediate shapes alone would still miss the times their weights

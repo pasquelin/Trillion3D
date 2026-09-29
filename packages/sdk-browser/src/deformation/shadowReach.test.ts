@@ -33,7 +33,7 @@ test('deformation refreshes only its caster rows and grows CPU/GPU light and occ
   const dirty: number[] = [],
     changed: number[][] = [];
   lights.plan.worldChanged = (min, max) => {
-    changed.push([...min, ...max]);
+    changed.push([...Array.from(min), ...Array.from(max)]);
   };
   const rt = {
     vis: { deformation: { any: true, frame, base: 0 }, concatPos: {} },

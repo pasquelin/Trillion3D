@@ -89,6 +89,26 @@ fn discontinuous_fbx_curves_are_refused_instead_of_smoothed() {
 }
 
 #[test]
+fn unbound_fbx_skin_vertices_are_not_attached_to_the_first_bone() {
+    let (root, mut options) = fixture();
+    let text = fs::read_to_string(golden_dir("import-fbx").join("bend.fbx"))
+        .unwrap()
+        .replace(
+            "Indexes: *3 {\n\t\t\ta: 0,1,2",
+            "Indexes: *2 {\n\t\t\ta: 0,1",
+        )
+        .replace(
+            "Weights: *3 {\n\t\t\ta: 1,1,1",
+            "Weights: *2 {\n\t\t\ta: 1,1",
+        );
+    options.source = root.join("unbound.fbx");
+    fs::write(&options.source, text).unwrap();
+    let error = compile(&options, |_| {}).expect_err("unbound vertex must not inherit bone zero");
+    assert!(format!("{error:?}").contains("unbound vertices"));
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn rotating_fbx_skin_emits_quaternion_tracks_in_compiled_tables() {
     let (root, mut options) = fixture();
     let text = fs::read_to_string(golden_dir("import-fbx").join("bend.fbx"))

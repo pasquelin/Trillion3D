@@ -41,7 +41,7 @@ export function pagedManifest(metadata: ClusterManifest, geometries: readonly G.
   return {
     metadata: {
       ...metadata,
-      geometryPages: { formatVersion: 5 as const, codec: 'quantized' as const },
+      geometryPages: { formatVersion: 7 as const, codec: 'quantized' as const },
       primitives,
     } as ClusterManifest,
     encoded,
