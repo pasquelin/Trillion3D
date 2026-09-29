@@ -22,6 +22,17 @@ export function functionsOf(source: string, names: string[]) {
     .join('\n');
 }
 
+/** Every scalar `const` of a WGSL text whose value is a literal — `f32`, `u32` or `i32` —, by
+ *  name: what the shader compiles, not a copy of it. */
+export function wgslConstants(source: string) {
+  const found: Record<string, number> = {};
+  for (const [, name, literal] of source.matchAll(/\bconst (\w+):(?:f32|u32|i32)=([^;]+);/g)) {
+    const value = Number(literal.replace(/[uif]$/, ''));
+    if (Number.isFinite(value)) found[name] = value;
+  }
+  return found;
+}
+
 /**
  * The functions `names` of a shipped WGSL or GLSL text as JavaScript: types stripped, integer
  * conversions truncating, shifts unsigned, `binOf(t)` answered by `scope.binOf`. What the shader
