@@ -13,11 +13,14 @@ export function deformedOf(
   mesh: DeformedMesh,
   primitive: Pick<Primitive, 'deformation'> | undefined,
   world: MatrixElements,
+  models: readonly DeformedMesh[] = [mesh],
 ): Deformed | null {
   const measured = primitive?.deformation ?? null;
-  const joints = measured?.joints.length && mesh.skeleton ? mesh.skeleton.bones.length : 0,
-    targets = measured?.targets.length && mesh.morphTargetInfluences ? measured.targets.length : 0,
-    waves = mesh.waves?.waveModel.count ?? 0,
+  const joints = measured?.joints.length
+      ? Math.max(measured.joints.length / 4, ...models.map((m) => m.skeleton?.bones.length ?? 0))
+      : 0,
+    targets = measured?.targets.length ?? 0,
+    waves = Math.max(0, ...models.map((m) => m.waves?.waveModel.count ?? 0)),
     soft = measured?.softVertices ?? 0;
   if (!joints && !targets && !waves && !soft) return null;
   const reach = { joints: measured?.joints ?? [], targets: measured?.targets ?? [] };

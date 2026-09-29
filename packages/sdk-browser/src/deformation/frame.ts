@@ -20,6 +20,7 @@ import {
 
 /** What a deformed placement is moved by: its mesh's skeleton, morph weights and waves. */
 export type DeformedMesh = {
+  readonly sourceIdentity?: object | null;
   skeleton?: Skeleton;
   morphTargetInfluences?: number[];
   waves?: WaterSurface | null;
@@ -65,9 +66,12 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
   });
   const block = new Float32Array(Math.max(1, floats)),
     words = new Uint32Array(block.buffer);
+  const owners: (object | null | undefined)[] = new Array(placed.length);
   let first = true;
   /** Writes placement `i`'s record for this frame; returns how far it moves a vertex. */
   const write = (i: number, entry: Deformed, skipped: (i: number, reach: number) => boolean) => {
+    const cold = first || owners[i] !== entry.mesh.sourceIdentity;
+    owners[i] = entry.mesh.sourceIdentity;
     const at = bases[i] - 1,
       { shape, mesh } = entry,
       layout = recordLayout(shape),
@@ -79,11 +83,11 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
     words[at + 1] = words[at];
     let kinds = 0,
       most = 0,
-      moved = !first && stale(i, entry);
+      moved = !cold && stale(i, entry);
     if (shape.joints && mesh.skeleton) {
       mesh.skeleton.palette(entry.world.elements, block, palette, entry.boneWorlds);
       most = paletteReach(block, palette, shape.joints, entry.reach.joints);
-      if (first) block.copyWithin(palette + joints, palette, palette + joints);
+      if (cold) block.copyWithin(palette + joints, palette, palette + joints);
       moved ||= differs(block, palette, palette + joints, joints);
       kinds |= KIND_SKIN;
     }
@@ -92,7 +96,7 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
       for (let t = 0; t < shape.targets; t++) {
         const weight = mesh.morphTargetInfluences[t] ?? 0;
         block[weights + t] = weight;
-        if (first) block[weights + shape.targets + t] = weight;
+        if (cold) block[weights + shape.targets + t] = weight;
         morphed += Math.abs(weight) * (entry.reach.targets[t] ?? 0);
       }
       moved ||= differs(block, weights, weights + shape.targets, shape.targets);
@@ -100,12 +104,12 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
       kinds |= KIND_MORPH;
     }
     if (shape.waves && mesh.waves) {
-      most += writeWaves(block, entry, at + layout.world, at + layout.wave, first);
+      most += writeWaves(block, entry, at + layout.world, at + layout.wave, cold);
       kinds |= KIND_WAVE;
     }
     const soft = mesh.softSource;
     if (shape.soft && soft) {
-      writeSoftSource(block, at + layout.simulation, soft, first || words[at + 6] === 0);
+      writeSoftSource(block, at + layout.simulation, soft, cold || words[at + 6] === 0);
       words[at + 6] = soft.version;
       most += soft.reach;
       kinds |= KIND_SOFT;
@@ -113,11 +117,11 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
     words[at + 5] = shape.soft ?? 0;
     if (kinds && skipped(i, most)) [kinds, most] = [0, 0];
     words[at] = kinds;
-    if (first) words[at + 1] = kinds;
+    if (cold) words[at + 1] = kinds;
     words[at + 2] = shape.joints;
     words[at + 3] = shape.targets;
     words[at + 4] = shape.waves;
-    moving[i] = moved || words[at] !== words[at + 1] ? 1 : 0;
+    moving[i] = cold || moved || words[at] !== words[at + 1] ? 1 : 0;
     return most;
   };
   /** Whether placement `i`'s morph weights or waves moved since its record was written: what a
@@ -125,6 +129,7 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
   const stale = (i: number, entry: Deformed) => {
     const layout = recordLayout(entry.shape),
       at = bases[i] - 1;
+    if (owners[i] !== entry.mesh.sourceIdentity) return true;
     if (entry.mesh.softSource && entry.mesh.softSource.version !== words[at + 6]) return true;
     const weights = entry.mesh.morphTargetInfluences;
     for (let t = 0; weights && t < entry.shape.targets; t++)

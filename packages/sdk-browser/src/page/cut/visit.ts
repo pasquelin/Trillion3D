@@ -32,12 +32,12 @@ function descend<T extends PageRecord>(s: SelectionState<T>, pages: T[], culling
     if (!inside) {
       const clipped = frustumClipBox(
         planes,
-        nodes[base] - s.flatReach,
-        nodes[base + 1] - s.flatReach,
-        nodes[base + 2] - s.flatReach,
-        nodes[base + 3] + s.flatReach,
-        nodes[base + 4] + s.flatReach,
-        nodes[base + 5] + s.flatReach,
+        nodes[base],
+        nodes[base + 1],
+        nodes[base + 2],
+        nodes[base + 3],
+        nodes[base + 4],
+        nodes[base + 5],
       );
       if (clipped === 0) {
         s.frustumRejected++;
