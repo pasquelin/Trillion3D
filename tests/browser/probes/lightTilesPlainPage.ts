@@ -177,10 +177,10 @@ async function tileListsOn(
 export async function executer(lightCounts: number[]) {
   const depths = depthField(seeded(923));
   const subgroup = await tileListsOn(['subgroups'], depths, lightCounts);
-  if ('indisponible' in subgroup) return subgroup;
+  if (subgroup.indisponible) return { indisponible: subgroup.indisponible };
   if (!subgroup.granted) return { indisponible: 'the adapter offers no subgroups' };
   const plain = await tileListsOn([], depths, lightCounts);
-  if ('indisponible' in plain) return plain;
+  if (plain.indisponible) return { indisponible: plain.indisponible };
   return {
     adaptateur: subgroup.adaptateur,
     erreurs: [...subgroup.erreurs, ...plain.erreurs],
