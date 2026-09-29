@@ -45,6 +45,19 @@ test('a cell that leaves mid-read releases nothing more when its read fails', as
   assert.deepEqual([counts.get('x'), counts.get('y'), held.held()], [1, 0, 1]);
 });
 
+test('a cell that leaves and comes back mid-read releases its pages once each', async () => {
+  const { pages, counts, land } = countedPages(new Set());
+  const held = createCellPages(pages, cell(['x']));
+  held.hold(0);
+  held.release(0);
+  held.hold(0);
+  land();
+  await Promise.all(held.reads());
+  assert.deepEqual([counts.get('x'), held.held()], [1, 1]);
+  held.release(0);
+  assert.deepEqual([counts.get('x'), held.held()], [0, 0]);
+});
+
 test('a cell that leaves mid-read releases its pages once they land', async () => {
   const { pages, counts, land } = countedPages(new Set());
   const held = createCellPages(pages, cell(['x']));
