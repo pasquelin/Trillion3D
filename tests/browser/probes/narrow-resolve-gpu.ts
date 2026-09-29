@@ -18,7 +18,7 @@ import {
 } from '../../../packages/sdk-browser/src/lighting/tiles/shader.ts';
 import { compactTile, tileLayout } from '../../../bench/oracles/browser/gpuLightTilesRankOracle.ts';
 import { seeded } from '../../../site/examples/kit/random.ts';
-import { dansPageWebgpu, empaquetePage } from './pageWebgpu.ts';
+import { dansPageWebgpu, bundlePage } from './pageWebgpu.ts';
 import type { ResolveScene, run } from './narrowResolvePage.ts';
 
 declare global {
@@ -124,7 +124,7 @@ test('the narrow resolve and the wide one give the same sums, bit for bit, on th
   assert.ok(large.reach.length > LIST, `${large.reach.length} reach the large tile`);
   const [pooled, full] = SCENES[1].records.map(({ words }) => words);
   assert.ok(full[WIDE.opaqueBase] === WIDE.noSlice && pooled[WIDE.opaqueBase] === WIDE.stride);
-  const script = await empaquetePage(resolve(here, 'narrowResolvePage.ts'), 'narrowResolve');
+  const script = await bundlePage(resolve(here, 'narrowResolvePage.ts'), 'narrowResolve');
   const pageErrors: string[] = [];
   const result = await dansPageWebgpu(
     (scenes: ResolveScene[]) => globalThis.narrowResolve.run(scenes),

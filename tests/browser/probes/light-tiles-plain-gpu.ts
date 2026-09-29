@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/index.ts';
-import { dansPageWebgpu, empaquetePage } from './pageWebgpu.ts';
+import { dansPageWebgpu, bundlePage } from './pageWebgpu.ts';
 import type { run } from './lightTilesPlainPage.ts';
 
 declare global {
@@ -17,7 +17,7 @@ declare global {
 const here = dirname(fileURLToPath(import.meta.url));
 
 test('the plain tile pass keeps the lists of the subgroup pass, on the GPU', async () => {
-  const script = await empaquetePage(resolve(here, 'lightTilesPlainPage.ts'), 'lightTilesPlain');
+  const script = await bundlePage(resolve(here, 'lightTilesPlainPage.ts'), 'lightTilesPlain');
   const pageErrors: string[] = [];
   const result = await dansPageWebgpu(
     (counts: number[]) => globalThis.lightTilesPlain.run(counts),
