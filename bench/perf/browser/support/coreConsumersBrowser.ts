@@ -40,16 +40,15 @@ lumieres.store.add({
 });
 
 export async function lignesConsommateursBrowser() {
-  const { liste, camera, echelle } = enregistrements;
+  const { liste, racines, camera, echelle } = enregistrements;
   // The engine order reads the camera it owns; the oracle keeps that of the host library.
   const vue = readCameraWorld(createEngineCamera(), camera);
-  const paquets: PageRec[][] = [];
+  const paquets: (typeof liste)[] = [];
   for (let i = 0; i < liste.length; i += 30) paquets.push(liste.slice(i, i + 30));
   // The page records are built once, outside the timed closure below: the compared subject is
   // `windingCw` alone — before the conversion the line also paid one object literal per matrix.
-  const pagesHostiles = matrices.map((e) =>
-    pageRecFixture({ matrix: new THREE.Matrix4().fromArray(e) }),
-  );
+  const pagesHostiles = matrices.map((_, placementIndex) => pageRecFixture({ placementIndex })),
+    racinesHostiles = matrices.map((e) => ({ world: new THREE.Matrix4().fromArray(e) }));
   const attribut = new THREE.BufferAttribute(Float32Array.from(points.flat()), 3);
   // The compared subject is the projection of a vertex, not the read of a convention: the
   // view-projection/convention pairs are built once, outside the measured loops.
@@ -61,7 +60,7 @@ export async function lignesConsommateursBrowser() {
       'hostile records, in batches of 30',
       paquets,
       (l) => l.map((p) => essaie(() => referenceOrder(p, camera, echelle))),
-      (l) => l.map((p) => essaie(() => orderPendingUrls(p, vue, echelle, []))),
+      (l) => l.map((p) => essaie(() => orderPendingUrls(p, racines, vue, echelle, []))),
     ),
     await ligne(
       'world-space cluster sphere for shadows',
@@ -80,7 +79,7 @@ export async function lignesConsommateursBrowser() {
           lumieres.plan.representationChanged = (min, max) => {
             boite = [...Array.from(min), ...Array.from(max)];
           };
-          noteResidenceChange(lumieres, r);
+          noteResidenceChange(lumieres, racines, r);
           return boite ?? [];
         }),
     ),
@@ -93,7 +92,7 @@ export async function lignesConsommateursBrowser() {
       (l) =>
         l.map((e, i) => {
           setWindingEpoch(i + 1);
-          return windingCw(pagesHostiles[i]);
+          return windingCw(racinesHostiles, pagesHostiles[i]);
         }),
     ),
     await ligne(
