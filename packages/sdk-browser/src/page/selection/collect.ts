@@ -15,13 +15,14 @@ import { rowShadowless, type PlacementRows } from '../../placement/rows.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { blendMoves, isAssignment, type AlphaChange } from '../../placement/backendSceneUpdates.ts';
 
-/** Whether a primitive's pages are drawn blended: the rule of the open, and of a material a page
- *  moves between draw classes later (`reassignBlend`). */
+/** Whether a primitive's pages are drawn blended at the open. A material moved between draw
+ *  classes later puts them in the family of its new class alone (`reassignBlend`): its pages are
+ *  cut again on that class's grid (`classPages.ts`), as a fresh session of it compiles them. */
 const pagesBlend = (primitive: { pass?: string }, surface: { transparent: boolean }) =>
   primitive.pass === 'clustered-blend' || surface.transparent;
-/** The primitive each collected mesh draws, whichever collection read it: a resource mounted in
- *  place (#572) is its own collection, and moves class with the open's records (#837). */
-const collected = new WeakMap<object, { pass?: string }>();
+/** The meshes whose pages a collection drew, whichever read them: a resource mounted in place
+ *  (#572) is its own collection, and moves class with the open's records (#837). */
+const collected = new WeakSet<object>();
 
 export function collectClusterPages(
   source: Object3D,
@@ -64,7 +65,7 @@ export function collectClusterPages(
       continue;
     }
     const template = templates.pagesOf(primitive);
-    collected.set(mesh, primitive);
+    collected.add(mesh);
     const transparent = pagesBlend(primitive, surface);
     // The grid moved every position of this primitive by at most this much: its clusters' boxes
     // grow by it, so culling still encloses the surface an engine draws from the pages.
@@ -74,8 +75,6 @@ export function collectClusterPages(
     // The widened boxes depend on no placement: every placement's records share them.
     const mins = primitive.pages.map((page) => widen(page.min, -1)),
       maxs = primitive.pages.map((page) => widen(page.max, 1));
-    // A flat cut has no tree; transparent pages recover their draw order from the recorded source rank.
-    const sourceOrder = transparent ? template.sourceOrder : undefined;
     const shape = templates.shapeOf(primitive, template);
     const { structure, culling } = shape;
     for (const { world, parked, placement } of placed) {
@@ -111,7 +110,9 @@ export function collectClusterPages(
           declaration: mesh.material,
           transparent,
           sourceMesh: mesh,
-          sourceOrder: sourceOrder?.[pageIndex] ?? pageIndex,
+          // A flat cut has no tree: transparent pages recover their draw order from the source
+          // rank, recorded for every class, since a page may turn blended in the session (#846).
+          sourceOrder: template.sourceOrder[pageIndex],
           matrix: world,
           placement,
           renderOrder: order,
@@ -165,12 +166,8 @@ export function collectClusterPages(
       : alpha.surfaces.includes(mesh.material as object));
   /** Whether a record is drawn blended once `alpha` moved its surfaces, before or after they are
    *  written: the family this collection gives the class `alpha.to`, or the one it has. */
-  const blendOf = (rec: PageRec, alpha: AlphaChange) => {
-    const primitive = wears(rec, alpha) && collected.get(rec.sourceMesh!);
-    return primitive
-      ? pagesBlend(primitive, { transparent: alpha.to === 'blend' })
-      : rec.transparent;
-  };
+  const blendOf = (rec: PageRec, alpha: AlphaChange) =>
+    wears(rec, alpha) && collected.has(rec.sourceMesh!) ? alpha.to === 'blend' : rec.transparent;
   return {
     roots,
     allPages,
