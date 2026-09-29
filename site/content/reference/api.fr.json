@@ -6751,7 +6751,7 @@
     "summary": "Modifie un matériau importé ou créé à l’image suivante."
   },
   "world.createMaterial": {
-    "summary": "Crée un matériau appartenant à cette page."
+    "summary": "Crée un matériau de la page ; avec une image, attendre son admission avant de l’attribuer."
   },
   "world.assignMaterial": {
     "summary": "Attribue le matériau créé par la page à un `mesh/primitive` compilé."
@@ -7878,7 +7878,7 @@
       "alphaMode": "Comment le canal alpha d’une surface est lu : opaque l’ignore, `mask` coupe à `alphaCutoff`, `blend` compose.",
       "alphaCutoff": "Les pixels moins opaques que ceci disparaissent.",
       "name": "Un nom à l’usage de la page.",
-      "map": "Une image et la façon de l’échantillonner, dans les mots d’une page (`wrap`, `filter`, `colorSpace`)."
+      "map": "ImageBitmap appartenant à l’appelant, sans prémultiplication ni conversion de couleur ; le garder ouvert jusqu’à la libération."
     }
   },
   "SceneMaterial": {
@@ -7940,5 +7940,11 @@
       "positions": "Ses sommets, trois nombres chacun, dans l’espace du monde.",
       "indices": "Ses triangles, trois indices locaux chacun."
     }
+  },
+  "world.dropMaterial": {
+    "summary": "Libère un matériau créé inutilisé ; réattribuer ses objets auparavant."
+  },
+  "world.materialMapBytes": {
+    "summary": "Octets des images conservées ou en attente, limités à 64 Mio."
   }
 }

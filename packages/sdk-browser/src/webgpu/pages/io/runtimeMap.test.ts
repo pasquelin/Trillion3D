@@ -61,7 +61,9 @@ test('a bitmap after open uses the same source, texel extent and upload flags as
     assert.equal(uploaded.context.scratchBuilds, 1);
     assert.ok(Number(uploaded.context.uploadMs) >= 0);
     runtime.api.assignMaterial('0/0', runtime.api.createMaterial().id);
+    const allocated = runtime.buffers.length;
     runtime.api.dropMaterial(made.id);
+    assert.equal(runtime.buffers.length, allocated, 'drop allocates no GPU buffers');
     assert.equal(runtime.api.materialMapBytes(), 0);
     assert.equal(runtime.backend.metrics().textureResidentBytes, baseline);
     const size = () =>

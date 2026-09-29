@@ -17,9 +17,12 @@ function engine(admit: (surface: GraphSurface) => Promise<void> = async () => {}
 }
 
 test('map admission reserves bytes before allocation, publishes only after readiness and drops them', async (t) => {
+  let resume!: () => void;
   const bitmap = bitmapFixture(t),
-    ready = Promise.withResolvers<void>();
-  const { backend, released } = engine(() => ready.promise);
+    ready = new Promise<void>((resolve) => {
+      resume = resolve;
+    });
+  const { backend, released } = engine(() => ready);
   const api = runtimeMaterials(() => {}, [backend]);
   const image = bitmap(4096, 4096);
   const pending = api.createMaterial({ map: image });
@@ -27,7 +30,7 @@ test('map admission reserves bytes before allocation, publishes only after readi
   assert.equal(api.created.size, 0, 'not assignable before admission');
   assert.throws(() => api.createMaterial({ map: bitmap() }), refusal('TEXTURE_BUDGET'));
   assert.equal(api.mapBytes(), RUNTIME_MAP_BYTES_CEILING);
-  ready.resolve();
+  resume();
   const made = await pending;
   assert.deepEqual(made.tiling, [1, 1]);
   api.drop(made.id);
@@ -55,14 +58,17 @@ test('a failed second backend rolls back every admission, bytes and surfaces', a
 });
 
 test('disposal during admission never publishes a late surface and releases its borrowed map', async (t) => {
+  let resume!: () => void;
   const bitmap = bitmapFixture(t),
-    ready = Promise.withResolvers<void>();
-  const { backend, released } = engine(() => ready.promise);
+    ready = new Promise<void>((resolve) => {
+      resume = resolve;
+    });
+  const { backend, released } = engine(() => ready);
   const api = runtimeMaterials(() => {}, [backend]);
   const image = bitmap(),
     pending = api.createMaterial({ map: image });
   api.dispose();
-  ready.resolve();
+  resume();
   await assert.rejects(pending, /session closed/);
   assert.equal(api.created.size, 0);
   assert.equal(api.mapBytes(), 0);
