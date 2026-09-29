@@ -500,26 +500,35 @@ covers it — then the page is restored from the layer and its moving casters dr
 rest touches neither, and a camera move only draws the pages it brings in
 (`staticSurvives.test.ts`, `moverPages.test.ts`).
 
-The trade-off, as measured at 1728×1117 CSS, DPR 2 (#831, `9ec162c5e`, before #990 and #993,
-headless, load 7–12): the layer buys a redraw of the moving casters alone, where the static set
-would be drawn again under every mover, and costs as many bytes as the pool (above) and one restore
-draw per page it redraws.
+The trade-off: the layer buys a redraw of the moving casters alone, where the static set would be
+drawn again under every mover, and costs as many bytes as the pool (above) and one restore draw per
+page it redraws. Its measure is relative, never absolute: the measure session posts paired A/B runs
+of `develop` on an Apple M2 Max, headless Chrome, 1728×1117 CSS at DPR 2, bodies moving (car
+driven, walker walking), on a loaded machine. The runs posted 28 Sept. 20:02 UTC as `measure ok` on
+#989 and #990, median GPU ms of five interleaved pairs, load 15–75, batch `884cde8b5` →
+`e36d93ea1` (it holds the capacity change #1045 and the static-survival change #1064):
 
-| Example              | GPU p50 / p95 ms | shadow pages p50 | shadow draws p95 | fps  |
-| -------------------- | ---------------- | ---------------- | ---------------- | ---- |
-| falling-boxes        | 20.19 / 21.43    | 1 346            | 2 013            | 37.6 |
-| spin-an-astrolabe    | 22.02 / 26.80    | 539              | 1 142            | 36.5 |
-| a-walker-among-balls | 18.55 / 19.73    | 617              | 110              | 50.4 |
-| drive-a-car          | 13.43 / 17.83    | 1 534            | 712              | 59.2 |
+| Example (GPU p50 ms) | before | after | paired difference            |
+| -------------------- | ------ | ----- | ---------------------------- |
+| falling-boxes        | 28.1   | 25.4  | −1.0 to −3.2 (5/5 faster)    |
+| spin-an-astrolabe    | 30.7   | 28.3  | −1.4 to −4.2 (5/5 faster)    |
+| drive-a-car          | 25.8   | 26.4  | −1.0 to +1.7                 |
+| a-walker-among-balls | 59.2   | 60.2  | −0.8 to +2.4 (one +44 spike) |
+
+On both sides the CPU frame stayed at 1.4–2.3 ms and every scene under 60 fps on the GPU
+(25–60 ms): on 28 Sept. the programme's 120 fps target (#525) was not met. The idle
+decision above (#993, #1146) was measured in the batch `3e58f044f` → `d5ec49069`, six A/B pairs,
+load 25–60, posted on #993 on 28 Sept. 22:35 UTC: GPU p50 moved by +0.13 ms (falling boxes), +0.24
+(walker), −0.59 (car) and +0.53 (astrolabe rotating), all within run spread (widest −1.5 to
++2.0 ms), CPU p50 within 0.07 ms — neither a regression nor a gain resolved; that batch did not run
+resize or pause/resume. Each batch holds other merges, so a row is a batch's cost, not one change's.
 
 The astrolabe is the counterexample: every caster of its pages moves, so the layer holds almost
 nothing it can restore and the cost is its moving casters, whatever the cache; a cache percentage is
 no measure of it. Physical pages are memory, not frame time: the pool past one layer (#818) left
 the falling boxes' GPU envelope where it was and raised their peak memory by 118 MB (1 410 against
 1 292 MB, #850's baseline; the walker 1 465, the car 1 417), and its layer doubles with it, until
-the runtime resize above repays it. These numbers are the
-latest measured on `develop`; the measure session publishes the next ones by batch after the
-merges.
+the runtime resize above repays it. Later batches post their numbers on the issues they measure.
 
 **Shadow casters are selected from the light.** The pages of one light view a frame draws — a sun
 level, a lamp face at one mip — form a run, and every run of the frame is selected by ONE traversal
@@ -556,6 +565,22 @@ nearest resident ancestor, by the camera's rule (`page/cut/rule.ts`). What the l
 request is a second residency tier, loaded after the camera's pages into slots no one holds and never
 pinned. The CPU cut does the same, reading the run's view as a camera (`webgpu/shadow/cpuCasters.ts`);
 its casters take rows behind its own (#10, #26).
+
+**An opaque caster runs no fragment stage in the shadow pool.** The depth's fragment stage writes
+nothing; it only discards a cutout's hole or the emitter envelope. So the page cull files each
+region's casters in two lists of its slot (`KEPT_LISTS_WGSL`, `gpu/shadow/cullShader.ts`), by the
+cutout bit of the row's mobility word (`MOBILITY_CUTOUT`, set from the row's `FLAG_MASK`
+in `webgpu/shadow/bounds.ts`): the opaque ones from the start, counted by the region's first
+command, the cutout ones from the end down, counted by its second. The opaque list is drawn by
+`shadow_depth_vs` with no fragment stage (early depth, no fragment invocation), or by `shadow_vs`
+with the fragment when the face carries an emitter envelope; the cutout list by `shadow_cutout_vs`
+with the fragment, and only while some row is a cutout (`hasCutouts`). The three pipelines
+(`gpu/shadow/depthDraws.ts`) are compiled at the `shadow pipelines` step. All three place a
+corner through one `shadowVertex`, whose position is `@invariant`, and a texel keeps the nearest
+depth whatever the draw order: the page is develop's single draw to the bit, which
+`gpu/shadow/depthSplit.test.ts` checks against develop's corner on random casters and on NaN, ±0,
+±Inf, empty and full-slot inputs (the audit's OMB-01 harness, #965). The transmittance layer draws
+the first list alone, which holds the blended casters.
 
 **A blended surface that asks for it casts a shadow attenuated by its opacity.** By default a
 see-through surface casts none, as the reference solution leaves translucent materials: glass,

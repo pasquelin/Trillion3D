@@ -10,7 +10,8 @@ refuses and reports the need to a CTO in one line.
 1. Search first (`gh issue list --state all --search …`): an open issue that covers it gets a To-do
    item instead.
 2. One subject, sized for one pull request, on `.github/ISSUE_TEMPLATE/task.md`: **Why**, **To do**
-   (what, never how), **Code context** (`path:line` to reuse), **Proof**, **Links**.
+   (what, never how), **Code context** (`path:line` to reuse), **Proof** (one item per line, each
+   with a distinct start: the pull request quotes it and the CI checks it), **Links**.
 3. Title: the outcome ("Shadows stay stable while the camera moves"). One domain label, one priority
    label.
 4. A CTO shows the boss the title and the To do in French before `gh issue create`, unless he asked
