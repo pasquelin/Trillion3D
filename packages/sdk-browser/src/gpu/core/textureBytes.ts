@@ -50,7 +50,9 @@ function extent(size: GPUExtent3D): [number, number, number] {
 }
 
 /** Bytes of a texture, every mip level included; `null` on a format outside the table. */
-export function textureBytesOf(descriptor: GPUTextureDescriptor): number | null {
+export function textureBytesOf(
+  descriptor: Partial<GPUTextureDescriptor> & Pick<GPUTextureDescriptor, 'size' | 'format'>,
+): number | null {
   const perTexel = BYTES_PER_TEXEL[descriptor.format];
   const perBlock = BYTES_PER_BLOCK[descriptor.format];
   if (perTexel === undefined && perBlock === undefined) return null;
@@ -68,4 +70,17 @@ export function textureBytesOf(descriptor: GPUTextureDescriptor): number | null 
         : Math.ceil(w / 4) * Math.ceil(h / 4) * d * perBlock!;
   }
   return bytes * (descriptor.sampleCount ?? 1);
+}
+
+/** Bytes of levels 1 and up of a `levels`-level chain: the mips beside a level 0 held elsewhere. */
+export function mipTailBytes(
+  width: number,
+  height: number,
+  format: GPUTextureFormat,
+  levels: number,
+): number {
+  const size: GPUExtent3D = [width, height];
+  return (
+    textureBytesOf({ size, format, mipLevelCount: levels })! - textureBytesOf({ size, format })!
+  );
 }
