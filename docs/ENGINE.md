@@ -631,7 +631,9 @@ against its own box or cone. A caster the light wants and the pool lacks is draw
 nearest resident ancestor, by the camera's rule (`page/cut/rule.ts`). What the light cuts
 request is a second residency tier, loaded after the camera's pages into slots no one holds and never
 pinned. The CPU cut does the same, reading the run's view as a camera (`webgpu/shadow/cpuCasters.ts`);
-its casters take rows behind its own (#10, #26).
+its casters take rows behind its own (#10, #26). A view whose CPU list is empty marks its regions
+casterless: their page is still cleared or restored, and they encode no bind group and no draw
+(`regions.casterless`, #1210).
 
 **An opaque caster runs no fragment stage in the shadow pool.** The depth's fragment stage writes
 nothing; it only discards a cutout's hole or the emitter envelope. So the page cull files each
@@ -859,10 +861,17 @@ the copy, the new one is first probed under that scope (`webgpu/residency/poolGr
 refusal halves the pool's bytes and draws it again by its own rule, down to its floor, so the pool
 in place is never replaced by an invalid one and what no longer fits is drawn by its resident
 ancestors. The world's GPU and CPU totals reach the pools through one fixed
-split (`residency/memoryBudget.ts`). The geometry pool can grow up to
-`geometryPoolCeilingBytes`, because its per-row tables are sized once at that ceiling. The WebGL2
-engine draws its geometry pool by the same rule (`sessionGeometryPool`: slots of the largest decoded
-page, page cap and session ceiling). A slot holds one geometry copy: a classic instance
+split (`residency/memoryBudget.ts`). The WebGPU tables sized by drawable row start at
+`geometryPoolCeilingBytes` and grow in place when a larger pool asks more rows
+(`webgpu/pages/prepare/growTables.ts`, #216): every GPU buffer sized by row is made anew under one
+out-of-memory scope while the old ones still draw, and swapped in only once all are granted; each
+visibility row keeps its rank, no shader, pipeline, page or tile is made again, and nothing sized by
+row is made after the swap (the spheres, mobility words and tested-half work buffer included). A
+refusal keeps the pool and the tables in place (`tables` in the report); a lost device grows the
+CPU rows alone, and the rebuild makes its GPU tables at their size. The copy of a pool resize holds the old
+pool and the new one at once (`transientBytes`), a peak the probe has the device grant, beside the
+tables grown first, before any page moves. The WebGL2 engine draws its geometry pool by the same rule (`sessionGeometryPool`: slots
+of the largest decoded page, page cap and session ceiling), its ceiling a fixed bound. A slot holds one geometry copy: a classic instance
 (`addInstance`) holds its own copy of every page, so a page three instances draw fills three slots,
 while the records rows place share one. Its cut is drawn on the CPU at the host's threshold, under
 the one cut rule below; the pool bounds what the image asks for, never the cut. The image asks for
