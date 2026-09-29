@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRowSurfaces, wantsReflections } from './gpu.ts';
+import { wantsReflections } from './gpu.ts';
 import { createWebgpuRowState } from '../webgpu/row/state.ts';
 import type { PageRec } from '../page/selection/selection.ts';
 import type { PageSurface } from '../page/surface.ts';
@@ -24,7 +24,6 @@ function instanceRows() {
   const rt = {
     run: { diagnostic: 'beauty' },
     layout: { rows },
-    vis: { rowSurfaces: createRowSurfaces() },
     blendState: { blendGpu: [] },
   } as unknown as WebgpuPagesRuntime;
   return { rows, rt, read, leaves };
