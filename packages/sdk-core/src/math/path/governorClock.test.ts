@@ -129,7 +129,11 @@ test('a coarse pool: a NaN or an infinity closes it at once, a missing timer dro
   assert.equal(g.metrics().operations.op.wasmSamples, 0, 'the timer loss dropped the first four');
   g.observe('op', 'js', -Infinity, 10);
   g.observe('op', 'js', 4, 10);
-  assert.equal(g.metrics().operations.op.jsSamples, 2, 'a -Infinity closes its pool, never poisons it');
+  assert.equal(
+    g.metrics().operations.op.jsSamples,
+    2,
+    'a -Infinity closes its pool, never poisons it',
+  );
 });
 
 test('a coarse clock now arbitrates: a path three times faster wins, read through 1 ms steps', () => {
