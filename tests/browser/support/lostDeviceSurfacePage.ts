@@ -12,14 +12,14 @@ import {
   dagFixture,
   wideCamera,
 } from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts';
-import { ouvrirAppareil } from '../probes/webgpuDevice.ts';
+import { openGpuDevice } from '../probes/webgpuDevice.ts';
 import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backend/types.ts';
 
 const litPixels = (pixels: Uint8Array) =>
   pixels.reduce((n, v, i) => (i % 4 !== 3 && v !== 0 ? n + 1 : n), 0);
 
 export async function executer() {
-  const appareil = await ouvrirAppareil();
+  const appareil = await openGpuDevice();
   if (!appareil) return { indisponible: 'no WebGPU adapter' };
   const { device, erreurs } = appareil;
   const evenements: Pick<BackendDiagnostic, 'phase' | 'message' | 'context'>[] = [];

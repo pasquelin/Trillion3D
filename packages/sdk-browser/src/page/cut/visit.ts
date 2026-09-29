@@ -51,9 +51,10 @@ function descend<T extends PageRecord>(s: SelectionState<T>, pages: T[], culling
       // as `pixelsAtZero`, and not one extra projection.
       const bound = nodes[base + 10];
       if (
-        exact
+        !(s.flatReach > 0) &&
+        (exact
           ? bound === 0
-          : bound >= 0 && frameClusterError(s, bound, nodes, base + 6) <= s.pixelError
+          : bound >= 0 && frameClusterError(s, bound, nodes, base + 6) <= s.pixelError)
       )
         continue;
       const decision = subtreeDecision(s, bounds, node * BOUND_STRIDE, exact);
@@ -112,7 +113,8 @@ export function traverse<T extends PageRecord>(
   pages: T[],
   culling?: WalkCulling,
 ) {
-  const wasm = culling ? cutWalkModule() : null;
+  // The module's walk reads no deformation's reach: a deformed root descends here.
+  const wasm = culling && !(s.flatReach > 0) ? cutWalkModule() : null;
   if (!wasm || !culling) return descend(s, pages, culling);
   joue(
     CUT_WALK,

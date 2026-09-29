@@ -5,6 +5,7 @@ pub(in crate::tests) mod blend_golden;
 pub(in crate::tests) mod blend_layouts;
 mod compressed_gltf;
 pub(in crate::tests) mod driver_uris;
+mod fbx_motion;
 pub(in crate::tests) mod gltf_cycle;
 pub(in crate::tests) mod gltf_scenes;
 pub(in crate::tests) mod gltf_world;

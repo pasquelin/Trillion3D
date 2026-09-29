@@ -13,7 +13,8 @@
       "play": "Commence à jouer.",
       "stop": "S’arrête, et revient au début.",
       "seek": "Pose le clip à `time` secondes tout de suite, selon son mode de boucle, qu’elle joue ou non : une action qui joue repart de là, une action arrêtée garde la pose jusqu’à ce qu’une action qui joue sur son mélangeur l’écrase.",
-      "clipTime": "Où en est l’action dans le clip, selon son mode de boucle."
+      "clipTime": "Où en est l’action dans le clip, selon son mode de boucle.",
+      "blendMode": "`additive` ajoute le mouvement relatif à la première clé aux autres actions, au lieu de les mélanger."
     }
   },
   "BudgetCanvas": {
@@ -1379,7 +1380,9 @@
       "vertexCount": "Sommets.",
       "flags": "Quels attributs il porte.",
       "decodedBytes": "Sa taille une fois décompressée.",
-      "quantizationError": "Le plus grand déplacement de position de l’en-tête, en unités de l’objet : une position décodée peut être aussi loin de sa source, et donc de la boîte déclarée de la page."
+      "quantizationError": "Le plus grand déplacement de position de l’en-tête, en unités de l’objet : une position décodée peut être aussi loin de sa source, et donc de la boîte déclarée de la page.",
+      "morphTargets": "Nombre de cibles dans `attributes.morph` : six flottants par cible et sommet ; absent sans morphing.",
+      "skinInfluences": "Nombre d’influences osseuses source par sommet."
     }
   },
   "decodeManifestBinary": {
@@ -1863,7 +1866,8 @@
       "mathBatch": "État du régulateur des voies de calcul (`../math/path/governor.ts`) : voie actuelle de chaque opération par lot, médianes des deux voies, changements. `null` sur un hôte qui n’a ouvert aucun lot — non mesuré, pas « voie JavaScript ».",
       "pagesPlannedOffThread": "Intégration des pages hors du fil principal. `pagesPlannedOffThread` compte les arrivées dont le plan — la place de chaque cluster dans le paquet et les rangs de pages qu’il déplace — a été calculé par un travailleur, jamais celles que le repli a planifiées sur le fil principal. `pagePlanMs` est le temps cumulé de ces plans, mesuré par l’exécutant lui-même, quel que soit le fil : il n’est jamais ajouté à un `cpu*` ou `gpu*` par image. Les deux valent `null` tant qu’aucune arrivée n’a été planifiée — non mesuré, pas zéro.",
       "pagePlanMs": "Temps passé à planifier les arrivées.",
-      "dynamicUploadBytes": "Octets de sommets de géométrie dynamique envoyés sur place à cette image (#573), dans le budget par image du monde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Absent là où aucun monde ne dessine."
+      "dynamicUploadBytes": "Octets de sommets de géométrie dynamique envoyés sur place à cette image (#573), dans le budget par image du monde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Absent là où aucun monde ne dessine.",
+      "gpuDeformationMs": "Durée GPU de la déformation pour la frame de `gpuPassMs` ; null avant mesure ou sans support."
     }
   },
   "frameStatistics": {
@@ -2999,7 +3003,8 @@
       "record": "Tout ce que le monde garde sur ce modèle : ses adresses, son manifeste et son graphe.",
       "getObjectByName": "Le premier nœud en dessous portant ce nom : le modèle, un nœud de son fichier source, puis tout autre enfant — une lumière portée par le fichier, un nœud placé par une page.",
       "metadata": "Le manifeste compilé du modèle — ses primitives, `sourceTriangles` — et `clusters`, les clusters que contiennent ses pages, chaque niveau de ses DAG compté.",
-      "localBounds": "La boîte du contenu propre à ce nœud, dans son repère local ; un simple nœud n’en a pas."
+      "localBounds": "La boîte du contenu propre à ce nœud, dans son repère local ; un simple nœud n’en a pas.",
+      "animations": "Clips du fichier, liés aux nœuds du modèle : `animation.createMixer(model).clipAction(model.animations[0]).play()`."
     }
   },
   "loader": {
@@ -4131,7 +4136,9 @@
       "morphTargetInfluences": "Le poids de chaque cible de morphose, quand la géométrie en déclare.",
       "morphTargetDictionary": "Le rang de chaque cible de morphose, par son nom.",
       "updateMorphTargets": "Un poids nul par cible de morphose du premier attribut déformé, nommée par son rang.",
-      "copy": "Prend les valeurs de `source`, et des copies de ses enfants sauf avis contraire."
+      "copy": "Prend les valeurs de `source`, et des copies de ses enfants sauf avis contraire.",
+      "skeleton": "Os désignés par `skinIndex` et `skinWeight`, évalués sur le GPU à chaque frame.",
+      "waves": "Paramètres de vagues partagés avec `WaterSurface`, pour le GPU et la flottabilité."
     }
   },
   "metric": {
@@ -4610,7 +4617,9 @@
       "vertexCount": "Sommets.",
       "flags": "Quels attributs il porte.",
       "decodedBytes": "Taille de `block`.",
-      "quantizationError": "Le plus grand déplacement de position de l’en-tête de la page, en unités de l’objet."
+      "quantizationError": "Le plus grand déplacement de position de l’en-tête de la page, en unités de l’objet.",
+      "skinInfluences": "Largeur exacte des influences osseuses source par sommet.",
+      "morphTargets": "Nombre de cibles dans `morph` : six flottants par cible et sommet ; absent sans morphing."
     }
   },
   "PageDecodeOp": {
@@ -4811,7 +4820,9 @@
       "matrices": "Seize flottants colonne par colonne par rangée, écrits par le propriétaire.",
       "live": "1 là où la rangée place la ressource, 0 là où elle est rangée de côté.",
       "shadowless": "1 là où la rangée ne projette aucune ombre (le `castShadow` de son maillage vaut `false`), 0 là où elle en projette.",
-      "capacity": "Rangées qui tiennent avant qu’il grandisse."
+      "capacity": "Rangées qui tiennent avant qu’il grandisse.",
+      "sources": "Propriétaires source originaux, maintenus vivants lorsque les lignes sont réutilisées.",
+      "sourceModels": "Maillages dont les ressources sont partagées, y compris pour les lignes en attente."
     }
   },
   "Plane": {
@@ -5009,7 +5020,8 @@
       "streams": "Ses paquets de flux.",
       "quantization": "Null sur une primitive sans pages, qui n’a été quantifiée sur aucune grille.",
       "topology": "L’allure des arêtes et des coins du maillage.",
-      "dynamic": "La géométrie dynamique d’un monde (#573) : des pages d’index seules, ses sommets lus en flottants dans la géométrie hôte que le moteur réécrit sur place."
+      "dynamic": "La géométrie dynamique d’un monde (#573) : des pages d’index seules, ses sommets lus en flottants dans la géométrie hôte que le moteur réécrit sur place.",
+      "deformation": "Sphères de repos des articulations `[x,y,z,radius]` et portée maximale du morphing ; absent ou null pour une géométrie statique."
     }
   },
   "Primitive": {
@@ -5709,7 +5721,8 @@
       "quantization": "Null sur une primitive sans pages, qui n’a été quantifiée sur aucune grille.",
       "topology": "L’allure des arêtes et des coins du maillage.",
       "binary": "Où trouver ses listes.",
-      "dynamic": "La géométrie dynamique d’un monde (#573) : des pages d’index seules, ses sommets lus en flottants dans la géométrie hôte que le moteur réécrit sur place."
+      "dynamic": "La géométrie dynamique d’un monde (#573) : des pages d’index seules, ses sommets lus en flottants dans la géométrie hôte que le moteur réécrit sur place.",
+      "deformation": "Sphères de repos des articulations `[x,y,z,radius]` et portée maximale du morphing ; absent ou null pour une géométrie statique."
     }
   },
   "SlimPrimitiveBinary": {
@@ -6325,7 +6338,8 @@
       "name": "Ce qu’elle anime : `node.field`.",
       "kind": "Quel genre de valeur elle contient.",
       "times": "Quand arrive chaque clé, en secondes.",
-      "values": "La valeur à chaque clé, l’une après l’autre."
+      "values": "La valeur à chaque clé, l’une après l’autre.",
+      "interpolation": "`linear` par défaut, `step` conserve la clé précédente, `cubic` suit les triplets glTF tangente entrante/valeur/tangente sortante."
     }
   },
   "TrackballCameraControls": {
@@ -6341,11 +6355,12 @@
       "owner": "L’objet où la piste écrit.",
       "field": "Le champ de `owner` qu’elle écrit.",
       "key": "La clé où s’est arrêté le dernier échantillon.",
-      "value": "Les nombres d’un échantillon."
+      "value": "Les nombres d’un échantillon.",
+      "reference": "Pose de référence de la première clé pour les actions additives."
     }
   },
   "TrackKind": {
-    "summary": "Ce qu’anime une piste : un nombre, un vecteur, une rotation ou une couleur."
+    "summary": "Un nombre, un vecteur, une rotation, une couleur ou une liste de poids de morphing."
   },
   "transformAffinePoint": {
     "summary": "`out[outOffset..outOffset + 2] = M · (x, y, z, 1)`, sans division de perspective : la forme d’une matrice affine, dont la dernière ligne est `(0, 0, 0, 1)`."
@@ -6487,7 +6502,7 @@
   },
   "UNSPLIT_PASS": {
     "summary": "Disposition d’une primitive non coupée gardée hors du DAG de clusters par le compilateur : maillage entier, ordre de la source gardé.",
-    "description": "Trois propriétés de matériau y mènent aujourd’hui — la transmission, le skinning et les morph targets —, jamais un nom d’objet."
+    "description": "La transmission impose ce chemin ; jamais le nom d’un objet."
   },
   "updateCameraFrame": {
     "summary": "Réécrit l’image : vue = inverse de `world` (nulle pour une matrice du monde singulière, comme la référence), vue-projection = `projection · view`, et les six plans de ce frustum de vue-projection."
@@ -6959,7 +6974,8 @@
       "shadowCastersKept": "Projeteurs gardés par le tri par page, toutes pages dessinées réunies, sur l’image que l’appareil a échantillonnée en dernier — une sur quinze ; `null` tant qu’aucun échantillon n’est revenu.",
       "shadowCastersRejected": "Projeteurs que le tri par page a testés sans les garder — hors de la partie de la page que lisent ses receveurs —, sur la même image échantillonnée ; `null` tant qu’aucun échantillon n’est revenu.",
       "shadowCastersHidden": "Projeteurs mobiles que le test d’occultation a trouvés cachés derrière la couche statique de leur page, sur l’image que l’appareil a échantillonnée en dernier ; `null` tant qu’aucun échantillon n’est revenu.",
-      "dynamicUploadBytes": "Octets de sommets de géométrie dynamique envoyés sur place à cette image (#573), dans le budget par image du monde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Absent là où aucun monde ne dessine."
+      "dynamicUploadBytes": "Octets de sommets de géométrie dynamique envoyés sur place à cette image (#573), dans le budget par image du monde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Absent là où aucun monde ne dessine.",
+      "gpuDeformationMs": "Durée GPU de la déformation pour la frame de `gpuPassMs` ; null avant mesure ou sans support."
     }
   },
   "WorldOptions": {
@@ -7483,7 +7499,8 @@
       "height": "Hauteur de la surface au-dessus du point du monde `(x, z)`, en mètres.",
       "point": "Le point du monde `[x, y, z]` où le point au repos `(x, level, z)` est porté, dans `out` : une grille déplacée point par point est la surface, crêtes aussi vives que les vagues.",
       "wavesNow": "Les vagues déclarées, chaque phase portée à cet instant : reposées dans `world.physics.water` (dont les vagues repartent de 0 s), la surface continue d’où elle est au lieu de sauter.",
-      "normal": "Normale unitaire `[x, y, z]` de la surface au point au repos `(x, z)`, dans `out`."
+      "normal": "Normale unitaire `[x, y, z]` de la surface au point au repos `(x, z)`, dans `out`.",
+      "waveModel": "Les mêmes valeurs de vagues et le même temps pour le GPU et la physique."
     }
   },
   "WaveSpec": {
@@ -7939,6 +7956,73 @@
   },
   "world.materialMapBytes": {
     "summary": "Octets des images conservées ou en attente, limités à 64 Mio."
+  },
+  "animation.weightsTrack": {
+    "summary": "Une piste contenant tous les poids de morphing à chaque clé.",
+    "parameters": {
+      "path": "Chemin `node.morphTargetInfluences`.",
+      "times": "Temps des clés en secondes.",
+      "values": "Un poids par cible et par clé."
+    }
+  },
+  "animation.skeleton": {
+    "summary": "Crée le squelette à affecter à `mesh.skeleton`.",
+    "parameters": {
+      "bones": "Os dans l’ordre utilisé par `skinIndex`.",
+      "inverseBindMatrices": "Seize nombres par os ; si omis, la pose actuelle devient la pose de liaison."
+    }
+  },
+  "animation.twoBoneIK": {
+    "summary": "Fait atteindre un point à une chaîne de deux os après l’évaluation des clips.",
+    "parameters": {
+      "root": "Premier os de la chaîne.",
+      "mid": "Deuxième os de la chaîne.",
+      "end": "Nœud terminal attaché au deuxième os.",
+      "target": "Point à atteindre.",
+      "pole": "Direction de flexion ; direction actuelle par défaut.",
+      "weight": "0 conserve la pose actuelle ; 1 applique entièrement la solution."
+    }
+  },
+  "animation.windClip": {
+    "summary": "Clip en boucle qui incline et balance les os d’un arbre.",
+    "parameters": {
+      "bones": "Os du tronc vers les extrémités.",
+      "options": "Direction, angle de flexion maximal et fréquence."
+    },
+    "parameters.options.direction": "Direction au sol `[x, z]` ; valeur par défaut : `[1, 0]`.",
+    "parameters.options.angle": "Flexion maximale en radians ; valeur par défaut : 0,1.",
+    "parameters.options.frequency": "Oscillations par seconde ; valeur par défaut : 0,5."
+  },
+  "Skeleton": {
+    "summary": "Les os qui déforment un maillage et leurs matrices de liaison inverses, du repère du maillage au repère de chaque os.",
+    "description": "L’indice d’articulation d’un sommet désigne `bones`. Sans matrices inverses fournies, la pose des os à la création définit la pose de liaison.",
+    "members.isSkeleton": "Toujours `true` : identifie un squelette.",
+    "members.bones": "Les nœuds articulés, dans l’ordre des articulations.",
+    "members.boneInverses": "Seize nombres par os, par colonnes : l’inverse de sa matrice mondiale à la pose de liaison.",
+    "members.palette": "Écrit dans `out`, à partir de `at`, les lignes de `meshWorld⁻¹ · boneWorld · boneInverse` de chaque articulation. La palette transforme les sommets liés dans le repère local du maillage ; sa transformation mondiale s’applique ensuite. `boneWorlds` fournit les matrices mondiales du lecteur, sinon celles des os sont utilisées."
+  },
+  "Waves": {
+    "summary": "Un ensemble d’ondes de Gerstner, animé par `setTime`.",
+    "description": "Chaque onde `i` a une direction `(dx, dz)`, un nombre d’onde `k`, une amplitude `A` et une amplitude latérale `Q·A`. Les pentes sont normalisées pour que `Σ Qᵢ·Aᵢ·kᵢ ≤ 1`, sans retournement des crêtes.",
+    "members.phase": "Phase de chaque onde à l’instant fixé, dans [0, 2π) : seul état dépendant du temps.",
+    "members.crest": "Hauteur maximale au-dessus du repos : `Σ Aᵢ`.",
+    "members.steepness": "`Σ Qᵢ·Aᵢ·kᵢ` après normalisation, au plus 1.",
+    "members.phasesAt": "Phase de chaque onde à `t` secondes, ramenée à [0, 2π) en double précision.",
+    "members.setTime": "Fixe le temps à `t` secondes ; la surface précédente correspond à `setTime(t - dt)`.",
+    "members.offset": "Écrit dans `out` le déplacement `[x, y, z]` du point au repos `(x, 0, z)`.",
+    "members.normal": "Écrit dans `out` la normale unitaire `[x, y, z]` au point au repos `(x, z)`.",
+    "members.count": "Nombre d’ondes additionnées.",
+    "members.dirX": "Composante x normalisée de la direction de chaque onde.",
+    "members.dirZ": "Composante z normalisée de la direction de chaque onde.",
+    "members.k": "Nombre d’onde de chaque onde, en radians par mètre.",
+    "members.amplitude": "Amplitude verticale de chaque onde, en mètres.",
+    "members.lateral": "Amplitude latérale normalisée de chaque onde, en mètres."
+  },
+  "WindOptions": {
+    "summary": "Direction du vent (`x`, `z` au sol), flexion maximale d’un os en radians et oscillations par seconde.",
+    "members.direction": "Direction au sol `[x, z]` ; valeur par défaut : `[1, 0]`.",
+    "members.angle": "Flexion maximale en radians ; valeur par défaut : 0,1.",
+    "members.frequency": "Oscillations par seconde ; valeur par défaut : 0,5."
   },
   "world.setTransform": {
     "summary": "Déplace le nœud `nodeName` pour que sa pose monde soit `matrix` : un nœud dont la page ne garde pas de référence est atteint par son nom (`object.name`), cherché dans la scène.",

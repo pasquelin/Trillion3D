@@ -4,6 +4,7 @@ import { layerSlot, sampledFlag, type MaterialLayers } from '../row/pageRowMater
 import { writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts';
 import { FLAG_HAS_TANGENT, frameNormalScaleY } from '../../visibility/buffer.ts';
 import { FOG_FREE_MODEL_BIT } from '../../scene/surfaceModel.ts';
+import type { SessionDeformation } from '../../deformation/session.ts';
 
 /**
  * Record of a transparent item: everything a blend draw reads about IT, and nothing that
@@ -14,10 +15,13 @@ import { FOG_FREE_MODEL_BIT } from '../../scene/surfaceModel.ts';
  * rank instead of a dynamically offset uniform: nothing left to write per frame, and no bind
  * group per draw.
  */
-export const BLEND_ITEM_WORDS = 44;
+export const BLEND_ITEM_WORDS = 48;
 
-/** Atlas tables the record cites: each texture's slot, per atlas, and the atlases. */
-export type BlendAtlasTables = MaterialLayers;
+/** Atlas tables the record cites: each texture's slot, per atlas, and the atlases; and the
+ *  session's GPU deformation, whose record a paged item of a deformed placement names (#357). */
+export type BlendAtlasTables = MaterialLayers & {
+  deformation?: Pick<SessionDeformation, 'wordOfWorld'>;
+};
 
 /** Writes an item's record at its rank. `floats` and `ints` are two views of the same buffer. */
 export function writeBlendItemRecord(
@@ -70,7 +74,13 @@ export function writeBlendItemRecord(
   floats[base + 41] = mat.gapSize ?? 0;
   // A sprite's turn and size rule (`spriteAt`), zero on any other item.
   writeSpriteWords(floats, base + 42, mat.sprite);
+  // The deformation record of its placement (`PageInfo.deform`): a paged item reads the float
+  // pool that holds it; an unpaged one reads buffers of its own, and none.
+  ints[base + 45] = item.deformInput ?? 0;
+  ints[base + 46] = item.deformOutput ?? 0;
+  ints[base + 44] =
+    item.paged || item.deformOutput ? (tables.deformation?.wordOfWorld(item.matrix) ?? 0) : 0;
 }
 
 /** WGSL declaration of the record, written once for the shader and for the layout. */
-export const BLEND_ITEM_WGSL = `struct BlendItem{world:mat4x4f,color:vec4f,indexCount:u32,vertexBase:u32,flags:u32,mapIndex:u32,emissiveIndex:u32,lineWidth:f32,alphaTest:f32,aoIntensity:f32,roughness:f32,metalness:f32,normalScale:vec2f,roughIndex:u32,metalIndex:u32,normalIndex:u32,aoIndex:u32,emissive:vec4f,dash:vec2f,sprite:vec2f,}`;
+export const BLEND_ITEM_WGSL = `struct BlendItem{world:mat4x4f,color:vec4f,indexCount:u32,vertexBase:u32,flags:u32,mapIndex:u32,emissiveIndex:u32,lineWidth:f32,alphaTest:f32,aoIntensity:f32,roughness:f32,metalness:f32,normalScale:vec2f,roughIndex:u32,metalIndex:u32,normalIndex:u32,aoIndex:u32,emissive:vec4f,dash:vec2f,sprite:vec2f,deform:u32,deformInput:u32,deformOutput:u32,pad2:u32,}`;

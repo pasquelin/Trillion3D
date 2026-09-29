@@ -1,3 +1,4 @@
+import { deformationSlotBytes } from '../../../deformation/slotLayout.ts';
 import type { MatrixElements } from '../../../math/matrixElements.ts';
 import type { BlendCopy } from '../../../cluster/blendCopyContract.ts';
 import { createBlendCopyRecord } from '../../../cluster/blendCopyRecord.ts';
@@ -21,7 +22,6 @@ import { textureTransferBytesFor, textureUploadMsFor } from '../../../residency/
 import { sessionGeometryPool } from '../../../residency/sessionPool.ts';
 import { floorDiagnostic, rootChildren } from '../../../residency/minimumCapacity.ts';
 import { DEFAULT_PIXEL_RATIO } from '../../../backend/common.ts';
-
 export type WebgpuDiagnostics = ReturnType<typeof createWebgpuDiagnostics> & {
   traceEnabled: boolean;
 };
@@ -51,8 +51,6 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     associations,
     { allowMissing: true },
   );
-  // Meshes the cut never sees: `shared-blend` and transmissive primitives leave the collection as
-  // forward copies. Counted here, while the list is still only theirs.
   const sharedBlendMeshes = blendCopies.length;
   // Transparent pages share selection/residency with opaque pages, but retain one forward draw
   // per placement (all back faces, then all front faces), keyed by the world of the root that
@@ -107,7 +105,13 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   const uniquePages = Math.max(1, new Set(allPages.map(pageAddress)).size);
   const scene = createBlendScene(clearColor, blendCopies);
   // What a pool slot holds, how wide it is, and the corner count every page draw is bounded by.
-  const { geometryUrls, pageBytes, maxCorners, ...clusterSides } = describePageSlots(allPages);
+  const {
+    geometryUrls,
+    pageBytes: sourcePageBytes,
+    maxCorners,
+    ...clusterSides
+  } = describePageSlots(allPages);
+  const pageBytes = deformationSlotBytes(allPages, sourcePageBytes, roots);
   // Said out loud, never silently: an opaque or masked cluster the cache gave no geometry page
   // still draws from the source float buffers, and that is what those bytes are there for.
   diag.engineDiagnostic('geometry-pages', 'Clusters drawn from their quantized page', {
@@ -116,8 +120,6 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     ...clusterSides,
     sharedBlendMeshes,
     slotBytes: pageBytes,
-    // Ceiling of every page draw, in corners: the catalogue's own largest corner count, which a
-    // slot's byte width no longer says anything about.
     drawCorners: maxCorners,
   });
   diag.engineDiagnostic(...floorDiagnostic(bootstrapUrls.size, floorPages));
@@ -137,8 +139,6 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     context.geometryPoolCeilingBytes,
     true,
   );
-  // The texture pools are prepare's to draw, once the catalogue says which family the session
-  // samples and which lane each texture takes; until then only the budget is held.
   const texturePoolBudget = context.texturePoolBytes ?? DEFAULT_TEXTURE_POOL_BUDGET;
   const reserveHiz = typeof gpuDevice?.createComputePipeline === 'function';
   // The tile pass's two budgets: bytes, and the reference's fixed upload cadence in the frame's

@@ -1,9 +1,17 @@
 import { GEOMETRY_PAGE_FORMAT_VERSION } from '../../../../sdk-core/src/index.ts';
 import {
+  morphWords,
+  readDeformation,
+  skinWords,
+  validateRawDeformation,
+} from './geometryPageDeform.ts';
+import {
   CLUSTER_HEADER_WORDS,
   CLUSTER_PAGE_MAGIC,
   FLAGS_ALL,
   FLAG_COLOR,
+  FLAG_SKIN,
+  MORPH_WORDS,
   FLAG_NORMAL,
   FLAG_UV,
   FLAG_UV1,
@@ -63,8 +71,9 @@ function record(word: number, min: number[]): Quant | null {
 }
 
 /**
- * The 24-word header of a `WGP3` page, read and checked: magic, format version, the four
- * quantization grids, the corner stream's bit count, the stored positions, and counts that agree with the page's own byte length — the stream layout is
+ * The 25-word header of a `WGP3` page, read and checked: magic, format version, the four
+ * quantization grids, the corner stream's bit count, the stored positions, the skin and morph
+ * records (`geometryPageDeform.ts`), and counts that agree with the page's own byte length — the stream layout is
  * derived from the counts and widths the header declares, so a page whose body does not measure
  * exactly what its header describes is refused here rather than read out of bounds.
  *
@@ -89,7 +98,9 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
     quantizationError = f(20),
     cornerBits = w(21),
     positionCount = w(22);
-  if (!position || !uv || !uv2 || !color || w(23)) throw new Error('GEOMETRY_PAGE_BOUNDS');
+  if (!position || !uv || !uv2 || !color) throw new Error('GEOMETRY_PAGE_BOUNDS');
+  const { skin, morphs } = readDeformation(head, flags),
+    headerWords = CLUSTER_HEADER_WORDS + morphs.length * MORPH_WORDS;
   // Word offset of each stream, derived from the counts and widths the header declares.
   const indexBits = bitsFor(vertexCount - 1),
     prefixBits = bitsFor(Math.floor(cornerBits / BLOCK_CORNERS)),
@@ -111,8 +122,16 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
     normal = stream(!!(flags & FLAG_NORMAL), vertexCount, 16),
     uvs = uv.bits.map((b) => stream(!!(flags & FLAG_UV), vertexCount, b)),
     uv2s = uv2.bits.map((b) => stream(!!(flags & FLAG_UV1), vertexCount, b)),
-    colors = color.bits.map((b) => stream(!!(flags & FLAG_COLOR), vertexCount, b));
-  let floats = 3;
+    colors = color.bits.map((b) => stream(!!(flags & FLAG_COLOR), vertexCount, b)),
+    skinned = at;
+  if (flags & FLAG_SKIN) at += skinWords(skin, vertexCount);
+  // Each target's record names the word its streams start at: recomputed here, trusted if equal.
+  const placed = morphs.every((morph) => {
+    const start = at;
+    at += morphWords(morph, vertexCount);
+    return morph.start === start;
+  });
+  let floats = 3 + (flags & FLAG_SKIN ? 2 * skin.influences : 0) + 6 * morphs.length;
   for (const [, size, bit] of OPTIONAL) if (flags & bit) floats += size;
   const decodedBytes = vertexCount * floats * 4 + indexCount * 4;
   if (
@@ -127,14 +146,16 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
     !(quantizationError >= 0) ||
     !Number.isFinite(quantizationError) ||
     decodedBytes > maxDecodedBytes ||
-    (CLUSTER_HEADER_WORDS + at) * 4 !== data.byteLength
+    !placed ||
+    (headerWords + at) * 4 !== data.byteLength
   )
     throw new Error('GEOMETRY_PAGE_BOUNDS');
+  validateRawDeformation(head, headerWords, vertexCount, flags, skinned, skin, morphs);
   // Each block's base, width and corners stay in bounds: the GPU reads the page in place on this.
   // The link stream ends where the normal stream starts.
   const words = (from: number, to: number) =>
       Uint32Array.from({ length: to - from }, (_, i) =>
-        head.getUint32((CLUSTER_HEADER_WORDS + from + i) * 4, true),
+        head.getUint32((headerWords + from + i) * 4, true),
       ),
     table = words(0, cornerStream);
   for (let b = 0; b < blockCount; b++) {
@@ -143,8 +164,6 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
     if (base >= vertexCount || width > indexBits || end > cornerBits)
       throw new Error('GEOMETRY_PAGE_BOUNDS');
   }
-  // Every vertex links to a stored position (`positions.rs`), read in place as well; the link
-  // stream ends where the normal stream starts.
   const linkWords = linked ? words(links, normal) : table;
   for (let i = 0; linked && i < vertexCount; i++)
     if (field(linkWords, i * linkBits, linkBits) >= positionCount)
@@ -161,8 +180,21 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
     corners,
     positionCount,
     linkBits,
+    skin,
+    morphs,
+    headerWords,
     bodyWords: at,
     decodedBytes,
-    streams: { blocks, corners: cornerStream, positions, links, normal, uvs, uv2s, colors },
+    streams: {
+      blocks,
+      corners: cornerStream,
+      positions,
+      links,
+      normal,
+      uvs,
+      uv2s,
+      colors,
+      skinned,
+    },
   };
 }
