@@ -23,8 +23,10 @@ export const MAX_SHADOW_BATCHES = Math.ceil(LAYER_PAGES / MAX_SHADOW_PAGES);
 /** Light views, one per face a batch draws, of the granted batches together: a batch draws at
  *  most one view per page, whichever cut selects its casters. */
 export const MAX_SHADOW_RUNS = MAX_SHADOW_BATCHES * MAX_SHADOW_PAGES;
-/** Frames whose light-cut flag words may be in flight at once (`../dag/lightCutRedraws.ts`). */
-export const SHADOW_FLAG_FRAMES = 4;
+/** Frames whose light-cut flag words may be in flight at once (`../dag/lightCutRedraws.ts`): at
+ *  120 frames a second, a readback's round trip — the GPU's queue, then the map — can span more
+ *  than four, and a frame that finds none free draws its light-cut pages a frame later (#1142). */
+export const SHADOW_FLAG_FRAMES = 8;
 
 /** Bytes of a drawn face's uniform entry, one per region (`atlas.ts`): a dynamic-offset stride. */
 export const SHADOW_FACE_STRIDE = PAGE_BIND_ALIGN;
@@ -84,13 +86,13 @@ export function shadowBatchCapacity(poolPages: number, views: number, maxBufferS
   return { batches, stagingBytes: (batches - 1) * SHADOW_BATCH_WRITE_BYTES };
 }
 
-/** A frame's flag words on the GPU, and on the host each batch's pages, their views and where the
- *  batch ends (`../dag/lightCutRedraws.ts`). */
+/** A frame's flag words on the GPU, and on the host each batch's pages, their views, their caster
+ *  bits and where the batch ends (`../dag/lightCutRedraws.ts`). */
 const FLAG_GPU_BYTES = MAX_SHADOW_BATCHES * 4,
   FLAG_HOST_BYTES =
     MAX_SHADOW_BATCHES *
       MAX_SHADOW_PAGES *
-      (Int32Array.BYTES_PER_ELEMENT + Uint8Array.BYTES_PER_ELEMENT) +
+      (Int32Array.BYTES_PER_ELEMENT + 2 * Uint8Array.BYTES_PER_ELEMENT) +
     MAX_SHADOW_BATCHES * Uint16Array.BYTES_PER_ELEMENT;
 /** The CPU cut's per-face offsets, lengths and commands on the host, its commands on the GPU
  *  (`../../webgpu/shadow/cpuCasters.ts`). */

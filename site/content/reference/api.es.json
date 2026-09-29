@@ -341,7 +341,7 @@
       "proxyTriangleBudget": "Presupuesto total de triángulos del proxy para una escena entera, todas las instancias incluidas: la huella residente.",
       "proxyCellMetres": "Resolución mínima de la malla proxy en metros: tamaño de los triángulos simplificados y de las celdas de la caché de superficie. Duplicado por el compilador si se supera el presupuesto.",
       "proxyLeafTriangles": "Triángulos por hoja del BVH: los bucles sobre las hojas están acotados por esta constante.",
-      "traversalSteps": "Nodos del BVH visitados por rayo: acotados antes de ejecutar el fotograma, nunca dinámicos. Un nodo de 4 hijos cubre 4× más árbol por paso que un BVH binario.",
+      "traversalSteps": "Nodos del BVH visitados por rayo en el árbol tal como se construyó, acotados antes de ejecutar el fotograma. Un reajuste añade los nodos que dejó entrar en un rayo, nunca el número de nodos (`bounce/proxy.ts`). Un nodo de 4 hijos cubre 4× más árbol por paso que un BVH binario.",
       "traversalStack": "Profundidad de la pila de recorrido. Un nodo de 4 hijos apila hasta 3; 32 cubre millones de triángulos.",
       "cascadeLevels": "Niveles de las cascadas de sondas. Los primeros `cascadeLevels - 1` siguen la posición de la cámara; el último es fijo en el mundo y cubre toda la escena.",
       "cascadeSize": "Sondas por eje y por nivel: un nivel es un cubo de `cascadeSize³` sondas.",
@@ -398,13 +398,18 @@
       "levels": "Cada nivel.",
       "reach": "Alcance de los rayos: la diagonal de la extensión, más allá de la cual no hay nada que tocar.",
       "shareOf": "Sondas del lote de trabajo por fotograma, por nivel: partes publicadas aplicadas a un lote total.",
-      "follow": "Reubica los niveles móviles alrededor de un punto de vista. Devuelve verdadero cuando al menos un índice de celda base ha cambiado: es la única señal que necesita la convergencia para reanudarse, sin ninguna lectura de vuelta de la GPU."
+      "follow": "Reubica los niveles móviles alrededor de un punto de vista. Devuelve verdadero cuando al menos un índice de celda base ha cambiado: es la única señal que necesita la convergencia para reanudarse, sin ninguna lectura de vuelta de la GPU.",
+      "reserveCount": "Capacidad fija reservada antes de que las transformaciones puedan ampliar la escena.",
+      "invalidLevels": "Niveles cuyo espaciado o presencia cambió en la última replanificación. Los desplazamientos de la base usan las marcas de las celdas.",
+      "replan": "Vuelve a aplicar la política existente de resolución espacial a los límites actuales de la geometría."
     }
   },
   "BounceOccupancy": {
     "summary": "Dónde merece la pena mantener una sonda: el mapa de ocupación de las cascadas.",
-    "description": "Una cascada sobre una ciudad gasta la mayoría de sus celdas en el cielo vacío y el núcleo lleno de los edificios, donde la irradiancia nunca se pide. El planificador debe saber, antes de gastar un rayo, si una celda toca geometría. Es una propiedad del mundo, no de la cámara: calculada una vez en la construcción, válida para todas las posiciones que toman después los niveles móviles. El mapa del nivel más fino se marca con las cajas envolventes de los triángulos del proxy más un borde de una celda: las ocho esquinas de una celda ocupada siempre se conservan, así que no se pierde nada útil. Los niveles siguientes son reducciones exactas — dos celdas por una en cada eje, ya que las separaciones son múltiplos en potencias de dos del más fino — luego dilatadas una celda por la misma razón. Nada aquí nombra una escena ni examina la cámara: una extensión, triángulos, celdas.",
+    "description": "Una cascada sobre una ciudad gasta la mayoría de sus celdas en el cielo vacío y el núcleo lleno de los edificios, donde la irradiancia nunca se pide. El planificador debe saber, antes de gastar un rayo, si una celda toca geometría. Es una propiedad del mundo, no de la cámara: calculada en la construcción y de nuevo cuando la geometría movida se asienta, válida para todas las posiciones que toman después los niveles móviles. El mapa del nivel más fino se marca con las cajas envolventes de los triángulos del proxy más un borde de una celda: las ocho esquinas de una celda ocupada siempre se conservan, así que no se pierde nada útil. Los niveles siguientes son reducciones exactas — dos celdas por una en cada eje, ya que las separaciones son múltiplos en potencias de dos del más fino — luego dilatadas una celda por la misma razón. Nada aquí nombra una escena ni examina la cámara: una extensión, triángulos, celdas.",
     "members": {
+      "moved": "Los propietarios se movieron: `boxes` contiene seis límites del mundo por triángulo del proxy, `changed` marca los movidos.",
+      "settle": "Una vez por fotograma: el primer fotograma tras detenerse el movimiento reconstruye el mapa exacto sobre `extent`.",
       "occupied": "Verdadero cuando una celda de un nivel en su rejilla merece una sonda.",
       "marked": "Celdas marcadas y celdas totales del nivel más fino: la ganancia publicada.",
       "cells": "Celdas del nivel más fino.",
@@ -845,7 +850,7 @@
       "primitives": "Sus primitivas.",
       "worstStalls": "La tabla de bloqueos del compilador: como mucho diez primitivas con un grupo bloqueado que conservó raíces en el nivel 0, la peor primero. Ausente de una caché compilada antes de ella.",
       "texturePreviews": "Una entrada por par (textura, atlas) decodificado, dispuesta por textura y luego por atlas; vacía sin imagen decodificable.",
-      "textures": "Modelo de los niveles horneados, relativo al manifiesto: {sha} la huella de la imagen fuente, {kind} el nombre del atlas (PREVIEW_ATLAS_NAMES), {level} el rango del nivel. Ausente en una caché compilada antes de los niveles horneados, que este lector rechaza por la versión del archivo aparte.",
+      "textures": "Modelo de los niveles horneados, relativo al manifiesto: {sha} la huella de la imagen fuente, {kind} el nombre del atlas (PREVIEW_ATLAS_NAMES), {level} el rango del nivel. Ausente en una caché compilada antes de los niveles horneados, que este lector rechaza por la versión del archivo aparte. `version` es la de los niveles (`TEXTURE_PREVIEW_VERSION`): un lector no lee ningún nivel de otra.",
       "proxy": "Dónde leer el proxy de escena residente y su BVH: la geometría que tocan los rayos. Ausente en una caché compilada antes del rebote, que sigue siendo legible tal cual."
     }
   },
@@ -1158,7 +1163,7 @@
   },
   "createGpuPageCache": {
     "summary": "Frontera de asignación y cola WebGPU.",
-    "description": "Los bytes de las páginas y la regla los proporciona el host. Las escrituras en cola están ordenadas; la liberación espera los envíos en curso antes de destruir."
+    "description": "Los bytes de las páginas y la regla los proporciona el host. Las escrituras en cola están ordenadas; la liberación espera los envíos en curso antes de destruir. `pin(key, 'held')` conserva una página antes que las fijadas ordinarias en `resize(slots)`, que ya no acepta un conjunto held. Volver a fijarla de forma ordinaria mantiene ese nivel; `unpin(key)` lo elimina."
   },
   "createJob": {
     "summary": "Sin temporizador, sin DOM, sin archivos ni interfaz."
@@ -1203,7 +1208,7 @@
   },
   "createShadowPlan": {
     "summary": "El planificador de sombras de los mapas virtuales.",
-    "description": "El sombreado anota las páginas que lee; su informe, releído unos fotogramas después, asigna lo que falta del pool fijo. Lo que se movió invalida las páginas asignadas que cubre. Un fotograma dibuja entonces cada página caducada que lee la imagen, todas en ese fotograma: lo que contiene el coste es la caché —una página solo se redibuja cuando cambia lo que contiene—, y el pool es el único límite. Una escena quieta, cuyo sombreado ya no se ejecuta, no pide nada y no dibuja nada. Todos los arrays se reservan una vez; `plan()` no reserva nada."
+    "description": "Los receptores del fotograma nombran las páginas que leen antes de su rasterizado (`demand.ts`) —sin ellos, el informe del sombreado, releído unos fotogramas después— y lo que falta se asigna del pool fijo. Lo que se movió invalida las páginas asignadas que cubre. Un fotograma dibuja entonces cada página caducada que lee la imagen, todas en ese fotograma (`admit.ts`): lo que contiene el coste es la caché —una página solo se redibuja cuando cambia lo que contiene—, y el pool es el único límite. Una escena quieta, cuyo sombreado ya no se ejecuta, no dibuja nada. Todos los arrays se reservan una vez —las celdas de los receptores solo crecen para un fotograma con más receptores—; `plan()` no reserva nada más."
   },
   "createTerminalProgress": {
     "summary": "Una barra de progreso en la terminal que sigue los eventos del compilador.",
@@ -1246,7 +1251,8 @@
       "options.controls": "El controlador que mueve la cámara desde el lienzo; `world.controls.kind` lo cambia después.",
       "options.signal": "Detiene las cargas del mundo cuando se cancela la señal.",
       "options.physics": "Activa la física (`world.physics`): `true`, o gravedad y presupuestos. Solo entonces se carga Jolt.",
-      "options.temporalAntialiasing": "Antialiasing temporal, solo WebGPU: desplazamiento subpíxel acumulado entre imágenes. `false` dibuja cada píxel en su centro, sin historial, lo que pide una captura exacta al píxel; se cambia después con `world.temporalAntialiasing`."
+      "options.temporalAntialiasing": "Antialiasing temporal, solo WebGPU: desplazamiento subpíxel acumulado entre imágenes. `false` dibuja cada píxel en su centro, sin historial, lo que pide una captura exacta al píxel; se cambia después con `world.temporalAntialiasing`.",
+      "options.renderScale": "La fracción de la pantalla por eje a la que se dibuja la imagen, antes de que el antialiasing temporal la reconstruya a la pantalla: `'auto'` deja que el presupuesto de imagen la elija entre `min` y `max` (`{ min, max }`, 0,5 y 1 por defecto; en WebGL2, que solo remuestrea, `min` es 1 por defecto), un número la fija; una imagen quieta se dibuja al máximo. Se cambia después con `world.renderScale`."
     }
   },
   "crossVector3": {
@@ -1306,7 +1312,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "Identidad de caché para los errores del DAG por clúster: error QEM absoluto del grupo sobre posiciones, normales y coordenadas de textura, limitado a la extensión del grupo; una caché v1 se rechaza."
+    "summary": "Identidad de caché para los errores de DAG por clúster: error QEM absoluto del grupo sobre posiciones, normales y coordenadas de textura, limitado a la extensión del grupo, nunca inferior a la distancia de Hausdorff muestreada entre los hijos de un grupo y sus salidas (#929); se rechazan las cachés v1 y v2."
   },
   "DagReport": {
     "summary": "Informe del DAG de una primitiva; solo sus advertencias las usa el motor.",
@@ -1368,7 +1374,7 @@
   },
   "decodeSceneProxy": {
     "summary": "El proxy releído y reverificado antes de que un solo rayo lo toque.",
-    "description": "Disposición, en little-endian: `u32 'WGPX' · u32 versión · u32 triángulos · u32 nodos`, luego los vértices en el mundo, los albedos, los límites exactos de los nodos y sus cuatro hijos, uno tras otro. Cada sección tiene una longitud que impone el encabezado; un archivo de otro tamaño se rechaza en bloque, porque un nodo que nombrara un triángulo ausente haría que el shader leyera cualquier cosa."
+    "description": "Disposición: ocho palabras de cabecera en little-endian, seguidas de las columnas de geometría y árbol canónicos y de la información de propiedad versionada. `docs/FORMAT.md` especifica cada cantidad y columna. La cabecera impone la longitud de cada sección; se rechaza íntegramente un archivo de otro tamaño, porque un nodo que apuntara a un triángulo ausente haría que el shader leyera datos arbitrarios."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S` descompuesta en `position`, `quaternion`, `scale`."
@@ -1525,10 +1531,6 @@
   "emptyIrradiance": {
     "summary": "Una irradiancia vacía, lista para recibir fuentes."
   },
-  "encodeManifestBinary": {
-    "summary": "Separa un manifiesto en un JSON pequeño que un lector analiza y en columnas que proyecta.",
-    "description": "El descriptor devuelto lleva un `sha256` vacío: solo el llamador, que tiene los bytes terminados, puede calcular su huella."
-  },
   "EngineCamera": {
     "summary": "La cámara del motor: los números de un fotograma, en búferes propios reescritos en el sitio.",
     "description": "Ninguna estructura de una biblioteca del host atraviesa una firma después de `readCameraWorld` (`world.ts`, la única traducción desde una cámara del host).",
@@ -1608,6 +1610,7 @@
       "UNSUPPORTED_SCENE_UPDATE": "Este camino de dibujo no sabe hacer este cambio en la escena.",
       "BATCHED_WORLD_VIEW": "Este camino de dibujo no sabe hacer este cambio en la escena.",
       "RAYCAST_NO_VIEW": "Se pidió un punto de imagen a un canvas sin tamaño: no hay imagen a través de la cual apuntar.",
+      "SURFACE_CAPTURE_UNSUPPORTED": "Se pidió una captura de superficies (`captureSurfaceView`) a una vía de dibujo que no sabe dibujar las superficies de material en una vista propia: la vía WebGL2 no tiene.",
       "VERTICES_NOT_LOADED": "Los vértices de un modelo cargado se leyeron antes de `await geometry.loadVertices()`: una sesión los lee a la primera necesidad, nunca de antemano.",
       "SESSION_OPEN_FAILED": "La sesión del mundo no pudo abrirse, por un motivo sin código propio (`world.diagnostic.error`): el error lanzado está en `details.cause`.",
       "WEBGPU_LOST": "WebGPU perdió su dispositivo, o un error en él dejó un estado desde el que nada puede dibujar: lo lanzan `render`, `flush` y las lecturas que necesitan el dispositivo, lo nombra el diagnóstico `gpu-device-lost`, y aparece en `world.diagnostic.error` cuando una sesión no pudo abrirse por ello.",
@@ -1820,7 +1823,7 @@
       "frameHeld": "Verdadero cuando el fotograma se mantuvo: ni la escena, ni la vista, ni los recursos se movieron, ningún trabajo asíncrono estaba pendiente, y ninguna etapa de CPU corrió. Los píxeles mostrados son los del fotograma original, bit a bit. Lo que HIZO el fotograma mantenido se publica tal cual, nunca copiado del último renderizado completo: `drawCalls`, `triangles`, `submittedTriangles` y `totalSubmittedTriangles` solo cuentan la presentación, y las duraciones de CPU y GPU por etapa valen cero cuando la etapa no corrió, `null` cuando nada la cronometró. Un motor cuya imagen es una escena que dibuja el adaptador testigo cuenta lo que ese adaptador envió en ese fotograma — nada, para un fotograma mantenido. Lo que MUESTRA el fotograma mantenido sigue descrito por el corte que vuelve a mostrar: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` y `residentPages` son los del fotograma original, ya que es el mismo corte. Ausente en un motor que no mantiene sus fotogramas.",
       "streamingError": "Error de carga persistente; las URL fallidas piden recargar el explorador tras tres intentos.",
       "gpuPassMs": "Última medición de pases de GPU de este motor; nulo cuando el dispositivo no sabe hacer marcas de tiempo.",
-      "gpuFrameMs": "Duración de GPU del fotograma que describe `gpuPassMs.frame`. Nunca sumada a un campo `cpu*`. El dispositivo se muestrea cada pocos fotogramas, así que un número puede venir de unos fotogramas atrás. Vale null antes de la primera muestra, desde un fotograma retenido hasta la siguiente muestra del dispositivo, en un dispositivo sin `timestamp-query` y en WebGL2.",
+      "gpuFrameMs": "Duración de GPU del fotograma que describe `gpuPassMs.frame`. Nunca sumada a un campo `cpu*`. El dispositivo se muestrea cada pocos fotogramas, así que un número puede venir de unos fotogramas atrás. Vale null antes de la primera muestra, desde un fotograma retenido hasta la siguiente muestra del dispositivo, en un dispositivo sin `timestamp-query` y en WebGL2 sin `EXT_disjoint_timer_query_webgl2`.",
       "gpuHostGapMs": "Tiempo de CPU que el mismo fotograma pasó entre dos de sus propios envíos, y cero cuando solo envía una vez. Es tiempo del host, no de GPU, por eso `gpuFrameMs` lo excluye. Nulo cuando no se mide.",
       "uncoveredTriangles": "Triángulos de los clústeres que nombra el corte publicado pero que la imagen no puede dibujar — sin página residente y sin ancestro que cubra. Un agujero real en la imagen: cero es el único valor sano. Nulo cuando un motor no puede decirlo (dibuja el corte que eligió, así que nunca tiene).",
       "drawnTriangles": "Triángulos que la IMAGEN ACTUAL da al dibujo: su corte de clústeres, opacos y transparentes de la jerarquía juntos. Las mallas transparentes fuera de la jerarquía no están ahí (`transparentSubmittedTriangles`), y el rechazo por oclusión no se resta (`hizRejectedTriangles`). Contado al adoptar el corte: no se espera ninguna relectura asíncrona de GPU, así que nunca vale `null` por falta de tiempo, a diferencia de `submittedTriangles`.",
@@ -2499,6 +2502,7 @@
       "framebuffer": "Dónde dibujar; `null` para la pantalla.",
       "width": "Ancho en píxeles.",
       "height": "Alto en píxeles.",
+      "displayWidth": "El ancho al que se muestra la imagen cuando se dibuja por debajo de él (`world.renderScale`): los niveles de textura y los anchos de línea siguen la proporción. `width` si falta.",
       "linear": "Radiancia lineal, sin curva ni codificación, sobre negro transparente: la entrada de la cadena de efectos, cuyo alfa es la cobertura."
     }
   },
@@ -3940,7 +3944,7 @@
       "wasmAvailable": "El módulo WebAssembly está cargado, en la versión correcta del contrato.",
       "wasmSimd": "El módulo se compiló con `simd128`; `null` mientras no se haya cargado ningún módulo.",
       "clockResolutionMs": "Precisión del reloj del hilo, en milisegundos; `null` mientras no se haya estimado.",
-      "clockCoarse": "Verdadero cuando el reloj es demasiado grueso para decidir: todo permanece en el camino JavaScript.",
+      "clockCoarse": "Verdadero cuando el reloj es demasiado grueso para medir una sola ejecución: las ejecuciones se miden en lotes agrupados.",
       "unavailableReason": "Por qué el camino WebAssembly no es jugable, o `null` cuando lo es.",
       "operations": "Cada operación."
     }
@@ -4390,7 +4394,8 @@
       "left": "Borde izquierdo.",
       "right": "Borde derecho.",
       "top": "Borde superior.",
-      "bottom": "Borde inferior."
+      "bottom": "Borde inferior.",
+      "fitAspect": "Una caja ortográfica tan alta como se declaró y tan ancha como la forma de la imagen la hace."
     }
   },
   "orthographicProjection": {
@@ -4646,7 +4651,7 @@
   "PageSource": {
     "summary": "De dónde se leen las páginas de un modelo, por clave.",
     "members": {
-      "read": "Lee los bytes de una página."
+      "read": "Lee los bytes de una página; `priority`, si se da, es la del streamer (la más pequeña primero). Una lectura más urgente de una página ya en curso se vuelve a pedir para subirla: una fuente que acepta `priority` la une a la lectura en curso en lugar de transferir la página dos veces."
     }
   },
   "PageStreamer": {
@@ -4757,6 +4762,13 @@
       "width": "Píxeles por fila.",
       "height": "Filas por capa.",
       "depth": "Capas, para una pila de imágenes."
+    }
+  },
+  "PlacementGrowth": {
+    "summary": "Lo que un propietario entrega a una sesión que amplía sus búferes de instancias en el sitio (`growth.ts`).",
+    "members": {
+      "growPlacements": "Un búfer de instancias que la sesión tiene fue sustituido por uno mayor, primero las filas de `from` y el resto apartado: la sesión lee `to` desde ahora y conserva sus filas nuevas, sin reconstruir ninguna tabla (`growth.ts`). Si un motor no lo tiene, el propietario abre de nuevo la sesión sobre `to`.",
+      "growsInPlace": "Si `growPlacements` acepta cada uno de `from` ampliado a `capacity` filas, preguntado antes de que el propietario sustituya alguno: false los deja como están, y el propietario abre de nuevo la sesión sobre otros mayores."
     }
   },
   "PlacementRows": {
@@ -5217,7 +5229,7 @@
     "summary": "Versión del contrato de la jerarquía de escena mantenida por el host."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "Enteros de encabezado: firma, versión, triángulos, nodos."
+    "summary": "Enteros de cabecera: firma, versión, cantidades de triángulos/nodos/grupos/propietarios/orígenes, cero reservado."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "'W','G','P','X' leídos como un entero sin signo de 32 bits little-endian."
@@ -5364,7 +5376,12 @@
       "triangles": "Tres vértices en el mundo por triángulo, `PROXY_TRIANGLE_FLOATS` números cada uno.",
       "albedo": "Albedo difuso lineal del triángulo, dispuesto en RGBA8.",
       "nodeBounds": "Límites exactos de cada nodo del BVH.",
-      "nodeChildren": "Los cuatro hijos de cada nodo: caja cuantizada, número de triángulos, presencia, enlace."
+      "nodeChildren": "Los cuatro hijos de cada nodo: caja cuantizada, número de triángulos, presencia, enlace.",
+      "triangleGroups": "Grupo compartido de propietarios de origen de cada triángulo canónico, almacenado una sola vez.",
+      "groupOffsets": "Desplazamientos de los registros de propietarios de cada grupo, incluido el centinela final.",
+      "owners": "Registros de propietarios: índice del nodo de origen y albedo lineal empaquetado en RGBA8.",
+      "bindWorlds": "Matrices de mundo originales de los nodos de origen, dieciséis valores de doble precisión por nodo.",
+      "sourceParents": "Jerarquía de origen, incluidos los nodos de partición que el anfitrión no tiene instanciados actualmente."
     }
   },
   "SceneProxyDescriptor": {
@@ -5381,7 +5398,10 @@
       "triangleBudget": "Presupuesto de triángulos publicado, el que decidió el umbral realmente obtenido.",
       "bounds": "Extensión del proxy en el mundo: tres límites bajos luego tres altos.",
       "triangles": "Triángulos.",
-      "nodes": "Nodos del árbol."
+      "nodes": "Nodos del árbol.",
+      "groups": "Grupos de propietarios compartidos y almacenados una sola vez.",
+      "owners": "Registros de propietarios.",
+      "instances": "Matrices de los nodos de origen."
     }
   },
   "SceneRoot": {
@@ -5468,7 +5488,20 @@
       "shadowPagesDrawn": "Lo que ha producido la invalidación de páginas: páginas redibujadas por el fotograma, páginas dejadas en cola por falta de presupuesto, y cuánto ha esperado la página desactualizada más antigua que lee la imagen. Cero en todas partes es el valor normal de una escena inmóvil; `null` para un motor sin atlas de sombras.",
       "shadowPagesTotal": "Páginas dibujadas desde la apertura del explorador, vaciados de `flush()` incluidos: el coste de un cambio es la diferencia entre dos lecturas.",
       "shadowPagesPending": "Páginas de sombra pendientes.",
+      "shadowBatches": "Lotes de sombra que dibujó la imagen: recuentos del host sobre lo que codificó, nunca leídos en un shader, como los recuentos siguientes. Null en un motor sin atlas de sombras.",
+      "shadowLayersDrawn": "Capas del pool en las que dibujaron las pasadas de sombra de la imagen.",
+      "shadowPagesRestored": "Páginas dibujadas desde una copia de su capa estática, rasterizando solo sus proyectores móviles.",
+      "shadowPagesRasterized": "Páginas cuyos proyectores estáticos se rasterizaron de nuevo; con las restauradas, todas las páginas dibujadas.",
+      "shadowRestoreCopies": "Copias de páginas desde la capa estática: una página restaurada, o una página dibujada entera sobre su capa.",
+      "shadowStaticDrawCalls": "Llamadas de dibujo de proyectores estáticos: en la capa estática, o de una página dibujada entera sin ella.",
+      "shadowMovingDrawCalls": "Llamadas de dibujo solo de proyectores móviles, sobre páginas restauradas desde la capa estática.",
+      "shadowMovingCastersKept": "De `shadowCastersKept`, los clústeres conservados para dibujar solo proyectores móviles.",
+      "shadowPagesStaledBy": "Páginas que la imagen dejó obsoletas, por motivo: luz, proyector inmóvil, proyectores móviles, detalle, umbral de corte o rango de profundidad de un sol.",
       "shadowWaitMs": "Cuántos milisegundos ha esperado a ser redibujada la página desactualizada más antigua que lee la imagen. Solo cuenta el tiempo en que la imagen la lee; 0 una vez redibujada.",
+      "shadowCutDrops": "Lotes del corte desde la luz que descartaron trabajo — sus vistas guardaron más clústeres de los que caben en las listas —, desde que se abrió el explorador: cada uno devuelve sus páginas, retiradas hasta redibujarse (#525). Null en un motor sin corte de luz en GPU, igual que los tres siguientes.",
+      "shadowCutWithdrawnPages": "Páginas redibujadas porque un corte desde la luz las dibujó mal, desde que se abrió el explorador: su lote descartó trabajo, o su indicador nunca se leyó. Quedan retiradas hasta redibujarse.",
+      "shadowCutCoarsePages": "Páginas redibujadas porque una vista dibujó un clúster más grueso del que quería, desde que se abrió el explorador: liberadas cuando cambió la residencia y la cámara reposa.",
+      "shadowCutViewLimit": "Vistas de luz en las que dibuja ahora un lote del corte desde la luz: el tope hasta que un lote descarta, luego lo que cabe.",
       "gpuLightListsMs": "Tiempo de GPU de las listas de luces.",
       "tileLightPoolReserved": "Palabras que las teselas más allá de su lista reservaron en la reserva de índices de luces de la vista, en la imagen que el dispositivo muestreó por última vez mientras la escena tiene más luces que una lista; `null` si no (#849).",
       "tileLightPoolCapacity": "Palabras que la reserva de índices de luces tenía en esa imagen muestreada; `null` igualmente.",
@@ -5479,11 +5512,14 @@
       "gpuShadowRasterMs": "Tiempo de GPU para dibujar esos proyectores en las páginas: la capa estática y luego el pool.",
       "gpuLightingMs": "Tiempo de GPU de la iluminación.",
       "shadowLightCuts": "Cortes de clústeres lanzados desde las luces: uno por vista de luz dibujada, cero en una imagen quieta.",
-      "shadowPagesRequested": "Páginas de sombra virtuales que leyó la imagen, tal como las nombró su último informe de peticiones: lo que marcan los receptores de la cámara.",
+      "shadowPagesRequested": "Páginas de sombra virtuales que lee la imagen, tal como las nombró la demanda anticipada del fotograma —o, sin ella, su último informe de peticiones—: lo que marcan los receptores de la cámara.",
       "shadowPagesCached": "De ellas, páginas leídas directamente del pool: al día, sin dibujo.",
       "shadowPoolPages": "Páginas físicas del pool fijo que contienen una página virtual.",
       "shadowPoolBytes": "Bytes de GPU del pool de sombras: sus páginas de profundidad, sus capas estática y de transmitancia una vez creadas, y los búferes a su lado. Null hasta que el primer fotograma dimensiona el pool.",
       "shadowPoolLayers": "Capas del pool, de 4 096 páginas como máximo cada una, dimensionadas una vez a partir de la pantalla y las luces con sombra del primer fotograma. Null hasta entonces.",
+      "shadowPeakBytes": "El máximo de bytes de GPU que la asignación de memoria de las sombras ha tenido a la vez, capas tardías incluidas. Null hasta que la primera imagen dimensiona el pool.",
+      "shadowResolutionBias": "Reducciones a la mitad de los bytes del pool de sombras que costaron los rechazos de memoria del dispositivo; 0 normalmente.",
+      "shadowMemoryEvents": "Los eventos de presión de memoria de las sombras desde que se abrió el mundo, por nombre, en orden; vacío normalmente.",
       "shadowPagesRefetched": "Páginas virtuales asignadas de nuevo después de que el pool las desalojara para hacer sitio, desde que se abrió el explorador: los redibujados que cuesta un pool demasiado pequeño para lo que leen las imágenes.",
       "shadowCastersKept": "Proyectores que conservó el descarte por página, todas las páginas dibujadas juntas, en la imagen que el dispositivo muestreó por última vez — una de cada quince; `null` hasta que vuelva una muestra.",
       "shadowCastersHidden": "Proyectores en movimiento que la prueba de oclusión encontró ocultos tras la capa estática de su página, en la imagen muestreada por última vez; `null` hasta que vuelva una muestra."
@@ -5500,7 +5536,7 @@
       "releaseDeferred": "La imagen no planifica ninguna sombra: la unión retenida entra en la lista de inmediato.",
       "setPageInvalidation": "Desactiva la invalidación por página: un objeto en movimiento invalida todas las páginas de las luces que toca. Activa por defecto.",
       "pageInvalidation": "Si un objeto en movimiento invalida solo las páginas que cubre su caja.",
-      "plan": "Planifica un fotograma: invalida lo que se movió, lee el último informe y admite cada página que dibujar.",
+      "plan": "Planifica un fotograma: invalida lo que se movió, lee la demanda de los receptores —o, si no, el último informe— y admite cada página que dibujar.",
       "reissue": "Las páginas del fotograma a partir de `from` no pudieron codificarse: siguen caducadas, pendientes, y el fotograma siguiente las dibuja.",
       "reset": "Vuelve a empezar.",
       "setThreshold": "El umbral al que los cortes de luz eligen sus proyectores de sombra (`thresholds.ts`).",
@@ -5513,8 +5549,12 @@
       "stamp": "Lo que el sombreado, las luces y la vista entregan a la siguiente imagen: un informe sellado con él que no nombra nada nuevo prueba que la imagen solo lee lo dibujado.",
       "settled": "Verdadero cuando un informe prueba que el estado actual no pide nada: la imagen puede mantenerse.",
       "receive": "Volvió un informe de peticiones; el siguiente plan lo lee. Uno más reciente sustituye a uno no leído.",
-      "commit": "Las páginas `[from, to)` de la lista del fotograma se codificaron, la página `from + i` en `modes[i]`: sus dibujos llegan antes de que nadie las lea. El último lote cierra la lista."
+      "commit": "Las páginas `[from, to)` de la lista del fotograma se codificaron, la página `from + i` en `modes[i]`: sus dibujos llegan antes de que nadie las lea. El último lote cierra la lista.",
+      "resize": "El pool con otro tamaño, sus páginas conservadas y sus arreglos nuevos: devuelve adónde fue cada página."
     }
+  },
+  "ShadowStaleReason": {
+    "summary": "Por qué una página de sombra quedó obsoleta (`ShadowFrameMetrics.shadowPagesStaledBy`)."
   },
   "ShadowViewpoint": {
     "summary": "Lo que sabe el planificador de la vista: una cámara, no una matriz, para permanecer sin dependencia.",
@@ -5601,7 +5641,7 @@
       "totalNodes": "Nodos en total.",
       "autonomousScene": "Su escena integrada.",
       "texturePreviews": "Una entrada por par (textura, atlas) decodificado, dispuesta por textura y luego por atlas; vacía sin imagen decodificable.",
-      "textures": "Modelo de los niveles horneados, relativo al manifiesto: {sha} la huella de la imagen fuente, {kind} el nombre del atlas (PREVIEW_ATLAS_NAMES), {level} el rango del nivel. Ausente en una caché compilada antes de los niveles horneados, que este lector rechaza por la versión del archivo aparte.",
+      "textures": "Modelo de los niveles horneados, relativo al manifiesto: {sha} la huella de la imagen fuente, {kind} el nombre del atlas (PREVIEW_ATLAS_NAMES), {level} el rango del nivel. Ausente en una caché compilada antes de los niveles horneados, que este lector rechaza por la versión del archivo aparte. `version` es la de los niveles (`TEXTURE_PREVIEW_VERSION`): un lector no lee ningún nivel de otra.",
       "proxy": "Dónde leer el proxy de escena residente y su BVH: la geometría que tocan los rayos. Ausente en una caché compilada antes del rebote, que sigue siendo legible tal cual.",
       "binary": "El archivo binario.",
       "primitives": "Sus primitivas.",
@@ -6070,7 +6110,7 @@
   },
   "TEXTURE_PREVIEW_VERSION": {
     "summary": "Niveles de textura progresivos, reflejados por `packages/asset-compiler-rust/src/texture_preview.rs`: el final de la cadena de mips de una fuente en el archivo aparte, en RGBA8 en la codificación propia del atlas, desde el nivel más fino cuyo ningún lado supera `PREVIEW_BASE` hasta 1×1 — y, por encima, un PNG sin pérdida por nivel en la caché, `bakedLevels` de ellos a partir del nivel 0.",
-    "description": "Cada nivel sigue la regla de los mips que aplicaba la tarjeta gráfica cuando rehacía la cadena ella misma (`packages/sdk-browser/src/texture/mips.ts`): promedio lineal de los colores, alfa mediano, nivel `k` a partir del nivel cuantizado `k - 1`. Sus tamaños no se escriben: se deducen de las dimensiones de la fuente, que `previewLevels.ts` recalcula. La versión 4 hornea cada nivel por encima del final, y el final mismo, en las familias de bloques pedidas por el horneado junto a los archivos sin pérdida — la familia BC para las tarjetas de escritorio, ASTC 4×4 para móviles, un byte por texel — para las cadenas que un control de calidad ha conservado; una cadena bajo el umbral permanece sin pérdida en esa familia, y la palabra de disposición de su entrada lo dice."
+    "description": "Cada nivel sigue la regla de los mips que aplicaba la tarjeta gráfica cuando rehacía la cadena ella misma (`packages/sdk-browser/src/texture/mips.ts`): promedio lineal de los colores, alfa mediano, nivel `k` a partir del nivel cuantizado `k - 1`. Sus tamaños no se escriben: se deducen de las dimensiones de la fuente, que `previewLevels.ts` recalcula. La versión 4 hornea cada nivel por encima del final, y el final mismo, en las familias de bloques pedidas por el horneado junto a los archivos sin pérdida — la familia BC para las tarjetas de escritorio, ASTC 4×4 para móviles, un byte por texel — para las cadenas que un control de calidad ha conservado; una cadena bajo el umbral permanece sin pérdida en esa familia, y la palabra de disposición de su entrada lo dice. La versión 6 dispone un archivo de nivel por bloques en registros de teselas, una petición HTTP Range cada uno (#962, `sdk-browser/src/texture/tileRecords.ts`)."
   },
   "TextureBlockFormat": {
     "summary": "Una familia de bloques en la que se puede hornear una textura."
@@ -6133,7 +6173,8 @@
       "sha256": "Huella de la imagen fuente.",
       "atlas": "Qué atlas.",
       "level": "Qué nivel.",
-      "format": "Qué formato."
+      "format": "Qué formato.",
+      "range": "Los bytes de un nivel por bloques que se leen solos — el registro de una tesela (`tileRecords.ts`) —, por una petición HTTP Range; un servidor que la ignora responde el archivo entero."
     }
   },
   "textureLevelUrl": {
@@ -6609,6 +6650,10 @@
     "summary": "Antialiasing temporal: desplazamiento subpíxel acumulado entre imágenes; activado por defecto.",
     "description": "Al escribirlo, surte efecto en la imagen siguiente, se descarta el historial, sin reabrir la sesión. Al leerlo, es lo que lleva la imagen: false en WebGL2, y mientras el programa se compila tras activarlo."
   },
+  "world.renderScale": {
+    "summary": "La fracción de la pantalla por eje a la que se dibuja la imagen (`WorldOptions.renderScale`), desde la imagen siguiente.",
+    "description": "Leída, la escala de la última imagen dibujada."
+  },
   "world.effects": {
     "summary": "La cadena de efectos: pasadas dibujadas sobre la imagen (`effect`)."
   },
@@ -6635,6 +6680,24 @@
       "error": "Por qué no pudo abrirse la última sesión, como error nombrado del motor: su `code` es uno de los documentados en `EngineError` (`WEBGPU_LOST` cuando WebGPU perdió su dispositivo), o `SESSION_OPEN_FAILED` para un motivo sin código propio. Un `EngineError` de código documentado es el que se lanzó; cualquier otro error se convierte, y el error lanzado queda entonces en `details.cause`. `null` desde el inicio de cada apertura, y cuando no se intenta nada.",
       "modes": "Cada modo de vista que ofrece el motor de renderizado actual."
     }
+  },
+  "world.materials": {
+    "summary": "Materiales importados actuales, seguidos de los creados en la página."
+  },
+  "world.material": {
+    "summary": "Un material según su ID de la lista."
+  },
+  "world.importedMaterials": {
+    "summary": "Valores del archivo original antes de los cambios de la página."
+  },
+  "world.setMaterial": {
+    "summary": "Cambia un material importado o creado en el siguiente fotograma."
+  },
+  "world.createMaterial": {
+    "summary": "Crea un material propio de esta página."
+  },
+  "world.assignMaterial": {
+    "summary": "Asigna el material creado a un `mesh/primitive` compilado."
   },
   "world.guides": {
     "summary": "Líneas, puntos y ayudas dibujados sobre la imagen (`Guides`)."
@@ -6733,7 +6796,7 @@
       "frameHeld": "Verdadero cuando el fotograma se mantuvo: ni la escena, ni la vista, ni los recursos se movieron, ningún trabajo asíncrono estaba pendiente, y ninguna etapa de CPU corrió. Los píxeles mostrados son los del fotograma original, bit a bit. Lo que HIZO el fotograma mantenido se publica tal cual, nunca copiado del último renderizado completo: `drawCalls`, `triangles`, `submittedTriangles` y `totalSubmittedTriangles` solo cuentan la presentación, y las duraciones de CPU y GPU por etapa valen cero cuando la etapa no corrió, `null` cuando nada la cronometró. Un motor cuya imagen es una escena que dibuja el adaptador testigo cuenta lo que ese adaptador envió en ese fotograma — nada, para un fotograma mantenido. Lo que MUESTRA el fotograma mantenido sigue descrito por el corte que vuelve a mostrar: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` y `residentPages` son los del fotograma original, ya que es el mismo corte. Ausente en un motor que no mantiene sus fotogramas.",
       "streamingError": "Error de carga persistente; las URL fallidas piden recargar el explorador tras tres intentos.",
       "gpuPassMs": "Última medición de pases de GPU de este motor; nulo cuando el dispositivo no sabe hacer marcas de tiempo.",
-      "gpuFrameMs": "Duración de GPU del fotograma que describe `gpuPassMs.frame`. Nunca sumada a un campo `cpu*`. El dispositivo se muestrea cada pocos fotogramas, así que un número puede venir de unos fotogramas atrás. Vale null antes de la primera muestra, desde un fotograma retenido hasta la siguiente muestra del dispositivo, en un dispositivo sin `timestamp-query` y en WebGL2.",
+      "gpuFrameMs": "Duración de GPU del fotograma que describe `gpuPassMs.frame`. Nunca sumada a un campo `cpu*`. El dispositivo se muestrea cada pocos fotogramas, así que un número puede venir de unos fotogramas atrás. Vale null antes de la primera muestra, desde un fotograma retenido hasta la siguiente muestra del dispositivo, en un dispositivo sin `timestamp-query` y en WebGL2 sin `EXT_disjoint_timer_query_webgl2`.",
       "gpuHostGapMs": "Tiempo de CPU que el mismo fotograma pasó entre dos de sus propios envíos, y cero cuando solo envía una vez. Es tiempo del host, no de GPU, por eso `gpuFrameMs` lo excluye. Nulo cuando no se mide.",
       "uncoveredTriangles": "Triángulos de los clústeres que nombra el corte publicado pero que la imagen no puede dibujar — sin página residente y sin ancestro que cubra. Un agujero real en la imagen: cero es el único valor sano. Nulo cuando un motor no puede decirlo (dibuja el corte que eligió, así que nunca tiene).",
       "drawnTriangles": "Triángulos que la IMAGEN ACTUAL da al dibujo: su corte de clústeres, opacos y transparentes de la jerarquía juntos. Las mallas transparentes fuera de la jerarquía no están ahí (`transparentSubmittedTriangles`), y el rechazo por oclusión no se resta (`hizRejectedTriangles`). Contado al adoptar el corte: no se espera ninguna relectura asíncrona de GPU, así que nunca vale `null` por falta de tiempo, a diferencia de `submittedTriangles`.",
@@ -6755,7 +6818,20 @@
       "shadowPagesDrawn": "Lo que ha producido la invalidación de páginas: páginas redibujadas por el fotograma, páginas dejadas en cola por falta de presupuesto, y cuánto ha esperado la página desactualizada más antigua que lee la imagen. Cero en todas partes es el valor normal de una escena inmóvil; `null` para un motor sin atlas de sombras.",
       "shadowPagesTotal": "Páginas dibujadas desde la apertura del explorador, vaciados de `flush()` incluidos: el coste de un cambio es la diferencia entre dos lecturas.",
       "shadowPagesPending": "Páginas de sombra pendientes.",
+      "shadowBatches": "Lotes de sombra que dibujó la imagen: recuentos del host sobre lo que codificó, nunca leídos en un shader, como los recuentos siguientes. Null en un motor sin atlas de sombras.",
+      "shadowLayersDrawn": "Capas del pool en las que dibujaron las pasadas de sombra de la imagen.",
+      "shadowPagesRestored": "Páginas dibujadas desde una copia de su capa estática, rasterizando solo sus proyectores móviles.",
+      "shadowPagesRasterized": "Páginas cuyos proyectores estáticos se rasterizaron de nuevo; con las restauradas, todas las páginas dibujadas.",
+      "shadowRestoreCopies": "Copias de páginas desde la capa estática: una página restaurada, o una página dibujada entera sobre su capa.",
+      "shadowStaticDrawCalls": "Llamadas de dibujo de proyectores estáticos: en la capa estática, o de una página dibujada entera sin ella.",
+      "shadowMovingDrawCalls": "Llamadas de dibujo solo de proyectores móviles, sobre páginas restauradas desde la capa estática.",
+      "shadowMovingCastersKept": "De `shadowCastersKept`, los clústeres conservados para dibujar solo proyectores móviles.",
+      "shadowPagesStaledBy": "Páginas que la imagen dejó obsoletas, por motivo: luz, proyector inmóvil, proyectores móviles, detalle, umbral de corte o rango de profundidad de un sol.",
       "shadowWaitMs": "Cuántos milisegundos ha esperado a ser redibujada la página desactualizada más antigua que lee la imagen. Solo cuenta el tiempo en que la imagen la lee; 0 una vez redibujada.",
+      "shadowCutDrops": "Lotes del corte desde la luz que descartaron trabajo — sus vistas guardaron más clústeres de los que caben en las listas —, desde que se abrió el explorador: cada uno devuelve sus páginas, retiradas hasta redibujarse (#525). Null en un motor sin corte de luz en GPU, igual que los tres siguientes.",
+      "shadowCutWithdrawnPages": "Páginas redibujadas porque un corte desde la luz las dibujó mal, desde que se abrió el explorador: su lote descartó trabajo, o su indicador nunca se leyó. Quedan retiradas hasta redibujarse.",
+      "shadowCutCoarsePages": "Páginas redibujadas porque una vista dibujó un clúster más grueso del que quería, desde que se abrió el explorador: liberadas cuando cambió la residencia y la cámara reposa.",
+      "shadowCutViewLimit": "Vistas de luz en las que dibuja ahora un lote del corte desde la luz: el tope hasta que un lote descarta, luego lo que cabe.",
       "gpuLightListsMs": "Tiempo de GPU de las listas de luces.",
       "tileLightPoolReserved": "Palabras que las teselas más allá de su lista reservaron en la reserva de índices de luces de la vista, en la imagen que el dispositivo muestreó por última vez mientras la escena tiene más luces que una lista; `null` si no (#849).",
       "tileLightPoolCapacity": "Palabras que la reserva de índices de luces tenía en esa imagen muestreada; `null` igualmente.",
@@ -6805,11 +6881,14 @@
       "texturePoolClamp": "Razón del límite de la reserva de texturas: `minimum`, `device-limit`.",
       "hizCulled": "Clústeres que la prueba de oclusión encontró ocultos en este fotograma; `null` donde el camino no los cuenta.",
       "shadowLightCuts": "Cortes de clústeres lanzados desde las luces: uno por vista de luz dibujada, cero en una imagen quieta.",
-      "shadowPagesRequested": "Páginas de sombra virtuales que leyó la imagen, tal como las nombró su último informe de peticiones: lo que marcan los receptores de la cámara.",
+      "shadowPagesRequested": "Páginas de sombra virtuales que lee la imagen, tal como las nombró la demanda anticipada del fotograma —o, sin ella, su último informe de peticiones—: lo que marcan los receptores de la cámara.",
       "shadowPagesCached": "De ellas, páginas leídas directamente del pool: al día, sin dibujo.",
       "shadowPoolPages": "Páginas físicas del pool fijo que contienen una página virtual.",
       "shadowPoolBytes": "Bytes de GPU del pool de sombras: sus páginas de profundidad, sus capas estática y de transmitancia una vez creadas, y los búferes a su lado. Null hasta que el primer fotograma dimensiona el pool.",
       "shadowPoolLayers": "Capas del pool, de 4 096 páginas como máximo cada una, dimensionadas una vez a partir de la pantalla y las luces con sombra del primer fotograma. Null hasta entonces.",
+      "shadowPeakBytes": "El máximo de bytes de GPU que la asignación de memoria de las sombras ha tenido a la vez, capas tardías incluidas. Null hasta que la primera imagen dimensiona el pool.",
+      "shadowResolutionBias": "Reducciones a la mitad de los bytes del pool de sombras que costaron los rechazos de memoria del dispositivo; 0 normalmente.",
+      "shadowMemoryEvents": "Los eventos de presión de memoria de las sombras desde que se abrió el mundo, por nombre, en orden; vacío normalmente.",
       "shadowPagesRefetched": "Páginas virtuales asignadas de nuevo después de que el pool las desalojara para hacer sitio, desde que se abrió el explorador: los redibujados que cuesta un pool demasiado pequeño para lo que leen las imágenes.",
       "shadowCastersKept": "Proyectores que conservó el descarte por página, todas las páginas dibujadas juntas, en la imagen que el dispositivo muestreó por última vez — una de cada quince; `null` hasta que vuelva una muestra.",
       "shadowCastersHidden": "Proyectores en movimiento que la prueba de oclusión encontró ocultos tras la capa estática de su página, en la imagen muestreada por última vez; `null` hasta que vuelva una muestra."
@@ -6824,13 +6903,18 @@
       "controls": "El controlador que mueve la cámara desde el lienzo; `world.controls.kind` lo cambia después.",
       "signal": "Detiene las cargas del mundo cuando se cancela la señal.",
       "physics": "Activa la física (`world.physics`): `true`, o gravedad y presupuestos. Solo entonces se carga Jolt.",
-      "temporalAntialiasing": "Antialiasing temporal, solo WebGPU: desplazamiento subpíxel acumulado entre imágenes. `false` dibuja cada píxel en su centro, sin historial, lo que pide una captura exacta al píxel; se cambia después con `world.temporalAntialiasing`."
+      "temporalAntialiasing": "Antialiasing temporal, solo WebGPU: desplazamiento subpíxel acumulado entre imágenes. `false` dibuja cada píxel en su centro, sin historial, lo que pide una captura exacta al píxel; se cambia después con `world.temporalAntialiasing`.",
+      "renderScale": "La fracción de la pantalla por eje a la que se dibuja la imagen, antes de que el antialiasing temporal la reconstruya a la pantalla: `'auto'` deja que el presupuesto de imagen la elija entre `min` y `max` (`{ min, max }`, 0,5 y 1 por defecto; en WebGL2, que solo remuestrea, `min` es 1 por defecto), un número la fija; una imagen quieta se dibuja al máximo. Se cambia después con `world.renderScale`."
     }
+  },
+  "RenderScale": {
+    "summary": "La escala de renderizado que pide una página: la fracción de la pantalla, por eje, a la que se dibuja la imagen antes de que el antialiasing temporal la reconstruya a la pantalla.",
+    "description": "`'auto'` deja que el presupuesto de imagen la elija entre 0,5 y 1, `{ min, max }` acota esa elección, un número la fija; todo valor se mantiene entre 0,5 y 1."
   },
   "WorldPageSource": {
     "summary": "De dónde se leen las páginas, y la dirección respecto a la cual se leen.",
     "members": {
-      "read": "Lee los bytes de una página.",
+      "read": "Lee los bytes de una página; `priority`, si se da, es la del streamer (la más pequeña primero). Una lectura más urgente de una página ya en curso se vuelve a pedir para subirla: una fuente que acepta `priority` la une a la lectura en curso en lugar de transferir la página dos veces.",
       "baseUrl": "La dirección respecto a la cual se lee cada página."
     }
   },
@@ -7393,7 +7477,18 @@
     }
   },
   "SHADOW_RECORD_FLOATS": {
-    "summary": "Flotantes de un registro de sombra, el que lee el sombreado de una luz: seis matrices de caras de lámpara, luego el marco del plano del sol — `right, zNear`, `up, zFar`, `axis, 0` —, luego el origen de la extensión de cada nivel de clipmap en dos enteros, luego una cabecera `vec4f`: caras (lámpara) o niveles (sol), la tangente del medio campo de la lámpara o el nivel más fino del sol, el plano cercano de la lámpara y la primera entrada del registro en la tabla de páginas."
+    "summary": "Flotantes de un registro de sombra, el que lee el sombreado de una luz: seis matrices de caras de lámpara — ahí, los rangos de profundidad de un sol, `zNear, zFar` cada uno (`recordPack.ts`) —, luego el marco del plano de luz del sol — `right, zNear`, `up, zFar`, `axis`, luego la ranura del rango actual —, luego el origen de la ventana de cada ranura del clipmap en dos enteros, luego una cabecera `vec4f`: caras (lámpara) o niveles (sol), el semicampo tangente de la lámpara o el nivel más fino del sol, el plano cercano de la lámpara y la primera entrada del registro en la tabla de páginas."
+  },
+  "ShadowReceivers": {
+    "summary": "Las superficies que ilumina el sombreado de un fotograma, tal como el anfitrión las entrega antes de su rasterizado de sombras.",
+    "members": {
+      "boxes": "Cajas en el mundo, `RECEIVER_FLOATS` cada una: cada superficie iluminada del fotograma está en una de ellas.",
+      "count": "Cajas listadas.",
+      "planes": "Los seis planos del frustum de la cámara (`frustumPlanesFromMatrix`): lo que queda fuera no se ilumina.",
+      "pixelNear": "Tamaño en el mundo de un píxel en el plano cercano, donde empieza la huella de un punto iluminado: el menor de las pasadas que leen sombras —el del objetivo dibujado, el de la pantalla—.",
+      "pixelNearMost": "El mismo, el mayor de esas pasadas.",
+      "orthographic": "Una cámara ortográfica: la huella de cada píxel es `pixelNear`."
+    }
   },
   "ShadowRequestReport": {
     "summary": "Lo que el sombreado leyó en una imagen: las entradas de la tabla que pidió, sin orden.",
@@ -7714,6 +7809,41 @@
       "isSprite": "Siempre `true`: distingue un sprite de cualquier otra malla.",
       "center": "El punto de la imagen que se apoya en la posición del sprite: `(0.5, 0.5)` su centro, `(0, 0)` su esquina inferior izquierda, `(0.5, 0)` el centro de su borde inferior.",
       "material": "El `material.sprite` del sprite; asigna otro para cambiarlo."
+    }
+  },
+  "CreatedMaterial": {
+    "summary": "Valores que acepta `createMaterial` para un material nuevo de la página.",
+    "members": {
+      "metalness": "Cuánto es metal la superficie, de 0 a 1.",
+      "roughness": "La rugosidad de la superficie, de 0 (espejo) a 1 (mate).",
+      "baseColor": "El color base; cámbialo en el sitio con `set`.",
+      "emissive": "El color que la superficie emite por sí misma.",
+      "opacity": "Cuán opaca es la superficie, de 0 a 1.",
+      "alphaMode": "Cómo se lee el canal alfa de una superficie: opaco lo ignora, `mask` corta en `alphaCutoff`, `blend` compone.",
+      "alphaCutoff": "Los píxeles menos opacos que esto desaparecen.",
+      "name": "Un nombre para uso de la página.",
+      "map": "Una imagen y la forma de muestrearla, en las palabras de una página (`wrap`, `filter`, `colorSpace`)."
+    }
+  },
+  "SceneMaterial": {
+    "summary": "Instantánea de un material de escena con ID, nombre, parámetros y repetición de mapas.",
+    "members": {
+      "id": "Un nombre propio de esta textura.",
+      "name": "Un nombre para uso de la página.",
+      "tiling": "Cuántas veces cabe la imagen en ancho y en alto."
+    }
+  },
+  "SceneMaterialPatch": {
+    "summary": "Valores del material que `setMaterial` cambia en vivo sin reconstruir una pasada de renderizado.",
+    "members": {
+      "metalness": "Cuánto es metal la superficie, de 0 a 1.",
+      "roughness": "La rugosidad de la superficie, de 0 (espejo) a 1 (mate).",
+      "baseColor": "El color base; cámbialo en el sitio con `set`.",
+      "emissive": "El color que la superficie emite por sí misma.",
+      "opacity": "Cuán opaca es la superficie, de 0 a 1.",
+      "alphaMode": "Cómo se lee el canal alfa de una superficie: opaco lo ignora, `mask` corta en `alphaCutoff`, `blend` compone.",
+      "alphaCutoff": "Los píxeles menos opacos que esto desaparecen.",
+      "tiling": "Cuántas veces cabe la imagen en ancho y en alto."
     }
   }
 }

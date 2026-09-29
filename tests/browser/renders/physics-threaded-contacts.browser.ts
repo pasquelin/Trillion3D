@@ -1,9 +1,9 @@
 // Proof in the browser (PHY-19, #934): in a cross-origin isolated page, the threaded physics module
 // (`joltPhysicsThreads.wasm`), its pool's threads in workers, gives the single-thread module's
 // poses and contact events at every step of a pile of boxes, compounds and a cloth — each step's
-// events the same, and every pair's enters and leaves in the same order. The contact callbacks run
-// on Jolt's threads; each keeps its record in its own thread's list and the step replays them
-// after `Update` (`contacts.cpp`). Nothing is timed.
+// events the same, in the same order. The contact callbacks run on Jolt's threads; each keeps its
+// record in its own thread's list and the step replays them after `Update` in an order no thread
+// decides (`contacts.cpp`). Nothing is timed.
 //
 //   node tests/browser/renders/physics-threaded-contacts.browser.ts
 import assert from 'node:assert/strict';
@@ -11,8 +11,7 @@ import { resolve } from 'node:path';
 import { withRepoPage } from '../../kit/server/repoPage.ts';
 import {
   eventCount,
-  pairOrder,
-  settled,
+  reversedStep,
 } from '../../../packages/sdk-browser/src/physics/contactPile.fixture.ts';
 import type { ThreadedContacts } from '../support/threadedContactsWorker.ts';
 
@@ -43,10 +42,9 @@ assert.ok(isolated, 'the page is cross-origin isolated: its memory can be shared
 assert.equal(threads, THREADS, 'the threaded module runs its pool');
 const sent = eventCount(alone);
 assert.ok(sent > 200, `the pile sends enters and leaves: ${sent}`);
-assert.deepEqual(settled(pooled), settled(alone));
-assert.deepEqual(pairOrder(pooled), pairOrder(alone));
-const inOrder = pooled.filter((step, s) => step.events.join() === alone[s].events.join()).length;
+assert.deepEqual(pooled, alone);
+assert.notDeepEqual(reversedStep(pooled), alone, "one step's events reversed is told apart");
 console.log(
-  `${sent} events over ${pooled.length} steps on ${threads} threads: the single ` +
-    `thread's at every step, every pair in its order; ${inOrder} steps in the single thread's order`,
+  `${sent} events over ${pooled.length} steps on ${threads} threads: ` +
+    `the single thread's, in its order, at every step`,
 );

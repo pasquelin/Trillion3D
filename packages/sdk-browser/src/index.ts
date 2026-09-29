@@ -61,19 +61,22 @@ export * from './world/capability/index.ts';
 export * from './world/capture/index.ts';
 export * from './world/pose/index.ts';
 export * from './world/batch/index.ts';
-
+export type {
+  CreatedMaterial,
+  SceneMaterial,
+  SceneMaterialPatch,
+} from './world/api/materialApi.ts';
 export { EngineProfiler, type TelemetryReport } from './diagnostic/telemetry.ts';
-
 export type {
   AssetScope,
   StablePreview,
   FrameMetrics,
   ClusterManifest,
 } from '../../sdk-core/src/index.ts';
-export type { BackendDiagnostic, PointOfInterest } from './backend/types.ts';
-export type { DiagnosticDetail } from './backend/types.ts';
-/** The rows a mirrored mesh is placed through, reachable from the scene a loader records. */
+export type { BackendDiagnostic, PointOfInterest, DiagnosticDetail } from './backend/types.ts';
+/** Placement rows and how a partition's frame grows them in place, reachable from the scene. */
 export type { PlacementRows } from './placement/rows.ts';
+export type { PlacementGrowth } from './placement/backendSceneUpdates.ts';
 /** Host resources the engine reads and never builds (`host/resources.ts`): a host declares them
  *  with whatever library it draws with, the contract names only their shape. */
 export type {
@@ -133,14 +136,13 @@ export type {
 export type { AtlasLanes, LaneCounts, TextureCompression } from './texture/blockFormats.ts';
 export type { HostRetentionDelta, PageStreamerOptions, StreamPage } from './streaming/types.ts';
 export type { BoxTransformLot, MultiplyLot } from './math/batchRuntime.ts';
-export type { LightingCapabilities } from '../../sdk-core/src/index.ts';
 export { framingFromBounds } from './camera/framing.ts';
 export { presentationColorDiagnostic } from './diagnostic/presentationDiagnostic.ts';
 export { createGpuPageCache, httpPageSource } from './gpu/page/pages.ts';
 export type { ResidentPage } from './gpu/page/pages.ts';
 export { createPageStreamer } from './streaming/pageStreamer.ts';
 export type { ComparisonLayout } from './measurement/comparison.ts';
-export { LOD_QUALITY } from '../../sdk-core/src/index.ts';
+export { LOD_QUALITY, type LightingCapabilities } from '../../sdk-core/src/index.ts';
 // A job around a load — cancellation, a status to observe — for pages built on the runtime.
 export { createJob } from '../../sdk-core/src/index.ts';
 export type { JobProgress, JobSnapshot, JobStatus } from '../../sdk-core/src/index.ts';

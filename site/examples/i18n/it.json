@@ -1263,6 +1263,25 @@
       "off": "spento"
     }
   },
+  "page-materials": {
+    "banner": "Trascina per esplorare la sala. Elenca, modifica, sfuma o crea un materiale.",
+    "controls": {
+      "set": "Cambia colore",
+      "switchToBlend": "Passa alla sfumatura",
+      "createAndAssign": "Crea e assegna"
+    },
+    "readouts": {
+      "selected material": "Materiale selezionato",
+      "materials": "Materiali",
+      "sourceMaterials": "Materiali originali",
+      "last action": "Ultima azione"
+    },
+    "words": {
+      "imported": "{count} importati",
+      "applied": "Applicato",
+      "ready": "Pronto"
+    }
+  },
   "lights-from-the-scene-file": {
     "banner": "Trascina per guardarti intorno. Queste lampade erano nel file del modello.",
     "controls": {
@@ -1392,6 +1411,7 @@
     "banner": "Trascina per girare intorno. Cambia vista per vedere cosa conserva il renderer.",
     "controls": {
       "see": "Vedi",
+      "glass": "Vetro",
       "spin": "Rotazione"
     },
     "choices": {
@@ -1746,7 +1766,8 @@
       "night": "Notte",
       "bounce": "Rimbalzo",
       "sun": "Sole",
-      "lamp": "Lampada"
+      "lamp": "Lampada",
+      "spin": "Rotazione"
     },
     "words": {
       "credit": "Modello di lampione di W. Sitters, CC BY 3.0 — vedi assets/examples/CREDITS.md"

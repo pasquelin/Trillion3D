@@ -5,6 +5,10 @@ import { createWebgpuShadePipelines } from '../visibility/pipelines.ts';
 import { createWebgpuBlendPipelines } from '../blend/pipelines.ts';
 import { createGpuRaster } from '../../gpu/raster/raster.ts';
 import { createTemporalAntialiasing } from '../../taa/temporalAntialiasing.ts';
+import { SHADE_SHADER, VIS_SHADER } from '../../visibility/buffer.ts';
+import { BLEND_SHADER } from '../blend/shader.ts';
+import { wgslStageBindings } from '../../gpu/core/wgslBindings.fixture.ts';
+import { VIS_BINDINGS } from './bindLayout.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
 // Defect this test catches: a layout gains one more storage buffer than WebGPU's guaranteed
@@ -13,7 +17,8 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 // build layouts on a fake device, with no limits.
 const GUARANTEED_STORAGE_BUFFERS_PER_STAGE = 8;
 
-test('no layout exceeds the eight storage buffers guaranteed per stage', async () => {
+/** The hand-written layouts of the frame's passes, each built on a fake device. */
+async function passLayouts() {
   const { device } = fakeDevice();
   const { visBindGroupLayout } = await createWebgpuVisibilityShaders(device, 8);
   const { shadeBindGroupLayout } = await createWebgpuShadePipelines(
@@ -22,22 +27,26 @@ test('no layout exceeds the eight storage buffers guaranteed per stage', async (
     [],
   );
   const { blendBindGroupLayout } = await createWebgpuBlendPipelines(device, []);
-  const layouts: Array<[string, unknown]> = [
-    ['visibility', visBindGroupLayout],
-    ['hardware resolve', shadeBindGroupLayout],
-    ['transparents', blendBindGroupLayout],
-    ['small triangles', await firstLayout((d) => createGpuRaster(d, 4, 4, 8))],
-    ['temporal antialiasing', await firstLayout((d) => createTemporalAntialiasing(d, []))],
-  ];
+  return {
+    visibility: visBindGroupLayout,
+    'hardware resolve': shadeBindGroupLayout,
+    transparents: blendBindGroupLayout,
+    'small triangles': await firstLayout((d) => createGpuRaster(d, 4, 4, 8)),
+    'temporal antialiasing': await firstLayout((d) => createTemporalAntialiasing(d, [])),
+  } as Record<string, unknown>;
+}
+
+const entriesOf = (layout: unknown) => (layout as { entries: GPUBindGroupLayoutEntry[] }).entries;
+
+test('no layout exceeds the eight storage buffers guaranteed per stage', async () => {
+  const layouts = Object.entries(await passLayouts());
   const stages = {
     VERTEX: GPUShaderStage.VERTEX,
     FRAGMENT: GPUShaderStage.FRAGMENT,
     COMPUTE: GPUShaderStage.COMPUTE,
   };
   for (const [name, layout] of layouts) {
-    const entries = (
-      layout as { entries: Array<{ visibility: number; buffer?: { type?: string } }> }
-    ).entries;
+    const entries = entriesOf(layout);
     for (const [stage, bit] of Object.entries(stages)) {
       const count = entries.filter(
         (entry) =>
@@ -50,6 +59,40 @@ test('no layout exceeds the eight storage buffers guaranteed per stage', async (
       );
     }
   }
+});
+
+// Defect this test catches (#816): a stage reads a binding its layout does not show it. The
+// visibility fragment came to read `uni` (the texture level bias of `atlasLod`) while the layout
+// gave the uniform to the vertex stage alone; the device refused the pipeline and no WebGPU scene
+// opened. Each entry point's reach is read from the shipped text, its calls followed.
+test('every binding a stage of the visibility, resolve and transparent passes reads is visible to it', async () => {
+  const layouts = await passLayouts();
+  const stageBit = {
+    vertex: GPUShaderStage.VERTEX,
+    fragment: GPUShaderStage.FRAGMENT,
+    compute: GPUShaderStage.COMPUTE,
+  };
+  for (const [name, shader] of [
+    ['visibility', VIS_SHADER],
+    ['hardware resolve', SHADE_SHADER],
+    ['transparents', BLEND_SHADER],
+  ]) {
+    const entries = entriesOf(layouts[name]),
+      reached = wgslStageBindings(shader);
+    assert.ok(reached.length > 0, `${name}: its entry points are found`);
+    for (const { stage, entry, bindings } of reached)
+      for (const binding of bindings) {
+        const at = entries.find((candidate) => candidate.binding === binding);
+        assert.ok(at, `${name}: ${entry} reads binding ${binding}, absent from the layout`);
+        assert.ok(
+          (at.visibility & stageBit[stage]) !== 0,
+          `${name}: ${entry} (${stage}) reads binding ${binding}, not visible to its stage`,
+        );
+      }
+  }
+  // The visibility fragment picks its cutout's level with the frame's texture bias.
+  const fragment = wgslStageBindings(VIS_SHADER).find(({ entry }) => entry === 'vis_fs');
+  assert.ok(fragment?.bindings.has(VIS_BINDINGS.uniform), 'vis_fs reads the uniform');
 });
 
 /** First layout a constructor creates on a fake device of its own. */

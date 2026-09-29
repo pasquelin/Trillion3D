@@ -103,6 +103,7 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
       targetSize: [4, 4],
       colorView: {},
       depthView: {},
+      asIsShare: { view: {} },
       volumeBuffer: {},
       backdrop: { colorView: {}, depthView: {}, active: false },
       deferred: {

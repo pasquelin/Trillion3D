@@ -60,10 +60,10 @@ export function captureImage(rt: WebgpuPagesRuntime) {
     return capture.capturedPixels;
   // Targets not granted hold no image: presenting them would blank the canvas.
   const busy = capture.capturing || frameTargetsAwaited(rt);
-  if (!gpu.presenter || !gpuDevice || !gpu.colorTexture || busy)
+  if (!gpu.presenter || !gpuDevice || !gpu.displayTexture || busy)
     throw new Error('CAPTURE_NOT_READY: render then await flush before capture');
   const encoder = gpuDevice.createCommandEncoder();
-  gpu.presenter.present(encoder, gpu.colorTexture, ...gpu.targetSize);
+  gpu.presenter.present(encoder, gpu.displayTexture, ...gpu.displaySize);
   gpuDevice.queue.submit([encoder.finish()]);
   if (!gpu.synchronousCapture) {
     gpu.synchronousCapture = createSynchronousCanvasCapture();

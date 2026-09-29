@@ -113,11 +113,18 @@ export interface MeasuredWorldOptions {
    *  ones, reprojected. `false` renders the image sampled at the pixel centre, with no
    *  history — that is the "before" of a comparison, and what pixel-for-pixel benches ask. */
   temporalAntialiasing?: boolean;
+  /** The frame's render scale (`../../frame/renderScaleOption.ts`): the fraction of the display
+   *  per axis it is drawn at, reconstructed to it by temporal antialiasing — resampled on WebGL2 —,
+   *  fixed or `'auto'`, chosen by the frame budget. 1 by default: the frame is drawn at the display. */
+  renderScale?: import('../../frame/renderScaleOption.ts').RenderScale;
   /** The world's effect chain, drawn after temporal antialiasing (`world.effects`). */
   effects?: import('../../../../sdk-core/src/world/effect/chain.ts').EffectChain;
   /** Hears the mode of a surface that keeps WebGL2 from drawing `effects` on a frame, drawn
    *  whole without the chain (`ComposedChain.refused`). */
   effectsRefused?: import('../render/compose.ts').ComposedChain['refused'];
+  /** Hears the ids of the lights that ask for a shadow WebGL2 draws not, at each change of them
+   *  (`noticeShadowRefusal`). */
+  shadowsRefused?: import('../../lighting/contractLights.ts').ContractShadows;
   /** Whether the prepared scene reads the source images. `'cache'`, the default: an image whose
    *  mip chain the cache carries is neither fetched nor decoded — the engine reads the baked
    *  levels, which it does whatever this option says. `'host'`: the scene reads and decodes
@@ -143,6 +150,8 @@ export interface MeasuredWorldOptions {
   bounceBudgetMs?: number;
   /** Time every step of the frame and publish `explorer.stageProfile()`. Off by default. */
   stageProfile?: boolean;
+  /** Opt-in same-session GPU feedback-target A/B diagnostic; never enabled by production. */
+  feedbackTargetAB?: boolean;
   /** A GPU DIAGNOSTIC variant (`../../diagnostic/gpuVariant.ts`): it neutralises a factor of the
    *  frame to split its duration, and therefore renders an image different from production.
    *  Absent by default; refused outside `diagnosticDetail: 'trace'`. */

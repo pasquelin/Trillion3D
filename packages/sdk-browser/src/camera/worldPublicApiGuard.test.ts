@@ -24,7 +24,7 @@ import { rasterVisibility } from '../visibility/raster.ts';
 import type { VisPage } from '../visibility/types.ts';
 import {
   POSES_PARENT,
-  cameraAplatie,
+  flattenedCamera,
   creeRig,
   poseRig,
 } from '../../../../tests/browser/probes/cameraRig.ts';
@@ -80,7 +80,7 @@ test('rasterVisibility rejects the raw host camera: it does not convert at the b
 test('cameraSelectionUniforms(cameraMoteur(…)): the correct call under a rig throws nothing and follows the flattened pose', () => {
   const rig = creeRig(),
     camera = poseRig(rig, POSE, true) as G.Camera,
-    aplatie = cameraAplatie(POSE) as G.Camera;
+    aplatie = flattenedCamera(POSE) as G.Camera;
   const sousRig = cameraSelectionUniforms(cameraMoteur(camera), 0, [1000, 1000]);
   const attendu = cameraSelectionUniforms(cameraMoteur(aplatie), 0, [1000, 1000]);
   assert.deepEqual([...sousRig.planes], [...attendu.planes], 'frustum planes');
@@ -91,7 +91,7 @@ test('cameraSelectionUniforms(cameraMoteur(…)): the correct call under a rig t
 test('rasterVisibility(cameraMoteur(…)): the correct call under a rig throws nothing and yields the same image', () => {
   const rig = creeRig(),
     camera = poseRig(rig, POSE, true) as G.Camera,
-    aplatie = cameraAplatie(POSE) as G.Camera,
+    aplatie = flattenedCamera(POSE) as G.Camera,
     matrix = new G.Matrix4();
   const sousRig = rasterVisibility([pageTriangle(matrix)], cameraMoteur(camera), [64, 64]);
   const attendu = rasterVisibility([pageTriangle(matrix)], cameraMoteur(aplatie), [64, 64]);

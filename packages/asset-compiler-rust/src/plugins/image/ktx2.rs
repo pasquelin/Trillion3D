@@ -101,6 +101,18 @@ impl ImageDecoder for Ktx2 {
     fn accepts_head(&self, head: &[u8]) -> bool {
         head.starts_with(MAGIC)
     }
+    fn dimensions(&self, bytes: &[u8]) -> std::result::Result<(u32, u32), &'static str> {
+        let surface = header::parse(bytes)?;
+        Ok((surface.width, surface.height))
+    }
+    fn expanded_payload_bytes(&self, bytes: &[u8]) -> std::result::Result<usize, &'static str> {
+        let surface = header::parse(bytes)?;
+        Ok(if surface.supercompression == header::ZSTD {
+            surface.plain
+        } else {
+            0
+        })
+    }
     /// Two paths, which the header alone separates: a named `vkFormat` designates a codec of
     /// the `format` registry, and `VK_FORMAT_UNDEFINED` announces a Basis Universal payload
     /// described by the format descriptor that `basisu` rereads.

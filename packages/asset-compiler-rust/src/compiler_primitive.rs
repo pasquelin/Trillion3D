@@ -1,5 +1,6 @@
 use super::*;
 use crate::compiler_primitive_warn::primitive_event;
+pub(crate) mod cost;
 
 pub(super) struct PrimitiveInputs<'a> {
     pub o: &'a Options,
@@ -19,16 +20,23 @@ pub(super) struct PrimitiveInputs<'a> {
     pub progress: &'a (dyn Fn(Value) + Sync),
 }
 
-/// A compiled primitive and, beside it, the plane of each of its clusters. The planes never reach
-/// the cache on their own: the coplanar stage reads them once every primitive is done.
+/// A compiled primitive and what later stages read beside it once every primitive is done.
 pub(super) struct CompiledPrimitive {
     pub value: Value,
     pub cluster_planes: Vec<Option<crate::coplanar::ClusterPlane>>,
-    /// Vertices of the resident proxy coarse cut, in object space.
+    /// The resident proxy's coarse cut, in object space, and the threshold in metres it requested.
     pub proxy_cut: Vec<f32>,
-    /// The threshold, in metres, that this cut requested.
     pub proxy_threshold: f64,
     pub collision: Value,
+    pub root_cover: crate::compiler_world_roots::RootCover,
+}
+
+/// `compile_primitive` of one planned `(mesh, primitive)` job, its error naming the job.
+pub(super) fn compile_job(
+    inputs: &PrimitiveInputs<'_>,
+    &(m, p): &(usize, usize),
+) -> Result<CompiledPrimitive> {
+    compile_primitive(inputs, &m, &p).map_err(|e| e.within(m, p))
 }
 
 pub(super) fn compile_primitive(
@@ -162,6 +170,7 @@ pub(super) fn compile_primitive(
         stream_report,
         position_exponent,
         collision,
+        root_cover,
     } = if dag_primitive {
         build_dag_primitive(
             o,
@@ -184,8 +193,8 @@ pub(super) fn compile_primitive(
         cluster_planes,
         proxy_cut,
         collision,
-        // The threshold is back in object space: it goes out in metres for the report.
-        proxy_threshold: proxy_threshold * scale.unwrap_or(1.0),
+        root_cover,
+        proxy_threshold: proxy_threshold * scale.unwrap_or(1.0), // back in metres for the report
         value: json!({"mesh":mesh,"primitive":primitive,"material":p.get("material").cloned().unwrap_or(Value::Null),"triangles":triangle_count,"pass":if unsplit{"shared-blend"}else if clustered_blend{"clustered-blend"}else{"exact-clusters"},"clusterStrategy":if dag_primitive{json!(DAG_CLUSTER_STRATEGY)}else{Value::Null},"hierarchy":Value::Null,"dag":dag_report,"culling":culling_report,"structure":structure_report,"streams":stream_report,"pages":pages,"quantization":quantization,"reusedPages":reused,"topology":{"triangles":topology.triangles,"edges":{"boundary":topology.boundary_edges,"manifold":topology.manifold_edges,"nonManifold":topology.non_manifold_edges},"vertices":{"interior":topology.interior_vertices,"boundary":topology.boundary_vertices,"locked":topology.locked_vertices,"unused":topology.unused_vertices},"manifold":topology.manifold}}),
     })
 }

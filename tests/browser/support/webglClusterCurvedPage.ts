@@ -10,7 +10,8 @@ import {
   createHostDrawCamera,
   readHostDrawCamera,
 } from '../../../packages/sdk-browser/src/camera/world.ts';
-import { drawMatrix } from './webglClusterPixels.ts';
+import { drawMatrix, strictDegraded } from './webglClusterPixels.ts';
+import { keptClusterScene } from '../../../packages/sdk-browser/src/webgl/cluster/sceneDraw.ts';
 
 export const curvedPixels = (gl: WebGLRenderingContext | WebGL2RenderingContext, size: number) => {
   const output = new Uint8Array(size * size * 4);
@@ -77,7 +78,7 @@ export function curvedComparison(size = 64, offset = 0, details = false) {
   rawGl.viewport(0, 0, size, size);
   rawGl.clearColor(0, 0, 0, 1);
   rawGl.clear(rawGl.COLOR_BUFFER_BIT | rawGl.DEPTH_BUFFER_BIT);
-  const rawRenderer = new WebglClusterRenderer(rawGl),
+  const rawRenderer = new WebglClusterRenderer(rawGl, strictDegraded()),
     matrix = drawMatrix();
   matrix.makeTranslation(offset, 0, -3);
   if (!input.geometry.index) throw new Error('sphere geometry missing index');
@@ -95,7 +96,7 @@ export function curvedComparison(size = 64, offset = 0, details = false) {
         _multiDrawCount: 1,
       },
     ],
-    input.scene,
+    keptClusterScene(input.scene),
     readHostDrawCamera(createHostDrawCamera(), input.camera),
     false,
     true,

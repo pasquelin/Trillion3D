@@ -117,7 +117,11 @@ before. Admission starts no page once it has held the main thread for the publis
 the arrival queue's budget), so a due frame waits on it no longer than the share and the page begun
 within it, and a hidden tab, where no frame comes, still loads.
 Fetching and decoding stay in workers. WebGL2 cuts by the same rule and holds pages by the same
-residency, without the GPU cut or its readback (#490, #839).
+residency, without the GPU cut or its readback (#490, #839). It draws the resident pages from one
+set of buffers per vertex layout (`webgl/cluster/pageArenas.ts`): the pages of one surface at one
+placement that follow one another in the draw order are one submission of
+their index ranges (`WEBGL_multi_draw`), read once a frame and replayed by every pass that draws
+them — the reflection capture's and the image's (`webgl/cluster/runs.ts`, #840).
 
 **Eviction queue.** A resident GPU cut also publishes, on the same readback, the order the cache
 gives slots back in (`gpu/dag/evict.ts`, `gpu/dag/shader/evictWgsl.ts`): the pool's keys, finer
@@ -131,7 +135,9 @@ spent (`eviction-queue-spent`) the burst waits for the next readback. The CPU cu
 recent page. Loads on the GPU-cut path are read off the readback's requests, closed over their
 groups (`webgpu/residency/requestAdmission.ts`, #836): past the pool, the coarsest levels whole and
 the one the room straddles in part, what the queue already holds first, from the pool's room alone.
-The GPU cut feeds no `budgetRanking`; the CPU cut that takes the image back refills it.
+The CPU cut ranks by the same admission, off the pages its cut closes over (`closure.forEachHeld`,
+#974): the GPU cut keeps no ranking of its own, and a CPU cut that takes the image back ranks what
+the GPU cut left.
 
 **Occlusion** is two-phase Hi-Z. Pass 1 draws the rows the previous frame drew that the previous
 frame's pyramid does not hide; a pyramid is built from that depth (background at the far plane, min
@@ -197,6 +203,36 @@ jitter never reaches the cut: selection, frustum and screen error read the unjit
 surface capture and a diagnostic view render unjittered and unaccumulated. The pass's own timestamp
 means nothing on tile-based GPUs; its cost is read as an envelope difference with
 `temporalAntialiasing: false`.
+
+**Render scale.** Every pass up to the resolve may draw at `s × display` per axis (`s` in
+[0.5, 1], axes rounded to multiples of eight) while the resolve reconstructs the display: per
+display pixel, the 3×3 render texels around it, depth-dilated, Lanczos-2 resampled from each
+texel's jittered sample, deringed and clamped to the YCoCg box, blended into the display-size
+history (`taa/upscaleWgsl.ts`). The jitter runs `floor(8 · (W / w)²)` phases and texture reads
+add `log2(w / W)` to their level, so detail stays the display's. `createWorld(canvas,
+{ renderScale })` sets it: a number fixes it, `'auto'` (the default) or `{ min, max }` lets a
+controller choose it each frame after the reference's dynamic resolution
+(`frame/scaleController.ts`): budget = the display's measured refresh interval, target 90 % of it,
+`s' = s · √(target / t)` on the whole-frame GPU time `t` (timestamp queries, one sample per image
+under `'auto'`), a step only past 5 % and 30 samples after the last, up only below 80 % of the
+target, and at once on a frame over 1.25 budgets; samples of an image drawn at another scale are
+discarded. The render targets are made once at the bounds' maximum and each image draws in their
+top-left `w × h` (viewports, the Hi-Z pyramid's extent, the deferred and water passes, screen
+reflections, particles and guides read that size), so a scale change reallocates nothing and keeps
+the history. A quiet image draws at the maximum — 1 unless the page lowered it —, so the held image
+is the native one. `world.renderScale` reads back the scale of the last image; the capability
+`temporal upscaling` says whether the renderer has it (WebGL2 does not). A capture, a diagnostic
+view or GPU variant and the fallback draw stay at the display's size. Without timestamp queries the
+controller has no sample and holds the maximum.
+
+WebGL2 honours the same setting and controller, degraded: it keeps no history, so the image is
+resampled spatially (`webgl/core/resampleGlsl.ts`, `world/render/renderScale.ts`), with the same
+Lanczos-2 kernel over the 3×3 render texels, deringed to the 2×2 nearest, no jitter and no blend;
+material reads take the same `log2(w / W)` bias through GLSL `texture(…, bias)`, lines keep their
+display width, and the controller reads the whole-frame `EXT_disjoint_timer_query_webgl2` interval.
+Since a resample loses detail, its default minimum is 1: `'auto'` holds the display's size and only
+a page naming a lower `min`, or a fixed scale, draws below it. `temporal upscaling` stays
+unsupported there.
 
 ## Effect chain
 
@@ -277,10 +313,19 @@ alone, 4.2 MB at 1920 × 1080 and 15.7 MB at 3456 × 2234, whatever the scene ho
 by more than `tileLights` (64) lights walks exactly those, written in order into a view-sized pool
 after the tile records (#849): a quarter list per tile, grown to what a sampled frame asked, four
 lists at most. A tile the pool has no room for walks every light, exactly, and the overflow is named
-(`tileLightPoolOverflowed`, `tileLightPoolGrowths` of the frame metrics). A scene of 64 lights or fewer runs a
-narrow tile pass (64-bit masks, a 64-light array) and holds no pool. A shadow caster past the 64
-shadow slices lights without a shadow and is counted
-(`shadowCastersUnsliced`, #818). WebGL2 keeps its 64 slots until #835 and refuses more out loud.
+(`tileLightPoolOverflowed`, `tileLightPoolGrowths` of the frame metrics). A scene of one batch
+(256 lights or fewer) writes the pool from the masks its tiles still hold, never testing a light
+twice. A scene of 64 lights or fewer runs a narrow tile pass (64-bit masks, a 64-light array, one
+batch written straight at its ranks) and holds no pool; its deferred resolve is the narrow
+program too (a 64-light array, each listed light read with no branch), compiled on first use, its
+wide twin compiled beside it. A shadow caster past the 64 shadow slices lights without a shadow
+and is counted
+(`shadowCastersUnsliced`, #818). WebGL2 holds every light in a float texture grown with the
+count. A fragment evaluates only the lights whose range reaches its cell of a world grid laid over
+the lamps (a cell is their median range, at most 512 cells a lamp), plus the lights that reach
+every fragment. The grid is listed on the CPU into one integer texture only when a lamp's position
+or range changes; a frame that moves the camera alone sends only the view-to-grid matrix
+(`webgl/cluster/lightLists.ts`, #835).
 
 **A moving image shades a drawn subset of each pixel's lights.** A moving image weighs every light
 of its tile without its shadow (the cheap part) and shades in full, shadow included, four of them. A
@@ -302,21 +347,55 @@ its bytes nor its per-frame work. A pixel reads the sun level whose texel is at 
 more than half of it, so a `64 × 64`-pixel tile on one surface reads at most the 2 × 2 pages it
 straddles, and a third more while coarser levels stand in for pages not drawn yet: a frame asks for
 at most `⁴⁄₃ · 4 · ⌈2W / 128⌉ · ⌈2H / 128⌉` pages. The pool holds twice that — the report being read
-and the next one, which a turn of the camera may renew in full. At 1280 × 720 that is 1 280 pages a
-frame, 2 560 held: 51 × 51 = 2 601 pages, a 6 528² depth texture of 163 MiB, as much again for
-the static layer once something moves, and half as much for the transmittance layer once a blended
-surface casts (8 bytes per 4 page texels, 81 MiB). The atlas stops at the 8 192-texel side every
-WebGPU device offers (4 096 pages, 256 MiB, and 128 MiB of transmittance), reached at 1920 × 1080;
-the pool is the only limit on the pages a frame holds: what it cannot hold is refused at allocation
-and published as memory (`shadowPagesOverflow`, #542), read at the coarser level meanwhile, and
-pages are evicted least recently read first. A lamp face's finest mip is 32 × 32 pages (`lampFaceSize`).
+and the next one, which a turn of the camera may renew in full — while it fits one 8 192-texel
+layer (4 096 pages), and past it twice the smooth read of every light that casts, a quarter of that
+bound each (`shadowPoolSize`). At 1280 × 720 that is 1 280 pages a frame, 2 560 held: 51 × 51 =
+2 601 pages, a 6 528² depth texture of 163 MiB, as much again for the static layer once something
+moves, and half as much for the transmittance layer once a blended surface casts (8 bytes per 4
+page texels, 81 MiB). The pool is cut into the fewest square layers the device's texture side holds
+(`shadowPoolShape`, `webgpu/shadow/poolSize.ts`): at 1728 × 1117 CSS, DPR 2, one sun asks 5 040
+pages — one layer of 71² on a device 16 384 texels wide, two of 51² (5 202 pages, 325 MiB) on one
+of 8 192. The pool is sized at the first frame a light casts, from that frame's drawing
+buffer and its casting lights; a pause or a new light keeps it. A later drawing buffer resizes it
+by the same rule and from the same grant (`webgpu/shadow/poolResize.ts`, #1208), the frame held
+while the device answers: every page the new pool has room for keeps its entry, its state and its
+depth — copied texel for texel to its new place, its transmittance too (`gpu/shadow/pageMoves.ts`),
+since reads are texel-exact (#831) —, so nothing is drawn again; a smaller pool keeps the pages
+it would evict last, every floor first, and a reader falls back to them. The batches a frame may
+draw and the request list follow the pool's pages; the static layer, as large as the pool, is built
+again at the new size by the next move. A resize the device refuses keeps the pool in place, said
+under `gpu-out-of-memory`. Its bytes are capped by the
+grant's atlas share (`SHADOW_ATLAS_BYTES`, the pool 3840 × 2160 under one sun asks: two layers of
+53², 5 618 pages, 351 MiB): a screen or a light count that asks more is held there, said
+`ceiling` in the `shadow-pool` diagnostic (two lights at the case above: 5 476 pages on a 16 384
+device). What the pool cannot hold is refused at allocation and published as memory
+(`shadowPagesOverflow`, #542), read at the coarser level meanwhile, and pages are evicted least
+recently read first. A lamp face's finest mip is 32 × 32 pages (`lampFaceSize`).
 The table gives each of the 64 shadow slices (`MAX_SHADOW_SLICES`) a fixed window of the largest range a
 light needs, a whole sun's 16 × 64 × 64 words (`SHADOW_TABLE_STRIDE`): 2^22 words, 16 MiB
 (`SHADOW_TABLE_ENTRIES`), so every shadow-casting light that holds a slice holds its range.
-The GPU total's shadow share counts it with the pool (`SHADOW_POOL_BYTES`). Its host mirror — the
-words, a change flag per word, the pool's page records and eviction bitset, and the frame's page
+The GPU total's shadow share counts it with the pool (`SHADOW_POOL_BYTES`, 899 MiB); that share,
+less the batches' 5.0 MiB reserve, is the shadows' one grant (`SHADOW_GRANT_BYTES`, 894 MiB: the
+largest pool, its static layer, its transmittance layer, the table and the page requests,
+`webgpu/shadow/memoryGrant.ts`):
+the pool is drawn within it, and a late allocation — the static layer, the transmittance layer — is
+asked of it with what is already held, then of the device under an out-of-memory check, never
+inside a frame (`webgpu/shadow/transmittanceGrant.ts`): a scene whose blended surfaces cast asks
+the transmittance layer with the pool, the frame held; one turned casting later, by a rewrite of its
+values, asks it at that rewrite, before the next frame, held until the layer lands, which then draws
+every mapped page again with it: no frame is drawn without the layer. Memory pressure never passes
+for performance: it lowers no page to meet a frame time, and each pressure is a named event in
+`shadowMemoryEvents`. A pool the device refuses is drawn smaller (`pool-shrunk`, its halvings in
+`shadowResolutionBias`, 0 in the normal case) or not at all (`pool-refused`, the `shadows-off`
+error); a static layer past the grant (`static-layer-over-grant`) or refused by the device
+(`static-layer-refused`, `gpu-out-of-memory`) is never made, and every page stays drawn whole, every
+caster at once: no shadow is lost. A transmittance layer past the grant (`transmittance-over-grant`)
+or refused (`transmittance-refused`) is never made nor asked again: the opaque shadows stay whole
+and the blended casters cast nothing, by name. `shadowPeakBytes` publishes the most the grant held
+at once. The table's host mirror — the words, a change flag per word, the pool's page records and
+eviction bitset, and the frame's page
 list (`admit.ts`) at the largest pool, with the shadow batches' host lists
-(`SHADOW_BATCH_HOST_BYTES`), 21.0 MiB (`SHADOW_HOST_BYTES`, summed from `shadowTableHostBytes`,
+(`SHADOW_BATCH_HOST_BYTES`), 25.9 MiB (`SHADOW_HOST_BYTES`, summed from `shadowTableHostBytes`,
 `shadowPoolHostBytes`, `shadowAdmissionHostBytes` and `batchBudget.ts`, which tests check against
 real allocations) — is the CPU total's first share, before the decoded-page cache
 (`splitMemoryBudget`).
@@ -325,7 +404,13 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   the camera (`sunLevelPages`), addressed by absolute page modulo the window, so a camera step keeps
   every page that stays inside. Sixteen levels (`sunLevels`) start at the near plane's pixel
   footprint. The depth range is the scene's box along the sun, snapped outward to its own
-  power-of-two grid: every caster lies inside, and a small growth changes nothing.
+  power-of-two grid: every caster lies inside, and a small growth changes nothing. A page is read
+  in the range it was drawn in — its table word names one of the `SUN_DEPTH_RANGES` a sun keeps
+  (`sunDepth.ts`) —, so a new range, a walker crossing a grid line, redraws no page its box does
+  not cover. Once nothing moves, the pages of an older range are drawn again in the current one,
+  read meanwhile: a scene at rest shows the image one range draws. A page in the current range is
+  read at the one reference a single range computes; a neighbour page of another range than the
+  home page's is not read by the filter, whose taps keep to the home page.
 - **A lamp face is a mip chain**: 32 × 32 pages at its finest mip, the pool's own side, down to one
   page. Six faces for a point, one for a spot.
 - **The level is chosen per pixel, from its footprint** — the world distance between two adjacent
@@ -337,13 +422,26 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   `sun-far-shadow` diagnostic publishes its bounds). The PCF taps each find their own page: a tap
   within a texel of a seam compares the four texels of its footprint in their own pages, weighted
   by hand — no seam, no guard band.
-- **Receivers mark the pages.** The opaque resolve records each page it reads — a bit per table
-  word, tested before the atomic, and a list — and the list comes back in one readback per image,
-  as the texture feedback does (`webgpu/shadow/pageRequests.ts`). A page asked for and unmapped is
-  allocated from the free list, or from the page least recently asked for, the finest first among
-  equals; a page the latest report named is never evicted, and coarse levels are served first.
-  Meanwhile the pixel reads the next coarser level. Blend and water surfaces read what the opaque
-  pixels asked for, and keep their early depth reject.
+- **Receivers mark the pages, in the frame, before the raster** (#1209). The world box of every
+  cluster the frame draws inside the camera's frustum (`webgpu/shadow/receivers.ts`) names the
+  pages its pixels read (`scene/light-shadow/demand.ts`): for each shadowed light, the levels
+  between the least and the most footprint over the box, and at each the pages the box — grown
+  by the normal offset and the PCF's reach — covers; a box whose levels span more than one is
+  halved until each part is about a page at its finest. That list is a request report of the
+  frame itself, read by the one scheduler before the shadow raster, so a page first needed this
+  frame is drawn before this frame samples it, and no scheduling waits on a readback. A page asked
+  for and unmapped is allocated from the free list, or from the page least recently asked for, the
+  finest first among equals; a page the latest demand named is never evicted, and coarse levels
+  are served first. Every lamp face's floor is named too, what a reader falls back to last. The
+  opaque resolve still records each page it reads — a bit per table word, tested before the atomic,
+  and a list — read back once per image (`webgpu/shadow/pageRequests.ts`): read before the demand,
+  as asked for in the current frame, it adds a frame late what no receiver box named — a surface
+  drawn before the GPU cut's readback adopts its cluster —, and it proves an image may hold,
+  neither it nor the demand allocating a page under the state it was stamped with. Without
+  receivers — a host that hands none — the report alone schedules, as of its own frame. The
+  footprint is taken at the drawn target's pixel and at the display's, which the blend pass reads
+  with; a sun point past its level's window reads the next level, named with it. Blend and water
+  surfaces read what the drawn clusters' boxes named, and keep their early depth reject.
 - **Every stale page the image reads is drawn, in the frame that marks it** (#489). There is no
   per-frame page cap and no millisecond budget; the list goes the coarsest first, each light's
   floor leading (#525), an order that matters only to a frame its memory guard stops. The cost is
@@ -352,23 +450,32 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   as the per-batch buffers take (`shadowPagesPerBatch`, 24 pages, in the views one light cut runs
   at once), all in its one command buffer, each batch's buffer writes landing in command order
   (`gpu/shadow/batchWrites.ts`, `webgpu/pages/render/encodeShadowBatches.ts`). What the batches
-  add is sized once from the largest pool, never grown, and counted in the memory budget
-  (`gpu/shadow/batchBudget.ts`): 4 096 pages in full batches of 24 is at most 171 batches a frame
-  (`MAX_SHADOW_BATCHES`), each in at most 24 light views. The shaders' arrays, strides and uniform
+  add is granted once, never grown, and counted in the memory budget
+  (`gpu/shadow/batchBudget.ts`): one layer, 4 096 pages, in full batches of 24 is at most 171
+  batches a frame (`MAX_SHADOW_BATCHES`), 4 104 pages, each batch in at most 24 light views. The
+  batches a frame may draw are the current pool's, within that grant (`shadowBatchCapacity`): its
+  pages in batches of the fewer of 24 and the views one batch runs, at most 171, and at most what
+  the device's `maxBufferSize` stages — 109 batches for the 2 601-page pool at 720p, 38 on a device
+  whose buffers stop at 1 MiB. That is a bound, never a command: a frame encodes only the batches
+  its pages fill, an empty list encodes none, and a face whose caster list is empty encodes no cull
+  pass (`capacities.test.ts`). The shaders' arrays, strides and uniform
   layouts — the light cut's views, the regions' faces and commands, the occlusion slots — are
   generated from those same constants (`recordPack.ts`, `batchBudget.ts`), never a literal twin
-  (`gpu/shadow/capacities.test.ts`). The staging of every batch but the first
-  is 170 × 26 556 bytes, 4.31 MiB, made at the first frame that needs it; the light cut's flag
-  words, a word per batch for 4 frames in flight, 2 736 bytes; the CPU cut's commands for 4 104
-  faces, 65 664 bytes; the region commands of every batch a sampled frame copies for the cull and
-  occlusion counts, 2 × 131 328 bytes — 4.62 MiB of GPU memory in the shadow share
-  (`SHADOW_POOL_BYTES`), and 178 KiB of host memory in the CPU total's (`SHADOW_HOST_BYTES`). A
-  frame that needs more batches — only when a light cut dropped work and its view limit cut
-  batches short — draws 171 and leaves the rest pending: a declared limit, counted in
-  `shadowPagesPending`, which is otherwise 0 unless a batch could not be encoded. While pages are
+  (`gpu/shadow/capacities.test.ts`). The staging of every batch but the first is at most 170 ×
+  28 284 bytes, 4.59 MiB, made at the first staged write at the capacity its frame reserved, and
+  made again at that most, once, by a frame that reserves more (`batchWrites.ts`); the light
+  cut's flag words, a word per batch for 8 frames in flight (`SHADOW_FLAG_FRAMES`), 5 472 bytes;
+  the CPU cut's commands for 4 104 faces, 65 664 bytes; the region commands of every batch a
+  sampled frame copies for the cull's two lists and the occlusion count, 3 × 131 328 bytes —
+  5.03 MiB of GPU memory in the shadow share (`SHADOW_POOL_BYTES`), and 4.87 MiB of host memory in
+  the CPU total's (`SHADOW_HOST_BYTES`, the staging's host mirror included). A frame whose list
+  takes more batches — a pool of more than 4 104 pages all stale at once, or a light cut that dropped work and
+  cut its batches short — draws its capacity and leaves the rest pending: a declared limit, counted
+  in `shadowPagesPending`, which is otherwise 0 unless a batch could not be encoded. While pages are
   pending, the list puts the pages stale longest first, so views re-marked every frame cannot keep
-  the pages behind them waiting: a page that stays read is drawn within 25 frames at worst (the
-  bound, in `admit.ts`). One flag says whether a page is read, the table word's valid bit: a page
+  the pages behind them waiting: a page that stays read is drawn within ⌈pool pages / batches⌉ + 1
+  frames, 34 at worst (the bound, in `admit.ts`). One flag says whether a page is read, the table
+  word's valid bit: a page
   whose depth is wrong is withdrawn (`pool.withdraw`) until its redraw lands, and the pixel reads the
   next coarser level. A light that moves or changes, or a sun whose clipmap moves its projection,
   stales every page it maps, and withdraws them: their depth belongs to the old projection. An
@@ -381,7 +488,7 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   keep their content, only the pages entering are drawn, and nothing else is staled. A
   representation change
   stales them once the camera rests, and a threshold change only the pages drawn at another
-  threshold than the one at rest; both leave them read. A stale page no report names is withdrawn,
+  threshold than the one at rest; both leave them read. A stale page no demand names is withdrawn,
   since blend and water read without asking. A page never drawn is not read. A report that names more pages than the pool holds — the pool never
   holds more than a report lists (`shadowRequestCap`) — maps the coarsest, then by table entry — never in the GPU's append order —, and the rest read
   coarser:
@@ -390,7 +497,14 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   pool is touched. `shadowPagesRequested`, `shadowPagesCached`, `shadowPoolPages`,
   `shadowPagesDrawn`, `shadowPagesPending` and `shadowWaitMs` publish the work — the wait, in ms
   and in frames (`shadowWaitFrames`, the direct-lighting diagnostic only), of the oldest stale page
-  the image reads, counted only while a report names it (#489);
+  the image reads, counted only while a report names it (#489). The work splits apart (#991),
+  counted on the host, never in a shader: `shadowPagesRestored` — pages copied from the static
+  layer, their moving casters alone rasterised — against `shadowPagesRasterized`, whose static
+  casters were drawn again; `shadowRestoreCopies`; `shadowStaticDrawCalls` against
+  `shadowMovingDrawCalls`, and of the sampled clusters `shadowMovingCastersKept`; `shadowBatches`
+  and `shadowLayersDrawn`; and `shadowPagesStaledBy`, the pages staled by reason — light, still
+  caster, moving casters, detail, cut threshold, depth range. Allocated and peak bytes are
+  `shadowPoolBytes` and `shadowPeakBytes`;
   `diagnostic.shadowAtlas(world)` returns the pool's raw depth hash. A still scene runs no resolve
   and asks for nothing; the image holds once a report proves it reads only pages drawn.
 - **The floor is always current.** Every page a report names asks for its light's floor under it
@@ -421,16 +535,61 @@ after it compiles one, but a blended caster prepare did not see, whose draws com
 frame. A page drawn in full writes its static casters
 into the layer, then restores itself from it and draws its moving casters over; a page that only
 a moving object crossed is restored and gets its moving casters alone, split by one word per row
-in the page cull. A still moving object stales nothing; it is never demoted, since a rule that
-did would redraw the layer each time a pausing object moved again, and an object already moving
-that the host hides or shows, or that stops or starts casting, redraws the moving casters of its
-pages alone: the layer never held it. A residency flag that drops
-and rises within a frame — every row follows the table epoch when a pose moves — is no change
-for the shadows: only a flag that differs from the last plan's restales its cluster's pages
-(`webgpu/shadow/residence.ts`). On a code-built scene with one ball moving over a static ground,
-1280×720, the virtual pages redraw 4.4 pages a frame (6 at most) with one light cut, against 224
-pages a frame on `develop`, and the frame after the motion is 0 px from a fresh render of the
-same pose.
+in the page cull. A still moving object stales nothing; it is never demoted (#993). Staying
+moving costs its casters only in the pages another mover makes the frame redraw, where they are
+drawn over the restored layer; rejoining the layer would cost a full redraw of its pages, static
+casters included, when it rests, and another when it wakes — two layer redraws per pause, bought
+back only if other movers redraw its pages often enough in between, and any rest timer would be
+a scene-tuned constant. The policy changes only if a measure of falling boxes and a walker or car
+at 1728×1117 CSS, DPR 2, shows a net gain beyond run spread, transition frames included. An
+object already moving that the host hides or shows, that stops or starts casting, or whose alpha
+mode, cutout texture or pages' residency changes, and a blended caster whose coverage changes,
+redraw the moving casters of their pages alone: the layer never held them. Such a representation
+change waits for the camera to rest in a union of its own, apart from the one of still objects.
+A residency flag that drops and rises within a frame — every row follows the table epoch when a
+pose moves — is no change for the shadows: only a flag that differs from the last plan's restales
+its cluster's pages (`webgpu/shadow/residence.ts`). On a code-built scene with one ball moving over
+a static ground, 1280×720, the virtual pages redraw 4.4 pages a frame (6 at most) with one light
+cut, against 224 pages a frame on `develop`, and the frame after the motion is 0 px from a fresh
+render of the same pose.
+
+So a page holds two validities. Its static depth, in the layer, stays valid until a static cause
+touches it: a light that moves, a still caster that moves, is added, removed, hidden or shown, or
+whose material, cutout texture or residency changes — then the page is drawn whole, static casters
+into the layer. Its moving depth stays valid until a mover's box, where it was or where it is,
+covers it — then the page is restored from the layer and its moving casters drawn over. A mover at
+rest touches neither, and a camera move only draws the pages it brings in
+(`staticSurvives.test.ts`, `moverPages.test.ts`).
+
+The trade-off: the layer buys a redraw of the moving casters alone, where the static set would be
+drawn again under every mover, and costs as many bytes as the pool (above) and one restore draw per
+page it redraws. Its measure is relative, never absolute: the measure session posts paired A/B runs
+of `develop` on an Apple M2 Max, headless Chrome, 1728×1117 CSS at DPR 2, bodies moving (car
+driven, walker walking), on a loaded machine. The runs posted 28 Sept. 20:02 UTC as `measure ok` on
+#989 and #990, median GPU ms of five interleaved pairs, load 15–75, batch `884cde8b5` →
+`e36d93ea1` (it holds the capacity change #1045 and the static-survival change #1064):
+
+| Example (GPU p50 ms) | before | after | paired difference            |
+| -------------------- | ------ | ----- | ---------------------------- |
+| falling-boxes        | 28.1   | 25.4  | −1.0 to −3.2 (5/5 faster)    |
+| spin-an-astrolabe    | 30.7   | 28.3  | −1.4 to −4.2 (5/5 faster)    |
+| drive-a-car          | 25.8   | 26.4  | −1.0 to +1.7                 |
+| a-walker-among-balls | 59.2   | 60.2  | −0.8 to +2.4 (one +44 spike) |
+
+On both sides the CPU frame stayed at 1.4–2.3 ms and every scene under 60 fps on the GPU
+(25–60 ms): on 28 Sept. the programme's 120 fps target (#525) was not met. The idle
+decision above (#993, #1146) was measured in the batch `3e58f044f` → `d5ec49069`, six A/B pairs,
+load 25–60, posted on #993 on 28 Sept. 22:35 UTC: GPU p50 moved by +0.13 ms (falling boxes), +0.24
+(walker), −0.59 (car) and +0.53 (astrolabe rotating), all within run spread (widest −1.5 to
++2.0 ms), CPU p50 within 0.07 ms — neither a regression nor a gain resolved; that batch did not run
+resize or pause/resume. Each batch holds other merges, so a row is a batch's cost, not one change's.
+
+The astrolabe is the counterexample: every caster of its pages moves, so the layer holds almost
+nothing it can restore and the cost is its moving casters, whatever the cache; a cache percentage is
+no measure of it. Physical pages are memory, not frame time: the pool past one layer (#818) left
+the falling boxes' GPU envelope where it was and raised their peak memory by 118 MB (1 410 against
+1 292 MB, #850's baseline; the walker 1 465, the car 1 417), and its layer doubles with it, until
+the runtime resize above repays it. Later batches post their numbers on the issues they measure.
 
 **Shadow casters are selected from the light.** The pages of one light view a frame draws — a sun
 level, a lamp face at one mip — form a run, and every run of the frame is selected by ONE traversal
@@ -445,7 +604,8 @@ view holds at least one drawn page, and at most what the device's dispatch and b
 `gpu/dag/lightCutCapacity.ts`); work several views together push past them is dropped. The
 pages a batch drew while its cut dropped work are drawn again, and the views one batch draws in are
 bisected between the most a batch drew whole and the fewest one dropped with: a bound on a batch,
-never on the frame, which draws as many batches as its pages take. A view that wanted a
+never on the frame, which draws as many batches as its pages take within its capacity
+(`shadowBatchCapacity`, above). A view that wanted a
 cluster not resident drew its nearest resident ancestor instead, and every page of that view with
 it: those pages, and only that view's, are drawn again once residency changes, not only the pages
 over the missing cluster; a batch whose requests were not read — the frame found no report
@@ -454,8 +614,9 @@ readback free, or its list was full — draws them again at once (`gpu/dag/light
 its moving casters alone, and only they are drawn again over the kept layer. Every batch's cut appends its requests to one list (`VIEW_APPEND`), which the
 frame copies once after its last batch into one of two report slots (`gpu/dag/lightCutReports.ts`):
 every batch's missing casters are asked for, whatever the batch count. Each frame's flag words ride
-in one slot sized for the most batches, four slots made at creation; a frame that finds all four
-still read draws its pages again, withdrawn meanwhile. A run's window is the square that bounds its pages, cut in eight by eight cells
+in one slot sized for the most batches, eight slots made at creation (`SHADOW_FLAG_FRAMES`); a
+frame that finds all eight still read draws no light-cut page: its pages stay stale and read as they
+were, drawn by the next frame with a slot, never withdrawn on a guess (#1142). A run's window is the square that bounds its pages, cut in eight by eight cells
 of whole pages; a node or cluster that covers no cell a drawn page lies in is dropped. Its error is
 counted in the view's texels against the camera's pixel threshold — a texel of the level a pixel
 reads is at most that pixel —, and the normal cone is off, since the shadow raster culls no face. The
@@ -465,6 +626,22 @@ nearest resident ancestor, by the camera's rule (`page/cut/rule.ts`). What the l
 request is a second residency tier, loaded after the camera's pages into slots no one holds and never
 pinned. The CPU cut does the same, reading the run's view as a camera (`webgpu/shadow/cpuCasters.ts`);
 its casters take rows behind its own (#10, #26).
+
+**An opaque caster runs no fragment stage in the shadow pool.** The depth's fragment stage writes
+nothing; it only discards a cutout's hole or the emitter envelope. So the page cull files each
+region's casters in two lists of its slot (`KEPT_LISTS_WGSL`, `gpu/shadow/cullShader.ts`), by the
+cutout bit of the row's mobility word (`MOBILITY_CUTOUT`, set from the row's `FLAG_MASK`
+in `webgpu/shadow/bounds.ts`): the opaque ones from the start, counted by the region's first
+command, the cutout ones from the end down, counted by its second. The opaque list is drawn by
+`shadow_depth_vs` with no fragment stage (early depth, no fragment invocation), or by `shadow_vs`
+with the fragment when the face carries an emitter envelope; the cutout list by `shadow_cutout_vs`
+with the fragment, and only while some row is a cutout (`hasCutouts`). The three pipelines
+(`gpu/shadow/depthDraws.ts`) are compiled at the `shadow pipelines` step. All three place a
+corner through one `shadowVertex`, whose position is `@invariant`, and a texel keeps the nearest
+depth whatever the draw order: the page is develop's single draw to the bit, which
+`gpu/shadow/depthSplit.test.ts` checks against develop's corner on random casters and on NaN, ±0,
+±Inf, empty and full-slot inputs (the audit's OMB-01 harness, #965). The transmittance layer draws
+the first list alone, which holds the blended casters.
 
 **A blended surface that asks for it casts a shadow attenuated by its opacity.** By default a
 see-through surface casts none, as the reference solution leaves translucent materials: glass,
@@ -500,7 +677,10 @@ binding one-texel stand-ins it never samples. One nearest depth per texel: a rec
 stacked panes takes both. Each product is kept in 8 bits. Opacity 0 takes no row and casts
 nothing; opacity 1 lets no light through. Additive and transmissive surfaces cast nothing yet: the tinted
 shadow of transmission is #33's, which colours the same RGB layer. An unpaged blended mesh casts
-nothing. WebGL2 has no shadow path, so none of this exists there.
+nothing. WebGL2 has no shadow path, so none of this exists there: `CONTRACT_LIGHTS_LIGHTING`
+publishes `shadows: false`, and the lights of the set that lights (the contract's, else the source
+graph's) that ask to cast are handed to `ContractShadows` at each change of that set. The world,
+or a session opened without one, names each as `shadows-refused` (`noticeShadowRefusal`).
 
 When a colour tile arrives, the shadow pages of the masked surfaces that read its texture are
 invalidated, and those alone. A masked cut-out is read at the mip level the reading texel's
@@ -552,21 +732,33 @@ bounce is **off by default**: its stage costs about 1.1 ms, above the one-millis
 and transparency are not bounced. `setLightingView('bounce')` outputs the indirect irradiance alone,
 the quantity `bench/runner/oracle.ts` compares.
 
-**Mirrors.** With the bounce on, a surface at the roughness floor (0.0525, the clamp every shading
-path applies) reflects the scene: the resolve fires one ray along the mirror direction against the
-resident proxy, from the origin the sun's far shadow uses, and reads the face it hits in the surface
-cache; a ray that leaves the proxy reads the probe irradiance in that direction over π. The radiance
-is weighed by the GGX lobe's directional albedo, the magnitude and Schlick share of the table the
-rectangular light reads. The water composite reflects through the same function, weighted by its
-Fresnel, so the engine has one reflection model (`packages/sdk-browser/src/bounce/reflectWgsl.ts`):
-mirror-smooth water, at the floor, traces the proxy; rougher water keeps the blurred probe
-irradiance over π it read before, never a sharp image. What a mirror shows is the proxy: its
-certified error, one radiance per triangle face, and nothing nearer than one proxy cell along the
-ray. A rougher opaque surface, a diffuse or toon one, and every surface with the bounce off add
-exactly zero: the
-floor is a material threshold, so a roughness map that crosses it shows reflecting and
-non-reflecting texels side by side until rough reflections (#33) fill the lobes above it. Screen
-traces stay on #31, planar views are #353. WebGL2 has no bounce, hence no reflection.
+**Mirrors.** WebGPU and WebGL2 trace the camera-visible opaque scene from mirror receivers,
+including transparent standard materials, independently of the bounce setting. Both backends
+share a projected pixel-grid traversal clipped against all six homogeneous frustum planes.
+Each crossed pixel tests its exact ray-depth interval; work is bounded by viewport width plus
+height. A separate linear, unfogged, unreflected source prevents render-target feedback,
+recursive reflections and applying the camera fog twice. The source is regenerated with each
+changed image and belongs to its camera view, including captures and resizing.
+
+A screen hit replaces the proxy contribution in the one reflection model. On a screen miss,
+WebGPU with bounce enabled keeps the resident-proxy ray and probe fallback; without bounce,
+and on WebGL2, a miss contributes zero. Screen traces cannot reveal offscreen or occluded
+geometry. Reflected-camera planar views remain #353. No screen-space result is stretched over
+a viewport edge or carried from an older image. The original `miroir.gltf` cited in #31 is not
+present in the reachable repository history; the production proof uses generated geometric
+scenes with analytic reflected-point positions and records that provenance explicitly.
+
+The mirror contribution uses the same GGX directional-albedo table as rectangular lights,
+with full contribution at the roughness floor (0.0525). It fades smoothly over one table sample
+(1/63) above that floor; this is a numerical transition, not the filtered rough lobe of #33.
+Water uses the same scene-radiance lookup with its material Fresnel. Diffuse and toon materials
+have no mirror lobe. Reflection sources are allocated only while the view contains an eligible
+receiver: WebGPU adds 8 bytes per pixel and an 80-byte uniform (an 8-byte disabled placeholder
+otherwise); WebGL2 reuses the backdrop allocator for 8-byte colour and 4-byte depth per pixel.
+These allocations are counted and released on resize/disable/dispose. WebGPU reports refusals
+through its existing frame-target grant. WebGL2 checks the required half-float colour-target
+capability for these linear-radiance sources, as it does for transmission; that check does not
+guarantee allocation success or framebuffer completeness.
 
 ## Fog
 
@@ -690,6 +882,13 @@ the root cover and the pages the host replaced (`replaceGeometryPage`) stay abov
 counted as the pages' bytes are, every geometry copy included. No pool is reserved:
 `geometryPoolAllocatedBytes` is `null`, and what the pages hold is `geometryAllocationBytes`.
 Backends without pools throw `UNSUPPORTED_MEMORY_BUDGETS`.
+A composed WebGL2 capture draws in a view of its own (`backend/autonomous/views.ts`), as WebGPU's
+does: each view holds its cut, what it asks for, its motion and its size, and one switch trades
+their references (it never runs with one view). The views share the page store and the pool, which
+admits what the drawn view asks for after what the other views asked for, each page charged once:
+the union stays under the one budget, never multiplied. The residency holds the union and the
+streamer pins it, the main view's requests queued first; a released view's pages leave it. The main
+view keeps its cut and its motion across a capture.
 
 **What WebGL2 declares it cannot carry.** WebGL2 keeps the cut rule, the residency and the budget
 above; what it lacks it names in `capabilities.unsupported` and in the `render-capabilities`
@@ -920,8 +1119,9 @@ added to it. CPU and GPU times are never added together.
 **Surface capture for global illumination.** `explorer.captureSurfaceView(pose, { width, height,
 signal })` returns an owned `SurfaceCapture` version 1 — the four material textures, depth, inverse
 view-projection, camera position and selected triangle count — for future lighting work. It reuses
-the page cache, selects for the requested camera, restores the main view afterwards and must be
-serialized with ordinary rendering; translucency is excluded.
+the page cache, selects for the requested camera in a view of its own, leaves the main view as it
+was and must be serialized with ordinary rendering; translucency is excluded. The WebGL2 path draws
+no material surfaces and refuses it by name (`SURFACE_CAPTURE_UNSUPPORTED`).
 
 ## Proofs
 
@@ -955,16 +1155,16 @@ performance, on the web.
 
 What the reference is made of, and our counterpart:
 
-| Reference piece                                   | Role                                                         | What we have today                                                                          | What is missing |
-| ------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------- | --------------- |
-| Temporal antialiasing                             | denoises everything stochastic                               | shipped, 0 px A/A                                                                           | —               |
-| Screen traces                                     | first shot of every ray: image depth and normal, almost free | nothing                                                                                     | L1              |
-| Distance fields (per mesh, then global)           | off-screen rays without hardware ray tracing                 | certified-error resident proxy, walked triangle by triangle                                 | L4              |
-| Surface cache                                     | radiance of off-screen surfaces, updated under budget        | one radiance per triangle and proxy face, swept under budget                                | L4              |
-| Screen probes (16 px grid) + world radiance cache | final gather, temporally filtered                            | cascaded SH2 world probes; no screen probe                                                  | L5              |
-| Reflections                                       | screen traces, then distance fields reading the cache        | mirror-limit ray against the resident proxy, read in the surface cache (bounce on)          | L1, L6          |
-| Virtual shadow maps                               | 16k shadow pages, only the views, cached                     | page table, screen-sized pool (2 601 pages at 720p), per-pixel level, receiver-marked pages | L3              |
-| Stochastic direct lighting                        | few samples per pixel, denoised                              | tiled culling; four draws per moving pixel, exact at rest                                   | L2 (denoise)    |
+| Reference piece                                   | Role                                                                                                  | What we have today                                                                                                                                                                             | What is missing |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| Temporal antialiasing                             | denoises everything stochastic                                                                        | shipped, 0 px A/A                                                                                                                                                                              | —               |
+| Screen traces                                     | first shot of every ray: image depth and normal, almost free                                          | nothing                                                                                                                                                                                        | L1              |
+| Distance fields (per mesh, then global)           | off-screen rays without hardware ray tracing                                                          | certified-error resident proxy, walked triangle by triangle                                                                                                                                    | L4              |
+| Surface cache                                     | radiance of off-screen surfaces, updated under budget                                                 | one radiance per triangle and proxy face, swept under budget                                                                                                                                   | L4              |
+| Screen probes (16 px grid) + world radiance cache | final gather, temporally filtered                                                                     | cascaded SH2 world probes; no screen probe                                                                                                                                                     | L5              |
+| Reflections                                       | screen traces, then distance fields reading the cache                                                 | mirror-limit ray against the resident proxy, read in the surface cache (bounce on)                                                                                                             | L1, L6          |
+| Virtual shadow maps                               | virtual: 16 384² texels a map (128² pages); physical: a page pool of a set count; static pages cached | virtual: 8 192² texels a sun level (64² pages), 4 096² a lamp face; physical: a screen-sized pool (2 601 pages at 720p, 5 618 at most), per-pixel level, receiver-marked pages, a static layer | L3              |
+| Stochastic direct lighting                        | few samples per pixel, denoised                                                                       | tiled culling; four draws per moving pixel, exact at rest                                                                                                                                      | L2 (denoise)    |
 
 What the web imposes, and the answer:
 
@@ -982,8 +1182,8 @@ What the web imposes, and the answer:
 Stages, each with its proof (0 px A/A at rest, budget held, before/after published):
 
 - **L0** — done (campaign of 18 Sept. 2026, Emerald 2496×1404): the sun is 4.7 ms of
-  envelope on the ground view and 5.8 ms on the street view (`mobile` − `sans-lumiere`); lighting
-  without maps ≤ 0.96 ms (`lampes-4-sans-ombres` − `sans-lumiere`); still camera: 0 page redrawn,
+  envelope on the ground view and 5.8 ms on the street view (`mobile` − `unlit`); lighting
+  without maps ≤ 0.96 ms (`lights-4-no-shadows` − `unlit`); still camera: 0 page redrawn,
   envelope no lower. What remained, the sampling, is L2 below — not a cascade ring.
 - **L1** — screen traces: reflections and short bounce from the already-rendered HDR, depth and
   normal; the cheapest piece of the reference, and the first.
