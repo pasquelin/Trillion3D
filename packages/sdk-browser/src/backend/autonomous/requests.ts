@@ -1,10 +1,12 @@
 import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts';
 import { createGroupClosure, type GroupClosure } from '../../page/cut/groupClosure.ts';
 import type { HeldResidency } from '../../page/cut/held.ts';
+import { floorFirst } from '../../residency/minimumCapacity.ts';
 
 /**
  * What the WebGL2 pool is asked for: the wanted cut closed over its groups (`groupClosure.ts`),
- * one record per page, coarsest level first.
+ * one record per page: the pages a root's group replaces first — the minimum capacity holds them
+ * (`../../residency/minimumCapacity.ts`) —, then the coarsest level first.
  *
  * The cut rule reads residency by group (`../../page/cut/readiness.ts`): a group-mate the view
  * never keeps — past the frustum — would leave its group unready, and its surface drawn one level
@@ -52,21 +54,20 @@ export function createAutonomousRequests(
     layOut();
     return true;
   };
-  const coarsestFirst = (a: PageRec, b: PageRec) => (b.level ?? 0) - (a.level ?? 0);
   return {
     /** Bytes of the closure's tables, sized by what the last cuts closed over. */
     get hostBytes() {
       return closure?.hostBytes ?? 0;
     },
     follow,
-    /** Writes the pages `wanted` closes over into `into`, one per URL, coarsest first. */
+    /** Writes the pages `wanted` closes over into `into`, one per URL, in `floorFirst` order. */
     of(wanted: readonly PageRec[], into: PageRec[]) {
       follow();
       requested = into;
       requested.length = 0;
       seen.clear();
       closure!.closeOverRecords(wanted, visit);
-      return requested.sort(coarsestFirst);
+      return requested.sort(floorFirst);
     },
   };
 }
