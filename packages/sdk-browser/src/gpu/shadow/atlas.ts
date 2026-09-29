@@ -11,7 +11,7 @@ import {
   createShadowRecordPack,
 } from './recordPack.ts';
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
-import { arrayView, layerPasses, layerViews } from './layers.ts';
+import { arrayView, layerPasses, layerViews, shadowPoolTexture } from './layers.ts';
 import { createShadowTransmittance, type ShadowTransmittance } from './transmittance.ts';
 import { shadowTransmittanceDraws } from './transmittanceDraws.ts';
 import { shadowDepthDraws } from './depthDraws.ts';
@@ -88,21 +88,8 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       layout: faceLayout,
       entries: [{ binding: 0, resource: { buffer: faceUniform, size: FACE_BYTES } }],
     });
-    /**
-     * The pool's texture, `layers × poolSide²` pages, made not taken: what the grant allots under
-     * its out-of-memory check (`poolGrants.ts`). `COPY_SRC` is there only for the proof: the host
-     * can reread the pool and compare its fingerprint between two runs. No frame pass copies it.
-     */
     const makePool = (poolSide: number, layers: number) =>
-      device.createTexture({
-        label: 'Trillion3D shadow depth atlas v1',
-        size: [poolSide * SHADOW_PAGE, poolSide * SHADOW_PAGE, layers],
-        format: 'depth32float',
-        usage:
-          GPUTextureUsage.RENDER_ATTACHMENT |
-          GPUTextureUsage.TEXTURE_BINDING |
-          GPUTextureUsage.COPY_SRC,
-      });
+      shadowPoolTexture(device, poolSide, layers);
     const atlas = {
       /** Texels a side, zero until the pool is sized. */
       size: 0,
@@ -135,25 +122,37 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       faceStride: FACE_STRIDE,
       allocationBytes: SHADOW_BUFFER_BYTES,
       makePool,
-      /** Takes the pool's texture — the one the device granted, or one made now: once, before the
-       *  first page is drawn. */
-      sizePool(poolSide: number, layers = 1, granted = makePool(poolSide, layers)) {
-        if (texture) throw new Error('the shadow pool is sized once');
+      /** Takes the pool's texture — the one the device granted, or one made now — before the first
+       *  page is drawn; again at a resize (`../../webgpu/shadow/poolResize.ts`), with the
+       *  transmittance layer made for it when one is held. Returns what it held then, which the
+       *  caller copies from and destroys. */
+      sizePool(
+        poolSide: number,
+        layers = 1,
+        granted = makePool(poolSide, layers),
+        layer = transmittance,
+      ) {
+        const held = texture && { texture, transmittance };
+        atlas.allocationBytes =
+          SHADOW_BUFFER_BYTES + shadowAtlasBytes(poolSide, layers) + (layer?.bytes ?? 0);
         atlas.size = poolSide * SHADOW_PAGE;
         texture = granted;
+        transmittance = layer;
         atlas.view = arrayView(granted);
         atlas.targets = layerViews(granted);
         atlas.passes = layerPasses(SHADOW_PASS, atlas.targets);
-        atlas.allocationBytes += shadowAtlasBytes(poolSide, layers);
         pack.setPoolSide(poolSide);
+        return held;
       },
       /** Compiles the transmittance layer's draws off the frame (`shadowTransmittanceDraws`). */
       prepareTransmittance: transmittanceDraws.prepare,
-      /** A transmittance layer for the sized pool, made now, not yet taken: what the shadows'
-       *  grant asks the device for (`../../webgpu/shadow/transmittanceGrant.ts`). */
-      makeTransmittance() {
-        const side = atlas.size / SHADOW_PAGE;
-        return createShadowTransmittance(device, transmittanceDraws.made(), atlas.targets, side);
+      /** A transmittance layer for the pool of `targets`, `side` pages a side — the sized one by
+       *  default —, made now, not yet taken: what the shadows' grant asks the device for
+       *  (`../../webgpu/shadow/transmittanceGrant.ts`). */
+      makeTransmittance(targets?: GPUTextureView[], side?: number) {
+        const layers = targets ?? atlas.targets,
+          pages = side ?? atlas.size / SHADOW_PAGE;
+        return createShadowTransmittance(device, transmittanceDraws.made(), layers, pages);
       },
       /** Takes the layer the device granted, once; its bytes are held from now on. */
       takeTransmittance(layer: ShadowTransmittance) {

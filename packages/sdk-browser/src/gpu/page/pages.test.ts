@@ -8,8 +8,9 @@ const LIMITS = { maxBufferSize: 1024 };
 // and the slot's tail keeps those of the previous page without anyone reading them — a row names
 // its page offset and index count, and visibility as well as shading refuse any triangle beyond
 // (`../../visibility/shader/visWgsl.ts:50`, `../../visibility/shader/shadeWgsl.ts:83`). Only the padding to the multiple
-// of four that `writeBuffer` requires goes extra, as zeros. The three pages reuse the same slot,
-// and the sample counts only what is actually transferred.
+// of four that `writeBuffer` requires goes extra, as zeros: the whole words straight from the
+// page's bytes, the last 1-3 through a zero-padded word (#982). The three pages reuse the same
+// slot, and the sample counts only what is actually transferred.
 test('a reused GPU slot receives only the bytes of its page, padded to what the queue needs', async () => {
   const { device, writes } = fakeDevice({ limits: LIMITS });
   const octets: Record<string, number[]> = {
@@ -22,9 +23,12 @@ test('a reused GPU slot receives only the bytes of its page, padded to what the 
   const pages = [await cache.load('large'), await cache.load('small'), await cache.load('odd')];
   const envois = writes.map((write) => [...written(write)]),
     slot = pages[0].slot;
-  assert.deepEqual(envois, [octets.large, octets.small, [...octets.odd, 0, 0, 0]]);
+  assert.deepEqual(envois, [octets.large, octets.small, octets.odd.slice(0, 4), [17, 0, 0, 0]]);
   assert.deepEqual([pages[1].slot, pages[2].slot], [slot, slot]);
-  assert.equal(writes[2].offset, slot * 8);
+  assert.deepEqual(
+    writes.map((write) => write.offset),
+    [slot * 8, slot * 8, slot * 8, slot * 8 + 4],
+  );
   assert.deepEqual([pages[0].bytes, pages[1].bytes, pages[2].bytes], [8, 4, 5]);
   assert.equal(cache.stats().uploadedBytes, 8 + 4 + 8);
 });

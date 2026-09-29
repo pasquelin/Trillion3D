@@ -46,7 +46,8 @@ fn sliceLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,sl
  * The narrow resolve's slices (#849): a scene of at most `TILE_LIGHTS` lights runs the narrow
  * tile pass, so no tile passes its list and none walks the pool or the whole scene. The slice is
  * the list itself, each light read at its listed rank, with no per-light branch — the same lights
- * in the same order as the wide loop, so the same sum, bit for bit.
+ * in the same order as the wide loop, so the same sum, bit for bit — run on a device against the
+ * wide loop by `tests/browser/probes/narrow-resolve-gpu.ts`.
  */
 const NARROW_SLICE_WGSL = `
 fn tileSlice(base:u32,countSlot:u32,firstSlot:u32)->vec2u{return vec2u(base+firstSlot,tileLights[base+countSlot]);}

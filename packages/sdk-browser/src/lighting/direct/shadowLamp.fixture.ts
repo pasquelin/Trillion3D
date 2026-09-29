@@ -14,7 +14,7 @@ import { BIAS, DEVELOP_BIAS, along, depthMargin, pcf, sub } from './shadowBias.f
 import type { Vec } from './shadowBias.fixture.ts';
 
 /** `pointFaceOf`: the major axis of the light-to-point direction, in `POINT_FACE_AXES` order. */
-function pointFaceOf(d: Vec) {
+export function pointFaceOf(d: Vec) {
   const [x, y, z] = d.map(Math.abs);
   if (x >= y && x >= z) return d[0] > 0 ? 0 : 1;
   if (y >= z) return d[1] > 0 ? 2 : 3;

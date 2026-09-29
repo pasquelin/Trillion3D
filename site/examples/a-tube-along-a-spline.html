@@ -93,7 +93,10 @@
         if (key === 'paint' || key === 'beads' || key === 'speed') return world.invalidate();
         for (const { bead } of beads) bead.scale.setScalar(values.radius * 1.5 + 0.05);
         curve = paths[values.path]();
+        // The former tube is given back once replaced: nothing else wears it.
+        const worn = tube.geometry;
         tube.geometry = geometry.tube(curve, values.slices, values.radius, values.sides, values.path !== 'spiral');
+        worn.dispose();
         placeBeads(values.path);
         triangles?.((values.slices * values.sides * 2).toLocaleString(language()));
         world.invalidate();

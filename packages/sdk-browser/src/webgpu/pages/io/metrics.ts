@@ -10,6 +10,7 @@ import { disposeStaticLayer } from '../state/lights.ts';
 import { shadowPoolHeld } from '../../shadow/memoryGrant.ts';
 import { lightCutMetrics } from '../../shadow/casters.ts';
 import { shadowWorkMetrics } from '../../shadow/work.ts';
+import { shadowCpuMetrics } from '../../shadow/cpuSteps.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { releaseWebgpuView, useWebgpuView } from '../state/viewSwitch.ts';
 
@@ -38,9 +39,8 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
   const ledger = gpuDeviceLedgerOf(gpu.device)?.snapshot();
   const pending = run.gpuFrameActive && !run.gpuMetricsReady;
   const poolHeld = lights.shadows?.texture ? shadowPoolHeld(lights) : null;
-  // What the occlusion test dropped, from the path that ran it: counts the GPU wrote on the last
-  // sampled image, or the CPU oracle's where no GPU test runs. `null` when neither has counted an
-  // image — never a number in place of an unmeasured number.
+  // What the occlusion test dropped, from the path that ran it: the GPU's last sampled counts, or
+  // the CPU oracle's where no GPU test runs; `null` when neither counted, never an unmeasured 0.
   const gpuHizCounts = vis.gpuPartition?.counts();
   const [hiz, hizCountedFrame] = vis.gpuPartition
     ? [gpuHizCounts, gpuHizCounts?.frame ?? null]
@@ -68,8 +68,7 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     transparentFrustumRejected: run.blendFrustumRejected,
     transparentDrawCalls: run.blendDrawCalls,
     transparentSubmittedTriangles: run.blendSubmittedTriangles,
-    // Virtual textures: the pool, the tiles, image feedback. All `null` until prepare has built them,
-    // never a zero in place of a missing pool.
+    // Virtual textures: pool, tiles, image feedback; all `null` until prepare built them, never 0.
     ...(vis.textures?.metrics() ?? {}),
     cpuSubmitMs: timing.lastSubmitMs,
     gpuPassMs: timing.lastGpuPassMs,
@@ -123,6 +122,7 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     ...shadowWorkMetrics(lights),
     ...lightCutMetrics(rt),
     ...directLightTimings(timing.lastGpuPassMs),
+    ...shadowCpuMetrics(timing.cpuProfile.row),
     ...lights.tiles?.poolMetrics(),
   };
 }

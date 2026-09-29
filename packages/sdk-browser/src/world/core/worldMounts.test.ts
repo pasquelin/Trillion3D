@@ -112,6 +112,19 @@ test('1 000 frames adding and removing a mesh and replacing a geometry never ope
   const runtime = runtimeOf(scene, Promise.resolve(), (error) => assert.fail(String(error)), open);
   const reopens: unknown[] = [];
   const stop = listenWorldNotices((n) => void (n.phase === 'session-reopen' && reopens.push(n)));
+  // #411: the pages of a geometry no mesh wears are given back, not kept for the page's life.
+  const blobs = {
+    made: URL.createObjectURL,
+    revoked: URL.revokeObjectURL,
+    live: new Set<string>(),
+  };
+  URL.createObjectURL = (blob) => {
+    const url = blobs.made(blob);
+    blobs.live.add(url);
+    return url;
+  };
+  URL.revokeObjectURL = (url) => (blobs.live.delete(url), blobs.revoked(url));
+  let mostLive = 0;
   const stone = material.meshStandard({ color: 0x808080 });
   scene.add(object.mesh(geometry.box(4, 0.2, 4), stone));
   const sheet = geometry.plane(4, 4, 2, 2);
@@ -138,7 +151,11 @@ test('1 000 frames adding and removing a mesh and replacing a geometry never ope
     // every frame, turns dynamic and is rewritten in place from then on (#573).
     const rows = live();
     assert.ok(rows >= 2 && rows <= 3, `frame ${frame}: ${rows} rows drawn`);
+    mostLive = Math.max(mostLive, blobs.live.size);
   }
+  Object.assign(URL, { createObjectURL: blobs.made, revokeObjectURL: blobs.revoked });
+  // Over every geometry worn and replaced, the pages kept are those of the few still mounting.
+  assert.ok(mostLive <= 12, `${mostLive} page blobs alive at most`);
   runtime.dispose();
   await new Promise(setImmediate);
   stop();
