@@ -21,7 +21,7 @@ import type { HostMaterials } from '../host/resources.ts';
 import type { BackendContext } from '../backend/types.ts';
 import type { createAutonomousGeometry } from '../backend/autonomous/geometry.ts';
 import type { PlacementMount } from './backendSceneUpdates.ts';
-import { namedNode, poseNode } from '../host/world/moveByName.ts';
+import { poseNamed } from '../host/world/moveByName.ts';
 
 /** Addresses already counted, reused across calls: nothing is allocated to count a frame. */
 const counted = new Set<string>();
@@ -92,8 +92,7 @@ export function autonomousPlacements(env: Placements) {
      *  (`poseNode`), from the parent world its host chain composes. The next image walks the
      *  engine index and follows it as it follows a host write, which the move settles. */
     setTransform(nodeName: string, matrix: Float32Array) {
-      const node = namedNode(context.source, nodeName, matrix);
-      if (poseNode(null, node, matrix, false)) gate.sceneMoved();
+      if (poseNamed(context.source, nodeName, matrix)) gate.sceneMoved();
     },
     /** The roots follow their rows, and a frame that moved something is not held. The instanced
      *  pages read the rows at the next frame's sync; the blended copies posed by rows read them in

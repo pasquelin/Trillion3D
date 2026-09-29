@@ -11,7 +11,7 @@ import { prepareMathBatch } from '../../math/batchState.ts';
 import { hostWorldLot, hostWorldTree } from './tree.ts';
 import { hostWorldChainInto } from './chain.ts';
 import { setWebgpuTransform } from '../../webgpu/pages/render/transform.ts';
-import { racine, runtime } from '../../webgpu/core/transformShear.fixture.ts';
+import { selectionRoot, runtime } from '../../webgpu/core/transformShear.fixture.ts';
 import { hostWorldPlacements } from './placements.ts';
 import { assertBits } from '../../../../../tests/kit/assert/bits.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
@@ -37,7 +37,7 @@ const chain = (node: Object3D) => hostWorldChainInto(new Float64Array(16), node)
 
 for (const batched of [false, true])
   test(`reparent, removal and swap: each world is the host chain's — ${batched ? 'lot' : 'tree'}`, async () => {
-    if (batched) await prepareMathBatch();
+    if (batched) await prepareMathBatch('wasm');
     const { source, a, b, c, d } = scene();
     const index = hostWorldTree(source, batched ? await hostWorldLot(source) : null);
     const check = (label: string) => {
@@ -69,7 +69,7 @@ test('a node reparented by the host moves with its new parent through setTransfo
   const mesh = G.mesh();
   b.add(mesh);
   const worlds = hostWorldPlacements(source);
-  const root = racine(mesh, [-1, -1, -1, 1, 1, 1], worlds);
+  const root = selectionRoot(mesh, [-1, -1, -1, 1, 1, 1], worlds);
   const { rt } = runtime(source, [root], worlds);
   c.add(b);
   const moved = new Float32Array(new G.Matrix4().makeTranslation(40, 0, 0).elements);

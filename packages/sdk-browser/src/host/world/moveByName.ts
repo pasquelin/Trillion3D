@@ -121,3 +121,10 @@ export function poseNode(
   node.matrixAutoUpdate = false;
   return true;
 }
+
+/** A move by name on a scene no engine tree mirrors (WebGL2's, a world's): the node posed from
+ *  its host chain, or null when the move moves nothing. */
+export function poseNamed(source: Object3D, nodeName: string, matrix: Float32Array) {
+  const node = namedNode(source, nodeName, matrix);
+  return poseNode(null, node, matrix, false) ? node : null;
+}
