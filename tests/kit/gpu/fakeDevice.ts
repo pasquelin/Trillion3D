@@ -10,7 +10,7 @@ import {
   type LostInfo,
 } from './fakeRecords.ts';
 
-export { written, type FakeBuffer, type FakeWrite } from './fakeRecords.ts';
+export { replayWrites, written, type FakeBuffer, type FakeWrite } from './fakeRecords.ts';
 
 /**
  * The recording `GPUDevice` of unit tests that observe what one module asks of a device without a
