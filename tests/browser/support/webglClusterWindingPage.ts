@@ -7,6 +7,7 @@ import {
   readHostDrawCamera,
 } from '../../../packages/sdk-browser/src/camera/world.ts';
 import { drawMatrix, strictDegraded } from './webglClusterPixels.ts';
+import { keptClusterScene } from '../../../packages/sdk-browser/src/webgl/cluster/sceneDraw.ts';
 
 const center = (gl: WebGLRenderingContext | WebGL2RenderingContext) => {
   const value = new Uint8Array(4);
@@ -71,7 +72,13 @@ export function windingComparisons() {
     rig.scale.set(cameraMirror ? -1 : 1, 1, 1);
     rig.updateMatrixWorld(true);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    raw.draw([mesh.mesh], scene, readHostDrawCamera(createHostDrawCamera(), camera), false, true);
+    raw.draw(
+      [mesh.mesh],
+      keptClusterScene(scene),
+      readHostDrawCamera(createHostDrawCamera(), camera),
+      false,
+      true,
+    );
     const owned = center(gl);
     witness.render(witnessScene, threeCamera(camera));
     return { owned, witness: center(witness.getContext()) };
