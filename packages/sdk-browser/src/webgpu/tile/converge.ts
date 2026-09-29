@@ -92,6 +92,17 @@ async function convergeTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, pi
   return total;
 }
 
+/** True while the drain draws one more image: a report taken, whose casters may still load; a
+ *  page made or unmade resident after the last image (`seen`, `now`: the pool's residency
+ *  revision), which no plan saw yet — the pages it stales, those a light cut drew coarser among
+ *  them, are drawn again before the still average, not during it (#1016); or pages unsettled. */
+export const drainsAgain = (
+  offered: boolean,
+  seen: unknown,
+  now: unknown,
+  unsettled: () => boolean,
+) => offered || seen !== now || unsettled();
+
 /**
  * Drains shadow maps: images are rendered until the pages the image reads are all mapped and
  * drawn — a report of the last one proves it —, whatever staled them: an arriving tile, a moving
@@ -106,10 +117,14 @@ async function convergeTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, pi
  */
 async function drainShadows(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { lights, services } = rt;
+  const revision = () => rt.gpu.cache?.residencyRevision;
   let drains = 0,
-    offered = false;
-  for (; drains < SHADOW_DRAIN_LIMIT && (offered || shadowsUnsettled(lights)); drains++) {
+    offered = false,
+    seen = revision();
+  const again = () => drainsAgain(offered, seen, revision(), () => shadowsUnsettled(lights));
+  for (; drains < SHADOW_DRAIN_LIMIT && again(); drains++) {
     renderWebgpuPages(rt, rt.run.lastCamera!);
+    seen = revision();
     await gpuDevice.queue.onSubmittedWorkDone();
     await lights.pageRequests?.settled();
     await lights.lightCut?.settled();
