@@ -136,6 +136,14 @@
       "onEvent": "Dipanggil pada setiap peristiwa."
     }
   },
+  "BatchRead": {
+    "summary": "Cara `request` membaca satu kelompok: pembatalannya, prioritasnya, dan apa yang berjalan saat setiap halaman tiba.",
+    "members": {
+      "signal": "Membatalkan pembacaan kelompok.",
+      "priority": "Prioritas antrean, bawaan 1.",
+      "onPage": "Berjalan saat pembacaan setiap halaman tiba, bukan setelah seluruh kelompok."
+    }
+  },
   "BatchOutcome": {
     "summary": "Bagaimana satu pekerjaan batch berakhir.",
     "members": {

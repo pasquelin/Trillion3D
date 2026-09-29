@@ -136,6 +136,14 @@
       "onEvent": "每个事件发生时调用。"
     }
   },
+  "BatchRead": {
+    "summary": "`request` 如何读取一批：取消、优先级，以及每个页面到达时运行的内容。",
+    "members": {
+      "signal": "取消该批次的读取。",
+      "priority": "队列优先级，默认为 1。",
+      "onPage": "每个页面读取到达时运行，而不是在整批完成后。"
+    }
+  },
   "BatchOutcome": {
     "summary": "批处理中一个任务的结束方式。",
     "members": {

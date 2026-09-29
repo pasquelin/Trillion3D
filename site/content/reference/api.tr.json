@@ -136,6 +136,14 @@
       "onEvent": "Her olayda çağrılır."
     }
   },
+  "BatchRead": {
+    "summary": "`request` bir grubu nasıl okur: iptali, önceliği ve her sayfa geldiğinde ne çalışır.",
+    "members": {
+      "signal": "Grubun okumalarını iptal eder.",
+      "priority": "Kuyruk önceliği, varsayılan 1.",
+      "onPage": "Tüm grup bittikten sonra değil, her sayfanın okuması geldiğinde çalışır."
+    }
+  },
   "BatchOutcome": {
     "summary": "Bir yığın görevinin nasıl sonuçlandığı.",
     "members": {

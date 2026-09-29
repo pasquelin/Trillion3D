@@ -260,6 +260,14 @@
       "onEvent": "Chiamato a ogni evento."
     }
   },
+  "BatchRead": {
+    "summary": "Come `request` legge un lotto: il suo annullamento, la sua priorità e ciò che viene eseguito all’arrivo di ogni pagina.",
+    "members": {
+      "signal": "Annulla le letture del lotto.",
+      "priority": "Priorità in coda, 1 per impostazione predefinita.",
+      "onPage": "Viene eseguito all’arrivo della lettura di ogni pagina, non dopo l’intero lotto."
+    }
+  },
   "BatchOutcome": {
     "summary": "Come è terminata un'attività del lotto.",
     "members": {
