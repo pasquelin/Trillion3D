@@ -1,4 +1,5 @@
 import * as layer from './layers.ts';
+import { FLAG_DYNAMIC } from '../visibility/types.ts';
 
 /** `text` in a resolve that carries the as-is share, `none` in the flagless one. */
 export const shareText =
@@ -53,6 +54,11 @@ fn placementTag(at:vec2i)->u32{
  if(id==0u){return 0u;}
  return placementOf(id)%255u+1u;
 }
+fn dynamicPixel(at:vec2i)->f32{
+ let id=textureLoad(ids,at,0).r;
+ if(id==0u){return 0.0;}
+ return select(0.0,1.0,(pages[(id>>8u)-1u].flags&${FLAG_DYNAMIC}u)!=0u);
+}
 fn uncovered(uv:vec2f,centre:vec2i,last:vec2i,own:f32)->bool{
  let kept=textureGather(1,tagHistory,historySampler,uv)*255.0;
  if(any(abs(kept-own*255.0)<vec4f(0.5))){return false;}
@@ -81,7 +87,9 @@ fn currentShare(alpha:f32,reach:f32,rho:f32,fresh:bool)->f32{
  * `share` and its box are known: history read at the reprojected point, clamped to the box, mixed
  * with the current image by the inverse of each one's luminance. At rest (`view.jitter.z` 0) that
  * is today's resolve, to the bit. While moving the history is read with Catmull-Rom, and the
- * current share is `currentShare`'s, from the reactive value the blends and particles wrote.
+ * current share is `currentShare`'s, from the reactive value the blends and particles wrote — whole
+ * on a dynamic geometry's pixel (`dynamicPixel`, #573), whose vertices moved within their placement,
+ * which no motion matrix follows: its history is another shape, dropped rather than smeared.
  */
 export const taaHistoryBlend = (asIs: boolean, filtered = false) => {
   const share = shareText(asIs);
@@ -90,7 +98,7 @@ export const taaHistoryBlend = (asIs: boolean, filtered = false) => {
  var read=vec4f(0.0);
  if(view.jitter.z!=0.0){
   read=historyCatmullRom(previous.xy);
-  let rho=textureLoad(reactive,min(centre,vec2i(textureDimensions(reactive))-vec2i(1)),0).g;
+  let rho=max(textureLoad(reactive,min(centre,vec2i(textureDimensions(reactive))-vec2i(1)),0).g,dynamicPixel(centre));
   alpha=currentShare(alpha,reach,rho,uncovered(previous.xy,centre,last,tag));
  }else{read=textureSampleLevel(history,historySampler,previous.xy,0.0);}
  let clamped=clamp(vec4f(toYcocg(read.rgb),read.a),lo,hi);
