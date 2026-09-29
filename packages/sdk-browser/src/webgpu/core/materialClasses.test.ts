@@ -148,8 +148,8 @@ test('a row carries its resolve class, the census of the scene knows it before a
   assert.deepEqual(sceneMaterialClasses(collected.allPages, geometryBlocks, layers), [cutout]);
   // An image draws the classes of its packed rows only: the second row alone leaves the cut-out out.
   const present = createPresentClasses();
-  assert.deepEqual(markPresentClasses(ints, 2, present), [cutout, HAS_VERTEX_NORMAL]);
-  assert.deepEqual(markPresentClasses(ints.subarray(stride), 1, present), [HAS_VERTEX_NORMAL]);
+  assert.deepEqual(markPresentClasses(ints, 2, present, 0), [cutout, HAS_VERTEX_NORMAL]);
+  assert.deepEqual(markPresentClasses(ints.subarray(stride), 1, present, 0), [HAS_VERTEX_NORMAL]);
 });
 
 // OMB-11: the image reads its as-is flags from the first opaque row that shows a surface as-is —
