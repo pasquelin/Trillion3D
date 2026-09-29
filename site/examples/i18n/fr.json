@@ -2379,21 +2379,25 @@
   "a-character-that-walks": {
     "controls": {
       "playing": "Lecture"
-    }
+    },
+    "banner": "Faites glisser pour tourner autour de la scène. Interrompez ou reprenez l’animation avec Lecture."
   },
   "a-crowd-of-characters": {
     "controls": {
       "playing": "Lecture"
-    }
+    },
+    "banner": "Faites glisser pour tourner autour de la scène. Interrompez ou reprenez l’animation avec Lecture."
   },
   "a-shape-that-morphs": {
     "controls": {
       "playing": "Lecture"
-    }
+    },
+    "banner": "Faites glisser pour tourner autour de la scène. Interrompez ou reprenez l’animation avec Lecture."
   },
   "additive-poses": {
     "controls": {
       "playing": "Lecture"
-    }
+    },
+    "banner": "Faites glisser pour tourner autour de la scène. Interrompez ou reprenez l’animation avec Lecture."
   }
 }

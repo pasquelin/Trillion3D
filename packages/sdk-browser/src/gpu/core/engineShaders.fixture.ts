@@ -5,6 +5,7 @@
  * (`rasterSource`, `drawShader`, `transparentOcclusionShader`) is taken at one size: the size
  * changes a constant, never a name.
  */
+import { DEFORMATION_COMPUTE_WGSL } from '../../deformation/compute.ts';
 import { PRESENT_SHADER } from './presentation.ts';
 import { PRESENT_AT_SHADER } from './presentAt.ts';
 import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts';
@@ -60,6 +61,7 @@ const compositions = (label: string, sources: Record<string, string>) =>
   Object.fromEntries(Object.entries(sources).map(([input, code]) => [`${label}_${input}`, code]));
 
 export const ENGINE_SHADERS: Record<string, string> = {
+  DEFORMATION_COMPUTE_WGSL,
   PRESENT_SHADER,
   PRESENT_AT_SHADER,
   TRANSPARENT_OCCLUSION: transparentOcclusionShader(64),

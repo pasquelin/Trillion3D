@@ -2379,21 +2379,25 @@
   "a-character-that-walks": {
     "controls": {
       "playing": "播放"
-    }
+    },
+    "banner": "拖动以环绕查看场景。使用播放开关暂停或继续动画。"
   },
   "a-crowd-of-characters": {
     "controls": {
       "playing": "播放"
-    }
+    },
+    "banner": "拖动以环绕查看场景。使用播放开关暂停或继续动画。"
   },
   "a-shape-that-morphs": {
     "controls": {
       "playing": "播放"
-    }
+    },
+    "banner": "拖动以环绕查看场景。使用播放开关暂停或继续动画。"
   },
   "additive-poses": {
     "controls": {
       "playing": "播放"
-    }
+    },
+    "banner": "拖动以环绕查看场景。使用播放开关暂停或继续动画。"
   }
 }

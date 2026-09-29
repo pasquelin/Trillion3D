@@ -1625,7 +1625,7 @@ Imported glTF and FBX animation clips are exposed as `model.animations`. A mixer
 under that loaded model, including its morph weights. FBX imports translation, Euler rotation,
 scale and blend-weight clips through ufbx source evaluation. Original keys and the full playback
 span remain. Linear and cubic curves are subdivided by their Bezier control hull (scalar chord
-error at most 2.5e-7 source units); total Euler travel is limited to 15 degrees per initial
+error at most 2.5e-7 source units, or radians for rotations); total Euler travel is limited to 15 degrees per initial
 interval so complete rotations cannot disappear between quaternion keys. The converter refines
 world-space TRS against ufbx at each interval's quarter, midpoint and three-quarter samples,
 using emitted float32 endpoints and a 2.5e-7 component threshold (relative above magnitude one).
@@ -1636,7 +1636,10 @@ single-target blends retain non-unit full weights. Skins with unbound vertices o
 shapes, layered/constrained animation and sheared world transforms remain explicit
 `IMPORT_UNSUPPORTED_ANIMATION` refusals. Conversion also refuses more than 36,000 distinct keys
 or times that collapse at float32 precision; it never truncates a clip. glTF retains its original
-interpolation contracts:
+interpolation contracts. Stored skin weights remain exact float32 source values; both GPU paths
+normalize their sum when blending joints, keeping the bind pose and conservative bounds intact.
+A deformed scene refuses the untextured WebGPU fallback when its material pipeline is unavailable,
+so backend selection can recover instead of displaying rest geometry:
 
 ```ts
 const model = await world.scene.load('/character/cache/native/full/manifest.json');

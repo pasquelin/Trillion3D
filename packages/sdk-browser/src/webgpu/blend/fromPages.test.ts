@@ -62,8 +62,8 @@ test('a paged transparent item owns no host buffer and draws each cluster from i
     const { spans, entryOfPage } = rt.blendState.table!;
     fixture.encoded.forEach((page, id) => {
       const entry = entryOfPage[id];
-      assert.equal(spans[entry * 2 + 1], page.indexCount);
-      assert.equal(spans[entry * 2], rt.gpu.cache!.get(`g${id}`)!.offset / 4);
+      assert.equal(spans[entry * 4 + 1], page.indexCount);
+      assert.equal(spans[entry * 4], rt.gpu.cache!.get(`g${id}`)!.offset / 4);
     });
   } finally {
     await release(rt, fixture);

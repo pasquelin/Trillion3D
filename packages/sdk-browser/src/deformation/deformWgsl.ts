@@ -43,12 +43,12 @@ fn deformJoint(at:u32,j:u32,count:u32)->mat3x4f{
 }
 /** A point (\`w\` 1) or a direction (\`w\` 0) carried by the palette's blend of all joints. */
 fn deformSkin(h:ClusterHeader,page:PageInfo,vertex:u32,at:u32,count:u32,v:vec4f)->vec3f{
- var result=vec3f(0.0);
+ var result=vec3f(0.0);var total=0.0;
  for(var k=0u;k<h.influences;k++){
-  let weight=deformWeight(h,page,vertex,k);
+  let weight=deformWeight(h,page,vertex,k);total+=weight;
   if(weight!=0.0){result+=weight*(v*deformJoint(at,deformJointId(h,page,vertex,k),count));}
  }
- return result;
+ if(total>0.0){return result/total;}return v.xyz;
 }
 fn deformMatrix(at:u32)->mat4x4f{
  return mat4x4f(positions[at],positions[at+1u],positions[at+2u],positions[at+3u],

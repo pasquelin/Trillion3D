@@ -2379,21 +2379,25 @@
   "a-character-that-walks": {
     "controls": {
       "playing": "재생"
-    }
+    },
+    "banner": "드래그하여 장면 주위를 돌아봅니다. 재생으로 애니메이션을 일시 정지하거나 다시 시작합니다."
   },
   "a-crowd-of-characters": {
     "controls": {
       "playing": "재생"
-    }
+    },
+    "banner": "드래그하여 장면 주위를 돌아봅니다. 재생으로 애니메이션을 일시 정지하거나 다시 시작합니다."
   },
   "a-shape-that-morphs": {
     "controls": {
       "playing": "재생"
-    }
+    },
+    "banner": "드래그하여 장면 주위를 돌아봅니다. 재생으로 애니메이션을 일시 정지하거나 다시 시작합니다."
   },
   "additive-poses": {
     "controls": {
       "playing": "재생"
-    }
+    },
+    "banner": "드래그하여 장면 주위를 돌아봅니다. 재생으로 애니메이션을 일시 정지하거나 다시 시작합니다."
   }
 }

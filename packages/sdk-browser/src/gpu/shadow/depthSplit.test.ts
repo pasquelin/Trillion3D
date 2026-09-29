@@ -57,7 +57,16 @@ function scene(rng: () => number, o: Options) {
     const world = [vec4f(1 + around(0.1), 0, 0, 0), vec4f(0, 1, around(0.1), 0)];
     world.push(vec4f(0, 0, 1, 0), vec4f(around(0.2), around(0.2), around(0.02), 1));
     const dash = { x: odd(0.5 * rng()), y: 0.5 * rng() };
-    return { flags, indexCount: corners, pageOffset, vertexBase, world, dash, baseColor: { w: 0 } };
+    return {
+      deformOutput: 0,
+      flags,
+      indexCount: corners,
+      pageOffset,
+      vertexBase,
+      world,
+      dash,
+      baseColor: { w: 0 },
+    };
   });
   const viewProjection: Mat = [vec4f(1, 0, 0, 0), vec4f(0, 1, 0, 0), vec4f(0, 0, odd(1), 0)];
   viewProjection.push(vec4f(0, 0, 0, odd(1)));

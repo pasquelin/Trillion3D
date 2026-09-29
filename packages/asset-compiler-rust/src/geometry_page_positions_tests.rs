@@ -164,7 +164,7 @@ const DEVELOP: &str = include_str!("geometry_page_positions_develop.tsv");
 // Behaviour: every case decodes to the words develop decoded it to, or is refused alike, in no
 // more page bytes; the flat-shaded pages, their positions stored once, in fewer.
 #[test]
-fn every_page_decodes_as_on_develop_and_flat_shaded_pages_weigh_less() {
+fn every_page_decodes_as_on_develop_with_one_additional_header_word() {
     let develop: Vec<Vec<&str>> = DEVELOP.lines().map(|l| l.split('\t').collect()).collect();
     let all = cases();
     assert_eq!(all.len(), develop.len());
@@ -173,7 +173,12 @@ fn every_page_decodes_as_on_develop_and_flat_shaded_pages_weigh_less() {
         let (digest, bytes) = outcome(mesh, *exponent);
         let was: usize = row[2].parse().expect("develop bytes");
         assert_eq!((name.as_str(), digest.as_str()), (row[0], row[1]));
-        assert!(bytes <= was, "{name}: {bytes} > {was} bytes");
+        // Format 7 adds the exact source skin-influence count to every page header.
+        let header_growth = if bytes > 0 { 4 } else { 0 };
+        assert!(
+            bytes <= was + header_growth,
+            "{name}: {bytes} > {was} + {header_growth} bytes"
+        );
         (before, after) = (before + was, after + bytes);
         if mesh
             .indices

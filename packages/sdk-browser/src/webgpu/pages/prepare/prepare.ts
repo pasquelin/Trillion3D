@@ -150,10 +150,15 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     await step('visibility programs', () => prepareWebgpuVisibility(rt, gpuDevice));
   } catch (error) {
     throwIfStopped(rt); // A close or a loss is no material failure.
+    // The untextured fallback reads rest positions, so a deformed scene must select another backend.
+    if (vis.deformation?.any) throw error;
     diag.diagnosticFailure('material-pipeline-failed', error);
     dropVis(rt);
   }
-  if (blendState.blendGpu.length && !vis.blendPipelines) dropVis(rt);
+  if (blendState.blendGpu.length && !vis.blendPipelines) {
+    if (vis.deformation?.any) throw new Error('WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE');
+    dropVis(rt);
+  }
   if (context.gpuCanvas && !vis.visEnabled) throw new Error('WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE');
   if (context.gpuCanvas && blendState.blendGpu.length && !vis.blendPipelines)
     throw new Error('WEBGPU_FORWARD_MATERIAL_UNAVAILABLE');

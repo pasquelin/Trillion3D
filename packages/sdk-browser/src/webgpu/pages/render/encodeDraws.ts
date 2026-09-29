@@ -151,6 +151,7 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
       abandonFrameEncoder(rt);
       timing.gpuTiming?.cancelUnsubmitted();
       diag.diagnosticFailure('visibility-render-failed', error);
+      if (vis.deformation?.any) throw error;
       dropVis(rt);
       // The fallback draw walks every row: the light casters' rows leave before it runs.
       if (!run.gpuFrameActive && run.cameraRows < rows.packedCount)
