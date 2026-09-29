@@ -32,7 +32,7 @@ function pageOf(overrides: Partial<VisPage> = {}): VisPage {
   return {
     array: new Uint32Array([0, 1, 2]),
     attributes: {},
-    matrix: new G.Matrix4(),
+    placementIndex: 0,
     material: surfaceOf(G.basicSurface()),
     ...overrides,
   };
@@ -43,6 +43,7 @@ const TRI_BASE = {
   b: vertex(1, -1.2, 0.3, 1.1),
   c: vertex(0.2, 1, -0.4, 0.9),
   page: pageOf(),
+  world: new G.Matrix4(),
   triangleIndex: 0,
   i0: 0,
   i1: 1,
@@ -99,11 +100,11 @@ test('without a normal or a map: face path only, several roughnesses and metalne
 });
 
 test('negative determinant (mirrored page) and doubleSided/backSide combined', () => {
-  const page = pageOf({ matrix: new G.Matrix4().makeScale(-1, 1, 1) });
+  const tri = { ...TRI_BASE, world: new G.Matrix4().makeScale(-1, 1, 1) };
   for (const doubleSided of [false, true])
     for (const backSide of [false, true])
       assertSameShading(
-        { page, affine: { area: 0.1 }, mat: litMaterial({ doubleSided, backSide }) },
+        { tri, affine: { area: 0.1 }, mat: litMaterial({ doubleSided, backSide }) },
         `ds${doubleSided} bs${backSide}`,
       );
 });

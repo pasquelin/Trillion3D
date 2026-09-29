@@ -16,19 +16,18 @@ const alea = graine(83);
 // One record in ten is empty: the pass must write a zero radius there, never read a missing card.
 // The output buffer belongs to the case, allocated once, as the engine holds its own.
 function clusters(nombre: number) {
-  const recs: (PageRec | undefined)[] = [];
+  const recs: (PageRec | undefined)[] = [],
+    roots: { world: THREE.Matrix4 }[] = [];
   for (let i = 0; i < nombre; i++) {
     const elements = new Float64Array(16);
     for (let j = 0; j < 16; j++) elements[j] = (alea() - 0.5) * 10;
     const min = [(alea() - 0.5) * 5, (alea() - 0.5) * 5, (alea() - 0.5) * 5];
     const max = [min[0] + alea() * 5, min[1] + alea() * 5, min[2] + alea() * 5];
-    recs.push(
-      i % 10 === 9
-        ? undefined
-        : pageRecFixture({ matrix: new THREE.Matrix4().fromArray(elements), min, max }),
-    );
+    // Each record ranks a root of its own, which carries its world.
+    roots.push({ world: new THREE.Matrix4().fromArray(elements) });
+    recs.push(i % 10 === 9 ? undefined : pageRecFixture({ placementIndex: i, min, max }));
   }
-  return { recs, packed: new Float32Array(nombre * 4) };
+  return { recs, roots, packed: new Float32Array(nombre * 4) };
 }
 
 const mesSpheres = await mesure({
@@ -39,10 +38,12 @@ const mesSpheres = await mesure({
     { name: '1 cluster', input: clusters(1), size: 1 },
     { name: 'none', input: clusters(0), size: 0 },
   ],
-  calcul: ({ recs, packed }) => packClusterSpheres(recs, packed, 0, recs.length - 1),
-  attendu: ({ recs }) => {
+  calcul: ({ recs, roots, packed }) => packClusterSpheres(recs, roots, packed, 0, recs.length - 1),
+  attendu: ({ recs, roots }) => {
     const output = new Float32Array(recs.length * 4);
-    recs.forEach((rec, i) => rec && referenceClusterSphere(rec, output, i * 4));
+    recs.forEach(
+      (rec, i) => rec && referenceClusterSphere({ ...rec, matrix: roots[i].world }, output, i * 4),
+    );
     return output;
   },
 });

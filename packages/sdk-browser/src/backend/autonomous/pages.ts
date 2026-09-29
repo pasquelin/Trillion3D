@@ -51,14 +51,14 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
   const { lighting, api: lightingApi } = createContractLighting(scene, context, gate.sceneChanged);
   let ready = false;
   const geometryStore = createAutonomousGeometry({
-    ...{ scene, allPages, bootstrap, views, byUrl, descriptors },
+    ...{ scene, roots, allPages, bootstrap, views, byUrl, descriptors },
     ...{ baseMaterials, colorMaterials, modifiedPages },
   });
   const { sync, acceptGeometryPage } = geometryStore;
-  const classes = createClassPages({ context, geometryStore, wears, gate });
+  const classes = createClassPages({ context, roots, geometryStore, wears, gate });
   // The tables a placement enters: instances and instance-buffer rows append to the same.
   const tables = { roots, allPages, bootstrap, byUrl, baseMaterials, blendOf };
-  const heldFloor = createHeldFloor({ bootstrap, modifiedPages, byUrl, hostCeiling });
+  const heldFloor = createHeldFloor({ roots, bootstrap, modifiedPages, byUrl, hostCeiling });
   const ceiling =
     hostCeiling < Infinity ? () => hostCeiling : () => Math.max(pageDefault, heldFloor.meshes());
   const { disposeOwnedMaterials, instanceCount, ...instances } = createAutonomousInstances({
@@ -180,7 +180,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
         lodLevel: state.lodLevel,
         submittedTriangles: geometryStore.state.submittedTriangles,
         totalSubmittedTriangles: hostDraw.counters()?.triangles ?? null,
-        drawCalls: attachedPages(views.live.shown),
+        drawCalls: attachedPages(views.live.shown, roots),
         coverageReady: ready,
         coverageBudgetLimited: state.overBudget || pool.budget.coverageBudgetLimited,
         frameHeld: state.frameHeld,

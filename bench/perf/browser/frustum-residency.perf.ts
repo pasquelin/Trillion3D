@@ -90,6 +90,7 @@ function hote(nombre: number) {
     ],
     geometryStore: createAutonomousGeometry({
       scene: new Scene(),
+      roots: [],
       allPages: [],
       bootstrap: [],
       views: { live: { shown: [] }, lists: () => [] },
