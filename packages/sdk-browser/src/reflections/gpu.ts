@@ -1,6 +1,7 @@
-import { refreshSurface } from '../page/surface.ts';
+import { refreshSurface, type PageSurface } from '../page/surface.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import { reflects } from './eligible.ts';
+import { rowsMoved, rowsUnread, type RowsReading } from '../webgpu/row/dirty.ts';
 
 const layouts = new WeakMap<GPUDevice, GPUBindGroupLayout>();
 export function reflectionLayout(device: GPUDevice) {
@@ -22,15 +23,43 @@ export function reflectionLayout(device: GPUDevice) {
   return layout;
 }
 
-/** Inspect only resident view rows and forward receivers, never the world's catalogue. */
+/** The distinct surfaces of a row table's packed rows, and the rows they were read from. */
+type RowSurfaces = { read: RowsReading; surfaces: PageSurface[] };
+const rowSurfaces = new WeakMap<object, RowSurfaces>();
+
+/** The surfaces rows `[0, count)` wear, each once: the rows are walked again only once written. */
+function surfacesOfRows(rows: WebgpuPagesRuntime['layout']['rows']) {
+  let held = rowSurfaces.get(rows);
+  if (!held) rowSurfaces.set(rows, (held = { read: rowsUnread(), surfaces: [] }));
+  if (!rowsMoved(held.read, rows.packedRecs, rows.packedCount, rows.rowWrites))
+    return held.surfaces;
+  const seen = new Set<PageSurface>(),
+    recs = rows.packedRecs,
+    count = rows.packedCount;
+  let last: PageSurface | undefined;
+  for (let i = 0; i < count; i++) {
+    const surface = recs[i]?.material;
+    if (!surface || surface === last) continue;
+    last = surface;
+    seen.add(surface);
+  }
+  held.surfaces = [...seen];
+  return held.surfaces;
+}
+
+/**
+ * Inspect only resident view rows and forward receivers, never the world's catalogue. Each
+ * surface is reread once, however many rows wear it, and the rows are walked only when one was
+ * written: a world of instances holds hundreds of thousands of rows over a handful of surfaces,
+ * and a reread per row cost its image tens of milliseconds, twice (#410).
+ */
 export function wantsReflections(rt: WebgpuPagesRuntime) {
   if (rt.run.diagnostic !== 'beauty') return false;
-  const rows = rt.layout.rows;
-  for (let i = 0; i < rows.packedCount; i++) {
-    const rec = rows.packedRecs[i];
-    if (rec && reflects(refreshSurface(rec.material))) return true;
-  }
-  return rt.blendState.blendGpu.some((item) => reflects(refreshSurface(item.surface)));
+  const reflecting = (surface: PageSurface) => reflects(refreshSurface(surface));
+  return (
+    surfacesOfRows(rt.layout.rows).some(reflecting) ||
+    rt.blendState.blendGpu.some((item) => reflecting(item.surface))
+  );
 }
 
 export function createScreenReflection(

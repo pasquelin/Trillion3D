@@ -120,6 +120,10 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number, 
     get dirtyTo() {
       return dirtyRows.span.to;
     },
+    /** Row writes since the table was made (`rowsMoved`). */
+    get rowWrites() {
+      return dirtyRows.writes;
+    },
     get candidateCount() {
       return candidateCount;
     },
