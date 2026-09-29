@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createWebglFrameTimer } from './frameTimer.ts';
+import { createWebglFrameTimer, WHOLE_FRAME_PASS } from './frameTimer.ts';
 
 const TIME_ELAPSED_EXT = 0x88bf;
 const GPU_DISJOINT_EXT = 0x8fbb;
@@ -51,6 +51,7 @@ test('without the extension, the timer reports unsupported and nothing is ever m
   const timer = createWebglFrameTimer(fakeGl({ withExtension: false }).gl);
   assert.equal(timer.supported, false);
   timer.begin(0);
+  timer.pass('any');
   timer.end();
   const polled = timer.poll();
   assert.equal(polled.ms, null);
@@ -59,7 +60,13 @@ test('without the extension, the timer reports unsupported and nothing is ever m
 
 test('with no pending query, poll explains the absence rather than returning zero', () => {
   const timer = createWebglFrameTimer(fakeGl().gl);
-  assert.deepEqual(timer.poll(), { ms: null, reason: 'no pending query', frame: null });
+  assert.deepEqual(timer.poll(), {
+    ms: null,
+    reason: 'no pending query',
+    frame: null,
+    passes: [],
+    truncated: false,
+  });
 });
 
 test('a query that is not ready yet stays unmeasured, without being lost', () => {
@@ -67,11 +74,11 @@ test('a query that is not ready yet stays unmeasured, without being lost', () =>
   const timer = createWebglFrameTimer(f.gl);
   timer.begin(0);
   timer.end();
-  assert.deepEqual(timer.poll(), { ms: null, reason: 'result not ready yet', frame: null });
+  assert.equal(timer.poll().reason, 'result not ready yet');
   assert.equal(f.flushes(), 1);
 });
 
-test('an available non-disjoint query yields a duration in milliseconds, its image and its tag', () => {
+test('a frame that names no pass keeps one whole-frame interval', () => {
   const f = fakeGl();
   const timer = createWebglFrameTimer(f.gl);
   timer.begin(7);
@@ -81,9 +88,33 @@ test('an available non-disjoint query yields a duration in milliseconds, its ima
     ms: 2.5,
     reason: null,
     frame: 7,
+    passes: [{ name: WHOLE_FRAME_PASS, ms: 2.5 }],
+    truncated: false,
     tag: { scale: 0.5, steered: true },
   });
   assert.deepEqual(f.deleted, [0]);
+});
+
+test('each contiguous pass is timed on its own, in order, and the image sums them', () => {
+  const f = fakeGl();
+  const timer = createWebglFrameTimer(f.gl);
+  timer.begin(3);
+  timer.pass('capture');
+  timer.pass('opaque');
+  timer.pass('transmission');
+  timer.end();
+  // The interval opened at `begin` carries the first pass; the next three open their own.
+  assert.equal(f.created(), 3);
+  f.markAvailable(0, 1_000_000);
+  f.markAvailable(1, 4_000_000);
+  f.markAvailable(2, 500_000);
+  const read = timer.poll();
+  assert.equal(read.ms, 5.5, 'the image is the sum of its passes');
+  assert.deepEqual(read.passes, [
+    { name: 'capture', ms: 1 },
+    { name: 'opaque', ms: 4 },
+    { name: 'transmission', ms: 0.5 },
+  ]);
 });
 
 test('a disjoint query is dropped with its reason, never published as a duration', () => {
@@ -91,22 +122,25 @@ test('a disjoint query is dropped with its reason, never published as a duration
   f.setDisjoint(true);
   const timer = createWebglFrameTimer(f.gl);
   timer.begin(0);
+  timer.pass('opaque');
   timer.end();
   f.markAvailable(0, 1_000_000);
   assert.deepEqual(timer.poll(), {
     ms: null,
     reason: 'the driver interrupted the measurement (GPU_DISJOINT_EXT)',
     frame: null,
+    passes: [],
+    truncated: false,
   });
 });
 
-test('beyond the pending-query threshold, no further query is opened', () => {
+test('beyond the pending-query threshold, no further frame is opened', () => {
   const f = fakeGl();
   const timer = createWebglFrameTimer(f.gl);
   for (let i = 0; i < 6; i++) {
     timer.begin(0);
     timer.end();
   }
-  // MAX_PENDING = 4: the 5th query is still admitted (pending.length goes from 4 to 5), the 6th is refused.
-  assert.equal(f.created(), 5);
+  // MAX_PENDING = 4: four frames stay in flight, the fifth and sixth open nothing.
+  assert.equal(f.created(), 4);
 });
