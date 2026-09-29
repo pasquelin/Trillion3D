@@ -5,6 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PAGE_VALID } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
 import { seeded } from '../../../../../site/examples/kit/random.ts';
 import { functionsOf } from '../../texture/shaderRule.fixture.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
@@ -20,7 +21,7 @@ type Read = (map: PageMap, p: number[], t: number[]) => number;
 const live = { table: new Uint32Array(0), asked: [] as number[] };
 const { shadowPageWord } = shaderRun<{ shadowPageWord: Read }>(
   SHADOW_WGSL,
-  ['shadowPageWord', 'shadowFootprintCovers', 'shadowRing'],
+  ['shadowPageWord', 'shadowPageEntry', 'shadowFootprintCovers', ...PAGE_MODEL_FUNCTIONS],
   { ...CONSTANTS, shadows: live, requestShadowPage: (e: number) => live.asked.push(e) },
 );
 /** The shipped read of page `p` of `map` at texel `t` over `table`: its word and its requests. */

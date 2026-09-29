@@ -8,45 +8,37 @@ import type { SceneLightStore } from '../../../../sdk-core/src/scene/light/store
 import { writeFace } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
 import type { ShadowPlan } from '../../../../sdk-core/src/scene/light-shadow/plan.ts';
 import {
-  LAMP_MIPS,
   LAMP_SIDE,
   SHADOW_PAGE,
   SUN_LEVELS,
   SUN_WINDOW,
-  lampEntry,
   lampFacesOf,
-  sunEntry,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import {
+  PAGES,
+  lampEntry,
+  pcfPages,
+  sunEntry,
+} from '../../../../sdk-core/src/scene/light-shadow/pageModel.ts';
 import { BIAS, along, sub, type Vec } from '../../lighting/direct/shadowBias.fixture.ts';
 import { pointFaceOf } from '../../lighting/direct/shadowLamp.fixture.ts';
 
 /** The lines of `shadowFactorWgsl.ts` and `shadowWgsl.ts` this fixture restates. */
 export const READ = [
-  ' let texel0=2.0*info.y*radius/(f32(LAMP_PAGE_COUNT)*SHADOW_PAGE);',
-  ' let wanted=clamp(floor(log2(max(shadowFootprint/texel0,1.0))),0.0,f32(LAMP_MIP_COUNT-1u));',
-  '  let t=vec2f(ndc.x*0.5+0.5,0.5-ndc.y*0.5)*side;',
-  '  let home=clamp(vec2i(floor(t/SHADOW_PAGE)),vec2i(0),vec2i(i32(pages)-1));',
-  ' for(var level=max(i32(floor(log2(max(shadowFootprint,1e-30)))),finest);level<last;level++){',
-  '  let t=vec2f(dot(Q,right)-f32(origin.x)*page,-dot(Q,up)-f32(origin.y)*page)/texel;',
-  ' let edge=(t-1.5<first)|(t+1.5>=first+SHADOW_PAGE);',
-  '  if(any(p<vec2i(0))||any(p>=vec2i(m.pages))){return 0u;}',
+  ' let texel0=shadowLampFinestTexel(info.y,radius);',
+  ' let wanted=shadowLampReadMip(shadowFootprint,texel0);',
+  '  let t=vec2f(shadowLampMapTexel(ndc.x,side),shadowLampMapTexel(-ndc.y,side));',
+  '  let home=clamp(vec2i(shadowPageOfTexel(t.x),shadowPageOfTexel(t.y)),vec2i(0),vec2i(i32(pages)-1));',
+  ' for(var level=shadowSunReadLevel(shadowFootprint,finest);level<last;level++){',
+  '  let t=vec2f(shadowSunMapTexel(dot(Q,right),origin.x,level),shadowSunMapTexel(-dot(Q,up),origin.y,level));',
+  '  let home=vec2i(shadowPageOfTexel(t.x),shadowPageOfTexel(t.y));',
+  ' let edge=vec2i(shadowPcfEdge(t.x,first.x),shadowPcfEdge(t.y,first.y))>vec2i(0);',
+  '  if(any(p<vec2i(0))||any(p>=vec2i(m.pages))){return -1;}',
 ];
 
 /** A lit point: where it lies, its normal. */
 export type Lit = { P: Vec; N: Vec };
 const UP: Vec = [0, 1, 0];
-
-/** The home page of map texel `t` and the neighbours `shadowPcf` reads across its edges. */
-function pagesRead(t: number[], home: number[]) {
-  const first = home.map((p) => p * SHADOW_PAGE),
-    edge = [0, 1].map((a) => t[a] - 1.5 < first[a] || t[a] + 1.5 >= first[a] + SHADOW_PAGE),
-    step = [0, 1].map((a) => (t[a] - first[a] >= 0.5 * SHADOW_PAGE ? 1 : -1));
-  const read = [home];
-  if (edge[0]) read.push([home[0] + step[0], home[1]]);
-  if (edge[1]) read.push([home[0], home[1] + step[1]]);
-  if (edge[0] && edge[1]) read.push([home[0] + step[0], home[1] + step[1]]);
-  return read;
-}
 
 const matrices = new Float32Array(6 * 16),
   clip = new Float64Array(4);
@@ -65,8 +57,8 @@ function lampReads(plan: ShadowPlan, store: SceneLightStore, slot: number, lit: 
     toLight = sub(L, lit.P),
     radius = Math.hypot(...toLight);
   if (radius > light.range!) return [];
-  const texel0 = (2 * tanHalf * radius) / (LAMP_SIDE * SHADOW_PAGE);
-  const mip = Math.min(LAMP_MIPS - 1, Math.max(0, Math.floor(Math.log2(Math.max(f / texel0, 1)))));
+  const texel0 = PAGES.shadowLampFinestTexel(tanHalf, radius);
+  const mip = PAGES.shadowLampReadMip(f, texel0);
   const cosine = Math.min(Math.max(dot(lit.N, toLight) / radius, 1e-3), 1);
   const Q = along(lit.P, lit.N, BIAS(texel0 * 2 ** mip, cosine)[0]);
   const face = faces > 1 ? pointFaceOf(sub(Q, L)) : 0;
@@ -75,11 +67,11 @@ function lampReads(plan: ShadowPlan, store: SceneLightStore, slot: number, lit: 
   const [u, v] = [clip[0] / clip[3], clip[1] / clip[3]];
   if (faces === 1 && (Math.abs(u) > 1 || Math.abs(v) > 1)) return [];
   const pages = LAMP_SIDE >> mip,
-    t = [(u * 0.5 + 0.5) * pages * SHADOW_PAGE, (0.5 - v * 0.5) * pages * SHADOW_PAGE];
+    t = [u, -v].map((ndc) => PAGES.shadowLampMapTexel(ndc, pages * SHADOW_PAGE));
   const clamp = (p: number) => Math.min(pages - 1, Math.max(0, p));
-  return pagesRead(
+  return pcfPages(
     t,
-    t.map((c) => clamp(Math.floor(c / SHADOW_PAGE))),
+    t.map((c) => clamp(PAGES.shadowPageOfTexel(c))),
   ).map(([x, y]) => base + lampEntry(face, mip, clamp(x), clamp(y)));
 }
 
@@ -89,23 +81,18 @@ function sunReads(plan: ShadowPlan, slice: number, lit: Lit, f: number) {
     base = plan.table.baseOf(slice),
     finest = sun.finest[slice];
   const cosine = Math.min(Math.max(-dot(lit.N, sun.frame, slice * 9 + 6), 1e-3), 1);
-  for (
-    let level = Math.max(Math.floor(Math.log2(f)), finest);
-    level < finest + SUN_LEVELS;
-    level++
-  ) {
-    const texel = 2 ** level,
-      page = texel * SHADOW_PAGE,
+  for (let level = PAGES.shadowSunReadLevel(f, finest); level < finest + SUN_LEVELS; level++) {
+    const texel = PAGES.shadowSunTexelMetres(level),
       origin = [0, 1].map((axis) => sun.originOf(slice, level, axis));
     const Q = along(lit.P, lit.N, BIAS(texel, cosine)[0]);
     const t = [
-      (dot(Q, sun.frame, slice * 9) - origin[0] * page) / texel,
-      (-dot(Q, sun.frame, slice * 9 + 3) - origin[1] * page) / texel,
+      PAGES.shadowSunMapTexel(dot(Q, sun.frame, slice * 9), origin[0], level),
+      PAGES.shadowSunMapTexel(-dot(Q, sun.frame, slice * 9 + 3), origin[1], level),
     ];
-    const home = t.map((c) => Math.floor(c / SHADOW_PAGE)),
+    const home = t.map(PAGES.shadowPageOfTexel),
       inside = (p: number[]) => p.every((c) => c >= 0 && c < SUN_WINDOW);
     if (!inside(home)) continue;
-    return pagesRead(t, home)
+    return pcfPages(t, home)
       .filter(inside)
       .map(([x, y]) => base + sunEntry(level, x + origin[0], y + origin[1]));
   }

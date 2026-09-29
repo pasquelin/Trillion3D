@@ -2,8 +2,8 @@ import { LIGHT_KIND, LIGHT_SETTINGS, MAX_SHADOW_SLICES, POINT_FACES } from '../l
 
 /**
  * THE VIRTUAL LAYOUT OF SHADOW MAPS: what a page of each light is, and where its word sits in
- * the page table. Pure arithmetic, shared by the scheduler and — through the constants it
- * exports — by the shaders, so the two can never address a page differently.
+ * the page table. The formulas that address a page — shared by the scheduler and the shaders —
+ * are the page model's (`pageModel.ts`).
  *
  * - A **sun** has `SUN_LEVELS` clipmap levels. Level `L` has texels of `2^L` metres and an extent
  *   of `SUN_WINDOW²` pages around the camera, addressed by absolute page modulo the extent — a
@@ -121,18 +121,8 @@ export function pageOrigin(phys: number, side: number) {
 export const shadowPoolSide = (width: number, height: number) =>
   shadowPoolShape(shadowPoolSize(width, height)).side;
 
-/** Non-negative remainder. */
-export const ringOf = (value: number, size: number) => ((value % size) + size) % size;
-
 /** Pages per side of a lamp face at `mip`. */
 export const lampPagesAt = (mip: number) => LAMP_SIDE >> mip;
-
-/** First entry of `mip` inside a lamp face. */
-export function lampMipOffset(mip: number) {
-  let offset = 0;
-  for (let m = 0; m < mip; m++) offset += lampPagesAt(m) ** 2;
-  return offset;
-}
 
 /** Faces a lamp of kind `rank` draws: six for a point, one for a spot. */
 export const lampFacesOf = (rank: number) => (rank === LIGHT_KIND.point ? POINT_FACES : 1);
@@ -142,16 +132,6 @@ export function tableEntriesOf(rank: number) {
   if (rank === LIGHT_KIND.directional) return SUN_ENTRIES;
   return lampFacesOf(rank) * LAMP_FACE_ENTRIES;
 }
-
-/** Entry of sun page `(ax, ay)` of level `level`, relative to the light's table base. */
-export const sunEntry = (level: number, ax: number, ay: number) =>
-  ringOf(level, SUN_LEVELS) * SUN_LEVEL_ENTRIES +
-  ringOf(ay, SUN_WINDOW) * SUN_WINDOW +
-  ringOf(ax, SUN_WINDOW);
-
-/** Entry of lamp page `(x, y)` of `face` at `mip`, relative to the light's table base. */
-export const lampEntry = (face: number, mip: number, x: number, y: number) =>
-  face * LAMP_FACE_ENTRIES + lampMipOffset(mip) + y * lampPagesAt(mip) + x;
 
 /** What a relative lamp entry names: face, mip and page, written into `out`. */
 export function decodeLampEntry(relative: number, out: Int32Array) {
@@ -180,13 +160,3 @@ export const lampCoarseness = (mip: number) => mip * SUN_LEVELS;
  *  lamp face's one-page mip. */
 export const sunFloorLevel = (finest: number) => finest + SUN_LEVELS - 1;
 export const LAMP_FLOOR_MIP = LAMP_MIPS - 1;
-
-/** Side of a sun page at `level`, in metres: 128 texels of `2^level`. */
-export const sunPageMetres = (level: number) => SHADOW_PAGE * 2 ** level;
-
-/**
- * The finest level a pixel of this view can read: the texel at most the size of its footprint
- * at the near plane. Every finer level would be sharper than any pixel that reads it.
- */
-export const finestSunLevel = (pixelNear: number) =>
-  Math.floor(Math.log2(Math.max(pixelNear, Number.MIN_VALUE)));

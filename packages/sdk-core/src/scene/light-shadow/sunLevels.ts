@@ -2,15 +2,8 @@ import { dotVector3 } from '../../math/primitives/vector.ts';
 import { MAX_SHADOW_SLICES, type ShadowViewpoint } from '../light/contracts.ts';
 import { faceFrame, sunBoxRect } from './math.ts';
 import { createSunDepthRanges } from './sunDepth.ts';
-import {
-  SUN_LEVELS,
-  SUN_LEVEL_ENTRIES,
-  SUN_WINDOW,
-  finestSunLevel,
-  ringOf,
-  sunFloorLevel,
-  sunPageMetres,
-} from './virtual.ts';
+import { SUN_LEVELS, SUN_LEVEL_ENTRIES, SUN_WINDOW, sunFloorLevel } from './virtual.ts';
+import { finestSunLevel, ringOf, sunPageMetres } from './pageModel.ts';
 
 /** Frames of layout kept to read a request report back: deeper than any readback lag. */
 const HISTORY = 8;

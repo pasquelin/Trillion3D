@@ -8,7 +8,8 @@ import assert from 'node:assert/strict';
 import { createSceneLightStore } from '../light/store.ts';
 import { createShadowPlan } from './plan.ts';
 import { SUN, VIEW, report, sunPages } from './lightShadow.fixture.ts';
-import { PAGE_VALID, sunEntry, sunFloorLevel, sunPageMetres } from './virtual.ts';
+import { PAGE_VALID, sunFloorLevel } from './virtual.ts';
+import { sunEntry, sunPageMetres } from './pageModel.ts';
 
 /** A scene twenty metres wide, under a view that sees two hundred metres around. */
 const BOX_MIN = [-10, 0, -10],
