@@ -1134,7 +1134,8 @@
       "pageDecodeMs": "Sayfaları çözmeye harcanan süre.",
       "mathBatch": "Compute yolu regülatörünün durumu (`../math/path/governor.ts`): her yığın işleminin mevcut yolu, her iki yolun medyanları, geçişler. Bir yığın açmamış bir host'ta `null` — ölçülmemiş, \"JavaScript yolu\" değil.",
       "pagesPlannedOffThread": "Ana iş parçacığı dışında sayfa entegrasyonu. `pagesPlannedOffThread`, planı — her cluster'ın pakette yeri ve taşıdığı sayfa sıraları — bir worker tarafından hesaplanan varışları sayar, asla yedeğin ana iş parçacığında planladıklarını değil. `pagePlanMs`, hangi iş parçacığı olursa olsun, yürütücünün kendisi tarafından ölçülen bu planların kümülatif süresidir: asla kare başına bir `cpu*` ya da `gpu*`'ya eklenmez. Hiçbir varış planlanmadığı sürece ikisi de `null`'dır — ölçülmemiş, sıfır değil.",
-      "pagePlanMs": "Varışları planlamaya harcanan süre."
+      "pagePlanMs": "Varışları planlamaya harcanan süre.",
+      "dynamicUploadBytes": "Bu karede yerinde yüklenen dinamik geometri köşe baytları (#573), dünyanın kare başına bütçesi içinde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Hiçbir dünyanın çizmediği yerde yoktur."
     }
   },
   "Frustum": {
@@ -1201,7 +1202,9 @@
       "userData": "Geometriyi kuranın verileri için serbest alan.",
       "released": "Geometri geri verildiğinde çağrılır: bir işleyicinin kendi kopyasının dinlediği şey.",
       "getIndex": "Üçgen listesi ya da `null`.",
-      "toNonIndexed": "Aynı üçgenleri dizinsiz çizen bir geometri: her köşe kendi köşe noktası."
+      "toNonIndexed": "Aynı üçgenleri dizinsiz çizen bir geometri: her köşe kendi köşe noktası.",
+      "usage": "`'dynamic'`: yerinde yüklenir, bir daha asla kesilmez (#573); her karede değişen bir geometri de öyledir.",
+      "maxBounds": "Dinamik bir geometrinin asla çıkmadığı kutu, bildirildiğinde: ayıklamanın baktığı kutu (#573)."
     }
   },
   "GeometryPageDescriptor": {
@@ -2705,7 +2708,8 @@
       "structure": "Grup bağlantıları.",
       "streams": "Akış paketleri.",
       "quantization": "Hiçbir ızgarada kuantalanmamış, sayfasız bir primitifte null.",
-      "topology": "Mesh'in kenarlarının ve köşelerinin neye benzediği."
+      "topology": "Mesh'in kenarlarının ve köşelerinin neye benzediği.",
+      "dynamic": "Bir dünyanın dinamik geometrisi (#573): yalnızca dizin sayfaları; köşeleri, motorun yerinde yeniden yazdığı ana geometriden kayan noktalı sayılar olarak okunur."
     }
   },
   "Primitive": {
@@ -3302,7 +3306,8 @@
       "dag": "DAG'ın raporu.",
       "quantization": "Hiçbir ızgarada kuantalanmamış, sayfasız bir primitifte null.",
       "topology": "Mesh'in kenarlarının ve köşelerinin neye benzediği.",
-      "binary": "Listelerinin nerede bulunacağı."
+      "binary": "Listelerinin nerede bulunacağı.",
+      "dynamic": "Bir dünyanın dinamik geometrisi (#573): yalnızca dizin sayfaları; köşeleri, motorun yerinde yeniden yazdığı ana geometriden kayan noktalı sayılar olarak okunur."
     }
   },
   "SlimPrimitiveBinary": {
@@ -4316,7 +4321,8 @@
       "shadowMemoryEvents": "Dünya açıldığından beri gölgelerin bellek baskısı olayları, adıyla, sırayla; normalde boş.",
       "shadowPagesRefetched": "Havuzun yer açmak için çıkardıktan sonra yeniden eşlenen sanal sayfalar, explorer açıldığından beri: karelerin okuduğuna göre fazla küçük bir havuzun maliyeti olan yeniden çizimler.",
       "shadowCastersKept": "Sayfa başına ayıklamanın tuttuğu gölge düşürücüler, tüm çizilen sayfalar birlikte, aygıtın en son örneklediği karede — on beşte bir; bir örnek dönene dek `null`.",
-      "shadowCastersHidden": "Örtme testinin, sayfalarının durağan katmanının arkasında gizli bulduğu hareketli gölge düşürücüler, en son örneklenen karede; bir örnek dönene dek `null`."
+      "shadowCastersHidden": "Örtme testinin, sayfalarının durağan katmanının arkasında gizli bulduğu hareketli gölge düşürücüler, en son örneklenen karede; bir örnek dönene dek `null`.",
+      "dynamicUploadBytes": "Bu karede yerinde yüklenen dinamik geometri köşe baytları (#573), dünyanın kare başına bütçesi içinde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Hiçbir dünyanın çizmediği yerde yoktur."
     }
   },
   "WorldOptions": {

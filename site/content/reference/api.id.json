@@ -1142,7 +1142,8 @@
       "pageDecodeMs": "Waktu yang dihabiskan menguraikan halaman.",
       "mathBatch": "Status pengatur jalur compute (`../math/path/governor.ts`): jalur saat ini setiap operasi batch, median kedua jalur, jumlah pergantian. `null` pada host yang belum membuka sebuah batch — tidak terukur, bukan \"jalur JavaScript\".",
       "pagesPlannedOffThread": "Integrasi halaman di luar thread utama. `pagesPlannedOffThread` menghitung kedatangan yang rencananya — tempat setiap cluster di dalam paket dan peringkat halaman yang dipindahkannya — dihitung sebuah worker, tidak pernah yang direncanakan fallback di thread utama. `pagePlanMs` adalah waktu kumulatif rencana-rencana itu, diukur eksekutornya sendiri, thread mana pun: ini tidak pernah ditambahkan ke `cpu*` atau `gpu*` per-bingkai. Keduanya `null` selama belum ada kedatangan yang direncanakan — tidak terukur, bukan nol.",
-      "pagePlanMs": "Waktu yang dihabiskan merencanakan kedatangan."
+      "pagePlanMs": "Waktu yang dihabiskan merencanakan kedatangan.",
+      "dynamicUploadBytes": "Byte verteks geometri dinamis yang diunggah di tempat pada frame ini (#573), dalam anggaran per frame dunia (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Tidak ada jika tidak ada dunia yang menggambar."
     }
   },
   "Frustum": {
@@ -1209,7 +1210,9 @@
       "userData": "Ruang bebas untuk data siapa pun yang membangun geometri.",
       "released": "Dipanggil saat geometri dikembalikan: yang didengarkan salinan milik renderer.",
       "getIndex": "Daftar segitiga, atau `null`.",
-      "toNonIndexed": "Geometri yang menggambar segitiga yang sama tanpa indeks: setiap sudut verteksnya sendiri."
+      "toNonIndexed": "Geometri yang menggambar segitiga yang sama tanpa indeks: setiap sudut verteksnya sendiri.",
+      "usage": "`'dynamic'`: diunggah di tempat, tidak pernah dipotong lagi (#573); begitu pula geometri yang berubah setiap frame.",
+      "maxBounds": "Kotak yang tidak pernah ditinggalkan geometri dinamis, jika dideklarasikan: yang dipakai untuk menyisihkannya (#573)."
     }
   },
   "GeometryPageDescriptor": {
@@ -2726,7 +2729,8 @@
       "structure": "Tautan grupnya.",
       "streams": "Bundle stream-nya.",
       "quantization": "Null pada sebuah primitif tanpa halaman, yang tidak dikuantisasi pada grid mana pun.",
-      "topology": "Seperti apa tepi dan sudut mesh itu."
+      "topology": "Seperti apa tepi dan sudut mesh itu.",
+      "dynamic": "Geometri dinamis sebuah dunia (#573): hanya halaman indeks, verteksnya dibaca sebagai float dari geometri host yang ditulis ulang mesin di tempat."
     }
   },
   "PrimitiveDagStall": {
@@ -3386,7 +3390,8 @@
       "dag": "Laporan DAG-nya.",
       "quantization": "Null pada sebuah primitif tanpa halaman, yang tidak dikuantisasi pada grid mana pun.",
       "topology": "Seperti apa tepi dan sudut mesh itu.",
-      "binary": "Tempat menemukan daftarnya."
+      "binary": "Tempat menemukan daftarnya.",
+      "dynamic": "Geometri dinamis sebuah dunia (#573): hanya halaman indeks, verteksnya dibaca sebagai float dari geometri host yang ditulis ulang mesin di tempat."
     }
   },
   "SlimPrimitiveBinary": {
@@ -4272,7 +4277,8 @@
       "shadowMemoryEvents": "Peristiwa tekanan memori bayangan sejak dunia dibuka, menurut nama, berurutan; biasanya kosong.",
       "shadowPagesRefetched": "Halaman virtual yang dipetakan lagi setelah pool mengusirnya untuk memberi tempat, sejak explorer dibuka: penggambaran ulang yang menjadi biaya pool yang terlalu kecil untuk yang dibaca bingkai.",
       "shadowCastersKept": "Pembuat bayangan yang dipertahankan culling per halaman, semua halaman yang digambar bersama, pada bingkai yang terakhir diambil sampelnya oleh perangkat — satu dari lima belas; `null` sampai sampel kembali.",
-      "shadowCastersHidden": "Pembuat bayangan bergerak yang oleh uji oklusi ditemukan tersembunyi di balik lapisan statis halamannya, pada bingkai yang terakhir diambil sampelnya; `null` sampai sampel kembali."
+      "shadowCastersHidden": "Pembuat bayangan bergerak yang oleh uji oklusi ditemukan tersembunyi di balik lapisan statis halamannya, pada bingkai yang terakhir diambil sampelnya; `null` sampai sampel kembali.",
+      "dynamicUploadBytes": "Byte verteks geometri dinamis yang diunggah di tempat pada frame ini (#573), dalam anggaran per frame dunia (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Tidak ada jika tidak ada dunia yang menggambar."
     }
   },
   "WorldOptions": {

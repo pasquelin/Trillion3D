@@ -51,10 +51,8 @@ export class Geometry {
   maxBounds: Box3 | null = null;
   /** Who draws this geometry: every mesh holding it hears its changes. */
   readonly _listeners = new Set<() => void>();
-  /** Who built it, the world (a page, the default) or the host (a loaded scene): whether a normalised
-   *  list it owns is read as stored or at its value (`readsStored`). Set by its maker at once. */
+  /** Who built it, world or host: whether its normalised lists read as stored (`readsStored`). */
   _owner: 'world' | 'host' = 'world';
-
   /** Tells every holder the geometry changed; the bounds are forgotten when its positions did. */
   _changed(moved = true) {
     this.version++;
@@ -150,14 +148,16 @@ export class Geometry {
     const c = this.computeBoundingBox().getCenter();
     return this.translate(-c.x, -c.y, -c.z);
   }
-  /** Reads a loaded mesh's vertices, which no session fetches up front (else `VERTICES_NOT_LOADED`). */
+  /** Reads a loaded mesh's vertices, which no session fetches up front; at once for any other.
+   *  Before it, reading them (`array`, `getX`) throws `VERTICES_NOT_LOADED`. */
   async loadVertices() {
     const targets = Object.values(this.morphAttributes).flat();
     const lists = [this.index, ...Object.values(this.attributes), ...targets];
     await Promise.all(lists.map((list) => list?._load()));
     return this;
   }
-  /** A new geometry with copies of every list, its groups, range, data, bounds and recipe. */
+  /** A new geometry with copies of every list, its groups, range, data and bounds, and the
+   *  recipe that still builds it. */
   clone() {
     const copy = this.shaped((attribute) => attribute.clone());
     if (this.index) copy.setIndex(this.index.clone());

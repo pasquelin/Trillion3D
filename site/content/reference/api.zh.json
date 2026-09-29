@@ -1134,7 +1134,8 @@
       "pageDecodeMs": "花在解码页面上的时间。",
       "mathBatch": "计算路径调度器(`../math/path/governor.ts`)的状态:每个批处理运算当前所用的路径、两条路径各自的中位数、切换次数。宿主尚未开启任何批处理时为 `null`——这表示未测量,而不是“JavaScript 路径”。",
       "pagesPlannedOffThread": "主线程之外的页面整合。`pagesPlannedOffThread` 统计的是其到达计划(每个簇在打包中的位置,以及它所移动的页面序号)由某个工作线程计算完成的到达数量,绝不包括回退方案在主线程上规划的部分。`pagePlanMs` 是这些计划的累计耗时,无论在哪个线程上都由执行者本身测量得出:绝不会被加进任何一帧的 `cpu*` 或 `gpu*` 中。在还没有任何到达被规划之前,两者均为 `null`——表示未测量,而不是零。",
-      "pagePlanMs": "花在规划到达上的时间。"
+      "pagePlanMs": "花在规划到达上的时间。",
+      "dynamicUploadBytes": "本帧就地上传的动态几何体顶点字节数（#573），在世界的每帧预算（`DYNAMIC_UPLOAD_BUDGET_BYTES`）之内。没有世界绘制时不存在。"
     }
   },
   "Frustum": {
@@ -1201,7 +1202,9 @@
       "userData": "供构建几何体者存放数据的自由空间。",
       "released": "几何体被归还时调用：渲染器自己的副本所监听的内容。",
       "getIndex": "三角形列表，或 `null`。",
-      "toNonIndexed": "绘制相同三角形但不带索引的几何体：每个角都是自己的顶点。"
+      "toNonIndexed": "绘制相同三角形但不带索引的几何体：每个角都是自己的顶点。",
+      "usage": "`'dynamic'`：就地上传，永不重新切分（#573）；每帧都改变的几何体也是如此。",
+      "maxBounds": "动态几何体永不越出的包围盒（若已声明）：剔除依据（#573）。"
     }
   },
   "GeometryPageDescriptor": {
@@ -2705,7 +2708,8 @@
       "structure": "它的组链接信息。",
       "streams": "它的流式资源包。",
       "quantization": "对于没有页面的图元为 null,这种图元没有在任何网格上被量化过。",
-      "topology": "该网格的边和角看起来是什么样子。"
+      "topology": "该网格的边和角看起来是什么样子。",
+      "dynamic": "世界的动态几何体（#573）：只有索引页，其顶点以浮点数从引擎就地重写的宿主几何体中读取。"
     }
   },
   "Primitive": {
@@ -3302,7 +3306,8 @@
       "dag": "DAG 的报告。",
       "quantization": "对于没有页面的图元为 null,这种图元没有在任何网格上被量化过。",
       "topology": "该网格的边和角看起来是什么样子。",
-      "binary": "在哪里能找到它的各个列表。"
+      "binary": "在哪里能找到它的各个列表。",
+      "dynamic": "世界的动态几何体（#573）：只有索引页，其顶点以浮点数从引擎就地重写的宿主几何体中读取。"
     }
   },
   "SlimPrimitiveBinary": {
@@ -4316,7 +4321,8 @@
       "shadowMemoryEvents": "自世界打开以来阴影的内存压力事件，按名称，按顺序；通常为空。",
       "shadowPagesRefetched": "自 explorer 打开以来，被池为腾出空间而逐出后重新映射的虚拟页：池相对于帧读取量过小所付出的重绘。",
       "shadowCastersKept": "逐页剔除保留的投射体（所有绘制页合计），取设备最后采样的帧 — 每十五帧一次；样本返回前为 `null`。",
-      "shadowCastersHidden": "遮挡测试发现隐藏在其页静态层后的移动投射体，取最后采样的帧；样本返回前为 `null`。"
+      "shadowCastersHidden": "遮挡测试发现隐藏在其页静态层后的移动投射体，取最后采样的帧；样本返回前为 `null`。",
+      "dynamicUploadBytes": "本帧就地上传的动态几何体顶点字节数（#573），在世界的每帧预算（`DYNAMIC_UPLOAD_BUDGET_BYTES`）之内。没有世界绘制时不存在。"
     }
   },
   "WorldOptions": {
