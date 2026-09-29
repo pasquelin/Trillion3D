@@ -1485,7 +1485,8 @@
       "width": "Chiều rộng tính bằng điểm ảnh.",
       "height": "Chiều cao tính bằng điểm ảnh.",
       "displayWidth": "Chiều rộng mà ảnh được hiển thị khi nó được vẽ nhỏ hơn (`world.renderScale`): các mức texture và độ rộng đường theo tỉ lệ đó. `width` khi không có.",
-      "linear": "Độ rọi tuyến tính, không qua đường cong, không mã hóa, trên nền đen trong suốt: đầu vào của chuỗi hiệu ứng, có alpha là độ phủ."
+      "linear": "Độ rọi tuyến tính, không qua đường cong, không mã hóa, trên nền đen trong suốt: đầu vào của chuỗi hiệu ứng, có alpha là độ phủ.",
+      "pass": "Đặt tên cho các lượt GPU của lần vẽ này cho bộ đếm khung hình, theo thứ tự, khi có thứ đang đọc (`../core/frameTimer.ts`); vắng mặt ở lần vẽ mà không gì đo nó."
     }
   },
   "HostMaterial": {

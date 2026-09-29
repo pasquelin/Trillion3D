@@ -1477,7 +1477,8 @@
       "width": "Piksel cinsinden genişlik.",
       "height": "Piksel cinsinden yükseklik.",
       "displayWidth": "Görüntü bunun altında çizildiğinde (`world.renderScale`) gösterildiği genişlik: doku seviyeleri ve çizgi genişlikleri bu oranı izler. Yoksa `width`.",
-      "linear": "Doğrusal ışıma; eğriden geçirilmemiş, kodlanmamış, saydam siyah üzerinde: alfası kaplama olan efekt zincirinin girdisi."
+      "linear": "Doğrusal ışıma; eğriden geçirilmemiş, kodlanmamış, saydam siyah üzerinde: alfası kaplama olan efekt zincirinin girdisi.",
+      "pass": "Bir okuyucu varken bu çizimin GPU geçişlerini sırayla kare zamanlayıcısına adlandırır (`../core/frameTimer.ts`); hiçbir şeyin ölçmediği çizimde bulunmaz."
     }
   },
   "HostMaterial": {

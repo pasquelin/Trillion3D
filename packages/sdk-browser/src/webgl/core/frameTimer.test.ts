@@ -8,8 +8,8 @@ const QUERY_RESULT_AVAILABLE = 0x8867;
 const QUERY_RESULT = 0x8866;
 
 /** Fake WebGL2RenderingContext: one query = an id, a result and a ready flag. */
-function fakeGl(options: { withExtension?: boolean } = {}) {
-  const { withExtension = true } = options;
+function fakeGl(options: { withExtension?: boolean; failFirstQuery?: boolean } = {}) {
+  const { withExtension = true, failFirstQuery = false } = options;
   const results = new Map<number, number>();
   const available = new Set<number>();
   const deleted: number[] = [];
@@ -21,7 +21,10 @@ function fakeGl(options: { withExtension?: boolean } = {}) {
       withExtension && name === 'EXT_disjoint_timer_query_webgl2'
         ? { TIME_ELAPSED_EXT, GPU_DISJOINT_EXT }
         : null,
-    createQuery: () => ({ id: created++ }),
+    createQuery: () => {
+      const id = created++;
+      return failFirstQuery && id === 0 ? null : { id };
+    },
     beginQuery() {},
     endQuery() {},
     flush() {
@@ -88,7 +91,7 @@ test('a frame that names no pass keeps one whole-frame interval', () => {
     ms: 2.5,
     reason: null,
     frame: 7,
-    passes: [{ name: WHOLE_FRAME_PASS, ms: 2.5 }],
+    passes: [{ name: WHOLE_FRAME_PASS, gpuMs: 2.5 }],
     truncated: false,
     tag: { scale: 0.5, steered: true },
   });
@@ -111,10 +114,35 @@ test('each contiguous pass is timed on its own, in order, and the image sums the
   const read = timer.poll();
   assert.equal(read.ms, 5.5, 'the image is the sum of its passes');
   assert.deepEqual(read.passes, [
-    { name: 'capture', ms: 1 },
-    { name: 'opaque', ms: 4 },
-    { name: 'transmission', ms: 0.5 },
+    { name: 'capture', gpuMs: 1 },
+    { name: 'opaque', gpuMs: 4 },
+    { name: 'transmission', gpuMs: 0.5 },
   ]);
+});
+
+test('a query the device refuses leaves the frame truncated, with no total', () => {
+  const f = fakeGl({ failFirstQuery: true });
+  const timer = createWebglFrameTimer(f.gl);
+  timer.begin(0);
+  timer.pass('opaque');
+  timer.end();
+  f.markAvailable(1, 3_000_000);
+  const read = timer.poll();
+  assert.equal(read.ms, null, 'a truncated sample publishes no total');
+  assert.equal(read.truncated, true);
+  assert.deepEqual(read.passes, [{ name: 'opaque', gpuMs: 3 }]);
+});
+
+test('a begin whose end never came closes the abandoned interval instead of leaking it', () => {
+  const f = fakeGl();
+  const timer = createWebglFrameTimer(f.gl);
+  timer.begin(1);
+  timer.begin(2);
+  timer.end();
+  assert.equal(f.created(), 2, 'the abandoned interval is replaced, not stacked');
+  assert.deepEqual(f.deleted, [0], 'the abandoned query is deleted');
+  f.markAvailable(1, 2_000_000);
+  assert.equal(timer.poll().frame, 2, 'the sample names the frame that ended');
 });
 
 test('a disjoint query is dropped with its reason, never published as a duration', () => {

@@ -1477,7 +1477,8 @@
       "width": "Largura em pixels.",
       "height": "Altura em pixels.",
       "displayWidth": "A largura a que a imagem é mostrada quando é desenhada abaixo dela (`world.renderScale`): os níveis de textura e as larguras de linha seguem a proporção. `width` quando ausente.",
-      "linear": "Radiância linear, sem curva nem codificação, sobre preto transparente: a entrada da cadeia de efeitos, cujo alfa é a cobertura."
+      "linear": "Radiância linear, sem curva nem codificação, sobre preto transparente: a entrada da cadeia de efeitos, cujo alfa é a cobertura.",
+      "pass": "Nomeia os passes de GPU deste desenho para o cronômetro de quadro, em ordem, quando alguém lê (`../core/frameTimer.ts`); ausente num desenho que nada mede."
     }
   },
   "HostMaterial": {
