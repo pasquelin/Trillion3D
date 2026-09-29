@@ -20,9 +20,10 @@ export const CUTOUT_SHEET_VERSION = 1;
 export const CLUSTERED_BLEND_FORMAT_VERSION = 10;
 /**
  * Cache identity for per-cluster DAG errors: absolute group QEM error over positions, normals and
- * texture coordinates, clamped to the group's extent; a v1 cache is refused.
+ * texture coordinates, clamped to the group's extent, never below the sampled Hausdorff distance
+ * between a group's children and its outputs (#929); v1 and v2 caches are refused.
  */
-export const DAG_ERROR_MODEL = 'dag-group-qem-v2';
+export const DAG_ERROR_MODEL = 'dag-group-qem-v3';
 /** The scope a model is compiled at when none is named: streamed in pages. */
 export const DEFAULT_SCOPE: AssetScope = 'slice';
 /** How a model is compiled: `'slice'` streams it in pages, `'full'` keeps it whole. */
