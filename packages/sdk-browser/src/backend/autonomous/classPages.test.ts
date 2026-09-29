@@ -83,10 +83,11 @@ test('WebGL2 re-cuts a solved primitive with the vertices only its pages hold', 
     page.geometry!.bytes = solved.data.length;
     await backend.prepare();
     (geometry.getAttribute('position')!.array as Float32Array).set(SOURCE);
-    const placed = [...decodeGeometryPage(solved.data).attributes.position.slice(6)];
+    const placed = decodeGeometryPage(solved.data).attributes.position.slice(6);
     move(triangle, 'opaque', 'blend');
     await backend.flush!();
-    assert.deepEqual(drawnPositions(triangle), [...cutOn(-23, [...SOURCE.slice(0, 6), ...placed])]);
+    const expected = cutOn(-23, [...SOURCE.slice(0, 6), ...placed]);
+    assert.deepEqual(drawnPositions(triangle), [...expected], 'the placed vertex read in its page');
   } finally {
     backend.dispose();
     geometry.dispose();
