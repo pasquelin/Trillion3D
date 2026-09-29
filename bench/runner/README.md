@@ -266,8 +266,9 @@ no drawn surface hides, and reverse skips single-sided source triangles seen fro
 every backend culls. Each distance becomes pixels through
 the cut's own projection (`screenErrorBound`), under the engine's camera, frustum and focal length,
 at 1728×1117, DPR 2; the nearest-surface and visibility queries run on the engine's triangle tree.
-A row passes when both maxima stay within `pixelError + 0.1 px`. WebGPU hands back the pages its
-cut selected (decoded by the engine's page decoder, which the WGSL decode matches bit for bit),
+A row passes when both maxima stay within `pixelError + 0.1 px`. WebGPU hands back the clusters
+its cut selected (`selectedClusterIds`, decoded by the engine's page decoder, which the WGSL decode
+matches bit for bit),
 WebGL2 the triangles it drew. `--poses orbit` and `--poses terrain` are the audit's cameras placed
 on the source's box, `--poses bench` the bench's four named views. The compiler-side measure of the
 quantization alone is `packages/asset-compiler-rust/src/geometry_page_quant/screen/` (#930).
