@@ -68,7 +68,7 @@ function coarser(entry: number, base: number) {
 }
 
 test('under a still lamp, a camera moving closer leaves no hole the report path did not', () => {
-  const lamp: SceneLight = { ...LAMP, position: [0, 3, -12] },
+  const lamp: SceneLight = { ...LAMP, position: AT },
     tiles = floorTiles(tileGrid(-4, 4, -16, -8), 9),
     scene = reportScene(71, [lamp], tiles.boxes);
   let reads: number[] = [];
