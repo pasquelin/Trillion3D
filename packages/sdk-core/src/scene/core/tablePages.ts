@@ -22,7 +22,7 @@ export type TableSlot = { page: TablePage; bounds: readonly number[]; parents: r
 export type TablePage = { url: string; bytes: number; sha256: string };
 
 /** A page's body: the slots of the pages below it, or its records. */
-export type PageBody = { version?: number; pages?: readonly string[]; [records: string]: unknown };
+type PageBody = { version?: number; pages?: readonly string[]; [records: string]: unknown };
 /** `body` at `kind`'s version, or a named refusal; `what` names it. */
 export function versioned(kind: PageKind, body: unknown, what: string): PageBody {
   const page = body as PageBody | null;

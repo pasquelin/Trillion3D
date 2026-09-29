@@ -4,8 +4,8 @@ import { dagRoots } from '../webgpu/pages/testDag.fixture.ts';
 import { QUAD_MANIFEST, triangleGeometry } from '../backend/pagesBackendScenes.fixture.ts';
 import { rootPage } from '../webgpu/pages/testScenes.fixture.ts';
 import { cameraAt } from '../webgpu/pages/twoPlaces.fixture.ts';
+import { cellUrl, io, noBudget, opened, settled, world } from '../scene/partition/cells.fixture.ts';
 import type { RowLink } from '../scene/partition/rows.ts';
-import { createPlacementRows, growPlacementRows } from './rows.ts';
 import { collectClusterPages } from '../page/selection/selection.ts';
 import { packDagSelection } from '../gpu/dag/selection.ts';
 import { mockGpu } from '../../../../tests/kit/gpu/mockGpu.ts';
@@ -55,17 +55,17 @@ function placedScene(links: readonly RowLink[]) {
 }
 
 /**
- * Two primitives of one mesh placed by rows, two of them taken at open, drawn by a WebGPU session
- * on a mocked device whose storage binding holds `bindingRows` page-table rows, the CPU cut
- * drawing: the GPU cut lays its catalogue out at open (#483). The session is handed the rows as a
- * world hands them, and told of each one written (`updateWebgpuPlacements`).
+ * The partition of `cells.fixture` — its near cell's two nodes on rows sized at open, its far one
+ * five kilometres off under the same core node — drawn by a WebGPU session on a mocked device
+ * whose storage binding holds `bindingRows` page-table rows, the CPU cut drawing: the GPU cut lays
+ * its catalogue out at open (#483).
+ * The session is handed the partition's rows as a world hands them (`partitionFrame.ts`).
  */
 export async function placedSession(bindingRows: number) {
   installGpuGlobals();
-  const links: RowLink[] = [
-    { meshes: 7, primitives: 0, placements: createPlacementRows(2) },
-    { meshes: 7, primitives: 1, placements: createPlacementRows(2) },
-  ];
+  const partition = world(0, 0);
+  const { cells, links, bytes } = partition;
+  await opened(cells, bytes, 100, true, [1e9, 0, 0]); // rows for the view, nothing read
   const scene = placedScene(links);
   const collected = collectClusterPages(
     scene.source,
@@ -84,15 +84,13 @@ export async function placedSession(bindingRows: number) {
     maxResidentPages: 3,
     viewport: [32, 32],
   });
-  /** Takes row `row` of every buffer, at `x` along the ground. */
-  const place = (row: number, x: number) => {
-    for (const { placements: rows } of links) {
-      rows!.matrices.set([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, 0, 0, 1], row * 16);
-      rows!.live[row] = 1;
-      updateWebgpuPlacements(rt, rows!, row, row);
-    }
+  const { port, held, outgrown: reopened } = io(bytes);
+  ['near.json', 'far.json'].forEach((name) => held.add(cellUrl(name)));
+  port.update = (rows, from, to) => updateWebgpuPlacements(rt, rows, from, to);
+  port.grow = {
+    growsInPlace: (from, capacity) => webgpuGrowsInPlace(rt, from, capacity),
+    growPlacements: (from, to) => growWebgpuPlacements(rt, from, to),
   };
-  const reopened = { count: 0 };
   const view = cameraAt(0, 30);
   const draw = async () => {
     renderWebgpuPages(rt, view);
@@ -105,24 +103,18 @@ export async function placedSession(bindingRows: number) {
   try {
     await prepareWebgpuBackend(rt, gpu.device);
     fallbackToCpuCut(rt, 'rows follow the camera');
-    place(0, 1);
-    place(1, 3);
+    await settled(cells, [0, 0, 0], 100, port, noBudget);
     await draw();
   } catch (error) {
     dispose();
     throw error;
   }
-  return { rt, links, place, draw, reopened, dispose };
+  return { rt, ...partition, io: port, draw, reopened, dispose };
 }
 
-/** A third row wanted, one more than the buffers hold: they grow in place, as the engine takes it,
- *  and the row is taken; else they stay as they are and the owner is asked to open anew. */
-export function growOne({ rt, links, place, reopened }: Awaited<ReturnType<typeof placedSession>>) {
-  const from = links.map((link) => link.placements!);
-  if (!webgpuGrowsInPlace(rt, from, 4)) return void reopened.count++;
-  links.forEach((link, at) => {
-    link.placements = growPlacementRows(from[at], 3);
-    growWebgpuPlacements(rt, from[at], link.placements);
-  });
-  place(2, 5);
+/** Shrinks the core node a thousand times: the far cell comes within reach, one more node than
+ *  the rows hold. The frames a world runs until the page and the cell it brings are decoded. */
+export async function scaleDown({ cells, core, io }: Awaited<ReturnType<typeof placedSession>>) {
+  core.scale.set(1e-3, 1e-3, 1e-3);
+  await settled(cells, [0, 0, 0], 100, io, noBudget);
 }

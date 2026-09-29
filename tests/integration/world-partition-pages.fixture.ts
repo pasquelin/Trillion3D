@@ -1,7 +1,7 @@
 // A compiled world loaded as a WebGL2 world loads it (#751): its manifest held by the view, its
 // cells followed by the session's per-frame step (`createPartitionFrame`) on a WebGL2 engine
 // stand-in that mounts and unmounts in place (`mountPlacements`, `unmountPlacements`), as the
-// autonomous WebGL2 engine does, on the rows sized at open from the partition's root (#575).
+// autonomous WebGL2 engine does, and grows its rows in place (`growPlacements`).
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -14,16 +14,23 @@ import { cellReach } from '../../packages/sdk-browser/src/scene/partition/plan.t
 import { cellHoldings } from '../../packages/sdk-browser/src/scene/partition/cellPages.ts';
 import { createPageStreamer } from '../../packages/sdk-browser/src/streaming/pageStreamer.ts';
 import type { LoadedModel } from '../../packages/sdk-browser/src/world/core/loadedModel.ts';
-import { createPartitionFrame } from '../../packages/sdk-browser/src/world/scene/partitionFrame.ts';
+import {
+  createPartitionFrame,
+  primePartitions,
+} from '../../packages/sdk-browser/src/world/scene/partitionFrame.ts';
 import { readCellPage } from '../../packages/sdk-core/src/scene/core/tablePartition.ts';
 import { primitiveFinder } from '../../packages/sdk-browser/src/scene/primitiveLookup.ts';
 
 /** The engine stand-in: the rows each host mesh it draws reads, from its open or its mount. */
 function webgl2(opened: Map<Object3D, PlacementRows>) {
   const drawn = new Map(opened);
-  const counts = { mounts: 0, unmounts: 0 };
+  const counts = { grown: 0, mounts: 0, unmounts: 0 };
   const backend = {
     updatePlacements() {},
+    growPlacements(from: PlacementRows, to: PlacementRows) {
+      counts.grown++;
+      for (const [node, rows] of drawn) if (rows === from) drawn.set(node, to);
+    },
     async mountPlacements({ node, association }: PlacementMount) {
       counts.mounts++;
       drawn.set(node, association.placements);
@@ -52,7 +59,8 @@ export async function followed(model: LoadedModel, eye: readonly number[]) {
   const camera = hostFramingCamera(60, 16 / 9, 0.1, 300);
   camera.position.set(eye[0], eye[1], eye[2]);
   camera.updateMatrixWorld();
-  // The engine opens on the rows sized from the root, drawing the meshes the manifest listed.
+  await primePartitions([cells], camera, streamer, true);
+  // The engine opens on the rows primed, drawing the meshes the manifest listed before.
   const listed = primitiveFinder(opened.metadata.primitives);
   const atOpen = new Map<Object3D, PlacementRows>();
   for (const { links, nodes } of cellHoldings(cells).meshes.values())

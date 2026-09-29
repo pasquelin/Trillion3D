@@ -4558,7 +4558,8 @@
       "id": "La demande qui reçoit la réponse.",
       "ok": "Toujours `false`.",
       "code": "Pourquoi il a échoué.",
-      "message": "Le message d’origine, tel quel : l’appelant lève la même `Error` que le chemin synchrone."
+      "message": "Le message d’origine, tel quel : l’appelant lève la même `Error` que le chemin synchrone.",
+      "refusal": "Le code du refus nommé du moteur que la tâche a rencontré (`EngineError`), que l’appelant relève sous ce code ; absent pour tout autre échec."
     }
   },
   "pageDecodeFailureCode": {
@@ -4589,7 +4590,8 @@
       "id": "Numéro de la demande.",
       "op": "Ce qu’il faut faire.",
       "source": "Transféré avec le message : l’expéditeur n’en est plus le propriétaire.",
-      "maxDecodedBytes": "Plafond d’octets décodés d’une page de géométrie ; ignoré par `verify`."
+      "maxDecodedBytes": "Plafond d’octets décodés d’une page de géométrie ; ignoré par `verify`.",
+      "name": "`cells`, `cellPage` : le fichier d’où la source a été lue, qu’un refus nomme."
     }
   },
   "PageDecodeShare": {
