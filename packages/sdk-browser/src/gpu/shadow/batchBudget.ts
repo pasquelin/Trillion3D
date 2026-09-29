@@ -45,6 +45,9 @@ export const CULL_UNIFORM_WORDS = 8,
 export const SHADOW_REGION_COMMANDS = 2,
   SHADOW_REGION_INDIRECT_BYTES = SHADOW_REGION_COMMANDS * DRAW_INDIRECT_STRIDE;
 const REGION_WORDS = SHADOW_REGION_COMMANDS * DRAW_INDIRECT_WORDS;
+/** The word of the cull's commands after every region's: the casters its regions tested — those
+ *  of the kind each draws —, kept or not, zeroed with the batch's commands (`cullCounts.ts`). */
+export const SHADOW_TESTED_WORD = MAX_SHADOW_REGIONS * REGION_WORDS;
 
 const EMPTY_COMMANDS = new Uint32Array(MAX_SHADOW_REGIONS * REGION_WORDS);
 /** The `regions` first regions' commands, both lists each, at zero instances of zero vertices — the
@@ -67,7 +70,8 @@ export const SHADOW_BATCH_WRITE_BYTES =
   MAX_SHADOW_REGIONS * (OCCLUSION_SLOT_WORDS * 4 + SHADOW_REGION_INDIRECT_BYTES) +
   OCCLUSION_UNIFORM_WORDS * 4 +
   MAX_SHADOW_PAGES * PAGE_BOUNDS_WORDS * 4 +
-  MAX_SHADOW_REGIONS * 4;
+  MAX_SHADOW_REGIONS * 4 +
+  4;
 /** The staging buffer at the grant: every batch but the first, which writes straight
  *  (`batchWrites.ts`). */
 export const SHADOW_STAGING_BYTES = (MAX_SHADOW_BATCHES - 1) * SHADOW_BATCH_WRITE_BYTES;
@@ -100,9 +104,11 @@ const CPU_RUN_HOST_BYTES = 4 + 4 + DRAW_INDIRECT_STRIDE,
   CPU_RUN_GPU_BYTES = DRAW_INDIRECT_STRIDE;
 
 /** A sampled frame's commands, one a region, every batch's (`cullCounts.ts`), and the commands a
- *  region's samplers copy: the cull's two lists, the occlusion test's hidden count. */
+ *  region's samplers copy: the cull's two lists, the occlusion test's hidden count; with the
+ *  cull's, each batch's tested word. */
 export const SHADOW_COUNT_SAMPLE_BYTES =
   MAX_SHADOW_BATCHES * MAX_SHADOW_REGIONS * DRAW_INDIRECT_STRIDE;
+export const SHADOW_TESTED_SAMPLE_BYTES = MAX_SHADOW_BATCHES * 4;
 const SHADOW_COUNT_SAMPLED_COMMANDS = SHADOW_REGION_COMMANDS + 1;
 
 /** GPU bytes the batches add, at their largest: staging, flag words, CPU cut commands, and the
@@ -111,7 +117,8 @@ export const SHADOW_BATCH_GPU_BYTES =
   SHADOW_STAGING_BYTES +
   SHADOW_FLAG_FRAMES * FLAG_GPU_BYTES +
   MAX_SHADOW_RUNS * CPU_RUN_GPU_BYTES +
-  SHADOW_COUNT_SAMPLED_COMMANDS * SHADOW_COUNT_SAMPLE_BYTES;
+  SHADOW_COUNT_SAMPLED_COMMANDS * SHADOW_COUNT_SAMPLE_BYTES +
+  SHADOW_TESTED_SAMPLE_BYTES;
 /** Host bytes the batches add, at their largest: the flag frames' pages, the CPU cut's faces, and
  *  the staging buffer's host mirror (`batchWrites.ts`). */
 export const SHADOW_BATCH_HOST_BYTES =

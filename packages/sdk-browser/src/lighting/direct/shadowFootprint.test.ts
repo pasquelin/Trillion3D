@@ -1,7 +1,8 @@
 // #1250: the shipped `shadowPageWord`, run from its WGSL through `shaderRun`: a texel outside the
 // footprint its page was drawn for reads as a page not drawn — asked for, never read —, one inside
-// reads the page as before; with every page drawn full, the read and its requests are develop's to
-// the bit; and every pass that lights a surface reads the page table through it.
+// reads the page as before, and says it missed (#1211); with every page drawn full, the read and its
+// requests are develop's to the bit; and every pass that lights a surface reads the page table
+// through it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PAGE_VALID } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
@@ -16,37 +17,49 @@ import { CONSTANTS, SHADOW_WGSL } from './sunRangeRead.fixture.ts';
 import { DRAWN_BITS, footprintReads, type PageMap } from './shadowFootprint.fixture.ts';
 
 type Read = (map: PageMap, p: number[], t: number[]) => number;
-/** The page table read and the pages asked for: swapped per read, the text compiled once. */
-const live = { table: new Uint32Array(0), asked: [] as number[] };
+/** The page table read, the pages asked for and those missed: swapped per read, the text
+ *  compiled once. */
+const live = { table: new Uint32Array(0), asked: [] as number[], missed: [] as number[] };
 const { shadowPageWord } = shaderRun<{ shadowPageWord: Read }>(
   SHADOW_WGSL,
   ['shadowPageWord', 'shadowFootprintCovers', 'shadowRing'],
-  { ...CONSTANTS, shadows: live, requestShadowPage: (e: number) => live.asked.push(e) },
+  {
+    ...CONSTANTS,
+    shadows: live,
+    requestShadowPage: (e: number) => live.asked.push(e),
+    requestShadowMiss: (e: number) => live.missed.push(e),
+  },
 );
-/** The shipped read of page `p` of `map` at texel `t` over `table`: its word and its requests. */
+/** The shipped read of page `p` of `map` at texel `t` over `table`: its word, its requests, and
+ *  the pages it found drawn for a footprint that misses `t`. */
 function read(table: Uint32Array, map: PageMap, p: number[], t: number[]) {
-  Object.assign(live, { table, asked: [] });
-  return { word: shadowPageWord(map, p, t), asked: live.asked };
+  Object.assign(live, { table, asked: [], missed: [] });
+  return { word: shadowPageWord(map, p, t), asked: live.asked, missed: live.missed };
 }
 
-test('a texel outside its page’s footprint reads as not drawn and asks for it; inside, as drawn', () => {
+test('a texel outside its page’s footprint reads as not drawn, asks for it and says it missed', () => {
   const { words, reads } = footprintReads();
   assert.ok(reads.some((r) => r.word === 0) && reads.some((r) => r.word !== 0));
+  // Every page of `footprintReads` is drawn: a read that takes nothing missed its footprint.
   for (const { map, p, t, entry, word } of reads)
-    assert.deepEqual(read(words, map, p, t), { word, asked: [entry] }, `${map.ring} ${t}`);
+    assert.deepEqual(
+      read(words, map, p, t),
+      { word, asked: [entry], missed: word ? [] : [entry] },
+      `${map.ring} ${t}`,
+    );
 });
 
-/** Develop's read, restated: the entry, asked for; its word when valid. A ring asks for nothing
- *  outside its window. */
+/** Develop's read, restated: the entry, asked for; its word when valid; no miss. A ring asks for
+ *  nothing outside its window. */
 function developRead(table: Uint32Array, map: PageMap, [x, y]: number[]) {
   const ring = (v: number) => ((v % map.pages) + map.pages) % map.pages;
   if (map.ring && (Math.min(x, y) < 0 || Math.max(x, y) >= map.pages))
-    return { word: 0, asked: [] };
+    return { word: 0, asked: [], missed: [] };
   const q = [x, y].map((v) => Math.min(Math.max(v, 0), map.pages - 1));
   const entry = map.ring
     ? map.base + ring(y + map.oy) * map.pages + ring(x + map.ox)
     : map.base + q[1] * map.pages + q[0];
-  return { word: table[entry] & PAGE_VALID ? table[entry] : 0, asked: [entry] };
+  return { word: table[entry] & PAGE_VALID ? table[entry] : 0, asked: [entry], missed: [] };
 }
 
 test('with every page drawn full, the read and its requests are develop’s, bit for bit', () => {
