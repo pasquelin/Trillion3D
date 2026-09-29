@@ -14,6 +14,7 @@ import {
   pageOrigin,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import type { SunLevels } from '../../../../sdk-core/src/scene/light-shadow/sunLevels.ts';
+import { PAGES } from '../../../../sdk-core/src/scene/light-shadow/pageModel.ts';
 
 /** Pages one GPU batch draws: the size of the per-batch buffers. A frame draws every page it
  *  marks, in as many batches as that takes (`../../webgpu/pages/render/encodeShadowBatches.ts`). */
@@ -86,8 +87,8 @@ export function createShadowRecordPack(faceStride: number, poolSide: number) {
       facePacked[uniform + FACE_EMITTER + 3] = center ? radius : 0;
       // Its clip square in the whole atlas's: `xy * s + o`, what the page draws read.
       const rect = uniform + SHADOW_FACE_READ_WORDS;
-      facePacked[rect] = (2 * x + SHADOW_PAGE) / size - 1;
-      facePacked[rect + 1] = 1 - (2 * y + SHADOW_PAGE) / size;
+      facePacked[rect] = PAGES.shadowAtlasClip(x, size);
+      facePacked[rect + 1] = -PAGES.shadowAtlasClip(y, size);
       facePacked[rect + 2] = facePacked[rect + 3] = SHADOW_PAGE / size;
     },
     /** True when region `index` carries an emitter envelope: a radius the depth pass strips. */
