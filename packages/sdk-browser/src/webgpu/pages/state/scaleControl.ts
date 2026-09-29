@@ -24,6 +24,8 @@ export function createScaleControl(option: RenderScale | undefined) {
     },
     /** The scale of the last image drawn: 1 before any. */
     drawn: 1,
+    /** Whether the last image was drawn at the controller's scale: a moving, accumulated image. */
+    steered: false,
     /** Asks another scale: the controller restarts at the bounds' maximum. */
     set(next: RenderScale | undefined) {
       bounds = renderScaleBounds(next);
@@ -38,11 +40,13 @@ export function createScaleControl(option: RenderScale | undefined) {
     },
     /**
      * The whole-frame GPU time of an image drawn at `scale`, as it arrives, a few frames late.
-     * Only an image drawn at the controller's current scale steps it: one drawn before the last
-     * change, or still at the maximum, measures another cost.
+     * Only a moving image drawn at the controller's current scale (`steered`) steps it: one drawn
+     * before the last change, a still one at the maximum, or one without accumulation measures
+     * another cost.
      */
-    observe(gpuMs: number | null, scale: unknown) {
-      if (!bounds.auto || gpuMs === null || !(gpuMs > 0) || scale !== controller.s) return;
+    observe(gpuMs: number | null, scale: unknown, steered = true) {
+      if (!bounds.auto || !steered || gpuMs === null || !(gpuMs > 0) || scale !== controller.s)
+        return;
       nextScale(controller, gpuMs);
     },
   };
