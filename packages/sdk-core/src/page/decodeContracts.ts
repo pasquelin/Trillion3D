@@ -82,6 +82,8 @@ export interface PageDecodeGeometryPayload {
   /** Indices, then attributes. */ block: ArrayBuffer;
   /** The attributes, in order. */ names: string[];
   /** Vertices. */ vertexCount: number;
+  /** Morph targets, six floats each per vertex in `morph`. */ morphTargets?: number;
+  /** Exact number of source influences carried per vertex. */ skinInfluences?: number;
   /** Which attributes it carries. */ flags: number;
   /** Size of `block`. */ decodedBytes: number;
   /** The page header's largest position displacement, in object units. */

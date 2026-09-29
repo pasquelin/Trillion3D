@@ -57,7 +57,7 @@ ${SCREEN_REFLECTION_WGSL}
 @group(0) @binding(${BLEND_BINDINGS.shadowSampler}) var shadowSampler:sampler_comparison;
 @group(0) @binding(${BLEND_BINDINGS.clusterDiagnostic}) var<storage,read> clusterDiagnostic:array<u32>;
 @group(0) @binding(${BLEND_BINDINGS.planInstances}) var<storage,read> planInstances:array<vec2u>;
-@group(0) @binding(${BLEND_BINDINGS.clusterSpans}) var<storage,read> clusterSpans:array<vec2u>;
+@group(0) @binding(${BLEND_BINDINGS.clusterSpans}) var<storage,read> clusterSpans:array<vec4u>;
 @group(0) @binding(${BLEND_BINDINGS.tileLights}) var<storage,read> tileLights:array<u32>;
 ${TILE_POOL_WGSL}
 ${COLOR_SAMPLE_WGSL}
@@ -100,12 +100,12 @@ ${FACING_WGSL}
  out.pbr=vec4f(it.roughness,it.metalness,it.normalScale);
  out.emissive=vec4f(it.emissive.xyz,0.0);
  var page:PageInfo;
- page.flags=flags;page.vertexBase=it.vertexBase;page.pageOffset=slot.y;
+ page.flags=flags;page.vertexBase=it.vertexBase;page.pageOffset=slot.y;page.deform=it.deform;page.packedBase=it.deformInput;page.deformOutput=it.deformOutput;
  var count=it.indexCount-slot.y;
  var clusterId=0u;
  if((flags&${FLAG_PAGED}u)!=0u){
   let span=clusterSpans[slot.y];
-  page.pageOffset=span.x;
+  page.pageOffset=span.x;page.deformOutput=span.z;page.deformCount=span.w;
   count=span.y;
   clusterId=clusterDiagnostic[slot.y];
  }

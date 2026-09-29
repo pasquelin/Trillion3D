@@ -5,6 +5,7 @@ import type { WebglPageArena } from './pageArena.ts';
 import type { WebglPageArenas } from './pageArenas.ts';
 import type { Material } from './materialBinding.ts';
 import { submitRanges, type MultiDraw } from './submit.ts';
+import { deformRecordOf } from './deformation.ts';
 
 /** Whether the frame's validation leaves a mesh out (`validation.ts`). */
 type Leaves = (mesh: ClusterDraw) => boolean;
@@ -59,6 +60,7 @@ export class WebglClusterRuns {
     return (
       this.arenas[k] === arena &&
       head.material === mesh.material &&
+      deformRecordOf(head) === deformRecordOf(mesh) &&
       sameElements(drawWorld(head), drawWorld(mesh))
     );
   }

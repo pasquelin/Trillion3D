@@ -13,6 +13,7 @@ export function flatten(d: Omit<DrawnTriangles, 'normals'>): DrawnTriangles {
   const positions = pick(d.positions, 3)!;
   const indices = new Uint32Array(d.indices.length).map((_, k) => k);
   return {
+    sourceVertices: d.indices.map((v) => d.sourceVertices?.[v] ?? v),
     positions,
     normals: computeNormals(positions, null),
     uvs: pick(d.uvs, 2),

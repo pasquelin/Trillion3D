@@ -28,6 +28,14 @@ export const castsNoShadow = (mark: number | undefined, light: unknown) =>
  *  in the GPU cut's oracle (`dagViewFrames`). */
 export const OPEN_PLANES = Float64Array.from({ length: 24 }, (_, i) => (i % 4 === 3 ? 1 : 0));
 
+/** Moves each of the six planes out by `reach` along every axis: a box then clears a plane only
+ *  if the box grown by `reach` on each side would — the GPU cut does the same (`putPlanes`). */
+function growPlanes(planes: Float64Array, reach: number) {
+  for (let i = 0; i < 24; i += 4)
+    planes[i + 3] +=
+      reach * (Math.abs(planes[i]) + Math.abs(planes[i + 1]) + Math.abs(planes[i + 2]));
+}
+
 export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: ClusterRoot<T>) {
   const pages = root.pages;
   const { viewMatrix, clip, planes, pixelScale } = selectionScratch;
@@ -51,7 +59,8 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
   (s.flatCone as ConeContext).ready = false;
   // A root that declares it has no cone takes the cone out of the per-cluster path. Silence
   // means "I declared nothing": the cut then tests each page, as before this batch.
-  s.flatCones = !s.light && root.cones !== false;
+  s.flatReach = root.reach ?? 0;
+  s.flatCones = !s.light && root.cones !== false && !(s.flatReach > 0);
   // A root that declares all its pages carry their box takes that check out of the per-cluster
   // path. Silence means "I declared nothing": the cut ensures it as before.
   s.flatBoxes = root.boxes === true;
@@ -59,6 +68,7 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
   // The engine projection no longer has a far plane: the frustum keeps the one the host declares.
   frustumFarPlane(planes, 16, viewMatrix, s.cam.far, false);
   if (openToCamera(s, root)) planes.set(OPEN_PLANES);
+  else if (s.flatReach > 0) growPlanes(planes, s.flatReach);
   // The cut rule's residency, when the cut holds any: the nearest resident representation of each
   // surface is then drawn, the wanted cluster or its nearest resident ancestor (`./rule.ts`).
   s.flatHeld = s.held?.readiness(root);

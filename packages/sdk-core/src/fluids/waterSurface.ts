@@ -53,6 +53,12 @@ export class WaterSurface {
     return this.declared.map((wave, i) => ({ ...wave, phase: this.waves.phase[i] }));
   }
 
+  /** The waves themselves, clocked at `time`: what the GPU deformation stage reads to draw a
+   *  mesh the surface carries (`mesh.waves`, #357), the very numbers buoyancy reads. */
+  get waveModel(): Waves {
+    return this.waves;
+  }
+
   /** Unit normal `[x, y, z]` of the surface at the rest point `(x, z)`, into `out`. */
   normal(x: number, z: number, out: Float64Array) {
     this.waves.normal(x, z, out);

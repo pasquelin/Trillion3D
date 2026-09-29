@@ -14,6 +14,7 @@ import { createRefusalAnswer } from './refusals.ts';
 import type { createAutonomousResidency } from './residency.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
 import type { WebglViewState } from './views.ts';
+import type { WebglDeformation } from '../../deformation/webglFrame.ts';
 
 /** What the autonomous frame decided, and whether it was held. */
 export type AutonomousRenderState = {
@@ -59,6 +60,9 @@ export function createAutonomousRender(options: {
   blendCopies: readonly BlendCopy[];
   /** The engine's world-matrix index, rebuilt once per scene revision. */
   worlds: HostWorldPlacements;
+  /** The roots' deformation records (#357): written once the worlds are current, before the cut
+   *  grows each deformed root by its reach. */
+  deformation: Pick<WebglDeformation, 'pending' | 'update'>;
   /** The drawn view: the cut drawn, the cut wanted, what the image asks the pool for
    *  (`imageCut.ts`), its motion and its size, read at each frame (`views.ts`). */
   view: WebglViewState;
@@ -86,6 +90,7 @@ export function createAutonomousRender(options: {
     roots,
     blendCopies,
     worlds,
+    deformation,
     view,
     ceiling,
     geometry,
@@ -108,6 +113,8 @@ export function createAutonomousRender(options: {
   const frame = (camera: HostCamera) => {
     // The allocations the context refused since the last frame, answered first (`refusals.ts`).
     answerRefusals();
+    // Records the next image rewrites — a clip, a morph weight, a wave — break the hold.
+    if (deformation.pending()) gate.resourcesChanged();
     // Frame entry: the order and its guarantees live in `../../frame/gateCore.ts`, which also copies
     // the host camera into the engine camera — the cut now reads only the latter.
     const held = gate.enterFrame(
@@ -135,6 +142,7 @@ export function createAutonomousRender(options: {
     // Over the budget, the pages the last image drew but the pool no longer holds can go: this cut
     // draws their nearest resident ancestor, before the scene is drawn again. A pool drawn since
     // the last cut first cuts what it asked for, so the image that sees it holds no more.
+    deformation.update(gate.cam, view.viewport, gate.pixelError);
     if (cut.readmit()) follow();
     pool.trim();
     const selected = cut(gate.cam, gate.pixelError);

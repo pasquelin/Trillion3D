@@ -7,7 +7,7 @@ import { createGpuBounceProxy } from '../../../packages/sdk-browser/src/bounce/p
 import { ltcTable } from '../../../packages/sdk-core/src/lighting/ltcTable.ts';
 import { ENVIRONMENT_COEFFICIENTS } from '../../../packages/sdk-core/src/scene/core/environment.ts';
 import { mirrorProxy } from './mirrorProxy.ts';
-import { ouvrirAppareil as openDevice } from '../probes/webgpuDevice.ts';
+import { openGpuDevice as openDevice } from '../probes/webgpuDevice.ts';
 import { mirrorVertex, proxyOnlyReflection } from './blendMirrorVertex.ts';
 /** Render the actual blend fragment with a known one-triangle resident proxy and face radiance. */
 export async function blendMirror() {

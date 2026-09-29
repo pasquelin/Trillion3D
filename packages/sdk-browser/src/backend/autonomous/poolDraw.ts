@@ -1,3 +1,4 @@
+import { pageDeformationBytes } from '../../deformation/textureBytes.ts';
 import { sessionGeometryPool } from '../../residency/sessionPool.ts';
 import type { PoolEnvironment } from './pool.ts';
 import type { GeometryPool } from '../../residency/pools.ts';
@@ -13,6 +14,7 @@ export function drawGeometryPool(
   env: Pick<
     PoolEnvironment,
     | 'budgetBytes'
+    | 'fixedBytes'
     | 'ceilingBytes'
     | 'maxResidentPages'
     | 'descriptors'
@@ -26,12 +28,21 @@ export function drawGeometryPool(
   let pageBytes = 1;
   const shares = new Map<string, number>();
   for (const [url, descriptor] of env.descriptors) {
-    pageBytes = Math.max(pageBytes, descriptor.uncompressedBytes);
+    pageBytes = Math.max(
+      pageBytes,
+      descriptor.uncompressedBytes + pageDeformationBytes(descriptor),
+    );
     shares.set(url, 0);
   }
   const drawSession = () =>
     sessionGeometryPool(
-      { pageBytes, uniquePages: copies.scene(), rootPages: copies.floor(), maxResidentPages },
+      {
+        fixedBytes: env.fixedBytes?.(),
+        pageBytes,
+        uniquePages: copies.scene(),
+        rootPages: copies.floor(),
+        maxResidentPages,
+      },
       budgetBytes,
       ceilingBytes,
     );

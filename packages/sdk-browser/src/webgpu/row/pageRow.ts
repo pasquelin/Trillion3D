@@ -20,6 +20,7 @@ import {
 import { surfaceOpacity } from '../../page/surface.ts';
 import { shownAsIs } from '../../scene/surfaceModel.ts';
 import { neverCulled, writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts';
+import type { SessionDeformation } from '../../deformation/session.ts';
 
 export const ROW_ID_BASE_WORD = 27,
   ROW_HIZ_SLOT_WORD = 31;
@@ -43,6 +44,8 @@ export const ROW_LINE_WIDTH_WORD = 61;
 export const ROW_DASH_WORD = 28;
 /** Row words of a sprite's turn and size rule (`PageInfo.sprite`, `spriteAt`); zero on any other row. */
 export const ROW_SPRITE_WORD = 36;
+/** Row word naming the placement's deformation record (`PageInfo.deform`, #357). */
+const ROW_DEFORM_WORD = 58;
 /** Row word that carries the line's placement (`PageInfo.placement`). */
 export const ROW_PLACEMENT_WORD = 62;
 /** Row word that carries the resolve class key (`PageInfo.materialClass`, `../../visibility/shader/materialClass.ts`). */
@@ -71,6 +74,8 @@ type PageRowResources = MaterialLayers & {
    *  temporal antialiasing and the composition must read (OMB-11). Never unset: a row it no longer
    *  draws only keeps the reading variant, which is right for every image. */
   asIsShown: boolean;
+  /** The session's GPU deformation, once prepared: the record each placement's rows name. */
+  deformation?: Pick<SessionDeformation, 'rowWord'>;
 };
 
 /** Serializes one drawable cluster row after its occupant, slot, or input epoch changes. */
@@ -127,8 +132,12 @@ export function createPageRowWriter(
     ints[base + 30] = constants.hashOf(rec.clusterId);
     // The Hi-Z verdict of a row lives at the row's own index, and the rows a frame does not test are
     // cleared on the GPU before the test, so no row ever reads the verdict of an earlier image. A
-    // row never culled reads none.
-    ints[base + ROW_HIZ_SLOT_WORD] = neverCulled(mat) ? NO_HIZ_SLOT : row;
+    // row never culled reads none, nor does a deformed one: its box is its rest pose's.
+    const deform = resources.deformation?.rowWord(rec.placementIndex) ?? 0;
+    ints[base + ROW_DEFORM_WORD] = deform;
+    ints[base + 38] = rec.deformationOutput?.count ?? 0;
+    ints[base + 59] = rec.deformationOutput ? offsetWords + rec.deformationOutput.from + 1 : 0;
+    ints[base + ROW_HIZ_SLOT_WORD] = neverCulled(mat) || deform ? NO_HIZ_SLOT : row;
     ints[base + 32] = maps.rough;
     ints[base + 33] = maps.metal;
     ints[base + 34] = maps.normal;

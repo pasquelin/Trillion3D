@@ -63,6 +63,8 @@ export const checkGeometryPoolBudget = (bytes: number) =>
 export function geometryPoolFor(options: {
   budgetBytes: number;
   pageBytes: number;
+  /** Resident geometry records outside page slots, included in this same budget. */
+  fixedBytes?: number;
   uniquePages: number;
   rootPages: number;
   maxResidentPages?: number;
@@ -71,8 +73,9 @@ export function geometryPoolFor(options: {
 }): GeometryPool {
   const { budgetBytes, pageBytes, uniquePages, maxResidentPages, ceilingSlots, limits } = options;
   checkGeometryPoolBudget(budgetBytes);
+  const fixedBytes = options.fixedBytes ?? 0;
   const floor = Math.max(1, options.rootPages);
-  let slots = Math.floor(budgetBytes / pageBytes),
+  let slots = Math.floor((budgetBytes - fixedBytes) / pageBytes),
     clamp: PoolClamp = null;
   if (maxResidentPages !== undefined && maxResidentPages < slots) {
     slots = maxResidentPages;
@@ -91,7 +94,7 @@ export function geometryPoolFor(options: {
     clamp = 'root-cover';
   }
   const deviceBytes = storageBufferCap(limits);
-  const deviceSlots = Math.floor(deviceBytes / pageBytes);
+  const deviceSlots = Math.floor((deviceBytes - fixedBytes) / pageBytes);
   if (deviceSlots < slots) {
     if (deviceSlots < floor)
       throw new Error(
@@ -100,7 +103,7 @@ export function geometryPoolFor(options: {
     slots = deviceSlots;
     clamp = 'device-limit';
   }
-  return { budgetBytes, slots, pageBytes, allocatedBytes: slots * pageBytes, clamp };
+  return { budgetBytes, slots, pageBytes, allocatedBytes: slots * pageBytes + fixedBytes, clamp };
 }
 
 /** What a host can change mid-session; a missing field keeps its value. */
