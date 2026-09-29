@@ -69,8 +69,8 @@ export async function readPagedManifest(
 
 /** The mesh pages of a manifest opened by its head (`openPagedManifest`), held by a count. */
 export interface ManifestPages {
-  /** The manifest's primitives now: those of every page held and read, the very list its
-   *  `metadata.primitives` is. */
+  /** The manifest's primitives now, in rank order: those of every page held and read, the very
+   *  list its `metadata.primitives` is. */
   readonly primitives: readonly Primitive[];
   /** Bumped each time a page's primitives join or leave `primitives`. */
   readonly changes: number;
@@ -104,6 +104,8 @@ export async function openPagedManifest(
     if (held.get(slot) !== entry) return; // released before it landed
     entry.primitives = primitives;
     for (const primitive of primitives) list.push(primitive);
+    // In rank order, whichever page landed first: the list is the same for the same pages held.
+    list.sort((a, b) => a.mesh - b.mesh || a.primitive - b.primitive);
     changes++;
   };
   const pages: ManifestPages = {
