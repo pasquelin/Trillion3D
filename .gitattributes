@@ -1,6 +1,4 @@
-# Files written by a tool or a third party, never by hand: GitHub folds them in a diff, and the
-# pull request size gate (scripts/check-pr-size.ts) leaves them out of the count. Keep the bare
-# form, not `=true`: git's `attr:` pathspec matches only a set attribute.
+# Files written by a tool or a third party, never by hand: GitHub folds them in a diff.
 pnpm-lock.yaml linguist-generated
 **/Cargo.lock linguist-generated
 # scripts/generate-sdk-facade.ts
