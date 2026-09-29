@@ -30,7 +30,7 @@ const differences = (a: Uint8Array, b: Uint8Array) => {
 };
 
 /** Rows the frame's partition processed: every drawable row, each frame. */
-const lignes = (backend: RenderBackend) => comptesEtape(backend, 'partition')?.lignes ?? null;
+const lignes = (backend: RenderBackend) => comptesEtape(backend, 'partition')?.rows ?? null;
 
 /** A pose rendered by an engine that has never seen anything else, parentless camera: the witness. */
 async function poseNeuve(device: GPUDevice, x: number, onDiag: (e: BackendDiagnostic) => void) {

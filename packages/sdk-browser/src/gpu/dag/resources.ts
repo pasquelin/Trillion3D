@@ -12,7 +12,7 @@ export async function createDagResources(
   device: GPUDevice,
   packed: PackedDag,
   residentCut: boolean,
-  repeat: 'tout' | 'tete' | null = null,
+  repeat: 'all' | 'head' | null = null,
   listCap = initialListCap(device.limits, packed.pageCount),
 ) {
   const pageCount = packed.pageCount,

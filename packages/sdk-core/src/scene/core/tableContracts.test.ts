@@ -10,12 +10,13 @@ const hasCode =
 
 /** Tables at the versions this runtime reads, every table empty. */
 const tables = () => ({
-  version: 4,
+  version: 5,
   nodeTableVersion: 4,
   materialTableVersion: 4,
   geometryTableVersion: 1,
   scene: { name: null, nodes: [] },
   nodes: [],
+  meshPages: [],
   lights: [],
   cameras: [],
   materials: [],

@@ -61,9 +61,9 @@ test('GEO-02: both contract variants announce their arrival, DIRECT as well as B
   const h = deferredLightingHarness();
   let arrivees = 0;
   const lighting = await createDeferredLighting(h.device, () => arrivees++);
-  const rebond = { lights: {}, bounceGrid: {}, probes: {} } as unknown as DirectLightResources;
+  const bounce = { lights: {}, bounceGrid: {}, probes: {} } as unknown as DirectLightResources;
   lighting.bind(surface, view(), view(), true, { lights: {} as GPUBuffer }, () => {});
-  lighting.bind(surface, view(), view(), true, rebond, () => {});
+  lighting.bind(surface, view(), view(), true, bounce, () => {});
   assert.equal(arrivees, 0, 'nothing is announced while both compilations last');
   h.finishCompilation();
   await lighting.settle();

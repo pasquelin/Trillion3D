@@ -43,7 +43,7 @@ export function uploadWorlds(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   // records, the occluders or the cut in hand describe has changed.
   const originMoved = !sameRenderOrigin(run.worldUploadOrigin, cam.eye);
   const rebased = worldsMoved || originMoved;
-  rt.timing.worldCounts.racinesRebasees = rebased ? selectionRoots.length : 0;
+  rt.timing.worldCounts.rootsRebased = rebased ? selectionRoots.length : 0;
   let posted: boolean | undefined;
   if (rebased) {
     const scene = run.gate.revisions.scene;

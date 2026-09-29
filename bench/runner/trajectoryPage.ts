@@ -13,7 +13,7 @@ export async function captureTrajectory(
   const sdk = (await import(options.sdkUrl)) as typeof Sdk;
   const canvas = document.createElement('canvas');
   document.body.append(canvas);
-  const incidents: string[] = (globalThis.incidentsGpu = []);
+  const incidents: string[] = (globalThis.gpuIncidents = []);
   canvas.addEventListener('webglcontextlost', () => incidents.push('webglcontextlost'));
   const diagnostics = collecteDiagnostics(incidents);
   const explorer = await sdk.openMeasuredWorld(canvas, {
