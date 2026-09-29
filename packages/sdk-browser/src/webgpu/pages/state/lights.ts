@@ -36,6 +36,8 @@ export interface WebgpuLightState {
   shadows: GpuShadowAtlas | undefined;
   /** The shadow pool's grant, once asked: `settled` once the device granted or refused it. */
   shadowGrant: DeviceGrant | undefined;
+  /** The drawing buffer the pool was last sized for; another one resizes it (`poolResize.ts`). */
+  poolView: readonly [number, number] | undefined;
   /** The return path of the pages the resolve reads; absent while the pool does not exist. */
   pageRequests: ShadowPageRequests | undefined;
   /** Residency flips, compared plan to plan (`../../shadow/residence.ts`). */
@@ -92,17 +94,14 @@ export interface WebgpuLightState {
   shadowPages: number;
   /** Pages drawn since the state was created, every frame and drain together. */
   shadowPagesTotal: number;
-  /** Pages the light cut drew short and sent back to be drawn again, since the state was created:
-   *  withdrawn — a cut dropped work — or coarser (`redrawShortPages`). */
+  /** Pages the light cut sent back to be drawn again, withdrawn or coarser (`redrawShortPages`). */
   lightCutWithdrawnPages: number;
   lightCutCoarsePages: number;
   /** What the last image's shadow pass drew, apart (`../../shadow/work.ts`). */
   shadowWork: ShadowWork;
-  /** Draw calls actually encoded by the shadow pass: per render pass its clears and restores, then
-   *  an indirect draw per region. */
+  /** Draw calls the shadow pass encoded: per pass its clears and restores, one per region. */
   shadowDrawCalls: number;
-  /** Render passes the shadow pass opened: static layer, pool and transmittance, one per layer
-   *  drawn, per batch. */
+  /** Render passes the shadow pass opened: static, pool, transmittance, per layer and batch. */
   shadowRenderPasses: number;
   /** Why the shadow atlas does not exist, when it does not. */
   shadowReason: string | null;
@@ -111,7 +110,7 @@ export interface WebgpuLightState {
   /** The transmittance layer is past the grant or refused by the device: never asked again
    *  (`../../shadow/transmittanceGrant.ts`). */
   transmittanceDenied: boolean;
-  /** Configuration of the first image lit by the contract is logged only once. */
+  /** The first contract-lit image's configuration is logged once. */
   firstFrameLogged: boolean;
 }
 
@@ -126,6 +125,7 @@ export function createWebgpuLightState(
     tiles: undefined,
     shadows: undefined,
     shadowGrant: undefined,
+    poolView: undefined,
     pageRequests: undefined,
     sceneBox: createShadowSceneBox(),
     residence: createShadowResidence(),

@@ -95,7 +95,7 @@ export const residentReadbackBytes = (listCap: number) => stagedRequestsWord(lis
 /** Requests ahead of the camera one sample stages: half its cap. They wait behind the camera's own
  *  staged requests, on their own counter (`OUT_AHEAD`), so they never take a place the camera's
  *  requests would have used (`shader/snapshotWgsl.ts`). */
-export const aheadRequestCap = (listCap: number) => listCap >>> 1;
+const aheadRequestCap = (listCap: number) => listCap >>> 1;
 /** Bytes of `out` with the staged requests behind, the camera's then those ahead: what the kernels
  *  write, more than the frame copies. */
 export const stagedOutputBytes = (listCap: number) =>

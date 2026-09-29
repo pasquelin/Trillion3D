@@ -59,6 +59,9 @@ export function createShadowRequests(
   pool: ShadowPool,
   records: ShadowRecords,
   sun: SunLevels,
+  /** Entries read, allocated, refused for want of a page, and asked past the list (`unlisted`);
+   *  a resized pool's requests go on counting where the old ones stopped. */
+  counts = { requested: 0, allocated: 0, refused: 0, unlisted: 0, latest: -1 },
 ) {
   const cap = shadowRequestCap(pool.pages),
     needs = createShadowNeeds(table, pool, 2 * cap), // each entry named, and its floor
@@ -66,8 +69,6 @@ export function createShadowRequests(
     /** What the entry being read names: its view, then its page. */
     at = new Int32Array(3);
   let reportFrame = -1;
-  /** Entries read, allocated, refused for want of a page, and asked past the list (`unlisted`). */
-  const counts = { requested: 0, allocated: 0, refused: 0, unlisted: 0, latest: -1 };
   const isSun = (slice: number) => records.kind[slice] === LIGHT_KIND.directional;
   /** Touches `entry` when it is mapped; else notes it to allocate, as `at` names it. */
   const ask = (entry: number, slice: number) => {
@@ -133,7 +134,8 @@ export function createShadowRequests(
       return !counts.allocated && (!counts.unlisted || pool.heldBy(counts.latest));
     },
     consume(report: ShadowRequestReport, nowMs: number, frame: number) {
-      counts.requested = Math.min(report.count, cap);
+      // A report read back before a resize lists at most the old pool's cap.
+      counts.requested = Math.min(report.count, cap, report.entries.length);
       counts.unlisted = report.count - counts.requested;
       counts.allocated = 0;
       counts.refused = 0;

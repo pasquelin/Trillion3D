@@ -39,7 +39,7 @@ export const REQUEST_PRIORITY_SCALE = 16;
 /** A request ahead splits its nine bits: three for its deadline, eight steps of the horizon — about
  *  two frames each at 60 Hz over the published 250 ms —, six for its error, two steps per doubling
  *  over the same thirty-two doublings. */
-export const REQUEST_DUE_STEPS = 8,
+const REQUEST_DUE_STEPS = 8,
   REQUEST_AHEAD_ERROR_BITS = 6,
   REQUEST_AHEAD_SCALE = 2;
 const AHEAD_ERROR_MAX = (1 << REQUEST_AHEAD_ERROR_BITS) - 1;
