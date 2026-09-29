@@ -20,7 +20,7 @@ import {
 /** A map as `ShadowMap` lays it out: first entry, ring, pages per side, window origin. */
 export type PageMap = { base: number; ring: number; pages: number; ox: number; oy: number };
 /** One read: page `p` of `map` at map texel `t`, the entry it asks for, the word it must read. */
-export type FootprintRead = { map: PageMap; p: number[]; t: number[]; entry: number; word: number };
+type FootprintRead = { map: PageMap; p: number[]; t: number[]; entry: number; word: number };
 
 /** The word's bits below its footprint: what a reader decodes of a drawn page. */
 export const DRAWN_BITS = 2 ** PAGE_FOOTPRINT_SHIFT - 1;
