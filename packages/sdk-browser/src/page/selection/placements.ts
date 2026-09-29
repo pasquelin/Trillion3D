@@ -3,7 +3,7 @@
 import type { MatrixElements } from '../../math/matrixElements.ts';
 
 /** What a reader takes of the roots a record's `placementIndex` ranks: their worlds. */
-export type Placements = readonly { readonly world: MatrixElements }[];
+export type Placements = readonly { readonly world: MatrixElements; readonly reach?: number }[];
 
 /** The root that places `rec`: the rank its engine's layout posted (`placementIndex`). */
 export function rootOf<R>(roots: readonly R[], rec: { readonly placementIndex?: number }): R {

@@ -57,6 +57,8 @@ export type PageRec = {
   declaration: HostMaterials;
   transparent?: boolean;
   sourceMesh?: HostMesh;
+  /** GPU deformation output in this page's cache slot, in words from its start (#357). */
+  deformationOutput?: { from: number; count: number };
   sourceOrder?: number;
   renderOrder: number;
   geometry?: Geometry;
@@ -78,6 +80,8 @@ export type PageRec = {
    *  by each engine's layout. A record carries no placement value of its own: its world, its row
    *  and its winding are its root's, found by this rank (`rootOf`, #1226). */
   placementIndex?: number;
+  /** WebGL placement control record, zero when the page is rigid. */
+  deformRecord?: number;
   /** True on a page of the group a root replaces: the minimum capacity holds it and admits it
    *  first (`../../residency/minimumCapacity.ts`). */
   rootChild?: boolean;
@@ -150,6 +154,12 @@ export type ClusterRoot<T> = {
   /** The instance-buffer row this root reads its world from, when it was collected from one: an
    *  engine drawn by the host renderer draws its pages instanced, one mesh per page and surface. */
   placement?: PlacementOf;
+  /** How far its primitive's deformation can move a vertex from rest (`Primitive.deformation`),
+   *  absent on one that does not deform (#357). */
+  deformation?: { joints: number[]; targets: number[]; softVertices?: number };
+  /** How far its deformation moves a vertex this frame, in its units: every cut grows its bounds
+   *  by it (`../../deformation/frame.ts`); absent or zero at rest. */
+  reach?: number;
   /** Winding of `world` and the row-table epoch it was computed at (`webgpu/pages/render/winding.ts`). */
   windingCw?: boolean;
   windingEpoch?: number;

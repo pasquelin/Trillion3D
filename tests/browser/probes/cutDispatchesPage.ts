@@ -19,7 +19,7 @@ import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/unif
 import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
 import { encodeAvant, ressourcesAvant } from '../../../bench/oracles/browser/cut-dispatches.ts';
 import { DAG_SELECTION_SHADER_AVANT } from '../../../bench/oracles/browser/cut-dispatches-wgsl.ts';
-import { ouvrirAppareil } from './webgpuDevice.ts';
+import { openGpuDevice } from './webgpuDevice.ts';
 import { commandes, sceneView } from './cutDispatchesScene.ts';
 import { median } from '../../../scripts/median.ts';
 import type { ExecuterParams, ExecuterResultat } from './cutDispatchesTypes.ts';
@@ -32,7 +32,7 @@ export async function executer({
   rondes,
   bornes,
 }: ExecuterParams): Promise<ExecuterResultat> {
-  const appareil = await ouvrirAppareil();
+  const appareil = await openGpuDevice();
   if (!appareil) return { indisponible: 'no WebGPU adapter' };
   const { device, erreurs } = appareil;
   const { packed, uniforms } = sceneView(feuilles, niveaux);

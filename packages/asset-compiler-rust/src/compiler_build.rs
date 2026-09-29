@@ -1,6 +1,5 @@
 use super::*;
 use compiler_autonomous::write_autonomous_scene;
-
 pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     check(o)?;
     validate_compile_options(o)?;
@@ -10,10 +9,8 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let _attached = phases.attach();
     // Held until return: two compilations of one cache would each prune what the other published.
     let _lock = CacheLock::acquire(o)?;
-    // The router picks the format driver and has it produce the intermediate scene;
-    // everything after reads only a glTF, without knowing which format it came from.
+    // Each format driver yields the common glTF intermediate scene.
     let progress = with_ratio(progress);
-    // Cutout answers, read before any conversion (`cutout.rs`).
     let decisions = cutout::load_decisions(&o.cache, &o.source)?;
     let routed: RoutedSource = plugins::scene::prepare_source(o, &progress)?;
     // Where relative image URIs resolve, read before a converted scene moves `o.source` away.
@@ -39,9 +36,9 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let NodeSelection {
         chosen,
         selected_triangles,
-        skinned_meshes,
         meshes,
         mesh_map,
+        skinned_meshes,
     } = select_nodes(o, &loaded.g, &scene_nodes)?;
     let shown: BTreeSet<usize> = chosen.difference(&hidden).copied().collect();
     // Decided cutouts go to masked before any material is read (`cutout.rs`).
@@ -81,7 +78,6 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         g,
         bin,
         mesh_values: values(g, "meshes")?,
-        skinned_meshes: &skinned_meshes,
         mesh_map: &mesh_map,
         mesh_scales: &mesh_scales,
         scene_triangles: selected_triangles,
@@ -162,8 +158,14 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let (autonomous_scene, autonomous_refusal, autonomous, mut products) =
         write_autonomous_scene(&directory, &source, &primitives, &output_views)?;
     let paged = write_mesh_pages(&primitives, &directory)?;
-    let (tables, cells) =
-        stage_scene_tables(&source, autonomous.as_ref(), &paged, &directory, &progress)?;
+    let (tables, cells) = stage_scene_tables(
+        (g, bin),
+        &source,
+        autonomous.as_ref(),
+        &paged,
+        &directory,
+        &progress,
+    )?;
     let placed = (&primitives[..], covers);
     let (world_products, world_report) =
         stage_world_roots((o, &pool), (&source, &directory), placed, &cells)?;

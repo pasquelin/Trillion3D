@@ -2376,6 +2376,30 @@
       "remount": "Gắn lại"
     }
   },
+  "a-character-that-walks": {
+    "controls": {
+      "playing": "Phát"
+    },
+    "banner": "Kéo để xoay quanh cảnh. Tạm dừng hoặc tiếp tục hoạt ảnh bằng Phát."
+  },
+  "a-crowd-of-characters": {
+    "controls": {
+      "playing": "Phát"
+    },
+    "banner": "Kéo để xoay quanh cảnh. Tạm dừng hoặc tiếp tục hoạt ảnh bằng Phát."
+  },
+  "a-shape-that-morphs": {
+    "controls": {
+      "playing": "Phát"
+    },
+    "banner": "Kéo để xoay quanh cảnh. Tạm dừng hoặc tiếp tục hoạt ảnh bằng Phát."
+  },
+  "additive-poses": {
+    "controls": {
+      "playing": "Phát"
+    },
+    "banner": "Kéo để xoay quanh cảnh. Tạm dừng hoặc tiếp tục hoạt ảnh bằng Phát."
+  },
   "move-a-hierarchy-by-name": {
     "banner": "Xem năm nhóm có tên bước qua một chuỗi có thể lặp lại. Đổi trình điều khiển để tự viết các tư thế giống hệt.",
     "controls": {
