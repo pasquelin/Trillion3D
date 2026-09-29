@@ -22,8 +22,12 @@ const LADDER = {
 
 /** Two cells of one mesh, one near the origin and one 5 km away, each in a region page of its
  *  own; each hangs under a core node standing 10 m up, or under the scene root when its `far` or
- *  `near` is null. */
-export function world(far: number | null = 0, near: number | null = null) {
+ *  `near` is null. `drawn` are the host meshes of its two primitives. */
+export function world(
+  far: number | null = 0,
+  near: number | null = null,
+  drawn: readonly Object3D[] = [],
+) {
   const node = (x: number, parent: number | null) => ({
     parent,
     mesh: 7,
@@ -63,7 +67,7 @@ export function world(far: number | null = 0, near: number | null = null) {
     base: BASE,
     root,
     parents: [core],
-    meshes: new Map([[7, placedMesh(links)]]),
+    meshes: new Map([[7, placedMesh(links, drawn)]]),
   });
   const bytes = (url: string) => {
     const name = url.split('/').at(-1)!;
