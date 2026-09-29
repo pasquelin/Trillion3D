@@ -1937,7 +1937,7 @@
       "wasmAvailable": "WebAssembly 모듈이 올바른 계약 버전으로 로드되어 있다.",
       "wasmSimd": "그 모듈이 `simd128`으로 컴파일되었는지 여부; 모듈이 로드되기 전까지는 `null`.",
       "clockResolutionMs": "스레드 시계의 분해능, 밀리초 단위; 추정되기 전까지는 `null`.",
-      "clockCoarse": "시계가 판정하기에 너무 거칠 때 true: 모든 것이 JavaScript 경로에 머무른다.",
+      "clockCoarse": "시계가 한 번의 실행을 재기에 너무 거칠 때 true: 실행은 묶은 배치 단위로 측정된다.",
       "unavailableReason": "WebAssembly 경로를 쓸 수 없는 이유; 쓸 수 있으면 `null`.",
       "operations": "각 연산."
     }
@@ -5057,10 +5057,6 @@
   },
   "emptyIrradiance": {
     "summary": "아무것도 담고 있지 않은, 광원을 받아들일 준비가 된 조도."
-  },
-  "encodeManifestBinary": {
-    "summary": "매니페스트를, 리더가 파싱하는 작은 JSON과 그것이 매핑하는 열들로 나눈다.",
-    "description": "반환되는 기술자는 빈 `sha256`을 담고 있다: 완성된 바이트를 가진 호출자만이 그것을 해시할 수 있다."
   },
   "enginePose": {
     "summary": "추적과 진단이 공개하는, 엔진 카메라로부터 읽은 월드 자세: 눈은 `world`의 평행이동 성분이며, 코어의 분해는 `Matrix4.decompose`의 비트를 만들어내고, `getWorldQuaternion`은 그 호출일 뿐이다."

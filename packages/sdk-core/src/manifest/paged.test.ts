@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { manifest, TEMPLATES } from '../../../../tests/fixtures/manifestBinary.ts';
 import { EMPTY, pagedManifest } from '../../../../tests/fixtures/pagedManifest.ts';
 import type { EngineError } from '../contracts/index.ts';
-import { decodeManifestBinary, encodeManifestBinary } from './binary.ts';
+import { decodeManifestBinary } from './binary.ts';
+import { encodeManifestBinary } from '../../../../tests/fixtures/manifestBinaryEncode.ts';
 import { readPagedManifest } from './paged.ts';
 
 /** The manifest one column file gave, before the manifest was paged. */

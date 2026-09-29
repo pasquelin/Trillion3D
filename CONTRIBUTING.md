@@ -217,7 +217,8 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
    rule 5). Describe what both local review passes found under "Local review before push". Add
    `in review`; `in progress` stays until the merge. No pull request yet (AGENTS.md rule 11).
 5. Obtain an independent review and resolve its findings. Then open the pull request, with its "Lead
-   verification" section, one line per To-do and Proof item, and auto-merge on: it merges into
+   verification" section, one line per To-do and Proof item (each Proof line of the issue quoted,
+   or under "Not proven" with the boss's yes: the CI checks it), and auto-merge on: it merges into
    `develop` once `validate` is green on a head that merged `develop` and merges cleanly into it
    (AGENTS.md rule 11); the image proof and the timing follow by batch on `develop`. `main` moves
    only on the maintainer's word. Never push directly to `develop` or `main`, or rewrite published

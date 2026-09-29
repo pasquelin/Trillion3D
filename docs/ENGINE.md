@@ -279,9 +279,13 @@ alone, 4.2 MB at 1920 × 1080 and 15.7 MB at 3456 × 2234, whatever the scene ho
 by more than `tileLights` (64) lights walks exactly those, written in order into a view-sized pool
 after the tile records (#849): a quarter list per tile, grown to what a sampled frame asked, four
 lists at most. A tile the pool has no room for walks every light, exactly, and the overflow is named
-(`tileLightPoolOverflowed`, `tileLightPoolGrowths` of the frame metrics). A scene of 64 lights or fewer runs a
-narrow tile pass (64-bit masks, a 64-light array) and holds no pool. A shadow caster past the 64
-shadow slices lights without a shadow and is counted
+(`tileLightPoolOverflowed`, `tileLightPoolGrowths` of the frame metrics). A scene of one batch
+(256 lights or fewer) writes the pool from the masks its tiles still hold, never testing a light
+twice. A scene of 64 lights or fewer runs a narrow tile pass (64-bit masks, a 64-light array, one
+batch written straight at its ranks) and holds no pool; its deferred resolve is the narrow
+program too (a 64-light array, each listed light read with no branch), compiled on first use, its
+wide twin compiled beside it. A shadow caster past the 64 shadow slices lights without a shadow
+and is counted
 (`shadowCastersUnsliced`, #818). WebGL2 holds every light in a float texture grown with the
 count, and each draw evaluates only the lights whose range reaches its world box, listed per draw
 on the CPU in one integer texture (`webgl/cluster/lightLists.ts`, #835).
@@ -500,26 +504,35 @@ covers it — then the page is restored from the layer and its moving casters dr
 rest touches neither, and a camera move only draws the pages it brings in
 (`staticSurvives.test.ts`, `moverPages.test.ts`).
 
-The trade-off, as measured at 1728×1117 CSS, DPR 2 (#831, `9ec162c5e`, before #990 and #993,
-headless, load 7–12): the layer buys a redraw of the moving casters alone, where the static set
-would be drawn again under every mover, and costs as many bytes as the pool (above) and one restore
-draw per page it redraws.
+The trade-off: the layer buys a redraw of the moving casters alone, where the static set would be
+drawn again under every mover, and costs as many bytes as the pool (above) and one restore draw per
+page it redraws. Its measure is relative, never absolute: the measure session posts paired A/B runs
+of `develop` on an Apple M2 Max, headless Chrome, 1728×1117 CSS at DPR 2, bodies moving (car
+driven, walker walking), on a loaded machine. The runs posted 28 Sept. 20:02 UTC as `measure ok` on
+#989 and #990, median GPU ms of five interleaved pairs, load 15–75, batch `884cde8b5` →
+`e36d93ea1` (it holds the capacity change #1045 and the static-survival change #1064):
 
-| Example              | GPU p50 / p95 ms | shadow pages p50 | shadow draws p95 | fps  |
-| -------------------- | ---------------- | ---------------- | ---------------- | ---- |
-| falling-boxes        | 20.19 / 21.43    | 1 346            | 2 013            | 37.6 |
-| spin-an-astrolabe    | 22.02 / 26.80    | 539              | 1 142            | 36.5 |
-| a-walker-among-balls | 18.55 / 19.73    | 617              | 110              | 50.4 |
-| drive-a-car          | 13.43 / 17.83    | 1 534            | 712              | 59.2 |
+| Example (GPU p50 ms) | before | after | paired difference            |
+| -------------------- | ------ | ----- | ---------------------------- |
+| falling-boxes        | 28.1   | 25.4  | −1.0 to −3.2 (5/5 faster)    |
+| spin-an-astrolabe    | 30.7   | 28.3  | −1.4 to −4.2 (5/5 faster)    |
+| drive-a-car          | 25.8   | 26.4  | −1.0 to +1.7                 |
+| a-walker-among-balls | 59.2   | 60.2  | −0.8 to +2.4 (one +44 spike) |
+
+On both sides the CPU frame stayed at 1.4–2.3 ms and every scene under 60 fps on the GPU
+(25–60 ms): on 28 Sept. the programme's 120 fps target (#525) was not met. The idle
+decision above (#993, #1146) was measured in the batch `3e58f044f` → `d5ec49069`, six A/B pairs,
+load 25–60, posted on #993 on 28 Sept. 22:35 UTC: GPU p50 moved by +0.13 ms (falling boxes), +0.24
+(walker), −0.59 (car) and +0.53 (astrolabe rotating), all within run spread (widest −1.5 to
++2.0 ms), CPU p50 within 0.07 ms — neither a regression nor a gain resolved; that batch did not run
+resize or pause/resume. Each batch holds other merges, so a row is a batch's cost, not one change's.
 
 The astrolabe is the counterexample: every caster of its pages moves, so the layer holds almost
 nothing it can restore and the cost is its moving casters, whatever the cache; a cache percentage is
 no measure of it. Physical pages are memory, not frame time: the pool past one layer (#818) left
 the falling boxes' GPU envelope where it was and raised their peak memory by 118 MB (1 410 against
 1 292 MB, #850's baseline; the walker 1 465, the car 1 417), and its layer doubles with it, until
-the runtime resize above repays it. These numbers are the
-latest measured on `develop`; the measure session publishes the next ones by batch after the
-merges.
+the runtime resize above repays it. Later batches post their numbers on the issues they measure.
 
 **Shadow casters are selected from the light.** The pages of one light view a frame draws — a sun
 level, a lamp face at one mip — form a run, and every run of the frame is selected by ONE traversal
