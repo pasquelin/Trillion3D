@@ -51,4 +51,6 @@ export const ENGINE_ERROR_MEANINGS: Readonly<Record<string, string>> = {
     "`world.controls.kind` was set to `'vehicle'` while `world.controls.vehicle` is `null`: there is nothing to drive.",
   GUIDE_CEILING:
     'A `world.guides` call would hold more vertices than `GUIDE_VERTEX_CEILING`; nothing of it was added.',
+  REFERENCE_SHADOWS_REDUCED:
+    'The reference image was refused: the shadow pool runs below its full size, or the session is interactive.',
 };

@@ -5,16 +5,23 @@ import type { Capture } from '../../tests/kit/server/staticServer.ts';
 import { referenceDiff, type ReferenceDiff } from './imageDiff.ts';
 import {
   REFERENCES_DIR,
+  REFERENCE_IMAGES_DIR,
   readReference,
   referenceImage,
   settingsMismatch,
   type ReferenceRecord,
 } from './referenceStore.ts';
-import type { Report, Serie } from './report/types.ts';
+import type { Report } from './report/types.ts';
 
 /** The scene's reference, once the run is known comparable: drawn from a commit, at the same
- *  image settings and pose path, on a still camera. */
-export function sceneReference(report: Report, dir = REFERENCES_DIR): ReferenceRecord {
+ *  image settings and pose path, on a still camera, with a reference for each of `views` —
+ *  refused before any series runs rather than after it. */
+export function sceneReference(
+  report: Report,
+  dir = REFERENCES_DIR,
+  views: readonly string[] = [],
+  images = REFERENCE_IMAGES_DIR,
+): ReferenceRecord {
   const { scene, settings } = report;
   const record = readReference(scene, dir);
   const refused = (why: string) => new Error(`--reference on ${scene}: ${why}`);
@@ -30,6 +37,10 @@ export function sceneReference(report: Report, dir = REFERENCES_DIR): ReferenceR
       `the reference walks pose path ${record.pathVersion}, this run ${report.pathVersion}`,
     );
   if (settings.movingCamera) throw refused('a moving camera ends away from the reference pose');
+  const missing = views.filter((view) => !record.views[view]);
+  if (missing.length) throw refused(`no reference for ${missing.join(', ')}`);
+  // Each image there and the one the record names, before any series runs.
+  for (const view of views) referenceImage(record, view, images);
   return record;
 }
 
@@ -47,21 +58,21 @@ function samePose(a: unknown, b: unknown): boolean {
   );
 }
 
-/** Each side's capture of `serie`, by side name, against the reference of its view. */
+/** Each side's capture of `series`, by side name, against the reference of its view. */
 export function againstReference(
   record: ReferenceRecord,
-  serie: Serie,
+  series: Report['series'][number],
   files: Record<string, string>,
   captures: ReadonlyMap<string, Capture>,
-  dir = REFERENCES_DIR,
+  images = REFERENCE_IMAGES_DIR,
 ): Record<string, ReferenceDiff> {
-  const entry = record.views[serie.view];
-  if (!entry) throw new Error(`--reference: ${record.scene} has no reference for ${serie.view}`);
-  if (!samePose(entry.pose, serie.pose))
-    throw new Error(`--reference: ${record.scene} ${serie.view} is not at the reference pose`);
+  const entry = record.views[series.view];
+  if (!entry) throw new Error(`--reference: ${record.scene} has no reference for ${series.view}`);
+  if (!samePose(entry.pose, series.pose))
+    throw new Error(`--reference: ${record.scene} ${series.view} is not at the reference pose`);
   const reference = {
     name: `${record.scene}/${entry.file} @ ${record.commit.slice(0, 12)}`,
-    capture: referenceImage(record, serie.view, dir),
+    capture: referenceImage(record, series.view, images),
   };
   return Object.fromEntries(
     Object.entries(files).map(([side, file]) => [
@@ -73,7 +84,7 @@ export function againstReference(
 
 const diffText = (d: ReferenceDiff) =>
   !d
-    ? '—'
+    ? '— | | |'
     : 'error' in d
       ? `${d.error} | | |`
       : `${d.reference} | ${d.meanChannel.toFixed(3)} | ${d.p999Channel} | ${d.flipMean.toFixed(4)}`;

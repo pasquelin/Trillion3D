@@ -1007,7 +1007,8 @@
       "PHYSICS_FORMAT": "Vật lý đã chuẩn bị của một mô hình đã biên dịch (`physics.json`) thuộc định dạng khác, hoặc được chuẩn bị bằng một Jolt khác với của engine (`PHYSICS_FORMAT`): hãy biên dịch lại. Một raycast chính xác được yêu cầu khi vật lý đang tắt (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "Vật lý đã chuẩn bị của một mô hình đã biên dịch (`physics.json`) thuộc định dạng khác, hoặc được chuẩn bị bằng một Jolt khác với của engine (`PHYSICS_FORMAT`): hãy biên dịch lại. Một raycast chính xác được yêu cầu khi vật lý đang tắt (`PHYSICS_OFF`).",
       "NO_VEHICLE": "`world.controls.kind` được đặt thành `'vehicle'` trong khi `world.controls.vehicle` là `null`: không có gì để lái.",
-      "GUIDE_CEILING": "Một lệnh gọi `world.guides` sẽ giữ nhiều đỉnh hơn `GUIDE_VERTEX_CEILING`; không phần nào của nó được thêm vào."
+      "GUIDE_CEILING": "Một lệnh gọi `world.guides` sẽ giữ nhiều đỉnh hơn `GUIDE_VERTEX_CEILING`; không phần nào của nó được thêm vào.",
+      "REFERENCE_SHADOWS_REDUCED": "Ảnh tham chiếu bị từ chối: vùng bóng đổ chạy dưới kích thước đầy đủ, hoặc phiên là tương tác."
     }
   },
   "EngineProfiler": {

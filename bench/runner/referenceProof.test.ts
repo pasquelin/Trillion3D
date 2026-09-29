@@ -1,5 +1,6 @@
 // #1281: `bench.ts --reference` holds each capture to the engine's reference image of its scene and
 // view, and refuses by name a run that cannot be compared with it.
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
@@ -17,7 +18,8 @@ function stored(settings: BenchSettings, pose: unknown) {
   const body = Buffer.from([255, 0, 0, 255, 255, 0, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255]);
   mkdirSync(join(dir, 'scene-test'));
   writeFileSync(join(dir, 'scene-test', 'salon.png'), encodePng(2, 2, body, true));
-  const view = { pose, file: 'salon.png', sha256: '', width: 2, height: 2, settleFrames: 1 };
+  const sha256 = createHash('sha256').update(body).digest('hex');
+  const view = { pose, file: 'salon.png', sha256, width: 2, height: 2, settleFrames: 1 };
   const record = {
     scene: 'scene-test',
     commit: 'abcdef0123456789',
@@ -32,9 +34,9 @@ function stored(settings: BenchSettings, pose: unknown) {
 
 test('each side’s capture is scored against the reference of its view, rows as captured', () => {
   const report = rapport({});
-  const [serie] = report.series;
-  const { dir, body, record } = stored(report.settings, serie.pose);
-  assert.deepEqual(referenceImage(record, 'salon', dir)?.body, body, 'bottom row first, as read');
+  const [first] = report.series;
+  const { dir, body, record } = stored(report.settings, first.pose);
+  assert.deepEqual(referenceImage(record, 'salon', dir).body, body, 'bottom row first, as read');
   const off = Buffer.from(body);
   off[0] = 245;
   const captures = new Map([
@@ -43,7 +45,7 @@ test('each side’s capture is scored against the reference of its view, rows as
   ]);
   const diffs = againstReference(
     sceneReference(report, dir),
-    serie,
+    first,
     { a: 'same.png', b: 'off.png' },
     captures,
     dir,
@@ -53,7 +55,7 @@ test('each side’s capture is scored against the reference of its view, rows as
   assert.equal(diffs.a.pixels, 0);
   assert.equal(diffs.b.pixels, 1);
   assert.ok(diffs.b.flipMean > 0);
-  serie.referenceDiff = diffs;
+  first.referenceDiff = diffs;
   assert.ok(referenceLines(report).some((line) => line.includes('| salon | 1 | b |')));
 });
 
@@ -65,11 +67,26 @@ test('a run the reference cannot judge is refused by name, never scored', () => 
   assert.throws(() => sceneReference(wider, dir), /width differ/);
   const moving = { ...report, settings: { ...report.settings, movingCamera: true } };
   assert.throws(() => sceneReference(moving, dir), /moving camera/);
+  assert.throws(() => sceneReference(report, dir, ['salon', 'hall']), /no reference for hall/);
   const record = sceneReference(report, dir);
   const moved = { ...report.series[0], pose: { ...report.series[0].pose, fov: 60 } };
   assert.throws(() => againstReference(record, moved, {}, new Map(), dir), /reference pose/);
   assert.throws(
     () => againstReference(record, { ...moved, view: 'hall' }, {}, new Map(), dir),
     /no reference for hall/,
+  );
+});
+
+test('an image off git that is not the one its record names is refused, before any series', () => {
+  const report = rapport({});
+  const { dir, body } = stored(report.settings, report.series[0].pose);
+  const other = Buffer.from(body);
+  other[1] = 9;
+  writeFileSync(join(dir, 'scene-test', 'salon.png'), encodePng(2, 2, other, true));
+  assert.throws(() => sceneReference(report, dir, ['salon'], dir), /not the image reference\.json/);
+  const empty = mkdtempSync(join(tmpdir(), 'reference-images-'));
+  assert.throws(
+    () => sceneReference(report, dir, ['salon'], empty),
+    /no reference image .*abcdef012345/,
   );
 });
