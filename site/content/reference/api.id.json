@@ -3297,7 +3297,7 @@
       "cpuShadowRegionsMs": "Waktu CPU untuk menulis region setiap batch bayangan: uniform muka dan catatan halaman.",
       "cpuShadowPassesMs": "Waktu CPU untuk meng-encode pass setiap batch bayangan: pembentuk, pembersihan dan pemulihan, gambar.",
       "shadowLightCuts": "Potongan klaster yang dijalankan dari cahaya: satu per tampilan cahaya yang digambar, nol pada bingkai diam.",
-      "shadowPagesRequested": "Halaman bayangan virtual yang dibaca gambar, seperti yang disebut permintaan awal frame — atau, tanpanya, laporan permintaan terakhirnya: yang ditandai penerima kamera.",
+      "shadowPagesRequested": "Halaman bayangan virtual yang dibaca gambar, seperti yang disebut laporan permintaan terakhirnya: yang ditandai penerima kamera.",
       "shadowPagesCached": "Dari itu, halaman yang dibaca langsung dari pool: terkini, tanpa penggambaran.",
       "shadowPoolPages": "Halaman fisik pool tetap yang menyimpan halaman virtual.",
       "shadowPoolBytes": "Byte GPU pool bayangan: halaman kedalamannya, lapisan statis dan transmitansnya setelah dibuat, serta buffer di sampingnya. Null sampai frame pertama menentukan ukuran pool.",
@@ -3322,7 +3322,7 @@
       "releaseDeferred": "Bingkai tidak merencanakan bayangan: gabungan yang ditahan langsung masuk ke daftar.",
       "setPageInvalidation": "Mematikan invalidasi per halaman: objek bergerak membuat usang setiap halaman cahaya yang disentuhnya. Aktif secara default.",
       "pageInvalidation": "Apakah objek bergerak hanya membuat usang halaman yang tertutup kotaknya.",
-      "plan": "Merencanakan satu frame: membuat usang yang bergerak, membaca permintaan penerima — atau, jika tidak ada, laporan terakhir —, menerima setiap halaman yang akan digambar.",
+      "plan": "Merencanakan satu frame: membuat usang yang bergerak, membaca laporan terakhir, menerima setiap halaman yang akan digambar.",
       "reissue": "Halaman frame mulai dari `from` tidak dapat dikodekan: tetap usang, tertunda, dan frame berikutnya menggambarnya.",
       "reset": "Memulai lagi.",
       "setThreshold": "Ambang tempat potongan cahaya memilih pemberi bayangan, dan titik asal render-nya (`thresholds.ts`).",
@@ -4319,7 +4319,7 @@
       "texturePoolClamp": "Alasan pembatasan kolam tekstur: `minimum`, `device-limit`.",
       "hizCulled": "Cluster yang ditemukan tersembunyi uji oklusi bingkai ini; `null` di mana jalur itu tidak menghitungnya.",
       "shadowLightCuts": "Potongan klaster yang dijalankan dari cahaya: satu per tampilan cahaya yang digambar, nol pada bingkai diam.",
-      "shadowPagesRequested": "Halaman bayangan virtual yang dibaca gambar, seperti yang disebut permintaan awal frame — atau, tanpanya, laporan permintaan terakhirnya: yang ditandai penerima kamera.",
+      "shadowPagesRequested": "Halaman bayangan virtual yang dibaca gambar, seperti yang disebut laporan permintaan terakhirnya: yang ditandai penerima kamera.",
       "shadowPagesCached": "Dari itu, halaman yang dibaca langsung dari pool: terkini, tanpa penggambaran.",
       "shadowPoolPages": "Halaman fisik pool tetap yang menyimpan halaman virtual.",
       "shadowPoolBytes": "Byte GPU pool bayangan: halaman kedalamannya, lapisan statis dan transmitansnya setelah dibuat, serta buffer di sampingnya. Null sampai frame pertama menentukan ukuran pool.",
@@ -4957,7 +4957,7 @@
   },
   "createShadowPlan": {
     "summary": "Penjadwal bayangan peta virtual.",
-    "description": "Penerima frame menyebut halaman yang mereka baca sebelum rasterisasinya (`demand.ts`) — tanpa mereka, laporan shading, dibaca kembali beberapa frame kemudian — dan yang kurang dialokasikan dari pool tetap. Yang bergerak membuat usang halaman terpetakan yang ditutupinya. Lalu sebuah frame menggambar setiap halaman usang yang dibaca gambar, semuanya dalam frame itu (`admit.ts`): yang menahan biaya adalah cache — sebuah halaman digambar ulang hanya jika isinya berubah —, dan pool adalah satu-satunya batas. Adegan diam, yang shading-nya tidak lagi berjalan, tidak menggambar apa pun. Semua array dialokasikan sekali — sel penerima hanya tumbuh untuk frame dengan lebih banyak penerima —; `plan()` tidak mengalokasikan hal lain."
+    "description": "Shading mencatat halaman yang dibacanya; laporannya, dibaca kembali beberapa frame kemudian, mengalokasikan yang kurang dari pool tetap. Yang bergerak membuat usang halaman terpetakan yang ditutupinya. Lalu sebuah frame menggambar setiap halaman usang yang dibaca gambar, semuanya dalam frame itu: yang menahan biaya adalah cache — sebuah halaman digambar ulang hanya jika isinya berubah —, dan pool adalah satu-satunya batas. Adegan diam, yang shading-nya tidak lagi berjalan, tidak meminta apa pun dan tidak menggambar apa pun. Semua array dialokasikan sekali; `plan()` tidak mengalokasikan apa pun."
   },
   "createTerminalProgress": {
     "summary": "Sebuah bar kemajuan di terminal yang mengikuti peristiwa kompiler.",
@@ -7535,17 +7535,6 @@
   },
   "SHADOW_RECORD_FLOATS": {
     "summary": "Float dari rekaman bayangan, yang dibaca shading sebuah cahaya: enam matriks muka lampu — di sana rentang kedalaman matahari, masing-masing `zNear, zFar` (`recordPack.ts`) —, lalu kerangka bidang cahaya matahari — `right, zNear`, `up, zFar`, `axis`, lalu slot rentang saat ini —, lalu asal jendela tiap slot clipmap sebagai dua bilangan bulat, lalu header `vec4f`: muka (lampu) atau level (matahari), setengah bidang tangen lampu atau level terhalus matahari, bidang dekat lampu, dan entri pertama rekaman di tabel halaman."
-  },
-  "ShadowReceivers": {
-    "summary": "Permukaan yang diterangi shading sebuah frame, sebagaimana host menyerahkannya sebelum rasterisasi bayangannya.",
-    "members": {
-      "boxes": "Kotak dunia, masing-masing `RECEIVER_FLOATS`: setiap permukaan yang diterangi dalam frame terletak di salah satunya.",
-      "count": "Kotak yang terdaftar.",
-      "planes": "Enam bidang frustum kamera (`frustumPlanesFromMatrix`): yang berada di luar tidak diterangi.",
-      "pixelNear": "Ukuran dunia satu piksel di bidang dekat, tempat jejak sebuah titik yang diterangi dimulai: yang terkecil dari pass yang membaca bayangan — milik target yang digambar, milik layar.",
-      "pixelNearMost": "Sama, yang terbesar dari pass tersebut.",
-      "orthographic": "Kamera ortografis: jejak setiap piksel adalah `pixelNear`."
-    }
   },
   "ShadowRequestReport": {
     "summary": "Yang dibaca shading dalam satu bingkai: entri tabel yang dimintanya, tanpa urutan.",
