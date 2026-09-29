@@ -36,6 +36,8 @@ pub(super) struct Partitioned {
     pub roots: Vec<usize>,
     pub partition: Value,
     pub cells: usize,
+    /// Each node's rank in the core, `None` for a placed one.
+    pub rank: Vec<Option<usize>>,
 }
 
 /// The core and the cells of `table`, or `None` when its placed nodes fit one cell, and the
@@ -132,6 +134,7 @@ pub(super) fn partition(
         roots,
         cells: cells.len(),
         partition: write_cells(cells, &tree, mesh_pages, directory)?,
+        rank,
     });
     Ok((split, members))
 }
