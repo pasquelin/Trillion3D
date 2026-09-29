@@ -42,7 +42,7 @@ function createResources(gl: WebGL2RenderingContext) {
     },
     /** The target, made `w` × `h`: the size at the bounds' maximum, which a scale step never remakes. */
     target(w: number, h: number) {
-      if (target && w === width && h === height) return target;
+      if (target && !target.refused && w === width && h === height) return target;
       target?.dispose();
       [width, height] = [w, h];
       return (target = createWebglSceneTarget(gl, w, h));
