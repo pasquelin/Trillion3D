@@ -137,9 +137,9 @@ test('resume requires identical campaign identity and completed error-free measu
 
 test('comparison rejects different or missing geometric error definitions', () => {
   const a = reading();
-  const erreurs: ('reference' | null | undefined)[] = ['reference', null, undefined];
-  for (const erreur of erreurs) {
-    const b: ReportRecord = { ...reading(), id: 'b', data: { ...a.data, erreur } };
+  const metrics: ('reference' | null | undefined)[] = ['reference', null, undefined];
+  for (const errorMetric of metrics) {
+    const b: ReportRecord = { ...reading(), id: 'b', data: { ...a.data, errorMetric } };
     const result = comparison(a, b, 'cpu');
     assert.equal(result.delta, null);
     assert.ok(result.reasons?.includes('errorMetric'));

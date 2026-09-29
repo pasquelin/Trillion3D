@@ -13,7 +13,7 @@ export { PATH_VERSION, VIEWS, poseAt, trajectoryPoses } from './poses.ts';
 export { assetsManifest, sceneGltf, scenesOf } from './scene.ts';
 export { resolveSides, sdkEntryUrl } from './dists.ts';
 export { ENGINES, engineOf, equipSide, resolveCache, sideReport } from './sideOptions.ts';
-export { Flags, parseArgs } from './flags.ts';
+export { parseArgs } from './flags.ts';
 import { type Flags, parseArgs } from './flags.ts';
 import { ENGINES, equipSide } from './sideOptions.ts';
 
