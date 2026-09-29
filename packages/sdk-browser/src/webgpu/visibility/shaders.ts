@@ -21,6 +21,33 @@ import { feedbackFreeEntry } from '../tile/feedbackAbWgsl.ts';
 export const zeroFlagsBuffer = (device: GPUDevice, drawSlots: number) =>
   device.createBuffer({ size: Math.max(4, drawSlots * 4), usage: GPUBufferUsage.STORAGE });
 
+/** The visibility raster's group 0, entry by entry: what every pass drawing page-table rows binds
+ *  (`../shadow/freshDraws.ts` keeps the entries its draws read). */
+export function visLayoutEntries(): GPUBindGroupLayoutEntry[] {
+  const b = VIS_BINDINGS;
+  return [
+    { binding: b.cache, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+    { binding: b.position, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+    {
+      binding: b.pageTable,
+      visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+      buffer: readOnly,
+    },
+    { binding: b.flags, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+    {
+      binding: b.uniform,
+      // The fragment reads the texture level bias (`atlasLod`, `uni.mipBias`).
+      visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+      buffer: { type: 'uniform', minBindingSize: VIS_UNIFORM_BYTES },
+    },
+    { binding: b.uv, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+    ...atlasLayoutEntries(b.color),
+    { binding: b.sampler, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
+    { binding: b.instances, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+    { binding: b.slotOffsets, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+  ];
+}
+
 /** Allocates visibility uniforms and validates both shader modules before pipeline creation. */
 export async function createWebgpuVisibilityShaders(
   device: GPUDevice,
@@ -34,30 +61,7 @@ export async function createWebgpuVisibilityShaders(
     size: SHADE_UNIFORM_BYTES,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
-  const b = VIS_BINDINGS;
-  const visBindGroupLayout = device.createBindGroupLayout({
-    entries: [
-      { binding: b.cache, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
-      { binding: b.position, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
-      {
-        binding: b.pageTable,
-        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
-        buffer: readOnly,
-      },
-      { binding: b.flags, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
-      {
-        binding: b.uniform,
-        // The fragment reads the texture level bias (`atlasLod`, `uni.mipBias`).
-        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
-        buffer: { type: 'uniform', minBindingSize: VIS_UNIFORM_BYTES },
-      },
-      { binding: b.uv, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
-      ...atlasLayoutEntries(b.color),
-      { binding: b.sampler, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
-      { binding: b.instances, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
-      { binding: b.slotOffsets, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
-    ],
-  });
+  const visBindGroupLayout = device.createBindGroupLayout({ entries: visLayoutEntries() });
   // The untested passes bind zeros at the same row index the tested ones read, so the buffer spans
   // the row table; WebGPU hands back a zeroed buffer and nothing ever writes to this one.
   const zeroFlags = zeroFlagsBuffer(device, drawSlots);

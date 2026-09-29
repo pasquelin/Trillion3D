@@ -13,9 +13,8 @@ import {
   SHADOW_PAGE,
   SHADOW_TABLE_STRIDE,
   SUN_WINDOW,
-  lampEntry,
-  sunEntry,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { lampEntry, sunEntry } from '../../../../sdk-core/src/scene/light-shadow/pageModel.ts';
 
 /** A map as `ShadowMap` lays it out: first entry, ring, pages per side, window origin. */
 export type PageMap = { base: number; ring: number; pages: number; ox: number; oy: number };

@@ -23,22 +23,27 @@ test('WebGL reflection captures stay allocated for rough receivers and leave wit
   draw();
   assert.equal(renderer.backdropPasses, 1);
   assert.equal(renderer.backdropSubmissions, 1);
-  assert.equal(renderer.triangles, 2);
+  // Capture, the reduced resolve and the main pass: the mirror receiver is drawn once more.
+  assert.equal(renderer.resolvePasses, 1);
+  assert.equal(renderer.triangles, 3);
   const sourceBytes = 8 * 4 * 12 + (4 * 2 + 2 * 1 + 1) * (8 + 8);
+  const resolveBytes = 8 * 4 * 12;
   assert.equal(
     renderer.backdropBytes,
-    sourceBytes,
-    'base color/depth and radiance/bounds mip levels',
+    sourceBytes + resolveBytes,
+    'base color/depth, radiance/bounds mip levels and the reduced resolve',
   );
   material.roughness = 1;
   material.needsUpdate = true;
   draw();
   assert.equal(renderer.backdropPasses, 1, 'rough physical receivers still reflect');
+  assert.equal(renderer.resolvePasses, 0, 'a rough receiver resolves nothing');
   assert.equal(renderer.backdropBytes, sourceBytes);
   assert.equal(renderer.triangles, 2);
   mesh.material = new G.GraphSurface('lambert');
   draw();
   assert.equal(renderer.backdropPasses, 0);
+  assert.equal(renderer.resolvePasses, 0);
   assert.equal(renderer.backdropBytes, 0);
   renderer.dispose();
 });

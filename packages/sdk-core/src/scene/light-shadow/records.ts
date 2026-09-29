@@ -2,7 +2,8 @@ import { LIGHT_KIND, MAX_SHADOW_SLICES, type SceneLight } from '../light/contrac
 import { sameShadowShape } from '../light/equal.ts';
 import type { SceneLightStore } from '../light/store.ts';
 import { castsShadow } from './casters.ts';
-import { LAMP_FLOOR_MIP, sunCoarseness, sunFloorLevel, tableEntriesOf } from './virtual.ts';
+import { LAMP_FLOOR_MIP, sunFloorLevel, tableEntriesOf } from './virtual.ts';
+import { sunCoarseness } from './pageModel.ts';
 import type { ShadowPool } from './pool.ts';
 import type { ShadowTable } from './table.ts';
 import type { SunLevels } from './sunLevels.ts';
@@ -23,9 +24,13 @@ export function createShadowRecords(table: ShadowTable, pool: ShadowPool, sun: S
     /** The light each slice was last planned for, null until its first plan: the store replaces a
      *  light's record on every change, never edits it, so the one kept is the shape drawn. */
     last: (SceneLight | null)[] = new Array(MAX_SHADOW_SLICES).fill(null),
-    claimed = new Uint8Array(MAX_SHADOW_SLICES);
+    claimed = new Uint8Array(MAX_SHADOW_SLICES),
+    /** Rises each time a slice drops its pages: a GPU page of an older one is dropped too. */
+    generation = new Uint32Array(MAX_SHADOW_SLICES);
   /** Every page of `slice` back to the pool. */
   const dropPages = (slice: number) => {
+    generation[slice]++;
+    records.drops++;
     for (let page = 0; page < pool.pages; page++)
       if (pool.owner[page] >= 0 && pool.slice[page] === slice) pool.release(table, page);
   };
@@ -42,6 +47,9 @@ export function createShadowRecords(table: ShadowTable, pool: ShadowPool, sun: S
   const records = {
     taken,
     kind,
+    generation,
+    /** Drops so far, every slice's: the GPU pool before the last one holds pages it dropped. */
+    drops: 0,
     /** Slices held by a light: zero when no light casts a shadow. */
     count: 0,
     dropPages,
