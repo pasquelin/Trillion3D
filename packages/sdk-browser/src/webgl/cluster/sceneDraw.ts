@@ -145,6 +145,7 @@ export function createSceneDraw(
           opaque,
           seeThrough as readonly SceneCopy[],
           output.linear,
+          output.pass,
         );
       } finally {
         // A second draw of the same image — a capture — walks again, as every draw did.

@@ -119,6 +119,7 @@ export function createFrameComposer(
     target: WebglRenderTarget | null,
     reuse = true,
     chained = true,
+    pass?: HostDrawOutput['pass'],
   ) => {
     const { width, height } = bindWebglTarget(gl, target);
     if (present(backend)) return;
@@ -153,6 +154,7 @@ export function createFrameComposer(
     const passes = passesOf(backend, chained);
     const linear = passes.length ? effects!.begin(passes, width, height) : null;
     output.linear = !!linear;
+    output.pass = pass;
     output.framebuffer = (linear ?? target)?.framebuffer ?? null;
     output.width = width;
     output.height = height;
@@ -176,6 +178,7 @@ export function createFrameComposer(
       guideDraw.draw(layers.guides, drawCamera, output, layers.pixelRatio());
     }
     if (target) return;
+    pass?.('Trillion3D WebGL2 held frame copy');
     heldFrame.keep(width, height);
     keptRevision = revision;
     keptParticles = moved;
