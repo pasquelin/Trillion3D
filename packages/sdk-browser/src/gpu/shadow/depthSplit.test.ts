@@ -71,6 +71,7 @@ function scene(rng: () => number, o: Options) {
     0,
     o.rows - 1,
     () => {},
+    (row) => pages[row].indexCount,
     blendedFrom,
     isCutout,
   );

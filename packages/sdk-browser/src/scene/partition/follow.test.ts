@@ -27,7 +27,7 @@ test("a cell's rows cast as their host mesh says, and follow its castShadow once
   };
   const budget = { admits: () => true, spend() {} };
   cells.frame([0, 0, 0], 1e5, port, budget);
-  assert.deepEqual(updates, [], 'a still flag writes no row');
+  assert.equal(updates.length, 0, 'a still flag writes no row');
   [plain.castShadow, ink.castShadow] = [false, true];
   cells.frame([0, 0, 0], 1e5, port, budget);
   assert.deepEqual(shadowless(), [
