@@ -118,8 +118,14 @@ export function createWebgpuTileAtlas(
     release(slot) {
       releaseTileSlot(lanes.of(slot), slot);
       vacant.add(slot);
-      textures[slot] = { ...textures[0], retired: true };
-      relayout(pages.words[0], slot);
+      // Keep the layout until reuse: dropping allocates no GPU buffer and stale feedback
+      // remains decodable, but retired slots are never served.
+      textures[slot] = {
+        ...textures[slot],
+        texture: undefined,
+        source: textures[0].source,
+        retired: true,
+      };
       victimsFrame = -1;
     },
     relayout,

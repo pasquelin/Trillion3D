@@ -35,7 +35,8 @@ export function createTileGrowth(
       const atlas = kind === 'color' ? color : data;
       sources.release(atlas, slot);
       atlas.release(slot);
-      relayout();
+      parts.resetRequests();
+      followHeaders(true);
     },
     /** Lane pools whose layers change are replaced, tiles kept; returns the evicted tiles. */
     resize(layers: AtlasLanes) {

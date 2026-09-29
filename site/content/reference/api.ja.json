@@ -4184,7 +4184,7 @@
     "summary": "インポート済みまたは作成済みのマテリアルを次のフレームで変更します。"
   },
   "world.createMaterial": {
-    "summary": "このページのマテリアルを作成します。"
+    "summary": "ページのマテリアルを作成する。ビットマップ付きの場合は受け入れ完了を待ってから割り当てる。"
   },
   "world.assignMaterial": {
     "summary": "作成したマテリアルをコンパイル済みの `mesh/primitive` に割り当てます。"
@@ -7878,7 +7878,7 @@
       "alphaMode": "表面のアルファチャンネルをどう読むか: opaqueは無視、`mask`は`alphaCutoff`で切り取り、`blend`は合成する。",
       "alphaCutoff": "これより不透明度の低いピクセルは破棄される。",
       "name": "ページ自身が使うための名前。",
-      "map": "画像と、それがどうサンプリングされるか。ページの言葉で(`wrap`、`filter`、`colorSpace`)。"
+      "map": "呼び出し元が所有するImageBitmap。事前乗算や色変換をせず、解放まで閉じない。"
     }
   },
   "SceneMaterial": {
@@ -7940,5 +7940,11 @@
       "positions": "その頂点。それぞれ 3 つの数値、ワールド空間で。",
       "indices": "その三角形。それぞれ 3 つのローカルインデックス。"
     }
+  },
+  "world.dropMaterial": {
+    "summary": "未使用の作成済みマテリアルを解放する。先にそのオブジェクトへ別のマテリアルを割り当てる。"
+  },
+  "world.materialMapBytes": {
+    "summary": "保持中または処理待ちの画像のバイト数。上限は64 MiB。"
   }
 }
