@@ -46,8 +46,12 @@ export async function probeColumns(options: StreetProbeOptions): Promise<ColumnP
     };
     const probes: ColumnProbe[] = [];
     for (const [x, z] of options.columns) {
-      // Nothing under the column: it stands on the plane the model stands on.
-      const drop = await cast([x, options.top, z], [0, -1, 0], options.top - options.floor);
+      // Nothing under the column down to an eye below the model's floor: it stands on that floor.
+      const drop = await cast(
+        [x, options.top, z],
+        [0, -1, 0],
+        options.top - options.floor + options.eye,
+      );
       const ground = drop === null ? options.floor : options.top - drop,
         eye = ground + options.eye;
       const walls = await Promise.all(
