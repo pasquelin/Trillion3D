@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { collectClusterPages } from './selection.ts';
 import { cullingNodes, quantizationErrorOf } from './helpers.ts';
 import { structureIndex } from './structure.ts';
-import { dagLevel } from '../../webgpu/pages/testDag.fixture.ts';
+import { dagLevel } from '../../backend/pagesBackend.fixture.ts';
 import { QUAD_MANIFEST, quadIndices, quadScene } from '../../backend/pagesBackendScenes.fixture.ts';
 import type { ClusterManifest, PrimitiveQuantization } from '../../../../sdk-core/src/index.ts';
 
@@ -30,7 +30,7 @@ const box = (id: number) => ({
 
 function scene(quantization: PrimitiveQuantization | null) {
   const { geometry, material, mesh, source } = quadScene();
-  const level = dagLevel([box(0), box(1)], box(2), 0.5);
+  const level = dagLevel([box(0), box(1)], [box(2)], 0.5);
   const metadata: ClusterManifest = {
     ...QUAD_MANIFEST,
     primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...level, quantization }],
