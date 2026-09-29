@@ -7,12 +7,12 @@
 import { EngineError } from '../contracts/cache.ts';
 
 /** The product's version this reader knows: another is refused. */
-export const WORLD_ROOTS_VERSION = 1;
+const WORLD_ROOTS_VERSION = 1;
 /** The table beside the manifest; its binary is the one its `payload` names. */
 export const WORLD_ROOTS_FILE = 'world-roots.json';
 
 /** One bundle: its range in the binary, its digest, its page count and the bundles it needs. */
-export type WorldRootsBundle = {
+type WorldRootsBundle = {
   offset: number;
   bytes: number;
   sha256: string;
@@ -20,7 +20,7 @@ export type WorldRootsBundle = {
   dependencies: number[];
 };
 /** One placed primitive of a cell: the world bundles its roots need, up to the top. */
-export type WorldRootsObject = {
+type WorldRootsObject = {
   node: number;
   primitive: number;
   roots: number[];
@@ -76,7 +76,7 @@ export function assertWorldRoots(value: unknown): WorldRoots {
 }
 
 /** Bytes of the pinned top: its bundles, the first of the binary. */
-export const topBytes = ({ bundles, pinned }: Pick<WorldRoots, 'bundles' | 'pinned'>) =>
+const topBytes = ({ bundles, pinned }: Pick<WorldRoots, 'bundles' | 'pinned'>) =>
   bundles.slice(0, pinned).reduce((sum, bundle) => sum + bundle.bytes, 0);
 
 /** The bundles past the pinned top the roots of `cell`'s objects need, ascending: what the cell
