@@ -126,7 +126,11 @@ test('the transparent occlusion test rejects no entry a constant-size sprite hol
       occlusionEpoch: -1,
       occlusionCorners: new Float32Array(34 * 48),
     },
-    layout: { rows: { tableEpoch: 0 }, packedPages: [page(true), page(false)] },
+    layout: {
+      rows: { tableEpoch: 0 },
+      packedPages: [page(true), page(false)],
+      selectionRoots: identityRoots(),
+    },
   } as unknown as WebgpuPagesRuntime;
   refreshTransparentCorners(rt);
   // Odd entries hold the constant-size sprite: bits 1, 3, …, 33.
