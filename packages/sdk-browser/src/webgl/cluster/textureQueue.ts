@@ -9,8 +9,7 @@ import { textureTransferBytesFor, textureUploadMsFor } from '../../residency/tra
 /** Bytes a map's picture sends: RGBA, one byte a channel; its mip chain is reduced on the GPU. */
 export const sentBytes = (width: number, height: number) => width * height * 4;
 /** Bytes a map holds on the context: its picture, and a third more for its mip chain. */
-export const heldBytes = (width: number, height: number) =>
-  Math.ceil((sentBytes(width, height) * 4) / 3);
+const heldBytes = (width: number, height: number) => Math.ceil((sentBytes(width, height) * 4) / 3);
 
 /**
  * WHAT A FRAME MAY UPLOAD OF THE MAPS (#840), WebGPU's tile budget on WebGL2: the bytes and the CPU
@@ -21,9 +20,9 @@ export const heldBytes = (width: number, height: number) =>
  * census orders ahead of any draw, each sent only if its bytes fit what the frame has left
  * (`fits`), then charged with them and the milliseconds it took. A map larger than the whole budget
  * is sent alone, in a frame that sent nothing else — as a WebGPU tile pass always lands one tile.
- * A frame opens it before anything is uploaded (`beginFrame`, by the draw's owner).
+ * Each drain of the queue opens it before anything is uploaded (`beginFrame`).
  */
-export class WebglUploadBudget {
+class WebglUploadBudget {
   private bytes = 0;
   private ms = 0;
   private budgetBytes = textureTransferBytesFor(undefined);
@@ -68,6 +67,8 @@ type Ahead = [
  * pool; a refused one is sent again at its next bind (`chainAllocated`, `mips.ts`).
  */
 export class WebglTextureQueue {
+  /** What a frame may upload of the queue, opened at each drain. */
+  readonly budget = new WebglUploadBudget();
   private queue: Ahead[] = [];
   private next = 0;
   /** Orders the maps of `declared` within `poolBytes`. */
@@ -93,17 +94,15 @@ export class WebglTextureQueue {
   /** The end of the last frame's commands: the queue uploads again once the GPU passed it. */
   private fence: WebGLSync | null = null;
   /**
-   * Before a frame's commands: uploads the next maps while they fit `budget`, once the GPU ran every
+   * Before a frame's commands: uploads the next maps while they fit its budget, once the GPU ran every
    * command of the last frame. An upload sent while the GPU process is behind waits for it: sponza
    * `rue` held frames 90–120 ms on one map sent after the frame's draws; sent before them, the GPU
    * idle, the same map took a millisecond.
    */
-  drain(
-    gl: WebGL2RenderingContext,
-    textures: Pick<WebglClusterTextures, 'bind'>,
-    budget: WebglUploadBudget,
-  ) {
+  drain(gl: WebGL2RenderingContext, textures: Pick<WebglClusterTextures, 'bind'>) {
     if (this.fence && gl.getSyncParameter(this.fence, gl.SYNC_STATUS) !== gl.SIGNALED) return;
+    const budget = this.budget;
+    budget.beginFrame();
     while (this.next < this.queue.length && budget.fits(this.queue[this.next][5])) {
       const [unit, texture, srgb, fallback, reader, sent] = this.queue[this.next++],
         began = performance.now();
@@ -116,22 +115,20 @@ export class WebglTextureQueue {
    * the GPU to pass the last, so the frames find their maps sent (sponza `rue` drew one map first
    * bound mid-trajectory in a frame of 160–220 ms). The main thread is yielded between tasks.
    */
-  async prepare(
-    gl: WebGL2RenderingContext,
-    textures: Pick<WebglClusterTextures, 'bind'>,
-    budget: WebglUploadBudget,
-  ) {
+  async prepare(gl: WebGL2RenderingContext, textures: Pick<WebglClusterTextures, 'bind'>) {
     while (this.next < this.queue.length && !gl.isContextLost()) {
-      budget.beginFrame();
-      this.drain(gl, textures, budget);
+      this.drain(gl, textures);
       this.frameEnd(gl);
       gl.flush();
       await new Promise((resume) => setTimeout(resume, 0));
     }
   }
-  /** After a frame's commands, while maps wait: the point the next drain waits for the GPU to pass. */
+  /** After a frame's commands, while maps wait: the point the next drain waits for the GPU to
+   *  pass. A fence not passed yet is kept, so a GPU always a frame behind still lets maps through. */
   frameEnd(gl: WebGL2RenderingContext) {
-    if (this.fence) gl.deleteSync(this.fence);
+    const { fence } = this;
+    if (fence && gl.getSyncParameter(fence, gl.SYNC_STATUS) !== gl.SIGNALED) return;
+    if (fence) gl.deleteSync(fence);
     this.fence =
       this.next < this.queue.length ? gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0) : null;
   }

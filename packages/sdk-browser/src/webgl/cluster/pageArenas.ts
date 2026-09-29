@@ -57,10 +57,15 @@ export class WebglPageArenas {
    *  when they were freed: a range is written again only once no frame sent can read it still. */
   private freed: ArenaSlot[] = [];
   private retiring: { fence: WebGLSync; slots: ArenaSlot[] }[] = [];
+  /** Arenas given up during a frame, deleted at the next one: a refusal read mid-frame (a
+   *  framebuffer's build) leaves the runs already read still binding them. */
+  private dropped: WebglPageArena[] = [];
   /** A new frame: every placement is checked again at its first draw, and the ranges the GPU no
    *  longer reads are given back. */
   beginFrame() {
     this.frame++;
+    for (const arena of this.dropped) arena.dispose();
+    this.dropped.length = 0;
     const gl = this.gl,
       retiring = this.retiring;
     if (this.freed.length) {
@@ -172,10 +177,12 @@ export class WebglPageArenas {
         geometry.released?.delete(slot.release);
         this.slots.delete(geometry);
       }
-    arena.dispose();
+    this.dropped.push(arena);
   }
   dispose() {
     for (const [key, arena] of this.arenas) this.lose(key, arena);
+    for (const arena of this.dropped) arena.dispose();
+    this.dropped.length = 0;
     for (const { fence } of this.retiring) this.gl.deleteSync(fence);
     this.retiring.length = this.freed.length = 0;
   }
