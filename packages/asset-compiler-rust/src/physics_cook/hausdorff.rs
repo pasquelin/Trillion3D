@@ -2,8 +2,7 @@
 //! vertex, edge midpoint and centroid of one side to the nearest triangle of the other, the largest
 //! kept (a sampled Hausdorff distance, published as such). Triangles are binned in a uniform grid
 //! and a query widens ring by ring until no nearer cell can remain.
-use crate::shared_math::{dot, sub};
-use std::collections::HashMap;
+use crate::shared_math::{dot, sub, WordMap};
 
 mod bounded;
 mod level0;
@@ -64,7 +63,7 @@ struct Grid<'a> {
     triangles: &'a [u32],
     origin: P,
     cell: f64,
-    cells: HashMap<[i64; 3], Vec<u32>>,
+    cells: WordMap<[i64; 3], Vec<u32>>,
 }
 
 impl<'a> Grid<'a> {
@@ -90,7 +89,7 @@ impl<'a> Grid<'a> {
             triangles,
             origin: min,
             cell,
-            cells: HashMap::new(),
+            cells: WordMap::default(),
         };
         for (t, tri) in triangles.as_chunks::<3>().0.iter().enumerate() {
             let (lo, hi) = tri
