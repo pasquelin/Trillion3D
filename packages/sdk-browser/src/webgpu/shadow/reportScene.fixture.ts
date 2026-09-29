@@ -7,7 +7,7 @@ import { IDENTITY_MATRIX4 } from '../../../../sdk-core/src/index.ts';
 import { PAGE_MAPPED, PAGE_VALID } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { report } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import * as G from '../../host/graph/graph.fixture.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { createEngineCamera, readCameraWorld } from '../../camera/world.ts';
 import { settledRt } from '../frame/hold.fixture.ts';
 import { planShadowRegions, shadowViewpointOf } from '../pages/render/encodeShadows.ts';
 import { createWebgpuLightState } from '../pages/state/lights.ts';
@@ -23,7 +23,7 @@ export function cameraAt(eye: number[], forward: number[]) {
   cam.position.set(eye[0], eye[1], eye[2]);
   cam.lookAt(eye[0] + forward[0], eye[1] + forward[1], eye[2] + forward[2]);
   cam.updateMatrixWorld();
-  return cameraMoteur(cam);
+  return readCameraWorld(createEngineCamera(), cam);
 }
 
 /**
