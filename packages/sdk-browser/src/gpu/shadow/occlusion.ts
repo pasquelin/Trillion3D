@@ -5,6 +5,8 @@ import { MAX_SHADOW_REGIONS } from './recordPack.ts';
 import { createGpuShadowCullCounts } from './cullCounts.ts';
 import { HIZ_UNTESTED, SHADOW_OCCLUSION_SHADER } from './occlusionShader.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
+import { keptList } from './keptList.ts';
+import { pendingBuffers } from '../core/tableGrowth.ts';
 import {
   OCCLUSION_SLOT_WORDS,
   OCCLUSION_UNIFORM_WORDS,
@@ -64,12 +66,9 @@ export const shadowOcclusionPipeline = oncePerDevice(async (device) => {
 export async function createShadowOcclusion(device: GPUDevice, capacity: number) {
   const { layout, pipeline } = await shadowOcclusionPipeline(device);
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
-  const visible = device.createBuffer({
-      label: 'Trillion3D shadow visible casters v1',
-      size: Math.max(4, MAX_SHADOW_REGIONS * capacity * 4),
-      usage: GPUBufferUsage.STORAGE,
-    }),
-    visibleIndirect = device.createBuffer({
+  const label = 'Trillion3D shadow visible casters v1';
+  let visible = keptList(device, capacity, label);
+  const visibleIndirect = device.createBuffer({
       label: 'Trillion3D shadow visible indirect v1',
       size: MAX_SHADOW_REGIONS * SHADOW_REGION_INDIRECT_BYTES,
       usage: GPUBufferUsage.INDIRECT | storage,
@@ -89,8 +88,21 @@ export async function createShadowOcclusion(device: GPUDevice, capacity: number)
   let bound: GPUBuffer[] = [],
     group: GPUBindGroup | undefined;
   return {
-    visible,
+    get visible() {
+      return visible;
+    },
     visibleIndirect,
+    /** Lists of `rows` rows a region, the cull's (`keptList.ts`), put in place by `commit`. */
+    grow(rows: number) {
+      const next = keptList(device, rows, label);
+      return pendingBuffers([next], () => {
+        const old = visible;
+        visible = next;
+        capacity = rows;
+        group = undefined;
+        return [old];
+      });
+    },
     /** Hidden casters of the last sampled frame, all tested regions together. */
     counts,
     /**

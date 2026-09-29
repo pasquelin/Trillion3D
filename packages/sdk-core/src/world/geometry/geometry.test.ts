@@ -180,3 +180,20 @@ test('a given-back geometry runs each release hook once', () => {
   g.dispose();
   assert.equal(runs, 1);
 });
+
+test('a relative morph target is bounded vertex by vertex, never box on box', () => {
+  const geometry = new Geometry().setAttribute(
+    'position',
+    new BufferAttribute(new Float32Array([0, 0, 0, 10, 0, 0]), 3),
+  );
+  // Vertex 0 moves right by 5, vertex 1 stays: no vertex lands past x = 10, where the base box
+  // plus the box of the deltas would reach 15.
+  geometry.morphAttributes.position = [
+    new BufferAttribute(new Float32Array([5, 0, 0, 0, 0, 0]), 3),
+  ];
+  geometry.morphTargetsRelative = true;
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  assert.deepEqual(box(geometry), [0, 0, 0, 10, 0, 0]);
+  assert.equal(geometry.boundingSphere!.radius, 5);
+});

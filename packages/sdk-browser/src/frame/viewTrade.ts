@@ -22,3 +22,11 @@ export function tradeCamera<C>(gate: { cam: C }, from: { cam: C }, to: { cam: C 
   from.cam = gate.cam;
   gate.cam = to.cam;
 }
+
+/** Whether the drawn view is a capture, not the main view: both engines then rank its cut first
+ *  under the one budget, so it keeps the detail pages it kept alone, while a persistent view and
+ *  the main one rank the union (`../webgpu/cut/publication.ts`, `../backend/autonomous/pool.ts`). */
+export const captureDrawn = (
+  views: { active: object; main: object },
+  capture: { capturing: boolean },
+) => views.active !== views.main && capture.capturing;
