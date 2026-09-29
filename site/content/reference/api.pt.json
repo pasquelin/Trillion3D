@@ -7872,5 +7872,44 @@
       "alphaCutoff": "Pixels menos opacos que isso são descartados.",
       "tiling": "Quantas vezes a imagem cabe na horizontal e na vertical."
     }
+  },
+  "WorldRoots": {
+    "summary": "`world-roots.json`: o DAG do mundo que o compilador continua acima das raízes de cada objeto — os seus pacotes, páginas e células, o topo fixado primeiro.",
+    "members": {
+      "version": "Versão do formato.",
+      "budgetBytes": "O máximo de bytes que a cozedura deixa o topo fixado pesar.",
+      "pinned": "Os primeiros pacotes, o topo do mundo: fixados.",
+      "pinnedTopBytes": "Os bytes do topo fixado.",
+      "payload": "O binário onde os pacotes seguem uns após os outros: o seu endereço, impressão e comprimento.",
+      "bundles": "Os pacotes, na ordem do binário.",
+      "pages": "Cada página: o seu pacote, o seu deslocamento nele, o seu nível e o seu erro.",
+      "cells": "Cada célula do mundo: as primitivas colocadas que contém."
+    }
+  },
+  "WorldRootsBundle": {
+    "summary": "Um pacote de `world-roots.bin`: o seu intervalo no binário, a sua impressão, o seu número de páginas e os pacotes de que precisa.",
+    "members": {
+      "offset": "Onde começa no binário, em bytes.",
+      "bytes": "O seu comprimento no binário.",
+      "sha256": "O SHA-256 dos seus bytes, verificado ao ler.",
+      "count": "Quantas páginas contém.",
+      "dependencies": "Os pacotes de que as suas páginas precisam, crescentes, até ao topo do mundo."
+    }
+  },
+  "WorldRootsObject": {
+    "summary": "Uma primitiva colocada de uma célula do mundo: os pacotes do mundo de que as suas raízes precisam, até ao topo.",
+    "members": {
+      "node": "O seu nó publicado.",
+      "primitive": "A sua primitiva no manifesto.",
+      "roots": "Os pacotes dos fluxos dessa primitiva que guardam as suas raízes.",
+      "dependencies": "Cada pacote do mundo de que essas raízes precisam, crescentes, até ao topo."
+    }
+  },
+  "WorldRootsPage": {
+    "summary": "Uma página super-raiz lida sobre os bytes do seu pacote: os seus próprios vértices no espaço do mundo e os seus triângulos como índices locais.",
+    "members": {
+      "positions": "Os seus vértices, três números cada, no espaço do mundo.",
+      "indices": "Os seus triângulos, três índices locais cada."
+    }
   }
 }

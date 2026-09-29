@@ -7872,5 +7872,44 @@
       "alphaCutoff": "Les pixels moins opaques que ceci disparaissent.",
       "tiling": "Combien de fois l’image tient en largeur et en hauteur."
     }
+  },
+  "WorldRoots": {
+    "summary": "`world-roots.json` : le DAG du monde que le compilateur prolonge au-dessus des racines de chaque objet — ses paquets, pages et cellules, le sommet épinglé en premier.",
+    "members": {
+      "version": "Version du format.",
+      "budgetBytes": "Le plus d’octets que la cuisson laisse peser au sommet épinglé.",
+      "pinned": "Les premiers paquets, le sommet du monde : épinglés.",
+      "pinnedTopBytes": "Les octets du sommet épinglé.",
+      "payload": "Le binaire où les paquets se suivent : son adresse, son empreinte et sa longueur.",
+      "bundles": "Les paquets, dans l’ordre du binaire.",
+      "pages": "Chaque page : son paquet, son décalage dedans, son niveau et son erreur.",
+      "cells": "Chaque cellule du monde : les primitives placées qu’elle contient."
+    }
+  },
+  "WorldRootsBundle": {
+    "summary": "Un paquet de `world-roots.bin` : sa plage dans le binaire, son empreinte, son nombre de pages et les paquets dont il a besoin.",
+    "members": {
+      "offset": "Où il commence dans le binaire, en octets.",
+      "bytes": "Sa longueur dans le binaire.",
+      "sha256": "Le SHA-256 de ses octets, vérifié à la lecture.",
+      "count": "Combien de pages il contient.",
+      "dependencies": "Les paquets dont ses pages ont besoin, croissants, jusqu’au sommet du monde."
+    }
+  },
+  "WorldRootsObject": {
+    "summary": "Une primitive placée d’une cellule du monde : les paquets du monde dont ses racines ont besoin, jusqu’au sommet.",
+    "members": {
+      "node": "Son nœud publié.",
+      "primitive": "Sa primitive dans le manifeste.",
+      "roots": "Les paquets des flux de cette primitive qui tiennent ses racines.",
+      "dependencies": "Chaque paquet du monde dont ces racines ont besoin, croissants, jusqu’au sommet."
+    }
+  },
+  "WorldRootsPage": {
+    "summary": "Une page super-racine lue sur les octets de son paquet : ses propres sommets dans l’espace du monde, et ses triangles en indices locaux.",
+    "members": {
+      "positions": "Ses sommets, trois nombres chacun, dans l’espace du monde.",
+      "indices": "Ses triangles, trois indices locaux chacun."
+    }
   }
 }

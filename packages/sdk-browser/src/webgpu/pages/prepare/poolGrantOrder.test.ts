@@ -4,7 +4,7 @@
 import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
-import { coarseQuadScene } from '../testOccluder.fixture.ts';
+import { deepQuadScene } from '../deepQuad.fixture.ts';
 import { webgpuPagesBackend } from '../pages.ts';
 import type { BackendDiagnostic } from '../../../backend/types.ts';
 import type { MemoryBudgetsReport } from '../../../residency/pools.ts';
@@ -16,8 +16,8 @@ const TEXTURES = ['createTexture', 'texture pool'] as const;
 
 type Answer = (raise: (message: string) => void) => void;
 
-/** The coarse quad — one root page over two leaves, a pool of three slots at most and one at its
- *  floor — on a device that runs `during` when the first of `pool` is made (the geometry pool's
+/** The deep quad — a root over a coarse page over two leaves, a pool of four slots at most and two
+ *  at its floor, the root and the page its group replaces — on a device that runs `during` when the first of `pool` is made (the geometry pool's
  *  buffer by default), inside the grant's out-of-memory scope, and `after` for the next ones;
  *  disposed once `t` ends. */
 function granting(
@@ -33,7 +33,7 @@ function granting(
     first = false;
   });
   const events: BackendDiagnostic[] = [];
-  const fixture = coarseQuadScene();
+  const fixture = deepQuadScene();
   const backend = webgpuPagesBackend({
     ...fixture,
     gpuDevice: gpu.device,
@@ -52,7 +52,7 @@ test('the cover bootstrap reports the slots of the pool the device granted', asy
   const { backend, events } = granting(t, { during: (raise) => raise('Out of memory') });
   await backend.prepare();
   const granted = backend.metrics().geometryPoolSlots;
-  assert.equal(granted, 1, 'the pool of three slots was refused and drawn at its floor');
+  assert.equal(granted, 2, 'the pool of four slots was refused and drawn at its floor');
   const said = events.filter((event) => event.phase.startsWith('coverage-bootstrap'));
   assert.ok(said.length > 0);
   for (const { phase, context } of said) assert.equal(context.slots, granted, phase);
@@ -69,7 +69,7 @@ test('a geometry budget set while the prepare grant is answered is the one the p
   await set;
   const { geometryPoolBytes, geometryPoolSlots } = backend.metrics();
   assert.equal(geometryPoolBytes, later, 'the later call wins');
-  assert.equal(geometryPoolSlots, 1);
+  assert.equal(geometryPoolSlots, 2);
 });
 
 test('a later budget the device refuses even at its floor keeps the pool it granted', async (t) => {
@@ -80,7 +80,7 @@ test('a later budget the device refuses even at its floor keeps the pool it gran
   });
   await backend.prepare();
   await set;
-  assert.equal(backend.metrics().geometryPoolSlots, 3, 'the pool first granted stays');
+  assert.equal(backend.metrics().geometryPoolSlots, 4, 'the pool first granted stays');
 });
 
 test('a later budget drawing the slots already granted allocates no second pool', async (t) => {
@@ -92,7 +92,7 @@ test('a later budget drawing the slots already granted allocates no second pool'
   });
   await backend.prepare();
   await set;
-  assert.equal(backend.metrics().geometryPoolSlots, 3);
+  assert.equal(backend.metrics().geometryPoolSlots, 4);
   assert.equal(again, 0, 'the pool granted first is kept');
 });
 
@@ -108,7 +108,7 @@ test('a texture budget set while the prepare grant is answered is the one the po
 });
 
 test('a report made during the prepare grants names the pools the device grants', async (t) => {
-  // Set during the geometry grant: three slots are refused each time they are asked, the floor
+  // Set during the geometry grant: four slots are refused each time they are asked, the floor
   // granted; the texture pools, granted after, are named too, never `null`.
   let report: Promise<MemoryBudgetsReport> | undefined,
     made = 0;
@@ -121,6 +121,6 @@ test('a report made during the prepare grants names the pools the device grants'
   });
   await backend.prepare();
   const { geometryPool, texturePool } = (await report)!;
-  assert.equal(geometryPool.slots, 1, 'granted, not the three slots drawn');
+  assert.equal(geometryPool.slots, 2, 'granted, not the four slots drawn');
   assert.equal(texturePool?.budgetBytes, 1, 'the texture pools granted after');
 });
