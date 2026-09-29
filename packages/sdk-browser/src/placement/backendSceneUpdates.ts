@@ -82,6 +82,10 @@ export interface BackendSceneUpdates extends Partial<PlacementGrowth> {
   /** Temporal antialiasing on or off in place (`BackendContext.temporalAntialiasing`); whether
    *  the image carries it is the `'temporal antialiasing'` capability. Absent, the engine has none. */
   setTemporalAntialiasing?(on: boolean): void;
+  /** The render scale asked in place (`BackendContext.renderScale`), drawn from the next frame, and
+   *  the scale of the last image drawn. Absent, the engine draws at the display's size. */
+  setRenderScale?(scale: import('../frame/renderScaleOption.ts').RenderScale): void;
+  renderScale?(): number;
   /** The host surfaces the session was opened with had their values rewritten in place, their
    *  version bumped (`world/core/worldSurface.ts`, `repaintHostSurface`): what reads them is read
    *  again at the next frame, no table rebuilt. Absent, or false for this change — a map whose
