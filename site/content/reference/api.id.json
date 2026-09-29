@@ -5032,10 +5032,6 @@
   "emptyIrradiance": {
     "summary": "Sebuah iradiansi yang kosong, siap menerima sumber."
   },
-  "encodeManifestBinary": {
-    "summary": "Membagi sebuah manifest menjadi JSON kecil yang diurai pembaca dan kolom-kolom yang dipetakannya.",
-    "description": "Deskriptor yang dikembalikan membawa `sha256` kosong: hanya pemanggil, yang memegang byte yang sudah selesai, yang bisa meng-hash-nya."
-  },
   "enginePose": {
     "summary": "Pose dunia yang dipublikasikan trace dan diagnostik, dibaca dari kamera mesin: matanya adalah translasi `world`, dan dekomposisi inti menghasilkan bit-bit `Matrix4.decompose`, yang `getWorldQuaternion` hanyalah panggilannya."
   },

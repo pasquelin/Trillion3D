@@ -5058,10 +5058,6 @@
   "emptyIrradiance": {
     "summary": "何も入っていない、光源を受け入れる準備ができた照度。"
   },
-  "encodeManifestBinary": {
-    "summary": "マニフェストを、リーダーが解析する小さなJSONと、それがマッピングする列に分割する。",
-    "description": "返される記述子は空の`sha256`を運ぶ: 完成したバイト列を保持している呼び出し元だけが、それをハッシュできる。"
-  },
   "enginePose": {
     "summary": "トレースと診断が公開する、エンジンカメラから読まれるワールド姿勢: 目は`world`の平行移動成分であり、コアの分解は`Matrix4.decompose`のビットを生み、`getWorldQuaternion`はその呼び出しにすぎない。"
   },
