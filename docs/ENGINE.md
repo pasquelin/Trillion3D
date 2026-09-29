@@ -351,9 +351,16 @@ moves, and half as much for the transmittance layer once a blended surface casts
 page texels, 81 MiB). The pool is cut into the fewest square layers the device's texture side holds
 (`shadowPoolShape`, `webgpu/shadow/poolSize.ts`): at 1728 × 1117 CSS, DPR 2, one sun asks 5 040
 pages — one layer of 71² on a device 16 384 texels wide, two of 51² (5 202 pages, 325 MiB) on one
-of 8 192. The pool is sized once, at the first frame a light casts, from that frame's drawing
-buffer and its casting lights, and never moves after: a later resize, a pause or a new light keeps
-it (the runtime resize waits for texel-exact page reads, #831). Its bytes are capped by the
+of 8 192. The pool is sized at the first frame a light casts, from that frame's drawing
+buffer and its casting lights; a pause or a new light keeps it. A later drawing buffer resizes it
+by the same rule and from the same grant (`webgpu/shadow/poolResize.ts`, #1208), the frame held
+while the device answers: every page the new pool has room for keeps its entry, its state and its
+depth — copied texel for texel to its new place, its transmittance too (`gpu/shadow/pageMoves.ts`),
+since reads are texel-exact (#831) —, so nothing is drawn again; a smaller pool keeps the pages
+it would evict last, every floor first, and a reader falls back to them. The batches a frame may
+draw and the request list follow the pool's pages; the static layer, as large as the pool, is built
+again at the new size by the next move. A resize the device refuses keeps the pool in place, said
+under `gpu-out-of-memory`. Its bytes are capped by the
 grant's atlas share (`SHADOW_ATLAS_BYTES`, the pool 3840 × 2160 under one sun asks: two layers of
 53², 5 618 pages, 351 MiB): a screen or a light count that asks more is held there, said
 `ceiling` in the `shadow-pool` diagnostic (two lights at the case above: 5 476 pages on a 16 384

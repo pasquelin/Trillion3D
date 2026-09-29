@@ -97,7 +97,7 @@ test('the shadow pool is sized by the first frame on the canvas, not by the canv
   viewport[0] = 3840;
   viewport[1] = 2160;
   await s.size();
-  assert.deepEqual(s.sized, [51], 'a later resize leaves the budget where it is');
+  assert.deepEqual(s.sized, [51], 'sized once: a later size is followed apart (poolResize.ts)');
 });
 
 test('a shadow pool the device refuses is drawn smaller, said, and never taken for a lost device', async () => {
