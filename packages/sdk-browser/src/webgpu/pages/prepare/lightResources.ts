@@ -110,26 +110,30 @@ function shadowsFollowRows(
 }
 
 /**
- * The threshold the light cuts select casters at: the camera's. The plan keeps the one each page
- * was drawn at, and redraws, once the camera rests, only the pages drawn at another
- * (`thresholds.ts`). Returns the threshold.
+ * The threshold the light cuts select casters at: the camera's, in the render frame of the eye
+ * `origin`. The plan keeps the ones each page was drawn at, and redraws, once the camera rests,
+ * only the pages drawn at another (`thresholds.ts`). Returns the threshold.
  */
-export function followLightThreshold(lights: WebgpuLightState, pixelError: number) {
-  lights.plan.setThreshold(pixelError);
+export function followLightThreshold(
+  lights: WebgpuLightState,
+  pixelError: number,
+  origin: ArrayLike<number>,
+) {
+  lights.plan.setThreshold(pixelError, origin);
   return pixelError;
 }
 
 /**
  * Serves tiles requested by the previous image, except during a pose barrier: the shadow
  * drain replays the image without admitting new ones. An arriving tile invalidates every
- * map (`shadowsFollowTextures`) and the queue would never empty (#25).
+ * map (`shadowsFollowTextures`) and the queue would never empty (#25). Returns the tiles served.
  */
 export function pumpResidentTiles(
-  textures: { pump: (frame: number) => void } | undefined,
+  textures: { pump: (frame: number) => { served: number } } | undefined,
   frame: number,
   converging: boolean,
 ) {
-  if (!converging) textures?.pump(frame);
+  return (!converging && textures?.pump(frame).served) || 0;
 }
 
 /**
@@ -182,9 +186,8 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
   contractResources.bounceGrid = bounce?.uniform;
   contractResources.probes = bounce?.probes;
   contractResources.surfaceCache = bounce?.surface.buffer;
-  // Far-shadow proxy: bound only if it exists, otherwise the zero replacements leave the far surface
-  // lit with no cast shadow. Both lighting passes read this same resolve, so they bind the same
-  // buffer and trace the same ray.
+  // Far-shadow proxy: bound only if it exists, else the far surface is lit unshadowed. Both
+  // lighting passes read this resolve, so they bind the same buffer and trace the same ray.
   contractResources.proxy = active ? rt.sunFar.gpu?.buffer() : undefined;
   return contractResources;
 }
