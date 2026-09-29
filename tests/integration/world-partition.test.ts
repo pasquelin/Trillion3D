@@ -81,15 +81,29 @@ async function cellsOf(root: string) {
   return { bytes: cells.reduce((sum, cell) => sum + cell.bytes, 0), widest, count: cells.length };
 }
 
+/** Of the files `urls` read, the manifest's head page — named by its root, `clusters.json` —, its
+ *  sidecar and its impostor descriptors, one per mesh; the other manifest pages are the meshes the
+ *  placed cells hold, asked as they are placed and not awaited by the first frame. */
+async function headOf(urls: readonly string[]) {
+  const json = async (url: string) => JSON.parse(await readFile(fileURLToPath(url), 'utf8'));
+  const sha = (await json(urls.find((url) => url.endsWith('/clusters.json'))!)).head.slice(0, 64);
+  const url = urls.find((u) => u.endsWith(`/manifest-page-${sha}.json`))!;
+  const page = await json(url);
+  const held = [url, new URL(page.binary.url, url).href];
+  const meshPage = (u: string) => /\/manifest-page-/.test(u) && !held.includes(u);
+  return { meshPage, impostors: page.impostors as { meshes: unknown[] } };
+}
+
 test(
   'a world reads and sizes before its first frame what its page camera reaches, not the world',
   { skip: !existsSync(compiler) },
   async (t) => {
     const root = await mkdtemp(join(tmpdir(), 'world-partition-'));
     t.after(() => rm(root, { recursive: true, force: true }));
-    const small = await openWorld(t, await compiled(join(root, 'small'), world(96)));
+    const worlds = { small: world(96), large: world(384) };
+    const small = await openWorld(t, await compiled(join(root, 'small'), worlds.small));
     t.mock.restoreAll();
-    const large = await openWorld(t, await compiled(join(root, 'large'), world(384)));
+    const large = await openWorld(t, await compiled(join(root, 'large'), worlds.large));
     const whole = {
       small: await cellsOf(join(root, 'small')),
       large: await cellsOf(join(root, 'large')),
@@ -108,11 +122,17 @@ test(
     );
     assert.ok(large.bytes < whole.large.bytes / 4, 'a fraction of the world');
     // The world's other files, each by kind: the page codec is fetched once per process, by the
-    // first session alone, and is no part of the world. They differ by a few digits of the
-    // numbers the cook writes, never by the cells.
-    const files = async (urls: readonly string[]) => {
+    // first session alone, and is no part of the world; a mesh page the cells hold is theirs, and
+    // lands before the first frame or after it as the disk answers. Past the impostor
+    // descriptors, the core differs by a few digits of the numbers the cook writes.
+    const heads = { small: await headOf(small.urls), large: await headOf(large.urls) };
+    const files = async (
+      urls: readonly string[],
+      { meshPage }: { meshPage: (u: string) => boolean },
+    ) => {
       const sizes: Record<string, number> = {};
-      for (const url of new Set(urls.filter((u) => !u.endsWith('.wasm') && !partitioned(u)))) {
+      const core = (u: string) => !u.endsWith('.wasm') && !partitioned(u) && !meshPage(u);
+      for (const url of new Set(urls.filter(core))) {
         const kind = url
           .split('/')
           .at(-1)!
@@ -121,11 +141,20 @@ test(
       }
       return sizes;
     };
-    const [before, after] = [await files(small.urls), await files(large.urls)];
-    t.diagnostic(JSON.stringify({ before, after }));
+    const before = await files(small.urls, heads.small);
+    const after = await files(large.urls, heads.large);
     assert.deepEqual(Object.keys(after).sort(), Object.keys(before).sort(), 'the same files');
-    const sum = (sizes: Record<string, number>) => Object.values(sizes).reduce((a, b) => a + b, 0);
-    assert.ok(Math.abs(sum(after) - sum(before)) < 0.01 * sum(before), 'the same core');
+    // The impostor descriptors are one per mesh, baked or refused (a mesh seen from farther in a
+    // wider world is baked): bounded by the meshes, never by the cells. Their bytes, read from the
+    // head itself, set aside, the rest is the same core.
+    for (const [side, head] of Object.entries(heads))
+      assert.equal(head.impostors.meshes.length, worlds[side as 'small'].gltf.meshes.length, side);
+    const core = (sizes: Record<string, number>, head: { impostors: object }) =>
+      Object.values(sizes).reduce((a, b) => a + b, 0) -
+      Buffer.byteLength(JSON.stringify(head.impostors));
+    const cores = [core(before, heads.small), core(after, heads.large)];
+    t.diagnostic(JSON.stringify({ before, after, cores }));
+    assert.ok(Math.abs(cores[1] - cores[0]) < 0.01 * cores[0], `the same core: ${cores}`);
     // The rows are sized at open for what the view can hold (`sizing.ts`): under the scene root, a
     // cube of side 2·reach·(1 + KEEP), rounded up to a rung (√2, the first one the widest cell's
     // diagonal) and widened to its window (1.5), plus the cells that meet it — a bound set by the
