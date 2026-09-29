@@ -800,7 +800,9 @@ numbers wide lies in the plane z = 0. The sphere is
 centred on the box and reaches the farthest vertex. Setting an attribute other than `position`, the
 index or a group keeps the bounds. `clone()` copies every list, morph target, group, range, data,
 bound and recipe. `toNonIndexed()` gives every corner a vertex of its own. `dispose()` runs each
-hook of `released` once. The former engine class `GraphGeometry` is removed: write `Geometry`.
+hook of `released` once. A geometry no mesh wears any more has its pages and GPU memory given back
+by the world on both backends, with no call; a page that replaces a mesh's geometry, as a slider
+does, disposes the former one too, so its raycast tree and host copies go at once. The former engine class `GraphGeometry` is removed: write `Geometry`.
 
 ## Batch math for hosts
 
