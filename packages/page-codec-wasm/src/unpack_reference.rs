@@ -51,10 +51,10 @@ pub fn reference(data: &[u8], max: usize) -> Result<Vec<u32>, PageError> {
         } else {
             i
         };
-        for c in 0..3 {
+        *vertex = core::array::from_fn(|c| {
             let field = random_field(&w, l.position[c] * 32 + at * q.bits[c] as usize, q.bits[c]);
-            vertex[c] = dequant(q.min[c], field, q.step()).to_bits();
-        }
+            dequant(q.min[c], field, q.step()).to_bits()
+        });
     }
     if h.flags & FLAG_NORMAL != 0 {
         for (i, normal) in take(3).as_chunks_mut::<3>().0.iter_mut().enumerate() {
