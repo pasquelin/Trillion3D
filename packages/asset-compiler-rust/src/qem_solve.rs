@@ -1,11 +1,10 @@
 //! Region simplification that solves what it keeps: meshoptimizer's `simplifyWithUpdate`
 //! (Hoppe 1999). The collapses are ranked as `qem::simplify_with_locked_vertices` ranks them —
 //! absolute error, the weighed attributes counted, permissive across unprotected seams — then
-//! every surviving vertex that is neither locked nor on a protected seam or an open border is
-//! moved to the minimum of its accumulated quadric, and each of its copies' attributes solved at
-//! that point. A seam corner written under several texture coordinates can then collapse, all
+//! every surviving vertex that is neither locked nor on an open border is moved to the minimum
+//! of its accumulated quadric, and each of its copies' attributes solved at that point. A seam corner written under several texture coordinates can then collapse, all
 //! its copies moving together, each keeping a coordinate of its own.
-use crate::qem::{compact_attributes, compact_region, region_extent, Attribute};
+use crate::qem::{compact_attributes, compact_region, region_extent, Attribute, VERTEX_LOCK};
 use crate::{invalid, Result};
 use meshopt::SimplifyOptions;
 
@@ -89,18 +88,22 @@ impl Region {
         })
     }
 
-    /// Simplifies the region towards `target_triangles` and solves what survives; `flags`
-    /// answers `VERTEX_LOCK` and `VERTEX_PROTECT` per source vertex. `None` when no triangle went.
+    /// Simplifies the region towards `target_triangles` and solves what survives; `locked`
+    /// answers per source vertex. `None` when no triangle went.
     pub fn solve(
         &self,
         target_triangles: usize,
-        flags: &dyn Fn(u32) -> u8,
+        locked: &dyn Fn(u32) -> bool,
     ) -> Option<SolvedRegion<'_>> {
         let current = self.compact.len() / 3;
         if current <= target_triangles.max(1) {
             return None;
         }
-        let flags: Vec<u8> = self.remap.iter().map(|&vertex| flags(vertex)).collect();
+        let flags: Vec<u8> = self
+            .remap
+            .iter()
+            .map(|&v| u8::from(locked(v)) * VERTEX_LOCK)
+            .collect();
         // meshoptimizer rewrites the indices, positions and values it is handed: each solve
         // starts from fresh copies, the region's own stay the source.
         let mut indices = self.compact.clone();
