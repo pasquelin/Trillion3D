@@ -140,7 +140,7 @@ for (const [backend, { shipped, stored, scale }] of Object.entries(BACKENDS)) {
     holdsCoverage(chainOf(shipped, C, leaf));
   });
 
-  // The measurer's proof of #43: at 4² the leaf's stored level passed 38 samples at the engine's
+  // The recette's proof of #43: at 4² the leaf's stored level passed 38 samples at the engine's
   // cut, `alpha >= 0.5` on the filtered value, where the counts, rounding it down, saw 36.
   test(`${backend}'s filtered cut is the engine's, at alphaTest 0.5, on every level`, () => {
     const { levels, run } = chainOf(shipped, C, leaf);
