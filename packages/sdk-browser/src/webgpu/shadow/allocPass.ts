@@ -5,7 +5,7 @@ import { SHADOW_WORDS_WGSL, WORDS_GROUP } from './wordsWgsl.ts';
 import { SHADOW_FRESH_WGSL } from './freshWgsl.ts';
 import { SHADOW_FRESH_CULL_WGSL } from './freshCullWgsl.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
-import { SHADOW_DEMAND_PASS } from './demandPass.ts';
+import { SHADOW_DEMAND_PASS, encodeShadowDemand } from './demandPass.ts';
 
 /** Labels of the allocation and of the host's table words, as a frame's passes are timed. */
 const SHADOW_ALLOC_PASS = 'Trillion3D shadow allocation v1';
@@ -85,7 +85,7 @@ function allocationBound(rt: WebgpuPagesRuntime) {
  * (`claimShadowFloors`). The first time, the GPU pool is written from the host's, and the plan
  * follows the GPU from then on (`mirror.ts`).
  */
-export function encodeShadowFloors(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
+function encodeShadowFloors(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const { lights, run } = rt,
     { allocation, pageRequests, shadows, plan } = lights,
     buffers = pageRequests?.allocation;
@@ -101,12 +101,18 @@ export function encodeShadowFloors(rt: WebgpuPagesRuntime, encoder: GPUCommandEn
 }
 
 /**
- * Maps, on the GPU, every page this image asks for — the plan's floors (`encodeShadowFloors`),
- * then its pixels' demand (`demandPass.ts`) —, right after the demand and before any page is
+ * Maps, on the GPU, every page this image asks for: the plan's floors (`encodeShadowFloors`), then
+ * its pixels' demand when its light lists were encoded (`demandPass.ts`), right before any page is
  * drawn. The pages it maps, and those it mapped before and saw no draw of since, it lists: the GPU
  * draws them in this frame once the host's pages and words are in (`freshPass.ts`).
  */
-export function encodeShadowAllocation(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
+export function encodeShadowAsks(
+  rt: WebgpuPagesRuntime,
+  encoder: GPUCommandEncoder,
+  listed: boolean,
+) {
+  encodeShadowFloors(rt, encoder);
+  if (listed) encodeShadowDemand(rt, encoder);
   const bound = allocationBound(rt);
   if (bound) rt.lights.allocation!.allocate(encoder, bound, 1);
 }

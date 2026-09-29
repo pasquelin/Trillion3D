@@ -4,7 +4,7 @@ import { createWebgpuBindIdentity } from '../core/bindIdentity.ts';
 /** A binding of a compute pass: a buffer of that type, or a texture of that sample type. */
 export type ComputeBinding = GPUBufferBindingType | { texture: GPUTextureSampleType };
 /** Workgroups a pass dispatches: a count, a count on x and y, or the words at a byte of a buffer. */
-export type ComputeGroups = number | readonly [number, number] | readonly [GPUBuffer, number];
+type ComputeGroups = number | readonly [number, number] | readonly [GPUBuffer, number];
 
 /**
  * A compute pass of one bind group — the shadow page passes' (#1275): its pipeline, compiled at
@@ -64,5 +64,3 @@ export async function computePass(
     pass.end();
   };
 }
-
-export type ComputePass = Awaited<ReturnType<typeof computePass>>;
