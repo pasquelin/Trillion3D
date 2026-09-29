@@ -3575,10 +3575,20 @@
     }
   },
   "TablePage": {
-    "summary": "Bir yuvanın adlandırdığı sayfa: tablolara göre dosyası, boyutu ve parmak izi."
+    "summary": "Bir yuvanın adlandırdığı sayfa: tablolara göre dosyası, boyutu ve parmak izi.",
+    "members": {
+      "url": "Tablolara göre dosyası.",
+      "bytes": "Bayt cinsinden boyutu.",
+      "sha256": "Onaltılık SHA-256 parmak izi."
+    }
   },
   "TableSlot": {
-    "summary": "Bir yuvanın adlandırdığı bir dizin sayfası, bildirilen pozlardaki kutusu ve yanında listelenen çekirdek sıraları: hücre dizini için, hücrelerinin düğüm astığı ebeveynler (#575)."
+    "summary": "Bir yuvanın adlandırdığı bir dizin sayfası, bildirilen pozlardaki kutusu ve yanında listelenen çekirdek sıraları: hücre dizini için, hücrelerinin düğüm astığı ebeveynler (#575).",
+    "members": {
+      "page": "Yuvanın adlandırdığı sayfa.",
+      "bounds": "Bildirilen pozlardaki kutusu: önce en küçük köşe, sonra en büyük.",
+      "parents": "Yanında listelenen çekirdek sıraları."
+    }
   },
   "TableTexture": {
     "summary": "Bir glTF dokusunun örnekleyici durumu, motorun kelimeleriyle.",

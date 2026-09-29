@@ -17,9 +17,23 @@ export interface PageKind {
 }
 /** A page of an index a slot names, its box at the declared poses, and the core ranks listed
  *  beside it: for the cell index, the parents its cells hang nodes under (#575). */
-export type TableSlot = { page: TablePage; bounds: readonly number[]; parents: readonly number[] };
+export type TableSlot = {
+  /** The page the slot names. */
+  page: TablePage;
+  /** Its box at the declared poses: the minimum corner, then the maximum. */
+  bounds: readonly number[];
+  /** The core ranks listed beside it. */
+  parents: readonly number[];
+};
 /** A page a slot names: its file, relative to the tables, its size and its fingerprint. */
-export type TablePage = { url: string; bytes: number; sha256: string };
+export type TablePage = {
+  /** Its file, relative to the tables. */
+  url: string;
+  /** Its size in bytes. */
+  bytes: number;
+  /** Its SHA-256 fingerprint, in hexadecimal. */
+  sha256: string;
+};
 
 /** A page's body: the slots of the pages below it, or its records. */
 type PageBody = { version?: number; pages?: readonly string[]; [records: string]: unknown };

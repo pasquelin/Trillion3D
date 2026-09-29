@@ -5965,10 +5965,20 @@
     }
   },
   "TablePage": {
-    "summary": "Una página que nombra una ranura: su archivo, relativo a las tablas, su tamaño y su huella."
+    "summary": "Una página que nombra una ranura: su archivo, relativo a las tablas, su tamaño y su huella.",
+    "members": {
+      "url": "Su archivo, relativo a las tablas.",
+      "bytes": "Su tamaño en bytes.",
+      "sha256": "Su huella SHA-256, en hexadecimal."
+    }
   },
   "TableSlot": {
-    "summary": "Una página de un índice que nombra una ranura, su caja en las poses declaradas y los rangos del núcleo listados a su lado: para el índice de celdas, los padres bajo los que sus celdas cuelgan nodos (#575)."
+    "summary": "Una página de un índice que nombra una ranura, su caja en las poses declaradas y los rangos del núcleo listados a su lado: para el índice de celdas, los padres bajo los que sus celdas cuelgan nodos (#575).",
+    "members": {
+      "page": "La página que nombra la ranura.",
+      "bounds": "Su caja en las poses declaradas: la esquina mínima y luego la máxima.",
+      "parents": "Los rangos del núcleo listados a su lado."
+    }
   },
   "TableTexture": {
     "summary": "Estado de muestreo de una textura glTF, en las palabras del motor.",
