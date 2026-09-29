@@ -45,22 +45,17 @@ fn deform(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) la
  }
 }`;
 
+/** The stage's binding contract, reused by GPU probes. */
+export const deformationBindings = (): GPUBindGroupLayoutEntry[] =>
+  Array.from({ length: 6 }, (_, binding) => ({
+    binding,
+    visibility: GPUShaderStage.COMPUTE,
+    buffer: { type: binding === 5 ? 'uniform' : binding === 0 ? 'storage' : 'read-only-storage' },
+  }));
+
 /** Builds once; binding identities follow cache relocation and table growth, never a steady frame. */
 export async function createDeformationCompute(device: GPUDevice) {
-  const layout = device.createBindGroupLayout({
-    entries: Array.from({ length: 6 }, (_, binding) => ({
-      binding,
-      visibility: GPUShaderStage.COMPUTE,
-      buffer: {
-        type:
-          binding === 5
-            ? ('uniform' as const)
-            : binding === 0
-              ? ('storage' as const)
-              : ('read-only-storage' as const),
-      },
-    })),
-  });
+  const layout = device.createBindGroupLayout({ entries: deformationBindings() });
   const pipeline = await device.createComputePipelineAsync({
     label: DEFORMATION_PASS,
     layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),

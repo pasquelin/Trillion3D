@@ -2,7 +2,6 @@
 //! weights, and each morph target's position and normal displacement — the streams, records and
 //! bounds of the shared codec (`trillion3d_page_codec::deform`), written from the primitive's
 //! `JOINTS_0`, `WEIGHTS_0` and `targets`.
-
 use crate::geometry_page_cells::Cell;
 use crate::geometry_page_quant::quantize;
 use crate::{CompilerError, Result};
@@ -13,31 +12,30 @@ use trillion3d_page_codec::deform::{
 };
 use trillion3d_page_codec::writer::BitWriter;
 use trillion3d_page_codec::{FLAG_MORPH, FLAG_SKIN};
-
 /// Normal displacements sit on a grid of 2^-10: finer than the octahedral byte they bend.
 pub const MORPH_NORMAL_EXPONENT: i32 = -10;
-
 /// One morph target of a primitive: its position displacement per vertex, three floats each, and
 /// its normal displacement when it declares one.
 pub struct MorphTarget {
     pub position: Vec<f32>,
     pub normal: Option<Vec<f32>>,
 }
-
 /// The deformation a primitive declares: its skin — four joints and four weights per vertex —
 /// and its morph targets, each over every vertex of the primitive.
 #[derive(Default)]
 pub struct Deformation {
     pub skin: Option<(Vec<u32>, Vec<f32>)>,
     pub targets: Vec<MorphTarget>,
+    /// The index stream names welded simulation vertices instead of bone joints.
+    pub soft_source: bool,
 }
-
 /// A page's deformation: its records, and per local vertex the fields its streams hold — four
 /// joint offsets and three weights, then six displacement cells per target.
 pub struct PageDeformation {
     pub skin: Option<Skin>,
     pub morphs: Vec<Morph>,
     pub fields: Vec<Vec<u32>>,
+    pub soft_source: bool,
 }
 
 impl Deformation {
@@ -55,11 +53,18 @@ impl PageDeformation {
     /// The presence bits it adds to the page's flags.
     pub fn flags(&self) -> u32 {
         let skin = if self.skin.is_some() { FLAG_SKIN } else { 0 };
-        skin | if self.morphs.is_empty() {
-            0
+        let source = if self.soft_source {
+            trillion3d_page_codec::FLAG_SOFT_SOURCE
         } else {
-            FLAG_MORPH
-        }
+            0
+        };
+        source
+            | skin
+            | if self.morphs.is_empty() {
+                0
+            } else {
+                FLAG_MORPH
+            }
     }
 }
 
@@ -78,24 +83,6 @@ pub fn join(cells: Vec<Cell>, fields: &[Vec<u32>]) -> (Vec<Cell>, Vec<&[u32]>) {
         })
         .collect();
     (cells, table)
-}
-
-/// Four weights on 255 steps that sum to 255 exactly: each floor, then the steps left to the
-/// largest remainders. A vertex whose weights sum to nothing leans wholly on its first joint.
-pub fn quantize_weights(weights: [f32; INFLUENCES]) -> [u32; INFLUENCES] {
-    let sum: f32 = weights.iter().map(|w| w.max(0.0)).sum();
-    if !(sum > 0.0) {
-        return [WEIGHT_SCALE, 0, 0, 0];
-    }
-    let scaled = weights.map(|w| w.max(0.0) / sum * WEIGHT_SCALE as f32);
-    let mut out = scaled.map(|w| w.floor() as u32);
-    let mut order: [usize; INFLUENCES] = [0, 1, 2, 3];
-    order.sort_by(|&a, &b| (scaled[b] - out[b] as f32).total_cmp(&(scaled[a] - out[a] as f32)));
-    let left = WEIGHT_SCALE - out.iter().sum::<u32>().min(WEIGHT_SCALE);
-    for &j in order.iter().take(left as usize) {
-        out[j] += 1;
-    }
-    out
 }
 
 /// The page's deformation over its vertices `original` (primitive ranks, in local order):
@@ -156,6 +143,7 @@ pub fn page_deformation(
         skin,
         morphs,
         fields,
+        soft_source: deformation.soft_source,
     })
 }
 
@@ -204,6 +192,9 @@ pub fn write(page: &mut PageDeformation, unique: &[&[u32]], out: &mut BitWriter)
 }
 
 mod reach;
+mod weights;
+pub use weights::quantize_weights;
+mod soft;
 #[cfg(test)]
 #[path = "geometry_page_deform_tests.rs"]
 mod tests;

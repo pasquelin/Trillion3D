@@ -9,6 +9,7 @@
  * being eliminated at compile time. `withScreenErrorVariant` sets it true for the campaign that
  * measures the external-reference metric, exact mirror of `referenceScreenError`.
  */
+import { CLUSTER_LEVEL_SHIFT } from '../layout.ts';
 import type { ScreenErrorVariant } from '../../../../../sdk-core/src/index.ts';
 
 /** Declaration `withScreenErrorVariant` returns, written once for both. */
@@ -43,7 +44,9 @@ fn projected(error:f32,sphere:vec4f,e:mat4x4f,stretch:f32,focal:f32)->f32{
 /** The two screen errors the cut rule compares, projected once: its replacement's (\`x\`, the
  *  parent's) and its own (\`y\`). */
 fn clusterPixels(cluster:Cluster,e:mat4x4f,stretch:f32,focal:f32)->vec2f{
- return vec2f(projected(cluster.parentError,cluster.parentSphere,e,stretch,focal),projected(cluster.lodError,cluster.sphere,e,stretch,focal));
+ let own=cluster.lodError+select(0.0,2.0*deformReach,(cluster.flags>>${CLUSTER_LEVEL_SHIFT}u)>0u);
+ let parent=select(cluster.parentError,cluster.parentError+2.0*deformReach,cluster.parentError>=0.0);
+ return vec2f(projected(parent,cluster.parentSphere,e,stretch,focal),projected(own,cluster.sphere,e,stretch,focal));
 }
 /** The cluster the cut wants at \`threshold\`, on its \`clusterPixels\`: the rule with everything resident. */
 fn selects(pixels:vec2f,threshold:f32)->bool{return drawsCluster(true,pixels.x,pixels.y,true,threshold);}

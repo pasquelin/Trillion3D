@@ -156,7 +156,7 @@ export type ClusterRoot<T> = {
   placement?: PlacementOf;
   /** How far its primitive's deformation can move a vertex from rest (`Primitive.deformation`),
    *  absent on one that does not deform (#357). */
-  deformation?: { joints: number[]; targets: number[] };
+  deformation?: { joints: number[]; targets: number[]; softVertices?: number };
   /** How far its deformation moves a vertex this frame, in its units: every cut grows its bounds
    *  by it (`../../deformation/frame.ts`); absent or zero at rest. */
   reach?: number;

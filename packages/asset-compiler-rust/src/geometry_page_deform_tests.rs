@@ -15,6 +15,7 @@ fn deformation() -> Deformation {
     let lift = [0.0, 0.5, 0.0];
     Deformation {
         skin: Some((joints, weights)),
+        soft_source: false,
         targets: vec![MorphTarget {
             position: lift.repeat(4),
             normal: None,
@@ -55,4 +56,44 @@ fn weights_sum_to_the_scale_whatever_their_rounding() {
     assert_eq!(quantize_weights([0.0; 4]), [255, 0, 0, 0]);
     let odd = quantize_weights([0.1, 0.2, 0.3, 0.4]);
     assert_eq!(odd.iter().sum::<u32>(), 255);
+}
+
+#[test]
+fn soft_ids_survive_welding_permutation_and_reduction_origins() {
+    let mut deformation = Deformation::default();
+    let source = serde_json::json!({"nodes":[{"mesh":0,"extras":{"physics":{"type":"cloth"}}}]});
+    deformation
+        .soft_source(&source, 0, &POSITIONS)
+        .expect("soft mapping");
+    let mut positions = POSITIONS.to_vec();
+    // A reduction's new point follows source vertex 2's displacement, not its absolute position.
+    positions.extend([0.25, 1.0, 0.0]);
+    let page = encode_deformed(
+        &[4, 3, 0, 0, 1, 4],
+        &positions,
+        &[],
+        (&deformation, &[2]),
+        (-8, UV_EXPONENT),
+    )
+    .expect("encode");
+    assert_ne!(
+        page.header.flags & trillion3d_page_codec::FLAG_SOFT_SOURCE,
+        0
+    );
+    let decoded = trillion3d_page_codec::decode(&page.bytes, 1 << 24).expect("decode");
+    // The duplicate positions 1 and 3 weld to the same simulation ID, despite first-use order.
+    assert_eq!(decoded.vertex_count, 3);
+    assert_eq!(
+        decoded.attribute(5).expect("source IDs"),
+        &[2.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0]
+    );
+    assert_eq!(
+        decoded.attribute(6).expect("source weights"),
+        &[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]
+    );
+    // Rest offset survives: applying a source displacement cannot snap the reduced vertex.
+    assert_eq!(
+        &decoded.attribute(0).expect("positions")[..3],
+        &[0.25, 1.0, 0.0]
+    );
 }

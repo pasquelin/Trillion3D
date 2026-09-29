@@ -2,6 +2,7 @@ import {
   CLUSTER_HEADER_WORDS,
   FLAG_MORPH,
   FLAG_SKIN,
+  FLAG_SOFT_SOURCE,
   MAX_JOINT_BITS,
   MAX_MORPH_TARGETS,
   MORPH_WORDS,
@@ -32,6 +33,7 @@ export function readDeformation(head: DataView, flags: number) {
   const sane =
     (skin.bits | (count << 6) | (skin.base << 14)) >>> 0 === word &&
     (!!(flags & FLAG_SKIN) || (!skin.bits && !skin.base)) &&
+    (!(flags & FLAG_SOFT_SOURCE) || !!(flags & FLAG_SKIN)) &&
     skin.bits <= MAX_JOINT_BITS &&
     skin.base + 2 ** skin.bits - 1 <= 0xffff &&
     !!(flags & FLAG_MORPH) === count > 0 &&

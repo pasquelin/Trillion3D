@@ -32,12 +32,12 @@ function descend<T extends PageRecord>(s: SelectionState<T>, pages: T[], culling
     if (!inside) {
       const clipped = frustumClipBox(
         planes,
-        nodes[base],
-        nodes[base + 1],
-        nodes[base + 2],
-        nodes[base + 3],
-        nodes[base + 4],
-        nodes[base + 5],
+        nodes[base] - s.flatReach,
+        nodes[base + 1] - s.flatReach,
+        nodes[base + 2] - s.flatReach,
+        nodes[base + 3] + s.flatReach,
+        nodes[base + 4] + s.flatReach,
+        nodes[base + 5] + s.flatReach,
       );
       if (clipped === 0) {
         s.frustumRejected++;
@@ -51,9 +51,10 @@ function descend<T extends PageRecord>(s: SelectionState<T>, pages: T[], culling
       // as `pixelsAtZero`, and not one extra projection.
       const bound = nodes[base + 10];
       if (
-        exact
+        !(s.flatReach > 0) &&
+        (exact
           ? bound === 0
-          : bound >= 0 && frameClusterError(s, bound, nodes, base + 6) <= s.pixelError
+          : bound >= 0 && frameClusterError(s, bound, nodes, base + 6) <= s.pixelError)
       )
         continue;
       const decision = subtreeDecision(s, bounds, node * BOUND_STRIDE, exact);

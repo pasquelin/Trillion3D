@@ -1,6 +1,6 @@
 import { PALETTE_FLOATS } from '../../../sdk-core/src/world/animation/skeleton.ts';
-import { FLAG_SKIN } from '../cluster/format.ts';
-import { KIND_MORPH, KIND_SKIN, KIND_WAVE, RECORD_HEAD, WAVE_FLOATS } from './layout.ts';
+import { FLAG_SKIN, FLAG_SOFT_SOURCE } from '../cluster/format.ts';
+import { KIND_MORPH, KIND_SKIN, KIND_WAVE, KIND_SOFT, RECORD_HEAD, WAVE_FLOATS } from './layout.ts';
 
 /**
  * THE GPU DEFORMATION STAGE (#357), in WGSL: a page vertex moved by its placement's record
@@ -51,15 +51,29 @@ fn deformWaves(at:u32,count:u32,p:vec3f,previous:bool,normal:bool)->vec3f{
  return select(d,normalize(n),normal);
 }
 /** Where record \`r\`'s parts start: palette, morph weights, world matrices, waves. */
-struct DeformAt{kinds:u32,joints:u32,targets:u32,waves:u32,palette:u32,weights:u32,world:u32,wave:u32,}
+struct DeformAt{kinds:u32,joints:u32,targets:u32,waves:u32,palette:u32,weights:u32,world:u32,wave:u32,soft:u32,simulation:u32,}
 fn deformAt(r:u32,previous:bool)->DeformAt{
  var a:DeformAt;
  a.kinds=deformWord(r+select(0u,1u,previous));a.joints=deformWord(r+2u);a.targets=deformWord(r+3u);a.waves=deformWord(r+4u);
  a.palette=r+${RECORD_HEAD}u+select(0u,a.joints*${PALETTE_FLOATS}u,previous);
  a.weights=r+${RECORD_HEAD}u+2u*a.joints*${PALETTE_FLOATS}u;
  a.world=a.weights+2u*a.targets;a.wave=a.world+32u;
+ a.soft=deformWord(r+5u);a.simulation=a.world+select(0u,32u,a.waves>0u)+a.waves*${WAVE_FLOATS}u;
  a.weights+=select(0u,a.targets,previous);
  return a;
+}
+fn deformSoft(a:DeformAt,h:ClusterHeader,page:PageInfo,vertex:u32,previous:bool,normal:bool)->vec3f{
+ let ids=clusterJoints(h,page.pageOffset,vertex);let weights=clusterWeights(h,page.pageOffset,vertex);
+ var delta=vec3f(0.0);let count=a.soft*3u;
+ for(var k=0u;k<4u;k++){
+  let v=min(ids[k],a.soft-1u)*3u;let start=a.simulation+v;
+  let current=start+select(select(0u,count,previous),count*3u,normal);
+  let value=vec3f(positions[current],positions[current+1u],positions[current+2u]);
+  let rest=start+count*2u;
+  let origin=vec3f(positions[rest],positions[rest+1u],positions[rest+2u]);
+  delta+=weights[k]*select(value-origin,value,normal);
+ }
+ return delta;
 }
 /** The rest point \`rest\` of vertex \`vertex\` of the page, where its placement's deformation
  *  carries it this frame, or the last one with \`previous\`; untouched on a row with no record. */
@@ -67,6 +81,7 @@ fn deformPoint(page:PageInfo,h:ClusterHeader,vertex:u32,rest:vec3f,previous:bool
  if(page.deform==0u){return rest;}
  let a=deformAt(page.deform-1u,previous);
  var p=rest;
+ if((a.kinds&${KIND_SOFT}u)!=0u&&(h.flags&${FLAG_SOFT_SOURCE}u)!=0u){p+=deformSoft(a,h,page,vertex,previous,false);}
  if((a.kinds&${KIND_MORPH}u)!=0u){
   for(var t=0u;t<min(a.targets,h.morphCount);t++){
    let weight=positions[a.weights+t];
@@ -86,6 +101,7 @@ fn deformNormal(page:PageInfo,h:ClusterHeader,vertex:u32,rest:vec3f)->vec3f{
  if(page.deform==0u){return rest;}
  let a=deformAt(page.deform-1u,false);
  var n=rest;
+ if((a.kinds&${KIND_SOFT}u)!=0u&&(h.flags&${FLAG_SOFT_SOURCE}u)!=0u){n=deformSoft(a,h,page,vertex,false,true);}
  if((a.kinds&${KIND_MORPH}u)!=0u){
   for(var t=0u;t<min(a.targets,h.morphCount);t++){
    let weight=positions[a.weights+t];

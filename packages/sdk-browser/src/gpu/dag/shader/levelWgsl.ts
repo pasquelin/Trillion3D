@@ -130,7 +130,7 @@ fn levelStep(src:u32,s:u32){
 }
 /** Too coarse under the view \`vi\`: no cluster of the subtree is fine enough. */
 fn tooCoarse(node:CullNode,e:mat4x4f,stretch:f32,focal:f32)->bool{
- return node.maxParentError>=0.0&&projected(node.maxParentError,node.sphere,e,stretch,focal)<=views[vi].pixelError;
+ return deformReach==0.0&&node.maxParentError>=0.0&&projected(node.maxParentError,node.sphere,e,stretch,focal)<=views[vi].pixelError;
 }
 /** A kept node opens its children, or deposits its pages, under the current view \`vi\`. */
 fn descend(src:u32,node:CullNode){

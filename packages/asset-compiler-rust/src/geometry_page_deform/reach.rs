@@ -48,6 +48,6 @@ impl Deformation {
                     .fold(0.0, f64::max)
             })
             .collect();
-        serde_json::json!({"joints": joints, "targets": targets})
+        serde_json::json!({"joints": if self.soft_source { vec![] } else { joints }, "targets": targets, "softVertices": if self.soft_source { balls.len() } else { 0 }})
     }
 }
