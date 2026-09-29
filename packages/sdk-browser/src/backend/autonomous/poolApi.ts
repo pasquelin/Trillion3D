@@ -69,6 +69,7 @@ export function createAutonomousPool(env: {
   instanceCount: () => number;
   /** The views not drawn now, whose requests share the budget (`pool.ts`). */
   others: PoolEnvironment['others'];
+  captureDrawn?: PoolEnvironment['captureDrawn'];
 }) {
   const { context, byUrl, gate, geometryStore, residency, heldFloor } = env,
     { state } = geometryStore;
@@ -85,6 +86,7 @@ export function createAutonomousPool(env: {
     parentsOf: createPageParents(env.roots),
     drop: residency.dropPage,
     others: env.others,
+    captureDrawn: env.captureDrawn,
     onDiagnostic: context.onDiagnostic,
   });
   return {
