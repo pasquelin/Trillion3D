@@ -97,7 +97,13 @@ export async function createDeferredLighting(device: GPUDevice, onReady?: () => 
       settle() {
         return variants.settle();
       },
-      light(encoder: GPUCommandEncoder, target: GPUTextureView, reflection?: ScreenReflection) {
+      /** Draws the lighting, after the reflection source when the frame's program reflects; returns
+       *  the passes drawn, which the frame counts (#1157). */
+      light(
+        encoder: GPUCommandEncoder,
+        target: GPUTextureView,
+        reflection?: ScreenReflection,
+      ): number {
         const group = active.lightGroup;
         if (!group) throw new Error('SURFACE_NOT_BOUND');
         const reflected = reflection?.active && active.reflection;
@@ -131,6 +137,7 @@ export async function createDeferredLighting(device: GPUDevice, onReady?: () => 
         pass.setBindGroup(0, group);
         pass.draw(3);
         pass.end();
+        return reflected ? 2 : 1;
       },
       /** True once the frame's program composes the chain's last bloom in (#963); the first call
        *  compiles what it needs, and `fail` hears why it cannot. */
