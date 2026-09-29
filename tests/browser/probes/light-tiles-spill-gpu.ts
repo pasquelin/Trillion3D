@@ -26,36 +26,37 @@ declare global {
   var lightTilesSpill: { run: typeof run };
 }
 
-const here = dirname(fileURLToPath(import.meta.url));
-// The mask widths the pass ships: the wide pass's batch, the narrow pass's list.
-const WIDE = tileLayout(LIGHT_TILES_SHADER).words;
-const NARROW = tileLayout(LIGHT_TILES_NARROW_SHADER).words;
-const LIST = tileLayout(LIGHT_TILES_SHADER).tileLights;
+if (import.meta.main) {
+  const here = dirname(fileURLToPath(import.meta.url));
+  // The mask widths the pass ships: the wide pass's batch, the narrow pass's list.
+  const WIDE = tileLayout(LIGHT_TILES_SHADER).words;
+  const NARROW = tileLayout(LIGHT_TILES_NARROW_SHADER).words;
+  const LIST = tileLayout(LIGHT_TILES_SHADER).tileLights;
 
-type Reach = (light: number) => boolean;
-/** A case of `count` lights, the opaque slice keeping `opaque`, the blend one `blend`. */
-function spillCase(
-  name: string,
-  count: number,
-  opaque: Reach,
-  blend: Reach,
-  { capacity = 2 * count, head = 0, narrow = false } = {},
-): SpillCase {
-  const keeps = Array.from({ length: count }, (_, i) => +opaque(i) | (+blend(i) << 1));
-  const words = narrow ? NARROW : WIDE;
-  return { name, words, pool: !narrow, count, keeps, capacity: narrow ? 0 : capacity, head };
-}
+  type Reach = (light: number) => boolean;
+  /** A case of `count` lights, the opaque slice keeping `opaque`, the blend one `blend`. */
+  function spillCase(
+    name: string,
+    count: number,
+    opaque: Reach,
+    blend: Reach,
+    { capacity = 2 * count, head = 0, narrow = false } = {},
+  ): SpillCase {
+    const keeps = Array.from({ length: count }, (_, i) => +opaque(i) | (+blend(i) << 1));
+    const words = narrow ? NARROW : WIDE;
+    return { name, words, pool: !narrow, count, keeps, capacity: narrow ? 0 : capacity, head };
+  }
 
-const all: Reach = () => true;
-const even: Reach = (i) => i % 2 === 0;
-const none: Reach = () => false;
-const r = seeded(849);
-const odds =
-  (p: number): Reach =>
-  () =>
-    r() < p;
-// prettier-ignore
-const CASES = [
+  const all: Reach = () => true;
+  const even: Reach = (i) => i % 2 === 0;
+  const none: Reach = () => false;
+  const r = seeded(849);
+  const odds =
+    (p: number): Reach =>
+    () =>
+      r() < p;
+  // prettier-ignore
+  const CASES = [
   spillCase('narrow, no light', 0, all, all, { narrow: true }),
   spillCase('narrow, one light', 1, all, none, { narrow: true }),
   spillCase('narrow, holey masks across a word', 33, even, (i) => i % 3 !== 0, { narrow: true }),
@@ -76,51 +77,52 @@ const CASES = [
   }),
 ];
 
-test('the tile compaction WGSL writes the oracle’s lists, pool and overflow, on the GPU', async () => {
-  const script = await bundlePage(resolve(here, 'lightTilesSpillPage.ts'), 'lightTilesSpill');
-  const pageErrors: string[] = [];
-  const result = await dansPageWebgpu(
-    (cases: SpillCase[]) => globalThis.lightTilesSpill.run(cases),
-    CASES,
-    { titre: 'Light tile spill', script, erreursPage: pageErrors },
-  );
-  assert.equal(result.unavailable, undefined, 'WebGPU must be available');
-  const { errors, runs } = result as Exclude<typeof result, { unavailable: string }>;
-  assert.deepEqual([...errors, ...pageErrors], []);
-  assert.equal(runs.length, CASES.length, 'every case ran');
-  let spilled = 0,
-    oneBatchSpills = 0,
-    overflowed = 0;
-  for (const [k, c] of CASES.entries()) {
-    const layout = tileLayout(spillHarness(c.words, c.pool));
-    const keeps = (bit: number) => c.keeps.flatMap((keep, i) => (keep & bit ? [i] : []));
-    const pool = { capacity: c.capacity, head: c.head, overflow: 0 };
-    const tiles = compactTile(
-      layout,
-      { opaque: keeps(1), blend: keeps(2) },
-      c.count,
-      undefined,
-      pool,
+  test('the tile compaction WGSL writes the oracle’s lists, pool and overflow, on the GPU', async () => {
+    const script = await bundlePage(resolve(here, 'lightTilesSpillPage.ts'), 'lightTilesSpill');
+    const pageErrors: string[] = [];
+    const result = await dansPageWebgpu(
+      (cases: SpillCase[]) => globalThis.lightTilesSpill.run(cases),
+      CASES,
+      { titre: 'Light tile spill', script, erreursPage: pageErrors },
     );
-    assert.deepEqual(runs[k].tiles, [...tiles], `${c.name}: the record and the pool's words`);
-    if (c.pool)
-      assert.deepEqual(
-        runs[k].pool,
-        [layout.stride, c.capacity, pool.head, pool.overflow],
-        `${c.name}: the pool's state`,
+    assert.equal(result.unavailable, undefined, 'WebGPU must be available');
+    const { errors, runs } = result as Exclude<typeof result, { unavailable: string }>;
+    assert.deepEqual([...errors, ...pageErrors], []);
+    assert.equal(runs.length, CASES.length, 'every case ran');
+    let spilled = 0,
+      oneBatchSpills = 0,
+      overflowed = 0;
+    for (const [k, c] of CASES.entries()) {
+      const layout = tileLayout(spillHarness(c.words, c.pool));
+      const keeps = (bit: number) => c.keeps.flatMap((keep, i) => (keep & bit ? [i] : []));
+      const pool = { capacity: c.capacity, head: c.head, overflow: 0 };
+      const tiles = compactTile(
+        layout,
+        { opaque: keeps(1), blend: keeps(2) },
+        c.count,
+        undefined,
+        pool,
       );
-    // Each light is tested once; a second walk only past a list in a scene of more batches.
-    const past = Math.max(tiles[0], tiles[1]) > LIST;
-    const walks = past && c.count > 32 * WIDE ? 2 : 1;
-    assert.equal(runs[k].tested, walks * c.count, `${c.name}: slice tests`);
-    spilled += +past;
-    oneBatchSpills += +(past && walks === 1);
-    overflowed += pool.overflow;
-  }
-  // The cases reach what they are for: slices in the pool, some written from the masks of one
-  // batch, and pools with no room.
-  assert.ok(
-    spilled >= 8 && oneBatchSpills >= 3 && overflowed >= 4,
-    `${spilled} spilled, ${oneBatchSpills} from the masks, ${overflowed} overflowed`,
-  );
-});
+      assert.deepEqual(runs[k].tiles, [...tiles], `${c.name}: the record and the pool's words`);
+      if (c.pool)
+        assert.deepEqual(
+          runs[k].pool,
+          [layout.stride, c.capacity, pool.head, pool.overflow],
+          `${c.name}: the pool's state`,
+        );
+      // Each light is tested once; a second walk only past a list in a scene of more batches.
+      const past = Math.max(tiles[0], tiles[1]) > LIST;
+      const walks = past && c.count > 32 * WIDE ? 2 : 1;
+      assert.equal(runs[k].tested, walks * c.count, `${c.name}: slice tests`);
+      spilled += +past;
+      oneBatchSpills += +(past && walks === 1);
+      overflowed += pool.overflow;
+    }
+    // The cases reach what they are for: slices in the pool, some written from the masks of one
+    // batch, and pools with no room.
+    assert.ok(
+      spilled >= 8 && oneBatchSpills >= 3 && overflowed >= 4,
+      `${spilled} spilled, ${oneBatchSpills} from the masks, ${overflowed} overflowed`,
+    );
+  });
+}
