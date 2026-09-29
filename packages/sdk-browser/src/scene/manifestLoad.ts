@@ -160,15 +160,15 @@ export async function loadClusterManifest(
   };
   const base = new URL('.', metadataUrl).href;
   // A page the view holds later is held to the head's identity, as the whole manifest is.
-  let head: ClusterManifest;
+  const head: { manifest?: ClusterManifest } = {};
   const accept = (primitives: Primitive[]) => {
-    assertCacheIdentity({ ...head, primitives });
+    assertCacheIdentity({ ...head.manifest!, primitives });
     return primitives.map((primitive) => absolutePrimitive(primitive, base));
   };
   const { metadata, pages } = lazy
     ? await openPagedManifest(value, read, accept)
     : { metadata: await readPagedManifest(value, read), pages: undefined };
-  head = metadata;
+  head.manifest = metadata;
   located(() => assertCacheReady(metadata, scope), metadataResource.details);
   assertCacheIdentity(metadata);
   return {
