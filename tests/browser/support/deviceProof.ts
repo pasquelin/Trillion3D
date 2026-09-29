@@ -28,8 +28,9 @@ export async function executerAppareil<R extends object = object>(
     evenements: unknown[],
     resultat: Partial<R> & ResultatAppareil,
   ) => Promise<void>,
+  requiredLimits?: Record<string, number>,
 ): Promise<Partial<R> & ResultatAppareil> {
-  const appareil = await ouvrirAppareil();
+  const appareil = await ouvrirAppareil([], requiredLimits);
   if (!appareil) return { indisponible: 'no WebGPU adapter' } as Partial<R> & ResultatAppareil;
   const { device, erreurs } = appareil;
   const evenements: unknown[] = [],

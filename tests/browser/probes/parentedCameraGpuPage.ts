@@ -8,7 +8,7 @@ import {
 } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import { collectClusterPages } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
 import { dagFixture } from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts';
-import { POSES_PARENT, cameraAplatie, creeRig, poseRig } from './cameraRig.ts';
+import { POSES_PARENT, flattenedCamera, creeRig, poseRig } from './cameraRig.ts';
 import { ouvrirAppareil } from './webgpuDevice.ts';
 import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import type { HostCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
@@ -74,7 +74,7 @@ export async function executer(pixelErrors: number[]): Promise<ExecuterResultat>
     const sansParent = await sequence(
       device,
       function* () {
-        for (const pose of POSES_PARENT) yield cameraAplatie(pose);
+        for (const pose of POSES_PARENT) yield flattenedCamera(pose);
       },
       pixelError,
     );
