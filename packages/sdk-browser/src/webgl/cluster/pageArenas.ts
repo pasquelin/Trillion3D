@@ -26,13 +26,21 @@ export type ArenaSlot = {
   checked: number;
 };
 
+/** Gives freed slots' ranges back to their arenas. */
+const giveBack = (slots: readonly ArenaSlot[]) => {
+  for (const { arena, vertex, vertices, first, reserved } of slots)
+    arena.release(vertex, vertices, first, reserved);
+};
+
 /**
  * THE SHARED BUFFERS OF THE PAGES (#840): every mesh drawn once, of an engine geometry — one that
  * announces its release — with 32-bit indices and float attributes, is placed in the arena of its
  * vertex layout (`pageArena.ts`) instead of buffers of its own, and freed from it with its
  * geometry. Any other mesh — instanced, a batch record, a host geometry, packed attributes — keeps
  * its own (`geometry.ts`), and is drawn exactly as before. A geometry rewritten once placed —
- * read once a frame — leaves for buffers of its own, where a rewrite sends only what changed.
+ * read once a frame — leaves for buffers of its own, where a rewrite sends only what changed. A
+ * freed page's ranges are written again only once the GPU ran the frames that could read them
+ * (`beginFrame`): no write reaches a range a frame in flight still draws.
  */
 export class WebglPageArenas {
   private arenas = new Map<string, WebglPageArena>();
@@ -45,9 +53,30 @@ export class WebglPageArenas {
     this.gl = gl;
     this.locations = locations;
   }
-  /** A new frame: every placement is checked again at its first draw. */
+  /** Slots freed since the last frame began, and those waiting for the GPU to run the frames sent
+   *  when they were freed: a range is written again only once no frame sent can read it still. */
+  private freed: ArenaSlot[] = [];
+  private retiring: { fence: WebGLSync; slots: ArenaSlot[] }[] = [];
+  /** A new frame: every placement is checked again at its first draw, and the ranges the GPU no
+   *  longer reads are given back. */
   beginFrame() {
     this.frame++;
+    const gl = this.gl,
+      retiring = this.retiring;
+    if (this.freed.length) {
+      const fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+      if (fence) retiring.push({ fence, slots: this.freed });
+      else giveBack(this.freed); // a lost context: nothing is read any more
+      this.freed = [];
+    }
+    while (
+      retiring.length &&
+      gl.getSyncParameter(retiring[0].fence, gl.SYNC_STATUS) === gl.SIGNALED
+    ) {
+      const { fence, slots } = retiring.shift()!;
+      gl.deleteSync(fence);
+      giveBack(slots);
+    }
   }
   /** Where `mesh` is drawn from: its arena slot, or undefined when it keeps its own buffers. */
   slot(mesh: ClusterDraw) {
@@ -131,7 +160,8 @@ export class WebglPageArenas {
   private free(geometry: Geometry, slot: ArenaSlot) {
     geometry.released?.delete(slot.release);
     this.slots.delete(geometry);
-    slot.arena.release(slot.vertex, slot.vertices, slot.first, slot.reserved);
+    slot.arena.retire(slot.first);
+    this.freed.push(slot);
   }
   /** A growth refused: the arena is given up, its pages placed again at their next draw. */
   private lose(key: string, arena: WebglPageArena) {
@@ -146,5 +176,7 @@ export class WebglPageArenas {
   }
   dispose() {
     for (const [key, arena] of this.arenas) this.lose(key, arena);
+    for (const { fence } of this.retiring) this.gl.deleteSync(fence);
+    this.retiring.length = this.freed.length = 0;
   }
 }
