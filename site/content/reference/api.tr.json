@@ -2047,7 +2047,9 @@
       "evictedTiles": "Kaldırılan doku parçaları.",
       "residentPages": "Ayardan hemen önce ve hemen sonra yerleşik olan şey.",
       "residentTiles": "Öncesi ve sonrasında tutulan doku parçaları.",
-      "durationMs": "Ne kadar sürdüğü."
+      "durationMs": "Ne kadar sürdüğü.",
+      "tables": "Kendilerinden büyük bir havuz için büyütülen, çizilebilir sayfa başına tablolar (WebGPU); hiçbiri büyütülmediğinde `null`.",
+      "transientBytes": "Geometri havuzu kopyalanırken aynı anda tutulan baytlar: eski havuz ve yanındaki yeni havuz, hiçbir sayfa taşınmadan önce cihaz tarafından birlikte verilir; hiçbir havuz taşınmadığında 0."
     }
   },
   "Mesh": {
