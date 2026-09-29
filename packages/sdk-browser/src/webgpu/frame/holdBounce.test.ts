@@ -7,8 +7,9 @@ import { settledRt } from './hold.fixture.ts';
 
 test('#1281: probes still converging keep the frame drawn, a closed series lets it hold', () => {
   const rt = settledRt();
-  rt.bounce.probes = { working: true };
+  type Probes = NonNullable<typeof rt.bounce.probes>;
+  rt.bounce.probes = { working: true } as unknown as Probes;
   assert.deepEqual(unsettledReasons(unsettledMask(rt)), ['bounceProbes']);
-  rt.bounce.probes = { working: false };
+  rt.bounce.probes = { working: false } as unknown as Probes;
   assert.equal(unsettledMask(rt), 0, 'a converged series is a steady state');
 });
