@@ -70,14 +70,7 @@ impl<'r> Local<'r> {
             let placed = values.chunks(stride.max(1)).map(|v| &v[..3]);
             rows.chain(placed).flatten().copied().collect()
         });
-        let mut first: HashMap<u32, u32> = HashMap::new();
-        let mut weld: Vec<u32> = (0..n as u32)
-            .map(|i| {
-                *first
-                    .entry(input.weld[region.remap[i as usize] as usize])
-                    .or_insert(i)
-            })
-            .collect();
+        let mut weld = first_copies(&region.remap, input.weld);
         let mut seen: HashMap<[u32; 3], u32> = HashMap::new();
         for (k, &o) in origin.iter().enumerate() {
             let key = position_key(&positions, (n + k) as u32);
@@ -119,14 +112,9 @@ impl<'r> Local<'r> {
     /// Per region vertex, its first copy by position and texture coordinates (the level's
     /// `weld_seam`); a placed vertex is its own, the only copy of what the solve wrote.
     pub fn weld_seam(&self, input: &GroupReductionInput) -> Vec<u32> {
-        let mut first: HashMap<u32, u32> = HashMap::new();
-        let source = self
-            .remap
-            .iter()
-            .enumerate()
-            .map(|(i, &v)| *first.entry(input.weld_seam[v as usize]).or_insert(i as u32));
-        let placed = (self.n..self.n + self.origin.len()).map(|id| id as u32);
-        source.chain(placed).collect()
+        let mut weld_seam = first_copies(self.remap, input.weld_seam);
+        weld_seam.extend((self.n..self.n + self.origin.len()).map(|id| id as u32));
+        weld_seam
     }
     /// `id` in the primitive's numbering: placed vertices from `base`.
     pub fn global(&self, id: u32, base: u32) -> u32 {
@@ -135,6 +123,15 @@ impl<'r> Local<'r> {
             false => base + id - self.n as u32,
         }
     }
+}
+
+/// Per region vertex of `remap`, the region's first copy of it under the level's `weld`.
+fn first_copies(remap: &[u32], weld: &[u32]) -> Vec<u32> {
+    let mut first: HashMap<u32, u32> = HashMap::new();
+    let copies = remap.iter().enumerate();
+    copies
+        .map(|(i, &v)| *first.entry(weld[v as usize]).or_insert(i as u32))
+        .collect()
 }
 
 /// The `stride` floats of vertex `i`.
