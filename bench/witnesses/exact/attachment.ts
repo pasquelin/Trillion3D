@@ -3,7 +3,7 @@ import { Mesh } from '../../../packages/sdk-core/src/world/object/mesh.ts';
 import { BufferAttribute } from '../../../packages/sdk-core/src/world/buffer/attribute.ts';
 import type { HostMaterials, HostMesh } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { setGeometryBounds } from '../../../packages/sdk-browser/src/host/geometryBounds.ts';
-import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
+import type { WitnessPage as PageRec } from './pose.ts';
 import { hashId } from '../../../packages/sdk-browser/src/diagnostic/colors.ts';
 import { disposeTriangleGeometry } from '../../../packages/sdk-browser/src/diagnostic/triangleDiagnostic.ts';
 import { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts';
