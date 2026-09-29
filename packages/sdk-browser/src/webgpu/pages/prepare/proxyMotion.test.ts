@@ -13,7 +13,7 @@ test('borrowed far shadows follow off-move-on and late loads without duplicate e
     sync(worldOf: (rank: number) => ArrayLike<number> | undefined) {
       updates++;
       observed = worldOf(-1)![12];
-      return true;
+      return 'moved' as const;
     },
   };
   const rt = {
@@ -38,4 +38,33 @@ test('borrowed far shadows follow off-move-on and late loads without duplicate e
   syncPageProxy(rt, late, true);
   assert.equal(refreshes, 1);
   assert.equal(observed, 90, 'late arrival sees current host world, not its cooked pose');
+});
+
+test('a settling proxy syncs once per still frame until it settles, then once per scene write', () => {
+  let syncs = 0;
+  const proxy = {
+    settling: true,
+    sync: () => (syncs++, 'moved' as const),
+  };
+  const rt = {
+    setup: { source: { traverse() {} }, worlds: { of: () => undefined } },
+    run: { frame: 1, gate: { revisions: { scene: 1 } } },
+  } as unknown as WebgpuPagesRuntime;
+  syncPageProxy(rt, proxy);
+  syncPageProxy(rt, proxy);
+  assert.equal(syncs, 1, 'a second sync in the frame that moved does not count a still frame');
+  rt.run.frame++;
+  syncPageProxy(rt, proxy);
+  rt.run.frame++;
+  syncPageProxy(rt, proxy);
+  assert.equal(syncs, 3, 'each still frame reaches the proxy while it waits to settle');
+  proxy.settling = false;
+  rt.run.frame++;
+  syncPageProxy(rt, proxy);
+  assert.equal(syncs, 3, 'settled, or unable to: a still frame costs nothing');
+  rt.run.gate.revisions.scene++;
+  syncPageProxy(rt, proxy);
+  rt.run.frame++;
+  syncPageProxy(rt, proxy);
+  assert.equal(syncs, 4, 'a still proxy syncs once per scene write');
 });

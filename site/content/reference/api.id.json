@@ -59,7 +59,7 @@
       "proxyTriangleBudget": "Total anggaran segitiga proxy untuk seluruh adegan di semua instance: jejak yang tersimpan.",
       "proxyCellMetres": "Batas bawah resolusi mesh proxy dalam meter: ukuran segitiga yang disederhanakan / sel cache permukaan. Dilipatgandakan kompiler jika anggaran terlampaui.",
       "proxyLeafTriangles": "Segitiga per daun BVH: loop penelusuran daun dibatasi oleh konstanta ini.",
-      "traversalSteps": "Node BVH yang dikunjungi per sinar: dibatasi sebelum eksekusi bingkai, tidak pernah dinamis. Sebuah node lebar-4 mencakup 4× lebih banyak pohon per langkah dibanding BVH biner.",
+      "traversalSteps": "Node BVH yang dikunjungi per sinar pada pohon sebagaimana dibangun, dibatasi sebelum eksekusi bingkai. Penyesuaian ulang menambahkan node yang ia biarkan masuk ke sebuah sinar, tidak pernah jumlah node (`bounce/proxy.ts`). Sebuah node lebar-4 mencakup 4× lebih banyak pohon per langkah dibanding BVH biner.",
       "traversalStack": "Kedalaman tumpukan penelusuran. Sebuah node lebar-4 mendorong hingga 3 anak; 32 mencakup jutaan segitiga.",
       "cascadeLevels": "Tingkat cascade probe. `cascadeLevels - 1` pertama mengikuti posisi kamera; tingkat terakhir statis terhadap dunia dan mencakup seluruh batas adegan.",
       "cascadeSize": "Probe per sumbu per tingkat: satu tingkat adalah kubus berisi `cascadeSize³` probe.",
@@ -218,13 +218,14 @@
   },
   "BounceOccupancy": {
     "summary": "Di mana menyimpan sebuah probe itu berharga: peta okupansi cascade.",
-    "description": "Sebuah cascade di seluruh kota menghabiskan sebagian besar sel untuk langit kosong dan inti bangunan padat, tempat iradiansi tidak pernah ditanyakan. Penjadwal perlu tahu, sebelum menghabiskan satu sinar, apakah sebuah sel menyentuh geometri. Ini adalah sifat dari dunia, bukan kamera: dihitung sekali saat pembuatan, berlaku untuk semua posisi yang diambil tingkat-tingkat bergerak nanti. Peta tingkat terhalus ditandai oleh kotak pembatas segitiga proxy ditambah batas satu sel: delapan sudut sebuah sel yang terisi selalu disimpan, sehingga tidak ada yang berguna hilang. Tingkat-tingkat berikutnya adalah reduksi pasti — dua sel jadi satu per sumbu, karena jaraknya adalah kelipatan pangkat dua dari yang terhalus — lalu dilebarkan satu sel karena alasan yang sama. Tidak ada di sini yang menyebut nama sebuah adegan atau memeriksa kamera: area, segitiga, sel.",
+    "description": "Sebuah cascade di seluruh kota menghabiskan sebagian besar sel untuk langit kosong dan inti bangunan padat, tempat iradiansi tidak pernah ditanyakan. Penjadwal perlu tahu, sebelum menghabiskan satu sinar, apakah sebuah sel menyentuh geometri. Ini adalah sifat dari dunia, bukan kamera: dihitung saat pembuatan dan sekali lagi ketika geometri yang bergerak sudah diam, berlaku untuk semua posisi yang diambil tingkat-tingkat bergerak nanti. Peta tingkat terhalus ditandai oleh kotak pembatas segitiga proxy ditambah batas satu sel: delapan sudut sebuah sel yang terisi selalu disimpan, sehingga tidak ada yang berguna hilang. Tingkat-tingkat berikutnya adalah reduksi pasti — dua sel jadi satu per sumbu, karena jaraknya adalah kelipatan pangkat dua dari yang terhalus — lalu dilebarkan satu sel karena alasan yang sama. Tidak ada di sini yang menyebut nama sebuah adegan atau memeriksa kamera: area, segitiga, sel.",
     "members": {
+      "moved": "Pemilik bergerak: `boxes` memuat enam batas dunia per segitiga proxy, `changed` menandai yang bergerak.",
+      "settle": "Sekali per frame: frame pertama setelah gerakan berhenti membangun ulang peta yang tepat pada `extent`.",
       "occupied": "Benar saat sel sebuah tingkat pada kisi globalnya layak mendapat probe.",
       "marked": "Sel yang ditandai dan total sel tingkat terhalus: keuntungan yang dipublikasikan.",
       "cells": "Sel-sel tingkat terhalus.",
-      "bytes": "Byte yang dibutuhkannya.",
-      "allEligible": "Geometri telah bergerak: menjadwalkan secara konservatif semua sel kaskade, yang jumlahnya dibatasi."
+      "bytes": "Byte yang dibutuhkannya."
     }
   },
   "BoundedNode": {
@@ -4283,8 +4284,13 @@
       "controls": "Controller yang menggerakkan kamera dari canvas; `world.controls.kind` mengubahnya nanti.",
       "signal": "Menghentikan pemuatan dunia saat sinyal dibatalkan.",
       "physics": "Menyalakan fisika (`world.physics`): `true`, atau gravitasi dan anggaran. Jolt baru dimuat saat itu.",
-      "temporalAntialiasing": "Antialiasing temporal, hanya WebGPU: pergeseran subpiksel yang diakumulasi antarbingkai. `false` menggambar setiap piksel di pusatnya, tanpa riwayat, yang diminta tangkapan tepat per piksel; diubah kemudian lewat `world.temporalAntialiasing`."
+      "temporalAntialiasing": "Antialiasing temporal, hanya WebGPU: pergeseran subpiksel yang diakumulasi antarbingkai. `false` menggambar setiap piksel di pusatnya, tanpa riwayat, yang diminta tangkapan tepat per piksel; diubah kemudian lewat `world.temporalAntialiasing`.",
+      "renderScale": "Pecahan layar per sumbu tempat gambar digambar, hanya WebGPU, sebelum antialiasing temporal membangunnya kembali ke ukuran layar: `'auto'` membiarkan anggaran bingkai memilihnya antara `min` dan `max` (`{ min, max }`, bawaan 0,5 dan 1), sebuah angka menetapkannya; gambar diam digambar pada nilai maksimum. Diubah kemudian lewat `world.renderScale`."
     }
+  },
+  "RenderScale": {
+    "summary": "Skala render yang diminta halaman: pecahan layar, per sumbu, tempat gambar digambar sebelum antialiasing temporal membangunnya kembali ke ukuran layar.",
+    "description": "`'auto'` membiarkan anggaran bingkai memilihnya antara 0,5 dan 1, `{ min, max }` membatasi pilihan itu, sebuah angka menetapkannya; setiap nilai dijaga antara 0,5 dan 1."
   },
   "WorldPageSource": {
     "summary": "Tempat halaman dibaca, dan alamat yang menjadi acuannya.",
@@ -4936,7 +4942,8 @@
       "options.controls": "Pengontrol yang menggerakkan kamera dari kanvas; `world.controls.kind` mengubahnya nanti.",
       "options.signal": "Menghentikan pemuatan dunia saat sinyal dibatalkan.",
       "options.physics": "Menyalakan fisika (`world.physics`): `true`, atau gravitasi dan anggaran. Jolt baru dimuat saat itu.",
-      "options.temporalAntialiasing": "Antialiasing temporal, hanya WebGPU: pergeseran subpiksel yang diakumulasi antarbingkai. `false` menggambar setiap piksel di pusatnya, tanpa riwayat, yang diminta tangkapan tepat per piksel; diubah kemudian lewat `world.temporalAntialiasing`."
+      "options.temporalAntialiasing": "Antialiasing temporal, hanya WebGPU: pergeseran subpiksel yang diakumulasi antarbingkai. `false` menggambar setiap piksel di pusatnya, tanpa riwayat, yang diminta tangkapan tepat per piksel; diubah kemudian lewat `world.temporalAntialiasing`.",
+      "options.renderScale": "Pecahan layar per sumbu tempat gambar digambar, hanya WebGPU, sebelum antialiasing temporal membangunnya kembali ke ukuran layar: `'auto'` membiarkan anggaran bingkai memilihnya antara `min` dan `max` (`{ min, max }`, bawaan 0,5 dan 1), sebuah angka menetapkannya; gambar diam digambar pada nilai maksimum. Diubah kemudian lewat `world.renderScale`."
     }
   },
   "crossVector3": {
@@ -6937,6 +6944,10 @@
   "world.temporalAntialiasing": {
     "summary": "Antialiasing temporal: pergeseran subpiksel yang diakumulasi antarbingkai; aktif secara bawaan.",
     "description": "Saat ditulis, berlaku pada bingkai berikutnya, riwayat dibuang, tanpa membuka ulang sesi. Saat dibaca, itulah yang dibawa gambar: false di WebGL2, dan selama program dikompilasi setelah diaktifkan."
+  },
+  "world.renderScale": {
+    "summary": "Pecahan layar per sumbu tempat gambar digambar (`WorldOptions.renderScale`), mulai bingkai berikutnya.",
+    "description": "Saat dibaca, skala gambar terakhir yang digambar: 1 di WebGL2."
   },
   "world.effects": {
     "summary": "Rantai efek: pass yang digambar di atas gambar (`effect`)."

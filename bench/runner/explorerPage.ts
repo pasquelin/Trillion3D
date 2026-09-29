@@ -78,6 +78,8 @@ export function explorerOptions(
       : {}),
     // Block format of the texture pools; the engine takes `auto` without it.
     ...(options.textureCompression ? { textureCompression: options.textureCompression } : {}),
+    // The frame drawn below the display and reconstructed to it (#816); the display without it.
+    ...(options.renderScale ? { renderScale: options.renderScale } : {}),
     // Temporal antialiasing cut: the pre-batch image, sampled at the pixel centre.
     ...(options.temporalAntialiasing === false ? { temporalAntialiasing: false } : {}),
   };
