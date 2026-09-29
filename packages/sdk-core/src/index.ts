@@ -98,6 +98,7 @@ export { SceneRoot, createSceneRoot } from './scene/core/root.ts';
 export type { AlphaMode, LinearRgb, Material, Side } from './contracts/material.ts';
 export type { Texture, TextureColorSpace, TextureFilter, WrapMode } from './texture/contract.ts';
 export * from './scene/core/tableSurfaces.ts';
+export type { TablePage, TableSlot } from './scene/core/tablePages.ts';
 export { compareImages } from './runtime/compareImages.ts';
 
 /** The pending operation must support abort through its owner (RAF, readback, etc.). */

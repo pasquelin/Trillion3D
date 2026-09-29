@@ -5956,6 +5956,12 @@
       "extensions": "Lo que añaden las extensiones físicas, con los nombres de parámetro del anfitrión: un factor, un color o un intervalo como números, un mapa como ranura."
     }
   },
+  "TablePage": {
+    "summary": "Una página que nombra una ranura: su archivo, relativo a las tablas, su tamaño y su huella."
+  },
+  "TableSlot": {
+    "summary": "Una página de un índice que nombra una ranura, su caja en las poses declaradas y los rangos del núcleo listados a su lado: para el índice de celdas, los padres bajo los que sus celdas cuelgan nodos (#575)."
+  },
   "TableTexture": {
     "summary": "Estado de muestreo de una textura glTF, en las palabras del motor.",
     "members": {
