@@ -38,7 +38,7 @@ function viewOf(camera: HostCamera) {
  *  file into its rows; `cellPage`, a page of the cell index. One of another version is refused. */
 async function offThread(op: 'cells' | 'cellPage', bytes: Uint8Array) {
   const answer = await patientTask(op, bytes);
-  if (answer.ok && answer.cells) return cellRows(answer.cells, bytes.byteLength);
+  if (answer.ok && answer.cells) return cellRows(answer.cells);
   if (answer.ok && answer.cellPage) return answer.cellPage;
   const message = answer.ok ? 'PAGE_DECODE_FAILED' : answer.message;
   throw new EngineError('INVALID_SCENE_TABLES', message, {});

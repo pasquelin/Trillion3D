@@ -11,7 +11,7 @@
 import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Camera } from '../../packages/sdk-core/src/world/camera/camera.ts';
@@ -19,7 +19,7 @@ import {
   assertTablePartition,
   tablePartition,
 } from '../../packages/sdk-core/src/scene/core/tablePartition.ts';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { cellRecords } from './world-partition-pages.fixture.ts';
 import type { BackendDiagnostic } from '../../packages/sdk-browser/src/diagnostic/types.ts';
 import { openMeasuredWorld } from '../../packages/sdk-browser/src/world/session/explorer.ts';
@@ -88,9 +88,27 @@ test(
     const partitioned = (url: string) => /scene-(page|cell)-/.test(url);
     assert.deepEqual(large.urls.filter(partitioned), [], 'no page of the index, no cell');
     assert.deepEqual(small.urls.filter(partitioned), []);
+    // The world's own files, each by kind: the page codec is fetched once per process, by the
+    // first session alone, and is no part of the world. They differ by a few digits of the
+    // numbers the cook writes, never by the cells.
+    const files = async (urls: readonly string[]) => {
+      const sizes: Record<string, number> = {};
+      for (const url of new Set(urls.filter((url) => !url.endsWith('.wasm')))) {
+        const kind = url
+          .split('/')
+          .at(-1)!
+          .replace(/-[0-9a-f]{64}/, '');
+        sizes[kind] = (sizes[kind] ?? 0) + (await stat(fileURLToPath(url))).size;
+      }
+      return sizes;
+    };
+    const [before, after] = [await files(small.urls), await files(large.urls)];
+    t.diagnostic(JSON.stringify({ before, after }));
+    assert.deepEqual(Object.keys(after).sort(), Object.keys(before).sort(), 'the same files');
+    const sum = (sizes: Record<string, number>) => Object.values(sizes).reduce((a, b) => a + b, 0);
     assert.ok(
-      large.bytes < 1.5 * small.bytes,
-      `the first frame is not: ${small.bytes} → ${large.bytes} B`,
+      Math.abs(sum(after) - sum(before)) < 0.01 * sum(before),
+      `the first frame is not: ${sum(before)} → ${sum(after)} B`,
     );
     // The rows are sized at open from the root's totals: one per placed node, read nowhere else.
     assert.deepEqual([large.pages, large.cells, large.held], [0, 0, 0]);
