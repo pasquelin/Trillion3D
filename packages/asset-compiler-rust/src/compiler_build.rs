@@ -1,6 +1,5 @@
 use super::*;
 use compiler_autonomous::write_autonomous_scene;
-
 pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     check(o)?;
     validate_compile_options(o)?;
@@ -10,10 +9,8 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let _attached = phases.attach();
     // Held until return: two compilations of one cache would each prune what the other published.
     let _lock = CacheLock::acquire(o)?;
-    // The router picks the format driver and has it produce the intermediate scene;
-    // everything after reads only a glTF, without knowing which format it came from.
+    // Each format driver yields the common glTF intermediate scene.
     let progress = with_ratio(progress);
-    // Cutout answers, read before any conversion (`cutout.rs`).
     let decisions = cutout::load_decisions(&o.cache, &o.source)?;
     let routed: RoutedSource = plugins::scene::prepare_source(o, &progress)?;
     // Where relative image URIs resolve, read before a converted scene moves `o.source` away.

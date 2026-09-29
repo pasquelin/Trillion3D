@@ -15,11 +15,7 @@ import { shadowCpuMetrics } from '../../shadow/cpuSteps.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { releaseWebgpuView, useWebgpuView } from '../state/viewSwitch.ts';
 
-/**
- * Vertex bytes of an image: the total held at allocation, plus the three concatenated visbuffer
- * buffers. The sample is queried every image and resident pages number in the thousands: it no
- * longer resums them, it reads the counter.
- */
+/** Geometry bytes: the cached allocation total plus the three concatenated visibility buffers. */
 export function vertexBytesOf(
   gpu: Pick<WebgpuPagesRuntime['gpu'], 'vertexBytes'>,
   vis: Pick<WebgpuPagesRuntime['vis'], 'concatPos' | 'concatUv' | 'concatNrm'>,

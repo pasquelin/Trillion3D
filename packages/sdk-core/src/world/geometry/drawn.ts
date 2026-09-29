@@ -8,7 +8,6 @@ import { drawnSprite } from './drawnSprite.ts';
 import { flatten } from './drawnFlat.ts';
 import { drawnDeformation, type DrawnDeformation } from './drawnDeformation.ts';
 import { readComponent, readPoints } from './bounds.ts';
-
 /** The triangles a mesh draws, as the page cutter reads them. `lines` says they are line quads
  *  (`quads`), which every raster widens on screen by the surface's `lineWidth`; a dashed line's
  *  quads carry their distance along the line in the first coordinate of `uvs`. */
@@ -24,7 +23,6 @@ export interface DrawnTriangles {
   /** Set on a sprite's quad (`drawnSprite`): its farthest corner from the sprite's origin. */
   spriteRadius?: number;
 }
-
 type V3 = [number, number, number];
 /** The material and object fields that change what a mesh draws (`drawnTriangles`). */
 type DrawnOptions = {
@@ -34,7 +32,6 @@ type DrawnOptions = {
   dashed?: boolean;
   center?: readonly [number, number];
 };
-
 /**
  * What a mesh draws, as triangles: the engine rasterises triangles alone, so a point is a small
  * octahedron of the material's `size` and a line segment a quad of two triangles whose corners
@@ -84,12 +81,10 @@ function drawTriangles(
   if (options.flat) return flatten(drawn);
   return { ...drawn, normals: drawn.normals ?? computeNormals(drawn.positions, drawn.indices) };
 }
-
 /** Drawn triangles with their original deformation attributes preserved. */
 export function drawnTriangles(geometry: Geometry, reading: Primitive, options: DrawnOptions = {}) {
   return drawnDeformation(geometry, drawTriangles(geometry, reading, options));
 }
-
 /** List `name` of `g`, `width` numbers for each of its first `n` vertices as the page
  *  cutter reads them, a missing component 1: into `out` when given; null when it holds fewer. */
 export function readList(g: Geometry, name: string, width: number, n: number, out?: Float32Array) {
