@@ -9,8 +9,7 @@
 import { refuseCluster } from './refusal.ts';
 import { allocated } from '../core/allocation.ts';
 import { halfFloatTargets } from '../core/renderTarget.ts';
-import { mipLevelCountFor } from '../../texture/tiles.ts';
-import { mipTailBytes } from '../../gpu/core/textureBytes.ts';
+import { levelSize, mipLevelCountFor } from '../../texture/tiles.ts';
 import type { WebglReflectionPyramid } from '../../reflections/pyramidGl.ts';
 import type { SceneColour, WebglClusterScene } from './lights.ts';
 
@@ -45,12 +44,13 @@ export class WebglClusterBackdrop {
   }
   /** Bytes the two copies hold: half-float colour (8) and 24-bit depth (4) per pixel. */
   get bytes() {
-    const { width, height } = this;
-    const mips = this.mips
-      ? this.mips.bytes +
-        mipTailBytes(width, height, 'rgba16float', mipLevelCountFor(width, height))
-      : 0;
-    return width * height * 12 + mips;
+    let extra = this.mips?.bytes ?? 0;
+    if (this.mips)
+      for (let level = 1; level < mipLevelCountFor(this.width, this.height); level++) {
+        const [w, h] = levelSize(this.width, this.height, level);
+        extra += w * h * 8;
+      }
+    return this.width * this.height * 12 + extra;
   }
   /** Viewport origin of the frame being drawn: fragment coordinates minus it are backdrop texels. */
   get originX() {
