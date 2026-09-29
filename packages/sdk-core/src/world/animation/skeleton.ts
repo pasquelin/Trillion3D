@@ -68,7 +68,10 @@ export function paletteReach(
   let most = 0;
   for (let j = 0; j < joints && j * 4 + 3 < reach.length; j++) {
     const m = at + j * PALETTE_FLOATS,
-      [cx, cy, cz, r] = [reach[j * 4], reach[j * 4 + 1], reach[j * 4 + 2], reach[j * 4 + 3]];
+      cx = reach[j * 4],
+      cy = reach[j * 4 + 1],
+      cz = reach[j * 4 + 2],
+      r = reach[j * 4 + 3];
     if (!(r > 0) && !cx && !cy && !cz) continue;
     let moved = 0,
       frobenius = 0;
@@ -76,11 +79,31 @@ export function paletteReach(
       const x = palette[m + row * 4],
         y = palette[m + row * 4 + 1],
         z = palette[m + row * 4 + 2];
-      const d = x * cx + y * cy + z * cz + palette[m + row * 4 + 3] - [cx, cy, cz][row];
+      const d =
+        x * cx + y * cy + z * cz + palette[m + row * 4 + 3] - (row ? (row > 1 ? cz : cy) : cx);
       moved += d * d;
       frobenius += (x - +(row === 0)) ** 2 + (y - +(row === 1)) ** 2 + (z - +(row === 2)) ** 2;
     }
     most = Math.max(most, Math.sqrt(moved) + Math.sqrt(frobenius) * r);
+  }
+  return most;
+}
+
+/** The most a joint's linear part stretches a vector, bounded by `√(‖L‖₁·‖L‖∞)` (one at rest,
+ *  never below the true norm): how far a morph's displacement moves once
+ *  the joints carry it. */
+export function paletteStretch(palette: Float32Array, at: number, joints: number) {
+  let most = 1;
+  for (let j = 0; j < joints; j++) {
+    const m = at + j * PALETTE_FLOATS,
+      cell = (row: number, c: number) => Math.abs(palette[m + row * 4 + c]);
+    let rows = 0,
+      columns = 0;
+    for (let k = 0; k < 3; k++) {
+      rows = Math.max(rows, cell(k, 0) + cell(k, 1) + cell(k, 2));
+      columns = Math.max(columns, cell(0, k) + cell(1, k) + cell(2, k));
+    }
+    most = Math.max(most, Math.sqrt(rows * columns));
   }
   return most;
 }

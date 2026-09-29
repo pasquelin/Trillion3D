@@ -5,6 +5,7 @@ import { prepareWebgpuPresentation } from '../../frame/presentationSetup.ts';
 import { createWebgpuPagesPipelines } from './pipelines.ts';
 import { ensureWebgpuPositionBuffer, loadUnpaged } from '../../core/positions.ts';
 import { prepareWebgpuGeometry } from '../../core/geometryPrepare.ts';
+import { createSessionDeformation } from '../../../deformation/session.ts';
 import { prepareWebgpuBlend } from '../../blend/prepare.ts';
 import { declaredBlendModes } from '../../blend/stagePipelines.ts';
 import { createTransparentTable } from '../../transparent/table.ts';
@@ -135,7 +136,8 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   vis.geometryBlocks.clear();
   let geometryFailure: { error: unknown } | undefined;
   try {
-    Object.assign(vis, prepareWebgpuGeometry(gpuDevice, allPages, vis.geometryBlocks));
+    const deformation = (vis.deformation = createSessionDeformation(selectionRoots));
+    Object.assign(vis, prepareWebgpuGeometry(gpuDevice, allPages, vis.geometryBlocks, deformation));
   } catch (error) {
     geometryFailure = { error };
   }

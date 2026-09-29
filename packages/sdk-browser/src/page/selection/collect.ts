@@ -146,6 +146,8 @@ export function collectClusterPages(
         boxes: true,
         parked,
         placement,
+        // How far its GPU deformation can move a vertex, measured by the compiler (#357).
+        ...(primitive.deformation ? { deformation: primitive.deformation } : {}),
         // A row says whether its placement casts; a node placed at its own world, its mesh.
         mark:
           withShadowless(

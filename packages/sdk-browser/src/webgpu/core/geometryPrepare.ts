@@ -1,6 +1,7 @@
 import type { HostAttributes } from '../../host/resources.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { GeometryBlock } from '../row/pageRowMaterial.ts';
+import type { SessionDeformation } from '../../deformation/session.ts';
 import { COLOR_FLOATS, UV_FLOATS, colorFloatAt, uvBufferFloats } from './vertexColors.ts';
 type GeometryBlocks = Map<HostAttributes, GeometryBlock>;
 type List = HostAttributes[string];
@@ -35,10 +36,11 @@ export function createVertexPool(
   capacity: number,
   coloured: boolean,
   blocks: GeometryBlocks,
+  deformFloats = 0,
 ) {
   let used = 0;
   const floats: Buffers<number> = {
-    ...{ concatPos: capacity * 3, concatNrm: capacity * 7 },
+    ...{ concatPos: capacity * 3 + deformFloats, concatNrm: capacity * 7 },
     concatUv: uvBufferFloats(capacity, coloured),
   };
   const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
@@ -146,6 +148,7 @@ export function prepareWebgpuGeometry(
   device: GPUDevice,
   allPages: PageRec[],
   geometryBlocks: GeometryBlocks,
+  deformation?: Pick<SessionDeformation, 'floats' | 'place'>,
 ) {
   const sourced = new Map<HostAttributes, boolean>();
   for (const rec of allPages)
@@ -161,7 +164,11 @@ export function prepareWebgpuGeometry(
     coloured ||= !!attributes.color;
   }
   const capacity = Math.max(1, vertices + room);
-  const vertexPool = createVertexPool(device, capacity, coloured, geometryBlocks);
+  // The deformation records ride after the positions (#357): the passes read them through the
+  // binding they already read the positions through.
+  const deformFloats = deformation?.floats ?? 0;
+  const vertexPool = createVertexPool(device, capacity, coloured, geometryBlocks, deformFloats);
+  deformation?.place(capacity * 3);
   vertexPool.pack(sourced);
   const { concatPos, concatUv, concatNrm } = vertexPool;
   return { concatPos, concatUv, concatNrm, vertexPool };
