@@ -22,7 +22,8 @@ export const REGION_CLEAR = 0,
 export function createShadowRegionList(poolSide: number) {
   const origin = (region: number) => pageOrigin(page[region], poolSide);
   const page = new Int32Array(MAX_SHADOW_REGIONS),
-    start = new Uint8Array(MAX_SHADOW_REGIONS);
+    start = new Uint8Array(MAX_SHADOW_REGIONS),
+    casterless = new Uint8Array(MAX_SHADOW_REGIONS);
   let count = 0,
     layered = 0;
   return {
@@ -41,6 +42,12 @@ export function createShadowRegionList(poolSide: number) {
     startOf: (region: number) => start[region],
     /** The region draws moving casters alone, over its page restored from the static layer. */
     moving: (region: number) => start[region] === REGION_RESTORE,
+    /** The region's light view has no caster on the CPU cut (#1210): its cull keeps nothing, its
+     *  commands stay at zero instances, so it encodes no draw. The GPU cut marks none. */
+    casterless: (region: number) => casterless[region] === 1,
+    markCasterless(region: number) {
+      casterless[region] = 1;
+    },
     /** Viewport of a region: its physical page, one square and layer in pool and static layer. */
     x: (region: number) => origin(region).x,
     y: (region: number) => origin(region).y,
@@ -55,6 +62,7 @@ export function createShadowRegionList(poolSide: number) {
       const add = (from: number, casters: number) => {
         page[count] = phys;
         start[count] = from;
+        casterless[count] = 0;
         if (count !== first)
           volumes.copyWithin(
             count * SHADOW_CULL_FLOATS,
