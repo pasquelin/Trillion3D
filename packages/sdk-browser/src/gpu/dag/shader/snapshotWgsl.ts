@@ -18,28 +18,39 @@ import { EVICTION_BURST } from '../layout.ts';
  * list that reports it (`totalsWgsl.ts`).
  *
  * The camera's requests are STAGED behind the drawn list, where the frame copy never reads, in
- * the order the threads won the counter; `dagSortRequests` then writes them into the snapshot by
- * `requestRank`, highest first. The host reads them in that order and ranks nothing. A light cut
- * writes its own list straight into its snapshot (`../lightCutReports.ts`).
+ * the order the threads won the counter, and the view ahead's behind them, on their own counter;
+ * `dagSortRequests` then writes both into the snapshot by `requestRank`, highest first: the
+ * camera's whole, then as many ahead as the cap leaves (`OUT_AHEAD_PLACED`, `../layout.ts`). The
+ * host reads them in that order and ranks nothing. A light cut writes its own list straight into its snapshot (`../lightCutReports.ts`).
  */
-export const DAG_RELEVE_WGSL = `fn emitOne(page:u32,pixels:f32){emitWord(page,quantizePriority(pixels),true);}
+export const DAG_RELEVE_WGSL = `/** One of the camera's requests in the sample; past the cap it is dropped, and the sample says it
+ *  is truncated. */
+fn emitOne(page:u32,pixels:f32){
+ let slot=atomicAdd(&out.count,1u);
+ if(slot>=views[0u].listCap){atomicOr(&out.overflow,1u);return;}
+ out.pages[select(stagedAt(slot),slot,isLightCut())]=packRequest(page,quantizePriority(pixels));
+}
 /** Where the camera's request \`s\` waits for the sort: behind the eviction queue and its header
  *  (\`stagedRequestsWord\`, \`../layout.ts\`, less \`out\`'s header: an index of \`out.pages\`). */
 fn stagedAt(s:u32)->u32{return 2u*views[0u].listCap+2u*HEAD+${EVICTION_BURST}u+s;}
-/** One request word in the sample; past the cap it is dropped, and \`declare\` says truncated. */
-fn emitWord(page:u32,priority:u32,declare:bool){
- let slot=atomicAdd(&out.count,1u);
- if(slot>=views[0u].listCap){if(declare){atomicOr(&out.overflow,1u);}return;}
- out.pages[select(stagedAt(slot),slot,isLightCut())]=packRequest(page,priority);
+/** The requests ahead one sample stages (\`aheadRequestCap\`, \`../layout.ts\`), and where the
+ *  request ahead \`s\` waits: behind the camera's whole staged region, which it never enters. */
+fn aheadCap()->u32{return views[0u].listCap/2u;}
+fn aheadStagedAt(s:u32)->u32{return stagedAt(views[0u].listCap)+s;}
+/** A request of the view ahead (\`aheadWgsl.ts\`), due \`due\` of the horizon from now: the lower
+ *  tier, on its own counter and in its own region. Past its cap it is dropped, never declared: the
+ *  camera's requests keep the whole sample, and their overflow alone makes it truncated. */
+fn emitAhead(page:u32,pixels:f32,due:f32){
+ let slot=atomicAdd(&out.ahead,1u);
+ if(slot<aheadCap()){out.pages[aheadStagedAt(slot)]=packRequest(page,aheadPriority(pixels,due));}
 }
-/** A request of the view ahead (\`aheadWgsl.ts\`): the lower tier, and never more than half the
- *  cap, so the camera's own requests keep the other half. Past it the request is dropped, never
- *  declared: the sample stays whole for the camera, which alone decides truncation. */
-fn emitAhead(page:u32,pixels:f32){
- if(!aheadFull()){emitWord(page,REQUEST_AHEAD|quantizePriority(pixels),false);}
+/** True once the region ahead is full: the view ahead asks for nothing more this frame. */
+fn aheadFull()->bool{return atomicLoad(&out.ahead)>=aheadCap();}
+/** Staged request \`s\` of the sort: the camera's \`n\` first, then those ahead. */
+fn stagedWord(s:u32,n:u32)->u32{
+ if(s<n){return out.pages[stagedAt(s)];}
+ return out.pages[aheadStagedAt(s-n)];
 }
-/** True once the sample holds half its cap: the view ahead asks for nothing more this frame. */
-fn aheadFull()->bool{return atomicLoad(&out.count)>=views[0u].listCap/2u;}
 const RANKS:u32=${REQUEST_PRIORITY_MAX + 1}u;
 const SORT_LANES:u32=256u;
 var<workgroup> rankPlace:array<atomic<u32>,RANKS>;
@@ -48,14 +59,15 @@ var<workgroup> rankPlace:array<atomic<u32>,RANKS>;
  *  threads', as it was the counter's: the rank alone orders, as on the reference. */
 @compute @workgroup_size(SORT_LANES)
 fn dagSortRequests(@builtin(local_invocation_index) lane:u32){
- let n=min(atomicLoad(&out.count),views[0u].listCap);
+ let cap=views[0u].listCap;let n=min(atomicLoad(&out.count),cap);let total=n+min(atomicLoad(&out.ahead),aheadCap());
  for(var r=lane;r<RANKS;r+=SORT_LANES){atomicStore(&rankPlace[r],0u);}
  workgroupBarrier();
- for(var s=lane;s<n;s+=SORT_LANES){atomicAdd(&rankPlace[requestWordRank(out.pages[stagedAt(s)])],1u);}
+ for(var s=lane;s<total;s+=SORT_LANES){atomicAdd(&rankPlace[requestWordRank(stagedWord(s,n))],1u);}
  workgroupBarrier();
- if(lane==0u){placeRanks();}
+ // Every request ahead ranks below every one of the camera's: they fill what the camera leaves.
+ if(lane==0u){out.aheadPlaced=min(placeRanks(),cap)-n;}
  workgroupBarrier();
- for(var s=lane;s<n;s+=SORT_LANES){let word=out.pages[stagedAt(s)];out.pages[atomicAdd(&rankPlace[requestWordRank(word)],1u)]=word;}
+ for(var s=lane;s<total;s+=SORT_LANES){let word=stagedWord(s,n);let at=atomicAdd(&rankPlace[requestWordRank(word)],1u);if(at<cap){out.pages[at]=word;}}
 }
 /** Turns each rank's count into its first place, from the highest rank down; returns the total. */
 fn placeRanks()->u32{
