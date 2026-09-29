@@ -6,7 +6,7 @@ import { SUN_LEVELS, SUN_WINDOW, sunEntry, sunPageMetres } from './virtual.ts';
  * A sun as its shading reads it (`sunShadowFactor`): the clipmap level whose texel, `2^L` metres,
  * is at most the pixel's footprint, from the finest on, and at that level the page under the point
  * along the light plane — `right` across, `up` down. Over a box: the levels between its least and
- * its most footprint, within the clipmap, and at each the pages of this frame's window the box's
+ * its most footprint, within the clipmap, and at each the pages of this frame's extent the box's
  * projection covers. One reader, aimed at each sun in turn: a frame allocates nothing.
  */
 export function createSunDemand(levels: SunLevels) {
@@ -52,12 +52,20 @@ export function createSunDemand(levels: SunLevels) {
       const page = sunPageMetres(level);
       const ox = levels.originOf(slice, level, 0),
         oy = levels.originOf(slice, level, 1);
-      const x0 = Math.max(ox, Math.floor(span[0] / page)),
-        x1 = Math.min(ox + SUN_WINDOW - 1, Math.floor(span[1] / page)),
-        y0 = Math.max(oy, Math.floor(span[2] / page)),
-        y1 = Math.min(oy + SUN_WINDOW - 1, Math.floor(span[3] / page));
+      const u0 = Math.floor(span[0] / page),
+        u1 = Math.floor(span[1] / page),
+        v0 = Math.floor(span[2] / page),
+        v1 = Math.floor(span[3] / page);
+      const x0 = Math.max(ox, u0),
+        x1 = Math.min(ox + SUN_WINDOW - 1, u1),
+        y0 = Math.max(oy, v0),
+        y1 = Math.min(oy + SUN_WINDOW - 1, v1);
       for (let y = y0; y <= y1; y++)
         for (let x = x0; x <= x1; x++) marked(base + sunEntry(level, x, y));
+      // A point past this level's extent reads the next level: the box is read there too.
+      const past = x0 > u0 || x1 < u1 || y0 > v0 || y1 < v1;
+      if (past && level < levels.finest[slice] + SUN_LEVELS - 1)
+        reader.mark(box, o, level + 1, margin);
     },
   };
   return reader;

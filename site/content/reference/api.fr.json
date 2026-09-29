@@ -7478,6 +7478,17 @@
   "SHADOW_RECORD_FLOATS": {
     "summary": "Flottants d’un enregistrement d’ombre, celui que lit l’ombrage d’une lumière : six matrices de faces de lampe — là, les plages de profondeur d’un soleil, `zNear, zFar` chacune (`recordPack.ts`) —, puis le repère du plan du soleil — `right, zNear`, `up, zFar`, `axis`, puis l’emplacement de la plage courante —, puis l’origine de la fenêtre de chaque niveau en deux entiers, puis un en-tête `vec4f` : faces (lampe) ou niveaux (soleil), demi-champ tangent de la lampe ou niveau le plus fin du soleil, plan proche de la lampe, et première entrée de la table des pages."
   },
+  "ShadowReceivers": {
+    "summary": "Les surfaces qu’éclaire l’ombrage d’une image, telles que l’hôte les remet avant sa rastérisation des ombres.",
+    "members": {
+      "boxes": "Boîtes dans le monde, `RECEIVER_FLOATS` chacune : chaque surface éclairée de l’image se trouve dans l’une d’elles.",
+      "count": "Boîtes listées.",
+      "planes": "Les six plans du frustum de la caméra (`frustumPlanesFromMatrix`) : ce qui est dehors n’est pas éclairé.",
+      "pixelNear": "Taille dans le monde d’un pixel au plan proche, d’où part l’empreinte d’un point éclairé : la plus petite des passes qui lisent les ombres — celle de la cible dessinée, celle de l’écran.",
+      "pixelNearMost": "La même, la plus grande de ces passes.",
+      "orthographic": "Une caméra orthographique : l’empreinte de chaque pixel est `pixelNear`."
+    }
+  },
   "ShadowRequestReport": {
     "summary": "Ce que l’ombrage a lu en une image : les entrées de la table qu’il a demandées, sans ordre.",
     "members": {

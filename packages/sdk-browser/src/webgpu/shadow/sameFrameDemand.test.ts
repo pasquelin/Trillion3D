@@ -3,13 +3,7 @@
 // no readback — what it maps and draws is what the readback path maps and draws.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createSceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts';
-import { createShadowPlan } from '../../../../sdk-core/src/scene/light-shadow/plan.ts';
-import {
-  PAGE_INDEX_MASK,
-  PAGE_MAPPED,
-  PAGE_VALID,
-} from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { PAGE_INDEX_MASK } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import {
   LAMP,
   SUN,
@@ -17,36 +11,12 @@ import {
   planFrame,
   report,
 } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
-import { frustumExcludesBox, type SceneLight } from '../../../../sdk-core/src/index.ts';
+import { frustumExcludesBox } from '../../../../sdk-core/src/index.ts';
 import { SHADOW_WGSL } from '../../lighting/direct/shadowBias.fixture.ts';
 import { READ, floorTiles, shadingReads, tileGrid, viewPlanes } from './demand.fixture.ts';
+import { LAMP_AHEAD, MAX, MIN, demandScene, readable, receiversOf } from './demandScene.fixture.ts';
 
-const LAMP_AHEAD: SceneLight = { ...LAMP, position: [0, 3, -12] };
-const MIN = [-50, 0, -50],
-  MAX = [50, 10, 50];
 const TILES = tileGrid(-4, 4, -16, -8);
-
-/** A plan of 32² pages over `lights`, planned once: its store and its plan. */
-function demandScene(lights: SceneLight[]) {
-  const store = createSceneLightStore(),
-    plan = createShadowPlan(32);
-  for (const light of lights) store.add(light);
-  planFrame(plan, store, 0);
-  plan.commit();
-  return { store, plan };
-}
-
-/** What the host hands the plan: the receivers' boxes under the fixture's camera. */
-const receiversOf = (boxes: Float64Array) => ({
-  boxes,
-  count: boxes.length / 6,
-  planes: viewPlanes(VIEW),
-  pixelNear: VIEW.pixelNear,
-  orthographic: false,
-});
-
-const readable = (plan: ReturnType<typeof createShadowPlan>, entry: number) =>
-  (plan.table.words[entry] & (PAGE_MAPPED | PAGE_VALID)) === (PAGE_MAPPED | PAGE_VALID);
 
 test('the shading read the demand is proved against is the WGSL one', () => {
   for (const line of READ) assert.ok(SHADOW_WGSL.includes(line), line);

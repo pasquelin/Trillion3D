@@ -7478,6 +7478,17 @@
   "SHADOW_RECORD_FLOATS": {
     "summary": "Float di un record d’ombra, quello che legge l’ombreggiatura di una luce: sei matrici di facce di lampada — lì, gli intervalli di profondità di un sole, `zNear, zFar` ciascuno (`recordPack.ts`) —, poi il riferimento del piano di luce del sole — `right, zNear`, `up, zFar`, `axis`, poi lo slot dell’intervallo corrente —, poi l’origine della finestra di ogni slot della clipmap in due interi, poi un’intestazione `vec4f`: facce (lampada) o livelli (sole), il semicampo tangente della lampada o il livello più fine del sole, il piano vicino della lampada e la prima voce del record nella tabella delle pagine."
   },
+  "ShadowReceivers": {
+    "summary": "Le superfici che l’ombreggiatura di un fotogramma illumina, come l’host le consegna prima della rasterizzazione delle ombre.",
+    "members": {
+      "boxes": "Box nel mondo, `RECEIVER_FLOATS` ciascuno: ogni superficie illuminata del fotogramma sta in uno di essi.",
+      "count": "Box elencati.",
+      "planes": "I sei piani del frustum della camera (`frustumPlanesFromMatrix`): ciò che sta fuori non è illuminato.",
+      "pixelNear": "Dimensione nel mondo di un pixel al piano vicino, da cui parte l’impronta di un punto illuminato: la minore dei passaggi che leggono le ombre — quello del bersaglio disegnato, quello dello schermo.",
+      "pixelNearMost": "La stessa, la maggiore di quei passaggi.",
+      "orthographic": "Una camera ortografica: l’impronta di ogni pixel è `pixelNear`."
+    }
+  },
   "ShadowRequestReport": {
     "summary": "Ciò che l’ombreggiatura ha letto in un fotogramma: le voci della tabella richieste, senza ordine.",
     "members": {

@@ -7478,6 +7478,17 @@
   "SHADOW_RECORD_FLOATS": {
     "summary": "Bir gölge kaydının float’ları, bir ışığın gölgelendirmesinin okuduğu: altı lamba yüzü matrisi — orada bir güneşin derinlik aralıkları, her biri `zNear, zFar` (`recordPack.ts`) —, sonra güneşin ışık düzlemi çerçevesi — `right, zNear`, `up, zFar`, `axis`, sonra geçerli aralığın yuvası —, sonra her clipmap yuvasının pencere başlangıcı iki tamsayı olarak, sonra bir `vec4f` başlığı: yüzler (lamba) ya da seviyeler (güneş), lambanın teğet yarı açısı ya da güneşin en ince seviyesi, lambanın yakın düzlemi ve kaydın sayfa tablosundaki ilk girdisi."
   },
+  "ShadowReceivers": {
+    "summary": "Bir karenin gölgelendirmesinin aydınlattığı yüzeyler, ana makinenin onları gölge rasterleştirmesinden önce verdiği biçimde.",
+    "members": {
+      "boxes": "Dünya kutuları, her biri `RECEIVER_FLOATS`: karenin aydınlatılan her yüzeyi bunlardan birinin içindedir.",
+      "count": "Listelenen kutular.",
+      "planes": "Kameranın altı frustum düzlemi (`frustumPlanesFromMatrix`): dışarıda kalan aydınlatılmaz.",
+      "pixelNear": "Yakın düzlemde bir pikselin dünya boyutu, aydınlatılan bir noktanın izinin başladığı yer: gölge okuyan geçişlerin en küçüğü — çizilen hedefinki, ekranınki.",
+      "pixelNearMost": "Aynısı, bu geçişlerin en büyüğü.",
+      "orthographic": "Ortografik bir kamera: her pikselin izi `pixelNear`dır."
+    }
+  },
   "ShadowRequestReport": {
     "summary": "Gölgelendirmenin bir karede okuduğu: istediği tablo girdileri, sırasız.",
     "members": {

@@ -1,5 +1,6 @@
 import { LIGHT_KIND, type SceneLight } from '../light/contracts.ts';
 import { boxPointDistance } from '../../math/primitives/box.ts';
+import { boxPointFarthest } from '../../math/primitives/boxReach.ts';
 import { writeFace } from './faces.ts';
 import { LAMP_MIPS, LAMP_SIDE, SHADOW_PAGE, lampEntry, lampFacesOf } from './virtual.ts';
 
@@ -11,14 +12,6 @@ export interface DemandLight {
   levels(box: Float64Array, o: number, fine: number, coarse: number, out: Int32Array): void;
   pageSide(box: Float64Array, o: number, level: number): number;
   mark(box: Float64Array, o: number, level: number, margin: number): void;
-}
-
-/** Farthest corner of the box from `(x, y, z)`. */
-export function boxFarthest(box: ArrayLike<number>, o: number, x: number, y: number, z: number) {
-  const dx = Math.max(x - box[o], box[o + 3] - x),
-    dy = Math.max(y - box[o + 1], box[o + 4] - y),
-    dz = Math.max(z - box[o + 2], box[o + 5] - z);
-  return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }
 
 /** `box` grown by `by` on every side, into `out`. */
@@ -92,7 +85,7 @@ export function createLampDemand() {
   const nearest = (box: ArrayLike<number>, o: number) =>
     Math.max(boxPointDistance(box, o, position[0], position[1], position[2]), 1e-9);
   const farthest = (box: ArrayLike<number>, o: number) =>
-    boxFarthest(box, o, position[0], position[1], position[2]);
+    boxPointFarthest(box, o, position[0], position[1], position[2]);
   const reader: DemandLight & {
     aim(light: SceneLight, first: number, mark: (entry: number) => void): DemandLight;
   } = {
