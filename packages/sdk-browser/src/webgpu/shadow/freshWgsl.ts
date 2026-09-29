@@ -47,6 +47,7 @@ ${SHADOW_DATA_WGSL}
 @group(0) @binding(5) var<storage,read_write> args:array<u32>;
 ${FRESH_PARAMS_WGSL}
 @group(0) @binding(6) var<storage,read> params:ShadowFreshParams;
+@group(0) @binding(7) var<storage,read_write> dispatch:array<u32,3>;
 ${PAGE_MODEL_WGSL}
 ${SHADOW_POOL_WGSL}
 ${SHADOW_PLACE_WGSL}
@@ -169,7 +170,7 @@ fn composeRegion(k:u32){
  }
  if(lane==0u){
   let rows=params.rows+params.blendEnd-params.blendFirst;
-  args[0]=select((rows+CULL_GROUP-1u)/CULL_GROUP,0u,regions==0u);args[1]=regions;args[2]=1u;
+  dispatch[0]=select((rows+CULL_GROUP-1u)/CULL_GROUP,0u,regions==0u);dispatch[1]=regions;dispatch[2]=1u;
   args[FRESH_REGIONS]=regions;args[FRESH_CAPACITY]=params.capacity;args[FRESH_PAIRS]=0u;args[FRESH_CORNERS]=0u;
  }
 }

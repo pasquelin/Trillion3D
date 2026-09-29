@@ -39,7 +39,7 @@ function cull(rows: number[][], tableRows: number, capacity: number) {
     Math.max(rows.length, tableRows + 2),
     capacity,
   ]);
-  args.set([1, 2, 1, 2, capacity]);
+  args.set([2, capacity]);
   runShadowPairs(
     ...[spheres, params, volumes(), pairs, args, mobility].map((a) => new Uint8Array(a.buffer)),
   );

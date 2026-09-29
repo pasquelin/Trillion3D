@@ -80,11 +80,16 @@ export function encodeFreshPages(
   const capacity = Math.floor(cull.kept.size / PAIR_BYTES);
   buffers.writeFresh(side, layers, rows.packedCount, blend, capacity, freshSlices(lights.store));
   const composed = [shadows.dataBuffer, buffers.state, buffers.drawList, buffers.freshFaces];
-  composed.push(buffers.freshVolumes, buffers.freshArgs, buffers.freshParams);
+  composed.push(
+    buffers.freshVolumes,
+    buffers.freshArgs,
+    buffers.freshParams,
+    buffers.freshDispatch,
+  );
   allocation.compose(encoder, composed, 1);
   const culled = [spheres.buffer, buffers.freshParams, buffers.freshVolumes, cull.kept];
   culled.push(buffers.freshArgs, mobilityRows);
-  allocation.cull(encoder, culled, [buffers.freshArgs, 0]);
+  allocation.cull(encoder, culled, [buffers.freshDispatch, 0]);
   allocation.seal(encoder, composed, 1);
   const draws = shadows.freshDraws.made();
   for (let layer = 0; layer < layers; layer++) {

@@ -4,7 +4,6 @@
 // (`tests/kit/gpu/mockCompute.ts`) and the scheduling tests run.
 import { MAX_SHADOW_SLICES } from '../../../../sdk-core/src/index.ts';
 import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
-import { SHADOW_CULL_GROUP } from '../../gpu/shadow/cullShader.ts';
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { runShadowAllocation, runShadowWords, shadowsOf } from './allocRun.fixture.ts';
@@ -55,11 +54,11 @@ const FUNCTIONS = [
 
 /**
  * Runs `entry` — `composeShadowPages` or `sealShadowPages` — over its bindings' bytes, in binding
- * order: the shadow buffer, the GPU pool, the draw list, the views, the volumes, the arguments and
- * the parameters.
+ * order: the shadow buffer, the GPU pool, the draw list, the views, the volumes, the arguments, the
+ * parameters and the cull's dispatch.
  */
 export function runShadowFresh(entry: string, ...bound: Uint8Array[]) {
-  const [data, state, drawList, faces, volumes, args, params] = bound,
+  const [data, state, drawList, faces, volumes, args, params, dispatch] = bound,
     counts = u32(state);
   const lanes = shaderRun<Lanes>(SHADOW_FRESH_WGSL, FUNCTIONS, {
     ...wgslConstants(SHADOW_FRESH_WGSL),
@@ -71,6 +70,7 @@ export function runShadowFresh(entry: string, ...bound: Uint8Array[]) {
     volumes: u32(volumes),
     args: u32(args),
     params: paramsOf(params),
+    dispatch: dispatch ? u32(dispatch) : new Uint32Array(3),
     faceF: (i: number, v: number) => void (f32(faces)[i] = v),
     volumeF: (i: number, v: number) => void (f32(volumes)[i] = v),
     layerCount: new Uint32Array(16),
@@ -118,9 +118,10 @@ export function runShadowPairs(...bound: Uint8Array[]) {
       mobility: u32(mobility),
     },
   );
-  const [groups, regions] = [words[FRESH_ARG.dispatch], words[FRESH_ARG.dispatch + 1]];
-  for (let k = 0; k < regions; k++)
-    for (let x = 0; x < groups * SHADOW_CULL_GROUP; x++)
+  // Every invocation of the dispatch the compose wrote: a row, then the blended ones, by region.
+  const { rows, blendFirst, blendEnd } = paramsOf(params);
+  for (let k = 0; k < words[FRESH_ARG.regions]; k++)
+    for (let x = 0; x < rows + blendEnd - blendFirst; x++)
       (shadowCullPairs as unknown as (id: number[]) => void)([x, k, 0]);
 }
 

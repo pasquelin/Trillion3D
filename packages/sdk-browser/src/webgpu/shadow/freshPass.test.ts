@@ -23,6 +23,7 @@ function frame(calls: unknown[][]) {
   const pass = (name: string) => (_: unknown, bound: { name: string }[], groups: unknown) =>
     calls.push([name, ...bound.map((buffer) => buffer.name), groups]);
   const buffers = ['state', 'drawList', 'freshFaces', 'freshVolumes', 'freshArgs', 'freshParams'];
+  buffers.push('freshDispatch');
   const lights = {
     store: createSceneLightStore(),
     plan: {
@@ -100,7 +101,7 @@ test('the GPU composes, culls and seals its pages, then draws each layer in two 
   assert.deepEqual(calls.slice(0, 4), [
     // The rows the cull tests — the table's, then the blended casters' —, the pairs it may keep.
     ['params', 4, LAYERS, 7, [9, 11], 100],
-    ['compose', ...composed, 'freshParams', 1],
+    ['compose', ...composed, 'freshParams', 'freshDispatch', 1],
     [
       'cull',
       'spheres',
@@ -109,9 +110,9 @@ test('the GPU composes, culls and seals its pages, then draws each layer in two 
       'vis 5',
       'freshArgs',
       'mobility',
-      [(lights.pageRequests.allocation as Record<string, unknown>).freshArgs, 0],
+      [(lights.pageRequests.allocation as Record<string, unknown>).freshDispatch, 0],
     ],
-    ['seal', ...composed, 'freshParams', 1],
+    ['seal', ...composed, 'freshParams', 'freshDispatch', 1],
   ]);
   for (let layer = 0; layer < LAYERS; layer++) {
     const at = calls.findIndex((call) => call[0] === 'pass' && call[1] === `layer ${layer}`);
