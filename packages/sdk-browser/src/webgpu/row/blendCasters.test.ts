@@ -60,6 +60,8 @@ function mount(pages: PageRec[], blendSlots: number) {
       asIsShown: false,
     } as never,
     rows.markRowDirty,
+    // The catalogue's meshes sit at the origin: every page's root is placed at the identity.
+    pages.map(() => ({ world: new G.Matrix4() })),
   );
   pages.forEach((_, page) => {
     rows.pagePositions[page] = {} as GPUBuffer;

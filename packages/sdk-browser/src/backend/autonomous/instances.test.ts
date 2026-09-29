@@ -1,7 +1,7 @@
-// Batch F, F12: `deplaceInstance` (instancePose.ts) reads the page/base-page pair set
-// once at creation (`instance.pages[i]` / `instance.bases[i]`) instead of rebuilding a
+// Batch F, F12: `deplaceInstance` (instancePose.ts) places each root from its base root, and
+// the meshes of its pages follow it (#1226: a page carries no pose), instead of rebuilding a
 // page → base-page hash table on every move. The oracle is the reconstruction from before
-// batch F, copied as-is into `oracles/cadre-vue.ts`.
+// batch F, copied as-is into `oracles/cadre-vue.ts`, whose pages carry their root's world.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
@@ -17,22 +17,28 @@ const pose = (matrix: MatrixElements) => asHostLibrary<G.Matrix4>(matrix);
 import { referenceUpdateInstance } from '../../../../../bench/oracles/browser/view-frame.ts';
 import type { PageRec, ClusterRoot } from '../../page/selection/selection.ts';
 
-function page(matrice: G.Matrix4): PageRec {
-  return { matrix: matrice, mesh: undefined } as unknown as PageRec;
+/** A page, with the world the oracle reads on it: its root's. */
+function page(matrice: G.Matrix4) {
+  return { matrix: matrice, mesh: undefined } as unknown as PageRec & { matrix: G.Matrix4 };
 }
 function root(matrice: G.Matrix4): ClusterRoot<PageRec> {
   return { world: matrice, pages: [] } as unknown as ClusterRoot<PageRec>;
 }
 
+/** `n` pages over `roots` roots, page `i` placed by root `i % roots`. */
 function instanceEtBase(n: number, roots: number) {
-  const basePages = Array.from({ length: n }, (_, i) =>
-    page(new G.Matrix4().makeTranslation(i, 0, 0)),
-  );
   const baseRoots = Array.from({ length: roots }, (_, i) =>
-    root(new G.Matrix4().makeTranslation(0, i, 0)),
+    root(new G.Matrix4().makeTranslation(i, i, 0)),
   );
-  const pages = basePages.map((base) => page(pose(base.matrix).clone()));
   const instRoots = baseRoots.map((r) => root(pose(r.world).clone()));
+  const basePages = Array.from({ length: n }, (_, i) =>
+    page(pose(baseRoots[i % roots].world).clone()),
+  );
+  const pages = basePages.map((base, i) => {
+    const rec = page(pose(base.matrix).clone());
+    instRoots[i % roots].pages.push(rec);
+    return rec;
+  });
   return { basePages, baseRoots, pages, instRoots };
 }
 
@@ -45,11 +51,7 @@ function memeResultat(transform: G.Matrix4, n: number, rootsCount: number, avecM
       b.pages[i].mesh = { matrix: new G.Matrix4() } as unknown as PageRec['mesh'];
     }
   // The contract carries sixteen floats; the frozen oracle keeps the host matrix it was written with.
-  deplaceInstance(
-    { pages: a.pages, bases: a.basePages, roots: a.instRoots },
-    a.baseRoots,
-    transform.elements.slice(),
-  );
+  deplaceInstance({ roots: a.instRoots }, a.baseRoots, transform.elements.slice());
   referenceUpdateInstance(
     asHostLibrary<Parameters<typeof referenceUpdateInstance>[0]>({
       pages: b.pages,
@@ -61,7 +63,7 @@ function memeResultat(transform: G.Matrix4, n: number, rootsCount: number, avecM
   );
   for (let i = 0; i < n; i++) {
     assert.deepEqual(
-      pose(a.pages[i].matrix).toArray(),
+      pose(a.instRoots[i % rootsCount].world).toArray(),
       pose(b.pages[i].matrix).toArray(),
       `page ${i}`,
     );

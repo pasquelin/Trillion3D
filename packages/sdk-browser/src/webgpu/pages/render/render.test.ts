@@ -166,7 +166,7 @@ test('a model of N rows moved in a scene of M rows rewrites N rows', () => {
   }
   // Their windings are computed again — their corners travel with their dirty rows —, and the scene
   // keeps its occlusion history. The temporal pyramid, one image of the whole scene, is dropped.
-  assert.equal(moving.pages[0].windingEpoch, undefined);
+  assert.equal(moving.windingEpoch, undefined);
   assert.equal(run.noOccluderHistory, false);
   assert.equal(run.temporalHizState.pyramid, undefined);
   assert.equal(rt.blendState.occlusionEpoch, 1, 'no transparent cluster moved');

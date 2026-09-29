@@ -1,6 +1,7 @@
-// A resident page record of the geometry store's tests, drawing one triangle.
+// A resident page record of the geometry store's tests, drawing one triangle, placed by the root
+// `root` of rank 0.
 import * as G from '../../host/graph/graph.fixture.ts';
-import type { PageRec } from '../../page/selection/types.ts';
+import type { ClusterRoot, PageRec } from '../../page/selection/types.ts';
 import { surfaceOf } from '../../page/surface.ts';
 
 export function makeRec(id: number, triangles: number): Required<Pick<PageRec, 'mesh'>> & PageRec {
@@ -17,7 +18,7 @@ export function makeRec(id: number, triangles: number): Required<Pick<PageRec, '
     attributes: {} as G.Geometry['attributes'],
     material: surfaceOf({} as unknown as G.GraphSurface),
     declaration: {} as G.GraphSurface,
-    matrix: new G.Matrix4(),
+    placementIndex: 0,
     renderOrder: 0,
     geometry: {} as G.Geometry,
     // The oracle copies a host matrix; the engine reads the sixteen floats of the contract.
@@ -25,3 +26,8 @@ export function makeRec(id: number, triangles: number): Required<Pick<PageRec, '
     attached: false,
   };
 }
+
+/** The root of rank 0 the records of `makeRec` rank: the identity, placed by a row if `row`. */
+export const recRoots = (row?: ClusterRoot<PageRec>['placement']): ClusterRoot<PageRec>[] => [
+  { world: new G.Matrix4(), pages: [], placement: row },
+];

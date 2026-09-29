@@ -1,6 +1,6 @@
 import { fallbackBindEntries } from '../../core/fallbackEntries.ts';
 import { entriesReady } from '../../core/bindIdentity.ts';
-import type { ClusterRoot, PageRec } from '../../../page/selection/selection.ts';
+import type { PageRec } from '../../../page/selection/selection.ts';
 import { projectedPageError, rootOf } from '../../../page/selection/selection.ts';
 import { BASE_SLOTS, BIN_BACK, BIN_FRONT, BIN_NONE } from '../../../gpu/draw/draw.ts';
 import { visLayerPipelineIndex } from '../../visibility/pipelines.ts';
@@ -12,7 +12,7 @@ import { windingCw } from '../render/winding.ts';
 import type { WebgpuPagesCore } from '../runtime.ts';
 
 /** The roots a record's `placementIndex` ranks: the layout's selection roots. */
-type Roots = readonly ClusterRoot<PageRec>[];
+type Roots = Parameters<typeof windingCw>[0];
 
 /** Order of layer-0 indirect slots: the three untested pipelines, then their Hi-Z-tested twins. */
 const VIS_SLOTS = [
