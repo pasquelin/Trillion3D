@@ -25,6 +25,10 @@ import {
 import { VIEW_FLAGS_WORD } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts';
 import { VIEW_LIGHT } from '../../../packages/sdk-browser/src/gpu/dag/shader/pagesWgsl.ts';
 import { mockEvictions, sortStagedRequests } from './mockEvict.ts';
+import {
+  runShadowAllocation,
+  runShadowWords,
+} from '../../../packages/sdk-browser/src/webgpu/shadow/allocRun.fixture.ts';
 
 /** The camera cut's kernels the double replays, all on the selection's one bind group. */
 const DAG_STAGES = new Set(['dagMask', 'dagDrawScatter', 'dagSortRequests', 'dagListEvictions']);
@@ -60,6 +64,12 @@ export function simulateComputeDispatch(
   offsets?: readonly number[],
 ) {
   if (computePipeline?.entryPoint) computes.push(computePipeline.entryPoint);
+  // The GPU allocation of shadow pages, and the host's table words under it: their WGSL, run.
+  const bound = () => computeBind!.entries.map((entry) => entry.resource.buffer.data);
+  if (computePipeline?.entryPoint === 'allocateShadowPages' && computeBind)
+    return runShadowAllocation(...(bound() as Parameters<typeof runShadowAllocation>));
+  if (computePipeline?.entryPoint === 'applyShadowWords' && computeBind)
+    return runShadowWords(...(bound() as Parameters<typeof runShadowWords>));
   if (computePipeline?.entryPoint === 'scatterTransparentGroups' && computeBind)
     return simulateTransparentCompaction(computeBind);
   if (computePipeline?.entryPoint === 'writeBlendRuns' && computeBind)

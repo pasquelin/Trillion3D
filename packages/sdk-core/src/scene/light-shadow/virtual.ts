@@ -133,29 +133,6 @@ export function tableEntriesOf(rank: number) {
   return lampFacesOf(rank) * LAMP_FACE_ENTRIES;
 }
 
-/** What a relative lamp entry names: face, mip and page, written into `out`. */
-export function decodeLampEntry(relative: number, out: Int32Array) {
-  const face = Math.floor(relative / LAMP_FACE_ENTRIES);
-  let rest = relative - face * LAMP_FACE_ENTRIES,
-    mip = 0;
-  while (mip < LAMP_MIPS - 1 && rest >= lampPagesAt(mip) ** 2) rest -= lampPagesAt(mip++) ** 2;
-  const pages = lampPagesAt(mip);
-  out[0] = face;
-  out[1] = mip;
-  out[2] = rest % pages;
-  out[3] = Math.floor(rest / pages);
-  return out;
-}
-
-/**
- * How coarse a page is within its light, on one scale for every light: a sun level's steps above
- * its finest level over the sun's `SUN_LEVELS`, a lamp's mip over its `LAMP_MIPS` — both brought
- * to whole steps of their common denominator, `SUN_LEVELS · LAMP_MIPS`. A sun's clipmap and a
- * lamp's mip chain count different things; each light's own span makes their ranks comparable.
- */
-export const sunCoarseness = (level: number, finest: number) => (level - finest) * LAMP_MIPS;
-export const lampCoarseness = (mip: number) => mip * SUN_LEVELS;
-
 /** A light's floor, the last level a reader falls back to: a sun's coarsest clipmap level, and a
  *  lamp face's one-page mip. */
 export const sunFloorLevel = (finest: number) => finest + SUN_LEVELS - 1;

@@ -1,3 +1,4 @@
+import { NUMBERS, type PageOps } from './pageOps.ts';
 import {
   LAMP_FACE_ENTRIES,
   LAMP_MIPS,
@@ -8,46 +9,32 @@ import {
   SUN_WINDOW,
 } from './virtual.ts';
 
+/** Texels around a read point that the PCF's bilinear footprints reach, on each axis: a point
+ *  nearer a page's edge than this reads the neighbour across it (`shadowPcf`). */
+export const PCF_EDGE_TEXELS = 1.5;
+
 /**
  * THE PAGE MODEL: where a page's word sits in the table, which level or mip a pixel reads, which
  * page a map texel lies in and which neighbours the PCF reads around it. Each formula is written
  * once, over `PageOps`: evaluated on numbers it is the scheduler's, printed as WGSL it is the
  * shaders' (`PAGE_MODEL_WGSL`) — one source, so the two can never address a page differently.
+ * It also decodes an entry back into its page, as the GPU allocator maps it (#1275), and ranks it.
+ * The page formulas over `o`, by their WGSL names.
  */
-export interface PageOps<V> {
-  int(n: number): V;
-  float(n: number): V;
-  add(a: V, b: V): V;
-  sub(a: V, b: V): V;
-  mul(a: V, b: V): V;
-  /** Of floats, or of integers that divide exactly. */
-  div(a: V, b: V): V;
-  mod(a: V, b: V): V;
-  shr(a: V, b: V): V;
-  max(a: V, b: V): V;
-  clamp(a: V, low: V, high: V): V;
-  floor(a: V): V;
-  log2(a: V): V;
-  exp2(a: V): V;
-  toInt(a: V): V;
-  toFloat(a: V): V;
-  lt(a: V, b: V): V;
-  ge(a: V, b: V): V;
-  or(a: V, b: V): V;
-  pick(when: V, yes: V, no: V): V;
-}
-
-/** Texels around a read point that the PCF's bilinear footprints reach, on each axis: a point
- *  nearer a page's edge than this reads the neighbour across it (`shadowPcf`). */
-export const PCF_EDGE_TEXELS = 1.5;
-
-/** The page formulas over `o`, by their WGSL names. */
 export function pageModel<V>(o: PageOps<V>) {
   const ring = (v: V, n: V) => o.mod(o.add(o.mod(v, n), n), n);
   const texel = (level: V) => o.exp2(o.toFloat(level));
   const page = o.float(SHADOW_PAGE),
     reach = o.float(PCF_EDGE_TEXELS);
   const levelOf = (footprint: V) => o.toInt(o.floor(o.log2(o.max(footprint, o.float(1e-30)))));
+  /** Entries of a lamp face's mips finer than `mip`. */
+  const finer = (mip: V) => {
+    const pages = o.shr(o.int(LAMP_SIDE), mip);
+    return o.div(
+      o.mul(o.int(4), o.sub(o.int(LAMP_SIDE * LAMP_SIDE), o.mul(pages, pages))),
+      o.int(3),
+    );
+  };
   return {
     /** Non-negative remainder of `v` by `n`. */
     shadowRing: ring,
@@ -61,11 +48,29 @@ export function pageModel<V>(o: PageOps<V>) {
       o.mul(ring(level, o.int(SUN_LEVELS)), o.int(SUN_LEVEL_ENTRIES)),
     /** First entry of `mip` of lamp `face`: the faces before it, then its finer mips — `S²`, `S²/4`,
      *  … pages, `4 (S² − p²) / 3` together for `p = S >> mip`, exact for a side `S` a power of two. */
-    shadowLampMapEntry: (face: V, mip: V) => {
-      const pages = o.shr(o.int(LAMP_SIDE), mip);
-      const finer = o.sub(o.int(LAMP_SIDE * LAMP_SIDE), o.mul(pages, pages));
-      return o.add(o.mul(face, o.int(LAMP_FACE_ENTRIES)), o.div(o.mul(o.int(4), finer), o.int(3)));
+    shadowLampMapEntry: (face: V, mip: V) =>
+      o.add(o.mul(face, o.int(LAMP_FACE_ENTRIES)), finer(mip)),
+    /** The mip of the page `rest` entries into a lamp face: the finer mips whose entries it is
+     *  past, counted exactly. */
+    shadowLampEntryMip: (rest: V) => {
+      let mip = o.int(0);
+      for (let m = 1; m < LAMP_MIPS; m++)
+        mip = o.add(mip, o.pick(o.ge(rest, finer(o.int(m))), o.int(1), o.int(0)));
+      return mip;
     },
+    /** The sun level clipmap slot `slot` holds while the finest level is `finest`. */
+    shadowSunSlotLevel: (slot: V, finest: V) =>
+      o.add(finest, ring(o.sub(slot, finest), o.int(SUN_LEVELS))),
+    /** Absolute page, on one axis, at ring position `r` of a window `pages` wide from `origin`. */
+    shadowRingPage: (r: V, origin: V, pages: V) => o.add(origin, ring(o.sub(r, origin), pages)),
+    /** 1 when `v` lies in `[first, first + count)`, else 0: a level or a page a clipmap holds. */
+    shadowWindowHolds: (v: V, first: V, count: V) =>
+      o.pick(o.or(o.lt(v, first), o.ge(v, o.add(first, count))), o.int(0), o.int(1)),
+    /** How coarse a page is within its light, on one scale for every light (`RANKS`): a sun level's
+     *  steps above its finest over `SUN_LEVELS`, a lamp mip over `LAMP_MIPS`, both in whole steps of
+     *  their common denominator — a clipmap and a mip chain count different things. */
+    shadowSunCoarseness: (level: V, finest: V) => o.mul(o.sub(level, finest), o.int(LAMP_MIPS)),
+    shadowLampCoarseness: (mip: V) => o.mul(mip, o.int(SUN_LEVELS)),
     /** The sun level whose texel, `2^L` metres, is at most `footprint`. */
     shadowSunLevelOf: levelOf,
     /** The level a pixel of footprint `footprint` reads: its own, never finer than `finest`. */
@@ -111,28 +116,6 @@ export function pageModel<V>(o: PageOps<V>) {
 
 export type PageModel<V> = ReturnType<typeof pageModel<V>>;
 
-const NUMBERS: PageOps<number> = {
-  int: (n) => n,
-  float: (n) => n,
-  add: (a, b) => a + b,
-  sub: (a, b) => a - b,
-  mul: (a, b) => a * b,
-  div: (a, b) => a / b,
-  mod: (a, b) => a % b,
-  shr: (a, b) => a >> b,
-  max: (a, b) => Math.max(a, b),
-  clamp: (a, low, high) => Math.min(Math.max(a, low), high),
-  floor: Math.floor,
-  log2: Math.log2,
-  exp2: (a) => 2 ** a,
-  toInt: Math.trunc,
-  toFloat: (a) => a,
-  lt: (a, b) => +(a < b),
-  ge: (a, b) => +(a >= b),
-  or: (a, b) => +(a || b),
-  pick: (when, yes, no) => (when ? yes : no),
-};
-
 /** The page model on numbers: what the scheduler computes. */
 export const PAGES = pageModel(NUMBERS);
 
@@ -149,6 +132,24 @@ export const lampMipOffset = (mip: number) => PAGES.shadowLampMapEntry(0, mip);
 /** Entry of lamp page `(x, y)` of `face` at `mip`, relative to the light's table base. */
 export const lampEntry = (face: number, mip: number, x: number, y: number) =>
   PAGES.shadowLampMapEntry(face, mip) + PAGES.shadowFacePageEntry(LAMP_SIDE >> mip, x, y);
+
+/** What a relative lamp entry names: face, mip and page, written into `out`. */
+export function decodeLampEntry(relative: number, out: Int32Array) {
+  const face = Math.floor(relative / LAMP_FACE_ENTRIES),
+    rest = relative - face * LAMP_FACE_ENTRIES,
+    mip = PAGES.shadowLampEntryMip(rest),
+    local = rest - lampMipOffset(mip),
+    pages = LAMP_SIDE >> mip;
+  out[0] = face;
+  out[1] = mip;
+  out[2] = local % pages;
+  out[3] = Math.floor(local / pages);
+  return out;
+}
+
+/** How coarse a sun level or a lamp mip is within its light (`shadowSunCoarseness`). */
+export const sunCoarseness = PAGES.shadowSunCoarseness,
+  lampCoarseness = PAGES.shadowLampCoarseness;
 
 /** Side of a sun page at `level`, in metres: `SHADOW_PAGE` texels of `2^level`. */
 export const sunPageMetres = (level: number) => PAGES.shadowSunTexelMetres(level) * SHADOW_PAGE;

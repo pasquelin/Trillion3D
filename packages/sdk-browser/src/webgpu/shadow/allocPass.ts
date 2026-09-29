@@ -1,0 +1,127 @@
+import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
+import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
+import { createWebgpuBindIdentity } from '../core/bindIdentity.ts';
+import { ALLOCATION_WGSL } from './allocWgsl.ts';
+import { SHADOW_WORDS_WGSL, WORDS_GROUP } from './wordsWgsl.ts';
+import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+
+/** Labels of the allocation and of the host's table words, as a frame's passes are timed. */
+export const SHADOW_ALLOC_PASS = 'Trillion3D shadow allocation v1';
+export const SHADOW_WORDS_PASS = 'Trillion3D shadow table words v1';
+
+/** A compute pass of storage buffers only, its bind group made again only when they moved. */
+async function computePass(
+  device: GPUDevice,
+  wgsl: string,
+  label: string,
+  entryPoint: string,
+  types: GPUBufferBindingType[],
+) {
+  const module = await createCheckedShaderModule(device, wgsl, label);
+  const layout = device.createBindGroupLayout({
+    label,
+    entries: types.map((type, binding) => ({
+      binding,
+      visibility: GPUShaderStage.COMPUTE,
+      buffer: { type },
+    })),
+  });
+  const pipeline = device.createComputePipeline({
+    label,
+    layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
+    compute: { module, entryPoint },
+  });
+  const bound = createWebgpuBindIdentity();
+  let group: GPUBindGroup | undefined;
+  return (encoder: GPUCommandEncoder, buffers: readonly GPUBuffer[], groups: number) => {
+    bound.next.length = 0;
+    bound.next.push(...buffers);
+    if (bound.moved() || !group)
+      group = device.createBindGroup({
+        label,
+        layout,
+        entries: buffers.map((buffer, binding) => ({ binding, resource: { buffer } })),
+      });
+    const pass = encoder.beginComputePass({ label });
+    pass.setPipeline(pipeline);
+    pass.setBindGroup(0, group);
+    pass.dispatchWorkgroups(groups);
+    pass.end();
+  };
+}
+
+/**
+ * The GPU allocation of shadow pages (`allocWgsl.ts`) and the pass that writes the host's table
+ * words under it (`wordsWgsl.ts`): their pipelines, compiled at prepare. They own no buffer: the
+ * pool's are made with its request buffer (`allocBuffers.ts`).
+ */
+export async function createShadowAllocation(device: GPUDevice) {
+  const [allocate, words] = await Promise.all([
+    computePass(device, ALLOCATION_WGSL, SHADOW_ALLOC_PASS, 'allocateShadowPages', [
+      'storage',
+      'storage',
+      'storage',
+      'storage',
+      'read-only-storage',
+    ]),
+    computePass(device, SHADOW_WORDS_WGSL, SHADOW_WORDS_PASS, 'applyShadowWords', [
+      'storage',
+      'read-only-storage',
+      'read-only-storage',
+    ]),
+  ]);
+  return { allocate, words };
+}
+
+export type ShadowAllocation = Awaited<ReturnType<typeof createShadowAllocation>>;
+
+/**
+ * Maps, on the GPU, every page this image asks for — its pixels' demand (`demandPass.ts`) and the
+ * plan's floors —, right after the demand and before any page is drawn. The first time, the GPU
+ * pool is written from the host's, and the plan follows the GPU from then on (`mirror.ts`).
+ * Nothing without the pipelines, the pool or its buffers: the reports then allocate on the host.
+ *
+ * PLUG POINT (part C of #1275): the pages `assignPages` maps this frame are mapped and not
+ * readable; a raster that draws them from a GPU-built list, between this pass and the table words
+ * (`flushShadowTable`), is what removes the one-frame hole.
+ */
+export function encodeShadowAllocation(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
+  const { lights, run } = rt,
+    { allocation, pageRequests, shadows, plan } = lights,
+    buffers = pageRequests?.allocation;
+  if (!allocation || !buffers || !pageRequests || !shadows?.texture) return;
+  if (!buffers.seeded) {
+    buffers.seed(plan, shadows.dataBuffer, SHADOW_TABLE_OFFSET);
+    plan.gpu.set(true, run.frame);
+  }
+  // The records it decodes entries with are this frame's, as every write lands before the pass.
+  shadows.flushRecords();
+  buffers.writeParams(run.frame, plan.records.generation, plan.gpu.asks);
+  const bound = [
+    shadows.dataBuffer,
+    pageRequests.buffer,
+    buffers.state,
+    buffers.keys,
+    buffers.params,
+  ];
+  allocation.allocate(encoder, bound, 1);
+}
+
+/**
+ * The page-table words the frame's plan changed, after its pages are drawn and before any is
+ * read: written as they are while the host allocates, sent to the GPU, which keeps a word only for
+ * the page it says the entry owns, while it does (`wordsWgsl.ts`). The records go out with them.
+ */
+export function flushShadowTable(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
+  const { allocation, pageRequests, shadows, plan } = rt.lights,
+    buffers = pageRequests?.allocation;
+  if (!shadows?.texture) return;
+  if (!allocation || !buffers?.seeded || !plan.gpu.on) return shadows.flushData(plan.table);
+  const count = buffers.writeWords(plan, (sink) => shadows.flushData(plan.table, sink));
+  if (count)
+    allocation.words(
+      encoder,
+      [shadows.dataBuffer, buffers.state, buffers.words],
+      Math.ceil(count / WORDS_GROUP),
+    );
+}
