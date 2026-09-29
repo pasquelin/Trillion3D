@@ -3300,7 +3300,7 @@
       "plan": "Lập kế hoạch một khung hình: làm cũ những gì đã di chuyển, đọc yêu cầu của các bề mặt nhận — hoặc nếu không có, báo cáo mới nhất —, nhận mọi trang cần vẽ.",
       "reissue": "Các trang của khung hình từ `from` trở đi không mã hóa được: chúng vẫn cũ, chờ, và khung hình kế tiếp vẽ chúng.",
       "reset": "Bắt đầu lại.",
-      "setThreshold": "Ngưỡng mà các lát cắt ánh sáng chọn vật đổ bóng (`thresholds.ts`).",
+      "setThreshold": "Ngưỡng mà các lát cắt ánh sáng chọn vật đổ bóng, và gốc kết xuất của chúng (`thresholds.ts`).",
       "table": "Bảng trang: một từ cho mỗi trang ảo, và khoảng mà mỗi đèn giữ trong đó.",
       "pool": "Các trang vật lý của bể và trang ảo mà mỗi trang giữ.",
       "sun": "Clipmap của mỗi mặt trời: hệ khung, khoảng độ sâu, mức mịn nhất và các vùng của nó.",
