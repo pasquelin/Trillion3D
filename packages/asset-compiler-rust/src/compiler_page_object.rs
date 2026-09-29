@@ -1,4 +1,5 @@
 use super::*;
+use crate::dag::DagCluster;
 
 /// The geometry-page format every page of the cache is written in, declared once at the top of
 /// the manifest (`geometryPages`): the page header's magic and the sidecar version are the gates.
@@ -54,21 +55,51 @@ pub(super) fn store_page(
     position_exponent: i32,
     uv_exponent: i32,
 ) -> Result<(Value, bool)> {
-    let geometry_page::Encoded {
-        bytes: data,
-        header,
-    } = geometry_page::encode(slice, pos, page_attributes, position_exponent, uv_exponent)?;
-    let digest = hash(&data);
-    let name = format!("../../objects/{}.bin", digest);
+    let encoded =
+        geometry_page::encode(slice, pos, page_attributes, position_exponent, uv_exponent)?;
+    let digest = hash(&encoded.bytes);
     let target = object_path(o, &digest);
     let reused = object_intact(&target, &digest)?.is_some();
     if !reused {
-        store_object(&target, &data)?;
+        store_object(&target, &encoded.bytes)?;
     }
-    Ok((
-        json!({"url":name,"sha256":digest,"bytes":data.len(),"vertexCount":header.vertex_count,"indexCount":slice.len(),"flags":header.flags,"uncompressedBytes":header.decoded_bytes(),"quantizationError":header.quantization_error}),
-        reused,
-    ))
+    Ok((geometry_record(&digest, &encoded, slice.len()), reused))
+}
+
+/// The `geometry` object of a page record: the packed page stored under `digest`.
+pub(crate) fn geometry_record(
+    digest: &str,
+    page: &geometry_page::Encoded,
+    indices: usize,
+) -> Value {
+    let header = &page.header;
+    json!({"url":format!("../../objects/{digest}.bin"),"sha256":digest,"bytes":page.bytes.len(),"vertexCount":header.vertex_count,"indexCount":indices,"flags":header.flags,"uncompressedBytes":header.decoded_bytes(),"quantizationError":header.quantization_error})
+}
+
+/// The manifest record of the page at culling `rank`: its index bytes stored under `digest` (their
+/// `length`) at `offset` in bundle `stream`, their bounds and normal cone, and its packed
+/// `geometry`. `compiler_primitive::cost` charges each page by this shape.
+pub(crate) fn page_record(
+    (rank, cluster): (usize, &DagCluster),
+    (digest, length): (&str, usize),
+    (min, max): ([f64; 3], [f64; 3]),
+    [x, y, z, angle]: [f64; 4],
+    geometry: Value,
+    (stream, offset): (usize, usize),
+) -> Value {
+    let parent = |value: fn(&DagCluster) -> Value| match cluster.parent_error.is_finite() {
+        true => value(cluster),
+        false => Value::Null,
+    };
+    json!({"id":rank,"url":format!("../../objects/{digest}.bin"),"sha256":digest,"bytes":length,
+        "count":cluster.indices.len(),"start":cluster.source_rank as usize*3,"min":min,"max":max,
+        "cone":{"axis":[x,y,z],"angle":angle},"role":if cluster.level==0{"exact"}else{"coarse"},
+        "geometry":geometry,"level":cluster.level,"lodError":cluster.lod_error,"sphere":cluster.sphere,
+        "parentError":parent(|c|json!(c.parent_error)),
+        "parentSphere":parent(|c|json!(c.parent_sphere)),
+        "group":cluster.group.map_or(Value::Null,|index|json!(index)),
+        "source":cluster.source.map_or(Value::Null,|index|json!(index)),
+        "stream":stream,"streamOffset":offset})
 }
 
 /// What the primitive's grid cost, for the manifest: the grid exponents and the largest position
