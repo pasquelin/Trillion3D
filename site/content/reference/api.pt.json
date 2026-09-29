@@ -2055,7 +2055,19 @@
       "evictedTiles": "Blocos de textura removidos.",
       "residentPages": "O que residia logo antes da definição e logo depois.",
       "residentTiles": "Blocos de textura mantidos, antes e depois.",
-      "durationMs": "O tempo que levou."
+      "durationMs": "O tempo que levou.",
+      "tables": "As tabelas por página desenhável ampliadas para um pool acima delas (WebGPU), ou `null` quando nenhuma foi.",
+      "transientBytes": "Bytes mantidos ao mesmo tempo durante a cópia do pool de geometria: o pool antigo e o novo ao lado, concedidos juntos pelo dispositivo antes de qualquer página se mover; 0 quando nenhum pool se moveu."
+    }
+  },
+  "TableGrowthReport": {
+    "summary": "O crescimento das tabelas dimensionadas por linha desenhável, como um pool acima delas o pediu.",
+    "members": {
+      "drawSlots": "Linhas de visibilidade que as tabelas guardam agora.",
+      "casterSlots": "Linhas lidas pela passagem de sombras, depois das linhas de visibilidade.",
+      "bytes": "Bytes que as tabelas de GPU ampliadas ocupam — os pedidos, quando recusados.",
+      "refused": "`true` quando o dispositivo as recusou: as tabelas e o pool existentes são mantidos.",
+      "durationMs": "Milissegundos que o crescimento levou, da sonda até a troca."
     }
   },
   "Mesh": {

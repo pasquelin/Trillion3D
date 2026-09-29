@@ -2055,7 +2055,19 @@
       "evictedTiles": "被移除的纹理图块。",
       "residentPages": "设置前后各自常驻的内容。",
       "residentTiles": "前后各自保留的纹理图块。",
-      "durationMs": "这次操作花费的时间。"
+      "durationMs": "这次操作花费的时间。",
+      "tables": "为超出它们的池而扩大的按可绘制页面划分的表 (WebGPU),没有扩大时为 `null`。",
+      "transientBytes": "复制几何体池期间同时占用的字节:旧池和旁边的新池,在任何页面移动之前由设备一并授予;没有池移动时为 0。"
+    }
+  },
+  "TableGrowthReport": {
+    "summary": "按可绘制行确定大小的表的增长，正如其上的池所请求的那样。",
+    "members": {
+      "drawSlots": "这些表当前容纳的可见性行。",
+      "casterSlots": "阴影通道读取的行，位于可见性行之后。",
+      "bytes": "增长后的 GPU 表所占的字节数；若被拒绝，则为所请求的字节数。",
+      "refused": "设备拒绝时为 `true`：保留现有的表和池。",
+      "durationMs": "增长所用的毫秒数，从探测到交换。"
     }
   },
   "Mesh": {
