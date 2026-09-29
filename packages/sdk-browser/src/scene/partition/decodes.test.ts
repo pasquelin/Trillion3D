@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decodeHere, everywhere, io, noBudget, opened, world } from './cells.fixture.ts';
+import { cellUrl, decodeHere, io, noBudget, settled, world } from './cells.fixture.ts';
 
 test('a frame says when a cell within reach is left for a later one, read or decoded', async () => {
   const { cells, bytes } = world();
   const { port, held } = io(bytes);
-  await opened(cells, everywhere);
+  await settled(cells, [0, 0, 0], 100, port, noBudget); // the pages of the index it reaches
   const unread = cells.frame([0, 0, 0], 100, port, noBudget);
-  held.add('https://cache.test/key/near.json');
+  held.add(cellUrl('near.json'));
   const decoding = cells.frame([0, 0, 0], 100, port, noBudget);
   assert.equal(cells.stats().held, 0, 'nothing is placed before its decode lands');
   await Promise.all(cells.decodes());
@@ -23,8 +23,8 @@ test('a cell file is never parsed by the frame: its bytes go to the decode, its 
   const decoded: Uint8Array[] = [];
   // The decode runs later, as the pool answers: whatever it parses is not the frame's.
   port.decode = (read) => (decoded.push(read), Promise.resolve().then(() => decodeHere(read)));
-  await opened(cells, everywhere);
-  held.add('https://cache.test/key/near.json');
+  await settled(cells, [0, 0, 0], 100, port, noBudget);
+  held.add(cellUrl('near.json'));
   const parse = JSON.parse;
   let parsed = 0;
   const frame = () => {
@@ -40,11 +40,12 @@ test('a cell file is never parsed by the frame: its bytes go to the decode, its 
   frame();
   assert.deepEqual([parsed, decoded.length, cells.stats().held], [0, 1, 1]);
   // A file the decode refused is thrown by the frame that reads it, as before.
-  const { cells: refused } = world();
-  held.add('https://cache.test/key/far.json');
-  port.decode = () => Promise.reject(new Error('INVALID_SCENE_TABLES'));
-  await opened(refused, everywhere);
-  refused.frame([5000, 0, 0], 100, port, noBudget);
-  await Promise.all(refused.decodes());
-  assert.throws(() => refused.frame([5000, 0, 0], 100, port, noBudget), /INVALID_SCENE_TABLES/);
+  const refused = world();
+  const other = io(refused.bytes);
+  other.held.add(cellUrl('far.json'));
+  other.port.decode = () => Promise.reject(new Error('INVALID_SCENE_TABLES'));
+  await assert.rejects(
+    settled(refused.cells, [5000, 0, 0], 100, other.port, noBudget),
+    /INVALID_SCENE_TABLES/,
+  );
 });

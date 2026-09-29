@@ -5,7 +5,11 @@
  * cell leaves. The buffers are sized when a session opens, before its engines read them
  * (`sizeRows`), for every node the partition's root counts (#575): none ever grows.
  */
-import { createPlacementRows, growPlacementRows, type PlacementRows } from '../../placement/rows.ts';
+import {
+  createPlacementRows,
+  growPlacementRows,
+  type PlacementRows,
+} from '../../placement/rows.ts';
 import { EngineError } from '../../../../sdk-core/src/index.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
@@ -31,7 +35,10 @@ export const capacityOf = (mesh: PlacedMesh) => mesh.links[0]?.placements?.capac
 
 /** Sizes every buffer of each mesh rank of `needed` to hold that many rows at least, before its
  *  session's engines read them: once, for every node the partition's root counts (`cells.ts`). */
-export function sizeRows(meshes: ReadonlyMap<number, PlacedMesh>, needed: ReadonlyMap<number, number>) {
+export function sizeRows(
+  meshes: ReadonlyMap<number, PlacedMesh>,
+  needed: ReadonlyMap<number, number>,
+) {
   for (const [rank, rows] of needed) {
     const mesh = meshes.get(rank);
     if (!mesh) continue; // placing its cell refuses it (`PREPARED_SCENE_MISMATCH`)
