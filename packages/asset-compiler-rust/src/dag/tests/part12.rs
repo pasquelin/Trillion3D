@@ -25,7 +25,7 @@ fn holds_vertices(sphere: [f64; 4], positions: &[f32], indices: &[u32]) -> bool 
 /// A grid wrapped onto a sphere of radius 5: the audit's smooth surface, its largest gains.
 fn ball(n: usize) -> (Vec<f32>, Vec<u32>) {
     let (mut positions, indices) = grid(n);
-    for p in positions.chunks_exact_mut(3) {
+    for p in positions.as_chunks_mut::<3>().0 {
         let (theta, phi) = (0.05 + p[1] / n as f32 * 3.0, p[0] / n as f32 * 6.2);
         let (sin, cos) = theta.sin_cos();
         [p[0], p[1], p[2]] = [5.0 * sin * phi.cos(), 5.0 * cos, 5.0 * sin * phi.sin()];

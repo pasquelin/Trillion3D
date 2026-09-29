@@ -18,7 +18,7 @@ pub(crate) fn grid(n: usize) -> (Vec<f32>, Vec<u32>) {
 /// A grid rolled onto a cylinder of radius 8: a smooth curved surface.
 pub(super) fn cylinder(n: usize) -> (Vec<f32>, Vec<u32>) {
     let (mut positions, indices) = grid(n);
-    for p in positions.chunks_exact_mut(3) {
+    for p in positions.as_chunks_mut::<3>().0 {
         let angle = p[0] / n as f32 * 3.0;
         (p[0], p[2]) = (8.0 * angle.cos(), 8.0 * angle.sin() + p[2] * 0.1);
     }

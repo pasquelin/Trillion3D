@@ -127,8 +127,7 @@ impl<'a> Grid<'a> {
     fn key(&self, p: P) -> [i64; 3] {
         [0, 1, 2].map(|k| ((p[k] - self.origin[k]) / self.cell).floor() as i64)
     }
-    /// Distance from `p` to the nearest triangle: rings of cells until the ring is farther, or
-    /// until a triangle lies within `floor` (the distance returned is then not above it).
+    /// Distance from `p` to the nearest triangle: rings until the ring is farther or one is within `floor`.
     fn nearest(&self, p: P, floor: f64) -> f64 {
         let centre = self.key(p);
         let mut best = f64::MAX;
@@ -185,6 +184,7 @@ fn one_sided(pos: &[f32], from: &[u32], to: &Grid, floor: f64) -> f64 {
 }
 
 /// Largest distance from the samples of the triangles `from` to the triangles `to`; zero if either is empty.
+#[cfg(test)]
 pub(crate) fn one_sided_distance(pos: &[f32], from: &[u32], to: &[u32]) -> f64 {
     if from.is_empty() || to.is_empty() {
         return 0.0;
