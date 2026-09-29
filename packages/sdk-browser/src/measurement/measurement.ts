@@ -20,6 +20,8 @@ export { replicateInstances } from '../scene/replicateInstances.ts';
 export { autonomousPagesBackend } from '../backend/autonomous/pages.ts';
 export { webgpuPagesBackend } from '../webgpu/pages/pages.ts';
 export { attachParticles } from '../world/core/worldSession.ts';
+// The screen-error measure reads a drawn mesh's side the way the engine does (`bench/runner`).
+export { sideOf } from '../scene/materialSide.ts';
 export { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
 
 /** Browser job adapter. A completed session is owned by the caller; cancel/fail after construct disposes it. */

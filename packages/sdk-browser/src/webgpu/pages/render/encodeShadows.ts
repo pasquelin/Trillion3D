@@ -41,7 +41,7 @@ export function shadowViewpointOf(cam: EngineCamera, height: number) {
   // `Camera.getWorldDirection`, third column normalised then negated.
   const world = cam.world;
   const { position } = viewpoint;
-  [position[0], position[1], position[2]] = [cam.eye[0], cam.eye[1], cam.eye[2]];
+  for (let i = 0; i < 3; i++) position[i] = cam.eye[i];
   const forward = viewpoint.forward;
   forward[0] = world[8];
   forward[1] = world[9];
