@@ -139,6 +139,9 @@ export interface StreamCatalogue {
   /** Its culling tree. */ culling?: CullingHierarchy | null;
   /** Its group links. */ structure?: ClusterStructure | null;
   /** Its stream bundles. */ streams?: StreamCatalogue | null;
+  /** A world's dynamic geometry (#573): index pages alone, their vertices read as floats from the
+   *  host geometry the engine rewrites in place. */
+  dynamic?: boolean;
   /** Null on a primitive without pages, which was quantized on no grid. */
   quantization?: PrimitiveQuantization | null;
   /** What the mesh's edges and corners look like. */ topology?: {
