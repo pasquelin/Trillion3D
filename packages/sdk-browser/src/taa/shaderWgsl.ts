@@ -120,12 +120,13 @@ fn fromYcocg(c:vec3f)->vec3f{return vec3f(c.x+c.y-c.z,c.x+c.z,c.x-c.y-c.z);}`;
  * `coord` is the display pixel, `at` the render texel its depth and identifier were read at.
  */
 export const TAA_REPROJECT_WGSL = `
+fn placementOf(id:u32)->u32{return pages[(id>>8u)-1u].placement;}
 fn previousUv(coord:vec2i,depthValue:f32,at:vec2i)->vec3f{
  let ndc=vec2f((f32(coord.x)+0.5)*view.viewport.z*2.0-1.0,1.0-(f32(coord.y)+0.5)*view.viewport.w*2.0);
  var position=view.invViewProj*vec4f(ndc,depthValue,1.0);
  if(view.params.z!=0.0){
   let id=textureLoad(ids,at,0).r;
-  if(id!=0u){position=motion[pages[(id>>8u)-1u].placement]*position;}
+  if(id!=0u){position=motion[placementOf(id)]*position;}
  }
  let previous=view.prevViewProj*position;
  if(previous.w<=0.0){return vec3f(0.0,0.0,0.0);}

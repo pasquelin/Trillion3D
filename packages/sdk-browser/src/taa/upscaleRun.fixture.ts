@@ -102,6 +102,7 @@ export function upscaleRun(frame: UpscaleFrame, asIs = false, filtered = false) 
       'fromYcocg',
       'lanczos2',
       'historyCatmullRom',
+      'placementOf',
       'placementTag',
       'uncovered',
       'currentShare',
