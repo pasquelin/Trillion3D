@@ -35,7 +35,8 @@ export function createGpuPageLoader(
       resident: resident.has(key),
       loading: fetches.has(key),
     }));
-    const fetched = !state.disposed && !resident.has(key) ? fetchBytes(key, combined, priority) : undefined;
+    const fetched =
+      !state.disposed && !resident.has(key) ? fetchBytes(key, combined, priority) : undefined;
     const operation = state.pending.then(async () => {
       const queueStarted = now();
       try {
