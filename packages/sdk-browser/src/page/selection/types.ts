@@ -81,6 +81,9 @@ export type PageRec = {
   /** Rank of the root — the placement — in a WebGPU engine's selection roots, set once by its
    *  layout: that is what the record carries to look up the placement's motion. */
   placementIndex?: number;
+  /** True on a page of the group a root replaces: the minimum capacity holds it and admits it
+   *  first (`../../residency/minimumCapacity.ts`). */
+  rootChild?: boolean;
   /** The instance-buffer row this record is placed by, as its root: an engine drawn by the host
    *  renderer draws such records instanced, one mesh per page and surface. */
   placement?: PlacementOf;

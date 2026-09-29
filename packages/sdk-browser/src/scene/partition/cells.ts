@@ -1,11 +1,10 @@
-/**
- * THE CELLS OF A PARTITIONED SCENE, READ BY DISTANCE (#404).
- *
+/** THE CELLS OF A PARTITIONED SCENE, READ BY DISTANCE (#404).
  * Before each frame (`frame`), the cells the camera needs (`plan.ts`, boxed where their parents
  * stand now: `boxes.ts`) are asked of the session's page streamer, nearest first, then those ahead
  * at the prefetch priority; those it holds are placed within the frame's one integration budget
  * (`FrameBudget`), each node on a row of its mesh (`rows.ts`) at the world matrix the engine
- * composes for a child of its core parent, the cell holding its manifest pages (`cellPages.ts`).
+ * composes for a child of its core parent, the cell holding its manifest pages and the world
+ * bundles its roots need (`cellPages.ts`).
  * A cell past its reach parks its rows and releases its pages; a moved parent rewrites its rows.
  * `prime`, before the first frame, sizes the rows for every node the reach can hold at once
  * wherever the parents stand (`sizing.ts`; every node when no owner can reopen the session) and
@@ -28,6 +27,7 @@ import { capacityOf, createTouchedRows, releaseRow, rowLocal, rowsFree } from '.
 import { sizeRows, takeRow, type PlacedMesh } from './rows.ts';
 import { createCellPages, withHoldings } from './cellPages.ts';
 
+type CellWorld = Parameters<typeof createCellPages>[2];
 type Placement = { mesh: PlacedMesh; row: number; parent: Object3D; local: Float64Array };
 type Inputs = {
   partition: TablePartition;
@@ -36,8 +36,8 @@ type Inputs = {
   /** The host node of each core rank. */ parents: readonly Object3D[];
   /** The placed mesh of each mesh rank the cells place. */ meshes: ReadonlyMap<number, PlacedMesh>;
   /** The manifest's pages the view holds (#751). */ pages?: Parameters<typeof createCellPages>[0];
+  /** The world bundles a cell's roots need (#1237). */ world?: CellWorld;
 };
-
 const product = new Float64Array(MATRIX_VALUES),
   rootWorld = new Float64Array(MATRIX_VALUES);
 
@@ -45,7 +45,7 @@ export function createPartitionCells(inputs: Inputs) {
   const { partition, base, root, parents, meshes } = inputs;
   const cells = partition.cells.map((cell) => ({ ...cell, url: new URL(cell.url, base).href }));
   const boxes = createCellBoxes(partition.cells, root, parents);
-  const manifest = createCellPages(inputs.pages, partition.cells);
+  const manifest = createCellPages(inputs.pages, partition.cells, inputs.world);
   const held = new Map<number, Placement[]>();
   /** The world matrix each parent in use had when its rows were written. */
   const worlds = new Map<Object3D, Float64Array>();
