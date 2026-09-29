@@ -20,7 +20,7 @@ type QueueOptions = {
   getFrame: () => number;
   updatePins: () => void;
   /** The groups the cut closes over: what admission walks for either cut (`requestAdmission.ts`). */
-  closure: Pick<GroupClosure, 'closeOver' | 'forEachHeld'>;
+  closure: Pick<GroupClosure, 'closeOver' | 'closeOverRecords' | 'forEachHeld'>;
   ensureResident: (
     wanted: readonly PageRec[],
     frame: number,

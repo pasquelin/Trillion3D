@@ -1252,7 +1252,7 @@
       "options.signal": "Ferma i caricamenti del mondo quando il segnale viene annullato.",
       "options.physics": "Accende la fisica (`world.physics`): `true`, oppure gravità e budget. Solo allora Jolt viene caricato.",
       "options.temporalAntialiasing": "Antialiasing temporale, solo WebGPU: spostamento sub-pixel accumulato tra le immagini. `false` disegna ogni pixel al suo centro, senza cronologia, ciò che chiede una cattura esatta al pixel; cambiato in seguito da `world.temporalAntialiasing`.",
-      "options.renderScale": "La frazione dello schermo per asse a cui l’immagine è disegnata, solo WebGPU, prima che l’antialiasing temporale la ricostruisca allo schermo: `'auto'` lascia che il budget d’immagine la scelga tra `min` e `max` (`{ min, max }`, 0,5 e 1 per impostazione predefinita), un numero la fissa; un’immagine ferma è disegnata al massimo. Cambiata poi con `world.renderScale`."
+      "options.renderScale": "La frazione dello schermo per asse a cui l’immagine è disegnata, prima che l’antialiasing temporale la ricostruisca allo schermo: `'auto'` lascia che il budget d’immagine la scelga tra `min` e `max` (`{ min, max }`, 0,5 e 1 per impostazione predefinita; su WebGL2, che si limita a ricampionare, `min` è 1 per impostazione predefinita), un numero la fissa; un’immagine ferma è disegnata al massimo. Cambiata poi con `world.renderScale`."
     }
   },
   "crossVector3": {
@@ -2505,6 +2505,7 @@
       "framebuffer": "Dove disegnare; `null` per lo schermo.",
       "width": "Larghezza in pixel.",
       "height": "Altezza in pixel.",
+      "displayWidth": "La larghezza a cui l’immagine è mostrata quando è disegnata al di sotto (`world.renderScale`): livelli di texture e larghezze delle linee seguono il rapporto. `width` se assente.",
       "linear": "Radianza lineare, né passata dalla curva né codificata, su nero trasparente: l’ingresso della catena di effetti, il cui alfa è la copertura."
     }
   },
@@ -6655,7 +6656,7 @@
   },
   "world.renderScale": {
     "summary": "La frazione dello schermo per asse a cui l’immagine è disegnata (`WorldOptions.renderScale`), dall’immagine successiva.",
-    "description": "Letta, la scala dell’ultima immagine disegnata: 1 in WebGL2."
+    "description": "Letta, la scala dell’ultima immagine disegnata."
   },
   "world.effects": {
     "summary": "La catena di effetti: passate disegnate sull’immagine (`effect`)."
@@ -6908,7 +6909,7 @@
       "signal": "Ferma i caricamenti del mondo quando il segnale viene annullato.",
       "physics": "Accende la fisica (`world.physics`): `true`, oppure gravità e budget. Solo allora Jolt viene caricato.",
       "temporalAntialiasing": "Antialiasing temporale, solo WebGPU: spostamento sub-pixel accumulato tra le immagini. `false` disegna ogni pixel al suo centro, senza cronologia, ciò che chiede una cattura esatta al pixel; cambiato in seguito da `world.temporalAntialiasing`.",
-      "renderScale": "La frazione dello schermo per asse a cui l’immagine è disegnata, solo WebGPU, prima che l’antialiasing temporale la ricostruisca allo schermo: `'auto'` lascia che il budget d’immagine la scelga tra `min` e `max` (`{ min, max }`, 0,5 e 1 per impostazione predefinita), un numero la fissa; un’immagine ferma è disegnata al massimo. Cambiata poi con `world.renderScale`."
+      "renderScale": "La frazione dello schermo per asse a cui l’immagine è disegnata, prima che l’antialiasing temporale la ricostruisca allo schermo: `'auto'` lascia che il budget d’immagine la scelga tra `min` e `max` (`{ min, max }`, 0,5 e 1 per impostazione predefinita; su WebGL2, che si limita a ricampionare, `min` è 1 per impostazione predefinita), un numero la fissa; un’immagine ferma è disegnata al massimo. Cambiata poi con `world.renderScale`."
     }
   },
   "RenderScale": {

@@ -16,7 +16,7 @@ test('the WebGL2 page path declares temporal antialiasing unsupported', () => {
   assert.ok(autonomousCapabilities(false).unsupported.includes('temporal antialiasing'));
 });
 
-// #832: nor temporal upscaling: `world.renderScale` reads 1 there, the image drawn at the display.
+// #832, #834: nor temporal upscaling: WebGL2 honours `renderScale` by a spatial resample only.
 test('the WebGL2 page path declares temporal upscaling unsupported', () => {
   assert.ok(autonomousCapabilities(false).unsupported.includes('temporal upscaling'));
 });

@@ -345,7 +345,6 @@
       "drag-a-crate": "Bir sandığı sürükleme"
     },
     "missing": {
-      "inside-a-component": "dünya yok edilirken motorun oluşturduğu canvasın kaldırılması",
       "thick-lines": "geniş çizgiler",
       "a-line-that-draws-itself": "bir geometrinin çizim aralığı",
       "shapes-from-an-svg": "SVG yolu içe aktarma",

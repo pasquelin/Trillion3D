@@ -3,6 +3,7 @@ import { sha256Hex } from '../../../measurement/sha256Hex.ts';
 import { readGpuImage } from '../../../gpu/core/presentation.ts';
 import { createWebgpuBlendPipelines } from '../../blend/pipelines.ts';
 import { createWebgpuShadePipelines } from '../../visibility/pipelines.ts';
+import { blendWritesShare } from '../prepare/asIsShareTarget.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 type Pipelines = Pick<WebgpuPagesRuntime['vis'], (typeof VIS_PIPELINES)[number]> &
@@ -85,6 +86,7 @@ export async function prepareFeedbackAb(
     undefined,
     false,
     rt.vis.blendBindGroupLayout,
+    blendWritesShare(rt),
   );
   if (blend.waterRefused) throw blend.waterRefused;
   if (rt.blendState.transmissive > 0 && !rt.blendState.water)

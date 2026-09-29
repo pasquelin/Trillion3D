@@ -345,7 +345,6 @@
       "drag-a-crate": "Перетащить ящик"
     },
     "missing": {
-      "inside-a-component": "удаление созданного движком canvas при освобождении мира",
       "thick-lines": "широкие линии",
       "a-line-that-draws-itself": "диапазон отрисовки геометрии",
       "shapes-from-an-svg": "импорт путей SVG",
