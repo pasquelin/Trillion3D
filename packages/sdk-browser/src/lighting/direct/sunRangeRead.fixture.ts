@@ -140,6 +140,7 @@ const NAMES = [
   'shadowNormalTexels',
   'shadowDepthMargin',
   'sunOrigin',
+  'sunReadAt',
   ...PAGE_MODEL_FUNCTIONS,
 ];
 
@@ -164,6 +165,10 @@ function factorOf(source: string, footprint: number) {
     const scope = {
       ...liveScope,
       shadowFootprint: footprint,
+      ShadowAt: (map: object, t: number[], home: number[], Q: number[], texel: number) => ({
+        ...{ map, t, home },
+        ...{ Q, texel },
+      }),
       ShadowMap: (base: number, ring: number, pages: number, ox: number, oy: number) => ({
         base,
         ring,

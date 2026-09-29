@@ -28,6 +28,7 @@ import { WATER_COMPOSITE_SHADER } from '../../webgpu/water/compositeWgsl.ts';
 import { SHADOW_DEMAND_WGSL } from '../../webgpu/shadow/demandWgsl.ts';
 import { ALLOCATION_WGSL } from '../../webgpu/shadow/allocWgsl.ts';
 import { SHADOW_FRESH_WGSL } from '../../webgpu/shadow/freshWgsl.ts';
+import { SHADOW_READ_AT_WGSL } from './shadowFactorWgsl.ts';
 
 type Formula = (...args: number[]) => number;
 const shipped = shaderRun<Record<string, Formula>>(PAGE_MODEL_WGSL, PAGE_MODEL_FUNCTIONS, {});
@@ -65,6 +66,18 @@ const INPUTS: Record<string, () => number> = {
   cells: () => int(1, 8),
   metres: () => 2 ** (r() * 40 - 20),
   size: () => int(1, 64) * SHADOW_PAGE,
+  w: () => r() * 40 - 20,
+  scale: () => (r() - 0.5) * 64,
+  offset: () => (r() - 0.5) * 64,
+  h: () => 2 ** (r() * 40 - 20),
+  far: () => 2 ** (r() * 20 - 5),
+  f: () => r() * 2 - 1,
+  chord: () => r() * 2,
+  halfFov: () => r() * 2,
+  zNear: () => (r() - 0.5) * 1e4,
+  p: () => (r() - 0.5) * 1e4,
+  d: () => r() * 2 - 1,
+  s: () => (r() - 0.5) * 1e3,
 };
 /** Texels on and about the edges the PCF and the page of a texel turn on, from a page's first. */
 const EDGES = [-1.5, -1.5 - 2 ** -20, 0, 1.5, 1.5 - 2 ** -20, 64, 64 - 2 ** -20, 126.5, 128];
@@ -140,5 +153,11 @@ test('every pass that reads or writes the page table holds the page model once, 
     for (const name of PAGE_MODEL_FUNCTIONS)
       assert.equal(shader.split(`fn ${name}(`).length, 2, `${pass}: ${name}`);
     assert.doesNotMatch(shader, /LAMP_MIP_OFFSET|floor\(t\/SHADOW_PAGE\)|t-1\.5</, pass);
+  }
+  // The pages a point reads, one lookup: the shading's and the demand's (`SHADOW_READ_AT_WGSL`).
+  for (const [pass, shader] of Object.entries({ opaque, demand: SHADOW_DEMAND_WGSL })) {
+    assert.equal(shader.split(SHADOW_READ_AT_WGSL).length, 2, pass);
+    // Each map texel formula, sun and lamp: its definition, then its x and y calls in the lookup.
+    assert.equal(shader.match(/shadowSunMapTexel\(|shadowLampMapTexel\(/g)?.length, 2 * 3, pass);
   }
 });
