@@ -136,6 +136,14 @@
       "onEvent": "Chamado a cada evento."
     }
   },
+  "BatchRead": {
+    "summary": "Como `request` lê um lote: o seu cancelamento, a sua prioridade e o que corre à chegada de cada página.",
+    "members": {
+      "signal": "Cancela as leituras do lote.",
+      "priority": "Prioridade na fila, 1 por omissão.",
+      "onPage": "Corre à chegada da leitura de cada página, não depois do lote inteiro."
+    }
+  },
   "BatchOutcome": {
     "summary": "Como um job do lote terminou.",
     "members": {

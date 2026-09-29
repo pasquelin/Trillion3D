@@ -260,6 +260,14 @@
       "onEvent": "Bei jedem Ereignis aufgerufen."
     }
   },
+  "BatchRead": {
+    "summary": "Wie `request` einen Stapel liest: sein Abbruch, seine Priorität und was beim Eintreffen jeder Seite läuft.",
+    "members": {
+      "signal": "Bricht die Lesevorgänge des Stapels ab.",
+      "priority": "Priorität in der Warteschlange, standardmäßig 1.",
+      "onPage": "Läuft, sobald jede Seite gelesen ist, nicht erst nach dem ganzen Stapel."
+    }
+  },
   "BatchOutcome": {
     "summary": "Wie eine Aufgabe des Stapels endete.",
     "members": {
