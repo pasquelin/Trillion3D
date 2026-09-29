@@ -28,3 +28,18 @@ export function boundTableRows(
     bounded: { draw, blend, rows: held, bytes: held * PAGE_INFO_STRIDE },
   };
 }
+
+/**
+ * The rows a table of `held` rows grows to when `asked` (`boundTableRows`) asks more (#216): no
+ * visibility row gives way, nor a caster row, and a table the device bounds stays within one
+ * binding, its casters' rows taking what the binding leaves beside the visibility rows.
+ */
+export function grownTableRows(
+  asked: ReturnType<typeof boundTableRows>,
+  held: { blendFirst: number; casterSlots: number },
+) {
+  const drawSlots = Math.max(asked.drawSlots, held.blendFirst),
+    room = asked.bounded ? asked.bounded.rows - drawSlots : Infinity;
+  const blendSlots = Math.max(asked.blendSlots, held.casterSlots - held.blendFirst);
+  return { drawSlots, casterSlots: drawSlots + Math.min(room, blendSlots) };
+}
