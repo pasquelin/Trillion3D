@@ -1454,7 +1454,11 @@ gravityScale, sensor, ccd, decorative, friction, restitution, damping }`. The sh
 - **Motion and events.** `mesh.physics.velocity` (read as the last step left it, written to launch
   the body), `applyImpulse(x, y, z)`, `wake()`, `asleep`, and `on('contact' | 'enter' | 'leave')`:
   the other object, an impulse estimate (approach speed times the pair's reduced mass) and the
-  point.
+  point. A step's contact events are delivered in a canonical order no thread decides: every
+  thread's records are merged after `Update`, ordered by the body pair's key (the lower engine
+  index first), each pair's own events in the order Jolt ran them, so a pool of any size gives the
+  same events in the same order. It is the engine's canonical order, not Jolt's internal callback
+  order.
 - **Joints.** `joint.fixed | point | hinge | slider | distance | cone(a, b, options)` connects two
   bodies, or a body and the world (`b` is `null`), with Jolt's own constraints; `world.physics.add(j)`
   puts it in the simulation and `remove(j)` takes it out. It is made once both bodies are simulated,
