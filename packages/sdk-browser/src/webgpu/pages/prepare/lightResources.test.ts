@@ -66,8 +66,8 @@ test('`unlit` stays the diagnostic view, lights or not', () => {
 
 test('the light cuts select at the camera threshold, which no budget raises', () => {
   const lights = createWebgpuLightState(32);
-  assert.equal(followLightThreshold(lights, 1), 1);
-  assert.equal(followLightThreshold(lights, 8), 8);
+  assert.equal(followLightThreshold(lights, 1, [0, 0, 0]), 1);
+  assert.equal(followLightThreshold(lights, 8, [0, 0, 0]), 8);
 });
 
 // OMB-11: the flagless variants are chosen only when nothing in the image can write the as-is flag.

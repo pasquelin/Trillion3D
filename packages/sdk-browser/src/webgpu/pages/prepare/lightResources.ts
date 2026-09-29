@@ -106,12 +106,16 @@ function shadowsFollowRows(
 }
 
 /**
- * The threshold the light cuts select casters at: the camera's. The plan keeps the one each page
- * was drawn at, and redraws, once the camera rests, only the pages drawn at another
- * (`thresholds.ts`). Returns the threshold.
+ * The threshold the light cuts select casters at: the camera's, in the render frame of the eye
+ * `origin`. The plan keeps the ones each page was drawn at, and redraws, once the camera rests,
+ * only the pages drawn at another (`thresholds.ts`). Returns the threshold.
  */
-export function followLightThreshold(lights: WebgpuLightState, pixelError: number) {
-  lights.plan.setThreshold(pixelError);
+export function followLightThreshold(
+  lights: WebgpuLightState,
+  pixelError: number,
+  origin: ArrayLike<number>,
+) {
+  lights.plan.setThreshold(pixelError, origin);
   return pixelError;
 }
 

@@ -90,8 +90,8 @@ export function planShadowRegions(
     plan.releaseDeferred();
     return 0;
   }
-  // The light cuts measure their error at the camera's threshold.
-  lights.shadowPixelError = followLightThreshold(lights, rt.run.gate.pixelError);
+  // The light cuts measure their error at the camera's threshold, in the eye's render frame.
+  lights.shadowPixelError = followLightThreshold(lights, rt.run.gate.pixelError, cam.eye);
   // Shadow detail is the display's, whatever size the frame is drawn at.
   const view = shadowViewpointOf(cam, rt.gpu.displaySize[1]);
   const box = lights.sceneBox(rt.layout, rt.run.gate.revisions.scene);
