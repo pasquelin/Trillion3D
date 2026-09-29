@@ -155,6 +155,8 @@ export function buildWorldSource(plan: WorldPlan) {
         textureIndices: first?.scene.textureIndices ?? new Map(),
         framingLot: null,
         nodes: null,
+        // A world plays its models' clips through their own mixers, never through its session.
+        clips: [],
         // Each model's cells follow the session's camera; their rows hang under the model's twin.
         partitions: models.flatMap((model) => model.record.scene.partitions),
       },
