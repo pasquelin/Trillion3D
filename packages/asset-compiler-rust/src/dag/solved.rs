@@ -7,17 +7,13 @@
 //! other group keeps the endpoint reduction. A texture set weighs the surface length one unit of
 //! it spans in the group (`charts::densities`), normals keep `attributes::NORMAL_WEIGHT`.
 //!
-//! A mirror's seam (`charts::on_mirror`) is kept first — a face folded across it draws one side's
-//! texture on the other, every coordinate in place — then, if it holds the group, crossed; a face
-//! turning both ways, or across two texture islands, is charged its longest edge
-//! (`charts::folded_span`). The retries are the endpoint reduction's (`retries.rs`), but a face no
+//! A face across two texture islands is charged its longest edge (`charts::folded_span`). The
+//! retries are the endpoint reduction's (`retries.rs`), but a face no
 //! longer than the group's error, under a pixel wherever its level is drawn, is not locked for
 //! being lit from behind: on a group the solve alone frees, that stalled it again (Sponza: four
 //! groups of five).
 use super::border::required_locks;
-use super::charts::{
-    densities, folded_span, longest_edge, on_mirror, open_border_welded, weighted, Chart,
-};
+use super::charts::{densities, folded_span, longest_edge, open_border_welded, weighted};
 use super::grown::Placed;
 use super::placed::Local;
 use super::quality::backlit_corners;
@@ -25,7 +21,7 @@ use super::reduce::Stop;
 use super::retries::{with_lock_retries, Pass};
 use super::*;
 use crate::qem::solve::Region;
-use crate::qem::{VERTEX_LOCK, VERTEX_PROTECT};
+use crate::qem::VERTEX_LOCK;
 use std::borrow::Cow;
 
 /// A solved reduction: its error, its clusters in the primitive's numbering — placed vertices
@@ -38,8 +34,7 @@ pub(super) struct Solved {
 }
 
 /// The outcome of a group whose endpoint reduction stalled on `stop`: diagnosed
-/// (`diagnosis::cause`), and when seam-locked retried with the solve, its mirrors kept, then,
-/// if they hold it and it has any, crossed.
+/// (`diagnosis::cause`), and when seam-locked retried with the solve.
 pub(super) fn stalled(
     input: &GroupReductionInput,
     live: &[u32],
@@ -48,55 +43,39 @@ pub(super) fn stalled(
 ) -> Result<std::result::Result<Solved, GroupOutcome>> {
     let cause = diagnosis::cause(input, live, children, stop)?;
     let solved = match cause {
-        StallCause::SeamLocked => match attempt(input, live, children, false)? {
-            None if live.iter().any(|&v| on_mirror_vertex(input.charts, v)) => {
-                attempt(input, live, children, true)?
-            }
-            kept => kept,
-        },
+        StallCause::SeamLocked => attempt(input, live, children)?,
         _ => None,
     };
     Ok(solved.ok_or_else(|| diagnosis::outcome(cause, input, live)))
 }
 
-/// Whether vertex `v` lies where a chart meets its mirror image (`charts::on_mirror`).
-fn on_mirror_vertex(charts: &[Chart], v: u32) -> bool {
-    charts.get(v as usize).is_some_and(|c| on_mirror(c.sides))
-}
-
-/// Reduces the seam-locked group `live` with the solve, across its mirrors when `crossed`;
-/// `None` when it yields no fewer clusters than its `children`, or loses a lock on every retry.
+/// Reduces the seam-locked group `live` with the solve; `None` when it yields no fewer clusters than its `children`, or loses a lock on every retry.
 fn attempt(
     input: &GroupReductionInput,
     live: &[u32],
     children: usize,
-    crossed: bool,
 ) -> Result<Option<Solved>> {
     let base = (input.positions.len() / 3) as u32;
     let required = required_locks(live, input.locks, input.weld);
     let densities = densities(input.positions, &input.attributes.uv_sets(), live);
-    let charts = input.charts;
-    let mirror = |v: u32| !crossed && on_mirror_vertex(charts, v);
-    let (live, weld_error) = &open_border_welded(input, live, &densities, mirror);
+    let islands = input.islands;
+    let (live, weld_error) = &open_border_welded(input, live, &densities);
     let weighted = weighted(input, live, &densities);
     let region = Region::of(input.positions, &weighted, live)?;
     let pass = |extra: &[u32]| -> Result<std::result::Result<Solve, Stop>> {
         let flags = |v: u32| {
             let lock =
                 input.locks[v as usize] || extra.binary_search(&input.weld[v as usize]).is_ok();
-            (u8::from(lock) * VERTEX_LOCK) | (u8::from(mirror(v)) * VERTEX_PROTECT)
+            u8::from(lock) * VERTEX_LOCK
         };
         let Some(solved) = region.solve(live.len() / 6, &flags) else {
             return Ok(Err(Stop::NoCollapse));
         };
         let error = solved.error_object.max(*weld_error);
         let local = Local::of(input, solved);
-        let span = match charts.is_empty() {
+        let span = match islands.is_empty() {
             true => 0.0,
-            false => {
-                let chart = |v: u32| charts[local.from(v)];
-                folded_span(&local.indices, &local.positions, chart, crossed)
-            }
+            false => folded_span(&local.indices, &local.positions, |v| islands[local.from(v)]),
         };
         Ok(Ok(Solve {
             error: error.max(span),
@@ -144,8 +123,8 @@ impl Pass for Solve<'_, '_, '_> {
 }
 
 /// The solved group re-clustered, `None` when it yields no fewer clusters than its `children`;
-/// its error is the pass's — the solve's, the copies its open border welded, its faces across a
-/// mirror — and the parts it removed.
+/// its error is the pass's — the solve's, the copies its open border welded, its faces across two
+/// islands — and the parts it removed.
 fn finish(
     input: &GroupReductionInput,
     local: Local,
