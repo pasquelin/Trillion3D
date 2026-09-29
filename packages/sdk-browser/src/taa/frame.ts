@@ -68,8 +68,8 @@ export function taaRenderMatrix(rt: WebgpuPagesRuntime, cam: EngineCamera): Arra
  * composition reads, `undefined` when none. Writes the uniform, updates motion, advances the
  * jitter, keeps the unjittered view-projection; `asIs` false reads no flags (OMB-11), and a frame
  * drawn below the display is reconstructed to it. `share`, seeded when blends or particles draw,
- * holds the as-is share and the reactive value they wrote (`../lighting/deferred/asIsShare.ts`),
- * which shortens a moving pixel's history.
+ * holds the as-is share and the reactive value the blends, particles and water wrote
+ * (`../lighting/deferred/asIsShare.ts`), which shortens a pixel's history, moving or at rest.
  */
 export function encodeTaaPass(
   rt: WebgpuPagesRuntime,

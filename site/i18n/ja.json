@@ -342,7 +342,8 @@
       "hover-to-highlight": "ポインターを合わせて部品を強調",
       "a-dolly-along-the-canal": "運河沿いのカメラドリー",
       "a-folder-merged-into-one-scene": "1つのシーンに統合したフォルダー",
-      "drag-a-crate": "木箱をドラッグ"
+      "drag-a-crate": "木箱をドラッグ",
+      "move-a-hierarchy-by-name": "名前で階層を動かす"
     },
     "missing": {
       "thick-lines": "太い線",
