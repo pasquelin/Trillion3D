@@ -59,7 +59,13 @@ export function updateWebgpuVertices(
     pool?.write(attributes, name, from, count);
     const xyz = attributes.position?.array;
     if (name === 'position' && positions && xyz instanceof Float32Array)
-      gpu.device.queue.writeBuffer(positions, from * 12, xyz as Float32Array<ArrayBuffer>, from * 3, count * 3);
+      gpu.device.queue.writeBuffer(
+        positions,
+        from * 12,
+        xyz as Float32Array<ArrayBuffer>,
+        from * 3,
+        count * 3,
+      );
   }
   staleShadows(rt, attributes, box);
   run.gate.sceneMoved();

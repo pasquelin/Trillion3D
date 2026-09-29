@@ -148,7 +148,10 @@ export class WebglClusterGeometry {
     let entry = this.lists.get(attribute);
     if (!entry) {
       const buffer = this.gl.createBuffer()!;
-      this.lists.set(attribute, (entry = { buffer, source: attribute, version: -1, bytes: 0, users: 0 }));
+      this.lists.set(
+        attribute,
+        (entry = { buffer, source: attribute, version: -1, bytes: 0, users: 0 }),
+      );
     }
     return entry;
   }
