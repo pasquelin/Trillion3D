@@ -27,6 +27,7 @@ import { BLEND_SHADER } from '../../webgpu/blend/shader.ts';
 import { WATER_COMPOSITE_SHADER } from '../../webgpu/water/compositeWgsl.ts';
 import { SHADOW_DEMAND_WGSL } from '../../webgpu/shadow/demandWgsl.ts';
 import { ALLOCATION_WGSL } from '../../webgpu/shadow/allocWgsl.ts';
+import { SHADOW_FRESH_WGSL } from '../../webgpu/shadow/freshWgsl.ts';
 
 type Formula = (...args: number[]) => number;
 const shipped = shaderRun<Record<string, Formula>>(PAGE_MODEL_WGSL, PAGE_MODEL_FUNCTIONS, {});
@@ -133,6 +134,7 @@ test('every pass that reads or writes the page table holds the page model once, 
     water: WATER_COMPOSITE_SHADER,
     demand: SHADOW_DEMAND_WGSL,
     allocation: ALLOCATION_WGSL,
+    fresh: SHADOW_FRESH_WGSL,
   })) {
     assert.equal(shader.split(PAGE_MODEL_WGSL).length, 2, pass);
     for (const name of PAGE_MODEL_FUNCTIONS)

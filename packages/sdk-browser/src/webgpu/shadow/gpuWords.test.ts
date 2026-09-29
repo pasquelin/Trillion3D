@@ -1,7 +1,8 @@
-// #1275 part B: while the GPU maps the pages, the host's table words — a page drawn, withdrawn or
-// adopted — are written by the GPU, run from their WGSL (`wordsWgsl.ts`), and kept only for the
-// page the GPU says the entry owns: a host frames behind the GPU never makes a page readable for
-// an entry it does not hold, and its draw into a page given away withdraws the page's owner.
+// #1275: while the GPU maps the pages, the host's table words — a page drawn, withdrawn or adopted
+// — are written by the GPU, run from their WGSL (`wordsWgsl.ts`), and kept only for the page the
+// GPU says the entry owns: a host frames behind the GPU never makes a page readable for an entry it
+// does not hold, its draw into a page given away withdraws the page's owner, and its adoption of a
+// page the GPU drew itself leaves that draw readable.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -11,7 +12,7 @@ import {
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
 import { runShadowWords } from './allocRun.fixture.ts';
-import { POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
+import { DRAWN_GPU, DRAWN_HOST, DRAWN_NONE, POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
 import { WORDS_HEADER } from './wordsWgsl.ts';
 
 test('a host word is kept for the page its entry owns on the GPU; a draw into another withdraws it', () => {
@@ -43,4 +44,32 @@ test('a host word is kept for the page its entry owns on the GPU; a draw into an
   send([13, 1 | PAGE_MAPPED], [11, 0]);
   assert.equal(table[11], 1 | PAGE_MAPPED | PAGE_VALID);
   assert.equal(table[13], 0);
+});
+
+test("the host adopting a page the GPU drew keeps the GPU's draw; its own draw or a withdrawal wins", () => {
+  const pages = 2,
+    data = new Uint8Array(SHADOW_TABLE_OFFSET + SHADOW_TABLE_ENTRIES * 4),
+    state = new Uint8Array((POOL_COUNTS.length + POOL_FIELDS.length * pages) * 4);
+  const table = new Uint32Array(data.buffer, SHADOW_TABLE_OFFSET),
+    fields = new Int32Array(state.buffer, POOL_COUNTS.length * 4),
+    drawnBy = fields.subarray(POOL_FIELDS.indexOf('drawnBy') * pages);
+  const send = (entry: number, word: number) => {
+    const words = Uint32Array.of(1, pages, 0, 0, entry, word);
+    runShadowWords(data, state, new Uint8Array(words.buffer));
+  };
+  // The GPU mapped entry 20 in page 0 and drew it itself (`freshWgsl.ts`).
+  fields.set([20, -1]);
+  drawnBy[0] = DRAWN_GPU;
+  table[20] = 0 | PAGE_MAPPED | PAGE_VALID;
+  // The host learns the page and adopts it, stale: its word says not drawn, the GPU's draw stands.
+  send(20, 0 | PAGE_MAPPED);
+  assert.equal(table[20], 0 | PAGE_MAPPED | PAGE_VALID);
+  // Its own draw lands: the word is the host's from now on, and its withdrawal is kept.
+  send(20, 0 | PAGE_MAPPED | PAGE_VALID);
+  assert.equal(drawnBy[0], DRAWN_HOST);
+  send(20, 0 | PAGE_MAPPED);
+  assert.equal(table[20], 0 | PAGE_MAPPED);
+  // A host draw for an entry the GPU has since moved off the page: the owner is drawn again.
+  send(21, 0 | PAGE_MAPPED | PAGE_VALID);
+  assert.equal(drawnBy[0], DRAWN_NONE);
 });

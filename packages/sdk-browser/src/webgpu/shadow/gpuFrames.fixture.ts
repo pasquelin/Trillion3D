@@ -1,8 +1,9 @@
 // The shadow scheduler with its pages mapped on the GPU (#1275), frame by frame, over a mock
 // device: the engine's plan, the records it writes, the pages the shading reads marked in the
 // request buffer as the demand marks them, the allocation and the table words run from their WGSL
-// (`allocRun.fixture.ts`), the plan's draws, and the readback copied and read back as the engine
-// copies it (`pageRequests.ts`). Where each report goes is the test's: delivered, or withheld.
+// (`allocRun.fixture.ts`), the plan's draws, then the pages the GPU draws itself composed from
+// theirs (`freshRun.fixture.ts`), and the readback copied and read back as the engine copies it
+// (`pageRequests.ts`). Where each report goes is the test's: delivered, or withheld.
 import type { SceneLight, ShadowViewpoint } from '../../../../sdk-core/src/index.ts';
 import { createSceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts';
 import { createShadowPlan } from '../../../../sdk-core/src/scene/light-shadow/plan.ts';
@@ -13,6 +14,12 @@ import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
 import { createShadowRecordPack } from '../../gpu/shadow/recordPack.ts';
 import { claimShadowRequest, runShadowAllocation, runShadowWords } from './allocRun.fixture.ts';
+import { runShadowFresh } from './freshRun.fixture.ts';
+import { POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
+import { freshSlices } from './freshPass.ts';
+import { MAX_SHADOW_REGIONS } from '../../gpu/shadow/atlas.ts';
+import { SHADOW_FACE_STRIDE, SHADOW_REGION_INDIRECT_BYTES } from '../../gpu/shadow/batchBudget.ts';
+import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { createShadowPageRequests } from './pageRequests.ts';
 import { writeShadowRecords } from './pages.ts';
 import { shadingReads, type Lit } from './shadingReads.fixture.ts';
@@ -33,10 +40,11 @@ const kept = (report: ShadowRequestReport): ShadowRequestReport => ({
 });
 
 /**
- * `lights` over a pool of `poolSide`² pages whose pages the GPU maps. Each page's depth is noted
- * with the entry it was drawn for (`drawnFor`), as the plan draws it.
+ * `lights` over a pool of `poolSide`² pages whose pages the GPU maps, and draws too unless
+ * `gpuDraws` is false. Each page's depth is noted with the entry it was drawn for (`drawnFor`), as
+ * the plan and the GPU draw it.
  */
-export function gpuFrames(poolSide: number, lights: SceneLight[]) {
+export function gpuFrames(poolSide: number, lights: SceneLight[], gpuDraws = true) {
   installGpuGlobals();
   const { device } = mockGpu({ compute: true }) as unknown as { device: GPUDevice };
   const store = createSceneLightStore(),
@@ -50,17 +58,39 @@ export function gpuFrames(poolSide: number, lights: SceneLight[]) {
       usage: GPUBufferUsage.STORAGE,
     });
   const bytes = (buffer: GPUBuffer) => (buffer as unknown as { data: Uint8Array }).data;
-  const table = new Uint32Array(bytes(data).buffer, SHADOW_TABLE_OFFSET),
-    owner = new Int32Array(bytes(allocation.state).buffer, 16, plan.pool.pages),
-    drawnFor = new Int32Array(plan.pool.pages).fill(-1);
+  // The batch buffers the GPU composes its pages into: faces then pass order, volumes, commands.
+  const batch = [
+    MAX_SHADOW_REGIONS * (SHADOW_FACE_STRIDE + 4),
+    MAX_SHADOW_REGIONS * SHADOW_CULL_FLOATS * 4,
+    MAX_SHADOW_REGIONS * SHADOW_REGION_INDIRECT_BYTES,
+  ].map((size) => new Uint8Array(size));
+  const pages = plan.pool.pages,
+    table = new Uint32Array(bytes(data).buffer, SHADOW_TABLE_OFFSET),
+    field = (name: (typeof POOL_FIELDS)[number]) =>
+      new Int32Array(
+        bytes(allocation.state).buffer,
+        (POOL_COUNTS.length + POOL_FIELDS.indexOf(name) * pages) * 4,
+        pages,
+      ),
+    owner = field('owner'),
+    drawnFor = new Int32Array(pages).fill(-1),
+    drawnAt = new Int32Array(pages).fill(-1),
+    regions = new Int32Array(MAX_SHADOW_REGIONS).fill(-1);
   const shadows = { writeSun: pack.writeSun, writeLamp: pack.writeLamp, clearRecord: pack.clear };
   return {
     plan,
     store,
-    /** The GPU's page table, and the entry each GPU page maps. */
+    /** The GPU's page table, the entry each GPU page maps, and its other fields. */
     table,
     owner,
+    field,
     drawnFor,
+    /** The frame each page was last drawn in. */
+    drawnAt,
+    /** The faces, volumes and commands the GPU composed its pages into, and the page of each of
+     *  their regions the last frame, −1 for none. */
+    batch,
+    regions,
     /**
      * Frame `frame` seen from `view`, lit at `lits`: the plan reads the reports handed to it, the
      * GPU maps what the shading reads, the plan draws, and the frame's report goes to `sent`.
@@ -85,12 +115,29 @@ export function gpuFrames(poolSide: number, lights: SceneLight[]) {
       }
       allocation.writeParams(frame, plan.records.generation, plan.gpu.asks);
       const [state, keys, params] = [allocation.state, allocation.keys, allocation.params];
-      runShadowAllocation(bytes(data), list, bytes(state), bytes(keys), bytes(params));
-      for (const page of plan.admission.list.subarray(0, plan.admission.count))
+      const drawList = bytes(allocation.drawList);
+      runShadowAllocation(bytes(data), list, bytes(state), bytes(keys), bytes(params), drawList);
+      for (const page of plan.admission.list.subarray(0, plan.admission.count)) {
         drawnFor[page] = plan.pool.owner[page];
+        drawnAt[page] = frame;
+      }
       plan.commit();
       if (allocation.writeWords(plan, (sink) => plan.table.flush(sink)))
         runShadowWords(bytes(data), bytes(state), bytes(allocation.words));
+      if (gpuDraws) {
+        allocation.writeFresh(poolSide, 1, MAX_SHADOW_REGIONS, 0, freshSlices(store));
+        const fresh = [allocation.drawList, allocation.freshParams, allocation.freshArgs].map(
+          bytes,
+        );
+        regions.set(
+          runShadowFresh(bytes(data), bytes(state), fresh[0], ...batch, ...fresh.slice(1)),
+        );
+        for (const page of regions) {
+          if (page < 0) continue;
+          drawnFor[page] = owner[page];
+          drawnAt[page] = frame;
+        }
+      }
       const encoder = device.createCommandEncoder(),
         stamp = plan.stamp(store);
       const deliver = (report: ShadowRequestReport) => sent(kept(report));
