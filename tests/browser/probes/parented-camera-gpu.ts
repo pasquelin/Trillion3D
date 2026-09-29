@@ -9,7 +9,7 @@
 //   node tests/browser/probes/parented-camera-gpu.ts
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { dansPageWebgpu, empaquetePage } from './pageWebgpu.ts';
+import { dansPageWebgpu, bundlePage } from './pageWebgpu.ts';
 import type { executer } from './parentedCameraGpuPage.ts';
 
 declare global {
@@ -18,7 +18,7 @@ declare global {
 
 const ici = dirname(fileURLToPath(import.meta.url));
 
-const script = await empaquetePage(resolve(ici, 'parentedCameraGpuPage.ts'), 'cameraParentee');
+const script = await bundlePage(resolve(ici, 'parentedCameraGpuPage.ts'), 'cameraParentee');
 const erreursPage: string[] = [];
 const resultat = await dansPageWebgpu(
   (pixelErrors: number[]) => globalThis.cameraParentee.executer(pixelErrors),
