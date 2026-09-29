@@ -85,7 +85,6 @@ export type {
   PageDecodeGeometryPayload,
   PageDecodeOp,
   PageDecodeRequest,
-  PageDecodeShare,
 } from '../../sdk-core/src/page/decodeContracts.ts';
 export {
   PAGE_INTEGRATION_FAILURES,
@@ -133,3 +132,9 @@ export type { TextureFrameMetrics } from '../../sdk-core/src/texture/metricsCont
 export { textureLevelFormat, textureLevelUrl } from '../../sdk-core/src/texture/levelUrl.ts';
 export type { TextureLevelFormat } from '../../sdk-core/src/texture/levelUrl.ts';
 export type { TexturePreview } from '../../sdk-core/src/texture/previewContracts.ts';
+export type {
+  WorldRoots,
+  WorldRootsBundle,
+  WorldRootsObject,
+  WorldRootsPage,
+} from '../../sdk-core/src/manifest/worldRoots.ts';

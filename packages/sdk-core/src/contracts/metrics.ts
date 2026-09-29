@@ -68,6 +68,9 @@ export type GpuFrameMs = number | null;
    *  cache when it owns one, the host page streamer otherwise. This is the cache pressure signal. */
   cacheEvictions?: number | null;
   /** Bytes of geometry memory. */ geometryAllocationBytes: number | null;
+  /** Vertex bytes of dynamic geometry uploaded in place this frame (#573), within the world's
+   *  per-frame budget (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Absent where no world draws. */
+  dynamicUploadBytes?: number;
   /** Bytes of GPU memory. */ vramBytes: number | null;
   /** Pages loaded so far. */ pageLoads: number;
   /** Page bytes read so far. */ pageBytesRead: number;
@@ -123,7 +126,8 @@ export type GpuFrameMs = number | null;
   gpuPassMs?: GpuPassTimings | null;
   /** GPU duration of the image `gpuPassMs.frame` describes, never added to a `cpu*` field. Sampled
    *  every few images, so a number may be a few images old. Null before the first sample, from a
-   *  held image until the next device sample, without `timestamp-query`, and on WebGL2. */
+   *  held image until the next device sample, without `timestamp-query`, and on WebGL2 without
+   *  `EXT_disjoint_timer_query_webgl2`. */
   gpuFrameMs?: GpuFrameMs;
   /** CPU time the same image spent between two of its own submissions, and zero when it submits once.
    *  It is host time, not GPU time, which is why `gpuFrameMs` excludes it. Null when unmeasured. */

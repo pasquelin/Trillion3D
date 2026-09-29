@@ -38,6 +38,9 @@ export type ExplorerSource = {
   /** Puts the session's camera where the page draws from, before anything is read for it: a
    *  partitioned scene reads and sizes its cells for that camera, not the framing one. */
   placeCamera?: (camera: HostCamera) => void;
+  /** Moves a node of the page's own scene by name, when the session draws a world built in code
+   *  (`../core/worldRuntime.ts`): its engines hold that scene as rows, not as named nodes. */
+  moveNamed?: (nodeName: string, matrix: Float32Array) => void;
 };
 
 type Inputs = {
@@ -97,6 +100,15 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     ));
   const source = loadedScene.source;
   resources.source = source;
+  // The runtime's pinned bytes: each model's world top alone, beside what its placed cells hold.
+  for (const { pinned, bytes } of loadedScene.worldRoots)
+    diagnose('world-top', 'World top pinned', {
+      kind: 'preparation',
+      scope,
+      pinnedBundles: pinned.bundles,
+      pinnedBytes: pinned.bytes,
+      heldBytes: bytes() - pinned.bytes,
+    });
   if (!loadsOwnVertices(choice.factories)) await loadHostVertices(meshes(source));
   const pageSources = await createExplorerPageSources(
     metadata,
@@ -166,6 +178,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     backends,
     base,
     frameBudget,
+    worldRoots: loadedScene.worldRoots,
   });
   return {
     source,

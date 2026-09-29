@@ -171,9 +171,16 @@ export {
 export { createShadowPlan } from './scene/light-shadow/plan.ts';
 export type { ShadowPlan } from './scene/light-shadow/plan.ts';
 export type { ShadowRequestReport } from './scene/light-shadow/requests.ts';
+export type { ShadowReceivers } from './scene/light-shadow/receiverCells.ts';
 export { SHADOW_PAGE } from './scene/light-shadow/virtual.ts';
 export { regionRect } from './scene/light-shadow/volume.ts';
 export type { NumberSink } from './math/matrix/matrix4.ts';
 export type { Counts } from './manifest/binaryLayout.ts';
 export type { SlimCulling, SlimStreams, SlimStructure } from './manifest/binaryTypes.ts';
+export type {
+  WorldRoots,
+  WorldRootsBundle,
+  WorldRootsObject,
+  WorldRootsPage,
+} from './manifest/worldRoots.ts';
 export * from './llm/index.ts';

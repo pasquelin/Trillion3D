@@ -36,17 +36,17 @@ export interface OracleSettings {
 }
 
 /** One measured view: the engine/oracle gap and the reconvergence delay, or a page failure. */
-export type VueOracle =
-  | { vue?: string; erreur: string }
+export type OracleView =
+  | { view?: string; error: string }
   | {
-      vue: string;
-      erreur?: undefined;
+      view: string;
+      error?: undefined;
       pose: CameraPose;
-      lampes: number;
-      rebond: Record<string, unknown> | null;
+      lights: number;
+      bounce: Record<string, unknown> | null;
       oracle: OracleReport;
-      ecart: ReturnType<typeof compareIrradiance> | { erreur: string };
-      retard: ReturnType<typeof convergenceDelay>;
+      gap: ReturnType<typeof compareIrradiance> | { error: string };
+      delay: ReturnType<typeof convergenceDelay>;
     };
 
 /** Light movement used to measure delay: a clear step, not a slight flicker. */
@@ -71,7 +71,7 @@ export interface RunViewCtx {
 }
 
 /** One view: engine converged image, oracle image, gap, and measured delay. */
-export async function runView(page: Page, ctx: RunViewCtx): Promise<VueOracle> {
+export async function runView(page: Page, ctx: RunViewCtx): Promise<OracleView> {
   const { side, manifestUrl, settings, pose, view, lights, moving, step, out, captures, root } =
     ctx;
   const captureFile = `${view}-irradiance.png`;
@@ -93,7 +93,7 @@ export async function runView(page: Page, ctx: RunViewCtx): Promise<VueOracle> {
     originalPosition: moving.position,
     movedPosition: MOVED(moving.position, step),
   });
-  if ('erreur' in result) return { vue: view, erreur: result.erreur };
+  if ('error' in result) return { view, error: result.error };
   const capture = captures.get(captureFile);
   if (capture)
     await writeFile(join(out, captureFile), encodePng(capture.w, capture.h, capture.body, true));
@@ -101,14 +101,14 @@ export async function runView(page: Page, ctx: RunViewCtx): Promise<VueOracle> {
   const job = oracleJob(settings, pose, lights.lights, reference);
   const oracle = runOracle(root, job, out, view);
   return {
-    vue: view,
+    view,
     pose,
-    lampes: lights.lights.length,
-    rebond: result.rebond,
+    lights: lights.lights.length,
+    bounce: result.bounce,
     oracle,
-    ecart: capture
+    gap: capture
       ? compareIrradiance(capture, reference, settings.exposure, settings.floor)
-      : { erreur: 'capture absente' },
-    retard: convergenceDelay(result.gaps, settings),
+      : { error: 'capture missing' },
+    delay: convergenceDelay(result.gaps, settings),
   };
 }

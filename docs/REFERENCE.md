@@ -102,11 +102,13 @@ Their profile, PS5 demo, average 2496 × 1404 reconstructed to 4K, **25 M raster
 (1) The slide prints "108ms"; the pass sum and the stated 2.5 ms total indicate microseconds. We record 108 µs.
 
 (4) Their image renders at 2496 × 1404 with jitter and reconstructs to 4K via temporal accumulation;
-ours accumulates at native resolution without upsampling, and its pass is read by frame envelope difference.
+ours does the same below the display, its scale chosen by the frame budget between 0.5 and 1 per
+axis (`renderScale`, docs/ENGINE.md "Render scale") and a still image drawn at native resolution;
+its pass is read by frame envelope difference.
 No isolated cost is published for this pass alone: the line states that both systems implement it.
 
 (5) Their rasterizer is dual: compute for micropolygons, hardware for large triangles. Ours is hardware-only
-in production. Hybrid compute/hardware rasterization was tested under the `raster-hybride` diagnostic variant
+in production. Hybrid compute/hardware rasterization was tested under the `raster-hybrid` diagnostic variant
 (matching hardware at 0 px) and proved slower on Apple metal-3, where the hardware pass does not benefit
 from compute offloading small triangles. It remains disabled pending measurement on desktop GPUs.
 

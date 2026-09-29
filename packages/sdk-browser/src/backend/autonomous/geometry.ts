@@ -1,20 +1,18 @@
 import type { Scene } from '../../world/core/scene.ts';
-import {
-  hostPageBytes,
-  hostPageMesh,
-  releaseHostGeometry,
-  setHostPose,
-} from '../../host/pageObjects.ts';
+import { hostPageBytes, hostPageMesh, releaseHostGeometry } from '../../host/pageObjects.ts';
+import { forgetHostPose, setHostPose } from '../../host/pagePose.ts';
 import { EngineError, type GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
 import type { HostMaterial, HostMaterials } from '../../host/resources.ts';
 import { createWebglPageBatches } from '../../placement/webglPageBatches.ts';
-import { drawnInstanced } from '../../placement/autonomousPlacements.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
+import { drawnInstanced, rowPlaced } from '../../placement/autonomousPlacements.ts';
+import { rootOf, type ClusterRoot, type PageRec } from '../../page/selection/selection.ts';
 import { createHeldResidency } from '../../page/cut/held.ts';
 import { createPageStore } from './pageStore.ts';
 
 type GeometryEnvironment = {
   scene: Scene;
+  /** The roots a record's `placementIndex` ranks: its pose and its row are its root's. */
+  roots: readonly ClusterRoot<PageRec>[];
   allPages: PageRec[];
   bootstrap: PageRec[];
   /** The drawn view's cut, which the scene holds, and every view's lists (`views.ts`). */
@@ -29,7 +27,7 @@ type GeometryEnvironment = {
 const released = new WeakSet<object>();
 
 export function createAutonomousGeometry(env: GeometryEnvironment) {
-  const { scene, allPages, byUrl, baseMaterials, colorMaterials } = env;
+  const { scene, roots, allPages, byUrl, baseMaterials, colorMaterials } = env;
   const state = { allocationBytes: 0, submittedTriangles: 0, residentPages: 0 };
   const held = createHeldResidency();
   /** The one writer of a record's residency, its index array: the cut's readiness follows it. */
@@ -45,6 +43,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
   const detach = (rec: PageRec) => {
     if (rec.attached && rec.mesh) {
       scene.remove(rec.mesh);
+      forgetHostPose(rec.mesh);
       rec.attached = false;
       attachees.delete(rec);
     }
@@ -54,7 +53,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
     // The declaration, not the engine's surface record: the record has no `visible` flag, and
     // the program submits nothing for a surface that is not visible.
     rec.mesh ??= hostPageMesh(rec.geometry, rec.declaration, rec.renderOrder);
-    setHostPose(rec.mesh, rec.matrix);
+    setHostPose(rec.mesh, rootOf(roots, rec).world);
     if (!rec.attached) {
       scene.add(rec.mesh);
       rec.attached = true;
@@ -62,14 +61,14 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
     }
   };
   // Opaque records placed by rows are drawn instanced, one host mesh per page and surface.
-  const batches = createWebglPageBatches(scene),
+  const batches = createWebglPageBatches(scene, roots),
     rowed: PageRec[] = [];
   const sync = () => {
     const display = env.views.live.shown;
     affichees.clear();
     rowed.length = 0;
     for (const rec of display)
-      if (drawnInstanced(rec)) rowed.push(rec);
+      if (drawnInstanced(roots, rec)) rowed.push(rec);
       else affichees.add(rec);
     // Removing the current element of a `Set` while iterating it is defined: it will not be revisited.
     for (const rec of attachees) if (!affichees.has(rec)) detach(rec);
@@ -81,7 +80,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
           'The prepared autonomous scene does not cover every page the cut requires',
           { page: rec.url },
         );
-      if (!drawnInstanced(rec)) attach(rec);
+      if (!drawnInstanced(roots, rec)) attach(rec);
       state.submittedTriangles += rec.triangles;
     }
     batches.draw(rowed);
@@ -104,11 +103,13 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
     for (const rec of records) {
       const list = byUrl.get(rec.url) ?? [],
         index = list.indexOf(rec);
-      if (index >= 0) list.splice(index, 1);
+      // Already gone — an unmount took the row an instance copied —: its rank names no root now.
+      if (index < 0) continue;
+      list.splice(index, 1);
       // Resident until its last HOLDING record leaves: a mount's may still wait for its bytes.
       if (rec.array && !list.some((other) => other.array)) state.residentPages--;
       if (!list.length) byUrl.delete(rec.url);
-      release(rec, !!rec.placement && list.some((other) => other.geometry === rec.geometry));
+      release(rec, rowPlaced(roots, rec) && list.some((other) => other.geometry === rec.geometry));
       baseMaterials.delete(rec);
     }
     for (const list of [allPages, env.bootstrap, ...env.views.lists()])

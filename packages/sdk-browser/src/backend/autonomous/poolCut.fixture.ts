@@ -8,12 +8,15 @@ import {
 } from '../../../../../bench/perf/browser/support/dagCut.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 import { createGeometryBudget } from './pool.ts';
+import { fenceAllocations, settleAllocations } from '../../webgl/core/allocation.ts';
+import { createRefusalAnswer } from './refusals.ts';
 import { PAGE } from './pool.fixture.ts';
 import { createImageCut } from './imageCut.ts';
 import { createWebglViews } from './views.ts';
 import { createEngineCamera } from '../../camera/world.ts';
 import { createHeldResidency } from '../../page/cut/held.ts';
 import { createPageParents } from '../../residency/pageParents.ts';
+import { rootChildren } from '../../residency/minimumCapacity.ts';
 import type { HostCamera } from '../../camera/world.ts';
 import type { ClusterRoot, ClusterStructureIndex, PageRec } from '../../page/selection/types.ts';
 
@@ -34,6 +37,7 @@ export function mount(
     bytes = () => PAGE,
     camera: view,
     rootCharged = false,
+    gl,
   }: {
     pages?: DagPage[];
     primitives?: DagPage[][];
@@ -41,6 +45,8 @@ export function mount(
     bytes?: (url: string) => number;
     camera?: HostCamera;
     rootCharged?: boolean;
+    /** The context whose refused allocations the image answers, as `render.ts`'s frame does. */
+    gl?: WebGL2RenderingContext;
   } = {},
 ) {
   const all = primitives.flat();
@@ -56,6 +62,8 @@ export function mount(
     ...racine(pages),
     structure: structures[i],
   })) as unknown as ClusterRoot<PageRec>[];
+  // The pool's floor holds the pages the roots' groups replace (`minimumCapacity.ts`).
+  const floorPages = rootChildren(roots);
   /** A page leaves: its geometry and bytes go, and the cut's readiness hears of it. */
   const drop = (url: string) => {
     const page = byUrl.get(url)!;
@@ -82,6 +90,7 @@ export function mount(
     copies: {
       of: () => 1,
       root: () => rootPages.length,
+      floor: () => rootPages.length + floorPages.length,
       scene: () => byUrl.size,
     },
     coverRevision: () => 0,
@@ -90,9 +99,16 @@ export function mount(
     parentsOf: createPageParents(roots),
     drop,
     others: views.others,
+    captureDrawn: views.captureDrawn,
     onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
   });
   let camera = view ?? dagCamera();
+  const answerRefusals = createRefusalAnswer({
+    gl: () => gl,
+    pool,
+    onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
+    redraw: () => {},
+  });
   const cut = createImageCut({ roots, view: live, revision: () => 0, pool, held });
   /** One image at the host's `pixelError`, as `render.ts` draws it, then the pages it asked for —
    *  at most `arrivals` of them, as a streamer spreads them; returns the most the pages held
@@ -100,9 +116,12 @@ export function mount(
    *  read. */
   const frame = { after: 0, stand: 0 };
   let last: ReturnType<typeof cut> | undefined;
-  // The order of `render.ts`'s frame, copied by hand: readmit, trim, cut, then what it keeps.
+  // The order of the host's frame (`../../world/render/draw.ts`) around `render.ts`'s, copied by
+  // hand: the allocations read, out of memory, readmit, trim, cut, what it keeps, the fence.
   const image = (pixelError: number, arrivals = Infinity) => {
     const { requested, shown } = live;
+    settleAllocations(gl);
+    answerRefusals();
     if (cut.readmit()) pool.follow(requested, shown);
     pool.trim();
     const drawn = (last = cut(cameraMoteur(camera), pixelError));
@@ -121,6 +140,7 @@ export function mount(
         pool.arrived(page.url);
         most = Math.max(most, state.allocationBytes);
       }
+    fenceAllocations(gl);
     return most;
   };
   /** Moves the camera `distance` units from the DAG's centre, or to the camera given. */

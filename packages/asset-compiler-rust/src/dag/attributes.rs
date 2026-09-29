@@ -2,9 +2,7 @@
 //! simplification error, texture seams are protected, and a coarse corner keeps the normal of
 //! its own face.
 use super::clusters::{normalized_bits, position_key, weld_by};
-use super::clusters::{weld_positions, weld_positions_and_uv};
 use super::quality::{face_normal, unit_normal};
-use super::GroupReductionInput;
 use crate::geometry_page::{Attribute as Carried, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
 use crate::qem::Attribute;
 use crate::shared_math::dot;
@@ -38,73 +36,25 @@ impl<'a> DagAttributes<'a> {
     pub fn uv_sets(&self) -> Vec<&'a [f32]> {
         self.values(FLAG_UV).chain(self.values(FLAG_UV1)).collect()
     }
-    /// The attributes the simplifier weighs, normals first.
-    fn weighted(&self) -> Vec<Attribute<'a>> {
-        let normals = self.normals().map(|values| Attribute {
-            values,
-            width: 3,
-            weight: NORMAL_WEIGHT,
-        });
-        let uvs = self.uv_sets().into_iter().map(|values| Attribute {
-            values,
-            width: 2,
-            weight: UV_WEIGHT,
-        });
-        normals.into_iter().chain(uvs).collect()
+    /// The carried attributes the simplifier weighs, in its order: normals first, then every
+    /// texture set.
+    pub(super) fn weighed(&self) -> Vec<&'a Carried> {
+        let with = |flag| self.carried.iter().copied().filter(move |a| a.flag == flag);
+        let normals = with(FLAG_NORMAL).take(1);
+        normals.chain(with(FLAG_UV)).chain(with(FLAG_UV1)).collect()
     }
-}
-
-/// What every reduction of a primitive reads beside its level's locks, computed once.
-pub(super) struct Welds<'a> {
-    pub weld: Vec<u32>,
-    /// `None` without a texture set: the seam weld is then the position weld.
-    weld_seam: Option<Vec<u32>>,
-    exact: Vec<u32>,
-    /// Empty without a texture set: no vertex is then on a seam.
-    seams: Vec<bool>,
-    /// Per vertex, the extent of its part (`vanished::part_extents`).
-    extents: Vec<f64>,
-    weighted: Vec<Attribute<'a>>,
-    normals: Option<&'a [f32]>,
-}
-impl<'a> Welds<'a> {
-    pub fn of(positions: &[f32], attributes: DagAttributes<'a>, indices: &[u32]) -> Self {
-        let weld = weld_positions(positions, indices);
-        let uv_sets = attributes.uv_sets();
-        let weld_seam =
-            (!uv_sets.is_empty()).then(|| weld_positions_and_uv(positions, &uv_sets, indices));
-        let seams = weld_seam.as_deref().map_or_else(Vec::new, |weld_seam| {
-            seam_vertices(&weld, weld_seam, indices)
-        });
-        Self {
-            exact: weld_exact(positions, attributes.carried, indices),
-            extents: super::vanished::part_extents(positions, indices, &weld),
-            weld,
-            weld_seam,
-            seams,
-            weighted: attributes.weighted(),
-            normals: attributes.normals(),
-        }
-    }
-    /// The input of one reduction; `normal_bound` is its group's (`quality::deviation_bound`).
-    pub fn input<'b>(
-        &'b self,
-        positions: &'b [f32],
-        locks: &'b [bool],
-        normal_bound: f64,
-    ) -> GroupReductionInput<'b> {
-        GroupReductionInput {
-            positions,
-            attributes: &self.weighted,
-            normals: self.normals,
-            normal_bound,
-            locks,
-            seams: &self.seams,
-            weld: &self.weld,
-            exact: &self.exact,
-            weld_seam: self.weld_seam.as_deref().unwrap_or(&self.weld),
-            extents: &self.extents,
-        }
+    /// The attributes the simplifier weighs, in `weighed`'s order.
+    pub(super) fn weighted(&self) -> Vec<Attribute<'a>> {
+        let attribute = |a: &'a Carried| Attribute {
+            values: &a.values,
+            width: a.width,
+            weight: if a.flag == FLAG_NORMAL {
+                NORMAL_WEIGHT
+            } else {
+                UV_WEIGHT
+            },
+        };
+        self.weighed().into_iter().map(attribute).collect()
     }
 }
 
@@ -112,15 +62,25 @@ impl<'a> Welds<'a> {
 /// one vertex, so an unindexed mesh reduces as the indexed one it draws the same as. Nothing is
 /// lost: coarse levels point at a copy identical in everything the page stores.
 pub fn weld_exact(positions: &[f32], carried: &[&Carried], indices: &[u32]) -> Vec<u32> {
+    let values = || carried.iter().map(|a| (&a.values[..], a.width));
     weld_by(positions.len() / 3, indices, |id| {
-        let mut key = position_key(positions, id).to_vec();
-        for attribute in carried {
-            let i = id as usize * attribute.width;
-            let copy = attribute.values.get(i..i + attribute.width).unwrap_or(&[]);
-            key.extend(copy.iter().map(|&v| normalized_bits(v)));
-        }
-        key
+        key(positions, id as usize, values())
     })
+}
+
+/// The bits of vertex `v`'s position and of its `width` floats of each of `attributes`: equal
+/// keys, one vertex to a page.
+pub(super) fn key<'v>(
+    positions: &[f32],
+    v: usize,
+    attributes: impl Iterator<Item = (&'v [f32], usize)>,
+) -> Vec<u32> {
+    let mut key = position_key(positions, v as u32).to_vec();
+    for (values, width) in attributes {
+        let copy = values.get(v * width..v * width + width).unwrap_or(&[]);
+        key.extend(copy.iter().map(|&x| normalized_bits(x)));
+    }
+    key
 }
 
 /// Per source vertex, whether its position is written under several texture coordinates: a seam
@@ -184,12 +144,11 @@ pub fn own_normals(
         let facing = |v: u32| unit_normal(normals, v).map_or(-2.0, |n| dot(n, face));
         for corner in tri.iter_mut() {
             let key = weld_seam[*corner as usize];
-            let own = copies
-                .get(&key)
-                .into_iter()
-                .flatten()
-                .copied()
-                .filter(|&v| agrees(v));
+            // A vertex the solve placed has no copy in `source`: its normal is its own.
+            let Some(copies) = copies.get(&key) else {
+                continue;
+            };
+            let own = copies.iter().copied().filter(|&v| agrees(v));
             match own.max_by(|&a, &b| facing(a).total_cmp(&facing(b))) {
                 Some(best) => *corner = best,
                 None => foreign.push(key),

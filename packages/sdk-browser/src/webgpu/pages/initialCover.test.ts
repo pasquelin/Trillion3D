@@ -5,7 +5,7 @@ import { exactPagesBackend } from '../../../../../bench/witnesses/measurement.ts
 import { webgpuPagesBackend } from './pages.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
-import { dagRoots } from './testDag.fixture.ts';
+import { dagRoots } from '../../backend/pagesBackend.fixture.ts';
 import { camera } from './testScenes.fixture.ts';
 import { coarseQuadScene } from './testOccluder.fixture.ts';
 
@@ -53,9 +53,9 @@ test('the initial cover also protects regions first discovered after a camera ju
       bytes: 12,
       sha256: 'x',
     },
-  ]);
+  ]).pages;
   const metadata = {
-    errorModel: 'dag-group-qem-v2',
+    errorModel: 'dag-group-qem-v3',
     clusterStrategy: 'dag-groups',
     schema: 1,
     status: 'ready',

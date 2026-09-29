@@ -8,6 +8,7 @@ mod geometry_page;
 mod geometry_page_cells;
 mod geometry_page_quant;
 pub mod import;
+mod impostor;
 mod join;
 mod manifest_binary;
 #[cfg(any(test, feature = "oracle"))]
@@ -42,9 +43,10 @@ pub use compiler_format::{CLUSTERED_BLEND_FORMAT_VERSION, FORMAT_VERSION, SOURCE
 pub const COMPILER_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Per-cluster DAG identity: absolute group QEM error weighing positions, normals and every
 /// texture set, clamped to the group's extent, raised to what each part it removes whole costs
-/// (`dag/vanished.rs`), and projected through the group bounding sphere.
-/// v1 measured positions only; its caches are refused, never reinterpreted.
-pub const DAG_ERROR_MODEL: &str = "dag-group-qem-v2";
+/// (`dag/vanished.rs`), never below the sampled Hausdorff distance between the group's children
+/// and its outputs, and projected through the group bounding sphere. v1 measured positions only,
+/// v2 published the quadric error alone (#929); their caches are refused, never reinterpreted.
+pub const DAG_ERROR_MODEL: &str = "dag-group-qem-v3";
 pub const DAG_CLUSTER_STRATEGY: &str = "dag-groups";
 /// Numbers per culling node: min[3], max[3], sphere[4], maxParentError, firstChild, childCount,
 /// firstPage, pageCount. `maxParentError` is -1 when the subtree holds a cluster with no replacement.
@@ -110,10 +112,7 @@ pub struct Options {
 }
 fn check(o: &Options) -> Result<()> {
     if o.cancelled.load(Ordering::Relaxed) {
-        return Err(CompilerError::new(
-            crate::CANCELLED,
-            "Compilation cancelled",
-        ));
+        return Err(CompilerError::new(CANCELLED, "Compilation cancelled"));
     }
     Ok(())
 }
@@ -162,6 +161,7 @@ mod compiler_textures;
 mod compiler_types;
 mod compiler_validate;
 mod compiler_world;
+mod compiler_world_roots;
 #[cfg(test)]
 mod shared_math_tests;
 #[cfg(test)]
@@ -195,5 +195,6 @@ use compiler_tables::stage_scene_tables;
 use compiler_textures::*;
 use compiler_types::*;
 use compiler_validate::*;
+use compiler_world_roots::stage_world_roots;
 use physics_cook::stage_physics;
 use plugins::scene::{PreparedScene, RoutedSource};

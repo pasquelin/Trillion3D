@@ -3,7 +3,10 @@ import { Scene } from '../../../packages/sdk-browser/src/world/core/scene.ts';
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 import { createAutonomousGeometry } from '../../../packages/sdk-browser/src/backend/autonomous/geometry.ts';
-import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
+import type {
+  ClusterRoot,
+  PageRec as EngineRec,
+} from '../../../packages/sdk-browser/src/page/selection/selection.ts';
 import type { WebglViewState } from '../../../packages/sdk-browser/src/backend/autonomous/views.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import { referenceAutonomousSync } from '../../oracles/browser/autonomous-backend.ts';
@@ -13,8 +16,12 @@ const HOSTILES = [...HOSTILE_FLOATS, 1.7976931348623157e308];
 const geometrie = new G.Geometry();
 const materiau = G.basicSurface();
 
+/** A record with the world the oracle reads on it: its own root's, which the engine reads. */
+type PageRec = EngineRec & { matrix: G.Matrix4 };
+
 interface Monde {
   scene: Scene;
+  roots: ClusterRoot<EngineRec>[];
   allPages: PageRec[];
   shown: PageRec[];
   desired: PageRec[];
@@ -37,6 +44,7 @@ function monde(total: number, depart: number): Monde {
       declaration: materiau,
       renderOrder: i,
       matrix: new G.Matrix4().makeTranslation(alea(), alea(), alea()),
+      placementIndex: i,
       array: new Uint32Array(3),
       triangles: i < HOSTILES.length ? HOSTILES[i] : Math.floor(alea() * 400),
       // The exercised sync() path never reads these; filled with real, harmless values so the
@@ -47,7 +55,8 @@ function monde(total: number, depart: number): Monde {
       depthLayer: 0,
       attributes: geometrie.attributes,
     });
-  return { scene, allPages, shown: [], desired: [], requested: [] };
+  const roots = allPages.map((rec) => ({ world: rec.matrix, pages: [rec] }));
+  return { scene, roots, allPages, shown: [], desired: [], requested: [] };
 }
 
 /** The one view a world draws, as the geometry store reads it (`views.ts`). */
@@ -140,7 +149,7 @@ await stress({
   extremes: [
     {
       name: 'empty',
-      input: { scene: new Scene(), allPages: [], shown: [], desired: [], requested: [] },
+      input: { scene: new Scene(), roots: [], allPages: [], shown: [], desired: [], requested: [] },
     },
   ],
 });

@@ -3,7 +3,7 @@ import type { HostBoundedNode } from '../../host/scene/graphNodes.ts';
 import type { HostMesh } from '../../host/resources.ts';
 import { hostWorldTree } from '../../host/world/tree.ts';
 import { primitiveFinder } from '../../scene/primitiveLookup.ts';
-import { emptyWorldBox } from '../../host/world/bounds.ts';
+import { emptyWorldBox, hostBoundsLot } from '../../host/world/bounds.ts';
 import { type ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import { createBoxTransformLot, type BoxTransformLot } from '../../math/batchRuntime.ts';
 import { boxUnionCollector } from '../../math/batchBoxes.ts';
@@ -41,7 +41,8 @@ function placedBox(mesh: HostMesh, associations: BackendContext['associations'])
   return associations.get(mesh)?.placements ? (mesh as HostBoundedNode).boundingBox : undefined;
 }
 
-/** Exact pages of `source`: the EXACT size the box lot must carry. */
+/** Exact pages of `source`: the EXACT size the box lot must carry. A mesh placed by rows counts
+ *  its box whether or not the view read its primitive yet (#751). */
 function exactPagesCount(
   source: Object3D,
   associations: BackendContext['associations'],
@@ -51,14 +52,14 @@ function exactPagesCount(
   let n = 0;
   for (const mesh of objects(source)) {
     const primitive = primitiveOf(associations.get(mesh));
-    if (primitive && placedBox(mesh, associations)) n++;
+    if (placedBox(mesh, associations)) n++;
     else if (primitive) for (const item of primitive.pages) if (exacte(item)) n++;
   }
   return n;
 }
 
 /** The lot that carries these pages, or `null` when there are none: a reservation, not a frame. */
-export async function pagesLot(
+async function pagesLot(
   source: Object3D,
   associations: BackendContext['associations'],
   metadata: ClusterManifest,
@@ -67,8 +68,21 @@ export async function pagesLot(
   return n ? await createBoxTransformLot(n) : null;
 }
 
-/** World bounds of the exact pages of every mesh of `source`, flat `[minX..maxZ]`; `onMissing`
- *  decides what a mesh without a prepared primitive does, and the mesh is skipped once it returns. */
+/** Scene-bounds buffer, at the exact size of the compute that follows: exact pages of an
+ *  autonomous scene, host boxes otherwise. */
+export function sceneBoundsLot(
+  source: Object3D,
+  associations: BackendContext['associations'],
+  metadata: ClusterManifest,
+  autonomous: boolean,
+) {
+  return autonomous ? pagesLot(source, associations, metadata) : hostBoundsLot(source);
+}
+
+/** World bounds of the exact pages of every mesh of `source`, flat `[minX..maxZ]`: a mesh placed
+ *  by rows by the box they place it in, whether or not the view read its primitive yet (#751).
+ *  `onMissing` decides what another mesh without a prepared primitive does; it is skipped once
+ *  that returns. */
 export function pagesBounds(
   source: Object3D,
   associations: BackendContext['associations'],
@@ -82,20 +96,20 @@ export function pagesBounds(
   const mondes = hostWorldTree(source);
   for (const mesh of objects(source)) {
     const primitive = primitiveOf(associations.get(mesh));
-    if (!primitive) {
+    const placed = placedBox(mesh, associations);
+    if (!primitive && !placed) {
       onMissing(mesh);
       continue;
     }
     // The world matrix is the one the engine computed for this mesh, read once.
     const world = mondes.world(mesh);
-    const placed = placedBox(mesh, associations);
     if (placed) {
       const { min, max } = placed;
       union.boxes.set([min.x, min.y, min.z, max.x, max.y, max.z], union.at);
       union.pose(world);
       continue;
     }
-    for (const item of primitive.pages)
+    for (const item of primitive!.pages)
       if (exacte(item)) {
         ecritPage(union.boxes, union.at, item);
         union.pose(world);

@@ -97,7 +97,8 @@ export function createWebgpuGuidePass(device: GPUDevice) {
     /**
      * Draws the visible guides over `color`, tested against `depth`, seen through the camera's
      * own view-projection — never the jittered one — at the host's `pixelRatio`; `jitter` is the
-     * pixel offset `depth` was drawn with. Returns false, and encodes nothing, when none is shown.
+     * pixel offset `depth` was drawn with, `scene` the size it was drawn at, the display's by
+     * default. Returns false, and encodes nothing, when none is shown.
      */
     encode(
       encoder: GPUCommandEncoder,
@@ -108,13 +109,15 @@ export function createWebgpuGuidePass(device: GPUDevice) {
       [width, height]: readonly number[],
       pixelRatio: number,
       jitter: ArrayLike<number>,
+      scene?: ArrayLike<number>,
     ) {
       const packed = guides.pack();
       if (!packed.count) return false;
       if (!pipeline) build();
       upload(packed);
       bind(depth);
-      writeGuideView(view, camera.viewProjection, packed.anchor, width, height, pixelRatio, jitter);
+      const { anchor } = packed;
+      writeGuideView(view, camera.viewProjection, anchor, width, height, pixelRatio, jitter, scene);
       device.queue.writeBuffer(uniform!, 0, view);
       const pass = encoder.beginRenderPass({
         label: GUIDE_PASS,
