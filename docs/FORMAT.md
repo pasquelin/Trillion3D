@@ -229,9 +229,19 @@ empty ones last — 1 391 bytes for grids of 48² and 192² and the open-world c
 is 168 hexadecimal digits: the page's SHA-256, its size (8) and its box at the declared poses as six
 big-endian `f64` bit patterns (16 each), naming `scene-page-<sha256>.json`; zeros name no page.
 `readTablePartition` reads every page through its caller's `read`, which verifies it against its
-slot (`fetchVerified`), into the records in cell order, `bounds` the union of the root's boxes and
-`meshes` the ranks placed, and refuses a region page without its list of mesh pages. Pages and cells are outside
+slot (`fetchVerified`), into the records in cell order, `bounds` the union of the root's boxes,
+`meshes` the ranks placed and `regions`, the pages as the tree they form, each over its range of
+cells, and refuses a region page without its list of mesh pages. Pages and cells are outside
 the manifest's `files`: a reused folder proves them through the root.
+
+**The cell index at runtime** (#575). A frame finds its cells through `regions`
+(`scene/partition/cellIndex.ts`): each page carries, per core node its cells hang under, the box
+around their boxes in that node's frame, and a frame opens only the pages whose box, where the node
+stands now, meets its reach, then tests the cells of the region pages it opened; a cell's box is
+written again only when read after its node moved (`boxes.ts`). The frame's cell work follows what
+its reach holds, not the world's cell count. A cell file is parsed off the main thread, by the
+decode pool's `cells` task (`scene/partition/cellDecode.ts`), into each node's ranks and local
+matrix; the frame places the rows within the one integration budget.
 
 **The manifest held by the view** (#751). A WebGL2 world reads of the manifest its root, its head
 page and the mesh pages `meshPages` names (`openPagedManifest`, `loadModel`'s `lazy`); each cell it
