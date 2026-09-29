@@ -1858,6 +1858,9 @@
       "dynamicUploadBytes": "Byte di vertici di geometria dinamica caricati sul posto in questo fotogramma (#573), entro il budget per fotogramma del mondo (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Assente dove nessun mondo disegna."
     }
   },
+  "FramePass": {
+    "summary": "Nomina le pass del fotogramma in disegno; ogni chiamata chiude la precedente e apre la successiva."
+  },
   "frameStatistics": {
     "summary": "Frequenza e regolarità dei fotogrammi a partire dai tempi tra di essi."
   },

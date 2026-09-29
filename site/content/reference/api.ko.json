@@ -1157,6 +1157,9 @@
       "dynamicUploadBytes": "이 프레임에 제자리에서 업로드된 동적 지오메트리의 정점 바이트(#573), 월드의 프레임당 예산(`DYNAMIC_UPLOAD_BUDGET_BYTES`) 이내. 월드가 그리지 않으면 없음."
     }
   },
+  "FramePass": {
+    "summary": "그리는 중인 프레임의 패스에 이름을 붙입니다. 호출할 때마다 이전 패스를 닫고 다음 패스를 엽니다."
+  },
   "Frustum": {
     "summary": "여섯 개의 평면, 코어(`math/frustum/frustum.ts`)가 뷰-투영 행렬로부터 읽어낸 것.",
     "members": {

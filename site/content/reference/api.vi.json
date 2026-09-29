@@ -1165,6 +1165,9 @@
       "dynamicUploadBytes": "Số byte đỉnh của hình học động được tải lên tại chỗ trong khung hình này (#573), trong ngân sách mỗi khung hình của thế giới (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Không có khi không thế giới nào vẽ."
     }
   },
+  "FramePass": {
+    "summary": "Đặt tên cho các lượt của khung hình đang được vẽ; mỗi lần gọi đóng lượt trước và mở lượt kế tiếp."
+  },
   "Frustum": {
     "summary": "Sáu mặt phẳng, được đọc từ một view-projection bởi lõi (`math/frustum/frustum.ts`).",
     "members": {
