@@ -14,7 +14,7 @@ import {
   dagFixture,
   wideCamera,
 } from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts';
-import { ouvrirAppareil } from '../probes/webgpuDevice.ts';
+import { openGpuDevice } from '../probes/webgpuDevice.ts';
 
 const IMAGES = 30;
 
@@ -32,7 +32,7 @@ interface BackendDeLaPreuve extends RenderBackend {
 }
 
 export async function executer() {
-  const appareil = await ouvrirAppareil();
+  const appareil = await openGpuDevice();
   if (!appareil) return { indisponible: 'no WebGPU adapter' };
   const { device, erreurs } = appareil;
   const evenements: Pick<BackendDiagnostic, 'phase' | 'message' | 'context'>[] = [];

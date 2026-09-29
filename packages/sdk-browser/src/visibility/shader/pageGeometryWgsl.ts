@@ -39,6 +39,7 @@ ${clusterDecodeWgsl('indices')}
 fn pageHeader(page:PageInfo)->ClusterHeader{
  var h:ClusterHeader;
  if(${QUANTIZED}){h=clusterHeader(page.pageOffset);}
+ else if((page.deformOutput&0x80000000u)!=0u){let at=page.packedBase-1u;h.flags=u32(positions[at]);h.morphCount=u32(positions[at+1u]);h.influences=(u32(positions[at+3u])-h.morphCount*6u)/2u;}
  return h;
 }
 /** Local vertex index of a corner of the page, three per triangle. */
@@ -52,10 +53,27 @@ fn pageTriangle(page:PageInfo,h:ClusterHeader,tri:u32)->vec3u{
  let at=page.pageOffset+tri*3u;
  return vec3u(indices[at],indices[at+1u],indices[at+2u]);
 }
-/** Position of a page vertex in the primitive's local space. */
-fn pagePosition(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{
+/** Position of a page vertex in the primitive's local space, as the page stores it. */
+fn pageRestPosition(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{
  if(${QUANTIZED}){return clusterPosition(h,page.pageOffset,vertex);}
  return vertPos(page.vertexBase,vertex);
+}
+/** Position of a page vertex in the primitive's local space, as this frame deforms it
+ *  (\`DEFORM_WGSL\`): what every pass draws. */
+fn pagePosition(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{
+ if(page.deformOutput!=0u){return pageDeformed(page,vertex,0u);}
+ return pageRestPosition(page,h,vertex);
+}
+/** Where the last frame drew that vertex: what the temporal pass reprojects a pixel by. */
+fn pagePreviousPosition(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{
+ if(page.deformOutput!=0u){return pageDeformed(page,vertex,3u);}
+ return pageRestPosition(page,h,vertex);
+}
+/** A computed result stored in the resident geometry slot's tail. */
+fn pageDeformed(page:PageInfo,vertex:u32,field:u32)->vec3f{
+ let at=(page.deformOutput&0x7fffffffu)-1u+vertex*11u+field;
+ if((page.deformOutput&0x80000000u)!=0u){return vec3f(positions[at],positions[at+1u],positions[at+2u]);}
+ return vec3f(bitcast<f32>(indices[at]),bitcast<f32>(indices[at+1u]),bitcast<f32>(indices[at+2u]));
 }
 /** First texture coordinate of a page vertex. */
 fn pageUv(page:PageInfo,h:ClusterHeader,vertex:u32)->vec2f{
@@ -80,6 +98,7 @@ fn pageMaskAlpha(page:PageInfo,h:ClusterHeader,vertex:u32)->f32{
  * which supplies the second half.
  */
 export const PAGE_NORMAL_WGSL = `fn pageNormal(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{
+ if(page.deformOutput!=0u){return pageDeformed(page,vertex,6u);}
  if(${QUANTIZED}){return clusterNormal(h,page.pageOffset,vertex);}
  return vertN(page.vertexBase,vertex);
 }`;

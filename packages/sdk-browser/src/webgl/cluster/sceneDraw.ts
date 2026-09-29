@@ -12,6 +12,7 @@ import type { WholeMesh } from '../../cluster/batchMesh.ts';
 import type { WebglClusterScene } from './lights.ts';
 import type { SceneCopy } from './copyCulling.ts';
 import { WebglClusterOwner, type TextureHosts } from './owner.ts';
+import type { DeformationSource } from './deformation.ts';
 import { createDrawOrder } from './drawOrder.ts';
 import { loadHostVertices, meshes } from '../../scene/meshes.ts';
 import { DEFAULT_PIXEL_RATIO } from '../../backend/common.ts';
@@ -56,7 +57,7 @@ type DrawnNode = Partial<SceneCopy> & {
  *  diagnostics, where that notice is said when the session gives none, the texture bytes its
  *  census may upload ahead and a frame's upload budget (`textureQueue.ts`). */
 type DrawHosts = Pick<BackendContext, 'pixelRatio' | 'materialDegraded' | 'onDiagnostic'> &
-  TextureHosts;
+  TextureHosts & { deformation?: () => DeformationSource | undefined };
 /** A scene draw hands the program no page batch: shared, so a frame allocates no empty list. */
 const NO_BATCHES: readonly never[] = [];
 
@@ -129,6 +130,7 @@ export function createSceneDraw(
       const shown = output.displayWidth ?? output.width;
       owner.pixelRatio = pixelRatio() * (output.width / shown);
       owner.mipBias = upscaleMipBias(output.width, shown);
+      owner.deformation = hosts.deformation?.();
       display.onBeforeRender?.();
       try {
         walk();

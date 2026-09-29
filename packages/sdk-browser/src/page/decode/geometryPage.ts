@@ -1,12 +1,14 @@
 import {
-  CLUSTER_HEADER_WORDS,
   FLAG_COLOR,
+  FLAG_MORPH,
   FLAG_NORMAL,
+  FLAG_SKIN,
   FLAG_UV,
   FLAG_UV1,
   BLOCK_CORNERS,
 } from '../../cluster/format.ts';
 import { blockRecord, field, readGeometryPageHeader, type Quant } from './geometryPageHeader.ts';
+import { decodeMorphs, decodeSkin } from './geometryPageDeform.ts';
 import { pageAttributeNames, pageViews } from './geometryPageBlock.ts';
 import { octDecode } from '../../../../page-codec/pageGrids.ts';
 
@@ -26,6 +28,10 @@ export type DecodedGeometryPage = {
   attributes: Record<string, Float32Array<ArrayBuffer>>;
   /** Vertices. */
   vertexCount: number;
+  /** Morph targets: `attributes.morph` holds six floats of each per vertex; absent, none. */
+  morphTargets?: number;
+  /** Number of source skin influences per vertex. */
+  skinInfluences?: number;
   /** Which attributes it carries. */
   flags: number;
   /** Its size once unpacked. */
@@ -69,12 +75,25 @@ export function decodeGeometryPage(
     corners,
     positionCount,
     linkBits,
+    skin,
+    morphs,
+    headerWords,
     bodyWords: at,
     decodedBytes,
-    streams: { blocks, corners: cornerStream, positions, links, normal, uvs, uv2s, colors },
+    streams: {
+      blocks,
+      corners: cornerStream,
+      positions,
+      links,
+      normal,
+      uvs,
+      uv2s,
+      colors,
+      skinned,
+    },
   } = readGeometryPageHeader(data, maxDecodedBytes);
   // The streams are read in place when the page sits on a word boundary, from a copy otherwise.
-  const body = data.subarray(CLUSTER_HEADER_WORDS * 4);
+  const body = data.subarray(headerWords * 4);
   const words =
     body.byteOffset % 4
       ? new Uint32Array(body.slice().buffer)
@@ -83,6 +102,8 @@ export function decodeGeometryPage(
     new ArrayBuffer(decodedBytes),
     pageAttributeNames(flags),
     vertexCount,
+    morphs.length,
+    skin.influences,
   );
   // Corners block by block (`CornerCode::read`), every record inside the stream (the header gate).
   for (let b = 0, i = 0; i < indexCount; b++) {
@@ -110,10 +131,15 @@ export function decodeGeometryPage(
   if (flags & FLAG_UV) vector(attributes.uv, words, uvs, uv);
   if (flags & FLAG_UV1) vector(attributes.uv2, words, uv2s, uv2);
   if (flags & FLAG_COLOR) vector(attributes.color, words, colors, color);
+  if (flags & FLAG_SKIN)
+    decodeSkin(words, skinned, skin, attributes.skinIndex, attributes.skinWeight);
+  if (flags & FLAG_MORPH) decodeMorphs(words, morphs, attributes.morph);
   return {
     indices: decodedIndices,
     attributes,
     vertexCount,
+    morphTargets: morphs.length,
+    skinInfluences: skin.influences,
     flags,
     decodedBytes,
     quantizationError,

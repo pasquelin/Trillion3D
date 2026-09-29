@@ -1,3 +1,5 @@
+import { deformedOf } from '../../deformation/source.ts';
+import { placementDeformation } from '../../deformation/placementSource.ts';
 import { BOX_VALUES } from '../../../../sdk-core/src/index.ts';
 import type { BlendCopy } from '../../cluster/blendCopyContract.ts';
 import type { BlendHostScene } from '../../cluster/blendSceneRecord.ts';
@@ -29,6 +31,7 @@ export function prepareWebgpuBlend(
   blendState: BlendState,
   scene: BlendHostScene,
 ) {
+  const capacities: Parameters<typeof placementDeformation>[2] = new Map();
   let transmissive = 0;
   for (const copy of blendCopies) {
     // A transmissive surface goes through the same prepare as the other blends: it differs only
@@ -39,24 +42,27 @@ export function prepareWebgpuBlend(
       idx = copy.geometry.getIndex();
     if (!attr || !idx) continue;
     const paged = !!copy.userData.pagedBlend;
+    const source = placementDeformation(copy.placement, copy.userData.sourceMesh ?? {}, capacities);
+    const pooled = !paged && !!deformedOf(source.mesh, copy, copy.matrix, source.capacity);
     // A paged primitive whose clusters carry quantized geometry pages reads every attribute from
     // them, in place in the page cache (`../../visibility/shader/pageGeometryWgsl.ts`): it owns no
     // buffer at all. One without reads the concatenated source geometry, and keeps its positions
     // only for the fallback pass (`fallback.ts`).
     const fromPages = !!copy.userData.pageGeometry;
-    const position = fromPages
-      ? undefined
-      : ensureWebgpuPositionBuffer(device, copy.geometry.attributes, gpu.positionBuffers, gpu)!;
+    const position =
+      fromPages || pooled
+        ? undefined
+        : ensureWebgpuPositionBuffer(device, copy.geometry.attributes, gpu.positionBuffers, gpu)!;
     // A paged primitive reads its indices from the page cache, cluster by cluster: it owns none.
     // The other three buffers belong to the geometry, not the placement: nine instances of one
     // object write them once. The bytes are the same, the item order too.
     const index = paged ? undefined : ensureBlendIndexBuffer(device, idx, gpu);
-    const uv = paged ? undefined : ensureBlendUvBuffer(device, copy.geometry.attributes, gpu);
+    const uv =
+      paged || pooled ? undefined : ensureBlendUvBuffer(device, copy.geometry.attributes, gpu);
     const tangentAttr = copy.geometry.attributes.tangent;
-    const normal = paged
-      ? undefined
-      : ensureBlendNormalBuffer(device, copy.geometry.attributes, gpu);
-    const hasNormal = paged ? !!copy.geometry.attributes.normal : !!normal;
+    const normal =
+      paged || pooled ? undefined : ensureBlendNormalBuffer(device, copy.geometry.attributes, gpu);
+    const hasNormal = paged || pooled ? !!copy.geometry.attributes.normal : !!normal;
     let flags = 0;
     if (mat.lit) flags |= FLAG_LIT;
     if (mat.doubleSided) flags |= FLAG_DOUBLE;
@@ -75,12 +81,13 @@ export function prepareWebgpuBlend(
     // conservative under rotation, mirror, non-uniform scale and shear — `boxTransform` guarantees
     // that, not a decomposition. A surface never culled (`neverCulled`) takes none either.
     let worldBox: Float64Array | undefined;
-    if (copy.frustumCulled && !neverCulled(mat)) {
+    if (!pooled && copy.frustumCulled && !neverCulled(mat)) {
       if (!copy.geometry.boundingBox) copy.geometry.computeBoundingBox();
       if (copy.geometry.boundingBox) worldBox = new Float64Array(BOX_VALUES);
     }
     const item = {
       transmissive: transmits,
+      deformation: copy.deformation,
       position,
       index,
       uv,

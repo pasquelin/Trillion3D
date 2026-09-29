@@ -3,7 +3,6 @@ import { grownCapacity, growPlacementRows, type PlacementRows } from '../../plac
 import type { PlacementGrowth } from '../../placement/backendSceneUpdates.ts';
 import type { Cut } from './worldCuts.ts';
 import type { MaterialEntry } from './worldMaterials.ts';
-
 /**
  * A drawn resource: one geometry resource worn with one material entry. Its placements are the
  * rows of one instance buffer (`placement/rows.ts`) the session reads in place; `owners` says
@@ -19,10 +18,8 @@ export type Batch = {
   /** Meshes that wear this resource now: those holding a row, and those waiting for one. */
   readonly wearers: Set<Mesh>;
 };
-
 /** Where a mesh is drawn: its batch and, once it holds one, its row. */
 export type Seat = { batch: Batch; row: number };
-
 /**
  * The batches of a world and the rows their meshes hold. A mesh is SEATED when its batch is in
  * the open session and a row was free; one that is not waits, and the row it held in the batch it
@@ -46,8 +43,8 @@ export function createWorldBatches(touched: (batch: Batch, row: number) => void)
   const short = new Set<Batch>(),
     emptied = new Set<Batch>(),
     mounting = new Set<Batch>();
-  const batchOf = (cut: Cut, entry: MaterialEntry) => {
-    const key = `${cut.key}/${entry.id}`;
+  const batchOf = (cut: Cut, entry: MaterialEntry, mesh: Mesh) => {
+    const key = `${cut.key}/${entry.id}/${mesh.skeleton?.bones.length ?? 0}/${mesh.waves?.waveModel.count ?? 0}`;
     let batch = batches.get(key);
     if (!batch)
       batches.set(
@@ -95,12 +92,16 @@ export function createWorldBatches(touched: (batch: Batch, row: number) => void)
     const held = before?.capacity ?? 0,
       needed = held - batch.free.length + waitingIn(batch);
     if (needed <= held) return null;
+    if (before && grow && (batch.cut.drawn.deformation || [...batch.wearers].some((m) => m.waves)))
+      return false;
     if (before && grow && !grow.growsInPlace([before], grownCapacity(held, needed))) return false;
     const rows = growPlacementRows(before, needed);
     const { capacity } = rows;
     for (let row = capacity - 1; row >= held; row--) batch.free.push(row);
     batch.owners.length = capacity;
     batch.owners.fill(null, held);
+    rows.sources = batch.owners;
+    rows.sourceModels = batch.wearers;
     batch.rows = rows;
     if (before && grow) grow.growPlacements(before, rows);
     return before;
@@ -125,12 +126,11 @@ export function createWorldBatches(touched: (batch: Batch, row: number) => void)
     batches,
     unseat,
     /**
-     * Seats `mesh` on the batch of `cut` × `entry`. True when it takes a row — the caller writes
-     * its matrix —, false when it waits or already holds its row there, which its pose writes keep:
-     * a dynamic geometry read again every frame is no move (#573).
+     * Seats `mesh` on `cut` × `entry`. True for a new row whose matrix needs writing; false when
+     * waiting or already seated. Rereading dynamic geometry does not move its pose (#573).
      */
     seat(mesh: Mesh, cut: Cut, entry: MaterialEntry) {
-      const batch = batchOf(cut, entry);
+      const batch = batchOf(cut, entry, mesh);
       const held = seats.get(mesh);
       if (held?.batch === batch) return false;
       if (leaving.get(mesh)?.batch === batch) parkLeaving(mesh);

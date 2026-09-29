@@ -19,8 +19,9 @@ type CachedGeometry = {
 };
 /** A geometry of the engine's own graph announces its release; a host one never does. */
 type Releasing = { released?: Set<() => void> };
-/** The attributes the program reads, by name. */
-export const ATTRIBUTES = ['position', 'normal', 'uv', 'uv1', 'color'] as const;
+/** The attributes the program reads, by name: a skinned page's joints and weights last (#357). */
+const SKIN = ['skinIndex', 'skinWeight'] as const;
+export const ATTRIBUTES = ['position', 'normal', 'uv', 'uv1', 'color', ...SKIN] as const;
 /** An attribute the program can bind: one owning its buffer; an interleaved view reads as absent. */
 export const drawnAttribute = (geometry: Geometry, name: string) => {
   const attribute = geometry.attributes[name];
