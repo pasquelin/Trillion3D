@@ -2,7 +2,7 @@
 import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { FRAMES_PER_SEGMENT, VIEWS } from './poses.ts';
-import { ASSETS } from './scene.ts';
+import { ASSETS, applySceneFlag, sceneOf } from './scene.ts';
 import { lightingSettings } from './lightingOptions.ts';
 import type { SideBase } from './dists.ts';
 import type { BenchSettings, LivePools } from './benchSettings.ts';
@@ -10,10 +10,12 @@ import { residentFraction } from './poolFill.ts';
 export type { BenchSettings } from './benchSettings.ts';
 
 export { PATH_VERSION, VIEWS, poseAt, trajectoryPoses } from './poses.ts';
-export { applySceneFlag, assetsManifest, sceneGltf, sceneOf, scenesOf } from './scene.ts';
+export { assetsManifest, sceneGltf, scenesOf } from './scene.ts';
 export { resolveSides, sdkEntryUrl } from './dists.ts';
 export { ENGINES, engineOf, equipSide, resolveCache, sideReport } from './sideOptions.ts';
-import { ENGINES } from './sideOptions.ts';
+export { Flags, parseArgs } from './flags.ts';
+import { type Flags, parseArgs } from './flags.ts';
+import { ENGINES, equipSide } from './sideOptions.ts';
 
 /** An installed package directory, searched like Node searches: root upwards.
  *  A worktree without its own `node_modules` thus finds those of the main worktree. */
@@ -45,21 +47,6 @@ export function resolveMounts(root: string, sides: SideBase[], resources: string
   ].map((mount) => ({ ...mount, dir: resolve(mount.dir) }));
 }
 
-/** Command line `--name value` / `--name=value` arguments. Shared by harnesses:
- *  a single place knows what a flag means, and a missing value defaults to `'true'`. */
-export function parseArgs(argv: string[]) {
-  const flags = new Map<string, string>();
-  for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i];
-    if (!arg.startsWith('--')) throw new Error(`unexpected argument: ${arg}`);
-    const eq = arg.indexOf('=');
-    if (eq > 0) flags.set(arg.slice(2, eq), arg.slice(eq + 1));
-    else if (argv[i + 1] && !argv[i + 1].startsWith('--')) flags.set(arg.slice(2), argv[++i]);
-    else flags.set(arg.slice(2), 'true');
-  }
-  return flags;
-}
-
 /** In-session memory budgets, or `null` when none requested. The live texture pool takes MiB, or
  *  `<n>%` of the texture bytes the settled pose holds resident: a pool the scene fills. */
 function live(flags: Map<string, string>, mio: (name: string) => number | null): LivePools | null {
@@ -82,6 +69,20 @@ function mathPathOf(flags: Map<string, string>) {
   if (value !== 'auto' && value !== 'js' && value !== 'wasm')
     throw new Error('--chemin-math must be auto, js or wasm');
   return value;
+}
+
+/** The bench's sides by name, equipped from their flags (`--scene` first names their caches):
+ *  the candidate always, the reference only if `--before` names it. Their `dist` is resolved
+ *  afterwards (`resolveSides`), so an unread flag is refused before any build. The measured scene
+ *  is that of the named caches, otherwise the benchmark reference scene. */
+export function equipSides(flags: Flags, settings: BenchSettings, assets: string = ASSETS) {
+  const after = flags.get('after');
+  const before = flags.get('before');
+  applySceneFlag(flags, assets);
+  const names = before ? ['after', 'before'] : ['after'];
+  const sides = names.map((name) => equipSide({ name } as SideBase, flags, settings));
+  const scene = sceneOf(sides.find((side) => side.cache)?.cache, flags.get('scene'));
+  return { sides, scene, after, before };
 }
 
 /** Validated harness options: engine, views, error thresholds, settings, output directory. */
