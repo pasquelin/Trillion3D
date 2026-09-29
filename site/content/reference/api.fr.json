@@ -5973,10 +5973,20 @@
     }
   },
   "TablePage": {
-    "summary": "Une page qu’un emplacement nomme : son fichier, relatif aux tables, sa taille et son empreinte."
+    "summary": "Une page qu’un emplacement nomme : son fichier, relatif aux tables, sa taille et son empreinte.",
+    "members": {
+      "url": "Son fichier, relatif aux tables.",
+      "bytes": "Sa taille en octets.",
+      "sha256": "Son empreinte SHA-256, en hexadécimal."
+    }
   },
   "TableSlot": {
-    "summary": "Une page d’un index qu’un emplacement nomme, sa boîte aux poses déclarées et les rangs du cœur listés à côté : pour l’index des cellules, les parents sous lesquels ses cellules accrochent des nœuds (#575)."
+    "summary": "Une page d’un index qu’un emplacement nomme, sa boîte aux poses déclarées et les rangs du cœur listés à côté : pour l’index des cellules, les parents sous lesquels ses cellules accrochent des nœuds (#575).",
+    "members": {
+      "page": "La page que l’emplacement nomme.",
+      "bounds": "Sa boîte aux poses déclarées : le coin minimal, puis le maximal.",
+      "parents": "Les rangs du cœur listés à côté."
+    }
   },
   "TableTexture": {
     "summary": "État d’échantillonnage d’une texture glTF, dans les mots du moteur.",
