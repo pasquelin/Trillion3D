@@ -10,7 +10,6 @@
  */
 import { EngineError } from '../../contracts/cache.ts';
 import {
-  digits,
   eights,
   float64,
   hexes,
