@@ -54,10 +54,10 @@ export function updateWebgpuVertices(
   if (!gpu.device || run.lost) return false;
   const pool = vis.vertexPool;
   if (pool && !pool.place(attributes, true)) return false;
-  const positions = gpu.positionBuffers.get(attributes);
+  const positions = gpu.positionBuffers.get(attributes),
+    xyz = attributes.position?.array;
   for (const { name, from, count } of ranges) {
     pool?.write(attributes, name, from, count);
-    const xyz = attributes.position?.array;
     if (name === 'position' && positions && xyz instanceof Float32Array)
       gpu.device.queue.writeBuffer(
         positions,
