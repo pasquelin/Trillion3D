@@ -4,7 +4,7 @@ import type * as SdkBrowser from '../witnesses/measurement.ts';
 import type { ColumnProbes, StreetProbeOptions } from './street.ts';
 
 /** The world `readBounds` left for the probe, and how to close it. */
-type HeldWorld = { world: SdkBrowser.World; close: () => void };
+type HeldWorld = { world: SdkBrowser.World; close: () => void; base: string };
 
 /**
  * Asks the physics the compiler cooked with the model (`physics.json`) about each column: the
@@ -22,15 +22,13 @@ export async function probeColumns(options: StreetProbeOptions): Promise<ColumnP
   const held = (globalThis as { __trillion3dStreetWorld?: HeldWorld }).__trillion3dStreetWorld;
   if (!held) return { probes: [], noStreet: 'no world loaded by readBounds' };
   delete (globalThis as { __trillion3dStreetWorld?: HeldWorld }).__trillion3dStreetWorld;
-  const { world, close } = held;
+  const { world, close, base } = held;
   const frame = () => new Promise((done) => requestAnimationFrame(done));
   try {
-    // The manifest points at the model's folder (`url`), where the cook writes `physics.json`.
-    const manifest = new URL(options.manifestUrl, location.href);
-    const pointer = (await (await fetch(manifest)).json()) as { url?: string };
-    const cooked = new URL('physics.json', new URL(pointer.url ?? '', manifest));
+    // Where the engine itself reads the cooked physics (`cookedPhysics`): the model's folder.
+    const cooked = new URL('physics.json', base);
     if (!(await fetch(cooked, { method: 'HEAD' })).ok)
-      return { probes: [], noStreet: `no physics.json beside ${options.manifestUrl}` };
+      return { probes: [], noStreet: `no physics.json in ${base}` };
     const sdk = (await import(options.sdkUrl)) as typeof SdkBrowser;
     const [cx, cz] = options.centre;
     world.camera.position.set(cx, options.top, cz);

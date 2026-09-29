@@ -31,7 +31,9 @@ export function createShadowThresholds(pool: ShadowPool) {
       // The first threshold finds no page drawn at another.
       thresholds.pending = !Number.isNaN(current);
       current = threshold;
-      origin.set([eye[0], eye[1], eye[2]]);
+      origin[0] = eye[0];
+      origin[1] = eye[1];
+      origin[2] = eye[2];
     },
     /** True while the threshold or the origin moved and the pages drawn at another wait for the
      *  camera to rest. */
