@@ -83,7 +83,7 @@ async function cas(
   device: GPUDevice,
   pagine: boolean,
   kase: WaterCase,
-  evenements: BackendDiagnostic[],
+  events: BackendDiagnostic[],
 ): Promise<CaseResult> {
   const labels = new Set<string>();
   const create = device.createCommandEncoder.bind(device);
@@ -101,7 +101,7 @@ async function cas(
     webgpuPagesBackend,
     s,
     device,
-    (e: BackendDiagnostic) => evenements.push(e),
+    (e: BackendDiagnostic) => events.push(e),
     { clearColor: BACKGROUND },
   );
   try {
@@ -129,7 +129,7 @@ async function cas(
       (!labels.has(WATER_SURFACE_PASS) || !labels.has(WATER_COMPOSITE_PASS))
     )
       throw new Error('Water proof did not encode the real water passes');
-    if (evenements.some((e) => e.phase === 'water-pass-refused'))
+    if (events.some((e) => e.phase === 'water-pass-refused'))
       throw new Error('Water pass was refused');
     return {
       name: kase.name,
