@@ -161,7 +161,8 @@ export function compactTile(
     tiles[slot] = first;
   }
   kept = [0, 0];
-  // One batch: its masks are still whole, the kept lights are written again from them.
+  // One batch: its masks are still whole, the kept lights are written again from them. The lists
+  // are those a second walk writes; what differs is the GPU's work, no light tested twice.
   if (lightCount <= batch) writeBatch(0);
   else {
     hits.fill(0);
