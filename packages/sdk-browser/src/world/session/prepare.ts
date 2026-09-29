@@ -97,6 +97,15 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     ));
   const source = loadedScene.source;
   resources.source = source;
+  // The runtime's pinned bytes: each model's world top alone, beside what its placed cells hold.
+  for (const { pinned, bytes } of loadedScene.worldRoots)
+    diagnose('world-top', 'World top pinned', {
+      kind: 'preparation',
+      scope,
+      pinnedBundles: pinned.bundles,
+      pinnedBytes: pinned.bytes,
+      heldBytes: bytes() - pinned.bytes,
+    });
   if (!loadsOwnVertices(choice.factories)) await loadHostVertices(meshes(source));
   const pageSources = await createExplorerPageSources(
     metadata,

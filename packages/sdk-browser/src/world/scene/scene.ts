@@ -135,10 +135,6 @@ export async function loadPreparedScene(
     bytes,
     readMs: buildAt - readAt,
     buildMs: performance.now() - buildAt,
-    // The runtime's pinned bytes: the world top alone (#1237), `null` without world roots.
-    pinnedTop: worldRoots
-      ? { bundles: worldRoots.pinned.bundles, bytes: worldRoots.pinned.bytes }
-      : null,
   });
   registerSource(source);
   // No non-finite pose enters the engine: each mesh world matrix is computed once by the
