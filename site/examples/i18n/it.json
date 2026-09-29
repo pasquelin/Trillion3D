@@ -2375,5 +2375,47 @@
       "unmount": "Smonta",
       "remount": "Rimonta"
     }
+  },
+  "a-character-that-walks": {
+    "controls": {
+      "playing": "Riproduci"
+    },
+    "banner": "Trascina per orbitare intorno alla scena. Metti in pausa o riprendi l’animazione con Riproduci."
+  },
+  "a-crowd-of-characters": {
+    "controls": {
+      "playing": "Riproduci"
+    },
+    "banner": "Trascina per orbitare intorno alla scena. Metti in pausa o riprendi l’animazione con Riproduci."
+  },
+  "a-shape-that-morphs": {
+    "controls": {
+      "playing": "Riproduci"
+    },
+    "banner": "Trascina per orbitare intorno alla scena. Metti in pausa o riprendi l’animazione con Riproduci."
+  },
+  "additive-poses": {
+    "controls": {
+      "playing": "Riproduci"
+    },
+    "banner": "Trascina per orbitare intorno alla scena. Metti in pausa o riprendi l’animazione con Riproduci."
+  },
+  "move-a-hierarchy-by-name": {
+    "banner": "Guarda cinque gruppi con nome percorrere una sequenza riproducibile. Cambia la sorgente per scrivere le stesse pose a mano.",
+    "controls": {
+      "driver": "Sorgente",
+      "speed": "Velocità",
+      "paused": "In pausa",
+      "replay": "Ripeti"
+    },
+    "choices": {
+      "driver": {
+        "name": "per nome",
+        "host": "scritto dall’host"
+      }
+    },
+    "readouts": {
+      "pose": "Posa"
+    }
   }
 }

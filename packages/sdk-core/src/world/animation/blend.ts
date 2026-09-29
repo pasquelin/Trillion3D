@@ -1,12 +1,19 @@
-import { normalizeQuaternion } from '../../math/matrix/quaternion.ts';
+import { multiplyQuaternion, normalizeQuaternion } from '../../math/matrix/quaternion.ts';
+
+/** One partial turn of an additive rotation, rewritten per use. */
+const turn = new Float64Array(4);
 
 type Held = Record<string, number> & {
   set?: (...v: number[]) => void;
   setRGB?: (r: number, g: number, b: number) => void;
 };
 
-/** One property the mixer's actions write: its rest value and this frame's weighted sum.
- *  The written value depends only on the actions' clip times and weights, never on the frame rate. */
+/**
+ * One property the mixer's actions write: its rest value, this frame's weighted sum of the actions
+ * that replace it, and the sum of those that add to it (`additive`). The written value depends
+ * only on the actions' clip times and weights, never on the frame rate. A property may be a
+ * number, a vector, a rotation, a colour, or a list of numbers — a mesh's morph weights.
+ */
 export class Blend {
   /** The object the property belongs to. */ private readonly owner: Record<string, unknown>;
   /** The property's field on `owner`. */ private readonly field: string;
@@ -16,22 +23,30 @@ export class Blend {
   private readonly rest: Float64Array;
   /** This frame's sum of weighted samples. */ private readonly sum: Float64Array;
   /** This frame's sum of weights. */ private weight = 0;
+  /** This frame's additive part: a sum of weighted differences, or a product of partial turns. */
+  private readonly added: Float64Array;
+  /** Whether an additive action touched it this frame. */ private adds = false;
   constructor(owner: Record<string, unknown>, field: string, rotation: boolean, size: number) {
     this.owner = owner;
     this.field = field;
     this.rotation = rotation;
     this.rest = new Float64Array(size);
     this.sum = new Float64Array(size);
-    const held = owner[field] as Held | number;
+    this.added = new Float64Array(size);
+    const held = owner[field] as Held | number | number[];
     if (typeof held === 'number') this.rest[0] = held;
+    else if (Array.isArray(held)) this.rest.set(held.slice(0, size));
     else {
       const keys = held.setRGB ? ['r', 'g', 'b'] : ['x', 'y', 'z', 'w'];
       for (let c = 0; c < size; c++) this.rest[c] = held[keys[c]];
     }
   }
-  /** Empties the frame's sum. */ clear() {
+  /** Empties the frame's sums. */ clear() {
     this.sum.fill(0);
     this.weight = 0;
+    this.added.fill(0);
+    if (this.rotation) this.added[3] = 1;
+    this.adds = false;
   }
   /** Adds one action's sample, counted `weight`; rotations on the sum's hemisphere. */
   add(value: ArrayLike<number>, weight: number) {
@@ -44,14 +59,32 @@ export class Blend {
     for (let c = 0; c < this.sum.length; c++) this.sum[c] += sign * weight * value[c];
     this.weight += weight;
   }
-  /** Writes the blend: the weighted mean when the weights reach 1, else topped up by the rest. */
+  /** Adds an additive action's difference to its clip's reference pose, counted `weight`: a
+   *  vector's difference scaled, a rotation's partial turn from identity composed on. */
+  addDifference(difference: ArrayLike<number>, weight: number) {
+    this.adds = true;
+    if (!this.rotation) {
+      for (let c = 0; c < this.added.length; c++) this.added[c] += weight * difference[c];
+      return;
+    }
+    const sign = difference[3] < 0 ? -1 : 1;
+    for (let c = 0; c < 4; c++) turn[c] = sign * weight * difference[c];
+    turn[3] += 1 - weight;
+    normalizeQuaternion(turn);
+    multiplyQuaternion(this.added, this.added, turn);
+  }
+  /** Writes the blend: the weighted mean when the weights reach 1, else topped up by the rest,
+   *  then the additive part on top. */
   write() {
     if (this.weight < 1) this.add(this.rest, 1 - this.weight);
     const out = this.sum;
     for (let c = 0; c < out.length; c++) out[c] /= this.weight;
+    if (this.adds && this.rotation) multiplyQuaternion(out, out, this.added);
+    else if (this.adds) for (let c = 0; c < out.length; c++) out[c] += this.added[c];
     if (this.rotation) normalizeQuaternion(out);
-    const held = this.owner[this.field] as Held | number;
+    const held = this.owner[this.field] as Held | number | number[];
     if (typeof held === 'number') this.owner[this.field] = out[0];
+    else if (Array.isArray(held)) for (let c = 0; c < out.length; c++) held[c] = out[c];
     else if (held.setRGB) held.setRGB(out[0], out[1], out[2]);
     else held.set?.(...out);
   }
@@ -79,13 +112,21 @@ export class Blends {
     this.byTarget.set(target, blend);
     return blend;
   }
-  /** Adds one action's sample to `blend` for this frame; a negative weight counts 0. */
-  add(blend: Blend, value: ArrayLike<number>, weight: number) {
+  /** The blend, emptied if this frame had not touched it yet. */
+  private touch(blend: Blend) {
     if (!this.touched.has(blend)) {
       this.touched.add(blend);
       blend.clear();
     }
-    blend.add(value, Math.max(0, weight));
+    return blend;
+  }
+  /** Adds one action's sample to `blend` for this frame; a negative weight counts 0. */
+  add(blend: Blend, value: ArrayLike<number>, weight: number) {
+    this.touch(blend).add(value, Math.max(0, weight));
+  }
+  /** Adds an additive action's difference to `blend` for this frame. */
+  addDifference(blend: Blend, difference: ArrayLike<number>, weight: number) {
+    this.touch(blend).addDifference(difference, Math.max(0, weight));
   }
   /** Writes every blend touched this frame, then forgets them. */ write() {
     for (const blend of this.touched) blend.write();

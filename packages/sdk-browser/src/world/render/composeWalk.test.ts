@@ -35,7 +35,7 @@ function visitsOver(chain: EffectChain, chained: boolean) {
   const { view, visits, reset } = counted(chain);
   reset();
   for (let frame = 0; frame < FRAMES; frame++)
-    assert.deepEqual(view.frame(), { chained, submitted: 3 }, 'every frame drawn');
+    assert.deepEqual(view.frame(), { chained, submitted: 5 }, 'every frame drawn');
   view.close();
   return visits();
 }
@@ -73,15 +73,15 @@ test('a surface the engine writes after its render is read by the refusal and th
       blending: HOST_BLENDING_MULTIPLY,
     }),
   );
-  assert.deepEqual(view.frame(), { chained: true, submitted: 1 });
+  assert.deepEqual(view.frame(), { chained: true, submitted: 2 });
   // Written between `render` and the composition, as the engine's frame writes its graph.
   assert.deepEqual(
     view.frame(() => scene.add(glass)),
-    { chained: false, submitted: 2 },
+    { chained: false, submitted: 3 },
   );
   assert.deepEqual(
     view.frame(() => (glass.visible = false)),
-    { chained: true, submitted: 1 },
+    { chained: true, submitted: 2 },
   );
   view.close();
 });

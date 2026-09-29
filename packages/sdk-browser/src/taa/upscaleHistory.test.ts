@@ -69,6 +69,24 @@ test('a reactive value shortens the history, up to 0.9 of the current image', ()
   }
 });
 
+test('the reactive value shortens the history at rest too, never below today’s share', () => {
+  // The image still: the history read is the single bilinear tap, and the reactive value the
+  // blends, particles and water wrote raises today's 1/k share alone. `rho` 0 is today's resolve.
+  for (const [rho, alpha] of [
+    [0, 0.25],
+    [0.1, 0.25],
+    [0.5, 0.5],
+    [1, 0.9],
+  ]) {
+    const glass = frame({ jitter: ON, moving: false, reactive: () => rho });
+    near(
+      upscaleRun(glass)(2, 2).color,
+      blend(owed(glass, 2, 2), kept, alpha),
+      `reactive ${rho} at rest`,
+    );
+  }
+});
+
 test('the history is read with Catmull-Rom in five taps while moving, one tap at rest', () => {
   assert.equal(upscaleRun(frame())(2, 2).reads.length, 5);
   assert.equal(upscaleRun(frame({ moving: false }))(2, 2).reads.length, 1);

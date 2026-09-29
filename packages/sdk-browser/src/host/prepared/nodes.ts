@@ -23,12 +23,16 @@ const RAD_TO_DEG = 180 / Math.PI;
 
 /** The loader's unique-name rule: sanitised, then numbered from the second use on. */
 export function uniqueNames() {
-  const used = new Map<string, number>();
+  const used = new Set<string>();
+  const next = new Map<string, number>();
   return (original: string) => {
     const name = original.replace(/\s/g, '_').replace(RESERVED, '');
-    const count = used.get(name);
-    used.set(name, count === undefined ? 0 : count + 1);
-    return count === undefined ? name : `${name}_${count + 1}`;
+    let count = next.get(name) ?? 0,
+      candidate = name;
+    while (used.has(candidate)) candidate = `${name}_${++count}`;
+    next.set(name, count);
+    used.add(candidate);
+    return candidate;
   };
 }
 

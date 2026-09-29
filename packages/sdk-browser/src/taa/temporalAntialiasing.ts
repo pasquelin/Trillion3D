@@ -1,4 +1,5 @@
-import { TAA_PASS, TAA_VIEW_BYTES } from './shaderWgsl.ts';
+import { TAA_PASS } from './shaderWgsl.ts';
+import { TAA_VIEW_BYTES } from './bindingsWgsl.ts';
 import { SHARE_FORMAT, createTaaResolves } from './resolve.ts';
 import { AS_IS_SHARE_FORMAT } from '../lighting/deferred/asIsShare.ts';
 import { INPUTS, taaGroupEntries, type TaaInputs } from './inputs.ts';

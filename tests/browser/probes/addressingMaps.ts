@@ -8,7 +8,7 @@ import { octetsTexture } from './addressingCases.ts';
 import {
   SAMPLE_WRAP_SHIFT,
   samplingWords,
-} from '../../../packages/sdk-browser/src/webgpu/tile/sampling.ts';
+} from '../../../packages/sdk-browser/src/texture/sampling.ts';
 
 const {
   ClampToEdgeWrapping: SERRE,

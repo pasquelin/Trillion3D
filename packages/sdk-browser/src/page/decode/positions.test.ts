@@ -66,7 +66,7 @@ const DEVELOP: [string, string, number][] = [
   ['range past 24 bits', 'PAGE_ATTRIBUTE_RANGE', 0],
 ];
 
-test('every page decodes to the block develop decoded, in no more bytes; flat-shaded pages in fewer', () => {
+test('every page decodes to the block develop decoded, with only the format-7 header overhead; flat-shaded pages in fewer', () => {
   const all = cases();
   assert.equal(all.length, DEVELOP.length);
   let [before, after, flatBefore, flatAfter] = [0, 0, 0, 0];
@@ -75,7 +75,9 @@ test('every page decodes to the block develop decoded, in no more bytes; flat-sh
       [was, outcomeWas, bytesWas] = DEVELOP[i];
     assert.equal(name, was);
     assert.equal(digest, outcomeWas, name);
-    assert.ok(bytes <= bytesWas, `${name}: ${bytes} > ${bytesWas}`);
+    // Format 7 adds one u32 influence-count word; decoded static attributes stay identical.
+    const headerGrowth = bytesWas ? (CLUSTER_HEADER_WORDS - 24) * 4 : 0;
+    assert.ok(bytes <= bytesWas + headerGrowth, `${name}: ${bytes} > ${bytesWas + headerGrowth}`);
     [before, after] = [before + bytesWas, after + bytes];
     if (mesh.indices.every((corner, k) => corner === k))
       [flatBefore, flatAfter] = [flatBefore + bytesWas, flatAfter + bytes];

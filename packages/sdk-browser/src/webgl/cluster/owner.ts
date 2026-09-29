@@ -4,6 +4,7 @@ import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/index.ts';
 import { WebglClusterRenderer } from './renderer.ts';
 import type { WebglClusterScene } from './lights.ts';
 import type { SceneCopy } from './copyCulling.ts';
+import type { DeformationSource } from './deformation.ts';
 import type { HostDrawCamera } from '../../camera/world.ts';
 import type { HostMaterials } from '../../host/resources.ts';
 import type { BackendContext } from '../../backend/types.ts';
@@ -43,6 +44,7 @@ export class WebglClusterOwner {
    *  the frames upload ahead of their draws under the session's budget (`textureQueue.ts`). */
   census(materials: Iterable<HostMaterials>, hosts: TextureHosts) {
     const declared = new Set(materials);
+    this.display.textures.physicalMaps?.cache.census(declared);
     for (const material of declared) this.display.textures.file(material);
     this.ahead.order(declared, hosts.texturePoolBytes ?? DEFAULT_TEXTURE_POOL_BUDGET);
     this.ahead.budget.declare(
@@ -78,6 +80,7 @@ export class WebglClusterOwner {
     );
   }
   releaseMaterial(material: HostMaterials) {
+    this.display.textures.physicalMaps?.cache.release(material);
     const map = surfaceOf(material).map;
     if (map) this.display.textures.release(map);
   }
@@ -87,6 +90,8 @@ export class WebglClusterOwner {
    *  texture level offset, zero at the display's size. */
   pixelRatio = 1;
   mipBias = 0;
+  /** The session's deformation records (#357), sent with the frames to come. */
+  deformation: DeformationSource | undefined;
   get backdropBytes() {
     return this.renderer.backdropBytes;
   }
@@ -119,6 +124,7 @@ export class WebglClusterOwner {
     renderer.toneCurve = this.toneCurve;
     renderer.pass.pixelRatio = this.pixelRatio;
     renderer.pass.mipBias = this.mipBias;
+    renderer.deformationSource = this.deformation;
     // The maps uploaded ahead, first: the frame's commands not sent yet (`textureQueue.ts`).
     this.ahead.drain(this.context, this.display.textures);
     const submitted = renderer.draw(

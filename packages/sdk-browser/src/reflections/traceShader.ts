@@ -1,3 +1,5 @@
+import { shaderLanguage } from '../math/shaderLanguage.ts';
+export { shaderLanguage } from '../math/shaderLanguage.ts';
 /** Screen-space pixel DDA, following McGuire & Mara (JCGT 2014), implemented here from
  * the projected-segment equations: https://jcgt.org/published/0003/04/04/paper.pdf.
  * Clip the homogeneous ray to all six planes before division. Depth is linear along
@@ -65,23 +67,4 @@ fn screenReflection(P:vec3f,R:vec3f)->vec4f{
 /** One arithmetic source for both graphics APIs; declarations alone change language. */
 export function screenTraceShader(language: 'wgsl' | 'glsl') {
   return shaderLanguage(TRACE, language);
-}
-
-export function shaderLanguage(source: string, language: 'wgsl' | 'glsl') {
-  if (language === 'wgsl') return source;
-  return source
-    .replace(
-      /fn (\w+)\(([^)]*)\)->(\w+)\{/g,
-      (_, name, args: string, result) =>
-        `${result} ${name}(${args.replace(/(\w+):(\w+)/g, '$2 $1')}){`,
-    )
-    .replace(/var (\w+):(\w+)/g, '$2 $1')
-    .replace(/\bvec([234])f\b/g, 'vec$1')
-    .replace(/\bvec([234])i\b/g, 'ivec$1')
-    .replace(/\bf32\b/g, 'float')
-    .replace(/\bi32\b/g, 'int')
-    .replace(/\b(\d+)u\b/g, '$1')
-    .replace('any(pixel<ivec2(0))', 'any(lessThan(pixel,ivec2(0)))')
-    .replace('any(pixel>=ivec2(size))', 'any(greaterThanEqual(pixel,ivec2(size)))')
-    .replace('all(pixel==origin)', 'all(equal(pixel,origin))');
 }

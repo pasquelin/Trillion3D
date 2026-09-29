@@ -96,7 +96,13 @@ fn sunSnap(p:vec4f)->vec4f{
  let m=shadow.viewProjection;
  if(m[0].w!=0.0||m[1].w!=0.0||m[2].w!=0.0){return p;}
  let half=shadow.params.w*0.5;let pool=shadow.params.w/shadow.params.z+half;
- let sx=half/snapGrid(abs(p.x)*half+pool);let sy=half/snapGrid(abs(p.y)*half+pool);
+ // An ordinary corner lies within the pool's f32 subtexel: its step is \`snapGrid\`'s first value,
+ // a constant — no call, no division per axis, one branch each. Only a corner far past its page,
+ // where f32 no longer holds 1/${SHADOW_SUBTEXELS} of a texel, takes the loop (#1016).
+ let edge=${2 ** 24 / SHADOW_SUBTEXELS}.0;let base=half*${SHADOW_SUBTEXELS}.0;
+ var sx=base;var sy=base;
+ if(abs(p.x)*half+pool>=edge){sx=half/snapGrid(abs(p.x)*half+pool);}
+ if(abs(p.y)*half+pool>=edge){sy=half/snapGrid(abs(p.y)*half+pool);}
  return vec4f(round(p.x*sx)/sx,round(p.y*sy)/sy,p.z,p.w);
 }
 /** Corner \`vertexIndex\` of page-table row \`pageIndex\`, or none when its row is not of the kind
@@ -167,8 +173,13 @@ fn shadowHiddenByOpaque(p:vec4f)->bool{
 }
 /** A blended caster's texel of the transmittance layer, blended multiplicatively; the depth-only
  *  draw masks its colour and keeps its depth. */
-@fragment fn shadow_blend_fs(in:ShadowOut)->@location(0) vec4f{
+@fragment fn shadow_blend_fs(in:ShadowOut,@builtin(front_facing) front:bool)->@location(0) vec4f{
  let gx=dpdx(in.uv);let gy=dpdy(in.uv);
  if(!shadowKeep(in,gx,gy)||shadowHiddenByOpaque(in.position)){discard;}
- return blendTransmittance(pages[in.instance],in.uv,gx,gy);
+ let page=pages[in.instance];
+ if(!volumeBoundary(page,front)){discard;}
+ let m=shadow.viewProjection;
+ var ray=in.fromEmitter;
+ if(m[0].w==0.0&&m[1].w==0.0&&m[2].w==0.0){ray=vec3f(m[0].z,m[1].z,m[2].z);}
+ return blendTransmittance(page,in.uv,gx,gy,ray);
 }`;

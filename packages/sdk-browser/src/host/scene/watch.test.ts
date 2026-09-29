@@ -164,3 +164,14 @@ test('a lamp written directly by the host is copied on the next frame', () => {
   backend.dispose();
   dispose();
 });
+
+test('a bone posed by the host is seen: it moves the skin it deforms (#357)', () => {
+  const { source, mesh } = graphe();
+  const bone = new G.Group();
+  source.add(bone);
+  Object.assign(mesh, { skeleton: { bones: [bone] } });
+  const watch = veille(source, mesh);
+  watch.take();
+  bone.rotation.z = 1;
+  assert.equal(watch.take(), 'moved', 'the bone is a drawn pose');
+});

@@ -5,6 +5,7 @@ import { validateSceneLight } from './validate.ts';
 import { createSceneLightStore } from './store.ts';
 import { shadowProjection } from '../light-shadow/math.ts';
 import { writeFace } from '../light-shadow/faces.ts';
+import { baseOf, LIGHT_FIELD } from './fields.ts';
 
 const lanterne = (emitterRadius?: number): SceneLight => ({
   id: 'lanterne',
@@ -108,4 +109,16 @@ test("setting the emitter radius alone does stale the light's shadow map", () =>
   const stable = store.epoch;
   store.set('lanterne', { emitterRadius: 0.25 });
   assert.equal(store.epoch, stable);
+});
+
+test('a point radius reaches its packed shape lane and updates without changing other lights', () => {
+  const store = createSceneLightStore();
+  store.add(validateSceneLight(lanterne()));
+  store.add(validateSceneLight({ ...lanterne(0.5), id: 'second' }));
+  const lane = baseOf(0) + LIGHT_FIELD.emitterRadius;
+  assert.equal(store.packed[lane], 0);
+  const neighbour = store.packed.slice(baseOf(1), baseOf(2));
+  store.set('lanterne', { emitterRadius: 0.25 });
+  assert.equal(store.packed[lane], 0.25);
+  assert.deepEqual(store.packed.slice(baseOf(1), baseOf(2)), neighbour);
 });
