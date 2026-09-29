@@ -345,7 +345,6 @@
       "drag-a-crate": "Faire glisser une caisse"
     },
     "missing": {
-      "floating-crates": "géométrie réécrite à chaque image",
       "thick-lines": "lignes épaisses",
       "a-line-that-draws-itself": "plage de dessin d’une géométrie",
       "shapes-from-an-svg": "import de tracés SVG",
@@ -492,8 +491,6 @@
       "a-software-rasteriser": "API de calcul GPU",
       "sound-from-the-gpu": "API de calcul GPU",
       "breaking-things": "intégration d’un moteur physique",
-      "cloth-and-rope": "géométrie réécrite à chaque image",
-      "soft-bodies": "géométrie réécrite à chaque image",
       "a-cooked-flag": "géométrie réécrite à chaque image",
       "a-room-in-vr": "session WebXR",
       "a-360-photo-in-vr": "session WebXR",

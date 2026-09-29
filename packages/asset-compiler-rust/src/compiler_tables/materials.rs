@@ -41,7 +41,7 @@ fn uv_transform(transform: Option<&Value>) -> Value {
 /// transform it declares. `null` when the material leaves the slot empty, which is what the engine
 /// record holds. The slot's own set is kept beside the one sampled: it is what decides whether the
 /// host reads the glTF texture itself or a copy of it, and so which texture rank the slot keeps.
-pub(super) fn slot(info: Option<&Value>) -> Value {
+pub(crate) fn slot(info: Option<&Value>) -> Value {
     let Some(info) = info else {
         return Value::Null;
     };

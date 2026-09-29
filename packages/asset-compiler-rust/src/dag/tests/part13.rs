@@ -1,68 +1,39 @@
-//! The published error is never below the measured geometry, measured only where it can raise it
-//! (`measured.rs`, #929).
+//! The texture charts the solve of a seam-locked group reads (`charts.rs`).
 use super::*;
-use crate::physics_cook::hausdorff::{distance, distance_above};
+use charts::folded_span;
 
+// Behaviour: a face across two texture islands is charged its longest edge, one within one not.
 #[test]
-fn a_bounded_distance_is_the_full_one_raised_to_its_floor_bit_for_bit() {
-    let mut rng = crate::tests::random::Xorshift::new(0x929);
-    let (positions, indices) = cylinder(24);
-    let triangles = indices.len() / 3;
-    for case in 0..60 {
-        // Two random subsets of the same surface, one of them a single triangle or empty.
-        let pick = |rng: &mut crate::tests::random::Xorshift, keep: usize| -> Vec<u32> {
-            (0..triangles)
-                .filter(|_| rng.below(keep.max(1)) == 0)
-                .flat_map(|t| indices[t * 3..t * 3 + 3].to_vec())
-                .collect()
-        };
-        let a = pick(&mut rng, 2);
-        let b = match case % 6 {
-            0 => Vec::new(),
-            1 => indices[..3].to_vec(),
-            _ => pick(&mut rng, 3),
-        };
-        let full = distance(&positions, &a, &b);
-        for floor in [
-            0.0,
-            -0.0,
-            -1.0,
-            full * 0.5,
-            full,
-            full * 2.0,
-            1e-9,
-            f64::INFINITY,
-            f64::NAN,
-        ] {
-            let bounded = distance_above(&positions, &a, &b, floor);
-            // Not `floor.max(full)`: its zero's sign is the target's (`raised`, #977).
-            let expected = if floor > full { floor } else { full };
-            assert_eq!(
-                bounded.to_bits(),
-                expected.to_bits(),
-                "case {case}, floor {floor}: {bounded} against {full}"
-            );
-        }
-    }
+fn a_face_across_islands_is_charged_its_longest_edge() {
+    let positions = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0];
+    let indices = [0, 1, 2, 1, 3, 2];
+    let span = |island: u32| folded_span(&indices, &positions, &[0, 0, 0, island], |v| v as usize);
+    assert_eq!(span(0), 0.0);
+    assert_eq!(span(1), 2.0_f64.sqrt());
 }
 
+// Behaviour: a solve whose every survivor snapped back to its source placed nothing: its clusters
+// keep their numbers and no array is copied (`Grown::place`).
 #[test]
-fn every_group_publishes_at_least_the_distance_between_its_children_and_its_outputs() {
-    for (positions, indices) in [grid(64), cylinder(64)] {
-        let (dag, groups, _) = build_of(&positions, &indices);
-        assert!(!groups.is_empty());
-        for group in &groups {
-            let measured = distance(
-                &positions,
-                &indices_of(&dag, &group.children),
-                &indices_of(&dag, &group.outputs),
-            );
-            assert!(
-                group.error >= measured,
-                "level {}: {} published below {measured}",
-                group.level,
-                group.error
-            );
-        }
-    }
+fn a_solve_that_placed_nothing_copies_no_array() {
+    let (positions, indices) = grid(2);
+    let attributes = DagAttributes { carried: &[] };
+    let mut welds = welds::Welds::of(&positions, attributes, &indices);
+    let mut reduction = GroupReduction {
+        error: 0.0,
+        sphere: [0.0; 4],
+        clusters: vec![indices.clone()],
+        source_rank: 0,
+        relocked: false,
+        placed: Some(grown::Placed {
+            positions: Vec::new(),
+            carried: Vec::new(),
+            origins: Vec::new(),
+            columns: welds::Columns::default(),
+        }),
+    };
+    let (mut grown, base) = (None, (positions.len() / 3) as u32);
+    grown::Grown::place(&mut grown, &mut welds, &mut reduction, base);
+    assert!(grown.is_none());
+    assert_eq!(reduction.clusters, [indices]);
 }

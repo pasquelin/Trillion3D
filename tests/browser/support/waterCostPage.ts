@@ -1,4 +1,4 @@
-// Runs only when invoked by the measurer. No engine optimization or pass timing reconstruction.
+// Runs only when invoked by the recette. No engine optimization or pass timing reconstruction.
 import type {
   BackendDiagnostic,
   BackendFactory,

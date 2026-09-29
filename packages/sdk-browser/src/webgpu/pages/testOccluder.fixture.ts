@@ -12,7 +12,7 @@ import { webgpuPagesBackend } from './pages.ts';
 import { selectVisiblePages, type ClusterRoot } from '../../page/selection/selection.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
-import { dagLevel, dagRoots } from './testDag.fixture.ts';
+import { dagLevel, dagRoots } from '../../backend/pagesBackend.fixture.ts';
 import { camera, quadScene } from './testScenes.fixture.ts';
 import type { Placements } from '../../page/selection/placements.ts';
 
@@ -52,7 +52,7 @@ export function occluderScene() {
       bytes: 24,
       sha256: 'x',
     },
-  ]);
+  ]).pages;
   const metadata = {
     errorModel: 'dag-group-qem-v3',
     clusterStrategy: 'dag-groups',
@@ -78,7 +78,7 @@ export function occluderScene() {
 export function coarseQuadScene(error = 1) {
   const fixture = quadScene();
   const leaves = fixture.metadata.primitives[0].pages;
-  const level = dagLevel(leaves, { ...leaves[0], id: 2, url: '2', count: 6, bytes: 24 }, error);
+  const level = dagLevel(leaves, [{ ...leaves[0], id: 2, url: '2', count: 6, bytes: 24 }], error);
   return {
     ...fixture,
     metadata: {

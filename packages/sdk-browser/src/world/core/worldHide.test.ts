@@ -94,7 +94,8 @@ function openOnMockGpu(camera: ReturnType<typeof G.perspectiveCamera>, node: str
     return {
       ...session,
       invalidate: () => opened.invalidate(),
-      render: () => backend.render(camera),
+      // A session renders and returns its metrics, which the runtime completes (#573).
+      render: () => (backend.render(camera), {}),
       dispose: () => backend.dispose(),
     };
   }) as unknown as Open;

@@ -37,7 +37,7 @@ pub fn level_path(sha256: &str, kind: AtlasKind, level: u32, format: &str) -> St
         .replace("{format}", format)
 }
 
-fn png(pixels: &[u8], (w, h): (u32, u32)) -> Result<Vec<u8>> {
+pub(crate) fn png(pixels: &[u8], (w, h): (u32, u32)) -> Result<Vec<u8>> {
     let mut encoded = Vec::with_capacity(pixels.len() / 2);
     PngEncoder::new_with_quality(&mut encoded, CompressionType::Default, FilterType::Adaptive)
         .write_image(pixels, w, h, ExtendedColorType::Rgba8)
