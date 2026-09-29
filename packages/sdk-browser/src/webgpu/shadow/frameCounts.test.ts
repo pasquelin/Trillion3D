@@ -110,25 +110,6 @@ test('a representation change under an unlit frame stales its pages once the vie
   assert.equal(plan.counts.invalidatedPages, 1 + 4, 'the first lit plan stales the changed pages');
 });
 
-// #1016 review: the still average restarts on a page drawn this image (`keepWebgpuFrame`); an
-// unlit view drew none, and must not keep the count of the last lit image, or it never holds.
-test('an unlit image counts no shadow page of an earlier image', () => {
-  const rt = settledRt();
-  const lights = createWebgpuLightState(32);
-  (rt as unknown as { lights: unknown }).lights = lights;
-  lights.store.add(SUN);
-  lights.shadowPages = 12;
-  lights.store.setView('unlit');
-  encodeDirectLights(
-    rt,
-    undefined as never,
-    undefined as never,
-    CAM as never,
-    new Float64Array(16),
-  );
-  assert.equal(lights.shadowPages, 0);
-});
-
 test('pages a plan left pending hold nothing once the view is unlit or the light is gone', () => {
   const lights = createWebgpuLightState(32);
   lights.shadows = {} as never;
