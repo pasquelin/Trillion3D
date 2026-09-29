@@ -36,7 +36,8 @@ export function createSceneProxyMotion(proxy: SceneProxy) {
     dirty = new Set<number>();
   const delta = new Float64Array(16);
   let revision = 0,
-    stretch = 1;
+    stretch = 1,
+    widenedNodes = 0;
   return {
     data,
     transforms,
@@ -58,6 +59,10 @@ export function createSceneProxyMotion(proxy: SceneProxy) {
     },
     get revision() {
       return revision;
+    },
+    /** Tree nodes a refit has widened since the session began: never shrinks. */
+    get widenedNodes() {
+      return widenedNodes;
     },
     get errorMetres() {
       return proxy.errorMetres * stretch;
@@ -107,7 +112,7 @@ export function createSceneProxyMotion(proxy: SceneProxy) {
         }
         stretch = Math.max(stretch, Math.sqrt(rows * columns));
       }
-      refit(dirty, transforms, bounds);
+      widenedNodes = refit(dirty, transforms, bounds);
       revision++;
       return true;
     },

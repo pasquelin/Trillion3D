@@ -342,7 +342,6 @@
       "proxyCellMetres": "Resolución mínima de la malla proxy en metros: tamaño de los triángulos simplificados y de las celdas de la caché de superficie. Duplicado por el compilador si se supera el presupuesto.",
       "proxyLeafTriangles": "Triángulos por hoja del BVH: los bucles sobre las hojas están acotados por esta constante.",
       "traversalSteps": "Nodos del BVH visitados por rayo: acotados antes de ejecutar el fotograma, nunca dinámicos. Un nodo de 4 hijos cubre 4× más árbol por paso que un BVH binario.",
-      "motionTraversalSteps": "Nodos del BVH visitados por rayo una vez que un propietario se ha movido: una caja reajustada puede solaparse con sus vecinas, así que el límite fijo se duplica. Sigue siendo una constante, nunca el número de nodos.",
       "traversalStack": "Profundidad de la pila de recorrido. Un nodo de 4 hijos apila hasta 3; 32 cubre millones de triángulos.",
       "cascadeLevels": "Niveles de las cascadas de sondas. Los primeros `cascadeLevels - 1` siguen la posición de la cámara; el último es fijo en el mundo y cubre toda la escena.",
       "cascadeSize": "Sondas por eje y por nivel: un nivel es un cubo de `cascadeSize³` sondas.",

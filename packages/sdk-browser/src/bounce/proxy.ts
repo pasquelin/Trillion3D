@@ -1,6 +1,10 @@
 import { createSceneProxyMotion } from '../../../sdk-core/src/scene/core/proxyMotion.ts';
 import { ensureProxyFits } from './limits.ts';
-import { PROXY_NODE_FLOATS, type SceneProxy } from '../../../sdk-core/src/index.ts';
+import {
+  BOUNCE_SETTINGS,
+  PROXY_NODE_FLOATS,
+  type SceneProxy,
+} from '../../../sdk-core/src/index.ts';
 import { PROXY_HEADER_WORDS, PROXY_LAYOUT_WORD } from './nodeWgsl.ts';
 
 /** Words of an array, whatever its type: a column is a sequence of words, nothing more. */
@@ -20,6 +24,18 @@ function albedoBuffer(device: GPUDevice, data: Uint32Array) {
   new Uint32Array(buffer.getMappedRange()).set(data);
   buffer.unmap();
   return buffer;
+}
+
+/**
+ * Visited nodes per ray once an owner has moved. Refit keeps the topology and rewrites only the
+ * bounds of the moved triangles' ancestors; a node whose bounds were never rewritten keeps a box
+ * inside its original parent's, so only a widened node can be visited beyond what the still tree
+ * visits, and each at most once. The still bound plus the widened nodes, capped by the node count
+ * (a complete walk), is therefore enough: a ray never runs out before it would have on a still
+ * tree, and a door costs its ancestors, not a doubled bound.
+ */
+export function proxyMotionSteps(nodes: number, widenedNodes: number) {
+  return Math.min(nodes, BOUNCE_SETTINGS.traversalSteps + widenedNodes);
 }
 
 export type GpuBounceProxy = ReturnType<typeof createGpuBounceProxy>;
@@ -64,7 +80,8 @@ export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
   buffer.unmap();
   const albedo = albedoBuffer(device, data?.albedo ?? new Uint32Array(0));
   const motionFlag = new Uint32Array([1]);
-  const revisionWord = new Uint32Array(1);
+  /** Revision, then the motion step bound (`proxyMotionSteps`), at header words 16 and 17. */
+  const revisionWords = new Uint32Array(2);
   const mutableColumns = [1, 2, 6];
   return {
     buffer,
@@ -90,8 +107,9 @@ export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
       for (const index of mutableColumns)
         device.queue.writeBuffer(buffer, (PROXY_HEADER_WORDS + starts[index]) * 4, columns[index]);
       device.queue.writeBuffer(buffer, 11 * 4, motionFlag);
-      revisionWord[0] = motion.revision;
-      device.queue.writeBuffer(buffer, 16 * 4, revisionWord);
+      revisionWords[0] = motion.revision;
+      revisionWords[1] = proxyMotionSteps(proxy.nodes, motion.widenedNodes);
+      device.queue.writeBuffer(buffer, 16 * 4, revisionWords);
       return true;
     },
     get errorMetres() {
