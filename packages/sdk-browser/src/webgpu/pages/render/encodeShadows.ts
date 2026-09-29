@@ -41,14 +41,10 @@ export function shadowViewpointOf(cam: EngineCamera, height: number) {
   const world = cam.world;
   const { position } = viewpoint;
   for (let i = 0; i < 3; i++) position[i] = cam.eye[i];
+  // Negated, then normalised: the bits of the reverse order, a norm being blind to the sign.
   const forward = viewpoint.forward;
-  forward[0] = world[8];
-  forward[1] = world[9];
-  forward[2] = world[10];
+  for (let i = 0; i < 3; i++) forward[i] = -world[8 + i];
   normalizeVector3(forward);
-  forward[0] = -forward[0];
-  forward[1] = -forward[1];
-  forward[2] = -forward[2];
   viewpoint.halfFovY = Math.max(1e-3, (cam.fov * Math.PI) / 360);
   viewpoint.aspect = Math.max(1e-3, cam.aspect);
   viewpoint.near = cam.near;

@@ -78,8 +78,15 @@
 - Never reduce the displayed resolution or the draw distance (a lower internal resolution only
   under the mission's bar). Never convert transparency to masking **inside the engine**: a source
   material wrongly declared blended is reclassified by the compiler at import.
-- `0 px` and `tri = selected` stay the default proof for geometry and lighting. A batch that keeps
-  them owes no discussion.
+- **Two proof classes**, the pull request declaring its own (none declared is class 1):
+  1. **Refactor or pure optimisation:** 0 px against `develop` (and `tri = selected`). A batch that
+     keeps them owes no discussion.
+  2. **Rendering technique** (a temporal upscaler, a radiance cache, cached shadow pages, f16 or
+     wave intrinsics: controlled approximations): error against a named reference image within a
+     bound the pull request states: mean and 99.9th-percentile channel error and mean LDR-FLIP (`bench/runner/flip.ts`),
+     from `bench/runner/imageDiff.ts::referenceDiff`, with no visible defect (no flicker, trail,
+     hole or lost detail) on still and moving captures. The pull request declares its class on
+     the `Image proof class:` line of its template.
 - **A proof needs a stable A/A.** A branch-against-develop difference proves something only on a
   capture whose A/A is 0 px (or the masked exception below); a broad A/A spread proves nothing. A
   scene that is not A/A-stable is first made stable (frozen clock, pinned frame) or replaced by a
@@ -90,7 +97,7 @@
   That is GPU keep/discard on the same foliage pixel, not a residency, shadow-page or TAA bug.
   Replacing the cutoff with a hash that explodes A/A is refused (#25).
 - **No image loss, declared or not.** An optimisation that degrades the image is refused, even
-  measured and declared: it holds the default proof above, or the tolerance this section names, or
+  measured and declared: it holds its class's proof above, or the tolerance this section names, or
   it does not merge. Sole exception: fluids may lower their own quality automatically to hold their
   budget, and say so in their diagnostics.
 
