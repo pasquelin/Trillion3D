@@ -18,6 +18,7 @@ export type {
 export type { BoxTransformLot, MultiplyLot } from '../../sdk-browser/src/math/batchRuntime.ts';
 export type { BudgetCanvas } from '../../sdk-browser/src/residency/memoryBudget.ts';
 export type { Capsule, CapsuleContact, CapsulePush } from '../../sdk-core/src/collision/capsule.ts';
+export type { CellRows } from '../../sdk-browser/src/scene/partition/cellDecode.ts';
 export type {
   ChangeListener,
   ControlVector,

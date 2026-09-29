@@ -24,6 +24,7 @@ import {
   primePartitions,
 } from '../../packages/sdk-browser/src/world/scene/partitionFrame.ts';
 import { compiled, compiler, machine, SPACING, world } from './world-partition.fixture.ts';
+import { cellRecords } from './world-partition-pages.fixture.ts';
 
 const SHIFT = 5000;
 
@@ -83,7 +84,7 @@ test(
           drawn.add(key(rows.matrices[row * 16 + 12], rows.matrices[row * 16 + 14]));
     const reach = cellReach(camera);
     let near = 0;
-    for (const { url } of cells.pages) {
+    for (const { url } of await cellRecords(cells.pages)) {
       const body = JSON.parse(await readFile(fileURLToPath(url), 'utf8'));
       for (const {
         translation: [x, y, z],
