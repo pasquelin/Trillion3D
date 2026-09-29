@@ -54,7 +54,7 @@ test('a sampled frame publishes the casters its culls kept and those they reject
   const metrics = shadowWorkMetrics({
     shadowWork: createShadowWork(),
     plan: { counts: { staledBy: new Int32Array(STALE_REASONS.length) } },
-    cull: counts,
+    cull: { counts },
   });
   assert.equal(metrics.shadowMovingCastersKept, 0);
   assert.equal(metrics.shadowCastersRejected, 37);

@@ -59,7 +59,14 @@ const dot = (a: Vec, b: ArrayLike<number>, at = 0) =>
   a[0] * b[at] + a[1] * b[at + 1] + a[2] * b[at + 2];
 
 /** The pages the lamp in `slot` has its pixel at `lit` read, at the mip it wants. */
-function lampReads(plan: ShadowPlan, store: SceneLightStore, slot: number, lit: Lit, f: number) {
+function lampReads(
+  plan: ShadowPlan,
+  store: SceneLightStore,
+  slot: number,
+  lit: Lit,
+  f: number,
+  sink?: TexelSink,
+) {
   const light = store.light(store.ids[slot])!,
     faces = lampFacesOf(LIGHT_KIND[light.kind]),
     base = plan.table.baseOf(store.sliceOf(slot));
