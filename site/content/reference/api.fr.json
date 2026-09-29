@@ -342,6 +342,7 @@
       "proxyCellMetres": "Plancher de résolution du maillage proxy en mètres : taille des triangles simplifiés et des cases du cache de surface. Doublé par le compilateur si le budget est dépassé.",
       "proxyLeafTriangles": "Triangles par feuille du BVH : les boucles sur les feuilles sont bornées par cette constante.",
       "traversalSteps": "Nœuds du BVH visités par rayon : bornés avant d’exécuter l’image, jamais dynamiques. Un nœud à 4 enfants couvre 4× plus d’arbre par pas qu’un BVH binaire.",
+      "motionTraversalSteps": "Nœuds du BVH visités par rayon une fois qu’un propriétaire a bougé : une boîte réajustée peut chevaucher ses voisines, la borne fixe double donc. Toujours une constante, jamais le nombre de nœuds.",
       "traversalStack": "Profondeur de la pile de parcours. Un nœud à 4 enfants en empile jusqu’à 3 ; 32 couvre des millions de triangles.",
       "cascadeLevels": "Niveaux des cascades de sondes. Les `cascadeLevels - 1` premiers suivent la position de la caméra ; le dernier est fixe dans le monde et couvre toute la scène.",
       "cascadeSize": "Sondes par axe et par niveau : un niveau est un cube de `cascadeSize³` sondes.",
@@ -406,13 +407,14 @@
   },
   "BounceOccupancy": {
     "summary": "Où garder une sonde vaut la peine : la carte d’occupation des cascades.",
-    "description": "Une cascade au-dessus d’une ville dépense la plupart de ses cases dans le ciel vide et le cœur plein des bâtiments, où l’irradiance n’est jamais demandée. Le planificateur doit savoir, avant de dépenser un rayon, si une case touche de la géométrie. C’est une propriété du monde, pas de la caméra : calculée une fois à la construction, valable pour toutes les positions que prennent ensuite les niveaux mobiles. La carte du niveau le plus fin est marquée par les boîtes englobantes des triangles du proxy plus une bordure d’une case : les huit coins d’une case occupée sont toujours gardés, donc rien d’utile n’est perdu. Les niveaux suivants sont des réductions exactes — deux cases pour une par axe, puisque les écarts sont des multiples puissances de deux du plus fin — puis dilatées d’une case pour la même raison. Rien ici ne nomme une scène ni n’examine la caméra : une étendue, des triangles, des cases.",
+    "description": "Une cascade au-dessus d’une ville dépense la plupart de ses cases dans le ciel vide et le cœur plein des bâtiments, où l’irradiance n’est jamais demandée. Le planificateur doit savoir, avant de dépenser un rayon, si une case touche de la géométrie. C’est une propriété du monde, pas de la caméra : calculée à la construction puis de nouveau quand la géométrie déplacée se pose, valable pour toutes les positions que prennent ensuite les niveaux mobiles. La carte du niveau le plus fin est marquée par les boîtes englobantes des triangles du proxy plus une bordure d’une case : les huit coins d’une case occupée sont toujours gardés, donc rien d’utile n’est perdu. Les niveaux suivants sont des réductions exactes — deux cases pour une par axe, puisque les écarts sont des multiples puissances de deux du plus fin — puis dilatées d’une case pour la même raison. Rien ici ne nomme une scène ni n’examine la caméra : une étendue, des triangles, des cases.",
     "members": {
+      "moved": "Des propriétaires ont bougé : `boxes` porte six bornes monde par triangle du proxy, `changed` marque ceux qui ont bougé.",
+      "settle": "Une fois par image : la première image après l’arrêt du mouvement reconstruit la carte exacte sur `extent`.",
       "occupied": "Vrai quand une case d’un niveau dans sa grille mérite une sonde.",
       "marked": "Cases marquées et cases au total du niveau le plus fin : le gain publié.",
       "cells": "Cases du niveau le plus fin.",
-      "bytes": "Octets qu’il prend.",
-      "allEligible": "La géométrie a bougé : programme par précaution toutes les cellules des cascades, dont le nombre est borné."
+      "bytes": "Octets qu’il prend."
     }
   },
   "BoundedNode": {
