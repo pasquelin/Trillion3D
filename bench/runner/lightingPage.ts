@@ -136,6 +136,11 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
     if (i >= profileStart && sample && sample.frame !== gpuPassSamples.at(-1)?.frame)
       gpuPassSamples.push(sample);
   }
+  // A moving capture waits for its pose's pages as the still warmup does (#1016, WebGL2 held without).
+  if (poses) {
+    explorer.setPose(current);
+    await explorer.awaitPages();
+  }
   await explorer.flush();
   // Capture freezes the last measured pose. Restarting at poseAt(0) would average a second
   // journey into the A/A witness (#25: still camera 0 px, moving camera leftover on `sol`).
