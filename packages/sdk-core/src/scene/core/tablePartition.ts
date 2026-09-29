@@ -170,11 +170,13 @@ export async function readTablePartition(
   const pages = await readLeaves(CELL_PAGES, slots, read);
   if (!pages.every(({ meshPages }) => Array.isArray(meshPages) && meshPages.every(isSlot)))
     throw new EngineError(CELL_PAGES.invalid, 'a region page misses its mesh pages', {});
-  const cells = pages.flatMap(({ meshPages, [CELL_PAGES.records]: records }) =>
-    (records as TableCell[]).map((cell) => ({ ...cell, meshPages: meshPages as string[] })),
-  );
-  if (!cells.every((cell) => Array.isArray(cell?.meshes) && Array.isArray(cell.parents)))
+  const records = pages.map((page) => page[CELL_PAGES.records] as TableCell[]);
+  const valid = (cell: TableCell) => Array.isArray(cell?.meshes) && Array.isArray(cell.parents);
+  if (!records.every((list) => Array.isArray(list) && list.every(valid)))
     throw new EngineError(CELL_PAGES.invalid, 'scene partition misses its cells', {});
+  const cells = pages.flatMap(({ meshPages }, at) =>
+    records[at].map((cell) => ({ ...cell, meshPages: meshPages as string[] })),
+  );
   const bounds = [0, 1, 2, 3, 4, 5].map((axis) =>
     (axis < 3 ? Math.min : Math.max)(...slots.map((slot) => slot.bounds[axis])),
   );

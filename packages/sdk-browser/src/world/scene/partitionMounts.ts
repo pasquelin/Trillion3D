@@ -9,7 +9,8 @@
  * same mesh. An engine that mounts nothing in place, or a mount that failed, has the owner open
  * the session again (`renew`): the new one opens on what the manifest lists by then.
  */
-import type { ManifestPages, Primitive } from '../../../../sdk-core/src/index.ts';
+import type { Primitive } from '../../../../sdk-core/src/index.ts';
+import type { ManifestPages } from '../../../../sdk-core/src/manifest/paged.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { BackendContext, RenderBackend } from '../../backend/types.ts';
 import type { PlacementMount } from '../../placement/backendSceneUpdates.ts';
@@ -28,9 +29,11 @@ type Inputs = {
 };
 
 export function createPartitionMounts({ partitions, opened, active, renew }: Inputs) {
-  const held = partitions.flatMap(({ manifest: { pages }, meshes }): Held[] =>
-    pages ? [{ pages, meshes }] : [],
-  );
+  const held = opened
+    ? partitions.flatMap(({ manifest: { pages }, meshes }): Held[] =>
+        pages ? [{ pages, meshes }] : [],
+      )
+    : [];
   if (!opened || !held.length) return { sync() {}, asked: () => [], stale: () => false };
   /** Whether the session draws each host mesh of the cells now, and its last turn. */
   const drawn = new Map<Object3D, boolean>(),
