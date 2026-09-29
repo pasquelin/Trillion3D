@@ -44,6 +44,7 @@ test('a narrow scene is lit by the narrow program, a wide one never is', async (
       setPipeline: (pipeline: GPURenderPipelineDescriptor) =>
         labels.push(pipeline.fragment!.module.label),
       setBindGroup() {},
+      setViewport() {},
       draw() {},
       end() {},
     }),

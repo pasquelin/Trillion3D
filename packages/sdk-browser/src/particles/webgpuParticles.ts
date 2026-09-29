@@ -182,6 +182,7 @@ export function drawParticles(
     encoder,
     hdrView,
     depthView,
+    rt.gpu.targetSize,
     viewProj,
     eye,
     filter,

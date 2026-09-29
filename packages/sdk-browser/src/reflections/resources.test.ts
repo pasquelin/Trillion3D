@@ -20,7 +20,7 @@ test('reflection resources have bounded active/inactive size, use shared depth a
     );
     assert.equal(gpu.buffers[0].size, 80);
     assert.equal(Array.from(gpu.bindGroups[0].entries)[1].resource, depth);
-    reflection.update(new Float32Array(16), true);
+    reflection.update(new Float32Array(16), true, [64, 32]);
     reflection.dispose();
     assert.equal(gpu.destroyed.length, 2);
   }
@@ -67,6 +67,7 @@ test('capture release waits for a late grant, including rejection, before restor
       height: 16,
       renderWidth: 32,
       renderHeight: 16,
+      apart: false,
     });
     const cleanup = releaseSettledCapture(rt, capture);
     await Promise.resolve();
