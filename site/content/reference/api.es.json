@@ -148,6 +148,14 @@
   "assertCacheRoot": {
     "summary": "Lo que un host puede comprobar en la raíz de un manifiesto de caché (`clusters.json`) antes de cualquiera de sus páginas: la caché está lista, con el ámbito pedido y en un formato que este SDK lee."
   },
+  "CellRows": {
+    "summary": "Una celda decodificada, tal como se escriben sus filas a partir de ella.",
+    "members": {
+      "nodes": "Cuántos nodos contiene la celda.",
+      "ranks": "Por nodo, el rango de su padre (`-1`: la raíz de la escena) y luego el de su malla.",
+      "locals": "Por nodo, su matriz local."
+    }
+  },
   "readPagedManifest": {
     "summary": "El manifiesto bajo `root`, sus páginas y sus archivos anexos leídos en paralelo mediante `read` — en un navegador `fetchVerified`, que prueba cada uno por el tamaño y la huella que lo nombran: los campos de la raíz, los de la cabecera y las primitivas de cada página de malla en orden (`decodeManifestBinary`)."
   },

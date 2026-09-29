@@ -148,6 +148,14 @@
   "assertCacheRoot": {
     "summary": "Ciò che un host può verificare sulla radice di un manifesto di cache (`clusters.json`) prima di qualsiasi sua pagina: la cache è pronta, dell’ambito richiesto, in un formato che questo SDK legge."
   },
+  "CellRows": {
+    "summary": "Una cella decodificata, così come ne vengono scritte le righe.",
+    "members": {
+      "nodes": "Quanti nodi contiene la cella.",
+      "ranks": "Per nodo, il rango del suo genitore (`-1`: la radice della scena), poi quello della sua mesh.",
+      "locals": "Per nodo, la sua matrice locale."
+    }
+  },
   "readPagedManifest": {
     "summary": "Il manifesto sotto `root`, le sue pagine e i loro file allegati letti fianco a fianco tramite `read` — in un browser `fetchVerified`, che prova ciascuno con la dimensione e l’impronta che lo nominano: i campi della radice, quelli della testa e le primitive di ogni pagina di mesh in ordine (`decodeManifestBinary`)."
   },
