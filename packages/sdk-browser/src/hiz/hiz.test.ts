@@ -12,7 +12,12 @@ import {
   type HizPage,
 } from './hiz.ts';
 import { splitOccludersInto } from './split.ts';
-import { cameraAt, projectBoxToScreen, quad } from '../../../../tests/fixtures/hiz.ts';
+import {
+  cameraAt,
+  occluderPyramid,
+  projectBoxToScreen,
+  quad,
+} from '../../../../tests/fixtures/hiz.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { identityRoots } from '../page/selection/placements.fixture.ts';
 
@@ -130,15 +135,7 @@ test('Hi-Z rejects a fully covered farther page and keeps a page beside a hole',
   const open = quad(backMat, [0.35, -0.2, -2], [0.8, 0.2, -2], 'open');
   const cam = cameraAt(),
     size: [number, number] = [32, 32];
-  const occluderIds = rasterVisibilityIds([front.page], identityRoots(), cameraMoteur(cam), size);
-  const occluderDepth = visibilityDepth(
-    occluderIds,
-    [front.page],
-    identityRoots(),
-    cameraMoteur(cam),
-    size,
-  );
-  const pyramid = buildHizPyramid(occluderDepth, 32, 32);
+  const pyramid = occluderPyramid([front.page], cam, size);
   const selected = [front.page, back.page];
   const remaining = filterUnoccluded(selected, identityRoots(), pyramid, cameraMoteur(cam), size);
   assert.deepEqual(
@@ -146,12 +143,7 @@ test('Hi-Z rejects a fully covered farther page and keeps a page beside a hole',
     ['front'],
   );
   assert.ok(remaining.every((page) => selected.includes(page)));
-  const holeIds = rasterVisibilityIds([hole.page], identityRoots(), cameraMoteur(cam), size);
-  const holePyramid = buildHizPyramid(
-    visibilityDepth(holeIds, [hole.page], identityRoots(), cameraMoteur(cam), size),
-    32,
-    32,
-  );
+  const holePyramid = occluderPyramid([hole.page], cam, size);
   const beside = filterUnoccluded(
     [hole.page, open.page],
     identityRoots(),
