@@ -44,13 +44,13 @@ export async function openGpuDevice(
     async fermer() {
       await device.queue.onSubmittedWorkDone();
       const info = adapter.info ?? {};
-      const champs = (['vendor', 'architecture', 'device', 'description'] as const).map(
+      const fields = (['vendor', 'architecture', 'device', 'description'] as const).map(
         (c) => info[c],
       );
       device.destroy();
       return {
-        court: `${champs[0]} ${champs[1]}`,
-        complet: champs.filter(Boolean).join(' / '),
+        court: `${fields[0]} ${fields[1]}`,
+        complet: fields.filter(Boolean).join(' / '),
       };
     },
   };

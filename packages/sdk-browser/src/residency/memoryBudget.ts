@@ -15,6 +15,7 @@ import { textureLevelShare } from '../texture/levelStore.ts';
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts';
 import { bounceProbeBytes } from '../bounce/limits.ts';
 import { effectChainBytesAt } from '../effects/targets.ts';
+import { admittedPools, validateActiveMemory, type ActiveGpuMemory } from './activeMemory.ts';
 
 /** The pool the shadows are counted at, 3840 × 2160 under one sun (`shadowPoolSize`): its atlas
  *  bytes are the most the grant allots a pool (`webgpu/shadow/poolSize.ts`). */
@@ -108,21 +109,37 @@ export function splitMemoryBudget(
   gpu: number,
   cpu: number,
   canvas: BudgetCanvas = DEFAULT_BUDGET_CANVAS,
+  active?: ActiveGpuMemory,
 ) {
   checkBudget(gpu, 'INVALID_GPU_BUDGET');
   checkBudget(cpu, 'INVALID_CPU_BUDGET');
   checkBudget(canvas.width, 'INVALID_BUDGET_CANVAS');
   checkBudget(canvas.height, 'INVALID_BUDGET_CANVAS');
-  const fixed = fixedGpuBytes(canvas);
-  if (gpu < fixed) throw new Error('GPU_BUDGET_UNDER_SHADOW_POOL');
+  if (active) validateActiveMemory(active);
+  const shadowPool = active?.shadowPool ?? SHADOW_POOL_BYTES;
+  const bounceProbes = active?.bounceProbes ?? BOUNCE_PROBE_BYTES;
+  const effectTargets = active?.effectTargets ?? effectTargetReserve(canvas);
+  const fixed = shadowPool + bounceProbes + effectTargets + (active?.frameTargets ?? 0);
+  if (!active && gpu < fixed) throw new Error('GPU_BUDGET_UNDER_SHADOW_POOL');
   if (cpu <= SHADOW_HOST_BYTES) throw new Error('CPU_BUDGET_UNDER_SHADOW_MIRROR');
   const half = Math.floor((gpu - fixed) / 2);
   return {
-    shadowPool: SHADOW_POOL_BYTES,
-    bounceProbes: BOUNCE_PROBE_BYTES,
-    effectTargets: effectTargetReserve(canvas),
-    geometryPool: Math.max(1, Math.min(DEFAULT_GEOMETRY_POOL_BUDGET, half)),
-    texturePool: Math.max(1, Math.min(DEFAULT_TEXTURE_POOL_BUDGET, half)),
+    shadowPool,
+    bounceProbes,
+    effectTargets,
+    ...(active ? { frameTargets: active.frameTargets } : {}),
+    ...(active
+      ? admittedPools(
+          gpu - fixed,
+          active.geometryMinimum,
+          active.textureMinimum,
+          DEFAULT_GEOMETRY_POOL_BUDGET,
+          DEFAULT_TEXTURE_POOL_BUDGET,
+        )
+      : {
+          geometryPool: Math.max(1, Math.min(DEFAULT_GEOMETRY_POOL_BUDGET, half)),
+          texturePool: Math.max(1, Math.min(DEFAULT_TEXTURE_POOL_BUDGET, half)),
+        }),
     shadowMirror: SHADOW_HOST_BYTES,
     pageCache: cpu - SHADOW_HOST_BYTES,
     textureLevels: textureLevelShare(cpu - SHADOW_HOST_BYTES),

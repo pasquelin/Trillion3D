@@ -1,6 +1,8 @@
 // #992: the transmittance layer is asked of the shadows' one grant, then of the device under an
 // out-of-memory check, never inside a frame; past the grant or refused, it is named and the opaque
 // shadows stay whole. A layer asked late has every mapped page drawn again once it lands.
+import { installGpuDeviceLedger } from '../../gpu/core/deviceLedger.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { STALE_FULL } from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
@@ -8,7 +10,7 @@ import { shadowTransmittanceBytes } from '../../gpu/shadow/transmittance.ts';
 import { createWebgpuLightState } from '../pages/state/lights.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { refreshWebgpuMaterials } from '../pages/io/refreshMaterials.ts';
-import { deviceAnswering } from '../frame/deviceAnswer.ts';
+import { deviceAnswering, deviceAnswer } from '../frame/deviceAnswer.ts';
 import { frameTransmittance, grantShadowTransmittance } from './transmittanceGrant.ts';
 
 const HELD = 1000,
@@ -120,4 +122,23 @@ test('a blended surface rewritten to cast asks its layer before any frame, drawn
   await grant.done;
   assert.equal(frameTransmittance(rt, {} as GPUCommandEncoder), layer, 'the first frame reads it');
   assert.equal(lights.shadowGrant, grant, 'asked once');
+});
+
+test('a global budget refusal cannot resume the frame without its colored shadow', async () => {
+  const { rt, lights, taken } = sized();
+  const gpu = fakeDevice();
+  rt.gpu.device = gpu.device;
+  const ledger = installGpuDeviceLedger(gpu.device, { limit: () => 1024 });
+  const previous = gpu.device.createTexture({ size: [8, 8], format: 'rgba8unorm', usage: 0 });
+  lights.shadows!.makeTransmittance = () => {
+    gpu.device.createTexture({ size: [512, 512], format: 'rgba8unorm', usage: 0 });
+    throw new Error('UNREACHABLE');
+  };
+  await grantShadowTransmittance(rt);
+  assert.equal(taken.length, 0);
+  assert.equal(gpu.textures.length, 1, 'the refused layer never reached device creation');
+  assert.equal(ledger.bytes, 256);
+  assert.equal(gpu.destroyed.includes(previous), false);
+  assert.equal(deviceAnswering(rt), true, 'the existing quality fallback cannot unhold the frame');
+  await assert.rejects(deviceAnswer(rt)!, /GPU_BUDGET_EXCEEDED/);
 });

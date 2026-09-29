@@ -46,7 +46,7 @@ test('blended and water surfaces, lit or unlit, are fogged from the eye of the b
   // the branch that skips the unlit view.
   assert.match(
     BLEND_SHADER,
-    /if\(!unlit\)\{\s+if\(\(flags&1u\)!=0u\)\{[^]*?\+s\.emissive;[^}]*?rgb\+=mirrorLighting\([^;]+\);\s+\}\s+\/\/.*\s+if\(\(flags&1048576u\)==0u\)\{rgb=fogged\(rgb,in\.view,uni\.eye\.xyz\);\}\s+\}/,
+    /if\(!unlit\)\{\s+if\(\(flags&1u\)!=0u\)\{[^]*?\+s\.emissive;[^]*?rgb\+=mirrorLighting\([^;]+\);\s+\}\s+\/\/.*\s+if\(\(flags&1048576u\)==0u\)\{rgb=fogged\(rgb,in\.view,uni\.eye\.xyz\);\}\s+\}/,
   );
   assert.match(
     WATER_COMPOSITE_SHADER,

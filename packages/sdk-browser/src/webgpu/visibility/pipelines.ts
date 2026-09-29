@@ -1,9 +1,8 @@
+import { shadeLayout } from './shadeLayout.ts';
 import { FEEDBACK_FORMAT, SURFACE_FORMATS } from '../../scene/surfaceBuffer.ts';
-import { SHADE_UNIFORM_BYTES } from '../../visibility/shader/request.ts';
 import { depthLayerUnits } from '../../../../sdk-core/src/index.ts';
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts';
 import { validationScope } from '../../gpu/core/errorScope.ts';
-import { SHADE_BINDINGS, atlasLayoutEntries, readOnly } from '../core/bindLayout.ts';
 import {
   shadeVariantFragment,
   variesShade,
@@ -113,29 +112,6 @@ export function createWebgpuCoplanarLayerPipelines(
             }),
           );
     return pipelines;
-  });
-}
-/** The material pass's bind layout, which the feedback-free diagnostic pipelines share. */
-function shadeLayout(device: GPUDevice) {
-  const b = SHADE_BINDINGS;
-  const fragment = GPUShaderStage.FRAGMENT;
-  return device.createBindGroupLayout({
-    entries: [
-      { binding: b.visView, visibility: fragment, texture: { sampleType: 'uint' } },
-      { binding: b.cache, visibility: fragment, buffer: readOnly },
-      { binding: b.position, visibility: fragment, buffer: readOnly },
-      { binding: b.uv, visibility: fragment, buffer: readOnly },
-      { binding: b.normal, visibility: fragment, buffer: readOnly },
-      { binding: b.pageTable, visibility: fragment, buffer: readOnly },
-      ...atlasLayoutEntries(b.color),
-      { binding: b.sampler, visibility: fragment, sampler: { type: 'filtering' } },
-      {
-        binding: b.uniform,
-        visibility: fragment,
-        buffer: { type: 'uniform', minBindingSize: SHADE_UNIFORM_BYTES },
-      },
-      ...atlasLayoutEntries(b.data),
-    ],
   });
 }
 /** Builds the depth export and class-specialized material pipelines during preparation. */

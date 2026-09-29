@@ -9,7 +9,7 @@ import { pendingBuffers } from '../core/tableGrowth.ts';
 import { createPartitionUniformWriter, type PartitionFrame } from './uniform.ts';
 import { createPartitionCounters } from './counters.ts';
 import { PARTITION_SHADER } from './shader.ts';
-import { validated } from '../core/errorScope.ts';
+import { constructGpuResources, validated } from '../core/errorScope.ts';
 import { shaderFailed } from '../core/shaderModule.ts';
 import { readGpuBuffer } from '../core/readback.ts';
 import type { GpuPartition, KeptFrame, PartitionSources } from './types.ts';
@@ -28,7 +28,7 @@ export async function createGpuPartition(
     pyramid = sources.pyramid();
   if (typeof device.createComputePipeline !== 'function' || slotCap < 1 || !pyramid)
     return undefined;
-  const allocated = createGpuPartitionBuffers(device, slotCap);
+  const allocated = constructGpuResources(device, () => createGpuPartitionBuffers(device, slotCap));
   let disposed = false;
   try {
     // The pyramid changes identity on every target resize: the projection's group follows it,
@@ -100,7 +100,7 @@ export async function createGpuPartition(
       },
       uniforms: allocated.uniforms,
       grow(rows, next) {
-        const grown = createGpuPartitionRows(device, rows);
+        const grown = constructGpuResources(device, () => createGpuPartitionRows(device, rows));
         return pendingBuffers(grown.all, () => {
           const old = [allocated.corners, allocated.rowData, allocated.tested];
           const all = [...grown.all, allocated.state, allocated.uniforms];

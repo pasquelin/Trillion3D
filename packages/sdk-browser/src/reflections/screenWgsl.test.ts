@@ -5,6 +5,7 @@ import { BOUNCE_LIGHTING_SHADER, DIRECT_LIGHTING_SHADER } from '../lighting/defe
 import { functionText } from '../bounce/wgslBody.fixture.ts';
 
 const text = functionText(SCREEN_REFLECTION_WGSL, 'resolvedRadiance');
+const ray = functionText(SCREEN_REFLECTION_WGSL, 'resolvedReflectionRay');
 const resolved = new Function(`
  const vec3f=x=>x,mix=(a,b,t)=>a*(1-t)+b*t;
  return (enabled,hit,weight)=>{
@@ -12,6 +13,8 @@ const resolved = new Function(`
   const reflectionView={enabled:{x:enabled?1:0}},mirrorWeight=()=>weight;
   const screenReflection=()=>({a:hit?1:0,rgb:7});
   const reflectedRadiance=()=>{fallbackCalls++;return 3;};
+  function resolvedReflectionRay(P,N,R){${ray.slice(ray.indexOf('{') + 1)}}
+  const filteredResolvedReflection=(P,N,R)=>resolvedReflectionRay(P,N,R);
   function resolvedRadiance(P,N,R,rough){${text.slice(text.indexOf('{') + 1)}}
   return {value:resolvedRadiance(0,0,0,0),fallbackCalls};
  };`)() as (
@@ -24,8 +27,9 @@ test('a screen hit replaces proxy radiance; misses and disabled sources keep the
   assert.deepEqual(resolved(true, true, 1), { value: 7, fallbackCalls: 0 });
   assert.deepEqual(resolved(true, false, 1), { value: 3, fallbackCalls: 1 });
   assert.deepEqual(resolved(false, true, 1), { value: 3, fallbackCalls: 1 });
-  assert.deepEqual(resolved(true, true, 0), { value: 3, fallbackCalls: 1 });
-  assert.deepEqual(resolved(true, true, 0.5), { value: 5, fallbackCalls: 1 });
+  assert.deepEqual(resolved(true, true, 0), { value: 7, fallbackCalls: 0 });
+  assert.deepEqual(resolved(true, true, 0.5), { value: 7, fallbackCalls: 0 });
+  assert.deepEqual(resolved(true, false, 0), { value: 3, fallbackCalls: 1 });
 });
 
 test('frozen source excludes mirror recursion and camera fog without dropping bounced diffuse light', () => {
