@@ -2070,6 +2070,14 @@
       "transientBytes": "Byte yang ditahan sekaligus saat kolam geometri disalin: kolam lama dan kolam baru di sampingnya, diberikan bersama oleh perangkat sebelum halaman mana pun berpindah; 0 jika tidak ada kolam yang berpindah."
     }
   },
+  "TableGrowthReport": {
+    "summary": "Pertumbuhan tabel yang ukurannya ditentukan per baris yang dapat digambar, sebagaimana diminta pool di atasnya.",
+    "members": {
+      "drawSlots": "Baris visibilitas, lalu setiap baris yang dibaca pass bayangan, sesuai kondisi tabel sekarang.",
+      "bytes": "Byte yang dimuat tabel GPU yang membesar — yang diminta, bila ditolak.",
+      "refused": "`true` bila perangkat menolaknya: tabel dan pool yang ada dipertahankan."
+    }
+  },
   "Mesh": {
     "summary": "Bentuk dan bahan ditempatkan di scene.",
     "description": "Mengganti salah satunya, atau menulis ke salah satunya, mencapai dunia: perubahan geometri dan material didengar selama mesh ini memakainya.",

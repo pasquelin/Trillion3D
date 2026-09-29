@@ -2052,6 +2052,14 @@
       "transientBytes": "Bytes mantidos ao mesmo tempo durante a cópia do pool de geometria: o pool antigo e o novo ao lado, concedidos juntos pelo dispositivo antes de qualquer página se mover; 0 quando nenhum pool se moveu."
     }
   },
+  "TableGrowthReport": {
+    "summary": "O crescimento das tabelas dimensionadas por linha desenhável, como um pool acima delas o pediu.",
+    "members": {
+      "drawSlots": "Linhas de visibilidade e depois cada linha lida pela passagem de sombras, como as tabelas estão agora.",
+      "bytes": "Bytes que as tabelas de GPU ampliadas ocupam — os pedidos, quando recusados.",
+      "refused": "`true` quando o dispositivo as recusou: as tabelas e o pool existentes são mantidos."
+    }
+  },
   "Mesh": {
     "summary": "Forma e matéria posicionadas na cena.",
     "description": "Substituir uma das duas, ou escrever em uma delas, chega ao mundo: as mudanças da geometria e do material são ouvidas enquanto este mesh os usar.",

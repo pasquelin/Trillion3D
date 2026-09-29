@@ -2070,6 +2070,14 @@
       "transientBytes": "Số byte được giữ cùng lúc khi sao chép bể hình học: bể cũ và bể mới bên cạnh, được thiết bị cấp cùng nhau trước khi bất kỳ trang nào di chuyển; 0 khi không có bể nào di chuyển."
     }
   },
+  "TableGrowthReport": {
+    "summary": "Sự mở rộng của các bảng được định cỡ theo hàng có thể vẽ, đúng như một pool bên trên chúng yêu cầu.",
+    "members": {
+      "drawSlots": "Các hàng khả kiến, rồi mọi hàng mà lượt bóng đổ đọc, như các bảng đang có bây giờ.",
+      "bytes": "Số byte mà các bảng GPU đã mở rộng nắm giữ — số byte được yêu cầu nếu bị từ chối.",
+      "refused": "`true` khi thiết bị từ chối: các bảng và pool hiện có được giữ nguyên."
+    }
+  },
   "Mesh": {
     "summary": "Hình dạng và chất liệu được đặt trong cảnh.",
     "description": "Thay thế một trong hai, hoặc ghi vào một trong hai, đều đến được thế giới: các thay đổi của hình học và vật liệu được lắng nghe chừng nào mesh này còn mang chúng.",
