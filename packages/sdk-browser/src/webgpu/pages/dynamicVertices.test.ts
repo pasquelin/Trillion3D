@@ -7,7 +7,8 @@ import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts';
 import { createVertexPool } from '../core/geometryPrepare.ts';
 import { createShadowMobility } from '../shadow/mobility.ts';
 import type { HostAttributes } from '../../host/resources.ts';
-import { updateWebgpuVertices } from './dynamicVertices.ts';
+import { updateWebgpuVertices, webgpuVertexBytes } from './dynamicVertices.ts';
+import type { VertexRange } from '../../placement/backendSceneUpdates.ts';
 import type { WebgpuPagesRuntime } from './runtime.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 
@@ -85,4 +86,27 @@ test('a block a record takes after the open is placed in the room the pool kept'
   assert.equal(pool.place(sheet(), true)?.vertexBase, 0);
   assert.equal(pool.place(sheet(), true)?.vertexBase, 4, 'a mount after the open');
   assert.equal(pool.place(sheet(), true), undefined, 'no room left: the session opens again');
+});
+
+test('a rewrite weighs what it sends the GPU: a normal with its tangent, positions twice', () => {
+  const { device, writes } = recordingDevice();
+  const attributes = geometry.plane(1, 1, 1, 1).attributes as unknown as HostAttributes;
+  const pool = createVertexPool(device, 8, false, new Map());
+  pool.place(attributes, true);
+  const rt = {
+    vis: { vertexPool: pool },
+    gpu: { device, positionBuffers: new Map([[attributes, {}]]) },
+    run: { lost: false, gate: { sceneMoved() {} } },
+    layout: { selectionRoots: [] },
+  } as unknown as WebgpuPagesRuntime;
+  const ranges: VertexRange[] = [
+    { name: 'position', from: 1, count: 2 },
+    { name: 'normal', from: 0, count: 1 },
+  ];
+  const weighed = webgpuVertexBytes(rt, attributes, ranges);
+  writes.length = 0;
+  assert.ok(updateWebgpuVertices(rt, attributes, ranges, new Float64Array(6)));
+  const sent = writes.reduce((bytes, [, , floats]) => bytes + floats.length * 4, 0);
+  assert.equal(weighed, sent, 'what is weighed is what is sent');
+  assert.equal(weighed, 2 * 12 * 2 + 7 * 4, 'two positions twice, one normal and its tangent');
 });

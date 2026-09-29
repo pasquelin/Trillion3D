@@ -75,8 +75,20 @@ export function finishMoves(rt: WebgpuPagesRuntime) {
   }
 }
 
+/** Root `rank` moved, at the pose it now reads: whether that was its first move — the static
+ *  shadow layer leaves it out from then on (`../../shadow/mobility.ts`). */
+const promote = (rt: WebgpuPagesRuntime, rank: number) =>
+  rt.lights.mobility.move(rank, rt.layout.selectionRoots[rank].world.elements, true) ===
+  MOVE_PROMOTED;
+
+/** `moved`, a motion box, declared to the shadow scheduler: a root's first move changes the
+ *  static layer, so the pages it crossed are staled whole; its moving casters alone after. */
+function declare(rt: WebgpuPagesRuntime, promoted: boolean) {
+  if (!boxIsEmpty(moved, 0)) rt.lights.plan.worldChanged(movedMin, movedMax, !promoted);
+}
+
 function passMoves(rt: WebgpuPagesRuntime) {
-  const { lights, run, layout } = rt,
+  const { run, layout } = rt,
     roots = layout.selectionRoots;
   if (promotedRoots.length < roots.length) {
     promotedRoots = new Uint8Array(roots.length);
@@ -106,7 +118,7 @@ function passMoves(rt: WebgpuPagesRuntime) {
     moveRootRows(rt, root);
     if (!root.worldBox) continue;
     // A node moved: each root under it moved, at the pose it now reads.
-    promotedRoots[i] = lights.mobility.move(i, root.world.elements, true) === MOVE_PROMOTED ? 1 : 0;
+    promotedRoots[i] = promote(rt, i) ? 1 : 0;
     if (root.localBox && !enLot)
       boxTransform(root.worldBox, 0, root.localBox, 0, root.world.elements);
   }
@@ -127,7 +139,29 @@ function passMoves(rt: WebgpuPagesRuntime) {
       if (root.localBox) boxUnionBatch(moved, root.worldBox, 1);
     }
     start = movedEnds[k];
-    // A root's first move changes the static layer: the pages it crossed are staled whole.
-    if (!boxIsEmpty(moved, 0)) lights.plan.worldChanged(movedMin, movedMax, !promoted);
+    declare(rt, promoted);
   }
+}
+
+/** One root's local box in the world, allocated once. */
+const local = new Float64Array(BOX_VALUES);
+
+/**
+ * The shadow pages a dynamic geometry's rewrite touches, and none other (#489, #573): each root
+ * that draws `attributes` moves — a moving caster from its first rewrite on, as a node that moves
+ * —, and the world box of `box`, its moved vertices where they were and where they go, is
+ * declared as a node's motion box is.
+ */
+export function noteRewritten(rt: WebgpuPagesRuntime, attributes: object, box: Float64Array) {
+  const roots = rt.layout.selectionRoots;
+  let promoted = false;
+  boxEmpty(moved, 0);
+  for (let rank = 0; rank < roots.length; rank++) {
+    const root = roots[rank];
+    if (root.pages[0]?.attributes !== attributes) continue;
+    promoted = promote(rt, rank) || promoted;
+    boxTransform(local, 0, box, 0, root.world.elements);
+    boxUnionBatch(moved, local, 1);
+  }
+  declare(rt, promoted);
 }

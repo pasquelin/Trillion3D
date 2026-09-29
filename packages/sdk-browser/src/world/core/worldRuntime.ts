@@ -14,7 +14,7 @@ import { createCanvasFit, followPageCamera } from './worldCamera.ts';
 import type { PosedTwin } from './worldPoses.ts';
 import type { WorldRuntimeInputs as Inputs } from './worldRuntimeInputs.ts';
 import { DYNAMIC_UPLOAD_BUDGET_BYTES } from './worldDynamic.ts';
-import { vertexWriter } from './worldDynamicRanges.ts';
+import { vertexUploads } from './worldDynamicRanges.ts';
 
 /** The session drawing a world, fed by a per-frame change list: what the scene asks is resolved
  *  off the frame (`worldContents.ts`), applied once before each frame — rows taken, parked or grown
@@ -114,6 +114,12 @@ export function createWorldRuntime(inputs: Inputs) {
   };
   const mounts = createWorldMounts(contents, () => explorer, schedule, track.asks('mount-refused'));
   const backgroundRefused = track.asks('background');
+  /** Where a frame's dynamic vertices go: the open session, made once (#573). */
+  const uploads = vertexUploads(
+    () => explorer,
+    (cut) => mirror?.geometryOf(cut),
+    track.asks('vertices-refused'),
+  );
   /** The change list, applied once before a frame: rows seated, poses written, lights stored. */
   const apply = () => {
     const session = explorer;
@@ -129,9 +135,7 @@ export function createWorldRuntime(inputs: Inputs) {
         request('repaint-refused');
     }
     if (!session || explorer !== session) return;
-    const refused = () => request('vertices-refused');
-    const write = vertexWriter(session, (cut) => mirror?.geometryOf(cut), refused);
-    uploaded += cuts.dynamic.upload(DYNAMIC_UPLOAD_BUDGET_BYTES, write);
+    uploaded += cuts.dynamic.upload(DYNAMIC_UPLOAD_BUDGET_BYTES, uploads);
     if (poses.pending)
       poses.apply(scene, contents.seats, twins, (rows, from, to) =>
         session.updatePlacements(rows, from, to),

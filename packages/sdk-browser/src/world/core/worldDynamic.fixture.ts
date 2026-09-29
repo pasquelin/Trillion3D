@@ -11,7 +11,8 @@ export function dynamicWorld() {
   const rewrites: VertexRange[][] = [],
     sources: ExplorerSource[] = [];
   Object.assign(session, {
-    updateVertices: (_: unknown, ranges: VertexRange[]) => rewrites.push(ranges) > 0,
+    updateVertices: (_: unknown, ranges: VertexRange[]) =>
+      rewrites.push(ranges.map((r) => ({ ...r }))) > 0,
     setClearColor: () => true,
   });
   const open = (async (_canvas: unknown, _options: unknown, source: ExplorerSource) => (

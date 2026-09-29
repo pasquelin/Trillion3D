@@ -4,13 +4,12 @@ import {
 } from '../../../../sdk-core/src/world/geometry/drawn.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
-import { boxEmpty, boxExpandByPoint } from '../../../../sdk-core/src/math/primitives/box.ts';
 import type { PageCutPayload } from '../../../../sdk-core/src/page/decodeContracts.ts';
 import { packDrawn } from '../page/runtimeCut.ts';
 import { cutDynamicPrimitive, servePrimitive, type HeldBox } from '../page/runtimePrimitive.ts';
 import type { WorldNotices } from '../diagnostic/worldNotices.ts';
-import { changedRanges, copyRanges, LISTS } from './worldDynamicRanges.ts';
-import type { VertexRange } from '../../placement/backendSceneUpdates.ts';
+import { changedRanges, copyRanges, LISTS, type VertexUploads } from './worldDynamicRanges.ts';
+import { fits, heldBox, readInPlace, readingOf, type Reading } from './worldDynamicRead.ts';
 import type { Cut } from './worldCuts.ts';
 
 /**
@@ -24,50 +23,9 @@ import type { Cut } from './worldCuts.ts';
 export const DYNAMIC_UPLOAD_BUDGET_BYTES = 4 * 1024 * 1024;
 
 /** What a dynamic resource holds beside its pages: the box that culls it, the cut that serves them
- *  again in a larger one, and the triangles read since its last upload, if any. */
-export type DynamicHeld = {
-  box: HeldBox;
-  cut: PageCutPayload;
-  version: number;
-  pending: DrawnTriangles | null;
-};
+ *  again in a larger one, and the geometry version read into its lists (`Reading`). */
+export type DynamicHeld = Reading & { box: HeldBox; cut: PageCutPayload; version: number };
 type Options = Parameters<typeof drawnTriangles>[2];
-
-/** The drawn box of `drawn`, joined to `declared` and `before`; widened by half its size when
- *  nothing was declared, so that a sheet that waves stays within the box it was cut in. */
-function heldBox(drawn: DrawnTriangles, declared: Geometry['maxBounds'], before?: HeldBox) {
-  const box = new Float64Array(6);
-  boxEmpty(box, 0);
-  const p = drawn.positions;
-  for (let i = 0; i + 2 < p.length; i += 3) boxExpandByPoint(box, 0, p[i], p[i + 1], p[i + 2]);
-  if (declared) {
-    boxExpandByPoint(box, 0, declared.min.x, declared.min.y, declared.min.z);
-    boxExpandByPoint(box, 0, declared.max.x, declared.max.y, declared.max.z);
-  }
-  if (before) {
-    boxExpandByPoint(box, 0, before[0], before[1], before[2]);
-    boxExpandByPoint(box, 0, before[3], before[4], before[5]);
-  }
-  const pad = declared ? 0 : Math.max(box[3] - box[0], box[4] - box[1], box[5] - box[2], 1e-3) / 2;
-  for (let a = 0; a < 3; a++) {
-    box[a] -= pad;
-    box[a + 3] += pad;
-  }
-  return box;
-}
-
-/** Whether `next` draws the triangles `held` draws — the same corners, the same lists —, and
- *  within `box`: its vertices can then be written in place. */
-function fits(held: DrawnTriangles, next: DrawnTriangles, box: HeldBox) {
-  const same =
-    held.indices.length === next.indices.length &&
-    held.indices.every((v, i) => v === next.indices[i]) &&
-    LISTS.every(([list]) => held[list]?.length === next[list]?.length);
-  const p = next.positions;
-  for (let i = 0; same && i < p.length; i++)
-    if (p[i] < box[i % 3] || p[i] > box[(i % 3) + 3]) return false;
-  return same;
-}
 
 /**
  * THE DYNAMIC GEOMETRY OF A WORLD (#573). A geometry that declares `usage: 'dynamic'`, or whose
@@ -88,6 +46,12 @@ export function createWorldDynamic(notices: WorldNotices | undefined, counts: { 
   /** The resources whose read vertices wait for an upload, in the order they changed. */
   const dirty = new Set<Cut>();
   const dynamicOf = (cut: Cut) => cut.dynamic!;
+  /** `cut`'s lists read at its geometry's `version`: they wait for the next `upload`. */
+  const pend = (cut: Cut, version: number) => {
+    dynamicOf(cut).version = version;
+    dirty.add(cut);
+    return cut;
+  };
   /** Whether `mesh`'s geometry takes the dynamic path: declared, or changed on two frames in a row. */
   const wants = (mesh: Mesh) => {
     const geometry = mesh.geometry,
@@ -123,7 +87,12 @@ export function createWorldDynamic(notices: WorldNotices | undefined, counts: { 
     const { cut, runtime } = again
       ? { cut: held.cut, runtime: servePrimitive(held.cut, drawn, box) }
       : await cutDynamicPrimitive(packDrawn(drawn, blended), drawn, box);
-    const state: DynamicHeld = { box, cut, version: geometry.version, pending: null };
+    const state: DynamicHeld = {
+      ...readingOf(geometry, drawn),
+      box,
+      cut,
+      version: geometry.version,
+    };
     return {
       key: `dynamic:${serial++}`,
       drawn,
@@ -151,13 +120,19 @@ export function createWorldDynamic(notices: WorldNotices | undefined, counts: { 
       const asked = byWay.get(way),
         before = await asked;
       if (before && dynamicOf(before).version === geometry.version) return before;
+      // Its corners and lists kept, a rewrite is read into the resource's own lists, then uploaded.
+      const kept = before && byWay.get(way) === asked ? before : null;
+      if (kept && readInPlace(geometry, mesh.primitive, options, dynamicOf(kept)))
+        return pend(kept, geometry.version);
       const drawn = drawnTriangles(geometry, mesh.primitive, options);
       if (!drawn) return null;
-      if (before && byWay.get(way) === asked && fits(before.drawn, drawn, dynamicOf(before).box)) {
-        Object.assign(dynamicOf(before), { version: geometry.version, pending: drawn });
-        dirty.add(before);
-        return before;
+      if (kept && fits(kept.drawn, drawn, dynamicOf(kept).box)) {
+        const lists = dynamicOf(kept).next;
+        for (const [list] of LISTS) lists[list]?.set(drawn[list] ?? lists[list]);
+        return pend(kept, geometry.version);
       }
+      // A new resource replaces it: what it read and did not upload is read there again.
+      if (before) dirty.delete(before);
       const leave = () => byWay.get(way) === next && byWay.delete(way);
       const next: Promise<Cut> = make(drawn, geometry, blended, before ?? undefined).then(
         (cut) => (leaves.set(cut, leave), made(cut), cut),
@@ -176,20 +151,20 @@ export function createWorldDynamic(notices: WorldNotices | undefined, counts: { 
     },
     /**
      * Writes the read vertices of the resources that changed, in order, until the next would pass
-     * `budget` bytes; `write` hands each resource's changed ranges to the session, false when it
-     * does not draw that resource yet — it then waits. Returns the bytes written.
+     * `budget` bytes — as `uploads` weighs what they send the GPU —; `uploads` hands each
+     * resource's changed ranges to the session, false when it does not draw that resource yet —
+     * it then waits. Returns the bytes written. Nothing is allocated.
      */
-    upload(budget: number, write: (cut: Cut, ranges: VertexRange[], box: Float64Array) => boolean) {
+    upload(budget: number, uploads: VertexUploads) {
       let spent = 0;
       for (const cut of dirty) {
         const held = dynamicOf(cut),
-          next = held.pending!,
-          changed = changedRanges(cut.drawn, next);
-        if (spent && spent + changed.bytes > budget) break;
-        copyRanges(cut.drawn, next, changed.ranges);
-        if (!write(cut, changed.ranges, changed.box)) continue;
-        spent += changed.bytes;
-        held.pending = null;
+          changed = changedRanges(cut.drawn, held.next),
+          bytes = uploads.weigh(cut, changed.ranges, changed.bytes);
+        if (spent && spent + bytes > budget) break;
+        copyRanges(cut.drawn, held.next, changed.ranges);
+        if (!uploads.write(cut, changed.ranges, changed.box)) continue;
+        spent += bytes;
         dirty.delete(cut);
       }
       return spent;
