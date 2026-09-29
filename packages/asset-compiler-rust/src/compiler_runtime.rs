@@ -43,18 +43,17 @@ pub(super) fn load_model_file(
     }
     let declared_ref = declared.as_ref().map(|(m, _)| m);
     // Bytes of the glTF itself: a GLB's BIN chunk is charged once, as the job's binary.
-    let mut g_bytes_len = file_bytes.len();
-    let (mut g, binary, mut offsets, sidecars) = if is_glb(&file_bytes) {
+    let (mut g, binary, mut offsets, sidecars, g_bytes_len) = if is_glb(&file_bytes) {
         let (g, range) = compiler_source::parse_glb_parts(&file_bytes)?;
-        g_bytes_len -= range.len();
+        let g_bytes_len = file_bytes.len() - range.len();
         let embedded = Binary::MappedRange(file_bytes, range);
         let (binary, offsets, sidecars) =
             concat_gltf_buffers(dir, &g, Some(embedded), declared_ref)?;
-        (g, binary, offsets, sidecars)
+        (g, binary, offsets, sidecars, g_bytes_len)
     } else {
         let g: Value = serde_json::from_slice(&file_bytes)?;
         let (binary, offsets, sidecars) = concat_gltf_buffers(dir, &g, None, declared_ref)?;
-        (g, binary, offsets, sidecars)
+        (g, binary, offsets, sidecars, file_bytes.len())
     };
     let binary = compressed::meshopt_views(&mut g, binary, &mut offsets, budget)?;
     flatten_buffer_views(&mut g, &offsets, binary.bytes().len())?;

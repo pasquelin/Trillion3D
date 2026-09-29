@@ -138,7 +138,7 @@ export class WebglClusterRenderer {
     copies: readonly SceneCopy[] = [],
   ) {
     const gl = this.gl;
-    const lightReason = unsupportedClusterLight(scene);
+    const lightReason = unsupportedClusterLight(scene.lights);
     if (lightReason) refuseCluster(lightReason);
     this.copies.cull(copies, camera);
     const { plain, blended, transmissive } = this.copies;
