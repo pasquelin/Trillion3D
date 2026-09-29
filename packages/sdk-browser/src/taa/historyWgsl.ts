@@ -70,10 +70,10 @@ fn uncovered(uv:vec2f,centre:vec2i,last:vec2i,own:f32)->bool{
 }`;
 
 /**
- * The current image's share of a moving pixel (#816's blend, point 6): today's `alpha` times
- * `reach`, the weight of the sample nearest the display pixel — one that fell far from it does not
- * overwrite its history —, raised to the pixel's reactive value, never above `REACTIVE_MAX`; a pixel
- * with no history (`fresh`) takes the current sample whole.
+ * The current image's share of a pixel, moving or at rest (#816's blend, point 6): today's `alpha`
+ * times `reach`, the weight of the sample nearest the display pixel — one that fell far from it does
+ * not overwrite its history —, raised to the pixel's reactive value, never above `REACTIVE_MAX`; a
+ * pixel with no history (`fresh`) takes the current sample whole.
  */
 export const CURRENT_SHARE_WGSL = `
 fn currentShare(alpha:f32,reach:f32,rho:f32,fresh:bool)->f32{
