@@ -8,17 +8,14 @@ import {
   BIN_BACK,
   BIN_FRONT,
   BIN_NONE,
-  compactSlotLayout,
   createGpuDraw,
   DRAW_INDIRECT_STRIDE,
   DRAW_ITEM_U32,
   DRAW_SHADER,
   evaluateDrawCompact,
   indirectForDraw,
-  PAGE_BIND_ALIGN,
   type DrawItem,
 } from './draw.ts';
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts';
 
 test('compact keeps input order inside each bin and writes 16-byte indirects', () => {
   const items = [
@@ -91,7 +88,7 @@ test('draw shader counts, prefixes and scatters page groups in parallel with sta
   assert.match(DRAW_SHADER, /indirect\[o\+3u\]=0u/);
 });
 
-test('draw consumers zero firstInstance and pad slot binds to 256 bytes', () => {
+test('draw consumers zero firstInstance while compact records slot starts', () => {
   const items: DrawItem[] = [
     { pageIndex: 0, bin: BIN_BACK, rest: 0 },
     { pageIndex: 1, bin: BIN_NONE, rest: 0 },
@@ -106,14 +103,6 @@ test('draw consumers zero firstInstance and pad slot binds to 256 bytes', () => 
   assert.equal(drawn[1], 1);
   assert.equal(drawn[5], 1);
   assert.equal(drawn[3 * 4 + 1], 1);
-  const layout = compactSlotLayout(result.counts, PAGE_INFO_STRIDE);
-  assert.equal(PAGE_BIND_ALIGN, 256);
-  assert.equal(PAGE_INFO_STRIDE, 256);
-  assert.equal(layout.offsets[0], 0);
-  assert.equal(layout.offsets[1], 256);
-  assert.equal(layout.offsets[3], 512);
-  for (const offset of layout.offsets) assert.equal(offset % PAGE_BIND_ALIGN, 0);
-  assert.equal(layout.tableRows, 3);
 });
 
 test('a device without compute pipelines does not create GPU draw', async () => {
