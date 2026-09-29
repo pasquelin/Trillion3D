@@ -485,6 +485,14 @@
       "height": "Tinggi gambarnya, dalam piksel."
     }
   },
+  "CellRows": {
+    "summary": "Sel yang sudah didekode, tempat baris-barisnya ditulis.",
+    "members": {
+      "nodes": "Berapa banyak node yang dimuat sel.",
+      "ranks": "Per node, peringkat induknya (`-1`: akar adegan), lalu peringkat mesh-nya.",
+      "locals": "Per node, matriks lokalnya."
+    }
+  },
   "ChangeListener": {
     "summary": "Sebuah fungsi yang dipanggil saat sebuah controller menggerakkan kamera."
   },
@@ -2294,7 +2302,7 @@
     "description": "Enam yang pertama adalah penolakan uraian-halaman, diambil kata demi kata dari `geometryPage.ts`: seorang pemanggil membedakannya seperti sebelumnya. `PAGE_DECODE_FAILED` membawa penolakan lain apa pun dari pustaka dekompresi. `PAGE_DECODE_CANCELLED` menjawab sebuah pembatalan, `PAGE_DECODE_WORKER` sebuah eksekutor yang lenyap — hanya yang itu yang mengizinkan fallback."
   },
   "PAGE_DECODE_PROTOCOL": {
-    "summary": "Kontrak uraian-halaman di luar thread utama, versi 6: geometri yang diurai bepergian sebagai satu blok dengan galat kuantisasinya; `cut` mengubah segitiga yang digambar menjadi halaman, yang kembali sebagai byte dengan deskriptornya, dan, sejak versi 6, dengan kerucut normalnya, segitiga yang dikemas menyatakan apakah halamannya menyimpan satu.",
+    "summary": "Kontrak uraian-halaman di luar thread utama, versi 7: geometri yang diurai bepergian sebagai satu blok dengan galat kuantisasinya; `cut` mengubah segitiga yang digambar menjadi halaman, yang kembali sebagai byte dengan deskriptornya, dan, sejak versi 6, dengan kerucut normalnya, segitiga yang dikemas menyatakan apakah halamannya menyimpan satu; sejak versi 7, `cells` membaca berkas sel sebuah partisi menjadi baris yang ditempatkannya, dan `cellPage` sebuah halaman indeks selnya (#575).",
     "description": "Thread pemanggil mengirim `PageDecodeRequest`, eksekutor mengembalikan `PageDecodeAnswer` yang membawa `id` yang sama. Tidak ada yang menyentuh platform di sini: tidak ada `Worker`, tidak ada fetch, tidak ada jam — adaptor peramban membawa semua itu, berkas ini hanya membawa bentuk pesan, daftar tertutup kegagalan dan batas pool. Kepemilikan buffer: `source` **ditransfer** dengan permintaan, jadi pengirim tidak lagi memilikinya. Sebuah respons `verify` mengembalikannya, ditransfer gilirannya; sebuah respons `decode` mengembalikan buffer yang diurai sebagai gantinya, juga ditransfer. Seorang eksekutor yang tidak mentransfer apa pun (fallback sinkron) mengembalikan persis nilai yang sama: kontrak tidak mengatakan bagaimana pekerjaannya bepergian, hanya apa yang dikembalikannya."
   },
   "PAGE_INTEGRATION_FAILURES": {
@@ -2459,6 +2467,8 @@
       "source": "`verify`: buffer sumber dikembalikan. `decode`: `null`, sumbernya habis dipakai.",
       "decoded": "`decode`: halaman yang dibongkar.",
       "cut": "`cut`: halamannya, byte-nya ditransfer. Tidak ada selain itu.",
+      "cells": "`cells`: per node, peringkat induk intinya (`-1`: akar adegan) dan peringkat mesh-nya di `ranks`, dua bilangan bulat 32-bit, dan matriks lokal yang disusun mesin untuk posenya di `locals`, enam belas double; keduanya ditransfer. Tidak ada selain itu.",
+      "cellPage": "`cellPage`: slot halaman itu, atau sel-selnya (`readCellPage`). Tidak ada selain itu.",
       "wasm": "Benar saat dekoder terkompilasi WebAssembly melakukan pekerjaannya, salah untuk dekoder JavaScript. Keduanya menghasilkan byte yang sama; hanya penghitung ini yang membedakannya.",
       "taskMs": "Waktu tugas, diukur eksekutornya sendiri."
     }
@@ -2470,7 +2480,8 @@
       "id": "Permintaan yang dijawab.",
       "ok": "Selalu `false`.",
       "code": "Kenapa gagal.",
-      "message": "Pesan aslinya, apa adanya: pemanggil melempar `Error` yang sama seperti jalur sinkron."
+      "message": "Pesan aslinya, apa adanya: pemanggil melempar `Error` yang sama seperti jalur sinkron.",
+      "refusal": "Kode penolakan bernama dari mesin yang ditemui tugas (`EngineError`), yang dilemparkan kembali oleh pemanggil dengan kode itu; tidak ada untuk kegagalan lain."
     }
   },
   "PageDecodeFailureCode": {
@@ -2489,7 +2500,7 @@
   },
   "PageDecodeOp": {
     "summary": "`verify`: digest SHA-256 sebuah halaman.",
-    "description": "`decode`: indeks dan atribut per-vertex-nya. `cut`: segitiga yang digambar, dikemas sebagai lima panjang, apakah halamannya menyimpan kerucut, lalu lima larik empat-byte, dipotong menjadi halaman."
+    "description": "`decode`: indeks dan atribut per-vertex-nya. `cut`: segitiga yang digambar, dikemas sebagai lima panjang, apakah halamannya menyimpan kerucut, lalu lima larik empat-byte, dipotong menjadi halaman. `cells`: berkas sel sebuah partisi, dibaca menjadi induk, mesh, dan matriks lokal setiap node. `cellPage`: sebuah halaman indeks selnya, dibaca menjadi halaman yang didaftarkannya atau sel-selnya."
   },
   "PageDecodeRequest": {
     "summary": "Sebuah pesan meminta seorang worker memeriksa, membongkar atau memotong sebuah halaman.",
@@ -2498,7 +2509,8 @@
       "id": "Nomor permintaan.",
       "op": "Apa yang harus dilakukan.",
       "source": "Ditransfer bersama pesan: pengirim tidak lagi menjadi pemiliknya.",
-      "maxDecodedBytes": "Batas atas byte yang diurai sebuah halaman geometri; diabaikan `verify`."
+      "maxDecodedBytes": "Batas atas byte yang diurai sebuah halaman geometri; diabaikan `verify`.",
+      "name": "`cells`, `cellPage`: berkas tempat sumber dibaca, yang disebut oleh penolakan."
     }
   },
   "PageIntegrationAnswer": {
@@ -3312,7 +3324,7 @@
       "plan": "Merencanakan satu frame: membuat usang yang bergerak, membaca permintaan penerima — atau, jika tidak ada, laporan terakhir —, menerima setiap halaman yang akan digambar.",
       "reissue": "Halaman frame mulai dari `from` tidak dapat dikodekan: tetap usang, tertunda, dan frame berikutnya menggambarnya.",
       "reset": "Memulai lagi.",
-      "setThreshold": "Ambang tempat potongan cahaya memilih pemberi bayangan (`thresholds.ts`).",
+      "setThreshold": "Ambang tempat potongan cahaya memilih pemberi bayangan, dan titik asal render-nya (`thresholds.ts`).",
       "table": "Tabel halaman: satu kata per halaman virtual, dan rentang yang dipegang setiap cahaya di dalamnya.",
       "pool": "Halaman fisik pool dan halaman virtual yang disimpan masing-masing.",
       "sun": "Clipmap setiap matahari: kerangkanya, rentang kedalaman, tingkat terhalus, dan cakupannya.",
@@ -3644,6 +3656,22 @@
       "alphaMode": "Cara alfa dibaca: diabaikan, dipotong pada `alphaTest`, atau dicampur.",
       "opacity": "Alfa dari faktor warna dasar.",
       "extensions": "Apa yang ditambahkan ekstensi fisik, dengan nama parameter host: faktor, warna, atau rentang sebagai angka, peta sebagai slot."
+    }
+  },
+  "TablePage": {
+    "summary": "Halaman yang dinamai sebuah slot: berkasnya, relatif terhadap tabel, ukurannya, dan sidik jarinya.",
+    "members": {
+      "url": "Berkasnya, relatif terhadap tabel.",
+      "bytes": "Ukurannya dalam byte.",
+      "sha256": "Sidik jari SHA-256-nya, dalam heksadesimal."
+    }
+  },
+  "TableSlot": {
+    "summary": "Halaman indeks yang dinamai sebuah slot, kotaknya pada pose yang dideklarasikan, dan peringkat inti yang tercantum di sampingnya: untuk indeks sel, induk tempat sel-selnya menggantungkan node (#575).",
+    "members": {
+      "page": "Halaman yang dinamai slot.",
+      "bounds": "Kotaknya pada pose yang dideklarasikan: sudut minimum, lalu maksimum.",
+      "parents": "Peringkat inti yang tercantum di sampingnya."
     }
   },
   "TableTexture": {
@@ -7872,6 +7900,45 @@
       "alphaMode": "Bagaimana kanal alpha sebuah permukaan dibaca: opaque mengabaikannya, `mask` memotong pada `alphaCutoff`, `blend` menggabungkan.",
       "alphaCutoff": "Piksel yang kurang opaque dari ini dijatuhkan.",
       "tiling": "Berapa kali gambar itu muat melintang dan menaik."
+    }
+  },
+  "WorldRoots": {
+    "summary": "`world-roots.json`: DAG dunia yang dilanjutkan kompiler di atas akar setiap objek — bundel, halaman, dan selnya, puncak yang disematkan lebih dulu.",
+    "members": {
+      "version": "Versi format.",
+      "budgetBytes": "Byte terbanyak yang diizinkan proses masak untuk puncak yang disematkan.",
+      "pinned": "Bundel pertama, puncak dunia: disematkan.",
+      "pinnedTopBytes": "Byte puncak yang disematkan.",
+      "payload": "Biner tempat bundel berjajar: alamat, sidik, dan panjangnya.",
+      "bundles": "Bundel, menurut urutan biner.",
+      "pages": "Setiap halaman: bundelnya, offset di dalamnya, levelnya, dan galatnya.",
+      "cells": "Setiap sel dunia: primitif tertempatkan yang dipegangnya."
+    }
+  },
+  "WorldRootsBundle": {
+    "summary": "Satu bundel `world-roots.bin`: rentangnya di biner, sidiknya, jumlah halamannya, dan bundel yang dibutuhkannya.",
+    "members": {
+      "offset": "Tempat ia mulai di biner, dalam byte.",
+      "bytes": "Panjangnya di biner.",
+      "sha256": "SHA-256 dari byte-nya, diperiksa saat dibaca.",
+      "count": "Berapa halaman yang dipegangnya.",
+      "dependencies": "Bundel yang dibutuhkan halamannya, menaik, sampai puncak dunia."
+    }
+  },
+  "WorldRootsObject": {
+    "summary": "Satu primitif tertempatkan dari sel dunia: bundel dunia yang dibutuhkan akarnya, sampai puncak.",
+    "members": {
+      "node": "Node terbitannya.",
+      "primitive": "Primitifnya di manifest.",
+      "roots": "Bundel aliran primitif itu yang memegang akarnya.",
+      "dependencies": "Setiap bundel dunia yang dibutuhkan akar itu, menaik, sampai puncak."
+    }
+  },
+  "WorldRootsPage": {
+    "summary": "Satu halaman super-akar yang dibaca di atas byte bundelnya: verteksnya sendiri di ruang dunia, dan segitiganya sebagai indeks lokal.",
+    "members": {
+      "positions": "Verteksnya, masing-masing tiga angka, di ruang dunia.",
+      "indices": "Segitiganya, masing-masing tiga indeks lokal."
     }
   }
 }

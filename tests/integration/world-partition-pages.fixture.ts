@@ -18,6 +18,7 @@ import {
   createPartitionFrame,
   primePartitions,
 } from '../../packages/sdk-browser/src/world/scene/partitionFrame.ts';
+import { readCellPage } from '../../packages/sdk-core/src/scene/core/tablePartition.ts';
 import { primitiveFinder } from '../../packages/sdk-browser/src/scene/primitiveLookup.ts';
 
 /** The engine stand-in: the rows each host mesh it draws reads, from its open or its mount. */
@@ -100,7 +101,7 @@ export async function assertNoneMissing(
   const eye = camera.position,
     reach = cellReach(camera);
   let near = 0;
-  for (const { url } of cells.pages) {
+  for (const { url } of await cellRecords(cells.pages)) {
     const body = JSON.parse(await readFile(fileURLToPath(url), 'utf8'));
     for (const { translation } of body.nodes) {
       const [x, y, z] = translation.map((value: number) => value * scale);
@@ -110,4 +111,20 @@ export async function assertNoneMissing(
     }
   }
   return near;
+}
+
+/** Every cell record under `pages`, the root's slots of a compiled partition, its address made
+ *  whole: read from disk page by page as the runtime reads them (`readCellPage`). */
+export async function cellRecords(
+  pages: readonly { url: string }[],
+): Promise<{ url: string; bytes: number; meshPages: readonly string[] }[]> {
+  const lists = await Promise.all(
+    pages.map(async ({ url }) => {
+      const body = readCellPage(await readFile(fileURLToPath(url)), url);
+      const whole = (name: string) => new URL(name, url).href;
+      if (body.pages) return cellRecords(body.pages.map(({ page }) => ({ url: whole(page.url) })));
+      return body.cells.map((cell) => ({ ...cell, url: whole(cell.url) }));
+    }),
+  );
+  return lists.flat();
 }

@@ -141,9 +141,8 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     capture() {
       return captureImage(rt);
     },
-    selectedPageIds() {
-      return run.shown.map((rec) => rec.url);
-    },
+    selectedPageIds: () => run.shown.map((rec) => rec.url),
+    selectedClusterIds: () => run.shown.map((rec) => rec.clusterId),
     visibilityIds() {
       return visibilityIds(rt);
     },

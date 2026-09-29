@@ -1,9 +1,9 @@
 import {
   createSelectionResult,
   selectVisiblePages,
-  type PageRec,
   type ClusterRoot,
 } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
+import type { WitnessPage as PageRec } from './pose.ts';
 import type { BackendContext } from '../../../packages/sdk-browser/src/backend/types.ts';
 import type { installSceneLighting } from '../../../packages/sdk-browser/src/lighting/sceneLighting.ts';
 import { createCpuStepProfile } from '../../../packages/sdk-browser/src/stage/cpuProfile.ts';

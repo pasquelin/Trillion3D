@@ -20,8 +20,10 @@ import { halvedPool, outOfMemoryContext } from '../../residency/outOfMemory.ts';
  */
 export type PageCopies = {
   of(url: string): number;
-  /** Copies the root cover holds, and those the whole scene would. */
+  /** Copies the root cover holds, those with the pages its groups replace — the pool's floor
+   *  (`../../residency/minimumCapacity.ts`) —, and those the whole scene would. */
   root(): number;
+  floor(): number;
   scene(): number;
 };
 

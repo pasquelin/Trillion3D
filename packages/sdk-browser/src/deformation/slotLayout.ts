@@ -1,4 +1,6 @@
 import { FLAG_SOFT_SOURCE } from '../cluster/format.ts';
+import { rootOf } from '../page/selection/placements.ts';
+import type { ClusterRoot } from '../page/selection/types.ts';
 import type { PageRec } from '../page/selection/selection.ts';
 import { pageAddress } from '../webgpu/row/pageSlots.ts';
 
@@ -10,7 +12,11 @@ export const DEFORM_VERTEX_WORDS = 11;
  * compressed page have disjoint tails; eviction, relocation, root coverage and the one geometry
  * budget therefore account for the results along with their source. No output spans slots.
  */
-export function deformationSlotBytes(pages: readonly PageRec[], sourceBytes: number) {
+export function deformationSlotBytes(
+  pages: readonly PageRec[],
+  sourceBytes: number,
+  roots: readonly ClusterRoot<PageRec>[] = [],
+) {
   const ends = new Map<string, number>();
   let bytes = sourceBytes;
   for (const page of pages) {
@@ -22,7 +28,9 @@ export function deformationSlotBytes(pages: readonly PageRec[], sourceBytes: num
       !mesh?.waves &&
       mesh?.geometry?.usage !== 'dynamic' &&
       !((page.geometryPage?.flags ?? 0) & (FLAG_SOFT_SOURCE | 16 | 32)) &&
-      ![...(page.placement?.rows.sourceModels ?? [])].some((source) => source.waves)
+      ![
+        ...((roots.length ? rootOf(roots, page).placement : undefined)?.rows.sourceModels ?? []),
+      ].some((source) => source.waves)
     )
       continue;
     const count = page.geometryPage?.vertexCount ?? page.attributes.position?.count ?? 0;

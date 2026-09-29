@@ -11,6 +11,7 @@ import { collectClusterPages } from '../../page/selection/selection.ts';
 import { hostWorldPlacements } from './placements.ts';
 import { blendFixture } from '../../page/selection/blend.fixture.ts';
 import { assertBits } from '../../../../../tests/kit/assert/bits.ts';
+import { rootOf } from '../../page/selection/placements.ts';
 
 /** A host scene that NOBODY has walked up: rotated root, parent with negative and non-uniform
  *  scale, leaf sheared by that scale, plus a node whose matrix is set. */
@@ -98,7 +99,8 @@ test("page records and cluster roots carry the engine's matrix, not the host's",
   );
   const monde = worlds.of(fixture.mesh);
   assert.equal(roots[0].world, monde, 'the root carries the engine matrix');
-  for (const page of allPages) assert.equal(page.matrix, monde, 'the record carries the same');
+  for (const page of allPages)
+    assert.equal(rootOf(roots, page).world, monde, 'the record reads it');
   assert.notEqual(monde, fixture.mesh.matrixWorld, "it is not the host's live matrix");
   // The witness runs after: collection never asked the host to compose anything.
   parent.updateMatrixWorld(true);

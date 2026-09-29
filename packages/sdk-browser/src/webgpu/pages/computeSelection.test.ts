@@ -10,7 +10,7 @@ import { coarseQuadScene } from './testOccluder.fixture.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 import type { WebgpuPagesBackend } from './runtime.ts';
 
-test('webgpu pages without compute keep the CPU cut and report gpuDriven false', async () => {
+test('webgpu pages without compute keep the CPU cut, name its clusters, report gpuDriven false', async () => {
   installGpuGlobals();
   const { device } = mockGpu();
   const { fixture, backend } = quadBackend(device);
@@ -18,6 +18,8 @@ test('webgpu pages without compute keep the CPU cut and report gpuDriven false',
   assert.equal(backend.capabilities.gpuDriven, false);
   backend.render(camera());
   assert.deepEqual((backend as WebgpuPagesBackend).selectedPageIds().sort(), ['0', '1']);
+  // By mesh, primitive and page: unique where two clusters share one index page URL.
+  assert.deepEqual((backend as WebgpuPagesBackend).selectedClusterIds().sort(), ['0/0/0', '0/0/1']);
   backend.dispose();
   fixture.geometry.dispose();
   fixture.material.dispose();

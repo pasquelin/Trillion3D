@@ -11,6 +11,7 @@ import { visBin } from '../prepare/pipelineFor.ts';
 import { renderWebgpuPages } from './render.ts';
 import { flushWebgpuPages } from './flush.ts';
 import { cameraAt, twoPlacesRuntime } from '../twoPlaces.fixture.ts';
+import { rootOf } from '../../../page/selection/placements.ts';
 
 type Runtime = Awaited<ReturnType<typeof twoPlacesRuntime>>['rt'];
 
@@ -67,11 +68,11 @@ test('#198: a row changed under the fallback draw reaches the compaction', async
         upload(items, from, to);
       };
     },
-    ({ layout: { rows } }) => {
+    ({ layout: { rows, selectionRoots } }) => {
       assert.equal(held[2], rows.packedPageIndex[0], 'the compaction holds the row page index');
       assert.equal(
         held[1],
-        visBin(rows.packedRecs[0]!),
+        visBin(rows.packedRecs[0]!, selectionRoots),
         'the compaction holds the row pipeline bin',
       );
     },
@@ -94,9 +95,10 @@ test('#198: a row changed under the fallback draw reaches the partition corners'
         upload(packed, from, to);
       };
     },
-    ({ layout: { rows } }) => {
+    ({ layout: { rows, selectionRoots } }) => {
       const expected = new Float32Array(CORNER_VALUES);
-      packPageCorners(expected, 0, rows.packedRecs[0]!);
+      const rec = rows.packedRecs[0]!;
+      packPageCorners(expected, 0, rec, rootOf(selectionRoots, rec).world);
       assert.deepEqual(
         held.subarray(0, CORNER_VALUES),
         expected,

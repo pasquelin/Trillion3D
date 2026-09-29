@@ -1,10 +1,12 @@
 import type { Page } from '../contracts/geometry.ts';
+import type { readCellPage } from '../scene/core/tablePartition.ts';
 
 /**
- * Off-main-thread page-decode contract, version 6: the decoded geometry travels as one block
+ * Off-main-thread page-decode contract, version 7: the decoded geometry travels as one block
  * with its quantization error; `cut` turns drawn triangles into pages, which come back as bytes
  * with their descriptors and, since version 6, their normal cone, the packed triangles carrying
- * whether their pages keep one.
+ * whether their pages keep one; since version 7, `cells` reads a partition's cell file into the
+ * rows it places, and `cellPage` a page of its cell index (#575).
  *
  * The calling thread sends a `PageDecodeRequest`, the executor returns a `PageDecodeAnswer` carrying
  * the same `id`. Nothing here touches the platform: no `Worker`, no fetch, no clock — the browser
@@ -17,12 +19,14 @@ import type { Page } from '../contracts/geometry.ts';
  * returns exactly the same values: the contract does not say how the work travels, only what it
  * returns.
  */
-export const PAGE_DECODE_PROTOCOL = 6;
+export const PAGE_DECODE_PROTOCOL = 7;
 
 /** `verify`: a page's SHA-256 digest. `decode`: its indices and per-vertex attributes. `cut`:
  *  drawn triangles, packed as five lengths, whether their pages keep a cone, whether a blended
- *  material wears them, then five four-byte arrays (`packDrawn`), cut into pages. */
-export type PageDecodeOp = 'verify' | 'decode' | 'cut';
+ *  material wears them, then five four-byte arrays (`packDrawn`), cut into pages. `cells`: a
+ *  partition's cell file, read into each node's parent, mesh and local matrix. `cellPage`: a page
+ *  of its cell index, read into the pages it lists or its cells. */
+export type PageDecodeOp = 'verify' | 'decode' | 'cut' | 'cells' | 'cellPage';
 
 /** One page a `cut` wrote: its index and geometry bytes, their digests, and its descriptor. */
 export interface PageCutPage {
@@ -59,6 +63,8 @@ export interface PageDecodeRequest {
   source: ArrayBuffer;
   /** Ceiling of decoded bytes of a geometry page; ignored by `verify`. */
   maxDecodedBytes: number;
+  /** `cells`, `cellPage`: the file the source was read from, which a refusal names. */
+  name?: string;
 }
 
 /** Cancellation of a request still in the queue. Work already started runs to completion then answers
@@ -94,6 +100,12 @@ export interface PageDecodeGeometryPayload {
   /** `decode`: the unpacked page. */ decoded: PageDecodeGeometryPayload | null;
   /** `cut`: the pages, their bytes transferred. Absent otherwise. */
   cut?: PageCutPayload;
+  /** `cells`: per node, its core parent's rank (`-1`: the scene root) and its mesh's in `ranks`,
+   *  two 32-bit integers, and the local matrix the engine composes for its pose in `locals`,
+   *  sixteen doubles; both transferred. Absent otherwise. */
+  cells?: { nodes: number; ranks: ArrayBuffer; locals: ArrayBuffer };
+  /** `cellPage`: the page's slots, or its cells (`readCellPage`). Absent otherwise. */
+  cellPage?: ReturnType<typeof readCellPage>;
   /** True when the WebAssembly-compiled decoder did the work, false for the
    *  JavaScript decoder. Both yield the same bytes; only the counter distinguishes them. */
   wasm: boolean;
@@ -128,6 +140,9 @@ export type PageDecodeFailureCode = (typeof PAGE_DECODE_FAILURES)[number];
   /** Why it failed. */ code: PageDecodeFailureCode;
   /** The original message, as-is: the caller raises the same `Error` as the synchronous path. */
   message: string;
+  /** The code of the engine's named refusal the task met (`EngineError`), which the caller raises
+   *  again by that code; absent for any other failure. */
+  refusal?: string;
 }
 /** A worker's answer to a page request: done or failed. */
 export type PageDecodeAnswer = PageDecodeDone | PageDecodeFailed;

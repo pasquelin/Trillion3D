@@ -60,10 +60,6 @@ export type PageRec = {
   /** GPU deformation output in this page's cache slot, in words from its start (#357). */
   deformationOutput?: { from: number; count: number };
   sourceOrder?: number;
-  matrix: MatrixElements;
-  /** Cached winding and epoch of the world matrix that produced it (`webgpuPagesWinding`). */
-  windingCw?: boolean;
-  windingEpoch?: number;
   renderOrder: number;
   geometry?: Geometry;
   /** The mesh of the engine's own graph the WebGL2 page path draws the page as. */
@@ -80,14 +76,15 @@ export type PageRec = {
   /** Rank of the page in a WebGPU engine's packed catalogue, set once. Another engine that
    *  rewrites it fools nobody: the reader checks that the catalogue actually yields this page. */
   packedIndex?: number;
-  /** Rank of the root — the placement — in a WebGPU engine's selection roots, set once by its
-   *  layout: that is what the record carries to look up the placement's motion. */
+  /** Rank of its root — the placement — in its engine's roots: set at collection, laid out again
+   *  by each engine's layout. A record carries no placement value of its own: its world, its row
+   *  and its winding are its root's, found by this rank (`rootOf`, #1226). */
   placementIndex?: number;
   /** WebGL placement control record, zero when the page is rigid. */
   deformRecord?: number;
-  /** The instance-buffer row this record is placed by, as its root: an engine drawn by the host
-   *  renderer draws such records instanced, one mesh per page and surface. */
-  placement?: PlacementOf;
+  /** True on a page of the group a root replaces: the minimum capacity holds it and admits it
+   *  first (`../../residency/minimumCapacity.ts`). */
+  rootChild?: boolean;
 };
 /**
  * Group links of a primitive, flattened once and shared by every instance of it.
@@ -154,7 +151,8 @@ export type ClusterRoot<T> = {
    *  `SHADOWLESS_ROOT` while its mesh or row casts no shadow (`followPlacementRows`,
    *  `followHostVisibility`). */
   mark?: number;
-  /** The instance-buffer row this root reads its world from, when it was collected from one. */
+  /** The instance-buffer row this root reads its world from, when it was collected from one: an
+   *  engine drawn by the host renderer draws its pages instanced, one mesh per page and surface. */
   placement?: PlacementOf;
   /** How far its primitive's deformation can move a vertex from rest (`Primitive.deformation`),
    *  absent on one that does not deform (#357). */
@@ -162,4 +160,7 @@ export type ClusterRoot<T> = {
   /** How far its deformation moves a vertex this frame, in its units: every cut grows its bounds
    *  by it (`../../deformation/frame.ts`); absent or zero at rest. */
   reach?: number;
+  /** Winding of `world` and the row-table epoch it was computed at (`webgpu/pages/render/winding.ts`). */
+  windingCw?: boolean;
+  windingEpoch?: number;
 };
