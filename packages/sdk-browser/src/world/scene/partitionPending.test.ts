@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import type { RenderBackend } from '../../backend/types.ts';
 import { hostFramingCamera } from '../../host/scene/graphObjects.ts';
 import type { PartitionCells } from '../../scene/partition/cells.ts';
+import { createCellPages, withHoldings } from '../../scene/partition/cellPages.ts';
 import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 import { createPartitionFrame } from './partitionFrame.ts';
 
@@ -13,13 +14,13 @@ test('a still camera is drawn again until the cells it asked for within reach ar
   // frames that place the cells read after it (`hostRuntime.ts`, `pendingFrame`).
   let later = true,
     read = () => {};
-  const cells = {
+  const cells = withHoldings({ meshes: new Map(), manifest: createCellPages(undefined, []) }, {
     frame(_eye: number[], _reach: number, io: Io) {
       io.request(['near.json'], false);
       io.request(['ahead.json'], true);
       return later;
     },
-  } as unknown as PartitionCells;
+  } as unknown as PartitionCells);
   const streamer = {
     request: (urls: readonly string[]) =>
       new Promise<void>((resolve) => {

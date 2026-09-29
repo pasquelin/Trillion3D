@@ -13,7 +13,7 @@
     "geometryPoolBytes": null,
     "texturePoolBytes": null,
     "geometryPoolCeilingBytes": null,
-    "poolVivant": null,
+    "livePools": null,
     "width": 2496,
     "height": 1404,
     "port": 53828,
@@ -50,14 +50,14 @@
   "sides": {
     "apres": {
       "from": "dossier",
-      "moteur": "webgpu-page-raster",
-      "variante": null,
-      "erreur": "certifiee"
+      "engine": "webgpu-page-raster",
+      "variant": null,
+      "errorMetric": "certifiee"
     }
   },
   "series": [
     {
-      "view": "generale",
+      "view": "overview",
       "pixelError": 0,
       "segment": "Vue générale du modèle",
       "index": 0,
@@ -84,7 +84,7 @@
             "p99": 104.80000001192093,
             "max": 104.80000001192093
           },
-          "moteur": "webgpu-page-raster",
+          "engine": "webgpu-page-raster",
           "gpuFrameMs": {
             "mean": 96.417154,
             "p50": 96.417154,
@@ -94,7 +94,7 @@
           },
           "imageSyncMs": null,
           "rafIntervalMs": null,
-          "profilParEtape": {
+          "stageProfile": {
             "version": 1,
             "enabled": true,
             "backend": "webgpu-page-raster",
@@ -129,7 +129,7 @@
                 "label": "Sélection et visibilité",
                 "cpuMs": null,
                 "gpuMs": { "p50": 10.889709, "p95": 14.211992 },
-                "counts": { "grappesRejetees": 0, "pagesVoulues": 2023694, "grappesDuDag": 0 }
+                "counts": { "clustersRejected": 0, "pagesWanted": 2023694, "dagClusters": 0 }
               },
               { "stage": "transparents", "label": "Transparents", "cpuMs": null, "gpuMs": null },
               {
@@ -153,11 +153,11 @@
                 "cpuReason": "aucun retour d’image : aucune tuile à servir",
                 "gpuReason": "les transferts passent par la file de la carte, sans passe horodatée",
                 "counts": {
-                  "tuilesDemandees": 0,
-                  "tuilesAuNiveau": 0,
-                  "niveauxManquants": 0,
-                  "tuilesServies": 0,
-                  "tuilesEnAttente": 0
+                  "tilesRequested": 0,
+                  "tilesAtLevel": 0,
+                  "missingLevels": 0,
+                  "tilesServed": 0,
+                  "tilesPending": 0
                 }
               },
               {
@@ -166,13 +166,13 @@
                 "cpuMs": null,
                 "gpuMs": { "p50": 3.846482, "p95": 7.548217 },
                 "counts": {
-                  "lignes": 1259903,
-                  "occulteurs": 961934,
-                  "testees": 297969,
+                  "rows": 1259903,
+                  "occluders": 961934,
+                  "tested": 297969,
                   "bornesToutes": 1259897,
-                  "historiqueOcculteurs": 961934,
+                  "previousOccluders": 961934,
                   "sansHistorique": 0,
-                  "imageRelevee": 863
+                  "sampledFrame": 863
                 }
               },
               {
@@ -181,11 +181,11 @@
                 "cpuMs": null,
                 "gpuMs": null,
                 "counts": {
-                  "lignesTeleversees": 0,
-                  "fichesTeleversees": 0,
-                  "appelsDeDessin": 10,
-                  "appelsDeMelange": 0,
-                  "lancementsDeCalcul": 0
+                  "rowsUploaded": 0,
+                  "itemsUploaded": 0,
+                  "drawCalls": 10,
+                  "blendDrawCalls": 0,
+                  "computeDispatches": 0
                 }
               },
               { "stage": "submit", "label": "Soumission", "cpuMs": null, "gpuMs": null },
@@ -215,18 +215,18 @@
                 "cpuMs": null,
                 "gpuMs": { "p50": 31.787264999999998, "p95": 96.00286799999999 },
                 "counts": {
-                  "lampesRedessinees": 0,
+                  "lightsRedrawn": 0,
                   "cartesReutilisees": 1,
-                  "facesRedessinees": 0,
-                  "appelsDeDessin": 0,
-                  "soleilsRedessines": 0,
+                  "facesRedrawn": 0,
+                  "drawCalls": 0,
+                  "sunsRedrawn": 0,
                   "cascadesRedessinees": 0,
                   "regionsRedessinees": 0,
-                  "pagesInvalidees": 0,
-                  "pagesRedessinees": 0,
-                  "pagesEnAttente": 0,
-                  "retardMaxMs": 0,
-                  "retardMaxImages": 0
+                  "pagesInvalidated": 0,
+                  "pagesRedrawn": 0,
+                  "pagesPending": 0,
+                  "maxWaitMs": 0,
+                  "maxWaitFrames": 0
                 }
               },
               {
@@ -237,10 +237,10 @@
                 "cpuReason": "aucun travail processeur : le rayon lointain est tiré par la résolution différée",
                 "gpuReason": "mesurée dans l’étape « Éclairage (résolution) », qui tire le rayon lointain",
                 "counts": {
-                  "trianglesDuProxy": 145006,
-                  "pixelsTestes": 0,
-                  "pixelsAssombris": 0,
-                  "imageRelevee": 3
+                  "proxyTriangles": 145006,
+                  "pixelsTested": 0,
+                  "pixelsShadowed": 0,
+                  "sampledFrame": 3
                 }
               },
               {
@@ -248,7 +248,7 @@
                 "label": "Listes de lampes",
                 "cpuMs": null,
                 "gpuMs": { "p50": 0.751864, "p95": 2.112635 },
-                "counts": { "lampesActives": 1 }
+                "counts": { "activeLights": 1 }
               },
               {
                 "stage": "bounce",
@@ -258,12 +258,12 @@
                 "cpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "gpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "counts": {
-                  "sondesMisesAJour": 0,
-                  "rayonsParImage": 0,
-                  "sondesDesCascades": 0,
-                  "maillesMisesAJour": 0,
-                  "maillesDuCache": 0,
-                  "fractionDuBudget": 0
+                  "probesUpdated": 0,
+                  "raysPerFrame": 0,
+                  "cascadeProbes": 0,
+                  "texelsUpdated": 0,
+                  "cachedTexels": 0,
+                  "budgetFraction": 0
                 }
               },
               {
@@ -480,25 +480,25 @@
             ]
           },
           "preparationMs": 5048.899999976158,
-          "imagesCalme": null,
-          "reglageVivant": null,
-          "reseau": {
+          "settleFrames": null,
+          "liveTuning": null,
+          "network": {
             "json": 159925,
             "bin": 1003507688,
             "wasm": 44509,
             "gltf": 3019421,
             "js": 1709544
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 106855501,
           "uncoveredTriangles": 0,
           "drawnTriangles": 106855501,
           "submittedTriangles": 106855501,
           "totalSubmittedTriangles": 106855501,
-          "imageDuReleve": 59,
-          "imageTenue": false,
-          "repliSelectionGpu": true,
+          "recordedFrame": 59,
+          "frameHeld": false,
+          "gpuSelectionFallback": true,
           "hiZ": {
             "tested": 297969,
             "rejected": 297969,
@@ -511,22 +511,22 @@
           "selection": {
             "source": "selectedPageIds",
             "sha256": "6f6da2ee6f0ba93ce5c2b40863f63d3edfcb58729743cf84cf42b93e566bf8e5",
-            "taille": 1259903
+            "count": 1259903
           },
-          "geometrieOctets": 1150884624,
-          "budgetPages": {
-            "demande": null,
-            "residentes": 1259903,
-            "couvertureLimiteeParBudget": false
+          "geometryBytes": 1150884624,
+          "pageBudget": {
+            "requested": null,
+            "resident": 1259903,
+            "budgetLimitedCoverage": false
           },
-          "poolGeometrie": {
-            "octets": 536870912,
-            "fentes": 83139,
-            "alloues": 127701504,
-            "borne": "scene",
-            "saturees": 0
+          "geometryPool": {
+            "bytes": 536870912,
+            "slots": 83139,
+            "allocated": 127701504,
+            "bound": "scene",
+            "saturated": 0
           },
-          "cheminCalcul": {
+          "mathBatch": {
             "contract": 1,
             "mode": "auto",
             "wasmAvailable": true,
@@ -546,25 +546,25 @@
               }
             }
           },
-          "lampes": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "soleil": true,
-            "ombres": true,
-            "maille": 0,
-            "intensite": 40,
+          "lights": {
+            "count": 1,
+            "points": 0,
+            "sun": true,
+            "shadows": true,
+            "grid": 0,
+            "intensity": 40,
             "mobile": false
           },
-          "lampesFichier": { "nombre": 0, "ids": [] },
-          "lampesTemoin": null,
-          "atlasOmbres": null,
-          "objetMobile": null,
-          "charge": {
-            "debut": [5.751953125, 3.888671875, 6.47705078125],
-            "fin": [3.4873046875, 3.5283203125, 5.22998046875]
+          "importedLights": { "count": 0, "ids": [] },
+          "witnessLights": null,
+          "shadowAtlas": null,
+          "movingNode": null,
+          "load": {
+            "start": [5.751953125, 3.888671875, 6.47705078125],
+            "end": [3.4873046875, 3.5283203125, 5.22998046875]
           },
           "captureStatus": 200,
-          "incidentsGpu": [
+          "gpuIncidents": [
             "pose-settle {\"pipelineVersion\":1,\"rounds\":2,\"tilesServed\":14,\"shadowFrames\":4,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
@@ -688,7 +688,7 @@
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":1,\"shadowFrames\":3,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}"
           ],
-          "avertissementsDag": null,
+          "dagWarnings": null,
           "canvas": { "width": 2496, "height": 1404 },
           "metrics": {
             "rafIntervalMs": null,
@@ -853,7 +853,7 @@
             "p99": 96.30000001192093,
             "max": 96.30000001192093
           },
-          "moteur": "webgpu-page-raster",
+          "engine": "webgpu-page-raster",
           "gpuFrameMs": {
             "mean": 96.606485,
             "p50": 96.606485,
@@ -863,7 +863,7 @@
           },
           "imageSyncMs": null,
           "rafIntervalMs": null,
-          "profilParEtape": {
+          "stageProfile": {
             "version": 1,
             "enabled": true,
             "backend": "webgpu-page-raster",
@@ -898,7 +898,7 @@
                 "label": "Sélection et visibilité",
                 "cpuMs": null,
                 "gpuMs": { "p50": 10.395133, "p95": 13.746832 },
-                "counts": { "grappesRejetees": 0, "pagesVoulues": 2023694, "grappesDuDag": 0 }
+                "counts": { "clustersRejected": 0, "pagesWanted": 2023694, "dagClusters": 0 }
               },
               { "stage": "transparents", "label": "Transparents", "cpuMs": null, "gpuMs": null },
               {
@@ -922,11 +922,11 @@
                 "cpuReason": "aucun retour d’image : aucune tuile à servir",
                 "gpuReason": "les transferts passent par la file de la carte, sans passe horodatée",
                 "counts": {
-                  "tuilesDemandees": 0,
-                  "tuilesAuNiveau": 0,
-                  "niveauxManquants": 0,
-                  "tuilesServies": 0,
-                  "tuilesEnAttente": 0
+                  "tilesRequested": 0,
+                  "tilesAtLevel": 0,
+                  "missingLevels": 0,
+                  "tilesServed": 0,
+                  "tilesPending": 0
                 }
               },
               {
@@ -935,13 +935,13 @@
                 "cpuMs": null,
                 "gpuMs": { "p50": 3.913816, "p95": 8.586869 },
                 "counts": {
-                  "lignes": 1259903,
-                  "occulteurs": 961934,
-                  "testees": 297969,
+                  "rows": 1259903,
+                  "occluders": 961934,
+                  "tested": 297969,
                   "bornesToutes": 1259897,
-                  "historiqueOcculteurs": 961934,
+                  "previousOccluders": 961934,
                   "sansHistorique": 0,
-                  "imageRelevee": 863
+                  "sampledFrame": 863
                 }
               },
               {
@@ -950,11 +950,11 @@
                 "cpuMs": null,
                 "gpuMs": null,
                 "counts": {
-                  "lignesTeleversees": 0,
-                  "fichesTeleversees": 0,
-                  "appelsDeDessin": 10,
-                  "appelsDeMelange": 0,
-                  "lancementsDeCalcul": 0
+                  "rowsUploaded": 0,
+                  "itemsUploaded": 0,
+                  "drawCalls": 10,
+                  "blendDrawCalls": 0,
+                  "computeDispatches": 0
                 }
               },
               { "stage": "submit", "label": "Soumission", "cpuMs": null, "gpuMs": null },
@@ -984,18 +984,18 @@
                 "cpuMs": null,
                 "gpuMs": { "p50": 31.687558, "p95": 95.349879 },
                 "counts": {
-                  "lampesRedessinees": 0,
+                  "lightsRedrawn": 0,
                   "cartesReutilisees": 1,
-                  "facesRedessinees": 0,
-                  "appelsDeDessin": 0,
-                  "soleilsRedessines": 0,
+                  "facesRedrawn": 0,
+                  "drawCalls": 0,
+                  "sunsRedrawn": 0,
                   "cascadesRedessinees": 0,
                   "regionsRedessinees": 0,
-                  "pagesInvalidees": 0,
-                  "pagesRedessinees": 0,
-                  "pagesEnAttente": 0,
-                  "retardMaxMs": 0,
-                  "retardMaxImages": 0
+                  "pagesInvalidated": 0,
+                  "pagesRedrawn": 0,
+                  "pagesPending": 0,
+                  "maxWaitMs": 0,
+                  "maxWaitFrames": 0
                 }
               },
               {
@@ -1006,10 +1006,10 @@
                 "cpuReason": "aucun travail processeur : le rayon lointain est tiré par la résolution différée",
                 "gpuReason": "mesurée dans l’étape « Éclairage (résolution) », qui tire le rayon lointain",
                 "counts": {
-                  "trianglesDuProxy": 145006,
-                  "pixelsTestes": 0,
-                  "pixelsAssombris": 0,
-                  "imageRelevee": 3
+                  "proxyTriangles": 145006,
+                  "pixelsTested": 0,
+                  "pixelsShadowed": 0,
+                  "sampledFrame": 3
                 }
               },
               {
@@ -1017,7 +1017,7 @@
                 "label": "Listes de lampes",
                 "cpuMs": null,
                 "gpuMs": { "p50": 0.719531, "p95": 2.117051 },
-                "counts": { "lampesActives": 1 }
+                "counts": { "activeLights": 1 }
               },
               {
                 "stage": "bounce",
@@ -1027,12 +1027,12 @@
                 "cpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "gpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "counts": {
-                  "sondesMisesAJour": 0,
-                  "rayonsParImage": 0,
-                  "sondesDesCascades": 0,
-                  "maillesMisesAJour": 0,
-                  "maillesDuCache": 0,
-                  "fractionDuBudget": 0
+                  "probesUpdated": 0,
+                  "raysPerFrame": 0,
+                  "cascadeProbes": 0,
+                  "texelsUpdated": 0,
+                  "cachedTexels": 0,
+                  "budgetFraction": 0
                 }
               },
               {
@@ -1249,25 +1249,25 @@
             ]
           },
           "preparationMs": 5069.800000011921,
-          "imagesCalme": null,
-          "reglageVivant": null,
-          "reseau": {
+          "settleFrames": null,
+          "liveTuning": null,
+          "network": {
             "json": 159925,
             "bin": 1003507688,
             "wasm": 44509,
             "gltf": 3019421,
             "js": 1709544
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 106855501,
           "uncoveredTriangles": 0,
           "drawnTriangles": 106855501,
           "submittedTriangles": 106855501,
           "totalSubmittedTriangles": 106855501,
-          "imageDuReleve": 59,
-          "imageTenue": false,
-          "repliSelectionGpu": true,
+          "recordedFrame": 59,
+          "frameHeld": false,
+          "gpuSelectionFallback": true,
           "hiZ": {
             "tested": 297969,
             "rejected": 297969,
@@ -1280,22 +1280,22 @@
           "selection": {
             "source": "selectedPageIds",
             "sha256": "6f6da2ee6f0ba93ce5c2b40863f63d3edfcb58729743cf84cf42b93e566bf8e5",
-            "taille": 1259903
+            "count": 1259903
           },
-          "geometrieOctets": 1150884624,
-          "budgetPages": {
-            "demande": null,
-            "residentes": 1259903,
-            "couvertureLimiteeParBudget": false
+          "geometryBytes": 1150884624,
+          "pageBudget": {
+            "requested": null,
+            "resident": 1259903,
+            "budgetLimitedCoverage": false
           },
-          "poolGeometrie": {
-            "octets": 536870912,
-            "fentes": 83139,
-            "alloues": 127701504,
-            "borne": "scene",
-            "saturees": 0
+          "geometryPool": {
+            "bytes": 536870912,
+            "slots": 83139,
+            "allocated": 127701504,
+            "bound": "scene",
+            "saturated": 0
           },
-          "cheminCalcul": {
+          "mathBatch": {
             "contract": 1,
             "mode": "auto",
             "wasmAvailable": true,
@@ -1315,25 +1315,25 @@
               }
             }
           },
-          "lampes": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "soleil": true,
-            "ombres": true,
-            "maille": 0,
-            "intensite": 40,
+          "lights": {
+            "count": 1,
+            "points": 0,
+            "sun": true,
+            "shadows": true,
+            "grid": 0,
+            "intensity": 40,
             "mobile": false
           },
-          "lampesFichier": { "nombre": 0, "ids": [] },
-          "lampesTemoin": null,
-          "atlasOmbres": null,
-          "objetMobile": null,
-          "charge": {
-            "debut": [3.4873046875, 3.5283203125, 5.22998046875],
-            "fin": [2.83349609375, 2.8701171875, 4.20068359375]
+          "importedLights": { "count": 0, "ids": [] },
+          "witnessLights": null,
+          "shadowAtlas": null,
+          "movingNode": null,
+          "load": {
+            "start": [3.4873046875, 3.5283203125, 5.22998046875],
+            "end": [2.83349609375, 2.8701171875, 4.20068359375]
           },
           "captureStatus": 200,
-          "incidentsGpu": [
+          "gpuIncidents": [
             "pose-settle {\"pipelineVersion\":1,\"rounds\":2,\"tilesServed\":14,\"shadowFrames\":4,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
@@ -1457,7 +1457,7 @@
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":1,\"shadowFrames\":3,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}"
           ],
-          "avertissementsDag": null,
+          "dagWarnings": null,
           "canvas": { "width": 2496, "height": 1404 },
           "metrics": {
             "rafIntervalMs": null,
@@ -1608,12 +1608,12 @@
           }
         }
       },
-      "temoinAA": { "pixels": 0, "maxCanal": 0, "total": 3504384 },
-      "ecartAvantApres": null,
-      "coupeIdentique": null
+      "witnessAA": { "pixels": 0, "maxChannel": 0, "total": 3504384 },
+      "beforeAfterDiff": null,
+      "sameCut": null
     },
     {
-      "view": "sol",
+      "view": "ground",
       "pixelError": 0,
       "segment": "Déplacement au niveau de référence",
       "index": 120,
@@ -1640,7 +1640,7 @@
             "p99": 42.39999997615814,
             "max": 42.39999997615814
           },
-          "moteur": "webgpu-page-raster",
+          "engine": "webgpu-page-raster",
           "gpuFrameMs": {
             "mean": 35.47083399999999,
             "p50": 35.470834,
@@ -1650,7 +1650,7 @@
           },
           "imageSyncMs": null,
           "rafIntervalMs": null,
-          "profilParEtape": {
+          "stageProfile": {
             "version": 1,
             "enabled": true,
             "backend": "webgpu-page-raster",
@@ -1685,7 +1685,7 @@
                 "label": "Sélection et visibilité",
                 "cpuMs": null,
                 "gpuMs": { "p50": 3.423531, "p95": 5.037215 },
-                "counts": { "grappesRejetees": 16985, "pagesVoulues": 647121, "grappesDuDag": 0 }
+                "counts": { "clustersRejected": 16985, "pagesWanted": 647121, "dagClusters": 0 }
               },
               { "stage": "transparents", "label": "Transparents", "cpuMs": null, "gpuMs": null },
               {
@@ -1709,11 +1709,11 @@
                 "cpuReason": "aucun retour d’image : aucune tuile à servir",
                 "gpuReason": "les transferts passent par la file de la carte, sans passe horodatée",
                 "counts": {
-                  "tuilesDemandees": 71,
-                  "tuilesAuNiveau": 71,
-                  "niveauxManquants": 0,
-                  "tuilesServies": 73,
-                  "tuilesEnAttente": 0
+                  "tilesRequested": 71,
+                  "tilesAtLevel": 71,
+                  "missingLevels": 0,
+                  "tilesServed": 73,
+                  "tilesPending": 0
                 }
               },
               {
@@ -1722,13 +1722,13 @@
                 "cpuMs": null,
                 "gpuMs": { "p50": 1.386436, "p95": 2.14851 },
                 "counts": {
-                  "lignes": 735912,
-                  "occulteurs": 611150,
-                  "testees": 124762,
+                  "rows": 735912,
+                  "occluders": 611150,
+                  "tested": 124762,
                   "bornesToutes": 735904,
-                  "historiqueOcculteurs": 611150,
+                  "previousOccluders": 611150,
                   "sansHistorique": 0,
-                  "imageRelevee": 905
+                  "sampledFrame": 905
                 }
               },
               {
@@ -1737,11 +1737,11 @@
                 "cpuMs": null,
                 "gpuMs": null,
                 "counts": {
-                  "lignesTeleversees": 0,
-                  "fichesTeleversees": 0,
-                  "appelsDeDessin": 10,
-                  "appelsDeMelange": 0,
-                  "lancementsDeCalcul": 0
+                  "rowsUploaded": 0,
+                  "itemsUploaded": 0,
+                  "drawCalls": 10,
+                  "blendDrawCalls": 0,
+                  "computeDispatches": 0
                 }
               },
               { "stage": "submit", "label": "Soumission", "cpuMs": null, "gpuMs": null },
@@ -1771,18 +1771,18 @@
                 "cpuMs": null,
                 "gpuMs": { "p50": 28.515773000000003, "p95": 37.550011000000005 },
                 "counts": {
-                  "lampesRedessinees": 0,
+                  "lightsRedrawn": 0,
                   "cartesReutilisees": 1,
-                  "facesRedessinees": 0,
-                  "appelsDeDessin": 0,
-                  "soleilsRedessines": 0,
+                  "facesRedrawn": 0,
+                  "drawCalls": 0,
+                  "sunsRedrawn": 0,
                   "cascadesRedessinees": 0,
                   "regionsRedessinees": 0,
-                  "pagesInvalidees": 0,
-                  "pagesRedessinees": 0,
-                  "pagesEnAttente": 0,
-                  "retardMaxMs": 0,
-                  "retardMaxImages": 0
+                  "pagesInvalidated": 0,
+                  "pagesRedrawn": 0,
+                  "pagesPending": 0,
+                  "maxWaitMs": 0,
+                  "maxWaitFrames": 0
                 }
               },
               {
@@ -1793,10 +1793,10 @@
                 "cpuReason": "aucun travail processeur : le rayon lointain est tiré par la résolution différée",
                 "gpuReason": "mesurée dans l’étape « Éclairage (résolution) », qui tire le rayon lointain",
                 "counts": {
-                  "trianglesDuProxy": 145006,
-                  "pixelsTestes": 0,
-                  "pixelsAssombris": 0,
-                  "imageRelevee": 18
+                  "proxyTriangles": 145006,
+                  "pixelsTested": 0,
+                  "pixelsShadowed": 0,
+                  "sampledFrame": 18
                 }
               },
               {
@@ -1804,7 +1804,7 @@
                 "label": "Listes de lampes",
                 "cpuMs": null,
                 "gpuMs": { "p50": 1.732723, "p95": 2.554128 },
-                "counts": { "lampesActives": 1 }
+                "counts": { "activeLights": 1 }
               },
               {
                 "stage": "bounce",
@@ -1814,12 +1814,12 @@
                 "cpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "gpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "counts": {
-                  "sondesMisesAJour": 0,
-                  "rayonsParImage": 0,
-                  "sondesDesCascades": 0,
-                  "maillesMisesAJour": 0,
-                  "maillesDuCache": 0,
-                  "fractionDuBudget": 0
+                  "probesUpdated": 0,
+                  "raysPerFrame": 0,
+                  "cascadeProbes": 0,
+                  "texelsUpdated": 0,
+                  "cachedTexels": 0,
+                  "budgetFraction": 0
                 }
               },
               {
@@ -2036,25 +2036,25 @@
             ]
           },
           "preparationMs": 5037.800000011921,
-          "imagesCalme": null,
-          "reglageVivant": null,
-          "reseau": {
+          "settleFrames": null,
+          "liveTuning": null,
+          "network": {
             "json": 159925,
             "bin": 999692300,
             "wasm": 44509,
             "gltf": 3019421,
             "js": 2121432
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 62433521,
           "uncoveredTriangles": 0,
           "drawnTriangles": 62433521,
           "submittedTriangles": 62433521,
           "totalSubmittedTriangles": 62433521,
-          "imageDuReleve": 59,
-          "imageTenue": false,
-          "repliSelectionGpu": true,
+          "recordedFrame": 59,
+          "frameHeld": false,
+          "gpuSelectionFallback": true,
           "hiZ": {
             "tested": 124762,
             "rejected": 124762,
@@ -2067,22 +2067,22 @@
           "selection": {
             "source": "selectedPageIds",
             "sha256": "a8881db65c2c45681bddb881ad7bf5845cb820bd91ce51d5713d6015e42051ff",
-            "taille": 735912
+            "count": 735912
           },
-          "geometrieOctets": 1150884624,
-          "budgetPages": {
-            "demande": null,
-            "residentes": 735912,
-            "couvertureLimiteeParBudget": false
+          "geometryBytes": 1150884624,
+          "pageBudget": {
+            "requested": null,
+            "resident": 735912,
+            "budgetLimitedCoverage": false
           },
-          "poolGeometrie": {
-            "octets": 536870912,
-            "fentes": 83139,
-            "alloues": 127701504,
-            "borne": "scene",
-            "saturees": 0
+          "geometryPool": {
+            "bytes": 536870912,
+            "slots": 83139,
+            "allocated": 127701504,
+            "bound": "scene",
+            "saturated": 0
           },
-          "cheminCalcul": {
+          "mathBatch": {
             "contract": 1,
             "mode": "auto",
             "wasmAvailable": true,
@@ -2102,25 +2102,25 @@
               }
             }
           },
-          "lampes": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "soleil": true,
-            "ombres": true,
-            "maille": 0,
-            "intensite": 40,
+          "lights": {
+            "count": 1,
+            "points": 0,
+            "sun": true,
+            "shadows": true,
+            "grid": 0,
+            "intensity": 40,
             "mobile": false
           },
-          "lampesFichier": { "nombre": 0, "ids": [] },
-          "lampesTemoin": null,
-          "atlasOmbres": null,
-          "objetMobile": null,
-          "charge": {
-            "debut": [2.83349609375, 2.8701171875, 4.20068359375],
-            "fin": [3.4755859375, 3.21826171875, 4.0634765625]
+          "importedLights": { "count": 0, "ids": [] },
+          "witnessLights": null,
+          "shadowAtlas": null,
+          "movingNode": null,
+          "load": {
+            "start": [2.83349609375, 2.8701171875, 4.20068359375],
+            "end": [3.4755859375, 3.21826171875, 4.0634765625]
           },
           "captureStatus": 200,
-          "incidentsGpu": [
+          "gpuIncidents": [
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":71,\"shadowFrames\":1,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\",\"cutPending\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":2,\"shadowFrames\":3,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":0,\"tilesServed\":1,\"shadowFrames\":0,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
@@ -2247,7 +2247,7 @@
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}"
           ],
-          "avertissementsDag": null,
+          "dagWarnings": null,
           "canvas": { "width": 2496, "height": 1404 },
           "metrics": {
             "rafIntervalMs": null,
@@ -2412,7 +2412,7 @@
             "p99": 43.69999998807907,
             "max": 43.69999998807907
           },
-          "moteur": "webgpu-page-raster",
+          "engine": "webgpu-page-raster",
           "gpuFrameMs": {
             "mean": 33.44765600000004,
             "p50": 33.447656,
@@ -2422,7 +2422,7 @@
           },
           "imageSyncMs": null,
           "rafIntervalMs": null,
-          "profilParEtape": {
+          "stageProfile": {
             "version": 1,
             "enabled": true,
             "backend": "webgpu-page-raster",
@@ -2457,7 +2457,7 @@
                 "label": "Sélection et visibilité",
                 "cpuMs": null,
                 "gpuMs": { "p50": 3.484614, "p95": 4.318684 },
-                "counts": { "grappesRejetees": 16985, "pagesVoulues": 647121, "grappesDuDag": 0 }
+                "counts": { "clustersRejected": 16985, "pagesWanted": 647121, "dagClusters": 0 }
               },
               { "stage": "transparents", "label": "Transparents", "cpuMs": null, "gpuMs": null },
               {
@@ -2481,11 +2481,11 @@
                 "cpuReason": "aucun retour d’image : aucune tuile à servir",
                 "gpuReason": "les transferts passent par la file de la carte, sans passe horodatée",
                 "counts": {
-                  "tuilesDemandees": 71,
-                  "tuilesAuNiveau": 71,
-                  "niveauxManquants": 0,
-                  "tuilesServies": 73,
-                  "tuilesEnAttente": 0
+                  "tilesRequested": 71,
+                  "tilesAtLevel": 71,
+                  "missingLevels": 0,
+                  "tilesServed": 73,
+                  "tilesPending": 0
                 }
               },
               {
@@ -2494,13 +2494,13 @@
                 "cpuMs": null,
                 "gpuMs": { "p50": 1.386894, "p95": 2.096051 },
                 "counts": {
-                  "lignes": 735912,
-                  "occulteurs": 611150,
-                  "testees": 124762,
+                  "rows": 735912,
+                  "occluders": 611150,
+                  "tested": 124762,
                   "bornesToutes": 735904,
-                  "historiqueOcculteurs": 611150,
+                  "previousOccluders": 611150,
                   "sansHistorique": 0,
-                  "imageRelevee": 905
+                  "sampledFrame": 905
                 }
               },
               {
@@ -2509,11 +2509,11 @@
                 "cpuMs": null,
                 "gpuMs": null,
                 "counts": {
-                  "lignesTeleversees": 0,
-                  "fichesTeleversees": 0,
-                  "appelsDeDessin": 10,
-                  "appelsDeMelange": 0,
-                  "lancementsDeCalcul": 0
+                  "rowsUploaded": 0,
+                  "itemsUploaded": 0,
+                  "drawCalls": 10,
+                  "blendDrawCalls": 0,
+                  "computeDispatches": 0
                 }
               },
               { "stage": "submit", "label": "Soumission", "cpuMs": null, "gpuMs": null },
@@ -2543,18 +2543,18 @@
                 "cpuMs": null,
                 "gpuMs": { "p50": 29.222054, "p95": 37.80059 },
                 "counts": {
-                  "lampesRedessinees": 0,
+                  "lightsRedrawn": 0,
                   "cartesReutilisees": 1,
-                  "facesRedessinees": 0,
-                  "appelsDeDessin": 0,
-                  "soleilsRedessines": 0,
+                  "facesRedrawn": 0,
+                  "drawCalls": 0,
+                  "sunsRedrawn": 0,
                   "cascadesRedessinees": 0,
                   "regionsRedessinees": 0,
-                  "pagesInvalidees": 0,
-                  "pagesRedessinees": 0,
-                  "pagesEnAttente": 0,
-                  "retardMaxMs": 0,
-                  "retardMaxImages": 0
+                  "pagesInvalidated": 0,
+                  "pagesRedrawn": 0,
+                  "pagesPending": 0,
+                  "maxWaitMs": 0,
+                  "maxWaitFrames": 0
                 }
               },
               {
@@ -2565,10 +2565,10 @@
                 "cpuReason": "aucun travail processeur : le rayon lointain est tiré par la résolution différée",
                 "gpuReason": "mesurée dans l’étape « Éclairage (résolution) », qui tire le rayon lointain",
                 "counts": {
-                  "trianglesDuProxy": 145006,
-                  "pixelsTestes": 0,
-                  "pixelsAssombris": 0,
-                  "imageRelevee": 18
+                  "proxyTriangles": 145006,
+                  "pixelsTested": 0,
+                  "pixelsShadowed": 0,
+                  "sampledFrame": 18
                 }
               },
               {
@@ -2576,7 +2576,7 @@
                 "label": "Listes de lampes",
                 "cpuMs": null,
                 "gpuMs": { "p50": 1.63685, "p95": 2.399797 },
-                "counts": { "lampesActives": 1 }
+                "counts": { "activeLights": 1 }
               },
               {
                 "stage": "bounce",
@@ -2586,12 +2586,12 @@
                 "cpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "gpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "counts": {
-                  "sondesMisesAJour": 0,
-                  "rayonsParImage": 0,
-                  "sondesDesCascades": 0,
-                  "maillesMisesAJour": 0,
-                  "maillesDuCache": 0,
-                  "fractionDuBudget": 0
+                  "probesUpdated": 0,
+                  "raysPerFrame": 0,
+                  "cascadeProbes": 0,
+                  "texelsUpdated": 0,
+                  "cachedTexels": 0,
+                  "budgetFraction": 0
                 }
               },
               {
@@ -2808,25 +2808,25 @@
             ]
           },
           "preparationMs": 5001.100000023842,
-          "imagesCalme": null,
-          "reglageVivant": null,
-          "reseau": {
+          "settleFrames": null,
+          "liveTuning": null,
+          "network": {
             "json": 159925,
             "bin": 999692300,
             "wasm": 44509,
             "gltf": 3019421,
             "js": 2121432
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 62433521,
           "uncoveredTriangles": 0,
           "drawnTriangles": 62433521,
           "submittedTriangles": 62433521,
           "totalSubmittedTriangles": 62433521,
-          "imageDuReleve": 59,
-          "imageTenue": false,
-          "repliSelectionGpu": true,
+          "recordedFrame": 59,
+          "frameHeld": false,
+          "gpuSelectionFallback": true,
           "hiZ": {
             "tested": 124762,
             "rejected": 124762,
@@ -2839,22 +2839,22 @@
           "selection": {
             "source": "selectedPageIds",
             "sha256": "a8881db65c2c45681bddb881ad7bf5845cb820bd91ce51d5713d6015e42051ff",
-            "taille": 735912
+            "count": 735912
           },
-          "geometrieOctets": 1150884624,
-          "budgetPages": {
-            "demande": null,
-            "residentes": 735912,
-            "couvertureLimiteeParBudget": false
+          "geometryBytes": 1150884624,
+          "pageBudget": {
+            "requested": null,
+            "resident": 735912,
+            "budgetLimitedCoverage": false
           },
-          "poolGeometrie": {
-            "octets": 536870912,
-            "fentes": 83139,
-            "alloues": 127701504,
-            "borne": "scene",
-            "saturees": 0
+          "geometryPool": {
+            "bytes": 536870912,
+            "slots": 83139,
+            "allocated": 127701504,
+            "bound": "scene",
+            "saturated": 0
           },
-          "cheminCalcul": {
+          "mathBatch": {
             "contract": 1,
             "mode": "auto",
             "wasmAvailable": true,
@@ -2874,25 +2874,25 @@
               }
             }
           },
-          "lampes": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "soleil": true,
-            "ombres": true,
-            "maille": 0,
-            "intensite": 40,
+          "lights": {
+            "count": 1,
+            "points": 0,
+            "sun": true,
+            "shadows": true,
+            "grid": 0,
+            "intensity": 40,
             "mobile": false
           },
-          "lampesFichier": { "nombre": 0, "ids": [] },
-          "lampesTemoin": null,
-          "atlasOmbres": null,
-          "objetMobile": null,
-          "charge": {
-            "debut": [3.4755859375, 3.21826171875, 4.0634765625],
-            "fin": [4.05859375, 3.669921875, 4.06689453125]
+          "importedLights": { "count": 0, "ids": [] },
+          "witnessLights": null,
+          "shadowAtlas": null,
+          "movingNode": null,
+          "load": {
+            "start": [3.4755859375, 3.21826171875, 4.0634765625],
+            "end": [4.05859375, 3.669921875, 4.06689453125]
           },
           "captureStatus": 200,
-          "incidentsGpu": [
+          "gpuIncidents": [
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":71,\"shadowFrames\":1,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\",\"cutPending\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":2,\"shadowFrames\":3,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":0,\"tilesServed\":1,\"shadowFrames\":0,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
@@ -3019,7 +3019,7 @@
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}"
           ],
-          "avertissementsDag": null,
+          "dagWarnings": null,
           "canvas": { "width": 2496, "height": 1404 },
           "metrics": {
             "rafIntervalMs": null,
@@ -3170,12 +3170,12 @@
           }
         }
       },
-      "temoinAA": { "pixels": 0, "maxCanal": 0, "total": 3504384 },
-      "ecartAvantApres": null,
-      "coupeIdentique": null
+      "witnessAA": { "pixels": 0, "maxChannel": 0, "total": 3504384 },
+      "beforeAfterDiff": null,
+      "sameCut": null
     },
     {
-      "view": "rue",
+      "view": "street",
       "pixelError": 0,
       "segment": "Déplacement au niveau de référence",
       "index": 150,
@@ -3202,7 +3202,7 @@
             "p99": 73.29999995231628,
             "max": 73.29999995231628
           },
-          "moteur": "webgpu-page-raster",
+          "engine": "webgpu-page-raster",
           "gpuFrameMs": {
             "mean": 40.77275300000001,
             "p50": 40.772753,
@@ -3212,7 +3212,7 @@
           },
           "imageSyncMs": null,
           "rafIntervalMs": null,
-          "profilParEtape": {
+          "stageProfile": {
             "version": 1,
             "enabled": true,
             "backend": "webgpu-page-raster",
@@ -3247,7 +3247,7 @@
                 "label": "Sélection et visibilité",
                 "cpuMs": null,
                 "gpuMs": { "p50": 3.775943, "p95": 5.169005 },
-                "counts": { "grappesRejetees": 17415, "pagesVoulues": 592420, "grappesDuDag": 0 }
+                "counts": { "clustersRejected": 17415, "pagesWanted": 592420, "dagClusters": 0 }
               },
               { "stage": "transparents", "label": "Transparents", "cpuMs": null, "gpuMs": null },
               {
@@ -3271,11 +3271,11 @@
                 "cpuReason": "aucun retour d’image : aucune tuile à servir",
                 "gpuReason": "les transferts passent par la file de la carte, sans passe horodatée",
                 "counts": {
-                  "tuilesDemandees": 48,
-                  "tuilesAuNiveau": 48,
-                  "niveauxManquants": 0,
-                  "tuilesServies": 48,
-                  "tuilesEnAttente": 0
+                  "tilesRequested": 48,
+                  "tilesAtLevel": 48,
+                  "missingLevels": 0,
+                  "tilesServed": 48,
+                  "tilesPending": 0
                 }
               },
               {
@@ -3284,13 +3284,13 @@
                 "cpuMs": null,
                 "gpuMs": { "p50": 1.480768, "p95": 2.707501 },
                 "counts": {
-                  "lignes": 657526,
-                  "occulteurs": 599019,
-                  "testees": 58507,
+                  "rows": 657526,
+                  "occluders": 599019,
+                  "tested": 58507,
                   "bornesToutes": 657516,
-                  "historiqueOcculteurs": 599019,
+                  "previousOccluders": 599019,
                   "sansHistorique": 0,
-                  "imageRelevee": 838
+                  "sampledFrame": 838
                 }
               },
               {
@@ -3299,11 +3299,11 @@
                 "cpuMs": null,
                 "gpuMs": null,
                 "counts": {
-                  "lignesTeleversees": 0,
-                  "fichesTeleversees": 0,
-                  "appelsDeDessin": 10,
-                  "appelsDeMelange": 0,
-                  "lancementsDeCalcul": 0
+                  "rowsUploaded": 0,
+                  "itemsUploaded": 0,
+                  "drawCalls": 10,
+                  "blendDrawCalls": 0,
+                  "computeDispatches": 0
                 }
               },
               { "stage": "submit", "label": "Soumission", "cpuMs": null, "gpuMs": null },
@@ -3333,18 +3333,18 @@
                 "cpuMs": null,
                 "gpuMs": { "p50": 35.010008, "p95": 41.63499 },
                 "counts": {
-                  "lampesRedessinees": 0,
+                  "lightsRedrawn": 0,
                   "cartesReutilisees": 1,
-                  "facesRedessinees": 0,
-                  "appelsDeDessin": 0,
-                  "soleilsRedessines": 0,
+                  "facesRedrawn": 0,
+                  "drawCalls": 0,
+                  "sunsRedrawn": 0,
                   "cascadesRedessinees": 0,
                   "regionsRedessinees": 0,
-                  "pagesInvalidees": 0,
-                  "pagesRedessinees": 0,
-                  "pagesEnAttente": 0,
-                  "retardMaxMs": 0,
-                  "retardMaxImages": 0
+                  "pagesInvalidated": 0,
+                  "pagesRedrawn": 0,
+                  "pagesPending": 0,
+                  "maxWaitMs": 0,
+                  "maxWaitFrames": 0
                 }
               },
               {
@@ -3355,10 +3355,10 @@
                 "cpuReason": "aucun travail processeur : le rayon lointain est tiré par la résolution différée",
                 "gpuReason": "mesurée dans l’étape « Éclairage (résolution) », qui tire le rayon lointain",
                 "counts": {
-                  "trianglesDuProxy": 145006,
-                  "pixelsTestes": 0,
-                  "pixelsAssombris": 0,
-                  "imageRelevee": 3
+                  "proxyTriangles": 145006,
+                  "pixelsTested": 0,
+                  "pixelsShadowed": 0,
+                  "sampledFrame": 3
                 }
               },
               {
@@ -3366,7 +3366,7 @@
                 "label": "Listes de lampes",
                 "cpuMs": null,
                 "gpuMs": { "p50": 1.101526, "p95": 2.005219 },
-                "counts": { "lampesActives": 1 }
+                "counts": { "activeLights": 1 }
               },
               {
                 "stage": "bounce",
@@ -3376,12 +3376,12 @@
                 "cpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "gpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "counts": {
-                  "sondesMisesAJour": 0,
-                  "rayonsParImage": 0,
-                  "sondesDesCascades": 0,
-                  "maillesMisesAJour": 0,
-                  "maillesDuCache": 0,
-                  "fractionDuBudget": 0
+                  "probesUpdated": 0,
+                  "raysPerFrame": 0,
+                  "cascadeProbes": 0,
+                  "texelsUpdated": 0,
+                  "cachedTexels": 0,
+                  "budgetFraction": 0
                 }
               },
               {
@@ -3598,25 +3598,25 @@
             ]
           },
           "preparationMs": 4992.399999976158,
-          "imagesCalme": null,
-          "reglageVivant": null,
-          "reseau": {
+          "settleFrames": null,
+          "liveTuning": null,
+          "network": {
             "json": 159925,
             "bin": 997574024,
             "wasm": 44509,
             "gltf": 3019421,
             "js": 2121432
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 55783547,
           "uncoveredTriangles": 0,
           "drawnTriangles": 55783547,
           "submittedTriangles": 55783547,
           "totalSubmittedTriangles": 55783547,
-          "imageDuReleve": 59,
-          "imageTenue": false,
-          "repliSelectionGpu": true,
+          "recordedFrame": 59,
+          "frameHeld": false,
+          "gpuSelectionFallback": true,
           "hiZ": {
             "tested": 58507,
             "rejected": 58507,
@@ -3629,22 +3629,22 @@
           "selection": {
             "source": "selectedPageIds",
             "sha256": "9d2b365f8e46479c60879d108dd943d2235c2ac014b9d9490187bc35df369587",
-            "taille": 657526
+            "count": 657526
           },
-          "geometrieOctets": 1150884624,
-          "budgetPages": {
-            "demande": null,
-            "residentes": 657526,
-            "couvertureLimiteeParBudget": false
+          "geometryBytes": 1150884624,
+          "pageBudget": {
+            "requested": null,
+            "resident": 657526,
+            "budgetLimitedCoverage": false
           },
-          "poolGeometrie": {
-            "octets": 536870912,
-            "fentes": 83139,
-            "alloues": 127701504,
-            "borne": "scene",
-            "saturees": 0
+          "geometryPool": {
+            "bytes": 536870912,
+            "slots": 83139,
+            "allocated": 127701504,
+            "bound": "scene",
+            "saturated": 0
           },
-          "cheminCalcul": {
+          "mathBatch": {
             "contract": 1,
             "mode": "auto",
             "wasmAvailable": true,
@@ -3664,25 +3664,25 @@
               }
             }
           },
-          "lampes": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "soleil": true,
-            "ombres": true,
-            "maille": 0,
-            "intensite": 40,
+          "lights": {
+            "count": 1,
+            "points": 0,
+            "sun": true,
+            "shadows": true,
+            "grid": 0,
+            "intensity": 40,
             "mobile": false
           },
-          "lampesFichier": { "nombre": 0, "ids": [] },
-          "lampesTemoin": null,
-          "atlasOmbres": null,
-          "objetMobile": null,
-          "charge": {
-            "debut": [4.05859375, 3.669921875, 4.06689453125],
-            "fin": [3.8994140625, 4.02587890625, 4.14111328125]
+          "importedLights": { "count": 0, "ids": [] },
+          "witnessLights": null,
+          "shadowAtlas": null,
+          "movingNode": null,
+          "load": {
+            "start": [4.05859375, 3.669921875, 4.06689453125],
+            "end": [3.8994140625, 4.02587890625, 4.14111328125]
           },
           "captureStatus": 200,
-          "incidentsGpu": [
+          "gpuIncidents": [
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":48,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\",\"cutPending\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":135,\"shadowFrames\":3,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\",\"cutPending\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
@@ -3804,7 +3804,7 @@
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}"
           ],
-          "avertissementsDag": null,
+          "dagWarnings": null,
           "canvas": { "width": 2496, "height": 1404 },
           "metrics": {
             "rafIntervalMs": null,
@@ -3969,7 +3969,7 @@
             "p99": 86.09999996423721,
             "max": 86.09999996423721
           },
-          "moteur": "webgpu-page-raster",
+          "engine": "webgpu-page-raster",
           "gpuFrameMs": {
             "mean": 81.51479800000008,
             "p50": 81.514798,
@@ -3979,7 +3979,7 @@
           },
           "imageSyncMs": null,
           "rafIntervalMs": null,
-          "profilParEtape": {
+          "stageProfile": {
             "version": 1,
             "enabled": true,
             "backend": "webgpu-page-raster",
@@ -4014,7 +4014,7 @@
                 "label": "Sélection et visibilité",
                 "cpuMs": null,
                 "gpuMs": { "p50": 3.751859, "p95": 15.112852 },
-                "counts": { "grappesRejetees": 17415, "pagesVoulues": 592420, "grappesDuDag": 0 }
+                "counts": { "clustersRejected": 17415, "pagesWanted": 592420, "dagClusters": 0 }
               },
               { "stage": "transparents", "label": "Transparents", "cpuMs": null, "gpuMs": null },
               {
@@ -4038,11 +4038,11 @@
                 "cpuReason": "aucun retour d’image : aucune tuile à servir",
                 "gpuReason": "les transferts passent par la file de la carte, sans passe horodatée",
                 "counts": {
-                  "tuilesDemandees": 48,
-                  "tuilesAuNiveau": 48,
-                  "niveauxManquants": 0,
-                  "tuilesServies": 48,
-                  "tuilesEnAttente": 0
+                  "tilesRequested": 48,
+                  "tilesAtLevel": 48,
+                  "missingLevels": 0,
+                  "tilesServed": 48,
+                  "tilesPending": 0
                 }
               },
               {
@@ -4051,13 +4051,13 @@
                 "cpuMs": null,
                 "gpuMs": { "p50": 1.663016, "p95": 6.415027 },
                 "counts": {
-                  "lignes": 657526,
-                  "occulteurs": 599019,
-                  "testees": 58507,
+                  "rows": 657526,
+                  "occluders": 599019,
+                  "tested": 58507,
                   "bornesToutes": 657516,
-                  "historiqueOcculteurs": 599019,
+                  "previousOccluders": 599019,
                   "sansHistorique": 0,
-                  "imageRelevee": 838
+                  "sampledFrame": 838
                 }
               },
               {
@@ -4066,11 +4066,11 @@
                 "cpuMs": null,
                 "gpuMs": null,
                 "counts": {
-                  "lignesTeleversees": 0,
-                  "fichesTeleversees": 0,
-                  "appelsDeDessin": 10,
-                  "appelsDeMelange": 0,
-                  "lancementsDeCalcul": 0
+                  "rowsUploaded": 0,
+                  "itemsUploaded": 0,
+                  "drawCalls": 10,
+                  "blendDrawCalls": 0,
+                  "computeDispatches": 0
                 }
               },
               { "stage": "submit", "label": "Soumission", "cpuMs": null, "gpuMs": null },
@@ -4100,18 +4100,18 @@
                 "cpuMs": null,
                 "gpuMs": { "p50": 33.330492, "p95": 71.480658 },
                 "counts": {
-                  "lampesRedessinees": 0,
+                  "lightsRedrawn": 0,
                   "cartesReutilisees": 1,
-                  "facesRedessinees": 0,
-                  "appelsDeDessin": 0,
-                  "soleilsRedessines": 0,
+                  "facesRedrawn": 0,
+                  "drawCalls": 0,
+                  "sunsRedrawn": 0,
                   "cascadesRedessinees": 0,
                   "regionsRedessinees": 0,
-                  "pagesInvalidees": 0,
-                  "pagesRedessinees": 0,
-                  "pagesEnAttente": 0,
-                  "retardMaxMs": 0,
-                  "retardMaxImages": 0
+                  "pagesInvalidated": 0,
+                  "pagesRedrawn": 0,
+                  "pagesPending": 0,
+                  "maxWaitMs": 0,
+                  "maxWaitFrames": 0
                 }
               },
               {
@@ -4122,10 +4122,10 @@
                 "cpuReason": "aucun travail processeur : le rayon lointain est tiré par la résolution différée",
                 "gpuReason": "mesurée dans l’étape « Éclairage (résolution) », qui tire le rayon lointain",
                 "counts": {
-                  "trianglesDuProxy": 145006,
-                  "pixelsTestes": 0,
-                  "pixelsAssombris": 0,
-                  "imageRelevee": 3
+                  "proxyTriangles": 145006,
+                  "pixelsTested": 0,
+                  "pixelsShadowed": 0,
+                  "sampledFrame": 3
                 }
               },
               {
@@ -4133,7 +4133,7 @@
                 "label": "Listes de lampes",
                 "cpuMs": null,
                 "gpuMs": { "p50": 1.58385, "p95": 3.463239 },
-                "counts": { "lampesActives": 1 }
+                "counts": { "activeLights": 1 }
               },
               {
                 "stage": "bounce",
@@ -4143,12 +4143,12 @@
                 "cpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "gpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "counts": {
-                  "sondesMisesAJour": 0,
-                  "rayonsParImage": 0,
-                  "sondesDesCascades": 0,
-                  "maillesMisesAJour": 0,
-                  "maillesDuCache": 0,
-                  "fractionDuBudget": 0
+                  "probesUpdated": 0,
+                  "raysPerFrame": 0,
+                  "cascadeProbes": 0,
+                  "texelsUpdated": 0,
+                  "cachedTexels": 0,
+                  "budgetFraction": 0
                 }
               },
               {
@@ -4365,25 +4365,25 @@
             ]
           },
           "preparationMs": 5088,
-          "imagesCalme": null,
-          "reglageVivant": null,
-          "reseau": {
+          "settleFrames": null,
+          "liveTuning": null,
+          "network": {
             "json": 159925,
             "bin": 997574024,
             "wasm": 44509,
             "gltf": 3019421,
             "js": 2121432
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 55783547,
           "uncoveredTriangles": 0,
           "drawnTriangles": 55783547,
           "submittedTriangles": 55783547,
           "totalSubmittedTriangles": 55783547,
-          "imageDuReleve": 59,
-          "imageTenue": false,
-          "repliSelectionGpu": true,
+          "recordedFrame": 59,
+          "frameHeld": false,
+          "gpuSelectionFallback": true,
           "hiZ": {
             "tested": 58507,
             "rejected": 58507,
@@ -4396,22 +4396,22 @@
           "selection": {
             "source": "selectedPageIds",
             "sha256": "9d2b365f8e46479c60879d108dd943d2235c2ac014b9d9490187bc35df369587",
-            "taille": 657526
+            "count": 657526
           },
-          "geometrieOctets": 1150884624,
-          "budgetPages": {
-            "demande": null,
-            "residentes": 657526,
-            "couvertureLimiteeParBudget": false
+          "geometryBytes": 1150884624,
+          "pageBudget": {
+            "requested": null,
+            "resident": 657526,
+            "budgetLimitedCoverage": false
           },
-          "poolGeometrie": {
-            "octets": 536870912,
-            "fentes": 83139,
-            "alloues": 127701504,
-            "borne": "scene",
-            "saturees": 0
+          "geometryPool": {
+            "bytes": 536870912,
+            "slots": 83139,
+            "allocated": 127701504,
+            "bound": "scene",
+            "saturated": 0
           },
-          "cheminCalcul": {
+          "mathBatch": {
             "contract": 1,
             "mode": "auto",
             "wasmAvailable": true,
@@ -4431,25 +4431,25 @@
               }
             }
           },
-          "lampes": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "soleil": true,
-            "ombres": true,
-            "maille": 0,
-            "intensite": 40,
+          "lights": {
+            "count": 1,
+            "points": 0,
+            "sun": true,
+            "shadows": true,
+            "grid": 0,
+            "intensity": 40,
             "mobile": false
           },
-          "lampesFichier": { "nombre": 0, "ids": [] },
-          "lampesTemoin": null,
-          "atlasOmbres": null,
-          "objetMobile": null,
-          "charge": {
-            "debut": [3.8994140625, 4.02587890625, 4.14111328125],
-            "fin": [3.6572265625, 3.7998046875, 4.01318359375]
+          "importedLights": { "count": 0, "ids": [] },
+          "witnessLights": null,
+          "shadowAtlas": null,
+          "movingNode": null,
+          "load": {
+            "start": [3.8994140625, 4.02587890625, 4.14111328125],
+            "end": [3.6572265625, 3.7998046875, 4.01318359375]
           },
           "captureStatus": 200,
-          "incidentsGpu": [
+          "gpuIncidents": [
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":48,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\",\"cutPending\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":135,\"shadowFrames\":3,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\",\"cutPending\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
@@ -4571,7 +4571,7 @@
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}"
           ],
-          "avertissementsDag": null,
+          "dagWarnings": null,
           "canvas": { "width": 2496, "height": 1404 },
           "metrics": {
             "rafIntervalMs": null,
@@ -4722,9 +4722,9 @@
           }
         }
       },
-      "temoinAA": { "pixels": 0, "maxCanal": 0, "total": 3504384 },
-      "ecartAvantApres": null,
-      "coupeIdentique": null
+      "witnessAA": { "pixels": 0, "maxChannel": 0, "total": 3504384 },
+      "beforeAfterDiff": null,
+      "sameCut": null
     },
     {
       "view": "detail",
@@ -4754,7 +4754,7 @@
             "p99": 30.599999964237213,
             "max": 30.599999964237213
           },
-          "moteur": "webgpu-page-raster",
+          "engine": "webgpu-page-raster",
           "gpuFrameMs": {
             "mean": 91.72139100000003,
             "p50": 91.721391,
@@ -4764,7 +4764,7 @@
           },
           "imageSyncMs": null,
           "rafIntervalMs": null,
-          "profilParEtape": {
+          "stageProfile": {
             "version": 1,
             "enabled": true,
             "backend": "webgpu-page-raster",
@@ -4799,7 +4799,7 @@
                 "label": "Sélection et visibilité",
                 "cpuMs": null,
                 "gpuMs": { "p50": 7.887755, "p95": 11.302119 },
-                "counts": { "grappesRejetees": 21414, "pagesVoulues": 560868, "grappesDuDag": 0 }
+                "counts": { "clustersRejected": 21414, "pagesWanted": 560868, "dagClusters": 0 }
               },
               { "stage": "transparents", "label": "Transparents", "cpuMs": null, "gpuMs": null },
               {
@@ -4823,11 +4823,11 @@
                 "cpuReason": "aucun retour d’image : aucune tuile à servir",
                 "gpuReason": "les transferts passent par la file de la carte, sans passe horodatée",
                 "counts": {
-                  "tuilesDemandees": 22,
-                  "tuilesAuNiveau": 22,
-                  "niveauxManquants": 0,
-                  "tuilesServies": 22,
-                  "tuilesEnAttente": 0
+                  "tilesRequested": 22,
+                  "tilesAtLevel": 22,
+                  "missingLevels": 0,
+                  "tilesServed": 22,
+                  "tilesPending": 0
                 }
               },
               {
@@ -4836,13 +4836,13 @@
                 "cpuMs": null,
                 "gpuMs": { "p50": 2.636417, "p95": 4.93405 },
                 "counts": {
-                  "lignes": 560868,
-                  "occulteurs": 534075,
-                  "testees": 26793,
+                  "rows": 560868,
+                  "occluders": 534075,
+                  "tested": 26793,
                   "bornesToutes": 560847,
-                  "historiqueOcculteurs": 534075,
+                  "previousOccluders": 534075,
                   "sansHistorique": 0,
-                  "imageRelevee": 493
+                  "sampledFrame": 493
                 }
               },
               {
@@ -4851,11 +4851,11 @@
                 "cpuMs": null,
                 "gpuMs": null,
                 "counts": {
-                  "lignesTeleversees": 0,
-                  "fichesTeleversees": 0,
-                  "appelsDeDessin": 10,
-                  "appelsDeMelange": 0,
-                  "lancementsDeCalcul": 0
+                  "rowsUploaded": 0,
+                  "itemsUploaded": 0,
+                  "drawCalls": 10,
+                  "blendDrawCalls": 0,
+                  "computeDispatches": 0
                 }
               },
               { "stage": "submit", "label": "Soumission", "cpuMs": null, "gpuMs": null },
@@ -4885,18 +4885,18 @@
                 "cpuMs": null,
                 "gpuMs": null,
                 "counts": {
-                  "lampesRedessinees": 0,
+                  "lightsRedrawn": 0,
                   "cartesReutilisees": 1,
-                  "facesRedessinees": 0,
-                  "appelsDeDessin": 0,
-                  "soleilsRedessines": 0,
+                  "facesRedrawn": 0,
+                  "drawCalls": 0,
+                  "sunsRedrawn": 0,
                   "cascadesRedessinees": 0,
                   "regionsRedessinees": 0,
-                  "pagesInvalidees": 0,
-                  "pagesRedessinees": 0,
-                  "pagesEnAttente": 0,
-                  "retardMaxMs": 0,
-                  "retardMaxImages": 0
+                  "pagesInvalidated": 0,
+                  "pagesRedrawn": 0,
+                  "pagesPending": 0,
+                  "maxWaitMs": 0,
+                  "maxWaitFrames": 0
                 }
               },
               {
@@ -4907,10 +4907,10 @@
                 "cpuReason": "aucun travail processeur : le rayon lointain est tiré par la résolution différée",
                 "gpuReason": "mesurée dans l’étape « Éclairage (résolution) », qui tire le rayon lointain",
                 "counts": {
-                  "trianglesDuProxy": 145006,
-                  "pixelsTestes": 0,
-                  "pixelsAssombris": 0,
-                  "imageRelevee": 3
+                  "proxyTriangles": 145006,
+                  "pixelsTested": 0,
+                  "pixelsShadowed": 0,
+                  "sampledFrame": 3
                 }
               },
               {
@@ -4918,7 +4918,7 @@
                 "label": "Listes de lampes",
                 "cpuMs": null,
                 "gpuMs": { "p50": 2.501504, "p95": 4.814176 },
-                "counts": { "lampesActives": 1 }
+                "counts": { "activeLights": 1 }
               },
               {
                 "stage": "bounce",
@@ -4928,12 +4928,12 @@
                 "cpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "gpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "counts": {
-                  "sondesMisesAJour": 0,
-                  "rayonsParImage": 0,
-                  "sondesDesCascades": 0,
-                  "maillesMisesAJour": 0,
-                  "maillesDuCache": 0,
-                  "fractionDuBudget": 0
+                  "probesUpdated": 0,
+                  "raysPerFrame": 0,
+                  "cascadeProbes": 0,
+                  "texelsUpdated": 0,
+                  "cachedTexels": 0,
+                  "budgetFraction": 0
                 }
               },
               {
@@ -5128,25 +5128,25 @@
             ]
           },
           "preparationMs": 5079.799999952316,
-          "imagesCalme": null,
-          "reglageVivant": null,
-          "reseau": {
+          "settleFrames": null,
+          "liveTuning": null,
+          "network": {
             "json": 159925,
             "bin": 996352268,
             "wasm": 44509,
             "gltf": 3019421,
             "js": 1709544
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 47578170,
           "uncoveredTriangles": 0,
           "drawnTriangles": 47578170,
           "submittedTriangles": 47578170,
           "totalSubmittedTriangles": 47578170,
-          "imageDuReleve": 59,
-          "imageTenue": false,
-          "repliSelectionGpu": true,
+          "recordedFrame": 59,
+          "frameHeld": false,
+          "gpuSelectionFallback": true,
           "hiZ": {
             "tested": 26793,
             "rejected": 26793,
@@ -5159,22 +5159,22 @@
           "selection": {
             "source": "selectedPageIds",
             "sha256": "ecdb201cb2e0ad83640667465b4025cf27c3cccfce207ea51123ff537ec8acae",
-            "taille": 560868
+            "count": 560868
           },
-          "geometrieOctets": 1150884624,
-          "budgetPages": {
-            "demande": null,
-            "residentes": 560868,
-            "couvertureLimiteeParBudget": false
+          "geometryBytes": 1150884624,
+          "pageBudget": {
+            "requested": null,
+            "resident": 560868,
+            "budgetLimitedCoverage": false
           },
-          "poolGeometrie": {
-            "octets": 536870912,
-            "fentes": 83139,
-            "alloues": 127701504,
-            "borne": "scene",
-            "saturees": 0
+          "geometryPool": {
+            "bytes": 536870912,
+            "slots": 83139,
+            "allocated": 127701504,
+            "bound": "scene",
+            "saturated": 0
           },
-          "cheminCalcul": {
+          "mathBatch": {
             "contract": 1,
             "mode": "auto",
             "wasmAvailable": true,
@@ -5194,28 +5194,28 @@
               }
             }
           },
-          "lampes": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "soleil": true,
-            "ombres": true,
-            "maille": 0,
-            "intensite": 40,
+          "lights": {
+            "count": 1,
+            "points": 0,
+            "sun": true,
+            "shadows": true,
+            "grid": 0,
+            "intensity": 40,
             "mobile": false
           },
-          "lampesFichier": { "nombre": 0, "ids": [] },
-          "lampesTemoin": null,
-          "atlasOmbres": null,
-          "objetMobile": null,
-          "charge": {
-            "debut": [3.6572265625, 3.7998046875, 4.01318359375],
-            "fin": [3.02392578125, 3.65576171875, 3.94287109375]
+          "importedLights": { "count": 0, "ids": [] },
+          "witnessLights": null,
+          "shadowAtlas": null,
+          "movingNode": null,
+          "load": {
+            "start": [3.6572265625, 3.7998046875, 4.01318359375],
+            "end": [3.02392578125, 3.65576171875, 3.94287109375]
           },
           "captureStatus": 200,
-          "incidentsGpu": [
+          "gpuIncidents": [
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":22,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\",\"cutPending\"]}"
           ],
-          "avertissementsDag": null,
+          "dagWarnings": null,
           "canvas": { "width": 2496, "height": 1404 },
           "metrics": {
             "rafIntervalMs": null,
@@ -5380,7 +5380,7 @@
             "p99": 31.400000035762787,
             "max": 31.400000035762787
           },
-          "moteur": "webgpu-page-raster",
+          "engine": "webgpu-page-raster",
           "gpuFrameMs": {
             "mean": 47.253154,
             "p50": 47.253154,
@@ -5390,7 +5390,7 @@
           },
           "imageSyncMs": null,
           "rafIntervalMs": null,
-          "profilParEtape": {
+          "stageProfile": {
             "version": 1,
             "enabled": true,
             "backend": "webgpu-page-raster",
@@ -5425,7 +5425,7 @@
                 "label": "Sélection et visibilité",
                 "cpuMs": null,
                 "gpuMs": { "p50": 6.974728, "p95": 8.571661 },
-                "counts": { "grappesRejetees": 21414, "pagesVoulues": 560868, "grappesDuDag": 0 }
+                "counts": { "clustersRejected": 21414, "pagesWanted": 560868, "dagClusters": 0 }
               },
               { "stage": "transparents", "label": "Transparents", "cpuMs": null, "gpuMs": null },
               {
@@ -5449,11 +5449,11 @@
                 "cpuReason": "aucun retour d’image : aucune tuile à servir",
                 "gpuReason": "les transferts passent par la file de la carte, sans passe horodatée",
                 "counts": {
-                  "tuilesDemandees": 22,
-                  "tuilesAuNiveau": 22,
-                  "niveauxManquants": 0,
-                  "tuilesServies": 22,
-                  "tuilesEnAttente": 0
+                  "tilesRequested": 22,
+                  "tilesAtLevel": 22,
+                  "missingLevels": 0,
+                  "tilesServed": 22,
+                  "tilesPending": 0
                 }
               },
               {
@@ -5462,13 +5462,13 @@
                 "cpuMs": null,
                 "gpuMs": { "p50": 2.236424, "p95": 3.078661 },
                 "counts": {
-                  "lignes": 560868,
-                  "occulteurs": 534075,
-                  "testees": 26793,
+                  "rows": 560868,
+                  "occluders": 534075,
+                  "tested": 26793,
                   "bornesToutes": 560847,
-                  "historiqueOcculteurs": 534075,
+                  "previousOccluders": 534075,
                   "sansHistorique": 0,
-                  "imageRelevee": 493
+                  "sampledFrame": 493
                 }
               },
               {
@@ -5477,11 +5477,11 @@
                 "cpuMs": null,
                 "gpuMs": null,
                 "counts": {
-                  "lignesTeleversees": 0,
-                  "fichesTeleversees": 0,
-                  "appelsDeDessin": 10,
-                  "appelsDeMelange": 0,
-                  "lancementsDeCalcul": 0
+                  "rowsUploaded": 0,
+                  "itemsUploaded": 0,
+                  "drawCalls": 10,
+                  "blendDrawCalls": 0,
+                  "computeDispatches": 0
                 }
               },
               { "stage": "submit", "label": "Soumission", "cpuMs": null, "gpuMs": null },
@@ -5511,18 +5511,18 @@
                 "cpuMs": null,
                 "gpuMs": null,
                 "counts": {
-                  "lampesRedessinees": 0,
+                  "lightsRedrawn": 0,
                   "cartesReutilisees": 1,
-                  "facesRedessinees": 0,
-                  "appelsDeDessin": 0,
-                  "soleilsRedessines": 0,
+                  "facesRedrawn": 0,
+                  "drawCalls": 0,
+                  "sunsRedrawn": 0,
                   "cascadesRedessinees": 0,
                   "regionsRedessinees": 0,
-                  "pagesInvalidees": 0,
-                  "pagesRedessinees": 0,
-                  "pagesEnAttente": 0,
-                  "retardMaxMs": 0,
-                  "retardMaxImages": 0
+                  "pagesInvalidated": 0,
+                  "pagesRedrawn": 0,
+                  "pagesPending": 0,
+                  "maxWaitMs": 0,
+                  "maxWaitFrames": 0
                 }
               },
               {
@@ -5533,10 +5533,10 @@
                 "cpuReason": "aucun travail processeur : le rayon lointain est tiré par la résolution différée",
                 "gpuReason": "mesurée dans l’étape « Éclairage (résolution) », qui tire le rayon lointain",
                 "counts": {
-                  "trianglesDuProxy": 145006,
-                  "pixelsTestes": 0,
-                  "pixelsAssombris": 0,
-                  "imageRelevee": 3
+                  "proxyTriangles": 145006,
+                  "pixelsTested": 0,
+                  "pixelsShadowed": 0,
+                  "sampledFrame": 3
                 }
               },
               {
@@ -5544,7 +5544,7 @@
                 "label": "Listes de lampes",
                 "cpuMs": null,
                 "gpuMs": { "p50": 1.338146, "p95": 3.261826 },
-                "counts": { "lampesActives": 1 }
+                "counts": { "activeLights": 1 }
               },
               {
                 "stage": "bounce",
@@ -5554,12 +5554,12 @@
                 "cpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "gpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "counts": {
-                  "sondesMisesAJour": 0,
-                  "rayonsParImage": 0,
-                  "sondesDesCascades": 0,
-                  "maillesMisesAJour": 0,
-                  "maillesDuCache": 0,
-                  "fractionDuBudget": 0
+                  "probesUpdated": 0,
+                  "raysPerFrame": 0,
+                  "cascadeProbes": 0,
+                  "texelsUpdated": 0,
+                  "cachedTexels": 0,
+                  "budgetFraction": 0
                 }
               },
               {
@@ -5754,25 +5754,25 @@
             ]
           },
           "preparationMs": 5024.600000023842,
-          "imagesCalme": null,
-          "reglageVivant": null,
-          "reseau": {
+          "settleFrames": null,
+          "liveTuning": null,
+          "network": {
             "json": 159925,
             "bin": 996352268,
             "wasm": 44509,
             "gltf": 3019421,
             "js": 1709544
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 47578170,
           "uncoveredTriangles": 0,
           "drawnTriangles": 47578170,
           "submittedTriangles": 47578170,
           "totalSubmittedTriangles": 47578170,
-          "imageDuReleve": 59,
-          "imageTenue": false,
-          "repliSelectionGpu": true,
+          "recordedFrame": 59,
+          "frameHeld": false,
+          "gpuSelectionFallback": true,
           "hiZ": {
             "tested": 26793,
             "rejected": 26793,
@@ -5785,22 +5785,22 @@
           "selection": {
             "source": "selectedPageIds",
             "sha256": "ecdb201cb2e0ad83640667465b4025cf27c3cccfce207ea51123ff537ec8acae",
-            "taille": 560868
+            "count": 560868
           },
-          "geometrieOctets": 1150884624,
-          "budgetPages": {
-            "demande": null,
-            "residentes": 560868,
-            "couvertureLimiteeParBudget": false
+          "geometryBytes": 1150884624,
+          "pageBudget": {
+            "requested": null,
+            "resident": 560868,
+            "budgetLimitedCoverage": false
           },
-          "poolGeometrie": {
-            "octets": 536870912,
-            "fentes": 83139,
-            "alloues": 127701504,
-            "borne": "scene",
-            "saturees": 0
+          "geometryPool": {
+            "bytes": 536870912,
+            "slots": 83139,
+            "allocated": 127701504,
+            "bound": "scene",
+            "saturated": 0
           },
-          "cheminCalcul": {
+          "mathBatch": {
             "contract": 1,
             "mode": "auto",
             "wasmAvailable": true,
@@ -5820,28 +5820,28 @@
               }
             }
           },
-          "lampes": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "soleil": true,
-            "ombres": true,
-            "maille": 0,
-            "intensite": 40,
+          "lights": {
+            "count": 1,
+            "points": 0,
+            "sun": true,
+            "shadows": true,
+            "grid": 0,
+            "intensity": 40,
             "mobile": false
           },
-          "lampesFichier": { "nombre": 0, "ids": [] },
-          "lampesTemoin": null,
-          "atlasOmbres": null,
-          "objetMobile": null,
-          "charge": {
-            "debut": [10.30908203125, 5.1552734375, 4.47021484375],
-            "fin": [8.12890625, 6.44287109375, 5.080078125]
+          "importedLights": { "count": 0, "ids": [] },
+          "witnessLights": null,
+          "shadowAtlas": null,
+          "movingNode": null,
+          "load": {
+            "start": [10.30908203125, 5.1552734375, 4.47021484375],
+            "end": [8.12890625, 6.44287109375, 5.080078125]
           },
           "captureStatus": 200,
-          "incidentsGpu": [
+          "gpuIncidents": [
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":22,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\",\"cutPending\"]}"
           ],
-          "avertissementsDag": null,
+          "dagWarnings": null,
           "canvas": { "width": 2496, "height": 1404 },
           "metrics": {
             "rafIntervalMs": null,
@@ -5992,12 +5992,12 @@
           }
         }
       },
-      "temoinAA": { "pixels": 0, "maxCanal": 0, "total": 3504384 },
-      "ecartAvantApres": null,
-      "coupeIdentique": null
+      "witnessAA": { "pixels": 0, "maxChannel": 0, "total": 3504384 },
+      "beforeAfterDiff": null,
+      "sameCut": null
     },
     {
-      "view": "generale",
+      "view": "overview",
       "pixelError": 1,
       "segment": "Vue générale du modèle",
       "index": 0,
@@ -6024,7 +6024,7 @@
             "p99": 460.39999997615814,
             "max": 460.39999997615814
           },
-          "moteur": "webgpu-page-raster",
+          "engine": "webgpu-page-raster",
           "gpuFrameMs": {
             "mean": 94.31393599999987,
             "p50": 94.313936,
@@ -6034,7 +6034,7 @@
           },
           "imageSyncMs": null,
           "rafIntervalMs": null,
-          "profilParEtape": {
+          "stageProfile": {
             "version": 1,
             "enabled": true,
             "backend": "webgpu-page-raster",
@@ -6069,7 +6069,7 @@
                 "label": "Sélection et visibilité",
                 "cpuMs": null,
                 "gpuMs": { "p50": 10.926042, "p95": 17.091697 },
-                "counts": { "grappesRejetees": 0, "pagesVoulues": 2023063, "grappesDuDag": 0 }
+                "counts": { "clustersRejected": 0, "pagesWanted": 2023063, "dagClusters": 0 }
               },
               { "stage": "transparents", "label": "Transparents", "cpuMs": null, "gpuMs": null },
               {
@@ -6093,11 +6093,11 @@
                 "cpuReason": "aucun retour d’image : aucune tuile à servir",
                 "gpuReason": "les transferts passent par la file de la carte, sans passe horodatée",
                 "counts": {
-                  "tuilesDemandees": 0,
-                  "tuilesAuNiveau": 0,
-                  "niveauxManquants": 0,
-                  "tuilesServies": 0,
-                  "tuilesEnAttente": 0
+                  "tilesRequested": 0,
+                  "tilesAtLevel": 0,
+                  "missingLevels": 0,
+                  "tilesServed": 0,
+                  "tilesPending": 0
                 }
               },
               {
@@ -6106,13 +6106,13 @@
                 "cpuMs": null,
                 "gpuMs": { "p50": 4.077271, "p95": 10.68342 },
                 "counts": {
-                  "lignes": 1259673,
-                  "occulteurs": 994463,
-                  "testees": 265210,
+                  "rows": 1259673,
+                  "occluders": 994463,
+                  "tested": 265210,
                   "bornesToutes": 1259667,
-                  "historiqueOcculteurs": 994463,
+                  "previousOccluders": 994463,
                   "sansHistorique": 0,
-                  "imageRelevee": 863
+                  "sampledFrame": 863
                 }
               },
               {
@@ -6121,11 +6121,11 @@
                 "cpuMs": null,
                 "gpuMs": null,
                 "counts": {
-                  "lignesTeleversees": 0,
-                  "fichesTeleversees": 0,
-                  "appelsDeDessin": 10,
-                  "appelsDeMelange": 0,
-                  "lancementsDeCalcul": 0
+                  "rowsUploaded": 0,
+                  "itemsUploaded": 0,
+                  "drawCalls": 10,
+                  "blendDrawCalls": 0,
+                  "computeDispatches": 0
                 }
               },
               { "stage": "submit", "label": "Soumission", "cpuMs": null, "gpuMs": null },
@@ -6155,18 +6155,18 @@
                 "cpuMs": null,
                 "gpuMs": { "p50": 34.177396, "p95": 96.971646 },
                 "counts": {
-                  "lampesRedessinees": 0,
+                  "lightsRedrawn": 0,
                   "cartesReutilisees": 1,
-                  "facesRedessinees": 0,
-                  "appelsDeDessin": 0,
-                  "soleilsRedessines": 0,
+                  "facesRedrawn": 0,
+                  "drawCalls": 0,
+                  "sunsRedrawn": 0,
                   "cascadesRedessinees": 0,
                   "regionsRedessinees": 0,
-                  "pagesInvalidees": 0,
-                  "pagesRedessinees": 0,
-                  "pagesEnAttente": 0,
-                  "retardMaxMs": 0,
-                  "retardMaxImages": 0
+                  "pagesInvalidated": 0,
+                  "pagesRedrawn": 0,
+                  "pagesPending": 0,
+                  "maxWaitMs": 0,
+                  "maxWaitFrames": 0
                 }
               },
               {
@@ -6177,10 +6177,10 @@
                 "cpuReason": "aucun travail processeur : le rayon lointain est tiré par la résolution différée",
                 "gpuReason": "mesurée dans l’étape « Éclairage (résolution) », qui tire le rayon lointain",
                 "counts": {
-                  "trianglesDuProxy": 145006,
-                  "pixelsTestes": 0,
-                  "pixelsAssombris": 0,
-                  "imageRelevee": 3
+                  "proxyTriangles": 145006,
+                  "pixelsTested": 0,
+                  "pixelsShadowed": 0,
+                  "sampledFrame": 3
                 }
               },
               {
@@ -6188,7 +6188,7 @@
                 "label": "Listes de lampes",
                 "cpuMs": null,
                 "gpuMs": { "p50": 0.749281, "p95": 2.243508 },
-                "counts": { "lampesActives": 1 }
+                "counts": { "activeLights": 1 }
               },
               {
                 "stage": "bounce",
@@ -6198,12 +6198,12 @@
                 "cpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "gpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "counts": {
-                  "sondesMisesAJour": 0,
-                  "rayonsParImage": 0,
-                  "sondesDesCascades": 0,
-                  "maillesMisesAJour": 0,
-                  "maillesDuCache": 0,
-                  "fractionDuBudget": 0
+                  "probesUpdated": 0,
+                  "raysPerFrame": 0,
+                  "cascadeProbes": 0,
+                  "texelsUpdated": 0,
+                  "cachedTexels": 0,
+                  "budgetFraction": 0
                 }
               },
               {
@@ -6420,25 +6420,25 @@
             ]
           },
           "preparationMs": 4928,
-          "imagesCalme": null,
-          "reglageVivant": null,
-          "reseau": {
+          "settleFrames": null,
+          "liveTuning": null,
+          "network": {
             "json": 159925,
             "bin": 1006685720,
             "wasm": 44509,
             "gltf": 3019421,
             "js": 2121432
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 106804443,
           "uncoveredTriangles": 0,
           "drawnTriangles": 106804443,
           "submittedTriangles": 106804443,
           "totalSubmittedTriangles": 106804443,
-          "imageDuReleve": 59,
-          "imageTenue": false,
-          "repliSelectionGpu": true,
+          "recordedFrame": 59,
+          "frameHeld": false,
+          "gpuSelectionFallback": true,
           "hiZ": {
             "tested": 265210,
             "rejected": 265210,
@@ -6451,22 +6451,22 @@
           "selection": {
             "source": "selectedPageIds",
             "sha256": "902c3295dc8ff9f69369e23203244740bfe5c7599c4ff981afa9193db9d06d8b",
-            "taille": 1259673
+            "count": 1259673
           },
-          "geometrieOctets": 1150884624,
-          "budgetPages": {
-            "demande": null,
-            "residentes": 1259673,
-            "couvertureLimiteeParBudget": false
+          "geometryBytes": 1150884624,
+          "pageBudget": {
+            "requested": null,
+            "resident": 1259673,
+            "budgetLimitedCoverage": false
           },
-          "poolGeometrie": {
-            "octets": 536870912,
-            "fentes": 83139,
-            "alloues": 127701504,
-            "borne": "scene",
-            "saturees": 0
+          "geometryPool": {
+            "bytes": 536870912,
+            "slots": 83139,
+            "allocated": 127701504,
+            "bound": "scene",
+            "saturated": 0
           },
-          "cheminCalcul": {
+          "mathBatch": {
             "contract": 1,
             "mode": "auto",
             "wasmAvailable": true,
@@ -6486,25 +6486,25 @@
               }
             }
           },
-          "lampes": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "soleil": true,
-            "ombres": true,
-            "maille": 0,
-            "intensite": 40,
+          "lights": {
+            "count": 1,
+            "points": 0,
+            "sun": true,
+            "shadows": true,
+            "grid": 0,
+            "intensity": 40,
             "mobile": false
           },
-          "lampesFichier": { "nombre": 0, "ids": [] },
-          "lampesTemoin": null,
-          "atlasOmbres": null,
-          "objetMobile": null,
-          "charge": {
-            "debut": [8.12890625, 6.44287109375, 5.080078125],
-            "fin": [16.1904296875, 7.62548828125, 5.7314453125]
+          "importedLights": { "count": 0, "ids": [] },
+          "witnessLights": null,
+          "shadowAtlas": null,
+          "movingNode": null,
+          "load": {
+            "start": [8.12890625, 6.44287109375, 5.080078125],
+            "end": [16.1904296875, 7.62548828125, 5.7314453125]
           },
           "captureStatus": 200,
-          "incidentsGpu": [
+          "gpuIncidents": [
             "pose-settle {\"pipelineVersion\":1,\"rounds\":2,\"tilesServed\":14,\"shadowFrames\":4,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\",\"cutPending\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
@@ -6628,7 +6628,7 @@
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":1,\"shadowFrames\":3,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}"
           ],
-          "avertissementsDag": null,
+          "dagWarnings": null,
           "canvas": { "width": 2496, "height": 1404 },
           "metrics": {
             "rafIntervalMs": null,
@@ -6793,7 +6793,7 @@
             "p99": 466.89999997615814,
             "max": 466.89999997615814
           },
-          "moteur": "webgpu-page-raster",
+          "engine": "webgpu-page-raster",
           "gpuFrameMs": {
             "mean": 87.51504000000014,
             "p50": 87.51504,
@@ -6803,7 +6803,7 @@
           },
           "imageSyncMs": null,
           "rafIntervalMs": null,
-          "profilParEtape": {
+          "stageProfile": {
             "version": 1,
             "enabled": true,
             "backend": "webgpu-page-raster",
@@ -6838,7 +6838,7 @@
                 "label": "Sélection et visibilité",
                 "cpuMs": null,
                 "gpuMs": { "p50": 11.429535, "p95": 17.051781 },
-                "counts": { "grappesRejetees": 0, "pagesVoulues": 2023063, "grappesDuDag": 0 }
+                "counts": { "clustersRejected": 0, "pagesWanted": 2023063, "dagClusters": 0 }
               },
               { "stage": "transparents", "label": "Transparents", "cpuMs": null, "gpuMs": null },
               {
@@ -6862,11 +6862,11 @@
                 "cpuReason": "aucun retour d’image : aucune tuile à servir",
                 "gpuReason": "les transferts passent par la file de la carte, sans passe horodatée",
                 "counts": {
-                  "tuilesDemandees": 0,
-                  "tuilesAuNiveau": 0,
-                  "niveauxManquants": 0,
-                  "tuilesServies": 0,
-                  "tuilesEnAttente": 0
+                  "tilesRequested": 0,
+                  "tilesAtLevel": 0,
+                  "missingLevels": 0,
+                  "tilesServed": 0,
+                  "tilesPending": 0
                 }
               },
               {
@@ -6875,13 +6875,13 @@
                 "cpuMs": null,
                 "gpuMs": { "p50": 4.200393, "p95": 9.140903 },
                 "counts": {
-                  "lignes": 1259673,
-                  "occulteurs": 994463,
-                  "testees": 265210,
+                  "rows": 1259673,
+                  "occluders": 994463,
+                  "tested": 265210,
                   "bornesToutes": 1259667,
-                  "historiqueOcculteurs": 994463,
+                  "previousOccluders": 994463,
                   "sansHistorique": 0,
-                  "imageRelevee": 863
+                  "sampledFrame": 863
                 }
               },
               {
@@ -6890,11 +6890,11 @@
                 "cpuMs": null,
                 "gpuMs": null,
                 "counts": {
-                  "lignesTeleversees": 0,
-                  "fichesTeleversees": 0,
-                  "appelsDeDessin": 10,
-                  "appelsDeMelange": 0,
-                  "lancementsDeCalcul": 0
+                  "rowsUploaded": 0,
+                  "itemsUploaded": 0,
+                  "drawCalls": 10,
+                  "blendDrawCalls": 0,
+                  "computeDispatches": 0
                 }
               },
               { "stage": "submit", "label": "Soumission", "cpuMs": null, "gpuMs": null },
@@ -6924,18 +6924,18 @@
                 "cpuMs": null,
                 "gpuMs": { "p50": 32.369088999999995, "p95": 98.796868 },
                 "counts": {
-                  "lampesRedessinees": 0,
+                  "lightsRedrawn": 0,
                   "cartesReutilisees": 1,
-                  "facesRedessinees": 0,
-                  "appelsDeDessin": 0,
-                  "soleilsRedessines": 0,
+                  "facesRedrawn": 0,
+                  "drawCalls": 0,
+                  "sunsRedrawn": 0,
                   "cascadesRedessinees": 0,
                   "regionsRedessinees": 0,
-                  "pagesInvalidees": 0,
-                  "pagesRedessinees": 0,
-                  "pagesEnAttente": 0,
-                  "retardMaxMs": 0,
-                  "retardMaxImages": 0
+                  "pagesInvalidated": 0,
+                  "pagesRedrawn": 0,
+                  "pagesPending": 0,
+                  "maxWaitMs": 0,
+                  "maxWaitFrames": 0
                 }
               },
               {
@@ -6946,10 +6946,10 @@
                 "cpuReason": "aucun travail processeur : le rayon lointain est tiré par la résolution différée",
                 "gpuReason": "mesurée dans l’étape « Éclairage (résolution) », qui tire le rayon lointain",
                 "counts": {
-                  "trianglesDuProxy": 145006,
-                  "pixelsTestes": 0,
-                  "pixelsAssombris": 0,
-                  "imageRelevee": 3
+                  "proxyTriangles": 145006,
+                  "pixelsTested": 0,
+                  "pixelsShadowed": 0,
+                  "sampledFrame": 3
                 }
               },
               {
@@ -6957,7 +6957,7 @@
                 "label": "Listes de lampes",
                 "cpuMs": null,
                 "gpuMs": { "p50": 0.767529, "p95": 2.032969 },
-                "counts": { "lampesActives": 1 }
+                "counts": { "activeLights": 1 }
               },
               {
                 "stage": "bounce",
@@ -6967,12 +6967,12 @@
                 "cpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "gpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "counts": {
-                  "sondesMisesAJour": 0,
-                  "rayonsParImage": 0,
-                  "sondesDesCascades": 0,
-                  "maillesMisesAJour": 0,
-                  "maillesDuCache": 0,
-                  "fractionDuBudget": 0
+                  "probesUpdated": 0,
+                  "raysPerFrame": 0,
+                  "cascadeProbes": 0,
+                  "texelsUpdated": 0,
+                  "cachedTexels": 0,
+                  "budgetFraction": 0
                 }
               },
               {
@@ -7189,25 +7189,25 @@
             ]
           },
           "preparationMs": 5023.699999988079,
-          "imagesCalme": null,
-          "reglageVivant": null,
-          "reseau": {
+          "settleFrames": null,
+          "liveTuning": null,
+          "network": {
             "json": 159925,
             "bin": 1006685720,
             "wasm": 44509,
             "gltf": 3019421,
             "js": 2121432
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 106804443,
           "uncoveredTriangles": 0,
           "drawnTriangles": 106804443,
           "submittedTriangles": 106804443,
           "totalSubmittedTriangles": 106804443,
-          "imageDuReleve": 59,
-          "imageTenue": false,
-          "repliSelectionGpu": true,
+          "recordedFrame": 59,
+          "frameHeld": false,
+          "gpuSelectionFallback": true,
           "hiZ": {
             "tested": 265210,
             "rejected": 265210,
@@ -7220,22 +7220,22 @@
           "selection": {
             "source": "selectedPageIds",
             "sha256": "902c3295dc8ff9f69369e23203244740bfe5c7599c4ff981afa9193db9d06d8b",
-            "taille": 1259673
+            "count": 1259673
           },
-          "geometrieOctets": 1150884624,
-          "budgetPages": {
-            "demande": null,
-            "residentes": 1259673,
-            "couvertureLimiteeParBudget": false
+          "geometryBytes": 1150884624,
+          "pageBudget": {
+            "requested": null,
+            "resident": 1259673,
+            "budgetLimitedCoverage": false
           },
-          "poolGeometrie": {
-            "octets": 536870912,
-            "fentes": 83139,
-            "alloues": 127701504,
-            "borne": "scene",
-            "saturees": 0
+          "geometryPool": {
+            "bytes": 536870912,
+            "slots": 83139,
+            "allocated": 127701504,
+            "bound": "scene",
+            "saturated": 0
           },
-          "cheminCalcul": {
+          "mathBatch": {
             "contract": 1,
             "mode": "auto",
             "wasmAvailable": true,
@@ -7255,25 +7255,25 @@
               }
             }
           },
-          "lampes": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "soleil": true,
-            "ombres": true,
-            "maille": 0,
-            "intensite": 40,
+          "lights": {
+            "count": 1,
+            "points": 0,
+            "sun": true,
+            "shadows": true,
+            "grid": 0,
+            "intensity": 40,
             "mobile": false
           },
-          "lampesFichier": { "nombre": 0, "ids": [] },
-          "lampesTemoin": null,
-          "atlasOmbres": null,
-          "objetMobile": null,
-          "charge": {
-            "debut": [16.1904296875, 7.62548828125, 5.7314453125],
-            "fin": [3.74755859375, 5.08251953125, 5.08349609375]
+          "importedLights": { "count": 0, "ids": [] },
+          "witnessLights": null,
+          "shadowAtlas": null,
+          "movingNode": null,
+          "load": {
+            "start": [16.1904296875, 7.62548828125, 5.7314453125],
+            "end": [3.74755859375, 5.08251953125, 5.08349609375]
           },
           "captureStatus": 200,
-          "incidentsGpu": [
+          "gpuIncidents": [
             "pose-settle {\"pipelineVersion\":1,\"rounds\":2,\"tilesServed\":14,\"shadowFrames\":4,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\",\"cutPending\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
@@ -7397,7 +7397,7 @@
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":1,\"shadowFrames\":3,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}"
           ],
-          "avertissementsDag": null,
+          "dagWarnings": null,
           "canvas": { "width": 2496, "height": 1404 },
           "metrics": {
             "rafIntervalMs": null,
@@ -7548,12 +7548,12 @@
           }
         }
       },
-      "temoinAA": { "pixels": 0, "maxCanal": 0, "total": 3504384 },
-      "ecartAvantApres": null,
-      "coupeIdentique": null
+      "witnessAA": { "pixels": 0, "maxChannel": 0, "total": 3504384 },
+      "beforeAfterDiff": null,
+      "sameCut": null
     },
     {
-      "view": "sol",
+      "view": "ground",
       "pixelError": 1,
       "segment": "Déplacement au niveau de référence",
       "index": 120,
@@ -7580,7 +7580,7 @@
             "p99": 76.89999997615814,
             "max": 76.89999997615814
           },
-          "moteur": "webgpu-page-raster",
+          "engine": "webgpu-page-raster",
           "gpuFrameMs": {
             "mean": 40.53467300000006,
             "p50": 40.534673,
@@ -7590,7 +7590,7 @@
           },
           "imageSyncMs": null,
           "rafIntervalMs": null,
-          "profilParEtape": {
+          "stageProfile": {
             "version": 1,
             "enabled": true,
             "backend": "webgpu-page-raster",
@@ -7625,7 +7625,7 @@
                 "label": "Sélection et visibilité",
                 "cpuMs": null,
                 "gpuMs": { "p50": 3.523113, "p95": 4.352142 },
-                "counts": { "grappesRejetees": 17413, "pagesVoulues": 647024, "grappesDuDag": 0 }
+                "counts": { "clustersRejected": 17413, "pagesWanted": 647024, "dagClusters": 0 }
               },
               { "stage": "transparents", "label": "Transparents", "cpuMs": null, "gpuMs": null },
               {
@@ -7649,11 +7649,11 @@
                 "cpuReason": "aucun retour d’image : aucune tuile à servir",
                 "gpuReason": "les transferts passent par la file de la carte, sans passe horodatée",
                 "counts": {
-                  "tuilesDemandees": 71,
-                  "tuilesAuNiveau": 71,
-                  "niveauxManquants": 0,
-                  "tuilesServies": 73,
-                  "tuilesEnAttente": 0
+                  "tilesRequested": 71,
+                  "tilesAtLevel": 71,
+                  "missingLevels": 0,
+                  "tilesServed": 73,
+                  "tilesPending": 0
                 }
               },
               {
@@ -7662,13 +7662,13 @@
                 "cpuMs": null,
                 "gpuMs": { "p50": 1.431186, "p95": 2.037094 },
                 "counts": {
-                  "lignes": 735793,
-                  "occulteurs": 614371,
-                  "testees": 121422,
+                  "rows": 735793,
+                  "occluders": 614371,
+                  "tested": 121422,
                   "bornesToutes": 735785,
-                  "historiqueOcculteurs": 614371,
+                  "previousOccluders": 614371,
                   "sansHistorique": 0,
-                  "imageRelevee": 905
+                  "sampledFrame": 905
                 }
               },
               {
@@ -7677,11 +7677,11 @@
                 "cpuMs": null,
                 "gpuMs": null,
                 "counts": {
-                  "lignesTeleversees": 0,
-                  "fichesTeleversees": 0,
-                  "appelsDeDessin": 10,
-                  "appelsDeMelange": 0,
-                  "lancementsDeCalcul": 0
+                  "rowsUploaded": 0,
+                  "itemsUploaded": 0,
+                  "drawCalls": 10,
+                  "blendDrawCalls": 0,
+                  "computeDispatches": 0
                 }
               },
               { "stage": "submit", "label": "Soumission", "cpuMs": null, "gpuMs": null },
@@ -7711,18 +7711,18 @@
                 "cpuMs": null,
                 "gpuMs": { "p50": 28.354109, "p95": 36.45936 },
                 "counts": {
-                  "lampesRedessinees": 0,
+                  "lightsRedrawn": 0,
                   "cartesReutilisees": 1,
-                  "facesRedessinees": 0,
-                  "appelsDeDessin": 0,
-                  "soleilsRedessines": 0,
+                  "facesRedrawn": 0,
+                  "drawCalls": 0,
+                  "sunsRedrawn": 0,
                   "cascadesRedessinees": 0,
                   "regionsRedessinees": 0,
-                  "pagesInvalidees": 0,
-                  "pagesRedessinees": 0,
-                  "pagesEnAttente": 0,
-                  "retardMaxMs": 0,
-                  "retardMaxImages": 0
+                  "pagesInvalidated": 0,
+                  "pagesRedrawn": 0,
+                  "pagesPending": 0,
+                  "maxWaitMs": 0,
+                  "maxWaitFrames": 0
                 }
               },
               {
@@ -7733,10 +7733,10 @@
                 "cpuReason": "aucun travail processeur : le rayon lointain est tiré par la résolution différée",
                 "gpuReason": "mesurée dans l’étape « Éclairage (résolution) », qui tire le rayon lointain",
                 "counts": {
-                  "trianglesDuProxy": 145006,
-                  "pixelsTestes": 0,
-                  "pixelsAssombris": 0,
-                  "imageRelevee": 18
+                  "proxyTriangles": 145006,
+                  "pixelsTested": 0,
+                  "pixelsShadowed": 0,
+                  "sampledFrame": 18
                 }
               },
               {
@@ -7744,7 +7744,7 @@
                 "label": "Listes de lampes",
                 "cpuMs": null,
                 "gpuMs": { "p50": 1.062483, "p95": 2.295965 },
-                "counts": { "lampesActives": 1 }
+                "counts": { "activeLights": 1 }
               },
               {
                 "stage": "bounce",
@@ -7754,12 +7754,12 @@
                 "cpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "gpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "counts": {
-                  "sondesMisesAJour": 0,
-                  "rayonsParImage": 0,
-                  "sondesDesCascades": 0,
-                  "maillesMisesAJour": 0,
-                  "maillesDuCache": 0,
-                  "fractionDuBudget": 0
+                  "probesUpdated": 0,
+                  "raysPerFrame": 0,
+                  "cascadeProbes": 0,
+                  "texelsUpdated": 0,
+                  "cachedTexels": 0,
+                  "budgetFraction": 0
                 }
               },
               {
@@ -7976,25 +7976,25 @@
             ]
           },
           "preparationMs": 5088.900000035763,
-          "imagesCalme": null,
-          "reglageVivant": null,
-          "reseau": {
+          "settleFrames": null,
+          "liveTuning": null,
+          "network": {
             "json": 159925,
             "bin": 1002078620,
             "wasm": 44509,
             "gltf": 3019421,
             "js": 2121432
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 62404281,
           "uncoveredTriangles": 0,
           "drawnTriangles": 62404281,
           "submittedTriangles": 62404281,
           "totalSubmittedTriangles": 62404281,
-          "imageDuReleve": 59,
-          "imageTenue": false,
-          "repliSelectionGpu": true,
+          "recordedFrame": 59,
+          "frameHeld": false,
+          "gpuSelectionFallback": true,
           "hiZ": {
             "tested": 121422,
             "rejected": 121422,
@@ -8007,22 +8007,22 @@
           "selection": {
             "source": "selectedPageIds",
             "sha256": "c2e65d598058fecb9cc8e9961bab7a5715ab367204a0e5a8baca29db19a531c0",
-            "taille": 735793
+            "count": 735793
           },
-          "geometrieOctets": 1150884624,
-          "budgetPages": {
-            "demande": null,
-            "residentes": 735793,
-            "couvertureLimiteeParBudget": false
+          "geometryBytes": 1150884624,
+          "pageBudget": {
+            "requested": null,
+            "resident": 735793,
+            "budgetLimitedCoverage": false
           },
-          "poolGeometrie": {
-            "octets": 536870912,
-            "fentes": 83139,
-            "alloues": 127701504,
-            "borne": "scene",
-            "saturees": 0
+          "geometryPool": {
+            "bytes": 536870912,
+            "slots": 83139,
+            "allocated": 127701504,
+            "bound": "scene",
+            "saturated": 0
           },
-          "cheminCalcul": {
+          "mathBatch": {
             "contract": 1,
             "mode": "auto",
             "wasmAvailable": true,
@@ -8042,25 +8042,25 @@
               }
             }
           },
-          "lampes": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "soleil": true,
-            "ombres": true,
-            "maille": 0,
-            "intensite": 40,
+          "lights": {
+            "count": 1,
+            "points": 0,
+            "sun": true,
+            "shadows": true,
+            "grid": 0,
+            "intensity": 40,
             "mobile": false
           },
-          "lampesFichier": { "nombre": 0, "ids": [] },
-          "lampesTemoin": null,
-          "atlasOmbres": null,
-          "objetMobile": null,
-          "charge": {
-            "debut": [3.84765625, 5.0810546875, 5.08251953125],
-            "fin": [18.0166015625, 8.30078125, 6.20947265625]
+          "importedLights": { "count": 0, "ids": [] },
+          "witnessLights": null,
+          "shadowAtlas": null,
+          "movingNode": null,
+          "load": {
+            "start": [3.84765625, 5.0810546875, 5.08251953125],
+            "end": [18.0166015625, 8.30078125, 6.20947265625]
           },
           "captureStatus": 200,
-          "incidentsGpu": [
+          "gpuIncidents": [
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":71,\"shadowFrames\":1,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\",\"cutPending\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":2,\"shadowFrames\":3,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":0,\"tilesServed\":1,\"shadowFrames\":0,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
@@ -8187,7 +8187,7 @@
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}"
           ],
-          "avertissementsDag": null,
+          "dagWarnings": null,
           "canvas": { "width": 2496, "height": 1404 },
           "metrics": {
             "rafIntervalMs": null,
@@ -8352,7 +8352,7 @@
             "p99": 79.39999997615814,
             "max": 79.39999997615814
           },
-          "moteur": "webgpu-page-raster",
+          "engine": "webgpu-page-raster",
           "gpuFrameMs": {
             "mean": 36.94352000000001,
             "p50": 36.94352,
@@ -8362,7 +8362,7 @@
           },
           "imageSyncMs": null,
           "rafIntervalMs": null,
-          "profilParEtape": {
+          "stageProfile": {
             "version": 1,
             "enabled": true,
             "backend": "webgpu-page-raster",
@@ -8397,7 +8397,7 @@
                 "label": "Sélection et visibilité",
                 "cpuMs": null,
                 "gpuMs": { "p50": 3.683694, "p95": 4.970383 },
-                "counts": { "grappesRejetees": 17413, "pagesVoulues": 647024, "grappesDuDag": 0 }
+                "counts": { "clustersRejected": 17413, "pagesWanted": 647024, "dagClusters": 0 }
               },
               { "stage": "transparents", "label": "Transparents", "cpuMs": null, "gpuMs": null },
               {
@@ -8421,11 +8421,11 @@
                 "cpuReason": "aucun retour d’image : aucune tuile à servir",
                 "gpuReason": "les transferts passent par la file de la carte, sans passe horodatée",
                 "counts": {
-                  "tuilesDemandees": 71,
-                  "tuilesAuNiveau": 71,
-                  "niveauxManquants": 0,
-                  "tuilesServies": 73,
-                  "tuilesEnAttente": 0
+                  "tilesRequested": 71,
+                  "tilesAtLevel": 71,
+                  "missingLevels": 0,
+                  "tilesServed": 73,
+                  "tilesPending": 0
                 }
               },
               {
@@ -8434,13 +8434,13 @@
                 "cpuMs": null,
                 "gpuMs": { "p50": 1.439186, "p95": 2.42738 },
                 "counts": {
-                  "lignes": 735793,
-                  "occulteurs": 614371,
-                  "testees": 121422,
+                  "rows": 735793,
+                  "occluders": 614371,
+                  "tested": 121422,
                   "bornesToutes": 735785,
-                  "historiqueOcculteurs": 614371,
+                  "previousOccluders": 614371,
                   "sansHistorique": 0,
-                  "imageRelevee": 905
+                  "sampledFrame": 905
                 }
               },
               {
@@ -8449,11 +8449,11 @@
                 "cpuMs": null,
                 "gpuMs": null,
                 "counts": {
-                  "lignesTeleversees": 0,
-                  "fichesTeleversees": 0,
-                  "appelsDeDessin": 10,
-                  "appelsDeMelange": 0,
-                  "lancementsDeCalcul": 0
+                  "rowsUploaded": 0,
+                  "itemsUploaded": 0,
+                  "drawCalls": 10,
+                  "blendDrawCalls": 0,
+                  "computeDispatches": 0
                 }
               },
               { "stage": "submit", "label": "Soumission", "cpuMs": null, "gpuMs": null },
@@ -8483,18 +8483,18 @@
                 "cpuMs": null,
                 "gpuMs": { "p50": 30.018417, "p95": 38.369997999999995 },
                 "counts": {
-                  "lampesRedessinees": 0,
+                  "lightsRedrawn": 0,
                   "cartesReutilisees": 1,
-                  "facesRedessinees": 0,
-                  "appelsDeDessin": 0,
-                  "soleilsRedessines": 0,
+                  "facesRedrawn": 0,
+                  "drawCalls": 0,
+                  "sunsRedrawn": 0,
                   "cascadesRedessinees": 0,
                   "regionsRedessinees": 0,
-                  "pagesInvalidees": 0,
-                  "pagesRedessinees": 0,
-                  "pagesEnAttente": 0,
-                  "retardMaxMs": 0,
-                  "retardMaxImages": 0
+                  "pagesInvalidated": 0,
+                  "pagesRedrawn": 0,
+                  "pagesPending": 0,
+                  "maxWaitMs": 0,
+                  "maxWaitFrames": 0
                 }
               },
               {
@@ -8505,10 +8505,10 @@
                 "cpuReason": "aucun travail processeur : le rayon lointain est tiré par la résolution différée",
                 "gpuReason": "mesurée dans l’étape « Éclairage (résolution) », qui tire le rayon lointain",
                 "counts": {
-                  "trianglesDuProxy": 145006,
-                  "pixelsTestes": 0,
-                  "pixelsAssombris": 0,
-                  "imageRelevee": 18
+                  "proxyTriangles": 145006,
+                  "pixelsTested": 0,
+                  "pixelsShadowed": 0,
+                  "sampledFrame": 18
                 }
               },
               {
@@ -8516,7 +8516,7 @@
                 "label": "Listes de lampes",
                 "cpuMs": null,
                 "gpuMs": { "p50": 1.265271, "p95": 2.174467 },
-                "counts": { "lampesActives": 1 }
+                "counts": { "activeLights": 1 }
               },
               {
                 "stage": "bounce",
@@ -8526,12 +8526,12 @@
                 "cpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "gpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "counts": {
-                  "sondesMisesAJour": 0,
-                  "rayonsParImage": 0,
-                  "sondesDesCascades": 0,
-                  "maillesMisesAJour": 0,
-                  "maillesDuCache": 0,
-                  "fractionDuBudget": 0
+                  "probesUpdated": 0,
+                  "raysPerFrame": 0,
+                  "cascadeProbes": 0,
+                  "texelsUpdated": 0,
+                  "cachedTexels": 0,
+                  "budgetFraction": 0
                 }
               },
               {
@@ -8748,25 +8748,25 @@
             ]
           },
           "preparationMs": 5958.100000023842,
-          "imagesCalme": null,
-          "reglageVivant": null,
-          "reseau": {
+          "settleFrames": null,
+          "liveTuning": null,
+          "network": {
             "json": 159925,
             "bin": 1002078620,
             "wasm": 44509,
             "gltf": 3019421,
             "js": 2231197
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 62404281,
           "uncoveredTriangles": 0,
           "drawnTriangles": 62404281,
           "submittedTriangles": 62404281,
           "totalSubmittedTriangles": 62404281,
-          "imageDuReleve": 59,
-          "imageTenue": false,
-          "repliSelectionGpu": true,
+          "recordedFrame": 59,
+          "frameHeld": false,
+          "gpuSelectionFallback": true,
           "hiZ": {
             "tested": 121422,
             "rejected": 121422,
@@ -8779,22 +8779,22 @@
           "selection": {
             "source": "selectedPageIds",
             "sha256": "c2e65d598058fecb9cc8e9961bab7a5715ab367204a0e5a8baca29db19a531c0",
-            "taille": 735793
+            "count": 735793
           },
-          "geometrieOctets": 1150884624,
-          "budgetPages": {
-            "demande": null,
-            "residentes": 735793,
-            "couvertureLimiteeParBudget": false
+          "geometryBytes": 1150884624,
+          "pageBudget": {
+            "requested": null,
+            "resident": 735793,
+            "budgetLimitedCoverage": false
           },
-          "poolGeometrie": {
-            "octets": 536870912,
-            "fentes": 83139,
-            "alloues": 127701504,
-            "borne": "scene",
-            "saturees": 0
+          "geometryPool": {
+            "bytes": 536870912,
+            "slots": 83139,
+            "allocated": 127701504,
+            "bound": "scene",
+            "saturated": 0
           },
-          "cheminCalcul": {
+          "mathBatch": {
             "contract": 1,
             "mode": "auto",
             "wasmAvailable": true,
@@ -8814,25 +8814,25 @@
               }
             }
           },
-          "lampes": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "soleil": true,
-            "ombres": true,
-            "maille": 0,
-            "intensite": 40,
+          "lights": {
+            "count": 1,
+            "points": 0,
+            "sun": true,
+            "shadows": true,
+            "grid": 0,
+            "intensity": 40,
             "mobile": false
           },
-          "lampesFichier": { "nombre": 0, "ids": [] },
-          "lampesTemoin": null,
-          "atlasOmbres": null,
-          "objetMobile": null,
-          "charge": {
-            "debut": [18.0166015625, 8.30078125, 6.20947265625],
-            "fin": [16.4404296875, 10.69775390625, 7.6005859375]
+          "importedLights": { "count": 0, "ids": [] },
+          "witnessLights": null,
+          "shadowAtlas": null,
+          "movingNode": null,
+          "load": {
+            "start": [18.0166015625, 8.30078125, 6.20947265625],
+            "end": [16.4404296875, 10.69775390625, 7.6005859375]
           },
           "captureStatus": 200,
-          "incidentsGpu": [
+          "gpuIncidents": [
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":71,\"shadowFrames\":1,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\",\"cutPending\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":2,\"shadowFrames\":3,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":0,\"tilesServed\":1,\"shadowFrames\":0,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
@@ -8959,7 +8959,7 @@
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}"
           ],
-          "avertissementsDag": null,
+          "dagWarnings": null,
           "canvas": { "width": 2496, "height": 1404 },
           "metrics": {
             "rafIntervalMs": null,
@@ -9110,12 +9110,12 @@
           }
         }
       },
-      "temoinAA": { "pixels": 0, "maxCanal": 0, "total": 3504384 },
-      "ecartAvantApres": null,
-      "coupeIdentique": null
+      "witnessAA": { "pixels": 0, "maxChannel": 0, "total": 3504384 },
+      "beforeAfterDiff": null,
+      "sameCut": null
     },
     {
-      "view": "rue",
+      "view": "street",
       "pixelError": 1,
       "segment": "Déplacement au niveau de référence",
       "index": 150,
@@ -9142,7 +9142,7 @@
             "p99": 131,
             "max": 131
           },
-          "moteur": "webgpu-page-raster",
+          "engine": "webgpu-page-raster",
           "gpuFrameMs": {
             "mean": 100.134763,
             "p50": 100.134763,
@@ -9152,7 +9152,7 @@
           },
           "imageSyncMs": null,
           "rafIntervalMs": null,
-          "profilParEtape": {
+          "stageProfile": {
             "version": 1,
             "enabled": true,
             "backend": "webgpu-page-raster",
@@ -9187,7 +9187,7 @@
                 "label": "Sélection et visibilité",
                 "cpuMs": null,
                 "gpuMs": { "p50": 3.705359, "p95": 4.981799 },
-                "counts": { "grappesRejetees": 17796, "pagesVoulues": 592339, "grappesDuDag": 0 }
+                "counts": { "clustersRejected": 17796, "pagesWanted": 592339, "dagClusters": 0 }
               },
               { "stage": "transparents", "label": "Transparents", "cpuMs": null, "gpuMs": null },
               {
@@ -9211,11 +9211,11 @@
                 "cpuReason": "aucun retour d’image : aucune tuile à servir",
                 "gpuReason": "les transferts passent par la file de la carte, sans passe horodatée",
                 "counts": {
-                  "tuilesDemandees": 48,
-                  "tuilesAuNiveau": 48,
-                  "niveauxManquants": 0,
-                  "tuilesServies": 48,
-                  "tuilesEnAttente": 0
+                  "tilesRequested": 48,
+                  "tilesAtLevel": 48,
+                  "missingLevels": 0,
+                  "tilesServed": 48,
+                  "tilesPending": 0
                 }
               },
               {
@@ -9224,13 +9224,13 @@
                 "cpuMs": null,
                 "gpuMs": { "p50": 1.499227, "p95": 2.774708 },
                 "counts": {
-                  "lignes": 657425,
-                  "occulteurs": 599281,
-                  "testees": 58144,
+                  "rows": 657425,
+                  "occluders": 599281,
+                  "tested": 58144,
                   "bornesToutes": 657415,
-                  "historiqueOcculteurs": 599281,
+                  "previousOccluders": 599281,
                   "sansHistorique": 0,
-                  "imageRelevee": 838
+                  "sampledFrame": 838
                 }
               },
               {
@@ -9239,11 +9239,11 @@
                 "cpuMs": null,
                 "gpuMs": null,
                 "counts": {
-                  "lignesTeleversees": 0,
-                  "fichesTeleversees": 0,
-                  "appelsDeDessin": 10,
-                  "appelsDeMelange": 0,
-                  "lancementsDeCalcul": 0
+                  "rowsUploaded": 0,
+                  "itemsUploaded": 0,
+                  "drawCalls": 10,
+                  "blendDrawCalls": 0,
+                  "computeDispatches": 0
                 }
               },
               { "stage": "submit", "label": "Soumission", "cpuMs": null, "gpuMs": null },
@@ -9273,18 +9273,18 @@
                 "cpuMs": null,
                 "gpuMs": { "p50": 34.663929, "p95": 40.077888 },
                 "counts": {
-                  "lampesRedessinees": 0,
+                  "lightsRedrawn": 0,
                   "cartesReutilisees": 1,
-                  "facesRedessinees": 0,
-                  "appelsDeDessin": 0,
-                  "soleilsRedessines": 0,
+                  "facesRedrawn": 0,
+                  "drawCalls": 0,
+                  "sunsRedrawn": 0,
                   "cascadesRedessinees": 0,
                   "regionsRedessinees": 0,
-                  "pagesInvalidees": 0,
-                  "pagesRedessinees": 0,
-                  "pagesEnAttente": 0,
-                  "retardMaxMs": 0,
-                  "retardMaxImages": 0
+                  "pagesInvalidated": 0,
+                  "pagesRedrawn": 0,
+                  "pagesPending": 0,
+                  "maxWaitMs": 0,
+                  "maxWaitFrames": 0
                 }
               },
               {
@@ -9295,10 +9295,10 @@
                 "cpuReason": "aucun travail processeur : le rayon lointain est tiré par la résolution différée",
                 "gpuReason": "mesurée dans l’étape « Éclairage (résolution) », qui tire le rayon lointain",
                 "counts": {
-                  "trianglesDuProxy": 145006,
-                  "pixelsTestes": 0,
-                  "pixelsAssombris": 0,
-                  "imageRelevee": 3
+                  "proxyTriangles": 145006,
+                  "pixelsTested": 0,
+                  "pixelsShadowed": 0,
+                  "sampledFrame": 3
                 }
               },
               {
@@ -9306,7 +9306,7 @@
                 "label": "Listes de lampes",
                 "cpuMs": null,
                 "gpuMs": { "p50": 1.089942, "p95": 2.26355 },
-                "counts": { "lampesActives": 1 }
+                "counts": { "activeLights": 1 }
               },
               {
                 "stage": "bounce",
@@ -9316,12 +9316,12 @@
                 "cpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "gpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "counts": {
-                  "sondesMisesAJour": 0,
-                  "rayonsParImage": 0,
-                  "sondesDesCascades": 0,
-                  "maillesMisesAJour": 0,
-                  "maillesDuCache": 0,
-                  "fractionDuBudget": 0
+                  "probesUpdated": 0,
+                  "raysPerFrame": 0,
+                  "cascadeProbes": 0,
+                  "texelsUpdated": 0,
+                  "cachedTexels": 0,
+                  "budgetFraction": 0
                 }
               },
               {
@@ -9538,25 +9538,25 @@
             ]
           },
           "preparationMs": 5057.100000023842,
-          "imagesCalme": null,
-          "reglageVivant": null,
-          "reseau": {
+          "settleFrames": null,
+          "liveTuning": null,
+          "network": {
             "json": 159925,
             "bin": 999784280,
             "wasm": 44509,
             "gltf": 3019421,
             "js": 2231197
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 55759049,
           "uncoveredTriangles": 0,
           "drawnTriangles": 55759049,
           "submittedTriangles": 55759049,
           "totalSubmittedTriangles": 55759049,
-          "imageDuReleve": 59,
-          "imageTenue": false,
-          "repliSelectionGpu": true,
+          "recordedFrame": 59,
+          "frameHeld": false,
+          "gpuSelectionFallback": true,
           "hiZ": {
             "tested": 58144,
             "rejected": 58144,
@@ -9569,22 +9569,22 @@
           "selection": {
             "source": "selectedPageIds",
             "sha256": "8d9fd5ff96a630b75aea1a1b4205ac69de0f32d885cae4037aa8baa83ec65feb",
-            "taille": 657425
+            "count": 657425
           },
-          "geometrieOctets": 1150884624,
-          "budgetPages": {
-            "demande": null,
-            "residentes": 657425,
-            "couvertureLimiteeParBudget": false
+          "geometryBytes": 1150884624,
+          "pageBudget": {
+            "requested": null,
+            "resident": 657425,
+            "budgetLimitedCoverage": false
           },
-          "poolGeometrie": {
-            "octets": 536870912,
-            "fentes": 83139,
-            "alloues": 127701504,
-            "borne": "scene",
-            "saturees": 0
+          "geometryPool": {
+            "bytes": 536870912,
+            "slots": 83139,
+            "allocated": 127701504,
+            "bound": "scene",
+            "saturated": 0
           },
-          "cheminCalcul": {
+          "mathBatch": {
             "contract": 1,
             "mode": "auto",
             "wasmAvailable": true,
@@ -9604,25 +9604,25 @@
               }
             }
           },
-          "lampes": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "soleil": true,
-            "ombres": true,
-            "maille": 0,
-            "intensite": 40,
+          "lights": {
+            "count": 1,
+            "points": 0,
+            "sun": true,
+            "shadows": true,
+            "grid": 0,
+            "intensity": 40,
             "mobile": false
           },
-          "lampesFichier": { "nombre": 0, "ids": [] },
-          "lampesTemoin": null,
-          "atlasOmbres": null,
-          "objetMobile": null,
-          "charge": {
-            "debut": [15.92431640625, 10.68603515625, 7.6142578125],
-            "fin": [4.0654296875, 7.04052734375, 6.68701171875]
+          "importedLights": { "count": 0, "ids": [] },
+          "witnessLights": null,
+          "shadowAtlas": null,
+          "movingNode": null,
+          "load": {
+            "start": [15.92431640625, 10.68603515625, 7.6142578125],
+            "end": [4.0654296875, 7.04052734375, 6.68701171875]
           },
           "captureStatus": 200,
-          "incidentsGpu": [
+          "gpuIncidents": [
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":48,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\",\"cutPending\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":135,\"shadowFrames\":3,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\",\"cutPending\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
@@ -9744,7 +9744,7 @@
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}"
           ],
-          "avertissementsDag": null,
+          "dagWarnings": null,
           "canvas": { "width": 2496, "height": 1404 },
           "metrics": {
             "rafIntervalMs": null,
@@ -9909,7 +9909,7 @@
             "p99": 92.89999997615814,
             "max": 92.89999997615814
           },
-          "moteur": "webgpu-page-raster",
+          "engine": "webgpu-page-raster",
           "gpuFrameMs": {
             "mean": 39.20306899999999,
             "p50": 39.203069,
@@ -9919,7 +9919,7 @@
           },
           "imageSyncMs": null,
           "rafIntervalMs": null,
-          "profilParEtape": {
+          "stageProfile": {
             "version": 1,
             "enabled": true,
             "backend": "webgpu-page-raster",
@@ -9954,7 +9954,7 @@
                 "label": "Sélection et visibilité",
                 "cpuMs": null,
                 "gpuMs": { "p50": 3.572112, "p95": 4.267977 },
-                "counts": { "grappesRejetees": 17796, "pagesVoulues": 592339, "grappesDuDag": 0 }
+                "counts": { "clustersRejected": 17796, "pagesWanted": 592339, "dagClusters": 0 }
               },
               { "stage": "transparents", "label": "Transparents", "cpuMs": null, "gpuMs": null },
               {
@@ -9978,11 +9978,11 @@
                 "cpuReason": "aucun retour d’image : aucune tuile à servir",
                 "gpuReason": "les transferts passent par la file de la carte, sans passe horodatée",
                 "counts": {
-                  "tuilesDemandees": 48,
-                  "tuilesAuNiveau": 48,
-                  "niveauxManquants": 0,
-                  "tuilesServies": 48,
-                  "tuilesEnAttente": 0
+                  "tilesRequested": 48,
+                  "tilesAtLevel": 48,
+                  "missingLevels": 0,
+                  "tilesServed": 48,
+                  "tilesPending": 0
                 }
               },
               {
@@ -9991,13 +9991,13 @@
                 "cpuMs": null,
                 "gpuMs": { "p50": 1.392436, "p95": 1.936637 },
                 "counts": {
-                  "lignes": 657425,
-                  "occulteurs": 599281,
-                  "testees": 58144,
+                  "rows": 657425,
+                  "occluders": 599281,
+                  "tested": 58144,
                   "bornesToutes": 657415,
-                  "historiqueOcculteurs": 599281,
+                  "previousOccluders": 599281,
                   "sansHistorique": 0,
-                  "imageRelevee": 838
+                  "sampledFrame": 838
                 }
               },
               {
@@ -10006,11 +10006,11 @@
                 "cpuMs": null,
                 "gpuMs": null,
                 "counts": {
-                  "lignesTeleversees": 0,
-                  "fichesTeleversees": 0,
-                  "appelsDeDessin": 10,
-                  "appelsDeMelange": 0,
-                  "lancementsDeCalcul": 0
+                  "rowsUploaded": 0,
+                  "itemsUploaded": 0,
+                  "drawCalls": 10,
+                  "blendDrawCalls": 0,
+                  "computeDispatches": 0
                 }
               },
               { "stage": "submit", "label": "Soumission", "cpuMs": null, "gpuMs": null },
@@ -10040,18 +10040,18 @@
                 "cpuMs": null,
                 "gpuMs": { "p50": 33.337491, "p95": 38.570245 },
                 "counts": {
-                  "lampesRedessinees": 0,
+                  "lightsRedrawn": 0,
                   "cartesReutilisees": 1,
-                  "facesRedessinees": 0,
-                  "appelsDeDessin": 0,
-                  "soleilsRedessines": 0,
+                  "facesRedrawn": 0,
+                  "drawCalls": 0,
+                  "sunsRedrawn": 0,
                   "cascadesRedessinees": 0,
                   "regionsRedessinees": 0,
-                  "pagesInvalidees": 0,
-                  "pagesRedessinees": 0,
-                  "pagesEnAttente": 0,
-                  "retardMaxMs": 0,
-                  "retardMaxImages": 0
+                  "pagesInvalidated": 0,
+                  "pagesRedrawn": 0,
+                  "pagesPending": 0,
+                  "maxWaitMs": 0,
+                  "maxWaitFrames": 0
                 }
               },
               {
@@ -10062,10 +10062,10 @@
                 "cpuReason": "aucun travail processeur : le rayon lointain est tiré par la résolution différée",
                 "gpuReason": "mesurée dans l’étape « Éclairage (résolution) », qui tire le rayon lointain",
                 "counts": {
-                  "trianglesDuProxy": 145006,
-                  "pixelsTestes": 0,
-                  "pixelsAssombris": 0,
-                  "imageRelevee": 3
+                  "proxyTriangles": 145006,
+                  "pixelsTested": 0,
+                  "pixelsShadowed": 0,
+                  "sampledFrame": 3
                 }
               },
               {
@@ -10073,7 +10073,7 @@
                 "label": "Listes de lampes",
                 "cpuMs": null,
                 "gpuMs": { "p50": 1.434145, "p95": 2.091802 },
-                "counts": { "lampesActives": 1 }
+                "counts": { "activeLights": 1 }
               },
               {
                 "stage": "bounce",
@@ -10083,12 +10083,12 @@
                 "cpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "gpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "counts": {
-                  "sondesMisesAJour": 0,
-                  "rayonsParImage": 0,
-                  "sondesDesCascades": 0,
-                  "maillesMisesAJour": 0,
-                  "maillesDuCache": 0,
-                  "fractionDuBudget": 0
+                  "probesUpdated": 0,
+                  "raysPerFrame": 0,
+                  "cascadeProbes": 0,
+                  "texelsUpdated": 0,
+                  "cachedTexels": 0,
+                  "budgetFraction": 0
                 }
               },
               {
@@ -10305,25 +10305,25 @@
             ]
           },
           "preparationMs": 5166.199999988079,
-          "imagesCalme": null,
-          "reglageVivant": null,
-          "reseau": {
+          "settleFrames": null,
+          "liveTuning": null,
+          "network": {
             "json": 159925,
             "bin": 999784280,
             "wasm": 44509,
             "gltf": 3019421,
             "js": 2231197
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 55759049,
           "uncoveredTriangles": 0,
           "drawnTriangles": 55759049,
           "submittedTriangles": 55759049,
           "totalSubmittedTriangles": 55759049,
-          "imageDuReleve": 59,
-          "imageTenue": false,
-          "repliSelectionGpu": true,
+          "recordedFrame": 59,
+          "frameHeld": false,
+          "gpuSelectionFallback": true,
           "hiZ": {
             "tested": 58144,
             "rejected": 58144,
@@ -10336,22 +10336,22 @@
           "selection": {
             "source": "selectedPageIds",
             "sha256": "8d9fd5ff96a630b75aea1a1b4205ac69de0f32d885cae4037aa8baa83ec65feb",
-            "taille": 657425
+            "count": 657425
           },
-          "geometrieOctets": 1150884624,
-          "budgetPages": {
-            "demande": null,
-            "residentes": 657425,
-            "couvertureLimiteeParBudget": false
+          "geometryBytes": 1150884624,
+          "pageBudget": {
+            "requested": null,
+            "resident": 657425,
+            "budgetLimitedCoverage": false
           },
-          "poolGeometrie": {
-            "octets": 536870912,
-            "fentes": 83139,
-            "alloues": 127701504,
-            "borne": "scene",
-            "saturees": 0
+          "geometryPool": {
+            "bytes": 536870912,
+            "slots": 83139,
+            "allocated": 127701504,
+            "bound": "scene",
+            "saturated": 0
           },
-          "cheminCalcul": {
+          "mathBatch": {
             "contract": 1,
             "mode": "auto",
             "wasmAvailable": true,
@@ -10371,25 +10371,25 @@
               }
             }
           },
-          "lampes": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "soleil": true,
-            "ombres": true,
-            "maille": 0,
-            "intensite": 40,
+          "lights": {
+            "count": 1,
+            "points": 0,
+            "sun": true,
+            "shadows": true,
+            "grid": 0,
+            "intensity": 40,
             "mobile": false
           },
-          "lampesFichier": { "nombre": 0, "ids": [] },
-          "lampesTemoin": null,
-          "atlasOmbres": null,
-          "objetMobile": null,
-          "charge": {
-            "debut": [4.0654296875, 7.04052734375, 6.68701171875],
-            "fin": [19.65673828125, 10.27392578125, 7.95556640625]
+          "importedLights": { "count": 0, "ids": [] },
+          "witnessLights": null,
+          "shadowAtlas": null,
+          "movingNode": null,
+          "load": {
+            "start": [4.0654296875, 7.04052734375, 6.68701171875],
+            "end": [19.65673828125, 10.27392578125, 7.95556640625]
           },
           "captureStatus": 200,
-          "incidentsGpu": [
+          "gpuIncidents": [
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":48,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\",\"cutPending\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":135,\"shadowFrames\":3,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\",\"cutPending\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
@@ -10511,7 +10511,7 @@
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}",
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":0,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\"]}"
           ],
-          "avertissementsDag": null,
+          "dagWarnings": null,
           "canvas": { "width": 2496, "height": 1404 },
           "metrics": {
             "rafIntervalMs": null,
@@ -10662,9 +10662,9 @@
           }
         }
       },
-      "temoinAA": { "pixels": 0, "maxCanal": 0, "total": 3504384 },
-      "ecartAvantApres": null,
-      "coupeIdentique": null
+      "witnessAA": { "pixels": 0, "maxChannel": 0, "total": 3504384 },
+      "beforeAfterDiff": null,
+      "sameCut": null
     },
     {
       "view": "detail",
@@ -10694,7 +10694,7 @@
             "p99": 39,
             "max": 39
           },
-          "moteur": "webgpu-page-raster",
+          "engine": "webgpu-page-raster",
           "gpuFrameMs": {
             "mean": 97.312224,
             "p50": 97.312224,
@@ -10704,7 +10704,7 @@
           },
           "imageSyncMs": null,
           "rafIntervalMs": null,
-          "profilParEtape": {
+          "stageProfile": {
             "version": 1,
             "enabled": true,
             "backend": "webgpu-page-raster",
@@ -10739,7 +10739,7 @@
                 "label": "Sélection et visibilité",
                 "cpuMs": null,
                 "gpuMs": { "p50": 8.658034, "p95": 11.842986 },
-                "counts": { "grappesRejetees": 21783, "pagesVoulues": 560779, "grappesDuDag": 0 }
+                "counts": { "clustersRejected": 21783, "pagesWanted": 560779, "dagClusters": 0 }
               },
               { "stage": "transparents", "label": "Transparents", "cpuMs": null, "gpuMs": null },
               {
@@ -10763,11 +10763,11 @@
                 "cpuReason": "aucun retour d’image : aucune tuile à servir",
                 "gpuReason": "les transferts passent par la file de la carte, sans passe horodatée",
                 "counts": {
-                  "tuilesDemandees": 22,
-                  "tuilesAuNiveau": 22,
-                  "niveauxManquants": 0,
-                  "tuilesServies": 22,
-                  "tuilesEnAttente": 0
+                  "tilesRequested": 22,
+                  "tilesAtLevel": 22,
+                  "missingLevels": 0,
+                  "tilesServed": 22,
+                  "tilesPending": 0
                 }
               },
               {
@@ -10776,13 +10776,13 @@
                 "cpuMs": null,
                 "gpuMs": { "p50": 3.067495, "p95": 4.811759 },
                 "counts": {
-                  "lignes": 560779,
-                  "occulteurs": 533986,
-                  "testees": 26793,
+                  "rows": 560779,
+                  "occluders": 533986,
+                  "tested": 26793,
                   "bornesToutes": 560758,
-                  "historiqueOcculteurs": 533986,
+                  "previousOccluders": 533986,
                   "sansHistorique": 0,
-                  "imageRelevee": 493
+                  "sampledFrame": 493
                 }
               },
               {
@@ -10791,11 +10791,11 @@
                 "cpuMs": null,
                 "gpuMs": null,
                 "counts": {
-                  "lignesTeleversees": 0,
-                  "fichesTeleversees": 0,
-                  "appelsDeDessin": 10,
-                  "appelsDeMelange": 0,
-                  "lancementsDeCalcul": 0
+                  "rowsUploaded": 0,
+                  "itemsUploaded": 0,
+                  "drawCalls": 10,
+                  "blendDrawCalls": 0,
+                  "computeDispatches": 0
                 }
               },
               { "stage": "submit", "label": "Soumission", "cpuMs": null, "gpuMs": null },
@@ -10825,18 +10825,18 @@
                 "cpuMs": null,
                 "gpuMs": null,
                 "counts": {
-                  "lampesRedessinees": 0,
+                  "lightsRedrawn": 0,
                   "cartesReutilisees": 1,
-                  "facesRedessinees": 0,
-                  "appelsDeDessin": 0,
-                  "soleilsRedessines": 0,
+                  "facesRedrawn": 0,
+                  "drawCalls": 0,
+                  "sunsRedrawn": 0,
                   "cascadesRedessinees": 0,
                   "regionsRedessinees": 0,
-                  "pagesInvalidees": 0,
-                  "pagesRedessinees": 0,
-                  "pagesEnAttente": 0,
-                  "retardMaxMs": 0,
-                  "retardMaxImages": 0
+                  "pagesInvalidated": 0,
+                  "pagesRedrawn": 0,
+                  "pagesPending": 0,
+                  "maxWaitMs": 0,
+                  "maxWaitFrames": 0
                 }
               },
               {
@@ -10847,10 +10847,10 @@
                 "cpuReason": "aucun travail processeur : le rayon lointain est tiré par la résolution différée",
                 "gpuReason": "mesurée dans l’étape « Éclairage (résolution) », qui tire le rayon lointain",
                 "counts": {
-                  "trianglesDuProxy": 145006,
-                  "pixelsTestes": 0,
-                  "pixelsAssombris": 0,
-                  "imageRelevee": 3
+                  "proxyTriangles": 145006,
+                  "pixelsTested": 0,
+                  "pixelsShadowed": 0,
+                  "sampledFrame": 3
                 }
               },
               {
@@ -10858,7 +10858,7 @@
                 "label": "Listes de lampes",
                 "cpuMs": null,
                 "gpuMs": { "p50": 2.030344, "p95": 5.147254 },
-                "counts": { "lampesActives": 1 }
+                "counts": { "activeLights": 1 }
               },
               {
                 "stage": "bounce",
@@ -10868,12 +10868,12 @@
                 "cpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "gpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "counts": {
-                  "sondesMisesAJour": 0,
-                  "rayonsParImage": 0,
-                  "sondesDesCascades": 0,
-                  "maillesMisesAJour": 0,
-                  "maillesDuCache": 0,
-                  "fractionDuBudget": 0
+                  "probesUpdated": 0,
+                  "raysPerFrame": 0,
+                  "cascadeProbes": 0,
+                  "texelsUpdated": 0,
+                  "cachedTexels": 0,
+                  "budgetFraction": 0
                 }
               },
               {
@@ -11068,25 +11068,25 @@
             ]
           },
           "preparationMs": 5415.099999964237,
-          "imagesCalme": null,
-          "reglageVivant": null,
-          "reseau": {
+          "settleFrames": null,
+          "liveTuning": null,
+          "network": {
             "json": 159925,
             "bin": 997767560,
             "wasm": 44509,
             "gltf": 3019421,
             "js": 1794868
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 47557241,
           "uncoveredTriangles": 0,
           "drawnTriangles": 47557241,
           "submittedTriangles": 47557241,
           "totalSubmittedTriangles": 47557241,
-          "imageDuReleve": 59,
-          "imageTenue": false,
-          "repliSelectionGpu": true,
+          "recordedFrame": 59,
+          "frameHeld": false,
+          "gpuSelectionFallback": true,
           "hiZ": {
             "tested": 26793,
             "rejected": 26793,
@@ -11099,22 +11099,22 @@
           "selection": {
             "source": "selectedPageIds",
             "sha256": "f517361656d185698621f749ae04150e27e54ace93ae58b86bc5e8d32fd993b8",
-            "taille": 560779
+            "count": 560779
           },
-          "geometrieOctets": 1150884624,
-          "budgetPages": {
-            "demande": null,
-            "residentes": 560779,
-            "couvertureLimiteeParBudget": false
+          "geometryBytes": 1150884624,
+          "pageBudget": {
+            "requested": null,
+            "resident": 560779,
+            "budgetLimitedCoverage": false
           },
-          "poolGeometrie": {
-            "octets": 536870912,
-            "fentes": 83139,
-            "alloues": 127701504,
-            "borne": "scene",
-            "saturees": 0
+          "geometryPool": {
+            "bytes": 536870912,
+            "slots": 83139,
+            "allocated": 127701504,
+            "bound": "scene",
+            "saturated": 0
           },
-          "cheminCalcul": {
+          "mathBatch": {
             "contract": 1,
             "mode": "auto",
             "wasmAvailable": true,
@@ -11134,28 +11134,28 @@
               }
             }
           },
-          "lampes": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "soleil": true,
-            "ombres": true,
-            "maille": 0,
-            "intensite": 40,
+          "lights": {
+            "count": 1,
+            "points": 0,
+            "sun": true,
+            "shadows": true,
+            "grid": 0,
+            "intensity": 40,
             "mobile": false
           },
-          "lampesFichier": { "nombre": 0, "ids": [] },
-          "lampesTemoin": null,
-          "atlasOmbres": null,
-          "objetMobile": null,
-          "charge": {
-            "debut": [19.65673828125, 10.27392578125, 7.95556640625],
-            "fin": [12.646484375, 10.67919921875, 8.3671875]
+          "importedLights": { "count": 0, "ids": [] },
+          "witnessLights": null,
+          "shadowAtlas": null,
+          "movingNode": null,
+          "load": {
+            "start": [19.65673828125, 10.27392578125, 7.95556640625],
+            "end": [12.646484375, 10.67919921875, 8.3671875]
           },
           "captureStatus": 200,
-          "incidentsGpu": [
+          "gpuIncidents": [
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":22,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\",\"cutPending\"]}"
           ],
-          "avertissementsDag": null,
+          "dagWarnings": null,
           "canvas": { "width": 2496, "height": 1404 },
           "metrics": {
             "rafIntervalMs": null,
@@ -11320,7 +11320,7 @@
             "p99": 38,
             "max": 38
           },
-          "moteur": "webgpu-page-raster",
+          "engine": "webgpu-page-raster",
           "gpuFrameMs": {
             "mean": 43.12663299999999,
             "p50": 43.126633,
@@ -11330,7 +11330,7 @@
           },
           "imageSyncMs": null,
           "rafIntervalMs": null,
-          "profilParEtape": {
+          "stageProfile": {
             "version": 1,
             "enabled": true,
             "backend": "webgpu-page-raster",
@@ -11365,7 +11365,7 @@
                 "label": "Sélection et visibilité",
                 "cpuMs": null,
                 "gpuMs": { "p50": 7.437428, "p95": 10.169886 },
-                "counts": { "grappesRejetees": 21783, "pagesVoulues": 560779, "grappesDuDag": 0 }
+                "counts": { "clustersRejected": 21783, "pagesWanted": 560779, "dagClusters": 0 }
               },
               { "stage": "transparents", "label": "Transparents", "cpuMs": null, "gpuMs": null },
               {
@@ -11389,11 +11389,11 @@
                 "cpuReason": "aucun retour d’image : aucune tuile à servir",
                 "gpuReason": "les transferts passent par la file de la carte, sans passe horodatée",
                 "counts": {
-                  "tuilesDemandees": 22,
-                  "tuilesAuNiveau": 22,
-                  "niveauxManquants": 0,
-                  "tuilesServies": 22,
-                  "tuilesEnAttente": 0
+                  "tilesRequested": 22,
+                  "tilesAtLevel": 22,
+                  "missingLevels": 0,
+                  "tilesServed": 22,
+                  "tilesPending": 0
                 }
               },
               {
@@ -11402,13 +11402,13 @@
                 "cpuMs": null,
                 "gpuMs": { "p50": 2.551961, "p95": 4.703886 },
                 "counts": {
-                  "lignes": 560779,
-                  "occulteurs": 533986,
-                  "testees": 26793,
+                  "rows": 560779,
+                  "occluders": 533986,
+                  "tested": 26793,
                   "bornesToutes": 560758,
-                  "historiqueOcculteurs": 533986,
+                  "previousOccluders": 533986,
                   "sansHistorique": 0,
-                  "imageRelevee": 493
+                  "sampledFrame": 493
                 }
               },
               {
@@ -11417,11 +11417,11 @@
                 "cpuMs": null,
                 "gpuMs": null,
                 "counts": {
-                  "lignesTeleversees": 0,
-                  "fichesTeleversees": 0,
-                  "appelsDeDessin": 10,
-                  "appelsDeMelange": 0,
-                  "lancementsDeCalcul": 0
+                  "rowsUploaded": 0,
+                  "itemsUploaded": 0,
+                  "drawCalls": 10,
+                  "blendDrawCalls": 0,
+                  "computeDispatches": 0
                 }
               },
               { "stage": "submit", "label": "Soumission", "cpuMs": null, "gpuMs": null },
@@ -11451,18 +11451,18 @@
                 "cpuMs": null,
                 "gpuMs": null,
                 "counts": {
-                  "lampesRedessinees": 0,
+                  "lightsRedrawn": 0,
                   "cartesReutilisees": 1,
-                  "facesRedessinees": 0,
-                  "appelsDeDessin": 0,
-                  "soleilsRedessines": 0,
+                  "facesRedrawn": 0,
+                  "drawCalls": 0,
+                  "sunsRedrawn": 0,
                   "cascadesRedessinees": 0,
                   "regionsRedessinees": 0,
-                  "pagesInvalidees": 0,
-                  "pagesRedessinees": 0,
-                  "pagesEnAttente": 0,
-                  "retardMaxMs": 0,
-                  "retardMaxImages": 0
+                  "pagesInvalidated": 0,
+                  "pagesRedrawn": 0,
+                  "pagesPending": 0,
+                  "maxWaitMs": 0,
+                  "maxWaitFrames": 0
                 }
               },
               {
@@ -11473,10 +11473,10 @@
                 "cpuReason": "aucun travail processeur : le rayon lointain est tiré par la résolution différée",
                 "gpuReason": "mesurée dans l’étape « Éclairage (résolution) », qui tire le rayon lointain",
                 "counts": {
-                  "trianglesDuProxy": 145006,
-                  "pixelsTestes": 0,
-                  "pixelsAssombris": 0,
-                  "imageRelevee": 3
+                  "proxyTriangles": 145006,
+                  "pixelsTested": 0,
+                  "pixelsShadowed": 0,
+                  "sampledFrame": 3
                 }
               },
               {
@@ -11484,7 +11484,7 @@
                 "label": "Listes de lampes",
                 "cpuMs": null,
                 "gpuMs": { "p50": 2.024635, "p95": 4.943841 },
-                "counts": { "lampesActives": 1 }
+                "counts": { "activeLights": 1 }
               },
               {
                 "stage": "bounce",
@@ -11494,12 +11494,12 @@
                 "cpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "gpuReason": "the bounce is off by default; create the explorer with bounce: true",
                 "counts": {
-                  "sondesMisesAJour": 0,
-                  "rayonsParImage": 0,
-                  "sondesDesCascades": 0,
-                  "maillesMisesAJour": 0,
-                  "maillesDuCache": 0,
-                  "fractionDuBudget": 0
+                  "probesUpdated": 0,
+                  "raysPerFrame": 0,
+                  "cascadeProbes": 0,
+                  "texelsUpdated": 0,
+                  "cachedTexels": 0,
+                  "budgetFraction": 0
                 }
               },
               {
@@ -11694,25 +11694,25 @@
             ]
           },
           "preparationMs": 4916,
-          "imagesCalme": null,
-          "reglageVivant": null,
-          "reseau": {
+          "settleFrames": null,
+          "liveTuning": null,
+          "network": {
             "json": 159925,
             "bin": 997767560,
             "wasm": 44509,
             "gltf": 3019421,
             "js": 1794868
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 47557241,
           "uncoveredTriangles": 0,
           "drawnTriangles": 47557241,
           "submittedTriangles": 47557241,
           "totalSubmittedTriangles": 47557241,
-          "imageDuReleve": 59,
-          "imageTenue": false,
-          "repliSelectionGpu": true,
+          "recordedFrame": 59,
+          "frameHeld": false,
+          "gpuSelectionFallback": true,
           "hiZ": {
             "tested": 26793,
             "rejected": 26793,
@@ -11725,22 +11725,22 @@
           "selection": {
             "source": "selectedPageIds",
             "sha256": "f517361656d185698621f749ae04150e27e54ace93ae58b86bc5e8d32fd993b8",
-            "taille": 560779
+            "count": 560779
           },
-          "geometrieOctets": 1150884624,
-          "budgetPages": {
-            "demande": null,
-            "residentes": 560779,
-            "couvertureLimiteeParBudget": false
+          "geometryBytes": 1150884624,
+          "pageBudget": {
+            "requested": null,
+            "resident": 560779,
+            "budgetLimitedCoverage": false
           },
-          "poolGeometrie": {
-            "octets": 536870912,
-            "fentes": 83139,
-            "alloues": 127701504,
-            "borne": "scene",
-            "saturees": 0
+          "geometryPool": {
+            "bytes": 536870912,
+            "slots": 83139,
+            "allocated": 127701504,
+            "bound": "scene",
+            "saturated": 0
           },
-          "cheminCalcul": {
+          "mathBatch": {
             "contract": 1,
             "mode": "auto",
             "wasmAvailable": true,
@@ -11760,28 +11760,28 @@
               }
             }
           },
-          "lampes": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "soleil": true,
-            "ombres": true,
-            "maille": 0,
-            "intensite": 40,
+          "lights": {
+            "count": 1,
+            "points": 0,
+            "sun": true,
+            "shadows": true,
+            "grid": 0,
+            "intensity": 40,
             "mobile": false
           },
-          "lampesFichier": { "nombre": 0, "ids": [] },
-          "lampesTemoin": null,
-          "atlasOmbres": null,
-          "objetMobile": null,
-          "charge": {
-            "debut": [12.646484375, 10.67919921875, 8.3671875],
-            "fin": [10.47998046875, 10.361328125, 8.45458984375]
+          "importedLights": { "count": 0, "ids": [] },
+          "witnessLights": null,
+          "shadowAtlas": null,
+          "movingNode": null,
+          "load": {
+            "start": [12.646484375, 10.67919921875, 8.3671875],
+            "end": [10.47998046875, 10.361328125, 8.45458984375]
           },
           "captureStatus": 200,
-          "incidentsGpu": [
+          "gpuIncidents": [
             "pose-settle {\"pipelineVersion\":1,\"rounds\":1,\"tilesServed\":22,\"shadowFrames\":2,\"pendingPages\":0,\"reasons\":[\"gpuFrameInactive\",\"cutMoving\",\"cutPending\"]}"
           ],
-          "avertissementsDag": null,
+          "dagWarnings": null,
           "canvas": { "width": 2496, "height": 1404 },
           "metrics": {
             "rafIntervalMs": null,
@@ -11932,9 +11932,9 @@
           }
         }
       },
-      "temoinAA": { "pixels": 0, "maxCanal": 0, "total": 3504384 },
-      "ecartAvantApres": null,
-      "coupeIdentique": null
+      "witnessAA": { "pixels": 0, "maxChannel": 0, "total": 3504384 },
+      "beforeAfterDiff": null,
+      "sameCut": null
     }
   ],
   "errors": [],
@@ -11942,13 +11942,13 @@
     "min": { "x": -100.49375960005739, "y": 0.33966517800029106, "z": -78.74337701015193 },
     "max": { "x": 100.85059222923371, "y": 47.77063881976022, "z": 83.40322428312572 }
   },
-  "lampes": {
-    "nombre": 1,
-    "ponctuelles": 0,
-    "soleil": true,
-    "ombres": true,
-    "maille": 0,
-    "intensite": 40,
+  "lights": {
+    "count": 1,
+    "points": 0,
+    "sun": true,
+    "shadows": true,
+    "grid": 0,
+    "intensity": 40,
     "mobile": false
   },
   "finishedAt": "2026-09-19T08:37:02.177Z"

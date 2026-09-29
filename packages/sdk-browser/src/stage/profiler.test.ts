@@ -80,8 +80,8 @@ test('setReason fills the reason only for the column that stayed unmeasured', ()
 
 test('setCounts attaches counters to the stage, on top of the durations', () => {
   const profiler = createStageProfiler({ backend: 'webgl2', stages: ['shadows'], gpuMethod: null });
-  profiler.setCounts('shadows', { facesRedessinees: 12 });
-  assert.deepEqual(profiler.profile().stages[0].counts, { facesRedessinees: 12 });
+  profiler.setCounts('shadows', { facesRedrawn: 12 });
+  assert.deepEqual(profiler.profile().stages[0].counts, { facesRedrawn: 12 });
 });
 
 test('setGpuMethod changes the method and reason the profile publishes', () => {
