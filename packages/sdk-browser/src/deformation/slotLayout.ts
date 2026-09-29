@@ -5,7 +5,7 @@ import type { PageRec } from '../page/selection/selection.ts';
 import { pageAddress } from '../webgpu/row/pageSlots.ts';
 
 /** Current position, previous position and current normal: eleven words per vertex, including owner and frame tags. */
-export const DEFORM_VERTEX_WORDS = 11;
+const DEFORM_VERTEX_WORDS = 11;
 
 /**
  * Reserve deformation results in the geometry cache's own slots. All placements sharing a

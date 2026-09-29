@@ -12,7 +12,7 @@ export type SoftSource = {
   version: number;
   reach: number;
 };
-export type SoftDrawn = { softSource?: SoftSource };
+type SoftDrawn = { softSource?: SoftSource };
 
 /** Attach the versioned cooked source to the existing compiled graph's meshes. */
 export function cookedSoftSource(model: Model, soft: CookedSoftBody): SoftSource | undefined {

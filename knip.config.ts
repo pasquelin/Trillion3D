@@ -29,6 +29,7 @@ const config: KnipConfig = {
     'bench/runner/bench.ts',
     'bench/runner/feedbackTargetAb.ts',
     'bench/runner/trajectory.ts',
+    'bench/runner/reference.ts',
     // Compiled by path by the public types audit (`public-types-audit.test.ts`), never imported.
     'tests/integration/public-types-union.fixture.ts',
     // Served to the harness page and imported by URL, never by local import.
@@ -36,12 +37,16 @@ const config: KnipConfig = {
     'bench/runner/witnessPage.ts',
     'bench/runner/explorerPage.ts',
     'bench/runner/lightingPage.ts',
+    'bench/runner/referencePage.ts',
     'bench/runner/trajectoryPage.ts',
     'bench/runner/poses.ts',
     'bench/runner/threeBarePage.ts',
     'bench/runner/threeLodPage.ts',
     'bench/runner/measurePage.ts',
     'bench/runner/fluidsPage.ts',
+    // Recette imports these measurement/reference modules by URL (bench/runner/README.md).
+    'bench/runner/deformationEnvelope.ts',
+    'bench/runner/deformationWitness.ts',
     'bench/runner/feedbackTargetPage.ts',
     'bench/runner/gazeNetworkPage.ts',
     'bench/runner/limits.ts',

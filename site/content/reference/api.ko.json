@@ -1003,7 +1003,9 @@
       "PHYSICS_FORMAT": "컴파일된 모델의 미리 준비된 물리(`physics.json`)가 다른 형식이거나 엔진과 다른 Jolt로 준비되었습니다(`PHYSICS_FORMAT`): 다시 컴파일하세요. 물리가 꺼진 상태에서 정확한 레이캐스트를 요청했습니다(`PHYSICS_OFF`).",
       "PHYSICS_OFF": "컴파일된 모델의 미리 준비된 물리(`physics.json`)가 다른 형식이거나 엔진과 다른 Jolt로 준비되었습니다(`PHYSICS_FORMAT`): 다시 컴파일하세요. 물리가 꺼진 상태에서 정확한 레이캐스트를 요청했습니다(`PHYSICS_OFF`).",
       "NO_VEHICLE": "`world.controls.vehicle`이 `null`인데 `world.controls.kind`를 `'vehicle'`로 설정했습니다: 운전할 것이 없습니다.",
-      "GUIDE_CEILING": "`world.guides` 호출이 `GUIDE_VERTEX_CEILING`보다 많은 정점을 보유하게 되어, 아무것도 추가되지 않았습니다."
+      "GUIDE_CEILING": "`world.guides` 호출이 `GUIDE_VERTEX_CEILING`보다 많은 정점을 보유하게 되어, 아무것도 추가되지 않았습니다.",
+      "REFERENCE_SHADOWS_REDUCED": "참조 이미지가 거부되었습니다: 그림자 풀이 전체 크기보다 작게 실행 중입니다(`REFERENCE_SHADOWS_REDUCED`). 크기 조정 시 슈퍼샘플링이 사라지는 대화형 세션에서 참조 모드가 요청되었습니다(`REFERENCE_INTERACTIVE`).",
+      "REFERENCE_INTERACTIVE": "참조 이미지가 거부되었습니다: 그림자 풀이 전체 크기보다 작게 실행 중입니다(`REFERENCE_SHADOWS_REDUCED`). 크기 조정 시 슈퍼샘플링이 사라지는 대화형 세션에서 참조 모드가 요청되었습니다(`REFERENCE_INTERACTIVE`)."
     }
   },
   "EngineProfiler": {
@@ -7987,5 +7989,27 @@
       "bones": "줄기부터 끝까지 순서대로 나열한 본.",
       "options": "방향, 최대 굽힘 각도, 주파수."
     }
+  },
+  "Skeleton": {
+    "summary": "스킨 메시를 변형하는 뼈와 메시 좌표를 각 뼈의 좌표로 옮기는 역 바인드 행렬입니다.",
+    "description": "정점의 관절 인덱스는 `bones`의 위치를 가리킵니다. 역 바인드 행렬이 없으면 스켈레톤 생성 시 뼈의 자세를 바인드 자세로 사용합니다.",
+    "members.isSkeleton": "항상 `true`이며 스켈레톤을 식별합니다.",
+    "members.bones": "관절 순서대로 나열된 관절 노드입니다.",
+    "members.boneInverses": "뼈마다 열 우선으로 저장한 16개 수치이며, 바인드 자세의 월드 행렬의 역행렬입니다.",
+    "members.palette": "각 관절의 `meshWorld⁻¹ · boneWorld · boneInverse` 행을 `out`의 `at`부터 기록합니다. 팔레트는 바인드 정점을 메시 로컬 좌표로 변환하고 이후 메시 월드 변환이 적용됩니다. `boneWorlds`는 읽기 측의 월드 행렬을 제공하며, 없으면 뼈 자체의 행렬을 사용합니다."
+  },
+  "Waves": {
+    "summary": "`setTime`으로 시간을 설정하는 Gerstner 파동 집합입니다.",
+    "description": "파동 `i`마다 방향 `(dx, dz)`, 파수 `k`, 진폭 `A`, 측면 진폭 `Q·A`가 있습니다. 파봉이 뒤집히지 않도록 경사를 `Σ Qᵢ·Aᵢ·kᵢ ≤ 1`로 정규화합니다.",
+    "members.phase": "설정된 시간에서 각 파동의 위상으로 범위는 [0, 2π)이며 유일한 시간 종속 상태입니다.",
+    "members.crest": "정지 수면 위 최대 높이: `Σ Aᵢ`.",
+    "members.steepness": "정규화한 `Σ Qᵢ·Aᵢ·kᵢ`이며 최대 1입니다.",
+    "members.phasesAt": "`t`초에서 각 파동의 위상을 배정밀도로 [0, 2π)에 맞춥니다.",
+    "members.setTime": "시간을 `t`초로 설정합니다. 이전 프레임 표면은 `setTime(t - dt)`에 해당합니다.",
+    "members.offset": "정지점 `(x, 0, z)`의 변위 `[x, y, z]`를 `out`에 기록합니다.",
+    "members.normal": "정지점 `(x, z)`의 단위 법선 `[x, y, z]`를 `out`에 기록합니다."
+  },
+  "WindOptions": {
+    "summary": "바람 방향(지면의 `x`, `z`), 뼈의 최대 굽힘 각도(라디안), 초당 흔들림 횟수입니다."
   }
 }

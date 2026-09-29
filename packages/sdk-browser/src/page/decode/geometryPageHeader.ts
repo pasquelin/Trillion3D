@@ -56,7 +56,7 @@ export type Quant = { min: number[]; exponent: number; bits: number[] };
 const bitsFor = (range: number) => (range <= 0 ? 0 : 32 - Math.clz32(range));
 
 /** A quantization record from its packed word (six bits per width, the exponent in the top byte). */
-export function record(word: number, min: number[]): Quant | null {
+function record(word: number, min: number[]): Quant | null {
   const n = min.length,
     bits = Array.from({ length: n }, (_, c) => (word >>> (6 * c)) & 63),
     exponent = word >> 24;

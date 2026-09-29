@@ -1003,7 +1003,9 @@
       "PHYSICS_FORMAT": "Derlenmiş bir modelin hazırlanmış fiziği (`physics.json`) başka bir biçimde ya da motorunkinden başka bir Jolt ile hazırlanmış (`PHYSICS_FORMAT`): yeniden derleyin. Fizik kapalıyken kesin bir raycast istendi (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "Derlenmiş bir modelin hazırlanmış fiziği (`physics.json`) başka bir biçimde ya da motorunkinden başka bir Jolt ile hazırlanmış (`PHYSICS_FORMAT`): yeniden derleyin. Fizik kapalıyken kesin bir raycast istendi (`PHYSICS_OFF`).",
       "NO_VEHICLE": "`world.controls.vehicle` `null` iken `world.controls.kind` `'vehicle'` yapıldı: sürülecek bir şey yok.",
-      "GUIDE_CEILING": "Bir `world.guides` çağrısı `GUIDE_VERTEX_CEILING` değerinden fazla köşe tutacaktı; ondan hiçbir şey eklenmedi."
+      "GUIDE_CEILING": "Bir `world.guides` çağrısı `GUIDE_VERTEX_CEILING` değerinden fazla köşe tutacaktı; ondan hiçbir şey eklenmedi.",
+      "REFERENCE_SHADOWS_REDUCED": "Referans görüntü reddedildi: gölge havuzu tam boyutunun altında çalışıyor (`REFERENCE_SHADOWS_REDUCED`). Referans modu, yeniden boyutlandırılması süper örneklemeyi düşürecek etkileşimli bir oturumda istendi (`REFERENCE_INTERACTIVE`).",
+      "REFERENCE_INTERACTIVE": "Referans görüntü reddedildi: gölge havuzu tam boyutunun altında çalışıyor (`REFERENCE_SHADOWS_REDUCED`). Referans modu, yeniden boyutlandırılması süper örneklemeyi düşürecek etkileşimli bir oturumda istendi (`REFERENCE_INTERACTIVE`)."
     }
   },
   "EngineProfiler": {
@@ -7987,5 +7989,27 @@
       "bones": "Gövdeden uçlara doğru kemikler.",
       "options": "Yön, en büyük bükülme açısı ve frekans."
     }
+  },
+  "Skeleton": {
+    "summary": "Ağı büken kemikler ve ağ koordinatlarını her kemiğin çerçevesine taşıyan ters bağlama matrisleri.",
+    "description": "Bir köşenin eklem indeksi `bones` içindeki sırayı belirtir. Ters matrisler verilmezse iskelet oluşturulurken kemiklerin duruşu bağlama duruşudur.",
+    "members.isSkeleton": "Her zaman `true`: iskeleti tanımlar.",
+    "members.bones": "Eklem sırasındaki eklem düğümleri.",
+    "members.boneInverses": "Kemik başına sütun sırasıyla on altı sayı: bağlama duruşundaki dünya matrisinin tersi.",
+    "members.palette": "Her eklemin `meshWorld⁻¹ · boneWorld · boneInverse` satırlarını `at` konumundan başlayarak `out` içine yazar. Palet bağlı köşeleri ağın yerel çerçevesine dönüştürür; ardından ağın dünya dönüşümü uygulanır. `boneWorlds` okuyucunun dünya matrislerini sağlar; yoksa kemiklerin kendi matrisleri kullanılır."
+  },
+  "Waves": {
+    "summary": "Zamanı `setTime` ile ayarlanan Gerstner dalgaları kümesi.",
+    "description": "Her `i` dalgasının yönü `(dx, dz)`, dalga sayısı `k`, genliği `A` ve yanal genliği `Q·A` vardır. Dik eğimler, tepeler devrilmesin diye `Σ Qᵢ·Aᵢ·kᵢ ≤ 1` olacak şekilde normalleştirilir.",
+    "members.phase": "Ayarlanan zamanda her dalganın [0, 2π) aralığındaki fazı: zamana bağlı tek durum.",
+    "members.crest": "Durgun düzeyin üzerindeki en büyük yükseklik: `Σ Aᵢ`.",
+    "members.steepness": "Normalleştirme sonrası `Σ Qᵢ·Aᵢ·kᵢ`, en fazla 1.",
+    "members.phasesAt": "`t` saniyede her dalganın fazı, çift duyarlıkla [0, 2π) aralığına indirgenir.",
+    "members.setTime": "Zamanı `t` saniyeye ayarlar; önceki karenin yüzeyi `setTime(t - dt)` olur.",
+    "members.offset": "Durgun `(x, 0, z)` noktasının `[x, y, z]` yer değiştirmesini `out` içine yazar.",
+    "members.normal": "Durgun `(x, z)` noktasındaki `[x, y, z]` birim normalini `out` içine yazar."
+  },
+  "WindOptions": {
+    "summary": "Rüzgâr yönü (zemindeki `x`, `z`), kemiğin radyan cinsinden en büyük bükülmesi ve saniyedeki salınım sayısı."
   }
 }

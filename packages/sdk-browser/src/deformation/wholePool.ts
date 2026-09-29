@@ -4,7 +4,7 @@ import { wholeDeformationInputs } from './wholeInputs.ts';
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
 
 /** High bit selects the existing float vertex pool instead of a resident page-cache tail. */
-export const WHOLE_DEFORM_OUTPUT = 0x80000000;
+const WHOLE_DEFORM_OUTPUT = 0x80000000;
 
 /** Setup-only layout of whole-copy source streams and per-placement results in the float pool. */
 export function wholeDeformationPool(

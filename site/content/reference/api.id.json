@@ -1010,7 +1010,9 @@
       "PHYSICS_FORMAT": "Fisika siap pakai dari model terkompilasi (`physics.json`) berformat lain, atau disiapkan oleh Jolt yang berbeda dari milik mesin (`PHYSICS_FORMAT`): kompilasi ulang. Raycast tepat diminta saat fisika mati (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "Fisika siap pakai dari model terkompilasi (`physics.json`) berformat lain, atau disiapkan oleh Jolt yang berbeda dari milik mesin (`PHYSICS_FORMAT`): kompilasi ulang. Raycast tepat diminta saat fisika mati (`PHYSICS_OFF`).",
       "NO_VEHICLE": "`world.controls.kind` disetel ke `'vehicle'` saat `world.controls.vehicle` bernilai `null`: tidak ada yang dikemudikan.",
-      "GUIDE_CEILING": "Sebuah panggilan `world.guides` akan memegang lebih banyak verteks daripada `GUIDE_VERTEX_CEILING`; tidak ada yang ditambahkan."
+      "GUIDE_CEILING": "Sebuah panggilan `world.guides` akan memegang lebih banyak verteks daripada `GUIDE_VERTEX_CEILING`; tidak ada yang ditambahkan.",
+      "REFERENCE_SHADOWS_REDUCED": "Gambar referensi ditolak: kumpulan bayangan berjalan di bawah ukuran penuhnya (`REFERENCE_SHADOWS_REDUCED`). Mode referensi diminta pada sesi interaktif, yang perubahan ukurannya akan menghilangkan supersampling (`REFERENCE_INTERACTIVE`).",
+      "REFERENCE_INTERACTIVE": "Gambar referensi ditolak: kumpulan bayangan berjalan di bawah ukuran penuhnya (`REFERENCE_SHADOWS_REDUCED`). Mode referensi diminta pada sesi interaktif, yang perubahan ukurannya akan menghilangkan supersampling (`REFERENCE_INTERACTIVE`)."
     }
   },
   "EngineProfiler": {
@@ -7988,5 +7990,27 @@
       "bones": "Tulang dari batang hingga ujung.",
       "options": "Arah, sudut tekukan maksimum, dan frekuensi."
     }
+  },
+  "Skeleton": {
+    "summary": "Tulang yang membengkokkan mesh dan matriks bind inversnya, dari koordinat mesh ke koordinat setiap tulang.",
+    "description": "Indeks sendi sebuah vertex menunjuk posisi dalam `bones`. Tanpa matriks invers, pose tulang saat skeleton dibuat menjadi pose bind.",
+    "members.isSkeleton": "Selalu `true`: menandai skeleton.",
+    "members.bones": "Node sendi dalam urutan sendi.",
+    "members.boneInverses": "Enam belas angka per tulang, menurut kolom: invers matriks dunianya pada pose bind.",
+    "members.palette": "Menulis baris `meshWorld⁻¹ · boneWorld · boneInverse` tiap sendi ke `out`, mulai `at`. Palet mengubah vertex bind ke koordinat lokal mesh; transformasi dunia mesh diterapkan sesudahnya. `boneWorlds` menyediakan matriks dunia pembaca; jika tidak ada, matriks tulang sendiri digunakan."
+  },
+  "Waves": {
+    "summary": "Sekumpulan gelombang Gerstner dengan waktu yang diatur oleh `setTime`.",
+    "description": "Setiap gelombang `i` memiliki arah `(dx, dz)`, bilangan gelombang `k`, amplitudo `A`, dan amplitudo lateral `Q·A`. Kemiringan dinormalisasi agar `Σ Qᵢ·Aᵢ·kᵢ ≤ 1`, sehingga puncak tidak terbalik.",
+    "members.phase": "Fase setiap gelombang pada waktu yang ditetapkan, dalam [0, 2π): satu-satunya keadaan bergantung waktu.",
+    "members.crest": "Ketinggian maksimum di atas posisi diam: `Σ Aᵢ`.",
+    "members.steepness": "`Σ Qᵢ·Aᵢ·kᵢ` setelah normalisasi, paling besar 1.",
+    "members.phasesAt": "Fase setiap gelombang pada `t` detik, direduksi ke [0, 2π) dengan presisi ganda.",
+    "members.setTime": "Mengatur waktu ke `t` detik; permukaan frame sebelumnya adalah `setTime(t - dt)`.",
+    "members.offset": "Menulis perpindahan `[x, y, z]` titik diam `(x, 0, z)` ke `out`.",
+    "members.normal": "Menulis normal satuan `[x, y, z]` pada titik diam `(x, z)` ke `out`."
+  },
+  "WindOptions": {
+    "summary": "Arah angin (`x`, `z` di tanah), tekukan maksimum tulang dalam radian, dan ayunan per detik."
   }
 }

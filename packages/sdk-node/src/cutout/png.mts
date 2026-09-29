@@ -50,7 +50,7 @@ function predict(filter: number, left: number, up: number, corner: number) {
 
 /** The reader of what the compiler writes for a baked level: straight RGBA8, no interlacing, the
  *  five row filters. Any other PNG is refused rather than misread. */
-export function decodePng(png: Uint8Array) {
+export function decodePng(png: Uint8Array, flipY = false) {
   const bytes = Buffer.from(png.buffer, png.byteOffset, png.byteLength);
   const data: Buffer[] = [];
   let [width, height, at] = [0, 0, 8];
@@ -79,5 +79,10 @@ export function decodePng(png: Uint8Array) {
       rgba[row + x] = ((raw[from + x] ?? 0) + predict(filter, left, up, corner)) & 0xff;
     }
   }
-  return { width, height, rgba };
+  if (!flipY) return { width, height, rgba };
+  // `flipY`: rows bottom first, as a GPU read yields them and `encodePng(…, true)` takes them.
+  const flipped = new Uint8Array(rgba.length);
+  for (let y = 0; y < height; y++)
+    flipped.set(rgba.subarray(y * stride, (y + 1) * stride), (height - 1 - y) * stride);
+  return { width, height, rgba: flipped };
 }
