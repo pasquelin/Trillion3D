@@ -84,7 +84,8 @@
   2. **Rendering technique** (a temporal upscaler, a radiance cache, cached shadow pages, f16 or
      wave intrinsics: controlled approximations): error against a named reference image within a
      bound the pull request states: mean and 99.9th-percentile channel error and mean LDR-FLIP (`bench/runner/flip.ts`),
-     from `bench/runner/imageDiff.ts::referenceDiff`, with no visible defect (no flicker, trail,
+     from `bench/runner/imageDiff.ts::referenceDiff` (`bench.ts --reference`, against the engine's
+     reference images of `bench/references/`), with no visible defect (no flicker, trail,
      hole or lost detail) on still and moving captures. The pull request declares its class on
      the `Image proof class:` line of its template.
 - **A proof needs a stable A/A.** A branch-against-develop difference proves something only on a
