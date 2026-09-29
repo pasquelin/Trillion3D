@@ -10,3 +10,7 @@ pub use trillion3d_page_codec::bits::grid::TILE_EXTENT_LOG2;
 #[cfg(test)]
 #[path = "tile_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "tile_quantum_tests.rs"]
+mod quantum_tests;
