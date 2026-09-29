@@ -1,7 +1,8 @@
-// A gallery example with no capture of its own shows the shared placeholder card. Every written
-// example the engine draws — not parked (`parkedExampleIds`) — must have its
-// `site/assets/examples/thumbnails/<id>.png`, which the recette captures with
-// `node scripts/docs-examples-thumbnails.ts <id>`. `pnpm run check:thumbnails`.
+// A gallery example with no capture of its own shows the shared placeholder card. The recette
+// lists every written example the engine draws — not parked (`parkedExampleIds`) — that has no
+// `site/assets/examples/thumbnails/<id>.png` yet, and captures it after the merge with
+// `node scripts/docs-examples-thumbnails.ts <id>` (AGENTS.md rule 2). A report, never a gate: a
+// missing thumbnail blocks no pull request. `pnpm run check:thumbnails`.
 import { pathToFileURL } from 'node:url';
 import { writtenEntries } from '../site/app/examples/list.ts';
 import { EXAMPLE_THUMBNAILS } from '../site/app/examples/thumbnails.inline.ts';
@@ -16,11 +17,9 @@ export const missingThumbnails = (
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const missing = missingThumbnails(writtenEntries, parkedExampleIds, new Set(EXAMPLE_THUMBNAILS));
-  if (missing.length) {
-    console.error(
-      `Gallery examples with no thumbnail, and not parked: ${missing.join(', ')}.\n` +
-        'Capture each with `node scripts/docs-examples-thumbnails.ts <id>`, or park it.',
-    );
-    process.exitCode = 1;
-  } else console.log('Every gallery example that is not parked has its thumbnail.');
+  console.log(
+    missing.length
+      ? `Thumbnails for the recette to capture: ${missing.join(' ')}`
+      : 'Every gallery example that is not parked has its thumbnail.',
+  );
 }
