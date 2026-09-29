@@ -7,6 +7,7 @@ import { object } from '../../../../sdk-core/src/world/object/index.ts';
 import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts';
 import { material } from '../../../../sdk-core/src/world/material/index.ts';
 import { collectClusterPages, type PageRec } from '../../page/selection/selection.ts';
+import { postPlacements } from '../../page/selection/placements.ts';
 import { rasterVisibilityIds } from '../../visibility/buffer.ts';
 import { buildHizPyramid, filterUnoccluded, visibilityDepth } from '../../hiz/hiz.ts';
 import { createEngineCamera, readCameraWorld } from '../../camera/world.ts';
@@ -16,24 +17,30 @@ import { dynamicWorld } from './worldDynamic.fixture.ts';
 
 const SIZE: [number, number] = [64, 64];
 
-/** The records a session opened on `source` collects, each holding the corners of its page. */
+/** The records a session opened on `source` collects, each holding the corners of its page, and
+ *  the roots whose rank each posts. */
 async function recordsOf(source: ExplorerSource) {
   const { scene, metadata } = source;
-  const { allPages } = collectClusterPages(scene.source, metadata, new Map(), scene.associations, {
-    allowMissing: true,
-  });
+  const { allPages, roots } = collectClusterPages(
+    scene.source,
+    metadata,
+    new Map(),
+    scene.associations,
+    { allowMissing: true },
+  );
   for (const rec of allPages)
     rec.array = new Uint32Array(await resolveObjectURL(rec.url)!.arrayBuffer());
-  return allPages as (PageRec & { array: Uint32Array })[];
+  postPlacements(roots);
+  return { records: allPages as (PageRec & { array: Uint32Array })[], roots };
 }
 
 /** The dynamic records of the view from z = 5 that the Hi-Z test keeps, and all of them. */
-function keptOf(records: Awaited<ReturnType<typeof recordsOf>>) {
+function keptOf({ records, roots }: Awaited<ReturnType<typeof recordsOf>>) {
   const camera = readCameraWorld(createEngineCamera(), cameraAt(5)),
-    ids = rasterVisibilityIds(records, camera, SIZE);
-  const pyramid = buildHizPyramid(visibilityDepth(ids, records, camera, SIZE), ...SIZE);
+    ids = rasterVisibilityIds(records, roots, camera, SIZE);
+  const pyramid = buildHizPyramid(visibilityDepth(ids, records, roots, camera, SIZE), ...SIZE);
   const dynamic = records.filter((rec) => !rec.geometryPage);
-  return { dynamic, kept: filterUnoccluded(dynamic, pyramid, camera, SIZE) };
+  return { dynamic, kept: filterUnoccluded(dynamic, roots, pyramid, camera, SIZE) };
 }
 
 /** A wall at z = 0 and a dynamic sheet at `z`, drawn once. The wall's centre is off the view's:
@@ -51,25 +58,25 @@ async function wallAndSheet(z: number) {
   mesh.position.z = z;
   world.scene.add(mesh);
   await world.frame();
-  return { world, sheet, records: await recordsOf(world.sources[0]) };
+  return { world, sheet, collected: await recordsOf(world.sources[0]) };
 }
 
 test('a dynamic sheet behind an opaque wall is occluded by the Hi-Z test the pages pass', async () => {
-  const { world, records } = await wallAndSheet(-2);
-  const { dynamic, kept } = keptOf(records);
+  const { world, collected } = await wallAndSheet(-2);
+  const { dynamic, kept } = keptOf(collected);
   world.end();
   assert.ok(dynamic.length > 0, 'paged by its index alone, its vertices read as floats');
   assert.equal(kept.length, 0, 'every cluster of it hidden');
 });
 
 test('a dynamic sheet in front is never culled, its rewritten vertices within the box that culls it', async () => {
-  const { world, sheet, records } = await wallAndSheet(2);
+  const { world, sheet, collected } = await wallAndSheet(2);
   const position = sheet.attributes.position;
   for (let frame = 0; frame < 30; frame++) {
     for (let v = 0; v < position.count; v++) position.setZ(v, Math.sin(frame + v) * 0.3);
     position.needsUpdate = true;
     await world.frame();
-    const { dynamic, kept } = keptOf(records);
+    const { dynamic, kept } = keptOf(collected);
     assert.equal(kept.length, dynamic.length, `frame ${frame}: every cluster kept`);
     for (const rec of dynamic) {
       const drawn = rec.attributes.position.array as Float32Array;

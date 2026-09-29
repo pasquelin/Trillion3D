@@ -14,6 +14,7 @@ import { cameraMoteur } from '../../camera/camera.fixture.ts';
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import { dagLevel, dagRoots } from '../../backend/pagesBackend.fixture.ts';
 import { camera, quadScene } from './testScenes.fixture.ts';
+import type { Placements } from '../../page/selection/placements.ts';
 
 export function occluderScene() {
   const geometry = new G.Geometry();
@@ -99,6 +100,7 @@ export function assertOccluderImage(
     visibilityIds(): Uint32Array;
   },
   shown: PageRec[],
+  roots: Placements,
   camera: G.Camera,
   viewport: [number, number],
 ) {
@@ -109,7 +111,13 @@ export function assertOccluderImage(
   assert.equal(
     compareImages(
       backend.rasterRgba(),
-      shadeVisibility(rasterVisibilityIds(visPages, cam, viewport), visPages, cam, viewport),
+      shadeVisibility(
+        rasterVisibilityIds(visPages, roots, cam, viewport),
+        visPages,
+        roots,
+        cam,
+        viewport,
+      ),
     ).maxChannelError,
     0,
   );
