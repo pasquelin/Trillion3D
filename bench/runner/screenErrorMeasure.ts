@@ -152,7 +152,9 @@ function shows(triangles: Float32Array, t: number, eye: number[], twoSided?: Uin
  * The screen error of `drawn` against `source` under `pose`. Both directions count the sample
  * points in the frustum that no drawn surface hides: what is drawn on screen, and what the
  * source shows through a hole or past a receding drawn surface; the far side of a closed mesh,
- * drawn or not, is not seen. A drawn triangle that does not show neither hides nor is sampled.
+ * drawn or not, is not seen. A drawn triangle that does not show neither hides nor is sampled,
+ * but stays the nearest drawn surface of a source point: at a silhouette the drawn triangle that
+ * turned away stands where the source one is, a grazing sliver on screen.
  */
 export function measureView(o: {
   source: Float32Array;
@@ -167,20 +169,17 @@ export function measureView(o: {
   height: number;
 }) {
   const view = viewOf(o.pose, o.width, o.height);
-  const shown: number[] = [];
-  for (let t = 0; t < o.drawn.length / 9; t++)
-    if (shows(o.drawn, t, view.eye, o.drawnTwoSided))
-      for (let k = 9 * t; k < 9 * t + 9; k++) shown.push(o.drawn[k]);
-  const drawn = Float32Array.from(shown);
+  const shown = o.drawn.filter((_, i) => shows(o.drawn, (i / 9) | 0, view.eye, o.drawnTwoSided));
   const sourceTree = o.sourceTree ?? buildTriangleTree(o.source),
-    drawnTree = buildTriangleTree(drawn);
+    shownTree = buildTriangleTree(shown),
+    drawnTree = buildTriangleTree(o.drawn);
   const ray = new Float64Array(3);
   /** Whether a drawn surface stands before `p` on the ray aimed at `p + nudge`, `nudge` in pixels. */
   const blocked = (p: Float64Array, nudge: number) => {
     const depth = -q[2],
       shift = (nudge * depth) / view.focal;
     for (let k = 0; k < 3; k++) ray[k] = p[k] + shift * NUDGE[k] - view.eye[k];
-    const hit = nearestTriangleOnRay(drawnTree, view.eye, ray);
+    const hit = nearestTriangleOnRay(shownTree, view.eye, ray);
     const length = Math.hypot(ray[0], ray[1], ray[2]),
       margin = (HIDDEN_MARGIN_PX * depth) / view.focal;
     return hit !== null && hit.t * length < length - margin;
@@ -193,7 +192,7 @@ export function measureView(o: {
   const faces = Uint8Array.from({ length: o.source.length / 9 }, (_, t) =>
     Number(shows(o.source, t, view.eye, o.twoSided)),
   );
-  const forward = errors(view, drawn, sourceTree, visible),
+  const forward = errors(view, shown, sourceTree, visible),
     reverse = errors(view, o.source, drawnTree, (p, t) => faces[t] === 1 && visible(p));
   return { triangles: o.drawn.length / 9, forward: summary(forward), reverse: summary(reverse) };
 }
