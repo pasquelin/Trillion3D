@@ -6,6 +6,7 @@ import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartiti
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { createPartitionCells, type PartitionCells } from '../../scene/partition/cells.ts';
 import { cellReach } from '../../scene/partition/plan.ts';
+import { createCellPages, withHoldings } from '../../scene/partition/cellPages.ts';
 import { placedMesh } from '../../scene/partition/rows.ts';
 import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../../streaming/priority.ts';
 import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
@@ -18,13 +19,13 @@ const budget = { admits: () => true, spend() {} };
 /** Cells that record what a frame hands them, and ask for one cell visible and one ahead. */
 function recording() {
   const seen: { eye: number[]; reach: number; io: Io }[] = [];
-  const cells = {
+  const cells = withHoldings({ meshes: new Map(), manifest: createCellPages(undefined, []) }, {
     frame(eye: number[], reach: number, io: Io) {
       seen.push({ eye: [...eye], reach, io });
       io.request(['near.json'], false);
       io.request(['ahead.json'], true);
     },
-  } as unknown as PartitionCells;
+  } as unknown as PartitionCells);
   return { cells, seen };
 }
 
