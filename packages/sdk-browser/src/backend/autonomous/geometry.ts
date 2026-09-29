@@ -103,7 +103,9 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
     for (const rec of records) {
       const list = byUrl.get(rec.url) ?? [],
         index = list.indexOf(rec);
-      if (index >= 0) list.splice(index, 1);
+      // Already gone — an unmount took the row an instance copied —: its rank names no root now.
+      if (index < 0) continue;
+      list.splice(index, 1);
       // Resident until its last HOLDING record leaves: a mount's may still wait for its bytes.
       if (rec.array && !list.some((other) => other.array)) state.residentPages--;
       if (!list.length) byUrl.delete(rec.url);
