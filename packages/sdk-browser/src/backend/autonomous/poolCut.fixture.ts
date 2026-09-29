@@ -95,6 +95,7 @@ export function mount(
     parentsOf: createPageParents(roots),
     drop,
     others: views.others,
+    captureDrawn: views.captureDrawn,
     onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
   });
   let camera = view ?? dagCamera();
