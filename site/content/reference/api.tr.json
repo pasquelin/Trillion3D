@@ -1157,6 +1157,9 @@
       "dynamicUploadBytes": "Bu karede yerinde yüklenen dinamik geometri köşe baytları (#573), dünyanın kare başına bütçesi içinde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Hiçbir dünyanın çizmediği yerde yoktur."
     }
   },
+  "FramePass": {
+    "summary": "Çizilen karenin geçişlerini adlandırır; her çağrı öncekini kapatıp sonrakini açar."
+  },
   "Frustum": {
     "summary": "Çekirdek (`math/frustum/frustum.ts`) tarafından bir view-projection'dan okunan altı düzlem.",
     "members": {

@@ -1165,6 +1165,9 @@
       "dynamicUploadBytes": "Byte verteks geometri dinamis yang diunggah di tempat pada frame ini (#573), dalam anggaran per frame dunia (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Tidak ada jika tidak ada dunia yang menggambar."
     }
   },
+  "FramePass": {
+    "summary": "Menamai tahapan bingkai yang sedang digambar; setiap panggilan menutup tahap sebelumnya dan membuka tahap berikutnya."
+  },
   "Frustum": {
     "summary": "Enam bidang, dibaca dari sebuah view-projection oleh inti (`math/frustum/frustum.ts`).",
     "members": {

@@ -641,6 +641,7 @@
     "reference:Fog": "eb21bdb8 cdeaab4a 7ceb5eb5 eb9472ca 8866bdeb fcec176b 555e823b 6028ba67 2825c8c2 d9cde4e5 0b317db4 b2867d7e db0a6deb b93d0745 100a22a6",
     "reference:FrameInfo": "d599117a c20900a1 dc35405d f03d6366 1601b925 1487e0ca 1d778f28 4c2a5537 45606cc5 264e5675 ba1e2862 d3b402b1 e1b4f9c6 7ebd039b 31bfc21f",
     "reference:FrameMetrics": "78661913 69030142 c33efa5d d7c41623 8d42b1d4 0bdaf154 f53a8e38 d671b4fc e70654d8 62512621 ccede8f5 61645d83 da1c77be fd09a518 3240a4e6",
+    "reference:FramePass": "5f5a2b96 2ef5eb13 286fb4d5 0ca56bf5 b235eb9e 300140f5 f50f1e33 b9aba2f9 f2c9ac0e d481c058 05715950 738c1fd8 b0d7c9bd 6c89d11c 6ea98650",
     "reference:Frustum": "5873e277 4a545a96 c7b2d97f 98acf4a9 728a34d3 ba127dfe a56ac201 8abcac34 3bcf4e3f 440f18b2 adb8d03a 42de4ea5 aee4998c 72b0a6c2 234f0e4b",
     "reference:GEOMETRY_PAGE_CODEC": "1937a992 ad0ef051 6e81d42c 9ae69072 22adef84 a6719d06 5f1f152a 7603a462 8f6a8fa5 3818ef0d d7b984f3 96b5dea0 5f92b682 79d4dde7 75a617aa",
     "reference:GEOMETRY_PAGE_FORMAT_VERSION": "577c9a94 54271097 0d764037 b5e49ec6 1eb69def b47fc719 b53a5cfd 51202a35 a3b63b5f db07e8d7 ad80057f 527dfb6e c550e6d0 b7a898e5 3c5cb5e7",
