@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
-import { frameTargetAllocation, targetsFit } from './targets.ts';
+import { frameTargetAllocation, makeTargets, targetsFit } from './targets.ts';
 import { requestFrameTargets } from './targetGrant.ts';
 import { standardSurface } from '../../../host/graph/graph.fixture.ts';
 import { surfaceOf } from '../../../page/surface.ts';
@@ -34,6 +34,7 @@ function runtime(reflective = false) {
       resized.push([w, h]);
       return true;
     },
+    release() {},
     dispose() {},
   };
   const rt = {
@@ -107,6 +108,36 @@ test('a blended scene costs the share only when a debug view or the temporal pas
   rt.vis.asIsShown = false;
   rt.gpu.temporalWanted = true;
   assert.equal(frameTargetAllocation(rt, native(64, 32)), base + 64 * 32 * 2, 'its reactive value');
+});
+
+// #1162: with no debug view the frame targets hold no share texture and cost none; with one, the
+// share is made with them and costed.
+test('the frame targets hold the share only while a debug view reads it', () => {
+  const { rt } = runtime();
+  const glass = { surface: surfaceOf(standardSurface({ roughness: 1 })) };
+  Object.assign(rt, {
+    blendState: { blendGpu: [glass] },
+    vis: { asIsShown: false },
+    capture: { capturing: false },
+  });
+  const { device, textures } = fakeDevice({ limits: { maxTextureDimension2D: 8192 } });
+  const made = (shown: boolean) => {
+    rt.vis.asIsShown = shown;
+    const bytes = frameTargetAllocation(rt, native(64, 32));
+    textures.length = 0;
+    makeTargets(rt, device, native(64, 32), bytes);
+    const labels = textures.map(({ label }) => label);
+    return {
+      bytes,
+      share: labels.includes('Trillion3D current as-is share'),
+      held: !!rt.gpu.asIsShare,
+    };
+  };
+  const shown = made(true);
+  assert.ok(shown.share && shown.held, 'a debug view: the share is made');
+  const plain = made(false);
+  assert.ok(!plain.share && !plain.held, 'no debug view: no share texture');
+  assert.equal(shown.bytes - plain.bytes, 64 * 32 * 2, 'the total drops by its bytes');
 });
 
 test('targets that fit ask nothing of the device: the steady frame is free', () => {

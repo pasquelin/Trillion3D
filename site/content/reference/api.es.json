@@ -1208,7 +1208,7 @@
   },
   "createShadowPlan": {
     "summary": "El planificador de sombras de los mapas virtuales.",
-    "description": "El sombreado anota las páginas que lee; su informe, releído unos fotogramas después, asigna lo que falta del pool fijo. Lo que se movió invalida las páginas asignadas que cubre. Un fotograma dibuja entonces cada página caducada que lee la imagen, todas en ese fotograma: lo que contiene el coste es la caché —una página solo se redibuja cuando cambia lo que contiene—, y el pool es el único límite. Una escena quieta, cuyo sombreado ya no se ejecuta, no pide nada y no dibuja nada. Todos los arrays se reservan una vez; `plan()` no reserva nada."
+    "description": "Los receptores del fotograma nombran las páginas que leen antes de su rasterizado (`demand.ts`) —sin ellos, el informe del sombreado, releído unos fotogramas después— y lo que falta se asigna del pool fijo. Lo que se movió invalida las páginas asignadas que cubre. Un fotograma dibuja entonces cada página caducada que lee la imagen, todas en ese fotograma (`admit.ts`): lo que contiene el coste es la caché —una página solo se redibuja cuando cambia lo que contiene—, y el pool es el único límite. Una escena quieta, cuyo sombreado ya no se ejecuta, no dibuja nada. Todos los arrays se reservan una vez —las celdas de los receptores solo crecen para un fotograma con más receptores—; `plan()` no reserva nada más."
   },
   "createTerminalProgress": {
     "summary": "Una barra de progreso en la terminal que sigue los eventos del compilador.",
@@ -5519,12 +5519,18 @@
       "tileLightPoolCapacity": "Palabras que la reserva de índices de luces tenía en esa imagen muestreada; `null` igualmente.",
       "tileLightPoolOverflowed": "Si una tesela no encontró sitio en la reserva en esa imagen muestreada y recorrió todas las luces.",
       "tileLightPoolGrowths": "Veces que la reserva creció hasta lo que pidió una imagen desbordada, desde que se abrió el explorador.",
-      "gpuShadowsMs": "Tiempo de GPU de las sombras.",
+      "gpuShadowsMs": "Tiempo de GPU de la etapa Sombras, exactamente las pasadas de sombra de la tabla de pasadas del motor: el atlas de sombras, su capa estática, el borrado y la pasada de la capa de transmitancia, el descarte por página, las pirámides de páginas y la prueba de oclusión. El corte desde la luz es una etapa propia (`shadowCasters`); ninguna pasada ajena al trabajo de sombras se cuenta en ella.",
       "gpuShadowCullMs": "Tiempo de GPU para elegir los proyectores de las páginas de sombra que dibuja una imagen: el corte de luz, el descarte por página y la prueba de oclusión de los proyectores en movimiento con las pirámides que lee.",
       "gpuShadowRasterMs": "Tiempo de GPU para dibujar esos proyectores en las páginas: la capa estática y luego el pool.",
       "gpuLightingMs": "Tiempo de GPU de la iluminación.",
+      "cpuShadowPlanMs": "Tiempo de CPU del plan de sombras de la imagen, alrededor del planificador: un paso con nombre del perfil de CPU (`cpuSteps()`, `cpu-timing`), como los cinco siguientes. Cada uno es `null` cuando la imagen no lo ejecutó — sin luz, una imagen retenida — o en un motor que no puede medirlo (WebGL2), nunca 0. Forman parte del tiempo de codificación, nunca se suman a él.",
+      "cpuShadowRequestsMs": "Tiempo de CPU de la lectura del informe de solicitudes de sombra devuelto.",
+      "cpuShadowAdmissionMs": "Tiempo de CPU de la admisión de las páginas caducadas que lee la imagen.",
+      "cpuShadowBatchesMs": "Tiempo de CPU de los lotes de sombra alrededor de sus regiones y pasadas: preparación, confirmaciones, copia de solicitudes.",
+      "cpuShadowRegionsMs": "Tiempo de CPU de la escritura de las regiones de cada lote de sombra: uniformes de caras y registros de páginas.",
+      "cpuShadowPassesMs": "Tiempo de CPU de la codificación de las pasadas de cada lote de sombra: proyectores, borrados y restauraciones, dibujos.",
       "shadowLightCuts": "Cortes de clústeres lanzados desde las luces: uno por vista de luz dibujada, cero en una imagen quieta.",
-      "shadowPagesRequested": "Páginas de sombra virtuales que leyó la imagen, tal como las nombró su último informe de peticiones: lo que marcan los receptores de la cámara.",
+      "shadowPagesRequested": "Páginas de sombra virtuales que lee la imagen, tal como las nombró la demanda anticipada del fotograma —o, sin ella, su último informe de peticiones—: lo que marcan los receptores de la cámara.",
       "shadowPagesCached": "De ellas, páginas leídas directamente del pool: al día, sin dibujo.",
       "shadowPoolPages": "Páginas físicas del pool fijo que contienen una página virtual.",
       "shadowPoolBytes": "Bytes de GPU del pool de sombras: sus páginas de profundidad, sus capas estática y de transmitancia una vez creadas, y los búferes a su lado. Null hasta que el primer fotograma dimensiona el pool.",
@@ -5541,6 +5547,7 @@
     "summary": "El trabajo de sombras del fotograma: qué páginas virtuales se dibujan.",
     "members": {
       "counts": "Lo que hizo el último plan, en páginas.",
+      "spent": "Milisegundos de CPU que el último plan dedicó a leer el informe de solicitudes y a admitir páginas.",
       "worldChanged": "Un nodo se movió: su caja invalida las páginas que cubre en el siguiente plan.",
       "representationChanged": "El mismo mundo con otra precisión: su caja espera a que la cámara se detenga.",
       "resting": "La cámara estaba en reposo en el último plan: su vista era la del plan anterior.",
@@ -5548,7 +5555,7 @@
       "releaseDeferred": "La imagen no planifica ninguna sombra: la unión retenida entra en la lista de inmediato.",
       "setPageInvalidation": "Desactiva la invalidación por página: un objeto en movimiento invalida todas las páginas de las luces que toca. Activa por defecto.",
       "pageInvalidation": "Si un objeto en movimiento invalida solo las páginas que cubre su caja.",
-      "plan": "Planifica un fotograma: invalida lo que se movió, lee el último informe y admite cada página que dibujar.",
+      "plan": "Planifica un fotograma: invalida lo que se movió, lee la demanda de los receptores —o, si no, el último informe— y admite cada página que dibujar.",
       "reissue": "Las páginas del fotograma a partir de `from` no pudieron codificarse: siguen caducadas, pendientes, y el fotograma siguiente las dibuja.",
       "reset": "Vuelve a empezar.",
       "setThreshold": "El umbral al que los cortes de luz eligen sus proyectores de sombra (`thresholds.ts`).",
@@ -6849,10 +6856,16 @@
       "tileLightPoolCapacity": "Palabras que la reserva de índices de luces tenía en esa imagen muestreada; `null` igualmente.",
       "tileLightPoolOverflowed": "Si una tesela no encontró sitio en la reserva en esa imagen muestreada y recorrió todas las luces.",
       "tileLightPoolGrowths": "Veces que la reserva creció hasta lo que pidió una imagen desbordada, desde que se abrió el explorador.",
-      "gpuShadowsMs": "Tiempo de GPU de las sombras.",
+      "gpuShadowsMs": "Tiempo de GPU de la etapa Sombras, exactamente las pasadas de sombra de la tabla de pasadas del motor: el atlas de sombras, su capa estática, el borrado y la pasada de la capa de transmitancia, el descarte por página, las pirámides de páginas y la prueba de oclusión. El corte desde la luz es una etapa propia (`shadowCasters`); ninguna pasada ajena al trabajo de sombras se cuenta en ella.",
       "gpuShadowCullMs": "Tiempo de GPU para elegir los proyectores de las páginas de sombra que dibuja una imagen: el corte de luz, el descarte por página y la prueba de oclusión de los proyectores en movimiento con las pirámides que lee.",
       "gpuShadowRasterMs": "Tiempo de GPU para dibujar esos proyectores en las páginas: la capa estática y luego el pool.",
       "gpuLightingMs": "Tiempo de GPU de la iluminación.",
+      "cpuShadowPlanMs": "Tiempo de CPU del plan de sombras de la imagen, alrededor del planificador: un paso con nombre del perfil de CPU (`cpuSteps()`, `cpu-timing`), como los cinco siguientes. Cada uno es `null` cuando la imagen no lo ejecutó — sin luz, una imagen retenida — o en un motor que no puede medirlo (WebGL2), nunca 0. Forman parte del tiempo de codificación, nunca se suman a él.",
+      "cpuShadowRequestsMs": "Tiempo de CPU de la lectura del informe de solicitudes de sombra devuelto.",
+      "cpuShadowAdmissionMs": "Tiempo de CPU de la admisión de las páginas caducadas que lee la imagen.",
+      "cpuShadowBatchesMs": "Tiempo de CPU de los lotes de sombra alrededor de sus regiones y pasadas: preparación, confirmaciones, copia de solicitudes.",
+      "cpuShadowRegionsMs": "Tiempo de CPU de la escritura de las regiones de cada lote de sombra: uniformes de caras y registros de páginas.",
+      "cpuShadowPassesMs": "Tiempo de CPU de la codificación de las pasadas de cada lote de sombra: proyectores, borrados y restauraciones, dibujos.",
       "hizTestedClusters": "Lo que hizo la prueba de oclusión en un fotograma: los clústeres que se le dieron, los que eliminó, y aquellos cuya huella en pantalla en el nivel 0 supera el núcleo de dieciséis texels y por tanto responden desde un mip más grueso. `hiz*Triangles` son los triángulos de esos mismos clústeres. En el camino de GPU, describen un fotograma MÁS ANTIGUO que el que los renderiza — `hizCountedFrame` dice cuál —, como `gpuPassMs`, y dos fotogramas vecinos suelen llevar la misma medida. Ninguno se estima: `null` para un motor que no prueba la oclusión, en un dispositivo cuyos veredictos no se pueden releer, y mientras no se haya contado ningún fotograma.",
       "hizRejectedClusters": "Clústeres ocultos.",
       "hizOversizedClusters": "Clústeres demasiado grandes para probar.",
@@ -6893,7 +6906,7 @@
       "texturePoolClamp": "Razón del límite de la reserva de texturas: `minimum`, `device-limit`.",
       "hizCulled": "Clústeres que la prueba de oclusión encontró ocultos en este fotograma; `null` donde el camino no los cuenta.",
       "shadowLightCuts": "Cortes de clústeres lanzados desde las luces: uno por vista de luz dibujada, cero en una imagen quieta.",
-      "shadowPagesRequested": "Páginas de sombra virtuales que leyó la imagen, tal como las nombró su último informe de peticiones: lo que marcan los receptores de la cámara.",
+      "shadowPagesRequested": "Páginas de sombra virtuales que lee la imagen, tal como las nombró la demanda anticipada del fotograma —o, sin ella, su último informe de peticiones—: lo que marcan los receptores de la cámara.",
       "shadowPagesCached": "De ellas, páginas leídas directamente del pool: al día, sin dibujo.",
       "shadowPoolPages": "Páginas físicas del pool fijo que contienen una página virtual.",
       "shadowPoolBytes": "Bytes de GPU del pool de sombras: sus páginas de profundidad, sus capas estática y de transmitancia una vez creadas, y los búferes a su lado. Null hasta que el primer fotograma dimensiona el pool.",
@@ -7490,6 +7503,17 @@
   },
   "SHADOW_RECORD_FLOATS": {
     "summary": "Flotantes de un registro de sombra, el que lee el sombreado de una luz: seis matrices de caras de lámpara — ahí, los rangos de profundidad de un sol, `zNear, zFar` cada uno (`recordPack.ts`) —, luego el marco del plano de luz del sol — `right, zNear`, `up, zFar`, `axis`, luego la ranura del rango actual —, luego el origen de la ventana de cada ranura del clipmap en dos enteros, luego una cabecera `vec4f`: caras (lámpara) o niveles (sol), el semicampo tangente de la lámpara o el nivel más fino del sol, el plano cercano de la lámpara y la primera entrada del registro en la tabla de páginas."
+  },
+  "ShadowReceivers": {
+    "summary": "Las superficies que ilumina el sombreado de un fotograma, tal como el anfitrión las entrega antes de su rasterizado de sombras.",
+    "members": {
+      "boxes": "Cajas en el mundo, `RECEIVER_FLOATS` cada una: cada superficie iluminada del fotograma está en una de ellas.",
+      "count": "Cajas listadas.",
+      "planes": "Los seis planos del frustum de la cámara (`frustumPlanesFromMatrix`): lo que queda fuera no se ilumina.",
+      "pixelNear": "Tamaño en el mundo de un píxel en el plano cercano, donde empieza la huella de un punto iluminado: el menor de las pasadas que leen sombras —el del objetivo dibujado, el de la pantalla—.",
+      "pixelNearMost": "El mismo, el mayor de esas pasadas.",
+      "orthographic": "Una cámara ortográfica: la huella de cada píxel es `pixelNear`."
+    }
   },
   "ShadowRequestReport": {
     "summary": "Lo que el sombreado leyó en una imagen: las entradas de la tabla que pidió, sin orden.",

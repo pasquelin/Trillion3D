@@ -5,15 +5,29 @@
  */
 export function createDirtyRows(drawSlots: number) {
   const span = { from: drawSlots, to: -1 };
+  let writes = 0;
   const dirty = {
     marks: new Uint8Array(drawSlots),
     span,
-    /** Declares rows `[from, to]` dirty. */
-    mark(from: number, to = from) {
+    /** Occupant writes since the table was made, never cleared: what `rowsMoved` compares. */
+    get writes() {
+      return writes;
+    },
+    /**
+     * Declares rows `[from, to]` dirty whose occupant, surface and class are kept — a pose, a
+     * diagnostic word —: they are uploaded, and a `rowsMoved` reading still holds, so a model that
+     * moves every image does not walk every row again (#410).
+     */
+    markWords(from: number, to = from) {
       if (to === from) dirty.marks[from] = 1;
       else dirty.marks.fill(1, from, to + 1);
       if (from < span.from) span.from = from;
       if (to > span.to) span.to = to;
+    },
+    /** Declares rows `[from, to]` dirty: an occupant, a surface or a class may have changed. */
+    mark(from: number, to = from) {
+      writes++;
+      dirty.markWords(from, to);
     },
     /** Every row uploaded: the marks cleared on the span alone. */
     clear() {
@@ -30,6 +44,29 @@ export function createDirtyRows(drawSlots: number) {
     },
   };
   return dirty;
+}
+
+/** What a reader derived from rows `[0, count)` of `table` was read at, `writes` marks in. */
+export type RowsReading = { table: object | undefined; count: number; writes: number };
+export const rowsUnread = (): RowsReading => ({ table: undefined, count: -1, writes: -1 });
+
+/**
+ * True when rows `[0, count)` of `table` may hold other words than when `reading` was taken, which
+ * it then takes again. Every row write marks the row (`mark`), so a table, a count and a mark count
+ * all unchanged are the same rows: a walk over hundreds of thousands of instance rows is done again
+ * only when one of them moved (#410), never once per image.
+ */
+export function rowsMoved(
+  reading: RowsReading,
+  table: object | undefined,
+  count: number,
+  writes: number,
+) {
+  if (reading.table === table && reading.count === count && reading.writes === writes) return false;
+  reading.table = table;
+  reading.count = count;
+  reading.writes = writes;
+  return true;
 }
 
 /** A reader of row runs; `ctx` spares it a closure allocated per image. */

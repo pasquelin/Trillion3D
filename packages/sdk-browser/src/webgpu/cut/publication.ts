@@ -9,6 +9,7 @@ import type { WebgpuResidencySets } from '../residency/sets.ts';
 import type { WebgpuPagesCore } from '../pages/runtime.ts';
 import { createEvictionFeed } from '../residency/evictionFeed.ts';
 import type { ViewCut, WebgpuView } from '../pages/state/view.ts';
+import { captureDrawn } from '../../frame/viewTrade.ts';
 
 /**
  * What the rank journal notifies when a page changes coverage: the pending set, and the CPU cut's
@@ -184,8 +185,7 @@ export function createWebgpuCutPublication(
       // budget, as when it replaced the main view's, so it keeps the detail pages it kept then
       // (#268). A persistent view and the main one rank the union, the same queue whichever is
       // drawn, so views drawn every frame never trade slots.
-      residencySets.drawnFirst =
-        views.active !== views.main && capture.capturing ? run.desired : null;
+      residencySets.drawnFirst = captureDrawn(views, capture) ? run.desired : null;
     },
     /** `view`, not the main one, is released: its cut leaves the union, whatever it held. */
     releaseView(view: WebgpuView) {
