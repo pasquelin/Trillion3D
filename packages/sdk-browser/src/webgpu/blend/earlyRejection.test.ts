@@ -19,7 +19,7 @@ import { BLEND_SHADER } from './shader.ts';
  * written, and a pipeline variant to avoid it would be code with no gain.
  */
 test('the blend fragment stage writes nothing to memory', () => {
-  const fragment = BLEND_SHADER.slice(BLEND_SHADER.indexOf('@fragment fn fs('));
+  const fragment = BLEND_SHADER.slice(BLEND_SHADER.indexOf('fn blendFragment('));
   assert.ok(fragment.length > 0, 'the module does carry a fragment stage');
   for (const interdit of [/textureStore/, /atomic/, /@builtin\(frag_depth\)/]) {
     assert.doesNotMatch(fragment, interdit, `${interdit} forbidden in the fragment stage`);

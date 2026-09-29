@@ -17,7 +17,7 @@ labels: ''
 
 ## Proof
 
-<!-- What shows the work is done: test names, the image proof the acceptance session runs, the timing scene the measurement session runs. -->
+<!-- What shows the work is done: test names, the image proof the acceptance session runs, the timing scene the measurement session runs. One item per line: the pull request's Lead verification quotes each (the CI checks it). -->
 
 ## Links
 
