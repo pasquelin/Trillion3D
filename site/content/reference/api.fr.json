@@ -5575,7 +5575,6 @@
       "worldChanged": "Un nœud a bougé : sa boîte entre dans la liste que le planificateur traitera à la prochaine image.",
       "representationChanged": "Le même monde à une autre précision — niveau de détail, résidence, tuile de couleur — : sa boîte attend que la caméra s’arrête, puis entre dans la liste (`changes.ts`).",
       "resting": "La caméra était au repos au dernier plan : sa vue était celle du plan précédent.",
-      "quiet": "La caméra était au repos et rien n’a bougé dans le monde au dernier plan : aucune surface, receveuse ou projetante, n’a pu demander une page que le plan précédent ne demandait pas.",
       "deferredChanges": "Vrai tant qu’un changement de représentation attend que la caméra s’arrête : l’image ne doit pas être gardée avant qu’un plan le consomme.",
       "releaseDeferred": "L’image ne planifie aucune ombre — pas d’atlas, pas de lumière, vue sans lumière — : l’union tenue entre tout de suite dans la liste, où la lit le plan suivant, au lieu d’empêcher l’image d’être gardée.",
       "setPageInvalidation": "Coupe l’invalidation par page : chaque face touchée repart en entier. Actif par défaut.",
