@@ -12,7 +12,7 @@ import { ensureTaaTargets } from '../../../taa/prepare.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { MATERIAL_DEPTH_FORMAT } from '../../../visibility/shader/materialClass.ts';
 import { MATERIAL_DEPTH_PASS } from '../../core/materialPasses.ts';
-import { createAsIsShare } from '../../../lighting/deferred/asIsShare.ts';
+import { AS_IS_SHARE_BYTES, createAsIsShare } from '../../../lighting/deferred/asIsShare.ts';
 import { displayApart, type FrameSize } from '../state/renderScale.ts';
 
 /** Bytes per pixel of the display colour (`DISPLAY_FORMAT`). */
@@ -35,7 +35,7 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
   return (
     frameTargetBytes(width, height, reserveHiz) -
     (rt.feedbackAB?.target === false ? width * height * 4 : 0) +
-    width * height +
+    width * height * AS_IS_SHARE_BYTES +
     additional +
     (wantsReflections(rt) ? width * height * 8 : 8) +
     display * DISPLAY_BYTES +

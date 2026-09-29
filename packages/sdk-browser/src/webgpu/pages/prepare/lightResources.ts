@@ -7,6 +7,7 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { WebgpuLightState } from '../state/lights.ts';
 import { boxEmpty, boxIsEmpty } from '../../../../../sdk-core/src/index.ts';
 import { changeBoxes, growClusterBox, recordMoves } from '../../shadow/bounds.ts';
+import { particleDrawOf } from '../../../particles/webgpuParticles.ts';
 
 const EVERYWHERE_MIN = [-1e30, -1e30, -1e30],
   EVERYWHERE_MAX = [1e30, 1e30, 1e30];
@@ -138,6 +139,16 @@ export function pumpResidentTiles(
  */
 export function wantsContractLighting(rt: WebgpuPagesRuntime) {
   return !rt.lights.store.unlit;
+}
+
+/** Seeds and returns the image's as-is share, beside it the reactive value (`asIsShare.ts`), when
+ *  blends or particles draw over it — they write their coverage in it —; otherwise none. */
+export function seedShare(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
+  const { gpu, blendState, vis } = rt;
+  const blended = blendState.blendGpu.length > 0 && !!vis.blendPipelines;
+  const share = blended || particleDrawOf(rt) ? gpu.asIsShare : undefined;
+  share?.seed(encoder);
+  return share;
 }
 
 /** Whether the image can hold an as-is pixel: a row showed a surface as-is, or a diagnostic view
