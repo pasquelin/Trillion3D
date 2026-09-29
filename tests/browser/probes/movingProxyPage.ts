@@ -19,6 +19,9 @@ import { PROXY_HEADER_WORDS } from '../../../packages/sdk-browser/src/bounce/nod
 import { createTraceRig } from './movingProxyTrace.ts';
 import { ouvrirAppareil as openDevice } from './webgpuDevice.ts';
 
+/** The errors the device raised, under its kit's one name for them. */
+const errorsOf = (gpu: Parameters<typeof createTraceRig>[0]) => gpu.erreurs;
+
 /** Straight down onto the plane: over the canonical pose, then over the moved owner's pose. */
 const RAYS = new Float32Array([0.25, 0.25, 1, 0, 0, 0, -1, 0, 5.25, 0.25, 1, 0, 0, 0, -1, 0]);
 
@@ -32,7 +35,8 @@ const worldOf = (source: number) => {
 export async function run() {
   const gpu = await openDevice();
   if (!gpu) return { unavailable: 'no WebGPU adapter' };
-  const { device, erreurs: errors } = gpu;
+  const { device } = gpu,
+    errors = errorsOf(gpu);
   const proxy = ownedProxy();
   const resident = createGpuBounceProxy(device, proxy);
   // The owner ranges follow triangles, node bounds, node children and triangle groups.
@@ -77,7 +81,8 @@ const lifted = (source: number) => {
 export async function runMixed() {
   const gpu = await openDevice();
   if (!gpu) return { unavailable: 'no WebGPU adapter' };
-  const { device, erreurs: errors } = gpu;
+  const { device } = gpu,
+    errors = errorsOf(gpu);
   const proxy = mixedProxy();
   const resident = createGpuBounceProxy(device, proxy);
   const moved = resident.sync(lifted);
@@ -132,7 +137,8 @@ function largeRays() {
 export async function runLarge() {
   const gpu = await openDevice();
   if (!gpu) return { unavailable: 'no WebGPU adapter' };
-  const { device, erreurs: errors } = gpu;
+  const { device } = gpu,
+    errors = errorsOf(gpu);
   const proxy = floorProxy(SIDE, 2);
   const resident = createGpuBounceProxy(device, proxy);
   const rig = createTraceRig(gpu, resident.buffer, largeRays());
