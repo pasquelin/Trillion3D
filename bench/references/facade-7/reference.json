@@ -1,0 +1,99 @@
+{
+  "scene": "facade-7",
+  "commit": "df8c71e2f2a14d6445e0df07bbb82d2730d5236e",
+  "dirty": false,
+  "from": "folder",
+  "command": "node bench/runner/reference.ts --scene facade-7",
+  "generatedAt": "2026-09-29T17:16:08.939Z",
+  "pathVersion": 9,
+  "engine": "webgpu",
+  "settings": {
+    "width": 1728,
+    "height": 1117,
+    "dpr": 2,
+    "lights": 0,
+    "lightShadows": true,
+    "lightIntensity": 40,
+    "lightRangeFactor": 0.75,
+    "sun": true,
+    "bounce": true,
+    "importedLights": true,
+    "instances": 1
+  },
+  "supersampling": 2,
+  "approximations": [
+    "renderScale",
+    "temporalReuse",
+    "probeBudget",
+    "shadowResolution",
+    "supersampling"
+  ],
+  "views": {
+    "overview": {
+      "pose": {
+        "position": [
+          4.32,
+          8.24,
+          4.68
+        ],
+        "target": [
+          0,
+          0.48,
+          0
+        ],
+        "fov": 55,
+        "near": 0.01,
+        "far": 116.61903789690601
+      },
+      "file": "overview.png",
+      "sha256": "360ceb2b10929f2a51cfbc3b2c5a89217ec4ea0ca1c1add1b3bd68e527288806",
+      "width": 3456,
+      "height": 2234,
+      "settleFrames": 0
+    },
+    "ground": {
+      "pose": {
+        "position": [
+          1.2000000000000002,
+          0.288,
+          0.8999999999999999
+        ],
+        "target": [
+          0,
+          0.48,
+          0
+        ],
+        "fov": 55,
+        "near": 0.01,
+        "far": 116.61903789690601
+      },
+      "file": "ground.png",
+      "sha256": "c992875a7ea31674438e679a708a0323603d9d10631d661eaec359c7eef96171",
+      "width": 3456,
+      "height": 2234,
+      "settleFrames": 0
+    },
+    "street": {
+      "pose": {
+        "position": [
+          -0.02033898305084736,
+          0.34901694915254233,
+          1.0525423728813559
+        ],
+        "target": [
+          0,
+          0.48,
+          0
+        ],
+        "fov": 55,
+        "near": 0.01,
+        "far": 116.61903789690601
+      },
+      "file": "street.png",
+      "sha256": "bc24ad4f97038fb75f7e0607ea154563edde693dd54d50a380734292a6af8957",
+      "width": 3456,
+      "height": 2234,
+      "settleFrames": 0
+    }
+  }
+}
