@@ -3,7 +3,7 @@ import test from 'node:test';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { clusterMaterialReason } from './compatibility.ts';
 import { clusterValidation } from './validation.ts';
-import { physicalFeaturesLost } from '../../scene/physicalMaterialGate.ts';
+import { featuresOf, physicalLostMask } from '../../scene/physicalMaterialGate.ts';
 import { drawPasses } from '../../cluster/batchMesh.ts';
 import { hostBlending } from '../../scene/materialBlending.ts';
 
@@ -123,12 +123,12 @@ test('a transmissive physical material is a scene copy of the transmission pass,
   // A physical extension is drawn without, by name (#772): never a refusal.
   plain.ior = 1.3;
   assert.equal(clusterMaterialReason(plain, { position, normal }), undefined);
-  assert.deepEqual(physicalFeaturesLost(plain), ['ior']);
+  assert.deepEqual(featuresOf(physicalLostMask(plain)), ['ior']);
   glass.ior = 1.3; // the IOR of a transmission is drawn
   glass.clearcoat = 0.5;
   glass.thicknessMap = fakeTexture();
   assert.equal(clusterMaterialReason(glass, { position, normal }, true), undefined);
-  assert.deepEqual(physicalFeaturesLost(glass), ['clearcoat', 'thicknessMap']);
+  assert.deepEqual(featuresOf(physicalLostMask(glass)), ['clearcoat', 'thicknessMap']);
 });
 
 test('a transmissive copy mutated into another physical extension is drawn without it', () => {
