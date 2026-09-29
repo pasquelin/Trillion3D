@@ -190,8 +190,7 @@ export function createShadowPlan(poolSide: number, layers = 1) {
         counted = requests.counts;
       thresholds.follow(moved);
       shadowPlan.requests = requests = createShadowRequests(table, pool, records, sun, counted);
-      const allocating = gpu.on;
-      (shadowPlan.gpu = gpu = createShadowMirror(table, pool, records, sun)).set(allocating, 0);
+      shadowPlan.gpu = gpu = createShadowMirror(table, pool, records, sun, gpu);
       shadowPlan.admission = admission = createShadowAdmission(pool.pages);
       return moved;
     },
