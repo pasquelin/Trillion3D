@@ -8,7 +8,11 @@
  *   owners stop, on the still path.
  */
 import { IDENTITY_MATRIX4 } from '../../../packages/sdk-core/src/math/matrix/matrix4.ts';
-import { floorProxy, ownedProxy } from '../../../packages/sdk-core/src/scene/core/proxy.fixture.ts';
+import {
+  floorProxy,
+  mixedProxy,
+  ownedProxy,
+} from '../../../packages/sdk-core/src/scene/core/proxy.fixture.ts';
 import { BOUNCE_SETTINGS } from '../../../packages/sdk-core/src/index.ts';
 import { createGpuBounceProxy } from '../../../packages/sdk-browser/src/bounce/proxy.ts';
 import { PROXY_HEADER_WORDS } from '../../../packages/sdk-browser/src/bounce/nodeWgsl.ts';
@@ -42,7 +46,7 @@ export async function run() {
     4;
   const rig = createTraceRig(gpu, resident.buffer, RAYS);
   // A still proxy reads no owner word: with its owner ranges overwritten by an owner that does not
-  // exist, it still reports owner 0. The real ranges come back before anything moves.
+  // exist, it still hits its posed plane. The real ranges come back before anything moves.
   device.queue.writeBuffer(resident.buffer, rangesByte, new Uint32Array([7, 9]));
   const still = await rig.trace();
   device.queue.writeBuffer(resident.buffer, rangesByte, groupOffsets.slice());
@@ -54,6 +58,42 @@ export async function run() {
   const info = await gpu.fermer();
   const { compilation } = rig;
   return { adapter: info.court, errors, compilation, moved, dynamic, still, after };
+}
+
+/** Down onto the lone plane's new pose and its old one, onto the frame left in place, onto the door. */
+const MIXED_RAYS = new Float32Array(
+  [0.25, 5.25, 0.25, 0.25, 2.25, 0.25, 2.25, 5.25].flatMap((value, at) =>
+    at % 2 ? [value, 1, 0, 0, 0, -1, 0] : [value],
+  ),
+);
+
+/** Sources 0 and 1 lifted five metres along y: the lone plane and the door, not the frame. */
+const lifted = (source: number) => {
+  const world = [...IDENTITY_MATRIX4];
+  world[13] = source <= 1 ? 5 : 0;
+  return world;
+};
+
+export async function runMixed() {
+  const gpu = await openDevice();
+  if (!gpu) return { unavailable: 'no WebGPU adapter' };
+  const { device, erreurs: errors } = gpu;
+  const proxy = mixedProxy();
+  const resident = createGpuBounceProxy(device, proxy);
+  const moved = resident.sync(lifted);
+  const settled = resident.sync(lifted);
+  const dynamic = resident.dynamic;
+  // The lone plane's owner range, poisoned: its posed leaf must never read it.
+  const { triangles, nodeBounds, nodeChildren, triangleGroups } = proxy.data;
+  const words = triangles.length + nodeBounds.length + nodeChildren.length + triangleGroups.length;
+  device.queue.writeBuffer(resident.buffer, (PROXY_HEADER_WORDS + words) * 4, new Uint32Array([7]));
+  const rig = createTraceRig(gpu, resident.buffer, MIXED_RAYS);
+  const rays = await rig.trace();
+  rig.dispose();
+  resident.dispose();
+  const info = await gpu.fermer();
+  const { compilation } = rig;
+  return { adapter: info.court, errors, compilation, moved, settled, dynamic, rays };
 }
 
 const SIDE = 128;

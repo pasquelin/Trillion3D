@@ -1,10 +1,12 @@
 import { preparedNodeRank } from '../../../host/prepared/sourceRanks.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts';
+import type { ProxySync } from '../../../../../sdk-core/src/scene/core/proxyMotion.ts';
 
 type MovingProxy = {
-  sync(worldOf: (source: number) => ArrayLike<number> | undefined): boolean;
-  readonly dynamic?: boolean;
+  sync(worldOf: (source: number) => ArrayLike<number> | undefined): ProxySync;
+  /** Owned leaves wait for their still streak to settle. */
+  readonly settling?: boolean;
 };
 const readers = new WeakMap<
   WebgpuPagesRuntime,
@@ -33,23 +35,22 @@ function reader(rt: WebgpuPagesRuntime) {
 }
 
 /** Late arrivals read today's poses, including host writes that preceded their asynchronous load.
- *  A moving proxy syncs once more on the first frame without a scene write: that is where it
- *  settles (`epoch + 0.5` records that try, so a proxy that cannot settle costs nothing more). */
+ *  A proxy whose owned leaves wait to settle syncs once on each frame without a scene write, until
+ *  its still streak settles them (`proxyMotion.ts`); one that cannot settle stops asking. */
 export function syncPageProxy(rt: WebgpuPagesRuntime, proxy: MovingProxy, arrived = false) {
   const epoch = rt.run.gate.revisions.scene,
-    frame = rt.run.frame,
-    last = seen.get(proxy);
+    frame = rt.run.frame;
   if (
     !arrived &&
-    (last === epoch + 0.5 ||
-      (last === epoch && (!proxy.dynamic || syncedFrame.get(proxy) === frame)))
+    seen.get(proxy) === epoch &&
+    (!proxy.settling || syncedFrame.get(proxy) === frame)
   )
-    return false;
+    return null;
   if (arrived) rt.setup.worlds.refresh();
-  const moved = proxy.sync(reader(rt));
-  seen.set(proxy, last === epoch ? epoch + 0.5 : epoch);
+  const change = proxy.sync(reader(rt));
+  seen.set(proxy, epoch);
   syncedFrame.set(proxy, frame);
-  return moved;
+  return change;
 }
 
 /** Kept bounce resources must follow motion even while bounce is toggled off: far shadows borrow them. */

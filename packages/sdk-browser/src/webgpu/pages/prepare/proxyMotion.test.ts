@@ -13,7 +13,7 @@ test('borrowed far shadows follow off-move-on and late loads without duplicate e
     sync(worldOf: (rank: number) => ArrayLike<number> | undefined) {
       updates++;
       observed = worldOf(-1)![12];
-      return true;
+      return 'moved' as const;
     },
   };
   const rt = {
@@ -40,11 +40,11 @@ test('borrowed far shadows follow off-move-on and late loads without duplicate e
   assert.equal(observed, 90, 'late arrival sees current host world, not its cooked pose');
 });
 
-test('a moving proxy syncs once on the first frame without a scene write, to settle', () => {
+test('a settling proxy syncs once per still frame until it settles, then once per scene write', () => {
   let syncs = 0;
   const proxy = {
-    dynamic: true,
-    sync: () => (syncs++, true),
+    settling: true,
+    sync: () => (syncs++, 'moved' as const),
   };
   const rt = {
     setup: { source: { traverse() {} }, worlds: { of: () => undefined } },
@@ -52,17 +52,19 @@ test('a moving proxy syncs once on the first frame without a scene write, to set
   } as unknown as WebgpuPagesRuntime;
   syncPageProxy(rt, proxy);
   syncPageProxy(rt, proxy);
-  assert.equal(syncs, 1, 'a second sync in the frame that moved does not settle it');
+  assert.equal(syncs, 1, 'a second sync in the frame that moved does not count a still frame');
   rt.run.frame++;
   syncPageProxy(rt, proxy);
-  assert.equal(syncs, 2, 'the still frame reaches the moving proxy');
   rt.run.frame++;
   syncPageProxy(rt, proxy);
-  assert.equal(syncs, 2, 'one settling try per still epoch, even when it cannot settle');
-  proxy.dynamic = false;
+  assert.equal(syncs, 3, 'each still frame reaches the proxy while it waits to settle');
+  proxy.settling = false;
+  rt.run.frame++;
+  syncPageProxy(rt, proxy);
+  assert.equal(syncs, 3, 'settled, or unable to: a still frame costs nothing');
   rt.run.gate.revisions.scene++;
   syncPageProxy(rt, proxy);
   rt.run.frame++;
   syncPageProxy(rt, proxy);
-  assert.equal(syncs, 3, 'a still proxy syncs once per scene write');
+  assert.equal(syncs, 4, 'a still proxy syncs once per scene write');
 });
