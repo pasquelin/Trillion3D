@@ -53,11 +53,16 @@ const COLLIDER_TRIANGLE_BYTES: usize = 2 * GRID_TRIANGLE_BYTES + 3 * 3 * size_of
 const PACKING_CLUSTER_BYTES: usize =
     size_of::<[usize; 8]>() + size_of::<Vec<usize>>() + 2 * size_of::<Value>();
 
+/// Per triangle of a tile, what Jolt allocates while it cooks the tile's `MeshShape`
+/// (`physics_cook::mesh_shape`): its settings' copy of the mesh, the sanitize pass, the AABB tree
+/// builder and the packed tree, then the saved shape. A full tile of `TILE_TRIANGLES` peaks at
+/// 1.18 MB of heap in use (287 bytes a triangle, sampled across the call), under this charge.
+const JOLT_TRIANGLE_BYTES: usize = 320;
 /// A collider tile being cooked (`physics_cook/cut.rs`): per corner of its triangles, the index,
-/// a compacted vertex and its remap entry; per triangle, the bytes of the shape (about 100 kB for
-/// a full tile).
+/// a compacted vertex and its remap entry; per triangle, Jolt's cook.
 const TILE_BYTES: usize = TILE_TRIANGLES
-    * (3 * (size_of::<u32>() + 3 * size_of::<f32>() + hashed(size_of::<(u32, u32)>())) + 32);
+    * (3 * (size_of::<u32>() + 3 * size_of::<f32>() + hashed(size_of::<(u32, u32)>()))
+        + JOLT_TRIANGLE_BYTES);
 /// A bundle being packed: its payload, one page over and above it, and that page being encoded
 /// (`geometry_page::encode`): per corner, its local and remapped indices; per vertex, its source
 /// index and remap entry, its cell, its unique copy and rank entry, its remap and its output bits.
@@ -70,8 +75,11 @@ const BUNDLE_BYTES: usize = STREAM_BUNDLE_BYTES
             + hashed(size_of::<(Cell, u32)>()));
 /// What one worker holds whatever the scene, one tile or one bundle at a time; `plan_buffers`
 /// charges it once per thread, since every primitive of a wave shares the pool's workers.
-pub(crate) const WORKER_BYTES: usize = 1024 * 1024;
-const _: () = assert!(TILE_BYTES <= WORKER_BYTES && BUNDLE_BYTES <= WORKER_BYTES);
+pub(crate) const WORKER_BYTES: usize = if TILE_BYTES > BUNDLE_BYTES {
+    TILE_BYTES
+} else {
+    BUNDLE_BYTES
+};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct PrimitiveCost {

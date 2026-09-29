@@ -49,9 +49,9 @@ fn a01_a_realistic_sparse_over_budget_is_refused_by_admission() {
 }
 
 /// #50: a scene admitted before waves existed is never refused for what its primitives keep
-/// (a page record per cluster). Two primitives of an 18,432-triangle grid and the 1 MiB charged
-/// per worker of 60 threads fit the 64 MiB budget, but their page records leave it no room:
-/// they compile one at a time instead of being refused.
+/// (a page record per cluster). Two primitives of an 18,432-triangle grid and the 60 MiB charged
+/// to the workers fit the 64 MiB budget, but their page records leave it no room: they compile
+/// one at a time instead of being refused.
 #[test]
 fn primitives_whose_kept_pages_leave_no_room_compile_one_at_a_time() {
     let n = 96usize;
@@ -73,7 +73,7 @@ fn primitives_whose_kept_pages_leave_no_room_compile_one_at_a_time() {
         "accessors":[{"bufferView":0,"componentType":5126,"type":"VEC3","count":(n + 1) * (n + 1)},{"bufferView":1,"componentType":5125,"type":"SCALAR","count":n * n * 6}],
         "meshes":[{"primitives":[primitive, primitive]}],"nodes":[{"mesh":0}],"materials":[],"images":[]});
     let (root, mut options) = crate::tests::fixtures::gltf_fixture("waves", &gltf, &bin);
-    options.threads = 60;
+    options.threads = (60 << 20) / crate::compiler_primitive::cost::WORKER_BYTES;
     let result = compile(&options, |_| {}).expect("the scene cooks in smaller waves");
     let metrics = &result["metrics"];
     assert_eq!(result["status"], "ready");
