@@ -9,8 +9,8 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
 test('the cutout posts the tile it reads under the shared rule, into the feedback counters', () => {
   const fs = SHADOW_DEPTH_SHADER.slice(SHADOW_DEPTH_SHADER.indexOf('fn cutoutRequest('));
-  assert.match(fs, /feedbackPhase\(in\.position\.xy,cutoutRequest\.x\)/, 'its phase first');
-  assert.match(fs, /requestPick\(in\.position\.xy,1u,cutoutRequest\.x\)/, 'the pick turn');
+  assert.match(fs, /feedbackPhase\(in\.position\.xy,cutoutWord\.x\)/, 'its phase first');
+  assert.match(fs, /requestPick\(in\.position\.xy,1u,cutoutWord\.x\)/, 'the pick turn');
   // The isotropic level, as `maskAlphaWgsl(true)` reads it: `aniso` false.
   assert.match(fs, /colorRequestIndex\(page\.mapIndex,in\.uv,gx,gy,p\.next,1u,false,/);
   assert.match(fs, /atomicAdd\(&tileFeedback\[rank-1u\],1u\)/);

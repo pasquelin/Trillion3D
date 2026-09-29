@@ -63,7 +63,7 @@ ${PAGE_BINDING.instances}
 ${PAGE_BINDING.slotOffsets}
 struct ShadowView{viewProjection:mat4x4f,params:vec4f,emitter:vec4f,}
 @group(1) @binding(0) var<uniform> shadow:ShadowView;
-@group(1) @binding(1) var<uniform> cutoutRequest:vec4u;
+@group(1) @binding(1) var<uniform> cutoutWord:vec4u;
 @group(1) @binding(2) var<storage,read_write> tileFeedback:array<atomic<u32>>;
 @group(2) @binding(0) var shadowOpaque:texture_depth_2d;
 struct ShadowOut{@invariant @builtin(position) position:vec4f,@location(0) @interpolate(flat) instance:u32,@location(1) uv:vec2f,@location(2) fromEmitter:vec3f,}
@@ -120,8 +120,8 @@ fn shadowKeep(in:ShadowOut,gx:vec2f,gy:vec2f)->bool{
  *  feedback's counters (\`faceBindings.ts\`): what it reads is then what the pose asked. */
 fn cutoutRequest(in:ShadowOut,gx:vec2f,gy:vec2f){
  let page=pages[in.instance];
- if(cutoutRequest.y==0u||(page.flags&${CUTOUT_MAP}u)!=${CUTOUT_MAP}u||!feedbackPhase(in.position.xy,cutoutRequest.x)){return;}
- let p=requestPick(in.position.xy,1u,cutoutRequest.x);
+ if(cutoutWord.y==0u||(page.flags&${CUTOUT_MAP}u)!=${CUTOUT_MAP}u||!feedbackPhase(in.position.xy,cutoutWord.x)){return;}
+ let p=requestPick(in.position.xy,1u,cutoutWord.x);
  let rank=colorRequestIndex(page.mapIndex,in.uv,gx,gy,p.next,1u,false,(page.flags&${FLAG_SAMPLED}u)!=0u);
  if(rank!=0u){atomicAdd(&tileFeedback[rank-1u],1u);}
 }
