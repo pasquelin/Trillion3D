@@ -51,15 +51,7 @@ impl Grown {
         }
         let grown = grown.get_or_insert_with(|| Grown {
             positions: positions.to_vec(),
-            carried: attributes
-                .carried
-                .iter()
-                .map(|&a| Carried {
-                    flag: a.flag,
-                    width: a.width,
-                    values: a.values.clone(),
-                })
-                .collect(),
+            carried: attributes.carried.iter().map(|&a| a.clone()).collect(),
             origin: Vec::new(),
         });
         for &o in &placed.origins {

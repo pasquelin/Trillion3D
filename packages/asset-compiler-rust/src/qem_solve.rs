@@ -40,7 +40,7 @@ pub struct SolvedRegion<'r> {
 impl SolvedRegion<'_> {
     /// Floats of the weighed attributes per compact vertex.
     pub fn stride(&self) -> usize {
-        self.values.len() / self.region.remap.len().max(1)
+        self.region.weights.len()
     }
     /// Whether the solve rewrote compact vertex `local`: its position or a weighed attribute
     /// differs, bit for bit, from the source vertex it started from.
