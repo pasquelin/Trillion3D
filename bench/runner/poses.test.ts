@@ -2,7 +2,7 @@
 // attach there).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PATH_POSES, STREET_REACH, modelFloor, poseAt, type Bounds } from './poses.ts';
+import { PATH_POSES, STREET_REACH, boxStreet, modelFloor, poseAt, type Bounds } from './poses.ts';
 
 test('modelFloor falls back to zero plane when geometry spans the floor', () => {
   assert.equal(modelFloor({ min: { y: -2 }, max: { y: 5 } }), 0);
@@ -34,13 +34,25 @@ const walked: Bounds[] = BOXES.flatMap((box) => [
 
 test('every pose of the path walks the street it was given, or flies above the model', () => {
   for (const bounds of walked) {
-    const road = bounds.street ?? { x: 0, z: 0, ground: 0, clearance: 0 };
+    const road = bounds.street ?? boxStreet(bounds);
     for (let index = 0; index < PATH_POSES; index++) {
       const [x, y, z] = poseAt(bounds, index).position;
       // 1e-9: a share interpolated onto the reach's edge lands a rounding above it.
       const reach = STREET_REACH * road.clearance * Math.SQRT2 + 1e-9;
       const inStreet = Math.hypot(x - road.x, z - road.z) <= reach && y >= road.ground;
       assert.ok(inStreet || y >= bounds.max.y, `pose ${index}: ${x}, ${y}, ${z}`);
+    }
+  }
+});
+
+test('with no street read, the camera walks the box centre with room, inside the box', () => {
+  for (const box of BOXES) {
+    const road = boxStreet(box);
+    assert.ok(road.clearance > 0, 'the fallback has room: sol and rue never look straight up');
+    for (let index = 0; index < PATH_POSES; index++) {
+      const [x, y, z] = poseAt(box, index).position;
+      if (y >= box.max.y) continue;
+      assert.ok(x > box.min.x && x < box.max.x && z > box.min.z && z < box.max.z, `pose ${index}`);
     }
   }
 });

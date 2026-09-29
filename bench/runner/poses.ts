@@ -4,7 +4,7 @@
 import type { CameraPose } from '../../packages/sdk-core/src/contracts/base.ts';
 import type { Street } from './street.ts';
 
-const PATH_VERSION = 8;
+const PATH_VERSION = 9;
 /** Where a path point stands. `street`: at the model's street (`street.ts`), `x` and `z` as shares
  *  of its clearance — the radius no wall crosses at eye height — and `height` in eyes above its
  *  ground; every share stays within `STREET_REACH` of the column, so a segment between two street
@@ -68,6 +68,8 @@ export interface Bounds {
   min: { x: number; y: number; z: number };
   max: { x: number; y: number; z: number };
   street?: Street | null;
+  /** Why no street was read, by name (`street.ts`): the camera walks the box's (`boxStreet`). */
+  noStreet?: string;
 }
 
 /**
@@ -85,9 +87,21 @@ export function eyeHeight(bounds: Bounds) {
   return Math.max(Math.max(sx, sz) * 0.008, sy > 0 ? Math.min(2, sy * 0.03) : 1.6);
 }
 
+/** The street of a model none was read off (`street.ts`): its box centre on its floor, with the
+ *  room its own footprint gives — half its narrower side, so every street point stays inside it. */
+export function boxStreet(bounds: Bounds) {
+  const { min, max } = bounds;
+  return {
+    x: (min.x + max.x) / 2,
+    z: (min.z + max.z) / 2,
+    ground: modelFloor(bounds),
+    clearance: Math.min(max.x - min.x, max.z - min.z) / 2,
+  };
+}
+
 /** The bench pose at trajectory index `index`. The path is a loop (its last point is its first),
  *  so an index past `PATH_POSES` wraps: a run longer than the path goes round again. Without a
- *  street read off the model, the camera walks the box centre on its floor, with no room. */
+ *  street read off the model, the camera walks the box's own (`boxStreet`). */
 export function poseAt(bounds: Bounds, index: number): CameraPose {
   const min = bounds.min,
     max = bounds.max;
@@ -99,7 +113,7 @@ export function poseAt(bounds: Bounds, index: number): CameraPose {
   const radius = Math.hypot(sx, sy, sz) / 2;
   const ground = modelFloor(bounds),
     eye = eyeHeight(bounds);
-  const road = bounds.street ?? { x: cx, z: cz, ground, clearance: 0 };
+  const road = bounds.street ?? boxStreet(bounds);
   const place = ({ x, z, height, at }: PathPoint) =>
     at === 'street'
       ? [road.x + x * road.clearance, road.ground + height * eye, road.z + z * road.clearance]
