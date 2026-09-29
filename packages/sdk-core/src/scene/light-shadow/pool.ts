@@ -1,6 +1,7 @@
 import { PAGE_MAPPED, PAGE_RANGE_SHIFT, PAGE_VALID, SHADOW_TABLE_ENTRIES } from './virtual.ts';
 import type { ShadowTable } from './table.ts';
 import { shadowPageArrays, shadowPageArraysBytes } from './poolPages.ts';
+import { PAGE_FOOTPRINT_FULL, PAGE_FOOTPRINT_SHIFT } from './footprint.ts';
 
 /** Ranks an ordering key spans, centred on zero: a page's coarseness steps lie far inside it. */
 export const RANKS = 1024;
@@ -15,9 +16,9 @@ export const DRAW_ALL = 0,
   DRAW_FULL = 1,
   DRAW_DYNAMIC = 2;
 
-/** Host bytes a pool of `pages` allocates, per page 10·4 + 4 + 2·8, one bit per table entry. */
+/** Host bytes a pool of `pages` allocates, per page 10·4 + 5 + 2·8, one bit per table entry. */
 export const shadowPoolHostBytes = (pages: number) =>
-  pages * (10 * 4 + 4 + 2 * 8) + SHADOW_TABLE_ENTRIES / 8;
+  pages * (10 * 4 + 5 + 2 * 8) + SHADOW_TABLE_ENTRIES / 8;
 
 /**
  * THE PHYSICAL PAGES of the shadow pool and what each one holds: the table entry that maps it,
@@ -93,14 +94,23 @@ export function createShadowPool(side: number, layers = 1) {
         pool.dirty[page] !== STALE_FULL && pool.layered[page] && pool.range[page] === drawn;
       return kept ? DRAW_DYNAMIC : DRAW_FULL;
     },
-    /** The page's draw in `mode`, in depth-range slot `drawn`, has landed: current, readable. */
-    drew(table: ShadowTable, page: number, mode: number, drawn: number) {
+    /** The page's draw in `mode`, in depth-range slot `drawn`, for `footprint` (`footprint.ts`),
+     *  has landed: current, readable there. */
+    drew(
+      table: ShadowTable,
+      page: number,
+      mode: number,
+      drawn: number,
+      footprint = PAGE_FOOTPRINT_FULL,
+    ) {
       pool.dirty[page] = 0;
       pool.valid[page] = 1;
       pool.layered[page] =
         mode === DRAW_FULL || (mode === DRAW_DYNAMIC && pool.layered[page]) ? 1 : 0;
       pool.range[page] = drawn;
-      table.write(pool.owner[page], page | PAGE_MAPPED | PAGE_VALID | (drawn << PAGE_RANGE_SHIFT));
+      pool.footprint[page] = footprint;
+      const flags = PAGE_MAPPED | PAGE_VALID | (drawn << PAGE_RANGE_SHIFT);
+      table.write(pool.owner[page], page | flags | (footprint << PAGE_FOOTPRINT_SHIFT));
     },
     /** THE ONE WAY A PAGE IS READ NO MORE: it keeps its place and its requests, but its depth is
      *  wrong — not only coarser than the view wants — until it is drawn again, and a reader falls
