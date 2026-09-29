@@ -20,7 +20,7 @@ export function createGpuPageLoader(
     const abortListener =
       report && signal
         ? () =>
-            emit('gpu-page-abort', 'GPU load cancelled', () => ({
+            emit?.('gpu-page-abort', 'GPU load cancelled', () => ({
               version: 1,
               key,
               reason: String(signal.reason ?? 'aborted'),
@@ -28,7 +28,7 @@ export function createGpuPageLoader(
         : undefined;
     if (abortListener) signal?.addEventListener('abort', abortListener, { once: true });
     const requestStarted = now();
-    emit('gpu-page-request', 'GPU page request received', () => ({
+    emit?.('gpu-page-request', 'GPU page request received', () => ({
       version: 1,
       key,
       resident: resident.has(key),
@@ -40,7 +40,7 @@ export function createGpuPageLoader(
       const queueStarted = now();
       try {
         check(combined);
-        emit('gpu-page-queue-wait', 'GPU load CPU queue wait finished', () => ({
+        emit?.('gpu-page-queue-wait', 'GPU load CPU queue wait finished', () => ({
           version: 1,
           key,
           durationMs: report ? queueStarted - requestStarted : null,
@@ -49,7 +49,7 @@ export function createGpuPageLoader(
         if (existing) {
           resident.delete(key);
           resident.set(key, existing);
-          emit('gpu-page-cache-hit', 'GPU page already resident', () => ({
+          emit?.('gpu-page-cache-hit', 'GPU page already resident', () => ({
             version: 1,
             key,
             slot: existing.slot,
@@ -59,7 +59,7 @@ export function createGpuPageLoader(
           if (tier) pin(key, tier);
           return existing;
         }
-        emit('gpu-page-cache-miss', 'Page absent from GPU residency', () => ({
+        emit?.('gpu-page-cache-miss', 'Page absent from GPU residency', () => ({
           version: 1,
           key,
           source: 'page-source',
@@ -70,7 +70,7 @@ export function createGpuPageLoader(
         } catch (err) {
           // A refusal another request would meet again (a 4xx) is not asked twice (`checked`).
           if (!combined.aborted && !state.disposed && retriableError(err)) {
-            emit('gpu-page-retry', 'New GPU read after failure', () => ({
+            emit?.('gpu-page-retry', 'New GPU read after failure', () => ({
               version: 1,
               key,
               attempt: 1,
@@ -82,14 +82,14 @@ export function createGpuPageLoader(
         }
         check(combined);
         if (bytes.byteLength > pageBytes || bytes.byteLength === 0) {
-          emit('gpu-page-corruption', 'Unexpected GPU page size', () => ({
+          emit?.('gpu-page-corruption', 'Unexpected GPU page size', () => ({
             version: 1,
             key,
             reason: 'page-size-mismatch',
             expectedBytes: pageBytes,
             actualBytes: bytes.byteLength,
           }));
-          emit('gpu-page-admission-blocked', 'Page refused by a GPU slot capacity', () => ({
+          emit?.('gpu-page-admission-blocked', 'Page refused by a GPU slot capacity', () => ({
             version: 1,
             key,
             reason: 'page-size-mismatch',
@@ -102,7 +102,7 @@ export function createGpuPageLoader(
         if (tier) pin(key, tier);
         return page;
       } catch (error) {
-        emit('gpu-page-error', 'GPU load failed', () => ({
+        emit?.('gpu-page-error', 'GPU load failed', () => ({
           version: 1,
           key,
           status: refusedStatus(error),

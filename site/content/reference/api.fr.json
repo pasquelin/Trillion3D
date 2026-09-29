@@ -260,6 +260,14 @@
       "onEvent": "Appelé à chaque évènement."
     }
   },
+  "BatchRead": {
+    "summary": "Comment `request` lit un lot : son annulation, sa priorité, et ce qui s’exécute à l’arrivée de chaque page.",
+    "members": {
+      "signal": "Annule les lectures du lot.",
+      "priority": "Priorité dans la file, 1 par défaut.",
+      "onPage": "S’exécute à l’arrivée de chaque page lue, pas après tout le lot."
+    }
+  },
   "BatchOutcome": {
     "summary": "Comment une tâche du lot s’est terminée.",
     "members": {
@@ -4081,7 +4089,19 @@
       "evictedTiles": "Tuiles de texture retirées.",
       "residentPages": "Ce qui était résident juste avant le réglage et juste après.",
       "residentTiles": "Tuiles de texture gardées, avant et après.",
-      "durationMs": "Le temps pris."
+      "durationMs": "Le temps pris.",
+      "tables": "Les tables par page dessinable agrandies pour un réservoir au-dessus d’elles (WebGPU), ou `null` quand aucune ne l’a été.",
+      "transientBytes": "Octets tenus à la fois pendant la copie du réservoir de géométrie : l’ancien réservoir et le nouveau à côté, accordés ensemble par l’appareil avant qu’aucune page ne bouge ; 0 quand aucun réservoir n’a bougé."
+    }
+  },
+  "TableGrowthReport": {
+    "summary": "La croissance des tables dimensionnées par ligne dessinable, telle qu’un pool au-dessus d’elles l’a demandée.",
+    "members": {
+      "drawSlots": "Lignes de visibilité que les tables tiennent maintenant.",
+      "casterSlots": "Lignes que lit la passe d’ombres, après les lignes de visibilité.",
+      "bytes": "Octets que tiennent les tables GPU agrandies — ceux demandés, en cas de refus.",
+      "refused": "`true` quand l’appareil les a refusées : les tables et le pool en place sont conservés.",
+      "durationMs": "Millisecondes qu’a prises la croissance, de la sonde à l’échange."
     }
   },
   "Mesh": {
@@ -4475,7 +4495,7 @@
     "description": "Les six premiers sont les refus du décodage de page, repris mot pour mot de `geometryPage.ts` : un appelant les distingue comme avant. `PAGE_DECODE_FAILED` porte tout autre refus de la bibliothèque de décompression. `PAGE_DECODE_CANCELLED` répond à une annulation, `PAGE_DECODE_WORKER` à un exécutant disparu — seul ce dernier permet le repli."
   },
   "PAGE_DECODE_PROTOCOL": {
-    "summary": "Contrat de décodage des pages hors du fil principal, version 6 : la géométrie décodée voyage en un seul bloc avec son erreur de quantification, et l’emplacement de l’arène enregistre cette erreur dans le mot 8 ; `cut` change des triangles dessinés en pages, qui reviennent en octets avec leurs descripteurs, et, depuis la version 6, avec leur cône de normales, les triangles rangés disant si leurs pages en gardent un.",
+    "summary": "Contrat de décodage des pages hors du fil principal, version 6 : la géométrie décodée voyage en un seul bloc avec son erreur de quantification ; `cut` change des triangles dessinés en pages, qui reviennent en octets avec leurs descripteurs, et, depuis la version 6, avec leur cône de normales, les triangles rangés disant si leurs pages en gardent un.",
     "description": "Le fil appelant envoie une `PageDecodeRequest`, l’exécutant renvoie une `PageDecodeAnswer` qui porte le même `id`. Rien ici ne touche la plateforme : pas de `Worker`, pas de récupération, pas d’horloge — l’adaptateur du navigateur porte tout cela, ce fichier ne porte que la forme du message, la liste fermée des échecs et la limite du réservoir. Propriété des tampons : `source` est **transférée** avec la demande, donc l’expéditeur ne la possède plus. Une réponse `verify` la rend, transférée à son tour ; une réponse `decode` rend à la place les tampons décodés, transférés aussi. Un exécutant qui ne transfère rien (le repli synchrone) renvoie exactement les mêmes valeurs : le contrat ne dit pas comment voyage le travail, seulement ce qu’il renvoie."
   },
   "PAGE_INTEGRATION_FAILURES": {
@@ -4588,18 +4608,6 @@
       "op": "Ce qu’il faut faire.",
       "source": "Transféré avec le message : l’expéditeur n’en est plus le propriétaire.",
       "maxDecodedBytes": "Plafond d’octets décodés d’une page de géométrie ; ignoré par `verify`."
-    }
-  },
-  "PageDecodeShare": {
-    "summary": "Le bail de mémoire partagée d’un travailleur : le tampon de l’arène, l’emplacement et la région qu’il possède, et le nombre d’emplacements, qui donne la taille de la zone de contrôle.",
-    "description": "Envoyé une fois, à la naissance du travailleur, et seulement là où la plateforme permet la mémoire partagée. Sans bail, le travailleur répond en transférant des tampons : le contrat ne change pas de forme, seul le chemin des octets change.",
-    "members": {
-      "protocol": "Version du format du message.",
-      "id": "Toujours 0.",
-      "op": "Toujours `'share'`.",
-      "buffer": "La mémoire partagée.",
-      "slot": "L’emplacement de ce travailleur.",
-      "slots": "Emplacements au total."
     }
   },
   "pageDecodeWorkerCount": {

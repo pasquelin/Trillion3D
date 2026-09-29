@@ -18,6 +18,8 @@ export const PROXY_COUNT_OFFSET = PROXY_COUNTING_OFFSET + 4;
 export const PROXY_COUNTS = 2;
 /** Rank of the first layout word: node count, then the three start ranks. */
 export const PROXY_LAYOUT_WORD = 7;
+/** Start rank of the column of groups that cast no shadow, one bit per group (`proxy.ts`). */
+export const PROXY_CASTLESS_WORD = 11;
 /** Revision of the owner poses. */
 export const PROXY_REVISION_WORD = 16;
 /** Visited nodes a ray may take, derived from the tree (`proxy.ts`), after the revision word. */
@@ -41,7 +43,7 @@ export const residentProxyWgsl = (binding: number, writable = true) => `
 struct ResidentProxy{
  offsetMetres:f32,startMetres:f32,maxMetres:f32,present:f32,
  counting:u32,${writable ? 'tested:atomic<u32>,blocked:atomic<u32>' : 'tested:u32,blocked:u32'},nodeCount:u32,
- trianglesWord:u32,boundsWord:u32,childrenWord:u32,pad0:u32,
+ trianglesWord:u32,boundsWord:u32,childrenWord:u32,castlessWord:u32,
  groupsWord:u32,rangesWord:u32,ownersWord:u32,transformsWord:u32,
  revision:u32,steps:u32,pad1:u32,pad2:u32,
  words:array<u32>,

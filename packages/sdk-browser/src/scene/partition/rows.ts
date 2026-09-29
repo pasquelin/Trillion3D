@@ -39,12 +39,14 @@ export type PlacedMesh = {
   readonly links: readonly RowLink[];
   readonly nodes: readonly Object3D[];
   readonly free: number[];
+  /** The `castShadow` of each host mesh its rows were last written with. */
+  readonly casts: boolean[];
 };
 
 /** A placed mesh over `links` drawn by `nodes`, each given one parked row. */
 export function placedMesh(links: readonly RowLink[], nodes: readonly Object3D[] = []): PlacedMesh {
   for (const link of links) link.placements = createPlacementRows(1);
-  return { links, nodes, free: [0] };
+  return { links, nodes, free: [0], casts: nodes.map((node) => node.castShadow) };
 }
 
 /** How many rows every buffer of `mesh` holds. */
