@@ -11,35 +11,59 @@ const WORLD_ROOTS_VERSION = 1;
 /** The table beside the manifest; its binary is the one its `payload` names. */
 export const WORLD_ROOTS_FILE = 'world-roots.json';
 
-/** One bundle: its range in the binary, its digest, its page count and the bundles it needs. */
+/** One bundle of `world-roots.bin`: its range in the binary, its digest, its page count and the
+ *  bundles it needs. */
 export type WorldRootsBundle = {
+  /** Where it starts in the binary, in bytes. */
   offset: number;
+  /** Its length in the binary. */
   bytes: number;
+  /** The SHA-256 of its bytes, checked as it is read. */
   sha256: string;
+  /** How many pages it holds. */
   count: number;
+  /** The bundles its pages need, ascending, up to the world top. */
   dependencies: number[];
 };
-/** One placed primitive of a cell: the world bundles its roots need, up to the top. */
+/** One placed primitive of a world cell: the world bundles its roots need, up to the top. */
 export type WorldRootsObject = {
+  /** Its published node. */
   node: number;
+  /** Its primitive in the manifest. */
   primitive: number;
+  /** The bundles of that primitive's streams holding its roots. */
   roots: number[];
+  /** Every world bundle those roots need, ascending, up to the top. */
   dependencies: number[];
 };
+/** `world-roots.json`: the world DAG the compiler continues above every object's roots — its
+ *  bundles, pages and cells, the pinned top first. */
 export type WorldRoots = {
+  /** Format version. */
   version: number;
+  /** The most bytes the cook lets the pinned top weigh. */
   budgetBytes: number;
   /** The first bundles, the world top: pinned. */
   pinned: number;
+  /** The bytes of the pinned top. */
   pinnedTopBytes: number;
+  /** The binary the bundles lie in, end to end: its address, digest and length. */
   payload: { url: string; sha256: string; bytes: number };
+  /** The bundles, in the binary's order. */
   bundles: WorldRootsBundle[];
+  /** Each page: its bundle, its offset in it, its level and its error. */
   pages: { bundle: number; offset: number; level: number; lodError: number }[];
+  /** Each world cell: the placed primitives it holds. */
   cells: { objects: WorldRootsObject[] }[];
 };
 /** One super-root page viewed on its bundle's bytes: its own vertices in world space, and its
  *  triangles as local indices. */
-export type WorldRootsPage = { positions: Float32Array; indices: Uint16Array };
+export type WorldRootsPage = {
+  /** Its vertices, three numbers each, in world space. */
+  positions: Float32Array;
+  /** Its triangles, three local indices each. */
+  indices: Uint16Array;
+};
 
 const refuse = (message: string): never => {
   throw new EngineError('INVALID_CACHE', `world roots: ${message}`);
