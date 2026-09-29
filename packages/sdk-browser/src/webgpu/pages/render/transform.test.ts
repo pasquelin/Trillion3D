@@ -13,10 +13,10 @@ test('a node moved to the world it already stands at moves nothing, on its first
   crate.position.set(1.5, 2, -3);
   scene.add(crate);
   scene.updateMatrixWorld(true);
-  const { rt, mouvements } = runtime(scene);
+  const { rt, motions } = runtime(scene);
   const revision = rt.run.gate.revisions.scene;
   setWebgpuTransform(rt, 'Crate', Float32Array.from(crate.matrixWorld.elements));
-  assert.deepEqual(mouvements, [], 'no page is staled');
+  assert.deepEqual(motions, [], 'no page is staled');
   assert.equal(rt.run.gate.revisions.scene, revision, 'the scene revision stands');
   assert.equal(crate.matrixAutoUpdate, true, 'the node is left as the host posed it');
 });

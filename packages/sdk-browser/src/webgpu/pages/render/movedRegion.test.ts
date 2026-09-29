@@ -5,29 +5,29 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../../host/graph/graph.fixture.ts';
 import { setWebgpuTransform } from './transform.ts';
-import { racine, runtime, scene } from '../../core/transformShear.fixture.ts';
+import { selectionRoot, runtime, scene } from '../../core/transformShear.fixture.ts';
 
 const moved = new Float32Array(new G.Matrix4().makeTranslation(4, -2, 1).elements);
 
 test('a moved root stales its motion box alone and keeps the pyramid', () => {
   const { source, mesh, worlds } = scene();
-  const root = racine(mesh, [-1, -1, -1, 1, 1, 1], worlds);
-  const { rt, run, mouvements } = runtime(source, [root], worlds);
+  const root = selectionRoot(mesh, [-1, -1, -1, 1, 1, 1], worlds);
+  const { rt, run, motions } = runtime(source, [root], worlds);
   const pyramid = run.temporalHizState.pyramid;
-  setWebgpuTransform(rt, 'cible', moved);
+  setWebgpuTransform(rt, 'target', moved);
   assert.equal(run.temporalHizState.pyramid, pyramid, 'the pyramid is kept');
   const [stale] = run.temporalHizState.stale!;
   assert.equal(run.temporalHizState.stale!.length, 1);
-  assert.deepEqual([stale.min, stale.max], [mouvements[0].min, mouvements[0].max]);
+  assert.deepEqual([stale.min, stale.max], [motions[0].min, motions[0].max]);
   assert.deepEqual([...stale.min, ...stale.max], [-1, -3, -1, 5, 1, 2], 'where it was and is');
 });
 
 test('a root with no box to follow drops the whole pyramid', () => {
   const { source, mesh, worlds } = scene();
-  const root = racine(mesh, [-1, -1, -1, 1, 1, 1], worlds);
+  const root = selectionRoot(mesh, [-1, -1, -1, 1, 1, 1], worlds);
   delete root.localBox;
   const { rt, run } = runtime(source, [root], worlds);
-  setWebgpuTransform(rt, 'cible', moved);
+  setWebgpuTransform(rt, 'target', moved);
   assert.equal(run.temporalHizState.pyramid, undefined);
   assert.equal(run.temporalHizState.camera, undefined);
 });

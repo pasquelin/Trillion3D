@@ -12,7 +12,7 @@ import { watchFirstFrame } from '../session/openWatch.ts';
 import { worldReopens } from './worldReopen.ts';
 import { createCanvasFit, followPageCamera } from './worldCamera.ts';
 import type { PosedTwin } from './worldPoses.ts';
-import { namedNode, poseNode } from '../../host/world/moveByName.ts';
+import { poseNamed } from '../../host/world/moveByName.ts';
 import type { WorldRuntimeInputs as Inputs } from './worldRuntimeInputs.ts';
 
 /** The session drawing a world, fed by a per-frame change list: what the scene asks is resolved
@@ -42,8 +42,8 @@ export function createWorldRuntime(inputs: Inputs) {
   /** A move by name through the session (#972): the page's node the name index finds, posed as
    *  the engines pose theirs, is written as a page write is — its rows, before the next frame. */
   const moveNamed = (nodeName: string, matrix: Float32Array) => {
-    const node = namedNode(scene, nodeName, matrix);
-    if (poseNode(null, node, matrix, false)) poses.moved(node);
+    const node = poseNamed(scene, nodeName, matrix);
+    if (node) poses.moved(node);
     invalidate();
   };
   const relight = () => {
