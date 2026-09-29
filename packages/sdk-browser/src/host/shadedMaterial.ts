@@ -36,6 +36,9 @@ export type HostShadedMaterial = HostMaterial & {
   readonly normalMap?: HostMap;
   readonly normalMapType?: number;
   readonly normalScale?: { readonly x: number; readonly y: number };
+  /** Whether `normalScale` was written for a frame read from vertex tangents — the material
+   *  table's tangent variant (`derivativeTangents` false, `docs/FORMAT.md`); unsaid, unknown. */
+  readonly forVertexTangents?: boolean;
   readonly aoMap?: HostMap;
   readonly aoMapIntensity?: number;
   readonly emissive?: unknown;

@@ -12,6 +12,7 @@ import {
 import {
   assertVisibilityPageTriangles,
   FLAG_BLEND_CASTER,
+  frameNormalScaleY,
   PAGE_INFO_STRIDE,
   VIS_TRIANGLE_BITS,
 } from '../../visibility/buffer.ts';
@@ -133,7 +134,7 @@ export function createPageRowWriter(
     ints[base + 46] = maps.emissive;
     ints[base + 47] = pageIndex;
     floats.set(mat.emissive, base + 48);
-    floats[base + 54] = mat.normalScaleY;
+    floats[base + 54] = frameNormalScaleY(mat, !!geo?.hasTangent);
     floats[base + 55] = rec.role === 'coarse' ? 1 : 0;
     floats[base + 56] = 0;
     // Depth units to add for this cluster's coplanar layer — engine depth is reversed: zero for
