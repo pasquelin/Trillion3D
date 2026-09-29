@@ -1,12 +1,9 @@
 import { askedTableRows, rowScratch } from './layout.ts';
-import { fallbackUniform } from './pipelineFor.ts';
 import { pageTableBuffer } from '../render/encodeDraws.ts';
-import { zeroFlagsBuffer } from '../../visibility/shaders.ts';
 import { invalidateOccluderHistory } from '../io/drops.ts';
 import { deviceMade } from '../../../gpu/core/errorScope.ts';
-import { pendingAll, pendingBuffers, type PendingGrowth } from '../../../gpu/core/tableGrowth.ts';
-import { UNIFORM_STRIDE } from '../../blend/uniforms.ts';
-import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts';
+import { pendingAll } from '../../../gpu/core/tableGrowth.ts';
+import { gpuGrowth } from './growGpuTables.ts';
 import type { TableGrowthReport } from '../../../residency/pools.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
@@ -22,14 +19,13 @@ export function tableRowsFor(rt: WebgpuPagesRuntime, slots: number) {
  * THE TABLES SIZED BY DRAWABLE ROW GROW IN PLACE (#216), when a pool of `slots` slots — a larger
  * geometry pool (`../io/memory.ts`), placements grown in place (`../../../placement/webgpuGrowth.ts`)
  * — asks more rows than they hold. Nothing is prepared again: no shader, no pipeline, no pool, no
- * texture tile. Every GPU buffer sized by row — the page table, the zero flags, the Hi-Z verdicts,
- * the draw compact, the partition, the shadow cull and its occlusion test, the fallback uniforms —
- * is made anew beside the one it replaces, under one out-of-memory scope, while the image goes on
+ * texture tile. Every GPU buffer sized by row (`growGpuTables.ts`) is made anew beside the one it replaces, under one out-of-memory scope, while the image goes on
  * drawing from the old ones. Only once the device granted them all are they swapped in, in one
  * step between two images, with the CPU rows (`../../row/grow.ts`): every visibility row keeps its
  * rank and its page, so the image the next frame draws is the one it would have drawn, now with
  * room for the pages that waited. A refusal frees what was made and keeps every table and the pool
- * in place, said once (`gpu-out-of-memory`). Growths wait for each other, in their order; the
+ * in place, said once (`gpu-out-of-memory`). A lost device grows the CPU rows alone, refusing
+ * nothing: the rebuild prepares its GPU tables at their size, and the host's budget holds. Growths wait for each other, in their order; the
  * report says what the growth cost, or `null` when the tables already held what was asked.
  */
 export function growWebgpuTables(rt: WebgpuPagesRuntime, slots: number) {
@@ -57,16 +53,13 @@ async function growTables(
     setup.cap = Math.max(setup.cap, slots);
     return null;
   }
-  const device = gpu.device;
+  // A lost device grows the rows alone: the rebuild makes its GPU tables from them.
+  const device = run.lost ? undefined : gpu.device;
   let made = pendingAll([]);
-  const granted =
-    device && !run.lost
-      ? await deviceMade(
-          device,
-          () => (made = gpuGrowth(rt, device, drawSlots, casterSlots, slots)),
-        )
-      : made;
-  if (!granted || run.lost || rt.signal.aborted) {
+  const granted = device
+    ? await deviceMade(device, () => (made = gpuGrowth(rt, device, drawSlots, casterSlots, slots)))
+    : made;
+  if (!granted || rt.signal.aborted) {
     granted?.destroy();
     if (!granted)
       diag.engineDiagnostic('gpu-out-of-memory', 'The device refused the grown page tables', {
@@ -85,10 +78,15 @@ async function growTables(
       durationMs,
     };
   }
+  // Lost while the device was asked: what it granted went with it.
+  const lost = run.lost;
+  if (lost) granted.destroy();
   rows.grow(drawSlots, casterSlots - drawSlots);
   Object.assign(layout, rowScratch(drawSlots, setup.pageBytes));
-  granted.commit();
-  follow(rt);
+  if (!lost) {
+    granted.commit();
+    follow(rt);
+  }
   setup.cap = Math.max(setup.cap, slots);
   if (asked.bounded)
     diag.engineDiagnostic('page-table-bounded', 'The device bounds the page table', {
@@ -101,65 +99,6 @@ async function growTables(
   const report = { drawSlots, casterSlots, bytes: made.bytes, refused: false, durationMs };
   diag.engineDiagnostic('page-tables-grown', 'Page tables grown in place', report);
   return report;
-}
-
-/** Every GPU table sized by row, made for `drawSlots` visibility rows and `casterSlots` rows in
- *  all, and the fallback uniforms for a pool of `slots` slots: each only where the session has
- *  the table, committed in the order the later ones read the earlier. */
-function gpuGrowth(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  drawSlots: number,
-  casterSlots: number,
-  slots: number,
-) {
-  const { vis, lights, gpu } = rt,
-    { gpuDraw: draw, gpuHiz: hiz } = vis,
-    pageTable = rt.layout.rows.pageTableFloats;
-  const uniformBytes = Math.max(1, slots) * UNIFORM_STRIDE;
-  const uniform =
-    gpu.uniformBuffer && gpu.uniformBuffer.size < uniformBytes
-      ? fallbackUniform(device, uniformBytes)
-      : undefined;
-  return pendingAll([
-    replaced(vis.zeroFlags && zeroFlagsBuffer(device, drawSlots), (next) => {
-      const old = vis.zeroFlags;
-      vis.zeroFlags = next;
-      return old;
-    }),
-    replaced(pageTable && pageTableBuffer(device, casterSlots * PAGE_INFO_STRIDE), (next) => {
-      const old = vis.pageTable;
-      vis.pageTable = next;
-      return old;
-    }),
-    replaced(uniform, (next) => {
-      const old = gpu.uniformBuffer;
-      gpu.uniformBuffer = next;
-      gpu.uniformPacked = new Float32Array(uniformBytes / 4);
-      return old;
-    }),
-    draw?.grow(drawSlots),
-    hiz?.growFlags(drawSlots),
-    // The draw compact and the Hi-Z test it reads, as they stood: a drop meanwhile throws nothing.
-    draw &&
-      hiz &&
-      vis.gpuPartition?.grow(drawSlots, () => ({
-        items: draw.itemsBuffer,
-        flags: hiz.flags,
-        restBits: draw.restBitsBuffer,
-        slotUsed: draw.slotUsedBuffer,
-      })),
-    lights.cull?.grow(casterSlots),
-    lights.occlusion?.grow(casterSlots),
-  ]);
-}
-
-/** `next`, made now, put in place by `adopt`, which returns the buffer it replaced. */
-function replaced(
-  next: GPUBuffer | undefined,
-  adopt: (next: GPUBuffer) => GPUBuffer | undefined,
-): PendingGrowth | undefined {
-  return next && pendingBuffers([next], () => [adopt(next)]);
 }
 
 /** What reads the grown buffers without owning them follows them: the Hi-Z test the partition's

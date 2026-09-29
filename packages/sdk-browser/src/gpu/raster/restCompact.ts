@@ -3,6 +3,7 @@ import { validated } from '../core/errorScope.ts';
 import { cleanupFailedHiz } from '../hiz/pipelines.ts';
 import { bounceGroup, bounceLayout } from '../../bounce/bindings.ts';
 import { shaderFailed } from '../core/shaderModule.ts';
+import { pendingBuffers, type PendingGrowth } from '../core/tableGrowth.ts';
 
 /** Pass label, the one the per-step profile files under "Geometry". */
 export const REST_COMPACT_PASS = 'Trillion3D rest compaction';
@@ -18,6 +19,11 @@ export type GpuRestCompact = {
   encode(encoder: GPUCommandEncoder, restSlots: number, rows: number, pages: GPUBuffer): void;
   /** Reads `buffers` from now on: those of a draw compact and a Hi-Z test grown in place. */
   rebind(buffers: RestCompactSources): void;
+  /** The work buffer a table of `rows` rows, `copyWords` instance words and `restSlots` tested
+   *  slots needs, made now and put in place by `commit`; nothing when the one held suffices. */
+  growWork(copyWords: number, restSlots: number, rows: number): PendingGrowth | undefined;
+  /** The work buffer held, once an image made it or a growth did. */
+  readonly work: GPUBuffer | undefined;
   dispose(): void;
 };
 
@@ -87,15 +93,11 @@ export async function createGpuRestCompact(
       encode(encoder, restSlots, rows, pages) {
         if (disposed || restSlots < 1 || rows < 1) return;
         const tiles = Math.ceil(rows / REST_COMPACT_WORKGROUP);
-        const words = copyWords + restSlots * (1 + tiles);
+        const words = workWords(copyWords, restSlots, rows);
         // The work buffer only grows: a frame with more rows or slots reallocates it once.
         if (!work || work.size < words * 4) {
           work?.destroy();
-          work = device.createBuffer({
-            label: 'Trillion3D rest compaction work',
-            size: words * 4,
-            usage: GPUBufferUsage.STORAGE,
-          });
+          work = workBuffer(device, words);
           owned = [uniforms, work];
         }
         if (bound?.pages !== pages || bound.work !== work) {
@@ -125,6 +127,20 @@ export async function createGpuRestCompact(
         pass.dispatchWorkgroups(tiles, restSlots);
         pass.end();
       },
+      get work() {
+        return work;
+      },
+      growWork(nextWords, restSlots, rows) {
+        const words = workWords(nextWords, restSlots, rows);
+        if (work && work.size >= words * 4) return undefined;
+        const next = workBuffer(device, words);
+        return pendingBuffers([next], () => {
+          const old = work;
+          work = next;
+          owned = [uniforms, next];
+          return [old];
+        });
+      },
       rebind(next) {
         buffers = next;
         copyWords = next.instances.size / 4;
@@ -142,3 +158,14 @@ export async function createGpuRestCompact(
     return undefined;
   }
 }
+
+/** Words of the work buffer: the instance list's copy, then each tested slot's count and tiles. */
+const workWords = (copyWords: number, restSlots: number, rows: number) =>
+  copyWords + restSlots * (1 + Math.ceil(rows / REST_COMPACT_WORKGROUP));
+
+const workBuffer = (device: GPUDevice, words: number) =>
+  device.createBuffer({
+    label: 'Trillion3D rest compaction work',
+    size: words * 4,
+    usage: GPUBufferUsage.STORAGE,
+  });

@@ -833,8 +833,10 @@ split (`residency/memoryBudget.ts`). The WebGPU tables sized by drawable row sta
 `geometryPoolCeilingBytes` and grow in place when a larger pool asks more rows
 (`webgpu/pages/prepare/growTables.ts`, #216): every GPU buffer sized by row is made anew under one
 out-of-memory scope while the old ones still draw, and swapped in only once all are granted; each
-visibility row keeps its rank, no shader, pipeline, page or tile is made again, and a refusal keeps
-the pool and the tables in place (`tables` in the report). The copy of a pool resize holds the old
+visibility row keeps its rank, no shader, pipeline, page or tile is made again, and nothing sized by
+row is made after the swap (the spheres, mobility words and tested-half work buffer included). A
+refusal keeps the pool and the tables in place (`tables` in the report); a lost device grows the
+CPU rows alone, and the rebuild makes its GPU tables at their size. The copy of a pool resize holds the old
 pool and the new one at once (`transientBytes`), a peak the probe has the device grant before any
 page moves. The WebGL2 engine draws its geometry pool by the same rule (`sessionGeometryPool`: slots
 of the largest decoded page, page cap and session ceiling), its ceiling a fixed bound. A slot holds one geometry copy: a classic instance
