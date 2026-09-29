@@ -29,7 +29,11 @@ test('the temporal shader assembles each fragment once, on the shared page recor
     for (let i = 0; i < size; i++) words.push(name);
   }
   assert.equal(words[ROW_PLACEMENT_WORD], 'placement');
-  assert.match(TAA_REPROJECT_WGSL, /motion\[pages\[\(id>>8u\)-1u\]\.placement\]/);
+  assert.match(
+    TAA_REPROJECT_WGSL,
+    /fn placementOf\(id:u32\)->u32\{return pages\[\(id>>8u\)-1u\]\.placement;\}/,
+  );
+  assert.match(TAA_REPROJECT_WGSL, /motion\[placementOf\(id\)\]/);
 });
 
 test('shader bindings are those of the layout, and the uniform has the declared size', () => {
