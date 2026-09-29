@@ -5,7 +5,16 @@ import {
   PROXY_NODE_FLOATS,
   type SceneProxy,
 } from '../../../sdk-core/src/index.ts';
-import { PROXY_HEADER_WORDS, PROXY_LAYOUT_WORD, PROXY_STEPS_WORD } from './nodeWgsl.ts';
+import {
+  PROXY_DYNAMIC_WORD,
+  PROXY_HEADER_WORDS,
+  PROXY_LAYOUT_WORD,
+  PROXY_REVISION_WORD,
+  PROXY_STEPS_WORD,
+} from './nodeWgsl.ts';
+
+/** Columns motion rewrites: node bounds, node children and owner transforms. */
+const MOVING_COLUMNS = [1, 2, 6];
 
 /** Words of an array, whatever its type: a column is a sequence of words, nothing more. */
 const words = (data: Float32Array | Uint32Array) =>
@@ -70,7 +79,7 @@ export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
   mapped[PROXY_STEPS_WORD] = steps();
   buffer.unmap();
   const albedo = albedoBuffer(device, data?.albedo ?? new Uint32Array(0));
-  // Motion flag, then revision and steps (words 11, 16 and 17), written after each change.
+  // Motion flag, then revision and steps, written after each change.
   const motionFlag = new Uint32Array(1);
   const tail = new Uint32Array(2);
   const write = (index: number) =>
@@ -99,16 +108,18 @@ export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
       return steps();
     },
     sync(worldOf: (source: number) => ArrayLike<number> | undefined) {
-      const wasDynamic = motion.dynamic;
+      const wasDynamic = motion.dynamic,
+        wasSettled = !wasDynamic && motion.revision > 0;
       if (!motion.sync(worldOf)) return false;
-      // Settling or resuming rewrites the triangles; only motion moves the tree and the poses.
-      if (motion.dynamic !== wasDynamic) write(0);
-      if (motion.dynamic) for (const index of [1, 2, 6]) write(index);
+      // Settling, or resuming after a settle, rewrites the triangles; the first motion finds them
+      // canonical already. Only motion moves the tree and the poses.
+      if (motion.dynamic ? wasSettled : wasDynamic) write(0);
+      if (motion.dynamic) for (const index of MOVING_COLUMNS) write(index);
       motionFlag[0] = motion.dynamic ? 1 : 0;
-      device.queue.writeBuffer(buffer, 11 * 4, motionFlag);
+      device.queue.writeBuffer(buffer, PROXY_DYNAMIC_WORD * 4, motionFlag);
       tail[0] = motion.revision;
       tail[1] = steps();
-      device.queue.writeBuffer(buffer, 16 * 4, tail);
+      device.queue.writeBuffer(buffer, PROXY_REVISION_WORD * 4, tail);
       return true;
     },
     get errorMetres() {
