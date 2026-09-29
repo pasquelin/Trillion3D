@@ -14,8 +14,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# `issues: read`: the body check reads the Proof section of the issue the pull request closes.
 permissions:
   contents: read
+  issues: read
 
 jobs:
   pr-body:
@@ -30,10 +32,11 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version-file: package.json
-      - name: Issue linked, local review filled, lead verified once ready
+      - name: Issue closed, local review filled, lead verified and issue proved once ready
         env:
           BODY: ${{ github.event.pull_request.body }}
           PR_DRAFT: ${{ github.event.pull_request.draft }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: printf '%s\n' "$BODY" | node scripts/check-pr-body.ts
       # A release into main carries every merged pull request: rule 5 bounds each step into
       # develop.
