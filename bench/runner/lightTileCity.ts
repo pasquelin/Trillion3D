@@ -69,7 +69,7 @@ export function buildCity(seed = 42): City {
 }
 
 /** The parameters where the ray `o + s·d` enters and leaves the box: entry past exit on a miss. */
-function slab(o: Vec3, d: Vec3, lo: Vec3, hi: Vec3) {
+export function slab(o: Vec3, d: Vec3, lo: Vec3, hi: Vec3) {
   let near = -Infinity,
     far = Infinity;
   for (let a = 0; a < 3; a++) {

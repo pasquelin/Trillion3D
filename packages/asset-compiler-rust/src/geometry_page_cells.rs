@@ -3,8 +3,7 @@
 use crate::geometry_page::Attribute;
 use crate::geometry_page_quant::{max_error, oct_encode, quantize, COLOR_EXPONENT};
 use crate::{CompilerError, Result};
-use std::collections::HashMap;
-use trillion3d_page_codec::bits::Quant;
+use trillion3d_page_codec::bits::{bits_for, stream_words, Quant};
 use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
 
 /// The page's vertices, `width` floats each, gathered from the primitive's `source_width`-wide
@@ -107,12 +106,48 @@ pub fn grids(
     })
 }
 
+/// The positions the page stores and, when it stores each once, every vertex's link to its own
+/// (CMP-10, #960): a flat-shaded page repeats a corner's position under every face normal meeting
+/// there. The distinct positions, in first-use order, are kept when they and the links take fewer
+/// words than one position per vertex; otherwise every vertex keeps its own, with no link. The
+/// decoded vertices are the same either way.
+pub fn stored_positions(unique: &[Cell], bits: [u32; 3]) -> (Vec<[u32; 3]>, Option<Vec<u32>>) {
+    let (table, links) = first_use(unique.iter().map(|cell| cell.position));
+    let words = |count: usize| bits.iter().map(|&b| stream_words(count, b)).sum::<usize>();
+    let link_bits = bits_for(table.len() as u32 - 1);
+    if words(table.len()) + stream_words(unique.len(), link_bits) < words(unique.len()) {
+        (table, Some(links))
+    } else if table.len() == unique.len() {
+        // Every position distinct: the table is already one per vertex, in order.
+        (table, None)
+    } else {
+        (unique.iter().map(|cell| cell.position).collect(), None)
+    }
+}
+
+/// Each distinct item once, in first-use order, and every item's rank among them.
+pub fn first_use<T: Copy + Eq + std::hash::Hash>(
+    items: impl ExactSizeIterator<Item = T>,
+) -> (Vec<T>, Vec<u32>) {
+    let mut distinct = Vec::<T>::with_capacity(items.len());
+    let mut rank = std::collections::HashMap::<T, u32>::with_capacity(items.len());
+    let ranks = items
+        .map(|item| {
+            *rank.entry(item).or_insert_with(|| {
+                distinct.push(item);
+                (distinct.len() - 1) as u32
+            })
+        })
+        .collect();
+    (distinct, ranks)
+}
+
 /// Local vertex renumbering of a page: the table and both lists start at their known final
 /// size, a page carrying at most 65,535 vertices and no more corners than indices.
 pub(crate) fn localise(indices: &[u32], vertices: usize) -> Result<(Vec<u32>, Vec<u32>)> {
     let bound = indices.len().min(65_535);
     let mut original = Vec::<u32>::with_capacity(bound);
-    let mut remap = HashMap::<u32, u32>::with_capacity(bound);
+    let mut remap = std::collections::HashMap::<u32, u32>::with_capacity(bound);
     let mut local = Vec::<u32>::with_capacity(indices.len());
     for &source in indices {
         if source as usize >= vertices {

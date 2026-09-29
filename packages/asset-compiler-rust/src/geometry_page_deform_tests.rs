@@ -25,8 +25,14 @@ fn deformation() -> Deformation {
 #[test]
 fn joints_weights_and_targets_read_back_and_keep_vertices_apart() {
     let indices = [0, 1, 2, 2, 3, 0];
-    let page = encode_deformed(&indices, &POSITIONS, &[], &deformation(), (-8, UV_EXPONENT))
-        .expect("encode");
+    let page = encode_deformed(
+        &indices,
+        &POSITIONS,
+        &[],
+        (&deformation(), &[]),
+        (-8, UV_EXPONENT),
+    )
+    .expect("encode");
     let decoded = trillion3d_page_codec::decode(&page.bytes, 1 << 24).expect("decode");
     // Vertex 3 deforms on other joints than vertex 1: it is not merged into it.
     assert_eq!(decoded.vertex_count, 4);

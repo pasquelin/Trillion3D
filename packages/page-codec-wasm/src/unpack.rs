@@ -67,7 +67,12 @@ fn split(words: &[u32], h: &Header, out: &mut [u32]) -> Result<(), PageError> {
         rest = tail;
         head
     };
-    vector(take(3), words, layout.position, &h.position);
+    let positions = take(3);
+    if h.links_positions() {
+        crate::positions::linked(positions, words, &layout, h);
+    } else {
+        vector(positions, words, layout.position, &h.position);
+    }
     if h.flags & FLAG_NORMAL != 0 {
         let mut stream = BitReader::at(words, layout.normal * 32);
         for normal in take(3).as_chunks_mut::<3>().0 {

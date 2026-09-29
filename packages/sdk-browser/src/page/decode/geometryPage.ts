@@ -71,12 +71,24 @@ export function decodeGeometryPage(
     uv2,
     color,
     corners,
+    positionCount,
+    linkBits,
     skin,
     morphs,
     headerWords,
     bodyWords: at,
     decodedBytes,
-    streams: { blocks, corners: cornerStream, positions, normal, uvs, uv2s, colors, skinned },
+    streams: {
+      blocks,
+      corners: cornerStream,
+      positions,
+      links,
+      normal,
+      uvs,
+      uv2s,
+      colors,
+      skinned,
+    },
   } = readGeometryPageHeader(data, maxDecodedBytes);
   // The streams are read in place when the page sits on a word boundary, from a copy otherwise.
   const body = data.subarray(headerWords * 4);
@@ -99,7 +111,17 @@ export function decodeGeometryPage(
       if (decodedIndices[i] >= vertexCount) throw new Error('GEOMETRY_PAGE_INDEX');
     }
   }
-  vector(attributes.position, words, positions, position);
+  if (positionCount < vertexCount) {
+    // Positions stored once, each vertex dequantized from the one its link names (`positions.rs`).
+    const step = 2 ** position.exponent;
+    for (let i = 0; i < vertexCount; i++) {
+      const p = field(words, links * 32 + i * linkBits, linkBits);
+      for (let c = 0; c < 3; c++) {
+        const q = field(words, positions[c] * 32 + p * position.bits[c], position.bits[c]);
+        attributes.position[i * 3 + c] = fround(position.min[c] + fround(q * step));
+      }
+    }
+  } else vector(attributes.position, words, positions, position);
   if (flags & FLAG_NORMAL)
     for (let i = 0; i < vertexCount; i++)
       octDecode(field(words, normal * 32 + i * 16, 16), attributes.normal, i * 3);

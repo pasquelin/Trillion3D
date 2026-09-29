@@ -135,6 +135,7 @@ export function createDagLightCut(resources: DagResources) {
       // A placement's stretch or a parked root changed on the camera's side: the first row follows.
       if (frameWrites !== resources.frameWrites.count) {
         frameWrites = resources.frameWrites.count;
+        resources.frames.flushWords();
         resources.frames.copyRows(encoder, frames);
       }
       encodeDagKernels(encoder, view);

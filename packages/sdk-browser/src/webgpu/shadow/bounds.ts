@@ -5,12 +5,10 @@ import type { WebgpuLightState } from '../pages/state/lights.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
 import { FLAG_MASK, PAGE_INFO_STRIDE } from '../../visibility/types.ts';
-import { ROW_FLAGS_WORD } from '../row/pageRow.ts';
+import { ROW_FLAGS_WORD, ROW_INDEX_WORDS } from '../row/pageRow.ts';
+import { CLUSTER_SPHERE_FLOATS, clusterSpheres, mobilityRows } from './rowBuffers.ts';
 
 const ROW_WORDS = PAGE_INFO_STRIDE / 4;
-
-/** Floats of a cluster world sphere: centre then radius. */
-const CLUSTER_SPHERE_FLOATS = 4;
 
 /**
  * World sphere of a cluster: the centre of its local box transformed by its world matrix, and the
@@ -64,13 +62,7 @@ function ensureClusterSpheres(rt: WebgpuPagesRuntime, device: GPUDevice) {
     { casterSlots } = rt.layout.rows;
   if (lights.spheres && lights.spheres.rows === casterSlots) return lights.spheres;
   lights.spheres?.buffer.destroy();
-  const buffer = device.createBuffer({
-    label: 'Trillion3D cluster spheres v1',
-    size: Math.max(1, casterSlots) * CLUSTER_SPHERE_FLOATS * 4,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  });
-  const packed = new Float32Array(casterSlots * CLUSTER_SPHERE_FLOATS);
-  lights.spheres = { buffer, packed, rows: casterSlots };
+  lights.spheres = clusterSpheres(device, casterSlots);
   return lights.spheres;
 }
 
@@ -104,10 +96,11 @@ function uploadSphereRun(rt: WebgpuPagesRuntime, from: number, to: number) {
 }
 
 /**
- * Mobility word of rows `[from, to]` — whether its placement moves, whether it is a cutout — pushed
- * on the same dirty interval as the spheres and the page table's flags, and every row once when a
- * placement turns moving: what the page cull splits a page's casters by, static layer or moving
- * casters, and drawn with no fragment stage or with the cutout test (#965).
+ * Mobility word of rows `[from, to]` — whether its placement moves, whether it is a cutout, the
+ * corners its row draws (#966) — pushed on the same dirty interval as the spheres and the page
+ * table's flags, and every row once when a placement turns moving: what the page cull splits a
+ * page's casters by, static layer or moving casters, and drawn with no fragment stage or with the
+ * cutout test (#965).
  */
 export function uploadRowMobility(
   rt: WebgpuPagesRuntime,
@@ -126,22 +119,21 @@ export function uploadRowMobility(
   );
   if (!lights.mobilityRows || lights.mobilityRows.size !== mobility.rowWords.byteLength) {
     lights.mobilityRows?.destroy();
-    lights.mobilityRows = device.createBuffer({
-      label: 'Trillion3D shadow row mobility v1',
-      size: mobility.rowWords.byteLength,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    });
+    lights.mobilityRows = mobilityRows(device, mobility.rowWords.length);
     from = 0;
     to = casterSlots - 1;
   }
   const buffer = lights.mobilityRows,
-    ints = rows.pageTableInts;
+    ints = rows.pageTableInts,
+    // A row the table does not hold yet is sized as the scene's largest: never a triangle short.
+    corners = (row: number) => ints?.[row * ROW_WORDS + ROW_INDEX_WORDS] ?? rt.setup.maxCorners;
   mobility.writeRows(
     (row) => rows.packedRecs[row]?.placementIndex ?? -1,
     casterSlots,
     from,
     to,
     (first, count) => device.queue.writeBuffer(buffer, first * 4, mobility.rowWords, first, count),
+    corners,
     rows.blendFirst,
     (row) => !!ints && (ints[row * ROW_WORDS + ROW_FLAGS_WORD] & FLAG_MASK) !== 0,
   );

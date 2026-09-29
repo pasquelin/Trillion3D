@@ -40,6 +40,17 @@ pub struct PageDeformation {
     pub fields: Vec<Vec<u32>>,
 }
 
+impl Deformation {
+    /// Vertices its arrays cover: the source's, zero when it deforms nothing.
+    pub fn vertices(&self) -> usize {
+        match (&self.skin, self.targets.first()) {
+            (Some((joints, _)), _) => joints.len() / INFLUENCES,
+            (None, Some(target)) => target.position.len() / 3,
+            (None, None) => 0,
+        }
+    }
+}
+
 impl PageDeformation {
     /// The presence bits it adds to the page's flags.
     pub fn flags(&self) -> u32 {
@@ -88,12 +99,22 @@ pub fn quantize_weights(weights: [f32; INFLUENCES]) -> [u32; INFLUENCES] {
 }
 
 /// The page's deformation over its vertices `original` (primitive ranks, in local order):
-/// joints on the page's own base and width, displacements on the primitive's position grid.
+/// joints on the page's own base and width, displacements on the primitive's position grid. A
+/// rank past the source's is a vertex a solved reduction placed: it deforms as its `origin`.
 pub fn page_deformation(
     deformation: &Deformation,
     original: &[u32],
+    origin: &[u32],
     position_exponent: i32,
 ) -> Result<PageDeformation> {
+    let source = deformation.vertices();
+    let original: Vec<u32> = (original.iter())
+        .map(|&v| match (v as usize).checked_sub(source) {
+            Some(placed) if source > 0 => origin[placed],
+            _ => v,
+        })
+        .collect();
+    let original = original.as_slice();
     let mut fields = vec![Vec::new(); original.len()];
     let skin = match &deformation.skin {
         None => None,

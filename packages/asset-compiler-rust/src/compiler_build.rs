@@ -41,6 +41,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         selected_triangles,
         meshes,
         mesh_map,
+        skinned_meshes,
     } = select_nodes(o, &loaded.g, &scene_nodes)?;
     let shown: BTreeSet<usize> = chosen.difference(&hidden).copied().collect();
     // Decided cutouts go to masked before any material is read (`cutout.rs`).
@@ -136,10 +137,10 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         },
         &progress,
     )?;
-    // Resident proxy: coarse cuts and previews in hand, node hierarchy still there.
-    let scene_proxy = {
-        let _t = perf::Timer::new(perf::Phase::Manifest);
-        proxy::stage_proxy(&proxy::ProxyInputs {
+    // Resident proxy then impostors: coarse cuts and previews in hand, node hierarchy still there.
+    let (scene_proxy, impostors) = impostor::stage_stand_ins(
+        (&pool, o, bin, &skinned_meshes),
+        &proxy::ProxyInputs {
             g,
             shown: &shown,
             mesh_map: &mesh_map,
@@ -147,11 +148,9 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
             cuts: &proxy_cuts,
             thresholds: &proxy_thresholds,
             previews: &texture_previews,
-        })?
-    };
-    progress(
-        json!({"phase":"proxy","completed":1,"total":1,"triangles":scene_proxy.triangle_count(),"nodes":scene_proxy.node_count(),"errorMetres":scene_proxy.error_metres}),
-    );
+        },
+        &progress,
+    )?;
     // The proxy is its own cache object: a manifest stays readable without its tens of megabytes.
     let proxy_bytes = scene_proxy.encode();
     let proxy_sha = hash(&proxy_bytes);
@@ -178,7 +177,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     products.extend(world_products);
     let unsupported = compiler_format::unsupported(&o.simplification, autonomous_refusal);
     let cache_format = compiler_format::cache_format(&primitives);
-    let mut result = json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":DAG_ERROR_MODEL,"geometryPages":compiler_page_object::geometry_page_format(),"status":"ready","key":key,"scenePlugin":routed.plugin.map(plugins::provenance),"scope":o.scope,"clusterStrategy":DAG_CLUSTER_STRATEGY,"coplanar":coplanar_report,"texturePreviews":texture_preview_report,"cutouts":cutout_report,"proxy":proxy_descriptor,"physics":physics,"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen.len(),"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"worldRoots":world_report,"worstStalls":compiler_primitive_stalls::worst_stalls(&primitives),"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":shared_math::elapsed_ms(cluster_start),"compileMs":shared_math::elapsed_ms(started),"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"phaseElapsedMs":phases.report(),"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"compileWaves":waves.len(),"peakRssBytes":perf::rss::peak_bytes(),"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
+    let mut result = json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":DAG_ERROR_MODEL,"geometryPages":compiler_page_object::geometry_page_format(),"status":"ready","key":key,"scenePlugin":routed.plugin.map(plugins::provenance),"scope":o.scope,"clusterStrategy":DAG_CLUSTER_STRATEGY,"coplanar":coplanar_report,"texturePreviews":texture_preview_report,"cutouts":cutout_report,"proxy":proxy_descriptor,"impostors":impostors,"physics":physics,"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen.len(),"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"worldRoots":world_report,"worstStalls":compiler_primitive_stalls::worst_stalls(&primitives),"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":shared_math::elapsed_ms(cluster_start),"compileMs":shared_math::elapsed_ms(started),"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"phaseElapsedMs":phases.report(),"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"compileWaves":waves.len(),"peakRssBytes":perf::rss::peak_bytes(),"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
     publish(
         &Publication {
             o,

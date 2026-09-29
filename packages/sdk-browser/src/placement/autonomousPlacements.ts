@@ -21,6 +21,7 @@ import type { HostMaterials } from '../host/resources.ts';
 import type { BackendContext } from '../backend/types.ts';
 import type { createAutonomousGeometry } from '../backend/autonomous/geometry.ts';
 import type { PlacementMount } from './backendSceneUpdates.ts';
+import { poseNamed } from '../host/world/moveByName.ts';
 
 /** Addresses already counted, reused across calls: nothing is allocated to count a frame. */
 const counted = new Set<string>();
@@ -87,6 +88,12 @@ export function autonomousPlacements(env: Placements) {
     gate.sceneChanged();
   };
   return {
+    /** WebGL2's move by name (#972): the node the name index finds, posed as WebGPU poses it
+     *  (`poseNode`), from the parent world its host chain composes. The next image walks the
+     *  engine index and follows it as it follows a host write, which the move settles. */
+    setTransform(nodeName: string, matrix: Float32Array) {
+      if (poseNamed(context.source, nodeName, matrix)) gate.sceneMoved();
+    },
     /** The roots follow their rows, and a frame that moved something is not held. The instanced
      *  pages read the rows at the next frame's sync; the blended copies posed by rows read them in
      *  place and take their flag here (`blendCopyMesh.ts`). */
@@ -122,10 +129,10 @@ export function autonomousPlacements(env: Placements) {
       const cover = autonomousBootstrap(collected.roots);
       const covered = new Set(cover.map((rec) => rec.url)),
         urls = [...covered];
-      const admitted = [...read.descriptors.keys()];
-      context.pageCatalogue?.admit([...read.descriptors.values()]);
+      const admitted = [...read.descriptors.keys(), ...read.sourced.keys()];
+      context.pageCatalogue?.admit([...read.descriptors.values(), ...read.sourced.values()]);
       count(admitted, 1);
-      const pages = await readPages(context, urls).finally(() => count(admitted, -1));
+      const pages = await readPages(context, urls, read.sourced).finally(() => count(admitted, -1));
       context.signal?.throwIfAborted();
       for (const [url, descriptor] of read.descriptors) descriptors.set(url, descriptor);
       // One by one: a spread of a large resource's records overflows the stack.

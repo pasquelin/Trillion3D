@@ -1,7 +1,7 @@
 //! What a `WGP3` page carries for the GPU deformation stage (#357): the joints and weights of a
 //! skinned vertex, and the position and normal displacement of each morph target. Both are
-//! optional streams after the colour, flagged in word 4; words 22 and 23 of the header hold the
-//! skin record and the target count, and each target's record follows the twenty-four header
+//! optional streams after the colour, flagged in word 4; word 23 of the header packs the skin
+//! record and the target count (`word`), and each target's record follows the twenty-four header
 //! words — nine words each, the first the word its streams start at, which a reader recomputes
 //! and trusts only when it matches, so every offset still follows from the counts and the widths.
 
@@ -13,7 +13,7 @@ pub const FLAG_SKIN: u32 = 16;
 pub const FLAG_MORPH: u32 = 32;
 /// Widest joint field: a skin names at most 65,536 joints.
 pub const MAX_JOINT_BITS: u32 = 16;
-/// Most morph targets a page carries.
+/// Most morph targets a page carries: eight bits of word 23.
 pub const MAX_MORPH_TARGETS: usize = 255;
 /// Header words of one morph target: its first stream, then its position and normal records.
 pub const MORPH_WORDS: usize = 9;
@@ -23,30 +23,17 @@ pub const INFLUENCES: usize = 4;
 pub const WEIGHT_BITS: u32 = 8;
 pub const WEIGHT_SCALE: u32 = 255;
 
-/// The skin record, word 22: the page's smallest joint and the width of each joint's distance
-/// to it.
+/// The skin record: the page's smallest joint and the width of each joint's distance to it.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Skin {
     pub base: u32,
     pub bits: u32,
 }
 
-impl Skin {
-    pub fn word(&self) -> u32 {
-        self.bits | self.base << 8
-    }
-
-    /// The record read back; `None` when a bit lies outside it or a joint could pass 65,535.
-    pub fn unpack(word: u32) -> Option<Self> {
-        let skin = Self {
-            bits: word & 63,
-            base: (word >> 8) & 0xffff,
-        };
-        let sane = skin.word() == word
-            && skin.bits <= MAX_JOINT_BITS
-            && u64::from(skin.base) + (1u64 << skin.bits) - 1 <= 0xffff;
-        sane.then_some(skin)
-    }
+/// Word 23: the joint width in bits 0 to 5, the target count in bits 6 to 13, the smallest joint
+/// in bits 14 to 29, two bits zero.
+pub fn word(skin: &Skin, targets: usize) -> u32 {
+    skin.bits | (targets as u32) << 6 | skin.base << 14
 }
 
 /// One morph target of a page: the word its six streams start at, after the header, and the
@@ -83,16 +70,22 @@ impl Morph {
 }
 
 /// The skin record and the morph targets' records of a page whose flags word is `flags`, read
-/// from words 22 and 23 and the records after the header; `None` when a word is set that the
-/// flags do not announce, a record leaves the format, or the records pass the end of `data`.
-pub fn parse(flags: u32, skin: u32, count: u32, data: &[u8]) -> Option<(Skin, Vec<Morph>)> {
-    let skin = match flags & FLAG_SKIN != 0 {
-        true => Skin::unpack(skin)?,
-        false => (skin == 0).then_some(Skin::default())?,
+/// from word 23 and the records after the header; `None` when a field is set that the flags do
+/// not announce, a record leaves the format, or the records pass the end of `data`.
+pub fn parse(flags: u32, packed: u32, data: &[u8]) -> Option<(Skin, Vec<Morph>)> {
+    let (skinned, morphed) = (flags & FLAG_SKIN != 0, flags & FLAG_MORPH != 0);
+    let skin = Skin {
+        bits: packed & 63,
+        base: (packed >> 14) & 0xffff,
     };
-    let count = count as usize;
-    if (flags & FLAG_MORPH != 0) != (1..=MAX_MORPH_TARGETS).contains(&count) {
-        return (count == 0 && flags & FLAG_MORPH == 0).then_some((skin, Vec::new()));
+    let count = ((packed >> 6) & 255) as usize;
+    let sane = word(&skin, count) == packed
+        && (skinned || skin == Skin::default())
+        && skin.bits <= MAX_JOINT_BITS
+        && u64::from(skin.base) + (1u64 << skin.bits) - 1 <= 0xffff
+        && morphed == (count > 0);
+    if !sane {
+        return None;
     }
     let end = HEADER_BYTES + count * MORPH_WORDS * 4;
     let words: Vec<u32> = le_words(data.get(HEADER_BYTES..end)?).collect();

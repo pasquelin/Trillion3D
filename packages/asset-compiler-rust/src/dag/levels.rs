@@ -13,10 +13,11 @@ pub(super) fn coarsen(
     let mut tallies: Vec<GroupTally> = Vec::new();
     let mut stalls: Vec<DagStall> = Vec::new();
     let mut reductions_kept: Vec<DagGroup> = Vec::new();
-    let welds = {
+    let mut welds = {
         let _t = Timer::new(Phase::Weld);
-        attributes::Welds::of(positions, attributes, indices)
+        welds::Welds::of(positions, attributes, indices)
     };
+    let mut grown = None;
     // Per cluster, the worst normal deviation of the source triangles it descends from: a group's
     // reduction is held to the bound of its own descendants (`quality::deviation_bound`).
     let mut descent = quality::cluster_deviations(&dag, positions, attributes.normals());
@@ -50,12 +51,16 @@ pub(super) fn coarsen(
         }
         let locks = {
             let _t = Timer::new(Phase::Locks);
-            level_locks(&welds.weld, &lists, &groups)
+            level_locks(welds.weld(), &lists, &groups)
         };
         let worst: Vec<f64> = groups
             .iter()
             .map(|g| g.iter().map(|&s| descent[current[s]]).fold(0.0, f64::max))
             .collect();
+        // The level reads the vertices placed so far; placing its own waits for every reduction.
+        let (level_positions, carried) = Grown::arrays(&grown, positions, attributes);
+        let weighted = DagAttributes { carried: &carried }.weighted();
+        let base = (level_positions.len() / 3) as u32;
         let reductions: Vec<std::result::Result<GroupReduction, GroupOutcome>> = groups
             .par_iter()
             .zip(&worst)
@@ -65,14 +70,15 @@ pub(super) fn coarsen(
                     let children: Vec<&DagCluster> =
                         group.iter().map(|&slot| &dag[current[slot]]).collect();
                     let bound = quality::deviation_bound(worst);
-                    reduce_group(&welds.input(positions, &locks, bound), &children)
+                    let input = welds.input(level_positions, &carried, &weighted, &locks, bound);
+                    reduce_group(&input, &children)
                 },
             )
             .collect::<Result<Vec<_>>>()?;
         let mut next = Vec::new();
         let mut tally = GroupTally::default();
         for ((group, reduction), &worst) in groups.iter().zip(reductions).zip(&worst) {
-            let reduction = match reduction {
+            let mut reduction = match reduction {
                 Ok(reduction) => {
                     tally.reduced += 1;
                     tally.relocked += usize::from(reduction.relocked);
@@ -84,6 +90,7 @@ pub(super) fn coarsen(
                     continue;
                 }
             };
+            Grown::place(&mut grown, &mut welds, &mut reduction, base);
             let first_parent = dag.len();
             let group_index = reductions_kept.len();
             let mut children = Vec::with_capacity(group.len());
@@ -131,5 +138,5 @@ pub(super) fn coarsen(
             break;
         }
     }
-    Ok((dag, reductions_kept, tallies, stalls))
+    Ok((dag, reductions_kept, tallies, stalls, grown))
 }

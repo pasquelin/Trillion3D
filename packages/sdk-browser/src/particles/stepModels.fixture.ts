@@ -1,7 +1,7 @@
 /**
  * CPU models of the two particle steps (#759) for the fast tests: each runs its shader's
  * arithmetic in 32-bit floats on exactly what its step handed the GPU, and keeps its state as the
- * GPU would. What the GPU itself does is the measurer's (`tests/browser/probes/particles-step-*`).
+ * GPU would. What the GPU itself does is the recette's (`tests/browser/probes/particles-step-*`).
  */
 import { PARTICLE_FLOATS, type ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
 import { written, type FakeWrite } from '../../../../tests/kit/gpu/fakeDevice.ts';

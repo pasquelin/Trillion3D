@@ -127,6 +127,8 @@ const counted = new Set<ArrayBufferView>();
  *  (`../scene/meshes.ts`). */
 export function hostPageBytes(geometry: Geometry) {
   counted.clear();
+  // A dynamic page reads its primitive's own lists (`sourcedPageGeometry`): its index alone is its.
+  if (geometry.usage === 'dynamic') return geometry.index?.array.byteLength ?? 0;
   return geometryBytes(geometry, counted);
 }
 
