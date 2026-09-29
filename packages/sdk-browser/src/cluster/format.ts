@@ -15,7 +15,9 @@ export const FLAG_NORMAL = 1,
   FLAG_COLOR = 8,
   FLAG_SKIN = 16,
   FLAG_MORPH = 32,
-  FLAGS_ALL = 63;
+  /** The index/weight streams name simulated vertices, never joints. Requires FLAG_SKIN. */
+  FLAG_SOFT_SOURCE = 64,
+  FLAGS_ALL = 127;
 /** Header words of one morph target, the widest joint field, the most targets a page carries,
  *  and the bits of a stored weight: three are stored, the fourth is what they leave of 255. */
 export const MORPH_WORDS = 9,

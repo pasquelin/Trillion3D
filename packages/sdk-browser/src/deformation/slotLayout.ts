@@ -1,3 +1,4 @@
+import { FLAG_SOFT_SOURCE } from '../cluster/format.ts';
 import type { PageRec } from '../page/selection/selection.ts';
 import { pageAddress } from '../webgpu/row/pageSlots.ts';
 
@@ -19,7 +20,8 @@ export function deformationSlotBytes(pages: readonly PageRec[], sourceBytes: num
       !mesh?.skeleton &&
       !mesh?.morphTargetInfluences?.length &&
       !mesh?.waves &&
-      mesh?.geometry?.usage !== 'dynamic'
+      mesh?.geometry?.usage !== 'dynamic' &&
+      !((page.geometryPage?.flags ?? 0) & FLAG_SOFT_SOURCE)
     )
       continue;
     const count = page.geometryPage?.vertexCount ?? page.attributes.position?.count ?? 0;

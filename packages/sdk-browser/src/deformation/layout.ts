@@ -15,20 +15,22 @@ import { PALETTE_FLOATS } from '../../../sdk-core/src/world/animation/skeleton.t
 
 export const KIND_SKIN = 1,
   KIND_MORPH = 2,
-  KIND_WAVE = 4;
+  KIND_WAVE = 4,
+  KIND_SOFT = 8;
 export const RECORD_HEAD = 8;
 /** Floats of one wave: direction `x`, `z`, wave number, amplitude, lateral amplitude, this
  *  frame's phase, the last one's, and one unused. */
 export const WAVE_FLOATS = 8;
 
 /** Counts a record is laid out for. */
-export type RecordShape = { joints: number; targets: number; waves: number };
+export type RecordShape = { joints: number; targets: number; waves: number; soft?: number };
 
 /** Where each part of a record starts, from its first float. */
-export function recordLayout({ joints, targets, waves }: RecordShape) {
+export function recordLayout({ joints, targets, waves, soft = 0 }: RecordShape) {
   const palette = RECORD_HEAD,
     weights = palette + 2 * joints * PALETTE_FLOATS,
     world = weights + 2 * targets,
     wave = world + (waves ? 32 : 0);
-  return { palette, weights, world, wave, floats: wave + waves * WAVE_FLOATS };
+  const simulation = wave + waves * WAVE_FLOATS;
+  return { palette, weights, world, wave, simulation, floats: simulation + soft * 12 };
 }

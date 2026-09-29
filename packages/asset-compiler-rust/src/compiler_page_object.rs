@@ -1,13 +1,11 @@
 use super::*;
 use crate::dag::DagCluster;
 use crate::geometry_page_deform::{Deformation, MorphTarget};
-
 /// The geometry-page format every page of the cache is written in, declared once at the top of
 /// the manifest (`geometryPages`): the page header's magic and the sidecar version are the gates.
 pub fn geometry_page_format() -> Value {
     json!({"formatVersion":trillion3d_page_codec::VERSION,"codec":"quantized"})
 }
-
 /// The attributes a page carries beside its positions, read from the primitive's accessors: each
 /// holds `count` vertices, the width the format expects, or three for a colour.
 pub(super) fn page_attributes(
@@ -41,7 +39,6 @@ pub(super) fn page_attributes(
     }
     Ok(attributes)
 }
-
 /// The deformation a primitive declares (#357): its four strongest joints and weights per vertex,
 /// out of `JOINTS_0`/`WEIGHTS_0` and `JOINTS_1`/`WEIGHTS_1` when present, and the position and
 /// normal displacement of each of its morph targets, a silent one displacing nothing.
@@ -92,9 +89,12 @@ pub(super) fn page_deformation(
             normal: field("NORMAL")?,
         });
     }
-    Ok(Deformation { skin, targets })
+    Ok(Deformation {
+        skin,
+        targets,
+        soft_source: false,
+    })
 }
-
 /// Each vertex's four strongest influences among its first set and its second, if any: the joint
 /// indices as integers, the weights as read.
 fn strongest(
@@ -120,7 +120,6 @@ fn strongest(
     }
     Ok((out_joints, out_weights))
 }
-
 /// Writes a geometry page into the content-addressed store and returns its
 /// manifest entry.
 ///
@@ -144,7 +143,6 @@ pub(super) fn store_page(
     }
     Ok((geometry_record(&digest, &encoded, slice.len()), reused))
 }
-
 /// The `geometry` object of a page record: the packed page stored under `digest`.
 pub(crate) fn geometry_record(
     digest: &str,
@@ -154,7 +152,6 @@ pub(crate) fn geometry_record(
     let header = &page.header;
     json!({"url":format!("../../objects/{digest}.bin"),"sha256":digest,"bytes":page.bytes.len(),"vertexCount":header.vertex_count,"indexCount":indices,"flags":header.flags,"uncompressedBytes":header.decoded_bytes(),"quantizationError":header.quantization_error})
 }
-
 /// The manifest record of the page at culling `rank`: its index bytes stored under `digest` (their
 /// `length`) at `offset` in bundle `stream`, their bounds and normal cone, and its packed
 /// `geometry`. `compiler_primitive::cost` charges each page by this shape.
@@ -180,7 +177,6 @@ pub(crate) fn page_record(
         "source":cluster.source.map_or(Value::Null,|index|json!(index)),
         "stream":stream,"streamOffset":offset})
 }
-
 /// What the primitive's grid cost, for the manifest: the grid exponents and the largest position
 /// displacement over every page, in object units; `null` on a primitive without pages, which
 /// was quantized on no grid.

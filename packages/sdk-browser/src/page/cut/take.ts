@@ -74,7 +74,8 @@ export function take<T extends PageRecord>(
     const min = rec.min,
       max = rec.max;
     if (!min || !max) return;
-    if (clipRecordBox(min, max) === 0) {
+    reached(min, max, s.flatReach);
+    if (clipRecordBox(low, high) === 0) {
       s.frustumRejected++;
       return;
     }
@@ -97,7 +98,7 @@ export function take<T extends PageRecord>(
     const childReady = !held || held.isChildReady(index),
       pixels = selectionScratch.pixels,
       t = s.pixelError;
-    if (exact) pixelsAtZero(rec, pixels);
+    if (exact && !(s.flatReach > 0)) pixelsAtZero(rec, pixels);
     else framePixels(s, rec, pixels);
     wanted = drawsCluster(true, pixels[1], pixels[0], true, t);
     drawn = drawsCluster(ready, pixels[1], pixels[0], childReady, t);
