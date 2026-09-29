@@ -4,7 +4,7 @@
  * for every light of the frame.
  */
 import { DIRECT_LIGHT_WGSL } from '../../../packages/sdk-browser/src/lighting/direct/lightWgsl.ts';
-import { SUN_ORIGIN_WGSL } from '../../../packages/sdk-browser/src/lighting/direct/shadowFactorWgsl.ts';
+import { SHADOW_READ_AT_WGSL } from '../../../packages/sdk-browser/src/lighting/direct/shadowFactorWgsl.ts';
 import { shadowRequestWgsl } from '../../../packages/sdk-browser/src/lighting/direct/shadowRequestWgsl.ts';
 import {
   SHADOW_DATA_WGSL,
@@ -28,7 +28,7 @@ ${SHADOW_DATA_WGSL}
 @group(0) @binding(0) var<storage,read> shadows:ShadowData;
 ${shadowRequestWgsl(1)}
 ${SHADOW_PAGE_READ_WGSL}
-${SUN_ORIGIN_WGSL}
+${SHADOW_READ_AT_WGSL}
 ${functionsOf(SHADOW_DEMAND_WGSL, DEMANDED)}
 ${LITS(2)}
 @compute @workgroup_size(64) fn main(@builtin(global_invocation_id) id:vec3u){
