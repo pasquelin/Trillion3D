@@ -1,7 +1,4 @@
-// #965, the audit's equivalence (OMB-01, E0): the split depth draws — opaque casters with no
-// fragment stage, cutout ones with the fragment test, filed in two lists by the real mobility words
-// and `keptAt` — write the page develop's single draw wrote, to the bit, on random casters and on
-// NaN, ±0, ±Inf, empty and maximal inputs. Both run the shipped WGSL (`depthSplit.fixture.ts`).
+// #965 / OMB-01: split depth draws equal develop on random and hostile float32 casters.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mulberry32 } from '../../../../../site/examples/kit/random.ts';
@@ -27,7 +24,6 @@ type Options = {
   cutoutShare?: number;
   blended?: number;
   envelope?: number;
-  /** A value written over one input word in `spoil` of them (`HOSTILE_FLOATS`). */
   special?: number;
   spoil?: number;
   triangles?: number;

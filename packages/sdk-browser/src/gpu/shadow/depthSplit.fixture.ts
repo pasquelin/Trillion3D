@@ -1,17 +1,12 @@
-// The audit's OMB-01 harness (its `t05_shadow_split_raster.py`, OMB proof folder), ported: a depth
-// raster (`greater`, reversed depth, 32-bit float) of one shadow page, fed by the shipped WGSL of
-// the depth draws run on the CPU in 32-bit float, against develop's single draw before #965.
+// OMB-01: float32 reversed-depth raster of shipped WGSL against develop's single draw before #965.
 import { DEPTH_CLEAR, depthNearer } from '../../camera/depthConvention.ts';
 import { FLAG_BLEND_CASTER } from '../../visibility/types.ts';
 import { shaderFunctions } from '../../texture/shaderRule.fixture.ts';
 import { KEPT_LISTS_WGSL } from './cullShader.ts';
 import { SHADOW_DEPTH_SHADER } from './shader.ts';
-/** WGSL's `round`: halves to the even neighbour. */
 const roundEven = (x: number) => (Math.abs(x % 1) === 0.5 ? 2 * Math.round(x / 2) : Math.round(x));
 
-/** develop's corner before #965 (`shader.ts` at the parent of 9935e9392), frozen as the reference:
- *  every opaque caster, cutout or not, in one list, placed by this and drawn with `shadow_fs`. The
- *  sun snap (#1016, `sunSnap`) places both alike; `snap.test.ts` proves it on its own. */
+/** Frozen pre-#965 vertex (parent of 9935e9392); both paths share the #1016 sun snap. */
 const DEVELOP_VERTEX = `fn developVertex(vertexIndex:u32,instanceIndex:u32,blended:bool)->ShadowOut{
  var out:ShadowOut;
  let pageIndex=drawPage(instanceIndex);
@@ -28,9 +23,7 @@ const DEVELOP_VERTEX = `fn developVertex(vertexIndex:u32,instanceIndex:u32,blend
  return out;
 }`;
 
-/** A WGSL vector: its components by name, each a 32-bit float. */
 type Vec = Record<string, number>;
-/** A WGSL `mat4x4f`: its four columns. */
 export type Mat = Vec[];
 export type ShadowOut = { position: Vec; instance: number; uv: Vec; fromEmitter: Vec };
 type Entry = (vertexIndex: number, instanceIndex: number) => ShadowOut;
@@ -49,7 +42,6 @@ const vector =
 const vec2f = vector(2),
   vec3f = vector(3);
 export const vec4f = vector(4);
-/** `m * v`, a column at a time, each product and sum rounded to 32 bits. */
 const times = (m: Mat, v: Vec) =>
   Object.fromEntries(
     AXES.map((axis) => [

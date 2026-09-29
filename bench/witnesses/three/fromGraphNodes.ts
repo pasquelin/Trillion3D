@@ -1,9 +1,4 @@
-/**
- * THE ENGINE'S GRAPH, HANDED TO THE REFERENCE RENDERER — its nodes: a whole graph copied node for
- * node, a light copied for the display graph that lights a frame, and the camera the renderer
- * draws from, brought each frame to the engine camera's pose and optics. The resources the nodes
- * hold cross through `fromGraph.ts`; nothing is computed here.
- */
+// Engine nodes copied into the reference renderer; resources cross through `fromGraph.ts`.
 import * as THREE from 'three';
 import { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts';
 import { Light } from '../../../packages/sdk-core/src/world/light/light.ts';
@@ -122,10 +117,7 @@ function threeNode(node: Object3D, bones: ReadonlySet<Object3D>): THREE.Object3D
   return place(node instanceof Group ? new THREE.Group() : new THREE.Object3D(), node);
 }
 
-/**
- * The library's copy of a whole engine graph: every node of the same kind, pose and name, the
- * resources shared as the engine shares them, and each light aiming at the copy of its target.
- */
+/** Copies the graph, its joint bindings and light targets into reference-renderer nodes. */
 export function threeGraph(root: Object3D | THREE.Object3D): THREE.Object3D {
   if (root instanceof THREE.Object3D) return root;
   const bones = new Set<Object3D>();
@@ -179,11 +171,7 @@ function threeCameraOf(camera: Camera) {
   return made;
 }
 
-/**
- * The library's camera for an engine camera, brought to the engine camera's world pose and
- * optics at each call: the renderer composes its view from the world matrix the engine resolved,
- * and its projection from the same optics. A library camera crosses as it is.
- */
+/** Copies engine camera pose and optics each frame; a library camera crosses unchanged. */
 export function threeCamera(camera: Camera | THREE.Camera): THREE.Camera {
   if (camera instanceof THREE.Camera) return camera;
   let made = cameras.get(camera);
