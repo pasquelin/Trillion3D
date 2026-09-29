@@ -266,6 +266,33 @@ input difference behind an image difference between that path and a witness, mea
 supposed. On `tests/fixtures/scenes/kinetic-garden` (430 pages, 107 520 corners): `maxPositionGap`
 6.10 × 10⁻⁵, `maxNormalGapDegrees` 0.613, mean 0.284°.
 
+## The Screen Error of What Is Drawn
+
+    pnpm run build
+    TRILLION3D_ASSETS=<assets> node bench/runner/screenError.ts --scene sponza --poses bench \
+      [--backends webgpu,webgl2] [--pixel-errors 0,1] [--out .mesure/out/<issue>]
+
+The measured screen error of what WebGPU and WebGL2 draw, against the source glTF (#959), the
+audit's oracle: forward, sample points of the drawn triangles to the source surface; reverse,
+sample points of the source to the drawn triangles. Both count only the points in the frustum that
+no drawn surface hides. A single-sided triangle seen from behind, which every backend culls, is
+skipped on both sides: a source one is not sampled, a drawn one neither hides nor is sampled, each
+triangle flagged by its material's side (the source glTF for WebGPU's clusters, the engine's
+`sideOf` for WebGL2's meshes). Each distance becomes pixels through
+the cut's own projection (`screenErrorBound`), under the engine's camera, frustum and focal length,
+at 1728×1117, DPR 2; the nearest-surface and visibility queries run on the engine's triangle tree.
+A row passes when the cut held, the browser reported no errors, both directions sampled points,
+and both finite maxima stay within `pixelError + 0.1 px`. A failed or empty run exits nonzero.
+These are sampled surface distances, not a continuous maximum or a raster image comparison.
+Run this image acceptance harness only in the recette session, on `develop` after merge.
+Recook the scenes with that checkout before measuring, so the grid and published DAG errors
+come from the same compiler revision as the runtime. WebGPU hands back the clusters
+its cut selected (`selectedClusterIds`, decoded by the engine's page decoder, which the WGSL decode
+matches bit for bit),
+WebGL2 the triangles it drew. `--poses orbit` and `--poses terrain` are the audit's cameras placed
+on the source's box, `--poses bench` the bench's four named views. The compiler-side measure of the
+quantization alone is `packages/asset-compiler-rust/src/geometry_page_quant/screen/` (#930).
+
 ## What Anisotropy Costs
 
     pnpm run build

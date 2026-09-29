@@ -51,8 +51,9 @@ function terrain() {
 test('a kilometre-wide primitive cut at run time sits on the tiled grid, within half a step', async () => {
   const drawn = terrain();
   const cut = await cutDrawnTriangles(drawn, false, false);
-  // 768 m on tiles of 2^5 m in 2^16 steps: 2^-11 m, where the untiled rule gave 2^-6 (15.6 mm).
-  assert.equal(cut.positionExponent, 5 - 16);
+  // 768 m on tiles of 2^1 m in 2^16 steps asks 2^-15 m; a page as wide as the primitive holds
+  // 2^23 steps, 2^-13 m, where the untiled rule gave 2^-6 (15.6 mm).
+  assert.equal(cut.positionExponent, 10 - 23);
   const half = 2 ** cut.positionExponent / 2;
   let worst = 0;
   for (const page of cut.pages) {
@@ -100,14 +101,14 @@ test('a recut takes the compiler grids of its class: finest when blended, tile a
     uvExponent: -1 - 23,
     pages: clusters,
   });
-  // A metre per unit: tiles of 2^5 m in 2^16 steps; the format's texture grid.
+  // A metre per unit: tiles of 2^1 m in 2^16 steps; the format's texture grid.
   assert.deepEqual(await grids(recut(false)), {
-    positionExponent: 5 - 16,
+    positionExponent: 1 - 16,
     uvExponent: -14,
     pages: clusters,
   });
-  // A centimetre per unit: the extent's own 2^6 in 2^16 steps, under a tile of 3200 units.
+  // A centimetre per unit: the extent's own 2^6 in 2^16 steps, under a tile of 200 units.
   assert.equal((await recut(false, 0, 0.01)).positionExponent, 6 - 16);
-  // A DAG whose finest error is 2^-10: an eighth of it.
-  assert.equal((await recut(false, 2 ** -10)).positionExponent, -13);
+  // There, a DAG whose finest error is 2^-10: an eighth of it.
+  assert.equal((await recut(false, 2 ** -10, 0.01)).positionExponent, -13);
 });
