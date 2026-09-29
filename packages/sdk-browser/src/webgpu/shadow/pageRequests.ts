@@ -22,7 +22,8 @@ type Slot = {
  * read back once the image is submitted, like the texture feedback. The request buffer is zeroed
  * before the resolve of every image that lights — a held image lights nothing and asks for
  * nothing. Each copy carries the frame, the table layout and the plan stamp it was read under, so
- * the scheduler reads it against the right windows and knows whether it proves a settled state.
+ * the scheduler knows whether it proves a settled state — and, for a frame no early demand
+ * schedules (`scene/light-shadow/demand.ts`), reads it against the right windows.
  * The request buffer is made with the pool, its list as long as `shadowRequestCap` of its `pages`.
  */
 export function createShadowPageRequests(device: GPUDevice, pages: number) {
