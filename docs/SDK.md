@@ -1107,6 +1107,19 @@ resizes it by the same rule, every page it still holds kept as drawn (#1208); `m
 publishes its `shadowPoolBytes` and `shadowPoolLayers`, and its memory pressure by name
 (`shadowPeakBytes`, `shadowResolutionBias`, `shadowMemoryEvents`).
 
+### A lamp's range is authored, and the frame shortens it only where it shows nothing
+
+`range` is the lamp's attenuation radius, in metres — the reference engine `AttenuationRadius`: the light's
+influence ends there through the smooth window `(1 − (d/range)⁴)²` the shaders apply, and a `point`
+or `spot` shadow map is built to it. It is a first-class control the page sets (`light.distance`);
+left unset, the world derives one from the scene's own extent. Before each frame the world shortens
+the **effective** range to the reach past which the lamp's own contribution stays under half an
+eight-bit display step after the frame's exposure and display curve (CMP-16, #958): never longer
+than the author set, never longer than the frame shows. The bound is the lamp's diffuse lobe plus
+its specular lobe at the roughness the drawn surfaces really wear — never the worst case at
+`ROUGHNESS_FLOOR`, a mirror no scene holds — and is re-derived whenever the exposure or the light
+changes, so a rising exposure lengthens a reach without a pop.
+
 `capability.lighting(world)` reports what the **active** renderer applies — `{ sceneLights,
 lightingView, shadows, transforms, reason? }` — not what the contract accepts: a call the light
 store accepts is not proof of lighting. `reason` names in one sentence what is not applied.
@@ -1457,7 +1470,11 @@ gravityScale, sensor, ccd, decorative, friction, restitution, damping }`. The sh
 - **Motion and events.** `mesh.physics.velocity` (read as the last step left it, written to launch
   the body), `applyImpulse(x, y, z)`, `wake()`, `asleep`, and `on('contact' | 'enter' | 'leave')`:
   the other object, an impulse estimate (approach speed times the pair's reduced mass) and the
-  point.
+  point. A step's contact events are delivered in a canonical order no thread decides: every
+  thread's records are merged after `Update`, ordered by the body pair's key (the lower engine
+  index first), each pair's own events in the order Jolt ran them, so a pool of any size gives the
+  same events in the same order. It is the engine's canonical order, not Jolt's internal callback
+  order.
 - **Joints.** `joint.fixed | point | hinge | slider | distance | cone(a, b, options)` connects two
   bodies, or a body and the world (`b` is `null`), with Jolt's own constraints; `world.physics.add(j)`
   puts it in the simulation and `remove(j)` takes it out. It is made once both bodies are simulated,
