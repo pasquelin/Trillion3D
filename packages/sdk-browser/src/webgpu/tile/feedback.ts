@@ -23,7 +23,7 @@ export const PICK_SHIFT = Math.log2(FEEDBACK_EVERY) + 1;
 /** Number of maps a pixel can name: the rank of `WRAP_MAP`, written once. */
 export const MAP_CHOICES = Object.keys(WRAP_MAP).length;
 /** A pick is a map (or the masked sun level), one of two blend levels, one of three taps. */
-const PICK_BLENDS = 2,
+export const PICK_BLENDS = 2,
   PICK_TAPS = 3;
 /**
  * Names a pixel's position picks among (`requestPick`): one of the maps (`WRAP_MAP`) or the sun

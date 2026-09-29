@@ -1,5 +1,12 @@
 import { WRAP_MAP } from '../../visibility/wrapModes.ts';
-import { FEEDBACK_EVERY, FEEDBACK_STRIDE, MAP_CHOICES, PICK_SHIFT } from './feedback.ts';
+import {
+  FEEDBACK_EVERY,
+  FEEDBACK_STRIDE,
+  MAP_CHOICES,
+  PICK_BLENDS,
+  PICK_SHIFT,
+  PICK_TAPS,
+} from './feedback.ts';
 
 const STRIDE_MASK = FEEDBACK_STRIDE - 1;
 
@@ -39,7 +46,7 @@ export const FEEDBACK_RULE_WGSL = `fn feedbackPhase(p:vec2f,word:u32)->bool{
 struct RequestPick{sel:u32,next:bool,along:u32,}
 fn requestPick(pos:vec2f,choices:u32,word:u32)->RequestPick{
  let px=u32(pos.x)+u32(pos.y)+(word>>${PICK_SHIFT}u);
- return RequestPick(px%choices,((px/choices)&1u)==1u,(px/choices/2u)%3u);
+ return RequestPick(px%choices,((px/choices)&${PICK_BLENDS - 1}u)==1u,(px/choices/${PICK_BLENDS}u)%${PICK_TAPS}u);
 }`;
 
 const m = WRAP_MAP;
