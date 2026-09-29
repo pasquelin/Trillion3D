@@ -11,7 +11,7 @@ import {
 import { SUN_ORIGIN_WGSL } from '../../lighting/direct/shadowFactorWgsl.ts';
 import { shadowRequestWgsl } from '../../lighting/direct/shadowRequestWgsl.ts';
 import { SHADOW_DATA_WGSL } from '../../lighting/direct/shadowWgsl.ts';
-import { POOL_COUNTS, SHADOW_POOL_WGSL } from './poolWgsl.ts';
+import { POOL_COUNTS, SHADOW_DRAW_LIST_WGSL, SHADOW_POOL_WGSL } from './poolWgsl.ts';
 
 /** Invocations of the one workgroup that allocates a frame's pages. */
 export const ALLOC_LANES = 256;
@@ -55,8 +55,7 @@ export const ALLOCATION_WGSL = `
 ${SHADOW_DATA_WGSL}
 @group(0) @binding(0) var<storage,read_write> shadows:ShadowData;
 ${shadowRequestWgsl(1)}
-struct ShadowPoolState{counts:array<atomic<u32>,${POOL_COUNTS.length}>,pages:array<i32>,}
-@group(0) @binding(2) var<storage,read_write> shadowPool:ShadowPoolState;
+@group(0) @binding(2) var<storage,read_write> shadowPool:ShadowPool;
 @group(0) @binding(3) var<storage,read_write> keys:array<u32>;
 struct ShadowAllocParams{frame:i32,pages:u32,listCap:u32,asks:u32,candidateBase:u32,pad0:u32,pad1:u32,pad2:u32,generation:array<u32,${MAX_SHADOW_SLICES}>,entries:array<u32>,}
 @group(0) @binding(4) var<storage,read> params:ShadowAllocParams;
@@ -73,14 +72,9 @@ const RANK_TOP:u32=${2 ** RANK_BITS - 1}u;
 const AGE_CAP:i32=${2 ** (32 - PAGE_BITS - RANK_BITS) - 2};
 const NO_KEY:u32=0xffffffffu;
 fn poolAt(field:u32,page:u32)->u32{return field*params.pages+page;}
-fn countOne(i:u32){atomicAdd(&shadowPool.counts[i],1u);}
-fn countNext(i:u32)->u32{return atomicAdd(&shadowPool.counts[i],1u);}
-fn countRead(i:u32)->u32{return atomicLoad(&shadowPool.counts[i]);}
-fn countClear(i:u32){atomicStore(&shadowPool.counts[i],0u);}
 fn requestCount()->u32{return atomicLoad(&shadowRequests[0]);}
 fn requestAt(i:u32)->u32{return atomicLoad(&shadowRequests[1u+i]);}
-/** Page \`p\` joins the frame's draw list (\`freshWgsl.ts\`): mapped by the GPU, not drawn since. */
-fn listDraw(p:u32){drawList[countNext(COUNT_DRAWN)]=p;}
+${SHADOW_DRAW_LIST_WGSL}
 /** What entry \`e\` names in this frame's records — view, page, coarseness —, or a coarseness of -1
  *  when no light holds it: a sun level and its absolute page, or a lamp face · 16 + mip and its page. */
 fn shadowEntryPage(e:u32)->vec4i{

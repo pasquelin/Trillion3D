@@ -82,6 +82,7 @@ export async function createShadowAllocation(device: GPUDevice) {
       'storage',
       'storage',
       READ,
+      'storage',
     ]),
     computePass(device, SHADOW_FRESH_WGSL, SHADOW_FRESH_PASS, 'composeShadowPages', [
       'storage',
@@ -141,11 +142,13 @@ export function flushShadowTable(rt: WebgpuPagesRuntime, encoder: GPUCommandEnco
     buffers = pageRequests?.allocation;
   if (!shadows?.texture) return;
   if (!allocation || !buffers?.seeded || !plan.gpu.on) return shadows.flushData(plan.table);
-  const count = buffers.writeWords(plan, (sink) => shadows.flushData(plan.table, sink));
+  const count = buffers.writeWords(plan, rt.run.frame, (sink) =>
+    shadows.flushData(plan.table, sink),
+  );
   if (count)
     allocation.words(
       encoder,
-      [shadows.dataBuffer, buffers.state, buffers.words],
+      [shadows.dataBuffer, buffers.state, buffers.words, buffers.drawList],
       Math.ceil(count / WORDS_GROUP),
     );
 }

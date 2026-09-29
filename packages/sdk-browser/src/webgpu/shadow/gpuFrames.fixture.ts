@@ -122,8 +122,8 @@ export function gpuFrames(poolSide: number, lights: SceneLight[], gpuDraws = tru
         drawnAt[page] = frame;
       }
       plan.commit();
-      if (allocation.writeWords(plan, (sink) => plan.table.flush(sink)))
-        runShadowWords(bytes(data), bytes(state), bytes(allocation.words));
+      if (allocation.writeWords(plan, frame, (sink) => plan.table.flush(sink)))
+        runShadowWords(bytes(data), bytes(state), bytes(allocation.words), drawList);
       if (gpuDraws) {
         allocation.writeFresh(poolSide, 1, MAX_SHADOW_REGIONS, 0, freshSlices(store));
         const fresh = [allocation.drawList, allocation.freshParams, allocation.freshArgs].map(
