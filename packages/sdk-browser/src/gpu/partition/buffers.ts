@@ -14,6 +14,23 @@ import {
  * partition writes in their place.
  */
 export function createGpuPartitionBuffers(device: GPUDevice, slotCap: number) {
+  const rows = createGpuPartitionRows(device, slotCap);
+  const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
+  const state = device.createBuffer({
+    label: 'Trillion3D partition state v1',
+    size: STATE_WORDS * 4,
+    usage: storage | GPUBufferUsage.COPY_SRC,
+  });
+  const uniforms = device.createBuffer({
+    label: 'Trillion3D partition uniform v1',
+    size: UNIFORM_U32 * 4,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+  return { ...rows, state, uniforms, all: [...rows.all, state, uniforms] };
+}
+
+/** The partition's buffers sized by row — what a grown table makes again (`factory.ts`). */
+export function createGpuPartitionRows(device: GPUDevice, slotCap: number) {
   const rows = Math.max(1, slotCap);
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
   const corners = device.createBuffer({
@@ -31,25 +48,7 @@ export function createGpuPartitionBuffers(device: GPUDevice, slotCap: number) {
     size: rows * TESTED_U32 * 4,
     usage: storage | GPUBufferUsage.COPY_SRC,
   });
-  const state = device.createBuffer({
-    label: 'Trillion3D partition state v1',
-    size: STATE_WORDS * 4,
-    usage: storage | GPUBufferUsage.COPY_SRC,
-  });
-  const uniforms = device.createBuffer({
-    label: 'Trillion3D partition uniform v1',
-    size: UNIFORM_U32 * 4,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  });
-  return {
-    rows,
-    corners,
-    rowData,
-    tested,
-    state,
-    uniforms,
-    all: [corners, rowData, tested, state, uniforms],
-  };
+  return { rows, corners, rowData, tested, all: [corners, rowData, tested] };
 }
 
 type Binding = keyof typeof PARTITION_BINDING;

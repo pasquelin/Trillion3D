@@ -76,8 +76,9 @@ export function createAutonomousPool(env: {
   residency: ReturnType<typeof createAutonomousResidency>;
   heldFloor: HeldFloor;
   instanceCount: () => number;
-  /** The views not drawn now, whose requests share the budget (`pool.ts`). */
-  others: PoolEnvironment['others'];
+  /** The views not drawn now, whose requests share the budget, and whether a capture is drawn,
+   *  ranked first (`pool.ts`). */
+  views: Required<Pick<PoolEnvironment, 'others' | 'captureDrawn'>>;
 }) {
   const { context, byUrl, gate, geometryStore, residency, heldFloor } = env,
     { state } = geometryStore;
@@ -96,7 +97,8 @@ export function createAutonomousPool(env: {
     floorBytes: heldFloor.bytes,
     parentsOf: createPageParents(env.roots),
     drop: residency.dropPage,
-    others: env.others,
+    others: env.views.others,
+    captureDrawn: env.views.captureDrawn,
     onDiagnostic: context.onDiagnostic,
   });
   sendEngineDiagnostic(context.onDiagnostic, ...floorDiagnostic(copies.root(), copies.floor()));
