@@ -10,7 +10,7 @@
 //
 // It writes `.mesure/assets/aerial-<seed>/` (glTF and binary), which
 // `node bench/runner/assets.ts --only aerial-<seed>` then compiles like any other scene. The
-// bench's `generale` view flies over it.
+// bench's `overview` view flies over it.
 // =====================================================================================
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
