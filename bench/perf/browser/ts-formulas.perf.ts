@@ -12,7 +12,7 @@ import {
   signedArea,
 } from '../../../packages/sdk-browser/src/visibility/projection.ts';
 import { packedRowBase } from '../../../packages/sdk-browser/src/webgpu/row/pageRow.ts';
-import { plancherDuModele } from '../../runner/poses.ts';
+import { modelFloor } from '../../runner/poses.ts';
 import { mesure, stress, rapport } from '../../core/index.ts';
 import {
   referenceBarycentric,
@@ -142,7 +142,7 @@ const resFloor = await mesure({
   name: 'model floor',
   fichier: 'bench/runner/poses.ts',
   cas: un('1 000 extents', emprises, emprises.length),
-  calcul: (liste) => liste.map((b) => plancherDuModele(b)),
+  calcul: (liste) => liste.map((b) => modelFloor(b)),
   attendu: (liste) => liste.map((b) => referenceFloorOf(b)),
   options,
 });
