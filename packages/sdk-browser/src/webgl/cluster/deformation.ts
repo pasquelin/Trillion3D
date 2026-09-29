@@ -1,14 +1,15 @@
+import {
+  DEFORMATION_ROW_TEXELS,
+  geometryDeformationBytes,
+  morphTargets,
+} from '../../deformation/textureBytes.ts';
+import { refuseCluster } from './refusal.ts';
 import { deformationTexels } from '../../deformation/vertexTexture.ts';
 import { skinStreams } from '../../../../sdk-core/src/world/geometry/skin.ts';
 import type { Geometry as SourceGeometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 import type { ClusterDraw, WholeMesh } from '../../cluster/batchMesh.ts';
 import { allocated } from '../core/allocation.ts';
-import {
-  FLOAT_TEXELS,
-  LIGHT_LIST_UNIT,
-  LIGHT_ROW_TEXELS,
-  WebglLightTexture,
-} from './lightTexture.ts';
+import { FLOAT_TEXELS, LIGHT_LIST_UNIT, WebglLightTexture } from './lightTexture.ts';
 
 /** The units of the deformation block and of a draw's morph displacements, past the lights'. */
 export const DEFORM_BLOCK_UNIT = LIGHT_LIST_UNIT + 1;
@@ -28,16 +29,6 @@ export const deformRecordOf = (draw: ClusterDraw) => (draw as DeformedDraw).defo
 
 type Geometry = WholeMesh['geometry'];
 
-/** Morph targets a page geometry carries: its `morph` attribute holds six floats of each a vertex
- *  (`../../page/decode/geometryPage.ts`). */
-function targetsOf(geometry: Geometry) {
-  const morph = geometry.attributes.morph,
-    vertices = geometry.attributes.position?.count ?? 0;
-  return morph && vertices
-    ? morph.array.length / (6 * vertices)
-    : ((geometry as SourceGeometry).morphAttributes?.position?.length ?? 0);
-}
-
 /**
  * THE WEBGL2 SIDE OF THE DEFORMATION STAGE (#357): the session's records sent as one float
  * texture (`WebglLightTexture`, the lights' growable rows) whenever the block moved, each record's
@@ -46,7 +37,7 @@ function targetsOf(geometry: Geometry) {
  * displacements a texture of its own geometry holds, made at its first draw and freed with it.
  */
 export class WebglClusterDeformation {
-  private block: WebglLightTexture<Float32Array>;
+  private block: WebglLightTexture<Float32Array> | undefined;
   private morphs = new Map<Geometry, WebGLTexture>();
   private sent = -1;
   private source: DeformationSource | undefined;
@@ -55,12 +46,22 @@ export class WebglClusterDeformation {
   private gl: WebGL2RenderingContext;
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
-    this.block = new WebglLightTexture(gl, DEFORM_BLOCK_UNIT, FLOAT_TEXELS, Float32Array);
   }
   /** The frame's records, sent when they moved since the last frame sent them; bound either way. */
   beginFrame(source: DeformationSource | undefined) {
     this.source = source;
-    if (!source || source.version === this.sent) return this.block.bind();
+    if (!source) return;
+    this.block ??= new WebglLightTexture(
+      this.gl,
+      DEFORM_BLOCK_UNIT,
+      FLOAT_TEXELS,
+      Float32Array,
+      'geometry',
+      () => {
+        this.sent = -1;
+      },
+    );
+    if (source.version === this.sent) return this.block.bind();
     const texels = Math.ceil(source.block.length / 4);
     this.block.reserve(texels);
     if (this.words?.buffer !== source.block.buffer)
@@ -83,7 +84,7 @@ export class WebglClusterDeformation {
     const record = this.source ? deformRecordOf(draw) : 0;
     out[0] = record;
     out[1] = record ? skinStreams(geometry as SourceGeometry).width : 0;
-    out[2] = record ? targetsOf(geometry) : 0;
+    out[2] = record ? morphTargets(geometry as SourceGeometry) : 0;
     if (out[1] || out[2]) this.bindMorph(geometry);
   }
   /** The geometry's displacements as texels, two a target per vertex — position, then normal. */
@@ -92,16 +93,31 @@ export class WebglClusterDeformation {
     gl.activeTexture(gl.TEXTURE0 + MORPH_DELTAS_UNIT);
     let texture = this.morphs.get(geometry);
     if (texture) return void gl.bindTexture(gl.TEXTURE_2D, texture);
-    const deltas = deformationTexels(geometry as SourceGeometry, targetsOf(geometry)),
-      texels = deltas.length / 4,
-      rows = Math.ceil(texels / LIGHT_ROW_TEXELS),
-      data = new Float32Array(rows * LIGHT_ROW_TEXELS * 4);
-    data.set(deltas);
+    const bytes = geometryDeformationBytes(geometry as SourceGeometry),
+      texels = bytes / 16,
+      rows = texels / DEFORMATION_ROW_TEXELS;
+    const most = Number(gl.getParameter(gl.MAX_TEXTURE_SIZE));
+    if (rows > most || DEFORMATION_ROW_TEXELS > most)
+      refuseCluster(`${texels} deformation texels exceed the ${most}-side texture of this device`);
+    const data = new Float32Array(bytes / 4);
+    data.set(
+      deformationTexels(geometry as SourceGeometry, morphTargets(geometry as SourceGeometry)),
+    );
     texture = gl.createTexture()!;
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, LIGHT_ROW_TEXELS, rows, 0, gl.RGBA, gl.FLOAT, data);
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.RGBA32F,
+      DEFORMATION_ROW_TEXELS,
+      rows,
+      0,
+      gl.RGBA,
+      gl.FLOAT,
+      data,
+    );
     allocated(gl, 'geometry', () => this.forget(geometry));
     this.morphs.set(geometry, texture);
     geometry.released?.add(() => this.forget(geometry));
@@ -115,6 +131,6 @@ export class WebglClusterDeformation {
   dispose() {
     for (const texture of this.morphs.values()) this.gl.deleteTexture(texture);
     this.morphs.clear();
-    this.block.dispose();
+    this.block?.dispose();
   }
 }

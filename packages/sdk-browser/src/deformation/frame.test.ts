@@ -108,3 +108,46 @@ test('an unchanged pose uploads its previous state once after movement stops', (
     'a settled pose sends nothing',
   );
 });
+
+test('a reused owner uploads and dirties shadows with equal previous/current poses and no TAA motion', () => {
+  let owner = {},
+    weights = [2];
+  const mesh = {
+    get sourceIdentity() {
+      return owner;
+    },
+    get morphTargetInfluences() {
+      return weights;
+    },
+  };
+  const placed = deformedOf(mesh, { deformation: { joints: [], targets: [3] } }, IDENTITY)!;
+  const frame = createDeformationFrame([placed]);
+  assert.equal(
+    frame.update(() => false),
+    true,
+  );
+  assert.equal(frame.moving[0], 0);
+  assert.equal(frame.dirty[0], 1, 'initial shadows need the first deformed pose');
+  assert.equal(
+    frame.update(() => false),
+    false,
+  );
+  assert.equal(frame.dirty[0], 0);
+  owner = {};
+  weights = [4];
+  assert.equal(frame.pending(), true, 'a reused row cannot hold the old image');
+  assert.equal(
+    frame.update(() => false),
+    true,
+  );
+  const at = recordLayout(placed.shape).weights;
+  assert.deepEqual([...frame.block.slice(at, at + 2)], [4, 4]);
+  assert.equal(frame.moving[0], 0, 'the replacement has no previous pose to reproject');
+  assert.equal(frame.dirty[0], 1, 'shadows must forget the previous owner');
+  assert.equal(frame.reach[0], 12);
+  assert.equal(
+    frame.update(() => false),
+    false,
+  );
+  assert.equal(frame.pending(), false);
+});

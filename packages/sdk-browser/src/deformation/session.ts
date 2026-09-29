@@ -44,6 +44,9 @@ export function createSessionDeformation(
   copies.forEach((copy, i) => byWorld.set(copy.matrix, roots.length + i));
   return {
     frame,
+    changedOfWorld(world: object) {
+      return frame.dirty[byWorld.get(world as ClusterRoot<PageRec>['world']) ?? -1] === 1;
+    },
     movingOfWorld(world: object) {
       return frame.moving[byWorld.get(world as ClusterRoot<PageRec>['world']) ?? -1] === 1;
     },
