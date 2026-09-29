@@ -23,8 +23,9 @@ type Group = {
  * page geometry and surface, whatever number of placements show it, its matrices the rows'. A
  * frame counts what each mesh shows, remakes a mesh too small for it at twice its size at least
  * — its size follows what frames show, never a number picked here —, then writes one matrix per
- * shown record — its root's world, `roots` ranking them — and one count per mesh. A mesh whose page no placement shows leaves the graph. A
- * frame that shows the same records, on rows nobody wrote since, writes nothing.
+ * shown record — its root's world, `roots` ranking them — and one count per mesh. A mesh whose
+ * page no placement shows leaves the graph. A frame that shows the same records, on rows nobody
+ * wrote since, writes nothing.
  */
 export function createWebglPageBatches(scene: Scene, roots: Placements) {
   const groups = new Map<Geometry, Map<HostMaterials, Group>>();
