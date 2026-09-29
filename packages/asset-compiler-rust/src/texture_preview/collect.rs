@@ -114,7 +114,7 @@ pub(super) fn atlas_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<
             let cutoff = cutoff.unwrap_or(crate::cutout::CUTOUT_ALPHA) as f32;
             super::coverage::material_cut(material, cutoff)
         });
-        let coverage = super::coverage::coverage_cutoff(material)
+        let coverage = crate::compiler_materials::coverage_cutoff(material)
             .map(|_| cut.map_or(0, |(c, f)| super::coverage::cutoff_byte(c, f)));
         for role in ROLES {
             let Some(texture) = texture_index(role.reference(material)) else {

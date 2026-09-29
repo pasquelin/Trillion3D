@@ -481,7 +481,7 @@ texel `(px, py)` of a `frameSide`-texel frame sits at `((px + ½) / frameSide �
 `atlasSide = frames · frameSide` square.
 
 **Texels.** Four rotated-grid rays a texel go from `2R` along `d` towards the pivot, through the
-compiler's one CPU tracer over the proxy's BVH constructor (`tracer.rs`), which takes a hit only
+compiler's one CPU tracer over the proxy's BVH constructor (`proxy/tracer.rs`), which takes a hit only
 where its material covers. It cuts where the texture chains take coverage: a `MASK` material
 whose `alphaCutoff` is above 0 at that cutoff times its `baseColorFactor` alpha, a `BLEND` one
 that does not transmit at 0.5 (the cutout threshold); a `MASK` at 0 and a transmissive `BLEND`,

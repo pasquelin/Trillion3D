@@ -1,10 +1,10 @@
 //! The compile stage: every drawn mesh judged, the eligible ones baked and stored, and the
 //! report entry that names each mesh baked or refused, with its reason.
 use super::bake::{bake, Capture};
-use super::eligibility::{judge, precheck, reference_focal, texel_depth, triangle_depth};
+use super::eligibility::{deforms, judge, masked, precheck, reference_focal};
+use super::eligibility::{texel_depth, triangle_depth};
 use super::eligibility::{Candidate, ATLAS_LIMIT, FRAMES, PROBE_SIDE};
 use super::mesh::Traceable;
-use super::surface::coverage_cut;
 use crate::compiler_validate::values;
 use crate::compiler_world::{transform_point, world_matrices, Mat4};
 use crate::proxy::{bvh, primitives_by_mesh, stage_proxy, world_scale, ProxyInputs, SceneProxy};
@@ -130,35 +130,6 @@ fn merge(mut entry: Value, facts: Value) -> Value {
     entry
 }
 
-/// Whether a primitive of source mesh `mesh` cuts its coverage, from its materials alone.
-fn masked(g: &Value, mesh: usize) -> bool {
-    let primitives = g["meshes"][mesh]["primitives"]
-        .as_array()
-        .into_iter()
-        .flatten();
-    primitives.into_iter().any(|p| {
-        let material = p["material"]
-            .as_u64()
-            .map(|id| &g["materials"][id as usize]);
-        material.is_some_and(|m| coverage_cut(m).is_some())
-    })
-}
-
-/// Whether a primitive of source mesh `mesh` deforms by its own attributes: morph targets or
-/// joint weights, which the primitive stage routes to the deforming pass as a skin
-/// (`compiler_primitive.rs`, `is_skinned_or_morph`).
-pub(super) fn deforms(g: &Value, mesh: usize) -> bool {
-    let primitives = g["meshes"][mesh]["primitives"]
-        .as_array()
-        .into_iter()
-        .flatten();
-    primitives.into_iter().any(|p| {
-        let attributes = &p["attributes"];
-        p.get("targets").is_some()
-            || attributes.get("JOINTS_0").is_some()
-            || attributes.get("WEIGHTS_0").is_some()
-    })
-}
 /// Judges every drawn mesh; returns the compile report's `impostors` section.
 fn stage_impostors(
     o: &Options,
