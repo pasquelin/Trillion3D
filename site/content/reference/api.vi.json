@@ -738,7 +738,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "Định danh bộ nhớ đệm cho lỗi DAG theo cụm: lỗi QEM tuyệt đối của nhóm trên vị trí, pháp tuyến và tọa độ texture, giới hạn theo kích thước nhóm; bộ nhớ đệm v1 bị từ chối."
+    "summary": "Định danh bộ nhớ đệm cho sai số DAG theo từng cụm: sai số QEM tuyệt đối của nhóm trên vị trí, pháp tuyến và tọa độ texture, giới hạn trong phạm vi của nhóm, không bao giờ nhỏ hơn khoảng cách Hausdorff lấy mẫu giữa các con của một nhóm và đầu ra của nó (#929); bộ nhớ đệm v1 và v2 bị từ chối."
   },
   "DEFAULT_SCOPE": {
     "summary": "Phạm vi mà một mô hình được biên dịch khi không có phạm vi nào được nêu tên: được truyền tải theo trang."
@@ -3310,7 +3310,8 @@
       "stamp": "Những gì phép tô bóng, các đèn và góc nhìn trao cho ảnh kế tiếp: một báo cáo đóng dấu bằng nó mà không nêu gì mới chứng minh ảnh chỉ đọc những gì đã vẽ.",
       "settled": "Đúng khi một báo cáo chứng minh trạng thái hiện tại không yêu cầu gì: ảnh có thể được giữ.",
       "receive": "Một báo cáo yêu cầu đã trả về; kế hoạch tiếp theo đọc nó. Báo cáo mới hơn thay báo cáo chưa đọc.",
-      "commit": "Các trang `[from, to)` trong danh sách của khung hình đã được mã hóa, trang `from + i` trong `modes[i]`: bản vẽ của chúng xong trước khi có ai đọc. Lô cuối đóng danh sách."
+      "commit": "Các trang `[from, to)` trong danh sách của khung hình đã được mã hóa, trang `from + i` trong `modes[i]`: bản vẽ của chúng xong trước khi có ai đọc. Lô cuối đóng danh sách.",
+      "resize": "Pool ở kích thước khác, các trang được giữ, các mảng được tạo lại: trả về nơi mỗi trang đã chuyển đến."
     }
   },
   "ShadowStaleReason": {

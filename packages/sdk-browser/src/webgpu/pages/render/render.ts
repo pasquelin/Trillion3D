@@ -8,6 +8,7 @@ import { setWindingEpoch } from './winding.ts';
 import { holdWebgpuFrame } from '../../frame/hold.ts';
 import { sizeShadowPool } from '../../shadow/poolSize.ts';
 import { forgetShadowCpuSteps } from '../../shadow/cpuSteps.ts';
+import { followShadowView } from '../../shadow/poolResize.ts';
 import { frameTargetsAwaited, requestFrameTargets } from '../prepare/targetGrant.ts';
 import { deviceAnswering } from '../../frame/deviceAnswer.ts';
 import { pumpResidentTiles } from '../prepare/lightResources.ts';
@@ -47,6 +48,7 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
     aspect,
   );
   sizeShadowPool(rt);
+  followShadowView(rt);
   // Targets that no longer fit the view are asked; the frame is held until granted.
   void requestFrameTargets(rt, gpuDevice);
   const pixelError = run.gate.pixelError,

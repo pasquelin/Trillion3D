@@ -1312,7 +1312,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "Identità della cache per gli errori del DAG per cluster: errore QEM assoluto del gruppo su posizioni, normali e coordinate di texture, limitato all’estensione del gruppo; una cache v1 viene rifiutata."
+    "summary": "Identità della cache per gli errori DAG per cluster: errore QEM assoluto del gruppo su posizioni, normali e coordinate di texture, limitato all’estensione del gruppo, mai inferiore alla distanza di Hausdorff campionata tra i figli di un gruppo e le sue uscite (#929); le cache v1 e v2 vengono rifiutate."
   },
   "DagReport": {
     "summary": "Report del DAG di una primitiva; solo i suoi avvisi vengono usati dal motore.",
@@ -5556,7 +5556,8 @@
       "stamp": "Ciò che ombreggiatura, luci e vista passano all’immagine successiva: un rapporto timbrato con esso che non nomina nulla di nuovo prova che l’immagine legge solo ciò che è disegnato.",
       "settled": "Vero quando un rapporto prova che lo stato attuale non chiede nulla: l’immagine può essere mantenuta.",
       "receive": "È tornato un rapporto di richieste; il piano successivo lo legge. Uno più recente sostituisce uno non letto.",
-      "commit": "Le pagine `[from, to)` della lista del fotogramma sono state codificate, la pagina `from + i` in `modes[i]`: i loro disegni arrivano prima che qualcuno le legga. L’ultimo lotto chiude la lista."
+      "commit": "Le pagine `[from, to)` della lista del fotogramma sono state codificate, la pagina `from + i` in `modes[i]`: i loro disegni arrivano prima che qualcuno le legga. L’ultimo lotto chiude la lista.",
+      "resize": "Il pool a un'altra dimensione, le sue pagine conservate, i suoi array rifatti: restituisce dove è andata ogni pagina."
     }
   },
   "ShadowStaleReason": {

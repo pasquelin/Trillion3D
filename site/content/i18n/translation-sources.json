@@ -601,7 +601,7 @@
     "reference:CutoutModel": "94914364 1d4172ec c67fe1e4 0bc29a09 ea82ef83 e79af683 c09b37af cca0d9d0 4a9b1a05 a53edba5 60a70140 15a7b7ff 7f7462ff f4025b1a 5a18f655",
     "reference:CutoutReviewOptions": "fd9a3865 5f404716 f143503a 5bc96fdb facc001b c5130e27 c7fefc0d 002a4b36 bbedaf8f a77efb53 600f4385 8bd9f0de fc644e87 c7cb679f 17ec6335",
     "reference:CutoutReviewSummary": "2bd30a07 2daeca30 f50f32e5 08eabefa 56d8edf0 e1cca3ec c194cdc1 de3ed8e2 7f83ce6b 1e5b20ce 1bb59399 c4775ec2 2ca5732f c06ebd05 eb1ee89e",
-    "reference:DAG_ERROR_MODEL": "1bb27bd0 f79b89d5 2aff98c8 d51801da 2ccb73e5 1fcf64f9 127bd0c7 be0325ec 43041306 fb7c481d 58b8b7c9 4e500197 48ed9044 b73546cd 6eaef304",
+    "reference:DAG_ERROR_MODEL": "886f8f33 e9f02adb ada7019e 3840ded5 86bff474 690b00af 73ad4075 5b277aa6 9d004ab6 5e656b88 34f835f8 bdeab10a 76143b39 c5498bc2 803f01b1",
     "reference:DEFAULT_PHYSICS_BUDGET": "6dd94f88 d4273373 88bd4c8c 633809b1 bbed2881 2ffcced3 f398cfbe bd588079 c3a7f2a6 a6123c3a 77e0b0e1 53ab1034 33132eb2 fb31e34d 046865bc",
     "reference:DEFAULT_SCOPE": "69e879a7 a2046b25 2c9c8ace b9739b8b 566d4cb1 d25a7477 5fba6ae3 6ac21a82 9471e6fa 90123eaf ac7dc332 e2d77d1b 3212935a c5868ab7 afce501a",
     "reference:DEPTH_LAYER_BIAS_UNITS": "fa586609 a83ba235 edb7fceb 49bd9a0b 91c70773 14f0239d 9dfeabfb 203a539b fddcf64a 71fe94ce 8c88663e 33773dbe 37bbdbde 943b93a5 e6714b47",
@@ -901,8 +901,13 @@
     "reference:SceneToneMapping": "26544ba7 fc5a176b 76b38967 68347855 d1e6dfe4 6f538077 ead87a1e 10b4be5f 6ba24a89 e0951d26 d824d7a4 7964a60d 72bbc10e 24e60a00 c9b3f22f",
     "reference:ScreenErrorVariant": "cbd6bdc2 136eb236 9d46379f 0a20097b 647367c4 e54ff57e d9bcdd30 4789f29d 06a465e0 47d0b98a fdb25c01 ab503068 de41a8d3 5e58e6b7 cca5f79c",
     "reference:ShadowAtlasDigest": "5b9b975f 3ea08f94 846e0d69 6aadfc11 fff99c63 7fb30399 2d2a98ad 059f3926 eb8cd3e7 0ed7900c c0b40b5a ca759d89 b07c66b6 03513ec3 6f611bfd",
+<<<<<<< HEAD
     "reference:ShadowFrameMetrics": "3873e30d 6e98cae8 24f9d31d 56ed7087 e769f5c0 ea529cbe 39a9dcb6 c2cd3bff 392b098a 23cc57e9 b0be9194 fd002ce8 a2d07377 c19505d3 366c5cca",
     "reference:ShadowPlan": "993d84eb b8909c67 0312f8b1 e970fe9f 24570756 51a0c144 58b93845 e880eba3 a1f23b08 f04c0ed3 60bbcfbf 573a24f4 c8a13368 3111737e 4f526063",
+=======
+    "reference:ShadowFrameMetrics": "4d538fb5 11af7c5a fa8f5b9c 00763d49 dcb75938 9f58b4b0 512e98f5 6eaf5423 c3bc0873 e43c204d c31b1a9c bbffaf5c c65d0fc1 319687c3 cac4229d",
+    "reference:ShadowPlan": "0b04a1be 1142982f cc23bb36 47f081dd dd51a1f4 5747971a 6cb18cbe 79f7e922 41250554 a44ca6b2 8e6e0775 841ec1c0 54f7d04a d7f78fed 01962f32",
+>>>>>>> origin/develop
     "reference:ShadowRequestReport": "f5bfc8c9 401aa0f3 611a5083 d903fede dde4d47f 5f7d9a05 8aab60af 179b5f11 690b56af 2e1b7a3c 8156fee2 48ef663c c3e69e79 6ec0ef1a 1e21a7cf",
     "reference:ShadowStaleReason": "e077e5e0 4d50189c 08cf9838 46ed7813 172d6f7d 05d12cf2 ef2a0084 b050aba6 a57fae7a adf1bc76 bdef75ae 01ea4b70 9bee562c f5e90d90 e5089565",
     "reference:ShadowViewpoint": "e9cc0a27 2ca4959f 4f0c1a51 8a3d5519 9783cb8a 1f58ea63 ff5a3fc9 4dda1c54 db32d9b7 ea2549e4 af3794dc 67c9dd86 01636158 3a213357 c7f1252f",
