@@ -30,7 +30,11 @@ export function appendWebgpuTexture(
   return next;
 }
 
-async function appendNow(rt: WebgpuPagesRuntime, texture: Texture, kind: 'color' | 'data') {
+async function appendNow(
+  rt: WebgpuPagesRuntime,
+  texture: Texture,
+  kind: 'color' | 'data',
+): Promise<number> {
   const { vis, setup, gpu, run, diag } = rt;
   const slots = kind === 'color' ? vis.mapLayer : vis.dataLayer;
   const held = slots.get(texture);
@@ -52,8 +56,10 @@ async function appendNow(rt: WebgpuPagesRuntime, texture: Texture, kind: 'color'
     demand = laneDemand(taken),
     peer = atlas.textures.findIndex((each) => !each.retired && each.lane === lane);
   const resident = peer < 0 ? 0 : atlas.poolOf(peer).resident;
+  const previousPool = pools.pool,
+    previousBudget = setup.texturePoolBudget;
   const pool = poolTaking(
-    pools.pool,
+    previousPool,
     { kind, lane, resident, tails: tails[lane], streams: demand[lane] > tails[lane] },
     poolLayerBytes(encoding.texelBytes(lane)),
     {
@@ -71,16 +77,29 @@ async function appendNow(rt: WebgpuPagesRuntime, texture: Texture, kind: 'color'
       throw new EngineError('TEXTURE_BUDGET', 'the device refused the pool', { kind, lane });
     rt.signal.throwIfAborted();
     if (run.lost) throw new Error('WEBGPU_LOST');
+    // A release or budget update can run while the device grants the probe. Recompute its
+    // census and admission instead of overwriting those changes with the pre-await snapshot.
+    if (
+      pools.pool !== previousPool ||
+      setup.texturePoolBudget !== previousBudget ||
+      atlas.textures.some((texture, index) => texture !== taken[index])
+    )
+      return appendNow(rt, texture, kind);
     streamer.resize(pool.layers);
     pools.pool = pool;
   }
   const started = performance.now(),
     before = { ...streamer.counters };
-  const slot = streamer.append(kind, entry);
+  let slot: number;
+  try {
+    slot = streamer.append(kind, entry);
+  } finally {
+    // Rollback also replaces page-table buffers: readers must stop binding the old ones.
+    run.gate.resourcesChanged();
+  }
   pools.tails[kind] = tails;
   pools.demand[kind] = demand;
   slots.set(texture, slot);
-  run.gate.resourcesChanged();
   diag.engineDiagnostic('material-texture-appended', 'A texture joined the atlas', {
     kind,
     slot,
