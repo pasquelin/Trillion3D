@@ -26,8 +26,6 @@ test('a snapped sun corner rasterizes at the same place whatever the page origin
     assert.equal(new Set(snapped).size, 1, `corner ${x}`);
   }
   assert.ok(moved > 0, 'unsnapped, some corners land elsewhere at another origin');
-  assert.match(
-    SHADOW_DEPTH_SHADER,
-    /if\(out\.position\.w==1\.0\)\{out\.position=vec4f\(round\(out\.position\.xy\*SHADOW_SNAP\)\/SHADOW_SNAP/,
-  );
+  assert.match(SHADOW_DEPTH_SHADER, /round\(p\.x\*SHADOW_SNAP\)\/SHADOW_SNAP,round\(p\.y\*/);
+  assert.match(SHADOW_DEPTH_SHADER, /out\.position=sunSnap\(shadow\.viewProjection\*/);
 });

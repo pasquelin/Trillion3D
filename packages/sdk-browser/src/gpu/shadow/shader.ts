@@ -80,6 +80,12 @@ ${MASK_KEEP_WGSL}
 ${tileRequestIndexWgsl('color')}
 ${FEEDBACK_RULE_WGSL}
 ${BLEND_TRANSMITTANCE_WGSL}
+/** A sun corner (w 1) snapped to the rasterizer's own 1/256 of a texel: the viewport adds the
+ *  physical page's origin to it exactly, so a page rasterizes alike wherever the pool puts it. */
+fn sunSnap(p:vec4f)->vec4f{
+ if(p.w!=1.0){return p;}
+ return vec4f(round(p.x*SHADOW_SNAP)/SHADOW_SNAP,round(p.y*SHADOW_SNAP)/SHADOW_SNAP,p.z,p.w);
+}
 /** Corner \`vertexIndex\` of page-table row \`pageIndex\`, or none when its row is not of the kind
  *  drawn: \`blended\` casters alone into the transmittance layer, the others alone into the depth. */
 fn shadowVertex(vertexIndex:u32,pageIndex:u32,blended:bool)->ShadowOut{
@@ -93,10 +99,7 @@ fn shadowVertex(vertexIndex:u32,pageIndex:u32,blended:bool)->ShadowOut{
  let vertex=pagePosition(page,h,id);
  // The out.position product is not reassociated: world position is composed apart, otherwise
  // the written depth would no longer be that from before this batch, to the bit.
- out.position=shadow.viewProjection*page.world*vec4f(vertex,1.0);
- // A sun corner (w 1) snapped to the rasterizer's own 1/256 of a texel: the viewport adds the
- // physical page's origin to it exactly, so the page rasterizes alike wherever the pool puts it.
- if(out.position.w==1.0){out.position=vec4f(round(out.position.xy*SHADOW_SNAP)/SHADOW_SNAP,out.position.zw);}
+ out.position=sunSnap(shadow.viewProjection*page.world*vec4f(vertex,1.0));
  out.fromEmitter=(page.world*vec4f(vertex,1.0)).xyz-shadow.emitter.xyz;
  if((page.flags&4u)!=0u){out.uv=pageUv(page,h,id);}
  return out;
