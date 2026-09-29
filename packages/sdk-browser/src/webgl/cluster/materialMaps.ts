@@ -25,10 +25,10 @@ type MapVisit = (
 
 /**
  * THE MAPS A MATERIAL BINDS, unit by unit, as the draw binds them (`materialBinding.ts`) and as
- * the census uploads them ahead of any draw (`texturePrime.ts`): one walk, so both upload the same
- * textures under the same keys. An unlit material keeps its occlusion map on the host object
- * alone: it is imported here, as the boundary imports every other; only a plain colour one reads
- * it (`readsOcclusion`). A roughness and metalness read from one channel of one map bind it once.
+ * the census orders them to upload ahead of the draws (`textureQueue.ts`): one walk, so both
+ * upload the same textures under the same keys. An unlit material keeps its occlusion map on the
+ * host object alone: it is imported here, as the boundary imports every other; only a plain
+ * colour one reads it (`readsOcclusion`). A roughness and metalness read from one channel of one map bind it once.
  * Returns the material's engine record, its occlusion map and whether the two maps are shared.
  */
 export function eachMap(material: Material, visit: MapVisit) {

@@ -1270,14 +1270,24 @@ never allocated at the full request outside the check:
 WebGL2 has no out-of-memory scope to allocate under, so the engine reads `gl.getError()` for its
 allocations instead — a buffer, a texture level or a target sized again, never an upload in place.
 The read never holds a frame: `getError` waits for the GPU process, so each allocation is only
-recorded, the frame's end places a fence, and the errors are read before a later frame's first
-command, once that fence is passed. An `OUT_OF_MEMORY` marks the context, and the next frame halves
-the geometry pool, as WebGPU's refusal does, published as `gpu-out-of-memory`; the residency lets
-the finest pages go one DAG level per image, and every allocation not yet confirmed is made again
-once memory is granted.
-It reserves no pool — each page's buffers are made as the page arrives. A browser that answers by
-losing the context takes the WebGL2 context-loss path (`webglcontextlost`, then
-`webglcontextrestored`): nothing is drawn while the context is lost.
+recorded with its pool, each frame's end fences what that frame allocated, and the errors are read
+before a later frame's first command, once the oldest fence is passed — a fence is kept until the
+GPU passes it, however many frames behind it runs. An `OUT_OF_MEMORY` marks the pools of every
+allocation not yet confirmed, each made again at its next use, and the next frame answers each
+pool as WebGPU's refusal does, published as `gpu-out-of-memory` with the pool named: `geometry`
+halves the geometry pool, and the residency lets the finest pages go one DAG level per image;
+`texture` halves the texture pool the maps are uploaded ahead into (below); `target`, a frame
+target or the frame's light data, is sized again at its next draw, nothing to halve.
+The pages' vertices and indices share one set of buffers per vertex layout, grown on the GPU when
+full; a growth the context refuses gives that set up, and its pages are placed again in a new one.
+A browser that answers by losing the context takes the WebGL2 context-loss path
+(`webglcontextlost`, then `webglcontextrestored`): nothing is drawn while the context is lost.
+
+WebGL2 uploads a map at the first draw that binds it — a surface is never drawn without its
+picture, there is no coarser level to show instead — and uploads the others ahead: the census
+orders the maps of every declared surface within `texturePoolBytes`, and each frame, after its
+draws, uploads the next ones while `maxTextureTransferBytesPerFrame` (16 MiB) and
+`maxTextureUploadMsPerFrame` (1 ms) are not spent, the draws' own uploads counted first.
 
 Frame targets are **not** budgeted: colour, depth, visibility, HDR, material surfaces, Hi-Z, the
 temporal history and a capture follow the resolution, and `gpuFrameTargetBytes` says what they cost.
