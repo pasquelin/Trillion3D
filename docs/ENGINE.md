@@ -327,14 +327,20 @@ every fragment. The grid is listed on the CPU into one integer texture only when
 or range changes; a frame that moves the camera alone sends only the view-to-grid matrix
 (`webgl/cluster/lightLists.ts`, #835).
 
-**A moving image shades a drawn subset of each pixel's lights.** A moving image weighs every light
-of its tile without its shadow (the cheap part) and shades in full, shadow included, four of them. A
+**A moving image shades a drawn subset of each pixel's lights when they cast shadows.** A moving
+image weighs every light of its tile without its shadow (the cheap part) and shades in full, shadow
+included, four of them. A
 light worth a sample's share of the pixel's weight is shaded exactly and leaves the pool; the
 remaining samples are drawn along the cumulative weight from a per-pixel offset that advances by the
 golden ratio every image, each divided by its probability. The estimate is unbiased, so the history
 averages it toward the full sum. A **still** image — the quiet ones, a capture, a diagnostic view —
-shades every light of the tile, so the held image is the exact sum, `0 px` A/A.
-`metric.frame(world).lightsSampled` says which mode ran. Declared cost: a faint grain on lit surfaces
+shades every light of the tile, so the held image is the exact sum, `0 px` A/A. A tile list with no
+shadowed light is never drawn: with no shadow to save, the three weight walks would cost three times
+the full sum, so the moving image sums it in full as the still one does, bit for bit
+(`listShadowed`, `tests/browser/probes/sampled-resolve-gpu.ts`, #1249). 200 unshadowed lamps of
+range 4 m in a sponza-sized atrium drop from 23.8 light evaluations per covered pixel to 7.4 at
+3456 × 2234 (`bench/runner/lightTileSampledCount.ts`).
+`metric.frame(world).lightsSampled` says the image ran at a sampled rank. Declared cost: a faint grain on lit surfaces
 where lights of different colours overlap, while the camera moves
 (`tests/browser/renders/sampled-lighting.browser.ts`). What remains: a spatial denoise before the
 history.
