@@ -2,6 +2,7 @@ import { LTC_UNIT } from '../webgl/cluster/rectGlsl.ts';
 import { surfaceOf } from '../page/surface.ts';
 import { reflects } from './eligible.ts';
 import type { HostMaterials } from '../host/resources.ts';
+import type { ClusterDraw } from '../cluster/batchMesh.ts';
 import { WebglClusterBackdrop } from '../webgl/cluster/backdrop.ts';
 
 /** Freeze a source without recursive mirrors or camera fog, restoring the output before
@@ -25,5 +26,10 @@ export function capture(
 
 export const target = (gl: WebGL2RenderingContext) =>
   new WebglClusterBackdrop(gl, [LTC_UNIT + 1, LTC_UNIT + 2]);
+/** A mesh that reflects: the ocean, any mirror receiver of `eligible.ts`. */
+const mirrorReceiver = (mesh: { material: HostMaterials }) => reflects(surfaceOf(mesh.material));
 export const receivers = (lists: readonly (readonly { material: HostMaterials }[])[]) =>
-  lists.some((list) => list.some((mesh) => reflects(surfaceOf(mesh.material))));
+  lists.some((list) => list.some(mirrorReceiver));
+/** The drawn lists' mirror receivers, flattened: the meshes the reduced resolve pass redraws. */
+export const mirrorMeshes = (lists: readonly (readonly ClusterDraw[])[]): ClusterDraw[] =>
+  lists.flatMap((list) => list.filter(mirrorReceiver));
