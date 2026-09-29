@@ -176,8 +176,10 @@ export class ClusterMaterialPass {
   forget() {
     this.material = undefined;
   }
-  /** Image pixels per CSS pixel, written by the owner before a frame: a line's width scale. */
+  /** Image pixels per CSS pixel, written by the owner before a frame: a line's width scale; and
+   *  the frame's texture level offset (`upscaleMipBias`), zero at the display's size. */
   pixelRatio = 1;
+  mipBias = 0;
   /** A new frame: nothing bound yet, the ramp a depth material shows under its camera, the size
    *  in pixels of the image a line is widened in — the viewport's `[x, y, w, h]` — and the image
    *  pixels per CSS pixel its width is scaled by. */
@@ -187,5 +189,6 @@ export class ClusterMaterialPass {
     this.binding.uniforms.f2(36, 'depthRamp', ramp[0], ramp[1]);
     this.binding.uniforms.f2(40, 'viewport', viewport[2], viewport[3]);
     this.binding.uniforms.f1(42, 'pixelRatio', this.pixelRatio);
+    this.binding.uniforms.f1(47, 'mipBias', this.mipBias);
   }
 }
