@@ -81,8 +81,7 @@ const promote = (rt: WebgpuPagesRuntime, rank: number) =>
   rt.lights.mobility.move(rank, rt.layout.selectionRoots[rank].world.elements, true) ===
   MOVE_PROMOTED;
 
-/** `moved` declared to the shadow scheduler and the temporal Hi-Z: a root's first move changes
- *  the static layer, so the pages it crossed are staled whole. */
+/** `moved` declared to the shadow scheduler and the Hi-Z: a first move stales its pages whole. */
 function declare(rt: WebgpuPagesRuntime, promoted: boolean) {
   if (boxIsEmpty(moved, 0)) return;
   rt.lights.plan.worldChanged(movedMin, movedMax, !promoted);
@@ -90,7 +89,7 @@ function declare(rt: WebgpuPagesRuntime, promoted: boolean) {
 }
 
 function passMoves(rt: WebgpuPagesRuntime) {
-  const { run, layout } = rt,
+  const { lights, run, layout } = rt,
     roots = layout.selectionRoots;
   if (promotedRoots.length < roots.length) {
     promotedRoots = new Uint8Array(roots.length);
@@ -120,7 +119,7 @@ function passMoves(rt: WebgpuPagesRuntime) {
     moveRootRows(rt, root);
     if (!root.worldBox) continue;
     // A node moved: each root under it moved, at the pose it now reads.
-    promotedRoots[i] = promote(rt, i) ? 1 : 0;
+    promotedRoots[i] = lights.mobility.move(i, root.world.elements, true) === MOVE_PROMOTED ? 1 : 0;
     if (root.localBox && !enLot)
       boxTransform(root.worldBox, 0, root.localBox, 0, root.world.elements);
   }
