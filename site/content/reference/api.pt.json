@@ -4089,6 +4089,10 @@
     "summary": "Antisserrilhado temporal: deslocamento subpixel acumulado entre imagens; ativado por padrão.",
     "description": "Escrito, tem efeito na imagem seguinte, histórico descartado, sem reabrir a sessão. Lido, é o que a imagem carrega: false no WebGL2, e enquanto o programa compila depois de ativado."
   },
+  "world.renderScale": {
+    "summary": "A fração do ecrã por eixo a que a imagem é desenhada (`WorldOptions.renderScale`), a partir da imagem seguinte.",
+    "description": "Lida, a escala da última imagem desenhada: 1 em WebGL2."
+  },
   "world.effects": {
     "summary": "A cadeia de efeitos: passes desenhados sobre a imagem (`effect`)."
   },
@@ -4324,8 +4328,13 @@
       "controls": "O controlador que move a câmera a partir do canvas; `world.controls.kind` o muda depois.",
       "signal": "Para os carregamentos do mundo quando o sinal é abortado.",
       "physics": "Liga a física (`world.physics`): `true`, ou gravidade e orçamentos. Só então o Jolt é carregado.",
-      "temporalAntialiasing": "Antisserrilhado temporal, só WebGPU: deslocamento subpixel acumulado entre imagens. `false` desenha cada pixel no seu centro, sem histórico, o que pede uma captura exata ao pixel; alterado depois por `world.temporalAntialiasing`."
+      "temporalAntialiasing": "Antisserrilhado temporal, só WebGPU: deslocamento subpixel acumulado entre imagens. `false` desenha cada pixel no seu centro, sem histórico, o que pede uma captura exata ao pixel; alterado depois por `world.temporalAntialiasing`.",
+      "renderScale": "A fração do ecrã por eixo a que a imagem é desenhada, só WebGPU, antes de o antialiasing temporal a reconstruir para o ecrã: `'auto'` deixa o orçamento de imagem escolhê-la entre `min` e `max` (`{ min, max }`, 0,5 e 1 por omissão), um número fixa-a; uma imagem parada é desenhada no máximo. Alterada depois por `world.renderScale`."
     }
+  },
+  "RenderScale": {
+    "summary": "A escala de renderização que uma página pede: a fração do ecrã, por eixo, a que a imagem é desenhada antes de o antialiasing temporal a reconstruir para o ecrã.",
+    "description": "`'auto'` deixa o orçamento de imagem escolhê-la entre 0,5 e 1, `{ min, max }` limita essa escolha, um número fixa-a; todo o valor é mantido entre 0,5 e 1."
   },
   "WorldPageSource": {
     "summary": "De onde as páginas são lidas, e o endereço contra o qual são lidas.",
@@ -4963,7 +4972,8 @@
       "options.controls": "O controlador que move a câmera a partir do canvas; `world.controls.kind` o muda depois.",
       "options.signal": "Para os carregamentos do mundo quando o sinal é abortado.",
       "options.physics": "Liga a física (`world.physics`): `true`, ou gravidade e orçamentos. Só então o Jolt é carregado.",
-      "options.temporalAntialiasing": "Antisserrilhado temporal, só WebGPU: deslocamento subpixel acumulado entre imagens. `false` desenha cada pixel no seu centro, sem histórico, o que pede uma captura exata ao pixel; alterado depois por `world.temporalAntialiasing`."
+      "options.temporalAntialiasing": "Antisserrilhado temporal, só WebGPU: deslocamento subpixel acumulado entre imagens. `false` desenha cada pixel no seu centro, sem histórico, o que pede uma captura exata ao pixel; alterado depois por `world.temporalAntialiasing`.",
+      "options.renderScale": "A fração do ecrã por eixo a que a imagem é desenhada, só WebGPU, antes de o antialiasing temporal a reconstruir para o ecrã: `'auto'` deixa o orçamento de imagem escolhê-la entre `min` e `max` (`{ min, max }`, 0,5 e 1 por omissão), um número fixa-a; uma imagem parada é desenhada no máximo. Alterada depois por `world.renderScale`."
     }
   },
   "crossVector3": {
