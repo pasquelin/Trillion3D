@@ -13,6 +13,7 @@ export async function createWaterFreeze(device: GPUDevice) {
   const restore = await createWaterDepthRestore(device);
   const origin = { x: 0, y: 0 },
     size = { width: 1, height: 1 },
+    // The targets' size: a whole-texture depth copy covers it.
     extent = { width: 1, height: 1 },
     full = new Float64Array(4);
   const from = { texture: undefined as unknown as GPUTexture, origin },
@@ -20,9 +21,6 @@ export async function createWaterFreeze(device: GPUDevice) {
     depth = { texture: undefined as unknown as GPUTexture },
     waterDepth = { texture: undefined as unknown as GPUTexture };
   const freeze = {
-    /** The targets' size, and the size this image draws in them: the rectangle without bounds. */
-    extent,
-    drawn: { width: 1, height: 1 },
     /** Whether the last freeze drew the depth restore pass. */
     restored: false,
     bind(
@@ -41,8 +39,9 @@ export async function createWaterFreeze(device: GPUDevice) {
     },
     /** Encodes the freeze; returns the surface rectangle the surface and composite passes scissor. */
     encode(encoder: GPUCommandEncoder, bounds: WaterBounds, [width, height]: readonly number[]) {
-      full[2] = freeze.drawn.width = width;
-      full[3] = freeze.drawn.height = height;
+      // What the image draws, the targets' top-left: the rectangle without bounds.
+      full[2] = width;
+      full[3] = height;
       // Bounds a cull left empty (no kept item folded in) cover the full target, never a negative one.
       const bounded = bounds.active && bounds.surface[2] > bounds.surface[0];
       const rect = bounded ? bounds.surface : full;

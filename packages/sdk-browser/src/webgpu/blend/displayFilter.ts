@@ -108,15 +108,17 @@ export function createDisplayFilter(device: GPUDevice, width: number, height: nu
       return clear(mask);
     },
     /** Composes `target`, and the canvas `presentation`, with the layers `source`, of which the
-     *  image covers the top-left `[x, y]` share: the whole of the temporal ones. */
+     *  image covers the top-left `x` by `y` share: the whole of the temporal ones. */
     apply(
       encoder: GPUCommandEncoder,
       source: readonly [GPUTextureView, GPUTextureView],
       target: GPUTextureView,
       presentation?: GPUTextureView,
-      [x, y]: readonly number[] = [1, 1],
+      x = 1,
+      y = 1,
     ) {
-      if (share[0] !== x || share[1] !== y) {
+      // Compared as stored, a 32-bit float: a ratio that holds is not written again.
+      if (share[0] !== Math.fround(x) || share[1] !== Math.fround(y)) {
         [share[0], share[1]] = [x, y];
         device.queue.writeBuffer(drawn, 0, share);
       }

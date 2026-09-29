@@ -91,10 +91,11 @@ test('subtractive and multiply over paper show the witness in display space', ()
 });
 
 test('the layers drawn below the display are sampled to it, not read at its pixel', () => {
-  // The full-screen triangle's place: (0, 0) at the top left, (1, 1) at the bottom right.
+  // The full-screen triangle's place: (0, 0) at the top left, (1, 1) at the bottom right of the
+  // share the image covers (#832).
   assert.match(
     DISPLAY_FILTER_SHADER,
-    /return Screen\(vec4f\(c,0\.0,1\.0\),vec2f\(0\.5,-0\.5\)\*c\+0\.5\);/,
+    /return Screen\(vec4f\(c,0\.0,1\.0\),\(vec2f\(0\.5,-0\.5\)\*c\+0\.5\)\*drawn\.xy\);/,
   );
   assert.match(DISPLAY_FILTER_SHADER, /textureSampleLevel\(map,layerSampler,uv,0\.0\)/);
   assert.doesNotMatch(DISPLAY_FILTER_SHADER, /textureLoad/);
