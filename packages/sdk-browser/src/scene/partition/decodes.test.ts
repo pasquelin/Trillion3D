@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cellUrl, decodeHere, io, noBudget, settled, world } from './cells.fixture.ts';
+import { cellUrl, decodeHere, io, noBudget, settled, sizedWhole, world } from './cells.fixture.ts';
 
 test('a frame says when a cell within reach is left for a later one, read or decoded', async () => {
-  const { cells, bytes } = world();
+  const { cells, bytes } = await sizedWhole(world());
   const { port, held } = io(bytes);
   await settled(cells, [0, 0, 0], 100, port, noBudget); // the pages of the index it reaches
   const unread = cells.frame([0, 0, 0], 100, port, noBudget);
@@ -18,7 +18,7 @@ test('a frame says when a cell within reach is left for a later one, read or dec
 });
 
 test('a cell file is never parsed by the frame: its bytes go to the decode, its rows are placed', async () => {
-  const { cells, bytes } = world();
+  const { cells, bytes } = await sizedWhole(world());
   const { port, held } = io(bytes);
   const decoded: Uint8Array[] = [];
   // The decode runs later, as the pool answers: whatever it parses is not the frame's.
@@ -40,7 +40,7 @@ test('a cell file is never parsed by the frame: its bytes go to the decode, its 
   frame();
   assert.deepEqual([parsed, decoded.length, cells.stats().held], [0, 1, 1]);
   // A file the decode refused is thrown by the frame that reads it, as before.
-  const refused = world();
+  const refused = await sizedWhole(world());
   const other = io(refused.bytes);
   other.held.add(cellUrl('far.json'));
   other.port.decode = () => Promise.reject(new Error('INVALID_SCENE_TABLES'));

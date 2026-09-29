@@ -12,6 +12,7 @@ import { prepareExplorerBackends } from './backends.ts';
 import { createExplorerCamera } from '../camera/camera.ts';
 import { createExplorerPageSources } from './pageSources.ts';
 import { loadPreparedScene } from '../scene/scene.ts';
+import { primePartitions } from '../scene/partitionFrame.ts';
 import { ARRIVAL_BUDGET_MS } from '../../backend/common.ts';
 import { createFrameBudget } from '../../page/integration/frameBudget.ts';
 import type { ExplorerSession } from './session.ts';
@@ -132,14 +133,24 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
   );
   loadedScene.framingLot?.release();
   inputs.placeCamera?.(cameraState.camera);
-  // Of a partition only its root is read before the first frame: its rows are sized from it, and
-  // the frames read its pages and cells as the camera reaches them (#575).
-  if (loadedScene.partitions.length)
-    diagnose('partition', 'Partition opened on its root', {
+  // The pages and cells the first camera reaches are placed before the engines read their rows:
+  // the first frame draws them (`partitionFrame.ts`, #575). That camera is the page's when it hands
+  // one in (a world), else the framing one, which sees the whole scene.
+  if (loadedScene.partitions.length) {
+    const bytes = await primePartitions(
+      loadedScene.partitions,
+      cameraState.camera,
+      pageSources.streamer,
+      !!options.onPartitionOutgrown,
+      signal,
+    );
+    diagnose('partition', 'Pages and cells read before the first frame', {
       kind: 'preparation',
       scope,
+      bytes,
       cells: loadedScene.partitions.map((cells) => cells.stats()),
     });
+  }
   // The frame's one integration budget: cells, arrivals, then the engine's row records.
   const frameBudget = createFrameBudget(ARRIVAL_BUDGET_MS);
   const { viewport, context } = await prepareExplorerBackends(session, {

@@ -2,8 +2,9 @@
  * THE CELL INDEX OF A PARTITIONED SCENE, READ AS THE VIEW REACHES IT (#575). The cook cut the
  * cells' records into pages (`partition/pages.rs`), each the cells of one region of space, under
  * index pages; the root names the top ones, each boxed at the declared poses. Before its first
- * frame the runtime holds only that root. A frame walks the pages from it: a page whose box, where
- * the parents stand now (`boxes.ts`, `around`), meets its sphere is read — decoded in the pool and
+ * frame the runtime reads that root and the pages on the first camera's way (`cells.ts`, `prime`).
+ * A frame walks the pages from it: a page whose box, where the parents its cells hang under stand
+ * now (`boxes.ts`, `around`), meets its sphere is read — decoded in the pool and
  * opened within the one integration budget (`cells.ts`) — then its pages are walked, or its cells
  * tested. A page past the keep sphere with no cell placed is closed again: the index holds the
  * pages the view reached, never the world's, and a frame's work follows what its sphere holds.
@@ -11,8 +12,8 @@
 import type {
   readCellPage,
   TableCell,
-  TableSlot,
 } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
+import type { TableSlot } from '../../../../sdk-core/src/scene/core/tablePages.ts';
 import type { StreamPage } from '../../streaming/types.ts';
 import { boxed, type Boxed, type CellBoxes, type Declared } from './boxes.ts';
 import { boxDistance } from './plan.ts';
@@ -33,9 +34,10 @@ export function createCellIndex(slots: readonly TableSlot[], base: string, boxes
   let next = 0,
     opened = 0,
     forgotten: string[] = [];
-  const pageOf = ({ page, bounds }: TableSlot): IndexPage => ({
+  const pageOf = ({ page, bounds, parents }: TableSlot): IndexPage => ({
     slot: { ...page, url: new URL(page.url, base).href },
     declared: bounds,
+    parents,
     box: new Float64Array(6),
     written: -1,
     body: null,

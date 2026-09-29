@@ -17,8 +17,8 @@
  * bytes, not metres) is kept only while its box meets that sphere. The pages of the cell index
  * are read and kept by the same spheres (`cellIndex.ts`).
  *
- * The rows are sized once, when the session opens, for every node the partition's root counts
- * (`cells.ts`): nothing grows while a session draws, wherever the page moves the cells' parents.
+ * The rows are sized when the session opens for every node that keep sphere can hold, wherever
+ * the page moves the cells' parents (`sizing.ts`).
  */
 import {
   invertMatrix4,

@@ -1,9 +1,10 @@
 /**
- * The session's side of a partitioned scene (#404): before every frame the pages of the cell index
- * and the cells follow the camera through the session's streamer, the decode pool and the active
- * engine (`createPartitionFrame`), the meshes whose primitive the view read since mounted in place
- * (`partitionMounts.ts`, #751). Nothing of the partition but its root is read before the first
- * frame (#575).
+ * The session's side of a partitioned scene (#404): the rows are sized for its camera's view and
+ * the pages of the cell index on its way and the cells it reaches are read and placed before the
+ * engines read the rows (`primePartitions`, #575), and before every frame the pages and the cells
+ * follow the camera through the session's streamer, the decode pool and the active engine
+ * (`createPartitionFrame`), the meshes whose primitive the view read since mounted in place
+ * (`partitionMounts.ts`, #751).
  * The reach is the frame camera's far plane, never a number of the scene's
  * (`../../scene/partition/plan.ts`).
  */
@@ -16,6 +17,7 @@ import type { PartitionCells } from '../../scene/partition/cells.ts';
 import { cellReach } from '../../scene/partition/plan.ts';
 import { cellHoldings } from '../../scene/partition/cellPages.ts';
 import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
+import { growsInPlaceOf } from '../../placement/backendSceneUpdates.ts';
 import { createPartitionMounts } from './partitionMounts.ts';
 import { patientTask } from '../../page/decode/host.ts';
 import { cellRows, type CellRows } from '../../scene/partition/cellDecode.ts';
@@ -34,17 +36,44 @@ function viewOf(camera: HostCamera) {
   };
 }
 
-/** A file of the partition read by the decode pool, off the main thread (#575): `cells`, a cell
- *  file into its rows; `cellPage`, a page of the cell index. One of another version is refused. */
-async function offThread(op: 'cells' | 'cellPage', bytes: Uint8Array) {
-  const answer = await patientTask(op, bytes);
+/** The file of the partition at `url` read by the decode pool, off the main thread (#575): `cells`,
+ *  a cell file into its rows; `cellPage`, a page of the cell index. A refusal keeps its code — a page
+ *  of another version stays `UNSUPPORTED_SCENE_TABLES` — and names the file. */
+async function offThread(op: 'cells' | 'cellPage', bytes: Uint8Array, url: string) {
+  const answer = await patientTask(op, bytes, url);
   if (answer.ok && answer.cells) return cellRows(answer.cells);
   if (answer.ok && answer.cellPage) return answer.cellPage;
   const message = answer.ok ? 'PAGE_DECODE_FAILED' : answer.message;
-  throw new EngineError('INVALID_SCENE_TABLES', message, {});
+  const code = (!answer.ok && answer.refusal) || 'INVALID_SCENE_TABLES';
+  throw new EngineError(code, message, { url });
 }
-const decodeCell = (bytes: Uint8Array) => offThread('cells', bytes) as Promise<CellRows>;
-const decodePage = (bytes: Uint8Array) => offThread('cellPage', bytes) as Promise<PageBody>;
+const decodeCell = (bytes: Uint8Array, url: string) =>
+  offThread('cells', bytes, url) as Promise<CellRows>;
+const decodePage = (bytes: Uint8Array, url: string) =>
+  offThread('cellPage', bytes, url) as Promise<PageBody>;
+
+/**
+ * Sizes the rows for `camera`'s view — for every node when no owner can open the session again
+ * (`owned` false) —, then reads the pages of the index on its way and places the cells it reaches,
+ * each through the streamer at the head of its queue and the decode pool; the bytes read.
+ */
+export async function primePartitions(
+  partitions: readonly PartitionCells[],
+  camera: HostCamera,
+  streamer: Streamer,
+  owned: boolean,
+  signal?: AbortSignal,
+) {
+  const { eye, reach } = viewOf(camera);
+  const io = {
+    read: (url: string) => streamer.readBytes(url, signal),
+    decode: decodeCell,
+    decodePage,
+    admit: streamer.admit,
+  };
+  const bytes = await Promise.all(partitions.map((cells) => cells.prime(eye, reach, io, owned)));
+  return bytes.reduce((sum, value) => sum + value, 0);
+}
 
 type Inputs = {
   partitions: readonly PartitionCells[];
@@ -56,8 +85,10 @@ type Inputs = {
   budget: FrameBudget;
   /** What the session opened on (`partitionMounts.ts`). */
   opened?: Parameters<typeof createPartitionMounts>[0]['opened'];
-  /** Asked once a mesh the view read cannot be mounted in place: the owner opens the session
-   *  again (`partitionMounts.ts`). */
+  /** Asked once the camera's view, or a parent's stretch, outgrew the rows sized at open on an
+   *  engine that grows no buffer in place, or a mesh the view read cannot be mounted in place
+   *  (`partitionMounts.ts`): the owner opens the session again. Absent, a cell past those rows
+   *  waits. */
   renew?: () => void;
 };
 
@@ -108,6 +139,11 @@ export function createPartitionFrame(inputs: Inputs) {
       forget: streamer.forget,
       update: (...range: Parameters<NonNullable<RenderBackend['updatePlacements']>>) =>
         backend.updatePlacements?.(...range),
+      grow: backend.growPlacements && {
+        growPlacements: backend.growPlacements.bind(backend),
+        growsInPlace: (from, capacity) => growsInPlaceOf(backend, from, capacity),
+      },
+      outgrown: renew,
     };
     const { eye, reach } = viewOf(camera);
     later = false;

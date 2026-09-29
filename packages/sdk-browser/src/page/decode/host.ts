@@ -147,13 +147,17 @@ export async function decodePageOffThread(
  * than take the main thread. The worker receives a copy of `source`, so a vanished worker leaves
  * it whole for the main thread. Not a decode: it is not counted among the decoded pages.
  */
-export async function patientTask(op: 'cut' | 'cells' | 'cellPage', source: Uint8Array) {
+export async function patientTask(
+  op: 'cut' | 'cells' | 'cellPage',
+  source: Uint8Array,
+  name?: string,
+) {
   if (!openPool() && started === undefined) await starting;
   const open = openPool();
   const copy = () => source.slice().buffer as ArrayBuffer;
-  let answer = open ? await open.submit(op, copy(), 0).answer : undefined;
+  let answer = open ? await open.submit(op, copy(), 0, name).answer : undefined;
   if (!answer || (!answer.ok && answer.code === 'PAGE_DECODE_WORKER')) {
-    const request = { protocol: PAGE_DECODE_PROTOCOL, id: 0, op, maxDecodedBytes: 0 };
+    const request = { protocol: PAGE_DECODE_PROTOCOL, id: 0, op, maxDecodedBytes: 0, name };
     answer = (await runPageDecodeTask({ ...request, source: ownBuffer(source) })).answer;
   }
   return answer;

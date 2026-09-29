@@ -74,7 +74,7 @@ fn the_root_has_one_size_whatever_the_world_and_every_page_its_limit() {
         let root = &tables["partition"];
         let paged = json!({"version": root["version"], "pages": root["pages"]});
         assert_eq!(size(&paged), slots, "the root's slots, whatever the world");
-        assert_totals(directory, root);
+        super::partition_rows::assert_root(directory, root);
         let largest = files(directory, "scene-page-")
             .into_iter()
             .map(|(b, _)| b)
@@ -86,33 +86,10 @@ fn the_root_has_one_size_whatever_the_world_and_every_page_its_limit() {
         fs::remove_dir_all(options.source.parent().expect("root")).expect("cleanup");
     }
     // Sixteen times the area at the same density: the whole tables keep their bytes, the root's
-    // totals with them: 1 434 bytes, one mesh placed under the scene (FORMAT.md).
+    // lists with them: 1 739 bytes, one mesh placed under the scene (FORMAT.md).
     let (small, large) = (size(&worlds[0].1), size(&worlds[1].1));
     assert_eq!(small, large, "the core does not grow with the world");
-    assert_eq!(size(&worlds[0].1["partition"]), 1_434, "the grids' root");
-}
-
-/// The root's totals (#575): per mesh the nodes every record counts, and each core rank a record
-/// hangs nodes under, at fixed width, in rank order.
-fn assert_totals(directory: &Path, root: &Value) {
-    let records = read_records(directory, root).expect("records");
-    let mut meshes = BTreeMap::<u64, u64>::new();
-    let mut parents = BTreeSet::<u64>::new();
-    for record in &records {
-        for mesh in record["meshes"].as_array().expect("meshes") {
-            *meshes.entry(mesh[0].as_u64().expect("rank")).or_default() +=
-                mesh[1].as_u64().expect("n");
-        }
-        let ranks = record["parents"].as_array().expect("parents").iter();
-        parents.extend(ranks.filter_map(|parent| parent[0].as_u64()));
-    }
-    let meshes: Vec<String> = meshes
-        .iter()
-        .map(|(m, n)| format!("{m:08x}{n:08x}"))
-        .collect();
-    let parents: Vec<String> = parents.iter().map(|rank| format!("{rank:08x}")).collect();
-    assert_eq!(root["meshes"], json!(meshes), "the nodes of each mesh");
-    assert_eq!(root["parents"], json!(parents), "the parents followed");
+    assert_eq!(size(&worlds[0].1["partition"]), 1_739, "the grids' root");
 }
 
 #[test]
@@ -127,7 +104,7 @@ fn index_pages_list_at_most_the_fan_out_and_give_every_record_back_in_order() {
     // The root names every page by its fingerprint: the pages of #750, each naming its mesh pages
     // (#792), byte for byte.
     let named = hash(&serde_json::to_vec(&root).expect("json"));
-    let pages = "0fc7ca0a44a24d1c2c078eb9ef3ecd7ba9d4b1ce7605048e0b484f70c726449e";
+    let pages = "74d2fe2a9cca2849b1738479756461e5cb995b1775fd61d99c485535d92eaf9f";
     assert_eq!(
         named, pages,
         "the index and region pages of partition version 4"
@@ -137,7 +114,7 @@ fn index_pages_list_at_most_the_fan_out_and_give_every_record_back_in_order() {
     assert!(index.count() > 0, "index pages are written");
     let root_bytes = serde_json::to_vec(&root).expect("json").len();
     assert_eq!(
-        root_bytes, 1_434,
+        root_bytes, 1_739,
         "the root of small worlds, index pages under it"
     );
     for (bytes, page) in &written {
