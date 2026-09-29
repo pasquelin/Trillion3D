@@ -8,8 +8,8 @@
 // it. One writing for both paths, hence one contract.
 
 /**
- * Opens the device, with those of `features` the adapter offers, hooks collection of uncaptured
- * errors, and returns what is needed to compile and close cleanly. Returns `null` when the page
+ * Opens the device, with those of `features` the adapter offers and the `requiredLimits` asked,
+ * hooks collection of uncaptured errors, and returns what is needed to compile and close cleanly. Returns `null` when the page
  * has no WebGPU adapter.
  *
  * - `compile(code)` returns `{ module, compilation }`; `compilation` keeps only messages of type
@@ -19,12 +19,15 @@
  *   architecture) and `complet` (the four filled fields). `adapter.info` is not cloneable, only
  *   these strings cross the page bridge.
  */
-export async function ouvrirAppareil(features: GPUFeatureName[] = []) {
+export async function ouvrirAppareil(
+  features: GPUFeatureName[] = [],
+  requiredLimits?: Record<string, number>,
+) {
   const adapter = await navigator.gpu?.requestAdapter();
   if (!adapter) return null;
   // The optional features asked, those the adapter has: the probe reads what was granted.
   const requiredFeatures = features.filter((feature) => adapter.features.has(feature));
-  const device = await adapter.requestDevice({ requiredFeatures });
+  const device = await adapter.requestDevice({ requiredFeatures, requiredLimits });
   const errors: string[] = [];
   device.addEventListener('uncapturederror', (event) => errors.push(event.error.message));
   return {

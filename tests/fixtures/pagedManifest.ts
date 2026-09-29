@@ -4,11 +4,9 @@ import { createHash } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { ClusterManifest } from '../../packages/sdk-core/src/contracts/index.ts';
-import {
-  encodeManifestBinary,
-  MANIFEST_BINARY_VERSION,
-} from '../../packages/sdk-core/src/index.ts';
+import { MANIFEST_BINARY_VERSION } from '../../packages/sdk-core/src/index.ts';
 import { TEMPLATES } from './manifestBinary.ts';
+import { encodeManifestBinary } from './manifestBinaryEncode.ts';
 
 /** An empty slot of a root or an index page. */
 export const EMPTY = '0'.repeat(168);

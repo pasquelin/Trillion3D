@@ -51,8 +51,8 @@ export function applySceneFlag(flags: Map<string, string>, assets: string = ASSE
   const scene = flags.get('scene');
   if (!scene || scene === 'true' || !readsCache(scene)) return;
   const derived = sceneDerived(scene, assets);
-  if (!flags.has('cache-apres')) flags.set('cache-apres', derived);
-  if (flags.has('avant') && !flags.has('cache-avant')) flags.set('cache-avant', derived);
+  if (!flags.has('cache-after')) flags.set('cache-after', derived);
+  if (flags.has('before') && !flags.has('cache-before')) flags.set('cache-before', derived);
 }
 
 /** Scene name of a side, inferred from the cache: the "derived" folder carries `<name>-derived`.

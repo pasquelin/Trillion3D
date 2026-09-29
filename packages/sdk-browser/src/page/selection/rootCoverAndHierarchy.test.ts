@@ -91,19 +91,22 @@ test('a culling hierarchy that does not match its pages is rejected', () => {
   fixture.geometry.dispose();
 });
 
-test('transparent flat pages keep a draw order taken from their source rank', () => {
-  const fixture = dagFixture();
-  fixture.mesh.material = G.basicSurface({ transparent: true });
-  for (const page of fixture.metadata.primitives[0].pages) page.start = (6 - page.id) * 3;
-  const { allPages } = collectClusterPages(
-    fixture.source,
-    fixture.metadata,
-    fixture.indices,
-    fixture.associations,
-  );
-  assert.deepEqual(
-    allPages.map((page) => page.sourceOrder),
-    [18, 15, 12, 9, 6, 3, 0],
-  );
-  fixture.geometry.dispose();
-});
+// An opaque page records it too: its material may turn blended in the session (#846), and then
+// draws in the order a blended compile records.
+for (const transparent of [true, false])
+  test(`${transparent ? 'transparent' : 'opaque'} flat pages keep a draw order taken from their source rank`, () => {
+    const fixture = dagFixture();
+    fixture.mesh.material = G.basicSurface({ transparent });
+    for (const page of fixture.metadata.primitives[0].pages) page.start = (6 - page.id) * 3;
+    const { allPages } = collectClusterPages(
+      fixture.source,
+      fixture.metadata,
+      fixture.indices,
+      fixture.associations,
+    );
+    assert.deepEqual(
+      allPages.map((page) => page.sourceOrder),
+      [18, 15, 12, 9, 6, 3, 0],
+    );
+    fixture.geometry.dispose();
+  });

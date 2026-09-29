@@ -92,7 +92,6 @@ export class WebglClusterRenderer {
       instanced = !record && isInstancedNode(mesh);
     if (this.validation.leaves(mesh) || !material.visible || (instanced && !mesh.count)) return 0;
     this.geometry.bind(mesh.geometry, record ? undefined : (mesh as WholeMesh));
-    this.lights.lists.use(mesh, this.at('lightSpan'));
     if (this.instanced !== instanced) gl.uniform1i(this.at('instanced'), instanced ? 1 : 0);
     this.instanced = instanced;
     const model = drawWorld(mesh);
@@ -138,7 +137,7 @@ export class WebglClusterRenderer {
     copies: readonly SceneCopy[] = [],
   ) {
     const gl = this.gl;
-    const lightReason = unsupportedClusterLight(scene);
+    const lightReason = unsupportedClusterLight(scene.lights);
     if (lightReason) refuseCluster(lightReason);
     this.copies.cull(copies, camera);
     const { plain, blended, transmissive } = this.copies;
@@ -148,7 +147,7 @@ export class WebglClusterRenderer {
     gl.uniformMatrix4fv(this.at('projectionMatrix'), false, camera.projection);
     gl.uniform1i(this.at('toneCurve'), this.toneCurve);
     const drawn = [meshes, diagnosticMeshes, plain, blended, transmissive];
-    this.lights.upload(scene, camera.view, drawn);
+    this.lights.upload(scene, camera.view);
     this.textures.beginFrame();
     this.instanced = undefined;
     this.pass.beginFrame(camera, gl.getParameter(gl.VIEWPORT) as Int32Array);
