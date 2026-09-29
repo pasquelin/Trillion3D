@@ -78,7 +78,8 @@ export class WebglClusterLightLists {
     if (this.reach.length < count * REACH_FLOATS)
       this.reach = grown(this.reach, Float64Array, count * 2 * REACH_FLOATS);
   }
-  /** Lists every draw of the frame against the `count` lights uploaded, then sends the lists. */
+  /** Lists every draw of the frame against the `count` lights uploaded, then sends the rows of
+   *  lists the texture does not hold yet: none when a frame lists what the last one did. */
   build(count: number, draws: readonly (readonly ClusterDraw[])[]) {
     this.lights = count;
     this.length = 0;
@@ -87,12 +88,13 @@ export class WebglClusterLightLists {
     this.texture.upload(this.length);
   }
   /** Points the program's `lightSpan` at `draw`'s list; a draw the frame did not list is listed
-   *  and sent now, never drawn unlit. */
+   *  and its rows alone sent now, never drawn unlit. */
   use(draw: ClusterDraw, lightSpan: WebGLUniformLocation | null) {
     let k = this.spans.get(draw);
     if (k === undefined) {
+      const start = this.length;
       k = this.list(draw);
-      this.texture.upload(this.length);
+      this.texture.upload(this.length, start);
     }
     this.gl.uniform2i(lightSpan, this.starts[k], this.counts[k]);
   }
