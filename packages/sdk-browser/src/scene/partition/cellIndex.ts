@@ -84,8 +84,9 @@ export function createCellIndex(slots: readonly TableSlot[], base: string, boxes
       // A cell is its cook's rank, whatever page opens first: the world roots name it so (#1237).
       const ids = body.cells.map((record, at) => {
         const url = new URL(record.url, base).href;
-        cells.set(body.first + at, { ...record, url, item: boxed(record.parents) });
-        return body.first + at;
+        const id = body.first + at;
+        cells.set(id, { ...record, url, item: boxed(record.parents) });
+        return id;
       });
       page.body = { cells: ids };
       return ids.map((id) => {
