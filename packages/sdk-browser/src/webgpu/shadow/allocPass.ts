@@ -1,6 +1,5 @@
-import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
-import { createWebgpuBindIdentity } from '../core/bindIdentity.ts';
+import { computePass } from './computePass.ts';
 import { ALLOCATION_WGSL } from './allocWgsl.ts';
 import { SHADOW_WORDS_WGSL, WORDS_GROUP } from './wordsWgsl.ts';
 import { SHADOW_FRESH_WGSL } from './freshWgsl.ts';
@@ -10,12 +9,14 @@ import { SHADOW_DEMAND_PASS } from './demandPass.ts';
 
 /** Labels of the allocation and of the host's table words, as a frame's passes are timed. */
 const SHADOW_ALLOC_PASS = 'Trillion3D shadow allocation v1';
+const SHADOW_FLOORS_PASS = 'Trillion3D shadow floors v1';
 const SHADOW_WORDS_PASS = 'Trillion3D shadow table words v1';
 const SHADOW_FRESH_PASS = 'Trillion3D shadow GPU pages v1';
 const SHADOW_FRESH_CULL_PASS = 'Trillion3D shadow GPU page cull v1';
 const SHADOW_FRESH_SEAL_PASS = 'Trillion3D shadow GPU page seal v1';
 /** The GPU's page passes, the demand first: timed under the Shadows stage (`stage/mapping.ts`). */
 export const SHADOW_PAGE_PASSES = [
+  SHADOW_FLOORS_PASS,
   SHADOW_DEMAND_PASS,
   SHADOW_ALLOC_PASS,
   SHADOW_WORDS_PASS,
@@ -23,54 +24,6 @@ export const SHADOW_PAGE_PASSES = [
   SHADOW_FRESH_CULL_PASS,
   SHADOW_FRESH_SEAL_PASS,
 ] as const;
-
-/** A compute pass of storage buffers only, its bind group made again only when they moved. */
-async function computePass(
-  device: GPUDevice,
-  wgsl: string,
-  label: string,
-  entryPoint: string,
-  types: GPUBufferBindingType[],
-) {
-  const module = await createCheckedShaderModule(device, wgsl, label);
-  const layout = device.createBindGroupLayout({
-    label,
-    entries: types.map((type, binding) => ({
-      binding,
-      visibility: GPUShaderStage.COMPUTE,
-      buffer: { type },
-    })),
-  });
-  const pipeline = device.createComputePipeline({
-    label,
-    layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-    compute: { module, entryPoint },
-  });
-  const bound = createWebgpuBindIdentity();
-  let group: GPUBindGroup | undefined;
-  /** Encodes the pass over `buffers`, in binding order, dispatching `groups` workgroups — or as
-   *  many as the words at a byte of a buffer say. */
-  return (
-    encoder: GPUCommandEncoder,
-    buffers: readonly GPUBuffer[],
-    groups: number | readonly [GPUBuffer, number],
-  ) => {
-    bound.next.length = 0;
-    bound.next.push(...buffers);
-    if (bound.moved() || !group)
-      group = device.createBindGroup({
-        label,
-        layout,
-        entries: buffers.map((buffer, binding) => ({ binding, resource: { buffer } })),
-      });
-    const pass = encoder.beginComputePass({ label });
-    pass.setPipeline(pipeline);
-    pass.setBindGroup(0, group);
-    if (typeof groups === 'number') pass.dispatchWorkgroups(groups);
-    else pass.dispatchWorkgroupsIndirect(...groups);
-    pass.end();
-  };
-}
 
 const READ: GPUBufferBindingType = 'read-only-storage';
 
@@ -83,15 +36,11 @@ const READ: GPUBufferBindingType = 'read-only-storage';
 export async function createShadowAllocation(device: GPUDevice) {
   const fresh: GPUBufferBindingType[] = ['storage', 'storage', 'storage', 'storage', 'storage'];
   fresh.push('storage', READ, 'storage');
-  const [allocate, words, compose, seal, cull] = await Promise.all([
-    computePass(device, ALLOCATION_WGSL, SHADOW_ALLOC_PASS, 'allocateShadowPages', [
-      'storage',
-      'storage',
-      'storage',
-      'storage',
-      READ,
-      'storage',
-    ]),
+  const allocated: GPUBufferBindingType[] = ['storage', 'storage', 'storage', 'storage', READ];
+  allocated.push('storage');
+  const [floors, allocate, words, compose, seal, cull] = await Promise.all([
+    computePass(device, ALLOCATION_WGSL, SHADOW_FLOORS_PASS, 'claimShadowFloors', allocated),
+    computePass(device, ALLOCATION_WGSL, SHADOW_ALLOC_PASS, 'allocateShadowPages', allocated),
     computePass(device, SHADOW_WORDS_WGSL, SHADOW_WORDS_PASS, 'applyShadowWords', [
       'storage',
       'storage',
@@ -109,21 +58,34 @@ export async function createShadowAllocation(device: GPUDevice) {
       READ,
     ]),
   ]);
-  return { allocate, words, compose, cull, seal };
+  return { floors, allocate, words, compose, cull, seal };
 }
 
 export type ShadowAllocation = Awaited<ReturnType<typeof createShadowAllocation>>;
 
+/** The allocation's bindings, in order, once the GPU pool holds the host's: none without the
+ *  pipelines, the pool or its buffers — the reports then allocate on the host. */
+function allocationBound(rt: WebgpuPagesRuntime) {
+  const { allocation, pageRequests, shadows } = rt.lights,
+    buffers = pageRequests?.allocation;
+  if (!allocation || !buffers?.seeded || !pageRequests || !shadows?.texture) return undefined;
+  return [
+    shadows.dataBuffer,
+    pageRequests.buffer,
+    buffers.state,
+    buffers.keys,
+    buffers.params,
+    buffers.drawList,
+  ];
+}
+
 /**
- * Maps, on the GPU, every page this image asks for — its pixels' demand (`demandPass.ts`) and the
- * plan's floors —, right after the demand and before any page is drawn. The first time, the GPU
- * pool is written from the host's, and the plan follows the GPU from then on (`mirror.ts`).
- * Nothing without the pipelines, the pool or its buffers: the reports then allocate on the host.
- *
- * The pages it maps, and those it mapped before and saw no draw of since, it lists: the GPU draws
- * them in this frame once the host's pages and words are in (`freshPass.ts`).
+ * The plan's floors (`requests.floors`), claimed at the head of the request buffer just zeroed,
+ * before the per-pixel demand marks it: pixels that fill the list never push a floor out of it
+ * (`claimShadowFloors`). The first time, the GPU pool is written from the host's, and the plan
+ * follows the GPU from then on (`mirror.ts`).
  */
-export function encodeShadowAllocation(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
+export function encodeShadowFloors(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const { lights, run } = rt,
     { allocation, pageRequests, shadows, plan } = lights,
     buffers = pageRequests?.allocation;
@@ -135,15 +97,18 @@ export function encodeShadowAllocation(rt: WebgpuPagesRuntime, encoder: GPUComma
   // The records it decodes entries with are this frame's, as every write lands before the pass.
   shadows.flushRecords();
   buffers.writeParams(run.frame, plan.records.generation, plan.gpu.asks);
-  const bound = [
-    shadows.dataBuffer,
-    pageRequests.buffer,
-    buffers.state,
-    buffers.keys,
-    buffers.params,
-    buffers.drawList,
-  ];
-  allocation.allocate(encoder, bound, 1);
+  allocation.floors(encoder, allocationBound(rt)!, 1);
+}
+
+/**
+ * Maps, on the GPU, every page this image asks for — the plan's floors (`encodeShadowFloors`),
+ * then its pixels' demand (`demandPass.ts`) —, right after the demand and before any page is
+ * drawn. The pages it maps, and those it mapped before and saw no draw of since, it lists: the GPU
+ * draws them in this frame once the host's pages and words are in (`freshPass.ts`).
+ */
+export function encodeShadowAllocation(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
+  const bound = allocationBound(rt);
+  if (bound) rt.lights.allocation!.allocate(encoder, bound, 1);
 }
 
 /**

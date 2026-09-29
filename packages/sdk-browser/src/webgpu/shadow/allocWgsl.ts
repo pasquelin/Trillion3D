@@ -33,9 +33,13 @@ if (!Number.isInteger(ENTRY_BITS) || ENTRY_BITS + RANK_BITS > 32)
  * THE GPU ALLOCATION OF SHADOW PAGES (#1275): one workgroup, right after the per-pixel demand
  * (`demandWgsl.ts`), maps every page the frame asks for — the pixels' requests and the host's
  * floors (`requests.floors`), one list deduplicated by the request bitset — in that same frame,
- * before any page is drawn or read. Phase by phase, a barrier between each (`ALLOC_PHASES`):
+ * before any page is drawn or read.
  *
- * 1. `beginAllocation` — the counts zeroed, the host's asks claimed into the request list.
+ * 1. `claimShadowFloors`, its own dispatch before the demand: the counts zeroed, the host's asks
+ *    claimed at the head of the request list — pixels that fill the list never push a floor out
+ *    of it, so a floor is always asked for, never evicted, and a refused finer page always has its
+ *    coarse page to read. Then `allocateShadowPages`, phase by phase, a barrier between each
+ *    (`ALLOC_PHASES`):
  * 2. `followPages` — a page of a slice that dropped its pages since (`records.generation`), or of a
  *    sun level whose window no longer holds it, is freed, its word zeroed; a sun page is ranked
  *    again at this frame's finest level (`records.followSun`).
@@ -175,8 +179,8 @@ fn assignPages(lane:u32,needs:u32,candidates:u32){
 fn spanOf(n:u32)->u32{return 1u<<(32u-countLeadingZeros(max(n,2u)-1u));}
 var<workgroup> needCount:u32;
 var<workgroup> candidateCount:u32;
+@compute @workgroup_size(${ALLOC_LANES}) fn claimShadowFloors(@builtin(local_invocation_index) lane:u32){beginAllocation(lane);}
 @compute @workgroup_size(${ALLOC_LANES}) fn allocateShadowPages(@builtin(local_invocation_index) lane:u32){
- beginAllocation(lane);storageBarrier();
  followPages(lane);storageBarrier();
  touchRequests(lane);storageBarrier();
  if(lane==0u){needCount=countRead(COUNT_NEEDS);}
@@ -190,5 +194,6 @@ var<workgroup> candidateCount:u32;
  assignPages(lane,needs,candidates);
 }`;
 
-/** The phases the entry runs one after the other, a barrier between: what a test runs in order. */
-export const ALLOC_PHASES = ['beginAllocation', 'followPages', 'touchRequests', 'listCandidates'];
+/** The phases the allocation runs one after the other, a barrier between, once the floors are
+ *  claimed (`beginAllocation`): what a test runs in order. */
+export const ALLOC_PHASES = ['followPages', 'touchRequests', 'listCandidates'];

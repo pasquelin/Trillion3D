@@ -17,6 +17,7 @@ import {
   PAGE_MAPPED,
   PAGE_VALID,
   SHADOW_TABLE_STRIDE,
+  shadowRequestCap,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { gpuFrames } from './gpuFrames.fixture.ts';
 import { floorTiles, tileGrid } from './shadingReads.fixture.ts';
@@ -119,4 +120,30 @@ test('a lamp removed frees its pages on the GPU: the lamp its slice goes to read
     if (entry >= base && entry < base + SHADOW_TABLE_STRIDE && table[entry] & PAGE_VALID)
       assert.equal(drawnAt[page], 5, `entry ${entry} reads page ${page} drawn before the swap`);
   });
+});
+
+test('pixels that fill the request list never push out a floor: every floor page stays mapped', async () => {
+  const run = gpuFrames(10, [{ ...LAMP, ...lampAt(0) }]),
+    { plan, store, table, owner } = run,
+    inbox: ShadowRequestReport[] = [];
+  const frame = (at: number, more: number[] = []) => {
+    for (const report of inbox.splice(0)) plan.receive(report);
+    return run.frame(at, viewAt(0), tiles.lits, (report) => inbox.push(report), more);
+  };
+  for (let at = 1; at < 4; at++) await frame(at);
+  const floors = () => [...plan.gpu.asks.entries.subarray(0, plan.gpu.asks.count)];
+  assert.ok(floors().length > 0, 'the plan asks for its floors');
+  // Frame 4: past what the shading reads, the pixels ask for more fine pages of the lamp than the
+  // list holds, every one a page the full pool would evict for.
+  const base = plan.table.baseOf(store.sliceOf(0)),
+    asked = new Set(floors()),
+    more: number[] = [];
+  for (let entry = base; more.length < shadowRequestCap(plan.pool.pages) + 50; entry++)
+    if (!asked.has(entry)) more.push(entry);
+  await frame(4, more);
+  assert.ok(run.refused() > 0, 'the frame asks past the pool');
+  for (const entry of floors()) {
+    assert.ok(table[entry] & PAGE_MAPPED, `floor ${entry} is mapped`);
+    assert.equal(owner[table[entry] & PAGE_INDEX_MASK], entry, `floor ${entry} owns its page`);
+  }
 });
