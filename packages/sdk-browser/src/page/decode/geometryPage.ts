@@ -5,10 +5,10 @@ import {
   FLAG_UV,
   FLAG_UV1,
   BLOCK_CORNERS,
-  OCT_SCALE,
 } from '../../cluster/format.ts';
 import { blockRecord, field, readGeometryPageHeader, type Quant } from './geometryPageHeader.ts';
 import { pageAttributeNames, pageViews } from './geometryPageBlock.ts';
+import { octDecode } from '../../../../page-codec/pageGrids.ts';
 
 /**
  * JavaScript decoder of a `WGP3` quantized cluster page (`docs/FORMAT.md`), the mirror of the
@@ -36,22 +36,6 @@ export type DecodedGeometryPage = {
 };
 
 const fround = Math.fround;
-/** Octahedral bytes (`x` low, `y` high) back to a unit vector, in 32-bit steps. */
-function octDecode(q: number, out: Float32Array, at: number) {
-  let x = fround(fround((q & 255) * OCT_SCALE) - 1),
-    y = fround(fround(((q >>> 8) & 255) * OCT_SCALE) - 1);
-  const z = fround(fround(1 - Math.abs(x)) - Math.abs(y));
-  if (z < 0) {
-    const fx = fround((1 - Math.abs(y)) * (x >= 0 ? 1 : -1)),
-      fy = fround((1 - Math.abs(x)) * (y >= 0 ? 1 : -1));
-    x = fx;
-    y = fy;
-  }
-  const length = fround(Math.sqrt(fround(fround(fround(x * x) + fround(y * y)) + fround(z * z))));
-  out[at] = fround(x / length);
-  out[at + 1] = fround(y / length);
-  out[at + 2] = fround(z / length);
-}
 
 /** One dequantized vector attribute into `out`: component `c` of vertex `i` at bit `i * bits[c]`
  *  of stream `c`. */
@@ -83,9 +67,11 @@ export function decodeGeometryPage(
     uv2,
     color,
     corners,
+    positionCount,
+    linkBits,
     bodyWords: at,
     decodedBytes,
-    streams: { blocks, corners: cornerStream, positions, normal, uvs, uv2s, colors },
+    streams: { blocks, corners: cornerStream, positions, links, normal, uvs, uv2s, colors },
   } = readGeometryPageHeader(data, maxDecodedBytes);
   // The streams are read in place when the page sits on a word boundary, from a copy otherwise.
   const body = data.subarray(CLUSTER_HEADER_WORDS * 4);
@@ -107,7 +93,17 @@ export function decodeGeometryPage(
       if (decodedIndices[i] >= vertexCount) throw new Error('GEOMETRY_PAGE_INDEX');
     }
   }
-  vector(attributes.position, words, positions, position);
+  if (positionCount < vertexCount) {
+    // Positions stored once, each vertex dequantized from the one its link names (`positions.rs`).
+    const step = 2 ** position.exponent;
+    for (let i = 0; i < vertexCount; i++) {
+      const p = field(words, links * 32 + i * linkBits, linkBits);
+      for (let c = 0; c < 3; c++) {
+        const q = field(words, positions[c] * 32 + p * position.bits[c], position.bits[c]);
+        attributes.position[i * 3 + c] = fround(position.min[c] + fround(q * step));
+      }
+    }
+  } else vector(attributes.position, words, positions, position);
   if (flags & FLAG_NORMAL)
     for (let i = 0; i < vertexCount; i++)
       octDecode(field(words, normal * 32 + i * 16, 16), attributes.normal, i * 3);

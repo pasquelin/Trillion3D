@@ -90,6 +90,12 @@ export const SHADOW_TABLE_ENTRIES = MAX_SHADOW_SLICES * SHADOW_TABLE_STRIDE;
 export const PAGE_VALID = 1 << 16;
 export const PAGE_MAPPED = 1 << 17;
 export const PAGE_INDEX_MASK = 0xffff;
+/** Depth ranges a sun keeps at once: a pair of floats each, in the six lamp matrices its record
+ *  leaves free (`faces.ts`). A drawn page's word names the one its depth was drawn in, from bit
+ *  `PAGE_RANGE_SHIFT` (`sunLevels.ts`): a new range leaves every page drawn in an older one read. */
+export const SUN_DEPTH_RANGES = (POINT_FACES * 16) / 2;
+export const PAGE_RANGE_SHIFT = 18;
+export const PAGE_RANGE_MASK = 2 ** Math.ceil(Math.log2(SUN_DEPTH_RANGES)) - 1;
 /** Pages a side of one layer of the pool: an 8 192-texel square, the largest 2D texture side
  *  WebGPU guarantees on every device (the default `maxTextureDimension2D`). */
 const LAYER_SIDE = Math.floor(8192 / SHADOW_PAGE);

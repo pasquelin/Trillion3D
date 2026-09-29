@@ -1,24 +1,10 @@
 import { evictOldest } from './evictOldest.ts';
+import { createEvictionOrder } from './evictionOrder.ts';
 import { createTextureLevelStore, textureLevelShare } from '../texture/levelStore.ts';
 
 /** The CPU total by default. Streaming bundles are far larger than a single cluster page, so a
  *  cache bounded only by entry count would hold hundreds of megabytes. */
 export const DEFAULT_CACHED_BYTES = 256 * 1024 * 1024;
-
-/** Bytes one catalogue entry is reckoned to hold beside its strings: the record and its place in
- *  the manifest's indexes (by url, by page id, by bundle), a fixed rule, never read from the
- *  machine. */
-const TABLE_ENTRY_BYTES = 128;
-/** Bytes of a fingerprint's hexadecimal string. */
-const SHA256_CHARS = 64;
-
-/** CPU bytes the manifest tables of `pages` hold: each entry's url and fingerprint as UTF-16
- *  strings, and its record in the indexes. */
-export const manifestTableBytes = (pages: Iterable<{ url: string }>) => {
-  let bytes = 0;
-  for (const page of pages) bytes += 2 * (page.url.length + SHA256_CHARS) + TABLE_ENTRY_BYTES;
-  return bytes;
-};
 
 /** A session's hold on the cache: what it reserves off the total, which may change while it reads,
  *  the bytes of the pages it keeps or reads (`held`), and how it evicts — past its pins and its
@@ -46,6 +32,8 @@ const checkBytes = (bytes: number) => {
 export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
   checkBytes(cpuBytes);
   const pages = new Map<string, Uint8Array>();
+  /** The pages' eviction order past the reading session's holds (`evictionOrder.ts`). */
+  const order = createEvictionOrder((url) => pages.get(url)!.byteLength);
   /** The fingerprint each page's bytes were verified against when read: they leave with them. */
   const fingerprints = new WeakMap<Uint8Array, string>();
   /** The one file kept whole beside the pages: its read, the bytes it takes off the total, and the
@@ -64,6 +52,7 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     const held = pages.get(url);
     if (!held) return;
     bytes -= held.byteLength;
+    order.drop(url);
     pages.delete(url);
   };
   /** Pages leave by last use until they fit: through the session in place, which keeps its pins
@@ -85,6 +74,8 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     onHeld: evict,
   });
   const cache = {
+    /** The pages' eviction order: only the session holding the cache marks its holds there. */
+    order,
     /** The pages, by url, least recently used first. */
     pages: pages as ReadonlyMap<string, Uint8Array>,
     /** Bytes the pages hold. */
@@ -115,6 +106,7 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     touch(url: string, array: Uint8Array, sha256?: string) {
       drop(url);
       pages.set(url, array);
+      order.touch(url);
       bytes += array.byteLength;
       if (sha256) fingerprints.set(array, sha256);
     },
@@ -149,6 +141,12 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
       evict();
       return kept.read;
     },
+    /** Charge decoded allocations only while this file is still kept. */
+    resizeKept(key: string, bytes: number) {
+      if (slot?.key !== key || slot.bytes === bytes) return;
+      slot.bytes = bytes;
+      evict();
+    },
     /** The decoded texture levels, kept across sessions as the pages are (`levelStore.ts`); they
      *  yield first to the pages a frame keeps (`streaming/cache.ts`). */
     levels,
@@ -175,13 +173,19 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     /** A session reads through the cache until the returned release; one at a time. */
     hold(next: Holder) {
       holder = next;
+      order.releaseAll();
       return () => {
-        if (holder === next) holder = undefined;
+        if (holder !== next) return;
+        holder = undefined;
+        order.releaseAll();
       };
     },
+    /** Whether `session` is the one reading through the cache, whose holds `order` keeps. */
+    holds: (session: Holder) => holder === session,
     /** Empties the cache: its owner is gone. */
     clear() {
       pages.clear();
+      order.clear();
       release(true);
       levels.close();
       bytes = 0;

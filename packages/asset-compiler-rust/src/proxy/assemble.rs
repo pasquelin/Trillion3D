@@ -1,39 +1,53 @@
 //! End of proxy step: world triangles to column-structured format.
-use super::share::{self, Placed};
 use super::{
     bvh, simplify, wide, SceneProxy, PROXY_CELL_METRES, PROXY_ERROR_METRES, PROXY_TRIANGLE_BUDGET,
 };
 
 /// Simplifies placed triangles, builds wide BVH, publishes obtained threshold: max
-/// requested cut threshold, plus simplification cell addition. With no placement in `placed`,
-/// nothing is shared.
-pub(crate) fn assemble(
+/// requested cut threshold, plus simplification cell addition.
+#[cfg(test)]
+pub(crate) fn assemble(thresholds: &[f64], triangles: Vec<f32>, colours: Vec<u32>) -> SceneProxy {
+    assemble_owned(thresholds, triangles, colours, &[], &[])
+}
+
+/// The live compiler additionally carries source identity through exactly the same geometry path.
+pub(crate) fn assemble_owned(
     thresholds: &[f64],
     mut triangles: Vec<f32>,
-    colours: Vec<u32>,
-    placed: &Placed,
+    mut colours: Vec<u32>,
+    nodes: &[u32],
+    worlds: &[[f64; 16]],
 ) -> SceneProxy {
     // DAG cut stops at root; proxy simplification goes as far as
     // needed, delivering bounded-size triangles to surface cache.
     let cell = simplify::plan_cell(&triangles, PROXY_CELL_METRES, PROXY_TRIANGLE_BUDGET);
-    // Simplification and the BVH carry a column along their triangles: carrying ranks instead of
-    // albedos leaves the triangles as they were and tells where each one came from.
-    let count = (triangles.len() / super::PROXY_TRIANGLE_FLOATS) as u32;
-    let mut source: Vec<u32> = (0..count).collect();
-    simplify::simplify(&mut triangles, &mut source, cell);
-    let mut rank: Vec<u32> = (0..source.len() as u32).collect();
-    let (node_bounds, node_children) = wide::collapse(&bvh::build(&mut triangles, &mut rank));
-    let origin = |r: &u32| source[*r as usize] as usize;
-    // A triangle past `colours` reads opaque white, as simplification always read it.
-    let albedo: Vec<u32> = rank
-        .iter()
-        .map(|r| colours.get(origin(r)).copied().unwrap_or(0xffff_ffff))
-        .collect();
-    let sharing = if placed.placements.is_empty() {
-        share::Sharing::default()
+    let (sources, mut provenance) = if nodes.is_empty() {
+        (Vec::new(), super::provenance::Provenance::default())
     } else {
-        let owner: Vec<u32> = rank.iter().map(|r| placed.owners[origin(r)]).collect();
-        share::share(&triangles, &albedo, &owner, &rank, &placed.placements)
+        super::provenance::collect(&triangles, &colours, nodes, cell)
+    };
+    let retained = simplify::simplify_sources(&mut triangles, &mut colours, cell);
+    let (tree, order) = bvh::build_ordered(&mut triangles, &mut colours);
+    let (node_bounds, node_children) = wide::collapse(&tree);
+    if !sources.is_empty() {
+        provenance.triangle_groups = order.iter().map(|rank| sources[retained[*rank]]).collect();
+    }
+    if provenance.group_offsets.is_empty() {
+        provenance.group_offsets.push(0);
+    }
+    provenance.source_parents = vec![-1; worlds.len()];
+    provenance.bind_worlds = worlds.iter().flatten().copied().collect();
+    let sharing = if nodes.is_empty() {
+        super::share::Sharing::default()
+    } else {
+        let owners: Vec<u32> = order.iter().map(|rank| nodes[retained[*rank]]).collect();
+        super::share::share(
+            &triangles,
+            &colours,
+            &owners,
+            &order,
+            &provenance.bind_worlds,
+        )
     };
     let cut_error = thresholds
         .iter()
@@ -44,9 +58,10 @@ pub(crate) fn assemble(
         error_metres: cut_error + cell * simplify::CELL_ERROR_FACTOR,
         cell_metres: cell,
         triangles,
-        albedo,
+        albedo: colours,
         node_bounds,
         node_children,
+        provenance,
         sharing,
     }
 }

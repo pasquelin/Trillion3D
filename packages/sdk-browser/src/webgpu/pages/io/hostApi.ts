@@ -60,10 +60,10 @@ export function captureImage(rt: WebgpuPagesRuntime) {
     return capture.capturedPixels;
   // Targets not granted hold no image: presenting them would blank the canvas.
   const busy = capture.capturing || frameTargetsAwaited(rt);
-  if (!gpu.presenter || !gpuDevice || !gpu.colorTexture || busy)
+  if (!gpu.presenter || !gpuDevice || !gpu.displayTexture || busy)
     throw new Error('CAPTURE_NOT_READY: render then await flush before capture');
   const encoder = gpuDevice.createCommandEncoder();
-  gpu.presenter.present(encoder, gpu.colorTexture, ...gpu.targetSize);
+  gpu.presenter.present(encoder, gpu.displayTexture, ...gpu.displaySize);
   gpuDevice.queue.submit([encoder.finish()]);
   if (!gpu.synchronousCapture) {
     gpu.synchronousCapture = createSynchronousCanvasCapture();
@@ -90,24 +90,24 @@ function engineCameraOf(rt: WebgpuPagesRuntime) {
   return rt.run.lastCamera ? rt.run.gate.cam : defaultEngineCamera();
 }
 
+/** What the CPU raster reads of the last image: its drawn pages, their roots, camera and size. */
+const rasterView = (rt: WebgpuPagesRuntime) => ({
+  pages: drawnOpaquePages(rt),
+  roots: rt.layout.selectionRoots,
+  cam: engineCameraOf(rt),
+  size: rt.setup.viewport ?? rt.gpu.targetSize,
+  pixelRatio: rt.setup.pixelRatio(),
+});
+
 export function visibilityIds(rt: WebgpuPagesRuntime) {
-  const size = rt.setup.viewport ?? rt.gpu.targetSize;
-  return rasterVisibilityIds(drawnOpaquePages(rt), engineCameraOf(rt), size, rt.setup.pixelRatio());
+  const { pages, roots, cam, size, pixelRatio } = rasterView(rt);
+  return rasterVisibilityIds(pages, roots, cam, size, pixelRatio);
 }
 
 export function rasterRgba(rt: WebgpuPagesRuntime) {
-  const size = rt.setup.viewport ?? rt.gpu.targetSize,
-    pages = drawnOpaquePages(rt),
-    cam = engineCameraOf(rt),
-    pixelRatio = rt.setup.pixelRatio();
-  return shadeVisibility(
-    rasterVisibilityIds(pages, cam, size, pixelRatio),
-    pages,
-    cam,
-    size,
-    rt.run.clearColor,
-    pixelRatio,
-  );
+  const { pages, roots, cam, size, pixelRatio } = rasterView(rt);
+  const ids = rasterVisibilityIds(pages, roots, cam, size, pixelRatio);
+  return shadeVisibility(ids, pages, roots, cam, size, rt.run.clearColor, pixelRatio);
 }
 
 /**

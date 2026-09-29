@@ -9,6 +9,7 @@ import { drawnPageIds, installGpuGlobals } from '../../../../../tests/kit/gpu/gl
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import { camera } from './testScenes.fixture.ts';
 import { twoCoarseQuadsScene } from './testOccluder.fixture.ts';
+import { deepQuadScene } from './deepQuad.fixture.ts';
 import { type ClusterManifest, type Primitive } from '../../../../sdk-core/src/index.ts';
 
 /** The mock GPU always builds the full backend; these tests reach the WebGPU-only members the
@@ -23,7 +24,7 @@ type PagesBackend = ReturnType<typeof webgpuPagesBackend> & {
  *  field at runtime (`...page` spread in the fixture); only the inline callback annotation
  *  there narrows the static type to `{ url: string }`, which this cast corrects. */
 function scene() {
-  const raw = twoCoarseQuadsScene();
+  const raw = twoCoarseQuadsScene(deepQuadScene);
   const metadata: ClusterManifest = {
     ...raw.metadata,
     ...MANIFEST_IDENTITY,
@@ -46,7 +47,7 @@ test('GPU camera jumps reclaim detail slots while preserving pinned coarse cover
   const backend = webgpuPagesBackend({
     ...fixture,
     gpuDevice: device,
-    maxResidentPages: 4,
+    maxResidentPages: 6,
     viewport: [32, 32],
   }) as PagesBackend;
   const cam = camera();
@@ -85,11 +86,11 @@ test('a recycled page-table row describes its new cluster and reaches the GPU be
   installGpuGlobals();
   const { device, writes, buffers, submits } = mockGpu(),
     fixture = scene();
-  // Six clusters share four rows, so every jump between the two primitives recycles rows on eviction.
+  // Eight clusters share six rows, four of them the floor, so every jump between the two primitives recycles rows on eviction.
   const backend = webgpuPagesBackend({
     ...fixture,
     gpuDevice: device,
-    maxResidentPages: 4,
+    maxResidentPages: 6,
     viewport: [32, 32],
   }) as PagesBackend;
   const view = camera(),

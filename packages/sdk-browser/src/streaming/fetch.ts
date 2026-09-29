@@ -20,7 +20,7 @@ export function createStreamingFetcher(
     for (let attempt = 1; attempt <= 3; attempt++) {
       combined.throwIfAborted();
       const attemptStart = onDiagnostic ? performance.now() : 0;
-      emit('page-attempt-start', 'Page read attempt', () => ({
+      emit?.('page-attempt-start', 'Page read attempt', () => ({
         version: 1,
         url,
         attempt,
@@ -28,7 +28,7 @@ export function createStreamingFetcher(
         expectedBytes: page.bytes,
       }));
       try {
-        emit('page-read-start', 'Page read started', () => ({
+        emit?.('page-read-start', 'Page read started', () => ({
           version: 1,
           url,
           attempt,
@@ -44,7 +44,7 @@ export function createStreamingFetcher(
         // Size is taken before any verification: the buffer leaves transferred to the decode
         // worker, so the original reference is detached for the round trip.
         const byteLength = buffer.byteLength;
-        emit('page-read-end', 'Page read finished', () => ({
+        emit?.('page-read-end', 'Page read finished', () => ({
           version: 1,
           url,
           attempt,
@@ -61,7 +61,7 @@ export function createStreamingFetcher(
           buffer = verified.source;
         }
         const hashMatches = sizeMatches && actualHash === page.sha256;
-        emit(
+        emit?.(
           'page-hash-check',
           hashMatches ? 'Page hash and size verified' : 'Page verification failed',
           () => ({
@@ -77,7 +77,7 @@ export function createStreamingFetcher(
           }),
         );
         if (!hashMatches) {
-          emit('page-corruption', 'Corrupt page or unexpected size', () => ({
+          emit?.('page-corruption', 'Corrupt page or unexpected size', () => ({
             version: 1,
             url,
             attempt,
@@ -90,7 +90,7 @@ export function createStreamingFetcher(
         touch(url, array, page.sha256);
         state.bytesRead += byteLength;
         state.loaded++;
-        emit('page-attempt-end', 'Page read attempt succeeded', () => ({
+        emit?.('page-attempt-end', 'Page read attempt succeeded', () => ({
           version: 1,
           url,
           attempt,
@@ -100,7 +100,7 @@ export function createStreamingFetcher(
         }));
         return array;
       } catch (error) {
-        emit('page-attempt-end', 'Page read attempt failed', () => ({
+        emit?.('page-attempt-end', 'Page read attempt failed', () => ({
           version: 1,
           url,
           attempt,
@@ -112,7 +112,7 @@ export function createStreamingFetcher(
         // A refusal another request would meet again (a 4xx) is not asked twice (`checked`).
         if (!retriableError(error)) break;
         if (attempt < 3)
-          emit('page-retry', 'Retry after a read failure', () => ({
+          emit?.('page-retry', 'Retry after a read failure', () => ({
             version: 1,
             url,
             attempt,
@@ -126,7 +126,7 @@ export function createStreamingFetcher(
       cause,
     });
     failures.set(url, error);
-    emit('page-error', 'Persistent page-load failure', () => ({
+    emit?.('page-error', 'Persistent page-load failure', () => ({
       version: 1,
       url,
       attempts: tried,

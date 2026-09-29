@@ -1,3 +1,4 @@
+import { depthRestoreWgsl } from '../core/depthRestoreWgsl.ts';
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
 import { MAX_SHADOW_REGIONS as R, SHADOW_FACE_READ_BYTES as RECT_OFFSET } from './recordPack.ts';
 import { SHADOW_FACE_STRIDE } from './batchBudget.ts';
@@ -23,16 +24,11 @@ const ORDER_OFFSET = R * SHADOW_FACE_STRIDE;
 export const PAGE_QUAD_SHADER = `struct PageView{viewProjection:mat4x4f,params:vec4f,emitter:vec4f,@size(${SHADOW_FACE_STRIDE - RECT_OFFSET}) rect:vec4f,}
 struct PageData{views:array<PageView,${R}>,order:array<u32,${R}>,}
 @group(0) @binding(0) var<storage, read> data:PageData;
-@group(1) @binding(0) var layer:texture_depth_2d;
+${depthRestoreWgsl(1)}
 @vertex fn page_quad_vs(@builtin(vertex_index) i:u32,@builtin(instance_index) k:u32)->@builtin(position) vec4f{
  let rect=data.views[data.order[k]].rect;
  let corner=vec2f(select(-1.0,1.0,((0x32u>>i)&1u)!=0u),select(-1.0,1.0,((0x2cu>>i)&1u)!=0u));
  return vec4f(corner*rect.zw+rect.xy,0.0,1.0);
-}
-/** The pool and the layer are the same size, each bound at the page's layer: a texel reads its
- *  own twin. */
-@fragment fn restore_fs(@builtin(position) p:vec4f)->@builtin(frag_depth) f32{
- return textureLoad(layer,vec2i(p.xy),0);
 }
 /** A page of the transmittance layer cleared: all the light, and far. */
 @fragment fn transmittance_clear_fs()->@location(0) vec4f{

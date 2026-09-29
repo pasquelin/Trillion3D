@@ -81,16 +81,19 @@ function hote(nombre: number) {
   const obtenu = createAutonomousResidency({
     bootstrapUrls: new Set(pages.slice(0, Math.min(200, nombre)).map((r) => r.url)),
     modifiedPages: new Set(pages.slice(200, 260).map((r) => r.url)),
-    shown: pages.slice(0, Math.floor(nombre * 0.4)),
-    // What the image asks for holds one record per page (`requests.ts`).
-    requested: [...new Map(pages.map((rec) => [rec.url, rec])).values()],
+    views: [
+      {
+        shown: pages.slice(0, Math.floor(nombre * 0.4)),
+        // What the image asks for holds one record per page (`requests.ts`).
+        requested: [...new Map(pages.map((rec) => [rec.url, rec])).values()],
+      },
+    ],
     geometryStore: createAutonomousGeometry({
       scene: new Scene(),
+      roots: [],
       allPages: [],
       bootstrap: [],
-      shown: [],
-      desired: [],
-      requested: [],
+      views: { live: { shown: [] }, lists: () => [] },
       byUrl: new Map(),
       descriptors: new Map(),
       baseMaterials: new Map(),
@@ -110,11 +113,14 @@ const residenceResult = await mesure({
     { name: '15k pages', input: grandHote, size: 15000 },
     { name: 'no pages', input: hoteVide, size: 0 },
   ],
-  calcul: (h) => ({
-    pending: [...h.obtenu.pendingUrls()],
-    retained: [...h.obtenu.pageUrls()],
-    attente: collectPendingUrls(h.pages, h.vers).slice(),
-  }),
+  calcul: (h) => {
+    const delta = h.obtenu.retainedRanks();
+    return {
+      pending: [...h.obtenu.pendingUrls()],
+      retained: Array.from(delta.held.subarray(0, delta.heldCount), (rank) => delta.urls[rank]),
+      attente: collectPendingUrls(h.pages, h.vers).slice(),
+    };
+  },
   motif: 'time only — correctness in packages/sdk-browser/src/backend/autonomous/residency.test.ts',
   options: { tours: 60, budgetMs: 1000 },
 });

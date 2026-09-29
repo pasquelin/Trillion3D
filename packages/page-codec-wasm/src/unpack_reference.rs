@@ -1,5 +1,8 @@
 //! Develop's decoder, kept as the reference of the equivalence harness (`unpack_tests.rs`, #238):
-//! every field read at random, the first corner out of range refusing.
+//! every field read at random, the first corner out of range refusing. Version 5 (#960) adds the
+//! read of a vertex's position through its link, the one line that is not develop's: the link
+//! rule itself is proved against develop by the frozen digests of the compiler's harness
+//! (`geometry_page_positions_tests.rs`) and of `positions.test.ts`.
 
 use super::*;
 use crate::bits::tests::random_field;
@@ -43,7 +46,18 @@ pub fn reference(data: &[u8], max: usize) -> Result<Vec<u32>, PageError> {
         rest = tail;
         head
     };
-    random_vector(take(3), &w, l.position, &h.position);
+    let (q, link_bits) = (&h.position, h.link_bits());
+    for (i, vertex) in take(3).as_chunks_mut::<3>().0.iter_mut().enumerate() {
+        let at = if h.links_positions() {
+            random_field(&w, l.links * 32 + i * link_bits as usize, link_bits) as usize
+        } else {
+            i
+        };
+        *vertex = core::array::from_fn(|c| {
+            let field = random_field(&w, l.position[c] * 32 + at * q.bits[c] as usize, q.bits[c]);
+            dequant(q.min[c], field, q.step()).to_bits()
+        });
+    }
     if h.flags & FLAG_NORMAL != 0 {
         for (i, normal) in take(3).as_chunks_mut::<3>().0.iter_mut().enumerate() {
             *normal = oct_decode(random_field(&w, l.normal * 32 + i * 16, 16)).map(f32::to_bits);

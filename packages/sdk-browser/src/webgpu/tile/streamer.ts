@@ -1,14 +1,15 @@
 import type { TextureLevelReader } from '../../texture/levelReader.ts';
 import type { AtlasLanes, PoolEncoding } from '../../texture/blockFormats.ts';
-import { createWebgpuTileAtlas, type TileTexture } from './atlas.ts';
+import { createWebgpuTileAtlas } from './atlas.ts';
+import type { TileTexture } from './tileTexture.ts';
 import { createFrameBudget } from '../../page/integration/frameBudget.ts';
 import { createWebgpuTileFeedback } from './feedback.ts';
 import { createTileSources } from './sources.ts';
 import { createWebgpuTileReduce } from './reduce.ts';
 import { createTileCounters } from './counters.ts';
 import { createTileRequests } from './requests.ts';
+import { createTileGrowth } from './growth.ts';
 import { HEADERS_SWITCHED, HEADERS_WRITTEN, samplingHeaders } from './samplingHeaders.ts';
-
 /**
  * Tile streamer: what the image asked becomes resident, under a per-image budget in bytes AND in
  * milliseconds, most looked-at tile first. Image-feedback counters name the tiles; the streamer
@@ -131,7 +132,7 @@ export function createWebgpuTileStreamer(options: {
           stop = !unbounded && (bytes >= options.budgetBytes || !budget.admits());
         }
       }
-      sources.endPass(encoder);
+      sources.endPass(encoder, at);
       flushAll();
       requests.defer(wanted, index);
       counters.served += served;
@@ -169,21 +170,22 @@ export function createWebgpuTileStreamer(options: {
     get requestReduce() {
       return reduce !== undefined;
     },
-    /** Lane pools whose layers change are replaced, tiles kept; returns the evicted tiles. */
-    resize(layers: AtlasLanes) {
-      const results = [color.resize(device, layers.color), data.resize(device, layers.data)];
-      if (results.some((result) => result.replaced)) {
-        flushAll();
-        options.onColorChanged(-1);
-      }
-      return results.reduce((total, result) => total + result.evicted, 0);
-    },
+    ...createTileGrowth(options, {
+      color,
+      data,
+      feedback,
+      sources,
+      flushAll,
+      followHeaders,
+      resetRequests: requests.reset,
+    }),
     metrics: () => counters.metrics(atlases, sources, encoding.name),
-    /** True while a cooked level is being read: a missing tile can still arrive. */
+    /** True while a cooked level is read or a working texture built: a missing tile can still come. */
     get reading() {
-      return (sources.levels?.inFlight ?? 0) > 0;
+      return sources.reading;
     },
-    /** Held when in-flight image feedback has come back and level reads have completed. */
+    /** Held when in-flight image feedback has come back, level reads have completed and the
+     *  working textures asked are built. */
     settled: () => Promise.all([feedback.settled(), sources.settled()]).then(() => undefined),
     destroy() {
       sources.destroy();
@@ -194,5 +196,4 @@ export function createWebgpuTileStreamer(options: {
     },
   };
 }
-
 export type WebgpuTileStreamer = ReturnType<typeof createWebgpuTileStreamer>;

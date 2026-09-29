@@ -7,9 +7,12 @@ import { taaSampledRank } from '../../../taa/frame.ts';
 import { gpuDeviceLedgerOf } from '../../../gpu/core/deviceLedger.ts';
 import { markWebgpuLost } from './lost.ts';
 import { disposeStaticLayer } from '../state/lights.ts';
-import { shadowPoolHeld } from '../../shadow/poolSize.ts';
+import { shadowPoolHeld } from '../../shadow/memoryGrant.ts';
+import { lightCutMetrics } from '../../shadow/casters.ts';
+import { shadowWorkMetrics } from '../../shadow/work.ts';
+import { shadowCpuMetrics } from '../../shadow/cpuSteps.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
-import { useWebgpuView } from '../state/viewSwitch.ts';
+import { releaseWebgpuView, useWebgpuView } from '../state/viewSwitch.ts';
 
 /**
  * Vertex bytes of an image: the total held at allocation, plus the three concatenated visbuffer
@@ -35,9 +38,9 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
   const vertexBytes = vertexBytesOf(gpu, vis);
   const ledger = gpuDeviceLedgerOf(gpu.device)?.snapshot();
   const pending = run.gpuFrameActive && !run.gpuMetricsReady;
-  // What the occlusion test dropped, from the path that ran it: counts the GPU wrote on the last
-  // sampled image, or the CPU oracle's where no GPU test runs. `null` when neither has counted an
-  // image — never a number in place of an unmeasured number.
+  const poolHeld = lights.shadows?.texture ? shadowPoolHeld(lights) : null;
+  // What the occlusion test dropped, from the path that ran it: the GPU's last sampled counts, or
+  // the CPU oracle's where no GPU test runs; `null` when neither counted, never an unmeasured 0.
   const gpuHizCounts = vis.gpuPartition?.counts();
   const [hiz, hizCountedFrame] = vis.gpuPartition
     ? [gpuHizCounts, gpuHizCounts?.frame ?? null]
@@ -65,8 +68,7 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     transparentFrustumRejected: run.blendFrustumRejected,
     transparentDrawCalls: run.blendDrawCalls,
     transparentSubmittedTriangles: run.blendSubmittedTriangles,
-    // Virtual textures: the pool, the tiles, image feedback. All `null` until prepare has built them,
-    // never a zero in place of a missing pool.
+    // Virtual textures: pool, tiles, image feedback; all `null` until prepare built them, never 0.
     ...(vis.textures?.metrics() ?? {}),
     cpuSubmitMs: timing.lastSubmitMs,
     gpuPassMs: timing.lastGpuPassMs,
@@ -105,8 +107,11 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     shadowPagesRequested: lights.plan.requests.counts.requested,
     shadowPagesCached: lights.plan.counts.cachedPages,
     shadowPoolPages: lights.plan.counts.poolPages,
-    shadowPoolBytes: lights.shadows?.texture ? shadowPoolHeld(lights) : null,
+    shadowPoolBytes: poolHeld,
     shadowPoolLayers: lights.shadows?.texture ? lights.plan.pool.layers : null,
+    shadowPeakBytes: poolHeld === null ? null : Math.max(lights.memory.peakBytes, poolHeld),
+    shadowResolutionBias: lights.memory.bias,
+    shadowMemoryEvents: lights.memory.events,
     shadowPagesRefetched: lights.plan.pool.refetched,
     shadowCastersKept: lights.cull?.counts.counts()?.kept ?? null,
     shadowCastersHidden: lights.occlusion?.counts.counts()?.kept ?? null,
@@ -114,7 +119,11 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     shadowPagesTotal: lights.shadowPagesTotal,
     shadowPagesPending: lights.plan.counts.pendingPages,
     shadowWaitMs: lights.plan.counts.waitedMs,
+    ...shadowWorkMetrics(lights),
+    ...lightCutMetrics(rt),
     ...directLightTimings(timing.lastGpuPassMs),
+    ...shadowCpuMetrics(timing.cpuProfile.row),
+    ...lights.tiles?.poolMetrics(),
   };
 }
 
@@ -125,6 +134,7 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   // Disposed, it presents nothing any more: the same withdrawal as a loss, surface included.
   markWebgpuLost(rt);
   // The main view's resources are released below; a capture under way releases its own view.
+  for (const view of rt.views.persistent.splice(0)) releaseWebgpuView(rt, view);
   useWebgpuView(rt, rt.views.main);
   rt.run.gate.release();
   services.residency.quietPending();

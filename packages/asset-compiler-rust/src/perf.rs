@@ -12,6 +12,7 @@
 //! phase without any computation. The manifest therefore publishes them under
 //! `phaseElapsedMs`, their sum is the total of nothing, and `cpuMs` stays zero
 //! until someone actually measures the CPU.
+pub mod rss;
 use serde_json::{json, Value};
 use std::cell::RefCell;
 use std::sync::{
@@ -57,6 +58,7 @@ phases! {
  texture_bake=>TextureBake=>"textureBakeMs",
  texture_write=>TextureWrite=>"textureWriteMs",
  cutout_scan=>CutoutScan=>"cutoutScanMs",
+ impostors=>Impostors=>"impostorsMs",
 }
 
 thread_local! {

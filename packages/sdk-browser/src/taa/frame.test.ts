@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts';
 import {
   beginTaaFrame,
-  createTaaFrameState,
   dropTaaHistory,
   encodeTaaPass,
   taaRenderMatrix,
@@ -11,9 +10,11 @@ import {
   taaSettled,
 } from './frame.ts';
 import { TAA_STILL_FRAMES } from './jitter.ts';
+import { createTaaFrameState } from './frameState.ts';
+import { createScaleControl } from '../frame/scaleControl.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import type { EngineCamera } from '../camera/world.ts';
-import type { TaaInputs } from './temporalAntialiasing.ts';
+import type { TaaInputs } from './inputs.ts';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 
 /** The strict minimum of an engine: the fake pass, its inputs, the camera and the revisions. */
@@ -44,13 +45,16 @@ function runtime() {
       return output;
     },
   };
+  const size = () => [64, 32];
   const rt = {
-    gpu: { temporal, temporalWanted: true, targetSize: [64, 32], depthView: {}, hdrView: {} },
+    gpu: { temporal, temporalWanted: true, depthView: {}, hdrView: {} },
     vis: { visView: { ids: true }, pageTable: { pages: true } },
     run: { diagnostic: 'beauty', gpuDrawCalls: 0, frame: 0, gate: { revisions: { scene: 1 } } },
     capture: { capturing: false },
   } as unknown as WebgpuPagesRuntime;
   rt.gpu.surfaces = { views: () => [{}, {}, {}, flags] } as never;
+  Object.assign(rt.gpu, { targetSize: size(), allocatedSize: size(), displaySize: size() });
+  Object.assign(rt, { scale: createScaleControl(undefined) });
   const { device, writes } = fakeDevice();
   const cam = { viewProjection: IDENTITY_MATRIX4, eye: [0, 0, 0] } as unknown as EngineCamera;
   /** A whole frame: input, render matrix, pass; returns the written uniform, or `null`. */
@@ -82,11 +86,7 @@ test("without accumulation this frame, the render matrix is the camera's and com
 test('an accumulated frame advances jitter, writes the uniform and returns the written target', () => {
   const { rt, cam, temporal, encoded, frame, flags } = runtime();
   let u = frame(false)!;
-  assert.notEqual(
-    taaRenderMatrix(rt, cam),
-    cam.viewProjection,
-    'the render matrix carries the jitter',
-  );
+  assert.notEqual(taaRenderMatrix(rt, cam), cam.viewProjection, 'the matrix carries the jitter');
   assert.equal(encoded.length, 1);
   assert.equal((encoded[0] as TaaInputs).flags, flags, 'what the as-is share comes from');
   assert.equal(temporal.motion.resets, 1, 'the first frame has no history: poses are taken');

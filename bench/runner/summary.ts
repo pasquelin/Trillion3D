@@ -34,7 +34,11 @@ const budgets = (settings: Report['settings']) => {
   return parts.join(', ');
 };
 const diffText = (d: ImageDiff | undefined) =>
-  !d ? '—' : 'erreur' in d ? d.erreur : `${d.pixels} px, max channel ${d.maxCanal}`;
+  !d
+    ? '—'
+    : 'error' in d
+      ? d.error
+      : `${d.pixels} px, max channel ${d.maxChannel}, mean ${d.meanChannel.toFixed(3)}, p99.9 ${d.p999Channel}`;
 /**
  * Coverage relation of a reading: `selected − drawn − uncovered`. Zero says every triangle
  * of the cut is either submitted to draw or counted as a hole; anything else says one of
@@ -55,16 +59,16 @@ function rows(report: Report) {
     for (const [side, r] of Object.entries(serie.sides)) {
       const hiz = r.hiZ;
       lines.push(
-        `| ${serie.view} | ${serie.pixelError} | ${side}${r.moteur ? ` · ${r.moteur}` : ''} ` +
+        `| ${serie.view} | ${serie.pixelError} | ${side}${r.engine ? ` · ${r.engine}` : ''} ` +
           `| ${ms(r.cpuFrameMs, 'p50')} / ${ms(r.cpuFrameMs, 'p95')} ` +
           `| ${ms(r.cpuSelectMs, 'p50')} / ${ms(r.cpuSelectMs, 'p95')} | ${ms(r.gpuFrameMs, 'p50')} ` +
           `| ${num(r.selectedTriangles)} | ${num(r.drawnTriangles)} | ${couverture(r)} ` +
-          `| ${num(r.submittedTriangles)}/${num(r.totalSubmittedTriangles)} | ${oui(r.imageTenue)} ` +
-          `| ${num(r.uncoveredTriangles)} | ${oui(r.repliSelectionGpu)} ` +
+          `| ${num(r.submittedTriangles)}/${num(r.totalSubmittedTriangles)} | ${oui(r.frameHeld)} ` +
+          `| ${num(r.uncoveredTriangles)} | ${oui(r.gpuSelectionFallback)} ` +
           `| ${num(hiz.tested)}/${num(hiz.rejected)}/${num(hiz.beyond16Texels)} (${num(hiz.image)}) ` +
           `| ${r.selection.sha256 ? r.selection.sha256.slice(0, 12) : '—'} (${num(r.selection.source)}) ` +
-          `| ${num(r.budgetPages.demande)} requested, ${num(r.budgetPages.residentes)} resident ` +
-          `| ${mo(r.geometrieOctets)} |`,
+          `| ${num(r.pageBudget.requested)} requested, ${num(r.pageBudget.resident)} resident ` +
+          `| ${mo(r.geometryBytes)} |`,
       );
     }
   return lines;
@@ -82,7 +86,7 @@ function etapes(report: Report) {
   for (const serie of report.series)
     for (const [side, resultat] of Object.entries(serie.sides)) {
       const titre = `### ${serie.view} · e${serie.pixelError} · ${side}`;
-      const profile = resultat.profilParEtape;
+      const profile = resultat.stageProfile;
       if (!profile || !profile.enabled) {
         lines.push(`${titre} : per-stage profile absent`, '');
         continue;
@@ -119,7 +123,7 @@ export function resume(report: Report) {
   const lines = [
     `# Measurement ${report.engine} — ${report.scene}`,
     '',
-    `- Harness: \`${report.commande}\``,
+    `- Harness: \`${report.command}\``,
     `- Repository HEAD: \`${report.head}\` — sides: ` +
       Object.entries(report.sides)
         .map(([name, side]) => `${name} = ${side.from}`)
@@ -159,7 +163,7 @@ export function resume(report: Report) {
     '|---|---|---|---|',
     ...report.series.map(
       (s) =>
-        `| ${s.view} | ${s.pixelError} | ${diffText(s.temoinAA)} | ${diffText(s.ecartAvantApres)} |`,
+        `| ${s.view} | ${s.pixelError} | ${diffText(s.witnessAA)} | ${diffText(s.beforeAfterDiff)} |`,
     ),
     '',
     '## Machine load',
@@ -169,7 +173,7 @@ export function resume(report: Report) {
     ...report.series.flatMap((s) =>
       Object.entries(s.sides).map(
         ([side, r]) =>
-          `| ${s.view} | ${s.pixelError} | ${side} | ${r.charge.debut?.join(' ') ?? '—'} | ${r.charge.fin?.join(' ') ?? '—'} |`,
+          `| ${s.view} | ${s.pixelError} | ${side} | ${r.load.start?.join(' ') ?? '—'} | ${r.load.end?.join(' ') ?? '—'} |`,
       ),
     ),
     '',

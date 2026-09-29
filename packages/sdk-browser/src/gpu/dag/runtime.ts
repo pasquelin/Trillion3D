@@ -10,23 +10,17 @@ import { createDagResidencyUpload } from './residencyUpload.ts';
 import { createDagPoolList } from './poolList.ts';
 import { createDagDispatch } from './dispatch.ts';
 import { DAG_READBACK_SLOTS } from './layout.ts';
+import { MASK_SECTION, flagLocation } from './split.ts';
 import type { createDagResources } from './resources.ts';
 
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
 
 export function createDagRuntime(resources: DagResources): GpuSelection {
-  const {
-    device,
-    packed,
-    residentCut,
-    pageCount,
-    nodeCount,
-    frameData,
-    buffers,
-    flags,
-    worlds,
-    frames,
-  } = resources;
+  const { device, packed, residentCut, pageCount, nodeCount, frameData, buffers, frames } =
+    resources;
+  // The draw mask, in the part of `flags` that holds its section whole (`split.ts`): its readers
+  // bind one buffer at one offset, whatever the split.
+  const mask = flagLocation(resources.split.flagCuts, MASK_SECTION, nodeCount, pageCount);
   const state = {
     last: null as GpuCut | null,
     lastSubmitted: undefined as SelectionUniforms | undefined,
@@ -42,6 +36,9 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
     readbackWorldRevision: -1,
     mapped: new Array<boolean>(DAG_READBACK_SLOTS).fill(false),
     slot: 0,
+    grow: 0,
+    growing: false,
+    listFull: false,
   };
   /** Cuts in hand and in flight name pages the kernel may no longer choose: they are void. */
   const voidCuts = () => {
@@ -54,7 +51,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
   // The cut rule's residency, derived from the pool's and uploaded by difference.
   const uploadResidency = residentCut ? createDagResidencyUpload(resources) : undefined;
   const dispatch = createDagDispatch(resources, state, fail);
-  const poolList = residentCut ? createDagPoolList(device, packed, resources.pageCones) : undefined;
+  const poolList = residentCut ? createDagPoolList(device, packed, resources.coldParts) : undefined;
   /** The next dispatch cuts and reads back again, the eviction queue with it: the cut in hand stays. */
   const recut = () => (state.submittedResidencyRevision = state.readbackResidencyRevision = -1);
   /** Writes word `slot` of primitive `w`'s frame words, one word up. The cut in hand holds pages
@@ -69,8 +66,8 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
     get hostBytes() {
       return (uploadResidency?.hostBytes ?? 0) + (poolList?.entries.byteLength ?? 0);
     },
-    maskBuffer: flags,
-    maskOffset: nodeCount,
+    maskBuffer: resources.flagParts[mask.part],
+    maskOffset: mask.word,
     pageCount,
     get worldRevision() {
       return state.worldRevision;
@@ -87,13 +84,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
         : refreshWorldStretch(previousWorlds, next, packed, frameData);
       previousWorlds.set(next);
       packed.worlds.set(next);
-      device.queue.writeBuffer(
-        worlds,
-        0,
-        next.buffer as ArrayBuffer,
-        next.byteOffset,
-        next.byteLength,
-      );
+      frames.writeWorlds(next);
       if (stretched) {
         frames.writeRows();
         resources.frameWrites.count++;
@@ -127,7 +118,11 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       if (state.disposed || state.dead || !poolList?.note(page, held)) return;
       recut();
     },
-    dispatch,
+    // The root and mark words parked or marked since the last cut go up as one interval (CPU-15).
+    dispatch(next, shared) {
+      if (!state.disposed && !state.dead) frames.flushWords();
+      return dispatch(next, shared);
+    },
     peek() {
       return state.dead ? null : state.last;
     },
@@ -136,6 +131,14 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
     },
     async flush() {
       await state.pending;
+      // A cut past its list grows it (`listCap.ts`): the drain grows it, then cuts again on it,
+      // rather than hand back the cut before.
+      for (const asked = state.lastSubmitted; asked && state.grow && !state.dead;) {
+        selection.dispatch(asked);
+        await state.pending;
+        selection.dispatch(asked);
+        await state.pending;
+      }
       if (
         residentCut &&
         !state.dead &&

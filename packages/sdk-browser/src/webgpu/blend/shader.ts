@@ -1,6 +1,9 @@
+import { SCREEN_REFLECTION_WGSL } from '../../reflections/screenWgsl.ts';
 import { declaredLightingWgsl } from '../../lighting/direct/lightingWgsl.ts';
+import * as surfaceModel from '../../scene/surfaceModel.ts';
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
 import { bounceApplyWgsl } from '../../bounce/applyWgsl.ts';
+import { bounceReflectionWgsl, MIRROR_LIGHTING_WGSL } from '../../bounce/reflectWgsl.ts';
 import { STANDARD_LIGHTING_WGSL, NORMAL_TRANSFORM_WGSL } from '../../lighting/standardLighting.ts';
 import { TRIANGLE_PALETTE_WGSL } from '../../diagnostic/trianglePalette.ts';
 import {
@@ -22,17 +25,11 @@ import { SPRITE_WGSL } from '../../visibility/shader/spriteWgsl.ts';
 import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from '../water/surfaceWgsl.ts';
 import { INSTANCE_CULL_SHIFT, INSTANCE_ITEM_MASK } from './runs.ts';
 import { FACING_DROP, FACING_SHIFT, FACING_WGSL } from './facing.ts';
+import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from './displayFilter.ts';
 
-/**
- * Shader of transparent surfaces.
- *
- * Two inputs only: a view uniform, written once per image for the whole pass, and the item
- * record, read in a storage buffer at the rank the vertex index carries. Nothing is bound per
- * call, and the order of calls is that of the scene.
- */
-/** The view uniform of the pass (`uniforms.ts`), declared once for every stage that
- *  reads it: the two forward stages here, and the water composite that reads the same buffer. */
-export const BLEND_VIEW_WGSL = `struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,pixelScale:f32,viewport:vec2f,eye:vec4f,pixelRatio:f32,}`;
+/** The view uniform of the pass (`uniforms.ts`), for the two forward stages here and the water
+ *  composite; `exposure` and `toneCurve` are the composition's (`displayFilter.ts`). */
+export const BLEND_VIEW_WGSL = `struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,pixelScale:f32,viewport:vec2f,eye:vec4f,pixelRatio:f32,mipBias:f32,exposure:f32,toneCurve:u32,}`;
 
 export const BLEND_SHADER = `${BLEND_VIEW_WGSL}
 ${BLEND_ITEM_WGSL}
@@ -52,6 +49,9 @@ ${PAGE_NORMAL_WGSL}
 ${STANDARD_LIGHTING_WGSL}
 ${declaredLightingWgsl(BLEND_BINDINGS.proxy, BLEND_BINDINGS.shadowData, BLEND_BINDINGS.shadowTransmittance)}
 ${bounceApplyWgsl(BLEND_BINDINGS.bounceGrid, BLEND_BINDINGS.probes)}
+${bounceReflectionWgsl(BLEND_BINDINGS.surfaceCache)}
+${MIRROR_LIGHTING_WGSL.replace(')*reflectedRadiance(', ')*resolvedRadiance(')}
+${SCREEN_REFLECTION_WGSL}
 @group(0) @binding(${BLEND_BINDINGS.directLights}) var<storage,read> directLights:DirectLights;
 @group(0) @binding(${BLEND_BINDINGS.shadowAtlas}) var shadowAtlas:texture_depth_2d_array;
 @group(0) @binding(${BLEND_BINDINGS.shadowSampler}) var shadowSampler:sampler_comparison;
@@ -63,28 +63,23 @@ ${TILE_POOL_WGSL}
 ${COLOR_SAMPLE_WGSL}
 ${DATA_SAMPLE_WGSL}
 ${TILE_REQUEST_WGSL}
-// The blended colour, and the tile rank this pixel asks of the virtual textures, set in its own
-// target: the fragment stage writes nothing to memory, it keeps its early reject.
-struct BlendOut{@location(0) color:vec4f,@location(1) request:u32,}
+// The blended colour, the tile rank this pixel asks of the virtual textures, in its own target
+// (no memory write: early reject kept), the as-is share and the display layers (\`displayFilter.ts\`).
+struct BlendOut{@location(0) color:vec4f,@location(1) request:u32,@location(2) asIs:vec4f,@location(3) tint:vec4f,@location(4) add:vec4f,}
 ${BLEND_REQUEST_WGSL}
+${DISPLAY_ROUTE_WGSL}${displayMaskWgsl(2)}
 ${NORMAL_TRANSFORM_WGSL}
 ${LINE_CLIP_WGSL}
 ${SPRITE_WGSL}
 // What the vertex stage reads on the item record and the fragment stage re-reads as-is: the six
-// maps, their factors and the flags. They are constant over the call, therefore FLAT — the
-// fragment reads the same bits it used to read in the per-item uniform, with no per-call binding.
+// maps, their factors and the flags, constant over the call, therefore FLAT (no per-call binding).
 // \`water\` is the item's one-based transmissive rank, carried above its flags, zero for a blend;
 // above it, the cull mode a doubtful triangle leaves to the fragment stage (facing.ts).
 // \`alphaAo\` carries, after the alpha test and the occlusion strength, a dashed line's dash and gap.
 struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) uv:vec2f,@location(2) view:vec3f,@location(3) normal:vec3f,@location(4) tangent:vec3f,@location(5) bitangent:vec3f,@location(6) @interpolate(flat) tri:u32,@location(7) bary:vec3f,@location(8) @interpolate(flat) diagId:u32,@location(9) @interpolate(flat) ids:vec3u,@location(10) @interpolate(flat) maps:vec4u,@location(11) @interpolate(flat) alphaAo:vec4f,@location(12) @interpolate(flat) pbr:vec4f,@location(13) @interpolate(flat) emissive:vec4f,@location(14) @interpolate(flat) water:u32,}
 ${TRIANGLE_PALETTE_WGSL}
-// An instance draws a paged cluster that compaction kept, or a piece of indices of a primitive
-// that is not paged. The list plan expansion wrote says, for each, the item that carries it and
-// what it draws (expandWgsl.ts).
-//
-// Both read through the shared page functions (\`pageGeometryWgsl.ts\`): a paged cluster decodes
-// its page at its span; an unpaged piece reads its own buffers, as a float page does.
-//
+// An instance draws a paged cluster compaction kept, or a piece of indices of an unpaged primitive,
+// as the list plan expansion wrote it (expandWgsl.ts), both read through \`pageGeometryWgsl.ts\`.
 // The rank of the first instance of the call is read in the high bits of the vertex index, and
 // the local rank of the vertex in the low: the indirect argument of a slice starts at vertex
 // base << vertexShift. That is what lets a whole slice fit in ONE call, with nothing to bind
@@ -99,7 +94,7 @@ ${FACING_WGSL}
  let local=vertexIndex&((1u<<uni.vertexShift)-1u);
  let flags=(it.flags&${WATER_MAX_ITEMS}u)|uni.viewFlags;
  out.color=it.color;
- out.ids=vec3u(it.mapIndex,flags,it.emissiveIndex);
+ out.ids=vec3u(it.mapIndex,flags|(u32(it.emissive.w)<<${surfaceModel.MODEL_SHIFT}u),it.emissiveIndex);
  out.maps=vec4u(it.roughIndex,it.metalIndex,it.normalIndex,it.aoIndex);
  out.alphaAo=vec4f(it.alphaTest,it.aoIntensity,it.dash);
  out.pbr=vec4f(it.roughness,it.metalness,it.normalScale);
@@ -159,10 +154,9 @@ ${FACING_WGSL}
  return out;
 }
 ${BLEND_SURFACE_WGSL}
-@fragment fn fs(in:VSOut,@builtin(front_facing) front:bool)->BlendOut{
+fn blendFragment(in:VSOut,front:bool,masked:f32)->BlendOut{
  let flags=in.ids.y;
- // \`fwidth\` requires uniform control flow: the flags come from the per-item record, so the
- // derivative is taken before any condition that depends on it and is only read by the wireframe view.
+ // \`fwidth\` wants uniform control flow: taken before any condition on the item's flags.
  let width=fwidth(in.bary);
  let s=blendSurface(in,front);
  // A dashed line's gap (\`lineDash\`): its distance along the line rides the first coordinate.
@@ -176,7 +170,7 @@ ${BLEND_SURFACE_WGSL}
   }else if((flags&0x10000000u)!=0u){color=select(vec3f(0.5,0.55,0.6),hashColor(in.diagId&0x00ffffffu),in.diagId!=0u);}
   else if((flags&0x08000000u)!=0u){color=select(vec3f(0.04,0.51,0.94),vec3f(0.95,0.42,0.05),(in.diagId&0x80000000u)!=0u);}
   else if((flags&0x04000000u)!=0u){let ratio=f32((in.diagId>>24u)&127u)/127.0;color=vec3f(ratio,1.0-ratio,0.12);}
-  return BlendOut(vec4f(color,1.0),s.request);
+  return BlendOut(vec4f(color,1.0),s.request,vec4f(0.0,1.0,0.0,1.0),vec4f(1.0),vec4f(0.0));
  }
  var rgb=s.rgb;
  // No declared lamp, or an unlit view requested: the raw albedo, exactly like the opaque
@@ -187,14 +181,19 @@ ${BLEND_SURFACE_WGSL}
  if(!unlit){
   if((flags&1u)!=0u){
    let m=clamp(s.metal,0.0,1.0);
-   // A pixel's footprint at the surface: its distance times the pixel's angle, or the pixel
-   // itself under an orthographic camera.
    shadowFootprint=select(uni.pixelScale,uni.pixelScale*length(uni.camPos.xyz-in.view),uni.camPos.w!=0.0);
    rgb=declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy)+bounceLighting(rgb,m,s.N,in.view,s.ao)+environmentLighting(rgb,m,s.N,s.ao)+s.emissive;
+   let model=(flags>>${surfaceModel.MODEL_SHIFT}u)&7u;
+   surfaceModel=select(select(0u,${surfaceModel.MODEL_FLAG.diffuse}u,model==${surfaceModel.SURFACE_MODEL.diffuse}u),${surfaceModel.MODEL_FLAG.toon}u,model==${surfaceModel.SURFACE_MODEL.toon}u);
+   rgb+=mirrorLighting(s.rgb,m,clamped,s.N,V,in.view);
   }
   // Lit or unlit, the surface is seen through the fog.
-  rgb=fogged(rgb,in.view,uni.eye.xyz);
+  if((flags&${surfaceModel.FOG_FREE_MODEL_BIT << surfaceModel.MODEL_SHIFT}u)==0u){rgb=fogged(rgb,in.view,uni.eye.xyz);}
  }
- return BlendOut(vec4f(rgb,s.alpha),s.request);
+ let r=displayRoute(rgb,uni.exposure,uni.toneCurve,unlit,s.alpha,masked);
+ return BlendOut(vec4f(rgb,s.alpha*r.keep),s.request,vec4f(0.0,1.0,0.0,s.alpha*r.keep),r.tint,r.add);
 }
+// A filtered image's pipelines read the display mask (group 2); every other one reads none.
+@fragment fn fs(in:VSOut,@builtin(front_facing) front:bool)->BlendOut{return blendFragment(in,front,0.0);}
+@fragment fn fsFiltered(in:VSOut,@builtin(front_facing) front:bool)->BlendOut{return blendFragment(in,front,maskAt(in.position));}
 `;

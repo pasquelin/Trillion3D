@@ -41,6 +41,8 @@ export const RESTATED = [
   '  let reference=ndc.z+k*shadowDepthMargin(texel,slope,1.0/(clip.w*clip.w))+SHADOW_DEPTH_ROUNDING;',
   '  if((!isPoint&&(abs(ndc.x)>1.0||abs(ndc.y)>1.0))||ndc.z<0.0||ndc.z>1.0){return 1.0;}',
   `const SHADOW_DEPTH_ROUNDING:f32=${SHADOW_DEPTH_ROUNDING};`,
+  'const SHADOW_PAST_FAR:f32=1.17549435e-38;',
+  ' return max(1.0-(z-range.x)*(1.0/max(range.y-range.x,1e-6))+SHADOW_DEPTH_ROUNDING,SHADOW_PAST_FAR);',
   '  if(side>0.0){at=clamp(at,vec2f(0.5),vec2f(side-0.5));}',
   ' if(a.x>=a.y&&a.x>=a.z){return select(1u,0u,direction.x>0.0);}',
   ' if(a.y>=a.z){return select(3u,2u,direction.y>0.0);}',

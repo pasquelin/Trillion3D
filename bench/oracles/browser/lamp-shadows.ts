@@ -1,10 +1,15 @@
 // Lamp-shadow oracle, rewritten from the contracts: the world-space sphere of a cluster —
 // transformed box centre, radius inflated term by term, written in f32 at its place as the
 // pass does.
-import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';
-
 export function referenceClusterSphere(
-  { matrix: { elements: e }, min, max }: Pick<PageRec, 'matrix' | 'min' | 'max'>,
+  {
+    matrix: { elements: e },
+    min,
+    max,
+  }: { matrix: { elements: ArrayLike<number> } } & {
+    min: number[];
+    max: number[];
+  },
   out: Float32Array,
   base: number,
 ) {

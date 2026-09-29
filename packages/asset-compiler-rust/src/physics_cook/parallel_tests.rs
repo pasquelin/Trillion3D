@@ -4,8 +4,8 @@
 //! ±Inf, a mesh of many tiles).
 use super::hausdorff::{one_sided_distance, Level0};
 use crate::compiler_primitive_dag::{build_dag_primitive, DagResult};
-use crate::compute_bench::inputs::Xorshift;
 use crate::tests::fixtures::{files, grid_indices, portable_sin};
+use crate::tests::random::Xorshift;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
@@ -130,8 +130,8 @@ fn primitive(
     let demand = crate::proxy::cut::cut_demand(None, 4096, triangles.len() / 3, 0);
     let tile = crate::geometry_page_quant::tile::tile_log2(None);
     let uv = crate::geometry_page_quant::primitive_uv_exponent(&[], false);
-    let store = |slice: &[u32], exponent: i32| {
-        crate::compiler_page_object::store_page(&o, slice, pos, &[], exponent, uv)
+    let store = |slice: &[u32], pos: &[f32], carried: &[&_], exponent: i32| {
+        crate::compiler_page_object::store_page(&o, slice, pos, carried, exponent, uv)
     };
     let built = on(parallel, || {
         build_dag_primitive(&o, pos, &[], triangles, demand, false, tile, &store)

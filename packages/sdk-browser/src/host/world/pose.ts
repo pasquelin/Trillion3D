@@ -28,7 +28,7 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 
 /** True when the sixteen numbers of a set matrix are those the tree already holds, sign of zero
  *  and `NaN` included — `sameElements` answers on `!==`, which merges `-0` with `0`. */
-function sameMatrixBits(held: Float64Array, now: ArrayLike<number>) {
+export function sameMatrixBits(held: ArrayLike<number>, now: ArrayLike<number>) {
   for (let i = 0; i < 16; i++) if (!Object.is(held[i], now[i])) return false;
   return true;
 }

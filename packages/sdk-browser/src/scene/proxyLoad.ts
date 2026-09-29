@@ -6,6 +6,9 @@ import {
 import { fetchVerified } from '../cluster/pages.ts';
 import type { PageCache } from '../streaming/pageCache.ts';
 
+// The cache owns each buffer's lifetime; its expanded columns survive session/device recreation.
+const decoded = new WeakMap<ArrayBuffer, SceneProxy>();
+
 /**
  * Read the resident proxy's cache object, next to the manifest that names it, and keep it whole in
  * `cache`, the decoded-page cache the world keeps across sessions (`PageCache.keep`): its announced
@@ -38,12 +41,31 @@ export function createSceneProxyReader(
   const key = `${url}#${proxy.sha256}`;
   cache?.keepOnly(key);
   const read = (readSignal = signal) => fetchVerified(url, proxy, readSignal);
+  let pending: Promise<ArrayBuffer> | undefined;
   return async (): Promise<SceneProxy> => {
-    const buffer = await (cache ? cache.keep(key, proxy.bytes, read) : read());
+    const buffer = await (cache
+      ? cache.keep(key, proxy.bytes, read)
+      : (pending ??= read().catch((error: unknown) => {
+          pending = undefined;
+          throw error;
+        })));
     // The kept read outlives its session, its caller does not: an engine disposed meanwhile builds
     // nothing on the device from it, which nothing would release.
     signal?.throwIfAborted();
-    // The columns are views of the bytes the cache keeps, whole: they are only read, never written.
-    return decodeSceneProxy(proxy, buffer);
+    // Tree/ownership columns may view the bytes; shared triangles and unaligned matrices are
+    // allocated once. All columns remain immutable; dynamic refits own separate copies.
+    let result = decoded.get(buffer);
+    if (!result) {
+      result = decodeSceneProxy(proxy, buffer);
+      decoded.set(buffer, result);
+    }
+    const allocations = new Set(Object.values(result.data).map((column) => column.buffer));
+    allocations.delete(buffer);
+    const expandedBytes = [...allocations].reduce(
+      (sum, allocation) => sum + allocation.byteLength,
+      0,
+    );
+    cache?.resizeKept(key, buffer.byteLength + expandedBytes);
+    return result;
   };
 }

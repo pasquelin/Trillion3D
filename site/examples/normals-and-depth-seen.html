@@ -78,6 +78,16 @@
         lintel.rotation.set(0, mid, 0);
       }
 
+      // A lit glass pane before the knot keeps its own material in every view: over the normal or
+      // depth view it still takes the film curve, and the view seen through it stays as stored.
+      const pane = object.mesh(
+        geometry.box(4.2, 3.4, 0.06),
+        material.meshStandard({ color: '#9fd4ff', roughness: 0.1, transparent: true, opacity: 0.4, depthWrite: false }),
+      );
+      pane.position.set(4.4, 2.4, 5.9);
+      pane.rotation.set(0, Math.atan2(9, 12), 0);
+      world.scene.add(pane);
+
       // A warm low key for long shadows, a cool sky fill so no face goes black, and a rim.
       world.scene.add(
         light.directional({ color: '#ffc98f', intensity: 3.4, position: [-7, 6, 8], castShadow: true }),
@@ -101,8 +111,11 @@
       let meaning = null, view = 'lit';
       const ui = controls({
         see: ['lit', 'normals', 'depth'],
+        glass: true,
         spin: true,
       }, (values, key) => {
+        pane.visible = values.glass;
+        world.invalidate();
         if (key !== undefined && key !== 'see') return;
         view = values.see;
         // Only here, on a change, do the pieces trade their material: never every frame. The

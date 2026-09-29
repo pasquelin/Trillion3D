@@ -5,6 +5,8 @@ pub(in crate::tests) mod extension_tables;
 pub(in crate::tests) mod mesh_pages;
 pub(in crate::tests) mod partition;
 pub(in crate::tests) mod partition_pages;
+pub(in crate::tests) mod partition_rows;
 pub(in crate::tests) mod scene_tables;
 pub(in crate::tests) mod surface_tables;
 pub(in crate::tests) mod visibility;
+pub(in crate::tests) mod world_roots;

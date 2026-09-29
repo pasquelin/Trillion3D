@@ -32,4 +32,5 @@ vec4 transmissionColor(vec3 litColor,vec3 baseTint,float alpha,vec3 N,vec3 V,vec
 vec3 Nv=dot(N,V)>0.0?N:-N;float t=clamp(volume.x,0.0,1.0),f0=pow((volume.y-1.0)/(volume.y+1.0),2.0);
 float F=f0+(1.0-f0)*pow(clamp(1.0-max(dot(Nv,V),0.0),0.0,1.0),5.0);
 vec3 transmitted=baseTint*transmittedBackdrop(P,Nv,V),reflected=lit?shade(Nv,V,vec3(0.0),0.0,rough,ao):vec3(0.0);
+if(lit)reflected+=F*reflectedRadiance(P,Nv,reflect(-V,Nv),rough)*mirrorWeight(rough);
 float a=alpha+t*(1.0-alpha);return vec4((t*((1.0-F)*transmitted+reflected)+(1.0-t)*alpha*litColor)/max(a,1e-4),a);}`;

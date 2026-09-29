@@ -4,8 +4,11 @@ import type { createWebgpuPageTracking } from '../row/pageTracking.ts';
 
 type Cache = ReturnType<typeof createGpuPageCache>;
 type MirrorOptions = {
-  pageIndicesByUrl: Map<string, number[]>;
-  residentOffsetWords: Int32Array;
+  /** Packed ranks by pool address, and each rank's slot: read live, as pages join in place. */
+  table: {
+    readonly pageIndicesByUrl: Map<string, number[]>;
+    readonly residentOffsetWords: Int32Array;
+  };
   tracking: ReturnType<typeof createWebgpuPageTracking>;
   engineDiagnostic: ReturnType<typeof createWebgpuDiagnostics>['engineDiagnostic'];
   getCache: () => Cache | undefined;
@@ -15,8 +18,7 @@ type MirrorOptions = {
 
 /** Tracks cache arrivals and departures, including transparent keys outside the row table. */
 export function createWebgpuResidencyMirror(options: MirrorOptions) {
-  const { pageIndicesByUrl, residentOffsetWords, tracking, engineDiagnostic, getCache, getFrame } =
-    options;
+  const { table, tracking, engineDiagnostic, getCache, getFrame } = options;
   const residentOutsideTable = new Set<string>();
   const residencyKeys: string[] = [],
     residencySlots: number[] = [];
@@ -24,6 +26,7 @@ export function createWebgpuResidencyMirror(options: MirrorOptions) {
   let dirty = true;
 
   const setOffsets = (pages: number[], offset: number) => {
+    const { residentOffsetWords } = table;
     for (const page of pages) {
       if (residentOffsetWords[page] === offset) continue;
       residentOffsetWords[page] = offset;
@@ -41,8 +44,8 @@ export function createWebgpuResidencyMirror(options: MirrorOptions) {
     for (let c = 0; c < residencyKeys.length; c++) {
       const key = residencyKeys[c],
         offsetWords = residencySlots[c],
-        pages = pageIndicesByUrl.get(key);
-      const was = pages ? residentOffsetWords[pages[0]] >= 0 : residentOutsideTable.has(key);
+        pages = table.pageIndicesByUrl.get(key);
+      const was = pages ? table.residentOffsetWords[pages[0]] >= 0 : residentOutsideTable.has(key);
       if (offsetWords >= 0 && !was) journalResident++;
       else if (offsetWords < 0 && was) journalResident--;
       if (!pages) {
@@ -64,7 +67,7 @@ export function createWebgpuResidencyMirror(options: MirrorOptions) {
     residentOutsideTable.clear();
     for (const url of tracking.pageCatalog) {
       const page = cache.get(url),
-        pages = pageIndicesByUrl.get(url);
+        pages = table.pageIndicesByUrl.get(url);
       if (page) journalResident++;
       if (!pages) {
         if (page) residentOutsideTable.add(url);

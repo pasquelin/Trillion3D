@@ -20,6 +20,8 @@ import type { ShadowStaticLayer } from '../../../gpu/shadow/staticLayer.ts';
 import type { ShadowPageHiz } from '../../../gpu/shadow/pageHiz.ts';
 import type { ShadowOcclusion } from '../../../gpu/shadow/occlusion.ts';
 import type { ShadowPageQuads } from '../../../gpu/shadow/pageQuads.ts';
+import { createShadowMemory, type ShadowMemory } from '../../shadow/memoryGrant.ts';
+import { createShadowWork, type ShadowWork } from '../../shadow/work.ts';
 
 /**
  * Direct-lighting state of the contract: the light store (shared with the host), per-tile lists, the
@@ -34,6 +36,8 @@ export interface WebgpuLightState {
   shadows: GpuShadowAtlas | undefined;
   /** The shadow pool's grant, once asked: `settled` once the device granted or refused it. */
   shadowGrant: DeviceGrant | undefined;
+  /** The drawing buffer the pool was last sized for; another one resizes it (`poolResize.ts`). */
+  poolView: readonly [number, number] | undefined;
   /** The return path of the pages the resolve reads; absent while the pool does not exist. */
   pageRequests: ShadowPageRequests | undefined;
   /** Residency flips, compared plan to plan (`../../shadow/residence.ts`). */
@@ -90,16 +94,23 @@ export interface WebgpuLightState {
   shadowPages: number;
   /** Pages drawn since the state was created, every frame and drain together. */
   shadowPagesTotal: number;
-  shadowDraws: number;
-  /** Draw calls actually encoded by the shadow pass: per render pass its clears and restores, then
-   *  an indirect draw per region. */
+  /** Pages the light cut sent back to be drawn again, withdrawn or coarser (`redrawShortPages`). */
+  lightCutWithdrawnPages: number;
+  lightCutCoarsePages: number;
+  /** What the last image's shadow pass drew, apart (`../../shadow/work.ts`). */
+  shadowWork: ShadowWork;
+  /** Draw calls the shadow pass encoded: per pass its clears and restores, one per region. */
   shadowDrawCalls: number;
-  /** Render passes the shadow pass opened: static layer, pool and transmittance, one per layer
-   *  drawn, per batch. */
+  /** Render passes the shadow pass opened: static, pool, transmittance, per layer and batch. */
   shadowRenderPasses: number;
   /** Why the shadow atlas does not exist, when it does not. */
   shadowReason: string | null;
-  /** Configuration of the first image lit by the contract is logged only once. */
+  /** The shadows' fixed memory grant, its peak and its pressure events (`../../shadow/memoryGrant.ts`). */
+  memory: ShadowMemory;
+  /** The transmittance layer is past the grant or refused by the device: never asked again
+   *  (`../../shadow/transmittanceGrant.ts`). */
+  transmittanceDenied: boolean;
+  /** The first contract-lit image's configuration is logged once. */
   firstFrameLogged: boolean;
 }
 
@@ -114,6 +125,7 @@ export function createWebgpuLightState(
     tiles: undefined,
     shadows: undefined,
     shadowGrant: undefined,
+    poolView: undefined,
     pageRequests: undefined,
     sceneBox: createShadowSceneBox(),
     residence: createShadowResidence(),
@@ -144,10 +156,14 @@ export function createWebgpuLightState(
     shadowFaces: 0,
     shadowPages: 0,
     shadowPagesTotal: 0,
-    shadowDraws: 0,
+    lightCutWithdrawnPages: 0,
+    lightCutCoarsePages: 0,
+    shadowWork: createShadowWork(),
     shadowDrawCalls: 0,
     shadowRenderPasses: 0,
     shadowReason: null,
+    memory: createShadowMemory(),
+    transmittanceDenied: false,
     firstFrameLogged: false,
   };
 }
@@ -161,20 +177,19 @@ export function disposeStaticLayer(lights: WebgpuLightState) {
   lights.staticLayer = lights.pageHiz = lights.occlusion = undefined;
 }
 
-/** Closes the frame's shadow work: what its batches drew joins the cumulative total a host reads
- *  across frames and settle drains; the pages from a batch that could not be encoded on are not
- *  counted (`encodeShadowBatches.ts`). */
+/** Closes the frame's shadow work: what its batches drew joins the total a host reads across frames
+ *  and drains; a batch that could not be encoded is not counted (`encodeShadowBatches.ts`). */
 export function noteShadowFrame(lights: WebgpuLightState) {
   lights.shadowPagesTotal += lights.shadowPages;
 }
 
 /**
  * True while the shadow pages can still change what the image shows: a page stale and read — left
- * by a batch that could not be encoded —, a
- * representation change waiting for the camera to rest, a request report — the shading's, or a
- * light cut's, whose casters may still load, or its flag word — on its way, or no report yet
- * proving that the image reads only pages already drawn. A scene without a shadow light, or an
- * unlit view, reads no page and waits for nothing — not even the pages the last plan left.
+ * by a batch that could not be encoded —, a representation change waiting for the camera to rest,
+ * a request report — the shading's, or a light cut's, whose casters may still load, or its flag
+ * word — on its way, or no report yet proving that the image reads only pages already drawn. A
+ * scene without a shadow light, or an unlit view, reads no page and waits for nothing — not even
+ * the pages the last plan left.
  */
 export function shadowsUnsettled(lights: WebgpuLightState) {
   const { plan, store, shadows, pageRequests } = lights;

@@ -63,3 +63,38 @@ pub fn preview_block_bytes(width: u32, height: u32) -> usize {
         .map(|(w, h)| super::blocks::level_block_bytes(w, h))
         .sum()
 }
+
+/// A streamed tile's side and gutter, in texels: the engine's (`texture/tiles.ts`).
+/// Pinned against it by `tests/integration/shared-cache-format.test.ts`.
+pub const TILE_SIZE: u32 = 128;
+pub const TILE_BORDER: u32 = 4;
+
+/// Block columns — or rows — `[from, to)` of each tile's record along a side
+/// `texels` long: the tile and its gutter, clipped at the level's edge.
+fn record_spans(texels: u32) -> impl Iterator<Item = (usize, usize)> {
+    let side = super::blocks::BLOCK_SIDE;
+    (0..texels.div_ceil(TILE_SIZE)).map(move |t| {
+        let from = (t * TILE_SIZE).saturating_sub(TILE_BORDER) / side;
+        let to = ((t + 1) * TILE_SIZE + TILE_BORDER)
+            .min(texels)
+            .div_ceil(side);
+        (from as usize, to as usize)
+    })
+}
+
+/// A row-major block level (`encode_level`) as its file holds it (version 6,
+/// #962): its tile records, one HTTP Range each, laid out as the engine reads
+/// them (`packages/sdk-browser/src/texture/tileRecords.ts`).
+pub fn tile_records(blocks: &[u8], width: u32, height: u32) -> Vec<u8> {
+    let bytes = super::blocks::BLOCK_BYTES;
+    let row = super::blocks::blocks_of(width, height).0 as usize * bytes;
+    let mut out = Vec::with_capacity(blocks.len() * 9 / 8);
+    for (y0, y1) in record_spans(height) {
+        for (x0, x1) in record_spans(width) {
+            for by in y0..y1 {
+                out.extend_from_slice(&blocks[by * row + x0 * bytes..by * row + x1 * bytes]);
+            }
+        }
+    }
+    out
+}

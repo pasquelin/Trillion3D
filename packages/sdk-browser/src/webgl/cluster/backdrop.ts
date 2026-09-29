@@ -7,13 +7,14 @@
  * The cost is the second opaque pass, paid only by a frame that carries a transmissive copy.
  */
 import { refuseCluster } from './refusal.ts';
+import { allocated } from '../core/allocation.ts';
 import { halfFloatTargets } from '../core/renderTarget.ts';
 import type { SceneColour, WebglClusterScene } from './lights.ts';
 
 /** Names the missing capability when the context cannot render a half-float backdrop. */
-export function backdropFormatReason(gl: WebGL2RenderingContext) {
+export function backdropFormatReason(gl: WebGL2RenderingContext, purpose = 'transmission') {
   if (halfFloatTargets(gl)) return;
-  return 'transmission needs a half-float backdrop (EXT_color_buffer_half_float)';
+  return `${purpose} needs a half-float backdrop (EXT_color_buffer_half_float)`;
 }
 
 export class WebglClusterBackdrop {
@@ -69,6 +70,8 @@ export class WebglClusterBackdrop {
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, this.depth, 0);
     this.width = width;
     this.height = height;
+    // Refused: sized again once the refusal is read (`../core/allocation.ts`).
+    allocated(gl, 'target', () => (this.width = this.height = 0));
   }
   /**
    * Binds the backdrop, sized to the current viewport and cleared to the linear background

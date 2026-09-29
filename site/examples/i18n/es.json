@@ -58,7 +58,8 @@
       "missingCache": "Falta la caché compilada: ejecuta pnpm compile:caches"
     },
     "banner": {
-      "close": "Cerrar"
+      "close": "Cerrar",
+      "waiting": "En espera del motor (#{issue})"
     }
   },
   "a-city-from-rules": {
@@ -1262,6 +1263,25 @@
       "off": "apagada"
     }
   },
+  "page-materials": {
+    "banner": "Arrastra para explorar la sala. Consulta, cambia, mezcla o crea un material.",
+    "controls": {
+      "set": "Cambiar color",
+      "switchToBlend": "Cambiar a mezcla",
+      "createAndAssign": "Crear y asignar"
+    },
+    "readouts": {
+      "selected material": "Material seleccionado",
+      "materials": "Materiales",
+      "sourceMaterials": "Materiales originales",
+      "last action": "Última acción"
+    },
+    "words": {
+      "imported": "{count} importados",
+      "applied": "Aplicado",
+      "ready": "Listo"
+    }
+  },
   "lights-from-the-scene-file": {
     "banner": "Arrastra para mirar alrededor. Estas lámparas venían en el archivo del modelo.",
     "controls": {
@@ -1391,6 +1411,7 @@
     "banner": "Arrastra para dar la vuelta. Cambia la vista para ver lo que guarda el renderizador.",
     "controls": {
       "see": "Ver",
+      "glass": "Cristal",
       "spin": "Girar"
     },
     "choices": {
@@ -1745,7 +1766,8 @@
       "night": "Noche",
       "bounce": "Rebote",
       "sun": "Sol",
-      "lamp": "Lámpara"
+      "lamp": "Lámpara",
+      "spin": "Girar"
     },
     "words": {
       "credit": "Modelo de farola de W. Sitters, CC BY 3.0 — ver assets/examples/CREDITS.md"
