@@ -127,7 +127,7 @@ fn tileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,til
  * accumulates — and zero for every other: a still image, which converges to the exact sum,
  * and an image that does not accumulate, which is never noisy. At zero the loop is the one
  * over every light of the tile, character for character; so is it on a sampled image whose tile
- * list holds no shadowed light (`listShadowed`, #1249).
+ * list holds no shadowed light (`tileShadowed`, #1249), a flag the tile pass writes once.
  *
  * `narrow` is the resolve of a scene of at most `TILE_LIGHTS` lights (#849): its light array is
  * that long and its slice loop has no branch (`NARROW_SLICE_WGSL`), as the narrow tile pass
@@ -144,7 +144,7 @@ fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
  let tilesY=u32(view.lightParams.z);
  if(tile.x>=tilesX||tile.y>=tilesY){return vec3f(0.0);}
  let rank=u32(view.viewport.w);
- if(rank==0u||!listShadowed(tile,tilesX)){return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE);}
+ if(rank==0u||!tileShadowed(tile,tilesX)){return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE);}
  return sampledTileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,rank,pixel);
 }`;
 export const DIRECT_LIGHTING_WGSL = directLightingWgsl();

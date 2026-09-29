@@ -6,9 +6,12 @@ import assert from 'node:assert/strict';
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { createGpuLightTiles } from './tiles.ts';
+import { TILE_STRIDE_WORDS } from '../direct/lightWgsl.ts';
 
 const START = (100 * LIGHT_SETTINGS.tileLights) / 4,
-  MOST = 100 * LIGHT_SETTINGS.tileLights * 4;
+  MOST = 100 * LIGHT_SETTINGS.tileLights * 4,
+  /** Where the pool starts: the 100 tile records, each `TILE_STRIDE_WORDS` wide. */
+  RECORDS = 100 * TILE_STRIDE_WORDS;
 
 test('the frame metrics carry the sampled pool and count its growths', async () => {
   const fake = fakeDevice();
@@ -33,12 +36,12 @@ test('the frame metrics carry the sampled pool and count its growths', async () 
   tiles.ensure(160, 160, {} as GPUTextureView, fake.buffers[0] as never, 200);
   const opened = tiles.poolMetrics();
   assert.deepEqual(opened, { ...opened, tileLightPoolOverflowed: null, tileLightPoolGrowths: 0 });
-  await frame(200, 0, [13000, START, 5000, 1]);
-  assert.deepEqual([...pools()[0].data], [13000, START, 0, 0]);
+  await frame(200, 0, [RECORDS, START, 5000, 1]);
+  assert.deepEqual([...pools()[0].data], [RECORDS, START, 0, 0]);
   // Grown to 1.25 × what it reserved: a demand risen by less finds room, and no growth follows.
-  const risen = Object.values(await frame(200, 15, [13000, 6250, 6200, 0]));
+  const risen = Object.values(await frame(200, 15, [RECORDS, 6250, 6200, 0]));
   assert.deepEqual(risen, [6200, 6250, false, 1], 'reserved, capacity, overflowed, growths');
-  await frame(200, 30, [13000, 6250, MOST * 3, 1]);
+  await frame(200, 30, [RECORDS, 6250, MOST * 3, 1]);
   // Then grown to its bound; a narrow frame samples no pool.
   assert.equal((await frame(200, 45)).tileLightPoolGrowths, 2);
   const capacities = pools().map((write) => write.data[1]);
