@@ -122,6 +122,9 @@ pub struct Layout {
     /// The block table then the corner stream (`triangles.rs`).
     pub triangles: [usize; 2],
     pub position: [usize; 3],
+    /// Each vertex's link to its position, present only when the page stores fewer positions
+    /// than vertices (`positions.rs`).
+    pub links: usize,
     pub normal: usize,
     pub uv: [usize; 2],
     pub uv1: [usize; 2],
@@ -151,7 +154,8 @@ impl Layout {
             stream(true, corners.blocks, corners.record_bits()),
             stream(true, corners.bits, 1),
         ];
-        let position = h.position.bits.map(|b| stream(true, h.vertex_count, b));
+        let position = h.position.bits.map(|b| stream(true, h.position_count, b));
+        let links = stream(h.links_positions(), h.vertex_count, h.link_bits());
         let normal = stream(h.flags & FLAG_NORMAL != 0, h.vertex_count, 16);
         let uv =
             h.uv.bits
@@ -182,6 +186,7 @@ impl Layout {
             corners,
             triangles,
             position,
+            links,
             normal,
             uv,
             uv1,

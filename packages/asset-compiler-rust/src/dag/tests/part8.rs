@@ -46,7 +46,7 @@ impl Shaded {
         };
         let carried = [&normals];
         let attributes = DagAttributes { carried: &carried };
-        let (dag, _, tallies, _) = build_dag_tallied(
+        let (dag, _, tallies, ..) = build_dag_tallied(
             &self.positions,
             attributes,
             &self.indices,

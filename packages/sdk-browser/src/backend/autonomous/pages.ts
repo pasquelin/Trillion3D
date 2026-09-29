@@ -22,7 +22,7 @@ import type { HostMaterial } from '../../host/resources.ts';
 
 /** WebGL2 path backed only by independently decoded prepared geometry pages. */
 export const autonomousPagesBackend: BackendFactory = (context) => {
-  const { metadata, descriptors } = prepareAutonomousManifest(context.metadata);
+  const { metadata, descriptors, sourced } = prepareAutonomousManifest(context.metadata);
   const { roots, allPages, worlds, blendCopies, reassignBlend, blendOf, wears } =
     collectClusterPages(context.source, metadata, new Map(), context.associations, {
       allowMissing: true,
@@ -90,7 +90,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     residency,
     heldFloor,
     instanceCount,
-    others: views.others,
+    views,
   });
   const frame = createAutonomousRender({
     state,
@@ -125,7 +125,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       if (heldFloor.overCeiling()) throw new Error('AUTONOMOUS_ROOT_BUDGET');
       const urls = [...bootstrapUrls];
       // The draw's own preparation, before any frame (`sceneDraw.ts`).
-      const [pages] = await Promise.all([readPages(context, urls), hostDraw.prepare()]);
+      const [pages] = await Promise.all([readPages(context, urls, sourced), hostDraw.prepare()]);
       pages.forEach((data, i) => acceptGeometryPage(urls[i], data));
       heldFloor.changed();
       ready = true;
@@ -160,10 +160,9 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     materialClassRefusal: (alpha) =>
       instances.materialClassRefusal(alpha) ?? classes.refusal(alpha, allPages),
     flush: () => classes.settled().then(pool.api.flush),
-    syncResident() {
-      gate.resourcesChanged();
-      sync();
-    },
+    syncResident: () => (gate.resourcesChanged(), sync()),
+    // A dynamic geometry's pages read its lists, uploaded as the next frame binds them (#573).
+    updateVertices: () => (gate.sceneMoved(), true),
     refreshMaterials(values = true, alpha) {
       // Values reach the twins, clones; a picture alone (#362), shared, only lets the image go.
       if (values) colorMaterials.forEach((twin, original) => colouredHostSurface(original, twin));

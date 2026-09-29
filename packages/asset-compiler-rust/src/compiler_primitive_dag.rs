@@ -63,14 +63,17 @@ pub(super) fn build_dag_primitive(
     proxy_demand: crate::proxy::cut::CutDemand,
     blended: bool,
     tile_log2: i32,
-    store_packed: &(impl Fn(&[u32], i32) -> Result<(Value, bool)> + Sync),
+    store_packed: &(impl Fn(&[u32], &[f32], &[&geometry_page::Attribute], &[u32], i32) -> Result<(Value, bool)>
+          + Sync),
 ) -> Result<DagResult> {
     let strategy = crate::dag::DagStrategy::named(&o.simplification);
     let attributes = crate::dag::DagAttributes { carried };
     let mut laps = perf::Laps::start();
-    let (dag, groups, tallies, stalls) =
+    let (dag, groups, tallies, stalls, grown) =
         crate::dag::build_dag_tallied(pos, attributes, index_values, strategy, &|| check(o))?;
     laps.lap("dagMs");
+    let (pos, carried) = crate::dag::Grown::arrays(&grown, pos, attributes);
+    let attributes = crate::dag::DagAttributes { carried: &carried };
     let quality =
         compiler_primitive_checks::check_dag(&dag, pos, attributes.normals(), index_values)?;
     // The proxy coarse cut is read here, where the DAG and the positions are both
@@ -97,12 +100,19 @@ pub(super) fn build_dag_primitive(
     // The collider and the pages read the same DAG and neither reads what the other writes: they
     // run side by side on the compiler's pool, each result kept in its own place, so every byte is
     // the serial cook's, and the cook's error still comes first (#956).
+    let snapped = grown.as_ref().map(|grown| grown.snapped(position_exponent));
+    let (pos, carried) = (snapped.as_deref().unwrap_or(pos), attributes.carried);
     let (collision, paged) = laps.join(
         ("physicsMs", || {
             crate::physics_cook::cook_primitive(o, &dag, &order, &culling, pos, index_values)
         }),
         ("pagesMs", || {
-            let store = |slice: &[u32]| store_packed(slice, position_exponent);
+            // A vertex a solved reduction placed deforms as the source vertex it came from.
+            let origin = grown
+                .as_ref()
+                .map_or(&[][..], |grown| grown.origin.as_slice());
+            let store =
+                |slice: &[u32]| store_packed(slice, pos, carried, origin, position_exponent);
             bundle_dag_pages(o, &dag, &groups, &order, pos, &store)
         }),
     );

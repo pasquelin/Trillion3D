@@ -45,7 +45,7 @@ use super::reduce::AtlasKind;
 /// when no byte reaches it — a factor of 0 or below, or a cutoff above the factor,
 /// keeps no texel —, which the lowest cutoff over a texture's readers ignores
 /// beside any other one.
-pub(super) fn cutoff_byte(cutoff: f32, factor: f32) -> u8 {
+pub(crate) fn cutoff_byte(cutoff: f32, factor: f32) -> u8 {
     (1..=255u8)
         .find(|&byte| keeps(byte, (cutoff, factor)))
         .unwrap_or(255)
@@ -56,13 +56,13 @@ pub(crate) type Cut = (f32, f32);
 
 /// Whether a masked material keeps a texel of alpha `alpha` under its `cut`:
 /// `alpha / 255 × factor >= cutoff` in `f32`.
-pub(super) fn keeps(alpha: u8, (cutoff, factor): Cut) -> bool {
+pub(crate) fn keeps(alpha: u8, (cutoff, factor): Cut) -> bool {
     f32::from(alpha) / 255.0 * factor >= cutoff
 }
 
 /// A masked material's cut at `cutoff`, under its `baseColorFactor` alpha (1
 /// when absent), clamped to [0, 1] as the engine's (`surfaceOpacity`).
-pub(super) fn material_cut(material: &serde_json::Value, cutoff: f32) -> Cut {
+pub(crate) fn material_cut(material: &serde_json::Value, cutoff: f32) -> Cut {
     let factor = material
         .pointer("/pbrMetallicRoughness/baseColorFactor/3")
         .and_then(serde_json::Value::as_f64)
@@ -118,7 +118,7 @@ fn squares(level: &[u8], width: usize) -> impl Iterator<Item = [u32; 4]> + '_ {
 }
 
 /// Filtered samples of a level (RGBA8, `width` texels a row) at or above `c`.
-pub(super) fn filtered_covered(level: &[u8], width: usize, c: u8) -> u64 {
+pub(crate) fn filtered_covered(level: &[u8], width: usize, c: u8) -> u64 {
     let c = u32::from(c);
     let passing = |a: [u32; 4]| (0..4).filter(|&s| filtered(a, s) >= c).count() as u64;
     squares(level, width).map(passing).sum()

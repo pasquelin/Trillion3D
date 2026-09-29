@@ -1,8 +1,7 @@
 pub(crate) use crate::geometry_page_cells::localise;
-use crate::geometry_page_cells::{grids, Cell, Grids};
+use crate::geometry_page_cells::{first_use, grids, stored_positions, Grids};
 use crate::geometry_page_deform::{join, page_deformation, write, Deformation};
 use crate::{CompilerError, Result};
-use std::collections::HashMap;
 use trillion3d_page_codec::triangles::Spans;
 use trillion3d_page_codec::writer::BitWriter;
 use trillion3d_page_codec::{Header, Layout};
@@ -19,6 +18,7 @@ pub(crate) const PAGE_ATTRIBUTES: [(&str, usize, u32); 4] = [
 
 /// One optional attribute of a primitive: its presence bit, its source width (a colour may be
 /// three-wide) and its values, `width` per vertex.
+#[derive(Debug, Clone)]
 pub struct Attribute {
     pub flag: u32,
     pub width: usize,
@@ -48,9 +48,13 @@ mod tests_codec_refusal;
 #[path = "geometry_page_grid_tests.rs"]
 mod tests_grid;
 
+#[cfg(test)]
+#[path = "geometry_page_positions_tests.rs"]
+mod tests_positions;
+
 /**
  * A complete, independently decodable `WGP3` page: positions on the primitive grid of
- * `position_exponent`, texture coordinates on that of `uv_exponent`, octahedral normals, byte colours
+ * `position_exponent`, each stored once when the vertices repeat them (`stored_positions`), texture coordinates on that of `uv_exponent`, octahedral normals, byte colours
  * and local indices coded by delta within blocks of triangles. Tangents are never stored — a reader rebuilds them from the
  * triangle's positions and texture coordinates.
  */
@@ -62,22 +66,17 @@ pub fn encode(
     position_exponent: i32,
     uv_exponent: i32,
 ) -> Result<Encoded> {
-    let exponents = (position_exponent, uv_exponent);
-    encode_deformed(
-        indices,
-        positions,
-        attributes,
-        &Deformation::default(),
-        exponents,
-    )
+    let (none, exponents) = (Deformation::default(), (position_exponent, uv_exponent));
+    encode_deformed(indices, positions, attributes, (&none, &[]), exponents)
 }
 
-/// `encode`, with the joints, weights and morph targets the primitive's `deformation` carries.
+/// `encode`, with the joints, weights and morph targets the primitive's `deformation` carries; a
+/// vertex a solved reduction placed past the source's reads the deformation of its `origin`.
 pub fn encode_deformed(
     indices: &[u32],
     positions: &[f32],
     attributes: &[&Attribute],
-    deformation: &Deformation,
+    (deformation, origin): (&Deformation, &[u32]),
     (position_exponent, uv_exponent): (i32, i32),
 ) -> Result<Encoded> {
     if indices.len() < 3 || !indices.len().is_multiple_of(3) || !positions.len().is_multiple_of(3) {
@@ -119,24 +118,15 @@ pub fn encode_deformed(
     )?;
     // The deformation's fields join each vertex's cells: two vertices merge only when they
     // deform alike.
-    let mut deformed = page_deformation(deformation, &original, position_exponent)?;
+    let mut deformed = page_deformation(deformation, &original, origin, position_exponent)?;
     let fields = std::mem::take(&mut deformed.fields);
     let (cells, table) = join(cells, &fields);
+    flags |= deformed.flags();
     // Vertices on the same grid cells decode to the same floats: one copy, indices remapped.
-    let mut unique = Vec::<Cell>::with_capacity(cells.len());
-    let mut rank = HashMap::<Cell, u32>::with_capacity(cells.len());
-    let remap: Vec<u32> = cells
-        .iter()
-        .map(|cell| {
-            *rank.entry(*cell).or_insert_with(|| {
-                unique.push(*cell);
-                (unique.len() - 1) as u32
-            })
-        })
-        .collect();
+    let (unique, remap) = first_use(cells.iter().copied());
     let corners: Vec<u32> = local.iter().map(|&i| remap[i as usize]).collect();
     let spans = Spans::of(&corners);
-    flags |= deformed.flags();
+    let (stored, links) = stored_positions(&unique, position.bits);
     let mut header = Header {
         vertex_count: unique.len(),
         index_count: local.len(),
@@ -147,6 +137,7 @@ pub fn encode_deformed(
         color: color_record,
         quantization_error,
         corner_bits: spans.bits,
+        position_count: stored.len(),
         skin: deformed.skin.unwrap_or_default(),
         morphs: deformed.morphs.clone(),
     };
@@ -154,7 +145,10 @@ pub fn encode_deformed(
     let mut out = BitWriter::default();
     spans.write(&mut out, &corners, &layout.corners);
     for c in 0..3 {
-        out.stream(unique.iter().map(|cell| cell.position[c]), position.bits[c]);
+        out.stream(stored.iter().map(|p| p[c]), position.bits[c]);
+    }
+    if let Some(links) = links {
+        out.stream(links.into_iter(), header.link_bits());
     }
     if flags & FLAG_NORMAL != 0 {
         out.stream(unique.iter().map(|cell| cell.normal), 16);
@@ -177,8 +171,7 @@ pub fn encode_deformed(
             );
         }
     }
-    let rows: Vec<&[u32]> = unique
-        .iter()
+    let rows: Vec<&[u32]> = (unique.iter())
         .map(|cell| table[cell.extra as usize])
         .collect();
     write(&mut deformed, &rows, &mut out);

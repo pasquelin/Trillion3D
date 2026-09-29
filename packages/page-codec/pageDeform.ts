@@ -5,7 +5,7 @@
  * format of `page-codec-wasm/src/deform.rs`, written again here without sharing a line.
  */
 import { bitsFor, quantize, type Packer, type QuantizedGrid } from './pageGrids.ts';
-import type { PageAttribute } from './pageAttributes.ts';
+import type { PageAttribute, PageAttributes } from './pageAttributes.ts';
 
 /** A morph target handed to the encoder: its displacements per source vertex. */
 export interface PageTarget {
@@ -36,8 +36,7 @@ export function weightSteps(weights: readonly number[]) {
 
 /** Each vertex's deformation fields in `original` order, and the page's records. */
 export function deformCells(
-  joints: PageAttribute | undefined,
-  weights: PageAttribute | undefined,
+  { JOINTS_0: joints, WEIGHTS_0: weights }: PageAttributes,
   targets: readonly PageTarget[],
   original: readonly number[],
   positionExponent: number,
@@ -99,14 +98,15 @@ export function packDeformation(
   }
 }
 
-/** Words 22 and 23 — the skin record and the target count — and each target's nine words. */
+/** Word 23 — the joint width, the target count and the smallest joint — and each target's nine
+ *  words. */
 export function deformHeader(
   head: DataView,
   deform: ReturnType<typeof deformCells>,
   record: (word: number, grid: QuantizedGrid) => void,
 ) {
-  if (deform.skin) head.setUint32(88, deform.skin.bits | (deform.skin.base << 8), true);
-  head.setUint32(92, deform.morphs.length, true);
+  const skin = deform.skin ?? { bits: 0, base: 0 };
+  head.setUint32(92, (skin.bits | (deform.morphs.length << 6) | (skin.base << 14)) >>> 0, true);
   deform.morphs.forEach(({ start, position, normal }, t) => {
     const at = 24 + t * 9;
     head.setUint32(at * 4, start, true);
