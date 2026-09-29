@@ -103,6 +103,12 @@ test("check-pr-body: the issue's Proof lines, as plain text, without comments or
     'validate needs every job.',
   ]);
   assert.deepEqual(proofLines('## To do\n- x'), []);
+  // A wrapped item or paragraph stays one line.
+  assert.deepEqual(proofLines('## Proof\n- one\n  two\n- three\n\nfour\nfive'), [
+    'one two',
+    'three',
+    'four five',
+  ]);
 });
 
 test('check-pr-body: every Proof line is proved in Lead verification, or waived by the boss', () => {
@@ -130,6 +136,14 @@ test('check-pr-body: every Proof line is proved in Lead verification, or waived 
   assert.equal(proofProblem(body(answer(validate), waived), issue), undefined);
   const unwaived = `- ${shards}: after merge\n`;
   assert.match(proofProblem(body(answer(validate), unwaived), issue) ?? '', /the count per shard/);
+  // A shared middle phrase answers nothing: the quote is the line's start.
+  const middle = answer('adds up to the full count') + answer(validate);
+  assert.match(proofProblem(body(middle), issue) ?? '', /the count per shard/);
+  // A waiver quotes a line that holds its own colon.
+  const colon = '## Proof\n- Measure: total GPU allocation back to its figure.';
+  const waiver =
+    "- Measure: total GPU allocation back to its figure: after merge, the boss's yes\n";
+  assert.equal(proofProblem(body('', waiver), colon), undefined);
   // An issue with no Proof section asks nothing.
   assert.equal(proofProblem(body(''), '## To do\n- x'), undefined);
   // bodyProblem asks the Proof lines of a ready pull request only, never of a draft or a thumbnail.
