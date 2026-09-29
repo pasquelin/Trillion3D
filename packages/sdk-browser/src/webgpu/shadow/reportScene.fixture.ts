@@ -17,12 +17,14 @@ import { shadingReads, type Lit } from './shadingReads.fixture.ts';
 const WIDTH = 3456,
   HEIGHT = 2234;
 
-/** A camera at `eye` looking along `forward`, 50° high, at the display's shape. */
+/**
+ * A camera at `eye` looking along `forward`, 50° high, at the display's shape. The fixture poses
+ * its camera; `readCameraWorld`, the contract, resolves and reads the pose.
+ */
 export function cameraAt(eye: number[], forward: number[]) {
   const cam = G.perspectiveCamera(50, WIDTH / HEIGHT, 0.1, 200);
   cam.position.set(eye[0], eye[1], eye[2]);
   cam.lookAt(eye[0] + forward[0], eye[1] + forward[1], eye[2] + forward[2]);
-  cam.updateMatrixWorld();
   return readCameraWorld(createEngineCamera(), cam);
 }
 
