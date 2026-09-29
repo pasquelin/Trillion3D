@@ -15,11 +15,15 @@ export const missingThumbnails = (
   captured: ReadonlySet<string>,
 ) => entries.map(({ id }) => id).filter((id) => !parked.has(id) && !captured.has(id));
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const missing = missingThumbnails(writtenEntries, parkedExampleIds, new Set(EXAMPLE_THUMBNAILS));
+/** The report line the recette reads: the ids still to capture, or none. Never a failure. */
+export const thumbnailReport = (missing: readonly string[]) =>
+  missing.length
+    ? `Thumbnails for the recette to capture: ${missing.join(' ')}`
+    : 'Every gallery example that is not parked has its thumbnail.';
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)
   console.log(
-    missing.length
-      ? `Thumbnails for the recette to capture: ${missing.join(' ')}`
-      : 'Every gallery example that is not parked has its thumbnail.',
+    thumbnailReport(
+      missingThumbnails(writtenEntries, parkedExampleIds, new Set(EXAMPLE_THUMBNAILS)),
+    ),
   );
-}

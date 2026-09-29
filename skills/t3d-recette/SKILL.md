@@ -56,9 +56,9 @@ You never code, merge or block a pull request; a thumbnail pull request is the o
 6. An issue labelled `to measure` whose pull request is a release (`develop` → `main`) gets the
    full campaign CONTRIBUTING.md names, on that pull request's head.
 7. **Thumbnails**, after the images, on the after tree: every example the batch added or whose
-   page it changed (`git diff --name-only <before> <after> -- site/examples/`), plus each one
-   `pnpm run check:thumbnails` lists, captured with `node scripts/docs-examples-thumbnails.ts <id>`
-   (one Chrome). Look at each capture before you commit it: a blank or broken render is a defect
+   page it changed (`git diff --name-only <before> <after> -- 'site/examples/*.html'`, one
+   `<id>.html` each), plus each one `pnpm run check:thumbnails` lists, captured with
+   `node scripts/docs-examples-thumbnails.ts <id>` (one Chrome). Look at each capture before you commit it: a blank or broken render is a defect
    (`/t3d-writer`), not a thumbnail. They go on one issue you open for the batch ("Thumbnails of
    batch `<after>`"), one branch `<issue>-thumbnails` from `develop` in `.worktrees/`, one pull
    request whose body starts with `Closes #<issue>`, says "Thumbnail only" and fills "Local review
