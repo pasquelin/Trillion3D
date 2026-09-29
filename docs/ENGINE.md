@@ -221,6 +221,15 @@ is the native one. `world.renderScale` reads back the scale of the last image; t
 view or GPU variant and the fallback draw stay at the display's size. Without timestamp queries the
 controller has no sample and holds the maximum.
 
+WebGL2 honours the same setting and controller, degraded: it keeps no history, so the image is
+resampled spatially (`webgl/core/resampleGlsl.ts`, `world/render/renderScale.ts`), with the same
+Lanczos-2 kernel over the 3×3 render texels, deringed to the 2×2 nearest, no jitter and no blend;
+material reads take the same `log2(w / W)` bias through GLSL `texture(…, bias)`, lines keep their
+display width, and the controller reads the whole-frame `EXT_disjoint_timer_query_webgl2` interval.
+Since a resample loses detail, its default minimum is 1: `'auto'` holds the display's size and only
+a page naming a lower `min`, or a fixed scale, draws below it. `temporal upscaling` stays
+unsupported there.
+
 ## Effect chain
 
 `world.effects` (`EffectChain`, `packages/sdk-core/src/world/effect/`) is one ordered list of passes
@@ -308,8 +317,11 @@ program too (a 64-light array, each listed light read with no branch), compiled 
 wide twin compiled beside it. A shadow caster past the 64 shadow slices lights without a shadow
 and is counted
 (`shadowCastersUnsliced`, #818). WebGL2 holds every light in a float texture grown with the
-count, and each draw evaluates only the lights whose range reaches its world box, listed per draw
-on the CPU in one integer texture (`webgl/cluster/lightLists.ts`, #835).
+count. A fragment evaluates only the lights whose range reaches its cell of a world grid laid over
+the lamps (a cell is their median range, at most 512 cells a lamp), plus the lights that reach
+every fragment. The grid is listed on the CPU into one integer texture only when a lamp's position
+or range changes; a frame that moves the camera alone sends only the view-to-grid matrix
+(`webgl/cluster/lightLists.ts`, #835).
 
 **A moving image shades a drawn subset of each pixel's lights.** A moving image weighs every light
 of its tile without its shadow (the cheap part) and shades in full, shadow included, four of them. A

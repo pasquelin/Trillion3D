@@ -5,9 +5,11 @@
 use super::*;
 use std::ops::Range;
 
-/// One placed node: its world box, the core rank of its parent (`None`: a scene root) and its box
-/// in that parent's frame, its descriptor as the cell writes it, and that descriptor's size.
+/// One placed node: its rank in the published scene, its world box, the core rank of its parent
+/// (`None`: a scene root) and its box in that parent's frame, its descriptor as the cell writes
+/// it, and that descriptor's size.
 pub(in crate::compiler_tables) struct Placed {
+    pub node: usize,
     pub bounds: [f64; 6],
     pub parent: Option<usize>,
     pub local: [f64; 6],

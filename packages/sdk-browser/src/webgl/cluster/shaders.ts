@@ -4,6 +4,7 @@ import { OUTPUT_TRANSFER_GLSL } from '../core/outputGlsl.ts';
 import { RECT_LIGHT_GLSL, WEBGL_RECT_KIND } from './rectGlsl.ts';
 import { PROBE_IRRADIANCE_GLSL } from './probe.ts';
 import { LIGHT_TEXTURE_GLSL } from './lightTexture.ts';
+import { LIGHT_GRID_GLSL, LIGHT_LOOP_GLSL } from './lightGrid.ts';
 import { INVERSE_PI, PI, ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
 import { FOG_GLSL } from '../../lighting/fogShader.ts';
 import { LINE_CLIP_GLSL, LINE_DASH_GLSL } from '../../visibility/shader/lineWgsl.ts';
@@ -58,15 +59,18 @@ toEye=-view.xyz;gl_Position=projectionMatrix*view;}}`;
 // does; a normal or depth surface shows its view normal or the frame's depth ramp.
 // A `covering` surface writes alpha 1 whatever its cut alpha: an opaque one, as the reference's
 // opaque surfaces do (#840), and into the effect chain also a `none` one (`bindClusterMaterial`).
+// `mipBias`: the texture level offset of an image drawn below the display (`upscaleMipBias`), so a
+// material keeps its texel density at any render scale; zero at the display's size.
 export const CLUSTER_FRAGMENT = `#version 300 es
 precision highp float;precision highp int;precision highp isampler2D;const float PI=${PI},INVERSE_PI=${INVERSE_PI};
 in vec3 toEye;in vec3 viewNormal;vec3 viewPosition;in vec2 texcoord0;in vec2 texcoord1;in vec4 vertexColor;out vec4 outColor;
 uniform vec4 baseFactor;uniform float metalFactor,roughFactor,alphaCutoff,aoStrength;uniform vec2 normalScale;
-uniform vec3 emissiveFactor;uniform vec2 depthRamp,dash;uniform bool covering,fogFree,lit,flatShaded,toneMapped,srgbDestination,hasNormalMap,hasVertexColor,sharedMetalRough;uniform int mapMask,faceSides,surfaceModel;
+uniform vec3 emissiveFactor;uniform vec2 depthRamp,dash;uniform float mipBias;uniform bool covering,fogFree,lit,flatShaded,toneMapped,srgbDestination,hasNormalMap,hasVertexColor,sharedMetalRough;uniform int mapMask,faceSides,surfaceModel;
 uniform sampler2D baseMap,roughMap,metalMap,normalMap,aoMap,emissiveMap;
 uniform mat3 baseUv,roughUv,metalUv,normalUv,aoUv,emissiveUv;
 uniform mat4 projectionMatrix;uniform ivec4 mapChannels;uniform ivec2 extraChannels;
 ${LIGHT_TEXTURE_GLSL}
+${LIGHT_GRID_GLSL}
 vec2 sourceUv(int channel){return channel==1?texcoord1:texcoord0;}
 vec2 mapUv(mat3 transform,vec2 source){return(transform*vec3(source,1.0)).xy;}
 struct CotangentFrame{vec3 T;vec3 B;};
@@ -90,7 +94,7 @@ ${RECT_LIGHT_GLSL}
 ${PROBE_IRRADIANCE_GLSL}
 ${FOG_GLSL}
 ${LINE_DASH_GLSL}
-// The lights the draw's list names (lightLists.ts), in slot order, on one surface: the engine's
+// The lights whose range reaches the fragment's grid cell (lightLists.ts), in slot order, on one surface: the engine's
 // only lighting formula, ambient and probe included.
 // In the reference's order of operations, so that a lit view writes its image to the last bit:
 // each direct light's irradiance (its colour already scaled by its intensity, lights.ts) weighs
@@ -98,7 +102,7 @@ ${LINE_DASH_GLSL}
 // are weighted once, occlusion last; diffuse, then specular. A diffuse or toon surface takes each
 // lamp through modelLight, the WebGPU path's formula: no specular, occlusion on its light too.
 vec3 shade(vec3 N,vec3 V,vec3 base,float metal,float rough,float ao){vec3 diffuse=base*(1.0-metal),f0=mix(vec3(0.04),base,metal);
-vec3 direct=vec3(0.0),specular=vec3(0.0),irradiance=vec3(0.0);for(int n=0;n<lightSpan.y;n++){int i=listedLight(n);
+vec3 direct=vec3(0.0),specular=vec3(0.0),irradiance=vec3(0.0);${LIGHT_LOOP_GLSL}
 vec4 positionRange=lightRecord(i,0),directionKind=lightRecord(i,1),colorIntensity=lightRecord(i,2),cone=lightRecord(i,3);
 int kind=int(directionKind.w);if(kind==3){irradiance+=colorIntensity.rgb;continue;}
 if(kind==${WEBGL_RECT_KIND}){direct+=rectLight(positionRange,directionKind.xyz,cone,colorIntensity,N,V,viewPosition,base,metal,rough,ao);continue;}
@@ -112,17 +116,17 @@ ${SCREEN_REFLECTION_GLSL}
 ${TRANSMISSION_GLSL}
 void main(){if(!lineDash(texcoord0.x,dash))discard;viewPosition=-toEye;vec4 base=baseFactor;
 if((mapMask&1)!=0){if(surfaceModel==${SURFACE_MODEL.matcap})base*=textureLod(baseMap,mapUv(baseUv,matcapUv(normalize(viewNormal))),0.0);
-else base*=texture(baseMap,mapUv(baseUv,sourceUv(mapChannels.x)));}
+else base*=texture(baseMap,mapUv(baseUv,sourceUv(mapChannels.x)),mipBias);}
 if(hasVertexColor)base*=vertexColor;if(base.a<alphaCutoff)discard;
-float roughSample=1.0,metalSample=1.0;if((mapMask&2)!=0){vec4 packed=texture(roughMap,mapUv(roughUv,sourceUv(mapChannels.y)));roughSample=packed.g;if(sharedMetalRough)metalSample=packed.b;}if((mapMask&4)!=0&&!sharedMetalRough)metalSample=texture(metalMap,mapUv(metalUv,sourceUv(mapChannels.z))).b;
+float roughSample=1.0,metalSample=1.0;if((mapMask&2)!=0){vec4 packed=texture(roughMap,mapUv(roughUv,sourceUv(mapChannels.y)),mipBias);roughSample=packed.g;if(sharedMetalRough)metalSample=packed.b;}if((mapMask&4)!=0&&!sharedMetalRough)metalSample=texture(metalMap,mapUv(metalUv,sourceUv(mapChannels.z)),mipBias).b;
 float metal=clamp(metalFactor*metalSample,0.0,1.0);
 float facing=gl_FrontFacing?1.0:-1.0;vec3 N;if(flatShaded)N=normalize(cross(dFdx(viewPosition),dFdy(viewPosition)));else{N=normalize(viewNormal);if(faceSides!=0)N*=facing;}
 float rough=min(max(roughFactor*roughSample,${ROUGHNESS_FLOOR})+geometryRoughness(N),1.0);
-if(hasNormalMap){vec2 st=sourceUv(mapChannels.w);vec3 n=texture(normalMap,mapUv(normalUv,st)).xyz*2.0-1.0;n.xy*=normalScale;
+if(hasNormalMap){vec2 st=sourceUv(mapChannels.w);vec3 n=texture(normalMap,mapUv(normalUv,st),mipBias).xyz*2.0-1.0;n.xy*=normalScale;
 CotangentFrame frame=cotangentFrame(N,dFdx(viewPosition),dFdy(viewPosition),dFdx(st),dFdy(st));vec3 T=frame.T,B=frame.B;if(faceSides==2&&!flatShaded){T*=facing;B*=facing;}N=normalize(mat3(T,B,N)*n);}
-float p=-projectionMatrix[2][3];vec3 V=normalize(vec3(0.0,0.0,1.0-p)-viewPosition*p);float ao=1.0;if((mapMask&16)!=0)ao=(texture(aoMap,mapUv(aoUv,sourceUv(extraChannels.x))).r-1.0)*aoStrength+1.0;
+float p=-projectionMatrix[2][3];vec3 V=normalize(vec3(0.0,0.0,1.0-p)-viewPosition*p);float ao=1.0;if((mapMask&16)!=0)ao=(texture(aoMap,mapUv(aoUv,sourceUv(extraChannels.x)),mipBias).r-1.0)*aoStrength+1.0;
 vec3 rgb=lit?shade(N,V,base.rgb,metal,rough,ao):base.rgb*ao;
-if((mapMask&32)!=0)rgb+=emissiveFactor*texture(emissiveMap,mapUv(emissiveUv,sourceUv(extraChannels.y))).rgb;else rgb+=emissiveFactor;
+if((mapMask&32)!=0)rgb+=emissiveFactor*texture(emissiveMap,mapUv(emissiveUv,sourceUv(extraChannels.y)),mipBias).rgb;else rgb+=emissiveFactor;
 if(lit)rgb+=mirrorLighting(base.rgb,metal,rough,N,V,viewPosition);
 if(!fogFree&&!reflectionCapture)rgb=fogged(rgb);
 if(surfaceModel==${SURFACE_MODEL.normal})rgb=normalViewColor(N);
