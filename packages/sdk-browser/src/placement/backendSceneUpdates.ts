@@ -3,6 +3,15 @@ import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { AlphaMode } from '../../../sdk-core/src/contracts/material.ts';
 import type { DecodedGeometryPage } from '../page/decode/geometryPage.ts';
 import type { PlacementRows } from './rows.ts';
+import type { HostAttributes } from '../host/resources.ts';
+
+/** A range of one vertex list a dynamic geometry rewrote (#573): vertices `from` to
+ *  `from + count - 1` of the host geometry's list `name`. */
+export type VertexRange = {
+  name: 'position' | 'normal' | 'uv' | 'color';
+  from: number;
+  count: number;
+};
 
 /** How a material's alpha moved (`world/api/materialApi.ts`, #846): the host surfaces written,
  *  and the modes before and after — equal when only a cutout's cutoff moved. */
@@ -71,6 +80,12 @@ export interface BackendSceneUpdates extends Partial<PlacementGrowth> {
    *  its roots the same tables. Settles once its root cover is resident; absent, the owner opens
    *  the session again. */
   mountPlacements?(mount: PlacementMount): Promise<void>;
+  /** The lists `ranges` name of the host geometry whose attributes are `attributes` — a dynamic
+   *  geometry's (#573) — were rewritten in place, its moved vertices within `box` (local, where
+   *  they were and where they go): the engine writes those vertices into the buffers it holds and
+   *  stales what they shadowed, no table rebuilt. True when taken; absent, the owner opens the
+   *  session again. */
+  updateVertices?(attributes: HostAttributes, ranges: readonly VertexRange[], box: Float64Array): boolean;
   /** The resource `rows` place leaves the session: its roots, pages and copies. */
   unmountPlacements?(rows: PlacementRows): void;
   /** The clear colour behind the scene, `0xrrggbb` (`BackendContext.clearColor`), read by the

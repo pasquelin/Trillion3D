@@ -13,6 +13,8 @@ import { worldReopens } from './worldReopen.ts';
 import { createCanvasFit, followPageCamera } from './worldCamera.ts';
 import type { PosedTwin } from './worldPoses.ts';
 import type { WorldRuntimeInputs as Inputs } from './worldRuntimeInputs.ts';
+import { DYNAMIC_UPLOAD_BUDGET_BYTES } from './worldDynamic.ts';
+import { vertexWriter } from './worldDynamicRanges.ts';
 
 /** The session drawing a world, fed by a per-frame change list: what the scene asks is resolved
  *  off the frame (`worldContents.ts`), applied once before each frame — rows taken, parked or grown
@@ -35,6 +37,8 @@ export function createWorldRuntime(inputs: Inputs) {
     seatWanted = false,
     lightsChanged = true,
     disposed = false,
+    /** Dynamic vertex bytes written since the last frame's metrics (#573). */
+    uploaded = 0,
     /** Why no session is open: the first-frame watch says it on the console. */
     closed = 'the scene has not been read yet';
   const invalidate = () => explorer?.invalidate();
@@ -125,6 +129,9 @@ export function createWorldRuntime(inputs: Inputs) {
         request('repaint-refused');
     }
     if (!session || explorer !== session) return;
+    const refused = () => request('vertices-refused');
+    const write = vertexWriter(session, (cut) => mirror?.geometryOf(cut), refused);
+    uploaded += cuts.dynamic.upload(DYNAMIC_UPLOAD_BUDGET_BYTES, write);
     if (poses.pending)
       poses.apply(scene, contents.seats, twins, (rows, from, to) =>
         session.updatePlacements(rows, from, to),
@@ -168,6 +175,9 @@ export function createWorldRuntime(inputs: Inputs) {
       beforeFrame(); // what it applies may close the session: that frame has no image
       if (!explorer) return null;
       const metrics = explorer.render();
+      metrics.dynamicUploadBytes = uploaded;
+      uploaded = 0;
+      cuts.dynamic.tick();
       track.drew();
       inputs.frame(metrics);
       return metrics;

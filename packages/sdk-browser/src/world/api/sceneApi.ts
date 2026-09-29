@@ -106,6 +106,11 @@ export function createExplorerSceneApi(inputs: Inputs) {
     /** Whether the active path mounts and unmounts resources in the open session (#572). */
     mountsPlacements: () => !!getActive().mountPlacements,
     mountPlacements: (mount: PlacementMount) => (check(), getActive().mountPlacements!(mount)),
+    /** A dynamic geometry's lists were rewritten in place (#573); false when the active path
+     *  cannot take it, and only a new session will draw them. */
+    updateVertices: (...change: Parameters<NonNullable<RenderBackend['updateVertices']>>) => (
+      check(), !!getActive().updateVertices?.(...change)
+    ),
     unmountPlacements: (rows: PlacementRows) => (check(), getActive().unmountPlacements!(rows)),
     /** Bounced light on or off in the session; false when the active path cannot toggle it in
      *  place, and only a session opened with the other setting will have it. */
