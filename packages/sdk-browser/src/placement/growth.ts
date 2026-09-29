@@ -2,7 +2,8 @@
  * GROWING AN INSTANCE BUFFER IN PLACE — the one contract every engine follows.
  *
  * A session holds each resource's instance buffer at a capacity. When its owner needs more rows,
- * it does not open the session again: it replaces the buffer `from` by a larger one `to` whose
+ * it does not open the session again: once the engine said it takes the growth
+ * (`BackendSceneUpdates.growsInPlace`), it replaces the buffer `from` by a larger one `to` whose
  * first rows are `from`'s, the rows past them parked, and hands both to the engine
  * (`BackendSceneUpdates.growPlacements`). The engine then
  *   1. rebinds every root, page and copy that read a row of `from` onto the same row of `to`;

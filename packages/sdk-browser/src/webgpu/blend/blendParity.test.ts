@@ -8,7 +8,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { blendTargets } from './pipelines.ts';
 import { blend, close, shown, type Rgba } from './blendModel.fixture.ts';
-import { DISPLAY_ROUTE_WGSL } from './displayFilter.ts';
+import { DISPLAY_FILTER_SHADER, DISPLAY_ROUTE_WGSL } from './displayFilter.ts';
 import { BLEND_SHADER } from './shader.ts';
 import { CONTRACT_COMPOSITIONS } from '../../lighting/deferred/shaders.ts';
 import { ADD_EQUATIONS, TINT_EQUATIONS } from './equations.ts';
@@ -87,4 +87,14 @@ test('subtractive and multiply over paper show the witness in display space', ()
     const onScreen = blend(ADD_EQUATIONS.additive!, add, tinted);
     close(onScreen.slice(0, 3), WITNESS[mode](shown(ink), shown(paper)), `${mode} display`);
   }
+});
+
+test('the layers drawn below the display are sampled to it, not read at its pixel', () => {
+  // The full-screen triangle's place: (0, 0) at the top left, (1, 1) at the bottom right.
+  assert.match(
+    DISPLAY_FILTER_SHADER,
+    /return Screen\(vec4f\(c,0\.0,1\.0\),vec2f\(0\.5,-0\.5\)\*c\+0\.5\);/,
+  );
+  assert.match(DISPLAY_FILTER_SHADER, /textureSampleLevel\(map,layerSampler,uv,0\.0\)/);
+  assert.doesNotMatch(DISPLAY_FILTER_SHADER, /textureLoad/);
 });

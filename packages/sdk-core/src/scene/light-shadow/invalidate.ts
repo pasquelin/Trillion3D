@@ -1,7 +1,7 @@
 import { boxEmpty, boxUnion } from '../../math/primitives/box.ts';
 import { LIGHT_KIND, type SceneLight } from '../light/contracts.ts';
 import type { createShadowChanges } from './changes.ts';
-import type { createShadowCounts } from './counts.ts';
+import { STALE_BY, type createShadowCounts } from './counts.ts';
 import { createPageRects } from './pageRects.ts';
 import { STALE_DYNAMIC, STALE_FULL, type ShadowPool } from './pool.ts';
 import type { ShadowTable } from './table.ts';
@@ -14,6 +14,10 @@ type Counts = ReturnType<typeof createShadowCounts>;
 
 /** The position of a light that has none, the sun: its range bounds nothing. */
 const ORIGIN = [0, 0, 0] as const;
+/** Why a box stales its pages (`STALE_BY`): wrong, a still caster changed; at `STALE_FULL` and not
+ *  wrong, a change of detail; else, moving casters alone. A union counts its strongest. */
+const reasonOf = (level: number, wrong: boolean) =>
+  wrong ? STALE_BY.caster : level === STALE_FULL ? STALE_BY.detail : STALE_BY.moving;
 
 /**
  * What stales the mapped pages of a shadow light, and nothing more — the reference invalidation
@@ -61,8 +65,9 @@ export function createPageInvalidation(
     views = 0,
     nowMs = 0,
     frame = 0;
-  const mark = (page: number, level: number, wrong: boolean) => {
-    if (pool.stale(page, nowMs, frame, level)) counts.invalidatedPages++;
+  /** Stales `page` at `level`, counted under `reason` (`STALE_BY`), withdrawn when `wrong`. */
+  const mark = (page: number, level: number, wrong: boolean, reason: number) => {
+    if (pool.stale(page, nowMs, frame, level)) counts.staled(reason);
     if (wrong) pool.withdraw(table, page);
   };
   const within = (view: number, x: number, y: number) =>
@@ -76,21 +81,28 @@ export function createPageInvalidation(
   const project = (min: ArrayLike<number>, max: ArrayLike<number>) =>
     sunLight ? sunRects(sun, slice, min, max) : lampRects(min, max);
   /** Every page of the light — or only those drawn in depth-range slot `range` —, or, `covered`,
-   *  those the rectangles hold: stale at `level`, and withdrawn when `wrong`. */
-  const scan = (covered: boolean, level: number, wrong: boolean, range = -1) => {
+   *  those the rectangles hold: stale at `level`, and withdrawn when `wrong`, for `reason`. */
+  const scan = (
+    covered: boolean,
+    level: number,
+    wrong: boolean,
+    range = -1,
+    reason = reasonOf(level, wrong),
+  ) => {
     counts.visitedPages += pool.pages;
     for (let page = 0; page < pool.pages; page++) {
       if (pool.owner[page] < 0 || pool.slice[page] !== slice) continue;
       if (range >= 0 && pool.range[page] !== range) continue;
       const key = pool.view[page],
         view = sunLight ? key - sun.finest[slice] : (key >> 4) * LAMP_MIPS + (key & 15);
-      if (!covered || within(view, pool.x[page], pool.y[page])) mark(page, level, wrong);
+      if (!covered || within(view, pool.x[page], pool.y[page])) mark(page, level, wrong, reason);
     }
   };
   /** The table entries the rectangles hold: a mapped one names its page. */
   const walk = (level: number, wrong: boolean) => {
     const base = table.baseOf(slice),
-      finest = sun.finest[slice];
+      finest = sun.finest[slice],
+      reason = reasonOf(level, wrong);
     for (let view = 0; view < views; view++) {
       const r = view * 4;
       for (let y = rects[r + 2]; y <= rects[r + 3]; y++) {
@@ -103,7 +115,7 @@ export function createPageInvalidation(
         for (let x = rects[r]; x <= rects[r + 1]; x++) {
           counts.visitedPages++;
           const word = table.words[row + (sunLight ? ringOf(x, SUN_WINDOW) : x)];
-          if (word & PAGE_MAPPED) mark(word & PAGE_INDEX_MASK, level, wrong);
+          if (word & PAGE_MAPPED) mark(word & PAGE_INDEX_MASK, level, wrong, reason);
         }
       }
     }
@@ -126,11 +138,11 @@ export function createPageInvalidation(
     nowMs = now;
     frame = at;
     if (whole) {
-      scan(false, STALE_FULL, true);
+      scan(false, STALE_FULL, true, -1, STALE_BY.light);
       return;
     }
     const recycled = sunLight ? sun.ranges.recycled[slice] : -1;
-    if (recycled >= 0) scan(false, STALE_FULL, true, recycled);
+    if (recycled >= 0) scan(false, STALE_FULL, true, recycled, STALE_BY.range);
     const range = sunLight ? 0 : (light.range ?? 0),
       position = light.position ?? ORIGIN;
     if (!sunLight && byPage && changes.count) lampFaces(light);

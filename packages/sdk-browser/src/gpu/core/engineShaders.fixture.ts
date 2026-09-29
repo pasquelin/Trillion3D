@@ -37,6 +37,7 @@ import {
 import { reflectionSource, withScreenReflections } from '../../reflections/screenWgsl.ts';
 import { LIGHT_TILES_SHADERS } from '../../lighting/tiles/shader.ts';
 import { TAA_SHADER, taaShader } from '../../taa/shaderWgsl.ts';
+import { taaUpscaleShader } from '../../taa/upscaleWgsl.ts';
 import { MIP_SHADER } from '../../texture/mips.ts';
 import { COVERAGE_WGSL } from '../../texture/coverageMips.ts';
 import { SHADE_SHADER, VIS_SHADER } from '../../visibility/buffer.ts';
@@ -91,9 +92,15 @@ export const ENGINE_SHADERS: Record<string, string> = {
   ...Object.fromEntries(LIGHT_TILES_SHADERS),
   TAA_SHADER,
   TAA_FLAGLESS_SHADER: taaShader(false),
+  TAA_UPSCALE_SHADER: taaUpscaleShader(true),
+  TAA_UPSCALE_FLAGLESS_SHADER: taaUpscaleShader(false),
+  TAA_UPSCALE_BLENDED_SHADER: taaUpscaleShader(true, true),
   TAA_RESOLVE_FILTERED: taaShader(true, false, true),
   TAA_RESOLVE_FILTERED_FLAGLESS: taaShader(false, false, true),
   TAA_RESOLVE_FILTERED_BLENDED: taaShader(true, true, true),
+  TAA_UPSCALE_FILTERED: taaUpscaleShader(true, false, true),
+  TAA_UPSCALE_FILTERED_FLAGLESS: taaUpscaleShader(false, false, true),
+  TAA_UPSCALE_FILTERED_BLENDED: taaUpscaleShader(true, true, true),
   MIP_SHADER,
   COVERAGE_WGSL,
   VIS_SHADER,

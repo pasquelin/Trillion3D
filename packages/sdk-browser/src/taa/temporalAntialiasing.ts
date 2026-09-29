@@ -2,19 +2,17 @@ import { TAA_BINDINGS, TAA_PASS, TAA_VIEW_BYTES } from './shaderWgsl.ts';
 import { SHARE_FORMAT, createTaaResolves } from './resolve.ts';
 import { createTaaCheckpoint, createTaaFrameState } from './frame.ts';
 import { createPlacementMotion, type MotionRoot } from './motion.ts';
-import { createTaaFilterHistory, type DisplayLayers } from './filterHistory.ts';
+import { createTaaFilterHistory, type DisplayLayers } from './layers.ts';
 import type { AccumulatedImage } from '../lighting/deferred/program.ts';
 
-/** A history target, cleared by the pass that writes it. */
+/** A history target's attachment: cleared by the pass that writes it. */
 const CLEAR = { loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] } as const;
-const cleared = (view: GPUTextureView): GPURenderPassColorAttachment => ({ view, ...CLEAR });
-
 /** Bytes per pixel of the two history targets: two `rgba16float`, and their two shares. */
 export const TAA_HISTORY_BYTES_PER_PIXEL = 18;
 
-/** What the pass reads in the frame: the lit and blended image, depth, visibility identifiers, the
- *  page records, placement motion, the surface flags (none without an as-is pixel, OMB-11) and
- *  the display filter of a frame whose blends filter (`../webgpu/blend/displayFilter.ts`). */
+/** What the pass reads in the frame: the lit and blended image, depth, visibility-buffer
+ *  identifiers, the page-record table, placement motion matrices and the surface flags — absent
+ *  when no as-is pixel is in the frame, which the flagless resolve reads none of (OMB-11). */
 export interface TaaInputs {
   current: GPUTextureView;
   depth: GPUTextureView;
@@ -23,22 +21,26 @@ export interface TaaInputs {
   motion: GPUBuffer;
   flags?: GPUTextureView;
   share?: GPUTextureView;
+  /** The frame was drawn below the display: the resolve reconstructs it (`upscaleWgsl.ts`). */
+  upscale?: boolean;
+  /** The display layers of a frame whose blends filter (`../webgpu/blend/displayFilter.ts`). */
   filter?: DisplayLayers;
 }
-
 const INPUTS = ['current', 'depth', 'ids', 'pages', 'motion', 'flags', 'share', 'filter'] as const;
-/** An input changed identity: the bind groups are made again. */
-const inputsMoved = (bound: TaaInputs, inputs: TaaInputs) =>
-  INPUTS.some((key) => bound[key] !== inputs[key]);
 
 /**
- * Temporal antialiasing pass: two history targets in ping-pong, each a colour and its as-is share
- * (and display filter), one read and the other written each frame, and composition reads the one
- * just written. Targets follow the image size (`resize`); bind groups are rebuilt when an input
- * changes identity, never per frame.
+ * Temporal antialiasing pass: two history targets in ping-pong, each a colour and its as-is share,
+ * one read and the other written each frame, and composition reads the one just written. Targets
+ * follow the display size (`resize`); bind groups are rebuilt when an input changes identity, never
+ * per frame. With `upscale`, the resolves that reconstruct a frame drawn below the display are
+ * compiled too.
  */
-export async function createTemporalAntialiasing(device: GPUDevice, roots: readonly MotionRoot[]) {
-  const resolves = await createTaaResolves(device);
+export async function createTemporalAntialiasing(
+  device: GPUDevice,
+  roots: readonly MotionRoot[],
+  upscale = false,
+) {
+  const resolves = await createTaaResolves(device, upscale);
   const motion = createPlacementMotion(device, roots);
   const filterHistory = createTaaFilterHistory(device);
   const uniform = device.createBuffer({
@@ -74,11 +76,10 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
     uniform,
     motion,
     filterHistory,
-    /** Bytes of the targets as allocated: what a capture must count beside its own. */
+    /** Bytes of the two targets as allocated: what a capture must count beside its own. */
     get historyBytes() {
-      return (
-        (textures.length ? width * height * TAA_HISTORY_BYTES_PER_PIXEL : 0) + filterHistory.bytes
-      );
+      const colour = textures.length ? width * height * TAA_HISTORY_BYTES_PER_PIXEL : 0;
+      return colour + filterHistory.bytes;
     },
     /** Draft of the frame inputs, filled by `encodeTaaPass`: nothing is allocated per frame. */
     inputs: {} as TaaInputs,
@@ -133,16 +134,18 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
       return true;
     },
     /** Encode the pass, its uniform written first: reads `inputs.current` and history, writes the
-     *  other target, then swaps roles. Returns the written colour, share and filter. */
+     *  other target, then swaps roles. Returns the written colour, share and display layers. */
     encode(encoder: GPUCommandEncoder, inputs: TaaInputs) {
       if (images.length !== 2) throw new Error('TAA_TARGETS_MISSING');
+      const set = inputs.upscale ? resolves.upscale : resolves;
+      if (!set) throw new Error('TAA_UPSCALE_MISSING');
       const kind = inputs.share ? 'blended' : inputs.flags ? 'asIs' : 'flagless';
-      const twin = inputs.filter && resolves.filtered(kind);
-      // Until its twin is compiled, the image resolves no filter: composition reads the raw one.
+      const twin = inputs.filter && resolves.filtered(kind, !!inputs.upscale);
+      // Until its twin is compiled, the image resolves no layer: composition reads the raw ones.
       if (!twin) inputs.filter = undefined;
-      const resolve = twin || resolves[kind];
+      const resolve = twin || set[kind];
       filterHistory.follow(inputs.filter, width, height);
-      if (!bound || inputsMoved(bound, inputs)) {
+      if (!bound || INPUTS.some((key) => bound![key] !== inputs[key])) {
         bound = { ...inputs };
         const { layout } = resolve;
         for (let i = 0; i < 2; i++) {
@@ -170,7 +173,7 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
         filter = inputs.filter && filterHistory.target(write);
       const pass = encoder.beginRenderPass({
         label: TAA_PASS,
-        colorAttachments: [color, share, ...(filter ?? [])].map(cleared),
+        colorAttachments: [color, share, ...(filter ?? [])].map((view) => ({ view, ...CLEAR })),
       });
       pass.setPipeline(resolve.pipeline);
       pass.setBindGroup(0, groups[read]!);

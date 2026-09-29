@@ -1,3 +1,9 @@
+/** `to` holding the first `kept` values of `from`. */
+function widen<T extends Uint32Array | Uint8Array | Int32Array>(from: T, to: T, kept: number) {
+  if (kept) to.set(from.subarray(0, kept));
+  return to;
+}
+
 /** Per-page values compared plan to plan, reduced by `flagOf` to what a light cut sees. */
 function createResidenceTracker(flagOf: (value: number) => number) {
   let seen = new Uint32Array(0),
@@ -5,12 +11,14 @@ function createResidenceTracker(flagOf: (value: number) => number) {
     pending = new Int32Array(0),
     count = 0;
   return {
+    /** `pages` counts the catalogue: one that grew in place keeps what was seen and noted. */
     note(page: number, pages: number) {
       if (seen.length !== pages) {
-        seen = new Uint32Array(pages);
-        marked = new Uint8Array(pages);
-        pending = new Int32Array(pages);
-        count = 0;
+        const kept = seen.length < pages ? seen.length : 0;
+        seen = widen(seen, new Uint32Array(pages), kept);
+        marked = widen(marked, new Uint8Array(pages), kept);
+        pending = widen(pending, new Int32Array(pages), kept && count);
+        if (!kept) count = 0;
       }
       if (page < 0 || marked[page]) return;
       marked[page] = 1;

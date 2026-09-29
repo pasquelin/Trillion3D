@@ -4765,6 +4765,13 @@
       "depth": "Capas, para una pila de imágenes."
     }
   },
+  "PlacementGrowth": {
+    "summary": "Lo que un propietario entrega a una sesión que amplía sus búferes de instancias en el sitio (`growth.ts`).",
+    "members": {
+      "growPlacements": "Un búfer de instancias que la sesión tiene fue sustituido por uno mayor, primero las filas de `from` y el resto apartado: la sesión lee `to` desde ahora y conserva sus filas nuevas, sin reconstruir ninguna tabla (`growth.ts`). Si un motor no lo tiene, el propietario abre de nuevo la sesión sobre `to`.",
+      "growsInPlace": "Si `growPlacements` acepta cada uno de `from` ampliado a `capacity` filas, preguntado antes de que el propietario sustituya alguno: false los deja como están, y el propietario abre de nuevo la sesión sobre otros mayores."
+    }
+  },
   "PlacementRows": {
     "summary": "Las filas de colocación de las mallas espejo, una fila por copia colocada.",
     "members": {
@@ -5482,6 +5489,15 @@
       "shadowPagesDrawn": "Lo que ha producido la invalidación de páginas: páginas redibujadas por el fotograma, páginas dejadas en cola por falta de presupuesto, y cuánto ha esperado la página desactualizada más antigua que lee la imagen. Cero en todas partes es el valor normal de una escena inmóvil; `null` para un motor sin atlas de sombras.",
       "shadowPagesTotal": "Páginas dibujadas desde la apertura del explorador, vaciados de `flush()` incluidos: el coste de un cambio es la diferencia entre dos lecturas.",
       "shadowPagesPending": "Páginas de sombra pendientes.",
+      "shadowBatches": "Lotes de sombra que dibujó la imagen: recuentos del host sobre lo que codificó, nunca leídos en un shader, como los recuentos siguientes. Null en un motor sin atlas de sombras.",
+      "shadowLayersDrawn": "Capas del pool en las que dibujaron las pasadas de sombra de la imagen.",
+      "shadowPagesRestored": "Páginas dibujadas desde una copia de su capa estática, rasterizando solo sus proyectores móviles.",
+      "shadowPagesRasterized": "Páginas cuyos proyectores estáticos se rasterizaron de nuevo; con las restauradas, todas las páginas dibujadas.",
+      "shadowRestoreCopies": "Copias de páginas desde la capa estática: una página restaurada, o una página dibujada entera sobre su capa.",
+      "shadowStaticDrawCalls": "Llamadas de dibujo de proyectores estáticos: en la capa estática, o de una página dibujada entera sin ella.",
+      "shadowMovingDrawCalls": "Llamadas de dibujo solo de proyectores móviles, sobre páginas restauradas desde la capa estática.",
+      "shadowMovingCastersKept": "De `shadowCastersKept`, los clústeres conservados para dibujar solo proyectores móviles.",
+      "shadowPagesStaledBy": "Páginas que la imagen dejó obsoletas, por motivo: luz, proyector inmóvil, proyectores móviles, detalle, umbral de corte o rango de profundidad de un sol.",
       "shadowWaitMs": "Cuántos milisegundos ha esperado a ser redibujada la página desactualizada más antigua que lee la imagen. Solo cuenta el tiempo en que la imagen la lee; 0 una vez redibujada.",
       "shadowCutDrops": "Lotes del corte desde la luz que descartaron trabajo — sus vistas guardaron más clústeres de los que caben en las listas —, desde que se abrió el explorador: cada uno devuelve sus páginas, retiradas hasta redibujarse (#525). Null en un motor sin corte de luz en GPU, igual que los tres siguientes.",
       "shadowCutWithdrawnPages": "Páginas redibujadas porque un corte desde la luz las dibujó mal, desde que se abrió el explorador: su lote descartó trabajo, o su indicador nunca se leyó. Quedan retiradas hasta redibujarse.",
@@ -5536,6 +5552,9 @@
       "receive": "Volvió un informe de peticiones; el siguiente plan lo lee. Uno más reciente sustituye a uno no leído.",
       "commit": "Las páginas `[from, to)` de la lista del fotograma se codificaron, la página `from + i` en `modes[i]`: sus dibujos llegan antes de que nadie las lea. El último lote cierra la lista."
     }
+  },
+  "ShadowStaleReason": {
+    "summary": "Por qué una página de sombra quedó obsoleta (`ShadowFrameMetrics.shadowPagesStaledBy`)."
   },
   "ShadowViewpoint": {
     "summary": "Lo que sabe el planificador de la vista: una cámara, no una matriz, para permanecer sin dependencia.",
@@ -6795,6 +6814,15 @@
       "shadowPagesDrawn": "Lo que ha producido la invalidación de páginas: páginas redibujadas por el fotograma, páginas dejadas en cola por falta de presupuesto, y cuánto ha esperado la página desactualizada más antigua que lee la imagen. Cero en todas partes es el valor normal de una escena inmóvil; `null` para un motor sin atlas de sombras.",
       "shadowPagesTotal": "Páginas dibujadas desde la apertura del explorador, vaciados de `flush()` incluidos: el coste de un cambio es la diferencia entre dos lecturas.",
       "shadowPagesPending": "Páginas de sombra pendientes.",
+      "shadowBatches": "Lotes de sombra que dibujó la imagen: recuentos del host sobre lo que codificó, nunca leídos en un shader, como los recuentos siguientes. Null en un motor sin atlas de sombras.",
+      "shadowLayersDrawn": "Capas del pool en las que dibujaron las pasadas de sombra de la imagen.",
+      "shadowPagesRestored": "Páginas dibujadas desde una copia de su capa estática, rasterizando solo sus proyectores móviles.",
+      "shadowPagesRasterized": "Páginas cuyos proyectores estáticos se rasterizaron de nuevo; con las restauradas, todas las páginas dibujadas.",
+      "shadowRestoreCopies": "Copias de páginas desde la capa estática: una página restaurada, o una página dibujada entera sobre su capa.",
+      "shadowStaticDrawCalls": "Llamadas de dibujo de proyectores estáticos: en la capa estática, o de una página dibujada entera sin ella.",
+      "shadowMovingDrawCalls": "Llamadas de dibujo solo de proyectores móviles, sobre páginas restauradas desde la capa estática.",
+      "shadowMovingCastersKept": "De `shadowCastersKept`, los clústeres conservados para dibujar solo proyectores móviles.",
+      "shadowPagesStaledBy": "Páginas que la imagen dejó obsoletas, por motivo: luz, proyector inmóvil, proyectores móviles, detalle, umbral de corte o rango de profundidad de un sol.",
       "shadowWaitMs": "Cuántos milisegundos ha esperado a ser redibujada la página desactualizada más antigua que lee la imagen. Solo cuenta el tiempo en que la imagen la lee; 0 una vez redibujada.",
       "shadowCutDrops": "Lotes del corte desde la luz que descartaron trabajo — sus vistas guardaron más clústeres de los que caben en las listas —, desde que se abrió el explorador: cada uno devuelve sus páginas, retiradas hasta redibujarse (#525). Null en un motor sin corte de luz en GPU, igual que los tres siguientes.",
       "shadowCutWithdrawnPages": "Páginas redibujadas porque un corte desde la luz las dibujó mal, desde que se abrió el explorador: su lote descartó trabajo, o su indicador nunca se leyó. Quedan retiradas hasta redibujarse.",
@@ -7440,7 +7468,7 @@
     }
   },
   "SHADOW_RECORD_FLOATS": {
-    "summary": "Flotantes de un registro de sombra, el que lee el sombreado de una luz: seis matrices de caras de lámpara — allí, los rangos de profundidad de un sol, `zNear` e inverso del tramo cada uno (`recordPack.ts`) —, luego el marco del plano del sol — `right`, `up`, `axis`, cada uno completado a cuatro —, luego el origen de la extensión de cada nivel de clipmap en dos enteros, luego una cabecera `vec4f`: caras (lámpara) o niveles (sol), la tangente del medio campo de la lámpara o el nivel más fino del sol, el plano cercano de la lámpara y la primera entrada del registro en la tabla de páginas."
+    "summary": "Flotantes de un registro de sombra, el que lee el sombreado de una luz: seis matrices de caras de lámpara — ahí, los rangos de profundidad de un sol, `zNear, zFar` cada uno (`recordPack.ts`) —, luego el marco del plano de luz del sol — `right, zNear`, `up, zFar`, `axis`, luego la ranura del rango actual —, luego el origen de la ventana de cada ranura del clipmap en dos enteros, luego una cabecera `vec4f`: caras (lámpara) o niveles (sol), el semicampo tangente de la lámpara o el nivel más fino del sol, el plano cercano de la lámpara y la primera entrada del registro en la tabla de páginas."
   },
   "ShadowRequestReport": {
     "summary": "Lo que el sombreado leyó en una imagen: las entradas de la tabla que pidió, sin orden.",

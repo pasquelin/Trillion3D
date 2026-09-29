@@ -11,6 +11,7 @@ import {
 } from '../../visibility/shader/request.ts';
 import { writeDepthRamp } from '../../camera/depthConvention.ts';
 import { pixelFootprintOf } from '../../streaming/priority.ts';
+import { renderMipBias, renderPixelRatio } from '../pages/state/renderScale.ts';
 import type { DiagnosticMode } from '../../../../sdk-core/src/index.ts';
 
 /** `uni.mode` of the resolve, per diagnostic view (`../../visibility/shader/shadeWgsl.ts`); beauty is zero. */
@@ -47,7 +48,8 @@ export function writeWebgpuVisibilityUniforms(
     [width, height] = rt.gpu.targetSize,
     { gpuFrameActive, diagnostic } = run,
     maskOffset = run.gpuSelection?.maskOffset ?? 0,
-    pixelRatio = rt.setup.pixelRatio();
+    pixelRatio = renderPixelRatio(rt),
+    mipBias = renderMipBias(rt);
   const visUniform = (vis.visUniform ??= device.createBuffer({
     size: slots * 256,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -68,8 +70,10 @@ export function writeWebgpuVisibilityUniforms(
     visInts[base + 21] = slot === 0 ? 0 : 1;
     visInts[base + 22] = gpuFrameActive ? maskOffset : 0;
     visInts[base + 23] = gpuFrameActive ? 1 : 0;
-    // Image pixels per CSS pixel: a line page's width counts CSS pixels (`lineClip`).
+    // Render pixels per CSS pixel: a line page's width counts CSS pixels (`lineClip`).
     visUniPacked[base + 24] = pixelRatio;
+    // Texture level offset of a frame drawn below the display (`tilePoolWgsl`).
+    visUniPacked[base + 25] = mipBias;
   }
   device.queue.writeBuffer(visUniform, 0, visUniPacked);
   const shadeUniform = (vis.shadeUniform ??= device.createBuffer({
@@ -80,13 +84,16 @@ export function writeWebgpuVisibilityUniforms(
   shadeUniPacked[16] = width;
   shadeUniPacked[17] = height;
   shadeUniPacked[18] = pixelRatio;
+  shadeUniPacked[19] = mipBias;
   const shadeInts = new Uint32Array(shadeUniPacked.buffer);
   shadeInts[20] = tableRows;
   // Texture image-feedback phase: one pixel in sixteen speaks, all of them during a convergence.
   shadeInts[22] = vis.textures?.feedback.phaseWord(run.textureConverging) ?? 0;
   // The sun's clipmap, and the pixel scale that picks its level, so resolve asks for the tiles a
   // foliage shadow reads; with no sun to shadow, a header of zeros, and nothing is asked.
-  shadeUniPacked[23] = run.lastCamera ? pixelFootprintOf(run.gate.cam.projection, height) : 0;
+  shadeUniPacked[23] = run.lastCamera
+    ? pixelFootprintOf(run.gate.cam.projection, rt.gpu.displaySize[1])
+    : 0;
   // The depth material's ramp: white at the near plane, black at the far one (#365).
   const { near, far, perspective } = run.gate.cam;
   writeDepthRamp(shadeUniPacked, DEPTH_RAMP_WORD, near, far, perspective);

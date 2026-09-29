@@ -1,5 +1,6 @@
 import { viewProj } from '../pages/helpers.ts';
 import { pixelFootprintOf } from '../../streaming/priority.ts';
+import { renderMipBias, renderPixelRatio } from '../pages/state/renderScale.ts';
 import { FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts';
 import { writeBlendDiagnostic } from './diagnostic.ts';
 import { directTiles } from '../pages/render/encodeLights.ts';
@@ -76,8 +77,8 @@ export function writeFallbackUniform(
 }
 
 /** `viewProj`, the view point, lamp tiles, view flags, the item offset, the texture-feedback
- *  phase, the pixel scale, the target size, the eye, the host's pixel ratio, the exposure and the
- *  display curve: 140 bytes, 144 with the struct's alignment. */
+ *  phase, the pixel scale, the target size, the eye, the render pixel ratio, the texture level
+ *  offset, the exposure and the display curve: 144 bytes. */
 export const BLEND_VIEW_SIZE = 144;
 
 /** Diagnostic bits that the WHOLE pass carries: they do not depend on the item. */
@@ -145,7 +146,8 @@ export function writeBlendView(rt: WebgpuPagesRuntime, device: GPUDevice) {
   ints[24] = rt.vis.textures?.feedback.phaseWord(run.textureConverging) ?? 0;
   // A pixel's world size per unit of distance — or its size, under an orthographic camera —:
   // the footprint the transparent surface reads its shadow level at.
-  packed[25] = eye ? pixelFootprintOf(run.gate.cam.projection, rt.gpu.targetSize[1]) : 0;
+  // A display pixel's, whatever size the frame is drawn at: shadow detail is the display's.
+  packed[25] = eye ? pixelFootprintOf(run.gate.cam.projection, rt.gpu.displaySize[1]) : 0;
   // The size in pixels of the target both surface passes draw into: the vertex stage's facing test
   // measures a triangle's area against the rasteriser's snapping there (`facing.ts`).
   packed[26] = rt.gpu.targetSize[0];
@@ -155,11 +157,13 @@ export function writeBlendView(rt: WebgpuPagesRuntime, device: GPUDevice) {
   packed[28] = tiles[5];
   packed[29] = tiles[6];
   packed[30] = tiles[7];
-  // Image pixels per CSS pixel: a line's width counts CSS pixels (`lineClip`).
-  packed[32] = rt.setup.pixelRatio();
+  // Render pixels per CSS pixel: a line's width counts CSS pixels (`lineClip`).
+  packed[32] = renderPixelRatio(rt);
+  // Texture level offset of a frame drawn below the display (`tilePoolWgsl`).
+  packed[33] = renderMipBias(rt);
   // The composition's exposure and display curve: the display filter's colour (`displayFilter.ts`).
-  packed[33] = tiles[3];
-  ints[34] = tiles[4];
+  packed[34] = tiles[3];
+  ints[35] = tiles[4];
   device.queue.writeBuffer(
     buffer,
     0,

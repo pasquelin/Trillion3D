@@ -3,11 +3,13 @@ import { createGpuPeriodicReadback } from '../core/periodicReadback.ts';
 import { SHADOW_COUNT_SAMPLE_BYTES } from './batchBudget.ts';
 import { DRAW_INDIRECT_WORDS } from '../draw/contract.ts';
 
-/** What the last sampled frame's region culls kept, and that frame's number. */
+/** What the last sampled frame's region culls kept, and that frame's number: of the clusters
+ *  kept, `moving` those of regions that draw moving casters alone (#991). */
 export interface ShadowCullCounts {
   frame: number;
   regions: number;
   kept: number;
+  moving: number;
 }
 
 /** Clusters the `commands` first commands draw: the device's own count, never estimated. */
@@ -25,12 +27,15 @@ export function sumKeptClusters(words: Uint32Array, commands: number) {
  *
  * The sampled frame copies every batch's commands after the last (`SHADOW_COUNT_SAMPLE_BYTES` a
  * command a region, sized for the most batches a frame draws), so the count covers all the frame's
- * pages. A region holds `commands` of them — the cull's two lists (#965) —, all summed.
+ * pages. A region holds `commands` of them — the cull's two lists (#965) —, all summed; the regions
+ * `moving` names at the copy are summed apart too.
  */
 export function createGpuShadowCullCounts(device: GPUDevice, commands = 1) {
   const sampleBytes = commands * SHADOW_COUNT_SAMPLE_BYTES,
     regionBytes = commands * DRAW_INDIRECT_STRIDE;
-  const counted: ShadowCullCounts = { frame: -1, regions: 0, kept: 0 };
+  const counted: ShadowCullCounts = { frame: -1, regions: 0, kept: 0, moving: 0 },
+    /** Whether each sampled region draws moving casters alone. */
+    movingRegion = new Uint8Array(sampleBytes / regionBytes);
   let sampledRegions = 0,
     sampledFrame = -1;
   // The three fields move together, when the sample returns: a count is never named by a
@@ -38,7 +43,13 @@ export function createGpuShadowCullCounts(device: GPUDevice, commands = 1) {
   const reader = createGpuPeriodicReadback((mapped) => {
     counted.frame = sampledFrame;
     counted.regions = sampledRegions;
-    counted.kept = sumKeptClusters(new Uint32Array(mapped), sampledRegions * commands);
+    const words = new Uint32Array(mapped),
+      stride = commands * DRAW_INDIRECT_WORDS;
+    counted.kept = sumKeptClusters(words, sampledRegions * commands);
+    counted.moving = 0;
+    for (let region = 0; region < sampledRegions; region++)
+      if (movingRegion[region])
+        counted.moving += sumKeptClusters(words.subarray(region * stride), commands);
   });
   reader.adopt(
     device.createBuffer({
@@ -48,8 +59,15 @@ export function createGpuShadowCullCounts(device: GPUDevice, commands = 1) {
     }),
   );
   return {
-    /** Encodes the copy of a batch's `regions` commands, when the frame is sampled. */
-    sample(encoder: GPUCommandEncoder, indirect: GPUBuffer, regions: number, frame: number) {
+    /** Encodes the copy of a batch's `regions` commands, when the frame is sampled; `moving`
+     *  says which regions draw moving casters alone. */
+    sample(
+      encoder: GPUCommandEncoder,
+      indirect: GPUBuffer,
+      regions: number,
+      frame: number,
+      moving?: (region: number) => boolean,
+    ) {
       if (!regions) return;
       if (!reader.open(frame)) {
         if (!reader.due(frame)) return;
@@ -60,6 +78,8 @@ export function createGpuShadowCullCounts(device: GPUDevice, commands = 1) {
       const size = regions * regionBytes;
       if (sampledRegions * regionBytes + size > sampleBytes) return;
       reader.copy(encoder, indirect, 0, size);
+      for (let region = 0; region < regions; region++)
+        movingRegion[sampledRegions + region] = moving?.(region) ? 1 : 0;
       sampledRegions += regions;
     },
     /** Requests mapping of the sample, once the frame that copied it is submitted. */

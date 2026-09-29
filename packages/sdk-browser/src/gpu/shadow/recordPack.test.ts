@@ -44,9 +44,11 @@ test("a sun's record is its depth ranges, frame, window origins as integers, and
   sun.update(0, [0, -1, 0], VIEW, [-8, 0, -8], [8, 40, 8], 2);
   pack.writeSun(0, sun, 16, 0);
   const words = new Int32Array(pack.records.buffer);
-  // Each range a pair where a lamp's matrices lie, near side and inverse span: the first
-  // frame's, `[−4, 0]`, then the second's, `[−64, 0]`.
-  assert.deepEqual(Array.from(pack.records.subarray(0, 4)), [-4, 1 / 4, -64, 1 / 64]);
+  // Each range a pair where a lamp's matrices lie, `zNear, zFar`: the first frame's, `[−4, 0]`,
+  // then the second's, `[−64, 0]`, current: the frame's fourth floats, then its slot.
+  assert.deepEqual(Array.from(pack.records.subarray(0, 4)), [-4, 0, -64, 0]);
+  const tail = [0, 1, 2].map((row) => pack.records[SHADOW_RECORD_FRAME + row * 4 + 3]);
+  assert.deepEqual(tail, [-64, 0, 1]);
   for (let row = 0; row < 3; row++)
     assert.deepEqual(
       Array.from(

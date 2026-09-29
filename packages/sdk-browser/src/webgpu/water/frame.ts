@@ -29,9 +29,8 @@ export async function createWaterFrame(device: GPUDevice) {
   const layout = createWaterCompositeLayout(device);
   const pipeline = await createWaterCompositePipeline(device, layout);
   const identity = createWebgpuBindIdentity();
-  let group: GPUBindGroup | undefined,
-    surfaces: SurfaceBuffer | undefined,
-    routed: GPURenderPipeline | undefined;
+  let group: GPUBindGroup | undefined, surfaces: SurfaceBuffer | undefined;
+  let routed: GPURenderPipeline | undefined;
   const from = { texture: undefined as unknown as GPUTexture },
     color = { texture: undefined as unknown as GPUTexture },
     depth = { texture: undefined as unknown as GPUTexture },
@@ -61,11 +60,11 @@ export async function createWaterFrame(device: GPUDevice) {
     loadOp: 'load',
     storeOp: 'store',
   };
-  const plain = [target],
-    compositePass: GPURenderPassDescriptor = {
-      label: WATER_COMPOSITE_PASS,
-      colorAttachments: plain,
-    };
+  const compositePass: GPURenderPassDescriptor = {
+    label: WATER_COMPOSITE_PASS,
+    colorAttachments: [target],
+  };
+  const plain = compositePass.colorAttachments;
   return {
     /** Names the frame's targets and resources; false while one of them does not exist. */
     bind(gpu: WebgpuGpuState, uniform: GPUBuffer, lighting: BlendLighting) {
@@ -149,11 +148,12 @@ export async function createWaterFrame(device: GPUDevice) {
      * copied, the opaque depth copied into the depth the surface stage tests —, the transmissive
      * surfaces draw into the opaque resolve's material surfaces, free since that resolve consumed
      * them, and the water word into the display colour the composition writes later — the surface
-     * flags stay the opaque resolve's, read by temporal antialiasing and the composition —, with
-     * hardware depth written so the nearest surface of a pixel is the one kept; then one
-     * fullscreen triangle lights and composes every water pixel into the HDR target (or, where the
-     * display mask is set, the display layers), which keeps what it held wherever no water is.
-     * Returns the surface draws encoded.
+     * flags stay the opaque resolve's, read by temporal antialiasing and the composition after this
+     * pass —, with hardware depth written
+     * so the nearest surface of a pixel is the one kept; then one
+     * fullscreen triangle lights and composes every water pixel into the HDR target, which keeps
+     * what it held wherever no water is (the display layers where their mask is set). Returns the
+     * surface draws encoded.
      */
     encode(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder, pipelines: BlendPipelines) {
       if (!group || !surfaces) throw new Error('WATER_NOT_BOUND');

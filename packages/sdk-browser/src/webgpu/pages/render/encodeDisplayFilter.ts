@@ -11,12 +11,9 @@ function dropDisplayFilter(gpu: WebgpuGpuState) {
   gpu.displayFilter = undefined;
 }
 
-/**
- * Opens this image's display layers (`../../blend/displayFilter.ts`) when its
- * blends hold a multiply or subtractive surface and a beauty image is composed: made at the image
- * size by the first such image, dropped once the plan holds none. A diagnostic view or variant
- * keeps the lit target's own equations, as it draws the surfaces for what they are.
- */
+/** Opens the display layers (`../../blend/displayFilter.ts`) of a beauty image whose blends hold a
+ *  multiply or subtractive surface: made at the frame size by the first, dropped once the plan holds
+ *  none. A diagnostic view or variant keeps the lit target's equations, drawing surfaces as they are. */
 export function beginDisplayFilter(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
@@ -47,6 +44,6 @@ export function endDisplayFilter(
   filter.active = false;
   // No blend pass wrote them: they are `(1, 0)`, the image already what it shows.
   if (!filter.written) return;
-  filter.apply(encoder, resolved ?? filter.views, rt.gpu.colorView!, presentation);
+  filter.apply(encoder, resolved ?? filter.views, rt.gpu.displayView!, presentation);
   rt.run.gpuDrawCalls += 2;
 }
