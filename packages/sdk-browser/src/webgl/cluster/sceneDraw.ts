@@ -18,6 +18,34 @@ import type { BackendContext } from '../../backend/types.ts';
 import { linearRefusalOf } from './linearRefusal.ts';
 import { createDrawLists } from './drawLists.ts';
 import { degradedHearer } from '../../world/diagnostic/materialNotices.ts';
+import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
+
+/** What a WebGL2 frame reads of a display graph: its lights as `lights` gives them, its
+ *  background and fog as they stand when the frame reads them. */
+const sceneRead = (display: Scene, lights: () => readonly Light[]): WebglClusterScene => ({
+  get lights() {
+    return lights();
+  },
+  get background() {
+    return display.background;
+  },
+  get fog() {
+    return display.fog;
+  },
+});
+
+const kept = new WeakMap<Scene, WebglClusterScene>();
+
+/** A display graph as a WebGL2 draw outside `createSceneDraw` reads it — a witness, a test page:
+ *  one set of draw lists per graph, brought to the graph at each read, never a walk of its own. */
+export function keptClusterScene(display: Scene) {
+  let read = kept.get(display);
+  if (!read) {
+    const lists = createDrawLists(display, []);
+    kept.set(display, (read = sceneRead(display, () => (lists.refresh(), lists.lights))));
+  }
+  return read;
+}
 
 /** A drawn node, the engine's mesh, read by shape: drawn whole. */
 type DrawnNode = Partial<SceneCopy> & {
@@ -71,15 +99,7 @@ export function createSceneDraw(
     order = createDrawOrder();
   const counters = { triangles: 0 };
   // What the frame reads of the graph: its lights from the lists, never from a walk of its own.
-  const read: WebglClusterScene = {
-    lights: lists.lights,
-    get background() {
-      return display.background;
-    },
-    get fog() {
-      return display.fog;
-    },
-  };
+  const read = sceneRead(display, () => lists.lights);
   /** The image's one pass over what changed: its world matrices, then what it draws, sorted later. */
   const walk = () => {
     if (walked) return;
