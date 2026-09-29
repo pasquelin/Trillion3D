@@ -89,3 +89,21 @@ export function evictTile(
   pool.release(index);
   onEvicted?.(key.slot);
 }
+
+/** Gives back every unpinned tile of `lanes` no image looked at since `frame`, and returns the
+ *  textures they belonged to: what a capture reads is then what its own pose asked (#1016). */
+export function releaseUnseen(
+  lanes: Iterable<{ pool: WebgpuTilePool; resident: Map<number, number> }>,
+  pages: Pick<WebgpuTilePageTable, 'clearTile'>,
+  frame: number,
+  onEvicted?: (slot: number) => void,
+) {
+  const slots = new Set<number>();
+  for (const { pool, resident } of lanes)
+    for (const index of pool.occupied())
+      if (!pool.pinnedOf(index) && pool.lastUseOf(index) < frame) {
+        slots.add(tileKeyOf(pool.keyOf(index)).slot);
+        evictTile(pool, index, { pages, resident }, onEvicted);
+      }
+  return slots;
+}
