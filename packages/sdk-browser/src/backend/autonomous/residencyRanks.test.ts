@@ -17,16 +17,19 @@ test('WebGL reuses exited ranks after the streamer consumes them', () => {
   const catalog = new Map(
     ['root', ...urls].map((url) => [url, { url, bytes: 1, sha256: '' }] as const),
   );
-  const cache = createStreamingCache({
-    store: { budgetBytes: Infinity, bytes: 0 },
-    cache: new Map(),
-    state: {},
-    maxPages: undefined,
-    pinned,
-    jobs: new Map(),
-    emit: () => {},
-    catalog,
-  } as unknown as StreamContext);
+  const cache = createStreamingCache(
+    {
+      store: { budgetBytes: Infinity, bytes: 0, holds: () => false },
+      cache: new Map(),
+      state: {},
+      maxPages: undefined,
+      pinned,
+      jobs: new Map(),
+      emit: () => {},
+      catalog,
+    } as unknown as StreamContext,
+    () => 0,
+  );
   const retain = () => {
     residency.keptChanged();
     const delta = residency.retainedRanks();
