@@ -168,17 +168,33 @@ fn waterColor(pixel:vec4f)->vec4f{
  return vec4f(select(fogged(color,P,uni.eye.xyz),color,unlit||vol.attenuationColor.w!=0.0),a);
 }
 @fragment fn composeWater(@builtin(position) pixel:vec4f)->@location(0) vec4f{return waterColor(pixel);}
+struct Composed{@location(0) color:vec4f,@location(1) reactive:vec4f,}
+@fragment fn composeWaterReactive(@builtin(position) pixel:vec4f)->Composed{
+ let c=waterColor(pixel);
+ return Composed(c,vec4f(0.0,1.0,0.0,c.a));
+}
 
 ${SCREEN_REFLECTION_WGSL}
 `;
 
 /** The composite of an image with display layers (`../blend/displayFilter.ts`): where the mask is
- *  set, the water maps the tint and the added value by its display colour, as a normal layer. */
+ *  set, the water maps the tint and the added value by its display colour, as a normal layer; the
+ *  reactive value the temporal pass reads (`historyWgsl.ts`), green alone at the water's own
+ *  coverage, is written after them. */
 export const WATER_ROUTED_SHADER = `${WATER_COMPOSITE_SHADER}${DISPLAY_ROUTE_WGSL}${displayMaskWgsl(2)}
 struct Routed{@location(0) color:vec4f,@location(1) tint:vec4f,@location(2) add:vec4f,}
+struct RoutedReactive{@location(0) color:vec4f,@location(1) tint:vec4f,@location(2) add:vec4f,@location(3) reactive:vec4f,}
+fn waterRoute(pixel:vec4f,c:vec4f)->Route{
+ let unlit=(uni.viewFlags&${FLAG_UNLIT_VIEW}u)!=0u;
+ return displayRoute(c.rgb,uni.exposure,uni.toneCurve,unlit,c.a,maskAt(pixel));
+}
 @fragment fn composeWaterRouted(@builtin(position) pixel:vec4f)->Routed{
  let c=waterColor(pixel);
- let unlit=(uni.viewFlags&${FLAG_UNLIT_VIEW}u)!=0u;
- let r=displayRoute(c.rgb,uni.exposure,uni.toneCurve,unlit,c.a,maskAt(pixel));
+ let r=waterRoute(pixel,c);
  return Routed(vec4f(c.rgb,c.a*r.keep),r.tint,r.add);
+}
+@fragment fn composeWaterRoutedReactive(@builtin(position) pixel:vec4f)->RoutedReactive{
+ let c=waterColor(pixel);
+ let r=waterRoute(pixel,c);
+ return RoutedReactive(vec4f(c.rgb,c.a*r.keep),r.tint,r.add,vec4f(0.0,1.0,0.0,c.a));
 }`;

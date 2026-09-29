@@ -1526,7 +1526,8 @@
       "hover-to-highlight": "مرّر المؤشر لإبراز جزء",
       "a-dolly-along-the-canal": "حركة كاميرا على طول القناة",
       "a-folder-merged-into-one-scene": "مجلد مدمج في مشهد واحد",
-      "drag-a-crate": "سحب صندوق"
+      "drag-a-crate": "سحب صندوق",
+      "move-a-hierarchy-by-name": "تحريك تسلسل هرمي بالاسم"
     },
     "missing": {
       "thick-lines": "خطوط عريضة",

@@ -2375,5 +2375,23 @@
       "unmount": "Aushängen",
       "remount": "Neu einbinden"
     }
+  },
+  "move-a-hierarchy-by-name": {
+    "banner": "Sieh fünf benannten Gruppen durch eine reproduzierbare Sequenz wandern. Wechsle die Quelle, um dieselben Posen von Hand zu schreiben.",
+    "controls": {
+      "driver": "Quelle",
+      "speed": "Tempo",
+      "paused": "Pausiert",
+      "replay": "Wiederholen"
+    },
+    "choices": {
+      "driver": {
+        "name": "nach Namen",
+        "host": "vom Host geschrieben"
+      }
+    },
+    "readouts": {
+      "pose": "Pose"
+    }
   }
 }
