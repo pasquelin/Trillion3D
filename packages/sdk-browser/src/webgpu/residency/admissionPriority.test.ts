@@ -27,5 +27,9 @@ test('a lower tier admitted by the WebGPU pool stays out of the loading total (#
   await ensure([camera], 1, 1);
   progress.stop();
   assert.ok(cache.get('camera') && cache.get('ahead'), 'both pages admitted');
-  assert.deepEqual(progress.reads(), { landed: 1, asked: 1 }, 'the view read the camera page alone');
+  assert.deepEqual(
+    progress.reads(),
+    { landed: 1, asked: 1 },
+    'the view read the camera page alone',
+  );
 });
