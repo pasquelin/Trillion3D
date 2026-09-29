@@ -1,8 +1,10 @@
 import { deviceMade, grantPending, startGrant } from '../../gpu/core/errorScope.ts';
-import type { GpuShadowAtlas } from '../../gpu/shadow/atlas.ts';
 import { layerViews } from '../../gpu/shadow/layers.ts';
 import { createShadowPageMover } from '../../gpu/shadow/pageMoves.ts';
 import { shadowTransmittanceBytes } from '../../gpu/shadow/transmittance.ts';
+import { SHADOW_BUFFER_BYTES, type GpuShadowAtlas } from '../../gpu/shadow/atlas.ts';
+import { SHADOW_GRANT_BYTES } from '../../residency/memoryBudget.ts';
+import { admitShadowBytes, noteShadowPressure, shadowPoolHeld } from './memoryGrant.ts';
 import { disposeStaticLayer, type WebgpuLightState } from '../pages/state/lights.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { adoptShadowPool, askShadowPool } from './poolSize.ts';
@@ -45,8 +47,10 @@ export function followShadowView(rt: WebgpuPagesRuntime) {
     return;
   const ask = askShadowPool(rt, atlas, device),
     { pool } = lights.plan;
+  // No light casts: nothing asked, and the view is compared again once one does.
+  if (!ask) return;
   lights.poolView = [width, height];
-  if (!ask || (ask.target.side === pool.side && ask.target.layers === pool.layers)) return;
+  if (ask.target.side === pool.side && ask.target.layers === pool.layers) return;
   releaseStaticLayer(lights);
   const done = resizeTo(rt, atlas, device, ask).catch((error: unknown) => {
     if (!run.lost) diag.diagnosticFailure('shadow-pool-unavailable', error);
@@ -66,7 +70,15 @@ async function resizeTo(
     granted = await ask.grant();
   if (!granted) return;
   if (!kept()) return granted.made.destroy();
-  const { side, layers } = granted.pool;
+  const { side, layers } = granted.pool,
+    pages = (shape: { side: number; layers: number }) => shape.side ** 2 * shape.layers;
+  // Halved by the device's refusals below both the pool asked and the pool in place: the pool in
+  // place stays, with every page it holds, rather than shrink for a refusal.
+  if (pages(granted.pool) < Math.min(pages(ask.target), lights.plan.pool.pages))
+    return granted.made.destroy();
+  // The layer is asked of the shadows' grant beside the new pool, the old one being freed.
+  if (atlas.transmittanceHeld && !layerFits(rt, atlas, granted.pool.allocatedBytes, side, layers))
+    return granted.made.destroy();
   const layer = atlas.transmittanceHeld
     ? await deviceMade(device, () => atlas.makeTransmittance(layerViews(granted.made), side))
     : undefined;
@@ -87,6 +99,35 @@ async function resizeTo(
   releaseStaticLayer(lights);
   lights.plannedFrame = lights.packedBatch.frame = -1;
   run.gate.resourcesChanged();
+}
+
+/** Whether the shadows' grant holds the new pool's transmittance layer beside that pool of
+ *  `poolBytes`, once the old pool and its layer are freed; past it, said under `shadow-memory`
+ *  (`transmittance-over-grant`) and the pool in place stays. */
+function layerFits(
+  rt: WebgpuPagesRuntime,
+  atlas: GpuShadowAtlas,
+  poolBytes: number,
+  side: number,
+  layers: number,
+) {
+  const { lights } = rt,
+    heldBytes = shadowPoolHeld(lights) - atlas.allocationBytes + SHADOW_BUFFER_BYTES + poolBytes,
+    requestedBytes = shadowTransmittanceBytes(side, layers);
+  if (admitShadowBytes(lights.memory, heldBytes, requestedBytes)) return true;
+  noteShadowPressure(lights.memory, 'transmittance-over-grant');
+  rt.diag.engineDiagnostic(
+    'shadow-memory',
+    'The transmittance layer of the resized shadow pool is past the grant; the pool in place stays',
+    {
+      kind: 'warning',
+      pressure: 'transmittance-over-grant',
+      requestedBytes,
+      heldBytes,
+      grantBytes: SHADOW_GRANT_BYTES,
+    },
+  );
+  return false;
 }
 
 /** The transmittance layer of the new pool refused: the resize is not taken, said by name. */

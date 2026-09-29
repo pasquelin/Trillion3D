@@ -63,16 +63,18 @@ export async function createShadowPageMover(device: GPUDevice) {
     depthStencil: { format: 'depth32float', depthWriteEnabled: true, depthCompare: 'always' },
   });
   /** Draws the depth of the pages `moves` names from `source` into `target`, one pass a target
-   *  layer. Returns the moves' buffer, to free once submitted. */
+   *  layer. Returns the moves' buffer, to free once submitted; nothing when no page moves (a
+   *  storage binding holds at least one move). */
   const moveDepth = (
     encoder: GPUCommandEncoder,
     source: GPUTexture,
     target: GPUTexture,
     moves: Uint32Array<ArrayBuffer>,
   ) => {
+    if (!moves.length) return undefined;
     const buffer = device.createBuffer({
       label: 'Trillion3D shadow page moves v1',
-      size: Math.max(16, moves.byteLength),
+      size: moves.byteLength,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     });
     device.queue.writeBuffer(buffer, 0, moves);
@@ -125,7 +127,7 @@ export async function createShadowPageMover(device: GPUDevice) {
       }
       device.queue.submit([encoder.finish()]);
       // A buffer destroyed after its submit outlives the work that reads it.
-      for (const buffer of buffers) buffer.destroy();
+      for (const buffer of buffers) buffer?.destroy();
     },
   };
 }
