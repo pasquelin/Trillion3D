@@ -10,6 +10,11 @@ const newEncoder = (rt: WebgpuPagesCore, device: GPUDevice) =>
     ? rt.timing.gpuTiming.createEncoder(rt.run.frame)
     : device.createCommandEncoder();
 
+/** Whether this image's texture feedback is read back: not a capture's, nor the feedback A/B's arm
+ *  without it. Every pass that writes the feedback counters asks it (#1016). */
+export const feedbackPublished = (rt: WebgpuPagesCore) =>
+  !rt.capture.capturing && rt.feedbackAB?.target !== false;
+
 /** The image's own command buffer when one is open, a fresh one otherwise. */
 export const createRenderEncoder = (rt: WebgpuPagesCore, device: GPUDevice) =>
   rt.timing.frameEncoder ?? newEncoder(rt, device);
@@ -76,7 +81,7 @@ export function submitColorCopy(
   timing.lastQueueSubmitMs = performance.now() - submitStart;
   // Counts of a sampled image are mapped only once the image that copied them is submitted.
   rt.vis.gpuPartition?.countsSubmitted();
-  if (!capture.capturing && rt.feedbackAB?.target !== false) rt.vis.textures?.feedback.submitted();
+  if (feedbackPublished(rt)) rt.vis.textures?.feedback.submitted();
   // Same for the far-shadow counts: their copy is mapped only once submitted.
   rt.sunFar.gpu?.submitted();
   rt.lights.cull?.counts.submitted();

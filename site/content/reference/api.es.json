@@ -5562,7 +5562,7 @@
       "plan": "Planifica un fotograma: invalida lo que se movió, lee la demanda de los receptores —o, si no, el último informe— y admite cada página que dibujar.",
       "reissue": "Las páginas del fotograma a partir de `from` no pudieron codificarse: siguen caducadas, pendientes, y el fotograma siguiente las dibuja.",
       "reset": "Vuelve a empezar.",
-      "setThreshold": "El umbral al que los cortes de luz eligen sus proyectores de sombra (`thresholds.ts`).",
+      "setThreshold": "El umbral al que los cortes de luz eligen sus proyectores de sombra, y su origen de render (`thresholds.ts`).",
       "table": "La tabla de páginas: una palabra por página virtual, y el rango que ocupa cada luz en ella.",
       "pool": "Las páginas físicas del pool y la página virtual que contiene cada una.",
       "sun": "El clipmap de cada sol: su marco, rango de profundidad, nivel más fino y extensiones.",
