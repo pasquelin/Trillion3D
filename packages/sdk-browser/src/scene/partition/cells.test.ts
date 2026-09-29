@@ -4,19 +4,18 @@ import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { pose } from '../../host/prepared/nodes.ts';
 import { hostWorldChainInto } from '../../host/world/chain.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
-import { decodeHere, everywhere, io, noBudget, opened, placed, world } from './cells.fixture.ts';
+import { cellUrl, everywhere, io, noBudget, settled, world } from './cells.fixture.ts';
 
 const row = (rows: PlacementRows, at: number) => [...rows.matrices.subarray(at * 16, at * 16 + 16)];
 
 test('the cells a camera needs are asked nearest first, then placed on rows once read', async () => {
   const { cells, links, bytes } = world();
   const { port, asked, updates, held } = io(bytes);
-  await opened(cells, everywhere);
-  cells.frame([6000, 0, 0], everywhere, port, noBudget);
-  assert.deepEqual(asked, ['https://cache.test/key/far.json', 'https://cache.test/key/near.json']);
-  assert.deepEqual(cells.stats(), { cells: 2, held: 0, waiting: 0, rows: 3 });
+  await settled(cells, [6000, 0, 0], everywhere, port, noBudget);
+  assert.deepEqual([...new Set(asked)], [cellUrl('far.json'), cellUrl('near.json')]);
+  assert.deepEqual(cells.stats(), { pages: 3, cells: 2, held: 0, waiting: 0, rows: 3 });
   asked.forEach((url) => held.add(url));
-  await placed(cells, [6000, 0, 0], everywhere, port, noBudget);
+  await settled(cells, [6000, 0, 0], everywhere, port, noBudget);
   assert.equal(cells.stats().held, 2);
   for (const link of links) assert.deepEqual([...link.placements!.live.subarray(0, 3)], [1, 1, 1]);
   assert.ok(updates.length >= 2, 'the session is told which rows were written');
@@ -25,9 +24,8 @@ test('the cells a camera needs are asked nearest first, then placed on rows once
 test('a row holds the world matrix the engine composes for the same node under its parent', async () => {
   const { cells, links, core, bytes, node } = world();
   const { port, held } = io(bytes);
-  await opened(cells, everywhere);
-  ['near.json', 'far.json'].forEach((name) => held.add(`https://cache.test/key/${name}`));
-  await placed(cells, [0, 0, 0], everywhere, port, noBudget);
+  ['near.json', 'far.json'].forEach((name) => held.add(cellUrl(name)));
+  await settled(cells, [0, 0, 0], everywhere, port, noBudget);
   const child = new Object3D();
   pose(child, node(5000, 0));
   core.add(child);
@@ -44,9 +42,8 @@ test('a row holds the world matrix the engine composes for the same node under i
 test('a cell past its reach gives its rows back, parked, for the next cell to take', async () => {
   const { cells, links, bytes } = world();
   const { port, held, updates } = io(bytes);
-  await opened(cells, everywhere);
-  ['near.json', 'far.json'].forEach((name) => held.add(`https://cache.test/key/${name}`));
-  await placed(cells, [0, 0, 0], everywhere, port, noBudget);
+  ['near.json', 'far.json'].forEach((name) => held.add(cellUrl(name)));
+  await settled(cells, [0, 0, 0], everywhere, port, noBudget);
   updates.length = 0;
   cells.frame([0, 0, 0], 100, port, noBudget);
   assert.equal(cells.stats().held, 1, 'the far cell left');
@@ -58,65 +55,27 @@ test('a cell past its reach gives its rows back, parked, for the next cell to ta
   assert.ok(updates.length, 'the parked row is sent');
 });
 
-test('the rows are sized at open for the reach, and a reach past them tells the owner once', async () => {
-  const { cells, links, bytes } = world(null);
-  const { port, held, outgrown } = io(bytes);
-  held.add('https://cache.test/key/near.json');
-  await opened(cells, 100);
-  // Only the near cell's two nodes can be held within 100 m: the far one is 5 km off.
-  assert.equal(links[0].placements!.capacity, 2);
-  await placed(cells, [0, 0, 0], 100, port, noBudget);
-  assert.deepEqual(cells.stats(), { cells: 2, held: 1, waiting: 0, rows: 2 });
-  cells.frame([0, 0, 0], everywhere, port, noBudget);
-  cells.frame([0, 0, 0], everywhere, port, noBudget);
-  assert.equal(outgrown.count, 1, 'asked once for a session opened again');
-  // Opened again, the rows are sized for the reach the frames asked, the held rows kept.
-  await opened(cells, 100);
-  held.add('https://cache.test/key/far.json');
-  await placed(cells, [0, 0, 0], everywhere, port, noBudget);
-  assert.deepEqual(cells.stats(), { cells: 2, held: 2, waiting: 0, rows: 4 });
+test('the rows are sized at open from the root, for every node, before anything is read', () => {
+  const { cells, links } = world();
+  assert.deepEqual(cells.stats(), { pages: 0, cells: 0, held: 0, waiting: 0, rows: 3 });
+  assert.ok(links.every((link) => link.placements!.capacity === 3));
 });
 
-test('a parent scaled down grows the rows in place, on an engine that takes it, and reopens nothing', async () => {
+test('a parent scaled down brings its cells together on the rows sized at open: nothing grows', async () => {
   // Shrunk a thousand times, the core node both cells hang under brings the one 5 km off to 5 m:
-  // both are within 100 m, three nodes on rows sized for the near cell's two. An engine that grows
-  // no buffer, or refuses this growth, is left with its rows as they were and asks for a reopen.
-  for (const grows of [true, false, undefined]) {
-    const { cells, links, core, bytes } = world(0, 0);
-    const { port, held, outgrown, updates } = io(bytes);
-    const grown: [PlacementRows, PlacementRows][] = [],
-      asked: [number, number][] = [];
-    if (grows !== undefined)
-      port.grow = {
-        growsInPlace: (from, capacity) => (asked.push([from.length, capacity]), grows),
-        growPlacements: (from, to) => void grown.push([from, to]),
-      };
-    ['near.json', 'far.json'].forEach((name) => held.add(`https://cache.test/key/${name}`));
-    await opened(cells, 100);
-    const before = links.map((link) => link.placements!);
-    core.scale.set(1e-3, 1e-3, 1e-3);
-    await placed(cells, [0, 0, 0], 100, port, noBudget);
-    const { held: holding, waiting } = cells.stats();
-    assert.deepEqual([holding, waiting, outgrown.count], grows ? [2, 0, 0] : [1, 1, 1]);
-    if (grows !== undefined) assert.deepEqual(asked, [[2, 4]], 'both buffers asked at once');
-    if (!grows) {
-      assert.deepEqual(grown, [], 'no buffer replaced: the session reads the ones it holds');
-      assert.ok(links.every((link, at) => link.placements === before[at]));
-      // The session opened again sizes the rows for the reach and places the far cell.
-      await cells.prime([0, 0, 0], 100, (url) => decodeHere(bytes(url)!), true);
-      const { held: placedAgain, rows } = cells.stats();
-      assert.deepEqual([placedAgain, rows], [2, 4]);
-      continue;
-    }
-    const after = links.map((link) => link.placements!);
-    assert.deepEqual(
-      grown,
-      [0, 1].map((at) => [before[at], after[at]]),
-    );
-    // The engine is told of the grown buffers only: no row of the old ones is read again.
-    assert.ok(updates.every(([rows]) => after.includes(rows)));
-    assert.ok(after.every((rows) => rows.live.reduce((a, b) => a + b, 0) === 3));
-  }
+  // both are within 100 m, three nodes on the three rows the root counted.
+  const { cells, links, core, bytes } = world(0, 0);
+  const { port, held } = io(bytes);
+  ['near.json', 'far.json'].forEach((name) => held.add(cellUrl(name)));
+  const before = links.map((link) => link.placements!);
+  core.scale.set(1e-3, 1e-3, 1e-3);
+  await settled(cells, [0, 0, 0], 100, port, noBudget);
+  assert.deepEqual([cells.stats().held, cells.stats().waiting], [2, 0]);
+  assert.ok(
+    links.every((link, at) => link.placements === before[at]),
+    'the same buffers',
+  );
+  assert.ok(before.every((rows) => rows.live.reduce((a, b) => a + b, 0) === 3));
 });
 
 test('a world that poses the scene root reads the cells its camera sees there', async () => {
@@ -126,18 +85,6 @@ test('a world that poses the scene root reads the cells its camera sees there', 
   root.position.set(-500, 0, 0);
   root.scale.set(0.1, 0.1, 0.1);
   const { port, asked } = io(bytes);
-  await opened(cells, 100);
-  cells.frame([2, 0, 0], 100, port, noBudget);
-  assert.deepEqual(asked, ['https://cache.test/key/far.json']);
-});
-
-test('rows that hold every cell never ask for a reopen: sized so, or with no owner', async () => {
-  for (const owned of [true, false]) {
-    const { cells, bytes } = world();
-    const { port, held, outgrown } = io(bytes);
-    await opened(cells, owned ? 1e4 : 100, owned);
-    ['near.json', 'far.json'].forEach((name) => held.add(`https://cache.test/key/${name}`));
-    await placed(cells, [0, 0, 0], 1e7, port, noBudget);
-    assert.deepEqual([cells.stats().held, cells.stats().waiting, outgrown.count], [2, 0, 0]);
-  }
+  await settled(cells, [2, 0, 0], 100, port, noBudget);
+  assert.deepEqual([...new Set(asked)], [cellUrl('far.json')]);
 });

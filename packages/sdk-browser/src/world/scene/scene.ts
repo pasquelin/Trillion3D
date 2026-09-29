@@ -151,7 +151,7 @@ export async function loadPreparedScene(
     kind: 'preparation',
     scope,
     nodes: tables.nodes.length,
-    cells: tables.partition?.cells.length ?? 0,
+    placements: [...(tables.partition?.totals.values() ?? [])].reduce((sum, n) => sum + n, 0),
     materials: tables.materials.length,
     textures: textureIndices.size,
     bytes,

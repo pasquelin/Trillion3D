@@ -28,8 +28,8 @@ export interface MeasuredWorldOptions {
   renderer?: 'webgpu' | 'webgl2';
   /** Called before every frame the interactive session draws: the host writes its scene then. */
   beforeFrame?: () => void;
-  /** Asked once the camera's reach outgrew the rows a partitioned scene sized when the session
-   *  opened: the owner opens the session again, sized for that reach. */
+  /** Asked once a mesh a partitioned scene's view read cannot be mounted in the open session: the
+   *  owner opens the session again, on the manifest the view holds by then. */
   onRowsOutgrown?: () => void;
   /** False: the interactive session installs no camera controller of its own. */
   ownControls?: boolean;
