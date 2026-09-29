@@ -532,6 +532,7 @@
     "reference:BatchJob": "377ecb4e b154bf8f 43ffeaff 5db35133 4b9c10cf adc1334b a930453a d0191aa2 17cba3cc 6a10ec19 bd9e87f2 c7edadbb 39b1453a 93544de4 3cf34032",
     "reference:BatchOptions": "3ea842e4 97876589 13039429 11ce0eca 70dd6b29 eab50c0f 36b8daa5 e4b89706 e252be25 6499465f 218d710b cab09c04 05854cdf 641453d8 4eb325d4",
     "reference:BatchOutcome": "5f23527f 8386edd2 eea7349f 73dd3ec0 e2bca26b c30654c4 e91a7b6b a40dc682 cc96274e b38e7def fb83ea98 94d7f2cd 274f4daa dc15e273 265de707",
+    "reference:BatchRead": "83e3c174 2a9cb3fc cb5c0b3f d8afed05 2370bd97 cd0e8b98 d870fac7 d03b76c8 4f2a314f cfac760d 04c809c4 4d8b4b71 2105f26e bfe3e1e7 74bb37c2",
     "reference:BatchSummary": "367aee20 b56fdea7 3e9acfd4 7889ad4d 141e82c7 7565e63b 3ff29e0a 57bd04e7 82c8dce8 5b3677fb c4a1fa97 0955042c 22a3be65 2f39516f 550af27b",
     "reference:BeforeFrameInfo": "eab75900 5099a8b0 5c2dcc7e 2a5beea3 9e4b5daa 86a7c1b0 7e999f2f a9d1789d c687aa1c 2ee406a5 408cd5a3 d87cb50d 9cf53a59 8e97e5af 67fe5026",
     "reference:Blending": "376e9eec 03010ebc a59c545e d8229c34 97fe6cd3 fb194b7d 7c8ed6d0 68dfc53d 5f7c08ae 1867a086 54e91fd9 fcea2701 0d249b54 a6ed2278 1cd3a21f",
