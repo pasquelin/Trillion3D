@@ -80,6 +80,7 @@ test("the host's rows and words land in their range, at their row there", async 
   const worlds = fake.writes.filter((w) => frames.worldBuffers.includes(w.buffer));
   assert.equal(worlds.map(world).join(' '), '0:0+20 1:20+20 2:40+8');
   frames.writeWord(25, 1, 7);
+  frames.flushWords();
   const word = fake.writes.at(-1)!;
   assert.equal(word.buffer, frames.buffers[1]);
   assert.equal(word.offset, (primitiveWordAt(5) + 1) * 4);
