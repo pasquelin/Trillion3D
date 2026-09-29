@@ -14,7 +14,7 @@ use crate::perf::{Phase, Timer};
 use crate::qem::{compact_region, simplify_with_locked_vertices};
 use crate::{invalid, Result};
 use rayon::prelude::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// Triangles per cluster. Matches the page budget used by the exact path.
 pub const DAG_CLUSTER_TRIANGLES: usize = 128;
@@ -93,6 +93,8 @@ struct GroupReduction {
     source_rank: u32,
     /// Reduction had to lock additional triangles to preserve border.
     relocked: bool,
+    /// The vertices a solved reduction placed (`solved.rs`); `None` for an endpoint reduction.
+    placed: Option<grown::Placed>,
 }
 /// One reduction of the DAG, kept so the runtime can swap a whole group at once.
 ///
@@ -108,16 +110,22 @@ pub struct DagGroup {
     pub outputs: Vec<usize>,
 }
 struct GroupReductionInput<'a> {
+    /// The level's vertex arrays: the source's, then every vertex a solved reduction placed.
     positions: &'a [f32],
-    /// Normals and texture sets, as the simplifier weighs them.
-    attributes: &'a [crate::qem::Attribute<'a>],
-    normals: Option<&'a [f32]>,
+    /// Every attribute the pages carry; normals and texture sets count in the error.
+    attributes: DagAttributes<'a>,
+    /// Those the simplifier weighs (`DagAttributes::weighted`), built once per level.
+    weighted: &'a [crate::qem::Attribute<'a>],
     /// Normal deviation this group's reduction may not exceed (`quality::deviation_bound`).
     normal_bound: f64,
     locks: &'a [bool],
     /// Per source vertex, on a texture seam: protected from permissive collapses. Empty without
     /// a texture set.
     seams: &'a [bool],
+    /// Per vertex, its texture island (`charts::vertex_islands`); empty without a texture set.
+    islands: &'a [u32],
+    /// The source's vertex count: a vertex from it on was placed by a solve.
+    source_vertices: usize,
     /// Canonical vertex by position: locks, borders, adjacency.
     weld: &'a [u32],
     /// Canonical vertex by position and every carried attribute (`attributes::weld_exact`).
@@ -134,7 +142,7 @@ pub const CULLING_LEAF: usize = 8;
 /// `sphere` encloses every `parent_sphere` of the subtree and `max_parent_error` is the largest
 /// `parent_error` in it, so a single projection bounds the whole subtree from above: when that bound
 /// already fits the pixel budget, no cluster below can be selected and the subtree is skipped.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct CullingNode {
     pub min: [f64; 3],
     pub max: [f64; 3],
@@ -145,39 +153,31 @@ pub struct CullingNode {
     pub first_cluster: usize,
     pub cluster_count: usize,
 }
-impl Default for CullingNode {
-    fn default() -> Self {
-        Self {
-            min: [0.0; 3],
-            max: [0.0; 3],
-            sphere: [0.0; 4],
-            max_parent_error: 0.0,
-            first_child: 0,
-            child_count: 0,
-            first_cluster: 0,
-            cluster_count: 0,
-        }
-    }
-}
 
 pub(crate) mod attributes;
 pub(crate) mod border;
 pub(crate) mod bounds;
 mod build;
+pub(crate) mod charts;
 pub(crate) mod clusters;
 mod culling;
 mod diagnosis;
 pub(crate) mod groups;
+mod grown;
 mod levels;
 mod measured;
+mod placed;
 pub(crate) mod quality;
 pub(crate) mod reduce;
+mod retries;
+mod solved;
 mod tally;
 #[cfg(test)]
 mod tests;
 mod texture;
 pub(crate) mod tight;
 pub(crate) mod vanished;
+mod welds;
 
 pub use attributes::DagAttributes;
 use bounds::*;
@@ -185,5 +185,6 @@ pub use build::{build_dag_from_roots, build_dag_tallied, DagBuild};
 use clusters::*;
 pub use culling::build_culling_bvh;
 use groups::*;
+pub use grown::Grown;
 use reduce::*;
 pub use tally::{DagStall, GroupOutcome, GroupTally, StallCause};
