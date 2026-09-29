@@ -117,3 +117,42 @@ test('unavailable water does no bounds work and empty clipped boxes keep legal e
   assert.ok(bounds.surface[2] >= 1);
   assert.ok(bounds.backdrop[2] > bounds.backdrop[0]);
 });
+
+test('the rectangle covers every kept water item and none of the rejected ones', () => {
+  const { state, bounds, item, frame } = scene();
+  const moved = (dx: number) => {
+    const box = item.bounds!.slice();
+    box[0] += dx;
+    box[3] += dx;
+    const elements = item.matrix.elements.slice();
+    elements[12] += dx;
+    return { ...item, bounds: box, matrix: { ...item.matrix, elements } } as typeof item;
+  };
+  const alone = (other: typeof item) => {
+    state.blendGpu.length = 1;
+    state.blendGpu[0] = other;
+    frame();
+    return Array.from(bounds.surface);
+  };
+  const width = item.bounds![3] - item.bounds![0];
+  const kept = moved(-1.2 * width),
+    rejected = moved(100 * width);
+  const own = alone(item),
+    beside = alone(kept);
+  assert.ok(beside[2] < own[2], 'the second kept item lies elsewhere on screen');
+  state.blendGpu.splice(0, 1, item, kept, rejected);
+  frame();
+  assert.equal(state.transmissiveInView, 2, 'the far copy is rejected by the frustum');
+  const rect = Array.from(bounds.surface);
+  for (const r of [own, beside]) {
+    assert.ok(rect[0] <= r[0] && rect[1] <= r[1], 'covers each kept item');
+    assert.ok(rect[2] >= r[2] && rect[3] >= r[3], 'covers each kept item');
+  }
+  // Exactly the kept union: the rejected copy adds nothing, even far off screen.
+  assert.deepEqual(rect, [
+    Math.min(own[0], beside[0]),
+    Math.min(own[1], beside[1]),
+    Math.max(own[2], beside[2]),
+    Math.max(own[3], beside[3]),
+  ]);
+});
