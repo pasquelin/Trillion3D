@@ -5,6 +5,7 @@ import { shadowBatchCapacity } from '../../../gpu/shadow/batchBudget.ts';
 import { pageModes, writeShadowPages } from '../../shadow/pages.ts';
 import { encodeShadowAtlas } from './encodeShadowPass.ts';
 import { encodeShadowRequests } from '../../shadow/casters.ts';
+import { recordShadowEncoding } from '../../shadow/cpuSteps.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /**
@@ -70,20 +71,28 @@ export function encodeShadowBatches(
   encoder: GPUCommandEncoder,
   eye: ArrayLike<number>,
 ) {
-  const { lights } = rt,
+  const started = performance.now(),
+    { lights } = rt,
     { plan } = lights,
     count = plan.admission.count,
     writes = shadowBatchWrites(device),
     capacity = frameBatchCapacity(rt);
   writes.reserve(capacity.stagingBytes);
-  let drawn: number;
+  let drawn: number,
+    regionsMs = 0,
+    passesMs = 0;
   try {
     drawn = forEachShadowBatch(
       rt,
       (from, to, runBase) => {
         if (from) writes.stage(encoder);
-        const regions = writeShadowPages(lights, eye, from, to);
-        if (!encodeShadowAtlas(rt, device, encoder, regions, from, to, runBase)) return false;
+        const regionsStart = performance.now(),
+          regions = writeShadowPages(lights, eye, from, to),
+          passesStart = performance.now();
+        regionsMs += passesStart - regionsStart;
+        const encoded = encodeShadowAtlas(rt, device, encoder, regions, from, to, runBase);
+        passesMs += performance.now() - passesStart;
+        if (!encoded) return false;
         lights.shadowFaces += lights.runs.count;
         lights.shadowWork.drewBatch(pageModes, to - from);
         plan.commit(pageModes, from, to);
@@ -95,6 +104,7 @@ export function encodeShadowBatches(
     writes.end();
     encodeShadowRequests(rt, encoder);
   }
+  recordShadowEncoding(rt.timing.cpuProfile.row, performance.now() - started, regionsMs, passesMs);
   lights.shadowPages = drawn;
   if (drawn < count) plan.reissue(drawn);
   return drawn === count;

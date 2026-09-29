@@ -5,6 +5,7 @@ import { createWebgpuRunState } from '../state/run.ts';
 import { createWebgpuVisState } from '../state/vis.ts';
 import { createWebgpuBlendState } from '../../blend/state.ts';
 import { createWebgpuLightState } from '../state/lights.ts';
+import { createWebgpuTimingState } from '../state/timing.ts';
 import { referenceVertexBytes } from '../../../../../../bench/oracles/browser/byte-metrics.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { WebgpuGpuState } from '../state/gpu.ts';
@@ -19,7 +20,7 @@ function runtimeOver(
     run,
     gpu,
     vis: createWebgpuVisState(),
-    timing: {},
+    timing: createWebgpuTimingState(),
     blendState: createWebgpuBlendState(),
     services: { bootstrapState: { ready: true }, residencySets: { keepCount: 0 } },
     setup: { geometryPool: { slots: 0 }, texturePool: {} },
