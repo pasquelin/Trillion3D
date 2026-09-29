@@ -18,6 +18,7 @@ mod attributes;
 pub mod bits;
 pub mod cut;
 pub mod cut_error;
+pub mod deform;
 pub mod math;
 pub mod math_hierarchy;
 pub mod min_ball;
@@ -37,22 +38,24 @@ pub mod writer;
 
 pub use attributes::{DecodedPage, Layout, OPTIONAL};
 use bits::Quant;
+pub use deform::{Morph, Skin, FLAG_MORPH, FLAG_SKIN};
 pub use unpack::decode;
 
 pub const MAGIC: u32 = 0x3350_4757;
 pub const VERSION: u32 = 4;
 /// Twenty-four little-endian words open a page: counts, flags, the quantization records of the
-/// four vector attributes, the error, the bits of the corner stream, and two reserved words that
-/// must read zero.
+/// four vector attributes, the error, the bits of the corner stream, the skin record and the
+/// morph target count (`deform.rs`), each zero on a page that does not carry them.
 pub const HEADER_WORDS: usize = 24;
 pub const HEADER_BYTES: usize = HEADER_WORDS * 4;
 pub const MAX_VERTICES: usize = 65_535;
-/// Attribute presence bits: normal, first and second texture coordinate, colour.
+/// Attribute presence bits: normal, first and second texture coordinate, colour; then the skin
+/// and the morph targets (`deform.rs`).
 pub const FLAG_NORMAL: u32 = 1;
 pub const FLAG_UV: u32 = 2;
 pub const FLAG_UV1: u32 = 4;
 pub const FLAG_COLOR: u32 = 8;
-pub const FLAGS_ALL: u32 = 15;
+pub const FLAGS_ALL: u32 = 63;
 
 /// Refusal causes, in the order the JavaScript decoder raises them. The numeric values cross the
 /// WebAssembly ABI: the JS loader retranslates them into `GEOMETRY_PAGE_*` messages.
@@ -65,8 +68,9 @@ pub enum PageError {
     Index = 4,
 }
 
-/// A page header, once its twenty-four words have been read and every bound accepted.
-#[derive(Clone, Copy, Debug, PartialEq)]
+/// A page header, once its twenty-four words, and the records of its morph targets, have been
+/// read and every bound accepted.
+#[derive(Clone, Debug, PartialEq)]
 pub struct Header {
     pub vertex_count: usize,
     pub index_count: usize,
@@ -80,30 +84,16 @@ pub struct Header {
     pub quantization_error: f32,
     /// Bits of the corner stream (`triangles.rs`): the one stream whose length the counts do not give.
     pub corner_bits: usize,
+    /// Joints and weights of a skinned page (`FLAG_SKIN`); zero otherwise.
+    pub skin: Skin,
+    /// The morph targets of a page flagged `FLAG_MORPH`, in stream order; empty otherwise.
+    pub morphs: Vec<Morph>,
 }
 
 impl Header {
-    /// Floats per decoded vertex: position, then each present attribute at its width.
-    pub fn vertex_floats(&self) -> usize {
-        3 + OPTIONAL
-            .iter()
-            .filter(|(bit, _)| self.flags & bit != 0)
-            .map(|(_, size)| size)
-            .sum::<usize>()
-    }
-
-    /// Bytes of the decoded page: float attributes and 32-bit indices. Saturating, since a
-    /// forged count would otherwise wrap a 32-bit `usize` back under the budget and let the
-    /// decoder trap on its allocation instead of refusing the header.
-    pub fn decoded_bytes(&self) -> usize {
-        self.vertex_count
-            .saturating_mul(self.vertex_floats() * 4)
-            .saturating_add(self.index_count.saturating_mul(4))
-    }
-
-    /// The header as its words, the exact inverse of `parse`.
-    pub fn words(&self) -> [u32; HEADER_WORDS] {
-        let mut w = [0u32; HEADER_WORDS];
+    /// The header as its words, morph records included, the exact inverse of `parse`.
+    pub fn words(&self) -> Vec<u32> {
+        let mut w = vec![0u32; HEADER_WORDS];
         w[..5].copy_from_slice(&[
             MAGIC,
             VERSION,
@@ -121,6 +111,9 @@ impl Header {
         w[16..20].copy_from_slice(&self.color.min.map(f32::to_bits));
         w[20] = self.quantization_error.to_bits();
         w[21] = self.corner_bits as u32;
+        w[22] = self.skin.word();
+        w[23] = self.morphs.len() as u32;
+        w.extend(self.morphs.iter().flat_map(Morph::words));
         w
     }
 
@@ -147,6 +140,9 @@ impl Header {
         let (Some(position), Some(uv), Some(uv1), Some(color)) = records else {
             return Err(PageError::Bounds);
         };
+        let Some((skin, morphs)) = deform::parse(w[4], w[22], w[23], data) else {
+            return Err(PageError::Bounds);
+        };
         let header = Self {
             vertex_count: w[2] as usize,
             index_count: w[3] as usize,
@@ -157,11 +153,12 @@ impl Header {
             color,
             quantization_error: f(w[20]),
             corner_bits: w[21] as usize,
+            skin,
+            morphs,
         };
         let layout = Layout::of(&header);
         let (table, v, n) = (layout.triangles[1] * 4, w[2] as usize, w[3] as usize);
-        let sane = w[22..].iter().all(|&word| word == 0)
-            && (1..=MAX_VERTICES).contains(&header.vertex_count)
+        let sane = (1..=MAX_VERTICES).contains(&header.vertex_count)
             && (3..=max_decoded_bytes / 4).contains(&header.index_count)
             && header.index_count.is_multiple_of(3)
             && header.corner_bits <= header.index_count.saturating_mul(triangles::MAX_WIDTH)
@@ -170,7 +167,8 @@ impl Header {
             && header.quantization_error >= 0.0
             && header.decoded_bytes() <= max_decoded_bytes
             && layout.bytes() == data.len()
-            && layout.corners.fits(&data[HEADER_BYTES..][..table], v, n);
+            && layout.morphs_at(&header)
+            && layout.corners.fits(&data[header.bytes()..][..table], v, n);
         if !sane {
             return Err(PageError::Bounds);
         }
