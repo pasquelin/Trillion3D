@@ -16,7 +16,7 @@ export function createRoutedPipelines(
   module: GPUShaderModule,
   layout: GPUBindGroupLayout,
   feedback: boolean,
-  targets: (mode: Blending) => GPUColorTargetState[],
+  targets: (mode: Blending) => (GPUColorTargetState | null)[],
 ) {
   const suffix = feedback ? '' : 'WithoutFeedback';
   const filtered = pipelinesByMode(device, (mode) =>
