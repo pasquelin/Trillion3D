@@ -41,10 +41,10 @@ test('the shaders declare the contract: views, regions, strides and uniform word
   assert.equal(read(PAGE_QUAD_SHADER, /views:array<PageView,(\d+)>/), MAX_SHADOW_REGIONS);
   assert.equal(read(PAGE_QUAD_SHADER, /order:array<u32,(\d+)>/), MAX_SHADOW_REGIONS);
   // A page view is what the depth pass reads — matrix, `params`, `emitter` — then `rect`, sized
-  // to the stride.
+  // to the stride; the depth pass reads `rect` too, for a page the GPU draws itself.
   const rect = read(PAGE_QUAD_SHADER, /@size\((\d+)\) rect/);
   assert.equal(SHADOW_FACE_READ_WORDS * 4 + rect, SHADOW_FACE_STRIDE);
-  assert.equal(words(SHADOW_DEPTH_SHADER, 'ShadowView'), SHADOW_FACE_READ_WORDS);
+  assert.equal(words(SHADOW_DEPTH_SHADER, 'ShadowView'), SHADOW_FACE_READ_WORDS + 4);
   assert.equal(read(SHADOW_OCCLUSION_SHADER, /struct View\{@size\((\d+)\)/), SHADOW_FACE_STRIDE);
   assert.equal(words(SHADOW_CULL_SHADER, 'Face'), SHADOW_CULL_FLOATS);
   // The uniforms' words, generated from the host's counts, are checked field by field against
