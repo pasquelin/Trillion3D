@@ -27,7 +27,7 @@ export type WebgpuPagesServices = ReturnType<typeof createWebgpuPagesServices>;
  *  queue and the GPU cut adopter. Each reads the runtime lazily, so none holds a stale frame. */
 export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   const { run, gpu, diag, context } = rt,
-    { rows, packedPages, drawSlots } = rt.layout,
+    { rows, packedPages } = rt.layout,
     { tracking, bootstrap, bootstrapUrls, bootstrapKey } = rt.setup,
     { sourceBytes, byUrl, geometryUrls } = rt.setup;
   const mirror = createWebgpuResidencyMirror({
@@ -59,7 +59,6 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     mirror,
     packedPages,
     run,
-    drawSlots,
     () => !!gpu.cache,
     commit,
     // Origin of the resource change: the page enters residency or leaves it. The shadows compare

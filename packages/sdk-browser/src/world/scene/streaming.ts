@@ -57,30 +57,30 @@ export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs
     if (!urls.length || state.measuring) return;
     const controller = new AbortController();
     backgroundFetchController = controller;
-    streamingPromise = streamer
-      .request(urls, { signal: controller.signal, priority })
-      .then(async () => {
-        for (const url of urls) {
-          if (geometryUrls.has(url)) {
-            const bytes = streamer.getBytes(url);
-            if (bytes) {
-              try {
-                const decoded = await decodePageOffThread(bytes, controller.signal);
-                for (const b of backends) b.acceptGeometryPage?.(url, decoded);
-              } catch (error) {
-                // A decode refusal is final for this address; a cancellation is not: the page
-                // will leave again with the next request, otherwise a camera that
-                // changes its mind would dig a permanent hole in the image.
-                if (!controller.signal.aborted) decodeFailures.add(url);
-                throw error;
-              }
-            }
-            continue;
-          }
-          const array = streamer.get(url);
-          if (array) for (const b of backends) arrivals.queue(b, url, array);
+    // Each page is served the moment IT lands — decoded in the pool while the others still
+    // travel —, not once the whole batch has: waiting for the slowest page, then decoding one
+    // page at a time, held every page of the batch behind it (#982).
+    const land = async (url: string) => {
+      if (geometryUrls.has(url)) {
+        const bytes = streamer.getBytes(url);
+        if (!bytes) return;
+        try {
+          const decoded = await decodePageOffThread(bytes, controller.signal);
+          for (const b of backends) b.acceptGeometryPage?.(url, decoded);
+        } catch (error) {
+          // A decode refusal is final for this address; a cancellation is not: the page
+          // will leave again with the next request, otherwise a camera that
+          // changes its mind would dig a permanent hole in the image.
+          if (!controller.signal.aborted) decodeFailures.add(url);
+          throw error;
         }
-      })
+        return;
+      }
+      const array = streamer.get(url);
+      if (array) for (const b of backends) arrivals.queue(b, url, array);
+    };
+    streamingPromise = streamer
+      .request(urls, { signal: controller.signal, priority, onPage: land })
       .catch((error) => {
         if (state.disposed || signal?.aborted || controller.signal.aborted) return;
         const detail = String(error);

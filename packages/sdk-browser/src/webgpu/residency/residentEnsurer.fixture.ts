@@ -117,5 +117,6 @@ export const tierEnsurer = (
       [casterPages(), aheadPages()].map((pages) => ({
         pages,
         has: (key: number) => pages.some((page) => tracking.keyOf(page) === key),
+        revision: 0,
       })),
   });

@@ -65,6 +65,9 @@ export function referenceRowState(packedPages: readonly PageRec[], drawSlots: nu
     rowsChanged: true,
     // Age of the rank allocator, also later than batch F.
     rowsRevision: 0,
+    // The table's size as the rank sync reads it at each use (#216), later than batch F too.
+    blendFirst: drawSlots,
+    casterSlots: drawSlots,
     pageTableFloats: undefined as Float32Array | undefined,
     pageTableInts: undefined as Uint32Array | undefined,
     pageIndexOf: (rec: PageRec) => pageIndexByRec.get(rec),

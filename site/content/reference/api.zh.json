@@ -136,6 +136,14 @@
       "onEvent": "每个事件发生时调用。"
     }
   },
+  "BatchRead": {
+    "summary": "`request` 如何读取一批：取消、优先级，以及每个页面到达时运行的内容。",
+    "members": {
+      "signal": "取消该批次的读取。",
+      "priority": "队列优先级，默认为 1。",
+      "onPage": "每个页面读取到达时运行，而不是在整批完成后。"
+    }
+  },
   "BatchOutcome": {
     "summary": "批处理中一个任务的结束方式。",
     "members": {
@@ -2047,7 +2055,19 @@
       "evictedTiles": "被移除的纹理图块。",
       "residentPages": "设置前后各自常驻的内容。",
       "residentTiles": "前后各自保留的纹理图块。",
-      "durationMs": "这次操作花费的时间。"
+      "durationMs": "这次操作花费的时间。",
+      "tables": "为超出它们的池而扩大的按可绘制页面划分的表 (WebGPU),没有扩大时为 `null`。",
+      "transientBytes": "复制几何体池期间同时占用的字节:旧池和旁边的新池,在任何页面移动之前由设备一并授予;没有池移动时为 0。"
+    }
+  },
+  "TableGrowthReport": {
+    "summary": "按可绘制行确定大小的表的增长，正如其上的池所请求的那样。",
+    "members": {
+      "drawSlots": "这些表当前容纳的可见性行。",
+      "casterSlots": "阴影通道读取的行，位于可见性行之后。",
+      "bytes": "增长后的 GPU 表所占的字节数；若被拒绝，则为所请求的字节数。",
+      "refused": "设备拒绝时为 `true`：保留现有的表和池。",
+      "durationMs": "增长所用的毫秒数，从探测到交换。"
     }
   },
   "Mesh": {
@@ -2253,7 +2273,7 @@
     "description": "前六项是页面解码的拒绝原因,逐字取自 `geometryPage.ts`:调用者按原有方式区分它们。`PAGE_DECODE_FAILED` 承载来自解压缩库的其他任何拒绝原因。`PAGE_DECODE_CANCELLED` 对应被取消的情况,`PAGE_DECODE_WORKER` 对应某个消失了的执行者——只有后者才允许启用回退方案。"
   },
   "PAGE_DECODE_PROTOCOL": {
-    "summary": "主线程之外的页面解码契约,第 6 版:解码后的几何体连同其量化误差作为一个整体块传输,竞技场槽位把这个误差记录在第 8 个字中;`cut` 把被绘制的三角形转换成一个个页面,这些页面随其描述符以字节形式返回;自第 6 版起还带有其法线锥,打包的三角形标明其页面是否保留法线锥。",
+    "summary": "主线程之外的页面解码契约,第 6 版:解码后的几何体连同其量化误差作为一个整体块传输;`cut` 把被绘制的三角形转换成一个个页面,这些页面随其描述符以字节形式返回;自第 6 版起还带有其法线锥,打包的三角形标明其页面是否保留法线锥。",
     "description": "调用方线程发送一个 `PageDecodeRequest`,执行者返回一个携带相同 `id` 的 `PageDecodeAnswer`。这里的内容不涉及任何平台细节:没有 `Worker`,没有网络请求,没有时钟——这些都由浏览器适配层负责,这份契约只承载消息的形状、封闭的失败原因列表,以及池的边界。缓冲区所有权:`source` 会随请求一起被**转移**,因此发送方之后不再拥有它。`verify` 的响应会把它转移回来;`decode` 的响应则改为返回解码后的缓冲区,同样以转移方式给出。一个不进行任何转移的执行者(同步回退方案)返回的值完全相同:这份契约不规定工作是如何传递的,只规定返回什么。"
   },
   "PAGE_INTEGRATION_FAILURES": {
@@ -2458,18 +2478,6 @@
       "op": "要执行的操作。",
       "source": "随消息一起转移:发送方之后不再拥有它。",
       "maxDecodedBytes": "一个几何体页面解码后字节数的上限;`verify` 会忽略这一项。"
-    }
-  },
-  "PageDecodeShare": {
-    "summary": "工作线程的共享内存租约:竞技场缓冲区、它拥有的槽位与区域,以及给出控制区大小的槽位总数。",
-    "description": "只在工作线程创建时发送一次,并且只在平台允许共享内存的情况下发送。没有租约时,工作线程改为通过转移缓冲区来回应:契约的形状不变,只是字节传递的路径不同。",
-    "members": {
-      "protocol": "消息格式版本。",
-      "id": "始终为 0。",
-      "op": "始终为 `'share'`。",
-      "buffer": "共享内存。",
-      "slot": "这个工作线程的槽位。",
-      "slots": "槽位总数。"
     }
   },
   "PageIntegrationAnswer": {
@@ -3177,10 +3185,16 @@
       "tileLightPoolCapacity": "该采样帧上光源索引池持有的字数;同样为 `null`。",
       "tileLightPoolOverflowed": "该采样帧上是否有图块在池中找不到空间而遍历了每一盏灯。",
       "tileLightPoolGrowths": "自浏览器打开以来,池增长到溢出帧所需大小的次数。",
-      "gpuShadowsMs": "阴影的 GPU 耗时。",
+      "gpuShadowsMs": "阴影阶段的 GPU 时间，恰好是引擎通道表中的阴影通道：阴影图集、其静态层、透射层的清除与通道、按页剔除、页面金字塔和遮挡测试。来自光源的切割是单独的阶段（`shadowCasters`）；阴影工作之外的通道不计入其中。",
       "gpuShadowCullMs": "选择本帧所绘阴影页的投影体的 GPU 时间：光源剪切、逐页剔除，以及运动投影体的遮挡测试及其读取的金字塔。",
       "gpuShadowRasterMs": "把这些投影体绘入页面的 GPU 时间：先静态层，再池。",
       "gpuLightingMs": "光照的 GPU 耗时。",
+      "cpuShadowPlanMs": "围绕调度器的帧阴影计划的 CPU 时间：CPU 剖析的一个命名步骤（`cpuSteps()`、`cpu-timing`），后面五个也是。帧未执行时（无光源、保持的帧）或在无法计时的引擎上（WebGL2）为 `null`，绝不为 0。它们位于编码时间之内，从不加到其上。",
+      "cpuShadowRequestsMs": "读取返回的阴影请求报告的 CPU 时间。",
+      "cpuShadowAdmissionMs": "接纳图像读取的过期页面的 CPU 时间。",
+      "cpuShadowBatchesMs": "围绕其区域和通道的阴影批次的 CPU 时间：暂存、提交、请求复制。",
+      "cpuShadowRegionsMs": "写入每个阴影批次区域的 CPU 时间：面 uniform 和页面记录。",
+      "cpuShadowPassesMs": "编码每个阴影批次通道的 CPU 时间：投射体、清除与恢复、绘制。",
       "shadowLightCuts": "从光源运行的簇切割：每个绘制的光视图一个，静止帧为零。",
       "shadowPagesRequested": "图像读取的虚拟阴影页，即该帧的提前需求所列（没有时为其最新请求报告所列）：相机接收面标记的内容。",
       "shadowPagesCached": "其中直接从池中读取的页：最新，无需绘制。",
@@ -3199,6 +3213,7 @@
     "summary": "本帧的阴影工作：绘制哪些虚拟页。",
     "members": {
       "counts": "上一个计划做了什么，以页计。",
+      "spent": "上一次计划用于读取请求报告和接纳页面的 CPU 毫秒数。",
       "worldChanged": "某个节点移动了：其包围盒在下一个计划中使其覆盖的页失效。",
       "representationChanged": "同一世界的另一精度：其包围盒等待相机停下。",
       "resting": "上一次规划时相机静止：其视图与再前一次规划相同。",
@@ -4264,10 +4279,16 @@
       "tileLightPoolCapacity": "该采样帧上光源索引池持有的字数;同样为 `null`。",
       "tileLightPoolOverflowed": "该采样帧上是否有图块在池中找不到空间而遍历了每一盏灯。",
       "tileLightPoolGrowths": "自浏览器打开以来,池增长到溢出帧所需大小的次数。",
-      "gpuShadowsMs": "阴影的 GPU 耗时。",
+      "gpuShadowsMs": "阴影阶段的 GPU 时间，恰好是引擎通道表中的阴影通道：阴影图集、其静态层、透射层的清除与通道、按页剔除、页面金字塔和遮挡测试。来自光源的切割是单独的阶段（`shadowCasters`）；阴影工作之外的通道不计入其中。",
       "gpuShadowCullMs": "选择本帧所绘阴影页的投影体的 GPU 时间：光源剪切、逐页剔除，以及运动投影体的遮挡测试及其读取的金字塔。",
       "gpuShadowRasterMs": "把这些投影体绘入页面的 GPU 时间：先静态层，再池。",
       "gpuLightingMs": "光照的 GPU 耗时。",
+      "cpuShadowPlanMs": "围绕调度器的帧阴影计划的 CPU 时间：CPU 剖析的一个命名步骤（`cpuSteps()`、`cpu-timing`），后面五个也是。帧未执行时（无光源、保持的帧）或在无法计时的引擎上（WebGL2）为 `null`，绝不为 0。它们位于编码时间之内，从不加到其上。",
+      "cpuShadowRequestsMs": "读取返回的阴影请求报告的 CPU 时间。",
+      "cpuShadowAdmissionMs": "接纳图像读取的过期页面的 CPU 时间。",
+      "cpuShadowBatchesMs": "围绕其区域和通道的阴影批次的 CPU 时间：暂存、提交、请求复制。",
+      "cpuShadowRegionsMs": "写入每个阴影批次区域的 CPU 时间：面 uniform 和页面记录。",
+      "cpuShadowPassesMs": "编码每个阴影批次通道的 CPU 时间：投射体、清除与恢复、绘制。",
       "hizTestedClusters": "一帧中遮挡测试所做的事情:交给它测试的簇、被它剔除的簇,以及那些 0 级屏幕投影面积超过十六个纹素核大小、因而从更粗糙的 mip 得到答案的簇。`hiz*Triangles` 是同一批簇所对应的三角形数。在 GPU 路径上,这些数据描述的是比正在渲染的这一帧**更早**的一帧——`hizCountedFrame` 说明具体是哪一帧——就像 `gpuPassMs` 一样,相邻两帧经常携带相同的样本。这里没有任何估算值:在不进行遮挡测试的引擎上、在判定结果无法被重新读取的设备上,以及在还没有任何一帧被统计过之前,均为 `null`。",
       "hizRejectedClusters": "被判定为隐藏的簇。",
       "hizOversizedClusters": "过大而无法测试的簇。",

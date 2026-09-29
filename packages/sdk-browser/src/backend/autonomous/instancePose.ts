@@ -1,5 +1,5 @@
 import { multiplyMatrix4 } from '../../../../sdk-core/src/index.ts';
-import { setHostPose } from '../../host/pageObjects.ts';
+import { setHostPose } from '../../host/pagePose.ts';
 import { copyElements } from '../../math/matrixElements.ts';
 import type { HostNodeMatrix, MatrixElements } from '../../math/matrixElements.ts';
 import type { PageRec, ClusterRoot } from '../../page/selection/selection.ts';
