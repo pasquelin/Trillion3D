@@ -7,6 +7,20 @@ import { readsAsIs } from './lightResources.ts';
 export const wantsAsIsShare = (rt: WebgpuPagesRuntime) =>
   rt.blendState.blendGpu.length > 0 && readsAsIs(rt);
 
+/** The share target at `width`×`height`, over the opaque flags: made with the targets or later. */
+export function makeAsIsShare(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  width: number,
+  height: number,
+) {
+  rt.gpu.asIsShare = createAsIsShare(device, rt.gpu.surfaces!.views()[3], width, height);
+}
+
+/** The share the transparents blend into this image, when it wants one (`wantsAsIsShare`). */
+export const activeAsIsShare = (rt: WebgpuPagesRuntime) =>
+  wantsAsIsShare(rt) ? rt.gpu.asIsShare : undefined;
+
 /**
  * Seeds, from the opaque flags, the share the transparents blend into this image, and returns it:
  * the one made with the targets, or one made at the first image that wants it and kept with them.
@@ -23,8 +37,8 @@ export function seedAsIsShare(
   if (!gpu.asIsShare) {
     const [width, height] = gpu.allocatedSize;
     gpu.targetBytes += width * height;
-    gpu.asIsShare = createAsIsShare(device, gpu.surfaces.views()[3], width, height);
+    makeAsIsShare(rt, device, width, height);
   }
-  gpu.asIsShare.seed(encoder);
+  gpu.asIsShare!.seed(encoder);
   return gpu.asIsShare;
 }

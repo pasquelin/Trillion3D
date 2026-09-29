@@ -9,7 +9,7 @@ import { RUN_SHARED, RUN_WORDS, runOwner } from './runs.ts';
 import { itemKept } from './expandCpu.ts';
 import { routedFilter, type DisplayFilter } from './displayFilter.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
-import { readsAsIs } from '../pages/prepare/lightResources.ts';
+import { activeAsIsShare } from '../pages/prepare/asIsShareTarget.ts';
 
 /**
  * Bind group of a blend pass: vertex buffers, item records, atlases and lighting. A paged item
@@ -119,7 +119,7 @@ export function drawBlendPass(
   // Nothing to encode without runs, or without the arguments the GPU wrote for them.
   if (!blendState.runCount[slice] || !blendState.argsBuffer) return false;
   if (filter && !transmissive) drawDisplayMask(rt, device, encoder, filter);
-  const share = readsAsIs(rt) ? gpu.asIsShare : undefined;
+  const share = activeAsIsShare(rt);
   // Diagnostic only: the counting variant opens an occlusion query around the pass.
   const overdraw = countsBlendOverdraw(rt.context?.diagnosticGpuVariant)
     ? (blendState.overdraw ??= createBlendOverdraw(device))
