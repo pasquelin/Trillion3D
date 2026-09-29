@@ -84,6 +84,7 @@ export async function openMeasuredWorld(
       ...runtime,
       capabilities: prepared.capabilities,
       preparationMs: performance.now() - preparationStart,
+      moveNamed: source?.moveNamed,
     });
     const invalidate = options.interactive
       ? startInteractiveExplorer(explorer, runtime, original, { emit, diagnose })

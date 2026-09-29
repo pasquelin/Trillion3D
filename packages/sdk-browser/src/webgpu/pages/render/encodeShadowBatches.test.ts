@@ -7,6 +7,7 @@ import { MAX_SHADOW_PAGES } from '../../../gpu/shadow/atlas.ts';
 import { MAX_SHADOW_BATCHES } from '../../../gpu/shadow/batchBudget.ts';
 import { SUN, VIEW } from '../../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { createWebgpuLightState } from '../state/lights.ts';
+import { createWebgpuTimingState } from '../state/timing.ts';
 import {
   encodeShadowBatches,
   forEachShadowBatch,
@@ -24,7 +25,13 @@ function frame(suns: number) {
   for (let k = 0; k < suns; k++)
     lights.store.add({ ...SUN, id: `sun${k}`, direction: [k / 10, -1, 0] });
   const pages = lights.plan.plan(lights.store, VIEW, [-50, 0, -50], [50, 10, 50], 1, 0);
-  const rt = { lights, run: { gpuFrameActive: false, frame: 1 }, vis: {}, gpu: {} };
+  const rt = {
+    lights,
+    run: { gpuFrameActive: false, frame: 1 },
+    vis: {},
+    gpu: {},
+    timing: createWebgpuTimingState(),
+  };
   return { rt: rt as unknown as WebgpuPagesRuntime, lights, pages };
 }
 

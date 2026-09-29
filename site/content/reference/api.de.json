@@ -260,6 +260,14 @@
       "onEvent": "Bei jedem Ereignis aufgerufen."
     }
   },
+  "BatchRead": {
+    "summary": "Wie `request` einen Stapel liest: sein Abbruch, seine Priorität und was beim Eintreffen jeder Seite läuft.",
+    "members": {
+      "signal": "Bricht die Lesevorgänge des Stapels ab.",
+      "priority": "Priorität in der Warteschlange, standardmäßig 1.",
+      "onPage": "Läuft, sobald jede Seite gelesen ist, nicht erst nach dem ganzen Stapel."
+    }
+  },
   "BatchOutcome": {
     "summary": "Wie eine Aufgabe des Stapels endete.",
     "members": {
@@ -4073,7 +4081,19 @@
       "evictedTiles": "Entfernte Texturkacheln.",
       "residentPages": "Was unmittelbar vor und unmittelbar nach der Einstellung resident war.",
       "residentTiles": "Gehaltene Texturkacheln, davor und danach.",
-      "durationMs": "Die benötigte Zeit."
+      "durationMs": "Die benötigte Zeit.",
+      "tables": "Die Tabellen je zeichenbarer Seite, vergrößert für ein Reservoir über ihnen (WebGPU), oder `null`, wenn keine vergrößert wurde.",
+      "transientBytes": "Bytes, die beim Kopieren des Geometrie-Reservoirs gleichzeitig gehalten werden: das alte Reservoir und das neue daneben, vom Gerät gemeinsam gewährt, bevor sich eine Seite bewegt; 0, wenn sich kein Reservoir bewegt hat."
+    }
+  },
+  "TableGrowthReport": {
+    "summary": "Das Wachstum der nach zeichenbaren Zeilen bemessenen Tabellen, wie es ein Pool darüber angefordert hat.",
+    "members": {
+      "drawSlots": "Sichtbarkeitszeilen, die die Tabellen jetzt enthalten.",
+      "casterSlots": "Zeilen, die der Schattendurchgang liest, nach den Sichtbarkeitszeilen.",
+      "bytes": "Bytes, die die gewachsenen GPU-Tabellen belegen – die angeforderten, wenn abgelehnt.",
+      "refused": "`true`, wenn das Gerät sie abgelehnt hat: Die bestehenden Tabellen und der Pool bleiben erhalten.",
+      "durationMs": "Millisekunden, die das Wachstum gedauert hat, von der Prüfung bis zum Tausch."
     }
   },
   "Mesh": {
@@ -4467,7 +4487,7 @@
     "description": "Die ersten sechs sind die Ablehnungen der Seitendekodierung, Wort für Wort aus `geometryPage.ts` übernommen: ein Aufrufer unterscheidet sie wie zuvor. `PAGE_DECODE_FAILED` trägt jede andere Ablehnung der Dekompressionsbibliothek. `PAGE_DECODE_CANCELLED` antwortet auf einen Abbruch, `PAGE_DECODE_WORKER` auf einen verschwundenen Ausführenden — nur letzterer erlaubt den Rückfall."
   },
   "PAGE_DECODE_PROTOCOL": {
-    "summary": "Vertrag zur Dekodierung von Seiten außerhalb des Hauptstrangs, Version 6: die dekodierte Geometrie reist in einem einzigen Block mit ihrem Quantisierungsfehler, und der Arena-Platz zeichnet diesen Fehler im Wort 8 auf; `cut` wandelt gezeichnete Dreiecke in Seiten um, die als Bytes mit ihren Deskriptoren zurückkommen, und seit Version 6 mit ihrem Normalenkegel, die gepackten Dreiecke tragen, ob ihre Seiten einen behalten.",
+    "summary": "Vertrag zur Dekodierung von Seiten außerhalb des Hauptstrangs, Version 6: die dekodierte Geometrie reist in einem einzigen Block mit ihrem Quantisierungsfehler; `cut` wandelt gezeichnete Dreiecke in Seiten um, die als Bytes mit ihren Deskriptoren zurückkommen, und seit Version 6 mit ihrem Normalenkegel, die gepackten Dreiecke tragen, ob ihre Seiten einen behalten.",
     "description": "Der aufrufende Strang sendet eine `PageDecodeRequest`, der Ausführende gibt eine `PageDecodeAnswer` mit derselben `id` zurück. Nichts hier berührt die Plattform: kein `Worker`, kein Abruf, keine Uhr — der Browser-Adapter trägt all das, diese Datei trägt nur die Form der Nachricht, die geschlossene Liste der Fehlschläge und die Grenze des Reservoirs. Eigentum der Puffer: `source` wird mit der Anfrage **übertragen**, sodass der Absender sie nicht mehr besitzt. Eine `verify`-Antwort gibt sie zurück, ihrerseits übertragen; eine `decode`-Antwort gibt stattdessen die dekodierten Puffer zurück, ebenfalls übertragen. Ein Ausführender, der nichts überträgt (der synchrone Rückfall), gibt genau dieselben Werte zurück: der Vertrag sagt nicht, wie die Arbeit reist, nur was sie zurückgibt."
   },
   "PAGE_INTEGRATION_FAILURES": {
@@ -4580,18 +4600,6 @@
       "op": "Was zu tun ist.",
       "source": "Mit der Nachricht übertragen: der Absender ist nicht mehr ihr Besitzer.",
       "maxDecodedBytes": "Obergrenze der dekodierten Bytes einer Geometrieseite; von `verify` ignoriert."
-    }
-  },
-  "PageDecodeShare": {
-    "summary": "Der gemeinsame Speicherpachtvertrag eines Workers: der Arena-Puffer, der Platz und die Region, die er besitzt, und die Anzahl der Plätze, die die Größe der Kontrollzone ergibt.",
-    "description": "Einmal gesendet, bei der Geburt des Workers, und nur dort, wo die Plattform gemeinsamen Speicher erlaubt. Ohne Pachtvertrag antwortet der Worker durch Übertragen von Puffern: der Vertrag ändert seine Form nicht, nur der Weg der Bytes ändert sich.",
-    "members": {
-      "protocol": "Version des Nachrichtenformats.",
-      "id": "Immer 0.",
-      "op": "Immer `'share'`.",
-      "buffer": "Der gemeinsame Speicher.",
-      "slot": "Der Platz dieses Workers.",
-      "slots": "Plätze insgesamt."
     }
   },
   "pageDecodeWorkerCount": {
@@ -5507,10 +5515,16 @@
       "tileLightPoolCapacity": "Wörter, die der Lichtindex-Pool in diesem abgetasteten Bild hielt; ebenso `null`.",
       "tileLightPoolOverflowed": "Ob eine Kachel in diesem abgetasteten Bild keinen Platz im Pool fand und jedes Licht durchlief.",
       "tileLightPoolGrowths": "Wie oft der Pool auf das wuchs, was ein überlaufendes Bild verlangte, seit der Explorer geöffnet wurde.",
-      "gpuShadowsMs": "GPU-Zeit der Schatten.",
+      "gpuShadowsMs": "GPU-Zeit der Schatten-Stufe, genau die Schattenpässe der Pass-Tabelle der Engine: der Schattenatlas, seine statische Ebene, das Löschen und der Pass der Transmissionsebene, das Aussortieren pro Seite, die Seitenpyramiden und der Verdeckungstest. Der Licht-Schnitt ist eine eigene Stufe (`shadowCasters`); kein Pass außerhalb der Schattenarbeit wird darin gezählt.",
       "gpuShadowCullMs": "GPU-Zeit für die Auswahl der Schattenwerfer der Schattenseiten, die ein Bild zeichnet: der Lichtschnitt, das Aussortieren pro Seite und der Verdeckungstest bewegter Werfer mit den Pyramiden, die er liest.",
       "gpuShadowRasterMs": "GPU-Zeit für das Zeichnen dieser Werfer in die Seiten: die statische Ebene, dann der Pool.",
       "gpuLightingMs": "GPU-Zeit der Beleuchtung.",
+      "cpuShadowPlanMs": "CPU-Zeit des Schattenplans des Bildes rund um den Planer: ein benannter Schritt des CPU-Profils (`cpuSteps()`, `cpu-timing`), wie die fünf folgenden. Jeder ist `null`, wenn das Bild ihn nicht ausgeführt hat — kein Licht, ein gehaltenes Bild — oder auf einer Engine, die ihn nicht messen kann (WebGL2), nie 0. Sie liegen innerhalb der Kodierzeit und werden ihr nie hinzugefügt.",
+      "cpuShadowRequestsMs": "CPU-Zeit für das Lesen des zurückgekommenen Schatten-Anforderungsberichts.",
+      "cpuShadowAdmissionMs": "CPU-Zeit für das Zulassen der veralteten Seiten, die das Bild liest.",
+      "cpuShadowBatchesMs": "CPU-Zeit der Schattenstapel rund um ihre Regionen und Pässe: Bereitstellung, Übernahmen, Kopie der Anforderungen.",
+      "cpuShadowRegionsMs": "CPU-Zeit für das Schreiben der Regionen jedes Schattenstapels: Flächen-Uniforms und Seitendatensätze.",
+      "cpuShadowPassesMs": "CPU-Zeit für das Kodieren der Pässe jedes Schattenstapels: Werfer, Löschen und Wiederherstellen, Zeichenaufrufe.",
       "shadowLightCuts": "Cluster-Schnitte der Lichter: einer pro gezeichneter Lichtansicht, null in einem ruhenden Bild.",
       "shadowPagesRequested": "Virtuelle Schattenseiten, die das Bild liest, wie die frühe Anforderung des Bildes sie nannte — ohne sie sein letzter Anforderungsbericht: was die Empfänger der Kamera markieren.",
       "shadowPagesCached": "Davon direkt aus dem Pool gelesene Seiten: aktuell, ohne Zeichnen.",
@@ -5529,6 +5543,7 @@
     "summary": "Die Schattenarbeit des Bildes: welche virtuellen Seiten gezeichnet werden.",
     "members": {
       "counts": "Was der letzte Plan getan hat, in Seiten.",
+      "spent": "CPU-Millisekunden, die der letzte Plan mit dem Lesen des Anforderungsberichts und dem Zulassen der Seiten verbracht hat.",
       "worldChanged": "Ein Knoten hat sich bewegt: seine Box macht beim nächsten Plan die Seiten ungültig, die sie bedeckt.",
       "representationChanged": "Dieselbe Welt mit anderer Genauigkeit: ihre Box wartet, bis die Kamera ruht.",
       "resting": "Die Kamera ruhte beim letzten Plan: ihre Ansicht war die des Plans davor.",
@@ -6837,10 +6852,16 @@
       "tileLightPoolCapacity": "Wörter, die der Lichtindex-Pool in diesem abgetasteten Bild hielt; ebenso `null`.",
       "tileLightPoolOverflowed": "Ob eine Kachel in diesem abgetasteten Bild keinen Platz im Pool fand und jedes Licht durchlief.",
       "tileLightPoolGrowths": "Wie oft der Pool auf das wuchs, was ein überlaufendes Bild verlangte, seit der Explorer geöffnet wurde.",
-      "gpuShadowsMs": "GPU-Zeit der Schatten.",
+      "gpuShadowsMs": "GPU-Zeit der Schatten-Stufe, genau die Schattenpässe der Pass-Tabelle der Engine: der Schattenatlas, seine statische Ebene, das Löschen und der Pass der Transmissionsebene, das Aussortieren pro Seite, die Seitenpyramiden und der Verdeckungstest. Der Licht-Schnitt ist eine eigene Stufe (`shadowCasters`); kein Pass außerhalb der Schattenarbeit wird darin gezählt.",
       "gpuShadowCullMs": "GPU-Zeit für die Auswahl der Schattenwerfer der Schattenseiten, die ein Bild zeichnet: der Lichtschnitt, das Aussortieren pro Seite und der Verdeckungstest bewegter Werfer mit den Pyramiden, die er liest.",
       "gpuShadowRasterMs": "GPU-Zeit für das Zeichnen dieser Werfer in die Seiten: die statische Ebene, dann der Pool.",
       "gpuLightingMs": "GPU-Zeit der Beleuchtung.",
+      "cpuShadowPlanMs": "CPU-Zeit des Schattenplans des Bildes rund um den Planer: ein benannter Schritt des CPU-Profils (`cpuSteps()`, `cpu-timing`), wie die fünf folgenden. Jeder ist `null`, wenn das Bild ihn nicht ausgeführt hat — kein Licht, ein gehaltenes Bild — oder auf einer Engine, die ihn nicht messen kann (WebGL2), nie 0. Sie liegen innerhalb der Kodierzeit und werden ihr nie hinzugefügt.",
+      "cpuShadowRequestsMs": "CPU-Zeit für das Lesen des zurückgekommenen Schatten-Anforderungsberichts.",
+      "cpuShadowAdmissionMs": "CPU-Zeit für das Zulassen der veralteten Seiten, die das Bild liest.",
+      "cpuShadowBatchesMs": "CPU-Zeit der Schattenstapel rund um ihre Regionen und Pässe: Bereitstellung, Übernahmen, Kopie der Anforderungen.",
+      "cpuShadowRegionsMs": "CPU-Zeit für das Schreiben der Regionen jedes Schattenstapels: Flächen-Uniforms und Seitendatensätze.",
+      "cpuShadowPassesMs": "CPU-Zeit für das Kodieren der Pässe jedes Schattenstapels: Werfer, Löschen und Wiederherstellen, Zeichenaufrufe.",
       "hizTestedClusters": "Was der Verdeckungstest bei einem Bild getan hat: die ihm gegebenen Cluster, die er eliminiert hat, und die, deren Bildschirmfußabdruck auf Stufe 0 den Sechzehn-Texel-Kernel überschreitet und daher aus einem gröberen Mip antworten. `hiz*Triangles` sind die Dreiecke derselben Cluster. Auf dem GPU-Pfad beschreiben sie ein ÄLTERES Bild als das, das sie rendert — `hizCountedFrame` sagt welches —, wie `gpuPassMs`, und zwei benachbarte Bilder tragen oft denselben Messwert. Keiner wird geschätzt: `null` für eine Engine, die keine Verdeckung testet, auf einem Gerät, dessen Urteile nicht zurückgelesen werden können, und solange kein Bild gezählt wurde.",
       "hizRejectedClusters": "Versteckte Cluster.",
       "hizOversizedClusters": "Zu große Cluster, um getestet zu werden.",

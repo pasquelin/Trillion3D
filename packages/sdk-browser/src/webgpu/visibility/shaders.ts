@@ -16,6 +16,11 @@ import {
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts';
 import { feedbackFreeEntry } from '../tile/feedbackAbWgsl.ts';
 
+/** Zeros for `drawSlots` rows, which the untested passes bind where the tested ones read verdicts;
+ *  made again when the table grows (`../pages/prepare/growTables.ts`). */
+export const zeroFlagsBuffer = (device: GPUDevice, drawSlots: number) =>
+  device.createBuffer({ size: Math.max(4, drawSlots * 4), usage: GPUBufferUsage.STORAGE });
+
 /** Allocates visibility uniforms and validates both shader modules before pipeline creation. */
 export async function createWebgpuVisibilityShaders(
   device: GPUDevice,
@@ -55,10 +60,7 @@ export async function createWebgpuVisibilityShaders(
   });
   // The untested passes bind zeros at the same row index the tested ones read, so the buffer spans
   // the row table; WebGPU hands back a zeroed buffer and nothing ever writes to this one.
-  const zeroFlags = device.createBuffer({
-    size: Math.max(4, drawSlots * 4),
-    usage: GPUBufferUsage.STORAGE,
-  });
+  const zeroFlags = zeroFlagsBuffer(device, drawSlots);
   const visUniform = device.createBuffer({
     label: 'Trillion3D visibility uniforms',
     size: uniformSlots * 256,

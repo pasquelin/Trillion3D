@@ -32,8 +32,8 @@ function blendedImage() {
       targetBytes: 100,
     },
   } as unknown as WebgpuPagesRuntime;
-  const { device: gpuDevice, textures } = fakeDevice();
-  return { rt, encoder, labels, gpuDevice, textures };
+  const { device: gpuDevice, textures, destroyed } = fakeDevice();
+  return { rt, encoder, labels, gpuDevice, textures, destroyed };
 }
 
 test('a blended scene with no debug view runs no share pass and makes no share target', () => {
@@ -99,4 +99,24 @@ test('a temporal image or particles alone seed the share, as the reactive value'
   rt.context.particles = [] as unknown as WebgpuPagesRuntime['context']['particles'];
   assert.ok(seedAsIsShare(rt, gpuDevice, encoder), 'particles alone');
   assert.equal(labels.length, 2);
+});
+
+// #1162: the share exists only while an image wants it; a debug view turned off mid-session
+// releases it and its cost, and one turned on again seeds a fresh share before anything reads it.
+test('a debug view turned off mid-session releases the share; turned on, a fresh one is seeded', () => {
+  const { rt, encoder, labels, gpuDevice, destroyed } = blendedImage();
+  rt.vis.asIsShown = true;
+  const first = seedAsIsShare(rt, gpuDevice, encoder);
+  assert.ok(first);
+  assert.equal(rt.gpu.targetBytes, 100 + 8 * 4 * 2);
+  rt.vis.asIsShown = false;
+  assert.equal(seedAsIsShare(rt, gpuDevice, encoder), undefined, 'nothing reads a stale share');
+  assert.equal(rt.gpu.asIsShare, undefined, 'released');
+  assert.equal(destroyed.length, 1, 'its texture destroyed');
+  assert.equal(rt.gpu.targetBytes, 100, 'its cost with it');
+  rt.vis.asIsShown = true;
+  const second = seedAsIsShare(rt, gpuDevice, encoder);
+  assert.ok(second && second !== first, 'a fresh share');
+  assert.equal(rt.gpu.targetBytes, 100 + 8 * 4 * 2);
+  assert.deepEqual(labels, ['Trillion3D as-is share seed', 'Trillion3D as-is share seed']);
 });
