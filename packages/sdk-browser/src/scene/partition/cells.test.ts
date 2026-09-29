@@ -4,37 +4,8 @@ import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { pose } from '../../host/prepared/nodes.ts';
 import { hostWorldChainInto } from '../../host/world/chain.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
-import type { PartitionCells } from './cells.ts';
-import { decodeHere, placed, world } from './cells.fixture.ts';
+import { decodeHere, everywhere, io, noBudget, opened, placed, world } from './cells.fixture.ts';
 
-type PartitionIo = Parameters<PartitionCells['frame']>[2];
-
-/** An io that holds every cell already read, records what it is asked and each time the reach
- *  outgrew the rows. */
-function io(bytes: (url: string) => Uint8Array) {
-  const asked: string[] = [],
-    updates: [PlacementRows, number, number][] = [];
-  const held = new Set<string>();
-  const outgrown = { count: 0 };
-  const port: PartitionIo = {
-    bytes: (url) => (held.has(url) ? bytes(url) : undefined),
-    decode: decodeHere,
-    loading: () => false,
-    request: (urls) => void asked.push(...urls),
-    update: (rows, from, to) => updates.push([rows, from, to]),
-    outgrown: () => void outgrown.count++,
-  };
-  return { port, asked, updates, held, outgrown };
-}
-
-/** A reach past both cells. */
-const everywhere = 1e5;
-/** Opens a session on `cells` for `reach` from far away, an owner to open it again unless
- *  `owned` is false: its rows are sized, no cell is read. */
-const opened = (cells: PartitionCells, reach: number, owned = true) =>
-  cells.prime([1e9, 0, 0], reach, () => Promise.reject(new Error('nothing is read')), owned);
-/** No arrival budget: what a test places never depends on the time the machine takes. */
-const noBudget = { admits: () => true, spend() {} };
 const row = (rows: PlacementRows, at: number) => [...rows.matrices.subarray(at * 16, at * 16 + 16)];
 
 test('the cells a camera needs are asked nearest first, then placed on rows once read', async () => {
@@ -169,51 +140,4 @@ test('rows that hold every cell never ask for a reopen: sized so, or with no own
     await placed(cells, [0, 0, 0], 1e7, port, noBudget);
     assert.deepEqual([cells.stats().held, cells.stats().waiting, outgrown.count], [2, 0, 0]);
   }
-});
-
-test('a frame says when a cell within reach is left for a later one, read or decoded', async () => {
-  const { cells, bytes } = world();
-  const { port, held } = io(bytes);
-  await opened(cells, everywhere);
-  const unread = cells.frame([0, 0, 0], 100, port, noBudget);
-  held.add('https://cache.test/key/near.json');
-  const decoding = cells.frame([0, 0, 0], 100, port, noBudget);
-  assert.equal(cells.stats().held, 0, 'nothing is placed before its decode lands');
-  await Promise.all(cells.decodes());
-  assert.deepEqual(
-    [unread, decoding, cells.frame([0, 0, 0], 100, port, noBudget)],
-    [true, true, false],
-  );
-});
-
-test('a cell file is never parsed by the frame: its bytes go to the decode, its rows are placed', async () => {
-  const { cells, bytes } = world();
-  const { port, held } = io(bytes);
-  const decoded: Uint8Array[] = [];
-  // The decode runs later, as the pool answers: whatever it parses is not the frame's.
-  port.decode = (read) => (decoded.push(read), Promise.resolve().then(() => decodeHere(read)));
-  await opened(cells, everywhere);
-  held.add('https://cache.test/key/near.json');
-  const parse = JSON.parse;
-  let parsed = 0;
-  const frame = () => {
-    JSON.parse = (...args: Parameters<typeof parse>) => (parsed++, parse(...args));
-    try {
-      cells.frame([0, 0, 0], 100, port, noBudget);
-    } finally {
-      JSON.parse = parse;
-    }
-  };
-  frame();
-  await Promise.all(cells.decodes());
-  frame();
-  assert.deepEqual([parsed, decoded.length, cells.stats().held], [0, 1, 1]);
-  // A file the decode refused is thrown by the frame that reads it, as before.
-  const { cells: refused } = world();
-  held.add('https://cache.test/key/far.json');
-  port.decode = () => Promise.reject(new Error('INVALID_SCENE_TABLES'));
-  await opened(refused, everywhere);
-  refused.frame([5000, 0, 0], 100, port, noBudget);
-  await Promise.all(refused.decodes());
-  assert.throws(() => refused.frame([5000, 0, 0], 100, port, noBudget), /INVALID_SCENE_TABLES/);
 });
