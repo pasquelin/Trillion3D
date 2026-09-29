@@ -1,12 +1,13 @@
 import {
   FRUSTUM_PLANE_VALUES,
+  axisAngleQuaternion,
+  composeMatrix4,
   frustumFarPlane,
   frustumPlanesFromMatrix,
   matrixAtRenderOrigin,
   multiplyMatrix4,
 } from '../../../../sdk-core/src/index.ts';
 import { PREFETCH_HORIZON_MS } from '../../backend/common.ts';
-import { sameElements } from '../../math/matrixElements.ts';
 import type { CameraMotion } from '../../camera/world.ts';
 import type { EngineCamera } from '../../camera/engineCamera.ts';
 
@@ -15,9 +16,13 @@ import type { EngineCamera } from '../../camera/engineCamera.ts';
  * evaluates to request the pages the camera will need before they are on screen (#488,
  * `../dag/shader/aheadWgsl.ts`).
  *
- * - `view` is the camera moved by its velocity over the horizon (`CameraMotion.horizonMs`, else the
- *   published `PREFETCH_HORIZON_MS`): the view whose screen error ranks and selects what is asked
- *   for. The velocity is the one smoothed for it (`CameraMotion.ahead`), the eye's otherwise.
+ * - `view` is the camera moved by its velocity and turned by its turn over the horizon
+ *   (`CameraMotion.horizonMs`, else the published `PREFETCH_HORIZON_MS`): the view whose screen
+ *   error ranks and selects what is asked for — a turning camera judges detail along the way it will
+ *   look, not at the edge of the way it looks now. The velocity is the one smoothed for it
+ *   (`CameraMotion.ahead`), the eye's otherwise. Neither extrapolates longer than it has held
+ *   (`CameraMotion.steadyMs`, `turnSteadyMs`): a one-frame jump — a cut — sends the view ahead no
+ *   further than the jump, and none once the camera is still.
  * - `planes` hold BOTH frusta, the current one and the one ahead, and the GUARD BAND the camera
  *   turns into meanwhile: each side plane is opened by the angle it turns over the horizon, then
  *   every plane is pushed out by the distance it travels towards it. Nothing is tuned: the horizon
@@ -29,7 +34,12 @@ export type AheadView = { planes: Float32Array; view: Float32Array };
 const projection = new Float64Array(16),
   clip = new Float64Array(16),
   planes = new Float64Array(FRUSTUM_PLANE_VALUES),
-  back = new Float64Array(3);
+  back = new Float64Array(3),
+  turned = new Float64Array(16),
+  rotation = new Float64Array(16),
+  quaternion = new Float64Array(4);
+const ORIGIN = [0, 0, 0],
+  UNIT = [1, 1, 1];
 
 /** A projection scale `cot(half field)` opened by `turn` radians; a field past the half turn takes
  *  zero, and its side planes keep only what is in front of the eye. */
@@ -42,11 +52,12 @@ function opened(scale: number, turn: number) {
  *  turns: its cut is then the one of before, bit for bit. */
 export function aheadViewOf(cam: EngineCamera, motion: CameraMotion, into?: AheadView | null) {
   const velocity = motion.ahead ?? motion.velocity,
-    horizon = (motion.horizonMs ?? PREFETCH_HORIZON_MS) / 1000,
-    turn = (motion.turn ?? 0) * horizon;
-  const dx = (velocity?.[0] ?? 0) * horizon,
-    dy = (velocity?.[1] ?? 0) * horizon,
-    dz = (velocity?.[2] ?? 0) * horizon;
+    horizonMs = motion.horizonMs ?? PREFETCH_HORIZON_MS,
+    moved = Math.min(horizonMs, motion.steadyMs ?? horizonMs) / 1000,
+    turn = (motion.turn ?? 0) * (Math.min(horizonMs, motion.turnSteadyMs ?? horizonMs) / 1000);
+  const dx = (velocity?.[0] ?? 0) * moved,
+    dy = (velocity?.[1] ?? 0) * moved,
+    dz = (velocity?.[2] ?? 0) * moved;
   if (!(dx || dy || dz || turn > 0)) return null;
   const out = into ?? {
     planes: new Float32Array(FRUSTUM_PLANE_VALUES),
@@ -66,19 +77,31 @@ export function aheadViewOf(cam: EngineCamera, motion: CameraMotion, into?: Ahea
     if (toward > 0) planes[i * 4 + 3] += toward;
   }
   out.planes.set(planes);
-  // The eye moved by `d` sees the world moved back by it.
+  // The eye turned by `q` about itself and moved by `d` sees the world through `view · q⁻¹ · T(-d)`.
+  turned.set(view);
+  if (turn > 0 && motion.axis) {
+    axisAngleQuaternion(quaternion, motion.axis, -turn);
+    composeMatrix4(rotation, ORIGIN, quaternion, UNIT);
+    multiplyMatrix4(turned, view, rotation);
+  }
   back[0] = -dx;
   back[1] = -dy;
   back[2] = -dz;
-  matrixAtRenderOrigin(out.view, view, back);
+  matrixAtRenderOrigin(out.view, turned, back);
   return out;
 }
 
-export function sameAheadView(a?: AheadView | null, b?: AheadView | null) {
-  if (!a || !b) return !a === !b;
-  if (!sameElements(a.view, b.view)) return false;
-  for (let i = 0; i < a.planes.length; i++) if (a.planes[i] !== b.planes[i]) return false;
-  return true;
+/** Views ahead a holder no longer carries, kept for its next move: a stop drops none. */
+const spare = new WeakMap<object, AheadView>();
+/** Writes `holder`'s view ahead in place — the one it holds, else the one it held before a stop. */
+export function holdAheadView(
+  holder: { ahead?: AheadView | null },
+  cam: EngineCamera,
+  motion?: CameraMotion,
+) {
+  const kept = holder.ahead ?? spare.get(holder);
+  holder.ahead = motion ? aheadViewOf(cam, motion, kept) : null;
+  if (kept) spare.set(holder, kept);
 }
 
 export const copyAheadView = (a?: AheadView | null): AheadView | null =>

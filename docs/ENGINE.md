@@ -117,7 +117,11 @@ before. Admission starts no page once it has held the main thread for the publis
 the arrival queue's budget), so a due frame waits on it no longer than the share and the page begun
 within it, and a hidden tab, where no frame comes, still loads.
 Fetching and decoding stay in workers. WebGL2 cuts by the same rule and holds pages by the same
-residency, without the GPU cut or its readback (#490, #839).
+residency, without the GPU cut or its readback (#490, #839). It draws the resident pages from one
+set of buffers per vertex layout (`webgl/cluster/pageArenas.ts`): the pages of one surface at one
+placement that follow one another in the draw order are one submission of
+their index ranges (`WEBGL_multi_draw`), read once a frame and replayed by every pass that draws
+them — the reflection capture's and the image's (`webgl/cluster/runs.ts`, #840).
 
 **Eviction queue.** A resident GPU cut also publishes, on the same readback, the order the cache
 gives slots back in (`gpu/dag/evict.ts`, `gpu/dag/shader/evictWgsl.ts`): the pool's keys, finer
@@ -418,13 +422,26 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   `sun-far-shadow` diagnostic publishes its bounds). The PCF taps each find their own page: a tap
   within a texel of a seam compares the four texels of its footprint in their own pages, weighted
   by hand — no seam, no guard band.
-- **Receivers mark the pages.** The opaque resolve records each page it reads — a bit per table
-  word, tested before the atomic, and a list — and the list comes back in one readback per image,
-  as the texture feedback does (`webgpu/shadow/pageRequests.ts`). A page asked for and unmapped is
-  allocated from the free list, or from the page least recently asked for, the finest first among
-  equals; a page the latest report named is never evicted, and coarse levels are served first.
-  Meanwhile the pixel reads the next coarser level. Blend and water surfaces read what the opaque
-  pixels asked for, and keep their early depth reject.
+- **Receivers mark the pages, in the frame, before the raster** (#1209). The world box of every
+  cluster the frame draws inside the camera's frustum (`webgpu/shadow/receivers.ts`) names the
+  pages its pixels read (`scene/light-shadow/demand.ts`): for each shadowed light, the levels
+  between the least and the most footprint over the box, and at each the pages the box — grown
+  by the normal offset and the PCF's reach — covers; a box whose levels span more than one is
+  halved until each part is about a page at its finest. That list is a request report of the
+  frame itself, read by the one scheduler before the shadow raster, so a page first needed this
+  frame is drawn before this frame samples it, and no scheduling waits on a readback. A page asked
+  for and unmapped is allocated from the free list, or from the page least recently asked for, the
+  finest first among equals; a page the latest demand named is never evicted, and coarse levels
+  are served first. Every lamp face's floor is named too, what a reader falls back to last. The
+  opaque resolve still records each page it reads — a bit per table word, tested before the atomic,
+  and a list — read back once per image (`webgpu/shadow/pageRequests.ts`): read before the demand,
+  as asked for in the current frame, it adds a frame late what no receiver box named — a surface
+  drawn before the GPU cut's readback adopts its cluster —, and it proves an image may hold,
+  neither it nor the demand allocating a page under the state it was stamped with. Without
+  receivers — a host that hands none — the report alone schedules, as of its own frame. The
+  footprint is taken at the drawn target's pixel and at the display's, which the blend pass reads
+  with; a sun point past its level's window reads the next level, named with it. Blend and water
+  surfaces read what the drawn clusters' boxes named, and keep their early depth reject.
 - **Every stale page the image reads is drawn, in the frame that marks it** (#489). There is no
   per-frame page cap and no millisecond budget; the list goes the coarsest first, each light's
   floor leading (#525), an order that matters only to a frame its memory guard stops. The cost is
@@ -471,7 +488,7 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   keep their content, only the pages entering are drawn, and nothing else is staled. A
   representation change
   stales them once the camera rests, and a threshold change only the pages drawn at another
-  threshold than the one at rest; both leave them read. A stale page no report names is withdrawn,
+  threshold than the one at rest; both leave them read. A stale page no demand names is withdrawn,
   since blend and water read without asking. A page never drawn is not read. A report that names more pages than the pool holds — the pool never
   holds more than a report lists (`shadowRequestCap`) — maps the coarsest, then by table entry — never in the GPU's append order —, and the rest read
   coarser:
@@ -1104,7 +1121,16 @@ make it `null`. A per-pass duration says where, never how much: on tile-based GP
 
 **CPU timing.** `cpu-timing` reports render duration, light updates, selection, residency and target
 management, encoding and submission; `transparentEncodeMs` is a subset of `encodeSubmitMs`, never
-added to it. CPU and GPU times are never added together.
+added to it. Six named steps split the shadow work inside the encode bounds, never added to them
+(#1207): planning — `shadowPlanMs` (the plan around the scheduler), `shadowRequestsMs` (reading the
+request report), `shadowAdmissionMs` (admitting pages) — and encoding — `shadowBatchesMs` (the
+batches around their regions and passes), `shadowRegionsMs`, `shadowPassesMs`. They are filed in
+the same profile row (`cpuSteps()`, `cpu-timing`) and published per frame as `cpuShadowPlanMs`,
+`cpuShadowRequestsMs`, `cpuShadowAdmissionMs`, `cpuShadowBatchesMs`, `cpuShadowRegionsMs` and
+`cpuShadowPassesMs`; a step the frame did not run, or WebGL2 cannot time, reads `null`, never 0.
+The Shadows stage's GPU time (`gpuShadowsMs`) spans exactly the shadow passes of the pass table
+(`stage/mapping.ts`, `SHADOW_STAGE_PASSES`); the light cut is its own stage (`shadowCasters`).
+CPU and GPU times are never added together.
 
 **Surface capture for global illumination.** `explorer.captureSurfaceView(pose, { width, height,
 signal })` returns an owned `SurfaceCapture` version 1 — the four material textures, depth, inverse

@@ -1,11 +1,8 @@
-import { visMaterial } from '../../visibility/shader/material.ts';
 import { surfaceOpacity } from '../../page/surface.ts';
 import { writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts';
-import { SURFACE_MODEL, readsOcclusion, shownAsIs } from '../../scene/surfaceModel.ts';
+import { SURFACE_MODEL, shownAsIs } from '../../scene/surfaceModel.ts';
 import { writeDepthRamp } from '../../camera/depthConvention.ts';
-import { importHostTexture } from '../../host/textureImport.ts';
 import type { HostShadedMaterial } from '../../host/shadedMaterial.ts';
-import type { ClusterDrawMesh } from '../../cluster/batchMesh.ts';
 import type { Side } from '../../../../sdk-core/src/index.ts';
 import type { WebglClusterTextures } from './textures.ts';
 import { drawnModeOf, type WebglClusterState } from './state.ts';
@@ -14,9 +11,9 @@ import { refuseCluster } from './refusal.ts';
 import type { Matrix3UniformCache } from './uniforms.ts';
 import type { WebglClusterMaterialUniforms } from './materialUniforms.ts';
 
-export type Material = Exclude<ClusterDrawMesh['material'], unknown[]>;
-const MAPS = ['map', 'roughnessMap', 'metalnessMap', 'normalMap', 'aoMap', 'emissiveMap'] as const;
-const MAP_UNIFORMS = ['baseUv', 'roughUv', 'metalUv', 'normalUv', 'aoUv', 'emissiveUv'];
+import { eachMap, MAP_UNIFORMS, type Material } from './materialMaps.ts';
+
+export type { Material };
 /** The frame's depth ramp: the fragment holds the view distance, so the perspective weights. */
 const ramp = new Float32Array(3);
 /** A surface's sprite words (`writeSpriteWords`), rewritten at every binding. */
@@ -57,16 +54,20 @@ export function bindClusterMaterial(
   polygonOffsetUnits?: number,
 ) {
   const { uniforms, matrices, textures, state, linear } = binding;
-  const source = material as { opacity: number },
-    mat = visMaterial(material);
-  // An unlit material keeps its occlusion map and strength on the host object alone: its map is
-  // imported here, as the boundary imports every other, into the engine record the binding reads.
-  // Only a plain colour one reads it; a matcap, normal or depth surface ignores it (`readsOcclusion`).
-  const basic = material as HostShadedMaterial,
-    aoMap =
-      mat.aoMap ??
-      (basic.aoMap && readsOcclusion(basic) ? importHostTexture(basic.aoMap) : undefined),
-    aoIntensity = mat.aoMap ? mat.aoIntensity : (basic.aoMapIntensity ?? 1);
+  const source = material as { opacity: number };
+  let mapMask = 0;
+  textures.file(material);
+  const { mat, aoMap, sharedMetalRough } = eachMap(
+    material,
+    (unit, map, texture, srgb, fallback, reader) => {
+      if (map) mapMask |= 1 << unit;
+      textures.bind(unit, texture, srgb, fallback, reader);
+      if (texture) matrices.set(MAP_UNIFORMS[unit], texture.transform);
+    },
+  );
+  const aoIntensity = mat.aoMap
+    ? mat.aoIntensity
+    : ((material as HostShadedMaterial).aoMapIntensity ?? 1);
   uniforms.f4(
     0,
     'baseFactor',
@@ -89,25 +90,6 @@ export function bindClusterMaterial(
   uniforms.i1(16, 'toneMapped', toneMapped && material.toneMapped && !shownAsIs(mat.model) ? 1 : 0);
   // An opaque surface writes alpha 1 whatever it was cut at; into the chain, alpha is coverage.
   uniforms.i1(47, 'covering', !material.transparent || (linear && coversLinear(material)) ? 1 : 0);
-  const sharedMetalRough =
-    !!mat.roughnessMap &&
-    mat.roughnessMap === mat.metalnessMap &&
-    mat.roughnessMap.channel === mat.metalnessMap.channel;
-  let mapMask = 0;
-  textures.file(material);
-  for (let unit = 0; unit < MAPS.length; unit++) {
-    const texture = MAPS[unit] === 'aoMap' ? aoMap : mat[MAPS[unit]];
-    if (texture) mapMask |= 1 << unit;
-    textures.bind(
-      unit,
-      sharedMetalRough && unit === 2 ? undefined : texture,
-      texture?.colorSpace === 'srgb',
-      unit === 3 ? [128, 128, 255, 255] : undefined,
-      MAPS[unit] === 'map' || MAPS[unit] === 'emissiveMap',
-    );
-    if (!texture || (sharedMetalRough && unit === 2)) continue;
-    matrices.set(MAP_UNIFORMS[unit], texture.transform);
-  }
   uniforms.i1(23, 'mapMask', mapMask);
   uniforms.i1(24, 'sharedMetalRough', sharedMetalRough ? 1 : 0);
   uniforms.i4(

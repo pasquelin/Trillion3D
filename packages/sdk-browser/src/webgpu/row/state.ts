@@ -90,6 +90,8 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number, 
     pagePositions,
     /** Declares rows `[from, to]` dirty — one row by default —; `clearDirty` once all are sent. */
     markRowDirty: dirtyRows.mark,
+    /** Declares rows dirty whose occupant is kept (a pose, a diagnostic word): `markWords`. */
+    markRowWords: dirtyRows.markWords,
     clearDirty: dirtyRows.clear,
     get dirtyMarks() {
       return dirtyRows.marks;
@@ -118,6 +120,10 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number, 
     },
     get dirtyTo() {
       return dirtyRows.span.to;
+    },
+    /** Row writes since the table was made (`rowsMoved`). */
+    get rowWrites() {
+      return dirtyRows.writes;
     },
     get candidateCount() {
       return candidateCount;

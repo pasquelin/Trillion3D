@@ -8,6 +8,10 @@ import { cpuStepTable } from '../../../stage/cpuSteps.ts';
  * image does before opening its own timer; the four after encode are sampled by the host, which
  * deposits them by name. `tilesPumpMs` is the streamer's pass: an image whose feedback named no
  * tile writes `NaN` there, which the profiler drops, so the stage stays unmeasured rather than zero.
+ * The six shadow bounds split the shadow work the encode bounds already hold: planning (the plan
+ * around the scheduler, reading the request report, admitting pages) and encoding (the batches
+ * around their regions and passes, each batch's regions, each batch's passes). They deposit on no
+ * stage, which would count them a second time, and an image that ran no shadow step files `NaN`.
  */
 const CPU = cpuStepTable([
   ['physicsMs', 'physics'],
@@ -34,9 +38,26 @@ const CPU = cpuStepTable([
   ['retainMs', 'hostPages'],
   ['submitMs', 'submit'],
   ['encodeSubmitMs', null],
+  ['shadowPlanMs', null],
+  ['shadowRequestsMs', null],
+  ['shadowAdmissionMs', null],
+  ['shadowBatchesMs', null],
+  ['shadowRegionsMs', null],
+  ['shadowPassesMs', null],
   ['totalMs', null],
 ] as const);
 export const CPU_STEP_NAMES = CPU.names;
 export const CPU_STEP = CPU.at;
 /** Stage of each bound, in profile-row order; `null` for a sum. */
 export const CPU_STEP_STAGES = CPU.stages;
+
+/** The shadow bounds, planning then encoding (`../../shadow/cpuSteps.ts`). */
+export const SHADOW_CPU_STEPS = [
+  'shadowPlanMs',
+  'shadowRequestsMs',
+  'shadowAdmissionMs',
+  'shadowBatchesMs',
+  'shadowRegionsMs',
+  'shadowPassesMs',
+] as const;
+export type ShadowCpuStep = (typeof SHADOW_CPU_STEPS)[number];

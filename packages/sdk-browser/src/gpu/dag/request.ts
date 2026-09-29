@@ -19,8 +19,10 @@
  * ties either.
  *
  * The RANK the GPU sorts by (`requestRank`, `shader/snapshotWgsl.ts`) puts every visible request
- * before every request ahead — the deadline of the first is now, of the second the horizon —, then
- * the larger error first. The host reads the requests in that order and ranks nothing.
+ * before every request ahead — the deadline of the first is now —, the larger error first. A request
+ * ahead ranks by its DEADLINE first — the share of the horizon before the camera needs it
+ * (`aheadDue.ts`), the sooner first — then by its error. The host reads the requests in that order
+ * and ranks nothing.
  */
 export const REQUEST_PAGE_BITS = 22;
 export const REQUEST_PAGE_MAX = 1 << REQUEST_PAGE_BITS;
@@ -28,21 +30,42 @@ export const REQUEST_PAGE_MAX = 1 << REQUEST_PAGE_BITS;
 export const REQUEST_PRIORITY_MAX = (1 << (32 - REQUEST_PAGE_BITS)) - 1;
 /** The priority bit of a request ahead of the camera: the field's top bit. */
 export const REQUEST_AHEAD = (REQUEST_PRIORITY_MAX + 1) >> 1;
-/** The highest error step of either tier. */
+/** The highest error step of the visible tier. */
 export const REQUEST_STEP_MAX = REQUEST_AHEAD - 1;
 /** Quantization step: sixteen steps per error doubling, as before the tier bit, over thirty-two
  *  doublings — four billion pixels, past any finite error a screen projects; the near plane
  *  reached is `Infinity`, the tier's highest step. */
 export const REQUEST_PRIORITY_SCALE = 16;
+/** A request ahead splits its nine bits: three for its deadline, eight steps of the horizon — about
+ *  two frames each at 60 Hz over the published 250 ms —, six for its error, two steps per doubling
+ *  over the same thirty-two doublings. */
+const REQUEST_DUE_STEPS = 8,
+  REQUEST_AHEAD_ERROR_BITS = 6,
+  REQUEST_AHEAD_SCALE = 2;
+const AHEAD_ERROR_MAX = (1 << REQUEST_AHEAD_ERROR_BITS) - 1;
 
-/** Priority of an error in pixels, monotone increasing and bounded within its tier. `Infinity`
- *  takes the tier's highest step: a cluster nothing replaces is what is missing most. */
-export function quantizeRequestPriority(pixels: number, ahead = false) {
-  const tier = ahead ? REQUEST_AHEAD : 0;
-  if (!(pixels > 0)) return tier;
-  if (!Number.isFinite(pixels)) return tier | REQUEST_STEP_MAX;
-  const pas = Math.round(Math.log2(1 + pixels) * REQUEST_PRIORITY_SCALE);
-  return tier | Math.min(REQUEST_STEP_MAX, Math.max(0, pas));
+/** Error step of `pixels` at `scale` steps per doubling, bounded by `max`; `Infinity` takes `max`. */
+function errorStep(pixels: number, scale: number, max: number) {
+  if (!(pixels > 0)) return 0;
+  if (!Number.isFinite(pixels)) return max;
+  return Math.min(max, Math.max(0, Math.round(Math.log2(1 + pixels) * scale)));
+}
+
+/** Priority of a visible request's error in pixels, monotone increasing and bounded in its tier.
+ *  `Infinity` takes the tier's highest step: a cluster nothing replaces is what is missing most. */
+export const quantizeRequestPriority = (pixels: number) =>
+  errorStep(pixels, REQUEST_PRIORITY_SCALE, REQUEST_STEP_MAX);
+
+/** Priority of a request ahead: needed `due` of the horizon from now (0 now, 1 at the horizon), the
+ *  sooner the higher, then its error. A deadline that reads as no number is the latest. */
+export function quantizeAheadPriority(pixels: number, due: number) {
+  const last = REQUEST_DUE_STEPS - 1,
+    late = due > 0 ? Math.min(last, Math.floor(due * REQUEST_DUE_STEPS)) : due <= 0 ? 0 : last;
+  return (
+    REQUEST_AHEAD |
+    ((last - late) << REQUEST_AHEAD_ERROR_BITS) |
+    errorStep(pixels, REQUEST_AHEAD_SCALE, AHEAD_ERROR_MAX)
+  );
 }
 /** The order a priority is served in, highest first: the visible tier above the tier ahead. */
 export const requestRank = (priority: number) => priority ^ REQUEST_AHEAD;
@@ -87,11 +110,16 @@ export function sortRequestWords(words: ArrayLike<number>) {
  */
 export const DAG_REQUEST_WGSL = `const PAGE_BITS:u32=${REQUEST_PAGE_BITS}u;
 const REQUEST_AHEAD:u32=${REQUEST_AHEAD}u;
-fn quantizePriority(pixels:f32)->u32{
+fn errorStep(pixels:f32,scale:f32,top:i32)->u32{
  if(!(pixels>0.0)){return 0u;}
- if(pixels>=INF){return ${REQUEST_STEP_MAX}u;}
- let pas=i32(round(log2(1.0+pixels)*${REQUEST_PRIORITY_SCALE}.0));
- return u32(clamp(pas,0,${REQUEST_STEP_MAX}));
+ if(pixels>=INF){return u32(top);}
+ return u32(clamp(i32(round(log2(1.0+pixels)*scale)),0,top));
+}
+fn quantizePriority(pixels:f32)->u32{return errorStep(pixels,${REQUEST_PRIORITY_SCALE}.0,${REQUEST_STEP_MAX});}
+/** \`quantizeAheadPriority\`: the deadline's step, the sooner the higher, then the error's. */
+fn aheadPriority(pixels:f32,due:f32)->u32{
+ let late=u32(clamp(floor(due*${REQUEST_DUE_STEPS}.0),0.0,${REQUEST_DUE_STEPS - 1}.0));
+ return REQUEST_AHEAD|((${REQUEST_DUE_STEPS - 1}u-late)<<${REQUEST_AHEAD_ERROR_BITS}u)|errorStep(pixels,${REQUEST_AHEAD_SCALE}.0,${AHEAD_ERROR_MAX});
 }
 fn packRequest(page:u32,priority:u32)->u32{return (priority<<PAGE_BITS)|page;}
 fn requestWordRank(word:u32)->u32{return (word>>PAGE_BITS)^REQUEST_AHEAD;}
