@@ -1,8 +1,8 @@
 //! The root cover of one compiled primitive, kept where its DAG and its positions are both in
 //! hand: further on, its clusters exist only as cache objects.
 use crate::dag::{DagCluster, DagStrategy};
+use crate::qem::compact_region;
 use serde_json::Value;
-use std::collections::HashMap;
 
 /// One root cluster of a primitive: its triangles in the cover's own vertices, the error it was
 /// published at, in object units, and the streaming bundle of the primitive that holds it.
@@ -31,30 +31,33 @@ impl RootCover {
         pages: &[Value],
         page_of: &[usize],
     ) -> Self {
-        let mut cover = Self::default();
         if strategy == DagStrategy::ExactClusters {
-            return cover;
+            return Self::default();
         }
-        let mut local: HashMap<u32, u32> = HashMap::new();
-        for (slot, cluster) in dag.iter().enumerate().filter(|(_, c)| c.is_root()) {
-            let mut indices = Vec::with_capacity(cluster.indices.len());
-            for &vertex in &cluster.indices {
-                let next = local.len() as u32;
-                let id = *local.entry(vertex).or_insert_with(|| {
-                    let at = vertex as usize * 3;
-                    cover.positions.extend_from_slice(&pos[at..at + 3]);
-                    next
-                });
-                indices.push(id);
-            }
-            let page = &pages[page_of[slot]];
-            let bundle = page["stream"].as_u64().unwrap_or(0) as usize;
-            cover.clusters.push(RootCluster {
-                indices,
+        let roots: Vec<(usize, &DagCluster)> = dag
+            .iter()
+            .enumerate()
+            .filter(|(_, c)| c.is_root())
+            .collect();
+        let joined: Vec<u32> = roots
+            .iter()
+            .flat_map(|(_, c)| c.indices.iter().copied())
+            .collect();
+        let (positions, mut local, _) = compact_region(pos, &joined);
+        let mut clusters = Vec::with_capacity(roots.len());
+        for &(slot, cluster) in roots.iter().rev() {
+            let at = local.len() - cluster.indices.len();
+            let bundle = pages[page_of[slot]]["stream"].as_u64().unwrap_or(0) as usize;
+            clusters.push(RootCluster {
+                indices: local.split_off(at),
                 error: cluster.lod_error,
                 bundle,
             });
         }
-        cover
+        clusters.reverse();
+        Self {
+            positions,
+            clusters,
+        }
     }
 }
