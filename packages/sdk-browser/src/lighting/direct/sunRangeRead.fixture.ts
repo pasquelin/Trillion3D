@@ -109,7 +109,7 @@ export function sunRecord(sun: Sun) {
 }
 
 /** The shader's module scope over one record: its constants and the shadow buffer. */
-export const recordScope = (record: object) => ({ ...CONSTANTS, shadows: { records: [record] } });
+const recordScope = (record: object) => ({ ...CONSTANTS, shadows: { records: [record] } });
 
 /** A readable page word: its physical page and the depth range slot it was drawn in. */
 export const pageWord = (physical: number, slot: number) =>
@@ -139,6 +139,49 @@ const NAMES = [
   'sunOrigin',
 ];
 
+/** What `sunRead` swaps per call — the record and page table read, the spies — so that each text
+ *  compiles once per footprint, a module-scope value the translated functions take as they start. */
+const live = {
+  records: [] as object[],
+  word: (_base: number, _page: number[]) => 0,
+  pcf: [] as unknown[][],
+  ranged: [] as number[][],
+  far: [] as unknown[][],
+};
+const liveScope = { ...CONSTANTS, shadows: live };
+const liveRange = shaderRun<Range>(SHADOW_WGSL, ['sunRangeReference'], liveScope).sunRangeReference;
+const compiled = new Map<string, Map<number, Factor['sunShadowFactor']>>();
+
+function factorOf(source: string, footprint: number) {
+  const bySource = compiled.get(source) ?? new Map<number, Factor['sunShadowFactor']>();
+  compiled.set(source, bySource);
+  let read = bySource.get(footprint);
+  if (!read) {
+    const scope = {
+      ...liveScope,
+      shadowFootprint: footprint,
+      ShadowMap: (base: number, ring: number, pages: number, ox: number, oy: number) => ({
+        base,
+        ring,
+        pages,
+        ox,
+        oy,
+      }),
+      shadowPageWord: (map: { base: number }, home: number[]) => live.word(map.base, home),
+      shadowPcf: (...args: unknown[]) => live.pcf.push(args) / 64,
+      sunRangeReference: (...args: [number, number, number]) => {
+        const reference = liveRange(...args);
+        live.ranged.push([...args, reference]);
+        return reference;
+      },
+      sunFarShadowFactor: (...args: unknown[]) => (live.far.push(args), 0.25),
+    };
+    read = shaderRun<Factor>(source, NAMES, scope).sunShadowFactor;
+    bySource.set(footprint, read);
+  }
+  return read;
+}
+
 /** `sunShadowFactor` of `source` over `record` and the page table `word`: what it hands the PCF,
  *  `sunRangeReference` (the shipped one, spied) and the far ray, and its answer. */
 export function sunRead(
@@ -147,29 +190,7 @@ export function sunRead(
   word: (base: number, page: number[]) => number,
   at: { P: Vec3; N: Vec3; footprint: number; taps: boolean },
 ) {
-  const pcf: unknown[][] = [],
-    ranged: number[][] = [],
-    far: unknown[][] = [],
-    shipped = rangeReference(record);
-  const scope = {
-    ...recordScope(record),
-    shadowFootprint: at.footprint,
-    ShadowMap: (base: number, ring: number, pages: number, ox: number, oy: number) => ({
-      base,
-      ring,
-      pages,
-      ox,
-      oy,
-    }),
-    shadowPageWord: (map: { base: number }, home: number[]) => word(map.base, home),
-    shadowPcf: (...args: unknown[]) => pcf.push(args) / 64,
-    sunRangeReference: (...args: [number, number, number]) => {
-      const reference = shipped(...args);
-      ranged.push([...args, reference]);
-      return reference;
-    },
-    sunFarShadowFactor: (...args: unknown[]) => (far.push(args), 0.25),
-  };
-  const read = shaderRun<Factor>(source, NAMES, scope).sunShadowFactor;
-  return { factor: read(0, at.P, at.N, at.taps), pcf, ranged, far };
+  Object.assign(live, { records: [record], word, pcf: [], ranged: [], far: [] });
+  const factor = factorOf(source, at.footprint)(0, at.P, at.N, at.taps);
+  return { factor, pcf: live.pcf, ranged: live.ranged, far: live.far };
 }

@@ -4,6 +4,7 @@
 // nearest texel — beside each edge and at the corner —, and without `taps` nothing is compared.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { clampNumber as clamp } from '../../../../sdk-core/src/world/math/spherical.ts';
 import { mulberry32 } from '../../../../../site/examples/kit/random.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { hash } from './shadowPages.fixture.ts';
@@ -15,7 +16,6 @@ type V = number[];
 type Pcf = (...args: [object, V, number, V, number, number, boolean]) => number;
 const { SHADOW_PAGE: PAGE, SHADOW_SUBTEXEL: SUBTEXEL, PCF_TAPS } = CONSTANTS;
 const TEXELS = 4096;
-const clamp = (x: number, low: number, high: number) => Math.min(Math.max(x, low), high);
 /** Where the pool placed page `p`, as `shadowOffset` answers: `xy` to add to a texel, the layer. */
 const placed = ([x, y]: V) => [
   Math.floor(hash(x * 7 + y * 131) * 32) * PAGE - x * PAGE,
@@ -28,31 +28,33 @@ const lit = (...args: unknown[]) =>
     Math.floor((args.flat(2) as number[]).reduce((sum, x, i) => sum + x * (i + 1.618), 0) * 4096),
   );
 
-/** The shipped `shadowPcf`, its page reads spied: `readable(p)` tells whether neighbour `p` is
- *  readable in the home page's range. */
-function pcfRun(readable: (p: V) => boolean) {
-  const calls = {
-    neighbour: [] as V[],
-    compare: [] as unknown[][],
-    sample: [] as unknown[][],
-    through: [] as unknown[][],
-  };
-  const scope = {
-    ...CONSTANTS,
-    POISSON: POISSON_16,
-    POISSON_STEPS: POISSON_16.map((tap) => tap.map((x) => x * SHADOW_SUBTEXELS)),
-    shadowOffset: (_: number, p: V) => placed(p),
-    shadowNeighbour: (_: object, p: V, home: V, __: number) => (
-      calls.neighbour.push(p),
-      readable(p) ? [...placed(p), 1] : [...home, 0]
-    ),
-    shadowCompare: (...args: unknown[]) => (calls.compare.push(args), lit(...args)),
-    shadowSample: (...args: unknown[]) => (calls.sample.push(args), lit(...args)),
-    shadowAtlasTexels: () => TEXELS,
-    shadowThroughLit: (...args: unknown[]) => (calls.through.push(args), (args[4] as number) * 0.5),
-  };
-  const { shadowPcf } = shaderRun<{ shadowPcf: Pcf }>(SHADOW_WGSL, ['shadowPcf'], scope);
-  return { shadowPcf, calls };
+type Calls = { neighbour: V[]; compare: unknown[][]; sample: unknown[][]; through: unknown[][] };
+const spy = (): Calls => ({ neighbour: [], compare: [], sample: [], through: [] });
+/** What a run reads and records: `readable(p)` tells whether neighbour `p` is readable in the
+ *  home page's range. Swapped per pixel; the shader text compiles once. */
+const live = { readable: (_: V) => false, calls: spy() };
+/** The shipped `shadowPcf`, its page reads spied. */
+const { shadowPcf } = shaderRun<{ shadowPcf: Pcf }>(SHADOW_WGSL, ['shadowPcf'], {
+  ...CONSTANTS,
+  POISSON: POISSON_16,
+  POISSON_STEPS: POISSON_16.map((tap) => tap.map((x) => x * SHADOW_SUBTEXELS)),
+  shadowOffset: (_: number, p: V) => placed(p),
+  shadowNeighbour: (_: object, p: V, home: V, __: number) => (
+    live.calls.neighbour.push(p),
+    live.readable(p) ? [...placed(p), 1] : [...home, 0]
+  ),
+  shadowCompare: (...args: unknown[]) => (live.calls.compare.push(args), lit(...args)),
+  shadowSample: (...args: unknown[]) => (live.calls.sample.push(args), lit(...args)),
+  shadowAtlasTexels: () => TEXELS,
+  shadowThroughLit: (...args: unknown[]) => (
+    live.calls.through.push(args),
+    (args[4] as number) * 0.5
+  ),
+});
+/** `shadowPcf` with neighbours `readable`: its answer and the calls it made. */
+function pcfRun(readable: (p: V) => boolean, ...args: Parameters<Pcf>) {
+  Object.assign(live, { readable, calls: spy() });
+  return { answer: shadowPcf(...args), calls: live.calls };
 }
 
 /** A texel coordinate in page `page`: near an edge, on one, or anywhere in it. */
@@ -136,23 +138,19 @@ test('shadowPcf compares every tap at its one reference, a neighbour across the 
       reference = r() * 1.2 - 0.1,
       seed = Math.floor(r() * 2 ** 31),
       readable = (p: V) => hash(seed ^ Math.imul(p[0], 7919) ^ Math.imul(p[1], 104729)) < 0.5;
-    const { shadowPcf, calls } = pcfRun(readable),
-      want = expected(t, home, side, reference, readable);
-    const answer = shadowPcf({}, t, reference, home, 0x80000000, side, true);
+    const want = expected(t, home, side, reference, readable),
+      { answer, calls } = pcfRun(readable, {}, t, reference, home, 0x80000000, side, true);
+    // Every argument, the one `reference` of each comparison and sample among them.
     assert.deepEqual(calls, want, `t ${t}, home ${home}, side ${side}`);
     assert.equal(answer, (want.through[0][4] as number) * 0.5);
-    for (const [, , ref] of calls.compare) assert.equal(ref, reference);
-    for (const [, , , ref] of calls.sample) assert.equal(ref, reference);
-    const kinds = calls.neighbour.map(
-      (p) => `${p[0] !== home[0]}${p[1] !== home[1]}${readable(p)}`,
-    );
-    for (const kind of kinds) seen.add(kind);
+    for (const p of calls.neighbour)
+      seen.add(`${p[0] !== home[0]}${p[1] !== home[1]}${readable(p)}`);
     if (!calls.neighbour.length) seen.add('inside');
     if (lamp && t.some((x) => x < 2 || x > side - 2)) seen.add('lamp edge');
 
     // Without taps: the same pages asked for, nothing compared, no light.
-    const dark = pcfRun(readable);
-    assert.equal(dark.shadowPcf({}, t, reference, home, 0x80000000, side, false), 0);
+    const dark = pcfRun(readable, {}, t, reference, home, 0x80000000, side, false);
+    assert.equal(dark.answer, 0);
     assert.deepEqual(dark.calls, {
       neighbour: want.neighbour,
       compare: [],
