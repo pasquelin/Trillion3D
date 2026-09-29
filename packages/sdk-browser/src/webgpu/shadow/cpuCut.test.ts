@@ -66,7 +66,13 @@ test('a light view with an empty caster list on the CPU cut encodes no draw for 
   const culled: number[][] = [],
     key = [{}, {}, {}, {}, {}, {}, undefined];
   Object.assign(lights, {
-    runs: { count: 2, list: [{ first: 0, count: 2 }, { first: 2, count: 1 }] },
+    runs: {
+      count: 2,
+      list: [
+        { first: 0, count: 2 },
+        { first: 2, count: 1 },
+      ],
+    },
     cpuCasters: { frame: 3, source: {}, indirect: {}, bases: [0, 0], lengths: [0, 5] },
     cull: { begin() {}, encode: (...a: number[]) => culled.push(a.slice(3)), kept: key[5] },
     spheres: { buffer: {} },
@@ -88,19 +94,28 @@ test('a light view with an empty caster list on the CPU cut encodes no draw for 
   Object.assign(rt.vis, { pageTable: key[3], textures: { color: { views: key[4] } } });
   Object.assign(rt.vis, { mapsSampler: {}, zeroFlags: {} });
   assert.ok(encodeShadowCasters(rt, {} as GPUCommandEncoder, 3, 0, 3, 0));
-  assert.deepEqual(culled, [[0, 2, 0], [2, 1, 5]], 'the cull itself as before');
+  assert.deepEqual(
+    culled,
+    [
+      [0, 2, 0],
+      [2, 1, 5],
+    ],
+    'the cull itself as before',
+  );
   assert.deepEqual([0, 1, 2].map(lights.regions.casterless), [true, true, false]);
   planPagePasses(lights.regions, 3);
   const calls: string[] = [];
   const pass = new Proxy({} as GPURenderPassEncoder, {
-    get: (_, name: string) => (...args: unknown[]) => void calls.push(`${name} ${args[1]}`),
+    get:
+      (_, name: string) =>
+      (...args: unknown[]) =>
+        void calls.push(`${name} ${args[1]}`),
   });
   assert.equal(drawRegionCasters(rt, {} as GPUDevice, pass, 0, false, 1, ['depth' as never]), 1);
-  assert.deepEqual(calls.filter((c) => c.startsWith('setBindGroup') || c.startsWith('draw')), [
-    'setBindGroup g2',
-    'setBindGroup faces',
-    `drawIndirect ${2 * SHADOW_REGION_INDIRECT_BYTES}`,
-  ]);
+  assert.deepEqual(
+    calls.filter((c) => c.startsWith('setBindGroup') || c.startsWith('draw')),
+    ['setBindGroup g2', 'setBindGroup faces', `drawIndirect ${2 * SHADOW_REGION_INDIRECT_BYTES}`],
+  );
   // The next batch's regions start drawable again.
   lights.regions.reset();
   lights.regions.push(0, DRAW_ALL, volumes, new Uint32Array(volumes.buffer));
