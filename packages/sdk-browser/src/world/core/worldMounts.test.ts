@@ -154,7 +154,7 @@ test('1 000 frames adding and removing a mesh and replacing a geometry never ope
     mostLive = Math.max(mostLive, blobs.live.size);
   }
   Object.assign(URL, { createObjectURL: blobs.made, revokeObjectURL: blobs.revoked });
-  // Over 400 geometries worn and replaced, the pages kept are those of the few still mounting.
+  // Over every geometry worn and replaced, the pages kept are those of the few still mounting.
   assert.ok(mostLive <= 12, `${mostLive} page blobs alive at most`);
   runtime.dispose();
   await new Promise(setImmediate);
