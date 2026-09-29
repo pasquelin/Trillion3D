@@ -74,7 +74,7 @@ fn traceProxy(origin:vec3f,direction:vec3f,limit:f32)->ProxyHit{
     for(var k=0u;k<LEAF_TRIANGLES;k++){
      if(k>=child.count){break;}
      let index=child.offset+k;
-     let owners=proxyOwners(index);
+     let owners=proxyOwners(index,child.owned);
      for(var owner=owners.x;owner<owners.y;owner++){
       let distance=triangleHit(index,owner,origin,direction,best.distance);
       if(distance<best.distance){best=ProxyHit(distance,index,owner,true);}
@@ -115,7 +115,7 @@ fn proxyBlocked(origin:vec3f,direction:vec3f,limit:f32)->bool{
      for(var k=0u;k<LEAF_TRIANGLES;k++){
       if(k>=child.count){break;}
       let index=child.offset+k;
-      let owners=proxyOwners(index);
+      let owners=proxyOwners(index,child.owned);
       for(var owner=owners.x;owner<owners.y;owner++){
        if(triangleHit(index,owner,origin,direction,limit)<limit){return true;}
       }
