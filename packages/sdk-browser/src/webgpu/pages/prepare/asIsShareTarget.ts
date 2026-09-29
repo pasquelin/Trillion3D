@@ -1,18 +1,15 @@
 import { AS_IS_SHARE_BYTES, createAsIsShare } from '../../../lighting/deferred/asIsShare.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { readsAsIs } from './lightResources.ts';
-
-/** Whether this image draws particles: each writes its coverage as the reactive value (#833). */
-const drawsParticles = ({ context, run }: WebgpuPagesRuntime) =>
-  !!context.particles && run.diagnostic === 'beauty';
+import { drawsParticles } from '../../../particles/webgpuParticles.ts';
 
 /** Whether the transparents write the share: a blended image that can show a debug view (#365),
  *  or whose temporal pass reads their coverage as the reactive value (#833). */
 export const blendWritesShare = (rt: WebgpuPagesRuntime) =>
   rt.blendState.blendGpu.length > 0 && (readsAsIs(rt) || !!rt.gpu.temporalWanted);
 
-/** Whether the image has a share target: its transparents or its particles write it. Any other
- *  scene draws, and allocates, exactly what it did before the share (#365). */
+/** Whether the image has a share target: its transparents or its particles (their coverage as the
+ *  reactive value, #833) write it. Any other scene draws and allocates what it did before (#365). */
 export const wantsAsIsShare = (rt: WebgpuPagesRuntime) =>
   blendWritesShare(rt) || drawsParticles(rt);
 
