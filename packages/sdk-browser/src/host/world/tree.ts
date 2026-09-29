@@ -4,13 +4,13 @@ import {
   MATRIX_VALUES,
   POSITION_VALUES,
   QUATERNION_VALUES,
-  addTransformNode,
-  createTransformTree,
   updateNodeMatrixWorld,
   type TransformTree,
 } from '../../../../sdk-core/src/index.ts';
 import { visitSubtree } from '../../../../sdk-core/src/math/transform-tree/structure.ts';
 import { chainPosed, heldParentWorld, pushHostPose } from './pose.ts';
+import { collect, relinkHostTree, socle } from './treeLinks.ts';
+import { objectEdits } from '../../../../sdk-core/src/scene/core/nodeEdits.ts';
 import { createHierarchyLot, type HierarchyLot } from '../../math/batchHierarchy.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
@@ -76,34 +76,12 @@ export async function hostWorldLot(source: Object3D) {
   return n ? await createHierarchyLot(n) : null;
 }
 
-/** Nodes ranked parents before children, and each one's parent index (`-1` for the root). */
-function collect(source: Object3D) {
-  const nodes: Object3D[] = [];
-  for (let walk = source.parent; walk; walk = walk.parent) nodes.push(walk);
-  nodes.reverse();
-  // The reference's `traverse` is a prefix walk: a parent is always seen before its children.
-  source.traverse((object) => nodes.push(object));
-  const index = new Map<Object3D, number>();
-  for (let rank = 0; rank < nodes.length; rank++) index.set(nodes[rank], rank);
-  const parents = new Int32Array(nodes.length);
-  for (let rank = 0; rank < nodes.length; rank++) {
-    const parent = nodes[rank].parent;
-    parents[rank] = parent ? (index.get(parent) ?? -1) : -1;
-  }
-  return { nodes, index, parents };
-}
-
-/** Engine tree mirroring the host structure: one node per host node, at the same rank. */
-function socle(nodes: readonly Object3D[], parents: Int32Array) {
-  const tree = createTransformTree(Math.max(1, nodes.length));
-  for (let rank = 0; rank < nodes.length; rank++) addTransformNode(tree, parents[rank]);
-  return tree;
-}
-
-/** Host poses pushed where they moved, then the world pass over what that marked. */
-function parArbre(nodes: readonly Object3D[], tree: TransformTree) {
+/** Host poses pushed where they moved, then the world pass over what that marked, from each root:
+ *  the first rank, and any node a host reparent left under no indexed node (`treeLinks.ts`). */
+function parArbre(nodes: readonly Object3D[], parents: Int32Array, tree: TransformTree) {
   for (let rank = 0; rank < nodes.length; rank++) pushHostPose(tree, rank, nodes[rank]);
-  updateNodeMatrixWorld(tree, 0);
+  for (let rank = 0; rank < nodes.length; rank++)
+    if (parents[rank] < 0) updateNodeMatrixWorld(tree, rank);
 }
 
 /** Local poses written into the arena buffers, then the lot run by the governor. */
@@ -143,7 +121,8 @@ function composent(nodes: readonly Object3D[]) {
  */
 export function hostWorldTree(source: Object3D, lot?: HierarchyLot | null): HostWorldTree {
   const { nodes, index, parents } = collect(source);
-  const enLot = lot?.holds(nodes.length) ? lot : null;
+  let enLot = lot?.holds(nodes.length) ? lot : null,
+    edits = objectEdits();
   let tree: TransformTree | null = null,
     batched = false,
     porteur: ArrayBufferLike | null = null,
@@ -160,6 +139,14 @@ export function hostWorldTree(source: Object3D, lot?: HierarchyLot | null): Host
   };
   const arbre = () => (tree ??= socle(nodes, parents));
   const push = (into: TransformTree, rank: number) => void pushHostPose(into, rank, nodes[rank]);
+  /** True when a node was renamed or reparented since the links were read: they are read again
+   *  (`treeLinks.ts`), and the caller passes the index whole. */
+  const relinked = () => {
+    if (edits === objectEdits()) return false;
+    edits = objectEdits();
+    if (!relinkHostTree(tree, nodes, index, parents)) enLot = null;
+    return true;
+  };
   const self: HostWorldTree = {
     n: nodes.length,
     get batched() {
@@ -174,25 +161,28 @@ export function hostWorldTree(source: Object3D, lot?: HierarchyLot | null): Host
       return batched && enLot ? vuesDuLot(enLot.world)[rank] : arbre().worldViews[rank];
     },
     refresh() {
+      relinked();
       if (!nodes.length) return;
       batched = enLot !== null && composent(nodes);
       if (batched && enLot) parLot(nodes, parents, enLot);
-      else parArbre(nodes, arbre());
+      else parArbre(nodes, parents, arbre());
     },
     refreshFrom(node) {
       const rank = index.get(node);
       // A lot pass is all or nothing, and a node outside the index has no subtree here.
-      if (rank === undefined || enLot) return self.refresh();
+      if (rank === undefined || enLot || relinked()) return self.refresh();
       const at = arbre();
       // An ancestor posed since the last pass moves the subtree from above: whole pass then.
       if (chainPosed(at, nodes, parents, parents[rank])) return self.refresh();
       visitSubtree(at, rank, push);
       updateNodeMatrixWorld(at, rank);
     },
-    parentWorld: (node) =>
-      enLot || !node.parent
+    parentWorld(node) {
+      if (relinked()) self.refresh();
+      return enLot || !node.parent
         ? null
-        : heldParentWorld(arbre(), nodes, parents, index.get(node.parent), self.refresh),
+        : heldParentWorld(arbre(), nodes, parents, index.get(node.parent), self.refresh);
+    },
   };
   self.refresh();
   return self;

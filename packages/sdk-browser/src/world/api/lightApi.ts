@@ -18,6 +18,8 @@ type Inputs = {
   /** Identifiers of the lights that came from the source file, in cache order. */
   imported: readonly string[];
   backends: RenderBackend[];
+  /** A world's own move by name (`ExplorerSource.moveNamed`), taken before any engine's. */
+  moveNamed?: (nodeName: string, matrix: Float32Array) => void;
   /** Active engine: it is its lighting capability that is published, not the session's. */
   active: () => RenderBackend;
   onDiagnostic?: (diagnostic: BackendDiagnostic) => void;
@@ -145,6 +147,7 @@ export function createExplorerLightApi(inputs: Inputs) {
     },
     setTransform(nodeName: string, matrix: Float32Array) {
       check();
+      if (inputs.moveNamed) return inputs.moveNamed(nodeName, matrix);
       let applied = 0;
       for (const backend of backends)
         if (backend.setTransform) {
