@@ -12,7 +12,7 @@ import { createSunLevels } from './sunLevels.ts';
 import { createShadowRecords } from './records.ts';
 import { createShadowRequests, type ShadowRequestReport } from './requests.ts';
 import { createShadowThresholds } from './thresholds.ts';
-import { sunCoarseness } from './virtual.ts';
+import { rerankSunPages } from './sunRerank.ts';
 
 /** The frame's shadow work: which virtual pages are drawn. */
 export type ShadowPlan = ReturnType<typeof createShadowPlan>;
@@ -38,7 +38,8 @@ export function createShadowPlan(poolSide: number, layers = 1) {
     invalidate = createPageInvalidation(pool, table, sun, changes, counts),
     admission = createShadowAdmission(pool.pages),
     thresholds = createShadowThresholds(pool),
-    posed = new Int32Array(records.taken.length);
+    posed = new Int32Array(records.taken.length),
+    spent = { requestsMs: NaN, admissionMs: NaN };
   let byPage = true,
     report: ShadowRequestReport | null = null,
     resting = false,
@@ -58,6 +59,8 @@ export function createShadowPlan(poolSide: number, layers = 1) {
     requests,
     /** What the last plan did, in pages. */
     counts,
+    /** CPU milliseconds the last plan spent reading the request report and admitting pages. */
+    spent,
     /** This frame's pages, the coarsest first, light view by light view. */
     admission,
     /** A node has moved: its box stales the pages it covers at the next plan. */
@@ -130,15 +133,7 @@ export function createShadowPlan(poolSide: number, layers = 1) {
         if (rank === LIGHT_KIND.directional) {
           if (sun.update(slice, lightDirection(light), view, sceneMin, sceneMax, frame))
             whole = true;
-          // A page its level keeps is ranked again: a change of the finest level moves every
-          // level's coarseness, and a view keeps one rank (`admit.ts`).
-          for (let page = 0; page < pool.pages; page++) {
-            if (pool.owner[page] < 0 || pool.slice[page] !== slice) continue;
-            if (!sun.movedLevel(slice, pool.view[page])) continue;
-            if (!sun.holds(slice, pool.view[page], pool.x[page], pool.y[page]))
-              pool.release(table, page);
-            else pool.rank[page] = sunCoarseness(pool.view[page], sun.finest[slice]);
-          }
+          rerankSunPages(pool, table, sun, slice);
         }
         invalidate(light, slice, whole, byPage, nowMs, frame);
         if (whole) posed[slice] = frame;
@@ -147,6 +142,7 @@ export function createShadowPlan(poolSide: number, layers = 1) {
       if (still) counts.staled(STALE_BY.threshold, thresholds.restale(nowMs, frame));
       // Nothing moves: the pages of an older depth range are drawn in the current one.
       if (quiet) counts.staled(STALE_BY.range, sun.ranges.restale(pool, nowMs, frame));
+      const readStart = performance.now();
       if (report) {
         const before = stampOf(store),
           read = report;
@@ -154,6 +150,8 @@ export function createShadowPlan(poolSide: number, layers = 1) {
         requests.consume(read, nowMs, frame);
         if (read.stamp === before && requests.complete) settledStamp = stampOf(store);
       }
+      const admitStart = performance.now();
+      spent.requestsMs = admitStart - readStart;
       requests.floors(posed, view, nowMs, frame);
       const count = admission.run(pool, table, requests.latest, frame, records.isFloor);
       for (let i = 0; i < count; i++) {
@@ -162,6 +160,7 @@ export function createShadowPlan(poolSide: number, layers = 1) {
       }
       // What the pool cannot hold waits for nothing: it is published, never pending.
       counts.endFrame(pool, records, requests.latest, nowMs, frame);
+      spent.admissionMs = performance.now() - admitStart;
       return count;
     },
     /** Pages `[from, to)` of the frame's list were encoded, page `from + i` in `modes[i]`: their
