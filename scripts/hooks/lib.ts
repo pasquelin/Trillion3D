@@ -33,9 +33,9 @@ export function runLocalHook(name: string, args: string[], input?: string): void
   const stdin = input === undefined ? 'inherit' : 'pipe';
   const options: SpawnSyncOptions = { input, stdio: [stdin, 'inherit', 'inherit'] };
   let run = spawnSync(hook, args, options);
-  // A script without a shebang runs under sh, as a shell and git itself run it.
-  if ((run.error as NodeJS.ErrnoException | undefined)?.code === 'ENOEXEC')
-    run = spawnSync('sh', [hook, ...args], options);
+  // A hook the system cannot start by itself (no shebang, or a script on Windows) is started by
+  // sh, as the former shell hooks did: sh reads its shebang, or runs it as a shell script.
+  if (run.error) run = spawnSync('sh', ['-c', '"$0" "$@"', hook, ...args], options);
   if (run.error) throw run.error;
   if (run.status !== 0) process.exit(run.status ?? 1);
 }
