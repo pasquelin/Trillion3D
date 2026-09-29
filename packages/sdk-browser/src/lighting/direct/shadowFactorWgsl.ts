@@ -4,8 +4,8 @@ import {
   LAMP_MIPS,
   LAMP_SIDE,
   SUN_LEVELS,
-  SUN_LEVEL_ENTRIES,
   SUN_WINDOW,
+  sunLevelEntries,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 
 /** A map's depth is float32 in [0, 1]: its epsilon, 2⁻²³, rounds the stored depth and again the
@@ -35,11 +35,14 @@ export const SHADOW_DEPTH_ROUNDING = 2 * 2 ** -23;
  * its shadow. The depth format's rounding is added to the reference (`SHADOW_DEPTH_ROUNDING`).
  * A point light reads the face its offset point lies in, so that point always projects inside
  * that face.
+ *
+ * The window is the session's, baked here and in the shader's table stride: an ordinary session
+ * keeps `SUN_WINDOW`, a reference one raises it (`referenceMode.ts`).
  */
-export const SHADOW_FACTOR_WGSL = `
+export const shadowFactorWgsl = (pages = SUN_WINDOW) => `
 const SUN_LEVEL_COUNT:i32=${SUN_LEVELS};
-const SUN_LEVEL_WORDS:u32=${SUN_LEVEL_ENTRIES}u;
-const SUN_WINDOW_PAGES:i32=${SUN_WINDOW};
+const SUN_LEVEL_WORDS:u32=${sunLevelEntries(pages)}u;
+const SUN_WINDOW_PAGES:i32=${pages};
 const LAMP_PAGE_COUNT:u32=${LAMP_SIDE}u;
 const LAMP_MIP_COUNT:u32=${LAMP_MIPS}u;
 const LAMP_FACE_WORDS:u32=${LAMP_FACE_ENTRIES}u;
@@ -157,3 +160,6 @@ fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f,taps:bool)->
  if(isSun(light)){return sunShadowFactor(index,P,N,taps);}
  return lampShadowFactor(index,light,P,N,L,taps);
 }`;
+
+/** The shadow read of the ordinary window: what a session without reference mode compiles. */
+export const SHADOW_FACTOR_WGSL = shadowFactorWgsl();

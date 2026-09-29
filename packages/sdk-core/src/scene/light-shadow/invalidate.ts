@@ -6,7 +6,7 @@ import { createPageRects } from './pageRects.ts';
 import { STALE_DYNAMIC, STALE_FULL, type ShadowPool } from './pool.ts';
 import type { ShadowTable } from './table.ts';
 import type { SunLevels } from './sunLevels.ts';
-import { LAMP_MIPS, PAGE_INDEX_MASK, PAGE_MAPPED, SUN_LEVELS, SUN_WINDOW } from './virtual.ts';
+import { LAMP_MIPS, PAGE_INDEX_MASK, PAGE_MAPPED, SUN_LEVELS } from './virtual.ts';
 import { lampEntry, lampFacesOf, ringOf, sunEntry, tableEntriesOf } from './virtual.ts';
 
 type Changes = ReturnType<typeof createShadowChanges>;
@@ -110,11 +110,11 @@ export function createPageInvalidation(
         const row =
           base +
           (sunLight
-            ? sunEntry(finest + view, 0, y)
+            ? sunEntry(finest + view, 0, y, sun.window)
             : lampEntry(Math.floor(view / LAMP_MIPS), view % LAMP_MIPS, 0, y));
         for (let x = rects[r]; x <= rects[r + 1]; x++) {
           counts.visitedPages++;
-          const word = table.words[row + (sunLight ? ringOf(x, SUN_WINDOW) : x)];
+          const word = table.words[row + (sunLight ? ringOf(x, sun.window) : x)];
           if (word & PAGE_MAPPED) mark(word & PAGE_INDEX_MASK, level, wrong, reason);
         }
       }
@@ -148,7 +148,7 @@ export function createPageInvalidation(
     if (!sunLight && byPage && changes.count) lampFaces(light);
     // Per page: each box exactly, within the light's virtual pages, then the rest unions. Off: one
     // scan at the strongest level, withdrawing when any box is wrong.
-    let budget = tableEntriesOf(rank),
+    let budget = tableEntriesOf(rank, sun.window),
       level = 0,
       wrong = false;
     boxEmpty(restWrong, 0);

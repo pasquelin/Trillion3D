@@ -7,9 +7,10 @@ import {
   PAGE_VALID,
   SHADOW_PAGE,
   SUN_LEVELS,
+  SUN_WINDOW,
   lampMipOffset,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { SHADOW_FACTOR_WGSL } from './shadowFactorWgsl.ts';
+import { shadowFactorWgsl } from './shadowFactorWgsl.ts';
 import { shadowRequestWgsl } from './shadowRequestWgsl.ts';
 import { SHADOW_SAMPLE_WGSL, SHADOW_SUBTEXELS } from './shadowSampleWgsl.ts';
 import { shadowThroughWgsl } from '../../gpu/shadow/transmittance.ts';
@@ -71,10 +72,11 @@ export const directShadowWgsl = (
   dataBinding: number,
   requestBinding: number | null,
   transmittanceBinding: number,
+  pages = SUN_WINDOW,
 ) => `
 ${SHADOW_DATA_WGSL}
 @group(0) @binding(${dataBinding}) var<storage,read> shadows:ShadowData;
-${shadowRequestWgsl(requestBinding)}
+${shadowRequestWgsl(requestBinding, pages)}
 const PCF_TAPS:u32=${LIGHT_SETTINGS.pcfTaps}u;
 const SHADOW_NORMAL_TEXELS:f32=${LIGHT_SETTINGS.shadowNormalOffsetTexels};
 const SHADOW_PCF_REACH:f32=${PCF_REACH};
@@ -151,6 +153,6 @@ fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32,
   if(all(edge)){sum+=(1.0-w.x)*(1.0-w.y)*shadowCompare(nd.xyz,select(h,n,nd.w>0.0),reference);}
   lit+=sum;
  }
- return shadowThroughLit(offset,first,t,reference,lit/f32(PCF_TAPS));
+  return shadowThroughLit(offset,first,t,reference,lit/f32(PCF_TAPS));
 }
-${SHADOW_FACTOR_WGSL}`;
+${shadowFactorWgsl(pages)}`;

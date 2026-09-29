@@ -92,6 +92,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     maxTextureUploadMsPerFrame: options.maxTextureUploadMsPerFrame,
     temporalAntialiasing: options.temporalAntialiasing ?? true,
     renderScale: options.renderScale,
+    reference: options.reference === true,
     effects: options.effects,
     geometryPoolBytes: options.geometryPoolBytes,
     geometryPoolCeilingBytes: options.geometryPoolCeilingBytes,

@@ -21,11 +21,13 @@ export { MAX_SHADOW_PAGES, MAX_SHADOW_REGIONS } from './recordPack.ts';
 export const SHADOW_PASS = 'Trillion3D shadow atlas v1';
 /** Bytes of the records, before the page table in the same buffer. */
 const RECORD_BYTES = MAX_SHADOW_SLICES * SHADOW_RECORD_FLOATS * 4;
-/** Bytes of the records then the page table, one buffer. */
-const DATA_BYTES = RECORD_BYTES + SHADOW_TABLE_ENTRIES * 4;
+/** Bytes of the records then the page table, one buffer; the table sized to the session's window. */
+const dataBytesOf = (tableEntries: number) => RECORD_BYTES + tableEntries * 4;
 /** Bytes of the buffers beside the pool — the faces, the records and page table: fixed by the
- *  light contract, the same on every screen, so the memory budget counts them. */
-export const SHADOW_BUFFER_BYTES = MAX_SHADOW_REGIONS * (FACE_STRIDE + 4) + DATA_BYTES;
+ *  light contract, the same on every screen, so the memory budget counts them. The ordinary
+ *  window; a reference session raises the table (`referenceMode.ts`). */
+export const SHADOW_BUFFER_BYTES =
+  MAX_SHADOW_REGIONS * (FACE_STRIDE + 4) + dataBytesOf(SHADOW_TABLE_ENTRIES);
 /** Bytes of a pool of `layers` of `poolSide` pages a side: one 32-bit depth texel each. */
 export const shadowAtlasBytes = (poolSide: number, layers = 1) =>
   (poolSide * SHADOW_PAGE) ** 2 * 4 * layers;
@@ -42,7 +44,13 @@ export type GpuShadowAtlas = Awaited<ReturnType<typeof createGpuShadowAtlas>>;
  * (`shadowPoolSize`), which the world may not know when it prepares — until then no page exists
  * and the shading reads the placeholder.
  */
-export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBindGroupLayout) {
+export async function createGpuShadowAtlas(
+  device: GPUDevice,
+  pageLayout: GPUBindGroupLayout,
+  tableEntries = SHADOW_TABLE_ENTRIES,
+) {
+  const dataBytes = dataBytesOf(tableEntries),
+    fixedBytes = MAX_SHADOW_REGIONS * (FACE_STRIDE + 4) + dataBytes;
   let texture: GPUTexture | undefined,
     transmittance: ShadowTransmittance | undefined,
     cleared = false;
@@ -55,7 +63,7 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
   });
   const dataBuffer = device.createBuffer({
     label: 'Trillion3D shadow records and page table v1',
-    size: DATA_BYTES,
+    size: dataBytes,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
   const pack = createShadowRecordPack(FACE_STRIDE, 1),
@@ -110,7 +118,7 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       cutoutRequests: faces.requests,
       faceUniform,
       faceStride: FACE_STRIDE,
-      allocationBytes: SHADOW_BUFFER_BYTES,
+      allocationBytes: fixedBytes,
       makePool,
       /** Takes the pool's texture — the one the device granted, or one made now — before the first
        *  page is drawn; again at a resize (`../../webgpu/shadow/poolResize.ts`), with the
@@ -124,7 +132,7 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       ) {
         const held = texture && { texture, transmittance };
         atlas.allocationBytes =
-          SHADOW_BUFFER_BYTES + shadowAtlasBytes(poolSide, layers) + (layer?.bytes ?? 0);
+          fixedBytes + shadowAtlasBytes(poolSide, layers) + (layer?.bytes ?? 0);
         atlas.size = poolSide * SHADOW_PAGE;
         texture = granted;
         transmittance = layer;

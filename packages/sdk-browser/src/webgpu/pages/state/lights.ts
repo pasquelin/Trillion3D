@@ -4,6 +4,7 @@ import {
   type SceneLightStore,
   type ShadowPlan,
 } from '../../../../../sdk-core/src/index.ts';
+import { SUN_WINDOW } from '../../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { MAX_SHADOW_REGIONS, type GpuShadowAtlas } from '../../../gpu/shadow/atlas.ts';
 import type { GpuShadowCull } from '../../../gpu/shadow/cull.ts';
 import type { GpuLightTiles } from '../../../lighting/tiles/tiles.ts';
@@ -117,10 +118,11 @@ export interface WebgpuLightState {
 export function createWebgpuLightState(
   poolSide: number,
   store?: SceneLightStore,
+  sunWindow = SUN_WINDOW,
 ): WebgpuLightState {
   return {
     store: store ?? createSceneLightStore(),
-    plan: createShadowPlan(poolSide),
+    plan: createShadowPlan(poolSide, 1, sunWindow),
     buffer: undefined,
     tiles: undefined,
     shadows: undefined,
