@@ -19,17 +19,30 @@ test('a compiled morph clip writes the exact weights the GPU placement uploads',
   const mesh = new Mesh(geometry);
   mesh.name = 'AnimatedMorphCube';
   const source = new Group().add(mesh);
-  const tables = { animations: [{ name: 'morph', channels: [{ node: 0, path: 'weights',
-    interpolation: 'LINEAR', times: [0, 1], values: [0, 1] }] }] } as unknown as PreparedSceneTables;
+  const tables = {
+    animations: [
+      {
+        name: 'morph',
+        channels: [
+          { node: 0, path: 'weights', interpolation: 'LINEAR', times: [0, 1], values: [0, 1] },
+        ],
+      },
+    ],
+  } as unknown as PreparedSceneTables;
   const clips = clipsOf(tables, [mesh]);
-  const model = new LoadedModel({ scene: { source, nodes: [mesh], clips } } as unknown as ModelRecord);
+  const model = new LoadedModel({
+    scene: { source, nodes: [mesh], clips },
+  } as unknown as ModelRecord);
   const placed = deformedOf(mesh, { deformation: { joints: [], targets: [1] } }, mesh.matrixWorld)!;
   const frame = createDeformationFrame([placed]);
   frame.update(() => false);
   animation.createMixer(model).clipAction(model.animations[0]).seek(0.5);
   assert.equal(mesh.morphTargetInfluences![0], 0.5);
   assert.equal(frame.pending(), true);
-  assert.equal(frame.update(() => false), true);
+  assert.equal(
+    frame.update(() => false),
+    true,
+  );
   const at = recordLayout(placed.shape).weights;
   assert.deepEqual([...frame.block.slice(at, at + 2)], [0.5, 0]);
 });

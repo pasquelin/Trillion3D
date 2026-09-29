@@ -124,6 +124,8 @@ export type GpuFrameMs = number | null;
   streamingError?: string | null;
   /** Latest GPU pass sample of this backend; null when the device exposes no timestamp queries. */
   gpuPassMs?: GpuPassTimings | null;
+  /** Deformation compute duration for the frame named by gpuPassMs; null until timed or unsupported. */
+  gpuDeformationMs?: number | null;
   /** GPU duration of the image `gpuPassMs.frame` describes, never added to a `cpu*` field. Sampled
    *  every few images, so a number may be a few images old. Null before the first sample, from a
    *  held image until the next device sample, without `timestamp-query`, and on WebGL2 without

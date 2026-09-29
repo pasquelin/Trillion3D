@@ -23,7 +23,7 @@ fn taaBarycentric(q:vec3f,a:vec3f,b:vec3f,c:vec3f)->vec3f{
 fn deformedPrevious(id:u32,position:vec4f)->vec4f{
  if(id==0u){return position;}
  let page=pages[(id>>8u)-1u];
- if(page.deform==0u){return position;}
+ if(page.deformOutput==0u){return position;}
  let h=pageHeader(page);let corners=pageTriangle(page,h,id&0xffu);
  let m=mat3x3f(page.world[0].xyz,page.world[1].xyz,page.world[2].xyz);
  let t=page.world[3].xyz-view.eye.xyz;
