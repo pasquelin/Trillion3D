@@ -29,12 +29,12 @@ pub(crate) mod bake;
 mod bake_write;
 pub(crate) mod blocks;
 pub(crate) mod collect;
-mod coverage;
+pub(crate) mod coverage;
 mod curves;
 mod entry;
 mod gate;
 mod levels;
-mod reduce;
+pub(crate) mod reduce;
 mod report;
 pub(crate) mod source;
 #[cfg(test)]
@@ -55,8 +55,10 @@ pub use levels::*;
 /// level file out in tile records, one HTTP Range each (#962, `tile_records`);
 /// the manifest's `textures.version` names it for the engine.
 pub const TEXTURE_PREVIEW_VERSION: u32 = 6;
+pub(crate) use bake_write::png;
 pub use bake_write::{level_path, texture_version_dir, LEVEL_WRITE_FAILED, LOSSLESS, TEXTURE_DIR};
 pub use blocks::{BlockFormat, Layout};
+pub(crate) use curves::linear_to_srgb;
 pub use reduce::AtlasKind;
 /// Baked level template path, relative to `native/`; `bake_write::level_path`
 /// populates. `{format}` is `png`, or a block format's name.

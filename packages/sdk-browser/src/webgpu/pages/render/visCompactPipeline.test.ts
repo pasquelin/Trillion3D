@@ -63,7 +63,7 @@ test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the diso
   assert.ok(at('buildHiz') >= 0);
   assert.ok(at('testHiz') > at('buildHiz'));
   assert.deepEqual(backend.selectedPageIds().sort(), cpu.shown.map((page) => page.url).sort());
-  assertOccluderImage(backend, cpu.shown, cam, viewport);
+  assertOccluderImage(backend, cpu.shown, collected.roots, cam, viewport);
   indirectDraws(draws);
   backend.dispose();
   geometry.dispose();

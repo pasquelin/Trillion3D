@@ -9,31 +9,30 @@ sections your change touches. Your role is the skill or agent file you were star
 boss ─> CTO = one dev team (/t3d-cto, as many teams as the boss opens)
          └─> lead (agent) ─┬─> coder (agent)
                            └─> reviewer (agent) ─> review agents of simplify and code-review
-boss ─> recette (/loop 2h /t3d-recette, its own session): image proof of develop
-boss ─> measure (/loop 2h /t3d-measure, its own session): timing of develop
+boss ─> recette (/loop 2h /t3d-recette, its own session): timing and image proof of develop
 ```
 
-Teams, each its own session, meet only on GitHub: any number of **dev** teams (a CTO and its leads),
-one **recette** and one **measure**. Any assistant may run a dev team (Claude, ChatGPT, …): it
-claims the next free issue, codes it on a branch, reviews it and opens the pull request. With
-subagents it delegates as above; without, it does the lead, coder and reviewer steps itself, in that
-order.
+Teams, each its own session, meet only on GitHub: any number of **dev** teams (a CTO and its leads)
+and one **recette**, which times and proves each batch. Any assistant may run a dev team (Claude,
+ChatGPT, …): it claims the next free issue, codes it on a branch, reviews it and opens the pull
+request. With subagents it delegates as above; without, it does the lead, coder and reviewer steps
+itself, in that order.
 
 Only a CTO launches in the background; every other agent launches its children in the foreground and
-waits for them. Nothing goes deeper. Never the Fable model. Only the CTOs, recette and measure speak
+waits for them. Nothing goes deeper. Never the Fable model. Only the CTOs and the recette speak
 to the boss, in short, simple French; everything in the repository is English.
 
 ## Hard rules
 
 1. **No image loss**, even declared. Sole exception: fluids lower their own quality to hold budget.
-2. **Chrome** proofs are the recette session's, timings the measure session's, by batch on `develop`
+2. **Chrome** proofs, timings and the bench are the recette session's alone, by batch on `develop`
    after the merges; they never block a merge. A coder may open one headless Chrome to diagnose a
    bug, never as a proof.
 3. **Never `pkill`, `killall` or a pattern kill.** Kill your own processes by PID.
 4. **One branch, one worktree.** Never commit on `develop` or `main`. Worktrees in
    `.worktrees/<branch>/`, logs in `.worktrees/logs/`, nothing elsewhere; run git with
    `git -C <worktree>`.
-5. **Issues:** only a CTO, recette or measure opens one (on `.github/ISSUE_TEMPLATE/task.md`,
+5. **Issues:** only a CTO or the recette opens one (on `.github/ISSUE_TEMPLATE/task.md`,
    `/t3d-writer` does it), when the boss asks or for a defect no issue covers. One issue, one pull
    request (`Closes #n`). A claimed issue (`in progress`, an assignee) is never taken by another
    team, until a CTO frees it as abandoned (one hour without a commit, comment or pull request).

@@ -4,7 +4,7 @@
 //
 //   node scripts/physics-stage.browser.ts [--warmup 5] [--windows 10] [--headed]
 //
-// Runs Chrome: the measure session's only (AGENTS.md rule 2).
+// Runs Chrome: the recette's only (AGENTS.md rule 2).
 import { parseArgs } from 'node:util';
 import { launchChrome } from '../bench/runner/chrome.ts';
 import { readyEntries } from '../site/app/examples/list.ts';

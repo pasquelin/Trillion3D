@@ -1142,7 +1142,8 @@
       "pageDecodeMs": "Sayfaları çözmeye harcanan süre.",
       "mathBatch": "Compute yolu regülatörünün durumu (`../math/path/governor.ts`): her yığın işleminin mevcut yolu, her iki yolun medyanları, geçişler. Bir yığın açmamış bir host'ta `null` — ölçülmemiş, \"JavaScript yolu\" değil.",
       "pagesPlannedOffThread": "Ana iş parçacığı dışında sayfa entegrasyonu. `pagesPlannedOffThread`, planı — her cluster'ın pakette yeri ve taşıdığı sayfa sıraları — bir worker tarafından hesaplanan varışları sayar, asla yedeğin ana iş parçacığında planladıklarını değil. `pagePlanMs`, hangi iş parçacığı olursa olsun, yürütücünün kendisi tarafından ölçülen bu planların kümülatif süresidir: asla kare başına bir `cpu*` ya da `gpu*`'ya eklenmez. Hiçbir varış planlanmadığı sürece ikisi de `null`'dır — ölçülmemiş, sıfır değil.",
-      "pagePlanMs": "Varışları planlamaya harcanan süre."
+      "pagePlanMs": "Varışları planlamaya harcanan süre.",
+      "dynamicUploadBytes": "Bu karede yerinde yüklenen dinamik geometri köşe baytları (#573), dünyanın kare başına bütçesi içinde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Hiçbir dünyanın çizmediği yerde yoktur."
     }
   },
   "Frustum": {
@@ -1209,7 +1210,9 @@
       "userData": "Geometriyi kuranın verileri için serbest alan.",
       "released": "Geometri geri verildiğinde çağrılır: bir işleyicinin kendi kopyasının dinlediği şey.",
       "getIndex": "Üçgen listesi ya da `null`.",
-      "toNonIndexed": "Aynı üçgenleri dizinsiz çizen bir geometri: her köşe kendi köşe noktası."
+      "toNonIndexed": "Aynı üçgenleri dizinsiz çizen bir geometri: her köşe kendi köşe noktası.",
+      "usage": "`'dynamic'`: yerinde yüklenir, bir daha asla kesilmez (#573); her karede değişen bir geometri de öyledir.",
+      "maxBounds": "Dinamik bir geometrinin asla çıkmadığı kutu, bildirildiğinde: ayıklamanın baktığı kutu (#573)."
     }
   },
   "GeometryPageDescriptor": {
@@ -2714,7 +2717,8 @@
       "structure": "Grup bağlantıları.",
       "streams": "Akış paketleri.",
       "quantization": "Hiçbir ızgarada kuantalanmamış, sayfasız bir primitifte null.",
-      "topology": "Mesh'in kenarlarının ve köşelerinin neye benzediği."
+      "topology": "Mesh'in kenarlarının ve köşelerinin neye benzediği.",
+      "dynamic": "Bir dünyanın dinamik geometrisi (#573): yalnızca dizin sayfaları; köşeleri, motorun yerinde yeniden yazdığı ana geometriden kayan noktalı sayılar olarak okunur."
     }
   },
   "Primitive": {
@@ -3319,7 +3323,8 @@
       "dag": "DAG'ın raporu.",
       "quantization": "Hiçbir ızgarada kuantalanmamış, sayfasız bir primitifte null.",
       "topology": "Mesh'in kenarlarının ve köşelerinin neye benzediği.",
-      "binary": "Listelerinin nerede bulunacağı."
+      "binary": "Listelerinin nerede bulunacağı.",
+      "dynamic": "Bir dünyanın dinamik geometrisi (#573): yalnızca dizin sayfaları; köşeleri, motorun yerinde yeniden yazdığı ana geometriden kayan noktalı sayılar olarak okunur."
     }
   },
   "SlimPrimitiveBinary": {
@@ -4339,7 +4344,8 @@
       "shadowMemoryEvents": "Dünya açıldığından beri gölgelerin bellek baskısı olayları, adıyla, sırayla; normalde boş.",
       "shadowPagesRefetched": "Havuzun yer açmak için çıkardıktan sonra yeniden eşlenen sanal sayfalar, explorer açıldığından beri: karelerin okuduğuna göre fazla küçük bir havuzun maliyeti olan yeniden çizimler.",
       "shadowCastersKept": "Sayfa başına ayıklamanın tuttuğu gölge düşürücüler, tüm çizilen sayfalar birlikte, aygıtın en son örneklediği karede — on beşte bir; bir örnek dönene dek `null`.",
-      "shadowCastersHidden": "Örtme testinin, sayfalarının durağan katmanının arkasında gizli bulduğu hareketli gölge düşürücüler, en son örneklenen karede; bir örnek dönene dek `null`."
+      "shadowCastersHidden": "Örtme testinin, sayfalarının durağan katmanının arkasında gizli bulduğu hareketli gölge düşürücüler, en son örneklenen karede; bir örnek dönene dek `null`.",
+      "dynamicUploadBytes": "Bu karede yerinde yüklenen dinamik geometri köşe baytları (#573), dünyanın kare başına bütçesi içinde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Hiçbir dünyanın çizmediği yerde yoktur."
     }
   },
   "WorldOptions": {
@@ -7865,6 +7871,45 @@
       "alphaMode": "Bir yüzeyin alfa kanalının nasıl okunduğu: opak onu yok sayar, `mask` `alphaCutoff`'ta keser, `blend` karıştırır.",
       "alphaCutoff": "Bundan daha az opak pikseller atılır.",
       "tiling": "Görselin yatayda ve dikeyde kaç kez sığdığı."
+    }
+  },
+  "WorldRoots": {
+    "summary": "`world-roots.json`: derleyicinin her nesnenin köklerinin üstünde sürdürdüğü dünya DAG’i — paketleri, sayfaları ve hücreleri, sabitlenmiş tepe önce.",
+    "members": {
+      "version": "Biçim sürümü.",
+      "budgetBytes": "Pişirmenin sabitlenmiş tepeye izin verdiği en fazla bayt.",
+      "pinned": "İlk paketler, dünyanın tepesi: sabitlenmiş.",
+      "pinnedTopBytes": "Sabitlenmiş tepenin baytları.",
+      "payload": "Paketlerin art arda durduğu ikili dosya: adresi, özeti ve uzunluğu.",
+      "bundles": "Paketler, ikili dosyadaki sırayla.",
+      "pages": "Her sayfa: paketi, içindeki konumu, düzeyi ve hatası.",
+      "cells": "Her dünya hücresi: tuttuğu yerleştirilmiş ilkel öğeler."
+    }
+  },
+  "WorldRootsBundle": {
+    "summary": "`world-roots.bin` içindeki bir paket: ikili dosyadaki aralığı, özeti, sayfa sayısı ve gereken paketler.",
+    "members": {
+      "offset": "İkili dosyada nerede başladığı, bayt olarak.",
+      "bytes": "İkili dosyadaki uzunluğu.",
+      "sha256": "Baytlarının SHA-256 özeti, okunurken denetlenir.",
+      "count": "Kaç sayfa tuttuğu.",
+      "dependencies": "Sayfalarının gerektirdiği paketler, artan sırayla, dünyanın tepesine kadar."
+    }
+  },
+  "WorldRootsObject": {
+    "summary": "Bir dünya hücresinin yerleştirilmiş ilkel öğesi: köklerinin gerektirdiği dünya paketleri, tepeye kadar.",
+    "members": {
+      "node": "Yayımlanmış düğümü.",
+      "primitive": "Manifestodaki ilkel öğesi.",
+      "roots": "Bu ilkel öğenin köklerini tutan akış paketleri.",
+      "dependencies": "Bu köklerin gerektirdiği her dünya paketi, artan sırayla, tepeye kadar."
+    }
+  },
+  "WorldRootsPage": {
+    "summary": "Paketinin baytları üzerinde okunan bir süper kök sayfası: dünya uzayındaki kendi köşeleri ve yerel indisler olarak üçgenleri.",
+    "members": {
+      "positions": "Köşeleri, her biri üç sayı, dünya uzayında.",
+      "indices": "Üçgenleri, her biri üç yerel indis."
     }
   }
 }

@@ -27,14 +27,12 @@
 //! out at 0.78 m of error, its corners on the caps' normals (#415, #484). Refusing such a face
 //! would refuse the cook; retrying it only costs a few locks. A face none of whose corner copies
 //! a face turned its way draws is retried the same way: a board whose thickness collapsed onto
-//! its top kept its underside there, on the top's and the edges' normals (#484).
+//! its top kept its underside there, on the top's and the edges' normals (#484). One driver runs
+//! these retries for the endpoint and the solved reductions alike (`retries.rs`).
 use super::*;
 use crate::qem::{SimplifiedMesh, VERTEX_LOCK, VERTEX_PROTECT};
-use border::{live_triangles, lock_triangles_touching, lost_locks, required_locks};
-use quality::backlit_corners;
-
-/// Times group restarted with extra locks before declared lost.
-const BORDER_RETRIES: usize = 3;
+use border::{live_triangles, required_locks};
+use retries::{with_lock_retries, Endpoint};
 
 /// Succeeded reduction: simplified surface and re-clustered result.
 pub(super) struct Attempt {
@@ -73,16 +71,25 @@ pub(super) fn reduce_group(
     let mut own: HashMap<u32, u32> = HashMap::new();
     let corners = children.iter().flat_map(|c| c.indices.iter());
     let live = live_triangles(corners.map(|&v| *own.entry(input.exact[v as usize]).or_insert(v)));
-    let chosen = match attempt(input, &live, true)? {
+    let (error, clusters, relocked, placed) = match attempt(input, &live, true)? {
         // Reduction yielding no fewer clusters does not advance DAG: refused,
         // even if removing triangles, rather than adding unreplaced level.
-        Ok(chosen) if chosen.progresses(children.len()) => chosen,
-        Ok(_) => return stall(input, &live, children.len(), Stop::NoCollapse),
-        Err(stop) => return stall(input, &live, children.len(), stop),
+        Ok(chosen) if chosen.progresses(children.len()) => {
+            let kept = &chosen.simplified.indices;
+            let qem = chosen.simplified.error_object;
+            let qem = qem.max(folded_after_solve(input, &live, kept));
+            let error =
+                measured::step_error(&measured::Surface::of(input), &live, kept, qem, child_error);
+            (error, chosen.clusters, chosen.relocked, None)
+        }
+        stalled => {
+            let stop = stalled.err().unwrap_or(Stop::NoCollapse);
+            match solved::stalled(input, &live, children.len(), stop, child_error)? {
+                Ok(s) => (s.error, s.clusters, s.relocked, Some(s.placed)),
+                Err(outcome) => return Ok(Err(outcome)),
+            }
+        }
     };
-    let kept = &chosen.simplified.indices;
-    let qem = chosen.simplified.error_object;
-    let error = measured::step_error(input, &live, kept, qem, child_error);
     if !error.is_finite() {
         return Ok(Err(diagnosis::outcome(
             StallCause::UnusableError,
@@ -93,25 +100,29 @@ pub(super) fn reduce_group(
     Ok(Ok(GroupReduction {
         error,
         sphere,
-        clusters: chosen.clusters,
+        clusters,
         source_rank,
-        relocked: chosen.relocked,
+        relocked,
+        placed,
     }))
 }
 
-fn stall(
-    input: &GroupReductionInput,
-    live: &[u32],
-    children: usize,
-    stop: Stop,
-) -> Result<std::result::Result<GroupReduction, GroupOutcome>> {
-    diagnosis::stalled(input, live, children, stop).map(Err)
+/// Where `live` names a vertex a solve placed, the longest face of `kept` across two texture
+/// islands (`charts::folded_span`): a later collapse may join islands a placed vertex's seams no
+/// longer hold. Zero elsewhere: a primitive no solve touched keeps its bytes.
+fn folded_after_solve(input: &GroupReductionInput, live: &[u32], kept: &[u32]) -> f64 {
+    if input.positions.len() / 3 == input.source_vertices {
+        return 0.0;
+    }
+    let placed = live.iter().any(|&v| v as usize >= input.source_vertices);
+    let islands = if placed { input.islands } else { &[] };
+    charts::folded_span(kept, input.positions, islands, |v| v as usize)
 }
 
 /// Simplifies `source` to half triangles, restarting with extra locks as long as a shared vertex
-/// disappears or a face turns its back on its normals, then re-clusters the result. `locked`
-/// false drops every lock, the level's and the retries': the diagnosis of a stalled group asks
-/// what they cost.
+/// disappears or a face turns its back on its normals (`retries.rs`), then re-clusters the
+/// result. `locked` false drops every lock, the level's and the retries': the diagnosis of a
+/// stalled group asks what they cost.
 pub(super) fn attempt(
     input: &GroupReductionInput,
     source: &[u32],
@@ -127,14 +138,12 @@ pub(super) fn attempt(
     } else {
         Vec::new()
     };
-    let mut extra: Vec<u32> = Vec::new();
-    let mut border_retries = 0usize;
-    loop {
-        let mut simplified = {
+    let pass = |extra: &[u32]| -> Result<std::result::Result<Endpoint, Stop>> {
+        let simplified = {
             let _t = Timer::new(Phase::Simplify);
             simplify_with_locked_vertices(
                 input.positions,
-                input.attributes,
+                input.weighted,
                 source,
                 triangles / 2,
                 extra.is_empty(),
@@ -150,51 +159,28 @@ pub(super) fn attempt(
         if simplified.triangles >= triangles || simplified.indices.is_empty() {
             return Ok(Err(Stop::NoCollapse));
         }
-        let lost = lost_locks(&required, &simplified.indices, weld);
-        let retry = if !lost.is_empty() {
-            if border_retries == BORDER_RETRIES {
-                return Ok(Err(Stop::BorderLost));
-            }
-            border_retries += 1;
-            lost
-        } else if let Some(normals) = input.normals {
-            let foreign = attributes::own_normals(
-                &mut simplified.indices,
-                source,
-                input.weld_seam,
-                input.positions,
-                normals,
-            );
-            let bound = input.normal_bound;
-            match locked {
-                true => {
-                    let indices = &simplified.indices;
-                    let mut retry = backlit_corners(indices, input.positions, normals, weld, bound);
-                    retry.extend(foreign.iter().map(|&v| weld[v as usize]));
-                    retry.sort_unstable();
-                    retry.dedup();
-                    retry
-                }
-                false => Vec::new(),
-            }
-        } else {
-            Vec::new()
-        };
-        let before = extra.len();
-        if !retry.is_empty() {
-            lock_triangles_touching(source, &retry, weld, &mut extra);
-        }
-        // A backlit face whose surroundings are all locked already cannot be helped by a retry.
-        if retry.is_empty() || extra.len() == before {
-            let clusters = {
-                let _t = Timer::new(Phase::Resplit);
-                cluster_triangles(input.positions, &simplified.indices, DAG_CLUSTER_TRIANGLES)?
-            };
-            return Ok(Ok(Attempt {
-                simplified,
-                clusters,
-                relocked: !extra.is_empty(),
-            }));
-        }
-    }
+        Ok(Ok(Endpoint {
+            simplified,
+            input,
+            source,
+            locked,
+        }))
+    };
+    let (done, relocked) = match with_lock_retries(source, &required, weld, pass)? {
+        Ok(done) => done,
+        Err(stop) => return Ok(Err(stop)),
+    };
+    let clusters = {
+        let _t = Timer::new(Phase::Resplit);
+        cluster_triangles(
+            input.positions,
+            &done.simplified.indices,
+            DAG_CLUSTER_TRIANGLES,
+        )?
+    };
+    Ok(Ok(Attempt {
+        simplified: done.simplified,
+        clusters,
+        relocked,
+    }))
 }

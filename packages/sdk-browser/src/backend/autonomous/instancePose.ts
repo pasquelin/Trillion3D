@@ -33,20 +33,19 @@ export function composedPose(transform: Float64Array, from: MatrixElements): Mat
 }
 
 /**
- * Re-places an instance: its roots and pages take back the transform applied to their
- * models. `pages[i]` is the clone of `bases[i]`, set once at creation, where the move
- * used to rebuild a page → base-page hash table on every call.
+ * Re-places an instance: each root `roots[i]`, the clone of `baseRoots[i]`, takes back the
+ * transform applied to its model, and the host meshes of its pages follow it — a page carries
+ * no pose of its own (#1226).
  */
 export function deplaceInstance(
-  instance: { pages: PageRec[]; bases: PageRec[]; roots: ClusterRoot<PageRec>[] },
+  instance: { roots: ClusterRoot<PageRec>[] },
   baseRoots: readonly ClusterRoot<PageRec>[],
   transform: Float64Array,
 ) {
-  const { pages, bases, roots } = instance;
-  for (let i = 0; i < roots.length; i++) placeInto(roots[i].world, transform, baseRoots[i].world);
-  for (let i = 0; i < pages.length; i++) {
-    const rec = pages[i];
-    placeInto(rec.matrix, transform, bases[i].matrix);
-    if (rec.mesh) setHostPose(rec.mesh, rec.matrix);
+  const { roots } = instance;
+  for (let i = 0; i < roots.length; i++) {
+    const { world, pages } = roots[i];
+    placeInto(world, transform, baseRoots[i].world);
+    for (const rec of pages) if (rec.mesh) setHostPose(rec.mesh, world);
   }
 }

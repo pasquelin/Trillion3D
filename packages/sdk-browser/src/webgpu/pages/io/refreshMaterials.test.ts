@@ -93,7 +93,6 @@ test('an alpha move is taken in place under a casting light, the shadow over its
   const cutout = {
     material: surfaceOf(material),
     placementIndex: 0,
-    matrix: new G.Matrix4(),
     min: [-1, -1, 0],
     max: [1, 1, 0],
   };
@@ -113,6 +112,7 @@ test('an alpha move is taken in place under a casting light, the shadow over its
         pageTableInts: new Uint32Array(PAGE_INFO_STRIDE / 4),
         packedRecs: [cutout],
       },
+      selectionRoots: [{ world: new G.Matrix4() }],
     },
     run: { gate: { sceneMoved() {} } },
     vis: {},
