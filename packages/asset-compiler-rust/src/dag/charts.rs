@@ -65,7 +65,9 @@ pub fn vertex_islands(weld_seam: &[u32], indices: &[u32]) -> Vec<u32> {
         islands.unite(tri[1], tri[2]);
     }
     (0..weld_seam.len() as u32).for_each(|v| islands.unite(v, weld_seam[v as usize]));
-    (0..weld_seam.len() as u32).map(|v| islands.root(v)).collect()
+    (0..weld_seam.len() as u32)
+        .map(|v| islands.root(v))
+        .collect()
 }
 
 /// The longest edge of `tri` over `positions`.
@@ -77,10 +79,15 @@ pub(crate) fn longest_edge(positions: &[f32], tri: &[u32; 3]) -> f64 {
 }
 
 /// The longest edge of the faces of `indices` a pixel must hide: those whose corners lie in two
-/// texture islands. `island` answers per corner.
-pub(super) fn folded_span(indices: &[u32], positions: &[f32], island: impl Fn(u32) -> u32) -> f64 {
+/// texture `islands`, a corner's being its source vertex's (`source`); zero without an island.
+pub(super) fn folded_span(
+    indices: &[u32],
+    positions: &[f32],
+    islands: &[u32],
+    source: impl Fn(u32) -> usize,
+) -> f64 {
     let folded = |tri: &&[u32; 3]| {
-        let [a, b, c] = tri.map(&island);
+        let [a, b, c] = tri.map(|v| islands.get(source(v)));
         a != b || b != c
     };
     let faces = indices.as_chunks::<3>().0.iter().filter(folded);

@@ -108,11 +108,3 @@ impl<'a> Welds<'a> {
         to.islands.extend(from.islands);
     }
 }
-
-impl<'a> GroupReductionInput<'a> {
-    /// The islands, when `live` names a vertex a solve placed and the primitive has a texture set.
-    pub(super) fn placed_islands(&self, live: &[u32]) -> Option<&'a [u32]> {
-        let placed = live.iter().any(|&v| v as usize >= self.source_vertices);
-        Some(self.islands).filter(|islands| placed && !islands.is_empty())
-    }
-}

@@ -50,15 +50,10 @@ pub(super) fn stalled(
 }
 
 /// Reduces the seam-locked group `live` with the solve; `None` when it yields no fewer clusters than its `children`, or loses a lock on every retry.
-fn attempt(
-    input: &GroupReductionInput,
-    live: &[u32],
-    children: usize,
-) -> Result<Option<Solved>> {
+fn attempt(input: &GroupReductionInput, live: &[u32], children: usize) -> Result<Option<Solved>> {
     let base = (input.positions.len() / 3) as u32;
     let required = required_locks(live, input.locks, input.weld);
     let densities = densities(input.positions, &input.attributes.uv_sets(), live);
-    let islands = input.islands;
     let (live, weld_error) = &open_border_welded(input, live, &densities);
     let weighted = weighted(input, live, &densities);
     let region = Region::of(input.positions, &weighted, live)?;
@@ -73,10 +68,9 @@ fn attempt(
         };
         let error = solved.error_object.max(*weld_error);
         let local = Local::of(input, solved);
-        let span = match islands.is_empty() {
-            true => 0.0,
-            false => folded_span(&local.indices, &local.positions, |v| islands[local.from(v)]),
-        };
+        let span = folded_span(&local.indices, &local.positions, input.islands, |v| {
+            local.from(v)
+        });
         Ok(Ok(Solve {
             error: error.max(span),
             local,
