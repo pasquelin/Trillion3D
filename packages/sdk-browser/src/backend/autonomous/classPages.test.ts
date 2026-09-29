@@ -10,6 +10,7 @@ import { encodeGeometryPage } from '../../../../page-codec/geometryPage.ts';
 import { decodeGeometryPage } from '../../page/decode/geometryPage.ts';
 import { prepareSdkWasm } from '../../page/decode/geometryPageWasm.ts';
 import type { AlphaMode } from '../../../../sdk-core/src/contracts/material.ts';
+import { positionGridExponent } from '../../world/page/cutGrid.ts';
 import { triangleBackend } from './triangle.fixture.ts';
 
 // The grids are the compiler's rules, run in the SDK module: Node is handed its bytes.
@@ -19,19 +20,21 @@ await prepareSdkWasm(readFileSync(join(import.meta.dirname, '../../page/decode/p
 const SOURCE = [-0.3, -0.3, 0, 0.3, -0.3, 0, 0, 0.3, 0];
 
 /** The triangle opened on WebGL2 from a page cut before its source moved to `SOURCE`. */
-async function opened() {
-  const triangle = triangleBackend();
+async function opened(options?: Parameters<typeof triangleBackend>[0]) {
+  const triangle = triangleBackend(options);
   await triangle.backend.prepare();
   (triangle.geometry.getAttribute('position')!.array as Float32Array).set(SOURCE);
   return triangle;
 }
 
-/** The positions the display graph draws the page with. */
-function drawnPositions({ backend, camera }: Awaited<ReturnType<typeof opened>>) {
+/** The positions the display graph draws the page with, one list per mesh drawn. */
+function drawnMeshes({ backend, camera }: Awaited<ReturnType<typeof opened>>) {
   backend.render(camera);
-  const [mesh] = (backend.scene as unknown as G.Group).children.filter((c) => 'geometry' in c);
-  return [...(mesh as G.Mesh).geometry.getAttribute('position')!.array];
+  return (backend.scene as unknown as G.Group).children
+    .filter((c) => 'geometry' in c)
+    .map((mesh) => [...(mesh as G.Mesh).geometry.getAttribute('position')!.array]);
 }
+const drawnPositions = (triangle: Awaited<ReturnType<typeof opened>>) => drawnMeshes(triangle)[0];
 
 /** The material written to `to`, and the engine told. */
 function move(triangle: Awaited<ReturnType<typeof opened>>, from: AlphaMode, to: AlphaMode) {
@@ -102,6 +105,34 @@ test('WebGL2 keeps the page the host replaced through a class change and back (#
     await backend.flush!();
     assert.deepEqual(drawnPositions(triangle), [...host.attributes.position], 'not the cache');
   } finally {
+    backend.dispose();
+    geometry.dispose();
+    material.dispose();
+  }
+});
+
+// The compiler sets an opaque primitive's tile by the largest scale any placement gives it
+// (`mesh_scales`): a move of one mesh alone cuts on the tile its unmoved twin sets too, never on
+// a coarser one.
+test('WebGL2 cuts a partial assignment on the tile of every placement, as the compiler', async () => {
+  const triangle = await opened({ pass: 'clustered-blend', twinScale: 1024 });
+  const { backend, geometry, material, mesh } = triangle;
+  const opaque = G.basicSurface({ side: G.DOUBLE_SIDE });
+  try {
+    material.transparent = true;
+    const assignment = { surfaces: [opaque], meshes: new Map([[mesh, opaque]]) } as const;
+    backend.wearSurface!({ ...assignment, from: 'blend', to: 'opaque' });
+    backend.refreshMaterials!(true, { ...assignment, from: 'blend', to: 'opaque' });
+    await backend.flush!();
+    const compiled = await positionGridExponent(0.6, false, { finestError: 0, scale: 1024 });
+    const alone = await positionGridExponent(0.6, false, { finestError: 0, scale: 1 });
+    assert.notEqual(compiled, alone, 'the twin sets a finer tile than the moved mesh');
+    assert.ok(
+      drawnMeshes(triangle).some((drawn) => drawn.join() === [...cutOn(compiled!)].join()),
+      'the moved mesh draws the page the compiler cuts for its largest placement',
+    );
+  } finally {
+    opaque.dispose();
     backend.dispose();
     geometry.dispose();
     material.dispose();
