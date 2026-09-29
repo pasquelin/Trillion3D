@@ -53,10 +53,7 @@ export interface ImpostorSwitchInput {
 }
 
 /** `z_s = max(z_tex, z_tri)` in metres for the runtime focal length `focalPixels`. */
-export function impostorSwitchDepth(
-  input: ImpostorSwitchInput,
-  focalPixels: number,
-): number {
+export function impostorSwitchDepth(input: ImpostorSwitchInput, focalPixels: number): number {
   const radius = impostorRadius(input.objectRadius, input.maxWorldScale ?? 1);
   return Math.max(
     impostorTexelDepth(radius, input.frameSide, focalPixels),
