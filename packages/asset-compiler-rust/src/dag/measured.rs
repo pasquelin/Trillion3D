@@ -11,12 +11,14 @@
 //! can raise the error are measured exactly: a sample stops at the first triangle within the bound
 //! the quadrics, the children and the removed parts already give (`distance_above`), which returns
 //! the same error bit for bit.
+//!
+//! Nor is it below how far the texture slides across the coarse surface (`texture.rs`).
 use super::GroupReductionInput;
 use crate::physics_cook::hausdorff::distance_above;
 
 /// The error of reducing `live` to `kept`: the largest of the quadrics' estimate `qem`, the
 /// children's error, what the parts removed whole cost (`vanished.rs`) and the sampled Hausdorff
-/// distance between `live` and `kept`. A bound that is not finite is returned unmeasured, for the
+/// distance between `live` and `kept`, and their texture deviation. A bound that is not finite is returned unmeasured, for the
 /// caller to refuse.
 pub(super) fn step_error(
     input: &GroupReductionInput,
@@ -31,5 +33,6 @@ pub(super) fn step_error(
     if !bound.is_finite() {
         return bound;
     }
+    let bound = bound.max(super::texture::texture_deviation(input, live, kept));
     distance_above(positions, live, kept, bound)
 }

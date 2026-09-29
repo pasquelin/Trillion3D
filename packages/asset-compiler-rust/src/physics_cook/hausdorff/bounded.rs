@@ -10,5 +10,7 @@ pub(crate) fn distance_above(pos: &[f32], a: &[u32], b: &[u32], floor: f64) -> f
         return floor.max(0.0);
     }
     let there = one_sided(pos, a, &Grid::new(pos, b), floor);
-    floor.max(there).max(one_sided(pos, b, &Grid::new(pos, a), floor))
+    floor
+        .max(there)
+        .max(one_sided(pos, b, &Grid::new(pos, a), floor))
 }
