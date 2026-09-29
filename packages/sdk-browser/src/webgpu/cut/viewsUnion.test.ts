@@ -54,8 +54,8 @@ function bench() {
   /** `view` draws the pages `ids` name, as `../pages/render/cpu.ts` publishes a CPU cut. */
   const draw = (view: WebgpuView, ids: number[]) => {
     useWebgpuView(rt, view);
-    const pages = ids.map((id) => scene.packed[id]);
-    publication.adoptCpuCut(pages, pages);
+    // The CPU cut publishes packed ranks; `ids` already are the catalogue's ranks.
+    publication.adoptCpuCut(ids, ids);
   };
   const keys = (ids: number[]) => new Set(ids.map((id) => scene.tracking.keyOf(scene.packed[id])));
   return { ...scene, publication, capture, main, side, draw, keys, aheadOffers };

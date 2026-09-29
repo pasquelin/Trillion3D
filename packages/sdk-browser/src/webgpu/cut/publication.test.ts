@@ -94,8 +94,8 @@ function banc() {
 }
 
 test('the CPU cut, which sees no view ahead, empties the tier ahead', () => {
-  const { publication, packedPages, aheadOffers } = banc();
-  publication.adoptCpuCut(packedPages.slice(0, 2), packedPages.slice(0, 2));
+  const { publication, aheadOffers } = banc();
+  publication.adoptCpuCut([0, 1], [0, 1]);
   assert.deepEqual(aheadOffers.at(-1), [], 'the last list ahead is empty');
 });
 
@@ -109,11 +109,11 @@ test('both lower tiers count in the host tables', () => {
 });
 
 test('a CPU-cut image only ages the lists once', () => {
-  const { publication, run, packedPages } = banc();
+  const { publication, run } = banc();
   const avant = run.cutEpoch;
   // Order of `renderCpuCut`: forget the readback, choose, then publish once the guards have passed.
   publication.forgetReadback();
-  publication.adoptCpuCut(packedPages.slice(0, 3), packedPages.slice(0, 2));
+  publication.adoptCpuCut([0, 1, 2], [0, 1]);
   assert.equal(run.cutEpoch, avant + 1, 'a single ageing for the image');
   assert.deepEqual(
     run.desired.map((page) => (page as { url: string }).url),
@@ -122,21 +122,21 @@ test('a CPU-cut image only ages the lists once', () => {
 });
 
 test('the camera cut moving stales no shadow page: the maps draw what the light cuts select', () => {
-  const { publication, packedPages, shadowChanges, resourceChanges } = banc();
-  publication.adoptCpuCut(packedPages, [packedPages[0]]);
-  publication.adoptCpuCut(packedPages, [packedPages[1]]);
-  publication.adoptCpuCut(packedPages, [packedPages[0]]);
+  const { publication, shadowChanges, resourceChanges } = banc();
+  publication.adoptCpuCut([0, 1, 2, 3], [0]);
+  publication.adoptCpuCut([0, 1, 2, 3], [1]);
+  publication.adoptCpuCut([0, 1, 2, 3], [0]);
   assert.deepEqual(shadowChanges, [], 'no caster bound is declared for a camera cut change');
   assert.equal(resourceChanges(), 0, 'nor is the held frame woken for the shadows');
 });
 
 test('republishing the same cut stirs no set', () => {
-  const { publication, packedPages, remue } = banc();
-  publication.adoptCpuCut(packedPages.slice(0, 3), packedPages.slice(0, 2));
+  const { publication, remue } = banc();
+  publication.adoptCpuCut([0, 1, 2], [0, 1]);
   const coupe = remue.coupe,
     dessinee = remue.dessinee;
   assert.ok(coupe > 0 && dessinee > 0, 'the first publication did name pages');
-  publication.adoptCpuCut(packedPages.slice(0, 3), packedPages.slice(0, 2));
+  publication.adoptCpuCut([0, 1, 2], [0, 1]);
   assert.equal(remue.coupe, coupe, 'the second neither enters nor exits a single page');
   assert.equal(remue.dessinee, dessinee);
 });

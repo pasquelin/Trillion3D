@@ -1,6 +1,7 @@
 import { wantsReflections } from '../../../reflections/gpu.ts';
 import { requestFrameTargets } from '../prepare/targetGrant.ts';
-import { selectCpuCasters, writeCpuCasters } from '../../shadow/cpuCasters.ts';
+import { selectCpuCasters } from '../../shadow/cpuCasters.ts';
+import { writeCpuCasters } from '../../shadow/cpuCasterRows.ts';
 import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts';
 import { projectedPageError, rootOf } from '../../../page/selection/selection.ts';
 import { screenErrorRatio } from '../../../diagnostic/colors.ts';

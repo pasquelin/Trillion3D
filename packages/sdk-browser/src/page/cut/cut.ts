@@ -46,13 +46,17 @@ export function selectVisiblePages<T extends PageRecord>(
   // computes them once, for all of its consumers, and nothing is copied here.
   const worldPlanes = cam.planes;
   pixelScaleOf(cam.projection, viewport, selectionScratch.pixelScale);
+  const result = options.result ?? createSelectionResult<T>();
   const shown = into ?? ([] as T[]);
   const wanted = options.wanted ?? ([] as T[]);
-  // Cut state is set on the reused object: a render image allocates nothing here.
+  // Cut state is set on the reused object: a render image allocates nothing here. The packed lists
+  // are the result's own, parallel to the records, written by the same `keep` (rank by rank).
   const state = selectionState<T>();
   state.cam = cam;
   state.wanted = wanted;
   state.shown = shown;
+  state.wantedPacked = result.wantedPacked;
+  state.shownPacked = result.shownPacked;
   state.light = options.light;
   state.held = held;
   state.pixelError = options.pixelError ?? 0;
@@ -89,16 +93,17 @@ export function selectVisiblePages<T extends PageRecord>(
     multiplyMatrix4(viewMatrix, cam.view, rootWorld);
     selectFlat(state, root);
   }
-  // The cut is finished: both lists take their length here, and only once. They thus keep their
+  // The cut is finished: all four lists take their length here, and only once. They thus keep their
   // capacity from one image to the next.
   shown.length = state.shownCount;
   wanted.length = state.wantedCount;
+  result.shownPacked.length = state.shownCount;
+  result.wantedPacked.length = state.wantedCount;
   // Both sums are held as a running total: no more sweep of the records after the cut.
   const displayedTriangles = state.shownTriangles;
   let selectedTriangles = state.wantedTriangles;
   if (!wanted.length) selectedTriangles = displayedTriangles;
   // The result is written into the caller's object when it supplies one: nothing is allocated.
-  const result = options.result ?? createSelectionResult<T>();
   result.shown = shown;
   result.wanted = wanted;
   result.visible = wanted.length || shown.length;
