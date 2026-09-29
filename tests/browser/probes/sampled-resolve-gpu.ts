@@ -143,15 +143,14 @@ test('a moving list sums as the still image unless it holds a shadow, then as it
   assert.equal(reached.length, 1, 'one sample in reach');
   assert.ok(lists[edge].includes(20));
   const script = await bundlePage(resolve(here, 'narrowResolvePage.ts'), 'narrowResolve');
-  const pageErrors: string[] = [];
   const result = await dansPageWebgpu(
     (scenes: ResolveScene[]) => globalThis.narrowResolve.run(scenes),
     SCENES,
-    { titre: 'Sampled resolve', script, erreursPage: pageErrors },
+    { titre: 'Sampled resolve', script },
   );
   assert.equal(result.unavailable, undefined, 'WebGPU must be available');
   const { errors, runs } = result as Exclude<typeof result, { unavailable: string }>;
-  assert.deepEqual([...errors, ...pageErrors], []);
+  assert.deepEqual(errors, []);
   assert.equal(runs.length, SCENES.length);
   let differed = 0;
   sets.forEach((set, s) => {
