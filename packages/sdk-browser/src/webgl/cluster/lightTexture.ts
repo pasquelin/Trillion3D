@@ -1,6 +1,7 @@
 import { grown } from '../../../../sdk-core/src/math/transform-tree/transformTree.ts';
 import { LTC_UNIT } from './rectGlsl.ts';
 import { refuseCluster } from './refusal.ts';
+import { allocated } from '../core/allocation.ts';
 
 /** Texels in a row of a light texture: WebGL2 guarantees 2048 a side, so one row fits every
  *  device and the rows grow with the scene. The program folds an index the same way (`LIGHT_TEXTURE_GLSL`). */
@@ -94,6 +95,8 @@ export class WebglLightTexture<T extends Float32Array | Int32Array> {
       gl[layout.type],
       null,
     );
+    // Refused: reallocated at the next frame's reserve (`../core/allocation.ts`).
+    allocated(gl, 'target', () => (this.rows = 0));
   }
   /** Sends the rows holding the first `texels` and binds the texture on its unit: the host's
    *  units are unknown at frame start, so it is bound again every frame. */
