@@ -91,7 +91,11 @@ test('a soft body is drawn where it is: its geometry, dynamic, rewritten in plac
   const versions = [position.version, normal.version];
   receiveSoft(words, { meshOf: () => mesh as Bodied, softMap: () => Uint32Array.of(0, 1, 2, 3) });
   assert.deepEqual([...position.array], at, 'its positions');
-  assert.deepEqual([position.version, normal.version], versions.map((v) => v + 1), 'both written');
+  assert.deepEqual(
+    [position.version, normal.version],
+    versions.map((v) => v + 1),
+    'both written',
+  );
 });
 
 test('a tick keeps each soft body once, where its last step left it', () => {
