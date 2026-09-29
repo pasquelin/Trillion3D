@@ -25,8 +25,13 @@ export async function caches() {
 
 /** Files served from disk, and images decoded to the size of their bytes, on both sides. */
 export function serveFiles(t: TestContext) {
+  // This test compares source storage, not rendered poses. The engine keeps raw float32 weights
+  // and normalizes their blend on the GPU; stop the loader rewriting the source attribute here.
+  t.mock.method(THREE.SkinnedMesh.prototype, 'normalizeSkinWeights', () => {});
+  const browserFetch = globalThis.fetch;
   t.mock.method(globalThis, 'fetch', async (input: string | URL | Request) => {
     const url = input instanceof Request ? input.url : String(input);
+    if (url.startsWith('blob:')) return browserFetch(input);
     return new Response(await readFile(fileURLToPath(url)));
   });
   decodingImages(t);

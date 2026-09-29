@@ -41,7 +41,13 @@ pub(super) fn times(stack: &ufbx::AnimStack) -> Result<Vec<f64>> {
                     } else {
                         f64::INFINITY
                     };
-                    subdivide(points, angular, 0, stack, &mut times)?;
+                    // FBX Euler values are degrees; the pose error is measured in radians.
+                    let tolerance = if rotation {
+                        (ERROR * 0.25).to_degrees()
+                    } else {
+                        ERROR * 0.25
+                    };
+                    subdivide(points, angular, tolerance, 0, stack, &mut times)?;
                 }
             }
         }
@@ -52,6 +58,7 @@ pub(super) fn times(stack: &ufbx::AnimStack) -> Result<Vec<f64>> {
 fn subdivide(
     p: [[f64; 2]; 4],
     angular: f64,
+    tolerance: f64,
     depth: u32,
     stack: &ufbx::AnimStack,
     times: &mut Vec<f64>,
@@ -73,7 +80,7 @@ fn subdivide(
         .fold((f64::INFINITY, f64::NEG_INFINITY), |(a, b), q| {
             (a.min(q[1]), b.max(q[1]))
         });
-    if deviation <= ERROR * 0.25 && max - min <= angular {
+    if deviation <= tolerance && max - min <= angular {
         for point in [p[0], p[3]] {
             let time = point[0] - stack.time_begin;
             if time > 0.0 && time < stack.time_end - stack.time_begin {
@@ -97,6 +104,6 @@ fn subdivide(
     let (a, b, c) = (mid(p[0], p[1]), mid(p[1], p[2]), mid(p[2], p[3]));
     let (d, e) = (mid(a, b), mid(b, c));
     let f = mid(d, e);
-    subdivide([p[0], a, d, f], angular, depth + 1, stack, times)?;
-    subdivide([f, e, c, p[3]], angular, depth + 1, stack, times)
+    subdivide([p[0], a, d, f], angular, tolerance, depth + 1, stack, times)?;
+    subdivide([f, e, c, p[3]], angular, tolerance, depth + 1, stack, times)
 }

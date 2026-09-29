@@ -13,7 +13,8 @@
       "play": "Empieza a reproducirse.",
       "stop": "Se detiene y vuelve al principio.",
       "seek": "Coloca el clip en `time` segundos ahora mismo, según su modo de bucle, se esté reproduciendo o no: una acción que se reproduce sigue desde ahí, una detenida conserva la pose hasta que una acción en curso de su mezclador la sobrescriba.",
-      "clipTime": "En qué punto del clip está la acción, según su modo de bucle."
+      "clipTime": "En qué punto del clip está la acción, según su modo de bucle.",
+      "blendMode": "`additive` suma el movimiento relativo a la primera clave a las demás acciones, en vez de mezclarlas."
     }
   },
   "BudgetCanvas": {
@@ -1379,7 +1380,9 @@
       "vertexCount": "Vértices.",
       "flags": "Qué atributos lleva.",
       "decodedBytes": "Su tamaño una vez descomprimida.",
-      "quantizationError": "El mayor desplazamiento de posición del encabezado, en unidades del objeto: una posición decodificada puede estar así de lejos de su fuente, y por tanto de la caja declarada de la página."
+      "quantizationError": "El mayor desplazamiento de posición del encabezado, en unidades del objeto: una posición decodificada puede estar así de lejos de su fuente, y por tanto de la caja declarada de la página.",
+      "morphTargets": "Número de objetivos en `attributes.morph`: seis flotantes por objetivo y vértice; ausente sin morphing.",
+      "skinInfluences": "Número de influencias óseas originales por vértice."
     }
   },
   "decodeManifestBinary": {
@@ -1853,7 +1856,8 @@
       "mathBatch": "Estado del regulador de las vías de cálculo (`../math/path/governor.ts`): vía actual de cada operación por lote, medianas de ambas vías, cambios. `null` en un host que no ha abierto ningún lote — no medido, no «vía JavaScript».",
       "pagesPlannedOffThread": "Integración de las páginas fuera del hilo principal. `pagesPlannedOffThread` cuenta las llegadas cuyo plan — el lugar de cada clúster en el paquete y los rangos de páginas que mueve — fue calculado por un worker, nunca las que el repliegue planificó en el hilo principal. `pagePlanMs` es el tiempo acumulado de esos planes, medido por el propio ejecutor, sea cual sea el hilo: nunca se suma a un `cpu*` o `gpu*` por fotograma. Ambos valen `null` mientras no se haya planificado ninguna llegada — no medido, no cero.",
       "pagePlanMs": "Tiempo empleado en planificar las llegadas.",
-      "dynamicUploadBytes": "Bytes de vértices de geometría dinámica subidos en su sitio en este fotograma (#573), dentro del presupuesto por fotograma del mundo (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Ausente donde ningún mundo dibuja."
+      "dynamicUploadBytes": "Bytes de vértices de geometría dinámica subidos en su sitio en este fotograma (#573), dentro del presupuesto por fotograma del mundo (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Ausente donde ningún mundo dibuja.",
+      "gpuDeformationMs": "Duración GPU de la deformación para el fotograma de `gpuPassMs`; null antes de medir o sin soporte."
     }
   },
   "frameStatistics": {
@@ -2989,7 +2993,8 @@
       "record": "Todo lo que el mundo guarda sobre este modelo: sus direcciones, su manifiesto y su grafo.",
       "getObjectByName": "El primer nodo debajo con este nombre: el modelo, un nodo de su archivo fuente y luego cualquier otro hijo — una luz que traía el archivo, un nodo que colocó una página.",
       "metadata": "El manifiesto compilado del modelo — sus primitivas, `sourceTriangles` — y `clusters`, los clústeres que contienen sus páginas, cada nivel de sus DAG contado.",
-      "localBounds": "La caja del contenido propio de este nodo, en su sistema local; un nodo simple no tiene ninguna."
+      "localBounds": "La caja del contenido propio de este nodo, en su sistema local; un nodo simple no tiene ninguna.",
+      "animations": "Clips del archivo vinculados a los nodos del modelo: `animation.createMixer(model).clipAction(model.animations[0]).play()`."
     }
   },
   "loader": {
@@ -4121,7 +4126,9 @@
       "morphTargetInfluences": "El peso de cada objetivo de morph, cuando la geometría declara alguno.",
       "morphTargetDictionary": "El rango de cada objetivo de morph por su nombre.",
       "updateMorphTargets": "Un peso cero por objetivo de morph del primer atributo deformado, nombrado por su rango.",
-      "copy": "Toma los valores de `source`, y copias de sus hijos salvo que se indique lo contrario."
+      "copy": "Toma los valores de `source`, y copias de sus hijos salvo que se indique lo contrario.",
+      "skeleton": "Huesos indicados por `skinIndex` y `skinWeight`, evaluados en la GPU en cada fotograma.",
+      "waves": "Parámetros de ondas compartidos con `WaterSurface`, para GPU y flotabilidad."
     }
   },
   "metric": {
@@ -4600,7 +4607,9 @@
       "vertexCount": "Vértices.",
       "flags": "Qué atributos lleva.",
       "decodedBytes": "Tamaño de `block`.",
-      "quantizationError": "El mayor desplazamiento de posición del encabezado de la página, en unidades del objeto."
+      "quantizationError": "El mayor desplazamiento de posición del encabezado de la página, en unidades del objeto.",
+      "skinInfluences": "Anchura exacta de las influencias óseas originales por vértice.",
+      "morphTargets": "Número de objetivos en `morph`: seis flotantes por objetivo y vértice; ausente sin morphing."
     }
   },
   "PageDecodeOp": {
@@ -4801,7 +4810,9 @@
       "matrices": "Dieciséis flotantes columna por columna por fila, escritos por el propietario.",
       "live": "1 donde la fila coloca el recurso, 0 donde está apartada.",
       "shadowless": "1 donde la fila no proyecta sombra (el `castShadow` de su malla es `false`), 0 donde la proyecta.",
-      "capacity": "Filas que caben antes de que crezca."
+      "capacity": "Filas que caben antes de que crezca.",
+      "sources": "Propietarios originales, conservados al reutilizar las filas.",
+      "sourceModels": "Mallas que comparten recursos, incluidas las filas en espera."
     }
   },
   "Plane": {
@@ -4999,7 +5010,8 @@
       "streams": "Sus paquetes de flujo.",
       "quantization": "Null en una primitiva sin páginas, que no se cuantizó en ninguna rejilla.",
       "topology": "El aspecto de las aristas y las esquinas de la malla.",
-      "dynamic": "La geometría dinámica de un mundo (#573): solo páginas de índices, sus vértices leídos como flotantes de la geometría anfitriona que el motor reescribe en su sitio."
+      "dynamic": "La geometría dinámica de un mundo (#573): solo páginas de índices, sus vértices leídos como flotantes de la geometría anfitriona que el motor reescribe en su sitio.",
+      "deformation": "Esferas de reposo de las articulaciones `[x,y,z,radius]` y alcance máximo del morphing; ausente o null para geometría estática."
     }
   },
   "Primitive": {
@@ -5699,7 +5711,8 @@
       "quantization": "Null en una primitiva sin páginas, que no se cuantizó en ninguna rejilla.",
       "topology": "El aspecto de las aristas y las esquinas de la malla.",
       "binary": "Dónde encontrar sus listas.",
-      "dynamic": "La geometría dinámica de un mundo (#573): solo páginas de índices, sus vértices leídos como flotantes de la geometría anfitriona que el motor reescribe en su sitio."
+      "dynamic": "La geometría dinámica de un mundo (#573): solo páginas de índices, sus vértices leídos como flotantes de la geometría anfitriona que el motor reescribe en su sitio.",
+      "deformation": "Esferas de reposo de las articulaciones `[x,y,z,radius]` y alcance máximo del morphing; ausente o null para geometría estática."
     }
   },
   "SlimPrimitiveBinary": {
@@ -6315,7 +6328,8 @@
       "name": "Lo que anima: `node.field`.",
       "kind": "Qué tipo de valor contiene.",
       "times": "Cuándo llega cada clave, en segundos.",
-      "values": "El valor en cada clave, uno tras otro."
+      "values": "El valor en cada clave, uno tras otro.",
+      "interpolation": "`linear` por defecto; `step` conserva la clave anterior; `cubic` usa las ternas glTF tangente entrante/valor/tangente saliente."
     }
   },
   "TrackballCameraControls": {
@@ -6331,11 +6345,12 @@
       "owner": "El objeto donde escribe la pista.",
       "field": "El campo de `owner` que escribe.",
       "key": "La clave donde se detuvo la última muestra.",
-      "value": "Los números de una muestra."
+      "value": "Los números de una muestra.",
+      "reference": "Pose de referencia de la primera clave para las acciones aditivas."
     }
   },
   "TrackKind": {
-    "summary": "Lo que anima una pista: un número, un vector, una rotación o un color."
+    "summary": "Un número, vector, rotación, color o lista de pesos de morphing."
   },
   "transformAffinePoint": {
     "summary": "`out[outOffset..outOffset + 2] = M · (x, y, z, 1)`, sin división de perspectiva: la forma de una matriz afín, cuya última fila es `(0, 0, 0, 1)`."
@@ -6477,7 +6492,7 @@
   },
   "UNSPLIT_PASS": {
     "summary": "Disposición de una primitiva sin cortar que el compilador mantiene fuera del DAG de clústeres: malla entera, orden de la fuente conservado.",
-    "description": "Tres propiedades de material llevan a ello hoy — la transmisión, el skinning y los morph targets —, nunca un nombre de objeto."
+    "description": "La transmisión requiere esta ruta; nunca el nombre de un objeto."
   },
   "updateCameraFrame": {
     "summary": "Reescribe la imagen: vista = inversa de `world` (nula para una matriz del mundo singular, como la referencia), vista-proyección = `projection · view`, y los seis planos de este frustum de vista-proyección."
@@ -6949,7 +6964,8 @@
       "shadowCastersKept": "Proyectores que conservó el descarte por página, todas las páginas dibujadas juntas, en la imagen que el dispositivo muestreó por última vez — una de cada quince; `null` hasta que vuelva una muestra.",
       "shadowCastersRejected": "Proyectores que el descarte por página probó y no conservó — fuera de la parte de la página que leen sus receptores —, en la misma imagen muestreada; `null` hasta que vuelva una muestra.",
       "shadowCastersHidden": "Proyectores en movimiento que la prueba de oclusión encontró ocultos tras la capa estática de su página, en la imagen muestreada por última vez; `null` hasta que vuelva una muestra.",
-      "dynamicUploadBytes": "Bytes de vértices de geometría dinámica subidos en su sitio en este fotograma (#573), dentro del presupuesto por fotograma del mundo (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Ausente donde ningún mundo dibuja."
+      "dynamicUploadBytes": "Bytes de vértices de geometría dinámica subidos en su sitio en este fotograma (#573), dentro del presupuesto por fotograma del mundo (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Ausente donde ningún mundo dibuja.",
+      "gpuDeformationMs": "Duración GPU de la deformación para el fotograma de `gpuPassMs`; null antes de medir o sin soporte."
     }
   },
   "WorldOptions": {
@@ -7481,7 +7497,8 @@
       "height": "Altura de la superficie sobre el punto del mundo `(x, z)`, en metros.",
       "point": "El punto del mundo `[x, y, z]` al que se lleva el punto en reposo `(x, level, z)`, en `out`: una malla movida punto a punto es la superficie, con crestas tan agudas como las olas.",
       "wavesNow": "Las olas declaradas, cada fase llevada a este instante: puestas de nuevo en `world.physics.water` (cuyas olas vuelven a empezar en 0 s), la superficie sigue desde donde está en vez de saltar.",
-      "normal": "Normal unitaria `[x, y, z]` de la superficie en el punto en reposo `(x, z)`, en `out`."
+      "normal": "Normal unitaria `[x, y, z]` de la superficie en el punto en reposo `(x, z)`, en `out`.",
+      "waveModel": "Los mismos valores de ondas y tiempo para GPU y física."
     }
   },
   "WaveSpec": {
@@ -7937,5 +7954,38 @@
   },
   "world.materialMapBytes": {
     "summary": "Bytes de imágenes retenidas o pendientes, con un límite de 64 MiB."
+  },
+  "animation.weightsTrack": {
+    "summary": "Una pista con todos los pesos de morphing por clave.",
+    "parameters": {
+      "path": "Ruta `node.morphTargetInfluences`.",
+      "times": "Tiempos de las claves en segundos.",
+      "values": "Un peso por objetivo y clave."
+    }
+  },
+  "animation.skeleton": {
+    "summary": "Crea el esqueleto que se asigna a `mesh.skeleton`.",
+    "parameters": {
+      "bones": "Huesos en el orden de `skinIndex`.",
+      "inverseBindMatrices": "Dieciséis números por hueso; si se omiten, la pose actual será la pose de enlace."
+    }
+  },
+  "animation.twoBoneIK": {
+    "summary": "Hace que una cadena de dos huesos alcance un punto después de evaluar los clips.",
+    "parameters": {
+      "root": "Primer hueso de la cadena.",
+      "mid": "Segundo hueso de la cadena.",
+      "end": "Nodo terminal unido al segundo hueso.",
+      "target": "Punto que alcanzar.",
+      "pole": "Dirección de flexión; por defecto, la dirección actual.",
+      "weight": "0 mantiene la pose actual; 1 aplica toda la solución."
+    }
+  },
+  "animation.windClip": {
+    "summary": "Clip en bucle que inclina y balancea los huesos de un árbol.",
+    "parameters": {
+      "bones": "Huesos del tronco hacia las puntas.",
+      "options": "Dirección, ángulo máximo de flexión y frecuencia."
+    }
   }
 }

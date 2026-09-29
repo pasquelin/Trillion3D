@@ -2379,21 +2379,25 @@
   "a-character-that-walks": {
     "controls": {
       "playing": "Reproducir"
-    }
+    },
+    "banner": "Arrastra para orbitar la escena. Pausa o reanuda la animación con Reproducir."
   },
   "a-crowd-of-characters": {
     "controls": {
       "playing": "Reproducir"
-    }
+    },
+    "banner": "Arrastra para orbitar la escena. Pausa o reanuda la animación con Reproducir."
   },
   "a-shape-that-morphs": {
     "controls": {
       "playing": "Reproducir"
-    }
+    },
+    "banner": "Arrastra para orbitar la escena. Pausa o reanuda la animación con Reproducir."
   },
   "additive-poses": {
     "controls": {
       "playing": "Reproducir"
-    }
+    },
+    "banner": "Arrastra para orbitar la escena. Pausa o reanuda la animación con Reproducir."
   }
 }

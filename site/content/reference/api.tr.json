@@ -13,7 +13,8 @@
       "play": "Çalmaya başlar.",
       "stop": "Durur, ve başa döner.",
       "seek": "Klibi, döngü kipine göre, oynasa da oynamasa da hemen `time` saniyedeki pozuna koyar: oynayan eylem oradan devam eder, durmuş olan, karıştırıcısında oynayan bir eylem üzerine yazana dek o pozu korur.",
-      "clipTime": "Eylemin klip içinde, döngü moduna göre nerede olduğu."
+      "clipTime": "Eylemin klip içinde, döngü moduna göre nerede olduğu.",
+      "blendMode": "`additive`, ilk anahtara göre hareketi diğer eylemlerle karıştırmak yerine onlara ekler."
     }
   },
   "AlphaMode": {
@@ -817,7 +818,9 @@
       "vertexCount": "Köşeler.",
       "flags": "Hangi öznitelikleri taşıdığı.",
       "decodedBytes": "Açıldıktan sonraki boyutu.",
-      "quantizationError": "Nesne birimlerinde, başlıktaki en büyük pozisyon kayması: çözülmüş bir pozisyon, kaynağından, dolayısıyla sayfanın bildirilen kutusundan o kadar uzakta olabilir."
+      "quantizationError": "Nesne birimlerinde, başlıktaki en büyük pozisyon kayması: çözülmüş bir pozisyon, kaynağından, dolayısıyla sayfanın bildirilen kutusundan o kadar uzakta olabilir.",
+      "morphTargets": "`attributes.morph` içindeki hedef sayısı: hedef ve köşe başına altı kayan noktalı sayı; morphing yoksa bulunmaz.",
+      "skinInfluences": "Köşe başına kaynak kemik etkisi sayısı."
     }
   },
   "DiagnosticCapabilities": {
@@ -1152,7 +1155,8 @@
       "mathBatch": "Compute yolu regülatörünün durumu (`../math/path/governor.ts`): her yığın işleminin mevcut yolu, her iki yolun medyanları, geçişler. Bir yığın açmamış bir host'ta `null` — ölçülmemiş, \"JavaScript yolu\" değil.",
       "pagesPlannedOffThread": "Ana iş parçacığı dışında sayfa entegrasyonu. `pagesPlannedOffThread`, planı — her cluster'ın pakette yeri ve taşıdığı sayfa sıraları — bir worker tarafından hesaplanan varışları sayar, asla yedeğin ana iş parçacığında planladıklarını değil. `pagePlanMs`, hangi iş parçacığı olursa olsun, yürütücünün kendisi tarafından ölçülen bu planların kümülatif süresidir: asla kare başına bir `cpu*` ya da `gpu*`'ya eklenmez. Hiçbir varış planlanmadığı sürece ikisi de `null`'dır — ölçülmemiş, sıfır değil.",
       "pagePlanMs": "Varışları planlamaya harcanan süre.",
-      "dynamicUploadBytes": "Bu karede yerinde yüklenen dinamik geometri köşe baytları (#573), dünyanın kare başına bütçesi içinde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Hiçbir dünyanın çizmediği yerde yoktur."
+      "dynamicUploadBytes": "Bu karede yerinde yüklenen dinamik geometri köşe baytları (#573), dünyanın kare başına bütçesi içinde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Hiçbir dünyanın çizmediği yerde yoktur.",
+      "gpuDeformationMs": "`gpuPassMs` karesinin GPU deformasyon süresi; ölçümden önce veya destek yoksa null."
     }
   },
   "Frustum": {
@@ -1782,7 +1786,8 @@
       "record": "Dünyanın bu model hakkında tuttuğu her şey: adresleri, manifestosu ve grafiği.",
       "getObjectByName": "Altta bu adı taşıyan ilk düğüm: model, kaynak dosyasının bir düğümü, sonra başka herhangi bir çocuk — dosyanın taşıdığı ışık, bir sayfanın yerleştirdiği düğüm.",
       "metadata": "Modelin derlenmiş manifestosu — primitifleri, `sourceTriangles` — ve `clusters`, sayfalarının tuttuğu cluster'lar, DAG'larının her seviyesi sayılmış.",
-      "localBounds": "Bu düğümün kendi içeriğinin kutusu, yerel çerçeve; düz bir düğüm hiçbirini tutmaz."
+      "localBounds": "Bu düğümün kendi içeriğinin kutusu, yerel çerçeve; düz bir düğüm hiçbirini tutmaz.",
+      "animations": "Model düğümlerine bağlı dosya klipleri: `animation.createMixer(model).clipAction(model.animations[0]).play()`."
     }
   },
   "LodQualityId": {
@@ -2095,7 +2100,9 @@
       "morphTargetInfluences": "Geometri bildirdiğinde her morf hedefinin ağırlığı.",
       "morphTargetDictionary": "Her morf hedefinin adına göre sırası.",
       "updateMorphTargets": "İlk biçim değiştiren özniteliğin morf hedefi başına sıfır ağırlık, sırasıyla adlandırılmış.",
-      "copy": "`source`'un değerlerini ve aksi söylenmedikçe çocuklarının kopyalarını alır."
+      "copy": "`source`'un değerlerini ve aksi söylenmedikçe çocuklarının kopyalarını alır.",
+      "skeleton": "`skinIndex` ve `skinWeight` ile belirtilen kemikler, her karede GPU üzerinde değerlendirilir.",
+      "waves": "GPU ve kaldırma kuvveti için `WaterSurface` ile paylaşılan dalga parametreleri."
     }
   },
   "Mixer": {
@@ -2478,7 +2485,9 @@
       "vertexCount": "Köşeler.",
       "flags": "Hangi öznitelikleri taşıdığı.",
       "decodedBytes": "`block`'un boyutu.",
-      "quantizationError": "Sayfa başlığının nesne birimlerinde en büyük pozisyon kayması."
+      "quantizationError": "Sayfa başlığının nesne birimlerinde en büyük pozisyon kayması.",
+      "skinInfluences": "Köşe başına kaynak kemik etkilerinin tam genişliği.",
+      "morphTargets": "`morph` içindeki hedef sayısı: hedef ve köşe başına altı kayan noktalı sayı; morphing yoksa bulunmaz."
     }
   },
   "PageDecodeOp": {
@@ -2663,7 +2672,9 @@
       "matrices": "Sahip tarafından yazılan, satır başına column-major on altı float.",
       "live": "Satırın kaynağı yerleştirdiği yerde 1, park edildiği yerde 0.",
       "shadowless": "Satırın gölge düşürmediği yerde 1 (mesh'inin `castShadow` değeri `false`), düşürdüğü yerde 0.",
-      "capacity": "Büyümeden önce sığan satırlar."
+      "capacity": "Büyümeden önce sığan satırlar.",
+      "sources": "Satırlar yeniden kullanılırken korunan özgün sahipler.",
+      "sourceModels": "Bekleyen satırlar dahil, kaynakları paylaşan ağlar."
     }
   },
   "Plane": {
@@ -2731,7 +2742,8 @@
       "streams": "Akış paketleri.",
       "quantization": "Hiçbir ızgarada kuantalanmamış, sayfasız bir primitifte null.",
       "topology": "Mesh'in kenarlarının ve köşelerinin neye benzediği.",
-      "dynamic": "Bir dünyanın dinamik geometrisi (#573): yalnızca dizin sayfaları; köşeleri, motorun yerinde yeniden yazdığı ana geometriden kayan noktalı sayılar olarak okunur."
+      "dynamic": "Bir dünyanın dinamik geometrisi (#573): yalnızca dizin sayfaları; köşeleri, motorun yerinde yeniden yazdığı ana geometriden kayan noktalı sayılar olarak okunur.",
+      "deformation": "Eklemlerin dinlenme küreleri `[x,y,z,radius]` ve en büyük morphing erişimi; statik geometri için yok veya null."
     }
   },
   "Primitive": {
@@ -3338,7 +3350,8 @@
       "quantization": "Hiçbir ızgarada kuantalanmamış, sayfasız bir primitifte null.",
       "topology": "Mesh'in kenarlarının ve köşelerinin neye benzediği.",
       "binary": "Listelerinin nerede bulunacağı.",
-      "dynamic": "Bir dünyanın dinamik geometrisi (#573): yalnızca dizin sayfaları; köşeleri, motorun yerinde yeniden yazdığı ana geometriden kayan noktalı sayılar olarak okunur."
+      "dynamic": "Bir dünyanın dinamik geometrisi (#573): yalnızca dizin sayfaları; köşeleri, motorun yerinde yeniden yazdığı ana geometriden kayan noktalı sayılar olarak okunur.",
+      "deformation": "Eklemlerin dinlenme küreleri `[x,y,z,radius]` ve en büyük morphing erişimi; statik geometri için yok veya null."
     }
   },
   "SlimPrimitiveBinary": {
@@ -3802,7 +3815,8 @@
       "name": "Ne canlandırdığı: `node.field`.",
       "kind": "Ne tür bir değer tuttuğu.",
       "times": "Her anahtarın ne zaman gerçekleştiği, saniye cinsinden.",
-      "values": "Her anahtardaki değer, art arda."
+      "values": "Her anahtardaki değer, art arda.",
+      "interpolation": "Varsayılan `linear`; `step` önceki anahtarı korur; `cubic`, glTF giriş teğeti/değer/çıkış teğeti üçlülerini kullanır."
     }
   },
   "TrackBinding": {
@@ -3811,11 +3825,12 @@
       "owner": "İzin içine yazdığı nesne.",
       "field": "`owner`'ın yazdığı alan.",
       "key": "Son örneğin durduğu anahtar.",
-      "value": "Bir örneğin sayıları."
+      "value": "Bir örneğin sayıları.",
+      "reference": "Eklemeli eylemler için ilk anahtarın referans pozu."
     }
   },
   "TrackKind": {
-    "summary": "Bir izin ne canlandırdığı: bir sayı, bir vektör, bir dönüş ya da bir renk."
+    "summary": "Bir sayı, vektör, dönüş, renk veya morphing ağırlıkları listesi."
   },
   "TrackballCameraControls": {
     "summary": "TRACKBALL: kamera, sahne imlecin altında bir top gibiymiş gibi kendi pivotu etrafında yuvarlanır.",
@@ -3940,7 +3955,7 @@
   },
   "UNSPLIT_PASS": {
     "summary": "Derleyici tarafından cluster DAG'ının dışında tutulan, bölünmemiş bir primitifin düzeni: tam mesh, kaynak sırası korunmuş.",
-    "description": "Bugün oraya üç malzeme özelliği götürür — geçirgenlik, iskeletleme, ve morph hedefleri —, asla bir nesne adı değil."
+    "description": "Bu yolu ışık geçirimi gerektirir; hiçbir zaman nesnenin adı belirlemez."
   },
   "UserNotice": {
     "summary": "Sayfayı kullanan kişi için, yapabilecekleriyle birlikte bir mesaj.",
@@ -4376,7 +4391,8 @@
       "shadowCastersKept": "Sayfa başına ayıklamanın tuttuğu gölge düşürücüler, tüm çizilen sayfalar birlikte, aygıtın en son örneklediği karede — on beşte bir; bir örnek dönene dek `null`.",
       "shadowCastersRejected": "Sayfa başına ayıklamanın sınayıp tutmadığı gölge düşürücüler — sayfanın alıcılarının okuduğu kısmının dışında —, aynı örneklenen karede; bir örnek dönene dek `null`.",
       "shadowCastersHidden": "Örtme testinin, sayfalarının durağan katmanının arkasında gizli bulduğu hareketli gölge düşürücüler, en son örneklenen karede; bir örnek dönene dek `null`.",
-      "dynamicUploadBytes": "Bu karede yerinde yüklenen dinamik geometri köşe baytları (#573), dünyanın kare başına bütçesi içinde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Hiçbir dünyanın çizmediği yerde yoktur."
+      "dynamicUploadBytes": "Bu karede yerinde yüklenen dinamik geometri köşe baytları (#573), dünyanın kare başına bütçesi içinde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Hiçbir dünyanın çizmediği yerde yoktur.",
+      "gpuDeformationMs": "`gpuPassMs` karesinin GPU deformasyon süresi; ölçümden önce veya destek yoksa null."
     }
   },
   "WorldOptions": {
@@ -7481,7 +7497,8 @@
       "height": "Dünya noktası `(x, z)` üzerindeki yüzeyin yüksekliği, metre.",
       "point": "Durgun nokta `(x, level, z)`’nin taşındığı dünya noktası `[x, y, z]`, `out` içine: nokta nokta taşınan bir ızgara yüzeyin kendisidir, tepeler dalgalar kadar keskin.",
       "wavesNow": "Bildirilen dalgalar, her faz bu âna taşınmış: `world.physics.water`’a yeniden verildiğinde (dalgaları 0 sn’den yeniden başlar), yüzey sıçramadan olduğu yerden sürer.",
-      "normal": "Durgun nokta `(x, z)`’de yüzeyin birim normali `[x, y, z]`, `out` içine."
+      "normal": "Durgun nokta `(x, z)`’de yüzeyin birim normali `[x, y, z]`, `out` içine.",
+      "waveModel": "GPU ve fizik için aynı dalga değerleri ve zaman."
     }
   },
   "WaveSpec": {
@@ -7937,5 +7954,38 @@
   },
   "world.materialMapBytes": {
     "summary": "Tutulan veya bekleyen görüntülerin bayt sayısı; sınır 64 MiB."
+  },
+  "animation.weightsTrack": {
+    "summary": "Her anahtarda tüm morphing ağırlıklarını içeren iz.",
+    "parameters": {
+      "path": "`node.morphTargetInfluences` yolu.",
+      "times": "Anahtar zamanları, saniye cinsinden.",
+      "values": "Hedef ve anahtar başına bir ağırlık."
+    }
+  },
+  "animation.skeleton": {
+    "summary": "`mesh.skeleton` alanına atanacak iskeleti oluşturur.",
+    "parameters": {
+      "bones": "`skinIndex` sırasındaki kemikler.",
+      "inverseBindMatrices": "Kemik başına on altı sayı; verilmezse mevcut poz bağlama pozu olur."
+    }
+  },
+  "animation.twoBoneIK": {
+    "summary": "Klipler değerlendirildikten sonra iki kemikli zinciri bir noktaya ulaştırır.",
+    "parameters": {
+      "root": "Zincirin ilk kemiği.",
+      "mid": "Zincirin ikinci kemiği.",
+      "end": "İkinci kemiğe bağlı uç düğüm.",
+      "target": "Ulaşılacak nokta.",
+      "pole": "Bükülme yönü; varsayılan olarak mevcut yön.",
+      "weight": "0 mevcut pozu korur; 1 çözümü tamamen uygular."
+    }
+  },
+  "animation.windClip": {
+    "summary": "Ağaç kemiklerini eğip sallayan döngülü klip.",
+    "parameters": {
+      "bones": "Gövdeden uçlara doğru kemikler.",
+      "options": "Yön, en büyük bükülme açısı ve frekans."
+    }
   }
 }
