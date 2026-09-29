@@ -22,7 +22,7 @@ function runtime(n: number, drawLayerSlots: number) {
       pageRecFixture({
         depthLayer: i % 3,
         material: surfaceOf(material),
-        matrix: new G.Matrix4(),
+        placementIndex: 0,
       }),
     );
   const dirty = createDirtyRows(Math.max(1, n));
@@ -39,6 +39,7 @@ function runtime(n: number, drawLayerSlots: number) {
         return dirty.span.to;
       },
     },
+    selectionRoots: [{ world: new G.Matrix4() }],
     drawItemWords: new Uint32Array(Math.max(1, n) * DRAW_ITEM_U32),
     itemWordsHold: createDrawItemWordsHold(n),
   };
