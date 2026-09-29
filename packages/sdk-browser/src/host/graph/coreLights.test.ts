@@ -83,7 +83,10 @@ test('the WebGL2 cluster path uploads each kind in its slot, in the reference or
   const lights = [sun, rect, spot, point, ambient, probe];
   assert.equal(unsupportedClusterLight(lights), undefined);
   const { gl, seen } = recordingGl();
-  const count = new WebglClusterLights(gl, {} as WebGLProgram).upload({ lights }, IDENTITY_ELEMENTS);
+  const count = new WebglClusterLights(gl, {} as WebGLProgram).upload(
+    { lights },
+    IDENTITY_ELEMENTS,
+  );
   assert.equal(count, 5, 'four direct lights and one ambient slot; the probe takes none');
   assert.deepEqual(
     slotKinds(seen.records, count),
