@@ -119,7 +119,7 @@ test('the pages of one surface at one placement are one submission, in their ord
 test('released ranges are written again only once the GPU ran the frames that drew them', () => {
   const stone = new GraphSurface('standard'),
     scene = new Scene();
-  const swap = (gone: Mesh) => {
+  const swap = (gone: ReturnType<typeof page>) => {
     gone.geometry.dispose();
     scene.remove(gone);
     const next = page(2, stone);
