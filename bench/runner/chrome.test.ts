@@ -9,10 +9,10 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
-import { RACINE, listBrowserTests, listJustesseTests } from '../../tests/browser/test-gpu.ts';
+import { listBrowserTests, listJustesseTests } from '../../tests/browser/test-gpu.ts';
 import { assertBrowserEntryPoint, launchChrome } from './chrome.ts';
 
-const at = (path: string) => join(RACINE, path);
+const at = (path: string) => join(import.meta.dirname, '..', '..', path);
 const proofs = [listJustesseTests()[0], listBrowserTests()[0]].map(at);
 
 test('under node --test, only a test:gpu proof may open Chrome', () => {
