@@ -81,11 +81,18 @@ pub(super) fn one_sided(pos: &[f32], from: &[u32], to: &Grid, floor: f64) -> f64
         .reduce(|| 0.0, f64::max)
 }
 
-/// `floor.max(distance(pos, a, b))`, bit for bit, at a fraction of its cost; `floor.max(0.0)` when
-/// either side is empty.
+/// `floor` raised to a distance, a zero result always `+0`: `f64::max` leaves the sign of a zero
+/// between `-0` and `+0` unspecified (arm64's `fmaxnm` returns `+0`, x86's `maxsd` the second
+/// operand), and a `-0` floor would publish a platform's zero. A distance is never `-0`.
+fn raised(floor: f64, distance: f64) -> f64 {
+    floor.max(distance) + 0.0
+}
+
+/// `floor.max(distance(pos, a, b))`, bit for bit, at a fraction of its cost, a zero as `+0`; the
+/// floor raised to `0` when either side is empty.
 pub(crate) fn distance_above(pos: &[f32], a: &[u32], b: &[u32], floor: f64) -> f64 {
     if a.is_empty() || b.is_empty() {
-        return floor.max(0.0);
+        return raised(floor, 0.0);
     }
     // The first side raises the floor of the second: a sample below it cannot change the max.
     // The second side's grid does not read the floor: it is built while the first side runs.
@@ -94,7 +101,7 @@ pub(crate) fn distance_above(pos: &[f32], a: &[u32], b: &[u32], floor: f64) -> f
         || Grid::new(pos, a),
     );
     let floor = floor.max(first);
-    floor.max(one_sided(pos, b, &grid_a, floor))
+    raised(floor, one_sided(pos, b, &grid_a, floor))
 }
 
 #[cfg(test)]
