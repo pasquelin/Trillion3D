@@ -1,3 +1,5 @@
+import { unpackDrawn } from './runtimePack.ts';
+import { runtimeDeformation } from './runtimeDeformation.ts';
 import type { Page, Primitive } from '../../../../sdk-core/src/index.ts';
 import { LINE_DEPTH_LAYER } from '../../../../sdk-core/src/lod/depthLayer.ts';
 import type { PageCutPayload } from '../../../../sdk-core/src/page/decodeContracts.ts';
@@ -98,5 +100,8 @@ export async function cutRuntimePrimitive(
   packed: ArrayBuffer,
   kind: DrawnKind,
 ): Promise<RuntimePrimitive> {
-  return servePrimitive(await cutPagesOffThread(packed), kind);
+  const deformation = runtimeDeformation(unpackDrawn(packed).drawn);
+  const result = servePrimitive(await cutPagesOffThread(packed), kind);
+  if (deformation) result.primitive.deformation = deformation;
+  return result;
 }

@@ -1,10 +1,11 @@
+import { createDeformationCompute } from '../../../deformation/compute.ts';
 import { createDeferredLighting } from '../../../lighting/deferred/deferred.ts';
 import { prepareTemporalAntialiasing } from '../../../taa/prepare.ts';
 import { createSceneLightContractBuffer } from '../state/lightBuffer.ts';
 import { prepareWebgpuPresentation } from '../../frame/presentationSetup.ts';
 import { createWebgpuPagesPipelines } from './pipelines.ts';
 import { ensureWebgpuPositionBuffer, loadUnpaged } from '../../core/positions.ts';
-import { prepareWebgpuGeometry } from '../../core/geometryPrepare.ts';
+import { prepareDeformationGeometry } from '../../../deformation/prepare.ts';
 import { prepareWebgpuBlend } from '../../blend/prepare.ts';
 import { declaredBlendModes } from '../../blend/stagePipelines.ts';
 import { createTransparentTable } from '../../transparent/table.ts';
@@ -26,8 +27,7 @@ import { prepareGpuTiming } from './timing.ts';
 import { reserveRootBoxes } from '../../../math/batchBoxes.ts';
 import { type WebgpuPagesRuntime } from '../runtime.ts';
 
-/** The backend's preparation on its session's handle: its timer, every resource, then its root
- *  world boxes. */
+/** Prepares the timer, resources, then root world boxes on the session handle. */
 export async function prepareWebgpuBackend(rt: WebgpuPagesRuntime, device: GPUDevice) {
   // A first claim hears of a device already lost a microtask later (`claimGpuDevice` has already
   // listened to `device.lost`): one tick, no listener of its own, and nothing is built.
@@ -127,33 +127,37 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     gpuCompaction: !!blendState.compaction?.encode,
     transmissiveMeshes: blendState.transmissive,
   });
-  // The float geometry of what no page covers, concatenated once; then, every vertex buffer
-  // allocated, the geometry pool is drawn from what they leave of its budget. A concatenation that
-  // fails is a material failure, as the textures' are: the pool is still granted, the visibility
-  // buffer dropped below.
   throwIfStopped(rt);
-  vis.geometryBlocks.clear();
   let geometryFailure: { error: unknown } | undefined;
   try {
-    Object.assign(vis, prepareWebgpuGeometry(gpuDevice, allPages, vis.geometryBlocks));
+    prepareDeformationGeometry(rt, gpuDevice);
   } catch (error) {
     geometryFailure = { error };
   }
+  if (geometryFailure && vis.deformation?.any) throw geometryFailure.error;
   await grantWebgpuPagesCache(rt, gpuDevice);
   await grantFrameTargets(rt, gpuDevice);
   ensureUniform(rt, gpuDevice, cap);
+  vis.deformationCompute =
+    allPages.some((page) => page.deformationOutput) || !!vis.wholeDeformation
+      ? await createDeformationCompute(gpuDevice)
+      : undefined;
   try {
     if (geometryFailure) throw geometryFailure.error;
     await step('textures', () => prepareWebgpuTextures(rt, gpuDevice));
-    // Item rows cite atlas layers: they are therefore mounted AFTER the textures.
     await step('blend resources', () => prepareBlendResources(rt, gpuDevice));
     await step('visibility programs', () => prepareWebgpuVisibility(rt, gpuDevice));
   } catch (error) {
     throwIfStopped(rt); // A close or a loss is no material failure.
+    // The untextured fallback reads rest positions, so a deformed scene must select another backend.
+    if (vis.deformation?.any) throw error;
     diag.diagnosticFailure('material-pipeline-failed', error);
     dropVis(rt);
   }
-  if (blendState.blendGpu.length && !vis.blendPipelines) dropVis(rt);
+  if (blendState.blendGpu.length && !vis.blendPipelines) {
+    if (vis.deformation?.any) throw new Error('WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE');
+    dropVis(rt);
+  }
   if (context.gpuCanvas && !vis.visEnabled) throw new Error('WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE');
   if (context.gpuCanvas && blendState.blendGpu.length && !vis.blendPipelines)
     throw new Error('WEBGPU_FORWARD_MATERIAL_UNAVAILABLE');

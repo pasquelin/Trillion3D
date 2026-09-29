@@ -1,3 +1,4 @@
+import { cookedSoftSource, type SoftSource } from '../deformation/softSource.ts';
 import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import {
   BODY_INDEX,
@@ -12,7 +13,12 @@ import { fits, rescaledSoft, writeSoftBody } from './softBodies.ts';
 import { cookedBytes, tilePose, type Model } from './tilePlace.ts';
 
 /** A cooked soft body made: its entry, its options, its engine id. */
-export type CookedMade = { soft: CookedSoftBody; physics: ObjectPhysics; id: number };
+export type CookedMade = {
+  soft: CookedSoftBody;
+  physics: ObjectPhysics;
+  id: number;
+  source?: SoftSource;
+};
 
 /**
  * The cooked soft bodies of the compiled models in a scene (`physics.json` `softBodies`): each
@@ -53,7 +59,7 @@ export function createCookedSoftBodies(
     const { position, quaternion, scale } = tilePose({ model, instance: soft });
     if (!fits(scale, soft.scale)) return refuse(opening, soft);
     const p = new ObjectPhysics(soft.physics);
-    const made: CookedMade = { soft, physics: p, id: -1 };
+    const made: CookedMade = { soft, physics: p, id: -1, source: cookedSoftSource(model, soft) };
     made.id = bodies.claim(0, soft.vertices, { model, soft: made });
     // Held at once: a throw below still leaves the slot for `forget` to release.
     opening.made.push(made);

@@ -7,7 +7,7 @@ import {
   PAGE_SLOT_WORDS,
   PAGE_TRANSFORM_WORD,
 } from './pageTable.ts';
-import { SAMPLE_MAG_NEAREST, SAMPLE_TRANSFORMED } from './sampling.ts';
+import { SAMPLE_MAG_NEAREST, SAMPLE_TRANSFORMED } from '../../texture/sampling.ts';
 import type { Texture } from '../../../../sdk-core/src/index.ts';
 import { slotSampled } from './samplingHeaders.ts';
 import { entryLevel, entryPlace, MAX_LEVELS, packEntry, tileLayout } from '../../texture/tiles.ts';

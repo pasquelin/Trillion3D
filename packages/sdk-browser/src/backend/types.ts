@@ -1,3 +1,4 @@
+import type { AdmitGpuMemory } from '../residency/activeMemory.ts';
 import type { HostDiagnosticFactory, HostScene, HostTexture } from '../host/resources.ts';
 import type { HostCamera } from '../camera/world.ts';
 import type { PageCatalogue } from '../streaming/types.ts';
@@ -29,8 +30,7 @@ export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw {
    *  graph, never to the view. Absent from an engine that paints its own diagnostic. */
   hostDiagnostics?: HostDiagnosticFactory;
   refreshSceneLighting?(): void;
-  /** True when the rendered scene carries at least one declared light; false is the unlit view,
-   *  whose composition is identity (P6). Read every frame: a light added later changes it. */
+  /** True when the rendered scene carries at least one declared light; false is the unlit view, whose composition is identity (P6). Read every frame: a light added later changes it. */
   sceneLit?(): boolean;
   /** The display curve the scene chose; ACES when absent. Read every frame, like `sceneLit`. */
   sceneToneMapping?(): SceneToneMapping;
@@ -153,6 +153,8 @@ export interface BackendContext {
    *  The ceiling: the largest pool `setMemoryBudgets` may ask for, the starting budget without
    *  it; per-drawable-page tables start at it, and grow in place past it on WebGPU. */
   geometryPoolBytes?: number;
+  /** Admit active allocations through the owning world's one global budget. */
+  admitGpuMemory?: AdmitGpuMemory;
   geometryPoolCeilingBytes?: number;
   /** Virtual-texture pool bytes, shared by the colour and data atlases; 512 MiB by default. A
    *  view beyond it waits for a less-looked-at tile, a missing tile shows its coarse level.
@@ -180,16 +182,14 @@ export interface BackendContext {
    *  `bounceBudgetMs`: its GPU target per frame, `BOUNCE_SETTINGS.budgetMs` (0.8 ms): a target. */
   bounce?: boolean;
   bounceBudgetMs?: number;
-  /** Time every step of the frame. Off by default: only the bench and the harness turn it on. */
-  stageProfile?: boolean;
+  stageProfile?: boolean; // Off by default; the bench and harness time the frame steps.
   feedbackTargetAB?: boolean;
   /** DIAGNOSTIC variant kept by the host, checked (`../diagnostic/gpuVariant.ts`); absent in production. */
   diagnosticGpuVariant?: import('../diagnostic/gpuVariant.ts').DiagnosticGpuVariant;
   shadowPageInvalidation?: boolean; // page-by-page shadow-map invalidation, on by default
   /** Reads the cache's resident-proxy object once, at the first lit frame; absent without one. */
   readSceneProxy?: () => Promise<import('../../../sdk-core/src/index.ts').SceneProxy>;
-  /** Host-owned, validated page reader for the initial complete GPU fallback. */
-  readPage?: (url: string) => Promise<Uint32Array>;
+  readPage?: (url: string) => Promise<Uint32Array>; // Validated reader of the GPU fallback.
   readGeometryPage?: (url: string, signal?: AbortSignal, priority?: number) => Promise<Uint8Array>;
   pageCatalogue?: PageCatalogue; // what a mount reads (#572)
   pageRoundTripMs?: () => number; // the reads' measured round trip (`../streaming/roundTrip.ts`)

@@ -369,7 +369,7 @@ What is carried:
 | Lights                                         | Point, directional, spot → `KHR_lights_punctual`, oriented along the FBX light direction                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | Hidden nodes                                   | Skipped, counted                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
-Not carried, counted in the import manifest under `unsupported`: skinning, blend shapes, animation, cameras, area/volume lights, procedural textures, UV transforms, textures outside the source directory, GPU-only image formats without a PNG/JPEG sibling, separate opacity textures, split metallic/roughness textures, and the `material-*` and `texture-*` rows in the error table below. ufbx warnings (clamped indices, …) are listed under `notes`; a missing material library is **not** among them, it has its own named code.
+Not carried, counted in the import manifest under `unsupported`: cameras, area/volume lights, procedural textures, UV transforms, textures outside the source directory, GPU-only image formats without a PNG/JPEG sibling, separate opacity textures, split metallic/roughness textures, and the `material-*` and `texture-*` rows in the error table below. ufbx warnings (clamped indices, …) are listed under `notes`; a missing material library is **not** among them, it has its own named code.
 
 The import manifest also records, per file: format, FBX version, creator, unit scale, mesh/material/texture/light counts, parse and conversion time.
 
@@ -636,7 +636,7 @@ key, so a cache cooked by another Jolt is another key, never reused. The algorit
   exact mass, centre and inertia (`mass.rs`). Pieces missing the mesh's mass by over 1e-5 (a
   concave mesh, until decomposition) refuse the body, as does a declared shape.
 
-Primitives without a DAG (skinned, morphed, shared blend) cook no collider. A primitive whose shape Jolt
+Primitives without a DAG (shared blend) cook no collider. A primitive whose shape Jolt
 still refuses (every triangle of zero area) cooks no collider either: `physics.json`'s
 `report.refused` names it with Jolt's reason, and the compile goes on, its render cache the same.
 
@@ -1001,3 +1001,22 @@ The executable is found through `options.executable`, else `TRILLION3D_COMPILER_
 ## Using it from any other host
 
 Spawn the executable, read stderr line by line, read stdout once at exit, write a cancel line on stdin when the user asks. That is the whole contract; it is the same on macOS, Linux and Windows. A host that prefers a library can call `trillion3d_compiler::compile(&Options, progress)` from Rust directly (`main.rs` is 100 lines over it); an N-API or WebAssembly binding is not provided (`unsupported: "N-API binding"`).
+
+## Deformation streams
+
+The glTF reader retains joints, inverse bind matrices, morph targets and animation channels.
+The FBX driver carries skin clusters, blend shapes and keyed animation through its glTF
+intermediate; its driver identity participates in the import key. Skeletal and morphed opaque
+and alpha-blended geometry enters the existing DAG and streaming path. The compiler carries
+per-vertex joint/weight and target attributes through vertex permutations and QEM source origins,
+and measures joint rest balls and target displacement radii for runtime conservative bounds.
+Animated scenes continue to use the prepared source tables; an autonomous scene is not claimed
+when it would discard animation.
+
+For cooked cloth, rope and soft volumes, the compiler applies the physics cook's weld and compact
+mapping to the render vertices. Geometry page format 7 explicitly marks simulation-source IDs;
+it never silently interprets them as skeleton joints. Physics `render.version: 1` records the
+matching rest positions and triangle indices. Simplified vertices retain their source offset;
+runtime displacement bounds add conservative transfer error until finer resident pages can be
+selected. A cooked soft primitive also declaring skin/morph sources is refused with
+`SOFT_DEFORMATION` rather than assigning ambiguous meanings to the same stream.

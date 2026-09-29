@@ -22,6 +22,12 @@ function declared(source: string, surfaceModel: number, L: V) {
   const taps: boolean[] = [];
   const scope = {
     surfaceModel,
+    thinSubsurface: 0,
+    any: (value: boolean) => value,
+    select: (a: unknown, b: unknown, condition: boolean) => (condition ? b : a),
+    shadowReceiverOffset: 0,
+    shadowTransmission: 1,
+    thinTransmission: () => 0,
     dot,
     normalize,
     i32: Math.trunc,
@@ -91,6 +97,10 @@ test('without taps the filter asks for the same pages, then reads none (#685)', 
     const code = functionText(SHADOW_FACTOR_WGSL, name).replace(/\/\/.*$/gm, '');
     assert.ok(code.includes(',taps:bool)->f32{'), name);
     assert.equal(code.match(/,taps\);/g)?.length, calls, name);
-    assert.equal(code.match(/\btaps\b/g)?.length, 1 + calls, name);
+    assert.equal(
+      code.match(/\btaps\b/g)?.length,
+      1 + calls + (name === 'lampShadowFactor' ? 1 : 0),
+      name,
+    );
   }
 });

@@ -8,14 +8,10 @@ import {
   VIS_UNIFORM_BYTES,
   type AtlasBindings,
 } from './bindLayout.ts';
-
 /** What every pass that samples an atlas needs to bind: the streamer, which holds each atlas's
  *  pool and page table, and the sampler. */
 type AtlasResources = { textures: WebgpuTileStreamer; sampler: GPUSampler };
-
-/** Resources of a visibility-pass group: those that change from one constructor to the other are
- *  the uniform (its slot offset), the Hi-Z flags and the two slot buffers, which are `zeroFlags`
- *  on the direct path and the indirect buffers on the per-slot path. */
+/** Direct and indirect visibility paths supply their own flags and slot buffers. */
 export type VisBindResources = AtlasResources & {
   cache: GPUBuffer;
   position: GPUBuffer;
@@ -27,9 +23,10 @@ export type VisBindResources = AtlasResources & {
   instances: GPUBuffer;
   slotOffsets: GPUBuffer;
 };
-
 /** Resources of the hardware-resolve group, identical for both of its constructors. */
 export type ShadeBindResources = AtlasResources & {
+  shadingOffset: GPUBuffer;
+  subsurface: GPUTextureView;
   visView: GPUTextureView;
   cache: GPUBuffer;
   position: GPUBuffer;
@@ -38,7 +35,6 @@ export type ShadeBindResources = AtlasResources & {
   pageTable: GPUBuffer;
   uniform: GPUBuffer;
 };
-
 /** Lighting shared with the opaque resolve; deferred stand-ins cover resources not ready yet. */
 export type BlendLighting = {
   directLights: GPUBuffer;
@@ -130,6 +126,8 @@ export function shadeBindEntries(r: ShadeBindResources): GPUBindGroupEntry[] {
   const b = SHADE_BINDINGS;
   return [
     resourceEntry(b.visView, () => r.visView),
+    bufferEntry(b.shadingOffset, () => r.shadingOffset),
+    resourceEntry(b.subsurface, () => r.subsurface),
     bufferEntry(b.cache, () => r.cache),
     bufferEntry(b.position, () => r.position),
     bufferEntry(b.uv, () => r.uv),

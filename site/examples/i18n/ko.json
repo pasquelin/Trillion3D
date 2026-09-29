@@ -2375,5 +2375,47 @@
       "unmount": "분리",
       "remount": "다시 장착"
     }
+  },
+  "a-character-that-walks": {
+    "controls": {
+      "playing": "재생"
+    },
+    "banner": "드래그하여 장면 주위를 돌아봅니다. 재생으로 애니메이션을 일시 정지하거나 다시 시작합니다."
+  },
+  "a-crowd-of-characters": {
+    "controls": {
+      "playing": "재생"
+    },
+    "banner": "드래그하여 장면 주위를 돌아봅니다. 재생으로 애니메이션을 일시 정지하거나 다시 시작합니다."
+  },
+  "a-shape-that-morphs": {
+    "controls": {
+      "playing": "재생"
+    },
+    "banner": "드래그하여 장면 주위를 돌아봅니다. 재생으로 애니메이션을 일시 정지하거나 다시 시작합니다."
+  },
+  "additive-poses": {
+    "controls": {
+      "playing": "재생"
+    },
+    "banner": "드래그하여 장면 주위를 돌아봅니다. 재생으로 애니메이션을 일시 정지하거나 다시 시작합니다."
+  },
+  "move-a-hierarchy-by-name": {
+    "banner": "다섯 개의 이름 있는 그룹이 재현 가능한 시퀀스를 지나는 모습을 보세요. 드라이버를 바꾸면 같은 자세를 직접 씁니다.",
+    "controls": {
+      "driver": "드라이버",
+      "speed": "속도",
+      "paused": "일시정지",
+      "replay": "다시 재생"
+    },
+    "choices": {
+      "driver": {
+        "name": "이름으로",
+        "host": "호스트가 작성"
+      }
+    },
+    "readouts": {
+      "pose": "포즈"
+    }
   }
 }

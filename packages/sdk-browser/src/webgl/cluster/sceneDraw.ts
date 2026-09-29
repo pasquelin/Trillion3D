@@ -12,6 +12,7 @@ import type { WholeMesh } from '../../cluster/batchMesh.ts';
 import type { WebglClusterScene } from './lights.ts';
 import type { SceneCopy } from './copyCulling.ts';
 import { WebglClusterOwner, type TextureHosts } from './owner.ts';
+import type { DeformationSource } from './deformation.ts';
 import { createDrawOrder } from './drawOrder.ts';
 import { loadHostVertices, meshes } from '../../scene/meshes.ts';
 import { DEFAULT_PIXEL_RATIO } from '../../backend/common.ts';
@@ -56,7 +57,7 @@ type DrawnNode = Partial<SceneCopy> & {
  *  diagnostics, where that notice is said when the session gives none, the texture bytes its
  *  census may upload ahead and a frame's upload budget (`textureQueue.ts`). */
 type DrawHosts = Pick<BackendContext, 'pixelRatio' | 'materialDegraded' | 'onDiagnostic'> &
-  TextureHosts;
+  TextureHosts & { deformation?: () => DeformationSource | undefined };
 /** A scene draw hands the program no page batch: shared, so a frame allocates no empty list. */
 const NO_BATCHES: readonly never[] = [];
 
@@ -67,18 +68,17 @@ const NO_BATCHES: readonly never[] = [];
  * `renderOrder` and from the farthest to the nearest; the program splits them into its
  * transmission and blend passes. The lights come from the same lists, the background off the graph.
  *
- * `render(camera)` opens the frame: it zeroes the counters, so that a frame
- * the composer held — nothing drawn — publishes nothing, never the previous draw; `counters()` is
- * `null` before the first frame. The graph's matrices and lists (`drawLists.ts`: the matrices of
- * the subtrees that changed, the lists walked again only when the graph changed shape) are
- * brought up to date once per drawn image, at the first of
- * `host.linearRefusal` and `host.drawHostGeometry`: never on a held frame, and never in `render`,
- * which runs before the engine's frame writes the graph (`../../backend/autonomous/pages.ts`). Asked
- * first, that runs before `onBeforeRender`, whose one hook (`../../lighting/unlitAlbedo.ts`) writes
- * no field the lists read. Without a context (a session that never draws on the host
- * surface) the draw is refused by name. `pixelRatio`, read each frame, scales a line's CSS-pixel
- * width to the image's pixels; `materialDegraded` hears a surface drawn without a physical feature
- * or left out of the frame, said on `onDiagnostic` when the session gives no hearer.
+ * `render(camera)` opens the frame: it zeroes the counters, so that a frame the composer held — nothing
+ * drawn — publishes nothing, never the previous draw; `counters()` is `null` before the first frame.
+ * The graph's matrices and lists (`drawLists.ts`: the matrices of the subtrees that changed, the lists
+ * walked again only when the graph changed shape) are brought up to date once per drawn image, at the
+ * first of `host.linearRefusal` and `host.drawHostGeometry`: never on a held frame, and never in
+ * `render`, which runs before the engine's frame writes the graph
+ * (`../../backend/autonomous/pages.ts`). Asked first, that runs before `onBeforeRender`, whose one hook
+ * (`../../lighting/unlitAlbedo.ts`) writes no field the lists read. Without a context (a session that
+ * never draws on the host surface) the draw is refused by name. `pixelRatio`, read each frame, scales a
+ * line's CSS-pixel width to the image's pixels; `materialDegraded` hears a surface drawn without a
+ * physical feature or left out of the frame, said on `onDiagnostic` when the session gives no hearer.
  */
 export function createSceneDraw(
   gl: WebGL2RenderingContext | undefined,
@@ -129,6 +129,7 @@ export function createSceneDraw(
       const shown = output.displayWidth ?? output.width;
       owner.pixelRatio = pixelRatio() * (output.width / shown);
       owner.mipBias = upscaleMipBias(output.width, shown);
+      owner.deformation = hosts.deformation?.();
       display.onBeforeRender?.();
       try {
         walk();

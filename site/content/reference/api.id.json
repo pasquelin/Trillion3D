@@ -13,7 +13,8 @@
       "play": "Mulai memainkannya.",
       "stop": "Berhenti, dan kembali ke awal.",
       "seek": "Menempatkan klip pada `time` detik sekarang juga, menurut mode pengulangannya, sedang diputar atau tidak: aksi yang diputar berlanjut dari situ, aksi yang berhenti mempertahankan pose itu sampai aksi yang diputar pada mixer-nya menimpanya.",
-      "clipTime": "Di mana posisi aksi dalam clip, menurut mode loop-nya."
+      "clipTime": "Di mana posisi aksi dalam clip, menurut mode loop-nya.",
+      "blendMode": "`additive` menambahkan gerakan relatif terhadap kunci pertama ke aksi lain, bukan mencampurkannya."
     }
   },
   "AlphaMode": {
@@ -824,7 +825,9 @@
       "vertexCount": "Vertex.",
       "flags": "Atribut mana yang dibawanya.",
       "decodedBytes": "Ukurannya setelah dibongkar.",
-      "quantizationError": "Pergeseran posisi terbesar pada header, dalam satuan objek: sebuah posisi yang diurai bisa berada sejauh itu dari sumbernya, dan karenanya dari kotak yang dideklarasikan halaman itu."
+      "quantizationError": "Pergeseran posisi terbesar pada header, dalam satuan objek: sebuah posisi yang diurai bisa berada sejauh itu dari sumbernya, dan karenanya dari kotak yang dideklarasikan halaman itu.",
+      "morphTargets": "Jumlah target di `attributes.morph`: enam float per target dan verteks; tidak ada tanpa morphing.",
+      "skinInfluences": "Jumlah pengaruh tulang sumber per verteks."
     }
   },
   "DiagnosticCapabilities": {
@@ -1162,7 +1165,8 @@
       "mathBatch": "Status pengatur jalur compute (`../math/path/governor.ts`): jalur saat ini setiap operasi batch, median kedua jalur, jumlah pergantian. `null` pada host yang belum membuka sebuah batch — tidak terukur, bukan \"jalur JavaScript\".",
       "pagesPlannedOffThread": "Integrasi halaman di luar thread utama. `pagesPlannedOffThread` menghitung kedatangan yang rencananya — tempat setiap cluster di dalam paket dan peringkat halaman yang dipindahkannya — dihitung sebuah worker, tidak pernah yang direncanakan fallback di thread utama. `pagePlanMs` adalah waktu kumulatif rencana-rencana itu, diukur eksekutornya sendiri, thread mana pun: ini tidak pernah ditambahkan ke `cpu*` atau `gpu*` per-bingkai. Keduanya `null` selama belum ada kedatangan yang direncanakan — tidak terukur, bukan nol.",
       "pagePlanMs": "Waktu yang dihabiskan merencanakan kedatangan.",
-      "dynamicUploadBytes": "Byte verteks geometri dinamis yang diunggah di tempat pada frame ini (#573), dalam anggaran per frame dunia (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Tidak ada jika tidak ada dunia yang menggambar."
+      "dynamicUploadBytes": "Byte verteks geometri dinamis yang diunggah di tempat pada frame ini (#573), dalam anggaran per frame dunia (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Tidak ada jika tidak ada dunia yang menggambar.",
+      "gpuDeformationMs": "Durasi deformasi GPU untuk frame `gpuPassMs`; null sebelum pengukuran atau jika tidak didukung."
     }
   },
   "FramePass": {
@@ -1636,7 +1640,7 @@
   },
   "LIGHT_FIELD": {
     "summary": "Bidang sebuah cahaya di buffer, dalam float dari basisnya.",
-    "description": "Empat `vec4f` per cahaya.",
+    "description": "Lima `vec4f` per cahaya.",
     "members": {
       "position": "Tempat ia berdiri.",
       "range": "Seberapa jauh jangkauannya.",
@@ -1649,7 +1653,8 @@
       "castsShadow": "Apakah ia melempar bayangan.",
       "cosInner": "Kerucut dalam sebuah spot, tempat penumbranya mulai: tepi kerucut itu sendiri saat tidak punya penumbra.",
       "halfWidth": "Sumbu setengah-lebar sebuah persegi panjang — `right` dikali setengah lebarnya —, lalu setengah tingginya.",
-      "halfHeight": "Setengah tinggi sebuah persegi panjang."
+      "halfHeight": "Setengah tinggi sebuah persegi panjang.",
+      "emitterRadius": "Radius sumber cahaya point atau spot; memakai komponen bentuk yang sama dengan persegi panjang."
     }
   },
   "LIGHT_KIND": {
@@ -1806,7 +1811,8 @@
       "record": "Semua yang disimpan dunia tentang model ini: alamatnya, manifest dan grafnya.",
       "getObjectByName": "Node pertama di bawah dengan nama ini: model, node dari berkas sumbernya, lalu anak lain mana pun — cahaya yang dibawa berkas, node yang ditempatkan halaman.",
       "metadata": "Manifest terkompilasi model itu — primitifnya, `sourceTriangles` — dan `clusters`, cluster yang disimpan halamannya, setiap tingkat DAG-nya dihitung.",
-      "localBounds": "Kotak konten node ini sendiri, kerangka lokal; sebuah node biasa tidak menyimpan satu pun."
+      "localBounds": "Kotak konten node ini sendiri, kerangka lokal; sebuah node biasa tidak menyimpan satu pun.",
+      "animations": "Klip berkas yang terikat ke simpul model: `animation.createMixer(model).clipAction(model.animations[0]).play()`."
     }
   },
   "LodQualityId": {
@@ -1869,6 +1875,8 @@
       "parameters.ior": "Seberapa besar cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "parameters.thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "parameters.clearcoat": "Lapisan pernis bening di atas: 0 sampai 1.",
+      "parameters.anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "parameters.anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "parameters.clearcoatRoughness": "Seberapa kasar pernis itu.",
       "parameters.sheen": "Cahaya lembut pada sudut serong, seperti beludru.",
       "parameters.iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -1888,7 +1896,9 @@
       "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "parameters.density": "kg/m³, dikali volume menjadi massa.",
       "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "parameters.subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "parameters.subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     },
     "members": {
       "isMaterial": "Selalu `true`: membedakan sebuah material dari yang lain.",
@@ -1915,7 +1925,8 @@
       "physics": "Preset bahan fisika untuk benda yang memakainya.",
       "density": "kg/m³, untuk massa benda.",
       "friction": "Gesekan fisika.",
-      "restitution": "Pantulan fisika."
+      "restitution": "Pantulan fisika.",
+      "subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya."
     }
   },
   "Material-common": {
@@ -1949,6 +1960,8 @@
       "ior": "Seberapa besar cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "clearcoat": "Lapisan pernis bening di atas: 0 sampai 1.",
+      "anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "clearcoatRoughness": "Seberapa kasar pernis itu.",
       "sheen": "Cahaya lembut pada sudut serong, seperti beludru.",
       "iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -1968,7 +1981,9 @@
       "physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "density": "kg/m³, dikali volume menjadi massa.",
       "friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     }
   },
   "MathPath": {
@@ -2119,7 +2134,9 @@
       "morphTargetInfluences": "Bobot setiap target morph, bila geometri mendeklarasikannya.",
       "morphTargetDictionary": "Peringkat setiap target morph menurut namanya.",
       "updateMorphTargets": "Satu bobot nol per target morph dari atribut ter-morph pertama, dinamai menurut peringkat.",
-      "copy": "Mengambil nilai `source`, dan salinan anak-anaknya kecuali diminta tidak."
+      "copy": "Mengambil nilai `source`, dan salinan anak-anaknya kecuali diminta tidak.",
+      "skeleton": "Tulang yang ditunjuk `skinIndex` dan `skinWeight`, dievaluasi pada GPU setiap frame.",
+      "waves": "Parameter gelombang yang dibagikan dengan `WaterSurface`, untuk GPU dan daya apung."
     }
   },
   "Mixer": {
@@ -2502,7 +2519,9 @@
       "vertexCount": "Vertex.",
       "flags": "Atribut mana yang dibawanya.",
       "decodedBytes": "Ukuran `block`.",
-      "quantizationError": "Pergeseran posisi terbesar pada header halaman, dalam satuan objek."
+      "quantizationError": "Pergeseran posisi terbesar pada header halaman, dalam satuan objek.",
+      "skinInfluences": "Lebar tepat pengaruh tulang sumber per verteks.",
+      "morphTargets": "Jumlah target di `morph`: enam float per target dan verteks; tidak ada tanpa morphing."
     }
   },
   "PageDecodeOp": {
@@ -2687,7 +2706,9 @@
       "matrices": "Enam belas float column-major per baris, ditulis pemiliknya.",
       "live": "1 di mana baris menempatkan sumber daya itu, 0 di mana ia diparkir.",
       "shadowless": "1 di mana baris tidak melempar bayangan (`castShadow` mesh-nya `false`), 0 di mana ia melemparnya.",
-      "capacity": "Baris yang muat sebelum ia tumbuh."
+      "capacity": "Baris yang muat sebelum ia tumbuh.",
+      "sources": "Pemilik asli tetap hidup saat baris digunakan kembali.",
+      "sourceModels": "Mesh dengan sumber daya bersama, termasuk baris yang menunggu."
     }
   },
   "Plane": {
@@ -2758,7 +2779,8 @@
       "streams": "Bundle stream-nya.",
       "quantization": "Null pada sebuah primitif tanpa halaman, yang tidak dikuantisasi pada grid mana pun.",
       "topology": "Seperti apa tepi dan sudut mesh itu.",
-      "dynamic": "Geometri dinamis sebuah dunia (#573): hanya halaman indeks, verteksnya dibaca sebagai float dari geometri host yang ditulis ulang mesin di tempat."
+      "dynamic": "Geometri dinamis sebuah dunia (#573): hanya halaman indeks, verteksnya dibaca sebagai float dari geometri host yang ditulis ulang mesin di tempat.",
+      "deformation": "Bola posisi istirahat sendi `[x,y,z,radius]` dan jangkauan morphing maksimum; tidak ada atau null untuk geometri statis."
     }
   },
   "PrimitiveDagStall": {
@@ -3094,7 +3116,7 @@
       "range": "Point, spot dan rect: jangkauan dalam meter, tempat energi lenyap persis.",
       "coneAngle": "Bukaan sebuah spot.",
       "penumbra": "Hanya spot: porsi kerucut, dari tepinya ke dalam, tempat cahaya memudar dalam `[0, 1]`; tanpanya tepinya melembut atas `spotEdgeSoftness`.",
-      "emitterRadius": "Hanya point dan spot: radius, dalam meter, amplop yang menampung sumbernya. Sebuah cahaya sungguhan selalu diwadahi sesuatu — kaca lentera, reflektor, kap — dan amplop itu adalah geometri seperti yang lain: tanpa bidang ini, ia masuk ke shadow map cahayanya sendiri dan mematikannya. Dideklarasikan, ia menjadi bidang dekat peta itu, jadi tidak ada yang duduk lebih dekat dari radius ini dari sumbernya yang melempar bayangan di sana. Ini properti cahaya itu, tidak pernah nama objek atau jenis material: mesin hanya tahu permukaan. Tegas positif dan tegas kurang dari jangkauan; kalau tidak ada, tidak ada yang berubah.",
+      "emitterRadius": "Hanya point dan spot: radius, dalam meter, amplop yang menampung sumbernya. Sebuah cahaya sungguhan selalu diwadahi sesuatu — kaca lentera, reflektor, kap — dan amplop itu adalah geometri seperti yang lain: tanpa bidang ini, ia masuk ke shadow map cahayanya sendiri dan mematikannya. Fragmen di dalam bola ini tidak menghasilkan bayangan; bidang dekat peta tetap bergantung pada jangkauan. Pada cahaya point, radius ini juga menentukan ukuran sumber untuk filter bayangan yang menajamkan tepi di dekat kontak. Ini properti cahaya itu, tidak pernah nama objek atau jenis material: mesin hanya tahu permukaan. Tegas positif dan tegas kurang dari jangkauan; kalau tidak ada, tidak ada yang berubah.",
       "right": "Hanya rect: sumbu satuan tempat lebarnya berjalan, tegak lurus `direction`.",
       "size": "Hanya rect: lebar dan tingginya, dalam meter.",
       "castsShadow": "Apakah ia melempar bayangan."
@@ -3428,7 +3450,8 @@
       "quantization": "Null pada sebuah primitif tanpa halaman, yang tidak dikuantisasi pada grid mana pun.",
       "topology": "Seperti apa tepi dan sudut mesh itu.",
       "binary": "Tempat menemukan daftarnya.",
-      "dynamic": "Geometri dinamis sebuah dunia (#573): hanya halaman indeks, verteksnya dibaca sebagai float dari geometri host yang ditulis ulang mesin di tempat."
+      "dynamic": "Geometri dinamis sebuah dunia (#573): hanya halaman indeks, verteksnya dibaca sebagai float dari geometri host yang ditulis ulang mesin di tempat.",
+      "deformation": "Bola posisi istirahat sendi `[x,y,z,radius]` dan jangkauan morphing maksimum; tidak ada atau null untuk geometri statis."
     }
   },
   "SlimPrimitiveBinary": {
@@ -3590,9 +3613,13 @@
       "baseMetal": "Warna dasar RGB, metalness A.",
       "normalRough": "Normal dunia XYZ, roughness A.",
       "emissiveAo": "Emisi RGB, ambient occlusion A.",
-      "flags": "0 latar, 1 tanpa pencahayaan (berkabut), 2 dibaca, 3 ditampilkan apa adanya: diagnostik, tampilan normal atau kedalaman.",
+      "flags": "0 latar, 1 tanpa pencahayaan (berkabut), 2 dibaca, 3 ditampilkan apa adanya: diagnostik, tampilan normal atau kedalaman. 4 dan 5 adalah model difus dan toon (`./surfaceModel.ts`).",
       "views": "View tekstur GPU-nya.",
-      "dispose": "Membebaskannya."
+      "dispose": "Membebaskannya.",
+      "shadingOffset": "Offset penerima bayangan dengan presisi penuh, ditulis di samping G-buffer.",
+      "subsurface": "Warna transmisi permukaan tipis yang independen; tekstur nol 1×1 saat dinonaktifkan.",
+      "subsurfaceView": "Tampilan tekstur transmisi permukaan tipis.",
+      "hasSubsurface": "Apakah transmisi permukaan tipis memiliki target berukuran penuh."
     }
   },
   "SurfaceCapture": {
@@ -3892,7 +3919,8 @@
       "name": "Apa yang dianimasikannya: `node.field`.",
       "kind": "Jenis nilai apa yang dipegangnya.",
       "times": "Kapan setiap kunci terjadi, dalam detik.",
-      "values": "Nilai pada setiap kunci, satu demi satu."
+      "values": "Nilai pada setiap kunci, satu demi satu.",
+      "interpolation": "Default `linear`; `step` mempertahankan kunci sebelumnya; `cubic` memakai triplet glTF tangen masuk/nilai/tangen keluar."
     }
   },
   "TrackBinding": {
@@ -3901,11 +3929,12 @@
       "owner": "Objek tempat track itu menulis.",
       "field": "Bidang `owner` yang ditulisnya.",
       "key": "Kunci tempat sampel terakhir berada.",
-      "value": "Angka satu sampel."
+      "value": "Angka satu sampel.",
+      "reference": "Pose acuan kunci pertama untuk aksi aditif."
     }
   },
   "TrackKind": {
-    "summary": "Apa yang dianimasikan sebuah track: sebuah angka, vektor, rotasi atau warna."
+    "summary": "Angka, vektor, rotasi, warna, atau daftar bobot morphing."
   },
   "TrackballCameraControls": {
     "summary": "TRACKBALL: kamera berguling mengelilingi porosnya seolah scene itu sebuah bola di bawah kursor.",
@@ -4086,7 +4115,7 @@
   },
   "UNSPLIT_PASS": {
     "summary": "Tata letak sebuah primitif tak terpisah yang disimpan di luar DAG cluster oleh kompiler: mesh utuh, urutan sumber dipertahankan.",
-    "description": "Tiga properti material membawa ke sana hari ini — transmission, skinning, dan morph target —, tidak pernah nama sebuah objek."
+    "description": "Transmisi mengharuskan jalur ini; bukan nama objek."
   },
   "UserNotice": {
     "summary": "Sebuah pesan untuk orang yang memakai halaman, dengan apa yang bisa mereka lakukan.",
@@ -4338,7 +4367,8 @@
       "shadowCastersKept": "Pembuat bayangan yang dipertahankan culling per halaman, semua halaman yang digambar bersama, pada bingkai yang terakhir diambil sampelnya oleh perangkat — satu dari lima belas; `null` sampai sampel kembali.",
       "shadowCastersRejected": "Pembuat bayangan yang diuji culling per halaman namun tidak dipertahankan — di luar bagian halaman yang dibaca penerimanya —, pada bingkai sampel yang sama; `null` sampai sampel kembali.",
       "shadowCastersHidden": "Pembuat bayangan bergerak yang oleh uji oklusi ditemukan tersembunyi di balik lapisan statis halamannya, pada bingkai yang terakhir diambil sampelnya; `null` sampai sampel kembali.",
-      "dynamicUploadBytes": "Byte verteks geometri dinamis yang diunggah di tempat pada frame ini (#573), dalam anggaran per frame dunia (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Tidak ada jika tidak ada dunia yang menggambar."
+      "dynamicUploadBytes": "Byte verteks geometri dinamis yang diunggah di tempat pada frame ini (#573), dalam anggaran per frame dunia (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Tidak ada jika tidak ada dunia yang menggambar.",
+      "gpuDeformationMs": "Durasi deformasi GPU untuk frame `gpuPassMs`; null sebelum pengukuran atau jika tidak didukung."
     }
   },
   "WorldOptions": {
@@ -5740,6 +5770,8 @@
       "parameters.ior": "Berapa banyak cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "parameters.thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "parameters.clearcoat": "Sebuah lapisan vernis bening di atas: 0 sampai 1.",
+      "parameters.anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "parameters.anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "parameters.clearcoatRoughness": "Seberapa kasar vernisnya.",
       "parameters.sheen": "Sebuah cahaya lembut pada sudut miring, seperti beludru.",
       "parameters.iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -5759,7 +5791,9 @@
       "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "parameters.density": "kg/m³, dikali volume menjadi massa.",
       "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "parameters.subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "parameters.subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     }
   },
   "material.lineDashed": {
@@ -5781,6 +5815,8 @@
       "parameters.ior": "Berapa banyak cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "parameters.thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "parameters.clearcoat": "Sebuah lapisan vernis bening di atas: 0 sampai 1.",
+      "parameters.anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "parameters.anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "parameters.clearcoatRoughness": "Seberapa kasar vernisnya.",
       "parameters.sheen": "Sebuah cahaya lembut pada sudut miring, seperti beludru.",
       "parameters.iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -5800,7 +5836,9 @@
       "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "parameters.density": "kg/m³, dikali volume menjadi massa.",
       "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "parameters.subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "parameters.subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     }
   },
   "material.meshBasic": {
@@ -5822,6 +5860,8 @@
       "parameters.ior": "Berapa banyak cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "parameters.thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "parameters.clearcoat": "Sebuah lapisan vernis bening di atas: 0 sampai 1.",
+      "parameters.anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "parameters.anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "parameters.clearcoatRoughness": "Seberapa kasar vernisnya.",
       "parameters.sheen": "Sebuah cahaya lembut pada sudut miring, seperti beludru.",
       "parameters.iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -5841,7 +5881,9 @@
       "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "parameters.density": "kg/m³, dikali volume menjadi massa.",
       "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "parameters.subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "parameters.subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     }
   },
   "material.meshDepth": {
@@ -5863,6 +5905,8 @@
       "parameters.ior": "Berapa banyak cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "parameters.thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "parameters.clearcoat": "Sebuah lapisan vernis bening di atas: 0 sampai 1.",
+      "parameters.anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "parameters.anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "parameters.clearcoatRoughness": "Seberapa kasar vernisnya.",
       "parameters.sheen": "Sebuah cahaya lembut pada sudut miring, seperti beludru.",
       "parameters.iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -5882,7 +5926,9 @@
       "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "parameters.density": "kg/m³, dikali volume menjadi massa.",
       "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "parameters.subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "parameters.subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     }
   },
   "material.meshLambert": {
@@ -5904,6 +5950,8 @@
       "parameters.ior": "Berapa banyak cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "parameters.thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "parameters.clearcoat": "Sebuah lapisan vernis bening di atas: 0 sampai 1.",
+      "parameters.anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "parameters.anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "parameters.clearcoatRoughness": "Seberapa kasar vernisnya.",
       "parameters.sheen": "Sebuah cahaya lembut pada sudut miring, seperti beludru.",
       "parameters.iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -5923,7 +5971,9 @@
       "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "parameters.density": "kg/m³, dikali volume menjadi massa.",
       "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "parameters.subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "parameters.subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     }
   },
   "material.meshMatcap": {
@@ -5945,6 +5995,8 @@
       "parameters.ior": "Berapa banyak cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "parameters.thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "parameters.clearcoat": "Sebuah lapisan vernis bening di atas: 0 sampai 1.",
+      "parameters.anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "parameters.anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "parameters.clearcoatRoughness": "Seberapa kasar vernisnya.",
       "parameters.sheen": "Sebuah cahaya lembut pada sudut miring, seperti beludru.",
       "parameters.iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -5964,7 +6016,9 @@
       "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "parameters.density": "kg/m³, dikali volume menjadi massa.",
       "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "parameters.subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "parameters.subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     }
   },
   "material.meshNormal": {
@@ -5986,6 +6040,8 @@
       "parameters.ior": "Berapa banyak cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "parameters.thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "parameters.clearcoat": "Sebuah lapisan vernis bening di atas: 0 sampai 1.",
+      "parameters.anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "parameters.anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "parameters.clearcoatRoughness": "Seberapa kasar vernisnya.",
       "parameters.sheen": "Sebuah cahaya lembut pada sudut miring, seperti beludru.",
       "parameters.iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -6005,7 +6061,9 @@
       "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "parameters.density": "kg/m³, dikali volume menjadi massa.",
       "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "parameters.subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "parameters.subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     }
   },
   "material.meshPhong": {
@@ -6027,6 +6085,8 @@
       "parameters.ior": "Berapa banyak cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "parameters.thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "parameters.clearcoat": "Sebuah lapisan vernis bening di atas: 0 sampai 1.",
+      "parameters.anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "parameters.anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "parameters.clearcoatRoughness": "Seberapa kasar vernisnya.",
       "parameters.sheen": "Sebuah cahaya lembut pada sudut miring, seperti beludru.",
       "parameters.iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -6046,7 +6106,9 @@
       "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "parameters.density": "kg/m³, dikali volume menjadi massa.",
       "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "parameters.subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "parameters.subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     }
   },
   "material.meshPhysical": {
@@ -6068,6 +6130,8 @@
       "parameters.ior": "Berapa banyak cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "parameters.thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "parameters.clearcoat": "Sebuah lapisan vernis bening di atas: 0 sampai 1.",
+      "parameters.anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "parameters.anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "parameters.clearcoatRoughness": "Seberapa kasar vernisnya.",
       "parameters.sheen": "Sebuah cahaya lembut pada sudut miring, seperti beludru.",
       "parameters.iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -6087,7 +6151,9 @@
       "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "parameters.density": "kg/m³, dikali volume menjadi massa.",
       "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "parameters.subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "parameters.subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     }
   },
   "material.meshStandard": {
@@ -6109,6 +6175,8 @@
       "parameters.ior": "Berapa banyak cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "parameters.thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "parameters.clearcoat": "Sebuah lapisan vernis bening di atas: 0 sampai 1.",
+      "parameters.anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "parameters.anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "parameters.clearcoatRoughness": "Seberapa kasar vernisnya.",
       "parameters.sheen": "Sebuah cahaya lembut pada sudut miring, seperti beludru.",
       "parameters.iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -6128,7 +6196,9 @@
       "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "parameters.density": "kg/m³, dikali volume menjadi massa.",
       "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "parameters.subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "parameters.subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     }
   },
   "material.meshToon": {
@@ -6150,6 +6220,8 @@
       "parameters.ior": "Berapa banyak cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "parameters.thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "parameters.clearcoat": "Sebuah lapisan vernis bening di atas: 0 sampai 1.",
+      "parameters.anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "parameters.anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "parameters.clearcoatRoughness": "Seberapa kasar vernisnya.",
       "parameters.sheen": "Sebuah cahaya lembut pada sudut miring, seperti beludru.",
       "parameters.iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -6169,7 +6241,9 @@
       "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "parameters.density": "kg/m³, dikali volume menjadi massa.",
       "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "parameters.subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "parameters.subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     }
   },
   "material.points": {
@@ -6191,6 +6265,8 @@
       "parameters.ior": "Berapa banyak cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "parameters.thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "parameters.clearcoat": "Sebuah lapisan vernis bening di atas: 0 sampai 1.",
+      "parameters.anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "parameters.anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "parameters.clearcoatRoughness": "Seberapa kasar vernisnya.",
       "parameters.sheen": "Sebuah cahaya lembut pada sudut miring, seperti beludru.",
       "parameters.iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -6210,7 +6286,9 @@
       "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "parameters.density": "kg/m³, dikali volume menjadi massa.",
       "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "parameters.subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "parameters.subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     }
   },
   "material.shadow": {
@@ -6232,6 +6310,8 @@
       "parameters.ior": "Berapa banyak cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "parameters.thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "parameters.clearcoat": "Sebuah lapisan vernis bening di atas: 0 sampai 1.",
+      "parameters.anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "parameters.anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "parameters.clearcoatRoughness": "Seberapa kasar vernisnya.",
       "parameters.sheen": "Sebuah cahaya lembut pada sudut miring, seperti beludru.",
       "parameters.iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -6251,7 +6331,9 @@
       "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "parameters.density": "kg/m³, dikali volume menjadi massa.",
       "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "parameters.subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "parameters.subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     }
   },
   "material.sprite": {
@@ -6273,6 +6355,8 @@
       "parameters.ior": "Berapa banyak cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "parameters.thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "parameters.clearcoat": "Sebuah lapisan vernis bening di atas: 0 sampai 1.",
+      "parameters.anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "parameters.anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "parameters.clearcoatRoughness": "Seberapa kasar vernisnya.",
       "parameters.sheen": "Sebuah cahaya lembut pada sudut miring, seperti beludru.",
       "parameters.iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -6292,7 +6376,9 @@
       "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "parameters.density": "kg/m³, dikali volume menjadi massa.",
       "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "parameters.subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "parameters.subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     }
   },
   "materialSide": {
@@ -7488,7 +7574,8 @@
       "height": "Tinggi permukaan di atas titik dunia `(x, z)`, dalam meter.",
       "point": "Titik dunia `[x, y, z]` tempat titik diam `(x, level, z)` dibawa, ke `out`: kisi yang digeser titik demi titik adalah permukaannya, puncaknya setajam gelombangnya.",
       "wavesNow": "Gelombang yang dideklarasikan, tiap fase dibawa ke saat ini: dipasang lagi di `world.physics.water` (yang gelombangnya mulai lagi dari 0 d), permukaan berlanjut dari posisinya alih-alih melompat.",
-      "normal": "Normal satuan `[x, y, z]` permukaan di titik diam `(x, z)`, ke `out`."
+      "normal": "Normal satuan `[x, y, z]` permukaan di titik diam `(x, z)`, ke `out`.",
+      "waveModel": "Nilai gelombang dan waktu yang sama untuk GPU dan fisika."
     }
   },
   "WaveSpec": {
@@ -7944,5 +8031,80 @@
   },
   "world.materialMapBytes": {
     "summary": "Byte gambar yang disimpan atau menunggu, dibatasi 64 MiB."
+  },
+  "animation.weightsTrack": {
+    "summary": "Track berisi semua bobot morphing pada tiap kunci.",
+    "parameters": {
+      "path": "Jalur `node.morphTargetInfluences`.",
+      "times": "Waktu kunci dalam detik.",
+      "values": "Satu bobot per target dan kunci."
+    }
+  },
+  "animation.skeleton": {
+    "summary": "Membuat kerangka untuk ditetapkan ke `mesh.skeleton`.",
+    "parameters": {
+      "bones": "Tulang dalam urutan `skinIndex`.",
+      "inverseBindMatrices": "Enam belas angka per tulang; jika dihilangkan, pose saat ini menjadi pose pengikat."
+    }
+  },
+  "animation.twoBoneIK": {
+    "summary": "Mengarahkan rantai dua tulang ke sebuah titik setelah evaluasi klip.",
+    "parameters": {
+      "root": "Tulang pertama dalam rantai.",
+      "mid": "Tulang kedua dalam rantai.",
+      "end": "Simpul ujung yang melekat pada tulang kedua.",
+      "target": "Titik yang hendak dicapai.",
+      "pole": "Arah tekukan; default arah saat ini.",
+      "weight": "0 mempertahankan pose saat ini; 1 menerapkan solusi sepenuhnya."
+    }
+  },
+  "animation.windClip": {
+    "summary": "Klip berulang yang memiringkan dan mengayunkan tulang pohon.",
+    "parameters": {
+      "bones": "Tulang dari batang hingga ujung.",
+      "options": "Arah, sudut tekukan maksimum, dan frekuensi."
+    },
+    "parameters.options.direction": "Arah di bidang tanah `[x, z]`; bawaan `[1, 0]`.",
+    "parameters.options.angle": "Tekukan maksimum dalam radian; bawaan 0,1.",
+    "parameters.options.frequency": "Ayunan per detik; bawaan 0,5."
+  },
+  "Skeleton": {
+    "summary": "Tulang yang membengkokkan mesh dan matriks bind inversnya, dari koordinat mesh ke koordinat setiap tulang.",
+    "description": "Indeks sendi sebuah vertex menunjuk posisi dalam `bones`. Tanpa matriks invers, pose tulang saat skeleton dibuat menjadi pose bind.",
+    "members.isSkeleton": "Selalu `true`: menandai skeleton.",
+    "members.bones": "Node sendi dalam urutan sendi.",
+    "members.boneInverses": "Enam belas angka per tulang, menurut kolom: invers matriks dunianya pada pose bind.",
+    "members.palette": "Menulis baris `meshWorld⁻¹ · boneWorld · boneInverse` tiap sendi ke `out`, mulai `at`. Palet mengubah vertex bind ke koordinat lokal mesh; transformasi dunia mesh diterapkan sesudahnya. `boneWorlds` menyediakan matriks dunia pembaca; jika tidak ada, matriks tulang sendiri digunakan."
+  },
+  "Waves": {
+    "summary": "Sekumpulan gelombang Gerstner dengan waktu yang diatur oleh `setTime`.",
+    "description": "Setiap gelombang `i` memiliki arah `(dx, dz)`, bilangan gelombang `k`, amplitudo `A`, dan amplitudo lateral `Q·A`. Kemiringan dinormalisasi agar `Σ Qᵢ·Aᵢ·kᵢ ≤ 1`, sehingga puncak tidak terbalik.",
+    "members.phase": "Fase setiap gelombang pada waktu yang ditetapkan, dalam [0, 2π): satu-satunya keadaan bergantung waktu.",
+    "members.crest": "Ketinggian maksimum di atas posisi diam: `Σ Aᵢ`.",
+    "members.steepness": "`Σ Qᵢ·Aᵢ·kᵢ` setelah normalisasi, paling besar 1.",
+    "members.phasesAt": "Fase setiap gelombang pada `t` detik, direduksi ke [0, 2π) dengan presisi ganda.",
+    "members.setTime": "Mengatur waktu ke `t` detik; permukaan frame sebelumnya adalah `setTime(t - dt)`.",
+    "members.offset": "Menulis perpindahan `[x, y, z]` titik diam `(x, 0, z)` ke `out`.",
+    "members.normal": "Menulis normal satuan `[x, y, z]` pada titik diam `(x, z)` ke `out`.",
+    "members.count": "Jumlah gelombang yang dijumlahkan.",
+    "members.dirX": "Komponen x ternormalisasi dari arah setiap gelombang.",
+    "members.dirZ": "Komponen z ternormalisasi dari arah setiap gelombang.",
+    "members.k": "Bilangan gelombang setiap gelombang, dalam radian per meter.",
+    "members.amplitude": "Amplitudo vertikal setiap gelombang, dalam meter.",
+    "members.lateral": "Amplitudo lateral ternormalisasi setiap gelombang, dalam meter."
+  },
+  "WindOptions": {
+    "summary": "Arah angin (`x`, `z` di tanah), tekukan maksimum tulang dalam radian, dan ayunan per detik.",
+    "members.direction": "Arah di bidang tanah `[x, z]`; bawaan `[1, 0]`.",
+    "members.angle": "Tekukan maksimum dalam radian; bawaan 0,1.",
+    "members.frequency": "Ayunan per detik; bawaan 0,5."
+  },
+  "world.setTransform": {
+    "summary": "Memindahkan simpul `nodeName` sehingga pose dunianya `matrix`: simpul yang tidak dipegang rujukannya oleh halaman dijangkau lewat namanya (`object.name`), dicari di adegan.",
+    "description": "Pose-nya pose dunia — mesin membawanya kembali ke ruang induk simpul — sehingga nama di bawah induk yang bergerak tetap mendarat di tempat yang diminta. Rute yang sama yang ditempuh WebGPU dan WebGL2 untuk pemindahan berdasarkan nama sebuah halaman, bukan rute kedua. Bingkai berikutnya menggambarnya; permintaan yang tidak mengubah apa pun tidak meminta bingkai.",
+    "parameters": {
+      "nodeName": "`name` simpul yang dipindahkan.",
+      "matrix": "Pose dunianya, enam belas float dalam urutan kolom."
+    }
   }
 }

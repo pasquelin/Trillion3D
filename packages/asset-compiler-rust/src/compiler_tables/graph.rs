@@ -27,7 +27,7 @@ fn name_of(owner: &Value) -> &str {
     owner.get("name").and_then(Value::as_str).unwrap_or("")
 }
 
-/// One entry per node of the document: its name, its children, the mesh, light and camera it carries,
+/// One entry per node of the document: its name, its children, the mesh, light, camera and skin it carries,
 /// its local pose as declared, and whether it declares itself visible (`KHR_node_visibility`).
 pub(super) fn node_table(g: &Value) -> Result<Vec<Value>> {
     let nodes = values(g, "nodes")?;
@@ -36,6 +36,7 @@ pub(super) fn node_table(g: &Value) -> Result<Vec<Value>> {
         .and_then(Value::as_array)
         .map_or(0, Vec::len);
     let lights = light_defs(g).len();
+    let skins = g.get("skins").and_then(Value::as_array).map_or(0, Vec::len);
     let cameras = g
         .get("cameras")
         .and_then(Value::as_array)
@@ -56,6 +57,13 @@ pub(super) fn node_table(g: &Value) -> Result<Vec<Value>> {
         if light.is_some_and(|light| light >= lights) {
             return Err(invalid("node light index is out of bounds"));
         }
+        let skin = match node.get("skin") {
+            Some(value) => Some(required_index(Some(value), "node.skin")?),
+            None => None,
+        };
+        if skin.is_some_and(|skin| skin >= skins) {
+            return Err(invalid("node.skin index is out of bounds"));
+        }
         let camera = match node.get("camera") {
             Some(value) => Some(required_index(Some(value), "node.camera")?),
             None => None,
@@ -71,6 +79,7 @@ pub(super) fn node_table(g: &Value) -> Result<Vec<Value>> {
             "mesh": mesh,
             "light": light,
             "camera": camera,
+            "skin": skin,
             "weights": declared(node, "weights"),
             "matrix": declared(node, "matrix"),
             "translation": declared(node, "translation"),

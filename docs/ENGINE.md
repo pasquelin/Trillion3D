@@ -749,17 +749,38 @@ a viewport edge or carried from an older image. The original `miroir.gltf` cited
 present in the reachable repository history; the production proof uses generated geometric
 scenes with analytic reflected-point positions and records that provenance explicitly.
 
-The mirror contribution uses the same GGX directional-albedo table as rectangular lights,
-with full contribution at the roughness floor (0.0525). It fades smoothly over one table sample
-(1/63) above that floor; this is a numerical transition, not the filtered rough lobe of #33.
-Water uses the same scene-radiance lookup with its material Fresnel. Diffuse and toon materials
-have no mirror lobe. Reflection sources are allocated only while the view contains an eligible
-receiver: WebGPU adds 8 bytes per pixel and an 80-byte uniform (an 8-byte disabled placeholder
-otherwise); WebGL2 reuses the backdrop allocator for 8-byte colour and 4-byte depth per pixel.
-These allocations are counted and released on resize/disable/dispose. WebGPU reports refusals
-through its existing frame-target grant. WebGL2 checks the required half-float colour-target
-capability for these linear-radiance sources, as it does for transmission; that check does not
-guarantee allocation success or framebuffer completeness.
+The rough reflection lobe uses the same GGX directional-albedo table as rectangular lights.
+Mirrors at the roughness floor (0.0525) retain their original exact ray path. Opaque WebGPU
+receivers take deterministic GGX samples and accumulate a dedicated mean with bounded confidence:
+32 bytes per pixel for two RGBA16F mean/weight images and one previous depth, normal/roughness,
+and identity image. Calculations are f32; mean storage is f16. Reprojection rejects incompatible
+identity, depth, normal and roughness, and source changes invalidate the accumulation. A static
+image closes its filter window after 64 accepted frames; a changed jitter still reprojects until
+the temporal image can be held. This is a bounded effective weight, not a claim of infinite
+Monte Carlo convergence. Captures/replay do not add duplicate samples. Drawn extent changes discard the history;
+shadow-page landings advance the source epoch before resolving the same image.
+
+Transparent receivers use their own position and direction, with a deterministic cone footprint
+from travel distance and GGX roughness. Both shader languages filter the existing unfogged source's
+radiance mips and reject incompatible near/far depth bounds. They never reuse the opaque surface's
+history. The extra cone hierarchy is the actual sum of its mip dimensions (including odd edges),
+not another full-resolution history. A screen miss retains the existing proxy/probe fallback;
+the rough probe response filters its existing low-order radiance coefficients and cannot recover
+fine off-screen detail absent from that field. Diffuse and toon materials have no specular lobe.
+
+Reflection targets belong to their camera view, resize and dispose with it, and their byte counts
+enter the existing frame-target reservation. No extra user budget controls the feature. GPU
+arithmetic, shader compilation, allocation/lifetime tests and deterministic replay checks are
+engineering diagnostics; image fidelity and the 120 FPS (8.33 ms) full-frame target remain for the
+independent acceptance session, not a performance claim from these tests.
+
+Thin two-sided transmission uses an independent color, optionally textured, through the existing
+material, direct-light and bounce paths. Its WebGPU storage image costs 8 bytes per pixel only
+while such a material is active (an 8-byte stand-in otherwise); it adds no G-buffer render target.
+The model follows the public reference Two Sided Foliage description. Shadow receiver correction uses
+Boubekeur/Alexa's tangent-plane Phong projection, stored as three f32 offsets (12 bytes per pixel),
+without changing visible vertices, raster depth or silhouettes. This position projection is
+separate from the Chiang et al. BRDF shadow-terminator correction.
 
 ## Fog
 
@@ -1273,3 +1294,47 @@ Stages, each with its proof (0 px A/A at rest, budget held, before/after publish
 
 Exit criterion: on the same scene and the same machine as the reference, same image
 to the eye, same byte budgets, same millisecond envelope.
+
+## GPU deformation
+
+`deformation/session.ts` reserves one control record per deformed placement. Records contain
+current and previous joint palettes, morph weights, the shared physics wave parameters, and
+cooked soft-body simulation positions where present. CPU animation updates bones and controls;
+it does not skin or morph vertices. Soft-body position writeback is the existing physics upload.
+Page-authored geometry retains its deformation streams through the existing page cutter and
+worker protocol, and placement rows retain their original animation owners.
+
+`deformation/compute.ts` runs once per command encoder before WebGPU cut/raster consumers.
+It writes current/previous positions and normals into tails of the existing geometry-cache slots:
+eleven words per vertex, including owner and frame tags. Multiple placements sharing a source
+page have disjoint tails. The existing slot admission and root coverage budget include these
+bytes; placement capacity changes reopen where in-place growth cannot preserve the allocation.
+Visibility, shadows, transparent pages and temporal reprojection read the shared outputs. A
+settled frame retains resident outputs; eviction makes a cold record, never unrelated history.
+WebGL2 evaluates the sources in the vertex shader using the same compiled stream semantics.
+
+Transmission retains its existing material-driven whole-mesh representation, volume/backdrop
+pass and no-pages contract. Its static source streams and per-placement output rows occupy the
+existing float geometry pool; the same compute pass writes them, with a tagged output address.
+This is not a second deformation stage or a new virtualization exception. Bounds use the same
+control reach and dirty only their old/new region. Unsupported pool capacity is an explicit
+setup error, never a silently undeformed draw. The WebGL transmission vertex stage shares the
+same skin, morph, wave and cooked-soft source functions.
+
+The control record's conservative reach expands bounds in the existing cut. Deformed coarse
+pages add twice the displacement reach to their simplification error: two source vertices may
+move in opposite directions. Exact leaves keep zero simplification error; the resident parent
+continues to cover children while finer pages stream. Static subtree shortcuts cannot classify
+a moving subtree from rest bounds. Shadow dirtiness follows the roots whose controls changed.
+The timestamp recorder exposes the compute stage as `gpuDeformationMs`, with `null` for missing
+samples or timestamp support. Browser pixel/timing evidence is produced by recette on `develop`,
+not inferred from the source or substituted with CPU time.
+
+Skin pages retain every imported influence; page format 7 stores source weights and morph
+position/normal deltas as exact float32 values. WebGL2 reads these through its existing
+per-geometry deformation texture. Like morph pages, skin pages use individual resident page
+buffers so `gl_VertexID` addresses the correct source vertex. They keep their compiled clusters,
+DAG, cut, streaming and shadows; the change does not introduce another allocation mechanism.
+The existing arena has no per-draw base-vertex correction for this texture lookup. Excluding
+skin pages from arena batching may increase draw calls; its frame cost is unmeasured and belongs
+to the post-merge recette campaign.

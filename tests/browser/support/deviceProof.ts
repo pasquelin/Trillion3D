@@ -1,6 +1,6 @@
 // What the device proofs share: open the WebGPU device, run the proof's sequences, close it,
 // and report the adapter, the events and the errors beside what the sequences returned.
-import { ouvrirAppareil } from '../probes/webgpuDevice.ts';
+import { openGpuDevice } from '../probes/webgpuDevice.ts';
 
 /** Result common to every device proof: the adapter reading or `indisponible`/`erreur` on
  *  failure, the events and errors collected, plus whatever `corps` filled into `resultat`. */
@@ -30,7 +30,7 @@ export async function executerAppareil<R extends object = object>(
   ) => Promise<void>,
   requiredLimits?: Record<string, number>,
 ): Promise<Partial<R> & ResultatAppareil> {
-  const appareil = await ouvrirAppareil([], requiredLimits);
+  const appareil = await openGpuDevice([], requiredLimits);
   if (!appareil) return { indisponible: 'no WebGPU adapter' } as Partial<R> & ResultatAppareil;
   const { device, erreurs } = appareil;
   const evenements: unknown[] = [],
