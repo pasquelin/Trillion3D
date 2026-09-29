@@ -57,6 +57,8 @@ export type PageRec = {
   declaration: HostMaterials;
   transparent?: boolean;
   sourceMesh?: HostMesh;
+  /** GPU deformation output in this page's cache slot, in words from its start (#357). */
+  deformationOutput?: { from: number; count: number };
   sourceOrder?: number;
   matrix: MatrixElements;
   /** Cached winding and epoch of the world matrix that produced it (`webgpuPagesWinding`). */

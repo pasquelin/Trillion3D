@@ -1,3 +1,4 @@
+import { DEFORMATION_PASS } from '../../../deformation/compute.ts';
 import { dropGpuSelection, dropVis } from './drops.ts';
 import { releaseTargets } from '../prepare/targets.ts';
 import { dropBlendBuffers } from '../../blend/buffers.ts';
@@ -53,8 +54,6 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     frameHeld: run.frameHeld,
     clusters: pending ? null : run.visible,
     selectedTriangles: run.selectedTriangles,
-    // Both cuts draw what they select, so neither can tell a hole from its counters: the no-hole
-    // proof is on the drawn set (`page/cut/cutRule.test.ts`, `held-gpu-cut.browser.ts`).
     uncoveredTriangles: null,
     drawnTriangles: run.drawnTriangles,
     residentPages: run.gpuFrameActive ? (stats?.residentPages ?? 0) : run.drawn.length,
@@ -68,15 +67,14 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     transparentFrustumRejected: run.blendFrustumRejected,
     transparentDrawCalls: run.blendDrawCalls,
     transparentSubmittedTriangles: run.blendSubmittedTriangles,
-    // Virtual textures: pool, tiles, image feedback; all `null` until prepare built them, never 0.
     ...(vis.textures?.metrics() ?? {}),
     cpuSubmitMs: timing.lastSubmitMs,
     gpuPassMs: timing.lastGpuPassMs,
+    gpuDeformationMs:
+      timing.lastGpuPassMs?.passes.find((pass) => pass.name === DEFORMATION_PASS)?.gpuMs ?? null,
     gpuFrameMs: timing.lastGpuFrameMs,
     gpuHostGapMs: timing.lastGpuHostGapMs,
     vramBytes: null,
-    // Device ledger: everything the engine allocated and has not yet destroyed, computed from the
-    // descriptors. `null` until a ledger is posted, never zero.
     gpuAllocatedBytes: ledger?.bytes ?? null,
     gpuAllocatedByLabel: ledger?.byLabel ?? null,
     gpuAllocationsUnknownFormat: ledger?.unknownFormats ?? null,
@@ -139,6 +137,8 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   rt.run.gate.release();
   services.residency.quietPending();
   timing.gpuTiming?.dispose();
+  rt.vis.deformationCompute?.dispose();
+  rt.vis.deformationCompute = undefined;
   dropGpuSelection(rt);
   dropVis(rt);
   releaseTargets(rt);

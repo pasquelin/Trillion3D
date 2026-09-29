@@ -1,3 +1,4 @@
+import type { DeformationCompute } from '../../../deformation/compute.ts';
 import type { SessionDeformation } from '../../../deformation/session.ts';
 import type { HostAttributes } from '../../../host/resources.ts';
 import type { Texture } from '../../../../../sdk-core/src/index.ts';
@@ -18,6 +19,7 @@ import type { BlendModePipelines } from '../../blend/stagePipelines.ts';
 /** GPU resources of the visibility-buffer path: raster and shade pipelines, their bind groups, the
  *  concatenated geometry, the page table and the material atlases. */
 export interface WebgpuVisState {
+  deformationCompute?: DeformationCompute;
   visEnabled: boolean;
   /** An opaque row has shown a surface as-is: the image's flags are read (`../../row/pageRow.ts`). */
   asIsShown: boolean;
