@@ -9,7 +9,7 @@ import type { PageCutPayload } from '../../../../sdk-core/src/page/decodeContrac
 import { packDrawn } from '../page/runtimeCut.ts';
 import { cutDynamicPrimitive, servePrimitive, type HeldBox } from '../page/runtimePrimitive.ts';
 import type { WorldNotices } from '../diagnostic/worldNotices.ts';
-import { changedRanges, copyRanges } from './worldDynamicRanges.ts';
+import { changedRanges, copyRanges, LISTS } from './worldDynamicRanges.ts';
 import type { VertexRange } from '../../placement/backendSceneUpdates.ts';
 import type { Cut } from './worldCuts.ts';
 
@@ -28,7 +28,6 @@ export const DYNAMIC_UPLOAD_BUDGET_BYTES = 4 * 1024 * 1024;
 export type DynamicHeld = {
   box: HeldBox;
   cut: PageCutPayload;
-  blended: boolean;
   version: number;
   pending: DrawnTriangles | null;
 };
@@ -60,11 +59,10 @@ function heldBox(drawn: DrawnTriangles, declared: Geometry['maxBounds'], before?
 /** Whether `next` draws the triangles `held` draws — the same corners, the same lists —, and
  *  within `box`: its vertices can then be written in place. */
 function fits(held: DrawnTriangles, next: DrawnTriangles, box: HeldBox) {
-  const lists = ['positions', 'normals', 'uvs', 'colors'] as const;
   const same =
     held.indices.length === next.indices.length &&
     held.indices.every((v, i) => v === next.indices[i]) &&
-    lists.every((list) => held[list]?.length === next[list]?.length);
+    LISTS.every(([list]) => held[list]?.length === next[list]?.length);
   const p = next.positions;
   for (let i = 0; same && i < p.length; i++)
     if (p[i] < box[i % 3] || p[i] > box[(i % 3) + 3]) return false;
@@ -125,7 +123,7 @@ export function createWorldDynamic(notices: WorldNotices | undefined, counts: { 
     const { cut, runtime } = again
       ? { cut: held.cut, runtime: servePrimitive(held.cut, drawn, box) }
       : await cutDynamicPrimitive(packDrawn(drawn, blended), drawn, box);
-    const state: DynamicHeld = { box, cut, blended, version: geometry.version, pending: null };
+    const state: DynamicHeld = { box, cut, version: geometry.version, pending: null };
     return {
       key: `dynamic:${serial++}`,
       drawn,
