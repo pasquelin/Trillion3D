@@ -83,7 +83,11 @@ fn a_kilometre_terrain_takes_the_finest_grid_its_root_page_fits() {
             .fold(0.0, f64::max)
     };
     let (tiled, untiled) = (worst(exponent), worst(before));
-    assert!(tiled < quantum(2.0), "tiled: {tiled} against {}", quantum(2.0));
+    assert!(
+        tiled < quantum(2.0),
+        "tiled: {tiled} against {}",
+        quantum(2.0)
+    );
     assert!(
         untiled > quantum(2.0),
         "untiled was an image loss: {untiled} against {}",

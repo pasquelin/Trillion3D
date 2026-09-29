@@ -152,9 +152,8 @@ function shows(triangles: Float32Array, t: number, eye: number[], twoSided?: Uin
  * The screen error of `drawn` against `source` under `pose`. Both directions count the sample
  * points in the frustum that no drawn surface hides: what is drawn on screen, and what the
  * source shows through a hole or past a receding drawn surface; the far side of a closed mesh,
- * drawn or not, is not seen. A drawn triangle that does not show neither hides nor is sampled,
- * but stays the nearest drawn surface of a source point: at a silhouette the drawn triangle that
- * turned away stands where the source one is, a grazing sliver on screen.
+ * drawn or not, is not seen. A culled triangle neither hides nor is sampled and cannot satisfy
+ * source coverage: a face that turned away leaves a hole, even at a silhouette.
  */
 export function measureView(o: {
   source: Float32Array;
@@ -171,8 +170,7 @@ export function measureView(o: {
   const view = viewOf(o.pose, o.width, o.height);
   const shown = o.drawn.filter((_, i) => shows(o.drawn, (i / 9) | 0, view.eye, o.drawnTwoSided));
   const sourceTree = o.sourceTree ?? buildTriangleTree(o.source),
-    shownTree = buildTriangleTree(shown),
-    drawnTree = buildTriangleTree(o.drawn);
+    shownTree = buildTriangleTree(shown);
   const ray = new Float64Array(3);
   /** Whether a drawn surface stands before `p` on the ray aimed at `p + nudge`, `nudge` in pixels. */
   const blocked = (p: Float64Array, nudge: number) => {
@@ -193,6 +191,6 @@ export function measureView(o: {
     Number(shows(o.source, t, view.eye, o.twoSided)),
   );
   const forward = errors(view, shown, sourceTree, visible),
-    reverse = errors(view, o.source, drawnTree, (p, t) => faces[t] === 1 && visible(p));
+    reverse = errors(view, o.source, shownTree, (p, t) => faces[t] === 1 && visible(p));
   return { triangles: o.drawn.length / 9, forward: summary(forward), reverse: summary(reverse) };
 }

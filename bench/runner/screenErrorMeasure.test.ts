@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { measureView, viewOf } from './screenErrorMeasure.ts';
 import { screenErrorBound } from '../../packages/sdk-core/src/lod/screenErrorBound.ts';
+import { screenErrorPass } from './screenErrorVerdict.ts';
 
 const pose = {
   position: [0, 0, 0] as [number, number, number],
@@ -46,6 +47,20 @@ test('a source surface hidden behind the drawn one is not counted, a hole is', (
   assert.ok(measure(hiddenBehind, square(1, 10)).reverse.max < 1e-9);
   const holed = square(1, 10).slice(0, 9);
   assert.ok(measure(hiddenBehind, holed).reverse.max > 100);
+});
+
+test('a culled triangle cannot satisfy reverse coverage of a visible source surface', () => {
+  const source = square(1, 10);
+  const halfCulled = [
+    ...source.slice(0, 9),
+    ...source.slice(12, 15),
+    ...source.slice(9, 12),
+    ...source.slice(15),
+  ];
+  const measured = measure(source, halfCulled);
+  assert.ok(measured.forward.points > 0);
+  assert.ok(measured.reverse.max > 100, 'the culled half leaves a visible hole');
+  assert.equal(screenErrorPass(measured, 8, [], 0), false);
 });
 
 test('a single-sided source triangle seen from behind is not counted, a double-sided one is', () => {
