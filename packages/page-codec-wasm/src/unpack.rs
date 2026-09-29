@@ -3,8 +3,9 @@
 //! reads every field at random (`unpack_reference.rs`), as the equivalence harness proves.
 
 use crate::bits::{dequant, le_words, oct_decode, BitReader, Quant};
+use crate::deform::{decode_morphs, decode_skin};
 use crate::{DecodedPage, Header, Layout, PageError};
-use crate::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1, HEADER_BYTES};
+use crate::{FLAG_COLOR, FLAG_MORPH, FLAG_NORMAL, FLAG_SKIN, FLAG_UV, FLAG_UV1};
 
 /// A complete page, its streams unpacked and dequantized: the same bytes as `decodeGeometryPage`.
 pub fn decode(data: &[u8], max_decoded_bytes: usize) -> Result<DecodedPage, PageError> {
@@ -16,6 +17,7 @@ pub fn decode(data: &[u8], max_decoded_bytes: usize) -> Result<DecodedPage, Page
         vertex_count: header.vertex_count,
         index_count: header.index_count,
         flags: header.flags,
+        morph_targets: header.morphs.len(),
         quantization_error: header.quantization_error,
     })
 }
@@ -25,7 +27,7 @@ pub fn decode(data: &[u8], max_decoded_bytes: usize) -> Result<DecodedPage, Page
 /// no second buffer nor copy. The streams are read in place when the page sits on a word
 /// boundary — a `page_alloc` reservation always does — and from a copy otherwise.
 pub(crate) fn decode_into(data: &[u8], header: &Header, out: &mut [u32]) -> Result<(), PageError> {
-    let body = &data[HEADER_BYTES..];
+    let body = &data[header.bytes()..];
     // SAFETY: every bit pattern is a valid `u32`; the byte count is a multiple of four, so an
     // empty head leaves no tail. Only a little-endian host may read the words as they lie.
     let (head, aligned, _) = unsafe { body.align_to::<u32>() };
@@ -80,6 +82,12 @@ fn split(words: &[u32], h: &Header, out: &mut [u32]) -> Result<(), PageError> {
     }
     if h.flags & FLAG_COLOR != 0 {
         vector(take(4), words, layout.color, &h.color);
+    }
+    if h.flags & FLAG_SKIN != 0 {
+        decode_skin(words, layout.skin, &h.skin, take(8));
+    }
+    if h.flags & FLAG_MORPH != 0 {
+        decode_morphs(words, &h.morphs, take(6 * h.morphs.len()));
     }
     Ok(())
 }
