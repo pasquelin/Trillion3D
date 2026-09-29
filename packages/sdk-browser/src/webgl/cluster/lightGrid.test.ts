@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import * as G from '../../host/graph/graph.fixture.ts';
+import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
 import {
   evaluated,
   lastUniform,
@@ -76,5 +78,35 @@ test('the grid scales with its lamps, not with the space between them, and skips
   assert.deepEqual(evaluated(context, [0, 0, 0]).slots, [0], 'the near lamp reaches its cell');
   assert.deepEqual(evaluated(context, [1000, 1000, 1000]).slots, [1], 'the far one its own');
   assert.deepEqual(evaluated(context, [0, 500, 0]).slots, [], 'the lamp with no centre, nowhere');
+  renderer.dispose();
+});
+
+test('a moving sun lists nothing again, and far-reaching lamps among small ones stay bounded', () => {
+  const sun = new G.Light('directional', { position: [0, 1, 0] });
+  // 500 small lamps, 500 that reach the whole grid.
+  const lights = [
+    ...Array.from({ length: 1000 }, (_, i) =>
+      pointLamp(
+        [(i % 10) * 3, Math.floor(i / 10) % 10, Math.floor(i / 100) * 3],
+        i % 2 ? 100 : 0.1,
+      ),
+    ),
+    sun as unknown as Light,
+  ];
+  sun.updateMatrixWorld(true);
+  const { context, renderer, frame } = lightFrames(lights, [triangle(0)]);
+  frame();
+  const listed = sent(context, 'RED_INTEGER');
+  assert.equal(listed.length, 1);
+  const cells = lastUniform(context, 'uniform3i', 'gridCells') as number[];
+  const texels = (listed[0][8] as Int32Array).length;
+  assert.ok(texels <= 2048 * 1024, `${texels} texels within the rows every device holds`);
+  assert.ok(cells[0] * cells[1] * cells[2] > 1, 'the small lamps still split the grid');
+  assert.ok(evaluated(context, [0, 0, 0]).slots.includes(0), 'a small lamp reaches its cell');
+  sun.position.set(5, 3, 1);
+  sun.updateMatrixWorld(true);
+  const before = context.of('texSubImage2D').length;
+  frame();
+  assert.deepEqual(sent(context, 'RED_INTEGER', before), [], 'a moved sun sends no list row');
   renderer.dispose();
 });

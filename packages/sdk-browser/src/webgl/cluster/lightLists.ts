@@ -17,6 +17,10 @@ const MOST_CELLS = 1 << 18;
 /** Cells a grid holds at most per lamp it lists: the starts, their clearing and their upload
  *  scale with the lamps, never with the empty space between two far lamps. */
 const CELLS_PER_LAMP = 512;
+/** (cell, lamp) entries a grid lists at most: past it the cells widen, so a few far-reaching
+ *  lamps among many small ones never list the whole grid each (1024 rows, beside the starts' 256,
+ *  within the 2048 rows every WebGL2 device holds). */
+const MOST_ENTRIES = 1 << 20;
 /** Cells along one axis at most: a fragment's grid coordinate then stays below 2^12, where single
  *  precision errs by far less than `CELL_MARGIN`. */
 const MOST_CELLS_ON_AXIS = 1 << 12;
@@ -142,7 +146,7 @@ export class WebglClusterLightLists {
         total *= cells[a];
         axis = Math.max(axis, cells[a]);
       }
-      if (total <= most && axis <= MOST_CELLS_ON_AXIS) break;
+      if (total <= most && axis <= MOST_CELLS_ON_AXIS && this.spanned(ranged, side, margin)) break;
     }
     const corner = this.corner;
     for (let a = 0; a < 3; a++) corner[a] = (margin - box[a]) / side;
@@ -163,8 +167,29 @@ export class WebglClusterLightLists {
     for (let p = 0; p < found; p++) data[counts[pairs[2 * p]]++] = pairs[2 * p + 1];
     return first + found;
   }
-  /** Each (cell, slot) pair of a ranged lamp whose reach, widened by `margin`, touches the cell;
-   *  the grid's low corner is `margin` below the lamps' box. */
+  /** The cells around the lamp at `at`, its reach widened by `margin`, into `lo` and `hi`; the
+   *  grid's low corner is `margin` below the lamps' box. Returns how many they are. */
+  private around(at: number, side: number, margin: number) {
+    const { reach, box, cells, lo, hi } = this;
+    const range = reach[at + 3] + margin;
+    let span = 1;
+    for (let a = 0; a < 3; a++) {
+      const from = reach[at + a] - box[a] + margin;
+      lo[a] = Math.max(0, Math.floor((from - range) / side));
+      hi[a] = Math.min(cells[a] - 1, Math.floor((from + range) / side));
+      span *= hi[a] - lo[a] + 1;
+    }
+    return span;
+  }
+  /** Whether the cells around every lamp stay within `MOST_ENTRIES`, or one cell a lamp. */
+  private spanned(ranged: number, side: number, margin: number) {
+    const most = Math.max(MOST_ENTRIES, ranged);
+    let spans = 0;
+    for (let n = 0; n < ranged; n++)
+      if ((spans += this.around(this.ranged[n] * REACH_FLOATS, side, margin)) > most) return false;
+    return true;
+  }
+  /** Each (cell, slot) pair of a ranged lamp whose reach, widened by `margin`, touches the cell. */
   private pair(ranged: number, side: number, margin: number) {
     const { reach, box, cells, cell, lo, hi } = this;
     let found = 0;
@@ -175,11 +200,7 @@ export class WebglClusterLightLists {
         x = reach[at],
         y = reach[at + 1],
         z = reach[at + 2];
-      for (let a = 0; a < 3; a++) {
-        const from = reach[at + a] - box[a] + margin;
-        lo[a] = Math.max(0, Math.floor((from - range) / side));
-        hi[a] = Math.min(cells[a] - 1, Math.floor((from + range) / side));
-      }
+      this.around(at, side, margin);
       for (let k = lo[2]; k <= hi[2]; k++)
         for (let j = lo[1]; j <= hi[1]; j++)
           for (let i = lo[0]; i <= hi[0]; i++) {

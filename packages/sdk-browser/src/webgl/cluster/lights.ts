@@ -146,12 +146,14 @@ export class WebglClusterLights {
         dy /= length;
         dz /= length;
       }
-      // The world centre and range the light grid tests; a sun, or a lamp of no range, reaches all.
+      // The world centre and range the light grid tests; a sun, or a lamp of no range, reaches all
+      // and has no centre there: moving it never lists the grid again.
       const reach = lists.reach,
-        at = count * REACH_FLOATS;
-      reach[at] = px;
-      reach[at + 1] = py;
-      reach[at + 2] = pz;
+        at = count * REACH_FLOATS,
+        placed = range > 0 && range < Infinity;
+      reach[at] = placed ? px : 0;
+      reach[at + 1] = placed ? py : 0;
+      reach[at + 2] = placed ? pz : 0;
       reach[at + 3] = range > 0 ? range : 0;
       const base = count++ * 16;
       write(
