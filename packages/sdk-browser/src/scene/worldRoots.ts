@@ -19,44 +19,60 @@ import {
   assertWorldRoots,
   cellDependencies,
   worldBundlePages,
+  WORLD_ROOTS_BIN,
   WORLD_ROOTS_FILE,
   type WorldRoots,
   type WorldRootsPage,
 } from '../../../sdk-core/src/manifest/worldRoots.ts';
 import type { ClusterManifest } from '../../../sdk-core/src/index.ts';
-import { checked } from '../cluster/checked.ts';
+import { rangedReader } from '../cluster/ranged.ts';
 import { corruptObject, fetchVerified } from '../cluster/pages.ts';
 import { verifyPageBytes } from '../page/decode/host.ts';
 import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts';
 
 type Announced = { bytes: number; sha256: string };
-/** Where a cache keeps its world roots' table: the one address its reader and a load's plan use. */
-export const worldRootsUrl = (base: string) => new URL(WORLD_ROOTS_FILE, base).href;
+/** Where a cache keeps its world roots' table and the binary the cook writes beside it. */
+const worldRootsUrls = (base: string) => ({
+  table: new URL(WORLD_ROOTS_FILE, base).href,
+  bin: new URL(WORLD_ROOTS_BIN, base).href,
+});
+/** What a load reads of the world roots `declared` lists, address to length: the table whole, and
+ *  of the binary the one range it reads, the pinned top its cook published in `manifest`
+ *  (`worldRoots.pinnedTopBytes`); a server that ignores the Range adds the rest as it arrives. */
+export function worldRootsPlan(
+  declared: ReadonlyMap<string, number>,
+  base: string,
+  manifest: object,
+) {
+  const { table, bin } = worldRootsUrls(base);
+  const top = (manifest as { worldRoots?: { pinnedTopBytes?: number } }).worldRoots?.pinnedTopBytes;
+  const plan: [string, number][] = [];
+  if (declared.has(table)) plan.push([table, declared.get(table)!]);
+  if (declared.has(bin) && top) plan.push([bin, top]);
+  return plan;
+}
 
-/** Bundles `[first, end)` of the binary at `url`, read in one ranged request — cut from the whole
- *  binary when a server answers it whole —, each checked against its digest, then its pages. */
+/** Bundles `[first, end)` of the binary `read` reads (`rangedReader`), in one ranged request that
+ *  `meter` counts, each checked against its digest, then its pages. */
 async function readBundles(
+  read: ReturnType<typeof rangedReader>,
   url: string,
   table: WorldRoots,
   [first, end]: number[],
-  signal?: AbortSignal,
+  meter?: ByteMeter,
 ) {
   const from = table.bundles[first].offset,
-    last = table.bundles[end - 1],
-    to = last.offset + last.bytes;
-  const response = await checked(url, signal, undefined, { Range: `bytes=${from}-${to - 1}` });
-  const read = new Uint8Array(await response.arrayBuffer()),
-    bytes = response.status === 206 ? read : read.subarray(from, to);
-  const pages: WorldRootsPage[][] = [];
-  for (let at = first; at < end; at++) {
-    const bundle = table.bundles[at],
-      start = bundle.offset - from;
-    const verified = await verifyPageBytes(bytes.slice(start, start + bundle.bytes).buffer);
-    if (verified.sha256 !== bundle.sha256)
-      throw corruptObject(`${url}#${at}`, bundle, bundle.bytes, verified.sha256);
-    pages.push(worldBundlePages(new Uint8Array(verified.source), bundle.count, at));
-  }
-  return pages;
+    last = table.bundles[end - 1];
+  const bytes = new Uint8Array(await read(from, last.offset + last.bytes - from, meter));
+  return Promise.all(
+    table.bundles.slice(first, end).map(async (bundle, i) => {
+      const start = bundle.offset - from;
+      const verified = await verifyPageBytes(bytes.slice(start, start + bundle.bytes).buffer);
+      if (verified.sha256 !== bundle.sha256)
+        throw corruptObject(`${url}#${first + i}`, bundle, bundle.bytes, verified.sha256);
+      return worldBundlePages(new Uint8Array(verified.source), bundle.count, first + i);
+    }),
+  );
 }
 
 /**
@@ -72,12 +88,14 @@ export async function openWorldRoots(
   const files = (metadata as { files?: Record<string, Announced | undefined> }).files;
   const announced = files?.[WORLD_ROOTS_FILE];
   if (!announced) return undefined;
-  const json = await fetchVerified(worldRootsUrl(base), announced, signal, meter);
+  const json = await fetchVerified(worldRootsUrls(base).table, announced, signal, meter);
   const table = assertWorldRoots(JSON.parse(new TextDecoder().decode(json)));
   const url = new URL(table.payload.url, base).href;
-  const top = (await readBundles(url, table, [0, table.pinned], signal)).flat();
+  // The load's meter counts the top, read while it loads; a cell's bundles are read after it.
+  const read = rangedReader(url, signal);
+  const top = (await readBundles(read, url, table, [0, table.pinned], meter)).flat();
   /** The bundles past the top the placed cells hold: how many cells hold each, and its read. */
-  const held = new Map<number, { cells: number; read: Promise<WorldRootsPage[]> }>();
+  const held = new Map<number, { cells: number; pages: Promise<WorldRootsPage[]> }>();
   let heldBytes = 0;
   const release = (cell: number) => {
     for (const bundle of cellDependencies(table, cell)) {
@@ -97,12 +115,12 @@ export async function openWorldRoots(
       const reads = cellDependencies(table, cell).map((bundle) => {
         let own = held.get(bundle);
         if (!own) {
-          const read = readBundles(url, table, [bundle, bundle + 1], signal).then(([p]) => p);
-          held.set(bundle, (own = { cells: 0, read }));
+          const pages = readBundles(read, url, table, [bundle, bundle + 1]).then(([p]) => p);
+          held.set(bundle, (own = { cells: 0, pages }));
           heldBytes += table.bundles[bundle].bytes;
         }
         own.cells++;
-        return own.read;
+        return own.pages;
       });
       await Promise.all(reads).catch((error: unknown) => {
         release(cell);
@@ -113,8 +131,9 @@ export async function openWorldRoots(
     release,
     /** The bundles past the top the placed cells hold now, ascending. */
     held: () => [...held.keys()].sort((a, b) => a - b),
-    /** Every byte held here: the pinned top's and the placed cells' bundles'. */
-    bytes: () => table.pinnedTopBytes + heldBytes,
+    /** Every byte held here: the pinned top's, the placed cells' bundles', and the whole binary a
+     *  server that ignores the Range answered (`rangedReader`). */
+    bytes: () => table.pinnedTopBytes + heldBytes + read.held(),
   };
 }
 
