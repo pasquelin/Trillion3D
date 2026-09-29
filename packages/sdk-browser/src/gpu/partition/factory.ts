@@ -105,8 +105,9 @@ export async function createGpuPartition(
           const old = [allocated.corners, allocated.rowData, allocated.tested];
           const all = [...grown.all, allocated.state, allocated.uniforms];
           Object.assign(allocated, grown, { all });
-          Object.assign(inputs, next);
-          Object.assign(buffers, grown, next);
+          const read = next();
+          Object.assign(inputs, read);
+          Object.assign(buffers, grown, read);
           const group = (layout: GPUBindGroupLayout, kernel: 'projectRows' | 'classifyRows') =>
             createGpuPartitionGroup(device, layout, kernel, buffers);
           projectGroup = group(projectLayout, 'projectRows');

@@ -48,9 +48,10 @@ export type GpuPartition = {
    *  Called once per run: rows scattered across the table forget nothing between them. */
   forgetRows(from: number, to: number): void;
   encode(encoder: GPUCommandEncoder, frame: PartitionFrame): void;
-  /** Row buffers for `rows` rows, made now; `commit` puts them in place, reading `sources` — the
-   *  grown draw compact's and Hi-Z test's — from then on. Every row reads as never projected. */
-  grow(rows: number, sources: Omit<PartitionSources, 'pyramid'>): PendingGrowth;
+  /** Row buffers for `rows` rows, made now; `commit` puts them in place, reading what `sources`
+   *  then gives — the grown draw compact's and Hi-Z test's — from then on. Every row reads as
+   *  never projected. */
+  grow(rows: number, sources: () => Omit<PartitionSources, 'pyramid'>): PendingGrowth;
   /** True when the periodic-sample interval has elapsed and none is in flight. */
   countsDue(frame: number): boolean;
   /** Encodes the copy of the counters this frame just wrote. */
