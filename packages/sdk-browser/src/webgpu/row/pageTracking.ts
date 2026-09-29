@@ -14,7 +14,12 @@ export function createWebgpuPageTracking(allPages: PageRec[]) {
   const pageCatalogIds = new Map(pageCatalog.map((url, index) => [url, index]));
   const pageRefs = (urls: string[]) => urls.map((url) => pageCatalogIds.get(url) ?? url);
   const keyCount = Math.max(1, pageCatalog.length);
-  for (const page of allPages) page.keyIndex = pageCatalogIds.get(pageAddress(page));
+  // The highest DAG level of the catalogue: admission ranks the minimum capacity above it.
+  let topLevel = 0;
+  for (const page of allPages) {
+    page.keyIndex = pageCatalogIds.get(pageAddress(page));
+    topLevel = Math.max(topLevel, page.level ?? 0);
+  }
   const keyOf = (rec: PageRec) => {
     const key = rec.keyIndex ?? pageCatalogIds.get(pageAddress(rec));
     if (key === undefined) throw new Error(`RESIDENCY_KEY_UNKNOWN: ${pageAddress(rec)}`);
@@ -95,6 +100,7 @@ export function createWebgpuPageTracking(allPages: PageRec[]) {
     pageRefs,
     keyCount,
     keyOf,
+    topLevel,
     wanted,
     wantedPages,
     keep,
