@@ -67,7 +67,10 @@ export function createShadowRequests(
     scratch = new Int32Array(4),
     /** What the entry being read names: its view, then its page. */
     at = new Int32Array(3);
-  let reportFrame = -1;
+  let reportFrame = -1,
+    /** The still cycle the request being read belongs to (`plan.ts`): pages it names are kept
+     *  until the view and the world move again (#26). */
+    heldCycle = -1;
   const isSun = (slice: number) => records.kind[slice] === LIGHT_KIND.directional;
   /** Touches `entry` when it is mapped; else notes it to allocate, as `at` names it. */
   const ask = (entry: number, slice: number) => {
@@ -75,6 +78,7 @@ export function createShadowRequests(
     if (word & PAGE_MAPPED) {
       const page = word & PAGE_INDEX_MASK;
       pool.requested[page] = Math.max(pool.requested[page], reportFrame);
+      pool.name(page, heldCycle);
       return;
     }
     const rank = isSun(slice)
@@ -132,7 +136,12 @@ export function createShadowRequests(
     get complete() {
       return !counts.allocated && (!counts.unlisted || pool.heldBy(counts.latest));
     },
-    consume(report: ShadowRequestReport, nowMs: number, frame: number) {
+    consume(
+      report: ShadowRequestReport,
+      nowMs: number,
+      frame: number,
+      cycle = report.frame,
+    ) {
       // A report read back before a resize lists at most the old pool's cap.
       counts.requested = Math.min(report.count, cap, report.entries.length);
       counts.unlisted = report.count - counts.requested;
@@ -140,6 +149,7 @@ export function createShadowRequests(
       counts.refused = 0;
       if (report.layoutEpoch !== table.layoutEpoch) return;
       counts.latest = reportFrame = report.frame;
+      heldCycle = cycle;
       needs.clear();
       for (let i = 0; i < counts.requested; i++) {
         const entry = report.entries[i];
@@ -159,15 +169,22 @@ export function createShadowRequests(
         ask(entry, slice);
         askFloor(slice);
       }
-      needs.allocate(reportFrame, nowMs, frame, counts);
+      needs.allocate(reportFrame, nowMs, frame, counts, cycle);
     },
     /** Asks, as if the latest report named them, for the floor pages a reader may need that no
      *  report names yet: every sun's over the scene within the view's far distance
      *  (`sun.floorReach`), whatever moved, and each face's of a lamp posed after that report — new,
      *  moved or reshaped: what it named was read at a past pose. Evicts only what it did not name;
      *  the next may evict it. */
-    floors(posed: ArrayLike<number>, view: ShadowViewpoint, nowMs: number, frame: number) {
+    floors(
+      posed: ArrayLike<number>,
+      view: ShadowViewpoint,
+      nowMs: number,
+      frame: number,
+      cycle = counts.latest,
+    ) {
       reportFrame = counts.latest;
+      heldCycle = cycle;
       for (let slice = 0; slice < posed.length; slice++) {
         if (records.kind[slice] < 0) continue;
         if (!isSun(slice) && posed[slice] <= counts.latest) continue;
@@ -187,7 +204,7 @@ export function createShadowRequests(
             at[0] = face * 16;
             askFloor(slice);
           }
-        needs.allocate(reportFrame, nowMs, frame, counts);
+        needs.allocate(reportFrame, nowMs, frame, counts, cycle);
       }
     },
     reset() {
