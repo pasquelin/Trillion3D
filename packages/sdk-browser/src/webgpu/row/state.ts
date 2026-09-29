@@ -2,13 +2,7 @@ import { createWebgpuRowJournal } from './journal.ts';
 import { catalogueIndexOf, type PageRec } from '../../page/selection/selection.ts';
 import { pageAddress } from './pageSlots.ts';
 import { createDirtyRows } from './dirty.ts';
-
-/** `from` copied into the head of `to`, the rest of `to` set to `fill`. */
-function widened<T extends Int32Array | Uint32Array>(from: T, to: T, fill: number) {
-  to.set(from);
-  to.fill(fill, from.length);
-  return to;
-}
+import { growRowState, widened } from './grow.ts';
 
 /**
  * Stable row and residency arrays shared by the cut, visibility pass, and cache journal.
@@ -17,7 +11,8 @@ function widened<T extends Int32Array | Uint32Array>(from: T, to: T, fill: numbe
  * the blended clusters that cast (`blendCasters.ts`). A visibility pass reads `[0, packedCount)`
  * and never reaches them; the per-row arrays the shadow pass reads — record, catalogue page,
  * dirty marks — span both. The per-page arrays are replaced when pages join in place
- * (`addPages`): they are read through this object, never kept.
+ * (`addPages`), the per-row ones when the table grows (`grow`): they are read through this
+ * object, never kept.
  */
 export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number, blendSlots = 0) {
   const casterSlots = drawSlots + blendSlots;
@@ -75,6 +70,8 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number, 
     /** First shadow-only row, and the end of the table: `[drawSlots, casterSlots)`. */
     blendFirst: drawSlots,
     casterSlots,
+    /** The table's generation: it moves when the table grows, which a reader of its size follows. */
+    generation: 0,
     blendRowOf,
     residentFlags,
     pageIndicesByUrl,
@@ -96,7 +93,9 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number, 
     /** Declares rows dirty whose occupant is kept (a pose, a diagnostic word): `markWords`. */
     markRowWords: dirtyRows.markWords,
     clearDirty: dirtyRows.clear,
-    dirtyMarks: dirtyRows.marks,
+    get dirtyMarks() {
+      return dirtyRows.marks;
+    },
     get rowCount() {
       return rowCount;
     },
@@ -167,6 +166,10 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number, 
     },
     set pageTableInts(value: Uint32Array | undefined) {
       pageTableInts = value;
+    },
+    /** The table grows in place to `drawSlots` visibility rows and `blendSlots` casters' rows. */
+    grow(drawSlots: number, blendSlots: number) {
+      growRowState(state, dirtyRows, drawSlots, blendSlots);
     },
     /**
      * `packedPages` grew from `first` on (`../../placement/webgpuGrowth.ts`): the per-page arrays

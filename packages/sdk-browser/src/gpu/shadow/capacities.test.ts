@@ -120,10 +120,10 @@ test('an empty face, an empty list or an empty batch encodes no cull pass and wr
   const log = { buffer, offset: 0, work: buffer, offsetWord: 0, countWord: 0, groupsWord: 0 };
   const light = { spheres: buffer, mobility: buffer, items: buffer, rowOf: buffer, log };
   const made = writes.length;
-  cull.begin(0, 3);
+  cull.begin(0);
   cull.encodeLight(encoder, { ...light, blendFirst: 0, blendEnd: 0, refreshRows() {} }, 0, 8);
   assert.equal(writes.length, made, 'a batch of no region writes neither volumes nor commands');
-  cull.begin(2, 3);
+  cull.begin(2);
   cull.encode(encoder, source, 0, 0, 2, 0);
   assert.deepEqual(passes, [], 'nothing listed: the regions keep the zero instances begin wrote');
   cull.encode(encoder, source, 0, 0, 0, 5);
