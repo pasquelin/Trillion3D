@@ -54,3 +54,26 @@ test('a cell that leaves mid-read releases its pages once they land', async () =
   await Promise.all(held.reads());
   assert.deepEqual([counts.get('x'), held.held()], [0, 0]);
 });
+
+// #1237: a placed cell also holds the world bundles its objects' roots depend on; a hold whose
+// world read fails lets its pages go, and the whole hold is asked again at the next frame.
+test('a placed cell holds its world bundles with its pages, both or neither', async () => {
+  const { pages, counts, land } = countedPages(new Set());
+  const world = { cells: [] as number[], fails: 1 };
+  const held = createCellPages(pages, cell(['x']), {
+    async hold(at) {
+      await Promise.resolve();
+      if (world.fails-- > 0) throw new Error('world read failed');
+      world.cells.push(at);
+    },
+    release: (at) => void world.cells.splice(world.cells.indexOf(at), 1),
+  });
+  held.hold(0);
+  land();
+  await Promise.all(held.reads());
+  assert.deepEqual([counts.get('x'), world.cells, held.held()], [0, [], 0], 'neither held');
+  await Promise.all(held.reads());
+  assert.deepEqual([counts.get('x'), world.cells, held.held()], [1, [0], 1], 'asked again: both');
+  held.release(0);
+  assert.deepEqual([counts.get('x'), world.cells], [0, []]);
+});

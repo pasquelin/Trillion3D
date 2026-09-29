@@ -130,11 +130,14 @@ export function assertOccluderImage(
   assert.deepEqual([...drawn].sort(), [0]);
 }
 
-/** Two coarse quads a hundred units apart, as two primitives of one source: six clusters that share
- *  the resident slots, so a camera jump between them evicts and recycles rows. */
-export function twoCoarseQuadsScene() {
-  const a = coarseQuadScene(),
-    b = coarseQuadScene();
+/** Two coarse quads a hundred units apart, as two primitives of one source, each drawn by `quad`:
+ *  their clusters share the resident slots, so a camera jump between them evicts and recycles rows
+ *  once the slots hold less than both. */
+export function twoCoarseQuadsScene(
+  quad: () => ReturnType<typeof coarseQuadScene> = coarseQuadScene,
+) {
+  const a = quad(),
+    b = quad();
   const mesh = b.source.children[0] as G.HostMesh;
   mesh.position.x = 100;
   a.source.add(mesh);

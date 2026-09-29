@@ -22,6 +22,7 @@ import type { HostMaterials } from '../host/resources.ts';
 import type { BackendContext } from '../backend/types.ts';
 import type { createAutonomousGeometry } from '../backend/autonomous/geometry.ts';
 import type { PlacementMount } from './backendSceneUpdates.ts';
+import { rootChildren } from '../residency/minimumCapacity.ts';
 import { poseNamed } from '../host/world/moveByName.ts';
 
 /** Addresses already counted, reused across calls: nothing is allocated to count a frame. */
@@ -139,6 +140,7 @@ export function autonomousPlacements(env: Placements) {
         blendCopy: createBlendCopy,
       });
       const cover = autonomousBootstrap(collected.roots);
+      rootChildren(collected.roots); // admitted first, as the open's (`minimumCapacity.ts`)
       const covered = new Set(cover.map((rec) => rec.url)),
         urls = [...covered];
       const admitted = [...read.descriptors.keys(), ...read.sourced.keys()];
