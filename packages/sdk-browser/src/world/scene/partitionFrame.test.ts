@@ -76,13 +76,8 @@ function asks(
   bounds: number[],
   camera: Parameters<typeof createPartitionFrame>[0]['camera'],
 ) {
-  const cell = {
-    url,
-    sha256: '',
-    bytes: 1,
-    meshes: [[0, 1] as const],
-    parents: [[null, bounds] as const],
-  };
+  const parents = [[null, bounds] as const];
+  const cell = { url, sha256: '', bytes: 1, meshes: [[0, 1] as const], meshPages: [], parents };
   const cells = createPartitionCells({
     partition: { bounds, meshes: [0], cells: [cell] },
     base: 'https://cache.test/key/',
@@ -151,7 +146,8 @@ function grid(side: number) {
       }));
       bodies.set(url, new TextEncoder().encode(JSON.stringify({ version: 2, nodes })));
       const bounds = [x * 10, 0, z * 10, x * 10 + 8, 1, z * 10 + 8];
-      cells.push({ url, sha256: '', bytes: 1, parents: [[null, bounds]], meshes: [[mesh, 4]] });
+      const parents: TableCell['parents'] = [[null, bounds]];
+      cells.push({ url, sha256: '', bytes: 1, parents, meshes: [[mesh, 4]], meshPages: [] });
     }
   const partition = {
     bounds: [0, 0, 0, side * 10, 1, side * 10],
