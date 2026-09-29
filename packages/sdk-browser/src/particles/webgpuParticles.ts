@@ -167,7 +167,7 @@ export const drawsParticles = (rt: Pick<WebgpuPagesRuntime, 'context' | 'run'>) 
   !!rt.context.particles && rt.run.diagnostic === 'beauty';
 
 /** What this image draws the pools with, once a camera and the targets are; else `undefined`. */
-export function particleDrawOf(rt: WebgpuPagesRuntime) {
+function particleDrawOf(rt: WebgpuPagesRuntime) {
   const { hdrView, depthView, asIsShare, particles } = rt.gpu;
   const pools = rt.context.particles;
   if (!pools || !particles || !hdrView || !depthView || !asIsShare || !rt.run.lastCamera) return;
