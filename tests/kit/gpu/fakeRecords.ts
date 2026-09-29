@@ -71,4 +71,6 @@ export type FakeDeviceOptions = {
   compute?: boolean;
   /** Every buffer's `mapAsync` settles when this does; at once when not given. */
   mapping?: Promise<void>;
+  /** The features the device granted; none when not given. */
+  features?: readonly GPUFeatureName[];
 };
