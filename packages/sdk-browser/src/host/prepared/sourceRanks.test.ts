@@ -15,6 +15,7 @@ test('a renumbered core node keeps its original numeric source rank in the runti
         mesh: null,
         light: null,
         camera: null,
+        skin: null,
         weights: null,
         matrix: null,
         translation: null,
@@ -23,6 +24,8 @@ test('a renumbered core node keeps its original numeric source rank in the runti
         visible: true,
       },
     ],
+    skins: [],
+    animations: [],
   } as unknown as PreparedSceneTables;
   const unused = () => {
     throw new Error('this node carries no mesh');

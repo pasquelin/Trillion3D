@@ -19,19 +19,19 @@ test('with bounce, a smooth surface adds what its mirror direction meets in the 
   // The term is part of the lit sum, fed the pixel's own roughness.
   assert.match(
     BOUNCE_LIGHTING_SHADER,
-    /var rgb=lit\+ambient\+emissive\.rgb\+bounceLighting\([^)]*\)\+mirrorLighting\(base\.rgb,base\.a,normal\.a,N,V,P\);if\(\(surfaceFlag&128u\)==0u\)\{rgb=fogged\(rgb,P,/,
+    /var rgb=lit\+ambient\+emissive\.rgb\+bounceLighting\([^)]*\)\+thinBounce\([^)]*\)\+mirrorLighting\(base\.rgb,base\.a,normal\.a,N,V,P\);if\(\(surfaceFlag&128u\)==0u\)\{rgb=fogged\(rgb,P,/,
   );
   const mirror = body(BOUNCE_LIGHTING_SHADER, 'mirrorLighting');
-  assert.ok(mirror.includes(`reflectedRadiance(P,N,reflect(-V,N),${ROUGHNESS_FLOOR})*weight`));
+  assert.ok(mirror.includes('reflectedRadiance(P,N,reflect(-V,N),rough)'));
   // Weighed by the GGX lobe's directional albedo, the table the rectangular light reads.
   assert.match(mirror, /ltcLookup\(rough,[^;]*,1u\)/);
   // The radiance is the proxy face the ray hits, read in the cache: the reflected scene.
-  const reflected = body(BOUNCE_LIGHTING_SHADER, 'reflectedRadiance');
+  const reflected = body(BOUNCE_LIGHTING_SHADER, 'proxyReflectionRay');
   assert.match(
     reflected,
     /rayRadiance\(P\+N\*proxy\.offsetMetres\+R\*proxy\.startMetres,R,reach\)/,
   );
-  assert.match(reflected, /if\(weight==1\.0\)\{return hit\.rgb;\}/);
+  assert.match(reflected, /if\(hit\.w<reach\)\{return hit\.rgb;\}/);
   assert.match(body(BOUNCE_LIGHTING_SHADER, 'rayRadiance'), /return vec4f\(surface\[texel\]\.rgb/);
   assert.match(
     BOUNCE_LIGHTING_SHADER,
@@ -39,13 +39,11 @@ test('with bounce, a smooth surface adds what its mirror direction meets in the 
   );
 });
 
-test('beyond the transition, rough lobes and diffuse or toon models add exactly zero', () => {
+test('diffuse and toon keep no specular lobe, while rough physical materials retain their probe lobe', () => {
   const mirror = body(BOUNCE_LIGHTING_SHADER, 'mirrorLighting');
   assert.match(
     mirror,
-    new RegExp(
-      'if\\(weight==0\\.0\\|\\|surfaceModel==4u\\|\\|surfaceModel==5u\\)\\{return vec3f\\(0\\.0\\);\\}',
-    ),
+    new RegExp('if\\(surfaceModel==4u\\|\\|surfaceModel==5u\\)\\{return vec3f\\(0\\.0\\);\\}'),
   );
   // The floor is the clamp the surface buffer is written at, and it survives the half-float target.
   assert.ok(SHADE_SHADER.includes(`clamp(page.roughness*roughSample.y,${ROUGHNESS_FLOOR},1.0)`));
@@ -92,7 +90,7 @@ test('water and probes read the same ray: one reflection model', () => {
   assert.ok(BOUNCE_LIGHTING_SHADER.includes(SURFACE_RAY_WGSL));
 });
 
-test('water blends its proxy into probe irradiance over the shared mirror transition', () => {
+test('water preserves its exact mirror ray and transitions into filtered probe radiance', () => {
   // The water's roughness reaches the model, clamped to the floor it traces at.
   assert.ok(WATER_COMPOSITE_SHADER.includes(`let rough=clamp(normal.a,${ROUGHNESS_FLOOR},1.0);`));
   assert.match(
@@ -100,12 +98,16 @@ test('water blends its proxy into probe irradiance over the shared mirror transi
     /reflected=F\*resolvedRadiance\(P,Nv,reflect\(-V,Nv\),rough\)/,
   );
   const reflected = body(WATER_COMPOSITE_SHADER, 'reflectedRadiance');
-  assert.match(reflected, /if\(weight>0\.0\)\{[\s\S]*rayRadiance/);
-  assert.match(reflected, /mix\(sampleBounce\(P,R\)\*INVERSE_PI,hit.rgb,weight\)/);
-  assert.ok(reflected.endsWith(' return sampleBounce(P,R)*INVERSE_PI;'));
+  assert.match(reflected, /if\(weight==1\.0\)\{return proxyReflectionRay\(P,N,R\);\}/);
+  assert.match(reflected, /mix\(filtered,proxyReflectionRay\(P,N,R\),weight\)/);
+  assert.match(reflected, /if\(weight==0\.0\)\{return filtered;\}/);
+  assert.ok(
+    reflected.indexOf('weight==1.0') < reflected.indexOf('filteredProbeReflection'),
+    'mirror does not evaluate the rough approximation',
+  );
   // Without bounce sampleBounce is zero too: the early return changes no value.
   assert.match(
-    body(WATER_COMPOSITE_SHADER, 'sampleBounce'),
-    /^fn sampleBounce\([^)]*\)->vec3f\{\n if\(bounce\.counts\.w==0u\)\{return vec3f\(0\.0\);\}/,
+    body(WATER_COMPOSITE_SHADER, 'sampleProbeField'),
+    /^fn sampleProbeField\([^)]*\)->vec3f\{\n if\(bounce\.counts\.w==0u\)\{return vec3f\(0\.0\);\}/,
   );
 });

@@ -8,7 +8,7 @@ import { createSceneLightStore } from '../light/store.ts';
 import { createShadowPlan } from './plan.ts';
 import type { SceneLight } from '../light/contracts.ts';
 import { SUN, cycle, lampPages, planFrame, report, sunPages } from './lightShadow.fixture.ts';
-import { PAGE_MAPPED, shadowRequestCap } from './virtual.ts';
+import { PAGE_MAPPED, lampFacesOf, shadowRequestCap } from './virtual.ts';
 
 const EVERYWHERE_MIN = [-1e30, -1e30, -1e30],
   EVERYWHERE_MAX = [1e30, 1e30, 1e30];
@@ -101,10 +101,13 @@ test('a read set larger than the pool maps what fits, then holds: the rest waits
     cycle(plan, store, frame, () => fine);
   assert.ok(frame < DRAIN, 'the image holds');
   assert.equal(plan.pool.used(), 16);
+  // The floor of each of the lamp's faces is kept (#26): the still cycle names it every frame, so
+  // the pool holds those before the fine pages, and publishes the rest as refused.
+  const floors = lampFacesOf(plan.records.kind[store.sliceOf(0)]);
   assert.equal(
     plan.requests.counts.refused,
-    fine.length - 15,
-    'and publishes what it could not map, the floor under them mapped first',
+    fine.length - (plan.pool.pages - floors),
+    'and publishes what it could not map, the floor of each face mapped first',
   );
 });
 

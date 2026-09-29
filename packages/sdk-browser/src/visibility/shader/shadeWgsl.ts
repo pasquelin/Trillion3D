@@ -9,6 +9,7 @@ import {
   NORMAL_VIEW_COLOR_WGSL,
   SURFACE_MODEL,
 } from '../../scene/surfaceModel.ts';
+import { SUBSURFACE_FLAG } from '../../scene/subsurface.ts';
 import { FLAG_FOG_FREE } from '../types.ts';
 
 /**
@@ -24,9 +25,13 @@ ${NORMAL_VIEW_COLOR_WGSL}
  let id=textureLoad(vis,vec2<i32>(i32(pos.x),i32(pos.y)),0).r;
  // A one-class image skips the material-depth pass: make exactly its background and bounds
  // rejection here, before touching the page table. The class is fixed by this pipeline.
- if(SINGLE_CLASS&&id==0u){discard;}
+ if(id==0u){discard;}
  let pageIndex=(id>>8u)-1u;
- if(SINGLE_CLASS&&pageIndex>=uni.pageCount){discard;}
+ if(pageIndex>=uni.pageCount){discard;}
+ // Storage writes are not attachments: reject other classes before their side effects.
+ if(!SINGLE_CLASS&&pages[pageIndex].materialClass!=CLASS_KEY){discard;}
+ storeShadingOffset(pos.xy,vec3f(0.0));
+ storeSubsurface(pos.xy,vec3f(0.0));
  let tri=id&0xffu;
  let page=pages[pageIndex];
  if(tri*3u+2u>=page.indexCount){return emptySurface();}
@@ -124,6 +129,9 @@ ${NORMAL_VIEW_COLOR_WGSL}
   var n2=uniteOuZero(invTranspose3Apply(invT,pageNormal(page,h,i2)))*side;
   var N=uniteOuZero(cross((w1-w0).xyz,(w2-w0).xyz))*screenFace;
   if(HAS_VERTEX_NORMAL){
+   let P=(w0*bary.x+w1*bary.y+w2*bary.z).xyz;
+   let offset=shadingPointOffset(P,bary,w0.xyz,w1.xyz,w2.xyz,n0,n1,n2);
+   if(page.sprite.y==0.0&&page.lineWidth==0.0){storeShadingOffset(pos.xy,offset);}
    N=uniteOuZero(n0*bary.x+n1*bary.y+n2*bary.z);
    if(DOUBLE_SIDED){N*=face;}
   }
@@ -154,6 +162,11 @@ ${NORMAL_VIEW_COLOR_WGSL}
  if(flag==2u&&model==${SURFACE_MODEL.diffuse}u){flag=${MODEL_FLAG.diffuse}u;}
  if(flag==2u&&model==${SURFACE_MODEL.toon}u){flag=${MODEL_FLAG.toon}u;}
  if((page.flags&${FLAG_FOG_FREE}u)!=0u){flag|=${FOG_FREE_SURFACE_FLAG}u;}
+ if(DOUBLE_SIDED&&(page.flags&1u)!=0u){
+  var thin=clamp(vec3f(page.subsurfaceRG,page.subsurfaceB),vec3f(0.0),vec3f(1.0));
+  if(HAS_UV&&page.subsurfaceMap!=0u){thin*=colorSample(page.subsurfaceMap,uv,ddx,ddy,HAS_SAMPLING).rgb;}
+  if(any(thin>vec3f(0.0))){storeSubsurface(pos.xy,thin);flag|=${SUBSURFACE_FLAG}u;}
+ }
  return SurfaceOut(vec4f(rgb,metal),vec4f(N,rough),vec4f(emissive,ao),flag,request);
 }
 `;

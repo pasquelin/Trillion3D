@@ -21,7 +21,7 @@ import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts';
  *  node of a source node, the nodes below it and its radius (`_nodeAt`), where it numbers them. */
 export type Model = Object3D & {
   isLoadedModel: true;
-  record: { base: string };
+  record: { base: string; scene?: { nodes?: readonly Object3D[] } };
   _nodeAt?(index: number): ModelNode | null;
 };
 /** A source node of a model: its scene node, the source indices below it, its drawn radius. */

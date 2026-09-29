@@ -1,3 +1,8 @@
+import {
+  PAGE_DEFORM_WORD,
+  PAGE_DEFORM_COUNT_WORD,
+  PAGE_DEFORM_OUTPUT_WORD,
+} from '../../visibility/types.ts';
 import type { HostAttributes } from '../../host/resources.ts';
 import { rootOf, type PageRec } from '../../page/selection/selection.ts';
 import type { Placements } from '../../page/selection/placements.ts';
@@ -20,6 +25,7 @@ import {
 import { surfaceOpacity } from '../../page/surface.ts';
 import { shownAsIs } from '../../scene/surfaceModel.ts';
 import { neverCulled, writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts';
+import type { SessionDeformation } from '../../deformation/session.ts';
 
 export const ROW_ID_BASE_WORD = 27,
   ROW_HIZ_SLOT_WORD = 31;
@@ -37,6 +43,8 @@ export const ROW_MAP_LAYER_WORD = 22,
 /** Row word of the surface's opacity, its colour factor's alpha (`PageInfo.blendCoverage`): the
  *  light a blended caster stops, and what a cutout multiplies its alpha by (`maskKeep`). */
 export const ROW_BLEND_COVERAGE_WORD = 57;
+/** Declared volume transmission, read before replacing a caster row. */
+export const ROW_TRANSMISSION_WORD = 38;
 /** Row word of the width a line page's quads widen to (`PageInfo.lineWidth`); zero for triangles. */
 export const ROW_LINE_WIDTH_WORD = 61;
 /** Row words of a dashed line's dash and gap (`PageInfo.dash`, `lineDash`); zero on any other row. */
@@ -71,6 +79,8 @@ type PageRowResources = MaterialLayers & {
    *  temporal antialiasing and the composition must read (OMB-11). Never unset: a row it no longer
    *  draws only keeps the reading variant, which is right for every image. */
   asIsShown: boolean;
+  /** The session's GPU deformation, once prepared: the record each placement's rows name. */
+  deformation?: Pick<SessionDeformation, 'rowWord'>;
 };
 
 /** Serializes one drawable cluster row after its occupant, slot, or input epoch changes. */
@@ -127,18 +137,34 @@ export function createPageRowWriter(
     ints[base + 30] = constants.hashOf(rec.clusterId);
     // The Hi-Z verdict of a row lives at the row's own index, and the rows a frame does not test are
     // cleared on the GPU before the test, so no row ever reads the verdict of an earlier image. A
-    // row never culled reads none.
-    ints[base + ROW_HIZ_SLOT_WORD] = neverCulled(mat) ? NO_HIZ_SLOT : row;
+    // row never culled reads none, nor does a deformed one: its box is its rest pose's.
+    const deform = resources.deformation?.rowWord(rec.placementIndex) ?? 0;
+    ints[base + PAGE_DEFORM_WORD] = deform;
+    ints[base + PAGE_DEFORM_COUNT_WORD] = rec.deformationOutput?.count ?? 0;
+    ints[base + PAGE_DEFORM_OUTPUT_WORD] = rec.deformationOutput
+      ? offsetWords + rec.deformationOutput.from + 1
+      : 0;
+    ints[base + ROW_HIZ_SLOT_WORD] = neverCulled(mat) || deform ? NO_HIZ_SLOT : row;
     ints[base + 32] = maps.rough;
     ints[base + 33] = maps.metal;
     ints[base + 34] = maps.normal;
     floats[base + 35] = mat.normalScale;
     writeSpriteWords(floats, base + ROW_SPRITE_WORD, mat.sprite);
+    floats[base + ROW_TRANSMISSION_WORD] = mat.transmission;
+    floats[base + 39] = mat.thickness;
+    floats[base + 40] = mat.attenuationColor[0];
+    floats[base + 41] = mat.attenuationColor[1];
+    floats[base + 44] = mat.attenuationColor[2];
+    floats[base + 45] = mat.attenuationDistance;
     ints[base + 42] = maps.ao;
     floats[base + 43] = mat.aoIntensity;
     ints[base + 46] = maps.emissive;
     ints[base + 47] = pageIndex;
     floats.set(mat.emissive, base + 48);
+    floats[base + 52] = mat.subsurfaceColor?.[0] ?? 0;
+    floats[base + 53] = mat.subsurfaceColor?.[1] ?? 0;
+    floats[base + 58] = mat.subsurfaceColor?.[2] ?? 0;
+    ints[base + 59] = maps.subsurface;
     floats[base + 54] = frameNormalScaleY(mat, !!geo?.hasTangent);
     floats[base + 55] = rec.role === 'coarse' ? 1 : 0;
     floats[base + 56] = 0;

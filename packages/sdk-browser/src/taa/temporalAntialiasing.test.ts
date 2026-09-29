@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createTemporalAntialiasing } from './temporalAntialiasing.ts';
 import { inertTaaDevice } from './device.fixture.ts';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
-import { TAA_BINDINGS } from './shaderWgsl.ts';
+import { TAA_BINDINGS } from './bindingsWgsl.ts';
 
 // A convergence frame replays the last ordinary frame: every field the checkpoint keeps comes
 // back, the sampled rank among them, so it draws the same lights and makes the same image.
@@ -79,7 +79,16 @@ test('a frame with no as-is pixel resolves flagless, and switching compiles no p
   const encoder = { beginRenderPass: () => pass } as unknown as GPUCommandEncoder;
   const view = () => ({}) as GPUTextureView,
     buffer = {} as GPUBuffer;
-  const inputs = { current: view(), depth: view(), ids: view(), pages: buffer, motion: buffer };
+  const inputs = {
+    current: view(),
+    depth: view(),
+    ids: view(),
+    pages: buffer,
+    motion: buffer,
+    pool: buffer,
+    positions: buffer,
+    uvs: buffer,
+  };
   temporal.encode(encoder, inputs);
   temporal.encode(encoder, { ...inputs, flags: view() });
   temporal.encode(encoder, { ...inputs, share: view() });

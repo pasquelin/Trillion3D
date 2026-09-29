@@ -32,8 +32,9 @@ export interface SceneLight {
    * Point and spot only: the radius, in metres, of the envelope that holds the source.
    * A real light is always housed in something — lantern glass, reflector, shade
    * — and that envelope is geometry like any other: without this field, it enters its own
-   * light's shadow map and turns it off. Declared, it becomes the near plane of that map,
-   * so nothing that sits closer than this radius from the source casts a shadow there. It is a
+   * light's shadow map and turns it off. Fragments within this sphere do not cast a shadow;
+   * the map's near plane continues to depend on range. On a point light this radius also
+   * sets the source size of the contact-hardening shadow filter. It is a
    * property of the light, never an object name or a material type: the engine only knows
    * surfaces. Strictly positive and strictly less than the range; if absent, nothing changes.
    */

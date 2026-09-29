@@ -10,6 +10,7 @@
  * the engine's world storage, and the source mesh it stands for.
  */
 
+import type { Primitive } from '../../../sdk-core/src/index.ts';
 import type { HostAttribute, HostMesh } from '../host/resources.ts';
 import type { MatrixElements } from '../math/matrixElements.ts';
 import type { PageSurface } from '../page/surface.ts';
@@ -20,6 +21,8 @@ import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
  *  it draws and its local box on demand; its `matrix` is the engine's world storage for the
  *  source mesh, shared and never written through the copy (`blendCopyRecord.ts`). */
 export type BlendCopy = {
+  /** Source deformation metadata; whole transmission retains its no-pages representation. */
+  deformation?: Primitive['deformation'];
   readonly geometry: Geometry & {
     getIndex(): HostAttribute | null;
     computeBoundingBox(): void;

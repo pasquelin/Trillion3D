@@ -9,6 +9,7 @@ import { webgpuPagesBackend } from '../pages.ts';
 import { camera, disposeQuadRun, quadScene } from '../testScenes.fixture.ts';
 import { UNIFORM_STRIDE } from '../../blend/uniforms.ts';
 import { BLEND_EQUATIONS, hostBlending } from '../../../scene/materialBlending.ts';
+import { WaterSurface } from '../../../../../sdk-core/src/fluids/waterSurface.ts';
 import type { Blending } from '../../../../../sdk-core/src/world/constants/index.ts';
 
 const OPACITY = 0.8;
@@ -85,4 +86,27 @@ test('the fallback pass draws its paged clusters when the transparent compaction
   const drawn = await fallbackDraws('normal', true);
   assert.equal(drawn.length, 2);
   for (const { draw } of drawn) assert.equal(draw.vertexCount, 3);
+});
+
+test('a deformed scene refuses an unavailable material pipeline instead of drawing rest geometry', async () => {
+  installGpuGlobals();
+  const { device } = mockGpu({ rejectR32: true, compute: true });
+  device.createComputePipelineAsync = async (descriptor) =>
+    device.createComputePipeline(descriptor);
+  const fixture = quadScene();
+  fixture.associations.keys().next().value!.waves = new WaterSurface({
+    level: 0,
+    waves: [{ direction: [1, 0], wavelength: 5, amplitude: 0.2, steepness: 0.5 }],
+  });
+  const backend = webgpuPagesBackend({
+    ...fixture,
+    gpuDevice: device,
+    maxResidentPages: 2,
+    viewport: [32, 32],
+  });
+  try {
+    await assert.rejects(backend.prepare(), /NO_R32UINT/);
+  } finally {
+    disposeQuadRun(backend, fixture);
+  }
 });

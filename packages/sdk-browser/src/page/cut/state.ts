@@ -42,6 +42,9 @@ export interface SelectionState<T extends PageRecord> {
   flatElements: ArrayLike<number>;
   flatStretch: number;
   flatFocal: number;
+  /** How far this root's GPU deformation moves a vertex this frame, in its units (#357): every
+   *  box and every sphere the cut reads of it grows by it; zero at rest. */
+  flatReach: number;
   /** The cut rule's residency of this root's pages (`./held.ts`), with the open count of each of
    *  its culling nodes; absent when nothing is held, every page then deemed resident. */
   flatHeld?: CutReadiness;
@@ -156,6 +159,7 @@ const reusedState: SelectionState<PageRecord> = {
   flatElements: IDENTITY_ELEMENTS,
   flatStretch: 1,
   flatFocal: 1,
+  flatReach: 0,
   flatCone: createConeContext(),
   flatCones: true,
   flatBoxes: false,

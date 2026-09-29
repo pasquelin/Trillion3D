@@ -72,6 +72,7 @@ export async function buildPreparedScene(inputs: Inputs) {
     ranks: meshes,
     nodes,
     placed,
+    clips,
   } = await preparedGraph({
     tables,
     meshes: document.meshes,
@@ -85,7 +86,7 @@ export async function buildPreparedScene(inputs: Inputs) {
   const source: Object3D = scene;
   const associations: BackendContext['associations'] = meshes;
   const textureIndices: Map<HostTexture, number> = ranks;
-  return { source, associations, textureIndices, bakedImages: skipped.size, nodes, placed };
+  return { source, associations, textureIndices, bakedImages: skipped.size, nodes, placed, clips };
 }
 
 /** The source document the autonomous one's pages were cut from: its meshes, and its geometries,

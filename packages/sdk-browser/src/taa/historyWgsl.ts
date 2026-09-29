@@ -57,7 +57,7 @@ fn placementTag(at:vec2i)->u32{
 fn dynamicPixel(at:vec2i)->f32{
  let id=textureLoad(ids,at,0).r;
  if(id==0u){return 0.0;}
- return select(0.0,1.0,(pages[(id>>8u)-1u].flags&${FLAG_DYNAMIC}u)!=0u);
+ return select(0.0,1.0,(pages[(id>>8u)-1u].flags&${FLAG_DYNAMIC}u)!=0u&&pages[(id>>8u)-1u].deformOutput==0u);
 }
 fn uncovered(uv:vec2f,centre:vec2i,last:vec2i,own:f32)->bool{
  let kept=textureGather(1,tagHistory,historySampler,uv)*255.0;

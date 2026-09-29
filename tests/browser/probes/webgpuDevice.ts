@@ -19,7 +19,7 @@
  *   architecture) and `complet` (the four filled fields). `adapter.info` is not cloneable, only
  *   these strings cross the page bridge.
  */
-export async function ouvrirAppareil(
+export async function openGpuDevice(
   features: GPUFeatureName[] = [],
   requiredLimits?: Record<string, number>,
 ) {
@@ -32,6 +32,7 @@ export async function ouvrirAppareil(
   device.addEventListener('uncapturederror', (event) => errors.push(event.error.message));
   return {
     device,
+    errors,
     erreurs: errors,
     async compile(code: string) {
       const module = device.createShaderModule({ code });
@@ -43,13 +44,13 @@ export async function ouvrirAppareil(
     async fermer() {
       await device.queue.onSubmittedWorkDone();
       const info = adapter.info ?? {};
-      const champs = (['vendor', 'architecture', 'device', 'description'] as const).map(
+      const fields = (['vendor', 'architecture', 'device', 'description'] as const).map(
         (c) => info[c],
       );
       device.destroy();
       return {
-        court: `${champs[0]} ${champs[1]}`,
-        complet: champs.filter(Boolean).join(' / '),
+        court: `${fields[0]} ${fields[1]}`,
+        complet: fields.filter(Boolean).join(' / '),
       };
     },
   };

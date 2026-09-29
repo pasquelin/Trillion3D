@@ -13,7 +13,8 @@
       "play": "开始播放。",
       "stop": "停止,并回到起点。",
       "seek": "无论是否在播放,都按循环方式立即把片段摆到 `time` 秒处的姿态:正在播放的动作从那里继续,已停止的动作保持该姿态,直到同一混合器中正在播放的动作将其覆盖。",
-      "clipTime": "根据其循环模式,该动作在片段中所处的位置。"
+      "clipTime": "根据其循环模式,该动作在片段中所处的位置。",
+      "blendMode": "`additive` 将相对于首个关键帧的运动叠加到其他动作，而非进行普通混合。"
     }
   },
   "AlphaMode": {
@@ -817,7 +818,9 @@
       "vertexCount": "顶点数。",
       "flags": "它携带了哪些属性。",
       "decodedBytes": "解包后的大小。",
-      "quantizationError": "页头中记录的最大位置偏移量,单位为对象自身单位:一个解码后的位置可能与其源数据、进而与该页面声明的包围盒相差这么多。"
+      "quantizationError": "页头中记录的最大位置偏移量,单位为对象自身单位:一个解码后的位置可能与其源数据、进而与该页面声明的包围盒相差这么多。",
+      "morphTargets": "`attributes.morph` 中的目标数：每个目标、每个顶点使用六个浮点数；无变形目标时省略。",
+      "skinInfluences": "每个顶点的原始骨骼影响数。"
     }
   },
   "DiagnosticCapabilities": {
@@ -1154,7 +1157,8 @@
       "mathBatch": "计算路径调度器(`../math/path/governor.ts`)的状态:每个批处理运算当前所用的路径、两条路径各自的中位数、切换次数。宿主尚未开启任何批处理时为 `null`——这表示未测量,而不是“JavaScript 路径”。",
       "pagesPlannedOffThread": "主线程之外的页面整合。`pagesPlannedOffThread` 统计的是其到达计划(每个簇在打包中的位置,以及它所移动的页面序号)由某个工作线程计算完成的到达数量,绝不包括回退方案在主线程上规划的部分。`pagePlanMs` 是这些计划的累计耗时,无论在哪个线程上都由执行者本身测量得出:绝不会被加进任何一帧的 `cpu*` 或 `gpu*` 中。在还没有任何到达被规划之前,两者均为 `null`——表示未测量,而不是零。",
       "pagePlanMs": "花在规划到达上的时间。",
-      "dynamicUploadBytes": "本帧就地上传的动态几何体顶点字节数（#573），在世界的每帧预算（`DYNAMIC_UPLOAD_BUDGET_BYTES`）之内。没有世界绘制时不存在。"
+      "dynamicUploadBytes": "本帧就地上传的动态几何体顶点字节数（#573），在世界的每帧预算（`DYNAMIC_UPLOAD_BUDGET_BYTES`）之内。没有世界绘制时不存在。",
+      "gpuDeformationMs": "`gpuPassMs` 所对应帧的 GPU 变形耗时；尚未测量或不支持时为 null。"
     }
   },
   "Frustum": {
@@ -1614,7 +1618,7 @@
   },
   "LIGHT_FIELD": {
     "summary": "缓冲区中一个光源的字段,以从其起始位置算起的浮点数偏移表示。",
-    "description": "每个光源占四个 `vec4f`。",
+    "description": "每个光源占五个 `vec4f`。",
     "members": {
       "position": "它所在的位置。",
       "range": "它能照到多远。",
@@ -1627,7 +1631,8 @@
       "castsShadow": "是否投射阴影。",
       "cosInner": "聚光灯的内锥角,即半影开始的位置:如果没有内锥,则取光锥自身的边缘。",
       "halfWidth": "矩形光源的半宽轴——即 `right` 乘以其宽度的一半——随后是半高。",
-      "halfHeight": "矩形光源高度的一半。"
+      "halfHeight": "矩形光源高度的一半。",
+      "emitterRadius": "点光源或聚光灯的光源半径；与矩形专用的形状分量共用存储位置。"
     }
   },
   "LIGHT_KIND": {
@@ -1784,7 +1789,8 @@
       "record": "世界为这个模型保存的一切:它的地址、清单和图结构。",
       "getObjectByName": "下方第一个带此名称的节点：模型、其源文件的节点，然后是其他任何子节点——文件携带的灯光、页面放置的节点。",
       "metadata": "该模型已编译的清单——它的图元、`sourceTriangles`——以及 `clusters`(它的页面所持有的簇,统计了其 DAG 的每一个层级)。",
-      "localBounds": "该节点自身内容所占据的包围盒,局部坐标系;一个普通节点不含任何内容。"
+      "localBounds": "该节点自身内容所占据的包围盒,局部坐标系;一个普通节点不含任何内容。",
+      "animations": "文件中的动画片段，绑定到模型节点：`animation.createMixer(model).clipAction(model.animations[0]).play()`。"
     }
   },
   "LodQualityId": {
@@ -1860,6 +1866,8 @@
       "parameters.ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "parameters.thickness": "透明表面的厚度。",
       "parameters.clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "parameters.anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "parameters.anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "parameters.clearcoatRoughness": "该清漆的粗糙程度。",
       "parameters.sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "parameters.iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -1879,7 +1887,9 @@
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
-      "parameters.restitution": "物体的弹跳程度，0 到 1。"
+      "parameters.restitution": "物体的弹跳程度，0 到 1。",
+      "parameters.subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "parameters.subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     },
     "members": {
       "isMaterial": "始终为 `true`:用来把材质和其他对象区分开来。",
@@ -1906,7 +1916,8 @@
       "physics": "穿戴它的物体的物理材质预设。",
       "density": "kg/m³，用于物体的质量。",
       "friction": "物理摩擦。",
-      "restitution": "物理回弹。"
+      "restitution": "物理回弹。",
+      "subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。"
     }
   },
   "MaterialParameters": {
@@ -1927,6 +1938,8 @@
       "ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "thickness": "透明表面的厚度。",
       "clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "clearcoatRoughness": "该清漆的粗糙程度。",
       "sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -1946,7 +1959,9 @@
       "physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "density": "kg/m³，乘以体积得到质量。",
       "friction": "物体的抓地程度，0 及以上。",
-      "restitution": "物体的弹跳程度，0 到 1。"
+      "restitution": "物体的弹跳程度，0 到 1。",
+      "subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     }
   },
   "MathPath": {
@@ -2097,7 +2112,9 @@
       "morphTargetInfluences": "几何体声明变形目标时，每个变形目标的权重。",
       "morphTargetDictionary": "按名称给出的每个变形目标的序号。",
       "updateMorphTargets": "为第一个变形属性的每个变形目标设一个零权重，按序号命名。",
-      "copy": "取用 `source` 的值，并复制其子节点，除非另有指示。"
+      "copy": "取用 `source` 的值，并复制其子节点，除非另有指示。",
+      "skeleton": "由 `skinIndex` 和 `skinWeight` 指定的骨骼，每帧在 GPU 上求值。",
+      "waves": "与 `WaterSurface` 共用的波浪参数，用于 GPU 和浮力计算。"
     }
   },
   "Mixer": {
@@ -2480,7 +2497,9 @@
       "vertexCount": "顶点数。",
       "flags": "它携带了哪些属性。",
       "decodedBytes": "`block` 的大小。",
-      "quantizationError": "页面头中记录的最大位置偏移量,单位为对象自身单位。"
+      "quantizationError": "页面头中记录的最大位置偏移量,单位为对象自身单位。",
+      "skinInfluences": "每个顶点原始骨骼影响的准确宽度。",
+      "morphTargets": "`morph` 中的目标数：每个目标、每个顶点使用六个浮点数；无变形目标时省略。"
     }
   },
   "PageDecodeOp": {
@@ -2665,7 +2684,9 @@
       "matrices": "每行十六个列优先浮点数,由持有者写入。",
       "live": "该行正在放置资源时为 1,处于闲置状态时为 0。",
       "shadowless": "该行不投射阴影时为 1(其网格的 `castShadow` 为 `false`),投射时为 0。",
-      "capacity": "在需要扩容之前能容纳的行数。"
+      "capacity": "在需要扩容之前能容纳的行数。",
+      "sources": "行被复用时仍保留的原始所有者。",
+      "sourceModels": "共享资源的网格，包括等待中的行。"
     }
   },
   "Plane": {
@@ -2733,7 +2754,8 @@
       "streams": "它的流式资源包。",
       "quantization": "对于没有页面的图元为 null,这种图元没有在任何网格上被量化过。",
       "topology": "该网格的边和角看起来是什么样子。",
-      "dynamic": "世界的动态几何体（#573）：只有索引页，其顶点以浮点数从引擎就地重写的宿主几何体中读取。"
+      "dynamic": "世界的动态几何体（#573）：只有索引页，其顶点以浮点数从引擎就地重写的宿主几何体中读取。",
+      "deformation": "关节静止球 `[x,y,z,radius]` 及最大变形范围；静态几何体省略或为 null。"
     }
   },
   "Primitive": {
@@ -3006,7 +3028,7 @@
       "range": "点光源、聚光灯和矩形光源:能量恰好归零的范围,单位米。",
       "coneAngle": "聚光灯的开口角度。",
       "penumbra": "仅限聚光灯:光锥中从边缘向内、光照逐渐减弱所占的比例,取值 `[0, 1]`;不设置时,边缘会在 `spotEdgeSoftness` 范围内自然柔化。",
-      "emitterRadius": "仅限点光源和聚光灯:容纳光源本体的外壳半径,单位米。真实的光源总是被包裹在某种东西里——灯罩玻璃、反光罩、灯伞——这层外壳和其他几何体一样都是真实的几何形状:如果没有这个字段,它会落入自己那盏灯的阴影贴图中,把灯光效果自我抵消掉。一旦声明,它就成为该阴影贴图的近平面,这样任何比这个半径更靠近光源的东西都不会在那里投下阴影。这是光源本身的属性,绝不是某个物体的名字或材质类型:引擎只认识表面本身。它必须严格为正,并严格小于 range;缺省时不改变任何行为。",
+      "emitterRadius": "仅限点光源和聚光灯:容纳光源本体的外壳半径,单位米。真实的光源总是被包裹在某种东西里——灯罩玻璃、反光罩、灯伞——这层外壳和其他几何体一样都是真实的几何形状:如果没有这个字段,它会落入自己那盏灯的阴影贴图中,把灯光效果自我抵消掉。此球体内的片元不投射阴影；阴影贴图的近平面仍由光照范围决定。对于点光源，此半径还决定接触处阴影硬化滤波器所使用的光源尺寸。 这是光源本身的属性,绝不是某个物体的名字或材质类型:引擎只认识表面本身。它必须严格为正,并严格小于 range;缺省时不改变任何行为。",
       "right": "仅限矩形光源:其宽度方向所沿的单位轴,垂直于 `direction`。",
       "size": "仅限矩形光源:它的宽度和高度,单位米。",
       "castsShadow": "是否投射阴影。"
@@ -3340,7 +3362,8 @@
       "quantization": "对于没有页面的图元为 null,这种图元没有在任何网格上被量化过。",
       "topology": "该网格的边和角看起来是什么样子。",
       "binary": "在哪里能找到它的各个列表。",
-      "dynamic": "世界的动态几何体（#573）：只有索引页，其顶点以浮点数从引擎就地重写的宿主几何体中读取。"
+      "dynamic": "世界的动态几何体（#573）：只有索引页，其顶点以浮点数从引擎就地重写的宿主几何体中读取。",
+      "deformation": "关节静止球 `[x,y,z,radius]` 及最大变形范围；静态几何体省略或为 null。"
     }
   },
   "SlimPrimitiveBinary": {
@@ -3502,9 +3525,13 @@
       "baseMetal": "RGB 为基础颜色,A 为金属度。",
       "normalRough": "XYZ 为世界空间法线,A 为粗糙度。",
       "emissiveAo": "RGB 为自发光,A 为环境光遮蔽。",
-      "flags": "0 背景，1 无光照（受雾影响），2 读取，3 原样显示：诊断、法线或深度视图。",
+      "flags": "0 背景，1 无光照（受雾影响），2 读取，3 原样显示：诊断、法线或深度视图。 4 和 5 分别为漫反射和卡通模型（`./surfaceModel.ts`）。",
       "views": "它的 GPU 纹理视图。",
-      "dispose": "释放它。"
+      "dispose": "释放它。",
+      "shadingOffset": "全精度的阴影接收面偏移，与 G-buffer 一同写入。",
+      "subsurface": "薄表面的独立透射颜色；禁用时使用数值为零的 1×1 纹理。",
+      "subsurfaceView": "薄表面透射纹理的视图。",
+      "hasSubsurface": "薄表面透射是否具有全尺寸目标。"
     }
   },
   "SurfaceCapture": {
@@ -3804,7 +3831,8 @@
       "name": "它驱动的动画对象:`node.field`。",
       "kind": "它保存的是哪种类型的值。",
       "times": "每个关键点发生的时间,单位秒。",
-      "values": "每个关键点上的值,依次排列。"
+      "values": "每个关键点上的值,依次排列。",
+      "interpolation": "默认为 `linear`；`step` 保持上一关键帧；`cubic` 使用 glTF 的入切线/值/出切线三元组。"
     }
   },
   "TrackBinding": {
@@ -3813,11 +3841,12 @@
       "owner": "该轨道所写入的对象。",
       "field": "它所写入的、`owner` 上的字段。",
       "key": "最后一次采样所处的关键点位置。",
-      "value": "一次采样的数值。"
+      "value": "一次采样的数值。",
+      "reference": "叠加动作使用的首个关键帧参考姿态。"
     }
   },
   "TrackKind": {
-    "summary": "一条轨道驱动的是什么:一个数值、一个向量、一次旋转,还是一种颜色。"
+    "summary": "数值、向量、旋转、颜色或变形权重列表。"
   },
   "TrackballCameraControls": {
     "summary": "轨迹球:摄像机围绕其枢轴滚动,仿佛场景是光标下方的一个球体。",
@@ -3942,7 +3971,7 @@
   },
   "UNSPLIT_PASS": {
     "summary": "编译器让某个未被拆分的图元保留在簇 DAG 之外时所用的布局:完整网格,保留源数据顺序。",
-    "description": "目前有三种材质属性会导致这种情况——透射、蒙皮和变形目标——绝不会因为某个物体的名字而如此。"
+    "description": "需要此路径的是透射属性，而非对象名称。"
   },
   "UserNotice": {
     "summary": "给使用该页面的人看的一条消息,连同他们能做的操作。",
@@ -4378,7 +4407,8 @@
       "shadowCastersKept": "逐页剔除保留的投射体（所有绘制页合计），取设备最后采样的帧 — 每十五帧一次；样本返回前为 `null`。",
       "shadowCastersRejected": "逐页剔除测试过但未保留的投射体（位于接收体所读页面部分之外），取同一采样帧；样本返回前为 `null`。",
       "shadowCastersHidden": "遮挡测试发现隐藏在其页静态层后的移动投射体，取最后采样的帧；样本返回前为 `null`。",
-      "dynamicUploadBytes": "本帧就地上传的动态几何体顶点字节数（#573），在世界的每帧预算（`DYNAMIC_UPLOAD_BUDGET_BYTES`）之内。没有世界绘制时不存在。"
+      "dynamicUploadBytes": "本帧就地上传的动态几何体顶点字节数（#573），在世界的每帧预算（`DYNAMIC_UPLOAD_BUDGET_BYTES`）之内。没有世界绘制时不存在。",
+      "gpuDeformationMs": "`gpuPassMs` 所对应帧的 GPU 变形耗时；尚未测量或不支持时为 null。"
     }
   },
   "WorldOptions": {
@@ -5931,6 +5961,8 @@
       "parameters.ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "parameters.thickness": "透明表面的厚度。",
       "parameters.clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "parameters.anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "parameters.anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "parameters.clearcoatRoughness": "该清漆的粗糙程度。",
       "parameters.sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "parameters.iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -5950,7 +5982,9 @@
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
-      "parameters.restitution": "物体的弹跳程度，0 到 1。"
+      "parameters.restitution": "物体的弹跳程度，0 到 1。",
+      "parameters.subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "parameters.subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     }
   },
   "material.meshPhysical": {
@@ -5972,6 +6006,8 @@
       "parameters.ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "parameters.thickness": "透明表面的厚度。",
       "parameters.clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "parameters.anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "parameters.anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "parameters.clearcoatRoughness": "该清漆的粗糙程度。",
       "parameters.sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "parameters.iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -5991,7 +6027,9 @@
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
-      "parameters.restitution": "物体的弹跳程度，0 到 1。"
+      "parameters.restitution": "物体的弹跳程度，0 到 1。",
+      "parameters.subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "parameters.subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     }
   },
   "material.meshBasic": {
@@ -6013,6 +6051,8 @@
       "parameters.ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "parameters.thickness": "透明表面的厚度。",
       "parameters.clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "parameters.anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "parameters.anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "parameters.clearcoatRoughness": "该清漆的粗糙程度。",
       "parameters.sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "parameters.iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -6032,7 +6072,9 @@
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
-      "parameters.restitution": "物体的弹跳程度，0 到 1。"
+      "parameters.restitution": "物体的弹跳程度，0 到 1。",
+      "parameters.subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "parameters.subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     }
   },
   "material.meshPhong": {
@@ -6054,6 +6096,8 @@
       "parameters.ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "parameters.thickness": "透明表面的厚度。",
       "parameters.clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "parameters.anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "parameters.anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "parameters.clearcoatRoughness": "该清漆的粗糙程度。",
       "parameters.sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "parameters.iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -6073,7 +6117,9 @@
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
-      "parameters.restitution": "物体的弹跳程度，0 到 1。"
+      "parameters.restitution": "物体的弹跳程度，0 到 1。",
+      "parameters.subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "parameters.subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     }
   },
   "material.meshLambert": {
@@ -6095,6 +6141,8 @@
       "parameters.ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "parameters.thickness": "透明表面的厚度。",
       "parameters.clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "parameters.anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "parameters.anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "parameters.clearcoatRoughness": "该清漆的粗糙程度。",
       "parameters.sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "parameters.iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -6114,7 +6162,9 @@
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
-      "parameters.restitution": "物体的弹跳程度，0 到 1。"
+      "parameters.restitution": "物体的弹跳程度，0 到 1。",
+      "parameters.subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "parameters.subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     }
   },
   "material.meshToon": {
@@ -6136,6 +6186,8 @@
       "parameters.ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "parameters.thickness": "透明表面的厚度。",
       "parameters.clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "parameters.anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "parameters.anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "parameters.clearcoatRoughness": "该清漆的粗糙程度。",
       "parameters.sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "parameters.iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -6155,7 +6207,9 @@
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
-      "parameters.restitution": "物体的弹跳程度，0 到 1。"
+      "parameters.restitution": "物体的弹跳程度，0 到 1。",
+      "parameters.subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "parameters.subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     }
   },
   "material.meshNormal": {
@@ -6177,6 +6231,8 @@
       "parameters.ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "parameters.thickness": "透明表面的厚度。",
       "parameters.clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "parameters.anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "parameters.anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "parameters.clearcoatRoughness": "该清漆的粗糙程度。",
       "parameters.sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "parameters.iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -6196,7 +6252,9 @@
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
-      "parameters.restitution": "物体的弹跳程度，0 到 1。"
+      "parameters.restitution": "物体的弹跳程度，0 到 1。",
+      "parameters.subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "parameters.subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     }
   },
   "material.meshMatcap": {
@@ -6218,6 +6276,8 @@
       "parameters.ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "parameters.thickness": "透明表面的厚度。",
       "parameters.clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "parameters.anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "parameters.anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "parameters.clearcoatRoughness": "该清漆的粗糙程度。",
       "parameters.sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "parameters.iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -6237,7 +6297,9 @@
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
-      "parameters.restitution": "物体的弹跳程度，0 到 1。"
+      "parameters.restitution": "物体的弹跳程度，0 到 1。",
+      "parameters.subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "parameters.subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     }
   },
   "material.meshDepth": {
@@ -6259,6 +6321,8 @@
       "parameters.ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "parameters.thickness": "透明表面的厚度。",
       "parameters.clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "parameters.anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "parameters.anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "parameters.clearcoatRoughness": "该清漆的粗糙程度。",
       "parameters.sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "parameters.iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -6278,7 +6342,9 @@
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
-      "parameters.restitution": "物体的弹跳程度，0 到 1。"
+      "parameters.restitution": "物体的弹跳程度，0 到 1。",
+      "parameters.subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "parameters.subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     }
   },
   "material.points": {
@@ -6300,6 +6366,8 @@
       "parameters.ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "parameters.thickness": "透明表面的厚度。",
       "parameters.clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "parameters.anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "parameters.anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "parameters.clearcoatRoughness": "该清漆的粗糙程度。",
       "parameters.sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "parameters.iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -6319,7 +6387,9 @@
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
-      "parameters.restitution": "物体的弹跳程度，0 到 1。"
+      "parameters.restitution": "物体的弹跳程度，0 到 1。",
+      "parameters.subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "parameters.subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     }
   },
   "material.line": {
@@ -6341,6 +6411,8 @@
       "parameters.ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "parameters.thickness": "透明表面的厚度。",
       "parameters.clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "parameters.anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "parameters.anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "parameters.clearcoatRoughness": "该清漆的粗糙程度。",
       "parameters.sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "parameters.iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -6360,7 +6432,9 @@
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
-      "parameters.restitution": "物体的弹跳程度，0 到 1。"
+      "parameters.restitution": "物体的弹跳程度，0 到 1。",
+      "parameters.subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "parameters.subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     }
   },
   "material.lineDashed": {
@@ -6382,6 +6456,8 @@
       "parameters.ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "parameters.thickness": "透明表面的厚度。",
       "parameters.clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "parameters.anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "parameters.anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "parameters.clearcoatRoughness": "该清漆的粗糙程度。",
       "parameters.sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "parameters.iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -6401,7 +6477,9 @@
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
-      "parameters.restitution": "物体的弹跳程度，0 到 1。"
+      "parameters.restitution": "物体的弹跳程度，0 到 1。",
+      "parameters.subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "parameters.subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     }
   },
   "material.sprite": {
@@ -6423,6 +6501,8 @@
       "parameters.ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "parameters.thickness": "透明表面的厚度。",
       "parameters.clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "parameters.anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "parameters.anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "parameters.clearcoatRoughness": "该清漆的粗糙程度。",
       "parameters.sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "parameters.iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -6442,7 +6522,9 @@
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
-      "parameters.restitution": "物体的弹跳程度，0 到 1。"
+      "parameters.restitution": "物体的弹跳程度，0 到 1。",
+      "parameters.subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "parameters.subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     }
   },
   "material.shadow": {
@@ -6464,6 +6546,8 @@
       "parameters.ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "parameters.thickness": "透明表面的厚度。",
       "parameters.clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "parameters.anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "parameters.anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "parameters.clearcoatRoughness": "该清漆的粗糙程度。",
       "parameters.sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "parameters.iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -6483,7 +6567,9 @@
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
-      "parameters.restitution": "物体的弹跳程度，0 到 1。"
+      "parameters.restitution": "物体的弹跳程度，0 到 1。",
+      "parameters.subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "parameters.subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     }
   },
   "metric": {
@@ -7483,7 +7569,8 @@
       "height": "世界点 `(x, z)` 上方水面的高度,单位米。",
       "point": "静止点 `(x, level, z)` 被带到的世界点 `[x, y, z]`,写入 `out`:逐点移动的网格就是水面,波峰与波浪一样锐利。",
       "wavesNow": "声明的波浪,每个相位推进到此刻:重新设置到 `world.physics.water`(其波浪从 0 秒重新开始)时,水面从当前位置继续而不会跳变。",
-      "normal": "静止点 `(x, z)` 处水面的单位法线 `[x, y, z]`,写入 `out`。"
+      "normal": "静止点 `(x, z)` 处水面的单位法线 `[x, y, z]`,写入 `out`。",
+      "waveModel": "GPU 与物理使用相同的波浪值和时间。"
     }
   },
   "WaveSpec": {
@@ -7939,6 +8026,73 @@
   },
   "world.materialMapBytes": {
     "summary": "已保留或待处理图像的字节数，上限为64 MiB。"
+  },
+  "animation.weightsTrack": {
+    "summary": "包含每个关键帧所有变形权重的轨道。",
+    "parameters": {
+      "path": "路径 `node.morphTargetInfluences`。",
+      "times": "以秒为单位的关键帧时间。",
+      "values": "每个目标、每个关键帧一个权重。"
+    }
+  },
+  "animation.skeleton": {
+    "summary": "创建要赋给 `mesh.skeleton` 的骨架。",
+    "parameters": {
+      "bones": "按 `skinIndex` 顺序排列的骨骼。",
+      "inverseBindMatrices": "每根骨骼十六个数；省略时将当前姿态作为绑定姿态。"
+    }
+  },
+  "animation.twoBoneIK": {
+    "summary": "在动画片段求值后，让由两根骨骼构成的链到达指定点。",
+    "parameters": {
+      "root": "链中的第一根骨骼。",
+      "mid": "链中的第二根骨骼。",
+      "end": "连接到第二根骨骼的末端节点。",
+      "target": "要到达的点。",
+      "pole": "弯曲方向，默认为当前方向。",
+      "weight": "0 保持当前姿态；1 完全应用解算结果。"
+    }
+  },
+  "animation.windClip": {
+    "summary": "循环倾斜、摆动树木骨骼的动画片段。",
+    "parameters": {
+      "bones": "从树干到枝梢依次排列的骨骼。",
+      "options": "方向、最大弯曲角度及频率。"
+    },
+    "parameters.options.direction": "地面方向 `[x, z]`，默认为 `[1, 0]`。",
+    "parameters.options.angle": "最大弯曲角，单位为弧度，默认为 0.1。",
+    "parameters.options.frequency": "每秒摆动次数，默认为 0.5。"
+  },
+  "Skeleton": {
+    "summary": "使蒙皮网格变形的骨骼及其逆绑定矩阵，将网格坐标转换到各骨骼坐标系。",
+    "description": "顶点的关节索引对应 `bones` 中的位置。未提供逆绑定矩阵时，创建骨架时的骨骼姿态即为绑定姿态。",
+    "members.isSkeleton": "始终为 `true`，用于识别骨架。",
+    "members.bones": "按关节顺序排列的关节节点。",
+    "members.boneInverses": "每根骨骼十六个数，按列存储：绑定姿态下世界矩阵的逆矩阵。",
+    "members.palette": "从 `at` 开始向 `out` 写入各关节的 `meshWorld⁻¹ · boneWorld · boneInverse` 各行。调色板将绑定顶点转换到网格局部坐标系，随后应用网格世界变换。`boneWorlds` 提供读取器使用的骨骼世界矩阵；省略时使用骨骼自身的矩阵。"
+  },
+  "Waves": {
+    "summary": "由 `setTime` 设置时间的一组 Gerstner 波。",
+    "description": "每个波 `i` 有方向 `(dx, dz)`、波数 `k`、振幅 `A` 和横向振幅 `Q·A`。陡度经归一化满足 `Σ Qᵢ·Aᵢ·kᵢ ≤ 1`，避免波峰翻卷。",
+    "members.phase": "各波在设定时刻的相位，范围为 [0, 2π)，是唯一随时间变化的状态。",
+    "members.crest": "相对静止面的最大高度：`Σ Aᵢ`。",
+    "members.steepness": "归一化后的 `Σ Qᵢ·Aᵢ·kᵢ`，最大为 1。",
+    "members.phasesAt": "各波在 `t` 秒的相位，以双精度归约到 [0, 2π)。",
+    "members.setTime": "将时间设为 `t` 秒；上一帧表面对应 `setTime(t - dt)`。",
+    "members.offset": "将静止点 `(x, 0, z)` 的位移 `[x, y, z]` 写入 `out`。",
+    "members.normal": "将静止点 `(x, z)` 处的表面单位法线 `[x, y, z]` 写入 `out`。",
+    "members.count": "参与求和的波的数量。",
+    "members.dirX": "各波方向的归一化 x 分量。",
+    "members.dirZ": "各波方向的归一化 z 分量。",
+    "members.k": "各波的波数，单位为弧度每米。",
+    "members.amplitude": "各波的竖直振幅，单位为米。",
+    "members.lateral": "各波归一化后的横向振幅，单位为米。"
+  },
+  "WindOptions": {
+    "summary": "风向（地面上的 `x`、`z`）、骨骼最大弯曲角度（弧度）以及每秒摆动次数。",
+    "members.direction": "地面方向 `[x, z]`，默认为 `[1, 0]`。",
+    "members.angle": "最大弯曲角，单位为弧度，默认为 0.1。",
+    "members.frequency": "每秒摆动次数，默认为 0.5。"
   },
   "world.setTransform": {
     "summary": "移动节点 `nodeName`，使其世界位姿为 `matrix`：页面未持有引用的节点通过其名称（`object.name`）在场景中查找而抵达。",
