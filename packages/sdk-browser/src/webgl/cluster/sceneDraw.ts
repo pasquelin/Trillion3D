@@ -10,13 +10,12 @@ import type { HostCamera, HostDrawCamera } from '../../camera/world.ts';
 import type { WholeMesh } from '../../cluster/batchMesh.ts';
 import type { WebglClusterScene } from './lights.ts';
 import type { SceneCopy } from './copyCulling.ts';
-import { WebglClusterOwner } from './owner.ts';
+import { WebglClusterOwner, type TextureHosts } from './owner.ts';
 import { createDrawOrder } from './drawOrder.ts';
 import { loadHostVertices, meshes } from '../../scene/meshes.ts';
 import { DEFAULT_PIXEL_RATIO } from '../../backend/common.ts';
 import type { BackendHostDraw } from '../../backend/hostDraw.ts';
 import type { BackendContext } from '../../backend/types.ts';
-import { DEFAULT_TEXTURE_POOL_BUDGET } from '../../residency/pools.ts';
 import { linearRefusalOf } from './linearRefusal.ts';
 import { createDrawLists } from './drawLists.ts';
 import { degradedHearer } from '../../world/diagnostic/materialNotices.ts';
@@ -60,19 +59,11 @@ type DrawnNode = Partial<SceneCopy> & {
 /** What the session gives the draw: its pixel ratio, its degraded-surface notice and its
  *  diagnostics, where that notice is said when the session gives none, the texture bytes its
  *  census may upload ahead and a frame's upload budget (`textureQueue.ts`). */
-type DrawHosts = Pick<
-  BackendContext,
-  | 'pixelRatio'
-  | 'materialDegraded'
-  | 'texturePoolBytes'
-  | 'maxTextureTransferBytesPerFrame'
-  | 'maxTextureUploadMsPerFrame'
-  | 'onDiagnostic'
->;
+type DrawHosts = Pick<BackendContext, 'pixelRatio' | 'materialDegraded' | 'onDiagnostic'> &
+  TextureHosts;
 
 /** A scene draw hands the program no page batch: shared, so a frame allocates no empty list. */
 const NO_BATCHES: readonly never[] = [];
-const defaultRatio = () => DEFAULT_PIXEL_RATIO;
 
 /**
  * THE ENGINE'S DRAW OF A DISPLAY GRAPH: every visible mesh the graph holds, drawn whole by the
@@ -100,10 +91,9 @@ export function createSceneDraw(
   gl: WebGL2RenderingContext | undefined,
   display: Scene,
   copies: readonly object[] = [],
-  hosts: DrawHosts = {},
+  { pixelRatio = () => DEFAULT_PIXEL_RATIO, ...hosts }: DrawHosts = {},
   declared: () => Iterable<HostMaterials> = () => meshes(display).map((mesh) => mesh.material),
 ) {
-  const texturePoolBytes = hosts.texturePoolBytes ?? DEFAULT_TEXTURE_POOL_BUDGET;
   // The graph's lists, walked again only when it changed shape (`drawLists.ts`); the draw sorts
   // copies of them, reused from frame to frame: a draw allocates no list.
   const lists = createDrawLists(display, copies);
@@ -144,7 +134,7 @@ export function createSceneDraw(
       // Drawn below the display (`world.renderScale`), a line keeps its display width and a
       // texture its display density.
       const shown = output.displayWidth ?? output.width;
-      owner.pixelRatio = (hosts.pixelRatio ?? defaultRatio)() * (output.width / shown);
+      owner.pixelRatio = pixelRatio() * (output.width / shown);
       owner.mipBias = upscaleMipBias(output.width, shown);
       display.onBeforeRender?.();
       try {
@@ -174,7 +164,7 @@ export function createSceneDraw(
   /** The owner, made at first need, its census taken at its first frame or preparation. */
   const censused = (context: WebGL2RenderingContext) => {
     owner ??= new WebglClusterOwner(context, degradedHearer(hosts));
-    if (!owner.censused) owner.census(declared(), { ...hosts, texturePoolBytes });
+    if (!owner.censused) owner.census(declared(), hosts);
     return owner;
   };
   return {

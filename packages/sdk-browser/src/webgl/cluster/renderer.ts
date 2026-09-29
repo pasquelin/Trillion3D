@@ -84,7 +84,7 @@ export class WebglClusterRenderer {
     this.gl.uniform1i(this.at('srgbDestination'), srgbDestination ? 1 : 0);
     this.state.invalidate();
     this.pass.forget();
-    this.submission.forget(); // the winding goes with the raster state
+    this.submission.forget();
   }
   draw(
     meshes: readonly ClusterDrawMesh[],

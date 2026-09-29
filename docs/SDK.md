@@ -1298,14 +1298,11 @@ the context refuses gives that set up, and its pages are placed again in a new o
 answers by losing the context takes the WebGL2 context-loss path (`webglcontextlost`, then
 `webglcontextrestored`): nothing is drawn while the context is lost.
 
-WebGL2 uploads a map at the first draw that binds it — a surface is never drawn without its
-picture, there is no coarser level to show instead — and uploads the others ahead: the census
-orders the maps of every declared surface within `texturePoolBytes`. The session's preparation
-sends them before its first frame, and after it each frame sends what is left before its draws;
-either way a step waits for the GPU to run the one before — an upload sent to a GPU behind waits
-for it — and sends only the maps whose bytes fit what is left of `maxTextureTransferBytesPerFrame`
-(16 MiB), while it has spent less than `maxTextureUploadMsPerFrame` (1 ms); a map larger than the
-whole budget is sent alone in a step of its own.
+WebGL2 uploads the maps of every declared surface ahead of the draws, within `texturePoolBytes`:
+the session's preparation sends them, then each frame what is left, only once the GPU ran the step
+before, and only the maps that fit what is left of `maxTextureTransferBytesPerFrame` (16 MiB) and
+`maxTextureUploadMsPerFrame` (1 ms) — one larger than the whole budget alone. A map not sent yet
+is uploaded by the first draw that binds it: a surface is never drawn without its picture.
 
 Frame targets are **not** budgeted: colour, depth, visibility, HDR, material surfaces, Hi-Z, the
 temporal history and a capture follow the resolution, and `gpuFrameTargetBytes` says what they cost.
