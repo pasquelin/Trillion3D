@@ -32,7 +32,7 @@ const GROUPES: Record<string, string> = {
   NU: '--engine-before three-nu --engine-after webgpu --before dist --after dist',
   LOD: '--engine-before three-lod --engine-after webgpu --before dist --after dist',
 };
-const SOCLE = '--engine webgpu --images 60 --textures cache';
+export const SOCLE = '--engine webgpu --images 60 --textures cache';
 
 // One line per execution: `name | what it isolates | arguments`, uppercase groups.
 const LIGNES = `
@@ -145,7 +145,9 @@ if (import.meta.filename === process.argv[1]) {
   const only = flags.get('seulement')?.split(',').filter(Boolean);
   const chosen = CAMPAGNE.filter(([name]) => !only || only.includes(name));
   const scenes = scenesOf(flags);
-  if (flags.has('liste')) {
+  const list = flags.has('liste');
+  flags.refuseUnread();
+  if (list) {
     for (const scene of scenes)
       for (const [name, why] of chosen) console.log(`${`${scene}/${name}`.padEnd(36)} ${why}`);
     process.exit(0);

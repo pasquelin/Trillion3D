@@ -55,7 +55,6 @@ async function main() {
   if (!existsSync(source)) throw new Error(`--source not found: ${source}`);
   if (!oracleBuilt(ROOT)) throw new Error('oracle missing: run `pnpm run build:native`');
   const out = resolve(flag('out', measureOutput(`oracle-${Date.now()}`)));
-  await mkdir(out, { recursive: true });
   const settings: OracleSettings = {
     width: number('largeur', 160),
     height: number('hauteur', 120),
@@ -76,17 +75,26 @@ async function main() {
     maxPages: number('max-pages', 100000),
     source,
   };
-  const sides = options.resolveSides({ after: flag('after'), root: ROOT });
+  const after = flag('after');
+  const resources = flag('ressources');
+  const visible = flag('visible', 'false') === 'true';
+  // Read before the refusal: the step's default needs the scene bounds, known only in the page.
+  const stepFlag = flag('pas');
+  const camera = triple('pose'),
+    target = triple('cible');
+  const views = flag('vues', 'generale').split(',');
+  flags.refuseUnread();
+  await mkdir(out, { recursive: true });
+  const sides = options.resolveSides({ after, root: ROOT });
   const side = sides[0];
   side.cache = cache;
   const manifestUrl = `/cache/${side.name}/native/full/manifest.json`;
   side.manifestUrl = manifestUrl;
-  const resources = flag('ressources');
   const mounts = options.resolveMounts(ROOT, sides, resources ? resolve(resources) : null);
   const captures = new Map<string, Capture>();
   const { server, port } = await startServer({ mounts, captures });
   const browser = await launchChrome({
-    headless: flag('visible', 'false') !== 'true',
+    headless: !visible,
     args: options.ENGINES.webgpu.flags,
   });
   const report: {
@@ -132,13 +140,11 @@ async function main() {
       throw new Error('--lampes must declare at least one point light');
     const moving = { id: movingCandidate.id, position: movingCandidate.position };
     // Light step: clear enough that rebound must reconverge.
-    const step = number('pas', Math.max(1, (bounds.max.x - bounds.min.x) * 0.25));
-    const camera = triple('pose'),
-      target = triple('cible');
-    for (const view of flag('vues', 'generale').split(',')) {
+    const step = Number(stepFlag ?? Math.max(1, (bounds.max.x - bounds.min.x) * 0.25));
+    for (const view of views) {
       // Manual pose overrides benchmark trajectory.
       const known = options.VIEWS[view as keyof typeof options.VIEWS];
-      if (!known && !camera) throw new Error(`vue inconnue : ${view}`);
+      if (!known && !camera) throw new Error(`unknown view: ${view}`);
       const pose: CameraPose = camera
         ? { ...options.poseAt(bounds, 0), position: camera, target: target ?? [0, 0, 0] }
         : options.poseAt(bounds, known.index);

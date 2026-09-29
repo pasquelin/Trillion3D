@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_SCENE, sceneOf } from './scene.ts';
+import { DEFAULT_SCENE, FLUIDS_SCENE, sceneOf } from './scene.ts';
+import { CAMPAGNE, SOCLE } from './campaign.ts';
 import {
   ENGINES,
   engineOf,
   equipSide,
+  equipSides,
   parseArgs,
   poseAt,
   readOptions,
@@ -104,11 +106,32 @@ test('the engine, the two sides and their variants are read under English flags'
   const { settings, flags } = readOptions([...argv, '--variant-before', 'raster-calcul'], '/r');
   assert.strictEqual(settings.engine, 'webgpu');
   assert.strictEqual(flags.get('before'), 'dist');
-  assert.strictEqual(engineOf(flags, 'before', settings.engine).id, 'exact-cluster-pages');
   assert.strictEqual(
     equipSide({ name: 'before' } as never, flags, settings).variant,
     'raster-calcul',
   );
+});
+
+/** What `bench.ts` reads before it builds anything, then its refusal of the rest. */
+function benchFlags(argv: string[]) {
+  const { settings, flags } = readOptions(argv, '/r');
+  equipSides(flags, settings, '/nowhere');
+  flags.refuseUnread();
+}
+
+// #724: a retired or misspelt flag is refused by name, never measured as the default engine.
+test('the bench refuses a flag it never reads, the retired French ones included', () => {
+  const retired = '--moteur';
+  assert.throws(
+    () => benchFlags([retired, 'webgpu', '--before', 'dist', '--varaint', 'x']),
+    new RegExp(`^Error: unknown flag: ${retired}, --varaint$`),
+  );
+  // A side flag for a side the run does not measure changes nothing either.
+  assert.throws(() => benchFlags(['--engine-before', 'webgl']), /--engine-before/);
+  for (const [name, , args] of CAMPAGNE) {
+    const argv = [...SOCLE.split(' '), '--scene', FLUIDS_SCENE, ...args];
+    assert.doesNotThrow(() => benchFlags(argv), name);
+  }
 });
 
 test('engineOf rejects an unknown engine for a side', () => {
