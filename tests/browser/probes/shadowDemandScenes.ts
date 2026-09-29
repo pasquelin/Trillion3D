@@ -11,7 +11,7 @@ import {
 } from '../../../packages/sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 
 /** A lit point: where it lies, its normal. */
-export type LitPoint = { P: number[]; N: number[] };
+type LitPoint = { P: number[]; N: number[] };
 
 export interface DemandScene {
   name: string;
