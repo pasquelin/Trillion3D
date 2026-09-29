@@ -37,7 +37,9 @@ export function clusterSphere(page: { min: number[]; max: number[] }) {
   return [...c, Math.hypot(...[0, 1, 2].map((i) => page.max[i] - c[i])) || 1];
 }
 
-export function dagRoots(pages: Cluster[], starts?: number[]) {
+/** Level-0 clusters that nothing replaces, each one a root: the smallest legal DAG. A cluster keeps
+ *  the fields it carries beyond the manifest's. */
+export function dagRoots<T extends Cluster>(pages: T[], starts?: number[]) {
   return {
     pages: pages.map((page, index) => ({
       ...page,
@@ -55,14 +57,15 @@ export function dagRoots(pages: Cluster[], starts?: number[]) {
   };
 }
 
-export function dagLevel(
-  leaves: Cluster[],
-  coarse: Cluster[],
+/** `leaves` replaced by the `coarse` clusters of error `error`, beside the untouched `roots`. */
+export function dagLevel<T extends Cluster>(
+  leaves: T[],
+  coarse: T[],
   error: number,
-  roots: Cluster[] = [],
+  roots: T[] = [],
 ) {
   const sphere = coarse.length ? clusterSphere(coarse[0]) : [0, 0, 0, 1];
-  const byId = (page: Cluster) => page.id;
+  const byId = (page: T) => page.id;
   return {
     pages: [
       ...leaves.map((page) => ({
