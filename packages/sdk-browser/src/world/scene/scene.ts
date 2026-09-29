@@ -1,19 +1,22 @@
 import { meshes as objects } from '../../scene/meshes.ts';
 import { assertFiniteTransform } from '../../host/world/matrices.ts';
 import { hostWorldChainInto } from '../../host/world/chain.ts';
-import { pagesBounds, pagesLot } from './pagesBounds.ts';
+import { pagesBounds, sceneBoundsLot } from './pagesBounds.ts';
 import { replicateInstances } from '../../scene/replicateInstances.ts';
-import { hostBoundsLot, hostWorldBounds } from '../../host/world/bounds.ts';
+import { hostWorldBounds } from '../../host/world/bounds.ts';
 import { hostWorldLot } from '../../host/world/tree.ts';
 import {
   EngineError,
   MATRIX_VALUES,
   type ClusterManifest,
 } from '../../../../sdk-core/src/index.ts';
+import type { ManifestPages } from '../../../../sdk-core/src/manifest/paged.ts';
 import { createMultiplyLot } from '../../math/batchRuntime.ts';
 import { prepareMathBatch } from '../../math/batchState.ts';
-import type { BackendContext, MeasuredWorldOptions } from '../../backend/types.ts';
+import type { MeasuredWorldOptions } from '../../backend/types.ts';
 import type { ExplorerEmitters } from '../session/session.ts';
+import { resourceProgress } from './resourceProgress.ts';
+import { openWorldRoots } from '../../scene/worldRoots.ts';
 import { loadPreparedSceneTables } from '../../scene/tables.ts';
 import { buildPreparedScene } from '../../host/prepared/build.ts';
 import { createPartitionCells } from '../../scene/partition/cells.ts';
@@ -24,7 +27,8 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 /** World matrix of a mesh at load, reused from mesh to mesh. */
 const monde = new Float64Array(MATRIX_VALUES);
 
-/** A mesh of the prepared scene with no geometry pages: the autonomous scene is incomplete. */
+/** A mesh of the prepared scene with no geometry pages, and no rows whose box bounds it before
+ *  its pages are read (#751): the autonomous scene is incomplete. */
 function manquante(): never {
   throw new EngineError(
     'AUTONOMOUS_ASSOCIATION_MISSING',
@@ -32,50 +36,18 @@ function manquante(): never {
   );
 }
 
-/** Scene-bounds buffer, at the exact size of the compute that follows. */
-function sceneBoundsLot(
-  source: Object3D,
-  associations: BackendContext['associations'],
-  metadata: ClusterManifest,
-  autonomous: boolean,
-) {
-  return autonomous ? pagesLot(source, associations, metadata) : hostBoundsLot(source);
-}
-
-/** Counts the resources a preparation reads, and tells the host of each as it lands. */
-function resourceProgress(
-  options: MeasuredWorldOptions,
-  diagnose: ExplorerEmitters['diagnose'],
-  scope: string,
-  signal: AbortSignal | undefined,
-) {
-  let total = 0,
-    completed = 0;
-  return <T>(resource: string, read: Promise<T>) => {
-    total++;
-    return read.finally(() => {
-      completed++;
-      if (signal?.aborted) return;
-      const message = `Loaded resource: ${decodeURIComponent(resource.split('/').at(-1) ?? resource)}`;
-      options.onPreparation?.({ phase: 'resources', completed, total, message });
-      diagnose('preparation', message, {
-        kind: 'preparation',
-        phase: 'resources',
-        completed,
-        total,
-        resource,
-        scope,
-      });
-    });
-  };
-}
-
-/** What a load that counts bytes adds: the meter of each read, and who hears the tables read. */
-type Metered = { meter?: ByteMeter; onTables?: (tables: PreparedSceneTables) => void };
+/** What a load that counts bytes adds: the meter of each read, who hears the tables read, and the
+ *  mesh pages of a manifest the view holds (#751). */
+type Metered = {
+  meter?: ByteMeter;
+  onTables?: (tables: PreparedSceneTables) => void;
+  pages?: ManifestPages;
+};
 
 /** Builds the scene a cache prepared: its tables, then the files they name. `options.meter` counts
  *  the bytes of each as they arrive, `onTables` hears the tables before those files are read;
- *  `onPreparation` hears the tables read, then each resource. */
+ *  `onPreparation` hears the tables read, then each resource. With `pages`, the mesh pages the
+ *  node table needs are held for good, and each cell holds its own while placed (#751). */
 export async function loadPreparedScene(
   options: MeasuredWorldOptions & Metered,
   metadata: ClusterManifest,
@@ -108,16 +80,23 @@ export async function loadPreparedScene(
     message: 'Read the scene tables',
   });
   const skipBaked = options.textureSource !== 'host';
-  const built = await buildPreparedScene({
-    tables,
-    metadata,
-    sceneFile,
-    base,
-    skipBaked,
-    signal,
-    track: resourceProgress(options, diagnose, scope, signal),
-    meter: options.meter,
-  });
+  // The manifest pages the node table needs are read while the scene builds, which reads none.
+  const [built, worldRoots] = await Promise.all([
+    buildPreparedScene({
+      tables,
+      metadata,
+      sceneFile,
+      base,
+      skipBaked,
+      signal,
+      track: resourceProgress(options, diagnose, scope, signal),
+      meter: options.meter,
+    }),
+    openWorldRoots(metadata, base, signal, options.meter),
+    options.pages?.hold(tables.meshPages),
+  ]);
+  // The world top is pinned; a scene not partitioned is one cell, placed for its whole life.
+  if (!tables.partition) await worldRoots?.hold(0);
   if (skipBaked && metadata.textures)
     diagnose('preparation', `Images read from the cache: ${built.bakedImages}`, {
       kind: 'preparation',
@@ -141,6 +120,8 @@ export async function loadPreparedScene(
           root: source,
           parents: built.nodes,
           meshes: built.placed,
+          pages: options.pages,
+          world: worldRoots,
         }),
       ]
     : [];
@@ -189,6 +170,8 @@ export async function loadPreparedScene(
   const framingLot = await sceneBoundsLot(source, associations, metadata, autonomous);
   return {
     ...{ source, sceneLightingSource, associations, textureIndices, framingLot, partitions },
+    // The world roots each model holds, which the session counts in its CPU budget (#1237).
+    worldRoots: worldRoots ? [worldRoots] : [],
     // Each glTF node's host node, by its index: a partition renumbers the table, replicas copy it.
     nodes: tables.partition || replicas > 1 ? null : built.nodes,
   };

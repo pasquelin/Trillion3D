@@ -1,21 +1,23 @@
 import { grown } from '../../../../sdk-core/src/math/transform-tree/transformTree.ts';
 import { LTC_UNIT } from './rectGlsl.ts';
 import { refuseCluster } from './refusal.ts';
+import { allocated } from '../core/allocation.ts';
 
 /** Texels in a row of a light texture: WebGL2 guarantees 2048 a side, so one row fits every
  *  device and the rows grow with the scene. The program folds an index the same way (`LIGHT_TEXTURE_GLSL`). */
 export const LIGHT_ROW_TEXELS = 1024;
-/** The units of the light records and of the per-draw lists, past the reflection's two
+/** The units of the light records and of the light grid's lists, past the reflection's two
  *  (`setClusterSamplers`, `./uniforms.ts`). */
 export const LIGHT_DATA_UNIT = LTC_UNIT + 3;
 export const LIGHT_LIST_UNIT = LTC_UNIT + 4;
 
-/** How the program reads the two textures: a light's `k`th record vec4, a list's `n`th entry.
- *  The program declares its integers and integer samplers high precision, as indices need. */
-export const LIGHT_TEXTURE_GLSL = `uniform highp sampler2D lightData;uniform highp isampler2D lightList;uniform ivec2 lightSpan;
+/** How the program reads the two textures: a light's `k`th record vec4, the `t`th integer of the
+ *  lists (`./lightLists.ts`). The program declares its integers and integer samplers high
+ *  precision, as indices need. */
+export const LIGHT_TEXTURE_GLSL = `uniform highp sampler2D lightData;uniform highp isampler2D lightList;
 ivec2 lightTexel(int t){return ivec2(t%${LIGHT_ROW_TEXELS},t/${LIGHT_ROW_TEXELS});}
 vec4 lightRecord(int light,int k){return texelFetch(lightData,lightTexel(light*4+k),0);}
-int listedLight(int n){return texelFetch(lightList,lightTexel(lightSpan.x+n),0).r;}`;
+int listEntry(int t){return texelFetch(lightList,lightTexel(t),0).r;}`;
 
 /** A texel layout: four floats (a light record's vec4) or one integer (a list entry). */
 type Layout = {
@@ -93,6 +95,8 @@ export class WebglLightTexture<T extends Float32Array | Int32Array> {
       gl[layout.type],
       null,
     );
+    // Refused: reallocated at the next frame's reserve (`../core/allocation.ts`).
+    allocated(gl, 'target', () => (this.rows = 0));
   }
   /** Sends the rows holding the first `texels` and binds the texture on its unit: the host's
    *  units are unknown at frame start, so it is bound again every frame. */
@@ -113,7 +117,8 @@ export class WebglLightTexture<T extends Float32Array | Int32Array> {
       this.data,
     );
   }
-  private bind() {
+  /** Binds the texture on its unit, what a frame that sends nothing still owes the program. */
+  bind() {
     this.gl.activeTexture(this.gl.TEXTURE0 + this.unit);
     this.gl.bindTexture(this.gl.TEXTURE_2D, this.texture);
   }

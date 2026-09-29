@@ -41,7 +41,7 @@ export function encodeShadowCasters(
   to: number,
   runBase: number,
 ) {
-  const { lights, vis, run, layout, setup, timing } = rt,
+  const { lights, vis, run, layout, timing } = rt,
     { cull, spheres, runs, mobilityRows } = lights,
     { gpuDraw } = vis;
   if (!cull || !spheres || !gpuDraw || !mobilityRows) return false;
@@ -66,7 +66,7 @@ export function encodeShadowCasters(
       for (let region = first; region < first + count; region++)
         cull.volumeWords[region * SHADOW_CULL_FLOATS + SHADOW_CULL_VIEW] = r;
     }
-    cull.begin(regions, setup.maxCorners);
+    cull.begin(regions);
     if (runs.count) light.encode(encoder, runs.list, runs.count);
     lightSource.spheres = spheres.buffer;
     lightSource.mobility = mobilityRows;
@@ -87,7 +87,7 @@ export function encodeShadowCasters(
     if (redraw) timing.shadowRedraws = both(timing.shadowRedraws, redraw);
     return true;
   }
-  cull.begin(regions, setup.maxCorners);
+  cull.begin(regions);
   const lists = lights.cpuCasters;
   if (run.gpuFrameActive || !lists || lists.frame !== run.frame) return false;
   source.mobility = mobilityRows;
@@ -96,10 +96,14 @@ export function encodeShadowCasters(
   source.indirect = lists.indirect;
   source.commands = 1;
   for (let r = 0; r < runs.count; r++) {
-    const face = runs.list[r];
+    const face = runs.list[r],
+      length = lists.lengths[runBase + r];
+    // An empty list keeps nothing: its regions draw nothing either (`drawRegionCasters`).
+    for (let region = face.first; region < face.first + face.count; region++)
+      lights.regions.setCasterless(region, !length || !rows);
     source.base = lists.bases[runBase + r];
     source.indirectBase = (runBase + r) * DRAW_INDIRECT_WORDS;
-    cull.encode(encoder, source, r, face.first, face.count, lists.lengths[runBase + r]);
+    cull.encode(encoder, source, r, face.first, face.count, length);
   }
   lights.lightRuns += runs.count;
   return true;

@@ -82,13 +82,12 @@ fn corners_with(
     };
     for (face, plane) in planes.iter().enumerate() {
         check(face)?;
-        let flat = unit(*plane);
+        let flat = unit(*plane).unwrap_or_default();
         for corner in surface.span(face) {
             check(corner)?;
             let group = join.root(corner as u32);
-            let mixed = unit(sums[group as usize]);
             out.normals
-                .extend_from_slice(&if mixed == [0.0; 3] { flat } else { mixed });
+                .extend_from_slice(&unit(sums[group as usize]).unwrap_or(flat));
             out.groups.push(group);
         }
     }
@@ -127,7 +126,11 @@ impl Surface<'_> {
     }
 }
 
-/// Unit vector, or the null vector when there is no direction to give.
-fn unit(vector: [f32; 3]) -> [f32; 3] {
-    crate::shared_math::normalized_or(vector.map(f64::from), [0.0; 3]).map(|part| part as f32)
+/// Unit vector, when there is a finite, non-zero length to divide by. Single precision on
+/// purpose: the drivers write these normals and Blender's axes as they always have, and
+/// `shared_math`'s double precision unit vectors round differently.
+pub(super) fn unit(vector: [f32; 3]) -> Option<[f32; 3]> {
+    let length = (vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2]).sqrt();
+    (length.is_finite() && length != 0.0)
+        .then(|| [vector[0] / length, vector[1] / length, vector[2] / length])
 }

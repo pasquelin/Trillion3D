@@ -14,6 +14,8 @@ export { DIRECT_LIGHTING_SHADER, FULLSCREEN_VERTEX } from './shaders.ts';
 
 /** Label of the measured pass; `gpuLightingMs` is read under this name. */
 export const DEFERRED_LIGHTING_PASS = 'Trillion3D deferred lighting';
+/** Label of the unfogged lit image the screen reflections read, drawn before the lighting. */
+export const REFLECTION_SOURCE_PASS = 'Trillion3D reflection source';
 
 /** Deferred and frozen-source lighting programs, compiled lazily for the active lighting mode. */
 export async function createDeferredLighting(device: GPUDevice, onReady?: () => void) {
@@ -40,6 +42,8 @@ export async function createDeferredLighting(device: GPUDevice, onReady?: () => 
     // Diagnostic views output raw values: no ACES, no sRGB, no composed background. The
     // indirect-irradiance view is one, and lighting says so, not the caller.
     let rawOutput = false;
+    /** The size this image draws, from `update`: its targets may be larger (`renderScale.ts`). */
+    const drawn = [1, 1];
     return {
       uniform,
       /** What an absent contract resource is worth: the blend pass binds the same. */
@@ -63,6 +67,8 @@ export async function createDeferredLighting(device: GPUDevice, onReady?: () => 
         sampledRank = 0,
       ) {
         const raw = diagnostic || rawOutput;
+        drawn[0] = width;
+        drawn[1] = height;
         view.write(
           inverseViewProjection,
           camera,
@@ -91,12 +97,19 @@ export async function createDeferredLighting(device: GPUDevice, onReady?: () => 
       settle() {
         return variants.settle();
       },
-      light(encoder: GPUCommandEncoder, target: GPUTextureView, reflection?: ScreenReflection) {
+      /** Draws the lighting, after the reflection source when the frame's program reflects; returns
+       *  the passes drawn, which the frame counts (#1157). */
+      light(
+        encoder: GPUCommandEncoder,
+        target: GPUTextureView,
+        reflection?: ScreenReflection,
+      ): number {
         const group = active.lightGroup;
         if (!group) throw new Error('SURFACE_NOT_BOUND');
         const reflected = reflection?.active && active.reflection;
         if (reflected) {
           const source = encoder.beginRenderPass({
+            label: REFLECTION_SOURCE_PASS,
             colorAttachments: [
               {
                 view: reflection.view,
@@ -106,6 +119,7 @@ export async function createDeferredLighting(device: GPUDevice, onReady?: () => 
               },
             ],
           });
+          source.setViewport(0, 0, drawn[0], drawn[1], 0, 1);
           source.setPipeline(reflected.source);
           source.setBindGroup(0, group);
           source.draw(3);
@@ -117,11 +131,13 @@ export async function createDeferredLighting(device: GPUDevice, onReady?: () => 
             { view: target, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] },
           ],
         });
+        pass.setViewport(0, 0, drawn[0], drawn[1], 0, 1);
         pass.setPipeline(reflected ? reflected.final : active.light);
         if (reflected) pass.setBindGroup(1, reflection.group);
         pass.setBindGroup(0, group);
         pass.draw(3);
         pass.end();
+        return reflected ? 2 : 1;
       },
       /** True once the frame's program composes the chain's last bloom in (#963); the first call
        *  compiles what it needs, and `fail` hears why it cannot. */

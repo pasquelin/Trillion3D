@@ -6,9 +6,12 @@ import { FLAG_BLEND_CASTER } from '../../visibility/types.ts';
 import { shaderFunctions } from '../../texture/shaderRule.fixture.ts';
 import { KEPT_LISTS_WGSL } from './cullShader.ts';
 import { SHADOW_DEPTH_SHADER } from './shader.ts';
+/** WGSL's `round`: halves to the even neighbour. */
+const roundEven = (x: number) => (Math.abs(x % 1) === 0.5 ? 2 * Math.round(x / 2) : Math.round(x));
 
 /** develop's corner before #965 (`shader.ts` at the parent of 9935e9392), frozen as the reference:
- *  every opaque caster, cutout or not, in one list, placed by this and drawn with `shadow_fs`. */
+ *  every opaque caster, cutout or not, in one list, placed by this and drawn with `shadow_fs`. The
+ *  sun snap (#1016, `sunSnap`) places both alike; `snap.test.ts` proves it on its own. */
 const DEVELOP_VERTEX = `fn developVertex(vertexIndex:u32,instanceIndex:u32,blended:bool)->ShadowOut{
  var out:ShadowOut;
  let pageIndex=drawPage(instanceIndex);
@@ -19,7 +22,7 @@ const DEVELOP_VERTEX = `fn developVertex(vertexIndex:u32,instanceIndex:u32,blend
  let h=pageHeader(page);
  let id=pageCorner(page,h,vertexIndex);
  let vertex=pagePosition(page,h,id);
- out.position=shadow.viewProjection*page.world*vec4f(vertex,1.0);
+ out.position=sunSnap(shadow.viewProjection*page.world*vec4f(vertex,1.0));
  out.fromEmitter=(page.world*vec4f(vertex,1.0)).xyz-shadow.emitter.xyz;
  if((page.flags&4u)!=0u){out.uv=pageUv(page,h,id);}
  return out;
@@ -80,7 +83,7 @@ export type ShadowScene = {
   instances: number[];
   slotOffsets: number[];
   uni: { indirect: number; drawSlot: number };
-  shadow: { viewProjection: Mat; emitter: Vec };
+  shadow: { viewProjection: Mat; params: Vec; emitter: Vec };
 };
 
 type ShadowEntries = Record<'shadow_vs' | 'shadow_cutout_vs', Entry> & {
@@ -112,9 +115,12 @@ export function shadowEntries(scene: ShadowScene): ShadowEntries {
   const names = [
     ...['drawPage', 'cutoutPage', 'shadowVertex', 'developVertex', 'shadow_vs', 'shadow_depth_vs'],
     ...['shadow_cutout_vs', 'shadowKeep', 'maskKeep', 'lineDash', 'pageHeader', 'pageCorner'],
-    ...['pagePosition', 'pageUv', 'vertPos', 'vertUv', 'keptAt'],
+    ...['pagePosition', 'pageUv', 'vertPos', 'vertUv', 'keptAt', 'snapGrid', 'sunSnap'],
   ];
-  const scope = { ...scene, vec2f, vec3f, vec4f, mul, sub3, dot, floor: Math.floor };
+  const scope = {
+    ...scene,
+    ...{ vec2f, vec3f, vec4f, mul, sub3, dot, abs: Math.abs, floor: Math.floor, round: roundEven },
+  };
   return shaderFunctions<ShadowEntries>(source, names, scope);
 }
 

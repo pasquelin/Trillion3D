@@ -108,9 +108,9 @@ export function sunFarState(rt: WebgpuPagesRuntime) {
     counts = gpu?.counts();
   return {
     proxyTriangles: gpu?.proxy?.triangleCount ?? null,
-    pixelsTestes: counts?.tested ?? null,
-    pixelsAssombris: counts?.blocked ?? null,
-    imageRelevee: counts?.frame ?? null,
+    pixelsTested: counts?.tested ?? null,
+    pixelsShadowed: counts?.blocked ?? null,
+    sampledFrame: counts?.frame ?? null,
     unavailable: reason,
   };
 }
@@ -120,9 +120,9 @@ export function sunFarState(rt: WebgpuPagesRuntime) {
  * deposited at all, there is no deduced zero.
  */
 export function sunFarCounts(rt: WebgpuPagesRuntime) {
-  const { proxyTriangles, pixelsTestes, pixelsAssombris, imageRelevee } = sunFarState(rt);
-  const releves = { trianglesDuProxy: proxyTriangles, pixelsTestes, pixelsAssombris, imageRelevee };
+  const { proxyTriangles, pixelsTested, pixelsShadowed, sampledFrame } = sunFarState(rt);
+  const sampled = { proxyTriangles, pixelsTested, pixelsShadowed, sampledFrame };
   const counts: Record<string, number> = {};
-  for (const [name, value] of Object.entries(releves)) if (value !== null) counts[name] = value;
+  for (const [name, value] of Object.entries(sampled)) if (value !== null) counts[name] = value;
   return counts;
 }

@@ -4,7 +4,7 @@
 // its floor, each light bearing a range derived from the cell size. It applies to any imported model;
 // the benchmark knows nothing of the measurement set provided to it.
 
-import { plancherDuModele } from './poses.ts';
+import { modelFloor } from './poses.ts';
 import type { Bounds } from './poses.ts';
 import type { SceneLight } from '../../packages/sdk-core/src/scene/light/contracts.ts';
 import type { LightsSummary } from './report/types.ts';
@@ -56,7 +56,7 @@ function gridLights(
     stepZ = sz / rows;
   const cell = Math.hypot(stepX, stepZ);
   // Streetlight height: a fraction of the model's height, never less than two meters.
-  const height = plancherDuModele(bounds) + Math.max(2, sy * 0.04);
+  const height = modelFloor(bounds) + Math.max(2, sy * 0.04);
   const lights: PointLight[] = [];
   for (let i = 0; i < count; i++) {
     const column = i % columns,
@@ -137,13 +137,13 @@ export function benchLights(bounds: Bounds, settings: LightingSettings): LightsP
     lights: all,
     moving,
     resume: {
-      nombre: all.length,
-      ponctuelles: lights.length,
-      soleil: settings.sun,
-      ombres: settings.lightShadows,
-      maille: cell,
-      intensite: intensity,
-      portee: rangeFactor,
+      count: all.length,
+      points: lights.length,
+      sun: settings.sun,
+      shadows: settings.lightShadows,
+      grid: cell,
+      intensity,
+      range: rangeFactor,
       mobile: !!moving,
     },
   };

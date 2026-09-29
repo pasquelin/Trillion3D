@@ -12,36 +12,18 @@ import { buildWorldMirror } from './worldMirror.ts';
 import type { LoadedModel } from './loadedModel.ts';
 import type { ExplorerScene } from '../session/prepare.ts';
 import type { PlacementMount } from '../../placement/backendSceneUpdates.ts';
+import { absolutePrimitive } from '../../scene/absolutePrimitive.ts';
 
-/** A page's addresses made absolute against the manifest they were read from. */
-function absolutePrimitive(primitive: Primitive, base: string): Primitive {
-  const at = (url: string) => new URL(url, base).href;
-  return {
-    ...primitive,
-    pages: primitive.pages.map((page) => ({
-      ...page,
-      url: at(page.url),
-      ...(page.geometry ? { geometry: { ...page.geometry, url: at(page.geometry.url) } } : {}),
-    })),
-    streams: primitive.streams
-      ? {
-          ...primitive.streams,
-          pages: primitive.streams.pages.map((b) => ({ ...b, url: at(b.url) })),
-        }
-      : primitive.streams,
-  };
-}
-
-/** Each model's primitives with absolute addresses, made once however often a session reopens. */
-const absolute = new WeakMap<LoadedModel, Primitive[]>();
+/** Each primitive with absolute addresses, made once however often a session reopens: a model
+ *  whose manifest the view holds (#751) lists more or fewer of them from one opening to another. */
+const absolute = new WeakMap<Primitive, Primitive>();
 function absolutePrimitives(model: LoadedModel) {
-  let primitives = absolute.get(model);
-  if (!primitives) {
-    const { metadata, base } = model.record;
-    primitives = metadata.primitives.map((primitive) => absolutePrimitive(primitive, base));
-    absolute.set(model, primitives);
-  }
-  return primitives;
+  const { metadata, base } = model.record;
+  return metadata.primitives.map((primitive) => {
+    let made = absolute.get(primitive);
+    if (!made) absolute.set(primitive, (made = absolutePrimitive(primitive, base)));
+    return made;
+  });
 }
 
 /** A loaded model's source graph as the mirror nests it: the host scene its loader built. */
@@ -83,7 +65,12 @@ export function buildWorldSource(plan: WorldPlan) {
         });
       associations.set(node, moved);
     }
-    offset += Math.max(-1, ...metadata.primitives.map((p) => p.mesh)) + 1;
+    // Past every rank its primitives and its meshes name: a mesh whose primitive the view has not
+    // read yet (#751) keeps its rank from the next model's.
+    let last = -1;
+    for (const { mesh } of metadata.primitives) last = Math.max(last, mesh);
+    for (const link of graph.associations.values()) last = Math.max(last, link.meshes ?? -1);
+    offset += last + 1;
   }
   // One primitive per geometry resource, however many batches wear it and rows place it.
   const ranked = new Map<Cut, Primitive>();
@@ -95,7 +82,7 @@ export function buildWorldSource(plan: WorldPlan) {
     }
     return primitive.mesh;
   };
-  if (!primitives.length && !batches.length) return null;
+  if (!primitives.length && !associations.size && !batches.length) return null;
   const placedOf = (batch: Batch) => ({
     cut: batch.cut,
     material: batch.entry.material,
@@ -138,6 +125,7 @@ export function buildWorldSource(plan: WorldPlan) {
     root: mirror.root,
     twins: mirror.twins,
     repaint: mirror.repaint,
+    geometryOf: mirror.geometryOf,
     /** A batch the session was not opened with, as it mounts it (`PlacementMount`): its host
      *  mesh hung in the graph, its primitive listed in the manifest. */
     mount(batch: Batch): PlacementMount {
@@ -170,6 +158,7 @@ export function buildWorldSource(plan: WorldPlan) {
         nodes: null,
         // Each model's cells follow the session's camera; their rows hang under the model's twin.
         partitions: models.flatMap((model) => model.record.scene.partitions),
+        worldRoots: models.flatMap((model) => model.record.scene.worldRoots),
       },
     },
   };

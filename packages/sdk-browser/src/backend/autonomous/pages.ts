@@ -13,20 +13,21 @@ import { createAutonomousResidency } from './residency.ts';
 import { createAutonomousPool } from './poolApi.ts';
 import { createHeldFloor } from './heldFloor.ts';
 import { createWebglViews } from './views.ts';
+import { autonomousRenderScale } from './renderScale.ts';
 import { createContractLighting, graphBackground } from '../../lighting/contractLightingApi.ts';
 import { createSceneDraw } from '../../webgl/cluster/sceneDraw.ts';
 import type { BackendFactory } from '../types.ts';
 import { createBlendCopy } from '../../cluster/blendCopyMesh.ts';
 import type { HostMaterial } from '../../host/resources.ts';
-import { loadHostVertices } from '../../scene/meshes.ts';
 
 /** WebGL2 path backed only by independently decoded prepared geometry pages. */
 export const autonomousPagesBackend: BackendFactory = (context) => {
-  const { metadata, descriptors } = prepareAutonomousManifest(context.metadata);
+  const { metadata, descriptors, sourced } = prepareAutonomousManifest(context.metadata);
   const { roots, allPages, worlds, blendCopies, reassignBlend, blendOf, wears } =
     collectClusterPages(context.source, metadata, new Map(), context.associations, {
       allowMissing: true,
       blendCopy: createBlendCopy,
+      pendingPlaced: true, // mounted in place once the view reads them (#751)
     });
   const [baseRoots, basePages] = [roots.slice(), allPages.slice()];
   const bootstrap = autonomousBootstrap(roots),
@@ -39,24 +40,25 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     cap = hostCeiling < Infinity ? hostCeiling : pageDefault,
     scene = hostPageScene(blendCopies);
   const baseMaterials = new Map(allPages.map((rec) => [rec, rec.declaration] as const)),
+    declared = () => baseMaterials.values(), // every page's surface: the draw's census (#840)
     colorMaterials = new Map<HostMaterial, HostMaterial>(),
     modifiedPages = new Set<string>();
   const state = createAutonomousRenderState(),
     gate = createWebglFrameGate(),
     views = createWebglViews(context.viewport, gate, () => residency.keptChanged()),
-    hostDraw = createSceneDraw(context.webglContext, scene, blendCopies, context);
+    hostDraw = createSceneDraw(context.webglContext, scene, blendCopies, context, declared);
   // The engine's own lighting (`contractLightingApi.ts`): the cache's lights, else the graph's.
   const { lighting, api: lightingApi } = createContractLighting(scene, context, gate.sceneChanged);
   let ready = false;
   const geometryStore = createAutonomousGeometry({
-    ...{ scene, allPages, bootstrap, views, byUrl, descriptors },
+    ...{ scene, roots, allPages, bootstrap, views, byUrl, descriptors },
     ...{ baseMaterials, colorMaterials, modifiedPages },
   });
   const { sync, acceptGeometryPage } = geometryStore;
-  const classes = createClassPages({ context, geometryStore, wears, gate });
+  const classes = createClassPages({ context, roots, geometryStore, wears, gate });
   // The tables a placement enters: instances and instance-buffer rows append to the same.
   const tables = { roots, allPages, bootstrap, byUrl, baseMaterials, blendOf };
-  const heldFloor = createHeldFloor({ bootstrap, modifiedPages, byUrl, hostCeiling });
+  const heldFloor = createHeldFloor({ roots, bootstrap, modifiedPages, byUrl, hostCeiling });
   const ceiling =
     hostCeiling < Infinity ? () => hostCeiling : () => Math.max(pageDefault, heldFloor.meshes());
   const { disposeOwnedMaterials, instanceCount, ...instances } = createAutonomousInstances({
@@ -88,7 +90,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     residency,
     heldFloor,
     instanceCount,
-    others: views.others,
+    views,
   });
   const frame = createAutonomousRender({
     state,
@@ -122,8 +124,8 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       if (!context.readGeometryPage) throw new Error('AUTONOMOUS_PAGE_READER_MISSING');
       if (heldFloor.overCeiling()) throw new Error('AUTONOMOUS_ROOT_BUDGET');
       const urls = [...bootstrapUrls];
-      // A copy drawn whole reads its host vertices, which no session fetches up front.
-      const [pages] = await Promise.all([readPages(context, urls), loadHostVertices(blendCopies)]);
+      // The draw's own preparation, before any frame (`sceneDraw.ts`).
+      const [pages] = await Promise.all([readPages(context, urls, sourced), hostDraw.prepare()]);
       pages.forEach((data, i) => acceptGeometryPage(urls[i], data));
       heldFloor.changed();
       ready = true;
@@ -150,6 +152,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       coverChanged: heldFloor.placed,
     }),
     ...lightingApi,
+    ...autonomousRenderScale(context),
     setClearColor: graphBackground(scene, gate.resourcesChanged),
     pendingUrls: residency.pendingUrls,
     retainedRanks: residency.retainedRanks,
@@ -157,10 +160,9 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     materialClassRefusal: (alpha) =>
       instances.materialClassRefusal(alpha) ?? classes.refusal(alpha, allPages),
     flush: () => classes.settled().then(pool.api.flush),
-    syncResident() {
-      gate.resourcesChanged();
-      sync();
-    },
+    syncResident: () => (gate.resourcesChanged(), sync()),
+    // A dynamic geometry's pages read its lists, uploaded as the next frame binds them (#573).
+    updateVertices: () => (gate.sceneMoved(), true),
     refreshMaterials(values = true, alpha) {
       // Values reach the twins, clones; a picture alone (#362), shared, only lets the image go.
       if (values) colorMaterials.forEach((twin, original) => colouredHostSurface(original, twin));
@@ -178,7 +180,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
         lodLevel: state.lodLevel,
         submittedTriangles: geometryStore.state.submittedTriangles,
         totalSubmittedTriangles: hostDraw.counters()?.triangles ?? null,
-        drawCalls: attachedPages(views.live.shown),
+        drawCalls: attachedPages(views.live.shown, roots),
         coverageReady: ready,
         coverageBudgetLimited: state.overBudget || pool.budget.coverageBudgetLimited,
         frameHeld: state.frameHeld,

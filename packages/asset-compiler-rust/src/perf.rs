@@ -58,6 +58,7 @@ phases! {
  texture_bake=>TextureBake=>"textureBakeMs",
  texture_write=>TextureWrite=>"textureWriteMs",
  cutout_scan=>CutoutScan=>"cutoutScanMs",
+ impostors=>Impostors=>"impostorsMs",
 }
 
 thread_local! {

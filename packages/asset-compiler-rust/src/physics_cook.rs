@@ -17,7 +17,7 @@ use serde_json::{json, Value};
 
 #[cfg(test)]
 mod bodies_tests;
-mod cut;
+pub(crate) mod cut;
 #[cfg(test)]
 mod cut_tests;
 mod declared;
@@ -45,6 +45,7 @@ mod voronoi;
 #[cfg(test)]
 mod voronoi_tests;
 
+pub(crate) use cut::TILE_TRIANGLES;
 pub(crate) use stage::stage_physics;
 
 /// The stage contract: its name and version, which enter `physics.json` and the cache key.

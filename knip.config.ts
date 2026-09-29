@@ -24,6 +24,8 @@ const config: KnipConfig = {
     'scripts/docs-examples-thumbnails.ts',
     'scripts/site-first-load.ts',
     'scripts/ltc-fit.ts',
+    // Run by git through the one-line shims of `.githooks/`.
+    'scripts/hooks/{delegate,pre-commit,pre-push}.ts',
     'bench/runner/bench.ts',
     'bench/runner/feedbackTargetAb.ts',
     'bench/runner/trajectory.ts',

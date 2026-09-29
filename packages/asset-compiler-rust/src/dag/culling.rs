@@ -1,7 +1,7 @@
 use super::*;
 use crate::shared_math::{bisect_centres, merge_aabb};
 
-/// Node bounds: cluster box, sphere enclosing replacement spheres,
+/// Node bounds: cluster box, sphere enclosing replacement spheres (`tight::ball_of_balls`),
 /// and max subtree replacement error. Single interval reading serves
 /// root covering whole order as well as node covering slice.
 fn node_bounds(
@@ -21,7 +21,7 @@ fn node_bounds(
             max_parent_error = clusters[id].parent_error;
         }
     }
-    (min, max, enclosing_sphere(&spheres), max_parent_error)
+    (min, max, tight::ball_of_balls(&spheres), max_parent_error)
 }
 
 pub fn build_culling_bvh(

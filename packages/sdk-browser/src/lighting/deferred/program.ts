@@ -4,6 +4,7 @@ import { createDeferredLightingLayout } from './setup.ts';
 import { SUN_FAR_PROXY_BINDING } from '../../gpu/shadow/sunFarShadowWgsl.ts';
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import { CONTRACT_SHADOW_BINDINGS } from '../direct/lightingWgsl.ts';
+import { withSubgroupShadowRequests } from '../direct/shadowRequestWgsl.ts';
 import { BOUNCE_SURFACE_BINDING } from '../../bounce/reflectWgsl.ts';
 import type { ComposeInput } from './shaders.ts';
 import { makeFullscreenPipeline } from './fullscreen.ts';
@@ -71,17 +72,21 @@ export async function createDeferredProgram(
   sources: DeferredSources,
   bindings: DeferredBindings,
 ) {
+  // Granted `subgroups`, a contract program, its reflection passes too, asks for its shadow pages
+  // per subgroup (#966).
+  const perSubgroup = sources.direct && device.features.has('subgroups');
+  const text = perSubgroup ? withSubgroupShadowRequests(sources.lighting) : sources.lighting;
   const lighting = await createCheckedShaderModule(
     device,
-    sources.lighting,
-    `${sources.label}_LIGHTING`,
+    text,
+    `${sources.label}${perSubgroup ? '_SUBGROUP' : ''}_LIGHTING`,
   );
   const lightingLayout = createDeferredLightingLayout(device, sources.direct, sources.bounce);
   const light = await makeFullscreenPipeline(device, lighting, lightingLayout, 'lightSurface', [
     { format: 'rgba16float' },
   ]);
   const reflection = sources.direct
-    ? await reflectionPipelines(device, sources.lighting, lightingLayout, !!sources.bounce)
+    ? await reflectionPipelines(device, text, lightingLayout, !!sources.bounce)
     : undefined;
   const compositions = await createCompositions(device, sources.compose, sources.label);
   /** What the light group names: rebuilt when one of them is replaced (`bindIdentity.ts`). */

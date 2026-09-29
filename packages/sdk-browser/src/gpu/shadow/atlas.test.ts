@@ -5,7 +5,8 @@ import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
 test('the face bind group declares 96 bytes, read at the fragment as at the vertex', async () => {
   const { device, bindGroupLayouts, bindGroups } = fakeDevice();
-  await createGpuShadowAtlas(device, {} as GPUBindGroupLayout);
+  const atlas = await createGpuShadowAtlas(device, {} as GPUBindGroupLayout);
+  assert.ok(atlas.faceGroup);
   const entry = (bindGroupLayouts[0] as { entries: Array<Record<string, unknown>> }).entries[0];
   assert.deepEqual(entry.visibility, GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT);
   assert.equal((entry.buffer as { minBindingSize: number }).minBindingSize, 96);

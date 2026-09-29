@@ -8,7 +8,7 @@ import * as G from '../../../host/graph/graph.fixture.ts';
 import { disposeQuadRun } from '../testScenes.fixture.ts';
 import { mappedQuadRun } from './mappedQuad.fixture.ts';
 import { hostTextureWritten } from '../../../host/textureImport.ts';
-import { DEFAULT_TEXTURE_POOL_BUDGET } from '../../residency/memoryBudgets.ts';
+import { DEFAULT_TEXTURE_POOL_BUDGET } from '../../../residency/pools.ts';
 
 type Labelled = { label?: string; destroyed?: boolean };
 

@@ -14,11 +14,11 @@ import {
 
 const occurrences = (text: string, fragment: string) => text.split(fragment).length - 1;
 
-test('deferred resolve samples on a ranked image and walks every light at rank zero', () => {
+test('deferred resolve samples a shadowed list on a ranked image and walks every light otherwise', () => {
   // The branch, in the resolve alone: rank zero is the loop from before the batch, unchanged.
   assert.match(
     DIRECT_LIGHTING_WGSL,
-    /let rank=u32\(view\.viewport\.w\);\s*if\(rank==0u\)\{return tileLighting\(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE\);\}\s*return sampledTileLighting\(/,
+    /let rank=u32\(view\.viewport\.w\);\s*if\(rank==0u\|\|!listShadowed\(tile,tilesX\)\)\{return tileLighting\(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE\);\}\s*return sampledTileLighting\(/,
   );
   for (const shader of [DIRECT_LIGHTING_SHADER, BOUNCE_LIGHTING_SHADER]) {
     assert.equal(occurrences(shader, DIRECT_LIGHT_SAMPLING_WGSL), 1);

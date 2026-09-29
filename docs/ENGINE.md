@@ -117,7 +117,11 @@ before. Admission starts no page once it has held the main thread for the publis
 the arrival queue's budget), so a due frame waits on it no longer than the share and the page begun
 within it, and a hidden tab, where no frame comes, still loads.
 Fetching and decoding stay in workers. WebGL2 cuts by the same rule and holds pages by the same
-residency, without the GPU cut or its readback (#490, #839).
+residency, without the GPU cut or its readback (#490, #839). It draws the resident pages from one
+set of buffers per vertex layout (`webgl/cluster/pageArenas.ts`): the pages of one surface at one
+placement that follow one another in the draw order are one submission of
+their index ranges (`WEBGL_multi_draw`), read once a frame and replayed by every pass that draws
+them — the reflection capture's and the image's (`webgl/cluster/runs.ts`, #840).
 
 **Eviction queue.** A resident GPU cut also publishes, on the same readback, the order the cache
 gives slots back in (`gpu/dag/evict.ts`, `gpu/dag/shader/evictWgsl.ts`): the pool's keys, finer
@@ -199,6 +203,36 @@ jitter never reaches the cut: selection, frustum and screen error read the unjit
 surface capture and a diagnostic view render unjittered and unaccumulated. The pass's own timestamp
 means nothing on tile-based GPUs; its cost is read as an envelope difference with
 `temporalAntialiasing: false`.
+
+**Render scale.** Every pass up to the resolve may draw at `s × display` per axis (`s` in
+[0.5, 1], axes rounded to multiples of eight) while the resolve reconstructs the display: per
+display pixel, the 3×3 render texels around it, depth-dilated, Lanczos-2 resampled from each
+texel's jittered sample, deringed and clamped to the YCoCg box, blended into the display-size
+history (`taa/upscaleWgsl.ts`). The jitter runs `floor(8 · (W / w)²)` phases and texture reads
+add `log2(w / W)` to their level, so detail stays the display's. `createWorld(canvas,
+{ renderScale })` sets it: a number fixes it, `'auto'` (the default) or `{ min, max }` lets a
+controller choose it each frame after the reference's dynamic resolution
+(`frame/scaleController.ts`): budget = the display's measured refresh interval, target 90 % of it,
+`s' = s · √(target / t)` on the whole-frame GPU time `t` (timestamp queries, one sample per image
+under `'auto'`), a step only past 5 % and 30 samples after the last, up only below 80 % of the
+target, and at once on a frame over 1.25 budgets; samples of an image drawn at another scale are
+discarded. The render targets are made once at the bounds' maximum and each image draws in their
+top-left `w × h` (viewports, the Hi-Z pyramid's extent, the deferred and water passes, screen
+reflections, particles and guides read that size), so a scale change reallocates nothing and keeps
+the history. A quiet image draws at the maximum — 1 unless the page lowered it —, so the held image
+is the native one. `world.renderScale` reads back the scale of the last image; the capability
+`temporal upscaling` says whether the renderer has it (WebGL2 does not). A capture, a diagnostic
+view or GPU variant and the fallback draw stay at the display's size. Without timestamp queries the
+controller has no sample and holds the maximum.
+
+WebGL2 honours the same setting and controller, degraded: it keeps no history, so the image is
+resampled spatially (`webgl/core/resampleGlsl.ts`, `world/render/renderScale.ts`), with the same
+Lanczos-2 kernel over the 3×3 render texels, deringed to the 2×2 nearest, no jitter and no blend;
+material reads take the same `log2(w / W)` bias through GLSL `texture(…, bias)`, lines keep their
+display width, and the controller reads the whole-frame `EXT_disjoint_timer_query_webgl2` interval.
+Since a resample loses detail, its default minimum is 1: `'auto'` holds the display's size and only
+a page naming a lower `min`, or a fixed scale, draws below it. `temporal upscaling` stays
+unsupported there.
 
 ## Effect chain
 
@@ -287,17 +321,26 @@ program too (a 64-light array, each listed light read with no branch), compiled 
 wide twin compiled beside it. A shadow caster past the 64 shadow slices lights without a shadow
 and is counted
 (`shadowCastersUnsliced`, #818). WebGL2 holds every light in a float texture grown with the
-count, and each draw evaluates only the lights whose range reaches its world box, listed per draw
-on the CPU in one integer texture (`webgl/cluster/lightLists.ts`, #835).
+count. A fragment evaluates only the lights whose range reaches its cell of a world grid laid over
+the lamps (a cell is their median range, at most 512 cells a lamp), plus the lights that reach
+every fragment. The grid is listed on the CPU into one integer texture only when a lamp's position
+or range changes; a frame that moves the camera alone sends only the view-to-grid matrix
+(`webgl/cluster/lightLists.ts`, #835).
 
-**A moving image shades a drawn subset of each pixel's lights.** A moving image weighs every light
-of its tile without its shadow (the cheap part) and shades in full, shadow included, four of them. A
+**A moving image shades a drawn subset of each pixel's lights when they cast shadows.** A moving
+image weighs every light of its tile without its shadow (the cheap part) and shades in full, shadow
+included, four of them. A
 light worth a sample's share of the pixel's weight is shaded exactly and leaves the pool; the
 remaining samples are drawn along the cumulative weight from a per-pixel offset that advances by the
 golden ratio every image, each divided by its probability. The estimate is unbiased, so the history
 averages it toward the full sum. A **still** image — the quiet ones, a capture, a diagnostic view —
-shades every light of the tile, so the held image is the exact sum, `0 px` A/A.
-`metric.frame(world).lightsSampled` says which mode ran. Declared cost: a faint grain on lit surfaces
+shades every light of the tile, so the held image is the exact sum, `0 px` A/A. A tile list with no
+shadowed light is never drawn: with no shadow to save, the three weight walks would cost three times
+the full sum, so the moving image sums it in full as the still one does, bit for bit
+(`listShadowed`, `tests/browser/probes/sampled-resolve-gpu.ts`, #1249). 200 unshadowed lamps of
+range 4 m in a sponza-sized atrium drop from 23.8 light evaluations per covered pixel to 7.4 at
+3456 × 2234 (`bench/runner/lightTileSampledCount.ts`).
+`metric.frame(world).lightsSampled` says the image ran at a sampled rank. Declared cost: a faint grain on lit surfaces
 where lights of different colours overlap, while the camera moves
 (`tests/browser/renders/sampled-lighting.browser.ts`). What remains: a spatial denoise before the
 history.
@@ -318,9 +361,16 @@ moves, and half as much for the transmittance layer once a blended surface casts
 page texels, 81 MiB). The pool is cut into the fewest square layers the device's texture side holds
 (`shadowPoolShape`, `webgpu/shadow/poolSize.ts`): at 1728 × 1117 CSS, DPR 2, one sun asks 5 040
 pages — one layer of 71² on a device 16 384 texels wide, two of 51² (5 202 pages, 325 MiB) on one
-of 8 192. The pool is sized once, at the first frame a light casts, from that frame's drawing
-buffer and its casting lights, and never moves after: a later resize, a pause or a new light keeps
-it (the runtime resize waits for texel-exact page reads, #831). Its bytes are capped by the
+of 8 192. The pool is sized at the first frame a light casts, from that frame's drawing
+buffer and its casting lights; a pause or a new light keeps it. A later drawing buffer resizes it
+by the same rule and from the same grant (`webgpu/shadow/poolResize.ts`, #1208), the frame held
+while the device answers: every page the new pool has room for keeps its entry, its state and its
+depth — copied texel for texel to its new place, its transmittance too (`gpu/shadow/pageMoves.ts`),
+since reads are texel-exact (#831) —, so nothing is drawn again; a smaller pool keeps the pages
+it would evict last, every floor first, and a reader falls back to them. The batches a frame may
+draw and the request list follow the pool's pages; the static layer, as large as the pool, is built
+again at the new size by the next move. A resize the device refuses keeps the pool in place, said
+under `gpu-out-of-memory`. Its bytes are capped by the
 grant's atlas share (`SHADOW_ATLAS_BYTES`, the pool 3840 × 2160 under one sun asks: two layers of
 53², 5 618 pages, 351 MiB): a screen or a light count that asks more is held there, said
 `ceiling` in the `shadow-pool` diagnostic (two lights at the case above: 5 476 pages on a 16 384
@@ -378,13 +428,26 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   `sun-far-shadow` diagnostic publishes its bounds). The PCF taps each find their own page: a tap
   within a texel of a seam compares the four texels of its footprint in their own pages, weighted
   by hand — no seam, no guard band.
-- **Receivers mark the pages.** The opaque resolve records each page it reads — a bit per table
-  word, tested before the atomic, and a list — and the list comes back in one readback per image,
-  as the texture feedback does (`webgpu/shadow/pageRequests.ts`). A page asked for and unmapped is
-  allocated from the free list, or from the page least recently asked for, the finest first among
-  equals; a page the latest report named is never evicted, and coarse levels are served first.
-  Meanwhile the pixel reads the next coarser level. Blend and water surfaces read what the opaque
-  pixels asked for, and keep their early depth reject.
+- **Receivers mark the pages, in the frame, before the raster** (#1209). The world box of every
+  cluster the frame draws inside the camera's frustum (`webgpu/shadow/receivers.ts`) names the
+  pages its pixels read (`scene/light-shadow/demand.ts`): for each shadowed light, the levels
+  between the least and the most footprint over the box, and at each the pages the box — grown
+  by the normal offset and the PCF's reach — covers; a box whose levels span more than one is
+  halved until each part is about a page at its finest. That list is a request report of the
+  frame itself, read by the one scheduler before the shadow raster, so a page first needed this
+  frame is drawn before this frame samples it, and no scheduling waits on a readback. A page asked
+  for and unmapped is allocated from the free list, or from the page least recently asked for, the
+  finest first among equals; a page the latest demand named is never evicted, and coarse levels
+  are served first. Every lamp face's floor is named too, what a reader falls back to last. The
+  opaque resolve still records each page it reads — a bit per table word, tested before the atomic,
+  and a list — read back once per image (`webgpu/shadow/pageRequests.ts`): read before the demand,
+  as asked for in the current frame, it adds a frame late what no receiver box named — a surface
+  drawn before the GPU cut's readback adopts its cluster —, and it proves an image may hold,
+  neither it nor the demand allocating a page under the state it was stamped with. Without
+  receivers — a host that hands none — the report alone schedules, as of its own frame. The
+  footprint is taken at the drawn target's pixel and at the display's, which the blend pass reads
+  with; a sun point past its level's window reads the next level, named with it. Blend and water
+  surfaces read what the drawn clusters' boxes named, and keep their early depth reject.
 - **Every stale page the image reads is drawn, in the frame that marks it** (#489). There is no
   per-frame page cap and no millisecond budget; the list goes the coarsest first, each light's
   floor leading (#525), an order that matters only to a frame its memory guard stops. The cost is
@@ -431,7 +494,7 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   keep their content, only the pages entering are drawn, and nothing else is staled. A
   representation change
   stales them once the camera rests, and a threshold change only the pages drawn at another
-  threshold than the one at rest; both leave them read. A stale page no report names is withdrawn,
+  threshold than the one at rest; both leave them read. A stale page no demand names is withdrawn,
   since blend and water read without asking. A page never drawn is not read. A report that names more pages than the pool holds — the pool never
   holds more than a report lists (`shadowRequestCap`) — maps the coarsest, then by table entry — never in the GPU's append order —, and the rest read
   coarser:
@@ -506,8 +569,8 @@ rest touches neither, and a camera move only draws the pages it brings in
 
 The trade-off: the layer buys a redraw of the moving casters alone, where the static set would be
 drawn again under every mover, and costs as many bytes as the pool (above) and one restore draw per
-page it redraws. Its measure is relative, never absolute: the measure session posts paired A/B runs
-of `develop` on an Apple M2 Max, headless Chrome, 1728×1117 CSS at DPR 2, bodies moving (car
+page it redraws. Its measure is relative, never absolute: the acceptance session posts paired A/B
+runs of `develop` on an Apple M2 Max, headless Chrome, 1728×1117 CSS at DPR 2, bodies moving (car
 driven, walker walking), on a loaded machine. The runs posted 28 Sept. 20:02 UTC as `measure ok` on
 #989 and #990, median GPU ms of five interleaved pairs, load 15–75, batch `884cde8b5` →
 `e36d93ea1` (it holds the capacity change #1045 and the static-survival change #1064):
@@ -568,7 +631,9 @@ against its own box or cone. A caster the light wants and the pool lacks is draw
 nearest resident ancestor, by the camera's rule (`page/cut/rule.ts`). What the light cuts
 request is a second residency tier, loaded after the camera's pages into slots no one holds and never
 pinned. The CPU cut does the same, reading the run's view as a camera (`webgpu/shadow/cpuCasters.ts`);
-its casters take rows behind its own (#10, #26).
+its casters take rows behind its own (#10, #26). A view whose CPU list is empty marks its regions
+casterless: their page is still cleared or restored, and they encode no bind group and no draw
+(`regions.casterless`, #1210).
 
 **An opaque caster runs no fragment stage in the shadow pool.** The depth's fragment stage writes
 nothing; it only discards a cutout's hole or the emitter envelope. So the page cull files each
@@ -775,20 +840,69 @@ else: attributes, drawing-buffer size from logical size and DPR, loss and restor
 Targets, held frame, comparison compositor and presenter are engine objects on that context, and the
 frame composer asks each backend to draw its whole image through `drawHostGeometry`.
 
+## Dynamic geometry
+
+A world's geometry written every frame (`usage: 'dynamic'`, or changed on two consecutive frames,
+`world/core/worldDynamic.ts`) is cut into pages once, index pages alone, every page bounded by the
+primitive's held box (`world/page/runtimePrimitive.ts`), and never again while its corners stay
+(#573). Its vertices are read as floats by the path of a cache without geometry pages
+(`pageGeometryWgsl.ts`): the same raster, Hi-Z, resolve, shadow depth and lighting. A frame reads
+the geometry into lists the resource holds (`worldDynamicRead.ts`), compares them with what the
+engine holds and hands it the range from the first changed vertex to the last (`updateVertices`),
+within `DYNAMIC_UPLOAD_BUDGET_BYTES` weighed as sent (`vertexBytes`); a steady frame allocates
+nothing.
+
+- **WebGPU.** The float vertex pool (`webgpu/core/geometryPrepare.ts`) is sized once at open with
+  room for as many vertices again as its dynamic geometry holds, none when it holds none; a rewrite
+  is one `writeBuffer` per list (a normal with its tangent) into its block, plus the fallback
+  draw's positions; a record mounted later takes a block of that room (`place`), and past it the
+  session opens again. Each root drawing the geometry turns moving for the shadow pool and the
+  world box of the moved vertices stales the pages it covers (`movedBatch.ts`, #489). Its rows carry
+  `FLAG_DYNAMIC`: the temporal pass takes those pixels as reactive, another shape's history dropped.
+- **WebGL2.** The manifest keeps a dynamic primitive's index pages (`sourcedPages.ts`), drawn over
+  the host geometry's own lists, uploaded once per rewrite by their written ranges (`bufferSubData`).
+
+Vertices that leave the held box serve the same pages again in a larger box: on WebGPU, which
+mounts no resource in place yet (#483), that opens the session once. The box is the declared
+`maxBounds`, else the first vertices' box widened by half its size on every side: a value declared
+as such, not derived — it stands for how far a shape rewritten every frame moves about where it
+started; a larger one culls later, a smaller one serves the pages again sooner.
+
 ## Memory
 
-The geometry pool holds `floor(bytes / pageBytes)` slots, the root cover pinned for the backend's
+The geometry pool holds `floor(bytes / pageBytes)` slots, the root cover held for the backend's
 lifetime; the texture pool is split between the colour and data atlases in layers. When a view asks
 beyond the geometry pool, the WebGPU cut keeps the host's screen error: the pool loads what fits,
 coarsest first, and the surface of what it leaves out is drawn by its nearest resident ancestor
 (the cut rule, below). Residency does the coarsening; `coverage-budget` only says that the image
 asks for more than the slots hold.
 
+**Minimum capacity** (#1237, `residency/minimumCapacity.ts`). Memory never forces a cut the view
+refuses: the cook drops a part only at a level whose error covers it, so a root drops every part
+smaller than its error, and a root drawn where the view refuses that error loses them (a column,
+a lintel). The pool's floor is therefore the root cover and the pages of the group each root
+replaces, one level finer: a budget under it is raised to it by name (`root-cover`), and its cost
+is published at open (`minimum-capacity`: `rootPages`, `floorPages`). Both engines admit those
+pages before any other the view asks for, whatever their level (`floorFirst`, `admissionLevel`),
+and the WebGPU CPU cut ranks through the same admission at the pool's room: at the smallest budget
+a root the view refuses is replaced by its group, and a root the view accepts is drawn as before.
+
+**Pinned bytes** (#1237, `scene/worldRoots.ts`). The runtime pins one thing: the world top the cook
+publishes (`world-roots.json`, [FORMAT.md](FORMAT.md#world-super-roots)), read as the model loads —
+its bundles, the first of `world-roots.bin`, in one ranged read, each checked against its digest —
+and held for the scene's life, its bytes bounded by the materials, never the world (the session's
+`world-top` diagnostic: `pinnedBundles`, `pinnedBytes`, `heldBytes`). The object roots are pages
+held by the view: a model not partitioned holds its placements for its life, a partition's placed
+cells hold theirs and let them go when they leave, and each placed cell holds the world bundles past
+the top its objects' roots depend on (`scene/partition/cellPages.ts`), each once, released with the
+last cell that needs it. The session counts those bytes in the CPU budget beside the engines' host
+tables. The super-roots are not drawn yet: a cell's super-roots standing in for a far cell is #1238.
+
 The geometry pool's slots are drawn from what its budget leaves the vertex buffers held beside
 them (`geometryBudgetBeside` in `webgpu/pages/io/memory.ts`, the rule the texture pool follows for
 its live textures), at prepare once those buffers are allocated and at every resize: the slots and
-those buffers never sum past the budget, save a budget under the root cover beside them, which is
-raised to that cover by name (`root-cover`). A pool resize (`explorer.setMemoryBudgets`) copies
+those buffers never sum past the budget, save a budget under the floor beside them, which is
+raised to that floor by name (`root-cover`). A pool resize (`explorer.setMemoryBudgets`) copies
 pages and tiles on the GPU into the new pool — root cover first, then pinned pages, then the most
 recent — evicts only what no longer fits, and rebuilds every bind group that named the old pool on
 the next image. At prepare a pool is allocated once, under an out-of-memory error scope; at a resize, where the old pool lives until
@@ -796,16 +910,23 @@ the copy, the new one is first probed under that scope (`webgpu/residency/poolGr
 refusal halves the pool's bytes and draws it again by its own rule, down to its floor, so the pool
 in place is never replaced by an invalid one and what no longer fits is drawn by its resident
 ancestors. The world's GPU and CPU totals reach the pools through one fixed
-split (`residency/memoryBudget.ts`). The geometry pool can grow up to
-`geometryPoolCeilingBytes`, because its per-row tables are sized once at that ceiling. The WebGL2
-engine draws its geometry pool by the same rule (`sessionGeometryPool`: slots of the largest decoded
-page, page cap and session ceiling). A slot holds one geometry copy: a classic instance
+split (`residency/memoryBudget.ts`). The WebGPU tables sized by drawable row start at
+`geometryPoolCeilingBytes` and grow in place when a larger pool asks more rows
+(`webgpu/pages/prepare/growTables.ts`, #216): every GPU buffer sized by row is made anew under one
+out-of-memory scope while the old ones still draw, and swapped in only once all are granted; each
+visibility row keeps its rank, no shader, pipeline, page or tile is made again, and nothing sized by
+row is made after the swap (the spheres, mobility words and tested-half work buffer included). A
+refusal keeps the pool and the tables in place (`tables` in the report); a lost device grows the
+CPU rows alone, and the rebuild makes its GPU tables at their size. The copy of a pool resize holds the old
+pool and the new one at once (`transientBytes`), a peak the probe has the device grant, beside the
+tables grown first, before any page moves. The WebGL2 engine draws its geometry pool by the same rule (`sessionGeometryPool`: slots
+of the largest decoded page, page cap and session ceiling), its ceiling a fixed bound. A slot holds one geometry copy: a classic instance
 (`addInstance`) holds its own copy of every page, so a page three instances draw fills three slots,
 while the records rows place share one. Its cut is drawn on the CPU at the host's threshold, under
 the one cut rule below; the pool bounds what the image asks for, never the cut. The image asks for
 the wanted cut closed over its groups (`page/cut/groupClosure.ts`), coarsest level first, so a page
 never comes before the pages it depends on (`backend/autonomous/requests.ts`). The pool admits that
-list in its order while the copies it charges fit its slots, the root cover held beforehand
+list in its order — the minimum capacity's pages first — while the copies it charges fit its slots, the root cover held beforehand
 (`backend/autonomous/pool.ts`); the rest is not asked for, and the cut draws its nearest resident
 ancestor instead. A smaller budget is therefore paid in detail, one DAG level at a time, from the
 finest down: the image that sees it asks for less. What stays resident is decided by the engine's one
@@ -1057,7 +1178,16 @@ make it `null`. A per-pass duration says where, never how much: on tile-based GP
 
 **CPU timing.** `cpu-timing` reports render duration, light updates, selection, residency and target
 management, encoding and submission; `transparentEncodeMs` is a subset of `encodeSubmitMs`, never
-added to it. CPU and GPU times are never added together.
+added to it. Six named steps split the shadow work inside the encode bounds, never added to them
+(#1207): planning — `shadowPlanMs` (the plan around the scheduler), `shadowRequestsMs` (reading the
+request report), `shadowAdmissionMs` (admitting pages) — and encoding — `shadowBatchesMs` (the
+batches around their regions and passes), `shadowRegionsMs`, `shadowPassesMs`. They are filed in
+the same profile row (`cpuSteps()`, `cpu-timing`) and published per frame as `cpuShadowPlanMs`,
+`cpuShadowRequestsMs`, `cpuShadowAdmissionMs`, `cpuShadowBatchesMs`, `cpuShadowRegionsMs` and
+`cpuShadowPassesMs`; a step the frame did not run, or WebGL2 cannot time, reads `null`, never 0.
+The Shadows stage's GPU time (`gpuShadowsMs`) spans exactly the shadow passes of the pass table
+(`stage/mapping.ts`, `SHADOW_STAGE_PASSES`); the light cut is its own stage (`shadowCasters`).
+CPU and GPU times are never added together.
 
 **Surface capture for global illumination.** `explorer.captureSurfaceView(pose, { width, height,
 signal })` returns an owned `SurfaceCapture` version 1 — the four material textures, depth, inverse
@@ -1125,8 +1255,8 @@ What the web imposes, and the answer:
 Stages, each with its proof (0 px A/A at rest, budget held, before/after published):
 
 - **L0** — done (campaign of 18 Sept. 2026, Emerald 2496×1404): the sun is 4.7 ms of
-  envelope on the ground view and 5.8 ms on the street view (`mobile` − `sans-lumiere`); lighting
-  without maps ≤ 0.96 ms (`lampes-4-sans-ombres` − `sans-lumiere`); still camera: 0 page redrawn,
+  envelope on the ground view and 5.8 ms on the street view (`mobile` − `unlit`); lighting
+  without maps ≤ 0.96 ms (`lights-4-no-shadows` − `unlit`); still camera: 0 page redrawn,
   envelope no lower. What remained, the sampling, is L2 below — not a cascade ring.
 - **L1** — screen traces: reflections and short bounce from the already-rendered HDR, depth and
   normal; the cheapest piece of the reference, and the first.

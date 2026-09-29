@@ -81,6 +81,8 @@ export function createCameraFrames(
     words.set([ranges[r].first, ranges[r].count], (r * stride) / 4);
   device.queue.writeBuffer(bounds, 0, words);
   const frameInts = new Uint32Array(frameData.buffer, frameData.byteOffset, frameData.length);
+  /** Words written and not yet sent: one interval, in `frameInts` indices. */
+  const pending = { from: Infinity, to: -1 };
   const table = {
     ranges,
     buffers,
@@ -127,13 +129,32 @@ export function createCameraFrames(
           );
       }
     },
-    /** Word `slot` of primitive `w`'s frame words, set in the host's row and in its range. */
+    /** Word `slot` of primitive `w`'s frame words, set in the host's row; its range receives it
+     *  at the next `flushWords`, with every word written since, as one interval (CPU-15). */
     writeWord(w: number, slot: number, value: number) {
-      const r = Math.floor(w / per),
-        at = primitiveWordAt(w) + slot;
+      const at = primitiveWordAt(w) + slot;
       frameInts[at] = value;
-      const offset = (at - ranges[r].first * ROW_FLOATS) * 4;
-      device.queue.writeBuffer(buffers[r], offset, frameInts, at, 1);
+      if (at < pending.from) pending.from = at;
+      if (at > pending.to) pending.to = at;
+    },
+    /**
+     * The words written since the last flush, one write per range the interval crosses: the host
+     * rows between them hold what their range already holds, or planes `dagPrepare` writes again
+     * before any kernel reads them (`shader/shader.ts`). Nothing when no word was written.
+     */
+    flushWords() {
+      const { from, to } = pending;
+      if (to < from) return;
+      pending.from = Infinity;
+      pending.to = -1;
+      for (let r = Math.floor(from / ROW_FLOATS / per); r < ranges.length; r++) {
+        const start = ranges[r].first * ROW_FLOATS,
+          end = start + ranges[r].count * ROW_FLOATS - 1;
+        if (start > to) break;
+        const a = Math.max(from, start),
+          b = Math.min(to, end);
+        device.queue.writeBuffer(buffers[r], (a - start) * 4, frameInts, a, b - a + 1);
+      }
     },
     /** Every range's host rows into its buffer in `targets`, from its start: a light cut's. */
     copyRows(encoder: GPUCommandEncoder, targets: GPUBuffer[]) {
