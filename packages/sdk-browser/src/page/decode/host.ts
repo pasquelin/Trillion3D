@@ -1,7 +1,6 @@
 import { PAGE_DECODE_PROTOCOL, pageDecodeWorkerCount } from '../../../../sdk-core/src/index.ts';
 import { createPageDecodePool, type PageDecodePool } from './pool.ts';
 import { restorePageDecode, runPageDecodeTask } from './task.ts';
-import { createPageArena, sharedPagesAllowed } from './shared.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
 import type { PageDecodeAnswer, PageDecodeOp } from '../../../../sdk-core/src/index.ts';
 import type { PageCutPayload } from '../../../../sdk-core/src/page/decodeContracts.ts';
@@ -38,12 +37,7 @@ function openPool() {
     const cores = (globalThis.navigator as { hardwareConcurrency?: number } | undefined)
       ?.hardwareConcurrency;
     const workers = pageDecodeWorkerCount(cores, admissionLimit);
-    // The arena is allocated only where the platform allows it, and only at pool open:
-    // a page that never decodes anything does not pay for shared memory.
-    pool = createPageDecodePool(
-      workers,
-      sharedPagesAllowed() ? createPageArena(workers) : undefined,
-    );
+    pool = createPageDecodePool(workers);
     starting = pool.start().then((ok) => {
       started = ok;
       if (!ok) pool = undefined;

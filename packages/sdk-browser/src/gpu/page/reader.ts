@@ -1,6 +1,7 @@
 import type { PageSource } from '../../../../sdk-core/src/index.ts';
 import { refusedStatus } from '../../cluster/checked.ts';
 import type { BackendDiagnostic } from '../../backend/types.ts';
+import { lazyDiagnostic } from '../../diagnostic/engineDiagnostic.ts';
 
 export function createGpuPageReader(
   source: PageSource,
@@ -9,23 +10,16 @@ export function createGpuPageReader(
   fetches: Map<string, Promise<Uint8Array>>,
 ) {
   const report = typeof diagnostic === 'function' ? diagnostic : undefined;
-  const emit = (phase: string, message: string, context: () => Record<string, unknown>) => {
-    if (!report) return;
-    try {
-      report({ phase, message, context: context() });
-    } catch {
-      /* Diagnostic observers cannot affect the GPU cache. */
-    }
-  };
+  const emit = lazyDiagnostic(report);
   const now = () => (report ? performance.now() : 0);
   const readBytes = (key: string, combined: AbortSignal, attempt: number, priority?: number) => {
     const started = now();
-    emit('gpu-page-read-start', 'GPU page read started', () => ({
+    emit?.('gpu-page-read-start', 'GPU page read started', () => ({
       version: 1,
       key,
       attempt,
     }));
-    emit('gpu-page-attempt-start', 'GPU page read attempt', () => ({
+    emit?.('gpu-page-attempt-start', 'GPU page read attempt', () => ({
       version: 1,
       key,
       attempt,
@@ -39,7 +33,7 @@ export function createGpuPageReader(
     }
     const job = Promise.resolve(raw).then(
       (bytes) => {
-        emit('gpu-page-read-end', 'GPU page read finished', () => ({
+        emit?.('gpu-page-read-end', 'GPU page read finished', () => ({
           version: 1,
           key,
           attempt,
@@ -48,7 +42,7 @@ export function createGpuPageReader(
           actualBytes: bytes.byteLength,
           durationMs: report ? performance.now() - started : null,
         }));
-        emit('gpu-page-attempt-end', 'GPU read attempt succeeded', () => ({
+        emit?.('gpu-page-attempt-end', 'GPU read attempt succeeded', () => ({
           version: 1,
           key,
           attempt,
@@ -60,7 +54,7 @@ export function createGpuPageReader(
         return bytes;
       },
       (error) => {
-        emit('gpu-page-read-end', 'GPU page read failed', () => ({
+        emit?.('gpu-page-read-end', 'GPU page read failed', () => ({
           version: 1,
           key,
           attempt,
@@ -68,7 +62,7 @@ export function createGpuPageReader(
           error: String(error),
           durationMs: report ? performance.now() - started : null,
         }));
-        emit('gpu-page-attempt-end', 'GPU read attempt failed', () => ({
+        emit?.('gpu-page-attempt-end', 'GPU read attempt failed', () => ({
           version: 1,
           key,
           attempt,
@@ -86,7 +80,7 @@ export function createGpuPageReader(
   const fetchBytes = (key: string, combined: AbortSignal, priority?: number) => {
     const existing = fetches.get(key);
     if (existing) {
-      emit('gpu-page-read-coalesced', 'GPU read joined to an in-flight request', () => ({
+      emit?.('gpu-page-read-coalesced', 'GPU read joined to an in-flight request', () => ({
         version: 1,
         key,
         loading: fetches.size,

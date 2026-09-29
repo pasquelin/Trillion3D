@@ -1,18 +1,5 @@
 import { besideModule } from '../../host/besideModule.ts';
 import { PAGE_DECODE_PROTOCOL } from '../../../../sdk-core/src/index.ts';
-import {
-  ID,
-  SHARED_BY_REGION,
-  SHARED_READY,
-  STATUS,
-  awaitSharedPage,
-  beginSharedPage,
-  freeSharedPage,
-  loseSharedPage,
-  sharedField,
-} from './shared.ts';
-import { readSharedPage } from './sharedPage.ts';
-import type { PageArena } from './shared.ts';
 import type { PageDecodeAnswer, PageDecodeRequest } from '../../../../sdk-core/src/index.ts';
 
 type Waiting = {
@@ -38,11 +25,10 @@ const workerError = (id: number): PageDecodeAnswer => ({
  * synchronous fallback. After start, a worker's disappearance breaks the pool: in-flight work
  * answers `PAGE_DECODE_WORKER`, and everything after that goes back to the fallback.
  *
- * With an arena, each worker receives at birth a slot and the matching region, and decoded
- * pages come back that way rather than by message. The slot carries the worker index: one
- * worker, one region, one writer. Without an arena, nothing changes.
+ * A decoded page comes back by transfer: the main thread receives the worker's own buffer, with
+ * no copy on either side (#982).
  */
-export function createPageDecodePool(size: number, arena?: PageArena) {
+export function createPageDecodePool(size: number) {
   const idle: Worker[] = [],
     all: Worker[] = [],
     queue: Waiting[] = [];
@@ -58,18 +44,6 @@ export function createPageDecodePool(size: number, arena?: PageArena) {
     worker.onerror = () => breakPool();
     worker.onmessageerror = () => breakPool();
     all.push(worker);
-    if (arena)
-      worker.postMessage(
-        {
-          protocol: PAGE_DECODE_PROTOCOL,
-          id: 0,
-          op: 'share',
-          buffer: arena.buffer,
-          slot: all.length - 1,
-          slots: arena.slots,
-        },
-        [],
-      );
     return worker;
   };
   const receive = (worker: Worker, answer: PageDecodeAnswer) => {
@@ -82,22 +56,9 @@ export function createPageDecodePool(size: number, arena?: PageArena) {
     else if (pending.size) worker.terminate();
     else breakPool();
   };
-  /** The page published in the slot, or nothing when the worker lost it or answered by message.
-   *  The slot becomes free again in every case: a death mid-decode does not confiscate it. */
-  const collect = async (worker: Worker, shared: PageArena, slot: number, id: number) => {
-    const state = await awaitSharedPage(shared, slot);
-    const served =
-      state === SHARED_READY &&
-      sharedField(shared, slot, STATUS) === SHARED_BY_REGION &&
-      sharedField(shared, slot, ID) === id;
-    const answer = served ? readSharedPage(shared, slot) : undefined;
-    freeSharedPage(shared, slot);
-    if (answer && alive) receive(worker, answer);
-  };
   const breakPool = () => {
     if (!alive) return;
     alive = false;
-    if (arena) for (let slot = 0; slot < arena.slots; slot++) loseSharedPage(arena, slot);
     const lost = [...pending.values(), ...queue.splice(0)];
     pending.clear();
     owner.clear();
@@ -111,15 +72,12 @@ export function createPageDecodePool(size: number, arena?: PageArena) {
       const worker = idle.pop() ?? spawn();
       pending.set(waiting.request.id, waiting);
       owner.set(waiting.request.id, worker);
-      const slot = arena && waiting.request.op === 'decode' ? all.indexOf(worker) : -1;
-      if (arena && slot >= 0) beginSharedPage(arena, slot, waiting.request.id);
       try {
         worker.postMessage(waiting.request, waiting.transfer);
       } catch {
         breakPool();
         return;
       }
-      if (arena && slot >= 0) void collect(worker, arena, slot, waiting.request.id);
     }
   };
   const submit = (
