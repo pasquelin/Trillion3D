@@ -1,17 +1,25 @@
 // What runs INSIDE the page to find the model's street (`street.ts`). Playwright serialises this
 // function: it reads nothing outside its single argument, the columns Node chose.
 import type * as SdkBrowser from '../witnesses/measurement.ts';
-import type { ColumnProbe, StreetProbeOptions } from './street.ts';
+import type { ColumnProbes, StreetProbeOptions } from './street.ts';
 
 /**
  * Asks the physics the compiler cooked with the model (`physics.json`) about each column: the
- * ground under it — the model's floor when nothing is —, how far the nearest wall stands one eye above that ground among eight headings,
+ * ground under it — the model's floor when nothing is —, how far the nearest wall stands one eye
+ * above that ground among eight headings, within the column's reach (the box's nearest side),
  * and whether the sky is open over the whole square the camera may walk there — `reachShare` of
  * that clearance each side, swept up from the eye. Exact queries on the cooked triangles
  * (`world.raycast(ray, { exact: true })`, `{ shape }`): the engine's own, no second copy of the
- * geometry.
+ * geometry. A model compiled without its physics, or whose physics never lands, has no street to
+ * probe: that is answered by name (`noStreet`), and the bench goes on.
  */
-export async function probeColumns(options: StreetProbeOptions): Promise<ColumnProbe[]> {
+export async function probeColumns(options: StreetProbeOptions): Promise<ColumnProbes> {
+  // The manifest points at the model's folder (`url`), where the cook writes `physics.json`.
+  const manifest = new URL(options.manifestUrl, location.href);
+  const pointer = (await (await fetch(manifest)).json()) as { url?: string };
+  const cooked = new URL('physics.json', new URL(pointer.url ?? '', manifest));
+  if (!(await fetch(cooked, { method: 'HEAD' })).ok)
+    return { probes: [], noStreet: `no physics.json beside ${options.manifestUrl}` };
   const sdk = (await import(options.sdkUrl)) as typeof SdkBrowser;
   const canvas = document.createElement('canvas');
   canvas.style.cssText = 'display:block;width:64px;height:64px';
@@ -28,7 +36,7 @@ export async function probeColumns(options: StreetProbeOptions): Promise<ColumnP
     let bodies = -1;
     for (let still = 0, wait = 0; still < options.settleFrames; wait++) {
       if (wait > options.frameLimit || world.physics.error)
-        throw new Error(`street probe: ${world.physics.error ?? 'physics never settled'}`);
+        return { probes: [], noStreet: `physics ${world.physics.error ?? 'never settled'}` };
       await frame();
       const now = world.physics.stats.bodies;
       still = now > 0 && now === bodies ? still + 1 : 0;
@@ -53,14 +61,18 @@ export async function probeColumns(options: StreetProbeOptions): Promise<ColumnP
       ),
     );
     const grounds = drops.map((drop) => (drop === null ? options.floor : options.top - drop));
-    const clearances = await Promise.all(
-      options.columns.map(async ([x, z], i) => {
-        const eye = grounds[i] + options.eye;
-        const walls = await Promise.all(
-          options.headings.map(([dx, dz]) => cast([x, eye, z], [dx, 0, dz], options.reach)),
-        );
-        return Math.min(...walls.map((wall) => wall ?? options.reach));
-      }),
+    const walls = await Promise.all(
+      options.columns.map(([x, z, reach], i) =>
+        Promise.all(
+          options.headings.map(([dx, dz]) =>
+            cast([x, grounds[i] + options.eye, z], [dx, 0, dz], reach),
+          ),
+        ),
+      ),
+    );
+    // No wall within the reach: the clearance is the reach, so the street stays in the box.
+    const clearances = walls.map((hits, i) =>
+      Math.min(...hits.map((wall) => wall ?? options.columns[i][2])),
     );
     const skies = await Promise.all(
       options.columns.map(([x, z], i) => {
@@ -68,14 +80,16 @@ export async function probeColumns(options: StreetProbeOptions): Promise<ColumnP
         return cast([x, grounds[i] + options.eye, z], [0, 1, 0], options.height, room);
       }),
     );
-    const probes: ColumnProbe[] = options.columns.map(([x, z], i) => ({
+    const probes = options.columns.map(([x, z], i) => ({
       x,
       z,
       ground: grounds[i],
       open: skies[i] === null,
       clearance: clearances[i],
+      // Nothing hit at all — no ground, no wall, no roof —: its tile never answered.
+      known: drops[i] !== null || skies[i] !== null || walls[i].some((wall) => wall !== null),
     }));
-    return probes;
+    return { probes, noStreet: null };
   } finally {
     world.dispose();
     canvas.remove();
