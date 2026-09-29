@@ -39,11 +39,23 @@ function shadowsOf(data: Uint8Array) {
   return { records, table: u32(data).subarray(SHADOW_TABLE_OFFSET / 4) };
 }
 
+/** `requestShadowPage` on the request buffer `requests`: page `e`'s bit claimed, and the page
+ *  listed by whoever set it. */
+export function claimShadowRequest(requests: Uint8Array, e: number) {
+  const list = u32(requests),
+    cap = list.length - 1 - SHADOW_REQUEST_BITS,
+    word = 1 + cap + (e >>> 5),
+    bit = 1 << (e & 31);
+  if (list[word] & bit) return;
+  list[word] |= bit;
+  const at = list[0]++;
+  if (at < cap) list[1 + at] = e;
+}
+
 /** The atomics the kernels call through, over the pool's counts and the request buffer. */
 function atomicsOf(state: Uint8Array, requests: Uint8Array) {
   const counts = u32(state),
-    list = u32(requests),
-    cap = list.length - 1 - SHADOW_REQUEST_BITS;
+    list = u32(requests);
   return {
     countOne: (i: number) => void counts[i]++,
     countNext: (i: number) => counts[i]++,
@@ -51,15 +63,7 @@ function atomicsOf(state: Uint8Array, requests: Uint8Array) {
     countClear: (i: number) => void (counts[i] = 0),
     requestCount: () => list[0],
     requestAt: (i: number) => list[1 + i],
-    // `requestShadowPage`: the page's bit claimed, the page listed by whoever set it.
-    requestShadowPage(e: number) {
-      const word = 1 + cap + (e >>> 5),
-        bit = 1 << (e & 31);
-      if (list[word] & bit) return;
-      list[word] |= bit;
-      const at = list[0]++;
-      if (at < cap) list[1 + at] = e;
-    },
+    requestShadowPage: (e: number) => claimShadowRequest(requests, e),
   };
 }
 
