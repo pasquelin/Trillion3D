@@ -24,13 +24,11 @@ fn freshInPage(view:ShadowView,at:vec2f)->bool{
 }
 /** The \`instance\`-th pair's caster at corner \`vertexIndex\`, if its region lies in the draw's layer. */
 fn freshCaster(vertexIndex:u32,instance:u32,blended:bool)->ShadowOut{
- var out:ShadowOut;
- out.position=vec4f(0.0,0.0,2.0,1.0);out.instance=0u;out.uv=vec2f(0.0);out.fromEmitter=vec3f(0.0);out.region=0u;
  let layer=vertexIndex>>FRESH_LAYER_SHIFT;let k=freshPairs[2u*instance];
  let first=freshArgs[FRESH_LAYER_STARTS+layer];
- if(k<first||k>=first+freshArgs[freshDraw(layer,${FRESH_CLEAR}u)+1u]){return out;}
+ if(k<first||k>=first+freshArgs[freshDraw(layer,${FRESH_CLEAR}u)+1u]){return ShadowOut(vec4f(0.0,0.0,2.0,1.0),0u,vec2f(0.0),vec3f(0.0),0u);}
  let view=freshFaces[k];
- out=shadowVertexIn(view,vertexIndex&FRESH_CORNER_MASK,freshPairs[2u*instance+1u],blended);
+ var out=shadowVertexIn(view,vertexIndex&FRESH_CORNER_MASK,freshPairs[2u*instance+1u],blended);
  out.position=freshPlace(view,out.position);out.region=k;
  return out;
 }
