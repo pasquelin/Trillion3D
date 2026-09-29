@@ -140,3 +140,4 @@ pub(crate) fn uniform_scale(m: &[f64; 16]) -> f64 {
 pub(crate) fn linear_columns(m: &[f64; 16]) -> [[f64; 3]; 3] {
     [0, 1, 2].map(|c| [m[c * 4], m[c * 4 + 1], m[c * 4 + 2]])
 }
+// touch
