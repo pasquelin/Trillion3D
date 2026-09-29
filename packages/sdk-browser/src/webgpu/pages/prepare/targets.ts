@@ -79,6 +79,8 @@ export function releaseTargets(rt: WebgpuPagesRuntime) {
   gpu.surfaces = undefined;
   gpu.asIsShare?.dispose();
   gpu.asIsShare = undefined;
+  gpu.displayFilter?.dispose();
+  gpu.displayFilter = undefined;
   vis.gpuRaster?.dispose();
   vis.gpuRaster = undefined;
   capture.capturedPixels = undefined;

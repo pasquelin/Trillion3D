@@ -1,6 +1,11 @@
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { IDENTITY_MATRIX4 } from '../../../packages/sdk-core/src/index.ts';
 import { WebglClusterRenderer } from '../../../packages/sdk-browser/src/webgl/cluster/renderer.ts';
+import {
+  readDegraded,
+  type MaterialDegraded,
+  type ReadDegraded,
+} from '../../../packages/sdk-browser/src/webgl/cluster/validation.ts';
 import type { ClusterDrawMesh } from '../../../packages/sdk-browser/src/cluster/batchMesh.ts';
 import {
   createHostDrawCamera,
@@ -88,8 +93,16 @@ export function clear(gl: WebGL2RenderingContext) {
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 }
 
-/** A 32 × 32 WebGL2 canvas, the owned renderer on it and a camera at the origin; null without WebGL2. */
-export function mountClusterRenderer() {
+/** The hearer of a proof that draws only surfaces WebGL2 admits: a surface left out throws its
+ *  reason, so the proof fails by name instead of reading a missing object. */
+export const strictHearer: MaterialDegraded = (_material, _features, leftOut) => {
+  if (leftOut) throw new Error(leftOut);
+};
+export const strictDegraded = () => readDegraded(strictHearer);
+
+/** A 32 × 32 WebGL2 canvas, the owned renderer on it, hearing `degraded`, and a camera at the
+ *  origin; null without WebGL2. */
+export function mountClusterRenderer(degraded: ReadDegraded = strictDegraded()) {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = 32;
   const gl = canvas.getContext('webgl2');
@@ -98,7 +111,7 @@ export function mountClusterRenderer() {
   const camera = G.perspectiveCamera(60, 1, 0.1, 10);
   return {
     gl,
-    renderer: new WebglClusterRenderer(gl),
+    renderer: new WebglClusterRenderer(gl, degraded),
     scene: new G.Scene(),
     camera,
     drawCamera: readHostDrawCamera(createHostDrawCamera(), camera),

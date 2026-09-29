@@ -77,8 +77,8 @@ export function writeFallbackUniform(
 }
 
 /** `viewProj`, the view point, lamp tiles, view flags, the item offset, the texture-feedback
- *  phase, the pixel scale, the target size, the eye, the render pixel ratio and the texture level
- *  offset: 136 bytes, 144 with the struct's alignment. */
+ *  phase, the pixel scale, the target size, the eye, the render pixel ratio, the texture level
+ *  offset, the exposure and the display curve: 144 bytes. */
 export const BLEND_VIEW_SIZE = 144;
 
 /** Diagnostic bits that the WHOLE pass carries: they do not depend on the item. */
@@ -161,6 +161,9 @@ export function writeBlendView(rt: WebgpuPagesRuntime, device: GPUDevice) {
   packed[32] = renderPixelRatio(rt);
   // Texture level offset of a frame drawn below the display (`tilePoolWgsl`).
   packed[33] = renderMipBias(rt);
+  // The composition's exposure and display curve: the display filter's colour (`displayFilter.ts`).
+  packed[34] = tiles[3];
+  ints[35] = tiles[4];
   device.queue.writeBuffer(
     buffer,
     0,

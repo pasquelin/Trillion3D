@@ -7,6 +7,7 @@ import { createAutonomousGeometry } from './geometry.ts';
 import { referenceAutonomousSync } from '../../../../../bench/oracles/browser/autonomous-backend.ts';
 import type { ClusterRoot, PageRec } from '../../page/selection/types.ts';
 import { surfaceOf } from '../../page/surface.ts';
+import { makeRec } from './pageRec.fixture.ts';
 
 function fakeScene() {
   const meshes = new Set<object>();
@@ -16,29 +17,6 @@ function fakeScene() {
       remove: (m: object) => meshes.delete(m),
     } as unknown as Parameters<typeof createAutonomousGeometry>[0]['scene'],
     meshes,
-  };
-}
-
-function makeRec(id: number, triangles: number): Required<Pick<PageRec, 'mesh'>> & PageRec {
-  return {
-    id,
-    url: `u${id}`,
-    clusterId: `c${id}`,
-    array: new Uint32Array([0, 1, 2]),
-    triangles,
-    indexBytes: 12,
-    min: [0, 0, 0],
-    max: [1, 1, 1],
-    depthLayer: 0,
-    attributes: {} as G.Geometry['attributes'],
-    material: surfaceOf({} as unknown as G.GraphSurface),
-    declaration: {} as G.GraphSurface,
-    matrix: new G.Matrix4(),
-    renderOrder: 0,
-    geometry: {} as G.Geometry,
-    // The oracle copies a host matrix; the engine reads the sixteen floats of the contract.
-    mesh: { matrix: { fromArray: () => {} } } as unknown as Required<PageRec>['mesh'],
-    attached: false,
   };
 }
 

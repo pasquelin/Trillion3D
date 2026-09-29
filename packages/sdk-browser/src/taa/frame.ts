@@ -11,6 +11,7 @@ import type { EngineCamera } from '../camera/world.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import type { AccumulatedImage } from '../lighting/deferred/program.ts';
 import type { TemporalAntialiasing } from './temporalAntialiasing.ts';
+import { writtenFilter } from '../webgpu/blend/displayFilter.ts';
 
 /** What the temporal pass keeps from one image to the next on the CPU side. */
 export interface TaaFrameState {
@@ -114,11 +115,10 @@ export function taaRenderMatrix(rt: WebgpuPagesRuntime, cam: EngineCamera): Arra
 }
 
 /**
- * Encodes this image's temporal pass and returns the accumulated image composition must read —
- * `undefined` when the image does not accumulate, and composition reads the lit one. Writes the
- * uniform, updates placement motion, advances the jitter rank and keeps the view-projection without
- * jitter for the next image. With `asIs` false no as-is pixel is in the image, and the flagless
- * resolve reads no flags (OMB-11). A frame drawn below the display is reconstructed to it.
+ * Encodes this image's temporal pass and its display layers; returns the accumulated image
+ * composition reads, `undefined` when none. Writes the uniform, updates motion, advances the
+ * jitter, keeps the unjittered view-projection; `asIs` false reads no flags (OMB-11), and a frame
+ * drawn below the display is reconstructed to it.
  */
 export function encodeTaaPass(
   rt: WebgpuPagesRuntime,
@@ -138,6 +138,8 @@ export function encodeTaaPass(
   if (!state.hasHistory) temporal.motion.reset();
   else temporal.motion.update(cam.eye, state.sceneSeen !== scene);
   const { targetSize, displaySize } = gpu;
+  const { inputs, filterHistory } = temporal;
+  inputs.filter = writtenFilter(gpu.displayFilter); // `displayFilter.ts`
   writeTaaView(
     device,
     temporal.uniform,
@@ -146,8 +148,8 @@ export function encodeTaaPass(
     targetSize,
     displaySize,
     temporal.motion.moved,
+    !!inputs.filter && filterHistory.written,
   );
-  const { inputs } = temporal;
   inputs.upscale = targetSize[0] !== displaySize[0] || targetSize[1] !== displaySize[1];
   inputs.current = current;
   inputs.depth = gpu.depthView;
@@ -157,6 +159,7 @@ export function encodeTaaPass(
   inputs.flags = asIs ? gpu.surfaces.views()[3] : undefined;
   inputs.share = asIs ? share : undefined;
   const output = temporal.encode(encoder, inputs);
+  if (inputs.filter) gpu.targetBytes += filterHistory.uncounted();
   run.gpuDrawCalls++;
   state.sceneSeen = scene;
   state.previousViewProjection.set(cam.viewProjection);
@@ -177,11 +180,8 @@ export function forgetTaaHistory(temporal: TemporalAntialiasing | undefined) {
   temporal.frame.stillFrames = 0;
 }
 
-/**
- * Rank of this image among those whose lighting is SAMPLED — a moving image that
- * accumulates on a history, which averages its draws —, or zero: a still image shades every
- * light and converges to the exact sum, and an image nothing averages must never be noisy.
- */
+/** Rank of this image among those whose lighting is SAMPLED (moving, on a history that averages
+ *  its draws), or zero: a still image, or one nothing averages, shades every light. */
 export function taaSampledRank(rt: WebgpuPagesRuntime) {
   const temporal = rt.gpu.temporal;
   return temporal?.frame.active ? temporal.frame.sampledRank : 0;
