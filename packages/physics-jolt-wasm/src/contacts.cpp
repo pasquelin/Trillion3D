@@ -96,7 +96,7 @@ Mutex threadsLock;
 std::vector<std::unique_ptr<std::vector<ContactRecord>>> threadRecords;
 std::atomic<uint64_t> nextOrder{0};
 
-/// The replay order, whatever thread ran a callback: pair by pair, in key order, each pair's
+/// The engine's own order, not Jolt's callback order: pair by pair, in key order, each pair's
 /// records in the order its callbacks ran. Jolt runs one pair's callbacks one after the other, in
 /// the same order on any thread count, and computes the same records: so sorted, they give the
 /// single thread's events in one order a pool of any size gives too.
