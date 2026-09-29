@@ -1,30 +1,20 @@
 import { PAGE_FOOTPRINT_SHIFT } from './footprint.ts';
 import type { PageOps } from './pageOps.ts';
 import {
-  LAMP_MIPS,
   PAGE_INDEX_MASK,
   PAGE_MAPPED,
   PAGE_RANGE_SHIFT,
   PAGE_VALID,
   SHADOW_TABLE_ENTRIES,
-  SUN_LEVELS,
 } from './virtual.ts';
 
-/** Ranks a key spans: every coarseness of either kind lies below it (`shadowSunCoarseness`). */
-const RANK_SPAN = 128;
+/** Ranks a key spans: every coarseness of either kind lies below it (`shadowSunCoarseness`).
+ *  Every key is a non-negative `i32` (`shadowPageModel.test.ts`). */
+export const RANK_SPAN = 128;
 /** Pages a key spans: every page a table word names. */
 export const PAGE_KEY_SPAN = PAGE_INDEX_MASK + 1;
 /** A page asked more than this many frames ago is as old as any older one. */
-const AGE_CAP = 255;
-// Every key is a non-negative `i32`: the shaders' and the scheduler's numbers are the same.
-if (Math.max((SUN_LEVELS - 1) * LAMP_MIPS, (LAMP_MIPS - 1) * SUN_LEVELS) >= RANK_SPAN)
-  throw new Error('SHADOW_RANK_SPAN');
-if (
-  RANK_SPAN * SHADOW_TABLE_ENTRIES > 2 ** 31 ||
-  (AGE_CAP + 1) * RANK_SPAN * PAGE_KEY_SPAN > 2 ** 31
-)
-  throw new Error('SHADOW_KEY_SPAN');
-
+export const AGE_CAP = 255;
 /**
  * THE ORDERS OF THE POOL AND THE WORD OF A PAGE DRAWN (#1275), written once over `PageOps` like
  * the rest of the page model (`pageModel.ts`): the host's pool (`needs.ts`, `poolOrder.ts`, `pool.ts`)

@@ -3,7 +3,8 @@
 // field past a quarter turn included.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CONE, CONE_MODEL_WGSL } from '../../../../sdk-core/src/scene/light-shadow/coneModel.ts';
+import { CONE } from '../../../../sdk-core/src/scene/light-shadow/coneModel.ts';
+import { CONE_MODEL_WGSL } from '../../../../sdk-core/src/scene/light-shadow/coneModelWgsl.ts';
 import { mulberry32 } from '../../../../../site/examples/kit/random.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { SHADOW_FRESH_WGSL } from './freshWgsl.ts';
