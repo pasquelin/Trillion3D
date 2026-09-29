@@ -13,11 +13,9 @@ export type ProxySync = 'moved' | 'settled' | null;
  * A leaf holding a moved triangle turns owned (`proxyLeaves.ts`): canonical, traced under its
  * owners' poses. Once still, each owned leaf whose groups' owners agree is written at that pose
  * and rays read no owner word for it again; a leaf holding a group whose owners stand apart (a
- * door merged with its frame) stays owned, alone. Motion that resumes the frame after a settle
- * made that settle useless: settling then waits until the still streak exceeds that gap, so
- * motion slower than the frame rate never rewrites triangles each cycle. Motion that resumes
- * later proved the settle useful and clears the gap: motion that simply stops, however often,
- * settles on its first still frame.
+ * door merged with its frame) stays owned, alone. Motion resuming the frame after a settle made
+ * it useless: settling then waits out that gap, so slow motion never rewrites triangles each
+ * cycle; later motion clears the gap, so motion that stops settles on its first still frame.
  */
 export function createSceneProxyMotion(proxy: SceneProxy) {
   const canonical = proxy.data.triangles,
