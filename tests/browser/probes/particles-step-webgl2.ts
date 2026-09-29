@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { dansPageWebgpu, empaquetePage } from './pageWebgpu.ts';
+import { dansPageWebgpu, bundlePage } from './pageWebgpu.ts';
 import type { executer } from './particlesStepWebglPage.ts';
 
 declare global {
@@ -14,7 +14,7 @@ declare global {
 }
 
 const ici = dirname(fileURLToPath(import.meta.url));
-const script = await empaquetePage(resolve(ici, 'particlesStepWebglPage.ts'), 'particulesWebgl');
+const script = await bundlePage(resolve(ici, 'particlesStepWebglPage.ts'), 'particulesWebgl');
 const erreursPage: string[] = [];
 const resultat = await dansPageWebgpu(() => globalThis.particulesWebgl.executer(), null, {
   titre: 'Trillion3D WebGL2 particles',

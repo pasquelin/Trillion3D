@@ -7,6 +7,7 @@ import {
   COVERAGE_SCALE_GLSL,
 } from '../../texture/coverageRule.ts';
 import { levelSize } from '../../texture/tiles.ts';
+import { refusedNow } from '../core/allocation.ts';
 
 /** Four points per texel of a level, one per filtered sample of its square (`cutBin`), its alpha
  *  bytes level 0's own or a level's medians from the copy of the one above (`halved`): on the
@@ -66,6 +67,9 @@ function buildCounts(gl: WebGL2RenderingContext) {
     gl.deleteProgram(count);
     throw error;
   }
+  // Errors already held belong to allocations sent before: read (and redone) now, so a refusal
+  // read after the counts' storage is theirs alone.
+  refusedNow(gl);
   const counts = gl.createTexture()!,
     frame = gl.createFramebuffer()!;
   gl.bindTexture(gl.TEXTURE_2D, counts);
@@ -76,7 +80,12 @@ function buildCounts(gl: WebGL2RenderingContext) {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
   gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, frame);
   gl.framebufferTexture2D(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, counts, 0);
-  if (gl.checkFramebufferStatus(gl.DRAW_FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
+  // Refused (`../core/allocation.ts`, read now: built once, and read back already) or incomplete:
+  // the chains stay box chains.
+  if (
+    refusedNow(gl) ||
+    gl.checkFramebufferStatus(gl.DRAW_FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE
+  ) {
     gl.deleteFramebuffer(frame);
     gl.deleteTexture(counts);
     gl.deleteProgram(count);
