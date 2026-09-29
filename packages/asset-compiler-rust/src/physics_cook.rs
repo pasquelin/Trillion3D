@@ -17,7 +17,7 @@ use serde_json::{json, Value};
 
 #[cfg(test)]
 mod bodies_tests;
-mod cut;
+pub(crate) mod cut;
 #[cfg(test)]
 mod cut_tests;
 mod declared;
