@@ -1,11 +1,10 @@
-// What the shading of #1209's tests reads, restated from `shadowFactorWgsl.ts` over the kernel's own
-// records — the lamp's face matrices, the sun's frame and windows —: the pages its pixels ask for,
-// the list a readback would carry. `READ` holds the WGSL lines restated here; the tests pin them.
-// With it, the receivers a frame hands its scheduler: floor tiles under the fixture's camera.
+// What the shading reads, restated from `shadowFactorWgsl.ts` over the kernel's own records — the
+// lamp's face matrices, the sun's frame and windows —: the pages its pixels ask for, the list its
+// readback carries (#1209). `READ` holds the WGSL lines restated here; the tests pin them. With it,
+// floor tiles: the clusters a frame draws and the points their pixels light.
 import { LIGHT_KIND, type ShadowViewpoint } from '../../../../sdk-core/src/index.ts';
 import { transformHomogeneousPoint } from '../../../../sdk-core/src/math/primitives/vector.ts';
 import type { SceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts';
-import { RECEIVER_FLOATS } from '../../../../sdk-core/src/scene/light-shadow/receiverCells.ts';
 import { writeFace } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
 import type { ShadowPlan } from '../../../../sdk-core/src/scene/light-shadow/plan.ts';
 import {
@@ -141,10 +140,10 @@ export function shadingReads(
 /** Floor tiles of one metre, `[x, z]` their least corner each: their boxes, flat on `y = 0`, and
  *  the lit points a grid of `n × n` pixels on each reads — the corners and edges included. */
 export function floorTiles(tiles: number[][], n = 5) {
-  const boxes = new Float64Array(tiles.length * RECEIVER_FLOATS),
+  const boxes: number[][] = [],
     lits: Lit[] = [];
-  tiles.forEach(([x, z], i) => {
-    boxes.set([x, 0, z, x + 1, 0, z + 1], i * RECEIVER_FLOATS);
+  tiles.forEach(([x, z]) => {
+    boxes.push([x, 0, z, x + 1, 0, z + 1]);
     for (let a = 0; a < n; a++)
       for (let b = 0; b < n; b++) lits.push({ P: [x + a / (n - 1), 0, z + b / (n - 1)], N: UP });
   });
@@ -157,31 +156,3 @@ export const tileGrid = (x0: number, x1: number, z0: number, z1: number) =>
     x0 + (i % (x1 - x0)),
     z0 + Math.floor(i / (x1 - x0)),
   ]);
-
-/** The six inward planes of `view`'s frustum, as `frustumPlanesFromMatrix` lays them out. */
-export function viewPlanes(view: ShadowViewpoint) {
-  const f = view.forward,
-    e = view.position,
-    right = [-f[2], 0, f[0]].map((c) => c / Math.hypot(f[0], f[2])),
-    up = [
-      right[1] * f[2] - right[2] * f[1],
-      right[2] * f[0] - right[0] * f[2],
-      right[0] * f[1] - right[1] * f[0],
-    ];
-  const ty = Math.tan(view.halfFovY),
-    tx = ty * view.aspect;
-  const normals = [
-    [tx, right, -1],
-    [tx, right, 1],
-    [ty, up, 1],
-    [ty, up, -1],
-  ].map(([t, side, s]) => {
-    const n = [0, 1, 2].map((k) => f[k] * (t as number) + (side as number[])[k] * (s as number));
-    return n.map((c) => c / Math.hypot(...n));
-  });
-  const planes = new Float64Array(24);
-  normals.forEach((n, i) => planes.set([...n, -dot(n, e)], i * 4));
-  planes.set([-f[0], -f[1], -f[2], dot(f, e) + view.far], 16);
-  planes.set([...f, -dot(f, e) - view.near], 20);
-  return planes;
-}
