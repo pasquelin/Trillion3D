@@ -10,7 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { dansPageWebgpu, empaquetePage } from './pageWebgpu.ts';
+import { dansPageWebgpu, bundlePage } from './pageWebgpu.ts';
 import {
   EVICTION_BURST,
   SELECTION_HEADER_WORDS,
@@ -35,7 +35,7 @@ const PLAFOND = SELECTION_LIST_CAP;
 const ERREURS = [1, 4, 16, 64];
 
 test('delivered readout stays under its cap regardless of catalog size', async () => {
-  const script = await empaquetePage(resolve(ici, 'cutSnapshotPage.ts'), 'releveCoupe');
+  const script = await bundlePage(resolve(ici, 'cutSnapshotPage.ts'), 'releveCoupe');
   const erreursPage: string[] = [];
   const releve = await dansPageWebgpu(
     (argument: Parameters<typeof executer>[0]) => globalThis.releveCoupe.executer(argument),
