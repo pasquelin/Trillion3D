@@ -82,7 +82,7 @@ export function createWebglGuideDraw(gl: WebGL2RenderingContext) {
         gl.bufferData(gl.ARRAY_BUFFER, packed.data, gl.DYNAMIC_DRAW);
         // Refused: sent again once the refusal is read (`../webgl/core/allocation.ts`).
         uploaded = packed;
-        allocated(gl, () => (uploaded = undefined));
+        allocated(gl, 'target', () => (uploaded = undefined));
       }
       gl.uniformMatrix4fv(live.matrix, false, view.subarray(0, 16));
       gl.uniform4fv(live.viewport, view.subarray(16, 20));

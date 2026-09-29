@@ -60,8 +60,8 @@ export function createWebglSceneTarget(gl: WebGL2RenderingContext, w: number, h:
   };
   const untoned = attach(gl.COLOR_ATTACHMENT1, gl.R8, gl.RED, gl.UNSIGNED_BYTE),
     depth = attach(gl.DEPTH_ATTACHMENT, gl.DEPTH_COMPONENT24, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT);
-  // Refused, the context is marked once read: its engine draws a level coarser.
-  allocated(gl);
+  // Refused, the context is marked once read and the refusal published.
+  allocated(gl, 'target');
   gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
   return {
     target,

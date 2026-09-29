@@ -38,7 +38,7 @@ export const upload = (
         target === gl.ELEMENT_ARRAY_BUFFER ? gl.DYNAMIC_DRAW : gl.STATIC_DRAW,
       );
       // Refused: the buffer holds nothing, and a frame after, a level coarser, sizes it again.
-      allocated(gl, () => {
+      allocated(gl, 'geometry', () => {
         current.bytes = 0;
         current.version = -1;
       });
