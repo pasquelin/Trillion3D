@@ -58,7 +58,7 @@ test('progress resolves at each page landed, heard or not, while the job runs, a
     landed(); // while no frame waits
     await gate;
   });
-  queue.queueCutResidency(false);
+  queue.queueCutResidency();
   const heard: string[] = [];
   void queue.progress().then(() => heard.push('progress'));
   void queue.pending.then(() => heard.push('pending'));
@@ -80,7 +80,7 @@ test('progress resolves at each page landed, heard or not, while the job runs, a
 test('a failed job rejects the frame waiting on it with its error, and the wait after', async () => {
   let fail!: (error: Error) => void;
   const queue = queueOf(() => new Promise<void>((_, reject) => (fail = reject)));
-  queue.queueCutResidency(false);
+  queue.queueCutResidency();
   await new Promise(setImmediate);
   const woken = queue.progress();
   fail(new Error('PAGE_STREAM_FAILED'));

@@ -9,6 +9,7 @@ import type { createAutonomousResidency } from './residency.ts';
 import { createGeometryBudget, type PageCopies, type PoolEnvironment } from './pool.ts';
 import type { HeldFloor } from './heldFloor.ts';
 import { createPageParents } from '../../residency/pageParents.ts';
+import { floorDiagnostic, rootChildren } from '../../residency/minimumCapacity.ts';
 import { checkTexturePoolBudget } from '../../residency/pools.ts';
 import { sendEngineDiagnostic } from '../../diagnostic/engineDiagnostic.ts';
 
@@ -22,12 +23,14 @@ export function pageCopies(
   byUrl: ReadonlyMap<string, readonly PageRec[]>,
   rootUrls: ReadonlySet<string>,
   instanceCount: () => number,
+  /** The pages the roots' groups replace, which the floor holds with them (`rootChildren`). */
+  childUrls: ReadonlySet<string>,
 ): PageCopies {
   const owned = new Map<string, number>(),
     shared = new Set<string>();
-  let sceneOwned = 0,
-    rootOwned = 0,
-    rootShared = 0;
+  let sceneOwned = 0;
+  const root = { owned: 0, shared: 0 },
+    floor = { owned: 0, shared: 0 };
   for (const [url, recs] of byUrl) {
     let own = 0;
     for (const rec of recs)
@@ -35,15 +38,21 @@ export function pageCopies(
       else own++;
     owned.set(url, own);
     sceneOwned += own;
-    if (rootUrls.has(url)) {
-      rootOwned += own;
-      if (shared.has(url)) rootShared++;
-    }
+    for (const [urls, held] of [
+      [rootUrls, root],
+      [childUrls, floor],
+    ] as const)
+      if (urls.has(url)) {
+        held.owned += own;
+        if (shared.has(url)) held.shared++;
+      }
   }
   const each = () => 1 + instanceCount();
+  const copiesOf = (held: typeof root) => held.owned * each() + held.shared;
   return {
     of: (url) => (owned.get(url) ?? 0) * each() + (shared.has(url) ? 1 : 0),
-    root: () => rootOwned * each() + rootShared,
+    root: () => copiesOf(root),
+    floor: () => copiesOf(root) + copiesOf(floor),
     scene: () => sceneOwned * each() + shared.size,
   };
 }
@@ -72,13 +81,16 @@ export function createAutonomousPool(env: {
 }) {
   const { context, byUrl, gate, geometryStore, residency, heldFloor } = env,
     { state } = geometryStore;
+  // The minimum capacity: the floor holds the pages the roots' groups replace with the roots.
+  const childUrls = new Set(rootChildren(env.roots).map((rec) => rec.url)),
+    copies = pageCopies(byUrl, env.bootstrapUrls, env.instanceCount, childUrls);
   const budget = createGeometryBudget({
     budgetBytes: context.geometryPoolBytes,
     ceilingBytes: context.geometryPoolCeilingBytes,
     maxResidentPages: env.cap,
     descriptors: env.descriptors,
     rootUrls: env.bootstrapUrls,
-    copies: pageCopies(byUrl, env.bootstrapUrls, env.instanceCount),
+    copies,
     coverRevision: () => heldFloor.revision,
     state,
     floorBytes: heldFloor.bytes,
@@ -87,6 +99,7 @@ export function createAutonomousPool(env: {
     others: env.others,
     onDiagnostic: context.onDiagnostic,
   });
+  sendEngineDiagnostic(context.onDiagnostic, ...floorDiagnostic(copies.root(), copies.floor()));
   return {
     budget,
     /** Read with the frame metrics: the budget, and what the pages hold under it — no pool is

@@ -105,5 +105,19 @@ for (const [label, budget] of [
     for (let i = 0; i < 24; i++) image(0.25);
     pool.resize(budget * PAGE);
     descend(run);
-    assert.ok(state.allocationBytes <= budget * PAGE, 'the pool converged to its budget');
+    // Under its floor — the root cover and the pages its groups replace — the pool holds that.
+    assert.ok(state.allocationBytes <= pool.held.allocatedBytes, 'the pool converged to its budget');
   });
+
+// #1237: at the smallest budget the pool still holds its floor — the root cover and the pages its
+// groups replace —, and admits those first: a root whose error the view refuses is replaced by
+// them, a root drawn only where the view accepts it, and every surface still drawn once.
+test('at the smallest budget no root the view refuses is drawn, and no hole', () => {
+  const { image, pool, cut, dag, drawnIds } = strip(1000, wholeStrip());
+  pool.resize(1);
+  for (let i = 0; i < 24; i++) image(0.25);
+  const { shown, wanted } = cut();
+  const refused = shown.filter((page) => page.parentError == null && !wanted.includes(page));
+  assert.deepEqual(refused, [], 'every root the view refuses is replaced');
+  assert.equal(coverFault(dag, drawnIds()), -1, 'every leaf is drawn once');
+});

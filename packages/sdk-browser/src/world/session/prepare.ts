@@ -166,6 +166,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     backends,
     base,
     frameBudget,
+    worldRoots: loadedScene.worldRoots,
   });
   return {
     source,
