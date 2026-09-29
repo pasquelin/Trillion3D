@@ -5,7 +5,7 @@ import {
   transformAffinePoint,
 } from '../../../sdk-core/src/index.ts';
 import { clipWeight } from '../../../sdk-core/src/math/primitives/camera.ts';
-import { copyElements, type MatrixElements } from '../math/matrixElements.ts';
+import { copyElements } from '../math/matrixElements.ts';
 import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts';
 import { rootOf, type Placements } from '../page/selection/placements.ts';
 import {
