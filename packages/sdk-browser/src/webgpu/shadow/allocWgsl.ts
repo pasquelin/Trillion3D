@@ -33,7 +33,9 @@ export const ALLOC_PARAM_WORDS = 8 + MAX_SHADOW_SLICES;
  *    for it landed (`listDraw`); one unmapped is a need, keyed coarsest first, then by entry.
  * 4. `listCandidates` — the pages a need may take: the free ones, by page, then every page not
  *    asked this frame, least recently asked first, the finest first, then by page — the keys the
- *    host sorts by too (`shadowNeedKey`, `shadowEvictionKey`).
+ *    host sorts by too (`shadowNeedKey`, `shadowEvictionKey`). The host's still cycle (#26,
+ *    `poolOrder.ts`) is not needed here: a page evicted is one this frame does not read, and one
+ *    a later frame reads again is mapped and drawn in that frame.
  * 5. Both lists sorted (`sortStep`, bitonic), then `assignPages`: need `i` takes candidate `i` —
  *    evicting what it mapped, whose word is zeroed —, its word written mapped and not readable,
  *    the page listed to draw, what it names decoded by the page model (`shadowEntryPage`). A need
