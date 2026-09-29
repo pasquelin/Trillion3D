@@ -8,10 +8,10 @@
  * placed within the frame's one integration budget (`FrameBudget`): a page lists its pages or
  * cells to the streamer's catalogue, a cell puts each node on a row of its mesh at the world matrix
  * the engine composes for a child of its core parent, casting as its host mesh says
- * (`placements.ts`, `follow.ts`), holding its manifest pages (`cellPages.ts`). A cell past its
- * reach parks its rows and releases its pages; a page past it with no cell placed is closed and its
- * files leave the catalogue; a moved parent, or a host mesh's `castShadow` changed, rewrites its
- * rows.
+ * (`placements.ts`, `follow.ts`), holding its manifest pages and the world bundles its roots need
+ * (`cellPages.ts`). A cell past its reach parks its rows and releases its pages; a page past it
+ * with no cell placed is closed and its files leave the catalogue; a moved parent, or a host mesh's
+ * `castShadow` changed, rewrites its rows.
  * `prime`, before the first frame, sizes the rows for the first camera's view (`sizing.ts`; every
  * node when no owner can reopen the session), then reads the pages on its way and the cells it
  * reaches (#575). A reach past those rows, or a parent shrunk or stretched unevenly, grows them in
@@ -41,6 +41,7 @@ type Inputs = {
   /** The host node of each core rank. */ parents: readonly Object3D[];
   /** The placed mesh of each mesh rank the cells place. */ meshes: ReadonlyMap<number, PlacedMesh>;
   /** The manifest's pages the view holds (#751). */ pages?: Parameters<typeof createCellPages>[0];
+  /** The world bundles its roots need (#1237). */ world?: Parameters<typeof createCellPages>[2];
 };
 /** What a file is decoded by off the main thread: its bytes and its address, which a refusal names. */
 type Decode<T> = (bytes: Uint8Array, url: string) => Promise<T>;
@@ -69,12 +70,12 @@ type PrimeIo = Pick<Io, 'decode' | 'decodePage' | 'admit'> & {
 const rootWorld = new Float64Array(MATRIX_VALUES);
 
 export function createPartitionCells(inputs: Inputs) {
-  const { partition, base, root, parents, meshes } = inputs;
+  const { partition, base, root, parents, meshes, world } = inputs;
   const boxes = createCellBoxes(partition.parents, root, parents);
   const index = createCellIndex(partition.pages, base, boxes);
   const decodes = createDecodes<number, CellRows>(),
     pageDecodes = createDecodes<IndexPage, PageBody>();
-  const manifest = createCellPages(inputs.pages, (cell) => index.cell(cell).meshPages);
+  const manifest = createCellPages(inputs.pages, (cell) => index.cell(cell).meshPages, world);
   const rows = createCellPlacements(root, parents, meshes);
   const { held, touched } = rows;
   /** Cells a mesh short of rows keeps waiting; the rung the rows are sized for (`RUNGS`: every

@@ -127,11 +127,11 @@ test('a camera cut queued during a long caster load is served before the tier en
       traceDiagnostic: () => {},
       diagnosticFailure: () => {},
     });
-    queue.queueCutResidency(false);
+    queue.queueCutResidency();
     // The camera moves while the tier loads: its cut queues a page behind the running job.
     setImmediate(() => {
       tracking.wanted.add(tracking.keyOf(camera), camera);
-      queue.queueCutResidency(false);
+      queue.queueCutResidency();
     });
     await queue.pending;
     assert.ok(

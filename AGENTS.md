@@ -25,9 +25,9 @@ to the boss, in short, simple French; everything in the repository is English.
 ## Hard rules
 
 1. **No image loss**, even declared. Sole exception: fluids lower their own quality to hold budget.
-2. **Chrome** proofs and timings are the recette session's, by batch on `develop` after the merges;
-   they never block a merge. The bench is the recette's alone. A coder may open one headless Chrome
-   to diagnose a bug, never as a proof, and never runs the bench.
+2. **Chrome** proofs, timings and the bench are the recette session's alone, by batch on `develop`
+   after the merges; they never block a merge. A coder may open one headless Chrome to diagnose a
+   bug, never as a proof.
 3. **Never `pkill`, `killall` or a pattern kill.** Kill your own processes by PID.
 4. **One branch, one worktree.** Never commit on `develop` or `main`. Worktrees in
    `.worktrees/<branch>/`, logs in `.worktrees/logs/`, nothing elsewhere; run git with
