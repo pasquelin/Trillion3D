@@ -109,7 +109,7 @@ fn the_four_blender_lamp_types_become_gltf_lights_with_their_native_emitter_radi
         ],
         [4.0, 1.0, 1.0, 1.0, 50.0, 0.0, 0.0, 0.0, 0.0, 1.0, 3.0, 4.0],
     ];
-    let names = ["Ampoule", "Soleil", "Projecteur", "Panneau"];
+    let names = ["Ampoule", "Sun", "Projecteur", "Panneau"];
     let (lights, out) = converted(&lamps, &names);
     // Power in watts is spread over the sphere for a point and a spot, over the lambertian
     // hemisphere for an area, and a sun's strength is already an illuminance; the 683 factor is
@@ -122,7 +122,7 @@ fn the_four_blender_lamp_types_become_gltf_lights_with_their_native_emitter_radi
         json!([
             {"name":"Ampoule","type":"point","color":[1.0,0.5,0.25],
              "intensity":1000.0 * sphere * 683.0,"extras":{"emitterRadius":0.5}},
-            {"name":"Soleil","type":"directional","color":[1.0,1.0,1.0],
+            {"name":"Sun","type":"directional","color":[1.0,1.0,1.0],
              "intensity":6.0 * 683.0},
             {"name":"Projecteur","type":"spot","color":[1.0,1.0,1.0],
              "intensity":100.0 * sphere * 683.0,"extras":{"emitterRadius":0.25},

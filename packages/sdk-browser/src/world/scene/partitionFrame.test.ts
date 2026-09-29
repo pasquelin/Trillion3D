@@ -6,6 +6,7 @@ import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartiti
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { createPartitionCells, type PartitionCells } from '../../scene/partition/cells.ts';
 import { cellReach } from '../../scene/partition/plan.ts';
+import { createCellPages, withHoldings } from '../../scene/partition/cellPages.ts';
 import { placedMesh } from '../../scene/partition/rows.ts';
 import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../../streaming/priority.ts';
 import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
@@ -18,13 +19,13 @@ const budget = { admits: () => true, spend() {} };
 /** Cells that record what a frame hands them, and ask for one cell visible and one ahead. */
 function recording() {
   const seen: { eye: number[]; reach: number; io: Io }[] = [];
-  const cells = {
+  const cells = withHoldings({ meshes: new Map(), manifest: createCellPages(undefined, []) }, {
     frame(eye: number[], reach: number, io: Io) {
       seen.push({ eye: [...eye], reach, io });
       io.request(['near.json'], false);
       io.request(['ahead.json'], true);
     },
-  } as unknown as PartitionCells;
+  } as unknown as PartitionCells);
   return { cells, seen };
 }
 
@@ -76,13 +77,8 @@ function asks(
   bounds: number[],
   camera: Parameters<typeof createPartitionFrame>[0]['camera'],
 ) {
-  const cell = {
-    url,
-    sha256: '',
-    bytes: 1,
-    meshes: [[0, 1] as const],
-    parents: [[null, bounds] as const],
-  };
+  const parents = [[null, bounds] as const];
+  const cell = { url, sha256: '', bytes: 1, meshes: [[0, 1] as const], meshPages: [], parents };
   const cells = createPartitionCells({
     partition: { bounds, meshes: [0], cells: [cell] },
     base: 'https://cache.test/key/',
@@ -151,7 +147,8 @@ function grid(side: number) {
       }));
       bodies.set(url, new TextEncoder().encode(JSON.stringify({ version: 2, nodes })));
       const bounds = [x * 10, 0, z * 10, x * 10 + 8, 1, z * 10 + 8];
-      cells.push({ url, sha256: '', bytes: 1, parents: [[null, bounds]], meshes: [[mesh, 4]] });
+      const parents: TableCell['parents'] = [[null, bounds]];
+      cells.push({ url, sha256: '', bytes: 1, parents, meshes: [[mesh, 4]], meshPages: [] });
     }
   const partition = {
     bounds: [0, 0, 0, side * 10, 1, side * 10],

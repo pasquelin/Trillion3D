@@ -108,7 +108,7 @@ its pass is read by frame envelope difference.
 No isolated cost is published for this pass alone: the line states that both systems implement it.
 
 (5) Their rasterizer is dual: compute for micropolygons, hardware for large triangles. Ours is hardware-only
-in production. Hybrid compute/hardware rasterization was tested under the `raster-hybride` diagnostic variant
+in production. Hybrid compute/hardware rasterization was tested under the `raster-hybrid` diagnostic variant
 (matching hardware at 0 px) and proved slower on Apple metal-3, where the hardware pass does not benefit
 from compute offloading small triangles. It remains disabled pending measurement on desktop GPUs.
 

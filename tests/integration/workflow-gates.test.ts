@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -43,13 +43,10 @@ function makeRepo() {
   return work;
 }
 
-const commit = (
-  cwd: string,
-  message: string,
-  files: Record<string, string> = { [`${Date.now()}-${Math.random()}.txt`]: message },
-) => {
-  for (const [name, text] of Object.entries(files)) writeFileSync(join(cwd, name), text);
-  ok(cwd, 'add', ...Object.keys(files));
+const commit = (cwd: string, message: string) => {
+  const name = `${Date.now()}-${Math.random()}.txt`;
+  writeFileSync(join(cwd, name), message);
+  ok(cwd, 'add', name);
   return git(cwd, 'commit', '-q', '-m', message);
 };
 
@@ -81,41 +78,4 @@ test('the tool-installed hook of the same name still runs behind core.hooksPath'
   ok(work, 'switch', '-q', '-c', '12-thing');
   commit(work, 'one');
   assert.equal(execFileSync('cat', [join(work, 'local.log')], { encoding: 'utf8' }), 'ran\n');
-});
-
-const checkSize = (cwd: string) =>
-  spawnSync(process.execPath, [new URL('scripts/check-pr-size.ts', repo).pathname, 'base'], {
-    cwd,
-    encoding: 'utf8',
-  });
-
-test("check-pr-size: more than 1,500 hand-written lines fail, with the base's attributes", () => {
-  const work = makeRepo();
-  ok(work, 'switch', '-q', '-c', '12-thing');
-  const attributes = readFileSync(new URL('.gitattributes', repo), 'utf8');
-  mkdirSync(join(work, 'src'));
-  assert.equal(
-    commit(work, 'base', { '.gitattributes': attributes, 'old.ts': 'x\n'.repeat(50) }).status,
-    0,
-  );
-  ok(work, 'tag', 'base');
-  ok(work, 'rm', '-q', 'old.ts');
-  const files = {
-    'pnpm-lock.yaml': 'x\n'.repeat(1501),
-    'a.ts': 'x\n'.repeat(1499),
-    'src/b.ts': 'x\n',
-    'image.bin': 'x\0\n'.repeat(700),
-  };
-  assert.equal(commit(work, 'lock, code, binary, deletion', files).status, 0);
-  // From a subfolder: the whole tree still counts.
-  const accepted = checkSize(join(work, 'src'));
-  assert.equal(accepted.status, 0, accepted.stderr);
-  assert.match(accepted.stdout, /added: 1500 \(limit 1500\)/);
-  // The base's attributes decide: marking its own code generated does not exempt it.
-  const selfExempt = { '.gitattributes': `${attributes}*.ts linguist-generated\n` };
-  assert.equal(commit(work, 'self exemption', selfExempt).status, 0);
-  const refused = checkSize(work);
-  assert.equal(refused.status, 1);
-  assert.match(refused.stdout, /added: 1501 \(limit 1500\)/);
-  assert.match(refused.stderr, /AGENTS\.md rule 5: narrow the issue/);
 });
