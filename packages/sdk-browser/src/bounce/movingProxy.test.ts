@@ -2,9 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createBounceCascades, BOUNCE_SETTINGS } from '../../../sdk-core/src/index.ts';
 import { createBounceSchedule } from './schedule.ts';
+import { proxyMotionSteps } from './proxy.ts';
 import type { BounceOccupancy } from '../../../sdk-core/src/index.ts';
 
 // Moving owners are traced on the GPU: `tests/browser/probes/moving-proxy-gpu.ts`.
+test('a moved proxy walks the still bound plus its widened nodes, never past a complete walk', () => {
+  const still = BOUNCE_SETTINGS.traversalSteps;
+  assert.equal(proxyMotionSteps(1_000_000, 0), still, 'nothing widened: the still bound');
+  assert.equal(proxyMotionSteps(1_000_000, 12), still + 12, 'a door pays its ancestors');
+  assert.equal(proxyMotionSteps(1_000_000, 900_000), still + 900_000, 'no guessed ceiling');
+  assert.equal(proxyMotionSteps(40, 3), 40, 'a complete walk is the cap');
+});
 test('expanded cascade extent schedules every new level without growing the queue', () => {
   const cascades = createBounceCascades([0, 0, 0, 1, 1, 1]);
   const occupancy = { occupied: () => true } as unknown as BounceOccupancy;

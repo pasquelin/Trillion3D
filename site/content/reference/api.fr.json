@@ -342,7 +342,6 @@
       "proxyCellMetres": "Plancher de résolution du maillage proxy en mètres : taille des triangles simplifiés et des cases du cache de surface. Doublé par le compilateur si le budget est dépassé.",
       "proxyLeafTriangles": "Triangles par feuille du BVH : les boucles sur les feuilles sont bornées par cette constante.",
       "traversalSteps": "Nœuds du BVH visités par rayon : bornés avant d’exécuter l’image, jamais dynamiques. Un nœud à 4 enfants couvre 4× plus d’arbre par pas qu’un BVH binaire.",
-      "motionTraversalSteps": "Nœuds du BVH visités par rayon une fois qu’un propriétaire a bougé : une boîte réajustée peut chevaucher ses voisines, la borne fixe double donc. Toujours une constante, jamais le nombre de nœuds.",
       "traversalStack": "Profondeur de la pile de parcours. Un nœud à 4 enfants en empile jusqu’à 3 ; 32 couvre des millions de triangles.",
       "cascadeLevels": "Niveaux des cascades de sondes. Les `cascadeLevels - 1` premiers suivent la position de la caméra ; le dernier est fixe dans le monde et couvre toute la scène.",
       "cascadeSize": "Sondes par axe et par niveau : un niveau est un cube de `cascadeSize³` sondes.",

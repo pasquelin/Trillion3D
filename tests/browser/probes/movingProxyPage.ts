@@ -10,6 +10,7 @@ import { ownedProxy } from '../../../packages/sdk-core/src/scene/core/proxy.fixt
 import { createGpuBounceProxy } from '../../../packages/sdk-browser/src/bounce/proxy.ts';
 import { residentProxyWgsl } from '../../../packages/sdk-browser/src/bounce/nodeWgsl.ts';
 import { BOUNCE_TRACE_WGSL } from '../../../packages/sdk-browser/src/bounce/traceWgsl.ts';
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts';
 import { ouvrirAppareil } from './webgpuDevice.ts';
 
 const REACH = 10;
@@ -65,10 +66,6 @@ export async function executer() {
     size: RAYS.byteLength,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
   });
-  const readback = device.createBuffer({
-    size: RAYS.byteLength,
-    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-  });
   const group = device.createBindGroup({
     layout: pipeline.getBindGroupLayout(0),
     entries: [resident.buffer, rays, hits].map((buffer, binding) => ({
@@ -83,11 +80,8 @@ export async function executer() {
     pass.setBindGroup(0, group);
     pass.dispatchWorkgroups(RAYS.length / 8);
     pass.end();
-    encoder.copyBufferToBuffer(hits, 0, readback, 0, RAYS.byteLength);
     device.queue.submit([encoder.finish()]);
-    await readback.mapAsync(GPUMapMode.READ);
-    const out = new Float32Array(readback.getMappedRange().slice(0));
-    readback.unmap();
+    const out = new Float32Array((await readGpuBuffer(device, hits, RAYS.byteLength))!.buffer);
     return Array.from({ length: RAYS.length / 8 }, (_, ray) => {
       const at = ray * 8;
       return {
@@ -104,7 +98,7 @@ export async function executer() {
   const moved = resident.sync(worldOf);
   const after = await trace();
   const dynamic = resident.dynamic;
-  for (const buffer of [rays, hits, readback]) buffer.destroy();
+  for (const buffer of [rays, hits]) buffer.destroy();
   resident.dispose();
   const info = await appareil.fermer();
   return { adaptateur: info.court, erreurs, compilation, moved, dynamic, still, after };
