@@ -190,5 +190,3 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
   };
   return allocation;
 }
-
-export type ShadowAllocationBuffers = ReturnType<typeof createShadowAllocationBuffers>;

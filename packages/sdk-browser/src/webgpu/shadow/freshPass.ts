@@ -68,9 +68,9 @@ export function encodeFreshPages(
     { allocation, pageRequests, shadows, plan, cull, spheres, mobilityRows } = lights,
     buffers = pageRequests?.allocation;
   if (!allocation || !buffers?.seeded || !plan.gpu.on || !shadows?.texture) return;
-  if (!cull || !spheres || !mobilityRows) return;
+  if (!cull || !spheres || !mobilityRows || !freshWanted(rt)) return;
   const groups = freshGroups(rt, device);
-  if (!groups || !freshWanted(rt)) return;
+  if (!groups) return;
   const { side, layers } = plan.pool,
     { rows } = layout,
     tint = shadows.transmittance;
