@@ -87,15 +87,8 @@ export async function runFeedbackTarget(options: {
       !backend.feedbackAbSpatial
     )
       return unsupported('FEEDBACK_AB_UNAVAILABLE');
-    const box = explorer.bounds;
-    // The street the bench's eye-level views walk (`street.ts`), read in this page.
-    const bounds = await streetBounds(
-      {
-        min: { x: box.min.x, y: box.min.y, z: box.min.z },
-        max: { x: box.max.x, y: box.max.y, z: box.max.z },
-      },
-      options,
-    );
+    // The box and the street the bench's eye-level views walk (`street.ts`), read in this page.
+    const bounds = await streetBounds(options);
     const pose = poseAt(bounds, options.view);
     explorer.setPose(pose);
     convergence = await captureConvergence(

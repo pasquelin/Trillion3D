@@ -3,6 +3,9 @@
 import type * as SdkBrowser from '../witnesses/measurement.ts';
 import type { ColumnProbes, StreetProbeOptions } from './street.ts';
 
+/** The world `readBounds` left for the probe, and how to close it. */
+type HeldWorld = { world: SdkBrowser.World; close: () => void };
+
 /**
  * Asks the physics the compiler cooked with the model (`physics.json`) about each column: the
  * ground under it — the model's floor when nothing is —, how far the nearest wall stands one eye
@@ -10,25 +13,25 @@ import type { ColumnProbes, StreetProbeOptions } from './street.ts';
  * and whether the sky is open over the whole square the camera may walk there — `reachShare` of
  * that clearance each side, swept up from the eye. Exact queries on the cooked triangles
  * (`world.raycast(ray, { exact: true })`, `{ shape }`): the engine's own, no second copy of the
- * geometry. A model compiled without its physics, or whose physics never lands, has no street to
- * probe: that is answered by name (`noStreet`), and the bench goes on.
+ * geometry. It asks them in the world `readBounds` loaded the model into (`street: true`), never
+ * a second one, and closes it. A model compiled without its physics, or whose physics never lands,
+ * has no street to probe: that is answered by name (`noStreet`), and the bench goes on.
  */
 export async function probeColumns(options: StreetProbeOptions): Promise<ColumnProbes> {
-  // The manifest points at the model's folder (`url`), where the cook writes `physics.json`.
-  const manifest = new URL(options.manifestUrl, location.href);
-  const pointer = (await (await fetch(manifest)).json()) as { url?: string };
-  const cooked = new URL('physics.json', new URL(pointer.url ?? '', manifest));
-  if (!(await fetch(cooked, { method: 'HEAD' })).ok)
-    return { probes: [], noStreet: `no physics.json beside ${options.manifestUrl}` };
-  const sdk = (await import(options.sdkUrl)) as typeof SdkBrowser;
-  const canvas = document.createElement('canvas');
-  canvas.style.cssText = 'display:block;width:64px;height:64px';
-  document.body.append(canvas);
-  const world = sdk.createWorld(canvas, { physics: true });
+  // The world `readBounds` left on the page's global: taken once, closed below.
+  const held = (globalThis as { __trillion3dStreetWorld?: HeldWorld }).__trillion3dStreetWorld;
+  if (!held) return { probes: [], noStreet: 'no world loaded by readBounds' };
+  delete (globalThis as { __trillion3dStreetWorld?: HeldWorld }).__trillion3dStreetWorld;
+  const { world, close } = held;
   const frame = () => new Promise((done) => requestAnimationFrame(done));
   try {
-    await world.ready;
-    await world.scene.load(options.manifestUrl);
+    // The manifest points at the model's folder (`url`), where the cook writes `physics.json`.
+    const manifest = new URL(options.manifestUrl, location.href);
+    const pointer = (await (await fetch(manifest)).json()) as { url?: string };
+    const cooked = new URL('physics.json', new URL(pointer.url ?? '', manifest));
+    if (!(await fetch(cooked, { method: 'HEAD' })).ok)
+      return { probes: [], noStreet: `no physics.json beside ${options.manifestUrl}` };
+    const sdk = (await import(options.sdkUrl)) as typeof SdkBrowser;
     const [cx, cz] = options.centre;
     world.camera.position.set(cx, options.top, cz);
     // The physics streams the cooked tiles on its own: the probe waits until the bodies it holds
@@ -91,7 +94,6 @@ export async function probeColumns(options: StreetProbeOptions): Promise<ColumnP
     }));
     return { probes, noStreet: null };
   } finally {
-    world.dispose();
-    canvas.remove();
+    close();
   }
 }
