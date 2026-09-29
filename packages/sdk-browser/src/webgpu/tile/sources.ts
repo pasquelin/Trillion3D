@@ -15,17 +15,14 @@ import {
   tileRegion,
   writeTileFromBitmap,
 } from './write.ts';
-
 /** Cooked-level reads in flight at most: beyond that, a tile waits for the next image. */
 const MAX_LEVEL_READS = 6;
-
 /**
  * Where a tile's texels come from, and how they reach the pool of its lane: a cooked level decoded
  * by the browser, or a block tile's record as the file holds it, held in the level store, or a
  * working texture built from the host image, which only the lossless lane receives. A tile whose
  * source is not yet in hand is not served; it will come back on the next feedback. A host texture's
- * queue goes through here too, at prepare: its working texture, the queue copied, submitted, then
- * returned — one whole source at a time, never all together.
+ * tail takes the same path, one temporary working texture at a time.
  */
 export function createTileSources(options: {
   device: GPUDevice;
@@ -68,6 +65,16 @@ export function createTileSources(options: {
     }
   };
   return {
+    release(atlas: WebgpuTileAtlas, slot: number) {
+      const id = scratchId(atlas, slot),
+        scratch = live.get(id);
+      builds.release(id);
+      if (scratch) {
+        liveBytes -= scratch.bytes;
+        scratch.destroy();
+        live.delete(id);
+      }
+    },
     levels,
     /**
      * Serves a tile from its source. `waiting`: its bytes are not there yet, it will come back;
@@ -178,7 +185,6 @@ export function createTileSources(options: {
       if (encoder) device.queue.submit([encoder.finish()]);
       builds.drop(frame);
     },
-    /** True while a level read or a working texture's build is on its way: a tile may come. */
     get reading() {
       return (levels?.inFlight ?? 0) > 0 || builds.building !== undefined;
     },
