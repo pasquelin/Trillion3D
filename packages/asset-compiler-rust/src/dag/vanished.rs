@@ -17,12 +17,11 @@
 //! within its error.
 use super::bounds::bounding_sphere;
 use crate::join::Join;
-use crate::physics_cook::hausdorff::one_sided_distance;
 use std::collections::{BTreeMap, HashMap};
 
 /// The corners of `source` as local ids of their welded position (`weld`), those ids joined over
 /// its triangles: one root per part.
-fn joined(source: &[u32], weld: &[u32]) -> (HashMap<u32, u32>, Vec<u32>, Join) {
+pub(super) fn joined(source: &[u32], weld: &[u32]) -> (HashMap<u32, u32>, Vec<u32>, Join) {
     let mut local: HashMap<u32, u32> = HashMap::new();
     let mut id = |v: u32| {
         let next = local.len() as u32;
@@ -67,6 +66,7 @@ pub(crate) fn extent(positions: &[f32], part: &[u32]) -> f64 {
 /// What removing the parts of `source` of which `kept` holds no vertex costs: the largest of their
 /// source extents (`part_extents`) and of their distances to the triangles of `kept`, both over
 /// the source vertices; parts meet at a shared position (`weld`).
+#[cfg(test)]
 pub(super) fn vanished_error(
     source: &[u32],
     kept: &[u32],
@@ -74,6 +74,20 @@ pub(super) fn vanished_error(
     weld: &[u32],
     extents: &[f64],
 ) -> f64 {
+    let (extent, removed) = vanished_parts(source, kept, weld, extents);
+    extent.max(crate::physics_cook::hausdorff::one_sided_distance(
+        positions, &removed, kept,
+    ))
+}
+
+/// The largest source extent of the parts of `source` of which `kept` holds no vertex, and their
+/// triangles. Their distance to `kept` is within the sampled distance from all of `source` to
+/// `kept`, which the published error covers (`measured.rs`), so only the extent is returned.
+pub(super) fn vanished_extent(source: &[u32], kept: &[u32], weld: &[u32], extents: &[f64]) -> f64 {
+    vanished_parts(source, kept, weld, extents).0
+}
+
+fn vanished_parts(source: &[u32], kept: &[u32], weld: &[u32], extents: &[f64]) -> (f64, Vec<u32>) {
     let (local, corners, mut join) = joined(source, weld);
     let mut alive = vec![false; local.len()];
     for v in kept {
@@ -89,5 +103,5 @@ pub(super) fn vanished_error(
             removed.extend(tri);
         }
     }
-    extent.max(one_sided_distance(positions, &removed, kept))
+    (extent, removed)
 }

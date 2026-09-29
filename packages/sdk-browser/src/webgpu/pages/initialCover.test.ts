@@ -55,7 +55,7 @@ test('the initial cover also protects regions first discovered after a camera ju
     },
   ]);
   const metadata = {
-    errorModel: 'dag-group-qem-v2',
+    errorModel: 'dag-group-qem-v3',
     clusterStrategy: 'dag-groups',
     schema: 1,
     status: 'ready',
