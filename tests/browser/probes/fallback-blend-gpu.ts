@@ -5,7 +5,7 @@
 // twice on one scene: on the device as it is (the main pass), then while the same device refuses
 // the visibility target's pipelines. It publishes, for each blending mode, the tile read
 // over a night half and a paper half on both images, the background beside it, and how many
-// pixels the two images differ by: what the measurer compares. It fails when the second side did
+// pixels the two images differ by: what the recette compares. It fails when the second side did
 // not fall back, or when a tile is missing from its image — the mode the pass once dropped.
 //
 //   node --experimental-strip-types tests/browser/probes/fallback-blend-gpu.ts

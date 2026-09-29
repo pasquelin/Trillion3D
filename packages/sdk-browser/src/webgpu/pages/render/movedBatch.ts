@@ -76,6 +76,17 @@ export function finishMoves(rt: WebgpuPagesRuntime) {
   }
 }
 
+/** Root `rank` moved: whether it was its first move, the static shadow layer's to leave it out. */
+const promote = (rt: WebgpuPagesRuntime, rank: number) =>
+  rt.lights.mobility.move(rank, rt.layout.selectionRoots[rank].world.elements, true) ===
+  MOVE_PROMOTED;
+/** `moved` declared to the shadow scheduler and the Hi-Z: a first move stales its pages whole. */
+function declare(rt: WebgpuPagesRuntime, promoted: boolean) {
+  if (boxIsEmpty(moved, 0)) return;
+  rt.lights.plan.worldChanged(movedMin, movedMax, !promoted);
+  staleTemporalBox(rt.run.temporalHizState, movedMin, movedMax);
+}
+
 function passMoves(rt: WebgpuPagesRuntime) {
   const { lights, run, layout } = rt,
     roots = layout.selectionRoots;
@@ -128,9 +139,23 @@ function passMoves(rt: WebgpuPagesRuntime) {
       if (root.localBox) boxUnionBatch(moved, root.worldBox, 1);
     }
     start = movedEnds[k];
-    // A root's first move changes the static layer: the pages it crossed are staled whole.
-    if (boxIsEmpty(moved, 0)) continue;
-    lights.plan.worldChanged(movedMin, movedMax, !promoted);
-    staleTemporalBox(run.temporalHizState, movedMin, movedMax);
+    declare(rt, promoted);
   }
+}
+
+const local = new Float64Array(BOX_VALUES);
+/** A dynamic geometry's rewrite, its moved vertices within `box`, declared as a node's move: each
+ *  root drawing `attributes` moves, and the world box of `box` stales its shadow pages (#573). */
+export function noteRewritten(rt: WebgpuPagesRuntime, attributes: object, box: Float64Array) {
+  const roots = rt.layout.selectionRoots;
+  let promoted = false;
+  boxEmpty(moved, 0);
+  for (let rank = 0; rank < roots.length; rank++) {
+    const root = roots[rank];
+    if (root.pages[0]?.attributes !== attributes) continue;
+    promoted = promote(rt, rank) || promoted;
+    boxTransform(local, 0, box, 0, root.world.elements);
+    boxUnionBatch(moved, local, 1);
+  }
+  declare(rt, promoted);
 }
