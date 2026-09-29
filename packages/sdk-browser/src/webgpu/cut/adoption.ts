@@ -83,16 +83,17 @@ export function createWebgpuCutAdopter(options: {
       return false;
     }
     const { desired, shown, drawn, delta, drawnDelta } = options;
+    // A new readback offers its requests ahead; a held one only empties them once the camera stops.
+    const offer = cut !== lastCut || (!options.uniforms.ahead && !offeredStill);
     if (cut === lastCut) {
       delta.hold();
       drawnDelta.hold();
-      if (!options.uniforms.ahead && !offeredStill) offerAhead(cut);
     } else {
       delta.apply(cut.result.pageIds);
       drawnDelta.apply(cut.result.drawablePageIds);
-      offerAhead(cut);
       lastCut = cut;
     }
+    if (offer) offerAhead(cut);
     if (drawnDelta.changed) drawnSeq++;
     // A difference is applied where it is computed. An image that adopts nothing — no readback has
     // landed — must not replay the previous one, which would count every page twice.

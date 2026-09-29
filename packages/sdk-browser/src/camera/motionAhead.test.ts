@@ -9,7 +9,7 @@ import type { CameraMotion } from './motion.ts';
 import type { EngineCamera } from './engineCamera.ts';
 import { aheadViewOf } from '../gpu/core/aheadView.ts';
 import * as G from '../host/graph/graph.fixture.ts';
-import { cameraMoteur } from './camera.fixture.ts';
+import { cameraMoteur as engineCameraOf } from './camera.fixture.ts';
 import { random as reproducible } from '../page/cut/cutRuleChecks.fixture.ts';
 import {
   MAX_PREFETCH_HORIZON_MS,
@@ -99,7 +99,7 @@ test('the view ahead at the published horizon is the one of before; a longer one
   const camera = G.perspectiveCamera(55, 16 / 9, 0.1, 200);
   camera.position.set(0, 0, 10);
   camera.updateMatrixWorld(true);
-  const cam = cameraMoteur(camera);
+  const cam = engineCameraOf(camera);
   const still: CameraMotion = { velocity: new Float64Array(3), turn: 0, horizonMs: 330 };
   assert.equal(aheadViewOf(cam, still), null, 'still: none');
   const motion: CameraMotion = { velocity: Float64Array.of(40, 0, 0), turn: 0.5 };
@@ -124,7 +124,7 @@ const along = (x: number) => {
   const camera = G.perspectiveCamera(55, 16 / 9, 0.1, 200);
   camera.position.set(x, 0, 10);
   camera.updateMatrixWorld(true);
-  return cameraMoteur(camera);
+  return engineCameraOf(camera);
 };
 /** Reads the camera along a path of `[ms, x]` frames; returns how far ahead its view looks, 0 for
  *  none. */
@@ -163,4 +163,22 @@ test('a steady motion is extrapolated over the whole horizon, one that starts ov
     frames(32, 20, (ms) => (40 * ms) / 1000),
   );
   assert.ok(Math.abs(steady - (40 * PREFETCH_HORIZON_MS) / 1000) < 1e-3, `steady: ${steady}`);
+});
+
+test('a turn that reverses at the same rate is a cut: the view ahead turns no further than it', () => {
+  /** The engine camera at the origin, ten units up, looking down -z turned by `yaw` radians. */
+  const yawed = (yaw: number) => {
+    const camera = G.perspectiveCamera(55, 16 / 9, 0.1, 200);
+    camera.position.set(0, 0, 10);
+    camera.lookAt(10 * Math.tan(yaw), 0, 0);
+    camera.updateMatrixWorld(true);
+    return engineCameraOf(camera);
+  };
+  const motion: CameraMotion = {};
+  for (let i = 0; i <= 20; i++) readCameraMotion(yawed(0.016 * i), motion, 16 * i);
+  assert.ok(motion.turnSteadyMs! > 300, 'a steady turn holds');
+  // Back the other way, one frame, at the same rate.
+  readCameraMotion(yawed(0.016 * 19), motion, 16 * 21);
+  assert.ok(Math.abs(motion.turn! - 1) < 1e-3, 'the same rate');
+  assert.equal(motion.turnSteadyMs, 16, 'held one frame only');
 });
