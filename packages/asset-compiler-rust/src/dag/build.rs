@@ -63,14 +63,14 @@ pub fn build_dag_tallied(
         });
     }
     // Welding is only used for reduction: nothing to weld for exact clusters or for a primitive fitting in a single cluster.
-    if strategy == DagStrategy::ExactClusters || dag.len() < 2 {
-        tight::tighten(&mut dag, &mut [], positions);
-        return Ok((dag, Vec::new(), Vec::new(), Vec::new()));
-    }
+    let (mut dag, mut groups, tallies, stalls) =
+        if strategy == DagStrategy::ExactClusters || dag.len() < 2 {
+            (dag, Vec::new(), Vec::new(), Vec::new())
+        } else {
+            super::levels::coarsen(positions, attributes, indices, dag, checkpoint)?
+        };
     // A primitive's spheres are tightened once its DAG is built; the super-roots' below keep the
     // spheres their roots were published at, which a parent's sphere must hold.
-    let (mut dag, mut groups, tallies, stalls) =
-        super::levels::coarsen(positions, attributes, indices, dag, checkpoint)?;
     tight::tighten(&mut dag, &mut groups, positions);
     Ok((dag, groups, tallies, stalls))
 }

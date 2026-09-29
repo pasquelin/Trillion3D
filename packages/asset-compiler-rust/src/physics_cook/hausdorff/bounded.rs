@@ -24,7 +24,10 @@ impl RunningFloor {
     }
     /// Raises the floor to `value`; a NaN sorts above every number and then stops no query.
     fn raise(&self, value: f64) -> f64 {
-        self.0.fetch_max(value.to_bits(), Relaxed);
+        // The floor only rises: a value at or below it skips the shared write.
+        if value.to_bits() > self.0.load(Relaxed) {
+            self.0.fetch_max(value.to_bits(), Relaxed);
+        }
         value
     }
 }
@@ -44,17 +47,21 @@ fn distinct_samples(pos: &[f32], from: &[u32]) -> Vec<P> {
         .collect();
     edges.par_sort_unstable();
     edges.dedup();
-    let mut points: Vec<P> = vertices.iter().map(|&v| at(pos, v)).collect();
+    let mut points: Vec<P> = Vec::with_capacity(vertices.len() + edges.len() + triangles.len());
+    points.extend(vertices.iter().map(|&v| at(pos, v)));
     for (k, &(i, j, reversed)) in edges.iter().enumerate() {
         let (a, b) = (at(pos, i), at(pos, j));
         let forward = lerp(a, b, 0.5);
         if !reversed {
             points.push(forward);
-        } else if k == 0
+            continue;
+        }
+        let backward = lerp(b, a, 0.5);
+        if k == 0
             || edges[k - 1] != (i, j, false)
-            || lerp(b, a, 0.5).map(f64::to_bits) != forward.map(f64::to_bits)
+            || backward.map(f64::to_bits) != forward.map(f64::to_bits)
         {
-            points.push(lerp(b, a, 0.5));
+            points.push(backward);
         }
     }
     points.extend(triangles.iter().map(|tri| {
@@ -81,8 +88,13 @@ pub(crate) fn distance_above(pos: &[f32], a: &[u32], b: &[u32], floor: f64) -> f
         return floor.max(0.0);
     }
     // The first side raises the floor of the second: a sample below it cannot change the max.
-    let floor = floor.max(one_sided(pos, a, &Grid::new(pos, b), floor));
-    floor.max(one_sided(pos, b, &Grid::new(pos, a), floor))
+    // The second side's grid does not read the floor: it is built while the first side runs.
+    let (first, grid_a) = rayon::join(
+        || one_sided(pos, a, &Grid::new(pos, b), floor),
+        || Grid::new(pos, a),
+    );
+    let floor = floor.max(first);
+    floor.max(one_sided(pos, b, &grid_a, floor))
 }
 
 #[cfg(test)]
@@ -107,7 +119,9 @@ mod tests {
             let (from, to) = (pick(1 + case % 12), pick(1 + case % 7));
             let grid = Grid::new(&pos, &to);
             let exact = from
-                .chunks_exact(3)
+                .as_chunks::<3>()
+                .0
+                .iter()
                 .flat_map(|tri| samples(&pos, tri))
                 .map(|p| grid.brute(p))
                 .fold(0.0, f64::max);
