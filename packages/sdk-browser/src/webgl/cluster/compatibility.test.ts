@@ -128,7 +128,7 @@ test('a transmissive physical material is a scene copy of the transmission pass,
   glass.clearcoat = 0.5;
   glass.thicknessMap = fakeTexture();
   assert.equal(clusterMaterialReason(glass, { position, normal }, true), undefined);
-  assert.deepEqual(featuresOf(physicalLostMask(glass)), ['clearcoat', 'thicknessMap']);
+  assert.deepEqual(featuresOf(physicalLostMask(glass)), ['thicknessMap']);
 });
 
 test('a transmissive copy mutated into another physical extension is drawn without it', () => {

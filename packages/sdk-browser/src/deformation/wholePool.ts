@@ -1,3 +1,9 @@
+import {
+  PAGE_INFO_STRIDE,
+  PAGE_DEFORM_WORD,
+  PAGE_DEFORM_COUNT_WORD,
+  PAGE_DEFORM_OUTPUT_WORD,
+} from '../visibility/types.ts';
 import type { BlendGpuItem } from '../webgpu/blend/state.ts';
 import type { SessionDeformation } from './session.ts';
 import { wholeDeformationInputs } from './wholeInputs.ts';
@@ -42,9 +48,9 @@ export function wholeDeformationPool(
     ) {
       for (const source of sources.values())
         device.queue.writeBuffer(pool, (base + source.at) * 4, source.data);
-      const rows = new Uint32Array(Math.max(1, placed.length) * 64);
+      const rows = new Uint32Array(Math.max(1, placed.length) * (PAGE_INFO_STRIDE / 4));
       placed.forEach((item, i) => {
-        const at = i * 64;
+        const at = i * (PAGE_INFO_STRIDE / 4);
         item.vertexBase = vertexBase(item.sourceGeometry);
         item.deformInput = base + sources.get(item.sourceGeometry)!.at + 1;
         item.deformOutput = ((base + output.get(item)! + 1) | WHOLE_DEFORM_OUTPUT) >>> 0;
@@ -62,9 +68,9 @@ export function wholeDeformationPool(
         rows[at + 25] = item.count;
         rows[at + 26] = item.vertexBase;
         rows[at + 27] = item.deformInput;
-        rows[at + 38] = item.sourceGeometry.attributes.position!.count;
-        rows[at + 58] = session!.wordOfWorld(item.matrix);
-        rows[at + 59] = item.deformOutput;
+        rows[at + PAGE_DEFORM_COUNT_WORD] = item.sourceGeometry.attributes.position!.count;
+        rows[at + PAGE_DEFORM_WORD] = session!.wordOfWorld(item.matrix);
+        rows[at + PAGE_DEFORM_OUTPUT_WORD] = item.deformOutput;
       });
       const table = device.createBuffer({
         label: 'Trillion3D whole-copy deformation rows',

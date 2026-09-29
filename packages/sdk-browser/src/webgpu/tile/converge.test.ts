@@ -49,7 +49,7 @@ test('a convergence image names, per pixel, the first of all its picks whose til
   );
   for (const [name, text, choices] of [
     ['shade', SHADE_REQUEST_WGSL, 'choices'],
-    ['blend', BLEND_REQUEST_WGSL, 'MAP_CHOICES'],
+    ['blend', BLEND_REQUEST_WGSL, 'choices'],
   ]) {
     const loop = new RegExp(
       `if\\(feedbackEvery\\(uni\\.feedback\\)\\)\\{\\n  for\\(var turn=0u;turn<${choices}\\*PICK_TURNS;turn\\+\\+\\)\\{\\n` +

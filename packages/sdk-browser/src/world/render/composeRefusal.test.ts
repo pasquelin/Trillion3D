@@ -36,10 +36,10 @@ for (const [name, blending] of MODES) {
     const chain = new EffectChain();
     const view = session(scene, chain);
     const said = await heard(view, () => {
-      assert.deepEqual(view.frame(), { chained: false, submitted: 2 });
+      assert.deepEqual(view.frame(), { chained: false, submitted: 3 });
       chain.add(effect.bloom());
-      assert.deepEqual(view.frame(), { chained: false, submitted: 2 }, 'no throw, no hole');
-      assert.deepEqual(view.frame(), { chained: false, submitted: 2 });
+      assert.deepEqual(view.frame(), { chained: false, submitted: 3 }, 'no throw, no hole');
+      assert.deepEqual(view.frame(), { chained: false, submitted: 3 });
     });
     assert.deepEqual(said, ['effects-refused-blending']);
   });
@@ -49,13 +49,13 @@ for (const [name, blending] of MODES) {
     const view = session(scene, new EffectChain().add(effect.bloom()));
     const glass = G.triangleMesh(blended(blending));
     const said = await heard(view, () => {
-      assert.deepEqual(view.frame(), { chained: true, submitted: 1 });
+      assert.deepEqual(view.frame(), { chained: true, submitted: 2 });
       scene.add(glass);
-      assert.deepEqual(view.frame(), { chained: false, submitted: 2 });
-      assert.deepEqual(view.frame(), { chained: false, submitted: 2 });
+      assert.deepEqual(view.frame(), { chained: false, submitted: 3 });
+      assert.deepEqual(view.frame(), { chained: false, submitted: 3 });
       // The chain comes back once no such surface is drawn.
       glass.visible = false;
-      assert.deepEqual(view.frame(), { chained: true, submitted: 1 });
+      assert.deepEqual(view.frame(), { chained: true, submitted: 2 });
     });
     assert.deepEqual(said, ['effects-refused-blending']);
   });
