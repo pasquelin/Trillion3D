@@ -3,7 +3,7 @@ import { commitGpuPage } from './commit.ts';
 import { refusedStatus, retriableError } from '../../cluster/checked.ts';
 
 /** `tier` pins the page inside the queued operation: no resize queued behind the load runs between
- *  its arrival and its pin, so a held page is never ranked as an unpinned one. */
+ *  its arrival and its pin, so a held page is never ranked as an unpinned one. `priority` is its read's. */
 export function createGpuPageLoader(
   context: GpuPageContext,
   pin: (key: string, tier: 'held' | 'pinned') => void,
@@ -14,6 +14,7 @@ export function createGpuPageLoader(
     key: string,
     signal?: AbortSignal,
     tier?: 'held' | 'pinned',
+    priority?: number,
   ): Promise<ResidentPage> {
     const combined = signal ? AbortSignal.any([signal, abort.signal]) : abort.signal;
     const abortListener =
@@ -33,7 +34,8 @@ export function createGpuPageLoader(
       resident: resident.has(key),
       loading: fetches.has(key),
     }));
-    const fetched = !state.disposed && !resident.has(key) ? fetchBytes(key, combined) : undefined;
+    const fetched =
+      !state.disposed && !resident.has(key) ? fetchBytes(key, combined, priority) : undefined;
     const operation = state.pending.then(async () => {
       const queueStarted = now();
       try {
@@ -64,7 +66,7 @@ export function createGpuPageLoader(
         }));
         let bytes: Uint8Array;
         try {
-          bytes = await (fetched ?? fetchBytes(key, combined));
+          bytes = await (fetched ?? fetchBytes(key, combined, priority));
         } catch (err) {
           // A refusal another request would meet again (a 4xx) is not asked twice (`checked`).
           if (!combined.aborted && !state.disposed && retriableError(err)) {
@@ -75,7 +77,7 @@ export function createGpuPageLoader(
               nextAttempt: 2,
               error: String(err),
             }));
-            bytes = await readBytes(key, combined, 2);
+            bytes = await readBytes(key, combined, 2, priority);
           } else throw err;
         }
         check(combined);

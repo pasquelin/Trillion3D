@@ -138,7 +138,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       switches.temporalAntialiasing = on;
     },
     /** The fraction of the display per axis the image is drawn at (`WorldOptions.renderScale`),
-     *  from the next frame. Read, the scale of the last image drawn: 1 on WebGL2. */
+     *  from the next frame. Read, the scale of the last image drawn. */
     get renderScale(): number {
       return switches.renderScale;
     },
