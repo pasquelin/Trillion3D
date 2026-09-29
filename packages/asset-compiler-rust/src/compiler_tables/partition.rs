@@ -26,7 +26,7 @@ use split::{split_cells, Placed, Region};
 type Box6 = [f64; 6];
 
 /// Version of a page and of the root the core carries.
-const PARTITION_VERSION: u32 = 3;
+const PARTITION_VERSION: u32 = 4;
 /// Version of a cell file.
 const CELL_VERSION: u32 = 2;
 
