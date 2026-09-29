@@ -2073,9 +2073,11 @@
   "TableGrowthReport": {
     "summary": "Sự mở rộng của các bảng được định cỡ theo hàng có thể vẽ, đúng như một pool bên trên chúng yêu cầu.",
     "members": {
-      "drawSlots": "Các hàng khả kiến, rồi mọi hàng mà lượt bóng đổ đọc, như các bảng đang có bây giờ.",
+      "drawSlots": "Các hàng khả kiến mà các bảng đang giữ bây giờ.",
+      "casterSlots": "Các hàng mà lượt bóng đổ đọc, nằm sau các hàng khả kiến.",
       "bytes": "Số byte mà các bảng GPU đã mở rộng nắm giữ — số byte được yêu cầu nếu bị từ chối.",
-      "refused": "`true` khi thiết bị từ chối: các bảng và pool hiện có được giữ nguyên."
+      "refused": "`true` khi thiết bị từ chối: các bảng và pool hiện có được giữ nguyên.",
+      "durationMs": "Số mili giây việc mở rộng tốn, từ lúc dò đến lúc hoán đổi."
     }
   },
   "Mesh": {

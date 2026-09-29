@@ -4081,9 +4081,11 @@
   "TableGrowthReport": {
     "summary": "La crescita delle tabelle dimensionate per riga disegnabile, come l’ha chiesta un pool sopra di esse.",
     "members": {
-      "drawSlots": "Righe di visibilità, poi ogni riga letta dal passaggio delle ombre, come le tabelle sono ora.",
+      "drawSlots": "Righe di visibilità che le tabelle contengono ora.",
+      "casterSlots": "Righe lette dal passaggio delle ombre, dopo le righe di visibilità.",
       "bytes": "Byte che le tabelle GPU ingrandite contengono — quelli richiesti, se rifiutati.",
-      "refused": "`true` quando il dispositivo le ha rifiutate: si mantengono le tabelle e il pool esistenti."
+      "refused": "`true` quando il dispositivo le ha rifiutate: si mantengono le tabelle e il pool esistenti.",
+      "durationMs": "Millisecondi impiegati dalla crescita, dalla sonda allo scambio."
     }
   },
   "Mesh": {

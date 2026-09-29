@@ -4081,9 +4081,11 @@
   "TableGrowthReport": {
     "summary": "El crecimiento de las tablas dimensionadas por fila dibujable, tal como lo pidió un pool superior.",
     "members": {
-      "drawSlots": "Filas de visibilidad y luego cada fila que lee el pase de sombras, tal como quedan ahora las tablas.",
+      "drawSlots": "Filas de visibilidad que las tablas contienen ahora.",
+      "casterSlots": "Filas que lee el pase de sombras, después de las filas de visibilidad.",
       "bytes": "Bytes que ocupan las tablas de GPU ampliadas, o los pedidos si se rechazaron.",
-      "refused": "`true` cuando el dispositivo las rechazó: se conservan las tablas y el pool actuales."
+      "refused": "`true` cuando el dispositivo las rechazó: se conservan las tablas y el pool actuales.",
+      "durationMs": "Milisegundos que tardó el crecimiento, desde la sonda hasta el intercambio."
     }
   },
   "Mesh": {
