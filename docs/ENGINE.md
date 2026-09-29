@@ -282,8 +282,10 @@ lists at most. A tile the pool has no room for walks every light, exactly, and t
 (`tileLightPoolOverflowed`, `tileLightPoolGrowths` of the frame metrics). A scene of one batch
 (256 lights or fewer) writes the pool from the masks its tiles still hold, never testing a light
 twice. A scene of 64 lights or fewer runs a narrow tile pass (64-bit masks, a 64-light array, one
-batch written straight at its ranks) and holds no pool. A shadow caster past the 64
-shadow slices lights without a shadow and is counted
+batch written straight at its ranks) and holds no pool; its deferred resolve is the narrow
+program too (a 64-light array, each listed light read with no branch), compiled on first use, its
+wide twin compiled behind it. A shadow caster past the 64 shadow slices lights without a shadow
+and is counted
 (`shadowCastersUnsliced`, #818). WebGL2 holds every light in a float texture grown with the
 count, and each draw evaluates only the lights whose range reaches its world box, listed per draw
 on the CPU in one integer texture (`webgl/cluster/lightLists.ts`, #835).
