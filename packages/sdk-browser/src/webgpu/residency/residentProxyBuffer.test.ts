@@ -119,7 +119,8 @@ test('resident proxy fits in single buffer, at offsets published by its header',
       1 +
       2 +
       2 +
-      16) *
+      16 +
+      1) *
       4 +
       4,
   );
