@@ -160,10 +160,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     materialClassRefusal: (alpha) =>
       instances.materialClassRefusal(alpha) ?? classes.refusal(alpha, allPages),
     flush: () => classes.settled().then(pool.api.flush),
-    syncResident() {
-      gate.resourcesChanged();
-      sync();
-    },
+    syncResident: () => (gate.resourcesChanged(), sync()),
     // A dynamic geometry's pages read its lists, uploaded as the next frame binds them (#573).
     updateVertices: () => (gate.sceneMoved(), true),
     refreshMaterials(values = true, alpha) {
