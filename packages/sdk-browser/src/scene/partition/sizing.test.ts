@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
 import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { createPartitionCells } from './cells.ts';
+import { decodeHere, placed, whole } from './cells.fixture.ts';
 import { KEEP } from './plan.ts';
 import { placedMesh } from './rows.ts';
 import { residentRows } from './sizing.ts';
@@ -59,7 +60,7 @@ function twoRows() {
   parents.forEach((parent) => root.add(parent));
   parents[1].position.set(0, 1e4, 0);
   const partitioned = createPartitionCells({
-    partition: { bounds: [0, 0, 0, 901, 1e4 + 1, 1], meshes: [0], cells },
+    partition: { bounds: [0, 0, 0, 901, 1e4 + 1, 1], meshes: [0], cells, regions: whole(cells) },
     base: 'https://cache.test/key/',
     root,
     parents,
@@ -68,14 +69,16 @@ function twoRows() {
   let reopened = 0;
   const io = {
     bytes: (url: string) => bodies.get(url),
+    decode: decodeHere,
     loading: () => false,
     request() {},
     update() {},
     outgrown: () => void reopened++,
   };
   const budget = { admits: () => true, spend() {} };
-  const frame = (x: number) => partitioned.frame([x, 0.5, 0.5], 10, io, budget);
-  const opened = () => partitioned.prime([0, 0.5, 0.5], 10, async (url) => bodies.get(url)!, true);
+  const frame = (x: number) => placed(partitioned, [x, 0.5, 0.5], 10, io, budget);
+  const opened = () =>
+    partitioned.prime([0, 0.5, 0.5], 10, (url) => decodeHere(bodies.get(url)!), true);
   return { partitioned, parents, frame, opened, reopened: () => reopened };
 }
 
@@ -84,21 +87,21 @@ test('parents a page moves together never run the rows short: no reopen, nothing
   await opened();
   const { rows } = partitioned.stats();
   assert.ok(rows >= 2 && rows < 20, `${rows} rows: one cell of each parent, not the world`);
-  const walk = (label: string) => {
+  const walk = async (label: string) => {
     for (let x = 0; x <= 900; x += 50) {
-      frame(x);
+      await frame(x);
       const { waiting, held } = partitioned.stats();
       assert.deepEqual([waiting, reopened()], [0, 0], `${label}, eye at ${x}`);
       if (x % 100 === 0) assert.ok(held >= (label === 'moved together' ? 2 : 1), label);
     }
   };
-  walk('apart');
+  await walk('apart');
   // The page brings the second row onto the first: both cells at every stop are placed at once.
   parents[1].position.set(0, 0, 0);
-  walk('moved together');
+  await walk('moved together');
   // Turned a twelfth of a turn, its stretch rounded but unchanged: the rows still hold.
   parents[1].rotation.set(0, Math.PI / 6, 0);
-  walk('turned');
+  await walk('turned');
   assert.equal(partitioned.stats().rows, rows, 'nothing grew');
 });
 
@@ -110,7 +113,7 @@ test('a parent scaled up spreads its cells: the rows still hold, no reopen', asy
   parents[1].position.set(0, 0, 0);
   parents[1].scale.set(2, 2, 2);
   for (let x = 0; x <= 1800; x += 50) {
-    frame(x);
+    await frame(x);
     assert.deepEqual([partitioned.stats().waiting, reopened()], [0, 0], `eye at ${x}`);
   }
   assert.equal(partitioned.stats().rows, rows, 'nothing grew');
@@ -120,8 +123,7 @@ test('a parent scaled below its stretch at open asks the owner, like a reach pas
   const { parents, frame, opened, reopened } = twoRows();
   await opened();
   parents[1].scale.set(0.5, 0.5, 0.5);
-  frame(0);
-  frame(0);
+  await frame(0);
   assert.equal(reopened(), 1, 'asked once');
 });
 
@@ -130,7 +132,6 @@ test('a parent stretched unevenly past its stretch at open asks the owner once',
   await opened();
   // Its least stretch stays 1, its most doubles: its boxes widen past what the rows counted.
   parents[1].scale.set(2, 1, 1);
-  frame(0);
-  frame(0);
+  await frame(0);
   assert.equal(reopened(), 1, 'asked once');
 });
