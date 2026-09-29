@@ -53,16 +53,16 @@ fn census(input: &GroupReductionInput, live: &[u32]) -> Census {
 
 /// Names why the group stalled. Its live triangles are rerun without locks, then without locks on
 /// positions welded across seams.
-pub(super) fn stalled(
+pub(super) fn cause(
     input: &GroupReductionInput,
     live: &[u32],
     children: usize,
     stop: Stop,
-) -> Result<GroupOutcome> {
+) -> Result<StallCause> {
     let advances = |indices: &[u32]| -> Result<bool> {
         Ok(matches!(attempt(input, indices, false)?, Ok(a) if a.progresses(children)))
     };
-    let cause = match stop {
+    Ok(match stop {
         Stop::TooSmall => StallCause::TooSmall,
         Stop::BorderLost => StallCause::BorderLost,
         Stop::NoCollapse if advances(live)? => StallCause::BorderLocked,
@@ -75,8 +75,7 @@ pub(super) fn stalled(
                 StallCause::Unreducible
             }
         }
-    };
-    Ok(outcome(cause, input, live))
+    })
 }
 
 /// The stalled group's outcome under a cause already known: its live triangles and census.
