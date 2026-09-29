@@ -28,6 +28,8 @@ export interface UpscaleFrame {
   moving?: boolean;
   /** The reactive value the blends and particles wrote, per texel. */
   reactive?: (x: number, y: number) => number;
+  /** The flags word of the one page every identifier names (`FLAG_DYNAMIC`, #573). */
+  pageFlags?: number;
   /** The placement tags of the four history texels read at a point (`historyWgsl.ts`); absent,
    *  those of the 3×3 are there. */
   tags?: (uv: number[]) => number[];
@@ -77,7 +79,7 @@ export function upscaleRun(frame: UpscaleFrame, asIs = false, filtered = false) 
       texture(uv),
     filterNow: texel(frame.layer ?? frame.color),
     addNow: texel(frame.layer ?? frame.color),
-    pages: [{ placement: 0 }],
+    pages: [{ placement: 0, flags: frame.pageFlags ?? 0 }],
     motion: [frame.motion ?? IDENTITY],
     history,
     shareHistory: history,
@@ -104,6 +106,7 @@ export function upscaleRun(frame: UpscaleFrame, asIs = false, filtered = false) 
       'historyCatmullRom',
       'placementOf',
       'placementTag',
+      'dynamicPixel',
       'uncovered',
       'currentShare',
     ],
