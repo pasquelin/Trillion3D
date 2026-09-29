@@ -12,14 +12,14 @@
  * sources are not compared; the report says which one served.
  */
 import type * as SdkBrowser from '../witnesses/measurement.ts';
-import type { Coupe } from './report/types.ts';
+import type { CutSelection } from './report/types.ts';
 
 type Backend = SdkBrowser.RenderBackend & { selectedPageIds?: () => Iterable<string> };
 
 export function lireCoupe(
   explorer: Awaited<ReturnType<typeof SdkBrowser.openMeasuredWorld>>,
   engineId: string,
-): Coupe {
+): CutSelection {
   const backend = explorer.backends.find((candidate) => candidate.id === engineId) as
     Backend | undefined;
   if (backend && typeof backend.selectedPageIds === 'function')

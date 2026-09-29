@@ -1411,6 +1411,7 @@
     "banner": "Arrastra para dar la vuelta. Cambia la vista para ver lo que guarda el renderizador.",
     "controls": {
       "see": "Ver",
+      "glass": "Cristal",
       "spin": "Girar"
     },
     "choices": {

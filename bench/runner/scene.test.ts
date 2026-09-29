@@ -13,7 +13,7 @@ import {
   scenesOf,
 } from './scene.ts';
 import { catalogueScenes } from './assetsCatalogue.ts';
-import { CAMPAGNE } from './campaign.ts';
+import { CAMPAIGN } from './campaign.ts';
 import { parseArgs } from './options.ts';
 
 test('the reference scenes are the public ones, the cut first and the mirror next', () => {
@@ -50,10 +50,10 @@ test('gltfUrlIn falls back to source.gltf of the compiled cache', () => {
 });
 
 test('applySceneFlag sets the derived cache on sides that do not have one', () => {
-  const flags = parseArgs(['--scene', 'flight-helmet', '--avant', 'dist']);
+  const flags = parseArgs(['--scene', 'flight-helmet', '--before', 'dist']);
   applySceneFlag(flags, '/assets');
-  assert.equal(flags.get('cache-apres'), sceneDerived('flight-helmet', '/assets'));
-  assert.equal(flags.get('cache-avant'), sceneDerived('flight-helmet', '/assets'));
+  assert.equal(flags.get('cache-after'), sceneDerived('flight-helmet', '/assets'));
+  assert.equal(flags.get('cache-before'), sceneDerived('flight-helmet', '/assets'));
 });
 
 test('scenesOf reads --scene a,b and ignores valueless flag', () => {
@@ -62,7 +62,7 @@ test('scenesOf reads --scene a,b and ignores valueless flag', () => {
 });
 
 test('the campaign carries the Three LOD witness and the moving reference', () => {
-  const noms = CAMPAGNE.map(([n]) => n);
+  const noms = CAMPAIGN.map(([n]) => n);
   assert.ok(noms.includes('three-lod'));
   assert.ok(noms.includes('three-nu'));
   assert.ok(noms.includes('mobile'));

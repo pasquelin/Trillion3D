@@ -26,7 +26,7 @@ export interface IrradianceOptions {
 }
 
 export type IrradianceResult =
-  { erreur: string } | { gaps: number[]; rebond: Record<string, unknown> | null };
+  { error: string } | { gaps: number[]; bounce: Record<string, unknown> | null };
 
 /**
  * Converged indirect irradiance of a pose, then convergence delay after a light moves.
@@ -43,7 +43,7 @@ export async function measureIrradiance(options: IrradianceOptions): Promise<Irr
     autonomousPagesBackend: sdk.autonomousPagesBackend,
   };
   const factory = options.backend ? backends[options.backend] : undefined;
-  if (!factory) return { erreur: `moteur absent du dist : ${options.backend}` };
+  if (!factory) return { error: `engine missing from dist: ${options.backend}` };
   const canvas = document.createElement('canvas');
   document.body.append(canvas);
   // Engine bounce diagnostic.
@@ -132,6 +132,6 @@ export async function measureIrradiance(options: IrradianceOptions): Promise<Irr
   canvas.remove();
   return {
     gaps,
-    rebond: bounce.length ? bounce[bounce.length - 1] : null,
+    bounce: bounce.length ? bounce[bounce.length - 1] : null,
   };
 }

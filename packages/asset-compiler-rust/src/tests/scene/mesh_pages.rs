@@ -57,12 +57,20 @@ fn assert_region_pages_name(directory: &Path, partition: &Value, holding: &MeshS
 }
 
 /// The manifest of the compiled folder `directory` whose tables are `tables`: every mesh page
-/// under the limit, every region page naming exactly the mesh pages its cells use.
+/// under the limit, every region page naming exactly the mesh pages its cells use, and the tables
+/// the pages of the meshes their node table draws, sorted and each once (#751).
 pub(super) fn assert_mesh_pages(directory: &Path, tables: &Value) {
     let root = read_json(&directory.join(MANIFEST_FILE));
     let holding = mesh_pages(directory, &root["pages"]);
     assert!(!holding.is_empty(), "the primitives lie in mesh pages");
-    assert_region_pages_name(directory, &tables["partition"], &holding);
+    if !tables["partition"].is_null() {
+        assert_region_pages_name(directory, &tables["partition"], &holding);
+    }
+    let nodes = tables["nodes"].as_array().expect("nodes");
+    let meshes = nodes.iter().filter_map(|node| node["mesh"].as_u64());
+    let core: BTreeSet<&String> = meshes.flat_map(|mesh| &holding[&mesh]).collect();
+    let listed: Vec<String> = serde_json::from_value(tables["meshPages"].clone()).expect("list");
+    assert_eq!(listed.iter().collect::<Vec<_>>(), Vec::from_iter(core));
 }
 
 #[test]
