@@ -4,6 +4,7 @@ import test from 'node:test';
 import { geometry, light, material, math, object } from '../packages/sdk-browser/src/index.ts';
 import { Camera } from '../packages/sdk-core/src/world/camera/camera.ts';
 import { Scene } from '../packages/sdk-browser/src/world/core/scene.ts';
+import { readyExampleIds } from '../site/app/examples/list.ts';
 import { runExampleModule } from './docs/examples/capture.ts';
 
 test('the component owns exactly one world for each attachment', async () => {
@@ -11,11 +12,8 @@ test('the component owns exactly one world for each attachment', async () => {
     new URL('../site/examples/inside-a-component.html', import.meta.url),
     'utf8',
   );
-  const roadmap = JSON.parse(
-    await readFile(new URL('../site/content/gallery-roadmap.json', import.meta.url), 'utf8'),
-  ) as { entries: { id: string; issue?: number }[] };
-  assert.equal(roadmap.entries.find(({ id }) => id === 'inside-a-component')?.issue, 412);
-  assert.match(html, /\/\/ Waits for #412: /);
+  // dispose() removes the canvas createWorld(element) made, so the example is in the gallery.
+  assert.ok(readyExampleIds.includes('inside-a-component'));
   const previous = {
     customElements: globalThis.customElements,
     document: globalThis.document,
