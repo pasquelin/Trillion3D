@@ -17,7 +17,7 @@ use super::GroupReductionInput;
 use crate::physics_cook::hausdorff::distance_above;
 
 /// The arrays a reduction's error is measured on: the level's (`Surface::of`), or a solve's own
-/// region with the vertices it placed (`placed::Local::surface`).
+/// region with the vertices it placed (`placed::Local::measured`).
 pub(super) struct Surface<'a> {
     pub positions: &'a [f32],
     /// Canonical vertex by position.

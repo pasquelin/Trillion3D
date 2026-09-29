@@ -142,7 +142,7 @@ pub const CULLING_LEAF: usize = 8;
 /// `sphere` encloses every `parent_sphere` of the subtree and `max_parent_error` is the largest
 /// `parent_error` in it, so a single projection bounds the whole subtree from above: when that bound
 /// already fits the pixel budget, no cluster below can be selected and the subtree is skipped.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct CullingNode {
     pub min: [f64; 3],
     pub max: [f64; 3],
@@ -152,20 +152,6 @@ pub struct CullingNode {
     pub child_count: usize,
     pub first_cluster: usize,
     pub cluster_count: usize,
-}
-impl Default for CullingNode {
-    fn default() -> Self {
-        Self {
-            min: [0.0; 3],
-            max: [0.0; 3],
-            sphere: [0.0; 4],
-            max_parent_error: 0.0,
-            first_child: 0,
-            child_count: 0,
-            first_cluster: 0,
-            cluster_count: 0,
-        }
-    }
 }
 
 pub(crate) mod attributes;
