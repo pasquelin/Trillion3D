@@ -16,7 +16,7 @@ function sample() {
   const g = new Geometry();
   g.setAttribute('position', new BufferAttribute(new Float32Array([1, 2, 3]), 3));
   g.setAttribute('skinIndex', new BufferAttribute(new Uint16Array([3, 2, 1, 0]), 4));
-  g.setAttribute('skinWeight', new BufferAttribute(new Float32Array([2, 2, 0, 0]), 4));
+  g.setAttribute('skinWeight', new BufferAttribute(new Float32Array([0.5, 0.5, 0, 0]), 4));
   g.morphAttributes.position = [new BufferAttribute(new Float32Array([2, 4, 6]), 3)];
   g.setIndex([0, 0, 0]);
   return g;

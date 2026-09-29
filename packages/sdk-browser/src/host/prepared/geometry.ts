@@ -129,7 +129,12 @@ export function preparedGeometries(document: TableDocument, binary: PreparedBina
     geometry = new Geometry();
     geometry._owner = 'host';
     for (const semantic of semantics) {
-      const name = NAMES[semantic] ?? semantic.toLowerCase();
+      const skin = /^(JOINTS|WEIGHTS)_(\d+)$/.exec(semantic);
+      const name =
+        NAMES[semantic] ??
+        (skin
+          ? `${skin[1] === 'JOINTS' ? 'skinIndex' : 'skinWeight'}${skin[2]}`
+          : semantic.toLowerCase());
       if (!(name in geometry.attributes))
         geometry.setAttribute(name, attributeOf(declared.attributes[semantic]));
     }

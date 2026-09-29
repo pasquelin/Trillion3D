@@ -1311,3 +1311,12 @@ a moving subtree from rest bounds. Shadow dirtiness follows the roots whose cont
 The timestamp recorder exposes the compute stage as `gpuDeformationMs`, with `null` for missing
 samples or timestamp support. Browser pixel/timing evidence is produced by recette on `develop`,
 not inferred from the source or substituted with CPU time.
+
+Skin pages retain every imported influence; page format 7 stores source weights and morph
+position/normal deltas as exact float32 values. WebGL2 reads these through its existing
+per-geometry deformation texture. Like morph pages, skin pages use individual resident page
+buffers so `gl_VertexID` addresses the correct source vertex. They keep their compiled clusters,
+DAG, cut, streaming and shadows; the change does not introduce another allocation mechanism.
+The existing arena has no per-draw base-vertex correction for this texture lookup. Excluding
+skin pages from arena batching may increase draw calls; its frame cost is unmeasured and belongs
+to the post-merge recette campaign.

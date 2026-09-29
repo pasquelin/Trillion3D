@@ -35,6 +35,7 @@ impl Deformation {
         let ids = map.iter().flat_map(|&v| [v; 4]).collect();
         let weights = map.iter().flat_map(|_| [1.0, 0.0, 0.0, 0.0]).collect();
         self.skin = Some((ids, weights));
+        self.influences = 4;
         self.soft_source = true;
         Ok(())
     }

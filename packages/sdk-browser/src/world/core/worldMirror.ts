@@ -29,8 +29,14 @@ function hostGeometry(drawn: DrawnTriangles) {
   if (drawn.colors) geometry.setAttribute('color', new BufferAttribute(drawn.colors, 4));
   const deformation = drawn.deformation;
   if (deformation?.joints && deformation.weights) {
-    geometry.setAttribute('skinIndex', new BufferAttribute(deformation.joints, 4));
-    geometry.setAttribute('skinWeight', new BufferAttribute(deformation.weights, 4));
+    geometry.setAttribute(
+      'skinIndex',
+      new BufferAttribute(deformation.joints, deformation.influences ?? 4),
+    );
+    geometry.setAttribute(
+      'skinWeight',
+      new BufferAttribute(deformation.weights, deformation.influences ?? 4),
+    );
   }
   geometry.morphTargetsRelative = true;
   geometry.morphAttributes.position =
