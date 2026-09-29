@@ -7,6 +7,7 @@
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import type { TableChannel } from '../../../../sdk-core/src/scene/core/tableMotion.ts';
 import type { Clip, Track, TrackKind } from '../../../../sdk-core/src/world/animation/index.ts';
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts';
 import { Skeleton } from '../../../../sdk-core/src/world/animation/skeleton.ts';
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
@@ -27,7 +28,7 @@ export function bindSkins(tables: PreparedSceneTables, nodes: readonly Object3D[
     (skin) =>
       new Skeleton(
         skin.joints.map((joint) => nodes[joint]),
-        skin.inverseBindMatrices,
+        skin.inverseBindMatrices ?? skin.joints.flatMap(() => new Matrix4().toArray()),
       ),
   );
   tables.nodes.forEach((declared, id) => {
