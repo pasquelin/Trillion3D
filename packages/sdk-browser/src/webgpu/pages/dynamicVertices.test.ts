@@ -43,7 +43,8 @@ const runtimeOf = (
 ) =>
   ({
     ...{ vis: { vertexPool }, gpu: { device, positionBuffers }, lights },
-    ...{ run: { lost: false, gate: { sceneMoved() {} } }, layout: { selectionRoots } },
+    ...{ run: { lost: false, gate: { sceneMoved() {} }, temporalHizState: {} } },
+    layout: { selectionRoots },
   }) as unknown as WebgpuPagesRuntime;
 
 test('a rewrite lands in its pool block alone and stales only its own shadow pages', () => {
