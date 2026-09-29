@@ -73,11 +73,11 @@ fn repeated_cells_intern_the_same_source_group() {
     assert_eq!(proxy.provenance.group_offsets, [0, 1]);
     assert_eq!(proxy.provenance.owners, [0, 5]);
     let bytes = proxy.encode();
-    let expected = 32 + proxy.triangle_count() * 44 + proxy.node_count() * 72 + 8 + 8 + 4 + 128;
+    let expected = 44 + proxy.triangle_count() * 44 + proxy.node_count() * 72 + 8 + 8 + 4 + 128;
     assert_eq!(
         bytes.len(),
         expected,
-        "all version-three suffix lengths are explicit"
+        "all version-four suffix lengths are explicit"
     );
 }
 

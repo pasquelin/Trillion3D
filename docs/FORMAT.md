@@ -470,12 +470,21 @@ Input is a directory with `manifest.json`, a directory with exactly one `.gltf`/
 
 ## Resident lighting proxy
 
-`proxy.bin` version 3 keeps the existing canonical triangle, albedo and wide-BVH columns.
-All fields are little-endian. Its eight `u32` header words are `WGPX`, version, triangle count,
-node count, owner-group count, owner-record count, source-node count and reserved zero.
+`proxy.bin` version 4 losslessly shares world-space simplified triangle runs. Simplification,
+triangle order, albedo, wide BVH and provenance are unchanged; the reader expands sharing once at
+load to the canonical flat columns, with no shader changes. All fields are little-endian. Its eleven
+`u32` header words are `WGPX`, version, triangle count, node count, owner-group count, owner-record
+count, source-node count, reserved zero, shape count, stored shape-triangle count and shared-placement
+count. The first eight words retain version 3's ownership header layout.
 The payload columns, in order, are:
 
-- Nine `f32` coordinates and one `u32` linear RGBA8 colour per canonical triangle.
+- One `u32` triangle count per shape; all shapes' nine `f32` coordinates per triangle, then
+  all shapes' `u32` linear RGBA8 albedos.
+- One `u32` shape rank per shared placement, then twelve `f32` values per placement (three
+  row-major affine rows). Placement counts derive from their shape counts.
+- One `u32` canonical destination per placed triangle, in placement order, unique and in range.
+- All loose triangles' nine `f32` coordinates, then their `u32` albedos, filling unassigned
+  canonical slots in order. Loose count is canonical count minus placed count.
 - Six `f32` bounds and twelve `u32` child words per wide BVH node.
 - One `u32` owner-group rank per triangle, followed by `groups + 1` owner offsets.
 - Owner records: source-node rank and linear RGBA8 colour, both `u32`.
@@ -485,7 +494,20 @@ The manifest publishes `groups`, `owners` and `instances` alongside existing siz
 Identical owner lists are interned; subdivision shares a group and BVH permutation moves its rank
 with the canonical triangle. Group offsets are monotonic, groups nonempty, ranks in range and the
 source hierarchy acyclic. Unknown proxy versions are rejected. Compiler implementation hashes
-include these source modules, so version-three products cannot reuse version-two cache keys.
+include these source modules, so version-four products cannot reuse version-three cache keys.
+
+Sharing is computed after world simplification beside provenance, using its bind-world matrices.
+A placement shares only when every transformed coordinate, including signed zero, round-trips to
+exactly the canonical f32 bits and every albedo matches. Candidate maps use f64 products and sums,
+left to right, rounded once to f32, in both writer and reader. Nonfinite maps are refused; unrelated
+runs and failed round-trips remain flat. At most eight prototypes of a matching triangle count are
+tried, bounding comparison work; a run is stored shared only when its tables save serialized bytes.
+This reduces disk/transfer bytes, not GPU geometry: expansion restores the existing flat layout.
+The browser caches decoded columns with their verified buffer across device sessions and charges
+allocated expansion/matrix bytes to the CPU cache. `cargo run --manifest-path
+packages/asset-compiler-rust/Cargo.toml --example proxy_sharing` regenerates the paired Rust/TS
+fixtures and reports exact v3/v4 serialized bytes for the 1,000-instance case; runtime memory and
+image acceptance remain the post-merge measurement session's evidence.
 
 The node table's optional `sourceNode` carries the original unsigned 32-bit document rank as
 exactly eight lowercase hexadecimal digits through partition renumbering. Its fixed width keeps
