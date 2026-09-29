@@ -115,7 +115,16 @@ export function shadowEntries(scene: ShadowScene): ShadowEntries {
   const names = [
     ...['drawPage', 'cutoutPage', 'shadowVertex', 'developVertex', 'shadow_vs', 'shadow_depth_vs'],
     ...['shadow_cutout_vs', 'shadowKeep', 'maskKeep', 'lineDash', 'pageHeader', 'pageCorner'],
-    ...['pagePosition', 'pageUv', 'vertPos', 'vertUv', 'keptAt', 'snapGrid', 'sunSnap'],
+    ...[
+      'pageRestPosition',
+      'pagePosition',
+      'pageUv',
+      'vertPos',
+      'vertUv',
+      'keptAt',
+      'snapGrid',
+      'sunSnap',
+    ],
   ];
   const scope = {
     ...scene,

@@ -13,7 +13,8 @@
       "play": "Beginnt zu spielen.",
       "stop": "Hält an und kehrt zum Anfang zurück.",
       "seek": "Setzt den Clip sofort auf `time` Sekunden, nach seinem Schleifenmodus, ob die Aktion spielt oder nicht: eine spielende Aktion läuft von dort weiter, eine angehaltene behält die Pose, bis eine spielende Aktion ihres Mischers sie überschreibt.",
-      "clipTime": "Wo die Aktion im Clip steht, nach ihrem Schleifenmodus."
+      "clipTime": "Wo die Aktion im Clip steht, nach ihrem Schleifenmodus.",
+      "blendMode": "`additive` addiert die Bewegung relativ zum ersten Schlüssel zu anderen Aktionen, statt sie zu mischen."
     }
   },
   "BudgetCanvas": {
@@ -1379,7 +1380,9 @@
       "vertexCount": "Scheitelpunkte.",
       "flags": "Welche Attribute sie trägt.",
       "decodedBytes": "Ihre Größe nach Dekomprimierung.",
-      "quantizationError": "Die größte Positionsverschiebung des Headers, in Objekteinheiten: eine dekodierte Position kann so weit von ihrer Quelle entfernt sein, und damit von der deklarierten Box der Seite."
+      "quantizationError": "Die größte Positionsverschiebung des Headers, in Objekteinheiten: eine dekodierte Position kann so weit von ihrer Quelle entfernt sein, und damit von der deklarierten Box der Seite.",
+      "morphTargets": "Zielanzahl in `attributes.morph`: sechs Fließkommazahlen je Ziel und Vertex; fehlt ohne Morphing.",
+      "skinInfluences": "Anzahl der ursprünglichen Knocheneinflüsse je Vertex."
     }
   },
   "decodeManifestBinary": {
@@ -1853,7 +1856,8 @@
       "mathBatch": "Zustand des Reglers der Rechenpfade (`../math/path/governor.ts`): aktueller Pfad jeder Batch-Operation, Mediane beider Pfade, Wechsel. `null` bei einem Host, der keinen Batch geöffnet hat — nicht gemessen, nicht „JavaScript-Pfad“.",
       "pagesPlannedOffThread": "Integration der Seiten außerhalb des Hauptstrangs. `pagesPlannedOffThread` zählt Ankünfte, deren Plan — der Platz jedes Clusters im Paket und die Seitenränge, die er bewegt — von einem Worker berechnet wurde, nie die, die der Rückfall auf dem Hauptstrang geplant hat. `pagePlanMs` ist die kumulierte Zeit dieser Pläne, gemessen vom Ausführenden selbst, unabhängig vom Strang: sie wird nie zu einem `cpu*` oder `gpu*` pro Bild addiert. Beide sind `null`, solange keine Ankunft geplant wurde — nicht gemessen, nicht null.",
       "pagePlanMs": "Zeit, die für die Planung der Ankünfte aufgewendet wurde.",
-      "dynamicUploadBytes": "Vertex-Bytes dynamischer Geometrie, die in diesem Bild an Ort und Stelle hochgeladen wurden (#573), innerhalb des Budgets der Welt pro Bild (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Fehlt, wo keine Welt zeichnet."
+      "dynamicUploadBytes": "Vertex-Bytes dynamischer Geometrie, die in diesem Bild an Ort und Stelle hochgeladen wurden (#573), innerhalb des Budgets der Welt pro Bild (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Fehlt, wo keine Welt zeichnet.",
+      "gpuDeformationMs": "GPU-Verformungsdauer für den Frame von `gpuPassMs`; null vor der Messung oder ohne Unterstützung."
     }
   },
   "frameStatistics": {
@@ -2989,7 +2993,8 @@
       "record": "Alles, was die Welt über dieses Modell hält: seine Adressen, sein Manifest und seinen Graphen.",
       "getObjectByName": "Der erste Knoten darunter mit diesem Namen: das Modell, ein Knoten seiner Quelldatei, dann jedes andere Kind — ein Licht aus der Datei, ein von einer Seite platzierter Knoten.",
       "metadata": "Das kompilierte Manifest des Modells — seine Primitive, `sourceTriangles` — und `clusters`, die Cluster, die seine Seiten enthalten, jede Stufe seiner DAGs gezählt.",
-      "localBounds": "Die Box des eigenen Inhalts dieses Knotens, in seinem lokalen Bezugssystem; ein einfacher Knoten hat keine."
+      "localBounds": "Die Box des eigenen Inhalts dieses Knotens, in seinem lokalen Bezugssystem; ein einfacher Knoten hat keine.",
+      "animations": "Clips aus der Datei, an Modellknoten gebunden: `animation.createMixer(model).clipAction(model.animations[0]).play()`."
     }
   },
   "loader": {
@@ -4121,7 +4126,9 @@
       "morphTargetInfluences": "Das Gewicht jedes Morph-Ziels, wenn die Geometrie welche deklariert.",
       "morphTargetDictionary": "Der Rang jedes Morph-Ziels nach seinem Namen.",
       "updateMorphTargets": "Ein Nullgewicht pro Morph-Ziel des ersten verformten Attributs, nach Rang benannt.",
-      "copy": "Übernimmt die Werte von `source` und Kopien seiner Kinder, sofern nicht anders gesagt."
+      "copy": "Übernimmt die Werte von `source` und Kopien seiner Kinder, sofern nicht anders gesagt.",
+      "skeleton": "Die durch `skinIndex` und `skinWeight` bezeichneten Knochen, pro Frame auf der GPU ausgewertet.",
+      "waves": "Gemeinsame Wellenparameter mit `WaterSurface` für GPU und Auftrieb."
     }
   },
   "metric": {
@@ -4600,7 +4607,9 @@
       "vertexCount": "Scheitelpunkte.",
       "flags": "Welche Attribute sie trägt.",
       "decodedBytes": "Größe von `block`.",
-      "quantizationError": "Die größte Positionsverschiebung des Seiten-Headers, in Objekteinheiten."
+      "quantizationError": "Die größte Positionsverschiebung des Seiten-Headers, in Objekteinheiten.",
+      "skinInfluences": "Exakte Breite der ursprünglichen Knocheneinflüsse je Vertex.",
+      "morphTargets": "Zielanzahl in `morph`: sechs Fließkommazahlen je Ziel und Vertex; fehlt ohne Morphing."
     }
   },
   "PageDecodeOp": {
@@ -4801,7 +4810,9 @@
       "matrices": "Sechzehn Fließkommazahlen spaltenweise pro Zeile, vom Besitzer geschrieben.",
       "live": "1, wo die Zeile die Ressource platziert, 0, wo sie zur Seite gelegt ist.",
       "shadowless": "1, wo die Zeile keinen Schatten wirft (das `castShadow` ihres Meshes ist `false`), 0, wo sie einen wirft.",
-      "capacity": "Zeilen, die Platz haben, bevor er wächst."
+      "capacity": "Zeilen, die Platz haben, bevor er wächst.",
+      "sources": "Ursprüngliche Besitzer bleiben bei Wiederverwendung der Zeilen erhalten.",
+      "sourceModels": "Meshes mit gemeinsam genutzten Ressourcen, einschließlich wartender Zeilen."
     }
   },
   "Plane": {
@@ -4999,7 +5010,8 @@
       "streams": "Seine Streampakete.",
       "quantization": "Null bei einer Primitive ohne Seiten, die auf keinem Raster quantisiert wurde.",
       "topology": "Das Erscheinungsbild der Kanten und Ecken des Meshes.",
-      "dynamic": "Die dynamische Geometrie einer Welt (#573): nur Indexseiten, ihre Vertices als Gleitkommazahlen aus der Host-Geometrie gelesen, die die Engine an Ort und Stelle neu schreibt."
+      "dynamic": "Die dynamische Geometrie einer Welt (#573): nur Indexseiten, ihre Vertices als Gleitkommazahlen aus der Host-Geometrie gelesen, die die Engine an Ort und Stelle neu schreibt.",
+      "deformation": "Ruhekugeln der Gelenke `[x,y,z,radius]` und maximale Morph-Reichweite; fehlt oder null bei statischer Geometrie."
     }
   },
   "Primitive": {
@@ -5699,7 +5711,8 @@
       "quantization": "Null bei einer Primitive ohne Seiten, die auf keinem Raster quantisiert wurde.",
       "topology": "Das Erscheinungsbild der Kanten und Ecken des Meshes.",
       "binary": "Wo ihre Listen zu finden sind.",
-      "dynamic": "Die dynamische Geometrie einer Welt (#573): nur Indexseiten, ihre Vertices als Gleitkommazahlen aus der Host-Geometrie gelesen, die die Engine an Ort und Stelle neu schreibt."
+      "dynamic": "Die dynamische Geometrie einer Welt (#573): nur Indexseiten, ihre Vertices als Gleitkommazahlen aus der Host-Geometrie gelesen, die die Engine an Ort und Stelle neu schreibt.",
+      "deformation": "Ruhekugeln der Gelenke `[x,y,z,radius]` und maximale Morph-Reichweite; fehlt oder null bei statischer Geometrie."
     }
   },
   "SlimPrimitiveBinary": {
@@ -6315,7 +6328,8 @@
       "name": "Was sie animiert: `node.field`.",
       "kind": "Welche Art von Wert sie enthält.",
       "times": "Wann jeder Schlüssel ankommt, in Sekunden.",
-      "values": "Der Wert bei jedem Schlüssel, nacheinander."
+      "values": "Der Wert bei jedem Schlüssel, nacheinander.",
+      "interpolation": "Standardmäßig `linear`; `step` hält den vorherigen Schlüssel; `cubic` nutzt glTF-Tripel aus Eingangstangente/Wert/Ausgangstangente."
     }
   },
   "TrackballCameraControls": {
@@ -6331,11 +6345,12 @@
       "owner": "Das Objekt, in das die Spur schreibt.",
       "field": "Das Feld von `owner`, das sie schreibt.",
       "key": "Der Schlüssel, bei dem die letzte Abtastung anhielt.",
-      "value": "Die Zahlen einer Abtastung."
+      "value": "Die Zahlen einer Abtastung.",
+      "reference": "Referenzpose des ersten Schlüssels für additive Aktionen."
     }
   },
   "TrackKind": {
-    "summary": "Was eine Spur animiert: eine Zahl, ein Vektor, eine Rotation oder eine Farbe."
+    "summary": "Eine Zahl, ein Vektor, eine Rotation, eine Farbe oder eine Liste von Morph-Gewichten."
   },
   "transformAffinePoint": {
     "summary": "`out[outOffset..outOffset + 2] = M · (x, y, z, 1)`, ohne perspektivische Division: die Form einer affinen Matrix, deren letzte Zeile `(0, 0, 0, 1)` ist."
@@ -6477,7 +6492,7 @@
   },
   "UNSPLIT_PASS": {
     "summary": "Anordnung einer ungeschnittenen Primitive, die der Compiler außerhalb des Cluster-DAG behält: ganzes Mesh, Quellreihenfolge beibehalten.",
-    "description": "Drei Materialeigenschaften führen heute dazu — Transmission, Skinning und Morph Targets —, nie ein Objektname."
+    "description": "Transmission erfordert diesen Pfad; niemals der Name eines Objekts."
   },
   "updateCameraFrame": {
     "summary": "Schreibt das Bild neu: Sicht = Inverse von `world` (null bei singulärer Weltmatrix, wie die Referenz), View-Projektion = `projection · view`, und die sechs Ebenen dieses View-Projektions-Sichtkegels."
@@ -6949,7 +6964,8 @@
       "shadowCastersKept": "Schattenwerfer, die das Culling pro Seite behalten hat, alle gezeichneten Seiten zusammen, im zuletzt vom Gerät abgetasteten Bild — eines von fünfzehn; `null`, bis eine Probe zurückkam.",
       "shadowCastersRejected": "Schattenwerfer, die das Culling pro Seite getestet und nicht behalten hat — außerhalb des Teils der Seite, den ihre Empfänger lesen —, im selben abgetasteten Bild; `null`, bis eine Probe zurückkam.",
       "shadowCastersHidden": "Bewegte Schattenwerfer, die der Verdeckungstest hinter der statischen Ebene ihrer Seite verborgen fand, im zuletzt abgetasteten Bild; `null`, bis eine Probe zurückkam.",
-      "dynamicUploadBytes": "Vertex-Bytes dynamischer Geometrie, die in diesem Bild an Ort und Stelle hochgeladen wurden (#573), innerhalb des Budgets der Welt pro Bild (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Fehlt, wo keine Welt zeichnet."
+      "dynamicUploadBytes": "Vertex-Bytes dynamischer Geometrie, die in diesem Bild an Ort und Stelle hochgeladen wurden (#573), innerhalb des Budgets der Welt pro Bild (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Fehlt, wo keine Welt zeichnet.",
+      "gpuDeformationMs": "GPU-Verformungsdauer für den Frame von `gpuPassMs`; null vor der Messung oder ohne Unterstützung."
     }
   },
   "WorldOptions": {
@@ -7481,7 +7497,8 @@
       "height": "Höhe der Oberfläche über dem Weltpunkt `(x, z)`, in Metern.",
       "point": "Der Weltpunkt `[x, y, z]`, zu dem der Ruhepunkt `(x, level, z)` getragen wird, in `out`: ein Punkt für Punkt bewegtes Gitter ist die Oberfläche, Kämme so scharf wie die Wellen.",
       "wavesNow": "Die deklarierten Wellen, jede Phase bis jetzt fortgeführt: erneut in `world.physics.water` gesetzt (dessen Wellen wieder bei 0 s beginnen), läuft die Oberfläche weiter, statt zu springen.",
-      "normal": "Einheitsnormale `[x, y, z]` der Oberfläche am Ruhepunkt `(x, z)`, in `out`."
+      "normal": "Einheitsnormale `[x, y, z]` der Oberfläche am Ruhepunkt `(x, z)`, in `out`.",
+      "waveModel": "Dieselben Wellenwerte und dieselbe Zeit für GPU und Physik."
     }
   },
   "WaveSpec": {
@@ -7937,5 +7954,38 @@
   },
   "world.materialMapBytes": {
     "summary": "Bytes gehaltener oder ausstehender Laufzeitbilder, auf 64 MiB begrenzt."
+  },
+  "animation.weightsTrack": {
+    "summary": "Eine Spur mit allen Morph-Gewichten pro Schlüssel.",
+    "parameters": {
+      "path": "Pfad `node.morphTargetInfluences`.",
+      "times": "Schlüsselzeiten in Sekunden.",
+      "values": "Ein Gewicht je Ziel und Schlüssel."
+    }
+  },
+  "animation.skeleton": {
+    "summary": "Erstellt das Skelett zur Zuweisung an `mesh.skeleton`.",
+    "parameters": {
+      "bones": "Knochen in der Reihenfolge von `skinIndex`.",
+      "inverseBindMatrices": "Sechzehn Zahlen je Knochen; ohne Angabe wird die aktuelle Pose zur Bindepose."
+    }
+  },
+  "animation.twoBoneIK": {
+    "summary": "Lässt eine Kette aus zwei Knochen nach der Clip-Auswertung einen Punkt erreichen.",
+    "parameters": {
+      "root": "Erster Knochen der Kette.",
+      "mid": "Zweiter Knochen der Kette.",
+      "end": "Am zweiten Knochen befestigter Endknoten.",
+      "target": "Zu erreichender Punkt.",
+      "pole": "Biegerichtung; standardmäßig die aktuelle Richtung.",
+      "weight": "0 erhält die aktuelle Pose; 1 übernimmt die Lösung vollständig."
+    }
+  },
+  "animation.windClip": {
+    "summary": "Wiederholender Clip, der Baumknochen neigt und schwingen lässt.",
+    "parameters": {
+      "bones": "Knochen vom Stamm bis zu den Spitzen.",
+      "options": "Richtung, maximaler Biegewinkel und Frequenz."
+    }
   }
 }

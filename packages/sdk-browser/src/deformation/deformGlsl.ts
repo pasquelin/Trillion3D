@@ -19,8 +19,8 @@ float deformFloat(int i){vec4 v=deformTexel(deformBlock,i>>2);int c=i&3;return c
 vec3 deformJoint(int at,float j,int count,vec4 v){int b=(at+min(int(j),count-1)*${PALETTE_FLOATS})>>2;
 return vec3(dot(deformTexel(deformBlock,b),v),dot(deformTexel(deformBlock,b+1),v),dot(deformTexel(deformBlock,b+2),v));}
 vec2 deformInfluence(int k){return deformTexel(morphDeltas,gl_VertexID*(deformDraw.y+deformDraw.z*2)+k).xy;}
-vec3 deformSkin(int at,int count,vec4 v){vec3 result=vec3(0.0);
-for(int k=0;k<deformDraw.y;k++){vec2 pair=deformInfluence(k);if(pair.y!=0.0)result+=pair.y*deformJoint(at,pair.x,count,v);}return result;}
+vec3 deformSkin(int at,int count,vec4 v){vec3 result=vec3(0.0);float total=0.0;
+for(int k=0;k<deformDraw.y;k++){vec2 pair=deformInfluence(k);total+=pair.y;if(pair.y!=0.0)result+=pair.y*deformJoint(at,pair.x,count,v);}return total>0.0?result/total:v.xyz;}
 mat4 deformMatrix(int at){mat4 m;for(int c=0;c<4;c++)m[c]=vec4(deformFloat(at+c*4),deformFloat(at+c*4+1),deformFloat(at+c*4+2),deformFloat(at+c*4+3));return m;}
 vec3 deformMorph(int t,bool normal){int k=gl_VertexID*(deformDraw.y+deformDraw.z*2)+deformDraw.y+t*2+(normal?1:0);return deformTexel(morphDeltas,k).xyz;}
 vec3 deformWaves(int at,int count,vec3 p,bool normal){vec3 d=vec3(0.0),n=vec3(0.0,1.0,0.0);
