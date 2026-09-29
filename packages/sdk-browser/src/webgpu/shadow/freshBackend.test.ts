@@ -1,8 +1,9 @@
 // #1275, on the whole pages backend over a mock GPU that runs the shipped kernels (`runShadowPass`):
 // a caster the camera does not select keeps its shadow in the pages the GPU draws itself — its row
 // is the engine's own, every resident page of every caster, and the GPU's pair cull keeps it for
-// the page its light-space volume reaches, sealed readable in the frame —; and a frame at rest
-// runs none of the GPU's page work.
+// the page its light-space volume reaches, sealed readable in the frame —; a frame at rest runs
+// none of the GPU's page work, and a frame where a caster alone moves runs it: the pages its own
+// surface asks first are drawn in that frame.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LAMP } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
@@ -81,7 +82,7 @@ test('a caster the camera does not select keeps its shadow in the pages the GPU 
   assert.ok(casterPages.length > 0, 'a page the GPU drew keeps the caster, readable');
 });
 
-test('a frame at rest, or where a caster alone moves, runs none of the GPU page work', async () => {
+test('a frame at rest runs none of the GPU page work; one where a caster alone moves runs it', async () => {
   const { backend, gpu, frame } = await lampOverFloor();
   for (let warm = 0; warm < 3; warm++) await frame();
   assert.ok(
@@ -100,10 +101,9 @@ test('a frame at rest, or where a caster alone moves, runs none of the GPU page 
     ];
   };
   assert.deepEqual(await work(), [0, 0], 'at rest: no GPU page work, no pass over a layer');
-  for (const x of [0.05, 0.1, 0.15])
-    assert.deepEqual(
-      (await work(() => backend.setTransform!('caster', along(x))))[0],
-      0,
-      `the caster at ${x}: its pages are the host's`,
-    );
+  for (const x of [0.05, 0.1, 0.15]) {
+    const [computes, passes] = await work(() => backend.setTransform!('caster', along(x)));
+    assert.ok(computes > 0 && passes > 0, `the caster at ${x}: the GPU draws what it asks first`);
+  }
+  assert.deepEqual(await work(), [0, 0], 'at rest again: none of it');
 });

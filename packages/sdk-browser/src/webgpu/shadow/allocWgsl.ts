@@ -91,8 +91,8 @@ fn shadowEntryPage(e:u32)->vec4i{
  let face=i32(rel/LAMP_FACE_ENTRIES);
  if(face>=i32(info.x)){return vec4i(-1);}
  let rest=rel-face*LAMP_FACE_ENTRIES;let mip=shadowLampEntryMip(rest);
- let local=rest-shadowLampMapEntry(0,mip);let side=i32(LAMP_PAGE_COUNT>>u32(mip));
- return vec4i(face*16+mip,local%side,i32(local/side),shadowLampCoarseness(mip));
+ let local=shadowLampEntryLocal(rest);let pages=shadowLampMipPages(mip);
+ return vec4i(shadowLampView(face,mip),shadowFacePageX(pages,local),shadowFacePageY(pages,local),shadowLampCoarseness(mip));
 }
 fn beginAllocation(lane:u32){
  if(lane<${POOL_COUNTS.length}u){countClear(lane);}

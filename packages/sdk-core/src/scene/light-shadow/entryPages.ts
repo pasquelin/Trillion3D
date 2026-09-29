@@ -2,7 +2,7 @@ import { LIGHT_KIND } from '../light/contracts.ts';
 import type { ShadowRecords } from './records.ts';
 import type { ShadowTable } from './table.ts';
 import type { SunLevels } from './sunLevels.ts';
-import { decodeLampEntry, lampCoarseness, sunCoarseness } from './pageModel.ts';
+import { PAGES, decodeLampEntry, lampCoarseness, sunCoarseness } from './pageModel.ts';
 
 /**
  * WHAT A TABLE ENTRY NAMES, read back: its light view — a sun level, or a lamp face and mip as
@@ -26,7 +26,7 @@ export function createEntryPages(table: ShadowTable, records: ShadowRecords, sun
         return true;
       }
       decodeLampEntry(relative, scratch);
-      at[0] = scratch[0] * 16 + scratch[1];
+      at[0] = PAGES.shadowLampView(scratch[0], scratch[1]);
       at[1] = scratch[2];
       at[2] = scratch[3];
       return true;
