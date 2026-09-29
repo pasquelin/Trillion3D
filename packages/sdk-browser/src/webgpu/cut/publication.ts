@@ -22,10 +22,8 @@ const coverageWatcher =
     pending.touch(page);
     if (packedPages[page]) held.moved(packedPages[page]);
   };
-/** The list ahead of a cut that has no view ahead. */
+/** The list ahead of a cut that has no view ahead, and the cut of a view let go. */
 const NO_IDS: readonly number[] = [];
-/** The cut of a view let go. */
-const NO_PAGES: readonly PageRec[] = [];
 
 /**
  * Publication of a cut, whoever decides it.
@@ -91,11 +89,12 @@ export function createWebgpuCutPublication(
       asked: createCutDelta(packedPages, run.desired),
       drawn: createCutDelta(packedPages),
     });
-  /** A view publishes the cut it asks for, `wanted`, and the one it draws, `shown`. */
-  const adopt = (own: ViewCut, wanted: readonly PageRec[], shown: readonly PageRec[]) => {
-    own.asked.adoptRecords(wanted);
+  /** A view publishes the cut it asks for, `wanted`, and the one it draws, `shown`, both as the
+   *  packed ranks the CPU cut names its instances by. */
+  const adopt = (own: ViewCut, wanted: readonly number[], shown: readonly number[]) => {
+    own.asked.apply(wanted);
     publishCut(own.asked);
-    own.drawn.adoptRecords(shown);
+    own.drawn.apply(shown);
     residencySets.applyDrawn(own.drawn);
   };
   // Readback describes submitted work and future streaming requests. It never
@@ -176,7 +175,7 @@ export function createWebgpuCutPublication(
      * exit of the cut, as it does for the copy of `drawn` — so none of that is redone here.
      * Republishing it as-is changes nothing: the difference is empty.
      */
-    adoptCpuCut(wanted: readonly PageRec[], shown: readonly PageRec[]) {
+    adoptCpuCut(wanted: readonly number[], shown: readonly number[]) {
       // The CPU cut evaluates no view ahead: what the main view's last readback asked for ahead is
       // let go. The view ahead is the main view's own, so another view's cut leaves it.
       if (views.active === views.main) ahead.offerIds(NO_IDS);
@@ -190,7 +189,7 @@ export function createWebgpuCutPublication(
     /** `view`, not the main one, is released: its cut leaves the union, whatever it held. */
     releaseView(view: WebgpuView) {
       if (view === views.main || !view.cut) return;
-      adopt(view.cut, NO_PAGES, NO_PAGES);
+      adopt(view.cut, NO_IDS, NO_IDS);
       view.cut = undefined;
       if (residencySets.drawnFirst === view.run.desired) residencySets.drawnFirst = null;
     },

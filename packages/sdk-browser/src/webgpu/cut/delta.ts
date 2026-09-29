@@ -1,5 +1,6 @@
-import { catalogueIndexOf, type PageRec } from '../../page/selection/selection.ts';
+import type { PageRec } from '../../page/selection/selection.ts';
 import { createSparseInts, grown } from '../../page/cut/sparseInts.ts';
+import { createPageCatalogue } from '../pages/prepare/catalogue.ts';
 
 /**
  * Published difference, and what can be asked of it.
@@ -64,6 +65,8 @@ export type IdDelta = Pick<CutDelta, 'entered' | 'exited' | 'enteredCount' | 'ex
  * contract, and readers do not know which one decides.
  */
 export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[]): CutDelta {
+  /** A packed rank back to its record: the one catalogue accessor (`../pages/prepare/catalogue.ts`). */
+  const { recordOf, indexOf } = createPageCatalogue(packedPages);
   /** Epoch of the shown list where the id was last held; an id held by neither list has none. */
   const mark = createSparseInts();
   /** Ids held by the previous shown list and by the current one: two swapped buffers, grown and
@@ -118,7 +121,7 @@ export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[
         published[i] = id;
         same = false;
       }
-      const rec = id >= 0 ? packedPages[id] : undefined;
+      const rec = recordOf(id);
       if (!rec) continue;
       const seen = mark.set(id, epoch);
       if (seen === epoch) continue;
@@ -167,7 +170,7 @@ export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[
     adoptRecords(records: readonly PageRec[]) {
       recordIds.length = 0;
       for (let i = 0; i < records.length; i++) {
-        const id = catalogueIndexOf(packedPages, records[i]);
+        const id = indexOf(records[i]);
         if (id !== undefined) recordIds.push(id);
       }
       apply(recordIds);
