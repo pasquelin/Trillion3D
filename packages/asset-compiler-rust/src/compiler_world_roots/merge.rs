@@ -3,10 +3,9 @@
 //! way up to the world top. The two builds are spliced into one DAG per material: a cell root the
 //! world build groups is the very cluster its group names, never a copy.
 use super::*;
-use crate::compiler_world::transform_point;
 use crate::dag::{build_dag_from_roots, DagCluster, DagGroup};
-use crate::proxy::world_scale;
-use std::collections::HashMap;
+use crate::proxy::{place, world_scale};
+use crate::qem::compact_region;
 
 /// Every cluster of the world, on one world-space vertex buffer. Level 0 is the object roots,
 /// each with its `origin`, the instance it places; every other cluster is a super-root. `cells` names, per cluster, the
@@ -31,10 +30,7 @@ fn gather(instances: &[Instance], members: &[usize]) -> (Vec<f32>, Roots, Vec<us
     for &instance in members {
         let placed = &instances[instance];
         let base = (positions.len() / 3) as u32;
-        for vertex in placed.cover.positions.as_chunks::<3>().0 {
-            let point = [vertex[0], vertex[1], vertex[2]].map(f64::from);
-            positions.extend(transform_point(&placed.matrix, point).map(|v| v as f32));
-        }
+        place(&placed.cover.positions, &placed.matrix, &mut positions);
         let scale = world_scale(&placed.matrix);
         for root in &placed.cover.clusters {
             roots.push((
@@ -51,21 +47,17 @@ impl WorldDag {
     /// The vertices `clusters` use, on their own, and the clusters on them: the world build of a
     /// material reads its cells' roots, not every vertex of the world.
     fn compact(&self, clusters: &[usize]) -> (Vec<f32>, Roots) {
-        let (mut positions, mut local) = (Vec::new(), HashMap::new());
+        let joined: Vec<u32> = clusters
+            .iter()
+            .flat_map(|&id| self.clusters[id].indices.iter().copied())
+            .collect();
+        let (positions, mut local, _) = compact_region(&self.positions, &joined);
         let mut roots = Vec::with_capacity(clusters.len());
-        for &id in clusters {
-            let cluster = &self.clusters[id];
-            let mut indices = Vec::with_capacity(cluster.indices.len());
-            for &vertex in &cluster.indices {
-                let next = (positions.len() / 3) as u32;
-                indices.push(*local.entry(vertex).or_insert_with(|| {
-                    let at = vertex as usize * 3;
-                    positions.extend_from_slice(&self.positions[at..at + 3]);
-                    next
-                }));
-            }
-            roots.push((indices, cluster.lod_error));
+        for &id in clusters.iter().rev() {
+            let at = local.len() - self.clusters[id].indices.len();
+            roots.push((local.split_off(at), self.clusters[id].lod_error));
         }
+        roots.reverse();
         (positions, roots)
     }
 
@@ -124,7 +116,7 @@ impl WorldDag {
             let mut covered: Vec<usize> = group
                 .children
                 .iter()
-                .flat_map(|&c| self.cells[c].clone())
+                .flat_map(|&c| self.cells[c].iter().copied())
                 .collect();
             covered.sort_unstable();
             covered.dedup();
@@ -157,8 +149,8 @@ pub(super) fn world_dag(
         .into_par_iter()
         .map(|((material, cell), members)| {
             let (positions, roots, origins) = gather(instances, &members);
-            let built = build_dag_from_roots(&positions, roots, checkpoint)?;
-            Ok((material, cell, positions, origins, (built.0, built.1)))
+            let (dag, groups, ..) = build_dag_from_roots(&positions, roots, checkpoint)?;
+            Ok((material, cell, positions, origins, (dag, groups)))
         })
         .collect::<Result<Vec<_>>>()?;
     let mut world = WorldDag::default();
@@ -169,15 +161,20 @@ pub(super) fn world_dag(
         let roots = ids.into_iter().filter(|&id| world.clusters[id].is_root());
         tops.entry(material).or_default().extend(roots);
     }
-    for (material, entered) in tops {
-        let (positions, roots) = world.compact(&entered);
-        let built = build_dag_from_roots(&positions, roots, checkpoint)?;
-        world.splice(
-            (built.0, built.1),
-            &positions,
-            &entered,
-            (material, None, &[]),
-        );
+    // Each material's top is built on its own: in parallel, then spliced in material order.
+    let tops: Vec<_> = tops
+        .into_iter()
+        .map(|(material, entered)| (material, world.compact(&entered), entered))
+        .collect();
+    let built = tops
+        .into_par_iter()
+        .map(|(material, (positions, roots), entered)| {
+            let (dag, groups, ..) = build_dag_from_roots(&positions, roots, checkpoint)?;
+            Ok((material, positions, entered, (dag, groups)))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    for (material, positions, entered, built) in built {
+        world.splice(built, &positions, &entered, (material, None, &[]));
     }
     Ok(world)
 }
