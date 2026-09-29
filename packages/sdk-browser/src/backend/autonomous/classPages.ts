@@ -51,10 +51,9 @@ const ownClass = (primitive: Primitive, blended: boolean) =>
 
 /** The largest world scale that places the records: the compiler's tile follows it, read over
  *  every placement of the primitive (`mesh_scales`), not only those a change moves. */
-const largestScale = (records: readonly PageRec[]) =>
+const largestScale = (records: readonly PageRec[], scratch = new Matrix4()) =>
   records.reduce(
-    (scale, rec) =>
-      Math.max(scale, new Matrix4().fromArray(rec.matrix.elements).getMaxScaleOnAxis()),
+    (scale, rec) => Math.max(scale, scratch.fromArray(rec.matrix.elements).getMaxScaleOnAxis()),
     0,
   );
 
@@ -75,16 +74,19 @@ export function createClassPages(env: ClassPagesEnvironment) {
   let turn = 0,
     pending: Promise<unknown> = Promise.resolve();
 
-  /** The pages of `primitive` for the class `blended`, by page id, cut for a primitive that
-   *  `scale` places at most; null for the class it was compiled for, whose pages it reads. */
+  /** The pages of `primitive` for the class `blended`, by page id, cut from the source `moved`
+   *  records draw, on the tile of `placed`, its every placement; null for the class it was
+   *  compiled for, whose pages it reads. */
   async function pagesFor(
     primitive: Primitive,
     blended: boolean,
-    records: readonly PageRec[],
-    scale: number,
+    moved: readonly PageRec[],
+    placed: readonly PageRec[],
   ) {
-    const mesh = records[0].sourceMesh as HostMesh;
     if (ownClass(primitive, blended)) return null;
+    // Read before the first wait: the cut holds no placement.
+    const mesh = moved[0].sourceMesh as HostMesh,
+      scale = largestScale(placed);
     const [vertices, corners] = await Promise.all([
       pagedGeometry(mesh).loadVertices(),
       Promise.all(primitive.pages.map((page) => context.readPage!(page.url))),
@@ -158,17 +160,20 @@ export function createClassPages(env: ClassPagesEnvironment) {
      *  draws the pages of its new class, cut on the tile every placement of it sets, moved or
      *  not, as the compiler's is. */
     follow(alpha: AlphaChange, all: readonly PageRec[]) {
+      const movedRecords = new Set(moved(alpha, all));
+      if (movedRecords.size === 0) return;
       const byPrimitive = new Map<Primitive, PageRec[]>();
-      for (const rec of moved(alpha, all)) {
+      for (const rec of all) {
         const primitive = compiledOf(rec);
         if (!primitive) continue;
         (byPrimitive.get(primitive) ?? byPrimitive.set(primitive, []).get(primitive)!).push(rec);
       }
-      for (const [primitive, records] of byPrimitive) {
+      for (const [primitive, placed] of byPrimitive) {
+        const records = placed.filter((rec) => movedRecords.has(rec));
+        if (records.length === 0) continue;
         const mine = ++turn;
         for (const rec of records) turns.set(rec, mine);
-        const placed = all.filter((rec) => compiledOf(rec) === primitive);
-        const landed = pagesFor(primitive, alpha.to === 'blend', records, largestScale(placed))
+        const landed = pagesFor(primitive, alpha.to === 'blend', records, placed)
           .then((pages) => swap(records, pages, mine))
           .catch((error: unknown) =>
             sendEngineDiagnostic(context.onDiagnostic, 'material-class-pages', String(error), {

@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
-import { liveRows, triangleBackend } from './triangle.fixture.ts';
+import { drawnPageMeshes, liveRows, triangleBackend } from './triangle.fixture.ts';
 
 test('WebGL2 draws the rows of a material turned blended one by one, and instanced once opaque again', async () => {
   const { backend, camera, geometry, material } = triangleBackend({ placements: liveRows(2) });
@@ -60,13 +60,10 @@ test('the page ceiling counts an instance of a material turned blended by its ow
 
 /** The meshes the display graph draws, each told by its instanced rows and its blending: the
  *  family of each record, as a frame reads it. */
-function families({ backend, camera }: ReturnType<typeof triangleBackend>) {
-  backend.render(camera);
-  return (backend.scene as unknown as G.Group).children
-    .filter((child) => 'geometry' in child)
-    .map((child) => `${'count' in child ? 'instanced' : 'one'}:${child.material.transparent}`)
+const families = (triangle: ReturnType<typeof triangleBackend>) =>
+  drawnPageMeshes(triangle)
+    .map((mesh) => `${'count' in mesh ? 'instanced' : 'one'}:${mesh.material.transparent}`)
     .sort();
-}
 
 // A primitive moved between blended and opaque inside the session draws in the family of its new
 // class (#846), as a fresh session of the compile of that class draws it: a primitive the compiler
