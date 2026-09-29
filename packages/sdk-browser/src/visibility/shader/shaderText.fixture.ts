@@ -3,7 +3,8 @@
  * `spriteAt`; `../../guides/guideShaders.ts`: `guideCorner`) on the CPU: a small reader of the
  * few statements and expressions they are written in — declarations, compound assignments, one
  * guarded return or assignment, arithmetic on scalars, vectors and column-major matrices, column
- * indexing, swizzles, `select`, `?:`, `length`, `normalize`, `floor`, `cos`, `sin`, the vector
+ * indexing, swizzles, `select`, `?:`, `length`, `normalize`, `floor`, `cos`, `sin`, `min`, `max`,
+ * `abs`, `sqrt`, the vector
  * constructors and the functions of other texts a caller names. The tests then measure
  * what the real text does, in WGSL and in GLSL, instead of a copy of its formula. The cut rule's
  * integer and boolean subset is read by `../../page/cut/wgslPredicate.fixture.ts`.
@@ -46,6 +47,10 @@ const CALLS: Record<string, Call> = {
   floor: (v) => Math.floor(v as number),
   cos: (v) => Math.cos(v as number),
   sin: (v) => Math.sin(v as number),
+  min: (a, b) => lift(a, b, Math.min),
+  max: (a, b) => lift(a, b, Math.max),
+  abs: (v) => (Array.isArray(v) ? v.map(Math.abs) : Math.abs(v as number)),
+  sqrt: (v) => Math.sqrt(v as number),
 };
 const vector = (...args: Value[]) => args.flat() as number[];
 

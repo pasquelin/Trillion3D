@@ -1,6 +1,7 @@
 import type { DagReport, PrimitiveDagStall } from './dag.ts';
 import type { AssetScope } from './base.ts';
 import type { SceneProxyDescriptor } from './proxy.ts';
+import type { ImpostorSection } from './impostor.ts';
 import type {
   GeometryPageDescriptor,
   GeometryPageFormat,
@@ -194,4 +195,7 @@ export interface ClusterManifest {
   /** Where to read the resident scene proxy and its BVH: geometry hit by rays.
    *  Absent from a cache compiled before bounce, which remains readable as is. */
   proxy?: SceneProxyDescriptor;
+  /** The compiler's verdict on every drawn mesh and the octahedral atlases it baked (#817).
+   *  Absent from a cache compiled before impostors, which draws every mesh in full. */
+  impostors?: ImpostorSection;
 }
