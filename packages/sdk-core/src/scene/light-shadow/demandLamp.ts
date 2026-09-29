@@ -50,6 +50,8 @@ function rowSpan(m: number, r: number, at: number) {
   spans[at + 1] = hi;
 }
 
+/** Least `|c|` over the span at `spans[at]`. */
+const leastAbs = (at: number) => Math.max(spans[at], -spans[at + 1], 0);
 const clampPage = (value: number, pages: number) =>
   Math.min(pages - 1, Math.max(0, Math.floor(value)));
 const mipOf = (ratio: number) =>
@@ -101,19 +103,23 @@ export const lampDemand: DemandLight & {
     growBox(box, o, margin * texelAt(boxFarthest(box, o, px, py, pz)) * 2 ** mip, grown);
     const pages = LAMP_SIDE >> mip;
     for (let face = 0, m = 0; face < faces; face++, m += 16) {
+      rowSpan(m, 0, 0);
+      rowSpan(m, 1, 2);
       rowSpan(m, 3, 4);
-      if (spans[5] <= 0) continue;
-      let u0 = -Infinity,
-        u1 = Infinity,
-        v0 = -Infinity,
-        v1 = Infinity;
-      if (spans[4] > 0) {
-        rowSpan(m, 0, 0);
-        rowSpan(m, 1, 2);
-        u0 = Math.min(spans[0] / spans[4], spans[0] / spans[5]);
-        u1 = Math.max(spans[1] / spans[4], spans[1] / spans[5]);
-        v0 = Math.min(spans[2] / spans[4], spans[2] / spans[5]);
-        v1 = Math.max(spans[3] / spans[4], spans[3] / spans[5]);
+      // A point the face reads projects within it, `|x|, |y| ≤ w`: its `w` is at least the box's
+      // least `|x|` and `|y|`, so a box across the face's plane is bounded by what it holds.
+      const w0 = Math.max(spans[4], leastAbs(0), leastAbs(2)),
+        w1 = spans[5];
+      if (w1 <= 0 || w1 < w0) continue;
+      let u0 = -1,
+        u1 = 1,
+        v0 = -1,
+        v1 = 1;
+      if (w0 > 0) {
+        u0 = Math.min(spans[0] / w0, spans[0] / w1);
+        u1 = Math.max(spans[1] / w0, spans[1] / w1);
+        v0 = Math.min(spans[2] / w0, spans[2] / w1);
+        v1 = Math.max(spans[3] / w0, spans[3] / w1);
       }
       if (u1 < -1 || u0 > 1 || v1 < -1 || v0 > 1) continue;
       // `t = (ndc.x / 2 + 1/2, 1/2 − ndc.y / 2) · side`: the rows of pages run down the face.

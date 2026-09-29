@@ -111,7 +111,7 @@ export function createShadowDemand(table: ShadowTable, pool: ShadowPool, sun: Su
     for (let k = 1; k < 3; k++)
       if (stack[o + 3 + k] - stack[o + k] > stack[o + 3 + axis] - stack[o + axis]) axis = k;
     const side = stack[o + 3 + axis] - stack[o + axis];
-    if (fine < coarse && depth < MAX_SPLITS && side > 2 * light.pageSide(stack, o, fine)) {
+    if (fine < coarse && depth < MAX_SPLITS && side > light.pageSide(stack, o, fine)) {
       const c = o + RECEIVER_FLOATS,
         middle = stack[o + axis] + side / 2;
       for (let half = 0; half < 2; half++) {

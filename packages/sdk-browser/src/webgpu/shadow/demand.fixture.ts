@@ -85,9 +85,10 @@ function lampReads(plan: ShadowPlan, store: SceneLightStore, slot: number, lit: 
   const pages = LAMP_SIDE >> mip,
     t = [(u * 0.5 + 0.5) * pages * SHADOW_PAGE, (0.5 - v * 0.5) * pages * SHADOW_PAGE];
   const clamp = (p: number) => Math.min(pages - 1, Math.max(0, p));
-  return pagesRead(t, t.map((c) => clamp(Math.floor(c / SHADOW_PAGE)))).map(
-    ([x, y]) => base + lampEntry(face, mip, clamp(x), clamp(y)),
-  );
+  return pagesRead(
+    t,
+    t.map((c) => clamp(Math.floor(c / SHADOW_PAGE))),
+  ).map(([x, y]) => base + lampEntry(face, mip, clamp(x), clamp(y)));
 }
 
 /** The pages the sun in `slice` has its pixel at `lit` read: its first level in the window. */
@@ -96,7 +97,11 @@ function sunReads(plan: ShadowPlan, slice: number, lit: Lit, f: number) {
     base = plan.table.baseOf(slice),
     finest = sun.finest[slice];
   const cosine = Math.min(Math.max(-dot(lit.N, sun.frame, slice * 9 + 6), 1e-3), 1);
-  for (let level = Math.max(Math.floor(Math.log2(f)), finest); level < finest + SUN_LEVELS; level++) {
+  for (
+    let level = Math.max(Math.floor(Math.log2(f)), finest);
+    level < finest + SUN_LEVELS;
+    level++
+  ) {
     const texel = 2 ** level,
       page = texel * SHADOW_PAGE,
       origin = [0, 1].map((axis) => sun.originOf(slice, level, axis));
@@ -159,3 +164,31 @@ export const tileGrid = (x0: number, x1: number, z0: number, z1: number) =>
     x0 + (i % (x1 - x0)),
     z0 + Math.floor(i / (x1 - x0)),
   ]);
+
+/** The six inward planes of `view`'s frustum, as `frustumPlanesFromMatrix` lays them out. */
+export function viewPlanes(view: ShadowViewpoint) {
+  const f = view.forward,
+    e = view.position,
+    right = [-f[2], 0, f[0]].map((c) => c / Math.hypot(f[0], f[2])),
+    up = [
+      right[1] * f[2] - right[2] * f[1],
+      right[2] * f[0] - right[0] * f[2],
+      right[0] * f[1] - right[1] * f[0],
+    ];
+  const ty = Math.tan(view.halfFovY),
+    tx = ty * view.aspect;
+  const normals = [
+    [tx, right, -1],
+    [tx, right, 1],
+    [ty, up, 1],
+    [ty, up, -1],
+  ].map(([t, side, s]) => {
+    const n = [0, 1, 2].map((k) => f[k] * (t as number) + (side as number[])[k] * (s as number));
+    return n.map((c) => c / Math.hypot(...n));
+  });
+  const planes = new Float64Array(24);
+  normals.forEach((n, i) => planes.set([...n, -dot(n, e)], i * 4));
+  planes.set([-f[0], -f[1], -f[2], dot(f, e) + view.far], 16);
+  planes.set([...f, -dot(f, e) - view.near], 20);
+  return planes;
+}
