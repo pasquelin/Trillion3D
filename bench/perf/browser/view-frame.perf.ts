@@ -86,18 +86,18 @@ const instanceDe = (pages: number) => {
   const basePages: Page[] = [],
     baseRoots: ClusterRoot<PageRec>[] = [],
     clones: Page[] = [],
-    racines: ClusterRoot<PageRec>[] = [];
+    roots: ClusterRoot<PageRec>[] = [];
   for (let i = 0; i < 10; i++) {
     baseRoots.push({ world: new G.Matrix4().makeScale(1 + i, 2, 3), pages: [] });
-    racines.push({ world: new G.Matrix4(), pages: [] });
+    roots.push({ world: new G.Matrix4(), pages: [] });
   }
   // Page `i` is placed by root `i % 10`: the world the oracle reads on it is that root's.
   for (let i = 0; i < pages; i++) {
     basePages.push(pageOf(new G.Matrix4().makeScale(1 + (i % 10), 2, 3)));
     clones.push(pageOf(new G.Matrix4(), i % 3 ? emptyMesh() : undefined));
-    racines[i % 10].pages.push(clones[i]);
+    roots[i % 10].pages.push(clones[i]);
   }
-  return { basePages, baseRoots, instance: { pages: clones, bases: basePages, roots: racines } };
+  return { basePages, baseRoots, instance: { pages: clones, bases: basePages, roots } };
 };
 const petiteInstance = instanceDe(100),
   grosseInstance = instanceDe(5000);

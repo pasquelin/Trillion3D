@@ -17,7 +17,7 @@ const MAUVAIS = [NaN, Infinity, -Infinity, -0];
 
 /** The one root every page and box below ranks: the identity, their `matrix` too, which the
  *  oracles read on them as pages carried it before #1226. */
-export const racines = [{ world: new G.Matrix4() }];
+export const roots = [{ world: new G.Matrix4() }];
 type Placed = { matrix: G.Matrix4; placementIndex: number };
 const placed = (): Placed => ({ matrix: new G.Matrix4(), placementIndex: 0 });
 

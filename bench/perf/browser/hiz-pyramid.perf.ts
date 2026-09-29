@@ -14,7 +14,7 @@ import { rasterVisibility } from '../../../packages/sdk-browser/src/visibility/r
 import type { HizBounds, HizPyramid } from '../../../packages/sdk-browser/src/hiz/types.ts';
 import type { ScenePage } from './support/scenes.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
-import { camera, coupe, racines, rectangles } from './support/scenes.ts';
+import { camera, coupe, roots, rectangles } from './support/scenes.ts';
 import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 
 function referenceRowsOf(depth: Float32Array, width: number, height: number): number[][] {
@@ -70,7 +70,7 @@ interface Entree {
 function cas(width: number, height: number, pages: ScenePage[], seed: number): Entree {
   const cam = camera(6, 0.1, width / height),
     viewport: [number, number] = [width, height];
-  const depth = rasterVisibility(pages, racines, cameraMoteur(cam), viewport).depth;
+  const depth = rasterVisibility(pages, roots, cameraMoteur(cam), viewport).depth;
   const alea = graine(seed),
     bounds: HizBounds[] = [];
   const count = width >= 1280 ? 4000 : width >= 33 ? 200 : 2;
