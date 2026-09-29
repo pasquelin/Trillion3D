@@ -1,18 +1,13 @@
-import * as THREE from 'three';
 import assert from 'node:assert/strict';
 import { PAGE } from './pool.fixture.ts';
 import { mount } from './poolCut.fixture.ts';
 import { coverFault, ruleDag } from '../../page/cut/cutRule.fixture.ts';
-import type { DagPage } from '../../../../../bench/perf/browser/support/dagCut.ts';
+import { stripCamera, type DagPage } from '../../../../../bench/perf/browser/support/dagCut.ts';
 import type { HostCamera } from '../../camera/world.ts';
 
 /** Down the strip from its near end, as the cut rule's tests see it: every leaf in view. */
 export function wholeStrip() {
-  const cam = new THREE.PerspectiveCamera(70, 16 / 9, 0.1, 4000);
-  cam.position.set(-6, 4, 0);
-  cam.lookAt(128, 0, 0);
-  cam.updateMatrixWorld();
-  return cam as unknown as HostCamera;
+  return stripCamera(256) as unknown as HostCamera;
 }
 
 /** The rule DAG as the WebGL2 path collects it — one primitive, its group links, only its roots
