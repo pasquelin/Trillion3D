@@ -37,7 +37,7 @@ export function quad(
   const page: VisPage & HizPage = {
     array: new Uint32Array([0, 1, 2, 0, 2, 3]),
     attributes: geometry.attributes,
-    matrix: new G.Matrix4(),
+    placementIndex: 0,
     material: surfaceOf(material),
     clusterId,
     min,
@@ -60,7 +60,14 @@ export function projectBoxToScreen(
   camera: G.Camera | EngineCamera,
   viewport: [number, number],
 ): HizBounds {
-  projectBoxesFlat([{ min, max, matrix }], 1, cameraMoteur(camera), viewport, boxScratch);
+  projectBoxesFlat(
+    [{ min, max, placementIndex: 0 }],
+    [{ world: matrix }],
+    1,
+    cameraMoteur(camera),
+    viewport,
+    boxScratch,
+  );
   return {
     minX: boxScratch[0],
     minY: boxScratch[1],
