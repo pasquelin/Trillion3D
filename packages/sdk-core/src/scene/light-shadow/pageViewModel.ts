@@ -3,7 +3,7 @@ import type { PageOps } from './pageOps.ts';
 /**
  * THE PAGE VIEW MODEL (#1275): how a page's projection and cull volume are composed, one entry at
  * a time, over `PageOps` — evaluated on numbers by the host's page writers (`writeLampPage`,
- * `shadowOrthographic`, `writeConeVolume`, `writeBoxVolume`, `writeSunSquare`), printed as WGSL by
+ * `shadowOrthographic`, `writeBoxVolume`, `writeSunSquare`, the cone of `coneModel.ts`), printed as WGSL by
  * the pass that composes the pages the GPU draws itself (`freshWgsl.ts`). One source: the two
  * cannot aim a page, or bound its casters, differently.
  *
@@ -21,10 +21,6 @@ export function pageViewModel<V>(o: PageOps<V>) {
     /** Its depth scale and offset over `[0, far]`, reversed: the eye at 1, the far side at 0. */
     shadowOrthoDepthScale: (far: V) => o.div(o.float(1), o.sub(far, o.float(0))),
     shadowOrthoDepthOffset: (far: V) => o.div(far, o.sub(far, o.float(0))),
-    /** A world axis of the ray through `(x, y)` of a face of tangent half-field `t`, before its
-     *  length is taken: its forward `f`, right `r` and up `u` on that axis. */
-    shadowConeRay: (f: V, r: V, u: V, t: V, x: V, y: V) =>
-      o.add(f, o.mul(t, o.add(o.mul(x, r), o.mul(y, u)))),
     /** A cone's half-angle from the longest chord between its axis and a corner ray, both unit —
      *  exact in f32 where an arccosine near 1 is not —; all of space past a quarter-turn field. */
     shadowConeHalfAngle: (chord: V, halfFov: V) =>
