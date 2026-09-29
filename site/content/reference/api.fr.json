@@ -341,7 +341,7 @@
       "proxyTriangleBudget": "Budget total de triangles du proxy pour une scène entière, toutes instances comprises : l’empreinte résidente.",
       "proxyCellMetres": "Plancher de résolution du maillage proxy en mètres : taille des triangles simplifiés et des cases du cache de surface. Doublé par le compilateur si le budget est dépassé.",
       "proxyLeafTriangles": "Triangles par feuille du BVH : les boucles sur les feuilles sont bornées par cette constante.",
-      "traversalSteps": "Nœuds du BVH visités par rayon : bornés avant d’exécuter l’image, jamais dynamiques. Un nœud à 4 enfants couvre 4× plus d’arbre par pas qu’un BVH binaire.",
+      "traversalSteps": "Nœuds du BVH visités par rayon sur l’arbre tel que construit, bornés avant d’exécuter l’image. Un réajustement ajoute les nœuds qu’il a laissés entrer dans un rayon, jamais le nombre de nœuds (`bounce/proxy.ts`). Un nœud à 4 enfants couvre 4× plus d’arbre par pas qu’un BVH binaire.",
       "traversalStack": "Profondeur de la pile de parcours. Un nœud à 4 enfants en empile jusqu’à 3 ; 32 couvre des millions de triangles.",
       "cascadeLevels": "Niveaux des cascades de sondes. Les `cascadeLevels - 1` premiers suivent la position de la caméra ; le dernier est fixe dans le monde et couvre toute la scène.",
       "cascadeSize": "Sondes par axe et par niveau : un niveau est un cube de `cascadeSize³` sondes.",
@@ -406,13 +406,14 @@
   },
   "BounceOccupancy": {
     "summary": "Où garder une sonde vaut la peine : la carte d’occupation des cascades.",
-    "description": "Une cascade au-dessus d’une ville dépense la plupart de ses cases dans le ciel vide et le cœur plein des bâtiments, où l’irradiance n’est jamais demandée. Le planificateur doit savoir, avant de dépenser un rayon, si une case touche de la géométrie. C’est une propriété du monde, pas de la caméra : calculée une fois à la construction, valable pour toutes les positions que prennent ensuite les niveaux mobiles. La carte du niveau le plus fin est marquée par les boîtes englobantes des triangles du proxy plus une bordure d’une case : les huit coins d’une case occupée sont toujours gardés, donc rien d’utile n’est perdu. Les niveaux suivants sont des réductions exactes — deux cases pour une par axe, puisque les écarts sont des multiples puissances de deux du plus fin — puis dilatées d’une case pour la même raison. Rien ici ne nomme une scène ni n’examine la caméra : une étendue, des triangles, des cases.",
+    "description": "Une cascade au-dessus d’une ville dépense la plupart de ses cases dans le ciel vide et le cœur plein des bâtiments, où l’irradiance n’est jamais demandée. Le planificateur doit savoir, avant de dépenser un rayon, si une case touche de la géométrie. C’est une propriété du monde, pas de la caméra : calculée à la construction puis de nouveau quand la géométrie déplacée se pose, valable pour toutes les positions que prennent ensuite les niveaux mobiles. La carte du niveau le plus fin est marquée par les boîtes englobantes des triangles du proxy plus une bordure d’une case : les huit coins d’une case occupée sont toujours gardés, donc rien d’utile n’est perdu. Les niveaux suivants sont des réductions exactes — deux cases pour une par axe, puisque les écarts sont des multiples puissances de deux du plus fin — puis dilatées d’une case pour la même raison. Rien ici ne nomme une scène ni n’examine la caméra : une étendue, des triangles, des cases.",
     "members": {
+      "moved": "Des propriétaires ont bougé : `boxes` porte six bornes monde par triangle du proxy, `changed` marque ceux qui ont bougé.",
+      "settle": "Une fois par image : la première image après l’arrêt du mouvement reconstruit la carte exacte sur `extent`.",
       "occupied": "Vrai quand une case d’un niveau dans sa grille mérite une sonde.",
       "marked": "Cases marquées et cases au total du niveau le plus fin : le gain publié.",
       "cells": "Cases du niveau le plus fin.",
-      "bytes": "Octets qu’il prend.",
-      "allEligible": "La géométrie a bougé : programme par précaution toutes les cellules des cascades, dont le nombre est borné."
+      "bytes": "Octets qu’il prend."
     }
   },
   "BoundedNode": {
@@ -1250,7 +1251,8 @@
       "options.controls": "Le contrôleur qui déplace la caméra depuis le canevas ; `world.controls.kind` le change ensuite.",
       "options.signal": "Arrête les chargements du monde quand le signal est annulé.",
       "options.physics": "Allume la physique (`world.physics`) : `true`, ou gravité et budgets. Jolt n’est chargé qu’alors.",
-      "options.temporalAntialiasing": "L’anticrénelage temporel, WebGPU seulement : un décalage sous-pixel accumulé au fil des images. `false` dessine chaque pixel en son centre, sans historique, ce que demande une capture exacte au pixel près ; changé ensuite par `world.temporalAntialiasing`."
+      "options.temporalAntialiasing": "L’anticrénelage temporel, WebGPU seulement : un décalage sous-pixel accumulé au fil des images. `false` dessine chaque pixel en son centre, sans historique, ce que demande une capture exacte au pixel près ; changé ensuite par `world.temporalAntialiasing`.",
+      "options.renderScale": "La fraction de l’affichage par axe à laquelle l’image est dessinée, WebGPU seulement, avant que l’anticrénelage temporel ne la reconstruise à l’affichage : `'auto'` laisse le budget d’image la choisir entre `min` et `max` (`{ min, max }`, 0,5 et 1 par défaut), un nombre la fixe ; une image immobile est dessinée au maximum. Changée ensuite par `world.renderScale`."
     }
   },
   "crossVector3": {
@@ -6654,6 +6656,10 @@
     "summary": "L’anticrénelage temporel : un décalage sous-pixel accumulé au fil des images ; activé par défaut.",
     "description": "Écrit, il prend effet à l’image suivante, historique abandonné, sans rouvrir de session. Lu, c’est ce que porte l’image : false en WebGL2, et pendant que le programme se compile après l’avoir activé."
   },
+  "world.renderScale": {
+    "summary": "La fraction de l’affichage par axe à laquelle l’image est dessinée (`WorldOptions.renderScale`), dès l’image suivante.",
+    "description": "Lue, l’échelle de la dernière image dessinée : 1 en WebGL2."
+  },
   "world.effects": {
     "summary": "La chaîne d’effets : les passes dessinées sur l’image (`effect`)."
   },
@@ -6903,8 +6909,13 @@
       "controls": "Le contrôleur qui déplace la caméra depuis le canevas ; `world.controls.kind` le change ensuite.",
       "signal": "Arrête les chargements du monde quand le signal est annulé.",
       "physics": "Allume la physique (`world.physics`) : `true`, ou gravité et budgets. Jolt n’est chargé qu’alors.",
-      "temporalAntialiasing": "L’anticrénelage temporel, WebGPU seulement : un décalage sous-pixel accumulé au fil des images. `false` dessine chaque pixel en son centre, sans historique, ce que demande une capture exacte au pixel près ; changé ensuite par `world.temporalAntialiasing`."
+      "temporalAntialiasing": "L’anticrénelage temporel, WebGPU seulement : un décalage sous-pixel accumulé au fil des images. `false` dessine chaque pixel en son centre, sans historique, ce que demande une capture exacte au pixel près ; changé ensuite par `world.temporalAntialiasing`.",
+      "renderScale": "La fraction de l’affichage par axe à laquelle l’image est dessinée, WebGPU seulement, avant que l’anticrénelage temporel ne la reconstruise à l’affichage : `'auto'` laisse le budget d’image la choisir entre `min` et `max` (`{ min, max }`, 0,5 et 1 par défaut), un nombre la fixe ; une image immobile est dessinée au maximum. Changée ensuite par `world.renderScale`."
     }
+  },
+  "RenderScale": {
+    "summary": "L’échelle de rendu qu’une page demande : la fraction de l’affichage, par axe, à laquelle l’image est dessinée avant que l’anticrénelage temporel ne la reconstruise à l’affichage.",
+    "description": "`'auto'` laisse le budget d’image la choisir entre 0,5 et 1, `{ min, max }` borne ce choix, un nombre la fixe ; toute valeur est gardée entre 0,5 et 1."
   },
   "WorldPageSource": {
     "summary": "D’où les pages sont lues, et l’adresse par rapport à laquelle on les lit.",

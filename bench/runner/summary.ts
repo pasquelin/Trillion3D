@@ -34,7 +34,11 @@ const budgets = (settings: Report['settings']) => {
   return parts.join(', ');
 };
 const diffText = (d: ImageDiff | undefined) =>
-  !d ? '—' : 'erreur' in d ? d.erreur : `${d.pixels} px, max channel ${d.maxCanal}`;
+  !d
+    ? '—'
+    : 'erreur' in d
+      ? d.erreur
+      : `${d.pixels} px, max channel ${d.maxCanal}, mean ${d.meanChannel.toFixed(3)}, p99.9 ${d.p999Channel}`;
 /**
  * Coverage relation of a reading: `selected − drawn − uncovered`. Zero says every triangle
  * of the cut is either submitted to draw or counted as a hole; anything else says one of
