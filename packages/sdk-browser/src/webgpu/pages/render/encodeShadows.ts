@@ -99,7 +99,7 @@ export function planShadowRegions(
   ensureStaticLayer(rt);
   redrawShortPages(rt, frame, nowMs, residencyMoved);
   // The frame's receivers name the pages they read before the raster, in this frame.
-  const receivers = shadowReceivers(rt.run.drawn, cam, rt.gpu.targetSize[1]);
+  const receivers = shadowReceivers(rt.run.drawn, cam, rt.gpu.targetSize[1], rt.gpu.displaySize[1]);
   const count = plan.plan(store, view, box.min, box.max, frame, nowMs, receivers);
   lights.shadowSlots = writeShadowRecords(lights);
   lights.shadowsUpdated = plan.counts.lights;

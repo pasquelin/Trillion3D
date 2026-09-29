@@ -33,7 +33,7 @@ test('the receivers are the drawn clusters in world space, the frustum keeping w
   } as unknown as EngineCamera;
   // Ahead of the eye, behind it, then ahead again.
   const drawn = [at(0, 5, -10), at(0, 5, 10), at(2, 3, -20)];
-  const receivers = shadowReceivers(drawn, cam, 720);
+  const receivers = shadowReceivers(drawn, cam, 360, 720);
   assert.equal(receivers.count, 3);
   assert.deepEqual(
     [...receivers.boxes.subarray(0, 18)],
@@ -43,6 +43,9 @@ test('the receivers are the drawn clusters in world space, the frustum keeping w
   assert.equal(createReceiverCells().gather(receivers, VIEW).count, 2);
   assert.ok(
     Math.abs(receivers.pixelNear - (2 * VIEW.near * Math.tan(VIEW.halfFovY)) / 720) < 1e-12,
+  );
+  assert.ok(
+    Math.abs(receivers.pixelNearMost - (2 * VIEW.near * Math.tan(VIEW.halfFovY)) / 360) < 1e-12,
   );
   assert.equal(receivers.orthographic, false);
   assert.equal(receivers.planes, cam.planes);

@@ -7478,6 +7478,17 @@
   "SHADOW_RECORD_FLOATS": {
     "summary": "Floats eines Schattendatensatzes, den das Shading eines Lichts liest: sechs Lampenflächen-Matrizen — dort die Tiefenbereiche einer Sonne, je `zNear, zFar` (`recordPack.ts`) —, dann der Lichtebenen-Rahmen der Sonne — `right, zNear`, `up, zFar`, `axis`, dann der Platz des aktuellen Bereichs —, dann der Ursprung des Fensters jedes Clipmap-Platzes als zwei Ganzzahlen, dann ein Kopf `vec4f`: Flächen (Lampe) oder Stufen (Sonne), der tangentiale Halbwinkel der Lampe oder die feinste Stufe der Sonne, die Nahebene der Lampe und der erste Eintrag des Datensatzes in der Seitentabelle."
   },
+  "ShadowReceivers": {
+    "summary": "Die Flächen, die die Schattierung eines Bildes beleuchtet, wie der Host sie vor der Schattenrasterung übergibt.",
+    "members": {
+      "boxes": "Weltboxen, je `RECEIVER_FLOATS`: jede beleuchtete Fläche des Bildes liegt in einer davon.",
+      "count": "Aufgeführte Boxen.",
+      "planes": "Die sechs Frustum-Ebenen der Kamera (`frustumPlanesFromMatrix`): was außerhalb liegt, wird nicht beleuchtet.",
+      "pixelNear": "Weltgröße eines Pixels an der Nahebene, wo der Fußabdruck eines beleuchteten Punktes beginnt: die kleinste der Passes, die Schatten lesen — die des gezeichneten Ziels, die des Bildschirms.",
+      "pixelNearMost": "Dasselbe, die größte dieser Passes.",
+      "orthographic": "Eine orthografische Kamera: der Fußabdruck jedes Pixels ist `pixelNear`."
+    }
+  },
   "ShadowRequestReport": {
     "summary": "Was die Schattierung in einem Bild gelesen hat: die angeforderten Tabelleneinträge, ohne Reihenfolge.",
     "members": {

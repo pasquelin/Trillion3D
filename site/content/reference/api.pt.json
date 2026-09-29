@@ -7478,6 +7478,17 @@
   "SHADOW_RECORD_FLOATS": {
     "summary": "Floats de um registo de sombra, o que o sombreamento de uma luz lê: seis matrizes de faces de lâmpada — aí, os intervalos de profundidade de um sol, `zNear, zFar` cada um (`recordPack.ts`) —, depois o referencial do plano de luz do sol — `right, zNear`, `up, zFar`, `axis`, depois a posição do intervalo atual —, depois a origem da janela de cada posição do clipmap em dois inteiros, depois um cabeçalho `vec4f`: faces (lâmpada) ou níveis (sol), o semicampo tangente da lâmpada ou o nível mais fino do sol, o plano próximo da lâmpada e a primeira entrada do registo na tabela de páginas."
   },
+  "ShadowReceivers": {
+    "summary": "As superfícies que o sombreamento de um quadro ilumina, como o anfitrião as entrega antes da rasterização das sombras.",
+    "members": {
+      "boxes": "Caixas no mundo, `RECEIVER_FLOATS` cada: toda superfície iluminada do quadro está em uma delas.",
+      "count": "Caixas listadas.",
+      "planes": "Os seis planos do frustum da câmera (`frustumPlanesFromMatrix`): o que fica fora não é iluminado.",
+      "pixelNear": "Tamanho no mundo de um pixel no plano próximo, onde começa a pegada de um ponto iluminado: o menor das passagens que leem sombras — o do alvo desenhado, o da tela.",
+      "pixelNearMost": "O mesmo, o maior dessas passagens.",
+      "orthographic": "Uma câmera ortográfica: a pegada de cada pixel é `pixelNear`."
+    }
+  },
   "ShadowRequestReport": {
     "summary": "O que o sombreamento leu num quadro: as entradas da tabela que pediu, sem ordem.",
     "members": {
