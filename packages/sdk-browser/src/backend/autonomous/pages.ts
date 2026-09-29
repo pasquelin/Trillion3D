@@ -135,6 +135,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       if (ready) frame(camera);
     },
     ...hostDraw.host,
+    ...hostDraw.materials,
     ...instances,
     ...autonomousPlacements({
       ...tables,

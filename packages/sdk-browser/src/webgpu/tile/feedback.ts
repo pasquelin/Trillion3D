@@ -38,6 +38,9 @@ export const PICK_CYCLE = (MAP_CHOICES + 1) * PICK_BLENDS * PICK_TAPS;
 export type WebgpuTileFeedback = {
   readonly buffer: GPUBuffer;
   readonly entries: number;
+  /** Counts `entries` ranks from now on, in new buffers: a page table grew (#847). What came
+   *  back, or is coming, counted the ranks before: dropped, never read. */
+  grow(entries: number): void;
   /** Word the uniform carries: the phase, or "every pixel" during a convergence, and the pick turn. */
   phaseWord(every: boolean): number;
   /** Copies the counters to a free readback buffer and zeroes them, in the image. */
@@ -55,34 +58,57 @@ export type WebgpuTileFeedback = {
 type Device = Pick<GPUDevice, 'createBuffer'>;
 
 export function createWebgpuTileFeedback(device: Device, entries: number): WebgpuTileFeedback {
-  const bytes = Math.max(16, entries * 4);
-  const buffer = device.createBuffer({
-    label: 'Trillion3D texture feedback',
-    size: bytes,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
-  });
-  const staging = [0, 1].map((rank) =>
-    device.createBuffer({
-      label: `Trillion3D texture feedback readback ${rank}`,
-      size: bytes,
-      usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-    }),
-  );
-  // Per readback buffer: a copy encoded but not submitted, or an in-flight mapping.
-  const copied = [false, false],
-    busy = [false, false];
+  /** One generation of buffers: `count` counters, their two readbacks, and what came back. */
+  const allocate = (count: number) => {
+    const bytes = Math.max(16, count * 4);
+    const buffer = (label: string, usage: number) =>
+      device.createBuffer({ label, size: bytes, usage });
+    return {
+      count,
+      bytes,
+      buffer: buffer(
+        'Trillion3D texture feedback',
+        GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+      ),
+      staging: [0, 1].map((rank) =>
+        buffer(
+          `Trillion3D texture feedback readback ${rank}`,
+          GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+        ),
+      ),
+      // Per readback buffer: a copy encoded but not submitted, or an in-flight mapping.
+      copied: [false, false],
+      busy: [false, false],
+      // Counters that came back, one array per readback buffer: nothing is allocated per image.
+      held: [0, 1].map(() => new Uint32Array(count)),
+    };
+  };
+  let gen = allocate(entries);
   const inFlight = new Set<Promise<void>>();
-  // Counters that came back, one array per readback buffer: nothing is allocated per image.
-  const held = [0, 1].map(() => new Uint32Array(entries));
   let next = 0,
     phase = 0,
     pick = 0,
     latest: Uint32Array | undefined;
+  const destroy = () => {
+    gen.buffer.destroy();
+    for (const target of gen.staging) target.destroy();
+  };
   return {
-    buffer,
-    entries,
+    get buffer() {
+      return gen.buffer;
+    },
+    get entries() {
+      return gen.count;
+    },
+    grow(ranks) {
+      const next = allocate(ranks);
+      destroy();
+      gen = next;
+      latest = undefined;
+    },
     phaseWord: (every) => (every ? FEEDBACK_EVERY : 0) | phase | (pick << PICK_SHIFT),
     encode(encoder) {
+      const { busy, copied, buffer, staging, bytes } = gen;
       if (busy[next] || copied[next]) return;
       encoder.copyBufferToBuffer(buffer, 0, staging[next], 0, bytes);
       encoder.clearBuffer(buffer);
@@ -91,24 +117,27 @@ export function createWebgpuTileFeedback(device: Device, entries: number): Webgp
     submitted() {
       phase = (phase + 1) % FEEDBACK_EVERY;
       if (phase === 0) pick = (pick + 1) % PICK_CYCLE;
-      if (!copied[next]) return;
-      const rank = next;
-      copied[rank] = false;
-      busy[rank] = true;
-      const target = staging[rank];
-      const read = target
+      const read = gen;
+      if (!read.copied[next]) return;
+      const rank = next,
+        target = read.staging[rank];
+      read.copied[rank] = false;
+      read.busy[rank] = true;
+      const mapped = target
         .mapAsync(GPUMapMode.READ)
         .then(() => {
-          held[rank].set(new Uint32Array(target.getMappedRange(), 0, entries));
+          // A read of a generation grown past counted the ranks before: dropped, never read.
+          if (read !== gen) return;
+          read.held[rank].set(new Uint32Array(target.getMappedRange(), 0, read.count));
           target.unmap();
-          latest = held[rank];
+          latest = read.held[rank];
         })
         .catch(() => undefined)
         .finally(() => {
-          busy[rank] = false;
-          inFlight.delete(read);
+          read.busy[rank] = false;
+          inFlight.delete(mapped);
         });
-      inFlight.add(read);
+      inFlight.add(mapped);
       next ^= 1;
     },
     take() {
@@ -117,9 +146,6 @@ export function createWebgpuTileFeedback(device: Device, entries: number): Webgp
       return counts;
     },
     settled: () => Promise.all(inFlight).then(() => undefined),
-    destroy() {
-      buffer.destroy();
-      for (const target of staging) target.destroy();
-    },
+    destroy,
   };
 }

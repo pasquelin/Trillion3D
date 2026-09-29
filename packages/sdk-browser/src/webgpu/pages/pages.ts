@@ -29,6 +29,7 @@ import { webgpuVertexApi } from './dynamicVertices.ts';
 import { growWebgpuPlacements, webgpuGrowsInPlace } from '../../placement/webgpuGrowth.ts';
 import { disposeWebgpuPages, metricsOf } from './io/metrics.ts';
 import { hostTableBytesOf, setWebgpuMemoryBudgets } from './io/memory.ts';
+import { runtimeMaterialApi } from './io/runtimeMaterialApi.ts';
 import { setWebgpuClearColor } from './io/clearColor.ts';
 import * as materials from './io/refreshMaterials.ts';
 import { installGpuDeviceLedger } from '../../gpu/core/deviceLedger.ts';
@@ -43,7 +44,6 @@ import { claimWebgpuDevice, markWebgpuLost } from './io/lost.ts';
 import { webgpuAudits } from './io/audits.ts';
 import type { GpuDeviceClaim } from '../../gpu/core/deviceOwners.ts';
 export { outputColorDiagnostic } from './helpers.ts';
-
 /** WebGPU raster of cluster pages. GPU frustum + per-cluster error band when compute is available;
  *  `selectVisiblePages` remains the CPU oracle and the silent fallback. The state lives in the
  *  runtime; each method hands it to the module that owns that responsibility. */
@@ -90,6 +90,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     materialClassRefusal: (alpha) => materials.webgpuMaterialClassRefusal(alpha, rt.setup.allPages),
     wearSurface: (assignment) => materials.wearWebgpuSurface(rt, assignment),
     setMemoryBudgets: (budgets) => setWebgpuMemoryBudgets(rt, budgets),
+    ...runtimeMaterialApi(rt),
     setClearColor: (hex) => setWebgpuClearColor(rt, hex),
     async prepare() {
       rt.signal.throwIfAborted();
