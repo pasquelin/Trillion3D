@@ -73,12 +73,16 @@ draco-core = { version = "=2.1.0", default-features = false, features = ["decode
 [build-dependencies]
 sha2 = "0.10"
 
-# The dev profile, which `cargo test` inherits, keeps file and line tables only. The previous
-# `incremental = false` made the reported test run slower (570 to 708 seconds, #940); retaining
-# Cargo's incremental default keeps edit/test cycles responsive. The measurement session checks
-# the resulting target size on develop. Release builds use their separate profile.
+# The dev profile, which `cargo test` inherits, keeps file and line tables only and no incremental
+# cache, so the build folder stays small (#737). Measured on 2026-09-29 (#940), debug
+# `cargo test --lib` from a clean folder: with the incremental cache, 1,546 s and 1.38 GiB, then
+# 1.75 GiB after one edited file (13 s rebuild); without it, 1,593 s under a heavier machine load
+# (127 against 80) and 1.07 GiB, then 1.12 GiB after the same edit (23 s rebuild). The test run
+# (1,460 against 1,522 s) stays within that load's noise; only the folder grows. Every script
+# builds with `--release`.
 [profile.dev]
 debug = "line-tables-only"
+incremental = false
 
 [profile.release]
 lto = "thin"
