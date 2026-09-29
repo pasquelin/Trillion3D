@@ -6,6 +6,7 @@ import { baseCapabilities } from '../../../bench/witnesses/capabilities.ts';
 import type { HostDrawCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
 import { IDENTITY_MATRIX4 } from '../../../packages/sdk-core/src/index.ts';
 import { strictHearer } from './webglClusterPixels.ts';
+import { keptClusterScene } from '../../../packages/sdk-browser/src/webgl/cluster/sceneDraw.ts';
 
 const readPixel = (gl: WebGL2RenderingContext) => {
   const value = new Uint8Array(4);
@@ -92,7 +93,7 @@ export async function heldRestore() {
     dispose: () => {},
     drawHostGeometry: (drawCamera: HostDrawCamera) => {
       draws++;
-      owner.draw([fixture.mesh], scene, drawCamera, false, true);
+      owner.draw([fixture.mesh], keptClusterScene(scene), drawCamera, false, true);
     },
   };
   paint(fixture.image, 'red');
