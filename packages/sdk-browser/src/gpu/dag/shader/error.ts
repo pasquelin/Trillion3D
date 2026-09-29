@@ -9,6 +9,7 @@
  * being eliminated at compile time. `withScreenErrorVariant` sets it true for the campaign that
  * measures the external-reference metric, exact mirror of `referenceScreenError`.
  */
+import { CLUSTER_LEVEL_SHIFT } from '../layout.ts';
 import type { ScreenErrorVariant } from '../../../../../sdk-core/src/index.ts';
 
 /** Declaration `withScreenErrorVariant` returns, written once for both. */
@@ -16,7 +17,8 @@ export const REFERENCE_ERROR_DECL = 'const REFERENCE_ERROR:bool=false;';
 
 export const DAG_ERROR_WGSL = `
 ${REFERENCE_ERROR_DECL}
-/** Upper bound of the screen displacement of any point of the sphere moved by at most \`error\`:
+/** Upper bound of the screen displacement of any point of the sphere, grown by the primitive's
+ *  deformation reach (\`deformReach\`, #357), moved by at most \`error\`:
  *  minimum depth m, distance to the axis l, radius and error stretched rho and delta, written on
  *  the clip weight w = p*depth+(1-p) of the projection (\`views[vi].perspective\`, p):
  *  E = (delta*f/w(m))*(sqrt(w(m)^2+(p*(l+rho))^2)/w(m-delta)) ; near plane reached: INF.
@@ -32,7 +34,7 @@ fn projected(error:f32,sphere:vec4f,e:mat4x4f,stretch:f32,focal:f32)->f32{
   let delta=error*stretch;
   return (delta*focal)/depth;
  }
- let reach=sphere.w*stretch;let shift=error*stretch;
+ let reach=(sphere.w+deformReach)*stretch;let shift=error*stretch;
  let nearest=p*(-v.z-reach)+flat;let closest=nearest-p*shift;let side=p*(sqrt(v.x*v.x+v.y*v.y)+reach);
  if(!(closest>p*views[vi].near)){return INF;}
  let slant=sqrt(nearest*nearest+side*side);
@@ -42,7 +44,9 @@ fn projected(error:f32,sphere:vec4f,e:mat4x4f,stretch:f32,focal:f32)->f32{
 /** The two screen errors the cut rule compares, projected once: its replacement's (\`x\`, the
  *  parent's) and its own (\`y\`). */
 fn clusterPixels(cluster:Cluster,e:mat4x4f,stretch:f32,focal:f32)->vec2f{
- return vec2f(projected(cluster.parentError,cluster.parentSphere,e,stretch,focal),projected(cluster.lodError,cluster.sphere,e,stretch,focal));
+ let own=cluster.lodError+select(0.0,2.0*deformReach,(cluster.flags>>${CLUSTER_LEVEL_SHIFT}u)>0u);
+ let parent=select(cluster.parentError,cluster.parentError+2.0*deformReach,cluster.parentError>=0.0);
+ return vec2f(projected(parent,cluster.parentSphere,e,stretch,focal),projected(own,cluster.sphere,e,stretch,focal));
 }
 /** The cluster the cut wants at \`threshold\`, on its \`clusterPixels\`: the rule with everything resident. */
 fn selects(pixels:vec2f,threshold:f32)->bool{return drawsCluster(true,pixels.x,pixels.y,true,threshold);}

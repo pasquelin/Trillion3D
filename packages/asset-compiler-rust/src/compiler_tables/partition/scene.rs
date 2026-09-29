@@ -2,12 +2,21 @@
 //! and whether the scene reaches it.
 use super::*;
 
-/// The nodes an animation moves: their pose is not the one the table declares.
+/// The nodes an animation moves, and the joints and skeleton roots a skin names (#357): their
+/// pose is not the one the table declares, and a skin names them by their rank in the core.
 pub(super) fn animated(g: &Value) -> BTreeSet<usize> {
     let animations = g["animations"].as_array().into_iter().flatten();
     let channels = animations.flat_map(|a| a["channels"].as_array().into_iter().flatten());
     let node = |c: &Value| Some(c.pointer("/target/node")?.as_u64()? as usize);
-    channels.filter_map(node).collect()
+    let skins = g["skins"].as_array().into_iter().flatten();
+    let joints = skins.flat_map(|s| {
+        let named = s["joints"].as_array().into_iter().flatten();
+        named.chain(s.get("skeleton")).filter_map(Value::as_u64)
+    });
+    channels
+        .filter_map(node)
+        .chain(joints.map(|j| j as usize))
+        .collect()
 }
 
 /// Each node's parent, and whether the scene reaches it from `roots`.

@@ -114,6 +114,7 @@ fn levelStep(src:u32,s:u32){
  let node=nodeAt(entryIndex(entry));
  let w=node.worldIndex;
  if(!inRange(w)){return;}
+ deformReach=reachOf(w);
  // A node of the view ahead is only that view's (\`aheadWgsl.ts\`); one the camera rejects is tried there.
  if(aheadOn()&&vi==AHEAD_VIEW){descendAhead(src,node,w);return;}
  if(outsideFrustum(slotOf(w)*FRAME,node.minimum,node.maximum)||pageMissed(w,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);descendAhead(src,node,w);return;}
@@ -129,7 +130,7 @@ fn levelStep(src:u32,s:u32){
 }
 /** Too coarse under the view \`vi\`: no cluster of the subtree is fine enough. */
 fn tooCoarse(node:CullNode,e:mat4x4f,stretch:f32,focal:f32)->bool{
- return node.maxParentError>=0.0&&projected(node.maxParentError,node.sphere,e,stretch,focal)<=views[vi].pixelError;
+ return deformReach==0.0&&node.maxParentError>=0.0&&projected(node.maxParentError,node.sphere,e,stretch,focal)<=views[vi].pixelError;
 }
 /** A kept node opens its children, or deposits its pages, under the current view \`vi\`. */
 fn descend(src:u32,node:CullNode){

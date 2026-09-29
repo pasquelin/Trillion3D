@@ -117,7 +117,9 @@ export class WebglPageArenas {
       position = geometry.attributes.position;
     // An empty page keeps its own buffers: a range of nothing has no offset to submit.
     const empty = !index?.array.length || !position?.count;
-    if (!index || !(index.array instanceof Uint32Array) || !released || empty)
+    // A morphed page reads its targets by its own vertex rank (`gl_VertexID`): its own buffers.
+    const morphed = !!(geometry.attributes.morph || geometry.attributes.skinIndex);
+    if (!index || !(index.array instanceof Uint32Array) || !released || empty || morphed)
       return void this.refused.add(geometry);
     const layout: ArenaAttribute[] = [],
       arrays: ArrayBufferView[] = [],

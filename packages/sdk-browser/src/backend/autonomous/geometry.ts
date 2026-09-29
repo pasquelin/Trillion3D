@@ -8,6 +8,7 @@ import { drawnInstanced, rowPlaced } from '../../placement/autonomousPlacements.
 import { rootOf, type ClusterRoot, type PageRec } from '../../page/selection/selection.ts';
 import { createHeldResidency } from '../../page/cut/held.ts';
 import { createPageStore } from './pageStore.ts';
+import type { DeformedDraw } from '../../webgl/cluster/deformation.ts';
 
 type GeometryEnvironment = {
   scene: Scene;
@@ -22,6 +23,8 @@ type GeometryEnvironment = {
   baseMaterials: Map<PageRec, HostMaterials>;
   colorMaterials: Map<HostMaterial, HostMaterial>;
   modifiedPages: Set<string>;
+  /** The deformation record a page mesh of `rec` names (#357), zero for none. */
+  deformWord?: (rec: PageRec) => number;
 };
 
 const released = new WeakSet<object>();
@@ -52,7 +55,10 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
     if (!rec.geometry) return;
     // The declaration, not the engine's surface record: the record has no `visible` flag, and
     // the program submits nothing for a surface that is not visible.
-    rec.mesh ??= hostPageMesh(rec.geometry, rec.declaration, rec.renderOrder);
+    if (!rec.mesh) {
+      rec.mesh = hostPageMesh(rec.geometry, rec.declaration, rec.renderOrder);
+      (rec.mesh as DeformedDraw).deformRecord = env.deformWord?.(rec) ?? 0;
+    }
     setHostPose(rec.mesh, rootOf(roots, rec).world);
     if (!rec.attached) {
       scene.add(rec.mesh);
