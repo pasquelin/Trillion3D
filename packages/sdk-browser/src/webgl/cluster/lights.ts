@@ -7,8 +7,6 @@ import { WebglClusterProbe } from './probe.ts';
 import { WebglClusterFog } from './fog.ts';
 import { sceneFogOf, type Fog } from '../../world/core/sceneFog.ts';
 import type { SceneFog } from '../../../../sdk-core/src/scene/core/fog.ts';
-import { isLightNode } from '../../host/graph/kinds.ts';
-import { shownChain } from '../../placement/hidden.ts';
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
 import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
 
@@ -17,8 +15,10 @@ const AMBIENT = new Float64Array(4);
 
 /** A host scene background read by shape: a colour, in linear components, or anything else. */
 export type SceneColour = { isColor?: boolean; r: number; g: number; b: number } | null | undefined;
+/** What a WebGL2 frame reads of the host scene; `lights`, its shown lights in graph order, is the
+ *  list the draw lists keep (`./drawLists.ts`): no frame walks the scene for its lights. */
 export type WebglClusterScene = {
-  traverse(visitor: (entry: object) => void): void;
+  lights: readonly Light[];
   /** Host background: a colour clears the transmission backdrop, anything else clears to black. */
   background?: SceneColour | object;
   /** The contract's fog, over every drawn surface; none when absent. */
@@ -28,17 +28,17 @@ export type WebglClusterScene = {
 /** The kinds that take a slot of this path; a probe adds into the irradiance instead. */
 const DRAWN = new Set(['directional', 'point', 'spot', 'rectArea', 'ambient']);
 
-export const unsupportedClusterLight = (scene: WebglClusterScene) => {
+export const unsupportedClusterLight = (lights: readonly Light[]) => {
   let reason: string | undefined;
-  scene.traverse((light) => {
+  for (const light of lights) {
     // A probe takes no light slot: its coefficients add into the program's irradiance.
-    if (!isLightNode(light) || light.kind === 'probe' || !shownChain(light)) return;
+    if (light.kind === 'probe') continue;
     // A world's sky over a ground reaches this path as the environment's irradiance, a probe.
     if (!DRAWN.has(light.kind))
       reason ??= `${light.kind} light is not drawn by the WebGL2 cluster path`;
     if ((light.kind === 'point' || light.kind === 'spot') && light.decay !== 2)
       reason = `${light.kind} light decay ${light.decay} is unsupported; inverse-square decay 2 is required`;
-  });
+  }
   return reason;
 };
 
@@ -98,15 +98,16 @@ export class WebglClusterLights {
     const lights = this.lights;
     lights.length = 0;
     const ambient = AMBIENT.fill(0);
-    scene.traverse((light) => {
-      if (!isLightNode(light) || !shownChain(light)) return;
-      if (light.kind === 'probe') return this.probe.add(light);
-      if (light.kind !== 'ambient') return void lights.push(light);
-      ambient[0] += light.color.r * light.intensity;
-      ambient[1] += light.color.g * light.intensity;
-      ambient[2] += light.color.b * light.intensity;
-      ambient[3] = 1;
-    });
+    for (const light of scene.lights) {
+      if (light.kind === 'probe') this.probe.add(light);
+      else if (light.kind !== 'ambient') lights.push(light);
+      else {
+        ambient[0] += light.color.r * light.intensity;
+        ambient[1] += light.color.g * light.intensity;
+        ambient[2] += light.color.b * light.intensity;
+        ambient[3] = 1;
+      }
+    }
     // A slot a light, the ambient lights one more: the texture and the reach grow to hold them.
     this.records.reserve((lights.length + 1) * 4);
     lists.reserve(lights.length + 1);

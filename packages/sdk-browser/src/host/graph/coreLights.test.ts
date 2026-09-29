@@ -80,9 +80,10 @@ test('the WebGL2 cluster path uploads each kind in its slot, in the reference or
   const probe = new Light('probe', { sh: Array.from({ length: 27 }, (_, i) => i), intensity: 0.5 });
   scene.add(sun, sun.target, rect, spot, spot.target, point, ambient, probe);
   scene.updateMatrixWorld(true);
-  assert.equal(unsupportedClusterLight(scene), undefined);
+  const lights = [sun, rect, spot, point, ambient, probe];
+  assert.equal(unsupportedClusterLight(lights), undefined);
   const { gl, seen } = recordingGl();
-  const count = new WebglClusterLights(gl, {} as WebGLProgram).upload(scene, IDENTITY_ELEMENTS);
+  const count = new WebglClusterLights(gl, {} as WebGLProgram).upload({ lights }, IDENTITY_ELEMENTS);
   assert.equal(count, 5, 'four direct lights and one ambient slot; the probe takes none');
   assert.deepEqual(
     slotKinds(seen.records, count),
@@ -108,10 +109,9 @@ test('the WebGL2 cluster path uploads each kind in its slot, in the reference or
 });
 
 test('a probe with no coefficients adds its colour everywhere, as a world adds it', () => {
-  const scene = new Group();
-  scene.add(new Light('probe', { color: [0.5, 0.25, 1], intensity: 2 }));
+  const lights = [new Light('probe', { color: [0.5, 0.25, 1], intensity: 2 })];
   const { gl, seen } = recordingGl();
-  new WebglClusterLights(gl, {} as WebGLProgram).upload(scene, IDENTITY_ELEMENTS);
+  new WebglClusterLights(gl, {} as WebGLProgram).upload({ lights }, IDENTITY_ELEMENTS);
   const constant = [1, 0.5, 2].map((c) => Math.fround(c / IRRADIANCE_BAND.constant));
   assert.deepEqual([...seen.probe.slice(0, 3)], constant);
   assert.ok(
@@ -121,10 +121,8 @@ test('a probe with no coefficients adds its colour everywhere, as a world adds i
 });
 
 test('a sky over a ground is refused by name on the WebGL2 cluster path', () => {
-  const scene = new Group();
-  scene.add(new Light('hemisphere'));
   assert.equal(
-    unsupportedClusterLight(scene),
+    unsupportedClusterLight([new Light('hemisphere')]),
     'hemisphere light is not drawn by the WebGL2 cluster path',
   );
 });

@@ -8,6 +8,9 @@ import { createHostDrawCamera } from '../../camera/world.ts';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { Scene } from '../../world/core/scene.ts';
 import type { WholeMesh } from '../../cluster/batchMesh.ts';
+import { isLightNode } from '../../host/graph/kinds.ts';
+import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { createSceneDraw } from './sceneDraw.ts';
 import {
   sphereTouchesBox,
   type Box,
@@ -55,7 +58,8 @@ test('300 lamps draw on WebGL2, each draw lists the lamps the oracle says reach 
       readDegraded(() => {}),
     );
   const meshes = Array.from({ length: 12 }, (_, m) => mesh(meshX(m)));
-  renderer.draw([], scene(), createHostDrawCamera(), true, true, meshes);
+  const lights = scene().children.filter(isLightNode);
+  renderer.draw([], { lights }, createHostDrawCamera(), true, true, meshes);
   assert.equal(context.of('drawElements').length, meshes.length, 'every mesh drawn, none refused');
 
   const sent = (format: string) =>
@@ -88,4 +92,41 @@ test('300 lamps draw on WebGL2, each draw lists the lamps the oracle says reach 
   });
   assert.ok(sunOnly > 0, 'a mesh far from every lamp evaluates the sun alone');
   renderer.dispose();
+});
+
+test('a WebGL2 frame walks the scene 0 times for its lights, and still reads their changes', () => {
+  const lit = scene(),
+    context = createTestContext({ answers: { getExtension: () => ({}) } });
+  lit.add(mesh(meshX(0)) as unknown as Object3D);
+  const draw = createSceneDraw(context.gl, lit);
+  const frame = () => {
+    draw.render({} as never);
+    draw.host.drawHostGeometry(createHostDrawCamera(), {
+      toneMapped: true,
+      framebuffer: null,
+      width: 8,
+      height: 4,
+    });
+  };
+  frame();
+  const walk = Object3D.prototype.traverse;
+  let visits = 0;
+  Object3D.prototype.traverse = function (visitor) {
+    visits++;
+    return walk.call(this, visitor);
+  };
+  const first = lit.children.find(isLightNode)!;
+  first.distance = 2.5;
+  try {
+    frame();
+  } finally {
+    Object3D.prototype.traverse = walk;
+  }
+  assert.equal(visits, 0, 'no scene walk for the lights during the frame');
+  const records = context
+    .of('texSubImage2D')
+    .filter((args) => args[4] === LIGHT_ROW_TEXELS && args[6] === 'RGBA')
+    .at(-1)![8] as Float32Array;
+  assert.equal(records[3], 2.5, 'the new range of the lamp is read from the kept list');
+  draw.dispose();
 });
