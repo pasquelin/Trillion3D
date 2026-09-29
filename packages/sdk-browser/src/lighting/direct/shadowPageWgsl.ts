@@ -28,9 +28,11 @@ const PAGE_DRAWN_BITS:u32=${2 ** PAGE_FOOTPRINT_SHIFT - 1}u;
 struct ShadowMap{base:u32,ring:u32,pages:i32,ox:i32,oy:i32,}
 fn shadowRing(v:i32,n:i32)->i32{return ((v%n)+n)%n;}
 /** Whether page-local texel \`l\` lies in the footprint of \`word\`, edges included: its low
- *  edges' steps in from the page's first texel, its high ones' in from its last. */
+ *  edges' steps in from the page's first texel, its high ones' in from its last. A full page
+ *  (footprint word zero, every page until one is drawn narrowed) covers every texel undecoded. */
 fn shadowFootprintCovers(word:u32,l:vec2f)->bool{
- let f=word>>PAGE_FOOTPRINT_SHIFT;let b=PAGE_FOOTPRINT_BITS;let m=PAGE_FOOTPRINT_EDGE;
+ let f=word>>PAGE_FOOTPRINT_SHIFT;if(f==0u){return true;}
+ let b=PAGE_FOOTPRINT_BITS;let m=PAGE_FOOTPRINT_EDGE;
  let low=vec2f(f32(f&m),f32((f>>b)&m))*PAGE_FOOTPRINT_STEP;
  let high=SHADOW_PAGE-vec2f(f32((f>>(2u*b))&m),f32(f>>(3u*b)))*PAGE_FOOTPRINT_STEP;
  return !(any(l<low)||any(l>high));

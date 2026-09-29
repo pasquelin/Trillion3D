@@ -11,7 +11,7 @@ const sha = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('he
 
 /** The fixture's world served over HTTP ranges, `bin` its binary as the server holds it; returns
  *  the manifest that declares its table, and the ranges asked. */
-function served(t: TestContext, bin?: Uint8Array) {
+function served(t: TestContext, bin?: Uint8Array, ignoresRange = false) {
   const world = worldRootsFixture(sha);
   const json = new TextEncoder().encode(JSON.stringify(world.table));
   const held = bin ?? world.bin,
@@ -21,6 +21,7 @@ function served(t: TestContext, bin?: Uint8Array) {
       return new Response(json, { headers: { 'content-type': 'application/json' } });
     const range = (init?.headers as Record<string, string>).Range;
     ranges.push(range);
+    if (ignoresRange) return new Response(held.slice());
     const [from, to] = range.slice('bytes='.length).split('-').map(Number);
     return new Response(held.slice(from, to + 1), { status: 206 });
   });
@@ -56,6 +57,31 @@ test('a bundle whose bytes are not those its table names is refused, and nothing
     (error) => error instanceof EngineError && error.code === 'INVALID_CACHE',
   );
   assert.deepEqual(roots.held(), [], 'a hold that failed holds nothing');
+});
+
+test('a server that ignores the Range is read once, whole, and every byte counted', async (t) => {
+  const { manifest, ranges, bin } = served(t, undefined, true);
+  const metered: string[] = [];
+  const meter = {
+    plan() {},
+    settle() {},
+    read: (response: Response, url: string) => (metered.push(url), response),
+  };
+  const roots = (await openWorldRoots(manifest, 'http://world/', undefined, meter))!;
+  await Promise.all([roots.hold(0), roots.hold(1), roots.hold(2)]);
+  assert.deepEqual(roots.held(), [1, 2, 3]);
+  assert.equal(ranges.length, 1, `the whole ${bin.byteLength}-byte binary, asked once`);
+  assert.deepEqual(
+    metered,
+    ['http://world/world-roots.json', 'http://world/world-roots.bin'],
+    'the binary read is counted as it arrives, as the table is',
+  );
+  const bundles = roots.held().reduce((sum, at) => sum + roots.table.bundles[at].bytes, 0);
+  assert.equal(
+    roots.bytes(),
+    roots.pinned.bytes + bundles + bin.byteLength,
+    'the whole binary kept is counted in the bytes held',
+  );
 });
 
 test('a cache that publishes no world roots pins nothing', async () => {
