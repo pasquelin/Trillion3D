@@ -9,7 +9,7 @@ import { material } from '../../../../sdk-core/src/world/material/index.ts';
 import { collectClusterPages, type PageRec } from '../../page/selection/selection.ts';
 import { rasterVisibilityIds } from '../../visibility/buffer.ts';
 import { buildHizPyramid, filterUnoccluded, visibilityDepth } from '../../hiz/hiz.ts';
-import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { createEngineCamera, readCameraWorld } from '../../camera/world.ts';
 import { cameraAt } from '../../../../../tests/fixtures/hiz.ts';
 import type { ExplorerSource } from '../session/prepare.ts';
 import { dynamicWorld } from './worldDynamic.fixture.ts';
@@ -29,7 +29,7 @@ async function recordsOf(source: ExplorerSource) {
 
 /** The dynamic records of the view from z = 5 that the Hi-Z test keeps, and all of them. */
 function keptOf(records: Awaited<ReturnType<typeof recordsOf>>) {
-  const camera = cameraMoteur(cameraAt(5)),
+  const camera = readCameraWorld(createEngineCamera(), cameraAt(5)),
     ids = rasterVisibilityIds(records, camera, SIZE);
   const pyramid = buildHizPyramid(visibilityDepth(ids, records, camera, SIZE), ...SIZE);
   const dynamic = records.filter((rec) => !rec.geometryPage);
