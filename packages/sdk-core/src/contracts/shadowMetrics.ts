@@ -63,7 +63,7 @@ export interface ShadowFrameMetrics {
    *  sampled — one in fifteen; `null` until a sample has returned. */
   shadowCastersKept?: number | null;
   /** Casters the per-page cull tested and did not keep — outside the part of the page its
-   *  receivers read (#1211) or its square —, on the same sampled frame; `null` until then. */
+   *  receivers read —, on the same sampled frame; `null` until a sample has returned. */
   shadowCastersRejected?: number | null;
   /** Moving casters the occlusion test found hidden behind the static layer of their page, on
    *  the frame the device last sampled; `null` until a sample has returned. */
