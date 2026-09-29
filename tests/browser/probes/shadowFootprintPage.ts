@@ -6,10 +6,8 @@
  */
 import { MAX_SHADOW_SLICES, SHADOW_RECORD_FLOATS } from '../../../packages/sdk-core/src/index.ts';
 import { DIRECT_LIGHT_WGSL } from '../../../packages/sdk-browser/src/lighting/direct/lightWgsl.ts';
-import {
-  SHADOW_REQUEST_BITS,
-  directShadowWgsl,
-} from '../../../packages/sdk-browser/src/lighting/direct/shadowWgsl.ts';
+import { directShadowWgsl } from '../../../packages/sdk-browser/src/lighting/direct/shadowWgsl.ts';
+import { SHADOW_REQUEST_BITS } from '../../../packages/sdk-browser/src/lighting/direct/shadowRequestWgsl.ts';
 import { footprintReads } from '../../../packages/sdk-browser/src/lighting/direct/shadowFootprint.fixture.ts';
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts';
 
