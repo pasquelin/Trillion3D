@@ -62,10 +62,11 @@ fn sunRangeReference(index:u32,drawn:u32,z:f32)->f32{
  let range=select(pair.xy,pair.zw,(drawn&1u)!=0u);
  return max(1.0-(z-range.x)*(1.0/max(range.y-range.x,1e-6))+SHADOW_DEPTH_ROUNDING,SHADOW_PAST_FAR);
 }
-/** Offset of the neighbour page \`p\` and 1 when it is readable in the depth range of the home
- *  page (\`homeWord\`, \`sunDepth.ts\`); else the home page's and 0: one reference for every tap. */
-fn shadowNeighbour(m:ShadowMap,p:vec2i,home:vec3f,homeWord:u32)->vec4f{
- let word=shadowPageWord(m,p);
+/** Offset of the neighbour page \`p\` and 1 when it is readable at map texel \`t\` in the depth
+ *  range of the home page (\`homeWord\`, \`sunDepth.ts\`); else the home page's and 0: one
+ *  reference for every tap. */
+fn shadowNeighbour(m:ShadowMap,p:vec2i,home:vec3f,homeWord:u32,t:vec2f)->vec4f{
+ let word=shadowPageWord(m,p,t);
  if(word==0u||((word^homeWord)>>PAGE_RANGE_SHIFT)!=0u){return vec4f(home,0.0);}
  return vec4f(shadowOffset(word,p),1.0);
 }
@@ -91,7 +92,7 @@ fn sunShadowFactor(index:u32,P:vec3f,N:vec3f,taps:bool)->f32{
   let t=vec2f(dot(Q,right)-f32(origin.x)*page,-dot(Q,up)-f32(origin.y)*page)/texel;
   let map=ShadowMap(u32(info.w)+u32(slot)*SUN_LEVEL_WORDS,1u,SUN_WINDOW_PAGES,origin.x,origin.y);
   let home=vec2i(floor(t/SHADOW_PAGE));
-  let word=shadowPageWord(map,home);
+  let word=shadowPageWord(map,home,t);
   if(word==0u){continue;}
   let reference=1.0-(dot(Q,axis)-zNear-shadowDepthMargin(texel,slope,1.0))*invDepth+SHADOW_DEPTH_ROUNDING;
   // A page drawn in the current range reads at \`reference\` alone, as one range always did: a
@@ -135,7 +136,7 @@ fn lampShadowFactor(index:u32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f,taps:boo
   let t=vec2f(ndc.x*0.5+0.5,0.5-ndc.y*0.5)*side;
   let map=ShadowMap(u32(info.w)+face*LAMP_FACE_WORDS+LAMP_MIP_OFFSET[mip],0u,i32(pages),0,0);
   let home=clamp(vec2i(floor(t/SHADOW_PAGE)),vec2i(0),vec2i(i32(pages)-1));
-  let word=shadowPageWord(map,home);
+  let word=shadowPageWord(map,home,t);
   if(word==0u){continue;}
   // The receiver's axial depth w, clip.w, changes across the face by sin(N, axis)·cos²(ray, axis)
   // over the incidence cosine — tan(incidence) on the axis —, cos²(ray, axis) being w²/|d|². The

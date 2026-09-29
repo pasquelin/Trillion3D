@@ -14,7 +14,7 @@ import { createPhysicsJoints } from './joints.ts';
 import type { createJointList } from './jointList.ts';
 import { createPhysicsVehicles } from './vehicles.ts';
 import { engineIdOf } from './simulatedIds.ts';
-import { receiveSoft } from './softBodies.ts';
+import { drawnBySoft, receiveSoft } from './softBodies.ts';
 import { createTileStreamer } from './tiles.ts';
 import { followMove } from './nodePose.ts';
 import { createPhysicsView } from './view.ts';
@@ -64,8 +64,7 @@ export function createPhysicsSession(
   const worker = startPhysicsWorker(budget);
   const tiles = createTileStreamer(writer, budget, bodies, invalidate, (error) => failed(error));
   const casts = new Map<number, (hits: Uint32Array) => void>();
-  let asked = 0,
-    onReady = () => {};
+  let [asked, onReady] = [0, () => {}];
   const started = new Promise<void>((resolve) => (onReady = resolve));
   const flush = () => {
     const words = ready && writer.length ? writer.take() : null;
@@ -139,8 +138,9 @@ export function createPhysicsSession(
     waterTime: () => waves.time(),
     /** The scene's tree changed: bodies are reconciled before the next frame. */
     structure: () => void (dirty = true),
-    /** A mesh's geometry, material or `physics` changed. */
+    /** A mesh's geometry, material or `physics` changed: not a soft body drawn where it is. */
     content(node: Object3D) {
+      if (drawnBySoft(node)) return;
       if (hasBody(node)) stale.add(node);
       dirty = true;
     },

@@ -24,7 +24,7 @@ const page = (url: string) => ({
   max: [1, 1, 1],
   geometry: geometry(url),
 });
-const geometryPages = { formatVersion: 4, codec: 'quantized' };
+const geometryPages = { formatVersion: 5, codec: 'quantized' };
 
 test('the pages point at their cluster pages and the format is checked once, at the top', () => {
   const { descriptors, metadata } = prepareAutonomousManifest({

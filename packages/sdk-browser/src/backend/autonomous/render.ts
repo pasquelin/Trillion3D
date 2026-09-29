@@ -146,7 +146,7 @@ export function createAutonomousRender(options: {
     state.frustumRejected = selected.frustumRejected;
     state.lodLevel = selected.lodLevel;
     // Drawn pages past the display graph's page ceiling are reported, never replaced.
-    state.overBudget = attachedPages(view.shown) > ceiling();
+    state.overBudget = attachedPages(view.shown, roots) > ceiling();
     geometry.sync();
     follow();
     gate.keep(

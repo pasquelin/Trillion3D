@@ -158,35 +158,16 @@ impl Case {
     }
 }
 
-/// What the DAG builder guarantees on a case: one root per primitive, or a stall whose every
-/// group carries one of the causes the case accepts.
-#[derive(Clone, Copy)]
-pub(super) enum Roots {
-    One,
-    Stalled(&'static [&'static str]),
-}
-
-/// What the corpus asserts on a case: its roots, and the code the compiler refuses it with when
-/// the document is one it does not accept.
+/// What the corpus asserts on a case: one root per primitive, and the code the compiler refuses
+/// it with when the document is one it does not accept.
 #[derive(Clone, Copy)]
 pub(super) struct Expect {
-    pub roots: Roots,
     pub refused: Option<&'static str>,
 }
 impl Expect {
-    pub const ONE_ROOT: Expect = Expect {
-        roots: Roots::One,
-        refused: None,
-    };
-    pub const fn stalled(causes: &'static [&'static str]) -> Expect {
-        Expect {
-            roots: Roots::Stalled(causes),
-            refused: None,
-        }
-    }
+    pub const ONE_ROOT: Expect = Expect { refused: None };
     pub const fn refused(code: &'static str) -> Expect {
         Expect {
-            roots: Roots::One,
             refused: Some(code),
         }
     }

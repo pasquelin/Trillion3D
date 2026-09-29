@@ -11,6 +11,8 @@ import {
   type SoftBodyRecord,
 } from '../../../sdk-core/src/physics/index.ts';
 import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
+import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
+import { computeNormals } from '../../../sdk-core/src/world/geometry/normals.ts';
 import { type Bodied, type createPhysicsBodies } from './bodies.ts';
 
 type Pose = { position: ArrayLike<number>; quaternion: ArrayLike<number> };
@@ -58,10 +60,16 @@ export function writeSoftBody(
   if (flags) writer.flags(id & BODY_INDEX, flags);
 }
 
+/** The soft body drawn into each geometry; the one drawing now (`drawSoft`), if any. */
+const drawers = new WeakMap<Geometry, Mesh>();
+let drawing: Mesh | null = null;
+/** Whether `node`'s change is its soft body drawn where it is: no new shape to simulate (#573). */
+export const drawnBySoft = (node: object) => node === drawing;
+
 /**
  * Writes the SOFT command of `mesh`, a soft body placed at `pose` and scaled by `size`: its slot
  * claimed with its vertices counted against the budget, its vertex map kept in `maps`, its
- * `flags` written. Returns the slot.
+ * `flags` written. Returns the slot. A geometry another soft body draws itself into is refused.
  */
 export function addSoftBody(
   writer: CommandWriter,
@@ -73,18 +81,47 @@ export function addSoftBody(
   flags: number,
 ) {
   const p = mesh.physics,
-    record = softBodyOf(mesh.geometry, size, { ...p.soft!, mass: p.mass });
+    other = drawers.get(mesh.geometry);
+  if (other && other !== mesh && other.geometry === mesh.geometry && other.physics?._host)
+    throw new EngineError(
+      'PHYSICS_FAILED',
+      `The soft body ${mesh.name || '(unnamed)'} shares its geometry with ${other.name || 'another'}: give each its own (geometry.clone()).`,
+      { name: mesh.name, shares: other.name },
+    );
+  drawers.set(mesh.geometry, mesh);
+  const record = softBodyOf(mesh.geometry, size, { ...p.soft!, mass: p.mass });
   const id = claim(0, record.vertices.length / SOFT_VERTEX_WORDS);
+  // Its vertices move every step: uploaded in place, never cut into pages again (#573).
+  mesh.geometry.usage = 'dynamic';
   const scale = [size.x, size.y, size.z] as const;
   writeSoftBody(writer, id, p, physicsMatterOf(mesh.material), { ...pose, scale }, record, flags);
   maps[id & BODY_INDEX] = record.map;
   return id & BODY_INDEX;
 }
 
+/** Draws `mesh` where its soft body is (#573): its geometry's positions, and its float normals
+ *  when it carries some, rewritten in place from `vertices`, one simulated place per vertex. */
+function drawSoft(mesh: Mesh, vertices: Float32Array) {
+  const { position, normal } = mesh.geometry.attributes;
+  if (position?.kind !== 'attribute' || position.array.length !== vertices.length) return;
+  drawing = mesh;
+  try {
+    position.array.set(vertices);
+    position.needsUpdate = true;
+    const normals = normal?.kind === 'attribute' ? normal.array : null;
+    const floats = normals instanceof Float32Array || normals instanceof Float64Array;
+    if (!floats || normals.length !== vertices.length) return;
+    computeNormals(vertices, mesh.geometry.index?.array ?? null, normals);
+    normal!.needsUpdate = true;
+  } finally {
+    drawing = null;
+  }
+}
+
 /**
  * A tick's soft-body vertices (`SOFT_STATE_WORDS`): each vertex of a soft body's geometry takes
- * the place of the simulated vertex it maps to, in `physics.vertices`. A record naming a body
- * that left is skipped. Returns the meshes it moved.
+ * the place of the simulated vertex it maps to, in `physics.vertices`, and its geometry is drawn
+ * there (`drawSoft`). A record naming a body that left is skipped. Returns the meshes it moved.
  */
 export function receiveSoft(
   words: Uint32Array | null,
@@ -105,6 +142,7 @@ export function receiveSoft(
       const out = mesh.physics.vertices;
       for (let v = 0; v < map.length; v++)
         for (let k = 0; k < 3; k++) out[v * 3 + k] = floats[from + map[v] * 3 + k];
+      drawSoft(mesh, out);
       moved.push(mesh);
     }
     at = from + count * 3;

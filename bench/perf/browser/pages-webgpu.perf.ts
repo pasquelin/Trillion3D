@@ -21,7 +21,9 @@ const alea = graine(67);
 /** Fields the winding test never reads: shared across every fixture record. */
 const DUMMY_ATTRIBUTES: G.Geometry['attributes'] = {};
 const DUMMY_BOUNDS: number[] = [0, 0, 0];
-const pageOf = (matrix: G.Matrix4): PageRec => ({
+/** A record with the world the oracle reads on it, and the one root that carries it. */
+type Cluster = PageRec & { matrix: G.Matrix4; roots: { world: G.Matrix4 }[] };
+const pageOf = (matrix: G.Matrix4): Cluster => ({
   id: 0,
   url: '',
   clusterId: '',
@@ -34,12 +36,14 @@ const pageOf = (matrix: G.Matrix4): PageRec => ({
   material: surfaceOf([]),
   declaration: [],
   matrix,
+  placementIndex: 0,
+  roots: [{ world: matrix }],
   renderOrder: 0,
   attached: true,
 });
 
-function clusters(nombre: number): PageRec[] {
-  const recs: PageRec[] = [];
+function clusters(nombre: number): Cluster[] {
+  const recs: Cluster[] = [];
   for (let i = 0; i < nombre; i++) {
     const matrix = new G.Matrix4().compose(
       new G.Vector3((alea() - 0.5) * 40, (alea() - 0.5) * 20, -alea() * 60),
@@ -55,7 +59,7 @@ const gros = clusters(20000),
 
 const LECTURES = 4;
 let epoque = 0;
-const imageDeSens = (sens: (rec: PageRec) => boolean, pose: boolean) => (recs: PageRec[]) => {
+const imageDeSens = (sens: (rec: Cluster) => boolean, pose: boolean) => (recs: Cluster[]) => {
   epoque++;
   if (pose) setWindingEpoch(epoque);
   const verdicts = new Uint8Array(recs.length * LECTURES);
@@ -103,7 +107,7 @@ const resWinding = await mesure({
     { name: 'one cluster', input: seul, size: 1 },
     { name: 'no clusters', input: [], size: 0 },
   ],
-  calcul: imageDeSens(windingCw, true),
+  calcul: imageDeSens((c) => windingCw(c.roots, c), true),
   attendu: imageDeSens(referenceWindingCw, false),
   options: { tours: 100, budgetMs: 1500 },
 });
@@ -122,7 +126,7 @@ const resSameView = await mesure({
 
 await stress({
   name: 'windingCw extremes',
-  calcul: (c: PageRec) => windingCw(c),
+  calcul: (c: Cluster) => windingCw(c.roots, c),
   extremes: [
     {
       name: 'zero matrix',

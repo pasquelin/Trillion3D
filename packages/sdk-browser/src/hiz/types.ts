@@ -1,11 +1,11 @@
 import type { HizFlat } from '../../../sdk-core/src/index.ts';
-import type { MatrixElements } from '../math/matrixElements.ts';
 import type { VisMaterial } from '../visibility/types.ts';
 
 export type HizPage = {
   min: number[];
   max: number[];
-  matrix: MatrixElements;
+  /** Rank of the root whose world places it (`../page/selection/types.ts`, `rootOf`). */
+  placementIndex?: number;
   url?: string;
   clusterId?: string;
   /** The surface it wears: one never culled (`neverCulled`) is never rejected. */

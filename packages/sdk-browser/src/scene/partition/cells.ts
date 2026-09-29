@@ -1,13 +1,12 @@
-/**
- * THE CELLS OF A PARTITIONED SCENE, READ BY DISTANCE (#404).
- *
+/** THE CELLS OF A PARTITIONED SCENE, READ BY DISTANCE (#404).
  * Before each frame (`frame`), the cells the camera needs (`plan.ts`, boxed where their parents
  * stand now: `boxes.ts`) are asked of the session's page streamer, nearest first, then those ahead
  * at the prefetch priority; those it holds are placed within the frame's one integration budget
  * (`FrameBudget`), each node on a row of its mesh (`rows.ts`) at the world matrix the engine
  * composes for a child of its core parent, casting as its host mesh says (`follow.ts`), the cell
- * holding its manifest pages (`cellPages.ts`). A cell past its reach parks its rows and releases
- * its pages; a moved parent, or a host mesh's `castShadow` changed, rewrites its rows.
+ * holding its manifest pages and the world bundles its roots need (`cellPages.ts`). A cell past its
+ * reach parks its rows and releases its pages; a moved parent, or a host mesh's `castShadow`
+ * changed, rewrites its rows.
  * `prime`, before the first frame, sizes the rows for every node the reach can hold at once
  * wherever the parents stand (`sizing.ts`; every node when no owner can reopen the session) and
  * reads the cells it needs. Parents moved, turned or scaled up never run the rows short; a reach past
@@ -30,6 +29,7 @@ import { sizeRows, takeRow, type PlacedMesh } from './rows.ts';
 import { createPlacementWrites, type Placement } from './follow.ts';
 import { createCellPages, withHoldings } from './cellPages.ts';
 
+type CellWorld = Parameters<typeof createCellPages>[2];
 type Inputs = {
   partition: TablePartition;
   /** The folder the tables were read from. */ base: string;
@@ -37,6 +37,7 @@ type Inputs = {
   /** The host node of each core rank. */ parents: readonly Object3D[];
   /** The placed mesh of each mesh rank the cells place. */ meshes: ReadonlyMap<number, PlacedMesh>;
   /** The manifest's pages the view holds (#751). */ pages?: Parameters<typeof createCellPages>[0];
+  /** The world bundles a cell's roots need (#1237). */ world?: CellWorld;
 };
 
 const rootWorld = new Float64Array(MATRIX_VALUES);
@@ -45,7 +46,7 @@ export function createPartitionCells(inputs: Inputs) {
   const { partition, base, root, parents, meshes } = inputs;
   const cells = partition.cells.map((cell) => ({ ...cell, url: new URL(cell.url, base).href }));
   const boxes = createCellBoxes(partition.cells, root, parents);
-  const manifest = createCellPages(inputs.pages, partition.cells);
+  const manifest = createCellPages(inputs.pages, partition.cells, inputs.world);
   const held = new Map<number, Placement[]>();
   const touched = createTouchedRows();
   const { write, follow } = createPlacementWrites(touched);

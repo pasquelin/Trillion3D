@@ -10,7 +10,7 @@
 //! its island, and on repeated coordinates — a tiled facade, every brick mapping the same square —
 //! the lookup can never answer with another brick metres away. Each coarse triangle is sampled at
 //! its corners, its edge midpoints and its centroid, as the geometric distance is (`measured.rs`).
-use super::GroupReductionInput;
+use super::measured::Surface;
 use lookup::Lookup;
 use rayon::prelude::*;
 use std::collections::HashMap;
@@ -30,24 +30,23 @@ pub(super) fn copy_islands(weld_seam: &[u32], live: &[u32]) -> HashMap<u32, u32>
 /// `floor.max(d)`, bit for bit, for `d` the largest texture deviation of `kept` from `live` over
 /// every texture set (zero without one): a sample stops at the first source point within `floor`.
 pub(super) fn texture_deviation_above(
-    input: &GroupReductionInput,
+    surface: &Surface,
     live: &[u32],
     kept: &[u32],
     floor: f64,
 ) -> f64 {
-    let sets = input.attributes.iter().filter(|a| a.width == 2);
-    let sets: Vec<&[f32]> = sets.map(|a| a.values).collect();
+    let sets = &surface.uv_sets;
     let zero = floor.max(0.0);
     if sets.is_empty() || live.is_empty() || kept.is_empty() {
         return zero;
     }
-    let islands = copy_islands(input.weld_seam, live);
-    let island = |v: u32| islands.get(&input.weld_seam[v as usize]).copied();
+    let islands = copy_islands(surface.weld_seam, live);
+    let island = |v: u32| islands.get(&surface.weld_seam[v as usize]).copied();
     let deviation = |uvs: &[f32]| {
-        let lookup = Lookup::new(input.positions, uvs, live, &island);
+        let lookup = Lookup::new(surface.positions, uvs, live, &island);
         kept.par_chunks_exact(3)
             .map(|tri| lookup.triangle(tri, &island, floor))
             .reduce(|| 0.0, f64::max)
     };
-    sets.into_iter().map(deviation).fold(zero, f64::max)
+    sets.iter().map(|uvs| deviation(uvs)).fold(zero, f64::max)
 }
