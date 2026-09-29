@@ -8,11 +8,8 @@ import {
 } from '../../../../../bench/perf/browser/support/dagCut.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 import { createGeometryBudget } from './pool.ts';
-import {
-  fenceAllocations,
-  settleAllocations,
-  takeOutOfMemory,
-} from '../../webgl/core/allocation.ts';
+import { fenceAllocations, settleAllocations } from '../../webgl/core/allocation.ts';
+import { createRefusalAnswer } from './refusals.ts';
 import { PAGE } from './pool.fixture.ts';
 import { createImageCut } from './imageCut.ts';
 import { createWebglViews } from './views.ts';
@@ -101,6 +98,12 @@ export function mount(
     onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
   });
   let camera = view ?? dagCamera();
+  const answerRefusals = createRefusalAnswer({
+    gl: () => gl,
+    pool,
+    onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
+    redraw: () => {},
+  });
   const cut = createImageCut({ roots, view: live, revision: () => 0, pool, held });
   /** One image at the host's `pixelError`, as `render.ts` draws it, then the pages it asked for —
    *  at most `arrivals` of them, as a streamer spreads them; returns the most the pages held
@@ -113,7 +116,7 @@ export function mount(
   const image = (pixelError: number, arrivals = Infinity) => {
     const { requested, shown } = live;
     settleAllocations(gl);
-    if (takeOutOfMemory(gl, 'geometry')) pool.outOfMemory();
+    answerRefusals();
     if (cut.readmit()) pool.follow(requested, shown);
     pool.trim();
     const drawn = (last = cut(cameraMoteur(camera), pixelError));
