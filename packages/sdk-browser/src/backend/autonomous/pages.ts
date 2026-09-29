@@ -90,7 +90,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     residency,
     heldFloor,
     instanceCount,
-    others: views.others,
+    ...{ others: views.others, captureDrawn: views.captureDrawn },
   });
   const frame = createAutonomousRender({
     state,
