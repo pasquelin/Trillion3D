@@ -3,7 +3,7 @@ import { createFrameBudget, createSharePace } from '../../page/integration/frame
 import { pageAddress } from '../row/pageSlots.ts';
 import { PRIORITY_PREFETCH } from '../../streaming/priority.ts';
 import { createAdmissionReads, createPageAdmission } from './admission.ts';
-import { mergeLowerTiers, type LowerList } from './lowerTier.ts';
+import { createLowerMerge, type LowerList } from './lowerTier.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { createGpuPageCache } from '../../gpu/page/pages.ts';
 import type { createWebgpuPageTracking } from '../row/pageTracking.ts';
@@ -51,7 +51,8 @@ export function createWebgpuResidentEnsurer({
   const budget = createFrameBudget(STREAMING_FRAME_MS);
   const nextShare = createSharePace(budget.open, STREAMING_SHARES_PER_FRAME);
   /** The reads a pass starts before its admissions, under the job's `reads`; none without `prefetch`. */
-  const readAhead = prefetch && createAdmissionReads({ hasBytes, parentsOf, prefetch });
+  const readAhead = prefetch && createAdmissionReads({ hasBytes, parentsOf, prefetch }),
+    mergeLower = createLowerMerge(tracking.keyOf);
   /** Every load of both tiers goes through the install order; what the image holds is pinned. */
   const admit = createPageAdmission({
     getCache,
@@ -108,10 +109,8 @@ export function createWebgpuResidentEnsurer({
       }
     }
   };
-  /**
-   * `cameraWaiting` says a camera cut is queued behind this job: the queue passes it, so the
-   * caster tier gives way to the camera. A barrier passes none and loads the whole tier.
-   */
+  /** `cameraWaiting` says a camera cut is queued behind this job: the queue passes it, so the
+   *  caster tier gives way to the camera. A barrier passes none and loads the whole tier. */
   return async (
     wanted: readonly PageRec[],
     jobFrame: number,
@@ -182,7 +181,7 @@ export function createWebgpuResidentEnsurer({
         cache = getCache();
         if (isLost() || !cache) throw new Error('WEBGPU_LOST');
       }
-      const lower = full ? [] : mergeLowerTiers(lowerTiers(), tracking.keyOf);
+      const lower = full ? [] : mergeLower(lowerTiers());
       if (lower.length) await loadLowerTiers(lower, cache, signal, cameraWaiting, reads.signal);
     } finally {
       reads.abort();
