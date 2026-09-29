@@ -17,8 +17,7 @@ in progress at all times**, one lead each, never zero.
 1. **Pick** the next unclaimed issue: `measure ko` / `audit ko`, then 🔴 🟠 🟡 🟢, then unlabelled;
    within a label performance before examples, then oldest (`oldest`) or newest (`newest`) first.
    **Claim** it: `gh issue edit <n> --add-label "in progress" --add-assignee pasquelin`, comment
-   `taken by CTO <direction>`. Too big for 1,500 lines: narrow it now, before any code, and move
-   the rest onto an existing issue (AGENTS.md rule 6); after that, the whole issue is due.
+   `taken by CTO <direction>`.
 2. **Lead**: agent `lead` with `issue #<n>, domain <d>` (geometry, lighting, compiler, physics, sdk,
    textures), and `branch <b>` when an abandoned one exists. It returns `PR <url> opened`, or the
    state it could not pass: you decide the next step.
