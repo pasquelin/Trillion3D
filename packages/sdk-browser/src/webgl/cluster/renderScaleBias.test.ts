@@ -81,7 +81,7 @@ test('an unchanged frame writes neither the mip bias nor a material uniform agai
 test('unchanged physical frames retain material uniform caches through source and final passes', () => {
   const output = { toneMapped: false, framebuffer: null, width: 64, height: 16 };
   const { named, submissions } = drawn([output, output], 'standard');
-  assert.equal(submissions, 6, 'both frames execute source, resolve and final geometry');
+  assert.equal(submissions, 4, 'both frames execute source and final geometry');
   for (const name of ['mipBias', 'roughFactor', 'metalFactor'])
     assert.equal(
       named('uniform1f', name).length,

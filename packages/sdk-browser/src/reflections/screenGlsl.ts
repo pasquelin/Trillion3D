@@ -33,7 +33,7 @@ vec3 filteredScreenReflection(vec3 P,vec3 N,vec3 R,float rough){return screenRef
 // runs over the receiver again. The resolve pass itself reads the full-detail source above.
 vec3 reflectedRadiance(vec3 P,vec3 N,vec3 R,float rough){
  if(!reflectionEnabled)return vec3(0.0);
- if(reflectionResolve)return texture(reflectionColor,gl_FragCoord.xy/vec2(textureSize(reflectionColor,0))).rgb;
+ if(reflectionResolve&&mirrorWeight(rough)>0.0)return texture(reflectionColor,gl_FragCoord.xy/vec2(textureSize(reflectionColor,0))).rgb;
  float weight=mirrorWeight(rough);
  if(weight==1.0)return screenReflectionRay(P,N,R);
  vec3 filtered=filteredScreenReflection(P,N,R,rough);
