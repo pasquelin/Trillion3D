@@ -94,8 +94,9 @@ fn traceProxy(origin:vec3f,direction:vec3f,limit:f32)->ProxyHit{
  }
  return best;
 }
-/** True as soon as a triangle cuts the segment: a shadow does not need the nearest. */
-fn proxyBlocked(origin:vec3f,direction:vec3f,limit:f32)->bool{
+/** True as soon as a triangle cuts the segment: a shadow does not need the nearest. With
+ *  casters, the triangles whose every owner casts no shadow let it through (proxyCastless). */
+fn proxyBlocked(origin:vec3f,direction:vec3f,limit:f32,casters:bool)->bool{
  if(proxyNodeCount()==0u){return false;}
  let inverse=rayInverse(direction);
  var stack:array<u32,${BOUNCE_SETTINGS.traversalStack}>;
@@ -115,6 +116,7 @@ fn proxyBlocked(origin:vec3f,direction:vec3f,limit:f32)->bool{
      for(var k=0u;k<LEAF_TRIANGLES;k++){
       if(k>=child.count){break;}
       let index=child.offset+k;
+      if(casters&&proxyCastless(index)){continue;}
       let owners=proxyOwners(index,child.owned);
       for(var owner=owners.x;owner<owners.y;owner++){
        if(triangleHit(index,owner,origin,direction,limit)<limit){return true;}
