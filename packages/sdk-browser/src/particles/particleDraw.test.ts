@@ -1,4 +1,4 @@
-// The CPU half of the WebGPU particle draw (#755); the GPU's part is the measurer's.
+// The CPU half of the WebGPU particle draw (#755); the GPU's part is the recette's.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setImmediate as tick } from 'node:timers/promises';
