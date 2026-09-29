@@ -40,9 +40,10 @@ export function createShadowNeeds(table: ShadowTable, pool: ShadowPool, capacity
       nowMs: number,
       frame: number,
       counts: { allocated: number; refused: number },
+      cycle = reportFrame,
     ) {
       order.subarray(0, count).sort(coarsestFirst);
-      pool.beginAllocation(reportFrame);
+      pool.beginAllocation(cycle);
       for (let k = 0; k < count; k++) {
         const n = order[k];
         // A floor under several named pages is noted once for each.

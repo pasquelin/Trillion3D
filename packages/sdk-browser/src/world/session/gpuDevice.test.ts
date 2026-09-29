@@ -22,13 +22,21 @@ function adapterOffering(offered: string[], limits: Record<string, number> = {})
   return { adapter, asked, limitsAsked };
 }
 
-const OFFERED = ['shader-f16', 'float32-filterable', 'subgroups', 'texture-compression-bc'];
+const OFFERED = [
+  'shader-f16',
+  'float32-filterable',
+  'subgroups',
+  'texture-compression-bc',
+  'depth-clip-control',
+];
 
 test('the device asks exactly the optional features the adapter offers, and publishes them', async () => {
   const { adapter, asked } = adapterOffering(OFFERED);
   const device = await requestExplorerDevice(adapter, '?other=1');
   // `float32-filterable` is offered but used by no kernel: it is not asked for.
-  assert.deepEqual(asked, [['subgroups', 'shader-f16', 'texture-compression-bc']]);
+  assert.deepEqual(asked, [
+    ['subgroups', 'shader-f16', 'depth-clip-control', 'texture-compression-bc'],
+  ]);
   assert.deepEqual(grantedGpuFeatures(device), asked[0]);
 });
 
@@ -36,8 +44,8 @@ test('a feature the URL forces off is neither asked for nor published', async ()
   const { adapter, asked } = adapterOffering(OFFERED);
   const off = '?trillion3dGpuFeaturesOff=subgroups,%20shader-f16';
   const device = await requestExplorerDevice(adapter, off);
-  assert.deepEqual(asked, [['texture-compression-bc']]);
-  assert.deepEqual(grantedGpuFeatures(device), ['texture-compression-bc']);
+  assert.deepEqual(asked, [['depth-clip-control', 'texture-compression-bc']]);
+  assert.deepEqual(grantedGpuFeatures(device), ['depth-clip-control', 'texture-compression-bc']);
 });
 
 // #1248: the device carries the adapter's own colour bytes, whatever the engine's widest pass.
