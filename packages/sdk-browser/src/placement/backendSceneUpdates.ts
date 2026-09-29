@@ -3,7 +3,7 @@ import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { AlphaMode } from '../../../sdk-core/src/contracts/material.ts';
 import type { DecodedGeometryPage } from '../page/decode/geometryPage.ts';
 import type { PlacementRows } from './rows.ts';
-import type { HostAttributes } from '../host/resources.ts';
+import type { HostAttributes, HostMaterials } from '../host/resources.ts';
 
 /** A range of one vertex list a dynamic geometry rewrote (#573): vertices `from` to
  *  `from + count - 1` of the host geometry's list `name`. */
@@ -127,6 +127,10 @@ export interface BackendSceneUpdates extends Partial<PlacementGrowth> {
    *  (#847): their records follow it, before `refreshMaterials(true, assignment)`; a mesh no
    *  page draws was refused before (`materialClassRefusal`). Absent, only a new session will. */
   wearSurface?(assignment: SurfaceAssignment): void;
+  /** Admit a runtime surface's maps through the engine's existing texture path. */
+  admitMaterial?(surface: HostMaterials): Promise<void>;
+  /** Release an admitted material after its last assignment leaves. */
+  releaseMaterial?(surface: HostMaterials): void;
   /** Repaints a primitive from the engine's material parameters: no shader, no program hook. */
   updateMaterial?(primitive: string, material: Material): void;
 }

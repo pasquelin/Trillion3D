@@ -21,6 +21,8 @@ export const ENGINE_ERROR_MEANINGS: Readonly<Record<string, string>> = {
     'A material change is unknown, out of range, would move it to a draw class an engine lays out when the scene opens, or would tile a map it shares.',
   MATERIAL_CEILING:
     'A page would create more materials than `RUNTIME_MATERIAL_CEILING` in one session; nothing was created.',
+  TEXTURE_BUDGET:
+    'A texture added after the scene opened would take the texture pool past `texturePoolBytes` or past the layers the device holds; nothing was added.',
   INVALID_SCENE_ENVIRONMENT: "The scene's exposure or surroundings are not valid numbers.",
   INVALID_TRANSFORM:
     "A node's placement is not a usable matrix, or a node would be its own ancestor.",
