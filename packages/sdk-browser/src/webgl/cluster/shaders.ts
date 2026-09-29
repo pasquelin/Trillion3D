@@ -4,6 +4,7 @@ import { OUTPUT_TRANSFER_GLSL } from '../core/outputGlsl.ts';
 import { RECT_LIGHT_GLSL, WEBGL_RECT_KIND } from './rectGlsl.ts';
 import { PROBE_IRRADIANCE_GLSL } from './probe.ts';
 import { LIGHT_TEXTURE_GLSL } from './lightTexture.ts';
+import { LIGHT_GRID_GLSL, LIGHT_LOOP_GLSL } from './lightGrid.ts';
 import { INVERSE_PI, PI, ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
 import { FOG_GLSL } from '../../lighting/fogShader.ts';
 import { LINE_CLIP_GLSL, LINE_DASH_GLSL } from '../../visibility/shader/lineWgsl.ts';
@@ -67,6 +68,7 @@ uniform sampler2D baseMap,roughMap,metalMap,normalMap,aoMap,emissiveMap;
 uniform mat3 baseUv,roughUv,metalUv,normalUv,aoUv,emissiveUv;
 uniform mat4 projectionMatrix;uniform ivec4 mapChannels;uniform ivec2 extraChannels;
 ${LIGHT_TEXTURE_GLSL}
+${LIGHT_GRID_GLSL}
 vec2 sourceUv(int channel){return channel==1?texcoord1:texcoord0;}
 vec2 mapUv(mat3 transform,vec2 source){return(transform*vec3(source,1.0)).xy;}
 struct CotangentFrame{vec3 T;vec3 B;};
@@ -90,7 +92,7 @@ ${RECT_LIGHT_GLSL}
 ${PROBE_IRRADIANCE_GLSL}
 ${FOG_GLSL}
 ${LINE_DASH_GLSL}
-// The lights the draw's list names (lightLists.ts), in slot order, on one surface: the engine's
+// The lights whose range reaches the fragment's grid cell (lightLists.ts), in slot order, on one surface: the engine's
 // only lighting formula, ambient and probe included.
 // In the reference's order of operations, so that a lit view writes its image to the last bit:
 // each direct light's irradiance (its colour already scaled by its intensity, lights.ts) weighs
@@ -98,7 +100,7 @@ ${LINE_DASH_GLSL}
 // are weighted once, occlusion last; diffuse, then specular. A diffuse or toon surface takes each
 // lamp through modelLight, the WebGPU path's formula: no specular, occlusion on its light too.
 vec3 shade(vec3 N,vec3 V,vec3 base,float metal,float rough,float ao){vec3 diffuse=base*(1.0-metal),f0=mix(vec3(0.04),base,metal);
-vec3 direct=vec3(0.0),specular=vec3(0.0),irradiance=vec3(0.0);for(int n=0;n<lightSpan.y;n++){int i=listedLight(n);
+vec3 direct=vec3(0.0),specular=vec3(0.0),irradiance=vec3(0.0);${LIGHT_LOOP_GLSL}
 vec4 positionRange=lightRecord(i,0),directionKind=lightRecord(i,1),colorIntensity=lightRecord(i,2),cone=lightRecord(i,3);
 int kind=int(directionKind.w);if(kind==3){irradiance+=colorIntensity.rgb;continue;}
 if(kind==${WEBGL_RECT_KIND}){direct+=rectLight(positionRange,directionKind.xyz,cone,colorIntensity,N,V,viewPosition,base,metal,rough,ao);continue;}
