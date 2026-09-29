@@ -19,6 +19,7 @@ import {
   sunEntry,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { BIAS, along, sub, type Vec } from '../../lighting/direct/shadowBias.fixture.ts';
+import { pointFaceOf } from '../../lighting/direct/shadowLamp.fixture.ts';
 
 /** The lines of `shadowFactorWgsl.ts` and `shadowWgsl.ts` this fixture restates. */
 export const READ = [
@@ -35,14 +36,6 @@ export const READ = [
 /** A lit point: where it lies, its normal. */
 export type Lit = { P: Vec; N: Vec };
 const UP: Vec = [0, 1, 0];
-
-/** `pointFaceOf`: the major axis of the light-to-point direction, in `POINT_FACE_AXES` order. */
-function pointFaceOf(d: Vec) {
-  const [x, y, z] = d.map(Math.abs);
-  if (x >= y && x >= z) return d[0] > 0 ? 0 : 1;
-  if (y >= z) return d[1] > 0 ? 2 : 3;
-  return d[2] > 0 ? 4 : 5;
-}
 
 /** The home page of map texel `t` and the neighbours `shadowPcf` reads across its edges. */
 function pagesRead(t: number[], home: number[]) {
