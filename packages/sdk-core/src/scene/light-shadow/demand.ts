@@ -17,7 +17,6 @@ import {
 import { PAGE_MAPPED, SHADOW_TABLE_ENTRIES, shadowRequestCap } from './virtual.ts';
 
 type ShadowRequests = ReturnType<typeof createShadowRequests>;
-export { RECEIVER_FLOATS, type ShadowReceivers };
 
 /**
  * How far from the lit point its reading reaches, in texels of the level it reads: the normal
@@ -79,17 +78,11 @@ export function createShadowDemand(table: ShadowTable, pool: ShadowPool, sun: Su
   };
   const visit = (light: DemandLight, depth: number) => {
     const o = depth * RECEIVER_FLOATS;
-    const { planes } = receivers;
+    // A cell holds boxes the frustum keeps (`receiverCells.ts`): only its halves may leave it.
+    const b = stack;
     if (
-      frustumExcludesBox(
-        planes,
-        stack[o],
-        stack[o + 1],
-        stack[o + 2],
-        stack[o + 3],
-        stack[o + 4],
-        stack[o + 5],
-      )
+      depth &&
+      frustumExcludesBox(receivers.planes, b[o], b[o + 1], b[o + 2], b[o + 3], b[o + 4], b[o + 5])
     )
       return;
     if (!light.reaches(stack, o)) return;
@@ -121,7 +114,6 @@ export function createShadowDemand(table: ShadowTable, pool: ShadowPool, sun: Su
     return true;
   };
   const demand = {
-    report,
     /** This frame's demand, as a report stamped `stamp`: every page its receivers read. */
     write(
       store: SceneLightStore,
@@ -179,5 +171,3 @@ export function createShadowDemand(table: ShadowTable, pool: ShadowPool, sun: Su
   };
   return demand;
 }
-
-export type ShadowDemand = ReturnType<typeof createShadowDemand>;

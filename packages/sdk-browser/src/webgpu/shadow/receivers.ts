@@ -1,8 +1,8 @@
-import { boxTransform, frustumExcludesBox } from '../../../../sdk-core/src/index.ts';
+import { boxTransform } from '../../../../sdk-core/src/index.ts';
 import {
   RECEIVER_FLOATS,
   type ShadowReceivers,
-} from '../../../../sdk-core/src/scene/light-shadow/demand.ts';
+} from '../../../../sdk-core/src/scene/light-shadow/receiverCells.ts';
 import type { EngineCamera } from '../../camera/engineCamera.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import { pixelNearOf } from '../../streaming/priority.ts';
@@ -20,7 +20,7 @@ const local = new Float64Array(RECEIVER_FLOATS);
 /**
  * THE SURFACES THE FRAME'S SHADING LIGHTS, before its shadow raster: the world box of every
  * cluster the frame draws — the CPU cut's, or the GPU cut's as its latest readback adopted it
- * (`run.drawn`) — that the camera's frustum keeps, with the footprint a pixel of the drawn target
+ * (`run.drawn`) — with the camera's frustum, which keeps what it lights, and the footprint a pixel of the drawn target
  * has at the near plane (`targetHeight`). What the scheduler reads its early demand from
  * (`demand.ts`): every page these receivers read is drawn before the frame samples it.
  */
@@ -38,12 +38,7 @@ export function shadowReceivers(
       local[k] = rec.min[k];
       local[k + 3] = rec.max[k];
     }
-    const at = count * RECEIVER_FLOATS;
-    boxTransform(b, at, local, 0, rec.matrix.elements);
-    if (
-      !frustumExcludesBox(cam.planes, b[at], b[at + 1], b[at + 2], b[at + 3], b[at + 4], b[at + 5])
-    )
-      count++;
+    boxTransform(b, count++ * RECEIVER_FLOATS, local, 0, rec.matrix.elements);
   }
   receivers.count = count;
   receivers.planes = cam.planes;
