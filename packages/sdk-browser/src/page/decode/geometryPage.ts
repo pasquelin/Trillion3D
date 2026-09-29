@@ -67,9 +67,11 @@ export function decodeGeometryPage(
     uv2,
     color,
     corners,
+    positionCount,
+    linkBits,
     bodyWords: at,
     decodedBytes,
-    streams: { blocks, corners: cornerStream, positions, normal, uvs, uv2s, colors },
+    streams: { blocks, corners: cornerStream, positions, links, normal, uvs, uv2s, colors },
   } = readGeometryPageHeader(data, maxDecodedBytes);
   // The streams are read in place when the page sits on a word boundary, from a copy otherwise.
   const body = data.subarray(CLUSTER_HEADER_WORDS * 4);
@@ -91,7 +93,15 @@ export function decodeGeometryPage(
       if (decodedIndices[i] >= vertexCount) throw new Error('GEOMETRY_PAGE_INDEX');
     }
   }
-  vector(attributes.position, words, positions, position);
+  if (positionCount < vertexCount) {
+    // Positions stored once, each vertex linked to its own (`positions.rs`).
+    const table = new Float32Array(positionCount * 3);
+    vector(table, words, positions, position);
+    for (let i = 0; i < vertexCount; i++) {
+      const p = field(words, links * 32 + i * linkBits, linkBits) * 3;
+      attributes.position.set(table.subarray(p, p + 3), i * 3);
+    }
+  } else vector(attributes.position, words, positions, position);
   if (flags & FLAG_NORMAL)
     for (let i = 0; i < vertexCount; i++)
       octDecode(field(words, normal * 32 + i * 16, 16), attributes.normal, i * 3);
