@@ -9,6 +9,7 @@ import { HOSTILE_FLOATS } from '../../../../../tests/kit/assert/hostile.ts';
 import { FLAG_BLEND_CASTER, FLAG_HAS_UV, FLAG_MASK } from '../../visibility/types.ts';
 import { createShadowMobility } from '../../webgpu/shadow/mobility.ts';
 import { MOBILITY_CUTOUT } from './cullShader.ts';
+import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import {
   rasterDepth,
   shadowEntries,
@@ -83,7 +84,7 @@ function scene(rng: () => number, o: Options) {
     instances: new Array<number>(3 * capacity).fill(-1),
     slotOffsets: [0, capacity, 2 * capacity, 3 * capacity],
     uni: { indirect: 1, drawSlot: REGION },
-    shadow: { viewProjection, emitter },
+    shadow: { viewProjection, params: vec4f(0, 0, 0, SHADOW_PAGE), emitter },
   };
   const entries = shadowEntries(world),
     order = [...pages.keys()].sort(() => rng() - 0.5),
