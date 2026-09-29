@@ -83,6 +83,11 @@ export function createTileLanes(
       for (const [name, lane] of lanes) {
         if (layers[name] === lane.pool.layers) continue;
         replaced++;
+        if (layers[name] === 0 && lane.pool.resident === 0) {
+          lane.pool.destroy();
+          lanes.delete(name);
+          continue;
+        }
         const result = resizeTileAtlas(
           target,
           shape(name, layers[name]),

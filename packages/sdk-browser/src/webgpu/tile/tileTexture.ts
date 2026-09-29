@@ -16,6 +16,7 @@ type TileSource =
 
 /** A texture of the atlas: tile geometry, pool lane, texels, and its record — none for the fill. */
 export type TileTexture = {
+  retired?: boolean;
   layout: TileLayout;
   lane: PoolLane;
   source: TileSource;

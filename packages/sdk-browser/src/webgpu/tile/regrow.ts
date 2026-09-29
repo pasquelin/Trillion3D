@@ -1,7 +1,8 @@
-import type { TileLayout } from '../../texture/tiles.ts';
+import { MAX_LEVELS, type TileLayout } from '../../texture/tiles.ts';
 import {
   createWebgpuTilePageTable,
   PAGE_HEADER_WORDS,
+  PAGE_SLOT_WORDS,
   type WebgpuTilePageTable,
 } from './pageTable.ts';
 
@@ -17,11 +18,20 @@ export function regrownPageTable(
   old: WebgpuTilePageTable,
   layouts: TileLayout[],
   options: { kind: 'color' | 'data'; feedbackOffset: number },
+  replaced = -1,
 ) {
   const table = createWebgpuTilePageTable(device, layouts, options),
     held = old.words;
-  table.words.set(held.subarray(PAGE_HEADER_WORDS, held[3]), PAGE_HEADER_WORDS);
-  table.words.set(held.subarray(held[2]), table.words[2]);
+  for (let slot = 0; slot < Math.min(held[1], layouts.length); slot++) {
+    if (slot === replaced) continue;
+    const header = PAGE_HEADER_WORDS + slot * PAGE_SLOT_WORDS;
+    table.words.set(held.subarray(header, header + PAGE_SLOT_WORDS), header);
+    const count = layouts[slot].entries;
+    if (!count) continue;
+    const oldStart = held[held[3] + slot * MAX_LEVELS];
+    const newStart = table.words[table.words[3] + slot * MAX_LEVELS];
+    table.words.set(held.subarray(oldStart, oldStart + count), newStart);
+  }
   device.queue.writeBuffer(table.buffer, 0, table.words);
   old.destroy();
   return table;

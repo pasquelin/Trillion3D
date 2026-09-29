@@ -19,10 +19,24 @@ export function createTileGrowth(
     sources: ReturnType<typeof createTileSources>;
     flushAll: () => void;
     followHeaders: (force: boolean) => number;
+    resetRequests: () => void;
   },
 ) {
   const { color, data, feedback, sources, flushAll, followHeaders } = parts;
+  const relayout = () => {
+    data.relayout(color.pages.entries);
+    feedback.grow(color.pages.entries + data.pages.entries);
+    parts.resetRequests();
+    followHeaders(true);
+    flushAll();
+  };
   return {
+    release(kind: 'color' | 'data', slot: number) {
+      const atlas = kind === 'color' ? color : data;
+      sources.release(atlas, slot);
+      atlas.release(slot);
+      relayout();
+    },
     /** Lane pools whose layers change are replaced, tiles kept; returns the evicted tiles. */
     resize(layers: AtlasLanes) {
       const results = [color.resize(device, layers.color), data.resize(device, layers.data)];
@@ -36,13 +50,15 @@ export function createTileGrowth(
     append(kind: 'color' | 'data', texture: TileTexture) {
       const atlas = kind === 'color' ? color : data;
       const slot = atlas.append(texture);
-      atlas.pinTails(device.queue, (at, place) => sources.tail(atlas, at, place), slot);
-      // The data ranks follow the colour ones: a grown colour table moves them.
-      if (data.pages.words[0] !== color.pages.entries) data.relayout(color.pages.entries);
-      const ranks = color.pages.entries + data.pages.entries;
-      if (ranks !== feedback.entries) feedback.grow(ranks);
-      followHeaders(true);
-      flushAll();
+      try {
+        atlas.pinTails(device.queue, (at, place) => sources.tail(atlas, at, place), slot, slot + 1);
+        relayout();
+      } catch (error) {
+        sources.release(atlas, slot);
+        atlas.release(slot);
+        relayout();
+        throw error;
+      }
       return slot;
     },
   };
