@@ -111,6 +111,32 @@ pub(crate) fn unit(v: [f64; 3]) -> Option<[f64; 3]> {
     (length > 0.0 && length.is_finite()).then(|| normalized(v, length, false))
 }
 
+/// Multiplicative hash, word by word: SipHash dominated mesh conversion (the corner values) and the
+/// Hausdorff grid's cell lookups (#977). Neither iterates its map, so no output reads the hash.
+#[derive(Default, Clone, Copy)]
+pub(crate) struct WordHasher(u64);
+impl WordHasher {
+    fn mix(&mut self, word: u64) {
+        self.0 = (self.0.rotate_left(5) ^ word).wrapping_mul(0x517cc1b727220a95);
+    }
+}
+impl std::hash::Hasher for WordHasher {
+    fn finish(&self) -> u64 {
+        self.0
+    }
+    fn write(&mut self, bytes: &[u8]) {
+        let (words, tail) = bytes.as_chunks::<8>();
+        words.iter().for_each(|w| self.mix(u64::from_le_bytes(*w)));
+        tail.iter().for_each(|&b| self.mix(b as u64));
+    }
+    fn write_u32(&mut self, v: u32) {
+        self.mix(v as u64);
+    }
+}
+/// A map hashed by [`WordHasher`].
+pub(crate) type WordMap<K, V> =
+    std::collections::HashMap<K, V, std::hash::BuildHasherDefault<WordHasher>>;
+
 /// The golden-ratio step of SplitMix64 (Steele et al. 2014), between two draws.
 pub(crate) const GOLDEN: u64 = 0x9E37_79B9_7F4A_7C15;
 
