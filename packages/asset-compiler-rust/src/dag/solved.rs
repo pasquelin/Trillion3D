@@ -8,10 +8,9 @@
 //! it spans in the group (`charts::densities`), normals keep `attributes::NORMAL_WEIGHT`.
 //!
 //! A face across two texture islands is charged its longest edge (`charts::folded_span`). The
-//! retries are the endpoint reduction's (`retries.rs`), but a face no
-//! longer than the group's error, under a pixel wherever its level is drawn, is not locked for
-//! being lit from behind: on a group the solve alone frees, that stalled it again (Sponza: four
-//! groups of five).
+//! retries are the endpoint reduction's (`retries.rs`), but a face no longer than the group's
+//! error, under a pixel wherever its level is drawn, is not locked for being lit from behind: on a
+//! group the solve alone frees, that stalled it again (Sponza: four groups of five).
 use super::border::required_locks;
 use super::charts::{densities, folded_span, longest_edge, open_border_welded, weighted};
 use super::grown::Placed;
@@ -68,9 +67,8 @@ fn attempt(input: &GroupReductionInput, live: &[u32], children: usize) -> Result
         };
         let error = solved.error_object.max(*weld_error);
         let local = Local::of(input, solved);
-        let span = folded_span(&local.indices, &local.positions, input.islands, |v| {
-            local.from(v)
-        });
+        let (indices, positions) = (&local.indices, &local.positions);
+        let span = folded_span(indices, positions, input.islands, |v| local.from(v));
         Ok(Ok(Solve {
             error: error.max(span),
             local,

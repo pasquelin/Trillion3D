@@ -121,8 +121,7 @@ struct GroupReductionInput<'a> {
     /// Per source vertex, on a texture seam: protected from permissive collapses. Empty without
     /// a texture set.
     seams: &'a [bool],
-    /// Per vertex, its texture island (`charts::vertex_islands`): the solve charges a face across
-    /// two; empty without a texture set.
+    /// Per vertex, its texture island (`charts::vertex_islands`); empty without a texture set.
     islands: &'a [u32],
     /// The source's vertex count: a vertex from it on was placed by a solve.
     source_vertices: usize,
