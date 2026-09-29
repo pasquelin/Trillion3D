@@ -8,6 +8,7 @@ import {
 import { cleanupFailedHiz, createHizPipelines, hizPagesGroup } from './pipelines.ts';
 import { TESTED_U32 } from '../partition/contract.ts';
 import type { GpuHiz } from './types.ts';
+import { pendingBuffers } from '../core/tableGrowth.ts';
 const TEST_WORKGROUP = 64;
 
 /** Frame Hi-Z: reverse-Z, reduce to the minimum. Without compute, returns `undefined`. */
@@ -19,7 +20,7 @@ export async function createGpuHiz(
 ): Promise<GpuHiz | undefined> {
   if (typeof device.createComputePipeline !== 'function' || width < 1 || height < 1)
     return undefined;
-  const cap = Math.max(1, maxBounds);
+  let cap = Math.max(1, maxBounds);
   // `COPY_SRC` serves only the proof tools, which reread depth; no frame copies.
   const level0Usage =
     GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_SRC;
@@ -50,10 +51,12 @@ export async function createGpuHiz(
     });
     let bounds = idle,
       state = idle;
-    const flags = device.createBuffer({
-      size: Math.max(4, cap * 4),
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
-    });
+    const flagsFor = (rows: number) =>
+      device.createBuffer({
+        size: Math.max(4, rows * 4),
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
+      });
+    let flags = flagsFor(cap);
     buffers.push(uniforms, idle, flags);
     /** The drawn pyramid's bind group, made once per pyramid and per `attach`, never per swap. */
     const bind = () => {
@@ -102,6 +105,18 @@ export async function createGpuHiz(
         state = nextState;
         bindings++;
         bind();
+      },
+      growFlags(rows) {
+        const next = flagsFor(rows);
+        return pendingBuffers([next], () => {
+          const old = flags;
+          buffers[buffers.indexOf(old)] = gpu.flags = flags = next;
+          cap = rows;
+          // Every pyramid's group names the flags: each is made again at its next install.
+          bindings++;
+          bind();
+          return [old];
+        });
       },
       /** Pyramid mips, with their offset and width: what the partition reads to express a
        *  screen rectangle in texels of the mip that covers it exactly. */
