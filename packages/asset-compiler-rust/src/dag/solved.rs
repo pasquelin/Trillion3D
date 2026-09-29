@@ -48,7 +48,8 @@ pub(super) fn stalled(
     Ok(solved.ok_or_else(|| diagnosis::outcome(cause, input, live)))
 }
 
-/// Reduces the seam-locked group `live` with the solve; `None` when it yields no fewer clusters than its `children`, or loses a lock on every retry.
+/// Reduces the seam-locked group `live` with the solve; `None` when it yields no fewer clusters
+/// than its `children`, or loses a lock on every retry.
 fn attempt(input: &GroupReductionInput, live: &[u32], children: usize) -> Result<Option<Solved>> {
     let base = (input.positions.len() / 3) as u32;
     let required = required_locks(live, input.locks, input.weld);
