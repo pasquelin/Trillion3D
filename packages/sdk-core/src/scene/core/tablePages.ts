@@ -60,7 +60,7 @@ export const isSlot = (slot: unknown): slot is string =>
   typeof slot === 'string' && /^[0-9a-f]{168}$/.test(slot);
 
 /** An integer of hexadecimal digits `from` to `to` of `hex`. */
-export const digits = (hex: string, from: number, to: number) => parseInt(hex.slice(from, to), 16);
+const digits = (hex: string, from: number, to: number) => parseInt(hex.slice(from, to), 16);
 /** The integers of eight hexadecimal digits each `hex` runs together. */
 export const eights = (hex: string) =>
   Array.from({ length: hex.length / 8 }, (_, at) => digits(hex, 8 * at, 8 * at + 8));
