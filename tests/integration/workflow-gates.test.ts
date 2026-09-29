@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 const repo = new URL('../../', import.meta.url);
 const env = {
@@ -48,7 +48,10 @@ const commit = (
   message: string,
   files: Record<string, string> = { [`${Date.now()}-${Math.random()}.txt`]: message },
 ) => {
-  for (const [name, text] of Object.entries(files)) writeFileSync(join(cwd, name), text);
+  for (const [name, text] of Object.entries(files)) {
+    mkdirSync(dirname(join(cwd, name)), { recursive: true });
+    writeFileSync(join(cwd, name), text);
+  }
   ok(cwd, 'add', ...Object.keys(files));
   return git(cwd, 'commit', '-q', '-m', message);
 };
@@ -93,7 +96,6 @@ test("check-pr-size: more than 1,500 hand-written lines fail, with the base's at
   const work = makeRepo();
   ok(work, 'switch', '-q', '-c', '12-thing');
   const attributes = readFileSync(new URL('.gitattributes', repo), 'utf8');
-  mkdirSync(join(work, 'src'));
   assert.equal(
     commit(work, 'base', { '.gitattributes': attributes, 'old.ts': 'x\n'.repeat(50) }).status,
     0,
@@ -118,4 +120,21 @@ test("check-pr-size: more than 1,500 hand-written lines fail, with the base's at
   assert.equal(refused.status, 1);
   assert.match(refused.stdout, /added: 1501 \(limit 1500\)/);
   assert.match(refused.stderr, /AGENTS\.md rule 5: narrow the issue/);
+});
+
+test("check-pr-size: publishReport's report data counts no line, the report modules still do", () => {
+  const work = makeRepo();
+  ok(work, 'switch', '-q', '-c', '12-thing');
+  const attributes = readFileSync(new URL('.gitattributes', repo), 'utf8');
+  assert.equal(commit(work, 'base', { '.gitattributes': attributes }).status, 0);
+  ok(work, 'tag', 'base');
+  const files = {
+    'site/reports/september-18/report.json': 'x\n'.repeat(2000),
+    'site/reports/september-18/sources/run-1/series.json': 'x\n'.repeat(2000),
+    'site/reports/compare.ts': 'x\n'.repeat(7),
+  };
+  assert.equal(commit(work, 'a published report', files).status, 0);
+  const counted = checkSize(work);
+  assert.equal(counted.status, 0, counted.stderr);
+  assert.match(counted.stdout, /added: 7 \(limit 1500\)/);
 });
