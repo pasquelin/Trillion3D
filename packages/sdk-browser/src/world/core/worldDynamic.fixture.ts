@@ -12,6 +12,7 @@ export function dynamicWorld() {
     sources: ExplorerSource[] = [];
   Object.assign(session, {
     updateVertices: (_: unknown, ranges: VertexRange[]) => rewrites.push(ranges) > 0,
+    setClearColor: () => true,
   });
   const open = (async (_canvas: unknown, _options: unknown, source: ExplorerSource) => (
     sources.push(source),

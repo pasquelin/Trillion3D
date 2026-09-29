@@ -1530,7 +1530,6 @@
     },
     "missing": {
       "inside-a-component": "pembersihan kanvas buatan mesin saat dunia dibuang",
-      "floating-crates": "geometri yang ditulis ulang setiap bingkai",
       "thick-lines": "garis lebar",
       "a-line-that-draws-itself": "rentang gambar geometri",
       "shapes-from-an-svg": "impor jalur SVG",
@@ -1677,8 +1676,6 @@
       "a-software-rasteriser": "API compute GPU",
       "sound-from-the-gpu": "API compute GPU",
       "breaking-things": "integrasi fisika",
-      "cloth-and-rope": "geometri yang ditulis ulang setiap bingkai",
-      "soft-bodies": "geometri yang ditulis ulang setiap bingkai",
       "a-cooked-flag": "geometri yang ditulis ulang setiap bingkai",
       "a-room-in-vr": "sesi WebXR",
       "a-360-photo-in-vr": "sesi WebXR",

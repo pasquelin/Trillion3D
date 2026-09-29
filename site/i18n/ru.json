@@ -346,7 +346,6 @@
     },
     "missing": {
       "inside-a-component": "удаление созданного движком canvas при освобождении мира",
-      "floating-crates": "геометрия, перезаписываемая в каждом кадре",
       "thick-lines": "широкие линии",
       "a-line-that-draws-itself": "диапазон отрисовки геометрии",
       "shapes-from-an-svg": "импорт путей SVG",
@@ -493,8 +492,6 @@
       "a-software-rasteriser": "API вычислений на GPU",
       "sound-from-the-gpu": "API вычислений на GPU",
       "breaking-things": "интеграция физического движка",
-      "cloth-and-rope": "геометрия, перезаписываемая в каждом кадре",
-      "soft-bodies": "геометрия, перезаписываемая в каждом кадре",
       "a-cooked-flag": "геометрия, перезаписываемая в каждом кадре",
       "a-room-in-vr": "сессия WebXR",
       "a-360-photo-in-vr": "сессия WebXR",

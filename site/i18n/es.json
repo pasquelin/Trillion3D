@@ -346,7 +346,6 @@
     },
     "missing": {
       "inside-a-component": "retirada del lienzo creado por el motor al liberar el mundo",
-      "floating-crates": "geometría reescrita en cada fotograma",
       "thick-lines": "líneas anchas",
       "a-line-that-draws-itself": "rango de dibujo de una geometría",
       "shapes-from-an-svg": "importación de trazados SVG",
@@ -493,8 +492,6 @@
       "a-software-rasteriser": "API de cómputo en la GPU",
       "sound-from-the-gpu": "API de cómputo en la GPU",
       "breaking-things": "integración de un motor de física",
-      "cloth-and-rope": "geometría reescrita en cada fotograma",
-      "soft-bodies": "geometría reescrita en cada fotograma",
       "a-cooked-flag": "geometría reescrita en cada fotograma",
       "a-room-in-vr": "sesión WebXR",
       "a-360-photo-in-vr": "sesión WebXR",

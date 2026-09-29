@@ -11,6 +11,7 @@ import {
   type SoftBodyRecord,
 } from '../../../sdk-core/src/physics/index.ts';
 import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
+import { computeNormals } from '../../../sdk-core/src/world/geometry/normals.ts';
 import { type Bodied, type createPhysicsBodies } from './bodies.ts';
 
 type Pose = { position: ArrayLike<number>; quaternion: ArrayLike<number> };
@@ -75,16 +76,30 @@ export function addSoftBody(
   const p = mesh.physics,
     record = softBodyOf(mesh.geometry, size, { ...p.soft!, mass: p.mass });
   const id = claim(0, record.vertices.length / SOFT_VERTEX_WORDS);
+  // Its vertices move every step: uploaded in place, never cut into pages again (#573).
+  mesh.geometry.usage = 'dynamic';
   const scale = [size.x, size.y, size.z] as const;
   writeSoftBody(writer, id, p, physicsMatterOf(mesh.material), { ...pose, scale }, record, flags);
   maps[id & BODY_INDEX] = record.map;
   return id & BODY_INDEX;
 }
 
+/** Draws `mesh` where its soft body is (#573): its geometry's positions, and its normals when it
+ *  carries some, rewritten in place from `vertices`, which hold one simulated place per vertex. */
+function drawSoft(mesh: Mesh, vertices: Float32Array) {
+  const { position, normal } = mesh.geometry.attributes;
+  if (position?.kind !== 'attribute' || position.array.length !== vertices.length) return;
+  position.array.set(vertices);
+  position.needsUpdate = true;
+  if (normal?.kind !== 'attribute') return;
+  normal.array.set(computeNormals(vertices, mesh.geometry.index?.array ?? null));
+  normal.needsUpdate = true;
+}
+
 /**
  * A tick's soft-body vertices (`SOFT_STATE_WORDS`): each vertex of a soft body's geometry takes
- * the place of the simulated vertex it maps to, in `physics.vertices`. A record naming a body
- * that left is skipped. Returns the meshes it moved.
+ * the place of the simulated vertex it maps to, in `physics.vertices`, and its geometry is drawn
+ * there (`drawSoft`). A record naming a body that left is skipped. Returns the meshes it moved.
  */
 export function receiveSoft(
   words: Uint32Array | null,
@@ -105,6 +120,7 @@ export function receiveSoft(
       const out = mesh.physics.vertices;
       for (let v = 0; v < map.length; v++)
         for (let k = 0; k < 3; k++) out[v * 3 + k] = floats[from + map[v] * 3 + k];
+      drawSoft(mesh, out);
       moved.push(mesh);
     }
     at = from + count * 3;
