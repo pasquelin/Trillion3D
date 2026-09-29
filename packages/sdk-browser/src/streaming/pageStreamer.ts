@@ -3,8 +3,10 @@ import { createStreamingQueue } from './queue.ts';
 import type { StreamContext, Job, StreamPage, PageStreamerOptions } from './types.ts';
 import { createStreamingCache } from './cache.ts';
 import { createIndexViews } from './indexView.ts';
-import { createPageCache, manifestTableBytes, type PageCache } from './pageCache.ts';
+import { createPageCache, type PageCache } from './pageCache.ts';
+import { manifestTableBytes } from './manifestTables.ts';
 import { createReadWatch } from './readWatch.ts';
+import { lazyDiagnostic } from '../diagnostic/engineDiagnostic.ts';
 /** Bounded, prioritized and deduplicated reads. A request still waiting in the queue is dropped once
  *  its last consumer leaves; one already transferring is allowed to land in the cache.
  *  The cache is a least-recently-used set bounded by both entries and bytes; pinned entries survive
@@ -53,14 +55,7 @@ export function createPageStreamerWith(
     disposed: false,
     reservedBytes: () => 0,
   };
-  const emit = (phase: string, message: string, context: () => Record<string, unknown>) => {
-    if (onDiagnostic)
-      try {
-        onDiagnostic({ phase, message, context: context() });
-      } catch {
-        /* Observers cannot alter streaming. */
-      }
-  };
+  const emit = lazyDiagnostic(onDiagnostic);
   const abortError = () => new DOMException('Page request cancelled', 'AbortError');
   const context: StreamContext = {
     base,
@@ -81,14 +76,15 @@ export function createPageStreamerWith(
     emit,
     abortError,
   };
-  const { touch, evict, held, retain, retainRanks, reserve } = createStreamingCache(context);
+  const reserved = () => tableBytes + maxTransferBytes + state.reservedBytes();
+  const streaming = createStreamingCache(context, reserved);
+  const { touch, evict, sync, retain, retainRanks, reserve } = streaming;
   // A kept page held under this name as another file leaves before the first read.
   store.dropForeign(catalog);
-  const reserved = () => tableBytes + maxTransferBytes + state.reservedBytes();
-  const release = store.hold({ reserved, held, evict });
+  const release = store.hold(streaming.holder);
   if (kept) evict();
   else store.resize(store.cpuBytes + store.reservedBytes);
-  emit('page-catalogue', 'Streamer catalogue and configuration ready', () => ({
+  emit?.('page-catalogue', 'Streamer catalogue and configuration ready', () => ({
     version: 1,
     pages: catalog.size,
     workerCount: limit,
@@ -99,7 +95,7 @@ export function createPageStreamerWith(
     totalBytes: pages.reduce((sum, page) => sum + page.bytes, 0),
   }));
   const { loadOne, roundTrip } = createStreamingFetcher(context, touch);
-  const { subscribe, forget, keep } = createStreamingQueue(context, loadOne, touch, evict);
+  const { subscribe, forget, keep } = createStreamingQueue(context, loadOne, touch, evict, sync);
   const { read, watch } = createReadWatch(subscribe);
   const asIndices = createIndexViews();
   const readBytes = (url: string, signal?: AbortSignal, priority = 0) => {
@@ -146,7 +142,7 @@ export function createPageStreamerWith(
     ) {
       const unique = [...new Set(urls.filter((url) => catalog.has(url)))];
       state.requested += unique.length;
-      emit('page-request-batch', 'Batched page request received', () => ({
+      emit?.('page-request-batch', 'Batched page request received', () => ({
         version: 1,
         requested: urls.length,
         unique: unique.length,
@@ -177,7 +173,7 @@ export function createPageStreamerWith(
     dispose() {
       if (state.disposed) return;
       state.disposed = true;
-      emit('page-stream-dispose', 'Page streamer released', () => ({
+      emit?.('page-stream-dispose', 'Page streamer released', () => ({
         version: 1,
         resident: cache.size,
         loading: state.active,
