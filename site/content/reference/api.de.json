@@ -148,6 +148,14 @@
   "assertCacheRoot": {
     "summary": "Was ein Host an der Wurzel eines Cache-Manifests (`clusters.json`) vor jeder seiner Seiten prüfen kann: Der Cache ist bereit, im angefragten Umfang und in einem Format, das dieses SDK liest."
   },
+  "CellRows": {
+    "summary": "Eine dekodierte Zelle, so wie ihre Zeilen daraus geschrieben werden.",
+    "members": {
+      "nodes": "Wie viele Knoten die Zelle enthält.",
+      "ranks": "Je Knoten der Rang seines Elternteils (`-1`: die Szenenwurzel), dann der seines Meshes.",
+      "locals": "Je Knoten seine lokale Matrix."
+    }
+  },
   "readPagedManifest": {
     "summary": "Das Manifest unter `root`, seine Seiten und deren Begleitdateien nebeneinander über `read` gelesen — im Browser `fetchVerified`, das jede an der Größe und dem Fingerabdruck prüft, die sie benennen: die Felder der Wurzel, die des Kopfes und die Primitive jeder Mesh-Seite in Reihenfolge (`decodeManifestBinary`)."
   },

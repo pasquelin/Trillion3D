@@ -485,6 +485,14 @@
       "height": "Tinggi gambarnya, dalam piksel."
     }
   },
+  "CellRows": {
+    "summary": "Sel yang sudah didekode, tempat baris-barisnya ditulis.",
+    "members": {
+      "nodes": "Berapa banyak node yang dimuat sel.",
+      "ranks": "Per node, peringkat induknya (`-1`: akar adegan), lalu peringkat mesh-nya.",
+      "locals": "Per node, matriks lokalnya."
+    }
+  },
   "ChangeListener": {
     "summary": "Sebuah fungsi yang dipanggil saat sebuah controller menggerakkan kamera."
   },

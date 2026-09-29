@@ -485,6 +485,14 @@
       "height": "Chiều cao của hình ảnh, tính bằng điểm ảnh."
     }
   },
+  "CellRows": {
+    "summary": "Một ô đã giải mã, nơi các hàng của nó được ghi ra.",
+    "members": {
+      "nodes": "Số nút mà ô chứa.",
+      "ranks": "Với mỗi nút, hạng của nút cha (`-1`: gốc của cảnh), rồi hạng của lưới.",
+      "locals": "Với mỗi nút, ma trận cục bộ của nó."
+    }
+  },
   "ChangeListener": {
     "summary": "Một hàm được gọi khi một bộ điều khiển di chuyển camera."
   },

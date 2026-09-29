@@ -42,6 +42,7 @@ export function decodeCellFile(source: ArrayBuffer, url = 'a scene cell'): CellP
 
 /** A decoded cell as its rows are written from it. */
 export type CellRows = {
+  /** How many nodes the cell holds. */
   nodes: number;
   /** Per node, its parent's rank (`-1`: the scene root), then its mesh's. */
   ranks: Int32Array;
