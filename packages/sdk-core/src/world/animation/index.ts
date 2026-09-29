@@ -1,9 +1,10 @@
 import type { Object3D } from '../object/object3d.ts';
 import { Blends } from './blend.ts';
-import { sample } from './sample.ts';
+import { difference, sample } from './sample.ts';
 
-/** What a track animates: a number, a vector, a rotation or a colour. */
-export type TrackKind = 'number' | 'vector' | 'quaternion' | 'color';
+/** What a track animates: a number, a vector, a rotation, a colour, or a list of numbers — a
+ *  mesh's morph weights, `node.morphTargetInfluences`. */
+export type TrackKind = 'number' | 'vector' | 'quaternion' | 'color' | 'weights';
 
 /** Values sampled at times: `values` holds `values.length / times.length` numbers per key. */
 export interface Track {
@@ -11,21 +12,15 @@ export interface Track {
   /** What kind of value it holds. */ readonly kind: TrackKind;
   /** When each key happens, in seconds. */ readonly times: Float32Array;
   /** The value at each key, one after the other. */ readonly values: Float32Array;
+  /** How it goes from one key to the next: a straight line (the default), the earlier key held,
+   *  or glTF's cubic spline, whose keys hold an in-tangent, the value and an out-tangent. */
+  readonly interpolation?: 'linear' | 'step' | 'cubic';
 }
 /** A named animation: tracks played together. */ export interface Clip {
   /** The clip's name. */ readonly name: string;
   /** How long the clip lasts, in seconds. */ readonly duration: number;
   /** The tracks it plays. */ readonly tracks: Track[];
 }
-
-const track =
-  (kind: TrackKind) =>
-  (path: string, times: number[], values: number[]): Track => ({
-    name: path,
-    kind,
-    times: new Float32Array(times),
-    values: new Float32Array(values),
-  });
 
 /** Every mixer with an action playing: what a world's loop advances each frame. */
 const playing = new Set<Mixer>();
@@ -44,6 +39,8 @@ export type TrackBinding = {
   /** The field of `owner` it writes. */ field: string;
   /** The key the last sample stood at. */ key: number;
   /** The numbers of one sample. */ value: Float64Array;
+  /** Its clip's reference pose, the first key: what an additive action is measured from. */
+  reference?: Float64Array;
 };
 
 /** One clip playing on a mixer's root. */
@@ -51,6 +48,9 @@ export class Action {
   /** What happens at the end: stop, start again, or go back. */
   loop: 'once' | 'repeat' | 'pingpong' = 'repeat';
   /** How much this action counts, 0 to 1. */ weight = 1;
+  /** `'additive'` adds the clip's motion from its first key on top of what the other actions
+   *  write — a nod over a walk —, instead of blending with them. */
+  blendMode: 'normal' | 'additive' = 'normal';
   /** Speed: 2 plays twice as fast. */ timeScale = 1;
   /** Seconds played so far. */ time = 0;
   /** Whether the action is playing. */ playingNow = false;
@@ -68,8 +68,10 @@ export class Action {
     if (bound) return bound;
     const target = resolve(this.mixer.root, tr.name);
     if (!target) return null;
-    const value = new Float64Array(tr.values.length / tr.times.length);
+    const width = tr.values.length / tr.times.length / (tr.interpolation === 'cubic' ? 3 : 1);
+    const value = new Float64Array(width);
     this.bindings.set(tr, (bound = { ...target, key: 0, value }));
+    bound.reference = Float64Array.from(sample(tr, tr.times[0] ?? 0, bound));
     return bound;
   }
   /** Starts playing. */ play() {
@@ -137,8 +139,10 @@ export class Mixer {
       for (const tr of action.clip.tracks) {
         const target = action.bindingOf(tr);
         if (!target) continue;
-        const blend = blends.of(target, tr.kind === 'quaternion');
-        blends.add(blend, sample(tr, action.clipTime(), target), action.weight);
+        const blend = blends.of(target, tr.kind === 'quaternion'),
+          value = sample(tr, action.clipTime(), target);
+        if (action.blendMode === 'normal') blends.add(blend, value, action.weight);
+        else blends.addDifference(blend, difference(tr, value, target.reference!), action.weight);
       }
     }
     blends.write();
@@ -158,27 +162,5 @@ export function advanceMixers(scene: Object3D, seconds: number) {
   return active;
 }
 
-/** The `animation` family: clips of keyed tracks, played by a mixer on a node and its children. */
-export const animation = {
-  /** A player of clips for a node and its children.
-   *  @param root - The node whose children the clips move. */
-  createMixer: (root: Object3D) => new Mixer(root),
-  /** A named animation made of tracks.
-   *  @param name - Its name. @param duration - How long it lasts, in s. @param tracks - What moves. */
-  clip: (name: string, duration: number, tracks: Track[]): Clip => ({ name, duration, tracks }),
-  /** A track of plain numbers.
-   *  @param path - `node.field` it animates. @param times - Key times, in s. @param values - Values. */
-  track: track('number'),
-  /** A track of single numbers.
-   *  @param path - `node.field` it animates. @param times - Key times, in s. @param values - One each. */
-  numberTrack: track('number'),
-  /** A track of 3D positions or sizes.
-   *  @param path - `node.field` it animates. @param times - Key times, in s. @param values - Three each. */
-  vectorTrack: track('vector'),
-  /** A track of rotations.
-   *  @param path - `node.field` it animates. @param times - Key times, in s. @param values - Four each. */
-  quaternionTrack: track('quaternion'),
-  /** A track of colours.
-   *  @param path - `node.field` it animates. @param times - Key times, in s. @param values - RGB each. */
-  colorTrack: track('color'),
-};
+export { animation } from './family.ts';
+export { Skeleton } from './skeleton.ts';
