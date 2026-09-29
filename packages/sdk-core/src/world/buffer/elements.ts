@@ -62,8 +62,10 @@ export abstract class VertexElements {
   stored(index: number, component: number) {
     return this.array[this.at(index) + component];
   }
-  /** Number `component` of vertex `index`, read as the number it stands for. */
+  /** Number `component` of vertex `index`, read as the number it stands for; 0 past the
+   *  vertex's `itemSize` numbers, never the next vertex's. */
   getComponent(index: number, component: number) {
+    if (component >= this.itemSize) return 0;
     const value = this.stored(index, component);
     return this.normalized ? denormalize(value, this.array) : value;
   }
