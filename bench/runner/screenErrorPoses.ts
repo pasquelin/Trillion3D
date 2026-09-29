@@ -3,9 +3,11 @@
 // at 1.2, 2, 5 and 20 radii around an object, and a terrain seen from the ground, the air and
 // afar. `bench` is the bench's four named views (`poses.ts`, `VIEWS`), read off the engine's box.
 import type { CameraPose } from '../../packages/sdk-core/src/contracts/base.ts';
+import type { TriangleTree } from '../../packages/sdk-core/src/collision/triangleTree.ts';
 import { VIEWS, poseAt, type Bounds } from './poses.ts';
 
-export type PoseSet = 'orbit' | 'terrain' | 'bench';
+export const POSE_SETS = ['orbit', 'terrain', 'bench'] as const;
+export type PoseSet = (typeof POSE_SETS)[number];
 export interface NamedPose {
   view: string;
   pose: CameraPose;
@@ -13,17 +15,6 @@ export interface NamedPose {
 
 const ANGLES = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
 const FOV = 55;
-
-/** Box of a triangle list, nine numbers per triangle. */
-function boxOf(triangles: Float32Array) {
-  const lo = [Infinity, Infinity, Infinity],
-    hi = [-Infinity, -Infinity, -Infinity];
-  for (let i = 0; i < triangles.length; i++) {
-    lo[i % 3] = Math.min(lo[i % 3], triangles[i]);
-    hi[i % 3] = Math.max(hi[i % 3], triangles[i]);
-  }
-  return { lo, hi };
-}
 
 /** Height of the source corner nearest to `(x, z)` in plan: the ground a walker stands on. */
 function groundAt(triangles: Float32Array, x: number, z: number) {
@@ -38,9 +29,17 @@ function groundAt(triangles: Float32Array, x: number, z: number) {
 
 type Vec = [number, number, number];
 
-/** The audit's cameras around `source`, world-space triangles. */
-export function auditPoses(set: 'orbit' | 'terrain', source: Float32Array): NamedPose[] {
-  const { lo, hi } = boxOf(source);
+const ORBIT_RADII = [1.2, 2, 5, 20];
+
+/** The audit's cameras around `source`, world-space triangles whose engine tree is `tree` (its
+ *  root node's bounds are the source's box). */
+export function auditPoses(
+  set: 'orbit' | 'terrain',
+  source: Float32Array,
+  tree: TriangleTree,
+): NamedPose[] {
+  const lo = tree.bounds.subarray(0, 3),
+    hi = tree.bounds.subarray(3, 6);
   const c: Vec = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2];
   const radius = Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) / 2;
   const near = Math.max(radius / 10000, 0.01),
@@ -50,27 +49,33 @@ export function auditPoses(set: 'orbit' | 'terrain', source: Float32Array): Name
     pose: { position, target, fov: FOV, near, far },
   });
   const poses: NamedPose[] = [];
-  const kinds = set === 'terrain' ? ['ground', 'air', 'far'] : ['d1.2', 'd2', 'd5', 'd20'];
-  for (const kind of kinds)
-    for (const a of ANGLES) {
-      const view = `${kind}-a${a.toFixed(2)}`,
-        cos = Math.cos(a),
-        sin = Math.sin(a);
-      if (set === 'orbit') {
-        const k = radius * Number(kind.slice(1));
-        poses.push(at(view, [c[0] + k * cos, c[1] + k * 0.35, c[2] + k * sin], c));
-        continue;
+  const name = (kind: string, a: number) => `${kind}-a${a.toFixed(2)}`;
+  if (set === 'orbit') {
+    for (const k of ORBIT_RADII)
+      for (const a of ANGLES) {
+        const d = radius * k;
+        const eye: Vec = [c[0] + d * Math.cos(a), c[1] + d * 0.35, c[2] + d * Math.sin(a)];
+        poses.push(at(name(`d${k}`, a), eye, c));
       }
-      const x = c[0] + (hi[0] - lo[0]) * 0.45 * cos,
-        z = c[2] + (hi[2] - lo[2]) * 0.45 * sin;
-      if (kind === 'air') poses.push(at(view, [x, hi[1] + 150, z], c));
-      else if (kind === 'far')
-        poses.push(at(view, [c[0] + 3000 * cos, c[1] + 300, c[2] + 3000 * sin], c));
-      else {
-        const eye = groundAt(source, x, z) + 1.8;
-        poses.push(at(view, [x, eye, z], [c[0], eye, c[2]]));
-      }
-    }
+    return poses;
+  }
+  const plan = (a: number) => [
+    c[0] + (hi[0] - lo[0]) * 0.45 * Math.cos(a),
+    c[2] + (hi[2] - lo[2]) * 0.45 * Math.sin(a),
+  ];
+  for (const a of ANGLES) {
+    const [x, z] = plan(a),
+      eye = groundAt(source, x, z) + 1.8;
+    poses.push(at(name('ground', a), [x, eye, z], [c[0], eye, c[2]]));
+  }
+  for (const a of ANGLES) {
+    const [x, z] = plan(a);
+    poses.push(at(name('air', a), [x, hi[1] + 150, z], c));
+  }
+  for (const a of ANGLES)
+    poses.push(
+      at(name('far', a), [c[0] + 3000 * Math.cos(a), c[1] + 300, c[2] + 3000 * Math.sin(a)], c),
+    );
   return poses;
 }
 

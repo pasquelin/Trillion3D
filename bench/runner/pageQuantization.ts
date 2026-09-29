@@ -19,6 +19,11 @@ import { readCacheManifest } from './cacheManifest.ts';
 import { decodeGeometryPage } from '../../packages/sdk-browser/src/page/decode/geometryPage.ts';
 
 const ITEMS: Record<string, number> = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 };
+const INDEX_ARRAYS: Record<number, typeof Uint8Array | typeof Uint16Array | typeof Uint32Array> = {
+  5121: Uint8Array,
+  5123: Uint16Array,
+  5125: Uint32Array,
+};
 
 /** Accessors of the source glTF, read out of `source.bin`: floats held by accessor index, and
  *  indices widened to 32 bits (`screenErrorSurface.ts` reads the triangles through it). */
@@ -32,8 +37,6 @@ export function accessorReader(dir: string) {
     const start = bin.byteOffset + (view.byteOffset ?? 0) + (accessor.byteOffset ?? 0);
     return bin.buffer.slice(start, start + accessor.count * ITEMS[accessor.type as string] * width);
   };
-  const INDEX_ARRAYS: Record<number, typeof Uint8Array | typeof Uint16Array | typeof Uint32Array> =
-    { 5121: Uint8Array, 5123: Uint16Array, 5125: Uint32Array };
   return {
     gltf,
     read(index: number) {
@@ -45,7 +48,8 @@ export function accessorReader(dir: string) {
     },
     readIndices(index: number) {
       const Type = INDEX_ARRAYS[gltf.accessors[index].componentType as number];
-      return Uint32Array.from(new Type(bytes(index, Type.BYTES_PER_ELEMENT)));
+      const indices = new Type(bytes(index, Type.BYTES_PER_ELEMENT));
+      return indices instanceof Uint32Array ? indices : Uint32Array.from(indices);
     },
   };
 }
