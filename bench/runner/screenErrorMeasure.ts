@@ -99,7 +99,7 @@ const segment = new Float64Array(6),
   closest = new Float64Array(6);
 /** Distance from `p` to the nearest triangle of `tree`: boxes grown from `start` until the
  *  nearest triangle found lies inside the box, which makes it the nearest of all. */
-export function nearestDistance(tree: TriangleTree, p: Float64Array, start: number) {
+function nearestDistance(tree: TriangleTree, p: Float64Array, start: number) {
   segment.set(p, 0);
   segment.set(p, 3);
   let best = Infinity;
