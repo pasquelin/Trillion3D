@@ -58,6 +58,7 @@ const INPUTS: Record<string, () => number> = {
   first: () => int(-40, 40) * SHADOW_PAGE,
   t: () => (r() - 0.5) * 1e4,
   rest: () => int(0, LAMP_FACE_ENTRIES - 1),
+  local: () => int(0, 5000),
   slot: () => int(0, 15),
   r: () => int(0, 63),
   count: () => int(1, 5000),
