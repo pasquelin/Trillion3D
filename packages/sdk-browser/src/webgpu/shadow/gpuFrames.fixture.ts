@@ -13,7 +13,12 @@ import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
 import { createShadowRecordPack } from '../../gpu/shadow/recordPack.ts';
-import { claimShadowRequest, runShadowAllocation, runShadowWords } from './allocRun.fixture.ts';
+import {
+  claimShadowRequest,
+  runShadowAllocation,
+  runShadowFloors,
+  runShadowWords,
+} from './allocRun.fixture.ts';
 import { runShadowFresh } from './freshRun.fixture.ts';
 import { POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
 import { freshSlices } from './freshPass.ts';
@@ -76,6 +81,9 @@ export function gpuFrames(poolSide: number, lights: SceneLight[], gpuDraws = tru
     table,
     owner,
     field,
+    /** Needs the GPU refused in the last frame: more than the pool could hold. */
+    refused: () =>
+      new Uint32Array(bytes(allocation.state).buffer)[POOL_COUNTS.indexOf('refused')],
     drawnFor,
     /** The frame each page was last drawn in. */
     drawnAt,
@@ -86,14 +94,15 @@ export function gpuFrames(poolSide: number, lights: SceneLight[], gpuDraws = tru
     regions,
     /**
      * Frame `frame` seen from `view`, lit at `lits`: the plan reads the reports handed to it, the
-     * GPU maps what the shading reads, the plan draws, and the frame's report goes to `sent`.
-     * Returns the entries the shading read.
+     * GPU maps what the shading reads — and the pixels ask `more` beside it —, the plan draws,
+     * and the frame's report goes to `sent`. Returns the entries the shading read.
      */
     async frame(
       frame: number,
       view: ShadowViewpoint,
       lits: Lit[],
       sent: (report: ShadowRequestReport) => void,
+      more: readonly number[] = [],
     ) {
       plan.plan(store, view, MIN, MAX, frame, frame * 16);
       writeShadowRecords({ store, plan, shadows } as never);
@@ -101,15 +110,18 @@ export function gpuFrames(poolSide: number, lights: SceneLight[], gpuDraws = tru
       const read = shadingReads(plan, store, view, lits),
         list = bytes(requests.buffer);
       list.fill(0);
-      for (const entry of read) claimShadowRequest(list, entry);
       if (!allocation.seeded) {
         allocation.seed(plan, data, SHADOW_TABLE_OFFSET);
         plan.gpu.set(true, frame);
       }
       allocation.writeParams(frame, plan.records.generation, plan.gpu.asks);
       const [state, keys, params] = [allocation.state, allocation.keys, allocation.params];
-      const drawList = bytes(allocation.drawList);
-      runShadowAllocation(bytes(data), list, bytes(state), bytes(keys), bytes(params), drawList);
+      const bound = [bytes(data), list, bytes(state), bytes(keys), bytes(params)];
+      bound.push(bytes(allocation.drawList));
+      // The floors first, then the pixels' demand, then the allocation (`encodeLights.ts`).
+      runShadowFloors(...bound);
+      for (const entry of [...read, ...more]) claimShadowRequest(list, entry);
+      runShadowAllocation(...bound);
       for (const page of plan.admission.list.subarray(0, plan.admission.count)) {
         drawnFor[page] = plan.pool.owner[page];
         drawnAt[page] = frame;
