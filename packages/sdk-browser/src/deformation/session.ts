@@ -17,6 +17,8 @@ export function createSessionDeformation(roots: readonly ClusterRoot<PageRec>[])
     }),
   );
   let base = 0;
+  /** Each root's placement rank by the world it reads: what a transparent item knows it by. */
+  const byWorld = new Map(roots.map((root, placement) => [root.world, placement] as const));
   return {
     frame,
     /** Whether any root deforms. */
@@ -38,6 +40,10 @@ export function createSessionDeformation(roots: readonly ClusterRoot<PageRec>[])
     rowWord(placement: number | undefined) {
       const at = placement === undefined ? 0 : (frame.bases[placement] ?? 0);
       return at ? base + at : 0;
+    },
+    /** `rowWord` of the root placed by `world`: a transparent item's. */
+    wordOfWorld(world: object) {
+      return this.rowWord(byWorld.get(world as ClusterRoot<PageRec>['world']));
     },
   };
 }
