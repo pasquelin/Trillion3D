@@ -14,6 +14,7 @@ import { MATERIAL_DEPTH_FORMAT } from '../../../visibility/shader/materialClass.
 import { MATERIAL_DEPTH_PASS } from '../../core/materialPasses.ts';
 import { createAsIsShare } from '../../../lighting/deferred/asIsShare.ts';
 import { displayApart, type FrameSize } from '../state/renderScale.ts';
+import { wantsAsIsShare } from './asIsShareTarget.ts';
 
 /** Bytes per pixel of the display colour (`DISPLAY_FORMAT`). */
 const DISPLAY_BYTES = 4;
@@ -35,7 +36,7 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
   return (
     frameTargetBytes(width, height, reserveHiz) -
     (rt.feedbackAB?.target === false ? width * height * 4 : 0) +
-    width * height +
+    (wantsAsIsShare(rt) ? width * height : 0) +
     additional +
     (wantsReflections(rt) ? width * height * 8 : 8) +
     display * DISPLAY_BYTES +
@@ -141,7 +142,8 @@ export function makeTargets(
   gpu.hdrTexture = target('Trillion3D HDR lighting', 'rgba16float');
   if (rt.feedbackAB?.target !== false) makeFeedbackTarget(rt, device, width, height);
   gpu.surfaces = createSurfaceBuffer(device, width, height);
-  gpu.asIsShare = createAsIsShare(device, gpu.surfaces.views()[3], width, height);
+  if (wantsAsIsShare(rt))
+    gpu.asIsShare = createAsIsShare(device, gpu.surfaces.views()[3], width, height);
   gpu.colorView = gpu.colorTexture.createView();
   gpu.displayTexture = size.apart
     ? target('Trillion3D display', DISPLAY_FORMAT, usage, {

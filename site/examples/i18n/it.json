@@ -1411,6 +1411,7 @@
     "banner": "Trascina per girare intorno. Cambia vista per vedere cosa conserva il renderer.",
     "controls": {
       "see": "Vedi",
+      "glass": "Vetro",
       "spin": "Rotazione"
     },
     "choices": {
