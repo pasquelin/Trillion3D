@@ -49,11 +49,9 @@ export const FLAG_LIT = 1,
   FLAG_HAS_TANGENT = 2048,
   /** The transparent draw reads its clusters from the compacted list, not an index buffer of its own. */
   FLAG_PAGED = 4096,
-  /**
-   * Frame flag, not a material one: the whole frame comes out as raw albedo because no light is
-   * declared, or because the host asked for the unlit view. Only the transparent draw reads it —
-   * the opaque path has its own resolve program for that.
-   */
+  /** Frame flag, not a material one: the whole frame comes out as raw albedo because no light is
+   *  declared, or because the host asked for the unlit view. Only the transparent draw reads it —
+   *  the opaque path has its own resolve program for that. */
   FLAG_UNLIT_VIEW = 8192,
   /** The material transmits: the surface reads the already-drawn background instead of blending by alpha. */
   FLAG_TRANSMISSIVE = 16384,
@@ -90,6 +88,8 @@ export type VisMaterial = {
   normalMap?: Texture;
   normalScale: number;
   normalScaleY: number;
+  /** `normalScaleY` in a frame read from vertex tangents, not rebuilt (`frameNormal.ts`). */
+  tangentNormalScaleY?: number;
   aoMap?: Texture;
   aoIntensity: number;
   emissive: [number, number, number];
