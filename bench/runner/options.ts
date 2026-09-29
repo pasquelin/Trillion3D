@@ -99,8 +99,8 @@ export function readOptions(argv: string[], root: string) {
     if (!(value > 0)) throw new Error(`--${name} must be a strictly positive number of MiB`);
     return Math.round(value * 1024 * 1024);
   };
-  const engine = flags.get('moteur') ?? 'webgl';
-  if (!ENGINES[engine]) throw new Error(`--moteur must be ${Object.keys(ENGINES).join(', ')}`);
+  const engine = flags.get('engine') ?? 'webgl';
+  if (!ENGINES[engine]) throw new Error(`--engine must be ${Object.keys(ENGINES).join(', ')}`);
   const views = (flags.get('vues') ?? 'generale,sol,rue')
     .split(',')
     .filter(Boolean) as (keyof typeof VIEWS)[];
@@ -139,7 +139,7 @@ export function readOptions(argv: string[], root: string) {
     // `--profil off` replays the same series without per-stage timing: fidelity gate.
     stageProfile: (flags.get('profil') ?? 'on') !== 'off',
     // A breakdown campaign puts "trace" details on BOTH sides, including the one without variants.
-    trace: [...flags.keys()].some((name) => name === 'variante' || name.startsWith('variante-')),
+    trace: [...flags.keys()].some((name) => name === 'variant' || name.startsWith('variant-')),
     profileFrames: number('images-profil', 120),
     // `--textures cache`: the engine reads baked texture levels from cache; loader does not open source images.
     textureSource: flags.get('textures') === 'cache' ? 'cache' : 'host',

@@ -1,4 +1,4 @@
-// The fluids bench scene (#418), `--scene fluids` on `--moteur webgpu|webgl2`: one ocean, 100
+// The fluids bench scene (#418), `--scene fluids` on `--engine webgpu|webgl2`: one ocean, 100
 // floating bodies, 20 fires and 5 smoke volumes, declared here and built in the page through the
 // public API (`fluidsPage.ts`). The waves and bodies are the physics fixtures (`OCEAN`,
 // `floatingBodies`); what the engine does not draw yet is a THROWAWAY STAND-IN: a flat
@@ -66,7 +66,7 @@ export type FluidsScene = ReturnType<typeof fluidsScene>;
 /** What one side sends into the page: the bench settings are plain data, sent whole. */
 function fluidsPayload(side: Side, settings: BenchSettings, scene: FluidsScene) {
   const renderer = side.engine.renderer;
-  if (!renderer) throw new Error('--scene fluids draws on --moteur webgpu or webgl2 only');
+  if (!renderer) throw new Error('--scene fluids draws on --engine webgpu or webgl2 only');
   return {
     side: side.name,
     sdkUrl: sdkEntryUrl(side),

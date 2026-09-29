@@ -21,7 +21,7 @@ the off-side delta bounds any request-packing gain.
 
 A single harness for all test batches. One command, no server to start manually, only this repository on the machine: Playwright and esbuild are its dev dependencies, Chrome is the system browser, assets live under `.mesure/assets/`.
 
-    node bench/runner/bench.ts --moteur webgl --avant <ref-git|dist> --apres <ref-git|dist> \
+    node bench/runner/bench.ts --engine webgl --before <ref-git|dist> --after <ref-git|dist> \
          --vues generale,sol,rue --images 60 --pixelError 0,1
 
     node bench/runner/campaign.ts
@@ -31,27 +31,27 @@ The report is rendered by the bilingual React portal. See [Published reports](#p
 for export, one-report staging, provenance and comparison rules. Rebuilding the site does not
 rerun benchmarks.
 
-- `--moteur`: `webgl` (exact-cluster-pages), `webgpu` (webgpu-page-raster), or `webgl2`
+- `--engine`: `webgl` (exact-cluster-pages), `webgpu` (webgpu-page-raster), or `webgl2`
   (autonomous-pages-webgl, the autonomous engine decoding geometry pages itself, hence the only one incrementing `pagesDecodedWasm`); it also sets Chromium flags (`sideOptions.ts`). `webgl2` requires a cache where all primitives are exact clusters: otherwise the compiler leaves `autonomousScene` null and the explorer rejects the run with `AUTONOMOUS_SCENE_UNAVAILABLE`.
-  Witnesses to pit on one side via `--moteur-avant`: `three-nu` and `three-lod`, see [The witnesses](#the-witnesses).
-- `--avant` / `--apres`: a built `dist/` directory, or a git ref. Without `--avant`, a single side is measured; `--apres` defaults to `dist/`.
-- `--moteur-avant` / `--moteur-apres`: per-side engine overrides. This is how the engine is pitted against the Three witness in a single execution — same poses, same lights, same caches, same server —, making `ecartAvantApres` a fidelity metric rather than a cross-campaign comparison. Chromium flags are the union of both sides' requirements.
-- `--scene <name>`: asset scene, any folder of `.mesure/assets/` that `assets.ts` compiled (`sponza`, `normal-tangent-mirror-test`, `facade-7`, …). Sets the `derived` cache for each side without `--cache-<side>`. Omission infers cache name or defaults to `sponza`. `--scene fluids` (`fluids.ts`, #418) reads no cache: one ocean, 100 floating bodies, 20 fires and 5 smoke volumes built in the page through the public API, on `--moteur webgpu` or `webgl2`; `resume.md` then carries a "Fluids scene" table instead of views.
+  Witnesses to pit on one side via `--engine-before`: `three-nu` and `three-lod`, see [The witnesses](#the-witnesses).
+- `--before` / `--after`: a built `dist/` directory, or a git ref. Without `--before`, a single side is measured; `--after` defaults to `dist/`.
+- `--engine-before` / `--engine-after`: per-side engine overrides. This is how the engine is pitted against the Three witness in a single execution — same poses, same lights, same caches, same server —, making `ecartAvantApres` a fidelity metric rather than a cross-campaign comparison. Chromium flags are the union of both sides' requirements.
+- `--scene <name>`: asset scene, any folder of `.mesure/assets/` that `assets.ts` compiled (`sponza`, `normal-tangent-mirror-test`, `facade-7`, …). Sets the `derived` cache for each side without `--cache-<side>`. Omission infers cache name or defaults to `sponza`. `--scene fluids` (`fluids.ts`, #418) reads no cache: one ocean, 100 floating bodies, 20 fires and 5 smoke volumes built in the page through the public API, on `--engine webgpu` or `webgl2`; `resume.md` then carries a "Fluids scene" table instead of views.
 - Every run probes the browser limits first (`limits.ts`): WebGL2 half-float and float colour targets, `EXT_disjoint_timer_query_webgl2`, WebGPU `timestamp-query` and the WebGPU limits the adapter grants beyond the defaults, under `limits` in `mesure.json` and "Browser limits" in `resume.md`.
-- `--cache-avant` / `--cache-apres`: path to compiled cache output (`native/full`), to compare two compilers on the same scene. Omission reads the scene cache from assets.
+- `--cache-before` / `--cache-after`: path to compiled cache output (`native/full`), to compare two compilers on the same scene. Omission reads the scene cache from assets.
 - `--ressources <dir>`: directory for glTF resources mounted under `/assets/`. Without it, un-based compiled caches yield 404 textures.
 - `--vues` among `generale`, `sol`, `rue`, `detail` (`poses.ts`, `PATH_VERSION` 7); `--pixelError` accepts a list; also `--chauffe`, `--largeur`, `--hauteur`, `--dpr` (positive, default 1), `--out`, and `--port`. The viewport keeps the requested CSS size while `--dpr 2` renders twice as many pixels on each axis.
 - `--rebond on|off` (default `off`): enables bounce lighting.
 - `--textures cache|host` (default `host`): whether the prepared scene reads the source images. `cache` skips every image whose chain the cache carries; `host` decodes them all, which the Three witnesses need. The engine reads the baked levels either way (#289), so the two sides render the same image and differ only in what the scene fetches — the harness keeps `host` by default because a side may be a witness, and a witness side reads its images whatever the flag says (the engine resolves `cache` back to `host` for a backend that draws the host scene).
 - `--budget-textures <ms>`: CPU milliseconds a frame may spend copying texture tiles into the pools (`maxTextureUploadMsPerFrame`). Without the option, the engine keeps its default (1.0 ms). Tiles beyond the budget wait for the next frame and show their coarser resident level meanwhile; the profile's "Textures" stage gives the pass's p50/p95 and the metrics its worst pass (`textureUploadPeakMs`) and what it deferred (`textureTilesDeferred`). A cold traversal (`--chauffe 0 --camera-mobile --textures cache`) is where it is read: on a still pose the barrier lifts it.
-- `--compression auto|bc7|astc|none` (default `auto`), or per side `--compression-avant` / `--compression-apres`: block family of the WebGPU texture pools, under `--textures cache`. `auto` takes the first family the device samples — the BC family before ASTC 4×4 — that the cache holds kept chains in, `none` keeps every pool RGBA8 (the lossless "before" of a texture comparison), `bc7` or `astc` insist on one and fall back to RGBA8, by name, when the device lacks it. A chain the cook's quality gate left lossless stays in the RGBA8 lane whatever the choice. Two sides on one `dist/` and one cache with `--compression-avant none --compression-apres bc7` measure the family alone; the summary's texture line names the family actually held (`texturePoolFormat`).
+- `--compression auto|bc7|astc|none` (default `auto`), or per side `--compression-before` / `--compression-after`: block family of the WebGPU texture pools, under `--textures cache`. `auto` takes the first family the device samples — the BC family before ASTC 4×4 — that the cache holds kept chains in, `none` keeps every pool RGBA8 (the lossless "before" of a texture comparison), `bc7` or `astc` insist on one and fall back to RGBA8, by name, when the device lacks it. A chain the cook's quality gate left lossless stays in the RGBA8 lane whatever the choice. Two sides on one `dist/` and one cache with `--compression-before none --compression-after bc7` measure the family alone; the summary's texture line names the family actually held (`texturePoolFormat`).
 - `--antialiasing on|off` (default `on`): toggles TAA jitter and accumulation.
-- `--scale <s>` or `--scale-<side> <s>` (#816), `s` in [0.5, 1]: the WebGPU frame is drawn at `s` of the display per axis and the temporal resolve reconstructs it to the display; without it, the frame is drawn at the display. Both sides on one dist measure the scale alone: `--moteur webgpu --avant dist --apres dist --scale-apres 0.67` compares the converged still captures of the native and the reconstructed frame, and `resume.md`'s before/after delta gives, beside the pixel count and the maximum, the mean and the 99.9th percentile of the colour channels' error in 1/255 steps (the issue's bar: mean ≤ 1, p99.9 ≤ 8).
+- `--scale <s>` or `--scale-<side> <s>` (#816), `s` in [0.5, 1]: the WebGPU frame is drawn at `s` of the display per axis and the temporal resolve reconstructs it to the display; without it, the frame is drawn at the display. Both sides on one dist measure the scale alone: `--engine webgpu --before dist --after dist --scale-after 0.67` compares the converged still captures of the native and the reconstructed frame, and `resume.md`'s before/after delta gives, beside the pixel count and the maximum, the mean and the 99.9th percentile of the colour channels' error in 1/255 steps (the issue's bar: mean ≤ 1, p99.9 ≤ 8).
 - `--profil on|off` (default `on`): requests per-step timing breakdown.
 - `--lampes N`: enables N point lights in the scene. `--ombres on|off` toggles shadow casting; `--lampe-mobile` animates the first light in a circle. `--intensite N` sets light intensity. `--portee F` sets each light's range to `F` grid cells (0.75 by default): above one, several lights reach the same pixel.
 - `--soleil`: adds directional sun light with its virtual shadow maps. Combines with `--lampes`.
 - `--camera-mobile`: the pose advances by one step along the benchmark trajectory at each measured frame, instead of replaying the same one. This is what distinguishes a still scene from a moving camera — and thus, for the sun, cached shadow pages from pages redrawn at each frame. It is also the only way to observe selection cost: with a fixed pose, everything retained frame-to-frame is free and appears nowhere. On a ten-million-triangle interior, general view, GPU transparent selection drops `cpuFrameMs` p50 from 17.6 to 12.1 ms at threshold 0 and from 7.2 to 4.5 ms at threshold 1 — an invisible difference with a static camera. The recorded cut hash may differ between sides under this option without the image moving: it comes from asynchronous readback, one frame behind the cut it describes.
-- `--gaze-network` (#41): plays each view's trajectory once, one pose per frame, with no warmup, capture or settle barrier, and counts the bytes Chrome actually transferred (textures apart from the rest) instead of timing frames; `resume.md` then carries a "Gaze-driven network transfer" table and `mesure.json` a `gazeNetwork` list. It needs a compiled cache scene, `--textures cache` and `--moteur webgpu` on every side; see [GAZE_NETWORK.md](GAZE_NETWORK.md).
+- `--gaze-network` (#41): plays each view's trajectory once, one pose per frame, with no warmup, capture or settle barrier, and counts the bytes Chrome actually transferred (textures apart from the rest) instead of timing frames; `resume.md` then carries a "Gaze-driven network transfer" table and `mesure.json` a `gazeNetwork` list. It needs a compiled cache scene, `--textures cache` and `--engine webgpu` on every side; see [GAZE_NETWORK.md](GAZE_NETWORK.md).
 - Without `--lampes` or `--soleil`, no lights are declared: the engine renders unlit material albedo. This is its default behavior, not a harness option.
 
 - Shadow pages: every page a frame marks is drawn in that frame, in as many batches as it takes; the profile reports `pagesEnAttente` (0 unless a batch could not be encoded) and `retardMaxMs`, and `occludeursGardes`, the clusters the region culls kept on the sampled frame `imageRelevee` (one frame in fifteen, read back after submission). Under `--camera-mobile`, the sun is a clipmap: each of its levels is a window of pages around the camera, addressed by absolute page modulo the window, so a camera step keeps every page that stays inside and only the entering strips are drawn; changes of representation (level of detail, residency, colour tiles) stale pages only once the camera rests, so the moving loop's `pagesInvalidees` counts strips and moving objects alone.
@@ -65,7 +65,7 @@ rerun benchmarks.
 ## The witnesses
 
 A witness is a comparison backend the harness pits against the engine on one side
-(`--moteur-avant three-nu|three-lod|webgl`). The SDK never mounts one on its own: they are reached
+(`--engine-before three-nu|three-lod|webgl`). The SDK never mounts one on its own: they are reached
 through the witness entry point (`bench/witnesses/measurement.ts`, bundled by `pnpm run build` into
 `dist/witnesses/measurement.js`, which the package leaves out) as `referenceBackend`,
 `threeLodBackend` and `exactPagesBackend`, opt-in through the session's `backends` option.
@@ -201,9 +201,9 @@ Resource base URL is where harness serves sources for compiled glTF texture fetc
 Acceptance can replay the complete versioned camera path without collecting timings:
 
     node bench/runner/trajectory.ts --scene sponza --cache .mesure/assets/sponza-derived \
-      --avant .worktrees/reference/dist --apres dist --out .mesure/out/8-trajectory
+      --before .worktrees/reference/dist --after dist --out .mesure/out/8-trajectory
 
-Both builds must already exist. `--avant` is the explicitly chosen golden baseline, never
+Both builds must already exist. `--before` is the explicitly chosen golden baseline, never
 automatically replaced by the candidate. Both sides read the same compiled cache, camera poses,
 resolution, error threshold, memory budgets and texture compression. Build hashes, asset identity,
 browser version, settings and path version accompany the PNGs in `trajectory.json`. The output
@@ -235,7 +235,7 @@ transient errors and checkpoint coverage without a browser.
 Harness is scene-agnostic: measures provided caches, pose bounds read from page model bounds. Three setup steps:
 
 1. **Compile glTF** as shown above (§ Assets), to `<name>-derived/` folder — under `.mesure/assets/`, where dropping a source folder is enough for `assets.ts` to compile it, or elsewhere, gitignored.
-2. **Name cache for both sides**: `--cache-avant <dir>` and `--cache-apres <dir>`. Scene name derived from `derived` directory; defaulting to reference scene cache if omitted.
+2. **Name cache for both sides**: `--cache-before <dir>` and `--cache-after <dir>`. Scene name derived from `derived` directory; defaulting to reference scene cache if omitted.
 3. **Mount resources**: `--ressources <dir>` sets relative glTF resource folder. Omission yields 404 textures. Caches compiled with absolute `resourceBaseUrl` fetch directly from URL; logged errors indicate per-page resolution.
 
 Memory pools match engine fixed byte budgets: `--pool-geometrie <MiB>` (geometry pages, default 512 MiB) and `--pool-textures <MiB>` (texture tiles, default 512 MiB). Extreme values test degradation behavior, logged in metrics (`poolGeometrie.borne`, `poolGeometrie.saturees`, `coverageBudgetLimited`, `textureTilesRefused`). `--max-pages` remains a PAGE cap for test scenes. Recorded in metrics; comparisons require matching pool sizes.
