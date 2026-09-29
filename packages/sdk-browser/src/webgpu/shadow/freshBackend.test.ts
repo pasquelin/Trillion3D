@@ -81,24 +81,29 @@ test('a caster the camera does not select keeps its shadow in the pages the GPU 
   assert.ok(casterPages.length > 0, 'a page the GPU drew keeps the caster, readable');
 });
 
-test('a frame at rest runs none of the GPU page work', async () => {
-  const { gpu, frame } = await lampOverFloor();
+test('a frame at rest, or where a caster alone moves, runs none of the GPU page work', async () => {
+  const { backend, gpu, frame } = await lampOverFloor();
   for (let warm = 0; warm < 3; warm++) await frame();
   assert.ok(
     gpu.computes.some((entry) => GPU_PAGE_WORK.includes(entry)),
     'the first frames run it',
   );
   for (let rest = 0; rest < 4; rest++) await frame();
-  const computes = gpu.computes.length,
-    passes = gpu.passes.length;
-  await frame();
-  assert.deepEqual(
-    gpu.computes.slice(computes).filter((entry) => GPU_PAGE_WORK.includes(entry)),
-    [],
-  );
-  assert.deepEqual(
-    gpu.passes.slice(passes).filter(({ label }) => label === 'Trillion3D shadow atlas v1'),
-    [],
-    'no pass over a layer',
-  );
+  const work = async (act?: () => void) => {
+    const computes = gpu.computes.length,
+      passes = gpu.passes.length;
+    act?.();
+    await frame();
+    return [
+      gpu.computes.slice(computes).filter((entry) => GPU_PAGE_WORK.includes(entry)).length,
+      gpu.passes.slice(passes).filter(({ label }) => label === 'Trillion3D shadow atlas v1').length,
+    ];
+  };
+  assert.deepEqual(await work(), [0, 0], 'at rest: no GPU page work, no pass over a layer');
+  for (const x of [0.05, 0.1, 0.15])
+    assert.deepEqual(
+      (await work(() => backend.setTransform!('caster', along(x))))[0],
+      0,
+      `the caster at ${x}: its pages are the host's`,
+    );
 });

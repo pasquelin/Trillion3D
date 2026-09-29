@@ -80,11 +80,9 @@ export function createShadowMirror(
     asks: { entries: new Uint32Array(shadowRequestCap(pool.pages)), count: 0 } as ShadowAsks,
     /** True while the GPU allocates. */
     on: false,
-    /** Pages the latest snapshot's frame listed for the GPU to draw, and whether nothing moved at
-     *  the last plan — the view or a node (`plan.ts`): the GPU's page draws rest only when none is
-     *  listed and nothing moved (`freshPass.ts`). */
+    /** Pages the latest snapshot's frame listed for the GPU to draw: while some are, the GPU's
+     *  page draws run (`freshPass.ts`). */
     listed: 0,
-    quiet: false,
     /** The GPU allocates, its pool written from the host's, or no longer does, from frame `frame`
      *  on: snapshots before are left. */
     set(allocate: boolean, frame: number) {
