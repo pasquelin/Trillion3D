@@ -32,6 +32,7 @@ test('a moved owner is hit at its new pose by the shipped traversal, on the GPU'
   assert.deepEqual(compilation, []);
   // Still: the canonical plane is hit, nothing stands five metres away.
   assert.ok(still[0].found && still[0].blocked && near(still[0].distance, 1));
+  assert.equal(still[0].owner, 0, 'a still proxy never reads its owner ranges');
   assert.ok(!still[1].found && !still[1].blocked, 'no owner stands at the future pose yet');
   assert.ok(moved && dynamic, 'the owner pose reached the resident proxy');
   // Moved: the owner left in place keeps its plane; the moved owner is hit at its new pose.
