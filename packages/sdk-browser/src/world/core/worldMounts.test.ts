@@ -60,16 +60,11 @@ function mountingSession(late: number, takes = true) {
     for (const mount of pending.filter((mount) => mount.at <= at)) mount.done();
     pending.splice(0, pending.length, ...pending.filter((mount) => mount.at > at));
   };
-  /** The rows drawn now, and the newest frame a drawn row was mounted at. */
+  /** The rows drawn now. */
   const live = () => {
-    let rows = 0,
-      newest = -1;
-    for (const [placed, at] of drawn)
-      for (const flag of placed.live) {
-        rows += flag;
-        if (flag) newest = Math.max(newest, at);
-      }
-    return { rows, newest };
+    let rows = 0;
+    for (const [placed] of drawn) for (const flag of placed.live) rows += flag;
+    return rows;
   };
   return {
     open,
@@ -141,7 +136,8 @@ test('1 000 frames adding and removing a mesh and replacing a geometry never ope
     if (!runtime.render()) imageless++;
     // The ground and the water always drawn, a crate beside them once mounted; the water, rewritten
     // every frame, turns dynamic and is rewritten in place from then on (#573).
-    assert.ok(live().rows >= 2 && live().rows <= 3, `frame ${frame}: ${live().rows} rows drawn`);
+    const rows = live();
+    assert.ok(rows >= 2 && rows <= 3, `frame ${frame}: ${rows} rows drawn`);
   }
   runtime.dispose();
   await new Promise(setImmediate);

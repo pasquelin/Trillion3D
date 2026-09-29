@@ -6,12 +6,13 @@ import type { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attr
 import type { Cut } from './worldCuts.ts';
 
 /** The lists of drawn triangles, the host attribute each is and its floats per vertex. */
-const LISTS = [
+export const LISTS = [
   ['positions', 'position', 3],
   ['normals', 'normal', 3],
   ['uvs', 'uv', 2],
   ['colors', 'color', 4],
 ] as const;
+const INDEX = { position: 0, normal: 1, uv: 2, color: 3 } as const;
 
 /**
  * What `next` changed of `held`, list by list: the range from its first changed vertex to its
@@ -51,7 +52,7 @@ export function changedRanges(held: DrawnTriangles, next: DrawnTriangles) {
 /** Writes `ranges` of `next` into `held`, in place: what the session reads next. */
 export function copyRanges(held: DrawnTriangles, next: DrawnTriangles, ranges: VertexRange[]) {
   for (const { name, from, count } of ranges) {
-    const [field, , width] = LISTS.find((list) => list[1] === name)!;
+    const [field, , width] = LISTS[INDEX[name]];
     held[field]!.set(next[field]!.subarray(from * width, (from + count) * width), from * width);
   }
 }
