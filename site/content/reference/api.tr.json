@@ -3216,7 +3216,7 @@
       "plan": "Bir kareyi planlar: hareket edeni eskitir, alıcıların talebini — yoksa son raporu — okur, çizilecek her sayfayı kabul eder.",
       "reissue": "Karenin `from` sonrasındaki sayfaları kodlanamadı: eski ve bekler hâlde kalırlar, sonraki kare onları çizer.",
       "reset": "Yeniden başlar.",
-      "setThreshold": "Işık kesitlerinin gölge düşürenleri seçtiği eşik (`thresholds.ts`).",
+      "setThreshold": "Işık kesitlerinin gölge düşürenleri seçtiği eşik ve render başlangıç noktaları (`thresholds.ts`).",
       "table": "Sayfa tablosu: sanal sayfa başına bir sözcük ve her ışığın içinde tuttuğu aralık.",
       "pool": "Havuzun fiziksel sayfaları ve her birinin tuttuğu sanal sayfa.",
       "sun": "Her güneşin clipmap’i: çerçevesi, derinlik aralığı, en ince düzeyi ve alanları.",

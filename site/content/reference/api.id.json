@@ -3300,7 +3300,7 @@
       "plan": "Merencanakan satu frame: membuat usang yang bergerak, membaca permintaan penerima — atau, jika tidak ada, laporan terakhir —, menerima setiap halaman yang akan digambar.",
       "reissue": "Halaman frame mulai dari `from` tidak dapat dikodekan: tetap usang, tertunda, dan frame berikutnya menggambarnya.",
       "reset": "Memulai lagi.",
-      "setThreshold": "Ambang tempat potongan cahaya memilih pemberi bayangan (`thresholds.ts`).",
+      "setThreshold": "Ambang tempat potongan cahaya memilih pemberi bayangan, dan titik asal render-nya (`thresholds.ts`).",
       "table": "Tabel halaman: satu kata per halaman virtual, dan rentang yang dipegang setiap cahaya di dalamnya.",
       "pool": "Halaman fisik pool dan halaman virtual yang disimpan masing-masing.",
       "sun": "Clipmap setiap matahari: kerangkanya, rentang kedalaman, tingkat terhalus, dan cakupannya.",
