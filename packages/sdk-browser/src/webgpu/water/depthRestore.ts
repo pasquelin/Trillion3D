@@ -6,12 +6,14 @@ import { FULLSCREEN_VERTEX } from '../../lighting/deferred/shaders.ts';
 import { buildRenderPipeline } from '../../lighting/deferred/fullscreen.ts';
 
 export const WATER_DEPTH_RESTORE = 'Trillion3D water depth restore';
+/** The fullscreen triangle writing each texel's own opaque depth. */
+export const WATER_DEPTH_RESTORE_SHADER = FULLSCREEN_VERTEX + depthRestoreWgsl(0);
 /** WebGPU forbids cropped depth texture copies. Restore texels through the same fragment as
  * shadow pages instead; the target outside this scissor is neither sampled nor depth-tested. */
 export async function createWaterDepthRestore(device: GPUDevice) {
   const module = await createCheckedShaderModule(
     device,
-    FULLSCREEN_VERTEX + depthRestoreWgsl(0),
+    WATER_DEPTH_RESTORE_SHADER,
     'WATER_DEPTH_RESTORE',
   );
   const layout = device.createBindGroupLayout({ entries: staticLayerEntries() });
