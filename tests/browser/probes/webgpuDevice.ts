@@ -3,7 +3,7 @@
 // copies of the same prologue had already drifted — one of them did not filter compilation
 // messages and did not wait for the queue.
 //
-// This module knows only the browser: `pageWebgpu.ts` injects the text of `ouvrirAppareil` into
+// This module knows only the browser: `pageWebgpu.ts` injects the text of the device opener into
 // the page (`toString`), and the page bundled by esbuild (`parentedCameraGpuPage.ts`) imports
 // it. One writing for both paths, hence one contract.
 
@@ -25,11 +25,11 @@ export async function ouvrirAppareil(features: GPUFeatureName[] = []) {
   // The optional features asked, those the adapter has: the probe reads what was granted.
   const requiredFeatures = features.filter((feature) => adapter.features.has(feature));
   const device = await adapter.requestDevice({ requiredFeatures });
-  const erreurs: string[] = [];
-  device.addEventListener('uncapturederror', (event) => erreurs.push(event.error.message));
+  const errors: string[] = [];
+  device.addEventListener('uncapturederror', (event) => errors.push(event.error.message));
   return {
     device,
-    erreurs,
+    erreurs: errors,
     async compile(code: string) {
       const module = device.createShaderModule({ code });
       const compilation = (await module.getCompilationInfo()).messages
