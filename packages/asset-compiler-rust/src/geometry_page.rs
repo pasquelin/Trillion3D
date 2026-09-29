@@ -1,4 +1,4 @@
-use crate::geometry_page_cells::{grids, Cell, Grids};
+use crate::geometry_page_cells::{grids, stored_positions, Cell, Grids};
 use crate::{CompilerError, Result};
 use std::collections::HashMap;
 use trillion3d_page_codec::triangles::Spans;
@@ -79,9 +79,13 @@ mod tests_codec_refusal;
 #[path = "geometry_page_grid_tests.rs"]
 mod tests_grid;
 
+#[cfg(test)]
+#[path = "geometry_page_positions_tests.rs"]
+mod tests_positions;
+
 /**
  * A complete, independently decodable `WGP3` page: positions on the primitive grid of
- * `position_exponent`, texture coordinates on that of `uv_exponent`, octahedral normals, byte colours
+ * `position_exponent`, each stored once when the vertices repeat them (`stored_positions`), texture coordinates on that of `uv_exponent`, octahedral normals, byte colours
  * and local indices coded by delta within blocks of triangles. Tangents are never stored — a reader rebuilds them from the
  * triangle's positions and texture coordinates.
  */
@@ -143,6 +147,7 @@ pub fn encode(
         .collect();
     let corners: Vec<u32> = local.iter().map(|&i| remap[i as usize]).collect();
     let spans = Spans::of(&corners);
+    let (stored, links) = stored_positions(&unique, position.bits);
     let header = Header {
         vertex_count: unique.len(),
         index_count: local.len(),
@@ -153,12 +158,16 @@ pub fn encode(
         color: color_record,
         quantization_error,
         corner_bits: spans.bits,
+        position_count: stored.len(),
     };
     let layout = Layout::of(&header);
     let mut out = BitWriter::default();
     spans.write(&mut out, &corners, &layout.corners);
     for c in 0..3 {
-        out.stream(unique.iter().map(|cell| cell.position[c]), position.bits[c]);
+        out.stream(stored.iter().map(|p| p[c]), position.bits[c]);
+    }
+    if let Some(links) = links {
+        out.stream(links.into_iter(), header.link_bits());
     }
     if flags & FLAG_NORMAL != 0 {
         out.stream(unique.iter().map(|cell| cell.normal), 16);
