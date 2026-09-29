@@ -65,7 +65,7 @@ test('every black capture is an error of the report, by its file name', () => {
 });
 
 // #1280: a rendering technique is held to its named reference by mean and p99.9 channel error and
-// the mean LDR-FLIP error; the FLIP values are NVIDIA's `flip-evaluator` 1.6 on the same inputs.
+// the mean LDR-FLIP error; the FLIP values are NVIDIA's `flip-evaluator` 1.7 on the same inputs.
 /** A 16 × 1 reference, grey 128 on the left half and 200 on the right, and its RGB `transform`. */
 function halves(transform = (rgb: number[]) => rgb) {
   const pixels = Array.from({ length: 16 }, (_, i) => [
