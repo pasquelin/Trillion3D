@@ -66,7 +66,9 @@ test('a soft body drawn where it is keeps its body: nothing removed nor made aga
     new Float32Array(soft.buffer).fill(0.5, 2);
     worker.onmessage({ data: { ...idleTick, soft } });
     physics.frame();
-    assert.ok(cloth.geometry.version > version, 'drawn where it is');
+    assert.equal(cloth.geometry.usage, 'dynamic', 'never cut into pages again');
+    assert.equal(cloth.geometry.version, version + 2, 'its positions and normals written');
+    assert.deepEqual(new Set(cloth.geometry.attributes.position.array), new Set([0.5]));
     const made = worker.words.slice(sent).filter((w) => w[0] === OP.remove || w[0] === OP.soft);
     assert.deepEqual(made, [], 'no REMOVE, no SOFT');
     physics.dispose();
