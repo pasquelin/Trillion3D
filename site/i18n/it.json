@@ -345,7 +345,6 @@
       "drag-a-crate": "Trascinare una cassa"
     },
     "missing": {
-      "inside-a-component": "rimozione del canvas creato dal motore quando il mondo viene eliminato",
       "thick-lines": "linee larghe",
       "a-line-that-draws-itself": "intervallo di disegno di una geometria",
       "shapes-from-an-svg": "importazione di tracciati SVG",

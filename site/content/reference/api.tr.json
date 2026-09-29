@@ -1457,6 +1457,7 @@
       "framebuffer": "Nereye çizileceği; ekran için `null`.",
       "width": "Piksel cinsinden genişlik.",
       "height": "Piksel cinsinden yükseklik.",
+      "displayWidth": "Görüntü bunun altında çizildiğinde (`world.renderScale`) gösterildiği genişlik: doku seviyeleri ve çizgi genişlikleri bu oranı izler. Yoksa `width`.",
       "linear": "Doğrusal ışıma; eğriden geçirilmemiş, kodlanmamış, saydam siyah üzerinde: alfası kaplama olan efekt zincirinin girdisi."
     }
   },
@@ -4096,7 +4097,7 @@
   },
   "world.renderScale": {
     "summary": "Görüntünün eksen başına ekranın hangi oranında çizildiği (`WorldOptions.renderScale`), bir sonraki kareden itibaren.",
-    "description": "Okunduğunda, son çizilen görüntünün ölçeği: WebGL2'de 1."
+    "description": "Okunduğunda, son çizilen görüntünün ölçeği."
   },
   "world.effects": {
     "summary": "Efekt zinciri: görüntünün üzerine çizilen geçişler (`effect`)."
@@ -4335,7 +4336,7 @@
       "signal": "Sinyal iptal edildiğinde dünyanın yüklemelerini durdurur.",
       "physics": "Fiziği açar (`world.physics`): `true` ya da yerçekimi ve bütçeler. Jolt ancak o zaman yüklenir.",
       "temporalAntialiasing": "Zamansal kenar yumuşatma, yalnızca WebGPU: kareler boyunca biriktirilen piksel altı kaydırma. `false` her pikseli merkezinde, geçmiş olmadan çizer; piksel hassasiyetinde bir yakalamanın istediği budur; sonradan `world.temporalAntialiasing` ile değiştirilir.",
-      "renderScale": "Görüntünün eksen başına ekranın hangi oranında çizildiği, yalnızca WebGPU, zamansal kenar yumuşatma onu ekran boyutuna yeniden kurmadan önce: `'auto'` onu kare bütçesinin `min` ile `max` arasında seçmesine bırakır (`{ min, max }`, varsayılan 0,5 ve 1), bir sayı onu sabitler; hareketsiz bir görüntü en yüksek değerde çizilir. Sonradan `world.renderScale` ile değiştirilir."
+      "renderScale": "Görüntünün eksen başına ekranın hangi oranında çizildiği, zamansal kenar yumuşatma onu ekran boyutuna yeniden kurmadan önce: `'auto'` onu kare bütçesinin `min` ile `max` arasında seçmesine bırakır (`{ min, max }`, varsayılan 0,5 ve 1; yalnızca yeniden örnekleyen WebGL2'de `min` varsayılan olarak 1'dir), bir sayı onu sabitler; hareketsiz bir görüntü en yüksek değerde çizilir. Sonradan `world.renderScale` ile değiştirilir."
     }
   },
   "RenderScale": {
@@ -4979,7 +4980,7 @@
       "options.signal": "Sinyal iptal edildiğinde dünyanın yüklemelerini durdurur.",
       "options.physics": "Fiziği açar (`world.physics`): `true` ya da yerçekimi ve bütçeler. Jolt ancak o zaman yüklenir.",
       "options.temporalAntialiasing": "Zamansal kenar yumuşatma, yalnızca WebGPU: kareler boyunca biriktirilen piksel altı kaydırma. `false` her pikseli merkezinde, geçmiş olmadan çizer; piksel hassasiyetinde bir yakalamanın istediği budur; sonradan `world.temporalAntialiasing` ile değiştirilir.",
-      "options.renderScale": "Görüntünün eksen başına ekranın hangi oranında çizildiği, yalnızca WebGPU, zamansal kenar yumuşatma onu ekran boyutuna yeniden kurmadan önce: `'auto'` onu kare bütçesinin `min` ile `max` arasında seçmesine bırakır (`{ min, max }`, varsayılan 0,5 ve 1), bir sayı onu sabitler; hareketsiz bir görüntü en yüksek değerde çizilir. Sonradan `world.renderScale` ile değiştirilir."
+      "options.renderScale": "Görüntünün eksen başına ekranın hangi oranında çizildiği, zamansal kenar yumuşatma onu ekran boyutuna yeniden kurmadan önce: `'auto'` onu kare bütçesinin `min` ile `max` arasında seçmesine bırakır (`{ min, max }`, varsayılan 0,5 ve 1; yalnızca yeniden örnekleyen WebGL2'de `min` varsayılan olarak 1'dir), bir sayı onu sabitler; hareketsiz bir görüntü en yüksek değerde çizilir. Sonradan `world.renderScale` ile değiştirilir."
     }
   },
   "crossVector3": {
