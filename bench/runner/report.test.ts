@@ -54,8 +54,8 @@ test('export preserves source numbers and original pixels without inventing prov
           view: 'street',
           pixelError: 1,
           sides: {
-            apres: { cpuFrameMs: { p50: 0, p95: 2 }, imageSyncMs: { p50: 9 }, png: 'a.png' },
-            'apres-aa': { cpuFrameMs: { p50: 99 } },
+            after: { cpuFrameMs: { p50: 0, p95: 2 }, imageSyncMs: { p50: 9 }, png: 'a.png' },
+            'after-aa': { cpuFrameMs: { p50: 99 } },
           },
         },
       ],

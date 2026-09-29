@@ -28,11 +28,11 @@ const GROUPES: Record<string, string> = {
   DEUX: '--vues generale,sol',
   MOBILE: '--soleil --camera-mobile',
   // Two sides on the same dist: the first carries the variant or engine making the difference.
-  DEUX_COTES: '--avant dist --apres dist',
-  NU: '--moteur-avant three-nu --moteur-apres webgpu --avant dist --apres dist',
-  LOD: '--moteur-avant three-lod --moteur-apres webgpu --avant dist --apres dist',
+  DEUX_COTES: '--before dist --after dist',
+  NU: '--engine-before three-nu --engine-after webgpu --before dist --after dist',
+  LOD: '--engine-before three-lod --engine-after webgpu --before dist --after dist',
 };
-const SOCLE = '--moteur webgpu --images 60 --textures cache';
+const SOCLE = '--engine webgpu --images 60 --textures cache';
 
 // One line per execution: `name | what it isolates | arguments`, uppercase groups.
 const LIGNES = `
@@ -45,8 +45,8 @@ res-1248 | 1248×702 resolution | DEUX --pixelError 1 MOBILE QUART
 res-624 | 624×351 resolution | DEUX --pixelError 1 MOBILE --largeur 624 --hauteur 351
 res-1248-e0 | 1248×702 at threshold 0: triangles per pixel | DEUX --pixelError 0 MOBILE QUART
 res-1248-e2 | 1248×702 at threshold 2 | DEUX --pixelError 2 MOBILE QUART
-raster-1248 | compute raster (before, variant) vs hardware raster (after, default) at 1248×702 | DEUX_COTES --variante-avant raster-calcul DEUX --pixelError 1 MOBILE QUART
-raster-2496 | compute raster vs hardware raster at 2496×1404 | DEUX_COTES --variante-avant raster-calcul DEUX --pixelError 1 MOBILE PLEINE
+raster-1248 | compute raster (before, variant) vs hardware raster (after, default) at 1248×702 | DEUX_COTES --variant-before raster-calcul DEUX --pixelError 1 MOBILE QUART
+raster-2496 | compute raster vs hardware raster at 2496×1404 | DEUX_COTES --variant-before raster-calcul DEUX --pixelError 1 MOBILE PLEINE
 aa-off | no temporal antialiasing: accumulation cost and pixels by difference with \`mobile\` | DEUX --pixelError 1 MOBILE PLEINE --antialiasing off
 profil-off | no per-step profile: profile cost and fidelity gate | DEUX --pixelError 1 MOBILE PLEINE --profil off
 textures-host | textures from source images, not the cooked pyramid | DEUX --pixelError 1 MOBILE PLEINE --textures host
@@ -64,9 +64,9 @@ instances-12 | twelve copies of the model | --vues generale --pixelError 1 MOBIL
 pool-geo-8 | 8 MiB geometry pool: residency under extreme pressure, full image expected | TOUTES --pixelError 1 MOBILE PLEINE --pool-geometrie 8
 pool-tex-64 | 64 MiB texture pool: one layer per atlas, coarse levels expected | TOUTES --pixelError 1 MOBILE PLEINE --pool-textures 64
 pool-4k | 3840×2160: targets follow resolution, no cap refuses | DEUX --pixelError 1 MOBILE --largeur 3840 --hauteur 2160
-temoin-three | SDK Three witness (before) vs WebGPU engine (after), no shadows | --moteur-avant webgl --moteur-apres webgpu DEUX_COTES DEUX --pixelError 1 --soleil --ombres off PLEINE
-webgl | WebGL engine (exact-cluster-pages) | --moteur webgl TOUTES --pixelError 1 MOBILE PLEINE
-webgl2 | standalone WebGL2 engine (refusal expected if the cache carries blend) | --moteur webgl2 DEUX --pixelError 1 MOBILE PLEINE
+temoin-three | SDK Three witness (before) vs WebGPU engine (after), no shadows | --engine-before webgl --engine-after webgpu DEUX_COTES DEUX --pixelError 1 --soleil --ombres off PLEINE
+webgl | WebGL engine (exact-cluster-pages) | --engine webgl TOUTES --pixelError 1 MOBILE PLEINE
+webgl2 | standalone WebGL2 engine (refusal expected if the cache carries blend) | --engine webgl2 DEUX --pixelError 1 MOBILE PLEINE
 three-nu | Three vanilla (before) vs WebGPU engine (after), sun and shadows, moving camera | NU TOUTES --pixelError 1 MOBILE PLEINE
 three-nu-1248 | Three vanilla vs the engine at 1248×702 | NU DEUX --pixelError 1 MOBILE QUART
 three-nu-sans-ombres | Three vanilla vs the engine without shadows: materials and lighting fidelity | NU DEUX --pixelError 1 --soleil --ombres off PLEINE

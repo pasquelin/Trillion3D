@@ -22,7 +22,7 @@ async function main() {
   const root = resolve(import.meta.dirname, '../..');
   const { flags, settings, out, resources } = readOptions(
     [
-      '--moteur',
+      '--engine',
       'webgpu',
       '--images',
       String(PATH_POSES),
@@ -35,7 +35,7 @@ async function main() {
   const indices = checkpointIndices(settings.frames, Number(flags.get('checkpoint-every') ?? 60));
   if (settings.pixelErrors.length !== 1) throw new Error('trajectory requires one pixelError');
   // Side names are the bench's flags: the baseline first, then the candidate.
-  const names = ['avant', 'apres'];
+  const names = ['before', 'after'];
   if (!flags.has(names[0]))
     throw new Error(`--${names[0]} must name a built golden baseline directory`);
   if ([...flags.keys()].some((flag) => flag.startsWith('cache-')))

@@ -50,10 +50,10 @@ test('gltfUrlIn falls back to source.gltf of the compiled cache', () => {
 });
 
 test('applySceneFlag sets the derived cache on sides that do not have one', () => {
-  const flags = parseArgs(['--scene', 'flight-helmet', '--avant', 'dist']);
+  const flags = parseArgs(['--scene', 'flight-helmet', '--before', 'dist']);
   applySceneFlag(flags, '/assets');
-  assert.equal(flags.get('cache-apres'), sceneDerived('flight-helmet', '/assets'));
-  assert.equal(flags.get('cache-avant'), sceneDerived('flight-helmet', '/assets'));
+  assert.equal(flags.get('cache-after'), sceneDerived('flight-helmet', '/assets'));
+  assert.equal(flags.get('cache-before'), sceneDerived('flight-helmet', '/assets'));
 });
 
 test('scenesOf reads --scene a,b and ignores valueless flag', () => {
