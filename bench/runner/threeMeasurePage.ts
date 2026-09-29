@@ -54,11 +54,11 @@ export async function mesurerThree(
   ) => Promise<Record<string, unknown>>,
 ): Promise<MeasureViewResult> {
   if ((options.instances ?? 1) !== 1)
-    return { erreur: 'the Three witness does not place instances' };
-  if (!options.gltfUrl) return { erreur: 'the Three witness requires a source glTF' };
+    return { error: 'the Three witness does not place instances' };
+  if (!options.gltfUrl) return { error: 'the Three witness requires a source glTF' };
   const canvas = document.createElement('canvas');
   document.body.append(canvas);
-  const lost: string[] = (globalThis.incidentsGpu = []);
+  const lost: string[] = (globalThis.gpuIncidents = []);
   canvas.addEventListener('webglcontextlost', () => lost.push('webglcontextlost'), false);
   performance.setResourceTimingBufferSize(1_000_000);
   const resourcesBefore = performance.getEntriesByType('resource').length;
@@ -168,7 +168,7 @@ export async function mesurerThree(
     syncFrameMs: [],
     rafIntervalMs,
     importedLights: null,
-    lampesTemoin: { nombre: lampes.size, ombres: shadows, ids: [...lampes.keys()], nu: true },
+    witnessLights: { count: lampes.size, shadows, ids: [...lampes.keys()], bare: true },
     shadowAtlas: null,
     movingNode: null,
     stageProfile: null,

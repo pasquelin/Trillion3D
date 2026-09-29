@@ -27,14 +27,14 @@ export const DIAGNOSTIC_SHADE_WGSL = `
 
 /** Raster-stage suffix (`vis_<suffix>_fs`, `vis_hiz_<suffix>_fs`) that each variant imposes. */
 const VIS_STAGE: Partial<Record<DiagnosticGpuVariant, string>> = {
-  'geometrie-plat': 'plat',
-  'geometrie-sommets': 'jete',
+  'geometry-flat': 'plat',
+  'geometry-vertices': 'jete',
 };
 
 /** Surface-resolve stage that each variant imposes. */
 const SHADE_STAGE: Partial<Record<DiagnosticGpuVariant, string>> = {
-  'resolution-plate': 'shade_plat_fs',
-  'resolution-identifiants': 'shade_ids_fs',
+  'resolve-flat': 'shade_plat_fs',
+  'resolve-ids': 'shade_ids_fs',
 };
 
 /** True when the variant changes a fragment stage of the visibility raster. */
@@ -58,12 +58,12 @@ export const shadeVariantFragment = (variant?: DiagnosticGpuVariant) =>
 
 /** True when the variant does not encode the second visibility pass: occluders only. */
 export const skipsSecondaryPass = (variant?: DiagnosticGpuVariant) =>
-  variant === 'geometrie-une-passe';
+  variant === 'geometry-one-pass';
 
 /** What the variant hands to the compute raster: nothing, the small triangles, or the whole cut. */
 export function computeSpanFor(variant?: DiagnosticGpuVariant) {
-  if (variant === 'raster-calcul') return COMPUTE_ALL;
-  if (variant === 'raster-hybride') return FINE_SPAN;
+  if (variant === 'raster-compute') return COMPUTE_ALL;
+  if (variant === 'raster-hybrid') return FINE_SPAN;
   return 0;
 }
 

@@ -42,7 +42,7 @@ try {
       // The street of the bench: from the `sol` view, `STEPS` trajectory frames along it.
       const START = 6,
         STEPS = 24;
-      const pose = (step: number) => poseAt(scene.bounds, VIEWS.sol.index + START + step);
+      const pose = (step: number) => poseAt(scene.bounds, VIEWS.ground.index + START + step);
       const settledStart = await settle(pose(0));
       // The move: one pose per animation frame, no flush, as an interactive camera would do;
       // the cut readback lands between frames and the cut churns.

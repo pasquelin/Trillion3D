@@ -18,7 +18,7 @@ export const METRICS = {
   triangles: { unit: '', path: 'drawnTriangles' },
   selected: { unit: '', path: 'selectedTriangles' },
   uncovered: { unit: '', path: 'uncoveredTriangles' },
-  geometry: { unit: 'MiB', path: 'geometrieOctets', divisor: 1048576 },
+  geometry: { unit: 'MiB', path: 'geometryBytes', divisor: 1048576 },
   textures: { unit: 'MiB', path: 'metrics.textureResidentBytes', divisor: 1048576 },
   textureBudget: { unit: 'MiB', path: 'metrics.textureBudgetBytes', divisor: 1048576 },
   pool: { unit: 'MiB', path: 'metrics.texturePoolBytes', divisor: 1048576 },
@@ -37,7 +37,7 @@ export function metricValue(
   const metric: MetricDefinition = METRICS[key];
   const source: unknown =
     key === 'gpu'
-      ? (record?.data?.profilParEtape?.gpuImageMs ?? record?.data?.gpuFrameMs)
+      ? (record?.data?.stageProfile?.gpuImageMs ?? record?.data?.gpuFrameMs)
       : readPath(record?.data, metric.path);
   const value: unknown = metric.stat && isObject(source) ? source[percentile] : source;
   return typeof value === 'number' && Number.isFinite(value) ? value / (metric.divisor ?? 1) : null;
