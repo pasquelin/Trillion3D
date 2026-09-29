@@ -1000,7 +1000,8 @@
       "PHYSICS_FORMAT": "已编译模型的预制物理（`physics.json`）格式不同，或由与引擎不同的 Jolt 预制（`PHYSICS_FORMAT`）：请重新编译。物理关闭时请求了精确射线检测（`PHYSICS_OFF`）。",
       "PHYSICS_OFF": "已编译模型的预制物理（`physics.json`）格式不同，或由与引擎不同的 Jolt 预制（`PHYSICS_FORMAT`）：请重新编译。物理关闭时请求了精确射线检测（`PHYSICS_OFF`）。",
       "NO_VEHICLE": "在 `world.controls.vehicle` 为 `null` 时把 `world.controls.kind` 设为了 `'vehicle'`：没有可驾驶的东西。",
-      "GUIDE_CEILING": "一次 `world.guides` 调用将持有超过 `GUIDE_VERTEX_CEILING` 的顶点；其内容均未添加。"
+      "GUIDE_CEILING": "一次 `world.guides` 调用将持有超过 `GUIDE_VERTEX_CEILING` 的顶点；其内容均未添加。",
+      "REFERENCE_SHADOWS_REDUCED": "参考图像被拒绝：阴影池低于其完整尺寸运行，或会话是交互式的。"
     }
   },
   "EngineProfiler": {

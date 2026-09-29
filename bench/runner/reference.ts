@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // The engine's reference images (#1281), regenerated on demand by one command:
 //   node bench/runner/reference.ts [--scene sponza,facade-7] [--after <dist|ref>] [--references <dir>]
+// `reference.json` goes to `bench/references/` (git), the images to `.mesure/references/` (off git);
+// `--references <dir>` writes both there.
 // Each scene's bench poses (`poses.ts`), at the boss's case (`REFERENCE_ARGS`, any bench flag after
 // them wins), drawn by the engine's reference mode and written with the commit that drew them.
 import { execFileSync } from 'node:child_process';
@@ -18,6 +20,7 @@ import {
   REFERENCE_ARGS,
   REFERENCE_SCENES,
   REFERENCES_DIR,
+  REFERENCE_IMAGES_DIR,
   imageSettings,
   type ReferenceRecord,
 } from './referenceStore.ts';
@@ -28,8 +31,9 @@ const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../..');
 const git = (...args: string[]) =>
   execFileSync('git', ['-C', ROOT, ...args], { encoding: 'utf8' }).trim();
 
-/** One scene: its poses drawn in reference mode, written under `<dir>/<scene>/`. */
-async function referenceScene(argv: string[], scene: string, dir: string) {
+/** One scene: its poses drawn in reference mode, the record written under `<dir>/<scene>/`, the
+ *  images under `<images>/<scene>/`. */
+async function referenceScene(argv: string[], scene: string, dir: string, images: string) {
   const { flags, settings, views } = options.readOptions(
     [...REFERENCE_ARGS, ...argv, '--scene', scene],
     ROOT,
@@ -56,7 +60,10 @@ async function referenceScene(argv: string[], scene: string, dir: string) {
       await browser.close();
     }
   };
-  const commit = side.from === 'folder' ? git('rev-parse', 'HEAD') : side.from;
+  // The engine commit that drew them: the last one to change `packages/` in the tree drawn from,
+  // the working tree or the commit `--after` named (`git <sha>` in `dists.ts`).
+  const tree = /^git ([0-9a-f]+)/.exec(side.from)?.[1] ?? 'HEAD';
+  const commit = git('log', '-1', '--format=%H', tree, '--', 'packages');
   const record: ReferenceRecord = {
     scene,
     commit,
@@ -72,6 +79,7 @@ async function referenceScene(argv: string[], scene: string, dir: string) {
     views: {},
   };
   mkdirSync(join(dir, scene), { recursive: true });
+  mkdirSync(join(images, scene), { recursive: true });
   try {
     const urls = { sdkUrl: options.sdkEntryUrl(side), manifestUrl: side.manifestUrl };
     const bounds = await onPage((page) => readStreet(page, urls));
@@ -94,7 +102,7 @@ async function referenceScene(argv: string[], scene: string, dir: string) {
       if ('error' in result || !capture)
         throw new Error(`${scene} ${view}: ${'error' in result ? result.error : 'no capture'}`);
       const png = encodePng(capture.w, capture.h, capture.body, true);
-      writeFileSync(join(dir, scene, file), png);
+      writeFileSync(join(images, scene, file), png);
       record.supersampling = result.supersampling;
       record.approximations = result.approximations;
       record.views[view] = {
@@ -119,13 +127,15 @@ async function main() {
   const argv = process.argv.slice(2);
   const own = options.parseArgs(argv);
   const scenes = (own.get('scene') ?? REFERENCE_SCENES.join(',')).split(',').filter(Boolean);
-  const dir = resolve(own.get('references') ?? REFERENCES_DIR);
+  const asked = own.get('references');
+  const dir = resolve(asked ?? REFERENCES_DIR),
+    images = resolve(asked ?? REFERENCE_IMAGES_DIR);
   // The bench reads every other flag; these two are this command's own.
   const rest = argv.filter(
     (arg, i) =>
       !/^--(scene|references)\b/.test(arg) && !/^--(scene|references)$/.test(argv[i - 1] ?? ''),
   );
-  for (const scene of scenes) await referenceScene(rest, scene, dir);
+  for (const scene of scenes) await referenceScene(rest, scene, dir, images);
 }
 
 await main().catch((error) => {

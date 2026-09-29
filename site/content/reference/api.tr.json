@@ -1000,7 +1000,8 @@
       "PHYSICS_FORMAT": "Derlenmiş bir modelin hazırlanmış fiziği (`physics.json`) başka bir biçimde ya da motorunkinden başka bir Jolt ile hazırlanmış (`PHYSICS_FORMAT`): yeniden derleyin. Fizik kapalıyken kesin bir raycast istendi (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "Derlenmiş bir modelin hazırlanmış fiziği (`physics.json`) başka bir biçimde ya da motorunkinden başka bir Jolt ile hazırlanmış (`PHYSICS_FORMAT`): yeniden derleyin. Fizik kapalıyken kesin bir raycast istendi (`PHYSICS_OFF`).",
       "NO_VEHICLE": "`world.controls.vehicle` `null` iken `world.controls.kind` `'vehicle'` yapıldı: sürülecek bir şey yok.",
-      "GUIDE_CEILING": "Bir `world.guides` çağrısı `GUIDE_VERTEX_CEILING` değerinden fazla köşe tutacaktı; ondan hiçbir şey eklenmedi."
+      "GUIDE_CEILING": "Bir `world.guides` çağrısı `GUIDE_VERTEX_CEILING` değerinden fazla köşe tutacaktı; ondan hiçbir şey eklenmedi.",
+      "REFERENCE_SHADOWS_REDUCED": "Referans görüntü reddedildi: gölge havuzu tam boyutunun altında çalışıyor ya da oturum etkileşimli."
     }
   },
   "EngineProfiler": {

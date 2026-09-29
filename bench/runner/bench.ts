@@ -84,7 +84,9 @@ async function main() {
     errors: [],
   };
 
-  const reference = proof ? sceneReference(report) : null;
+  if (proof && settings.gazeNetwork)
+    throw new Error('--reference holds still captures: it does not run with --gaze-network');
+  const reference = proof ? sceneReference(report, undefined, views) : null;
   await recordInputs(report, sides);
   const { server, port } = await startServer({
     port: settings.port,
@@ -167,13 +169,13 @@ async function main() {
           files[side.name] = captureFile;
         }
         // A/A witness: same side run twice, compared with itself. Shows what zero is.
-        const temoin = await onFreshPage((page) =>
+        const witness = await onFreshPage((page) =>
           runSerie(CTX, page, sides[0], view, pixelError, pose, captures, '-aa'),
         );
-        serie.sides[`${sides[0].name}-aa`] = temoin.row;
+        serie.sides[`${sides[0].name}-aa`] = witness.row;
         serie.witnessAA = imageDiff(
           captures.get(files[sides[0].name]),
-          captures.get(temoin.captureFile),
+          captures.get(witness.captureFile),
         );
         serie.beforeAfterDiff = files.before
           ? imageDiff(captures.get(files.before), captures.get(files.after))
