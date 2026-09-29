@@ -65,6 +65,13 @@ export function bindClusterMaterial(
       if (texture) matrices.set(MAP_UNIFORMS[unit], texture.transform);
     },
   );
+  textures.physical?.(material, mat, uniforms.at, matrices);
+  uniforms.f2(
+    57,
+    'coatNormalScale',
+    mat.clearcoatNormalScale?.[0] ?? 1,
+    mat.clearcoatNormalScale?.[1] ?? 1,
+  );
   const aoIntensity = mat.aoMap
     ? mat.aoIntensity
     : ((material as HostShadedMaterial).aoMapIntensity ?? 1);
@@ -77,6 +84,16 @@ export function bindClusterMaterial(
     // glTF 2.0 cuts the colour factor's alpha times the map's, as WebGPU's `maskKeep` (#769).
     material.transparent || mat.alphaTest > 0 ? surfaceOpacity(source) : 1,
   );
+  uniforms.f4(
+    49,
+    'physical',
+    Math.min(1, Math.max(0, mat.anisotropy ?? 0)),
+    mat.anisotropyRotation ?? 0,
+    Math.min(1, Math.max(0, mat.clearcoat ?? 0)),
+    Math.min(1, Math.max(0.0525, mat.clearcoatRoughness ?? 0)),
+  );
+  uniforms.f3(53, 'subsurfaceFactor', mat.subsurfaceColor ?? [0, 0, 0]);
+  uniforms.i1(56, 'subsurfaceChannel', mat.subsurfaceMap?.channel ?? 0);
   uniforms.f1(4, 'metalFactor', mat.metalness);
   uniforms.f1(5, 'roughFactor', mat.roughness);
   uniforms.f1(6, 'alphaCutoff', mat.alphaTest);

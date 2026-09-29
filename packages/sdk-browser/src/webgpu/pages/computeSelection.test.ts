@@ -12,7 +12,9 @@ import type { WebgpuPagesBackend } from './runtime.ts';
 
 test('webgpu pages without compute keep the CPU cut, name its clusters, report gpuDriven false', async () => {
   installGpuGlobals();
-  const { device } = mockGpu();
+  const { device } = mockGpu({
+    limits: { maxBufferSize: 1 << 24, maxStorageBufferBindingSize: 1 << 24 },
+  });
   const { fixture, backend } = quadBackend(device);
   await backend.prepare();
   assert.equal(backend.capabilities.gpuDriven, false);
@@ -30,7 +32,10 @@ test('webgpu compute selection page ids match the CPU oracle for the same camera
   const { source, metadata, indices, associations, geometry, material } = quadScene();
   const collected = collectClusterPages(source, metadata, indices, associations);
   const packed = packDagSelection(collected.roots);
-  const { device } = mockGpu({ packed });
+  const { device } = mockGpu({
+    packed,
+    limits: { maxBufferSize: 1 << 24, maxStorageBufferBindingSize: 1 << 24 },
+  });
   const viewport: [number, number] = [960, 540];
   const backend = webgpuPagesBackend({
     source,
@@ -74,7 +79,10 @@ test('webgpu compute selection matches the CPU coarse LOD cut', async () => {
   const viewport: [number, number] = [960, 540];
   const collected = collectClusterPages(source, metadata, allIndices, associations);
   const packed = packDagSelection(collected.roots);
-  const { device } = mockGpu({ packed });
+  const { device } = mockGpu({
+    packed,
+    limits: { maxBufferSize: 1 << 24, maxStorageBufferBindingSize: 1 << 24 },
+  });
   const backend = webgpuPagesBackend({
     source,
     metadata,

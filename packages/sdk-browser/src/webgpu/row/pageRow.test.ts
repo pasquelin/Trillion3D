@@ -16,7 +16,7 @@ import {
 import { CLASS_FEATURE } from '../../visibility/shader/materialClass.ts';
 import type { Texture } from '../../../../sdk-core/src/index.ts';
 import { PAGE_FILTER_SHIFT, PAGE_HEADER_WORDS, PAGE_SLOT_WORDS } from '../tile/pageTable.ts';
-import { SAMPLE_MAG_NEAREST } from '../tile/sampling.ts';
+import { SAMPLE_MAG_NEAREST } from '../../texture/sampling.ts';
 
 test('packedRowBase shifts the rank by VIS_TRIANGLE_BITS bits, one rank further than the rank', () => {
   assert.equal(packedRowBase(0), 1 << VIS_TRIANGLE_BITS);

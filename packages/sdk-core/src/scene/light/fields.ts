@@ -8,7 +8,7 @@ import {
 /** First float of light `slot` in the packed store. */
 export const baseOf = (slot: number) => SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS;
 
-/** Field of a light in the buffer, in floats from its base. Four `vec4f` per light. */
+/** Field of a light in the buffer, in floats from its base. Five `vec4f` per light. */
 export const LIGHT_FIELD = {
   /** Where it stands. */
   position: 0,
@@ -34,6 +34,8 @@ export const LIGHT_FIELD = {
   halfWidth: 16,
   /** Half a rectangle's height. */
   halfHeight: 19,
+  /** A point or spot's source radius; shares the rectangle-only shape lane. */
+  emitterRadius: 16,
 } as const;
 /** A point tests no cone, and a spot without penumbra no inner cone: this cosine never bounds. */
 const NO_CONE = -2;
@@ -68,4 +70,6 @@ export function writeLightFields(packed: Float32Array, base: number, light: Scen
     (light.right ?? [0, 0, 0]).map((c) => (c * width) / 2),
   );
   packed[base + LIGHT_FIELD.halfHeight] = height / 2;
+  if (light.kind === 'point' || spot)
+    packed[base + LIGHT_FIELD.emitterRadius] = light.emitterRadius ?? 0;
 }

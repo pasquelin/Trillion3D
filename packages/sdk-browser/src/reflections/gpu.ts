@@ -1,58 +1,29 @@
+import { reflectionLayout } from './layout.ts';
+export { reflectionLayout } from './layout.ts';
+import { createReflectionConePyramid } from './conePyramid.ts';
+import { mipLevelCountFor } from '../texture/tiles.ts';
 import { refreshSurface, type PageSurface } from '../page/surface.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import { reflects } from './eligible.ts';
-import { rowsMoved, rowsUnread, type RowsReading } from '../webgpu/row/dirty.ts';
-
-const layouts = new WeakMap<GPUDevice, GPUBindGroupLayout>();
-export function reflectionLayout(device: GPUDevice) {
-  let layout = layouts.get(device);
-  if (!layout) {
-    layout = device.createBindGroupLayout({
-      entries: [
-        {
-          binding: 0,
-          visibility: GPUShaderStage.FRAGMENT,
-          texture: { sampleType: 'unfilterable-float' },
-        },
-        { binding: 1, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'depth' } },
-        { binding: 2, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
-      ],
-    });
-    layouts.set(device, layout);
-  }
-  return layout;
-}
-
-/** The distinct surfaces of a row table's packed rows, and the rows and table age they were
- *  read at; held per table, so a runtime that never draws a row keeps nothing. */
-type RowSurfaces = { read: RowsReading; epoch: number; surfaces: PageSurface[] };
-const rowSurfaces = new WeakMap<object, RowSurfaces>();
-
-/**
- * The surfaces rows `[0, count)` wear, each once: the rows are walked again only once written, or
- * once the table ages — a record takes another surface in place (`wearDeclaration`) under a new
- * age, before its rows are written again.
- */
-function surfacesOfRows(rows: WebgpuPagesRuntime['layout']['rows']) {
-  let held = rowSurfaces.get(rows);
-  if (!held) rowSurfaces.set(rows, (held = { read: rowsUnread(), epoch: -1, surfaces: [] }));
-  const moved = rowsMoved(held.read, rows.packedRecs, rows.packedCount, rows.rowWrites);
-  if (!moved && held.epoch === rows.tableEpoch) return held.surfaces;
-  held.epoch = rows.tableEpoch;
-  const seen = new Set<PageSurface>();
-  let last: PageSurface | undefined;
-  for (let i = 0; i < rows.packedCount; i++) {
-    const surface = rows.packedRecs[i]?.material;
-    // Rows of one surface run together: the run skips the set.
-    if (!surface || surface === last) continue;
-    last = surface;
-    seen.add(surface);
-  }
-  held.surfaces = [...seen];
-  return held.surfaces;
-}
+import { surfacesOfRows } from '../page/rowSurfaces.ts';
+import {
+  createReflectionHistory,
+  type ReflectionHistory,
+  type ReflectionHistoryFrame,
+} from './historyRuntime.ts';
+import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts';
 
 const reflecting = (surface: PageSurface) => reflects(refreshSurface(surface));
+
+/** Only opaque receivers own this history. Forward transparents cannot borrow
+ * the receiver behind them, and a perfect mirror retains its original resources. */
+export function wantsRoughReflectionHistory(rt: WebgpuPagesRuntime) {
+  if (rt.run.diagnostic !== 'beauty') return false;
+  return surfacesOfRows(rt.layout.rows).some((surface) => {
+    const material = refreshSurface(surface);
+    return reflects(material) && material.roughness > Number(ROUGHNESS_FLOOR);
+  });
+}
 
 /**
  * Inspect only resident view rows and forward receivers, never the world's catalogue. Each
@@ -67,60 +38,101 @@ export function wantsReflections(rt: WebgpuPagesRuntime) {
   return false;
 }
 
+/** Forward receivers own their footprint; they never sample opaque history. */
+export function wantsReflectionCone(rt: WebgpuPagesRuntime) {
+  return (
+    rt.run.diagnostic === 'beauty' &&
+    rt.blendState.blendGpu.some(({ surface }) => {
+      const material = refreshSurface(surface);
+      return reflects(material) && material.roughness > Number(ROUGHNESS_FLOOR);
+    })
+  );
+}
+
 export function createScreenReflection(
   device: GPUDevice,
   width: number,
   height: number,
   depth: GPUTextureView,
   active: boolean,
+  rough = false,
+  cone = false,
 ) {
   const color = device.createTexture({
     label: 'Trillion3D unfogged reflection source',
     size: { width: active ? width : 1, height: active ? height : 1 },
     format: 'rgba16float',
+    mipLevelCount: active && cone ? mipLevelCountFor(width, height) : 1,
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
   });
-  const view = color.createView();
+  const view = color.createView({ baseMipLevel: 0, mipLevelCount: 1 });
+  const source = color.createView();
   let uniform: GPUBuffer | undefined;
+  let history: ReflectionHistory | undefined;
+  let pyramid: ReturnType<typeof createReflectionConePyramid> | undefined;
   try {
+    if (active && cone) pyramid = createReflectionConePyramid(device, color, depth);
+    if (active && rough) history = createReflectionHistory(device, width, height);
     uniform = device.createBuffer({
       size: 80,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
     const heldUniform = uniform;
     const packed = new Float32Array(20);
-    const group = device.createBindGroup({
-      layout: reflectionLayout(device),
-      entries: [
-        { binding: 0, resource: view },
-        { binding: 1, resource: depth },
-        { binding: 2, resource: { buffer: uniform } },
-      ],
-    });
+    const groups = new WeakMap<GPUTextureView, GPUBindGroup>();
+    const groupFor = () => {
+      const image = history?.image ?? view;
+      let group = groups.get(image);
+      if (group) return group;
+      group = device.createBindGroup({
+        layout: reflectionLayout(device),
+        entries: [
+          { binding: 0, resource: source },
+          { binding: 1, resource: depth },
+          { binding: 2, resource: { buffer: heldUniform } },
+          { binding: 3, resource: image },
+          { binding: 4, resource: pyramid?.view ?? view },
+        ],
+      });
+      groups.set(image, group);
+      return group;
+    };
+    groupFor();
     return {
       active,
       view,
-      group,
+      get group() {
+        return groupFor();
+      },
+      history,
+      pyramid,
       /** The view, whether it reflects, and the size the image draws in the source (`renderScale.ts`). */
       update(
         matrix: ArrayLike<number>,
         enabled: boolean,
         [drawnWidth, drawnHeight]: readonly number[],
+        frame?: ReflectionHistoryFrame,
       ) {
+        if (history && frame) history.prepare(frame, matrix, [drawnWidth, drawnHeight]);
         packed.set(matrix);
         packed[16] = active && enabled ? 1 : 0;
         packed[17] = drawnWidth;
         packed[18] = drawnHeight;
+        new Uint32Array(packed.buffer)[19] = ((history?.rank ?? 0) ^ (frame?.seed ?? 0)) >>> 0;
         device.queue.writeBuffer(heldUniform, 0, packed);
       },
       dispose() {
         color.destroy();
         heldUniform.destroy();
+        history?.dispose();
+        pyramid?.dispose();
       },
     };
   } catch (error) {
     color.destroy();
     uniform?.destroy();
+    history?.dispose();
+    pyramid?.dispose();
     throw error;
   }
 }
