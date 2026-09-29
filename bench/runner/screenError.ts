@@ -18,7 +18,7 @@ import { readBounds } from './page.ts';
 import { ENGINES, parseArgs, resolveMounts, resolveSides, sdkEntryUrl } from './options.ts';
 import { sceneDerived } from './scene.ts';
 import { auditPoses, benchPoses, type NamedPose, type PoseSet } from './screenErrorPoses.ts';
-import { pageTriangles, sourceTriangles } from './screenErrorSurface.ts';
+import { clusterTriangles, sourceTriangles } from './screenErrorSurface.ts';
 import { measureView } from './screenErrorMeasure.ts';
 import type { HoldOptions } from './screenErrorPage.ts';
 import { startServer, type Capture } from '../../tests/kit/server/staticServer.ts';
@@ -109,12 +109,9 @@ try {
       for (const [i, { view, held, canvas }] of result.entries()) {
         const ids = captures.get(`${tag}-${view}.ids`),
           tri = captures.get(`${tag}-${view}.tri`);
-        const { triangles: drawn, shared } = ids
-          ? await pageTriangles(full, ids.body.toString('utf8').split('\n').filter(Boolean))
-          : {
-              triangles: Float32Array.from(new Float64Array(new Uint8Array(tri!.body).buffer)),
-              shared: 0,
-            };
+        const drawn = ids
+          ? await clusterTriangles(full, ids.body.toString('utf8').split('\n').filter(Boolean))
+          : Float32Array.from(new Float64Array(new Uint8Array(tri!.body).buffer));
         const measured = measureView({
           source,
           twoSided,
@@ -133,7 +130,6 @@ try {
           held,
           canvas,
           ...measured,
-          sharedPages: shared,
           pass: worst <= pixelError + MARGIN_PX,
           errors,
         };

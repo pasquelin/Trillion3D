@@ -1,8 +1,8 @@
 // What the screen-error measure (#959) reads INSIDE the page, served under `/runner/` and imported
 // by its URL like `cutPage.ts`. One world on one backend holds each pose until its cut is held,
-// then hands back what it drew: WebGPU the pages its cut selected (`selectedPageIds`, decoded in
-// Node by `screenErrorSurface.ts`), WebGL2 the triangles of the meshes it drew, decoded by the
-// engine's worker and placed by their own matrices. Both leave through the server's `/capture`.
+// then hands back what it drew: WebGPU the clusters its cut selected (`selectedClusterIds`,
+// decoded in Node by `screenErrorSurface.ts`), WebGL2 the triangles of the meshes it drew, decoded
+// by the engine's worker and placed by their own matrices. Both leave through the server's `/capture`.
 import type * as SdkBrowser from '../witnesses/measurement.ts';
 import type { CameraPose } from '../../packages/sdk-core/src/contracts/base.ts';
 
@@ -31,7 +31,7 @@ interface DrawnMesh {
   };
 }
 type Backend = SdkBrowser.RenderBackend & {
-  selectedPageIds?: () => string[];
+  selectedClusterIds?: () => string[];
   scene?: { children: DrawnMesh[] };
 };
 
@@ -131,8 +131,8 @@ export async function holdAndCapture(o: HoldOptions) {
       await explorer.flush();
     }
     const file = `${o.tag}-${view}`;
-    if (backend.selectedPageIds) {
-      const text = new TextEncoder().encode(backend.selectedPageIds().join('\n'));
+    if (backend.selectedClusterIds) {
+      const text = new TextEncoder().encode(backend.selectedClusterIds().join('\n'));
       const padded = new Uint8Array(Math.ceil(text.length / 4) * 4 || 4).fill(10);
       padded.set(text);
       await capture(`${file}.ids`, padded);
