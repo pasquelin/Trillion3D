@@ -12,7 +12,6 @@ import { prepareExplorerBackends } from './backends.ts';
 import { createExplorerCamera } from '../camera/camera.ts';
 import { createExplorerPageSources } from './pageSources.ts';
 import { loadPreparedScene } from '../scene/scene.ts';
-import { primePartitions } from '../scene/partitionFrame.ts';
 import { ARRIVAL_BUDGET_MS } from '../../backend/common.ts';
 import { createFrameBudget } from '../../page/integration/frameBudget.ts';
 import type { ExplorerSession } from './session.ts';
@@ -132,25 +131,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     loadedScene.framingLot,
   );
   loadedScene.framingLot?.release();
-  // The cells the first camera needs are placed before the engines read their rows: the first
-  // frame reads them and nothing further (`partitionFrame.ts`). That camera is the page's when it
-  // hands one in (a world), else the framing one, which sees the whole scene.
   inputs.placeCamera?.(cameraState.camera);
-  if (loadedScene.partitions.length) {
-    const bytes = await primePartitions(
-      loadedScene.partitions,
-      cameraState.camera,
-      pageSources.streamer,
-      !!options.onRowsOutgrown,
-      signal,
-    );
-    diagnose('partition', 'Cells read before the first frame', {
-      kind: 'preparation',
-      scope,
-      bytes,
-      cells: loadedScene.partitions.map((cells) => cells.stats()),
-    });
-  }
   // The frame's one integration budget: cells, arrivals, then the engine's row records.
   const frameBudget = createFrameBudget(ARRIVAL_BUDGET_MS);
   const { viewport, context } = await prepareExplorerBackends(session, {
