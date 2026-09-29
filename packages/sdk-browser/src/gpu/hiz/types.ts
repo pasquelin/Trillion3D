@@ -1,3 +1,5 @@
+import type { PendingGrowth } from '../core/tableGrowth.ts';
+
 export type GpuHiz = {
   width: number;
   height: number;
@@ -11,6 +13,8 @@ export type GpuHiz = {
    * `encodeTest` encodes nothing: no row is then tested, so none is rejected.
    */
   attach(bounds: GPUBuffer, state: GPUBuffer): void;
+  /** Verdict flags for `rows` rows, made now and put in place by `commit`: the pyramids stay. */
+  growFlags(rows: number): PendingGrowth;
   /** Pyramid mips, offset and width: what the partition reads to express a screen
    *  rectangle in texels of the mip that covers it exactly. */
   levels(): Array<{ offset: number; width: number }>;
