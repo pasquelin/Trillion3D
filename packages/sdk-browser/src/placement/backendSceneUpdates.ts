@@ -90,8 +90,7 @@ export interface BackendSceneUpdates extends Partial<PlacementGrowth> {
     ranges: readonly VertexRange[],
     box: Float64Array,
   ): boolean;
-  /** The bytes `updateVertices` sends the GPU for `ranges`, every buffer it writes counted;
-   *  absent, those of the lists themselves (#573). */
+  /** The bytes `updateVertices` sends the GPU for `ranges`; absent, the lists' own (#573). */
   vertexBytes?(attributes: HostAttributes, ranges: readonly VertexRange[]): number;
   /** The resource `rows` place leaves the session: its roots, pages and copies. */
   unmountPlacements?(rows: PlacementRows): void;

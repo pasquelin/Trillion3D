@@ -144,10 +144,10 @@ export function createVertexPool(
 export type VertexPool = ReturnType<typeof createVertexPool>;
 
 /**
- * Packs, once, the source geometry the passes still read as floats (`createVertexPool`): that of
- * the clusters no quantized page covers. A cluster drawn from its page contributes no vertex here,
- * and its primitive contributes none unless another of its clusters needs one: that is the whole
- * point of reading a page in place.
+ * Packs, once, the source geometry the passes still read as floats: that of the clusters no
+ * quantized page covers, from a cache that carries no geometry page. A cluster drawn from its
+ * page contributes no vertex here, and its primitive contributes none unless another of its
+ * clusters needs one: that is the whole point of reading a page in place.
  */
 export function prepareWebgpuGeometry(
   device: GPUDevice,
