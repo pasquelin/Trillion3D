@@ -476,7 +476,7 @@ up and stands on the scene's floor within one probe texel; any other mesh takes 
 octahedron. A frame is an orthographic view of side 2R onto the plane through the pivot, with
 axes `x = normalize(cross(up, d))`, `y = cross(d, x)` (`up` = +Y, or +Z when `|d.y| > 0.999`);
 texel `(px, py)` of a `frameSide`-texel frame sits at `((px + ½) / frameSide − ½) · 2R` along
-`x` and the same along `y`, rows top to bottom. Frame `(i, j)` fills texels
+`x` and `(½ − (py + ½) / frameSide) · 2R` along `y`: rows top to bottom, row 0 at `+y`. Frame `(i, j)` fills texels
 `[i · frameSide, (i + 1) · frameSide) × [j · frameSide, (j + 1) · frameSide)` of an
 `atlasSide = frames · frameSide` square.
 
@@ -486,9 +486,10 @@ where its material covers. It cuts where the texture chains take coverage: a `MA
 whose `alphaCutoff` is above 0 at that cutoff times its `baseColorFactor` alpha, a `BLEND` one
 that does not transmit at 0.5 (the cutout threshold); a `MASK` at 0 and a transmissive `BLEND`,
 drawn opaque, keep every texel. The test reads the base colour texel at the hit — the finest
-level of the texture's baked tail —, at the set and under the `KHR_texture_transform` the
+level of the texture's baked tail, its coverage chain when the material cuts —, times the vertex
+colour's alpha (`COLOR_0`), at the set and under the `KHR_texture_transform` the
 engine's texture applies. Three RGBA8 maps, one byte a
-channel: `colourCoverage` is the base colour (sRGB, `baseColorFactor` times texel) averaged over
+channel: `colourCoverage` is the base colour (sRGB, `baseColorFactor` times texel times `COLOR_0`) averaged over
 the rays that hit, alpha the share of rays that hit; `normalDepth` is the object-space normal
 (vertex normals interpolated when declared, turned to face the ray) as `n · ½ + ½`, alpha the
 depth `D = ½ + height / 2R`, `height` the signed distance above the frame plane towards the
@@ -517,7 +518,7 @@ power of two, at least 16, with `frameSide ≥ 2√(T/(cπ))`, so `z_tex ≤ z_t
 `rootTriangles`, `radius` and `status`: `baked`, with `coverage`, `hemi`, `frames`, `frameSide`,
 `atlasSide`, `maps` and `bytes`, or `refused`, with `reason`, a sentence in `detail` giving the
 numbers that decided, and the probe's `coverage` when one ran. The reasons, in the order they
-are tried: `skinned`; `single-opaque-placement` (one placement and no masked material);
+are tried: `skinned` (a skin, joint weights or morph targets: the mesh deforms); `single-opaque-placement` (one placement and no masked material);
 `no-coverage`; `root-cheaper-than-impostor` (`z_tri` beyond the diagonal of the drawn scene's
 bounds, the farthest a placement is seen from); `atlas-over-texture-limit` (`atlasSide` above
 `textureLimit`, 8192, the side any WebGPU card holds). `baked` and `refused` count them.

@@ -36,7 +36,7 @@ pub(crate) struct Candidate {
 /// Why a mesh keeps its geometry at every distance.
 #[derive(Debug, PartialEq)]
 pub(crate) enum Refusal {
-    /// A skinned mesh deforms; a still capture cannot follow it.
+    /// A skinned or morphed mesh deforms; a still capture cannot follow it.
     Skinned,
     /// Neither repeated nor masked: one opaque placement gains less than its atlas costs.
     SingleOpaquePlacement,
@@ -60,7 +60,9 @@ impl Refusal {
     /// The report's words for it, with the numbers that decided.
     pub fn json(&self, candidate: &Candidate, coverage: Option<f64>) -> Value {
         let detail = match self {
-            Self::Skinned => "a skinned mesh deforms; a still capture cannot follow it".into(),
+            Self::Skinned => {
+                "a skinned or morphed mesh deforms; a still capture cannot follow it".into()
+            }
             Self::SingleOpaquePlacement => "one opaque placement".to_string(),
             Self::NoCoverage => "no frame covers a texel".to_string(),
             Self::RootCheaperThanImpostor { switch } => format!(

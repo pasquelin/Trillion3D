@@ -16,11 +16,21 @@ pub(crate) struct Texels {
     pub pixels: Vec<u8>,
 }
 impl Texels {
-    /// The finest carried level of `texture`'s chain in `atlas`, when the stage baked one.
-    fn of(previews: &[TexturePreview], texture: Option<u64>, atlas: AtlasKind) -> Option<Self> {
-        let preview = previews
+    /// The finest carried level of `texture`'s chain in `atlas`, when the stage baked one. A
+    /// texture read by several materials has one chain each kind: with `coverage`, a coverage
+    /// chain comes first, since its reduced levels keep level 0's coverage and a plain one's
+    /// do not (#44).
+    fn of(
+        previews: &[TexturePreview],
+        texture: Option<u64>,
+        atlas: AtlasKind,
+        coverage: bool,
+    ) -> Option<Self> {
+        let chains = previews
             .iter()
-            .find(|p| Some(u64::from(p.texture)) == texture && p.kind.atlas() == atlas)?;
+            .filter(|p| Some(u64::from(p.texture)) == texture && p.kind.atlas() == atlas);
+        let preview =
+            chains.min_by_key(|p| !(coverage && matches!(p.kind, AtlasKind::Coverage(_))))?;
         let (w, h) = preview_level_size(preview.width, preview.height, preview.first_level);
         let (width, height) = (w as usize, h as usize);
         let pixels = preview.pixels.get(..width * height * 4)?.to_vec();
@@ -111,9 +121,9 @@ impl Surface {
         let cut = coverage_cut(material);
         Self {
             factor,
-            colour: Texels::of(previews, colour, AtlasKind::Color),
-            metal_rough: Texels::of(previews, metal, AtlasKind::Data),
-            occlusion: Texels::of(previews, occlusion, AtlasKind::Data),
+            colour: Texels::of(previews, colour, AtlasKind::Color, cut.is_some()),
+            metal_rough: Texels::of(previews, metal, AtlasKind::Data, false),
+            occlusion: Texels::of(previews, occlusion, AtlasKind::Data, false),
             rough_metal: [
                 number("/pbrMetallicRoughness/roughnessFactor", 1.0),
                 number("/pbrMetallicRoughness/metallicFactor", 1.0),
@@ -128,9 +138,12 @@ impl Surface {
         self.colour.as_ref().map_or(255, |t| t.sample(uv)[3])
     }
 
-    /// Whether the surface covers its texel at `uv` (base colour set).
-    pub fn keeps(&self, uv: [f64; 2]) -> bool {
-        self.cut.is_none_or(|cut| keeps(self.base_alpha(uv), cut))
+    /// Whether the surface covers its texel at `uv` (base colour set), under a vertex colour
+    /// alpha `tint`, which scales the factor as the engine's surface opacity does.
+    pub fn keeps(&self, uv: [f64; 2], tint: f64) -> bool {
+        self.cut.is_none_or(|(cutoff, factor)| {
+            keeps(self.base_alpha(uv), (cutoff, factor * tint as f32))
+        })
     }
 
     /// Linear base colour at `uv`.
