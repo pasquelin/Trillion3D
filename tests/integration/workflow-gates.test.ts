@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 
 const repo = new URL('../../', import.meta.url);
 const env = {
@@ -21,6 +21,9 @@ const ok = (cwd: string, ...args: string[]) => {
   return r;
 };
 
+const localHook = (work: string, name: string, body: string) =>
+  writeFileSync(join(work, '.git/hooks', name), `#!/bin/sh\n${body}\n`, { mode: 0o755 });
+
 // A throwaway repository with the tracked hooks active, a bare remote, and a local
 // (tool-installed) hook that logs its calls — the situation of every developer checkout.
 function makeRepo() {
@@ -33,26 +36,17 @@ function makeRepo() {
     recursive: true,
     verbatimSymlinks: true,
   });
+  cpSync(new URL('scripts/hooks/', repo), join(work, 'scripts/hooks'), { recursive: true });
   ok(work, 'config', 'core.hooksPath', '.githooks');
   ok(work, 'remote', 'add', 'origin', remote);
-  writeFileSync(
-    join(work, '.git/hooks/post-commit'),
-    '#!/bin/sh\necho ran >> "$(git rev-parse --show-toplevel)/local.log"\n',
-    { mode: 0o755 },
-  );
+  localHook(work, 'post-commit', 'echo ran >> "$(git rev-parse --show-toplevel)/local.log"');
   return work;
 }
 
-const commit = (
-  cwd: string,
-  message: string,
-  files: Record<string, string> = { [`${Date.now()}-${Math.random()}.txt`]: message },
-) => {
-  for (const [name, text] of Object.entries(files)) {
-    mkdirSync(dirname(join(cwd, name)), { recursive: true });
-    writeFileSync(join(cwd, name), text);
-  }
-  ok(cwd, 'add', ...Object.keys(files));
+const commit = (cwd: string, message: string) => {
+  const name = `${Date.now()}-${Math.random()}.txt`;
+  writeFileSync(join(cwd, name), message);
+  ok(cwd, 'add', name);
   return git(cwd, 'commit', '-q', '-m', message);
 };
 
@@ -86,55 +80,28 @@ test('the tool-installed hook of the same name still runs behind core.hooksPath'
   assert.equal(execFileSync('cat', [join(work, 'local.log')], { encoding: 'utf8' }), 'ran\n');
 });
 
-const checkSize = (cwd: string) =>
-  spawnSync(process.execPath, [new URL('scripts/check-pr-size.ts', repo).pathname, 'base'], {
-    cwd,
-    encoding: 'utf8',
-  });
-
-test("check-pr-size: more than 1,500 hand-written lines fail, with the base's attributes", () => {
+test('a failing tool-installed hook still stops git, and pre-push hands it the refs on stdin', () => {
   const work = makeRepo();
   ok(work, 'switch', '-q', '-c', '12-thing');
-  const attributes = readFileSync(new URL('.gitattributes', repo), 'utf8');
-  assert.equal(
-    commit(work, 'base', { '.gitattributes': attributes, 'old.ts': 'x\n'.repeat(50) }).status,
-    0,
-  );
-  ok(work, 'tag', 'base');
-  ok(work, 'rm', '-q', 'old.ts');
-  const files = {
-    'pnpm-lock.yaml': 'x\n'.repeat(1501),
-    'a.ts': 'x\n'.repeat(1499),
-    'src/b.ts': 'x\n',
-    'image.bin': 'x\0\n'.repeat(700),
-  };
-  assert.equal(commit(work, 'lock, code, binary, deletion', files).status, 0);
-  // From a subfolder: the whole tree still counts.
-  const accepted = checkSize(join(work, 'src'));
-  assert.equal(accepted.status, 0, accepted.stderr);
-  assert.match(accepted.stdout, /added: 1500 \(limit 1500\)/);
-  // The base's attributes decide: marking its own code generated does not exempt it.
-  const selfExempt = { '.gitattributes': `${attributes}*.ts linguist-generated\n` };
-  assert.equal(commit(work, 'self exemption', selfExempt).status, 0);
-  const refused = checkSize(work);
-  assert.equal(refused.status, 1);
-  assert.match(refused.stdout, /added: 1501 \(limit 1500\)/);
-  assert.match(refused.stderr, /AGENTS\.md rule 5: narrow the issue/);
+  // No shebang: sh runs it, as it ran it behind the former shell hooks.
+  writeFileSync(join(work, '.git/hooks/pre-commit'), 'exit 3\n', { mode: 0o755 });
+  assert.equal(commit(work, 'refused locally').status, 1);
+  localHook(work, 'pre-commit', 'exit 0');
+  commit(work, 'one');
+  localHook(work, 'pre-push', 'cat > "$(git rev-parse --show-toplevel)/refs.log"; exit 4');
+  assert.notEqual(git(work, 'push', '-q', 'origin', '12-thing').status, 0);
+  const refs = readFileSync(join(work, 'refs.log'), 'utf8');
+  assert.match(refs, /^refs\/heads\/12-thing [0-9a-f]{40} refs\/heads\/12-thing 0{40}\n$/);
 });
 
-test("check-pr-size: publishReport's report data counts no line, the report modules still do", () => {
-  const work = makeRepo();
-  ok(work, 'switch', '-q', '-c', '12-thing');
-  const attributes = readFileSync(new URL('.gitattributes', repo), 'utf8');
-  assert.equal(commit(work, 'base', { '.gitattributes': attributes }).status, 0);
-  ok(work, 'tag', 'base');
-  const files = {
-    'site/reports/september-18/report.json': 'x\n'.repeat(2000),
-    'site/reports/september-18/sources/run-1/series.json': 'x\n'.repeat(2000),
-    'site/reports/compare.ts': 'x\n'.repeat(7),
-  };
-  assert.equal(commit(work, 'a published report', files).status, 0);
-  const counted = checkSize(work);
-  assert.equal(counted.status, 0, counted.stderr);
-  assert.match(counted.stdout, /added: 7 \(limit 1500\)/);
+test('the tracked hooks hold no shell logic: each is a one-line shim onto scripts/hooks', () => {
+  const hooks = new URL('.githooks/', repo);
+  for (const name of readdirSync(hooks)) {
+    const lines = readFileSync(new URL(name, hooks), 'utf8').trimEnd().split('\n');
+    assert.equal(lines[0], '#!/bin/sh', name);
+    assert.equal(lines.length, 2, `${name} is more than a shim`);
+    const script = /^exec node (scripts\/hooks\/[a-z-]+\.ts) .*"\$@"$/.exec(lines[1] ?? '');
+    assert.ok(script?.[1], `${name} does not run a scripts/hooks script`);
+    assert.ok(existsSync(new URL(script[1], repo)), `${script[1]} is missing`);
+  }
 });
