@@ -1,10 +1,14 @@
-import { createScreenReflection, wantsReflections } from '../../../reflections/gpu.ts';
+import { wantsSubsurface } from '../../../scene/subsurface.ts';
+import {
+  createScreenReflection,
+  wantsReflections,
+  wantsRoughReflectionHistory,
+  wantsReflectionCone,
+} from '../../../reflections/gpu.ts';
 import {
   DISPLAY_FORMAT,
   FEEDBACK_FORMAT,
-  checkSurfaceSize,
   createSurfaceBuffer,
-  frameTargetBytes,
 } from '../../../scene/surfaceBuffer.ts';
 import { dropGpuHiz } from '../io/drops.ts';
 import { createBackdrop, disposeBackdrop } from '../../transparent/transmission.ts';
@@ -12,37 +16,10 @@ import { ensureTaaTargets } from '../../../taa/prepare.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { MATERIAL_DEPTH_FORMAT } from '../../../visibility/shader/materialClass.ts';
 import { MATERIAL_DEPTH_PASS } from '../../core/materialPasses.ts';
-import { AS_IS_SHARE_BYTES } from '../../../lighting/deferred/asIsShare.ts';
 import { displayApart, type FrameSize } from '../state/renderScale.ts';
 import { makeAsIsShare, wantsAsIsShare } from './asIsShareTarget.ts';
 
-/** Bytes per pixel of the display colour (`DISPLAY_FORMAT`). */
-const DISPLAY_BYTES = 4;
-
-/**
- * Bytes of the image targets at this size: those drawn at the render size, and the display colour
- * composition writes when it is not the render one. As in the reference, targets follow
- * resolution: no byte ceiling refuses an image, only a size the device cannot make is, by name.
- * What the image costs is published (`gpuFrameTargetBytes`), and the engine's fixed budgets bear on
- * what streams — geometry pages, texture tiles.
- */
-export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, additional = 0) {
-  const { reserveHiz } = rt.setup,
-    gpuDevice = rt.gpu.device,
-    { renderWidth: width, renderHeight: height } = size,
-    display = size.apart ? size.width * size.height : 0;
-  if (!gpuDevice) throw new Error('WEBGPU_UNAVAILABLE');
-  checkSurfaceSize(gpuDevice, size.width, size.height, 1);
-  return (
-    frameTargetBytes(width, height, reserveHiz) -
-    (rt.feedbackAB?.target === false ? width * height * 4 : 0) +
-    (wantsAsIsShare(rt) ? width * height * AS_IS_SHARE_BYTES : 0) +
-    additional +
-    (wantsReflections(rt) ? width * height * 8 : 8) +
-    display * DISPLAY_BYTES +
-    80
-  );
-}
+export { frameTargetAllocation } from './targetAllocation.ts';
 
 /** True when the drawn view's frame targets in place are those of `size`, both sizes alike. */
 export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
@@ -55,8 +32,11 @@ export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
     gpu.displaySize[1] === size.height &&
     displayApart(gpu) === size.apart &&
     !!gpu.surfaces &&
+    gpu.surfaces.hasSubsurface === wantsSubsurface(rt) &&
     !!gpu.feedbackTexture === (rt.feedbackAB?.target !== false) &&
     gpu.reflection?.active === wantsReflections(rt) &&
+    !!gpu.reflection?.history === wantsRoughReflectionHistory(rt) &&
+    !!gpu.reflection?.pyramid === wantsReflectionCone(rt) &&
     (!vis.visEnabled || !!vis.visTexture)
   );
 }
@@ -141,7 +121,7 @@ export function makeTargets(
   );
   gpu.hdrTexture = target('Trillion3D HDR lighting', 'rgba16float');
   if (rt.feedbackAB?.target !== false) makeFeedbackTarget(rt, device, width, height);
-  gpu.surfaces = createSurfaceBuffer(device, width, height);
+  gpu.surfaces = createSurfaceBuffer(device, width, height, wantsSubsurface(rt));
   if (wantsAsIsShare(rt)) makeAsIsShare(rt, device, width, height);
   gpu.colorView = gpu.colorTexture.createView();
   gpu.displayTexture = size.apart
@@ -159,6 +139,8 @@ export function makeTargets(
     height,
     gpu.depthView,
     wantsReflections(rt),
+    wantsRoughReflectionHistory(rt),
+    wantsReflectionCone(rt),
   );
   gpu.backdrop = createBackdrop(device, width, height, blendState.transmissive > 0);
   // Temporal history follows the display size.
@@ -169,7 +151,7 @@ export function makeTargets(
   gpu.targetSize = [width, height];
   gpu.displaySize = [size.width, size.height];
   // Visibility targets too: one the device cannot make refuses the set, the mode kept.
-  vis.visTexture = target('Trillion3D visibility', 'r32uint', sampled);
+  vis.visTexture = target('Trillion3D visibility', 'r32uint', sampled | GPUTextureUsage.COPY_SRC);
   vis.visView = vis.visTexture.createView();
   // Each pixel's material class, as the depth every class pass tests against.
   vis.materialDepthTexture = target(

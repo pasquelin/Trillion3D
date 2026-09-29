@@ -17,7 +17,7 @@ import { BOUNCE_SETTINGS } from '../../../packages/sdk-core/src/index.ts';
 import { createGpuBounceProxy } from '../../../packages/sdk-browser/src/bounce/proxy.ts';
 import { PROXY_HEADER_WORDS } from '../../../packages/sdk-browser/src/bounce/nodeWgsl.ts';
 import { createTraceRig } from './movingProxyTrace.ts';
-import { ouvrirAppareil as openDevice } from './webgpuDevice.ts';
+import { openGpuDevice as openDevice } from './webgpuDevice.ts';
 
 /** The errors the device raised, under its kit's one name for them. */
 const errorsOf = (gpu: Parameters<typeof createTraceRig>[0]) => gpu.erreurs;

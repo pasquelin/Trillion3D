@@ -27,7 +27,7 @@ test('a repository model name becomes the scene folder name', () => {
 
 test('every catalogue model says what it is kept for', () => {
   const models = Object.entries(SAMPLE_MODELS);
-  assert.equal(models.length, 12);
+  assert.equal(models.length, 14);
   for (const [name, purpose] of models) {
     assert.match(name, /^[A-Za-z]+$/);
     assert.ok(purpose.length > 0, `${name} has no purpose`);

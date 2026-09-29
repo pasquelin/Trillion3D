@@ -1,4 +1,4 @@
-// Toroidal storage of the bounce probes: `sampleLevel` wraps its corner cell once and derives
+// Toroidal storage of the bounce probes: `sampleLevelField` wraps its corner cell once and derives
 // the seven neighbours' remainders from it. Run on the shader text itself, axis by axis — every
 // operation involved is component-wise — against the per-cell remainder it replaces.
 import test from 'node:test';
@@ -36,9 +36,9 @@ const scalar = (wgsl: string) =>
     .replace(/\bbounce\.counts\.x\b/g, 'S')
     .replace(/\blet /g, 'const ');
 
-const sample = bodyOf('sampleLevel');
+const sample = bodyOf('sampleLevelField');
 const slot = sample.match(/let slot=probeSlotWrapped\(level,(.+)\);/);
-assert.ok(slot, 'sampleLevel reads its slot through probeSlotWrapped');
+assert.ok(slot, 'sampleLevelField reads its slot through probeSlotWrapped');
 
 /** The shader's remainder of one axis of a corner's neighbour: `probeWrap`, then the loop. */
 const shaderRemainder = new Function(
@@ -71,11 +71,11 @@ const assertSameRemainders = (side: number, corners: Iterable<number>) => {
       );
 };
 
-test('sampleLevel wraps its corner once, outside the corner loop', () => {
+test('sampleLevelField wraps its corner once, outside the corner loop', () => {
   const loop = sample.slice(sample.indexOf('for(var index=0u'));
   assert.equal(loop.match(/probeWrap\(/g), null);
   assert.equal(sample.match(/probeWrap\(corner\)/g)?.length, 1);
-  assert.ok(!sample.includes('probeSlot('), 'no per-corner remainder is left in sampleLevel');
+  assert.ok(!sample.includes('probeSlot('), 'no per-corner remainder is left in sampleLevelField');
 });
 
 test('the hoisted remainder is the per-cell one on every side, near zero and at random', () => {

@@ -20,11 +20,10 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      // Waits for #33: typed anisotropy parameters and faithful autonomous rendering.
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
       import { controls } from '../runtime/kit.js';
 
-      const world = createWorld('view', { controls: 'orbit' });
+      const world = createWorld('view', { controls: 'orbit', renderer: 'webgl2' });
       world.scene.background = math.color('#161922');
       const steel = material.meshPhysical({
         color: '#b8c3cc',

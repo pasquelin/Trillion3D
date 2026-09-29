@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Additive poses</title>
+    <meta name="thumbnail" content="3" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #253b42;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import {
+        createWorld,
+        animation,
+        buffer,
+        geometry,
+        object,
+        material,
+        light,
+        math,
+      } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#253b42');
+      const tree = object.group();
+      const bones = Array.from({ length: 3 }, (_, index) => {
+        const bone = object.group();
+        bone.name = `branch${index}`;
+        bone.position.y = index ? 1.5 : 0;
+        return bone;
+      });
+      tree.add(bones[0]);
+      bones[0].add(bones[1]);
+      bones[1].add(bones[2]);
+      const skeleton = animation.skeleton(bones);
+      const shapes = [
+        [geometry.cylinder(0.13, 0.24, 3.5, 12, 16).translate(0, 1.75, 0), '#76543b'],
+        [geometry.cone(1.2, 3.4, 20, 20).translate(0, 3.3, 0), '#52a87c'],
+      ];
+      for (const [shape, color] of shapes) {
+        const positions = shape.getAttribute('position');
+        const joints = new Uint16Array(positions.count * 4),
+          weights = new Float32Array(positions.count * 4);
+        for (let v = 0; v < positions.count; v++) {
+          const height = Math.max(0, Math.min(2, positions.getY(v) / 1.5));
+          const low = Math.floor(height),
+            high = Math.min(2, low + 1),
+            mix = height - low;
+          joints.set([low, high, 0, 0], v * 4);
+          weights.set([1 - mix, mix, 0, 0], v * 4);
+        }
+        shape.setAttribute('skinIndex', buffer.uint16(joints, 4));
+        shape.setAttribute('skinWeight', buffer.float32(weights, 4));
+        const mesh = object.mesh(shape, material.meshStandard({ color, roughness: 0.9 }));
+        mesh.skeleton = skeleton;
+        mesh.castShadow = true;
+        tree.add(mesh);
+      }
+      world.scene.add(tree);
+      const mixer = animation.createMixer(tree);
+      const breeze = mixer
+        .clipAction(animation.windClip(bones, { angle: 0.08, frequency: 0.3 }))
+        .play();
+      const gust = mixer.clipAction(
+        animation.windClip(bones, { direction: [0, 1], angle: 0.17, frequency: 0.7 }),
+      );
+      gust.blendMode = 'additive';
+      gust.weight = 0.6;
+      gust.play();
+      const sun = light.directional({ intensity: 3, castShadow: true });
+      sun.position.set(4, 8, 6);
+      world.scene.add(sun, light.hemisphere({ intensity: 1.2 }));
+      world.camera.position.set(6, 4, 8);
+      world.controls.target.set(0, 2.3, 0);
+      controls(
+        { playing: true },
+        ({ playing }) => {
+          for (const action of [breeze, gust]) {
+            if (playing) action.play();
+            else {
+              const time = action.time;
+              action.stop().seek(time);
+            }
+          }
+          world.invalidate();
+        },
+        world,
+      );
+      globalThis.deformationCase = {
+        world,
+        setTime(seconds) {
+          breeze.stop();
+          gust.stop();
+          breeze.playingNow = gust.playingNow = true;
+          breeze.time = gust.time = seconds;
+          mixer.update(0);
+          breeze.playingNow = gust.playingNow = false;
+          world.invalidate();
+        },
+      };
+    </script>
+  </body>
+</html>

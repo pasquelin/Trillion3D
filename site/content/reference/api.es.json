@@ -13,7 +13,8 @@
       "play": "Empieza a reproducirse.",
       "stop": "Se detiene y vuelve al principio.",
       "seek": "Coloca el clip en `time` segundos ahora mismo, según su modo de bucle, se esté reproduciendo o no: una acción que se reproduce sigue desde ahí, una detenida conserva la pose hasta que una acción en curso de su mezclador la sobrescriba.",
-      "clipTime": "En qué punto del clip está la acción, según su modo de bucle."
+      "clipTime": "En qué punto del clip está la acción, según su modo de bucle.",
+      "blendMode": "`additive` suma el movimiento relativo a la primera clave a las demás acciones, en vez de mezclarlas."
     }
   },
   "BudgetCanvas": {
@@ -1379,7 +1380,9 @@
       "vertexCount": "Vértices.",
       "flags": "Qué atributos lleva.",
       "decodedBytes": "Su tamaño una vez descomprimida.",
-      "quantizationError": "El mayor desplazamiento de posición del encabezado, en unidades del objeto: una posición decodificada puede estar así de lejos de su fuente, y por tanto de la caja declarada de la página."
+      "quantizationError": "El mayor desplazamiento de posición del encabezado, en unidades del objeto: una posición decodificada puede estar así de lejos de su fuente, y por tanto de la caja declarada de la página.",
+      "morphTargets": "Número de objetivos en `attributes.morph`: seis flotantes por objetivo y vértice; ausente sin morphing.",
+      "skinInfluences": "Número de influencias óseas originales por vértice."
     }
   },
   "decodeManifestBinary": {
@@ -1855,7 +1858,8 @@
       "mathBatch": "Estado del regulador de las vías de cálculo (`../math/path/governor.ts`): vía actual de cada operación por lote, medianas de ambas vías, cambios. `null` en un host que no ha abierto ningún lote — no medido, no «vía JavaScript».",
       "pagesPlannedOffThread": "Integración de las páginas fuera del hilo principal. `pagesPlannedOffThread` cuenta las llegadas cuyo plan — el lugar de cada clúster en el paquete y los rangos de páginas que mueve — fue calculado por un worker, nunca las que el repliegue planificó en el hilo principal. `pagePlanMs` es el tiempo acumulado de esos planes, medido por el propio ejecutor, sea cual sea el hilo: nunca se suma a un `cpu*` o `gpu*` por fotograma. Ambos valen `null` mientras no se haya planificado ninguna llegada — no medido, no cero.",
       "pagePlanMs": "Tiempo empleado en planificar las llegadas.",
-      "dynamicUploadBytes": "Bytes de vértices de geometría dinámica subidos en su sitio en este fotograma (#573), dentro del presupuesto por fotograma del mundo (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Ausente donde ningún mundo dibuja."
+      "dynamicUploadBytes": "Bytes de vértices de geometría dinámica subidos en su sitio en este fotograma (#573), dentro del presupuesto por fotograma del mundo (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Ausente donde ningún mundo dibuja.",
+      "gpuDeformationMs": "Duración GPU de la deformación para el fotograma de `gpuPassMs`; null antes de medir o sin soporte."
     }
   },
   "frameStatistics": {
@@ -2874,7 +2878,7 @@
   },
   "LIGHT_FIELD": {
     "summary": "Campo de una luz en el búfer, en flotantes desde su inicio.",
-    "description": "Cuatro `vec4f` por luz.",
+    "description": "Cinco `vec4f` por luz.",
     "members": {
       "position": "Dónde se sitúa.",
       "range": "Hasta dónde alcanza.",
@@ -2887,7 +2891,8 @@
       "castsShadow": "Si proyecta sombras.",
       "cosInner": "El cono interior de un foco, donde empieza su penumbra: el borde del propio cono cuando no la tiene.",
       "halfWidth": "El eje de media anchura de un rectángulo — `right` por la mitad de su anchura —, luego su media altura.",
-      "halfHeight": "La mitad de la altura de un rectángulo."
+      "halfHeight": "La mitad de la altura de un rectángulo.",
+      "emitterRadius": "Radio de la fuente de una luz puntual o un foco; comparte los componentes de forma reservados a rectángulos."
     }
   },
   "LIGHT_KIND": {
@@ -2991,7 +2996,8 @@
       "record": "Todo lo que el mundo guarda sobre este modelo: sus direcciones, su manifiesto y su grafo.",
       "getObjectByName": "El primer nodo debajo con este nombre: el modelo, un nodo de su archivo fuente y luego cualquier otro hijo — una luz que traía el archivo, un nodo que colocó una página.",
       "metadata": "El manifiesto compilado del modelo — sus primitivas, `sourceTriangles` — y `clusters`, los clústeres que contienen sus páginas, cada nivel de sus DAG contado.",
-      "localBounds": "La caja del contenido propio de este nodo, en su sistema local; un nodo simple no tiene ninguna."
+      "localBounds": "La caja del contenido propio de este nodo, en su sistema local; un nodo simple no tiene ninguna.",
+      "animations": "Clips del archivo vinculados a los nodos del modelo: `animation.createMixer(model).clipAction(model.animations[0]).play()`."
     }
   },
   "loader": {
@@ -3113,6 +3119,8 @@
       "parameters.ior": "Cuánto se curva la luz al entrar: 1,5 para el vidrio, 1,33 para el agua.",
       "parameters.thickness": "El grosor de una superficie transparente.",
       "parameters.clearcoat": "Un barniz transparente encima: de 0 a 1.",
+      "parameters.anisotropy": "Intensidad de anisotropía declarada, de 0 a 1; aún no se renderiza.",
+      "parameters.anisotropyRotation": "Dirección de anisotropía declarada, en radianes; aún no se renderiza.",
       "parameters.clearcoatRoughness": "La rugosidad del barniz.",
       "parameters.sheen": "Un suave brillo en ángulos rasantes, como el terciopelo.",
       "parameters.iridescence": "Colores de arcoíris que cambian con el ángulo, como una pompa de jabón.",
@@ -3132,7 +3140,9 @@
       "parameters.physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
       "parameters.density": "kg/m³, por el volumen da la masa.",
       "parameters.friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
-      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1."
+      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1.",
+      "parameters.subsurfaceColor": "Transmisión difusa a través de una superficie fina de doble cara; el negro la desactiva.",
+      "parameters.subsurfaceMap": "Tinte lineal de transmisión opcional, multiplicado por subsurfaceColor."
     }
   },
   "material.meshPhysical": {
@@ -3154,6 +3164,8 @@
       "parameters.ior": "Cuánto se curva la luz al entrar: 1,5 para el vidrio, 1,33 para el agua.",
       "parameters.thickness": "El grosor de una superficie transparente.",
       "parameters.clearcoat": "Un barniz transparente encima: de 0 a 1.",
+      "parameters.anisotropy": "Intensidad de anisotropía declarada, de 0 a 1; aún no se renderiza.",
+      "parameters.anisotropyRotation": "Dirección de anisotropía declarada, en radianes; aún no se renderiza.",
       "parameters.clearcoatRoughness": "La rugosidad del barniz.",
       "parameters.sheen": "Un suave brillo en ángulos rasantes, como el terciopelo.",
       "parameters.iridescence": "Colores de arcoíris que cambian con el ángulo, como una pompa de jabón.",
@@ -3173,7 +3185,9 @@
       "parameters.physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
       "parameters.density": "kg/m³, por el volumen da la masa.",
       "parameters.friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
-      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1."
+      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1.",
+      "parameters.subsurfaceColor": "Transmisión difusa a través de una superficie fina de doble cara; el negro la desactiva.",
+      "parameters.subsurfaceMap": "Tinte lineal de transmisión opcional, multiplicado por subsurfaceColor."
     }
   },
   "material.meshBasic": {
@@ -3195,6 +3209,8 @@
       "parameters.ior": "Cuánto se curva la luz al entrar: 1,5 para el vidrio, 1,33 para el agua.",
       "parameters.thickness": "El grosor de una superficie transparente.",
       "parameters.clearcoat": "Un barniz transparente encima: de 0 a 1.",
+      "parameters.anisotropy": "Intensidad de anisotropía declarada, de 0 a 1; aún no se renderiza.",
+      "parameters.anisotropyRotation": "Dirección de anisotropía declarada, en radianes; aún no se renderiza.",
       "parameters.clearcoatRoughness": "La rugosidad del barniz.",
       "parameters.sheen": "Un suave brillo en ángulos rasantes, como el terciopelo.",
       "parameters.iridescence": "Colores de arcoíris que cambian con el ángulo, como una pompa de jabón.",
@@ -3214,7 +3230,9 @@
       "parameters.physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
       "parameters.density": "kg/m³, por el volumen da la masa.",
       "parameters.friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
-      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1."
+      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1.",
+      "parameters.subsurfaceColor": "Transmisión difusa a través de una superficie fina de doble cara; el negro la desactiva.",
+      "parameters.subsurfaceMap": "Tinte lineal de transmisión opcional, multiplicado por subsurfaceColor."
     }
   },
   "material.meshPhong": {
@@ -3236,6 +3254,8 @@
       "parameters.ior": "Cuánto se curva la luz al entrar: 1,5 para el vidrio, 1,33 para el agua.",
       "parameters.thickness": "El grosor de una superficie transparente.",
       "parameters.clearcoat": "Un barniz transparente encima: de 0 a 1.",
+      "parameters.anisotropy": "Intensidad de anisotropía declarada, de 0 a 1; aún no se renderiza.",
+      "parameters.anisotropyRotation": "Dirección de anisotropía declarada, en radianes; aún no se renderiza.",
       "parameters.clearcoatRoughness": "La rugosidad del barniz.",
       "parameters.sheen": "Un suave brillo en ángulos rasantes, como el terciopelo.",
       "parameters.iridescence": "Colores de arcoíris que cambian con el ángulo, como una pompa de jabón.",
@@ -3255,7 +3275,9 @@
       "parameters.physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
       "parameters.density": "kg/m³, por el volumen da la masa.",
       "parameters.friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
-      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1."
+      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1.",
+      "parameters.subsurfaceColor": "Transmisión difusa a través de una superficie fina de doble cara; el negro la desactiva.",
+      "parameters.subsurfaceMap": "Tinte lineal de transmisión opcional, multiplicado por subsurfaceColor."
     }
   },
   "material.meshLambert": {
@@ -3277,6 +3299,8 @@
       "parameters.ior": "Cuánto se curva la luz al entrar: 1,5 para el vidrio, 1,33 para el agua.",
       "parameters.thickness": "El grosor de una superficie transparente.",
       "parameters.clearcoat": "Un barniz transparente encima: de 0 a 1.",
+      "parameters.anisotropy": "Intensidad de anisotropía declarada, de 0 a 1; aún no se renderiza.",
+      "parameters.anisotropyRotation": "Dirección de anisotropía declarada, en radianes; aún no se renderiza.",
       "parameters.clearcoatRoughness": "La rugosidad del barniz.",
       "parameters.sheen": "Un suave brillo en ángulos rasantes, como el terciopelo.",
       "parameters.iridescence": "Colores de arcoíris que cambian con el ángulo, como una pompa de jabón.",
@@ -3296,7 +3320,9 @@
       "parameters.physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
       "parameters.density": "kg/m³, por el volumen da la masa.",
       "parameters.friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
-      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1."
+      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1.",
+      "parameters.subsurfaceColor": "Transmisión difusa a través de una superficie fina de doble cara; el negro la desactiva.",
+      "parameters.subsurfaceMap": "Tinte lineal de transmisión opcional, multiplicado por subsurfaceColor."
     }
   },
   "material.meshToon": {
@@ -3318,6 +3344,8 @@
       "parameters.ior": "Cuánto se curva la luz al entrar: 1,5 para el vidrio, 1,33 para el agua.",
       "parameters.thickness": "El grosor de una superficie transparente.",
       "parameters.clearcoat": "Un barniz transparente encima: de 0 a 1.",
+      "parameters.anisotropy": "Intensidad de anisotropía declarada, de 0 a 1; aún no se renderiza.",
+      "parameters.anisotropyRotation": "Dirección de anisotropía declarada, en radianes; aún no se renderiza.",
       "parameters.clearcoatRoughness": "La rugosidad del barniz.",
       "parameters.sheen": "Un suave brillo en ángulos rasantes, como el terciopelo.",
       "parameters.iridescence": "Colores de arcoíris que cambian con el ángulo, como una pompa de jabón.",
@@ -3337,7 +3365,9 @@
       "parameters.physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
       "parameters.density": "kg/m³, por el volumen da la masa.",
       "parameters.friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
-      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1."
+      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1.",
+      "parameters.subsurfaceColor": "Transmisión difusa a través de una superficie fina de doble cara; el negro la desactiva.",
+      "parameters.subsurfaceMap": "Tinte lineal de transmisión opcional, multiplicado por subsurfaceColor."
     }
   },
   "material.meshNormal": {
@@ -3359,6 +3389,8 @@
       "parameters.ior": "Cuánto se curva la luz al entrar: 1,5 para el vidrio, 1,33 para el agua.",
       "parameters.thickness": "El grosor de una superficie transparente.",
       "parameters.clearcoat": "Un barniz transparente encima: de 0 a 1.",
+      "parameters.anisotropy": "Intensidad de anisotropía declarada, de 0 a 1; aún no se renderiza.",
+      "parameters.anisotropyRotation": "Dirección de anisotropía declarada, en radianes; aún no se renderiza.",
       "parameters.clearcoatRoughness": "La rugosidad del barniz.",
       "parameters.sheen": "Un suave brillo en ángulos rasantes, como el terciopelo.",
       "parameters.iridescence": "Colores de arcoíris que cambian con el ángulo, como una pompa de jabón.",
@@ -3378,7 +3410,9 @@
       "parameters.physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
       "parameters.density": "kg/m³, por el volumen da la masa.",
       "parameters.friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
-      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1."
+      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1.",
+      "parameters.subsurfaceColor": "Transmisión difusa a través de una superficie fina de doble cara; el negro la desactiva.",
+      "parameters.subsurfaceMap": "Tinte lineal de transmisión opcional, multiplicado por subsurfaceColor."
     }
   },
   "material.meshMatcap": {
@@ -3400,6 +3434,8 @@
       "parameters.ior": "Cuánto se curva la luz al entrar: 1,5 para el vidrio, 1,33 para el agua.",
       "parameters.thickness": "El grosor de una superficie transparente.",
       "parameters.clearcoat": "Un barniz transparente encima: de 0 a 1.",
+      "parameters.anisotropy": "Intensidad de anisotropía declarada, de 0 a 1; aún no se renderiza.",
+      "parameters.anisotropyRotation": "Dirección de anisotropía declarada, en radianes; aún no se renderiza.",
       "parameters.clearcoatRoughness": "La rugosidad del barniz.",
       "parameters.sheen": "Un suave brillo en ángulos rasantes, como el terciopelo.",
       "parameters.iridescence": "Colores de arcoíris que cambian con el ángulo, como una pompa de jabón.",
@@ -3419,7 +3455,9 @@
       "parameters.physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
       "parameters.density": "kg/m³, por el volumen da la masa.",
       "parameters.friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
-      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1."
+      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1.",
+      "parameters.subsurfaceColor": "Transmisión difusa a través de una superficie fina de doble cara; el negro la desactiva.",
+      "parameters.subsurfaceMap": "Tinte lineal de transmisión opcional, multiplicado por subsurfaceColor."
     }
   },
   "material.meshDepth": {
@@ -3441,6 +3479,8 @@
       "parameters.ior": "Cuánto se curva la luz al entrar: 1,5 para el vidrio, 1,33 para el agua.",
       "parameters.thickness": "El grosor de una superficie transparente.",
       "parameters.clearcoat": "Un barniz transparente encima: de 0 a 1.",
+      "parameters.anisotropy": "Intensidad de anisotropía declarada, de 0 a 1; aún no se renderiza.",
+      "parameters.anisotropyRotation": "Dirección de anisotropía declarada, en radianes; aún no se renderiza.",
       "parameters.clearcoatRoughness": "La rugosidad del barniz.",
       "parameters.sheen": "Un suave brillo en ángulos rasantes, como el terciopelo.",
       "parameters.iridescence": "Colores de arcoíris que cambian con el ángulo, como una pompa de jabón.",
@@ -3460,7 +3500,9 @@
       "parameters.physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
       "parameters.density": "kg/m³, por el volumen da la masa.",
       "parameters.friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
-      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1."
+      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1.",
+      "parameters.subsurfaceColor": "Transmisión difusa a través de una superficie fina de doble cara; el negro la desactiva.",
+      "parameters.subsurfaceMap": "Tinte lineal de transmisión opcional, multiplicado por subsurfaceColor."
     }
   },
   "material.points": {
@@ -3482,6 +3524,8 @@
       "parameters.ior": "Cuánto se curva la luz al entrar: 1,5 para el vidrio, 1,33 para el agua.",
       "parameters.thickness": "El grosor de una superficie transparente.",
       "parameters.clearcoat": "Un barniz transparente encima: de 0 a 1.",
+      "parameters.anisotropy": "Intensidad de anisotropía declarada, de 0 a 1; aún no se renderiza.",
+      "parameters.anisotropyRotation": "Dirección de anisotropía declarada, en radianes; aún no se renderiza.",
       "parameters.clearcoatRoughness": "La rugosidad del barniz.",
       "parameters.sheen": "Un suave brillo en ángulos rasantes, como el terciopelo.",
       "parameters.iridescence": "Colores de arcoíris que cambian con el ángulo, como una pompa de jabón.",
@@ -3501,7 +3545,9 @@
       "parameters.physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
       "parameters.density": "kg/m³, por el volumen da la masa.",
       "parameters.friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
-      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1."
+      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1.",
+      "parameters.subsurfaceColor": "Transmisión difusa a través de una superficie fina de doble cara; el negro la desactiva.",
+      "parameters.subsurfaceMap": "Tinte lineal de transmisión opcional, multiplicado por subsurfaceColor."
     }
   },
   "material.line": {
@@ -3523,6 +3569,8 @@
       "parameters.ior": "Cuánto se curva la luz al entrar: 1,5 para el vidrio, 1,33 para el agua.",
       "parameters.thickness": "El grosor de una superficie transparente.",
       "parameters.clearcoat": "Un barniz transparente encima: de 0 a 1.",
+      "parameters.anisotropy": "Intensidad de anisotropía declarada, de 0 a 1; aún no se renderiza.",
+      "parameters.anisotropyRotation": "Dirección de anisotropía declarada, en radianes; aún no se renderiza.",
       "parameters.clearcoatRoughness": "La rugosidad del barniz.",
       "parameters.sheen": "Un suave brillo en ángulos rasantes, como el terciopelo.",
       "parameters.iridescence": "Colores de arcoíris que cambian con el ángulo, como una pompa de jabón.",
@@ -3542,7 +3590,9 @@
       "parameters.physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
       "parameters.density": "kg/m³, por el volumen da la masa.",
       "parameters.friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
-      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1."
+      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1.",
+      "parameters.subsurfaceColor": "Transmisión difusa a través de una superficie fina de doble cara; el negro la desactiva.",
+      "parameters.subsurfaceMap": "Tinte lineal de transmisión opcional, multiplicado por subsurfaceColor."
     }
   },
   "material.lineDashed": {
@@ -3564,6 +3614,8 @@
       "parameters.ior": "Cuánto se curva la luz al entrar: 1,5 para el vidrio, 1,33 para el agua.",
       "parameters.thickness": "El grosor de una superficie transparente.",
       "parameters.clearcoat": "Un barniz transparente encima: de 0 a 1.",
+      "parameters.anisotropy": "Intensidad de anisotropía declarada, de 0 a 1; aún no se renderiza.",
+      "parameters.anisotropyRotation": "Dirección de anisotropía declarada, en radianes; aún no se renderiza.",
       "parameters.clearcoatRoughness": "La rugosidad del barniz.",
       "parameters.sheen": "Un suave brillo en ángulos rasantes, como el terciopelo.",
       "parameters.iridescence": "Colores de arcoíris que cambian con el ángulo, como una pompa de jabón.",
@@ -3583,7 +3635,9 @@
       "parameters.physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
       "parameters.density": "kg/m³, por el volumen da la masa.",
       "parameters.friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
-      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1."
+      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1.",
+      "parameters.subsurfaceColor": "Transmisión difusa a través de una superficie fina de doble cara; el negro la desactiva.",
+      "parameters.subsurfaceMap": "Tinte lineal de transmisión opcional, multiplicado por subsurfaceColor."
     }
   },
   "material.sprite": {
@@ -3605,6 +3659,8 @@
       "parameters.ior": "Cuánto se curva la luz al entrar: 1,5 para el vidrio, 1,33 para el agua.",
       "parameters.thickness": "El grosor de una superficie transparente.",
       "parameters.clearcoat": "Un barniz transparente encima: de 0 a 1.",
+      "parameters.anisotropy": "Intensidad de anisotropía declarada, de 0 a 1; aún no se renderiza.",
+      "parameters.anisotropyRotation": "Dirección de anisotropía declarada, en radianes; aún no se renderiza.",
       "parameters.clearcoatRoughness": "La rugosidad del barniz.",
       "parameters.sheen": "Un suave brillo en ángulos rasantes, como el terciopelo.",
       "parameters.iridescence": "Colores de arcoíris que cambian con el ángulo, como una pompa de jabón.",
@@ -3624,7 +3680,9 @@
       "parameters.physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
       "parameters.density": "kg/m³, por el volumen da la masa.",
       "parameters.friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
-      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1."
+      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1.",
+      "parameters.subsurfaceColor": "Transmisión difusa a través de una superficie fina de doble cara; el negro la desactiva.",
+      "parameters.subsurfaceMap": "Tinte lineal de transmisión opcional, multiplicado por subsurfaceColor."
     }
   },
   "material.shadow": {
@@ -3646,6 +3704,8 @@
       "parameters.ior": "Cuánto se curva la luz al entrar: 1,5 para el vidrio, 1,33 para el agua.",
       "parameters.thickness": "El grosor de una superficie transparente.",
       "parameters.clearcoat": "Un barniz transparente encima: de 0 a 1.",
+      "parameters.anisotropy": "Intensidad de anisotropía declarada, de 0 a 1; aún no se renderiza.",
+      "parameters.anisotropyRotation": "Dirección de anisotropía declarada, en radianes; aún no se renderiza.",
       "parameters.clearcoatRoughness": "La rugosidad del barniz.",
       "parameters.sheen": "Un suave brillo en ángulos rasantes, como el terciopelo.",
       "parameters.iridescence": "Colores de arcoíris que cambian con el ángulo, como una pompa de jabón.",
@@ -3665,7 +3725,9 @@
       "parameters.physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
       "parameters.density": "kg/m³, por el volumen da la masa.",
       "parameters.friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
-      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1."
+      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1.",
+      "parameters.subsurfaceColor": "Transmisión difusa a través de una superficie fina de doble cara; el negro la desactiva.",
+      "parameters.subsurfaceMap": "Tinte lineal de transmisión opcional, multiplicado por subsurfaceColor."
     }
   },
   "material.createShader": {
@@ -3707,6 +3769,8 @@
       "parameters.ior": "Cuánto se curva la luz al entrar: 1,5 para el vidrio, 1,33 para el agua.",
       "parameters.thickness": "El grosor de una superficie transparente.",
       "parameters.clearcoat": "Un barniz transparente encima: de 0 a 1.",
+      "parameters.anisotropy": "Intensidad de anisotropía declarada, de 0 a 1; aún no se renderiza.",
+      "parameters.anisotropyRotation": "Dirección de anisotropía declarada, en radianes; aún no se renderiza.",
       "parameters.clearcoatRoughness": "La rugosidad del barniz.",
       "parameters.sheen": "Un suave brillo en ángulos rasantes, como el terciopelo.",
       "parameters.iridescence": "Colores de arcoíris que cambian con el ángulo, como una pompa de jabón.",
@@ -3726,7 +3790,9 @@
       "parameters.physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
       "parameters.density": "kg/m³, por el volumen da la masa.",
       "parameters.friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
-      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1."
+      "parameters.restitution": "Cuánto rebota un cuerpo, de 0 a 1.",
+      "parameters.subsurfaceColor": "Transmisión difusa a través de una superficie fina de doble cara; el negro la desactiva.",
+      "parameters.subsurfaceMap": "Tinte lineal de transmisión opcional, multiplicado por subsurfaceColor."
     },
     "members": {
       "isMaterial": "Siempre `true`: distingue un material de todo lo demás.",
@@ -3753,7 +3819,8 @@
       "physics": "Preajuste de materia física de los cuerpos que lo llevan.",
       "density": "kg/m³, para la masa de un cuerpo.",
       "friction": "Fricción física.",
-      "restitution": "Restitución física."
+      "restitution": "Restitución física.",
+      "subsurfaceColor": "Transmisión difusa a través de una superficie fina de doble cara; el negro la desactiva."
     }
   },
   "MaterialParameters": {
@@ -3774,6 +3841,8 @@
       "ior": "Cuánto se curva la luz al entrar: 1,5 para el vidrio, 1,33 para el agua.",
       "thickness": "El grosor de una superficie transparente.",
       "clearcoat": "Un barniz transparente encima: de 0 a 1.",
+      "anisotropy": "Intensidad de anisotropía declarada, de 0 a 1; aún no se renderiza.",
+      "anisotropyRotation": "Dirección de anisotropía declarada, en radianes; aún no se renderiza.",
       "clearcoatRoughness": "La rugosidad del barniz.",
       "sheen": "Un suave brillo en ángulos rasantes, como el terciopelo.",
       "iridescence": "Colores de arcoíris que cambian con el ángulo, como una pompa de jabón.",
@@ -3793,7 +3862,9 @@
       "physics": "La materia de un cuerpo que lo lleva: densidad, fricción, restitución.",
       "density": "kg/m³, por el volumen da la masa.",
       "friction": "Cuánto se agarra un cuerpo, de 0 en adelante.",
-      "restitution": "Cuánto rebota un cuerpo, de 0 a 1."
+      "restitution": "Cuánto rebota un cuerpo, de 0 a 1.",
+      "subsurfaceColor": "Transmisión difusa a través de una superficie fina de doble cara; el negro la desactiva.",
+      "subsurfaceMap": "Tinte lineal de transmisión opcional, multiplicado por subsurfaceColor."
     }
   },
   "materialSide": {
@@ -4123,7 +4194,9 @@
       "morphTargetInfluences": "El peso de cada objetivo de morph, cuando la geometría declara alguno.",
       "morphTargetDictionary": "El rango de cada objetivo de morph por su nombre.",
       "updateMorphTargets": "Un peso cero por objetivo de morph del primer atributo deformado, nombrado por su rango.",
-      "copy": "Toma los valores de `source`, y copias de sus hijos salvo que se indique lo contrario."
+      "copy": "Toma los valores de `source`, y copias de sus hijos salvo que se indique lo contrario.",
+      "skeleton": "Huesos indicados por `skinIndex` y `skinWeight`, evaluados en la GPU en cada fotograma.",
+      "waves": "Parámetros de ondas compartidos con `WaterSurface`, para GPU y flotabilidad."
     }
   },
   "metric": {
@@ -4602,7 +4675,9 @@
       "vertexCount": "Vértices.",
       "flags": "Qué atributos lleva.",
       "decodedBytes": "Tamaño de `block`.",
-      "quantizationError": "El mayor desplazamiento de posición del encabezado de la página, en unidades del objeto."
+      "quantizationError": "El mayor desplazamiento de posición del encabezado de la página, en unidades del objeto.",
+      "skinInfluences": "Anchura exacta de las influencias óseas originales por vértice.",
+      "morphTargets": "Número de objetivos en `morph`: seis flotantes por objetivo y vértice; ausente sin morphing."
     }
   },
   "PageDecodeOp": {
@@ -4803,7 +4878,9 @@
       "matrices": "Dieciséis flotantes columna por columna por fila, escritos por el propietario.",
       "live": "1 donde la fila coloca el recurso, 0 donde está apartada.",
       "shadowless": "1 donde la fila no proyecta sombra (el `castShadow` de su malla es `false`), 0 donde la proyecta.",
-      "capacity": "Filas que caben antes de que crezca."
+      "capacity": "Filas que caben antes de que crezca.",
+      "sources": "Propietarios originales, conservados al reutilizar las filas.",
+      "sourceModels": "Mallas que comparten recursos, incluidas las filas en espera."
     }
   },
   "Plane": {
@@ -5001,7 +5078,8 @@
       "streams": "Sus paquetes de flujo.",
       "quantization": "Null en una primitiva sin páginas, que no se cuantizó en ninguna rejilla.",
       "topology": "El aspecto de las aristas y las esquinas de la malla.",
-      "dynamic": "La geometría dinámica de un mundo (#573): solo páginas de índices, sus vértices leídos como flotantes de la geometría anfitriona que el motor reescribe en su sitio."
+      "dynamic": "La geometría dinámica de un mundo (#573): solo páginas de índices, sus vértices leídos como flotantes de la geometría anfitriona que el motor reescribe en su sitio.",
+      "deformation": "Esferas de reposo de las articulaciones `[x,y,z,radius]` y alcance máximo del morphing; ausente o null para geometría estática."
     }
   },
   "Primitive": {
@@ -5299,7 +5377,7 @@
       "range": "Punto, foco y rectángulo: el alcance en metros, donde la energía se anula exactamente.",
       "coneAngle": "La apertura de un foco.",
       "penumbra": "Solo foco: la parte del cono, desde su borde hacia el interior, sobre la cual la luz se atenúa en `[0, 1]`; sin ella, el borde se suaviza sobre `spotEdgeSoftness`.",
-      "emitterRadius": "Solo punto y foco: el radio, en metros, de la envolvente que contiene la fuente. Una luz real siempre está alojada en algo — vidrio de linterna, reflector, pantalla — y esa envolvente es una geometría como cualquier otra: sin este campo, entra en el mapa de sombra de su propia luz y la apaga. Declarado, se convierte en el plano cercano de ese mapa, así que nada más cercano a la fuente que este radio proyecta ahí sombra. Es una propiedad de la luz, nunca un nombre de objeto o un tipo de material: el motor solo conoce superficies. Estrictamente positivo y estrictamente menor que el alcance; ausente, nada cambia.",
+      "emitterRadius": "Solo punto y foco: el radio, en metros, de la envolvente que contiene la fuente. Una luz real siempre está alojada en algo — vidrio de linterna, reflector, pantalla — y esa envolvente es una geometría como cualquier otra: sin este campo, entra en el mapa de sombra de su propia luz y la apaga. Los fragmentos dentro de esta esfera no proyectan sombras; el plano cercano del mapa sigue dependiendo del alcance. En una luz puntual, este radio también determina el tamaño de la fuente del filtro de sombras que endurece los bordes cerca del contacto. Es una propiedad de la luz, nunca un nombre de objeto o un tipo de material: el motor solo conoce superficies. Estrictamente positivo y estrictamente menor que el alcance; ausente, nada cambia.",
       "right": "Solo rectángulo: el eje unitario a lo largo de su anchura, perpendicular a `direction`.",
       "size": "Solo rectángulo: su anchura y altura, en metros.",
       "castsShadow": "Si proyecta sombras."
@@ -5701,7 +5779,8 @@
       "quantization": "Null en una primitiva sin páginas, que no se cuantizó en ninguna rejilla.",
       "topology": "El aspecto de las aristas y las esquinas de la malla.",
       "binary": "Dónde encontrar sus listas.",
-      "dynamic": "La geometría dinámica de un mundo (#573): solo páginas de índices, sus vértices leídos como flotantes de la geometría anfitriona que el motor reescribe en su sitio."
+      "dynamic": "La geometría dinámica de un mundo (#573): solo páginas de índices, sus vértices leídos como flotantes de la geometría anfitriona que el motor reescribe en su sitio.",
+      "deformation": "Esferas de reposo de las articulaciones `[x,y,z,radius]` y alcance máximo del morphing; ausente o null para geometría estática."
     }
   },
   "SlimPrimitiveBinary": {
@@ -5908,9 +5987,13 @@
       "baseMetal": "Color base en RGB, A para el metal.",
       "normalRough": "Normal XYZ en el mundo, A para la rugosidad.",
       "emissiveAo": "Emisión RGB, A para la oclusión ambiental.",
-      "flags": "0 fondo, 1 sin iluminar (con niebla), 2 leído, 3 mostrado tal cual: un diagnóstico, una vista de normales o de profundidad.",
+      "flags": "0 fondo, 1 sin iluminar (con niebla), 2 leído, 3 mostrado tal cual: un diagnóstico, una vista de normales o de profundidad. 4 y 5: modelos difuso y toon (`./surfaceModel.ts`).",
       "views": "Sus vistas de textura de GPU.",
-      "dispose": "Lo libera."
+      "dispose": "Lo libera.",
+      "shadingOffset": "Desplazamiento del receptor de sombras con precisión completa, escrito junto al G-buffer.",
+      "subsurface": "Color independiente de transmisión de superficies finas; textura de ceros de 1×1 cuando está desactivado.",
+      "subsurfaceView": "Vista de la textura de transmisión de superficies finas.",
+      "hasSubsurface": "Si la transmisión de superficies finas tiene un destino de tamaño completo."
     }
   },
   "SurfaceCapture": {
@@ -6317,7 +6400,8 @@
       "name": "Lo que anima: `node.field`.",
       "kind": "Qué tipo de valor contiene.",
       "times": "Cuándo llega cada clave, en segundos.",
-      "values": "El valor en cada clave, uno tras otro."
+      "values": "El valor en cada clave, uno tras otro.",
+      "interpolation": "`linear` por defecto; `step` conserva la clave anterior; `cubic` usa las ternas glTF tangente entrante/valor/tangente saliente."
     }
   },
   "TrackballCameraControls": {
@@ -6333,11 +6417,12 @@
       "owner": "El objeto donde escribe la pista.",
       "field": "El campo de `owner` que escribe.",
       "key": "La clave donde se detuvo la última muestra.",
-      "value": "Los números de una muestra."
+      "value": "Los números de una muestra.",
+      "reference": "Pose de referencia de la primera clave para las acciones aditivas."
     }
   },
   "TrackKind": {
-    "summary": "Lo que anima una pista: un número, un vector, una rotación o un color."
+    "summary": "Un número, vector, rotación, color o lista de pesos de morphing."
   },
   "transformAffinePoint": {
     "summary": "`out[outOffset..outOffset + 2] = M · (x, y, z, 1)`, sin división de perspectiva: la forma de una matriz afín, cuya última fila es `(0, 0, 0, 1)`."
@@ -6479,7 +6564,7 @@
   },
   "UNSPLIT_PASS": {
     "summary": "Disposición de una primitiva sin cortar que el compilador mantiene fuera del DAG de clústeres: malla entera, orden de la fuente conservado.",
-    "description": "Tres propiedades de material llevan a ello hoy — la transmisión, el skinning y los morph targets —, nunca un nombre de objeto."
+    "description": "La transmisión requiere esta ruta; nunca el nombre de un objeto."
   },
   "updateCameraFrame": {
     "summary": "Reescribe la imagen: vista = inversa de `world` (nula para una matriz del mundo singular, como la referencia), vista-proyección = `projection · view`, y los seis planos de este frustum de vista-proyección."
@@ -6951,7 +7036,8 @@
       "shadowCastersKept": "Proyectores que conservó el descarte por página, todas las páginas dibujadas juntas, en la imagen que el dispositivo muestreó por última vez — una de cada quince; `null` hasta que vuelva una muestra.",
       "shadowCastersRejected": "Proyectores que el descarte por página probó y no conservó — fuera de la parte de la página que leen sus receptores —, en la misma imagen muestreada; `null` hasta que vuelva una muestra.",
       "shadowCastersHidden": "Proyectores en movimiento que la prueba de oclusión encontró ocultos tras la capa estática de su página, en la imagen muestreada por última vez; `null` hasta que vuelva una muestra.",
-      "dynamicUploadBytes": "Bytes de vértices de geometría dinámica subidos en su sitio en este fotograma (#573), dentro del presupuesto por fotograma del mundo (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Ausente donde ningún mundo dibuja."
+      "dynamicUploadBytes": "Bytes de vértices de geometría dinámica subidos en su sitio en este fotograma (#573), dentro del presupuesto por fotograma del mundo (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Ausente donde ningún mundo dibuja.",
+      "gpuDeformationMs": "Duración GPU de la deformación para el fotograma de `gpuPassMs`; null antes de medir o sin soporte."
     }
   },
   "WorldOptions": {
@@ -7483,7 +7569,8 @@
       "height": "Altura de la superficie sobre el punto del mundo `(x, z)`, en metros.",
       "point": "El punto del mundo `[x, y, z]` al que se lleva el punto en reposo `(x, level, z)`, en `out`: una malla movida punto a punto es la superficie, con crestas tan agudas como las olas.",
       "wavesNow": "Las olas declaradas, cada fase llevada a este instante: puestas de nuevo en `world.physics.water` (cuyas olas vuelven a empezar en 0 s), la superficie sigue desde donde está en vez de saltar.",
-      "normal": "Normal unitaria `[x, y, z]` de la superficie en el punto en reposo `(x, z)`, en `out`."
+      "normal": "Normal unitaria `[x, y, z]` de la superficie en el punto en reposo `(x, z)`, en `out`.",
+      "waveModel": "Los mismos valores de ondas y tiempo para GPU y física."
     }
   },
   "WaveSpec": {
@@ -7939,6 +8026,73 @@
   },
   "world.materialMapBytes": {
     "summary": "Bytes de imágenes retenidas o pendientes, con un límite de 64 MiB."
+  },
+  "animation.weightsTrack": {
+    "summary": "Una pista con todos los pesos de morphing por clave.",
+    "parameters": {
+      "path": "Ruta `node.morphTargetInfluences`.",
+      "times": "Tiempos de las claves en segundos.",
+      "values": "Un peso por objetivo y clave."
+    }
+  },
+  "animation.skeleton": {
+    "summary": "Crea el esqueleto que se asigna a `mesh.skeleton`.",
+    "parameters": {
+      "bones": "Huesos en el orden de `skinIndex`.",
+      "inverseBindMatrices": "Dieciséis números por hueso; si se omiten, la pose actual será la pose de enlace."
+    }
+  },
+  "animation.twoBoneIK": {
+    "summary": "Hace que una cadena de dos huesos alcance un punto después de evaluar los clips.",
+    "parameters": {
+      "root": "Primer hueso de la cadena.",
+      "mid": "Segundo hueso de la cadena.",
+      "end": "Nodo terminal unido al segundo hueso.",
+      "target": "Punto que alcanzar.",
+      "pole": "Dirección de flexión; por defecto, la dirección actual.",
+      "weight": "0 mantiene la pose actual; 1 aplica toda la solución."
+    }
+  },
+  "animation.windClip": {
+    "summary": "Clip en bucle que inclina y balancea los huesos de un árbol.",
+    "parameters": {
+      "bones": "Huesos del tronco hacia las puntas.",
+      "options": "Dirección, ángulo máximo de flexión y frecuencia."
+    },
+    "parameters.options.direction": "Dirección sobre el suelo `[x, z]`; valor predeterminado: `[1, 0]`.",
+    "parameters.options.angle": "Flexión máxima en radianes; valor predeterminado: 0,1.",
+    "parameters.options.frequency": "Oscilaciones por segundo; valor predeterminado: 0,5."
+  },
+  "Skeleton": {
+    "summary": "Los huesos que deforman una malla y sus matrices de enlace inversas, del espacio de la malla al de cada hueso.",
+    "description": "El índice de articulación de un vértice señala `bones`. Sin matrices inversas, la pose de los huesos al crear el esqueleto define la pose de enlace.",
+    "members.isSkeleton": "Siempre `true`: identifica un esqueleto.",
+    "members.bones": "Los nodos articulados, en orden de articulaciones.",
+    "members.boneInverses": "Dieciséis números por hueso, por columnas: la inversa de su matriz mundial en la pose de enlace.",
+    "members.palette": "Escribe en `out`, desde `at`, las filas de `meshWorld⁻¹ · boneWorld · boneInverse` de cada articulación. La paleta transforma los vértices enlazados al espacio local de la malla; después se aplica su transformación mundial. `boneWorlds` aporta las matrices mundiales del lector; si falta, se usan las de los huesos."
+  },
+  "Waves": {
+    "summary": "Ondas de Gerstner cuyo tiempo se fija con `setTime`.",
+    "description": "Cada onda `i` tiene dirección `(dx, dz)`, número de onda `k`, amplitud `A` y amplitud lateral `Q·A`. Las pendientes se normalizan para cumplir `Σ Qᵢ·Aᵢ·kᵢ ≤ 1`, sin invertir las crestas.",
+    "members.phase": "Fase de cada onda en el instante fijado, en [0, 2π): único estado temporal.",
+    "members.crest": "Altura máxima sobre el reposo: `Σ Aᵢ`.",
+    "members.steepness": "`Σ Qᵢ·Aᵢ·kᵢ` normalizada, como máximo 1.",
+    "members.phasesAt": "Fase de cada onda a los `t` segundos, reducida a [0, 2π) con doble precisión.",
+    "members.setTime": "Fija el tiempo en `t` segundos; la superficie anterior corresponde a `setTime(t - dt)`.",
+    "members.offset": "Escribe en `out` el desplazamiento `[x, y, z]` del punto en reposo `(x, 0, z)`.",
+    "members.normal": "Escribe en `out` la normal unitaria `[x, y, z]` en el punto en reposo `(x, z)`.",
+    "members.count": "Número de ondas sumadas.",
+    "members.dirX": "Componente x normalizada de la dirección de cada onda.",
+    "members.dirZ": "Componente z normalizada de la dirección de cada onda.",
+    "members.k": "Número de onda de cada onda, en radianes por metro.",
+    "members.amplitude": "Amplitud vertical de cada onda, en metros.",
+    "members.lateral": "Amplitud lateral normalizada de cada onda, en metros."
+  },
+  "WindOptions": {
+    "summary": "Dirección del viento (`x`, `z` sobre el suelo), flexión máxima de un hueso en radianes y oscilaciones por segundo.",
+    "members.direction": "Dirección sobre el suelo `[x, z]`; valor predeterminado: `[1, 0]`.",
+    "members.angle": "Flexión máxima en radianes; valor predeterminado: 0,1.",
+    "members.frequency": "Oscilaciones por segundo; valor predeterminado: 0,5."
   },
   "world.setTransform": {
     "summary": "Mueve el nodo `nodeName` para que su pose de mundo sea `matrix`: un nodo del que la página no guarda referencia se alcanza por su nombre (`object.name`), buscado en la escena.",

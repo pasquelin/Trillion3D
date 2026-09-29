@@ -1,7 +1,8 @@
 /**
  * The contact scene the threaded module is proved on, in Node (`contactThreads.test.ts`) and in a
  * cross-origin isolated page (`tests/browser/renders/physics-threaded-contacts.browser.ts`): free of
- * Node, it takes any started module.
+ * Node, it takes any started module. Its events come in the engine's canonical pair-key order
+ * (`contacts.cpp`, route (b), the boss's yes of 29 Sept.), not Jolt's callback order.
  */
 import {
   CommandWriter,
@@ -21,22 +22,33 @@ import { body, FLAT, id } from './records.fixture.ts';
 export const PILE_BUDGET = { bodies: 64, contactEvents: 256, memoryBytes: 64 << 20 };
 
 /** One step of the pile: the enters dropped, the poses sorted (a pool's threads list the active
- *  bodies in the order they ran), the events in the order the module sent them, which no thread
- *  decides (`contacts.cpp`); words joined. */
+ *  bodies in the order they ran), the events, their records merged after `Update` in the engine's
+ *  canonical pair-key order (`contacts.cpp`, route (b), the boss's yes of 29 Sept.); words joined. */
 export interface PileStep {
   dropped: number;
   poses: string[];
   events: string[];
 }
 
+/** What the pile holds: its cloth, whose soft-body pairs write their own leaves after the merge,
+ *  and its two later steps (boxes thrown up, then some removed), the removals writing leaves before
+ *  it. Both, unless told otherwise: a pile without them has only the records the threads merge, so
+ *  its whole buffer is canonical. */
+interface PileScene {
+  cloth?: boolean;
+  changes?: boolean;
+}
+
 /** A pile of boxes and compounds, two in three wanting events, dropped on a floor under a cloth
  *  that wants them too; some thrown up, then some removed. `bound(step)`, when given and not 0,
- *  bounds the jobs of that step. */
+ *  bounds the jobs of that step. `scene` leaves the cloth or the two later steps out. */
 export function pile(
   jolt: JoltModule,
   steps: number,
   bound?: (step: number) => number,
+  scene: PileScene = {},
 ): PileStep[] {
+  const { cloth = true, changes = true } = scene;
   let seed = 42;
   const next = () => (seed = (Math.imul(seed, 1103515245) + 12345) >>> 0) / 2 ** 32;
   const writer = new CommandWriter();
@@ -49,17 +61,19 @@ export function pile(
     const parts = [0, 1, 2].map((k) => ({ ...part, position: [k * 0.3 - 0.3, 0, 0] }));
     writer.add(i % 5 ? b : { ...b, shape: SHAPE.compound, parts });
   }
-  const settings = softSettings({ type: 'cloth', pins: [0, 10, 110, 120] });
-  const record = softBodyOf(plane(3, 3, 10, 10), { x: 1, y: 1, z: 1 }, settings);
-  const place = {
-    id: id(50),
-    position: [0, 0.8, 0],
-    quaternion: FLAT,
-    scale: [1, 1, 1] as const,
-  };
-  const matter = { friction: 0.5, restitution: 0, gravityScale: 1, linearDamping: 0.05 };
-  writeSoft(writer, { ...place, ...matter, settings, record });
-  writer.flags(50, FLAG.events);
+  if (cloth) {
+    const settings = softSettings({ type: 'cloth', pins: [0, 10, 110, 120] });
+    const record = softBodyOf(plane(3, 3, 10, 10), { x: 1, y: 1, z: 1 }, settings);
+    const place = {
+      id: id(50),
+      position: [0, 0.8, 0],
+      quaternion: FLAT,
+      scale: [1, 1, 1] as const,
+    };
+    const matter = { friction: 0.5, restitution: 0, gravityScale: 1, linearDamping: 0.05 };
+    writeSoft(writer, { ...place, ...matter, settings, record });
+    writer.flags(50, FLAG.events);
+  }
   jolt.step(writer.take(), 0);
   const records = (words: Uint32Array, size: number) =>
     Array.from({ length: words.length / size }, (_, r) =>
@@ -67,8 +81,8 @@ export function pile(
     );
   const out: PileStep[] = [];
   for (let s = 0; s < steps; s++) {
-    if (s === 90) for (let i = 1; i <= 40; i += 7) writer.velocity(i, [0, 8, 1]);
-    if (s === 130) for (let i = 2; i <= 40; i += 9) writer.remove(i);
+    if (changes && s === 90) for (let i = 1; i <= 40; i += 7) writer.velocity(i, [0, 8, 1]);
+    if (changes && s === 130) for (let i = 2; i <= 40; i += 9) writer.remove(i);
     const jobs = bound?.(s);
     if (jobs) jolt.concurrency(jobs);
     const count = jolt.step(writer.length ? writer.take() : null, 1 / 60);

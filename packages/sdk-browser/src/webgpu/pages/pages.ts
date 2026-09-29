@@ -32,7 +32,7 @@ import { hostTableBytesOf, setWebgpuMemoryBudgets } from './io/memory.ts';
 import { runtimeMaterialApi } from './io/runtimeMaterialApi.ts';
 import { setWebgpuClearColor } from './io/clearColor.ts';
 import * as materials from './io/refreshMaterials.ts';
-import { installGpuDeviceLedger } from '../../gpu/core/deviceLedger.ts';
+import { installGpuDeviceLedger, gpuDeviceLedgerOf } from '../../gpu/core/deviceLedger.ts';
 import { namesNoSession } from '../../gpu/core/sessionHandle.ts';
 import {
   captureFeedbackAb,
@@ -100,9 +100,8 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
       // sits on it, above the tags, and carries the device's, which counts the shared caches.
       claim = claimWebgpuDevice(rt, gpuDevice);
       const base = installGpuDeviceLedger(gpuDevice, { counts: namesNoSession });
-      installGpuDeviceLedger(claim.device, { base });
+      installGpuDeviceLedger(claim.device, { base, limit: context.admitGpuMemory?.limit });
       const building = prepareWebgpuBackend(rt, claim.device);
-      // A report of `setMemoryBudgets` made meanwhile waits for it (`io/memory.ts`).
       setup.preparing = building.catch(() => {});
       try {
         await building;
@@ -189,6 +188,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     dispose() {
       // Inert and read as lost at once; torn down once, after the preparation stopped.
       rt.closer.abort();
+      gpuDeviceLedgerOf(claim?.device)?.releaseAdmission();
       claim?.release();
       markWebgpuLost(rt);
       return (closing ??= setup.preparing

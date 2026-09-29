@@ -74,8 +74,8 @@ export function primitiveUsesClusterErrors(primitive: Pick<Primitive, 'pages'>) 
   return primitive.pages.length > 0 && primitive.pages.every(pageCarriesClusterError);
 }
 /** Layout of an unsplit primitive kept outside the cluster DAG by the compiler:
- *  full mesh, source order preserved. Three material properties lead there today —
- *  transmission, skinning, and morph targets —, never an object name. */
+ *  full mesh, source order preserved. The material property that leads there is
+ *  transmission, never an object name. */
 export const UNSPLIT_PASS = 'shared-blend';
 /**
  * A primitive that this runtime can draw. Two forms, and two only: a DAG where each
@@ -144,6 +144,15 @@ export interface StreamCatalogue {
   dynamic?: boolean;
   /** Null on a primitive without pages, which was quantized on no grid. */
   quantization?: PrimitiveQuantization | null;
+  /** How far its deformation can move a vertex from its rest pose (#357): per joint of its skin
+   *  the ball of the vertices that joint moves, `[x, y, z, radius]` flat, and each morph target's
+   *  largest displacement; `null` or absent on a primitive that does not deform. */
+  deformation?: {
+    joints: number[];
+    targets: number[];
+    softVertices?: number;
+    softSourceIds?: number[];
+  } | null;
   /** What the mesh's edges and corners look like. */ topology?: {
     triangles: number;
     edges: { boundary: number; manifold: number; nonManifold: number };

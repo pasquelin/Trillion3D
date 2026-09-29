@@ -30,6 +30,7 @@ export type PageCopies = {
 export type PoolEnvironment = {
   /** The host's budget, and the most `resize` may ask for; the defaults when it names none. */
   budgetBytes?: number;
+  fixedBytes?: () => number;
   ceilingBytes?: number;
   /** The page ceiling of the display graph, which bounds the slots as it does on WebGPU. */
   maxResidentPages?: number;
