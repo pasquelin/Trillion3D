@@ -6,7 +6,7 @@ import { createCellBoxes } from './boxes.ts';
 import { createCellIndex } from './cellIndex.ts';
 import { createPartitionCells } from './cells.ts';
 import { io, noBudget, opened, settled } from './cells.fixture.ts';
-import { openAll, paged } from './paged.fixture.ts';
+import { openAll, paged, walked } from './paged.fixture.ts';
 import { placedMesh, type RowLink } from './rows.ts';
 
 /** A square world of `side` × `side` cells of 10 m, under the core node `rank` or the root, in
@@ -43,21 +43,7 @@ test("a frame's cell work is the same on a world sixteen times as large", () => 
   // region pages of four.
   const eye = [45, 45, 0.5];
   const walk = (side: number) => {
-    const { partition, files } = paged(grid(side).cells, 4);
-    const boxes = createCellBoxes([], new Group(), []);
-    boxes.refresh();
-    const index = createCellIndex(partition.pages, 'https://cache.test/', boxes);
-    openAll(index, files, eye, 25);
-    const found: number[] = [];
-    const none = { has: () => false };
-    const tested = index.near(
-      eye,
-      25,
-      Infinity,
-      none,
-      (cell) => found.push(cell),
-      () => {},
-    );
+    const { index, found, tested } = walked(grid(side).cells, eye, 25);
     return { tested, found: found.length, opened: index.stats() };
   };
   const small = walk(8),
