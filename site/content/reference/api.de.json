@@ -4081,7 +4081,19 @@
       "evictedTiles": "Entfernte Texturkacheln.",
       "residentPages": "Was unmittelbar vor und unmittelbar nach der Einstellung resident war.",
       "residentTiles": "Gehaltene Texturkacheln, davor und danach.",
-      "durationMs": "Die benötigte Zeit."
+      "durationMs": "Die benötigte Zeit.",
+      "tables": "Die Tabellen je zeichenbarer Seite, vergrößert für ein Reservoir über ihnen (WebGPU), oder `null`, wenn keine vergrößert wurde.",
+      "transientBytes": "Bytes, die beim Kopieren des Geometrie-Reservoirs gleichzeitig gehalten werden: das alte Reservoir und das neue daneben, vom Gerät gemeinsam gewährt, bevor sich eine Seite bewegt; 0, wenn sich kein Reservoir bewegt hat."
+    }
+  },
+  "TableGrowthReport": {
+    "summary": "Das Wachstum der nach zeichenbaren Zeilen bemessenen Tabellen, wie es ein Pool darüber angefordert hat.",
+    "members": {
+      "drawSlots": "Sichtbarkeitszeilen, die die Tabellen jetzt enthalten.",
+      "casterSlots": "Zeilen, die der Schattendurchgang liest, nach den Sichtbarkeitszeilen.",
+      "bytes": "Bytes, die die gewachsenen GPU-Tabellen belegen – die angeforderten, wenn abgelehnt.",
+      "refused": "`true`, wenn das Gerät sie abgelehnt hat: Die bestehenden Tabellen und der Pool bleiben erhalten.",
+      "durationMs": "Millisekunden, die das Wachstum gedauert hat, von der Prüfung bis zum Tausch."
     }
   },
   "Mesh": {

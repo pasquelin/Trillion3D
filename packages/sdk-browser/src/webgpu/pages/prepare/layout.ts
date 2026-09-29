@@ -47,8 +47,9 @@ export function askedTableRows(
 
 /** The geometry of the drawing path: the packed opaque pages, the row table sized to the slot
  *  budget and to one binding of the device (`limits`), and every per-row scratch array the image
- *  reuses instead of reallocating. The table is fixed; placements grown in place join the roots
- *  and pages after the others (`../../../placement/webgpuGrowth.ts`). */
+ *  reuses instead of reallocating. Placements grown in place join the roots and pages after the
+ *  others (`../../../placement/webgpuGrowth.ts`); the table itself grows in place when a larger
+ *  pool or those placements ask more rows (`growTables.ts`). */
 export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSupportedLimits) {
   const { roots, bootstrap, cap: slots, pageBytes } = setup;
   const opaqueRoots = roots.filter((root) => !root.pages[0]?.transparent),
@@ -77,15 +78,6 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
     limits,
   );
   const rows = createWebgpuRowState(packedPages, drawSlots, blendSlots);
-  /** Every triangle of every drawable row: the bound a raster list cannot exceed. */
-  const rasterCapacity = drawSlots * Math.ceil(Math.max(1, pageBytes / 4) / 3);
-  /** World-space corners per ROW, in single precision: what the GPU partition reads. They are
-   *  derived from each page's local bounds and rewritten only on the table's dirty range. */
-  const cornerPacked = new Float32Array(drawSlots * CORNER_VALUES);
-  const cornerHold = createCornerUploadHold();
-  /** Draw rows, held from one image to the next: only a changing row rewrites them. */
-  const drawItemWords = new Uint32Array(drawSlots * DRAW_ITEM_U32);
-  const itemWordsHold = createDrawItemWordsHold(drawSlots);
   return {
     /** Root-box batch, reserved at prepare and replayed on every node move; `null` until prepare has
      *  happened or when the batch cannot be fitted. */
@@ -98,14 +90,33 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
     copies,
     worldUpdates,
     gpuWanted,
-    drawSlots,
+    /** The visibility rows, as the table stands: it grows in place (`growTables.ts`), so every
+     *  reader of the table's size reads it here, at each use. */
+    get drawSlots() {
+      return rows.blendFirst;
+    },
     rows,
     /** The rows the scene asked when one binding of the device held fewer, else null. */
     pageTableBound: bounded,
-    rasterCapacity,
-    cornerPacked,
-    cornerHold,
-    drawItemWords,
-    itemWordsHold,
+    /** The growth of the tables under way, which the next one waits for (`growTables.ts`). */
+    growing: undefined as Promise<unknown> | undefined,
+    ...rowScratch(drawSlots, pageBytes),
+  };
+}
+
+/** The per-row scratch arrays of a table of `drawSlots` visibility rows, and the witnesses of what
+ *  the GPU holds of them: made anew when the table grows (`growTables.ts`), they then send every
+ *  row again, once. */
+export function rowScratch(drawSlots: number, pageBytes: number) {
+  return {
+    /** Every triangle of every drawable row: the bound a raster list cannot exceed. */
+    rasterCapacity: drawSlots * Math.ceil(Math.max(1, pageBytes / 4) / 3),
+    /** World-space corners per ROW, in single precision: what the GPU partition reads. They are
+     *  derived from each page's local bounds and rewritten only on the table's dirty range. */
+    cornerPacked: new Float32Array(drawSlots * CORNER_VALUES),
+    cornerHold: createCornerUploadHold(),
+    /** Draw rows, held from one image to the next: only a changing row rewrites them. */
+    drawItemWords: new Uint32Array(drawSlots * DRAW_ITEM_U32),
+    itemWordsHold: createDrawItemWordsHold(drawSlots),
   };
 }
