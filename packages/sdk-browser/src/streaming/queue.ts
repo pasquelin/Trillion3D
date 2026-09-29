@@ -6,6 +6,8 @@ export function createStreamingQueue(
   loadOne: (url: string, signal: AbortSignal) => Promise<Uint8Array>,
   touch: (url: string, bytes: Uint8Array) => void,
   evict: () => void,
+  /** Marks a page's hold in the cache's eviction order when its transfer starts or ends. */
+  sync: (url: string) => void,
 ) {
   const {
     state,
@@ -37,6 +39,7 @@ export function createStreamingQueue(
    *  `dispose` a kept store is the next session's: a late settle no longer drops from it. */
   const end = (url: string, job: Job) => {
     if (jobs.get(url) === job) jobs.delete(url);
+    sync(url);
     if (!jobs.has(url) && forgotten.delete(url) && !state.disposed) drop(url);
   };
   const octetsDe = (url: string) => catalog.get(url)?.bytes;
@@ -56,7 +59,7 @@ export function createStreamingQueue(
       job.state = 'active';
       state.active++;
       state.activeBytes += catalog.get(job.url)!.bytes;
-      emit('page-transfer-start', 'Page transfer admitted', () => ({
+      emit?.('page-transfer-start', 'Page transfer admitted', () => ({
         version: 1,
         url: job.url,
         active: state.active,
@@ -69,7 +72,7 @@ export function createStreamingQueue(
           state.active--;
           state.activeBytes -= catalog.get(job.url)!.bytes;
           end(job.url, job);
-          emit('page-transfer-end', 'Page transfer finished', () => ({
+          emit?.('page-transfer-end', 'Page transfer finished', () => ({
             version: 1,
             url: job.url,
             active: state.active,
@@ -85,7 +88,7 @@ export function createStreamingQueue(
     requestSignal?: AbortSignal,
     priority = 1,
   ): Promise<Uint8Array> => {
-    emit('page-request', 'Page request received', () => ({ version: 1, url, priority }));
+    emit?.('page-request', 'Page request received', () => ({ version: 1, url, priority }));
     if (state.disposed || abort.signal.aborted)
       return Promise.reject(abort.signal.reason ?? abortError());
     if (requestSignal?.aborted) return Promise.reject(requestSignal.reason ?? abortError());
@@ -96,7 +99,7 @@ export function createStreamingQueue(
     if (cached) {
       state.hits++;
       touch(url, cached);
-      emit('page-cache-hit', 'Page already resident', () => ({
+      emit?.('page-cache-hit', 'Page already resident', () => ({
         version: 1,
         url,
         resident: cache.size,
@@ -104,7 +107,7 @@ export function createStreamingQueue(
       return Promise.resolve(cached);
     }
     state.misses++;
-    emit('page-cache-miss', 'Page missing from the cache', () => ({
+    emit?.('page-cache-miss', 'Page missing from the cache', () => ({
       version: 1,
       url,
       resident: cache.size,
@@ -128,6 +131,7 @@ export function createStreamingQueue(
         reject,
       };
       jobs.set(url, job);
+      sync(url);
       insereTravail(queue, job);
     } else {
       const raised = priority < job.priority;
@@ -141,7 +145,7 @@ export function createStreamingQueue(
           insereTravail(queue, job);
         }
       }
-      emit('page-request-coalesced', 'Request joined to a read in progress', () => ({
+      emit?.('page-request-coalesced', 'Request joined to a read in progress', () => ({
         version: 1,
         url,
         loading: jobs.size,
@@ -164,7 +168,7 @@ export function createStreamingQueue(
         if (shared.consumers.size === 0 && jobs.get(url) === shared && shared.state === 'queued') {
           end(url, shared);
           shared.controller.abort(abortError());
-          emit('page-stream-abort', 'Pending request cancelled', () => ({ version: 1, url }));
+          emit?.('page-stream-abort', 'Pending request cancelled', () => ({ version: 1, url }));
           // Marked, not removed: `pump` compacts the queue in one pass, and `stats()` subtracts
           // the marked from its length, so the published pending count does not move.
           shared.state = 'dropped';
