@@ -5,6 +5,7 @@ import { attachContractLights } from './contractLights.ts';
 import { installLighting } from './contractLightingApi.ts';
 import { declareImportedLights } from './importedLights.ts';
 import { unsupportedClusterLight } from '../webgl/cluster/lights.ts';
+import { createDrawLists } from '../webgl/cluster/drawLists.ts';
 import { Scene } from '../world/core/scene.ts';
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 
@@ -40,5 +41,9 @@ test('WebGL2 takes 300 lights: no count refuses a scene', () => {
   );
   for (const light of lamps(300)) store.add(light);
   contract.apply();
-  assert.equal(unsupportedClusterLight(scene), undefined);
+  const lists = createDrawLists(scene, []);
+  lists.refresh();
+  assert.equal(lists.lights.length, 300, 'the frame reads every lamp');
+  assert.equal(unsupportedClusterLight(lists.lights), undefined);
+  lists.dispose();
 });
