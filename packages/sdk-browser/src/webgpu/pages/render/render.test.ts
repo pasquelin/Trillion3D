@@ -114,10 +114,9 @@ function root(name: string, count: number, transparent = false): ClusterRoot<Pag
   const world = { elements: new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]) };
   const pages = Array.from(
     { length: count },
-    (_, i) =>
-      ({ url: `${name}${i}`, matrix: world, transparent, windingEpoch: 1 }) as unknown as PageRec,
+    (_, i) => ({ url: `${name}${i}`, transparent }) as unknown as PageRec,
   );
-  return { world, pages };
+  return { world, pages, windingEpoch: 1 };
 }
 
 /** A terrain of `terrain` rows, then a model of `model` rows, every cluster resident; then

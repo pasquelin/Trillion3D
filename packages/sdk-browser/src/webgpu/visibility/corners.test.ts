@@ -11,7 +11,7 @@ import { createWebgpuRowState } from '../row/state.ts';
 import { CORNER_VALUES } from '../../gpu/partition/contract.ts';
 import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
-import type { ClusterRoot, PageRec } from '../../page/selection/types.ts';
+import type { PageRec } from '../../page/selection/types.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
 const ROWS = 1000,
@@ -25,13 +25,13 @@ function scatteredScene() {
     (_, i) =>
       ({
         url: `p${i}`,
-        matrix: world,
-        windingEpoch: 1,
+        placementIndex: 0,
         min: [0, 0, 0],
         max: [1, 1, 1],
       }) as unknown as PageRec,
   );
-  const model = { world, pages: MODEL_ROWS.map((row) => pages[row]) } as ClusterRoot<PageRec>;
+  // One world for every row, the model's root's: its rows are those it moves.
+  const model = { world, pages: MODEL_ROWS.map((row) => pages[row]), windingEpoch: 1 };
   const rows = createWebgpuRowState(pages, ROWS);
   rows.pageTableFloats = new Float32Array((ROWS * PAGE_INFO_STRIDE) / 4);
   for (let row = 0; row < ROWS; row++) {
@@ -59,6 +59,7 @@ function scatteredScene() {
       drawSlots: ROWS,
       cornerPacked: new Float32Array(ROWS * CORNER_VALUES),
       cornerHold,
+      selectionRoots: [model],
     },
     run: { noOccluderHistory: false, temporalHizState: {} },
     blendState: { occlusionEpoch: 1 },
