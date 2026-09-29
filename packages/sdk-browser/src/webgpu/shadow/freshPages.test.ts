@@ -17,6 +17,7 @@ import {
   PAGE_MAPPED,
   PAGE_VALID,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { MAX_SHADOW_REGIONS } from '../../gpu/shadow/atlas.ts';
 import { gpuFrames } from './gpuFrames.fixture.ts';
 import { floorTiles, tileGrid } from './shadingReads.fixture.ts';
 
@@ -81,3 +82,16 @@ test('with the camera and the lamp moving, a page first read in a frame is drawn
   );
 });
 
+test('at a cold start, every page the first frame reads is drawn in it, however many', async () => {
+  const run = gpuFrames(16, [SUN, { ...LAMP, ...lampAt(0) }]),
+    before = run.table.slice();
+  const read = await run.frame(1, viewAt(0), tiles.lits, () => {});
+  const first = read.filter((entry) => !(before[entry] & PAGE_MAPPED));
+  // More than a batch of the host's regions holds: no cap on what the GPU draws in a frame.
+  assert.ok(first.length > MAX_SHADOW_REGIONS, `${first.length} pages first read`);
+  assert.deepEqual(
+    read.filter((entry) => !(run.table[entry] & PAGE_VALID)),
+    [],
+  );
+  for (const entry of first) assert.equal(run.drawnAt[run.table[entry] & PAGE_INDEX_MASK], 1);
+});
