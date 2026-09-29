@@ -22,6 +22,11 @@ import {
 } from '../../visibility/types.ts';
 import { BLEND_TRANSMITTANCE_WGSL } from './transmittance.ts';
 
+/** Subtexel steps the rasterizer snaps a corner to, per texel (#26 step C, #1016). */
+const SHADOW_SUBTEXELS = 256;
+/** A row whose cutout reads a base map: masked, and with a map. */
+const CUTOUT_MAP = FLAG_MASK | FLAG_HAS_MAP;
+
 /**
  * Shadow depth passes. Group 0 is that of the visibility-buffer raster, but for one binding:
  * same page table, same cluster selection, same indirect buffer. Only the matrix changes, and
@@ -49,11 +54,6 @@ import { BLEND_TRANSMITTANCE_WGSL } from './transmittance.ts';
  * so the exclusion is exactly the announced sphere — a raised near plane would have cut a cube.
  * A light without a radius carries a zero radius and nothing is discarded.
  */
-/** Subtexel steps the rasterizer snaps a corner to, per texel (#26 step C, #1016). */
-export const SHADOW_SUBTEXELS = 256;
-/** A row whose cutout reads a base map: masked, and with a map. */
-const CUTOUT_MAP = FLAG_MASK | FLAG_HAS_MAP;
-
 export const SHADOW_DEPTH_SHADER = `${PAGE_INFO_WGSL}
 ${PAGE_BINDING.indices}
 ${PAGE_BINDING.positions}
