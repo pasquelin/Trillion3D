@@ -88,6 +88,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     bootstrapUrls,
     modifiedPages,
     cap,
+    fixedBytes: deformation.bytes,
     gate,
     geometryStore,
     residency,

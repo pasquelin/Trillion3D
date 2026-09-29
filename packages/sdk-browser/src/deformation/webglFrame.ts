@@ -1,3 +1,4 @@
+import { deformationTextureBytes, geometryDeformationBytes } from './textureBytes.ts';
 import { rootOf } from '../page/selection/placements.ts';
 import { wholeDeformationInputs } from './wholeInputs.ts';
 import { BufferAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts';
@@ -45,6 +46,14 @@ export function createWebglDeformation(
     if (record) Object.assign(copy, { deformRecord: record, frustumCulled: false });
   }
   return {
+    /** Control records and whole-copy sources are pinned in the same geometry budget. */
+    bytes: () =>
+      (session.any ? deformationTextureBytes(frame.block.length / 4) : 0) +
+      [
+        ...new Set(
+          copies.filter((copy) => session.wordOfWorld(copy.matrix)).map((copy) => copy.geometry),
+        ),
+      ].reduce((bytes, geometry) => bytes + geometryDeformationBytes(geometry), 0),
     /** The records the program reads, none when no root deforms. */
     source: () => (session.any ? source : undefined),
     /** What a page mesh of `rec` carries: its placement's record, zero for none. */

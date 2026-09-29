@@ -56,7 +56,8 @@ function differs(block: Float32Array, a: number, b: number, size: number) {
 export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
   const bases = new Uint32Array(placed.length),
     reach = new Float64Array(placed.length),
-    moving = new Uint8Array(placed.length);
+    moving = new Uint8Array(placed.length),
+    dirty = new Uint8Array(placed.length);
   let floats = 0;
   placed.forEach((entry, i) => {
     if (!entry) return;
@@ -121,7 +122,8 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
     words[at + 2] = shape.joints;
     words[at + 3] = shape.targets;
     words[at + 4] = shape.waves;
-    moving[i] = cold || moved || words[at] !== words[at + 1] ? 1 : 0;
+    moving[i] = moved || words[at] !== words[at + 1] ? 1 : 0;
+    dirty[i] = cold || moving[i] ? 1 : 0;
     return most;
   };
   /** Whether placement `i`'s morph weights or waves moved since its record was written: what a
@@ -145,6 +147,7 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
     bases,
     reach,
     moving,
+    dirty,
     /** Whether the next frame's records differ from this one's, or this one moved from the last:
      *  a frame that cannot be held, nor count as quiet. */
     pending() {
@@ -165,7 +168,7 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
       for (let i = 0; i < placed.length; i++) {
         const entry = placed[i];
         if (!entry) continue;
-        changed ||= moving[i] === 1;
+        changed ||= moving[i] === 1 || owners[i] !== entry.mesh.sourceIdentity;
         reach[i] = write(i, entry, skipped);
         changed ||= moving[i] === 1;
       }

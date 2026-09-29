@@ -50,3 +50,40 @@ fn an_fbx_skin_blend_shape_and_stack_reach_the_scene_tables() {
     );
     fs::remove_dir_all(root).expect("cleanup");
 }
+
+#[test]
+fn fbx_long_clip_preserves_end_and_nonunit_blend_weight() {
+    let (root, mut options) = fixture();
+    let text = fs::read_to_string(golden_dir("import-fbx").join("bend.fbx"))
+        .unwrap()
+        .replace("46186158000", "110846779200000")
+        .replace("DeformPercent: 0", "DeformPercent: 25")
+        .replace("a: 100\n", "a: 50\n");
+    options.source = root.join("long.fbx");
+    fs::write(&options.source, text).unwrap();
+    options.scope = "full".into();
+    compile(&options, |_| {}).expect("long FBX with two source keys");
+    let tables = tables_of(&options);
+    let channels = tables["animations"][0]["channels"].as_array().unwrap();
+    let translation = channels
+        .iter()
+        .find(|c| c["path"] == "translation")
+        .unwrap();
+    assert_eq!(translation["times"], json!([0.0, 2400.0]));
+    let weights = channels.iter().find(|c| c["path"] == "weights").unwrap();
+    assert_eq!(weights["values"], json!([0.5, 0.5]));
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn nonlinear_fbx_curves_are_refused_instead_of_sampled() {
+    let (root, mut options) = fixture();
+    let text = fs::read_to_string(golden_dir("import-fbx").join("bend.fbx"))
+        .unwrap()
+        .replace("24836", "24840");
+    options.source = root.join("cubic.fbx");
+    fs::write(&options.source, text).unwrap();
+    let error = compile(&options, |_| {}).expect_err("cubic motion needs source-faithful support");
+    assert!(format!("{error:?}").contains("IMPORT_UNSUPPORTED_ANIMATION"));
+    fs::remove_dir_all(root).unwrap();
+}
