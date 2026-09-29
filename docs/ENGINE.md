@@ -569,8 +569,8 @@ rest touches neither, and a camera move only draws the pages it brings in
 
 The trade-off: the layer buys a redraw of the moving casters alone, where the static set would be
 drawn again under every mover, and costs as many bytes as the pool (above) and one restore draw per
-page it redraws. Its measure is relative, never absolute: the measure session posts paired A/B runs
-of `develop` on an Apple M2 Max, headless Chrome, 1728×1117 CSS at DPR 2, bodies moving (car
+page it redraws. Its measure is relative, never absolute: the acceptance session posts paired A/B
+runs of `develop` on an Apple M2 Max, headless Chrome, 1728×1117 CSS at DPR 2, bodies moving (car
 driven, walker walking), on a loaded machine. The runs posted 28 Sept. 20:02 UTC as `measure ok` on
 #989 and #990, median GPU ms of five interleaved pairs, load 15–75, batch `884cde8b5` →
 `e36d93ea1` (it holds the capacity change #1045 and the static-survival change #1064):
