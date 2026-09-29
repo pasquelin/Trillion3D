@@ -89,6 +89,12 @@ export async function runPageDecodeTask(
       const cells = decodeCellFile(request.source);
       return done(request, started, { cells }, [cells.ranks, cells.locals]);
     }
+    if (request.op === 'cellPage') {
+      const { readCellPage } =
+        await import('../../../../sdk-core/src/scene/core/tablePartition.ts');
+      const cellPage = readCellPage(new Uint8Array(request.source), 'a scene page');
+      return done(request, started, { cellPage }, []);
+    }
     if (request.op === 'verify') {
       const sha256 = await sha256Hex(request.source);
       return done(request, started, { sha256, source: request.source }, [request.source]);
