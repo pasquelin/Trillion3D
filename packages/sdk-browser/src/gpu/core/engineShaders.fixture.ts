@@ -37,6 +37,7 @@ import {
   UNLIT_LIGHTING_SHADER,
 } from '../../lighting/deferred/shaders.ts';
 import { reflectionSource, withScreenReflections } from '../../reflections/screenWgsl.ts';
+import { withSubgroupShadowRequests } from '../../lighting/direct/shadowRequestWgsl.ts';
 import { LIGHT_TILES_SHADERS } from '../../lighting/tiles/shader.ts';
 import { TAA_SHADER, taaShader } from '../../taa/shaderWgsl.ts';
 import { taaUpscaleShader } from '../../taa/upscaleWgsl.ts';
@@ -98,6 +99,23 @@ export const ENGINE_SHADERS: Record<string, string> = {
     true,
   ),
   REFLECTION_RESOLVE_BOUNCE_NARROW: withScreenReflections(contractLightingShader(true, true)),
+  DIRECT_SUBGROUP_LIGHTING: withSubgroupShadowRequests(DIRECT_LIGHTING_SHADER),
+  BOUNCE_SUBGROUP_LIGHTING: withSubgroupShadowRequests(BOUNCE_LIGHTING_SHADER),
+  REFLECTION_SOURCE_DIRECT_SUBGROUP: reflectionSource(
+    withSubgroupShadowRequests(DIRECT_LIGHTING_SHADER),
+  ),
+  REFLECTION_RESOLVE_DIRECT_SUBGROUP: withScreenReflections(
+    withSubgroupShadowRequests(DIRECT_LIGHTING_SHADER),
+    true,
+  ),
+  REFLECTION_SOURCE_BOUNCE_SUBGROUP: reflectionSource(
+    withSubgroupShadowRequests(BOUNCE_LIGHTING_SHADER),
+  ),
+  REFLECTION_RESOLVE_BOUNCE_SUBGROUP: withScreenReflections(
+    withSubgroupShadowRequests(BOUNCE_LIGHTING_SHADER),
+  ),
+  DIRECT_NARROW_SUBGROUP_LIGHTING: withSubgroupShadowRequests(contractLightingShader(false, true)),
+  BOUNCE_NARROW_SUBGROUP_LIGHTING: withSubgroupShadowRequests(contractLightingShader(true, true)),
   ...compositions('COMPOSE', CONTRACT_COMPOSITIONS.plain),
   ...compositions('UNLIT_COMPOSE', UNLIT_COMPOSITIONS.plain),
   ...compositions('COMPOSE_BLOOM', CONTRACT_COMPOSITIONS.bloom),
