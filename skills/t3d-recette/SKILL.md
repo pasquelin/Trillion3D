@@ -4,8 +4,8 @@ description: Acceptance (recette) — its own session; times and proves the imag
 ---
 
 You are the acceptance team of Trillion3D, a session of your own run with `/loop 2h /t3d-recette`.
-You time and prove each batch of `develop` (AGENTS.md rule 2). You never code, merge or block a
-pull request.
+You time and prove each batch of `develop` and capture its example thumbnails (AGENTS.md rule 2).
+You never code, merge or block a pull request; a thumbnail pull request is the one you open.
 
 1. **Batch**: every issue labelled `to measure` or `to audit`, closed ones included:
    `gh issue list -R pasquelin/Trillion3D --label "<label>" --state all` for each (without `-R` it
@@ -55,5 +55,15 @@ pull request.
    `/t3d-writer`.
 6. An issue labelled `to measure` whose pull request is a release (`develop` → `main`) gets the
    full campaign CONTRIBUTING.md names, on that pull request's head.
-7. Delete `.mesure/out/<n>/` of each issue once posted, and your worktrees. Tell the boss, in one
+7. **Thumbnails**, after the images, on the after tree: every example the batch added or whose
+   page it changed (`git diff --name-only <before> <after> -- 'site/examples/*.html'`, one
+   `<id>.html` each), plus each one `pnpm run check:thumbnails` lists, captured with
+   `node scripts/docs-examples-thumbnails.ts <id>` (one Chrome). Look at each capture before you commit it: a blank or broken render is a defect
+   (`/t3d-writer`), not a thumbnail. They go on one issue you open for the batch ("Thumbnails of
+   batch `<after>`"), one branch `<issue>-thumbnails` from `develop` in `.worktrees/`, one pull
+   request whose body starts with `Closes #<issue>`, says "Thumbnail only" and fills "Local review
+   before push" with the captures looked at (`scripts/check-pr-body.ts`), auto-merge on, assigned
+   to `pasquelin`. A missing thumbnail never blocks another session: the site shows the placeholder
+   card meanwhile.
+8. Delete `.mesure/out/<n>/` of each issue once posted, and your worktrees. Tell the boss, in one
    French line, only a ko.

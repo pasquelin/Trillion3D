@@ -23,7 +23,7 @@
 // restored, and the suite that drives it must run.
 /** The fast gates that read the whole tree, which `check:changed` runs too: each `check:x` is
  *  `node scripts/check-x.ts`. */
-export const TREE_GATES = ['check:translations', 'check:english', 'check:thumbnails'] as const;
+export const TREE_GATES = ['check:translations', 'check:english'] as const;
 
 export const VALIDATE_GROUPS = {
   quick: [
