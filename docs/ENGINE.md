@@ -625,7 +625,9 @@ against its own box or cone. A caster the light wants and the pool lacks is draw
 nearest resident ancestor, by the camera's rule (`page/cut/rule.ts`). What the light cuts
 request is a second residency tier, loaded after the camera's pages into slots no one holds and never
 pinned. The CPU cut does the same, reading the run's view as a camera (`webgpu/shadow/cpuCasters.ts`);
-its casters take rows behind its own (#10, #26).
+its casters take rows behind its own (#10, #26). A view whose CPU list is empty marks its regions
+casterless: their page is still cleared or restored, and they encode no bind group and no draw
+(`regions.casterless`, #1210).
 
 **An opaque caster runs no fragment stage in the shadow pool.** The depth's fragment stage writes
 nothing; it only discards a cutout's hole or the emitter envelope. So the page cull files each
