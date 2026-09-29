@@ -2065,7 +2065,9 @@
       "evictedTiles": "Các ô kết cấu bị gỡ bỏ.",
       "residentPages": "Những gì đang lưu trú ngay trước và ngay sau cài đặt.",
       "residentTiles": "Các ô kết cấu được giữ, trước và sau.",
-      "durationMs": "Thời gian nó tốn."
+      "durationMs": "Thời gian nó tốn.",
+      "tables": "Các bảng theo trang vẽ được đã được mở rộng cho một bể lớn hơn chúng (WebGPU), hoặc `null` khi không có bảng nào được mở rộng.",
+      "transientBytes": "Số byte được giữ cùng lúc khi sao chép bể hình học: bể cũ và bể mới bên cạnh, được thiết bị cấp cùng nhau trước khi bất kỳ trang nào di chuyển; 0 khi không có bể nào di chuyển."
     }
   },
   "Mesh": {

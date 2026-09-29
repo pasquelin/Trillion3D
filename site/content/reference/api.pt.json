@@ -2047,7 +2047,9 @@
       "evictedTiles": "Blocos de textura removidos.",
       "residentPages": "O que residia logo antes da definição e logo depois.",
       "residentTiles": "Blocos de textura mantidos, antes e depois.",
-      "durationMs": "O tempo que levou."
+      "durationMs": "O tempo que levou.",
+      "tables": "As tabelas por página desenhável ampliadas para um pool acima delas (WebGPU), ou `null` quando nenhuma foi.",
+      "transientBytes": "Bytes mantidos ao mesmo tempo durante a cópia do pool de geometria: o pool antigo e o novo ao lado, concedidos juntos pelo dispositivo antes de qualquer página se mover; 0 quando nenhum pool se moveu."
     }
   },
   "Mesh": {
