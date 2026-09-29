@@ -114,3 +114,8 @@ test('a push run never cancels the pull request run that proves the merge with d
   assert.notEqual(of(push), of(pr));
   assert.notEqual(of(push), of({ ...push, ref: 'refs/heads/1055-other' }), 'one group per branch');
 });
+
+test('no gate asks for an example thumbnail: the recette captures them after the merge', () => {
+  // `VALIDATE_STEPS` holds every group, `TREE_GATES` (what `check:changed` runs) among them.
+  assert.ok(!(VALIDATE_STEPS as readonly string[]).includes('check:thumbnails'));
+});
