@@ -1,17 +1,22 @@
+import { SHADOW_REQUEST_MISS } from '../../../../sdk-core/src/scene/light-shadow/footprint.ts';
 import { SHADOW_TABLE_ENTRIES } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 
+/** Words of one bit per table entry. */
+const ENTRY_BITS = SHADOW_TABLE_ENTRIES / 32;
 /** Words of the request buffer after the count and a list as long as the pool's (`shadowRequestCap`,
- *  read at run time): one bit per table entry — a page is listed once however many pixels read it. */
-export const SHADOW_REQUEST_BITS = SHADOW_TABLE_ENTRIES / 32;
+ *  read at run time): one bit per table entry — a page is listed once however many pixels read it
+ *  —, then one per entry for its miss (#1211), listed once the same way. */
+export const SHADOW_REQUEST_BITS = 2 * ENTRY_BITS;
 
 /** The claim of page `e` by one lane: its bit tested before the atomic, then set, and the page
- *  listed by whoever set it first — so a page thousands of pixels read costs one list slot. */
-const claimWgsl = (name: string) => `fn ${name}(e:u32){
- let cap=arrayLength(&shadowRequests)-${1 + SHADOW_REQUEST_BITS}u;let word=1u+cap+(e>>5u);let bit=1u<<(e&31u);
+ *  listed by whoever set it first — so a page thousands of pixels read costs one list slot. A
+ *  miss claims its own bit and lists its entry flagged (`SHADOW_REQUEST_MISS`). */
+const claimWgsl = (name: string, miss = false) => `fn ${name}(e:u32){
+ let cap=arrayLength(&shadowRequests)-${1 + SHADOW_REQUEST_BITS}u;let word=1u+cap+${miss ? `${ENTRY_BITS}u+` : ''}(e>>5u);let bit=1u<<(e&31u);
  if((atomicLoad(&shadowRequests[word])&bit)!=0u){return;}
  if((atomicOr(&shadowRequests[word],bit)&bit)!=0u){return;}
  let at=atomicAdd(&shadowRequests[0],1u);
- if(at<cap){atomicStore(&shadowRequests[1u+at],e);}
+ if(at<cap){atomicStore(&shadowRequests[1u+at],e${miss ? `|${SHADOW_REQUEST_MISS}u` : ''});}
 }`;
 
 /** The per-lane request, every device's: each lane claims its own page. The fallback of
@@ -49,16 +54,19 @@ fn requestShadowPage(e:u32){
 
 /**
  * What a reading asks of the scheduler. The shading that marks writes the page into the request
- * buffer the first time any pixel reads it this frame, a bit per table entry. A pass that does
- * not mark — the blend forward stage, which keeps its early depth reject — reads without asking.
- * `shadowRequesting` is the pass's to set on a lane that asks per subgroup.
+ * buffer the first time any pixel reads it this frame, a bit per table entry, and, apart, a page
+ * it found drawn for a footprint that misses its texel (`requestShadowMiss`, per lane: a miss is
+ * rare and brief). A pass that does not mark — the blend forward stage, which keeps its early
+ * depth reject — reads without asking. `shadowRequesting` is the pass's to set on a lane that asks
+ * per subgroup.
  */
 export const shadowRequestWgsl = (binding: number | null) =>
   binding === null
-    ? 'fn requestShadowPage(e:u32){}'
+    ? 'fn requestShadowPage(e:u32){}\nfn requestShadowMiss(e:u32){}'
     : `@group(0) @binding(${binding}) var<storage,read_write> shadowRequests:array<atomic<u32>>;
 var<private> shadowRequesting:bool=false;
-${LANE_REQUEST_WGSL}`;
+${LANE_REQUEST_WGSL}
+${claimWgsl('requestShadowMiss', true)}`;
 
 /**
  * `shader`, a text that asks with `LANE_REQUEST_WGSL`, asking per subgroup instead: the feature

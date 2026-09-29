@@ -2877,7 +2877,7 @@
     "summary": "Host'a ait sahne hiyerarşisi sözleşmesinin sürümü."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "Başlık tamsayıları: imza, sürüm, üçgen/düğüm/grup/sahip/kaynak sayıları, ayrılmış sıfır."
+    "summary": "Başlık tamsayıları: v3 sahiplik başlığı, ardından şekil, saklanan üçgen ve yerleşim sayıları."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "İşaretsiz 32 bitlik little-endian bir tam sayı olarak okunan 'W','G','P','X'."
@@ -3098,7 +3098,7 @@
     }
   },
   "SceneProxy": {
-    "summary": "Okuma proxy'si: açıklayıcısı ve sütunları, önbellek nesnesinin baytları üzerindeki görünümler.",
+    "summary": "Okunan vekil: tanımlayıcısı ve değişmez sütunları; paylaşılan üçgenler yükleme sırasında genişletilir.",
     "members": {
       "data": "Sütunları."
     }
@@ -3192,7 +3192,7 @@
       "shadowStaticDrawCalls": "Statik gölge düşürenlerin çizim çağrıları: statik katmana ya da katmansız tamamen çizilen bir sayfanın.",
       "shadowMovingDrawCalls": "Yalnızca hareketli gölge düşürenlerin, statik katmandan geri yüklenen sayfalar üzerindeki çizim çağrıları.",
       "shadowMovingCastersKept": "`shadowCastersKept` içinden, yalnızca hareketli gölge düşürenleri çizmek için tutulan kümeler.",
-      "shadowPagesStaledBy": "Karenin eskittiği sayfalar, nedene göre: ışık, duran gölge düşüren, hareketli gölge düşürenler, ayrıntı, kesim eşiği ya da bir güneşin derinlik aralığı.",
+      "shadowPagesStaledBy": "Karenin eskittiği sayfalar, nedene göre: ışık, duran gölge düşüren, hareketli gölge düşürenler, ayrıntı, kesim eşiği, bir güneşin derinlik aralığı ya da alıcılarının genişlettiği bir iz.",
       "shadowWaitMs": "Görüntünün okuduğu en eski eskimiş sayfanın yeniden çizilmek için kaç milisaniye beklediği. Yalnızca görüntünün onu okuduğu süre sayılır; yeniden çizilince 0.",
       "shadowCutDrops": "Gezgin açıldığından beri iş bırakan ışık kesimi grupları — görünümleri listelerin tutabileceğinden fazla küme tuttu —: her biri sayfalarını geri gönderir, yeniden çizilene dek geri çekilir (#525). GPU ışık kesimi olmayan bir motorda null, aşağıdaki üçü gibi.",
       "shadowCutWithdrawnPages": "Bir ışık kesimi onları yanlış çizdiği için yeniden çizilen sayfalar, gezgin açıldığından beri: grubu iş bıraktı ya da bayrağı hiç okunmadı. Yeniden çizilene dek geri çekilirler.",
@@ -3224,6 +3224,7 @@
       "shadowMemoryEvents": "Dünya açıldığından beri gölgelerin bellek baskısı olayları, adıyla, sırayla; normalde boş.",
       "shadowPagesRefetched": "Havuzun yer açmak için çıkardıktan sonra yeniden eşlenen sanal sayfalar, explorer açıldığından beri: karelerin okuduğuna göre fazla küçük bir havuzun maliyeti olan yeniden çizimler.",
       "shadowCastersKept": "Sayfa başına ayıklamanın tuttuğu gölge düşürücüler, tüm çizilen sayfalar birlikte, aygıtın en son örneklediği karede — on beşte bir; bir örnek dönene dek `null`.",
+      "shadowCastersRejected": "Sayfa başına ayıklamanın sınayıp tutmadığı gölge düşürücüler — sayfanın alıcılarının okuduğu kısmının dışında —, aynı örneklenen karede; bir örnek dönene dek `null`.",
       "shadowCastersHidden": "Örtme testinin, sayfalarının durağan katmanının arkasında gizli bulduğu hareketli gölge düşürücüler, en son örneklenen karede; bir örnek dönene dek `null`."
     }
   },
@@ -4303,7 +4304,7 @@
       "shadowStaticDrawCalls": "Statik gölge düşürenlerin çizim çağrıları: statik katmana ya da katmansız tamamen çizilen bir sayfanın.",
       "shadowMovingDrawCalls": "Yalnızca hareketli gölge düşürenlerin, statik katmandan geri yüklenen sayfalar üzerindeki çizim çağrıları.",
       "shadowMovingCastersKept": "`shadowCastersKept` içinden, yalnızca hareketli gölge düşürenleri çizmek için tutulan kümeler.",
-      "shadowPagesStaledBy": "Karenin eskittiği sayfalar, nedene göre: ışık, duran gölge düşüren, hareketli gölge düşürenler, ayrıntı, kesim eşiği ya da bir güneşin derinlik aralığı.",
+      "shadowPagesStaledBy": "Karenin eskittiği sayfalar, nedene göre: ışık, duran gölge düşüren, hareketli gölge düşürenler, ayrıntı, kesim eşiği, bir güneşin derinlik aralığı ya da alıcılarının genişlettiği bir iz.",
       "shadowWaitMs": "Görüntünün okuduğu en eski eskimiş sayfanın yeniden çizilmek için kaç milisaniye beklediği. Yalnızca görüntünün onu okuduğu süre sayılır; yeniden çizilince 0.",
       "shadowCutDrops": "Gezgin açıldığından beri iş bırakan ışık kesimi grupları — görünümleri listelerin tutabileceğinden fazla küme tuttu —: her biri sayfalarını geri gönderir, yeniden çizilene dek geri çekilir (#525). GPU ışık kesimi olmayan bir motorda null, aşağıdaki üçü gibi.",
       "shadowCutWithdrawnPages": "Bir ışık kesimi onları yanlış çizdiği için yeniden çizilen sayfalar, gezgin açıldığından beri: grubu iş bıraktı ya da bayrağı hiç okunmadı. Yeniden çizilene dek geri çekilirler.",
@@ -4374,6 +4375,7 @@
       "shadowMemoryEvents": "Dünya açıldığından beri gölgelerin bellek baskısı olayları, adıyla, sırayla; normalde boş.",
       "shadowPagesRefetched": "Havuzun yer açmak için çıkardıktan sonra yeniden eşlenen sanal sayfalar, explorer açıldığından beri: karelerin okuduğuna göre fazla küçük bir havuzun maliyeti olan yeniden çizimler.",
       "shadowCastersKept": "Sayfa başına ayıklamanın tuttuğu gölge düşürücüler, tüm çizilen sayfalar birlikte, aygıtın en son örneklediği karede — on beşte bir; bir örnek dönene dek `null`.",
+      "shadowCastersRejected": "Sayfa başına ayıklamanın sınayıp tutmadığı gölge düşürücüler — sayfanın alıcılarının okuduğu kısmının dışında —, aynı örneklenen karede; bir örnek dönene dek `null`.",
       "shadowCastersHidden": "Örtme testinin, sayfalarının durağan katmanının arkasında gizli bulduğu hareketli gölge düşürücüler, en son örneklenen karede; bir örnek dönene dek `null`.",
       "dynamicUploadBytes": "Bu karede yerinde yüklenen dinamik geometri köşe baytları (#573), dünyanın kare başına bütçesi içinde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Hiçbir dünyanın çizmediği yerde yoktur."
     }
@@ -5049,7 +5051,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Tek bir ışın ona dokunmadan önce yeniden okunan ve yeniden kontrol edilen proxy.",
-    "description": "Düzen: little-endian sırasındaki sekiz başlık sözcüğünü, kanonik geometri ve ağaç sütunları ile sürümlendirilmiş sahiplik verileri izler. `docs/FORMAT.md` her sayıyı ve sütunu belirtir. Başlık her bölümün uzunluğunu belirler; farklı boyuttaki bir dosya tamamen reddedilir, çünkü eksik bir üçgene işaret eden düğüm, gölgelendiricinin rastgele veri okumasına yol açar."
+    "description": "On bir little-endian başlık sözcüğünü paylaşılan ve bağımsız geometri, ağaç sütunları ve sürümlü sahiplik izler. `docs/FORMAT.md` tüm sayıları ve sütunları tanımlar. Yanlış uzunluklar ışın erişiminden önce reddedilir."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S`, `position`, `quaternion`, `scale`'e ayrıştırılmış."

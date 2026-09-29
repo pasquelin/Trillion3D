@@ -2901,7 +2901,7 @@
     "summary": "Phiên bản của hợp đồng phân cấp cảnh do ứng dụng chủ sở hữu."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "Các số nguyên trong phần đầu: chữ ký, phiên bản, số lượng tam giác/nút/nhóm/chủ sở hữu/nguồn, số không dành riêng."
+    "summary": "Các số nguyên tiêu đề: tiêu đề quyền sở hữu v3, rồi số hình, tam giác lưu trữ và lần đặt."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "'W','G','P','X' đọc như một số nguyên 32-bit không dấu theo thứ tự little-endian."
@@ -3182,7 +3182,7 @@
     }
   },
   "SceneProxy": {
-    "summary": "Proxy đọc: bộ mô tả và các cột của nó, các view trên các byte của đối tượng bộ nhớ đệm của nó.",
+    "summary": "Proxy đã đọc: bộ mô tả và các cột bất biến, với tam giác dùng chung được triển khai khi tải.",
     "members": {
       "data": "Các cột của nó."
     }
@@ -3276,7 +3276,7 @@
       "shadowStaticDrawCalls": "Lệnh vẽ của vật đổ bóng tĩnh: vào lớp tĩnh, hoặc của một trang được vẽ trọn vẹn khi không có lớp đó.",
       "shadowMovingDrawCalls": "Lệnh vẽ chỉ của vật đổ bóng chuyển động, trên các trang được khôi phục từ lớp tĩnh.",
       "shadowMovingCastersKept": "Trong `shadowCastersKept`, các cụm được giữ để chỉ vẽ vật đổ bóng chuyển động.",
-      "shadowPagesStaledBy": "Các trang mà khung hình làm cũ, theo lý do: ánh sáng, vật đổ bóng đứng yên, vật đổ bóng chuyển động, chi tiết, ngưỡng cắt, hoặc dải độ sâu của mặt trời.",
+      "shadowPagesStaledBy": "Các trang mà khung hình làm cũ, theo lý do: ánh sáng, vật đổ bóng đứng yên, vật đổ bóng chuyển động, chi tiết, ngưỡng cắt, dải độ sâu của mặt trời, hoặc dấu chân mà các vật nhận của nó đã mở rộng.",
       "shadowWaitMs": "Số mili giây trang lỗi thời cũ nhất mà hình ảnh đọc đã chờ để được vẽ lại. Chỉ tính thời gian hình ảnh đọc nó; 0 khi đã được vẽ lại.",
       "shadowCutDrops": "Các lô của phép cắt từ ánh sáng đã bỏ công việc — các góc nhìn của chúng giữ nhiều cụm hơn sức chứa của danh sách —, kể từ khi mở trình khám phá: mỗi lô gửi lại các trang của nó, bị rút ra cho đến khi được vẽ lại (#525). Null trên engine không có phép cắt ánh sáng trên GPU, như ba mục dưới.",
       "shadowCutWithdrawnPages": "Các trang được vẽ lại vì một phép cắt từ ánh sáng đã vẽ sai chúng, kể từ khi mở trình khám phá: lô của nó đã bỏ công việc, hoặc cờ của nó chưa bao giờ được đọc. Chúng bị rút ra cho đến khi được vẽ lại.",
@@ -3308,6 +3308,7 @@
       "shadowMemoryEvents": "Các sự kiện áp lực bộ nhớ của bóng đổ kể từ khi thế giới mở, theo tên, theo thứ tự; bình thường là rỗng.",
       "shadowPagesRefetched": "Các trang ảo được ánh xạ lại sau khi bể đẩy chúng ra để lấy chỗ, kể từ khi explorer mở: những lần vẽ lại mà một bể quá nhỏ so với những gì các khung đọc phải trả.",
       "shadowCastersKept": "Các vật đổ bóng mà bước loại theo trang giữ lại, gộp mọi trang đã vẽ, ở khung hình thiết bị lấy mẫu gần nhất — một trên mười lăm; `null` cho đến khi có mẫu trả về.",
+      "shadowCastersRejected": "Các vật đổ bóng mà bước loại theo trang đã kiểm tra nhưng không giữ lại — ngoài phần trang mà các vật nhận của nó đọc —, ở cùng khung hình được lấy mẫu; `null` cho đến khi có mẫu trả về.",
       "shadowCastersHidden": "Các vật đổ bóng chuyển động mà phép thử che khuất thấy bị ẩn sau lớp tĩnh của trang chúng, ở khung lấy mẫu gần nhất; `null` cho đến khi có mẫu trả về."
     }
   },
@@ -4259,7 +4260,7 @@
       "shadowStaticDrawCalls": "Lệnh vẽ của vật đổ bóng tĩnh: vào lớp tĩnh, hoặc của một trang được vẽ trọn vẹn khi không có lớp đó.",
       "shadowMovingDrawCalls": "Lệnh vẽ chỉ của vật đổ bóng chuyển động, trên các trang được khôi phục từ lớp tĩnh.",
       "shadowMovingCastersKept": "Trong `shadowCastersKept`, các cụm được giữ để chỉ vẽ vật đổ bóng chuyển động.",
-      "shadowPagesStaledBy": "Các trang mà khung hình làm cũ, theo lý do: ánh sáng, vật đổ bóng đứng yên, vật đổ bóng chuyển động, chi tiết, ngưỡng cắt, hoặc dải độ sâu của mặt trời.",
+      "shadowPagesStaledBy": "Các trang mà khung hình làm cũ, theo lý do: ánh sáng, vật đổ bóng đứng yên, vật đổ bóng chuyển động, chi tiết, ngưỡng cắt, dải độ sâu của mặt trời, hoặc dấu chân mà các vật nhận của nó đã mở rộng.",
       "shadowWaitMs": "Số mili giây trang lỗi thời cũ nhất mà hình ảnh đọc đã chờ để được vẽ lại. Chỉ tính thời gian hình ảnh đọc nó; 0 khi đã được vẽ lại.",
       "shadowCutDrops": "Các lô của phép cắt từ ánh sáng đã bỏ công việc — các góc nhìn của chúng giữ nhiều cụm hơn sức chứa của danh sách —, kể từ khi mở trình khám phá: mỗi lô gửi lại các trang của nó, bị rút ra cho đến khi được vẽ lại (#525). Null trên engine không có phép cắt ánh sáng trên GPU, như ba mục dưới.",
       "shadowCutWithdrawnPages": "Các trang được vẽ lại vì một phép cắt từ ánh sáng đã vẽ sai chúng, kể từ khi mở trình khám phá: lô của nó đã bỏ công việc, hoặc cờ của nó chưa bao giờ được đọc. Chúng bị rút ra cho đến khi được vẽ lại.",
@@ -4330,6 +4331,7 @@
       "shadowMemoryEvents": "Các sự kiện áp lực bộ nhớ của bóng đổ kể từ khi thế giới mở, theo tên, theo thứ tự; bình thường là rỗng.",
       "shadowPagesRefetched": "Các trang ảo được ánh xạ lại sau khi bể đẩy chúng ra để lấy chỗ, kể từ khi explorer mở: những lần vẽ lại mà một bể quá nhỏ so với những gì các khung đọc phải trả.",
       "shadowCastersKept": "Các vật đổ bóng mà bước loại theo trang giữ lại, gộp mọi trang đã vẽ, ở khung hình thiết bị lấy mẫu gần nhất — một trên mười lăm; `null` cho đến khi có mẫu trả về.",
+      "shadowCastersRejected": "Các vật đổ bóng mà bước loại theo trang đã kiểm tra nhưng không giữ lại — ngoài phần trang mà các vật nhận của nó đọc —, ở cùng khung hình được lấy mẫu; `null` cho đến khi có mẫu trả về.",
       "shadowCastersHidden": "Các vật đổ bóng chuyển động mà phép thử che khuất thấy bị ẩn sau lớp tĩnh của trang chúng, ở khung lấy mẫu gần nhất; `null` cho đến khi có mẫu trả về.",
       "dynamicUploadBytes": "Số byte đỉnh của hình học động được tải lên tại chỗ trong khung hình này (#573), trong ngân sách mỗi khung hình của thế giới (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Không có khi không thế giới nào vẽ."
     }
@@ -5019,7 +5021,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Proxy được đọc lại và kiểm tra lại trước khi một tia duy nhất chạm vào nó.",
-    "description": "Bố cục: tám từ ở phần đầu theo thứ tự little-endian, tiếp theo là các cột hình học và cây chuẩn cùng dữ liệu quyền sở hữu có phiên bản. `docs/FORMAT.md` quy định từng số lượng và cột. Phần đầu ấn định độ dài mỗi phần; tệp có kích thước khác bị từ chối toàn bộ, vì nút trỏ đến một tam giác không tồn tại sẽ khiến bộ đổ bóng đọc dữ liệu tùy ý."
+    "description": "Mười một từ tiêu đề little-endian đứng trước hình học dùng chung và riêng, các cột cây và quyền sở hữu có phiên bản. `docs/FORMAT.md` định nghĩa mọi số lượng và cột. Độ dài sai bị từ chối trước khi tia truy cập."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S` được phân tách thành `position`, `quaternion`, `scale`."
