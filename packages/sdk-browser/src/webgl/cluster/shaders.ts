@@ -4,7 +4,7 @@ import { OUTPUT_TRANSFER_GLSL } from '../core/outputGlsl.ts';
 import { RECT_LIGHT_GLSL, WEBGL_RECT_KIND } from './rectGlsl.ts';
 import { PROBE_IRRADIANCE_GLSL } from './probe.ts';
 import { LIGHT_TEXTURE_GLSL } from './lightTexture.ts';
-import { LIGHT_GRID_GLSL, LIGHT_LOOP_GLSL } from './lightLists.ts';
+import { LIGHT_GRID_GLSL, LIGHT_LOOP_GLSL } from './lightGrid.ts';
 import { INVERSE_PI, PI, ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
 import { FOG_GLSL } from '../../lighting/fogShader.ts';
 import { LINE_CLIP_GLSL, LINE_DASH_GLSL } from '../../visibility/shader/lineWgsl.ts';

@@ -87,4 +87,4 @@ export function triangle(x: number, mirror = false) {
 }
 
 /** A view that looks from `x` along the world's axes: world to view, column-major. */
-export const viewFrom = (x: number) => uniformScaleMatrix4(new Float64Array(16), 1, [-x, 0, 0]);
+const viewFrom = (x: number) => uniformScaleMatrix4(new Float64Array(16), 1, [-x, 0, 0]);

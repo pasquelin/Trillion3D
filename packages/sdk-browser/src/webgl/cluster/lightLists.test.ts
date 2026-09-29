@@ -14,7 +14,7 @@ import {
   sphereTouchesBox,
   type Box,
 } from '../../../../../bench/oracles/browser/gpuLightTileColumnOracle.ts';
-import { CELL_MARGIN } from './lightLists.ts';
+import { CELL_MARGIN } from './lightGrid.ts';
 import { evaluated, lightFrames, pointLamp, sent, triangle } from './lightGrid.fixture.ts';
 
 // #835: WebGL2 draws every lamp of a scene, from a light texture grown with the count, and each
@@ -101,9 +101,10 @@ test('a floor under 300 lamps: a fragment walks the few lamps near it, not the 3
   const lights = Array.from({ length: LAMPS }, (_, i) =>
     pointLamp([i % 20, 0.5, Math.floor(i / 20)], 0.75),
   );
-  const floor = triangle(10);
-  floor.scale.set(40, 1, 40);
-  (floor as unknown as Object3D).updateMatrixWorld(true);
+  const floor = triangle(10),
+    placed = floor as unknown as Object3D;
+  placed.scale.set(40, 1, 40);
+  placed.updateMatrixWorld(true);
   const { context, renderer } = drawLights(lights, [floor]);
   let most = 0;
   for (let x = -0.5; x <= 19.5; x += 0.25)
