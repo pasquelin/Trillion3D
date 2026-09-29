@@ -20,6 +20,9 @@ export function mockDagDevice(packed: PackedDag, faults: MapFaults = {}) {
     words: () =>
       gpu.writes
         .filter(({ bytes }) => bytes.byteLength === 4)
-        .map(({ offset, bytes }): [number, number] => [offset / 4, new Uint32Array(bytes.buffer)[0]]),
+        .map(({ offset, bytes }): [number, number] => [
+          offset / 4,
+          new Uint32Array(bytes.buffer)[0],
+        ]),
   };
 }
