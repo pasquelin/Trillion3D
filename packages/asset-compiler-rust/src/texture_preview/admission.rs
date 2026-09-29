@@ -33,7 +33,7 @@ fn admit(costs: &[Cost], budget: usize) -> Result<Vec<Range<usize>>> {
         .iter()
         .try_fold(0usize, |sum, c| sum.checked_add(c.retained))
         .ok_or_else(refused)?;
-    let room = budget.checked_sub(retained).ok_or_else(refused)?;
+    let room = remaining_budget(budget, retained)?;
     let working: Vec<usize> = costs.iter().map(|c| c.working).collect();
     if working.iter().any(|&bytes| bytes > room) {
         return Err(refused());
