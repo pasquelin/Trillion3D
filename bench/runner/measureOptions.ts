@@ -55,6 +55,8 @@ export interface MeasureViewOptions {
   textureUploadMs: number | null;
   /** Block format asked of the texture pools; `undefined` leaves the engine's own choice. */
   textureCompression: TextureCompression | undefined;
+  /** Fraction of the display per axis the frame is drawn at; `undefined` leaves the display's. */
+  renderScale?: number;
   temporalAntialiasing: boolean;
   mathPath: 'js' | 'wasm' | null;
   movingNode: string | null;
