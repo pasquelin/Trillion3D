@@ -6,11 +6,11 @@
 // Each scene's bench poses (`poses.ts`), at the boss's case (`REFERENCE_ARGS`, any bench flag after
 // them wins), drawn by the engine's reference mode and written with the commit that drew them.
 import { execFileSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import type { Page } from 'playwright';
 import { encodePng } from '../../packages/sdk-node/src/cutout/png.mts';
+import { sha256 } from '../../packages/sdk-node/src/compiler/provenance.mts';
 import { startServer, type Capture } from '../../tests/kit/server/staticServer.ts';
 import { launchChrome } from './chrome.ts';
 import { benchLights } from './lamps.ts';
@@ -108,7 +108,7 @@ async function referenceScene(argv: string[], scene: string, dir: string, images
       record.views[view] = {
         pose,
         file,
-        sha256: createHash('sha256').update(capture.body).digest('hex'),
+        sha256: sha256(capture.body),
         width: capture.w,
         height: capture.h,
         settleFrames: result.settleFrames,
@@ -133,7 +133,7 @@ async function main() {
   // The bench reads every other flag; these two are this command's own.
   const rest = argv.filter(
     (arg, i) =>
-      !/^--(scene|references)\b/.test(arg) && !/^--(scene|references)$/.test(argv[i - 1] ?? ''),
+      !/^--(scene|references)(=|$)/.test(arg) && !/^--(scene|references)$/.test(argv[i - 1] ?? ''),
   );
   for (const scene of scenes) await referenceScene(rest, scene, dir, images);
 }
