@@ -5,7 +5,7 @@ import {
   unsettledMask,
   unsettledReasons,
 } from '../frame/hold.ts';
-import { dropTaaHistory } from '../../taa/frame.ts';
+import { convergeAtStillScale, dropTaaHistory } from '../../taa/frame.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { shadowsUnsettled } from '../pages/state/lights.ts';
 import { PICK_CYCLE } from './feedback.ts';
@@ -136,6 +136,7 @@ export async function settlePose(
     served = 0,
     drains = 0;
   run.textureConverging = true;
+  if (pictured) convergeAtStillScale(rt);
   try {
     // Rows the per-image time budget left owed are part of the pose: a barrier image, with the
     // budget lifted, writes them all, and the GPU cut the barrier then adopts sees every page.
