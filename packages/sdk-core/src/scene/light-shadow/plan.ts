@@ -69,7 +69,7 @@ export function createShadowPlan(poolSide: number, layers = 1) {
     worldChanged: changes.worldChanged,
     /** The same world at another precision: its box waits for the camera to rest. */
     representationChanged: changes.representationChanged,
-    /** The threshold the light cuts select casters at (`thresholds.ts`). */
+    /** The threshold the light cuts select casters at, and their render origin (`thresholds.ts`). */
     setThreshold: thresholds.set,
     /** The camera rested at the last plan: its view was the one of the plan before. */
     get resting() {
