@@ -78,6 +78,8 @@ export function shadowWorkMetrics({ shadowWork: work, plan, cull }: WorkSource) 
     shadowStaticDrawCalls: work.staticDrawCalls,
     shadowMovingDrawCalls: work.movingDrawCalls,
     shadowMovingCastersKept: culled?.moving ?? null,
+    // What the culls tested and did not keep, on the sample `shadowCastersKept` reads.
+    shadowCastersRejected: culled ? culled.tested - culled.kept : null,
     shadowPagesStaledBy: reasons,
   };
 }
