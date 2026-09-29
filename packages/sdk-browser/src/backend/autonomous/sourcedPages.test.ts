@@ -22,10 +22,7 @@ function listContext() {
   const call = () => {};
   const gl = new Proxy(
     {
-      ARRAY_BUFFER: 34962,
-      ELEMENT_ARRAY_BUFFER: 34963,
-      FLOAT: 5126,
-      UNSIGNED_INT: 5125,
+      ...{ ARRAY_BUFFER: 34962, ELEMENT_ARRAY_BUFFER: 34963, FLOAT: 5126, UNSIGNED_INT: 5125 },
       createBuffer: () => ({ id: buffers++ }),
       bufferData(target: number, array: ArrayBufferView) {
         if (target === 34962) uploads.push(['data', 0, array.byteLength]);
@@ -61,13 +58,8 @@ test('the pages of a dynamic geometry share its lists, and a rewrite uploads its
     sourcedPageGeometry(Uint32Array.of(0, 1, 2), source, [-1, -1, -1], [1, 1, 1]),
   );
   const { gl, uploads, buffers } = listContext();
-  const cache = new WebglClusterGeometry(gl, {
-    position: 0,
-    normal: -1,
-    uv: -1,
-    uv1: -1,
-    color: -1,
-  });
+  const slots = { position: 0, normal: -1, uv: -1, uv1: -1, color: -1 };
+  const cache = new WebglClusterGeometry(gl, slots);
   for (const page of pages) cache.bind(page);
   const lists = buffers() - pages.length; // an index buffer each
   assert.equal(lists, 1, 'one buffer for the position list both pages read');
