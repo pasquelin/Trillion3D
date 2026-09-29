@@ -96,8 +96,8 @@ export function createVertexPool(
         const block = claim(attributes, dynamic);
         for (const name of LISTS) {
           if (!block || !holds(attributes, name)) continue;
-          const list = scratch.subarray(0, fill(attributes, name, 0, block.count));
-          arrays[LAYOUT[name].buffer].set(list, offsetOf(name, block.vertexBase));
+          const n = fill(attributes, name, 0, block.count); // grows the scratch: read it after
+          arrays[LAYOUT[name].buffer].set(scratch.subarray(0, n), offsetOf(name, block.vertexBase));
         }
       }
       for (const key of BUFFERS) device.queue.writeBuffer(buffers[key], 0, arrays[key]);
