@@ -79,6 +79,7 @@ function atomicsOf(state: Uint8Array, requests: Uint8Array) {
 }
 
 const FUNCTIONS = [
+  'beginAllocation',
   ...ALLOC_PHASES,
   'listDraw',
   'padKeys',
@@ -91,20 +92,12 @@ const FUNCTIONS = [
 ];
 const vec4i = (...parts: number[]) => (parts.length === 1 ? new Array(4).fill(parts[0]) : parts);
 
-/**
- * Runs `allocateShadowPages` over the bytes its bindings hold, in binding order: the shadow
- * buffer, the request buffer, the GPU pool, the keys, the parameters and the draw list.
- */
-export function runShadowAllocation(
-  data: Uint8Array,
-  requests: Uint8Array,
-  state: Uint8Array,
-  keys: Uint8Array,
-  params: Uint8Array,
-  drawList: Uint8Array,
-) {
-  const words = u32(params);
-  const lanes = shaderRun<Lanes>(ALLOCATION_WGSL, FUNCTIONS, {
+/** `allocateShadowPages`' lanes over the bytes its bindings hold, in binding order: the shadow
+ *  buffer, the request buffer, the GPU pool, the keys, the parameters and the draw list. */
+function allocationLanes(...bound: Uint8Array[]) {
+  const [data, requests, state, keys, params, drawList] = bound,
+    words = u32(params);
+  return shaderRun<Lanes>(ALLOCATION_WGSL, FUNCTIONS, {
     ...wgslConstants(ALLOCATION_WGSL),
     ...atomicsOf(state, requests),
     vec4i,
@@ -122,6 +115,22 @@ export function runShadowAllocation(
       entries: words.subarray(ALLOC_PARAM_WORDS),
     },
   });
+}
+
+/** Runs `claimShadowFloors` over the bytes its bindings hold, as `runShadowAllocation`. */
+export function runShadowFloors(...bound: Uint8Array[]) {
+  const { beginAllocation } = allocationLanes(...bound);
+  for (let lane = 0; lane < ALLOC_LANES; lane++) beginAllocation(lane);
+}
+
+/**
+ * Runs `allocateShadowPages` over the bytes its bindings hold, in binding order: the shadow
+ * buffer, the request buffer, the GPU pool, the keys, the parameters and the draw list.
+ */
+export function runShadowAllocation(...bound: Uint8Array[]) {
+  const [, , state, , params] = bound,
+    words = u32(params),
+    lanes = allocationLanes(...bound);
   const each = (phase: string, ...args: number[]) => {
     for (let lane = 0; lane < ALLOC_LANES; lane++) lanes[phase](lane, ...args);
   };

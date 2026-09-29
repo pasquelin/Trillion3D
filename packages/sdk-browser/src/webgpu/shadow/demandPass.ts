@@ -1,5 +1,4 @@
-import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
-import { createWebgpuBindIdentity } from '../core/bindIdentity.ts';
+import { computePass, type ComputeBinding } from './computePass.ts';
 import { SHADOW_DEMAND_GROUP, SHADOW_DEMAND_WGSL } from './demandWgsl.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
@@ -20,8 +19,10 @@ export type ShadowDemandInputs = readonly [
   requests: GPUBuffer,
 ];
 
-const TEXTURES: GPUTextureSampleType[] = ['depth', 'unfilterable-float', 'uint'];
-const BUFFERS: GPUBufferBindingType[] = [
+const BINDINGS: ComputeBinding[] = [
+  { texture: 'depth' },
+  { texture: 'unfilterable-float' },
+  { texture: 'uint' },
   'uniform',
   'read-only-storage',
   'read-only-storage',
@@ -30,59 +31,12 @@ const BUFFERS: GPUBufferBindingType[] = [
 ];
 
 /**
- * The per-pixel demand of shadow pages (`demandWgsl.ts`): its pipeline, compiled at prepare, and
- * a bind group made again only when what it binds moved. It owns no buffer: it reads the frame's
- * own and marks the request buffer the resolve records into, before the shadow pages are drawn.
+ * The per-pixel demand of shadow pages (`demandWgsl.ts`): a compute pass of the shadow page
+ * passes (`computePass.ts`), compiled at prepare. It owns no buffer: it reads the frame's own and
+ * marks the request buffer the resolve records into, before the shadow pages are drawn.
  */
-export async function createShadowDemand(device: GPUDevice) {
-  const module = await createCheckedShaderModule(device, SHADOW_DEMAND_WGSL, SHADOW_DEMAND_PASS);
-  const layout = device.createBindGroupLayout({
-    label: SHADOW_DEMAND_PASS,
-    entries: [
-      ...TEXTURES.map((sampleType, binding) => ({
-        binding,
-        visibility: GPUShaderStage.COMPUTE,
-        texture: { sampleType },
-      })),
-      ...BUFFERS.map((type, at) => ({
-        binding: TEXTURES.length + at,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type },
-      })),
-    ],
-  });
-  const pipeline = device.createComputePipeline({
-    label: SHADOW_DEMAND_PASS,
-    layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-    compute: { module, entryPoint: 'markShadowDemand' },
-  });
-  const bound = createWebgpuBindIdentity();
-  let group: GPUBindGroup | undefined;
-  return {
-    /** Marks the pages every pixel of a `width × height` image wants, into `inputs`' requests. */
-    encode(encoder: GPUCommandEncoder, inputs: ShadowDemandInputs, width: number, height: number) {
-      bound.next.length = 0;
-      bound.next.push(...inputs);
-      if (bound.moved() || !group)
-        group = device.createBindGroup({
-          label: SHADOW_DEMAND_PASS,
-          layout,
-          entries: inputs.map((resource, binding) => ({
-            binding,
-            resource: binding < TEXTURES.length ? resource : { buffer: resource as GPUBuffer },
-          })) as GPUBindGroupEntry[],
-        });
-      const pass = encoder.beginComputePass({ label: SHADOW_DEMAND_PASS });
-      pass.setPipeline(pipeline);
-      pass.setBindGroup(0, group);
-      pass.dispatchWorkgroups(
-        Math.ceil(width / SHADOW_DEMAND_GROUP),
-        Math.ceil(height / SHADOW_DEMAND_GROUP),
-      );
-      pass.end();
-    },
-  };
-}
+export const createShadowDemand = (device: GPUDevice) =>
+  computePass(device, SHADOW_DEMAND_WGSL, SHADOW_DEMAND_PASS, 'markShadowDemand', BINDINGS);
 
 export type ShadowDemand = Awaited<ReturnType<typeof createShadowDemand>>;
 
@@ -108,5 +62,8 @@ export function encodeShadowDemand(rt: WebgpuPagesRuntime, encoder: GPUCommandEn
     shadows.dataBuffer,
     pageRequests.buffer,
   ];
-  demand.encode(encoder, inputs, width, height);
+  demand(encoder, inputs, [
+    Math.ceil(width / SHADOW_DEMAND_GROUP),
+    Math.ceil(height / SHADOW_DEMAND_GROUP),
+  ]);
 }
