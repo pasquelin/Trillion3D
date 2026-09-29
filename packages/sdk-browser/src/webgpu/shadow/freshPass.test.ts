@@ -25,9 +25,8 @@ function frame(calls: unknown[][]) {
   const lights = {
     store: createSceneLightStore(),
     plan: {
-      gpu: { on: true, listed: 0 },
+      gpu: { on: true, listed: 0, quiet: false },
       pool: { side: 4, layers: LAYERS },
-      quiet: false,
       stamp: () => 7,
     },
     allocation: { compose: pass('compose'), cull: pass('cull'), seal: pass('seal') },
@@ -151,7 +150,7 @@ test("while a tinted layer is read, each layer's GPU pages are drawn into it too
 test('a frame with nothing new to draw encodes none of it; a listed or a lost page does', () => {
   const calls: unknown[][] = [],
     { lights, encode } = frame(calls);
-  lights.plan.quiet = true;
+  lights.plan.gpu.quiet = true;
   encode();
   assert.ok(calls.length > 0, 'the first frame the plan is seen runs');
   calls.length = 0;
