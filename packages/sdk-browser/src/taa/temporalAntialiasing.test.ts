@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createTemporalAntialiasing } from './temporalAntialiasing.ts';
 import { inertTaaDevice } from './device.fixture.ts';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
-import { TAA_BINDINGS } from './shaderWgsl.ts';
+import { TAA_BINDINGS } from './bindingsWgsl.ts';
 
 // A convergence frame replays the last ordinary frame: every field the checkpoint keeps comes
 // back, the sampled rank among them, so it draws the same lights and makes the same image.

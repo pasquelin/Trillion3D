@@ -1,7 +1,8 @@
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
 import { makeFullscreenPipeline } from '../lighting/deferred/fullscreen.ts';
 import { FILTER_FORMAT } from '../webgpu/blend/displayFilter.ts';
-import { createTaaLayout, taaShader } from './shaderWgsl.ts';
+import { taaShader } from './shaderWgsl.ts';
+import { createTaaLayout } from './bindingsWgsl.ts';
 import { taaUpscaleShader } from './upscaleWgsl.ts';
 
 /** Format of the as-is share accumulated beside the colour, filtered like it, and of the
