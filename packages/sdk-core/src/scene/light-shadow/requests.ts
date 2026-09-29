@@ -160,8 +160,7 @@ export function createShadowRequests(
      *  report names yet: every sun's over the scene within the view's far distance
      *  (`sun.floorReach`), whatever moved, and each face's of a lamp posed after that report — new,
      *  moved or reshaped: what it named was read at a past pose. Evicts only what it did not name;
-     *  the next may evict it. `cycle` is the still cycle at rest; moving, it is the latest read
-     *  report's, so a frame with no report of its own never evicts what that report named (#26). */
+     *  the next may evict it; moving, `cycle` stays the last report's (#26). */
     floors(
       posed: ArrayLike<number>,
       view: ShadowViewpoint,

@@ -160,9 +160,8 @@ export function createFrameGateCore(holdValues: number) {
     noteWorldsUpdated() {
       if (!hostPosesOwed) worldsRevision = revisions.scene;
     },
-    /** The engine moved poses in place and wrote their worlds itself, no node entering or leaving
-     *  the source graph: the three steps above, in their order — `engineWriting` first, so a host
-     *  pose write still unread stays owed and is walked at the next image. */
+    /** The engine moved poses in place: the three steps above, `engineWriting` first so an
+     *  unread host pose write stays owed. */
     engineMovedInPlace() {
       gate.engineWriting();
       gate.sceneMoved();
