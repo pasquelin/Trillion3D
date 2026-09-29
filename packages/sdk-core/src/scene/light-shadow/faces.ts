@@ -2,6 +2,7 @@ import { lightDirection, type SceneLight } from '../light/contracts.ts';
 import { composeFace, shadowProjection } from './math.ts';
 import { FULL_FACE, regionRect, writeConeVolume } from './volume.ts';
 import { lampPagesAt } from './virtual.ts';
+import { PAGES } from './pageModel.ts';
 
 /**
  * The six axes of a point light, in the order the shader recovers from the major axis of the
@@ -97,10 +98,10 @@ export function writeLampPage(
 ) {
   regionRect(pageRect, lampPagesAt(mip), x, x, y, y);
   const planes = writeFace(matrices, matBase, cull, cullBase, light, face, pageRect);
-  const a = 2 / (pageRect[1] - pageRect[0]),
-    b = -(pageRect[0] + pageRect[1]) / (pageRect[1] - pageRect[0]),
-    c = 2 / (pageRect[3] - pageRect[2]),
-    d = -(pageRect[2] + pageRect[3]) / (pageRect[3] - pageRect[2]);
+  const a = PAGES.shadowCropScale(pageRect[0], pageRect[1]),
+    b = PAGES.shadowCropOffset(pageRect[0], pageRect[1]),
+    c = PAGES.shadowCropScale(pageRect[2], pageRect[3]),
+    d = PAGES.shadowCropOffset(pageRect[2], pageRect[3]);
   for (let column = 0; column < 4; column++) {
     const at = matBase + column * 4,
       w = matrices[at + 3];

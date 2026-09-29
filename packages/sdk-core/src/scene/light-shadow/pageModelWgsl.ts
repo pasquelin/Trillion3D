@@ -11,6 +11,7 @@ const WGSL: PageOps<string> = {
   float: (n) => literal(Number.isInteger(n) ? `${n}.0` : String(n)),
   add: (a, b) => `(${a}+${b})`,
   sub: (a, b) => `(${a}-${b})`,
+  neg: (a) => `(-${a})`,
   mul: (a, b) => `(${a}*${b})`,
   div: (a, b) => `(${a}/${b})`,
   mod: (a, b) => `(${a}%${b})`,
@@ -51,6 +52,12 @@ const SIGNATURES: Record<keyof PageModel<string>, string[]> = {
   shadowLampReadMip: ['footprint:f32', 'texel0:f32', 'i32'],
   shadowLampMapTexel: ['ndc:f32', 'side:f32', 'f32'],
   shadowPcfEdge: ['t:f32', 'first:f32', 'i32'],
+  shadowRegionLow: ['pages:f32', 'x:f32', 'f32'],
+  shadowRegionHigh: ['pages:f32', 'x:f32', 'f32'],
+  shadowCropScale: ['low:f32', 'high:f32', 'f32'],
+  shadowCropOffset: ['low:f32', 'high:f32', 'f32'],
+  shadowSunSquareCentre: ['x:f32', 'cells:f32', 'metres:f32', 'f32'],
+  shadowAtlasClip: ['origin:f32', 'size:f32', 'f32'],
   shadowPcfStep: ['t:f32', 'first:f32', 'i32'],
 };
 

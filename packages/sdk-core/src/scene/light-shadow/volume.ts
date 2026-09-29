@@ -1,5 +1,6 @@
 import { dotVector3 } from '../../math/primitives/vector.ts';
 import { faceBasis } from './math.ts';
+import { PAGES } from './pageModel.ts';
 
 /**
  * Rectangle of a region, in normalised face coordinates: `u0, u1, v0, v1`. The whole
@@ -104,9 +105,9 @@ export function regionRect(
   y0: number,
   y1: number,
 ) {
-  out[0] = (2 * x0) / rows - 1;
-  out[1] = (2 * (x1 + 1)) / rows - 1;
-  out[2] = 1 - (2 * (y1 + 1)) / rows;
-  out[3] = 1 - (2 * y0) / rows;
+  out[0] = PAGES.shadowRegionLow(rows, x0);
+  out[1] = PAGES.shadowRegionHigh(rows, x1);
+  out[2] = -PAGES.shadowRegionHigh(rows, y1);
+  out[3] = -PAGES.shadowRegionLow(rows, y0);
   return out;
 }
