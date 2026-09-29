@@ -1,5 +1,6 @@
 import { countBlendDraws } from '../blend/draw.ts';
 import type { BlendPipelines } from '../blend/stagePipelines.ts';
+import { beginWaterBounds } from './bounds.ts';
 import { createWaterFrame, type WaterFrame } from './frame.ts';
 import { createWaterSurfacePipelines } from './pipelines.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
@@ -28,6 +29,32 @@ export async function createWaterPass(
   return { surfaces, frame };
 }
 
+/** Whether this image composes water: a beauty view, no second-camera capture, a composition. */
+function composesWater(rt: WebgpuPagesRuntime, composes: boolean) {
+  return (
+    rt.run.diagnostic === 'beauty' && !rt.capture.capturing && composes && !!rt.blendState.water
+  );
+}
+
+/**
+ * Opens the image's water bounds before the frustum walk fills them with its kept transmissive
+ * items (`../blend/hierarchyCull.ts`), under the image's jittered `projection`. An image without
+ * the pass leaves them inactive, and the pass, if any, covers the full target.
+ */
+export function boundWaterPass(
+  rt: WebgpuPagesRuntime,
+  composes: boolean,
+  projection: ArrayLike<number>,
+) {
+  const wanted = composesWater(rt, composes) && rt.blendState.transmissive > 0;
+  beginWaterBounds(
+    rt.blendState.waterBounds,
+    wanted ? rt.run.gate.cam : undefined,
+    projection,
+    rt.gpu.targetSize,
+  );
+}
+
 /**
  * Encodes the water pass after the blends, on the image they left (`frame.ts`).
  * Returns whether the pass was encoded: without a transmissive surface in view, without the
@@ -41,15 +68,13 @@ export function encodeWaterPass(
   encoder: GPUCommandEncoder,
   composes = true,
 ) {
-  const { gpu, run, capture, blendState } = rt,
+  const { gpu, run, blendState } = rt,
     water = blendState.water;
   // A diagnostic view colours a surface instead of lighting it: the slice draws as a blend, whose
   // fragment carries that colouring, and the composite has none. A capture from a second camera
   // reads the surface buffer as opaque once the frame is drawn: the surface stage leaves it alone.
   if (
-    run.diagnostic !== 'beauty' ||
-    capture.capturing ||
-    !composes ||
+    !composesWater(rt, composes) ||
     !water ||
     !blendState.transmissiveInView ||
     !blendState.argsBuffer ||

@@ -11,6 +11,7 @@ import {
   readHostDrawCamera,
 } from '../../../packages/sdk-browser/src/camera/world.ts';
 import { drawMatrix, strictDegraded } from './webglClusterPixels.ts';
+import { keptClusterScene } from '../../../packages/sdk-browser/src/webgl/cluster/sceneDraw.ts';
 
 export const curvedPixels = (gl: WebGLRenderingContext | WebGL2RenderingContext, size: number) => {
   const output = new Uint8Array(size * size * 4);
@@ -95,7 +96,7 @@ export function curvedComparison(size = 64, offset = 0, details = false) {
         _multiDrawCount: 1,
       },
     ],
-    input.scene,
+    keptClusterScene(input.scene),
     readHostDrawCamera(createHostDrawCamera(), input.camera),
     false,
     true,

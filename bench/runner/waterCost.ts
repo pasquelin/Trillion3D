@@ -1,5 +1,5 @@
 // #232 prerequisite, run by the measurer only. Output is raw evidence, never an optimization verdict.
-import { build } from 'esbuild';
+import { waterCostBundle } from './waterCostBundle.ts';
 import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve, relative, dirname } from 'node:path';
@@ -17,6 +17,7 @@ const root = fileURLToPath(new URL('../../', import.meta.url));
 const { values } = parseArgs({
   options: {
     'engine-root': { type: 'string', default: root },
+    'compare-engine-root': { type: 'string' },
     out: { type: 'string', default: '.mesure/out/232-water-baseline' },
     runs: { type: 'string', default: '4' },
     frames: { type: 'string', default: '120' },
@@ -41,35 +42,33 @@ if (
   throw new Error('Output must be a child of .mesure/out');
 const git = (cwd: string, ...args: string[]) =>
   execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
-// The fixture is fixed; only the backend entry changes when comparing two local issue worktrees.
-const pageModule = resolve(root, 'tests/browser/support/waterCostPage.ts');
-const backendModule = resolve(engineRoot, 'packages/sdk-browser/src/webgpu/pages/pages.ts');
-const codec = resolve(engineRoot, 'packages/sdk-browser/src/page/decode/geometryPageWasm.ts');
-const wasm = resolve(engineRoot, 'packages/sdk-browser/src/page/decode/pageCodec.wasm');
-const bundle = await build({
-  stdin: {
-    contents: `import { run as measure } from ${JSON.stringify(pageModule)};
-import { webgpuPagesBackend } from ${JSON.stringify(backendModule)};
-import { prepareSdkWasm } from ${JSON.stringify(codec)};
-import bytes from ${JSON.stringify(wasm)};
-export const run = async options => {
-  if (!await prepareSdkWasm(bytes)) throw new Error('SDK WASM preload failed');
-  return measure(webgpuPagesBackend, options);
-};`,
-    resolveDir: root,
-    loader: 'ts',
-  },
-  loader: { '.wasm': 'binary' },
-  bundle: true,
-  write: false,
-  format: 'iife',
-  globalName: 'waterCost',
-  platform: 'browser',
-  target: 'es2022',
-  logLevel: 'error',
-});
+const engineRoots = [
+  engineRoot,
+  ...(values['compare-engine-root'] ? [resolve(values['compare-engine-root'])] : []),
+];
+const engines = await Promise.all(
+  engineRoots.map(async (path) => ({
+    path,
+    commit: git(path, 'rev-parse', 'HEAD'),
+    dirty: git(path, 'status', '--porcelain'),
+    script: await waterCostBundle(root, path),
+  })),
+);
+// One control pair per repeat: baseline on/off, or visible water on two engine revisions.
+const controls =
+  engines.length === 2
+    ? [
+        { engine: 0, enabled: true },
+        { engine: 1, enabled: true },
+      ]
+    : [
+        { engine: 0, enabled: false },
+        { engine: 0, enabled: true },
+      ];
 const rows: {
   run: number;
+  engine: number;
+  engineCommit: string;
   fraction: number;
   moving: boolean;
   enabled: boolean;
@@ -78,13 +77,14 @@ const rows: {
 const errors: string[] = [];
 const report = {
   protocol:
-    'Total water contribution: resident tile visible versus parked, not fullscreen overhead alone',
+    engines.length === 2
+      ? 'Interleaved engine revisions, identical visible water fixture'
+      : 'Total water contribution: resident tile visible versus parked, not fullscreen overhead alone',
   sampling:
     'Serialized frames; earliest-to-latest GPU envelope and submitted spans reported separately; same-clear-colour redraw',
   displayMode: 'headless',
   displayCapHz: null,
-  commit: git(engineRoot, 'rev-parse', 'HEAD'),
-  dirty: git(engineRoot, 'status', '--porcelain'),
+  engines: engines.map(({ path, commit, dirty }) => ({ path, commit, dirty })),
   fixtureCommit: git(root, 'rev-parse', 'HEAD'),
   fixtureDirty: git(root, 'status', '--porcelain'),
   started: new Date().toISOString(),
@@ -101,7 +101,7 @@ try {
   for (let repeat = 0; repeat < runs; repeat++)
     for (const fraction of [1 / 16, 1 / 4, 1])
       for (const moving of [false, true])
-        for (const enabled of repeat % 2 ? [true, false] : [false, true]) {
+        for (const { engine, enabled } of repeat % 2 ? [...controls].reverse() : controls) {
           const options = { fraction, moving, enabled, frames, warmup };
           const pageErrors: string[] = [];
           const reading = await dansPageWebgpu(
@@ -109,12 +109,20 @@ try {
             options,
             {
               titre: 'Water cost #232',
-              script: bundle.outputFiles[0].text,
+              script: engines[engine].script,
               erreursPage: pageErrors,
             },
           );
           errors.push(...pageErrors);
-          rows.push({ run: repeat + 1, fraction, moving, enabled, reading });
+          rows.push({
+            run: repeat + 1,
+            engine,
+            engineCommit: engines[engine].commit,
+            fraction,
+            moving,
+            enabled,
+            reading,
+          });
           if ('unavailable' in reading) errors.push(String(reading.unavailable));
           else {
             errors.push(...reading.errors);
@@ -135,6 +143,7 @@ try {
           console.log(
             JSON.stringify({
               run: repeat + 1,
+              engineCommit: engines[engine].commit,
               ...options,
               gpuEnvelopeMs: 'gpuEnvelopeMs' in reading ? reading.gpuEnvelopeMs : null,
             }),
@@ -151,9 +160,13 @@ try {
       : null;
   const spread = [1 / 16, 1 / 4, 1].flatMap((fraction) =>
     [false, true].flatMap((moving) =>
-      [false, true].map((enabled) => {
+      controls.map(({ engine, enabled }) => {
         const selected = rows.filter(
-          (r) => r.fraction === fraction && r.moving === moving && r.enabled === enabled,
+          (r) =>
+            r.engine === engine &&
+            r.fraction === fraction &&
+            r.moving === moving &&
+            r.enabled === enabled,
         );
         const envelopes = selected.flatMap(({ reading }) =>
           'gpuEnvelopeMs' in reading && reading.gpuEnvelopeMs ? [reading.gpuEnvelopeMs] : [],
@@ -162,6 +175,8 @@ try {
           'gpuFrameMs' in reading && reading.gpuFrameMs ? [reading.gpuFrameMs] : [],
         );
         return {
+          engine,
+          engineCommit: engines[engine].commit,
           fraction,
           moving,
           enabled,
