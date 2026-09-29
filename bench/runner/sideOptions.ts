@@ -117,18 +117,22 @@ export function equipSide(
     'certifiee',
     'reference',
   ]) as ScreenErrorVariant | null;
-  equipped.renderScale = scaleOf(flags, side.name);
+  equipped.renderScale = scaleOf(flags, side.name, equipped.engine);
   return equipped;
 }
 
 /** A side's render scale: `--echelle-<side>`, otherwise `--echelle`, in the engine's
- *  [MIN_RENDER_SCALE, 1]; `null` without. */
-function scaleOf(flags: Map<string, string>, name: string) {
+ *  [MIN_RENDER_SCALE, 1]; `null` without. Below one only where the WebGPU temporal resolve
+ *  reconstructs the frame: elsewhere the engine draws the display and the report would name a
+ *  scale no image was drawn at. */
+function scaleOf(flags: Map<string, string>, name: string, engine: EngineDescriptor) {
   const value = sideFlag(flags, name, 'echelle');
   if (value === null) return null;
   const scale = Number(value);
   if (!(scale >= MIN_RENDER_SCALE && scale <= 1))
     throw new Error(`--echelle-${name} must be in [${MIN_RENDER_SCALE}, 1]`);
+  if (scale < 1 && (engine.renderer !== 'webgpu' || flags.get('antialiasing') === 'off'))
+    throw new Error(`--echelle-${name} below 1 needs --moteur webgpu and --antialiasing on`);
   return scale;
 }
 

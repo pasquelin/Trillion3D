@@ -30,4 +30,10 @@ test('a side takes its own render scale, then the campaign one, otherwise the di
   assert.equal(sideReport(own)[1].echelle, 0.67);
   for (const wrong of ['0.4', '1.5', 'half'])
     assert.throws(() => equip('apres', { 'echelle-apres': wrong }), /must be in \[0.5, 1\]/);
+  // A scale no engine would draw at is refused, never reported.
+  for (const flags of [{ 'moteur-apres': 'webgl2' }, { antialiasing: 'off' }] as Record<
+    string,
+    string
+  >[])
+    assert.throws(() => equip('apres', { ...flags, echelle: '0.67' }), /needs --moteur webgpu/);
 });
