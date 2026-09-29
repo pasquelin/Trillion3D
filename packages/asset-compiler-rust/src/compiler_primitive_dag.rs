@@ -1,6 +1,5 @@
 use super::*;
 use crate::compiler_world_roots::RootCover;
-
 #[derive(Default)]
 pub(super) struct DagResult {
     pub pages: Vec<Value>,
@@ -13,8 +12,7 @@ pub(super) struct DagResult {
     pub proxy_threshold: f64,
     pub reused: i32,
     pub dag_report: Value,
-    /// Elapsed milliseconds of the primitive's stages, told on its progress event alone: the cache
-    /// holds only what a rebuild reproduces byte for byte.
+    /// Stage milliseconds, reported only in progress events so caches remain reproducible.
     pub timings: Value,
     /// What the DAG has to complain about, named, also told on the progress event.
     pub warnings: Vec<Value>,
@@ -28,7 +26,6 @@ pub(super) struct DagResult {
     /// Its roots, which the world super-roots continue (`compiler_world_roots`).
     pub root_cover: RootCover,
 }
-
 /// Minimum, median and maximum of a DAG level's errors. Three order statistics
 /// do not need a full sort: a partial selection puts at the median rank the exact
 /// element a sort would have put there — `total_cmp` is a total order — and the
@@ -51,7 +48,6 @@ pub(super) fn level_error_stats(errors: &mut [f64]) -> (f64, f64, f64) {
         .unwrap_or(median);
     (min, median, max)
 }
-
 /// `tile_log2` is the primitive's tile of the world in object units: its pages' grid follows it
 /// (`geometry_page_quant::tile`).
 #[allow(clippy::too_many_arguments)]
@@ -184,7 +180,6 @@ pub(super) fn build_dag_primitive(
         root_cover,
     })
 }
-
 #[cfg(test)]
 mod tests {
     // Edge cases of `level_error_stats`, moved from the retired compute bench: the statistics

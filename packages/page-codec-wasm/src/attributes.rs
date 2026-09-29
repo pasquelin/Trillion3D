@@ -1,23 +1,16 @@
 //! Streams of a page and the block of words they unpack into (`unpack.rs`).
-
 use crate::bits::stream_words;
 use crate::deform::{morph_words, skin_words, FLAG_MORPH, FLAG_SKIN};
 use crate::triangles::CornerCode;
 use crate::{deform, Header, FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1, HEADER_BYTES};
-
-/// Presence bit and float width of each optional attribute, in stream order: normal, uv, uv1,
-/// colour. Position, three floats wide, precedes them in a decoded page.
+/// Optional stream flags and float widths, after position: normal, UV, UV1, colour.
 pub const OPTIONAL: [(u32, usize); 4] = [
     (FLAG_NORMAL, 3),
     (FLAG_UV, 2),
     (FLAG_UV1, 2),
     (FLAG_COLOR, 4),
 ];
-
-/// A decoded page as one block of words — the 32-bit indices, then the floats of the position
-/// and of each present attribute in stream order, as their bits —, exactly `decoded_bytes`
-/// long. The block crosses the WebAssembly boundary whole; the JavaScript decoder yields the
-/// same bytes as views on one buffer.
+/// Decoded indices then float attribute bits in one `decoded_bytes` block, shared with JS.
 pub struct DecodedPage {
     pub words: Vec<u32>,
     pub vertex_count: usize,
@@ -28,15 +21,11 @@ pub struct DecodedPage {
     /// The header's largest position displacement, in object units.
     pub quantization_error: f32,
 }
-
 impl DecodedPage {
     pub fn indices(&self) -> &[u32] {
         &self.words[..self.index_count]
     }
-
-    /// Floats of the attribute at `rank` — 0 the position, then `OPTIONAL`'s order, then the
-    /// skin's joints and weights and the morph targets' displacements —, or `None` when the page
-    /// does not carry it.
+    /// Attribute by rank: position, OPTIONAL, skin joints/weights, morph deltas; None if absent.
     pub fn attribute(&self, rank: usize) -> Option<&[f32]> {
         let mut at = self.index_count;
         let deformation = [
@@ -92,8 +81,7 @@ impl Header {
             + self.deformation_floats()
     }
 
-    /// Floats per decoded vertex the deformation adds: four joints and four weights, and six per
-    /// morph target.
+    /// Extra floats per vertex: eight for skin, six per morph target.
     pub fn deformation_floats(&self) -> usize {
         let skin = if self.flags & FLAG_SKIN != 0 { 8 } else { 0 };
         skin + 6 * self.morphs.len()
@@ -104,9 +92,7 @@ impl Header {
         HEADER_BYTES + self.morphs.len() * deform::MORPH_WORDS * 4
     }
 
-    /// Bytes of the decoded page: float attributes and 32-bit indices. Saturating, since a
-    /// forged count would otherwise wrap a 32-bit `usize` back under the budget and let the
-    /// decoder trap on its allocation instead of refusing the header.
+    /// Decoded bytes, saturated so forged counts cannot wrap below the allocation budget.
     pub fn decoded_bytes(&self) -> usize {
         self.vertex_count
             .saturating_mul(self.vertex_floats() * 4)
@@ -114,16 +100,14 @@ impl Header {
     }
 }
 
-/// Word offset, after the header, of each bit stream — every one derived from the counts and
-/// the widths, so the header stores no offset and a reader trusts none.
+/// Stream word offsets derived from counts and widths, never trusted header offsets.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Layout {
     pub corners: CornerCode,
     /// The block table then the corner stream (`triangles.rs`).
     pub triangles: [usize; 2],
     pub position: [usize; 3],
-    /// Each vertex's link to its position, present only when the page stores fewer positions
-    /// than vertices (`positions.rs`).
+    /// Vertex-to-position links when positions are shared (`positions.rs`).
     pub links: usize,
     pub normal: usize,
     pub uv: [usize; 2],
