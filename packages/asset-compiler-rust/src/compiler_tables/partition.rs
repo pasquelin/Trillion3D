@@ -15,16 +15,18 @@ use crate::compiler_world::{local_matrix, world_matrices, Mat4};
 
 mod boxes;
 pub(crate) mod pages;
+mod scene;
 pub(crate) mod split;
 use boxes::{grow, mesh_boxes, world_box, EMPTY};
 use pages::{write_pages, MeshSlots};
+use scene::{animated, hierarchy};
 use split::{split_cells, Placed, Region};
 
 /// A box, `[minX, minY, minZ, maxX, maxY, maxZ]`.
 type Box6 = [f64; 6];
 
 /// Version of a page and of the root the core carries.
-const PARTITION_VERSION: u32 = 3;
+const PARTITION_VERSION: u32 = 4;
 /// Version of a cell file.
 const CELL_VERSION: u32 = 2;
 
@@ -36,51 +38,21 @@ pub(super) struct Partitioned {
     pub cells: usize,
 }
 
-/// The nodes an animation moves: their pose is not the one the table declares.
-fn animated(g: &Value) -> BTreeSet<usize> {
-    let animations = g["animations"].as_array().into_iter().flatten();
-    let channels = animations.flat_map(|a| a["channels"].as_array().into_iter().flatten());
-    let node = |c: &Value| Some(c.pointer("/target/node")?.as_u64()? as usize);
-    channels.filter_map(node).collect()
-}
-
-/// Each node's parent, and whether the scene reaches it from `roots`.
-fn hierarchy(table: &[Value], roots: &[usize]) -> (Vec<Option<usize>>, Vec<bool>) {
-    let children = |id: usize| -> Vec<usize> {
-        table[id]["children"].as_array().map_or(Vec::new(), |c| {
-            c.iter()
-                .filter_map(|v| v.as_u64().map(|v| v as usize))
-                .collect()
-        })
-    };
-    let mut parent = vec![None; table.len()];
-    for id in 0..table.len() {
-        for child in children(id) {
-            parent[child] = Some(id);
-        }
-    }
-    let mut reached = vec![false; table.len()];
-    let mut stack = roots.to_vec();
-    while let Some(id) = stack.pop() {
-        if !std::mem::replace(&mut reached[id], true) {
-            stack.extend(children(id));
-        }
-    }
-    (parent, reached)
-}
-
-/// The core and the cells of `table`, or `None` when its placed nodes fit one cell.
+/// The core and the cells of `table`, or `None` when its placed nodes fit one cell, and the
+/// published nodes each cell places: then one cell places them all (`compiler_world_roots`).
 pub(super) fn partition(
     g: &Value,
     table: &[Value],
     roots: &[usize],
     mesh_pages: &MeshSlots,
     directory: &Path,
-) -> Result<Option<Partitioned>> {
+) -> Result<(Option<Partitioned>, Vec<Vec<usize>>)> {
     let gltf_nodes = values(g, "nodes")?;
     let boxes = mesh_boxes(g);
     let moved = animated(g);
     let (parent, reached) = hierarchy(table, roots);
+    // A cell's row says no visibility: a node a hidden node hides is read with the core.
+    let (_, hidden) = crate::compiler_nodes::scene_nodes(g)?;
     let placeable = |id: usize| -> Option<usize> {
         let node = &table[id];
         let mesh = node["mesh"].as_u64()? as usize;
@@ -91,7 +63,7 @@ pub(super) fn partition(
         // Its box is written once, from the declared poses: nothing above it may move either.
         let posed =
             std::iter::successors(Some(id), |at| parent[*at]).all(|at| !moved.contains(&at));
-        let still = gltf_nodes[id].get("skin").is_none() && posed;
+        let still = gltf_nodes[id].get("skin").is_none() && posed && !hidden.contains(&id);
         (reached[id] && leaf && bare && still && boxes.get(mesh)?.is_some()).then_some(mesh)
     };
     let placed_ids: Vec<(usize, usize)> = (0..table.len())
@@ -121,6 +93,7 @@ pub(super) fn partition(
         let mesh_box = boxes[mesh].as_ref().expect("placeable");
         let bytes = serde_json::to_vec(&entry)?.len() + 1;
         placed.push(Placed {
+            node: id,
             bounds: world_box(&worlds[id], mesh_box),
             parent: core_parent,
             local: world_box(&local_matrix(&gltf_nodes[id])?, mesh_box),
@@ -129,7 +102,7 @@ pub(super) fn partition(
         });
     }
     if placed.iter().map(|p| p.bytes).sum::<usize>() <= crate::STREAM_BUNDLE_BYTES {
-        return Ok(None);
+        return Ok((None, vec![placed.iter().map(|p| p.node).collect()]));
     }
     let renumber = |ids: &[Value]| -> Vec<usize> {
         ids.iter()
@@ -150,12 +123,17 @@ pub(super) fn partition(
         .collect();
     let roots = roots.iter().filter_map(|id| rank[*id]).collect();
     let (cells, tree) = split_cells(placed);
-    Ok(Some(Partitioned {
+    let members = cells
+        .iter()
+        .map(|c| c.iter().map(|p| p.node).collect())
+        .collect();
+    let split = Some(Partitioned {
         nodes,
         roots,
         cells: cells.len(),
         partition: write_cells(cells, &tree, mesh_pages, directory)?,
-    }))
+    });
+    Ok((split, members))
 }
 
 /// Writes one file per cell and the pages of their records, and returns the root the core

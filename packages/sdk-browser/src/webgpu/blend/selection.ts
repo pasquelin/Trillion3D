@@ -1,5 +1,6 @@
 import { frustumExcludesBox } from '../../../../sdk-core/src/index.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
+import { rootOf, type PageRec } from '../../page/selection/selection.ts';
+import type { Placements } from '../../page/selection/placements.ts';
 import { notDrawn } from '../../placement/hidden.ts';
 import type { createWebgpuBlendState } from './state.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
@@ -9,18 +10,23 @@ type BlendState = ReturnType<typeof createWebgpuBlendState>;
  *
  * The production path holds no draw list: the frustum is tested there with the sort keys, and
  * the GPU expands the sorted plan into instances (`order.ts`). Here the frustum
- * rejects whole primitives, the CPU cut omits items with no selected cluster, a hidden node or a parked row
- * omits its item, and source order is preserved.
+ * rejects whole primitives, the CPU cut (its records, and the roots that place them) omits items
+ * with no selected cluster, a hidden node or a parked row omits its item, and source order is
+ * preserved.
  */
-export function selectWebgpuBlend(blendState: BlendState, drawn?: readonly PageRec[]) {
+export function selectWebgpuBlend(
+  blendState: BlendState,
+  cut?: { drawn: readonly PageRec[]; roots: Placements },
+) {
   const selected = blendState.cpuSelectedPlacements;
   selected.clear();
   blendState.visibleBlend.length = 0;
-  if (drawn) for (const rec of drawn) if (rec.transparent) selected.add(rec.matrix);
+  if (cut)
+    for (const rec of cut.drawn) if (rec.transparent) selected.add(rootOf(cut.roots, rec).world);
   let rejected = 0;
   for (const item of blendState.blendGpu) {
     if (notDrawn(item)) continue;
-    if (drawn && item.paged && !selected.has(item.matrix)) continue;
+    if (cut && item.paged && !selected.has(item.matrix)) continue;
     const box = item.bounds;
     if (
       box &&
@@ -58,13 +64,13 @@ export function writeCpuTransparentInstances(
   for (let i = 0; i < drawn.length; i++) {
     const rec = drawn[i];
     if (!rec.transparent) continue;
-    const item = blendState.pagedBlendGpu.get(rec.matrix);
-    if (!item || item.pagedIndex === undefined) continue;
     const entry = entryOf(rec);
     if (entry < 0) continue;
-    const base = table.itemRanges[item.pagedIndex * 2];
-    instances[base + counts[item.pagedIndex]++] = entry;
-    if (base + counts[item.pagedIndex] > highest) highest = base + counts[item.pagedIndex];
+    // The entry names its item: no search by placement per record.
+    const index = table.itemOfEntry[entry],
+      base = table.itemRanges[index * 2];
+    instances[base + counts[index]++] = entry;
+    if (base + counts[index] > highest) highest = base + counts[index];
   }
   for (const item of table.pagedItems) {
     const index = item.pagedIndex!,

@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { startServer } from '../../kit/server/staticServer.ts';
-import { launchChrome } from '../../../bench/runner/chrome.ts';
-import { addSurroundingLight, galleryMounts, openGalleryScene } from '../support/renderHarness.ts';
+import {
+  addSurroundingLight,
+  openGalleryPage,
+  openGalleryScene,
+} from '../support/renderHarness.ts';
 import { measureOutput } from '../../../bench/core/paths.ts';
 import { light } from '../../../packages/sdk-core/src/world/light/light.ts';
 import type { observatorySky } from '../../../scripts/docs/observatory/scene.ts';
@@ -23,16 +25,8 @@ const root = resolve(import.meta.dirname, '../../..');
 const output = measureOutput('observatory');
 const folder = 'site/assets/gallery/signature-architecture';
 await mkdir(output, { recursive: true });
-const { server, port } = await startServer({ mounts: galleryMounts(root) });
-const browser = await launchChrome({ headless: true });
-const errors: string[] = [];
+const { page, errors, close } = await openGalleryPage(root, { width: 800, height: 520 });
 try {
-  const page = await browser.newPage({
-    viewport: { width: 800, height: 520 },
-    deviceScaleFactor: 2,
-  });
-  page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto(`http://127.0.0.1:${port}`);
   await openGalleryScene(page, {
     id: 'observatory',
     width: 800,
@@ -148,6 +142,5 @@ try {
     'returning to full detail restores the same image',
   );
 } finally {
-  await browser.close();
-  await new Promise((done) => server.close(done));
+  await close();
 }

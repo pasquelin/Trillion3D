@@ -1,7 +1,7 @@
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { SHADOW_CULL_CASTERS } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
 import { DRAW_ALL, DRAW_FULL } from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
-import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { pageOrigin } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { MAX_SHADOW_REGIONS } from '../../gpu/shadow/atlas.ts';
 import { CASTERS_ALL, CASTERS_MOVING, CASTERS_STATIC } from '../../gpu/shadow/cullShader.ts';
 
@@ -20,10 +20,10 @@ export const REGION_CLEAR = 0,
  * pages a layer side: page `p` lies in layer `⌊p / poolSide²⌋`, as the shading reads it.
  */
 export function createShadowRegionList(poolSide: number) {
-  const layerPages = poolSide * poolSide,
-    local = (region: number) => page[region] % layerPages;
+  const origin = (region: number) => pageOrigin(page[region], poolSide);
   const page = new Int32Array(MAX_SHADOW_REGIONS),
-    start = new Uint8Array(MAX_SHADOW_REGIONS);
+    start = new Uint8Array(MAX_SHADOW_REGIONS),
+    casterless = new Uint8Array(MAX_SHADOW_REGIONS);
   let count = 0,
     layered = 0;
   return {
@@ -40,10 +40,18 @@ export function createShadowRegionList(poolSide: number) {
     },
     pageOf: (region: number) => page[region],
     startOf: (region: number) => start[region],
+    /** The region draws moving casters alone, over its page restored from the static layer. */
+    moving: (region: number) => start[region] === REGION_RESTORE,
+    /** The region's light view has no caster on the CPU cut (#1210): its cull keeps nothing, its
+     *  commands stay at zero instances, so it encodes no draw. The GPU cut marks none. */
+    casterless: (region: number) => casterless[region] === 1,
+    setCasterless(region: number, empty: boolean) {
+      casterless[region] = empty ? 1 : 0;
+    },
     /** Viewport of a region: its physical page, one square and layer in pool and static layer. */
-    x: (region: number) => (local(region) % poolSide) * SHADOW_PAGE,
-    y: (region: number) => Math.floor(local(region) / poolSide) * SHADOW_PAGE,
-    layer: (region: number) => Math.floor(page[region] / layerPages),
+    x: (region: number) => origin(region).x,
+    y: (region: number) => origin(region).y,
+    layer: (region: number) => origin(region).layer,
     /**
      * Appends the regions of physical page `phys` drawn in `mode` (`DRAW_*`), their caster words
      * in `volumeWords`. The first region's volume is written by the caller; a second one copies
@@ -54,6 +62,7 @@ export function createShadowRegionList(poolSide: number) {
       const add = (from: number, casters: number) => {
         page[count] = phys;
         start[count] = from;
+        casterless[count] = 0;
         if (count !== first)
           volumes.copyWithin(
             count * SHADOW_CULL_FLOATS,

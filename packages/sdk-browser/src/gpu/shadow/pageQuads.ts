@@ -1,7 +1,9 @@
+import { depthRestoreWgsl } from '../core/depthRestoreWgsl.ts';
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
-import { MAX_SHADOW_REGIONS as R } from './recordPack.ts';
+import { MAX_SHADOW_REGIONS as R, SHADOW_FACE_READ_BYTES as RECT_OFFSET } from './recordPack.ts';
 import { SHADOW_FACE_STRIDE } from './batchBudget.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
+import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts';
 import { staticLayerEntries } from './staticLayer.ts';
 import {
   SHADOW_TRANSLUCENT_DEPTH_FORMAT,
@@ -11,8 +13,6 @@ import {
 
 /** Bytes of the faces' entries, before the batch's pass order in the same buffer (`atlas.ts`). */
 const ORDER_OFFSET = R * SHADOW_FACE_STRIDE;
-/** Bytes of an entry the quads read up to its `rect`: the matrix, `params`, `emitter`. */
-const RECT_OFFSET = 96;
 
 /**
  * What the page quads read, in one storage binding — the face buffer: every region's view, `rect`
@@ -24,16 +24,11 @@ const RECT_OFFSET = 96;
 export const PAGE_QUAD_SHADER = `struct PageView{viewProjection:mat4x4f,params:vec4f,emitter:vec4f,@size(${SHADOW_FACE_STRIDE - RECT_OFFSET}) rect:vec4f,}
 struct PageData{views:array<PageView,${R}>,order:array<u32,${R}>,}
 @group(0) @binding(0) var<storage, read> data:PageData;
-@group(1) @binding(0) var layer:texture_depth_2d;
+${depthRestoreWgsl(1)}
 @vertex fn page_quad_vs(@builtin(vertex_index) i:u32,@builtin(instance_index) k:u32)->@builtin(position) vec4f{
  let rect=data.views[data.order[k]].rect;
  let corner=vec2f(select(-1.0,1.0,((0x32u>>i)&1u)!=0u),select(-1.0,1.0,((0x2cu>>i)&1u)!=0u));
  return vec4f(corner*rect.zw+rect.xy,0.0,1.0);
-}
-/** The pool and the layer are the same size, each bound at the page's layer: a texel reads its
- *  own twin. */
-@fragment fn restore_fs(@builtin(position) p:vec4f)->@builtin(frag_depth) f32{
- return textureLoad(layer,vec2i(p.xy),0);
 }
 /** A page of the transmittance layer cleared: all the light, and far. */
 @fragment fn transmittance_clear_fs()->@location(0) vec4f{
@@ -60,29 +55,40 @@ export async function createShadowPageQuads(device: GPUDevice, faces: GPUBuffer)
   // The static layer's own layout: its groups bind here as they are.
   const layerLayout = device.createBindGroupLayout({ entries: staticLayerEntries() });
   const dataOnly = device.createPipelineLayout({ bindGroupLayouts: [dataLayout] });
-  const pipeline = (
+  const descriptor = (
     label: string,
     layout: GPUPipelineLayout,
     fragment?: string,
     targets: GPUColorTargetState[] = [],
     depth: GPUTextureFormat = 'depth32float',
-  ) =>
-    device.createRenderPipeline({
-      label: `Trillion3D shadow page ${label} v1`,
-      layout,
-      vertex: { module, entryPoint: 'page_quad_vs' },
-      fragment: fragment ? { module, entryPoint: fragment, targets } : undefined,
-      primitive: { topology: 'triangle-list', cullMode: 'none' },
-      depthStencil: { format: depth, depthWriteEnabled: true, depthCompare: 'always' },
-    });
+  ): GPURenderPipelineDescriptor => ({
+    label: `Trillion3D shadow page ${label} v1`,
+    layout,
+    vertex: { module, entryPoint: 'page_quad_vs' },
+    fragment: fragment ? { module, entryPoint: fragment, targets } : undefined,
+    primitive: { topology: 'triangle-list', cullMode: 'none' },
+    depthStencil: { format: depth, depthWriteEnabled: true, depthCompare: 'always' },
+  });
+  const pipeline = (label: string, layout: GPUPipelineLayout, fragment?: string) =>
+    device.createRenderPipeline(descriptor(label, layout, fragment));
   const clear = pipeline('clear', dataOnly),
     restore = pipeline(
       'restore',
       device.createPipelineLayout({ bindGroupLayouts: [dataLayout, layerLayout] }),
       'restore_fs',
     );
-  // Built at the first transmittance pass: a scene that blends nothing never compiles it.
-  let clearTransmittance: GPURenderPipeline | undefined;
+  // Compiled at prepare for a scene whose blended surfaces cast, else at the first transmittance
+  // pass: a scene that blends nothing never compiles it.
+  const clearTransmittance = preparedPipeline(
+    device,
+    descriptor(
+      'transmittance clear',
+      dataOnly,
+      'transmittance_clear_fs',
+      [{ format: SHADOW_TRANSMITTANCE_FORMAT }],
+      SHADOW_TRANSLUCENT_DEPTH_FORMAT,
+    ),
+  );
   const group = device.createBindGroup({
     layout: dataLayout,
     entries: [{ binding: 0, resource: { buffer: faces } }],
@@ -121,18 +127,13 @@ export async function createShadowPageQuads(device: GPUDevice, faces: GPUBuffer)
       }
       return +!!clears + +!!restores;
     },
+    /** Compiles the transmittance clear off the frame, at prepare. */
+    prepareTransmittance: clearTransmittance.prepare,
     /** Clears into the transmittance layer's `pass` the `count` regions from rank `first` of the
      *  order, in one draw. */
     clearTransmittance(pass: GPURenderPassEncoder, first: number, count: number) {
-      clearTransmittance ??= pipeline(
-        'transmittance clear',
-        dataOnly,
-        'transmittance_clear_fs',
-        [{ format: SHADOW_TRANSMITTANCE_FORMAT }],
-        SHADOW_TRANSLUCENT_DEPTH_FORMAT,
-      );
       pass.setBindGroup(0, group);
-      quads(pass, clearTransmittance, first, count);
+      quads(pass, clearTransmittance.get(), first, count);
     },
   };
 }

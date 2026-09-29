@@ -31,9 +31,20 @@ const textureReason = (texture: HostMap) => {
  *  its own, not as one view interleaved into a shared one. */
 const ownBuffer = (attribute: HostAttribute | undefined) => attribute?.kind === 'attribute';
 
+/** The attributes `clusterMaterialReason` reads, the only ones: whether each owns its buffer. */
+const GATED = ['position', 'uv', 'uv1', 'normal', 'color'] as const;
+
+/** One bit per gated attribute that owns its buffer: two meshes of one surface whose attributes
+ *  answer the same mask get the same reason (#840: sponza read the gate for 1 465 pages a frame). */
+export function gatedAttributes(attributes: HostAttributes) {
+  let mask = 0;
+  for (let i = 0; i < GATED.length; i++) if (ownBuffer(attributes[GATED[i]])) mask |= 1 << i;
+  return mask;
+}
+
 /**
  * Names material input the autonomous WebGL2 program cannot preserve before it submits a draw.
- * A physical extension is not one: it is drawn without, by name (`physicalFeaturesLost`).
+ * A physical extension is not one: it is drawn without, by name (`physicalLostMask`).
  * A transmissive physical material is accepted only where `transmissive` says the draw reads
  * the frozen backdrop: a scene copy of the transmission pass does, a paged cluster never does.
  */

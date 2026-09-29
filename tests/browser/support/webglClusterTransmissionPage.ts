@@ -1,8 +1,12 @@
 // Standalone proof of the autonomous transmission pass: what a transmissive scene copy lets
-// through is the engine's own cluster image, opaque and blended, depth-tested both ways.
+// through is the engine's own cluster image, opaque and blended, depth-tested both ways. A physical
+// feature WebGL2 cannot draw is dropped from the glass and said once by name (#772).
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import type { ClusterDrawMesh } from '../../../packages/sdk-browser/src/cluster/batchMesh.ts';
 import { clear, clusterRecord, mountClusterRenderer, pixel, quad } from './webglClusterPixels.ts';
+import { readDegraded } from '../../../packages/sdk-browser/src/webgl/cluster/validation.ts';
+import { listenMaterialDegraded } from './materialDegradedNotices.ts';
+import { keptClusterScene } from '../../../packages/sdk-browser/src/webgl/cluster/sceneDraw.ts';
 
 const glassMesh = (options: Partial<G.SurfaceParameters> = {}) => {
   const mesh = G.mesh(
@@ -13,15 +17,16 @@ const glassMesh = (options: Partial<G.SurfaceParameters> = {}) => {
   return mesh;
 };
 
-export function execute() {
-  const mounted = mountClusterRenderer();
+export async function execute() {
+  const notices = listenMaterialDegraded();
+  const mounted = mountClusterRenderer(readDegraded(notices.hear));
   if (!mounted) return { unavailable: 'WebGL2 unavailable' };
   const { gl, renderer, scene, drawCamera } = mounted;
   const red = clusterRecord(quad(-3), G.basicSurface({ color: 0xff0000 })),
     glass = glassMesh();
   scene.background = new G.Color(0x0000ff);
   const draw = (clusters: ClusterDrawMesh[], copies: G.HostMesh[], srgb = false) =>
-    renderer.draw(clusters, scene, drawCamera, false, srgb, [], copies);
+    renderer.draw(clusters, keptClusterScene(scene), drawCamera, false, srgb, [], copies);
   const passes = () => ({
     backdrop: renderer.backdropSubmissions,
     copies: renderer.copySubmissions,
@@ -75,7 +80,7 @@ export function execute() {
   // A declared light reflects on the glass; its diffuse lobe cancels, its specular stays.
   const sun = G.directionalLight(0xffffff, 1);
   sun.position.set(0, 0, 1);
-  scene.add(sun, sun.target!);
+  scene.add(sun, sun.target);
   scene.updateMatrixWorld(true);
   const shiny = glassMesh({ roughness: 0.5 });
   clear(gl);
@@ -98,17 +103,14 @@ export function execute() {
   clear(gl);
   const offscreen = { clusters: draw([red], [away]), ...passes(), pixel: pixel(gl) };
 
-  // Another physical extension is refused before anything is drawn.
-  const coated = glassMesh({ clearcoat: 0.5 });
-  clear(gl);
-  let refused = null;
-  try {
+  // Another physical extension is no refusal: the glass is drawn without it, said once by name.
+  const coated = glassMesh({ name: 'coated glass', clearcoat: 0.5 });
+  for (let frame = 0; frame < 2; frame++) {
+    clear(gl);
     draw([red], [coated]);
-  } catch (error) {
-    const details = error as { code?: string; details?: { reason?: string } };
-    refused = { code: details.code ?? null, reason: details.details?.reason ?? null };
   }
-  const refusedPixel = pixel(gl);
+  const coatedPixel = pixel(gl),
+    coatedNotice = await notices.said();
   const drawError = gl.getError();
   renderer.dispose();
   return {
@@ -125,8 +127,8 @@ export function execute() {
     lit,
     subViewport,
     offscreen,
-    refused,
-    refusedPixel,
+    coatedPixel,
+    coatedNotice,
     drawError,
   };
 }

@@ -12,10 +12,11 @@ import {
 } from '../../../sdk-core/src/physics/index.ts';
 import { Ray } from '../../../sdk-core/src/world/math/volumes.ts';
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
-import { body, castDown, startModule } from './module.fixture.ts';
+import { castDown, startModule } from './module.fixture.ts';
 import { physicsRaycast } from './raycast.ts';
 import type { PhysicsSession } from './session.ts';
 import { cooked, landed, place, streamedModel, tile } from './tiles.fixture.ts';
+import { body } from './records.fixture.ts';
 
 /** The golden tile the compiler's cook writes (`physics_cook/tests.rs`): a 2 × 2 m quad rising
  *  from (0, 0) to (2, 1) along x, in native Jolt's binary state. */

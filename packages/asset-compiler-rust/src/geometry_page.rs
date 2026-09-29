@@ -1,6 +1,8 @@
-use crate::geometry_page_cells::{grids, BitWriter, Cell, Grids};
+use crate::geometry_page_cells::{first_use, grids, stored_positions, Grids};
 use crate::{CompilerError, Result};
 use std::collections::HashMap;
+use trillion3d_page_codec::triangles::Spans;
+use trillion3d_page_codec::writer::BitWriter;
 use trillion3d_page_codec::{Header, Layout};
 pub use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
 
@@ -15,6 +17,7 @@ pub(crate) const PAGE_ATTRIBUTES: [(&str, usize, u32); 4] = [
 
 /// One optional attribute of a primitive: its presence bit, its source width (a colour may be
 /// three-wide) and its values, `width` per vertex.
+#[derive(Debug, Clone)]
 pub struct Attribute {
     pub flag: u32,
     pub width: usize,
@@ -77,10 +80,14 @@ mod tests_codec_refusal;
 #[path = "geometry_page_grid_tests.rs"]
 mod tests_grid;
 
+#[cfg(test)]
+#[path = "geometry_page_positions_tests.rs"]
+mod tests_positions;
+
 /**
  * A complete, independently decodable `WGP3` page: positions on the primitive grid of
- * `position_exponent`, texture coordinates on the format's grid, octahedral normals, byte colours
- * and bit-packed local indices. Tangents are never stored — a reader rebuilds them from the
+ * `position_exponent`, each stored once when the vertices repeat them (`stored_positions`), texture coordinates on that of `uv_exponent`, octahedral normals, byte colours
+ * and local indices coded by delta within blocks of triangles. Tangents are never stored — a reader rebuilds them from the
  * triangle's positions and texture coordinates.
  */
 pub fn encode(
@@ -88,6 +95,7 @@ pub fn encode(
     positions: &[f32],
     attributes: &[&Attribute],
     position_exponent: i32,
+    uv_exponent: i32,
 ) -> Result<Encoded> {
     if indices.len() < 3 || !indices.len().is_multiple_of(3) || !positions.len().is_multiple_of(3) {
         return Err(CompilerError::new(
@@ -119,19 +127,18 @@ pub fn encode(
         uv: uv_records,
         color: color_record,
         quantization_error,
-    } = grids(&original, positions, attributes, position_exponent)?;
+    } = grids(
+        &original,
+        positions,
+        attributes,
+        position_exponent,
+        uv_exponent,
+    )?;
     // Vertices on the same grid cells decode to the same floats: one copy, indices remapped.
-    let mut unique = Vec::<Cell>::with_capacity(cells.len());
-    let mut rank = HashMap::<Cell, u32>::with_capacity(cells.len());
-    let remap: Vec<u32> = cells
-        .iter()
-        .map(|cell| {
-            *rank.entry(*cell).or_insert_with(|| {
-                unique.push(*cell);
-                (unique.len() - 1) as u32
-            })
-        })
-        .collect();
+    let (unique, remap) = first_use(cells.iter().copied());
+    let corners: Vec<u32> = local.iter().map(|&i| remap[i as usize]).collect();
+    let spans = Spans::of(&corners);
+    let (stored, links) = stored_positions(&unique, position.bits);
     let header = Header {
         vertex_count: unique.len(),
         index_count: local.len(),
@@ -141,12 +148,17 @@ pub fn encode(
         uv1: uv_records[1],
         color: color_record,
         quantization_error,
+        corner_bits: spans.bits,
+        position_count: stored.len(),
     };
     let layout = Layout::of(&header);
     let mut out = BitWriter::default();
-    out.stream(local.iter().map(|&i| remap[i as usize]), layout.index_bits);
+    spans.write(&mut out, &corners, &layout.corners);
     for c in 0..3 {
-        out.stream(unique.iter().map(|cell| cell.position[c]), position.bits[c]);
+        out.stream(stored.iter().map(|p| p[c]), position.bits[c]);
+    }
+    if let Some(links) = links {
+        out.stream(links.into_iter(), header.link_bits());
     }
     if flags & FLAG_NORMAL != 0 {
         out.stream(unique.iter().map(|cell| cell.normal), 16);

@@ -5,6 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decodeGeometryPage } from './geometryPage.ts';
 import { encodeGeometryPage } from '../../../../page-codec/geometryPage.ts';
+import { octDecode, octEncode } from '../../../../page-codec/pageGrids.ts';
 import { anneau } from '../../../../../bench/perf/browser/support/pagesWasm.ts';
 
 test('a page decodes to its triangles, every attribute within the declared error', () => {
@@ -69,7 +70,7 @@ test('the reference encoder refuses a page too wide for its grid instead of re-g
   assert.throws(() => encodeGeometryPage([0, 1, 2], wide, -8), /PAGE_ATTRIBUTE_RANGE/);
 });
 
-test('a short header, a wrong version, a field beyond the format, a forged index and a truncation are refused in that order', () => {
+test('a short header, a wrong version, a field beyond the format, a truncation and a forged block record are refused in that order', () => {
   const { encoded } = anneau(4, -10);
   assert.throws(() => decodeGeometryPage(encoded.data.subarray(0, 16)), /GEOMETRY_PAGE_HEADER/);
   const version = Uint8Array.from(encoded.data);
@@ -84,8 +85,8 @@ test('a short header, a wrong version, a field beyond the format, a forged index
   );
   assert.throws(() => decodeGeometryPage(encoded.data, 16), /GEOMETRY_PAGE_BOUNDS/);
   const forged = Uint8Array.from(encoded.data);
-  forged[96] = 0xff; // Every field of the first index word set: 7 > 6 vertices.
-  assert.throws(() => decodeGeometryPage(forged), /GEOMETRY_PAGE_INDEX/);
+  forged[96] = 0xff; // The first block record's width 31, past 16: the header gate refuses it.
+  assert.throws(() => decodeGeometryPage(forged), /GEOMETRY_PAGE_BOUNDS/);
 });
 
 test('a page view off the word boundary decodes bit for bit like the aligned one', () => {
@@ -97,4 +98,38 @@ test('a page view off the word boundary decodes bit for bit like the aligned one
   assert.deepEqual(shifted.indices, aligned.indices);
   assert.deepEqual(shifted.attributes, aligned.attributes);
   assert.equal(shifted.quantizationError, aligned.quantizationError);
+});
+
+// #846: a normal is written as the compiler writes it (`oct_encode`): of the roundings of its
+// octahedral point, the one that decodes closest, so a page cut at run time carries its normals.
+test('a normal is written as the octahedral code that decodes closest to it', () => {
+  const decode = (q: number) => {
+    const out = [0, 0, 0];
+    octDecode(q, out);
+    return out;
+  };
+  let seed = 7;
+  const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647) * 2 - 1;
+  for (let i = 0; i < 2000; i++) {
+    const n = [random(), random(), random()],
+      length = Math.hypot(...n);
+    const unit = n.map((v) => v / length);
+    const miss = (q: number) => 1 - decode(q).reduce((dot, v, c) => dot + v * unit[c], 0);
+    const q = octEncode(n[0], n[1], n[2]),
+      [x, y] = [q & 255, q >> 8];
+    for (const [dx, dy] of [
+      [-1, 0],
+      [1, 0],
+      [0, -1],
+      [0, 1],
+      [1, 1],
+      [-1, -1],
+      [1, -1],
+      [-1, 1],
+    ]) {
+      const [nx, ny] = [x + dx, y + dy];
+      if (nx < 0 || ny < 0 || nx > 255 || ny > 255) continue;
+      assert.ok(miss(q) <= miss(nx | (ny << 8)) + 1e-6, `normal ${n} took ${x},${y}`);
+    }
+  }
 });

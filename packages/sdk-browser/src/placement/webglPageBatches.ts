@@ -1,4 +1,4 @@
-import type { GraphScene } from '../host/graph/scene.ts';
+import type { Scene } from '../world/core/scene.ts';
 import {
   hostPageInstances,
   releaseHostInstances,
@@ -7,6 +7,7 @@ import {
 } from '../host/pageObjects.ts';
 import type { HostInstancedMesh, HostMaterials } from '../host/resources.ts';
 import type { PageRec } from '../page/selection/types.ts';
+import { rootOf, type Placements } from '../page/selection/placements.ts';
 import { grownCapacity } from './rows.ts';
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
 
@@ -22,10 +23,11 @@ type Group = {
  * page geometry and surface, whatever number of placements show it, its matrices the rows'. A
  * frame counts what each mesh shows, remakes a mesh too small for it at twice its size at least
  * — its size follows what frames show, never a number picked here —, then writes one matrix per
- * shown record and one count per mesh. A mesh whose page no placement shows leaves the graph. A
- * frame that shows the same records, on rows nobody wrote since, writes nothing.
+ * shown record — its root's world, `roots` ranking them — and one count per mesh. A mesh whose
+ * page no placement shows leaves the graph. A frame that shows the same records, on rows nobody
+ * wrote since, writes nothing.
  */
-export function createWebglPageBatches(scene: GraphScene) {
+export function createWebglPageBatches(scene: Scene, roots: Placements) {
   const groups = new Map<Geometry, Map<HostMaterials, Group>>();
   const drop = (group: Group) => {
     if (!group.mesh) return;
@@ -98,7 +100,7 @@ export function createWebglPageBatches(scene: GraphScene) {
       }
       for (const rec of shown) {
         const group = groupOf(rec);
-        setHostInstance(group.mesh!, group.count++, rec.matrix);
+        setHostInstance(group.mesh!, group.count++, rootOf(roots, rec).world);
       }
       for (const bySurface of groups.values())
         for (const group of bySurface.values()) setHostInstanceCount(group.mesh!, group.count);

@@ -10,15 +10,17 @@ import type { TransparentCompaction } from '../transparent/compact.ts';
 import type { TransparentOcclusion } from '../../gpu/core/transparentOcclusion.ts';
 import type { TransparentTable } from '../transparent/table.ts';
 import type { BlendExpand } from './expand.ts';
+import { createWaterBounds } from '../water/bounds.ts';
 import type { WaterPass } from '../water/pass.ts';
 import { BLEND_VIEW_SIZE } from './uniforms.ts';
-import { createBlendFootprint } from './footprint.ts';
+import { createBlendHierarchy } from './hierarchy.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
 export type BlendGpuItem = {
   /** The material transmits: the item is drawn in the transmission pass, not in the blend. */
   transmissive?: boolean;
-  position: GPUBuffer;
+  /** Own positions; absent for a paged item that reads its quantized pages. */
+  position?: GPUBuffer;
   /** Own index buffer of an unpaged primitive; a paged one reads the page cache instead. */
   index?: GPUBuffer;
   uv?: GPUBuffer;
@@ -63,12 +65,9 @@ export function createWebgpuBlendState() {
   /** Words of the view uniform, allocated once. */
   const view = new Float32Array(BLEND_VIEW_SIZE / 4);
   const blendGpu: BlendGpuItem[] = [];
-  /** Paged items by the world their clusters read: one per placement of a transparent mesh. */
-  const pagedBlendGpu = new Map<MatrixElements, BlendGpuItem>();
   const visibleBlend: BlendGpuItem[] = [];
   const state = {
     blendGpu,
-    pagedBlendGpu,
     visibleBlend,
     /** Normalised frustum planes of the frame, against which an item is rejected. */
     blendPlanes: new Float64Array(FRUSTUM_PLANE_VALUES),
@@ -101,6 +100,7 @@ export function createWebgpuBlendState() {
      *  zero, and the pass is not encoded (`order.ts`). */
     transmissive: 0,
     transmissiveInView: 0,
+    waterBounds: createWaterBounds(),
     /** Volume of each transmissive item, at its water rank, written with the records. */
     volumePacked: new Float32Array(0) as Float32Array<ArrayBuffer>,
     /** The water pass — surface pipelines and composite — of a scene that transmits, mounted with
@@ -141,6 +141,8 @@ export function createWebgpuBlendState() {
      *  as a word of the mask has changed since the last write to the GPU. */
     keepPacked: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
     keepMoved: true,
+    /** Box tree the frustum verdict walks: built per item list, refit on a move (`hierarchy.ts`). */
+    hierarchy: createBlendHierarchy(),
     /** Static tables of the encoding plan (`plan.ts`). */
     drawsPacked: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
     /** Seeded entries of each pass: blend, then transmission. Like `runCount`, `orderMoved` and
@@ -150,15 +152,18 @@ export function createWebgpuBlendState() {
     orders: [new Uint32Array(0), new Uint32Array(0)] as Uint32Array<ArrayBuffer>[],
     /** Runs of each order, rebuilt — and rewritten to the GPU — when it has moved. */
     runs: [new Uint32Array(0), new Uint32Array(0)] as Uint32Array<ArrayBuffer>[],
+    /** Runs of each order still valid; `plan.ts` zeroes it with a new plan or runs buffer. */
     runCount: [0, 0],
+    /** Each item's sort key by source rank, rewritten every ranking (`order.ts`). */
+    orderKeys: new Float64Array(0),
     /** Has the order moved since the last write? A still pose writes nothing. */
     orderMoved: [true, true],
-    /** Inputs of the last ranking: equal ones keep its order, mask and runs (`footprint.ts`). */
-    footprint: createBlendFootprint(),
     /** Triangles unpaged items submit in each pass, twice for a double-sided item: a scene count,
      *  built with the plan, not a frame count. */
     blendTriangles: 0,
     transmissionTriangles: 0,
+    /** A blend of the plan filters the display value (`filtersDisplay`), built with the plan. */
+    filtersDisplay: false,
     /** Bind group ALL paged items share. */
     pagedGroup: undefined as GPUBindGroup | undefined,
   };

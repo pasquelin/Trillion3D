@@ -25,7 +25,7 @@ export interface SideBase {
   sourceUrl?: string | null;
 }
 
-/** Requested sides: "apres" always, "avant" only if named. */
+/** Requested sides: the candidate always, the reference only if named. */
 export function resolveSides({
   after,
   before,
@@ -40,8 +40,8 @@ export function resolveSides({
   // witnesses left the package would otherwise be served without them.
   if (target === join(root, 'dist') && !existsSync(join(target, BROWSER_ENTRIES[0])))
     buildDist(root);
-  const sides = [{ name: 'apres', ...resolveDist(target, 'apres', root) }];
-  if (before) sides.push({ name: 'avant', ...resolveDist(before, 'avant', root) });
+  const sides = [{ name: 'after', ...resolveDist(target, 'after', root) }];
+  if (before) sides.push({ name: 'before', ...resolveDist(before, 'before', root) });
   return sides;
 }
 
@@ -81,7 +81,8 @@ const BROWSER_ENTRIES = [
 ];
 
 /** Whether `dir` is a built dist: it holds one of the browser entries. */
-const isDist = (dir: string) => BROWSER_ENTRIES.some((entry) => existsSync(join(dir, entry)));
+export const isDist = (dir: string) =>
+  BROWSER_ENTRIES.some((entry) => existsSync(join(dir, entry)));
 
 /** The page-side address of a side's SDK: the first browser entry its dist carries. */
 export const sdkEntryUrl = (side: { name: string; dist: string }) =>

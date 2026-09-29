@@ -37,8 +37,6 @@ const RESOLVENT: Record<string, string> = {
   'camera/world.ts': 'the contract itself: the package’s only camera-pose resolution',
   'lighting/sceneLighting.ts': 'light target, not a camera',
   'webgpu/pages/render/transform.ts': 'scene subtree moved by the host, not a camera',
-  'host/graph/node.ts': 'the engine’s own node: the resolution `resolveCameraWorld` calls on it',
-  'host/graph/camera.ts': 'the engine’s own camera: its resolution keeps the inverse beside it',
   'physics/bodies.ts': 'a body the page moved, not a camera',
   'guides/guideSet.ts': 'a helper the page draws as guides, not a camera',
 };
@@ -72,7 +70,6 @@ const POSE_LOCALE: Record<string, string> = {
 const LISENT_LA_POSE: Record<string, string> = {
   'camera/world.ts': 'the contract',
   'page/raster.ts': 'host-graph raster oracle — resolves (callable alone)',
-  'host/graph/camera.ts': 'the engine’s own camera: a copy keeps the world pose it was given',
   'physics/view.ts': 'the eye, facing and range the physics worker is sent, once they change',
 };
 
@@ -81,7 +78,7 @@ const RECEVEUR = String.raw`[A-Za-z_$]*[Cc]am[A-Za-z_$]*`;
 const POSE_DIRECTE = new RegExp(
   `${RECEVEUR}\\??\\.(?:position|quaternion|rotation|getWorldPosition|getWorldQuaternion|getWorldDirection|updateMatrixWorld)\\b`,
 );
-const POSE_MONDE = new RegExp(`${RECEVEUR}\\??\\.matrixWorld(?:Inverse)?\\b`);
+const WORLD_POSE = new RegExp(`${RECEVEUR}\\??\\.matrixWorld(?:Inverse)?\\b`);
 
 /** Lines triggering a pattern, comments excluded. */
 const lignesFautives = (text: string, motif: RegExp): string[] =>
@@ -99,7 +96,7 @@ test('camera pose is read only through the `camera/world.ts` contract', async ()
   const regles: Array<[RegExp, Record<string, string>, string]> = [
     [RESOUT, RESOLVENT, 'resolves the pose itself instead of calling `resolveCameraWorld`'],
     [POSE_DIRECTE, POSE_LOCALE, 'touches a camera local pose outside the contract'],
-    [POSE_MONDE, LISENT_LA_POSE, 'reads world pose without being a declared consumer'],
+    [WORLD_POSE, LISENT_LA_POSE, 'reads world pose without being a declared consumer'],
   ];
   for (const file of fichiers) {
     const text = await readFile(new URL(file, browser), 'utf8');

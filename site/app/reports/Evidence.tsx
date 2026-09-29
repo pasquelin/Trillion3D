@@ -17,7 +17,7 @@ interface EvidenceProps {
 export function Evidence({ a, b, campaign, locale, imageOnly = false }: EvidenceProps) {
   const t = useWords(locale);
   const name = (r: ReportRecord) =>
-    r.variant === 'raster-calcul'
+    r.variant === 'raster-compute'
       ? t('evidence.computeDrawing')
       : a.engine === b.engine
         ? t('evidence.standardDrawing')

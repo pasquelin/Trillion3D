@@ -18,11 +18,12 @@ import {
 
 /** The name of the file that holds the scene tables. */
 export const SCENE_TABLES_FILE = 'scene-tables.json';
-/** Version of the product as a whole; each table it carries is versioned in turn. */
-const SCENE_TABLES_VERSION = 4;
+/** Version of the product as a whole; each table it carries is versioned in turn. 5 names the
+ *  manifest pages the node table needs (`meshPages`, #751). */
+const SCENE_TABLES_VERSION = 5;
 /** The version of the node table this runtime reads: every node but those a cell places, with its
- *  local pose. */
-const NODE_TABLE_VERSION = 3;
+ *  local pose and whether it is visible. */
+const NODE_TABLE_VERSION = 4;
 /** The version of the material table this runtime reads. */
 const MATERIAL_TABLE_VERSION = 4;
 /** The version of the geometry layout this runtime reads. */
@@ -34,6 +35,8 @@ const GEOMETRY_TABLE_VERSION = 1;
  * and scale, each `null` when silent. Several nodes naming one mesh is what instancing is here.
  */
 export interface TableNode {
+  /** Original u32 source rank as eight lowercase hexadecimal digits: fixed-width through partition renumbering. */
+  sourceNode?: string;
   /** The node's name. */
   name: string;
   /** Its children, in order. */
@@ -54,6 +57,9 @@ export interface TableNode {
   rotation: readonly number[] | null;
   /** How it is stretched. */
   scale: readonly number[] | null;
+  /** `false` when it declares itself hidden (`KHR_node_visibility`): it and the nodes under it
+   *  are not drawn until a page shows it. */
+  visible: boolean;
 }
 /** A punctual light as `KHR_lights_punctual` declares it, each silent field `null`. */
 export interface TableLight {
@@ -107,6 +113,9 @@ export interface PreparedSceneTables {
   nodes: TableNode[];
   /** The cells that place the other nodes, read by distance; `null` when the scene has none. */
   partition: TablePartition | null;
+  /** The slots of the manifest's mesh pages the meshes of `nodes` lie in: what a runtime that
+   *  holds the manifest by the view reads at open, the cells naming the rest (#751). */
+  meshPages: readonly string[];
   /** The lights the nodes hang. */
   lights: TableLight[];
   /** The cameras the nodes carry. */
@@ -119,8 +128,8 @@ export interface PreparedSceneTables {
   documents: Readonly<Record<string, TableDocument>>;
 }
 
-/** The tables as `scene-tables.json` carries them: of the partition, only its root, whose pages
- *  `readTablePartition` reads. */
+/** The tables as `scene-tables.json` carries them: of the partition, only its root
+ *  (`tablePartition`), whose pages the runtime reads as its view reaches them. */
 export type SceneTablesFile = Omit<PreparedSceneTables, 'partition'> & {
   partition: TablePartitionRoot | null;
 };
@@ -148,9 +157,8 @@ export function assertSceneTables(value: unknown): SceneTablesFile {
           `(pnpm run build:native, then trillion3d-compiler <source> <cache> …)`,
         { [field]: tables[field] ?? null },
       );
-  const missing = (['nodes', 'lights', 'cameras', 'materials', 'textures'] as const).filter(
-    (field) => !Array.isArray(tables[field]),
-  );
+  const tabled = ['nodes', 'meshPages', 'lights', 'cameras', 'materials', 'textures'] as const;
+  const missing = tabled.filter((field) => !Array.isArray(tables[field]));
   if (missing.length || !tables.scene || !tables.documents || typeof tables.documents !== 'object')
     throw new EngineError('INVALID_SCENE_TABLES', 'scene tables miss a table', {
       missing: [

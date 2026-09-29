@@ -45,7 +45,7 @@ const MACHINES: Record<
 };
 
 /** The released pedals and wheel. */
-const RELEASED: VehicleInput = { throttle: 0, brake: 0, steer: 0, handbrake: false };
+export const RELEASED: VehicleInput = { throttle: 0, brake: 0, steer: 0, handbrake: false };
 
 /**
  * A vehicle of `kind` on `rig`, facing −z, its body placed at `x, z` resting on its wheels on

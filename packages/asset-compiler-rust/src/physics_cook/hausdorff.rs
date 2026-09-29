@@ -2,9 +2,13 @@
 //! vertex, edge midpoint and centroid of one side to the nearest triangle of the other, the largest
 //! kept (a sampled Hausdorff distance, published as such). Triangles are binned in a uniform grid
 //! and a query widens ring by ring until no nearer cell can remain.
-use crate::shared_math::{dot, sub};
-use rayon::prelude::*;
-use std::collections::HashMap;
+use crate::shared_math::{dot, sub, WordMap};
+
+mod bounded;
+mod level0;
+pub(crate) use bounded::distance_above;
+use bounded::one_sided;
+pub(crate) use level0::Level0;
 
 type P = [f64; 3];
 /// Rings a query widens by before it reads every triangle instead.
@@ -59,7 +63,7 @@ struct Grid<'a> {
     triangles: &'a [u32],
     origin: P,
     cell: f64,
-    cells: HashMap<[i64; 3], Vec<u32>>,
+    cells: WordMap<[i64; 3], Vec<u32>>,
 }
 
 impl<'a> Grid<'a> {
@@ -85,7 +89,7 @@ impl<'a> Grid<'a> {
             triangles,
             origin: min,
             cell,
-            cells: HashMap::new(),
+            cells: WordMap::default(),
         };
         for (t, tri) in triangles.as_chunks::<3>().0.iter().enumerate() {
             let (lo, hi) = tri
@@ -122,8 +126,8 @@ impl<'a> Grid<'a> {
     fn key(&self, p: P) -> [i64; 3] {
         [0, 1, 2].map(|k| ((p[k] - self.origin[k]) / self.cell).floor() as i64)
     }
-    /// Distance from `p` to the nearest triangle: rings of cells until the ring is farther.
-    fn nearest(&self, p: P) -> f64 {
+    /// Distance from `p` to the nearest triangle: rings until the ring is farther or one is within `floor`.
+    fn nearest(&self, p: P, floor: f64) -> f64 {
         let centre = self.key(p);
         let mut best = f64::MAX;
         for ring in 0i64.. {
@@ -150,6 +154,10 @@ impl<'a> Grid<'a> {
                             let tri = &self.triangles[t as usize * 3..t as usize * 3 + 3];
                             let [a, b, c] = [0, 1, 2].map(|k| at(self.pos, tri[k]));
                             best = best.min(triangle_distance2(p, a, b, c));
+                            // A negative floor squares positive: it never stops a sample.
+                            if floor >= 0.0 && best <= floor * floor {
+                                return best.sqrt();
+                            }
                         }
                     }
                 }
@@ -159,37 +167,18 @@ impl<'a> Grid<'a> {
     }
 }
 
-/// Largest distance from the samples of `from` to the triangles of `to`.
-fn one_sided(pos: &[f32], from: &[u32], to: &Grid) -> f64 {
-    from.par_chunks_exact(3)
-        .map(|tri| {
-            let [a, b, c] = [0, 1, 2].map(|k| at(pos, tri[k]));
-            let centroid = [0, 1, 2].map(|k| (a[k] + b[k] + c[k]) / 3.0);
-            [
-                a,
-                b,
-                c,
-                lerp(a, b, 0.5),
-                lerp(b, c, 0.5),
-                lerp(c, a, 0.5),
-                centroid,
-            ]
-            .into_iter()
-            .map(|p| to.nearest(p))
-            .fold(0.0, f64::max)
-        })
-        .reduce(|| 0.0, f64::max)
-}
-
 /// Largest distance from the samples of the triangles `from` to the triangles `to`; zero if either is empty.
+#[cfg(test)]
 pub(crate) fn one_sided_distance(pos: &[f32], from: &[u32], to: &[u32]) -> f64 {
     if from.is_empty() || to.is_empty() {
         return 0.0;
     }
-    one_sided(pos, from, &Grid::new(pos, to))
+    one_sided(pos, from, &Grid::new(pos, to), 0.0)
 }
 
-/// The sampled Hausdorff distance between two triangle sets over the same positions.
+/// The sampled Hausdorff distance between two triangle sets over the same positions: the tests'
+/// one-shot `Level0`.
+#[cfg(test)]
 pub(crate) fn distance(pos: &[f32], a: &[u32], b: &[u32]) -> f64 {
-    one_sided_distance(pos, a, b).max(one_sided_distance(pos, b, a))
+    Level0::new(pos, a).distance(b)
 }

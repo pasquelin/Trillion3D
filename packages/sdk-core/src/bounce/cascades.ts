@@ -1,4 +1,5 @@
 import { BOUNCE_SETTINGS } from './contracts.ts';
+import { hypot3 } from '../math/primitives/hypot.ts';
 
 /**
  * Probe cascades: nested probe cubes, from tightest around camera to largest over full scene.
@@ -34,6 +35,12 @@ export interface BounceCascades {
   probesPerLevel: number;
   /** Probes in all. */
   probes: number;
+  /** Fixed capacity reserved before transforms can enlarge the scene. */
+  reserveCount: number;
+  /** Levels whose spacing or presence changed during the last replan. Base shifts use cell stamps. */
+  invalidLevels: number;
+  /** Reapply the existing spatial-resolution policy to current geometry bounds. */
+  replan(bounds: readonly number[]): boolean;
   /** Each level. */
   levels: BounceCascadeLevel[];
   /** Ray reach: extent diagonal, beyond which there is nothing to hit. */
@@ -109,16 +116,47 @@ export function createBounceCascades(bounds: readonly number[]): BounceCascades 
     base: fixedBase(spacing, bounds),
     moving: level < spacings.length - 1,
   }));
-  const shares = BOUNCE_SETTINGS.cascadeShares.slice(0, levels.length);
-  const weight = shares.reduce((sum, share) => sum + share, 0) || 1;
-  return {
+  let shares = BOUNCE_SETTINGS.cascadeShares.slice(0, levels.length);
+  let weight = shares.reduce((sum, share) => sum + share, 0) || 1;
+  const cascades: BounceCascades = {
     size,
     probesPerLevel,
     probes: probesPerLevel * levels.length,
+    reserveCount: probesPerLevel * BOUNCE_SETTINGS.cascadeLevels,
+    invalidLevels: 0,
     levels,
     reach:
-      Math.hypot(bounds[3] - bounds[0], bounds[4] - bounds[1], bounds[5] - bounds[2]) *
+      hypot3(bounds[3] - bounds[0], bounds[4] - bounds[1], bounds[5] - bounds[2]) *
       BOUNCE_SETTINGS.rayReachFraction,
+    replan(nextBounds) {
+      const planned = spacingsOf(nextBounds);
+      const reach =
+        hypot3(
+          nextBounds[3] - nextBounds[0],
+          nextBounds[4] - nextBounds[1],
+          nextBounds[5] - nextBounds[2],
+        ) * BOUNCE_SETTINGS.rayReachFraction;
+      cascades.invalidLevels = 0;
+      for (let i = planned.length; i < levels.length; i++) cascades.invalidLevels |= 1 << i;
+      for (let i = 0; i < planned.length; i++) {
+        const spacing = planned[i],
+          moving = i < planned.length - 1;
+        const previous = levels[i];
+        // Mobile bases are retained while their lattice is unchanged; follow() places them.
+        const base =
+          previous?.moving && moving && previous.spacing === spacing
+            ? previous.base
+            : fixedBase(spacing, nextBounds);
+        if (!previous || previous.spacing !== spacing) cascades.invalidLevels |= 1 << i;
+        levels[i] = { spacing, moving, base };
+      }
+      levels.length = planned.length;
+      cascades.probes = probesPerLevel * levels.length;
+      cascades.reach = reach;
+      shares = BOUNCE_SETTINGS.cascadeShares.slice(0, levels.length);
+      weight = shares.reduce((sum, share) => sum + share, 0) || 1;
+      return cascades.invalidLevels !== 0;
+    },
     shareOf(total) {
       // At least one probe per level: a level left with nothing by rounding would never
       // converge, and the last level — carrying background geometry — would be lost.
@@ -135,4 +173,5 @@ export function createBounceCascades(bounds: readonly number[]): BounceCascades 
       return moved;
     },
   };
+  return cascades;
 }

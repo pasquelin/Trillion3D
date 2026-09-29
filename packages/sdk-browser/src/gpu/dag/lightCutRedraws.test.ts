@@ -1,40 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
-import { createLightCutRedraws } from './lightCutRedraws.ts';
+import { redrawsWith, WHOLE } from './lightCutRedraws.fixture.ts';
 import { COARSER_VIEWS, WORK_DROPPED } from './shader/viewsWgsl.ts';
 import { MAX_SHADOW_BATCHES, SHADOW_FLAG_FRAMES } from '../shadow/batchBudget.ts';
+import {
+  DRAW_ALL,
+  DRAW_DYNAMIC,
+  DRAW_FULL,
+} from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
 
 const coarserView = (view: number) => (1 << (COARSER_VIEWS + view)) >>> 0;
-
-/** A light cut's flag readback whose word is `flag.value`, and one frame through it. */
-function redrawsWith(flag: { value: number }) {
-  installGpuGlobals();
-  const made: GPUBufferDescriptor[] = [];
-  const buffer = (descriptor: GPUBufferDescriptor) => {
-    made.push(descriptor);
-    return {
-      mapAsync: () => Promise.resolve(),
-      getMappedRange: () => new Uint32Array(descriptor.size / 4).fill(flag.value).buffer,
-      unmap() {},
-    } as unknown as GPUBuffer;
-  };
-  const redraws = createLightCutRedraws(buffer, {} as GPUBuffer, 24);
-  const encoder = { copyBufferToBuffer() {} } as unknown as GPUCommandEncoder;
-  const taken = () => {
-    const again: number[] = [];
-    redraws.takeRedraw((page) => again.push(page));
-    return again;
-  };
-  const frame = async (pages: number[], reported = true, views?: number[]) => {
-    const settle = redraws.encode(encoder, pages, views ?? pages.map(() => 0), pages.length);
-    redraws.reported(reported);
-    settle?.(true);
-    await redraws.settled();
-    return taken();
-  };
-  return { redraws, encoder, frame, taken, made };
-}
 
 // A frame whose light cut dropped work drew its pages without all their casters: they are drawn
 // again, in fewer views a frame, and the limit comes back once frames stay whole. It bounds views,
@@ -43,27 +18,28 @@ test('the pages of a frame that dropped work are drawn again, in fewer views unt
   const flag = { value: WORK_DROPPED };
   const { redraws, encoder, frame } = redrawsWith(flag);
   assert.equal(
-    redraws.encode(encoder, [], [], 0),
+    redraws.encode(encoder, [], [], 0, WHOLE),
     undefined,
     'a frame without pages copies nothing',
   );
   assert.deepEqual(await frame([4, 9, 12, 20], true, [0, 1, 2, 3]), [4, 9, 12, 20], 'all again');
-  assert.equal(redraws.viewLimit, 2, 'half the views that dropped');
+  assert.equal(redraws.limit.value, 2, 'half the views that dropped');
   assert.equal(redraws.unsettled, false);
   flag.value = 0;
   assert.deepEqual(await frame([4, 9], true, [0, 1]), [], 'whole: nothing drawn again');
-  assert.equal(redraws.viewLimit, 3, 'bisected between what fitted and what dropped');
+  assert.equal(redraws.limit.value, 3, 'bisected between what fitted and what dropped');
   flag.value = WORK_DROPPED;
   await frame([4, 9, 12], true, [0, 1, 2]);
-  assert.equal(redraws.viewLimit, 2, 'three dropped, two fitted: it stays at two');
+  assert.equal(redraws.limit.value, 2, 'three dropped, two fitted: it stays at two');
   flag.value = 0;
   await frame([4, 9, 12, 20, 21], true, [0, 0, 0, 1, 1]);
-  assert.equal(redraws.viewLimit, 2, 'five pages in two views fit: no swing back to three');
+  assert.equal(redraws.limit.value, 2, 'five pages in two views fit: no swing back to three');
   redraws.residencyChanged();
-  assert.equal(redraws.viewLimit, 24, 'residency moved: the drop is forgotten');
+  assert.equal(redraws.limit.value, 2, 'residency moved: the drop goes stale, the limit stays');
   flag.value = WORK_DROPPED;
-  for (let i = 0; i < 6; i++) await frame([1, 2], true, [0, 1]);
-  assert.equal(redraws.viewLimit, 1, 'drops floor the limit at one view');
+  assert.deepEqual(await frame([1, 2], true, [0, 1]), [1, 2], 'dropped: drawn again');
+  for (let i = 0; i < 5; i++) await frame([1, 2], true, [0, 1]);
+  assert.equal(redraws.limit.value, 1, 'drops floor the limit at one view');
 });
 
 // A view drew a placement coarser than it wanted: every page it drew waits for residency to move
@@ -80,7 +56,7 @@ test('the pages a view drew coarse are drawn again once residency changes at res
   assert.equal(redraws.unsettled, true, 'the next rest releases them');
   redraws.rest();
   assert.deepEqual(taken(), [3, 7], 'residency moved, the camera rests: drawn again');
-  assert.equal(redraws.viewLimit, 24, 'coarse is not a drop: the limit stays');
+  assert.equal(redraws.limit.value, 24, 'coarse is not a drop: the limit stays');
 });
 
 // A frame whose requests were never copied cannot wait on them: its coarse pages are drawn again.
@@ -111,7 +87,7 @@ test('only the pages of a frame that dropped work are withdrawn until they are r
   const flag = { value: WORK_DROPPED };
   const { redraws, encoder } = redrawsWith(flag);
   const drawn = async (page: number, reported: boolean) => {
-    const settle = redraws.encode(encoder, [page], [0], 1);
+    const settle = redraws.encode(encoder, [page], [0], 1, WHOLE);
     redraws.reported(reported);
     settle?.(true);
     await redraws.settled();
@@ -135,9 +111,9 @@ test('the flag slots are made once, for the most batches a frame draws, and neve
   );
   const settles = [];
   for (let frame = 0; frame < SHADOW_FLAG_FRAMES; frame++) {
-    const settle = redraws.encode(encoder, [0], [0], 1);
+    const settle = redraws.encode(encoder, [0], [0], 1, WHOLE);
     for (let batch = 1; batch < MAX_SHADOW_BATCHES; batch++)
-      assert.equal(redraws.encode(encoder, [batch], [0], 1), undefined, 'same slot');
+      assert.equal(redraws.encode(encoder, [batch], [0], 1, WHOLE), undefined, 'same slot');
     assert.ok(settle, 'the first batch opens the frame');
     redraws.reported(true);
     settle(true);
@@ -149,17 +125,52 @@ test('the flag slots are made once, for the most batches a frame draws, and neve
   assert.deepEqual(taken(), [], 'whole: nothing drawn again once read');
 });
 
-// A GPU so far behind that every slot is still being read: the frame cannot know what its cuts
-// drew short, so its pages are drawn again, withdrawn meanwhile — never read on a guess.
-test('a frame that finds every flag slot still read draws its pages again, withdrawn', () => {
-  const { redraws, encoder } = redrawsWith({ value: 0 });
-  for (let frame = 0; frame < SHADOW_FLAG_FRAMES; frame++)
-    redraws.encode(encoder, [frame], [0], 1)!(true);
-  assert.equal(redraws.encode(encoder, [40, 41], [0, 0], 2), undefined);
-  const seen: [number, boolean][] = [];
-  redraws.takeRedraw((page, withdraw) => seen.push([page, withdraw]));
-  assert.deepEqual(seen, [
-    [40, true],
-    [41, true],
-  ]);
+// #1142: a GPU so far behind that every slot is still being read. A page drawn then could not be
+// checked: withdrawn on a guess, its redraw — as starved — was withdrawn again each frame. The
+// frame is not ready instead: its pages are not drawn, nothing is withdrawn, and the next frame
+// with a slot draws them.
+test('a frame that finds every flag slot still read is not ready, and withdraws nothing', async () => {
+  const { redraws, encoder, taken } = redrawsWith({ value: 0 });
+  for (let frame = 0; frame < SHADOW_FLAG_FRAMES; frame++) {
+    assert.equal(redraws.ready, true, 'a slot is free');
+    const settle = redraws.encode(encoder, [frame], [0], 1, WHOLE)!;
+    assert.equal(redraws.ready, true, 'the next batch of the open frame rides in its slot');
+    settle(true);
+  }
+  assert.equal(redraws.ready, false, 'every slot still read');
+  assert.throws(
+    () => redraws.encode(encoder, [40], [0], 1, WHOLE),
+    /ready/,
+    'never drawn unchecked',
+  );
+  assert.deepEqual(taken(), [], 'no page sent back for want of a slot');
+  await redraws.settled();
+  assert.equal(redraws.ready, true, 'the reads free the slots');
+  assert.deepEqual(taken(), [], 'whole: nothing drawn again');
+});
+
+// #990: a page restored from the static layer drew its moving casters alone; drawn short, only they
+// are drawn again. A page whose static casters were drawn draws them again, also
+// when it waited for residency.
+test('a page drawn short is drawn again as it was drawn: its static casters only if it drew them', async () => {
+  const flag = { value: WORK_DROPPED };
+  const { redraws, encoder } = redrawsWith(flag);
+  const drawn = async (pages: number[], modes: number[]) => {
+    redraws.encode(encoder, pages, [0, 0, 0], pages.length, modes)?.(true);
+    await redraws.settled();
+  };
+  /** The pages drawn again, by whether their static casters are too. */
+  const seen = () => {
+    const again = { whole: [] as number[], moving: [] as number[] };
+    redraws.takeRedraw((page, _, whole) => again[whole ? 'whole' : 'moving'].push(page));
+    return again;
+  };
+  await drawn([1, 2, 3], [DRAW_DYNAMIC, DRAW_FULL, DRAW_ALL]);
+  assert.deepEqual(seen(), { whole: [2, 3], moving: [1] });
+  flag.value = coarserView(0);
+  await drawn([5, 6], [DRAW_FULL, DRAW_DYNAMIC]);
+  await drawn([5], [DRAW_DYNAMIC]);
+  redraws.residencyChanged();
+  redraws.rest();
+  assert.deepEqual(seen(), { whole: [5], moving: [6] }, 'a wait keeps what its first draw lacked');
 });

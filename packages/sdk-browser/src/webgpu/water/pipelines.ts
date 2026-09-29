@@ -1,16 +1,22 @@
-import { FEEDBACK_FORMAT, SURFACE_FORMATS } from '../../scene/surfaceBuffer.ts';
+import { reflectionLayout } from '../../reflections/gpu.ts';
+import { DISPLAY_FORMAT, FEEDBACK_FORMAT, SURFACE_FORMATS } from '../../scene/surfaceBuffer.ts';
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import { deferredLayoutEntries } from '../../lighting/deferred/setup.ts';
 import { makeFullscreenPipeline } from '../../lighting/deferred/fullscreen.ts';
 import { readOnly } from '../core/bindLayout.ts';
 import { ALPHA_BLEND, blendStagePipelines } from '../blend/stagePipelines.ts';
-import { WATER_BINDINGS, WATER_COMPOSITE_SHADER } from './compositeWgsl.ts';
+import { WATER_BINDINGS, WATER_COMPOSITE_SHADER, WATER_ROUTED_SHADER } from './compositeWgsl.ts';
+import { displayMaskLayout, displayTargets } from '../blend/displayFilter.ts';
 
-/** The five targets of the surface stage: the surface buffer, then the virtual-texture feedback. */
+/** The five targets of the surface stage: the three material surfaces, the water word in the
+ *  display colour it borrows, then the virtual-texture feedback. */
 const SURFACE_TARGETS: GPUColorTargetState[] = [
-  ...SURFACE_FORMATS.map((format) => ({ format })),
+  ...SURFACE_FORMATS.slice(0, 3).map((format) => ({ format })),
+  { format: DISPLAY_FORMAT },
   { format: FEEDBACK_FORMAT },
 ];
+export const waterSurfaceTargets = (feedback: boolean) =>
+  feedback ? SURFACE_TARGETS : SURFACE_TARGETS.slice(0, 4);
 
 /**
  * Surface stage: the blend module's vertex stage and `fsWater`, on the blend bind group layout —
@@ -22,24 +28,32 @@ export const createWaterSurfacePipelines = (
   device: GPUDevice,
   module: GPUShaderModule,
   layout: GPUBindGroupLayout,
+  feedback = true,
 ) =>
   blendStagePipelines(
     device,
     module,
     layout,
-    { module, entryPoint: 'fsWater', targets: SURFACE_TARGETS },
+    {
+      module,
+      entryPoint: feedback ? 'fsWater' : 'fsWaterWithoutFeedback',
+      targets: waterSurfaceTargets(feedback),
+    },
     true,
   );
 
-/** Layout of the composite: the deferred bounce layout, then what `WATER_COMPOSITE_SHADER` alone
- *  declares. */
+/** Layout of the composite: the deferred bounce layout — the water word, a colour, in the flags'
+ *  place —, then what `WATER_COMPOSITE_SHADER` alone declares. */
 export function createWaterCompositeLayout(device: GPUDevice) {
   const b = WATER_BINDINGS,
-    fragment = GPUShaderStage.FRAGMENT;
+    fragment = GPUShaderStage.FRAGMENT,
+    word: GPUTextureBindingLayout = { sampleType: 'unfilterable-float' };
   return device.createBindGroupLayout({
     label: 'Trillion3D water composite',
     entries: [
-      ...deferredLayoutEntries(true, true, readOnly, false),
+      ...deferredLayoutEntries(true, true, readOnly, false).map((entry) =>
+        entry.binding === b.word ? { ...entry, texture: word } : entry,
+      ),
       { binding: b.backdrop, visibility: fragment, texture: { sampleType: 'unfilterable-float' } },
       { binding: b.backdropDepth, visibility: fragment, texture: { sampleType: 'depth' } },
       { binding: b.uniform, visibility: fragment, buffer: { type: 'uniform' } },
@@ -55,7 +69,35 @@ export function createWaterCompositeLayout(device: GPUDevice) {
  */
 export async function createWaterCompositePipeline(device: GPUDevice, layout: GPUBindGroupLayout) {
   const module = await createCheckedShaderModule(device, WATER_COMPOSITE_SHADER, 'WATER_COMPOSITE');
-  return makeFullscreenPipeline(device, module, layout, 'composeWater', [
-    { format: 'rgba16float', blend: ALPHA_BLEND },
-  ]);
+  return makeFullscreenPipeline(
+    device,
+    module,
+    [layout, reflectionLayout(device)],
+    'composeWater',
+    [{ format: 'rgba16float', blend: ALPHA_BLEND }],
+  );
+}
+
+/** The routed composite's targets: the HDR target as above, then a normal layer's display layers. */
+export const WATER_ROUTED_TARGETS: GPUColorTargetState[] = [
+  { format: 'rgba16float', blend: ALPHA_BLEND },
+  ...displayTargets('normal'),
+];
+
+/** The composite of an image with display layers (`WATER_ROUTED_SHADER`), made by the first one:
+ *  the HDR target blended as above, then the tint and the added value of a normal layer. */
+export function createWaterRoutedPipeline(device: GPUDevice, layout: GPUBindGroupLayout) {
+  const module = device.createShaderModule({ label: 'WATER_ROUTED', code: WATER_ROUTED_SHADER });
+  const bindGroupLayouts = [layout, reflectionLayout(device), displayMaskLayout(device)];
+  return device.createRenderPipeline({
+    layout: device.createPipelineLayout({ bindGroupLayouts }),
+    vertex: { module, entryPoint: 'fullscreen' },
+    fragment: {
+      module,
+      entryPoint: 'composeWaterRouted',
+      constants: { DISPLAY_ROUTE: 1 },
+      targets: WATER_ROUTED_TARGETS,
+    },
+    primitive: { topology: 'triangle-list' },
+  });
 }

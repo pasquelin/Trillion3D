@@ -5,9 +5,12 @@ import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 import { generateApiFiles } from './generate-api-reference.ts';
 import { gitPaths } from './git-paths.ts';
+import { pnpmCommand } from './only-pnpm.ts';
 import { repositoryFiles } from './repository-files.ts';
 import { compileSiteCaches } from './site-caches.ts';
+import { changedTypeErrors, tsProjects } from './ts-projects.ts';
 import { INVENTORY_TEST, isUnitTest, movesInventory } from './unit-tests.ts';
+import { TREE_GATES } from './validate-steps.ts';
 
 const sourcePattern = /\.(?:[cm]?ts|tsx)$/;
 const formatPattern = /\.(?:[cm]?ts|tsx|json)$/;
@@ -87,6 +90,14 @@ async function main(): Promise<void> {
     );
     if (formatted.length) run('node_modules/.bin/prettier', ['--check', ...formatted]);
     if (linted.length) run('node_modules/.bin/eslint', linted);
+    // `tsc --noEmit` on every project that owns a changed file (#1071).
+    const typeErrors = changedTypeErrors(process.cwd(), tsProjects(paths), linted, () =>
+      run(...pnpmCommand('run', 'build')),
+    );
+    if (typeErrors.length) {
+      console.error(typeErrors.join('\n'));
+      process.exit(1);
+    }
     if (duplicateCandidates.length)
       run('node_modules/.bin/jscpd', [
         ...duplicateCandidates,
@@ -96,6 +107,9 @@ async function main(): Promise<void> {
         'js-ts',
         '--no-tips',
       ]);
+    // The whole-tree gates of `validate --group quick`, under two seconds together; `check:x` is
+    // `node scripts/check-x.ts`, run directly: `pnpm run` would add a second to each.
+    for (const gate of TREE_GATES) run('node', [`scripts/${gate.replace(':', '-')}.ts`]);
     if (existing.some((file) => file.endsWith('.rs'))) {
       run('cargo', [
         'fmt',

@@ -9,12 +9,14 @@ import {
 } from '../../../sdk-core/src/physics/index.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { Bodied } from './bodies.ts';
+import type { NodeMove } from './cookedBodies.ts';
 import { extrapolateAll, interpolateAll, landAll } from './drawnPoses.ts';
 import { createPosePlacer } from './placer.ts';
 
-/** The bodies a tick's records name: meshes and generations by slot, and the way out of one. */
+/** The bodies a tick's records name, by slot: meshes, moved compiled nodes, generations. */
 export interface PosedBodies {
   readonly meshes: readonly (Bodied | null)[];
+  readonly nested: ReadonlyMap<number, NodeMove>;
   readonly generation: Uint8Array;
   retire(index: number): void;
 }
@@ -49,14 +51,20 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
     tick = 0;
   const placer = createPosePlacer(maxBodies, root);
   const { bound, place, position, quaternion } = placer;
-  let start = 0,
+  /** When the last tick arrived (-1 before the first): the page time its targets are drawn from. */
+  let start = -1,
     span = 0,
-    arrived = -1,
-    /** Simulated seconds per page millisecond, for the extrapolation. */
-    rate = 0,
+    /** Simulated seconds of the last tick, extrapolated over one span at most. */
+    seconds = 0,
+    /** The latest page time read: the poses' clock never runs back (`now`). */
+    latest = 0,
     /** How far toward the targets the last frame drew, from the pose drawn when they came. */
     drawn = 0,
     awake = false;
+  /** The page's clock, never earlier than a reading before it: a page clock that steps back (a
+   *  test's or a capture's) would draw a fraction behind the last frame, and a step from a pose
+   *  already on its target (`drawn` 1) toward it is a division by zero. */
+  const now = () => (latest = Math.max(latest, performance.now()));
   /** Whether the record at `at` holds the pose slot `index` is drawn at (the turn up to sign). */
   const unchanged = (index: number, floats: Float32Array, at: number) => {
     const p = index * 3,
@@ -77,6 +85,8 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
     state,
     /** Every mesh keeps its own pose numbers again (the physics stops). */
     clear: placer.clear,
+    /** The page moved `node`: a compiled node posed under it is drawn where it now stands. */
+    follow: (node: Object3D) => placer.follow(node, to),
     /**
      * A tick's pose records arrived, simulating `ms` of the page's time; returns how many moved a
      * body from where it is drawn (a pose sent again unchanged asks for no frame). A record of a
@@ -85,14 +95,13 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
      * met for the first time in its slot.
      */
     receive(words: Uint32Array, records: number, bodies: PosedBodies, ms: number) {
-      const { generation, meshes } = bodies;
+      const { generation, meshes, nested } = bodies;
       const floats = new Float32Array(words.buffer, words.byteOffset, words.length);
-      const now = performance.now();
-      const interval = arrived < 0 ? ms : now - arrived;
-      arrived = now;
+      const time = now();
+      const interval = start < 0 ? ms : time - start;
       // A first tick, or one after a rest, is drawn over the time it simulates.
       span = ms <= 0 ? 0 : interval > LONGEST_MS ? ms : span > 0 ? span * 0.7 + interval * 0.3 : ms;
-      rate = span > 0 ? ms / span / 1000 : 0;
+      seconds = ms / 1000;
       let moved = 0;
       awake = false;
       tick++;
@@ -102,12 +111,14 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
           head = words[at],
           index = head & BODY_INDEX,
           g = generation[index],
-          mesh = meshes[index];
-        // A body that left its slot, or a model's own (`bodySlots.ts`), draws nothing here.
-        if (g !== (head >>> GENERATION_SHIFT) % GENERATIONS || mesh == null) continue;
+          mesh = meshes[index],
+          made = mesh ? undefined : nested.get(index);
+        // A body that left its slot, or a model's moving no node (`bodySlots.ts`), draws nothing.
+        if (g !== (head >>> GENERATION_SHIFT) % GENERATIONS || !(mesh || made)) continue;
         if (bound[index] !== g) {
-          placer.bind(index, g, mesh);
-          decorative[index] = mesh.physics.decorative ? 1 : 0;
+          if (mesh) placer.bind(index, g, mesh);
+          else if (made) placer.bindNode(index, g, made.node, made.scale);
+          decorative[index] = mesh?.physics.decorative ? 1 : 0;
         }
         const asleep = (head & ASLEEP_BIT) !== 0,
           v = index * 6;
@@ -145,7 +156,7 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
         listed[index] = 1;
       }
       placer.end();
-      start = now;
+      start = time;
       drawn = 0;
       return moved;
     },
@@ -153,10 +164,13 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
      *  for the next frame). */
     apply({ generation }: PosedBodies) {
       if (!count) return false;
-      const elapsed = performance.now() - start;
+      const elapsed = now() - start;
       const alpha = span > 0 ? Math.min(1, elapsed / span) : 1;
-      // Past the target, a late tick is extrapolated, for one interval at most.
-      const ahead = awake ? Math.min(Math.max(0, elapsed - span), span) * rate : 0;
+      // Past the target, a late tick is extrapolated, for one interval at most: the share of the
+      // span past it, never a rate, which a span shrunk to nothing by a clock standing still
+      // while ticks arrive would make infinite.
+      const ahead =
+        awake && span > 0 ? (Math.min(Math.max(0, elapsed - span), span) / span) * seconds : 0;
       // Short of the target, each frame goes the rest of the way in proportion from where the
       // last one drew: the same line from the pose drawn when the tick came, read from the node.
       const step = alpha < 1 ? (alpha - drawn) / (1 - drawn) : 1;

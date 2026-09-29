@@ -1,12 +1,13 @@
 import { FLAG_BLEND_CASTER, FLAG_MASK, PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts';
 import type { DirectLightResources } from '../../../lighting/deferred/program.ts';
 import type { PageRec } from '../../../page/selection/selection.ts';
+import type { Placements } from '../../../page/selection/placements.ts';
 import type { PageSurface } from '../../../page/surface.ts';
 import { ROW_FLAGS_WORD, ROW_MAP_LAYER_WORD } from '../../row/pageRow.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { WebgpuLightState } from '../state/lights.ts';
-import { boxEmpty } from '../../../../../sdk-core/src/index.ts';
-import { changeBox, changeMax, changeMin, growClusterBox } from '../../shadow/bounds.ts';
+import { boxEmpty, boxIsEmpty } from '../../../../../sdk-core/src/index.ts';
+import { changeBoxes, growClusterBox, recordMoves } from '../../shadow/bounds.ts';
 
 const EVERYWHERE_MIN = [-1e30, -1e30, -1e30],
   EVERYWHERE_MAX = [1e30, 1e30, 1e30];
@@ -39,6 +40,7 @@ interface ShadowRowTable {
 export function shadowsFollowTextures(
   lights: WebgpuLightState,
   rows: ShadowRowTable,
+  roots: Placements,
   slots: ReadonlySet<number> | -1,
 ) {
   if (!lights.store.count) return;
@@ -48,7 +50,7 @@ export function shadowsFollowTextures(
   }
   const ints = rows.pageTableInts;
   if (!ints || !slots.size) return;
-  shadowsFollowRows(lights, rows, (row) => {
+  shadowsFollowRows(lights, rows, roots, (row) => {
     const base = row * ROW_WORDS;
     return (
       !!(ints[base + ROW_FLAGS_WORD] & ALPHA_READERS) && slots.has(ints[base + ROW_MAP_LAYER_WORD])
@@ -64,27 +66,33 @@ export function shadowsFollowTextures(
 export function shadowsFollowSurfaces(
   lights: WebgpuLightState,
   rows: ShadowRowTable,
+  roots: Placements,
   surfaces: ReadonlySet<PageSurface>,
 ) {
   if (lights.store.count)
     shadowsFollowRows(
       lights,
       rows,
+      roots,
       (row) => surfaces.has(rows.packedRecs[row]?.material as PageSurface),
       'worldChanged',
     );
 }
 
-/** Stales the box of the rows, visibility then blended casters, that `stale` names; one box, as
- *  the same world at another precision or, `worldChanged`, as another world. */
+/**
+ * Stales the box of the rows, visibility then blended casters, that `stale` names, as the same
+ * world at another precision or, `worldChanged`, as another world: one box for the rows the static
+ * layer holds, one for the rows already moving — a blended caster's always is —, whose change
+ * redraws the moving casters alone and leaves the static layer as it is (#993).
+ */
 function shadowsFollowRows(
   lights: WebgpuLightState,
   rows: ShadowRowTable,
+  roots: Placements,
   stale: (row: number) => boolean,
   change: 'representationChanged' | 'worldChanged' = 'representationChanged',
 ) {
-  boxEmpty(changeBox, 0);
-  let touched = false;
+  for (const { box } of changeBoxes) boxEmpty(box, 0);
   for (const [from, to] of [
     [0, rows.rowCount],
     [rows.blendFirst, rows.casterSlots],
@@ -92,33 +100,40 @@ function shadowsFollowRows(
     for (let row = from; row < to; row++) {
       const rec = stale(row) && rows.packedRecs[row];
       if (!rec) continue;
-      growClusterBox(rec, changeBox);
-      touched = true;
+      const moving = row >= rows.blendFirst || recordMoves(lights, rec);
+      growClusterBox(rec, roots, changeBoxes[+moving].box);
     }
-  if (touched) lights.plan[change](changeMin, changeMax);
+  for (const moving of [false, true]) {
+    const { box, min, max } = changeBoxes[+moving];
+    if (!boxIsEmpty(box, 0)) lights.plan[change](min, max, moving);
+  }
 }
 
 /**
- * The threshold the light cuts select casters at: the camera's. The plan keeps the one each page
- * was drawn at, and redraws, once the camera rests, only the pages drawn at another
- * (`thresholds.ts`). Returns the threshold.
+ * The threshold the light cuts select casters at: the camera's, in the render frame of the eye
+ * `origin`. The plan keeps the ones each page was drawn at, and redraws, once the camera rests,
+ * only the pages drawn at another (`thresholds.ts`). Returns the threshold.
  */
-export function followLightThreshold(lights: WebgpuLightState, pixelError: number) {
-  lights.plan.setThreshold(pixelError);
+export function followLightThreshold(
+  lights: WebgpuLightState,
+  pixelError: number,
+  origin: ArrayLike<number>,
+) {
+  lights.plan.setThreshold(pixelError, origin);
   return pixelError;
 }
 
 /**
  * Serves tiles requested by the previous image, except during a pose barrier: the shadow
  * drain replays the image without admitting new ones. An arriving tile invalidates every
- * map (`shadowsFollowTextures`) and the queue would never empty (#25).
+ * map (`shadowsFollowTextures`) and the queue would never empty (#25). Returns the tiles served.
  */
 export function pumpResidentTiles(
-  textures: { pump: (frame: number) => void } | undefined,
+  textures: { pump: (frame: number) => { served: number } } | undefined,
   frame: number,
   converging: boolean,
 ) {
-  if (!converging) textures?.pump(frame);
+  return (!converging && textures?.pump(frame).served) || 0;
 }
 
 /**
@@ -133,6 +148,11 @@ export function pumpResidentTiles(
 export function wantsContractLighting(rt: WebgpuPagesRuntime) {
   return !rt.lights.store.unlit;
 }
+
+/** Whether the image can hold an as-is pixel: a row showed a surface as-is, or a diagnostic view
+ *  writes the flag. Otherwise every share is 0, and TAA and composition read no flags (OMB-11). */
+export const readsAsIs = ({ vis, run }: WebgpuPagesRuntime) =>
+  vis.asIsShown || run.diagnostic !== 'beauty';
 
 /** The deferred lighting while the image wants the contract but still resolves unlit — its
  *  program compiles, and its arrival changes the image —, else nothing. */
@@ -154,6 +174,8 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
     active = wantsContractLighting(rt);
   contractResources.lights = lights.buffer;
   contractResources.tiles = active ? lights.tiles?.buffer : undefined;
+  // The narrow resolve reads the narrow pass's lists: no tile past its list, no pool (#849).
+  contractResources.narrow = active && !!lights.tiles && !lights.tiles.wide;
   contractResources.slices = active ? lights.shadows?.dataBuffer : undefined;
   contractResources.requests = active ? lights.pageRequests?.buffer : undefined;
   contractResources.atlas = active ? lights.shadows?.view : undefined;
@@ -164,9 +186,15 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
   contractResources.bounceGrid = bounce?.uniform;
   contractResources.probes = bounce?.probes;
   contractResources.surfaceCache = bounce?.surface.buffer;
-  // Far-shadow proxy: bound only if it exists, otherwise the zero replacements leave the far surface
-  // lit with no cast shadow. Both lighting passes read this same resolve, so they bind the same
-  // buffer and trace the same ray.
+  // Far-shadow proxy: bound only if it exists, else the far surface is lit unshadowed. Both
+  // lighting passes read this resolve, so they bind the same buffer and trace the same ray.
   contractResources.proxy = active ? rt.sunFar.gpu?.buffer() : undefined;
   return contractResources;
+}
+
+/** An occlusion test made while a growth was granted holds the cull's old lists: it follows. */
+export function followOcclusion(rt: WebgpuPagesRuntime) {
+  const { cull, occlusion } = rt.lights;
+  if (cull && occlusion && occlusion.visible.size !== cull.kept.size)
+    occlusion.grow(rt.layout.rows.casterSlots).commit();
 }

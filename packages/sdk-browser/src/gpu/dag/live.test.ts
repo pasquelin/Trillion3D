@@ -11,11 +11,11 @@ import { encodeurTemoin, ressources, ETAGES, LIVE, CAND } from './encode.fixture
 test('each cut kernel dispatches over the list the previous one filled', () => {
   const { encoder, lancements } = encodeurTemoin();
   encodeDagKernels(encoder as unknown as GPUCommandEncoder, ressources(true));
-  const parNoyau = new Map(lancements.map((l) => [l.noyau, l]));
+  const parNoyau = new Map(lancements.map((l) => [l.kernel, l]));
   // Live clusters: the previous verdict, spoken on them alone.
-  for (const noyau of ['dagMask', 'dagDrawScatter']) {
-    assert.equal(parNoyau.get(noyau)?.groupes, 'indirect', `${noyau} follows a list`);
-    assert.equal(parNoyau.get(noyau)?.liste, LIVE, `${noyau} follows the live list`);
+  for (const kernel of ['dagMask', 'dagDrawScatter']) {
+    assert.equal(parNoyau.get(kernel)?.groups, 'indirect', `${kernel} follows a list`);
+    assert.equal(parNoyau.get(kernel)?.liste, LIVE, `${kernel} follows the live list`);
   }
   // Candidate pages, and them alone: a page under a rejected node is no longer read.
   assert.equal(parNoyau.get('dagWanted')?.liste, CAND);
@@ -23,19 +23,19 @@ test('each cut kernel dispatches over the list the previous one filled', () => {
   // following level from its level's node count — known at packing too. No
   // indirection, hence no argument recopy, and no level visits the whole hierarchy.
   assert.deepEqual(lancements.slice(2, 5), [
-    { noyau: 'dagLevel0', groupes: 1 },
-    { noyau: 'dagLevel1', groupes: Math.ceil(ETAGES[1] / 64) },
-    { noyau: 'dagLevel2', groupes: Math.ceil(ETAGES[2] / 64) },
+    { kernel: 'dagRootLevel', groups: 1 },
+    { kernel: 'dagLevel1', groups: Math.ceil(ETAGES[1] / 64) },
+    { kernel: 'dagLevel2', groups: Math.ceil(ETAGES[2] / 64) },
   ]);
-  const ordre = lancements.map((l) => l.noyau);
+  const ordre = lancements.map((l) => l.kernel);
   assert.ok(ordre.indexOf('dagWanted') > ordre.lastIndexOf('dagLevel2'));
   assert.ok(ordre.indexOf('dagMask') > ordre.indexOf('dagWanted'));
   // The count launched flat is that of primitives, blocks, a hierarchy level or one workgroup:
   // never that of clusters.
-  const plats = lancements.filter((l) => l.groupes !== 'indirect').map((l) => l.noyau);
+  const plats = lancements.filter((l) => l.groups !== 'indirect').map((l) => l.kernel);
   assert.deepEqual(plats, [
     'dagPrepare',
-    'dagLevel0',
+    'dagRootLevel',
     'dagLevel1',
     'dagLevel2',
     'dagDrawPrefix',
@@ -51,12 +51,12 @@ test('wait between launches depends only on depth, not on cluster count', () => 
   // request sort and the eviction queue: the cut rule decides each cluster once, in the mask, with
   // no round per primitive before it.
   assert.equal(lancements.length, 11);
-  const noyaux = lancements.map((l) => l.noyau);
+  const noyaux = lancements.map((l) => l.kernel);
   assert.ok(!noyaux.includes('dagArgs') && !noyaux.includes('dagDrawCount'));
   assert.equal(noyaux[0], 'dagClearDrawn');
   assert.equal(noyaux[1], 'dagPrepare');
   // Prepare covers both the primitives and the compaction blocks.
-  assert.equal(lancements[1].groupes, 1);
+  assert.equal(lancements[1].groups, 1);
   // Sixteen times more clusters, as many launches: depth is what counts them.
   const large = encodeurTemoin();
   encodeDagKernels(large.encoder as unknown as GPUCommandEncoder, ressources(true, 3, 65536));
@@ -70,22 +70,22 @@ test('wait between launches depends only on depth, not on cluster count', () => 
 test('without a resident cut, the mask follows the list and nothing is compacted', () => {
   const { encoder, lancements } = encodeurTemoin();
   encodeDagKernels(encoder as unknown as GPUCommandEncoder, ressources(false));
-  const noyaux = lancements.map((l) => l.noyau);
+  const noyaux = lancements.map((l) => l.kernel);
   assert.ok(!noyaux.includes('dagDrawPrefix') && !noyaux.includes('dagDrawScatter'));
-  const masque = lancements.find((l) => l.noyau === 'dagMask');
-  assert.equal(masque?.groupes, 'indirect');
+  const masque = lancements.find((l) => l.kernel === 'dagMask');
+  assert.equal(masque?.groups, 'indirect');
   assert.equal(masque?.liste, LIVE);
   // Descent itself is encoded in both cases: it does not depend on residency.
-  assert.ok(noyaux.includes('dagLevel0') && noyaux.includes('dagLevel1'));
+  assert.ok(noyaux.includes('dagRootLevel') && noyaux.includes('dagLevel1'));
   assert.ok(noyaux.includes('dagLevel2'));
 });
 
 test('list kernels read their cluster from the list, not from their thread id', () => {
   // The rejection these kernels used to do themselves — `visible` — has left their body: a cluster
   // missing from the list is exactly a cluster whose `visible` was false.
-  for (const noyau of ['dagMask']) {
-    const corps = DAG_SELECTION_SHADER.split(`fn ${noyau}(`)[1].split('\n}')[0];
-    assert.match(corps, /=liveAt\(s\);/, `${noyau} reads the list`);
-    assert.doesNotMatch(corps, /visible\(/, `${noyau} does not redo the rejection`);
+  for (const kernel of ['dagMask']) {
+    const corps = DAG_SELECTION_SHADER.split(`fn ${kernel}(`)[1].split('\n}')[0];
+    assert.match(corps, /=liveAt\(s\);/, `${kernel} reads the list`);
+    assert.doesNotMatch(corps, /visible\(/, `${kernel} does not redo the rejection`);
   }
 });

@@ -81,6 +81,9 @@ impl ImageDecoder for Exr {
     fn accepts_head(&self, head: &[u8]) -> bool {
         head.starts_with(MAGIC)
     }
+    fn dimensions(&self, bytes: &[u8]) -> std::result::Result<(u32, u32), &'static str> {
+        subset(bytes, u64::MAX)
+    }
     /// The header first, the pixels next: a file outside the subset never reaches the decoder,
     /// and the size is known — hence the ceiling applied — before any allocation.
     fn decode(

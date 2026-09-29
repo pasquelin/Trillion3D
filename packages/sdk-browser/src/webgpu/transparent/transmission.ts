@@ -1,4 +1,5 @@
 import { WATER_RANK_SHIFT } from '../water/surfaceWgsl.ts';
+import { refreshSurface } from '../../page/surface.ts';
 import type { TransmissionBackdrop, WebgpuGpuState } from '../pages/state/gpu.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
@@ -6,8 +7,9 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
  *  one record per transmissive item, read by water rank in a storage buffer. */
 export const VOLUME_WORDS = 8;
 /** The frozen backdrop costs a half-float colour (8 bytes) per pixel, and the depth the surface
- *  stage tests and writes 4 more; the surfaces themselves are the opaque resolve's, already paid. */
-const WATER_BYTES_PER_PIXEL = 8 + 4;
+ *  stage tests and writes 4 more; the other surfaces are the opaque resolve's, and the water word
+ *  borrows the display colour (`../water/surfaceWgsl.ts`), already paid. */
+export const WATER_BYTES_PER_PIXEL = 8 + 4;
 
 /** What the water pass adds to the image budget, zero with no transmissive surface. */
 export function backdropBytes(rt: WebgpuPagesRuntime, width: number, height: number) {
@@ -16,7 +18,7 @@ export function backdropBytes(rt: WebgpuPagesRuntime, width: number, height: num
 
 /**
  * Allocates what the water pass owns: the frozen colour its composite rereads, and the depth its
- * surface stage tests and writes. With no transmissive surface they are one texel: the bind
+ * surface stage writes. With no transmissive surface they are one texel: the bind
  * layouts are the same for the whole scene, and nothing is reserved for a class the scene does
  * not carry.
  */
@@ -71,7 +73,7 @@ export function writeVolumeRecords(rt: WebgpuPagesRuntime, device: GPUDevice) {
     const rank = waterRankOf(item.flags);
     if (!rank) continue;
     const base = (rank - 1) * VOLUME_WORDS,
-      mat = item.surface;
+      mat = refreshSurface(item.surface);
     packed[base] = mat.transmission;
     packed[base + 1] = mat.ior;
     packed[base + 2] = mat.thickness;
@@ -79,7 +81,7 @@ export function writeVolumeRecords(rt: WebgpuPagesRuntime, device: GPUDevice) {
     packed[base + 4] = mat.attenuationColor[0];
     packed[base + 5] = mat.attenuationColor[1];
     packed[base + 6] = mat.attenuationColor[2];
-    packed[base + 7] = 0;
+    packed[base + 7] = mat.fog === false ? 1 : 0;
   }
   device.queue.writeBuffer(gpu.volumeBuffer, 0, packed);
 }

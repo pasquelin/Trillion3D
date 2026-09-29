@@ -8,6 +8,7 @@ mod geometry_page;
 mod geometry_page_cells;
 mod geometry_page_quant;
 pub mod import;
+mod impostor;
 mod join;
 mod manifest_binary;
 #[cfg(any(test, feature = "oracle"))]
@@ -42,24 +43,23 @@ pub use compiler_format::{CLUSTERED_BLEND_FORMAT_VERSION, FORMAT_VERSION, SOURCE
 pub const COMPILER_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Per-cluster DAG identity: absolute group QEM error weighing positions, normals and every
 /// texture set, clamped to the group's extent, raised to what each part it removes whole costs
-/// (`dag/vanished.rs`), and projected through the group bounding sphere.
-/// v1 measured positions only; its caches are refused, never reinterpreted.
-pub const DAG_ERROR_MODEL: &str = "dag-group-qem-v2";
+/// (`dag/vanished.rs`), never below the sampled Hausdorff distance between the group's children
+/// and its outputs, and projected through the group bounding sphere. v1 measured positions only,
+/// v2 published the quadric error alone (#929); their caches are refused, never reinterpreted.
+pub const DAG_ERROR_MODEL: &str = "dag-group-qem-v3";
 pub const DAG_CLUSTER_STRATEGY: &str = "dag-groups";
 /// Numbers per culling node: min[3], max[3], sphere[4], maxParentError, firstChild, childCount,
 /// firstPage, pageCount. `maxParentError` is -1 when the subtree holds a cluster with no replacement.
 pub const CULLING_STRIDE: usize = 15;
-/// Target size of one streaming bundle: one request carrying dozens of neighbouring clusters of
-/// the same level, so filling a cut costs hundreds of requests instead of tens of thousands. A
-/// cluster stays individually addressable, through its own object and its offset in the bundle.
+/// Target size of one streaming bundle. Clusters remain individually addressable through offsets.
 pub const STREAM_BUNDLE_BYTES: usize = 128 * 1024;
 pub const STRUCTURE_VERSION: u32 = 1;
-/// Target size of one bootstrap object. The root clusters of every primitive share these objects,
-/// so the coarsest complete cover of a whole scene is a handful of large requests instead of one
-/// small request per primitive — which is what the first image waits on.
+/// Target size of one bootstrap object shared by root clusters of every primitive.
 pub const BOOTSTRAP_BUNDLE_BYTES: usize = 1024 * 1024;
 /// The root of the manifest, of fixed size: its pages lie beside it (`compiler_manifest_pages.rs`).
 pub const MANIFEST_FILE: &str = "clusters.json";
+/// Code of a job stopped on a cancel request: what the batch counts and the event reports.
+pub const CANCELLED: &str = "CANCELLED";
 #[derive(Debug)]
 pub struct CompilerError {
     pub code: &'static str,
@@ -112,7 +112,7 @@ pub struct Options {
 }
 fn check(o: &Options) -> Result<()> {
     if o.cancelled.load(Ordering::Relaxed) {
-        return Err(CompilerError::new("CANCELLED", "Compilation cancelled"));
+        return Err(CompilerError::new(CANCELLED, "Compilation cancelled"));
     }
     Ok(())
 }
@@ -136,6 +136,7 @@ mod compiler_lights;
 mod compiler_lock;
 mod compiler_manifest_pages;
 mod compiler_materials;
+mod compiler_mesh_share;
 mod compiler_nodes;
 mod compiler_page_object;
 mod compiler_plan;
@@ -160,8 +161,7 @@ mod compiler_textures;
 mod compiler_types;
 mod compiler_validate;
 mod compiler_world;
-#[cfg(test)]
-mod compute_bench;
+mod compiler_world_roots;
 #[cfg(test)]
 mod shared_math_tests;
 #[cfg(test)]
@@ -195,5 +195,6 @@ use compiler_tables::stage_scene_tables;
 use compiler_textures::*;
 use compiler_types::*;
 use compiler_validate::*;
+use compiler_world_roots::stage_world_roots;
 use physics_cook::stage_physics;
 use plugins::scene::{PreparedScene, RoutedSource};

@@ -1,5 +1,4 @@
-import { DEFAULT_GEOMETRY_POOL_BUDGET } from './pools.ts';
-import { DEFAULT_TEXTURE_POOL_BUDGET } from '../webgpu/residency/memoryBudgets.ts';
+import { checkBudget, DEFAULT_GEOMETRY_POOL_BUDGET, DEFAULT_TEXTURE_POOL_BUDGET } from './pools.ts';
 import { SHADOW_BUFFER_BYTES, shadowAtlasBytes } from '../gpu/shadow/atlas.ts';
 import { shadowRequestBytes } from '../webgpu/shadow/pageRequests.ts';
 import { shadowTransmittanceBytes } from '../gpu/shadow/transmittance.ts';
@@ -22,14 +21,16 @@ import { effectChainBytesAt } from '../effects/targets.ts';
 const { side, layers } = shadowPoolShape(shadowPoolSize(3840, 2160)),
   SHADOW_POOL_PAGES = side * side * layers;
 export const SHADOW_ATLAS_BYTES = shadowAtlasBytes(side, layers);
-/** The shadows at that pool — the atlas, its static and transmittance layers, the buffers beside
- *  it, the page table first, and what the most batches a frame draws add (`batchBudget.ts`). */
-export const SHADOW_POOL_BYTES =
+/** The shadows' one memory grant, at that pool — the atlas, its static and transmittance layers,
+ *  the buffers beside it, the page table first (`webgpu/shadow/memoryGrant.ts`). */
+export const SHADOW_GRANT_BYTES =
   2 * SHADOW_ATLAS_BYTES +
   shadowTransmittanceBytes(side, layers) +
   SHADOW_BUFFER_BYTES +
-  shadowRequestBytes(SHADOW_POOL_PAGES) +
-  SHADOW_BATCH_GPU_BYTES;
+  shadowRequestBytes(SHADOW_POOL_PAGES);
+/** The shadows' GPU share: the grant, and what the most batches a frame draws add
+ *  (`batchBudget.ts`). */
+export const SHADOW_POOL_BYTES = SHADOW_GRANT_BYTES + SHADOW_BATCH_GPU_BYTES;
 /** The shadows' host memory at that pool: the table's words and change flags, the pool's page
  *  records and eviction bits, the frame's list, as the three allocate them, and the batches' flag
  *  pages and CPU cut faces. */
@@ -82,10 +83,6 @@ export const DEFAULT_GPU_BUDGET = defaultGpuBudget();
  *  default, what a world's cache held before the mirror was counted. */
 export const DEFAULT_CPU_BUDGET = SHADOW_HOST_BYTES + DEFAULT_CACHED_BYTES;
 
-const checkTotal = (bytes: number, name: string) => {
-  if (!Number.isSafeInteger(bytes) || bytes < 1) throw new Error(name);
-};
-
 /**
  * One memory budget, split by a fixed rule — never by what the machine says it has:
  * - GPU: the shadow pool first (`SHADOW_POOL_BYTES`), what the atlas, its static layer and its
@@ -112,10 +109,10 @@ export function splitMemoryBudget(
   cpu: number,
   canvas: BudgetCanvas = DEFAULT_BUDGET_CANVAS,
 ) {
-  checkTotal(gpu, 'INVALID_GPU_BUDGET');
-  checkTotal(cpu, 'INVALID_CPU_BUDGET');
-  checkTotal(canvas.width, 'INVALID_BUDGET_CANVAS');
-  checkTotal(canvas.height, 'INVALID_BUDGET_CANVAS');
+  checkBudget(gpu, 'INVALID_GPU_BUDGET');
+  checkBudget(cpu, 'INVALID_CPU_BUDGET');
+  checkBudget(canvas.width, 'INVALID_BUDGET_CANVAS');
+  checkBudget(canvas.height, 'INVALID_BUDGET_CANVAS');
   const fixed = fixedGpuBytes(canvas);
   if (gpu < fixed) throw new Error('GPU_BUDGET_UNDER_SHADOW_POOL');
   if (cpu <= SHADOW_HOST_BYTES) throw new Error('CPU_BUDGET_UNDER_SHADOW_MIRROR');

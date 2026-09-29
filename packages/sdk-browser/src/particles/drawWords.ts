@@ -3,13 +3,24 @@ import type { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
 import { usedSlots } from './poolStates.ts';
 
 /** The words the particle draw (#755) gives a pool: clip matrix from its origin and inverse, made
- *  in double precision, eye from the origin, radius, colour at birth, softness; words 41–43 pad
- *  to the WGSL struct's size. */
-export const DRAW_FLOATS = 44;
+ *  in double precision, eye from the origin, radius, colour at birth, softness; words 41–43 the
+ *  image's exposure, display curve and unlit flag, 44–45 the size it draws, written by the draw. */
+export const DRAW_FLOATS = 48;
 
 /** A disc's two triangles, corner by corner, in both shading languages (`vec2` infers in WGSL). */
 export const DISC_CORNERS =
   'vec2(-1.0, -1.0), vec2(1.0, -1.0), vec2(-1.0, 1.0), vec2(-1.0, 1.0), vec2(1.0, -1.0), vec2(1.0, 1.0)';
+
+/** Each blend's factors, one table for both draws: smoke covers colour and coverage alike, fire
+ *  adds light and leaves the coverage. */
+const OVER = { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' } as const;
+export const BLENDS: Record<ParticlePool['blend'], GPUBlendState> = {
+  additive: {
+    color: { srcFactor: 'one', dstFactor: 'one' },
+    alpha: { srcFactor: 'zero', dstFactor: 'one' },
+  },
+  premultiplied: { color: OVER, alpha: OVER },
+};
 
 type Vec = ArrayLike<number>;
 const [clip, unclip] = [new Float64Array(16), new Float64Array(16)];

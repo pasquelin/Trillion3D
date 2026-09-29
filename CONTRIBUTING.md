@@ -32,11 +32,11 @@
 ## Measure before optimising
 
 - Under identical input, camera, quality and budgets, image quality and performance must equal or
-  exceed the Three.js witness. Any measured regression blocks validation and merge. Measurement
-  noise is not an exemption, and an unmeasured metric is never evidence of parity.
+  exceed the Three.js witness. A measured regression reopens its issue in 🔴; it never holds a merge.
+  Measurement noise is not an exemption, and an unmeasured metric is never evidence of parity.
 - **Every millisecond counts, measured.** The frame's largest costs are ranked on a real scene
-  (`docs/roles/measurer.md` step 8): small calculations repeated per frame or per page,
-  allocations in a frame, a JavaScript kernel that belongs in Rust or WebAssembly, work the
+  (the per-stage profile, `bench/runner/README.md`): small calculations repeated per frame or per
+  page, allocations in a frame, a JavaScript kernel that belongs in Rust or WebAssembly, work the
   compiler could bake once.
 - **Never optimise a path whose cost is not measured.** State its share of the frame first, on a real
   scene, or say plainly that it is unknown. A batch justified by a supposition is a batch to stop.
@@ -45,26 +45,29 @@
   (`bench/runner/bench.ts`, README alongside). Read them before choosing a target.
 - When a measurement contradicts a plan, the measurement wins, and the
   plan is corrected in the same batch.
-- Compare identical input, camera, quality, machine and resource budget. Record DPR, error threshold,
-  resolution and commit. FPS = 1000 / rAF interval; state display cap. Never add CPU and GPU times.
-  Unmeasured values = `null`, never estimates presented as measurements. Keep diagnostics outside
-  measured beauty passes; report unsupported capabilities. Measure on a quiet machine, and publish
-  the run-to-run spread whenever a claim rests on a difference smaller than it.
+- Compare identical input, camera, quality, machine and resource budget. Record DPR, error
+  threshold, resolution and commit. FPS = 1000 / rAF interval; state display cap. Never add CPU and
+  GPU times. Unmeasured values = `null`, never estimates presented as measurements. Keep diagnostics
+  outside measured beauty passes; report unsupported capabilities. Interleave before and after at
+  least five times, so a busy machine does not bias the result, and publish the run-to-run spread
+  whenever a claim rests on a difference smaller than it.
 - **Two scales of proof.** A pull request proves its change on the public test scenes under
   `.mesure/assets/` (Khronos sample models, the generated facade; `bench/runner/assets.ts` fetches
   and compiles them), on the scene that exercises the change, in seconds to a minute. The full
   campaign — every view, every scene, the run-to-run spread, the frame envelope — runs once, on the
   release pull request from `develop` to `main`, and its numbers are the ones published. The site
   keeps one report, the latest, each image stored once.
-- **Image proofs on the branch, timing after the merge** (AGENTS.md rules 2 and 11). Timing
-  runs alone, in one queue, on merged batches, and never blocks a pull request but a performance
-  issue's: a merged engine batch is labelled `to measure`, the queue times it against the merge's
-  first parent and comments the numbers (`measure ok`); a regression reopens the measured issue,
-  labelled `measure ko`, with the numbers in a comment. A pull request carries the fast gates and
-  its image proof.
+- **Image proof and timing on `develop`, by batch, after the merge** (AGENTS.md rule 2). Merged
+  issues carry `to audit`, and `to measure` when their diff can move the frame cost. The acceptance
+  session times (`measure ok`), then proves the image (`audited`), by batch, on one pair of trees
+  against `develop` before the oldest of them; nothing else of the batch runs beside a timing. A
+  failure reopens the issue in 🔴, labelled `audit ko` or `measure ko`, with the numbers in a
+  comment; a defect no issue covers gets a new one. Neither holds a merge. `main` moves only when
+  no issue carries `to audit`, `to measure`, `audit ko` or `measure ko`. A pull request carries the
+  gates.
 - **A campaign's outputs are deleted once published.** A cook, a bench or a proof writes under
-  `.mesure/out/<batch>/` and nowhere else; the numbers, and any capture a claim rests on, go into
-  the pull request body, and the folder is removed before the pull request is opened.
+  `.mesure/out/<issue>/` and nowhere else; the numbers, and any capture a claim rests on, go into
+  the issue's comment, and the folder is removed once they are posted.
 - A per-pass GPU duration says _where_, never _how much_: on tile-based GPUs passes overlap and a
   pass's timestamp absorbs its neighbours' work (17 Sept. 2026: a composition pass read 7 ms with
   the sun and 2.4 ms without, having not changed). The frame envelope is the total; a difference
@@ -75,8 +78,13 @@
 - Never reduce the displayed resolution or the draw distance (a lower internal resolution only
   under the mission's bar). Never convert transparency to masking **inside the engine**: a source
   material wrongly declared blended is reclassified by the compiler at import.
-- `0 px`, `tri = selected` and A/A noise stay the default proof for geometry and lighting. A batch
-  that keeps them owes no discussion.
+- `0 px` and `tri = selected` stay the default proof for geometry and lighting. A batch that keeps
+  them owes no discussion.
+- **A proof needs a stable A/A.** A branch-against-develop difference proves something only on a
+  capture whose A/A is 0 px (or the masked exception below); a broad A/A spread proves nothing. A
+  scene that is not A/A-stable is first made stable (frozen clock, pinned frame) or replaced by a
+  stable scene on the same path. `health-check` is exempt until #964 makes it stable: its proof is
+  no error, pages drawn, and its verdict.
 - **At most 4 px of A/A on a still capture is accepted** when it is isolated to a masked cut-out at
   the alpha cutoff, below human discrimination at the capture resolution, and declared in the batch.
   That is GPU keep/discard on the same foliage pixel, not a residency, shadow-page or TAA bug.
@@ -114,12 +122,11 @@ The rules of #483, binding on every change to geometry, streaming, memory, shado
   abandoned-format compatibility or claims of unimplemented features.
 - A differential test against a frozen oracle proves only what the two sides do differently. Where
   they share code, prove it directly.
-- **This repository uses pnpm.** `pnpm run check:changed` checks changed-file format, lint, lines,
-  duplicates and import-related unit tests; `pnpm run test:changed` runs only those tests. Also
+- **This repository uses pnpm.** `pnpm run check:changed` checks changed-file format, lint, types,
+  lines, duplicates and import-related unit tests; `pnpm run test:changed` runs only those tests. Also
   inspect dependants after deletions, public-export or configuration changes.
 - Before merge: `pnpm run validate` (format, JS/TS lint + Clippy, unused code/files/dependencies,
-  TS/native builds, structure, declarations, links, JS/TS/Rust tests) and the branch's image
-  proof; timing follows the merge, in the measuring queue.
+  TS/native builds, structure, declarations, links, JS/TS/Rust tests).
 - **All wording in the repository must be in English.** Comments, docstrings, documentation,
   commit messages and test descriptions are strictly written in English.
 - Every maintained JS/TS/Rust source file, including variants, must fit 200 physical lines; no legacy
@@ -176,7 +183,7 @@ The rules of #483, binding on every change to geometry, streaming, memory, shado
 
 ## Personal tools stay local
 
-The agent rules (`AGENTS.md`) and the agent roles (`docs/roles/`) are tool-neutral and tracked.
+The agent rules (`AGENTS.md`) are tool-neutral and tracked.
 The company's shared assistant skills and agents are tracked in `skills/` and aliased into the
 local `.claude/` by `pnpm install` (`pnpm run skills:link`, see `docs/COMPANY.md`); nothing in the
 workflow requires them, and `.claude/` itself stays local.
@@ -194,29 +201,36 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
 
 ## Contribution workflow
 
-1. Work from one issue per batch; only the CTO, the maintainer's agent, opens issues (AGENTS.md
-   rule 5). Create a branch named `<issue>-<short-name>` from `origin/develop` in an isolated
-   worktree under `.worktrees/<branch>/` (ignored by git and by every tool), then run
-   `pnpm install`. Logs and throwaway files go in `.worktrees/logs/`. Mark the issue `in progress`.
+1. Work from one issue per batch; only a CTO or the acceptance session opens issues, on
+   `.github/ISSUE_TEMPLATE/task.md` (AGENTS.md rule 5). Create a branch named `<issue>-<short-name>`
+   from `origin/develop` in an isolated worktree under `.worktrees/<branch>/` (ignored by git and by
+   every tool), then run `pnpm install`. Logs and throwaway files go in `.worktrees/logs/`. Mark the
+   issue `in progress`.
 2. Implement the issue and record the relevant proof. Keep changes limited to the batch.
 3. Review the diff twice: first simplify duplicated or unnecessary work — in Claude Code
    `/simplify`, elsewhere a read of the whole diff for what is duplicated, needless or at the wrong
-   depth —, then check correctness against the requirements above. Fix findings and run
-   `pnpm run check:changed`, `pnpm run test:changed` and `pnpm run validate`. Run the branch's image proof; the
-   measuring queue times it after the merge.
-4. Commit with a descriptive English message and push the branch; write the pull request body in a file, using
-   `.github/PULL_REQUEST_TEMPLATE.md` and beginning with `Closes #<issue>`, or `Part of #<issue>` for a step of an issue delivered in several (AGENTS.md rule 5). Describe what both local review passes found under "Local review before push". Replace `in progress` with `in review`. No pull request yet (AGENTS.md rule 11).
-5. Obtain an independent review and resolve its findings before integration. The maintainer, or
-   whoever the maintainer entrusts with it, merges into `develop` once the review holds on the branch, the lead has opened the pull request with its "Lead verification" section, one line per To-do and Proof item, and `validate` is green on a head
-   that merged `develop` and merges cleanly into it, oldest pull request first (AGENTS.md rule
-   11); `main` moves only on the maintainer's word. Never push directly to `develop` or `main`, or
-   rewrite published history.
-6. After merge, remove the worktree and merged branch, remove `in review` and close the issue once its last step is merged;
-   an engine batch is labelled `to measure` first. Every merge into `develop` is then re-read
-   against this file; a finding reopens the issue, labelled `audit ko`, with the findings in a
-   comment.
-   If a pull request is closed without merging, remove both lifecycle labels; add `in progress`
-   only if work resumes.
+   depth —, then check correctness against the requirements above. Fix findings; then
+   `pnpm run check:changed`, `pnpm run test:changed` and the `validate` group the diff touches run
+   once, on the final head (by the reviewer, `skills/agents/reviewer.md`), and the CI runs the
+   whole `validate`; the image proof and the timing follow on `develop` after the merge.
+4. Commit with a descriptive English message and push the branch; write the pull request body in
+   a file, using `.github/PULL_REQUEST_TEMPLATE.md` and beginning with `Closes #<issue>` (AGENTS.md
+   rule 5). Describe what both local review passes found under "Local review before push". Add
+   `in review`; `in progress` stays until the merge. No pull request yet (AGENTS.md rule 11).
+5. Obtain an independent review and resolve its findings. Then open the pull request, with its "Lead
+   verification" section, one line per To-do and Proof item (each Proof line of the issue quoted,
+   or under "Not proven" with the boss's yes: the CI checks it), and auto-merge on: it merges into
+   `develop` once `validate` is green on a head that merged `develop` and merges cleanly into it
+   (AGENTS.md rule 11); the image proof and the timing follow by batch on `develop`. `main` moves
+   only on the maintainer's word. Never push directly to `develop` or `main`, or rewrite published
+   history.
+6. After merge, remove the worktree and merged branch; remove `in progress`, `in review`, the
+   assignee and any old verdict, add `to audit` and, when the diff can move the frame cost,
+   `to measure` (`skills/agents/lead.md` step 4); and check the issue is closed: GitHub's `Closes #n`
+   acts only on `main`, so [`close-issues.yml`](.github/workflows/close-issues.yml) closes, as
+   completed and with a comment linking the pull request, every issue a body merged into `develop`
+   names with a closing keyword. A regression found after the merge reopens the issue, labelled
+   `audit ko` or `measure ko`, with the findings in a comment.
 
 A release from `develop` to `main` has its own issue and pull request. Its head is `develop`;
 no separate release branch is needed. Use the same template and `Closes #<issue>` first line (the release delivers its whole issue),

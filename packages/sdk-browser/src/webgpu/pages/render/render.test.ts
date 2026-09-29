@@ -20,7 +20,7 @@ import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts';
 import type { ClusterRoot, PageRec } from '../../../page/selection/types.ts';
 
 function poses(n: number) {
-  const cams: G.GraphCamera[] = [];
+  const cams: G.Camera[] = [];
   for (let i = 0; i < n; i++) {
     const cam = G.perspectiveCamera(55, 16 / 9, 0.1, 200);
     cam.position.set(Math.sin(i * 0.7) * 3, 0, 6 + i * 0.001);
@@ -114,10 +114,9 @@ function root(name: string, count: number, transparent = false): ClusterRoot<Pag
   const world = { elements: new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]) };
   const pages = Array.from(
     { length: count },
-    (_, i) =>
-      ({ url: `${name}${i}`, matrix: world, transparent, windingEpoch: 1 }) as unknown as PageRec,
+    (_, i) => ({ url: `${name}${i}`, transparent }) as unknown as PageRec,
   );
-  return { world, pages };
+  return { world, pages, windingEpoch: 1 };
 }
 
 /** A terrain of `terrain` rows, then a model of `model` rows, every cluster resident; then
@@ -166,7 +165,7 @@ test('a model of N rows moved in a scene of M rows rewrites N rows', () => {
   }
   // Their windings are computed again — their corners travel with their dirty rows —, and the scene
   // keeps its occlusion history. The temporal pyramid, one image of the whole scene, is dropped.
-  assert.equal(moving.pages[0].windingEpoch, undefined);
+  assert.equal(moving.windingEpoch, undefined);
   assert.equal(run.noOccluderHistory, false);
   assert.equal(run.temporalHizState.pyramid, undefined);
   assert.equal(rt.blendState.occlusionEpoch, 1, 'no transparent cluster moved');

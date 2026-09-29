@@ -41,13 +41,19 @@ const TRI = {
   i1: 1,
   i2: 2,
 };
+/** The triangle of `page`, placed by the world its test built it with. */
+const triOf = (page: VisPage) => ({
+  ...TRI,
+  page,
+  world: (page as unknown as { matrix: G.Matrix4 }).matrix,
+});
 const BARY = { w0: 0.5, w1: 0.3, w2: 0.2 };
 const UV: [number, number] = [0.3, 0.6];
 
 /** Compares `shadingNormal` (optimised) to `referenceShadingNormal` (oracle) on the same frame,
  *  component by component, `Object.is` — signed zero and NaN count as the reference. */
 function assertSameNormal(page: VisPage, mat: VisMaterial, screenFace: number, label: string) {
-  const tri = { ...TRI, page };
+  const tri = triOf(page);
   const optimisee = shadingNormal(page, tri, BARY, UV, mat, screenFace);
   const reference = referenceShadingNormal(page, tri, BARY, UV, mat, screenFace);
   const attendu = [reference.x, reference.y, reference.z];
@@ -127,7 +133,7 @@ test('normal-mapped surface: a thousand shaded pixels in a row always return the
     matrix,
   } as unknown as VisPage;
   const mat = materiau({ normalMap: carteNormales(), normalScale: 1.3, normalScaleY: 0.7 });
-  const tri = { ...TRI, page };
+  const tri = triOf(page);
   let premierTampon: Float64Array | undefined;
   for (let i = 0; i < 1000; i++) {
     const bary = { w0: (i % 7) / 7, w1: ((i + 1) % 5) / 5, w2: ((i + 2) % 3) / 3 };
@@ -148,7 +154,7 @@ test('NaN and infinities in barycentric weights and tangents, map with no vertex
   } as unknown as VisPage;
   const mat = materiau({ normalMap: carteNormales() });
   const baryHostile = { w0: NaN, w1: Infinity, w2: -Infinity };
-  const tri = { ...TRI, page };
+  const tri = triOf(page);
   const optimisee = shadingNormal(page, tri, baryHostile, UV, mat, 1);
   const reference = referenceShadingNormal(page, tri, baryHostile, UV, mat, 1);
   const attendu = [reference.x, reference.y, reference.z];

@@ -1,3 +1,5 @@
+import { hypot3 } from '../../math/primitives/hypot.ts';
+
 /**
  * Spherical coordinates on flat numbers, shared by the camera controllers and the `math` family.
  *
@@ -18,7 +20,7 @@ export function clampNumber(value: number, min: number, max: number) {
 
 /** Writes `[radius, theta, phi]` of `offset`; radius zero leaves the angles untouched. */
 export function toSpherical(out: Float64Array, offset: ArrayLike<number>) {
-  const radius = Math.hypot(offset[0], offset[1], offset[2]);
+  const radius = hypot3(offset[0], offset[1], offset[2]);
   out[0] = radius;
   if (radius <= RADIUS_EPSILON) return out;
   out[1] = Math.atan2(offset[0], offset[2]);

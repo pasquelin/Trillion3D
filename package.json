@@ -36,6 +36,7 @@
     "packages/README.md"
   ],
   "scripts": {
+    "audit:assets": "node scripts/audit-asset-licenses.ts",
     "skills:link": "node scripts/skills-link.ts",
     "pnpm:devPreinstall": "node scripts/setup-development.ts",
     "prepare": "node scripts/generate-api-reference.ts",
@@ -51,8 +52,6 @@
     "check:changed": "node scripts/check-changed.ts",
     "test:watch": "node --experimental-strip-types --test --watch \"packages/*/src/**/*.test.ts\" \"tests/integration/*.test.ts\"",
     "test:native": "cargo test --release --locked --all-features --manifest-path packages/asset-compiler-rust/Cargo.toml",
-    "bench:native": "cargo test --release --locked --all-features --manifest-path packages/asset-compiler-rust/Cargo.toml -- --ignored --nocapture compute_bench",
-    "bench:native:g": "cargo test --release --locked --all-features --manifest-path packages/asset-compiler-rust/Cargo.toml -- --ignored --nocapture compute_bench_g",
     "lint": "pnpm run lint:js && pnpm run lint:native",
     "lint:js": "eslint .",
     "lint:native": "cargo clippy --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml --all-targets --all-features -- -D warnings && cargo clippy --release --locked --manifest-path packages/page-codec-wasm/Cargo.toml --all-targets -- -D warnings",
@@ -70,6 +69,9 @@
     "generate:api": "node scripts/generate-api-reference.ts",
     "compile:caches": "node scripts/site-caches.ts",
     "check:i18n": "node scripts/check-i18n.ts",
+    "check:translations": "node scripts/check-translations.ts",
+    "check:english": "node scripts/check-english.ts",
+    "check:thumbnails": "node scripts/check-thumbnails.ts",
     "check:dts": "node scripts/rewrite-dts-extensions.ts --check",
     "check:no-js": "node scripts/check-no-js.ts",
     "check:docs-bundles": "node scripts/docs-build.ts --untracked",

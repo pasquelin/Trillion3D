@@ -11,6 +11,7 @@ import {
 import { camera, quadPages, centerId } from './buffer.fixture.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { surfaceOf } from '../page/surface.ts';
+import { identityRoots } from '../page/selection/placements.fixture.ts';
 
 test('MeshStandardMaterial pure metal retains the punctual specular highlight', () => {
   const metalMat = G.standardSurface({
@@ -21,8 +22,8 @@ test('MeshStandardMaterial pure metal retains the punctual specular highlight', 
   const { pages, geometry } = quadPages(metalMat);
   const cam = camera(),
     size: [number, number] = [16, 16];
-  const ids = rasterVisibilityIds(pages, cameraMoteur(cam), size);
-  const shaded = shadeVisibility(ids, pages, cameraMoteur(cam), size);
+  const ids = rasterVisibilityIds(pages, identityRoots(), cameraMoteur(cam), size);
+  const shaded = shadeVisibility(ids, pages, identityRoots(), cameraMoteur(cam), size);
   const o = (((16 / 2) | 0) * 16 + ((16 / 2) | 0)) * 4;
   // The directional source still contributes a tinted specular highlight.
   assert.ok(shaded[o] > 0);
@@ -74,19 +75,19 @@ test('MASK alpha-test punches a visbuffer hole before shading', () => {
   const far: VisPage = {
     array: new Uint32Array([0, 1, 2, 0, 2, 3]),
     attributes: geometry.attributes,
-    matrix: new G.Matrix4(),
+    placementIndex: 0,
     material: surfaceOf(solid),
     clusterId: 'far',
   };
   const near: VisPage = {
     array: new Uint32Array([4, 5, 6, 4, 6, 7]),
     attributes: geometry.attributes,
-    matrix: new G.Matrix4(),
+    placementIndex: 0,
     material: surfaceOf(mask),
     clusterId: 'near',
   };
   const cam = camera(),
-    ids = rasterVisibilityIds([far, near], cameraMoteur(cam), [16, 16]);
+    ids = rasterVisibilityIds([far, near], identityRoots(), cameraMoteur(cam), [16, 16]);
   const unpacked = unpackVisibilityId(centerId(ids, 16, 16));
   assert.ok(unpacked);
   assert.equal(unpacked.pageIndex, 0);
@@ -111,8 +112,8 @@ test('standard-material irradiance matches the Three.js linear capture without a
     cam.position.z = 3;
     cam.updateMatrixWorld();
     const size: [number, number] = [64, 64],
-      ids = rasterVisibilityIds(pages, cameraMoteur(cam), size);
-    const pixels = shadeVisibility(ids, pages, cameraMoteur(cam), size),
+      ids = rasterVisibilityIds(pages, identityRoots(), cameraMoteur(cam), size);
+    const pixels = shadeVisibility(ids, pages, identityRoots(), cameraMoteur(cam), size),
       offset = (32 * 64 + 32) * 4;
     for (let c = 0; c < 3; c++)
       assert.ok(

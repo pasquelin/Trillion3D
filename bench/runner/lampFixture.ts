@@ -141,11 +141,12 @@ function gltfOf(size: number, height: number, subdivisions: number, intensity: n
 
 const flags = parseArgs(process.argv.slice(2));
 const out = resolve(flags.get('out') ?? '.mesure/fixture-lampes');
-const size = Number(flags.get('cote') ?? 8),
-  height = Number(flags.get('hauteur') ?? 4),
+const size = Number(flags.get('size') ?? 8),
+  height = Number(flags.get('height') ?? 4),
   subdivisions = Number(flags.get('subdivisions') ?? 8),
   // Studio light: 68,300 cd equals exactly 100 W/sr after compiler conversion.
   intensity = Number(flags.get('candela') ?? 68300);
+flags.refuseUnread();
 const { gltf, binary } = gltfOf(size, height, subdivisions, intensity);
 await mkdir(out, { recursive: true });
 await writeFile(join(out, 'scene.gltf'), JSON.stringify(gltf, null, 1));

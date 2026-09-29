@@ -15,6 +15,7 @@ import {
 } from './steps.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { coverageBudgetEvent } from '../../../diagnostic/engineDiagnostic.ts';
+import { drawnViewChanged } from '../state/view.ts';
 
 /** The image's cut, into the reused result: the cut rule draws the nearest representation the
  *  pool holds of each surface (`../../../page/cut/rule.ts`). */
@@ -46,6 +47,7 @@ function cullWithTemporalHiz(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   try {
     const cut = applyTemporalHiz(
       partitionByPass(ready, false, run.opaqueScratch) as Array<PageRec & { array: Uint32Array }>,
+      rt.layout.selectionRoots,
       cam,
       rt.setup.viewport ?? rt.gpu.targetSize,
       run.temporalHizState,
@@ -76,10 +78,11 @@ export function renderCpuCut(
   const { run, gpu, timing, services } = rt,
     { bootstrapUrls, slots } = rt.setup,
     gpuDevice = gpu.device!;
-  // The CPU cut rewrites the lists itself: no held image leans on its own.
-  run.gate.resourcesChanged();
-  // The GPU sample no longer describes the image's arrays: this cut will write them.
-  services.forgetReadback();
+  // The CPU cut rewrites the lists itself: no held image leans on its own. On the main view the
+  // GPU sample no longer describes the image's arrays: this cut will write them. Another view
+  // writes its own, and only its own hold breaks.
+  drawnViewChanged(rt);
+  if (rt.views.active === rt.views.main) services.forgetReadback();
   // This image writes `shown` and `drawn` itself, and may exit by an error between the two: the
   // flag falls before the first write, never after.
   markDrawnDiverged(run);
@@ -136,7 +139,7 @@ export function renderCpuCut(
   // publishes its own by the same delta as the GPU sample — once, and only once, for an image that
   // draws.
   services.adoptCpuCut(wanted, run.shown);
-  services.queueCutResidency(run.coverageBudgetLimited);
+  services.residency.queueCutResidency();
   services.followEvictions(null);
   const queueEnd = performance.now();
   traceQueueReconstruct(rt, queueEnd - queueStarted);

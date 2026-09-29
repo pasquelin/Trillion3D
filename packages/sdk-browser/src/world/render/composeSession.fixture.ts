@@ -4,15 +4,15 @@
 import * as G from '../../host/graph/graph.fixture.ts';
 import type { RenderBackend } from '../../backend/types.ts';
 import type { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts';
-import type { GraphScene } from '../../host/graph/scene.ts';
+import type { Scene } from '../core/scene.ts';
 import { createSceneDraw } from '../../webgl/cluster/sceneDraw.ts';
 import { createTestContext } from '../../webgl/core/testContext.fixture.ts';
 import {
   createWorldNotices,
   listenWorldNotices,
   noticeEffectRefusal,
-  noticeMaterialDegraded,
 } from '../diagnostic/worldNotices.ts';
+import { noticeMaterialDegraded } from '../diagnostic/materialNotices.ts';
 import { createFrameComposer } from './compose.ts';
 
 const camera = G.perspectiveCamera();
@@ -25,7 +25,7 @@ const HALF_FLOATS = {
  *  notices; `frame` draws one and returns whether the chain ran and what the scene submitted.
  *  `between` writes the graph after the engine's `render`, as the engine's own frame does
  *  (`../../backend/autonomous/pages.ts`); `hold` says whether the engine holds its frames. */
-export function session(scene: GraphScene, chain: EffectChain) {
+export function session(scene: Scene, chain: EffectChain) {
   const context = createTestContext({ answers: HALF_FLOATS });
   const notices = createWorldNotices();
   const draw = createSceneDraw(context.gl, scene, [], {

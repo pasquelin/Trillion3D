@@ -3,18 +3,31 @@ import {
   addHemisphereIrradiance,
   addIrradianceCoefficients,
   addUniformIrradiance,
+  type IrradianceSum,
 } from '../../scene/core/environment.ts';
 import { Vector3 } from '../math/vector3.ts';
 import { Light } from './light.ts';
 
 /** The kinds that are lamps — a position or a direction the engine's light store holds. */
 const LAMPS = new Set(['point', 'spot', 'directional', 'rectArea']);
+/** A lamp that asks to cast and whose kind the store lets cast: a rectangle casts none. */
+export const lampCastsShadow = (light: Light) =>
+  light.castShadow && LAMPS.has(light.kind) && light.kind !== 'rectArea';
 /** The store's spot cone is open on `(0, π/2)`: the widest half-angle it holds, the half-space
  *  less the one float the bound excludes. */
 const WIDEST_CONE = Math.PI / 2 - 1e-9;
 const eye = new Vector3(),
   aim = new Vector3(),
   right = new Vector3();
+const tint = [0, 0, 0];
+/** `colour` times `scale`, in one reused triple: the WebGL2 probe adds every frame, allocating
+ *  nothing. */
+const scaled = (colour: { r: number; g: number; b: number }, scale: number) => {
+  tint[0] = colour.r * scale;
+  tint[1] = colour.g * scale;
+  tint[2] = colour.b * scale;
+  return tint;
+};
 
 /**
  * A lamp as the engine's store holds it (`scene/light/contracts.ts`), placed by its world matrix,
@@ -36,7 +49,7 @@ export function lampRecord(light: Light, id: string, reach: number): SceneLight 
     kind,
     color: light.color.toArray(),
     intensity: light.intensity,
-    castsShadow: light.castShadow && !rectangle,
+    castsShadow: lampCastsShadow(light),
   };
   if (rectangle) {
     light.getWorldDirection(aim);
@@ -66,21 +79,23 @@ export function lampRecord(light: Light, id: string, reach: number): SceneLight 
  * or its colour everywhere when it carries none. A lamp adds nothing here; whether the light is
  * shown is the caller's to decide, as for `lampRecord`. Returns whether it added anything.
  */
-export function addLightIrradiance(light: Light, sh: number[]) {
+export function addLightIrradiance(light: Light, sh: IrradianceSum) {
   if (!(light.intensity > 0)) return false;
   const scale = light.intensity;
-  const colour = light.color.toArray().map((c) => c * scale);
-  if (light.kind === 'ambient' || (light.kind === 'probe' && !light.sh))
-    addUniformIrradiance(sh, colour);
-  else if (light.kind === 'probe') addIrradianceCoefficients(sh, light.sh!, scale);
+  if (light.kind === 'probe' && light.sh) addIrradianceCoefficients(sh, light.sh, scale);
+  else if (light.kind === 'ambient' || light.kind === 'probe')
+    addUniformIrradiance(sh, scaled(light.color, scale));
   else if (light.kind === 'hemisphere') {
     light.getWorldPosition(aim);
     if (!(aim.lengthSq() > 0)) aim.set(0, 1, 0);
     const ground = light.groundColor.toArray().map((c) => c * scale);
-    addHemisphereIrradiance(sh, colour, ground, aim.normalize().toArray());
+    addHemisphereIrradiance(sh, scaled(light.color, scale), ground, aim.normalize().toArray());
   } else return false;
   return true;
 }
+
+/** The core light kind of a store lamp's kind: the store's `rect` is a `rectArea`. */
+export const lightKindOf = (kind: SceneLight['kind']) => (kind === 'rect' ? 'rectArea' : kind);
 
 /**
  * The node of a lamp the engine's store describes — a light the source file carried — which a
@@ -90,7 +105,7 @@ export function addLightIrradiance(light: Light, sh: number[]) {
 export function lightFromRecord(record: SceneLight): Light {
   const along = record.direction ?? [0, -1, 0];
   const at = record.position ?? [-along[0], -along[1], -along[2]];
-  const node = new Light(record.kind === 'rect' ? 'rectArea' : record.kind, {
+  const node = new Light(lightKindOf(record.kind), {
     width: record.size?.[0],
     height: record.size?.[1],
     color: record.color,

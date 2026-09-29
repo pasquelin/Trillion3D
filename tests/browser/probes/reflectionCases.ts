@@ -10,7 +10,6 @@
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 import { windingCw } from '../../../packages/sdk-browser/src/webgpu/pages/render/winding.ts';
-import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts';
 import { camera } from './inverseTransposeCases.ts';
 import type { Cas } from './inverseTransposeCases.ts';
 
@@ -29,10 +28,13 @@ export function pageVisible(cas: Cas) {
   return {
     array: new Uint32Array(cas.indices),
     attributes: geometrie.attributes,
-    matrix: cas.world,
+    placementIndex: 0,
     material: surfaceOf(G.basicSurface({ side: G.FRONT_SIDE })),
   };
 }
+
+/** The root the page of `pageVisible` ranks: the case's world. */
+export const rootsOf = (cas: Cas) => [{ world: cas.world }];
 
 /** `viewProj` matrix of the shared camera, column-major, as the engine assembles it. */
 function viewProjection(): number[] {
@@ -45,12 +47,11 @@ function viewProjection(): number[] {
 
 /**
  * Winding the engine would apply to this case: its own `windingCw` function, on a page record
- * that only carries the world matrix. Nothing is rewritten here.
+ * whose root carries the world matrix. Nothing is rewritten here.
  */
 export function sensDuMoteur(cas: Cas): 'cw' | 'ccw' {
-  // `windingCw` only reads `matrix` (and caches on `windingEpoch`/`windingCw`), as its own
-  // doc says; the rest of `PageRec` belongs to the selection pipeline, not to this probe.
-  return windingCw({ matrix: cas.world } as unknown as PageRec) ? 'cw' : 'ccw';
+  // `windingCw` only reads its root's `world` (and caches on it), as its own doc says.
+  return windingCw(rootsOf(cas), { placementIndex: 0 }) ? 'cw' : 'ccw';
 }
 
 /**

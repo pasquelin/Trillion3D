@@ -2,6 +2,7 @@ import { createWebgpuRowJournal } from './journal.ts';
 import { catalogueIndexOf, type PageRec } from '../../page/selection/selection.ts';
 import { pageAddress } from './pageSlots.ts';
 import { createDirtyRows } from './dirty.ts';
+import { growRowState, widened } from './grow.ts';
 
 /**
  * Stable row and residency arrays shared by the cut, visibility pass, and cache journal.
@@ -9,26 +10,31 @@ import { createDirtyRows } from './dirty.ts';
  * The table holds `drawSlots` visibility rows, then `blendSlots` rows the shadow pass alone reads:
  * the blended clusters that cast (`blendCasters.ts`). A visibility pass reads `[0, packedCount)`
  * and never reaches them; the per-row arrays the shadow pass reads — record, catalogue page,
- * dirty marks — span both.
+ * dirty marks — span both. The per-page arrays are replaced when pages join in place
+ * (`addPages`), the per-row ones when the table grows (`grow`): they are read through this
+ * object, never kept.
  */
 export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number, blendSlots = 0) {
   const casterSlots = drawSlots + blendSlots;
-  const residentFlags = new Uint32Array(packedPages.length);
   // Packed ranks by pool ADDRESS: that is the key the cache names when a slot moves, and several
   // placements of one cluster share it.
   const pageIndicesByUrl = new Map<string, number[]>();
-  for (let i = 0; i < packedPages.length; i++) {
-    const page = packedPages[i],
-      address = pageAddress(page);
-    const indices = pageIndicesByUrl.get(address);
-    if (indices) indices.push(i);
-    else pageIndicesByUrl.set(address, [i]);
-    page.packedIndex = i;
-  }
+  const indexPages = (first: number) => {
+    for (let i = first; i < packedPages.length; i++) {
+      const page = packedPages[i],
+        address = pageAddress(page);
+      const indices = pageIndicesByUrl.get(address);
+      if (indices) indices.push(i);
+      else pageIndicesByUrl.set(address, [i]);
+      page.packedIndex = i;
+    }
+  };
+  indexPages(0);
   const pageIndexOf = (rec: PageRec) => catalogueIndexOf(packedPages, rec);
 
   /** Pages named by the cache and those whose residency flag just flipped. */
   const journal = createWebgpuRowJournal();
+  const residentFlags = new Uint32Array(packedPages.length);
   const residentOffsetWords = new Int32Array(packedPages.length).fill(-1);
   const rowPageIndex = new Int32Array(drawSlots).fill(-1);
   const rowOffsetWords = new Int32Array(drawSlots).fill(-1);
@@ -59,11 +65,13 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number, 
     rowsChanged = true;
   let pageTableFloats: Float32Array | undefined, pageTableInts: Uint32Array | undefined;
 
-  return {
+  const state = {
     ...journal,
     /** First shadow-only row, and the end of the table: `[drawSlots, casterSlots)`. */
     blendFirst: drawSlots,
     casterSlots,
+    /** The table's generation: it moves when the table grows, which a reader of its size follows. */
+    generation: 0,
     blendRowOf,
     residentFlags,
     pageIndicesByUrl,
@@ -82,8 +90,12 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number, 
     pagePositions,
     /** Declares rows `[from, to]` dirty — one row by default —; `clearDirty` once all are sent. */
     markRowDirty: dirtyRows.mark,
+    /** Declares rows dirty whose occupant is kept (a pose, a diagnostic word): `markWords`. */
+    markRowWords: dirtyRows.markWords,
     clearDirty: dirtyRows.clear,
-    dirtyMarks: dirtyRows.marks,
+    get dirtyMarks() {
+      return dirtyRows.marks;
+    },
     get rowCount() {
       return rowCount;
     },
@@ -108,6 +120,10 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number, 
     },
     get dirtyTo() {
       return dirtyRows.span.to;
+    },
+    /** Row writes since the table was made (`rowsMoved`). */
+    get rowWrites() {
+      return dirtyRows.writes;
     },
     get candidateCount() {
       return candidateCount;
@@ -151,5 +167,29 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number, 
     set pageTableInts(value: Uint32Array | undefined) {
       pageTableInts = value;
     },
+    /** The table grows in place to `drawSlots` visibility rows and `blendSlots` casters' rows. */
+    grow(drawSlots: number, blendSlots: number) {
+      growRowState(state, dirtyRows, drawSlots, blendSlots);
+    },
+    /**
+     * `packedPages` grew from `first` on (`../../placement/webgpuGrowth.ts`): the per-page arrays
+     * take the new pages, each with its pool slot and positions as the page at its address holds
+     * them — no residency flag and no row yet —, and each is named to the journal.
+     */
+    addPages(first: number) {
+      indexPages(first);
+      const n = packedPages.length;
+      state.residentFlags = widened(state.residentFlags, new Uint32Array(n), 0);
+      state.residentOffsetWords = widened(state.residentOffsetWords, new Int32Array(n), -1);
+      state.rowOfPage = widened(state.rowOfPage, new Int32Array(n), -1);
+      state.blendRowOf = widened(state.blendRowOf, new Int32Array(n), -1);
+      for (let page = first; page < n; page++) {
+        const sibling = pageIndicesByUrl.get(pageAddress(packedPages[page]))![0];
+        state.residentOffsetWords[page] = state.residentOffsetWords[sibling];
+        state.pagePositions[page] = state.pagePositions[sibling];
+        state.touchPage(page);
+      }
+    },
   };
+  return state;
 }

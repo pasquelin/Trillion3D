@@ -1,5 +1,5 @@
 // The CPU half of the WebGPU particle step (#420): the words it hands the GPU for a pool, and a
-// frame with a pool never held. What the GPU does with them is the measurer's.
+// frame with a pool never held. What the GPU does with them is the recette's.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setImmediate as tick } from 'node:timers/promises';

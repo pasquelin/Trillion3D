@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createTextureLevelReader, type TextureLevelRequest } from './levelReader.ts';
 import { createWebgpuTileLevels } from '../webgpu/tile/levels.ts';
-import { createPageCache, manifestTableBytes, type PageCache } from '../streaming/pageCache.ts';
+import { tiledLevelBytes } from './tileRecords.ts';
+import { createPageCache, type PageCache } from '../streaming/pageCache.ts';
+import { manifestTableBytes } from '../streaming/manifestTables.ts';
 import { createPageStreamerWith } from '../streaming/pageStreamer.ts';
 import { servedPages } from '../streaming/servedPages.fixture.ts';
 import { worldBudget, worldPools } from '../world/core/worldBudget.ts';
@@ -11,7 +13,9 @@ import { DEFAULT_PHYSICS_BUDGET } from '../../../sdk-core/src/physics/index.ts';
 
 const MiB = 1024 * 1024;
 const BASE = 'https://host/cache/full/clusters.json';
-const textures = { url: '../../textures/v4/{sha}/{kind}-{level}.{format}' };
+const textures = { url: '../../textures/v6/{sha}/{kind}-{level}.{format}', version: 6 };
+/** Bytes of a `side`² block level file (#962): a server that ignores Range sends it whole. */
+const fileBytes = (side: number) => tiledLevelBytes(side, side);
 /** The block level `level` of one texture. */
 const request = (level: number): TextureLevelRequest => ({
   sha256: 'b'.repeat(64),
@@ -27,13 +31,13 @@ function session(cache: PageCache, key = 'k1', side = 1024) {
   globalThis.createImageBitmap ??= (() => Promise.reject(new Error('unused'))) as never;
   globalThis.fetch = (async (url: string | URL) => {
     fetched.push(String(url));
-    return new Response(new Uint8Array(side * side));
+    return new Response(new Uint8Array(fileBytes(side)));
   }) as typeof fetch;
   const read = createTextureLevelReader({ textures, key }, BASE, cache.levels)!;
   const levels = createWebgpuTileLevels({ read, onFailure: assert.fail });
   /** Asks for `level` at `frame`, and waits for what it read. */
   const ask = async (level: number, frame = 0) => {
-    levels.request(request(level), frame, [side, side]);
+    levels.request(request(level), frame, [side, side], 0, 0);
     await levels.settled();
   };
   return { levels, fetched, ask };
@@ -47,11 +51,14 @@ test('after a device loss the texture levels are rebuilt with no level read agai
   await lost.ask(0);
   lost.levels.destroy();
   const reopened = session(cache);
-  assert.ok(reopened.levels.get(request(0)) instanceof Uint8Array, 'held across the loss');
+  assert.ok(
+    reopened.levels.get(request(0), [1024, 1024], 0, 0) instanceof Uint8Array,
+    'held across the loss',
+  );
   await reopened.ask(0, 1);
   assert.deepEqual([reopened.fetched, reopened.levels.fetched], [[], 0], '0 texture refetch');
   // A read in flight while another cook opens lands for nothing.
-  reopened.levels.request(request(1), 2, [1024, 1024]);
+  reopened.levels.request(request(1), 2, [1024, 1024], 0, 0);
   session(cache, 'k2');
   await reopened.levels.settled();
   assert.equal(cache.levels.bytes, 0, "the first cook's levels left with it");
@@ -61,12 +68,12 @@ test('after a device loss the texture levels are rebuilt with no level read agai
 test('a level read by both sides of a device loss is counted once', async () => {
   const cache = createPageCache();
   const lost = session(cache);
-  lost.levels.request(request(0), 0, [1024, 1024]);
+  lost.levels.request(request(0), 0, [1024, 1024], 0, 0);
   lost.levels.destroy();
   const reopened = session(cache);
   await reopened.ask(0);
   await lost.levels.settled();
-  assert.equal(cache.levels.bytes, 1024 * 1024);
+  assert.equal(cache.levels.bytes, fileBytes(1024));
 });
 
 // Behaviour (#745, #483 rule 1): the levels yield to the pages a frame keeps, before the proxy
@@ -103,7 +110,7 @@ test('a small CPU total: no page a frame keeps is refused for a texture level, t
   );
   for (let frame = 1; frame < 4; frame++) await ask(0, frame);
   assert.deepEqual(fetched, urls, 'a level that cannot fit is not read again');
-  assert.equal(levels.request(request(0), 4, [8, 8]), false, 'refused, not waited for');
+  assert.equal(levels.request(request(0), 4, [8, 8], 0, 0), false, 'refused, not waited for');
   streamer.dispose();
 });
 
@@ -117,10 +124,10 @@ test('the texture levels cap follows world.budget.cpu live', async () => {
   const { levels, ask } = session(pools.pageCache);
   await ask(0);
   await ask(1);
-  assert.equal(levels.bytes, 2 * MiB);
+  assert.equal(levels.bytes, 2 * fileBytes(1024));
   handle.cpu = SHADOW_HOST_BYTES + 2 * MiB;
   const cap = (3 * 2 * MiB) / 4;
   assert.deepEqual([pools.pageCache.levels.budgetBytes, handle.split.textureLevels], [cap, cap]);
-  assert.equal(levels.bytes, MiB, 'the level read first left');
-  assert.ok(levels.get(request(1)), 'the one read last stays');
+  assert.equal(levels.bytes, fileBytes(1024), 'the level read first left');
+  assert.ok(levels.get(request(1), [1024, 1024], 0, 0), 'the one read last stays');
 });

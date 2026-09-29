@@ -24,6 +24,7 @@ import { bilan, somme } from './addressingSummary.ts';
 import { CARTES, materielMelange, TEXTURE, UV } from './addressingMaps.ts';
 import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
+import { identityRoots } from '../../../packages/sdk-browser/src/page/selection/placements.fixture.ts';
 
 const textures = new Map<string, G.GraphTexture>();
 function carte(c: AdressageCas) {
@@ -55,12 +56,12 @@ function texelRaster(c: AdressageCas): [number, number] | null {
   const page = {
     array: new Uint32Array([0, 1, 2]),
     attributes: geometrie.attributes,
-    matrix: new G.Matrix4(),
+    placementIndex: 0,
     material: surfaceOf(materiau),
   };
   const garde = (rang: number) => {
     materiau.alphaTest = (10 + 10 * rang) / 255;
-    return rasterVisibility([page], cameraMoteur(camera), [1, 1]).ids[0] !== 0;
+    return rasterVisibility([page], identityRoots(), cameraMoteur(camera), [1, 1]).ids[0] !== 0;
   };
   if (!garde(0)) return null;
   let bas = 0,

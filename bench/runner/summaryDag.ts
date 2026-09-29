@@ -21,7 +21,7 @@ export function stalls(report: Report) {
   ];
   for (const side of Object.keys(report.sides)) {
     const recorded = report.series
-      .map((serie) => serie.sides[side]?.avertissementsDag as DagWarnings | null | undefined)
+      .map((serie) => serie.sides[side]?.dagWarnings as DagWarnings | null | undefined)
       .find((warnings) => warnings?.stalled);
     const table = recorded?.stalled ?? [];
     if (!table.length) {

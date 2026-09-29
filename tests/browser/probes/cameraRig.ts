@@ -28,9 +28,9 @@ export const POSES_SANS_PARENT = Array.from({ length: 24 }, (_, i) => ({
 export type PoseParent = { x: number; z: number; ry: number };
 /** A pose of a parentless camera, posed directly: local position and yaw/pitch. */
 export type PoseLibre = { x: number; y: number; z: number; ry: number; rx: number };
-export type Rig = { parent: G.Group; camera: G.GraphCamera };
+export type Rig = { parent: G.Group; camera: G.Camera };
 
-const regle = (camera: G.GraphCamera, fov: number, aspect: number): G.GraphCamera => {
+const regle = (camera: G.Camera, fov: number, aspect: number): G.Camera => {
   camera.fov = fov;
   camera.aspect = aspect;
   camera.near = 0.1;
@@ -49,11 +49,11 @@ export function creeRig(fov = 55, aspect = 16 / 9): Rig {
   return { parent, camera };
 }
 
-/** Poses the parent. `hote`: the host also updates its rig before the frame, as it should. */
-export function poseRig(rig: Rig, pose: PoseParent, hote: boolean): G.GraphCamera {
+/** Poses the parent. `host`: the host also updates its rig before the frame, as it should. */
+export function poseRig(rig: Rig, pose: PoseParent, host: boolean): G.Camera {
   rig.parent.position.set(pose.x, 0, pose.z);
   rig.parent.rotation.y = pose.ry;
-  if (hote) rig.parent.updateMatrixWorld(true);
+  if (host) rig.parent.updateMatrixWorld(true);
   return rig.camera;
 }
 
@@ -63,7 +63,7 @@ export function poseRig(rig: Rig, pose: PoseParent, hote: boolean): G.GraphCamer
  * translation. View, inverse, direction and position are therefore exactly those a correct rig
  * must produce.
  */
-export function cameraAplatie(pose: PoseParent, fov = 55, aspect = 16 / 9): G.GraphCamera {
+export function flattenedCamera(pose: PoseParent, fov = 55, aspect = 16 / 9): G.Camera {
   const jumeau = creeRig(fov, aspect);
   poseRig(jumeau, pose, true);
   const plate = regle(G.perspectiveCamera(), fov, aspect);
@@ -76,7 +76,7 @@ export function cameraAplatie(pose: PoseParent, fov = 55, aspect = 16 / 9): G.Gr
 }
 
 /** Parentless camera posed directly. */
-export function cameraSansParent(pose: PoseLibre, fov = 55, aspect = 16 / 9): G.GraphCamera {
+export function cameraSansParent(pose: PoseLibre, fov = 55, aspect = 16 / 9): G.Camera {
   const camera = regle(G.perspectiveCamera(), fov, aspect);
   camera.position.set(pose.x, pose.y, pose.z);
   camera.rotation.set(pose.rx, pose.ry, 0);
@@ -85,5 +85,5 @@ export function cameraSansParent(pose: PoseLibre, fov = 55, aspect = 16 / 9): G.
 }
 
 /** A point in normalised device coordinates: seen from `camera`, then projected by it. */
-export const project = (point: G.Vector3, camera: G.GraphCamera) =>
+export const project = (point: G.Vector3, camera: G.Camera) =>
   point.applyMatrix4(camera.matrixWorldInverse).applyMatrix4(camera.projectionMatrix);

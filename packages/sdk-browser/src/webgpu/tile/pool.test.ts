@@ -16,7 +16,7 @@ test('the pool allocates its layers once, at the fixed size, and counts its tile
     layers: 2,
   });
   assert.equal(created.length, 1);
-  assert.deepEqual(created[0].size, { width: 4080, height: 4080, depthOrArrayLayers: 2 });
+  assert.deepEqual(created[0].size, { width: 4096, height: 4096, depthOrArrayLayers: 2 });
   assert.equal(created[0].format, 'rgba8unorm-srgb');
   assert.equal(pool.tiles, 2 * TILES_PER_LAYER);
   assert.equal(pool.bytes, 2 * poolLayerBytes(4));
@@ -67,10 +67,16 @@ test('eviction candidates are unpinned tiles that neither this image nor the pre
   const old = pool.acquire(2, 2)!;
   const older = pool.acquire(3, 1)!;
   const fresh = pool.acquire(4, 7)!;
-  assert.deepEqual(pool.candidates(7), [older, old]);
-  assert.deepEqual(pool.candidates(8), [older, old], 'seen on the previous image: kept');
-  assert.deepEqual(pool.candidates(9), [older, old, fresh]);
-  assert.equal(pool.candidates(2).length, 0);
+  const drain = (frame: number) => {
+    const queue = pool.victims(frame),
+      out: number[] = [];
+    for (let index = queue.take(); index !== undefined; index = queue.take()) out.push(index);
+    return out;
+  };
+  assert.deepEqual(drain(7), [older, old]);
+  assert.deepEqual(drain(8), [older, old], 'seen on the previous image: kept');
+  assert.deepEqual(drain(9), [older, old, fresh]);
+  assert.equal(pool.victims(2).length, 0);
   pool.release(tail);
   assert.equal(pool.resident, 3);
 });

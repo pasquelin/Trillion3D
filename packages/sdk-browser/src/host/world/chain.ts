@@ -40,3 +40,13 @@ export function hostWorldChainInto(out: Float64Array, node: Object3D) {
   for (let rank = 0; rank < depth; rank++) chain[rank] = undefined;
   return out;
 }
+
+/** True when `node` is rooted under `scene` — and, when `visibleOnly`, it and every ancestor up
+ *  to the scene visible. */
+export function rootedUnder(node: Object3D, scene: Object3D, visibleOnly = false) {
+  for (let walk: Object3D | null = node; walk; walk = walk.parent) {
+    if (visibleOnly && !walk.visible) return false;
+    if (walk === scene) return true;
+  }
+  return false;
+}

@@ -1,20 +1,24 @@
 import { boxEmpty, boxUnion, transformAffinePoint } from '../../../../sdk-core/src/index.ts';
 import { forEachDirtyRun } from '../row/dirty.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
+import { rootOf, type PageRec } from '../../page/selection/selection.ts';
+import type { Placements } from '../../page/selection/placements.ts';
 import type { WebgpuLightState } from '../pages/state/lights.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
+import { FLAG_MASK, PAGE_INFO_STRIDE } from '../../visibility/types.ts';
+import { ROW_FLAGS_WORD, ROW_INDEX_WORDS } from '../row/pageRow.ts';
+import { CLUSTER_SPHERE_FLOATS, clusterSpheres, mobilityRows } from './rowBuffers.ts';
 
-/** Floats of a cluster world sphere: centre then radius. */
-const CLUSTER_SPHERE_FLOATS = 4;
+const ROW_WORDS = PAGE_INFO_STRIDE / 4;
 
 /**
- * World sphere of a cluster: the centre of its local box transformed by its world matrix, and the
+ * World sphere of a cluster: the centre of its local box transformed by its root's world, and the
  * radius of the sphere circumscribed to the transformed box, overestimated term by term. It is an
  * overestimate, never an underestimate — a cluster is dropped only by being certainly outside the
  * volume.
  */
-function writeClusterSphere(rec: PageRec, out: Float32Array, base: number) {
-  const e = rec.matrix.elements;
+function writeClusterSphere(rec: PageRec, roots: Placements, out: Float32Array, base: number) {
+  const e = rootOf(roots, rec).world.elements;
   const cx = (rec.min[0] + rec.max[0]) / 2,
     cy = (rec.min[1] + rec.max[1]) / 2,
     cz = (rec.min[2] + rec.max[2]) / 2;
@@ -22,7 +26,7 @@ function writeClusterSphere(rec: PageRec, out: Float32Array, base: number) {
     hy = (rec.max[1] - rec.min[1]) / 2,
     hz = (rec.max[2] - rec.min[2]) / 2;
   transformAffinePoint(out, e, cx, cy, cz, base);
-  out[base + 3] = Math.hypot(
+  out[base + 3] = hypot3(
     Math.abs(e[0]) * hx + Math.abs(e[4]) * hy + Math.abs(e[8]) * hz,
     Math.abs(e[1]) * hx + Math.abs(e[5]) * hy + Math.abs(e[9]) * hz,
     Math.abs(e[2]) * hx + Math.abs(e[6]) * hy + Math.abs(e[10]) * hz,
@@ -32,6 +36,7 @@ function writeClusterSphere(rec: PageRec, out: Float32Array, base: number) {
 /** Writes the spheres of rows `[from, to]`; a row without a record takes a zero radius. */
 export function packClusterSpheres(
   packedRecs: ArrayLike<PageRec | undefined>,
+  roots: Placements,
   packed: Float32Array,
   from: number,
   to: number,
@@ -39,7 +44,7 @@ export function packClusterSpheres(
   for (let row = from; row <= to; row++) {
     const rec = packedRecs[row],
       base = row * CLUSTER_SPHERE_FLOATS;
-    if (rec) writeClusterSphere(rec, packed, base);
+    if (rec) writeClusterSphere(rec, roots, packed, base);
     else packed[base + 3] = 0;
   }
   return packed;
@@ -59,13 +64,7 @@ function ensureClusterSpheres(rt: WebgpuPagesRuntime, device: GPUDevice) {
     { casterSlots } = rt.layout.rows;
   if (lights.spheres && lights.spheres.rows === casterSlots) return lights.spheres;
   lights.spheres?.buffer.destroy();
-  const buffer = device.createBuffer({
-    label: 'Trillion3D cluster spheres v1',
-    size: Math.max(1, casterSlots) * CLUSTER_SPHERE_FLOATS * 4,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  });
-  const packed = new Float32Array(casterSlots * CLUSTER_SPHERE_FLOATS);
-  lights.spheres = { buffer, packed, rows: casterSlots };
+  lights.spheres = clusterSpheres(device, casterSlots);
   return lights.spheres;
 }
 
@@ -87,7 +86,8 @@ export function uploadClusterSpheres(rt: WebgpuPagesRuntime, device: GPUDevice) 
 
 function uploadSphereRun(rt: WebgpuPagesRuntime, from: number, to: number) {
   const spheres = rt.lights.spheres!;
-  packClusterSpheres(rt.layout.rows.packedRecs, spheres.packed, from, to);
+  const { rows, selectionRoots } = rt.layout;
+  packClusterSpheres(rows.packedRecs, selectionRoots, spheres.packed, from, to);
   // Offset and size counted in floats: that is what `writeBuffer` expects of a typed array.
   rt.gpu.device!.queue.writeBuffer(
     spheres.buffer,
@@ -99,9 +99,11 @@ function uploadSphereRun(rt: WebgpuPagesRuntime, from: number, to: number) {
 }
 
 /**
- * Mobility word of rows `[from, to]` — 1 for a row whose placement moves — pushed on the same dirty
- * interval as the spheres, and every row once when a placement turns moving: what the page cull
- * splits a page's casters by, static layer or moving casters.
+ * Mobility word of rows `[from, to]` — whether its placement moves, whether it is a cutout, the
+ * corners its row draws (#966) — pushed on the same dirty interval as the spheres and the page
+ * table's flags, and every row once when a placement turns moving: what the page cull splits a
+ * page's casters by, static layer or moving casters, and drawn with no fragment stage or with the
+ * cutout test (#965).
  */
 export function uploadRowMobility(
   rt: WebgpuPagesRuntime,
@@ -120,38 +122,46 @@ export function uploadRowMobility(
   );
   if (!lights.mobilityRows || lights.mobilityRows.size !== mobility.rowWords.byteLength) {
     lights.mobilityRows?.destroy();
-    lights.mobilityRows = device.createBuffer({
-      label: 'Trillion3D shadow row mobility v1',
-      size: mobility.rowWords.byteLength,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    });
+    lights.mobilityRows = mobilityRows(device, mobility.rowWords.length);
     from = 0;
     to = casterSlots - 1;
   }
-  const buffer = lights.mobilityRows;
+  const buffer = lights.mobilityRows,
+    ints = rows.pageTableInts,
+    // A row the table does not hold yet is sized as the scene's largest: never a triangle short.
+    corners = (row: number) => ints?.[row * ROW_WORDS + ROW_INDEX_WORDS] ?? rt.setup.maxCorners;
   mobility.writeRows(
     (row) => rows.packedRecs[row]?.placementIndex ?? -1,
     casterSlots,
     from,
     to,
     (first, count) => device.queue.writeBuffer(buffer, first * 4, mobility.rowWords, first, count),
+    corners,
     rows.blendFirst,
+    (row) => !!ints && (ints[row * ROW_WORDS + ROW_FLAGS_WORD] & FLAG_MASK) !== 0,
   );
 }
 
 const sphereScratch = new Float32Array(CLUSTER_SPHERE_FLOATS);
 
 /** Grows the flat box to the cluster's world sphere: an overestimate, never an underestimate. */
-export function growClusterBox(rec: PageRec, box: Float64Array) {
-  writeClusterSphere(rec, sphereScratch, 0);
+export function growClusterBox(rec: PageRec, roots: Placements, box: Float64Array) {
+  writeClusterSphere(rec, roots, sphereScratch, 0);
   const [x, y, z, r] = sphereScratch;
   boxUnion(box, 0, x - r, y - r, z - r, x + r, y + r, z + r);
 }
 
-/** One flat world box and its two halves, allocated once: what a change is declared with. */
-export const changeBox = new Float64Array(6),
-  changeMin = changeBox.subarray(0, 3),
-  changeMax = changeBox.subarray(3, 6);
+/** Two flat world boxes and their halves, allocated once, that a change is declared with: the
+ *  rows the static layer holds, then the rows already moving. */
+export const changeBoxes = [0, 1].map(() => {
+  const box = new Float64Array(6);
+  return { box, min: box.subarray(0, 3), max: box.subarray(3, 6) };
+});
+
+/** True when the record's placement already moves: the static layer does not hold its casters,
+ *  and a change of its own redraws the moving casters alone (#993). */
+export const recordMoves = ({ mobility }: WebgpuLightState, rec: PageRec) =>
+  rec.placementIndex !== undefined && mobility.moves(rec.placementIndex);
 
 /**
  * A page entered residency or left it since the last plan: the scene is drawn at another
@@ -159,12 +169,19 @@ export const changeBox = new Float64Array(6),
  * no longer describe it exactly and become candidates again — once the camera rests, since
  * the change is one of representation, not of the world. Without that, a settled map would
  * keep the shadow of a cluster that left, or ignore that of a cluster that arrived (#159). The
- * declared box is that of the cluster's world sphere.
+ * declared box is that of the cluster's world sphere; a moving placement's, or a blended
+ * caster's (`moving`), leaves the static layer as it is.
  */
-export function noteResidenceChange(lights: WebgpuLightState, rec: PageRec) {
+export function noteResidenceChange(
+  lights: WebgpuLightState,
+  roots: Placements,
+  rec: PageRec,
+  moving = recordMoves(lights, rec),
+) {
   const { store, plan } = lights;
   if (!store.count) return;
-  boxEmpty(changeBox, 0);
-  growClusterBox(rec, changeBox);
-  plan.representationChanged(changeMin, changeMax);
+  const { box, min, max } = changeBoxes[+moving];
+  boxEmpty(box, 0);
+  growClusterBox(rec, roots, box);
+  plan.representationChanged(min, max, moving);
 }

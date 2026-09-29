@@ -12,6 +12,8 @@ import {
 } from '../../../../sdk-core/src/index.ts';
 import { attr2, sampleLinear, triangleAt } from '../math.ts';
 import type { VisMaterial, VisPage } from '../types.ts';
+import { frameNormalScaleY } from '../frameNormal.ts';
+import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
 
 const normalScratch = new Float64Array(9);
 const frameNormals = [new Float64Array(3), new Float64Array(3), new Float64Array(3)];
@@ -53,7 +55,7 @@ export function shadingNormal(
   let Nx = ny * cz - nz * cy,
     Ny = nz * cx - nx * cz,
     Nz = nx * cy - ny * cx;
-  const world = page.matrix.elements;
+  const world = tri.world.elements;
   const face = screenFace * (matrixWindingCw(world) ? -1 : 1),
     side = mat.backSide ? -1 : 1;
   const normalAttr = page.attributes.normal,
@@ -97,7 +99,7 @@ export function shadingNormal(
       Nz *= face;
     }
   } else {
-    const length = Math.hypot(Nx, Ny, Nz) || 1;
+    const length = hypot3(Nx, Ny, Nz) || 1;
     Nx *= screenFace / length;
     Ny *= screenFace / length;
     Nz *= screenFace / length;
@@ -107,7 +109,7 @@ export function shadingNormal(
     // The three map components as scalars: an array here is an allocation per shaded pixel of a
     // surface that carries a normal map.
     const mapX = (nrm[0] * 2 - 1) * mat.normalScale,
-      mapY = (nrm[1] * 2 - 1) * mat.normalScaleY,
+      mapY = (nrm[1] * 2 - 1) * frameNormalScaleY(mat, !!tangentAttr && !!vertexNormals),
       mapZ = nrm[2] * 2 - 1;
     const T = frameT,
       B = frameB;

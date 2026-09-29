@@ -13,6 +13,7 @@
  * - a node's pose is set from what it declares: a matrix decomposed, or its translation, rotation
  *   and scale as they are — so the engine composes the same world matrices from them.
  */
+import { readPreparedSourceRank, registerPreparedNodeRank } from './sourceRanks.ts';
 import { numbered } from '../graph/serial.ts';
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts';
@@ -22,9 +23,10 @@ import type { GraphSurface } from '../graph/surface.ts';
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import { isDrawnNode } from '../graph/kinds.ts';
 import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { type GraphCamera } from '../graph/camera.ts';
-import { type GraphLight } from '../graph/light.ts';
+import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
+import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
 import { placedMeshes } from './placed.ts';
+import { registerPagedSource } from './pagedSource.ts';
 import type { RowLink } from '../../scene/partition/rows.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
@@ -35,12 +37,18 @@ type MeshRanks = RowLink;
 type Inputs = {
   tables: PreparedSceneTables;
   meshes: TableDocument['meshes'];
+  /** The meshes the drawn pages were cut from, when not `meshes`: the source document's, at the
+   *  same ranks, for the autonomous one, whose primitives are one degenerate triangle each. */
+  pagedFrom?: TableDocument['meshes'];
+  /** The geometry of each of those, read when a class change cuts its pages again (#846). */
+  pagedGeometryOf?: (mesh: number, primitive: number) => Geometry;
   geometryOf: (mesh: number, primitive: number) => Geometry;
   materialOf: (rank: number, variant: SurfaceVariant) => Promise<GraphSurface>;
 };
 
 /** The prepared scene as a host graph, and the ranks each drawn host mesh answers to. */
-export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: Inputs) {
+export async function preparedGraph(inputs: Inputs) {
+  const { tables, meshes, pagedFrom, geometryOf, materialOf } = inputs;
   const unique = uniqueNames();
   const ranks = new Map<Object3D, MeshRanks>();
   const scene = new Group();
@@ -72,8 +80,8 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
   };
   // Names first, depth first: node, then its camera, then its light; each camera and each light
   // is built at its first use.
-  const cameras = new Map<number, GraphCamera>();
-  const lights = new Map<number, GraphLight>();
+  const cameras = new Map<number, Camera>();
+  const lights = new Map<number, Light>();
   const nodeNames = new Map<number, string>();
   const order: number[] = [];
   const named = new Set<number>();
@@ -109,6 +117,9 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
     meshes[rank].primitives.map((primitive, p) => {
       const geometry = geometryOf(rank, p);
       const variant = surfaceVariantOf(geometry.attributes);
+      // The pages carry the normals of the primitive they were cut from: flat only without them.
+      const cut = pagedFrom?.[rank]?.primitives[p];
+      if (cut) variant.flatShading = cut.attributes.NORMAL === undefined;
       return { geometry, material: materialOf(primitive.material, variant) };
     }),
   );
@@ -166,12 +177,20 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
       node.name = nodeNames.get(id)!;
     }
     pose(node, declared);
+    // Hidden, it is parked as any hidden node (`placement/hidden.ts`); its subtree with it.
+    node.visible = declared.visible;
     nodes[id] = node;
+    registerPreparedNodeRank(node, readPreparedSourceRank(declared.sourceNode, id));
     for (const child of declared.children) node.add(assemble(child));
     return node;
   };
   for (const root of tables.scene.nodes) scene.add(assemble(root));
   const at = new Map(order.map((rank, index) => [rank, index]));
   const placed = placedMeshes(tables.partition, scene, ranks, (rank) => made[at.get(rank)!]);
+  const { pagedGeometryOf } = inputs;
+  if (pagedGeometryOf)
+    for (const [mesh, { meshes: rank, primitives: p }] of ranks)
+      if (rank !== undefined && p !== undefined)
+        registerPagedSource(mesh, () => pagedGeometryOf(rank, p));
   return { scene, ranks, nodes, placed };
 }

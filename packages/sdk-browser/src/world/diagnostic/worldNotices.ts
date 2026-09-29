@@ -119,28 +119,28 @@ export function noticeEffectRefusal(notices: Pick<WorldNotices, 'once'>) {
 }
 
 /**
- * The WebGL2 program's word (`MaterialDegraded`) that it draws a surface without physical
- * `features` it cannot draw (`physicalFeaturesLost`): said once per surface and feature, as
- * `material-degraded`, and the frame goes on. Heard once per version of a drawn surface
- * (`readDegraded`): a known feature is never said again.
+ * The WebGL2 engine's word that a light asks to cast a shadow it draws none of: that path has no
+ * shadow map (`CONTRACT_LIGHTS_LIGHTING`), so the light — sun, point or spot — is drawn
+ * unshadowed, never silently: `shadows-refused` is said once per light, and again only once its
+ * `castShadow` has been off (or the light gone or hidden, or the unlit view shown) and comes back. Heard
+ * with the casting lights at each change of the session's lights, never per frame. WebGPU draws
+ * those shadows and never says it.
  */
-export function noticeMaterialDegraded(notices: Pick<WorldNotices, 'say'>) {
-  const said = new WeakMap<object, Set<string>>();
-  return (
-    material: { readonly name: string; readonly family: string },
-    features: readonly string[],
-  ) => {
-    let known = said.get(material);
-    if (!known) said.set(material, (known = new Set()));
-    for (const feature of features) {
-      if (known.has(feature)) continue;
-      known.add(feature);
-      notices.say(
-        'material-degraded',
-        `${material.family} material "${material.name}" drawn on WebGL2 without ${feature}, ` +
-          `which WebGL2 cannot draw`,
-        { material: material.name, feature },
-      );
-    }
+export function noticeShadowRefusal(notices: Pick<WorldNotices, 'say'>) {
+  let said = new Set<string>();
+  let last: readonly string[] | undefined;
+  return (casting: readonly string[]) => {
+    // Each light set keeps its list between its changes: the same list says nothing new.
+    if (casting === last) return;
+    last = casting;
+    for (const light of casting)
+      if (!said.has(light))
+        notices.say(
+          'shadows-refused',
+          `light ${light} casts no shadow on WebGL2, which draws no shadow map: it is drawn ` +
+            `unshadowed; WebGPU draws its shadow`,
+          { light },
+        );
+    said = new Set(casting);
   };
 }

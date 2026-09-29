@@ -6,7 +6,8 @@ import {
   createHostDrawCamera,
   readHostDrawCamera,
 } from '../../../packages/sdk-browser/src/camera/world.ts';
-import { drawMatrix } from './webglClusterPixels.ts';
+import { drawMatrix, strictDegraded } from './webglClusterPixels.ts';
+import { keptClusterScene } from '../../../packages/sdk-browser/src/webgl/cluster/sceneDraw.ts';
 
 const center = (gl: WebGLRenderingContext | WebGL2RenderingContext) => {
   const value = new Uint8Array(4);
@@ -49,10 +50,10 @@ export function windingComparisons() {
   rawCanvas.width = rawCanvas.height = witnessCanvas.width = witnessCanvas.height = 32;
   const gl = rawCanvas.getContext('webgl2', { antialias: false });
   if (!gl) return { unavailable: 'WebGL2 unavailable' };
-  const raw = new WebglClusterRenderer(gl),
+  const raw = new WebglClusterRenderer(gl, strictDegraded()),
     witness = new THREE.WebGLRenderer({ canvas: witnessCanvas, antialias: false }),
     mesh = inputs(),
-    scene = new G.GraphScene(),
+    scene = new G.Scene(),
     witnessScene = new THREE.Scene(),
     witnessMesh = threeMeshCopy({ geometry: mesh.geometry, material: mesh.ownMaterial }),
     camera = G.perspectiveCamera(60, 1, 0.1, 10),
@@ -71,7 +72,13 @@ export function windingComparisons() {
     rig.scale.set(cameraMirror ? -1 : 1, 1, 1);
     rig.updateMatrixWorld(true);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    raw.draw([mesh.mesh], scene, readHostDrawCamera(createHostDrawCamera(), camera), false, true);
+    raw.draw(
+      [mesh.mesh],
+      keptClusterScene(scene),
+      readHostDrawCamera(createHostDrawCamera(), camera),
+      false,
+      true,
+    );
     const owned = center(gl);
     witness.render(witnessScene, threeCamera(camera));
     return { owned, witness: center(witness.getContext()) };
