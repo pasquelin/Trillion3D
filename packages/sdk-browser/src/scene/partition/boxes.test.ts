@@ -59,3 +59,20 @@ test('a box is written again only once read after its parent moved', () => {
   assert.equal(far.written, written, 'not written until read');
   assert.deepEqual([...boxes.bounds(far)], [first[0] + 10, 0, 0, first[3] + 10, 1, 1]);
 });
+
+test('a page under a parent declared flat is read wherever that parent grows', () => {
+  const { root, core } = world();
+  core.scale.set(0, 0, 0);
+  const boxes = createCellBoxes([0], root, [core]);
+  // Declared at scale 0, its cells collapse onto the parent's origin: the page's box is that point.
+  const page = { declared: [0, 0, 0, 0, 0, 0], box: new Float64Array(6), written: -1 };
+  boxes.refresh();
+  assert.deepEqual([...boxes.around(page)], [0, 0, 0, 0, 0, 0], 'as declared');
+  core.scale.set(1, 1, 1);
+  boxes.refresh();
+  // Nothing carries the flat frame to where the cells stand now: the page may hold any of space.
+  assert.deepEqual(
+    [...boxes.around(page)],
+    [-Infinity, -Infinity, -Infinity, Infinity, Infinity, Infinity],
+  );
+});

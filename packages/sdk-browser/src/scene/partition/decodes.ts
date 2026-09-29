@@ -12,7 +12,7 @@ export function createDecodes<Key, Decoded extends object>() {
   return {
     /** `cell`'s decoded form, else `undefined`: its bytes, once `bytes` reads them, are handed to
      *  `decode` first. A file the decode refused is thrown, as its frame reads it. */
-    rows(
+    decoded(
       cell: Key,
       bytes: () => Uint8Array | undefined,
       decode: (bytes: Uint8Array) => Promise<Decoded>,
@@ -23,7 +23,7 @@ export function createDecodes<Key, Decoded extends object>() {
       const read = bytes();
       if (!read) return undefined;
       const task: Promise<void> = decode(read).then(
-        (rows) => void (decoded.get(cell) === task && decoded.set(cell, rows)),
+        (done) => void (decoded.get(cell) === task && decoded.set(cell, done)),
         (refused: unknown) => void (decoded.get(cell) === task && decoded.set(cell, { refused })),
       );
       decoded.set(cell, task);

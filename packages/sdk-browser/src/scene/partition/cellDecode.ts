@@ -40,20 +40,18 @@ export function decodeCellFile(source: ArrayBuffer): CellPayload {
   return { nodes: nodes.length, ranks: ranks.buffer, locals: locals.buffer };
 }
 
-/** A decoded cell as its rows are written from it, and the bytes its file took. */
+/** A decoded cell as its rows are written from it. */
 export type CellRows = {
   nodes: number;
   /** Per node, its parent's rank (`-1`: the scene root), then its mesh's. */
   ranks: Int32Array;
   /** Per node, its local matrix. */
   locals: Float64Array;
-  bytes: number;
 };
 
-/** The rows of a decoded cell whose file took `bytes`. */
-export const cellRows = ({ nodes, ranks, locals }: CellPayload, bytes: number): CellRows => ({
+/** The rows of a decoded cell. */
+export const cellRows = ({ nodes, ranks, locals }: CellPayload): CellRows => ({
   nodes,
   ranks: new Int32Array(ranks),
   locals: new Float64Array(locals),
-  bytes,
 });

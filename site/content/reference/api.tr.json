@@ -2253,7 +2253,7 @@
     "description": "İlk altısı, `geometryPage.ts`'ten kelimesi kelimesine alınan sayfa çözme reddidir: bir çağıran onları eskisi gibi ayırt eder. `PAGE_DECODE_FAILED`, sıkıştırma açma kütüphanesinden başka herhangi bir reddi taşır. `PAGE_DECODE_CANCELLED` bir iptale yanıt verir, `PAGE_DECODE_WORKER` kaybolan bir yürütücüye — yalnızca o, yedeğe izin verir."
   },
   "PAGE_DECODE_PROTOCOL": {
-    "summary": "Ana iş parçacığı dışında sayfa çözme sözleşmesi, sürüm 6: çözülmüş geometri, kuantalama hatasıyla tek bir blok olarak yolculuk eder, ve arena yuvası o hatayı 8. kelimede kaydeder; `cut`, çizilen üçgenleri, açıklayıcılarıyla birlikte bayt olarak geri dönen sayfalara dönüştürür. Sürüm 6'dan beri normal konileriyle birlikte döner; paketlenmiş üçgenler sayfalarının bir koni tutup tutmadığını taşır.",
+    "summary": "Ana iş parçacığı dışında sayfa çözme sözleşmesi, sürüm 7: çözülmüş geometri, kuantalama hatasıyla tek bir blok olarak yolculuk eder, ve arena yuvası o hatayı 8. kelimede kaydeder; `cut`, çizilen üçgenleri, açıklayıcılarıyla birlikte bayt olarak geri dönen sayfalara dönüştürür. Sürüm 6'dan beri normal konileriyle birlikte döner; paketlenmiş üçgenler sayfalarının bir koni tutup tutmadığını taşır. Sürüm 7'den beri `cells` bir bölümlemenin hücre dosyasını yerleştirdiği satırlara okur, `cellPage` ise hücre dizininin bir sayfasını (#575).",
     "description": "Çağıran iş parçacığı bir `PageDecodeRequest` gönderir, yürütücü aynı `id`'yi taşıyan bir `PageDecodeAnswer` döndürür. Burada hiçbir şey platforma dokunmaz: `Worker` yok, fetch yok, saat yok — tarayıcı adaptörü bunların hepsini taşır, bu dosya yalnızca mesaj şeklini, kapalı hata listesini ve havuz sınırını taşır. Tampon sahipliği: `source`, istekle birlikte **aktarılır**, bu yüzden gönderen artık ona sahip değildir. Bir `verify` yanıtı onu, sırayla aktarılmış olarak döndürür; bir `decode` yanıtı bunun yerine çözülmüş tamponları, o da aktarılmış olarak döndürür. Hiçbir şey aktarmayan bir yürütücü (senkron yedek) tam olarak aynı değerleri döndürür: sözleşme işin nasıl yolculuk ettiğini söylemez, yalnızca ne döndürdüğünü."
   },
   "PAGE_INTEGRATION_FAILURES": {
@@ -2418,6 +2418,8 @@
       "source": "`verify`: döndürülen kaynak tampon. `decode`: `null`, kaynak tüketilir.",
       "decoded": "`decode`: açılmış sayfa.",
       "cut": "`cut`: sayfalar, baytları aktarılmış. Aksi halde yok.",
+      "cells": "`cells`: düğüm başına, çekirdek ebeveyninin sırası (`-1`: sahne kökü) ve ağının sırası `ranks` içinde, iki 32 bitlik tamsayı, ve motorun pozu için oluşturduğu yerel matris `locals` içinde, on altı double; ikisi de aktarılmış. Aksi halde yok.",
+      "cellPage": "`cellPage`: sayfanın yuvaları veya hücreleri (`readCellPage`). Aksi halde yok.",
       "wasm": "WebAssembly ile derlenmiş çözücü işi yaptığında doğru, JavaScript çözücüsü için yanlış. İkisi de aynı baytları verir; yalnızca sayaç onları ayırt eder.",
       "taskMs": "Görevin kendi yürütücüsü tarafından ölçülen süresi."
     }
@@ -2448,7 +2450,7 @@
   },
   "PageDecodeOp": {
     "summary": "`verify`: bir sayfanın SHA-256 özeti.",
-    "description": "`decode`: indeksleri ve köşe başına öznitelikleri. `cut`: beş uzunluk, sayfalarının bir koni tutup tutmadığı, sonra beş dört baytlık dizi olarak paketlenmiş, sayfalara kesilmiş çizilen üçgenler."
+    "description": "`decode`: indeksleri ve köşe başına öznitelikleri. `cut`: beş uzunluk, sayfalarının bir koni tutup tutmadığı, sonra beş dört baytlık dizi olarak paketlenmiş, sayfalara kesilmiş çizilen üçgenler. `cells`: bir bölümlemenin hücre dosyası, her düğümün ebeveynine, ağına ve yerel matrisine okunur. `cellPage`: hücre dizininin bir sayfası, listelediği sayfalara veya hücrelerine okunur."
   },
   "PageDecodeRequest": {
     "summary": "Bir worker'dan bir sayfayı kontrol etmesini, açmasını ya da kesmesini isteyen bir mesaj.",
