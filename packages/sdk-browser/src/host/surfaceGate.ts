@@ -34,14 +34,27 @@ const ownBuffer = (attribute: HostAttribute | undefined) => attribute?.kind === 
 /** The six maps the import reads, in its order: a basic material declares none of the lit ones,
  *  so the list is the host's own properties, not a second rule. An occlusion map its model
  *  ignores asks for no UV. */
-const mapsOf = (host: HostShadedMaterial) => [
-  host.map,
-  host.metalnessMap,
-  host.roughnessMap,
-  host.normalMap,
-  readsOcclusion(host) ? host.aoMap : undefined,
-  host.emissiveMap,
-];
+const MAP_KEYS = [
+  'map',
+  'metalnessMap',
+  'roughnessMap',
+  'normalMap',
+  'aoMap',
+  'emissiveMap',
+] as const;
+const mapOf = (host: HostShadedMaterial, key: (typeof MAP_KEYS)[number]) =>
+  key === 'aoMap' && !readsOcclusion(host) ? undefined : host[key];
+
+/** The maps `host` reads on UV `channel`, or on any channel: counted by walking its properties,
+ *  so the gate of a page allocates nothing (#840: read for every page of a frame). */
+function readMaps(host: HostShadedMaterial, channel?: number) {
+  let count = 0;
+  for (const key of MAP_KEYS) {
+    const texture = mapOf(host, key);
+    if (texture && (channel === undefined || texture.channel === channel)) count++;
+  }
+  return count;
+}
 
 /**
  * What a surface answers alone, in the gate's order: the reason read before its attributes, and
@@ -87,12 +100,10 @@ function surfaceReason(host: HostShadedMaterial, transmissive: boolean) {
 
 /** What the attributes of one mesh wearing `material` lack. */
 export function attributeReason(material: HostMaterials, attributes: HostAttributes) {
-  const host = material as HostShadedMaterial,
-    maps = mapsOf(host);
+  const host = material as HostShadedMaterial;
   if (!ownBuffer(attributes.position)) return 'position attribute is unsupported';
-  if (maps.some(Boolean) && !ownBuffer(attributes.uv))
-    return 'textured material has no UV attribute';
-  if (maps.some((texture) => texture?.channel === 1) && !ownBuffer(attributes.uv1))
+  if (readMaps(host) && !ownBuffer(attributes.uv)) return 'textured material has no UV attribute';
+  if (readMaps(host, 1) && !ownBuffer(attributes.uv1))
     return 'texture channel 1 has no UV1 attribute';
   // Every family but the plain colour and the depth ramp shades by the normal: the lit ones, the
   // normal view, and the matcap, which reads its image by it.
@@ -103,8 +114,8 @@ export function attributeReason(material: HostMaterials, attributes: HostAttribu
 }
 
 function mapsReason(host: HostShadedMaterial) {
-  for (const texture of mapsOf(host)) {
-    const reason = textureReason(texture);
+  for (const key of MAP_KEYS) {
+    const reason = textureReason(mapOf(host, key));
     if (reason) return reason;
   }
   // A matcap's image is read at its normal's coordinate, never by a UV attribute.

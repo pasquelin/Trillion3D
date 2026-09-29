@@ -1,6 +1,7 @@
 import type { GpuBuffer, WholeMesh } from '../../cluster/batchMesh.ts';
 import { glType, upload, type CachedAttribute } from './buffers.ts';
 import { WebglClusterPlacements } from './placements.ts';
+import { WebglPageArenas } from './pageArenas.ts';
 
 /** What the cache binds: a batch record's geometry, or that of a host mesh drawn whole. */
 type Geometry = WholeMesh['geometry'];
@@ -19,9 +20,9 @@ type CachedGeometry = {
 /** A geometry of the engine's own graph announces its release; a host one never does. */
 type Releasing = { released?: Set<() => void> };
 /** The attributes the program reads, by name. */
-const ATTRIBUTES = ['position', 'normal', 'uv', 'uv1', 'color'] as const;
+export const ATTRIBUTES = ['position', 'normal', 'uv', 'uv1', 'color'] as const;
 /** An attribute the program can bind: one owning its buffer; an interleaved view reads as absent. */
-const drawnAttribute = (geometry: Geometry, name: string) => {
+export const drawnAttribute = (geometry: Geometry, name: string) => {
   const attribute = geometry.attributes[name];
   return attribute?.kind === 'attribute' ? attribute : undefined;
 };
@@ -32,10 +33,19 @@ export class WebglClusterGeometry {
   private locations: Record<string, number>;
   /** The placement matrices of the instanced meshes, one buffer each, freed with their mesh. */
   private placements: WebglClusterPlacements;
+  /** The shared buffers the pages are drawn from, by vertex layout (`pageArenas.ts`). */
+  readonly arenas: WebglPageArenas;
   constructor(gl: WebGL2RenderingContext, locations: Record<string, number>) {
     this.gl = gl;
     this.locations = locations;
     this.placements = new WebglClusterPlacements(gl, locations.instanceMatrix);
+    this.arenas = new WebglPageArenas(gl, locations);
+  }
+  /** Binds an arena's vertex array (`pageArena.ts`), whose absent attributes read the frame's
+   *  constants. */
+  bindArena(vao: WebGLVertexArrayObject) {
+    this.gl.bindVertexArray(vao);
+    if (!this.generics) this.setGenerics();
   }
   /** Binds `geometry`, and the placement matrices of `mesh`, an instanced mesh. */
   bind(geometry: Geometry, mesh?: Pick<WholeMesh, 'instanceMatrix' | 'released'>) {
@@ -130,6 +140,7 @@ export class WebglClusterGeometry {
   beginFrame() {
     this.generics = false;
     this.frame++;
+    this.arenas.beginFrame();
   }
   /** White for an absent colour, zero for any other absent attribute. */
   private setGenerics() {
@@ -154,5 +165,6 @@ export class WebglClusterGeometry {
     }
     this.cache.clear();
     this.placements.dispose();
+    this.arenas.dispose();
   }
 }

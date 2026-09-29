@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { clusterMaterialReason } from './compatibility.ts';
-import { validateClusterMeshes } from './validation.ts';
+import { ClusterMeshValidation } from './validation.ts';
 import { physicalFeaturesLost } from '../../scene/physicalMaterialGate.ts';
 import { drawPasses } from '../../cluster/batchMesh.ts';
 import { hostBlending } from '../../scene/materialBlending.ts';
@@ -77,14 +77,13 @@ test('one material is validated against every distinct geometry attribute set', 
   const uv = new G.BufferAttribute(new Float32Array(6), 2);
   assert.throws(
     () =>
-      validateClusterMeshes(
+      new ClusterMeshValidation().validate(
         [
           { material, geometry: { attributes: { position, uv, uv1: uv } } },
           { material, geometry: { attributes: { position, uv } } },
         ] as never,
         [],
         NO_COPIES,
-        new Map(),
       ),
     /no UV1 attribute/,
   );
@@ -94,11 +93,10 @@ test('a runtime mutation to a material array is rejected instead of disappearing
   const material = G.basicSurface();
   assert.throws(
     () =>
-      validateClusterMeshes(
+      new ClusterMeshValidation().validate(
         [{ material: [material], geometry: { attributes: { position } } }] as never,
         [],
         NO_COPIES,
-        new Map(),
       ),
     /material arrays are unsupported/,
   );
@@ -108,12 +106,12 @@ test('a mutation of a two-sided transparent material is read at the draw, never 
   const source = G.basicSurface({ transparent: true, side: G.DOUBLE_SIDE });
   const mesh = { material: source, geometry: { attributes: { position } } } as never;
   assert.deepEqual(drawPasses(source), ['back', 'front']);
-  validateClusterMeshes([mesh], [], NO_COPIES, new Map());
+  new ClusterMeshValidation().validate([mesh], [], NO_COPIES);
   source.forceSinglePass = true;
   assert.deepEqual(drawPasses(source), [undefined], 'one pass on the declared faces');
   source.premultipliedAlpha = true;
   assert.throws(
-    () => validateClusterMeshes([mesh], [], NO_COPIES, new Map()),
+    () => new ClusterMeshValidation().validate([mesh], [], NO_COPIES),
     /unsupported blend state/,
   );
 });
@@ -142,13 +140,13 @@ test('a transmissive copy mutated into another physical extension is drawn witho
   const glass = G.physicalSurface({ transmission: 1 });
   const copy = { material: glass, geometry: { attributes: { position, normal } } } as never;
   const copies = { ...NO_COPIES, transmissive: [copy] };
-  validateClusterMeshes([], [], copies, new Map());
+  new ClusterMeshValidation().validate([], [], copies);
   glass.sheen = 1;
-  validateClusterMeshes([], [], copies, new Map()); // never a refusal (#772)
+  new ClusterMeshValidation().validate([], [], copies); // never a refusal (#772)
   glass.sheen = 0;
   // A blended copy the owner submits is validated like a page: it never transmits.
   assert.throws(
-    () => validateClusterMeshes([], [], { ...NO_COPIES, blended: [copy] }, new Map()),
+    () => new ClusterMeshValidation().validate([], [], { ...NO_COPIES, blended: [copy] }),
     /drawn as a scene copy/,
   );
 });

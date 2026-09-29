@@ -83,24 +83,40 @@ export class WebglClusterLightLists {
     this.lights = count;
     this.length = 0;
     this.spans.clear();
+    this.ranged = false;
+    for (let at = 3; at < count * REACH_FLOATS; at += REACH_FLOATS)
+      if (this.reach[at] > 0) this.ranged = true;
     for (const list of draws) for (const draw of list) this.list(draw);
     this.texture.upload(this.length);
   }
-  /** Points the program's `lightSpan` at `draw`'s list; a draw the frame did not list is listed
-   *  and sent now, never drawn unlit. */
-  use(draw: ClusterDraw, lightSpan: WebGLUniformLocation | null) {
+  /** `draw`'s list, by number; a draw the frame did not list is listed and sent now, never drawn
+   *  unlit. */
+  listOf(draw: ClusterDraw) {
     let k = this.spans.get(draw);
     if (k === undefined) {
       k = this.list(draw);
       this.texture.upload(this.length);
     }
+    return k;
+  }
+  /** Whether two lists read the same span: equal lists listed in a row share one (`list`). */
+  same(a: number, b: number) {
+    return this.starts[a] === this.starts[b] && this.counts[a] === this.counts[b];
+  }
+  /** Points the program's `lightSpan` at list `k` (`listOf`). */
+  use(k: number, lightSpan: WebGLUniformLocation | null) {
     this.gl.uniform2i(lightSpan, this.starts[k], this.counts[k]);
   }
+  /** Whether a light of the frame has a range: none, every draw takes every light, unmeasured. */
+  private ranged = false;
+  /** A draw's list, written at the end of the texture, or the previous list's span when it holds
+   *  the same lights: the draws of a run then read one span (`runs.ts`). */
   private list(draw: ClusterDraw) {
     const known = this.spans.get(draw);
     if (known !== undefined) return known;
-    const start = this.length,
-      every = leavesItsBox(draw),
+    const k = this.spans.size;
+    let start = this.length;
+    const every = !this.ranged || leavesItsBox(draw),
       box = every ? this.box : drawWorldBox(this.box, draw),
       reach = this.reach;
     this.texture.reserve(start + this.lights);
@@ -114,7 +130,10 @@ export class WebglClusterLightLists {
       )
         entries[this.length++] = slot;
     }
-    const k = this.spans.size;
+    if (k > 0 && this.repeats(k - 1, start)) {
+      start = this.starts[k - 1];
+      this.length = this.starts[k - 1] + this.counts[k - 1];
+    }
     if (k >= this.starts.length) {
       this.starts = grown(this.starts, Int32Array, Math.max(64, k * 2));
       this.counts = grown(this.counts, Int32Array, this.starts.length);
@@ -123,6 +142,15 @@ export class WebglClusterLightLists {
     this.counts[k] = this.length - start;
     this.spans.set(draw, k);
     return k;
+  }
+  /** Whether the entries written from `start` repeat list `k`, the one written just before. */
+  private repeats(k: number, start: number) {
+    const from = this.starts[k],
+      count = this.counts[k],
+      entries = this.texture.data;
+    if (from + count !== start || this.length - start !== count) return false;
+    for (let i = 0; i < count; i++) if (entries[from + i] !== entries[start + i]) return false;
+    return true;
   }
   dispose() {
     this.texture.dispose();
