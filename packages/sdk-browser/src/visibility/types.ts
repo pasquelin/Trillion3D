@@ -1,7 +1,6 @@
 import type { HostAttributes } from '../host/resources.ts';
 import type { PageSurface } from '../page/surface.ts';
 import type { Texture } from '../../../sdk-core/src/index.ts';
-import type { MatrixElements } from '../math/matrixElements.ts';
 import { HOST_FORMAT_RGBA } from '../host/surfaceConstants.ts';
 import { texelFormatOf } from '../host/textureImport.ts';
 
@@ -67,7 +66,8 @@ export const FLAG_FOG_FREE = 1 << 20;
 export type VisPage = {
   array: Uint32Array;
   attributes: HostAttributes;
-  matrix: MatrixElements;
+  /** Rank of the root whose world places it (`../page/selection/types.ts`, `rootOf`). */
+  placementIndex?: number;
   /** The engine's surface record, read once at the boundary (`../page/surface.ts`). */
   material: PageSurface;
   clusterId?: string;

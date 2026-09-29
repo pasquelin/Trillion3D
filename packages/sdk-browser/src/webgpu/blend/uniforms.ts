@@ -121,6 +121,7 @@ export function writeBlendView(rt: WebgpuPagesRuntime, device: GPUDevice) {
   writeBlendDiagnostic(
     blendState,
     rt.layout.packedPages,
+    rt.layout.selectionRoots,
     diagnostic,
     eye && run.gate.cam,
     viewport,

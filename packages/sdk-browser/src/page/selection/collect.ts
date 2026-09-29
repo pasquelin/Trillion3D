@@ -117,8 +117,8 @@ export function collectClusterPages(
           // A flat cut has no tree: transparent pages recover their draw order from the source
           // rank, recorded for every class, since a page may turn blended in the session (#846).
           sourceOrder: template.sourceOrder[pageIndex],
-          matrix: world,
-          placement,
+          // Its world and row are its root's, found by its rank (`rootOf`).
+          placementIndex: roots.length,
           renderOrder: order,
           attached: false,
           cone: page.cone,

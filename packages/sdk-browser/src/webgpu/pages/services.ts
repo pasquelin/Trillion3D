@@ -50,7 +50,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
    *  material, its geometry block or its slot, none of them to the image. */
   // Off the visibility state, read at each row: the atlases exist from the textures' preparation
   // on, and it hears there that an as-is surface took a row (`asIsShown`).
-  const writePageRow = createPageRowWriter(rt.vis, rows.markRowDirty);
+  const writePageRow = createPageRowWriter(rt.vis, rows.markRowDirty, rt.layout.selectionRoots);
   // The residency mirror is the only incremental state of this path: its journal is checked against
   // the cache on every flush, and rebuilt at the slightest disagreement rather than drifting.
   const commit = createWebgpuRowCommit(rows, writePageRow);
@@ -70,7 +70,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     ),
     // A blended caster's opacity moved: the shadow pages under it redraw their moving casters, as
     // the static layer never holds a blended caster (#993).
-    (rec) => noteResidenceChange(rt.lights, rec, true),
+    (rec) => noteResidenceChange(rt.lights, rt.layout.selectionRoots, rec, true),
     context.frameBudget,
   );
   /**
