@@ -15,7 +15,9 @@ import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
 import { MEASURE_OUT } from '../../bench/core/paths.ts';
-import { BROWSER, JUSTESSE, RACINE } from './test-gpu.ts';
+import { BROWSER, JUSTESSE } from './test-gpu.ts';
+
+const REPOSITORY = join(import.meta.dirname, '..', '..');
 
 const TARGET = 'TRILLION3D_IMPORT_PROOF',
   REPORT = 'import report: ';
@@ -89,12 +91,12 @@ if (process.env[TARGET]) await importOne(process.env[TARGET]);
 else
   test('importing any probe or render proof starts no browser: the launcher refuses', async () => {
     const files = FOLDERS.flatMap((folder) =>
-      readdirSync(join(RACINE, folder))
+      readdirSync(join(REPOSITORY, folder))
         .filter((name) => name.endsWith('.ts'))
-        .map((name) => join(RACINE, folder, name)),
+        .map((name) => join(REPOSITORY, folder, name)),
     );
     // A file that never loads the launcher runs its body: its outputs land in the scratch.
-    const logs = join(RACINE, '.worktrees', 'logs');
+    const logs = join(REPOSITORY, '.worktrees', 'logs');
     mkdirSync(logs, { recursive: true });
     const scratch = mkdtempSync(join(logs, 'import-proofs-'));
     try {

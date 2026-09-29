@@ -5,12 +5,14 @@
 // which names what is missing. The system Chrome is launched, never Playwright's Chromium:
 // measurements and proofs run on the browser used by end users.
 import { realpathSync, writeSync } from 'node:fs';
-import { relative, sep } from 'node:path';
+import { join, relative, sep } from 'node:path';
 import { chromium } from 'playwright';
 import type { LaunchOptions } from 'playwright';
 import { isUnitTest } from '../../scripts/unit-tests.ts';
 import { BROWSER, listBrowserFiles, listJustesseTests } from '../../tests/browser/test-gpu.ts';
-import { RACINE } from '../core/paths.ts';
+
+/** The repository, which proof paths are relative to. */
+const REPOSITORY = join(import.meta.dirname, '..', '..');
 
 /** How every refusal starts, for the tests that count them. */
 export const CHROME_REFUSED = 'Chrome refused';
@@ -50,7 +52,7 @@ function isGpuProof(path: string) {
  */
 export function assertBrowserEntryPoint(entry = process.argv[1], testRun = underNodeTest()) {
   const file = entryFile(entry);
-  const path = file && relative(RACINE, file).split(sep).join('/');
+  const path = file && relative(REPOSITORY, file).split(sep).join('/');
   const refused = !path || isUnitTest(path) || (testRun && !isGpuProof(path));
   if (!refused) return;
   throw new Error(
