@@ -5,8 +5,17 @@ import type { WebglClusterScene } from './lights.ts';
 import type { SceneCopy } from './copyCulling.ts';
 import type { HostDrawCamera } from '../../camera/world.ts';
 import type { HostMaterials } from '../../host/resources.ts';
-import { primeMaps } from './texturePrime.ts';
+import type { BackendContext } from '../../backend/types.ts';
+import { takeOutOfMemory } from '../core/allocation.ts';
+import { outOfMemoryContext } from '../../residency/outOfMemory.ts';
+import { sendEngineDiagnostic } from '../../diagnostic/engineDiagnostic.ts';
 import { readDegraded, type MaterialDegraded, type ReadDegraded } from './validation.ts';
+
+/** What the session grants the maps: the texture pool and a frame's upload budget. */
+type TextureHosts = { texturePoolBytes: number } & Pick<
+  BackendContext,
+  'maxTextureTransferBytesPerFrame' | 'maxTextureUploadMsPerFrame'
+>;
 
 /**
  * The one draw owner of a session's paged clusters, diagnostic pages and scene copies. A draw
@@ -27,18 +36,30 @@ export class WebglClusterOwner {
   };
   censused = false;
   /** Files every declared surface, hidden or not yet attached ones too — WebGPU's census at
-   *  prepare (#42) —; a later one at bind.
-   *  Then uploads their maps within `textureBytes` (`texturePrime.ts`). */
-  census(materials: Iterable<HostMaterials>, textureBytes: number) {
-    const declared = new Set(materials);
-    for (const material of declared) this.display.textures.file(material);
-    primeMaps(this.display.textures, declared, textureBytes);
+   *  prepare (#42) —; a later one at bind. Then orders their maps within the texture pool, which
+   *  the frames upload ahead of their draws under the session's budget (`textureQueue.ts`). */
+  census(materials: Iterable<HostMaterials>, hosts: TextureHosts) {
+    const declared = new Set(materials),
+      { textures } = this.display;
+    for (const material of declared) textures.file(material);
+    textures.ahead.order(declared, hosts.texturePoolBytes);
+    textures.budget.declare(
+      hosts.maxTextureTransferBytesPerFrame,
+      hosts.maxTextureUploadMsPerFrame,
+    );
     this.censused = true;
   }
   /** Reads the surfaces drawn without a physical feature for `hear`, across context restores. */
   private degraded: ReadDegraded | undefined;
-  constructor(context: WebGL2RenderingContext, hear?: MaterialDegraded) {
+  /** Hears the refusal of a map (`gpu-out-of-memory`). */
+  private onDiagnostic: BackendContext['onDiagnostic'];
+  constructor(
+    context: WebGL2RenderingContext,
+    hear?: MaterialDegraded,
+    onDiagnostic?: BackendContext['onDiagnostic'],
+  ) {
     this.context = context;
+    this.onDiagnostic = onDiagnostic;
     this.degraded = hear && readDegraded(hear);
     this.renderer = this.display = new WebglClusterRenderer(context);
     context.canvas.addEventListener('webglcontextrestored', this.restored);
@@ -74,10 +95,17 @@ export class WebglClusterOwner {
     linear = false,
   ) {
     if (linear) this.linear ??= new WebglClusterRenderer(this.context, this.display);
-    const renderer = (this.renderer = linear ? this.linear! : this.display);
+    const renderer = (this.renderer = linear ? this.linear! : this.display),
+      { textures } = this.display;
     renderer.toneCurve = this.toneCurve;
     renderer.pass.pixelRatio = this.pixelRatio;
-    return renderer.draw(
+    // A map refused since the last frame: the maps uploaded ahead stop at half the pool.
+    if (takeOutOfMemory(this.context, 'texture')) {
+      const { before, after } = textures.ahead.outOfMemory();
+      const refused = outOfMemoryContext('texture', before.allocatedBytes, after);
+      sendEngineDiagnostic(this.onDiagnostic, 'gpu-out-of-memory', 'WebGL2 refused a map', refused);
+    }
+    const submitted = renderer.draw(
       meshes,
       scene,
       camera,
@@ -87,6 +115,8 @@ export class WebglClusterOwner {
       copies,
       this.degraded,
     );
+    textures.ahead.drain(textures, textures.budget);
+    return submitted;
   }
   private release() {
     this.linear?.dispose();

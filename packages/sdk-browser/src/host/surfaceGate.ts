@@ -98,18 +98,32 @@ function surfaceReason(host: HostShadedMaterial, transmissive: boolean) {
   if (declaresCompileHook(host)) return `material ${host.family} carries a shader hook`;
 }
 
-/** What the attributes of one mesh wearing `material` lack. */
-export function attributeReason(material: HostMaterials, attributes: HostAttributes) {
+/** What the attributes of a mesh wearing `material` must hold: read once per surface, then
+ *  against the attributes of each of its pages (`attributesLack`). */
+export function attributeNeeds(material: HostMaterials) {
   const host = material as HostShadedMaterial;
+  return {
+    family: host.family,
+    uv: readMaps(host) > 0,
+    uv1: readMaps(host, 1) > 0,
+    // Every family but the plain colour and the depth ramp shades by the normal: the lit ones,
+    // the normal view, and the matcap, which reads its image by it.
+    normal: host.family !== 'basic' && host.family !== 'depth',
+    color: !!host.vertexColors,
+  };
+}
+
+/** What `attributes` lack of what a surface `needs`. */
+export function attributesLack(
+  needs: ReturnType<typeof attributeNeeds>,
+  attributes: HostAttributes,
+) {
   if (!ownBuffer(attributes.position)) return 'position attribute is unsupported';
-  if (readMaps(host) && !ownBuffer(attributes.uv)) return 'textured material has no UV attribute';
-  if (readMaps(host, 1) && !ownBuffer(attributes.uv1))
-    return 'texture channel 1 has no UV1 attribute';
-  // Every family but the plain colour and the depth ramp shades by the normal: the lit ones, the
-  // normal view, and the matcap, which reads its image by it.
-  if (host.family !== 'basic' && host.family !== 'depth' && !ownBuffer(attributes.normal))
-    return `material ${host.family} has no normal attribute`;
-  if (host.vertexColors && !ownBuffer(attributes.color))
+  if (needs.uv && !ownBuffer(attributes.uv)) return 'textured material has no UV attribute';
+  if (needs.uv1 && !ownBuffer(attributes.uv1)) return 'texture channel 1 has no UV1 attribute';
+  if (needs.normal && !ownBuffer(attributes.normal))
+    return `material ${needs.family} has no normal attribute`;
+  if (needs.color && !ownBuffer(attributes.color))
     return 'vertex-colour material has no color attribute';
 }
 
@@ -134,5 +148,5 @@ export function clusterMaterialReason(
   transmissive = false,
 ) {
   const [before, after] = surfaceReasons(material, transmissive);
-  return before ?? attributeReason(material, attributes) ?? after;
+  return before ?? attributesLack(attributeNeeds(material), attributes) ?? after;
 }
