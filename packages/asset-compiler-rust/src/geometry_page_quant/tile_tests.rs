@@ -4,7 +4,7 @@
 use super::{tile_log2, TILE_EXTENT_LOG2};
 use crate::geometry_page_quant::primitive_exponent;
 use crate::tests::random::Xorshift;
-use trillion3d_page_codec::bits::grid::grid_exponent;
+use trillion3d_page_codec::bits::grid::{finest_exponent, grid_exponent};
 use trillion3d_page_codec::bits::{MAX_BITS, MAX_EXPONENT};
 
 /// The grid rule before tiles: a tile no primitive reaches leaves the extent rule whole.
@@ -31,7 +31,7 @@ const EDGES: [f64; 12] = [
 #[test]
 fn a_primitive_narrower_than_a_tile_keeps_its_grid() {
     let mut rng = Xorshift::new(930);
-    // 2^6: the first extent whose floor(log2) the tile clamps.
+    // The first extent whose floor(log2) the tile clamps.
     let bound = 2f64.powi(TILE_EXTENT_LOG2 + 1);
     for _ in 0..100_000 {
         let extent = f64::from(rng.unit()) * bound;
@@ -113,7 +113,8 @@ fn the_tile_is_measured_in_metres_of_the_world() {
         tile_log2(Some(0.008)),
     )) * 0.008;
     assert!(step <= 2f64.powi(TILE_EXTENT_LOG2 - 16), "{step}");
-    // A kilometre terrain modelled in kilometres: the same world step as one modelled in metres.
+    // A kilometre terrain modelled in kilometres: its widest page limits the grid. Power-of-two
+    // object grids can differ by less than a factor of two after conversion to world metres.
     let terrain = [0.0, 0.0, 0.0, 1.024, 0.05, 1.024];
     let step = 2f64.powi(primitive_exponent(
         &terrain,
@@ -121,7 +122,8 @@ fn the_tile_is_measured_in_metres_of_the_world() {
         false,
         tile_log2(Some(1e3)),
     )) * 1e3;
-    assert!(step <= 2f64.powi(TILE_EXTENT_LOG2 - 16), "{step}");
+    assert_eq!(step, 2f64.powi(finest_exponent(1.024)) * 1e3);
+    assert!(step < 2.0 * 2f64.powi(finest_exponent(1024.0)), "{step}");
     // A scale that places nothing measurable leaves object units as metres; an extreme one still
     // yields a grid the field holds.
     for scale in [
