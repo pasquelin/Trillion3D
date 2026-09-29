@@ -1,26 +1,34 @@
-//! The texture islands of a case, and the invariant they carry: a coarse triangle never spans two
-//! of them, so no texture slides between two islands of a set.
+//! The texture islands of a case, and the invariant they carry: a coarse triangle a pixel shows
+//! never spans two of them, so no texture slides between two islands of a set.
 use super::invariants::Built;
 use super::*;
 use crate::join::Join;
 use std::collections::HashMap;
 
-/// No coarse triangle spans two islands of a texture set. The limit: an island is a connected
-/// component of the surface once the seams are cut, so a seam whose two sides stay connected
-/// elsewhere — a sphere's or a cylinder's wrap column — is one island and a triangle across it
-/// passes. What is caught is a coarse triangle whose corners lie in different islands.
+/// No coarse triangle a pixel shows spans two islands of a texture set: one whose corners lie in
+/// two islands is no longer than its cluster's error, so wherever the cut draws it, it covers
+/// under a pixel. A vertex a solve placed lies in the island of the source vertex it was solved
+/// from. The limit: an island is a connected component of the surface once the seams are cut, so
+/// a seam whose two sides stay connected elsewhere — a sphere's or a cylinder's wrap column — is
+/// one island and a triangle across it passes.
 pub(super) fn check_islands(case: &Case, indices: &[u32], built: &Built, label: &str) {
+    let source = case.vertex_count();
+    let origin = |v: u32| match (v as usize).checked_sub(source) {
+        Some(placed) => built.origin[placed],
+        None => v,
+    };
+    let positions = &built.positions;
     for (name, uvs) in case.uv_sets() {
         let island = islands(&case.positions, uvs, indices);
         for cluster in built.dag.iter().filter(|c| c.level > 0) {
-            for tri in cluster.indices.chunks(3) {
-                let (a, b, c) = (
-                    island[tri[0] as usize],
-                    island[tri[1] as usize],
-                    island[tri[2] as usize],
-                );
+            for tri in cluster.indices.as_chunks::<3>().0 {
+                let [a, b, c] = tri.map(|v| island[origin(v) as usize]);
+                // Only a primitive a solve touched may draw a triangle across islands under a pixel.
+                let solved = !built.origin.is_empty();
+                let under_pixel =
+                    crate::dag::charts::longest_edge(positions, tri) <= cluster.lod_error;
                 assert!(
-                    a == b && b == c,
+                    (a == b && b == c) || (solved && under_pixel),
                     "{label}: a coarse triangle at level {} spans two {name} islands",
                     cluster.level
                 );
