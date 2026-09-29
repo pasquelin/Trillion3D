@@ -109,13 +109,13 @@ export async function assertNoneMissing(
  *  whole: read from disk page by page as the runtime reads them (`readCellPage`). */
 export async function cellRecords(
   pages: readonly { url: string }[],
-): Promise<{ url: string; bytes: number }[]> {
+): Promise<{ url: string; bytes: number; meshPages: readonly string[] }[]> {
   const lists = await Promise.all(
     pages.map(async ({ url }) => {
       const body = readCellPage(await readFile(fileURLToPath(url)), url);
       const whole = (name: string) => new URL(name, url).href;
       if (body.pages) return cellRecords(body.pages.map(({ page }) => ({ url: whole(page.url) })));
-      return body.cells.map((cell) => ({ url: whole(cell.url), bytes: cell.bytes }));
+      return body.cells.map((cell) => ({ ...cell, url: whole(cell.url) }));
     }),
   );
   return lists.flat();

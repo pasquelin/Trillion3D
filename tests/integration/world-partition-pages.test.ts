@@ -17,7 +17,7 @@ import { cellHoldings } from '../../packages/sdk-browser/src/scene/partition/cel
 import { loadModel } from '../../packages/sdk-browser/src/world/core/loadedModel.ts';
 import { createWorldPoses } from '../../packages/sdk-browser/src/world/core/worldPoses.ts';
 import { compiled, compiler, machine, SPACING, world } from './world-partition.fixture.ts';
-import { assertNoneMissing, followed } from './world-partition-pages.fixture.ts';
+import { assertNoneMissing, cellRecords, followed } from './world-partition-pages.fixture.ts';
 
 const skip = !existsSync(compiler);
 
@@ -47,14 +47,13 @@ test(
       const load = await served(t, gltf);
       const [whole, held] = [await load(false), await load(true)];
       const [cells, heldCells] = [whole, held].map((model) => model.record.scene.partitions[0]);
-      assert.deepEqual(heldCells.pages, cells.pages, 'the same cells, read through the paged root');
+      assert.deepEqual(heldCells.pages, cells.pages, 'the same root, whichever manifest is read');
       assert.deepEqual(held.bounds, whole.bounds, 'the same scene, framed alike');
       const opened = new Set(held.record.metadata.primitives.map(({ mesh }) => mesh));
       assert.equal(opened.has(0), gltf === district, 'the core mesh is read at open');
-      // Every cell held: the manifest lists what the whole read lists, byte for byte.
-      const { manifest } = cellHoldings(heldCells);
-      cells.pages.forEach((_, cell) => manifest.hold(cell));
-      await Promise.all(manifest.reads());
+      // Every cell's mesh pages held: the manifest lists what the whole read lists, byte for byte.
+      const slots = (await cellRecords(heldCells.pages)).flatMap(({ meshPages }) => meshPages);
+      await cellHoldings(heldCells).manifest.pages!.hold([...new Set(slots)]);
       const order = (a: { mesh: number }, b: { mesh: number }) => a.mesh - b.mesh;
       assert.deepEqual(asRead(held).sort(order), asRead(whole).sort(order));
     }
