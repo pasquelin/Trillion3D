@@ -6,20 +6,29 @@
  *  a step, so the weights `shadowSample` computes are exactly those steps (#26). */
 export const SHADOW_SUBTEXELS = 256;
 
-/** The page reads. Requires `shadowAtlas`, `shadowSampler`, `SHADOW_PAGE`, `SHADOW_SUBTEXELS`, `SHADOW_SUBTEXEL` and
- *  `PAGE_INDEX_MASK`. */
-export const SHADOW_SAMPLE_WGSL = `/** Place of page \`p\`, held by physical page \`word\`: \`xy\` added to a texel coordinate of the
- *  map gives that texel's place in its layer, \`z\` is the layer (\`shadowPoolShape\`). The quotients
- *  are single-precision floors, not integer divisions: with \`phys\` under 2¹⁶ and \`side\` at most
- *  2⁹, \`(n + ½) / d\` lies at least \`½ / d\` from any integer while a division a few ulps off stays
- *  far inside that, so each floor is the integer quotient (\`shadowOffset.test.ts\`, every input). */
-fn shadowOffset(word:u32,p:vec2i)->vec3f{
- let phys=f32(word&PAGE_INDEX_MASK);let side=f32(textureDimensions(shadowAtlas).x/u32(SHADOW_PAGE));
+/** Where physical page `phys` lies in a pool of `side²`-page layers: its column, its row, its
+ *  layer (`shadowPoolShape`). The quotients are single-precision floors, not integer divisions: with
+ *  `phys` under 2¹⁶ and `side` at most 2⁹, `(n + ½) / d` lies at least `½ / d` from any integer while
+ *  a division a few ulps off stays far inside that, so each floor is the integer quotient
+ *  (`shadowOffset.test.ts`, every input). The shading reads a page there, a GPU draw draws it there
+ *  (`../../webgpu/shadow/freshWgsl.ts`). */
+export const SHADOW_PLACE_WGSL = `fn shadowPoolPlace(phys:f32,side:f32)->vec3f{
  let area=side*side;
  let layer=floor((phys+0.5)/area);
  let local=phys-layer*area;
  let y=floor((local+0.5)/side);
- return vec3f((vec2f(local-y*side,y)-vec2f(p))*SHADOW_PAGE,layer);
+ return vec3f(local-y*side,y,layer);
+}`;
+
+/** The page reads. Requires `shadowAtlas`, `shadowSampler`, `SHADOW_PAGE`, `SHADOW_SUBTEXELS`, `SHADOW_SUBTEXEL` and
+ *  `PAGE_INDEX_MASK`. */
+export const SHADOW_SAMPLE_WGSL = `${SHADOW_PLACE_WGSL}
+/** Place of page \`p\`, held by physical page \`word\`: \`xy\` added to a texel coordinate of the
+ *  map gives that texel's place in its layer, \`z\` is the layer. */
+fn shadowOffset(word:u32,p:vec2i)->vec3f{
+ let side=f32(textureDimensions(shadowAtlas).x/u32(SHADOW_PAGE));
+ let place=shadowPoolPlace(f32(word&PAGE_INDEX_MASK),side);
+ return vec3f((place.xy-vec2f(p))*SHADOW_PAGE,place.z);
 }
 /** Texels a side of a layer of the pool. */
 fn shadowAtlasTexels()->f32{return f32(textureDimensions(shadowAtlas).x);}
