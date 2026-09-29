@@ -45,6 +45,8 @@ test('the supersampling is the most the portable texture side holds, 1 to 4 per 
   assert.equal(referenceSupersampling(640, 360, 1), 4);
   assert.equal(referenceSupersampling(1728, 1117, 2), 2);
   assert.equal(referenceSupersampling(4096, 2160, 2), 1);
+  // Sized as the canvas is: 1639 at 1.25 is 2048 device pixels, but 8195 at four times the ratio.
+  assert.equal(referenceSupersampling(1639, 1000, 1.25), 3);
 });
 
 test('the resolved image is the linear-light mean of each block, the same bytes on every run', () => {

@@ -46,14 +46,13 @@ export interface ReferenceMode {
 }
 
 /** Samples per display pixel and axis for a display of `width` × `height` CSS pixels at
- *  `pixelRatio`: the most, up to `REFERENCE_MAX_SUPERSAMPLING`, whose frame fits the portable
- *  texture side; 1 when the display alone fills it. */
+ *  `pixelRatio`: the most, up to `REFERENCE_MAX_SUPERSAMPLING`, whose frame — sized as the canvas
+ *  is, `devicePixels` at the raised ratio — fits the portable texture side; 1 when none does. */
 export function referenceSupersampling(width: number, height: number, pixelRatio: number) {
-  const side = Math.max(devicePixels(width, pixelRatio), devicePixels(height, pixelRatio));
-  return Math.max(
-    1,
-    Math.min(REFERENCE_MAX_SUPERSAMPLING, Math.floor(PORTABLE_TEXTURE_SIDE / side)),
-  );
+  const logical = Math.max(width, height);
+  let factor = REFERENCE_MAX_SUPERSAMPLING;
+  while (factor > 1 && devicePixels(logical, pixelRatio * factor) > PORTABLE_TEXTURE_SIDE) factor--;
+  return factor;
 }
 
 /** The options a session opens on: `options` itself outside reference mode; in it, every named
