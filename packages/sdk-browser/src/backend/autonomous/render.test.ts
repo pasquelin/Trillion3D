@@ -9,8 +9,7 @@ const loaded = { array: new Uint32Array(3) },
   awaited = { array: undefined };
 
 test('a held frame is the still frame only once every page the view asks for is loaded', () => {
-  assert.equal(stillFrame(true, [loaded, loaded]), true);
-  assert.equal(stillFrame(true, [loaded, awaited]), false, 'a page still on its way');
-  assert.equal(stillFrame(false, [loaded]), false, 'a frame the gate did not hold');
-  assert.equal(stillFrame(true, []), true);
+  assert.equal(stillFrame([loaded, loaded]), true);
+  assert.equal(stillFrame([loaded, awaited]), false, 'a page still on its way');
+  assert.equal(stillFrame([]), true);
 });
