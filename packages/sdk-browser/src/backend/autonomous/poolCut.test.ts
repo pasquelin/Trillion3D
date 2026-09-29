@@ -106,7 +106,10 @@ for (const [label, budget] of [
     pool.resize(budget * PAGE);
     descend(run);
     // Under its floor — the root cover and the pages its groups replace — the pool holds that.
-    assert.ok(state.allocationBytes <= pool.held.allocatedBytes, 'the pool converged to its budget');
+    assert.ok(
+      state.allocationBytes <= pool.held.allocatedBytes,
+      'the pool converged to its budget',
+    );
   });
 
 // #1237: at the smallest budget the pool still holds its floor — the root cover and the pages its
