@@ -52,7 +52,11 @@ export async function createTaaResolves(device: GPUDevice, upscale = false) {
     const key = kind + scaled;
     if (!twins.has(key)) {
       twins.set(key, undefined);
-      void resolve(kind, scaled, true).then((made) => void twins.set(key, made));
+      // A twin that fails to compile leaves the raw layers composed, never an unhandled rejection.
+      resolve(kind, scaled, true).then(
+        (made) => void twins.set(key, made),
+        () => {},
+      );
     }
     return twins.get(key);
   };
