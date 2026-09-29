@@ -3,7 +3,6 @@ import { grownCapacity, growPlacementRows, type PlacementRows } from '../../plac
 import type { PlacementGrowth } from '../../placement/backendSceneUpdates.ts';
 import type { Cut } from './worldCuts.ts';
 import type { MaterialEntry } from './worldMaterials.ts';
-
 /**
  * A drawn resource: one geometry resource worn with one material entry. Its placements are the
  * rows of one instance buffer (`placement/rows.ts`) the session reads in place; `owners` says
@@ -46,8 +45,8 @@ export function createWorldBatches(touched: (batch: Batch, row: number) => void)
   const short = new Set<Batch>(),
     emptied = new Set<Batch>(),
     mounting = new Set<Batch>();
-  const batchOf = (cut: Cut, entry: MaterialEntry) => {
-    const key = `${cut.key}/${entry.id}`;
+  const batchOf = (cut: Cut, entry: MaterialEntry, mesh: Mesh) => {
+    const key = `${cut.key}/${entry.id}/${mesh.skeleton?.bones.length ?? 0}/${mesh.waves?.waveModel.count ?? 0}`;
     let batch = batches.get(key);
     if (!batch)
       batches.set(
@@ -101,6 +100,8 @@ export function createWorldBatches(touched: (batch: Batch, row: number) => void)
     for (let row = capacity - 1; row >= held; row--) batch.free.push(row);
     batch.owners.length = capacity;
     batch.owners.fill(null, held);
+    rows.sources = batch.owners;
+    rows.sourceModels = batch.wearers;
     batch.rows = rows;
     if (before && grow) grow.growPlacements(before, rows);
     return before;
@@ -129,7 +130,7 @@ export function createWorldBatches(touched: (batch: Batch, row: number) => void)
      * its matrix —, false when it waits.
      */
     seat(mesh: Mesh, cut: Cut, entry: MaterialEntry) {
-      const batch = batchOf(cut, entry);
+      const batch = batchOf(cut, entry, mesh);
       const held = seats.get(mesh);
       if (held?.batch === batch) return held.row >= 0;
       if (leaving.get(mesh)?.batch === batch) parkLeaving(mesh);

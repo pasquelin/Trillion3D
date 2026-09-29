@@ -74,8 +74,7 @@ export function take<T extends PageRecord>(
     const min = rec.min,
       max = rec.max;
     if (!min || !max) return;
-    reached(min, max, s.flatReach);
-    if (clipRecordBox(low, high) === 0) {
+    if (clipRecordBox(min, max) === 0) {
       s.frustumRejected++;
       return;
     }

@@ -1,6 +1,7 @@
 import type { ClusterRoot } from '../page/selection/types.ts';
 import type { PageRec } from '../page/selection/selection.ts';
 import { createDeformationFrame, type DeformedMesh } from './frame.ts';
+import { placementDeformation } from './placementSource.ts';
 import { deformedOf } from './source.ts';
 import type { HostWorldPlacements } from '../host/world/placements.ts';
 
@@ -16,10 +17,13 @@ export function createSessionDeformation(
 ) {
   const frame = createDeformationFrame(
     roots.map((root) => {
-      const mesh = root.pages[0]?.sourceMesh as DeformedMesh | undefined,
-        deformed = mesh ? deformedOf(mesh, root, root.world) : null;
-      // The bones' worlds the engine composes, as it composes the root's (`worlds`).
-      if (deformed && mesh?.skeleton) deformed.boneWorlds = mesh.skeleton.bones.map(worlds.of);
+      const source = root.pages[0]?.sourceMesh as DeformedMesh | undefined;
+      if (!source) return null;
+      const { mesh, models } = placementDeformation(root.placement, source);
+      const deformed = deformedOf(mesh, root, root.world, models);
+      // Imported bones live in the indexed host tree; page-authored bones use the world's own tree.
+      if (deformed && mesh.skeleton && !root.placement?.rows.sources)
+        deformed.boneWorlds = mesh.skeleton.bones.map(worlds.of);
       return deformed;
     }),
   );
