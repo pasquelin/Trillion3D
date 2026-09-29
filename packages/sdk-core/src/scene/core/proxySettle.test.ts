@@ -62,7 +62,14 @@ test('motion slower than the frame rate does not rewrite triangles each cycle', 
   for (let nudge = 0; nudge < 3; nudge++) {
     for (let frame = 0; frame < 3; frame++) motion.sync(() => world);
     world[12] += 1;
-    assert.equal(motion.sync(() => world), 'moved');
-    assert.equal(motion.sync(() => world), 'settled', 'isolated nudges never lengthen the wait');
+    assert.equal(
+      motion.sync(() => world),
+      'moved',
+    );
+    assert.equal(
+      motion.sync(() => world),
+      'settled',
+      'isolated nudges never lengthen the wait',
+    );
   }
 });
