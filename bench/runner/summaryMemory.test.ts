@@ -42,12 +42,12 @@ test('each side of each view has its row, and the rest is the difference', () =>
   );
   assert.equal(
     lignes[2],
-    '| sol | e1 | after | 7.500 GB | 6.689 GB | 0.400 GB / 536.9 MB (scene) | 275.7 MB | 0.136 GB |',
+    '| ground | e1 | after | 7.500 GB | 6.689 GB | 0.400 GB / 536.9 MB (scene) | 275.7 MB | 0.136 GB |',
   );
   assert.equal(lignes[3], '');
   assert.equal(
     lignes[4],
-    '- sol · e1 · after, heaviest: Trillion3D material atlas rgba8unorm classe 0 4252.6 MB, ' +
+    '- ground · e1 · after, heaviest: Trillion3D material atlas rgba8unorm classe 0 4252.6 MB, ' +
       'Trillion3D geometry page cache 300.0 MB, unlabelled 0.0 MB',
   );
 });

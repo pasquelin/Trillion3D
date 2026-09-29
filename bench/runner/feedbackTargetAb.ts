@@ -17,6 +17,8 @@ const pixelError = Number(flags.get('pixelError') ?? 0);
 const output = resolve(flags.get('out') ?? join(ROOT, '.mesure/out/39-feedback-ab'));
 const dist = resolve(flags.get('dist') ?? join(ROOT, 'dist'));
 const rebuild = (flags.get('rebuild-cache') ?? '').split(',').filter(Boolean);
+const headless = flags.get('visible') !== 'true';
+flags.refuseUnread();
 if (!Number.isInteger(frames) || frames < 12) throw new Error('--images must be at least 12');
 if (!Number.isFinite(pixelError) || pixelError < 0)
   throw new Error('--pixelError must be nonnegative');
@@ -54,7 +56,7 @@ async function main() {
     for (const scene of scenes) {
       const manifestUrl = assetsManifest(scene, true);
       const browser = await launchChrome({
-        headless: flags.get('visible') !== 'true',
+        headless,
         args: ENGINES.webgpu.flags,
       });
       try {

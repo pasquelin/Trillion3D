@@ -14,19 +14,28 @@ const SOURCE = /\.(?:[cm]?ts|tsx|rs|wgsl)$/;
 const EXEMPT = new Set(['scripts/french-words.ts', 'scripts/check-english.test.ts']);
 const BASELINE = 'scripts/english-baseline.json';
 
-/** Every named exception at once, matched literally. */
-const EXCEPTED = new RegExp(
-  Object.keys(FRENCH_EXCEPTIONS)
-    .map((literal) => literal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-    .join('|'),
-  'g',
-);
+/** The named exceptions of `file` at once, matched literally; one that starts or ends on a letter,
+ *  never inside a longer name (`.temoin` leaves `.temoinAA` counted). */
+const excepted = new Map<string, RegExp>();
+function exceptedIn(file: string) {
+  const literals = Object.entries(FRENCH_EXCEPTIONS)
+    .filter(([, { files }]) => !files || files.test(file))
+    .map(
+      ([literal]) =>
+        (/^\w/.test(literal) ? '(?<![\\w$])' : '') +
+        literal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
+        (/\w$/.test(literal) ? '(?![\\w$])' : ''),
+    );
+  const pattern = literals.join('|');
+  if (!excepted.has(pattern)) excepted.set(pattern, new RegExp(pattern, 'g'));
+  return excepted.get(pattern)!;
+}
 
 /** The French words of `text`, lower case and without accents, in order of appearance. */
-export function frenchWords(text: string): string[] {
+export function frenchWords(text: string, file = ''): string[] {
   // Accents go before the camelCase split, which needs the case; the case goes after it.
   const words = text
-    .replace(EXCEPTED, ' ')
+    .replace(exceptedIn(file), ' ')
     .normalize('NFD')
     .replace(/\p{M}/gu, '')
     .replace(/(\p{Ll})(\p{Lu})/gu, '$1 $2')
@@ -45,7 +54,7 @@ export function frenchByFile(files: Map<string, string>): Map<string, string[]> 
   const found = new Map<string, string[]>();
   for (const [file, text] of files) {
     if (EXEMPT.has(file)) continue;
-    const words = frenchWords(text);
+    const words = frenchWords(text, file);
     if (words.length) found.set(file, words);
   }
   return found;
@@ -93,9 +102,13 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
         if (unitOf(file) === unit) console.error(`  ${file}: ${words.join(', ')}`);
     }
     if (risen.length) {
-      console.error(
-        `Named exceptions, strings that must stay: ${Object.keys(FRENCH_EXCEPTIONS).join(', ')}`,
+      const listed = [...new Set(Object.values(FRENCH_EXCEPTIONS))].map(
+        (exception) =>
+          `  ${Object.keys(FRENCH_EXCEPTIONS)
+            .filter((literal) => FRENCH_EXCEPTIONS[literal] === exception)
+            .join(' ')}: ${exception.reason}`,
       );
+      console.error(`Named exceptions, strings that must stay:\n${listed.join('\n')}`);
       process.exitCode = 1;
     } else if (fallen) {
       write();

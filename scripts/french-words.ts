@@ -24,12 +24,44 @@ export const FRENCH_WORDS = new Set(
   vecteur vecteurs verifie verite vide vitre vivant vrai vraie vue vues`.split(/\s+/),
 );
 
-/** The French strings that must stay, not counted: each one names why it cannot be renamed. */
-export const FRENCH_EXCEPTIONS: Record<string, string> = {
-  '.mesure':
-    'the measurement folder outside Git (`bench/core/paths.ts`, `.gitignore`, AGENTS.md rule 10): ' +
-    'every machine and worktree keeps its bench assets there, which no script can fetch again',
-  certifiee:
-    'a value of the public engine API (`ScreenErrorVariant`, `packages/sdk-core/src/lod/' +
-    'screenErrorVariant.ts`): hosts pass it by name, so renaming it breaks their code',
+/** A French string that must stay: why it cannot be renamed yet, and the files it is excepted in
+ *  (every file when absent). */
+export interface FrenchException {
+  reason: string;
+  files?: RegExp;
+}
+
+const PERF_FORMAT: FrenchException = {
+  reason:
+    'a key of the bench perf measurement format (`site/examples/kit/measureTypes.ts`), written by ' +
+    '`bench/core/measure.ts` and `bench/perf`, read by `bench/runner/perf`, `bench/oracles`, ' +
+    '`site/examples/kit/verdict.ts` and `scripts/docs-examples.browser.ts`, and stored in each ' +
+    "machine's `.mesure/baselines`: listed until renamed together with its readers",
+  files:
+    /^(?:bench\/(?:core|perf|oracles|runner\/perf)\/|site\/examples\/kit\/|scripts\/docs-examples)/,
+};
+
+/** The format's keys holding a counted word, excepted only where they are keys (`.key`, `key:`,
+ *  `key?:`, `'key'`) in the files of the format: the same word elsewhere is counted. */
+const PERF_KEYS = ['medianeMs', 'temoin', 'ecartTemoin', 'ecartBaseline', 'fichier', 'resultats'];
+
+/** The French strings that must stay, not counted. Each is matched literally, never inside a longer
+ *  name. */
+export const FRENCH_EXCEPTIONS: Record<string, FrenchException> = {
+  ...Object.fromEntries(
+    PERF_KEYS.flatMap((key) => [`.${key}`, `${key}:`, `${key}?:`, `'${key}'`]).map((form) => [
+      form,
+      PERF_FORMAT,
+    ]),
+  ),
+  '.mesure': {
+    reason:
+      'the measurement folder outside Git (`bench/core/paths.ts`, `.gitignore`, AGENTS.md rule 10): ' +
+      'every machine and worktree keeps its bench assets there, which no script can fetch again',
+  },
+  certifiee: {
+    reason:
+      'a value of the public engine API (`ScreenErrorVariant`, `packages/sdk-core/src/lod/' +
+      'screenErrorVariant.ts`): hosts pass it by name, so renaming it breaks their code',
+  },
 };
