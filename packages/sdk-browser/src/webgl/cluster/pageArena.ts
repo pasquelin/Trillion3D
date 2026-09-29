@@ -70,9 +70,13 @@ export class WebglPageArena {
     this.sendIndices(page, first);
     return { vertex, first };
   }
-  /** Gives a page's ranges back. */
-  release(vertex: number, vertices: number, first: number, indices: number) {
+  /** A page no longer drawn: not sent again at a growth, its ranges given back later
+   *  (`release`). */
+  retire(first: number) {
     this.placed.delete(first);
+  }
+  /** Gives a retired page's ranges back. */
+  release(vertex: number, vertices: number, first: number, indices: number) {
     this.vertices.release(vertex, vertices);
     this.indices.release(first, indices);
   }
