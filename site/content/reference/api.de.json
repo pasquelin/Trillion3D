@@ -4078,6 +4078,14 @@
       "transientBytes": "Bytes, die beim Kopieren des Geometrie-Reservoirs gleichzeitig gehalten werden: das alte Reservoir und das neue daneben, vom Gerät gemeinsam gewährt, bevor sich eine Seite bewegt; 0, wenn sich kein Reservoir bewegt hat."
     }
   },
+  "TableGrowthReport": {
+    "summary": "Das Wachstum der nach zeichenbaren Zeilen bemessenen Tabellen, wie es ein Pool darüber angefordert hat.",
+    "members": {
+      "drawSlots": "Sichtbarkeitszeilen, dann jede Zeile, die der Schattendurchgang liest, so wie die Tabellen jetzt stehen.",
+      "bytes": "Bytes, die die gewachsenen GPU-Tabellen belegen – die angeforderten, wenn abgelehnt.",
+      "refused": "`true`, wenn das Gerät sie abgelehnt hat: Die bestehenden Tabellen und der Pool bleiben erhalten."
+    }
+  },
   "Mesh": {
     "summary": "Eine Form und ein Material, platziert in der Szene.",
     "description": "Das eine oder andere zu ersetzen, oder in das eine oder andere zu schreiben, erreicht die Welt: Änderungen der Geometrie und des Materials werden gehört, solange dieses Mesh sie trägt.",

@@ -943,6 +943,7 @@
     "reference:TONE_MAPPING_RANK": "33e76c29 4c5d683c 8bf48116 b735cb91 1bb6583f 7e2e95c4 a96a6944 05964d8f 115a7637 042dbf9c dce9e0ce fd26d942 f1d3bde1 6ba2ad7a 4e6b0531",
     "reference:TRILLION3D_RUNTIME_TOOLS": "3569dee8 ed58bc80 d2efed43 7dd22276 8ce026d8 a1dd0398 e2a57e85 b24c2edf fdafca96 5351908a d49847d0 9b0499b3 b6e31b2e 1896ff87 6f427078",
     "reference:TRILLION3D_SYSTEM_PROMPT": "76910df5 9c239277 a094328a d4950c10 890fe287 9f170fa0 3b3232a8 a80a5cb6 c2d58423 0f611bee 916af487 43508a94 b693116e 23cc45ad 656695d2",
+    "reference:TableGrowthReport": "a2933b11 47c0b613 377c9026 889d0fa4 514d3cbc 7c7176a0 2691bcbf 391ac18e c96b3d1f e187d76e 8f59ab77 dceaac20 71c20d85 59b86f44 0e9c32f0",
     "reference:TableMaterial": "db7ba8e8 36556ce9 7f1c01a5 d2a962eb e7a5c0e3 2440fac2 87ea0cc4 dcead891 509509bc 9376ae6f 173ac9ce 2f8d7383 2b26c226 8fb54014 adae8b9f",
     "reference:TableTexture": "e9e2f100 3d780dca a7876048 5759680e 168331b1 362d1c5e 26b98b74 5f978055 1148f4ad 67195380 f9224b28 7cdcfce0 1079ebf3 44e70bab 06645155",
     "reference:TableTextureSlot": "49a6ef19 17650c5d 94fa9a93 d1cb76b8 a34a2450 be8597d6 a346bac0 124124dc 59bc1508 3579724f ea77a56c 4c59564e 39fbe076 0f028315 ffbdfed3",

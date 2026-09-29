@@ -4078,6 +4078,14 @@
       "transientBytes": "Bytes retenidos a la vez mientras se copiaba la reserva de geometría: la reserva antigua y la nueva a su lado, concedidas juntas por el dispositivo antes de que se moviera ninguna página; 0 cuando no se movió ninguna reserva."
     }
   },
+  "TableGrowthReport": {
+    "summary": "El crecimiento de las tablas dimensionadas por fila dibujable, tal como lo pidió un pool superior.",
+    "members": {
+      "drawSlots": "Filas de visibilidad y luego cada fila que lee el pase de sombras, tal como quedan ahora las tablas.",
+      "bytes": "Bytes que ocupan las tablas de GPU ampliadas, o los pedidos si se rechazaron.",
+      "refused": "`true` cuando el dispositivo las rechazó: se conservan las tablas y el pool actuales."
+    }
+  },
   "Mesh": {
     "summary": "Una forma y un material colocados en la escena.",
     "description": "Reemplazar uno u otro, o escribir en uno u otro, llega al mundo: los cambios de la geometría y del material se escuchan mientras esta malla los lleve.",
