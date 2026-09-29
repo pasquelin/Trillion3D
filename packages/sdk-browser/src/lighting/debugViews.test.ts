@@ -14,11 +14,12 @@ import {
   DIRECT_LIGHTING_SHADER,
   UNLIT_COMPOSITIONS,
 } from './deferred/shaders.ts';
-import { TAA_SHADER } from '../taa/shaderWgsl.ts';
-import { taaShader } from '../taa/shaderWgsl.ts';
+import { TAA_SHADER, taaShader } from '../taa/shaderWgsl.ts';
 import { BLEND_SHADER } from '../webgpu/blend/shader.ts';
-import { BLEND_EQUATIONS } from '../scene/materialBlending.ts';
-import { createAsIsShare } from './deferred/asIsShare.ts';
+import { BLEND_MODES } from '../scene/materialBlending.ts';
+import { blendTargets } from '../webgpu/blend/pipelines.ts';
+import { written, type Rgba } from '../webgpu/blend/blendModel.fixture.ts';
+import { AS_IS_SHARE_SHADER } from './deferred/asIsShare.ts';
 
 /** The capture of `pattern` in `source`, asserted present. */
 function capture(source: string, pattern: RegExp) {
@@ -115,7 +116,7 @@ test('A jittered edge: the accumulated share follows the colour, no flip between
   assert.match(TAA_SHADER, /share\+=asIs\*weight;/);
   const [wcOf, whOf, colorOf, shareOf] = capture(
     TAA_SHADER,
-    /let wc=(.*?);\n let wh=(.*?);\n return TaaOut\((.*?),(\(share\*wc.*?\))\);/,
+    /let wc=(.*?);\n let wh=(.*?);\n return TaaOut\((.*?),vec2f\((\(share\*wc.*?\)),tag\)\);/,
   ).map(js);
   const blend = new Function(
     'alpha',
@@ -147,20 +148,42 @@ test('A jittered edge: the accumulated share follows the colour, no flip between
   assert.ok(swing(composed) < swing(fromFlags) / 4, `share swing ${swing(composed)}`);
 });
 
-test('a lit transparent over a debug view contributes zero as-is share at its opacity', () => {
-  assert.match(BLEND_SHADER, /@location\(2\) asIs:vec4f/);
-  assert.match(
-    BLEND_SHADER,
-    // `r.keep` is 1 but where a display mask routes the layer away (`displayFilter.ts`).
-    /BlendOut\(vec4f\(rgb,s\.alpha\*r\.keep\),s\.request,vec4f\(0\.0,0\.0,0\.0,s\.alpha\*r\.keep\),/,
+test('a lit transparent at opacity 0.4 over a debug surface leaves it a 0.6 share', () => {
+  // The seed pass: the opaque flags give a share of 1 under a debug view, 0 under a lit surface.
+  const [seedWgsl] = capture(AS_IS_SHARE_SHADER, /return vec2f\((f32\(.*?\)),0\.0\);/);
+  const seedOf = new Function(
+    'f32',
+    'textureLoad',
+    'vec2i',
+    'flags',
+    'pixel',
+    `return ${js(seedWgsl)};`,
   );
-  assert.equal(BLEND_EQUATIONS.normal?.color.srcFactor, 'src-alpha');
-  assert.equal(BLEND_EQUATIONS.normal?.color.dstFactor, 'one-minus-src-alpha');
-  const litOpacity = 0.4;
-  const remainingDebugShare = 1 * (1 - litOpacity);
-  assert.equal(remainingDebugShare, 0.6);
-  assert.notEqual(accumulated(2, remainingDebugShare), 2, 'the lit overlap still takes the curve');
-  assert.match(taaShader(true, true), /let asIs=textureLoad\(flags,at,0\)\.r;/);
-  assert.doesNotMatch(taaShader(true, true), /textureLoad\(flags,at,0\)\.r==/);
-  assert.ok(createAsIsShare, 'the opaque share is seeded before blending');
+  const seed = (flag: number) =>
+    seedOf(Number, helpers.textureLoad, () => 0, flag, { xy: 0 }) as number;
+  assert.equal(seed(AS_IS_FLAG), 1);
+  assert.equal(seed(2), 0);
+  // What the lit transparent's fragment writes to the share target, at its opacity.
+  const [shareWgsl] = capture(
+    BLEND_SHADER,
+    /return BlendOut\(vec4f\(rgb,s\.alpha\*r\.keep\),s\.request,(vec4f\(.*?\)),r\.tint/,
+  );
+  const shareOf = new Function('vec4f', 's', 'r', `return ${shareWgsl};`);
+  const src = shareOf((...c: number[]) => c, { alpha: 0.4 }, { keep: 1 }) as Rgba;
+  // The pass's own share target blends it over the seed, in every mode.
+  let left = 1;
+  for (const mode of BLEND_MODES) {
+    const target = blendTargets(mode, 0xf, true)[2];
+    assert.equal(target?.format, 'rg8unorm', mode);
+    left = written(target!, src, [seed(AS_IS_FLAG), 0, 0, 0])[0];
+    assert.ok(Math.abs(left - 0.6) < 1e-9, `${mode} over a debug view leaves ${left}`);
+    assert.equal(written(target!, src, [seed(2), 0, 0, 0])[0], 0, `${mode} over a lit surface`);
+  }
+  // The temporal resolve reads that share as it is, and composition curves the lit 0.4 alone.
+  const [readWgsl] = capture(taaShader(true, true), /let asIs=(textureLoad\(flags,at,0\)\.r);/);
+  const read = new Function('textureLoad', 'flags', 'at', `return ${readWgsl};`);
+  const share = read(helpers.textureLoad, left, 0) as number;
+  assert.equal(share, left);
+  const expected = curve(2 * EXPOSURE) * 0.4 + 2 * 0.6;
+  assert.ok(Math.abs(accumulated(2, share) - expected) < 1e-9, 'the lit overlap keeps its curve');
 });

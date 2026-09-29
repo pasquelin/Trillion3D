@@ -110,7 +110,7 @@ export function executer() {
     // The two ways of handing triangles to compute: the whole cut, or small ones only —
     // the reference split, where each triangle has exactly one of the two rasters.
     const variantes: Record<string, VarianteResult> = {};
-    const RASTER_VARIANTS: DiagnosticGpuVariant[] = ['raster-calcul', 'raster-hybride'];
+    const RASTER_VARIANTS: DiagnosticGpuVariant[] = ['raster-compute', 'raster-hybrid'];
     for (const variante of RASTER_VARIANTS) {
       const calcul = await rendu(device, onDiag, {
         diagnosticDetail: 'trace',

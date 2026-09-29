@@ -111,10 +111,7 @@ pub struct Options {
 }
 fn check(o: &Options) -> Result<()> {
     if o.cancelled.load(Ordering::Relaxed) {
-        return Err(CompilerError::new(
-            crate::CANCELLED,
-            "Compilation cancelled",
-        ));
+        return Err(CompilerError::new(CANCELLED, "Compilation cancelled"));
     }
     Ok(())
 }
@@ -163,6 +160,7 @@ mod compiler_textures;
 mod compiler_types;
 mod compiler_validate;
 mod compiler_world;
+mod compiler_world_roots;
 #[cfg(test)]
 mod shared_math_tests;
 #[cfg(test)]
@@ -196,5 +194,6 @@ use compiler_tables::stage_scene_tables;
 use compiler_textures::*;
 use compiler_types::*;
 use compiler_validate::*;
+use compiler_world_roots::stage_world_roots;
 use physics_cook::stage_physics;
 use plugins::scene::{PreparedScene, RoutedSource};
