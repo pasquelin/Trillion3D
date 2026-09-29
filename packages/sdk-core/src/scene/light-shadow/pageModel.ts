@@ -135,10 +135,10 @@ export function pageModel<V>(o: PageOps<V>) {
 export type PageModel<V> = ReturnType<typeof pageModel<V>>;
 
 /** The page model on numbers: what the scheduler computes. */
-export const PAGES = pageModel(NUMBERS);
+export const PAGES = /* @__PURE__ */ pageModel(NUMBERS);
 
 /** Non-negative remainder. */
-export const ringOf = PAGES.shadowRing;
+export const ringOf = (v: number, n: number) => PAGES.shadowRing(v, n);
 
 /** Entry of sun page `(ax, ay)` of level `level`, relative to the light's table base. */
 export const sunEntry = (level: number, ax: number, ay: number) =>
@@ -166,8 +166,9 @@ export function decodeLampEntry(relative: number, out: Int32Array) {
 }
 
 /** How coarse a sun level or a lamp mip is within its light (`shadowSunCoarseness`). */
-export const sunCoarseness = PAGES.shadowSunCoarseness,
-  lampCoarseness = PAGES.shadowLampCoarseness;
+export const sunCoarseness = (level: number, finest: number) =>
+    PAGES.shadowSunCoarseness(level, finest),
+  lampCoarseness = (mip: number) => PAGES.shadowLampCoarseness(mip);
 
 /** Side of a sun page at `level`, in metres: `SHADOW_PAGE` texels of `2^level`. */
 export const sunPageMetres = (level: number) => PAGES.shadowSunTexelMetres(level) * SHADOW_PAGE;
@@ -176,7 +177,7 @@ export const sunPageMetres = (level: number) => PAGES.shadowSunTexelMetres(level
  * The finest level a pixel of this view can read: the texel at most the size of its footprint
  * at the near plane. Every finer level would be sharper than any pixel that reads it.
  */
-export const finestSunLevel = PAGES.shadowSunLevelOf;
+export const finestSunLevel = (footprint: number) => PAGES.shadowSunLevelOf(footprint);
 
 /** The pages the PCF around map texel `t` reads, its home page `home` first: the neighbours
  *  across the one or two edges it comes near (`shadowPcf`). */
