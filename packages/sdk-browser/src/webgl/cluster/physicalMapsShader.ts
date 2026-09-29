@@ -1,4 +1,6 @@
 import { SAMPLING_FOOTPRINT_WGSL } from '../../texture/samplingFootprint.ts';
+import { SAMPLE_WRAP_SHIFT } from '../../texture/sampling.ts';
+import { WRAP_S_MIRROR } from '../../visibility/wrapModes.ts';
 
 /** The existing virtual-texture footprint rule, translated without changing its arithmetic. */
 const types: Record<string, string> = {
@@ -49,9 +51,9 @@ float atlasLod(vec2 x,vec2 y){return 0.5*log2(max(max(dot(x,x),dot(y,y)),1e-20))
 ${footprint}
 int physicalIndex(int p,int size,uint mode){
  if(mode==0u)return clamp(p,0,size-1);
- int period=mode==2u?size*2:size;
+ int period=mode==${WRAP_S_MIRROR}u?size*2:size;
  int q=((p%period)+period)%period;
- return mode==2u&&q>=size?period-1-q:q;
+ return mode==${WRAP_S_MIRROR}u&&q>=size?period-1-q:q;
 }
 vec4 physicalTexel(int image,ivec2 p,int level,ivec2 size,uint wrap){
  p=ivec2(physicalIndex(p.x,size.x,wrap&3u),physicalIndex(p.y,size.y,(wrap>>2u)&3u));
@@ -59,7 +61,7 @@ vec4 physicalTexel(int image,ivec2 p,int level,ivec2 size,uint wrap){
 }
 vec4 physicalLevel(int image,vec2 uv,int level,bool nearest){
  ivec4 info=physicalMapInfo[image];ivec2 size=max(info.xy>>level,ivec2(1));
- uint wrap=uint(info.w)>>10u;
+ uint wrap=uint(info.w)>>${SAMPLE_WRAP_SHIFT}u;
  vec2 p=uv*vec2(size);
  if(nearest)return physicalTexel(image,ivec2(floor(p)),level,size,wrap);
  vec2 center=p-0.5;ivec2 a=ivec2(floor(center));vec2 f=fract(center);
