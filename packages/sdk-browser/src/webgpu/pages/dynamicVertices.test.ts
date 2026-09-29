@@ -12,6 +12,7 @@ import { webgpuVertexApi } from './dynamicVertices.ts';
 import type { VertexRange } from '../../placement/backendSceneUpdates.ts';
 import type { WebgpuPagesRuntime } from './runtime.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
+import { createFrameGateCore } from '../../frame/gateCore.ts';
 
 installGpuGlobals();
 
@@ -40,10 +41,11 @@ const runtimeOf = (
   positionBuffers: Map<HostAttributes, unknown>,
   selectionRoots: unknown[] = [],
   lights = {},
+  gate = createFrameGateCore(1),
 ) =>
   ({
     ...{ vis: { vertexPool }, gpu: { device, positionBuffers }, lights },
-    ...{ run: { lost: false, gate: { sceneMoved() {} }, temporalHizState: {} } },
+    ...{ run: { lost: false, gate, temporalHizState: {} } },
     layout: { selectionRoots },
   }) as unknown as WebgpuPagesRuntime;
 
@@ -109,4 +111,23 @@ test('a rewrite weighs what it sends the GPU: a normal with its tangent, positio
   const sent = writes.reduce((bytes, [, , floats]) => bytes + floats.length * 4, 0);
   assert.equal(weighed, sent, 'what is weighed is what is sent');
   assert.equal(weighed, 2 * 12 * 2 + 7 * 4, 'two positions twice, one normal and its tangent');
+});
+
+test('a rewrite breaks the held image but moves no pose: the next image walks no world', () => {
+  const { device } = recordingDevice();
+  const attributes = geometry.plane(1, 1, 1, 1).attributes as unknown as HostAttributes;
+  const pool = createVertexPool(device, 8, false, new Map());
+  pool.place(attributes, true);
+  const gate = createFrameGateCore(1),
+    worlds = { walks: 0, refresh: () => void worlds.walks++ };
+  const api = webgpuVertexApi(runtimeOf(pool, device, new Map(), [], {}, gate));
+  gate.updateWorlds(worlds as never); // the first image walks them once
+  for (let frame = 0; frame < 3; frame++) {
+    const scene = gate.revisions.scene;
+    const range = { name: 'position', from: 0, count: 1 } as const;
+    assert.ok(api.updateVertices(attributes, [range], new Float64Array(6)));
+    assert.ok(gate.revisions.scene > scene, `frame ${frame}: the held image is broken`);
+    assert.equal(gate.updateWorlds(worlds as never), false, `frame ${frame}: no world walked`);
+  }
+  assert.equal(worlds.walks, 1, 'the rows table, its occluders and corners kept');
 });

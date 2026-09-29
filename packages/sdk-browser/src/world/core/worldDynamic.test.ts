@@ -33,6 +33,23 @@ test('a geometry rewritten 300 frames is never cut again nor reopened, and uploa
     assert.deepEqual(ranges, [{ name: 'position', from: 100, count: 100 }], 'the changed range');
 });
 
+test('a rewrite is no move: the row of its mesh is never sent again', async () => {
+  const world = dynamicWorld();
+  const sheet = geometry.plane(1, 1, 4, 4);
+  sheet.usage = 'dynamic';
+  world.scene.add(object.mesh(sheet, material.meshStandard({ transparent: true })));
+  await world.frame();
+  const placed = world.placed.count;
+  for (let frame = 0; frame < 10; frame++) {
+    sheet.attributes.position.setZ(0, frame / 10);
+    sheet.attributes.position.needsUpdate = true;
+    await world.frame();
+  }
+  world.end();
+  assert.equal(world.rewrites.length, 10, 'each rewrite uploaded');
+  assert.equal(world.placed.count, placed, 'no row sent: its transparent corners, pyramid kept');
+});
+
 test('a geometry changed on consecutive frames turns dynamic by itself, and says so naming its mesh', async () => {
   const world = dynamicWorld();
   const heard: unknown[] = [];
