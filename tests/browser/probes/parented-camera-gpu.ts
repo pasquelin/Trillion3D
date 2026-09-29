@@ -16,33 +16,35 @@ declare global {
   var cameraParentee: { executer: typeof executer };
 }
 
-const ici = dirname(fileURLToPath(import.meta.url));
+if (import.meta.main) {
+  const ici = dirname(fileURLToPath(import.meta.url));
 
-const script = await bundlePage(resolve(ici, 'parentedCameraGpuPage.ts'), 'cameraParentee');
-const erreursPage: string[] = [];
-const resultat = await dansPageWebgpu(
-  (pixelErrors: number[]) => globalThis.cameraParentee.executer(pixelErrors),
-  [0, 3.5],
-  { titre: 'Parented camera', script, erreursPage },
-);
-resultat.erreurs = [...(resultat.erreurs ?? []), ...erreursPage];
+  const script = await bundlePage(resolve(ici, 'parentedCameraGpuPage.ts'), 'cameraParentee');
+  const erreursPage: string[] = [];
+  const resultat = await dansPageWebgpu(
+    (pixelErrors: number[]) => globalThis.cameraParentee.executer(pixelErrors),
+    [0, 3.5],
+    { titre: 'Parented camera', script, erreursPage },
+  );
+  resultat.erreurs = [...(resultat.erreurs ?? []), ...erreursPage];
 
-if (resultat.indisponible) throw new Error(resultat.indisponible);
-if (!resultat.cas) throw new Error('GPU_RESULT_MISSING_CAS');
-console.log(`adaptateur : ${resultat.adaptateur}`);
-let ecarts = 0;
-for (const { pixelError, avecParent, sansParent } of resultat.cas) {
-  for (let i = 0; i < avecParent.length; i++) {
-    const rig = JSON.stringify(avecParent[i]),
-      plate = JSON.stringify(sansParent[i]);
-    const egal = rig === plate;
-    if (!egal) ecarts++;
-    console.log(
-      `pixelError ${pixelError} frame ${i}: ${egal ? 'identical' : 'DISCREPANCY'}  rig ${rig}` +
-        (egal ? '' : `  parentless ${plate}`),
-    );
+  if (resultat.indisponible) throw new Error(resultat.indisponible);
+  if (!resultat.cas) throw new Error('GPU_RESULT_MISSING_CAS');
+  console.log(`adaptateur : ${resultat.adaptateur}`);
+  let ecarts = 0;
+  for (const { pixelError, avecParent, sansParent } of resultat.cas) {
+    for (let i = 0; i < avecParent.length; i++) {
+      const rig = JSON.stringify(avecParent[i]),
+        plate = JSON.stringify(sansParent[i]);
+      const egal = rig === plate;
+      if (!egal) ecarts++;
+      console.log(
+        `pixelError ${pixelError} frame ${i}: ${egal ? 'identical' : 'DISCREPANCY'}  rig ${rig}` +
+          (egal ? '' : `  parentless ${plate}`),
+      );
+    }
   }
+  if (resultat.erreurs.length) console.log(`erreurs WebGPU : ${resultat.erreurs.join(' | ')}`);
+  console.log(`${ecarts} GPU frame(s) in discrepancy`);
+  if (ecarts || resultat.erreurs.length) process.exitCode = 1;
 }
-if (resultat.erreurs.length) console.log(`erreurs WebGPU : ${resultat.erreurs.join(' | ')}`);
-console.log(`${ecarts} GPU frame(s) in discrepancy`);
-if (ecarts || resultat.erreurs.length) process.exitCode = 1;

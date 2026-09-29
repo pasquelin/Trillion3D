@@ -3191,7 +3191,7 @@
       "shadowStaticDrawCalls": "Chamadas de desenho de projetores estáticos: na camada estática, ou de uma página desenhada inteira sem ela.",
       "shadowMovingDrawCalls": "Chamadas de desenho apenas de projetores em movimento, sobre páginas restauradas a partir da camada estática.",
       "shadowMovingCastersKept": "De `shadowCastersKept`, os clusters mantidos para desenhar apenas projetores em movimento.",
-      "shadowPagesStaledBy": "Páginas que a imagem tornou obsoletas, por motivo: luz, projetor parado, projetores em movimento, detalhe, limiar de corte ou intervalo de profundidade de um sol.",
+      "shadowPagesStaledBy": "Páginas que a imagem tornou obsoletas, por motivo: luz, projetor parado, projetores em movimento, detalhe, limiar de corte, intervalo de profundidade de um sol ou uma pegada que os seus recetores alargaram.",
       "shadowWaitMs": "Quantos milissegundos a página desatualizada mais antiga que a imagem lê esperou para ser redesenhada. Só conta o tempo em que a imagem a lê; 0 depois de redesenhada.",
       "shadowCutDrops": "Lotes do corte a partir da luz que descartaram trabalho — as suas vistas guardaram mais clusters do que as listas comportam —, desde que o explorador abriu: cada um devolve as suas páginas, retiradas até serem redesenhadas (#525). Null num motor sem corte de luz na GPU, tal como os três seguintes.",
       "shadowCutWithdrawnPages": "Páginas redesenhadas porque um corte a partir da luz as desenhou mal, desde que o explorador abriu: o seu lote descartou trabalho, ou a sua flag nunca foi lida. Ficam retiradas até serem redesenhadas.",
@@ -3223,6 +3223,7 @@
       "shadowMemoryEvents": "Os eventos de pressão de memória das sombras desde que o mundo abriu, por nome, em ordem; vazio normalmente.",
       "shadowPagesRefetched": "Páginas virtuais mapeadas de novo depois de o pool as ter despejado para abrir espaço, desde que o explorador abriu: os redesenhos que custa um pool pequeno demais para o que os quadros leem.",
       "shadowCastersKept": "Projetores que o descarte por página manteve, todas as páginas desenhadas juntas, no quadro que o dispositivo amostrou por último — um em quinze; `null` até voltar uma amostra.",
+      "shadowCastersRejected": "Projetores que o descarte por página testou e não manteve — fora da parte da página que os seus recetores leem —, no mesmo quadro amostrado; `null` até voltar uma amostra.",
       "shadowCastersHidden": "Projetores em movimento que o teste de oclusão achou escondidos atrás da camada estática da sua página, no quadro amostrado por último; `null` até voltar uma amostra."
     }
   },
@@ -4302,7 +4303,7 @@
       "shadowStaticDrawCalls": "Chamadas de desenho de projetores estáticos: na camada estática, ou de uma página desenhada inteira sem ela.",
       "shadowMovingDrawCalls": "Chamadas de desenho apenas de projetores em movimento, sobre páginas restauradas a partir da camada estática.",
       "shadowMovingCastersKept": "De `shadowCastersKept`, os clusters mantidos para desenhar apenas projetores em movimento.",
-      "shadowPagesStaledBy": "Páginas que a imagem tornou obsoletas, por motivo: luz, projetor parado, projetores em movimento, detalhe, limiar de corte ou intervalo de profundidade de um sol.",
+      "shadowPagesStaledBy": "Páginas que a imagem tornou obsoletas, por motivo: luz, projetor parado, projetores em movimento, detalhe, limiar de corte, intervalo de profundidade de um sol ou uma pegada que os seus recetores alargaram.",
       "shadowWaitMs": "Quantos milissegundos a página desatualizada mais antiga que a imagem lê esperou para ser redesenhada. Só conta o tempo em que a imagem a lê; 0 depois de redesenhada.",
       "shadowCutDrops": "Lotes do corte a partir da luz que descartaram trabalho — as suas vistas guardaram mais clusters do que as listas comportam —, desde que o explorador abriu: cada um devolve as suas páginas, retiradas até serem redesenhadas (#525). Null num motor sem corte de luz na GPU, tal como os três seguintes.",
       "shadowCutWithdrawnPages": "Páginas redesenhadas porque um corte a partir da luz as desenhou mal, desde que o explorador abriu: o seu lote descartou trabalho, ou a sua flag nunca foi lida. Ficam retiradas até serem redesenhadas.",
@@ -4373,6 +4374,7 @@
       "shadowMemoryEvents": "Os eventos de pressão de memória das sombras desde que o mundo abriu, por nome, em ordem; vazio normalmente.",
       "shadowPagesRefetched": "Páginas virtuais mapeadas de novo depois de o pool as ter despejado para abrir espaço, desde que o explorador abriu: os redesenhos que custa um pool pequeno demais para o que os quadros leem.",
       "shadowCastersKept": "Projetores que o descarte por página manteve, todas as páginas desenhadas juntas, no quadro que o dispositivo amostrou por último — um em quinze; `null` até voltar uma amostra.",
+      "shadowCastersRejected": "Projetores que o descarte por página testou e não manteve — fora da parte da página que os seus recetores leem —, no mesmo quadro amostrado; `null` até voltar uma amostra.",
       "shadowCastersHidden": "Projetores em movimento que o teste de oclusão achou escondidos atrás da camada estática da sua página, no quadro amostrado por último; `null` até voltar uma amostra.",
       "dynamicUploadBytes": "Bytes de vértices de geometria dinâmica enviados no local neste quadro (#573), dentro do orçamento por quadro do mundo (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Ausente onde nenhum mundo desenha."
     }
