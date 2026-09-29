@@ -4,7 +4,9 @@ Closes # <!-- one pull request closes one issue (AGENTS.md rule 5) -->
 
 ## Proof
 
-<!-- Commands run and their outcome; measurement evidence follows CONTRIBUTING.md. -->
+<!-- Commands run and their outcome; measurement evidence follows CONTRIBUTING.md. Image proof
+     class (AGENTS.md rule 1): 1, refactor or pure optimisation, by default; 2, rendering technique,
+     names its reference image and its bound (mean, p99.9 channel error, mean FLIP). -->
 
 ## Local review before push
 
