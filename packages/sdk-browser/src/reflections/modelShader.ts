@@ -20,11 +20,10 @@ export function mirrorLightingShader(language: 'wgsl' | 'glsl') {
   return shaderLanguage(
     `
 fn mirrorLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f)->vec3f{
- var weight:f32=mirrorWeight(rough);
- if(weight==0.0||surfaceModel==${flags.diffuse}u||surfaceModel==${flags.toon}u){return vec3f(0.0);}
+ if(surfaceModel==${flags.diffuse}u||surfaceModel==${flags.toon}u){return vec3f(0.0);}
  var t:vec4f=ltcLookup(rough,clamp(dot(N,V),1e-4,1.0),1u);
  var f0:vec3f=mix(vec3f(0.04),rgb,metal);
- return (f0*t.x+(vec3f(1.0)-f0)*t.y)*reflectedRadiance(P,N,reflect(-V,N),${ROUGHNESS_FLOOR})*weight;
+ return (f0*t.x+(vec3f(1.0)-f0)*t.y)*reflectedRadiance(P,N,reflect(-V,N),rough);
 }`,
     language,
   );

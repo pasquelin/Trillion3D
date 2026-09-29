@@ -1,4 +1,5 @@
 import { invertMatrix4 } from '../../../../../sdk-core/src/index.ts';
+import { updateScreenReflection } from '../../../reflections/frame.ts';
 import { drawBlendPass } from '../../blend/draw.ts';
 import { writeBlendView } from '../../blend/uniforms.ts';
 import { encodeBlendExpansion } from '../../blend/resources.ts';
@@ -168,7 +169,7 @@ export function encodeSurfaceLighting(
     direct,
     taaSampledRank(rt),
   );
-  gpu.reflection?.update(viewProj, gpu.deferred.usesContract && !raw, gpu.targetSize);
+  updateScreenReflection(rt, viewProj, gpu.deferred.usesContract && !raw);
   run.gpuDrawCalls += gpu.deferred.light(encoder, gpu.hdrView, gpu.reflection);
   const blendShare = seedAsIsShare(rt, device, encoder);
   const filter = beginDisplayFilter(rt, device);

@@ -9,6 +9,7 @@ import {
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { PAGE_MODEL_WGSL } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
 import { SHADOW_FACTOR_WGSL } from './shadowFactorWgsl.ts';
+import { LAMP_SOFT_WGSL } from './lampSoftWgsl.ts';
 import { shadowRequestWgsl } from './shadowRequestWgsl.ts';
 import { SHADOW_SAMPLE_WGSL, SHADOW_SUBTEXELS } from './shadowSampleWgsl.ts';
 import { shadowThroughWgsl } from '../../gpu/shadow/transmittance.ts';
@@ -103,6 +104,7 @@ ${poissonWgsl('POISSON', 1)}
 ${poissonWgsl('POISSON_STEPS', SHADOW_SUBTEXELS)}
 /** Pixel footprint at the lit point, in metres: set by the pass before it lights a surface. */
 var<private> shadowFootprint:f32=0.0;
+var<private> shadowReceiverOffset:vec3f=vec3f(0.0);
 /** Depth margin, in metres toward the light, of a receiver whose depth changes by \`slope\` per
  *  unit across the map: its plane over the PCF's reach, up to \`cap\`, a slope of 1 in the
  *  caller's units. ADDED to the reference: shadow depth is reversed. */
@@ -161,4 +163,5 @@ fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32,
  }
  return shadowThroughLit(offset,first,t,reference,lit/f32(PCF_TAPS));
 }
-${SHADOW_FACTOR_WGSL}`;
+${SHADOW_FACTOR_WGSL}
+${LAMP_SOFT_WGSL}`;

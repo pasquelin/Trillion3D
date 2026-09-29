@@ -22,3 +22,19 @@ test('#1281: probes still being built keep the frame drawn, a refused bounce doe
   rt.bounce.reason = 'bounce unavailable';
   assert.equal(unsettledMask(rt), 0, 'a bounce that will never come is a steady state');
 });
+
+test('bounce and reflection convergence independently keep the frame awake', () => {
+  const rt = settledRt();
+  rt.gpu.deferred = { usesContract: true } as typeof rt.gpu.deferred;
+  const history = { settled: false };
+  rt.gpu.reflection = { active: true, history } as NonNullable<typeof rt.gpu.reflection>;
+  const probes = { working: false };
+  rt.bounce.probes = probes as NonNullable<typeof rt.bounce.probes>;
+  assert.deepEqual(unsettledReasons(unsettledMask(rt)), ['reflections']);
+  probes.working = true;
+  assert.deepEqual(unsettledReasons(unsettledMask(rt)), ['bounceProbes', 'reflections']);
+  history.settled = true;
+  assert.deepEqual(unsettledReasons(unsettledMask(rt)), ['bounceProbes']);
+  probes.working = false;
+  assert.equal(unsettledMask(rt), 0);
+});

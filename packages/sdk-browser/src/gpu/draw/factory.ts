@@ -1,7 +1,7 @@
 import { DRAW_ITEM_U32, UNIFORM_BYTES, WORKGROUP } from './contract.ts';
 import { createGpuDrawBuffers } from './buffers.ts';
 import type { GpuDraw } from './contract.ts';
-import { validated } from '../core/errorScope.ts';
+import { constructGpuResources, validated } from '../core/errorScope.ts';
 import { shaderFailed } from '../core/shaderModule.ts';
 import { drawBindEntries, drawShader } from './shader.ts';
 import { createLightRowMap, type LightRowMap } from './lightRows.ts';
@@ -28,7 +28,9 @@ export async function createGpuDraw(
     mapBuffers.length = 0;
   };
   try {
-    allocated = createGpuDrawBuffers(device, slotCap, layerSlots);
+    allocated = constructGpuResources(device, () =>
+      createGpuDrawBuffers(device, slotCap, layerSlots),
+    );
     const SLOTS = allocated.slots;
     const made = await validated(device, async () => {
       const layout = device.createBindGroupLayout({ entries: drawBindEntries() });
@@ -110,7 +112,9 @@ export async function createGpuDraw(
         return (rowMap ??= createLightRowMap(device, held.itemsBuf, pages, mapBuffers));
       },
       grow(rows) {
-        const next = createGpuDrawBuffers(device, rows, layerSlots);
+        const next = constructGpuResources(device, () =>
+          createGpuDrawBuffers(device, rows, layerSlots),
+        );
         return pendingBuffers(next.all, () => {
           const old = held;
           held = allocated = next;

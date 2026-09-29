@@ -62,7 +62,8 @@ fn sunLevelGradient(w0:vec4f,w1:vec4f,w2:vec4f,dUds:vec2f,dUdt:vec2f,wp:vec4f)->
 }
 /** Tile rank pick \`p\` of this pixel names, plus one, or zero (\`missing\`: only a tile not held). */
 fn shadePick(p:RequestPick,missing:bool,page:PageInfo,h:ClusterHeader,uv:vec2f,ddx:vec2f,ddy:vec2f,w0:vec4f,w1:vec4f,w2:vec4f,i0:u32,i1:u32,i2:u32,wp:vec4f)->u32{
- if(p.sel>=MAP_CHOICES&&HAS_MASK){
+ if(p.sel==MAP_CHOICES+1u){return colorRequestIndex(page.subsurfaceMap,uv,ddx,ddy,p.next,1u,false,HAS_SAMPLING,missing);}
+ if(p.sel==MAP_CHOICES&&HAS_MASK){
   let uva=pageUv(page,h,i0);
   let g=sunLevelGradient(w0,w1,w2,pageUv(page,h,i1)-uva,pageUv(page,h,i2)-uva,wp);
   if(any(g!=vec4f(0.0))){return colorRequestIndex(page.mapIndex,uv,g.xy,g.zw,p.next,1u,false,HAS_SAMPLING,missing);}
@@ -72,8 +73,8 @@ fn shadePick(p:RequestPick,missing:bool,page:PageInfo,h:ClusterHeader,uv:vec2f,d
 /** Tile rank this pixel asks for, plus one, or zero: during a convergence, the first of its picks
  *  whose tile is missing (\`everyPick\`), else its own. */
 fn shadeRequest(page:PageInfo,h:ClusterHeader,pos:vec2f,uv:vec2f,ddx:vec2f,ddy:vec2f,w0:vec4f,w1:vec4f,w2:vec4f,i0:u32,i1:u32,i2:u32,wp:vec4f)->u32{
- if(!(HAS_UV&&ANY_MAP)||!feedbackPhase(pos,uni.feedback)){return 0u;}
- let choices=MAP_CHOICES+1u;
+ if(!(HAS_UV&&(ANY_MAP||page.subsurfaceMap!=0u))||!feedbackPhase(pos,uni.feedback)){return 0u;}
+ let choices=MAP_CHOICES+1u+select(0u,1u,page.subsurfaceMap!=0u);
  if(feedbackEvery(uni.feedback)){
   for(var turn=0u;turn<choices*PICK_TURNS;turn++){
    let rank=shadePick(everyPick(pos,choices,turn),true,page,h,uv,ddx,ddy,w0,w1,w2,i0,i1,i2,wp);
