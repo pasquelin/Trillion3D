@@ -6,11 +6,9 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
 import { FLAG_MASK, PAGE_INFO_STRIDE } from '../../visibility/types.ts';
 import { ROW_FLAGS_WORD, ROW_INDEX_WORDS } from '../row/pageRow.ts';
+import { CLUSTER_SPHERE_FLOATS, clusterSpheres, mobilityRows } from './rowBuffers.ts';
 
 const ROW_WORDS = PAGE_INFO_STRIDE / 4;
-
-/** Floats of a cluster world sphere: centre then radius. */
-const CLUSTER_SPHERE_FLOATS = 4;
 
 /**
  * World sphere of a cluster: the centre of its local box transformed by its world matrix, and the
@@ -64,13 +62,7 @@ function ensureClusterSpheres(rt: WebgpuPagesRuntime, device: GPUDevice) {
     { casterSlots } = rt.layout.rows;
   if (lights.spheres && lights.spheres.rows === casterSlots) return lights.spheres;
   lights.spheres?.buffer.destroy();
-  const buffer = device.createBuffer({
-    label: 'Trillion3D cluster spheres v1',
-    size: Math.max(1, casterSlots) * CLUSTER_SPHERE_FLOATS * 4,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  });
-  const packed = new Float32Array(casterSlots * CLUSTER_SPHERE_FLOATS);
-  lights.spheres = { buffer, packed, rows: casterSlots };
+  lights.spheres = clusterSpheres(device, casterSlots);
   return lights.spheres;
 }
 
@@ -127,11 +119,7 @@ export function uploadRowMobility(
   );
   if (!lights.mobilityRows || lights.mobilityRows.size !== mobility.rowWords.byteLength) {
     lights.mobilityRows?.destroy();
-    lights.mobilityRows = device.createBuffer({
-      label: 'Trillion3D shadow row mobility v1',
-      size: mobility.rowWords.byteLength,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    });
+    lights.mobilityRows = mobilityRows(device, mobility.rowWords.length);
     from = 0;
     to = casterSlots - 1;
   }

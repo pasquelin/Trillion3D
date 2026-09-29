@@ -112,6 +112,12 @@ export const BACKEND_METRIC_KEYS = [
   'gpuShadowCullMs',
   'gpuShadowRasterMs',
   'gpuLightingMs',
+  'cpuShadowPlanMs',
+  'cpuShadowRequestsMs',
+  'cpuShadowAdmissionMs',
+  'cpuShadowBatchesMs',
+  'cpuShadowRegionsMs',
+  'cpuShadowPassesMs',
 ] as const;
 
 /** Measurements the host composes itself, from the engine and its own counters. */

@@ -35,7 +35,7 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
     geometryPoolCeilingBytes: {
       type: 'integer',
       description:
-        'Maximum ceiling to which the geometry pool can be dynamically enlarged by setMemoryBudgets.',
+        'Geometry pool ceiling for setMemoryBudgets: the WebGL2 engine never enlarges the pool past it; the WebGPU engine sizes its drawable-page tables to it and grows them in place past it.',
     },
     texturePoolBytes: {
       type: 'integer',
