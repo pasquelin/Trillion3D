@@ -29,6 +29,7 @@ const config: KnipConfig = {
     'bench/runner/bench.ts',
     'bench/runner/feedbackTargetAb.ts',
     'bench/runner/trajectory.ts',
+    'bench/runner/reference.ts',
     // Compiled by path by the public types audit (`public-types-audit.test.ts`), never imported.
     'tests/integration/public-types-union.fixture.ts',
     // Served to the harness page and imported by URL, never by local import.
@@ -36,6 +37,7 @@ const config: KnipConfig = {
     'bench/runner/witnessPage.ts',
     'bench/runner/explorerPage.ts',
     'bench/runner/lightingPage.ts',
+    'bench/runner/referencePage.ts',
     'bench/runner/trajectoryPage.ts',
     'bench/runner/poses.ts',
     'bench/runner/threeBarePage.ts',

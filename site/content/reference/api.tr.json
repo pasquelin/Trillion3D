@@ -1000,7 +1000,9 @@
       "PHYSICS_FORMAT": "Derlenmiş bir modelin hazırlanmış fiziği (`physics.json`) başka bir biçimde ya da motorunkinden başka bir Jolt ile hazırlanmış (`PHYSICS_FORMAT`): yeniden derleyin. Fizik kapalıyken kesin bir raycast istendi (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "Derlenmiş bir modelin hazırlanmış fiziği (`physics.json`) başka bir biçimde ya da motorunkinden başka bir Jolt ile hazırlanmış (`PHYSICS_FORMAT`): yeniden derleyin. Fizik kapalıyken kesin bir raycast istendi (`PHYSICS_OFF`).",
       "NO_VEHICLE": "`world.controls.vehicle` `null` iken `world.controls.kind` `'vehicle'` yapıldı: sürülecek bir şey yok.",
-      "GUIDE_CEILING": "Bir `world.guides` çağrısı `GUIDE_VERTEX_CEILING` değerinden fazla köşe tutacaktı; ondan hiçbir şey eklenmedi."
+      "GUIDE_CEILING": "Bir `world.guides` çağrısı `GUIDE_VERTEX_CEILING` değerinden fazla köşe tutacaktı; ondan hiçbir şey eklenmedi.",
+      "REFERENCE_SHADOWS_REDUCED": "Referans görüntü reddedildi: gölge havuzu tam boyutunun altında çalışıyor (`REFERENCE_SHADOWS_REDUCED`). Referans modu, yeniden boyutlandırılması süper örneklemeyi düşürecek etkileşimli bir oturumda istendi (`REFERENCE_INTERACTIVE`).",
+      "REFERENCE_INTERACTIVE": "Referans görüntü reddedildi: gölge havuzu tam boyutunun altında çalışıyor (`REFERENCE_SHADOWS_REDUCED`). Referans modu, yeniden boyutlandırılması süper örneklemeyi düşürecek etkileşimli bir oturumda istendi (`REFERENCE_INTERACTIVE`)."
     }
   },
   "EngineProfiler": {
@@ -2876,7 +2878,7 @@
     "summary": "Host'a ait sahne hiyerarşisi sözleşmesinin sürümü."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "Başlık tamsayıları: imza, sürüm, üçgen/düğüm/grup/sahip/kaynak sayıları, ayrılmış sıfır."
+    "summary": "Başlık tamsayıları: v3 sahiplik başlığı, ardından şekil, saklanan üçgen ve yerleşim sayıları."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "İşaretsiz 32 bitlik little-endian bir tam sayı olarak okunan 'W','G','P','X'."
@@ -3097,7 +3099,7 @@
     }
   },
   "SceneProxy": {
-    "summary": "Okuma proxy'si: açıklayıcısı ve sütunları, önbellek nesnesinin baytları üzerindeki görünümler.",
+    "summary": "Okunan vekil: tanımlayıcısı ve değişmez sütunları; paylaşılan üçgenler yükleme sırasında genişletilir.",
     "members": {
       "data": "Sütunları."
     }
@@ -5050,7 +5052,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Tek bir ışın ona dokunmadan önce yeniden okunan ve yeniden kontrol edilen proxy.",
-    "description": "Düzen: little-endian sırasındaki sekiz başlık sözcüğünü, kanonik geometri ve ağaç sütunları ile sürümlendirilmiş sahiplik verileri izler. `docs/FORMAT.md` her sayıyı ve sütunu belirtir. Başlık her bölümün uzunluğunu belirler; farklı boyuttaki bir dosya tamamen reddedilir, çünkü eksik bir üçgene işaret eden düğüm, gölgelendiricinin rastgele veri okumasına yol açar."
+    "description": "On bir little-endian başlık sözcüğünü paylaşılan ve bağımsız geometri, ağaç sütunları ve sürümlü sahiplik izler. `docs/FORMAT.md` tüm sayıları ve sütunları tanımlar. Yanlış uzunluklar ışın erişiminden önce reddedilir."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S`, `position`, `quaternion`, `scale`'e ayrıştırılmış."

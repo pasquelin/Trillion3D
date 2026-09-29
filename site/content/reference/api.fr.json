@@ -1390,7 +1390,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Le proxy relu et revérifié avant qu’un seul rayon le touche.",
-    "description": "Disposition : huit mots d’en-tête en little-endian, suivis des colonnes de géométrie et d’arbre canoniques et des données de propriété versionnées. `docs/FORMAT.md` précise chaque nombre et chaque colonne. L’en-tête impose la longueur de chaque section ; un fichier d’une autre taille est refusé en bloc, car un nœud qui désignerait un triangle absent ferait lire des données arbitraires au shader."
+    "description": "Onze mots d’en-tête little-endian précèdent la géométrie partagée ou indépendante, les colonnes de l’arbre et la propriété versionnée. `docs/FORMAT.md` définit les comptes et colonnes. Toute longueur incorrecte est refusée avant lecture par un rayon."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S` décomposée en `position`, `quaternion`, `scale`."
@@ -1640,7 +1640,9 @@
       "PHYSICS_FORMAT": "La physique préparée d’un modèle compilé (`physics.json`) est d’un autre format, ou a été préparée par un autre Jolt que celui du moteur (`PHYSICS_FORMAT`) : recompilez-le. Un lancer de rayon exact a été demandé physique éteinte (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "La physique préparée d’un modèle compilé (`physics.json`) est d’un autre format, ou a été préparée par un autre Jolt que celui du moteur (`PHYSICS_FORMAT`) : recompilez-le. Un lancer de rayon exact a été demandé physique éteinte (`PHYSICS_OFF`).",
       "NO_VEHICLE": "`world.controls.kind` a reçu `'vehicle'` alors que `world.controls.vehicle` vaut `null` : il n’y a rien à conduire.",
-      "GUIDE_CEILING": "Un appel à `world.guides` tiendrait plus de sommets que `GUIDE_VERTEX_CEILING` ; rien n’en a été ajouté."
+      "GUIDE_CEILING": "Un appel à `world.guides` tiendrait plus de sommets que `GUIDE_VERTEX_CEILING` ; rien n’en a été ajouté.",
+      "REFERENCE_SHADOWS_REDUCED": "L’image de référence a été refusée : la réserve d’ombres tourne sous sa pleine taille (`REFERENCE_SHADOWS_REDUCED`). Le mode référence a été demandé sur une session interactive, dont un redimensionnement ferait perdre le suréchantillonnage (`REFERENCE_INTERACTIVE`).",
+      "REFERENCE_INTERACTIVE": "L’image de référence a été refusée : la réserve d’ombres tourne sous sa pleine taille (`REFERENCE_SHADOWS_REDUCED`). Le mode référence a été demandé sur une session interactive, dont un redimensionnement ferait perdre le suréchantillonnage (`REFERENCE_INTERACTIVE`)."
     }
   },
   "enginePose": {
@@ -5262,7 +5264,7 @@
     "summary": "Version du contrat de la hiérarchie de scène tenue par l’hôte."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "Entiers d’en-tête : signature, version, nombres de triangles/nœuds/groupes/propriétaires/sources, zéro réservé."
+    "summary": "Entiers d’en-tête : en-tête de propriété v3, puis nombres de formes, de triangles stockés et de placements."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "'W','G','P','X' lus comme un entier non signé sur 32 bits little-endian."
@@ -5398,7 +5400,7 @@
     }
   },
   "SceneProxy": {
-    "summary": "Le proxy lu : son descripteur et ses colonnes, des vues sur les octets de son objet de cache.",
+    "summary": "Le proxy lu : son descripteur et ses colonnes immuables, avec les triangles partagés développés au chargement.",
     "members": {
       "data": "Ses colonnes."
     }
