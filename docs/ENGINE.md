@@ -336,7 +336,7 @@ golden ratio every image, each divided by its probability. The estimate is unbia
 averages it toward the full sum. A **still** image — the quiet ones, a capture, a diagnostic view —
 shades every light of the tile, so the held image is the exact sum, `0 px` A/A. The tile pass
 records, once per tile, whether its opaque list holds a shadowed light (`TILE_SHADOW_BASE`,
-`../lighting/tiles/compactWgsl.ts`); the moving resolve reads that one word, so a list with no
+`lighting/tiles/compactWgsl.ts`); the moving resolve reads that one word, so a list with no
 shadowed light is never drawn — with no shadow to save, the three weight walks would cost three
 times the full sum — and is summed in full as the still one does, bit for bit, the resolve never
 walking the list a pixel at a time (`tileShadowed`, `tests/browser/probes/sampled-resolve-gpu.ts`,
