@@ -19,7 +19,7 @@ pub(crate) const RUNGS: usize = 32;
 type Parts = Vec<(Box6, usize)>;
 
 /// The nodes of each mesh a record places.
-fn meshes_of(record: &Value) -> impl Iterator<Item = (u64, u64)> + '_ {
+pub(crate) fn meshes_of(record: &Value) -> impl Iterator<Item = (u64, u64)> + '_ {
     let meshes = record["meshes"].as_array().into_iter().flatten();
     meshes.filter_map(|mesh| Some((mesh[0].as_u64()?, mesh[1].as_u64()?)))
 }

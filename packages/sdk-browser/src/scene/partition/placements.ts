@@ -7,6 +7,7 @@
 import { MATRIX_VALUES, multiplyMatrix4 } from '../../../../sdk-core/src/index.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { hostWorldChainInto } from '../../host/world/chain.ts';
+import { sameMatrixBits } from '../../host/world/pose.ts';
 import type { CellRows } from './cellDecode.ts';
 import { createTouchedRows, releaseRow, rowsFree, takeRow, type PlacedMesh } from './rows.ts';
 
@@ -65,7 +66,7 @@ export function createCellPlacements(
     follow() {
       for (const [node, world] of worlds) {
         hostWorldChainInto(product, node);
-        if (product.every((value, at) => Object.is(value, world[at]))) continue;
+        if (sameMatrixBits(world, product)) continue;
         world.set(product);
         for (const placements of held.values())
           for (const placement of placements) if (placement.parent === node) write(placement);

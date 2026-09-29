@@ -39,18 +39,19 @@ function viewOf(camera: HostCamera) {
 /** The file of the partition at `url` read by the decode pool, off the main thread (#575): `cells`,
  *  a cell file into its rows; `cellPage`, a page of the cell index. A refusal keeps its code — a page
  *  of another version stays `UNSUPPORTED_SCENE_TABLES` — and names the file. */
-async function offThread(op: 'cells' | 'cellPage', bytes: Uint8Array, url: string) {
-  const answer = await patientTask(op, bytes, url);
-  if (answer.ok && answer.cells) return cellRows(answer.cells);
-  if (answer.ok && answer.cellPage) return answer.cellPage;
+function refused(answer: Awaited<ReturnType<typeof patientTask>>, url: string): never {
   const message = answer.ok ? 'PAGE_DECODE_FAILED' : answer.message;
   const code = (!answer.ok && answer.refusal) || 'INVALID_SCENE_TABLES';
   throw new EngineError(code, message, { url });
 }
-const decodeCell = (bytes: Uint8Array, url: string) =>
-  offThread('cells', bytes, url) as Promise<CellRows>;
-const decodePage = (bytes: Uint8Array, url: string) =>
-  offThread('cellPage', bytes, url) as Promise<PageBody>;
+async function decodeCell(bytes: Uint8Array, url: string): Promise<CellRows> {
+  const answer = await patientTask('cells', bytes, url);
+  return answer.ok && answer.cells ? cellRows(answer.cells) : refused(answer, url);
+}
+async function decodePage(bytes: Uint8Array, url: string): Promise<PageBody> {
+  const answer = await patientTask('cellPage', bytes, url);
+  return answer.ok && answer.cellPage ? answer.cellPage : refused(answer, url);
+}
 
 /**
  * Sizes the rows for `camera`'s view — for every node when no owner can open the session again
