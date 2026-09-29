@@ -8,10 +8,11 @@
 //! Composition, in order: scale, then rotation, then translation; then, if there is a parent,
 //! its world matrix and the inverse matrix the object kept at parenting time. Matrices are
 //! written column by column, as Blender stores them and as glTF expects them: no transpose is
-//! done anywhere. The file's single floats are composed in the compiler's double-precision matrix
-//! algebra, and the world matrix comes back in single precision.
+//! done anywhere. The file's single floats are composed in single precision, with the
+//! compiler's shared helpers at that precision: the output bits stay those Blender files have
+//! always compiled to.
 use super::*;
-use crate::compiler_world::{axis_angle, axis_rotation, multiply, quaternion_wxyz, Mat4, IDENTITY};
+use crate::compiler_world::{identity, product as multiply, quaternion_wxyz, turn};
 
 /// The object type that holds a mesh.
 pub(super) const OB_MESH: i64 = 1;
@@ -29,12 +30,14 @@ const ORDERS: [[usize; 3]; 6] = [
 /// Maximum depth of a parent chain, cycle included.
 const MAX_DEPTH: usize = 64;
 
+pub(super) type Matrix = [f32; 16];
+
 /// The world matrix of an object, in Blender space.
-pub(super) fn world(object: &At<'_>) -> [f32; 16] {
-    composed(object, 0).map(|value| value as f32)
+pub(super) fn world(object: &At<'_>) -> Matrix {
+    composed(object, 0)
 }
 
-fn composed(object: &At<'_>, depth: usize) -> Mat4 {
+fn composed(object: &At<'_>, depth: usize) -> Matrix {
     for written in ["obmat", "object_to_world"] {
         if object.has(written) {
             return square(object, written);
@@ -52,7 +55,7 @@ fn composed(object: &At<'_>, depth: usize) -> Mat4 {
 }
 
 /// The local matrix: scale, rotation, translation, in that order.
-fn local(object: &At<'_>) -> Mat4 {
+fn local(object: &At<'_>) -> Matrix {
     let scale = triple(object, "size", 1.0);
     let delta = if object.has("dscale") {
         triple(object, "dscale", 1.0)
@@ -69,21 +72,21 @@ fn local(object: &At<'_>) -> Mat4 {
 }
 
 /// An object's rotation, according to the mode it declares, deferred included.
-fn rotation(object: &At<'_>) -> Mat4 {
+fn rotation(object: &At<'_>) -> Matrix {
     let mode = object.int("rotmode", QUATERNION);
     let own = match mode {
-        QUATERNION => quaternion_wxyz(quad(object, "quat")),
+        QUATERNION => quaternion(quad(object, "quat")),
         AXIS_ANGLE => axis_angle(
-            triple(object, "rotAxis", 0.0),
-            f64::from(object.float("rotAngle", 0.0)),
+            &triple(object, "rotAxis", 0.0),
+            object.float("rotAngle", 0.0),
         ),
         _ => euler(&triple(object, "rot", 0.0), mode),
     };
     let differed = match mode {
-        QUATERNION => quaternion_wxyz(quad(object, "dquat")),
+        QUATERNION => quaternion(quad(object, "dquat")),
         AXIS_ANGLE => axis_angle(
-            triple(object, "drotAxis", 0.0),
-            f64::from(object.float("drotAngle", 0.0)),
+            &triple(object, "drotAxis", 0.0),
+            object.float("drotAngle", 0.0),
         ),
         _ => euler(&triple(object, "drot", 0.0), mode),
     };
@@ -91,17 +94,39 @@ fn rotation(object: &At<'_>) -> Mat4 {
 }
 
 /// Euler angles of a given order: each axis turns in turn, the first named first.
-fn euler(angles: &[f64; 3], mode: i64) -> Mat4 {
+fn euler(angles: &[f32; 3], mode: i64) -> Matrix {
     let order = ORDERS[usize::try_from(mode - 1).unwrap_or(0).min(5)];
-    let mut matrix = IDENTITY;
+    let mut matrix = identity();
     for axis in order.iter().rev() {
-        matrix = multiply(&matrix, &axis_rotation(*axis, angles[*axis]));
+        matrix = multiply(&matrix, &turn(*axis, angles[*axis]));
     }
     matrix
 }
 
-fn scaling(scale: &[f64; 3], delta: &[f64; 3]) -> Mat4 {
-    let mut matrix = IDENTITY;
+/// Rotation of a quaternion written (w, x, y, z), as Blender stores it; one of no finite,
+/// non-zero length rotates nothing.
+fn quaternion(value: [f32; 4]) -> Matrix {
+    quaternion_wxyz(value, |length| length.is_finite() && length != 0.0)
+}
+
+/// Rotation of an angle around an arbitrary axis, by the quaternion of its half angle.
+fn axis_angle(axis: &[f32; 3], angle: f32) -> Matrix {
+    let length = (axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2]).sqrt();
+    if !length.is_finite() || length == 0.0 {
+        return identity();
+    }
+    let half = angle / 2.0;
+    let sin = half.sin();
+    quaternion([
+        half.cos(),
+        axis[0] / length * sin,
+        axis[1] / length * sin,
+        axis[2] / length * sin,
+    ])
+}
+
+fn scaling(scale: &[f32; 3], delta: &[f32; 3]) -> Matrix {
+    let mut matrix = identity();
     for axis in 0..3 {
         matrix[axis * 4 + axis] = scale[axis] * delta[axis];
     }
@@ -109,24 +134,24 @@ fn scaling(scale: &[f64; 3], delta: &[f64; 3]) -> Mat4 {
 }
 
 /// A matrix written in place in a field of sixteen floats.
-fn square(object: &At<'_>, name: &str) -> Mat4 {
-    written(object, name, IDENTITY)
+fn square(object: &At<'_>, name: &str) -> Matrix {
+    written(object, name, identity())
 }
 
-fn triple(object: &At<'_>, name: &str, default: f64) -> [f64; 3] {
+fn triple(object: &At<'_>, name: &str, default: f32) -> [f32; 3] {
     written(object, name, [default; 3])
 }
 
 /// A quaternion `(w, x, y, z)`, the identity rotation where the file writes none.
-fn quad(object: &At<'_>, name: &str) -> [f64; 4] {
+fn quad(object: &At<'_>, name: &str) -> [f32; 4] {
     written(object, name, [1.0, 0.0, 0.0, 0.0])
 }
 
 /// The floats of a field over `default`, as many as both hold.
-fn written<const N: usize>(object: &At<'_>, name: &str, default: [f64; N]) -> [f64; N] {
+fn written<const N: usize>(object: &At<'_>, name: &str, default: [f32; N]) -> [f32; N] {
     let mut out = default;
     for (slot, value) in out.iter_mut().zip(object.floats(name)) {
-        *slot = f64::from(value);
+        *slot = value;
     }
     out
 }
