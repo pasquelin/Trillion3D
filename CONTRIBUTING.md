@@ -83,12 +83,10 @@
      keeps them owes no discussion.
   2. **Rendering technique** (a temporal upscaler, a radiance cache, cached shadow pages, f16 or
      wave intrinsics: controlled approximations): error against a named reference image within a
-     bound the pull request states: mean and 99.9th-percentile channel error and mean LDR-FLIP,
+     bound the pull request states: mean and 99.9th-percentile channel error and mean LDR-FLIP (`bench/runner/flip.ts`),
      from `bench/runner/imageDiff.ts::referenceDiff`, with no visible defect (no flicker, trail,
-     hole or lost detail) on still and moving captures. FLIP (NVIDIA, 2020) is the perceptual
-     metric because it models a viewer flipping between the two images, edges and points
-     included, where SSIM or ΔE miss colour or structure, and it is plain TypeScript
-     (`bench/runner/flip.ts`, checked against NVIDIA's `flip-evaluator`).
+     hole or lost detail) on still and moving captures. The pull request declares its class on
+     the `Image proof class:` line of its template.
 - **A proof needs a stable A/A.** A branch-against-develop difference proves something only on a
   capture whose A/A is 0 px (or the masked exception below); a broad A/A spread proves nothing. A
   scene that is not A/A-stable is first made stable (frozen clock, pinned frame) or replaced by a
