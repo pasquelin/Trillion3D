@@ -12,14 +12,14 @@ import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { sceneNote } from '../scene.ts';
 import { assertReport, REPORT_VERSION } from '../../../site/reports/contract.ts';
 import type { Report as CampaignReport } from '../../../site/reports/types.ts';
-import type { Report as MesureReport } from './types.ts';
+import type { Report as MeasureReport } from './types.ts';
 
 type ReportRun = CampaignReport['runs'][number];
 type ReportRecord = CampaignReport['records'][number];
 
 /** Normalises an image delta for the public record: the pixel-count reading, or `null`. */
 function toWitness(diff: unknown): { pixels: number; total: number } | null {
-  if (!diff || typeof diff !== 'object' || 'erreur' in diff) return null;
+  if (!diff || typeof diff !== 'object' || 'error' in diff) return null;
   const d = diff as { pixels: number; total: number };
   return { pixels: d.pixels, total: d.total };
 }
@@ -30,7 +30,7 @@ function publicData(value: unknown): unknown {
   if (value && typeof value === 'object')
     return Object.fromEntries(
       Object.entries(value)
-        .filter(([key]) => !['commande', 'dist', 'cache', 'ressources', 'png'].includes(key))
+        .filter(([key]) => !['command', 'dist', 'cache', 'resources', 'png'].includes(key))
         .map(([key, item]) => [key, publicData(item)]),
     );
   if (typeof value === 'string' && value.startsWith('/')) return basename(value);
@@ -39,10 +39,10 @@ function publicData(value: unknown): unknown {
 function files(root: string, depth = 0): string[] {
   if (depth > 2) return [];
   if (
-    existsSync(join(root, 'mesure.json')) ||
+    existsSync(join(root, 'measure.json')) ||
     (existsSync(join(root, 'campagne.log')) && depth > 0)
   )
-    return [join(root, 'mesure.json')];
+    return [join(root, 'measure.json')];
   return readdirSync(root, { withFileTypes: true })
     .filter((entry) => entry.isDirectory() && !['vignettes', 'report-data'].includes(entry.name))
     .flatMap((entry) => files(join(root, entry.name), depth + 1));
@@ -89,7 +89,7 @@ export function exportReport(source: string, output: string, id: string): Campai
       });
       continue;
     }
-    const raw = JSON.parse(readFileSync(file, 'utf8')) as Partial<MesureReport>;
+    const raw = JSON.parse(readFileSync(file, 'utf8')) as Partial<MeasureReport>;
     if (!Array.isArray(raw.series)) throw new Error(`Invalid measurement: ${file}`);
     const sourcePath = `sources/${runId}.json`;
     writeFileSync(join(output, sourcePath), JSON.stringify(publicData(raw)) + '\n');
@@ -127,13 +127,13 @@ export function exportReport(source: string, output: string, id: string): Campai
           pose: series.pose ?? null,
           canvas: data.canvas ?? null,
           settings: publicData(raw.settings ?? {}) as Record<string, unknown>,
-          errors: errors || Boolean(data.incidentsGpu?.length),
-          gpuMethod: data.profilParEtape?.gpuMethod ?? null,
+          errors: errors || Boolean(data.gpuIncidents?.length),
+          gpuMethod: data.stageProfile?.gpuMethod ?? null,
           witness: series.sides?.[`${side}-aa`] ? toWitness(series.witnessAA) : null,
           difference: toWitness(series.beforeAfterDiff),
           differencePair:
             series.sides?.before && series.sides?.after ? `${id}-${runId}-${index}` : null,
-          identicalCut: series.coupeIdentique ?? null,
+          identicalCut: series.sameCut ?? null,
           data: publicData(data) as ReportRecord['data'],
           image: image(dirname(file), data.png, output, recordId),
         });

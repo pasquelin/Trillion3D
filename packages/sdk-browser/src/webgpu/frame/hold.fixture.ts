@@ -82,7 +82,7 @@ export function settledRt() {
     },
     timing: {
       frameEncoder: undefined as unknown,
-      partitionCounts: { occulteurs: 0, testees: 0, historiqueOcculteurs: 0 },
+      partitionCounts: { occluders: 0, tested: 0, previousOccluders: 0 },
       // `recordHeldFrameWork` writes the row of a held frame in the real profile, as in production: a
       // hand-built object would not have the exact width of `CPU_STEP`.
       cpuProfile: createCpuStepProfile(CPU_STEP_NAMES),

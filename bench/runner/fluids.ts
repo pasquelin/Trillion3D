@@ -107,8 +107,8 @@ async function fluidsRow(
     physicsMainMs: distribution(result.physicsMainMs),
     canvas: result.size,
     png: capture ? payload.captureFile : null,
-    incidentsGpu: result.lost.length ? result.lost : null,
-    charge: { debut: loadAtStart, fin: machineLoad() },
+    gpuIncidents: result.lost.length ? result.lost : null,
+    load: { start: loadAtStart, end: machineLoad() },
   };
 }
 export type FluidsRow = Awaited<ReturnType<typeof fluidsRow>>;
@@ -149,8 +149,8 @@ export function fluidsLines(rows: FluidsRow[] | undefined) {
       `### ${r.side}: GPU passes`,
       '',
       ...passes(r.passesGpu),
-      ...(r.incidentsGpu ? [`- GPU incidents: ${r.incidentsGpu.join(', ')}`] : []),
-      `- Machine load at start ${r.charge.debut.join(' ')}, at end ${r.charge.fin.join(' ')}`,
+      ...(r.gpuIncidents ? [`- GPU incidents: ${r.gpuIncidents.join(', ')}`] : []),
+      `- Machine load at start ${r.load.start.join(' ')}, at end ${r.load.end.join(' ')}`,
       '',
     ]),
   ];

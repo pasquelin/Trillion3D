@@ -3,7 +3,7 @@
 // The complete benchmark campaign: everything the benchmark can measure, run in a single command,
 // each reference scene (`REFERENCE_SCENES` of `scene.ts`) then each run under
 // `--out/<scene>/<name>/` (default `.mesure/out/global/`). A run whose directory already
-// contains a `mesure.json` is skipped to resume an interrupted campaign.
+// contains a `measure.json` is skipped to resume an interrupted campaign.
 //
 //   node bench/runner/campaign.ts [--out .mesure/out/global] [--scene a,b] [--only name,name] [--list]
 //
@@ -24,8 +24,8 @@ const ROOT = resolve(import.meta.dirname, '../..');
 const GROUPS: Record<string, string> = {
   FULL: '--width 2496 --height 1404',
   QUARTER: '--width 1248 --height 702',
-  ALL_VIEWS: '--views generale,sol,rue,detail',
-  TWO_VIEWS: '--views generale,sol',
+  ALL_VIEWS: '--views overview,ground,street,detail',
+  TWO_VIEWS: '--views overview,ground',
   MOVING: '--sun --moving-camera',
   // Two sides on the same dist: the first carries the variant or engine making the difference.
   TWO_SIDES: '--before dist --after dist',
@@ -36,10 +36,10 @@ export const BASE = '--engine webgpu --images 60 --textures cache';
 
 // One line per execution: `name | what it isolates | arguments`, uppercase groups.
 const LINES = `
-fixe | held frame: locked camera, no GPU work expected | ALL_VIEWS --pixelError 0,1,2 --sun FULL
+still | held frame: locked camera, no GPU work expected | ALL_VIEWS --pixelError 0,1,2 --sun FULL
 mobile | campaign baseline: moving camera, sun, four views, two thresholds | ALL_VIEWS --pixelError 0,1 MOVING FULL
-sans-lumiere | raw albedo: lighting cost by difference with \`mobile\` | ALL_VIEWS --pixelError 1 --moving-camera FULL
-soleil-sans-ombres | sun without shadow maps: shadow-map cost by difference with \`mobile\` | TWO_VIEWS --pixelError 1 MOVING FULL --shadows off
+unlit | raw albedo: lighting cost by difference with \`mobile\` | ALL_VIEWS --pixelError 1 --moving-camera FULL
+sun-no-shadows | sun without shadow maps: shadow-map cost by difference with \`mobile\` | TWO_VIEWS --pixelError 1 MOVING FULL --shadows off
 res-1872 | 1872×1053 resolution | TWO_VIEWS --pixelError 1 MOVING --width 1872 --height 1053
 res-1248 | 1248×702 resolution | TWO_VIEWS --pixelError 1 MOVING QUARTER
 res-624 | 624×351 resolution | TWO_VIEWS --pixelError 1 MOVING --width 624 --height 351
@@ -48,33 +48,33 @@ res-1248-e2 | 1248×702 at threshold 2 | TWO_VIEWS --pixelError 2 MOVING QUARTER
 raster-1248 | compute raster (before, variant) vs hardware raster (after, default) at 1248×702 | TWO_SIDES --variant-before raster-compute TWO_VIEWS --pixelError 1 MOVING QUARTER
 raster-2496 | compute raster vs hardware raster at 2496×1404 | TWO_SIDES --variant-before raster-compute TWO_VIEWS --pixelError 1 MOVING FULL
 aa-off | no temporal antialiasing: accumulation cost and pixels by difference with \`mobile\` | TWO_VIEWS --pixelError 1 MOVING FULL --antialiasing off
-profil-off | no per-step profile: profile cost and fidelity gate | TWO_VIEWS --pixelError 1 MOVING FULL --profile off
+profile-off | no per-step profile: profile cost and fidelity gate | TWO_VIEWS --pixelError 1 MOVING FULL --profile off
 textures-host | textures from source images, not the cooked pyramid | TWO_VIEWS --pixelError 1 MOVING FULL --textures host
 isolation | isolated page across origins: shared-memory path | TWO_VIEWS --pixelError 1 MOVING FULL --isolation on
 math-js | batched math forced to JavaScript | TWO_VIEWS --pixelError 1 MOVING FULL --math-path js
 math-wasm | batched math forced to WebAssembly | TWO_VIEWS --pixelError 1 MOVING FULL --math-path wasm
-lampes-4 | four point lights with shadows, plus the sun | TWO_VIEWS --pixelError 1 MOVING FULL --lights 4
-lampes-4-sans-ombres | four point lights and sun with no shadows: map cost by difference | TWO_VIEWS --pixelError 1 MOVING FULL --lights 4 --shadows off
-lampes-16 | sixteen point lights with shadows | TWO_VIEWS --pixelError 1 MOVING FULL --lights 16
-lampe-mobile | locked camera, one moving light: cost of a shadow that redraws | --views sol --pixelError 1 --sun --lights 4 --moving-light --shadow-digest FULL
-ombres-pages-off | same, full shadow face: atlas identity gate | --views sol --pixelError 1 --sun --lights 4 --moving-light --shadow-digest --shadow-pages off FULL
-rebond | bounce lighting on | TWO_VIEWS --pixelError 1 MOVING FULL --lights 4 --bounce on
-instances-4 | four copies of the model | --views generale --pixelError 1 MOVING FULL --instances 4
-instances-12 | twelve copies of the model | --views generale --pixelError 1 MOVING FULL --instances 12
+lights-4 | four point lights with shadows, plus the sun | TWO_VIEWS --pixelError 1 MOVING FULL --lights 4
+lights-4-no-shadows | four point lights and sun with no shadows: map cost by difference | TWO_VIEWS --pixelError 1 MOVING FULL --lights 4 --shadows off
+lights-16 | sixteen point lights with shadows | TWO_VIEWS --pixelError 1 MOVING FULL --lights 16
+moving-light | locked camera, one moving light: cost of a shadow that redraws | --views ground --pixelError 1 --sun --lights 4 --moving-light --shadow-digest FULL
+shadow-pages-off | same, full shadow face: atlas identity gate | --views ground --pixelError 1 --sun --lights 4 --moving-light --shadow-digest --shadow-pages off FULL
+bounce | bounce lighting on | TWO_VIEWS --pixelError 1 MOVING FULL --lights 4 --bounce on
+instances-4 | four copies of the model | --views overview --pixelError 1 MOVING FULL --instances 4
+instances-12 | twelve copies of the model | --views overview --pixelError 1 MOVING FULL --instances 12
 pool-geo-8 | 8 MiB geometry pool: residency under extreme pressure, full image expected | ALL_VIEWS --pixelError 1 MOVING FULL --geometry-pool 8
 pool-tex-64 | 64 MiB texture pool: one layer per atlas, coarse levels expected | ALL_VIEWS --pixelError 1 MOVING FULL --texture-pool 64
 pool-4k | 3840×2160: targets follow resolution, no cap refuses | TWO_VIEWS --pixelError 1 MOVING --width 3840 --height 2160
-temoin-three | SDK Three witness (before) vs WebGPU engine (after), no shadows | --engine-before webgl --engine-after webgpu TWO_SIDES TWO_VIEWS --pixelError 1 --sun --shadows off FULL
+witness-three | SDK Three witness (before) vs WebGPU engine (after), no shadows | --engine-before webgl --engine-after webgpu TWO_SIDES TWO_VIEWS --pixelError 1 --sun --shadows off FULL
 webgl | WebGL engine (exact-cluster-pages) | --engine webgl ALL_VIEWS --pixelError 1 MOVING FULL
 webgl2 | standalone WebGL2 engine (refusal expected if the cache carries blend) | --engine webgl2 TWO_VIEWS --pixelError 1 MOVING FULL
 three-nu | Three vanilla (before) vs WebGPU engine (after), sun and shadows, moving camera | BARE ALL_VIEWS --pixelError 1 MOVING FULL
 three-nu-1248 | Three vanilla vs the engine at 1248×702 | BARE TWO_VIEWS --pixelError 1 MOVING QUARTER
-three-nu-sans-ombres | Three vanilla vs the engine without shadows: materials and lighting fidelity | BARE TWO_VIEWS --pixelError 1 --sun --shadows off FULL
-three-nu-lampes-4 | Three vanilla vs the engine, sun and four shadowed point lights | BARE TWO_VIEWS --pixelError 1 MOVING FULL --lights 4
+three-nu-no-shadows | Three vanilla vs the engine without shadows: materials and lighting fidelity | BARE TWO_VIEWS --pixelError 1 --sun --shadows off FULL
+three-nu-lights-4 | Three vanilla vs the engine, sun and four shadowed point lights | BARE TWO_VIEWS --pixelError 1 MOVING FULL --lights 4
 three-lod | Three with three LOD levels (before) vs WebGPU engine (after), sun and shadows, moving camera | LOD ALL_VIEWS --pixelError 1 MOVING FULL
 three-lod-1248 | Three LOD vs the engine at 1248×702 | LOD TWO_VIEWS --pixelError 1 MOVING QUARTER
-three-lod-sans-ombres | Three LOD vs the engine without shadows | LOD TWO_VIEWS --pixelError 1 --sun --shadows off FULL
-three-lod-lampes-4 | Three LOD vs the engine, sun and four shadowed point lights | LOD TWO_VIEWS --pixelError 1 MOVING FULL --lights 4
+three-lod-no-shadows | Three LOD vs the engine without shadows | LOD TWO_VIEWS --pixelError 1 --sun --shadows off FULL
+three-lod-lights-4 | Three LOD vs the engine, sun and four shadowed point lights | LOD TWO_VIEWS --pixelError 1 MOVING FULL --lights 4
 visible | window open: cadence not capped at 60 Hz | TWO_VIEWS --pixelError 1 MOVING FULL --visible
 `;
 
@@ -106,8 +106,8 @@ async function run(
     [...BASE.split(' '), ...args],
     browserVersion,
   );
-  if (existsSync(join(dir, 'mesure.json'))) {
-    if (canResume(JSON.parse(readFileSync(join(dir, 'mesure.json'), 'utf8')), identity))
+  if (existsSync(join(dir, 'measure.json'))) {
+    if (canResume(JSON.parse(readFileSync(join(dir, 'measure.json'), 'utf8')), identity))
       return 'already measured';
     throw new Error(
       `Cannot resume ${scene}/${name}: identity changed or run incomplete; use a new --out directory.`,

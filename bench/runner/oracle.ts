@@ -23,7 +23,7 @@ import { benchLights } from './lamps.ts';
 import { oracleBuilt } from './oracleCompare.ts';
 import { machineLoad } from './summary.ts';
 import { runView } from './oracleView.ts';
-import type { OracleSettings, VueOracle } from './oracleView.ts';
+import type { OracleSettings, OracleView } from './oracleView.ts';
 import { sdkEntryUrl } from './dists.ts';
 import { measureOutput } from '../core/paths.ts';
 
@@ -82,7 +82,7 @@ async function main() {
   const stepFlag = flag('step');
   const camera = triple('pose'),
     target = triple('target');
-  const views = flag('views', 'generale').split(',');
+  const views = flag('views', 'overview').split(',');
   flags.refuseUnread();
   await mkdir(out, { recursive: true });
   const sides = options.resolveSides({ after, root: ROOT });
@@ -99,24 +99,24 @@ async function main() {
   });
   const report: {
     startedAt: string;
-    commande: string;
+    command: string;
     head: string;
     settings: typeof settings;
-    charge: { before: number[]; after?: number[] };
-    vues: VueOracle[];
+    load: { before: number[]; after?: number[] };
+    views: OracleView[];
   } = {
     startedAt: new Date().toISOString(),
-    commande: `node bench/runner/oracle.ts ${args.join(' ')}`,
+    command: `node bench/runner/oracle.ts ${args.join(' ')}`,
     head: execFileSync('git', ['-C', ROOT, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
     settings,
-    charge: { before: machineLoad() },
-    vues: [],
+    load: { before: machineLoad() },
+    views: [],
   };
   try {
     const page = await browser.newPage({
       viewport: { width: settings.width, height: settings.height },
     });
-    page.on('pageerror', (error) => report.vues.push({ erreur: String(error) }));
+    page.on('pageerror', (error) => report.views.push({ error: String(error) }));
     // A rejected shader does not come through `pageerror`: it logs as console warning/error.
     page.on('console', (m) => {
       if (m.type() === 'error' || m.type() === 'warning')
@@ -148,7 +148,7 @@ async function main() {
       const pose: CameraPose = camera
         ? { ...options.poseAt(bounds, 0), position: camera, target: target ?? [0, 0, 0] }
         : options.poseAt(bounds, known.index);
-      report.vues.push(
+      report.views.push(
         await runView(page, {
           side,
           manifestUrl,
@@ -168,10 +168,10 @@ async function main() {
     await browser.close();
     server.close();
   }
-  report.charge.after = machineLoad();
+  report.load.after = machineLoad();
   await writeFile(join(out, 'oracle.json'), JSON.stringify(report, null, 1));
   console.log(JSON.stringify(report, null, 1));
-  if (report.vues.some((view) => view.erreur)) process.exitCode = 1;
+  if (report.views.some((view) => view.error)) process.exitCode = 1;
 }
 
 await main();

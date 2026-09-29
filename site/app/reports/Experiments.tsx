@@ -22,14 +22,14 @@ interface ExperimentsProps {
  *  the metrics it charts. */
 const GROUPS: [keyof Dictionary['experiments'], RegExp, MetricKey[]][] = [
   ['resolution', /^(res-|raster-|three-(nu|lod)-1248)/, ['gpu', 'sync', 'cpu', 'triangles']],
-  ['lights', /lamp|ombre|rebond|sans-lumiere/, ['gpu', 'sync', 'cpu', 'calls']],
-  ['execution', /^(fixe|aa-off|profil-off|isolation|visible|math-)/, ['gpu', 'cpu', 'cadence']],
+  ['lights', /light|shadow|bounce|unlit/, ['gpu', 'sync', 'cpu', 'calls']],
+  ['execution', /^(still|aa-off|profile-off|isolation|visible|math-)/, ['gpu', 'cpu', 'cadence']],
   ['memory', /./, ['gpu', 'cpu', 'geometry', 'textures', 'textureBudget', 'triangles']],
 ];
 
 export function Experiments({ report, scene, locale }: ExperimentsProps) {
   const t = useWords(locale);
-  const [selected, setSelected] = useState('sol');
+  const [selected, setSelected] = useState('ground');
   const [quality, setQuality] = useState('1');
   const records = report.records.filter(
     (r) => r.scene === scene && !['three-nu', 'three-lod'].includes(runOf(report, r)),

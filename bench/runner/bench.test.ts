@@ -26,8 +26,8 @@ test('readOptions parses command line arguments correctly', () => {
   assert.strictEqual(result2.settings.engine, 'webgpu');
 
   // Test views parsing
-  const result3 = readOptions(['--views=generale,detail'], root);
-  assert.deepStrictEqual(result3.views, ['generale', 'detail']);
+  const result3 = readOptions(['--views=overview,detail'], root);
+  assert.deepStrictEqual(result3.views, ['overview', 'detail']);
 
   // Test numeric arguments
   const result4 = readOptions(['--images=120', '--width=1920', '--height=1080'], root);

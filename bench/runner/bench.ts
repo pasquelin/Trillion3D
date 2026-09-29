@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Measurement benchmark common to all batches. One command, no server to start manually:
 //   node bench/runner/bench.ts --engine webgl --before <ref-git|dist> --after <ref-git|dist> \
-//        --views generale,sol,rue --images 60 --pixelError 0,1 --max-pages 100000
-// All options in `README.md`. Writes `mesure.json`, `resume.md` and one PNG per view, threshold and
+//        --views overview,ground,street --images 60 --pixelError 0,1 --max-pages 100000
+// All options in `README.md`. Writes `measure.json`, `resume.md` and one PNG per view, threshold and
 // side, plus A/A capture. `null` = not measured, never inferred; a black capture is an error.
 // Everything it launches it stops, including on error. NO SERIOUS TIMING IS PROMISED HERE: it
 // records machine load at each series boundary. Caller judges if the machine was quiet.
@@ -68,14 +68,14 @@ async function main() {
     startedAt: new Date().toISOString(),
     provenance: measurementProvenance(),
     campaignIdentity: process.env.TRILLION3D_CAMPAIGN_IDENTITY ?? null,
-    commande: `node bench/runner/bench.ts ${process.argv.slice(2).join(' ')}`,
+    command: `node bench/runner/bench.ts ${process.argv.slice(2).join(' ')}`,
     head: execFileSync('git', ['-C', ROOT, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
     scene,
     engine: settings.engine,
     pathVersion: options.PATH_VERSION,
     settings,
     flags: FLAGS,
-    ressources: resources,
+    resources,
     sides: Object.fromEntries(sides.map(options.sideReport)),
     series: [],
     errors: [],
@@ -132,7 +132,7 @@ async function main() {
     const bounds = report.bounds;
     // Lights once bounds are known: geometric rule, no named scene.
     CTX.lights = benchLights(bounds, settings);
-    report.lampes = CTX.lights ? CTX.lights.resume : null;
+    report.lights = CTX.lights ? CTX.lights.resume : null;
     if (settings.gazeNetwork) {
       report.gazeNetwork = await runGazeSeries(CTX, sides, views, bounds, onFreshPage);
       return await publish(report, sides, captures, OUT);
@@ -175,8 +175,7 @@ async function main() {
           ? imageDiff(captures.get(files.before), captures.get(files.after))
           : null;
         const { before, after } = serie.sides;
-        serie.coupeIdentique =
-          before && after ? before.selection.sha256 === after.selection.sha256 : null;
+        serie.sameCut = before && after ? before.selection.sha256 === after.selection.sha256 : null;
       }
   } finally {
     await new Promise((done) => server.close(done));

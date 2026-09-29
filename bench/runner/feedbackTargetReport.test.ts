@@ -81,7 +81,7 @@ const captures = () =>
     ['final.rgba', { w: 1, h: 1, body: Buffer.from([1, 2, 3, 255]) }],
   ]);
 const verdict = (raw: FeedbackTargetResult, images = captures()) =>
-  summarizeFeedbackRun(raw, 'alpha-blend-mode-test', 'sol', images, []).beyondSpread;
+  summarizeFeedbackRun(raw, 'alpha-blend-mode-test', 'ground', images, []).beyondSpread;
 
 test('A/B/A gain requires samples, parity, residency, mip order, bytes and low spread', () => {
   assert.equal(verdict(result()), true);
@@ -108,7 +108,7 @@ test('A/B/A gain requires samples, parity, residency, mip order, bytes and low s
 });
 
 test('WebGPU null uncovered metric permits resident verdict and reports pass shares, converging too', () => {
-  const summary = summarizeFeedbackRun(result(), 'alpha-blend-mode-test', 'sol', captures(), []);
+  const summary = summarizeFeedbackRun(result(), 'alpha-blend-mode-test', 'ground', captures(), []);
   assert.equal(summary.beyondSpread, true);
   assert.equal(summary.readings[0].passFrameShare['Trillion3D material surfaces v1'], 0.2);
   assert.equal(summary.readings[0].passFrameShare['Trillion3D texture feedback reduce'], 0.02);
