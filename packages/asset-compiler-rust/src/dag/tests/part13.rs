@@ -50,12 +50,11 @@ fn every_group_publishes_at_least_the_distance_between_its_children_and_its_outp
         let (dag, groups, _) = build_of(&positions, &indices);
         assert!(!groups.is_empty());
         for group in &groups {
-            let side = |ids: &[usize]| -> Vec<u32> {
-                ids.iter()
-                    .flat_map(|&id| dag[id].indices.iter().copied())
-                    .collect()
-            };
-            let measured = distance(&positions, &side(&group.children), &side(&group.outputs));
+            let measured = distance(
+                &positions,
+                &indices_of(&dag, &group.children),
+                &indices_of(&dag, &group.outputs),
+            );
             assert!(
                 group.error >= measured,
                 "level {}: {} published below {measured}",

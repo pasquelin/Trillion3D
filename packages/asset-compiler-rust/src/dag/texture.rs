@@ -11,7 +11,6 @@
 //! the lookup can never answer with another brick metres away. Each coarse triangle is sampled at
 //! its corners, its edge midpoints and its centroid, as the geometric distance is (`measured.rs`).
 use super::GroupReductionInput;
-use crate::join::Join;
 use lookup::Lookup;
 use rayon::prelude::*;
 use std::collections::HashMap;
@@ -19,21 +18,10 @@ use std::collections::HashMap;
 mod lookup;
 
 /// The island of every texture copy (`weld_seam` key) the live triangles use: copies joined by a
-/// live triangle are one island.
+/// live triangle are one island (`vanished::joined`, keyed by texture copy instead of position).
 pub(super) fn copy_islands(weld_seam: &[u32], live: &[u32]) -> HashMap<u32, u32> {
-    let mut slots: HashMap<u32, u32> = HashMap::new();
-    for &vertex in live {
-        let next = slots.len() as u32;
-        slots.entry(weld_seam[vertex as usize]).or_insert(next);
-    }
-    let mut join = Join::new(slots.len());
-    for tri in live.as_chunks::<3>().0 {
-        let a = slots[&weld_seam[tri[0] as usize]];
-        for &corner in &tri[1..] {
-            join.unite(a, slots[&weld_seam[corner as usize]]);
-        }
-    }
-    slots
+    let (local, _, mut join) = super::vanished::joined(live, weld_seam);
+    local
         .into_iter()
         .map(|(copy, slot)| (copy, join.root(slot)))
         .collect()
