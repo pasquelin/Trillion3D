@@ -10,6 +10,7 @@ import {
   sunPageMetres,
 } from '../../../../sdk-core/src/scene/light-shadow/pageModel.ts';
 import { regionRect } from '../../../../sdk-core/src/scene/light-shadow/volume.ts';
+import { AGE_CAP, RANK_SPAN } from '../../../../sdk-core/src/scene/light-shadow/pageKeys.ts';
 import {
   PAGE_MODEL_FUNCTIONS,
   PAGE_MODEL_WGSL,
@@ -109,6 +110,17 @@ test('every page formula answers the same in the shaders and in the scheduler', 
       assert.equal(shipped[name](...args), scheduler[name](...args), `${name}(${args})`);
     }
   }
+});
+
+test("every key of the pool's orders is a non-negative i32, the same in the shaders and the scheduler", () => {
+  const rank = (SUN_LEVELS - 1) * LAMP_MIPS;
+  assert.ok(rank < RANK_SPAN && (LAMP_MIPS - 1) * SUN_LEVELS < RANK_SPAN, 'every coarseness');
+  for (const key of [
+    PAGES.shadowNeedKey(0, SHADOW_TABLE_ENTRIES - 1),
+    PAGES.shadowEvictionKey(1, RANK_SPAN - 1, PAGE_INDEX_MASK),
+  ])
+    assert.ok(key >= 0 && key < 2 ** 31, `${key}`);
+  assert.equal(PAGES.shadowEvictionKey(AGE_CAP + 9, 0, 0), PAGES.shadowEvictionKey(AGE_CAP, 0, 0));
 });
 
 test('a lamp mip starts past its face’s finer mips, as the table lays them out', () => {
