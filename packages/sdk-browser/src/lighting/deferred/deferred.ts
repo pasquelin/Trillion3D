@@ -84,8 +84,7 @@ export async function createDeferredLighting(device: GPUDevice, onReady?: () => 
         onFailure?: (error: unknown) => void,
       ) {
         const wantsBounce = wantsContract && !!direct.bounceGrid && !!direct.probes;
-        // The bounce program takes a frame or two to compile: the contract one renders
-        // the frame while waiting, without bounce, rather than make the frame wait.
+        // A program still compiling lends the frame the best one ready (`contractVariants.ts`).
         active = (wantsContract && variants.pick(wantsBounce, !!direct.narrow, onFailure)) || unlit;
         active.bind(surface, depth, hdr, direct);
       },

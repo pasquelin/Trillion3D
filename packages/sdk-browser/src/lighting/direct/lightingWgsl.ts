@@ -1,5 +1,5 @@
 import { residentProxyWgsl } from '../../bounce/nodeWgsl.ts';
-import { DIRECT_LIGHT_WGSL, directLightWgsl } from './lightWgsl.ts';
+import { directLightWgsl } from './lightWgsl.ts';
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { RECT_SHADING_WGSL } from './rectLightWgsl.ts';
 import { irradianceShader } from '../../../../sdk-core/src/scene/core/irradianceBasis.ts';
@@ -76,7 +76,7 @@ const lightingBase = (
   transmittanceBinding: number,
   narrow = false,
 ) => `
-${narrow ? directLightWgsl(LIGHT_SETTINGS.tileLights) : DIRECT_LIGHT_WGSL}
+${directLightWgsl(narrow ? LIGHT_SETTINGS.tileLights : undefined)}
 ${residentProxyWgsl(proxyBinding, requestBinding !== null)}
 ${sunFarShadowWgsl(requestBinding !== null)}
 ${directShadowWgsl(shadowBinding, requestBinding, transmittanceBinding)}
