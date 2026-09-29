@@ -57,7 +57,8 @@ function headed(fixed: Record<string, unknown>, first: Awaited<ReturnType<typeof
  */
 export async function readPagedManifest(
   root: Record<string, unknown>,
-  read: Read,
+  // Spelled out, not `Read`: this signature is public and the pager's types are not.
+  read: (page: { url: string; bytes: number; sha256: string }) => Promise<Uint8Array>,
 ): Promise<ClusterManifest> {
   const { head, pages, fixed } = split(root);
   // The head first, then the mesh pages in order, all read side by side.

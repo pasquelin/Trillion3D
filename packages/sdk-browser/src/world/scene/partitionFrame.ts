@@ -14,6 +14,7 @@ import type { FrameBudget } from '../../page/integration/frameBudget.ts';
 import { resolveCameraWorld, type HostCamera } from '../../camera/world.ts';
 import type { PartitionCells } from '../../scene/partition/cells.ts';
 import { cellReach } from '../../scene/partition/plan.ts';
+import { cellHoldings } from '../../scene/partition/cellPages.ts';
 import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 import { growsInPlaceOf } from '../../placement/backendSceneUpdates.ts';
 import { createPartitionMounts } from './partitionMounts.ts';
@@ -88,7 +89,10 @@ export function createPartitionFrame(inputs: Inputs) {
   };
   const pending = async () => {
     const asked = reads,
-      turned = [...mounts.asked(), ...partitions.flatMap((cells) => cells.manifest.reads())];
+      turned = [
+        ...mounts.asked(),
+        ...partitions.flatMap((cells) => cellHoldings(cells).manifest.reads()),
+      ];
     reads = [];
     await Promise.all([...asked, ...turned]);
     return later || turned.length > 0 || mounts.stale();
