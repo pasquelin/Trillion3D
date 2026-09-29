@@ -60,7 +60,10 @@ test('culled-face-reflection.browser.ts calls rasterVisibility(..., vue, ...), n
     /import \{ decisionCpu, vue \} from '\.\.\/probes\/inverseTransposeCases\.ts'/,
     'must import `vue`, not `camera`',
   );
-  assert.match(texte, /rasterVisibility\(\[pageVisible\(tousLesCas\[i\]\)\],\s*vue,/);
+  assert.match(
+    texte,
+    /rasterVisibility\(\[pageVisible\(tousLesCas\[i\]\)\],\s*rootsOf\(tousLesCas\[i\]\),\s*vue,/,
+  );
   assert.doesNotMatch(
     texte,
     /rasterVisibility\([^)]*,\s*camera\s*,/,
