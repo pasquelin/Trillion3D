@@ -128,7 +128,7 @@ fn normalized_or_falls_back_under_the_guard_and_normalizes_above_it() {
 // their own guards — an infinite length is refused by the first, divided by the second.
 #[test]
 fn unit_and_the_oracle_normalise_keep_their_own_guards() {
-    use crate::tracer::normalise;
+    use crate::proxy::tracer::normalise;
     // 49 · (1 / 49) is one ulp under 1: the reciprocal is kept, not a division.
     assert_eq!(
         unit([0.0, 49.0, 0.0]),

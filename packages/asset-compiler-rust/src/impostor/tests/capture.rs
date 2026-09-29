@@ -1,7 +1,7 @@
 use super::{quad, surface};
 use crate::impostor::bake::{bake, Capture};
+use crate::impostor::eligibility::deforms;
 use crate::impostor::mesh::Traceable;
-use crate::impostor::stage::deforms;
 use serde_json::json;
 
 // Behaviour: a frame's rows run top to bottom — a wide card above the pivot and a narrow one

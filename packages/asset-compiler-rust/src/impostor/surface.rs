@@ -3,9 +3,10 @@
 //! tail, `PREVIEW_BASE` texels at most: an impostor frame sees a whole mesh, never one texel of
 //! its leaves). A material cuts where the texture chains take its coverage (`coverage_cut`).
 use crate::albedo::srgb_to_linear;
+use crate::compiler_materials::coverage_cutoff;
 use crate::compiler_tables::materials::slot;
 use crate::cutout::CUTOUT_ALPHA;
-use crate::texture_preview::coverage::{coverage_cutoff, keeps, material_cut, Cut};
+use crate::texture_preview::coverage::{keeps, material_cut, Cut};
 use crate::texture_preview::{preview_level_size, AtlasKind, TexturePreview};
 use serde_json::Value;
 

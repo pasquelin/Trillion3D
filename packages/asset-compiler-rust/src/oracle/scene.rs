@@ -3,7 +3,7 @@ use crate::compiler_accessor_create::accessor;
 use crate::compiler_validate::{required_index, values};
 use crate::compiler_world::{transform_point, world_matrices};
 use crate::proxy::bvh;
-use crate::tracer::World;
+use crate::proxy::tracer::World;
 use crate::{CompilerError, Result};
 use serde_json::Value;
 use std::path::Path;
