@@ -22,7 +22,7 @@ test('a WebGPU session grows the rows of a scaled-down partition in place, withi
       ...cache.stats(),
     };
     const held = links.map((link) => link.placements!);
-    scaleDown(session);
+    await scaleDown(session);
     await draw();
     assert.equal(reopened.count, 0, 'no session opened again');
     assert.deepEqual(cells.stats(), { cells: 2, held: 2, waiting: 0, rows: 4 });
@@ -61,7 +61,7 @@ test('a growth past the page table is refused: the rows stay as they are, the ow
   try {
     const held = links.map((link) => link.placements!),
       roots = rt.layout.selectionRoots.length;
-    scaleDown(session);
+    await scaleDown(session);
     assert.equal(reopened.count, 1, 'the owner asked for a session sized for the rows');
     assert.ok(
       links.every((link, at) => link.placements === held[at]),

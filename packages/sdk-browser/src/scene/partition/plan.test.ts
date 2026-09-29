@@ -1,9 +1,32 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { AHEAD, boxDistance, cellReach, inCellFrame, KEEP, planCells } from './plan.ts';
+import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { createCellBoxes } from './boxes.ts';
+import { whole } from './cells.fixture.ts';
+import { createCellIndex } from './cellIndex.ts';
+import {
+  AHEAD,
+  boxDistance,
+  cellReach,
+  inCellFrame,
+  KEEP,
+  planCells as planIndexed,
+} from './plan.ts';
 
 const optics = { fov: 60, aspect: 16 / 9, near: 0.1, far: 1e6, zoom: 1 };
-const cell = (x: number) => ({ bounds: [x, 0, 0, x + 1, 1, 1], meshes: [[0, 1] as const] });
+const cell = (x: number) => ({ bounds: [x, 0, 0, x + 1, 1, 1] });
+/** The plan of cells under the scene root, each one box, found through their index. */
+function planCells(
+  cells: { bounds: number[] }[],
+  eye: number[],
+  reach: number,
+  held: ReadonlySet<number>,
+) {
+  const boxes = createCellBoxes([], new Object3D(), []);
+  boxes.refresh();
+  const parents = cells.map(({ bounds }) => ({ parents: [[null, bounds] as const] }));
+  return planIndexed(createCellIndex(whole(cells), parents, boxes), eye, reach, held);
+}
 
 test('a cell is read up to the far plane, met on the frustum diagonal', () => {
   const tangent = Math.tan(Math.PI / 6);

@@ -125,8 +125,8 @@ test('a parent scaled down grows the rows in place, on an engine that takes it, 
     const before = links.map((link) => link.placements!);
     core.scale.set(1e-3, 1e-3, 1e-3);
     await placed(cells, [0, 0, 0], 100, port, noBudget);
-    const { held: placed, waiting } = cells.stats();
-    assert.deepEqual([placed, waiting, outgrown.count], grows ? [2, 0, 0] : [1, 1, 1]);
+    const { held: holding, waiting } = cells.stats();
+    assert.deepEqual([holding, waiting, outgrown.count], grows ? [2, 0, 0] : [1, 1, 1]);
     if (grows !== undefined) assert.deepEqual(asked, [[2, 4]], 'both buffers asked at once');
     if (!grows) {
       assert.deepEqual(grown, [], 'no buffer replaced: the session reads the ones it holds');

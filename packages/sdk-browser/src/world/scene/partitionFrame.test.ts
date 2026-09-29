@@ -8,6 +8,7 @@ import { createPartitionCells, type PartitionCells } from '../../scene/partition
 import { cellReach } from '../../scene/partition/plan.ts';
 import { createCellPages, withHoldings } from '../../scene/partition/cellPages.ts';
 import { placedMesh } from '../../scene/partition/rows.ts';
+import { whole } from '../../scene/partition/cells.fixture.ts';
 import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../../streaming/priority.ts';
 import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 import { createPartitionFrame, primePartitions } from './partitionFrame.ts';
@@ -25,6 +26,7 @@ function recording() {
       io.request(['near.json'], false);
       io.request(['ahead.json'], true);
     },
+    decodes: () => [],
   } as unknown as PartitionCells);
   return { cells, seen };
 }
@@ -80,7 +82,7 @@ function asks(
   const parents = [[null, bounds] as const];
   const cell = { url, sha256: '', bytes: 1, meshes: [[0, 1] as const], meshPages: [], parents };
   const cells = createPartitionCells({
-    partition: { bounds, meshes: [0], cells: [cell] },
+    partition: { bounds, meshes: [0], cells: [cell], regions: whole([cell]) },
     base: 'https://cache.test/key/',
     root: new Group(),
     parents: [],
@@ -154,6 +156,7 @@ function grid(side: number) {
     bounds: [0, 0, 0, side * 10, 1, side * 10],
     meshes: [0, 1],
     cells,
+    regions: whole(cells),
   };
   const meshes = new Map([0, 1].map((rank) => [rank, placedMesh([{ meshes: rank }])]));
   const port = {
@@ -190,6 +193,7 @@ test('on an engine that grows no buffer, a walk never leaves a cell waiting for 
     camera.position.set(5 + step * 5, 2, 5 + step * 5);
     camera.updateMatrixWorld();
     frame();
+    await frame.pending();
     assert.equal(partitioned.stats().waiting, 0, `step ${step}`);
   }
   assert.ok(partitioned.stats().held > 1, 'the cells around the camera are placed');
