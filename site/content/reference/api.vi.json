@@ -4283,8 +4283,13 @@
       "controls": "Bộ điều khiển di chuyển camera từ canvas; `world.controls.kind` thay đổi nó sau này.",
       "signal": "Dừng các lượt tải của thế giới khi tín hiệu bị hủy.",
       "physics": "Bật vật lý (`world.physics`): `true`, hoặc trọng lực và ngân sách. Chỉ khi đó Jolt mới được tải.",
-      "temporalAntialiasing": "Khử răng cưa theo thời gian, chỉ WebGPU: độ lệch dưới điểm ảnh được tích lũy qua các khung hình. `false` vẽ mỗi điểm ảnh tại tâm, không có lịch sử, điều mà một ảnh chụp chính xác từng điểm ảnh cần; đổi sau bằng `world.temporalAntialiasing`."
+      "temporalAntialiasing": "Khử răng cưa theo thời gian, chỉ WebGPU: độ lệch dưới điểm ảnh được tích lũy qua các khung hình. `false` vẽ mỗi điểm ảnh tại tâm, không có lịch sử, điều mà một ảnh chụp chính xác từng điểm ảnh cần; đổi sau bằng `world.temporalAntialiasing`.",
+      "renderScale": "Phần của màn hình theo mỗi trục mà ảnh được vẽ ở đó, chỉ WebGPU, trước khi khử răng cưa theo thời gian dựng lại nó về kích thước màn hình: `'auto'` để ngân sách khung hình chọn nó giữa `min` và `max` (`{ min, max }`, mặc định 0,5 và 1), một con số cố định nó; ảnh đứng yên được vẽ ở mức tối đa. Đổi sau bằng `world.renderScale`."
     }
+  },
+  "RenderScale": {
+    "summary": "Tỉ lệ kết xuất mà trang yêu cầu: phần của màn hình, theo mỗi trục, mà ảnh được vẽ ở đó trước khi khử răng cưa theo thời gian dựng lại nó về kích thước màn hình.",
+    "description": "`'auto'` để ngân sách khung hình chọn nó trong khoảng 0,5 đến 1, `{ min, max }` giới hạn lựa chọn đó, một con số cố định nó; mọi giá trị được giữ trong khoảng 0,5 đến 1."
   },
   "WorldPageSource": {
     "summary": "Nơi các trang được đọc từ đó, và địa chỉ mà chúng được đọc dựa vào.",
@@ -4936,7 +4941,8 @@
       "options.controls": "Bộ điều khiển di chuyển camera từ canvas; `world.controls.kind` thay đổi nó sau này.",
       "options.signal": "Dừng các lần tải của thế giới khi tín hiệu bị hủy.",
       "options.physics": "Bật vật lý (`world.physics`): `true`, hoặc trọng lực và ngân sách. Chỉ khi đó Jolt mới được tải.",
-      "options.temporalAntialiasing": "Khử răng cưa theo thời gian, chỉ WebGPU: độ lệch dưới điểm ảnh được tích lũy qua các khung hình. `false` vẽ mỗi điểm ảnh tại tâm, không có lịch sử, điều mà một ảnh chụp chính xác từng điểm ảnh cần; đổi sau bằng `world.temporalAntialiasing`."
+      "options.temporalAntialiasing": "Khử răng cưa theo thời gian, chỉ WebGPU: độ lệch dưới điểm ảnh được tích lũy qua các khung hình. `false` vẽ mỗi điểm ảnh tại tâm, không có lịch sử, điều mà một ảnh chụp chính xác từng điểm ảnh cần; đổi sau bằng `world.temporalAntialiasing`.",
+      "options.renderScale": "Phần của màn hình theo mỗi trục mà ảnh được vẽ ở đó, chỉ WebGPU, trước khi khử răng cưa theo thời gian dựng lại nó về kích thước màn hình: `'auto'` để ngân sách khung hình chọn nó giữa `min` và `max` (`{ min, max }`, mặc định 0,5 và 1), một con số cố định nó; ảnh đứng yên được vẽ ở mức tối đa. Đổi sau bằng `world.renderScale`."
     }
   },
   "crossVector3": {
@@ -6937,6 +6943,10 @@
   "world.temporalAntialiasing": {
     "summary": "Khử răng cưa theo thời gian: độ lệch dưới điểm ảnh được tích lũy qua các khung hình; bật theo mặc định.",
     "description": "Khi ghi, có hiệu lực từ khung hình kế tiếp, bỏ lịch sử, không mở lại phiên. Khi đọc, là điều hình ảnh mang: false trên WebGL2, và trong lúc chương trình biên dịch sau khi bật."
+  },
+  "world.renderScale": {
+    "summary": "Phần của màn hình theo mỗi trục mà ảnh được vẽ ở đó (`WorldOptions.renderScale`), từ khung hình kế tiếp.",
+    "description": "Khi đọc, là tỉ lệ của ảnh được vẽ gần nhất: 1 trên WebGL2."
   },
   "world.effects": {
     "summary": "Chuỗi hiệu ứng: các pass được vẽ lên ảnh (`effect`)."

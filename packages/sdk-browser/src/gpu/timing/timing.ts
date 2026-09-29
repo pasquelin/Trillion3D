@@ -11,12 +11,18 @@ import { createSampleEmitter, timingEntries, summarizeTimestamps } from './sampl
 import { PARTS, QUERY_COUNT, TIMED_PASSES } from './queries.ts';
 export function createGpuTiming(
   device: GPUDevice,
-  options: { sampleEveryFrames?: number; onSample: (sample: GpuTimingSample) => void },
+  options: {
+    /** Frames between two samples; a function is read at every frame, so a caller may change it. */
+    sampleEveryFrames?: number | (() => number);
+    onSample: (sample: GpuTimingSample) => void;
+  },
 ) {
-  const sampleEveryFrames = Math.max(1, Math.floor(options.sampleEveryFrames ?? 60));
+  const asked = options.sampleEveryFrames;
+  const every = () =>
+    Math.max(1, Math.floor((typeof asked === 'function' ? asked() : asked) ?? 60));
   let enabled = !!device.features?.has('timestamp-query'),
     disposed = false,
-    lastFrame = -sampleEveryFrames;
+    lastFrame = -Infinity;
   let resources: TimingResources | undefined;
 
   let active:
@@ -58,7 +64,7 @@ export function createGpuTiming(
         droppedSamples++;
       }
       if (!active) {
-        if (frame - lastFrame < sampleEveryFrames) {
+        if (frame - lastFrame < every()) {
           skippedFrames.interval++;
           return encoder;
         }
@@ -164,7 +170,7 @@ export function createGpuTiming(
       return {
         supported: enabled && !disposed,
         reason: disposed ? 'disposed' : enabled ? '' : 'timestamp-query-unavailable',
-        sampleEveryFrames,
+        sampleEveryFrames: every(),
         sampledFrames,
         completedSamples,
         droppedSamples,

@@ -200,6 +200,27 @@ surface capture and a diagnostic view render unjittered and unaccumulated. The p
 means nothing on tile-based GPUs; its cost is read as an envelope difference with
 `temporalAntialiasing: false`.
 
+**Render scale.** Every pass up to the resolve may draw at `s × display` per axis (`s` in
+[0.5, 1], axes rounded to multiples of eight) while the resolve reconstructs the display: per
+display pixel, the 3×3 render texels around it, depth-dilated, Lanczos-2 resampled from each
+texel's jittered sample, deringed and clamped to the YCoCg box, blended into the display-size
+history (`taa/upscaleWgsl.ts`). The jitter runs `floor(8 · (W / w)²)` phases and texture reads
+add `log2(w / W)` to their level, so detail stays the display's. `createWorld(canvas,
+{ renderScale })` sets it: a number fixes it, `'auto'` (the default) or `{ min, max }` lets a
+controller choose it each frame after the reference's dynamic resolution
+(`frame/scaleController.ts`): budget = the display's measured refresh interval, target 90 % of it,
+`s' = s · √(target / t)` on the whole-frame GPU time `t` (timestamp queries, one sample per image
+under `'auto'`), a step only past 5 % and 30 samples after the last, up only below 80 % of the
+target, and at once on a frame over 1.25 budgets; samples of an image drawn at another scale are
+discarded. The render targets are made once at the bounds' maximum and each image draws in their
+top-left `w × h` (viewports, the Hi-Z pyramid's extent, the deferred and water passes, screen
+reflections, particles and guides read that size), so a scale change reallocates nothing and keeps
+the history. A quiet image draws at the maximum — 1 unless the page lowered it —, so the held image
+is the native one. `world.renderScale` reads back the scale of the last image; the capability
+`temporal upscaling` says whether the renderer has it (WebGL2 does not). A capture, a diagnostic
+view or GPU variant and the fallback draw stay at the display's size. Without timestamp queries the
+controller has no sample and holds the maximum.
+
 ## Effect chain
 
 `world.effects` (`EffectChain`, `packages/sdk-core/src/world/effect/`) is one ordered list of passes

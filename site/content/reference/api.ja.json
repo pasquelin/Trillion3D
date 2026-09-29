@@ -4088,6 +4088,10 @@
     "summary": "時間方向のアンチエイリアス：フレームをまたいで蓄積するサブピクセルのずらし。既定で有効。",
     "description": "書き込むと次のフレームから効き、履歴は破棄され、セッションは開き直さない。読むと画像が実際に持つもの：WebGL2 では false、有効にした後プログラムのコンパイル中も false。"
   },
+  "world.renderScale": {
+    "summary": "画像を描く表示の軸ごとの割合（`WorldOptions.renderScale`）。次のフレームから反映されます。",
+    "description": "読み取ると、最後に描いた画像のスケール：WebGL2 では 1。"
+  },
   "world.effects": {
     "summary": "エフェクトチェーン：画像の上に描かれるパス（`effect`）。"
   },
@@ -4323,8 +4327,13 @@
       "controls": "canvasからカメラを動かすコントローラー; 後から`world.controls.kind`で変更できる。",
       "signal": "そのシグナルが中止されると世界の読み込みを止める。",
       "physics": "物理をオンにする（`world.physics`）：`true`、または重力と予算。Jolt はそのときだけ読み込まれる。",
-      "temporalAntialiasing": "時間方向のアンチエイリアス（WebGPU のみ）：フレームをまたいで蓄積するサブピクセルのずらし。`false` は各ピクセルを中心で履歴なしに描き、ピクセル単位で正確なキャプチャが求めるもの。後から `world.temporalAntialiasing` で切り替える。"
+      "temporalAntialiasing": "時間方向のアンチエイリアス（WebGPU のみ）：フレームをまたいで蓄積するサブピクセルのずらし。`false` は各ピクセルを中心で履歴なしに描き、ピクセル単位で正確なキャプチャが求めるもの。後から `world.temporalAntialiasing` で切り替える。",
+      "renderScale": "画像を描く表示の軸ごとの割合。WebGPU のみで、時間的アンチエイリアシングが表示サイズへ再構成する前の値です。`'auto'` はフレーム予算に `min` と `max` の間で選ばせ（`{ min, max }`、既定は 0.5 と 1）、数値は固定します。静止した画像は最大値で描かれます。あとから `world.renderScale` で変更できます。"
     }
+  },
+  "RenderScale": {
+    "summary": "ページが求めるレンダースケール：時間的アンチエイリアシングが画像を表示サイズへ再構成する前に、画像を描く表示の軸ごとの割合。",
+    "description": "`'auto'` はフレーム予算に 0.5 から 1 の間で選ばせ、`{ min, max }` はその選択を制限し、数値は固定します。どの値も 0.5 から 1 の間に保たれます。"
   },
   "WorldPageSource": {
     "summary": "ページがどこから読まれるか、そしてそれが読まれる基準となるアドレス。",
@@ -4962,7 +4971,8 @@
       "options.controls": "canvasからカメラを動かすコントローラー; 後から`world.controls.kind`で変更できる。",
       "options.signal": "そのシグナルが中止されると世界の読み込みを止める。",
       "options.physics": "物理をオンにする（`world.physics`）：`true`、または重力と予算。Jolt はそのときだけ読み込まれる。",
-      "options.temporalAntialiasing": "時間方向のアンチエイリアス（WebGPU のみ）：フレームをまたいで蓄積するサブピクセルのずらし。`false` は各ピクセルを中心で履歴なしに描き、ピクセル単位で正確なキャプチャが求めるもの。後から `world.temporalAntialiasing` で切り替える。"
+      "options.temporalAntialiasing": "時間方向のアンチエイリアス（WebGPU のみ）：フレームをまたいで蓄積するサブピクセルのずらし。`false` は各ピクセルを中心で履歴なしに描き、ピクセル単位で正確なキャプチャが求めるもの。後から `world.temporalAntialiasing` で切り替える。",
+      "options.renderScale": "画像を描く表示の軸ごとの割合。WebGPU のみで、時間的アンチエイリアシングが表示サイズへ再構成する前の値です。`'auto'` はフレーム予算に `min` と `max` の間で選ばせ（`{ min, max }`、既定は 0.5 と 1）、数値は固定します。静止した画像は最大値で描かれます。あとから `world.renderScale` で変更できます。"
     }
   },
   "crossVector3": {

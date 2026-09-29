@@ -1,6 +1,6 @@
 import { TAA_BINDINGS, TAA_PASS, TAA_VIEW_BYTES } from './shaderWgsl.ts';
 import { SHARE_FORMAT, createTaaResolves } from './resolve.ts';
-import { createTaaCheckpoint, createTaaFrameState } from './frame.ts';
+import { createTaaCheckpoint, createTaaFrameState } from './frameState.ts';
 import { createPlacementMotion, type MotionRoot } from './motion.ts';
 import { createTaaFilterHistory, type DisplayLayers } from './layers.ts';
 import type { AccumulatedImage } from '../lighting/deferred/program.ts';
@@ -33,7 +33,7 @@ const INPUTS = ['current', 'depth', 'ids', 'pages', 'motion', 'flags', 'share', 
  * one read and the other written each frame, and composition reads the one just written. Targets
  * follow the display size (`resize`); bind groups are rebuilt when an input changes identity, never
  * per frame. With `upscale`, the resolves that reconstruct a frame drawn below the display are
- * compiled too.
+ * compiled at once (`upscales`).
  */
 export async function createTemporalAntialiasing(
   device: GPUDevice,
@@ -76,6 +76,8 @@ export async function createTemporalAntialiasing(
     uniform,
     motion,
     filterHistory,
+    /** Whether the upscaling resolves are compiled; the first ask compiles them (`resolve.ts`). */
+    upscales: () => !!resolves.upscaled(),
     /** Bytes of the two targets as allocated: what a capture must count beside its own. */
     get historyBytes() {
       const colour = textures.length ? width * height * TAA_HISTORY_BYTES_PER_PIXEL : 0;
@@ -116,8 +118,7 @@ export async function createTemporalAntialiasing(
     resize(w: number, h: number) {
       if (w === width && h === height && images.length === 2) return false;
       dropTargets();
-      width = w;
-      height = h;
+      [width, height] = [w, h];
       const usage = GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
         size = { width: w, height: h };
       const target = (label: string, format: GPUTextureFormat) => {
@@ -137,7 +138,7 @@ export async function createTemporalAntialiasing(
      *  other target, then swaps roles. Returns the written colour, share and display layers. */
     encode(encoder: GPUCommandEncoder, inputs: TaaInputs) {
       if (images.length !== 2) throw new Error('TAA_TARGETS_MISSING');
-      const set = inputs.upscale ? resolves.upscale : resolves;
+      const set = inputs.upscale ? resolves.upscaled() : resolves;
       if (!set) throw new Error('TAA_UPSCALE_MISSING');
       const kind = inputs.share ? 'blended' : inputs.flags ? 'asIs' : 'flagless';
       const twin = inputs.filter && resolves.filtered(kind, !!inputs.upscale);
@@ -184,8 +185,7 @@ export async function createTemporalAntialiasing(
       images[write].filter = filter;
       return images[write];
     },
-    /** Releases the two targets with the frame targets: the next `resize` makes them again, and
-     *  history no longer exists. */
+    /** Releases the two targets with the frame targets, history gone, until the next `resize`. */
     release: dropTargets,
     dispose() {
       dropTargets();

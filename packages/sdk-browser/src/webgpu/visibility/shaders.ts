@@ -41,8 +41,8 @@ export async function createWebgpuVisibilityShaders(
       },
       { binding: b.flags, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
       {
-        // The fragment's alpha test reads `uni.mipBias` for its texture level (`tilePoolWgsl`).
         binding: b.uniform,
+        // The fragment reads the texture level bias (`atlasLod`, `uni.mipBias`).
         visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
         buffer: { type: 'uniform', minBindingSize: VIS_UNIFORM_BYTES },
       },
