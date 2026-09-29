@@ -5,10 +5,11 @@
 // ready, every line of the closed issue's Proof section must be answered there by a
 // "- <item>: delivered …, proved by …" line, or carry the boss's yes under "Not proven" (rule 6).
 // Usage: [PR_DRAFT=true] [ISSUE_BODY=…] node scripts/check-pr-body.ts < body. The CI feeds it the
-// pull request body, and GITHUB_TOKEN + GITHUB_REPOSITORY so that it reads the issue itself.
+// pull request body, and GITHUB_TOKEN + GITHUB_REPOSITORY so that it reads the issue itself; in
+// the CI a missing token fails the check rather than skip the Proof lines.
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { namedIssues, prose } from './close-named-issues.ts';
+import { issuesApi, namedIssues, prose, withoutComments } from './close-named-issues.ts';
 
 const REVIEW_LINES = ['Simplification pass', 'Correctness review'];
 
@@ -32,7 +33,7 @@ const plain = (text: string) =>
 
 /** The issue's Proof lines (a paragraph is one line), without HTML comments. */
 export function proofLines(issue: string): string[] {
-  const lines = issue.replace(/<!--[\s\S]*?-->/g, '').split('\n');
+  const lines = withoutComments(issue).split('\n');
   return section(lines, 'Proof').map(plain).filter(Boolean);
 }
 
@@ -43,29 +44,37 @@ export function proofLines(issue: string): string[] {
  * boss's yes.
  */
 export function proofProblem(raw: string, issue: string): string | undefined {
-  const lines = raw.replace(/<!--[\s\S]*?-->/g, '').split('\n');
-  const proved = section(lines, 'Lead verification')
-    .map((line) => /^[-*] (.+?): delivered\b.*\bproved by\s+\S/.exec(line)?.[1])
-    .filter((item): item is string => item !== undefined)
-    .map(plain);
-  const waived = section(lines, 'Not proven')
-    .filter((line) => /\bboss\b/i.test(line))
-    .map(plain);
-  const quotes = (answer: string, proof: string) =>
-    answer.length >= Math.min(20, proof.length) && proof.includes(answer);
+  const lines = withoutComments(raw).split('\n');
+  const items = (title: string, answer: RegExp) =>
+    section(lines, title)
+      .map((line) => answer.exec(line)?.[1])
+      .filter((item): item is string => item !== undefined)
+      .map(plain);
+  const answers = [
+    ...items('Lead verification', /^[-*] (.+?): delivered\b.*\bproved by\s+\S/),
+    ...items('Not proven', /^[-*] (.+?):.*\bboss\b/i),
+  ];
   const open = proofLines(issue).find(
     (proof) =>
-      !proved.some((answer) => quotes(answer, proof)) &&
-      !waived.some((line) => line.includes(proof.slice(0, 20))),
+      !answers.some(
+        (answer) => answer.length >= Math.min(20, proof.length) && proof.includes(answer),
+      ),
   );
   return open
     ? `The issue's Proof line "${open}" is not answered: write "- <that line>: delivered in <file:line>, proved by <test>" under "Lead verification", or put it under "Not proven" with the boss's yes (AGENTS.md rule 6).`
     : undefined;
 }
 
-/** The first rule the body breaks, or undefined when it passes. */
-export function bodyProblem(raw: string, draft: boolean): string | undefined {
-  const body = raw.replace(/<!--[\s\S]*?-->/g, '');
+/**
+ * The first rule the body breaks, or undefined when it passes. `issues` are the bodies of the
+ * issues it closes, whose Proof lines a ready pull request answers.
+ */
+export function bodyProblem(
+  raw: string,
+  draft: boolean,
+  issues: string[] = [],
+): string | undefined {
+  const body = withoutComments(raw);
   if (!/^Closes #\d+/m.test(body)) return 'The body must start with "Closes #<issue>".';
   // The same grammar as close-issues.yml, in any case.
   if (/\bpart of #\d+/i.test(prose(body)))
@@ -86,39 +95,32 @@ export function bodyProblem(raw: string, draft: boolean): string | undefined {
     if (!review.some((l) => line.test(l)))
       return `The section "Local review before push" has no "${name}:" line: write what that pass found and fixed.`;
   }
+  if (draft) return undefined;
+  for (const issue of issues) {
+    const problem = proofProblem(body, issue);
+    if (problem) return problem;
+  }
   return undefined;
 }
 
 /** The bodies of the issues the pull request closes: ISSUE_BODY, else the REST API. */
 async function issueBodies(body: string): Promise<string[]> {
-  const { ISSUE_BODY, GITHUB_TOKEN: token, GITHUB_REPOSITORY: repo } = process.env;
+  const { ISSUE_BODY, GITHUB_TOKEN: token, GITHUB_REPOSITORY: repo, CI } = process.env;
   if (ISSUE_BODY !== undefined) return [ISSUE_BODY];
   if (!token || !repo) {
+    if (CI) throw new Error('GITHUB_TOKEN and GITHUB_REPOSITORY are required in the CI.');
     console.error('Proof lines not checked: no ISSUE_BODY, GITHUB_TOKEN or GITHUB_REPOSITORY.');
     return [];
   }
-  return Promise.all(
-    namedIssues(body).map(async (issue) => {
-      const response = await fetch(`https://api.github.com/repos/${repo}/issues/${issue}`, {
-        headers: {
-          accept: 'application/vnd.github+json',
-          authorization: `Bearer ${token}`,
-          'x-github-api-version': '2022-11-28',
-        },
-      });
-      if (!response.ok) throw new Error(`issue #${issue}: ${response.status}`);
-      return ((await response.json()) as { body?: string | null }).body ?? '';
-    }),
-  );
+  const api = issuesApi(repo, token);
+  return Promise.all(namedIssues(body).map(async (issue) => (await api(`${issue}`)).body ?? ''));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const body = readFileSync(0, 'utf8');
   const draft = process.env.PR_DRAFT === 'true';
-  let problem = bodyProblem(body, draft);
-  // A draft or a thumbnail waits for no Lead verification, so its proof is not asked yet.
-  if (!problem && !draft && !body.includes('Thumbnail only'))
-    for (const issue of await issueBodies(body)) problem ??= proofProblem(body, issue);
+  // A draft waits for its reviewer, so its issue is not read yet.
+  const problem = bodyProblem(body, draft, draft ? [] : await issueBodies(body));
   if (problem) {
     console.error(problem);
     process.exitCode = 1;

@@ -29,20 +29,23 @@ const issue = [
 ].join('\n');
 
 test('check-pr-body: the script reads stdin, PR_DRAFT and ISSUE_BODY, and exits 1 on a refusal', () => {
-  const run = (body: string, draft: string, issueBody = '') =>
+  const run = (body: string, env: Record<string, string>) =>
     spawnSync(process.execPath, [new URL('check-pr-body.ts', import.meta.url).pathname], {
       input: body,
       encoding: 'utf8',
-      env: { PATH: process.env.PATH, PR_DRAFT: draft, ISSUE_BODY: issueBody },
+      env: { PATH: process.env.PATH, ...env },
     });
-  assert.equal(run(review(linked), 'true', issue).status, 0);
-  const refused = run(review(linked), 'false');
+  assert.equal(run(review(linked), { PR_DRAFT: 'true' }).status, 0);
+  const refused = run(review(linked), { PR_DRAFT: 'false', ISSUE_BODY: '' });
   assert.equal(refused.status, 1);
   assert.match(refused.stderr, /"Lead verification" is missing or empty/);
-  assert.equal(run(review(verify(linked)), 'false').status, 0);
-  const unproved = run(review(verify(linked)), 'false', issue);
+  const unproved = run(review(verify(linked)), { PR_DRAFT: 'false', ISSUE_BODY: issue });
   assert.equal(unproved.status, 1);
   assert.match(unproved.stderr, /Proof line "the count per shard/);
+  // In the CI, a lost token fails the check instead of skipping the issue's Proof lines.
+  const tokenless = run(review(verify(linked)), { PR_DRAFT: 'false', CI: 'true' });
+  assert.equal(tokenless.status, 1);
+  assert.match(tokenless.stderr, /GITHUB_TOKEN and GITHUB_REPOSITORY are required/);
 });
 
 test('check-pr-body: the untouched template is refused, a filled one accepted', () => {
@@ -129,6 +132,12 @@ test('check-pr-body: every Proof line is proved in Lead verification, or waived 
   assert.match(proofProblem(body(answer(validate), unwaived), issue) ?? '', /the count per shard/);
   // An issue with no Proof section asks nothing.
   assert.equal(proofProblem(body(''), '## To do\n- x'), undefined);
+  // bodyProblem asks the Proof lines of a ready pull request only, never of a draft or a thumbnail.
+  const verified = review(verify(linked));
+  assert.match(bodyProblem(verified, false, [issue]) ?? '', /the count per shard/);
+  assert.equal(bodyProblem(verified, true, [issue]), undefined);
+  const thumbnail = verified.replace('## What changed', '## What changed\n\nThumbnail only.');
+  assert.equal(bodyProblem(thumbnail, false, [issue]), undefined);
 });
 
 test('pr-body.yml gives the check the token that reads the closed issue', () => {
