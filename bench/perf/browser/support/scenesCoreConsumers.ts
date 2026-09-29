@@ -48,18 +48,23 @@ camera.position.set(3, 4, 12);
 camera.lookAt(0, 0, 0);
 camera.updateMatrixWorld();
 const erreurs: (number | null | undefined)[] = [0, 0.5, 2, Infinity, null, undefined];
-const liste: PageRec[] = [];
+/** Each record with the world the oracles read on it, the one its root carries for the engine. */
+const liste: (PageRec & { matrix: THREE.Matrix4 })[] = [],
+  roots: { world: THREE.Matrix4 }[] = [];
 for (let i = 0; i < 900; i++) {
   const fini = i % 3 !== 0;
   const source = fini ? affines[i % affines.length] : matrices[i % matrices.length];
   const c = [alea() * 40 - 20, alea() * 40 - 20, alea() * 40 - 20],
     r = alea() * 3;
   const sphere = i % 7 === 0 ? undefined : [...c, r];
-  liste.push(
-    pageRecFixture({
+  const matrix = new THREE.Matrix4().fromArray(source);
+  roots.push({ world: matrix });
+  liste.push({
+    matrix,
+    ...pageRecFixture({
       url: `c${i}`,
+      placementIndex: i,
       streamUrl: i % 5 === 0 ? `b${i % 40}` : undefined,
-      matrix: new THREE.Matrix4().fromArray(source),
       min: [c[0] - r, c[1] - r, c[2] - r],
       max: [c[0] + r, c[1] + r, c[2] + r],
       lodError: erreurs[i % erreurs.length] ?? 0,
@@ -68,10 +73,11 @@ for (let i = 0; i < 900; i++) {
       parentSphere: i % 6 === 0 ? null : sphere,
       array: i % 50 === 0 ? new Uint32Array(1) : undefined,
     }),
-  );
+  });
 }
 export const enregistrements = {
   liste,
+  roots,
   camera,
   echelle: [
     (1280 * camera.projectionMatrix.elements[0]) / 2,

@@ -98,9 +98,10 @@ test('a cut-out cluster carries its alpha test into the visibility row', () => {
   const writeRow = createPageRowWriter(
     { geometryBlocks: new Map(), mapLayer: new Map(), dataLayer: new Map(), asIsShown: false },
     () => {},
+    collected.roots,
   );
-  // A page written as a row belongs to a placement: the WebGPU layout sets it.
-  const mask = Object.assign(collected.roots[0].pages[0], { placementIndex: 0 });
+  // A page written as a row belongs to a placement: its collection ranked its root.
+  const mask = collected.roots[0].pages[0];
   writeRow(mask, 0, 0, 0, floats, ints);
   assert.equal((ints[23] & FLAG_MASK) !== 0, true, 'the cut-out flag is set');
   assert.equal(floats[19], 0.5, 'the material alpha threshold travels with the row');
@@ -128,13 +129,15 @@ test('a row carries its resolve class, the census of the scene knows it before a
     ]),
   );
   const layers = { mapLayer: new Map(), dataLayer: new Map() };
-  const writeRow = createPageRowWriter({ geometryBlocks, ...layers, asIsShown: false }, () => {});
+  const writeRow = createPageRowWriter(
+    { geometryBlocks, ...layers, asIsShown: false },
+    () => {},
+    collected.roots,
+  );
   const floats = new Float32Array(PAGE_INFO_STRIDE / 2),
     ints = new Uint32Array(floats.buffer),
     stride = PAGE_INFO_STRIDE / 4;
-  const [mask, blend] = collected.roots.map((root, index) =>
-    Object.assign(root.pages[0], { placementIndex: index }),
-  );
+  const [mask, blend] = collected.roots.map((root) => root.pages[0]);
   writeRow(mask, 0, 0, 0, floats, ints);
   writeRow(blend, 1, 1, 0, floats, ints);
   const { HAS_MASK, HAS_VERTEX_NORMAL, DOUBLE_SIDED, HAS_UV } = CLASS_FEATURE;
@@ -161,10 +164,8 @@ test('an opaque row showing a surface as-is tells the image its flags are read',
     ints = new Uint32Array(floats.buffer);
   const layers = { geometryBlocks: new Map(), mapLayer: new Map(), dataLayer: new Map() },
     vis = { ...layers, asIsShown: false };
-  const writeRow = createPageRowWriter(vis, () => {});
-  const [opaque, blend] = collected.roots.map((root, index) =>
-    Object.assign(root.pages[0], { placementIndex: index }),
-  );
+  const writeRow = createPageRowWriter(vis, () => {}, collected.roots);
+  const [opaque, blend] = collected.roots.map((root) => root.pages[0]);
   writeRow(opaque, 0, 0, 0, floats, ints);
   assert.equal(vis.asIsShown, false, 'a lit surface');
   blend.material.model = SURFACE_MODEL.normal;

@@ -118,11 +118,16 @@ export function projectBoxInto(
 }
 /**
  * World-space corners of `page`'s box, written in `out` from `at`: eight corners of three doubles,
- * derived from its local bounds and its world matrix on every read, as the GPU partition receives
+ * derived from its local bounds and the `world` of its root on every read, as the GPU partition receives
  * them per row. Nothing is kept per page — a host table of every packed page cost 24 doubles each
  * (#18) —, and the arithmetic is `projectBoxInto`'s, so the doubles are the same bit for bit.
  */
-export function pageCornersInto(out: Float64Array, at: number, page: HizPage) {
+export function pageCornersInto(
+  out: Float64Array,
+  at: number,
+  page: HizPage,
+  world: MatrixElements,
+) {
   const { min, max } = page;
-  boxCornersInto(out, at, min[0], min[1], min[2], max[0], max[1], max[2], page.matrix.elements);
+  boxCornersInto(out, at, min[0], min[1], min[2], max[0], max[1], max[2], world.elements);
 }

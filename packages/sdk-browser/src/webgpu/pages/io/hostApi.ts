@@ -90,24 +90,24 @@ function engineCameraOf(rt: WebgpuPagesRuntime) {
   return rt.run.lastCamera ? rt.run.gate.cam : defaultEngineCamera();
 }
 
+/** What the CPU raster reads of the last image: its drawn pages, their roots, camera and size. */
+const rasterView = (rt: WebgpuPagesRuntime) => ({
+  pages: drawnOpaquePages(rt),
+  roots: rt.layout.selectionRoots,
+  cam: engineCameraOf(rt),
+  size: rt.setup.viewport ?? rt.gpu.targetSize,
+  pixelRatio: rt.setup.pixelRatio(),
+});
+
 export function visibilityIds(rt: WebgpuPagesRuntime) {
-  const size = rt.setup.viewport ?? rt.gpu.targetSize;
-  return rasterVisibilityIds(drawnOpaquePages(rt), engineCameraOf(rt), size, rt.setup.pixelRatio());
+  const { pages, roots, cam, size, pixelRatio } = rasterView(rt);
+  return rasterVisibilityIds(pages, roots, cam, size, pixelRatio);
 }
 
 export function rasterRgba(rt: WebgpuPagesRuntime) {
-  const size = rt.setup.viewport ?? rt.gpu.targetSize,
-    pages = drawnOpaquePages(rt),
-    cam = engineCameraOf(rt),
-    pixelRatio = rt.setup.pixelRatio();
-  return shadeVisibility(
-    rasterVisibilityIds(pages, cam, size, pixelRatio),
-    pages,
-    cam,
-    size,
-    rt.run.clearColor,
-    pixelRatio,
-  );
+  const { pages, roots, cam, size, pixelRatio } = rasterView(rt);
+  const ids = rasterVisibilityIds(pages, roots, cam, size, pixelRatio);
+  return shadeVisibility(ids, pages, roots, cam, size, rt.run.clearColor, pixelRatio);
 }
 
 /**
