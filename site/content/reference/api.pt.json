@@ -478,6 +478,14 @@
       "height": "Altura da imagem, em pixels."
     }
   },
+  "CellRows": {
+    "summary": "Uma célula decodificada, tal como suas linhas são escritas a partir dela.",
+    "members": {
+      "nodes": "Quantos nós a célula contém.",
+      "ranks": "Por nó, a classificação do seu pai (`-1`: a raiz da cena), depois a da sua malha.",
+      "locals": "Por nó, sua matriz local."
+    }
+  },
   "ChangeListener": {
     "summary": "Uma função chamada quando um controlador move a câmera."
   },
