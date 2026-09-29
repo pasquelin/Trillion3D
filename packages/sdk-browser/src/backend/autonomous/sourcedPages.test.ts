@@ -68,6 +68,7 @@ test('the pages of a dynamic geometry share its lists, and a rewrite uploads its
   position.setZ(2, 0.5);
   markRewritten(source, [{ name: 'position', from: 1, count: 2 }]);
   uploads.length = 0;
+  cache.beginFrame(); // a geometry is checked against its versions once a frame (#840)
   for (const page of pages) cache.bind(page);
   assert.deepEqual(uploads, [['sub', 12, 24]], 'vertices 1 and 2, once');
 });
