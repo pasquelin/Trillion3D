@@ -131,9 +131,9 @@ async function tileListsOn(
   depths: Float32Array<ArrayBuffer>,
   counts: number[],
 ) {
-  const appareil = await ouvrirAppareil(features);
-  if (!appareil) return { indisponible: 'no WebGPU adapter' } as const;
-  const { device, erreurs } = appareil;
+  const opened = await ouvrirAppareil(features);
+  if (!opened) return { unavailable: 'no WebGPU adapter' } as const;
+  const { device } = opened;
   const depth = depthTexture(device, depths).createView();
   const tiles = await createGpuLightTiles(device);
   const r = seeded(924);
@@ -170,20 +170,21 @@ async function tileListsOn(
     runs.push({ count, subgroups: tiles.subgroups, wide: tiles.wide, overflowed, lists });
   }
   tiles.dispose();
-  const info = await appareil.fermer();
-  return { adaptateur: info.court, granted: device.features.has('subgroups'), erreurs, runs };
+  const granted = device.features.has('subgroups');
+  const errors = opened.erreurs;
+  return { adapter: (await opened.fermer()).court, granted, errors, runs };
 }
 
-export async function executer(lightCounts: number[]) {
+export async function run(lightCounts: number[]) {
   const depths = depthField(seeded(923));
   const subgroup = await tileListsOn(['subgroups'], depths, lightCounts);
-  if (subgroup.indisponible) return { indisponible: subgroup.indisponible };
-  if (!subgroup.granted) return { indisponible: 'the adapter offers no subgroups' };
+  if (subgroup.unavailable) return { unavailable: subgroup.unavailable };
+  if (!subgroup.granted) return { unavailable: 'the adapter offers no subgroups' };
   const plain = await tileListsOn([], depths, lightCounts);
-  if (plain.indisponible) return { indisponible: plain.indisponible };
+  if (plain.unavailable) return { unavailable: plain.unavailable };
   return {
-    adaptateur: subgroup.adaptateur,
-    erreurs: [...subgroup.erreurs, ...plain.erreurs],
+    adapter: subgroup.adapter,
+    errors: [...subgroup.errors, ...plain.errors],
     runs: subgroup.runs.map((run, k) => ({
       count: run.count,
       subgroup: run,
