@@ -1,13 +1,13 @@
-import { boxCornersInto, invertMatrix4 } from '../../../../sdk-core/src/index.ts';
+import { boxCornersInto, IDENTITY_MATRIX4, invertMatrix4 } from '../../../../sdk-core/src/index.ts';
 import { projectCornersInto } from '../../hiz/corners.ts';
 import { readHostBox } from '../../host/boxBounds.ts';
+import type { HostBox } from '../../host/resources.ts';
 import type { EngineCamera } from '../../camera/world.ts';
 import { FLAG_CLUSTER_PAGE } from '../../visibility/types.ts';
 import type { BlendGpuItem } from '../blend/state.ts';
 import { VOLUME_WORDS, waterRankOf } from '../transparent/transmission.ts';
 import { encloseTransform, ROUND, widenBox } from './precision.ts';
 
-const IDENTITY = new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
 export function createWaterBounds() {
   return {
     active: false,
@@ -66,7 +66,7 @@ function union(into: Float64Array, rect: Float64Array) {
  * One additional pixel encloses the rasterizer's subpixel edge snapping, not world precision. */
 function project(b: WaterBounds, box: Float64Array) {
   if (!encloseTransform(b.ndc, box, b.projection, b.error)) return false;
-  boxCornersInto(b.corners, 0, box[0], box[1], box[2], box[3], box[4], box[5], IDENTITY);
+  boxCornersInto(b.corners, 0, box[0], box[1], box[2], box[3], box[4], box[5], IDENTITY_MATRIX4);
   projectCornersInto(
     b.corners,
     0,
@@ -88,6 +88,19 @@ function project(b: WaterBounds, box: Float64Array) {
   return b.rect.every(Number.isFinite);
 }
 
+/** Reads the item's local box, widened, and its binary32 matrix; false for a non-affine one. */
+function affineSurface(b: WaterBounds, local: HostBox, matrix: ArrayLike<number>) {
+  readHostBox(b.local, local);
+  widenBox(b.local);
+  b.matrix.set(matrix);
+  return b.matrix[3] === 0 && b.matrix[7] === 0 && b.matrix[11] === 0 && b.matrix[15] === 1;
+}
+
+/** Scissors `pass` to `rect` (min x, min y, max x, max y). */
+export function scissorTo(pass: GPURenderPassEncoder, rect: Float64Array) {
+  pass.setScissorRect(rect[0], rect[1], rect[2] - rect[0], rect[3] - rect[1]);
+}
+
 /** Called only for the frustum walk's kept transmissive items. Unknown/deformed geometry
  * keeps full coverage, including unsupported quantized-page water. */
 export function includeWaterItem(b: WaterBounds, item: BlendGpuItem, volumes: Float32Array) {
@@ -99,20 +112,8 @@ export function includeWaterItem(b: WaterBounds, item: BlendGpuItem, volumes: Fl
     item.flags & FLAG_CLUSTER_PAGE ||
     item.surface.lineWidth ||
     item.surface.sprite ||
-    !item.bounds.every(Number.isFinite)
-  ) {
-    full(b, b.surface);
-    full(b, b.backdrop);
-    return;
-  }
-  readHostBox(b.local, local);
-  widenBox(b.local);
-  b.matrix.set(item.matrix.elements);
-  if (
-    b.matrix[3] !== 0 ||
-    b.matrix[7] !== 0 ||
-    b.matrix[11] !== 0 ||
-    b.matrix[15] !== 1 ||
+    !item.bounds.every(Number.isFinite) ||
+    !affineSurface(b, local, item.matrix.elements) ||
     !encloseTransform(b.world, b.local, b.matrix, b.error) ||
     !project(b, b.world)
   ) {
