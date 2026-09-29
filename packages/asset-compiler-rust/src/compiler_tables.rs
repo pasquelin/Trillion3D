@@ -14,6 +14,7 @@ use serde_json::Map;
 mod documents;
 mod graph;
 mod materials;
+mod motion;
 pub(crate) mod partition;
 mod physical;
 mod sparse;
@@ -31,9 +32,11 @@ use textures::texture_table;
 /// only the root of the cells' index, whose pages lie beside it (`partition/pages.rs`); version 5
 /// names the manifest's mesh pages the node table needs (`meshPages`), which a runtime reads at open
 /// while the cells' own are read with them (#751).
-const SCENE_TABLES_VERSION: u32 = 5;
-/// The node table's version: 4 says whether each node declares itself visible (`KHR_node_visibility`).
-const NODE_TABLE_VERSION: u32 = 4;
+/// Version 6 carries the skins and the animation clips (`motion.rs`, #357).
+const SCENE_TABLES_VERSION: u32 = 6;
+/// The node table's version: 4 says whether each node declares itself visible
+/// (`KHR_node_visibility`), 5 names the skin a node bends its mesh by.
+const NODE_TABLE_VERSION: u32 = 5;
 const MATERIAL_TABLE_VERSION: u32 = 4;
 const GEOMETRY_TABLE_VERSION: u32 = 1;
 const SCENE_TABLES_FILE: &str = "scene-tables.json";
@@ -74,6 +77,7 @@ impl Materials {
 /// geometry layout differs. The partition's region pages name the mesh pages of `mesh_pages`.
 /// Returned beside the product: the published nodes each cell places.
 pub(super) fn stage_scene_tables(
+    (g, bin): (&Value, &[u8]),
     published: &Value,
     autonomous: Option<&Value>,
     mesh_pages: &crate::compiler_manifest_pages::MeshPages,
@@ -101,8 +105,15 @@ pub(super) fn stage_scene_tables(
     let roots = crate::compiler_nodes::scene_roots(published, values(published, "nodes")?)?;
     let (split, members) =
         partition::partition(published, &table, &roots, &mesh_pages.by_mesh, directory)?;
+    let (mut skins, mut animations) = (
+        motion::skin_table(g, bin)?,
+        motion::animation_table(g, bin)?,
+    );
     let (nodes, roots, partition, cells) = match split {
-        Some(split) => (split.nodes, split.roots, split.partition, split.cells),
+        Some(split) => {
+            motion::renumber(&mut skins, &mut animations, &split.rank);
+            (split.nodes, split.roots, split.partition, split.cells)
+        }
         None => (table, roots, Value::Null, 0),
     };
     let lights = light_table(published)?;
@@ -120,6 +131,8 @@ pub(super) fn stage_scene_tables(
         "meshPages": core_pages(&nodes, &mesh_pages.by_mesh),
         "lights": lights,
         "cameras": cameras,
+        "skins": skins,
+        "animations": animations,
         "materials": surfaces.table,
         "textures": textures,
         "documents": documents,
