@@ -10,6 +10,7 @@ import {
   sunPageMetres,
 } from '../../../../sdk-core/src/scene/light-shadow/pageModel.ts';
 import { regionRect } from '../../../../sdk-core/src/scene/light-shadow/volume.ts';
+import { CONE, CONE_MODEL_WGSL } from '../../../../sdk-core/src/scene/light-shadow/coneModel.ts';
 import {
   PAGE_MODEL_FUNCTIONS,
   PAGE_MODEL_WGSL,

@@ -1,4 +1,4 @@
-import { hypot3 } from '../../math/primitives/hypot.ts';
+import { CONE } from './coneModel.ts';
 import { faceBasis } from './math.ts';
 import { PAGES } from './pageModel.ts';
 
@@ -9,29 +9,10 @@ import { PAGES } from './pageModel.ts';
  */
 export const FULL_FACE = new Float64Array([-1, 1, -1, 1]);
 
-const axis = new Float64Array(3),
-  corner = new Float64Array(3);
-
-/** World direction of point `(u, v)` of the projection plane, frame of the last composed face. */
-function direction(out: Float64Array, u: number, v: number, t: number) {
-  let length = 0;
-  for (let a = 0; a < 3; a++) {
-    out[a] = PAGES.shadowConeRay(faceBasis[6 + a], faceBasis[a], faceBasis[3 + a], t, u, v);
-    length += out[a] * out[a];
-  }
-  length = Math.sqrt(length) || 1;
-  for (let a = 0; a < 3; a++) out[a] /= length;
-}
-
 /**
- * Cone that reject opposes to a region of a perspective face: the light as apex, the
- * direction of the region centre as axis, and the angle of the most offset of its four corners as
- * half-angle.
- *
- * This is exact, never a quality approximation: the projected image of a planar rectangle is
- * spherically convex, so the cap that contains its four corners contains the whole rectangle.
- * A discarded cluster could write nothing in the region, and the region comes out texel for texel as
- * if every cluster had been presented to it.
+ * Cone that reject opposes to a region of a perspective face, from the last composed face
+ * (`faceBasis`): the light at `position` as apex, out to `far`, and the page's cone
+ * (`coneModel.ts`, the GPU's pages' too).
  */
 export function writeConeVolume(
   cull: Float32Array,
@@ -41,29 +22,18 @@ export function writeConeVolume(
   halfFov: number,
   rect: Float64Array,
 ) {
-  cull[base] = position[0];
-  cull[base + 1] = position[1];
-  cull[base + 2] = position[2];
+  const [u0, u1, v0, v1] = rect,
+    r = [faceBasis[0], faceBasis[1], faceBasis[2]],
+    u = [faceBasis[3], faceBasis[4], faceBasis[5]],
+    f = [faceBasis[6], faceBasis[7], faceBasis[8]],
+    t = Math.tan(halfFov),
+    axis = CONE.shadowConeAxis(f, r, u, t, halfFov, u0, u1, v0, v1);
+  for (let a = 0; a < 3; a++) {
+    cull[base + a] = position[a];
+    cull[base + 4 + a] = axis[a];
+  }
   cull[base + 3] = far;
-  // A half-field beyond a quarter turn already covers all of space: the cone excludes nothing more.
-  if (halfFov >= Math.PI / 2) {
-    cull[base + 4] = faceBasis[6];
-    cull[base + 5] = faceBasis[7];
-    cull[base + 6] = faceBasis[8];
-    cull[base + 7] = PAGES.shadowConeHalfAngle(0, halfFov);
-    return;
-  }
-  const t = Math.tan(halfFov);
-  direction(axis, (rect[0] + rect[1]) / 2, (rect[2] + rect[3]) / 2, t);
-  let chord = 0;
-  for (let index = 0; index < 4; index++) {
-    direction(corner, index & 1 ? rect[1] : rect[0], index & 2 ? rect[3] : rect[2], t);
-    chord = Math.max(chord, hypot3(corner[0] - axis[0], corner[1] - axis[1], corner[2] - axis[2]));
-  }
-  cull[base + 4] = axis[0];
-  cull[base + 5] = axis[1];
-  cull[base + 6] = axis[2];
-  cull[base + 7] = PAGES.shadowConeHalfAngle(chord, halfFov);
+  cull[base + 7] = CONE.shadowConeSpread(f, r, u, t, halfFov, axis, u0, u1, v0, v1);
 }
 
 /**

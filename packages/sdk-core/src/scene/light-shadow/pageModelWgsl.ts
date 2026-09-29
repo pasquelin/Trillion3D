@@ -6,7 +6,7 @@ import { LAMP_MIPS, LAMP_SIDE, SUN_LEVELS, SUN_WINDOW } from './virtual.ts';
 const literal = (text: string) => (text.startsWith('-') ? `(${text})` : text);
 
 /** The page model's operations printed as WGSL: integers are `i32`, floats `f32`. */
-const WGSL: PageOps<string> = {
+export const PAGE_OPS_WGSL: PageOps<string> = {
   int: (n) => literal(String(n)),
   float: (n) => literal(Number.isInteger(n) ? `${n}.0` : String(n)),
   add: (a, b) => `(${a}+${b})`,
@@ -70,7 +70,6 @@ const SIGNATURES: Record<keyof PageModel<string>, string[]> = {
   shadowOrthoScale: ['h:f32', 'f32'],
   shadowOrthoDepthScale: ['far:f32', 'f32'],
   shadowOrthoDepthOffset: ['far:f32', 'f32'],
-  shadowConeRay: ['f:f32', 'r:f32', 'u:f32', 't:f32', 'x:f32', 'y:f32', 'f32'],
   shadowConeHalfAngle: ['chord:f32', 'halfFov:f32', 'f32'],
   shadowSunEye: ['r:f32', 'u:f32', 'f:f32', 'x:f32', 'y:f32', 'zNear:f32', 'f32'],
   shadowAlong: ['p:f32', 'd:f32', 's:f32', 'f32'],
@@ -84,7 +83,10 @@ const SIGNATURES: Record<keyof PageModel<string>, string[]> = {
 /** The WGSL names of the page model's functions: what a test running the shaders in Node lists. */
 export const PAGE_MODEL_FUNCTIONS = Object.keys(SIGNATURES) as Array<keyof PageModel<string>>;
 
-const printed = pageModel(WGSL) as unknown as Record<string, (...names: string[]) => string>;
+const printed = pageModel(PAGE_OPS_WGSL) as unknown as Record<
+  string,
+  (...names: string[]) => string
+>;
 
 /**
  * The page model as the shaders compile it (`pageModel.ts`): the layout constants they index
