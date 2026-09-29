@@ -25,6 +25,8 @@ fn page(positions: usize, links: &[u32]) -> Vec<u8> {
         quantization_error: 0.0,
         corner_bits: spans.bits,
         position_count: positions,
+        skin: crate::Skin::default(),
+        morphs: Vec::new(),
     };
     let mut out = BitWriter::default();
     spans.write(

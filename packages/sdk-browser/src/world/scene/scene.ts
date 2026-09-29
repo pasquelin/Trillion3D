@@ -170,6 +170,8 @@ export async function loadPreparedScene(
   const framingLot = await sceneBoundsLot(source, associations, metadata, autonomous);
   return {
     ...{ source, sceneLightingSource, associations, textureIndices, framingLot, partitions },
+    /** The clips the file plays (#357). */
+    clips: built.clips,
     // The world roots each model holds, which the session counts in its CPU budget (#1237).
     worldRoots: worldRoots ? [worldRoots] : [],
     // Each glTF node's host node, by its index: a partition renumbers the table, replicas copy it.

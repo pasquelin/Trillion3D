@@ -27,6 +27,7 @@ import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
 import { placedMeshes } from './placed.ts';
 import { registerPagedSource } from './pagedSource.ts';
+import { bindSkins, clipsOf, movedNodes } from './motion.ts';
 import type { RowLink } from '../../scene/partition/rows.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
@@ -53,7 +54,6 @@ export async function preparedGraph(inputs: Inputs) {
   const ranks = new Map<Object3D, MeshRanks>();
   const scene = new Group();
   if (tables.scene.name) scene.name = unique(tables.scene.name);
-  // References are counted over every node, reached or not, as the loader counted them.
   const refs = (field: 'mesh' | 'light' | 'camera') => {
     const counts = new Map<number, number>();
     for (const node of tables.nodes)
@@ -67,6 +67,7 @@ export async function preparedGraph(inputs: Inputs) {
     if ((counts[kind].get(rank) ?? 0) <= 1) return made;
     const copy = numbered(made.clone());
     const walk = (from: Object3D, to: Object3D) => {
+      if (from !== made && from.name) to.name = unique(from.name);
       const held = ranks.get(from);
       if (held) ranks.set(to, held);
       from.children.forEach((child, i) => walk(child, to.children[i]));
@@ -85,9 +86,12 @@ export async function preparedGraph(inputs: Inputs) {
   const nodeNames = new Map<number, string>();
   const order: number[] = [];
   const named = new Set<number>();
+  // A node a clip moves or a skin bends by is found by name: one the file left unnamed gets one.
+  const moved = movedNodes(tables);
   const reserve = (id: number) => {
     const node = tables.nodes[id];
-    nodeNames.set(id, node.name ? unique(node.name) : '');
+    const name = node.name || (moved.has(id) ? `node_${id}` : '');
+    nodeNames.set(id, name ? unique(name) : '');
     if (node.mesh !== null && !named.has(node.mesh)) {
       named.add(node.mesh);
       order.push(node.mesh);
@@ -172,10 +176,8 @@ export async function preparedGraph(inputs: Inputs) {
         : carried.length
           ? new Group().add(...carried)
           : new Object3D();
-    if (declared.name) {
-      node.userData.name = declared.name;
-      node.name = nodeNames.get(id)!;
-    }
+    if (declared.name) node.userData.name = declared.name;
+    if (nodeNames.get(id)) node.name = nodeNames.get(id)!;
     pose(node, declared);
     // Hidden, it is parked as any hidden node (`placement/hidden.ts`); its subtree with it.
     node.visible = declared.visible;
@@ -185,6 +187,8 @@ export async function preparedGraph(inputs: Inputs) {
     return node;
   };
   for (const root of tables.scene.nodes) scene.add(assemble(root));
+  bindSkins(tables, nodes);
+  const clips = clipsOf(tables, nodes);
   const at = new Map(order.map((rank, index) => [rank, index]));
   const placed = placedMeshes(tables.partition, scene, ranks, (rank) => made[at.get(rank)!]);
   const { pagedGeometryOf } = inputs;
@@ -192,5 +196,5 @@ export async function preparedGraph(inputs: Inputs) {
     for (const [mesh, { meshes: rank, primitives: p }] of ranks)
       if (rank !== undefined && p !== undefined)
         registerPagedSource(mesh, () => pagedGeometryOf(rank, p));
-  return { scene, ranks, nodes, placed };
+  return { scene, ranks, nodes, placed, clips };
 }

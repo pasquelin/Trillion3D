@@ -29,7 +29,8 @@ export function webgpuGrowsInPlace(rt: WebgpuPagesRuntime, from: readonly Placem
   for (const buffer of from) {
     if (placedBy(setup.blendCopies, buffer) || placedBy(blendState.blendGpu, buffer)) return false;
     const template = layout.selectionRoots.find((root) => root.placement?.rows === buffer);
-    if (template?.pages[0]?.transparent) return false;
+    if (template?.pages[0]?.transparent || template?.pages.some((page) => page.deformationOutput))
+      return false;
   }
   return true;
 }
