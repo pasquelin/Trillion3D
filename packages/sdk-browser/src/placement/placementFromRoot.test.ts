@@ -12,7 +12,7 @@ type Session = Awaited<ReturnType<typeof placedSession>>;
 function digest({ rt }: Session) {
   const { rows, drawItemWords, cornerPacked } = rt.layout;
   const hash = createHash('sha256');
-  for (const words of [rows.pageTableFloats, rows.packedPageIndex, drawItemWords, cornerPacked])
+  for (const words of [rows.pageTableFloats!, rows.packedPageIndex, drawItemWords, cornerPacked])
     hash.update(new Uint8Array(words.buffer, words.byteOffset, words.byteLength));
   const ranks = (list: readonly { packedIndex?: number }[]) => list.map((rec) => rec.packedIndex);
   hash.update(JSON.stringify([rows.packedCount, ranks(rt.run.shown), ranks(rt.run.desired)]));

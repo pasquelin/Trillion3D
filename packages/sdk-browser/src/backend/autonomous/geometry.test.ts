@@ -7,7 +7,7 @@ import { createAutonomousGeometry } from './geometry.ts';
 import { referenceAutonomousSync } from '../../../../../bench/oracles/browser/autonomous-backend.ts';
 import type { ClusterRoot, PageRec } from '../../page/selection/types.ts';
 import { surfaceOf } from '../../page/surface.ts';
-import { makeRec } from './pageRec.fixture.ts';
+import { makeRec, recRoots } from './pageRec.fixture.ts';
 
 function fakeScene() {
   const meshes = new Set<object>();
@@ -26,7 +26,8 @@ function environnement(
   shown: PageRec[],
 ): Parameters<typeof createAutonomousGeometry>[0] {
   return {
-    ...{ scene, allPages, bootstrap: [], views: { live: { shown }, lists: () => [shown] } },
+    ...{ scene, roots: recRoots(), allPages, bootstrap: [] },
+    ...{ views: { live: { shown }, lists: () => [shown] } },
     ...{ byUrl: new Map(), descriptors: new Map(), baseMaterials: new Map() },
     ...{ colorMaterials: new Map(), modifiedPages: new Set() },
   };
