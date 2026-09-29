@@ -126,14 +126,10 @@ pub(super) fn compile_primitive(
     let mesh = *mesh_map
         .get(old)
         .ok_or_else(|| invalid("Missing mesh mapping"))?;
-    let (attributes, mut deformation) = if unsplit {
-        (Vec::new(), Default::default())
-    } else {
-        (
-            compiler_page_object::page_attributes(g, bin, p, positions.count, validated)?,
-            compiler_page_object::page_deformation(g, bin, p, positions.count, validated)?,
-        )
+    let attributes = if unsplit { Vec::new() } else {
+        compiler_page_object::page_attributes(g, bin, p, positions.count, validated)?
     };
+    let mut deformation = compiler_page_object::page_deformation(g, bin, p, positions.count, validated)?;
     deformation.soft_source(g, *old, &pos)?;
     let carried = carried_attributes(&attributes, material);
     let uv_exponent = geometry_page_quant::primitive_uv_exponent(&carried, clustered_blend);
@@ -190,12 +186,16 @@ pub(super) fn compile_primitive(
     progress(event);
     let quantization =
         compiler_page_object::quantization_report(&pages, position_exponent, uv_exponent);
+    let mut reach = deformation.reach(&pos);
+    if unsplit && deformation.soft_source {
+        reach["softSourceIds"] = json!(deformation.skin.as_ref().unwrap().0.iter().step_by(4).collect::<Vec<_>>());
+    }
     Ok(CompiledPrimitive {
         cluster_planes,
         proxy_cut,
         collision,
         root_cover,
         proxy_threshold: proxy_threshold * scale.unwrap_or(1.0), // back in metres for the report
-        value: json!({"mesh":mesh,"primitive":primitive,"material":p.get("material").cloned().unwrap_or(Value::Null),"triangles":triangle_count,"pass":if unsplit{"shared-blend"}else if clustered_blend{"clustered-blend"}else{"exact-clusters"},"clusterStrategy":if dag_primitive{json!(DAG_CLUSTER_STRATEGY)}else{Value::Null},"hierarchy":Value::Null,"dag":dag_report,"culling":culling_report,"structure":structure_report,"streams":stream_report,"pages":pages,"quantization":quantization,"deformation":deformation.reach(&pos),"reusedPages":reused,"topology":{"triangles":topology.triangles,"edges":{"boundary":topology.boundary_edges,"manifold":topology.manifold_edges,"nonManifold":topology.non_manifold_edges},"vertices":{"interior":topology.interior_vertices,"boundary":topology.boundary_vertices,"locked":topology.locked_vertices,"unused":topology.unused_vertices},"manifold":topology.manifold}}),
+        value: json!({"mesh":mesh,"primitive":primitive,"material":p.get("material").cloned().unwrap_or(Value::Null),"triangles":triangle_count,"pass":if unsplit{"shared-blend"}else if clustered_blend{"clustered-blend"}else{"exact-clusters"},"clusterStrategy":if dag_primitive{json!(DAG_CLUSTER_STRATEGY)}else{Value::Null},"hierarchy":Value::Null,"dag":dag_report,"culling":culling_report,"structure":structure_report,"streams":stream_report,"pages":pages,"quantization":quantization,"deformation":reach,"reusedPages":reused,"topology":{"triangles":topology.triangles,"edges":{"boundary":topology.boundary_edges,"manifold":topology.manifold_edges,"nonManifold":topology.non_manifold_edges},"vertices":{"interior":topology.interior_vertices,"boundary":topology.boundary_vertices,"locked":topology.locked_vertices,"unused":topology.unused_vertices},"manifold":topology.manifold}}),
     })
 }

@@ -1,3 +1,4 @@
+import type { BlendCopy } from '../cluster/blendCopyContract.ts';
 import type { ClusterRoot } from '../page/selection/types.ts';
 import type { PageRec } from '../page/selection/selection.ts';
 import { createDeformationFrame, type DeformedMesh } from './frame.ts';
@@ -14,9 +15,10 @@ import type { HostWorldPlacements } from '../host/world/placements.ts';
 export function createSessionDeformation(
   roots: readonly ClusterRoot<PageRec>[],
   worlds: Pick<HostWorldPlacements, 'of'>,
+  copies: readonly BlendCopy[] = [],
 ) {
-  const frame = createDeformationFrame(
-    roots.map((root) => {
+  const frame = createDeformationFrame([
+    ...roots.map((root) => {
       const source = root.pages[0]?.sourceMesh as DeformedMesh | undefined;
       if (!source) return null;
       const { mesh, models } = placementDeformation(root.placement, source);
@@ -26,12 +28,28 @@ export function createSessionDeformation(
         deformed.boneWorlds = mesh.skeleton.bones.map(worlds.of);
       return deformed;
     }),
-  );
+    ...copies.map((copy) => {
+      const source = copy.userData.sourceMesh;
+      if (!source) return null;
+      const { mesh, models } = placementDeformation(copy.placement, source);
+      const deformed = deformedOf(mesh, copy, copy.matrix, models);
+      if (deformed && mesh.skeleton && !copy.placement?.rows.sources)
+        deformed.boneWorlds = mesh.skeleton.bones.map(worlds.of);
+      return deformed;
+    }),
+  ]);
   let base = 0;
   /** Each root's placement rank by the world it reads: what a transparent item knows it by. */
   const byWorld = new Map(roots.map((root, placement) => [root.world, placement] as const));
+  copies.forEach((copy, i) => byWorld.set(copy.matrix, roots.length + i));
   return {
     frame,
+    movingOfWorld(world: object) {
+      return frame.moving[byWorld.get(world as ClusterRoot<PageRec>['world']) ?? -1] === 1;
+    },
+    reachOfWorld(world: object) {
+      return frame.reach[byWorld.get(world as ClusterRoot<PageRec>['world']) ?? -1] ?? 0;
+    },
     /** Whether any root deforms. */
     get any() {
       return frame.bases.some((b) => b > 0);

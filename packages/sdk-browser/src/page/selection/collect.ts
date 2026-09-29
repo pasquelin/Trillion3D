@@ -36,8 +36,6 @@ export function collectClusterPages(
     pendingPlaced?: boolean;
   } = {},
 ) {
-  // World matrices of pages and roots are the ENGINE's, computed from the host's local poses:
-  // no record any longer carries the live `matrixWorld` of its mesh.
   const worlds = hostWorldPlacements(source);
   const roots: Array<ClusterRoot<PageRec>> = [],
     allPages: PageRec[] = [],
@@ -64,8 +62,11 @@ export function collectClusterPages(
     // One blended draw per placement, sharing the mesh's geometry and surface: each is ordered by
     // its own depth, and a row's copy is skipped while the row is parked.
     if (primitive.pass === 'shared-blend' || surface.transmission > 0) {
-      for (const { world, placement } of placed)
-        blendCopies.push(blendCopy(mesh, order, world, surface, placement));
+      for (const { world, placement } of placed) {
+        const copy = blendCopy(mesh, order, world, surface, placement);
+        copy.deformation = primitive.deformation;
+        blendCopies.push(copy);
+      }
       order++;
       continue;
     }

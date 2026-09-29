@@ -16,6 +16,22 @@ import { KIND_MORPH, KIND_SKIN, KIND_WAVE, KIND_SOFT, RECORD_HEAD, WAVE_FLOATS }
  * no binding is added to any pass.
  */
 export const DEFORM_WGSL = `
+fn wholeVertex(page:PageInfo,vertex:u32)->u32{
+ let start=page.packedBase-1u;return start+4u+vertex*u32(positions[start+3u]);
+}
+fn deformJoints(h:ClusterHeader,page:PageInfo,vertex:u32)->vec4u{
+ if((page.deformOutput&0x80000000u)==0u){return clusterJoints(h,page.pageOffset,vertex);}
+ let at=wholeVertex(page,vertex);return vec4u(vec4f(positions[at],positions[at+1u],positions[at+2u],positions[at+3u]));
+}
+fn deformWeights(h:ClusterHeader,page:PageInfo,vertex:u32)->vec4f{
+ if((page.deformOutput&0x80000000u)==0u){return clusterWeights(h,page.pageOffset,vertex);}
+ let at=wholeVertex(page,vertex)+4u;return vec4f(positions[at],positions[at+1u],positions[at+2u],positions[at+3u]);
+}
+fn deformMorphValue(h:ClusterHeader,page:PageInfo,t:u32,vertex:u32,normal:bool)->vec3f{
+ if((page.deformOutput&0x80000000u)==0u){return clusterMorph(h,page.pageOffset,t,vertex,normal);}
+ let at=wholeVertex(page,vertex)+select(0u,8u,(h.flags&16u)!=0u)+t*6u+select(0u,3u,normal);
+ return vec3f(positions[at],positions[at+1u],positions[at+2u]);
+}
 fn deformWord(at:u32)->u32{return bitcast<u32>(positions[at]);}
 /** Joint \`j\` of the palette at \`at\` (\`count\` joints, the last one standing for a larger rank),
  *  its three rows. */
@@ -27,7 +43,7 @@ fn deformJoint(at:u32,j:u32,count:u32)->mat3x4f{
 }
 /** A point (\`w\` 1) or a direction (\`w\` 0) carried by the palette's blend of four joints. */
 fn deformSkin(h:ClusterHeader,page:PageInfo,vertex:u32,at:u32,count:u32,v:vec4f)->vec3f{
- let j=clusterJoints(h,page.pageOffset,vertex);let w=clusterWeights(h,page.pageOffset,vertex);
+ let j=deformJoints(h,page,vertex);let w=deformWeights(h,page,vertex);
  return w.x*(v*deformJoint(at,j.x,count))+w.y*(v*deformJoint(at,j.y,count))
   +w.z*(v*deformJoint(at,j.z,count))+w.w*(v*deformJoint(at,j.w,count));
 }
@@ -63,7 +79,7 @@ fn deformAt(r:u32,previous:bool)->DeformAt{
  return a;
 }
 fn deformSoft(a:DeformAt,h:ClusterHeader,page:PageInfo,vertex:u32,previous:bool,normal:bool)->vec3f{
- let ids=clusterJoints(h,page.pageOffset,vertex);let weights=clusterWeights(h,page.pageOffset,vertex);
+ let ids=deformJoints(h,page,vertex);let weights=deformWeights(h,page,vertex);
  var delta=vec3f(0.0);let count=a.soft*3u;
  for(var k=0u;k<4u;k++){
   let v=min(ids[k],a.soft-1u)*3u;let start=a.simulation+v;
@@ -85,7 +101,7 @@ fn deformPoint(page:PageInfo,h:ClusterHeader,vertex:u32,rest:vec3f,previous:bool
  if((a.kinds&${KIND_MORPH}u)!=0u){
   for(var t=0u;t<min(a.targets,h.morphCount);t++){
    let weight=positions[a.weights+t];
-   if(weight!=0.0){p+=weight*clusterMorph(h,page.pageOffset,t,vertex,false);}
+   if(weight!=0.0){p+=weight*deformMorphValue(h,page,t,vertex,false);}
   }
  }
  if((a.kinds&${KIND_SKIN}u)!=0u&&(h.flags&${FLAG_SKIN}u)!=0u){p=deformSkin(h,page,vertex,a.palette,a.joints,vec4f(p,1.0));}
@@ -105,7 +121,7 @@ fn deformNormal(page:PageInfo,h:ClusterHeader,vertex:u32,rest:vec3f)->vec3f{
  if((a.kinds&${KIND_MORPH}u)!=0u){
   for(var t=0u;t<min(a.targets,h.morphCount);t++){
    let weight=positions[a.weights+t];
-   if(weight!=0.0){n+=weight*clusterMorph(h,page.pageOffset,t,vertex,true);}
+   if(weight!=0.0){n+=weight*deformMorphValue(h,page,t,vertex,true);}
   }
  }
  if((a.kinds&${KIND_SKIN}u)!=0u&&(h.flags&${FLAG_SKIN}u)!=0u){n=deformSkin(h,page,vertex,a.palette,a.joints,vec4f(n,0.0));}

@@ -20,6 +20,7 @@ import type { BlendModePipelines } from '../../blend/stagePipelines.ts';
  *  concatenated geometry, the page table and the material atlases. */
 export interface WebgpuVisState {
   deformationCompute?: DeformationCompute;
+  wholeDeformation?: { table: GPUBuffer; count: number };
   visEnabled: boolean;
   /** An opaque row has shown a surface as-is: the image's flags are read (`../../row/pageRow.ts`). */
   asIsShown: boolean;

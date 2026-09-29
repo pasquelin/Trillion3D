@@ -9,7 +9,7 @@ export const DEFORMATION_PASS = 'Trillion3D deformation';
 /** One invocation per vertex, one group per resident placement; results share its cache slot. */
 export const DEFORMATION_COMPUTE_WGSL = `${PAGE_INFO_STRUCT_WGSL}
 @group(0) @binding(0) var<storage,read_write> indices:array<u32>;
-@group(0) @binding(1) var<storage,read> positions:array<f32>;
+@group(0) @binding(1) var<storage,read_write> positions:array<f32>;
 @group(0) @binding(2) var<storage,read> normals:array<f32>;
 @group(0) @binding(3) var<storage,read> pages:array<PageInfo>;
 @group(0) @binding(4) var<storage,read> uvs:array<f32>;
@@ -17,7 +17,8 @@ export const DEFORMATION_COMPUTE_WGSL = `${PAGE_INFO_STRUCT_WGSL}
 ${PAGE_GEOMETRY_WGSL}
 ${VERT_NORMAL_WGSL}
 ${DEFORM_WGSL}
-fn storeDeformed(at:u32,v:vec3f){
+fn storeDeformed(at:u32,v:vec3f,whole:bool){
+ if(whole){positions[at]=v.x;positions[at+1u]=v.y;positions[at+2u]=v.z;return;}
  indices[at]=bitcast<u32>(v.x);indices[at+1u]=bitcast<u32>(v.y);indices[at+2u]=bitcast<u32>(v.z);
 }
 @compute @workgroup_size(64)
@@ -32,16 +33,17 @@ fn deform(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) la
   var n=vec3f(0.0);
   if((page.flags&${FLAG_CLUSTER_PAGE}u)!=0u){n=clusterNormal(h,page.pageOffset,v);}
   else{n=vertN(page.vertexBase,v);}
-  let at=page.deformOutput-1u+v*11u;
+  let whole=(page.deformOutput&0x80000000u)!=0u;
+  let at=(page.deformOutput&0x7fffffffu)-1u+v*11u;
   var before=deformPoint(page,h,v,p,true);
-  if((page.flags&${FLAG_DYNAMIC}u)!=0u&&indices[at-2u]==page.selectionIndex+1u){
+  if(!whole&&(page.flags&${FLAG_DYNAMIC}u)!=0u&&indices[at-2u]==page.selectionIndex+1u){
    if(indices[at-1u]==image.x-1u){before=pageDeformed(page,v,0u);}
    if(indices[at-1u]==image.x){before=pageDeformed(page,v,3u);}
   }
-  indices[at-2u]=page.selectionIndex+1u;indices[at-1u]=image.x;
-  storeDeformed(at,deformPoint(page,h,v,p,false));
-  storeDeformed(at+3u,before);
-  storeDeformed(at+6u,deformNormal(page,h,v,n));
+  if(!whole){indices[at-2u]=page.selectionIndex+1u;indices[at-1u]=image.x;}
+  storeDeformed(at,deformPoint(page,h,v,p,false),whole);
+  storeDeformed(at+3u,before,whole);
+  storeDeformed(at+6u,deformNormal(page,h,v,n),whole);
  }
 }`;
 
@@ -50,7 +52,7 @@ export const deformationBindings = (): GPUBindGroupLayoutEntry[] =>
   Array.from({ length: 6 }, (_, binding) => ({
     binding,
     visibility: GPUShaderStage.COMPUTE,
-    buffer: { type: binding === 5 ? 'uniform' : binding === 0 ? 'storage' : 'read-only-storage' },
+    buffer: { type: binding === 5 ? 'uniform' : binding <= 1 ? 'storage' : 'read-only-storage' },
   }));
 
 /** Builds once; binding identities follow cache relocation and table growth, never a steady frame. */
@@ -70,28 +72,41 @@ export async function createDeformationCompute(device: GPUDevice) {
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   const imageWords = new Uint32Array(4);
-  let previous: readonly GPUBuffer[] = [],
-    group: GPUBindGroup | undefined;
+  const held: { buffers: readonly GPUBuffer[]; group: GPUBindGroup }[] = [];
+  const bind = (buffers: readonly GPUBuffer[], slot: number) => {
+    if (!held[slot] || buffers.some((buffer, i) => buffer !== held[slot].buffers[i]))
+      held[slot] = {
+        buffers: [...buffers],
+        group: device.createBindGroup({
+          layout,
+          entries: [...buffers, image].map((buffer, binding) => ({
+            binding,
+            resource: { buffer },
+          })),
+        }),
+      };
+    return held[slot].group;
+  };
   const encode = (
     encoder: GPUCommandEncoder,
     buffers: readonly GPUBuffer[],
     rows: number,
     frame: number,
+    whole?: { table: GPUBuffer; count: number },
   ) => {
-    if (!rows) return;
-    if (!group || buffers.some((buffer, i) => buffer !== previous[i])) {
-      previous = [...buffers];
-      group = device.createBindGroup({
-        layout,
-        entries: [...buffers, image].map((buffer, binding) => ({ binding, resource: { buffer } })),
-      });
-    }
+    if (!rows && !whole?.count) return;
     imageWords[0] = frame;
     device.queue.writeBuffer(image, 0, imageWords);
     const pass = encoder.beginComputePass({ label: DEFORMATION_PASS });
     pass.setPipeline(pipeline);
-    pass.setBindGroup(0, group);
-    pass.dispatchWorkgroups(Math.min(rows, 65535), Math.ceil(rows / 65535));
+    if (rows) {
+      pass.setBindGroup(0, bind(buffers, 0));
+      pass.dispatchWorkgroups(Math.min(rows, 65535), Math.ceil(rows / 65535));
+    }
+    if (whole?.count) {
+      pass.setBindGroup(0, bind([buffers[0], buffers[1], buffers[2], whole.table, buffers[4]], 1));
+      pass.dispatchWorkgroups(Math.min(whole.count, 65535), Math.ceil(whole.count / 65535));
+    }
     pass.end();
   };
   return { encode, dispose: () => image.destroy() };

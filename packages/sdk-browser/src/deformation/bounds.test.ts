@@ -85,3 +85,8 @@ test('the cut keeps a cluster its deformation carries into the view, and culls i
   // Carried up to five units, it may stand ahead of the eye: the cut keeps it.
   assert.ok(shown(5) > 0);
 });
+
+test('a zero-radius joint ball at the origin retains translated vertices', () => {
+  const palette = new Float32Array([1, 0, 0, 3, 0, 1, 0, 4, 0, 0, 1, 0]);
+  assert.equal(paletteReach(palette, 0, 1, [0, 0, 0, 0]), 5);
+});

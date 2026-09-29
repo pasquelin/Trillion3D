@@ -1274,6 +1274,14 @@ Visibility, shadows, transparent pages and temporal reprojection read the shared
 settled frame retains resident outputs; eviction makes a cold record, never unrelated history.
 WebGL2 evaluates the sources in the vertex shader using the same compiled stream semantics.
 
+Transmission retains its existing material-driven whole-mesh representation, volume/backdrop
+pass and no-pages contract. Its static source streams and per-placement output rows occupy the
+existing float geometry pool; the same compute pass writes them, with a tagged output address.
+This is not a second deformation stage or a new virtualization exception. Bounds use the same
+control reach and dirty only their old/new region. Unsupported pool capacity is an explicit
+setup error, never a silently undeformed draw. The WebGL transmission vertex stage shares the
+same skin, morph, wave and cooked-soft source functions.
+
 The control record's conservative reach expands bounds in the existing cut. Deformed coarse
 pages add twice the displacement reach to their simplification error: two source vertices may
 move in opposite directions. Exact leaves keep zero simplification error; the resident parent

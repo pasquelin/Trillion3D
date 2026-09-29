@@ -171,3 +171,9 @@ export function noteDeformed(rt: WebgpuPagesRuntime, rank: number, reach: number
   }
   declare(rt, promote(rt, rank));
 }
+
+/** A whole-copy deformation changed only this bounded world region. */
+export function noteDeformedBounds(rt: WebgpuPagesRuntime, box: Float64Array) {
+  moved.set(box);
+  declare(rt, false);
+}

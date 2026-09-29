@@ -100,7 +100,7 @@ ${FACING_WGSL}
  out.pbr=vec4f(it.roughness,it.metalness,it.normalScale);
  out.emissive=vec4f(it.emissive.xyz,0.0);
  var page:PageInfo;
- page.flags=flags;page.vertexBase=it.vertexBase;page.pageOffset=slot.y;page.deform=it.deform;
+ page.flags=flags;page.vertexBase=it.vertexBase;page.pageOffset=slot.y;page.deform=it.deform;page.packedBase=it.deformInput;page.deformOutput=it.deformOutput;
  var count=it.indexCount-slot.y;
  var clusterId=0u;
  if((flags&${FLAG_PAGED}u)!=0u){
