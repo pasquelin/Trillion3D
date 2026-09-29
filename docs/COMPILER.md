@@ -1014,7 +1014,7 @@ Animated scenes continue to use the prepared source tables; an autonomous scene 
 when it would discard animation.
 
 For cooked cloth, rope and soft volumes, the compiler applies the physics cook's weld and compact
-mapping to the render vertices. Geometry page format 6 explicitly marks simulation-source IDs;
+mapping to the render vertices. Geometry page format 7 explicitly marks simulation-source IDs;
 it never silently interprets them as skeleton joints. Physics `render.version: 1` records the
 matching rest positions and triangle indices. Simplified vertices retain their source offset;
 runtime displacement bounds add conservative transfer error until finer resident pages can be

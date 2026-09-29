@@ -26,9 +26,9 @@ export function movedNodes(tables: Pick<PreparedSceneTables, 'skins' | 'animatio
 function ownedMeshes(
   node: Object3D,
   sourceNodes: ReadonlySet<Object3D>,
-  visit: (mesh: Mesh) => void,
+  visit: (mesh: Mesh<object>) => void,
 ) {
-  if (isDrawnNode(node)) visit(node as Mesh);
+  if (isDrawnNode(node)) visit(node);
   for (const child of node.children)
     if (!sourceNodes.has(child)) ownedMeshes(child, sourceNodes, visit);
 }

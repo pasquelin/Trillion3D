@@ -1631,7 +1631,8 @@ world-space TRS against ufbx at each interval's quarter, midpoint and three-quar
 using emitted float32 endpoints and a 2.5e-7 component threshold (relative above magnitude one).
 Regression oracles additionally check non-key times against a 1e-6 component bound. These are
 conversion checks, not a measured image-fidelity claim. Single linear skins and positive
-single-target blends retain non-unit full weights. Stepped/extrapolated curves, intermediate
+single-target blends retain non-unit full weights. Skins with unbound vertices or more than
+65,536 joints refuse explicitly. Stepped/extrapolated curves, intermediate
 shapes, layered/constrained animation and sheared world transforms remain explicit
 `IMPORT_UNSUPPORTED_ANIMATION` refusals. Conversion also refuses more than 36,000 distinct keys
 or times that collapse at float32 precision; it never truncates a clip. glTF retains its original

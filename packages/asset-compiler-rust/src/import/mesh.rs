@@ -30,8 +30,10 @@ pub(super) fn mesh_json(
     let has_color = mesh.vertex_color.exists;
     let deform = MeshDeform::of(mesh);
     for (material_slot, faces) in parts {
-        let mut out = Vertices::default();
-        out.targets = (0..deform.targets()).map(|_| Default::default()).collect();
+        let mut out = Vertices {
+            targets: (0..deform.targets()).map(|_| Default::default()).collect(),
+            ..Default::default()
+        };
         let mut unique: CornerMap = CornerMap::default();
         for &face_index in faces {
             let face = mesh.faces[face_index as usize];
