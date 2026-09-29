@@ -63,6 +63,7 @@ export function pageCopies(
  */
 export function createAutonomousPool(env: {
   context: BackendContext;
+  fixedBytes?: () => number;
   descriptors: ReadonlyMap<string, GeometryPageDescriptor>;
   bootstrapUrls: ReadonlySet<string>;
   modifiedPages: Set<string>;
@@ -80,12 +81,22 @@ export function createAutonomousPool(env: {
   views: Required<Pick<PoolEnvironment, 'others' | 'captureDrawn'>>;
 }) {
   const { context, byUrl, gate, geometryStore, residency, heldFloor } = env,
-    { state } = geometryStore;
+    stored = geometryStore.state,
+    fixedBytes = env.fixedBytes ?? (() => 0),
+    state = {
+      get allocationBytes() {
+        return stored.allocationBytes + fixedBytes();
+      },
+      get residentPages() {
+        return stored.residentPages;
+      },
+    };
   // The minimum capacity: the floor holds the pages the roots' groups replace with the roots.
   const childUrls = new Set(rootChildren(env.roots).map((rec) => rec.url)),
     copies = pageCopies(byUrl, env.roots, env.bootstrapUrls, env.instanceCount, childUrls);
   const budget = createGeometryBudget({
     budgetBytes: context.geometryPoolBytes,
+    fixedBytes,
     ceilingBytes: context.geometryPoolCeilingBytes,
     maxResidentPages: env.cap,
     descriptors: env.descriptors,
@@ -93,7 +104,7 @@ export function createAutonomousPool(env: {
     copies,
     coverRevision: () => heldFloor.revision,
     state,
-    floorBytes: heldFloor.bytes,
+    floorBytes: () => heldFloor.bytes() + fixedBytes(),
     parentsOf: createPageParents(env.roots),
     drop: residency.dropPage,
     others: env.views.others,

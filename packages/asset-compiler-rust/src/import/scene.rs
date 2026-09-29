@@ -65,6 +65,7 @@ impl<'a> Importer<'a> {
             ..Default::default()
         };
         let scene = ufbx::load_memory(mapped, opts).map_err(|e| import_error(&e))?;
+        motion::contract::validate(&scene)?;
         let parse_ms = crate::shared_math::elapsed_ms(started);
         // Missing or truncated material library now carries named counted code;
         // free warning would duplicate, text names machine path.
@@ -85,7 +86,6 @@ impl<'a> Importer<'a> {
                 &*warning.description, warning.count
             ));
         }
-        // Element ids restart in every file: material and mesh lookups are per file, table indices are global.
         let mut local_materials: HashMap<u32, usize> = HashMap::new();
         {
             let mut textures = TextureTable {
@@ -185,6 +185,7 @@ impl<'a> Importer<'a> {
                 typed: typed as usize,
                 node,
                 geometry: false,
+                pose: true,
                 channels: Vec::new(),
             });
         }

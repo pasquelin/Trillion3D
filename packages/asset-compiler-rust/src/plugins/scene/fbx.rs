@@ -7,7 +7,7 @@ use super::ufbx_driver::UfbxDriver;
 /// extension alone names it, which the router tries first.
 pub(super) static FBX: UfbxDriver = UfbxDriver {
     name: "fbx",
-    version: "fbx-ufbx-0.11.3-gltf-8",
+    version: "fbx-ufbx-0.11.3-gltf-9",
     extensions: &["fbx"],
     magic: b"Kaydara FBX Binary",
 };

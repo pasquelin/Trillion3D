@@ -12,7 +12,7 @@ export function updateWholeDeformationBounds(rt: WebgpuPagesRuntime) {
   for (const item of rt.blendState.blendGpu) {
     const box = item.deformBounds,
       source = item.sourceGeometry.boundingBox;
-    if (!box || !source || !deformation.movingOfWorld(item.matrix)) continue;
+    if (!box || !source || !deformation.changedOfWorld(item.matrix)) continue;
     before.set(box);
     readHostBox(local, source);
     const reach = deformation.reachOfWorld(item.matrix);

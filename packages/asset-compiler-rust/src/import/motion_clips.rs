@@ -1,7 +1,4 @@
-//! The animation stacks of an FBX file, sampled into glTF clips: at `RATE` keys a second, each
-//! written node's world pose and each blend channel's weight, as the file evaluates them. A node
-//! that holds still across a stack gets no channel; one that moves is written as the TRS a glTF
-//! animation drives.
+//! Source-key clips for the exactly representable FBX subset validated by `motion_contract`.
 use super::*;
 
 /// Samples of one node across a stack: its pose at each key, and its channels' weights.
@@ -19,11 +16,11 @@ impl Importer<'_> {
     ) -> Result<()> {
         for stack in scene.anim_stacks.iter() {
             let span = stack.time_end - stack.time_begin;
-            if !(span > 0.0) {
+            if span < 0.0 {
                 continue;
             }
-            let keys = ((span * RATE).ceil() as usize + 1).min(MAX_KEYS);
-            let times: Vec<f64> = (0..keys).map(|k| (k as f64 / RATE).min(span)).collect();
+            let times = contract::times(stack)?;
+            let keys = times.len();
             let mut tracks: Vec<Track> = written
                 .iter()
                 .map(|_| Track {
@@ -43,11 +40,14 @@ impl Importer<'_> {
                     } else {
                         &placed.node_to_world
                     };
+                    if node.pose {
+                        contract::matrix(matrix)?;
+                    }
                     track.poses.push(trs(matrix));
-                    let weights = node
-                        .channels
-                        .iter()
-                        .map(|c| ufbx::evaluate_blend_weight(&stack.anim, c, at) as f32);
+                    let weights = node.channels.iter().map(|(c, key)| {
+                        evaluated.blend_channels[c.element.typed_id as usize].keyframes[*key]
+                            .effective_weight as f32
+                    });
                     track.weights.extend(weights);
                 }
             }
@@ -63,12 +63,12 @@ impl Importer<'_> {
                         .iter()
                         .flat_map(|p| p[rank].iter().map(|v| *v as f32))
                         .collect();
-                    if moves(&values, track.poses[0][rank].len()) {
+                    if node.pose {
                         self.pose_by_parts(node.node);
                         clip.push(self, &times, node.node, path, &values);
                     }
                 }
-                if moves(&track.weights, node.channels.len().max(1)) {
+                if !node.channels.is_empty() {
                     clip.push(self, &times, node.node, "weights", &track.weights);
                 }
             }
@@ -171,12 +171,4 @@ fn accessor(importer: &mut Importer<'_>, values: &[f32], kind: &str, mut extra: 
     extra["type"] = json!(kind);
     importer.accessors.push(extra);
     importer.accessors.len() - 1
-}
-
-/// True when the samples, `width` numbers each, are not all the first one, to a millionth.
-fn moves(values: &[f32], width: usize) -> bool {
-    let first = &values[..width.min(values.len())];
-    values
-        .chunks(width)
-        .any(|sample| sample.iter().zip(first).any(|(a, b)| (a - b).abs() > 1e-6))
 }
