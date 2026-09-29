@@ -131,7 +131,13 @@ fn primitive(
     let tile = crate::geometry_page_quant::tile::tile_log2(None);
     let uv = crate::geometry_page_quant::primitive_uv_exponent(&[], false);
     let store = |slice: &[u32], exponent: i32| {
-        crate::compiler_page_object::store_page(&o, slice, pos, &[], exponent, uv)
+        crate::compiler_page_object::store_page(
+            &o,
+            slice,
+            (pos, &[], &Default::default()),
+            exponent,
+            uv,
+        )
     };
     let built = on(parallel, || {
         build_dag_primitive(&o, pos, &[], triangles, demand, false, tile, &store)

@@ -7,7 +7,6 @@ pub(super) struct PrimitiveInputs<'a> {
     pub g: &'a Value,
     pub bin: &'a [u8],
     pub mesh_values: &'a [Value],
-    pub skinned_meshes: &'a BTreeSet<usize>,
     pub mesh_map: &'a BTreeMap<usize, usize>,
     /// Largest world scale under which each source mesh is placed: it is what
     /// brings the proxy threshold, expressed in metres, into the primitive's
@@ -49,7 +48,6 @@ pub(super) fn compile_primitive(
         g,
         bin,
         mesh_values,
-        skinned_meshes,
         mesh_map,
         mesh_scales,
         scene_triangles,
@@ -115,19 +113,15 @@ pub(super) fn compile_primitive(
         let _t = perf::Timer::new(perf::Phase::Topology);
         crate::topology::classify_topology(&index_values, positions.count)?
     };
-    let is_skinned_or_morph = p.get("targets").is_some()
-        || skinned_meshes.contains(old)
-        || p.get("attributes")
-            .and_then(Value::as_object)
-            .map(|a| a.contains_key("JOINTS_0") || a.contains_key("WEIGHTS_0"))
-            .unwrap_or(false);
     let material = if let Some(material) = p.get("material") {
         let id = required_index(Some(material), "primitive.material")?;
         values(g, "materials")?.get(id)
     } else {
         None
     };
-    let unsplit = is_skinned_or_morph || unsplit_material(material);
+    // A skinned or morphed primitive joins the DAG: its pages carry its joints, weights and
+    // targets, deformed on the GPU before culling and raster (#357).
+    let unsplit = unsplit_material(material);
     let clustered_blend = !unsplit
         && material
             .and_then(|m| m.get("alphaMode"))
@@ -136,15 +130,19 @@ pub(super) fn compile_primitive(
     let mesh = *mesh_map
         .get(old)
         .ok_or_else(|| invalid("Missing mesh mapping"))?;
-    let attributes = if unsplit {
-        Vec::new()
+    let (attributes, deformation) = if unsplit {
+        (Vec::new(), Default::default())
     } else {
-        compiler_page_object::page_attributes(g, bin, p, positions.count, validated)?
+        (
+            compiler_page_object::page_attributes(g, bin, p, positions.count, validated)?,
+            compiler_page_object::page_deformation(g, bin, p, positions.count, validated)?,
+        )
     };
     let carried = carried_attributes(&attributes, material);
     let uv_exponent = geometry_page_quant::primitive_uv_exponent(&carried, clustered_blend);
     let store = |slice: &[u32], position_exponent: i32| {
-        compiler_page_object::store_page(o, slice, &pos, &carried, position_exponent, uv_exponent)
+        let streams = (pos.as_slice(), carried.as_slice(), &deformation);
+        compiler_page_object::store_page(o, slice, streams, position_exponent, uv_exponent)
     };
     // Transparent primitives join the DAG too: their draw order is restored at runtime from the
     // recorded source rank, so spatial clustering no longer scrambles the blend order.

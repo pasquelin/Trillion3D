@@ -80,8 +80,7 @@ fn measure(primitive: &Primitive) -> Vec<Page> {
         let (value, reused) = crate::compiler_page_object::store_page(
             &o,
             slice,
-            primitive.positions,
-            primitive.carried,
+            (primitive.positions, primitive.carried, &Default::default()),
             exponent,
             uv,
         )?;

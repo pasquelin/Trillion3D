@@ -54,6 +54,7 @@ mod tests_grid;
  * and local indices coded by delta within blocks of triangles. Tangents are never stored — a reader rebuilds them from the
  * triangle's positions and texture coordinates.
  */
+#[cfg(test)]
 pub fn encode(
     indices: &[u32],
     positions: &[f32],
