@@ -6,6 +6,7 @@ import type { ShadowPool } from './pool.ts';
 import type { ShadowRecords } from './records.ts';
 import type { ShadowTable } from './table.ts';
 import type { SunLevels } from './sunLevels.ts';
+import { SHADOW_REQUEST_MISS } from './footprint.ts';
 import {
   LAMP_FLOOR_MIP,
   PAGE_INDEX_MASK,
@@ -57,7 +58,8 @@ export type ShadowAsks = { entries: Uint32Array; count: number };
  * every frame, every lamp face's among them — no report names a floor for it any more.
  *
  * A report read against another table layout is dropped: its words name ranges that moved. A sun
- * entry is read with the extents of the frame that wrote it (`entryPages.ts`). Allocates nothing.
+ * entry is read with the extents of the frame that wrote it (`entryPages.ts`), and dropped when its
+ * page has left the clipmap since. Allocates nothing past construction.
  */
 export function createShadowRequests(
   table: ShadowTable,
@@ -137,8 +139,9 @@ export function createShadowRequests(
       if (report.pool) return;
       needs.clear();
       for (let i = 0; i < counts.requested; i++) {
-        const entry = report.entries[i],
-          word = table.words[entry];
+        const entry = report.entries[i];
+        if (entry >= SHADOW_REQUEST_MISS) continue; // a miss grows its page: `demandFootprint.ts`
+        const word = table.words[entry];
         let slice: number;
         if (word & PAGE_MAPPED) {
           const page = word & PAGE_INDEX_MASK;

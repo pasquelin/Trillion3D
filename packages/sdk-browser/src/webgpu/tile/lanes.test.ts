@@ -49,3 +49,37 @@ test('each texture lives in the pool of its lane, and an empty lane has a stand-
   atlas.destroy();
   assert.equal(destroyed(), 4, 'both pools and the stand-in');
 });
+
+// #847: a texture appended after open takes a lane no texture took — the resize opens its pool —
+// with its tail pinned there and a new views tuple, so every group naming the atlas is rebuilt;
+// the tiles held stay where they were.
+test('an appended texture opens its lane, pins its tail there and hands out new views', () => {
+  const { gpu } = textureDevice();
+  const layout = tileLayout(4096, 4096),
+    queue = { writeTexture() {} } as never;
+  const texture = (lane: 'rgba' | 'two-channel') => ({
+    layout,
+    lane,
+    source: { kind: 'bytes' as const, tail: empty },
+  });
+  const atlas = createWebgpuTileAtlas(gpu, {
+    kind: 'data',
+    encoding: poolEncoding('bc7'),
+    layers: { lossless: 0, rgba: 1, 'two-channel': 0 },
+    feedbackOffset: 0,
+    textures: [texture('rgba')],
+  });
+  atlas.pinTails(queue, () => {});
+  atlas.place({ slot: 0, level: 0, tx: 0, ty: 0 }, 10);
+  const views = atlas.views,
+    held = atlas.pages.entryOf({ slot: 0, level: 0, tx: 0, ty: 0 });
+  assert.equal(atlas.resize(gpu, { lossless: 0, rgba: 1, 'two-channel': 1 }).replaced, 1);
+  assert.equal(atlas.append(texture('two-channel')), 1);
+  atlas.pinTails(queue, () => {}, 1);
+  assert.notEqual(atlas.views, views, 'a new tuple: the groups are rebuilt');
+  assert.equal(atlas.views[2], atlas.poolOf(1).view, 'the two-channel lane has its pool');
+  assert.deepEqual([atlas.poolOf(0).resident, atlas.poolOf(1).resident], [2, 1]);
+  assert.equal(atlas.pages.entryOf({ slot: 0, level: 0, tx: 0, ty: 0 }), held);
+  assert.equal(atlas.pages.words[1], 2);
+  atlas.destroy();
+});

@@ -1609,6 +1609,7 @@
       "MATERIAL_CLASS_CHANGE": "Un changement de matériau est inconnu, hors limites, le mettrait dans une classe de dessin qu’un moteur fixe à l’ouverture de la scène, ou répéterait une texture qu’il partage.",
       "MATERIAL_TEXTURE_SHARED": "Un changement de matériau est inconnu, hors limites, le mettrait dans une classe de dessin qu’un moteur fixe à l’ouverture de la scène, ou répéterait une texture qu’il partage.",
       "MATERIAL_CEILING": "Une page créerait plus de matériaux que `RUNTIME_MATERIAL_CEILING` en une session ; rien n’a été créé.",
+      "TEXTURE_BUDGET": "Une texture ajoutée après l’ouverture de la scène porterait la réserve de textures au-delà de `texturePoolBytes` ou des couches que l’appareil tient ; rien n’a été ajouté.",
       "INVALID_TRANSFORM": "Le placement d’un nœud n’est pas une matrice utilisable, ou un nœud serait son propre ancêtre.",
       "NON_FINITE_TRANSFORM": "Le placement d’un nœud n’est pas une matrice utilisable, ou un nœud serait son propre ancêtre.",
       "SINGULAR_PARENT_TRANSFORM": "Le placement d’un nœud n’est pas une matrice utilisable, ou un nœud serait son propre ancêtre.",
@@ -5528,7 +5529,7 @@
       "shadowStaticDrawCalls": "Appels de dessin de projeteurs statiques : dans la couche statique, ou d’une page dessinée entière sans elle.",
       "shadowMovingDrawCalls": "Appels de dessin des seuls projeteurs mobiles, sur des pages restaurées depuis la couche statique.",
       "shadowMovingCastersKept": "Parmi `shadowCastersKept`, les clusters gardés pour dessiner les seuls projeteurs mobiles.",
-      "shadowPagesStaledBy": "Pages que l’image a rendues périmées, par raison : lumière, projeteur immobile, projeteurs mobiles, détail, seuil de coupe, ou plage de profondeur d’un soleil.",
+      "shadowPagesStaledBy": "Pages que l’image a rendues périmées, par raison : lumière, projeteur immobile, projeteurs mobiles, détail, seuil de coupe, plage de profondeur d’un soleil, ou empreinte que ses receveurs ont agrandie.",
       "shadowWaitMs": "Depuis combien de millisecondes la plus ancienne page périmée que l’image lit attend d’être redessinée. Seul compte le temps où l’image la lit ; 0 une fois redessinée.",
       "shadowCutDrops": "Lots de la coupe depuis la lumière qui ont abandonné du travail — leurs vues ont gardé plus de clusters que les listes n’en tiennent —, depuis l’ouverture de l’explorateur : chacun renvoie ses pages, retirées jusqu’à être redessinées (#525). Null sur un moteur sans coupe GPU depuis la lumière, comme les trois suivants.",
       "shadowCutWithdrawnPages": "Pages redessinées parce qu’une coupe depuis la lumière les a mal dessinées, depuis l’ouverture de l’explorateur : son lot a abandonné du travail, ou son drapeau n’a jamais été lu. Elles sont retirées jusqu’à être redessinées.",
@@ -5560,6 +5561,7 @@
       "shadowMemoryEvents": "Les événements de pression mémoire des ombres depuis l’ouverture du monde, par nom, dans l’ordre ; vide normalement.",
       "shadowPagesRefetched": "Pages virtuelles placées de nouveau après que le pool les a évincées pour faire de la place, depuis l’ouverture de l’explorer : les redessins que coûte un pool trop petit pour ce que lisent les images.",
       "shadowCastersKept": "Projeteurs gardés par le tri par page, toutes pages dessinées réunies, sur l’image que l’appareil a échantillonnée en dernier — une sur quinze ; `null` tant qu’aucun échantillon n’est revenu.",
+      "shadowCastersRejected": "Projeteurs que le tri par page a testés sans les garder — hors de la partie de la page que lisent ses receveurs —, sur la même image échantillonnée ; `null` tant qu’aucun échantillon n’est revenu.",
       "shadowCastersHidden": "Projeteurs mobiles que le test d’occultation a trouvés cachés derrière la couche statique de leur page, sur l’image que l’appareil a échantillonnée en dernier ; `null` tant qu’aucun échantillon n’est revenu."
     }
   },
@@ -6750,7 +6752,7 @@
     "summary": "Modifie un matériau importé ou créé à l’image suivante."
   },
   "world.createMaterial": {
-    "summary": "Crée un matériau appartenant à cette page."
+    "summary": "Crée un matériau de la page ; avec une image, attendre son admission avant de l’attribuer."
   },
   "world.assignMaterial": {
     "summary": "Attribue le matériau créé par la page à un `mesh/primitive` compilé."
@@ -6882,7 +6884,7 @@
       "shadowStaticDrawCalls": "Appels de dessin de projeteurs statiques : dans la couche statique, ou d’une page dessinée entière sans elle.",
       "shadowMovingDrawCalls": "Appels de dessin des seuls projeteurs mobiles, sur des pages restaurées depuis la couche statique.",
       "shadowMovingCastersKept": "Parmi `shadowCastersKept`, les clusters gardés pour dessiner les seuls projeteurs mobiles.",
-      "shadowPagesStaledBy": "Pages que l’image a rendues périmées, par raison : lumière, projeteur immobile, projeteurs mobiles, détail, seuil de coupe, ou plage de profondeur d’un soleil.",
+      "shadowPagesStaledBy": "Pages que l’image a rendues périmées, par raison : lumière, projeteur immobile, projeteurs mobiles, détail, seuil de coupe, plage de profondeur d’un soleil, ou empreinte que ses receveurs ont agrandie.",
       "shadowWaitMs": "Depuis combien de millisecondes la plus ancienne page périmée que l’image lit attend d’être redessinée. Seul compte le temps où l’image la lit ; 0 une fois redessinée.",
       "shadowCutDrops": "Lots de la coupe depuis la lumière qui ont abandonné du travail — leurs vues ont gardé plus de clusters que les listes n’en tiennent —, depuis l’ouverture de l’explorateur : chacun renvoie ses pages, retirées jusqu’à être redessinées (#525). Null sur un moteur sans coupe GPU depuis la lumière, comme les trois suivants.",
       "shadowCutWithdrawnPages": "Pages redessinées parce qu’une coupe depuis la lumière les a mal dessinées, depuis l’ouverture de l’explorateur : son lot a abandonné du travail, ou son drapeau n’a jamais été lu. Elles sont retirées jusqu’à être redessinées.",
@@ -6953,6 +6955,7 @@
       "shadowMemoryEvents": "Les événements de pression mémoire des ombres depuis l’ouverture du monde, par nom, dans l’ordre ; vide normalement.",
       "shadowPagesRefetched": "Pages virtuelles placées de nouveau après que le pool les a évincées pour faire de la place, depuis l’ouverture de l’explorer : les redessins que coûte un pool trop petit pour ce que lisent les images.",
       "shadowCastersKept": "Projeteurs gardés par le tri par page, toutes pages dessinées réunies, sur l’image que l’appareil a échantillonnée en dernier — une sur quinze ; `null` tant qu’aucun échantillon n’est revenu.",
+      "shadowCastersRejected": "Projeteurs que le tri par page a testés sans les garder — hors de la partie de la page que lisent ses receveurs —, sur la même image échantillonnée ; `null` tant qu’aucun échantillon n’est revenu.",
       "shadowCastersHidden": "Projeteurs mobiles que le test d’occultation a trouvés cachés derrière la couche statique de leur page, sur l’image que l’appareil a échantillonnée en dernier ; `null` tant qu’aucun échantillon n’est revenu.",
       "dynamicUploadBytes": "Octets de sommets de géométrie dynamique envoyés sur place à cette image (#573), dans le budget par image du monde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Absent là où aucun monde ne dessine."
     }
@@ -7866,7 +7869,7 @@
       "alphaMode": "Comment le canal alpha d’une surface est lu : opaque l’ignore, `mask` coupe à `alphaCutoff`, `blend` compose.",
       "alphaCutoff": "Les pixels moins opaques que ceci disparaissent.",
       "name": "Un nom à l’usage de la page.",
-      "map": "Une image et la façon de l’échantillonner, dans les mots d’une page (`wrap`, `filter`, `colorSpace`)."
+      "map": "ImageBitmap appartenant à l’appelant, sans prémultiplication ni conversion de couleur ; le garder ouvert jusqu’à la libération."
     }
   },
   "SceneMaterial": {
@@ -7928,5 +7931,11 @@
       "positions": "Ses sommets, trois nombres chacun, dans l’espace du monde.",
       "indices": "Ses triangles, trois indices locaux chacun."
     }
+  },
+  "world.dropMaterial": {
+    "summary": "Libère un matériau créé inutilisé ; réattribuer ses objets auparavant."
+  },
+  "world.materialMapBytes": {
+    "summary": "Octets des images conservées ou en attente, limités à 64 Mio."
   }
 }

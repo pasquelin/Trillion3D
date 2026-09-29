@@ -11,6 +11,7 @@ import type { WebgpuTilePool } from './pool.ts';
  */
 export function createTileCounters() {
   return {
+    uploadedBytes: 0,
     served: 0,
     pending: 0,
     deferred: 0,
