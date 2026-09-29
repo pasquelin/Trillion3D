@@ -6,6 +6,7 @@ import { Material } from '../../../../sdk-core/src/world/material/material.ts';
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import { object } from '../../../../sdk-core/src/world/object/index.ts';
 import type { SceneLight } from '../../../../sdk-core/src/scene/light/contracts.ts';
+import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
 import { createWorldLights } from './worldLights.ts';
 
 /** A drawn graph whose one surface wears `roughness`; empty when it declares none. */
@@ -14,17 +15,6 @@ const graph = (roughness?: number) => {
   if (roughness !== undefined)
     root.add(new Mesh(new Geometry(), new Material('meshStandard', { roughness })));
   return root;
-};
-
-/** A light store recording what is written into it. */
-const store = () => {
-  const held = new Set<string>();
-  return {
-    held,
-    addLight: (record: { id: string }) => void held.add(record.id),
-    setLight: () => {},
-    removeLight: (id: string) => void held.delete(id),
-  };
 };
 
 /** A light store keeping the whole record written under each id. */
@@ -45,7 +35,7 @@ test('a light under a hidden group lights nothing, and lights again once shown',
   group.add(light.point({ intensity: 5 }), light.ambient({ intensity: 1 }));
   scene.add(group);
   const lights = createWorldLights(),
-    api = store();
+    api = records();
   assert.ok(lights.sync(scene, api));
   assert.equal(api.held.size, 1);
   group.visible = false;
@@ -92,6 +82,10 @@ test('a rough scene shows less of a distant lamp, and unknown roughness takes th
     lights.sync(scene, api, { exposure: 1, toneMapping: 'aces' }, graph(roughness));
     return api.held.get('world-light-1')!.range!;
   };
-  assert.ok(reachAt(0.95) < reachAt(Number(0.0525)), 'a rough scene keeps a lamp closer');
-  assert.equal(reachAt(undefined), reachAt(Number(0.0525)), 'unknown roughness takes the floor');
+  assert.ok(reachAt(0.95) < reachAt(Number(ROUGHNESS_FLOOR)), 'a rough scene keeps a lamp closer');
+  assert.equal(
+    reachAt(undefined),
+    reachAt(Number(ROUGHNESS_FLOOR)),
+    'unknown roughness takes the floor',
+  );
 });

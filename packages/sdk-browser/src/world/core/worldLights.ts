@@ -125,10 +125,5 @@ export function createWorldLights() {
       }
       return surrounding ? sh : undefined;
     },
-    /** The frame's environment: its display, and the irradiance every surrounding light gives —
-     *  what a session writes before each frame, its lamps bounded to what the frame shows (#958). */
-    environment(scene: Object3D, api: LightApi, display: Display, graph?: Object3D) {
-      return { ...display, irradiance: this.sync(scene, api, display, graph) };
-    },
   };
 }

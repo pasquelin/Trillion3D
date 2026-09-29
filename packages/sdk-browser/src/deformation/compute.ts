@@ -2,6 +2,7 @@ import { PAGE_GEOMETRY_WGSL } from '../visibility/shader/pageGeometryWgsl.ts';
 import { PAGE_INFO_STRUCT_WGSL, VERT_NORMAL_WGSL } from '../visibility/shader/pageWgsl.ts';
 import { FLAG_CLUSTER_PAGE, FLAG_DYNAMIC } from '../visibility/types.ts';
 import { DEFORM_WGSL } from './deformWgsl.ts';
+import { dispatchGrid } from '../gpu/dag/shader/gridWgsl.ts';
 
 /** Timestamp label published by the existing per-frame GPU timing recorder. */
 export const DEFORMATION_PASS = 'Trillion3D deformation';
@@ -102,12 +103,12 @@ export async function createDeformationCompute(device: GPUDevice) {
     pass.setPipeline(pipeline);
     if (rows) {
       pass.setBindGroup(0, bind(buffers, 0));
-      pass.dispatchWorkgroups(Math.min(rows, 65535), Math.ceil(rows / 65535));
+      pass.dispatchWorkgroups(...dispatchGrid(rows));
     }
     if (whole?.count) {
       for (let i = 0; i < 5; i++) wholeBuffers[i] = i === 3 ? whole.table : buffers[i];
       pass.setBindGroup(0, bind(wholeBuffers, 1));
-      pass.dispatchWorkgroups(Math.min(whole.count, 65535), Math.ceil(whole.count / 65535));
+      pass.dispatchWorkgroups(...dispatchGrid(whole.count));
     }
     pass.end();
   };

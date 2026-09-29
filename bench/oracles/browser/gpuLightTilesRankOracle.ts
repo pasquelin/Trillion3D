@@ -83,6 +83,10 @@ function maskTotal(hits: Uint32Array, mask: number, words: number) {
   return total;
 }
 
+/** The record's last word (#1249): one when the opaque slice keeps a light with a shadow slot. */
+export const tileShadowFlag = (opaque: Iterable<number>, shadowed: (rank: number) => boolean) =>
+  [...opaque].some(shadowed) ? 1 : 0;
+
 /** The lights each slice of the tile keeps, by rank in the scene: `shadowed` names those that
  *  carry a shadow slot, so the record's flag word matches the pass's (#1249). */
 export type TileKeeps = {
@@ -151,8 +155,7 @@ export function compactTile(
   );
   const total = kept.map((sum, slice) => sum + maskTotal(hits, masks[slice], live));
   [tiles[0], tiles[1]] = total;
-  // The record's last word: one when the opaque slice keeps a light with a shadow slot (#1249).
-  tiles[layout.shadowBase] = [...opaque].some((rank) => shadow.has(rank)) ? 1 : 0;
+  tiles[layout.shadowBase] = tileShadowFlag(opaque, (rank) => shadow.has(rank));
   if (Math.max(...total) <= layout.tileLights) return tiles;
   // `spill`, thread zero, then the slices written again.
   for (const slice of [0, 1]) {

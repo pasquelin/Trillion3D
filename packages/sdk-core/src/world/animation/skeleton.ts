@@ -7,7 +7,6 @@ export const PALETTE_FLOATS = 12;
 
 const meshInverse = new Float64Array(16),
   joint = new Float64Array(16),
-  bind = new Float64Array(16),
   boneWorld = new Float64Array(16);
 
 /**
@@ -47,9 +46,8 @@ export class Skeleton {
   ) {
     invertMatrix4(meshInverse, meshWorld);
     this.bones.forEach((bone, j) => {
-      bind.set(this.boneInverses.subarray(j * 16, j * 16 + 16));
       boneWorld.set((boneWorlds?.[j] ?? bone.matrixWorld).elements);
-      multiplyMatrix4(joint, boneWorld, bind);
+      multiplyMatrix4(joint, boneWorld, this.boneInverses.subarray(j * 16, j * 16 + 16));
       multiplyMatrix4(joint, meshInverse, joint);
       const base = at + j * PALETTE_FLOATS;
       for (let row = 0; row < 3; row++)

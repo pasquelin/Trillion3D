@@ -33,9 +33,9 @@ const cross = (a: ArrayLike<number>, b: ArrayLike<number>) => [
   a[2] * b[0] - a[0] * b[2],
   a[0] * b[1] - a[1] * b[0],
 ];
-const angle = (a: ArrayLike<number>, b: ArrayLike<number>) =>
-  Math.acos(Math.min(1, Math.max(-1, dot(a, b) / (length(a) * length(b) || 1))));
 const clampedAcos = (x: number) => Math.acos(Math.min(1, Math.max(-1, x)));
+const angle = (a: ArrayLike<number>, b: ArrayLike<number>) =>
+  clampedAcos(dot(a, b) / (length(a) * length(b) || 1));
 
 /** Writes a node's world position into `out`. */
 function worldPoint(node: Object3D, out: Float64Array) {
@@ -82,7 +82,8 @@ export function solveTwoBoneIK(
 ) {
   const { a, b, c, t, ab: toMid, cb: toEnd, ac: reach, at: aim, ba: back } = scratch;
   root.updateMatrixWorld(true);
-  const kept = [root.quaternion.clone(), mid.quaternion.clone()];
+  // Only a partial solve blends back to the pose it had.
+  const kept = !(weight >= 1) ? [root.quaternion.clone(), mid.quaternion.clone()] : null;
   worldPoint(root, a);
   worldPoint(mid, b);
   worldPoint(end, c);
@@ -108,7 +109,7 @@ export function solveTwoBoneIK(
   worldPoint(end, c);
   sub(ac, c, a);
   turnInWorld(root, cross(ac, at), angle(ac, at));
-  if (weight >= 1) return;
+  if (!kept) return;
   root.quaternion.slerp(kept[0], 1 - Math.max(0, weight));
   mid.quaternion.slerp(kept[1], 1 - Math.max(0, weight));
   root.updateMatrixWorld(true);

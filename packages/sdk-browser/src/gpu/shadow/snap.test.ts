@@ -65,7 +65,7 @@ test('a corner within the pool snaps on the constant subtexel step', () => {
     assert.equal(snap(vec4f(x, 0, 0.5, 1)).x, Math.round(x * step) / step, `corner ${x}`);
   }
   // Only a corner past the pool's f32 subtexel reaches `snapGrid`.
-  assert.match(SHADOW_DEPTH_SHADER, /if\(abs\(p\.x\)\*half\+pool>=edge\)/);
+  assert.match(SHADOW_DEPTH_SHADER, /let rx=abs\(p\.x\)\*half\+pool;.*if\(rx>=edge\)/s);
 });
 
 // #1016: a caster whose sphere touches a page is drawn whole (`cullShader.ts`), and a flat floor's

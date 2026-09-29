@@ -129,9 +129,11 @@ const counted = new Set<ArrayBufferView>();
 export function hostPageBytes(geometry: Geometry) {
   counted.clear();
   // A dynamic page reads its primitive's own lists (`sourcedPageGeometry`): its index alone is its.
-  if (geometry.usage === 'dynamic')
-    return (geometry.index?.array.byteLength ?? 0) + geometryDeformationBytes(geometry);
-  return geometryBytes(geometry, counted) + geometryDeformationBytes(geometry);
+  const own =
+    geometry.usage === 'dynamic'
+      ? (geometry.index?.array.byteLength ?? 0)
+      : geometryBytes(geometry, counted);
+  return own + geometryDeformationBytes(geometry);
 }
 
 /** Gives a page geometry back: the draw frees its buffers. */

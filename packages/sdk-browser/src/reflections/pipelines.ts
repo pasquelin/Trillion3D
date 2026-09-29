@@ -1,6 +1,6 @@
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
 import { makeFullscreenPipeline } from '../lighting/deferred/fullscreen.ts';
-import { reflectionLayout } from './gpu.ts';
+import { reflectionLayout } from './layout.ts';
 import { reflectionSource, withScreenReflections } from './screenWgsl.ts';
 import { stochasticReflectionShader } from './sampleWgsl.ts';
 import { REFLECTION_RESOLVE_WGSL, reflectionResolveLayout } from './resolveWgsl.ts';

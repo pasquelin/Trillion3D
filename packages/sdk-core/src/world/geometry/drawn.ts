@@ -57,7 +57,7 @@ function drawTriangles(
     const drawn = solids(points(p, (options.size ?? 1) / 2));
     if (drawn)
       drawn.sourceVertices = Uint32Array.from({ length: drawn.positions.length / 3 }, (_, v) =>
-        Math.floor(v / 24),
+        Math.floor(v / POINT_VERTICES),
       );
     return drawn;
   }
@@ -110,6 +110,9 @@ export function lineCorners(
     segments.push(corners[corners.length - 1], corners[0]);
   return segments;
 }
+
+/** Drawn vertices of one point's octahedron: eight faces of three corners. */
+const POINT_VERTICES = 24;
 
 /** An octahedron of radius `r` on every vertex. */
 function points(p: number[], r: number) {

@@ -1,5 +1,5 @@
 import { createDepthBoundsMipChain, createRadianceMipChain } from '../texture/mipBatch.ts';
-import { textureBytesOf } from '../gpu/core/deviceLedger.ts';
+import { textureBytesOf } from '../gpu/core/textureBytes.ts';
 import { uniformStride } from '../residency/pools.ts';
 import { levelSize, mipLevelCountFor } from '../texture/tiles.ts';
 

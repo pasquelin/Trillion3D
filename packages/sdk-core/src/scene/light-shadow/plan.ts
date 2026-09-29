@@ -116,12 +116,10 @@ export function createShadowPlan(poolSide: number, layers = 1) {
       const still = changes.observeView(view),
         quiet = still && !changes.worldMoved();
       resting = still;
-      if (quiet) {
-        if (restFrame < 0) restFrame = frame;
-      } else restFrame = -1;
       if (!still) views++;
       // At rest the cycle is the frame it began at, so the pool keeps every page the still cycle
       // named; moving, it is the frame itself, so only what this frame names survives.
+      restFrame = !quiet ? -1 : restFrame < 0 ? frame : restFrame;
       const cycle = quiet ? restFrame : frame;
       planLights(lightsState, store, view, sceneMin, sceneMax, frame, nowMs, byPage);
       changes.settled();
@@ -144,7 +142,7 @@ export function createShadowPlan(poolSide: number, layers = 1) {
       }
       const admitStart = performance.now();
       spent.requestsMs = admitStart - readStart;
-      requests.floors(posed, view, nowMs, frame, cycle);
+      requests.floors(posed, view, nowMs, frame, quiet ? restFrame : undefined);
       const count = admission.run(pool, table, requests.latest, frame, records.isFloor);
       for (let i = 0; i < count; i++) {
         const slice = pool.slice[admission.list[i]];
