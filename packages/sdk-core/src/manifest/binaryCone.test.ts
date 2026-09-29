@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { TEMPLATES, sha, manifest } from '../../../../tests/fixtures/manifestBinary.ts';
-import { decodeManifestBinary, encodeManifestBinary } from './binary.ts';
+import { decodeManifestBinary } from './binary.ts';
+import { encodeManifestBinary } from '../../../../tests/fixtures/manifestBinaryEncode.ts';
 import { EngineError } from '../contracts/index.ts';
 
 // A version-9 page always has a cone: a hand-written page without one gets the open cone.

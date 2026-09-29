@@ -1529,10 +1529,6 @@
   "emptyIrradiance": {
     "summary": "Eine leere Bestrahlungsstärke, bereit, Quellen zu empfangen."
   },
-  "encodeManifestBinary": {
-    "summary": "Trennt ein Manifest in kleines JSON, das ein Leser analysiert, und in Spalten, die er projiziert.",
-    "description": "Der zurückgegebene Deskriptor trägt einen leeren `sha256`: nur der Aufrufer, der die fertigen Bytes hält, kann ihren Fingerabdruck bilden."
-  },
   "EngineCamera": {
     "summary": "Die Kamera der Engine: die Zahlen eines Bildes, in eigenen, an Ort und Stelle neu geschriebenen Puffern.",
     "description": "Keine Struktur einer Host-Bibliothek überquert eine Signatur nach `readCameraWorld` (`world.ts`, die einzige Übersetzung von einer Host-Kamera).",

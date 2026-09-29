@@ -21,6 +21,5 @@ export type {
   SlimPrimitiveBinary,
 } from './binaryTypes.ts';
 export { manifestBinaryRanges } from './binaryLayout.ts';
-export { encodeManifestBinary } from './binaryEncode.ts';
 /** Rebuilds the pages and primitives a backend consumes from validated binary columns. */
 export { decodeManifestBinary, decodeManifestPreviews } from './binaryDecode.ts';
