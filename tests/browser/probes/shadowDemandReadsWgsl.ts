@@ -34,7 +34,7 @@ ${LITS(2)}
 @compute @workgroup_size(64) fn main(@builtin(global_invocation_id) id:vec3u){
  if(id.x>=arrayLength(&lits)){return;}
  let lit=lits[id.x];
- for(var i=0u;i<directLights.count;i++){demandLight(directLights.items[i],lit.P.xyz,lit.N.xyz,lit.P.w);}
+ for(var i=0u;i<directLights.count;i++){demandLight(directLights.items[i],lit.P.xyz,lit.P.xyz,lit.N.xyz,false,lit.P.w);}
 }`;
 
 /** The shading's read at every lit point, behind the resolve's own gate (`declaredLight`). */

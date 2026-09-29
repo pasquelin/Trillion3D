@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { reflectionFrame } from './frame.ts';
-import { noteShadowFrame } from '../webgpu/pages/state/lights.ts';
+import { noteShadowFrame } from '../webgpu/pages/render/encodeShadowBatches.ts';
 import { settledRt } from '../webgpu/frame/hold.fixture.ts';
 
 test('a shadow page landing changes the reflected source epoch without a host mutation', () => {

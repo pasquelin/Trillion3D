@@ -7,7 +7,7 @@ export const SHADOW_DEMAND_PASS = 'Trillion3D shadow demand v1';
 
 /** What the demand pass reads and writes, in binding order: the visibility buffer's depth, normals
  *  and surface flags, the deferred view uniform, the lights and their tile lists, the shadow
- *  records and page table, and the request buffer it marks. */
+ *  records and page table, the request buffer it marks, and the pixels' shading-point offsets. */
 type ShadowDemandInputs = readonly [
   depth: GPUTextureView,
   normalRough: GPUTextureView,
@@ -17,6 +17,7 @@ type ShadowDemandInputs = readonly [
   tiles: GPUBuffer,
   shadows: GPUBuffer,
   requests: GPUBuffer,
+  shadingOffset: GPUBuffer,
 ];
 
 const BINDINGS: ComputeBinding[] = [
@@ -28,6 +29,7 @@ const BINDINGS: ComputeBinding[] = [
   'read-only-storage',
   'read-only-storage',
   'storage',
+  'read-only-storage',
 ];
 
 /**
@@ -61,6 +63,7 @@ export function encodeShadowDemand(rt: WebgpuPagesRuntime, encoder: GPUCommandEn
     tiles.buffer,
     shadows.dataBuffer,
     pageRequests.buffer,
+    gpu.surfaces.shadingOffset,
   ];
   demand(encoder, inputs, [
     Math.ceil(width / SHADOW_DEMAND_GROUP),
