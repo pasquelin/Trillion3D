@@ -1,7 +1,12 @@
 import type { PageRec } from '../../page/selection/selection.ts';
 import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts';
 import { castsBlendShadow } from '../../gpu/shadow/transmittance.ts';
-import { ROW_BLEND_COVERAGE_WORD, ROW_INDEX_WORDS, type createPageRowWriter } from './pageRow.ts';
+import {
+  ROW_BLEND_COVERAGE_WORD,
+  ROW_INDEX_WORDS,
+  ROW_TRANSMISSION_WORD,
+  type createPageRowWriter,
+} from './pageRow.ts';
 import type { createWebgpuRowState } from './state.ts';
 import { awaitsPageBytes } from './pageSlots.ts';
 
@@ -82,12 +87,14 @@ export function createBlendCasterRows(
     const rec = packedPages[page],
       ints = rows.pageTableInts!,
       coverage = row * ROW_WORDS + ROW_BLEND_COVERAGE_WORD,
-      before = ints[coverage];
+      before = ints[coverage],
+      wasTransmissive = rows.pageTableFloats![row * ROW_WORDS + ROW_TRANSMISSION_WORD] > 0;
     rows.packedRecs[row] = rec;
     rows.packedPageIndex[row] = page;
     const offsetWords = rows.residentOffsetWords[page];
     writePageRow(rec, page, row, offsetWords, rows.pageTableFloats!, ints);
-    if (held && ints[coverage] !== before) onCoverageChange(rec);
+    if (held && (ints[coverage] !== before || wasTransmissive || rec.material.transmission > 0))
+      onCoverageChange(rec);
   };
   const release = (page: number, row: number) => {
     rows.blendRowOf[page] = -1;
@@ -111,7 +118,7 @@ export function createBlendCasterRows(
     const casts =
       rows.residentOffsetWords[page] >= 0 &&
       !awaitsPageBytes(rec) &&
-      castsBlendShadow(rec.material);
+      (castsBlendShadow(rec.material) || !!rec.deformationOutput);
     if (!casts) {
       if (row < 0) return;
       release(page, row);

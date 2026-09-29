@@ -1,18 +1,18 @@
-import type { Texture, TextureFilter } from '../../../../sdk-core/src/index.ts';
+import type { Texture, TextureFilter } from '../../../sdk-core/src/index.ts';
 import {
   AFFINE,
   grantedAnisotropy,
   mipFiltered,
   uvTransformed,
-} from '../../../../sdk-core/src/texture/contract.ts';
-import { wrapNibble } from '../../visibility/wrapModes.ts';
+} from '../../../sdk-core/src/texture/contract.ts';
+import { wrapNibble } from '../visibility/wrapModes.ts';
 
 /**
  * How a texture is sampled on WebGPU, carried in its header of the page table
  * (`pageTable.ts`): a filter word and its addressing nibble (`wrapNibble`), packed above the
  * texture's last level in a word the shader already reads, then its UV transform — six floats,
  * the 2 × 3 affine part of `Texture.transform`, the very matrix the WebGL2 binder uploads
- * (`../../webgl/cluster/materialBinding.ts`) — fetched only by a texture that has one.
+ * (`../webgl/cluster/materialBinding.ts`) — fetched only by a texture that has one.
  *
  * The pools have no hardware sampler state to set per texture: a tile is read through one
  * linear sampler, the level is chosen and mixed by the shader (`samplingWgsl.ts`). So the filter is a

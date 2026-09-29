@@ -1,7 +1,7 @@
 import type { DecodedGeometryPage } from './geometryPage.ts';
 import { checked } from '../../cluster/checked.ts';
 import { CLUSTER_HEADER_WORDS } from '../../cluster/format.ts';
-import { pageAttributeNames, pageViews } from './geometryPageBlock.ts';
+import { morphTargetsOf, pageAttributeNames, pageViews } from './geometryPageBlock.ts';
 
 /**
  * Loader of the SDK WebAssembly module (`packages/page-codec-wasm`) and page decoder that uses it.
@@ -119,17 +119,22 @@ export function prepareSdkWasm(source: SourceWasm = ressource): Promise<SdkWasm 
 
 /** The decoded page, copied out of linear memory whole before it moves, and read as the
  *  JavaScript decoder lays it out: the indices, then each present attribute's floats. */
-function copie(codec: SdkWasm, bloc: number): DecodedGeometryPage {
+function copie(codec: SdkWasm, bloc: number, influences: number): DecodedGeometryPage {
   const mots = new Uint32Array(codec.memory.buffer, bloc, MOTS);
   if (mots[0]) throw new Error(CAUSES[mots[0]] ?? 'GEOMETRY_PAGE_BOUNDS');
   const vertexCount = mots[1],
+    indexCount = mots[2],
     flags = mots[3],
     decodedBytes = mots[4],
     quantizationError = new Float32Array(codec.memory.buffer, bloc + 20, 1)[0];
   const block = codec.memory.buffer.slice(bloc + MOTS * 4, bloc + MOTS * 4 + decodedBytes);
+  const names = pageAttributeNames(flags),
+    morphTargets = morphTargetsOf(decodedBytes, names, vertexCount, indexCount, influences);
   return {
-    ...pageViews(block, pageAttributeNames(flags), vertexCount),
+    ...pageViews(block, names, vertexCount, morphTargets, influences),
     vertexCount,
+    morphTargets,
+    skinInfluences: influences,
     flags,
     decodedBytes,
     quantizationError,
@@ -158,7 +163,11 @@ export async function decodeGeometryPageWasm(
   }
   if (!bloc) throw new Error('GEOMETRY_PAGE_BOUNDS');
   try {
-    return copie(codec, bloc);
+    return copie(
+      codec,
+      bloc,
+      new DataView(data.buffer, data.byteOffset, data.byteLength).getUint32(96, true),
+    );
   } finally {
     codec.page_release(bloc);
   }

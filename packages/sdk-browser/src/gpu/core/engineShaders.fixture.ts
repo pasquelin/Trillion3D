@@ -1,3 +1,5 @@
+import { stochasticReflectionShader } from '../../reflections/sampleWgsl.ts';
+import { REFLECTION_RESOLVE_WGSL } from '../../reflections/resolveWgsl.ts';
 /**
  * Every WGSL text the engine hands to `createShaderModule`, by the name of its module, each
  * variant a pass can compile under its own name: the diagnostic and water additions, the DAG's
@@ -5,6 +7,7 @@
  * (`rasterSource`, `drawShader`, `transparentOcclusionShader`) is taken at one size: the size
  * changes a constant, never a name.
  */
+import { DEFORMATION_COMPUTE_WGSL } from '../../deformation/compute.ts';
 import { PRESENT_SHADER } from './presentation.ts';
 import { PRESENT_AT_SHADER } from './presentAt.ts';
 import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts';
@@ -41,7 +44,7 @@ import { withSubgroupShadowRequests } from '../../lighting/direct/shadowRequestW
 import { LIGHT_TILES_SHADERS } from '../../lighting/tiles/shader.ts';
 import { TAA_SHADER, taaShader } from '../../taa/shaderWgsl.ts';
 import { taaUpscaleShader } from '../../taa/upscaleWgsl.ts';
-import { MIP_SHADER } from '../../texture/mips.ts';
+import { MIP_SHADER, mipShader } from '../../texture/mips.ts';
 import { COVERAGE_WGSL } from '../../texture/coverageMips.ts';
 import { SHADE_SHADER, VIS_SHADER } from '../../visibility/buffer.ts';
 import { BLEND_EXPAND_SHADER } from '../../webgpu/blend/expandWgsl.ts';
@@ -59,7 +62,27 @@ import { PARTICLE_DRAW_WGSL, PARTICLE_ROUTED_WGSL } from '../../particles/webgpu
 const compositions = (label: string, sources: Record<string, string>) =>
   Object.fromEntries(Object.entries(sources).map(([input, code]) => [`${label}_${input}`, code]));
 
+/** Every runtime reflection combination: lighting lobe, binding width and request mode. */
+function reflectionVariants() {
+  const variants: Record<string, string> = {};
+  for (const bounce of [false, true])
+    for (const narrow of [false, true])
+      for (const subgroup of [false, true]) {
+        let shader = contractLightingShader(bounce, narrow);
+        if (subgroup) shader = withSubgroupShadowRequests(shader);
+        const key = `REFLECTION_${bounce ? 'BOUNCE' : 'DIRECT'}_${narrow ? 'NARROW' : 'WIDE'}_${subgroup ? 'SUBGROUP' : 'PLAIN'}`;
+        variants[`${key}_SOURCE`] = reflectionSource(shader);
+        variants[`${key}_TRACE`] = stochasticReflectionShader(shader, !bounce);
+        variants[`${key}_HISTORY_COMPOSE`] = withScreenReflections(shader, !bounce, true);
+      }
+  return variants;
+}
+
 export const ENGINE_SHADERS: Record<string, string> = {
+  DEFORMATION_COMPUTE_WGSL,
+  ...reflectionVariants(),
+  REFLECTION_RESOLVE_WGSL,
+  MIP_DEPTH_SHADER: mipShader(true),
   PRESENT_SHADER,
   PRESENT_AT_SHADER,
   TRANSPARENT_OCCLUSION: transparentOcclusionShader(64),

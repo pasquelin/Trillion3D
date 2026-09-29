@@ -17,8 +17,11 @@ import type { HostDrawOutput } from '../core/renderTarget.ts';
 test('every material map is read with the frame mip bias, in both programs', () => {
   for (const text of [CLUSTER_FRAGMENT, CLUSTER_LINEAR_FRAGMENT]) {
     const reads = text.match(/texture\(\w+Map,/g) ?? [];
-    const biased = text.match(/texture\(\w+Map,mapUv\(\w+,(?:sourceUv\(\w+\.\w\)|st)\),mipBias\)/g);
-    assert.equal(reads.length, 6);
+    const biased = text.match(
+      /texture\(\w+Map,mapUv\(\w+,(?:sourceUv\(\w+(?:\.\w)?\)|st)\),mipBias\)/g,
+    );
+    assert.equal(reads.length, 7);
+    assert.match(text, /atlasLod[\s\S]*?\+mipBias/);
     assert.equal(biased?.length, reads.length, 'each read carries mipBias');
   }
 });
@@ -30,13 +33,15 @@ function written(output: HostDrawOutput) {
 }
 
 /** A one-mesh scene drawn once per output of `outputs`, and the float uniforms its frames wrote. */
-function drawn(outputs: HostDrawOutput[]) {
-  const context = createTestContext();
+function drawn(outputs: HostDrawOutput[], model: 'lambert' | 'standard' = 'lambert') {
+  const context = createTestContext({
+    answers: { getExtension: (name: string) => (name === 'EXT_color_buffer_float' ? {} : null) },
+  });
   const scene = new Scene(),
     geometry = new Geometry().setIndex(new BufferAttribute(new Uint32Array(3), 1));
   geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3));
   geometry.setAttribute('normal', new BufferAttribute(new Float32Array(9), 3));
-  const mesh = new Mesh(geometry, new GraphSurface('standard'));
+  const mesh = new Mesh(geometry, new GraphSurface(model));
   mesh.frustumCulled = false;
   scene.add(mesh);
   const draw = createSceneDraw(context.gl, scene, [], { pixelRatio: () => 2 });
@@ -47,7 +52,11 @@ function drawn(outputs: HostDrawOutput[]) {
   const named = (call: string, name: string) =>
     context.of(call).filter(([at]) => (at as { uniform: string }).uniform === name);
   draw.dispose();
-  return { named, last: (name: string) => named('uniform1f', name).at(-1)?.[1] };
+  return {
+    named,
+    submissions: context.of('drawElements').length,
+    last: (name: string) => named('uniform1f', name).at(-1)?.[1],
+  };
 }
 
 test('an image drawn at half the display reads its maps log2 0.5 = -1 level, lines at its ratio', () => {
@@ -67,4 +76,19 @@ test('an unchanged frame writes neither the mip bias nor a material uniform agai
   const { named } = drawn([output, output]);
   assert.equal(named('uniform1f', 'mipBias').length, 1);
   assert.equal(named('uniform1i', 'covering').length, 1);
+});
+
+test('unchanged physical frames retain material uniform caches through source and final passes', () => {
+  const output = { toneMapped: false, framebuffer: null, width: 64, height: 16 };
+  const { named, submissions } = drawn([output, output], 'standard');
+  assert.equal(submissions, 4, 'both frames execute source and final geometry');
+  for (const name of ['mipBias', 'roughFactor', 'metalFactor'])
+    assert.equal(
+      named('uniform1f', name).length,
+      1,
+      `${name} stays cached across passes and frames`,
+    );
+  assert.equal(named('uniform1i', 'covering').length, 1);
+  assert.equal(named('uniform4f', 'baseFactor').length, 1);
+  assert.equal(named('uniform4f', 'physical').length, 1);
 });

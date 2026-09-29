@@ -56,7 +56,15 @@ const FAR_PLANE:u32=4u;
 fn farless()->bool{return (bitcast<u32>(views[vi].planes[FAR_PLANE].x)&0x7fffffffu)>0x7f800000u;}
 /** View \`v\`'s six planes, brought into a primitive's space by \`m\` (its transposed world), from
  *  \`frames[at]\` on; \`open\`: six planes no box leaves. */
-fn putPlanes(at:u32,m:mat4x4f,v:u32,open:bool){for(var i=0u;i<6u;i++){frames[at+i]=select(m*views[v].planes[i],vec4f(0.0,0.0,0.0,1.0),open);}}
+fn putPlanes(at:u32,m:mat4x4f,v:u32,open:bool){for(var i=0u;i<6u;i++){frames[at+i]=select(grownPlane(m*views[v].planes[i]),vec4f(0.0,0.0,0.0,1.0),open);}}
+/** A plane moved out by the primitive's deformation reach along every axis (#357): a box clears it
+ *  only if the box grown by that reach would — the CPU cut's \`growPlanes\`. */
+fn grownPlane(p:vec4f)->vec4f{return vec4f(p.xyz,p.w+deformReach*(abs(p.x)+abs(p.y)+abs(p.z)));}
+/** How far the current primitive's GPU deformation moves a vertex this frame, in its units
+ *  (\`reachOf\`), set once the kernel knows which primitive it reads: every box and sphere grows by it. */
+var<private> deformReach:f32;
+/** The primitive's deformation reach, a half float in its mark's high sixteen bits (\`markReach\`). */
+fn reachOf(w:u32)->f32{return unpack2x16float(markOf(w)).y;}
 /** True when the box lies wholly behind the plane: its corner furthest along the normal is. */
 fn outsidePlane(plane:vec4f,bmin:vec3f,bmax:vec3f)->bool{
  let px=select(bmin.x,bmax.x,plane.x>0.0);let py=select(bmin.y,bmax.y,plane.y>0.0);let pz=select(bmin.z,bmax.z,plane.z>0.0);
@@ -94,7 +102,7 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n
  // light cut opens none on a primitive that casts no shadow (\`markOf\`, \`castsNoShadow\`).
  let root=select(rootOf(w),0xffffffffu,isLightCut()&&(markOf(w)&${CASTS_NO_SHADOW}u)!=0u);
  setFlag(queueBase(0u)+t,select(packEntry(vi,root),root,root==0xffffffffu));
- let pose=worlds[rowOf(w)];let m=transpose(pose);let base=slot*FRAME;
+ let pose=worlds[rowOf(w)];let m=transpose(pose);let base=slot*FRAME;deformReach=reachOf(w);
  // A primitive a camera never culls (\`unculledOf\`) takes six planes no box leaves.
  let open=!isLightCut()&&unculledOf(w);
  putPlanes(base,m,vi,open);
@@ -110,6 +118,7 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
   let entry=liveAt(s);let i=entryIndex(entry);let w=pageWorld(i);
   // A page of another range's primitive is that range's dispatch's (\`inRange\`).
   if(inRange(w)){
+  deformReach=reachOf(w);
   vi=entryView(entry);let r=recordOf(i,w);
   let clusterFlags=clusterAt(r).flags;
   var draw=false;

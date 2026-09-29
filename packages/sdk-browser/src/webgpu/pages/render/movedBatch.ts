@@ -159,3 +159,21 @@ export function noteRewritten(rt: WebgpuPagesRuntime, attributes: object, box: F
   }
   declare(rt, promoted);
 }
+
+/** Root `rank`'s GPU deformation moved (#357): it moves, and its rest world box grown by `reach`
+ *  world units — the most it reached this frame or the last — stales its shadow pages. */
+export function noteDeformed(rt: WebgpuPagesRuntime, rank: number, reach: number) {
+  const box = rt.layout.selectionRoots[rank].worldBox;
+  if (!box) return;
+  for (let c = 0; c < 3; c++) {
+    moved[c] = box[c] - reach;
+    moved[c + 3] = box[c + 3] + reach;
+  }
+  declare(rt, promote(rt, rank));
+}
+
+/** A whole-copy deformation changed only this bounded world region. */
+export function noteDeformedBounds(rt: WebgpuPagesRuntime, box: Float64Array) {
+  moved.set(box);
+  declare(rt, false);
+}

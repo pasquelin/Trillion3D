@@ -385,7 +385,10 @@ advance with it; only the camera's controller is left to the host.
 
 A value written directly on a node — `mesh.position.x = 100`, `mesh.visible = false`, a light's
 intensity, colour or pose — needs no call to be seen by the next frame, and a light added to or
-removed from the graph is picked up on the next frame too. An asynchronous render failure stops
+removed from the graph is picked up on the next frame too. A node the page keeps no handle to is
+moved by its name (`object.name`) instead: `world.setTransform(name, matrix)` writes its world
+pose, looked up on the scene and brought back into its parent's space, on the same name-indexed
+path WebGPU and WebGL2 take — the next frame draws it. An asynchronous render failure stops
 automatic work, emits `INTERACTIVE_RENDER_FAILED` as a diagnostic and reports the error to the
 page as an uncaught one is (`reportError`), so the page's own `error` listener sees it.
 
@@ -603,6 +606,31 @@ session cannot hold in place — a texture, a kind, a side, transparency, a mate
 values another material shares — is copied on write and opens the session again, once per burst.
 `world.diagnostic.sessions` counts the sessions a world has opened, so a page and a test see a
 reopen.
+
+`material.meshPhysical` accepts `anisotropy` (strength, 0–1), `anisotropyRotation`
+(direction, radians), `clearcoat` and `clearcoatRoughness`. WebGL2 draws these lobes,
+including `anisotropyMap`, `clearcoatMap`, `clearcoatRoughnessMap` and
+`clearcoatNormalMap` with `clearcoatNormalScale`. Each map keeps its native dimensions,
+filtering, wrap, UV channel and transform. The anisotropy map's RG direction and B strength,
+clearcoat R and roughness G are linear data. The brushed-metal and car-paint examples select
+WebGL2 explicitly; these physical extensions remain unsupported on the WebGPU page raster.
+
+Lit materials can declare `subsurfaceColor` and an optional `subsurfaceMap` for thin
+**double-sided** surfaces, such as foliage. The color defaults to black (disabled), is independent
+of `color`, and tints light arriving through the back of the surface. The optional color texture
+multiplies it using its own UV transform. This is diffuse thin-surface transmission, not a volume
+random walk; use physical `transmission`, `thickness`, `attenuationColor` and
+`attenuationDistance` for a glass volume.
+
+With `transparentShadow: true`, normally blended glass tints the existing shadow-transmittance
+layer by its base color and texture. A nonzero volume thickness applies Beer attenuation once
+at the entrance of a closed mesh, scaled to world units along the light ray. This follows the
+declared-thickness raster approximation, not geometric entry/exit ray tracing. Thin sheets keep
+independent front and back boundaries. Alpha-only blended shadows preserve their previous
+coverage behavior; BLEND/MASK classification remains in the compiler.
+
+A shadow-casting point light with positive `radius` uses contact-hardening PCSS: the penumbra
+widens with source radius and receiver separation. Radius zero retains the existing PCF path.
 
 ### Geometry rewritten every frame
 
@@ -1104,6 +1132,19 @@ resizes it by the same rule, every page it still holds kept as drawn (#1208); `m
 publishes its `shadowPoolBytes` and `shadowPoolLayers`, and its memory pressure by name
 (`shadowPeakBytes`, `shadowResolutionBias`, `shadowMemoryEvents`).
 
+### A lamp's range is authored, and the frame shortens it only where it shows nothing
+
+`range` is the lamp's attenuation radius, in metres — the Unreal `AttenuationRadius`: the light's
+influence ends there through the smooth window `(1 − (d/range)⁴)²` the shaders apply, and a `point`
+or `spot` shadow map is built to it. It is a first-class control the page sets (`light.distance`);
+left unset, the world derives one from the scene's own extent. Before each frame the world shortens
+the **effective** range to the reach past which the lamp's own contribution stays under half an
+eight-bit display step after the frame's exposure and display curve (CMP-16, #958): never longer
+than the author set, never longer than the frame shows. The bound is the lamp's diffuse lobe plus
+its specular lobe at the roughness the drawn surfaces really wear — never the worst case at
+`ROUGHNESS_FLOOR`, a mirror no scene holds — and is re-derived whenever the exposure or the light
+changes, so a rising exposure lengthens a reach without a pop.
+
 `capability.lighting(world)` reports what the **active** renderer applies — `{ sceneLights,
 lightingView, shadows, transforms, reason? }` — not what the contract accepts: a call the light
 store accepts is not proof of lighting. `reason` names in one sentence what is not applied.
@@ -1204,15 +1245,13 @@ the next cut once they arrived (`geometryAllocationBytes` shows it; no pool is r
 `world.budget.cpu` what the world keeps in CPU memory. A fixed rule splits them, published
 as `world.budget.split`:
 
-- GPU: the shadow pool first, as 3840 × 2160 under one sun takes it (two layers of 53² pages, its
-  static layer and its transmittance layer), then the bounce probes at their largest, then the effect chain's targets
-  on the largest canvas the budget declares (`split.effectTargets`: 250.5 MiB on the default
-  3840 × 2160 canvas); the rest in two halves, geometry and textures, each capped at its ceiling.
-  The default total is 2 179 MiB, and at the defaults the split gives each pool its own default
-  (512 MiB each), so a page that sets nothing sees no change. The three fixed shares never shrink:
-  a total under them is refused (`GPU_BUDGET_UNDER_SHADOW_POOL`), so no total below 913 MiB is
-  taken on the default canvas. The pool a screen takes, its static layer and its fixed buffers always fit that
-  share, whatever the screen.
+- GPU: before opening, the split reserves the shadow pool, bounce probes and effect targets at
+  their declared maxima, then the geometry and texture pools up to their ceilings. The default
+  total remains 2 179 MiB, including 512 MiB for each streaming pool. Once WebGPU has active
+  resources, the split reserves their actual descriptor bytes, including image targets, shared
+  caches and other live views, before dividing the remainder between geometry and textures.
+  Root coverage and texture-tail minima are mandatory; a total below them is refused as
+  `GPU_BUDGET_UNDER_MINIMUM`. Admission never changes resolution or increases the declared total.
 - CPU: the shadow page table's host mirror first (25.9 MiB, `SHADOW_HOST_BYTES`, fixed whatever the screen), then the
   decoded-page cache takes the whole rest (`split.pageCache`); within it the session in place
   reserves its manifest tables (a fixed reckoning per catalogue entry, not a measured heap size)
@@ -1347,9 +1386,14 @@ before, and only the maps that fit what is left of `maxTextureTransferBytesPerFr
 `maxTextureUploadMsPerFrame` (1 ms) — one larger than the whole budget alone. A map not sent yet
 is uploaded by the first draw that binds it: a surface is never drawn without its picture.
 
-Frame targets are **not** budgeted: colour, depth, visibility, HDR, material surfaces, Hi-Z, the
-temporal history and a capture follow the resolution, and `gpuFrameTargetBytes` says what they cost.
-Only a size the device cannot make is refused (`SURFACE_DEVICE_LIMIT`).
+WebGPU frame targets follow the requested resolution and are admitted before allocation through
+that same GPU total; `gpuFrameTargetBytes` reports their descriptor bytes. The device ledger also
+checks later buffer and texture allocations, including shared caches, before calling WebGPU.
+A refusal (`GPU_BUDGET_EXCEEDED`, or an unknown format) prevents new image submission: the
+previous canvas image remains, and flush/capture rejects. It is a terminal admission failure for
+that session, which must be reopened with sufficient budget. Sessions sharing a refused cache
+must all release their admission before reopening. This bounds declared resource bytes, not
+unobservable driver overhead. Device dimension limits remain `SURFACE_DEVICE_LIMIT`.
 
 Out of memory on the frame targets is absorbed too: they are made under the pools' out-of-memory
 check, at prepare and when the view's size changes, and the frames are held meanwhile with nothing
@@ -1454,7 +1498,11 @@ gravityScale, sensor, ccd, decorative, friction, restitution, damping }`. The sh
 - **Motion and events.** `mesh.physics.velocity` (read as the last step left it, written to launch
   the body), `applyImpulse(x, y, z)`, `wake()`, `asleep`, and `on('contact' | 'enter' | 'leave')`:
   the other object, an impulse estimate (approach speed times the pair's reduced mass) and the
-  point.
+  point. A step's contact events are delivered in a canonical order no thread decides: every
+  thread's records are merged after `Update`, ordered by the body pair's key (the lower engine
+  index first), each pair's own events in the order Jolt ran them, so a pool of any size gives the
+  same events in the same order. It is the engine's canonical order, not Jolt's internal callback
+  order.
 - **Joints.** `joint.fixed | point | hinge | slider | distance | cone(a, b, options)` connects two
   bodies, or a body and the world (`b` is `null`), with Jolt's own constraints; `world.physics.add(j)`
   puts it in the simulation and `remove(j)` takes it out. It is made once both bodies are simulated,
@@ -1619,16 +1667,78 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
 - **Character.** With physics on, `world.controls` `'character'` is the physics' own character
   (see [Camera controllers](#camera-controllers)): it pushes, rides and is pushed.
 
+## GPU deformation
+
+Imported glTF and FBX animation clips are exposed as `model.animations`. A mixer binds tracks
+under that loaded model, including its morph weights. FBX imports translation, Euler rotation,
+scale and blend-weight clips through ufbx source evaluation. Original keys and the full playback
+span remain. Linear and cubic curves are subdivided by their Bezier control hull (scalar chord
+error at most 2.5e-7 source units, or radians for rotations); total Euler travel is limited to 15 degrees per initial
+interval so complete rotations cannot disappear between quaternion keys. The converter refines
+world-space TRS against ufbx at each interval's quarter, midpoint and three-quarter samples,
+using emitted float32 endpoints and a 2.5e-7 component threshold (relative above magnitude one).
+Regression oracles additionally check non-key times against a 1e-6 component bound. These are
+conversion checks, not a measured image-fidelity claim. Single linear skins and positive
+single-target blends retain non-unit full weights. Skins with unbound vertices or more than
+65,536 joints refuse explicitly. Stepped/extrapolated curves, intermediate
+shapes, layered/constrained animation and sheared world transforms remain explicit
+`IMPORT_UNSUPPORTED_ANIMATION` refusals. Conversion also refuses more than 36,000 distinct keys
+or times that collapse at float32 precision; it never truncates a clip. glTF retains its original
+interpolation contracts. Stored skin weights remain exact float32 source values; both GPU paths
+normalize their sum when blending joints, keeping the bind pose and conservative bounds intact.
+A deformed scene refuses the untextured WebGPU fallback when its material pipeline is unavailable,
+so backend selection can recover instead of displaying rest geometry:
+
+```ts
+const model = await world.scene.load('/character/cache/native/full/manifest.json');
+const mixer = animation.createMixer(model);
+const walk = mixer.clipAction(model.animations[0]).play();
+walk.weight = 0.8;
+walk.timeScale = 1.2;
+// Stop at a repeatable pose, for inspection or a reference comparison.
+walk.stop().seek(0.5);
+world.invalidate();
+```
+
+A page-created mesh uses `mesh.skeleton = animation.skeleton(bones, inverseBindMatrices)` and
+four-component `skinIndex` / `skinWeight` geometry attributes. Morph displacements belong in
+`geometry.morphAttributes.position` (and optionally `.normal`), with
+`geometry.morphTargetsRelative = true`; absolute targets are accepted too. Call
+`mesh.updateMorphTargets()` after adding targets. Animate `node.morphTargetInfluences` through
+`animation.weightsTrack`, or write its weights directly. Geometry and its cut pages are shared;
+each placement reads its own palette, weights and water source.
+
+Actions blend by `weight`. Set `action.blendMode = 'additive'` to add its difference from the
+clip's first key over the normal blend. `animation.twoBoneIK(root, mid, end, target, pole, weight)`
+solves a bone chain; use it after sampling the clips. `animation.windClip(bones, options)` returns
+a looping bone animation with `direction: [x, z]`, `angle` in radians and `frequency` in Hz.
+Wind changes bones, not individual CPU vertices. A water mesh sets `mesh.waves` to the same
+`WaterSurface` whose `waveModel` buoyancy reads: rendering and physics share wave parameters.
+
+WebGPU computes resident vertex positions, previous positions and normals before selection and
+rasterization. WebGL2 applies the same sources in its vertex stage. The engine expands culling
+bounds by the deformation reach and retains the previous pose for temporal reprojection;
+a stationary pose settles its previous values on the following frame. Cooked cloth uses its
+compiler-recorded simulation mapping; a page does not rebuild the cloth geometry.
+
+`metrics.gpuDeformationMs` is the latest measured WebGPU deformation stage time, or `null` when
+no timestamp sample is available. Zero is a measured zero, never a replacement for missing
+support. See [the walking character](../site/examples/a-character-that-walks.html),
+[the morph sample](../site/examples/a-shape-that-morphs.html), and
+[the crowd](../site/examples/a-crowd-of-characters.html). The crowd accepts `?count=1`, `10` or
+`100`; its fixed-time hook is for the recette's source-pose and frame-envelope comparisons.
+
 ## Current limits
 
-- `scene.load` reads a versioned compiled manifest; non-triangle primitives, skinning, morph targets
-  and non-standard glTF extensions are not drawn.
-- Specular environment-map IBL and screen-space reflections are not implemented; the
-  bounce lighting exists but is off by default ([ENGINE.md](ENGINE.md#light-that-bounces)), and only
-  with it on does a surface at the roughness floor reflect the scene, at the proxy's detail.
-- WebGL2 draws a physical material's transmission volume, as factors, and nothing else of its
-  extensions: clearcoat, sheen, iridescence, anisotropy, dispersion, a specular factor, an IOR
-  without transmission, their maps and the transmission and thickness maps. A surface declaring one
+- `scene.load` reads a versioned compiled manifest. Imported non-triangle primitives and
+  unsupported glTF extensions are refused by the compiler.
+- Specular environment-map IBL is not implemented. Screen reflections read camera-visible opaque
+  radiance; off-screen geometry requires the existing WebGPU bounce proxy/probe fallback when
+  bounce is enabled. Rough reflection filtering and its bounded history are described in
+  [ENGINE.md](ENGINE.md#light-that-bounces); this is not an off-screen geometry reconstruction.
+- WebGL2 draws physical transmission-volume factors, anisotropy and clearcoat (including their
+  maps). Its remaining unsupported extensions are sheen, iridescence, dispersion, a specular
+  factor, an IOR without transmission, their maps and the transmission and thickness maps. A surface declaring one
   is drawn without it — the loop never stops — and the world's diagnostic channel says
   `material-degraded` once per surface and feature (`context.material`, `context.feature`). The
   WebGPU page raster lists material extensions among its unsupported capabilities and says nothing

@@ -1,3 +1,5 @@
+import type { DeformationCompute } from '../../../deformation/compute.ts';
+import type { SessionDeformation } from '../../../deformation/session.ts';
 import type { HostAttributes } from '../../../host/resources.ts';
 import type { Texture } from '../../../../../sdk-core/src/index.ts';
 import type { GpuPartition } from '../../../gpu/partition/types.ts';
@@ -17,6 +19,8 @@ import type { BlendModePipelines } from '../../blend/stagePipelines.ts';
 /** GPU resources of the visibility-buffer path: raster and shade pipelines, their bind groups, the
  *  concatenated geometry, the page table and the material atlases. */
 export interface WebgpuVisState {
+  deformationCompute?: DeformationCompute;
+  wholeDeformation?: { table: GPUBuffer; count: number };
   visEnabled: boolean;
   /** An opaque row has shown a surface as-is: the image's flags are read (`../../row/pageRow.ts`). */
   asIsShown: boolean;
@@ -89,6 +93,8 @@ export interface WebgpuVisState {
   shadeUniPacked: Float32Array<ArrayBuffer>;
   visUniPacked: Float32Array<ArrayBuffer>;
   geometryBlocks: Map<HostAttributes, GeometryBlock>;
+  /** The session's GPU deformation, its records in the float pool's tail (#357). */
+  deformation: SessionDeformation | undefined;
   mapLayer: Map<Texture, number>;
   dataLayer: Map<Texture, number>;
 }
@@ -146,6 +152,7 @@ export function createWebgpuVisState(): WebgpuVisState {
     shadeUniPacked: new Float32Array(SHADE_UNIFORM_WORDS),
     visUniPacked: new Float32Array(7 * 64),
     geometryBlocks: new Map(),
+    deformation: undefined,
     mapLayer: new Map(),
     dataLayer: new Map(),
   };

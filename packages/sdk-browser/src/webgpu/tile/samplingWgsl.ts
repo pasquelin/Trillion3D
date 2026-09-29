@@ -1,23 +1,11 @@
+import { SAMPLING_FOOTPRINT_WGSL } from '../../texture/samplingFootprint.ts';
 import {
   WRAP_S_MIRROR,
   WRAP_S_REPEAT,
   WRAP_T_MIRROR,
   WRAP_T_REPEAT,
 } from '../../visibility/wrapModes.ts';
-import {
-  SAMPLE_ANISOTROPY_SHIFT,
-  SAMPLE_MAG_HALF,
-  SAMPLE_MAG_NEAREST,
-  SAMPLE_MIN_NEAREST,
-  SAMPLE_MIP_NEAREST,
-  SAMPLE_MIP_NONE,
-  SAMPLE_TRANSFORMED,
-} from './sampling.ts';
-
-/** Rounding a footprint's ratio may carry and still read as whole: N taps, not N + 1 — one read at
- *  the isotropic level face-on, like a texture granted no anisotropy. The one departure from the
- *  hardware rule, which float noise would scatter across a surface of whole ratio. */
-const ANISOTROPY_SLACK = 0.01;
+import { SAMPLE_TRANSFORMED } from '../../texture/sampling.ts';
 
 /**
  * The shader side of a texture's sampling words (`sampling.ts`), inside `TILE_POOL_WGSL`
@@ -34,36 +22,7 @@ const ANISOTROPY_SLACK = 0.01;
  */
 export const SAMPLING_WGSL = `/** How one sample reads: the coordinate after the texture's transform, the line anisotropy spreads
  *  its \`taps\` over, the level, and whether texels are picked rather than mixed. */
-struct TileRead{uv:vec2f,axis:vec2f,lod:f32,taps:u32,nearest:bool,}
-fn tapOffset(i:u32,n:u32)->f32{return (f32(i)+0.5)/f32(n)-0.5;}
-/**
- * How a footprint reads a texture with a filter word, its coordinate and derivatives already
- * transformed. The level is the GPU's — the log of the longer gradient —; with \`aniso\`, the
- * hardware rule (EXT_texture_filter_anisotropic): N taps, the elongation rounded up within the
- * grant, at log2(Pmax / N). It is clamped to the texture's levels, then
- * rounded (\`nearest\` mip) or pinned to 0 (no mip). Magnification — a level at or under GL's
- * threshold, 0.5 with \`SAMPLE_MAG_HALF\`, 0 otherwise — reads level 0 with the magnification
- * filter, anything else the minification one: decided on that lowered level, as the spec does.
- */
-fn tileRead(s:TileSlot,uv:vec2f,ddx:vec2f,ddy:vec2f,aniso:bool)->TileRead{
- let px=ddx*s.size;let py=ddy*s.size;
- let granted=((s.sampling>>${SAMPLE_ANISOTROPY_SHIFT}u)&15u)+1u;
- var raw=atlasLod(px,py);
- var taps=1u;var axis=vec2f(0.0);
- if(aniso&&granted>1u){
-  let lx=dot(px,px);let ly=dot(py,py);
-  let ratio=min(sqrt(max(lx,ly)/max(min(lx,ly),1e-20)),f32(granted));
-  taps=select(1u,u32(ceil(ratio-${ANISOTROPY_SLACK})),ratio>${1 + ANISOTROPY_SLACK});
-  raw-=log2(f32(taps));
-  axis=select(vec2f(0.0),select(ddy,ddx,lx>=ly),taps>1u);
- }
- let mag=raw<=select(0.0,0.5,(s.sampling&${SAMPLE_MAG_HALF}u)!=0u);
- var lod=clamp(raw,0.0,f32(s.last));
- if(mag||(s.sampling&${SAMPLE_MIP_NONE}u)!=0u){lod=0.0;}
- else if((s.sampling&${SAMPLE_MIP_NEAREST}u)!=0u){lod=floor(lod+0.5);}
- let nearest=(s.sampling&select(${SAMPLE_MIN_NEAREST}u,${SAMPLE_MAG_NEAREST}u,mag))!=0u;
- return TileRead(uv,axis,lod,taps,nearest);
-}
+${SAMPLING_FOOTPRINT_WGSL}
 /** The centre of the texel a coordinate falls in, for a nearest read; the coordinate otherwise. */
 fn pickTexel(texel:vec2f,nearest:bool)->vec2f{return select(texel,floor(texel)+0.5,nearest);}
 /** One axis of a tap line folded once (\`foldLine\`): the folded centre, the direction the taps run

@@ -57,7 +57,7 @@ fn placementTag(at:vec2i)->u32{
 fn dynamicPixel(at:vec2i)->f32{
  let id=textureLoad(ids,at,0).r;
  if(id==0u){return 0.0;}
- return select(0.0,1.0,(pages[(id>>8u)-1u].flags&${FLAG_DYNAMIC}u)!=0u);
+ return select(0.0,1.0,(pages[(id>>8u)-1u].flags&${FLAG_DYNAMIC}u)!=0u&&pages[(id>>8u)-1u].deformOutput==0u);
 }
 fn uncovered(uv:vec2f,centre:vec2i,last:vec2i,own:f32)->bool{
  let kept=textureGather(1,tagHistory,historySampler,uv)*255.0;
@@ -70,10 +70,10 @@ fn uncovered(uv:vec2f,centre:vec2i,last:vec2i,own:f32)->bool{
 }`;
 
 /**
- * The current image's share of a moving pixel (#816's blend, point 6): today's `alpha` times
- * `reach`, the weight of the sample nearest the display pixel — one that fell far from it does not
- * overwrite its history —, raised to the pixel's reactive value, never above `REACTIVE_MAX`; a pixel
- * with no history (`fresh`) takes the current sample whole.
+ * The current image's share of a pixel, moving or at rest (#816's blend, point 6): today's `alpha`
+ * times `reach`, the weight of the sample nearest the display pixel — one that fell far from it does
+ * not overwrite its history —, raised to the pixel's reactive value, never above `REACTIVE_MAX`; a
+ * pixel with no history (`fresh`) takes the current sample whole.
  */
 export const CURRENT_SHARE_WGSL = `
 fn currentShare(alpha:f32,reach:f32,rho:f32,fresh:bool)->f32{
@@ -85,22 +85,29 @@ fn currentShare(alpha:f32,reach:f32,rho:f32,fresh:bool)->f32{
  * What both resolves close with, once `previous`, `filtered`, the YCoCg box `lo`–`hi`, `centre`
  * (the render texel of the display pixel, `last` the grid's last), `reach` and, with `asIs`,
  * `share` and its box are known: history read at the reprojected point, clamped to the box, mixed
- * with the current image by the inverse of each one's luminance. At rest (`view.jitter.z` 0) that
- * is today's resolve, to the bit. While moving the history is read with Catmull-Rom, and the
- * current share is `currentShare`'s, from the reactive value the blends and particles wrote — whole
- * on a dynamic geometry's pixel (`dynamicPixel`, #573), whose vertices moved within their placement,
- * which no motion matrix follows: its history is another shape, dropped rather than smeared.
+ * with the current image by the inverse of each one's luminance. The current share is
+ * `currentShare`'s, from the reactive value the blends, particles and water wrote — moving or at
+ * rest. At rest (`view.jitter.z` 0) that read is the single bilinear tap and the share is
+ * `currentShare(alpha, 1, rho, false)`: with `rho` 0 exactly today's resolve, to the bit, and
+ * otherwise today's share raised by the reactive value alone. While moving the history is read
+ * with Catmull-Rom, and the current share is `currentShare`'s, whole on a dynamic geometry's pixel
+ * (`dynamicPixel`, #573), whose vertices moved within their placement, which no motion matrix
+ * follows: its history is another shape, dropped rather than smeared. The disocclusion
+ * (`uncovered`) and the dynamic pixel are about reprojection and stay in the moving branch.
  */
 export const taaHistoryBlend = (asIs: boolean, filtered = false) => {
   const share = shareText(asIs);
   return ` if(previous.z==0.0){return ${layer.taaOut(asIs, filtered)};}
  var alpha=view.params.x;
  var read=vec4f(0.0);
+ let rho=textureLoad(reactive,min(centre,vec2i(textureDimensions(reactive))-vec2i(1)),0).g;
  if(view.jitter.z!=0.0){
   read=historyCatmullRom(previous.xy);
-  let rho=max(textureLoad(reactive,min(centre,vec2i(textureDimensions(reactive))-vec2i(1)),0).g,dynamicPixel(centre));
-  alpha=currentShare(alpha,reach,rho,uncovered(previous.xy,centre,last,tag));
- }else{read=textureSampleLevel(history,historySampler,previous.xy,0.0);}
+  alpha=currentShare(alpha,reach,max(rho,dynamicPixel(centre)),uncovered(previous.xy,centre,last,tag));
+ }else{
+  read=textureSampleLevel(history,historySampler,previous.xy,0.0);
+  alpha=currentShare(alpha,1.0,rho,false);
+ }
  let clamped=clamp(vec4f(toYcocg(read.rgb),read.a),lo,hi);
  let kept=vec4f(fromYcocg(clamped.xyz),clamped.w);
 ${share(' let keptShare=clamp(textureSampleLevel(shareHistory,historySampler,previous.xy,0.0).r,shareLo,shareHi);\n')} let wc=alpha/(1.0+toYcocg(filtered.rgb).x);

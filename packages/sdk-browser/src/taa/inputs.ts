@@ -1,4 +1,4 @@
-import { TAA_BINDINGS } from './shaderWgsl.ts';
+import { TAA_BINDINGS } from './bindingsWgsl.ts';
 import type { DisplayLayers } from './layers.ts';
 import type { AccumulatedImage } from '../lighting/deferred/program.ts';
 
@@ -13,13 +13,18 @@ export interface TaaInputs {
   motion: GPUBuffer;
   flags?: GPUTextureView;
   share?: GPUTextureView;
-  /** The reactive value the blends and particles wrote, in its green channel
+  /** The reactive value the blends, particles and water wrote, in its green channel
    *  (`../lighting/deferred/asIsShare.ts`); absent, none is (a 1×1 zero is bound). */
   reactive?: GPUTextureView;
   /** The frame was drawn below the display: the resolve reconstructs it (`upscaleWgsl.ts`). */
   upscale?: boolean;
   /** The display layers of a frame whose blends filter (`../webgpu/blend/displayFilter.ts`). */
   filter?: DisplayLayers;
+  /** The page pool and the float pool — positions, texture coordinates — a deformed pixel's
+   *  triangle is read from (`deformWgsl.ts`, #357). */
+  pool: GPUBuffer;
+  positions: GPUBuffer;
+  uvs: GPUBuffer;
 }
 export const INPUTS = [
   'current',
@@ -31,6 +36,9 @@ export const INPUTS = [
   'share',
   'reactive',
   'filter',
+  'pool',
+  'positions',
+  'uvs',
 ] as const;
 
 /**
@@ -56,6 +64,9 @@ export function taaGroupEntries(
     { binding: TAA_BINDINGS.view, resource: { buffer: uniform } },
     { binding: TAA_BINDINGS.reactive, resource: inputs.reactive ?? noReactive },
     { binding: TAA_BINDINGS.tagHistory, resource: image.share },
+    { binding: TAA_BINDINGS.indices, resource: { buffer: inputs.pool } },
+    { binding: TAA_BINDINGS.positions, resource: { buffer: inputs.positions } },
+    { binding: TAA_BINDINGS.uvs, resource: { buffer: inputs.uvs } },
   ];
   if (inputs.flags || inputs.share)
     entries.push(

@@ -8,6 +8,7 @@
  */
 import { bitsFor, ceil32, octEncode, Packer, quantize, type QuantizedGrid } from './pageGrids.ts';
 import { firstUse, storedPositions } from './pagePositions.ts';
+import { deformCells, deformHeader, packDeformation, type PageTarget } from './pageDeform.ts';
 import {
   ATTRIBUTES,
   type PageAttribute,
@@ -16,8 +17,8 @@ import {
 } from './pageAttributes.ts';
 
 const MAGIC = 0x33504757,
-  VERSION = 5,
-  HEADER_WORDS = 24,
+  VERSION = 7,
+  HEADER_WORDS = 25,
   COLOR_EXPONENT = -8;
 /** The format's texture grid, 2^-14: a quarter of a texel on a 4096-wide map. */
 export const UV_EXPONENT = -14;
@@ -34,6 +35,7 @@ export function encodeGeometryPage(
   attributes: PageAttributes,
   positionExponent = -16,
   uvExponent = UV_EXPONENT,
+  targets: readonly PageTarget[] = [],
 ) {
   const position = attributes.POSITION;
   if (!position || position.itemSize !== 3 || !position.array.length)
@@ -118,6 +120,9 @@ export function encodeGeometryPage(
       cells.forEach((cell, i) => (cell.uv[set] = q.cells.slice(i * 2, i * 2 + 2)));
     }
   }
+  const deform = deformCells(attributes, targets, original, positionExponent);
+  cells.forEach((cell, i) => (cell.d = deform.fields[i]));
+  flags |= (deform.skin ? 16 : 0) | (targets.length ? 32 : 0);
   const { distinct: unique, ranks: remap } = firstUse(cells, (cell) => JSON.stringify(cell));
   const pack = new Packer();
   const cornerBits = pack.corners(
@@ -136,25 +141,26 @@ export function encodeGeometryPage(
       unique.map((cell) => cell.n),
       16,
     );
+  const columns = (get: (cell: PageCell, c: number) => number, widths: readonly number[]) =>
+    widths.forEach((bits, c) =>
+      pack.stream(
+        unique.map((cell) => get(cell, c)),
+        bits,
+      ),
+    );
   for (const set of [0, 1] as const) {
-    const record = uvRecords[set];
-    if (record)
-      for (let c = 0; c < 2; c++)
-        pack.stream(
-          unique.map((cell) => cell.uv[set][c]),
-          record.bits[c],
-        );
+    const grid = uvRecords[set];
+    if (grid) columns((cell, c) => cell.uv[set][c], grid.bits);
   }
-  if (flags & 8) {
-    const record = colorRecord;
-    if (record)
-      for (let c = 0; c < 4; c++)
-        pack.stream(
-          unique.map((cell) => cell.c[c]),
-          record.bits[c],
-        );
-  }
-  const data = new Uint8Array((HEADER_WORDS + pack.words.length) * 4),
+  if (flags & 8 && colorRecord)
+    columns((cell, c) => cell.c[c], (colorRecord as QuantizedGrid).bits);
+  packDeformation(
+    pack,
+    deform,
+    unique.map((cell) => cell.d ?? []),
+  );
+  const headerWords = HEADER_WORDS + deform.morphs.length * 9,
+    data = new Uint8Array((headerWords + pack.words.length) * 4),
     head = new DataView(data.buffer);
   const record = (at: number, q: QuantizedGrid | null, n: number, exponent: number) => {
     let word = ((q?.exponent ?? exponent) & 255) << 24;
@@ -172,8 +178,9 @@ export function encodeGeometryPage(
   head.setFloat32(80, error, true);
   head.setUint32(84, cornerBits, true);
   head.setUint32(88, stored.length, true);
-  pack.words.forEach((word, i) => head.setUint32((HEADER_WORDS + i) * 4, word, true));
-  let floats = 3;
+  deformHeader(head, deform, (at, grid) => record(at, grid, 3, grid.exponent));
+  pack.words.forEach((word, i) => head.setUint32((headerWords + i) * 4, word, true));
+  let floats = 3 + (deform.skin ? 2 * deform.skin.influences : 0) + 6 * targets.length;
   for (const [, size, bit] of ATTRIBUTES) if (flags & bit) floats += size;
   return {
     data,

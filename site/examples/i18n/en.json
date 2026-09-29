@@ -2375,5 +2375,47 @@
       "unmount": "Unmount",
       "remount": "Remount"
     }
+  },
+  "a-character-that-walks": {
+    "controls": {
+      "playing": "Play"
+    },
+    "banner": "Drag to orbit the scene. Pause or resume the animation with Play."
+  },
+  "a-crowd-of-characters": {
+    "controls": {
+      "playing": "Play"
+    },
+    "banner": "Drag to orbit the scene. Pause or resume the animation with Play."
+  },
+  "a-shape-that-morphs": {
+    "controls": {
+      "playing": "Play"
+    },
+    "banner": "Drag to orbit the scene. Pause or resume the animation with Play."
+  },
+  "additive-poses": {
+    "controls": {
+      "playing": "Play"
+    },
+    "banner": "Drag to orbit the scene. Pause or resume the animation with Play."
+  },
+  "move-a-hierarchy-by-name": {
+    "banner": "Watch five named groups step through a seeded sequence. Switch the driver to write the same poses by hand.",
+    "controls": {
+      "driver": "Driver",
+      "speed": "Speed",
+      "paused": "Paused",
+      "replay": "Replay"
+    },
+    "choices": {
+      "driver": {
+        "name": "by name",
+        "host": "written by the host"
+      }
+    },
+    "readouts": {
+      "pose": "Pose"
+    }
   }
 }
