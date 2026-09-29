@@ -57,7 +57,13 @@ export function importHostSurface(material: HostMaterials): VisMaterial | undefi
     side = sideOf(first),
     emissive = lit && isHostColour(first.emissive) ? first.emissive : undefined,
     glow = emissive ? (first.emissiveIntensity ?? 1) : 0,
-    normalScale = (lit && first.normalScale) || undefined;
+    normalScale = (lit && first.normalScale) || undefined,
+    scaleY = normalScale ? normalScale.y : 1,
+    // A page stores no tangent: every engine pass rebuilds the frame a page is shaded in from its
+    // triangle, which turns the second factor of a surface written for vertex tangents — the sign
+    // the material table gives that surface's other variant (`docs/FORMAT.md`). A pass reading a
+    // host geometry's own tangents takes the factor the surface was written with.
+    written = first.forVertexTangents;
   return {
     baseColor: [color.r, color.g, color.b],
     metalness: standard ? (first.metalness ?? 0) : 0,
@@ -76,7 +82,8 @@ export function importHostSurface(material: HostMaterials): VisMaterial | undefi
     roughnessMap: lit ? map(first.roughnessMap) : undefined,
     normalMap: lit ? map(first.normalMap) : undefined,
     normalScale: normalScale ? normalScale.x : 1,
-    normalScaleY: normalScale ? normalScale.y : 1,
+    normalScaleY: written ? -scaleY : scaleY,
+    tangentNormalScaleY: written === false ? -scaleY : scaleY,
     aoMap: lit ? map(first.aoMap) : undefined,
     aoIntensity: lit ? (first.aoMapIntensity ?? 1) : 1,
     emissive: emissive ? [emissive.r * glow, emissive.g * glow, emissive.b * glow] : [0, 0, 0],

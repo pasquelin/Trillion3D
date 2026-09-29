@@ -76,10 +76,17 @@ async function substitute(
   return out.array;
 }
 
+/** Where the vertices of a prepared document are read: the whole binary, read once and kept, or
+ *  `range`, which reads the bytes of one view alone. */
+export type PreparedBinary =
+  | (() => Promise<ArrayBuffer>)
+  | { range: (offset: number, length: number) => Promise<ArrayBuffer> };
+
 /** The host attribute of each accessor of `document`, built on first request and shared after it.
  *  Its numbers are read from the document's buffer only when a reader loads them
- *  (`Geometry.loadVertices`): `binary` reads the buffer, once, on that first need. */
-export function preparedAccessors(document: TableDocument, binary: () => Promise<ArrayBuffer>) {
+ *  (`Geometry.loadVertices`): `binary` reads the buffer, once, on that first need, or each view
+ *  alone by its `range`. */
+export function preparedAccessors(document: TableDocument, binary: PreparedBinary) {
   const views = new Map<number, () => Promise<ArrayBuffer>>();
   const attributes = new Map<number, Attribute>();
   const interleaved = new Map<string, InterleavedBuffer>();
@@ -89,19 +96,21 @@ export function preparedAccessors(document: TableDocument, binary: () => Promise
     let held = views.get(rank);
     if (!held) {
       const view = document.views[rank];
+      const outside = (bytes: number) =>
+        new EngineError('PREPARED_SCENE_MISMATCH', `view ${rank} lies outside the binary`, {
+          view: rank,
+          bytes,
+        });
       held = readOnce(() =>
-        binary().then((bytes) => {
-          if (view.offset + view.length > bytes.byteLength)
-            throw new EngineError(
-              'PREPARED_SCENE_MISMATCH',
-              `view ${rank} lies outside the binary`,
-              {
-                view: rank,
-                bytes: bytes.byteLength,
-              },
-            );
-          return bytes.slice(view.offset, view.offset + view.length);
-        }),
+        typeof binary === 'function'
+          ? binary().then((bytes) => {
+              if (view.offset + view.length > bytes.byteLength) throw outside(bytes.byteLength);
+              return bytes.slice(view.offset, view.offset + view.length);
+            })
+          : binary.range(view.offset, view.length).then((bytes) => {
+              if (bytes.byteLength !== view.length) throw outside(bytes.byteLength);
+              return bytes;
+            }),
       );
       views.set(rank, held);
     }
