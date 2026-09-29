@@ -80,7 +80,6 @@ export function finishMoves(rt: WebgpuPagesRuntime) {
 const promote = (rt: WebgpuPagesRuntime, rank: number) =>
   rt.lights.mobility.move(rank, rt.layout.selectionRoots[rank].world.elements, true) ===
   MOVE_PROMOTED;
-
 /** `moved` declared to the shadow scheduler and the Hi-Z: a first move stales its pages whole. */
 function declare(rt: WebgpuPagesRuntime, promoted: boolean) {
   if (boxIsEmpty(moved, 0)) return;
