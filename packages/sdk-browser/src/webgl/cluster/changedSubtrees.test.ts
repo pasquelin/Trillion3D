@@ -7,7 +7,7 @@ import { createDrawLists } from './drawLists.ts';
 import { Scene } from '../../world/core/scene.ts';
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import { Group, type Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { setHostPose } from '../../host/pageObjects.ts';
+import { setHostPose } from '../../host/pagePose.ts';
 import type { HostMesh } from '../../host/resources.ts';
 import { pick as pickOf, seeded } from '../../host/world/randomTree.fixture.ts';
 import { rootedUnder } from '../../host/world/chain.ts';
