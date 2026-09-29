@@ -37,6 +37,7 @@ export function sceneReference(
       `the reference walks pose path ${record.pathVersion}, this run ${report.pathVersion}`,
     );
   if (settings.movingCamera) throw refused('a moving camera ends away from the reference pose');
+  if (settings.movingLight) throw refused('a moving light ends away from the reference lights');
   const missing = views.filter((view) => !record.views[view]);
   if (missing.length) throw refused(`no reference for ${missing.join(', ')}`);
   // Each image there and the one the record names, before any series runs.

@@ -13,3 +13,12 @@ test('#1281: probes still converging keep the frame drawn, a closed series lets 
   rt.bounce.probes = { working: false } as unknown as Probes;
   assert.equal(unsettledMask(rt), 0, 'a converged series is a steady state');
 });
+
+test('#1281: probes still being built keep the frame drawn, a refused bounce does not', () => {
+  const rt = settledRt();
+  rt.bounce.probes = undefined;
+  rt.bounce.pending = Promise.resolve();
+  assert.deepEqual(unsettledReasons(unsettledMask(rt)), ['bounceProbes']);
+  rt.bounce.reason = 'bounce unavailable';
+  assert.equal(unsettledMask(rt), 0, 'a bounce that will never come is a steady state');
+});

@@ -18,7 +18,14 @@ function stored(settings: BenchSettings, pose: unknown) {
   const body = Buffer.from([255, 0, 0, 255, 255, 0, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255]);
   mkdirSync(join(dir, 'scene-test'));
   writeFileSync(join(dir, 'scene-test', 'salon.png'), encodePng(2, 2, body, true));
-  const view = { pose, file: 'salon.png', sha256: sha256(body), width: 2, height: 2, settleFrames: 1 };
+  const view = {
+    pose,
+    file: 'salon.png',
+    sha256: sha256(body),
+    width: 2,
+    height: 2,
+    settleFrames: 1,
+  };
   const record = {
     scene: 'scene-test',
     commit: 'abcdef0123456789',
@@ -66,6 +73,8 @@ test('a run the reference cannot judge is refused by name, never scored', () => 
   assert.throws(() => sceneReference(wider, dir), /width differ/);
   const moving = { ...report, settings: { ...report.settings, movingCamera: true } };
   assert.throws(() => sceneReference(moving, dir), /moving camera/);
+  const movingLight = { ...report, settings: { ...report.settings, movingLight: true } };
+  assert.throws(() => sceneReference(movingLight, dir), /moving light/);
   assert.throws(() => sceneReference(report, dir, ['salon', 'hall']), /no reference for hall/);
   const record = sceneReference(report, dir);
   const moved = { ...report.series[0], pose: { ...report.series[0].pose, fov: 60 } };
