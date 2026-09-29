@@ -8,6 +8,8 @@ import {
 } from '../../../../../bench/perf/browser/support/dagCut.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 import { createGeometryBudget } from './pool.ts';
+import { fenceAllocations, settleAllocations } from '../../webgl/core/allocation.ts';
+import { createRefusalAnswer } from './refusals.ts';
 import { PAGE } from './pool.fixture.ts';
 import { createImageCut } from './imageCut.ts';
 import { createWebglViews } from './views.ts';
@@ -34,6 +36,7 @@ export function mount(
     bytes = () => PAGE,
     camera: view,
     rootCharged = false,
+    gl,
   }: {
     pages?: DagPage[];
     primitives?: DagPage[][];
@@ -41,6 +44,8 @@ export function mount(
     bytes?: (url: string) => number;
     camera?: HostCamera;
     rootCharged?: boolean;
+    /** The context whose refused allocations the image answers, as `render.ts`'s frame does. */
+    gl?: WebGL2RenderingContext;
   } = {},
 ) {
   const all = primitives.flat();
@@ -93,6 +98,12 @@ export function mount(
     onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
   });
   let camera = view ?? dagCamera();
+  const answerRefusals = createRefusalAnswer({
+    gl: () => gl,
+    pool,
+    onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
+    redraw: () => {},
+  });
   const cut = createImageCut({ roots, view: live, revision: () => 0, pool, held });
   /** One image at the host's `pixelError`, as `render.ts` draws it, then the pages it asked for —
    *  at most `arrivals` of them, as a streamer spreads them; returns the most the pages held
@@ -100,9 +111,12 @@ export function mount(
    *  read. */
   const frame = { after: 0, stand: 0 };
   let last: ReturnType<typeof cut> | undefined;
-  // The order of `render.ts`'s frame, copied by hand: readmit, trim, cut, then what it keeps.
+  // The order of the host's frame (`../../world/render/draw.ts`) around `render.ts`'s, copied by
+  // hand: the allocations read, out of memory, readmit, trim, cut, what it keeps, the fence.
   const image = (pixelError: number, arrivals = Infinity) => {
     const { requested, shown } = live;
+    settleAllocations(gl);
+    answerRefusals();
     if (cut.readmit()) pool.follow(requested, shown);
     pool.trim();
     const drawn = (last = cut(cameraMoteur(camera), pixelError));
@@ -121,6 +135,7 @@ export function mount(
         pool.arrived(page.url);
         most = Math.max(most, state.allocationBytes);
       }
+    fenceAllocations(gl);
     return most;
   };
   /** Moves the camera `distance` units from the DAG's centre, or to the camera given. */

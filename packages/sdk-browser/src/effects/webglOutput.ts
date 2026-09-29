@@ -1,4 +1,5 @@
 import { FULLSCREEN_VERTEX } from '../webgl/core/fullscreenPass.ts';
+import { allocated } from '../webgl/core/allocation.ts';
 import { OUTPUT_TRANSFER_GLSL } from '../webgl/core/outputGlsl.ts';
 import { createWebglProgram } from '../webgl/core/program.ts';
 import {
@@ -59,11 +60,18 @@ export function createWebglSceneTarget(gl: WebGL2RenderingContext, w: number, h:
   };
   const untoned = attach(gl.COLOR_ATTACHMENT1, gl.R8, gl.RED, gl.UNSIGNED_BYTE),
     depth = attach(gl.DEPTH_ATTACHMENT, gl.DEPTH_COMPONENT24, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT);
+  // Refused: marked `refused`, so its owner makes it again at its next draw.
+  let refused = false;
+  allocated(gl, 'target', () => (refused = true));
   gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
   return {
     target,
     untoned,
     depth,
+    /** The context refused its storage (`../webgl/core/allocation.ts`): made again, never drawn. */
+    get refused() {
+      return refused || target.width !== w;
+    },
     dispose() {
       gl.deleteTexture(untoned);
       gl.deleteTexture(depth);
