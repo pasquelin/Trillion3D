@@ -13,6 +13,7 @@ import type { PageRec, ClusterRoot } from '../../page/selection/selection.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
 import { composedPose, deplaceInstance } from './instancePose.ts';
 import { attachedPages, drawnInstanced } from '../../placement/autonomousPlacements.ts';
+import { postPlacements } from '../../page/selection/placements.ts';
 import type { HeldFloor } from './heldFloor.ts';
 import { blendMoves, type AlphaChange } from '../../placement/backendSceneUpdates.ts';
 import type { SurfaceAssignment } from '../../placement/backendSceneUpdates.ts';
@@ -57,12 +58,10 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
     sceneChanged,
     coverChanged,
   } = env;
-  // `pages[i]` is the clone of `bases[i]`: the pair is set at creation, not rebuilt as a
-  // hash table on every instance move.
-  const instances = new Map<
-    string,
-    { roots: ClusterRoot<PageRec>[]; pages: PageRec[]; bases: PageRec[]; bootstrap: PageRec[] }
-  >();
+  type Instance = { roots: ClusterRoot<PageRec>[]; pages: PageRec[]; bootstrap: PageRec[] };
+  const instances = new Map<string, Instance>();
+  // The model's records rows place, read off their roots once: a root may leave `roots` later.
+  const rowed = new Set(baseRoots.flatMap((root) => (root.placement ? root.pages : [])));
   const { removeRecords, sync, colorMaterials } = geometryStore;
   /** The material this engine built from the contract for a primitive, and therefore frees
    *  itself: one entry per repainted primitive, replaced — not stacked — by the next paint. */
@@ -91,8 +90,8 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
     materialClassRefusal(alpha: AlphaChange) {
       const unpaged = unpagedRefusal(allPages, alpha);
       if (unpaged) return unpaged;
-      const instanced = (rec: PageRec) => drawnInstanced(rec, blendOf(rec, alpha));
-      if (blendMoves(alpha) && overCeiling(0, attachedPages(bootstrap, instanced)))
+      const instanced = (rec: PageRec) => drawnInstanced(roots, rec, blendOf(rec, alpha));
+      if (blendMoves(alpha) && overCeiling(0, attachedPages(bootstrap, roots, instanced)))
         return 'AUTONOMOUS_ROOT_BUDGET: the cover would hang more meshes than the host allows';
     },
     /** Classic instances held: each holds its own copy of every page geometry. */
@@ -108,7 +107,7 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
       if (hostCeiling < Infinity) {
         // The meshes it adds: one per record drawn on its own, its rows joining the cover's instanced
         // ones (`attachedPages`); counted now, as a class change moves records between them (#846).
-        const ownMeshes = baseBootstrap.filter((rec) => !drawnInstanced(rec)).length;
+        const ownMeshes = baseBootstrap.filter((rec) => !rowed.has(rec) || rec.transparent).length;
         if (overCeiling(ownMeshes)) throw new Error('AUTONOMOUS_ROOT_BUDGET');
       }
       const mapped = new Map<PageRec, PageRec>();
@@ -116,11 +115,10 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
         // A record rows place shares the page's geometry, as the store gives it (`geometry.ts`):
         // only a geometry of the model's own is copied.
         const geometry =
-          base.geometry && !base.placement ? copyHostGeometry(base.geometry) : base.geometry;
+          base.geometry && !rowed.has(base) ? copyHostGeometry(base.geometry) : base.geometry;
         const rec: PageRec = {
           ...base,
           clusterId: `${id}/${base.clusterId}`,
-          matrix: composedPose(transform, base.matrix),
           geometry,
           attributes: geometry?.attributes ?? base.attributes,
           mesh: undefined,
@@ -141,13 +139,13 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
         pages: root.pages.map((page) => mapped.get(page)!),
       }));
       const addedBootstrap = baseBootstrap.map((page) => mapped.get(page)!);
-      // One by one: a spread of a large world's roots overflows the stack.
+      // One by one: a spread of a large world's roots overflows the stack. Its pages rank them.
       for (const root of addedRoots) roots.push(root);
+      postPlacements(roots, roots.length - addedRoots.length);
       for (const page of addedBootstrap) bootstrap.push(page);
       instances.set(id, {
         roots: addedRoots,
         pages: [...mapped.values()],
-        bases: [...basePages],
         bootstrap: addedBootstrap,
       });
       coverChanged();
@@ -163,8 +161,10 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
       const instance = instances.get(id);
       if (!instance) throw new Error('AUTONOMOUS_INSTANCE_MISSING');
       const removed = new Set(instance.roots);
-      for (let i = roots.length - 1; i >= 0; i--) if (removed.has(roots[i])) roots.splice(i, 1);
+      // Its records leave while their roots still place them: a release reads their rows.
       removeRecords(instance.pages);
+      for (let i = roots.length - 1; i >= 0; i--) if (removed.has(roots[i])) roots.splice(i, 1);
+      postPlacements(roots);
       instances.delete(id);
       coverChanged();
       sync();

@@ -478,6 +478,14 @@
       "height": "Görselin piksel cinsinden yüksekliği."
     }
   },
+  "CellRows": {
+    "summary": "Satırları kendisinden yazılan, çözülmüş bir hücre.",
+    "members": {
+      "nodes": "Hücrenin taşıdığı düğüm sayısı.",
+      "ranks": "Her düğüm için ebeveyninin sırası (`-1`: sahne kökü), ardından ağının sırası.",
+      "locals": "Her düğüm için yerel matrisi."
+    }
+  },
   "ChangeListener": {
     "summary": "Bir kontrolcü kamerayı hareket ettirdiğinde çağrılan bir fonksiyon."
   },
@@ -2276,7 +2284,7 @@
     "description": "İlk altısı, `geometryPage.ts`'ten kelimesi kelimesine alınan sayfa çözme reddidir: bir çağıran onları eskisi gibi ayırt eder. `PAGE_DECODE_FAILED`, sıkıştırma açma kütüphanesinden başka herhangi bir reddi taşır. `PAGE_DECODE_CANCELLED` bir iptale yanıt verir, `PAGE_DECODE_WORKER` kaybolan bir yürütücüye — yalnızca o, yedeğe izin verir."
   },
   "PAGE_DECODE_PROTOCOL": {
-    "summary": "Ana iş parçacığı dışında sayfa çözme sözleşmesi, sürüm 6: çözülmüş geometri, kuantalama hatasıyla tek bir blok olarak yolculuk eder; `cut`, çizilen üçgenleri, açıklayıcılarıyla birlikte bayt olarak geri dönen sayfalara dönüştürür. Sürüm 6'dan beri normal konileriyle birlikte döner; paketlenmiş üçgenler sayfalarının bir koni tutup tutmadığını taşır.",
+    "summary": "Ana iş parçacığı dışında sayfa çözme sözleşmesi, sürüm 7: çözülmüş geometri, kuantalama hatasıyla tek bir blok olarak yolculuk eder; `cut`, çizilen üçgenleri, açıklayıcılarıyla birlikte bayt olarak geri dönen sayfalara dönüştürür. Sürüm 6'dan beri normal konileriyle birlikte döner; paketlenmiş üçgenler sayfalarının bir koni tutup tutmadığını taşır. Sürüm 7'den beri `cells` bir bölümlemenin hücre dosyasını yerleştirdiği satırlara okur, `cellPage` ise hücre dizininin bir sayfasını (#575).",
     "description": "Çağıran iş parçacığı bir `PageDecodeRequest` gönderir, yürütücü aynı `id`'yi taşıyan bir `PageDecodeAnswer` döndürür. Burada hiçbir şey platforma dokunmaz: `Worker` yok, fetch yok, saat yok — tarayıcı adaptörü bunların hepsini taşır, bu dosya yalnızca mesaj şeklini, kapalı hata listesini ve havuz sınırını taşır. Tampon sahipliği: `source`, istekle birlikte **aktarılır**, bu yüzden gönderen artık ona sahip değildir. Bir `verify` yanıtı onu, sırayla aktarılmış olarak döndürür; bir `decode` yanıtı bunun yerine çözülmüş tamponları, o da aktarılmış olarak döndürür. Hiçbir şey aktarmayan bir yürütücü (senkron yedek) tam olarak aynı değerleri döndürür: sözleşme işin nasıl yolculuk ettiğini söylemez, yalnızca ne döndürdüğünü."
   },
   "PAGE_INTEGRATION_FAILURES": {
@@ -2441,6 +2449,8 @@
       "source": "`verify`: döndürülen kaynak tampon. `decode`: `null`, kaynak tüketilir.",
       "decoded": "`decode`: açılmış sayfa.",
       "cut": "`cut`: sayfalar, baytları aktarılmış. Aksi halde yok.",
+      "cells": "`cells`: düğüm başına, çekirdek ebeveyninin sırası (`-1`: sahne kökü) ve ağının sırası `ranks` içinde, iki 32 bitlik tamsayı, ve motorun pozu için oluşturduğu yerel matris `locals` içinde, on altı double; ikisi de aktarılmış. Aksi halde yok.",
+      "cellPage": "`cellPage`: sayfanın yuvaları veya hücreleri (`readCellPage`). Aksi halde yok.",
       "wasm": "WebAssembly ile derlenmiş çözücü işi yaptığında doğru, JavaScript çözücüsü için yanlış. İkisi de aynı baytları verir; yalnızca sayaç onları ayırt eder.",
       "taskMs": "Görevin kendi yürütücüsü tarafından ölçülen süresi."
     }
@@ -2452,7 +2462,8 @@
       "id": "Yanıtlanan istek.",
       "ok": "Her zaman `false`.",
       "code": "Neden başarısız olduğu.",
-      "message": "Orijinal mesaj, olduğu gibi: çağıran, senkron yolla aynı `Error`'ı fırlatır."
+      "message": "Orijinal mesaj, olduğu gibi: çağıran, senkron yolla aynı `Error`'ı fırlatır.",
+      "refusal": "Görevin karşılaştığı motorun adlandırılmış reddinin kodu (`EngineError`); çağıran onu bu kodla yeniden fırlatır; başka her hatada yoktur."
     }
   },
   "PageDecodeFailureCode": {
@@ -2471,7 +2482,7 @@
   },
   "PageDecodeOp": {
     "summary": "`verify`: bir sayfanın SHA-256 özeti.",
-    "description": "`decode`: indeksleri ve köşe başına öznitelikleri. `cut`: beş uzunluk, sayfalarının bir koni tutup tutmadığı, sonra beş dört baytlık dizi olarak paketlenmiş, sayfalara kesilmiş çizilen üçgenler."
+    "description": "`decode`: indeksleri ve köşe başına öznitelikleri. `cut`: beş uzunluk, sayfalarının bir koni tutup tutmadığı, sonra beş dört baytlık dizi olarak paketlenmiş, sayfalara kesilmiş çizilen üçgenler. `cells`: bir bölümlemenin hücre dosyası, her düğümün ebeveynine, ağına ve yerel matrisine okunur. `cellPage`: hücre dizininin bir sayfası, listelediği sayfalara veya hücrelerine okunur."
   },
   "PageDecodeRequest": {
     "summary": "Bir worker'dan bir sayfayı kontrol etmesini, açmasını ya da kesmesini isteyen bir mesaj.",
@@ -2480,7 +2491,8 @@
       "id": "İstek numarası.",
       "op": "Ne yapılacağı.",
       "source": "Mesajla birlikte aktarılır: gönderen artık sahibi değildir.",
-      "maxDecodedBytes": "Bir geometri sayfasının çözülmüş bayt tavanı; `verify` tarafından yok sayılır."
+      "maxDecodedBytes": "Bir geometri sayfasının çözülmüş bayt tavanı; `verify` tarafından yok sayılır.",
+      "name": "`cells`, `cellPage`: kaynağın okunduğu dosya; bir ret onu adlandırır."
     }
   },
   "PageIntegrationAnswer": {
@@ -3228,7 +3240,7 @@
       "plan": "Bir kareyi planlar: hareket edeni eskitir, alıcıların talebini — yoksa son raporu — okur, çizilecek her sayfayı kabul eder.",
       "reissue": "Karenin `from` sonrasındaki sayfaları kodlanamadı: eski ve bekler hâlde kalırlar, sonraki kare onları çizer.",
       "reset": "Yeniden başlar.",
-      "setThreshold": "Işık kesitlerinin gölge düşürenleri seçtiği eşik (`thresholds.ts`).",
+      "setThreshold": "Işık kesitlerinin gölge düşürenleri seçtiği eşik ve render başlangıç noktaları (`thresholds.ts`).",
       "table": "Sayfa tablosu: sanal sayfa başına bir sözcük ve her ışığın içinde tuttuğu aralık.",
       "pool": "Havuzun fiziksel sayfaları ve her birinin tuttuğu sanal sayfa.",
       "sun": "Her güneşin clipmap’i: çerçevesi, derinlik aralığı, en ince düzeyi ve alanları.",
@@ -3560,6 +3572,22 @@
       "alphaMode": "Alfanın nasıl okunduğu: yok sayılır, `alphaTest` değerinde kesilir ya da karıştırılır.",
       "opacity": "Temel renk çarpanının alfası.",
       "extensions": "Fiziksel uzantıların eklediği, ana makinenin parametre adlarıyla: bir çarpan, bir renk ya da bir aralık sayılar olarak, bir harita yuva olarak."
+    }
+  },
+  "TablePage": {
+    "summary": "Bir yuvanın adlandırdığı sayfa: tablolara göre dosyası, boyutu ve parmak izi.",
+    "members": {
+      "url": "Tablolara göre dosyası.",
+      "bytes": "Bayt cinsinden boyutu.",
+      "sha256": "Onaltılık SHA-256 parmak izi."
+    }
+  },
+  "TableSlot": {
+    "summary": "Bir yuvanın adlandırdığı bir dizin sayfası, bildirilen pozlardaki kutusu ve yanında listelenen çekirdek sıraları: hücre dizini için, hücrelerinin düğüm astığı ebeveynler (#575).",
+    "members": {
+      "page": "Yuvanın adlandırdığı sayfa.",
+      "bounds": "Bildirilen pozlardaki kutusu: önce en küçük köşe, sonra en büyük.",
+      "parents": "Yanında listelenen çekirdek sıraları."
     }
   },
   "TableTexture": {
@@ -7871,6 +7899,45 @@
       "alphaMode": "Bir yüzeyin alfa kanalının nasıl okunduğu: opak onu yok sayar, `mask` `alphaCutoff`'ta keser, `blend` karıştırır.",
       "alphaCutoff": "Bundan daha az opak pikseller atılır.",
       "tiling": "Görselin yatayda ve dikeyde kaç kez sığdığı."
+    }
+  },
+  "WorldRoots": {
+    "summary": "`world-roots.json`: derleyicinin her nesnenin köklerinin üstünde sürdürdüğü dünya DAG’i — paketleri, sayfaları ve hücreleri, sabitlenmiş tepe önce.",
+    "members": {
+      "version": "Biçim sürümü.",
+      "budgetBytes": "Pişirmenin sabitlenmiş tepeye izin verdiği en fazla bayt.",
+      "pinned": "İlk paketler, dünyanın tepesi: sabitlenmiş.",
+      "pinnedTopBytes": "Sabitlenmiş tepenin baytları.",
+      "payload": "Paketlerin art arda durduğu ikili dosya: adresi, özeti ve uzunluğu.",
+      "bundles": "Paketler, ikili dosyadaki sırayla.",
+      "pages": "Her sayfa: paketi, içindeki konumu, düzeyi ve hatası.",
+      "cells": "Her dünya hücresi: tuttuğu yerleştirilmiş ilkel öğeler."
+    }
+  },
+  "WorldRootsBundle": {
+    "summary": "`world-roots.bin` içindeki bir paket: ikili dosyadaki aralığı, özeti, sayfa sayısı ve gereken paketler.",
+    "members": {
+      "offset": "İkili dosyada nerede başladığı, bayt olarak.",
+      "bytes": "İkili dosyadaki uzunluğu.",
+      "sha256": "Baytlarının SHA-256 özeti, okunurken denetlenir.",
+      "count": "Kaç sayfa tuttuğu.",
+      "dependencies": "Sayfalarının gerektirdiği paketler, artan sırayla, dünyanın tepesine kadar."
+    }
+  },
+  "WorldRootsObject": {
+    "summary": "Bir dünya hücresinin yerleştirilmiş ilkel öğesi: köklerinin gerektirdiği dünya paketleri, tepeye kadar.",
+    "members": {
+      "node": "Yayımlanmış düğümü.",
+      "primitive": "Manifestodaki ilkel öğesi.",
+      "roots": "Bu ilkel öğenin köklerini tutan akış paketleri.",
+      "dependencies": "Bu köklerin gerektirdiği her dünya paketi, artan sırayla, tepeye kadar."
+    }
+  },
+  "WorldRootsPage": {
+    "summary": "Paketinin baytları üzerinde okunan bir süper kök sayfası: dünya uzayındaki kendi köşeleri ve yerel indisler olarak üçgenleri.",
+    "members": {
+      "positions": "Köşeleri, her biri üç sayı, dünya uzayında.",
+      "indices": "Üçgenleri, her biri üç yerel indis."
     }
   }
 }

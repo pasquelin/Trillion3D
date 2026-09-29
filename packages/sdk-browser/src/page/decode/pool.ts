@@ -80,13 +80,19 @@ export function createPageDecodePool(size: number) {
       }
     }
   };
-  const submit = (op: PageDecodeRequest['op'], source: ArrayBuffer, maxDecodedBytes: number) => {
+  const submit = (
+    op: PageDecodeRequest['op'],
+    source: ArrayBuffer,
+    maxDecodedBytes: number,
+    name?: string,
+  ) => {
     const request: PageDecodeRequest = {
       protocol: PAGE_DECODE_PROTOCOL,
       id: nextId++,
       op,
       source,
       maxDecodedBytes,
+      ...(name === undefined ? {} : { name }),
     };
     if (!alive || retired)
       return { id: request.id, answer: Promise.resolve(workerError(request.id)) };

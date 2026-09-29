@@ -478,6 +478,14 @@
       "height": "Altura da imagem, em pixels."
     }
   },
+  "CellRows": {
+    "summary": "Uma célula decodificada, tal como suas linhas são escritas a partir dela.",
+    "members": {
+      "nodes": "Quantos nós a célula contém.",
+      "ranks": "Por nó, a classificação do seu pai (`-1`: a raiz da cena), depois a da sua malha.",
+      "locals": "Por nó, sua matriz local."
+    }
+  },
   "ChangeListener": {
     "summary": "Uma função chamada quando um controlador move a câmera."
   },
@@ -2276,7 +2284,7 @@
     "description": "As primeiras seis são as rejeições de decodificação de página, tomadas palavra por palavra de `geometryPage.ts`: um chamador as distingue como antes. `PAGE_DECODE_FAILED` carrega qualquer outra rejeição da biblioteca de descompressão. `PAGE_DECODE_CANCELLED` responde a um cancelamento, `PAGE_DECODE_WORKER` a um executor que desapareceu — só esse permite o fallback."
   },
   "PAGE_DECODE_PROTOCOL": {
-    "summary": "Contrato de decodificação de página fora da thread principal, versão 6: a geometria decodificada viaja como um único bloco com seu erro de quantização; `cut` transforma triângulos desenhados em páginas, que voltam como bytes com seus descritores, e, desde a versão 6, com seu cone de normais, os triângulos empacotados dizendo se suas páginas mantêm um.",
+    "summary": "Contrato de decodificação de página fora da thread principal, versão 7: a geometria decodificada viaja como um único bloco com seu erro de quantização; `cut` transforma triângulos desenhados em páginas, que voltam como bytes com seus descritores, e, desde a versão 6, com seu cone de normais, os triângulos empacotados dizendo se suas páginas mantêm um; desde a versão 7, `cells` lê o arquivo de célula de uma partição nas linhas que ele posiciona, e `cellPage` uma página do seu índice de células (#575).",
     "description": "A thread chamadora envia um `PageDecodeRequest`, o executor devolve um `PageDecodeAnswer` carregando o mesmo `id`. Nada aqui toca a plataforma: nenhum `Worker`, nenhum fetch, nenhum relógio — o adaptador do navegador carrega tudo isso, este arquivo só carrega a forma da mensagem, a lista fechada de falhas e o limite do pool. Propriedade do buffer: `source` é **transferido** com a requisição, então o remetente não o possui mais. Uma resposta `verify` o devolve, transferido por sua vez; uma resposta `decode` devolve os buffers decodificados em vez disso, também transferidos. Um executor que não transfere nada (o fallback síncrono) devolve exatamente os mesmos valores: o contrato não diz como o trabalho viaja, só o que ele devolve."
   },
   "PAGE_INTEGRATION_FAILURES": {
@@ -2441,6 +2449,8 @@
       "source": "`verify`: o buffer de origem devolvido. `decode`: `null`, a origem é consumida.",
       "decoded": "`decode`: a página descompactada.",
       "cut": "`cut`: as páginas, seus bytes transferidos. Ausente caso contrário.",
+      "cells": "`cells`: por nó, o posto do seu pai do núcleo (`-1`: a raiz da cena) e o da sua malha em `ranks`, dois inteiros de 32 bits, e a matriz local que o motor compõe para sua pose em `locals`, dezesseis doubles; ambos transferidos. Ausente caso contrário.",
+      "cellPage": "`cellPage`: os slots da página, ou suas células (`readCellPage`). Ausente caso contrário.",
       "wasm": "Verdadeiro quando o decodificador compilado em WebAssembly fez o trabalho, falso para o decodificador JavaScript. Ambos produzem os mesmos bytes; só o contador os distingue.",
       "taskMs": "Tempo da tarefa, medido pelo próprio executor."
     }
@@ -2452,7 +2462,8 @@
       "id": "A requisição respondida.",
       "ok": "Sempre `false`.",
       "code": "Por que falhou.",
-      "message": "A mensagem original, como está: o chamador lança o mesmo `Error` que o caminho síncrono."
+      "message": "A mensagem original, como está: o chamador lança o mesmo `Error` que o caminho síncrono.",
+      "refusal": "O código da recusa nomeada do motor que a tarefa encontrou (`EngineError`), que o chamador lança de novo com esse código; ausente em qualquer outra falha."
     }
   },
   "PageDecodeFailureCode": {
@@ -2471,7 +2482,7 @@
   },
   "PageDecodeOp": {
     "summary": "`verify`: o digest SHA-256 de uma página.",
-    "description": "`decode`: seus índices e atributos por vértice. `cut`: triângulos desenhados, empacotados como cinco comprimentos, se suas páginas mantêm um cone, e depois cinco arrays de quatro bytes, cortados em páginas."
+    "description": "`decode`: seus índices e atributos por vértice. `cut`: triângulos desenhados, empacotados como cinco comprimentos, se suas páginas mantêm um cone, e depois cinco arrays de quatro bytes, cortados em páginas. `cells`: o arquivo de célula de uma partição, lido no pai, na malha e na matriz local de cada nó. `cellPage`: uma página do seu índice de células, lida nas páginas que lista ou nas suas células."
   },
   "PageDecodeRequest": {
     "summary": "Uma mensagem pedindo a um worker que verifique, descompacte ou corte uma página.",
@@ -2480,7 +2491,8 @@
       "id": "Número da requisição.",
       "op": "O que fazer.",
       "source": "Transferido com a mensagem: o remetente não é mais o dono.",
-      "maxDecodedBytes": "Teto de bytes decodificados de uma página de geometria; ignorado por `verify`."
+      "maxDecodedBytes": "Teto de bytes decodificados de uma página de geometria; ignorado por `verify`.",
+      "name": "`cells`, `cellPage`: o arquivo de onde a fonte foi lida, que uma recusa nomeia."
     }
   },
   "PageIntegrationAnswer": {
@@ -3228,7 +3240,7 @@
       "plan": "Planeja um quadro: invalida o que se moveu, lê a demanda dos receptores — ou, na falta dela, o último relatório —, admite cada página a desenhar.",
       "reissue": "As páginas do quadro a partir de `from` não puderam ser codificadas: continuam obsoletas, pendentes, e o quadro seguinte as desenha.",
       "reset": "Recomeça.",
-      "setThreshold": "O limiar em que os cortes de luz escolhem os projetores de sombra (`thresholds.ts`).",
+      "setThreshold": "O limiar em que os cortes de luz escolhem os projetores de sombra, e a sua origem de renderização (`thresholds.ts`).",
       "table": "A tabela de páginas: uma palavra por página virtual, e o intervalo que cada luz ocupa nela.",
       "pool": "As páginas físicas do pool e a página virtual que cada uma guarda.",
       "sun": "O clipmap de cada sol: o seu referencial, intervalo de profundidade, nível mais fino e extensões.",
@@ -3560,6 +3572,22 @@
       "alphaMode": "Como o alfa é lido: ignorado, cortado em `alphaTest`, ou misturado.",
       "opacity": "O alfa do fator de cor base.",
       "extensions": "O que as extensões físicas acrescentam, com os nomes de parâmetro do anfitrião: um fator, uma cor ou um intervalo como números, um mapa como espaço."
+    }
+  },
+  "TablePage": {
+    "summary": "Uma página que um slot nomeia: o seu arquivo, relativo às tabelas, o seu tamanho e a sua impressão digital.",
+    "members": {
+      "url": "O seu arquivo, relativo às tabelas.",
+      "bytes": "O seu tamanho em bytes.",
+      "sha256": "A sua impressão digital SHA-256, em hexadecimal."
+    }
+  },
+  "TableSlot": {
+    "summary": "Uma página de um índice que um slot nomeia, a sua caixa nas poses declaradas e as ordens do núcleo listadas ao lado: para o índice de células, os pais sob os quais as suas células penduram nós (#575).",
+    "members": {
+      "page": "A página que o slot nomeia.",
+      "bounds": "A sua caixa nas poses declaradas: o canto mínimo, depois o máximo.",
+      "parents": "As classificações do núcleo listadas ao lado."
     }
   },
   "TableTexture": {
@@ -7871,6 +7899,45 @@
       "alphaMode": "Como o canal alfa de uma superfície é lido: opaco o ignora, `mask` corta em `alphaCutoff`, `blend` compõe.",
       "alphaCutoff": "Pixels menos opacos que isso são descartados.",
       "tiling": "Quantas vezes a imagem cabe na horizontal e na vertical."
+    }
+  },
+  "WorldRoots": {
+    "summary": "`world-roots.json`: o DAG do mundo que o compilador continua acima das raízes de cada objeto — os seus pacotes, páginas e células, o topo fixado primeiro.",
+    "members": {
+      "version": "Versão do formato.",
+      "budgetBytes": "O máximo de bytes que a cozedura deixa o topo fixado pesar.",
+      "pinned": "Os primeiros pacotes, o topo do mundo: fixados.",
+      "pinnedTopBytes": "Os bytes do topo fixado.",
+      "payload": "O binário onde os pacotes seguem uns após os outros: o seu endereço, impressão e comprimento.",
+      "bundles": "Os pacotes, na ordem do binário.",
+      "pages": "Cada página: o seu pacote, o seu deslocamento nele, o seu nível e o seu erro.",
+      "cells": "Cada célula do mundo: as primitivas colocadas que contém."
+    }
+  },
+  "WorldRootsBundle": {
+    "summary": "Um pacote de `world-roots.bin`: o seu intervalo no binário, a sua impressão, o seu número de páginas e os pacotes de que precisa.",
+    "members": {
+      "offset": "Onde começa no binário, em bytes.",
+      "bytes": "O seu comprimento no binário.",
+      "sha256": "O SHA-256 dos seus bytes, verificado ao ler.",
+      "count": "Quantas páginas contém.",
+      "dependencies": "Os pacotes de que as suas páginas precisam, crescentes, até ao topo do mundo."
+    }
+  },
+  "WorldRootsObject": {
+    "summary": "Uma primitiva colocada de uma célula do mundo: os pacotes do mundo de que as suas raízes precisam, até ao topo.",
+    "members": {
+      "node": "O seu nó publicado.",
+      "primitive": "A sua primitiva no manifesto.",
+      "roots": "Os pacotes dos fluxos dessa primitiva que guardam as suas raízes.",
+      "dependencies": "Cada pacote do mundo de que essas raízes precisam, crescentes, até ao topo."
+    }
+  },
+  "WorldRootsPage": {
+    "summary": "Uma página super-raiz lida sobre os bytes do seu pacote: os seus próprios vértices no espaço do mundo e os seus triângulos como índices locais.",
+    "members": {
+      "positions": "Os seus vértices, três números cada, no espaço do mundo.",
+      "indices": "Os seus triângulos, três índices locais cada."
     }
   }
 }

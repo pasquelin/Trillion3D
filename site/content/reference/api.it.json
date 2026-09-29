@@ -148,6 +148,14 @@
   "assertCacheRoot": {
     "summary": "Ciò che un host può verificare sulla radice di un manifesto di cache (`clusters.json`) prima di qualsiasi sua pagina: la cache è pronta, dell’ambito richiesto, in un formato che questo SDK legge."
   },
+  "CellRows": {
+    "summary": "Una cella decodificata, così come ne vengono scritte le righe.",
+    "members": {
+      "nodes": "Quanti nodi contiene la cella.",
+      "ranks": "Per nodo, il rango del suo genitore (`-1`: la radice della scena), poi quello della sua mesh.",
+      "locals": "Per nodo, la sua matrice locale."
+    }
+  },
   "readPagedManifest": {
     "summary": "Il manifesto sotto `root`, le sue pagine e i loro file allegati letti fianco a fianco tramite `read` — in un browser `fetchVerified`, che prova ciascuno con la dimensione e l’impronta che lo nominano: i campi della radice, quelli della testa e le primitive di ogni pagina di mesh in ordine (`decodeManifestBinary`)."
   },
@@ -4490,7 +4498,7 @@
     "description": "I primi sei sono i rifiuti della decodifica di pagina, ripresi parola per parola da `geometryPage.ts`: un chiamante li distingue come prima. `PAGE_DECODE_FAILED` porta qualsiasi altro rifiuto della libreria di decompressione. `PAGE_DECODE_CANCELLED` risponde a un annullamento, `PAGE_DECODE_WORKER` a un esecutore scomparso — solo quest'ultimo permette il ripiego."
   },
   "PAGE_DECODE_PROTOCOL": {
-    "summary": "Contratto di decodifica delle pagine fuori dal thread principale, versione 6: la geometria decodificata viaggia in un unico blocco con il suo errore di quantizzazione; `cut` trasforma triangoli disegnati in pagine, che tornano in byte con i loro descrittori, e, dalla versione 6, con il loro cono delle normali, i triangoli impacchettati indicano se le loro pagine ne tengono uno.",
+    "summary": "Contratto di decodifica delle pagine fuori dal thread principale, versione 7: la geometria decodificata viaggia in un unico blocco con il suo errore di quantizzazione; `cut` trasforma triangoli disegnati in pagine, che tornano in byte con i loro descrittori, e, dalla versione 6, con il loro cono delle normali, i triangoli impacchettati indicano se le loro pagine ne tengono uno; dalla versione 7, `cells` legge il file di cella di una partizione nelle righe che colloca, e `cellPage` una pagina del suo indice di celle (#575).",
     "description": "Il thread chiamante invia una `PageDecodeRequest`, l'esecutore restituisce una `PageDecodeAnswer` che porta lo stesso `id`. Nulla qui tocca la piattaforma: nessun `Worker`, nessun recupero, nessun orologio — l'adattatore del browser porta tutto questo, questo file porta solo la forma del messaggio, l'elenco chiuso dei fallimenti e il limite della riserva. Proprietà dei buffer: `source` viene **trasferito** con la richiesta, quindi il mittente non ne è più il proprietario. Una risposta `verify` lo restituisce, a sua volta trasferito; una risposta `decode` restituisce invece i buffer decodificati, anch'essi trasferiti. Un esecutore che non trasferisce nulla (il ripiego sincrono) restituisce esattamente gli stessi valori: il contratto non dice come viaggia il lavoro, solo cosa restituisce."
   },
   "PAGE_INTEGRATION_FAILURES": {
@@ -4560,6 +4568,8 @@
       "source": "`verify`: il buffer sorgente restituito. `decode`: `null`, la sorgente è consumata.",
       "decoded": "`decode`: la pagina decompressa.",
       "cut": "`cut`: le pagine, i loro byte trasferiti. Assente altrimenti.",
+      "cells": "`cells`: per nodo, il rango del suo genitore del nucleo (`-1`: la radice della scena) e quello della sua mesh in `ranks`, due interi a 32 bit, e la matrice locale che il motore compone per la sua posa in `locals`, sedici double; entrambi trasferiti. Assente altrimenti.",
+      "cellPage": "`cellPage`: gli slot della pagina, o le sue celle (`readCellPage`). Assente altrimenti.",
       "wasm": "Vero quando il decodificatore compilato in WebAssembly ha fatto il lavoro, falso per il decodificatore JavaScript. Entrambi danno gli stessi byte; solo il contatore li distingue.",
       "taskMs": "Tempo dell'attività, misurato dall'esecutore stesso."
     }
@@ -4571,7 +4581,8 @@
       "id": "La richiesta che riceve la risposta.",
       "ok": "Sempre `false`.",
       "code": "Perché è fallita.",
-      "message": "Il messaggio originale, così com'è: il chiamante lancia lo stesso `Error` del percorso sincrono."
+      "message": "Il messaggio originale, così com'è: il chiamante lancia lo stesso `Error` del percorso sincrono.",
+      "refusal": "Il codice del rifiuto con nome del motore incontrato dal compito (`EngineError`), che il chiamante rilancia con quel codice; assente per ogni altro fallimento."
     }
   },
   "pageDecodeFailureCode": {
@@ -4593,7 +4604,7 @@
   },
   "PageDecodeOp": {
     "summary": "`verify`: l'impronta SHA-256 di una pagina.",
-    "description": "`decode`: i suoi indici e i suoi attributi per vertice. `cut`: i triangoli disegnati, disposti in cinque lunghezze, se le loro pagine tengono un cono, poi cinque array di quattro byte, tagliati in pagine."
+    "description": "`decode`: i suoi indici e i suoi attributi per vertice. `cut`: i triangoli disegnati, disposti in cinque lunghezze, se le loro pagine tengono un cono, poi cinque array di quattro byte, tagliati in pagine. `cells`: il file di cella di una partizione, letto nel genitore, nella mesh e nella matrice locale di ogni nodo. `cellPage`: una pagina del suo indice di celle, letta nelle pagine che elenca o nelle sue celle."
   },
   "PageDecodeRequest": {
     "summary": "Un messaggio che chiede a un worker di verificare, decomprimere o tagliare una pagina.",
@@ -4602,7 +4613,8 @@
       "id": "Numero della richiesta.",
       "op": "Cosa bisogna fare.",
       "source": "Trasferito con il messaggio: il mittente non ne è più il proprietario.",
-      "maxDecodedBytes": "Limite di byte decodificati di una pagina di geometria; ignorato da `verify`."
+      "maxDecodedBytes": "Limite di byte decodificati di una pagina di geometria; ignorato da `verify`.",
+      "name": "`cells`, `cellPage`: il file da cui è stata letta la sorgente, che un rifiuto nomina."
     }
   },
   "pageDecodeWorkerCount": {
@@ -5558,7 +5570,7 @@
       "plan": "Pianifica un fotogramma: invalida ciò che si è mosso, legge la domanda dei ricevitori — o altrimenti l’ultimo rapporto —, ammette ogni pagina da disegnare.",
       "reissue": "Le pagine del fotogramma da `from` in poi non hanno potuto essere codificate: restano scadute, in attesa, e il fotogramma successivo le disegna.",
       "reset": "Ricomincia.",
-      "setThreshold": "La soglia a cui i tagli di luce scelgono i proiettori d’ombra (`thresholds.ts`).",
+      "setThreshold": "La soglia a cui i tagli di luce scelgono i proiettori d’ombra, e la loro origine di rendering (`thresholds.ts`).",
       "table": "La tabella delle pagine: una parola per pagina virtuale, e l’intervallo che ogni luce vi occupa.",
       "pool": "Le pagine fisiche del pool e la pagina virtuale che ognuna contiene.",
       "sun": "Il clipmap di ogni sole: il suo riferimento, intervallo di profondità, livello più fine ed estensioni.",
@@ -5950,6 +5962,22 @@
       "alphaMode": "Come si legge l’alfa: ignorato, tagliato ad `alphaTest`, o miscelato.",
       "opacity": "L’alfa del fattore di colore di base.",
       "extensions": "Ciò che aggiungono le estensioni fisiche, con i nomi di parametro dell’host: un fattore, un colore o un intervallo come numeri, una mappa come slot."
+    }
+  },
+  "TablePage": {
+    "summary": "Una pagina che uno slot nomina: il suo file, relativo alle tabelle, la sua dimensione e la sua impronta.",
+    "members": {
+      "url": "Il suo file, relativo alle tabelle.",
+      "bytes": "La sua dimensione in byte.",
+      "sha256": "La sua impronta SHA-256, in esadecimale."
+    }
+  },
+  "TableSlot": {
+    "summary": "Una pagina di un indice che uno slot nomina, il suo box nelle pose dichiarate e i ranghi del nucleo elencati accanto: per l’indice delle celle, i genitori sotto cui le sue celle appendono nodi (#575).",
+    "members": {
+      "page": "La pagina che lo slot nomina.",
+      "bounds": "Il suo box nelle pose dichiarate: l’angolo minimo, poi il massimo.",
+      "parents": "I ranghi del nucleo elencati accanto."
     }
   },
   "TableTexture": {
@@ -7871,6 +7899,45 @@
       "alphaMode": "Come viene letto il canale alpha di una superficie: opaco lo ignora, `mask` taglia a `alphaCutoff`, `blend` compone.",
       "alphaCutoff": "I pixel meno opachi di questo scompaiono.",
       "tiling": "Quante volte l'immagine entra in larghezza e in altezza."
+    }
+  },
+  "WorldRoots": {
+    "summary": "`world-roots.json`: il DAG del mondo che il compilatore prosegue sopra le radici di ogni oggetto — i suoi pacchetti, pagine e celle, la cima fissata per prima.",
+    "members": {
+      "version": "Versione del formato.",
+      "budgetBytes": "Il massimo di byte che la cottura lascia pesare alla cima fissata.",
+      "pinned": "I primi pacchetti, la cima del mondo: fissati.",
+      "pinnedTopBytes": "I byte della cima fissata.",
+      "payload": "Il binario dove i pacchetti stanno uno dopo l’altro: indirizzo, impronta e lunghezza.",
+      "bundles": "I pacchetti, nell’ordine del binario.",
+      "pages": "Ogni pagina: il suo pacchetto, il suo scostamento in esso, il suo livello e il suo errore.",
+      "cells": "Ogni cella del mondo: le primitive posizionate che contiene."
+    }
+  },
+  "WorldRootsBundle": {
+    "summary": "Un pacchetto di `world-roots.bin`: il suo intervallo nel binario, la sua impronta, il numero di pagine e i pacchetti di cui ha bisogno.",
+    "members": {
+      "offset": "Dove inizia nel binario, in byte.",
+      "bytes": "La sua lunghezza nel binario.",
+      "sha256": "Lo SHA-256 dei suoi byte, verificato alla lettura.",
+      "count": "Quante pagine contiene.",
+      "dependencies": "I pacchetti di cui hanno bisogno le sue pagine, in ordine crescente, fino alla cima del mondo."
+    }
+  },
+  "WorldRootsObject": {
+    "summary": "Una primitiva posizionata di una cella del mondo: i pacchetti del mondo di cui hanno bisogno le sue radici, fino alla cima.",
+    "members": {
+      "node": "Il suo nodo pubblicato.",
+      "primitive": "La sua primitiva nel manifesto.",
+      "roots": "I pacchetti dei flussi di quella primitiva che tengono le sue radici.",
+      "dependencies": "Ogni pacchetto del mondo di cui hanno bisogno quelle radici, in ordine crescente, fino alla cima."
+    }
+  },
+  "WorldRootsPage": {
+    "summary": "Una pagina super-radice letta sui byte del suo pacchetto: i suoi vertici nello spazio del mondo e i suoi triangoli come indici locali.",
+    "members": {
+      "positions": "I suoi vertici, tre numeri ciascuno, nello spazio del mondo.",
+      "indices": "I suoi triangoli, tre indici locali ciascuno."
     }
   }
 }

@@ -1,4 +1,5 @@
 import { importedLightsUrl } from '../../lighting/importedLights.ts';
+import { worldRootsPlan } from '../../scene/worldRoots.ts';
 import { sceneTablesUrl } from '../../scene/tables.ts';
 
 /** The document a world's model draws. */
@@ -10,7 +11,12 @@ export const SCENE_FILE = 'source.gltf';
  * before any plan; an image is read only when a surface samples it, and the scene's binary only
  * when a path reads host vertices (`Geometry.loadVertices`), so neither is planned.
  */
-export function plannedFiles(declared: ReadonlyMap<string, number>, base: string) {
+export function plannedFiles(
+  declared: ReadonlyMap<string, number>,
+  base: string,
+  manifest: object,
+) {
   const read = [sceneTablesUrl(base), importedLightsUrl(base)];
-  return new Map(read.flatMap((url) => (declared.has(url) ? [[url, declared.get(url)!]] : [])));
+  const files = read.flatMap((url) => (declared.has(url) ? [[url, declared.get(url)!]] : []));
+  return new Map([...files, ...worldRootsPlan(declared, base, manifest)] as [string, number][]);
 }

@@ -47,7 +47,7 @@ export function referenceShadeLit(
     Ny = nz * cx - nx * cz,
     Nz = nx * cy - ny * cx;
   const screenFace = affine.area * tri.a.invW * tri.b.invW * tri.c.invW < 0 ? 1 : -1;
-  const pose = asHostLibrary<THREE.Matrix4>(page.matrix);
+  const pose = asHostLibrary<THREE.Matrix4>(tri.world);
   const face = screenFace * (pose.determinant() < 0 ? -1 : 1),
     side = mat.backSide ? -1 : 1;
   const normalAttr = asHostLibrary<THREE.BufferAttribute | undefined>(page.attributes.normal),

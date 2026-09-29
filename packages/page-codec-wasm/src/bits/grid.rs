@@ -5,17 +5,22 @@
 
 use super::{MAX_BITS, MAX_EXPONENT};
 
-/// A tile spans 2^5 = 32 m of the world (#930). Wider primitives sit on 2^-11 m (0.49 mm) up to
-/// 4 km, where the 24-bit page field bounds the grid, so a kilometre terrain seen from 2 m
-/// quantizes under half a pixel rather than several.
-pub const TILE_EXTENT_LOG2: i32 = 5;
+/// A tile spans 2^1 = 2 m of the world, in 2^16 steps: primitives wider than 2 m sit on 2^-15 m
+/// (30.5 µm), the finest the page field allows below that (`finest_exponent`). The grid is the
+/// only bound on a leaf page's error: the cut already counts it on every produced cluster
+/// (`quantizationErrorOf`, sdk-browser), but a leaf has nothing finer to refine to. A leaf moves the
+/// source by at most √3/2 of a step, 26.4 µm, which projects to 0.057 px at a metre on the reference
+/// display (2234 lines under a 55° vertical field, focal 2146 px), under the display quantum of
+/// 0.1 px (audit E1) down to 57 cm; 2^-14 would be 0.11 px at a metre (#959). A kilometre primitive
+/// stops at the page field: its DAG root spans it, 2^23 steps at most (2^-13 m on 1,024 m).
+pub const TILE_EXTENT_LOG2: i32 = 1;
 
 /// Texture coordinates sit on a fixed grid of 2^-14: a quarter of a texel on a 4096 map.
 pub const UV_EXPONENT: i32 = -14;
 
 /// A tile's width, as a power of two in object units, for a primitive the largest world `scale`
-/// places: 32 m in those units, a missing, zero or non-finite scale taken as a metre per unit.
-/// Rounded down: a tile never spans more than 32 m.
+/// places: 2 m in those units, a missing, zero or non-finite scale taken as a metre per unit.
+/// Rounded down: a tile never spans more than 2 m.
 pub fn tile_log2(scale: Option<f64>) -> i32 {
     object_units(2f64.powi(TILE_EXTENT_LOG2), scale)
         .log2()
@@ -34,18 +39,18 @@ pub fn object_units(metres: f64, scale: Option<f64>) -> f64 {
 
 /// Grid of a primitive, the finer of two rules: its widest extent, capped at 2^`tile_log2`, split
 /// into 2^16 steps, and an eighth of the finest group error its DAG published. Both are
-/// bounded below by the extent in 2^(`MAX_BITS` - 2) steps, so no page needs more than `MAX_BITS`
-/// per coordinate. Every page shares that exponent and rounds absolute coordinates: a vertex two
-/// clusters or two tiles share lands on one cell. The step is a power of two: `q * step` is exact.
+/// bounded below by the finest grid a page as wide as the primitive fits (`finest_exponent`), so no
+/// page needs more than `MAX_BITS` per coordinate. Every page shares that exponent and rounds
+/// absolute coordinates: a vertex two clusters or two tiles share lands on one cell. The step is a
+/// power of two: `q * step` is exact.
 pub fn grid_exponent(extent: f64, finest_error: Option<f64>, tile_log2: i32) -> i32 {
-    let widest = if extent > 0.0 {
-        extent.log2().floor() as i32
+    let (widest, finest) = if extent > 0.0 {
+        (extent.log2().floor() as i32, finest_exponent(extent))
     } else {
-        0
+        (0, -(MAX_BITS as i32 - 2))
     };
     let by_extent = widest.min(tile_log2) - 16;
     let by_error = finest_error.map_or(by_extent, |e| (e / 8.0).log2().floor() as i32);
-    let finest = widest - (MAX_BITS as i32 - 2);
     by_extent
         .min(by_error)
         .max(finest)

@@ -15,6 +15,10 @@ import type {
   HizPage,
   HizPyramid,
 } from '../../../packages/sdk-browser/src/hiz/types.ts';
+import type { MatrixElements } from '../../../packages/sdk-browser/src/math/matrixElements.ts';
+
+/** A page with the world of its root, which pages carried before #1226. */
+type Placed = HizPage & { matrix: MatrixElements };
 
 const viewProjScratch = new THREE.Matrix4(),
   projScratch = new THREE.Matrix4();
@@ -23,7 +27,7 @@ const boundsScratch = new Float64Array(HIZ_BOUNDS_VALUES);
 function referenceProjectBoxToScreen(
   min: readonly number[],
   max: readonly number[],
-  world: HizPage['matrix'],
+  world: MatrixElements,
   cam: THREE.PerspectiveCamera,
   viewport: [number, number],
 ): HizBounds {
@@ -50,7 +54,7 @@ function referenceProjectBoxToScreen(
 
 /** `packages/sdk-browser/src/hiz/split.ts:70-91` before batch A: `.map` of objects, `.sort` by comparator, two `.filter`.
  *  Reversed depth: nearest carries GREATER depth, so order is descending. */
-export function referenceSplitOccluders<T extends HizPage>(
+export function referenceSplitOccluders<T extends Placed>(
   pages: T[],
   camera: Camera,
   viewport: [number, number],
@@ -72,7 +76,7 @@ export function referenceSplitOccluders<T extends HizPage>(
 }
 
 /** `packages/sdk-browser/src/hiz/occlusion.ts:152-178` before batch A: un-cached projection, allocation per page. */
-export function referenceCountUnoccluded<T extends HizPage & { array?: ArrayLike<number> }>(
+export function referenceCountUnoccluded<T extends Placed & { array?: ArrayLike<number> }>(
   pages: T[],
   pyramid: HizPyramid,
   camera: Camera,

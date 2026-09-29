@@ -37,6 +37,15 @@ export const createAutonomousRenderState = (): AutonomousRenderState => ({
 });
 
 /**
+ * Whether a frame the gate held is the still frame a page waits for (`frameHeld`): as on WebGPU
+ * (`../../webgpu/frame/hold.ts`, nothing pending), not while a page the view asks for is still
+ * awaited — its arrival will change the image. A capture after a moving camera held the first
+ * frame whose cut had not moved, pages missing, and its A/A drew what each run had loaded (#1016).
+ */
+export const stillFrame = (requested: readonly Pick<PageRec, 'array'>[]) =>
+  requested.every((rec) => !!rec.array);
+
+/**
  * One frame of the autonomous WebGL engine. The whole cut is rerun as soon as the view, the scene
  * or the resources have moved — an incremental cut of this path is another job — but a frame that
  * nothing has touched reruns none: the attached scene is already this frame.
@@ -108,7 +117,7 @@ export function createAutonomousRender(options: {
     if (deformation.pending()) gate.resourcesChanged();
     // Frame entry: the order and its guarantees live in `../../frame/gateCore.ts`, which also copies
     // the host camera into the engine camera — the cut now reads only the latter.
-    state.frameHeld = gate.enterFrame(
+    const held = gate.enterFrame(
       context,
       camera,
       view.motion,
@@ -116,7 +125,9 @@ export function createAutonomousRender(options: {
       context.source,
       sourcesDessinees,
     );
-    if (state.frameHeld) return;
+    // Once still, a held frame stays still: no cut ran, the pages asked are the same.
+    state.frameHeld = held && (state.frameHeld || stillFrame(view.requested));
+    if (held) return;
     // Copied world matrices and lights are a function of the scene only.
     // A node the host hid or showed parks its roots and hides its copies, or takes them back
     // (`placement/hidden.ts`).
@@ -143,7 +154,7 @@ export function createAutonomousRender(options: {
     state.frustumRejected = selected.frustumRejected;
     state.lodLevel = selected.lodLevel;
     // Drawn pages past the display graph's page ceiling are reported, never replaced.
-    state.overBudget = attachedPages(view.shown) > ceiling();
+    state.overBudget = attachedPages(view.shown, roots) > ceiling();
     geometry.sync();
     follow();
     gate.keep(

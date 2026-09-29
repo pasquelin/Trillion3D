@@ -148,6 +148,6 @@ test('two instances share the DAG shape, never what places them', () => {
     assert.equal(a.clusterId, b.clusterId);
     assert.equal(a.sphere, b.sphere);
     assert.equal(a.lodError, b.lodError);
-    assert.notEqual(a.matrix, b.matrix);
+    assert.notEqual(a.placementIndex, b.placementIndex);
   }
 });

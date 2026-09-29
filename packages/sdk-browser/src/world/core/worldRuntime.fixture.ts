@@ -7,8 +7,10 @@ import type { SceneLight } from '../../../../sdk-core/src/index.ts';
 import { createWorldNotices, listenWorldNotices } from '../diagnostic/worldNotices.ts';
 import type { Scene } from './scene.ts';
 import { createWorldRuntime } from './worldRuntime.ts';
+import { byteRange } from '../../../../../scripts/static-server.ts';
 
-/** The site's own caches, served from disk; the GPU is the one thing these tests have not. */
+/** The site's own caches, served from disk as the site's server serves them, one byte range
+ *  answered alone (`byteRange`); the GPU is the one thing these tests have not. */
 export const HOST = 'http://site.test/';
 const SITE = new URL('../../../../../site/', import.meta.url);
 const saved = { fetch: globalThis.fetch, location: Reflect.get(globalThis, 'location') };
@@ -17,7 +19,7 @@ const READ_DELAY_MS = Number(process.env.WORLD_FIXTURE_READ_DELAY_MS ?? 0);
 let reading = 0;
 /** Disk reads still in flight: a loop gone idle leaves none behind. */
 export const readsInFlight = () => reading;
-const serve = async (input: string | URL | Request) => {
+const serve = async (input: string | URL | Request, init?: RequestInit) => {
   const url = String(input instanceof Request ? input.url : input);
   const path = fileURLToPath(new URL(url.slice(HOST.length), SITE));
   const json = /\.(json|gltf)$/.test(path);
@@ -25,7 +27,17 @@ const serve = async (input: string | URL | Request) => {
   reading++;
   try {
     if (READ_DELAY_MS > 0) await new Promise((done) => setTimeout(done, READ_DELAY_MS));
-    return new Response(await readFile(path), { headers: { 'content-type': type } });
+    const file = await readFile(path);
+    const range = byteRange(new Headers(init?.headers).get('range') ?? undefined, file.byteLength);
+    if (!range) return new Response(file, { headers: { 'content-type': type } });
+    const { start, end } = range;
+    return new Response(file.subarray(start, end + 1), {
+      status: 206,
+      headers: {
+        'content-type': type,
+        'content-range': `bytes ${start}-${end}/${file.byteLength}`,
+      },
+    });
   } finally {
     reading--;
   }
