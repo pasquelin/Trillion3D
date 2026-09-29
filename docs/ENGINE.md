@@ -1114,7 +1114,16 @@ make it `null`. A per-pass duration says where, never how much: on tile-based GP
 
 **CPU timing.** `cpu-timing` reports render duration, light updates, selection, residency and target
 management, encoding and submission; `transparentEncodeMs` is a subset of `encodeSubmitMs`, never
-added to it. CPU and GPU times are never added together.
+added to it. Six named steps split the shadow work inside the encode bounds, never added to them
+(#1207): planning — `shadowPlanMs` (the plan around the scheduler), `shadowRequestsMs` (reading the
+request report), `shadowAdmissionMs` (admitting pages) — and encoding — `shadowBatchesMs` (the
+batches around their regions and passes), `shadowRegionsMs`, `shadowPassesMs`. They are filed in
+the same profile row (`cpuSteps()`, `cpu-timing`) and published per frame as `cpuShadowPlanMs`,
+`cpuShadowRequestsMs`, `cpuShadowAdmissionMs`, `cpuShadowBatchesMs`, `cpuShadowRegionsMs` and
+`cpuShadowPassesMs`; a step the frame did not run, or WebGL2 cannot time, reads `null`, never 0.
+The Shadows stage's GPU time (`gpuShadowsMs`) spans exactly the shadow passes of the pass table
+(`stage/mapping.ts`, `SHADOW_STAGE_PASSES`); the light cut is its own stage (`shadowCasters`).
+CPU and GPU times are never added together.
 
 **Surface capture for global illumination.** `explorer.captureSurfaceView(pose, { width, height,
 signal })` returns an owned `SurfaceCapture` version 1 — the four material textures, depth, inverse
