@@ -7114,7 +7114,7 @@
     "summary": "Thay đổi vật liệu đã nhập hoặc đã tạo ở khung hình kế tiếp."
   },
   "world.createMaterial": {
-    "summary": "Tạo vật liệu thuộc trang này."
+    "summary": "Tạo vật liệu của trang; nếu có bitmap, chờ tiếp nhận xong trước khi gán."
   },
   "world.assignMaterial": {
     "summary": "Gán vật liệu đã tạo cho `mesh/primitive` đã biên dịch."
@@ -7879,7 +7879,7 @@
       "alphaMode": "Cách đọc kênh alpha của một bề mặt: opaque bỏ qua nó, `mask` cắt tại `alphaCutoff`, `blend` pha trộn.",
       "alphaCutoff": "Các điểm ảnh mờ đục kém hơn mức này bị loại bỏ.",
       "name": "Một tên để trang tự dùng riêng.",
-      "map": "Một hình ảnh và cách nó được lấy mẫu, theo lời của một trang (`wrap`, `filter`, `colorSpace`)."
+      "map": "ImageBitmap thuộc bên gọi, không nhân trước alpha hoặc chuyển đổi màu; giữ mở đến khi giải phóng vật liệu."
     }
   },
   "SceneMaterial": {
@@ -7941,5 +7941,11 @@
       "positions": "Các đỉnh của nó, mỗi đỉnh ba số, trong không gian thế giới.",
       "indices": "Các tam giác của nó, mỗi tam giác ba chỉ số cục bộ."
     }
+  },
+  "world.dropMaterial": {
+    "summary": "Giải phóng vật liệu đã tạo không còn dùng; gán vật liệu khác cho các đối tượng trước."
+  },
+  "world.materialMapBytes": {
+    "summary": "Số byte ảnh đang giữ hoặc chờ, giới hạn 64 MiB."
   }
 }

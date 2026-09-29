@@ -4184,7 +4184,7 @@
     "summary": "İçe aktarılmış veya oluşturulmuş malzemeyi sonraki karede değiştirir."
   },
   "world.createMaterial": {
-    "summary": "Bu sayfaya ait bir malzeme oluşturur."
+    "summary": "Sayfaya ait malzeme oluşturur; bitmap varsa atamadan önce kabulünün tamamlanmasını bekleyin."
   },
   "world.assignMaterial": {
     "summary": "Oluşturulan malzemeyi derlenmiş `mesh/primitive` üzerine atar."
@@ -7878,7 +7878,7 @@
       "alphaMode": "Bir yüzeyin alfa kanalının nasıl okunduğu: opak onu yok sayar, `mask` `alphaCutoff`'ta keser, `blend` karıştırır.",
       "alphaCutoff": "Bundan daha az opak pikseller atılır.",
       "name": "Sayfanın kendi kullanımı için bir ad.",
-      "map": "Bir görsel ve nasıl örneklendiği, bir sayfanın kelimeleriyle (`wrap`, `filter`, `colorSpace`)."
+      "map": "Çağırana ait ImageBitmap; ön çarpım veya renk dönüşümü olmadan çözülür, malzeme bırakılana kadar açık tutulur."
     }
   },
   "SceneMaterial": {
@@ -7940,5 +7940,11 @@
       "positions": "Köşeleri, her biri üç sayı, dünya uzayında.",
       "indices": "Üçgenleri, her biri üç yerel indis."
     }
+  },
+  "world.dropMaterial": {
+    "summary": "Kullanılmayan oluşturulmuş malzemeyi serbest bırakır; önce nesnelerine başka malzeme atayın."
+  },
+  "world.materialMapBytes": {
+    "summary": "Tutulan veya bekleyen görüntülerin bayt sayısı; sınır 64 MiB."
   }
 }

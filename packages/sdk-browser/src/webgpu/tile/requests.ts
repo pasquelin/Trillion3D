@@ -36,6 +36,7 @@ export function createTileRequests(options: {
       if (!weight) continue;
       const atlas = index < color.pages.entries ? color : data;
       const key = atlas.pages.tileOf(index);
+      if (atlas.textures[key.slot].retired) continue;
       requested++;
       const served = atlas.servedLevel(key) - key.level;
       if (served === 0) atLevel++;
