@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mustRestartTaaAfterSettle, texturesConverged } from './converge.ts';
+import { convergeBound, mustRestartTaaAfterSettle, texturesConverged } from './converge.ts';
 import { MAP_CHOICES, PICK_BLENDS, PICK_TAPS } from './feedback.ts';
 import { FEEDBACK_RULE_WGSL, TILE_REQUEST_WGSL } from './requestWgsl.ts';
 import { SHADE_REQUEST_WGSL } from '../../visibility/shader/request.ts';
@@ -77,4 +77,19 @@ test("a capture's convergence stops on a quiet round of the still phases, closin
   assert.equal(texturesConverged(8, 8, 15, 0, false), true);
   assert.equal(texturesConverged(8, 8, 7, 2, true), false, 'a level still read is waited for');
   assert.equal(texturesConverged(1, 1, 0, 0, false), true, 'no accumulation: one quiet image');
+});
+
+// #1016 review: a round of the still phases outnumbers the 64 turns at a low render scale (8 per
+// (display / render)²): a barrier whose last tile landed late never had a whole quiet round left.
+test('a convergence always has room for a quiet round after a tile served on its last turn', () => {
+  for (const phases of [1, 8, 32, 128]) {
+    const last = convergeBound(1) - 3;
+    let closed = -1;
+    for (let image = last + 1, quiet = 1; image < convergeBound(phases); image++, quiet++)
+      if (texturesConverged(quiet, phases, image, 0, false)) {
+        closed = image;
+        break;
+      }
+    assert.ok(closed > last, `${phases} phases: a quiet round closes`);
+  }
 });
