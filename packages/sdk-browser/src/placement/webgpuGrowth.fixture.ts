@@ -4,9 +4,8 @@ import { dagRoots } from '../webgpu/pages/testDag.fixture.ts';
 import { QUAD_MANIFEST, triangleGeometry } from '../backend/pagesBackendScenes.fixture.ts';
 import { rootPage } from '../webgpu/pages/testScenes.fixture.ts';
 import { cameraAt } from '../webgpu/pages/twoPlaces.fixture.ts';
-import { decodeHere, placed, world } from '../scene/partition/cells.fixture.ts';
-import type { PartitionCells } from '../scene/partition/cells.ts';
 import type { RowLink } from '../scene/partition/rows.ts';
+import { createPlacementRows, growPlacementRows } from './rows.ts';
 import { collectClusterPages } from '../page/selection/selection.ts';
 import { packDagSelection } from '../gpu/dag/selection.ts';
 import { mockGpu } from '../../../../tests/kit/gpu/mockGpu.ts';
@@ -21,10 +20,6 @@ import { PAGE_INFO_STRIDE } from '../visibility/buffer.ts';
 import { updateWebgpuPlacements } from './webgpuPlacements.ts';
 import { growWebgpuPlacements, webgpuGrowsInPlace } from './webgpuGrowth.ts';
 import type { ClusterManifest } from '../../../sdk-core/src/index.ts';
-
-type Io = Parameters<PartitionCells['frame']>[2];
-/** No arrival budget: what a test places never depends on the time the machine takes. */
-const noBudget = { admits: () => true, spend() {} };
 
 /** A ground triangle, and the two primitives of the mesh the partition places (`cells.fixture`),
  *  each a triangle of one root cluster, on the rows of `links`. */
@@ -60,17 +55,17 @@ function placedScene(links: readonly RowLink[]) {
 }
 
 /**
- * The partition of `cells.fixture` — its near cell's two nodes on rows sized at open, its far one
- * five kilometres off under the same core node — drawn by a WebGPU session on a mocked device
- * whose storage binding holds `bindingRows` page-table rows, the CPU cut drawing: the GPU cut lays
- * its catalogue out at open (#483).
- * The session is handed the partition's rows as a world hands them (`partitionFrame.ts`).
+ * Two primitives of one mesh placed by rows, two of them taken at open, drawn by a WebGPU session
+ * on a mocked device whose storage binding holds `bindingRows` page-table rows, the CPU cut
+ * drawing: the GPU cut lays its catalogue out at open (#483). The session is handed the rows as a
+ * world hands them, and told of each one written (`updateWebgpuPlacements`).
  */
 export async function placedSession(bindingRows: number) {
   installGpuGlobals();
-  const partition = world(0, 0);
-  const { cells, links, bytes } = partition;
-  await cells.prime([1e9, 0, 0], 100, () => Promise.reject(new Error('nothing is read')), true);
+  const links: RowLink[] = [
+    { meshes: 7, primitives: 0, placements: createPlacementRows(2) },
+    { meshes: 7, primitives: 1, placements: createPlacementRows(2) },
+  ];
   const scene = placedScene(links);
   const collected = collectClusterPages(
     scene.source,
@@ -89,19 +84,15 @@ export async function placedSession(bindingRows: number) {
     maxResidentPages: 3,
     viewport: [32, 32],
   });
-  const reopened = { count: 0 };
-  const io: Io = {
-    bytes,
-    decode: decodeHere,
-    loading: () => false,
-    request() {},
-    update: (rows, from, to) => updateWebgpuPlacements(rt, rows, from, to),
-    grow: {
-      growsInPlace: (from, capacity) => webgpuGrowsInPlace(rt, from, capacity),
-      growPlacements: (from, to) => growWebgpuPlacements(rt, from, to),
-    },
-    outgrown: () => void reopened.count++,
+  /** Takes row `row` of every buffer, at `x` along the ground. */
+  const place = (row: number, x: number) => {
+    for (const { placements: rows } of links) {
+      rows!.matrices.set([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, 0, 0, 1], row * 16);
+      rows!.live[row] = 1;
+      updateWebgpuPlacements(rt, rows!, row, row);
+    }
   };
+  const reopened = { count: 0 };
   const view = cameraAt(0, 30);
   const draw = async () => {
     renderWebgpuPages(rt, view);
@@ -114,18 +105,24 @@ export async function placedSession(bindingRows: number) {
   try {
     await prepareWebgpuBackend(rt, gpu.device);
     fallbackToCpuCut(rt, 'rows follow the camera');
-    await placed(cells, [0, 0, 0], 100, io, noBudget);
+    place(0, 1);
+    place(1, 3);
     await draw();
   } catch (error) {
     dispose();
     throw error;
   }
-  return { rt, ...partition, io, draw, reopened, dispose };
+  return { rt, links, place, draw, reopened, dispose };
 }
 
-/** Shrinks the core node a thousand times: the far cell comes within reach, one more node than
- *  the rows hold. Two frames, as a world runs them, the decodes the first asked landed between. */
-export function scaleDown({ cells, core, io }: Awaited<ReturnType<typeof placedSession>>) {
-  core.scale.set(1e-3, 1e-3, 1e-3);
-  return placed(cells, [0, 0, 0], 100, io, noBudget);
+/** A third row wanted, one more than the buffers hold: they grow in place, as the engine takes it,
+ *  and the row is taken; else they stay as they are and the owner is asked to open anew. */
+export function growOne({ rt, links, place, reopened }: Awaited<ReturnType<typeof placedSession>>) {
+  const from = links.map((link) => link.placements!);
+  if (!webgpuGrowsInPlace(rt, from, 4)) return void reopened.count++;
+  links.forEach((link, at) => {
+    link.placements = growPlacementRows(from[at], 3);
+    growWebgpuPlacements(rt, from[at], link.placements);
+  });
+  place(2, 5);
 }

@@ -19,11 +19,9 @@ import { cellReach } from '../../packages/sdk-browser/src/scene/partition/plan.t
 import { createPageStreamer } from '../../packages/sdk-browser/src/streaming/pageStreamer.ts';
 import { loadModel } from '../../packages/sdk-browser/src/world/core/loadedModel.ts';
 import { createWorldPoses } from '../../packages/sdk-browser/src/world/core/worldPoses.ts';
-import {
-  createPartitionFrame,
-  primePartitions,
-} from '../../packages/sdk-browser/src/world/scene/partitionFrame.ts';
+import { createPartitionFrame } from '../../packages/sdk-browser/src/world/scene/partitionFrame.ts';
 import { compiled, compiler, machine, SPACING, world } from './world-partition.fixture.ts';
+import { cellRecords } from './world-partition-pages.fixture.ts';
 
 const SHIFT = 5000;
 
@@ -43,7 +41,6 @@ test(
     const eye = [48 * SPACING - SHIFT, 2, 48 * SPACING];
     camera.position.set(eye[0], eye[1], eye[2]);
     camera.updateMatrixWorld();
-    await primePartitions([cells], camera, streamer, true);
     assert.equal(cells.stats().held, 0, 'nothing is there yet');
 
     const scene = new Object3D();
@@ -83,7 +80,7 @@ test(
           drawn.add(key(rows.matrices[row * 16 + 12], rows.matrices[row * 16 + 14]));
     const reach = cellReach(camera);
     let near = 0;
-    for (const { url } of cells.pages) {
+    for (const { url } of await cellRecords(cells.pages)) {
       const body = JSON.parse(await readFile(fileURLToPath(url), 'utf8'));
       for (const {
         translation: [x, y, z],
@@ -99,7 +96,7 @@ test(
 );
 
 test(
-  'a page that shrinks the parent of placed nodes grows their rows in place: no reopen, no wait',
+  'a page that shrinks the parent of placed nodes brings more cells onto the rows sized at open',
   { skip: !existsSync(compiler) },
   async (t) => {
     const root = await mkdtemp(join(tmpdir(), 'world-partition-shrink-'));
@@ -113,11 +110,9 @@ test(
     const camera = hostFramingCamera(60, 16 / 9, 0.1, 300);
     camera.position.set(48 * SPACING, 2, 48 * SPACING);
     camera.updateMatrixWorld();
-    await primePartitions([cells], camera, streamer, true);
     const scene = new Object3D();
     scene.add(model);
-    let renewed = 0,
-      grown = 0;
+    let renewed = 0;
     const frame = createPartitionFrame({
       partitions: [cells],
       streamer,
@@ -125,7 +120,6 @@ test(
       active: () =>
         ({
           updatePlacements() {},
-          growPlacements: () => void grown++,
         }) as Partial<RenderBackend> as RenderBackend,
       renew: () => void renewed++,
       budget: { admits: () => true, spend() {} },
@@ -144,7 +138,11 @@ test(
     poses.moved(district);
     poses.apply(scene, new Map(), new Map(), () => {});
     const after = await settle();
-    assert.ok(grown > 0 && after.rows > before.rows, JSON.stringify({ before, after, grown }));
+    assert.equal(
+      after.rows,
+      before.rows,
+      `nothing grows (#575): ${JSON.stringify({ before, after })}`,
+    );
     assert.deepEqual([after.waiting, renewed], [0, 0]);
     assert.ok(after.held > before.held, 'four times as many cells are within reach');
   },

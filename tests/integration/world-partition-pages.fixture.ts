@@ -1,7 +1,7 @@
 // A compiled world loaded as a WebGL2 world loads it (#751): its manifest held by the view, its
 // cells followed by the session's per-frame step (`createPartitionFrame`) on a WebGL2 engine
 // stand-in that mounts and unmounts in place (`mountPlacements`, `unmountPlacements`), as the
-// autonomous WebGL2 engine does, and grows its rows in place (`growPlacements`).
+// autonomous WebGL2 engine does, on the rows sized at open from the partition's root (#575).
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -14,22 +14,16 @@ import { cellReach } from '../../packages/sdk-browser/src/scene/partition/plan.t
 import { cellHoldings } from '../../packages/sdk-browser/src/scene/partition/cellPages.ts';
 import { createPageStreamer } from '../../packages/sdk-browser/src/streaming/pageStreamer.ts';
 import type { LoadedModel } from '../../packages/sdk-browser/src/world/core/loadedModel.ts';
-import {
-  createPartitionFrame,
-  primePartitions,
-} from '../../packages/sdk-browser/src/world/scene/partitionFrame.ts';
+import { createPartitionFrame } from '../../packages/sdk-browser/src/world/scene/partitionFrame.ts';
+import { readCellPage } from '../../packages/sdk-core/src/scene/core/tablePartition.ts';
 import { primitiveFinder } from '../../packages/sdk-browser/src/scene/primitiveLookup.ts';
 
 /** The engine stand-in: the rows each host mesh it draws reads, from its open or its mount. */
 function webgl2(opened: Map<Object3D, PlacementRows>) {
   const drawn = new Map(opened);
-  const counts = { grown: 0, mounts: 0, unmounts: 0 };
+  const counts = { mounts: 0, unmounts: 0 };
   const backend = {
     updatePlacements() {},
-    growPlacements(from: PlacementRows, to: PlacementRows) {
-      counts.grown++;
-      for (const [node, rows] of drawn) if (rows === from) drawn.set(node, to);
-    },
     async mountPlacements({ node, association }: PlacementMount) {
       counts.mounts++;
       drawn.set(node, association.placements);
@@ -58,8 +52,7 @@ export async function followed(model: LoadedModel, eye: readonly number[]) {
   const camera = hostFramingCamera(60, 16 / 9, 0.1, 300);
   camera.position.set(eye[0], eye[1], eye[2]);
   camera.updateMatrixWorld();
-  await primePartitions([cells], camera, streamer, true);
-  // The engine opens on the rows primed, drawing the meshes the manifest listed before.
+  // The engine opens on the rows sized from the root, drawing the meshes the manifest listed.
   const listed = primitiveFinder(opened.metadata.primitives);
   const atOpen = new Map<Object3D, PlacementRows>();
   for (const { links, nodes } of cellHoldings(cells).meshes.values())
@@ -100,7 +93,7 @@ export async function assertNoneMissing(
   const eye = camera.position,
     reach = cellReach(camera);
   let near = 0;
-  for (const { url } of cells.pages) {
+  for (const { url } of await cellRecords(cells.pages)) {
     const body = JSON.parse(await readFile(fileURLToPath(url), 'utf8'));
     for (const { translation } of body.nodes) {
       const [x, y, z] = translation.map((value: number) => value * scale);
@@ -110,4 +103,20 @@ export async function assertNoneMissing(
     }
   }
   return near;
+}
+
+/** Every cell record under `pages`, the root's slots of a compiled partition, its address made
+ *  whole: read from disk page by page as the runtime reads them (`readCellPage`). */
+export async function cellRecords(
+  pages: readonly { url: string }[],
+): Promise<{ url: string; bytes: number }[]> {
+  const lists = await Promise.all(
+    pages.map(async ({ url }) => {
+      const body = readCellPage(await readFile(fileURLToPath(url)), url);
+      const whole = (name: string) => new URL(name, url).href;
+      if (body.pages) return cellRecords(body.pages.map(({ page }) => ({ url: whole(page.url) })));
+      return body.cells.map((cell) => ({ url: whole(cell.url), bytes: cell.bytes }));
+    }),
+  );
+  return lists.flat();
 }

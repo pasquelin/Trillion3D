@@ -7,7 +7,7 @@ import { createCellIndex } from './cellIndex.ts';
 import { createPartitionCells } from './cells.ts';
 import { io, noBudget, settled } from './cells.fixture.ts';
 import { openAll, paged } from './paged.fixture.ts';
-import { placedMesh } from './rows.ts';
+import { placedMesh, type RowLink } from './rows.ts';
 
 /** A square world of `side` × `side` cells of 10 m, under the core node `rank` or the root, in
  *  the order the cook halves them (`split.rs`): its records and its cell files. */
@@ -75,7 +75,7 @@ test('before its first frame a partition reads its root only, the same bytes at 
   const opened = (side: number) => {
     const { cells, files: bodies } = grid(side);
     const { partition, files, root } = paged(cells, 4);
-    const link = { meshes: 0, primitives: 0 };
+    const link: RowLink = { meshes: 0, primitives: 0 };
     const partitioned = createPartitionCells({
       partition,
       base: 'https://cache.test/key/',
