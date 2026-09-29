@@ -23,9 +23,8 @@ export function createEvictionOrder() {
     order.subarray(0, count).sort();
   };
   return {
-    get bytes() {
-      return order.byteLength;
-    },
+    /** Bytes of the keys it holds. */
+    bytes: () => order.byteLength,
     /** Room for a pool of `pages`. */
     resize(pages: number) {
       order = new Float64Array(pages);

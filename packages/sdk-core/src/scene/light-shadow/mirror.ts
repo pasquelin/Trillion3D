@@ -39,8 +39,7 @@ export function createShadowMirror(
 ) {
   const entries = createEntryPages(table, records, sun),
     at = new Int32Array(3);
-  let on = false,
-    from = 0,
+  let from = 0,
     drops = records.drops;
   const apply = (
     snapshot: ShadowPoolSnapshot,
@@ -74,17 +73,15 @@ export function createShadowMirror(
     }
     if (moved) pool.rebuildFree();
   };
-  return {
+  const mirror = {
     /** What the host asks the GPU for beside the pixels, this frame (`requests.floors`). */
     asks: { entries: new Uint32Array(shadowRequestCap(pool.pages)), count: 0 } as ShadowAsks,
     /** True while the GPU allocates. */
-    get on() {
-      return on;
-    },
+    on: false,
     /** The GPU allocates, its pool written from the host's, or no longer does, from frame `frame`
      *  on: snapshots before are left. */
     set(allocate: boolean, frame: number) {
-      on = allocate;
+      mirror.on = allocate;
       from = Math.max(from, frame);
     },
     /** Frame `frame`'s plan dropped pages or not (`records.drops`): snapshots before are left. */
@@ -102,6 +99,5 @@ export function createShadowMirror(
       return true;
     },
   };
+  return mirror;
 }
-
-export type ShadowMirror = ReturnType<typeof createShadowMirror>;

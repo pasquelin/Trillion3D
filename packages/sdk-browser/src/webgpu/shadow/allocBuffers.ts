@@ -12,7 +12,7 @@ import { WORDS_HEADER } from './wordsWgsl.ts';
 /** The power of two at least `n`: what a bitonic sort of `n` keys spans. */
 const spanOf = (n: number) => 2 ** Math.ceil(Math.log2(Math.max(2, n)));
 /** Words a snapshot reads back from the GPU pool: its counts, then its owners and last requests. */
-export const snapshotWords = (pages: number) => POOL_COUNTS.length + 2 * pages;
+const snapshotWords = (pages: number) => POOL_COUNTS.length + 2 * pages;
 /** Pairs the host's table words hold at most: the table's changed words of a frame, or every
  *  mapped page once (`table.ts`, `flush`). */
 const wordsCap = (pages: number) => 4 * pages;
@@ -137,5 +137,3 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
   };
   return allocation;
 }
-
-export type ShadowAllocationBuffers = ReturnType<typeof createShadowAllocationBuffers>;

@@ -36,5 +36,3 @@ export function createEntryPages(table: ShadowTable, records: ShadowRecords, sun
       isSun(slice) ? sunCoarseness(at[0], sun.finest[slice]) : lampCoarseness(at[0] & 15),
   };
 }
-
-export type EntryPages = ReturnType<typeof createEntryPages>;
