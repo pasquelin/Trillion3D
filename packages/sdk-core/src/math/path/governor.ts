@@ -44,18 +44,23 @@ class Operation {
   readonly wasm = new SlidingMedian();
   /** Per path, the executions a coarse clock pools into one sample; `null` on a fine clock. */
   readonly pools: Record<MathPath, PooledTiming> | null;
-  constructor(poolSpanMs: number | null) {
-    this.pools =
-      poolSpanMs === null
-        ? null
-        : { js: new PooledTiming(poolSpanMs), wasm: new PooledTiming(poolSpanMs) };
-  }
   path: MathPath | null = null;
   runs = 0;
   switches = 0;
   elements = 0;
   /** Consecutive executions where the other path held its lead. Reset to zero as soon as it yields. */
   lead = 0;
+  constructor(poolSpanMs: number | null) {
+    this.pools =
+      poolSpanMs === null
+        ? null
+        : { js: new PooledTiming(poolSpanMs), wasm: new PooledTiming(poolSpanMs) };
+  }
+  /** Drops both paths' pooled executions: a missing timer breaks the batch. */
+  dropPools() {
+    this.pools?.js.clear();
+    this.pools?.wasm.clear();
+  }
 }
 
 /** Picks, per batch operation, the faster of JavaScript and WebAssembly from measured times. */
@@ -115,8 +120,7 @@ export function createPathGovernor(now: () => number, mode: MathPathMode = 'auto
       // as long as no timed execution has fed both medians.
       operation.path = 'js';
       operation.lead = 0;
-      operation.pools?.js.clear();
-      operation.pools?.wasm.clear();
+      operation.dropPools();
       return;
     }
     // A fine clock keeps one sample per execution, bit for bit (-0 included): no pool there.

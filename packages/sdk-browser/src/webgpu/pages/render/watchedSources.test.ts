@@ -4,39 +4,19 @@
 // harness is ported below on the real runtime.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MANIFEST_IDENTITY } from '../../../backend/pagesBackend.fixture.ts';
-import { collectClusterPages } from '../../../page/selection/selection.ts';
-import { packDagSelection } from '../../../gpu/dag/selection.ts';
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
-import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
-import { createWebgpuPagesRuntime, type WebgpuPagesRuntime } from '../runtime.ts';
-import { prepareWebgpuBackend } from '../prepare/prepare.ts';
+import { type WebgpuPagesRuntime } from '../runtime.ts';
 import { disposeWebgpuPages } from '../io/metrics.ts';
 import { renderWebgpuPages } from './render.ts';
 import { flushWebgpuPages } from './flush.ts';
-import { camera, quadScene } from '../testScenes.fixture.ts';
+import { camera } from '../testScenes.fixture.ts';
+import { drawnQuad } from '../drawnQuad.fixture.ts';
 
 async function withRuntime(body: (rt: WebgpuPagesRuntime) => Promise<void> | void) {
-  installGpuGlobals();
-  const scene = quadScene();
-  const { source, metadata, indices, associations } = scene;
-  const { roots } = collectClusterPages(source, metadata, indices, associations);
-  const { device } = mockGpu({ packed: packDagSelection(roots) });
-  const identified = { ...metadata, ...MANIFEST_IDENTITY };
-  const viewport: [number, number] = [32, 32];
-  const rt = createWebgpuPagesRuntime({
-    ...scene,
-    metadata: identified,
-    gpuDevice: device,
-    viewport,
-  });
+  const { rt } = await drawnQuad(false);
   try {
-    await prepareWebgpuBackend(rt, device);
     await body(rt);
   } finally {
     disposeWebgpuPages(rt);
-    scene.geometry.dispose();
-    scene.material.dispose();
   }
 }
 

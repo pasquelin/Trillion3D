@@ -866,8 +866,11 @@ measured faster, operation by operation. `metric.frame(world).mathBatch` publish
 plays, `jsNsPerElement` and `wasmNsPerElement` the sliding medians in nanoseconds per element
 (`null` while unmeasured — never zero), `switches` how many times the decision changed, `elements`
 the total processed; `clockCoarse` says the thread clock is too coarse to time one call (no
-cross-origin isolation), so the governor times pooled runs of ten clock steps instead (#919). The other batches have no kernel: a kernel is written only where a loop's
-share of the engine's own frame is measured above 0.1 ms, and none of their loops reaches it (#80).
+cross-origin isolation), so the governor times pooled runs of ten clock steps instead (#919). A host
+that serves its page with the `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy`
+headers gets the fine clock back, one sample per call. The other batches have no kernel: a kernel
+is written only where a loop's share of the engine's own frame is measured above 0.1 ms, and none of
+their loops reaches it (#80).
 
 ## Maths reference
 
