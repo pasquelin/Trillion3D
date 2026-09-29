@@ -11,6 +11,7 @@ import { createResidentOrder } from './poolOrder.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { WebglViewState } from './views.ts';
 import { createUnionFit, type Ranked } from './poolUnion.ts';
+import { halvedPool, outOfMemoryContext } from '../../residency/outOfMemory.ts';
 
 /**
  * The geometry copies a page holds once resident: one per record that owns its geometry — every
@@ -160,26 +161,19 @@ export function createGeometryBudget(env: PoolEnvironment) {
       return resident.shed();
     },
     /**
-     * The context ran out of memory (`../../webgl/core/allocation.ts`): the pool is drawn again at
-     * half the bytes it holds, as WebGPU's refusal shrinks its own (`poolGrants.ts`), and the
-     * residency lets the finest pages go one DAG level per image, never a hole. Published as
-     * `gpu-out-of-memory`; false at the floor, where half draws no smaller pool.
+     * The context refused a geometry allocation (`../../webgl/core/allocation.ts`): the pool is
+     * drawn again at half the bytes it holds, by the rule WebGPU's refusal follows
+     * (`halvedPool`), and the residency lets the finest pages go one DAG level per image, never a
+     * hole. Published as `gpu-out-of-memory`; false at the floor, where half draws no smaller pool.
      */
     outOfMemory() {
       const before = current(),
-        half = Math.floor(Math.min(before.budgetBytes, before.allocatedBytes) / 2);
-      if (half >= 1) drawn.resize(half);
-      const after = current(),
-        smaller = after.allocatedBytes < before.allocatedBytes;
-      sendEngineDiagnostic(onDiagnostic, 'gpu-out-of-memory', 'WebGL2 refused an allocation', {
-        kind: 'warning',
-        pool: 'geometry',
-        requestedBytes: before.allocatedBytes,
-        grantedBytes: smaller ? after.allocatedBytes : null,
-        clamp: after.clamp,
-      });
+        smaller = halvedPool(before, drawn.drawFor);
+      if (smaller) drawn.adopt(smaller);
+      const refused = outOfMemoryContext('geometry', before.allocatedBytes, smaller);
+      sendEngineDiagnostic(onDiagnostic, 'gpu-out-of-memory', 'WebGL2 refused geometry', refused);
       if (smaller) resident.shed();
-      return smaller;
+      return !!smaller;
     },
   };
 }
