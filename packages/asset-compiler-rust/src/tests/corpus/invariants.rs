@@ -96,6 +96,15 @@ pub(super) fn check_structure(case: &Case, indices: &[u32], built: &Built, label
             }
             None => assert!(cluster.is_root(), "{label}: unreplaced means root"),
         }
+        // The projection spheres (#929): each holds its cluster and sits in the replacing group's,
+        // within the builder merge's own rounding.
+        use crate::shared_math::{length, point, sub};
+        let beyond = |s: [f64; 4], c| length(sub(c, [s[0], s[1], s[2]])) - s[3] * (1.0 + 1e-12);
+        let [x, y, z, r] = cluster.sphere;
+        let outside = (cluster.indices.iter())
+            .map(|&v| beyond(cluster.sphere, point(&case.positions, v)))
+            .fold(beyond(cluster.parent_sphere, [x, y, z]) + r, f64::max);
+        assert!(outside <= 0.0, "{label}: a sphere leaves its bound");
         if cluster.level > 0 {
             for &vertex in &cluster.indices {
                 let placed = (vertices..grown).contains(&vertex);

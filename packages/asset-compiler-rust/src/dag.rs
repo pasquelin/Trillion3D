@@ -20,8 +20,9 @@ use std::collections::{HashMap, HashSet};
 pub const DAG_CLUSTER_TRIANGLES: usize = 128;
 /// meshopt caps a meshlet at 255 vertices; a 128 triangle cluster never needs more.
 pub const DAG_CLUSTER_VERTICES: usize = 255;
-/// Group floor of the reference. Grouping does not enforce it (it only splits
-/// above `DAG_GROUP_MAX`); the DAG warnings and the stall report read it.
+/// Group floor of the reference; the DAG warnings and the stall report read it. Grouping keeps it
+/// with no merge pass (audit CMP-17, #977): it splits only above `DAG_GROUP_MAX`, each half keeping
+/// 3/8 of 33 clusters or more (`refine_bisection`), so a smaller group is its level's only one.
 pub const DAG_GROUP_MIN: usize = 8;
 pub const DAG_GROUP_MAX: usize = 32;
 /// 2x reduction per level bounds the depth of a 2^24 triangle mesh.
@@ -178,6 +179,7 @@ mod diagnosis;
 pub(crate) mod groups;
 mod grown;
 mod levels;
+mod measured;
 mod placed;
 pub(crate) mod quality;
 pub(crate) mod reduce;
@@ -186,6 +188,8 @@ mod solved;
 mod tally;
 #[cfg(test)]
 mod tests;
+mod texture;
+pub(crate) mod tight;
 pub(crate) mod vanished;
 mod welds;
 
