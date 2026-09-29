@@ -41,29 +41,16 @@ export function writeCone(
   column[page * 4 + 3] = cone!.angle;
 }
 
-const digestRefuse = (sha: string) =>
-  new EngineError(
-    'INVALID_CACHE',
-    'A cache object digest is not 64 lowercase hexadecimal characters',
-    { sha256: sha },
-  );
-
-/** The 64 bytes of a digest, filled then stored: nothing is written if the digest is rejected. */
-const digestScratch = new Uint8Array(64);
-
-/**
- * A digest as its 64 ASCII hexadecimal characters, at its slot in a sha column. Validation reads the
- * codes once and keeps them: a regular expression used to walk the digest, then the write loop
- * walked it again, for each of the tens of thousands of pages in a manifest.
- */
+/** A digest as its 64 ASCII hexadecimal characters, at its slot in a sha column; nothing is
+ *  written if it is not 64 lowercase hexadecimal characters. */
 export function writeSha(target: Uint8Array, slot: number, sha: string) {
-  if (sha.length !== 64) throw digestRefuse(sha);
-  for (let i = 0; i < 64; i++) {
-    const code = sha.charCodeAt(i);
-    if (!((code >= 48 && code <= 57) || (code >= 97 && code <= 102))) throw digestRefuse(sha);
-    digestScratch[i] = code;
-  }
-  target.set(digestScratch, slot * 64);
+  if (!/^[0-9a-f]{64}$/.test(sha))
+    throw new EngineError(
+      'INVALID_CACHE',
+      'A cache object digest is not 64 lowercase hexadecimal characters',
+      { sha256: sha },
+    );
+  for (let i = 0; i < 64; i++) target[slot * 64 + i] = sha.charCodeAt(i);
 }
 /** Every object url a sidecar names follows its template; a cache where one does not is rejected. */
 export function expectTemplate(template: string, url: string, sha: string) {
