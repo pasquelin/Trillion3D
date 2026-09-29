@@ -53,7 +53,7 @@ export async function empaquetePage(
 /**
  * Serves an empty page on a free port, opens it in Chromium and evaluates `fonction(argument)`
  * there. `fonction` runs in the page: it sees only its argument, serialised, and returns JSON.
- * `globalThis.ouvrirAppareil` and `globalThis.namedBufferEntries` are installed ahead of time
+ * The device opener and `globalThis.namedBufferEntries` are installed ahead of time
  * (`PAGE_INIT_SCRIPT`), since a serialised function does not see its module's scope.
  *
  * Options: `titre` (the page title), `script` (a bundle served on `/page.js` and loaded by the
@@ -70,12 +70,13 @@ export async function dansPageWebgpu<A, R>(
     resources?: Readonly<Record<string, string>>;
   } = {},
 ) {
-  const { titre = 'Trillion3D WebGPU', script = null, erreursPage = null } = options;
+  const { titre = 'Trillion3D WebGPU', script = null } = options;
+  const pageErrors = options.erreursPage;
   const { server, port } = await blankPageServer(titre, script, options.resources);
   const browser = await launchChrome({ headless: true });
   try {
     const page = await browser.newPage();
-    if (erreursPage) page.on('pageerror', (error) => erreursPage.push(error.message));
+    if (pageErrors) page.on('pageerror', (error) => pageErrors.push(error.message));
     await page.addInitScript({ content: PAGE_INIT_SCRIPT });
     await page.goto(`http://127.0.0.1:${port}/`);
     // `page.evaluate`'s `PageFunction<A, R>` runs `argument` through Playwright's `Unboxed<A>`,

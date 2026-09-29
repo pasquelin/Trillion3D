@@ -8,25 +8,25 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/index.ts';
 import { dansPageWebgpu, empaquetePage } from './pageWebgpu.ts';
-import type { executer } from './lightTilesPlainPage.ts';
+import type { run } from './lightTilesPlainPage.ts';
 
 declare global {
-  var lightTilesPlain: { executer: typeof executer };
+  var lightTilesPlain: { run: typeof run };
 }
 
-const ici = dirname(fileURLToPath(import.meta.url));
+const here = dirname(fileURLToPath(import.meta.url));
 
 test('the plain tile pass keeps the lists of the subgroup pass, on the GPU', async () => {
-  const script = await empaquetePage(resolve(ici, 'lightTilesPlainPage.ts'), 'lightTilesPlain');
-  const erreursPage: string[] = [];
-  const releve = await dansPageWebgpu(
-    (counts: number[]) => globalThis.lightTilesPlain.executer(counts),
+  const script = await empaquetePage(resolve(here, 'lightTilesPlainPage.ts'), 'lightTilesPlain');
+  const pageErrors: string[] = [];
+  const result = await dansPageWebgpu(
+    (counts: number[]) => globalThis.lightTilesPlain.run(counts),
     [48, 800],
-    { titre: 'Plain light tiles', script, erreursPage },
+    { titre: 'Plain light tiles', script, erreursPage: pageErrors },
   );
-  assert.equal(releve.indisponible, undefined, 'WebGPU with subgroups must be available');
-  assert.deepEqual([...(releve.erreurs ?? []), ...erreursPage], []);
-  const { runs } = releve as Exclude<typeof releve, { indisponible: string }>;
+  assert.equal(result.unavailable, undefined, 'WebGPU with subgroups must be available');
+  assert.deepEqual([...(result.errors ?? []), ...pageErrors], []);
+  const { runs } = result as Exclude<typeof result, { unavailable: string }>;
   for (const { count, subgroup, plain } of runs) {
     assert.deepEqual([subgroup.subgroups, plain.subgroups], [true, false], 'one variant each');
     const wide = count > LIGHT_SETTINGS.tileLights;
