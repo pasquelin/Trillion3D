@@ -10,6 +10,9 @@ export const shadowPageArrays = (pages: number) => ({
   /** Coarseness within its light (`sunCoarseness`, `lampCoarseness`): the finer goes first. */
   rank: new Int32Array(pages),
   requested: new Int32Array(pages).fill(-1),
+  /** The still cycle a request last named the page in (`plan.ts`, `#26`): named pages are kept
+   *  until the view and the world move again, so a full pool refuses instead of churning. */
+  named: new Int32Array(pages).fill(-1),
   dirty: new Uint8Array(pages),
   /** Its depth is read: drawn since it was mapped, and not withdrawn since (`withdraw`). */
   valid: new Uint8Array(pages),

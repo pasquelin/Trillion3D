@@ -63,6 +63,8 @@ export interface CookedSoftBody extends Omit<CookedInstance, 'collider'> {
   vertices: number;
   /** The gas's pressure at rest, Pa; 0 without gas. */
   pressure: number;
+  /** Versioned simulation-space source used by pages flagged SOFT_SOURCE (format 6). */
+  render?: { version: 1; positions: number[]; indices: number[] };
 }
 
 /** The motion a node declares (`KHR_physics_rigid_bodies`), as `physics.json` carries it. */

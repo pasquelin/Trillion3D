@@ -14,9 +14,9 @@ import { GraphSurface } from '../../host/graph/surface.ts';
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
+const FLOATS = { getExtension: (name: string) => (name === 'EXT_color_buffer_float' ? {} : null) };
 const OUTPUT = { toneMapped: false, framebuffer: null, width: 8, height: 4 };
 
-/** A mesh of `corners` indices — its count names it in the recorded draws. */
 function mesh(corners: number, renderOrder: number, surface = new GraphSurface('standard')) {
   const geometry = new Geometry().setIndex(new BufferAttribute(new Uint32Array(corners), 1));
   geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3));
@@ -28,7 +28,7 @@ function mesh(corners: number, renderOrder: number, surface = new GraphSurface('
 }
 
 function drawn(scene: Scene) {
-  const context = createTestContext();
+  const context = createTestContext({ answers: FLOATS });
   const draw = createSceneDraw(context.gl, scene);
   assert.equal(draw.counters(), null, 'no count before the first frame');
   assert.throws(
@@ -49,9 +49,9 @@ test('the opaque meshes draw by order, the see-through ones after, a hidden one 
   const { context, draw } = drawn(scene);
   assert.deepEqual(
     context.of('drawElements').map((args) => args[1]),
-    [6, 3, 9],
+    [6, 3, 6, 3, 9],
   );
-  assert.deepEqual(draw.counters(), { triangles: 6 });
+  assert.deepEqual(draw.counters(), { triangles: 9 });
   draw.dispose();
 });
 
@@ -64,9 +64,12 @@ test('an instanced mesh is one submission of every placement it counts', () => {
   const { context, draw } = drawn(scene);
   assert.deepEqual(
     context.of('drawElementsInstanced').map((args) => [args[1], args[4]]),
-    [[6, 3]],
+    [
+      [6, 3],
+      [6, 3],
+    ],
   );
-  assert.deepEqual(draw.counters(), { triangles: 6 });
+  assert.deepEqual(draw.counters(), { triangles: 12 });
   assert.equal(context.of('vertexAttribDivisor').length, 4, 'one divisor per matrix column');
   draw.dispose();
 });
@@ -80,8 +83,7 @@ test('without a context the draw is refused by name', () => {
   );
 });
 
-// Issue #275: a mesh under a moved parent draws at its WORLD placement, as the reference draws it
-// — never at its own local matrix.
+// #275: parent placement is applied in world space.
 test('a mesh under a translated and rotated group draws where the reference draws it', async () => {
   const three = await import('three');
   const pose = (
@@ -108,7 +110,7 @@ test('a mesh under a translated and rotated group draws where the reference draw
   scene.add(group);
   witness.add(witnessChild);
   witness.updateMatrixWorld();
-  const context = createTestContext(),
+  const context = createTestContext({ answers: FLOATS }),
     draw = createSceneDraw(context.gl, scene),
     camera = new Camera('perspective', { fov: 60, aspect: 1, near: 0.1, far: 100 });
   draw.render({} as HostCamera);
@@ -121,13 +123,17 @@ test('a mesh under a translated and rotated group draws where the reference draw
   draw.dispose();
 });
 
-// #337: a glass — a physical surface that transmits — is drawn, never dropped: the opaque meshes
-// fill separate reflection and transmission sources, then the display; glass reads them last.
+// #337: glass reads separate reflection and transmission sources, after opaque geometry.
 test('a transmissive copy draws over the backdrop the opaque meshes were drawn into first', () => {
   const context = createTestContext({
     answers: {
       getExtension: (name: string) => (name === 'EXT_color_buffer_float' ? {} : null),
-      getParameter: (name: string) => (name === 'VIEWPORT' ? new Int32Array([0, 0, 8, 4]) : null),
+      getParameter: (name: string) =>
+        name === 'COLOR_WRITEMASK'
+          ? [true, true, true, true]
+          : name === 'VIEWPORT'
+            ? new Int32Array([0, 0, 8, 4])
+            : null,
       isEnabled: () => false,
     },
   });
@@ -161,11 +167,9 @@ test('a transmissive copy draws over the backdrop the opaque meshes were drawn i
   draw.dispose();
 });
 
-// #348: a line's width counts CSS pixels. The WebGL2 program widens a line surface's quads by its
-// `lineWidth` times the host's pixel ratio, read each frame, in the viewport of the image. #359:
-// a dashed line's dash and gap reach the fragment stage, which discards its gaps.
+// #348/#359: line width follows CSS pixels; dash and gap reach the fragment stage.
 test('a line surface draws with its CSS width, the host pixel ratio and its dash', () => {
-  const context = createTestContext(),
+  const context = createTestContext({ answers: FLOATS }),
     scene = new Scene(),
     lines = new GraphSurface('basic', { side: 2 });
   Object.assign(lines, { lineWidth: 3, dashSize: 0.25, gapSize: 0.5 });

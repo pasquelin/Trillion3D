@@ -13,7 +13,8 @@
       "play": "Beginnt zu spielen.",
       "stop": "Hält an und kehrt zum Anfang zurück.",
       "seek": "Setzt den Clip sofort auf `time` Sekunden, nach seinem Schleifenmodus, ob die Aktion spielt oder nicht: eine spielende Aktion läuft von dort weiter, eine angehaltene behält die Pose, bis eine spielende Aktion ihres Mischers sie überschreibt.",
-      "clipTime": "Wo die Aktion im Clip steht, nach ihrem Schleifenmodus."
+      "clipTime": "Wo die Aktion im Clip steht, nach ihrem Schleifenmodus.",
+      "blendMode": "`additive` addiert die Bewegung relativ zum ersten Schlüssel zu anderen Aktionen, statt sie zu mischen."
     }
   },
   "BudgetCanvas": {
@@ -1379,7 +1380,9 @@
       "vertexCount": "Scheitelpunkte.",
       "flags": "Welche Attribute sie trägt.",
       "decodedBytes": "Ihre Größe nach Dekomprimierung.",
-      "quantizationError": "Die größte Positionsverschiebung des Headers, in Objekteinheiten: eine dekodierte Position kann so weit von ihrer Quelle entfernt sein, und damit von der deklarierten Box der Seite."
+      "quantizationError": "Die größte Positionsverschiebung des Headers, in Objekteinheiten: eine dekodierte Position kann so weit von ihrer Quelle entfernt sein, und damit von der deklarierten Box der Seite.",
+      "morphTargets": "Zielanzahl in `attributes.morph`: sechs Fließkommazahlen je Ziel und Vertex; fehlt ohne Morphing.",
+      "skinInfluences": "Anzahl der ursprünglichen Knocheneinflüsse je Vertex."
     }
   },
   "decodeManifestBinary": {
@@ -1855,7 +1858,8 @@
       "mathBatch": "Zustand des Reglers der Rechenpfade (`../math/path/governor.ts`): aktueller Pfad jeder Batch-Operation, Mediane beider Pfade, Wechsel. `null` bei einem Host, der keinen Batch geöffnet hat — nicht gemessen, nicht „JavaScript-Pfad“.",
       "pagesPlannedOffThread": "Integration der Seiten außerhalb des Hauptstrangs. `pagesPlannedOffThread` zählt Ankünfte, deren Plan — der Platz jedes Clusters im Paket und die Seitenränge, die er bewegt — von einem Worker berechnet wurde, nie die, die der Rückfall auf dem Hauptstrang geplant hat. `pagePlanMs` ist die kumulierte Zeit dieser Pläne, gemessen vom Ausführenden selbst, unabhängig vom Strang: sie wird nie zu einem `cpu*` oder `gpu*` pro Bild addiert. Beide sind `null`, solange keine Ankunft geplant wurde — nicht gemessen, nicht null.",
       "pagePlanMs": "Zeit, die für die Planung der Ankünfte aufgewendet wurde.",
-      "dynamicUploadBytes": "Vertex-Bytes dynamischer Geometrie, die in diesem Bild an Ort und Stelle hochgeladen wurden (#573), innerhalb des Budgets der Welt pro Bild (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Fehlt, wo keine Welt zeichnet."
+      "dynamicUploadBytes": "Vertex-Bytes dynamischer Geometrie, die in diesem Bild an Ort und Stelle hochgeladen wurden (#573), innerhalb des Budgets der Welt pro Bild (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Fehlt, wo keine Welt zeichnet.",
+      "gpuDeformationMs": "GPU-Verformungsdauer für den Frame von `gpuPassMs`; null vor der Messung oder ohne Unterstützung."
     }
   },
   "frameStatistics": {
@@ -2874,7 +2878,7 @@
   },
   "LIGHT_FIELD": {
     "summary": "Feld eines Lichts im Puffer, in Fließkommazahlen ab seinem Anfang.",
-    "description": "Vier `vec4f` pro Licht.",
+    "description": "Fünf `vec4f` pro Licht.",
     "members": {
       "position": "Wo es steht.",
       "range": "Wie weit es reicht.",
@@ -2887,7 +2891,8 @@
       "castsShadow": "Ob es Schatten wirft.",
       "cosInner": "Der innere Kegel eines Spots, wo seine Halbschattenzone beginnt: der Rand des Kegels selbst, wenn er keinen hat.",
       "halfWidth": "Die Halbbreitenachse eines Rechtecks — `right` mal die halbe Breite —, dann seine halbe Höhe.",
-      "halfHeight": "Die halbe Höhe eines Rechtecks."
+      "halfHeight": "Die halbe Höhe eines Rechtecks.",
+      "emitterRadius": "Quellradius eines Punkt- oder Spotlichts; nutzt dieselben Formkomponenten wie Rechtecklichter."
     }
   },
   "LIGHT_KIND": {
@@ -2991,7 +2996,8 @@
       "record": "Alles, was die Welt über dieses Modell hält: seine Adressen, sein Manifest und seinen Graphen.",
       "getObjectByName": "Der erste Knoten darunter mit diesem Namen: das Modell, ein Knoten seiner Quelldatei, dann jedes andere Kind — ein Licht aus der Datei, ein von einer Seite platzierter Knoten.",
       "metadata": "Das kompilierte Manifest des Modells — seine Primitive, `sourceTriangles` — und `clusters`, die Cluster, die seine Seiten enthalten, jede Stufe seiner DAGs gezählt.",
-      "localBounds": "Die Box des eigenen Inhalts dieses Knotens, in seinem lokalen Bezugssystem; ein einfacher Knoten hat keine."
+      "localBounds": "Die Box des eigenen Inhalts dieses Knotens, in seinem lokalen Bezugssystem; ein einfacher Knoten hat keine.",
+      "animations": "Clips aus der Datei, an Modellknoten gebunden: `animation.createMixer(model).clipAction(model.animations[0]).play()`."
     }
   },
   "loader": {
@@ -3113,6 +3119,8 @@
       "parameters.ior": "Wie stark sich das Licht beim Eintreten bricht: 1,5 für Glas, 1,33 für Wasser.",
       "parameters.thickness": "Die Dicke einer durchsichtigen Oberfläche.",
       "parameters.clearcoat": "Ein durchsichtiger Lack darüber: von 0 bis 1.",
+      "parameters.anisotropy": "Deklarierte Anisotropiestärke von 0 bis 1; wird noch nicht gerendert.",
+      "parameters.anisotropyRotation": "Deklarierte Anisotropierichtung in Radiant; wird noch nicht gerendert.",
       "parameters.clearcoatRoughness": "Die Rauheit des Lacks.",
       "parameters.sheen": "Ein sanftes Leuchten bei flachem Winkel, wie Samt.",
       "parameters.iridescence": "Regenbogenfarben, die sich mit dem Winkel ändern, wie eine Seifenblase.",
@@ -3132,7 +3140,9 @@
       "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
       "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
       "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
-      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1.",
+      "parameters.subsurfaceColor": "Diffuse Lichttransmission durch eine dünne, beidseitige Oberfläche; Schwarz deaktiviert sie.",
+      "parameters.subsurfaceMap": "Optionale lineare Transmissionsfarbe, multipliziert mit subsurfaceColor."
     }
   },
   "material.meshPhysical": {
@@ -3154,6 +3164,8 @@
       "parameters.ior": "Wie stark sich das Licht beim Eintreten bricht: 1,5 für Glas, 1,33 für Wasser.",
       "parameters.thickness": "Die Dicke einer durchsichtigen Oberfläche.",
       "parameters.clearcoat": "Ein durchsichtiger Lack darüber: von 0 bis 1.",
+      "parameters.anisotropy": "Deklarierte Anisotropiestärke von 0 bis 1; wird noch nicht gerendert.",
+      "parameters.anisotropyRotation": "Deklarierte Anisotropierichtung in Radiant; wird noch nicht gerendert.",
       "parameters.clearcoatRoughness": "Die Rauheit des Lacks.",
       "parameters.sheen": "Ein sanftes Leuchten bei flachem Winkel, wie Samt.",
       "parameters.iridescence": "Regenbogenfarben, die sich mit dem Winkel ändern, wie eine Seifenblase.",
@@ -3173,7 +3185,9 @@
       "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
       "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
       "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
-      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1.",
+      "parameters.subsurfaceColor": "Diffuse Lichttransmission durch eine dünne, beidseitige Oberfläche; Schwarz deaktiviert sie.",
+      "parameters.subsurfaceMap": "Optionale lineare Transmissionsfarbe, multipliziert mit subsurfaceColor."
     }
   },
   "material.meshBasic": {
@@ -3195,6 +3209,8 @@
       "parameters.ior": "Wie stark sich das Licht beim Eintreten bricht: 1,5 für Glas, 1,33 für Wasser.",
       "parameters.thickness": "Die Dicke einer durchsichtigen Oberfläche.",
       "parameters.clearcoat": "Ein durchsichtiger Lack darüber: von 0 bis 1.",
+      "parameters.anisotropy": "Deklarierte Anisotropiestärke von 0 bis 1; wird noch nicht gerendert.",
+      "parameters.anisotropyRotation": "Deklarierte Anisotropierichtung in Radiant; wird noch nicht gerendert.",
       "parameters.clearcoatRoughness": "Die Rauheit des Lacks.",
       "parameters.sheen": "Ein sanftes Leuchten bei flachem Winkel, wie Samt.",
       "parameters.iridescence": "Regenbogenfarben, die sich mit dem Winkel ändern, wie eine Seifenblase.",
@@ -3214,7 +3230,9 @@
       "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
       "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
       "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
-      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1.",
+      "parameters.subsurfaceColor": "Diffuse Lichttransmission durch eine dünne, beidseitige Oberfläche; Schwarz deaktiviert sie.",
+      "parameters.subsurfaceMap": "Optionale lineare Transmissionsfarbe, multipliziert mit subsurfaceColor."
     }
   },
   "material.meshPhong": {
@@ -3236,6 +3254,8 @@
       "parameters.ior": "Wie stark sich das Licht beim Eintreten bricht: 1,5 für Glas, 1,33 für Wasser.",
       "parameters.thickness": "Die Dicke einer durchsichtigen Oberfläche.",
       "parameters.clearcoat": "Ein durchsichtiger Lack darüber: von 0 bis 1.",
+      "parameters.anisotropy": "Deklarierte Anisotropiestärke von 0 bis 1; wird noch nicht gerendert.",
+      "parameters.anisotropyRotation": "Deklarierte Anisotropierichtung in Radiant; wird noch nicht gerendert.",
       "parameters.clearcoatRoughness": "Die Rauheit des Lacks.",
       "parameters.sheen": "Ein sanftes Leuchten bei flachem Winkel, wie Samt.",
       "parameters.iridescence": "Regenbogenfarben, die sich mit dem Winkel ändern, wie eine Seifenblase.",
@@ -3255,7 +3275,9 @@
       "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
       "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
       "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
-      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1.",
+      "parameters.subsurfaceColor": "Diffuse Lichttransmission durch eine dünne, beidseitige Oberfläche; Schwarz deaktiviert sie.",
+      "parameters.subsurfaceMap": "Optionale lineare Transmissionsfarbe, multipliziert mit subsurfaceColor."
     }
   },
   "material.meshLambert": {
@@ -3277,6 +3299,8 @@
       "parameters.ior": "Wie stark sich das Licht beim Eintreten bricht: 1,5 für Glas, 1,33 für Wasser.",
       "parameters.thickness": "Die Dicke einer durchsichtigen Oberfläche.",
       "parameters.clearcoat": "Ein durchsichtiger Lack darüber: von 0 bis 1.",
+      "parameters.anisotropy": "Deklarierte Anisotropiestärke von 0 bis 1; wird noch nicht gerendert.",
+      "parameters.anisotropyRotation": "Deklarierte Anisotropierichtung in Radiant; wird noch nicht gerendert.",
       "parameters.clearcoatRoughness": "Die Rauheit des Lacks.",
       "parameters.sheen": "Ein sanftes Leuchten bei flachem Winkel, wie Samt.",
       "parameters.iridescence": "Regenbogenfarben, die sich mit dem Winkel ändern, wie eine Seifenblase.",
@@ -3296,7 +3320,9 @@
       "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
       "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
       "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
-      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1.",
+      "parameters.subsurfaceColor": "Diffuse Lichttransmission durch eine dünne, beidseitige Oberfläche; Schwarz deaktiviert sie.",
+      "parameters.subsurfaceMap": "Optionale lineare Transmissionsfarbe, multipliziert mit subsurfaceColor."
     }
   },
   "material.meshToon": {
@@ -3318,6 +3344,8 @@
       "parameters.ior": "Wie stark sich das Licht beim Eintreten bricht: 1,5 für Glas, 1,33 für Wasser.",
       "parameters.thickness": "Die Dicke einer durchsichtigen Oberfläche.",
       "parameters.clearcoat": "Ein durchsichtiger Lack darüber: von 0 bis 1.",
+      "parameters.anisotropy": "Deklarierte Anisotropiestärke von 0 bis 1; wird noch nicht gerendert.",
+      "parameters.anisotropyRotation": "Deklarierte Anisotropierichtung in Radiant; wird noch nicht gerendert.",
       "parameters.clearcoatRoughness": "Die Rauheit des Lacks.",
       "parameters.sheen": "Ein sanftes Leuchten bei flachem Winkel, wie Samt.",
       "parameters.iridescence": "Regenbogenfarben, die sich mit dem Winkel ändern, wie eine Seifenblase.",
@@ -3337,7 +3365,9 @@
       "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
       "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
       "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
-      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1.",
+      "parameters.subsurfaceColor": "Diffuse Lichttransmission durch eine dünne, beidseitige Oberfläche; Schwarz deaktiviert sie.",
+      "parameters.subsurfaceMap": "Optionale lineare Transmissionsfarbe, multipliziert mit subsurfaceColor."
     }
   },
   "material.meshNormal": {
@@ -3359,6 +3389,8 @@
       "parameters.ior": "Wie stark sich das Licht beim Eintreten bricht: 1,5 für Glas, 1,33 für Wasser.",
       "parameters.thickness": "Die Dicke einer durchsichtigen Oberfläche.",
       "parameters.clearcoat": "Ein durchsichtiger Lack darüber: von 0 bis 1.",
+      "parameters.anisotropy": "Deklarierte Anisotropiestärke von 0 bis 1; wird noch nicht gerendert.",
+      "parameters.anisotropyRotation": "Deklarierte Anisotropierichtung in Radiant; wird noch nicht gerendert.",
       "parameters.clearcoatRoughness": "Die Rauheit des Lacks.",
       "parameters.sheen": "Ein sanftes Leuchten bei flachem Winkel, wie Samt.",
       "parameters.iridescence": "Regenbogenfarben, die sich mit dem Winkel ändern, wie eine Seifenblase.",
@@ -3378,7 +3410,9 @@
       "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
       "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
       "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
-      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1.",
+      "parameters.subsurfaceColor": "Diffuse Lichttransmission durch eine dünne, beidseitige Oberfläche; Schwarz deaktiviert sie.",
+      "parameters.subsurfaceMap": "Optionale lineare Transmissionsfarbe, multipliziert mit subsurfaceColor."
     }
   },
   "material.meshMatcap": {
@@ -3400,6 +3434,8 @@
       "parameters.ior": "Wie stark sich das Licht beim Eintreten bricht: 1,5 für Glas, 1,33 für Wasser.",
       "parameters.thickness": "Die Dicke einer durchsichtigen Oberfläche.",
       "parameters.clearcoat": "Ein durchsichtiger Lack darüber: von 0 bis 1.",
+      "parameters.anisotropy": "Deklarierte Anisotropiestärke von 0 bis 1; wird noch nicht gerendert.",
+      "parameters.anisotropyRotation": "Deklarierte Anisotropierichtung in Radiant; wird noch nicht gerendert.",
       "parameters.clearcoatRoughness": "Die Rauheit des Lacks.",
       "parameters.sheen": "Ein sanftes Leuchten bei flachem Winkel, wie Samt.",
       "parameters.iridescence": "Regenbogenfarben, die sich mit dem Winkel ändern, wie eine Seifenblase.",
@@ -3419,7 +3455,9 @@
       "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
       "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
       "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
-      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1.",
+      "parameters.subsurfaceColor": "Diffuse Lichttransmission durch eine dünne, beidseitige Oberfläche; Schwarz deaktiviert sie.",
+      "parameters.subsurfaceMap": "Optionale lineare Transmissionsfarbe, multipliziert mit subsurfaceColor."
     }
   },
   "material.meshDepth": {
@@ -3441,6 +3479,8 @@
       "parameters.ior": "Wie stark sich das Licht beim Eintreten bricht: 1,5 für Glas, 1,33 für Wasser.",
       "parameters.thickness": "Die Dicke einer durchsichtigen Oberfläche.",
       "parameters.clearcoat": "Ein durchsichtiger Lack darüber: von 0 bis 1.",
+      "parameters.anisotropy": "Deklarierte Anisotropiestärke von 0 bis 1; wird noch nicht gerendert.",
+      "parameters.anisotropyRotation": "Deklarierte Anisotropierichtung in Radiant; wird noch nicht gerendert.",
       "parameters.clearcoatRoughness": "Die Rauheit des Lacks.",
       "parameters.sheen": "Ein sanftes Leuchten bei flachem Winkel, wie Samt.",
       "parameters.iridescence": "Regenbogenfarben, die sich mit dem Winkel ändern, wie eine Seifenblase.",
@@ -3460,7 +3500,9 @@
       "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
       "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
       "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
-      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1.",
+      "parameters.subsurfaceColor": "Diffuse Lichttransmission durch eine dünne, beidseitige Oberfläche; Schwarz deaktiviert sie.",
+      "parameters.subsurfaceMap": "Optionale lineare Transmissionsfarbe, multipliziert mit subsurfaceColor."
     }
   },
   "material.points": {
@@ -3482,6 +3524,8 @@
       "parameters.ior": "Wie stark sich das Licht beim Eintreten bricht: 1,5 für Glas, 1,33 für Wasser.",
       "parameters.thickness": "Die Dicke einer durchsichtigen Oberfläche.",
       "parameters.clearcoat": "Ein durchsichtiger Lack darüber: von 0 bis 1.",
+      "parameters.anisotropy": "Deklarierte Anisotropiestärke von 0 bis 1; wird noch nicht gerendert.",
+      "parameters.anisotropyRotation": "Deklarierte Anisotropierichtung in Radiant; wird noch nicht gerendert.",
       "parameters.clearcoatRoughness": "Die Rauheit des Lacks.",
       "parameters.sheen": "Ein sanftes Leuchten bei flachem Winkel, wie Samt.",
       "parameters.iridescence": "Regenbogenfarben, die sich mit dem Winkel ändern, wie eine Seifenblase.",
@@ -3501,7 +3545,9 @@
       "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
       "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
       "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
-      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1.",
+      "parameters.subsurfaceColor": "Diffuse Lichttransmission durch eine dünne, beidseitige Oberfläche; Schwarz deaktiviert sie.",
+      "parameters.subsurfaceMap": "Optionale lineare Transmissionsfarbe, multipliziert mit subsurfaceColor."
     }
   },
   "material.line": {
@@ -3523,6 +3569,8 @@
       "parameters.ior": "Wie stark sich das Licht beim Eintreten bricht: 1,5 für Glas, 1,33 für Wasser.",
       "parameters.thickness": "Die Dicke einer durchsichtigen Oberfläche.",
       "parameters.clearcoat": "Ein durchsichtiger Lack darüber: von 0 bis 1.",
+      "parameters.anisotropy": "Deklarierte Anisotropiestärke von 0 bis 1; wird noch nicht gerendert.",
+      "parameters.anisotropyRotation": "Deklarierte Anisotropierichtung in Radiant; wird noch nicht gerendert.",
       "parameters.clearcoatRoughness": "Die Rauheit des Lacks.",
       "parameters.sheen": "Ein sanftes Leuchten bei flachem Winkel, wie Samt.",
       "parameters.iridescence": "Regenbogenfarben, die sich mit dem Winkel ändern, wie eine Seifenblase.",
@@ -3542,7 +3590,9 @@
       "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
       "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
       "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
-      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1.",
+      "parameters.subsurfaceColor": "Diffuse Lichttransmission durch eine dünne, beidseitige Oberfläche; Schwarz deaktiviert sie.",
+      "parameters.subsurfaceMap": "Optionale lineare Transmissionsfarbe, multipliziert mit subsurfaceColor."
     }
   },
   "material.lineDashed": {
@@ -3564,6 +3614,8 @@
       "parameters.ior": "Wie stark sich das Licht beim Eintreten bricht: 1,5 für Glas, 1,33 für Wasser.",
       "parameters.thickness": "Die Dicke einer durchsichtigen Oberfläche.",
       "parameters.clearcoat": "Ein durchsichtiger Lack darüber: von 0 bis 1.",
+      "parameters.anisotropy": "Deklarierte Anisotropiestärke von 0 bis 1; wird noch nicht gerendert.",
+      "parameters.anisotropyRotation": "Deklarierte Anisotropierichtung in Radiant; wird noch nicht gerendert.",
       "parameters.clearcoatRoughness": "Die Rauheit des Lacks.",
       "parameters.sheen": "Ein sanftes Leuchten bei flachem Winkel, wie Samt.",
       "parameters.iridescence": "Regenbogenfarben, die sich mit dem Winkel ändern, wie eine Seifenblase.",
@@ -3583,7 +3635,9 @@
       "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
       "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
       "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
-      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1.",
+      "parameters.subsurfaceColor": "Diffuse Lichttransmission durch eine dünne, beidseitige Oberfläche; Schwarz deaktiviert sie.",
+      "parameters.subsurfaceMap": "Optionale lineare Transmissionsfarbe, multipliziert mit subsurfaceColor."
     }
   },
   "material.sprite": {
@@ -3605,6 +3659,8 @@
       "parameters.ior": "Wie stark sich das Licht beim Eintreten bricht: 1,5 für Glas, 1,33 für Wasser.",
       "parameters.thickness": "Die Dicke einer durchsichtigen Oberfläche.",
       "parameters.clearcoat": "Ein durchsichtiger Lack darüber: von 0 bis 1.",
+      "parameters.anisotropy": "Deklarierte Anisotropiestärke von 0 bis 1; wird noch nicht gerendert.",
+      "parameters.anisotropyRotation": "Deklarierte Anisotropierichtung in Radiant; wird noch nicht gerendert.",
       "parameters.clearcoatRoughness": "Die Rauheit des Lacks.",
       "parameters.sheen": "Ein sanftes Leuchten bei flachem Winkel, wie Samt.",
       "parameters.iridescence": "Regenbogenfarben, die sich mit dem Winkel ändern, wie eine Seifenblase.",
@@ -3624,7 +3680,9 @@
       "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
       "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
       "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
-      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1.",
+      "parameters.subsurfaceColor": "Diffuse Lichttransmission durch eine dünne, beidseitige Oberfläche; Schwarz deaktiviert sie.",
+      "parameters.subsurfaceMap": "Optionale lineare Transmissionsfarbe, multipliziert mit subsurfaceColor."
     }
   },
   "material.shadow": {
@@ -3646,6 +3704,8 @@
       "parameters.ior": "Wie stark sich das Licht beim Eintreten bricht: 1,5 für Glas, 1,33 für Wasser.",
       "parameters.thickness": "Die Dicke einer durchsichtigen Oberfläche.",
       "parameters.clearcoat": "Ein durchsichtiger Lack darüber: von 0 bis 1.",
+      "parameters.anisotropy": "Deklarierte Anisotropiestärke von 0 bis 1; wird noch nicht gerendert.",
+      "parameters.anisotropyRotation": "Deklarierte Anisotropierichtung in Radiant; wird noch nicht gerendert.",
       "parameters.clearcoatRoughness": "Die Rauheit des Lacks.",
       "parameters.sheen": "Ein sanftes Leuchten bei flachem Winkel, wie Samt.",
       "parameters.iridescence": "Regenbogenfarben, die sich mit dem Winkel ändern, wie eine Seifenblase.",
@@ -3665,7 +3725,9 @@
       "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
       "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
       "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
-      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1.",
+      "parameters.subsurfaceColor": "Diffuse Lichttransmission durch eine dünne, beidseitige Oberfläche; Schwarz deaktiviert sie.",
+      "parameters.subsurfaceMap": "Optionale lineare Transmissionsfarbe, multipliziert mit subsurfaceColor."
     }
   },
   "material.createShader": {
@@ -3707,6 +3769,8 @@
       "parameters.ior": "Wie stark sich das Licht beim Eintreten bricht: 1,5 für Glas, 1,33 für Wasser.",
       "parameters.thickness": "Die Dicke einer durchsichtigen Oberfläche.",
       "parameters.clearcoat": "Ein durchsichtiger Lack darüber: von 0 bis 1.",
+      "parameters.anisotropy": "Deklarierte Anisotropiestärke von 0 bis 1; wird noch nicht gerendert.",
+      "parameters.anisotropyRotation": "Deklarierte Anisotropierichtung in Radiant; wird noch nicht gerendert.",
       "parameters.clearcoatRoughness": "Die Rauheit des Lacks.",
       "parameters.sheen": "Ein sanftes Leuchten bei flachem Winkel, wie Samt.",
       "parameters.iridescence": "Regenbogenfarben, die sich mit dem Winkel ändern, wie eine Seifenblase.",
@@ -3726,7 +3790,9 @@
       "parameters.physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
       "parameters.density": "kg/m³, mal dem Volumen ergibt die Masse.",
       "parameters.friction": "Wie stark ein Körper haftet, ab 0.",
-      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1."
+      "parameters.restitution": "Wie stark ein Körper springt, 0 bis 1.",
+      "parameters.subsurfaceColor": "Diffuse Lichttransmission durch eine dünne, beidseitige Oberfläche; Schwarz deaktiviert sie.",
+      "parameters.subsurfaceMap": "Optionale lineare Transmissionsfarbe, multipliziert mit subsurfaceColor."
     },
     "members": {
       "isMaterial": "Immer `true`: unterscheidet ein Material von allem anderen.",
@@ -3753,7 +3819,8 @@
       "physics": "Physik-Materievorgabe der Körper, die es tragen.",
       "density": "kg/m³, für die Masse eines Körpers.",
       "friction": "Physikalische Reibung.",
-      "restitution": "Physikalischer Rückprall."
+      "restitution": "Physikalischer Rückprall.",
+      "subsurfaceColor": "Diffuse Lichttransmission durch eine dünne, beidseitige Oberfläche; Schwarz deaktiviert sie."
     }
   },
   "MaterialParameters": {
@@ -3774,6 +3841,8 @@
       "ior": "Wie stark sich das Licht beim Eintreten bricht: 1,5 für Glas, 1,33 für Wasser.",
       "thickness": "Die Dicke einer durchsichtigen Oberfläche.",
       "clearcoat": "Ein durchsichtiger Lack darüber: von 0 bis 1.",
+      "anisotropy": "Deklarierte Anisotropiestärke von 0 bis 1; wird noch nicht gerendert.",
+      "anisotropyRotation": "Deklarierte Anisotropierichtung in Radiant; wird noch nicht gerendert.",
       "clearcoatRoughness": "Die Rauheit des Lacks.",
       "sheen": "Ein sanftes Leuchten bei flachem Winkel, wie Samt.",
       "iridescence": "Regenbogenfarben, die sich mit dem Winkel ändern, wie eine Seifenblase.",
@@ -3793,7 +3862,9 @@
       "physics": "Die Materie eines Körpers, der es trägt: Dichte, Reibung, Rückprall.",
       "density": "kg/m³, mal dem Volumen ergibt die Masse.",
       "friction": "Wie stark ein Körper haftet, ab 0.",
-      "restitution": "Wie stark ein Körper springt, 0 bis 1."
+      "restitution": "Wie stark ein Körper springt, 0 bis 1.",
+      "subsurfaceColor": "Diffuse Lichttransmission durch eine dünne, beidseitige Oberfläche; Schwarz deaktiviert sie.",
+      "subsurfaceMap": "Optionale lineare Transmissionsfarbe, multipliziert mit subsurfaceColor."
     }
   },
   "materialSide": {
@@ -4123,7 +4194,9 @@
       "morphTargetInfluences": "Das Gewicht jedes Morph-Ziels, wenn die Geometrie welche deklariert.",
       "morphTargetDictionary": "Der Rang jedes Morph-Ziels nach seinem Namen.",
       "updateMorphTargets": "Ein Nullgewicht pro Morph-Ziel des ersten verformten Attributs, nach Rang benannt.",
-      "copy": "Übernimmt die Werte von `source` und Kopien seiner Kinder, sofern nicht anders gesagt."
+      "copy": "Übernimmt die Werte von `source` und Kopien seiner Kinder, sofern nicht anders gesagt.",
+      "skeleton": "Die durch `skinIndex` und `skinWeight` bezeichneten Knochen, pro Frame auf der GPU ausgewertet.",
+      "waves": "Gemeinsame Wellenparameter mit `WaterSurface` für GPU und Auftrieb."
     }
   },
   "metric": {
@@ -4602,7 +4675,9 @@
       "vertexCount": "Scheitelpunkte.",
       "flags": "Welche Attribute sie trägt.",
       "decodedBytes": "Größe von `block`.",
-      "quantizationError": "Die größte Positionsverschiebung des Seiten-Headers, in Objekteinheiten."
+      "quantizationError": "Die größte Positionsverschiebung des Seiten-Headers, in Objekteinheiten.",
+      "skinInfluences": "Exakte Breite der ursprünglichen Knocheneinflüsse je Vertex.",
+      "morphTargets": "Zielanzahl in `morph`: sechs Fließkommazahlen je Ziel und Vertex; fehlt ohne Morphing."
     }
   },
   "PageDecodeOp": {
@@ -4803,7 +4878,9 @@
       "matrices": "Sechzehn Fließkommazahlen spaltenweise pro Zeile, vom Besitzer geschrieben.",
       "live": "1, wo die Zeile die Ressource platziert, 0, wo sie zur Seite gelegt ist.",
       "shadowless": "1, wo die Zeile keinen Schatten wirft (das `castShadow` ihres Meshes ist `false`), 0, wo sie einen wirft.",
-      "capacity": "Zeilen, die Platz haben, bevor er wächst."
+      "capacity": "Zeilen, die Platz haben, bevor er wächst.",
+      "sources": "Ursprüngliche Besitzer bleiben bei Wiederverwendung der Zeilen erhalten.",
+      "sourceModels": "Meshes mit gemeinsam genutzten Ressourcen, einschließlich wartender Zeilen."
     }
   },
   "Plane": {
@@ -5001,7 +5078,8 @@
       "streams": "Seine Streampakete.",
       "quantization": "Null bei einer Primitive ohne Seiten, die auf keinem Raster quantisiert wurde.",
       "topology": "Das Erscheinungsbild der Kanten und Ecken des Meshes.",
-      "dynamic": "Die dynamische Geometrie einer Welt (#573): nur Indexseiten, ihre Vertices als Gleitkommazahlen aus der Host-Geometrie gelesen, die die Engine an Ort und Stelle neu schreibt."
+      "dynamic": "Die dynamische Geometrie einer Welt (#573): nur Indexseiten, ihre Vertices als Gleitkommazahlen aus der Host-Geometrie gelesen, die die Engine an Ort und Stelle neu schreibt.",
+      "deformation": "Ruhekugeln der Gelenke `[x,y,z,radius]` und maximale Morph-Reichweite; fehlt oder null bei statischer Geometrie."
     }
   },
   "Primitive": {
@@ -5299,7 +5377,7 @@
       "range": "Punkt, Spot und Rechteck: die Reichweite in Metern, wo die Energie exakt null wird.",
       "coneAngle": "Die Öffnung eines Spots.",
       "penumbra": "Nur Spot: der Anteil des Kegels, von seinem Rand nach innen, auf dem das Licht in `[0, 1]` ausklingt; ohne sie wird der Rand über `spotEdgeSoftness` weich.",
-      "emitterRadius": "Nur Punkt und Spot: der Radius, in Metern, der Hülle, die die Quelle hält. Ein echtes Licht ist immer in etwas untergebracht — Laternenglas, Reflektor, Lampenschirm — und diese Hülle ist eine Geometrie wie jede andere: ohne dieses Feld gerät sie in die Schattenkarte ihres eigenen Lichts und löscht es aus. Deklariert, wird sie zur Nahebene dieser Karte, sodass nichts, was näher an der Quelle liegt als dieser Radius, dort einen Schatten wirft. Es ist eine Eigenschaft des Lichts, nie ein Objektname oder eine Materialart: die Engine kennt nur Oberflächen. Streng positiv und streng kleiner als die Reichweite; fehlt es, ändert sich nichts.",
+      "emitterRadius": "Nur Punkt und Spot: der Radius, in Metern, der Hülle, die die Quelle hält. Ein echtes Licht ist immer in etwas untergebracht — Laternenglas, Reflektor, Lampenschirm — und diese Hülle ist eine Geometrie wie jede andere: ohne dieses Feld gerät sie in die Schattenkarte ihres eigenen Lichts und löscht es aus. Fragmente innerhalb dieser Kugel werfen keinen Schatten; die Nahebene der Karte hängt weiterhin von der Reichweite ab. Bei einem Punktlicht bestimmt dieser Radius auch die Quellgröße des Schattenfilters, der Schatten am Kontakt härter macht. Es ist eine Eigenschaft des Lichts, nie ein Objektname oder eine Materialart: die Engine kennt nur Oberflächen. Streng positiv und streng kleiner als die Reichweite; fehlt es, ändert sich nichts.",
       "right": "Nur Rechteck: die Einheitsachse entlang seiner Breite, senkrecht zu `direction`.",
       "size": "Nur Rechteck: seine Breite und Höhe, in Metern.",
       "castsShadow": "Ob es Schatten wirft."
@@ -5701,7 +5779,8 @@
       "quantization": "Null bei einer Primitive ohne Seiten, die auf keinem Raster quantisiert wurde.",
       "topology": "Das Erscheinungsbild der Kanten und Ecken des Meshes.",
       "binary": "Wo ihre Listen zu finden sind.",
-      "dynamic": "Die dynamische Geometrie einer Welt (#573): nur Indexseiten, ihre Vertices als Gleitkommazahlen aus der Host-Geometrie gelesen, die die Engine an Ort und Stelle neu schreibt."
+      "dynamic": "Die dynamische Geometrie einer Welt (#573): nur Indexseiten, ihre Vertices als Gleitkommazahlen aus der Host-Geometrie gelesen, die die Engine an Ort und Stelle neu schreibt.",
+      "deformation": "Ruhekugeln der Gelenke `[x,y,z,radius]` und maximale Morph-Reichweite; fehlt oder null bei statischer Geometrie."
     }
   },
   "SlimPrimitiveBinary": {
@@ -5908,9 +5987,13 @@
       "baseMetal": "Grundfarbe in RGB, A für Metall.",
       "normalRough": "Normale XYZ in der Welt, A für Rauheit.",
       "emissiveAo": "Emission RGB, A für Umgebungsverdeckung.",
-      "flags": "0 Hintergrund, 1 unbeleuchtet (im Nebel), 2 gelesen, 3 unverändert gezeigt: eine Diagnose, eine Normalen- oder Tiefenansicht.",
+      "flags": "0 Hintergrund, 1 unbeleuchtet (im Nebel), 2 gelesen, 3 unverändert gezeigt: eine Diagnose, eine Normalen- oder Tiefenansicht. 4 und 5: diffuses und Toon-Modell (`./surfaceModel.ts`).",
       "views": "Ihre GPU-Textursichten.",
-      "dispose": "Gibt sie frei."
+      "dispose": "Gibt sie frei.",
+      "shadingOffset": "Versatz des Schattenempfängers mit voller Genauigkeit, neben dem G-buffer geschrieben.",
+      "subsurface": "Unabhängige Transmissionsfarbe dünner Oberflächen; bei Deaktivierung eine 1×1-Textur mit Nullwerten.",
+      "subsurfaceView": "Ansicht der Transmissionstextur dünner Oberflächen.",
+      "hasSubsurface": "Ob die Transmission dünner Oberflächen ein Ziel in voller Größe hat."
     }
   },
   "SurfaceCapture": {
@@ -6317,7 +6400,8 @@
       "name": "Was sie animiert: `node.field`.",
       "kind": "Welche Art von Wert sie enthält.",
       "times": "Wann jeder Schlüssel ankommt, in Sekunden.",
-      "values": "Der Wert bei jedem Schlüssel, nacheinander."
+      "values": "Der Wert bei jedem Schlüssel, nacheinander.",
+      "interpolation": "Standardmäßig `linear`; `step` hält den vorherigen Schlüssel; `cubic` nutzt glTF-Tripel aus Eingangstangente/Wert/Ausgangstangente."
     }
   },
   "TrackballCameraControls": {
@@ -6333,11 +6417,12 @@
       "owner": "Das Objekt, in das die Spur schreibt.",
       "field": "Das Feld von `owner`, das sie schreibt.",
       "key": "Der Schlüssel, bei dem die letzte Abtastung anhielt.",
-      "value": "Die Zahlen einer Abtastung."
+      "value": "Die Zahlen einer Abtastung.",
+      "reference": "Referenzpose des ersten Schlüssels für additive Aktionen."
     }
   },
   "TrackKind": {
-    "summary": "Was eine Spur animiert: eine Zahl, ein Vektor, eine Rotation oder eine Farbe."
+    "summary": "Eine Zahl, ein Vektor, eine Rotation, eine Farbe oder eine Liste von Morph-Gewichten."
   },
   "transformAffinePoint": {
     "summary": "`out[outOffset..outOffset + 2] = M · (x, y, z, 1)`, ohne perspektivische Division: die Form einer affinen Matrix, deren letzte Zeile `(0, 0, 0, 1)` ist."
@@ -6479,7 +6564,7 @@
   },
   "UNSPLIT_PASS": {
     "summary": "Anordnung einer ungeschnittenen Primitive, die der Compiler außerhalb des Cluster-DAG behält: ganzes Mesh, Quellreihenfolge beibehalten.",
-    "description": "Drei Materialeigenschaften führen heute dazu — Transmission, Skinning und Morph Targets —, nie ein Objektname."
+    "description": "Transmission erfordert diesen Pfad; niemals der Name eines Objekts."
   },
   "updateCameraFrame": {
     "summary": "Schreibt das Bild neu: Sicht = Inverse von `world` (null bei singulärer Weltmatrix, wie die Referenz), View-Projektion = `projection · view`, und die sechs Ebenen dieses View-Projektions-Sichtkegels."
@@ -6951,7 +7036,8 @@
       "shadowCastersKept": "Schattenwerfer, die das Culling pro Seite behalten hat, alle gezeichneten Seiten zusammen, im zuletzt vom Gerät abgetasteten Bild — eines von fünfzehn; `null`, bis eine Probe zurückkam.",
       "shadowCastersRejected": "Schattenwerfer, die das Culling pro Seite getestet und nicht behalten hat — außerhalb des Teils der Seite, den ihre Empfänger lesen —, im selben abgetasteten Bild; `null`, bis eine Probe zurückkam.",
       "shadowCastersHidden": "Bewegte Schattenwerfer, die der Verdeckungstest hinter der statischen Ebene ihrer Seite verborgen fand, im zuletzt abgetasteten Bild; `null`, bis eine Probe zurückkam.",
-      "dynamicUploadBytes": "Vertex-Bytes dynamischer Geometrie, die in diesem Bild an Ort und Stelle hochgeladen wurden (#573), innerhalb des Budgets der Welt pro Bild (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Fehlt, wo keine Welt zeichnet."
+      "dynamicUploadBytes": "Vertex-Bytes dynamischer Geometrie, die in diesem Bild an Ort und Stelle hochgeladen wurden (#573), innerhalb des Budgets der Welt pro Bild (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Fehlt, wo keine Welt zeichnet.",
+      "gpuDeformationMs": "GPU-Verformungsdauer für den Frame von `gpuPassMs`; null vor der Messung oder ohne Unterstützung."
     }
   },
   "WorldOptions": {
@@ -7483,7 +7569,8 @@
       "height": "Höhe der Oberfläche über dem Weltpunkt `(x, z)`, in Metern.",
       "point": "Der Weltpunkt `[x, y, z]`, zu dem der Ruhepunkt `(x, level, z)` getragen wird, in `out`: ein Punkt für Punkt bewegtes Gitter ist die Oberfläche, Kämme so scharf wie die Wellen.",
       "wavesNow": "Die deklarierten Wellen, jede Phase bis jetzt fortgeführt: erneut in `world.physics.water` gesetzt (dessen Wellen wieder bei 0 s beginnen), läuft die Oberfläche weiter, statt zu springen.",
-      "normal": "Einheitsnormale `[x, y, z]` der Oberfläche am Ruhepunkt `(x, z)`, in `out`."
+      "normal": "Einheitsnormale `[x, y, z]` der Oberfläche am Ruhepunkt `(x, z)`, in `out`.",
+      "waveModel": "Dieselben Wellenwerte und dieselbe Zeit für GPU und Physik."
     }
   },
   "WaveSpec": {
@@ -7939,6 +8026,73 @@
   },
   "world.materialMapBytes": {
     "summary": "Bytes gehaltener oder ausstehender Laufzeitbilder, auf 64 MiB begrenzt."
+  },
+  "animation.weightsTrack": {
+    "summary": "Eine Spur mit allen Morph-Gewichten pro Schlüssel.",
+    "parameters": {
+      "path": "Pfad `node.morphTargetInfluences`.",
+      "times": "Schlüsselzeiten in Sekunden.",
+      "values": "Ein Gewicht je Ziel und Schlüssel."
+    }
+  },
+  "animation.skeleton": {
+    "summary": "Erstellt das Skelett zur Zuweisung an `mesh.skeleton`.",
+    "parameters": {
+      "bones": "Knochen in der Reihenfolge von `skinIndex`.",
+      "inverseBindMatrices": "Sechzehn Zahlen je Knochen; ohne Angabe wird die aktuelle Pose zur Bindepose."
+    }
+  },
+  "animation.twoBoneIK": {
+    "summary": "Lässt eine Kette aus zwei Knochen nach der Clip-Auswertung einen Punkt erreichen.",
+    "parameters": {
+      "root": "Erster Knochen der Kette.",
+      "mid": "Zweiter Knochen der Kette.",
+      "end": "Am zweiten Knochen befestigter Endknoten.",
+      "target": "Zu erreichender Punkt.",
+      "pole": "Biegerichtung; standardmäßig die aktuelle Richtung.",
+      "weight": "0 erhält die aktuelle Pose; 1 übernimmt die Lösung vollständig."
+    }
+  },
+  "animation.windClip": {
+    "summary": "Wiederholender Clip, der Baumknochen neigt und schwingen lässt.",
+    "parameters": {
+      "bones": "Knochen vom Stamm bis zu den Spitzen.",
+      "options": "Richtung, maximaler Biegewinkel und Frequenz."
+    },
+    "parameters.options.direction": "Richtung in der Bodenebene `[x, z]`; Standard: `[1, 0]`.",
+    "parameters.options.angle": "Maximale Biegung in Radiant; Standard: 0,1.",
+    "parameters.options.frequency": "Schwingungen pro Sekunde; Standard: 0,5."
+  },
+  "Skeleton": {
+    "summary": "Die Knochen eines verformten Netzes und ihre inversen Bindematrizen vom Netz- ins Knochenkoordinatensystem.",
+    "description": "Der Gelenkindex eines Scheitelpunkts bezeichnet einen Eintrag in `bones`. Ohne inverse Bindematrizen gilt die Knochenpose bei der Erstellung als Bindepose.",
+    "members.isSkeleton": "Immer `true`: kennzeichnet ein Skelett.",
+    "members.bones": "Die Gelenkknoten in Gelenkreihenfolge.",
+    "members.boneInverses": "Sechzehn Zahlen pro Knochen, spaltenweise: die inverse Weltmatrix in der Bindepose.",
+    "members.palette": "Schreibt ab `at` die Zeilen von `meshWorld⁻¹ · boneWorld · boneInverse` jedes Gelenks nach `out`. Die Palette bildet gebundene Scheitelpunkte ins lokale Netzsystem ab; danach folgt die Welttransformation des Netzes. `boneWorlds` liefert die Weltmatrizen des Lesers, andernfalls gelten die Matrizen der Knochen."
+  },
+  "Waves": {
+    "summary": "Gerstner-Wellen, deren Zeit `setTime` festlegt.",
+    "description": "Jede Welle `i` hat Richtung `(dx, dz)`, Wellenzahl `k`, Amplitude `A` und seitliche Amplitude `Q·A`. Normalisierte Steilheiten erfüllen `Σ Qᵢ·Aᵢ·kᵢ ≤ 1`, damit sich Kämme nicht überschlagen.",
+    "members.phase": "Phase jeder Welle zur eingestellten Zeit in [0, 2π): der einzige zeitabhängige Zustand.",
+    "members.crest": "Maximale Höhe über der Ruhelage: `Σ Aᵢ`.",
+    "members.steepness": "`Σ Qᵢ·Aᵢ·kᵢ` nach Normalisierung, höchstens 1.",
+    "members.phasesAt": "Phase jeder Welle bei `t` Sekunden, mit doppelter Genauigkeit auf [0, 2π) reduziert.",
+    "members.setTime": "Setzt die Zeit auf `t` Sekunden; die vorherige Oberfläche entspricht `setTime(t - dt)`.",
+    "members.offset": "Schreibt die Verschiebung `[x, y, z]` des Ruhepunkts `(x, 0, z)` nach `out`.",
+    "members.normal": "Schreibt die Einheitsnormale `[x, y, z]` am Ruhepunkt `(x, z)` nach `out`.",
+    "members.count": "Anzahl der summierten Wellen.",
+    "members.dirX": "Normalisierte x-Komponente jeder Wellenrichtung.",
+    "members.dirZ": "Normalisierte z-Komponente jeder Wellenrichtung.",
+    "members.k": "Wellenzahl jeder Welle in Radiant pro Meter.",
+    "members.amplitude": "Vertikale Amplitude jeder Welle in Metern.",
+    "members.lateral": "Normalisierte seitliche Amplitude jeder Welle in Metern."
+  },
+  "WindOptions": {
+    "summary": "Windrichtung (`x`, `z` am Boden), maximale Knochenbiegung in Radiant und Schwingungen pro Sekunde.",
+    "members.direction": "Richtung in der Bodenebene `[x, z]`; Standard: `[1, 0]`.",
+    "members.angle": "Maximale Biegung in Radiant; Standard: 0,1.",
+    "members.frequency": "Schwingungen pro Sekunde; Standard: 0,5."
   },
   "world.setTransform": {
     "summary": "Bewegt den Knoten `nodeName` so, dass seine Weltpose `matrix` ist: Ein Knoten, für den die Seite keine Referenz behält, wird über seinen Namen (`object.name`) erreicht, in der Szene gesucht.",

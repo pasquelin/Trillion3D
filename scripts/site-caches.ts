@@ -36,7 +36,12 @@ const example = (name: string): CookedScene => ({
  *  script), the terrain tiles' exact cook beside their simplified one (#414), the gallery's and
  *  the two scenes only the tests read. */
 export const COOKED_SCENES: Record<string, CookedScene> = {
-  ...Object.fromEntries([...Object.keys(modelScenes), 'hall'].map((name) => [name, example(name)])),
+  ...Object.fromEntries(
+    [...Object.keys(modelScenes), 'hall', 'cesium-man', 'animated-morph-cube'].map((name) => [
+      name,
+      example(name),
+    ]),
+  ),
   'terrain-tiles-none': {
     ...example('terrain-tiles'),
     cache: 'cache-none',

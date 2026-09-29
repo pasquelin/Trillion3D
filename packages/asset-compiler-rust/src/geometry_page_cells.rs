@@ -31,6 +31,8 @@ pub struct Cell {
     pub normal: u32,
     pub uv: [[u32; 2]; 2],
     pub color: [u32; 4],
+    /// Rank of the vertex's deformation fields among the page's (`geometry_page_deform.rs`).
+    pub extra: u32,
 }
 
 /// The page's cells with the records that describe their grids and the position error.
@@ -138,4 +140,37 @@ pub fn first_use<T: Copy + Eq + std::hash::Hash>(
         })
         .collect();
     (distinct, ranks)
+}
+
+/// Local vertex renumbering of a page: the table and both lists start at their known final
+/// size, a page carrying at most 65,535 vertices and no more corners than indices.
+pub(crate) fn localise(indices: &[u32], vertices: usize) -> Result<(Vec<u32>, Vec<u32>)> {
+    let bound = indices.len().min(65_535);
+    let mut original = Vec::<u32>::with_capacity(bound);
+    let mut remap = std::collections::HashMap::<u32, u32>::with_capacity(bound);
+    let mut local = Vec::<u32>::with_capacity(indices.len());
+    for &source in indices {
+        if source as usize >= vertices {
+            return Err(CompilerError::new(
+                "INVALID_PAGE",
+                "Page index exceeds positions",
+            ));
+        }
+        let id = if let Some(&id) = remap.get(&source) {
+            id
+        } else {
+            let id = original.len();
+            if id >= 65535 {
+                return Err(CompilerError::new(
+                    "PAGE_VERTEX_LIMIT",
+                    "Page has more than 65535 vertices",
+                ));
+            }
+            original.push(source);
+            remap.insert(source, id as u32);
+            id as u32
+        };
+        local.push(id);
+    }
+    Ok((original, local))
 }

@@ -21,7 +21,7 @@ import {
   rayDepth,
 } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
 import { tileLayout, tileLists } from '../../../bench/oracles/browser/gpuLightTilesRankOracle.ts';
-import { ouvrirAppareil } from './webgpuDevice.ts';
+import { openGpuDevice } from './webgpuDevice.ts';
 
 const [WIDTH, HEIGHT] = [333, 207]; // cut tiles on both axes
 const view = camera([3, 40, -5], 0.8, -0.6, 70, WIDTH, HEIGHT);
@@ -131,7 +131,7 @@ async function tileListsOn(
   depths: Float32Array<ArrayBuffer>,
   counts: number[],
 ) {
-  const opened = await ouvrirAppareil(features);
+  const opened = await openGpuDevice(features);
   if (!opened) return { unavailable: 'no WebGPU adapter' } as const;
   const { device } = opened;
   const depth = depthTexture(device, depths).createView();

@@ -144,6 +144,10 @@ fn lampShadowFactor(index:u32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f,taps:boo
   let facing=dot(N,vec3f(m[0].w,m[1].w,m[2].w));
   let slope=sqrt(max(1.0-facing*facing,0.0))/(dot(d,d)*cosine);
   let reference=ndc.z+k*shadowDepthMargin(texel,slope,1.0/(clip.w*clip.w))+SHADOW_DEPTH_ROUNDING;
+  if(isPoint&&light.shape.x>0.0&&taps){
+   let soft=pointSoftShadow(index,light,Q,N,mip);
+   if(soft>=0.0){return soft;}
+  }
   return shadowPcf(map,t,reference,home,word,side,taps);
  }
  return 1.0;
@@ -151,6 +155,7 @@ fn lampShadowFactor(index:u32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f,taps:boo
 /** Fraction of light that reaches the point: 1 in full light, 0 fully in shadow — or 0 when
  *  \`taps\` is false and a page was read: the point takes no light, its pages are still asked for. */
 fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f,taps:bool)->f32{
+ shadowTransmission=vec3f(1.0);
  if(slice<0){return 1.0;}
  let index=u32(slice);
  if(shadows.records[index].info.x<0.5){return 1.0;}

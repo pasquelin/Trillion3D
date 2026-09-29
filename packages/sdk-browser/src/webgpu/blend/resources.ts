@@ -27,7 +27,9 @@ export async function prepareBlendResources(rt: WebgpuPagesRuntime, device: GPUD
   for (const item of items)
     item.vertexBase = item.paged
       ? (vis.geometryBlocks.get(item.sourceGeometry.attributes)?.vertexBase ?? 0)
-      : 0;
+      : item.deformOutput
+        ? item.vertexBase
+        : 0;
   buildBlendStatics(blendState);
   // The scene's transparent list IS the draw list: what an image takes out of it, it takes out
   // with a zero instance count, and the readbacks keep naming the scene's items.

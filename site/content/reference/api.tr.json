@@ -13,7 +13,8 @@
       "play": "Çalmaya başlar.",
       "stop": "Durur, ve başa döner.",
       "seek": "Klibi, döngü kipine göre, oynasa da oynamasa da hemen `time` saniyedeki pozuna koyar: oynayan eylem oradan devam eder, durmuş olan, karıştırıcısında oynayan bir eylem üzerine yazana dek o pozu korur.",
-      "clipTime": "Eylemin klip içinde, döngü moduna göre nerede olduğu."
+      "clipTime": "Eylemin klip içinde, döngü moduna göre nerede olduğu.",
+      "blendMode": "`additive`, ilk anahtara göre hareketi diğer eylemlerle karıştırmak yerine onlara ekler."
     }
   },
   "AlphaMode": {
@@ -817,7 +818,9 @@
       "vertexCount": "Köşeler.",
       "flags": "Hangi öznitelikleri taşıdığı.",
       "decodedBytes": "Açıldıktan sonraki boyutu.",
-      "quantizationError": "Nesne birimlerinde, başlıktaki en büyük pozisyon kayması: çözülmüş bir pozisyon, kaynağından, dolayısıyla sayfanın bildirilen kutusundan o kadar uzakta olabilir."
+      "quantizationError": "Nesne birimlerinde, başlıktaki en büyük pozisyon kayması: çözülmüş bir pozisyon, kaynağından, dolayısıyla sayfanın bildirilen kutusundan o kadar uzakta olabilir.",
+      "morphTargets": "`attributes.morph` içindeki hedef sayısı: hedef ve köşe başına altı kayan noktalı sayı; morphing yoksa bulunmaz.",
+      "skinInfluences": "Köşe başına kaynak kemik etkisi sayısı."
     }
   },
   "DiagnosticCapabilities": {
@@ -1154,7 +1157,8 @@
       "mathBatch": "Compute yolu regülatörünün durumu (`../math/path/governor.ts`): her yığın işleminin mevcut yolu, her iki yolun medyanları, geçişler. Bir yığın açmamış bir host'ta `null` — ölçülmemiş, \"JavaScript yolu\" değil.",
       "pagesPlannedOffThread": "Ana iş parçacığı dışında sayfa entegrasyonu. `pagesPlannedOffThread`, planı — her cluster'ın pakette yeri ve taşıdığı sayfa sıraları — bir worker tarafından hesaplanan varışları sayar, asla yedeğin ana iş parçacığında planladıklarını değil. `pagePlanMs`, hangi iş parçacığı olursa olsun, yürütücünün kendisi tarafından ölçülen bu planların kümülatif süresidir: asla kare başına bir `cpu*` ya da `gpu*`'ya eklenmez. Hiçbir varış planlanmadığı sürece ikisi de `null`'dır — ölçülmemiş, sıfır değil.",
       "pagePlanMs": "Varışları planlamaya harcanan süre.",
-      "dynamicUploadBytes": "Bu karede yerinde yüklenen dinamik geometri köşe baytları (#573), dünyanın kare başına bütçesi içinde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Hiçbir dünyanın çizmediği yerde yoktur."
+      "dynamicUploadBytes": "Bu karede yerinde yüklenen dinamik geometri köşe baytları (#573), dünyanın kare başına bütçesi içinde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Hiçbir dünyanın çizmediği yerde yoktur.",
+      "gpuDeformationMs": "`gpuPassMs` karesinin GPU deformasyon süresi; ölçümden önce veya destek yoksa null."
     }
   },
   "Frustum": {
@@ -1614,7 +1618,7 @@
   },
   "LIGHT_FIELD": {
     "summary": "Tamponda bir ışığın alanı, tabanından itibaren float cinsinden.",
-    "description": "Işık başına dört `vec4f`.",
+    "description": "Işık başına beş `vec4f`.",
     "members": {
       "position": "Nerede durduğu.",
       "range": "Ne kadar uzağa ulaştığı.",
@@ -1627,7 +1631,8 @@
       "castsShadow": "Gölge düşürüp düşürmediği.",
       "cosInner": "Bir spot'un iç konisi, penumbrasının başladığı yer: hiçbiri olmadığında koninin kendi kenarı.",
       "halfWidth": "Bir dikdörtgenin yarı genişlik ekseni — `right` çarpı genişliğinin yarısı —, sonra yüksekliğinin yarısı.",
-      "halfHeight": "Bir dikdörtgenin yüksekliğinin yarısı."
+      "halfHeight": "Bir dikdörtgenin yüksekliğinin yarısı.",
+      "emitterRadius": "Nokta veya spot kaynağın yarıçapı; dikdörtgenlere ayrılmış şekil bileşenleriyle aynı alanı kullanır."
     }
   },
   "LIGHT_KIND": {
@@ -1784,7 +1789,8 @@
       "record": "Dünyanın bu model hakkında tuttuğu her şey: adresleri, manifestosu ve grafiği.",
       "getObjectByName": "Altta bu adı taşıyan ilk düğüm: model, kaynak dosyasının bir düğümü, sonra başka herhangi bir çocuk — dosyanın taşıdığı ışık, bir sayfanın yerleştirdiği düğüm.",
       "metadata": "Modelin derlenmiş manifestosu — primitifleri, `sourceTriangles` — ve `clusters`, sayfalarının tuttuğu cluster'lar, DAG'larının her seviyesi sayılmış.",
-      "localBounds": "Bu düğümün kendi içeriğinin kutusu, yerel çerçeve; düz bir düğüm hiçbirini tutmaz."
+      "localBounds": "Bu düğümün kendi içeriğinin kutusu, yerel çerçeve; düz bir düğüm hiçbirini tutmaz.",
+      "animations": "Model düğümlerine bağlı dosya klipleri: `animation.createMixer(model).clipAction(model.animations[0]).play()`."
     }
   },
   "LodQualityId": {
@@ -1860,6 +1866,8 @@
       "parameters.ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "parameters.thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "parameters.clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "parameters.anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "parameters.anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "parameters.clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "parameters.sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "parameters.iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -1879,7 +1887,9 @@
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "parameters.subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "parameters.subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     },
     "members": {
       "isMaterial": "Her zaman `true`: bir malzemeyi başka her şeyden ayırır.",
@@ -1906,7 +1916,8 @@
       "physics": "Onu giyen cisimlerin fizik madde ön ayarı.",
       "density": "kg/m³, bir cismin kütlesi için.",
       "friction": "Fizik sürtünmesi.",
-      "restitution": "Fizik sekmesi."
+      "restitution": "Fizik sekmesi.",
+      "subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır."
     }
   },
   "MaterialParameters": {
@@ -1927,6 +1938,8 @@
       "ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -1946,7 +1959,9 @@
       "physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     }
   },
   "MathPath": {
@@ -2097,7 +2112,9 @@
       "morphTargetInfluences": "Geometri bildirdiğinde her morf hedefinin ağırlığı.",
       "morphTargetDictionary": "Her morf hedefinin adına göre sırası.",
       "updateMorphTargets": "İlk biçim değiştiren özniteliğin morf hedefi başına sıfır ağırlık, sırasıyla adlandırılmış.",
-      "copy": "`source`'un değerlerini ve aksi söylenmedikçe çocuklarının kopyalarını alır."
+      "copy": "`source`'un değerlerini ve aksi söylenmedikçe çocuklarının kopyalarını alır.",
+      "skeleton": "`skinIndex` ve `skinWeight` ile belirtilen kemikler, her karede GPU üzerinde değerlendirilir.",
+      "waves": "GPU ve kaldırma kuvveti için `WaterSurface` ile paylaşılan dalga parametreleri."
     }
   },
   "Mixer": {
@@ -2480,7 +2497,9 @@
       "vertexCount": "Köşeler.",
       "flags": "Hangi öznitelikleri taşıdığı.",
       "decodedBytes": "`block`'un boyutu.",
-      "quantizationError": "Sayfa başlığının nesne birimlerinde en büyük pozisyon kayması."
+      "quantizationError": "Sayfa başlığının nesne birimlerinde en büyük pozisyon kayması.",
+      "skinInfluences": "Köşe başına kaynak kemik etkilerinin tam genişliği.",
+      "morphTargets": "`morph` içindeki hedef sayısı: hedef ve köşe başına altı kayan noktalı sayı; morphing yoksa bulunmaz."
     }
   },
   "PageDecodeOp": {
@@ -2665,7 +2684,9 @@
       "matrices": "Sahip tarafından yazılan, satır başına column-major on altı float.",
       "live": "Satırın kaynağı yerleştirdiği yerde 1, park edildiği yerde 0.",
       "shadowless": "Satırın gölge düşürmediği yerde 1 (mesh'inin `castShadow` değeri `false`), düşürdüğü yerde 0.",
-      "capacity": "Büyümeden önce sığan satırlar."
+      "capacity": "Büyümeden önce sığan satırlar.",
+      "sources": "Satırlar yeniden kullanılırken korunan özgün sahipler.",
+      "sourceModels": "Bekleyen satırlar dahil, kaynakları paylaşan ağlar."
     }
   },
   "Plane": {
@@ -2733,7 +2754,8 @@
       "streams": "Akış paketleri.",
       "quantization": "Hiçbir ızgarada kuantalanmamış, sayfasız bir primitifte null.",
       "topology": "Mesh'in kenarlarının ve köşelerinin neye benzediği.",
-      "dynamic": "Bir dünyanın dinamik geometrisi (#573): yalnızca dizin sayfaları; köşeleri, motorun yerinde yeniden yazdığı ana geometriden kayan noktalı sayılar olarak okunur."
+      "dynamic": "Bir dünyanın dinamik geometrisi (#573): yalnızca dizin sayfaları; köşeleri, motorun yerinde yeniden yazdığı ana geometriden kayan noktalı sayılar olarak okunur.",
+      "deformation": "Eklemlerin dinlenme küreleri `[x,y,z,radius]` ve en büyük morphing erişimi; statik geometri için yok veya null."
     }
   },
   "Primitive": {
@@ -3006,7 +3028,7 @@
       "range": "Nokta, spot ve dikdörtgen: enerjinin tam olarak kaybolduğu, metre cinsinden menzil.",
       "coneAngle": "Bir spot'un açıklığı.",
       "penumbra": "Yalnızca spot: ışığın `[0, 1]`'de söndüğü, kenarından içe doğru koninin payı; olmadan kenar `spotEdgeSoftness` üzerinde yumuşar.",
-      "emitterRadius": "Yalnızca nokta ve spot: kaynağı tutan zarfın metre cinsinden yarıçapı. Gerçek bir ışık her zaman bir şeyin içine yerleştirilir — fener camı, reflektör, abajur — ve bu zarf başka herhangi biri gibi geometridir: bu alan olmadan, kendi ışığının gölge haritasına girer ve onu kapatır. Bildirildiğinde, o haritanın yakın düzlemi olur, bu yüzden kaynaktan bu yarıçaptan daha yakın olan hiçbir şey orada gölge düşürmez. Bu ışığın bir özelliğidir, asla bir nesne adı ya da malzeme türü değil: motor yalnızca yüzeyleri bilir. Kesinlikle pozitif ve menzilden kesinlikle küçük; yoksa hiçbir şey değişmez.",
+      "emitterRadius": "Yalnızca nokta ve spot: kaynağı tutan zarfın metre cinsinden yarıçapı. Gerçek bir ışık her zaman bir şeyin içine yerleştirilir — fener camı, reflektör, abajur — ve bu zarf başka herhangi biri gibi geometridir: bu alan olmadan, kendi ışığının gölge haritasına girer ve onu kapatır. Bu kürenin içindeki fragmanlar gölge düşürmez; haritanın yakın düzlemi menzile bağlı kalır. Nokta ışıkta bu yarıçap, temas yakınında gölge kenarlarını keskinleştiren filtrenin kaynak boyutunu da belirler. Bu ışığın bir özelliğidir, asla bir nesne adı ya da malzeme türü değil: motor yalnızca yüzeyleri bilir. Kesinlikle pozitif ve menzilden kesinlikle küçük; yoksa hiçbir şey değişmez.",
       "right": "Yalnızca dikdörtgen: genişliğinin boyunca gittiği, `direction`'a dik birim eksen.",
       "size": "Yalnızca dikdörtgen: genişliği ve yüksekliği, metre cinsinden.",
       "castsShadow": "Gölge düşürüp düşürmediği."
@@ -3340,7 +3362,8 @@
       "quantization": "Hiçbir ızgarada kuantalanmamış, sayfasız bir primitifte null.",
       "topology": "Mesh'in kenarlarının ve köşelerinin neye benzediği.",
       "binary": "Listelerinin nerede bulunacağı.",
-      "dynamic": "Bir dünyanın dinamik geometrisi (#573): yalnızca dizin sayfaları; köşeleri, motorun yerinde yeniden yazdığı ana geometriden kayan noktalı sayılar olarak okunur."
+      "dynamic": "Bir dünyanın dinamik geometrisi (#573): yalnızca dizin sayfaları; köşeleri, motorun yerinde yeniden yazdığı ana geometriden kayan noktalı sayılar olarak okunur.",
+      "deformation": "Eklemlerin dinlenme küreleri `[x,y,z,radius]` ve en büyük morphing erişimi; statik geometri için yok veya null."
     }
   },
   "SlimPrimitiveBinary": {
@@ -3502,9 +3525,13 @@
       "baseMetal": "RGB temel renk, A metaliklik.",
       "normalRough": "XYZ dünya normali, A pürüzlülük.",
       "emissiveAo": "RGB emissive, A ortam gizlenmesi.",
-      "flags": "0 arka plan, 1 aydınlatılmamış (sisli), 2 okunur, 3 olduğu gibi gösterilir: bir tanılama, bir normal ya da derinlik görünümü.",
+      "flags": "0 arka plan, 1 aydınlatılmamış (sisli), 2 okunur, 3 olduğu gibi gösterilir: bir tanılama, bir normal ya da derinlik görünümü. 4 ve 5, yayınık ve toon modelleridir (`./surfaceModel.ts`).",
       "views": "GPU doku görünümleri.",
-      "dispose": "Serbest bırakır."
+      "dispose": "Serbest bırakır.",
+      "shadingOffset": "G-buffer ile birlikte yazılan, tam hassasiyetli gölge alıcı yüzey ofseti.",
+      "subsurface": "İnce yüzeylerin bağımsız ışık geçirgenlik rengi; devre dışıyken sıfır değerli 1×1 doku.",
+      "subsurfaceView": "İnce yüzeylerin ışık iletimi dokusunun görünümü.",
+      "hasSubsurface": "İnce yüzeylerin ışık iletimi için tam boyutlu bir hedef bulunup bulunmadığı."
     }
   },
   "SurfaceCapture": {
@@ -3804,7 +3831,8 @@
       "name": "Ne canlandırdığı: `node.field`.",
       "kind": "Ne tür bir değer tuttuğu.",
       "times": "Her anahtarın ne zaman gerçekleştiği, saniye cinsinden.",
-      "values": "Her anahtardaki değer, art arda."
+      "values": "Her anahtardaki değer, art arda.",
+      "interpolation": "Varsayılan `linear`; `step` önceki anahtarı korur; `cubic`, glTF giriş teğeti/değer/çıkış teğeti üçlülerini kullanır."
     }
   },
   "TrackBinding": {
@@ -3813,11 +3841,12 @@
       "owner": "İzin içine yazdığı nesne.",
       "field": "`owner`'ın yazdığı alan.",
       "key": "Son örneğin durduğu anahtar.",
-      "value": "Bir örneğin sayıları."
+      "value": "Bir örneğin sayıları.",
+      "reference": "Eklemeli eylemler için ilk anahtarın referans pozu."
     }
   },
   "TrackKind": {
-    "summary": "Bir izin ne canlandırdığı: bir sayı, bir vektör, bir dönüş ya da bir renk."
+    "summary": "Bir sayı, vektör, dönüş, renk veya morphing ağırlıkları listesi."
   },
   "TrackballCameraControls": {
     "summary": "TRACKBALL: kamera, sahne imlecin altında bir top gibiymiş gibi kendi pivotu etrafında yuvarlanır.",
@@ -3942,7 +3971,7 @@
   },
   "UNSPLIT_PASS": {
     "summary": "Derleyici tarafından cluster DAG'ının dışında tutulan, bölünmemiş bir primitifin düzeni: tam mesh, kaynak sırası korunmuş.",
-    "description": "Bugün oraya üç malzeme özelliği götürür — geçirgenlik, iskeletleme, ve morph hedefleri —, asla bir nesne adı değil."
+    "description": "Bu yolu ışık geçirimi gerektirir; hiçbir zaman nesnenin adı belirlemez."
   },
   "UserNotice": {
     "summary": "Sayfayı kullanan kişi için, yapabilecekleriyle birlikte bir mesaj.",
@@ -4378,7 +4407,8 @@
       "shadowCastersKept": "Sayfa başına ayıklamanın tuttuğu gölge düşürücüler, tüm çizilen sayfalar birlikte, aygıtın en son örneklediği karede — on beşte bir; bir örnek dönene dek `null`.",
       "shadowCastersRejected": "Sayfa başına ayıklamanın sınayıp tutmadığı gölge düşürücüler — sayfanın alıcılarının okuduğu kısmının dışında —, aynı örneklenen karede; bir örnek dönene dek `null`.",
       "shadowCastersHidden": "Örtme testinin, sayfalarının durağan katmanının arkasında gizli bulduğu hareketli gölge düşürücüler, en son örneklenen karede; bir örnek dönene dek `null`.",
-      "dynamicUploadBytes": "Bu karede yerinde yüklenen dinamik geometri köşe baytları (#573), dünyanın kare başına bütçesi içinde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Hiçbir dünyanın çizmediği yerde yoktur."
+      "dynamicUploadBytes": "Bu karede yerinde yüklenen dinamik geometri köşe baytları (#573), dünyanın kare başına bütçesi içinde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Hiçbir dünyanın çizmediği yerde yoktur.",
+      "gpuDeformationMs": "`gpuPassMs` karesinin GPU deformasyon süresi; ölçümden önce veya destek yoksa null."
     }
   },
   "WorldOptions": {
@@ -5760,6 +5790,8 @@
       "parameters.ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "parameters.thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "parameters.clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "parameters.anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "parameters.anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "parameters.clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "parameters.sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "parameters.iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -5779,7 +5811,9 @@
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "parameters.subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "parameters.subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     }
   },
   "material.meshPhysical": {
@@ -5801,6 +5835,8 @@
       "parameters.ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "parameters.thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "parameters.clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "parameters.anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "parameters.anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "parameters.clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "parameters.sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "parameters.iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -5820,7 +5856,9 @@
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "parameters.subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "parameters.subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     }
   },
   "material.meshBasic": {
@@ -5842,6 +5880,8 @@
       "parameters.ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "parameters.thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "parameters.clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "parameters.anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "parameters.anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "parameters.clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "parameters.sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "parameters.iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -5861,7 +5901,9 @@
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "parameters.subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "parameters.subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     }
   },
   "material.meshPhong": {
@@ -5883,6 +5925,8 @@
       "parameters.ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "parameters.thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "parameters.clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "parameters.anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "parameters.anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "parameters.clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "parameters.sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "parameters.iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -5902,7 +5946,9 @@
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "parameters.subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "parameters.subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     }
   },
   "material.meshLambert": {
@@ -5924,6 +5970,8 @@
       "parameters.ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "parameters.thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "parameters.clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "parameters.anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "parameters.anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "parameters.clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "parameters.sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "parameters.iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -5943,7 +5991,9 @@
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "parameters.subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "parameters.subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     }
   },
   "material.meshToon": {
@@ -5965,6 +6015,8 @@
       "parameters.ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "parameters.thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "parameters.clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "parameters.anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "parameters.anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "parameters.clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "parameters.sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "parameters.iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -5984,7 +6036,9 @@
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "parameters.subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "parameters.subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     }
   },
   "material.meshNormal": {
@@ -6006,6 +6060,8 @@
       "parameters.ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "parameters.thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "parameters.clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "parameters.anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "parameters.anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "parameters.clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "parameters.sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "parameters.iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -6025,7 +6081,9 @@
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "parameters.subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "parameters.subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     }
   },
   "material.meshMatcap": {
@@ -6047,6 +6105,8 @@
       "parameters.ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "parameters.thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "parameters.clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "parameters.anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "parameters.anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "parameters.clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "parameters.sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "parameters.iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -6066,7 +6126,9 @@
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "parameters.subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "parameters.subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     }
   },
   "material.meshDepth": {
@@ -6088,6 +6150,8 @@
       "parameters.ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "parameters.thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "parameters.clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "parameters.anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "parameters.anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "parameters.clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "parameters.sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "parameters.iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -6107,7 +6171,9 @@
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "parameters.subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "parameters.subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     }
   },
   "material.points": {
@@ -6129,6 +6195,8 @@
       "parameters.ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "parameters.thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "parameters.clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "parameters.anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "parameters.anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "parameters.clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "parameters.sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "parameters.iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -6148,7 +6216,9 @@
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "parameters.subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "parameters.subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     }
   },
   "material.line": {
@@ -6170,6 +6240,8 @@
       "parameters.ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "parameters.thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "parameters.clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "parameters.anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "parameters.anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "parameters.clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "parameters.sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "parameters.iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -6189,7 +6261,9 @@
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "parameters.subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "parameters.subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     }
   },
   "material.lineDashed": {
@@ -6211,6 +6285,8 @@
       "parameters.ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "parameters.thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "parameters.clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "parameters.anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "parameters.anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "parameters.clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "parameters.sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "parameters.iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -6230,7 +6306,9 @@
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "parameters.subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "parameters.subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     }
   },
   "material.sprite": {
@@ -6252,6 +6330,8 @@
       "parameters.ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "parameters.thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "parameters.clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "parameters.anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "parameters.anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "parameters.clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "parameters.sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "parameters.iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -6271,7 +6351,9 @@
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "parameters.subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "parameters.subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     }
   },
   "material.shadow": {
@@ -6293,6 +6375,8 @@
       "parameters.ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "parameters.thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "parameters.clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "parameters.anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "parameters.anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "parameters.clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "parameters.sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "parameters.iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -6312,7 +6396,9 @@
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "parameters.subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "parameters.subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     }
   },
   "material.createShader": {
@@ -7483,7 +7569,8 @@
       "height": "Dünya noktası `(x, z)` üzerindeki yüzeyin yüksekliği, metre.",
       "point": "Durgun nokta `(x, level, z)`’nin taşındığı dünya noktası `[x, y, z]`, `out` içine: nokta nokta taşınan bir ızgara yüzeyin kendisidir, tepeler dalgalar kadar keskin.",
       "wavesNow": "Bildirilen dalgalar, her faz bu âna taşınmış: `world.physics.water`’a yeniden verildiğinde (dalgaları 0 sn’den yeniden başlar), yüzey sıçramadan olduğu yerden sürer.",
-      "normal": "Durgun nokta `(x, z)`’de yüzeyin birim normali `[x, y, z]`, `out` içine."
+      "normal": "Durgun nokta `(x, z)`’de yüzeyin birim normali `[x, y, z]`, `out` içine.",
+      "waveModel": "GPU ve fizik için aynı dalga değerleri ve zaman."
     }
   },
   "WaveSpec": {
@@ -7939,6 +8026,73 @@
   },
   "world.materialMapBytes": {
     "summary": "Tutulan veya bekleyen görüntülerin bayt sayısı; sınır 64 MiB."
+  },
+  "animation.weightsTrack": {
+    "summary": "Her anahtarda tüm morphing ağırlıklarını içeren iz.",
+    "parameters": {
+      "path": "`node.morphTargetInfluences` yolu.",
+      "times": "Anahtar zamanları, saniye cinsinden.",
+      "values": "Hedef ve anahtar başına bir ağırlık."
+    }
+  },
+  "animation.skeleton": {
+    "summary": "`mesh.skeleton` alanına atanacak iskeleti oluşturur.",
+    "parameters": {
+      "bones": "`skinIndex` sırasındaki kemikler.",
+      "inverseBindMatrices": "Kemik başına on altı sayı; verilmezse mevcut poz bağlama pozu olur."
+    }
+  },
+  "animation.twoBoneIK": {
+    "summary": "Klipler değerlendirildikten sonra iki kemikli zinciri bir noktaya ulaştırır.",
+    "parameters": {
+      "root": "Zincirin ilk kemiği.",
+      "mid": "Zincirin ikinci kemiği.",
+      "end": "İkinci kemiğe bağlı uç düğüm.",
+      "target": "Ulaşılacak nokta.",
+      "pole": "Bükülme yönü; varsayılan olarak mevcut yön.",
+      "weight": "0 mevcut pozu korur; 1 çözümü tamamen uygular."
+    }
+  },
+  "animation.windClip": {
+    "summary": "Ağaç kemiklerini eğip sallayan döngülü klip.",
+    "parameters": {
+      "bones": "Gövdeden uçlara doğru kemikler.",
+      "options": "Yön, en büyük bükülme açısı ve frekans."
+    },
+    "parameters.options.direction": "Zemin düzlemindeki yön `[x, z]`; varsayılan `[1, 0]`.",
+    "parameters.options.angle": "Radyan cinsinden en büyük bükülme; varsayılan 0,1.",
+    "parameters.options.frequency": "Saniyedeki salınım sayısı; varsayılan 0,5."
+  },
+  "Skeleton": {
+    "summary": "Ağı büken kemikler ve ağ koordinatlarını her kemiğin çerçevesine taşıyan ters bağlama matrisleri.",
+    "description": "Bir köşenin eklem indeksi `bones` içindeki sırayı belirtir. Ters matrisler verilmezse iskelet oluşturulurken kemiklerin duruşu bağlama duruşudur.",
+    "members.isSkeleton": "Her zaman `true`: iskeleti tanımlar.",
+    "members.bones": "Eklem sırasındaki eklem düğümleri.",
+    "members.boneInverses": "Kemik başına sütun sırasıyla on altı sayı: bağlama duruşundaki dünya matrisinin tersi.",
+    "members.palette": "Her eklemin `meshWorld⁻¹ · boneWorld · boneInverse` satırlarını `at` konumundan başlayarak `out` içine yazar. Palet bağlı köşeleri ağın yerel çerçevesine dönüştürür; ardından ağın dünya dönüşümü uygulanır. `boneWorlds` okuyucunun dünya matrislerini sağlar; yoksa kemiklerin kendi matrisleri kullanılır."
+  },
+  "Waves": {
+    "summary": "Zamanı `setTime` ile ayarlanan Gerstner dalgaları kümesi.",
+    "description": "Her `i` dalgasının yönü `(dx, dz)`, dalga sayısı `k`, genliği `A` ve yanal genliği `Q·A` vardır. Dik eğimler, tepeler devrilmesin diye `Σ Qᵢ·Aᵢ·kᵢ ≤ 1` olacak şekilde normalleştirilir.",
+    "members.phase": "Ayarlanan zamanda her dalganın [0, 2π) aralığındaki fazı: zamana bağlı tek durum.",
+    "members.crest": "Durgun düzeyin üzerindeki en büyük yükseklik: `Σ Aᵢ`.",
+    "members.steepness": "Normalleştirme sonrası `Σ Qᵢ·Aᵢ·kᵢ`, en fazla 1.",
+    "members.phasesAt": "`t` saniyede her dalganın fazı, çift duyarlıkla [0, 2π) aralığına indirgenir.",
+    "members.setTime": "Zamanı `t` saniyeye ayarlar; önceki karenin yüzeyi `setTime(t - dt)` olur.",
+    "members.offset": "Durgun `(x, 0, z)` noktasının `[x, y, z]` yer değiştirmesini `out` içine yazar.",
+    "members.normal": "Durgun `(x, z)` noktasındaki `[x, y, z]` birim normalini `out` içine yazar.",
+    "members.count": "Toplanan dalga sayısı.",
+    "members.dirX": "Her dalga yönünün normalleştirilmiş x bileşeni.",
+    "members.dirZ": "Her dalga yönünün normalleştirilmiş z bileşeni.",
+    "members.k": "Her dalganın metre başına radyan cinsinden dalga sayısı.",
+    "members.amplitude": "Her dalganın metre cinsinden düşey genliği.",
+    "members.lateral": "Her dalganın metre cinsinden normalleştirilmiş yanal genliği."
+  },
+  "WindOptions": {
+    "summary": "Rüzgâr yönü (zemindeki `x`, `z`), kemiğin radyan cinsinden en büyük bükülmesi ve saniyedeki salınım sayısı.",
+    "members.direction": "Zemin düzlemindeki yön `[x, z]`; varsayılan `[1, 0]`.",
+    "members.angle": "Radyan cinsinden en büyük bükülme; varsayılan 0,1.",
+    "members.frequency": "Saniyedeki salınım sayısı; varsayılan 0,5."
   },
   "world.setTransform": {
     "summary": "`nodeName` düğümünü dünya duruşu `matrix` olacak şekilde taşır: sayfanın tutamağını saklamadığı bir düğüme adıyla (`object.name`) ulaşılır, sahnede aranır.",

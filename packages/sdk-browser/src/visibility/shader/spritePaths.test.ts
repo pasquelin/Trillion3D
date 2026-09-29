@@ -39,7 +39,10 @@ test('the WGSL and GLSL texts are statement for statement the same formula', () 
 });
 
 test('every WebGPU raster turns a sprite page, the shadow vertex stage is as before', () => {
-  assert.match(PAGE_INFO_STRUCT_WGSL, /normalScale:f32,sprite:vec2f,padMetalUv/);
+  assert.match(
+    PAGE_INFO_STRUCT_WGSL,
+    /normalScale:f32,sprite:vec2f,transmission:f32,thickness:f32/,
+  );
   assert.equal(ROW_SPRITE_WORD, 36, 'the row words of PageInfo.sprite');
   assert.ok(PAGE_SCREEN_WGSL.includes(SPRITE_WGSL));
   // The compute raster and the hardware skip test read `pageClip`, which turns a sprite page.
@@ -70,7 +73,10 @@ test('every WebGPU raster turns a sprite page, the shadow vertex stage is as bef
 });
 
 test('the transparent pass, the fallback and WebGL2 turn a sprite with the same text', () => {
-  assert.match(BLEND_ITEM_WGSL, /dash:vec2f,sprite:vec2f,\}/);
+  assert.match(
+    BLEND_ITEM_WGSL,
+    /dash:vec2f,sprite:vec2f,subsurface:vec4f,deform:u32,deformInput:u32,deformOutput:u32,pad2:u32,\}/,
+  );
   assert.ok(BLEND_SHADER.includes(SPRITE_WGSL));
   assert.ok(
     BLEND_SHADER.includes(

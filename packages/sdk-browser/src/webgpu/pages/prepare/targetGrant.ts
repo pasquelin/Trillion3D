@@ -11,6 +11,7 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { drawnViewChanged, viewGpu, type WebgpuView } from '../state/view.ts';
 import { onView } from '../state/viewSwitch.ts';
 import { frameSizeOf, sameFrameSize, type FrameSize } from '../state/renderScale.ts';
+import { fundFrameTargets, refreshTargetGrant } from './targetFunding.ts';
 
 /** True while no frame can be drawn: its targets are asked of the device, or were refused at
  *  this size. The frame is then held (`holdWebgpuFrame`), and nothing is presented. */
@@ -20,10 +21,8 @@ export const frameTargetsAwaited = (rt: WebgpuPagesRuntime) => rt.gpu.targetGran
 const stopped = (rt: WebgpuPagesRuntime) => rt.run.lost || rt.signal.aborted;
 
 type Asked = FrameSize & { requestedBytes: number };
-
 /** The size asked this frame: copied only when a grant starts, never allocated per frame. */
 const wanted = {} as FrameSize;
-
 /** The frame targets `asked` refused by name, and why. */
 const refuseTargets = (rt: WebgpuPagesRuntime, asked: Asked, reason: string, error?: unknown) =>
   rt.diag.engineDiagnostic('frame-targets-refused', 'The device refused the frame targets', {
@@ -47,7 +46,11 @@ export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const fit = targetsFit(rt, size),
     hiz = rt.vis.gpuHiz;
   // The view's Hi-Z pyramid fits too, at the render size, or Hi-Z is absent.
-  if (fit && (!hiz || (hiz.width === renderWidth && hiz.height === renderHeight))) return;
+  if (fit && (!hiz || (hiz.width === renderWidth && hiz.height === renderHeight))) {
+    return refreshTargetGrant(rt, size, (error) =>
+      refuseTargets(rt, { ...size, requestedBytes: gpu.targetBytes }, 'budget', error),
+    );
+  }
   const pending = gpu.targetGrant;
   if (pending && (!pending.settled || sameFrameSize(pending, size))) return pending.done;
   const view = rt.views.active,
@@ -69,7 +72,9 @@ export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice) {
     hiZReserved: rt.setup.reserveHiz,
   }));
   // Thrown here, synchronously: a size beyond the device's limits releases nothing.
-  const extra = capture.captureAllocationBytes + backdropBytes(rt, renderWidth, renderHeight),
+  const extra =
+      (capture.surfaceCapture ? 0 : capture.captureAllocationBytes) +
+      backdropBytes(rt, renderWidth, renderHeight),
     asked = { ...size, requestedBytes: frameTargetAllocation(rt, size, extra) };
   // Granted, the record goes; refused, it stays, settled, and holds the frames at this size. A
   // creation that throws refuses them by name too, unless the session stopped.
@@ -84,11 +89,7 @@ export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice) {
   return gpu.targetGrant.done;
 }
 
-/**
- * The frame targets of the view's size, granted before a capture or prepare draws with
- * them: a grant in flight is waited for first, and a size refused before is asked again.
- * What the device refuses even without Hi-Z is refused by name: `WEBGPU_FRAME_TARGETS_REFUSED`.
- */
+/** Await or retry the current target grant before preparation or capture. */
 export async function grantFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice) {
   await grantPending(rt.gpu.targetGrant);
   rt.gpu.targetGrant = undefined;
@@ -99,12 +100,8 @@ export async function grantFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevic
   throw new Error('WEBGPU_FRAME_TARGETS_REFUSED');
 }
 
-/**
- * The targets made under the device's out-of-memory check (`deviceMade`), the set in place
- * released first so a resize never holds two. A refusal drops Hi-Z, whose absence changes no
- * image, and asks again; refused without it, they are refused by name, never as a lost device.
- * Resolves to whether the device granted them.
- */
+/** Admit and allocate this view's targets. Device refusal releases the attempt; a Hi-Z
+ * refusal retries through the existing fallback, never by losing the device. */
 async function grantTargets(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
@@ -113,6 +110,7 @@ async function grantTargets(
 ) {
   const { vis, diag } = rt,
     hiz = !!vis.gpuHiz;
+  await onView(rt, view, () => fundFrameTargets(rt, asked, asked.requestedBytes));
   // Made, and released when refused, on the view that asked.
   const make = () =>
     onView(rt, view, () => {

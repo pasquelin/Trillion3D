@@ -61,7 +61,8 @@ fn coneRejectsBox(cone:vec4f,bmin:vec3f,bmax:vec3f,w:u32)->bool{
  return d<-sin(cone.w+spread)&&(cone.w+spread)<${HALF_PI_WGSL};
 }
 fn coneRejects(r:u32,w:u32)->bool{
- if(hasBox(r)==0.0){return false;}
+ // A deformed primitive's normals are not its rest pose's: no cone rejects it (#357).
+ if(hasBox(r)==0.0||deformReach>0.0){return false;}
  return coneRejectsBox(coneOf(r),boxMin(r),boxMax(r),w);
 }
 /** Cone reject depends only on the page, its world and the camera: it is therefore the same for
