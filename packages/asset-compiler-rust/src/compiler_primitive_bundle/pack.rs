@@ -57,13 +57,17 @@ fn pack(
 /// bundle holding one of their parents, then by culling rank: siblings, which share parents, land
 /// in the same bundle, and a bundle depends on as few others as the spatial order allows — never
 /// more than `bound` directly, the bound [`dependency_bound`] fixes before packing.
+///
+/// `bytes` is what a cluster weighs in its bundle: its indices for a primitive
+/// ([`index_bytes`]), its own vertices too for a world super-root.
 pub(crate) fn pack_bundles(
     dag: &[DagCluster],
     groups: &[DagGroup],
     order: &[usize],
     bound: usize,
+    bytes: &dyn Fn(&DagCluster) -> usize,
 ) -> Result<(Vec<Vec<usize>>, usize, Vec<usize>)> {
-    let size = |rank: usize| dag[order[rank]].indices.len() * 4;
+    let size = |rank: usize| bytes(&dag[order[rank]]);
     let mut bundles: Vec<Vec<usize>> = Vec::new();
     let mut bundle_of = vec![usize::MAX; dag.len()];
     let top = dag.iter().map(|cluster| cluster.level).max().unwrap_or(0);
@@ -102,4 +106,9 @@ pub(crate) fn pack_bundles(
         place(false, level, &mut bundles)?;
     }
     Ok((bundles, pinned, bundle_of))
+}
+
+/// What a primitive's cluster weighs in its bundle: its indices, four bytes each.
+pub(crate) fn index_bytes(cluster: &DagCluster) -> usize {
+    cluster.indices.len() * 4
 }
