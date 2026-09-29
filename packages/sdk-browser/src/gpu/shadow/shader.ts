@@ -12,7 +12,13 @@ import {
   tileDeclarations,
 } from '../../webgpu/tile/wgsl.ts';
 import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts';
-import { FLAG_BLEND_CASTER } from '../../visibility/types.ts';
+import { FEEDBACK_RULE_WGSL, tileRequestIndexWgsl } from '../../webgpu/tile/requestWgsl.ts';
+import {
+  FLAG_BLEND_CASTER,
+  FLAG_HAS_MAP,
+  FLAG_MASK,
+  FLAG_SAMPLED,
+} from '../../visibility/types.ts';
 import { BLEND_TRANSMITTANCE_WGSL } from './transmittance.ts';
 
 /**
@@ -42,6 +48,9 @@ import { BLEND_TRANSMITTANCE_WGSL } from './transmittance.ts';
  * so the exclusion is exactly the announced sphere — a raised near plane would have cut a cube.
  * A light without a radius carries a zero radius and nothing is discarded.
  */
+/** A row whose cutout reads a base map: masked, and with a map. */
+const CUTOUT_MAP = FLAG_MASK | FLAG_HAS_MAP;
+
 export const SHADOW_DEPTH_SHADER = `${PAGE_INFO_WGSL}
 ${PAGE_BINDING.indices}
 ${PAGE_BINDING.positions}
@@ -54,6 +63,8 @@ ${PAGE_BINDING.instances}
 ${PAGE_BINDING.slotOffsets}
 struct ShadowView{viewProjection:mat4x4f,params:vec4f,emitter:vec4f,}
 @group(1) @binding(0) var<uniform> shadow:ShadowView;
+@group(1) @binding(1) var<uniform> cutoutRequest:vec4u;
+@group(1) @binding(2) var<storage,read_write> tileFeedback:array<atomic<u32>>;
 @group(2) @binding(0) var shadowOpaque:texture_depth_2d;
 struct ShadowOut{@invariant @builtin(position) position:vec4f,@location(0) @interpolate(flat) instance:u32,@location(1) uv:vec2f,@location(2) fromEmitter:vec3f,}
 ${PAGE_LOOKUP_WGSL}
@@ -62,6 +73,8 @@ ${tilePoolWgsl('0.0')}
 ${COLOR_SAMPLE_WGSL}
 ${maskAlphaWgsl(true)}
 ${MASK_KEEP_WGSL}
+${tileRequestIndexWgsl('color')}
+${FEEDBACK_RULE_WGSL}
 ${BLEND_TRANSMITTANCE_WGSL}
 /** Corner \`vertexIndex\` of page-table row \`pageIndex\`, or none when its row is not of the kind
  *  drawn: \`blended\` casters alone into the transmittance layer, the others alone into the depth. */
@@ -102,9 +115,20 @@ fn shadowKeep(in:ShadowOut,gx:vec2f,gy:vec2f)->bool{
  if(radius>0.0&&dot(in.fromEmitter,in.fromEmitter)<radius*radius){return false;}
  return maskKeep(pages[in.instance],in.uv,1.0,gx,gy);
 }
-/** Writes no colour: it only discards the envelope and the cutout. */
+/** A masked caster's texel asks for the base-map tile its cutout reads — the isotropic level, one
+ *  of the two the read mixes, picked as the camera's pixels pick —, in its phase, into the texture
+ *  feedback's counters (\`faceBindings.ts\`): what it reads is then what the pose asked. */
+fn cutoutRequest(in:ShadowOut,gx:vec2f,gy:vec2f){
+ let page=pages[in.instance];
+ if(cutoutRequest.y==0u||(page.flags&${CUTOUT_MAP}u)!=${CUTOUT_MAP}u||!feedbackPhase(in.position.xy,cutoutRequest.x)){return;}
+ let p=requestPick(in.position.xy,1u,cutoutRequest.x);
+ let rank=colorRequestIndex(page.mapIndex,in.uv,gx,gy,p.next,1u,false,(page.flags&${FLAG_SAMPLED}u)!=0u);
+ if(rank!=0u){atomicAdd(&tileFeedback[rank-1u],1u);}
+}
+/** Writes no colour: it only discards the envelope and the cutout, and asks the cutout's tile. */
 @fragment fn shadow_fs(in:ShadowOut){
  let gx=dpdx(in.uv);let gy=dpdy(in.uv);
+ cutoutRequest(in,gx,gy);
  if(!shadowKeep(in,gx,gy)){discard;}
 }
 /** True when the pool's opaque depth is nearer the light than \`p\` at the four texels of its
