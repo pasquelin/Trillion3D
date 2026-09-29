@@ -1937,7 +1937,7 @@
       "wasmAvailable": "WebAssemblyモジュールが、正しい契約バージョンで読み込まれている。",
       "wasmSimd": "そのモジュールが`simd128`でコンパイルされていたかどうか; モジュールが読み込まれるまでは`null`。",
       "clockResolutionMs": "スレッドの時計の分解能、ミリ秒単位; 推定されるまでは`null`。",
-      "clockCoarse": "時計が裁定を行うには粗すぎるときtrue: すべてがJavaScriptパスに留まる。",
+      "clockCoarse": "時計が1回の実行を計測するには粗すぎるときtrue: 実行はまとめたバッチ単位で計測される。",
       "unavailableReason": "WebAssemblyパスが使えない理由。使える場合は`null`。",
       "operations": "各演算。"
     }
