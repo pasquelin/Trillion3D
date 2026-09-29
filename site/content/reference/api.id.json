@@ -2073,7 +2073,19 @@
       "evictedTiles": "Ubin tekstur yang dihapus.",
       "residentPages": "Yang tersimpan tepat sebelum dan tepat sesudah pengaturan.",
       "residentTiles": "Ubin tekstur yang disimpan, sebelum dan sesudah.",
-      "durationMs": "Waktu yang dibutuhkannya."
+      "durationMs": "Waktu yang dibutuhkannya.",
+      "tables": "Tabel per halaman yang dapat digambar yang diperbesar untuk kolam di atasnya (WebGPU), atau `null` jika tidak ada yang diperbesar.",
+      "transientBytes": "Byte yang ditahan sekaligus saat kolam geometri disalin: kolam lama dan kolam baru di sampingnya, diberikan bersama oleh perangkat sebelum halaman mana pun berpindah; 0 jika tidak ada kolam yang berpindah."
+    }
+  },
+  "TableGrowthReport": {
+    "summary": "Pertumbuhan tabel yang ukurannya ditentukan per baris yang dapat digambar, sebagaimana diminta pool di atasnya.",
+    "members": {
+      "drawSlots": "Baris visibilitas yang kini dimuat tabel.",
+      "casterSlots": "Baris yang dibaca pass bayangan, setelah baris visibilitas.",
+      "bytes": "Byte yang dimuat tabel GPU yang membesar — yang diminta, bila ditolak.",
+      "refused": "`true` bila perangkat menolaknya: tabel dan pool yang ada dipertahankan.",
+      "durationMs": "Milidetik yang dibutuhkan pertumbuhan, dari probe sampai penukaran."
     }
   },
   "Mesh": {

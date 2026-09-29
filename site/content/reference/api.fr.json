@@ -4089,7 +4089,19 @@
       "evictedTiles": "Tuiles de texture retirées.",
       "residentPages": "Ce qui était résident juste avant le réglage et juste après.",
       "residentTiles": "Tuiles de texture gardées, avant et après.",
-      "durationMs": "Le temps pris."
+      "durationMs": "Le temps pris.",
+      "tables": "Les tables par page dessinable agrandies pour un réservoir au-dessus d’elles (WebGPU), ou `null` quand aucune ne l’a été.",
+      "transientBytes": "Octets tenus à la fois pendant la copie du réservoir de géométrie : l’ancien réservoir et le nouveau à côté, accordés ensemble par l’appareil avant qu’aucune page ne bouge ; 0 quand aucun réservoir n’a bougé."
+    }
+  },
+  "TableGrowthReport": {
+    "summary": "La croissance des tables dimensionnées par ligne dessinable, telle qu’un pool au-dessus d’elles l’a demandée.",
+    "members": {
+      "drawSlots": "Lignes de visibilité que les tables tiennent maintenant.",
+      "casterSlots": "Lignes que lit la passe d’ombres, après les lignes de visibilité.",
+      "bytes": "Octets que tiennent les tables GPU agrandies — ceux demandés, en cas de refus.",
+      "refused": "`true` quand l’appareil les a refusées : les tables et le pool en place sont conservés.",
+      "durationMs": "Millisecondes qu’a prises la croissance, de la sonde à l’échange."
     }
   },
   "Mesh": {
