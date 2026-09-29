@@ -79,8 +79,6 @@ export function createWebgpuRowState(
     residentFlags,
     pageIndicesByUrl,
     pageIndexOf: (rec: PageRec) => catalogue.indexOf(rec),
-    /** The packed rank of this table's catalogue, back to its record (`../pages/prepare/catalogue.ts`). */
-    recordOf: catalogue.recordOf,
     residentOffsetWords,
     rowPageIndex,
     rowOffsetWords,

@@ -30,10 +30,12 @@ export function writeBlendDiagnostic(
   diagnosticPixelError: number,
 ) {
   const { table, compaction } = blendState;
-  const { recordOf } = createPageCatalogue(packedPages);
   if (!table || !compaction) return;
+  // The accessor is built after the guards: a beauty image, which reads no diagnostic, allocates
+  // nothing here.
   if (diagnostic !== 'clusters' && diagnostic !== 'lod' && diagnostic !== 'screen-error') return;
   if (blendState.diagnosticMode === diagnostic && diagnostic !== 'screen-error') return;
+  const { recordOf } = createPageCatalogue(packedPages);
   blendState.diagnosticMode = diagnostic;
   if (blendState.clusterIdentity.length < table.capacity)
     blendState.clusterIdentity = new Uint32Array(table.capacity);

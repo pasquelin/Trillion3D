@@ -90,8 +90,6 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
     packedPages,
     /** The packed rank of a page to its record: the engine's one catalogue accessor. */
     recordOf: catalogue.recordOf,
-    /** The record's packed rank, validated by the catalogue. */
-    catalogueIndexOf: catalogue.indexOf,
     opaquePageCount,
     /** The pool addresses' placements, which rows grown in place add to. */
     copies,

@@ -72,9 +72,9 @@ export async function readTransparentOcclusionAudit(
   if (!depth) return null;
   const rejected = Uint32Array.from(keep);
   const corners = new Float64Array(rejected.length * BOX_CORNER_VALUES);
-  const { packedPages, selectionRoots } = layout;
+  const { recordOf, selectionRoots } = layout;
   for (let i = 0; i < rejected.length; i++) {
-    const rec = packedPages[table.pageOfEntry[rejected[i]]];
+    const rec = recordOf(table.pageOfEntry[rejected[i]])!;
     pageCornersInto(corners, i * BOX_CORNER_VALUES, rec, rootOf(selectionRoots, rec).world);
   }
   return {
