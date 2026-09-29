@@ -54,7 +54,8 @@ function encoded(pages: number, mode: number, casters: boolean) {
     },
   };
   const kept = {},
-    key = [{}, {}, {}, {}, {}, kept, undefined];
+    zeroFlags = {},
+    key = [{}, {}, {}, {}, {}, kept, undefined, zeroFlags];
   const rt = {
     vis: {
       visBindGroupLayout: {},
@@ -63,7 +64,7 @@ function encoded(pages: number, mode: number, casters: boolean) {
       pageTable: key[3],
       textures: { color: { views: key[4] } },
       mapsSampler: {},
-      zeroFlags: {},
+      zeroFlags,
     },
     gpu: { cache: { buffer: key[0] } },
     run: { gpuDrawCalls: 0 },

@@ -88,7 +88,7 @@ export async function placedSession(bindingRows: number) {
   ['near.json', 'far.json'].forEach((name) => held.add(cellUrl(name)));
   port.update = (rows, from, to) => updateWebgpuPlacements(rt, rows, from, to);
   port.grow = {
-    growsInPlace: (from, capacity) => webgpuGrowsInPlace(rt, from, capacity),
+    growsInPlace: (from) => webgpuGrowsInPlace(rt, from),
     growPlacements: (from, to) => growWebgpuPlacements(rt, from, to),
   };
   const view = cameraAt(0, 30);
