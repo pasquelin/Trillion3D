@@ -4089,9 +4089,11 @@
   "TableGrowthReport": {
     "summary": "La croissance des tables dimensionnées par ligne dessinable, telle qu’un pool au-dessus d’elles l’a demandée.",
     "members": {
-      "drawSlots": "Les lignes de visibilité, puis chaque ligne que lit la passe d’ombres, telles que les tables sont maintenant.",
+      "drawSlots": "Lignes de visibilité que les tables tiennent maintenant.",
+      "casterSlots": "Lignes que lit la passe d’ombres, après les lignes de visibilité.",
       "bytes": "Octets que tiennent les tables GPU agrandies — ceux demandés, en cas de refus.",
-      "refused": "`true` quand l’appareil les a refusées : les tables et le pool en place sont conservés."
+      "refused": "`true` quand l’appareil les a refusées : les tables et le pool en place sont conservés.",
+      "durationMs": "Millisecondes qu’a prises la croissance, de la sonde à l’échange."
     }
   },
   "Mesh": {

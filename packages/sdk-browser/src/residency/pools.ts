@@ -134,12 +134,14 @@ export type MemoryBudgetsReport = {
 
 /** The growth of the tables sized by drawable row, as a pool above them asked it. */
 export type TableGrowthReport = {
-  /** Visibility rows, then every row the shadow pass reads, as the tables now stand. */
+  /** Visibility rows the tables now hold. */
   drawSlots: number;
+  /** Rows the shadow pass reads, after the visibility rows. */
   casterSlots: number;
   /** Bytes the grown GPU tables hold — asked, when refused. */
   bytes: number;
   /** True when the device refused them: the tables and the pool in place are kept. */
   refused: boolean;
+  /** Milliseconds the growth took, from the probe to the swap. */
   durationMs: number;
 };
