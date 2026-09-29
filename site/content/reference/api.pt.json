@@ -5058,10 +5058,6 @@
   "emptyIrradiance": {
     "summary": "Uma irradiância sem nada dentro, pronta para receber fontes."
   },
-  "encodeManifestBinary": {
-    "summary": "Divide um manifesto no pequeno JSON que um leitor analisa e nas colunas que ele mapeia.",
-    "description": "O descritor devolvido carrega um `sha256` vazio: só o chamador, tendo os bytes finalizados, pode calculá-los."
-  },
   "enginePose": {
     "summary": "Pose de mundo que rastros e diagnósticos publicam, lida da câmera do motor: o olho é a translação de `world`, e a decomposição do núcleo produz os bits de `Matrix4.decompose`, dos quais `getWorldQuaternion` é apenas a chamada."
   },
