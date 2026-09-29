@@ -9,39 +9,21 @@
 //   node --experimental-strip-types --test tests/browser/probes/narrow-resolve-gpu.ts
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import type { SceneLight } from '../../../packages/sdk-core/src/index.ts';
 import {
   LIGHT_TILES_NARROW_SHADER,
   LIGHT_TILES_SHADER,
 } from '../../../packages/sdk-browser/src/lighting/tiles/shader.ts';
 import { compactTile, tileLayout } from '../../../bench/oracles/browser/gpuLightTilesRankOracle.ts';
-import { seeded } from '../../../site/examples/kit/random.ts';
-import { dansPageWebgpu, bundlePage } from './pageWebgpu.ts';
-import type { ResolveScene, run } from './narrowResolvePage.ts';
+import type { ResolveScene } from './narrowResolvePage.ts';
+import { resolveRandom, resolveSamples, runResolves } from './resolveProbe.ts';
 
-declare global {
-  var narrowResolve: { run: typeof run };
-}
-
-const here = dirname(fileURLToPath(import.meta.url));
 const WIDE = tileLayout(LIGHT_TILES_SHADER);
 const NARROW = tileLayout(LIGHT_TILES_NARROW_SHADER);
 const LIST = WIDE.tileLights;
-const r = seeded(849);
-const between = (low: number, high: number) => low + r() * (high - low);
-const vector = (size: number) => [between(-size, size), between(-size, size), between(-size, size)];
-const unit = (v: number[]) => v.map((x) => x / Math.hypot(...v)) as [number, number, number];
-
-/** Samples in a two-metre box: a surface of each lit model (standard, diffuse, toon). */
-const points = Array.from({ length: 128 }, () => vector(1));
-const samples = points.flatMap((P, k) => [
-  ...[between(0.1, 1), between(0.1, 1), between(0.1, 1), r() < 0.3 ? 1 : 0],
-  ...[...unit(vector(1)), between(0.05, 1)],
-  ...[...P, between(0.5, 1)],
-  ...[...unit([between(-0.5, 0.5), between(-0.5, 0.5), 1]), [2, 4, 5][k % 3]],
-]);
+const draw = resolveRandom(849);
+const { r, between, vector, unit } = draw;
+const { points, samples } = resolveSamples(128, draw);
 
 /** A sun, then point and spot lights, near the samples or far; none whose range sphere passes
  *  within 2% of a sample, so what reaches a sample is beyond doubt in f32. Returns the lights
@@ -124,16 +106,7 @@ test('the narrow resolve and the wide one give the same sums, bit for bit, on th
   assert.ok(large.reach.length > LIST, `${large.reach.length} reach the large tile`);
   const [pooled, full] = SCENES[1].records.map(({ words }) => words);
   assert.ok(full[WIDE.opaqueBase] === WIDE.noSlice && pooled[WIDE.opaqueBase] === WIDE.stride);
-  const script = await bundlePage(resolve(here, 'narrowResolvePage.ts'), 'narrowResolve');
-  const pageErrors: string[] = [];
-  const result = await dansPageWebgpu(
-    (scenes: ResolveScene[]) => globalThis.narrowResolve.run(scenes),
-    SCENES,
-    { titre: 'Narrow resolve', script, erreursPage: pageErrors },
-  );
-  assert.equal(result.unavailable, undefined, 'WebGPU must be available');
-  const { errors, runs } = result as Exclude<typeof result, { unavailable: string }>;
-  assert.deepEqual([...errors, ...pageErrors], []);
+  const runs = await runResolves(SCENES, 'Narrow resolve', []);
   assert.deepEqual(
     runs.map((records) => records.length),
     SCENES.map((s) => s.records.length),
