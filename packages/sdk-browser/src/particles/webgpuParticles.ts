@@ -163,13 +163,18 @@ export function encodeParticles(
   rt.run.gpuComputeDispatches += rt.gpu.particles.run(pools, encoder);
 }
 
+/** Whether this image draws the world's pools: it has some, and shows beauty. */
+export const drawsParticles = ({ context, run }: Pick<WebgpuPagesRuntime, 'context' | 'run'>) =>
+  !!context.particles && run.diagnostic === 'beauty';
+
 /** What this image draws the world's pools with — in beauty, once a camera and the targets are —;
  *  `undefined` when it draws none. */
-export function particleDrawOf({ run, gpu, context }: WebgpuPagesRuntime) {
-  const { hdrView, depthView, asIsShare, particles } = gpu,
+export function particleDrawOf(rt: WebgpuPagesRuntime) {
+  const { run, gpu, context } = rt,
+    { hdrView, depthView, asIsShare, particles } = gpu,
     pools = context.particles;
   if (!pools || !particles || !hdrView || !depthView || !asIsShare || !run.lastCamera) return;
-  if (run.diagnostic !== 'beauty') return;
+  if (!drawsParticles(rt)) return;
   return { pools, particles, hdrView, depthView, reactive: asIsShare.view };
 }
 
