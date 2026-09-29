@@ -14,30 +14,32 @@ declare global {
   var lightTilesPlain: { run: typeof run };
 }
 
-const here = dirname(fileURLToPath(import.meta.url));
+if (import.meta.main) {
+  const here = dirname(fileURLToPath(import.meta.url));
 
-test('the plain tile pass keeps the lists of the subgroup pass, on the GPU', async () => {
-  const script = await bundlePage(resolve(here, 'lightTilesPlainPage.ts'), 'lightTilesPlain');
-  const pageErrors: string[] = [];
-  const result = await dansPageWebgpu(
-    (counts: number[]) => globalThis.lightTilesPlain.run(counts),
-    [48, 800],
-    { titre: 'Plain light tiles', script, erreursPage: pageErrors },
-  );
-  assert.equal(result.unavailable, undefined, 'WebGPU with subgroups must be available');
-  assert.deepEqual([...(result.errors ?? []), ...pageErrors], []);
-  const { runs } = result as Exclude<typeof result, { unavailable: string }>;
-  for (const { count, subgroup, plain } of runs) {
-    assert.deepEqual([subgroup.subgroups, plain.subgroups], [true, false], 'one variant each');
-    const wide = count > LIGHT_SETTINGS.tileLights;
-    assert.deepEqual([subgroup.wide, plain.wide], [wide, wide]);
-    assert.deepEqual([subgroup.overflowed, plain.overflowed], [0, 0], 'every pool had room');
-    const kept = subgroup.lists.map((list) => list.length);
-    assert.ok(
-      kept.some((n) => n > 0),
-      'lists to compare',
+  test('the plain tile pass keeps the lists of the subgroup pass, on the GPU', async () => {
+    const script = await bundlePage(resolve(here, 'lightTilesPlainPage.ts'), 'lightTilesPlain');
+    const pageErrors: string[] = [];
+    const result = await dansPageWebgpu(
+      (counts: number[]) => globalThis.lightTilesPlain.run(counts),
+      [48, 800],
+      { titre: 'Plain light tiles', script, erreursPage: pageErrors },
     );
-    if (wide) assert.ok(Math.max(...kept) > LIGHT_SETTINGS.tileLights, 'a slice in the pool');
-    assert.deepEqual(plain.lists, subgroup.lists, `the same lists, ${count} lights`);
-  }
-});
+    assert.equal(result.unavailable, undefined, 'WebGPU with subgroups must be available');
+    assert.deepEqual([...(result.errors ?? []), ...pageErrors], []);
+    const { runs } = result as Exclude<typeof result, { unavailable: string }>;
+    for (const { count, subgroup, plain } of runs) {
+      assert.deepEqual([subgroup.subgroups, plain.subgroups], [true, false], 'one variant each');
+      const wide = count > LIGHT_SETTINGS.tileLights;
+      assert.deepEqual([subgroup.wide, plain.wide], [wide, wide]);
+      assert.deepEqual([subgroup.overflowed, plain.overflowed], [0, 0], 'every pool had room');
+      const kept = subgroup.lists.map((list) => list.length);
+      assert.ok(
+        kept.some((n) => n > 0),
+        'lists to compare',
+      );
+      if (wide) assert.ok(Math.max(...kept) > LIGHT_SETTINGS.tileLights, 'a slice in the pool');
+      assert.deepEqual(plain.lists, subgroup.lists, `the same lists, ${count} lights`);
+    }
+  });
+}

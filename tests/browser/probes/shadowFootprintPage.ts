@@ -1,8 +1,8 @@
 /**
  * Page side of the shadow footprint probe (#1250): the shipped shadow read (`directShadowWgsl`,
  * with the light code it calls) compiled on a real device, its `shadowPageWord` run once per read
- * of `footprintReads` over the page table the pool wrote — the words it returns, and the pages the
- * shipped request asked for.
+ * of `footprintReads` over the page table the pool wrote — the words it returns, the pages the
+ * shipped request asked for, and those it listed as missed (#1211).
  */
 import { MAX_SHADOW_SLICES, SHADOW_RECORD_FLOATS } from '../../../packages/sdk-core/src/index.ts';
 import { DIRECT_LIGHT_WGSL } from '../../../packages/sdk-browser/src/lighting/direct/lightWgsl.ts';
@@ -10,6 +10,7 @@ import { directShadowWgsl } from '../../../packages/sdk-browser/src/lighting/dir
 import { SHADOW_REQUEST_BITS } from '../../../packages/sdk-browser/src/lighting/direct/shadowRequestWgsl.ts';
 import { footprintReads } from '../../../packages/sdk-browser/src/lighting/direct/shadowFootprint.fixture.ts';
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts';
+import { SHADOW_REQUEST_MISS } from '../../../packages/sdk-core/src/scene/light-shadow/footprint.ts';
 
 /** The shadow read as a pass declares it; the far ray, which no page read reaches, lit. */
 const SHADER = `${DIRECT_LIGHT_WGSL}
@@ -49,7 +50,8 @@ export async function run() {
     floats.set(t, i * READ_WORDS + 8);
   });
   const data = storage(device, RECORD_BYTES + words.byteLength),
-    cap = reads.length,
+    // Each read asks for its page, and may say it missed it.
+    cap = 2 * reads.length,
     requests = storage(device, (1 + cap + SHADOW_REQUEST_BITS) * 4, GPUBufferUsage.COPY_SRC),
     input = storage(device, packed.byteLength),
     output = storage(device, reads.length * 4, GPUBufferUsage.COPY_SRC);
@@ -77,7 +79,9 @@ export async function run() {
   device.queue.submit([encoder.finish()]);
   const read = [...((await readGpuBuffer(device, output, reads.length * 4)) ?? [])];
   const listed = (await readGpuBuffer(device, requests, (1 + cap) * 4)) ?? [];
-  const asked = [...listed.slice(1, 1 + Math.min(listed[0] ?? 0, cap))];
+  const entries = [...listed.slice(1, 1 + Math.min(listed[0] ?? 0, cap))];
+  const asked = entries.filter((entry) => entry < SHADOW_REQUEST_MISS),
+    missed = entries.filter((e) => e >= SHADOW_REQUEST_MISS).map((e) => e - SHADOW_REQUEST_MISS);
   device.destroy();
-  return { errors, reads, read, asked };
+  return { errors, reads, read, asked, missed };
 }
