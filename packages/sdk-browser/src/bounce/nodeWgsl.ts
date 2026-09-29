@@ -38,7 +38,7 @@ struct ResidentProxy{
  counting:u32,${writable ? 'tested:atomic<u32>,blocked:atomic<u32>' : 'tested:u32,blocked:u32'},nodeCount:u32,
  trianglesWord:u32,boundsWord:u32,childrenWord:u32,dynamic:u32,
  groupsWord:u32,rangesWord:u32,ownersWord:u32,transformsWord:u32,
- revision:u32,pad0:u32,pad1:u32,pad2:u32,
+ revision:u32,motionSteps:u32,pad1:u32,pad2:u32,
  words:array<u32>,
 }
 @group(0) @binding(${binding}) var<storage,${writable ? 'read_write' : 'read'}> proxy:ResidentProxy;`;

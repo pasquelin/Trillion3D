@@ -30,11 +30,6 @@ export const BOUNCE_SETTINGS = {
    */
   traversalSteps: 128,
   /**
-   * Visited BVH nodes per ray once an owner has moved: a refitted box may overlap its
-   * neighbours, so the fixed bound doubles. Still a constant, never the node count.
-   */
-  motionTraversalSteps: 256,
-  /**
    * Traversal stack depth. A 4-wide node pushes up to 3 children; 32 covers millions of triangles.
    */
   traversalStack: 32,

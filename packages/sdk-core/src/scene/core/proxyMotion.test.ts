@@ -107,3 +107,17 @@ test('returning a translated owner to bind restores its geometry without cumulat
     false,
   );
 });
+
+test('refit counts each node it ever widened once, and a still session widens none', () => {
+  const motion = createSceneProxyMotion(ownedProxy());
+  const identity = proxyIdentity(),
+    moved = proxyIdentity();
+  motion.sync(() => identity);
+  assert.equal(motion.widenedNodes, 0, 'no motion, no widened node');
+  moved[12] = 5;
+  motion.sync((node) => (node === 1 ? moved : identity));
+  assert.equal(motion.widenedNodes, 1, 'the one node over the moved owner');
+  moved[12] = 7;
+  motion.sync((node) => (node === 1 ? moved : identity));
+  assert.equal(motion.widenedNodes, 1, 'the same node refitted again is not counted twice');
+});

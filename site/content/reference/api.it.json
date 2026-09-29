@@ -342,7 +342,6 @@
       "proxyCellMetres": "Risoluzione minima della mesh proxy in metri: dimensione dei triangoli semplificati e delle celle della cache di superficie. Raddoppiata dal compilatore se il budget viene superato.",
       "proxyLeafTriangles": "Triangoli per foglia del BVH: i cicli sulle foglie sono limitati da questa costante.",
       "traversalSteps": "Nodi del BVH visitati per raggio: limitati prima di eseguire il fotogramma, mai dinamici. Un nodo con 4 figli copre 4× più albero per passo rispetto a un BVH binario.",
-      "motionTraversalSteps": "Nodi del BVH visitati per raggio una volta che un proprietario si è mosso: una scatola riadattata può sovrapporsi alle vicine, quindi il limite fisso raddoppia. Sempre una costante, mai il numero di nodi.",
       "traversalStack": "Profondità dello stack di attraversamento. Un nodo con 4 figli ne impila fino a 3; 32 copre milioni di triangoli.",
       "cascadeLevels": "Livelli delle cascate di sonde. I primi `cascadeLevels - 1` seguono la posizione della camera; l'ultimo è fisso nel mondo e copre l'intera scena.",
       "cascadeSize": "Sonde per asse e per livello: un livello è un cubo di `cascadeSize³` sonde.",
