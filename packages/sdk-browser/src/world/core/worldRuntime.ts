@@ -114,11 +114,11 @@ export function createWorldRuntime(inputs: Inputs) {
   };
   const mounts = createWorldMounts(contents, () => explorer, schedule, track.asks('mount-refused'));
   const backgroundRefused = track.asks('background');
-  /** Where a frame's dynamic vertices go: the open session, made once (#573). */
+  const verticesRefused = track.asks('vertices-refused');
   const uploads = vertexUploads(
     () => explorer,
     (cut) => mirror?.geometryOf(cut),
-    track.asks('vertices-refused'),
+    verticesRefused,
   );
   /** The change list, applied once before a frame: rows seated, poses written, lights stored. */
   const apply = () => {
