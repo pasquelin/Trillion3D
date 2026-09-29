@@ -5,12 +5,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { WebglClusterTextures } from './textures.ts';
+import { refusedNow } from '../core/allocation.ts';
 import type { Texture } from '../../../../sdk-core/src/index.ts';
 
 const ANISOTROPY = 0x84fe;
 
-/** A WebGL2 context that records uploads and anisotropy writes. */
-function context() {
+/** A WebGL2 context that records uploads and anisotropy writes; `more` adds or replaces members. */
+function context(more: Record<string, unknown> = {}) {
   const calls = { uploads: 0, inPlace: 0, created: 0, anisotropy: [] as number[], parameters: 0 };
   const gl = new Proxy(
     {
@@ -26,6 +27,7 @@ function context() {
       texParameterf: (_target: number, name: number, value: number) => {
         if (name === ANISOTROPY) calls.anisotropy.push(value);
       },
+      ...more,
     } as Record<string, unknown>,
     { get: (target, key) => target[key as string] ?? (typeof key === 'string' ? noop : undefined) },
   );
@@ -156,4 +158,25 @@ test('each upload flips its rows as its texture says, in place too', () => {
   binder.bind(1, record({ id: 'canvas', image: { width: 2, height: 2 }, flipY: true }), true);
   binder.bind(2, record());
   assert.deepEqual(flips, [true, true, true, false]);
+});
+
+// #840: a map the context refused is sent again at its next bind, at the same version: a surface
+// is never drawn without its picture.
+test('a refused map is sent again at its next bind', () => {
+  let refuse = false;
+  const { gl, calls } = context({
+    OUT_OF_MEMORY: 0x0505,
+    CONTEXT_LOST_WEBGL: 0x9242,
+    getError: () => (refuse ? ((refuse = false), 0x0505) : 0),
+  });
+  const binder = new WebglClusterTextures(gl);
+  const map = record();
+  binder.bind(0, map);
+  assert.equal(calls.uploads, 1);
+  refuse = true;
+  assert.equal(refusedNow(gl), true, 'the refusal read');
+  binder.bind(0, map);
+  assert.deepEqual([calls.uploads, calls.inPlace], [2, 0], 'allocated again, never in place');
+  binder.bind(0, map);
+  assert.equal(calls.uploads, 2, 'then held');
 });
