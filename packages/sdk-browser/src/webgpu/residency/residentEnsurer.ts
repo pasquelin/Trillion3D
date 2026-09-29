@@ -3,7 +3,7 @@ import { createFrameBudget, createSharePace } from '../../page/integration/frame
 import { pageAddress } from '../row/pageSlots.ts';
 import { PRIORITY_PREFETCH } from '../../streaming/priority.ts';
 import { createAdmissionReads, createPageAdmission } from './admission.ts';
-import { mergeLowerTiers, type LowerList } from './lowerTier.ts';
+import { createLowerMerge, type LowerList } from './lowerTier.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { createGpuPageCache } from '../../gpu/page/pages.ts';
 import type { createWebgpuPageTracking } from '../row/pageTracking.ts';
@@ -46,13 +46,13 @@ export function createWebgpuResidentEnsurer({
   prefetch,
 }: EnsureOptions) {
   /** The published share of the main thread (`STREAMING_FRAME_MS`), read synchronously: past it a
-   *  job yields a task — a due frame goes through; past `STREAMING_SHARES_PER_FRAME` of a visible
-   *  page, a frame — and starts a new share; a hidden tab never waits, so it loads too. Opened only
-   *  after a yield, never by a job: the next job may start in the task the last one ended in. */
+   *  job yields a task, past `STREAMING_SHARES_PER_FRAME` of a visible page a frame (a hidden tab
+   *  never waits), and opens a new share — only after a yield, never in the task a job ended in. */
   const budget = createFrameBudget(STREAMING_FRAME_MS);
   const nextShare = createSharePace(budget.open, STREAMING_SHARES_PER_FRAME);
   /** The reads a pass starts before its admissions, under the job's `reads`; none without `prefetch`. */
-  const readAhead = prefetch && createAdmissionReads({ hasBytes, parentsOf, prefetch });
+  const readAhead = prefetch && createAdmissionReads({ hasBytes, parentsOf, prefetch }),
+    mergeLower = createLowerMerge(tracking.keyOf);
   /** Every load of both tiers goes through the install order; what the image holds is pinned. */
   const admit = createPageAdmission({
     getCache,
@@ -67,9 +67,8 @@ export function createWebgpuResidentEnsurer({
    * What the camera left: the casters the light cuts want, then the pages ahead of the camera,
    * loaded only into slots nobody holds — free, or taken by a page no tier wants. They are never
    * pinned: a camera page evicts them, they never evict a camera page, and an object on screen is
-   * never coarsened for a shadow or for a view to come. The ones already resident are moved to the
-   * far end of the eviction order first, so an arrival of these tiers never takes the slot of
-   * another page of them.
+   * never coarsened for a shadow or for a view to come. Only the list's first pages the unpinned
+   * slots hold keep theirs: past the pool, what stays follows the list, never arrivals (#1016).
    */
   const loadLowerTiers = async (
     lower: readonly PageRec[],
@@ -82,10 +81,11 @@ export function createWebgpuResidentEnsurer({
       const key = tracking.keyOf(rec);
       return tracking.wanted.has(key) || bootstrapKey[key] || !hasBytes(rec);
     };
+    const slots = cache.unpinnedSlots();
     let held = 0;
-    for (let i = 0; i < lower.length; i++)
-      if (!skip(lower[i]) && cache.touch(pageAddress(lower[i]), true)) held++;
-    let spare = cache.unpinnedSlots() - held;
+    for (let i = 0, kept = 0; i < lower.length && kept < slots; i++)
+      if (!skip(lower[i]) && ++kept && cache.touch(pageAddress(lower[i]), true)) held++;
+    let spare = slots - held;
     readAhead?.(lower, spare, (rec) => !skip(rec), cache, reads, PRIORITY_PREFETCH);
     // The share, as the camera's burst: past it the job yields — and leaves if a camera cut asked
     // for pages meanwhile: the queue serves the camera first and runs the tiers again. A job only
@@ -101,7 +101,7 @@ export function createWebgpuResidentEnsurer({
       signal?.throwIfAborted();
       if (isLost() || getCache() !== cache) return;
       try {
-        spare -= Math.max(0, await admit(rec));
+        spare -= Math.max(0, await admit(rec, PRIORITY_PREFETCH));
         budget.spend();
       } catch (error) {
         // The camera's own burst took the last slot meanwhile: the tier waits, as it does.
@@ -110,15 +110,14 @@ export function createWebgpuResidentEnsurer({
       }
     }
   };
-  /**
-   * `cameraWaiting` says a camera cut is queued behind this job: the queue passes it, so the
-   * caster tier gives way to the camera. A barrier passes none and loads the whole tier.
-   */
+  /** `cameraWaiting` says a camera cut is queued behind this job: the queue passes it, so the
+   *  caster tier gives way to the camera. A barrier passes none and loads the whole tier. */
   return async (
     wanted: readonly PageRec[],
     jobFrame: number,
     jobId: number,
     cameraWaiting: () => boolean = () => false,
+    landed: () => void = () => {},
   ) => {
     let cache = getCache();
     if (!cache) return;
@@ -169,7 +168,8 @@ export function createWebgpuResidentEnsurer({
           if (!tracking.wanted.has(key) || cache.get(address)) continue;
         }
         try {
-          await admit(rec);
+          // A page whose parents lack their bytes is not loaded (-1): nothing to draw, no wake.
+          if ((await admit(rec)) > 0) landed();
           budget.spend();
         } catch (error) {
           if (!String(error).includes('ALL_PAGES_PINNED')) throw error;
@@ -182,7 +182,7 @@ export function createWebgpuResidentEnsurer({
         cache = getCache();
         if (isLost() || !cache) throw new Error('WEBGPU_LOST');
       }
-      const lower = full ? [] : mergeLowerTiers(lowerTiers(), tracking.keyOf);
+      const lower = full ? [] : mergeLower(lowerTiers());
       if (lower.length) await loadLowerTiers(lower, cache, signal, cameraWaiting, reads.signal);
     } finally {
       reads.abort();

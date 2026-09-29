@@ -29,21 +29,26 @@ test('the temporal shader assembles each fragment once, on the shared page recor
     for (let i = 0; i < size; i++) words.push(name);
   }
   assert.equal(words[ROW_PLACEMENT_WORD], 'placement');
-  assert.match(TAA_REPROJECT_WGSL, /motion\[pages\[\(id>>8u\)-1u\]\.placement\]/);
+  assert.match(
+    TAA_REPROJECT_WGSL,
+    /fn placementOf\(id:u32\)->u32\{return pages\[\(id>>8u\)-1u\]\.placement;\}/,
+  );
+  assert.match(TAA_REPROJECT_WGSL, /motion\[placementOf\(id\)\]/);
 });
 
 test('shader bindings are those of the layout, and the uniform has the declared size', () => {
+  // The filtered resolve declares every binding, the display layers' four last.
   for (const [name, binding] of Object.entries(TAA_BINDINGS))
     assert.match(
-      TAA_SHADER,
+      taaShader(true, false, true),
       new RegExp(`@binding\\(${binding}\\) var(<[a-z,]+>)? ${name}:`),
       `binding ${name}`,
     );
-  // Two matrices, viewport and params, then the nine weights in three quadruplets.
-  assert.equal(TAA_VIEW_BYTES, 2 * 64 + 2 * 16 + TAA_WEIGHTS * 4);
+  // Two matrices, viewport and params, the nine weights in three quadruplets, render grid, jitter.
+  assert.equal(TAA_VIEW_BYTES, 2 * 64 + 2 * 16 + TAA_WEIGHTS * 4 + 2 * 16);
   assert.match(
     TAA_SHADER,
-    /struct TaaView\{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:vec4f,params:vec4f,weights:array<vec4f,3>,\}/,
+    /struct TaaView\{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:vec4f,params:vec4f,weights:array<vec4f,3>,render:vec4f,jitter:vec4f,\}/,
   );
   // No cosine per pixel: weights come from the uniform, neighbour by neighbour.
   assert.doesNotMatch(TAA_SHADER, /cos\(/);
@@ -62,11 +67,12 @@ test('the background, at zero depth, reprojects as a direction and not as a poin
 
 // OMB-11: with no as-is pixel every neighbour's share is 0, and history is clamped to [0, 0]: the
 // flag-reading resolve writes 0 wherever its colour is finite. The flagless one writes that 0 and
-// is otherwise the same text — the colour line for line —, reading neither flags nor share history.
+// is otherwise the same text — the colour and the placement tag line for line —, reading neither
+// flags nor share history.
 test('the flagless resolve is the flag-reading one without its share, written as 0', () => {
   const flagless = taaShader(false);
   assert.doesNotMatch(flagless, /var flags|textureLoad\(flags|shareHistory|shareLo|keptShare/);
-  const outputs = (text: string) => [...text.matchAll(/TaaOut\((.*),([^,]*)\);\}?$/gm)];
+  const outputs = (text: string) => [...text.matchAll(/TaaOut\((.*),vec2f\((.*),tag\)\);\}?$/gm)];
   const kept = outputs(TAA_SHADER),
     zero = outputs(flagless);
   assert.equal(zero.length, 3);
@@ -78,7 +84,7 @@ test('the flagless resolve is the flag-reading one without its share, written as
   const flagged = new Set(TAA_SHADER.split('\n'));
   const own = flagless.split('\n').filter((line) => !flagged.has(line));
   assert.equal(own.length, 3, 'only its three outputs are its own');
-  for (const line of own) assert.match(line, /TaaOut\(.*,0\.0\);\}?$/);
+  for (const line of own) assert.match(line, /TaaOut\(.*,vec2f\(0\.0,tag\)\);\}?$/);
   const removed = TAA_SHADER.split('\n').filter((line) => !flagless.includes(line));
   for (const line of removed) assert.match(line, /share|var flags|asIs|TaaOut/, line);
 });

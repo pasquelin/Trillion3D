@@ -10,7 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { dansPageWebgpu, empaquetePage } from './pageWebgpu.ts';
+import { dansPageWebgpu, bundlePage } from './pageWebgpu.ts';
 import { median } from '../../../scripts/median.ts';
 import type { executer } from './cutDispatchesPage.ts';
 import { DISPATCH_SCENE } from './cutDispatchesScene.ts';
@@ -36,7 +36,7 @@ const mediane = (
 ): number => Number(median(valeurs.map((v) => v[champ])).toFixed(4));
 
 test('cut opens fewer commands and retains exactly the same pages', async () => {
-  const script = await empaquetePage(resolve(ici, 'cutDispatchesPage.ts'), 'coupeLancements');
+  const script = await bundlePage(resolve(ici, 'cutDispatchesPage.ts'), 'coupeLancements');
   const erreursPage: string[] = [];
   const releve = await dansPageWebgpu(
     (argument: Parameters<typeof executer>[0]) => globalThis.coupeLancements.executer(argument),

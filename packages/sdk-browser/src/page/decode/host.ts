@@ -1,7 +1,6 @@
 import { PAGE_DECODE_PROTOCOL, pageDecodeWorkerCount } from '../../../../sdk-core/src/index.ts';
 import { createPageDecodePool, type PageDecodePool } from './pool.ts';
 import { restorePageDecode, runPageDecodeTask } from './task.ts';
-import { createPageArena, sharedPagesAllowed } from './shared.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
 import type { PageDecodeAnswer, PageDecodeOp } from '../../../../sdk-core/src/index.ts';
 import type { PageCutPayload } from '../../../../sdk-core/src/page/decodeContracts.ts';
@@ -38,12 +37,7 @@ function openPool() {
     const cores = (globalThis.navigator as { hardwareConcurrency?: number } | undefined)
       ?.hardwareConcurrency;
     const workers = pageDecodeWorkerCount(cores, admissionLimit);
-    // The arena is allocated only where the platform allows it, and only at pool open:
-    // a page that never decodes anything does not pay for shared memory.
-    pool = createPageDecodePool(
-      workers,
-      sharedPagesAllowed() ? createPageArena(workers) : undefined,
-    );
+    pool = createPageDecodePool(workers);
     starting = pool.start().then((ok) => {
       started = ok;
       if (!ok) pool = undefined;
@@ -142,26 +136,31 @@ export async function decodePageOffThread(
 }
 
 /**
- * Drawn triangles, packed by `packDrawn`, cut into pages in a worker when the pool lives and by
- * the same task on the main thread otherwise. **The caller yields its buffer.** A cut is not a
- * decode: it is not counted among the decoded pages.
+ * A task that is never urgent — a `cut`, a partition's `cells` or `cellPage` (#575) — in a worker when the pool
+ * lives, else by the same task on the main thread: it waits for the pool's startup check rather
+ * than take the main thread. The worker receives a copy of `source`, so a vanished worker leaves
+ * it whole for the main thread. Not a decode: it is not counted among the decoded pages.
  */
-export async function cutPagesOffThread(packed: ArrayBuffer): Promise<PageCutPayload> {
-  // A cut is never urgent: it waits for the pool's startup check rather than take the main thread.
+export async function patientTask(
+  op: 'cut' | 'cells' | 'cellPage',
+  source: Uint8Array,
+  name?: string,
+) {
   if (!openPool() && started === undefined) await starting;
   const open = openPool();
-  // The worker receives a copy: a vanished worker leaves the original for the main thread.
-  let answer = open ? await open.submit('cut', packed.slice(0), 0).answer : undefined;
-  if (!answer || (!answer.ok && answer.code === 'PAGE_DECODE_WORKER'))
-    answer = (
-      await runPageDecodeTask({
-        protocol: PAGE_DECODE_PROTOCOL,
-        id: 0,
-        op: 'cut',
-        source: packed,
-        maxDecodedBytes: 0,
-      })
-    ).answer;
+  const copy = () => source.slice().buffer as ArrayBuffer;
+  let answer = open ? await open.submit(op, copy(), 0, name).answer : undefined;
+  if (!answer || (!answer.ok && answer.code === 'PAGE_DECODE_WORKER')) {
+    const request = { protocol: PAGE_DECODE_PROTOCOL, id: 0, op, maxDecodedBytes: 0, name };
+    answer = (await runPageDecodeTask({ ...request, source: ownBuffer(source) })).answer;
+  }
+  return answer;
+}
+
+/** Drawn triangles, packed by `packDrawn`, cut into pages (`patientTask`). **The caller yields
+ *  its buffer.** */
+export async function cutPagesOffThread(packed: ArrayBuffer): Promise<PageCutPayload> {
+  const answer = await patientTask('cut', new Uint8Array(packed));
   if (!answer.ok || !answer.cut) refuse(answer);
   return answer.cut;
 }

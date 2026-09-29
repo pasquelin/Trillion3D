@@ -57,6 +57,7 @@ const POSE_LOCALE: Record<string, string> = {
   'webgpu/pages/testScenes.fixture.ts': 'test scene builder: it poses the camera',
   'backend/autonomous/triangle.fixture.ts': 'test scene builder: it poses the camera',
   'webgpu/pages/twoPlaces.fixture.ts': 'test scene builder: it poses the camera',
+  'webgpu/shadow/reportScene.fixture.ts': 'test scene builder: it poses the camera',
 };
 
 /**
@@ -78,7 +79,7 @@ const RECEVEUR = String.raw`[A-Za-z_$]*[Cc]am[A-Za-z_$]*`;
 const POSE_DIRECTE = new RegExp(
   `${RECEVEUR}\\??\\.(?:position|quaternion|rotation|getWorldPosition|getWorldQuaternion|getWorldDirection|updateMatrixWorld)\\b`,
 );
-const POSE_MONDE = new RegExp(`${RECEVEUR}\\??\\.matrixWorld(?:Inverse)?\\b`);
+const WORLD_POSE = new RegExp(`${RECEVEUR}\\??\\.matrixWorld(?:Inverse)?\\b`);
 
 /** Lines triggering a pattern, comments excluded. */
 const lignesFautives = (text: string, motif: RegExp): string[] =>
@@ -96,7 +97,7 @@ test('camera pose is read only through the `camera/world.ts` contract', async ()
   const regles: Array<[RegExp, Record<string, string>, string]> = [
     [RESOUT, RESOLVENT, 'resolves the pose itself instead of calling `resolveCameraWorld`'],
     [POSE_DIRECTE, POSE_LOCALE, 'touches a camera local pose outside the contract'],
-    [POSE_MONDE, LISENT_LA_POSE, 'reads world pose without being a declared consumer'],
+    [WORLD_POSE, LISENT_LA_POSE, 'reads world pose without being a declared consumer'],
   ];
   for (const file of fichiers) {
     const text = await readFile(new URL(file, browser), 'utf8');

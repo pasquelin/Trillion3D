@@ -5,13 +5,10 @@ import {
   SHADOW_TABLE_ENTRIES,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SHADOW_DEPTH_SHADER } from './shader.ts';
-import {
-  MAX_SHADOW_REGIONS,
-  SHADOW_FACE_READ_BYTES as FACE_BYTES,
-  createShadowRecordPack,
-} from './recordPack.ts';
+import { MAX_SHADOW_REGIONS, createShadowRecordPack } from './recordPack.ts';
+import { createShadowFaceBindings } from './faceBindings.ts';
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
-import { arrayView, layerPasses, layerViews } from './layers.ts';
+import { arrayView, layerPasses, layerViews, shadowPoolTexture } from './layers.ts';
 import { createShadowTransmittance, type ShadowTransmittance } from './transmittance.ts';
 import { shadowTransmittanceDraws } from './transmittanceDraws.ts';
 import { shadowDepthDraws } from './depthDraws.ts';
@@ -46,7 +43,9 @@ export type GpuShadowAtlas = Awaited<ReturnType<typeof createGpuShadowAtlas>>;
  * and the shading reads the placeholder.
  */
 export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBindGroupLayout) {
-  let texture: GPUTexture | undefined, transmittance: ShadowTransmittance | undefined;
+  let texture: GPUTexture | undefined,
+    transmittance: ShadowTransmittance | undefined,
+    cleared = false;
   // Also storage, read by the occlusion test and the page quads; after the faces, the batch's
   // regions in pass order (`pageQuads.ts`).
   const faceUniform = device.createBuffer({
@@ -61,55 +60,34 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
   });
   const pack = createShadowRecordPack(FACE_STRIDE, 1),
     { records, facePacked } = pack;
+  const faces = createShadowFaceBindings(device, faceUniform);
   const release = () => {
     texture?.destroy();
-    transmittance?.dispose();
+    transmittance?.destroy();
     faceUniform.destroy();
+    faces.destroy();
     dataBuffer.destroy();
   };
   try {
     const module = await createCheckedShaderModule(device, SHADOW_DEPTH_SHADER, 'SHADOW_DEPTH');
-    const faceLayout = device.createBindGroupLayout({
-      entries: [
-        {
-          binding: 0,
-          // Also read at the fragment: it is what discards the emitter envelope.
-          visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
-          buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: FACE_BYTES },
-        },
-      ],
-    });
-    const layout = device.createPipelineLayout({ bindGroupLayouts: [pageLayout, faceLayout] });
+    const layout = device.createPipelineLayout({ bindGroupLayouts: [pageLayout, faces.layout] });
     const depthDraws = shadowDepthDraws(device, module, layout);
-    const transmittanceDraws = shadowTransmittanceDraws(device, module, [pageLayout, faceLayout]);
-    const faceGroup = device.createBindGroup({
-      layout: faceLayout,
-      entries: [{ binding: 0, resource: { buffer: faceUniform, size: FACE_BYTES } }],
-    });
-    /**
-     * The pool's texture, `layers × poolSide²` pages, made not taken: what the grant allots under
-     * its out-of-memory check (`poolGrants.ts`). `COPY_SRC` is there only for the proof: the host
-     * can reread the pool and compare its fingerprint between two runs. No frame pass copies it.
-     */
+    const transmittanceDraws = shadowTransmittanceDraws(device, module, [pageLayout, faces.layout]);
     const makePool = (poolSide: number, layers: number) =>
-      device.createTexture({
-        label: 'Trillion3D shadow depth atlas v1',
-        size: [poolSide * SHADOW_PAGE, poolSide * SHADOW_PAGE, layers],
-        format: 'depth32float',
-        usage:
-          GPUTextureUsage.RENDER_ATTACHMENT |
-          GPUTextureUsage.TEXTURE_BINDING |
-          GPUTextureUsage.COPY_SRC,
-      });
+      shadowPoolTexture(device, poolSide, layers);
     const atlas = {
       /** Texels a side, zero until the pool is sized. */
       size: 0,
       get texture() {
         return texture;
       },
-      /** The transmittance layer (`transmittance.ts`), from the first blended caster on. */
+      /** The transmittance layer (`transmittance.ts`), read from the first blended caster on. */
       get transmittance() {
-        return transmittance;
+        return cleared ? transmittance : undefined;
+      },
+      /** True once the transmittance layer is held, read or not yet. */
+      get transmittanceHeld() {
+        return !!transmittance;
       },
       view: undefined as GPUTextureView | undefined,
       targets: [] as GPUTextureView[],
@@ -124,34 +102,62 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       /** True when region `index`'s face carries an emitter envelope, which only a fragment
        *  discards. */
       hasEnvelope: pack.hasEnvelope,
-      faceGroup,
+      /** Group 1 of a region's draws: its face, and what the cutouts ask (`faceBindings.ts`). */
+      get faceGroup() {
+        return faces.group;
+      },
+      /** What this image's cutouts ask of the colour tiles (`faceBindings.ts`). */
+      cutoutRequests: faces.requests,
       faceUniform,
       faceStride: FACE_STRIDE,
       allocationBytes: SHADOW_BUFFER_BYTES,
       makePool,
-      /** Takes the pool's texture — the one the device granted, or one made now: once, before the
-       *  first page is drawn. */
-      sizePool(poolSide: number, layers = 1, granted = makePool(poolSide, layers)) {
-        if (texture) throw new Error('the shadow pool is sized once');
+      /** Takes the pool's texture — the one the device granted, or one made now — before the first
+       *  page is drawn; again at a resize (`../../webgpu/shadow/poolResize.ts`), with the
+       *  transmittance layer made for it when one is held. Returns what it held then, which the
+       *  caller copies from and destroys. */
+      sizePool(
+        poolSide: number,
+        layers = 1,
+        granted = makePool(poolSide, layers),
+        layer = transmittance,
+      ) {
+        const held = texture && { texture, transmittance };
+        atlas.allocationBytes =
+          SHADOW_BUFFER_BYTES + shadowAtlasBytes(poolSide, layers) + (layer?.bytes ?? 0);
         atlas.size = poolSide * SHADOW_PAGE;
         texture = granted;
+        transmittance = layer;
         atlas.view = arrayView(granted);
         atlas.targets = layerViews(granted);
         atlas.passes = layerPasses(SHADOW_PASS, atlas.targets);
-        atlas.allocationBytes += shadowAtlasBytes(poolSide, layers);
         pack.setPoolSide(poolSide);
+        return held;
       },
       /** Compiles the transmittance layer's draws off the frame (`shadowTransmittanceDraws`). */
       prepareTransmittance: transmittanceDraws.prepare,
-      /** Creates the transmittance layer, cleared by `encoder`, once the pool is sized: the
-       *  first frame a blended caster holds a row. */
-      ensureTransmittance(encoder: GPUCommandEncoder) {
-        if (transmittance || !texture) return transmittance;
-        const side = atlas.size / SHADOW_PAGE,
-          draws = transmittanceDraws.made();
-        transmittance = createShadowTransmittance(device, draws, atlas.targets, side, encoder);
-        atlas.allocationBytes += transmittance.bytes;
-        return transmittance;
+      /** A transmittance layer for the pool of `targets`, `side` pages a side — the sized one by
+       *  default —, made now, not yet taken: what the shadows' grant asks the device for
+       *  (`../../webgpu/shadow/transmittanceGrant.ts`). */
+      makeTransmittance(targets?: GPUTextureView[], side?: number) {
+        const layers = targets ?? atlas.targets,
+          pages = side ?? atlas.size / SHADOW_PAGE;
+        return createShadowTransmittance(device, transmittanceDraws.made(), layers, pages);
+      },
+      /** Takes the layer the device granted, once; its bytes are held from now on. */
+      takeTransmittance(layer: ShadowTransmittance) {
+        if (transmittance) throw new Error('the transmittance layer is taken once');
+        transmittance = layer;
+        atlas.allocationBytes += layer.bytes;
+      },
+      /** The layer held, cleared by `encoder` the first time: the first frame a blended caster
+       *  holds a row. Nothing while none is held. */
+      readTransmittance(encoder: GPUCommandEncoder) {
+        if (transmittance && !cleared) {
+          transmittance.clear(encoder);
+          cleared = true;
+        }
+        return atlas.transmittance;
       },
       writePage: pack.writePage,
       writeLamp: pack.writeLamp,

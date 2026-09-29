@@ -47,7 +47,13 @@ function residentProxyBytes(proxy: SceneProxy) {
   const columns =
     (data?.triangles.byteLength ?? 0) +
     (data?.nodeBounds.byteLength ?? 0) +
-    (data?.nodeChildren.byteLength ?? 0);
+    (data?.nodeChildren.byteLength ?? 0) +
+    (data?.triangleGroups.byteLength ?? 0) +
+    (data?.groupOffsets.byteLength ?? 0) +
+    (data?.owners.byteLength ?? 0) +
+    (data?.bindWorlds.length ?? 0) * 4 +
+    // The castless marks, one bit per group (`proxy.ts`, #966).
+    Math.ceil(proxy.groups / 32) * 4;
   return PROXY_HEADER_BYTES + Math.max(16, columns);
 }
 
@@ -85,5 +91,22 @@ export function ensureBounceFits(
   queueBytes: number,
 ) {
   const failure = bounceLimitFailure(device, plannedBindings(proxy, probeBytes, queueBytes));
+  if (failure) throw new Error(failure);
+}
+
+/** Standalone far shadows use the same complete binding admission as bounce. */
+export function ensureProxyFits(device: GPUDevice, proxy: SceneProxy) {
+  const failure = bounceLimitFailure(device, [
+    {
+      name: 'resident proxy',
+      bytes: residentProxyBytes(proxy),
+      limit: 'maxStorageBufferBindingSize',
+    },
+    {
+      name: 'proxy albedo',
+      bytes: Math.max(4, proxy.data?.albedo.byteLength ?? 0),
+      limit: 'maxStorageBufferBindingSize',
+    },
+  ]);
   if (failure) throw new Error(failure);
 }

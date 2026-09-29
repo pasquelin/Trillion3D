@@ -67,6 +67,8 @@ export function measurePayload(
     textureUploadMs: settings.textureUploadMs,
     // This side's block format for its texture pools; `undefined` leaves the engine's choice.
     textureCompression: side.compression ?? undefined,
+    // This side's render scale (#816); `undefined` leaves the display's.
+    renderScale: side.renderScale ?? undefined,
     temporalAntialiasing: settings.temporalAntialiasing,
     mathPath: settings.mathPath === 'auto' ? null : settings.mathPath,
     movingNode: settings.movingNode,
@@ -91,7 +93,7 @@ export async function runInPage(
         measureView(options: typeof o): Promise<import('./measureOptions.ts').MeasureViewResult>;
       };
       const result = await module.measureView(o);
-      if ('erreur' in result) return result;
+      if ('error' in result) return result;
       return { ...result, size: { ...result.size, dpr: devicePixelRatio } };
     }, payload),
   );
@@ -103,7 +105,7 @@ export async function withGpuIncidents<T>(page: Page, run: () => Promise<T>): Pr
     return await run();
   } catch (error) {
     const incidents: string[] = await page
-      .evaluate(() => globalThis.incidentsGpu ?? [])
+      .evaluate(() => globalThis.gpuIncidents ?? [])
       .catch(() => []);
     const err = error instanceof Error ? error : new Error(String(error));
     if (!incidents.length) throw err;

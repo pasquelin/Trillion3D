@@ -9,6 +9,7 @@ import type { WebgpuResidencySets } from '../residency/sets.ts';
 import type { WebgpuPagesCore } from '../pages/runtime.ts';
 import { createEvictionFeed } from '../residency/evictionFeed.ts';
 import type { ViewCut, WebgpuView } from '../pages/state/view.ts';
+import { captureDrawn } from '../../frame/viewTrade.ts';
 
 /**
  * What the rank journal notifies when a page changes coverage: the pending set, and the CPU cut's
@@ -48,7 +49,7 @@ export function createWebgpuCutPublication(
   /** Whether the pool holds a cluster's slot: the CPU cut's residency rule. */
   poolHolds: (rec: PageRec) => boolean,
 ) {
-  const { run, gpu, views } = rt,
+  const { run, gpu, views, capture } = rt,
     { rows, packedPages } = rt.layout,
     { ahead } = tiers;
   const cutDelta = createCutDelta(packedPages, run.desired);
@@ -80,7 +81,7 @@ export function createWebgpuCutPublication(
    * Every view publishes its cut by differences of its own into the same sets, which count each
    * page per placement: what they ask for, keep and rank under the one page budget is the union of
    * the views' cuts, a page two views share ranked at its coarsest level
-   * (`../residency/budgetRanking.ts`). The main view's are the two above, which the GPU cut adopts
+   * (`../residency/requestAdmission.ts`). The main view's are the two above, which the GPU cut adopts
    * too: with one view, nothing else is made.
    */
   views.main.cut = { asked: cutDelta, drawn: drawnDelta };
@@ -180,12 +181,18 @@ export function createWebgpuCutPublication(
       // let go. The view ahead is the main view's own, so another view's cut leaves it.
       if (views.active === views.main) ahead.offerIds(NO_IDS);
       adopt(activeCut(), wanted, shown);
+      // A capture is drawn alone, the others wait for it: its cut is ranked first under the one
+      // budget, as when it replaced the main view's, so it keeps the detail pages it kept then
+      // (#268). A persistent view and the main one rank the union, the same queue whichever is
+      // drawn, so views drawn every frame never trade slots.
+      residencySets.drawnFirst = captureDrawn(views, capture) ? run.desired : null;
     },
     /** `view`, not the main one, is released: its cut leaves the union, whatever it held. */
     releaseView(view: WebgpuView) {
       if (view === views.main || !view.cut) return;
       adopt(view.cut, NO_PAGES, NO_PAGES);
       view.cut = undefined;
+      if (residencySets.drawnFirst === view.run.desired) residencySets.drawnFirst = null;
     },
     /** The held readback no longer describes the image's lists: the next one will re-read it whole. */
     forgetReadback: () => (run.cutEpoch++, cutAdopter.forgetReadback()),

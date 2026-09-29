@@ -59,7 +59,7 @@
       "proxyTriangleBudget": "Tüm örnekler genelinde tam bir sahne için toplam proxy üçgen bütçesi: yerleşik ayak izi.",
       "proxyCellMetres": "Metre cinsinden proxy mesh çözünürlük tabanı: basitleştirilmiş üçgenlerin boyutu / yüzey önbelleği hücreleri. Bütçe aşılırsa derleyici tarafından ikiye katlanır.",
       "proxyLeafTriangles": "BVH yaprağı başına üçgen: yaprak dolaşım döngüleri bu sabitle sınırlıdır.",
-      "traversalSteps": "Işın başına ziyaret edilen BVH düğümleri: kare çalıştırmadan önce sınırlanır, asla dinamik değil. 4 genişlikli bir düğüm, adım başına ikili bir BVH'den 4 kat daha fazla ağaç kapsar.",
+      "traversalSteps": "Kurulduğu haliyle ağaçta ışın başına ziyaret edilen BVH düğümleri, kare çalıştırmadan önce sınırlanır. Yeniden uydurma, bir ışına soktuğu düğümleri ekler, asla düğüm sayısını değil (`bounce/proxy.ts`). 4 genişlikli bir düğüm, adım başına ikili bir BVH'den 4 kat daha fazla ağaç kapsar.",
       "traversalStack": "Dolaşım yığını derinliği. 4 genişlikli bir düğüm 3 çocuğa kadar iter; 32 milyonlarca üçgeni kapsar.",
       "cascadeLevels": "Prob kademe seviyeleri. İlk `cascadeLevels - 1` kamera pozisyonunu takip eder; son seviye dünyada sabittir ve tüm sahne sınırlarını kapsar.",
       "cascadeSize": "Seviye başına eksen başına prob: bir seviye `cascadeSize³` problük bir küptür.",
@@ -136,6 +136,14 @@
       "onEvent": "Her olayda çağrılır."
     }
   },
+  "BatchRead": {
+    "summary": "`request` bir grubu nasıl okur: iptali, önceliği ve her sayfa geldiğinde ne çalışır.",
+    "members": {
+      "signal": "Grubun okumalarını iptal eder.",
+      "priority": "Kuyruk önceliği, varsayılan 1.",
+      "onPage": "Tüm grup bittikten sonra değil, her sayfanın okuması geldiğinde çalışır."
+    }
+  },
   "BatchOutcome": {
     "summary": "Bir yığın görevinin nasıl sonuçlandığı.",
     "members": {
@@ -210,13 +218,18 @@
       "levels": "Her seviye.",
       "reach": "Işın erişimi: vurulacak hiçbir şey olmadığı genişlik köşegeni.",
       "shareOf": "Seviyeye göre, kare başına iş yükü paketi probları: toplam bir pakete uygulanan yayımlanmış paylar.",
-      "follow": "Hareketli seviyeleri bir bakış noktası etrafında yeniden konumlandırır. En az bir taban hücre indeksi değiştiğinde true döndürür: bu, yakınsamanın yeniden başlaması için gereken tek sinyaldir, hiçbir GPU geri okumasına mal olmaz."
+      "follow": "Hareketli seviyeleri bir bakış noktası etrafında yeniden konumlandırır. En az bir taban hücre indeksi değiştiğinde true döndürür: bu, yakınsamanın yeniden başlaması için gereken tek sinyaldir, hiçbir GPU geri okumasına mal olmaz.",
+      "reserveCount": "Dönüşümler sahneyi genişletmeden önce ayrılan sabit kapasite.",
+      "invalidLevels": "Son yeniden planlamada aralığı veya varlığı değişen seviyeler. Taban kaymaları hücre işaretlerini kullanır.",
+      "replan": "Mevcut uzamsal çözünürlük politikasını geometrinin güncel sınırlarına yeniden uygular."
     }
   },
   "BounceOccupancy": {
     "summary": "Bir probu tutmanın değdiği yer: kademe doluluk haritası.",
-    "description": "Bir şehir üzerindeki bir kademe, çoğu hücreyi ışınımın hiç sorgulanmadığı boş gökyüzüne ve katı bina çekirdeklerine harcar. Zamanlayıcının, bir ışın harcamadan önce, bir hücrenin geometriye değip değmediğini bilmesi gerekir. Bu, kameranın değil dünyanın bir özelliğidir: yapım sırasında bir kez hesaplanır, daha sonra hareketli seviyelerin aldığı tüm pozisyonlar için geçerlidir. En ince seviye haritası, proxy üçgenlerinin sınırlayıcı kutuları artı bir hücrelik bir sınırla işaretlenir: dolu bir hücrenin sekiz köşesi her zaman korunur, böylece hiçbir yararlı şey kaybolmaz. Sonraki seviyeler tam indirgemelerdir — aralıklar en incenin ikinin kuvveti katları olduğundan, eksen başına iki hücreden bire — sonra aynı nedenle bir hücre genişletilir. Burada hiçbir şey bir sahneyi adlandırmaz ya da kamerayı incelemez: genişlik, üçgenler, hücreler.",
+    "description": "Bir şehir üzerindeki bir kademe, çoğu hücreyi ışınımın hiç sorgulanmadığı boş gökyüzüne ve katı bina çekirdeklerine harcar. Zamanlayıcının, bir ışın harcamadan önce, bir hücrenin geometriye değip değmediğini bilmesi gerekir. Bu, kameranın değil dünyanın bir özelliğidir: yapım sırasında ve hareket eden geometri durduğunda yeniden hesaplanır, daha sonra hareketli seviyelerin aldığı tüm pozisyonlar için geçerlidir. En ince seviye haritası, proxy üçgenlerinin sınırlayıcı kutuları artı bir hücrelik bir sınırla işaretlenir: dolu bir hücrenin sekiz köşesi her zaman korunur, böylece hiçbir yararlı şey kaybolmaz. Sonraki seviyeler tam indirgemelerdir — aralıklar en incenin ikinin kuvveti katları olduğundan, eksen başına iki hücreden bire — sonra aynı nedenle bir hücre genişletilir. Burada hiçbir şey bir sahneyi adlandırmaz ya da kamerayı incelemez: genişlik, üçgenler, hücreler.",
     "members": {
+      "moved": "Sahipler hareket etti: `boxes` proxy üçgeni başına altı dünya sınırı taşır, `changed` hareket edenleri işaretler.",
+      "settle": "Kare başına bir kez: hareket durduktan sonraki ilk kare, `extent` üzerinde tam haritayı yeniden kurar.",
       "occupied": "Bir seviyenin küresel kafesindeki hücresi bir probu haklı çıkardığında doğru.",
       "marked": "En ince seviyenin işaretlenmiş hücreleri ve toplam hücreleri: yayımlanmış kazanç.",
       "cells": "En ince seviyenin hücreleri.",
@@ -465,6 +478,14 @@
       "height": "Görselin piksel cinsinden yüksekliği."
     }
   },
+  "CellRows": {
+    "summary": "Satırları kendisinden yazılan, çözülmüş bir hücre.",
+    "members": {
+      "nodes": "Hücrenin taşıdığı düğüm sayısı.",
+      "ranks": "Her düğüm için ebeveyninin sırası (`-1`: sahne kökü), ardından ağının sırası.",
+      "locals": "Her düğüm için yerel matrisi."
+    }
+  },
   "ChangeListener": {
     "summary": "Bir kontrolcü kamerayı hareket ettirdiğinde çağrılan bir fonksiyon."
   },
@@ -508,7 +529,7 @@
       "primitives": "Primitifleri.",
       "worstStalls": "Derleyicinin takılma tablosu: düzey 0'da kök bırakan takılmış bir grubu olan en fazla on primitif, en kötüsü önce. Ondan önce derlenmiş bir önbellekte yoktur.",
       "texturePreviews": "Önce dokuya, sonra atlasa göre sıralanmış, çözülen her (doku, atlas) için bir giriş; çözülebilir bir görsel olmadan boş.",
-      "textures": "Manifestoya göreli, önceden pişirilmiş seviyeler için şablon: {sha} kaynak görselin özeti, {kind} atlas adı (PREVIEW_ATLAS_NAMES), {level} seviye sırası. Bu okuyucunun yardımcı sürüm üzerinden reddettiği, önceden pişirilmiş seviyelerden önce derlenmiş bir önbellekte bulunmaz.",
+      "textures": "Manifestoya göreli, önceden pişirilmiş seviyeler için şablon: {sha} kaynak görselin özeti, {kind} atlas adı (PREVIEW_ATLAS_NAMES), {level} seviye sırası. Bu okuyucunun yardımcı sürüm üzerinden reddettiği, önceden pişirilmiş seviyelerden önce derlenmiş bir önbellekte bulunmaz. `version` seviyelerin sürümüdür (`TEXTURE_PREVIEW_VERSION`): bir okuyucu başka bir sürümün seviyesini okumaz.",
       "proxy": "Yerleşik sahne proxy'sinin ve onun BVH'sinin nereden okunacağı: ışınların çarptığı geometri. Olduğu gibi okunabilir kalan, yansımadan önce derlenmiş bir önbellekte bulunmaz."
     }
   },
@@ -726,7 +747,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "Küme başına DAG hataları için önbellek kimliği: konumlar, normaller ve doku koordinatları üzerinden grubun mutlak QEM hatası, grubun boyutuyla sınırlı; v1 önbelleği reddedilir."
+    "summary": "Küme başına DAG hataları için önbellek kimliği: konumlar, normaller ve doku koordinatları üzerinden grubun mutlak QEM hatası, grubun kapsamıyla sınırlı ve bir grubun çocukları ile çıktıları arasındaki örneklenmiş Hausdorff uzaklığının asla altında değil (#929); v1 ve v2 önbellekleri reddedilir."
   },
   "DEFAULT_SCOPE": {
     "summary": "Hiçbiri adlandırılmadığında bir modelin derlendiği kapsam: sayfalar halinde akışlı."
@@ -948,6 +969,7 @@
       "MATERIAL_CLASS_CHANGE": "Bir malzeme değişikliği bilinmiyor, aralık dışında, onu bir motorun sahne açılırken sabitlediği bir çizim sınıfına taşıyacak ya da paylaştığı bir haritayı döşeyecek.",
       "MATERIAL_TEXTURE_SHARED": "Bir malzeme değişikliği bilinmiyor, aralık dışında, onu bir motorun sahne açılırken sabitlediği bir çizim sınıfına taşıyacak ya da paylaştığı bir haritayı döşeyecek.",
       "MATERIAL_CEILING": "Bir sayfa tek oturumda `RUNTIME_MATERIAL_CEILING` sayısından fazla malzeme oluşturacaktı; hiçbir şey oluşturulmadı.",
+      "TEXTURE_BUDGET": "Sahne açıldıktan sonra eklenen bir doku, doku havuzunu `texturePoolBytes` değerinin veya aygıtın tuttuğu katmanların ötesine taşıyacaktı; hiçbir şey eklenmedi.",
       "INVALID_TRANSFORM": "Bir düğümün yerleşimi kullanılabilir bir matris değil, ya da bir düğüm kendi atası olurdu.",
       "NON_FINITE_TRANSFORM": "Bir düğümün yerleşimi kullanılabilir bir matris değil, ya da bir düğüm kendi atası olurdu.",
       "SINGULAR_PARENT_TRANSFORM": "Bir düğümün yerleşimi kullanılabilir bir matris değil, ya da bir düğüm kendi atası olurdu.",
@@ -965,6 +987,7 @@
       "UNSUPPORTED_SCENE_UPDATE": "Bu çizim yolu sahnede bu değişikliği yapamaz.",
       "BATCHED_WORLD_VIEW": "Bu çizim yolu sahnede bu değişikliği yapamaz.",
       "RAYCAST_NO_VIEW": "Boyutu olmayan bir canvas'tan resim noktası istendi: içinden nişan alınacak bir resim yok.",
+      "SURFACE_CAPTURE_UNSUPPORTED": "Malzeme yüzeylerini kendi görünümünde çizemeyen bir çizim yolundan yüzey yakalaması (`captureSurfaceView`) istendi: WebGL2 yolunda bu yok.",
       "VERTICES_NOT_LOADED": "Yüklenmiş bir modelin köşeleri `await geometry.loadVertices()` öncesinde okundu: oturum onları ilk ihtiyaçta okur, asla önceden okumaz.",
       "SESSION_OPEN_FAILED": "Dünyanın oturumu, kendi kodu olmayan bir nedenle açılamadı (`world.diagnostic.error`): fırlatılan hata `details.cause` içindedir.",
       "WEBGPU_LOST": "WebGPU cihazını kaybetti ya da cihazdaki bir hata hiçbir şeyin çizemeyeceği bir durum bıraktı: `render`, `flush` ve cihaza ihtiyaç duyan okumalar tarafından fırlatılır, `gpu-device-lost` tanılamasıyla adlandırılır ve bu yüzden bir oturum açılamadığında `world.diagnostic.error` üzerinde görünür.",
@@ -1116,7 +1139,7 @@
       "frameHeld": "Kare tutulduğunda doğru: ne sahne, ne görünüm, ne kaynaklar hareket etti, hiçbir asenkron iş beklemedeydi, ve hiçbir CPU aşaması çalışmadı. Görüntülenen pikseller, orijinal karenin bit-tam pikselleridir. Tutulan karenin YAPTIĞI şey olduğu gibi yayımlanır, asla son tam render'dan kopyalanmaz: `drawCalls`, `triangles`, `submittedTriangles` ve `totalSubmittedTriangles` yalnızca şimdiyi sayar, ve aşama başına CPU ve GPU süreleri, aşama çalışmadığında sıfırdır, hiçbir şey onu zamanlamadığında `null`. Görseli tanık adaptörünün çizdiği bir sahne olan bir motor, bu adaptörün bu karede gönderdiğini sayar — tutulan bir karede hiçbir şey. Tutulan karenin GÖSTERDİĞİ şey, yeniden gösterdiği kesitle betimlenmeye devam eder: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` ve `residentPages`, aynı kesit olduğundan orijinal karenin olanlardır. Karelerini tutmayan bir motorda bulunmaz.",
       "streamingError": "Kalıcı yükleme hatası; başarısız URL'ler üç denemeden sonra bir gezgin yeniden yüklemesi gerektirir.",
       "gpuPassMs": "Bu backend'in en son GPU geçiş örneği; cihaz zaman damgası sorgusu sunmadığında null.",
-      "gpuFrameMs": "`gpuPassMs.frame`'in betimlediği görselin GPU süresi. Asla bir `cpu*` alanına eklenmez. Cihaz birkaç görselde bir örneklenir, bu yüzden bir sayı birkaç görsel öncesine ait olabilir. İlk örnekten önce, tutulan bir görselden cihazın bir sonraki örneğine kadar, `timestamp-query` olmayan bir cihazda ve WebGL2’de null’dır.",
+      "gpuFrameMs": "`gpuPassMs.frame`'in betimlediği görselin GPU süresi. Asla bir `cpu*` alanına eklenmez. Cihaz birkaç görselde bir örneklenir, bu yüzden bir sayı birkaç görsel öncesine ait olabilir. İlk örnekten önce, tutulan bir görselden cihazın bir sonraki örneğine kadar, `timestamp-query` olmayan bir cihazda ve `EXT_disjoint_timer_query_webgl2` olmadan WebGL2’de null’dır.",
       "gpuHostGapMs": "Aynı görselin kendi iki gönderimi arasında geçirdiği CPU süresi, ve bir kez gönderdiğinde sıfır. Bu, GPU süresi değil host süresidir, bu yüzden `gpuFrameMs` onu hariç tutar. Ölçülmediğinde null.",
       "uncoveredTriangles": "Yayımlanan kesitin adlandırdığı ama karenin çizemediği cluster'ların üçgenleri — yerleşik sayfa yok ve kapsayan ata yok. Görseldeki gerçek bir boşluk: sıfır tek sağlıklı değerdir. Bir backend söyleyemediğinde null (seçtiği kesiti çizer, bu yüzden asla bir tanesi olmaz).",
       "drawnTriangles": "MEVCUT KARE'nin çizime verdiği üçgenler: hiyerarşinin opak ve şeffaf birleşik cluster kesiti. Hiyerarşi dışındaki şeffaf meshler bunun içinde değildir (`transparentSubmittedTriangles`), ve gizlenme reddi çıkarılmaz (`hizRejectedTriangles`). Kesit kabulünde sayılır: hiçbir asenkron GPU geri okuması beklenmez, bu yüzden `submittedTriangles`'ın aksine, zaman yokluğundan dolayı asla `null` değildir.",
@@ -1128,7 +1151,8 @@
       "pageDecodeMs": "Sayfaları çözmeye harcanan süre.",
       "mathBatch": "Compute yolu regülatörünün durumu (`../math/path/governor.ts`): her yığın işleminin mevcut yolu, her iki yolun medyanları, geçişler. Bir yığın açmamış bir host'ta `null` — ölçülmemiş, \"JavaScript yolu\" değil.",
       "pagesPlannedOffThread": "Ana iş parçacığı dışında sayfa entegrasyonu. `pagesPlannedOffThread`, planı — her cluster'ın pakette yeri ve taşıdığı sayfa sıraları — bir worker tarafından hesaplanan varışları sayar, asla yedeğin ana iş parçacığında planladıklarını değil. `pagePlanMs`, hangi iş parçacığı olursa olsun, yürütücünün kendisi tarafından ölçülen bu planların kümülatif süresidir: asla kare başına bir `cpu*` ya da `gpu*`'ya eklenmez. Hiçbir varış planlanmadığı sürece ikisi de `null`'dır — ölçülmemiş, sıfır değil.",
-      "pagePlanMs": "Varışları planlamaya harcanan süre."
+      "pagePlanMs": "Varışları planlamaya harcanan süre.",
+      "dynamicUploadBytes": "Bu karede yerinde yüklenen dinamik geometri köşe baytları (#573), dünyanın kare başına bütçesi içinde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Hiçbir dünyanın çizmediği yerde yoktur."
     }
   },
   "Frustum": {
@@ -1195,7 +1219,9 @@
       "userData": "Geometriyi kuranın verileri için serbest alan.",
       "released": "Geometri geri verildiğinde çağrılır: bir işleyicinin kendi kopyasının dinlediği şey.",
       "getIndex": "Üçgen listesi ya da `null`.",
-      "toNonIndexed": "Aynı üçgenleri dizinsiz çizen bir geometri: her köşe kendi köşe noktası."
+      "toNonIndexed": "Aynı üçgenleri dizinsiz çizen bir geometri: her köşe kendi köşe noktası.",
+      "usage": "`'dynamic'`: yerinde yüklenir, bir daha asla kesilmez (#573); her karede değişen bir geometri de öyledir.",
+      "maxBounds": "Dinamik bir geometrinin asla çıkmadığı kutu, bildirildiğinde: ayıklamanın baktığı kutu (#573)."
     }
   },
   "GeometryPageDescriptor": {
@@ -1448,6 +1474,7 @@
       "framebuffer": "Nereye çizileceği; ekran için `null`.",
       "width": "Piksel cinsinden genişlik.",
       "height": "Piksel cinsinden yükseklik.",
+      "displayWidth": "Görüntü bunun altında çizildiğinde (`world.renderScale`) gösterildiği genişlik: doku seviyeleri ve çizgi genişlikleri bu oranı izler. Yoksa `width`.",
       "linear": "Doğrusal ışıma; eğriden geçirilmemiş, kodlanmamış, saydam siyah üzerinde: alfası kaplama olan efekt zincirinin girdisi."
     }
   },
@@ -1614,7 +1641,7 @@
     "summary": "Yayımlanmış doğrudan aydınlatma ayarları.",
     "description": "Bunlar adlandırılmış ürün kararlarıdır, gömülü sabitler değil: her çalışma zamanı sınırı onları yeniden okur, ve tanı onları oldukları gibi yayımlar.",
     "members": {
-      "tileLights": "Bir ekran karosunun listesinin iki derinlik diliminin her birinde tuttuğu ışıklar: belleği, sahne ne tutarsa tutsun, karo başına budur. Daha fazla ışığın ulaştığı bir karo liste tutmaz ve sahnenin her ışığını dolaşır — onu ıskalayanlar tam bir sıfır ekler —, böylece hiçbir ışık kaybolmaz (X2).",
+      "tileLights": "Bir ekran karosunun listesinin iki derinlik diliminin her birinde tuttuğu ışıklar: belleği, sahne ne tutarsa tutsun, karo başına budur. Daha fazla ışığın ulaştığı bir karo, onların dizinlerini görünüm boyutunda bir havuzdan alır ve tam olarak onları dolaşır; havuzda yer bulamayan bir karo sahnenin her ışığını dolaşır — onu ıskalayanlar tam bir sıfır ekler —, böylece hiçbir ışık kaybolmaz (X2).",
       "tileSize": "Işık listesinin bir ekran karosunun piksel cinsinden kenarı.",
       "samplesPerPixel": "HAREKETLİ bir görselin pikseli başına tamamen gölgelendirilen — gölge okuması dahil — ışıklar (X2): diğerleri gölgeleri olmadan tartılır, ve gölgelendirilenler orantılı olarak çizilir, bu yüzden tahmin yansız kalır ve zamansal kenar yumuşatma onu ortalar. Sabit bir görsel, karosunun her ışığını gölgelendirir ve tam toplama yakınsar; orada bu sayının hiçbir rolü yoktur.",
       "shadowPage": "Bir gölge sayfasının kenarı, texel olarak: fiziksel havuzun, sanal haritaların ve geçersiz kılmanın birimi. Hareket eden bir nesne yalnızca izdüşen kutusunun kapladığı sayfaları eskitir.",
@@ -1932,7 +1959,7 @@
       "wasmAvailable": "WebAssembly modülü, doğru sözleşme sürümünde yüklenmiş.",
       "wasmSimd": "Modül `simd128` ile derlenmiş; bir modül yüklenene kadar `null`.",
       "clockResolutionMs": "Milisaniye cinsinden, iş parçacığı saat çözünürlüğü; tahmin edilene kadar `null`.",
-      "clockCoarse": "Saat, arabuluculuk için çok kaba olduğunda doğru: her şey JavaScript yolunda kalır.",
+      "clockCoarse": "Saat tek bir yürütmeyi ölçmek için çok kaba olduğunda doğru: yürütmeler birleştirilmiş gruplar halinde ölçülür.",
       "unavailableReason": "WebAssembly yolunun neden oynanabilir olmadığı, ya da olduğunda `null`.",
       "operations": "Her işlem."
     }
@@ -2040,7 +2067,19 @@
       "evictedTiles": "Kaldırılan doku parçaları.",
       "residentPages": "Ayardan hemen önce ve hemen sonra yerleşik olan şey.",
       "residentTiles": "Öncesi ve sonrasında tutulan doku parçaları.",
-      "durationMs": "Ne kadar sürdüğü."
+      "durationMs": "Ne kadar sürdüğü.",
+      "tables": "Kendilerinden büyük bir havuz için büyütülen, çizilebilir sayfa başına tablolar (WebGPU); hiçbiri büyütülmediğinde `null`.",
+      "transientBytes": "Geometri havuzu kopyalanırken aynı anda tutulan baytlar: eski havuz ve yanındaki yeni havuz, hiçbir sayfa taşınmadan önce cihaz tarafından birlikte verilir; hiçbir havuz taşınmadığında 0."
+    }
+  },
+  "TableGrowthReport": {
+    "summary": "Çizilebilir satıra göre boyutlanan tabloların büyümesi, üstlerindeki bir havuzun istediği biçimde.",
+    "members": {
+      "drawSlots": "Tabloların şimdi tuttuğu görünürlük satırları.",
+      "casterSlots": "Gölge geçişinin okuduğu satırlar; görünürlük satırlarından sonra gelir.",
+      "bytes": "Büyütülen GPU tablolarının tuttuğu bayt sayısı; reddedildiyse istenen bayt sayısı.",
+      "refused": "Aygıt reddettiğinde `true`: mevcut tablolar ve havuz korunur.",
+      "durationMs": "Büyümenin sürdüğü milisaniye; yoklamadan takasa kadar."
     }
   },
   "Mesh": {
@@ -2237,7 +2276,8 @@
       "left": "Sol kenar.",
       "right": "Sağ kenar.",
       "top": "Üst kenar.",
-      "bottom": "Alt kenar."
+      "bottom": "Alt kenar.",
+      "fitAspect": "Bildirildiği kadar yüksek ve görüntünün biçiminin gerektirdiği kadar geniş bir ortografik kutu."
     }
   },
   "PAGE_DECODE_FAILURES": {
@@ -2245,7 +2285,7 @@
     "description": "İlk altısı, `geometryPage.ts`'ten kelimesi kelimesine alınan sayfa çözme reddidir: bir çağıran onları eskisi gibi ayırt eder. `PAGE_DECODE_FAILED`, sıkıştırma açma kütüphanesinden başka herhangi bir reddi taşır. `PAGE_DECODE_CANCELLED` bir iptale yanıt verir, `PAGE_DECODE_WORKER` kaybolan bir yürütücüye — yalnızca o, yedeğe izin verir."
   },
   "PAGE_DECODE_PROTOCOL": {
-    "summary": "Ana iş parçacığı dışında sayfa çözme sözleşmesi, sürüm 6: çözülmüş geometri, kuantalama hatasıyla tek bir blok olarak yolculuk eder, ve arena yuvası o hatayı 8. kelimede kaydeder; `cut`, çizilen üçgenleri, açıklayıcılarıyla birlikte bayt olarak geri dönen sayfalara dönüştürür. Sürüm 6'dan beri normal konileriyle birlikte döner; paketlenmiş üçgenler sayfalarının bir koni tutup tutmadığını taşır.",
+    "summary": "Ana iş parçacığı dışında sayfa çözme sözleşmesi, sürüm 7: çözülmüş geometri, kuantalama hatasıyla tek bir blok olarak yolculuk eder; `cut`, çizilen üçgenleri, açıklayıcılarıyla birlikte bayt olarak geri dönen sayfalara dönüştürür. Sürüm 6'dan beri normal konileriyle birlikte döner; paketlenmiş üçgenler sayfalarının bir koni tutup tutmadığını taşır. Sürüm 7'den beri `cells` bir bölümlemenin hücre dosyasını yerleştirdiği satırlara okur, `cellPage` ise hücre dizininin bir sayfasını (#575).",
     "description": "Çağıran iş parçacığı bir `PageDecodeRequest` gönderir, yürütücü aynı `id`'yi taşıyan bir `PageDecodeAnswer` döndürür. Burada hiçbir şey platforma dokunmaz: `Worker` yok, fetch yok, saat yok — tarayıcı adaptörü bunların hepsini taşır, bu dosya yalnızca mesaj şeklini, kapalı hata listesini ve havuz sınırını taşır. Tampon sahipliği: `source`, istekle birlikte **aktarılır**, bu yüzden gönderen artık ona sahip değildir. Bir `verify` yanıtı onu, sırayla aktarılmış olarak döndürür; bir `decode` yanıtı bunun yerine çözülmüş tamponları, o da aktarılmış olarak döndürür. Hiçbir şey aktarmayan bir yürütücü (senkron yedek) tam olarak aynı değerleri döndürür: sözleşme işin nasıl yolculuk ettiğini söylemez, yalnızca ne döndürdüğünü."
   },
   "PAGE_INTEGRATION_FAILURES": {
@@ -2410,6 +2450,8 @@
       "source": "`verify`: döndürülen kaynak tampon. `decode`: `null`, kaynak tüketilir.",
       "decoded": "`decode`: açılmış sayfa.",
       "cut": "`cut`: sayfalar, baytları aktarılmış. Aksi halde yok.",
+      "cells": "`cells`: düğüm başına, çekirdek ebeveyninin sırası (`-1`: sahne kökü) ve ağının sırası `ranks` içinde, iki 32 bitlik tamsayı, ve motorun pozu için oluşturduğu yerel matris `locals` içinde, on altı double; ikisi de aktarılmış. Aksi halde yok.",
+      "cellPage": "`cellPage`: sayfanın yuvaları veya hücreleri (`readCellPage`). Aksi halde yok.",
       "wasm": "WebAssembly ile derlenmiş çözücü işi yaptığında doğru, JavaScript çözücüsü için yanlış. İkisi de aynı baytları verir; yalnızca sayaç onları ayırt eder.",
       "taskMs": "Görevin kendi yürütücüsü tarafından ölçülen süresi."
     }
@@ -2421,7 +2463,8 @@
       "id": "Yanıtlanan istek.",
       "ok": "Her zaman `false`.",
       "code": "Neden başarısız olduğu.",
-      "message": "Orijinal mesaj, olduğu gibi: çağıran, senkron yolla aynı `Error`'ı fırlatır."
+      "message": "Orijinal mesaj, olduğu gibi: çağıran, senkron yolla aynı `Error`'ı fırlatır.",
+      "refusal": "Görevin karşılaştığı motorun adlandırılmış reddinin kodu (`EngineError`); çağıran onu bu kodla yeniden fırlatır; başka her hatada yoktur."
     }
   },
   "PageDecodeFailureCode": {
@@ -2440,7 +2483,7 @@
   },
   "PageDecodeOp": {
     "summary": "`verify`: bir sayfanın SHA-256 özeti.",
-    "description": "`decode`: indeksleri ve köşe başına öznitelikleri. `cut`: beş uzunluk, sayfalarının bir koni tutup tutmadığı, sonra beş dört baytlık dizi olarak paketlenmiş, sayfalara kesilmiş çizilen üçgenler."
+    "description": "`decode`: indeksleri ve köşe başına öznitelikleri. `cut`: beş uzunluk, sayfalarının bir koni tutup tutmadığı, sonra beş dört baytlık dizi olarak paketlenmiş, sayfalara kesilmiş çizilen üçgenler. `cells`: bir bölümlemenin hücre dosyası, her düğümün ebeveynine, ağına ve yerel matrisine okunur. `cellPage`: hücre dizininin bir sayfası, listelediği sayfalara veya hücrelerine okunur."
   },
   "PageDecodeRequest": {
     "summary": "Bir worker'dan bir sayfayı kontrol etmesini, açmasını ya da kesmesini isteyen bir mesaj.",
@@ -2449,19 +2492,8 @@
       "id": "İstek numarası.",
       "op": "Ne yapılacağı.",
       "source": "Mesajla birlikte aktarılır: gönderen artık sahibi değildir.",
-      "maxDecodedBytes": "Bir geometri sayfasının çözülmüş bayt tavanı; `verify` tarafından yok sayılır."
-    }
-  },
-  "PageDecodeShare": {
-    "summary": "Bir worker'ın paylaşılan bellek kirası: arena tamponu, sahip olduğu slot ve bölge, ve kontrol bölgesinin boyutunu veren slot sayısı.",
-    "description": "Worker doğumunda bir kez ve yalnızca platformun paylaşılan belleğe izin verdiği yerde yayımlanır. Kira olmadan, worker tamponları aktararak yanıt verir: sözleşme şekil değiştirmez, yalnızca bayt yolu değişir.",
-    "members": {
-      "protocol": "Mesaj format sürümü.",
-      "id": "Her zaman 0.",
-      "op": "Her zaman `'share'`.",
-      "buffer": "Paylaşılan bellek.",
-      "slot": "Bu worker'ın slotu.",
-      "slots": "Toplam slot."
+      "maxDecodedBytes": "Bir geometri sayfasının çözülmüş bayt tavanı; `verify` tarafından yok sayılır.",
+      "name": "`cells`, `cellPage`: kaynağın okunduğu dosya; bir ret onu adlandırır."
     }
   },
   "PageIntegrationAnswer": {
@@ -2517,7 +2549,7 @@
   "PageSource": {
     "summary": "Bir modelin sayfalarının anahtara göre nereden okunduğu.",
     "members": {
-      "read": "Bir sayfanın baytlarını okur."
+      "read": "Bir sayfanın baytlarını okur; `priority` verildiğinde akış yöneticisinin önceliğidir (en küçük önce). Zaten okunmakta olan bir sayfanın daha acil okuması onu öne almak için yeniden istenir: `priority` alan bir kaynak, sayfayı iki kez aktarmak yerine onu süren okumaya katar."
     }
   },
   "PageStreamer": {
@@ -2618,6 +2650,13 @@
       "depth": "Bir görsel yığını için katmanlar."
     }
   },
+  "PlacementGrowth": {
+    "summary": "Bir sahibin, örnek arabelleklerini yerinde büyüten bir oturuma verdiği şey (`growth.ts`).",
+    "members": {
+      "growPlacements": "Oturumun tuttuğu bir örnek arabelleği daha büyüğüyle değiştirildi, önce `from`'un satırları, geri kalanı park edildi: oturum artık `to`'yu okur ve yeni satırlarını tutar, hiçbir tablo yeniden kurulmaz (`growth.ts`). Bir motorda yoksa sahip oturumu `to` üzerinde yeniden açar.",
+      "growsInPlace": "`growPlacements`'ın `from`'un her birini `capacity` satıra büyütülmüş olarak kabul edip etmediği; sahip herhangi birini değiştirmeden önce sorulur: false onları olduğu gibi bırakır ve sahip oturumu daha büyükleri üzerinde yeniden açar."
+    }
+  },
   "PlacementRows": {
     "summary": "Aynalanmış meshlerin yerleştirme satırları, yerleştirilmiş kopya başına bir satır.",
     "members": {
@@ -2691,7 +2730,8 @@
       "structure": "Grup bağlantıları.",
       "streams": "Akış paketleri.",
       "quantization": "Hiçbir ızgarada kuantalanmamış, sayfasız bir primitifte null.",
-      "topology": "Mesh'in kenarlarının ve köşelerinin neye benzediği."
+      "topology": "Mesh'in kenarlarının ve köşelerinin neye benzediği.",
+      "dynamic": "Bir dünyanın dinamik geometrisi (#573): yalnızca dizin sayfaları; köşeleri, motorun yerinde yeniden yazdığı ana geometriden kayan noktalı sayılar olarak okunur."
     }
   },
   "Primitive": {
@@ -2836,7 +2876,7 @@
     "summary": "Host'a ait sahne hiyerarşisi sözleşmesinin sürümü."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "Başlık tam sayıları: imza, sürüm, üçgenler, düğümler."
+    "summary": "Başlık tamsayıları: v3 sahiplik başlığı, ardından şekil, saklanan üçgen ve yerleşim sayıları."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "İşaretsiz 32 bitlik little-endian bir tam sayı olarak okunan 'W','G','P','X'."
@@ -3057,7 +3097,7 @@
     }
   },
   "SceneProxy": {
-    "summary": "Okuma proxy'si: açıklayıcısı ve sütunları, önbellek nesnesinin baytları üzerindeki görünümler.",
+    "summary": "Okunan vekil: tanımlayıcısı ve değişmez sütunları; paylaşılan üçgenler yükleme sırasında genişletilir.",
     "members": {
       "data": "Sütunları."
     }
@@ -3068,7 +3108,12 @@
       "triangles": "Üçgen başına üç dünya köşesi, her biri `PROXY_TRIANGLE_FLOATS` sayı.",
       "albedo": "Üçgenin doğrusal difüz albedosu, paketlenmiş RGBA8.",
       "nodeBounds": "Her BVH düğümünün tam sınırları.",
-      "nodeChildren": "Her düğümün dört çocuğu: kuantalanmış kutu, üçgen sayımı, varlık, bağlantı."
+      "nodeChildren": "Her düğümün dört çocuğu: kuantalanmış kutu, üçgen sayımı, varlık, bağlantı.",
+      "triangleGroups": "Her kanonik üçgenin kaynak sahiplerinden oluşan ortak grup; aynı grup yalnızca bir kez saklanır.",
+      "groupOffsets": "Son nöbetçi değer dahil, her grubun sahip kayıtlarının ofsetleri.",
+      "owners": "Sahip kayıtları: kaynak düğüm indeksi ve RGBA8 biçiminde paketlenmiş doğrusal albedo.",
+      "bindWorlds": "Kaynak düğümlerin özgün dünya matrisleri; düğüm başına on altı çift duyarlıklı değer.",
+      "sourceParents": "Konağın şu anda örneğini oluşturmadığı bölüm düğümleri dahil kaynak hiyerarşisi."
     }
   },
   "SceneProxyDescriptor": {
@@ -3085,7 +3130,10 @@
       "triangleBudget": "Gerçekte elde edilen eşiğe karar veren, yayımlanmış üçgen bütçesi.",
       "bounds": "Proxy'nin dünya genişliği: üç alt sınır sonra üç üst sınır.",
       "triangles": "Üçgenler.",
-      "nodes": "Ağaç düğümleri."
+      "nodes": "Ağaç düğümleri.",
+      "groups": "Ortak kullanılan ve yalnızca bir kez saklanan sahip grupları.",
+      "owners": "Sahip kayıtları.",
+      "instances": "Kaynak düğüm matrisleri."
     }
   },
   "SceneRoot": {
@@ -3135,18 +3183,44 @@
       "shadowPagesDrawn": "Sayfa geçersiz kılmanın ürettiği şey: kare tarafından yeniden çizilen sayfalar, bütçe eksikliğinden kuyrukta bırakılan sayfalar, ve görüntünün okuduğu en eski eskimiş sayfanın ne kadar beklediği. Her yerde sıfır, sabit bir sahnenin normal değeridir; gölge atlası olmayan bir motorda `null`.",
       "shadowPagesTotal": "Gezgin açıldığından beri çizilen sayfalar, `flush()` boşaltmaları dahil: bir değişikliğin maliyeti, iki okuma arasındaki farktır.",
       "shadowPagesPending": "Bekleyen gölge sayfaları.",
+      "shadowBatches": "Karenin çizdiği gölge grupları: ana makinenin kodladıkları üzerine sayımları, hiçbir shader’da okunmaz, aşağıdaki sayımlar gibi. Gölge atlası olmayan bir motorda null.",
+      "shadowLayersDrawn": "Karenin gölge geçişlerinin çizdiği havuz katmanları.",
+      "shadowPagesRestored": "Statik katmanlarının bir kopyasından çizilen sayfalar; yalnızca hareketli gölge düşürenleri rasterleştirilir.",
+      "shadowPagesRasterized": "Statik gölge düşürenleri yeniden rasterleştirilen sayfalar; geri yüklenenlerle birlikte çizilen her sayfa.",
+      "shadowRestoreCopies": "Statik katmandan sayfa kopyaları: geri yüklenen bir sayfa ya da katmanı üzerine tamamen çizilen bir sayfa.",
+      "shadowStaticDrawCalls": "Statik gölge düşürenlerin çizim çağrıları: statik katmana ya da katmansız tamamen çizilen bir sayfanın.",
+      "shadowMovingDrawCalls": "Yalnızca hareketli gölge düşürenlerin, statik katmandan geri yüklenen sayfalar üzerindeki çizim çağrıları.",
+      "shadowMovingCastersKept": "`shadowCastersKept` içinden, yalnızca hareketli gölge düşürenleri çizmek için tutulan kümeler.",
+      "shadowPagesStaledBy": "Karenin eskittiği sayfalar, nedene göre: ışık, duran gölge düşüren, hareketli gölge düşürenler, ayrıntı, kesim eşiği ya da bir güneşin derinlik aralığı.",
       "shadowWaitMs": "Görüntünün okuduğu en eski eskimiş sayfanın yeniden çizilmek için kaç milisaniye beklediği. Yalnızca görüntünün onu okuduğu süre sayılır; yeniden çizilince 0.",
+      "shadowCutDrops": "Gezgin açıldığından beri iş bırakan ışık kesimi grupları — görünümleri listelerin tutabileceğinden fazla küme tuttu —: her biri sayfalarını geri gönderir, yeniden çizilene dek geri çekilir (#525). GPU ışık kesimi olmayan bir motorda null, aşağıdaki üçü gibi.",
+      "shadowCutWithdrawnPages": "Bir ışık kesimi onları yanlış çizdiği için yeniden çizilen sayfalar, gezgin açıldığından beri: grubu iş bıraktı ya da bayrağı hiç okunmadı. Yeniden çizilene dek geri çekilirler.",
+      "shadowCutCoarsePages": "Bir görünüm istediğinden daha kaba bir küme çizdiği için yeniden çizilen sayfalar, gezgin açıldığından beri: yerleşiklik değişip kamera durduğunda serbest bırakılır.",
+      "shadowCutViewLimit": "Bir ışık kesimi grubunun şu an çizdiği ışık görünümleri: bir grup iş bırakana dek üst sınır, sonra sığan.",
       "gpuLightListsMs": "Işık listelerinin GPU süresi.",
-      "gpuShadowsMs": "Gölgelerin GPU süresi.",
+      "tileLightPoolReserved": "Listesinin ötesindeki karoların görünümün ışık dizini havuzunda ayırdığı sözcükler; sahne bir listeden fazla ışık tuttuğu sürece cihazın son örneklediği karede; aksi halde `null` (#849).",
+      "tileLightPoolCapacity": "Işık dizini havuzunun o örneklenen karede tuttuğu sözcükler; aynı şekilde `null`.",
+      "tileLightPoolOverflowed": "O örneklenen karede bir karonun havuzda yer bulamayıp her ışığı dolaşıp dolaşmadığı.",
+      "tileLightPoolGrowths": "Gezgin açıldığından beri havuzun taşan bir karenin istediği kadar büyüdüğü sayı.",
+      "gpuShadowsMs": "Gölgeler aşamasının GPU süresi, tam olarak motorun geçiş tablosundaki gölge geçişleri: gölge atlası, statik katmanı, geçirgenlik katmanının temizlenmesi ve geçişi, sayfa başına ayıklama, sayfa piramitleri ve örtme testi. Işıktan kesim kendi aşamasıdır (`shadowCasters`); gölge işi dışındaki hiçbir geçiş burada sayılmaz.",
       "gpuShadowCullMs": "Bir karenin çizdiği gölge sayfalarının gölge düşürenlerini seçmenin GPU süresi: ışık kesimi, sayfa başına ayıklama ve hareketli gölge düşürenlerin okuduğu piramitlerle örtme testi.",
       "gpuShadowRasterMs": "Bu gölge düşürenleri sayfalara çizmenin GPU süresi: statik katman, ardından havuz.",
       "gpuLightingMs": "Aydınlatmanın GPU süresi.",
+      "cpuShadowPlanMs": "Karenin gölge planının, zamanlayıcının çevresindeki CPU süresi: CPU profilinin adlandırılmış bir adımı (`cpuSteps()`, `cpu-timing`), sonraki beş adım gibi. Her biri, kare onu çalıştırmadığında — ışık yok, tutulan kare — ya da onu ölçemeyen bir motorda (WebGL2) `null` olur, asla 0 değil. Kodlama süresinin içindedirler, ona asla eklenmezler.",
+      "cpuShadowRequestsMs": "Geri gelen gölge istek raporunun okunmasının CPU süresi.",
+      "cpuShadowAdmissionMs": "Karenin okuduğu eskimiş sayfaların kabulünün CPU süresi.",
+      "cpuShadowBatchesMs": "Gölge yığınlarının bölgeleri ve geçişleri çevresindeki CPU süresi: hazırlama, işlemeler, istek kopyası.",
+      "cpuShadowRegionsMs": "Her gölge yığınının bölgelerinin yazılmasının CPU süresi: yüz uniform'ları ve sayfa kayıtları.",
+      "cpuShadowPassesMs": "Her gölge yığınının geçişlerinin kodlanmasının CPU süresi: gölge düşürenler, temizleme ve geri yüklemeler, çizimler.",
       "shadowLightCuts": "Işıklardan yürütülen küme kesitleri: çizilen ışık görünümü başına bir, durağan bir karede sıfır.",
       "shadowPagesRequested": "Görüntünün okuduğu sanal gölge sayfaları, son istek raporunun adlandırdığı biçimde: kameranın alıcılarının işaretledikleri.",
       "shadowPagesCached": "Bunlardan doğrudan havuzdan okunan sayfalar: güncel, çizim yok.",
       "shadowPoolPages": "Sabit havuzun sanal bir sayfa tutan fiziksel sayfaları.",
       "shadowPoolBytes": "Gölge havuzunun GPU baytları: derinlik sayfaları, oluşturulduklarında statik ve geçirgenlik katmanları ve yanındaki arabellekler. İlk kare havuzu boyutlandırana kadar null.",
       "shadowPoolLayers": "Havuzun katmanları, her biri en fazla 4 096 sayfa; ilk karenin ekranından ve gölgeli ışıklarından bir kez boyutlandırılır. O zamana kadar null.",
+      "shadowPeakBytes": "Gölgelerin bellek payının aynı anda tuttuğu en fazla GPU baytı, geç katmanlar dahil. İlk kare havuzu boyutlandırana kadar null.",
+      "shadowResolutionBias": "Aygıtın bellek retlerinin gölge havuzunun baytlarından aldığı yarıya indirmeler; normalde 0.",
+      "shadowMemoryEvents": "Dünya açıldığından beri gölgelerin bellek baskısı olayları, adıyla, sırayla; normalde boş.",
       "shadowPagesRefetched": "Havuzun yer açmak için çıkardıktan sonra yeniden eşlenen sanal sayfalar, explorer açıldığından beri: karelerin okuduğuna göre fazla küçük bir havuzun maliyeti olan yeniden çizimler.",
       "shadowCastersKept": "Sayfa başına ayıklamanın tuttuğu gölge düşürücüler, tüm çizilen sayfalar birlikte, aygıtın en son örneklediği karede — on beşte bir; bir örnek dönene dek `null`.",
       "shadowCastersHidden": "Örtme testinin, sayfalarının durağan katmanının arkasında gizli bulduğu hareketli gölge düşürücüler, en son örneklenen karede; bir örnek dönene dek `null`."
@@ -3156,6 +3230,7 @@
     "summary": "Karenin gölge işi: hangi sanal sayfaların çizildiği.",
     "members": {
       "counts": "Son planın yaptığı, sayfa olarak.",
+      "spent": "Son planın istek raporunu okumak ve sayfaları kabul etmek için harcadığı CPU milisaniyeleri.",
       "worldChanged": "Bir düğüm hareket etti: kutusu bir sonraki planda kapladığı sayfaları eskitir.",
       "representationChanged": "Aynı dünya başka bir hassasiyette: kutusu kameranın durmasını bekler.",
       "resting": "Kamera son planda duruyordu: görünümü bir önceki planınkiyle aynıydı.",
@@ -3166,7 +3241,7 @@
       "plan": "Bir kareyi planlar: hareket edeni eskitir, son raporu okur, çizilecek her sayfayı kabul eder.",
       "reissue": "Karenin `from` sonrasındaki sayfaları kodlanamadı: eski ve bekler hâlde kalırlar, sonraki kare onları çizer.",
       "reset": "Yeniden başlar.",
-      "setThreshold": "Işık kesitlerinin gölge düşürenleri seçtiği eşik (`thresholds.ts`).",
+      "setThreshold": "Işık kesitlerinin gölge düşürenleri seçtiği eşik ve render başlangıç noktaları (`thresholds.ts`).",
       "table": "Sayfa tablosu: sanal sayfa başına bir sözcük ve her ışığın içinde tuttuğu aralık.",
       "pool": "Havuzun fiziksel sayfaları ve her birinin tuttuğu sanal sayfa.",
       "sun": "Her güneşin clipmap’i: çerçevesi, derinlik aralığı, en ince düzeyi ve alanları.",
@@ -3176,8 +3251,12 @@
       "stamp": "Gölgelendirme, ışıklar ve görünümün sonraki görüntüye verdiği: bununla damgalanmış ve yeni hiçbir şey adlandırmayan bir rapor, görüntünün yalnızca çizileni okuduğunu kanıtlar.",
       "settled": "Bir rapor mevcut durumun hiçbir şey istemediğini kanıtladığında doğru: görüntü tutulabilir.",
       "receive": "Bir istek raporu döndü; sonraki plan onu okur. Daha yenisi okunmamış olanın yerini alır.",
-      "commit": "Karenin listesindeki `[from, to)` sayfaları kodlandı, `from + i` sayfası `modes[i]` içinde: çizimleri kimse okumadan önce tamamlanır. Son parti listeyi kapatır."
+      "commit": "Karenin listesindeki `[from, to)` sayfaları kodlandı, `from + i` sayfası `modes[i]` içinde: çizimleri kimse okumadan önce tamamlanır. Son parti listeyi kapatır.",
+      "resize": "Başka boyutta havuz; sayfaları korunur, dizileri yeniden oluşturulur: her sayfanın nereye gittiğini döndürür."
     }
+  },
+  "ShadowStaleReason": {
+    "summary": "Bir gölge sayfasının neden eskidiği (`ShadowFrameMetrics.shadowPagesStaledBy`)."
   },
   "ShadowViewpoint": {
     "summary": "Zamanlayıcının görünüm hakkında bildiği şey: bir bağımlılık olmadan kalmak için bir matris değil, bir kamera.",
@@ -3233,7 +3312,7 @@
       "totalNodes": "Toplam düğüm.",
       "autonomousScene": "Kendi yerleşik sahnesi.",
       "texturePreviews": "Önce dokuya, sonra atlasa göre sıralanmış, çözülen her (doku, atlas) için bir giriş; çözülebilir bir görsel olmadan boş.",
-      "textures": "Manifestoya göreli, önceden pişirilmiş seviyeler için şablon: {sha} kaynak görselin özeti, {kind} atlas adı (PREVIEW_ATLAS_NAMES), {level} seviye sırası. Bu okuyucunun yardımcı sürüm üzerinden reddettiği, önceden pişirilmiş seviyelerden önce derlenmiş bir önbellekte bulunmaz.",
+      "textures": "Manifestoya göreli, önceden pişirilmiş seviyeler için şablon: {sha} kaynak görselin özeti, {kind} atlas adı (PREVIEW_ATLAS_NAMES), {level} seviye sırası. Bu okuyucunun yardımcı sürüm üzerinden reddettiği, önceden pişirilmiş seviyelerden önce derlenmiş bir önbellekte bulunmaz. `version` seviyelerin sürümüdür (`TEXTURE_PREVIEW_VERSION`): bir okuyucu başka bir sürümün seviyesini okumaz.",
       "proxy": "Yerleşik sahne proxy'sinin ve onun BVH'sinin nereden okunacağı: ışınların çarptığı geometri. Olduğu gibi okunabilir kalan, yansımadan önce derlenmiş bir önbellekte bulunmaz.",
       "binary": "İkili dosya.",
       "primitives": "Primitifleri.",
@@ -3257,7 +3336,8 @@
       "dag": "DAG'ın raporu.",
       "quantization": "Hiçbir ızgarada kuantalanmamış, sayfasız bir primitifte null.",
       "topology": "Mesh'in kenarlarının ve köşelerinin neye benzediği.",
-      "binary": "Listelerinin nerede bulunacağı."
+      "binary": "Listelerinin nerede bulunacağı.",
+      "dynamic": "Bir dünyanın dinamik geometrisi (#573): yalnızca dizin sayfaları; köşeleri, motorun yerinde yeniden yazdığı ana geometriden kayan noktalı sayılar olarak okunur."
     }
   },
   "SlimPrimitiveBinary": {
@@ -3447,7 +3527,7 @@
   },
   "TEXTURE_PREVIEW_VERSION": {
     "summary": "`packages/asset-compiler-rust/src/texture_preview.rs` tarafından yansıtılan ilerlemeli doku seviyeleri: yardımcı dosyada bir kaynağın mip zincirinin kuyruğu, atlasın kendi kodlamasında RGBA8, hiçbir kenarı `PREVIEW_BASE`'i aşmayan en ince seviyeden 1×1'e kadar — ve, onun üzerinde, önbellekte seviye başına bir kayıpsız PNG, seviye 0'dan itibaren `bakedLevels` tanesi.",
-    "description": "Her seviye, kartın zinciri kendisi yeniden oluşturduğunda uyguladığı mip kuralını izler (`packages/sdk-browser/src/texture/mips.ts`): renklerin doğrusal ortalaması, medyan alfa, `k - 1` kuantalanmış seviyesinden `k` seviyesi. Boyutları yazılmaz: `previewLevels.ts`'in yeniden hesapladığı kaynak boyutlarından çıkarlar. Sürüm 4, kuyruğun üzerindeki her seviyeyi, ve kuyruğun kendisini, pişirmenin kayıpsız dosyaların yanında istediği blok ailelerinde pişirir — masaüstü kartları için BC ailesi, mobil olanlar için ASTC 4×4, teksel başına bir bayt — bir kalite kapısının tuttuğu zincirler için; barın altındaki bir zincir o ailede kayıpsız kalır, ve girdisinin düzen kelimesi bunu söyler."
+    "description": "Her seviye, kartın zinciri kendisi yeniden oluşturduğunda uyguladığı mip kuralını izler (`packages/sdk-browser/src/texture/mips.ts`): renklerin doğrusal ortalaması, medyan alfa, `k - 1` kuantalanmış seviyesinden `k` seviyesi. Boyutları yazılmaz: `previewLevels.ts`'in yeniden hesapladığı kaynak boyutlarından çıkarlar. Sürüm 4, kuyruğun üzerindeki her seviyeyi, ve kuyruğun kendisini, pişirmenin kayıpsız dosyaların yanında istediği blok ailelerinde pişirir — masaüstü kartları için BC ailesi, mobil olanlar için ASTC 4×4, teksel başına bir bayt — bir kalite kapısının tuttuğu zincirler için; barın altındaki bir zincir o ailede kayıpsız kalır, ve girdisinin düzen kelimesi bunu söyler. Sürüm 6, blok seviye dosyasını karo kayıtlarına göre dizer; her biri tek bir HTTP Range isteğidir (#962, `sdk-browser/src/texture/tileRecords.ts`)."
   },
   "TONE_MAPPING_RANK": {
     "summary": "Sahne parlaklığını ekran aralığına getiren eğriler, shader'ların okuduğu sıraya göre.",
@@ -3493,6 +3573,22 @@
       "alphaMode": "Alfanın nasıl okunduğu: yok sayılır, `alphaTest` değerinde kesilir ya da karıştırılır.",
       "opacity": "Temel renk çarpanının alfası.",
       "extensions": "Fiziksel uzantıların eklediği, ana makinenin parametre adlarıyla: bir çarpan, bir renk ya da bir aralık sayılar olarak, bir harita yuva olarak."
+    }
+  },
+  "TablePage": {
+    "summary": "Bir yuvanın adlandırdığı sayfa: tablolara göre dosyası, boyutu ve parmak izi.",
+    "members": {
+      "url": "Tablolara göre dosyası.",
+      "bytes": "Bayt cinsinden boyutu.",
+      "sha256": "Onaltılık SHA-256 parmak izi."
+    }
+  },
+  "TableSlot": {
+    "summary": "Bir yuvanın adlandırdığı bir dizin sayfası, bildirilen pozlardaki kutusu ve yanında listelenen çekirdek sıraları: hücre dizini için, hücrelerinin düğüm astığı ebeveynler (#575).",
+    "members": {
+      "page": "Yuvanın adlandırdığı sayfa.",
+      "bounds": "Bildirilen pozlardaki kutusu: önce en küçük köşe, sonra en büyük.",
+      "parents": "Yanında listelenen çekirdek sıraları."
     }
   },
   "TableTexture": {
@@ -3665,7 +3761,8 @@
       "sha256": "Kaynak görselin parmak izi.",
       "atlas": "Hangi atlas.",
       "level": "Hangi seviye.",
-      "format": "Hangi format."
+      "format": "Hangi format.",
+      "range": "Bir blok seviyesinin tek başına okunacak baytları — bir karonun kaydı (`tileRecords.ts`) —, bir HTTP Range isteğiyle; bunu yok sayan bir sunucu dosyanın tamamını döndürür."
     }
   },
   "TexturePool": {
@@ -4043,6 +4140,10 @@
     "summary": "Zamansal kenar yumuşatma: kareler boyunca biriktirilen piksel altı kaydırma; varsayılan olarak açık.",
     "description": "Yazıldığında bir sonraki karede etkili olur, geçmiş atılır, oturum yeniden açılmaz. Okunduğunda görüntünün taşıdığıdır: WebGL2'de ve açıldıktan sonra program derlenirken false."
   },
+  "world.renderScale": {
+    "summary": "Görüntünün eksen başına ekranın hangi oranında çizildiği (`WorldOptions.renderScale`), bir sonraki kareden itibaren.",
+    "description": "Okunduğunda, son çizilen görüntünün ölçeği."
+  },
   "world.effects": {
     "summary": "Efekt zinciri: görüntünün üzerine çizilen geçişler (`effect`)."
   },
@@ -4069,6 +4170,24 @@
       "error": "Son oturumun neden açılamadığı, adlandırılmış bir motor hatası olarak: `code` değeri `EngineError` üzerinde belgelenenlerden biridir (WebGPU aygıtını kaybettiğinde `WEBGPU_LOST`) ya da kendi kodu olmayan bir neden için `SESSION_OPEN_FAILED`. Belgelenmiş kodlu bir `EngineError` fırlatılanın kendisidir; diğer her hata dönüştürülür ve fırlatılan hata o zaman `details.cause` içindedir. Her açılışın başından itibaren ve hiçbir şey denenmediğinde `null`.",
       "modes": "Mevcut render motorunun sunduğu her görünüm modu."
     }
+  },
+  "world.materials": {
+    "summary": "Geçerli içe aktarılmış malzemeler, ardından sayfanın oluşturdukları."
+  },
+  "world.material": {
+    "summary": "Listedeki kimliğine göre bir malzeme."
+  },
+  "world.importedMaterials": {
+    "summary": "Sayfa değişikliklerinden önceki kaynak dosya değerleri."
+  },
+  "world.setMaterial": {
+    "summary": "İçe aktarılmış veya oluşturulmuş malzemeyi sonraki karede değiştirir."
+  },
+  "world.createMaterial": {
+    "summary": "Sayfaya ait malzeme oluşturur; bitmap varsa atamadan önce kabulünün tamamlanmasını bekleyin."
+  },
+  "world.assignMaterial": {
+    "summary": "Oluşturulan malzemeyi derlenmiş `mesh/primitive` üzerine atar."
   },
   "world.guides": {
     "summary": "Görüntünün üzerine çizilen çizgiler, noktalar ve yardımcılar (`Guides`)."
@@ -4153,7 +4272,7 @@
       "frameHeld": "Kare tutulduğunda doğru: ne sahne, ne görünüm, ne kaynaklar hareket etti, hiçbir asenkron iş beklemedeydi, ve hiçbir CPU aşaması çalışmadı. Görüntülenen pikseller, orijinal karenin bit-tam pikselleridir. Tutulan karenin YAPTIĞI şey olduğu gibi yayımlanır, asla son tam render'dan kopyalanmaz: `drawCalls`, `triangles`, `submittedTriangles` ve `totalSubmittedTriangles` yalnızca şimdiyi sayar, ve aşama başına CPU ve GPU süreleri, aşama çalışmadığında sıfırdır, hiçbir şey onu zamanlamadığında `null`. Görseli tanık adaptörünün çizdiği bir sahne olan bir motor, bu adaptörün bu karede gönderdiğini sayar — tutulan bir karede hiçbir şey. Tutulan karenin GÖSTERDİĞİ şey, yeniden gösterdiği kesitle betimlenmeye devam eder: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` ve `residentPages`, aynı kesit olduğundan orijinal karenin olanlardır. Karelerini tutmayan bir motorda bulunmaz.",
       "streamingError": "Kalıcı yükleme hatası; başarısız URL'ler üç denemeden sonra bir gezgin yeniden yüklemesi gerektirir.",
       "gpuPassMs": "Bu backend'in en son GPU geçiş örneği; cihaz zaman damgası sorgusu sunmadığında null.",
-      "gpuFrameMs": "`gpuPassMs.frame`'in betimlediği görselin GPU süresi. Asla bir `cpu*` alanına eklenmez. Cihaz birkaç görselde bir örneklenir, bu yüzden bir sayı birkaç görsel öncesine ait olabilir. İlk örnekten önce, tutulan bir görselden cihazın bir sonraki örneğine kadar, `timestamp-query` olmayan bir cihazda ve WebGL2’de null’dır.",
+      "gpuFrameMs": "`gpuPassMs.frame`'in betimlediği görselin GPU süresi. Asla bir `cpu*` alanına eklenmez. Cihaz birkaç görselde bir örneklenir, bu yüzden bir sayı birkaç görsel öncesine ait olabilir. İlk örnekten önce, tutulan bir görselden cihazın bir sonraki örneğine kadar, `timestamp-query` olmayan bir cihazda ve `EXT_disjoint_timer_query_webgl2` olmadan WebGL2’de null’dır.",
       "gpuHostGapMs": "Aynı görselin kendi iki gönderimi arasında geçirdiği CPU süresi, ve bir kez gönderdiğinde sıfır. Bu, GPU süresi değil host süresidir, bu yüzden `gpuFrameMs` onu hariç tutar. Ölçülmediğinde null.",
       "uncoveredTriangles": "Yayımlanan kesitin adlandırdığı ama karenin çizemediği cluster'ların üçgenleri — yerleşik sayfa yok ve kapsayan ata yok. Görseldeki gerçek bir boşluk: sıfır tek sağlıklı değerdir. Bir backend söyleyemediğinde null (seçtiği kesiti çizer, bu yüzden asla bir tanesi olmaz).",
       "drawnTriangles": "MEVCUT KARE'nin çizime verdiği üçgenler: hiyerarşinin opak ve şeffaf birleşik cluster kesiti. Hiyerarşi dışındaki şeffaf meshler bunun içinde değildir (`transparentSubmittedTriangles`), ve gizlenme reddi çıkarılmaz (`hizRejectedTriangles`). Kesit kabulünde sayılır: hiçbir asenkron GPU geri okuması beklenmez, bu yüzden `submittedTriangles`'ın aksine, zaman yokluğundan dolayı asla `null` değildir.",
@@ -4175,12 +4294,35 @@
       "shadowPagesDrawn": "Sayfa geçersiz kılmanın ürettiği şey: kare tarafından yeniden çizilen sayfalar, bütçe eksikliğinden kuyrukta bırakılan sayfalar, ve görüntünün okuduğu en eski eskimiş sayfanın ne kadar beklediği. Her yerde sıfır, sabit bir sahnenin normal değeridir; gölge atlası olmayan bir motorda `null`.",
       "shadowPagesTotal": "Gezgin açıldığından beri çizilen sayfalar, `flush()` boşaltmaları dahil: bir değişikliğin maliyeti, iki okuma arasındaki farktır.",
       "shadowPagesPending": "Bekleyen gölge sayfaları.",
+      "shadowBatches": "Karenin çizdiği gölge grupları: ana makinenin kodladıkları üzerine sayımları, hiçbir shader’da okunmaz, aşağıdaki sayımlar gibi. Gölge atlası olmayan bir motorda null.",
+      "shadowLayersDrawn": "Karenin gölge geçişlerinin çizdiği havuz katmanları.",
+      "shadowPagesRestored": "Statik katmanlarının bir kopyasından çizilen sayfalar; yalnızca hareketli gölge düşürenleri rasterleştirilir.",
+      "shadowPagesRasterized": "Statik gölge düşürenleri yeniden rasterleştirilen sayfalar; geri yüklenenlerle birlikte çizilen her sayfa.",
+      "shadowRestoreCopies": "Statik katmandan sayfa kopyaları: geri yüklenen bir sayfa ya da katmanı üzerine tamamen çizilen bir sayfa.",
+      "shadowStaticDrawCalls": "Statik gölge düşürenlerin çizim çağrıları: statik katmana ya da katmansız tamamen çizilen bir sayfanın.",
+      "shadowMovingDrawCalls": "Yalnızca hareketli gölge düşürenlerin, statik katmandan geri yüklenen sayfalar üzerindeki çizim çağrıları.",
+      "shadowMovingCastersKept": "`shadowCastersKept` içinden, yalnızca hareketli gölge düşürenleri çizmek için tutulan kümeler.",
+      "shadowPagesStaledBy": "Karenin eskittiği sayfalar, nedene göre: ışık, duran gölge düşüren, hareketli gölge düşürenler, ayrıntı, kesim eşiği ya da bir güneşin derinlik aralığı.",
       "shadowWaitMs": "Görüntünün okuduğu en eski eskimiş sayfanın yeniden çizilmek için kaç milisaniye beklediği. Yalnızca görüntünün onu okuduğu süre sayılır; yeniden çizilince 0.",
+      "shadowCutDrops": "Gezgin açıldığından beri iş bırakan ışık kesimi grupları — görünümleri listelerin tutabileceğinden fazla küme tuttu —: her biri sayfalarını geri gönderir, yeniden çizilene dek geri çekilir (#525). GPU ışık kesimi olmayan bir motorda null, aşağıdaki üçü gibi.",
+      "shadowCutWithdrawnPages": "Bir ışık kesimi onları yanlış çizdiği için yeniden çizilen sayfalar, gezgin açıldığından beri: grubu iş bıraktı ya da bayrağı hiç okunmadı. Yeniden çizilene dek geri çekilirler.",
+      "shadowCutCoarsePages": "Bir görünüm istediğinden daha kaba bir küme çizdiği için yeniden çizilen sayfalar, gezgin açıldığından beri: yerleşiklik değişip kamera durduğunda serbest bırakılır.",
+      "shadowCutViewLimit": "Bir ışık kesimi grubunun şu an çizdiği ışık görünümleri: bir grup iş bırakana dek üst sınır, sonra sığan.",
       "gpuLightListsMs": "Işık listelerinin GPU süresi.",
-      "gpuShadowsMs": "Gölgelerin GPU süresi.",
+      "tileLightPoolReserved": "Listesinin ötesindeki karoların görünümün ışık dizini havuzunda ayırdığı sözcükler; sahne bir listeden fazla ışık tuttuğu sürece cihazın son örneklediği karede; aksi halde `null` (#849).",
+      "tileLightPoolCapacity": "Işık dizini havuzunun o örneklenen karede tuttuğu sözcükler; aynı şekilde `null`.",
+      "tileLightPoolOverflowed": "O örneklenen karede bir karonun havuzda yer bulamayıp her ışığı dolaşıp dolaşmadığı.",
+      "tileLightPoolGrowths": "Gezgin açıldığından beri havuzun taşan bir karenin istediği kadar büyüdüğü sayı.",
+      "gpuShadowsMs": "Gölgeler aşamasının GPU süresi, tam olarak motorun geçiş tablosundaki gölge geçişleri: gölge atlası, statik katmanı, geçirgenlik katmanının temizlenmesi ve geçişi, sayfa başına ayıklama, sayfa piramitleri ve örtme testi. Işıktan kesim kendi aşamasıdır (`shadowCasters`); gölge işi dışındaki hiçbir geçiş burada sayılmaz.",
       "gpuShadowCullMs": "Bir karenin çizdiği gölge sayfalarının gölge düşürenlerini seçmenin GPU süresi: ışık kesimi, sayfa başına ayıklama ve hareketli gölge düşürenlerin okuduğu piramitlerle örtme testi.",
       "gpuShadowRasterMs": "Bu gölge düşürenleri sayfalara çizmenin GPU süresi: statik katman, ardından havuz.",
       "gpuLightingMs": "Aydınlatmanın GPU süresi.",
+      "cpuShadowPlanMs": "Karenin gölge planının, zamanlayıcının çevresindeki CPU süresi: CPU profilinin adlandırılmış bir adımı (`cpuSteps()`, `cpu-timing`), sonraki beş adım gibi. Her biri, kare onu çalıştırmadığında — ışık yok, tutulan kare — ya da onu ölçemeyen bir motorda (WebGL2) `null` olur, asla 0 değil. Kodlama süresinin içindedirler, ona asla eklenmezler.",
+      "cpuShadowRequestsMs": "Geri gelen gölge istek raporunun okunmasının CPU süresi.",
+      "cpuShadowAdmissionMs": "Karenin okuduğu eskimiş sayfaların kabulünün CPU süresi.",
+      "cpuShadowBatchesMs": "Gölge yığınlarının bölgeleri ve geçişleri çevresindeki CPU süresi: hazırlama, işlemeler, istek kopyası.",
+      "cpuShadowRegionsMs": "Her gölge yığınının bölgelerinin yazılmasının CPU süresi: yüz uniform'ları ve sayfa kayıtları.",
+      "cpuShadowPassesMs": "Her gölge yığınının geçişlerinin kodlanmasının CPU süresi: gölge düşürenler, temizleme ve geri yüklemeler, çizimler.",
       "hizTestedClusters": "Gizlenme testinin bir karede yaptığı şey: ona verilen cluster'lar, elediği olanlar, ve seviye-0 ekran ayak izi on altı tekselli çekirdeği aşan ve bu yüzden daha kaba bir mipten yanıt verenler. `hiz*Triangles`, aynı cluster'ların üçgenleridir. GPU yolunda, onları render edenden ÖNCEKİ bir kareyi betimlerler — `hizCountedFrame` hangisini adlandırır — `gpuPassMs` gibi, ve komşu iki kare genellikle aynı örneği taşır. Hiçbiri tahmin edilmez: gizlenmeyi test etmeyen bir motorda, verdileri yeniden okunamayan bir cihazda, ve hiçbir kare sayılmadığı sürece `null`.",
       "hizRejectedClusters": "Gizlenen cluster'lar.",
       "hizOversizedClusters": "Test edilemeyecek kadar büyük cluster'lar.",
@@ -4226,9 +4368,13 @@
       "shadowPoolPages": "Sabit havuzun sanal bir sayfa tutan fiziksel sayfaları.",
       "shadowPoolBytes": "Gölge havuzunun GPU baytları: derinlik sayfaları, oluşturulduklarında statik ve geçirgenlik katmanları ve yanındaki arabellekler. İlk kare havuzu boyutlandırana kadar null.",
       "shadowPoolLayers": "Havuzun katmanları, her biri en fazla 4 096 sayfa; ilk karenin ekranından ve gölgeli ışıklarından bir kez boyutlandırılır. O zamana kadar null.",
+      "shadowPeakBytes": "Gölgelerin bellek payının aynı anda tuttuğu en fazla GPU baytı, geç katmanlar dahil. İlk kare havuzu boyutlandırana kadar null.",
+      "shadowResolutionBias": "Aygıtın bellek retlerinin gölge havuzunun baytlarından aldığı yarıya indirmeler; normalde 0.",
+      "shadowMemoryEvents": "Dünya açıldığından beri gölgelerin bellek baskısı olayları, adıyla, sırayla; normalde boş.",
       "shadowPagesRefetched": "Havuzun yer açmak için çıkardıktan sonra yeniden eşlenen sanal sayfalar, explorer açıldığından beri: karelerin okuduğuna göre fazla küçük bir havuzun maliyeti olan yeniden çizimler.",
       "shadowCastersKept": "Sayfa başına ayıklamanın tuttuğu gölge düşürücüler, tüm çizilen sayfalar birlikte, aygıtın en son örneklediği karede — on beşte bir; bir örnek dönene dek `null`.",
-      "shadowCastersHidden": "Örtme testinin, sayfalarının durağan katmanının arkasında gizli bulduğu hareketli gölge düşürücüler, en son örneklenen karede; bir örnek dönene dek `null`."
+      "shadowCastersHidden": "Örtme testinin, sayfalarının durağan katmanının arkasında gizli bulduğu hareketli gölge düşürücüler, en son örneklenen karede; bir örnek dönene dek `null`.",
+      "dynamicUploadBytes": "Bu karede yerinde yüklenen dinamik geometri köşe baytları (#573), dünyanın kare başına bütçesi içinde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Hiçbir dünyanın çizmediği yerde yoktur."
     }
   },
   "WorldOptions": {
@@ -4240,13 +4386,18 @@
       "controls": "Kamerayı canvas'tan hareket ettiren kontrolcü; `world.controls.kind` onu daha sonra değiştirir.",
       "signal": "Sinyal iptal edildiğinde dünyanın yüklemelerini durdurur.",
       "physics": "Fiziği açar (`world.physics`): `true` ya da yerçekimi ve bütçeler. Jolt ancak o zaman yüklenir.",
-      "temporalAntialiasing": "Zamansal kenar yumuşatma, yalnızca WebGPU: kareler boyunca biriktirilen piksel altı kaydırma. `false` her pikseli merkezinde, geçmiş olmadan çizer; piksel hassasiyetinde bir yakalamanın istediği budur; sonradan `world.temporalAntialiasing` ile değiştirilir."
+      "temporalAntialiasing": "Zamansal kenar yumuşatma, yalnızca WebGPU: kareler boyunca biriktirilen piksel altı kaydırma. `false` her pikseli merkezinde, geçmiş olmadan çizer; piksel hassasiyetinde bir yakalamanın istediği budur; sonradan `world.temporalAntialiasing` ile değiştirilir.",
+      "renderScale": "Görüntünün eksen başına ekranın hangi oranında çizildiği, zamansal kenar yumuşatma onu ekran boyutuna yeniden kurmadan önce: `'auto'` onu kare bütçesinin `min` ile `max` arasında seçmesine bırakır (`{ min, max }`, varsayılan 0,5 ve 1; yalnızca yeniden örnekleyen WebGL2'de `min` varsayılan olarak 1'dir), bir sayı onu sabitler; hareketsiz bir görüntü en yüksek değerde çizilir. Sonradan `world.renderScale` ile değiştirilir."
     }
+  },
+  "RenderScale": {
+    "summary": "Bir sayfanın istediği işleme ölçeği: görüntünün, zamansal kenar yumuşatma onu ekran boyutuna yeniden kurmadan önce, eksen başına ekranın hangi oranında çizildiği.",
+    "description": "`'auto'` onu kare bütçesinin 0,5 ile 1 arasında seçmesine bırakır, `{ min, max }` bu seçimi sınırlar, bir sayı onu sabitler; her değer 0,5 ile 1 arasında tutulur."
   },
   "WorldPageSource": {
     "summary": "Sayfaların nereden okunduğu, ve karşı okundukları adres.",
     "members": {
-      "read": "Bir sayfanın baytlarını okur.",
+      "read": "Bir sayfanın baytlarını okur; `priority` verildiğinde akış yöneticisinin önceliğidir (en küçük önce). Zaten okunmakta olan bir sayfanın daha acil okuması onu öne almak için yeniden istenir: `priority` alan bir kaynak, sayfayı iki kez aktarmak yerine onu süren okumaya katar.",
       "baseUrl": "Her sayfanın karşı okunduğu adres."
     }
   },
@@ -4791,7 +4942,7 @@
   },
   "createGpuPageCache": {
     "summary": "WebGPU tahsis/kuyruk sınırı.",
-    "description": "Sayfa baytları ve politika host tarafından sağlanır. Kuyruk yazmaları sıralıdır; dispose, yok etmeden önce uçuştaki gönderimleri bekler."
+    "description": "Sayfa baytları ve politika host tarafından sağlanır. Kuyruk yazmaları sıralıdır; dispose, yok etmeden önce uçuştaki gönderimleri bekler. `pin(key, 'held')`, artık held kümesi almayan `resize(slots)` sırasında sayfayı normal sabitlenmiş sayfalardan önce korur. Normal yeniden sabitleme bu önceliği korur; `unpin(key)` kaldırır."
   },
   "createJob": {
     "summary": "Zamanlayıcı, DOM, dosya sistemi ya da UI yok."
@@ -4879,7 +5030,8 @@
       "options.controls": "Kamerayı canvas'tan hareket ettiren kontrolcü; `world.controls.kind` onu daha sonra değiştirir.",
       "options.signal": "Sinyal iptal edildiğinde dünyanın yüklemelerini durdurur.",
       "options.physics": "Fiziği açar (`world.physics`): `true` ya da yerçekimi ve bütçeler. Jolt ancak o zaman yüklenir.",
-      "options.temporalAntialiasing": "Zamansal kenar yumuşatma, yalnızca WebGPU: kareler boyunca biriktirilen piksel altı kaydırma. `false` her pikseli merkezinde, geçmiş olmadan çizer; piksel hassasiyetinde bir yakalamanın istediği budur; sonradan `world.temporalAntialiasing` ile değiştirilir."
+      "options.temporalAntialiasing": "Zamansal kenar yumuşatma, yalnızca WebGPU: kareler boyunca biriktirilen piksel altı kaydırma. `false` her pikseli merkezinde, geçmiş olmadan çizer; piksel hassasiyetinde bir yakalamanın istediği budur; sonradan `world.temporalAntialiasing` ile değiştirilir.",
+      "options.renderScale": "Görüntünün eksen başına ekranın hangi oranında çizildiği, zamansal kenar yumuşatma onu ekran boyutuna yeniden kurmadan önce: `'auto'` onu kare bütçesinin `min` ile `max` arasında seçmesine bırakır (`{ min, max }`, varsayılan 0,5 ve 1; yalnızca yeniden örnekleyen WebGL2'de `min` varsayılan olarak 1'dir), bir sayı onu sabitler; hareketsiz bir görüntü en yüksek değerde çizilir. Sonradan `world.renderScale` ile değiştirilir."
     }
   },
   "crossVector3": {
@@ -4896,7 +5048,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Tek bir ışın ona dokunmadan önce yeniden okunan ve yeniden kontrol edilen proxy.",
-    "description": "Düzen, little-endian: `u32 'WGPX' · u32 version · u32 triangles · u32 nodes`, sonra dünya köşeleri, albedolar, tam düğüm sınırları ve dört çocukları, birleştirilmiş. Her bölümün başlığın dayattığı bir uzunluğu vardır; başka bir boyuttaki bir dosya toplu olarak reddedilir, çünkü eksik bir üçgeni adlandıran bir düğüm shader'ı herhangi bir şeyi okumaya zorlardı."
+    "description": "On bir little-endian başlık sözcüğünü paylaşılan ve bağımsız geometri, ağaç sütunları ve sürümlü sahiplik izler. `docs/FORMAT.md` tüm sayıları ve sütunları tanımlar. Yanlış uzunluklar ışın erişiminden önce reddedilir."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S`, `position`, `quaternion`, `scale`'e ayrıştırılmış."
@@ -4974,10 +5126,6 @@
   },
   "emptyIrradiance": {
     "summary": "İçinde hiçbir şey olmayan, kaynak almaya hazır bir ışınım."
-  },
-  "encodeManifestBinary": {
-    "summary": "Bir manifestoyu, bir okuyucunun ayrıştırdığı küçük JSON'a ve eşlediği sütunlara böler.",
-    "description": "Döndürülen açıklayıcı boş bir `sha256` taşır: yalnızca tamamlanmış baytlara sahip olan çağıran onları özetleyebilir."
   },
   "enginePose": {
     "summary": "İzlerin ve tanının yayımladığı, motor kamerasından okunan dünya pozu: göz, `world`'ün ötelemesidir, ve çekirdek ayrıştırması, `getWorldQuaternion`'ın yalnızca çağrısı olduğu `Matrix4.decompose`'un bitlerini verir."
@@ -7385,7 +7533,7 @@
     }
   },
   "SHADOW_RECORD_FLOATS": {
-    "summary": "Bir ışığın gölgelendirmesinin okuduğu gölge kaydının float değerleri: altı lamba yüzü matrisi, sonra güneş düzleminin çerçevesi — `right, zNear`, `up, zFar`, `axis, 0` —, sonra her clipmap düzeyinin alan kökeni iki tamsayı olarak, sonra bir `vec4f` başlığı: yüzler (lamba) ya da düzeyler (güneş), lambanın yarım alan tanjantı ya da güneşin en ince düzeyi, lambanın yakın düzlemi ve kaydın sayfa tablosundaki ilk girdisi."
+    "summary": "Bir gölge kaydının float’ları, bir ışığın gölgelendirmesinin okuduğu: altı lamba yüzü matrisi — orada bir güneşin derinlik aralıkları, her biri `zNear, zFar` (`recordPack.ts`) —, sonra güneşin ışık düzlemi çerçevesi — `right, zNear`, `up, zFar`, `axis`, sonra geçerli aralığın yuvası —, sonra her clipmap yuvasının pencere başlangıcı iki tamsayı olarak, sonra bir `vec4f` başlığı: yüzler (lamba) ya da seviyeler (güneş), lambanın teğet yarı açısı ya da güneşin en ince seviyesi, lambanın yakın düzlemi ve kaydın sayfa tablosundaki ilk girdisi."
   },
   "ShadowRequestReport": {
     "summary": "Gölgelendirmenin bir karede okuduğu: istediği tablo girdileri, sırasız.",
@@ -7707,5 +7855,85 @@
       "center": "Resmin sprite'ın konumuna oturan noktası: `(0.5, 0.5)` ortası, `(0, 0)` sol alt köşesi, `(0.5, 0)` alt kenarının ortası.",
       "material": "Sprite’ın `material.sprite`’ı; değiştirmek için başka birini atayın."
     }
+  },
+  "CreatedMaterial": {
+    "summary": "Sayfanın yeni malzemesi için `createMaterial` tarafından kabul edilen değerler.",
+    "members": {
+      "metalness": "Yüzeyin ne kadar metal olduğu, 0'dan 1'e.",
+      "roughness": "Yüzeyin ne kadar pürüzlü olduğu, 0'dan (ayna) 1'e (mat).",
+      "baseColor": "Temel renk; `set` ile yerinde değiştirin.",
+      "emissive": "Yüzeyin kendi başına yaydığı renk.",
+      "opacity": "Yüzeyin ne kadar opak olduğu, 0'dan 1'e.",
+      "alphaMode": "Bir yüzeyin alfa kanalının nasıl okunduğu: opak onu yok sayar, `mask` `alphaCutoff`'ta keser, `blend` karıştırır.",
+      "alphaCutoff": "Bundan daha az opak pikseller atılır.",
+      "name": "Sayfanın kendi kullanımı için bir ad.",
+      "map": "Çağırana ait ImageBitmap; ön çarpım veya renk dönüşümü olmadan çözülür, malzeme bırakılana kadar açık tutulur."
+    }
+  },
+  "SceneMaterial": {
+    "summary": "Kimliği, adı, parametreleri ve harita tekrarlarını içeren sahne malzemesi anlık görüntüsü.",
+    "members": {
+      "id": "Bu dokuya özgü bir ad.",
+      "name": "Sayfanın kendi kullanımı için bir ad.",
+      "tiling": "Görselin yatayda ve dikeyde kaç kez sığdığı."
+    }
+  },
+  "SceneMaterialPatch": {
+    "summary": "İşleme geçişini yeniden kurmadan `setMaterial` ile canlı değiştirilen malzeme değerleri.",
+    "members": {
+      "metalness": "Yüzeyin ne kadar metal olduğu, 0'dan 1'e.",
+      "roughness": "Yüzeyin ne kadar pürüzlü olduğu, 0'dan (ayna) 1'e (mat).",
+      "baseColor": "Temel renk; `set` ile yerinde değiştirin.",
+      "emissive": "Yüzeyin kendi başına yaydığı renk.",
+      "opacity": "Yüzeyin ne kadar opak olduğu, 0'dan 1'e.",
+      "alphaMode": "Bir yüzeyin alfa kanalının nasıl okunduğu: opak onu yok sayar, `mask` `alphaCutoff`'ta keser, `blend` karıştırır.",
+      "alphaCutoff": "Bundan daha az opak pikseller atılır.",
+      "tiling": "Görselin yatayda ve dikeyde kaç kez sığdığı."
+    }
+  },
+  "WorldRoots": {
+    "summary": "`world-roots.json`: derleyicinin her nesnenin köklerinin üstünde sürdürdüğü dünya DAG’i — paketleri, sayfaları ve hücreleri, sabitlenmiş tepe önce.",
+    "members": {
+      "version": "Biçim sürümü.",
+      "budgetBytes": "Pişirmenin sabitlenmiş tepeye izin verdiği en fazla bayt.",
+      "pinned": "İlk paketler, dünyanın tepesi: sabitlenmiş.",
+      "pinnedTopBytes": "Sabitlenmiş tepenin baytları.",
+      "payload": "Paketlerin art arda durduğu ikili dosya: adresi, özeti ve uzunluğu.",
+      "bundles": "Paketler, ikili dosyadaki sırayla.",
+      "pages": "Her sayfa: paketi, içindeki konumu, düzeyi ve hatası.",
+      "cells": "Her dünya hücresi: tuttuğu yerleştirilmiş ilkel öğeler."
+    }
+  },
+  "WorldRootsBundle": {
+    "summary": "`world-roots.bin` içindeki bir paket: ikili dosyadaki aralığı, özeti, sayfa sayısı ve gereken paketler.",
+    "members": {
+      "offset": "İkili dosyada nerede başladığı, bayt olarak.",
+      "bytes": "İkili dosyadaki uzunluğu.",
+      "sha256": "Baytlarının SHA-256 özeti, okunurken denetlenir.",
+      "count": "Kaç sayfa tuttuğu.",
+      "dependencies": "Sayfalarının gerektirdiği paketler, artan sırayla, dünyanın tepesine kadar."
+    }
+  },
+  "WorldRootsObject": {
+    "summary": "Bir dünya hücresinin yerleştirilmiş ilkel öğesi: köklerinin gerektirdiği dünya paketleri, tepeye kadar.",
+    "members": {
+      "node": "Yayımlanmış düğümü.",
+      "primitive": "Manifestodaki ilkel öğesi.",
+      "roots": "Bu ilkel öğenin köklerini tutan akış paketleri.",
+      "dependencies": "Bu köklerin gerektirdiği her dünya paketi, artan sırayla, tepeye kadar."
+    }
+  },
+  "WorldRootsPage": {
+    "summary": "Paketinin baytları üzerinde okunan bir süper kök sayfası: dünya uzayındaki kendi köşeleri ve yerel indisler olarak üçgenleri.",
+    "members": {
+      "positions": "Köşeleri, her biri üç sayı, dünya uzayında.",
+      "indices": "Üçgenleri, her biri üç yerel indis."
+    }
+  },
+  "world.dropMaterial": {
+    "summary": "Kullanılmayan oluşturulmuş malzemeyi serbest bırakır; önce nesnelerine başka malzeme atayın."
+  },
+  "world.materialMapBytes": {
+    "summary": "Tutulan veya bekleyen görüntülerin bayt sayısı; sınır 64 MiB."
   }
 }

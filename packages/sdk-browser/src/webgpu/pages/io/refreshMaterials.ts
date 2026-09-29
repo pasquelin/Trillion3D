@@ -2,6 +2,7 @@ import { followHostTexture } from '../../../host/textureImport.ts';
 import { pictureFits } from '../../tile/live.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { shadowsFollowSurfaces } from '../prepare/lightResources.ts';
+import { followBlendedCasting } from '../../shadow/transmittanceGrant.ts';
 import {
   blendMoves,
   isAssignment,
@@ -48,32 +49,31 @@ const assignsBlended = (assignment: SurfaceAssignment, pages: readonly PageRec[]
  * table is left as it is. A picture whose size changed cannot be copied: its tiles were laid out
  * at the old one, and false asks the owner for a new session. Surfaces whose alpha moved (`alpha`)
  * — between opaque and masked, or to another cutoff — cut their shadow otherwise: the shadow pages
- * over their rows are drawn again. Once a light casts (its shadow atlas made), that image differs from the one
- * a session opened on the new cutoff draws, by a few shadowed pixels once temporal antialiasing
- * settles (#572): false asks the owner for a new session there too.
+ * over their rows are drawn again. Those pages land in other pool slots than a session opened on the
+ * new cutoff would give them, and a shadow read is texel-exact wherever its page lies (#1010): the
+ * image is that session's, under a casting light too (#838).
  */
 export function refreshWebgpuMaterials(rt: WebgpuPagesRuntime, values = true, alpha?: AlphaChange) {
   if (alpha) {
     const surfaces = alpha.surfaces.map((surface) => surfaceOf(surface as HostMaterials));
-    shadowsFollowSurfaces(rt.lights, rt.layout.rows, new Set(surfaces));
+    shadowsFollowSurfaces(rt.lights, rt.layout.rows, rt.layout.selectionRoots, new Set(surfaces));
   }
   if (values) {
     rt.layout.rows.tableEpoch++;
     // The scene revision moved: the next image writes the transparent records again, once
     // (`../render/render.ts`, `refreshBlendScene`), each off its refreshed surface.
     rt.run.gate.sceneMoved();
+    // A blended surface turned casting asks its transmittance layer before the next frame.
+    followBlendedCasting(rt);
   }
-  // The atlas is made at open whether or not a light is declared: a light in the store casts.
-  const exact = !alpha || !rt.lights.store.count || !rt.lights.shadows;
   const textures = rt.vis.textures;
-  if (!textures) return exact;
-  const fit = [textures.color, textures.data].every((atlas) =>
+  if (!textures) return true;
+  return [textures.color, textures.data].every((atlas) =>
     atlas.textures.every((entry) => {
       if (entry.source.kind === 'host') followHostTexture(entry.source.map);
       return pictureFits(entry);
     }),
   );
-  return exact && fit;
 }
 
 /** The records of the assigned meshes point to the surface each wears now (`wearSurface`,

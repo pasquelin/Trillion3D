@@ -51,7 +51,7 @@ export function versPage(
   const cold = resident ? withResidency(packed, resident) : packed.pageCones;
   // The whole uniform array the kernel binds; the case fills its first view.
   const uni = new Float32Array(DAG_UNIFORM_BYTES / 4);
-  writeDagUniforms(uni, packed, uniforms, !!resident);
+  writeDagUniforms(uni, packed, uniforms, !!resident, selectionListCap(packed.pageCount));
   const frames = primitiveFrameWords(packed);
   const blockCount = Math.ceil(Math.max(1, packed.pageCount) / SELECTION_WORKGROUP),
     worldCount = Math.max(1, packed.worldCount);

@@ -28,21 +28,23 @@ export function encodeWebgpuGuides(
   cam: EngineCamera,
 ) {
   const { gpu, context } = rt;
-  if (!context.guides || !gpu.colorView || !gpu.depthView) return;
+  if (!context.guides || !gpu.displayView || !gpu.depthView) return;
   gpu.guides ??= createWebgpuGuidePass(device);
-  const { colorView, depthView, targetSize } = gpu;
+  // Over the display colour, at its size; the scene depth is the render one (`GUIDE_WGSL`).
+  const { displayView, depthView, displaySize } = gpu;
   // The jitter the scene depth was drawn with: that of the image when it accumulates.
   const frame = gpu.temporal?.frame;
   const jitter = frame?.active ? frame.jitter : NO_JITTER;
   const drawn = gpu.guides.encode(
     encoder,
     context.guides,
-    colorView,
+    displayView,
     depthView,
     cam,
-    targetSize,
+    displaySize,
     rt.setup.pixelRatio(),
     jitter,
+    gpu.targetSize,
   );
   if (drawn) rt.run.gpuDrawCalls++;
 }

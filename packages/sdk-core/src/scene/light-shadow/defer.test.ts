@@ -3,25 +3,17 @@
 // the cut churns every frame, and each churn would restale every page it covers.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createSceneLightStore } from '../light/store.ts';
-import { createShadowPlan } from './plan.ts';
-import { SUN, cycle, nudged, planFrame, sunPages } from './lightShadow.fixture.ts';
+import { nudged, planFrame, settledSun } from './lightShadow.fixture.ts';
+import { STALE_DYNAMIC, STALE_FULL } from './pool.ts';
 
 const BOX_MIN = [-1e3, 0, -1e3],
   BOX_MAX = [1e3, 2, 1e3];
 
 /** A sun whose pages around the eye are all mapped and drawn. */
 function settled() {
-  const store = createSceneLightStore();
-  const plan = createShadowPlan(32);
-  store.add(SUN);
-  planFrame(plan, store, 0);
-  const slice = store.sliceOf(0);
-  const read = () => sunPages(plan, slice, plan.sun.finest[slice] + 6, [[0, 0]]);
-  let frame = 1;
-  for (; frame < 4; frame++) cycle(plan, store, frame, read);
+  const { store, plan, frame, read } = settledSun();
   assert.equal(plan.counts.pendingPages, 0);
-  return { store, plan, frame };
+  return { store, plan, frame, page: plan.table.words[read()[0]] & 0xffff };
 }
 
 test('a representation change under a moving camera stales nothing until the camera rests', () => {
@@ -51,4 +43,18 @@ test('a representation change under a still camera stales its pages on the next 
   planFrame(plan, store, frame);
   assert.ok(plan.counts.invalidatedPages > 0);
   assert.equal(plan.deferredChanges, false);
+});
+
+// #993: the static layer never held an object already moving; its change of detail keeps that layer.
+test('a representation change of objects already moving waits too, then stales their moving casters alone', () => {
+  const { store, plan, frame, page } = settled();
+  plan.representationChanged(BOX_MIN, BOX_MAX, true);
+  planFrame(plan, store, frame, nudged(1));
+  assert.equal(plan.counts.invalidatedPages, 0, 'the change waits');
+  planFrame(plan, store, frame + 1, nudged(1));
+  assert.equal(plan.pool.dirty[page], STALE_DYNAMIC, 'released at rest, the static layer kept');
+  plan.representationChanged(BOX_MIN, BOX_MAX, true);
+  plan.representationChanged(BOX_MIN, BOX_MAX);
+  planFrame(plan, store, frame + 2, nudged(1));
+  assert.equal(plan.pool.dirty[page], STALE_FULL, 'a still object beside raises it to full');
 });

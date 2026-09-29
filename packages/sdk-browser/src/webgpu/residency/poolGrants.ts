@@ -2,18 +2,23 @@ import { deviceMade } from '../../gpu/core/errorScope.ts';
 import { createPageBuffer } from '../../gpu/page/resize.ts';
 import { tilePoolTexture } from '../tile/pool.ts';
 import { POOL_LANES, type PoolEncoding } from '../../texture/blockFormats.ts';
-import type { GeometryPool, PoolClamp } from '../../residency/pools.ts';
+import type { GeometryPool } from '../../residency/pools.ts';
 import type { TexturePool, TexturePools } from './memoryBudgets.ts';
+import {
+  halvedPool,
+  outOfMemoryContext,
+  type RefusedPool,
+  type ShrunkPool,
+} from '../../residency/outOfMemory.ts';
 
 /** What a probe is named: never a pool's own label, which a reader of the device looks for. */
 const PROBE_LABEL = 'Trillion3D pool probe';
 
-type Pool = { budgetBytes: number; allocatedBytes: number; clamp: PoolClamp };
 type Diagnose = (phase: string, message: string, context: Record<string, unknown>) => void;
 export type Made = { destroy(): void };
 /** A pool the device granted, and what was allocated for it: the pool itself at prepare, a probe
- *  at a resize (`probed`). */
-export type Granted<P, R> = { pool: P; made: R };
+ *  at a resize (`probed`); `halvings` the refusals it took, 0 when granted as asked. */
+export type Granted<P, R> = { pool: P; made: R; halvings: number };
 
 /**
  * Out of memory, absorbed: what a pool needs is allocated under an out-of-memory scope
@@ -25,9 +30,9 @@ export type Granted<P, R> = { pool: P; made: R };
  * `gpu-out-of-memory`, naming the pool, the bytes asked and the bytes granted (`null` when even
  * the floor was refused: the caller then keeps what it holds).
  */
-async function grantedPool<P extends Pool, R extends Made>(options: {
+async function grantedPool<P extends ShrunkPool, R extends Made>(options: {
   device: GPUDevice;
-  name: 'geometry' | 'texture' | 'shadow';
+  name: Exclude<RefusedPool, 'target'>;
   budgetBytes: number;
   draw: (budgetBytes: number) => P;
   make: (pool: P) => R;
@@ -36,32 +41,25 @@ async function grantedPool<P extends Pool, R extends Made>(options: {
   const { device, name, draw, make, diagnose } = options;
   let pool = draw(options.budgetBytes);
   const requestedBytes = pool.allocatedBytes;
-  let made: R | undefined;
+  let made: R | undefined,
+    halvings = 0;
   while (!(made = await deviceMade(device, () => make(pool)))) {
-    const half = Math.floor(Math.min(pool.budgetBytes, pool.allocatedBytes) / 2);
-    // The floor is where half draws nothing smaller: named by no clamp, which one texture atlas
-    // at its floor would give the whole pool while the other can still shrink.
-    const smaller = half < 1 ? undefined : draw(half);
-    if (!smaller || smaller.allocatedBytes >= pool.allocatedBytes) {
-      diagnose('gpu-out-of-memory', `The device refused the ${name} pool's floor`, {
-        kind: 'warning',
-        pool: name,
-        requestedBytes,
-        grantedBytes: null,
-      });
+    const smaller = halvedPool(pool, draw);
+    if (!smaller) {
+      const refused = outOfMemoryContext(name, requestedBytes);
+      diagnose('gpu-out-of-memory', `The device refused the ${name} pool's floor`, refused);
       return undefined;
     }
     pool = smaller;
+    halvings++;
   }
   if (pool.allocatedBytes !== requestedBytes)
-    diagnose('gpu-out-of-memory', `The device refused the ${name} pool; drawn smaller`, {
-      kind: 'warning',
-      pool: name,
-      requestedBytes,
-      grantedBytes: pool.allocatedBytes,
-      clamp: pool.clamp,
-    });
-  return { pool, made };
+    diagnose(
+      'gpu-out-of-memory',
+      `The device refused the ${name} pool; drawn smaller`,
+      outOfMemoryContext(name, requestedBytes, pool),
+    );
+  return { pool, made, halvings };
 }
 
 /**
@@ -105,7 +103,7 @@ export const grantedTexturePool = <R extends Made>(
 
 /** The shadow pool the device grants for `budgetBytes`, by its own rule (`shadowPoolFor`); `make`
  *  allocates its texture. */
-export const grantedShadowPool = <P extends Pool, R extends Made>(
+export const grantedShadowPool = <P extends ShrunkPool, R extends Made>(
   device: GPUDevice,
   budgetBytes: number,
   draw: (budgetBytes: number) => P,

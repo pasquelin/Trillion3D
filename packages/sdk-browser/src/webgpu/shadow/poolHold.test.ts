@@ -43,6 +43,7 @@ function frames(limit = Infinity) {
   Object.assign(rt, {
     lights,
     setup: { viewport: [1280, 720] },
+    blendState: { blendGpu: [] },
     signal: new AbortController().signal,
     diag: {
       engineDiagnostic: (phase: string) => said.push(phase),
@@ -52,7 +53,7 @@ function frames(limit = Infinity) {
   Object.assign(rt.gpu, {
     device: gpu.device,
     presenter: { present: () => shown.push(lastImage) },
-    colorTexture: {},
+    displayTexture: {},
   });
   const hold = {
     createCommandEncoder: () => ({ finish: () => ({}) }),

@@ -5,24 +5,27 @@ import { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts';
 import { createGuideSet, type Guides } from '../../guides/guideSet.ts';
 import {
   noticeEffectRefusal,
-  noticeMaterialDegraded,
+  noticeShadowRefusal,
   type WorldNotices,
 } from '../diagnostic/worldNotices.ts';
+import { noticeMaterialDegraded } from '../diagnostic/materialNotices.ts';
 import type { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts';
+import type { RenderScale } from '../../frame/renderScaleOption.ts';
 
 /** What of the world's runtime the switches reach: its open session, and its reopening. */
 interface SwitchedRuntime {
   readonly explorer: MeasuredWorld | null;
-  renew(): void;
+  renew(cause: 'option'): void;
 }
 
 /**
- * The world's render switches — bounced light, temporal antialiasing, the effect chain — and its
- * guides: held by the world, given to every session it opens (`held`), the switches written into
- * the open one in place, the session reopened only where it cannot take one. Temporal
- * antialiasing reads back what the open session draws; before one opens, what the page asked
- * (`world.temporalAntialiasing`). The chain is shared by reference: a session reads it at every
- * frame, and says on the world's `notices` a frame it drew without it (`noticeEffectRefusal`).
+ * The world's render switches — bounced light, temporal antialiasing, the render scale, the effect
+ * chain — and its guides: held by the world, given to every session it opens (`held`), the
+ * switches written into the open one in place, the session reopened only where it cannot take one.
+ * Temporal antialiasing and the render scale read back what the open session draws; before one
+ * opens, what the page asked (`world.temporalAntialiasing`), and 1. The chain is shared by reference: a session reads it at every
+ * frame, and says on the world's `notices` a frame it drew without it (`noticeEffectRefusal`);
+ * a WebGL2 session says there the lights whose shadow it draws not (`noticeShadowRefusal`).
  */
 export function worldSwitches(
   options: WorldOptions,
@@ -34,10 +37,12 @@ export function worldSwitches(
   const held = {
     bounce: false,
     temporalAntialiasing: options.temporalAntialiasing !== false,
+    renderScale: options.renderScale ?? ('auto' as RenderScale),
     // One chain for the world's life: every session draws it, a change asks for a frame.
     effects: new EffectChain(invalidate),
     effectsRefused: noticeEffectRefusal(notices),
     materialDegraded: noticeMaterialDegraded(notices),
+    shadowsRefused: noticeShadowRefusal(notices),
     guides: createGuideSet(invalidate),
     // The particle pools the measurement entry attaches (`attachParticles`); none by default.
     particles: [] as ParticlePool[],
@@ -54,7 +59,7 @@ export function worldSwitches(
       if (on === held.bounce) return;
       held.bounce = on;
       const session = runtime().explorer;
-      if (session && !session.setBounce(on)) runtime().renew();
+      if (session && !session.setBounce(on)) runtime().renew('option');
       invalidate();
     },
     get temporalAntialiasing() {
@@ -66,6 +71,16 @@ export function worldSwitches(
       if (on === held.temporalAntialiasing) return;
       held.temporalAntialiasing = on;
       runtime().explorer?.setTemporalAntialiasing(on);
+      invalidate();
+    },
+    /** The scale of the image the open session drew last, 1 before one opens. */
+    get renderScale(): number {
+      return runtime().explorer?.renderScale() ?? 1;
+    },
+    set renderScale(scale: RenderScale) {
+      if (scale === held.renderScale) return;
+      held.renderScale = scale;
+      runtime().explorer?.setRenderScale(scale);
       invalidate();
     },
   };

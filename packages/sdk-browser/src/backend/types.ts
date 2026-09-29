@@ -36,9 +36,8 @@ export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw {
   sceneToneMapping?(): SceneToneMapping;
   /** The contract light store has changed: the next frame will reread it. Absent = lights ignored. */
   refreshSceneLights?(): void;
-  /** What no signature says about this engine's lighting: its shadows, and the phrase that names
-   *  what it does not apply. The rest of the capabilities is read from the present methods; see
-   *  `lightingCapabilitiesOf`. Absent from an engine that has nothing more to declare. */
+  /** Extra lighting facts: shadow support and a reason when absent. Other capabilities come
+   *  from present methods; see `lightingCapabilitiesOf`. */
   lighting?: { shadows: boolean; reason?: string };
   /** Sets memory pools during the session; returns what the engine holds afterwards. */
   setMemoryBudgets?(budgets: MemoryBudgets): Promise<MemoryBudgetsReport>;
@@ -78,8 +77,7 @@ export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw {
   /** Bundles a finer cut needs, read while the network idles: a small move finds them resident. */
   prefetchUrls?(): string[];
   pageUrls?(): string[];
-  /** The same pins as `pageUrls`, spoken as a difference of request ranks: the host no longer has
-   *  to rebuild a set of strings every frame. An engine that does not implement it keeps `pageUrls`. */
+  /** Page pins as a difference of request ranks; both page backends implement this. */
   retainedRanks?(): import('../streaming/types.ts').HostRetentionDelta;
   /** The catalogue integer sheet for a request: what off-thread integration plans. */
   pageSpecs?(url: string): Int32Array | undefined;
@@ -100,10 +98,12 @@ export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw {
   flush?(options?: { image?: boolean }): Promise<void>; // image: false skips the readback
   /** Wait for submitted work without image readback; true asks for another interactive frame. */
   pendingFrame?(): Promise<boolean>;
+  landings?(): number; // camera pages made resident so far: the view still arriving (#836)
   /** Current GPU image, bottom-left origin. Prefer flush() first; browser hosts can explicitly read synchronously. */
   capture?(): Uint8Array;
   /** The composed image of `camera` at a size of its own, drawn aside: nothing is presented. */
   captureColorView?(camera: HostCamera, size: ViewSize): Promise<Uint8Array>;
+  captureAside?<T>(size: ViewSize, work: () => T): T; // `work` in its own view; main cut kept
   captureSurfaceView?(
     camera: HostCamera,
     options: { width: number; height: number; signal?: AbortSignal },
@@ -151,7 +151,7 @@ export interface BackendContext {
   /** Geometry-page pool bytes, fixed regardless of the scene; 512 MiB by default. The root cover
    *  always fits; the rest draws coarser when it does not fit. Image targets follow resolution.
    *  The ceiling: the largest pool `setMemoryBudgets` may ask for, the starting budget without
-   *  it; per-drawable-page tables are sized once, to it. */
+   *  it; per-drawable-page tables start at it, and grow in place past it on WebGPU. */
   geometryPoolBytes?: number;
   geometryPoolCeilingBytes?: number;
   /** Virtual-texture pool bytes, shared by the colour and data atlases; 512 MiB by default. A
@@ -159,9 +159,10 @@ export interface BackendContext {
    *  `textureCompression`: the pools' block family, `'auto'` what the device samples. */
   texturePoolBytes?: number;
   textureCompression?: import('../texture/blockFormats.ts').TextureCompression;
-  /** Temporal antialiasing, on by default as in the reference: `false` renders the
-   *  image sampled at the pixel centre, with no jitter and no history — the "before" of a comparison. */
+  /** Temporal antialiasing, on by default as in the reference: `false` renders the image sampled at
+   *  the pixel centre, no jitter, no history. `renderScale`: 1 when absent (`renderScaleOption.ts`). */
   temporalAntialiasing?: boolean;
+  renderScale?: import('../frame/renderScaleOption.ts').RenderScale;
   /** The world's effect chain, drawn after temporal antialiasing; absent or empty, nothing is. */
   effects?: import('../../../sdk-core/src/world/effect/chain.ts').EffectChain;
   sceneLighting?: Object3D;
@@ -171,8 +172,8 @@ export interface BackendContext {
   /** Hears once why the engine refused the `particles`; the session goes on without them. */
   particlesRefused?: (reason: string) => void;
   materialDegraded?: import('../webgl/cluster/validation.ts').MaterialDegraded; // `noticeMaterialDegraded`
-  /** Contract lights, owned by the host and shared by every engine of the session. */
-  sceneLights?: SceneLightStore;
+  sceneLights?: SceneLightStore; // the host's contract lights, shared by the session's engines
+  shadowsRefused?: import('../lighting/contractLights.ts').ContractShadows; // `noticeShadowRefusal`
   /** Imported light ids, in cache order: the host sets or removes them (`importedLights()`). */
   importedLightIds?: string[];
   /** Bounced light, off by default: its step stays above the measured one-millisecond bar.
@@ -181,6 +182,7 @@ export interface BackendContext {
   bounceBudgetMs?: number;
   /** Time every step of the frame. Off by default: only the bench and the harness turn it on. */
   stageProfile?: boolean;
+  feedbackTargetAB?: boolean;
   /** DIAGNOSTIC variant kept by the host, checked (`../diagnostic/gpuVariant.ts`); absent in production. */
   diagnosticGpuVariant?: import('../diagnostic/gpuVariant.ts').DiagnosticGpuVariant;
   shadowPageInvalidation?: boolean; // page-by-page shadow-map invalidation, on by default

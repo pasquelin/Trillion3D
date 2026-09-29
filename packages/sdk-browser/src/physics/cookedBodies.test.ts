@@ -1,6 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
 import {
   ADD_WORDS,
   BODY_INDEX,
@@ -10,12 +9,13 @@ import {
   POSE_WORDS,
   RESTORE_WORDS,
   SHAPE,
-  type CookedBody,
 } from '../../../sdk-core/src/physics/index.ts';
 import { createCookedBodies } from './cookedBodies.ts';
 import { castDown, startModule, type Module } from './module.fixture.ts';
 import {
   cooked,
+  declared,
+  fixture,
   landed,
   modelStreamer,
   place,
@@ -25,14 +25,9 @@ import {
 } from './tiles.fixture.ts';
 import { body } from './records.fixture.ts';
 
-const fixture = (name: string) =>
-  readFile(new URL(`../../../../tests/fixtures/physics/${name}`, import.meta.url));
 /** The golden hull of a unit cube from the origin (`physics_cook/mass_tests.rs`). */
 const hull = async () => new Uint8Array(await fixture('cube-hull.bin'));
 const diagonal = (d: number) => [d, 0, 0, 0, d, 0, 0, 0, d];
-/** Node `node`'s body at `position`, declaring `motion` and `shape`. */
-const declared = (node: number, position: number[], motion: object, shape: object) =>
-  ({ node, motion, shape, position, rotation: [0, 0, 0, 1], scale: [1, 1, 1] }) as CookedBody;
 /** A shapeless body's cooked hull, weighed as the unit cube but about `centre`. */
 const cube = (centre = [0.5, 0.5, 0.5]) => ({
   ...{ type: 'cooked', url: 'hull.bin', sha256: 'h'.repeat(64), bytes: 1 },
@@ -142,7 +137,14 @@ test('a declared mass and centre win over the cooked ones; a model scaled weighs
   const [won] = adds(own.writer.take());
   assert.deepEqual([won.w[2], won.f[16]], [MOTION.kinematic, 5], 'held, at its declared mass');
   assert.deepEqual([...won.f.subarray(FRAME, FRAME + 3)], [0.2, 0.3, 0.4].map(Math.fround));
-  assert.ok(Math.abs(won.f[FRAME + 3] - 5 / 6) < 1e-5, 'the cooked inertia, to the declared mass');
+  // The cooked inertia to the declared mass, moved to the declared centre, d = (-0.3, -0.2, -0.1)
+  // off the cooked one: I + m(|d|² E − d dᵀ).
+  const inertia = [...won.f.subarray(FRAME + 3, FRAME + 12)];
+  const moved = [5 / 6 + 0.25, -0.3, -0.15, -0.3, 5 / 6 + 0.5, -0.1, -0.15, -0.1, 5 / 6 + 0.65];
+  assert.ok(
+    inertia.every((v, n) => Math.abs(v - moved[n]) < 1e-5),
+    `moved to the declared centre: ${inertia}`,
+  );
   const file = { ...cooked([], []), bodies: [declared(0, [0, 0, 0], {}, cube())] };
   const [scaled] = adds((await streamedModel(file, await hull(), {}, 2)).writer.take());
   assert.deepEqual([...scaled.f.subarray(13, 17)], [2, 2, 2, 8000], 'the hull and its mass');

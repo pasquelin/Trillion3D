@@ -117,7 +117,7 @@ pub(super) fn grid_fixture_displaced(nx: usize, ny: usize, amplitude: f32) -> (P
     let gltf = json!({"asset":{"version":"2.0"},"buffers":[{"uri":"grid.bin","byteLength":bin.len()}],"bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":pos_bytes},{"buffer":0,"byteOffset":pos_bytes,"byteLength":index_bytes}],"accessors":[{"bufferView":0,"componentType":5126,"type":"VEC3","count":positions.len()/3},{"bufferView":1,"componentType":5125,"type":"SCALAR","count":indices.len()}],"meshes":[{"primitives":[{"attributes":{"POSITION":0},"indices":1}]}],"nodes":[{"mesh":0}],"materials":[],"images":[]});
     gltf_fixture("grid", &gltf, &bin)
 }
-pub(super) fn encode_glb(gltf: &Value, bin: &[u8]) -> Vec<u8> {
+pub(crate) fn encode_glb(gltf: &Value, bin: &[u8]) -> Vec<u8> {
     let mut json = serde_json::to_vec(gltf).expect("json");
     while !json.len().is_multiple_of(4) {
         json.push(b' ');

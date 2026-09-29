@@ -1,19 +1,22 @@
 use super::*;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+mod admission;
 mod atlas_rule;
 mod bake_files;
 mod box_reduce;
+mod cached_shape;
 mod cancellation;
 mod collect_textures;
 mod coverage_alpha;
-mod coverage_filtered;
+pub(crate) mod coverage_filtered;
 mod decode_failure;
 mod gate;
 mod gate_verdict;
 mod image_source;
 mod levels;
 mod median_alpha;
+mod tile_records;
 mod weighted_colour;
 
 /// A fresh directory under the OS temp dir, unique per call so parallel tests never collide.
@@ -96,13 +99,14 @@ pub(super) fn stage_scene_in(
     let (previews, _, report) = stage_texture_previews(
         &PreviewInputs {
             o: &o,
+            reserved_bytes: 0,
             g,
             bin: &[],
             image_root: dir,
             meshes: &meshes,
             view_map: &view_map,
             to_measure: &BTreeSet::new(),
-            measurements: crate::cutout::MeasureCache::empty(),
+            measurements: crate::cutout::MeasureCache::EMPTY,
         },
         &silent,
     )

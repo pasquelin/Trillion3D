@@ -11,13 +11,14 @@ import {
   type SceneProxyColumns,
   type SceneProxyDescriptor,
 } from '../../contracts/proxy.ts';
-import { EngineError } from '../../contracts/index.ts';
 import {
   PROXY_TRANSFORM_FLOATS,
   expandShapes,
   placedTriangles,
   type ProxyShapes,
 } from './proxyShapes.ts';
+import { decodeProxyOwnership } from './proxyOwnership.ts';
+import { EngineError } from '../../contracts/index.ts';
 
 const bad = (message: string, details: Record<string, unknown>) =>
   new EngineError('INVALID_CACHE', message, details);
@@ -42,7 +43,7 @@ export function assertSceneProxy(value: unknown): asserts value is SceneProxyDes
       throw new EngineError('UNSUPPORTED_FORMAT', `The scene proxy descriptor misses ${key}`, {
         key,
       });
-  for (const key of ['bytes', 'triangles', 'nodes'] as const)
+  for (const key of ['bytes', 'triangles', 'nodes', 'groups', 'owners', 'instances'] as const)
     if (!Number.isSafeInteger(descriptor[key]) || descriptor[key]! < 0)
       throw new EngineError('UNSUPPORTED_FORMAT', `The scene proxy descriptor misses ${key}`, {
         key,
@@ -79,36 +80,42 @@ function checkChildren(descriptor: SceneProxyDescriptor, columns: SceneProxyColu
 /**
  * The proxy reread and rechecked before a single ray touches it.
  *
- * Layout, little-endian: `u32 'WGPX' · version · triangles · nodes · shapes · shape triangles ·
- * instances`, then the shape counts, shape vertices and albedos, each instance's shape and map, the
- * flat position of every placed shape triangle, the loose world vertices and albedos, exact node
- * bounds and their four children, concatenated. Shared shapes are expanded here, so the columns
- * are the flat proxy the compiler simplified. Each section has a length the header imposes; a file
- * of another size is rejected in bulk, because a node that named a missing triangle would make
- * the shader read anything.
+ * Layout: eleven little-endian header words, followed by shared/loose geometry, tree columns
+ * and versioned ownership. `docs/FORMAT.md` specifies every count and column.
+ * Each section has a length the header imposes; a file of another size is rejected in
+ * bulk, because a node that named a missing triangle would make the shader read anything.
  */
 export function decodeSceneProxy(
   descriptor: SceneProxyDescriptor,
   buffer: ArrayBuffer,
 ): SceneProxy {
   assertSceneProxy(descriptor);
+  const header = SCENE_PROXY_HEADER_WORDS * 4;
   const wrongLength = (expected: number) =>
     bad('The scene proxy object does not have the length its manifest declares', {
       bytes: buffer.byteLength,
       expected,
     });
-  const header = SCENE_PROXY_HEADER_WORDS * 4;
-  if (buffer.byteLength < header) throw wrongLength(header);
+  if (buffer.byteLength < header || buffer.byteLength !== descriptor.bytes)
+    throw wrongLength(Math.max(header, descriptor.bytes));
   const words = new Uint32Array(buffer, 0, SCENE_PROXY_HEADER_WORDS);
   if (words[0] !== SCENE_PROXY_MAGIC)
     throw bad('The scene proxy object has no WGPX signature', { magic: words[0] });
-  const [, version, triangles, nodes, shapeCount, shapeTriangles, instances] = words;
   if (
-    version !== SCENE_PROXY_VERSION ||
-    triangles !== descriptor.triangles ||
-    nodes !== descriptor.nodes
+    words[1] !== SCENE_PROXY_VERSION ||
+    words[2] !== descriptor.triangles ||
+    words[3] !== descriptor.nodes ||
+    words[4] !== descriptor.groups ||
+    words[5] !== descriptor.owners ||
+    words[6] !== descriptor.instances ||
+    words[7] !== 0
   )
-    throw bad('The scene proxy object disagrees with its manifest', { version, triangles, nodes });
+    throw bad('The scene proxy object disagrees with its manifest', {
+      version: words[1],
+      triangles: words[2],
+      nodes: words[3],
+    });
+  const [, , triangles, nodes, , , , , shapeCount, shapeTriangles, instances] = words;
   const tables =
     header +
     (shapeCount +
@@ -127,13 +134,18 @@ export function decodeSceneProxy(
     maps: floats(instances * PROXY_TRANSFORM_FLOATS),
   };
   const placed = placedTriangles(shapes),
-    loose = triangles - placed,
-    wanted =
-      tables +
-      (placed +
-        loose * (PROXY_TRIANGLE_FLOATS + 1) +
-        nodes * (PROXY_NODE_FLOATS + PROXY_NODE_WORDS)) *
-        4;
+    loose = triangles - placed;
+  const wanted =
+    tables +
+    (placed +
+      loose * (PROXY_TRIANGLE_FLOATS + 1) +
+      nodes * (PROXY_NODE_FLOATS + PROXY_NODE_WORDS) +
+      triangles +
+      descriptor.groups +
+      1 +
+      descriptor.owners * 2) *
+      4 +
+    descriptor.instances * (4 + 16 * 8);
   if (loose < 0 || buffer.byteLength !== wanted) throw wrongLength(wanted);
   const positions = integers(placed);
   const flat = { triangles: floats(loose * PROXY_TRIANGLE_FLOATS), albedo: integers(loose) };
@@ -141,6 +153,7 @@ export function decodeSceneProxy(
     ...(instances === 0 ? flat : expandShapes(triangles, shapes, positions, flat)),
     nodeBounds: floats(nodes * PROXY_NODE_FLOATS),
     nodeChildren: integers(nodes * PROXY_NODE_WORDS),
+    ...decodeProxyOwnership(descriptor, buffer, at),
   };
   checkChildren(descriptor, data);
   return { ...descriptor, data };

@@ -17,8 +17,15 @@ impl<'a> Level0<'a> {
             return 0.0;
         }
         let (to_cut, to_level0) = rayon::join(
-            || one_sided(level0.pos, level0.triangles, &Grid::new(level0.pos, cut)),
-            || one_sided(level0.pos, cut, level0),
+            || {
+                one_sided(
+                    level0.pos,
+                    level0.triangles,
+                    &Grid::new(level0.pos, cut),
+                    0.0,
+                )
+            },
+            || one_sided(level0.pos, cut, level0, 0.0),
         );
         to_cut.max(to_level0)
     }

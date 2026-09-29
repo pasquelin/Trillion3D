@@ -25,21 +25,35 @@ export type MotionRoot = { world: MatrixElements };
  * changes — `M · (eye, 1) − eye`, computed in double before the single-precision round.
  */
 export function createPlacementMotion(device: GPUDevice, roots: readonly MotionRoot[]) {
-  const count = Math.max(1, roots.length);
-  const mirror = new Float32Array(count * 16);
-  for (let w = 0; w < count; w++) mirror.set(IDENTITY_MATRIX4, w * 16);
-  const buffer = device.createBuffer({
-    label: 'Trillion3D TAA placement motion v1',
-    size: mirror.byteLength,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  });
-  device.queue.writeBuffer(buffer, 0, mirror);
-  /** Pose of each root at the last accumulated frame. */
-  const previous = new Float64Array(count * 16);
-  const rememberPoses = () => {
-    for (let w = 0; w < roots.length; w++) previous.set(roots[w].world.elements, w * 16);
+  let count = 0,
+    mirror = new Float32Array(0),
+    buffer: GPUBuffer | undefined,
+    /** Pose of each root at the last accumulated frame. */
+    previous = new Float64Array(0);
+  const rememberPoses = (from = 0) => {
+    for (let w = from; w < roots.length; w++) previous.set(roots[w].world.elements, w * 16);
   };
-  rememberPoses();
+  /** One entry per root: those held keep their motion and pose, new ones start still. */
+  const size = () => {
+    const kept = count;
+    count = Math.max(1, roots.length);
+    const next = new Float32Array(count * 16),
+      poses = new Float64Array(count * 16);
+    next.set(mirror);
+    for (let w = kept; w < count; w++) next.set(IDENTITY_MATRIX4, w * 16);
+    poses.set(previous);
+    mirror = next;
+    previous = poses;
+    buffer?.destroy();
+    buffer = device.createBuffer({
+      label: 'Trillion3D TAA placement motion v1',
+      size: mirror.byteLength,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    });
+    device.queue.writeBuffer(buffer, 0, mirror);
+    rememberPoses(kept);
+  };
+  size();
   /** Roots whose entry is not identity. */
   const moved: number[] = [];
   const current = new Float64Array(16),
@@ -61,12 +75,19 @@ export function createPlacementMotion(device: GPUDevice, roots: readonly MotionR
   };
   const flush = () => {
     if (to < from) return;
-    device.queue.writeBuffer(buffer, from * 64, mirror, from * 16, (to - from + 1) * 16);
+    device.queue.writeBuffer(buffer!, from * 64, mirror, from * 16, (to - from + 1) * 16);
     from = count;
     to = -1;
   };
   return {
-    buffer,
+    /** Replaced when roots join in place (`grow`): read at each frame, never kept. */
+    get buffer() {
+      return buffer!;
+    },
+    /** Roots joined the list in place (`../placement/webgpuGrowth.ts`): the buffer follows. */
+    grow() {
+      if (roots.length > count) size();
+    },
     /** True when at least one root carries motion this frame. */
     get moved() {
       return moved.length > 0;
@@ -103,7 +124,7 @@ export function createPlacementMotion(device: GPUDevice, roots: readonly MotionR
       rememberPoses();
     },
     dispose() {
-      buffer.destroy();
+      buffer!.destroy();
     },
   };
 }

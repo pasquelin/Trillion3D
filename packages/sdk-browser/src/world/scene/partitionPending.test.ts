@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import type { RenderBackend } from '../../backend/types.ts';
 import { hostFramingCamera } from '../../host/scene/graphObjects.ts';
 import type { PartitionCells } from '../../scene/partition/cells.ts';
+import { createCellPages, withHoldings } from '../../scene/partition/cellPages.ts';
 import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 import { createPartitionFrame } from './partitionFrame.ts';
 
@@ -12,14 +13,19 @@ test('a still camera is drawn again until the cells it asked for within reach ar
   // The interactive session draws on demand: once the camera stops, only `pending` asks for the
   // frames that place the cells read after it (`hostRuntime.ts`, `pendingFrame`).
   let later = true,
-    read = () => {};
-  const cells = {
-    frame(_eye: number[], _reach: number, io: Io) {
-      io.request(['near.json'], false);
-      io.request(['ahead.json'], true);
-      return later;
-    },
-  } as unknown as PartitionCells;
+    read = () => {},
+    decodes: Promise<void>[] = [];
+  const cells = withHoldings(
+    { meshes: new Map(), manifest: createCellPages(undefined, () => []) },
+    {
+      frame(_eye: number[], _reach: number, io: Io) {
+        io.request(['near.json'], false);
+        io.request(['ahead.json'], true);
+        return later;
+      },
+      decodes: () => decodes.splice(0),
+    } as unknown as PartitionCells,
+  );
   const streamer = {
     request: (urls: readonly string[]) =>
       new Promise<void>((resolve) => {
@@ -44,4 +50,9 @@ test('a still camera is drawn again until the cells it asked for within reach ar
   frame();
   read();
   assert.equal(await frame.pending(), false, 'nothing is left to place');
+  // A cell handed to the decode pool asks for the frame that places it once it lands (#575).
+  frame();
+  read();
+  decodes = [Promise.resolve()];
+  assert.equal(await frame.pending(), true, 'a decode landed');
 });

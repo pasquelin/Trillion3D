@@ -1,0 +1,149 @@
+/**
+ * A tile's compaction (`./shader.ts`), `words` mask words a slice. A walk tests the lights a batch
+ * at a time, one per thread; each kept one is written at what the batches before kept plus the
+ * bit count before it: increasing, determined order. The first walk fills the lists and counts
+ * true; with `pool`, a slice that counted more reserves room for all of them (one atomic add),
+ * names its start in its list's first word, and the kept lights are written there in the same
+ * order (#849). No room left: the overflow word is raised, the slice gets `TILE_NO_SLICE`.
+ *
+ * Without `pool` — the narrow pass, at most `TILE_LIGHTS` lights — there is one batch and no
+ * room to track: each kept light is written straight at its rank, the shape of the pass before
+ * any light count was taken (#822, #849).
+ */
+export const tileCompactWgsl = (words: number, pool: boolean) => `
+/** One mask, two slices: the first ${words} words are the opaque list's, the next those of
+ *  the blend list. One rank function knows how to read them, indexed by the start of its
+ *  slice — no pointer into workgroup memory, which not every device takes as a parameter. */
+const OPAQUE_MASK:u32=0u;
+const BLEND_MASK:u32=${words}u;
+var<workgroup> hits:array<atomic<u32>,${2 * words}u>;
+/** Rank of a kept light: the number of kept bits before it in the same slice. */
+fn rankBefore(mask:u32,lane:u32)->u32{
+ let word=mask+lane/32u;
+ var rank=0u;
+ for(var before=mask;before<word;before++){rank=rank+countOneBits(atomicLoad(&hits[before]));}
+ return rank+countOneBits(atomicLoad(&hits[word])&((1u<<(lane%32u))-1u));
+}
+fn maskHolds(mask:u32,lane:u32)->bool{
+ return (atomicLoad(&hits[mask+lane/32u])&(1u<<(lane%32u)))!=0u;
+}
+/** Kept bits of a slice's first \`words\` mask words: those a batch's lights fill. */
+fn maskTotal(mask:u32,words:u32)->u32{
+ var total=0u;
+ for(var w=0u;w<words;w++){total=total+countOneBits(atomicLoad(&hits[mask+w]));}
+ return total;
+}
+/** Tests light \`index\` against the slices and sets its bit, thread \`lane\` of the batch. A
+ *  directional light reaches everywhere: no tile bound can reject it. The others are kept only
+ *  if their range sphere, brought into the pass's frame, touches the slice. */
+fn markLight(index:u32,lane:u32,hasOpaque:bool,seesSky:bool){
+ let light=lights.items[index];
+ var keep=vec2<bool>(hasOpaque,true);
+ if(!isSun(light)){keep=sliceHits(light.positionRange.xyz-view.origin.xyz,light.positionRange.w,hasOpaque,seesSky);}
+ let bit=1u<<(lane%32u);
+ if(keep.x){atomicOr(&hits[OPAQUE_MASK+lane/32u],bit);}
+ if(keep.y){atomicOr(&hits[BLEND_MASK+lane/32u],bit);}
+}${pool ? batchedWalkWgsl(words) : NARROW_WALK_WGSL}`;
+
+/** The narrow pass's one batch: every light of the scene has its thread and its place. */
+const NARROW_WALK_WGSL = `
+/** Parallel compact, each light at its rank: increasing order, as a single-thread loop. */
+fn walkLights(lane:u32,count:u32,hasOpaque:bool,seesSky:bool,base:u32){
+ if(lane<count){markLight(lane,lane,hasOpaque,seesSky);}
+ workgroupBarrier();
+ if(lane<count&&maskHolds(OPAQUE_MASK,lane)){tiles[base+TILE_OPAQUE_BASE+rankBefore(OPAQUE_MASK,lane)]=lane;}
+ if(lane<count&&maskHolds(BLEND_MASK,lane)){tiles[base+TILE_BLEND_BASE+rankBefore(BLEND_MASK,lane)]=lane;}
+}`;
+
+/** The wide pass's walk, a batch at a time, then the view's pool (`./pool.ts`). */
+const batchedWalkWgsl = (words: number) => `
+/** What the batches before kept, and, per slice, where the walk writes and how many it has room
+ *  for: its list, then its slice of the pool. */
+var<workgroup> kept:vec2u;
+var<workgroup> start:vec2u;
+var<workgroup> room:vec2u;
+/** Adds a full batch's totals to \`kept\` and clears its masks: thread zero, between batches. */
+fn clearedKept(){
+ kept+=vec2u(maskTotal(OPAQUE_MASK,${words}u),maskTotal(BLEND_MASK,${words}u));
+ for(var word=0u;word<${2 * words}u;word++){atomicStore(&hits[word],0u);}
+}
+/** Parallel compact of the batch in the masks, thread \`lane\` holding light \`index\`, each kept
+ *  light at its rank after what the batches before kept: increasing order, as a single-thread
+ *  loop. A rank past the slice's room is not written. */
+fn writeBatch(index:u32,lane:u32,count:u32){
+ if(index<count&&maskHolds(OPAQUE_MASK,lane)){let at=kept.x+rankBefore(OPAQUE_MASK,lane);if(at<room.x){tiles[start.x+at]=index;}}
+ if(index<count&&maskHolds(BLEND_MASK,lane)){let at=kept.y+rankBefore(BLEND_MASK,lane);if(at<room.y){tiles[start.y+at]=index;}}
+}
+/** One walk over the scene's \`count\` lights, every thread in step. */
+fn walkLights(lane:u32,count:u32,hasOpaque:bool,seesSky:bool){
+ for(var first=0u;first<count;first+=${words * 32}u){
+  let index=first+lane;
+  if(index<count){markLight(index,lane,hasOpaque,seesSky);}
+  workgroupBarrier();
+  writeBatch(index,lane,count);
+  // Another batch follows: thread zero counts what this one kept, then clears its mask.
+  if(first+${words * 32}u<count){workgroupBarrier();if(lane==0u){clearedKept();}workgroupBarrier();}
+ }
+}
+struct TilePool{start:u32,capacity:u32,head:atomic<u32>,overflow:atomic<u32>,}
+@group(0) @binding(4) var<storage,read_write> pool:TilePool;
+/** The two true counts, which thread zero hands to every thread after the first walk. */
+var<workgroup> counted:vec2u;
+/** Thread zero: a slice past its list takes room for its \`total\` lights and names its start in
+ *  its first word \`slot\` — \`TILE_NO_SLICE\` and the overflow raised when the pool is full. */
+fn spill(slice:u32,total:u32,slot:u32){
+ room[slice]=0u;
+ if(total<=TILE_LIGHTS){return;}
+ // The count of what was asked stops at half the word's range: it never wraps back into room.
+ var at=0xffffffffu;
+ if(atomicLoad(&pool.head)<0x80000000u){at=atomicAdd(&pool.head,total);}
+ var first=TILE_NO_SLICE;
+ if(at<pool.capacity&&total<=pool.capacity-at){first=pool.start+at;room[slice]=total;}
+ else{atomicStore(&pool.overflow,1u);}
+ start[slice]=first;
+ tiles[slot]=first;
+}`;
+
+/**
+ * Thread zero's reset of the compaction, at the pass's start, and every thread's clearing of the
+ * masks: the statements the pass runs before its first barrier, `base` its tile record.
+ */
+export const tileCompactResetWgsl = (words: number, pool: boolean) =>
+  `${pool ? WALK_RESET_WGSL : ''} if(lane<${2 * words}u){atomicStore(&hits[lane],0u);}`;
+
+/** The wide pass's walk state: nothing kept, each slice writing its list, a list's room. */
+const WALK_RESET_WGSL = ` if(lane==0u){
+  kept=vec2u(0u);start=vec2u(base+TILE_OPAQUE_BASE,base+TILE_BLEND_BASE);room=vec2u(TILE_LIGHTS);
+ }
+`;
+
+/**
+ * The compaction of the tile's `count` lights into its record at `base`, in uniform control flow:
+ * the walk, the two true counts, and with `pool` the slices past their list (#849).
+ */
+export const tileCompactStatementsWgsl = (words: number, pool: boolean) =>
+  pool
+    ? ` walkLights(lane,count,hasOpaque,seesSky);
+ let live=(count-(max(count,1u)-1u)/${words * 32}u*${words * 32}u+31u)/32u; // the last batch's words
+ if(lane==0u){
+  let total=kept+vec2u(maskTotal(OPAQUE_MASK,live),maskTotal(BLEND_MASK,live));
+  tiles[base]=total.x;tiles[base+1u]=total.y;counted=total;
+ }${spillWgsl(words)}`
+    : ` walkLights(lane,count,hasOpaque,seesSky,base);
+ if(lane==0u){tiles[base]=maskTotal(OPAQUE_MASK,${words}u);tiles[base+1u]=maskTotal(BLEND_MASK,${words}u);}`;
+
+/** The pool's walk of a tile a slice of which passed its list; nothing for any other tile. A
+ *  scene of one batch keeps its masks whole: its kept lights are written again from them, never
+ *  tested twice. A larger one walks its lights again, masks cleared. */
+const spillWgsl = (words: number) => `
+ // A slice past its list: room in the pool, then its kept lights written there (#849).
+ let total=workgroupUniformLoad(&counted);
+ if(max(total.x,total.y)>TILE_LIGHTS){
+  let oneBatch=count<=${words * 32}u;
+  // The first walk's list writes land before thread zero names the slices over them.
+  storageBarrier();
+  if(!oneBatch&&lane<2u*BLEND_MASK){atomicStore(&hits[lane],0u);}
+  if(lane==0u){kept=vec2u(0u);spill(0u,total.x,base+TILE_OPAQUE_BASE);spill(1u,total.y,base+TILE_BLEND_BASE);}
+  workgroupBarrier();
+  if(oneBatch){writeBatch(lane,lane,count);}else{walkLights(lane,count,hasOpaque,seesSky);}
+ }`;

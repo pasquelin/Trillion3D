@@ -16,7 +16,7 @@ import { createGpuDagSelection, packDagSelection } from '../../../gpu/dag/select
 import { prepareCones } from './cones.ts';
 import { grantFrameTargets } from './targetGrant.ts';
 import { ensureUniform } from './pipelineFor.ts';
-import { dropVis, grantCapability } from '../io/drops.ts';
+import { dropVis, fallbackToCpuCut, grantCapability } from '../io/drops.ts';
 import { throwIfStopped } from '../io/lost.ts';
 import { prepareWebgpuTextures } from './textures.ts';
 import { prepareWebgpuVisibility } from './visibility.ts';
@@ -135,11 +135,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   vis.geometryBlocks.clear();
   let geometryFailure: { error: unknown } | undefined;
   try {
-    ({
-      concatPos: vis.concatPos,
-      concatUv: vis.concatUv,
-      concatNrm: vis.concatNrm,
-    } = prepareWebgpuGeometry(gpuDevice, allPages, vis.geometryBlocks));
+    Object.assign(vis, prepareWebgpuGeometry(gpuDevice, allPages, vis.geometryBlocks));
   } catch (error) {
     geometryFailure = { error };
   }
@@ -164,16 +160,16 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   await step('direct lights', () => prepareDirectLights(rt, gpuDevice));
   await step('shadow pipelines', () => prepareShadowPipelines(rt, gpuDevice));
   prepareCones(rt);
-  // Every cluster carries its own error band, so the GPU cut is one thread per cluster.
+  // One thread per cluster, each with its own error band; a device that cannot hold it is said.
   if (vis.gpuDraw && selectionRoots.length) {
     run.gpuSelection = await step('GPU cut', () =>
       createGpuDagSelection(gpuDevice, packDagSelection(selectionRoots), {
         residentCut: true,
         diagnosticGpuVariant: rt.context.diagnosticGpuVariant,
+        onRefused: (reason, details) => fallbackToCpuCut(rt, reason, details),
       }),
     );
-    // The GPU has just received ABSOLUTE world matrices: no render origin is posted there yet, and
-    // the first image will bring them back to the eye wherever it is then.
+    // ABSOLUTE world matrices on the GPU, no render origin yet: the first image brings them back.
     run.worldUploadOrigin.fill(NaN);
   }
   capabilities.gpuDriven = !!run.gpuSelection;

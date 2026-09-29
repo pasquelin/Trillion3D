@@ -23,6 +23,9 @@ export const SAMPLED_RANKS = 1024;
  * `hashUnit` is the engine's integer hash: the offset depends on the pixel and the image rank
  * only, so a replayed image is the same image, and two runs give the same sequence. The rank
  * is bounded by the caller (`SAMPLED_RANKS`): a large one would eat the fraction's precision.
+ *
+ * A list with no shadowed light is never drawn (`listShadowed`, #1249): with no shadow to read,
+ * the three weight walks would cost three times the full sum they estimate.
  */
 export const DIRECT_LIGHT_SAMPLING_WGSL = `
 const LIGHT_SAMPLES:u32=${LIGHT_SETTINGS.samplesPerPixel}u;
@@ -41,12 +44,25 @@ fn lightWeight(light:DirectLight,N:vec3f,P:vec3f)->f32{
 fn listedWeight(base:u32,index:u32,N:vec3f,P:vec3f)->f32{
  return lightWeight(directLights.items[tileLights[base+TILE_OPAQUE_BASE+index]],N,P);
 }
+/** Whether a moving image draws a tile's opaque list: a list of \`LIGHT_SAMPLES\` to
+ *  \`TILE_LIGHTS\` lights one of which has a shadow slot — what \`shadowFactor\` reads first,
+ *  \`i32(slot)>=0\`, which is \`slot>-1.0\`. Drawing saves shadow reads only: a list that reads
+ *  none is summed in full, the still image's exact sum, for the cost of one walk of its slots
+ *  (#1249). A list \`sampledTileLighting\` sums in full anyway answers false without a walk. */
+fn listShadowed(tile:vec2u,tilesX:u32)->bool{
+ let base=(tile.y*tilesX+tile.x)*TILE_STRIDE;
+ let kept=tileLights[base];
+ if(kept<=LIGHT_SAMPLES||kept>TILE_LIGHTS){return false;}
+ for(var index=0u;index<kept;index++){
+  if(directLights.items[tileLights[base+TILE_OPAQUE_BASE+index]].params.y>-1.0){return true;}
+ }
+ return false;
+}
 fn sampledTileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,tile:vec2u,tilesX:u32,rank:u32,pixel:vec2f)->vec3f{
  let base=(tile.y*tilesX+tile.x)*TILE_STRIDE;
  let kept=tileLights[base];
- // A tile past its list walks every light, exactly.
- if(kept>TILE_LIGHTS){return sceneLighting(rgb,metal,rough,N,V,P,ao);}
- if(kept<=LIGHT_SAMPLES){return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE);}
+ // A tile past its list walks its slice of the pool in full, exactly, as a short list does.
+ if(kept<=LIGHT_SAMPLES||kept>TILE_LIGHTS){return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE);}
  // No private array of weights (#924): each loop recomputes the weight it reads, the same bits.
  var total=0.0;
  for(var index=0u;index<kept;index++){total+=listedWeight(base,index,N,P);}

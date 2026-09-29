@@ -56,6 +56,7 @@ export async function probeBackendContext(
     ],
     backends: [],
     base,
+    worldRoots: [],
   });
   return seen!;
 }

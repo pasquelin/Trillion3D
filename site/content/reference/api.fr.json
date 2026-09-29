@@ -148,6 +148,14 @@
   "assertCacheRoot": {
     "summary": "Ce qu’un hôte peut vérifier sur la racine d’un manifeste de cache (`clusters.json`) avant aucune de ses pages : le cache est prêt, de la portée demandée, dans un format que lit ce SDK."
   },
+  "CellRows": {
+    "summary": "Une cellule décodée, telle que ses rangées en sont écrites.",
+    "members": {
+      "nodes": "Combien de nœuds la cellule porte.",
+      "ranks": "Par nœud, le rang de son parent (`-1` : la racine de la scène), puis celui de son maillage.",
+      "locals": "Par nœud, sa matrice locale."
+    }
+  },
   "readPagedManifest": {
     "summary": "Le manifeste sous `root`, ses pages et leurs fichiers annexes lus côte à côte par `read` — dans un navigateur `fetchVerified`, qui prouve chacun par la taille et l’empreinte qui le nomment : les champs de la racine, ceux de la tête, et les primitives de chaque page de maillage dans l’ordre (`decodeManifestBinary`)."
   },
@@ -260,6 +268,14 @@
       "onEvent": "Appelé à chaque évènement."
     }
   },
+  "BatchRead": {
+    "summary": "Comment `request` lit un lot : son annulation, sa priorité, et ce qui s’exécute à l’arrivée de chaque page.",
+    "members": {
+      "signal": "Annule les lectures du lot.",
+      "priority": "Priorité dans la file, 1 par défaut.",
+      "onPage": "S’exécute à l’arrivée de chaque page lue, pas après tout le lot."
+    }
+  },
   "BatchOutcome": {
     "summary": "Comment une tâche du lot s’est terminée.",
     "members": {
@@ -341,7 +357,7 @@
       "proxyTriangleBudget": "Budget total de triangles du proxy pour une scène entière, toutes instances comprises : l’empreinte résidente.",
       "proxyCellMetres": "Plancher de résolution du maillage proxy en mètres : taille des triangles simplifiés et des cases du cache de surface. Doublé par le compilateur si le budget est dépassé.",
       "proxyLeafTriangles": "Triangles par feuille du BVH : les boucles sur les feuilles sont bornées par cette constante.",
-      "traversalSteps": "Nœuds du BVH visités par rayon : bornés avant d’exécuter l’image, jamais dynamiques. Un nœud à 4 enfants couvre 4× plus d’arbre par pas qu’un BVH binaire.",
+      "traversalSteps": "Nœuds du BVH visités par rayon sur l’arbre tel que construit, bornés avant d’exécuter l’image. Un réajustement ajoute les nœuds qu’il a laissés entrer dans un rayon, jamais le nombre de nœuds (`bounce/proxy.ts`). Un nœud à 4 enfants couvre 4× plus d’arbre par pas qu’un BVH binaire.",
       "traversalStack": "Profondeur de la pile de parcours. Un nœud à 4 enfants en empile jusqu’à 3 ; 32 couvre des millions de triangles.",
       "cascadeLevels": "Niveaux des cascades de sondes. Les `cascadeLevels - 1` premiers suivent la position de la caméra ; le dernier est fixe dans le monde et couvre toute la scène.",
       "cascadeSize": "Sondes par axe et par niveau : un niveau est un cube de `cascadeSize³` sondes.",
@@ -398,13 +414,18 @@
       "levels": "Chaque niveau.",
       "reach": "Portée des rayons : la diagonale de l’étendue, au-delà de laquelle il n’y a rien à toucher.",
       "shareOf": "Sondes du lot de travail par image, par niveau : parts publiées appliquées à un lot total.",
-      "follow": "Replace les niveaux mobiles autour d’un point de vue. Renvoie vrai quand au moins un indice de case de base a changé : c’est le seul signal dont la convergence a besoin pour repartir, sans aucune relecture GPU."
+      "follow": "Replace les niveaux mobiles autour d’un point de vue. Renvoie vrai quand au moins un indice de case de base a changé : c’est le seul signal dont la convergence a besoin pour repartir, sans aucune relecture GPU.",
+      "reserveCount": "Capacité fixe réservée avant que les transformations puissent agrandir la scène.",
+      "invalidLevels": "Niveaux dont l’espacement ou la présence a changé lors du dernier recalcul. Les décalages de la base utilisent les marques des cellules.",
+      "replan": "Réapplique la politique existante de résolution spatiale aux limites actuelles de la géométrie."
     }
   },
   "BounceOccupancy": {
     "summary": "Où garder une sonde vaut la peine : la carte d’occupation des cascades.",
-    "description": "Une cascade au-dessus d’une ville dépense la plupart de ses cases dans le ciel vide et le cœur plein des bâtiments, où l’irradiance n’est jamais demandée. Le planificateur doit savoir, avant de dépenser un rayon, si une case touche de la géométrie. C’est une propriété du monde, pas de la caméra : calculée une fois à la construction, valable pour toutes les positions que prennent ensuite les niveaux mobiles. La carte du niveau le plus fin est marquée par les boîtes englobantes des triangles du proxy plus une bordure d’une case : les huit coins d’une case occupée sont toujours gardés, donc rien d’utile n’est perdu. Les niveaux suivants sont des réductions exactes — deux cases pour une par axe, puisque les écarts sont des multiples puissances de deux du plus fin — puis dilatées d’une case pour la même raison. Rien ici ne nomme une scène ni n’examine la caméra : une étendue, des triangles, des cases.",
+    "description": "Une cascade au-dessus d’une ville dépense la plupart de ses cases dans le ciel vide et le cœur plein des bâtiments, où l’irradiance n’est jamais demandée. Le planificateur doit savoir, avant de dépenser un rayon, si une case touche de la géométrie. C’est une propriété du monde, pas de la caméra : calculée à la construction puis de nouveau quand la géométrie déplacée se pose, valable pour toutes les positions que prennent ensuite les niveaux mobiles. La carte du niveau le plus fin est marquée par les boîtes englobantes des triangles du proxy plus une bordure d’une case : les huit coins d’une case occupée sont toujours gardés, donc rien d’utile n’est perdu. Les niveaux suivants sont des réductions exactes — deux cases pour une par axe, puisque les écarts sont des multiples puissances de deux du plus fin — puis dilatées d’une case pour la même raison. Rien ici ne nomme une scène ni n’examine la caméra : une étendue, des triangles, des cases.",
     "members": {
+      "moved": "Des propriétaires ont bougé : `boxes` porte six bornes monde par triangle du proxy, `changed` marque ceux qui ont bougé.",
+      "settle": "Une fois par image : la première image après l’arrêt du mouvement reconstruit la carte exacte sur `extent`.",
       "occupied": "Vrai quand une case d’un niveau dans sa grille mérite une sonde.",
       "marked": "Cases marquées et cases au total du niveau le plus fin : le gain publié.",
       "cells": "Cases du niveau le plus fin.",
@@ -845,7 +866,7 @@
       "primitives": "Ses primitives.",
       "worstStalls": "La table des blocages du compilateur : au plus dix primitives avec un groupe bloqué qui a gardé des racines au niveau 0, la pire d’abord. Absente d’un cache compilé avant elle.",
       "texturePreviews": "Une entrée par couple (texture, atlas) décodé, rangée par texture puis par atlas ; vide sans image décodable.",
-      "textures": "Modèle des niveaux cuits, relatif au manifeste : {sha} l’empreinte de l’image source, {kind} le nom de l’atlas (PREVIEW_ATLAS_NAMES), {level} le rang du niveau. Absent d’un cache compilé avant les niveaux cuits, que ce lecteur refuse par la version du fichier annexe.",
+      "textures": "Modèle des niveaux cuits, relatif au manifeste : {sha} l’empreinte de l’image source, {kind} le nom de l’atlas (PREVIEW_ATLAS_NAMES), {level} le rang du niveau. Absent d’un cache compilé avant les niveaux cuits, que ce lecteur refuse par la version du fichier annexe. `version` est celle des niveaux (`TEXTURE_PREVIEW_VERSION`) : un lecteur ne lit aucun niveau d’une autre.",
       "proxy": "Où lire le proxy de scène résident et son BVH : la géométrie que touchent les rayons. Absent d’un cache compilé avant le rebond, qui reste lisible tel quel."
     }
   },
@@ -1158,7 +1179,7 @@
   },
   "createGpuPageCache": {
     "summary": "Frontière d’allocation et de file WebGPU.",
-    "description": "Les octets des pages et la règle sont fournis par l’hôte. Les écritures en file sont ordonnées ; la libération attend les envois en cours avant de détruire."
+    "description": "Les octets des pages et la règle sont fournis par l’hôte. Les écritures en file sont ordonnées ; la libération attend les envois en cours avant de détruire. `pin(key, 'held')` conserve une page avant les épingles ordinaires lors de `resize(slots)`, qui n’accepte plus d’ensemble held. Un réépinglage ordinaire conserve ce niveau ; `unpin(key)` le supprime."
   },
   "createJob": {
     "summary": "Pas de minuterie, de DOM, de fichiers ni d’interface."
@@ -1246,7 +1267,8 @@
       "options.controls": "Le contrôleur qui déplace la caméra depuis le canevas ; `world.controls.kind` le change ensuite.",
       "options.signal": "Arrête les chargements du monde quand le signal est annulé.",
       "options.physics": "Allume la physique (`world.physics`) : `true`, ou gravité et budgets. Jolt n’est chargé qu’alors.",
-      "options.temporalAntialiasing": "L’anticrénelage temporel, WebGPU seulement : un décalage sous-pixel accumulé au fil des images. `false` dessine chaque pixel en son centre, sans historique, ce que demande une capture exacte au pixel près ; changé ensuite par `world.temporalAntialiasing`."
+      "options.temporalAntialiasing": "L’anticrénelage temporel, WebGPU seulement : un décalage sous-pixel accumulé au fil des images. `false` dessine chaque pixel en son centre, sans historique, ce que demande une capture exacte au pixel près ; changé ensuite par `world.temporalAntialiasing`.",
+      "options.renderScale": "La fraction de l’affichage par axe à laquelle l’image est dessinée, avant que l’anticrénelage temporel ne la reconstruise à l’affichage : `'auto'` laisse le budget d’image la choisir entre `min` et `max` (`{ min, max }`, 0,5 et 1 par défaut ; sur WebGL2, qui ne fait que rééchantillonner, `min` vaut 1 par défaut), un nombre la fixe ; une image immobile est dessinée au maximum. Changée ensuite par `world.renderScale`."
     }
   },
   "crossVector3": {
@@ -1306,7 +1328,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "Identité du cache pour les erreurs de DAG par cluster : l’erreur QEM absolue du groupe sur les positions, les normales et les coordonnées de texture, bornée à l’étendue du groupe ; un cache v1 est refusé."
+    "summary": "Identité du cache pour les erreurs de DAG par cluster : l’erreur QEM absolue du groupe sur les positions, les normales et les coordonnées de texture, bornée à l’étendue du groupe, jamais inférieure à la distance de Hausdorff échantillonnée entre les enfants d’un groupe et ses sorties (#929) ; les caches v1 et v2 sont refusés."
   },
   "DagReport": {
     "summary": "Rapport du DAG d’une primitive ; seuls ses avertissements sont utilisés par le moteur.",
@@ -1368,7 +1390,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Le proxy relu et revérifié avant qu’un seul rayon le touche.",
-    "description": "Disposition, en little-endian : `u32 'WGPX' · u32 version · u32 triangles · u32 nodes`, puis les sommets dans le monde, les albédos, les limites exactes des nœuds et leurs quatre enfants, bout à bout. Chaque section a une longueur que l’en-tête impose ; un fichier d’une autre taille est refusé en bloc, parce qu’un nœud qui nommerait un triangle absent ferait lire n’importe quoi au shader."
+    "description": "Onze mots d’en-tête little-endian précèdent la géométrie partagée ou indépendante, les colonnes de l’arbre et la propriété versionnée. `docs/FORMAT.md` définit les comptes et colonnes. Toute longueur incorrecte est refusée avant lecture par un rayon."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S` décomposée en `position`, `quaternion`, `scale`."
@@ -1525,10 +1547,6 @@
   "emptyIrradiance": {
     "summary": "Une irradiance vide, prête à recevoir des sources."
   },
-  "encodeManifestBinary": {
-    "summary": "Sépare un manifeste en petit JSON qu’un lecteur analyse et en colonnes qu’il projette.",
-    "description": "Le descripteur renvoyé porte un `sha256` vide : seul l’appelant, qui tient les octets finis, peut en faire l’empreinte."
-  },
   "EngineCamera": {
     "summary": "La caméra du moteur : les nombres d’une image, dans des tampons propres réécrits sur place.",
     "description": "Aucune structure d’une bibliothèque de l’hôte ne traverse une signature après `readCameraWorld` (`world.ts`, la seule traduction depuis une caméra de l’hôte).",
@@ -1591,6 +1609,7 @@
       "MATERIAL_CLASS_CHANGE": "Un changement de matériau est inconnu, hors limites, le mettrait dans une classe de dessin qu’un moteur fixe à l’ouverture de la scène, ou répéterait une texture qu’il partage.",
       "MATERIAL_TEXTURE_SHARED": "Un changement de matériau est inconnu, hors limites, le mettrait dans une classe de dessin qu’un moteur fixe à l’ouverture de la scène, ou répéterait une texture qu’il partage.",
       "MATERIAL_CEILING": "Une page créerait plus de matériaux que `RUNTIME_MATERIAL_CEILING` en une session ; rien n’a été créé.",
+      "TEXTURE_BUDGET": "Une texture ajoutée après l’ouverture de la scène porterait la réserve de textures au-delà de `texturePoolBytes` ou des couches que l’appareil tient ; rien n’a été ajouté.",
       "INVALID_TRANSFORM": "Le placement d’un nœud n’est pas une matrice utilisable, ou un nœud serait son propre ancêtre.",
       "NON_FINITE_TRANSFORM": "Le placement d’un nœud n’est pas une matrice utilisable, ou un nœud serait son propre ancêtre.",
       "SINGULAR_PARENT_TRANSFORM": "Le placement d’un nœud n’est pas une matrice utilisable, ou un nœud serait son propre ancêtre.",
@@ -1608,6 +1627,7 @@
       "UNSUPPORTED_SCENE_UPDATE": "Ce chemin de dessin ne sait pas faire ce changement dans la scène.",
       "BATCHED_WORLD_VIEW": "Ce chemin de dessin ne sait pas faire ce changement dans la scène.",
       "RAYCAST_NO_VIEW": "Un point d’image a été demandé à un canvas sans taille : il n’y a pas d’image à travers laquelle viser.",
+      "SURFACE_CAPTURE_UNSUPPORTED": "Une capture de surfaces (`captureSurfaceView`) a été demandée à un chemin de dessin qui ne sait pas dessiner les surfaces de matériau dans une vue à part : le chemin WebGL2 n’en a pas.",
       "VERTICES_NOT_LOADED": "Les sommets d’un modèle chargé ont été lus avant `await geometry.loadVertices()` : une session les lit au premier besoin, jamais d’avance.",
       "SESSION_OPEN_FAILED": "La session du monde n’a pas pu s’ouvrir, pour une raison sans code propre (`world.diagnostic.error`) : l’erreur levée est dans `details.cause`.",
       "WEBGPU_LOST": "WebGPU a perdu son appareil, ou une erreur sur celui-ci a laissé un état dont rien ne peut dessiner : levée par `render`, `flush` et les lectures qui ont besoin de l’appareil, nommée par le diagnostic `gpu-device-lost`, et sur `world.diagnostic.error` quand une session n’a pas pu s’ouvrir pour cette raison.",
@@ -1828,7 +1848,7 @@
       "frameHeld": "Vrai quand l’image a été gardée : ni la scène, ni la vue, ni les ressources n’ont bougé, aucun travail asynchrone n’était en attente, et aucune étape CPU n’a tourné. Les pixels affichés sont ceux de l’image d’origine, au bit près. Ce qu’A FAIT l’image gardée est publié tel quel, jamais copié du dernier rendu complet : `drawCalls`, `triangles`, `submittedTriangles` et `totalSubmittedTriangles` ne comptent que la présentation, et les durées CPU et GPU par étape valent zéro quand l’étape n’a pas tourné, `null` quand rien ne l’a chronométrée. Un moteur dont l’image est une scène que dessine l’adaptateur témoin compte ce que cet adaptateur a envoyé dans cette image — rien, pour une image gardée. Ce que MONTRE l’image gardée reste décrit par la coupe qu’elle réaffiche : `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` et `residentPages` sont ceux de l’image d’origine, puisque c’est la même coupe. Absent d’un moteur qui ne garde pas ses images.",
       "streamingError": "Erreur de chargement persistante ; les URL en échec demandent de recharger l’explorateur après trois essais.",
       "gpuPassMs": "Dernière mesure de passes GPU de ce moteur ; null quand l’appareil ne sait pas faire d’horodatages.",
-      "gpuFrameMs": "Durée GPU de l’image que décrit `gpuPassMs.frame`. Jamais ajoutée à un champ `cpu*`. L’appareil est échantillonné toutes les quelques images, donc un nombre peut dater de quelques images. Vaut null avant le premier échantillon, depuis une image gardée jusqu’au prochain échantillon de l’appareil, sur un appareil sans `timestamp-query` et sur WebGL2.",
+      "gpuFrameMs": "Durée GPU de l’image que décrit `gpuPassMs.frame`. Jamais ajoutée à un champ `cpu*`. L’appareil est échantillonné toutes les quelques images, donc un nombre peut dater de quelques images. Vaut null avant le premier échantillon, depuis une image gardée jusqu’au prochain échantillon de l’appareil, sur un appareil sans `timestamp-query` et sur WebGL2 sans `EXT_disjoint_timer_query_webgl2`.",
       "gpuHostGapMs": "Temps CPU que la même image a passé entre deux de ses propres envois, et zéro quand elle n’envoie qu’une fois. C’est du temps de l’hôte, pas du GPU, c’est pourquoi `gpuFrameMs` l’exclut. Null quand il n’est pas mesuré.",
       "uncoveredTriangles": "Triangles des clusters que nomme la coupe publiée mais que l’image ne peut pas dessiner — pas de page résidente et pas d’ancêtre qui couvre. Un vrai trou dans l’image : zéro est la seule valeur saine. Null quand un moteur ne peut pas le dire (il dessine la coupe qu’il a choisie, donc il n’en a jamais).",
       "drawnTriangles": "Triangles que l’IMAGE ACTUELLE donne au dessin : sa coupe de clusters, opaques et transparents de la hiérarchie réunis. Les maillages transparents hors de la hiérarchie n’y sont pas (`transparentSubmittedTriangles`), et le rejet par occultation n’est pas retiré (`hizRejectedTriangles`). Compté à l’adoption de la coupe : aucune relecture GPU asynchrone n’est attendue, donc il ne vaut jamais `null` faute de temps, contrairement à `submittedTriangles`.",
@@ -1840,7 +1860,8 @@
       "pageDecodeMs": "Temps passé à décoder les pages.",
       "mathBatch": "État du régulateur des voies de calcul (`../math/path/governor.ts`) : voie actuelle de chaque opération par lot, médianes des deux voies, changements. `null` sur un hôte qui n’a ouvert aucun lot — non mesuré, pas « voie JavaScript ».",
       "pagesPlannedOffThread": "Intégration des pages hors du fil principal. `pagesPlannedOffThread` compte les arrivées dont le plan — la place de chaque cluster dans le paquet et les rangs de pages qu’il déplace — a été calculé par un travailleur, jamais celles que le repli a planifiées sur le fil principal. `pagePlanMs` est le temps cumulé de ces plans, mesuré par l’exécutant lui-même, quel que soit le fil : il n’est jamais ajouté à un `cpu*` ou `gpu*` par image. Les deux valent `null` tant qu’aucune arrivée n’a été planifiée — non mesuré, pas zéro.",
-      "pagePlanMs": "Temps passé à planifier les arrivées."
+      "pagePlanMs": "Temps passé à planifier les arrivées.",
+      "dynamicUploadBytes": "Octets de sommets de géométrie dynamique envoyés sur place à cette image (#573), dans le budget par image du monde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Absent là où aucun monde ne dessine."
     }
   },
   "frameStatistics": {
@@ -2103,7 +2124,9 @@
       "userData": "Place libre pour les données de celui qui a construit la géométrie.",
       "released": "Appelés quand la géométrie est rendue : ce qu’écoute la copie qu’en garde un moteur de rendu.",
       "getIndex": "La liste de triangles, ou `null`.",
-      "toNonIndexed": "Une géométrie qui dessine les mêmes triangles sans index : chaque coin est un sommet à lui."
+      "toNonIndexed": "Une géométrie qui dessine les mêmes triangles sans index : chaque coin est un sommet à lui.",
+      "usage": "`'dynamic'` : envoyée sur place, jamais redécoupée (#573) ; comme l’est une géométrie changée à chaque image.",
+      "maxBounds": "La boîte qu’une géométrie dynamique ne quitte jamais, si elle est déclarée : celle qui sert à l’écarter du rendu (#573)."
     }
   },
   "GEOMETRY_PAGE_CODEC": {
@@ -2507,6 +2530,7 @@
       "framebuffer": "Où dessiner ; `null` pour l’écran.",
       "width": "Largeur en pixels.",
       "height": "Hauteur en pixels.",
+      "displayWidth": "La largeur à laquelle l’image est montrée quand elle est dessinée en dessous (`world.renderScale`) : les niveaux de texture et les largeurs de ligne suivent le rapport. `width` en son absence.",
       "linear": "Radiance linéaire, ni passée par la courbe ni encodée, sur un noir transparent : l’entrée de la chaîne d’effets, dont l’alpha est la couverture."
     }
   },
@@ -2885,7 +2909,7 @@
     "summary": "Réglages publiés de l’éclairage direct.",
     "description": "Ce sont des choix produit nommés, pas des constantes enterrées : chaque limite à l’exécution les relit, et le diagnostic les publie tels quels.",
     "members": {
-      "tileLights": "Lumières que tient la liste d’une tuile d’écran, dans chacune de ses deux tranches de profondeur : sa mémoire est celle-ci, par tuile, quoi que tienne la scène. Une tuile qu’atteignent plus de lumières ne garde aucune liste et parcourt toutes les lumières de la scène — celles qui la manquent ajoutent un zéro exact —, si bien qu’aucune lumière n’est jamais perdue (X2).",
+      "tileLights": "Lumières que tient la liste d’une tuile d’écran, dans chacune de ses deux tranches de profondeur : sa mémoire est celle-ci, par tuile, quoi que tienne la scène. Une tuile qu’atteignent plus de lumières prend leurs indices dans une réserve à la taille de la vue et parcourt exactement celles-ci ; une tuile pour laquelle la réserve n’a plus de place parcourt toutes les lumières de la scène — celles qui la manquent ajoutent un zéro exact —, si bien qu’aucune lumière n’est jamais perdue (X2).",
       "tileSize": "Côté en pixels d’une tuile d’écran de la liste de lumières.",
       "samplesPerPixel": "Lumières éclairées en entier — lecture de l’ombre comprise — par pixel d’une image EN MOUVEMENT (X2) : les autres sont pesées sans leur ombre, et celles qu’on éclaire sont tirées au sort en proportion, donc l’estimation est sans biais et l’anticrénelage temporel en fait la moyenne. Une image immobile éclaire chaque lumière de sa tuile et converge vers la somme exacte ; là, ce nombre ne joue aucun rôle.",
       "shadowPage": "Côté d’une page de l’atlas d’ombres, en texels : la case d’invalidation d’une face. Un objet qui bouge ne rend périmées que les pages que couvre sa boîte projetée, jamais toute la face.",
@@ -3948,7 +3972,7 @@
       "wasmAvailable": "Le module WebAssembly est chargé, à la bonne version du contrat.",
       "wasmSimd": "Le module a été compilé avec `simd128` ; `null` tant qu’aucun module n’est chargé.",
       "clockResolutionMs": "Précision de l’horloge du fil, en millisecondes ; `null` tant qu’elle n’a pas été estimée.",
-      "clockCoarse": "Vrai quand l’horloge est trop grossière pour arbitrer : tout reste sur la voie JavaScript.",
+      "clockCoarse": "Vrai quand l’horloge est trop grossière pour chronométrer une exécution : les exécutions sont chronométrées par lots regroupés.",
       "unavailableReason": "Pourquoi la voie WebAssembly n’est pas jouable, ou `null` quand elle l’est.",
       "operations": "Chaque opération."
     }
@@ -4077,7 +4101,19 @@
       "evictedTiles": "Tuiles de texture retirées.",
       "residentPages": "Ce qui était résident juste avant le réglage et juste après.",
       "residentTiles": "Tuiles de texture gardées, avant et après.",
-      "durationMs": "Le temps pris."
+      "durationMs": "Le temps pris.",
+      "tables": "Les tables par page dessinable agrandies pour un réservoir au-dessus d’elles (WebGPU), ou `null` quand aucune ne l’a été.",
+      "transientBytes": "Octets tenus à la fois pendant la copie du réservoir de géométrie : l’ancien réservoir et le nouveau à côté, accordés ensemble par l’appareil avant qu’aucune page ne bouge ; 0 quand aucun réservoir n’a bougé."
+    }
+  },
+  "TableGrowthReport": {
+    "summary": "La croissance des tables dimensionnées par ligne dessinable, telle qu’un pool au-dessus d’elles l’a demandée.",
+    "members": {
+      "drawSlots": "Lignes de visibilité que les tables tiennent maintenant.",
+      "casterSlots": "Lignes que lit la passe d’ombres, après les lignes de visibilité.",
+      "bytes": "Octets que tiennent les tables GPU agrandies — ceux demandés, en cas de refus.",
+      "refused": "`true` quand l’appareil les a refusées : les tables et le pool en place sont conservés.",
+      "durationMs": "Millisecondes qu’a prises la croissance, de la sonde à l’échange."
     }
   },
   "Mesh": {
@@ -4398,7 +4434,8 @@
       "left": "Bord gauche.",
       "right": "Bord droit.",
       "top": "Bord du haut.",
-      "bottom": "Bord du bas."
+      "bottom": "Bord du bas.",
+      "fitAspect": "Une boîte orthographique aussi haute que déclarée et aussi large que la forme de l’image le veut."
     }
   },
   "orthographicProjection": {
@@ -4470,7 +4507,7 @@
     "description": "Les six premiers sont les refus du décodage de page, repris mot pour mot de `geometryPage.ts` : un appelant les distingue comme avant. `PAGE_DECODE_FAILED` porte tout autre refus de la bibliothèque de décompression. `PAGE_DECODE_CANCELLED` répond à une annulation, `PAGE_DECODE_WORKER` à un exécutant disparu — seul ce dernier permet le repli."
   },
   "PAGE_DECODE_PROTOCOL": {
-    "summary": "Contrat de décodage des pages hors du fil principal, version 6 : la géométrie décodée voyage en un seul bloc avec son erreur de quantification, et l’emplacement de l’arène enregistre cette erreur dans le mot 8 ; `cut` change des triangles dessinés en pages, qui reviennent en octets avec leurs descripteurs, et, depuis la version 6, avec leur cône de normales, les triangles rangés disant si leurs pages en gardent un.",
+    "summary": "Contrat de décodage des pages hors du fil principal, version 7 : la géométrie décodée voyage en un seul bloc avec son erreur de quantification ; `cut` change des triangles dessinés en pages, qui reviennent en octets avec leurs descripteurs, et, depuis la version 6, avec leur cône de normales, les triangles rangés disant si leurs pages en gardent un ; depuis la version 7, `cells` lit le fichier de cellule d’une partition en les rangées qu’il place, et `cellPage` une page de son index de cellules (#575).",
     "description": "Le fil appelant envoie une `PageDecodeRequest`, l’exécutant renvoie une `PageDecodeAnswer` qui porte le même `id`. Rien ici ne touche la plateforme : pas de `Worker`, pas de récupération, pas d’horloge — l’adaptateur du navigateur porte tout cela, ce fichier ne porte que la forme du message, la liste fermée des échecs et la limite du réservoir. Propriété des tampons : `source` est **transférée** avec la demande, donc l’expéditeur ne la possède plus. Une réponse `verify` la rend, transférée à son tour ; une réponse `decode` rend à la place les tampons décodés, transférés aussi. Un exécutant qui ne transfère rien (le repli synchrone) renvoie exactement les mêmes valeurs : le contrat ne dit pas comment voyage le travail, seulement ce qu’il renvoie."
   },
   "PAGE_INTEGRATION_FAILURES": {
@@ -4540,6 +4577,8 @@
       "source": "`verify` : le tampon source rendu. `decode` : `null`, la source est consommée.",
       "decoded": "`decode` : la page décompressée.",
       "cut": "`cut` : les pages, leurs octets transférés. Absent sinon.",
+      "cells": "`cells` : par nœud, le rang de son parent du cœur (`-1` : la racine de la scène) et celui de son maillage dans `ranks`, deux entiers de 32 bits, et la matrice locale que le moteur compose pour sa pose dans `locals`, seize doubles ; tous deux transférés. Absent sinon.",
+      "cellPage": "`cellPage` : les emplacements de la page, ou ses cellules (`readCellPage`). Absent sinon.",
       "wasm": "Vrai quand le décodeur compilé en WebAssembly a fait le travail, faux pour le décodeur JavaScript. Les deux donnent les mêmes octets ; seul le compteur les distingue.",
       "taskMs": "Temps de la tâche, mesuré par l’exécutant lui-même."
     }
@@ -4551,7 +4590,8 @@
       "id": "La demande qui reçoit la réponse.",
       "ok": "Toujours `false`.",
       "code": "Pourquoi il a échoué.",
-      "message": "Le message d’origine, tel quel : l’appelant lève la même `Error` que le chemin synchrone."
+      "message": "Le message d’origine, tel quel : l’appelant lève la même `Error` que le chemin synchrone.",
+      "refusal": "Le code du refus nommé du moteur que la tâche a rencontré (`EngineError`), que l’appelant relève sous ce code ; absent pour tout autre échec."
     }
   },
   "pageDecodeFailureCode": {
@@ -4573,7 +4613,7 @@
   },
   "PageDecodeOp": {
     "summary": "`verify` : l’empreinte SHA-256 d’une page.",
-    "description": "`decode` : ses indices et ses attributs par sommet. `cut` : les triangles dessinés, rangés en cinq longueurs, si leurs pages gardent un cône, puis cinq tableaux de quatre octets, coupés en pages."
+    "description": "`decode` : ses indices et ses attributs par sommet. `cut` : les triangles dessinés, rangés en cinq longueurs, si leurs pages gardent un cône, puis cinq tableaux de quatre octets, coupés en pages. `cells` : le fichier de cellule d’une partition, lu en le parent, le maillage et la matrice locale de chaque nœud. `cellPage` : une page de son index de cellules, lue en les pages qu’elle liste ou ses cellules."
   },
   "PageDecodeRequest": {
     "summary": "Un message qui demande à un travailleur de vérifier, décompresser ou découper une page.",
@@ -4582,19 +4622,8 @@
       "id": "Numéro de la demande.",
       "op": "Ce qu’il faut faire.",
       "source": "Transféré avec le message : l’expéditeur n’en est plus le propriétaire.",
-      "maxDecodedBytes": "Plafond d’octets décodés d’une page de géométrie ; ignoré par `verify`."
-    }
-  },
-  "PageDecodeShare": {
-    "summary": "Le bail de mémoire partagée d’un travailleur : le tampon de l’arène, l’emplacement et la région qu’il possède, et le nombre d’emplacements, qui donne la taille de la zone de contrôle.",
-    "description": "Envoyé une fois, à la naissance du travailleur, et seulement là où la plateforme permet la mémoire partagée. Sans bail, le travailleur répond en transférant des tampons : le contrat ne change pas de forme, seul le chemin des octets change.",
-    "members": {
-      "protocol": "Version du format du message.",
-      "id": "Toujours 0.",
-      "op": "Toujours `'share'`.",
-      "buffer": "La mémoire partagée.",
-      "slot": "L’emplacement de ce travailleur.",
-      "slots": "Emplacements au total."
+      "maxDecodedBytes": "Plafond d’octets décodés d’une page de géométrie ; ignoré par `verify`.",
+      "name": "`cells`, `cellPage` : le fichier d’où la source a été lue, qu’un refus nomme."
     }
   },
   "pageDecodeWorkerCount": {
@@ -4654,7 +4683,7 @@
   "PageSource": {
     "summary": "D’où les pages d’un modèle sont lues, par clé.",
     "members": {
-      "read": "Lit les octets d’une page."
+      "read": "Lit les octets d’une page ; `priority`, si elle est donnée, est celle du streamer (la plus petite d’abord). Une lecture plus urgente d’une page déjà en cours est redemandée pour la faire monter : une source qui prend `priority` la joint à la lecture en cours au lieu de transférer la page deux fois."
     }
   },
   "PageStreamer": {
@@ -4765,6 +4794,13 @@
       "width": "Pixels par rangée.",
       "height": "Rangées par couche.",
       "depth": "Couches, pour une pile d’images."
+    }
+  },
+  "PlacementGrowth": {
+    "summary": "Ce qu’un propriétaire remet à une session qui agrandit ses tampons d’instances sur place (`growth.ts`).",
+    "members": {
+      "growPlacements": "Un tampon d’instances que la session tient a été remplacé par un plus grand, les rangées de `from` d’abord et le reste rangé de côté : la session lit `to` désormais et tient ses nouvelles rangées, sans reconstruire de table (`growth.ts`). Absent d’un moteur, le propriétaire rouvre la session sur `to`.",
+      "growsInPlace": "Si `growPlacements` accepte chacun de `from` agrandi à `capacity` rangées, demandé avant que le propriétaire n’en remplace aucun : false les laisse tels quels, et le propriétaire rouvre la session sur de plus grands."
     }
   },
   "PlacementRows": {
@@ -4970,7 +5006,8 @@
       "structure": "Ses liens de groupes.",
       "streams": "Ses paquets de flux.",
       "quantization": "Null sur une primitive sans pages, qui n’a été quantifiée sur aucune grille.",
-      "topology": "L’allure des arêtes et des coins du maillage."
+      "topology": "L’allure des arêtes et des coins du maillage.",
+      "dynamic": "La géométrie dynamique d’un monde (#573) : des pages d’index seules, ses sommets lus en flottants dans la géométrie hôte que le moteur réécrit sur place."
     }
   },
   "Primitive": {
@@ -5225,7 +5262,7 @@
     "summary": "Version du contrat de la hiérarchie de scène tenue par l’hôte."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "Entiers d’en-tête : signature, version, triangles, nœuds."
+    "summary": "Entiers d’en-tête : en-tête de propriété v3, puis nombres de formes, de triangles stockés et de placements."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "'W','G','P','X' lus comme un entier non signé sur 32 bits little-endian."
@@ -5361,7 +5398,7 @@
     }
   },
   "SceneProxy": {
-    "summary": "Le proxy lu : son descripteur et ses colonnes, des vues sur les octets de son objet de cache.",
+    "summary": "Le proxy lu : son descripteur et ses colonnes immuables, avec les triangles partagés développés au chargement.",
     "members": {
       "data": "Ses colonnes."
     }
@@ -5372,7 +5409,12 @@
       "triangles": "Trois sommets dans le monde par triangle, `PROXY_TRIANGLE_FLOATS` nombres chacun.",
       "albedo": "Albédo diffus linéaire du triangle, rangé en RGBA8.",
       "nodeBounds": "Limites exactes de chaque nœud du BVH.",
-      "nodeChildren": "Les quatre enfants de chaque nœud : boîte quantifiée, nombre de triangles, présence, lien."
+      "nodeChildren": "Les quatre enfants de chaque nœud : boîte quantifiée, nombre de triangles, présence, lien.",
+      "triangleGroups": "Groupe partagé des propriétaires sources de chaque triangle canonique, stocké une seule fois.",
+      "groupOffsets": "Décalages des enregistrements de propriétaires de chaque groupe, y compris la sentinelle finale.",
+      "owners": "Enregistrements des propriétaires : indice du nœud source et albédo linéaire compacté en RGBA8.",
+      "bindWorlds": "Matrices monde originales des nœuds sources, seize nombres en double précision par nœud.",
+      "sourceParents": "Hiérarchie source, y compris les nœuds de partition que l’hôte n’a pas actuellement instanciés."
     }
   },
   "SceneProxyDescriptor": {
@@ -5389,7 +5431,10 @@
       "triangleBudget": "Budget de triangles publié, celui qui a décidé du seuil vraiment obtenu.",
       "bounds": "Étendue du proxy dans le monde : trois limites basses puis trois hautes.",
       "triangles": "Triangles.",
-      "nodes": "Nœuds de l’arbre."
+      "nodes": "Nœuds de l’arbre.",
+      "groups": "Groupes de propriétaires partagés et stockés une seule fois.",
+      "owners": "Enregistrements des propriétaires.",
+      "instances": "Matrices des nœuds sources."
     }
   },
   "SceneRoot": {
@@ -5476,18 +5521,44 @@
       "shadowPagesDrawn": "Ce qu’a produit l’invalidation des pages : pages redessinées par l’image, pages laissées en file faute de budget, et depuis combien de temps attend la plus ancienne page périmée que l’image lit. Zéro partout est la valeur normale d’une scène immobile ; `null` pour un moteur sans atlas d’ombres.",
       "shadowPagesTotal": "Pages dessinées depuis l’ouverture de l’explorateur, vidages de `flush()` compris : le coût d’un changement est l’écart entre deux lectures.",
       "shadowPagesPending": "Pages d’ombre en attente.",
+      "shadowBatches": "Lots d’ombre que l’image a dessinés : des comptes de l’hôte sur ce qu’il a encodé, jamais lus dans un shader, comme les comptes suivants. Null pour un moteur sans atlas d’ombre.",
+      "shadowLayersDrawn": "Couches du pool dans lesquelles les passes d’ombre de l’image ont dessiné.",
+      "shadowPagesRestored": "Pages dessinées depuis une copie de leur couche statique, seuls leurs projeteurs mobiles rastérisés.",
+      "shadowPagesRasterized": "Pages dont les projeteurs statiques ont été rastérisés à nouveau ; avec les pages restaurées, toutes les pages dessinées.",
+      "shadowRestoreCopies": "Copies de pages depuis la couche statique : une page restaurée, ou une page dessinée en entier sur sa couche.",
+      "shadowStaticDrawCalls": "Appels de dessin de projeteurs statiques : dans la couche statique, ou d’une page dessinée entière sans elle.",
+      "shadowMovingDrawCalls": "Appels de dessin des seuls projeteurs mobiles, sur des pages restaurées depuis la couche statique.",
+      "shadowMovingCastersKept": "Parmi `shadowCastersKept`, les clusters gardés pour dessiner les seuls projeteurs mobiles.",
+      "shadowPagesStaledBy": "Pages que l’image a rendues périmées, par raison : lumière, projeteur immobile, projeteurs mobiles, détail, seuil de coupe, ou plage de profondeur d’un soleil.",
       "shadowWaitMs": "Depuis combien de millisecondes la plus ancienne page périmée que l’image lit attend d’être redessinée. Seul compte le temps où l’image la lit ; 0 une fois redessinée.",
+      "shadowCutDrops": "Lots de la coupe depuis la lumière qui ont abandonné du travail — leurs vues ont gardé plus de clusters que les listes n’en tiennent —, depuis l’ouverture de l’explorateur : chacun renvoie ses pages, retirées jusqu’à être redessinées (#525). Null sur un moteur sans coupe GPU depuis la lumière, comme les trois suivants.",
+      "shadowCutWithdrawnPages": "Pages redessinées parce qu’une coupe depuis la lumière les a mal dessinées, depuis l’ouverture de l’explorateur : son lot a abandonné du travail, ou son drapeau n’a jamais été lu. Elles sont retirées jusqu’à être redessinées.",
+      "shadowCutCoarsePages": "Pages redessinées parce qu’une vue a dessiné un cluster plus grossier qu’elle ne le voulait, depuis l’ouverture de l’explorateur : relâchées une fois la résidence changée et la caméra au repos.",
+      "shadowCutViewLimit": "Vues de lumière dans lesquelles un lot de la coupe depuis la lumière dessine maintenant : le plafond jusqu’à ce qu’un lot abandonne, puis ce qui tient.",
       "gpuLightListsMs": "Temps GPU des listes de lumières.",
-      "gpuShadowsMs": "Temps GPU des ombres.",
+      "tileLightPoolReserved": "Mots que les tuiles au-delà de leur liste ont réservés dans la réserve d’indices de lumières de la vue, sur l’image que l’appareil a échantillonnée en dernier tant que la scène tient plus de lumières qu’une liste ; `null` sinon (#849).",
+      "tileLightPoolCapacity": "Mots que la réserve d’indices de lumières tenait sur cette image échantillonnée ; `null` de même.",
+      "tileLightPoolOverflowed": "Si une tuile n’a pas trouvé de place dans la réserve sur cette image échantillonnée et a parcouru toutes les lumières.",
+      "tileLightPoolGrowths": "Nombre de fois où la réserve a grandi jusqu’à ce qu’une image débordante demandait, depuis l’ouverture de l’explorateur.",
+      "gpuShadowsMs": "Temps GPU de l’étape Ombres, exactement les passes d’ombre de la table des passes du moteur : l’atlas d’ombre, sa couche statique, l’effacement et la passe de la couche de transmittance, le tri par page, les pyramides de pages et le test d’occultation. La coupe depuis la lumière est une étape à part (`shadowCasters`) ; aucune passe hors du travail d’ombre n’y est comptée.",
       "gpuShadowCullMs": "Temps GPU du choix des projeteurs des pages d’ombre qu’une image dessine : la coupe depuis la lumière, le tri par page, et le test d’occultation des projeteurs mobiles avec les pyramides qu’il lit.",
       "gpuShadowRasterMs": "Temps GPU du dessin de ces projeteurs dans les pages : la couche statique, puis le pool.",
       "gpuLightingMs": "Temps GPU de l’éclairage.",
+      "cpuShadowPlanMs": "Temps CPU du plan d’ombre de l’image, autour du planificateur : une étape nommée du profil CPU (`cpuSteps()`, `cpu-timing`), comme les cinq suivantes. Chacune vaut `null` quand l’image ne l’a pas exécutée — aucune lumière, une image retenue — ou sur un moteur qui ne sait pas la chronométrer (WebGL2), jamais 0. Elles font partie du temps d’encodage, jamais ajoutées à lui.",
+      "cpuShadowRequestsMs": "Temps CPU de la lecture du rapport de requêtes d’ombre revenu.",
+      "cpuShadowAdmissionMs": "Temps CPU de l’admission des pages périmées que l’image lit.",
+      "cpuShadowBatchesMs": "Temps CPU des lots d’ombre autour de leurs régions et passes : préparation, validations, copie des requêtes.",
+      "cpuShadowRegionsMs": "Temps CPU de l’écriture des régions de chaque lot d’ombre : uniformes de faces et enregistrements de pages.",
+      "cpuShadowPassesMs": "Temps CPU de l’encodage des passes de chaque lot d’ombre : projeteurs, effacements et restaurations, dessins.",
       "shadowLightCuts": "Coupes de grappes lancées depuis les lumières : une par face d’ombre redessinée, zéro sur une image immobile.",
       "shadowPagesRequested": "Pages d’ombre virtuelles que l’image a lues, telles que son dernier rapport de demandes les nomme : ce que marquent les récepteurs vus par la caméra.",
       "shadowPagesCached": "Parmi elles, les pages lues directement dans le pool : à jour, sans dessin.",
       "shadowPoolPages": "Pages physiques du pool fixe qui portent une page virtuelle.",
       "shadowPoolBytes": "Octets GPU du pool d’ombres : ses pages de profondeur, leurs couches statique et de transmittance une fois créées, et les tampons à côté. Null tant que la première image n’a pas dimensionné le pool.",
       "shadowPoolLayers": "Couches du pool, de 4 096 pages chacune au plus, dimensionnées une fois d’après l’écran et les lumières ombrées de la première image. Null jusque-là.",
+      "shadowPeakBytes": "Le plus d’octets GPU que la part mémoire des ombres a tenus à la fois, couches tardives comprises. Null tant que la première image n’a pas dimensionné le pool.",
+      "shadowResolutionBias": "Divisions par deux des octets du pool d’ombres qu’ont coûté les refus de mémoire de l’appareil ; 0 normalement.",
+      "shadowMemoryEvents": "Les événements de pression mémoire des ombres depuis l’ouverture du monde, par nom, dans l’ordre ; vide normalement.",
       "shadowPagesRefetched": "Pages virtuelles placées de nouveau après que le pool les a évincées pour faire de la place, depuis l’ouverture de l’explorer : les redessins que coûte un pool trop petit pour ce que lisent les images.",
       "shadowCastersKept": "Projeteurs gardés par le tri par page, toutes pages dessinées réunies, sur l’image que l’appareil a échantillonnée en dernier — une sur quinze ; `null` tant qu’aucun échantillon n’est revenu.",
       "shadowCastersHidden": "Projeteurs mobiles que le test d’occultation a trouvés cachés derrière la couche statique de leur page, sur l’image que l’appareil a échantillonnée en dernier ; `null` tant qu’aucun échantillon n’est revenu."
@@ -5497,6 +5568,7 @@
     "summary": "Le travail d’ombre de l’image : quelles pages virtuelles sont dessinées.",
     "members": {
       "counts": "Nombres pour le diagnostic.",
+      "spent": "Millisecondes CPU que le dernier plan a passées à lire le rapport de requêtes et à admettre les pages.",
       "worldChanged": "Un nœud a bougé : sa boîte entre dans la liste que le planificateur traitera à la prochaine image.",
       "representationChanged": "Le même monde à une autre précision — niveau de détail, résidence, tuile de couleur — : sa boîte attend que la caméra s’arrête, puis entre dans la liste (`changes.ts`).",
       "resting": "La caméra était au repos au dernier plan : sa vue était celle du plan précédent.",
@@ -5507,7 +5579,7 @@
       "plan": "Planifie une image : rend périmé ce qui a bougé, lit le dernier rapport, admet chaque page à dessiner.",
       "reissue": "Les pages de l’image à partir de `from` n’ont pas pu être encodées : elles restent périmées, en attente, et l’image suivante les dessine.",
       "reset": "Recommence.",
-      "setThreshold": "Le seuil auquel les coupes de lumière choisissent leurs projeteurs d’ombre (`thresholds.ts`).",
+      "setThreshold": "Le seuil auquel les coupes de lumière choisissent leurs projeteurs d’ombre, et leur origine de rendu (`thresholds.ts`).",
       "table": "La table des pages : un mot par page virtuelle, et la plage que chaque lumière y tient.",
       "pool": "Les pages physiques du pool, et la page virtuelle que chacune porte.",
       "sun": "Le clipmap de chaque soleil : son repère, sa plage de profondeur, son niveau le plus fin et ses fenêtres.",
@@ -5517,8 +5589,12 @@
       "stamp": "Ce que l’ombrage, les lumières et la vue confient à l’image suivante : un rapport qui porte ce tampon et ne nomme rien de neuf prouve que l’image ne lit que des pages dessinées.",
       "settled": "Vrai dès qu’un rapport prouve que l’état courant ne demande plus rien : l’image peut être tenue.",
       "receive": "Un rapport de demandes est revenu ; le prochain plan le lit. Un plus récent remplace un rapport non lu.",
-      "commit": "Les pages `[from, to)` de la liste de l’image ont été encodées, la page `from + i` dans `modes[i]` : leurs dessins arrivent avant que quiconque les lise. Le dernier lot ferme la liste."
+      "commit": "Les pages `[from, to)` de la liste de l’image ont été encodées, la page `from + i` dans `modes[i]` : leurs dessins arrivent avant que quiconque les lise. Le dernier lot ferme la liste.",
+      "resize": "Le pool à une autre taille, ses pages gardées, ses tableaux refaits : renvoie où chaque page est allée."
     }
+  },
+  "ShadowStaleReason": {
+    "summary": "Pourquoi une page d’ombre est devenue périmée (`ShadowFrameMetrics.shadowPagesStaledBy`)."
   },
   "ShadowViewpoint": {
     "summary": "Ce que le planificateur sait de la vue : une caméra, pas une matrice, pour rester sans dépendance.",
@@ -5605,7 +5681,7 @@
       "totalNodes": "Nœuds au total.",
       "autonomousScene": "Sa scène intégrée.",
       "texturePreviews": "Une entrée par couple (texture, atlas) décodé, rangée par texture puis par atlas ; vide sans image décodable.",
-      "textures": "Modèle des niveaux cuits, relatif au manifeste : {sha} l’empreinte de l’image source, {kind} le nom de l’atlas (PREVIEW_ATLAS_NAMES), {level} le rang du niveau. Absent d’un cache compilé avant les niveaux cuits, que ce lecteur refuse par la version du fichier annexe.",
+      "textures": "Modèle des niveaux cuits, relatif au manifeste : {sha} l’empreinte de l’image source, {kind} le nom de l’atlas (PREVIEW_ATLAS_NAMES), {level} le rang du niveau. Absent d’un cache compilé avant les niveaux cuits, que ce lecteur refuse par la version du fichier annexe. `version` est celle des niveaux (`TEXTURE_PREVIEW_VERSION`) : un lecteur ne lit aucun niveau d’une autre.",
       "proxy": "Où lire le proxy de scène résident et son BVH : la géométrie que touchent les rayons. Absent d’un cache compilé avant le rebond, qui reste lisible tel quel.",
       "binary": "Le fichier binaire.",
       "primitives": "Ses primitives.",
@@ -5629,7 +5705,8 @@
       "dag": "Le rapport du DAG.",
       "quantization": "Null sur une primitive sans pages, qui n’a été quantifiée sur aucune grille.",
       "topology": "L’allure des arêtes et des coins du maillage.",
-      "binary": "Où trouver ses listes."
+      "binary": "Où trouver ses listes.",
+      "dynamic": "La géométrie dynamique d’un monde (#573) : des pages d’index seules, ses sommets lus en flottants dans la géométrie hôte que le moteur réécrit sur place."
     }
   },
   "SlimPrimitiveBinary": {
@@ -5896,6 +5973,22 @@
       "extensions": "Ce que les extensions physiques ajoutent, sous les noms de paramètres de l’hôte : un facteur, une couleur ou un intervalle en nombres, une image en emplacement."
     }
   },
+  "TablePage": {
+    "summary": "Une page qu’un emplacement nomme : son fichier, relatif aux tables, sa taille et son empreinte.",
+    "members": {
+      "url": "Son fichier, relatif aux tables.",
+      "bytes": "Sa taille en octets.",
+      "sha256": "Son empreinte SHA-256, en hexadécimal."
+    }
+  },
+  "TableSlot": {
+    "summary": "Une page d’un index qu’un emplacement nomme, sa boîte aux poses déclarées et les rangs du cœur listés à côté : pour l’index des cellules, les parents sous lesquels ses cellules accrochent des nœuds (#575).",
+    "members": {
+      "page": "La page que l’emplacement nomme.",
+      "bounds": "Sa boîte aux poses déclarées : le coin minimal, puis le maximal.",
+      "parents": "Les rangs du cœur listés à côté."
+    }
+  },
   "TableTexture": {
     "summary": "État d’échantillonnage d’une texture glTF, dans les mots du moteur.",
     "members": {
@@ -6074,7 +6167,7 @@
   },
   "TEXTURE_PREVIEW_VERSION": {
     "summary": "Niveaux de texture progressifs, reflétés par `packages/asset-compiler-rust/src/texture_preview.rs` : la fin de la chaîne de mips d’une source dans le fichier annexe, en RGBA8 dans l’encodage propre à l’atlas, du niveau le plus fin dont aucun côté ne dépasse `PREVIEW_BASE` jusqu’à 1×1 — et, au-dessus, un PNG sans perte par niveau dans le cache, `bakedLevels` d’entre eux à partir du niveau 0.",
-    "description": "Chaque niveau suit la règle des mips qu’appliquait la carte graphique quand elle refaisait la chaîne elle-même (`packages/sdk-browser/src/texture/mips.ts`) : moyenne linéaire des couleurs, alpha médian, niveau `k` à partir du niveau quantifié `k - 1`. Leurs tailles ne sont pas écrites : elles découlent des dimensions de la source, que `previewLevels.ts` recalcule. La version 4 cuit chaque niveau au-dessus de la fin, et la fin elle-même, dans les familles de blocs demandées par la cuisson à côté des fichiers sans perte — la famille BC pour les cartes de bureau, ASTC 4×4 pour les mobiles, un octet par texel — pour les chaînes qu’un contrôle de qualité a gardées ; une chaîne sous la barre reste sans perte dans cette famille, et le mot de disposition de son entrée le dit."
+    "description": "Chaque niveau suit la règle des mips qu’appliquait la carte graphique quand elle refaisait la chaîne elle-même (`packages/sdk-browser/src/texture/mips.ts`) : moyenne linéaire des couleurs, alpha médian, niveau `k` à partir du niveau quantifié `k - 1`. Leurs tailles ne sont pas écrites : elles découlent des dimensions de la source, que `previewLevels.ts` recalcule. La version 4 cuit chaque niveau au-dessus de la fin, et la fin elle-même, dans les familles de blocs demandées par la cuisson à côté des fichiers sans perte — la famille BC pour les cartes de bureau, ASTC 4×4 pour les mobiles, un octet par texel — pour les chaînes qu’un contrôle de qualité a gardées ; une chaîne sous la barre reste sans perte dans cette famille, et le mot de disposition de son entrée le dit. La version 6 range un fichier de niveau en blocs par enregistrements de tuiles, une requête HTTP Range chacun (#962, `sdk-browser/src/texture/tileRecords.ts`)."
   },
   "TextureBlockFormat": {
     "summary": "Une famille de blocs dans laquelle une texture peut être cuite."
@@ -6137,7 +6230,8 @@
       "sha256": "Empreinte de l’image source.",
       "atlas": "Quel atlas.",
       "level": "Quel niveau.",
-      "format": "Quel format."
+      "format": "Quel format.",
+      "range": "Les octets d’un niveau en blocs à lire seuls — l’enregistrement d’une tuile (`tileRecords.ts`) —, par une requête HTTP Range ; un serveur qui l’ignore répond le fichier entier."
     }
   },
   "textureLevelUrl": {
@@ -6613,6 +6707,10 @@
     "summary": "L’anticrénelage temporel : un décalage sous-pixel accumulé au fil des images ; activé par défaut.",
     "description": "Écrit, il prend effet à l’image suivante, historique abandonné, sans rouvrir de session. Lu, c’est ce que porte l’image : false en WebGL2, et pendant que le programme se compile après l’avoir activé."
   },
+  "world.renderScale": {
+    "summary": "La fraction de l’affichage par axe à laquelle l’image est dessinée (`WorldOptions.renderScale`), dès l’image suivante.",
+    "description": "Lue, l’échelle de la dernière image dessinée."
+  },
   "world.effects": {
     "summary": "La chaîne d’effets : les passes dessinées sur l’image (`effect`)."
   },
@@ -6639,6 +6737,24 @@
       "sessions": "Les sessions que le monde a ouvertes jusqu’ici : un changement qui en rouvre une se voit ici.",
       "error": "Pourquoi la dernière session n’a pas pu s’ouvrir, sous forme d’erreur nommée du moteur : son `code` est l’un de ceux documentés sur `EngineError` (`WEBGPU_LOST` quand WebGPU a perdu son appareil), ou `SESSION_OPEN_FAILED` pour une raison qui n’en a pas. Une `EngineError` d’un code documenté est celle qui a été levée ; toute autre erreur est convertie, et l’erreur levée est alors dans `details.cause`. `null` dès le début de chaque ouverture, et quand rien n’est tenté."
     }
+  },
+  "world.materials": {
+    "summary": "Matériaux importés actuels, suivis de ceux créés par la page."
+  },
+  "world.material": {
+    "summary": "Un matériau selon son identifiant dans la liste."
+  },
+  "world.importedMaterials": {
+    "summary": "Valeurs du fichier source avant les modifications de la page."
+  },
+  "world.setMaterial": {
+    "summary": "Modifie un matériau importé ou créé à l’image suivante."
+  },
+  "world.createMaterial": {
+    "summary": "Crée un matériau de la page ; avec une image, attendre son admission avant de l’attribuer."
+  },
+  "world.assignMaterial": {
+    "summary": "Attribue le matériau créé par la page à un `mesh/primitive` compilé."
   },
   "world.guides": {
     "summary": "Lignes, points et aides dessinés par-dessus l’image (`Guides`)."
@@ -6737,7 +6853,7 @@
       "frameHeld": "Vrai quand l’image a été gardée : ni la scène, ni la vue, ni les ressources n’ont bougé, aucun travail asynchrone n’était en attente, et aucune étape CPU n’a tourné. Les pixels affichés sont ceux de l’image d’origine, au bit près. Ce qu’A FAIT l’image gardée est publié tel quel, jamais copié du dernier rendu complet : `drawCalls`, `triangles`, `submittedTriangles` et `totalSubmittedTriangles` ne comptent que la présentation, et les durées CPU et GPU par étape valent zéro quand l’étape n’a pas tourné, `null` quand rien ne l’a chronométrée. Un moteur dont l’image est une scène que dessine l’adaptateur témoin compte ce que cet adaptateur a envoyé dans cette image — rien, pour une image gardée. Ce que MONTRE l’image gardée reste décrit par la coupe qu’elle réaffiche : `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` et `residentPages` sont ceux de l’image d’origine, puisque c’est la même coupe. Absent d’un moteur qui ne garde pas ses images.",
       "streamingError": "Erreur de chargement persistante ; les URL en échec demandent de recharger l’explorateur après trois essais.",
       "gpuPassMs": "Dernière mesure de passes GPU de ce moteur ; null quand l’appareil ne sait pas faire d’horodatages.",
-      "gpuFrameMs": "Durée GPU de l’image que décrit `gpuPassMs.frame`. Jamais ajoutée à un champ `cpu*`. L’appareil est échantillonné toutes les quelques images, donc un nombre peut dater de quelques images. Vaut null avant le premier échantillon, depuis une image gardée jusqu’au prochain échantillon de l’appareil, sur un appareil sans `timestamp-query` et sur WebGL2.",
+      "gpuFrameMs": "Durée GPU de l’image que décrit `gpuPassMs.frame`. Jamais ajoutée à un champ `cpu*`. L’appareil est échantillonné toutes les quelques images, donc un nombre peut dater de quelques images. Vaut null avant le premier échantillon, depuis une image gardée jusqu’au prochain échantillon de l’appareil, sur un appareil sans `timestamp-query` et sur WebGL2 sans `EXT_disjoint_timer_query_webgl2`.",
       "gpuHostGapMs": "Temps CPU que la même image a passé entre deux de ses propres envois, et zéro quand elle n’envoie qu’une fois. C’est du temps de l’hôte, pas du GPU, c’est pourquoi `gpuFrameMs` l’exclut. Null quand il n’est pas mesuré.",
       "uncoveredTriangles": "Triangles des clusters que nomme la coupe publiée mais que l’image ne peut pas dessiner — pas de page résidente et pas d’ancêtre qui couvre. Un vrai trou dans l’image : zéro est la seule valeur saine. Null quand un moteur ne peut pas le dire (il dessine la coupe qu’il a choisie, donc il n’en a jamais).",
       "drawnTriangles": "Triangles que l’IMAGE ACTUELLE donne au dessin : sa coupe de clusters, opaques et transparents de la hiérarchie réunis. Les maillages transparents hors de la hiérarchie n’y sont pas (`transparentSubmittedTriangles`), et le rejet par occultation n’est pas retiré (`hizRejectedTriangles`). Compté à l’adoption de la coupe : aucune relecture GPU asynchrone n’est attendue, donc il ne vaut jamais `null` faute de temps, contrairement à `submittedTriangles`.",
@@ -6759,12 +6875,35 @@
       "shadowPagesDrawn": "Ce qu’a produit l’invalidation des pages : pages redessinées par l’image, pages laissées en file faute de budget, et depuis combien de temps attend la plus ancienne page périmée que l’image lit. Zéro partout est la valeur normale d’une scène immobile ; `null` pour un moteur sans atlas d’ombres.",
       "shadowPagesTotal": "Pages dessinées depuis l’ouverture de l’explorateur, vidages de `flush()` compris : le coût d’un changement est l’écart entre deux lectures.",
       "shadowPagesPending": "Pages d’ombre en attente.",
+      "shadowBatches": "Lots d’ombre que l’image a dessinés : des comptes de l’hôte sur ce qu’il a encodé, jamais lus dans un shader, comme les comptes suivants. Null pour un moteur sans atlas d’ombre.",
+      "shadowLayersDrawn": "Couches du pool dans lesquelles les passes d’ombre de l’image ont dessiné.",
+      "shadowPagesRestored": "Pages dessinées depuis une copie de leur couche statique, seuls leurs projeteurs mobiles rastérisés.",
+      "shadowPagesRasterized": "Pages dont les projeteurs statiques ont été rastérisés à nouveau ; avec les pages restaurées, toutes les pages dessinées.",
+      "shadowRestoreCopies": "Copies de pages depuis la couche statique : une page restaurée, ou une page dessinée en entier sur sa couche.",
+      "shadowStaticDrawCalls": "Appels de dessin de projeteurs statiques : dans la couche statique, ou d’une page dessinée entière sans elle.",
+      "shadowMovingDrawCalls": "Appels de dessin des seuls projeteurs mobiles, sur des pages restaurées depuis la couche statique.",
+      "shadowMovingCastersKept": "Parmi `shadowCastersKept`, les clusters gardés pour dessiner les seuls projeteurs mobiles.",
+      "shadowPagesStaledBy": "Pages que l’image a rendues périmées, par raison : lumière, projeteur immobile, projeteurs mobiles, détail, seuil de coupe, ou plage de profondeur d’un soleil.",
       "shadowWaitMs": "Depuis combien de millisecondes la plus ancienne page périmée que l’image lit attend d’être redessinée. Seul compte le temps où l’image la lit ; 0 une fois redessinée.",
+      "shadowCutDrops": "Lots de la coupe depuis la lumière qui ont abandonné du travail — leurs vues ont gardé plus de clusters que les listes n’en tiennent —, depuis l’ouverture de l’explorateur : chacun renvoie ses pages, retirées jusqu’à être redessinées (#525). Null sur un moteur sans coupe GPU depuis la lumière, comme les trois suivants.",
+      "shadowCutWithdrawnPages": "Pages redessinées parce qu’une coupe depuis la lumière les a mal dessinées, depuis l’ouverture de l’explorateur : son lot a abandonné du travail, ou son drapeau n’a jamais été lu. Elles sont retirées jusqu’à être redessinées.",
+      "shadowCutCoarsePages": "Pages redessinées parce qu’une vue a dessiné un cluster plus grossier qu’elle ne le voulait, depuis l’ouverture de l’explorateur : relâchées une fois la résidence changée et la caméra au repos.",
+      "shadowCutViewLimit": "Vues de lumière dans lesquelles un lot de la coupe depuis la lumière dessine maintenant : le plafond jusqu’à ce qu’un lot abandonne, puis ce qui tient.",
       "gpuLightListsMs": "Temps GPU des listes de lumières.",
-      "gpuShadowsMs": "Temps GPU des ombres.",
+      "tileLightPoolReserved": "Mots que les tuiles au-delà de leur liste ont réservés dans la réserve d’indices de lumières de la vue, sur l’image que l’appareil a échantillonnée en dernier tant que la scène tient plus de lumières qu’une liste ; `null` sinon (#849).",
+      "tileLightPoolCapacity": "Mots que la réserve d’indices de lumières tenait sur cette image échantillonnée ; `null` de même.",
+      "tileLightPoolOverflowed": "Si une tuile n’a pas trouvé de place dans la réserve sur cette image échantillonnée et a parcouru toutes les lumières.",
+      "tileLightPoolGrowths": "Nombre de fois où la réserve a grandi jusqu’à ce qu’une image débordante demandait, depuis l’ouverture de l’explorateur.",
+      "gpuShadowsMs": "Temps GPU de l’étape Ombres, exactement les passes d’ombre de la table des passes du moteur : l’atlas d’ombre, sa couche statique, l’effacement et la passe de la couche de transmittance, le tri par page, les pyramides de pages et le test d’occultation. La coupe depuis la lumière est une étape à part (`shadowCasters`) ; aucune passe hors du travail d’ombre n’y est comptée.",
       "gpuShadowCullMs": "Temps GPU du choix des projeteurs des pages d’ombre qu’une image dessine : la coupe depuis la lumière, le tri par page, et le test d’occultation des projeteurs mobiles avec les pyramides qu’il lit.",
       "gpuShadowRasterMs": "Temps GPU du dessin de ces projeteurs dans les pages : la couche statique, puis le pool.",
       "gpuLightingMs": "Temps GPU de l’éclairage.",
+      "cpuShadowPlanMs": "Temps CPU du plan d’ombre de l’image, autour du planificateur : une étape nommée du profil CPU (`cpuSteps()`, `cpu-timing`), comme les cinq suivantes. Chacune vaut `null` quand l’image ne l’a pas exécutée — aucune lumière, une image retenue — ou sur un moteur qui ne sait pas la chronométrer (WebGL2), jamais 0. Elles font partie du temps d’encodage, jamais ajoutées à lui.",
+      "cpuShadowRequestsMs": "Temps CPU de la lecture du rapport de requêtes d’ombre revenu.",
+      "cpuShadowAdmissionMs": "Temps CPU de l’admission des pages périmées que l’image lit.",
+      "cpuShadowBatchesMs": "Temps CPU des lots d’ombre autour de leurs régions et passes : préparation, validations, copie des requêtes.",
+      "cpuShadowRegionsMs": "Temps CPU de l’écriture des régions de chaque lot d’ombre : uniformes de faces et enregistrements de pages.",
+      "cpuShadowPassesMs": "Temps CPU de l’encodage des passes de chaque lot d’ombre : projeteurs, effacements et restaurations, dessins.",
       "hizTestedClusters": "Ce qu’a fait le test d’occultation sur une image : les clusters qu’on lui a donnés, ceux qu’il a éliminés, et ceux dont l’empreinte à l’écran au niveau 0 dépasse le noyau de seize texels et répondent donc depuis un mip plus grossier. `hiz*Triangles` sont les triangles de ces mêmes clusters. Sur le chemin GPU, ils décrivent une image PLUS ANCIENNE que celle qui les rend — `hizCountedFrame` dit laquelle — comme `gpuPassMs`, et deux images voisines portent souvent la même mesure. Aucun n’est estimé : `null` pour un moteur qui ne teste pas l’occultation, sur un appareil dont les verdicts ne peuvent pas être relus, et tant qu’aucune image n’a été comptée.",
       "hizRejectedClusters": "Clusters cachés.",
       "hizOversizedClusters": "Clusters trop grands pour être testés.",
@@ -6810,9 +6949,13 @@
       "shadowPoolPages": "Pages physiques du pool fixe qui portent une page virtuelle.",
       "shadowPoolBytes": "Octets GPU du pool d’ombres : ses pages de profondeur, leurs couches statique et de transmittance une fois créées, et les tampons à côté. Null tant que la première image n’a pas dimensionné le pool.",
       "shadowPoolLayers": "Couches du pool, de 4 096 pages chacune au plus, dimensionnées une fois d’après l’écran et les lumières ombrées de la première image. Null jusque-là.",
+      "shadowPeakBytes": "Le plus d’octets GPU que la part mémoire des ombres a tenus à la fois, couches tardives comprises. Null tant que la première image n’a pas dimensionné le pool.",
+      "shadowResolutionBias": "Divisions par deux des octets du pool d’ombres qu’ont coûté les refus de mémoire de l’appareil ; 0 normalement.",
+      "shadowMemoryEvents": "Les événements de pression mémoire des ombres depuis l’ouverture du monde, par nom, dans l’ordre ; vide normalement.",
       "shadowPagesRefetched": "Pages virtuelles placées de nouveau après que le pool les a évincées pour faire de la place, depuis l’ouverture de l’explorer : les redessins que coûte un pool trop petit pour ce que lisent les images.",
       "shadowCastersKept": "Projeteurs gardés par le tri par page, toutes pages dessinées réunies, sur l’image que l’appareil a échantillonnée en dernier — une sur quinze ; `null` tant qu’aucun échantillon n’est revenu.",
-      "shadowCastersHidden": "Projeteurs mobiles que le test d’occultation a trouvés cachés derrière la couche statique de leur page, sur l’image que l’appareil a échantillonnée en dernier ; `null` tant qu’aucun échantillon n’est revenu."
+      "shadowCastersHidden": "Projeteurs mobiles que le test d’occultation a trouvés cachés derrière la couche statique de leur page, sur l’image que l’appareil a échantillonnée en dernier ; `null` tant qu’aucun échantillon n’est revenu.",
+      "dynamicUploadBytes": "Octets de sommets de géométrie dynamique envoyés sur place à cette image (#573), dans le budget par image du monde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Absent là où aucun monde ne dessine."
     }
   },
   "WorldOptions": {
@@ -6824,13 +6967,18 @@
       "controls": "Le contrôleur qui déplace la caméra depuis le canevas ; `world.controls.kind` le change ensuite.",
       "signal": "Arrête les chargements du monde quand le signal est annulé.",
       "physics": "Allume la physique (`world.physics`) : `true`, ou gravité et budgets. Jolt n’est chargé qu’alors.",
-      "temporalAntialiasing": "L’anticrénelage temporel, WebGPU seulement : un décalage sous-pixel accumulé au fil des images. `false` dessine chaque pixel en son centre, sans historique, ce que demande une capture exacte au pixel près ; changé ensuite par `world.temporalAntialiasing`."
+      "temporalAntialiasing": "L’anticrénelage temporel, WebGPU seulement : un décalage sous-pixel accumulé au fil des images. `false` dessine chaque pixel en son centre, sans historique, ce que demande une capture exacte au pixel près ; changé ensuite par `world.temporalAntialiasing`.",
+      "renderScale": "La fraction de l’affichage par axe à laquelle l’image est dessinée, avant que l’anticrénelage temporel ne la reconstruise à l’affichage : `'auto'` laisse le budget d’image la choisir entre `min` et `max` (`{ min, max }`, 0,5 et 1 par défaut ; sur WebGL2, qui ne fait que rééchantillonner, `min` vaut 1 par défaut), un nombre la fixe ; une image immobile est dessinée au maximum. Changée ensuite par `world.renderScale`."
     }
+  },
+  "RenderScale": {
+    "summary": "L’échelle de rendu qu’une page demande : la fraction de l’affichage, par axe, à laquelle l’image est dessinée avant que l’anticrénelage temporel ne la reconstruise à l’affichage.",
+    "description": "`'auto'` laisse le budget d’image la choisir entre 0,5 et 1, `{ min, max }` borne ce choix, un nombre la fixe ; toute valeur est gardée entre 0,5 et 1."
   },
   "WorldPageSource": {
     "summary": "D’où les pages sont lues, et l’adresse par rapport à laquelle on les lit.",
     "members": {
-      "read": "Lit les octets d’une page.",
+      "read": "Lit les octets d’une page ; `priority`, si elle est donnée, est celle du streamer (la plus petite d’abord). Une lecture plus urgente d’une page déjà en cours est redemandée pour la faire monter : une source qui prend `priority` la joint à la lecture en cours au lieu de transférer la page deux fois.",
       "baseUrl": "L’adresse par rapport à laquelle chaque page est lue."
     }
   },
@@ -7385,7 +7533,7 @@
     }
   },
   "SHADOW_RECORD_FLOATS": {
-    "summary": "Flottants d’un enregistrement d’ombre, celui que lit l’ombrage d’une lumière : six matrices de faces de lampe, puis le repère du plan du soleil — `right, zNear`, `up, zFar`, `axis, 0` —, puis l’origine de la fenêtre de chaque niveau en deux entiers, puis un en-tête `vec4f` : faces (lampe) ou niveaux (soleil), demi-champ tangent de la lampe ou niveau le plus fin du soleil, plan proche de la lampe, et première entrée de la table des pages."
+    "summary": "Flottants d’un enregistrement d’ombre, celui que lit l’ombrage d’une lumière : six matrices de faces de lampe — là, les plages de profondeur d’un soleil, `zNear, zFar` chacune (`recordPack.ts`) —, puis le repère du plan du soleil — `right, zNear`, `up, zFar`, `axis`, puis l’emplacement de la plage courante —, puis l’origine de la fenêtre de chaque niveau en deux entiers, puis un en-tête `vec4f` : faces (lampe) ou niveaux (soleil), demi-champ tangent de la lampe ou niveau le plus fin du soleil, plan proche de la lampe, et première entrée de la table des pages."
   },
   "ShadowRequestReport": {
     "summary": "Ce que l’ombrage a lu en une image : les entrées de la table qu’il a demandées, sans ordre.",
@@ -7707,5 +7855,85 @@
       "center": "Le point de l’image posé sur la position du sprite : `(0.5, 0.5)` son milieu, `(0, 0)` son coin en bas à gauche, `(0.5, 0)` le milieu de son bord du bas.",
       "material": "Le `material.sprite` du sprite ; affectez-en un autre pour le changer."
     }
+  },
+  "CreatedMaterial": {
+    "summary": "Valeurs acceptées par `createMaterial` pour un nouveau matériau de la page.",
+    "members": {
+      "metalness": "À quel point la surface est en métal, de 0 à 1.",
+      "roughness": "La rugosité de la surface, de 0 (miroir) à 1 (mat).",
+      "baseColor": "La couleur de base ; change-la sur place avec `set`.",
+      "emissive": "La couleur que la surface émet d’elle-même.",
+      "opacity": "À quel point la surface est opaque, de 0 à 1.",
+      "alphaMode": "Comment le canal alpha d’une surface est lu : opaque l’ignore, `mask` coupe à `alphaCutoff`, `blend` compose.",
+      "alphaCutoff": "Les pixels moins opaques que ceci disparaissent.",
+      "name": "Un nom à l’usage de la page.",
+      "map": "ImageBitmap appartenant à l’appelant, sans prémultiplication ni conversion de couleur ; le garder ouvert jusqu’à la libération."
+    }
+  },
+  "SceneMaterial": {
+    "summary": "État d’un matériau de la scène avec son ID, son nom, ses paramètres et la répétition de ses textures.",
+    "members": {
+      "id": "Un nom propre à cette texture.",
+      "name": "Un nom à l’usage de la page.",
+      "tiling": "Combien de fois l’image tient en largeur et en hauteur."
+    }
+  },
+  "SceneMaterialPatch": {
+    "summary": "Valeurs du matériau que `setMaterial` modifie en direct sans reconstruire une passe de rendu.",
+    "members": {
+      "metalness": "À quel point la surface est en métal, de 0 à 1.",
+      "roughness": "La rugosité de la surface, de 0 (miroir) à 1 (mat).",
+      "baseColor": "La couleur de base ; change-la sur place avec `set`.",
+      "emissive": "La couleur que la surface émet d’elle-même.",
+      "opacity": "À quel point la surface est opaque, de 0 à 1.",
+      "alphaMode": "Comment le canal alpha d’une surface est lu : opaque l’ignore, `mask` coupe à `alphaCutoff`, `blend` compose.",
+      "alphaCutoff": "Les pixels moins opaques que ceci disparaissent.",
+      "tiling": "Combien de fois l’image tient en largeur et en hauteur."
+    }
+  },
+  "WorldRoots": {
+    "summary": "`world-roots.json` : le DAG du monde que le compilateur prolonge au-dessus des racines de chaque objet — ses paquets, pages et cellules, le sommet épinglé en premier.",
+    "members": {
+      "version": "Version du format.",
+      "budgetBytes": "Le plus d’octets que la cuisson laisse peser au sommet épinglé.",
+      "pinned": "Les premiers paquets, le sommet du monde : épinglés.",
+      "pinnedTopBytes": "Les octets du sommet épinglé.",
+      "payload": "Le binaire où les paquets se suivent : son adresse, son empreinte et sa longueur.",
+      "bundles": "Les paquets, dans l’ordre du binaire.",
+      "pages": "Chaque page : son paquet, son décalage dedans, son niveau et son erreur.",
+      "cells": "Chaque cellule du monde : les primitives placées qu’elle contient."
+    }
+  },
+  "WorldRootsBundle": {
+    "summary": "Un paquet de `world-roots.bin` : sa plage dans le binaire, son empreinte, son nombre de pages et les paquets dont il a besoin.",
+    "members": {
+      "offset": "Où il commence dans le binaire, en octets.",
+      "bytes": "Sa longueur dans le binaire.",
+      "sha256": "Le SHA-256 de ses octets, vérifié à la lecture.",
+      "count": "Combien de pages il contient.",
+      "dependencies": "Les paquets dont ses pages ont besoin, croissants, jusqu’au sommet du monde."
+    }
+  },
+  "WorldRootsObject": {
+    "summary": "Une primitive placée d’une cellule du monde : les paquets du monde dont ses racines ont besoin, jusqu’au sommet.",
+    "members": {
+      "node": "Son nœud publié.",
+      "primitive": "Sa primitive dans le manifeste.",
+      "roots": "Les paquets des flux de cette primitive qui tiennent ses racines.",
+      "dependencies": "Chaque paquet du monde dont ces racines ont besoin, croissants, jusqu’au sommet."
+    }
+  },
+  "WorldRootsPage": {
+    "summary": "Une page super-racine lue sur les octets de son paquet : ses propres sommets dans l’espace du monde, et ses triangles en indices locaux.",
+    "members": {
+      "positions": "Ses sommets, trois nombres chacun, dans l’espace du monde.",
+      "indices": "Ses triangles, trois indices locaux chacun."
+    }
+  },
+  "world.dropMaterial": {
+    "summary": "Libère un matériau créé inutilisé ; réattribuer ses objets auparavant."
+  },
+  "world.materialMapBytes": {
+    "summary": "Octets des images conservées ou en attente, limités à 64 Mio."
   }
 }

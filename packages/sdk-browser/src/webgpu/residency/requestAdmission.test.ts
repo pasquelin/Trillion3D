@@ -27,7 +27,6 @@ function gpuCut() {
   /** One GPU-cut image: the readback's requests in the GPU's order, then admission at `room`. */
   const image = (room: number, urls: string, draws = '') => {
     const pageIds = urls.split(' ').map(id);
-    w.sets.decideBy(false, closure);
     w.delta.apply(pageIds);
     closure.apply(w.delta);
     w.sets.applyCut(closure.delta);
@@ -51,6 +50,17 @@ test('past the pool, the queue keeps the coarsest levels whole, whatever the GPU
   assert.ok(cut.admit.hostBytes() > 0, 'its tables are counted in the host tables');
 });
 
+// #1237: a page of the group a root replaces is the pool's floor (`minimumCapacity.ts`): past the
+// pool it goes first, above every level, so the root the view refuses is replaced before any detail.
+test("past the pool, a page a root's group replaces goes first, whatever its level", () => {
+  const cut = gpuCut();
+  cut.packed.find((page) => page.url === 'f0')!.rootChild = true;
+  cut.image(1, 'f0 m0 f1 c0 m1');
+  assert.deepEqual(cut.queue(), ['f0'], 'the floor before the coarsest level');
+  cut.image(4, 'f0 m0 f1 c0 m1');
+  assert.deepEqual(cut.queue(), ['f0', 'c0', 'm0', 'm1'], 'then the coarsest levels whole');
+});
+
 test('a request brings the groups its cut rule needs, filed at their own level', () => {
   const cut = gpuCut();
   cut.image(3, 'f0 a c0');
@@ -69,6 +79,15 @@ test('a readback that reorders equal requests leaves the queue as it is', () => 
   assert.equal(cut.sets.acceptedRevision, revision, 'nothing rewritten: the view settles');
 });
 
+test('a room that shrinks inside a level keeps what the queue holds, in its order', () => {
+  const cut = gpuCut();
+  cut.image(8, 'f0 m0 f1 c0 m1');
+  const held = cut.queue().filter((page) => page.startsWith('f'));
+  // The next readback lists the level-0 pages the other way round, and the room drops by one.
+  cut.image(4, 'f1 m0 f0 c0 m1');
+  assert.deepEqual(cut.queue(), ['c0', 'm0', 'm1', held[0]], 'the first held, not the first asked');
+});
+
 test('what the image draws never moves the room: a cut the pool holds is queued whole', () => {
   const cut = gpuCut();
   // The image still draws `c0` and `m` from the last cut while the new one asks for two pages.
@@ -83,10 +102,9 @@ test('back on the CPU cut, the ranking weighs the cut the GPU cut left', () => {
   const cut = gpuCut();
   cut.image(8, 'f0 f1 m0');
   cut.image(8, 'f1 a c0');
-  cut.sets.decideBy(true, cut.closure);
-  assert.equal(cut.sets.applyBudget(3), true, 'five pages past the cover weighed against three');
+  assert.equal(cut.admit.held(3), true, 'five pages past the cover weighed against three');
   assert.deepEqual(cut.queue().slice(0, 2), ['c0', 'm'], 'coarsest first');
-  assert.equal(cut.sets.applyBudget(8), false, 'and the whole cut fits eight');
+  assert.equal(cut.admit.held(8), false, 'and the whole cut fits eight');
   assert.equal(keysOf(cut.tracking.wanted).size, 5);
 });
 

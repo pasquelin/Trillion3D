@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/gpu/dag/shader/shader.ts';
 import { withScreenErrorVariant } from '../../../packages/sdk-browser/src/gpu/dag/shader/error.ts';
 import { SCREEN_ERROR_VARIANTS } from '../../../packages/sdk-core/src/lod/screenErrorVariant.ts';
-import { dansPageWebgpu, empaquetePage } from './pageWebgpu.ts';
+import { dansPageWebgpu, bundlePage } from './pageWebgpu.ts';
 import type { compileKernels, KernelText } from './dagKernelsCompilePage.ts';
 
 declare global {
@@ -43,7 +43,7 @@ const texts: KernelText[] = Object.entries(SOURCES).flatMap(([source, code]) =>
 
 // One browser and one device for every text: both tests read the same run.
 const run = (async () => {
-  const script = await empaquetePage(
+  const script = await bundlePage(
     resolve(dirname(fileURLToPath(import.meta.url)), 'dagKernelsCompilePage.ts'),
     'dagKernels',
   );

@@ -107,7 +107,7 @@ fn euler(kind: &str, value: &sdf::Value, inverted: bool) -> Option<[f64; 16]> {
     }
     let mut out = matrix::IDENTITY;
     for (axis, angle) in steps {
-        out = matrix::mul(&out, &matrix::rotation(axis, angle));
+        out = matrix::mul(&out, &matrix::turn(axis, angle.to_radians()));
     }
     Some(out)
 }

@@ -64,7 +64,10 @@ export type {
   SceneLinearFog,
 } from '../../sdk-core/src/scene/core/fog.ts';
 export { SceneNode } from '../../sdk-core/src/scene/core/node.ts';
-export type { ShadowFrameMetrics } from '../../sdk-core/src/contracts/shadowMetrics.ts';
+export type {
+  ShadowFrameMetrics,
+  ShadowStaleReason,
+} from '../../sdk-core/src/contracts/shadowMetrics.ts';
 export {
   TABLE_FLAGS,
   TABLE_NUMBERS,
@@ -76,3 +79,4 @@ export type {
   TableTexture,
   TableTextureSlot,
 } from '../../sdk-core/src/scene/core/tableSurfaces.ts';
+export type { TablePage, TableSlot } from '../../sdk-core/src/scene/core/tablePages.ts';

@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createPageStreamerWith } from './pageStreamer.ts';
-import { createPageCache, manifestTableBytes } from './pageCache.ts';
+import { createPageCache } from './pageCache.ts';
+import { manifestTableBytes } from './manifestTables.ts';
 import { dagFixture, wideCamera } from '../page/selection/dag.fixture.ts';
 import { kernelUrls, packed } from '../gpu/dag/selectionHelpers.fixture.ts';
 import type { StreamPage } from './types.ts';

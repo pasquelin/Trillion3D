@@ -50,7 +50,7 @@ function fakeGl(options: { withExtension?: boolean } = {}) {
 test('without the extension, the timer reports unsupported and nothing is ever measured', () => {
   const timer = createWebglFrameTimer(fakeGl({ withExtension: false }).gl);
   assert.equal(timer.supported, false);
-  timer.begin();
+  timer.begin(0);
   timer.end();
   const polled = timer.poll();
   assert.equal(polled.ms, null);
@@ -59,25 +59,30 @@ test('without the extension, the timer reports unsupported and nothing is ever m
 
 test('with no pending query, poll explains the absence rather than returning zero', () => {
   const timer = createWebglFrameTimer(fakeGl().gl);
-  assert.deepEqual(timer.poll(), { ms: null, reason: 'no pending query' });
+  assert.deepEqual(timer.poll(), { ms: null, reason: 'no pending query', frame: null });
 });
 
 test('a query that is not ready yet stays unmeasured, without being lost', () => {
   const f = fakeGl();
   const timer = createWebglFrameTimer(f.gl);
-  timer.begin();
+  timer.begin(0);
   timer.end();
-  assert.deepEqual(timer.poll(), { ms: null, reason: 'result not ready yet' });
+  assert.deepEqual(timer.poll(), { ms: null, reason: 'result not ready yet', frame: null });
   assert.equal(f.flushes(), 1);
 });
 
-test('an available non-disjoint query yields a duration in milliseconds', () => {
+test('an available non-disjoint query yields a duration in milliseconds, its image and its tag', () => {
   const f = fakeGl();
   const timer = createWebglFrameTimer(f.gl);
-  timer.begin();
-  timer.end();
+  timer.begin(7);
+  timer.end({ scale: 0.5, steered: true });
   f.markAvailable(0, 2_500_000);
-  assert.deepEqual(timer.poll(), { ms: 2.5, reason: null });
+  assert.deepEqual(timer.poll(), {
+    ms: 2.5,
+    reason: null,
+    frame: 7,
+    tag: { scale: 0.5, steered: true },
+  });
   assert.deepEqual(f.deleted, [0]);
 });
 
@@ -85,12 +90,13 @@ test('a disjoint query is dropped with its reason, never published as a duration
   const f = fakeGl();
   f.setDisjoint(true);
   const timer = createWebglFrameTimer(f.gl);
-  timer.begin();
+  timer.begin(0);
   timer.end();
   f.markAvailable(0, 1_000_000);
   assert.deepEqual(timer.poll(), {
     ms: null,
     reason: 'the driver interrupted the measurement (GPU_DISJOINT_EXT)',
+    frame: null,
   });
 });
 
@@ -98,7 +104,7 @@ test('beyond the pending-query threshold, no further query is opened', () => {
   const f = fakeGl();
   const timer = createWebglFrameTimer(f.gl);
   for (let i = 0; i < 6; i++) {
-    timer.begin();
+    timer.begin(0);
     timer.end();
   }
   // MAX_PENDING = 4: the 5th query is still admitted (pending.length goes from 4 to 5), the 6th is refused.

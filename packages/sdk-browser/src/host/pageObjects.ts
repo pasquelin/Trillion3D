@@ -91,11 +91,6 @@ export const releaseHostInstances = (mesh: HostInstancedMesh) => {
   mesh.dispose();
 };
 
-/** The pose a drawn page wears: the sixteen floats the engine composed for it. */
-export const setHostPose = (mesh: HostMesh, pose: MatrixElements) => {
-  mesh.matrix.fromArray(pose.elements);
-};
-
 /** The surface a drawn page wears once its primitive has been repainted. */
 export const setHostSurface = (mesh: HostMesh, declaration: HostMaterials) => {
   mesh.material = declaration as unknown as Surfaces;
@@ -132,6 +127,8 @@ const counted = new Set<ArrayBufferView>();
  *  (`../scene/meshes.ts`). */
 export function hostPageBytes(geometry: Geometry) {
   counted.clear();
+  // A dynamic page reads its primitive's own lists (`sourcedPageGeometry`): its index alone is its.
+  if (geometry.usage === 'dynamic') return geometry.index?.array.byteLength ?? 0;
   return geometryBytes(geometry, counted);
 }
 

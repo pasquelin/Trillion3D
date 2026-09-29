@@ -19,6 +19,7 @@ function stubContext() {
     FLOAT: 5126,
     UNSIGNED_INT: 5125,
     createBuffer: () => ({}),
+    getError: () => 0,
     createVertexArray: () => ({}),
     bindVertexArray() {},
     bindBuffer(target: number) {
@@ -57,9 +58,11 @@ test('the resident index uploads the ranges written since its last bind, merged 
   );
   const { gl, uploads } = stubContext();
   const cache = new WebglClusterGeometry(gl, LOCATIONS);
-  cache.bind(primitive.geometry);
+  // Each bind a frame of its own: a frame reads the versions once (#840).
+  const bind = () => (cache.beginFrame(), cache.bind(primitive.geometry));
+  bind();
   assert.deepEqual(uploads, [{ kind: 'data', bytes: 12 * 4, offset: 0 }], 'first bind: whole');
-  cache.bind(primitive.geometry);
+  bind();
   assert.equal(uploads.length, 1, 'nothing written, nothing uploaded');
 
   const version = primitive.version;
@@ -67,13 +70,13 @@ test('the resident index uploads the ranges written since its last bind, merged 
   primitive.reserve(1, Uint32Array.of(4, 5, 6));
   assert.ok(primitive.version > version, 'every write moves the version');
   assert.deepEqual(primitive.updateRanges, [{ start: 0, count: 6 }], 'contiguous pages merge');
-  cache.bind(primitive.geometry);
+  bind();
   assert.deepEqual(uploads.at(-1), { kind: 'sub', bytes: 6 * 4, offset: 0 }, 'the ranges alone');
   assert.deepEqual(primitive.updateRanges, [], 'sent, then cleared');
 
   primitive.free(0);
   primitive.reserve(2, Uint32Array.of(7, 8, 9, 10, 11, 12));
-  cache.bind(primitive.geometry);
+  bind();
   assert.deepEqual(uploads.at(-1), { kind: 'sub', bytes: 6 * 4, offset: 6 * 4 }, 'at its offset');
   assert.equal(uploads.length, 3);
 });
@@ -83,6 +86,7 @@ test('a growth of the resident index drops the pending ranges: the next bind upl
   const { gl, uploads } = stubContext();
   const cache = new WebglClusterGeometry(gl, LOCATIONS);
   cache.bind(primitive.geometry);
+  cache.beginFrame();
   primitive.reserve(0, Uint32Array.of(1, 2, 3));
   // Larger than the manifest announced: the buffer grows, the range written before it leaves
   // with the whole buffer.
@@ -93,4 +97,19 @@ test('a growth of the resident index drops the pending ranges: the next bind upl
   assert.deepEqual(uploads.at(-1), { kind: 'data', bytes: 12 * 4, offset: 0 });
   assert.deepEqual(primitive.updateRanges, []);
   assert.deepEqual([...primitive.array], [1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 0, 0]);
+});
+
+// #840: a frame binds each page twice — the reflection capture, then the image — and read its
+// five attributes' versions at both, for 1 465 pages on sponza.
+test('a frame reads the versions of a geometry once: a write between its passes waits', () => {
+  const primitive = new PrimitiveIndex(attributes(6), Int32Array.of(0, 1), Int32Array.of(3, 3));
+  const { gl, uploads } = stubContext();
+  const cache = new WebglClusterGeometry(gl, LOCATIONS);
+  cache.bind(primitive.geometry);
+  primitive.reserve(0, Uint32Array.of(1, 2, 3));
+  cache.bind(primitive.geometry);
+  assert.equal(uploads.length, 1, 'the same frame: not read again');
+  cache.beginFrame();
+  cache.bind(primitive.geometry);
+  assert.deepEqual(uploads.at(-1), { kind: 'sub', bytes: 3 * 4, offset: 0 }, 'the next frame');
 });

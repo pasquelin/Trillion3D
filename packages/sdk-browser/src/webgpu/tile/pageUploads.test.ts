@@ -41,8 +41,12 @@ function oracle(words: Uint32Array, layouts: TileLayout[]) {
       const leaving = words[at(key)];
       let replacement = 0;
       for (let level = key.level + 1; level < layouts[key.slot].tail; level++) {
-        const shift = level - key.level;
-        const word = words[at({ ...key, level, tx: key.tx >> shift, ty: key.ty >> shift })];
+        const shift = level - key.level,
+          [tw, th] = tilesAt(layouts[key.slot].width, layouts[key.slot].height, level);
+        const [tx, ty] = [key.tx >> shift, key.ty >> shift];
+        // An orphan edge tile skips the levels where it has no parent (#962).
+        if (tx >= tw || ty >= th) continue;
+        const word = words[at({ ...key, level, tx, ty })];
         if (word !== 0 && entryLevel(word) === level) {
           replacement = word;
           break;
@@ -91,7 +95,7 @@ function shadowDevice() {
 
 // #961: the capped descent prunes a subtree already served at the tile's level or finer. The
 // table stays develop's, word for word, on arrivals, departures and moves, over layouts whose
-// last tiles have no parent (769, 2049): an orphan's departure refuses on both sides.
+// last tiles have no parent (769, 2049): an orphan leaves to its finest ancestor that exists (#962).
 test('flushing only the changed words keeps the GPU table develop’s, word for word, in at most 64 writes', () => {
   for (let seed = 1; seed <= 30; seed++) {
     const next = random(seed);
@@ -120,14 +124,8 @@ test('flushing only the changed words keeps the GPU table develop’s, word for 
       const roll = next();
       if (roll < 0.3 && placed.length) {
         key = placed.splice(Math.floor(next() * placed.length), 1)[0];
-        let refused = false;
-        try {
-          develop.clearTile(key);
-        } catch {
-          refused = true;
-        }
-        if (refused) assert.throws(() => table.clearTile(key), /TEXTURE_TILE_OUT_OF_LEVEL/);
-        else table.clearTile(key);
+        develop.clearTile(key);
+        table.clearTile(key);
       } else {
         if (roll < 0.4 && placed.length) key = placed[Math.floor(next() * placed.length)];
         const place = {

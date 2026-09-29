@@ -9,21 +9,34 @@ import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import type { PlacementMount } from '../../placement/backendSceneUpdates.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
 import type { ExplorerSource } from '../session/prepare.ts';
+import { listenWorldNotices } from '../diagnostic/worldNotices.ts';
 import { Scene } from './scene.ts';
-import { runtimeOf, sessionStandIn, type Open } from './worldRuntime.fixture.ts';
+import {
+  runtimeOf,
+  sessionStandIn,
+  takeContentReopens,
+  type Open,
+} from './worldRuntime.fixture.ts';
 
-/** A session that mounts, unmounts and grows rows in place, each mount drawn `late` frames after
- *  it is asked (`frame` moves them on), and the rows it draws with the frame that mounted them. */
-function mountingSession(late: number) {
+/** A session that mounts, unmounts and grows rows in place — each growth it `takes` —, each mount
+ *  drawn `late` frames after it is asked (`frame` moves them on), and the rows it draws with the
+ *  frame that mounted them. */
+function mountingSession(late: number, takes = true) {
   const { session } = sessionStandIn();
   const drawn = new Map<PlacementRows, number>();
   const pending: { at: number; done: () => void }[] = [];
   let opened = 0,
     mounts = 0,
+    grown = 0,
+    rewrites = 0,
     now = 0;
   Object.assign(session, {
     growsPlacements: () => true,
-    growPlacements: (from: PlacementRows, to: PlacementRows) => drawn.set(to, drawn.get(from)!),
+    growsInPlace: () => takes,
+    growPlacements: (from: PlacementRows, to: PlacementRows) => (
+      grown++,
+      drawn.set(to, drawn.get(from)!)
+    ),
     mountsPlacements: () => true,
     mountPlacements: ({ association }: PlacementMount) =>
       new Promise<void>((done) => {
@@ -34,6 +47,7 @@ function mountingSession(late: number) {
         });
       }),
     unmountPlacements: (rows: PlacementRows) => drawn.delete(rows),
+    updateVertices: () => ++rewrites > 0,
   });
   const open = (async (_canvas: unknown, _options: unknown, source: ExplorerSource) => {
     opened++;
@@ -46,24 +60,71 @@ function mountingSession(late: number) {
     for (const mount of pending.filter((mount) => mount.at <= at)) mount.done();
     pending.splice(0, pending.length, ...pending.filter((mount) => mount.at > at));
   };
-  /** The rows drawn now, and the newest frame a drawn row was mounted at. */
+  /** The rows drawn now. */
   const live = () => {
-    let rows = 0,
-      newest = -1;
-    for (const [placed, at] of drawn)
-      for (const flag of placed.live) {
-        rows += flag;
-        if (flag) newest = Math.max(newest, at);
-      }
-    return { rows, newest };
+    let rows = 0;
+    for (const [placed] of drawn) for (const flag of placed.live) rows += flag;
+    return rows;
   };
-  return { open, drawn, frame, live, opened: () => opened, mounts: () => mounts };
+  return {
+    open,
+    drawn,
+    frame,
+    live,
+    opened: () => opened,
+    mounts: () => mounts,
+    grown: () => grown,
+    rewrites: () => rewrites,
+  };
 }
+
+test('a growth the session refuses leaves its rows as they are, and a session sized for it opens', async () => {
+  for (const takes of [true, false]) {
+    const scene = new Scene(() => Promise.reject(new Error('no loader')));
+    const { open, opened, grown } = mountingSession(0, takes);
+    const runtime = runtimeOf(
+      scene,
+      Promise.resolve(),
+      (error) => assert.fail(String(error)),
+      open,
+    );
+    const box = geometry.box(1, 1, 1),
+      stone = material.meshStandard({ color: 0x808080 });
+    scene.add(object.mesh(box, stone));
+    await runtime.settled();
+    runtime.render();
+    // A second crate of the same box and stone: one more row of the batch the session holds.
+    scene.add(object.mesh(box, stone));
+    for (let frame = 0; frame < 4; frame++) {
+      await runtime.settled();
+      runtime.render();
+    }
+    runtime.dispose();
+    assert.deepEqual([grown(), opened()], takes ? [1, 1] : [0, 2]);
+    // Refused, the growth takes today's path: one reopen, the one this test asks for.
+    assert.equal(takeContentReopens().length, takes ? 0 : 1);
+  }
+});
 
 test('1 000 frames adding and removing a mesh and replacing a geometry never open the session again', async () => {
   const scene = new Scene(() => Promise.reject(new Error('no loader')));
-  const { open, drawn, frame: tick, live, opened, mounts } = mountingSession(2);
+  const { open, drawn, frame: tick, live, opened, mounts, rewrites } = mountingSession(2);
   const runtime = runtimeOf(scene, Promise.resolve(), (error) => assert.fail(String(error)), open);
+  const reopens: unknown[] = [];
+  const stop = listenWorldNotices((n) => void (n.phase === 'session-reopen' && reopens.push(n)));
+  // #411: the pages of a geometry no mesh wears are given back, not kept for the page's life.
+  const blobs = {
+    made: URL.createObjectURL,
+    revoked: URL.revokeObjectURL,
+    live: new Set<string>(),
+  };
+  URL.createObjectURL = (blob) => {
+    const url = blobs.made(blob);
+    blobs.live.add(url);
+    return url;
+  };
+  URL.revokeObjectURL = (url) => (blobs.live.delete(url), blobs.revoked(url));
+  let mostLive = 0;
   const stone = material.meshStandard({ color: 0x808080 });
   scene.add(object.mesh(geometry.box(4, 0.2, 4), stone));
   const sheet = geometry.plane(4, 4, 2, 2);
@@ -86,15 +147,21 @@ test('1 000 frames adding and removing a mesh and replacing a geometry never ope
     position.needsUpdate = true;
     await runtime.settled();
     if (!runtime.render()) imageless++;
-    // The ground and the water always drawn, a crate beside them once mounted, and the water on a
-    // geometry at most a few frames old: a mesh rewritten faster than it mounts shows each mount.
-    const { rows, newest } = live();
+    // Ground and water always drawn, a crate once mounted; the water turns dynamic (#573).
+    const rows = live();
     assert.ok(rows >= 2 && rows <= 3, `frame ${frame}: ${rows} rows drawn`);
-    if (frame > 10) assert.ok(newest >= frame - 6, `frame ${frame}: newest mount ${newest}`);
+    mostLive = Math.max(mostLive, blobs.live.size);
   }
+  Object.assign(URL, { createObjectURL: blobs.made, revokeObjectURL: blobs.revoked });
+  // Over every geometry worn and replaced, the pages kept are those of the few still mounting.
+  assert.ok(mostLive <= 12, `${mostLive} page blobs alive at most`);
   runtime.dispose();
+  await new Promise(setImmediate);
+  stop();
+  assert.deepEqual(reopens, [], 'no session-reopen said (#837)');
   assert.equal(opened(), 1, 'one session for every mesh and every geometry');
-  assert.ok(mounts() >= 300, `${mounts()} mounts: the water's geometries, the crates'`);
+  assert.ok(mounts() >= 51, `${mounts()} mounts: the crates', the water's dynamic one`);
+  assert.ok(rewrites() >= 990, `${rewrites()} rewrites of the water in place`);
   assert.equal(imageless, 0, 'no frame without an image');
   assert.ok(drawn.size <= 6, `${drawn.size} resources left mounted: the others are unmounted`);
 });
