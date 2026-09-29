@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { cameraFace, releaseScene } from './sharedSceneProof.ts';
-import { ouvrirAppareil } from '../probes/webgpuDevice.ts';
+import { openGpuDevice } from '../probes/webgpuDevice.ts';
 import { fixtures } from './materialFixtures.ts';
 import { SUN, WITNESS_PAIR, type Fixture, type Renderer } from './materialFixtureShape.ts';
 import { truthOf, type TruthReading } from './materialTruth.ts';
@@ -160,7 +160,7 @@ export async function run({
   const { referenceBackend } = (await import(sdkUrl)) as typeof Witnesses;
   const { webgpuPagesBackend, autonomousPagesBackend } = (await import(engineUrl)) as typeof Engine;
   const { createSceneLightStore } = (await import(coreUrl)) as typeof SdkCore;
-  const gpu = await ouvrirAppareil();
+  const gpu = await openGpuDevice();
   if (!gpu) return { unavailable: 'no WebGPU adapter' };
   const { device, erreurs: errors } = gpu;
   const { renderer, canvas } = witnessRenderer();
