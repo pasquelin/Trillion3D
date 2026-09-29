@@ -18,7 +18,7 @@ export const SAMPLE_FLOATS = 16;
 export const SAMPLES_BINDING = 30;
 export const SUMS_BINDING = 31;
 /** The pixel every sample is shaded at: inside the view's one tile. */
-export const SAMPLE_PIXEL = [1.5, 2.5];
+const SAMPLE_PIXEL = [1.5, 2.5];
 
 export const narrowResolveHarness = (narrow: boolean) => `
 ${VIEW_WGSL}
