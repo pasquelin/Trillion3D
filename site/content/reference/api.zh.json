@@ -1000,7 +1000,9 @@
       "PHYSICS_FORMAT": "已编译模型的预制物理（`physics.json`）格式不同，或由与引擎不同的 Jolt 预制（`PHYSICS_FORMAT`）：请重新编译。物理关闭时请求了精确射线检测（`PHYSICS_OFF`）。",
       "PHYSICS_OFF": "已编译模型的预制物理（`physics.json`）格式不同，或由与引擎不同的 Jolt 预制（`PHYSICS_FORMAT`）：请重新编译。物理关闭时请求了精确射线检测（`PHYSICS_OFF`）。",
       "NO_VEHICLE": "在 `world.controls.vehicle` 为 `null` 时把 `world.controls.kind` 设为了 `'vehicle'`：没有可驾驶的东西。",
-      "GUIDE_CEILING": "一次 `world.guides` 调用将持有超过 `GUIDE_VERTEX_CEILING` 的顶点；其内容均未添加。"
+      "GUIDE_CEILING": "一次 `world.guides` 调用将持有超过 `GUIDE_VERTEX_CEILING` 的顶点；其内容均未添加。",
+      "REFERENCE_SHADOWS_REDUCED": "参考图像被拒绝：阴影池低于其完整尺寸运行（`REFERENCE_SHADOWS_REDUCED`）。在交互式会话上请求了参考模式，其尺寸调整会丢失超采样（`REFERENCE_INTERACTIVE`）。",
+      "REFERENCE_INTERACTIVE": "参考图像被拒绝：阴影池低于其完整尺寸运行（`REFERENCE_SHADOWS_REDUCED`）。在交互式会话上请求了参考模式，其尺寸调整会丢失超采样（`REFERENCE_INTERACTIVE`）。"
     }
   },
   "EngineProfiler": {
@@ -2876,7 +2878,7 @@
     "summary": "由宿主拥有的场景层级契约的版本。"
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "头部整数：签名、版本、三角形/节点/组/所有者/源的数量，以及保留的零值。"
+    "summary": "标头整数：v3 所有者标头，随后是形状数、存储三角形数和放置数。"
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "以小端序无符号 32 位整数读取的 'W'、'G'、'P'、'X'。"
@@ -3097,7 +3099,7 @@
     }
   },
   "SceneProxy": {
-    "summary": "读取用的代理体:它的描述符,以及它的各个列——它们都是对其缓存对象字节数据的视图。",
+    "summary": "已读取的代理：描述符及不可变列，共享三角形在加载时展开。",
     "members": {
       "data": "它的各个列。"
     }
@@ -5050,7 +5052,7 @@
   },
   "decodeSceneProxy": {
     "summary": "在任何一条光线接触它之前,会被重新读取并重新校验的代理体。",
-    "description": "布局：八个小端序头部字，后接规范几何与树的各列，以及带版本的所有权数据。`docs/FORMAT.md` 规定了每个数量和列。头部决定各段的长度；大小不符的文件会被整体拒绝，因为引用缺失三角形的节点会使着色器读取任意数据。"
+    "description": "11 个小端标头字之后是共享和独立几何、树列及带版本的所有者数据。`docs/FORMAT.md` 定义每项数量和列。长度不符的文件在任何射线读取之前被拒绝。"
   },
   "decomposeMatrix4": {
     "summary": "把 `m = T · R · S` 分解为 `position`、`quaternion`、`scale`。"

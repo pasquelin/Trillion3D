@@ -1000,7 +1000,9 @@
       "PHYSICS_FORMAT": "컴파일된 모델의 미리 준비된 물리(`physics.json`)가 다른 형식이거나 엔진과 다른 Jolt로 준비되었습니다(`PHYSICS_FORMAT`): 다시 컴파일하세요. 물리가 꺼진 상태에서 정확한 레이캐스트를 요청했습니다(`PHYSICS_OFF`).",
       "PHYSICS_OFF": "컴파일된 모델의 미리 준비된 물리(`physics.json`)가 다른 형식이거나 엔진과 다른 Jolt로 준비되었습니다(`PHYSICS_FORMAT`): 다시 컴파일하세요. 물리가 꺼진 상태에서 정확한 레이캐스트를 요청했습니다(`PHYSICS_OFF`).",
       "NO_VEHICLE": "`world.controls.vehicle`이 `null`인데 `world.controls.kind`를 `'vehicle'`로 설정했습니다: 운전할 것이 없습니다.",
-      "GUIDE_CEILING": "`world.guides` 호출이 `GUIDE_VERTEX_CEILING`보다 많은 정점을 보유하게 되어, 아무것도 추가되지 않았습니다."
+      "GUIDE_CEILING": "`world.guides` 호출이 `GUIDE_VERTEX_CEILING`보다 많은 정점을 보유하게 되어, 아무것도 추가되지 않았습니다.",
+      "REFERENCE_SHADOWS_REDUCED": "참조 이미지가 거부되었습니다: 그림자 풀이 전체 크기보다 작게 실행 중입니다(`REFERENCE_SHADOWS_REDUCED`). 크기 조정 시 슈퍼샘플링이 사라지는 대화형 세션에서 참조 모드가 요청되었습니다(`REFERENCE_INTERACTIVE`).",
+      "REFERENCE_INTERACTIVE": "참조 이미지가 거부되었습니다: 그림자 풀이 전체 크기보다 작게 실행 중입니다(`REFERENCE_SHADOWS_REDUCED`). 크기 조정 시 슈퍼샘플링이 사라지는 대화형 세션에서 참조 모드가 요청되었습니다(`REFERENCE_INTERACTIVE`)."
     }
   },
   "EngineProfiler": {
@@ -2876,7 +2878,7 @@
     "summary": "호스트가 소유하는 씬 계층 계약의 버전."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "헤더 정수: 서명, 버전, 삼각형/노드/그룹/소유자/소스 수, 예약된 0."
+    "summary": "헤더 정수: v3 소유자 헤더 다음에 형상 수, 저장된 삼각형 수, 배치 수."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "'W', 'G', 'P', 'X'를 리틀 엔디안 부호 없는 32비트 정수로 읽은 것."
@@ -3097,7 +3099,7 @@
     }
   },
   "SceneProxy": {
-    "summary": "읽기용 프록시: 그 기술자와, 그 캐시 객체의 바이트에 대한 뷰인 각 열들.",
+    "summary": "읽은 프록시: 설명자와 불변 열이며, 공유 삼각형은 로드 시 확장됩니다.",
     "members": {
       "data": "그것의 열들."
     }
@@ -5050,7 +5052,7 @@
   },
   "decodeSceneProxy": {
     "summary": "광선 하나라도 그것에 닿기 전에, 다시 읽히고 다시 검증되는 프록시.",
-    "description": "배치: 리틀 엔디언 헤더 8워드 다음에 정규 기하와 트리 열 및 버전이 지정된 소유권 데이터가 옵니다. `docs/FORMAT.md`는 모든 개수와 열을 명시합니다. 헤더가 각 구간의 길이를 정하며, 크기가 다른 파일은 통째로 거부합니다. 없는 삼각형을 가리키는 노드가 있으면 셰이더가 임의의 데이터를 읽게 되기 때문입니다."
+    "description": "11개의 리틀 엔디언 헤더 워드 다음에 공유 및 개별 지오메트리, 트리 열, 버전이 있는 소유자 데이터가 옵니다. `docs/FORMAT.md`는 각 개수와 열을 정의합니다. 잘못된 길이는 광선 접근 전에 거부됩니다."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S`를 `position`, `quaternion`, `scale`로 분해한다."

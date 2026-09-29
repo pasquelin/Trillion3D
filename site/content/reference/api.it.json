@@ -1390,7 +1390,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Il proxy riletto e riverificato prima che un solo raggio lo tocchi.",
-    "description": "Disposizione: otto parole di intestazione little-endian, seguite dalle colonne della geometria e dell’albero canonici e dai dati di proprietà con versione. `docs/FORMAT.md` specifica ogni conteggio e colonna. L’intestazione impone la lunghezza di ogni sezione; un file di dimensione diversa viene rifiutato interamente, perché un nodo che indicasse un triangolo mancante farebbe leggere dati arbitrari allo shader."
+    "description": "Undici parole little-endian di intestazione precedono geometria condivisa o indipendente, colonne dell’albero e proprietà versionata. `docs/FORMAT.md` definisce conteggi e colonne. Lunghezze errate vengono rifiutate prima di qualsiasi raggio."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S` scomposta in `position`, `quaternion`, `scale`."
@@ -1640,7 +1640,9 @@
       "PHYSICS_FORMAT": "La fisica preparata di un modello compilato (`physics.json`) è di un altro formato, o è stata preparata da un Jolt diverso da quello del motore (`PHYSICS_FORMAT`): ricompilalo. È stato chiesto un raycast esatto a fisica spenta (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "La fisica preparata di un modello compilato (`physics.json`) è di un altro formato, o è stata preparata da un Jolt diverso da quello del motore (`PHYSICS_FORMAT`): ricompilalo. È stato chiesto un raycast esatto a fisica spenta (`PHYSICS_OFF`).",
       "NO_VEHICLE": "`world.controls.kind` è stato impostato a `'vehicle'` mentre `world.controls.vehicle` è `null`: non c’è niente da guidare.",
-      "GUIDE_CEILING": "Una chiamata a `world.guides` terrebbe più vertici di `GUIDE_VERTEX_CEILING`; non ne è stato aggiunto nulla."
+      "GUIDE_CEILING": "Una chiamata a `world.guides` terrebbe più vertici di `GUIDE_VERTEX_CEILING`; non ne è stato aggiunto nulla.",
+      "REFERENCE_SHADOWS_REDUCED": "L’immagine di riferimento è stata rifiutata: il pool delle ombre gira sotto la sua dimensione piena (`REFERENCE_SHADOWS_REDUCED`). La modalità di riferimento è stata chiesta su una sessione interattiva, il cui ridimensionamento farebbe perdere il supersampling (`REFERENCE_INTERACTIVE`).",
+      "REFERENCE_INTERACTIVE": "L’immagine di riferimento è stata rifiutata: il pool delle ombre gira sotto la sua dimensione piena (`REFERENCE_SHADOWS_REDUCED`). La modalità di riferimento è stata chiesta su una sessione interattiva, il cui ridimensionamento farebbe perdere il supersampling (`REFERENCE_INTERACTIVE`)."
     }
   },
   "enginePose": {
@@ -5254,7 +5256,7 @@
     "summary": "Versione del contratto della gerarchia di scena mantenuta dall'host."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "Interi dell’intestazione: firma, versione, conteggi di triangoli/nodi/gruppi/proprietari/origini, zero riservato."
+    "summary": "Interi di intestazione: intestazione dei proprietari v3, poi conteggi di forme, triangoli memorizzati e posizionamenti."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "'W','G','P','X' letti come un intero senza segno a 32 bit little-endian."
@@ -5390,7 +5392,7 @@
     }
   },
   "SceneProxy": {
-    "summary": "Il proxy letto: il suo descrittore e le sue colonne, viste sui byte del suo oggetto di cache.",
+    "summary": "Il proxy letto: descrittore e colonne immutabili, con triangoli condivisi espansi al caricamento.",
     "members": {
       "data": "Le sue colonne."
     }
