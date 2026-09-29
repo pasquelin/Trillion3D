@@ -162,6 +162,7 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
       into.allocated = from[POOL_COUNTS.indexOf('allocated')];
       into.refused = from[POOL_COUNTS.indexOf('refused')];
       into.drawn = from[POOL_COUNTS.indexOf('drawn')];
+      into.listings = from[POOL_COUNTS.indexOf('listings')];
       into.owner.set(signed.subarray(POOL_COUNTS.length, POOL_COUNTS.length + pages));
       into.requested.set(signed.subarray(POOL_COUNTS.length + pages));
     },

@@ -52,10 +52,10 @@ fn lampDiskSample(index:u32,light:DirectLight,P:vec3f,N:vec3f,delta:vec3f,mip0:u
  return LampSample(0.0,false,vec3f(1.0));
 }
 fn pointSoftShadow(index:u32,light:DirectLight,P:vec3f,N:vec3f,mip:u32)->f32{
- let d=lampSoftDisk(index,light,P);let T=d.T;let B=d.B;
+ let d=lampSoftDisk(index,light,P);
  var blockers=0u;var total=0.0;
  for(var tap=0u;tap<PCF_TAPS;tap++){
-  let disk=POISSON[tap];let delta=(T*disk.x+B*disk.y)*d.search;
+  let disk=POISSON[tap];let delta=(d.T*disk.x+d.B*disk.y)*d.search;
   let found=lampDiskSample(index,light,P,N,delta,mip,false);
   if(found.blocked){total+=found.distance;blockers++;}
  }
@@ -66,7 +66,7 @@ fn pointSoftShadow(index:u32,light:DirectLight,P:vec3f,N:vec3f,mip:u32)->f32{
  let penumbra=light.shape.x*max(d.distance-blocker,0.0)/max(blocker,d.closest);
  var through=vec3f(0.0);
  for(var tap=0u;tap<PCF_TAPS;tap++){
-  let disk=POISSON[tap];let delta=(T*disk.x+B*disk.y)*penumbra;
+  let disk=POISSON[tap];let delta=(d.T*disk.x+d.B*disk.y)*penumbra;
   through+=lampDiskSample(index,light,P,N,delta,mip,true).through;
  }
  shadowTransmission=through/f32(PCF_TAPS);

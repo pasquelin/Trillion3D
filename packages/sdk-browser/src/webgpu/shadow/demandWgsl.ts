@@ -97,17 +97,20 @@ fn softPageExit(index:u32,P:vec3f,v:vec3f,r:LampAt,s:f32)->f32{
  }
  return exit;
 }
-/** Every page of \`mip\` a point lamp's soft shadow at \`P\` reads (\`pointSoftShadow\`): a tap of
- *  its blocker search lies at \`P + v\`, one of its filter at \`P + v·s\`, \`s\` the penumbra over the
- *  search, at most 1 — each tap on the segment from \`P\` to its search tap. Each segment is walked
+/** Every page of \`mip\` a point lamp's soft shadow reads (\`pointSoftShadow\`) at \`P\`, the
+ *  offset point of \`centre\`: a tap of its blocker search lies at \`P + v\`, one of its filter at
+ *  \`P + v·s\`, \`s\` the penumbra over the search, at most 1 — each tap on the segment from \`P\`
+ *  to its search tap. Each segment is walked
  *  page by page through the tap's own lookup (\`lampReadAt\`, as \`lampDiskSample\`), across the
  *  cube's faces: every page its taps can read is marked, whatever the blockers found. */
-fn demandSoftLamp(index:u32,light:DirectLight,P:vec3f,N:vec3f,mip:u32){
- let disk=lampSoftDisk(index,light,P);
+fn demandSoftLamp(index:u32,light:DirectLight,centre:LampAt,N:vec3f,mip:u32){
+ let P=centre.at.Q;
+ let d=lampSoftDisk(index,light,P);
  let lamp=light.positionRange.xyz;
  for(var tap=0u;tap<PCF_TAPS;tap++){
-  let v=(disk.T*POISSON[tap].x+disk.B*POISSON[tap].y)*disk.search;
-  var s=0.0;
+  let disk=POISSON[tap];let v=(d.T*disk.x+d.B*disk.y)*d.search;
+  // \`P\` reads \`centre\`, the lookup whose pages \`demandLamp\` marked: the walk starts at its exit.
+  var s=softPageExit(index,P,v,centre,0.0)+1e-5;
   // A segment spans under 60° (\`search\` < \`distance\`, a tap within 1.3 of the disk's centre):
   // at most three faces, and two pages a row of each crossed.
   for(var k=0u;k<6u*LAMP_PAGE_COUNT&&s<=1.0;k++){
@@ -126,7 +129,7 @@ fn demandLamp(index:u32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f,footprint:f32)
  let r=lampReadAt(index,light.positionRange.xyz,P,N,shadowNormalTexels(clamp(dot(N,L),1e-3,1.0)),texel0,mip);
  if(!r.inside){return;}
  demandPages(r.at.map,r.at.t,r.at.home);
- if(u32(shadows.records[index].info.x)==${POINT_FACES}u&&light.shape.x>0.0){demandSoftLamp(index,light,r.at.Q,N,mip);}
+ if(u32(shadows.records[index].info.x)==${POINT_FACES}u&&light.shape.x>0.0){demandSoftLamp(index,light,r,N,mip);}
 }
 /** A light's pages at the point, behind the resolve's gate (\`declaredLight\`, \`shadowFactor\`):
  *  a shadowed punctual light that reaches point \`at\`, read at \`receiver\` — \`at\` moved by its

@@ -21,8 +21,10 @@ const LITS = (binding: number) => `struct Lit{P:vec4f,N:vec4f,}
 @group(0) @binding(${binding}) var<storage,read> lits:array<Lit>;`;
 const LIGHTS = (binding: number) =>
   `@group(0) @binding(${binding}) var<storage,read> directLights:DirectLights;`;
-const DEMANDED = ['demandPage', 'demandPages', 'demandSun', 'demandLamp', 'demandLight'];
-DEMANDED.push('demandSoftLamp', 'softPageExit');
+const DEMANDED = [
+  ...['demandPage', 'demandPages', 'demandSun', 'demandLamp', 'demandLight'],
+  ...['demandSoftLamp', 'softPageExit'],
+];
 
 /** The demand's own functions, run at every lit point for every light. */
 export const DEMAND = `${DIRECT_LIGHT_WGSL}

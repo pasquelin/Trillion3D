@@ -17,6 +17,9 @@ export interface ShadowPoolSnapshot {
   refused: number;
   /** Pages that frame listed for the GPU to draw (`listDraw`). */
   drawn: number;
+  /** Pages every frame listed since the pool's seed: moves with any frame's list, its own
+   *  snapshot lost or not. */
+  listings: number;
 }
 
 /**
@@ -82,8 +85,8 @@ export function createShadowMirror(
     asks: { entries: new Uint32Array(shadowRequestCap(pool.pages)), count: 0 } as ShadowAsks,
     /** True while the GPU allocates. */
     on: previous?.on ?? false,
-    /** Pages every snapshot so far listed for the GPU to draw, in their frame (`freshPass.ts`):
-     *  the shadow contents' version as the GPU's own draws move it (`reflections/frame.ts`). */
+    /** The latest snapshot's `listings`: the shadow contents' version as the GPU's own draws move
+     *  it (`reflections/frame.ts`), a frame whose snapshot is lost counted by the next. */
     drawn: previous?.drawn ?? 0,
     /** Pages the latest snapshot's frame listed for the GPU to draw: while some are, the GPU's
      *  page draws run (`freshPass.ts`). */
@@ -110,7 +113,7 @@ export function createShadowMirror(
       const snapshot = report.pool;
       if (snapshot) {
         mirror.listed = snapshot.drawn;
-        mirror.drawn += snapshot.drawn;
+        mirror.drawn = snapshot.listings;
       }
       if (!snapshot || report.frame < from || snapshot.owner.length !== pool.pages) return false;
       if (report.layoutEpoch !== table.layoutEpoch) return false;
