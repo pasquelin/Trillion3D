@@ -13,7 +13,7 @@ import {
   MEASURE_WIDTH,
 } from '../../../../../../tests/browser/support/sceneProvenance.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
-import { createScaleControl } from '../state/scaleControl.ts';
+import { createScaleControl } from '../../../frame/scaleControl.ts';
 
 /** Both sizes of a frame drawn at the display's. */
 const native = (width: number, height: number) => ({

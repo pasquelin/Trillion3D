@@ -24,8 +24,8 @@ export function createExplorerRenderApi({ check, active: getActive }: Inputs) {
         !active.capabilities.unsupported.includes(TAA_CAPABILITY)
       );
     },
-    /** The render scale of the active engine from the next frame; an engine without temporal
-     *  upscaling (WebGL2) draws at the display's size and ignores it. */
+    /** The render scale of the active engine from the next frame; an engine without one draws at
+     *  the display's size and ignores it. */
     setRenderScale(scale: RenderScale) {
       check();
       getActive().setRenderScale?.(scale);
