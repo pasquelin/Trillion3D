@@ -2460,18 +2460,6 @@
       "maxDecodedBytes": "Teto de bytes decodificados de uma página de geometria; ignorado por `verify`."
     }
   },
-  "PageDecodeShare": {
-    "summary": "O arrendamento de memória compartilhada de um worker: o buffer da arena, o slot e a região que possui, e a contagem de slots, que dá o tamanho da zona de controle.",
-    "description": "Postado uma vez, no nascimento do worker, e só onde a plataforma permite memória compartilhada. Sem um arrendamento, o worker responde transferindo buffers: o contrato não muda de forma, só o caminho dos bytes muda.",
-    "members": {
-      "protocol": "Versão do formato de mensagem.",
-      "id": "Sempre 0.",
-      "op": "Sempre `'share'`.",
-      "buffer": "A memória compartilhada.",
-      "slot": "O slot deste worker.",
-      "slots": "Slots ao todo."
-    }
-  },
   "PageIntegrationAnswer": {
     "summary": "A resposta de um worker a uma chegada: planejada ou falhou."
   },

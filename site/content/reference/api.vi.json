@@ -2478,18 +2478,6 @@
       "maxDecodedBytes": "Trần số byte đã giải mã của một trang hình học; bị `verify` bỏ qua."
     }
   },
-  "PageDecodeShare": {
-    "summary": "Hợp đồng thuê bộ nhớ chung của một worker: bộ đệm vùng nhớ, khe và vùng nó sở hữu, và số lượng khe, thứ cho biết kích thước vùng điều khiển.",
-    "description": "Được gửi một lần, khi worker ra đời, và chỉ khi nền tảng cho phép bộ nhớ chung. Không có hợp đồng thuê, worker trả lời bằng cách chuyển giao các bộ đệm: hợp đồng không đổi hình dạng, chỉ có đường đi của byte thay đổi.",
-    "members": {
-      "protocol": "Phiên bản định dạng thông điệp.",
-      "id": "Luôn là 0.",
-      "op": "Luôn là `'share'`.",
-      "buffer": "Bộ nhớ chung đó.",
-      "slot": "Khe của worker này.",
-      "slots": "Tổng số khe."
-    }
-  },
   "PageIntegrationAnswer": {
     "summary": "Câu trả lời của một worker cho một lượt đến: đã lên kế hoạch hoặc thất bại."
   },

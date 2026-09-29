@@ -60,7 +60,7 @@ export function commitGpuPage(
   requestStarted: number,
 ): ResidentPage {
   const { state, free, resident, pins, slots, changeKeys, changeSlots } = context;
-  const { staging, device, buffer, pageBytes, reader } = context;
+  const { tail, device, buffer, pageBytes, reader } = context;
   const { emit, now, report } = reader;
   state.bytesRead += bytes.byteLength;
   let slot = free.pop();
@@ -86,12 +86,19 @@ export function commitGpuPage(
   // page — even a tiny one — a clear, a copy and a transfer of that size, while nothing ever
   // reads the slot's tail: a page-table row names its offset and triangle count, and the
   // visibility pass does not leave that range. Only the page's bytes go, padded to the multiple
-  // of four that `writeBuffer` requires.
+  // of four that `writeBuffer` requires. The page's whole words go straight from its own bytes —
+  // `writeBuffer` copies them itself, a staging copy first would only double the copy (#982) —
+  // and only its last 1-3 bytes, zero-padded to a word, through the four-byte `tail`.
   const size = bytes.byteLength,
+    body = size & ~3,
     padded = size + (size % 4 ? 4 - (size % 4) : 0);
-  staging.set(bytes);
-  if (padded !== size) staging.fill(0, size, padded);
-  device.queue.writeBuffer(buffer, slot * pageBytes, staging, 0, padded);
+  if (body > 0)
+    device.queue.writeBuffer(buffer, slot * pageBytes, bytes as Uint8Array<ArrayBuffer>, 0, body);
+  if (padded !== body) {
+    tail.fill(0);
+    tail.set(bytes.subarray(body));
+    device.queue.writeBuffer(buffer, slot * pageBytes + body, tail, 0, 4);
+  }
   const uploadDurationMs = report ? performance.now() - uploadStarted : null;
   state.uploadedBytes += padded;
   const page = {
