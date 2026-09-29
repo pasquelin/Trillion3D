@@ -51,25 +51,20 @@ export function createVertexPool(
   /** The float of `name`'s buffer vertex `vertex` starts at: in the UVs' tail for a colour. */
   const offsetOf = (name: PoolList, vertex: number) =>
     name === 'color' ? colorFloatAt(capacity, vertex) : vertex * LAYOUT[name].stride;
-  /** Fills `into` from float `at` with vertices `from` to `from + n - 1` of list `name` of `a`. */
-  const fill = (
-    into: Float32Array,
-    at: number,
-    a: HostAttributes,
-    name: PoolList,
-    from: number,
-    n: number,
-  ) => {
+  /** Fills the scratch with vertices `from` to `from + n - 1` of list `name` of `a`: its floats. */
+  const fill = (a: HostAttributes, name: PoolList, from: number, n: number) => {
     const { stride, parts } = LAYOUT[name];
-    let part = at;
+    if (scratch.length < n * stride) scratch = new Float32Array(n * stride);
+    let part = 0;
     for (const [source, width, missing] of parts) {
       const list: List | undefined = a[source];
       for (let i = 0; i < n; i++)
         for (let c = 0; c < width; c++)
-          into[part + i * stride + c] =
+          scratch[part + i * stride + c] =
             list && c < list.itemSize ? list.getComponent(from + i, c) : missing;
       part += width;
     }
+    return n * stride;
   };
   /** Whether `attributes` carry list `name`: a missing one reads zero, as a new buffer holds. */
   const holds = (attributes: HostAttributes, name: PoolList) =>
@@ -101,11 +96,12 @@ export function createVertexPool(
         const block = claim(attributes, dynamic);
         for (const name of LISTS) {
           if (!block || !holds(attributes, name)) continue;
-          const at = offsetOf(name, block.vertexBase);
-          fill(arrays[LAYOUT[name].buffer], at, attributes, name, 0, block.count);
+          const floats = scratch.subarray(0, fill(attributes, name, 0, block.count));
+          arrays[LAYOUT[name].buffer].set(floats, offsetOf(name, block.vertexBase));
         }
       }
       for (const key of BUFFERS) device.queue.writeBuffer(buffers[key], 0, arrays[key]);
+      scratch = new Float32Array(0); // the open's largest list is not kept
     },
     /** The block of `attributes`, placed in the room the open left when it has none — a record
      *  mounted since —; undefined when that room is spent. `dynamic` marks its rows. */
@@ -130,10 +126,7 @@ export function createVertexPool(
     write(attributes: HostAttributes, name: PoolList, from: number, count: number) {
       const block = blocks.get(attributes);
       if (!block || !holds(attributes, name)) return 0;
-      const n = Math.min(count, block.count - from),
-        size = n * LAYOUT[name].stride;
-      if (scratch.length < size) scratch = new Float32Array(size);
-      fill(scratch, 0, attributes, name, from, n);
+      const size = fill(attributes, name, from, Math.min(count, block.count - from));
       const at = offsetOf(name, block.vertexBase + from) * 4;
       device.queue.writeBuffer(buffers[LAYOUT[name].buffer], at, scratch, 0, size);
       return size * 4;
