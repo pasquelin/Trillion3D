@@ -2431,7 +2431,8 @@
       "id": "被响应的请求。",
       "ok": "始终为 `false`。",
       "code": "失败的原因。",
-      "message": "原始的错误信息,原样传递:调用者会抛出与同步路径完全相同的 `Error`。"
+      "message": "原始的错误信息,原样传递:调用者会抛出与同步路径完全相同的 `Error`。",
+      "refusal": "任务遇到的引擎具名拒绝的代码（`EngineError`），调用方以该代码再次抛出；其他任何失败时不存在。"
     }
   },
   "PageDecodeFailureCode": {
@@ -2459,7 +2460,8 @@
       "id": "请求编号。",
       "op": "要执行的操作。",
       "source": "随消息一起转移:发送方之后不再拥有它。",
-      "maxDecodedBytes": "一个几何体页面解码后字节数的上限;`verify` 会忽略这一项。"
+      "maxDecodedBytes": "一个几何体页面解码后字节数的上限;`verify` 会忽略这一项。",
+      "name": "`cells`、`cellPage`：读取源数据的文件，拒绝时会指明它。"
     }
   },
   "PageDecodeShare": {

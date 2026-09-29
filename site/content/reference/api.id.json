@@ -2449,7 +2449,8 @@
       "id": "Permintaan yang dijawab.",
       "ok": "Selalu `false`.",
       "code": "Kenapa gagal.",
-      "message": "Pesan aslinya, apa adanya: pemanggil melempar `Error` yang sama seperti jalur sinkron."
+      "message": "Pesan aslinya, apa adanya: pemanggil melempar `Error` yang sama seperti jalur sinkron.",
+      "refusal": "Kode penolakan bernama dari mesin yang ditemui tugas (`EngineError`), yang dilemparkan kembali oleh pemanggil dengan kode itu; tidak ada untuk kegagalan lain."
     }
   },
   "PageDecodeFailureCode": {
@@ -2477,7 +2478,8 @@
       "id": "Nomor permintaan.",
       "op": "Apa yang harus dilakukan.",
       "source": "Ditransfer bersama pesan: pengirim tidak lagi menjadi pemiliknya.",
-      "maxDecodedBytes": "Batas atas byte yang diurai sebuah halaman geometri; diabaikan `verify`."
+      "maxDecodedBytes": "Batas atas byte yang diurai sebuah halaman geometri; diabaikan `verify`.",
+      "name": "`cells`, `cellPage`: berkas tempat sumber dibaca, yang disebut oleh penolakan."
     }
   },
   "PageDecodeShare": {

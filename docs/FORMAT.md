@@ -222,34 +222,45 @@ halving tree, each node a contiguous range of cells: a region page `{ version: 4
 records of the highest node under 128 KiB (`PAGE_BYTES`; one cell whatever its size) and, sorted and
 each once, the slots of the manifest's mesh pages that hold a primitive of a mesh its cells place —
 what a region needs fetched (#792) —, an index page
-`{ version: 4, pages }` lists at most 8 pages (`FAN_OUT`), its node opened largest first, and
-`partition` is the root `{ version: 4, pages, meshes, parents }`: the whole tree opened into exactly
-eight slots, empty ones last, then (#575) per mesh the cells place, in rank order, its rank and how
-many nodes the cells place, eight hexadecimal digits each, and each core rank the cells hang nodes
-under, in eight. The slots take 1 391 bytes for grids of 48² and 192² and the open-world cell laid
-8 × 8, and the whole root 1 434 for the grids, one mesh under the scene: fixed width, it grows with
-the meshes and parents placed, never with the cells. A slot
+`{ version: 4, pages, parents }` lists at most 8 pages (`FAN_OUT`), its node opened largest first,
+and beside each (#575) the core ranks its cells hang nodes under, eight hexadecimal digits each run
+together, `""` for none; `partition` is the root `{ version: 4, pages, parents, meshes, cube }`: the
+whole tree opened into exactly eight slots, empty ones last, the parents beside each slot as an
+index page lists them, then per mesh the cells place, in rank order, its rank, how many nodes the
+cells place and its **rows at each of 32 rungs**, eight hexadecimal digits each, and `cube`, the
+widest cell's diagonal as the sixteen hexadecimal digits of its `f64` (`partition/pages/rows.rs`).
+Rung `k` is a side `cube·√2^k`; its rows are, summed over the parents the cells hang under, the
+most nodes of that mesh the cells of one parent place that meet one window of side `1.5·side` at a
+multiple of `side/2` on every axis — each cell counted whole, and never past every node. Any cube
+of that side lies in one such window, so the rows of a rung hold every node of the cells that meet
+any cube of it: a bound set by the side and the cells' size, the same at 1× and 16× the world once
+the side is narrower than the world. The slots take 1 391 bytes for grids of 48² and 192² and the
+open-world cell laid 8 × 8, and the whole root 1 739 for the grids, one mesh under the scene: fixed
+width, it grows with the meshes and parents placed, never with the cells. A slot
 is 168 hexadecimal digits: the page's SHA-256, its size (8) and its box at the declared poses as six
 big-endian `f64` bit patterns (16 each), naming `scene-page-<sha256>.json`; zeros name no page.
-`tablePartition` reads the root alone: its slots, `bounds` the union of their boxes, `meshes` the
-ranks placed, `totals` their node counts and `parents` the core ranks. A page is read by
-`readCellPage`, which refuses one of another version, one of neither pages nor cells, and a region
-page without its list of mesh pages. Pages and cells are outside the manifest's `files`: a reused
+`tablePartition` reads the root alone: its slots and their parents, `bounds` the union of their
+boxes, `meshes` the ranks placed, `totals` their node counts, `rows` their rungs, `cube`, and
+`parents` the core ranks. A page is read by `readCellPage`, which refuses one of another version,
+an index page without the parents of its pages, one of neither pages nor cells, and a region page
+without its list of mesh pages. Pages and cells are outside the manifest's `files`: a reused
 folder proves them through the root.
 
-**The cell index at runtime** (#575). Before its first frame a session reads of the partition its
-root alone, in the scene tables: the same bytes whatever the world. Its rows are sized then, once,
-from `totals`, for every node the cells place, so no row ever grows and no session is reopened,
-wherever the camera goes or a page moves the parents. Each frame walks the index from the root
+**The cell index at runtime** (#575). Before its first frame a session sizes its rows for its first
+camera's view (below), then reads the pages of the index on that camera's way and the cells within
+its reach, and places them (`primePartitions`): the first frame draws what that camera reaches, and
+reads the bytes of the view, not of the world. Each frame walks the index from the root
 (`scene/partition/cellIndex.ts`): a page is boxed at the declared poses, and what it holds now lies
-within that box and the box carried by each parent moved since the declaration (`boxes.ts`); a
-page whose box meets the reach is read through the session's streamer — its files taken into its
+within that box and the box carried by each parent its cells hang under moved since the
+declaration (`boxes.ts`), no other parent's; a page whose box meets the reach is read through the session's streamer — its files taken into its
 catalogue —, decoded in the decode pool (`cellPage`) and opened within the one integration budget,
 then its pages walked or its cells tested; a page past the keep sphere with no cell placed is
 closed, its files let go. The index holds the pages the view reached, and the frame's work follows
 what its reach holds, not the world's cell count. A cell file is parsed off the main thread too, by
 the pool's `cells` task (`scene/partition/cellDecode.ts`), into each node's ranks and local matrix;
-the frame places the rows within the same budget.
+the frame places the rows within the same budget. A page or cell the pool refuses keeps its code
+across the thread — a page of another version stays `UNSUPPORTED_SCENE_TABLES` — and names its file
+(`PageDecodeFailed.refusal`, `PageDecodeRequest.name`).
 
 **The manifest held by the view** (#751). A WebGL2 world reads of the manifest its root, its head
 page and the mesh pages `meshPages` names (`openPagedManifest`, `loadModel`'s `lazy`); each cell it
@@ -280,9 +291,21 @@ never of the cell, so a cell cut wider than the view is kept only while its box 
 (`ARRIVAL_BUDGET_MS`, `FrameBudget`): its clock starts once per frame, the cells spend from it
 first, the page arrivals drain from what is left, then the WebGPU row records; the first
 integration of a frame always goes through.
-The rows are sized once, when a session opens and before its engines read them, from the root's
-`totals`: every placement has its row, so moving parents or a wider reach never run them short
-(CONTRIBUTING.md §Streaming rule 10). A session drawing on demand draws again, camera still, until the pages and cells it
+The rows are sized when a session opens, before its engines read them, for every placement its
+camera's view can hold at once **wherever the page moves the core parents** (`sizing.ts`). A held
+cell has a box within `keep = 1.5 × reach` of the eye; under the scene root that box meets the cube
+of side `2·keep` around it, and under a core parent that stretches the root's frame by `least` to
+`most`, the cube of side `2·(keep + √3·most·cube/2)/least` in the parent's frame. The rows take
+the first rung whose side holds the widest cube the parents ask, from the root's `rows`: set by the
+reach, the cells' size and the parents' stretch, not by the world. Parents moved, turned or
+scaled up never run them short, so they never reopen the session nor leave a placement undrawn
+(CONTRIBUTING.md §Streaming rule 10). A camera whose reach later outgrows the rung, or a parent
+scaled down or stretched more unevenly than at opening, asks a wider rung — twice the side at
+least — and grows the rows in place on an engine that follows the growth contract
+(`placement/growth.ts`) and takes that growth (`growsInPlace`: WebGPU while its page table holds
+it); on one that does not, the rows stay as they are and it asks the session's owner, once, to
+open it again sized for that view (`onPartitionOutgrown`; the world does). A session no owner can
+open again (a bare explorer) sizes its rows for every placement, which never ask. A session drawing on demand draws again, camera still, until the pages and cells it
 asked for within reach are read, decoded and opened or placed. A partitioned scene is not
 replicated (`UNSUPPORTED_SCENE_UPDATE`).
 

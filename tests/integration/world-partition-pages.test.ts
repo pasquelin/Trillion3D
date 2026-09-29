@@ -79,7 +79,7 @@ test(
 );
 
 test(
-  '#404 on WebGL2: a parent scaled down leaves no object missing, on the rows sized at open',
+  '#404 on WebGL2: a parent scaled down leaves no object missing, and no session is reopened',
   { skip },
   async (t) => {
     const model = await (await served(t, world(384, 'district')))(true);
@@ -95,7 +95,7 @@ test(
     const after = await view.settle();
     const near = await assertNoneMissing(view, 0.25);
     t.diagnostic(JSON.stringify({ before, after, near, ...view.engine.counts }));
-    assert.ok(after.rows === before.rows && after.held > before.held, 'nothing grows (#575)');
+    assert.ok(view.engine.counts.grown > 0 && after.held > before.held, 'rows grown in place');
     assert.deepEqual([after.waiting, view.renewed.count], [0, 0]);
   },
 );

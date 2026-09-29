@@ -15,7 +15,7 @@ import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import { fetchVerified } from '../../cluster/pages.ts';
 import { loadPreparedSceneTables } from '../../scene/tables.ts';
 import { createPartitionCells } from '../../scene/partition/cells.ts';
-import { io, noBudget, settled } from '../../scene/partition/cells.fixture.ts';
+import { io, noBudget, opened, settled } from '../../scene/partition/cells.fixture.ts';
 import {
   readCellPage,
   type TableCell,
@@ -65,6 +65,7 @@ test('a partitioned cache places every mesh the loader placed, at its world matr
       files.set(new URL(name, folder).href, await readFile(new URL(name, folder)));
   const port = io((url) => files.get(url)!);
   for (const url of files.keys()) port.held.add(url);
+  await opened(cells, (url) => files.get(url)!, Infinity, false);
   await settled(cells, [0, 0, 0], Infinity, port.port, noBudget);
   const prepared: string[] = [];
   built.source.traverse((node) => {

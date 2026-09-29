@@ -4550,7 +4550,8 @@
       "id": "La richiesta che riceve la risposta.",
       "ok": "Sempre `false`.",
       "code": "Perché è fallita.",
-      "message": "Il messaggio originale, così com'è: il chiamante lancia lo stesso `Error` del percorso sincrono."
+      "message": "Il messaggio originale, così com'è: il chiamante lancia lo stesso `Error` del percorso sincrono.",
+      "refusal": "Il codice del rifiuto con nome del motore incontrato dal compito (`EngineError`), che il chiamante rilancia con quel codice; assente per ogni altro fallimento."
     }
   },
   "pageDecodeFailureCode": {
@@ -4581,7 +4582,8 @@
       "id": "Numero della richiesta.",
       "op": "Cosa bisogna fare.",
       "source": "Trasferito con il messaggio: il mittente non ne è più il proprietario.",
-      "maxDecodedBytes": "Limite di byte decodificati di una pagina di geometria; ignorato da `verify`."
+      "maxDecodedBytes": "Limite di byte decodificati di una pagina di geometria; ignorato da `verify`.",
+      "name": "`cells`, `cellPage`: il file da cui è stata letta la sorgente, che un rifiuto nomina."
     }
   },
   "PageDecodeShare": {
