@@ -1,7 +1,8 @@
-import { PAGE_MAPPED, PAGE_RANGE_SHIFT, PAGE_VALID, SHADOW_TABLE_ENTRIES } from './virtual.ts';
+import { PAGE_MAPPED, SHADOW_TABLE_ENTRIES } from './virtual.ts';
+import { PAGES } from './pageModel.ts';
 import type { ShadowTable } from './table.ts';
 import { shadowPageArrays, shadowPageArraysBytes } from './poolPages.ts';
-import { PAGE_FOOTPRINT_EMPTY, PAGE_FOOTPRINT_SHIFT, footprintDrawn } from './footprint.ts';
+import { PAGE_FOOTPRINT_EMPTY, footprintDrawn } from './footprint.ts';
 import { createEvictionOrder } from './poolOrder.ts';
 
 export { RANKS } from './poolOrder.ts';
@@ -93,8 +94,7 @@ export function createShadowPool(side: number, layers = 1) {
         mode === DRAW_FULL || (mode === DRAW_DYNAMIC && pool.layered[page]) ? 1 : 0;
       pool.range[page] = drawn;
       pool.footprint[page] = footprint;
-      const flags = PAGE_MAPPED | PAGE_VALID | (drawn << PAGE_RANGE_SHIFT);
-      table.write(pool.owner[page], page | flags | (footprint << PAGE_FOOTPRINT_SHIFT));
+      table.write(pool.owner[page], PAGES.shadowReadableWord(page, drawn, footprint));
     },
     /** THE ONE WAY A PAGE IS READ NO MORE: it keeps its place and its requests, but its depth is
      *  wrong — not only coarser than the view wants — until it is drawn again, and a reader falls

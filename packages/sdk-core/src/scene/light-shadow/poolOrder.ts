@@ -1,3 +1,5 @@
+import { PAGE_KEY_SPAN } from './pageKeys.ts';
+import { PAGES } from './pageModel.ts';
 import type { ShadowPageArrays } from './poolPages.ts';
 
 /** Ranks an ordering key spans, centred on zero: a page's coarseness steps lie far inside it. */
@@ -6,8 +8,8 @@ export const RANKS = 1024;
 /**
  * THE PAGES A REPORT MAY TAKE FROM ANOTHER ENTRY (`pool.ts`): every mapped page no later report
  * named, least recently requested first and, among those, the finest first — a coarse page is what
- * the finer ones fall back to —, then by page. Their keys pack into one exact number each, sorted
- * once per report, by the first page the free list cannot serve.
+ * the finer ones fall back to —, then by page: the GPU's order (`shadowEvictionKey`). Their keys
+ * are sorted once per report, by the first page the free list cannot serve.
  */
 export function createEvictionOrder() {
   let order = new Float64Array(0),
@@ -19,7 +21,7 @@ export function createEvictionOrder() {
     count = at = 0;
     for (let page = 0; page < pages; page++)
       if (owner[page] >= 0 && requested[page] < frame)
-        order[count++] = ((requested[page] + 1) * RANKS + rank[page] + RANKS / 2) * pages + page;
+        order[count++] = PAGES.shadowEvictionKey(frame - requested[page], rank[page], page);
     order.subarray(0, count).sort();
   };
   return {
@@ -38,7 +40,7 @@ export function createEvictionOrder() {
     next(pool: ShadowPageArrays & { pages: number }) {
       if (count < 0) build(pool);
       while (at < count) {
-        const page = order[at++] % pool.pages;
+        const page = order[at++] % PAGE_KEY_SPAN;
         if (pool.owner[page] >= 0 && pool.requested[page] < frame) return page;
       }
       return -1;

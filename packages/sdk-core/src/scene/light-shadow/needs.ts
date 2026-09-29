@@ -1,10 +1,12 @@
 import type { ShadowPool } from './pool.ts';
 import type { ShadowTable } from './table.ts';
+import { PAGES } from './pageModel.ts';
 import { PAGE_MAPPED } from './virtual.ts';
 
 /**
  * THE UNMAPPED PAGES A REQUEST ASKS FOR, and their allocation: each noted with the light, view,
- * page and coarseness it names, then mapped coarsest first, then by table entry — never in the
+ * page and coarseness it names, then mapped coarsest first, then by table entry (`shadowNeedKey`,
+ * the GPU's order too) — never in the
  * order they were noted, the order the GPU's atomics appended a report's entries in. Allocated
  * once, `capacity` entries.
  */
@@ -17,7 +19,8 @@ export function createShadowNeeds(table: ShadowTable, pool: ShadowPool, capacity
     rank = new Float64Array(capacity),
     order = new Int32Array(capacity);
   let count = 0;
-  const coarsestFirst = (a: number, b: number) => rank[b] - rank[a] || entry[a] - entry[b] || a - b;
+  const key = (n: number) => PAGES.shadowNeedKey(rank[n], entry[n]);
+  const coarsestFirst = (a: number, b: number) => key(a) - key(b) || a - b;
   return {
     clear() {
       count = 0;
