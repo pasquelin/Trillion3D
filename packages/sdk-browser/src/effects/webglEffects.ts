@@ -83,7 +83,9 @@ function createResources(gl: WebGL2RenderingContext) {
     },
     /** The scene's target, then the pass targets and each kind's own, for `passes` at `w` × `h`. */
     ensure(passes: readonly EffectPass[], w: number, h: number) {
-      if (w !== width || h !== height) release();
+      // A target the context refused (`../webgl/core/allocation.ts`) is made again with the rest.
+      const refused = scene?.refused || targets.some((t) => t.width !== width);
+      if (w !== width || h !== height || refused) release();
       width = w;
       height = h;
       scene ??= createWebglSceneTarget(gl, w, h);
