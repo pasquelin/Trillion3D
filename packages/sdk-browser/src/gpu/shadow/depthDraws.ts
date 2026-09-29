@@ -13,6 +13,11 @@ export function shadowDepthDraws(
   module: GPUShaderModule,
   layout: GPUPipelineLayout,
 ) {
+  // A near or far plane the hardware clips a sun caster against mints unsnapped corners from the
+  // snapped ones, whose sum with the pool origin rounds differently at each origin (#26). Depth
+  // clipping off clamps z and mints none; the x/y clip corners are already origin-independent. A
+  // device without the feature keeps the old path.
+  const clipControl = device.features.has('depth-clip-control');
   const pipeline = (label: string, entryPoint: string, fragment: boolean) =>
     preparedPipeline(device, {
       label,
@@ -21,7 +26,11 @@ export function shadowDepthDraws(
       // No colour target: the fragment stage exists only to discard an opacity-mask cutout or the
       // emitter envelope, and returns nothing.
       ...(fragment && { fragment: { module, entryPoint: 'shadow_fs', targets: [] } }),
-      primitive: { topology: 'triangle-list', cullMode: 'none' },
+      primitive: {
+        topology: 'triangle-list',
+        cullMode: 'none',
+        ...(clipControl && { unclippedDepth: true }),
+      },
       depthStencil: {
         format: 'depth32float',
         depthWriteEnabled: true,
