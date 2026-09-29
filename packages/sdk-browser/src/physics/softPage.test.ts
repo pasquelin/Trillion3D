@@ -14,6 +14,7 @@ import {
   type SoftBodyOptions,
 } from '../../../sdk-core/src/physics/index.ts';
 import { plane } from '../../../sdk-core/src/world/geometry/basic.ts';
+import type { BufferAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts';
 import { Material } from '../../../sdk-core/src/world/material/material.ts';
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
@@ -87,7 +88,7 @@ test('a soft body is drawn where it is: its geometry, dynamic, rewritten in plac
   words.set([7, 4]);
   const at = [0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1];
   new Float32Array(words.buffer).set(at, 2);
-  const { position, normal } = mesh.geometry.attributes;
+  const { position, normal } = mesh.geometry.attributes as Record<string, BufferAttribute>;
   const versions = [position.version, normal.version];
   receiveSoft(words, { meshOf: () => mesh as Bodied, softMap: () => Uint32Array.of(0, 1, 2, 3) });
   assert.deepEqual([...position.array], at, 'its positions');

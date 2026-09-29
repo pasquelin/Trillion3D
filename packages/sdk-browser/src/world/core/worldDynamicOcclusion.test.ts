@@ -6,7 +6,7 @@ import { resolveObjectURL } from 'node:buffer';
 import { object } from '../../../../sdk-core/src/world/object/index.ts';
 import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts';
 import { material } from '../../../../sdk-core/src/world/material/index.ts';
-import { collectClusterPages } from '../../page/selection/selection.ts';
+import { collectClusterPages, type PageRec } from '../../page/selection/selection.ts';
 import { rasterVisibilityIds } from '../../visibility/buffer.ts';
 import { buildHizPyramid, filterUnoccluded, visibilityDepth } from '../../hiz/hiz.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
@@ -24,7 +24,7 @@ async function recordsOf(source: ExplorerSource) {
   });
   for (const rec of allPages)
     rec.array = new Uint32Array(await resolveObjectURL(rec.url)!.arrayBuffer());
-  return allPages;
+  return allPages as (PageRec & { array: Uint32Array })[];
 }
 
 /** The dynamic records of the view from z = 5 that the Hi-Z test keeps, and all of them. */

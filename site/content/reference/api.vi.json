@@ -1142,7 +1142,8 @@
       "pageDecodeMs": "Thời gian dành cho việc giải mã các trang.",
       "mathBatch": "Trạng thái của bộ điều phối đường tính toán (`../math/path/governor.ts`): đường hiện tại của mỗi phép toán theo lô, trung vị của cả hai đường, số lần chuyển đổi. `null` trên một ứng dụng chủ chưa mở một lô nào — chưa được đo, không phải \"đường JavaScript\".",
       "pagesPlannedOffThread": "Việc tích hợp trang ngoài luồng chính. `pagesPlannedOffThread` đếm các lượt đến mà kế hoạch của chúng — vị trí của mỗi cụm trong gói và các thứ hạng trang mà nó di chuyển — đã được một worker tính toán, không bao giờ những kế hoạch mà phương án dự phòng lập trên luồng chính. `pagePlanMs` là thời gian tích lũy của các kế hoạch đó, do chính bộ thực thi đo, dù là luồng nào: nó không bao giờ được cộng vào `cpu*` hay `gpu*` theo từng khung hình. Cả hai đều là `null` chừng nào chưa có lượt đến nào được lập kế hoạch — chưa được đo, không phải bằng không.",
-      "pagePlanMs": "Thời gian dành cho việc lập kế hoạch các lượt đến."
+      "pagePlanMs": "Thời gian dành cho việc lập kế hoạch các lượt đến.",
+      "dynamicUploadBytes": "Số byte đỉnh của hình học động được tải lên tại chỗ trong khung hình này (#573), trong ngân sách mỗi khung hình của thế giới (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Không có khi không thế giới nào vẽ."
     }
   },
   "Frustum": {
@@ -1209,7 +1210,9 @@
       "userData": "Chỗ trống cho dữ liệu của người đã dựng hình học.",
       "released": "Được gọi khi hình học được trả lại: thứ mà bản sao riêng của bộ dựng hình lắng nghe.",
       "getIndex": "Danh sách tam giác, hoặc `null`.",
-      "toNonIndexed": "Một hình học vẽ cùng các tam giác không có chỉ mục: mỗi góc là một đỉnh riêng."
+      "toNonIndexed": "Một hình học vẽ cùng các tam giác không có chỉ mục: mỗi góc là một đỉnh riêng.",
+      "usage": "`'dynamic'`: được tải lên tại chỗ, không bao giờ bị cắt lại (#573); hình học thay đổi mỗi khung hình cũng vậy.",
+      "maxBounds": "Hộp mà một hình học động không bao giờ rời khỏi, khi được khai báo: hộp dùng để loại bỏ nó (#573)."
     }
   },
   "GeometryPageDescriptor": {
@@ -2726,7 +2729,8 @@
       "structure": "Các liên kết nhóm của nó.",
       "streams": "Các gói bó truyền tải của nó.",
       "quantization": "Null trên một nguyên thủy không có trang, thứ không được lượng tử hóa trên bất kỳ lưới nào.",
-      "topology": "Các cạnh và góc của mesh trông như thế nào."
+      "topology": "Các cạnh và góc của mesh trông như thế nào.",
+      "dynamic": "Hình học động của một thế giới (#573): chỉ các trang chỉ mục, các đỉnh được đọc dưới dạng số thực từ hình học máy chủ mà engine ghi lại tại chỗ."
     }
   },
   "PrimitiveDagStall": {
@@ -3386,7 +3390,8 @@
       "dag": "Báo cáo DAG của nó.",
       "quantization": "Null trên một nguyên thủy không có trang, thứ không được lượng tử hóa trên bất kỳ lưới nào.",
       "topology": "Các cạnh và góc của mesh trông như thế nào.",
-      "binary": "Nơi tìm các danh sách của nó."
+      "binary": "Nơi tìm các danh sách của nó.",
+      "dynamic": "Hình học động của một thế giới (#573): chỉ các trang chỉ mục, các đỉnh được đọc dưới dạng số thực từ hình học máy chủ mà engine ghi lại tại chỗ."
     }
   },
   "SlimPrimitiveBinary": {
@@ -4272,7 +4277,8 @@
       "shadowMemoryEvents": "Các sự kiện áp lực bộ nhớ của bóng đổ kể từ khi thế giới mở, theo tên, theo thứ tự; bình thường là rỗng.",
       "shadowPagesRefetched": "Các trang ảo được ánh xạ lại sau khi bể đẩy chúng ra để lấy chỗ, kể từ khi explorer mở: những lần vẽ lại mà một bể quá nhỏ so với những gì các khung đọc phải trả.",
       "shadowCastersKept": "Các vật đổ bóng mà bước loại theo trang giữ lại, gộp mọi trang đã vẽ, ở khung hình thiết bị lấy mẫu gần nhất — một trên mười lăm; `null` cho đến khi có mẫu trả về.",
-      "shadowCastersHidden": "Các vật đổ bóng chuyển động mà phép thử che khuất thấy bị ẩn sau lớp tĩnh của trang chúng, ở khung lấy mẫu gần nhất; `null` cho đến khi có mẫu trả về."
+      "shadowCastersHidden": "Các vật đổ bóng chuyển động mà phép thử che khuất thấy bị ẩn sau lớp tĩnh của trang chúng, ở khung lấy mẫu gần nhất; `null` cho đến khi có mẫu trả về.",
+      "dynamicUploadBytes": "Số byte đỉnh của hình học động được tải lên tại chỗ trong khung hình này (#573), trong ngân sách mỗi khung hình của thế giới (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Không có khi không thế giới nào vẽ."
     }
   },
   "WorldOptions": {
