@@ -39,16 +39,21 @@ export function createCellPages(
 ) {
   const holders: Holder[] = world ? [world] : [];
   if (pages) {
-    const slotsOf = new Map<number, readonly string[]>();
+    // Counted per hold landed: a cell that left and came back while its first hold read lands
+    // twice, and each release lets one go.
+    const slotsOf = new Map<number, { slots: readonly string[]; holds: number }>();
     holders.push({
       async hold(cell) {
         const slots = meshPagesOf(cell);
         await pages.hold(slots);
-        slotsOf.set(cell, slots);
+        const own = slotsOf.get(cell);
+        if (own) own.holds++;
+        else slotsOf.set(cell, { slots, holds: 1 });
       },
       release(cell) {
-        pages.release(slotsOf.get(cell)!);
-        slotsOf.delete(cell);
+        const own = slotsOf.get(cell)!;
+        pages.release(own.slots);
+        if (--own.holds === 0) slotsOf.delete(cell);
       },
     });
   }
