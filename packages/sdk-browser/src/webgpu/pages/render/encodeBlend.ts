@@ -79,7 +79,7 @@ export function encodeBlend(
   if (!textured) {
     run.blendFrustumRejected = selectWebgpuBlend(
       blendState,
-      run.gpuFrameActive ? undefined : run.drawn,
+      run.gpuFrameActive ? undefined : { drawn: run.drawn, roots: rt.layout.selectionRoots },
     );
     orderVisibleBlend(blendState, eye);
     const draws = listFallbackBlendDraws(blendState, run.gpuFrameActive);

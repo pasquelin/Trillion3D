@@ -1,5 +1,6 @@
 import type { HostAttributes } from '../../host/resources.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
+import { rootOf, type PageRec } from '../../page/selection/selection.ts';
+import type { Placements } from '../../page/selection/types.ts';
 import { depthLayerUnits } from '../../../../sdk-core/src/index.ts';
 import { createPageRowConstants } from './pageRowConstants.ts';
 import {
@@ -76,6 +77,8 @@ type PageRowResources = MaterialLayers & {
 export function createPageRowWriter(
   resources: PageRowResources,
   markRowDirty: (row: number) => void,
+  /** The roots a record's `placementIndex` ranks: its row's world is its root's. */
+  roots: Placements,
 ) {
   const { geometryBlocks } = resources;
   // What the catalogue fixes once and for all is not recomputed for every arriving page.
@@ -97,7 +100,9 @@ export function createPageRowWriter(
     const mat = material.mat,
       maps = rowMaterial(mat, geo, resources);
     if (!rec.transparent && shownAsIs(mat.model)) resources.asIsShown = true;
-    floats.set(rec.matrix.elements, base);
+    // Row placement: its world, and its rank, where the temporal pass reads the pixel motion
+    // matrix. A page without a placement does not exist in a WebGPU layout: `rootOf` throws.
+    floats.set(rootOf(roots, rec).world.elements, base);
     floats[base + 16] = mat.baseColor[0];
     floats[base + 17] = mat.baseColor[1];
     floats[base + 18] = mat.baseColor[2];
@@ -141,10 +146,7 @@ export function createPageRowWriter(
     // layer 0, one calculation source for the hardware path and the software raster alike.
     ints[base + 60] = depthLayerUnits(rec.depthLayer);
     floats[base + ROW_LINE_WIDTH_WORD] = mat.lineWidth ?? 0;
-    // Row placement: the temporal pass reads the pixel motion matrix there. A page without a
-    // placement does not exist in a WebGPU layout: that is an invariant, not zero.
-    if (rec.placementIndex === undefined) throw new Error('PAGE_PLACEMENT_MISSING');
-    ints[base + ROW_PLACEMENT_WORD] = rec.placementIndex;
+    ints[base + ROW_PLACEMENT_WORD] = rec.placementIndex!;
     // The class the resolve draws this page under: its flags and map slots, as one word.
     ints[base + ROW_MATERIAL_CLASS_WORD] = maps.classKey;
     markRowDirty(row);

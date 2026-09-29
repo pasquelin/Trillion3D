@@ -5,19 +5,21 @@ import { createHizCounts, hizOversizedFlat, resetHizCounts, type HizCounts } fro
 import type { HizPage, HizPyramid } from './types.ts';
 import { neverCulled } from '../visibility/shader/spriteWgsl.ts';
 import type { EngineCamera } from '../camera/world.ts';
+import type { Placements } from '../page/selection/types.ts';
 
 /** Counts nobody reads: what `filterUnoccluded` hands `countUnoccluded` when only the cut matters. */
 const discardedCounts = createHizCounts();
 
 export function filterUnoccluded<T extends HizPage>(
   pages: T[],
+  roots: Placements,
   pyramid: HizPyramid,
   cam: EngineCamera,
   viewport: [number, number],
   bias = 0,
 ) {
   resetHizCounts(discardedCounts);
-  return countUnoccluded(pages, pyramid, cam, viewport, discardedCounts, bias);
+  return countUnoccluded(pages, roots, pyramid, cam, viewport, discardedCounts, bias);
 }
 
 /**
@@ -27,6 +29,7 @@ export function filterUnoccluded<T extends HizPage>(
  */
 export function countUnoccluded<T extends HizPage & { array?: ArrayLike<number> }>(
   pages: T[],
+  roots: Placements,
   pyramid: HizPyramid,
   cam: EngineCamera,
   viewport: [number, number],
@@ -35,7 +38,7 @@ export function countUnoccluded<T extends HizPage & { array?: ArrayLike<number> 
 ) {
   const kept: T[] = [],
     bounds = boundsFor(pages.length);
-  projectBoxesFlat(pages, pages.length, cam, viewport, bounds);
+  projectBoxesFlat(pages, roots, pages.length, cam, viewport, bounds);
   for (let i = 0; i < pages.length; i++) {
     const page = pages[i],
       base = i * HIZ_BOUNDS_VALUES;
