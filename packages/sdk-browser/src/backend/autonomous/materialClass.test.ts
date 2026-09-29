@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
-import { liveRows, triangleBackend } from './triangle.fixture.ts';
+import { drawnPageMeshes, liveRows, triangleBackend } from './triangle.fixture.ts';
 
 test('WebGL2 draws the rows of a material turned blended one by one, and instanced once opaque again', async () => {
   const { backend, camera, geometry, material } = triangleBackend({ placements: liveRows(2) });
@@ -57,3 +57,48 @@ test('the page ceiling counts an instance of a material turned blended by its ow
     material.dispose();
   }
 });
+
+/** The meshes the display graph draws, each told by its instanced rows and its blending: the
+ *  family of each record, as a frame reads it. */
+const families = (triangle: ReturnType<typeof triangleBackend>) =>
+  drawnPageMeshes(triangle)
+    .map(
+      (mesh) =>
+        `${'count' in mesh ? 'instanced' : 'one'}:${(mesh.material as { transparent: boolean }).transparent}`,
+    )
+    .sort();
+
+// A primitive moved between blended and opaque inside the session draws in the family of its new
+// class (#846), as a fresh session of the compile of that class draws it: a primitive the compiler
+// cut blended leaves the blended family once opaque, and the reverse.
+for (const [pass, from, to, other] of [
+  ['clustered-blend', 'blend', 'opaque', 'exact-clusters'],
+  ['exact-clusters', 'opaque', 'blend', 'clustered-blend'],
+] as const)
+  test(`WebGL2 draws a ${from} primitive turned ${to} in the family of a fresh ${to} session`, async () => {
+    const moved = triangleBackend({ placements: liveRows(2), pass });
+    const fresh = triangleBackend({ placements: liveRows(2), pass: other });
+    const move = (a: typeof from | typeof to, b: typeof from | typeof to) => {
+      moved.material.transparent = b === 'blend';
+      moved.material.needsUpdate = true;
+      moved.backend.refreshMaterials!(true, { surfaces: [moved.material], from: a, to: b });
+    };
+    try {
+      moved.material.transparent = from === 'blend';
+      fresh.material.transparent = to === 'blend';
+      await Promise.all([moved.backend.prepare(), fresh.backend.prepare()]);
+      const open = families(moved);
+      move(from, to);
+      await moved.backend.flush!();
+      assert.deepEqual(families(moved), families(fresh), `the ${to} family of a fresh session`);
+      move(to, from);
+      await moved.backend.flush!();
+      assert.deepEqual(families(moved), open, 'back: the family it opened in');
+    } finally {
+      for (const { backend, geometry, material } of [moved, fresh]) {
+        backend.dispose();
+        geometry.dispose();
+        material.dispose();
+      }
+    }
+  });
