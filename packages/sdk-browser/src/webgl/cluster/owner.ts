@@ -3,6 +3,7 @@ import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/index.ts';
 import { WebglClusterRenderer } from './renderer.ts';
 import type { WebglClusterScene } from './lights.ts';
 import type { SceneCopy } from './copyCulling.ts';
+import type { DeformationSource } from './deformation.ts';
 import type { HostDrawCamera } from '../../camera/world.ts';
 import type { HostMaterials } from '../../host/resources.ts';
 import type { BackendContext } from '../../backend/types.ts';
@@ -68,6 +69,8 @@ export class WebglClusterOwner {
    *  texture level offset, zero at the display's size. */
   pixelRatio = 1;
   mipBias = 0;
+  /** The session's deformation records (#357), sent with the frames to come. */
+  deformation: DeformationSource | undefined;
   get backdropBytes() {
     return this.renderer.backdropBytes;
   }
@@ -99,6 +102,7 @@ export class WebglClusterOwner {
     renderer.toneCurve = this.toneCurve;
     renderer.pass.pixelRatio = this.pixelRatio;
     renderer.pass.mipBias = this.mipBias;
+    renderer.deformationSource = this.deformation;
     // The maps uploaded ahead, first: the frame's commands not sent yet (`textureQueue.ts`).
     this.ahead.drain(this.context, this.display.textures);
     const submitted = renderer.draw(

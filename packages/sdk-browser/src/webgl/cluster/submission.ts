@@ -16,6 +16,7 @@ import { normalMatrix3 } from '../../../../sdk-core/src/index.ts';
 import { multiplyMatrix4Typed } from '../../../../sdk-core/src/math/matrix/matrix4Typed.ts';
 import { WebglClusterPlans } from './runs.ts';
 import { submitClusterMesh, submitDiagnosticMesh, type MultiDraw } from './submit.ts';
+import type { WebglClusterDeformation } from './deformation.ts';
 
 type Uniform = (name: string) => WebGLUniformLocation | null;
 
@@ -39,18 +40,24 @@ export class WebglClusterSubmission {
   private geometry: WebglClusterGeometry;
   private state: WebglClusterState;
   private pass: ClusterMaterialPass;
+  private deformation: WebglClusterDeformation;
+  /** The draw's `deformDraw` and the one last sent (`deformation.ts`). */
+  private deform = new Int32Array(3);
+  private deformSent = new Int32Array([-1, -1, -1]);
   constructor(
     gl: WebGL2RenderingContext,
     parts: {
       geometry: WebglClusterGeometry;
       state: WebglClusterState;
       pass: ClusterMaterialPass;
+      deformation: WebglClusterDeformation;
       leaves: (mesh: ClusterDraw) => boolean;
     },
     at: Uniform,
   ) {
     this.gl = gl;
     ({ geometry: this.geometry, state: this.state, pass: this.pass } = parts);
+    this.deformation = parts.deformation;
     this.at = at;
     this.plans = new WebglClusterPlans(this.geometry.arenas, parts.leaves);
     this.multiDraw = gl.getExtension('WEBGL_multi_draw') as MultiDraw | null;
@@ -63,6 +70,7 @@ export class WebglClusterSubmission {
   /** A new destination: the placements are sent again. */
   forget() {
     this.instanced = undefined;
+    this.deformSent.fill(-1);
   }
   /** Draws `meshes`; `opaque` skips the transparent ones. Returns the submissions. */
   submit(
@@ -91,7 +99,7 @@ export class WebglClusterSubmission {
     }
     return submitted;
   }
-  /** The state of one draw of `mesh`: its placements and its matrix. */
+  /** The state of one draw of `mesh`: its placements, its matrix and its deformation (#357). */
   private place(mesh: ClusterDraw, instanced: boolean, view: ArrayLike<number>) {
     if (this.instanced !== instanced) this.gl.uniform1i(this.at('instanced'), instanced ? 1 : 0);
     this.instanced = instanced;
@@ -102,6 +110,12 @@ export class WebglClusterSubmission {
     this.gl.uniformMatrix4fv(this.at('modelViewMatrix'), false, this.upload);
     normalMatrix3(this.normal, this.modelView);
     setMatrix3(this.gl, this.at('normalMatrix'), this.normal);
+    const deform = this.deform,
+      sent = this.deformSent;
+    this.deformation.of(mesh, mesh.geometry, deform);
+    if (deform[0] === sent[0] && deform[1] === sent[1] && deform[2] === sent[2]) return;
+    sent.set(deform);
+    this.gl.uniform3iv(this.at('deformDraw'), deform);
   }
   /** A mesh on its own buffers: once, or once per side of a two-sided transparent surface. */
   private mesh(mesh: ClusterDraw, camera: HostDrawCamera, toneMapped: boolean) {
