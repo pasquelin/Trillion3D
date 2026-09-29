@@ -10,7 +10,7 @@ import {
   type Vec3,
 } from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
 import type { TileView } from '../oracles/browser/gpuLightTileColumnOracle.ts';
-import type { Light } from './lightTileCity.ts';
+import { slab, type Light } from './lightTileCity.ts';
 
 type Box = { lo: Vec3; hi: Vec3 };
 const HALF_X = 15,
@@ -63,16 +63,9 @@ export function atriumLamps(count: number, range: number, seed = 1249): Light[] 
 
 /** Entry parameter of the ray `o + s·d` into `b`, Infinity on a miss or behind the origin. */
 function hit(o: Vec3, d: Vec3, b: Box) {
-  let near = 0,
-    far = Infinity;
-  for (let a = 0; a < 3; a++) {
-    const inv = 1 / d[a],
-      t1 = (b.lo[a] - o[a]) * inv,
-      t2 = (b.hi[a] - o[a]) * inv;
-    near = Math.max(near, Math.min(t1, t2));
-    far = Math.min(far, Math.max(t1, t2));
-  }
-  return near <= far ? near : Infinity;
+  const [near, far] = slab(o, d, b.lo, b.hi);
+  const entry = Math.max(near, 0);
+  return entry <= far ? entry : Infinity;
 }
 
 /** The depth buffer of `view` over the atrium, row by row: NEAR / distance in f32, 0 on the sky. */
