@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { HIZ_BOUNDS_VALUES } from './hiz.ts';
 import { splitOccludersFlat } from './split.ts';
+import { identityRoots } from '../page/selection/placements.fixture.ts';
 
 const keyDouble = new Float64Array(1),
   keyWords = new Uint32Array(keyDouble.buffer);

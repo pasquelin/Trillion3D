@@ -14,9 +14,10 @@ import { cameraAt } from '../../../../tests/fixtures/hiz.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { DEPTH_CLEAR } from '../camera/depthConvention.ts';
 import { asHostLibrary } from '../host/resources.ts';
+import { identityRoots } from '../page/selection/placements.fixture.ts';
 
 function box(min: number[], max: number[], tag: number) {
-  return { min, max, matrix: new G.Matrix4(), tag } as HizPage & { tag: number };
+  return { min, max, placementIndex: 0, tag } as HizPage & { tag: number };
 }
 
 /** Splits `pages` with both implementations and asserts the same occluders and rest, by tag. */
@@ -27,7 +28,7 @@ function assertSplitAgrees(
 ) {
   const occluders: (HizPage & { tag: number })[] = [],
     rest: (HizPage & { tag: number })[] = [];
-  splitOccludersInto(pages, cameraMoteur(cam), viewport, occluders, rest);
+  splitOccludersInto(pages, identityRoots(), cameraMoteur(cam), viewport, occluders, rest);
   const reference = referenceSplitOccluders(
     pages,
     asHostLibrary<Parameters<typeof referenceSplitOccluders>[1]>(cam),
@@ -76,7 +77,14 @@ test('countUnoccluded on an empty pyramid-worthy cut matches the reference, epoc
     box([-10, -10, -3], [10, 10, -3], 2), // Oversized: too wide for the level-0 kernel.
   ];
   const countsOptimisee = createHizCounts();
-  const kept = countUnoccluded(pages, pyramid, cameraMoteur(cam), viewport, countsOptimisee);
+  const kept = countUnoccluded(
+    pages,
+    identityRoots(),
+    pyramid,
+    cameraMoteur(cam),
+    viewport,
+    countsOptimisee,
+  );
   const countsReference = {
     tested: 0,
     testedTriangles: 0,
