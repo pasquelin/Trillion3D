@@ -3,12 +3,12 @@
 //! kept (a sampled Hausdorff distance, published as such). Triangles are binned in a uniform grid
 //! and a query widens ring by ring until no nearer cell can remain.
 use crate::shared_math::{dot, sub};
-use rayon::prelude::*;
 use std::collections::HashMap;
 
 mod bounded;
 mod level0;
 pub(crate) use bounded::distance_above;
+use bounded::one_sided;
 pub(crate) use level0::Level0;
 
 type P = [f64; 3];
@@ -166,21 +166,6 @@ impl<'a> Grid<'a> {
         }
         best.sqrt()
     }
-}
-
-/// Largest distance from the samples of `from` to the triangles of `to`, exact above `floor`.
-fn one_sided(pos: &[f32], from: &[u32], to: &Grid, floor: f64) -> f64 {
-    from.par_chunks_exact(3)
-        .map(|tri| {
-            let [a, b, c] = [0, 1, 2].map(|k| at(pos, tri[k]));
-            let centroid = [0, 1, 2].map(|k| (a[k] + b[k] + c[k]) / 3.0);
-            let middles = [lerp(a, b, 0.5), lerp(b, c, 0.5), lerp(c, a, 0.5)];
-            [a, b, c, middles[0], middles[1], middles[2], centroid]
-                .into_iter()
-                .map(|p| to.nearest(p, floor))
-                .fold(0.0, f64::max)
-        })
-        .reduce(|| 0.0, f64::max)
 }
 
 /// Largest distance from the samples of the triangles `from` to the triangles `to`; zero if either is empty.
