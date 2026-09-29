@@ -1,11 +1,13 @@
 /**
  * THE CELLS OF A PARTITIONED SCENE, READ BY DISTANCE (#404).
  *
- * Before each frame (`frame`), the cells the camera needs (`plan.ts`, boxed where their parents
- * stand now: `boxes.ts`) are asked of the session's page streamer, nearest first, then those ahead
- * at the prefetch priority; those it holds are placed within the frame's one integration budget
- * (`FrameBudget`), each node on a row of its mesh (`rows.ts`) at the world matrix the engine
- * composes for a child of its core parent, the cell holding its manifest pages (`cellPages.ts`).
+ * Before each frame (`frame`), the cells the camera needs (`plan.ts`, found through the cell index
+ * the pages form, `cellIndex.ts`, boxed where their parents stand now: `boxes.ts`) are asked of the
+ * session's page streamer, nearest first, then those ahead at the prefetch priority; those it
+ * holds are decoded off the main thread (`cellDecode.ts`, `decodes.ts`), and those decoded placed
+ * within the frame's one integration budget (`FrameBudget`), each node on a row of its mesh at the
+ * world matrix the engine composes for a child of its core parent (`placements.ts`), the cell
+ * holding its manifest pages (`cellPages.ts`).
  * A cell past its reach parks its rows and releases its pages; a moved parent rewrites its rows.
  * `prime`, before the first frame, sizes the rows for every node the reach can hold at once
  * wherever the parents stand (`sizing.ts`; every node when no owner can reopen the session) and
