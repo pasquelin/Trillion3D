@@ -169,7 +169,7 @@ export function createShadowRequests(
       for (let slice = 0; slice < posed.length; slice++) {
         if (records.kind[slice] < 0) continue;
         if (!gpu && !isSun(slice) && posed[slice] <= counts.latest) continue;
-        needs.clear();
+        if (!gpu) needs.clear();
         if (isSun(slice)) {
           const level = sunFloorLevel(sun.finest[slice]);
           sun.floorReach(slice, view, scratch);

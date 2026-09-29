@@ -14,23 +14,26 @@ test('zero-radius lamps retain exactly the baseline PCF call; spot and request-o
   });
   const record = { info: [6, 1, 0.1, 0], faces: Array(6).fill(identity) };
   const { lampShadowFactor } = shaderRun<{ lampShadowFactor: (...args: unknown[]) => number }>(
-    SHADOW_FACTOR_WGSL.replace('var m:mat4x4f;', 'var m=zeroMatrix;'),
+    SHADOW_FACTOR_WGSL,
     ['lampShadowFactor'],
     {
-      zeroMatrix: new Mat(Array(16).fill(0)),
       shadows: { records: [record] },
       shadowFootprint: 0.01,
-      LAMP_PAGE_COUNT: 8,
       LAMP_MIP_COUNT: 1,
-      LAMP_FACE_WORDS: 64,
-      LAMP_MIP_OFFSET: [0],
-      SHADOW_PAGE: 128,
       SHADOW_DEPTH_ROUNDING: 0,
       shadowNormalTexels: () => 0,
-      shadowSlope: () => 0,
       shadowDepthMargin: () => 0,
-      pointFaceOf: () => 0,
-      ShadowMap: (...args: unknown[]) => args,
+      shadowLampFinestTexel: () => 0.01,
+      shadowLampReadMip: () => 0,
+      // The shading's one lookup (`SHADOW_READ_AT_WGSL`): a point inside face 0.
+      lampReadAt: () => ({
+        at: { map: [0], t: [512, 512], home: [4, 4], Q: [0, 0, 0.5], texel: 0.01 },
+        clip: [0, 0, 0.5, 1],
+        ndc: [0, 0, 0.5],
+        face: 0,
+        side: 1024,
+        inside: true,
+      }),
       shadowPageWord: () => 1,
       pointSoftShadow: () => {
         softCalls++;

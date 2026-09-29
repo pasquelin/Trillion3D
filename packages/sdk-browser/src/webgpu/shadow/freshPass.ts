@@ -92,9 +92,9 @@ export function encodeFreshPages(
   allocation.seal(encoder, composed, 1);
   const draws = shadows.freshDraws.made();
   for (let layer = 0; layer < layers; layer++)
-    for (const tinted of tint ? [false, true] : [false]) {
+    for (let tinted = 0; tinted <= (tint ? 1 : 0); tinted++) {
       // The layer's own descriptors (`layerPasses`): labelled for the GPU timing (#685).
-      const passes = tinted && tint ? tint.passes : shadows.passes;
+      const passes = tint && tinted ? tint.passes : shadows.passes;
       const pass = encoder.beginRenderPass(passes[layer]);
       pass.setBindGroup(0, groups.page);
       pass.setBindGroup(1, shadows.faceGroup, [0]);
