@@ -5,7 +5,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore } from '../light/store.ts';
 import { createShadowPlan } from './plan.ts';
-import { PAGE_INDEX_MASK, PAGE_VALID, sunEntry, sunFloorLevel, sunPageMetres } from './virtual.ts';
+import { PAGE_INDEX_MASK, PAGE_VALID, sunFloorLevel } from './virtual.ts';
+import { sunEntry, sunPageMetres } from './pageModel.ts';
 import {
   SUN,
   VIEW,

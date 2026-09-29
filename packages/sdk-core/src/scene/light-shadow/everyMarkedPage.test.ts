@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore } from '../light/store.ts';
 import { createShadowPlan } from './plan.ts';
-import { sunPageMetres } from './virtual.ts';
+import { sunPageMetres } from './pageModel.ts';
 import { SUN, VIEW, cycleDrawn, planFrame } from './lightShadow.fixture.ts';
 import { covers, currentPage, entriesOf, sunBlock, type SunPage } from './sunView.fixture.ts';
 

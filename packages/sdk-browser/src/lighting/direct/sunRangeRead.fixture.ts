@@ -13,7 +13,9 @@ import {
   PAGE_VALID,
   SUN_DEPTH_RANGES,
   SUN_LEVELS,
+  SUN_LEVEL_ENTRIES,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
 import { createShadowRecordPack } from '../../gpu/shadow/recordPack.ts';
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
@@ -24,10 +26,12 @@ import { directShadowWgsl } from './shadowWgsl.ts';
 /** The shipped shadow read: `shadowPcf`, its helpers, and `SHADOW_FACTOR_WGSL` after them. */
 export const SHADOW_WGSL = directShadowWgsl(0, null, 1);
 
-/** Its literal constants, and `SHADOW_SUBTEXEL`, which it computes from one of them. */
+/** Its literal constants, `SHADOW_SUBTEXEL`, which it computes from one of them, and the words of
+ *  a sun level develop's read below indexes with. */
 export const CONSTANTS: Record<string, number> = {
   ...wgslConstants(SHADOW_WGSL),
   SHADOW_SUBTEXEL: 1 / SHADOW_SUBTEXELS,
+  SUN_LEVEL_WORDS: SUN_LEVEL_ENTRIES,
 };
 
 /** Develop's `sunShadowFactor` before #991, its code verbatim: one reference,
@@ -135,8 +139,8 @@ const NAMES = [
   'sunShadowFactor',
   'shadowNormalTexels',
   'shadowDepthMargin',
-  'shadowRing',
   'sunOrigin',
+  ...PAGE_MODEL_FUNCTIONS,
 ];
 
 /** What `sunRead` swaps per call — the record and page table read, the spies — so that each text

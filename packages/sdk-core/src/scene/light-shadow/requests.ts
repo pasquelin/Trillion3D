@@ -10,13 +10,12 @@ import {
   PAGE_MAPPED,
   decodeLampEntry,
   lampCoarseness,
-  lampEntry,
   lampFacesOf,
   sunCoarseness,
-  sunEntry,
   shadowRequestCap,
   sunFloorLevel,
 } from './virtual.ts';
+import { lampEntry, sunEntry } from './pageModel.ts';
 
 /** What the shading read in one frame: the table entries it asked for, in no order. */
 export interface ShadowRequestReport {

@@ -1,12 +1,11 @@
 import { POINT_FACES } from '../../../../sdk-core/src/index.ts';
-import {
-  LAMP_FACE_ENTRIES,
-  LAMP_MIPS,
-  LAMP_SIDE,
-  SUN_LEVELS,
-  SUN_LEVEL_ENTRIES,
-  SUN_WINDOW,
-} from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+
+/** Window origin of clipmap slot \`slot\` of record \`index\`: every reader of a sun's record. */
+export const SUN_ORIGIN_WGSL = `
+fn sunOrigin(index:u32,slot:i32)->vec2i{
+ let pair=shadows.records[index].origins[slot/2];
+ return select(pair.xy,pair.zw,(slot&1)!=0);
+}`;
 
 /** A map's depth is float32 in [0, 1]: its epsilon, 2⁻²³, rounds the stored depth and again the
  *  reference, so a margin under their sum is lost — at a fine texel of a wide map, half a texel
@@ -37,20 +36,10 @@ export const SHADOW_DEPTH_ROUNDING = 2 * 2 ** -23;
  * that face.
  */
 export const SHADOW_FACTOR_WGSL = `
-const SUN_LEVEL_COUNT:i32=${SUN_LEVELS};
-const SUN_LEVEL_WORDS:u32=${SUN_LEVEL_ENTRIES}u;
-const SUN_WINDOW_PAGES:i32=${SUN_WINDOW};
-const LAMP_PAGE_COUNT:u32=${LAMP_SIDE}u;
-const LAMP_MIP_COUNT:u32=${LAMP_MIPS}u;
-const LAMP_FACE_WORDS:u32=${LAMP_FACE_ENTRIES}u;
 const SHADOW_DEPTH_ROUNDING:f32=${SHADOW_DEPTH_ROUNDING};
 /** The least normal float: above the far clear, 0, and under any caster's depth. */
 const SHADOW_PAST_FAR:f32=1.17549435e-38;
-/** Window origin of clipmap slot \`slot\` of record \`index\`. */
-fn sunOrigin(index:u32,slot:i32)->vec2i{
- let pair=shadows.records[index].origins[slot/2];
- return select(pair.xy,pair.zw,(slot&1)!=0);
-}
+${SUN_ORIGIN_WGSL}
 /**
  * The reference of a receiver \`z\` along sun \`index\`, its margin taken, in a page drawn in the
  * older depth range of slot \`drawn\` (\`sunDepth.ts\`): a pair of floats of the lamp matrices,
@@ -82,16 +71,13 @@ fn sunShadowFactor(index:u32,P:vec3f,N:vec3f,taps:bool)->f32{
  // An orthographic map: the receiver's depth changes by tan(incidence) per unit across it.
  let slope=sqrt(1.0-cosine*cosine)/cosine;
  let offset=shadowNormalTexels(cosine);
- for(var level=max(i32(floor(log2(max(shadowFootprint,1e-30)))),finest);level<last;level++){
-  let texel=exp2(f32(level));
-  let page=texel*SHADOW_PAGE;
-  let slot=shadowRing(level,SUN_LEVEL_COUNT);
-  let origin=sunOrigin(index,slot);
+ for(var level=shadowSunReadLevel(shadowFootprint,finest);level<last;level++){
+  let texel=shadowSunTexelMetres(level);
+  let origin=sunOrigin(index,shadowRing(level,SUN_LEVEL_COUNT));
   let Q=P+N*(texel*offset);
-  // Relative to the window's first page, whose world offset is exact in single precision.
-  let t=vec2f(dot(Q,right)-f32(origin.x)*page,-dot(Q,up)-f32(origin.y)*page)/texel;
-  let map=ShadowMap(u32(info.w)+u32(slot)*SUN_LEVEL_WORDS,1u,SUN_WINDOW_PAGES,origin.x,origin.y);
-  let home=vec2i(floor(t/SHADOW_PAGE));
+  let t=vec2f(shadowSunMapTexel(dot(Q,right),origin.x,level),shadowSunMapTexel(-dot(Q,up),origin.y,level));
+  let map=ShadowMap(u32(info.w)+u32(shadowSunLevelEntry(level)),1u,SUN_WINDOW_PAGES,origin.x,origin.y);
+  let home=vec2i(shadowPageOfTexel(t.x),shadowPageOfTexel(t.y));
   let word=shadowPageWord(map,home,t);
   if(word==0u){continue;}
   let reference=1.0-(dot(Q,axis)-zNear-shadowDepthMargin(texel,slope,1.0))*invDepth+SHADOW_DEPTH_ROUNDING;
@@ -109,8 +95,8 @@ fn lampShadowFactor(index:u32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f,taps:boo
  let cosine=clamp(dot(N,L),1e-3,1.0);
  let radius=length(light.positionRange.xyz-P);
  // World texel of the finest mip at this distance, and the mip whose texel the pixel covers.
- let texel0=2.0*info.y*radius/(f32(LAMP_PAGE_COUNT)*SHADOW_PAGE);
- let wanted=clamp(floor(log2(max(shadowFootprint/texel0,1.0))),0.0,f32(LAMP_MIP_COUNT-1u));
+ let texel0=shadowLampFinestTexel(info.y,radius);
+ let wanted=shadowLampReadMip(shadowFootprint,texel0);
  let near=info.z;
  let far=max(near*1.001,light.positionRange.w);
  // dz/dw of a perspective projection is near·far/((far−near)·w²) at axial depth w.
@@ -133,9 +119,9 @@ fn lampShadowFactor(index:u32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f,taps:boo
   // A point's offset point lies in the face it picked: only rounding puts it past the border,
   // where the taps clamp to the face's edge. A spot's point off its face is outside its cone.
   if((!isPoint&&(abs(ndc.x)>1.0||abs(ndc.y)>1.0))||ndc.z<0.0||ndc.z>1.0){return 1.0;}
-  let t=vec2f(ndc.x*0.5+0.5,0.5-ndc.y*0.5)*side;
-  let map=ShadowMap(u32(info.w)+face*LAMP_FACE_WORDS+LAMP_MIP_OFFSET[mip],0u,i32(pages),0,0);
-  let home=clamp(vec2i(floor(t/SHADOW_PAGE)),vec2i(0),vec2i(i32(pages)-1));
+  let t=vec2f(shadowLampMapTexel(ndc.x,side),shadowLampMapTexel(-ndc.y,side));
+  let map=ShadowMap(u32(info.w)+u32(shadowLampMapEntry(i32(face),i32(mip))),0u,i32(pages),0,0);
+  let home=clamp(vec2i(shadowPageOfTexel(t.x),shadowPageOfTexel(t.y)),vec2i(0),vec2i(i32(pages)-1));
   let word=shadowPageWord(map,home,t);
   if(word==0u){continue;}
   // The receiver's axial depth w, clip.w, changes across the face by sin(N, axis)·cos²(ray, axis)

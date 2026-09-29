@@ -1,7 +1,7 @@
 import { composeFace, shadowOrthographic } from './math.ts';
 import { FULL_FACE, writeBoxVolume } from './volume.ts';
 import type { SunLevels } from './sunLevels.ts';
-import { sunPageMetres } from './virtual.ts';
+import { sunPageMetres } from './pageModel.ts';
 
 const eye: [number, number, number] = [0, 0, 0];
 const axis: [number, number, number] = [0, 0, 0];
