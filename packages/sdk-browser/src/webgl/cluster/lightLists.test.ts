@@ -10,7 +10,8 @@ import { Scene } from '../../world/core/scene.ts';
 import type { WholeMesh } from '../../cluster/batchMesh.ts';
 import { isLightNode } from '../../host/graph/kinds.ts';
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { createSceneDraw } from './sceneDraw.ts';
+import { createSceneDraw, keptClusterScene } from './sceneDraw.ts';
+import { WebglClusterLights } from './lights.ts';
 import {
   sphereTouchesBox,
   type Box,
@@ -128,5 +129,33 @@ test('a WebGL2 frame walks the scene 0 times for its lights, and still reads the
     .filter((args) => args[4] === LIGHT_ROW_TEXELS && args[6] === 'RGBA')
     .at(-1)![8] as Float32Array;
   assert.equal(records[3], 2.5, 'the new range of the lamp is read from the kept list');
+  draw.dispose();
+});
+
+test('an invisible root scene gives 0 lights to the frame and to the light upload', () => {
+  const lit = scene(),
+    context = createTestContext({ answers: { getExtension: () => ({}) } });
+  lit.add(mesh(meshX(0)) as unknown as Object3D);
+  lit.visible = false;
+  assert.equal(keptClusterScene(lit).lights.length, 0, 'the kept read gives no light');
+  const draw = createSceneDraw(context.gl, lit);
+  const upload = WebglClusterLights.prototype.upload;
+  const uploaded: number[] = [];
+  WebglClusterLights.prototype.upload = function (read, ...rest) {
+    uploaded.push(read.lights.length);
+    return upload.call(this, read, ...rest);
+  };
+  try {
+    draw.render({} as never);
+    draw.host.drawHostGeometry(createHostDrawCamera(), {
+      toneMapped: true,
+      framebuffer: null,
+      width: 8,
+      height: 4,
+    });
+  } finally {
+    WebglClusterLights.prototype.upload = upload;
+  }
+  assert.deepEqual(uploaded, [0], 'the frame uploads no light of a hidden root');
   draw.dispose();
 });

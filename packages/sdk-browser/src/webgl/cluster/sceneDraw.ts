@@ -20,11 +20,15 @@ import { createDrawLists } from './drawLists.ts';
 import { degradedHearer } from '../../world/diagnostic/materialNotices.ts';
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
 
-/** What a WebGL2 frame reads of a display graph: its lights as `lights` gives them, its
- *  background and fog as they stand when the frame reads them. */
+const NO_LIGHTS: readonly Light[] = [];
+
+/** What a WebGL2 frame reads of a display graph: its lights as `lights` gives them — none while
+ *  the graph itself is hidden, as its lights' shown chain says — its background and fog as they
+ *  stand when the frame reads them. */
 const sceneRead = (display: Scene, lights: () => readonly Light[]): WebglClusterScene => ({
   get lights() {
-    return lights();
+    const kept = lights();
+    return display.visible ? kept : NO_LIGHTS;
   },
   get background() {
     return display.background;
