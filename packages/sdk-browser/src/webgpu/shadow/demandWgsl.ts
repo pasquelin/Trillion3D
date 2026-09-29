@@ -4,6 +4,7 @@ import { TILE_SLICE_WGSL } from '../../lighting/direct/lightingWgsl.ts';
 import { SHADOW_READ_AT_WGSL } from '../../lighting/direct/shadowFactorWgsl.ts';
 import { shadowRequestWgsl } from '../../lighting/direct/shadowRequestWgsl.ts';
 import { SHADOW_DATA_WGSL, SHADOW_PAGE_READ_WGSL } from '../../lighting/direct/shadowWgsl.ts';
+import { SUBSURFACE_FLAG } from '../../scene/subsurface.ts';
 import { AS_IS_FLAG, FOG_FREE_SURFACE_FLAG } from '../../scene/surfaceModel.ts';
 
 /** Pixels a side of a workgroup of the demand pass. */
@@ -17,7 +18,9 @@ export const SHADOW_DEMAND_GROUP = 8;
  * across a page edge — in the request buffer the resolve records into (`requestShadowPage`).
  *
  * Every step is the shading's own: the view and the world point its resolve reconstructs
- * (`WORLD_AT_WGSL`, the deferred pass's view uniform), its tile slice, its light gate, and the page
+ * (`WORLD_AT_WGSL`, the deferred pass's view uniform), moved by the pixel's shading-point offset
+ * (`shadowReceiverOffset`), its normal turned from a light behind a thin subsurface surface
+ * (`declaredLight`), its tile slice, its light gate, and the page
  * model (`pageModel.ts`) its read takes the level, the map texel, the entry and the PCF's pages
  * from. Unlike the read, the demand never falls back: a page not drawn yet is the one it wants.
  */
@@ -32,6 +35,7 @@ ${VIEW_WGSL}
 ${SHADOW_DATA_WGSL}
 @group(0) @binding(6) var<storage,read> shadows:ShadowData;
 ${shadowRequestWgsl(7)}
+@group(0) @binding(8) var<storage,read> shadingOffset:array<f32>;
 ${DIRECT_LIGHT_WGSL}
 ${TILE_SLICE_WGSL}
 ${SHADOW_PAGE_READ_WGSL}
@@ -73,15 +77,17 @@ fn demandLamp(index:u32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f,footprint:f32)
  if(r.inside){demandPages(r.at.map,r.at.t,r.at.home);}
 }
 /** A light's pages at the point, behind the resolve's gate (\`declaredLight\`, \`shadowFactor\`):
- *  a shadowed punctual light that reaches it. */
-fn demandLight(light:DirectLight,P:vec3f,N:vec3f,footprint:f32){
+ *  a shadowed punctual light that reaches point \`at\`, read at \`receiver\` — \`at\` moved by its
+ *  shading-point offset —, the normal turned when the light is behind a \`thin\` surface. */
+fn demandLight(light:DirectLight,at:vec3f,receiver:vec3f,N:vec3f,thin:bool,footprint:f32){
  let slice=i32(light.params.y);
  if(isRect(light)||slice<0){return;}
- let incidence=directIncidence(light,P);
+ let incidence=directIncidence(light,at);
  if(incidence.w<=0.0){return;}
  let index=u32(slice);
  if(shadows.records[index].info.x<0.5){return;}
- if(isSun(light)){demandSun(index,P,N,footprint);}else{demandLamp(index,light,P,N,incidence.xyz,footprint);}
+ let n=select(N,-N,thin&&dot(N,incidence.xyz)<0.0);
+ if(isSun(light)){demandSun(index,receiver,n,footprint);}else{demandLamp(index,light,receiver,n,incidence.xyz,footprint);}
 }
 @compute @workgroup_size(${SHADOW_DEMAND_GROUP},${SHADOW_DEMAND_GROUP}) fn markShadowDemand(@builtin(global_invocation_id) id:vec3u){
  if(any(vec2f(id.xy)>=view.viewport.xy)||u32(view.lightParams.x)==0u){return;}
@@ -92,13 +98,17 @@ fn demandLight(light:DirectLight,P:vec3f,N:vec3f,footprint:f32){
  if(tile.x>=tilesX||tile.y>=u32(view.lightParams.z)){return;}
  // The resolve's point and footprint, at the pixel's centre.
  let z=textureLoad(depth,coord,0);let pixel=vec2f(id.xy)+0.5;
- let P=worldAt(pixel,z);
- let footprint=length(worldAt(pixel+vec2f(1.0,0.0),z)-P);
+ let at=worldAt(pixel,z);
+ let footprint=length(worldAt(pixel+vec2f(1.0,0.0),z)-at);
+ // The point the shading reads the maps at (\`shadowReceiverOffset\`, \`surfaceWgsl.ts\`).
+ let receiverAt=(id.y*u32(view.viewport.x)+id.x)*3u;
+ let P=at+vec3f(shadingOffset[receiverAt],shadingOffset[receiverAt+1u],shadingOffset[receiverAt+2u]);
  let N=normalize(textureLoad(normalRough,coord,0).xyz);
+ let thin=(textureLoad(flags,coord,0).r&${SUBSURFACE_FLAG}u)!=0u;
  let slice=tileSlice((tile.y*tilesX+tile.x)*TILE_STRIDE,0u,TILE_OPAQUE_BASE);
  for(var index=0u;index<slice.y;index++){
   var light=index;
   if(slice.x!=TILE_NO_SLICE){light=tileLights[slice.x+index];}
-  demandLight(directLights.items[light],P,N,footprint);
+  demandLight(directLights.items[light],at,P,N,thin,footprint);
  }
 }`;
