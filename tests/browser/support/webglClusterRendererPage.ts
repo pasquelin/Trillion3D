@@ -7,7 +7,7 @@ import { heldRestore } from './webglClusterRestorePage.ts';
 import { normalMapFrames } from './webglClusterNormalMapPage.ts';
 import { textureFixtures } from './webglClusterTexturePage.ts';
 import { windingComparisons } from './webglClusterWindingPage.ts';
-import { pixel } from './webglClusterPixels.ts';
+import { pixel, strictDegraded } from './webglClusterPixels.ts';
 import { placeRig, triangle } from './webglClusterRendererRig.ts';
 
 export async function execute() {
@@ -15,7 +15,7 @@ export async function execute() {
   canvas.width = canvas.height = 32;
   const gl = canvas.getContext('webgl2');
   if (!gl) return { unavailable: 'WebGL2 unavailable' };
-  const renderer = new WebglClusterRenderer(gl),
+  const renderer = new WebglClusterRenderer(gl, strictDegraded()),
     scene = new G.Scene(),
     camera = G.perspectiveCamera(60, 1, 0.1, 10),
     drawCamera = host.readHostDrawCamera(host.createHostDrawCamera(), camera),

@@ -1559,7 +1559,11 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   is drawn without it — the loop never stops — and the world's diagnostic channel says
   `material-degraded` once per surface and feature (`context.material`, `context.feature`). The
   WebGPU page raster lists material extensions among its unsupported capabilities and says nothing
-  per surface.
+  per surface. A surface the WebGL2 program cannot draw at all (an environment, light, bump,
+  displacement or alpha map, wireframe, stencil writes, alpha hash, premultiplied alpha, alpha to
+  coverage, clipping planes, object-space normals) is left out of the frame while every other
+  object draws and the loop goes on; the channel says `material-refused` once per surface and
+  reason (`context.material`, `context.reason`).
 - Transparent surfaces are lit from the source file's own light graph with a fixed ambient, not yet
   by the declared-light rule above.
 - A lost device is recovered, the page never reloaded: the world asks for a device again, reopens its

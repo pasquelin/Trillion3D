@@ -18,6 +18,7 @@ import { SUN_FAR_PROXY_BINDING } from '../../gpu/shadow/sunFarShadowWgsl.ts';
 import { FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts';
 import { BLEND_VIEW_WGSL } from '../blend/shader.ts';
 import { WATER_UNPACK_WGSL } from './surfaceWgsl.ts';
+import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from '../blend/displayFilter.ts';
 
 /** Bindings of the composite: the deferred bounce layout as-is — surfaces and depth, the view,
  *  the contract, the probe grid, the proxy — then what only water reads: the frozen backdrop, the
@@ -120,7 +121,7 @@ fn transmittedBackdrop(vol:Volume,P:vec3f,N:vec3f,V:vec3f,straight:vec2i,fragZ:f
  let sample=textureLoad(backdrop,chosen,0);
  return Transmitted(sample.rgb*attenuation,sample.a);
 }
-@fragment fn composeWater(@builtin(position) pixel:vec4f)->@location(0) vec4f{
+fn waterColor(pixel:vec4f)->vec4f{
  let coord=vec2i(pixel.xy);
  let packed=waterWordAt(coord);
  if(packed==0u){discard;}
@@ -166,6 +167,18 @@ fn transmittedBackdrop(vol:Volume,P:vec3f,N:vec3f,V:vec3f,straight:vec2i,fragZ:f
  let color=premultiplied/max(a,1e-4);
  return vec4f(select(fogged(color,P,uni.eye.xyz),color,unlit||vol.attenuationColor.w!=0.0),a);
 }
+@fragment fn composeWater(@builtin(position) pixel:vec4f)->@location(0) vec4f{return waterColor(pixel);}
 
 ${SCREEN_REFLECTION_WGSL}
 `;
+
+/** The composite of an image with display layers (`../blend/displayFilter.ts`): where the mask is
+ *  set, the water maps the tint and the added value by its display colour, as a normal layer. */
+export const WATER_ROUTED_SHADER = `${WATER_COMPOSITE_SHADER}${DISPLAY_ROUTE_WGSL}${displayMaskWgsl(2)}
+struct Routed{@location(0) color:vec4f,@location(1) tint:vec4f,@location(2) add:vec4f,}
+@fragment fn composeWaterRouted(@builtin(position) pixel:vec4f)->Routed{
+ let c=waterColor(pixel);
+ let unlit=(uni.viewFlags&${FLAG_UNLIT_VIEW}u)!=0u;
+ let r=displayRoute(c.rgb,uni.exposure,uni.toneCurve,unlit,c.a,maskAt(pixel));
+ return Routed(vec4f(c.rgb,c.a*r.keep),r.tint,r.add);
+}`;
