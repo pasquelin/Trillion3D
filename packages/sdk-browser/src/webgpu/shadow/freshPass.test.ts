@@ -27,8 +27,7 @@ function frame(calls: unknown[][]) {
   const lights = {
     store: createSceneLightStore(),
     plan: {
-      gpu: { on: true, listed: 0 },
-      quiet: false,
+      gpu: { on: true, listed: 0, moved: true },
       pool: { side: 4, layers: LAYERS },
     },
     allocation: { compose: pass('compose'), cull: pass('cull'), seal: pass('seal') },
@@ -152,7 +151,7 @@ test("while a tinted layer is read, each layer's GPU pages are drawn into it too
 test('a frame with nothing new to draw encodes none of it; a move, a listed or a lost page does', () => {
   const calls: unknown[][] = [],
     { lights, encode } = frame(calls);
-  lights.plan.quiet = true;
+  lights.plan.gpu.moved = false;
   encode();
   assert.ok(calls.length > 0, 'the first frame the plan is seen runs');
   const runs = (why: string) => {
@@ -174,7 +173,7 @@ test('a frame with nothing new to draw encodes none of it; a move, a listed or a
   lights.pageRequests.allocation.lost = 0;
   lights.store.add({ ...LAMP, id: 'new' });
   runs('a light was added');
-  lights.plan.quiet = false;
+  lights.plan.gpu.moved = true;
   runs('the view or a caster moved');
 });
 
