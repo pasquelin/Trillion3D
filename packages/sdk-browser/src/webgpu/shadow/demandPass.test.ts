@@ -117,7 +117,7 @@ test('the demand marks, at each lit point, the pages the shading reads there', (
         const positionRange = [...light.position!, light.range!];
         demand.demandLamp(
           0,
-          { positionRange },
+          { positionRange, shape: [0, 0, 0, 0] },
           [...P],
           [...N],
           toLight.map((x) => x / radius),
