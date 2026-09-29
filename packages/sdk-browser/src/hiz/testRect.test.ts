@@ -1,11 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
-import { rasterVisibilityIds } from '../visibility/buffer.ts';
-import { buildHizPyramid, countUnoccluded, visibilityDepth } from './hiz.ts';
+import { buildHizPyramid, countUnoccluded } from './hiz.ts';
 import { HIZ_TEST_VALUES, hizTestRect } from './occlusion.ts';
 import { createHizCounts, HIZ_KERNEL_TEXELS } from './counts.ts';
-import { cameraAt, quad } from '../../../../tests/fixtures/hiz.ts';
+import { cameraAt, occluderPyramid, quad } from '../../../../tests/fixtures/hiz.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { identityRoots } from '../page/selection/placements.fixture.ts';
 
@@ -103,15 +102,7 @@ test('counters: tested and kept account for all pages', () => {
   const back = quad(backMat, [-0.2, -0.2, -2], [0.2, 0.2, -2], 'back');
   const cam = cameraAt(),
     size: [number, number] = [32, 32];
-  const occluderIds = rasterVisibilityIds([front.page], identityRoots(), cameraMoteur(cam), size);
-  const occluderDepth = visibilityDepth(
-    occluderIds,
-    [front.page],
-    identityRoots(),
-    cameraMoteur(cam),
-    size,
-  );
-  const pyramid = buildHizPyramid(occluderDepth, 32, 32);
+  const pyramid = occluderPyramid([front.page], cam, size);
   const counts = createHizCounts();
   const kept = countUnoccluded(
     [front.page, back.page],
@@ -138,15 +129,7 @@ test('counters: triangle counts reflect cluster rejection', () => {
   back.page.array = new Uint32Array(12);
   const cam = cameraAt(),
     size: [number, number] = [32, 32];
-  const occluderIds = rasterVisibilityIds([front.page], identityRoots(), cameraMoteur(cam), size);
-  const occluderDepth = visibilityDepth(
-    occluderIds,
-    [front.page],
-    identityRoots(),
-    cameraMoteur(cam),
-    size,
-  );
-  const pyramid = buildHizPyramid(occluderDepth, 32, 32);
+  const pyramid = occluderPyramid([front.page], cam, size);
   const counts = createHizCounts();
   countUnoccluded(
     [front.page, back.page],
