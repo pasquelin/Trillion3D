@@ -3,7 +3,7 @@
 import { compareImages } from '../../packages/sdk-core/src/index.ts';
 import type { Capture } from '../../tests/kit/server/staticServer.ts';
 import { flipMap } from './flip.ts';
-import type { ImageDiff, ReferenceDiff, Report } from './report/types.ts';
+import type { ImageDiff, Report } from './report/types.ts';
 
 /** True when no pixel carries light: RGB 0 everywhere, whatever the alpha. */
 function black({ body }: NonNullable<Capture>) {
@@ -56,6 +56,11 @@ export function imageDiff(a: Capture | undefined, b: Capture | undefined): Image
     total: a.w * a.h,
   };
 }
+
+/** An `ImageDiff` against a named reference image, with its mean LDR-FLIP error in [0, 1]. */
+export type ReferenceDiff =
+  | Exclude<ImageDiff, { pixels: number }>
+  | (Extract<ImageDiff, { pixels: number }> & { reference: string; flipMean: number });
 
 /** A rendering technique's bound against its named reference image (CONTRIBUTING.md, "Image and
  *  fidelity", class 2): the channel errors of `imageDiff` plus the mean LDR-FLIP error. */
