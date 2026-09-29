@@ -26,8 +26,7 @@ const dot = (m: number[], x: number, y: number, z: number) => m[0] * x + m[1] * 
 const WHITE = TO_XYZ.map((m) => dot(m, 1, 1, 1));
 /** Linear value of each sRGB byte. */
 const LINEAR = Float64Array.from({ length: 256 }, (_, i) => srgbToLinear(i / 255));
-const LAB_CUBE = (6 / 29) ** 3,
-  LAB_SLOPE = 3 * (6 / 29) ** 2;
+const [LAB_CUBE, LAB_SLOPE] = [(6 / 29) ** 3, 3 * (6 / 29) ** 2];
 const labF = (t: number) => (t > LAB_CUBE ? Math.cbrt(t) : t / LAB_SLOPE + 4 / 29);
 
 /** Linear RGB to CIELAB, then Hunt-adjusted (chroma scaled by 0.01 L), written into `out`. */
@@ -142,8 +141,7 @@ function features(y: Float32Array, w: number, h: number) {
 
 /** Opponent YCxCz planes of an sRGB RGBA8 image, and its normalised luminance. */
 function opponent(body: Uint8Array, n: number) {
-  const planes: Planes = [new Float32Array(n), new Float32Array(n), new Float32Array(n)],
-    luminance = new Float32Array(n);
+  const [luminance, ...planes] = Array.from({ length: 4 }, () => new Float32Array(n));
   for (let p = 0; p < n; p++) {
     const r = LINEAR[body[p * 4]],
       g = LINEAR[body[p * 4 + 1]],
@@ -156,7 +154,7 @@ function opponent(body: Uint8Array, n: number) {
     planes[2][p] = 200 * (y - z);
     luminance[p] = (planes[0][p] + 16) / 116;
   }
-  return { planes, luminance };
+  return { planes: planes as Planes, luminance };
 }
 
 /** The Hunt-adjusted CIELAB of pixel `p` of filtered YCxCz planes, the colour clamped to [0, 1]. */
