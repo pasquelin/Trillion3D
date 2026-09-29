@@ -28,9 +28,18 @@ import {
 } from './narrowResolveHarness.ts';
 import { ouvrirAppareil } from './webgpuDevice.ts';
 
-/** A tile record — its two counts, its lists, the pool after them — and the resolve reading it. */
-export type ResolveRecord = { narrow: boolean; words: number[] };
-export type ResolveScene = { lights: SceneLight[]; samples: number[]; records: ResolveRecord[] };
+/** A tile record — its two counts, its lists, the pool after them — and the resolve reading it:
+ *  \`contractLighting\`, or with \`drawn\` \`sampledTileLighting\` alone. */
+export type ResolveRecord = { narrow: boolean; words: number[]; drawn?: boolean };
+/** A scene; \`rank\` the view's sampled rank (0, a still image, by default), \`slots\` the shadow
+ *  slot of some lights by their index. */
+export type ResolveScene = {
+  lights: SceneLight[];
+  samples: number[];
+  records: ResolveRecord[];
+  rank?: number;
+  slots?: [number, number][];
+};
 
 const storage = (
   device: GPUDevice,
@@ -66,37 +75,39 @@ export async function run(scenes: ResolveScene[]) {
     ],
   });
   const compilation: string[] = [];
-  const pipelines = new Map<boolean, GPUComputePipeline>();
+  const pipelines = new Map<string, GPUComputePipeline>();
   for (const narrow of [false, true]) {
     const { module, compilation: errors } = await opened.compile(narrowResolveHarness(narrow));
     compilation.push(...errors.map((error) => `${narrow ? 'narrow' : 'wide'}: ${error}`));
     if (!errors.length)
-      pipelines.set(
-        narrow,
-        device.createComputePipeline({
-          layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-          compute: { module, entryPoint: 'main' },
-        }),
-      );
+      for (const entryPoint of ['main', 'drawn'])
+        pipelines.set(
+          `${narrow}${entryPoint}`,
+          device.createComputePipeline({
+            layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
+            compute: { module, entryPoint },
+          }),
+        );
   }
   const runs: number[][][] = [];
   for (const scene of scenes) {
     const store = createSceneLightStore();
     for (const light of scene.lights) store.add(light);
+    for (const [slot, slice] of scene.slots ?? []) store.assignSlice(slot, slice);
     const lights = {
       store,
       buffer: createSceneLightContractBuffer(device, store),
       uploadedEpoch: -1,
     };
     uploadSceneLights(device, lights as Parameters<typeof uploadSceneLights>[1]);
-    // One tile: the view is one tile wide and high, every sample at its pixel, sampled rank 0.
+    // One tile: the view is one tile wide and high, every sample at its pixel, at its rank.
     const direct = [scene.lights.length, 1, 1, ...ZERO_DIRECT.slice(3)];
-    view.write(new Float32Array(16), [0, 0, 0, 1], 16, 16, 0, false, direct, 0);
+    view.write(new Float32Array(16), [0, 0, 0, 1], 16, 16, 0, false, direct, scene.rank ?? 0);
     const samples = storage(device, new Float32Array(scene.samples));
     const count = scene.samples.length / SAMPLE_FLOATS;
     const sceneRuns: number[][] = [];
     for (const record of scene.records) {
-      const pipeline = pipelines.get(record.narrow);
+      const pipeline = pipelines.get(`${record.narrow}${record.drawn ? 'drawn' : 'main'}`);
       if (!pipeline) continue;
       const tiles = storage(device, new Uint32Array(record.words));
       const sums = storage(device, new Uint32Array(count * 4), true);
