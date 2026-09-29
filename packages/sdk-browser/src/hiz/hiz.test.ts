@@ -135,7 +135,7 @@ test('Hi-Z rejects a fully covered farther page and keeps a page beside a hole',
   const open = quad(backMat, [0.35, -0.2, -2], [0.8, 0.2, -2], 'open');
   const cam = cameraAt(),
     size: [number, number] = [32, 32];
-  const pyramid = occluderPyramid([front.page], cam, size);
+  const pyramid = occluderPyramid([front.page], cameraMoteur(cam), size);
   const selected = [front.page, back.page];
   const remaining = filterUnoccluded(selected, identityRoots(), pyramid, cameraMoteur(cam), size);
   assert.deepEqual(
@@ -143,7 +143,7 @@ test('Hi-Z rejects a fully covered farther page and keeps a page beside a hole',
     ['front'],
   );
   assert.ok(remaining.every((page) => selected.includes(page)));
-  const holePyramid = occluderPyramid([hole.page], cam, size);
+  const holePyramid = occluderPyramid([hole.page], cameraMoteur(cam), size);
   const beside = filterUnoccluded(
     [hole.page, open.page],
     identityRoots(),
