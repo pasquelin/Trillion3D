@@ -13,7 +13,7 @@ import {
 } from '../../../../sdk-core/src/index.ts';
 import { createMultiplyLot } from '../../math/batchRuntime.ts';
 import { prepareMathBatch } from '../../math/batchState.ts';
-import type { BackendContext, MeasuredWorldOptions } from '../../backend/types.ts';
+import type { MeasuredWorldOptions } from '../../backend/types.ts';
 import type { ExplorerEmitters } from '../session/session.ts';
 import { loadPreparedSceneTables } from '../../scene/tables.ts';
 import { buildPreparedScene } from '../../host/prepared/build.ts';

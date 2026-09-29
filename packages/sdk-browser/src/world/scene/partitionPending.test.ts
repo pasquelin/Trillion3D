@@ -14,6 +14,7 @@ test('a still camera is drawn again until the cells it asked for within reach ar
   let later = true,
     read = () => {};
   const cells = {
+    manifest: { reads: () => [] },
     frame(_eye: number[], _reach: number, io: Io) {
       io.request(['near.json'], false);
       io.request(['ahead.json'], true);

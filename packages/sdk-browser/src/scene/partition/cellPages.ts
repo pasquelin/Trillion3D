@@ -45,5 +45,3 @@ export function createCellPages(pages: ManifestPages | undefined, cells: readonl
     held: () => holding.size,
   };
 }
-
-export type CellPages = ReturnType<typeof createCellPages>;
