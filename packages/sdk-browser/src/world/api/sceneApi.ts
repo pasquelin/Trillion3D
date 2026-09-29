@@ -112,6 +112,9 @@ export function createExplorerSceneApi(inputs: Inputs) {
       check(),
       !!getActive().updateVertices?.(...change)
     ),
+    /** The bytes a rewrite of `ranges` sends the GPU on the active path, if it says (#573). */
+    vertexBytes: (...change: Parameters<NonNullable<RenderBackend['vertexBytes']>>) =>
+      getActive().vertexBytes?.(...change),
     unmountPlacements: (rows: PlacementRows) => (check(), getActive().unmountPlacements!(rows)),
     /** Bounced light on or off in the session; false when the active path cannot toggle it in
      *  place, and only a session opened with the other setting will have it. */

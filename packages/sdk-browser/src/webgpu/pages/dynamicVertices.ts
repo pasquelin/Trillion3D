@@ -1,41 +1,7 @@
-import {
-  BOX_VALUES,
-  boxEmpty,
-  boxIsEmpty,
-  boxTransform,
-  boxUnionBatch,
-} from '../../../../sdk-core/src/index.ts';
-import { MOVE_PROMOTED } from '../../placement/update.ts';
 import type { HostAttributes } from '../../host/resources.ts';
 import type { VertexRange } from '../../placement/backendSceneUpdates.ts';
+import { noteRewritten } from './render/movedBatch.ts';
 import type { WebgpuPagesRuntime } from './runtime.ts';
-
-/** The world box of one root and the union of them, allocated once: a frame allocates nothing. */
-const moved = new Float64Array(BOX_VALUES),
-  union = new Float64Array(BOX_VALUES);
-
-/**
- * The shadow pages a dynamic geometry's rewrite touches, and none other (#489): each root that
- * draws `attributes` is a moving caster from its first rewrite on — the static layer leaves it
- * out, as it does a node that moves (`../shadow/mobility.ts`) —, and the world box of `box`, its
- * moved vertices where they were and where they go, stales the pages it covers
- * (`light-shadow/invalidate.ts`), whole on that first rewrite, its moving casters alone after.
- */
-function staleShadows(rt: WebgpuPagesRuntime, attributes: HostAttributes, box: Float64Array) {
-  const { layout, lights } = rt;
-  const roots = layout.selectionRoots;
-  let promoted = false;
-  boxEmpty(union, 0);
-  for (let rank = 0; rank < roots.length; rank++) {
-    const root = roots[rank];
-    if (root.pages[0]?.attributes !== attributes) continue;
-    promoted = lights.mobility.move(rank, root.world.elements, true) === MOVE_PROMOTED || promoted;
-    boxTransform(moved, 0, box, 0, root.world.elements);
-    boxUnionBatch(union, moved, 1);
-  }
-  if (!boxIsEmpty(union, 0))
-    lights.plan.worldChanged(union.subarray(0, 3), union.subarray(3, 6), !promoted);
-}
 
 /**
  * A dynamic geometry's rewritten lists, written in place (#573): its block of the float vertex
@@ -67,7 +33,29 @@ export function updateWebgpuVertices(
         count * 3,
       );
   }
-  staleShadows(rt, attributes, box);
+  noteRewritten(rt, attributes, box);
   run.gate.sceneMoved();
   return true;
 }
+
+/** The bytes `updateWebgpuVertices` sends for `ranges` of `attributes` (#573): each list in the
+ *  pool — a normal with its tangent, seven floats —, and the positions again, into the fallback
+ *  draw's buffer. */
+export function webgpuVertexBytes(
+  rt: WebgpuPagesRuntime,
+  attributes: HostAttributes,
+  ranges: readonly VertexRange[],
+) {
+  let bytes = rt.vis.vertexPool?.bytesOf(attributes, ranges) ?? 0;
+  if (rt.gpu.positionBuffers.has(attributes) && attributes.position?.array instanceof Float32Array)
+    for (const { name, count } of ranges) if (name === 'position') bytes += count * 12;
+  return bytes;
+}
+
+/** A session's rewrites of dynamic geometry in place (`RenderBackend.updateVertices`), on `rt`. */
+export const webgpuVertexApi = (rt: WebgpuPagesRuntime) => ({
+  updateVertices: (attributes: HostAttributes, ranges: readonly VertexRange[], box: Float64Array) =>
+    updateWebgpuVertices(rt, attributes, ranges, box),
+  vertexBytes: (attributes: HostAttributes, ranges: readonly VertexRange[]) =>
+    webgpuVertexBytes(rt, attributes, ranges),
+});

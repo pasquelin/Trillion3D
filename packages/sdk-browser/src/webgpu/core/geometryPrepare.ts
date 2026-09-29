@@ -1,7 +1,7 @@
 import type { HostAttributes } from '../../host/resources.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { GeometryBlock } from '../row/pageRowMaterial.ts';
-import { uvBufferFloats } from './vertexColors.ts';
+import { COLOR_FLOATS, UV_FLOATS, colorFloatAt, uvBufferFloats } from './vertexColors.ts';
 type GeometryBlocks = Map<HostAttributes, GeometryBlock>;
 type List = HostAttributes[string];
 
@@ -10,8 +10,8 @@ type List = HostAttributes[string];
  *  normal and a tangent share seven floats a vertex, a colour rides at the tail of the UVs. */
 const LAYOUT = {
   position: { buffer: 'concatPos', stride: 3, parts: [['position', 3, 0]] },
-  uv: { buffer: 'concatUv', stride: 2, parts: [['uv', 2, 0]] },
-  color: { buffer: 'concatUv', stride: 4, parts: [['color', 4, 1]] },
+  uv: { buffer: 'concatUv', stride: UV_FLOATS, parts: [['uv', UV_FLOATS, 0]] },
+  color: { buffer: 'concatUv', stride: COLOR_FLOATS, parts: [['color', COLOR_FLOATS, 1]] },
   normal: {
     buffer: 'concatNrm',
     stride: 7,
@@ -23,6 +23,8 @@ const LAYOUT = {
 } as const;
 export type PoolList = keyof typeof LAYOUT;
 
+/** Each list the pool carries, in `LAYOUT`'s order. */
+const LISTS = Object.keys(LAYOUT) as PoolList[];
 /** Floats, grown to the largest write and kept: a steady frame allocates nothing. */
 let scratch = new Float32Array(0);
 
@@ -30,10 +32,11 @@ let scratch = new Float32Array(0);
  * THE FLOAT VERTEX POOL of the WebGPU passes: the source geometry they read as floats — the
  * clusters no quantized page covers, a cache that carries none, and a world's dynamic geometry
  * (#573), whose index pages alone are paged. Its three buffers are sized once, at open, with room
- * for as many vertices again as its dynamic geometry holds: a block a record takes later — a mount
- * — is placed in that room (`place`), and a dynamic geometry's rewritten ranges are written in
- * place (`write`), neither buffer ever reallocated. Vertex colours ride at the tail of the UV
- * buffer (`vertexColors.ts`), which carries none when no packed geometry has any.
+ * for as many vertices again as its dynamic geometry holds — none when it holds none —: a block a
+ * record takes later — a mount — is placed in that room (`place`), and a dynamic geometry's
+ * rewritten ranges are written in place (`write`), neither buffer ever reallocated. Vertex colours
+ * ride at the tail of the UV buffer (`vertexColors.ts`), which carries none when no packed
+ * geometry has any.
  */
 export function createVertexPool(
   device: GPUDevice,
@@ -58,9 +61,9 @@ export function createVertexPool(
     concatUv: buffer('concatUv'),
     concatNrm: buffer('concatNrm'),
   };
-  /** The float of `name`'s buffer vertex `vertex` starts at: past the UVs for a colour. */
+  /** The float of `name`'s buffer vertex `vertex` starts at: in the UVs' tail for a colour. */
   const offsetOf = (name: PoolList, vertex: number) =>
-    (name === 'color' ? capacity * LAYOUT.uv.stride : 0) + vertex * LAYOUT[name].stride;
+    name === 'color' ? colorFloatAt(capacity, vertex) : vertex * LAYOUT[name].stride;
   /** Fills `into` from float `at` with vertices `from` to `from + count - 1` of list `name`. */
   const fill = (
     into: Float32Array,
@@ -84,6 +87,9 @@ export function createVertexPool(
   /** Whether `attributes` carry list `name`: a missing one reads zero, as a new buffer holds. */
   const holds = (attributes: HostAttributes, name: PoolList) =>
     (name !== 'color' || coloured) && LAYOUT[name].parts.some(([source]) => attributes[source]);
+  /** The bytes `count` vertices of list `name` of `attributes` weigh in the pool, if it holds it. */
+  const weigh = (attributes: HostAttributes, name: PoolList, count: number) =>
+    holds(attributes, name) ? count * LAYOUT[name].stride * 4 : 0;
   /** A block for `attributes` in the room left; undefined when the room is spent. */
   const claim = (attributes: HostAttributes, dynamic: boolean) => {
     const count = attributes.position?.count ?? 0;
@@ -108,16 +114,11 @@ export function createVertexPool(
       };
       for (const [attributes, dynamic] of sourced) {
         const block = claim(attributes, dynamic);
-        for (const name of Object.keys(LAYOUT) as PoolList[])
-          if (block && holds(attributes, name))
-            fill(
-              arrays[LAYOUT[name].buffer],
-              offsetOf(name, block.vertexBase),
-              attributes,
-              name,
-              0,
-              block.count,
-            );
+        for (const name of LISTS) {
+          if (!block || !holds(attributes, name)) continue;
+          const at = offsetOf(name, block.vertexBase);
+          fill(arrays[LAYOUT[name].buffer], at, attributes, name, 0, block.count);
+        }
       }
       for (const key of Object.keys(arrays) as (keyof typeof arrays)[])
         device.queue.writeBuffer(buffers[key], 0, arrays[key]);
@@ -128,10 +129,17 @@ export function createVertexPool(
       const known = blocks.get(attributes);
       if (known) return known;
       const block = claim(attributes, dynamic);
-      if (block)
-        for (const name of Object.keys(LAYOUT) as PoolList[])
-          this.write(attributes, name, 0, block.count);
+      if (block) for (const name of LISTS) this.write(attributes, name, 0, block.count);
       return block;
+    },
+    /** The bytes `place` then `write` send for `ranges` of `attributes`: each list whole first
+     *  when its block is still to place. */
+    bytesOf(attributes: HostAttributes, ranges: readonly { name: PoolList; count: number }[]) {
+      let bytes = 0;
+      if (!blocks.has(attributes))
+        for (const name of LISTS) bytes += weigh(attributes, name, attributes.position?.count ?? 0);
+      for (const { name, count } of ranges) bytes += weigh(attributes, name, count);
+      return bytes;
     },
     /** Writes vertices `from` to `from + count - 1` of list `name` of placed `attributes` — a
      *  normal with its tangent — in place, no buffer allocated; returns the bytes written. */
@@ -175,12 +183,8 @@ export function prepareWebgpuGeometry(
     if (dynamic) room += n;
     coloured ||= !!attributes.color;
   }
-  const vertexPool = createVertexPool(
-    device,
-    Math.max(1, vertices + room),
-    coloured,
-    geometryBlocks,
-  );
+  const capacity = Math.max(1, vertices + room);
+  const vertexPool = createVertexPool(device, capacity, coloured, geometryBlocks);
   vertexPool.pack(sourced);
   const { concatPos, concatUv, concatNrm } = vertexPool;
   return { concatPos, concatUv, concatNrm, vertexPool };
