@@ -97,6 +97,8 @@ export function createWebglParticleDraw(
       gl.framebufferTexture2D(draw, gl[point], texture, copy.texture, 0);
       // Refused: remade at the next copy (`../webgl/core/allocation.ts`).
       allocated(gl, 'target', () => ([copy.width, copy.height] = [0, 0]));
+      // A probe reads the blit's error next: its own refusal is answered first, never taken for it.
+      if (probing) refusedNow(gl);
     }
     gl.blitFramebuffer(0, 0, width, height, 0, 0, width, height, gl.DEPTH_BUFFER_BIT, gl.NEAREST);
     return !probing || gl.getError() !== gl.INVALID_OPERATION;
