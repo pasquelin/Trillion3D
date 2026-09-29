@@ -149,11 +149,12 @@ pub(super) fn plan_buffers(
         .enumerate()
         .map(|(new, old)| (*old, new))
         .collect();
-    let mut estimated_working_bytes = source_len
-        .saturating_mul(2)
-        .saturating_add(o.threads.saturating_mul(1024 * 1024));
+    let mut committed = source_len.saturating_mul(2).saturating_add(
+        o.threads
+            .saturating_mul(compiler_primitive::cost::WORKER_BYTES),
+    );
     for id in &views {
-        estimated_working_bytes = estimated_working_bytes
+        committed = committed
             .checked_add(required_index(
                 item(view_values, *id, "bufferView")?.get("byteLength"),
                 "bufferView.byteLength",
@@ -169,13 +170,13 @@ pub(super) fn plan_buffers(
             "primitive",
         )?;
         let cost = compiler_primitive::cost::of(g, p).map_err(|e| e.within(*old, *primitive))?;
-        estimated_working_bytes = estimated_working_bytes
+        committed = committed
             .checked_add(cost.indices)
             .ok_or_else(|| invalid("Working set overflow"))?;
         retained = retained.saturating_add(cost.retained);
         working.push(cost.working);
     }
-    let committed = estimated_working_bytes
+    committed = committed
         .checked_add(bin.len())
         .and_then(|total| total.checked_add(decoded_bytes))
         .ok_or_else(|| invalid("Working set overflow"))?;
@@ -187,14 +188,13 @@ pub(super) fn plan_buffers(
     }
     let held = committed.saturating_add(retained); // what is left sizes the waves
     let waves = compiler_budget::waves::waves(&working, o.ram_budget_bytes().saturating_sub(held));
-    estimated_working_bytes = held.saturating_add(working.iter().copied().max().unwrap_or(0));
     Ok(BufferPlan {
         accessors,
         jobs,
         access_map,
         views,
         view_map,
-        estimated_working_bytes,
+        estimated_working_bytes: held.saturating_add(working.iter().copied().max().unwrap_or(0)),
         waves,
     })
 }

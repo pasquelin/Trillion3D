@@ -1,8 +1,13 @@
 // Page side of the water-pass proof: the real WebGPU engine (`webgpuPagesBackend`), a real device,
 // a real reread image. A transmissive tile in front of an opaque ground, or of nothing, rendered
-// through the water pass and read at its centre; nothing internal is inspected.
+// through the water pass and read at its centre; encoded labels prove the intended path.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
+import {
+  WATER_COMPOSITE_PASS,
+  WATER_SURFACE_PASS,
+} from '../../../packages/sdk-browser/src/webgpu/water/frame.ts';
+import { WATER_ATTACHMENT_BYTES } from './waterCostPage.ts';
 import {
   VIEWPORT,
   batisseur,
@@ -78,14 +83,25 @@ async function cas(
   device: GPUDevice,
   pagine: boolean,
   kase: WaterCase,
-  evenements: BackendDiagnostic[],
+  events: BackendDiagnostic[],
 ): Promise<CaseResult> {
+  const labels = new Set<string>();
+  const create = device.createCommandEncoder.bind(device);
+  device.createCommandEncoder = (descriptor) => {
+    const encoder = create(descriptor),
+      begin = encoder.beginRenderPass.bind(encoder);
+    encoder.beginRenderPass = (pass) => {
+      labels.add(pass.label ?? '');
+      return begin(pass);
+    };
+    return encoder;
+  };
   const s = scene(pagine, kase);
   const { backend, canvas } = engine(
     webgpuPagesBackend,
     s,
     device,
-    (e: BackendDiagnostic) => evenements.push(e),
+    (e: BackendDiagnostic) => events.push(e),
     { clearColor: BACKGROUND },
   );
   try {
@@ -108,6 +124,13 @@ async function cas(
         pixels,
       });
     }
+    if (
+      kase.transmission > 0 &&
+      (!labels.has(WATER_SURFACE_PASS) || !labels.has(WATER_COMPOSITE_PASS))
+    )
+      throw new Error('Water proof did not encode the real water passes');
+    if (events.some((e) => e.phase === 'water-pass-refused'))
+      throw new Error('Water pass was refused');
     return {
       name: kase.name,
       pagine,
@@ -118,15 +141,19 @@ async function cas(
       heldLast: frames[frames.length - 1].held,
     };
   } finally {
+    device.createCommandEncoder = create;
     libere(backend, canvas, s);
   }
 }
 
 export function executer() {
-  return executerAppareil<{ cases: CaseResult[] }>(async (device, evenements, resultat) => {
-    const cases: CaseResult[] = (resultat.cases = []);
-    for (const pagine of [false, true])
-      for (const kase of CASES)
-        cases.push(await cas(device, pagine, kase, evenements as BackendDiagnostic[]));
-  });
+  return executerAppareil<{ cases: CaseResult[] }>(
+    async (device, evenements, resultat) => {
+      const cases: CaseResult[] = (resultat.cases = []);
+      for (const pagine of [false, true])
+        for (const kase of CASES)
+          cases.push(await cas(device, pagine, kase, evenements as BackendDiagnostic[]));
+    },
+    { maxColorAttachmentBytesPerSample: WATER_ATTACHMENT_BYTES },
+  );
 }

@@ -147,6 +147,7 @@ export function replay(blendState: ReturnType<typeof prepared>['blendState'], gp
       passes.push({ label: label!, drawn, writes });
       return {
         setViewport() {},
+        setScissorRect() {},
         setBindGroup(_slot: number, group: GPUBindGroup) {
           const rank = items.findIndex((item) => item.group === group);
           if (rank >= 0) drawn.push(rank);
