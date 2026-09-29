@@ -110,9 +110,9 @@ export function createWebgpuResidencySets(options: {
     followsDesired = true;
   };
   return {
-    /** The drawn view's own cut while another view holds one beside it, null with one view: the
-     *  budget ranks it before the rest of the union, so no view keeps fewer pages than it did
-     *  alone (`requestAdmission.ts`, `../cut/publication.ts`). */
+    /** A capture's cut while it is drawn, null otherwise: the budget ranks it before the rest of
+     *  the union, so a capture keeps the pages it kept when its cut replaced the main view's
+     *  (`requestAdmission.ts`, `../cut/publication.ts`). */
     drawnFirst: null as readonly PageRec[] | null,
     entering,
     enteringPages,
