@@ -57,8 +57,8 @@ export const checkGeometryPoolBudget = (bytes: number) =>
  * resident root pages outside the pool: a budget smaller than that cover is raised to it, by name.
  * A scene smaller than the budget takes only what it has, and a page cap (`maxResidentPages`, the
  * one benches and tests use) also bounds it, as does the session ceiling (`ceilingSlots`, what the
- * drawable-page tables have sized). Only the DEVICE limit can refuse, when even root coverage does
- * not fit.
+ * drawable-page tables have sized) on an engine whose tables do not grow. Only the DEVICE limit
+ * can refuse, when even root coverage does not fit.
  */
 export function geometryPoolFor(options: {
   budgetBytes: number;
@@ -128,5 +128,24 @@ export type MemoryBudgetsReport = {
   /** Texture tiles held, before and after. */
   residentTiles: { before: number; after: number };
   /** Time it took, a wait for the running prepare included. */
+  durationMs: number;
+  /** The drawable-page tables grown for a pool above them (WebGPU), or `null` when none was. */
+  tables?: TableGrowthReport | null;
+  /** Bytes held at once while the geometry pool was copied: the old pool and the new one beside
+   *  it, granted together by the device before any page moved; 0 when no pool moved. */
+  transientBytes?: number;
+};
+
+/** The growth of the tables sized by drawable row, as a pool above them asked it. */
+export type TableGrowthReport = {
+  /** Visibility rows the tables now hold. */
+  drawSlots: number;
+  /** Rows the shadow pass reads, after the visibility rows. */
+  casterSlots: number;
+  /** Bytes the grown GPU tables hold — asked, when refused. */
+  bytes: number;
+  /** True when the device refused them: the tables and the pool in place are kept. */
+  refused: boolean;
+  /** Milliseconds the growth took, from the probe to the swap. */
   durationMs: number;
 };

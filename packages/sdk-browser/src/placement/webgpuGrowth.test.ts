@@ -5,6 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { pageAddress } from '../webgpu/row/pageSlots.ts';
 import { placedSession, scaleDown } from './webgpuGrowth.fixture.ts';
+import { DRAW_ITEM_U32 } from '../gpu/draw/draw.ts';
 
 test('a WebGPU session grows the rows of a scaled-down partition in place, within its page table', async () => {
   // Five rows: the ground and two rows of two leaves. The grown scene's nine pages would ask more,
@@ -54,20 +55,72 @@ test('a WebGPU session grows the rows of a scaled-down partition in place, withi
   }
 });
 
-test('a growth past the page table is refused: the rows stay as they are, the owner opens anew', async () => {
-  // A binding roomy enough for the table to hold every page: the grown scene would ask more rows.
+test('a growth past the page table grows it in place: ranks, pins and pool kept', async () => {
+  // A binding roomy enough for the table to hold every page: the grown scene asks more rows than
+  // the five the session opened with (#216).
   const session = await placedSession(1 << 12);
-  const { rt, links, reopened } = session;
+  const { rt, links, draw, reopened } = session;
   try {
-    const held = links.map((link) => link.placements!),
-      roots = rt.layout.selectionRoots.length;
+    const { layout, setup } = rt,
+      cache = rt.gpu.cache!,
+      { rows } = layout;
+    const pinned = () =>
+      [...setup.tracking.pageCatalogIds].filter(([, key]) => setup.tracking.pinned.has(key));
+    const before = {
+      drawSlots: layout.drawSlots,
+      ranks: layout.packedPages.map((page) => rows.rowOfPage[page.packedIndex!]),
+      pinned: pinned(),
+      poolSlots: setup.slots,
+      ...cache.stats(),
+    };
+    assert.ok(before.pinned.length && before.ranks.some((rank) => rank >= 0));
+    const held = links.map((link) => link.placements!);
     scaleDown(session);
-    assert.equal(reopened.count, 1, 'the owner asked for a session sized for the rows');
-    assert.ok(
-      links.every((link, at) => link.placements === held[at]),
-      'the rows it holds',
+    await layout.growing;
+    assert.equal(reopened.count, 0, 'no session opened again');
+    assert.ok(links.every((link, at) => link.placements !== held[at]));
+    assert.ok(layout.drawSlots > before.drawSlots, 'the table grew for the new rows');
+    assert.equal(rows.generation, 1);
+    const items = rt.vis.gpuDraw!.itemsBuffer.size / (DRAW_ITEM_U32 * 4);
+    assert.deepEqual([items, rt.vis.gpuHiz!.flags.size / 4], [layout.drawSlots, layout.drawSlots]);
+    // Every page the table held keeps its rank, the pool its pins and its slots.
+    const ranks = before.ranks.map((_, page) => rows.rowOfPage[page]);
+    assert.deepEqual(ranks, before.ranks);
+    assert.deepEqual(pinned(), before.pinned);
+    assert.equal(rt.gpu.cache, cache);
+    assert.equal(setup.slots, before.poolSlots);
+    await draw();
+    const after = cache.stats();
+    assert.deepEqual(
+      [after.residentPages, after.uploadedBytes],
+      [before.residentPages, before.uploadedBytes],
     );
-    assert.equal(rt.layout.selectionRoots.length, roots);
+    // The new rows' pages found rows: none waits for one.
+    assert.equal(rows.candidateOverflow, 0);
+    for (const page of layout.packedPages)
+      assert.ok(rows.residentOffsetWords[page.packedIndex!] >= 0, page.url);
+  } finally {
+    session.dispose();
+  }
+});
+
+test('a growth past the page table during a prepare is taken in place, the table growing after it', async () => {
+  const session = await placedSession(1 << 12);
+  const { rt, reopened } = session;
+  try {
+    const { layout, setup } = rt,
+      drawSlots = layout.drawSlots;
+    let prepared = () => {};
+    setup.preparing = new Promise<void>((resolve) => (prepared = resolve));
+    scaleDown(session);
+    assert.equal(reopened.count, 0, 'no session opened again');
+    const growing = layout.growing;
+    await Promise.resolve();
+    assert.equal(layout.drawSlots, drawSlots, 'the tables wait for the prepare');
+    prepared();
+    setup.preparing = undefined;
+    await growing;
+    assert.ok(layout.drawSlots > drawSlots, 'then grow for the new rows');
   } finally {
     session.dispose();
   }

@@ -49,6 +49,8 @@ export type PoolEnvironment = {
   /** The views not drawn now (`views.ts`): what they ask for and draw joins the drawn view's, the
    *  union under the one budget. None when the backend has one view. */
   others?: readonly Pick<WebglViewState, 'requested' | 'shown'>[];
+  /** The drawn view is a capture (`views.ts`): its requests are ranked before the union's. */
+  captureDrawn?: () => boolean;
   onDiagnostic?: (diagnostic: BackendDiagnostic) => void;
 };
 
@@ -97,7 +99,7 @@ export function createGeometryBudget(env: PoolEnvironment) {
     room = clamp === 'scene' ? Infinity : slots;
     used = copies.root();
     if (others.length) {
-      const admitted = union.fit(requested, room, used);
+      const admitted = union.fit(requested, room, used, env.captureDrawn?.() ?? false);
       used = union.used;
       return admitted;
     }

@@ -136,6 +136,14 @@
       "onEvent": "Chamado a cada evento."
     }
   },
+  "BatchRead": {
+    "summary": "Como `request` lê um lote: o seu cancelamento, a sua prioridade e o que corre à chegada de cada página.",
+    "members": {
+      "signal": "Cancela as leituras do lote.",
+      "priority": "Prioridade na fila, 1 por omissão.",
+      "onPage": "Corre à chegada da leitura de cada página, não depois do lote inteiro."
+    }
+  },
   "BatchOutcome": {
     "summary": "Como um job do lote terminou.",
     "members": {
@@ -2047,7 +2055,19 @@
       "evictedTiles": "Blocos de textura removidos.",
       "residentPages": "O que residia logo antes da definição e logo depois.",
       "residentTiles": "Blocos de textura mantidos, antes e depois.",
-      "durationMs": "O tempo que levou."
+      "durationMs": "O tempo que levou.",
+      "tables": "As tabelas por página desenhável ampliadas para um pool acima delas (WebGPU), ou `null` quando nenhuma foi.",
+      "transientBytes": "Bytes mantidos ao mesmo tempo durante a cópia do pool de geometria: o pool antigo e o novo ao lado, concedidos juntos pelo dispositivo antes de qualquer página se mover; 0 quando nenhum pool se moveu."
+    }
+  },
+  "TableGrowthReport": {
+    "summary": "O crescimento das tabelas dimensionadas por linha desenhável, como um pool acima delas o pediu.",
+    "members": {
+      "drawSlots": "Linhas de visibilidade que as tabelas guardam agora.",
+      "casterSlots": "Linhas lidas pela passagem de sombras, depois das linhas de visibilidade.",
+      "bytes": "Bytes que as tabelas de GPU ampliadas ocupam — os pedidos, quando recusados.",
+      "refused": "`true` quando o dispositivo as recusou: as tabelas e o pool existentes são mantidos.",
+      "durationMs": "Milissegundos que o crescimento levou, da sonda até a troca."
     }
   },
   "Mesh": {
@@ -2253,7 +2273,7 @@
     "description": "As primeiras seis são as rejeições de decodificação de página, tomadas palavra por palavra de `geometryPage.ts`: um chamador as distingue como antes. `PAGE_DECODE_FAILED` carrega qualquer outra rejeição da biblioteca de descompressão. `PAGE_DECODE_CANCELLED` responde a um cancelamento, `PAGE_DECODE_WORKER` a um executor que desapareceu — só esse permite o fallback."
   },
   "PAGE_DECODE_PROTOCOL": {
-    "summary": "Contrato de decodificação de página fora da thread principal, versão 6: a geometria decodificada viaja como um único bloco com seu erro de quantização, e o slot da arena registra esse erro na palavra 8; `cut` transforma triângulos desenhados em páginas, que voltam como bytes com seus descritores, e, desde a versão 6, com seu cone de normais, os triângulos empacotados dizendo se suas páginas mantêm um.",
+    "summary": "Contrato de decodificação de página fora da thread principal, versão 6: a geometria decodificada viaja como um único bloco com seu erro de quantização; `cut` transforma triângulos desenhados em páginas, que voltam como bytes com seus descritores, e, desde a versão 6, com seu cone de normais, os triângulos empacotados dizendo se suas páginas mantêm um.",
     "description": "A thread chamadora envia um `PageDecodeRequest`, o executor devolve um `PageDecodeAnswer` carregando o mesmo `id`. Nada aqui toca a plataforma: nenhum `Worker`, nenhum fetch, nenhum relógio — o adaptador do navegador carrega tudo isso, este arquivo só carrega a forma da mensagem, a lista fechada de falhas e o limite do pool. Propriedade do buffer: `source` é **transferido** com a requisição, então o remetente não o possui mais. Uma resposta `verify` o devolve, transferido por sua vez; uma resposta `decode` devolve os buffers decodificados em vez disso, também transferidos. Um executor que não transfere nada (o fallback síncrono) devolve exatamente os mesmos valores: o contrato não diz como o trabalho viaja, só o que ele devolve."
   },
   "PAGE_INTEGRATION_FAILURES": {
@@ -2458,18 +2478,6 @@
       "op": "O que fazer.",
       "source": "Transferido com a mensagem: o remetente não é mais o dono.",
       "maxDecodedBytes": "Teto de bytes decodificados de uma página de geometria; ignorado por `verify`."
-    }
-  },
-  "PageDecodeShare": {
-    "summary": "O arrendamento de memória compartilhada de um worker: o buffer da arena, o slot e a região que possui, e a contagem de slots, que dá o tamanho da zona de controle.",
-    "description": "Postado uma vez, no nascimento do worker, e só onde a plataforma permite memória compartilhada. Sem um arrendamento, o worker responde transferindo buffers: o contrato não muda de forma, só o caminho dos bytes muda.",
-    "members": {
-      "protocol": "Versão do formato de mensagem.",
-      "id": "Sempre 0.",
-      "op": "Sempre `'share'`.",
-      "buffer": "A memória compartilhada.",
-      "slot": "O slot deste worker.",
-      "slots": "Slots ao todo."
     }
   },
   "PageIntegrationAnswer": {
