@@ -51,8 +51,8 @@ test('a page-built cloth moved is teleported with its flags; rescaled, refused b
   }
 });
 
-// #573: a tick draws a soft body where it is, into its geometry; that picture is not a new shape,
-// so the body is not made again from it, which would lose its velocity every tick.
+// #573: a soft body drawn where it is, into its geometry, is no new shape: made again from it, it
+// would lose its velocity every tick.
 test('a soft body drawn where it is keeps its body: nothing removed nor made again', async () => {
   const { scene, physics, worker, restore } = await fakePhysicsWorld();
   try {
@@ -61,14 +61,14 @@ test('a soft body drawn where it is keeps its body: nothing removed nor made aga
     scene.add(cloth);
     physics.frame();
     const [version, sent] = [cloth.geometry.version, worker.words.length];
-    const words = new Uint32Array(2 + 9 * 3);
-    words.set([physics.session()!.engineIdOf(cloth), 9]);
-    new Float32Array(words.buffer).fill(0.5, 2);
-    worker.onmessage({ data: { ...idleTick, soft: words } });
+    const soft = new Uint32Array(2 + 9 * 3);
+    soft.set([physics.session()!.engineIdOf(cloth), 9]);
+    new Float32Array(soft.buffer).fill(0.5, 2);
+    worker.onmessage({ data: { ...idleTick, soft } });
     physics.frame();
     assert.ok(cloth.geometry.version > version, 'drawn where it is');
-    const rebuilt = worker.words.slice(sent).filter((w) => w[0] === OP.remove || w[0] === OP.soft);
-    assert.deepEqual(rebuilt, [], 'no REMOVE, no SOFT');
+    const made = worker.words.slice(sent).filter((w) => w[0] === OP.remove || w[0] === OP.soft);
+    assert.deepEqual(made, [], 'no REMOVE, no SOFT');
     physics.dispose();
   } finally {
     restore();
