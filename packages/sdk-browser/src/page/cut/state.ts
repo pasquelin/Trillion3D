@@ -26,6 +26,11 @@ export interface SelectionState<T extends PageRecord> {
   cam: EngineCamera;
   wanted: T[];
   shown: T[];
+  /** The same two cuts by packed catalogue rank, rank by rank (`PageRecord.packedIndex`): what the
+   *  engines' consumers read, resolved back to a record through the catalogue (`recordOf`). The cut
+   *  still decides on the records above — a packed rank names the instance, never a record. */
+  wantedPacked: number[];
+  shownPacked: number[];
   pixelError: number;
   frustumRejected: number;
   /** Hierarchy nodes popped by this image's cut. */
@@ -78,6 +83,11 @@ export interface SelectionState<T extends PageRecord> {
 export interface SelectionResult<T> {
   shown: T[];
   wanted: T[];
+  /** The instances as packed catalogue ranks, parallel to `shown` and `wanted` rank by rank: the
+   *  identity the engines' consumers route by (a packed rank is the engine's per-placement page),
+   *  resolved back to a record through the catalogue (`recordOf(packed)`). */
+  shownPacked: number[];
+  wantedPacked: number[];
   visible: number;
   selectedTriangles: number;
   displayedTriangles: number;
@@ -99,6 +109,8 @@ export function createSelectionResult<T>(): SelectionResult<T> {
   return {
     shown: [],
     wanted: [],
+    shownPacked: [],
+    wantedPacked: [],
     visible: 0,
     selectedTriangles: 0,
     displayedTriangles: 0,
@@ -132,6 +144,8 @@ const reusedState: SelectionState<PageRecord> = {
   cam: undefined as unknown as EngineCamera,
   wanted: [],
   shown: [],
+  wantedPacked: [],
+  shownPacked: [],
   pixelError: 0,
   frustumRejected: 0,
   nodesTested: 0,
