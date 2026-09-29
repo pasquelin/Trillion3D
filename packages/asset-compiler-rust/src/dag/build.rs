@@ -70,34 +70,32 @@ pub fn build_dag_tallied(
 }
 
 /// Continues the DAG above clusters that already exist: the root clusters of placed objects, in
-/// world space, each with the error it was published at (`compiler_world_roots`, #23). Level 0 is
-/// those clusters as given, in order; the levels above them are built exactly as a primitive's,
+/// world space, each with the error and the sphere it was published at (`compiler_world_roots`,
+/// #23): a parent's sphere then holds the published one, never a tighter sphere of the triangles.
+/// Level 0 is those clusters as given, in order; the levels above them are built exactly as a primitive's,
 /// with the same grouping, the same simplification and the same monotone error. Positions only:
 /// the super-roots carry no attribute.
 pub fn build_dag_from_roots(
     positions: &[f32],
-    roots: Vec<(Vec<u32>, f64)>,
+    roots: Vec<(Vec<u32>, f64, [f64; 4])>,
     checkpoint: &(dyn Fn() -> Result<()> + Sync),
 ) -> Result<DagBuild> {
     checkpoint()?;
-    let indices: Vec<u32> = roots.iter().flat_map(|(c, _)| c.iter().copied()).collect();
+    let indices: Vec<u32> = roots.iter().flat_map(|(c, ..)| c.iter().copied()).collect();
     let dag: Vec<DagCluster> = roots
         .into_iter()
         .enumerate()
-        .map(|(rank, (indices, lod_error))| {
-            let sphere = bounding_sphere(positions, &indices);
-            DagCluster {
-                indices,
-                level: 0,
-                lod_error,
-                parent_error: f64::INFINITY,
-                sphere,
-                parent_sphere: sphere,
-                replacement: None,
-                source_rank: rank as u32,
-                group: None,
-                source: None,
-            }
+        .map(|(rank, (indices, lod_error, sphere))| DagCluster {
+            indices,
+            level: 0,
+            lod_error,
+            parent_error: f64::INFINITY,
+            sphere,
+            parent_sphere: sphere,
+            replacement: None,
+            source_rank: rank as u32,
+            group: None,
+            source: None,
         })
         .collect();
     if dag.len() < 2 {
