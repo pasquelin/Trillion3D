@@ -109,7 +109,8 @@ function drawSoft(mesh: Mesh, vertices: Float32Array) {
     position.array.set(vertices);
     position.needsUpdate = true;
     const normals = normal?.kind === 'attribute' ? normal.array : null;
-    if (!(normals instanceof Float32Array) || normals.length !== vertices.length) return;
+    const floats = normals instanceof Float32Array || normals instanceof Float64Array;
+    if (!floats || normals.length !== vertices.length) return;
     computeNormals(vertices, mesh.geometry.index?.array ?? null, normals);
     normal!.needsUpdate = true;
   } finally {
