@@ -3,7 +3,9 @@ import {
   createGpuPartitionBuffers,
   createGpuPartitionGroup,
   createGpuPartitionLayout,
+  createGpuPartitionRows,
 } from './buffers.ts';
+import { pendingBuffers } from '../core/tableGrowth.ts';
 import { createPartitionUniformWriter, type PartitionFrame } from './uniform.ts';
 import { createPartitionCounters } from './counters.ts';
 import { PARTITION_SHADER } from './shader.ts';
@@ -22,7 +24,8 @@ export async function createGpuPartition(
   slotCap: number,
   sources: PartitionSources,
 ): Promise<GpuPartition | undefined> {
-  const pyramid = sources.pyramid();
+  const inputs = { ...sources },
+    pyramid = sources.pyramid();
   if (typeof device.createComputePipeline !== 'function' || slotCap < 1 || !pyramid)
     return undefined;
   const allocated = createGpuPartitionBuffers(device, slotCap);
@@ -30,7 +33,7 @@ export async function createGpuPartition(
   try {
     // The pyramid changes identity on every target resize: the projection's group follows it,
     // remade only then. A fresh pyramid is all zeros — the far plane — and hides nothing.
-    const buffers = { ...allocated, ...sources, pyramid };
+    const buffers = { ...allocated, ...inputs, pyramid };
     const made = await validated(device, async () => {
       const module = device.createShaderModule({ code: PARTITION_SHADER });
       if (await shaderFailed(module)) return undefined;
@@ -45,6 +48,7 @@ export async function createGpuPartition(
         projectLayout,
         project: pipelineFor(projectLayout, 'projectRows'),
         classify: pipelineFor(classifyLayout, 'classifyRows'),
+        classifyLayout,
         projectGroup: createGpuPartitionGroup(device, projectLayout, 'projectRows', buffers),
         classifyGroup: createGpuPartitionGroup(device, classifyLayout, 'classifyRows', buffers),
       };
@@ -53,8 +57,8 @@ export async function createGpuPartition(
       for (const buffer of allocated.all) buffer.destroy();
       return undefined;
     }
-    const { projectLayout, project, classify, classifyGroup } = made;
-    let { projectGroup } = made;
+    const { projectLayout, project, classify } = made;
+    let { projectGroup, classifyGroup } = made;
     const writeUniform = createPartitionUniformWriter();
     // Runs `[from, to]` of rows rewritten since the last image, flattened in pairs: their held
     // rectangle, verdict and history describe the page — or the place — that left. The next image
@@ -84,11 +88,34 @@ export async function createGpuPartition(
         if (disposed || count < 1) return undefined;
         return readGpuBuffer(device, allocated.rowData, count * ROW_DATA_U32 * 4);
       },
-      corners: allocated.corners,
-      tested: allocated.tested,
+      get corners() {
+        return allocated.corners;
+      },
+      get tested() {
+        return allocated.tested;
+      },
       state: allocated.state,
-      rowData: allocated.rowData,
+      get rowData() {
+        return allocated.rowData;
+      },
       uniforms: allocated.uniforms,
+      grow(rows, next) {
+        const grown = createGpuPartitionRows(device, rows);
+        return pendingBuffers(grown.all, () => {
+          const old = [allocated.corners, allocated.rowData, allocated.tested];
+          const all = [...grown.all, allocated.state, allocated.uniforms];
+          Object.assign(allocated, grown, { all });
+          Object.assign(inputs, next);
+          Object.assign(buffers, grown, next);
+          const group = (layout: GPUBindGroupLayout, kernel: 'projectRows' | 'classifyRows') =>
+            createGpuPartitionGroup(device, layout, kernel, buffers);
+          projectGroup = group(projectLayout, 'projectRows');
+          classifyGroup = group(made.classifyLayout, 'classifyRows');
+          // The new rows hold nothing: every one reads as never projected.
+          forgotten.length = 0;
+          return old;
+        });
+      },
       forgetRows(from: number, to: number) {
         if (to >= from) forgotten.push(from, to);
       },
@@ -113,14 +140,14 @@ export async function createGpuPartition(
             encoder.clearBuffer(allocated.rowData, from * rowBytes, (to - from + 1) * rowBytes);
         }
         forgotten.length = 0;
-        const pyramid = sources.pyramid();
+        const pyramid = inputs.pyramid();
         if (!pyramid) return;
         const rows = Math.min(frame.rows, allocated.rows);
         // Nothing is held from frame to frame but the history, which lives in `rowData`:
         // counters, rest bits and per-slot counts start from zero.
         encoder.clearBuffer(allocated.state, 0, STATE_WORDS * 4);
-        encoder.clearBuffer(sources.restBits);
-        encoder.clearBuffer(sources.slotUsed);
+        encoder.clearBuffer(inputs.restBits);
+        encoder.clearBuffer(inputs.slotUsed);
         writeUniform(device, allocated.uniforms, frame, rows);
         kept.rows = rows;
         kept.width = frame.width;
