@@ -115,6 +115,9 @@ async function build(
     params.attenuationDistance = entry.attenuationDistance || Infinity;
     params.attenuationColor = linearColour(entry.attenuationColor);
   }
+  // Which frame the normal factors were written for: an engine pass that reads no tangent turns
+  // the second one of a surface written for vertex tangents (`../surfaceImport.ts`).
+  params.forVertexTangents = !entry.derivativeTangents;
   if (entry.doubleSided) params.side = hostSide('double');
   Object.assign(
     params,
