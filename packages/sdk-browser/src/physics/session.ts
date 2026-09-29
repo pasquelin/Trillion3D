@@ -71,21 +71,13 @@ export function createPhysicsSession(
     const words = ready && writer.length ? writer.take() : null;
     if (words) worker.postMessage({ type: 'commands', words }, [words.buffer]);
   };
-  let received = 0, // Page ms spent on ticks since the last frame: its `physics` stage's.
-    drawingSoft = false;
+  let received = 0; // Page ms spent on ticks since the last frame: its `physics` stage's.
   const results = (m: PhysicsResults) => {
     const began = performance.now();
     const words = new Uint32Array(m.buffer);
     // Simulated time in page time; a tick sent before a clock stopped at 0 is drawn at once.
     const ms = clock.timeScale > 0 ? (m.seconds * 1000) / clock.timeScale : 0;
-    let moved = poses.receive(words, m.poses, posed, ms);
-    // A soft body drawn where it is rewrites its own geometry (#573): not a shape change to rebuild.
-    drawingSoft = true;
-    try {
-      moved += receiveSoft(m.soft, bodies).length;
-    } finally {
-      drawingSoft = false;
-    }
+    const moved = poses.receive(words, m.poses, posed, ms) + receiveSoft(m.soft, bodies).length;
     emitContacts(words, eventsAt(budget), m.events, bodies.meshOf, touched);
     waves.received(m.water, m.active, began, m.waterEpoch);
     if (m.character) character.hear?.(m.character);
@@ -149,7 +141,6 @@ export function createPhysicsSession(
     structure: () => void (dirty = true),
     /** A mesh's geometry, material or `physics` changed. */
     content(node: Object3D) {
-      if (drawingSoft) return;
       if (hasBody(node)) stale.add(node);
       dirty = true;
     },
