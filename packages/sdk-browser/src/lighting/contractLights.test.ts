@@ -131,7 +131,7 @@ test('a spotlight takes back its cone, and its penumbra equals the contract soft
 test('a directional takes its propagation direction, never an invented position', () => {
   const bench = harness();
   bench.store.add({
-    id: 'soleil',
+    id: 'sun',
     kind: 'directional',
     direction: [0, -1, 0],
     color: [1, 1, 1],

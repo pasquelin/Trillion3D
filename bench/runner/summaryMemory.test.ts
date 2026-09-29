@@ -20,8 +20,8 @@ const rapport = (series: Serie[]): Report => ({ series }) as Report;
 test('each side of each view has its row, and the rest is the difference', () => {
   const lignes = memoire(
     rapport([
-      serie('sol', {
-        apres: {
+      serie('ground', {
+        after: {
           metrics: {
             gpuAllocatedBytes: 7_500_000_000,
             texturePoolBytes: 6_688_572_304,
@@ -42,12 +42,12 @@ test('each side of each view has its row, and the rest is the difference', () =>
   );
   assert.equal(
     lignes[2],
-    '| sol | e1 | apres | 7.500 GB | 6.689 GB | 0.400 GB / 536.9 MB (scene) | 275.7 MB | 0.136 GB |',
+    '| ground | e1 | after | 7.500 GB | 6.689 GB | 0.400 GB / 536.9 MB (scene) | 275.7 MB | 0.136 GB |',
   );
   assert.equal(lignes[3], '');
   assert.equal(
     lignes[4],
-    '- sol · e1 · apres, heaviest: Trillion3D material atlas rgba8unorm classe 0 4252.6 MB, ' +
+    '- ground · e1 · after, heaviest: Trillion3D material atlas rgba8unorm classe 0 4252.6 MB, ' +
       'Trillion3D geometry page cache 300.0 MB, unlabelled 0.0 MB',
   );
 });
@@ -55,9 +55,9 @@ test('each side of each view has its row, and the rest is the difference', () =>
 test('a side without registry is unmeasured, never zero, and an unknown format is stated', () => {
   const lignes = memoire(
     rapport([
-      serie('generale', {
-        avant: { metrics: {} },
-        apres: {
+      serie('overview', {
+        before: { metrics: {} },
+        after: {
           metrics: {
             gpuAllocatedBytes: 1_000,
             gpuAllocationsUnknownFormat: 2,
@@ -69,16 +69,16 @@ test('a side without registry is unmeasured, never zero, and an unknown format i
   );
   assert.equal(
     lignes[2],
-    '| generale | e1 | avant | unmeasured | unmeasured | unmeasured / unmeasured | unmeasured | unmeasured |',
+    '| overview | e1 | before | unmeasured | unmeasured | unmeasured / unmeasured | unmeasured | unmeasured |',
   );
   assert.equal(
     lignes[3],
-    '| generale | e1 | apres | 0.000 GB | unmeasured | unmeasured / unmeasured | unmeasured | 0.000 GB |',
+    '| overview | e1 | after | 0.000 GB | unmeasured | unmeasured / unmeasured | unmeasured | 0.000 GB |',
   );
   assert.equal(lignes.length, 6);
   assert.match(
     lignes[5],
-    /^- generale · e1 · apres, heaviest: Trillion3D HDR lighting 0.0 MB — 2 texture/,
+    /^- overview · e1 · after, heaviest: Trillion3D HDR lighting 0.0 MB — 2 texture/,
   );
   assert.match(lignes[5], /this total is not a proof$/);
 });

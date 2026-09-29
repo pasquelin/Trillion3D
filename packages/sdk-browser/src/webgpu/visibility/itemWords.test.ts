@@ -49,7 +49,7 @@ function runtime(n: number, drawLayerSlots: number) {
       drawLayerSlots,
       gpuDraw: { uploadItems: (_: unknown, from: number, to: number) => sent.push([from, to]) },
     },
-    timing: { encodeCounts: { fichesTeleversees: 0 } },
+    timing: { encodeCounts: { itemsUploaded: 0 } },
   } as unknown as WebgpuPagesRuntime;
   /** The image's rows are read: the table's marks are consumed, the pending ones stay. */
   const image = (layerSlots: number, target: GpuDraw) => {
@@ -98,7 +98,7 @@ test('the rows to send accumulate until an image sends them, run by run', () => 
   a.image(2, cible);
   sendDrawItemWords(a.rt);
   a.sent.length = 0;
-  a.rt.timing.encodeCounts.fichesTeleversees = 0;
+  a.rt.timing.encodeCounts.itemsUploaded = 0;
   a.dirty.mark(6);
   a.image(2, cible);
   a.dirty.mark(2);
@@ -112,7 +112,7 @@ test('the rows to send accumulate until an image sends them, run by run', () => 
     ],
     'two runs, none of the rows between them',
   );
-  assert.equal(a.rt.timing.encodeCounts.fichesTeleversees, 2);
+  assert.equal(a.rt.timing.encodeCounts.itemsUploaded, 2);
   assert.ok(hold.pending.span.to < hold.pending.span.from, 'once sent, nothing is pending');
 });
 
