@@ -105,6 +105,9 @@ export class WebglClusterOwner {
       const refused = outOfMemoryContext('texture', before.allocatedBytes, after);
       sendEngineDiagnostic(this.onDiagnostic, 'gpu-out-of-memory', 'WebGL2 refused a map', refused);
     }
+    // The maps uploaded ahead, first: the frame's commands not sent yet (`textureQueue.ts`).
+    textures.budget.beginFrame();
+    textures.ahead.drain(this.context, textures, textures.budget);
     const submitted = renderer.draw(
       meshes,
       scene,
@@ -115,7 +118,7 @@ export class WebglClusterOwner {
       copies,
       this.degraded,
     );
-    textures.ahead.drain(textures, textures.budget);
+    textures.ahead.frameEnd(this.context);
     return submitted;
   }
   private release() {
