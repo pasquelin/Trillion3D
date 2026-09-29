@@ -1390,7 +1390,7 @@
   },
   "decodeSceneProxy": {
     "summary": "El proxy releído y reverificado antes de que un solo rayo lo toque.",
-    "description": "Disposición: ocho palabras de cabecera en little-endian, seguidas de las columnas de geometría y árbol canónicos y de la información de propiedad versionada. `docs/FORMAT.md` especifica cada cantidad y columna. La cabecera impone la longitud de cada sección; se rechaza íntegramente un archivo de otro tamaño, porque un nodo que apuntara a un triángulo ausente haría que el shader leyera datos arbitrarios."
+    "description": "Once palabras de cabecera little-endian preceden la geometría compartida o independiente, las columnas del árbol y los propietarios versionados. `docs/FORMAT.md` define las cantidades y columnas. Se rechaza cualquier longitud incorrecta antes de consultar un rayo."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S` descompuesta en `position`, `quaternion`, `scale`."
@@ -5255,7 +5255,7 @@
     "summary": "Versión del contrato de la jerarquía de escena mantenida por el host."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "Enteros de cabecera: firma, versión, cantidades de triángulos/nodos/grupos/propietarios/orígenes, cero reservado."
+    "summary": "Enteros de cabecera: cabecera de propietarios v3 y cantidades de formas, triángulos almacenados y colocaciones."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "'W','G','P','X' leídos como un entero sin signo de 32 bits little-endian."
@@ -5391,7 +5391,7 @@
     }
   },
   "SceneProxy": {
-    "summary": "El proxy leído: su descriptor y sus columnas, vistas sobre los bytes de su objeto de caché.",
+    "summary": "El proxy leído: su descriptor y columnas inmutables, con los triángulos compartidos expandidos al cargar.",
     "members": {
       "data": "Sus columnas."
     }
@@ -5522,7 +5522,7 @@
       "shadowStaticDrawCalls": "Llamadas de dibujo de proyectores estáticos: en la capa estática, o de una página dibujada entera sin ella.",
       "shadowMovingDrawCalls": "Llamadas de dibujo solo de proyectores móviles, sobre páginas restauradas desde la capa estática.",
       "shadowMovingCastersKept": "De `shadowCastersKept`, los clústeres conservados para dibujar solo proyectores móviles.",
-      "shadowPagesStaledBy": "Páginas que la imagen dejó obsoletas, por motivo: luz, proyector inmóvil, proyectores móviles, detalle, umbral de corte o rango de profundidad de un sol.",
+      "shadowPagesStaledBy": "Páginas que la imagen dejó obsoletas, por motivo: luz, proyector inmóvil, proyectores móviles, detalle, umbral de corte, rango de profundidad de un sol o una huella que sus receptores ampliaron.",
       "shadowWaitMs": "Cuántos milisegundos ha esperado a ser redibujada la página desactualizada más antigua que lee la imagen. Solo cuenta el tiempo en que la imagen la lee; 0 una vez redibujada.",
       "shadowCutDrops": "Lotes del corte desde la luz que descartaron trabajo — sus vistas guardaron más clústeres de los que caben en las listas —, desde que se abrió el explorador: cada uno devuelve sus páginas, retiradas hasta redibujarse (#525). Null en un motor sin corte de luz en GPU, igual que los tres siguientes.",
       "shadowCutWithdrawnPages": "Páginas redibujadas porque un corte desde la luz las dibujó mal, desde que se abrió el explorador: su lote descartó trabajo, o su indicador nunca se leyó. Quedan retiradas hasta redibujarse.",
@@ -5554,6 +5554,7 @@
       "shadowMemoryEvents": "Los eventos de presión de memoria de las sombras desde que se abrió el mundo, por nombre, en orden; vacío normalmente.",
       "shadowPagesRefetched": "Páginas virtuales asignadas de nuevo después de que el pool las desalojara para hacer sitio, desde que se abrió el explorador: los redibujados que cuesta un pool demasiado pequeño para lo que leen las imágenes.",
       "shadowCastersKept": "Proyectores que conservó el descarte por página, todas las páginas dibujadas juntas, en la imagen que el dispositivo muestreó por última vez — una de cada quince; `null` hasta que vuelva una muestra.",
+      "shadowCastersRejected": "Proyectores que el descarte por página probó y no conservó — fuera de la parte de la página que leen sus receptores —, en la misma imagen muestreada; `null` hasta que vuelva una muestra.",
       "shadowCastersHidden": "Proyectores en movimiento que la prueba de oclusión encontró ocultos tras la capa estática de su página, en la imagen muestreada por última vez; `null` hasta que vuelva una muestra."
     }
   },
@@ -6876,7 +6877,7 @@
       "shadowStaticDrawCalls": "Llamadas de dibujo de proyectores estáticos: en la capa estática, o de una página dibujada entera sin ella.",
       "shadowMovingDrawCalls": "Llamadas de dibujo solo de proyectores móviles, sobre páginas restauradas desde la capa estática.",
       "shadowMovingCastersKept": "De `shadowCastersKept`, los clústeres conservados para dibujar solo proyectores móviles.",
-      "shadowPagesStaledBy": "Páginas que la imagen dejó obsoletas, por motivo: luz, proyector inmóvil, proyectores móviles, detalle, umbral de corte o rango de profundidad de un sol.",
+      "shadowPagesStaledBy": "Páginas que la imagen dejó obsoletas, por motivo: luz, proyector inmóvil, proyectores móviles, detalle, umbral de corte, rango de profundidad de un sol o una huella que sus receptores ampliaron.",
       "shadowWaitMs": "Cuántos milisegundos ha esperado a ser redibujada la página desactualizada más antigua que lee la imagen. Solo cuenta el tiempo en que la imagen la lee; 0 una vez redibujada.",
       "shadowCutDrops": "Lotes del corte desde la luz que descartaron trabajo — sus vistas guardaron más clústeres de los que caben en las listas —, desde que se abrió el explorador: cada uno devuelve sus páginas, retiradas hasta redibujarse (#525). Null en un motor sin corte de luz en GPU, igual que los tres siguientes.",
       "shadowCutWithdrawnPages": "Páginas redibujadas porque un corte desde la luz las dibujó mal, desde que se abrió el explorador: su lote descartó trabajo, o su indicador nunca se leyó. Quedan retiradas hasta redibujarse.",
@@ -6947,6 +6948,7 @@
       "shadowMemoryEvents": "Los eventos de presión de memoria de las sombras desde que se abrió el mundo, por nombre, en orden; vacío normalmente.",
       "shadowPagesRefetched": "Páginas virtuales asignadas de nuevo después de que el pool las desalojara para hacer sitio, desde que se abrió el explorador: los redibujados que cuesta un pool demasiado pequeño para lo que leen las imágenes.",
       "shadowCastersKept": "Proyectores que conservó el descarte por página, todas las páginas dibujadas juntas, en la imagen que el dispositivo muestreó por última vez — una de cada quince; `null` hasta que vuelva una muestra.",
+      "shadowCastersRejected": "Proyectores que el descarte por página probó y no conservó — fuera de la parte de la página que leen sus receptores —, en la misma imagen muestreada; `null` hasta que vuelva una muestra.",
       "shadowCastersHidden": "Proyectores en movimiento que la prueba de oclusión encontró ocultos tras la capa estática de su página, en la imagen muestreada por última vez; `null` hasta que vuelva una muestra.",
       "dynamicUploadBytes": "Bytes de vértices de geometría dinámica subidos en su sitio en este fotograma (#573), dentro del presupuesto por fotograma del mundo (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Ausente donde ningún mundo dibuja."
     }

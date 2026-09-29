@@ -2901,7 +2901,7 @@
     "summary": "Versi kontrak hierarki scene milik host."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "Bilangan bulat header: tanda pengenal, versi, jumlah segitiga/node/grup/pemilik/sumber, nol yang dicadangkan."
+    "summary": "Bilangan bulat header: header kepemilikan v3, lalu jumlah bentuk, segitiga tersimpan, dan penempatan."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "'W','G','P','X' dibaca sebagai bilangan bulat 32-bit tak bertanda little-endian."
@@ -3182,7 +3182,7 @@
     }
   },
   "SceneProxy": {
-    "summary": "Proxy baca: deskriptor dan kolomnya, view atas byte objek cache-nya.",
+    "summary": "Proxy yang dibaca: deskriptor dan kolom tetapnya, dengan segitiga bersama diperluas saat dimuat.",
     "members": {
       "data": "Kolom-kolomnya."
     }
@@ -3276,7 +3276,7 @@
       "shadowStaticDrawCalls": "Panggilan gambar caster statis: ke lapisan statis, atau dari halaman yang digambar utuh tanpa lapisan itu.",
       "shadowMovingDrawCalls": "Panggilan gambar caster bergerak saja, di atas halaman yang dipulihkan dari lapisan statis.",
       "shadowMovingCastersKept": "Dari `shadowCastersKept`, kluster yang disimpan untuk menggambar caster bergerak saja.",
-      "shadowPagesStaledBy": "Halaman yang dibuat usang oleh bingkai, menurut alasan: cahaya, caster diam, caster bergerak, detail, ambang potongan, atau rentang kedalaman matahari.",
+      "shadowPagesStaledBy": "Halaman yang dibuat usang oleh bingkai, menurut alasan: cahaya, caster diam, caster bergerak, detail, ambang potongan, rentang kedalaman matahari, atau jejak yang diperluas penerimanya.",
       "shadowWaitMs": "Berapa milidetik halaman usang tertua yang dibaca gambar telah menunggu untuk digambar ulang. Hanya waktu saat gambar membacanya yang dihitung; 0 setelah digambar ulang.",
       "shadowCutDrops": "Batch potongan cahaya yang membuang pekerjaan — tampilannya menyimpan lebih banyak klaster daripada yang muat di daftar —, sejak penjelajah dibuka: masing-masing mengirim balik halamannya, ditarik hingga digambar ulang (#525). Null pada mesin tanpa potongan cahaya GPU, begitu pula tiga berikutnya.",
       "shadowCutWithdrawnPages": "Halaman yang digambar ulang karena potongan cahaya menggambarnya salah, sejak penjelajah dibuka: batch-nya membuang pekerjaan, atau flag-nya tidak pernah dibaca. Halaman itu ditarik hingga digambar ulang.",
@@ -3308,6 +3308,7 @@
       "shadowMemoryEvents": "Peristiwa tekanan memori bayangan sejak dunia dibuka, menurut nama, berurutan; biasanya kosong.",
       "shadowPagesRefetched": "Halaman virtual yang dipetakan lagi setelah pool mengusirnya untuk memberi tempat, sejak explorer dibuka: penggambaran ulang yang menjadi biaya pool yang terlalu kecil untuk yang dibaca bingkai.",
       "shadowCastersKept": "Pembuat bayangan yang dipertahankan culling per halaman, semua halaman yang digambar bersama, pada bingkai yang terakhir diambil sampelnya oleh perangkat — satu dari lima belas; `null` sampai sampel kembali.",
+      "shadowCastersRejected": "Pembuat bayangan yang diuji culling per halaman namun tidak dipertahankan — di luar bagian halaman yang dibaca penerimanya —, pada bingkai sampel yang sama; `null` sampai sampel kembali.",
       "shadowCastersHidden": "Pembuat bayangan bergerak yang oleh uji oklusi ditemukan tersembunyi di balik lapisan statis halamannya, pada bingkai yang terakhir diambil sampelnya; `null` sampai sampel kembali."
     }
   },
@@ -4259,7 +4260,7 @@
       "shadowStaticDrawCalls": "Panggilan gambar caster statis: ke lapisan statis, atau dari halaman yang digambar utuh tanpa lapisan itu.",
       "shadowMovingDrawCalls": "Panggilan gambar caster bergerak saja, di atas halaman yang dipulihkan dari lapisan statis.",
       "shadowMovingCastersKept": "Dari `shadowCastersKept`, kluster yang disimpan untuk menggambar caster bergerak saja.",
-      "shadowPagesStaledBy": "Halaman yang dibuat usang oleh bingkai, menurut alasan: cahaya, caster diam, caster bergerak, detail, ambang potongan, atau rentang kedalaman matahari.",
+      "shadowPagesStaledBy": "Halaman yang dibuat usang oleh bingkai, menurut alasan: cahaya, caster diam, caster bergerak, detail, ambang potongan, rentang kedalaman matahari, atau jejak yang diperluas penerimanya.",
       "shadowWaitMs": "Berapa milidetik halaman usang tertua yang dibaca gambar telah menunggu untuk digambar ulang. Hanya waktu saat gambar membacanya yang dihitung; 0 setelah digambar ulang.",
       "shadowCutDrops": "Batch potongan cahaya yang membuang pekerjaan — tampilannya menyimpan lebih banyak klaster daripada yang muat di daftar —, sejak penjelajah dibuka: masing-masing mengirim balik halamannya, ditarik hingga digambar ulang (#525). Null pada mesin tanpa potongan cahaya GPU, begitu pula tiga berikutnya.",
       "shadowCutWithdrawnPages": "Halaman yang digambar ulang karena potongan cahaya menggambarnya salah, sejak penjelajah dibuka: batch-nya membuang pekerjaan, atau flag-nya tidak pernah dibaca. Halaman itu ditarik hingga digambar ulang.",
@@ -4330,6 +4331,7 @@
       "shadowMemoryEvents": "Peristiwa tekanan memori bayangan sejak dunia dibuka, menurut nama, berurutan; biasanya kosong.",
       "shadowPagesRefetched": "Halaman virtual yang dipetakan lagi setelah pool mengusirnya untuk memberi tempat, sejak explorer dibuka: penggambaran ulang yang menjadi biaya pool yang terlalu kecil untuk yang dibaca bingkai.",
       "shadowCastersKept": "Pembuat bayangan yang dipertahankan culling per halaman, semua halaman yang digambar bersama, pada bingkai yang terakhir diambil sampelnya oleh perangkat — satu dari lima belas; `null` sampai sampel kembali.",
+      "shadowCastersRejected": "Pembuat bayangan yang diuji culling per halaman namun tidak dipertahankan — di luar bagian halaman yang dibaca penerimanya —, pada bingkai sampel yang sama; `null` sampai sampel kembali.",
       "shadowCastersHidden": "Pembuat bayangan bergerak yang oleh uji oklusi ditemukan tersembunyi di balik lapisan statis halamannya, pada bingkai yang terakhir diambil sampelnya; `null` sampai sampel kembali.",
       "dynamicUploadBytes": "Byte verteks geometri dinamis yang diunggah di tempat pada frame ini (#573), dalam anggaran per frame dunia (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Tidak ada jika tidak ada dunia yang menggambar."
     }
@@ -5019,7 +5021,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Proxy dibaca dan diperiksa ulang sebelum satu sinar pun menyentuhnya.",
-    "description": "Tata letak: delapan kata header little-endian, diikuti kolom geometri dan pohon kanonis serta data kepemilikan berversi. `docs/FORMAT.md` menentukan setiap jumlah dan kolom. Header menetapkan panjang setiap bagian; berkas dengan ukuran berbeda ditolak seluruhnya, karena node yang merujuk segitiga yang tidak ada akan membuat shader membaca data sembarang."
+    "description": "Sebelas kata header little-endian mendahului geometri bersama dan terpisah, kolom pohon, serta kepemilikan berversi. `docs/FORMAT.md` menentukan semua jumlah dan kolom. Panjang yang salah ditolak sebelum sinar mengaksesnya."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S` diuraikan menjadi `position`, `quaternion`, `scale`."
