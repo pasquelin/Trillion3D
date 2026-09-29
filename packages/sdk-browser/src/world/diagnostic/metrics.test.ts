@@ -69,3 +69,20 @@ test('the host chain adds its target bytes to the frame targets, published or no
   without.fillMetrics({ metrics: () => ({}) } as unknown as RenderBackend);
   assert.equal(without.metricsScratch.gpuFrameTargetBytes, null, 'no chain: still unmeasured');
 });
+
+// A backend that cannot time the shadow CPU steps (WebGL2) publishes them `null`, never 0 (#1207).
+test('the shadow CPU steps read null on an engine that does not time them', () => {
+  const { metricsScratch, fillMetrics } = harnais();
+  fillMetrics({ metrics: () => ({}) } as unknown as RenderBackend);
+  for (const key of [
+    'cpuShadowPlanMs',
+    'cpuShadowRequestsMs',
+    'cpuShadowAdmissionMs',
+    'cpuShadowBatchesMs',
+    'cpuShadowRegionsMs',
+    'cpuShadowPassesMs',
+  ] as const)
+    assert.equal(metricsScratch[key], null, key);
+  fillMetrics({ metrics: () => ({ cpuShadowPassesMs: 1.5 }) } as unknown as RenderBackend);
+  assert.equal(metricsScratch.cpuShadowPassesMs, 1.5, 'the engine that times it is copied');
+});
