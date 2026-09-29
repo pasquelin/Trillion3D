@@ -33,13 +33,13 @@ pub(super) fn concat_gltf_buffers(
                 vec![(uri.to_string(), digest)],
             ));
         }
-        if let Some(bin) = embedded.as_ref() {
+        if let Some(bin) = embedded {
             if required_index(buffers[0].get("byteLength"), "buffer.byteLength")?
                 > bin.bytes().len()
             {
                 return Err(invalid("glTF buffer byteLength exceeds source bytes"));
             }
-            return Ok((embedded.expect("checked above"), vec![0], Vec::new()));
+            return Ok((bin, vec![0], Vec::new()));
         }
     }
     let mut out = Vec::new();

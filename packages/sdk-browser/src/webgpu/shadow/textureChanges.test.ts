@@ -15,11 +15,16 @@ const WORDS = PAGE_INFO_STRIDE / 4;
 const leaves = {} as PageSurface,
   bark = {} as PageSurface;
 
-function record(x: number, material = bark, placementIndex = 0) {
+/** The roots the records rank, one each, at `x` on the axis; those in `movingRoots` already move. */
+const roots: { world: G.Matrix4 }[] = [],
+  movingRoots = new Set<number>();
+
+function record(x: number, material = bark, moving = false) {
+  if (moving) movingRoots.add(roots.length);
+  roots.push({ world: new G.Matrix4().makeTranslation(x, 0, 0) });
   return {
     material,
-    placementIndex,
-    matrix: new G.Matrix4().makeTranslation(x, 0, 0),
+    placementIndex: roots.length - 1,
     min: [-1, -1, -1],
     max: [1, 1, 1],
   } as unknown as PageRec;
@@ -41,7 +46,7 @@ function table() {
   return { rowCount: 3, blendFirst: 3, casterSlots: 4, pageTableInts: ints, packedRecs };
 }
 
-/** A spy of the plan; placement 1 alone already moves. `moving` says, box by box, whether the
+/** A spy of the plan; the roots of `movingRoots` alone already move. `moving` says, box by box, whether the
  *  change was declared on moving casters alone. */
 function lightsSpy() {
   const boxes: number[][] = [],
@@ -55,7 +60,7 @@ function lightsSpy() {
     };
   const lights = {
     store: { count: 1 },
-    mobility: { moves: (placement: number) => placement === 1 },
+    mobility: { moves: (placement: number) => movingRoots.has(placement) },
     plan: { representationChanged: spy(boxes), worldChanged: spy(worlds) },
   } as unknown as Parameters<typeof shadowsFollowTextures>[0];
   return { lights, boxes, worlds, moving };
@@ -65,7 +70,7 @@ const r = Math.fround(Math.sqrt(3));
 
 test('a tile of a texture read by a cutout stales the box of that cutout, not the opaque surface beside it', () => {
   const { lights, boxes } = lightsSpy();
-  shadowsFollowTextures(lights, table(), new Set([3]));
+  shadowsFollowTextures(lights, table(), roots, new Set([3]));
   assert.equal(boxes.length, 1);
   // Row 0 alone: its sphere has radius √3 around the origin, in single precision as the GPU
   // reads it. Row 1, opaque at x = 100, is left out.
@@ -74,20 +79,20 @@ test('a tile of a texture read by a cutout stales the box of that cutout, not th
 
 test('tiles of two textures served by one pump declare one box, the union of their cutouts', () => {
   const { lights, boxes } = lightsSpy();
-  shadowsFollowTextures(lights, table(), new Set([3, 5]));
+  shadowsFollowTextures(lights, table(), roots, new Set([3, 5]));
   assert.equal(boxes.length, 1, 'one scan, one change');
   assert.deepEqual(boxes[0], [-r, -r, -r, 10 + r, r, r]);
 });
 
 test('a tile of a texture no cutout reads stales nothing', () => {
   const { lights, boxes } = lightsSpy();
-  shadowsFollowTextures(lights, table(), new Set([9]));
+  shadowsFollowTextures(lights, table(), roots, new Set([9]));
   assert.equal(boxes.length, 0);
 });
 
 test('a tile of a texture a blended caster reads stales that caster, whose coverage it carries', () => {
   const { lights, boxes, moving } = lightsSpy();
-  shadowsFollowTextures(lights, table(), new Set([7]));
+  shadowsFollowTextures(lights, table(), roots, new Set([7]));
   assert.deepEqual(boxes, [[-20 - r, -r, -r, -20 + r, r, r]]);
   assert.deepEqual(moving, [true], 'the static layer never holds a blended caster');
 });
@@ -96,8 +101,8 @@ test('a tile of a texture a blended caster reads stales that caster, whose cover
 test("a tile read by a moving cutout and a still one declares two boxes: the moving one's apart", () => {
   const { lights, boxes, moving } = lightsSpy(),
     rows = table();
-  rows.packedRecs[2] = record(10, bark, 1);
-  shadowsFollowTextures(lights, rows, new Set([3, 5]));
+  rows.packedRecs[2] = record(10, bark, true);
+  shadowsFollowTextures(lights, rows, roots, new Set([3, 5]));
   assert.deepEqual(boxes, [
     [-r, -r, -r, r, r, r],
     [10 - r, -r, -r, 10 + r, r, r],
@@ -107,7 +112,7 @@ test("a tile read by a moving cutout and a still one declares two boxes: the mov
 
 test('a resize, which names no texture, still restarts everything', () => {
   const { lights, boxes } = lightsSpy();
-  shadowsFollowTextures(lights, table(), -1);
+  shadowsFollowTextures(lights, table(), roots, -1);
   assert.equal(boxes.length, 1);
   assert.ok(boxes[0][0] < -1e29 && boxes[0][3] > 1e29);
 });
@@ -115,7 +120,7 @@ test('a resize, which names no texture, still restarts everything', () => {
 test('with no light declared, a tile stales nothing and leaves no change waiting', () => {
   const { lights, boxes } = lightsSpy();
   (lights.store as { count: number }).count = 0;
-  shadowsFollowTextures(lights, table(), -1);
+  shadowsFollowTextures(lights, table(), roots, -1);
   assert.equal(boxes.length, 0);
 });
 
@@ -123,7 +128,7 @@ test('with no light declared, a tile stales nothing and leaves no change waiting
 // an opaque surface turned masked has no cutout flag until its row is written again.
 test('an alpha change stales the rows of its surfaces at once, the opaque and blended ones too', () => {
   const { lights, boxes, worlds } = lightsSpy();
-  shadowsFollowSurfaces(lights, table(), new Set([leaves]));
+  shadowsFollowSurfaces(lights, table(), roots, new Set([leaves]));
   assert.deepEqual(
     worlds,
     [
@@ -133,6 +138,6 @@ test('an alpha change stales the rows of its surfaces at once, the opaque and bl
     'another world, not held: the still row, then the blended one as moving casters',
   );
   assert.equal(boxes.length, 0, 'nothing waits for the camera to rest');
-  shadowsFollowSurfaces(lights, table(), new Set());
+  shadowsFollowSurfaces(lights, table(), roots, new Set());
   assert.equal(worlds.length, 2, 'no surface, no box');
 });

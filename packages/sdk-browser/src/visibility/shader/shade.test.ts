@@ -9,6 +9,7 @@ import { referenceShadeVisibility } from '../../../../../bench/oracles/browser/i
 import { cameraAt, quad } from '../../../../../tests/fixtures/hiz.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 import { asHostLibrary } from '../../host/resources.ts';
+import { identityRoots } from '../../page/selection/placements.fixture.ts';
 
 /** The oracle reads the camera by shape: the engine graph's own camera is handed to it as is. */
 const oracleShade = (
@@ -40,8 +41,8 @@ function assertQuadLikeReference(
 ) {
   const { page, geometry } = quad(material, min, max, label);
   const cam = cameraAt();
-  const ids = rasterVisibilityIds([page], cameraMoteur(cam), size);
-  const optimisee = shadeVisibility(ids, [page], cameraMoteur(cam), size);
+  const ids = rasterVisibilityIds([page], identityRoots(), cameraMoteur(cam), size);
+  const optimisee = shadeVisibility(ids, [page], identityRoots(), cameraMoteur(cam), size);
   const reference = oracleShade(ids, [page], cam, size);
   bitExactPixels(optimisee, reference);
   geometry.dispose();
@@ -51,7 +52,7 @@ function assertQuadLikeReference(
 test('an empty scene is pure background, bit for bit', () => {
   const cam = cameraAt();
   const ids = new Uint32Array(4);
-  const optimisee = shadeVisibility(ids, [], cameraMoteur(cam), [2, 2]);
+  const optimisee = shadeVisibility(ids, [], identityRoots(), cameraMoteur(cam), [2, 2]);
   const reference = oracleShade(ids, [], cam, [2, 2]);
   bitExactPixels(optimisee, reference);
 });
@@ -64,8 +65,8 @@ test('a MeshBasicMaterial quad shades identically, one pixel and many', () => {
     [1, 1],
     [9, 9],
   ] as [number, number][]) {
-    const ids = rasterVisibilityIds([page], cameraMoteur(cam), size);
-    const optimisee = shadeVisibility(ids, [page], cameraMoteur(cam), size);
+    const ids = rasterVisibilityIds([page], identityRoots(), cameraMoteur(cam), size);
+    const optimisee = shadeVisibility(ids, [page], identityRoots(), cameraMoteur(cam), size);
     const reference = oracleShade(ids, [page], cam, size);
     bitExactPixels(optimisee, reference);
   }

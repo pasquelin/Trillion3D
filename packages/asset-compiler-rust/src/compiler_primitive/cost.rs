@@ -2,17 +2,24 @@
 //! and from the structures the compiler allocates for them, never from a measured scene.
 //!
 //! `working` lives while the primitive compiles and is freed when it returns: the DAG's index
-//! lists and clusters, and the per-vertex arrays of its welds. `retained` stays until the job
-//! ends: the manifest record of every page, its culling and structure entries, its cluster
-//! plane, and the page record's serialized text when the manifest is published. The decoded
-//! accessors and the primitive's index buffer are already charged by `plan_buffers`.
+//! lists and clusters, the per-vertex arrays of its welds, and what the collider cook and the page
+//! packing hold beside it, since both run side by side on the finished DAG. `retained` stays until
+//! the job ends: the manifest record of every page (`compiler_page_object::page_record`), its
+//! culling and structure entries, its cluster plane, and the record's serialized text when the
+//! manifest is published. The decoded accessors and the primitive's index buffer are already
+//! charged by `plan_buffers`, and so is what one worker holds whatever the scene (`WORKER_BYTES`).
 use super::*;
 use crate::coplanar::ClusterPlane;
 use crate::dag::{DagCluster, DAG_CLUSTER_TRIANGLES};
+use crate::geometry_page_cells::Cell;
+use crate::physics_cook::TILE_TRIANGLES;
 use std::mem::size_of;
 
-/// Entries of one page record in `compiler_primitive_bundle.rs`: 20 top-level fields, the 2 of
-/// its normal cone and the 8 of its geometry object.
+#[cfg(test)]
+mod tests;
+
+/// Entries of one page record, nested objects included: 20 top-level fields, the 2 of its normal
+/// cone and the 8 of its geometry object.
 const PAGE_ENTRIES: usize = 30;
 /// Numbers held in the record's arrays: `min`, `max`, cone axis (3 each), `sphere` and
 /// `parentSphere` (4 each).
@@ -20,11 +27,63 @@ const PAGE_ARRAY_VALUES: usize = 17;
 /// Text of the record's two object names and two SHA-256 digests.
 const PAGE_TEXT_BYTES: usize = 2 * ("../../objects/".len() + 64 + ".bin".len()) + 2 * 64;
 /// Longest key of a record, and the longest text of a JSON number (`f64` round trip).
-const KEY_BYTES: usize = 16;
+const KEY_BYTES: usize = "quantizationError".len();
 const NUMBER_BYTES: usize = 24;
 /// Per vertex while the DAG builds: its first use and three welds (`u32`), seam flag, part
 /// extent (`f64`) and level lock (`bool`), in `dag/build.rs` and `dag/attributes.rs`.
 const VERTEX_BYTES: usize = 4 * size_of::<u32>() + 2 * size_of::<bool>() + size_of::<f64>();
+
+/// A hash-map entry costs at most 16/7 of its pair: 7/16 is hashbrown's lowest load after growth.
+const fn hashed(pair: usize) -> usize {
+    pair * 16 / 7
+}
+/// Per source triangle, one Hausdorff grid (`physics_cook/hausdorff.rs`). The grid puts about one
+/// triangle per cell, so a triangle spans at most two cells along each axis: 8 links, each a `u32`
+/// in a vector holding up to twice its length; and about one cell per triangle, counted twice.
+const GRID_TRIANGLE_BYTES: usize =
+    8 * 2 * size_of::<u32>() + 2 * hashed(size_of::<([i64; 3], Vec<u32>)>());
+/// Per source triangle, the collider's search (`physics_cook/cut.rs`): the grid of level 0 and the
+/// grid of the cut being measured, and three cuts of at most level 0's indices: the best one
+/// held, the one tried and its concatenation. A height field (`height.rs`) holds a few words per
+/// vertex and its square of samples, under that charge for any grid not far from square.
+const COLLIDER_TRIANGLE_BYTES: usize = 2 * GRID_TRIANGLE_BYTES + 3 * 3 * size_of::<u32>();
+/// Per DAG cluster, the page packing (`compiler_primitive_bundle.rs`): its culling rank, page,
+/// bundle and packing entry with up to four parent bundles, and its record, first in its bundle,
+/// then in page order.
+const PACKING_CLUSTER_BYTES: usize =
+    size_of::<[usize; 8]>() + size_of::<Vec<usize>>() + 2 * size_of::<Value>();
+
+/// Per triangle of a tile, what Jolt allocates while it cooks the tile's `MeshShape`
+/// (`physics_cook::mesh_shape`): its settings' copy of the mesh, the sanitize pass, the AABB tree
+/// builder and the packed tree, then the saved shape. A full tile of `TILE_TRIANGLES` peaks at
+/// 1.18 MB of heap in use (287 bytes a triangle, sampled across the call), under this charge.
+const JOLT_TRIANGLE_BYTES: usize = 320;
+/// A collider tile being cooked (`physics_cook/cut.rs`): per corner of its triangles, the index,
+/// a compacted vertex and its remap entry; per triangle, Jolt's cook.
+const TILE_BYTES: usize = TILE_TRIANGLES
+    * (3 * (size_of::<u32>() + 3 * size_of::<f32>() + hashed(size_of::<(u32, u32)>()))
+        + JOLT_TRIANGLE_BYTES);
+/// A bundle being packed: its payload, one page over and above it, and that page being encoded
+/// (`geometry_page::encode`): per corner, its local and remapped indices; per vertex, its source
+/// index and remap entry, its cell, its unique copy and rank entry, its remap and its output bits,
+/// its distinct position and rank entry, its stored copy and its link (`stored_positions`).
+const BUNDLE_BYTES: usize = STREAM_BUNDLE_BYTES
+    + 3 * DAG_CLUSTER_TRIANGLES
+        * (3 * size_of::<u32>()
+            + 3 * size_of::<u32>()
+            + hashed(size_of::<(u32, u32)>())
+            + 3 * size_of::<Cell>()
+            + hashed(size_of::<(Cell, u32)>())
+            + 2 * size_of::<[u32; 3]>()
+            + hashed(size_of::<([u32; 3], u32)>())
+            + size_of::<u32>());
+/// What one worker holds whatever the scene, one tile or one bundle at a time; `plan_buffers`
+/// charges it once per thread, since every primitive of a wave shares the pool's workers.
+pub(crate) const WORKER_BYTES: usize = if TILE_BYTES > BUNDLE_BYTES {
+    TILE_BYTES
+} else {
+    BUNDLE_BYTES
+};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct PrimitiveCost {
@@ -57,7 +116,9 @@ pub(crate) fn of_counts(triangles: usize, vertices: usize) -> Option<PrimitiveCo
     let working = indices
         .checked_mul(2)?
         .checked_add(vertices.checked_mul(VERTEX_BYTES)?)?
-        .checked_add(clusters.checked_mul(size_of::<DagCluster>())?)?;
+        .checked_add(clusters.checked_mul(size_of::<DagCluster>())?)?
+        .checked_add(triangles.checked_mul(COLLIDER_TRIANGLE_BYTES)?)?
+        .checked_add(clusters.checked_mul(PACKING_CLUSTER_BYTES)?)?;
     let retained = clusters.checked_mul(page_bytes())?;
     Some(PrimitiveCost {
         indices,
@@ -79,26 +140,4 @@ pub(crate) fn of(g: &Value, p: &Value) -> Result<PrimitiveCost> {
     )?;
     let vertices = required_index(accessor.get("count"), "accessor.count")?;
     of_counts(primitive_triangles(g, p)?, vertices).ok_or_else(|| invalid("Working set overflow"))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // Behaviour: the cost grows with the geometry and the working part is freed, not retained.
-    #[test]
-    fn cost_follows_the_counts() {
-        let small = of_counts(1_000, 600).expect("fits");
-        let large = of_counts(1_000_000, 600_000).expect("fits");
-        assert!(large.working > 900 * small.working, "{small:?} {large:?}");
-        assert!(large.retained > 900 * small.retained, "{small:?} {large:?}");
-        // At least the DAG's index lists over every level: 24 bytes per source triangle.
-        assert!(large.working >= 24_000_000, "{large:?}");
-    }
-
-    // Behaviour: a count whose cost cannot be represented is refused, never wrapped.
-    #[test]
-    fn an_overflowing_count_is_refused() {
-        assert_eq!(of_counts(usize::MAX, 3), None);
-    }
 }

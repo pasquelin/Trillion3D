@@ -80,7 +80,7 @@ pub fn run(job: &OracleJob) -> Result<Value> {
     Ok(json!({
      "version": ORACLE_VERSION,
      "width": job.width, "height": job.height,
-     "triangles": world.albedo.len(),
+     "triangles": world.tags.len(),
      "nodes": world.node_links.len() / 3,
      "samples": job.samples, "bounces": job.bounces,
      "out": job.out.to_string_lossy(),

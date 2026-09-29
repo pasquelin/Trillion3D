@@ -51,7 +51,9 @@ function residentProxyBytes(proxy: SceneProxy) {
     (data?.triangleGroups.byteLength ?? 0) +
     (data?.groupOffsets.byteLength ?? 0) +
     (data?.owners.byteLength ?? 0) +
-    (data?.bindWorlds.length ?? 0) * 4;
+    (data?.bindWorlds.length ?? 0) * 4 +
+    // The castless marks, one bit per group (`proxy.ts`, #966).
+    Math.ceil(proxy.groups / 32) * 4;
   return PROXY_HEADER_BYTES + Math.max(16, columns);
 }
 

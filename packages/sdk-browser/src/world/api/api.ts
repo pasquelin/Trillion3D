@@ -1,9 +1,11 @@
 import { DIAGNOSTICS } from '../../../../sdk-core/src/index.ts';
 import type { ExplorerProbe } from '../session/capabilityProbe.ts';
+import type { ExplorerSource } from '../session/prepare.ts';
 import type { ExplorerRuntimeSurface } from '../render/hostRuntime.ts';
 import { createExplorerCameraApi } from './cameraApi.ts';
 import { createExplorerDiagnosticApi } from './diagnosticApi.ts';
 import { createExplorerSceneApi } from './sceneApi.ts';
+import { createExplorerRenderApi } from './renderApi.ts';
 import { createExplorerSelectionApi } from './selectionApi.ts';
 import { createExplorerViewportApi } from './viewportApi.ts';
 import { createExplorerTelemetryApi } from './telemetryApi.ts';
@@ -13,6 +15,7 @@ import { createExplorerMaterialApi } from './materialApi.ts';
 type Inputs = ExplorerRuntimeSurface & {
   capabilities: ExplorerProbe['capabilities'];
   preparationMs: number;
+  moveNamed?: ExplorerSource['moveNamed'];
 };
 
 export function createExplorerApi(inputs: Inputs) {
@@ -85,6 +88,7 @@ export function createExplorerApi(inputs: Inputs) {
       scope,
       canvas,
     }),
+    ...createExplorerRenderApi({ check, active: () => state.active }),
     ...createExplorerViewportApi({
       check,
       active: () => state.active,
@@ -146,6 +150,7 @@ export function createExplorerApi(inputs: Inputs) {
       backends,
       active: () => state.active,
       onDiagnostic: context.onDiagnostic,
+      moveNamed: inputs.moveNamed,
     }),
     ...createExplorerMaterialApi({
       check,

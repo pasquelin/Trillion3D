@@ -9,7 +9,7 @@ fn covered(level: &[u8], cutoff: u8) -> u64 {
 /// Levels of square `chain` whose filtered samples at or above `cutoff` stray from level 0's
 /// share by more than 2.5 %, or by more than one texel's four where 2.5 % is less: a level cannot
 /// cover a fraction of a texel.
-pub(super) fn strays(chain: &[Vec<u8>], cutoff: u8) -> Vec<usize> {
+pub(crate) fn strays(chain: &[Vec<u8>], cutoff: u8) -> Vec<usize> {
     let share = covered(&chain[0], cutoff) as f64 / chain[0].len() as f64;
     (0..chain.len())
         .filter(|&k| {

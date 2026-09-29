@@ -34,7 +34,6 @@ export async function createWaterFrame(device: GPUDevice) {
   const identity = createWebgpuBindIdentity();
   let group: GPUBindGroup | undefined, surfaces: SurfaceBuffer | undefined;
   let routed: GPURenderPipeline | undefined;
-  const extent = freeze.extent;
   const surfaceDepth: GPURenderPassDepthStencilAttachment = {
     view: undefined as unknown as GPUTextureView,
     depthLoadOp: 'load',
@@ -102,7 +101,7 @@ export async function createWaterFrame(device: GPUDevice) {
       next[17] = gpu.colorView;
       if (!identity.moved()) return true;
       surfaces = gpu.surfaces;
-      freeze.bind(gpu.hdrTexture, backdrop, gpu.depthTexture, gpu.depthView, gpu.targetSize);
+      freeze.bind(gpu.hdrTexture, backdrop, gpu.depthTexture, gpu.depthView, gpu.allocatedSize);
       surfaceDepth.view = backdrop.waterDepthView;
       target.view = gpu.hdrView;
       word.view = gpu.colorView;
@@ -152,12 +151,12 @@ export async function createWaterFrame(device: GPUDevice) {
      */
     encode(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder, pipelines: BlendPipelines) {
       if (!group || !surfaces) throw new Error('WATER_NOT_BOUND');
-      const rect = freeze.encode(encoder, rt.blendState.waterBounds);
+      const rect = freeze.encode(encoder, rt.blendState.waterBounds, rt.gpu.targetSize);
       if (freeze.restored) rt.run.gpuDrawCalls++;
       if (rt.feedbackAB?.target !== false) attachments[4] = feedbackAttachment(rt);
       else attachments.length = 4;
       const pass = encoder.beginRenderPass(surfacePass);
-      pass.setViewport(0, 0, extent.width, extent.height, 0, 1);
+      pass.setViewport(0, 0, rt.gpu.targetSize[0], rt.gpu.targetSize[1], 0, 1);
       scissorTo(pass, rect);
       const encoded = drawBlendRuns(rt, device, pass, 1, pipelines);
       pass.end();

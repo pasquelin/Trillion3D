@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { pagesBounds } from './pagesBounds.ts';
 import { emptyWorldBox } from '../../host/world/bounds.ts';
+import { createPlacementRows } from '../../placement/rows.ts';
 import { asHostLibrary } from '../../host/resources.ts';
 import { indexManifestPages, indexManifestBundles } from '../../scene/manifestPageIndex.ts';
 import {
@@ -155,4 +156,21 @@ test('pagesBounds reuses the `into` output instead of allocating one per page', 
   const into = emptyWorldBox();
   const rendu = pagesBounds(source, associations, metadata, () => {}, into);
   assert.equal(rendu, into, 'the same buffer instance comes back, whatever the number of pages');
+});
+
+// #751: a mesh placed by rows is bounded by the box its rows place it in, before the view reads its
+// primitive: the scene opens, and nothing is called missing.
+test('pagesBounds bounds a mesh placed by rows whose primitive is not read yet by its box', () => {
+  const placed = Object.assign(G.mesh(new G.Geometry(), G.basicSurface()), {
+    boundingBox: { min: { x: -1, y: 0, z: -2 }, max: { x: 3, y: 4, z: 5 } },
+  });
+  const source = new G.Group();
+  source.add(placed);
+  const associations = new Map([
+    [placed, { meshes: 7, primitives: 0, placements: createPlacementRows(1) }],
+  ]);
+  const missing: unknown[] = [];
+  const metadata = { primitives: [] } as unknown as ClusterManifest;
+  const bounds = pagesBounds(source, associations, metadata, (mesh) => missing.push(mesh));
+  assert.deepEqual([Array.from(bounds), missing], [[-1, 0, -2, 3, 4, 5], []]);
 });

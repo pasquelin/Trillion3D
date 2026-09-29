@@ -1411,6 +1411,7 @@
     "banner": "Etrafta dolaşmak için sürükle. İşleyicinin ne sakladığını görmek için görünümü değiştir.",
     "controls": {
       "see": "Gör",
+      "glass": "Cam",
       "spin": "Dönüş"
     },
     "choices": {

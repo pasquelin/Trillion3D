@@ -4,18 +4,20 @@ import { FILTER_FORMAT } from '../webgpu/blend/displayFilter.ts';
 import { createTaaLayout, taaShader } from './shaderWgsl.ts';
 import { taaUpscaleShader } from './upscaleWgsl.ts';
 
-/** Format of the as-is share accumulated beside the colour: one channel, filtered like it. */
-export const SHARE_FORMAT: GPUTextureFormat = 'r8unorm';
+/** Format of the as-is share accumulated beside the colour, filtered like it, and of the
+ *  placement tag each pixel keeps beside it (`historyWgsl.ts`). */
+export const SHARE_FORMAT: GPUTextureFormat = 'rg8unorm';
 
 type TaaResolveKind = 'asIs' | 'flagless' | 'blended';
 
 /**
  * The pass's resolves, all compiled at preparation, so a frame that switches compiles nothing: the
  * one of a frame with an as-is pixel, the flagless one, which binds and reads neither the surface
- * flags nor the share history (OMB-11), and the blended one. With `upscale` — a session whose frame
- * is drawn below the display — the same three again, reconstructing to the display
- * (`upscaleWgsl.ts`); at native size they are never compiled. A `filtered` twin, resolving the
- * display layers too (`layers.ts`), compiles off the frame when first asked: `undefined` till then.
+ * flags nor the share history (OMB-11), and the blended one. The same three again reconstruct a
+ * frame drawn below the display (`upscaleWgsl.ts`): compiled at preparation with `upscale` — a
+ * session asking a scale below 1 —, otherwise off the frame when `upscaled` is first asked, which
+ * answers `undefined` till then. A `filtered` twin, resolving the display layers too
+ * (`layers.ts`), compiles off the frame when first asked: `undefined` till then.
  */
 export async function createTaaResolves(device: GPUDevice, upscale = false) {
   // One layout per kind and filter, shared by its native and upscaling resolves.
@@ -46,7 +48,20 @@ export async function createTaaResolves(device: GPUDevice, upscale = false) {
     ]);
     return { asIs, flagless, blended };
   };
-  const [native, upscaled] = await Promise.all([set(false), upscale ? set(true) : undefined]);
+  let upscaledSet: Awaited<ReturnType<typeof set>> | undefined,
+    compiling: Promise<void> | undefined;
+  const upscaled = () => {
+    if (!compiling) {
+      compiling = set(true).then((made) => void (upscaledSet = made));
+      // Asked off the frame, a set that fails to compile leaves it at the display's size.
+      compiling.catch(() => {});
+    }
+    return upscaledSet;
+  };
+  if (upscale) upscaled();
+  const native = await set(false);
+  // Asked at preparation, a failure refuses the pass, as the native set's does.
+  if (upscale) await compiling;
   const twins = new Map<string, Awaited<ReturnType<typeof resolve>> | undefined>();
   const filtered = (kind: TaaResolveKind, scaled: boolean) => {
     const key = kind + scaled;
@@ -60,5 +75,5 @@ export async function createTaaResolves(device: GPUDevice, upscale = false) {
     }
     return twins.get(key);
   };
-  return { ...native, upscale: upscaled, filtered };
+  return { ...native, upscaled, filtered };
 }

@@ -24,7 +24,7 @@ export const pageOf = (url: string) =>
     max: DUMMY_BOUNDS,
     depthLayer: 0,
     material: surfaceOf([]),
-    matrix: IDENTITY,
+    placementIndex: 0,
     renderOrder: 0,
     attached: true,
   }) as unknown as PageRec;
@@ -48,7 +48,7 @@ export function placement() {
     },
     pages.length,
   );
-  const root = { world: { elements: [] }, pages, structure } as unknown as ClusterRoot<PageRec>;
+  const root = { world: IDENTITY, pages, structure } as unknown as ClusterRoot<PageRec>;
   return { pages, root, parentsOf: createPageParents([root]) };
 }
 
@@ -117,5 +117,6 @@ export const tierEnsurer = (
       [casterPages(), aheadPages()].map((pages) => ({
         pages,
         has: (key: number) => pages.some((page) => tracking.keyOf(page) === key),
+        revision: 0,
       })),
   });

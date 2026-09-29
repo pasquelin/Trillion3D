@@ -15,9 +15,10 @@ export type BlendPipelines = readonly [GPURenderPipeline, GPURenderPipeline, GPU
 
 /** Pipelines a transparent pass picks by plan rank (`draw.ts`): the water surfaces' three, or the
  *  blend pass's modes, `filtered` in an image with display layers (`displayFilter.ts`); a rank
- *  the pass `skips` is not drawn (the display mask draws the filtering modes alone). */
+ *  the pass `skips` is not drawn (the display mask draws the filtering modes alone); `share`,
+ *  those that write the as-is share of a debug view (`blendTargets`). */
 export type RankedPipelines = {
-  at(rank: number, filtered?: boolean): GPURenderPipeline | undefined;
+  at(rank: number, filtered?: boolean, share?: boolean): GPURenderPipeline | undefined;
   skips?(rank: number): boolean;
 };
 
@@ -73,7 +74,7 @@ export interface BlendModePipelines extends RankedPipelines {
   readonly byMode: readonly (readonly GPURenderPipeline[] | undefined)[];
   /** The display mask's, whose target is attachment `slot` (`routedPipelines.ts`). */
   readonly mask: RankedPipelines & { slot: number };
-  at(rank: number, filtered?: boolean): GPURenderPipeline;
+  at(rank: number, filtered?: boolean, share?: boolean): GPURenderPipeline;
 }
 
 /**

@@ -20,8 +20,9 @@ pub mod cut;
 pub mod cut_error;
 pub mod math;
 pub mod math_hierarchy;
-mod min_ball;
+pub mod min_ball;
 pub mod normal_cone;
+mod positions;
 pub mod triangles;
 mod unpack;
 pub mod vec3;
@@ -40,10 +41,10 @@ use bits::Quant;
 pub use unpack::decode;
 
 pub const MAGIC: u32 = 0x3350_4757;
-pub const VERSION: u32 = 4;
+pub const VERSION: u32 = 5;
 /// Twenty-four little-endian words open a page: counts, flags, the quantization records of the
-/// four vector attributes, the error, the bits of the corner stream, and two reserved words that
-/// must read zero.
+/// four vector attributes, the error, the bits of the corner stream, the count of distinct
+/// positions, and a reserved word that must read zero.
 pub const HEADER_WORDS: usize = 24;
 pub const HEADER_BYTES: usize = HEADER_WORDS * 4;
 pub const MAX_VERTICES: usize = 65_535;
@@ -80,6 +81,9 @@ pub struct Header {
     pub quantization_error: f32,
     /// Bits of the corner stream (`triangles.rs`): the one stream whose length the counts do not give.
     pub corner_bits: usize,
+    /// Positions the page stores, each once: fewer than the vertices when a flat-shaded page
+    /// repeats a corner under several normals, a link then naming each vertex's (`positions.rs`).
+    pub position_count: usize,
 }
 
 impl Header {
@@ -121,6 +125,7 @@ impl Header {
         w[16..20].copy_from_slice(&self.color.min.map(f32::to_bits));
         w[20] = self.quantization_error.to_bits();
         w[21] = self.corner_bits as u32;
+        w[22] = self.position_count as u32;
         w
     }
 
@@ -157,11 +162,13 @@ impl Header {
             color,
             quantization_error: f(w[20]),
             corner_bits: w[21] as usize,
+            position_count: w[22] as usize,
         };
         let layout = Layout::of(&header);
         let (table, v, n) = (layout.triangles[1] * 4, w[2] as usize, w[3] as usize);
-        let sane = w[22..].iter().all(|&word| word == 0)
+        let sane = w[23] == 0
             && (1..=MAX_VERTICES).contains(&header.vertex_count)
+            && (1..=header.vertex_count).contains(&header.position_count)
             && (3..=max_decoded_bytes / 4).contains(&header.index_count)
             && header.index_count.is_multiple_of(3)
             && header.corner_bits <= header.index_count.saturating_mul(triangles::MAX_WIDTH)
@@ -170,7 +177,8 @@ impl Header {
             && header.quantization_error >= 0.0
             && header.decoded_bytes() <= max_decoded_bytes
             && layout.bytes() == data.len()
-            && layout.corners.fits(&data[HEADER_BYTES..][..table], v, n);
+            && layout.corners.fits(&data[HEADER_BYTES..][..table], v, n)
+            && positions::links_fit(&data[HEADER_BYTES..], &layout, &header);
         if !sane {
             return Err(PageError::Bounds);
         }

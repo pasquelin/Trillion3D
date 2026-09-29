@@ -18,7 +18,7 @@ interface SceneReportProps {
 }
 
 export function SceneReport({ scene, report, locale }: SceneReportProps) {
-  const [selected, setSelected] = useState('sol');
+  const [selected, setSelected] = useState('ground');
   const t = useWords(locale);
   const records = report.records.filter(
     (r) =>

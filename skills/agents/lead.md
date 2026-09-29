@@ -1,6 +1,6 @@
 ---
 name: lead
-description: Carries one claimed issue for a CTO — runs the coder then the reviewer in the foreground, opens the pull request with auto-merge, queues it for recette and measure after the merge. Use with "issue #<n>, domain <d>".
+description: Carries one claimed issue for a CTO — runs the coder then the reviewer in the foreground, opens the pull request with auto-merge, queues it for the recette after the merge. Use with "issue #<n>, domain <d>".
 tools: Read, Grep, Glob, Bash, Agent
 model: opus
 ---

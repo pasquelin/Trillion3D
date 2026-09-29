@@ -20,6 +20,7 @@ import { SHADOW_CULL_SHADER, SHADOW_LIGHT_CULL_SHADER } from '../shadow/cullShad
 import { SHADOW_OCCLUSION_SHADER } from '../shadow/occlusionShader.ts';
 import { SHADOW_DEPTH_SHADER } from '../shadow/shader.ts';
 import { PAGE_QUAD_SHADER } from '../shadow/pageQuads.ts';
+import { PAGE_MOVE_SHADER } from '../shadow/pageMoves.ts';
 import { BOUNCE_PROBE_SHADER } from '../../bounce/probeWgsl.ts';
 import { BOUNCE_SURFACE_SHADER } from '../../bounce/surfaceWgsl.ts';
 import { AS_IS_SHARE_SHADER } from '../../lighting/deferred/asIsShare.ts';
@@ -36,6 +37,7 @@ import {
   UNLIT_LIGHTING_SHADER,
 } from '../../lighting/deferred/shaders.ts';
 import { reflectionSource, withScreenReflections } from '../../reflections/screenWgsl.ts';
+import { withSubgroupShadowRequests } from '../../lighting/direct/shadowRequestWgsl.ts';
 import { LIGHT_TILES_SHADERS } from '../../lighting/tiles/shader.ts';
 import { TAA_SHADER, taaShader } from '../../taa/shaderWgsl.ts';
 import { taaUpscaleShader } from '../../taa/upscaleWgsl.ts';
@@ -44,7 +46,7 @@ import { COVERAGE_WGSL } from '../../texture/coverageMips.ts';
 import { SHADE_SHADER, VIS_SHADER } from '../../visibility/buffer.ts';
 import { BLEND_EXPAND_SHADER } from '../../webgpu/blend/expandWgsl.ts';
 import { BLEND_SHADER } from '../../webgpu/blend/shader.ts';
-import { DISPLAY_FILTER_SHADER } from '../../webgpu/blend/displayFilter.ts';
+import { DISPLAY_FILTER_SHADER } from '../../webgpu/blend/displayFilterProgram.ts';
 import { SHADER as PREPARE_SHADER } from '../../webgpu/pages/prepare/shaders.ts';
 import { REDUCE_WGSL } from '../../webgpu/tile/reduce.ts';
 import { TRANSPARENT_COMPACT_SHADER } from '../../webgpu/transparent/shader.ts';
@@ -75,6 +77,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   SHADOW_OCCLUSION_SHADER,
   SHADOW_DEPTH_SHADER,
   PAGE_QUAD_SHADER,
+  PAGE_MOVE_SHADER,
   BOUNCE_PROBE_SHADER,
   BOUNCE_SURFACE_SHADER,
   AS_IS_SHARE_SHADER,
@@ -96,6 +99,23 @@ export const ENGINE_SHADERS: Record<string, string> = {
     true,
   ),
   REFLECTION_RESOLVE_BOUNCE_NARROW: withScreenReflections(contractLightingShader(true, true)),
+  DIRECT_SUBGROUP_LIGHTING: withSubgroupShadowRequests(DIRECT_LIGHTING_SHADER),
+  BOUNCE_SUBGROUP_LIGHTING: withSubgroupShadowRequests(BOUNCE_LIGHTING_SHADER),
+  REFLECTION_SOURCE_DIRECT_SUBGROUP: reflectionSource(
+    withSubgroupShadowRequests(DIRECT_LIGHTING_SHADER),
+  ),
+  REFLECTION_RESOLVE_DIRECT_SUBGROUP: withScreenReflections(
+    withSubgroupShadowRequests(DIRECT_LIGHTING_SHADER),
+    true,
+  ),
+  REFLECTION_SOURCE_BOUNCE_SUBGROUP: reflectionSource(
+    withSubgroupShadowRequests(BOUNCE_LIGHTING_SHADER),
+  ),
+  REFLECTION_RESOLVE_BOUNCE_SUBGROUP: withScreenReflections(
+    withSubgroupShadowRequests(BOUNCE_LIGHTING_SHADER),
+  ),
+  DIRECT_NARROW_SUBGROUP_LIGHTING: withSubgroupShadowRequests(contractLightingShader(false, true)),
+  BOUNCE_NARROW_SUBGROUP_LIGHTING: withSubgroupShadowRequests(contractLightingShader(true, true)),
   ...compositions('COMPOSE', CONTRACT_COMPOSITIONS.plain),
   ...compositions('UNLIT_COMPOSE', UNLIT_COMPOSITIONS.plain),
   ...compositions('COMPOSE_BLOOM', CONTRACT_COMPOSITIONS.bloom),

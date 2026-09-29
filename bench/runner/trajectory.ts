@@ -12,7 +12,7 @@ import { isDist } from './dists.ts';
 import { resolveCache, sideReport } from './sideOptions.ts';
 import { ASSETS, DEFAULT_SCENE, sceneDerived, sceneOf } from './scene.ts';
 import { PATH_POSES, PATH_VERSION, poseAt, trajectoryPoses } from './poses.ts';
-import { readBounds } from './page.ts';
+import { readStreet } from './street.ts';
 import { benchLights } from './lamps.ts';
 import { measurePayload, withGpuIncidents } from './seriesPage.ts';
 import { checkpointIndices, trajectoryVerdict } from './trajectoryProof.ts';
@@ -22,7 +22,7 @@ async function main() {
   const root = resolve(import.meta.dirname, '../..');
   const { flags, settings, out, resources } = readOptions(
     [
-      '--moteur',
+      '--engine',
       'webgpu',
       '--images',
       String(PATH_POSES),
@@ -35,12 +35,12 @@ async function main() {
   const indices = checkpointIndices(settings.frames, Number(flags.get('checkpoint-every') ?? 60));
   if (settings.pixelErrors.length !== 1) throw new Error('trajectory requires one pixelError');
   // Side names are the bench's flags: the baseline first, then the candidate.
-  const names = ['avant', 'apres'];
+  const names = ['before', 'after'];
   if (!flags.has(names[0]))
     throw new Error(`--${names[0]} must name a built golden baseline directory`);
   if ([...flags.keys()].some((flag) => flag.startsWith('cache-')))
     throw new Error('use --cache for the identical cache on both sides');
-  if (settings.movingLight || settings.movingNode || settings.poolVivant)
+  if (settings.movingLight || settings.movingNode || settings.livePools)
     throw new Error('trajectory supports camera motion only, with fixed memory budgets');
   settings.stageProfile = false;
   const named = flags.get('scene');
@@ -57,6 +57,7 @@ async function main() {
     if (!isDist(dist)) throw new Error(`built SDK missing: ${dist}`);
     return side;
   });
+  flags.refuseUnread();
   if (sides[0].compression !== sides[1].compression)
     throw new Error('texture compression must match on both sides');
   const builds = await Promise.all(
@@ -87,7 +88,7 @@ async function main() {
     isolation: settings.isolation,
   });
   try {
-    let bounds: Awaited<ReturnType<typeof readBounds>> | undefined;
+    let bounds: Awaited<ReturnType<typeof readStreet>> | undefined;
     let poses: ReturnType<typeof poseAt>[] = [];
     const passes = [
       ['golden', sides[0]],
@@ -113,10 +114,9 @@ async function main() {
         });
         await page.goto(`http://127.0.0.1:${port}/`);
         if (!bounds) {
-          bounds = await page.evaluate(readBounds, {
-            sdkUrl: sdkEntryUrl(side),
-            manifestUrl: side.manifestUrl!,
-          });
+          // The box, then the street the eye-level poses walk (`street.ts`), as the bench reads it.
+          const urls = { sdkUrl: sdkEntryUrl(side), manifestUrl: side.manifestUrl! };
+          bounds = await readStreet(page, urls);
           poses = trajectoryPoses(bounds, 0, settings.frames);
         }
         const payload = measurePayload(

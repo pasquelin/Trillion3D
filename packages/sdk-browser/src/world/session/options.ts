@@ -91,7 +91,8 @@ export interface MeasuredWorldOptions {
    *  Set during the session by `explorer.setMemoryBudgets`. */
   geometryPoolBytes?: number;
   /** Largest geometry pool `explorer.setMemoryBudgets` may ask for during the session —
-   *  the maximum of a settings slider. The starting budget without it. */
+   *  the maximum of a settings slider. The starting budget without it. The WebGPU engine sizes
+   *  its drawable-page tables to it at the start and grows them in place past it. */
   geometryPoolCeilingBytes?: number;
   /** Virtual-texture pool bytes of the WebGPU engine — texture memory, regardless of the
    *  scene. 512 MiB by default, split equally between the colour atlas and the data atlas,
@@ -113,10 +114,10 @@ export interface MeasuredWorldOptions {
    *  ones, reprojected. `false` renders the image sampled at the pixel centre, with no
    *  history — that is the "before" of a comparison, and what pixel-for-pixel benches ask. */
   temporalAntialiasing?: boolean;
-  /** Internal, for proofs: the WebGPU frame drawn at this fraction of the display per axis, in
-   *  [0.5, 1], and reconstructed to it by temporal antialiasing. 1 by default: the frame is drawn
-   *  at the display. Its controller and public setting are #832. */
-  renderScale?: number;
+  /** The frame's render scale (`../../frame/renderScaleOption.ts`): the fraction of the display
+   *  per axis it is drawn at, reconstructed to it by temporal antialiasing — resampled on WebGL2 —,
+   *  fixed or `'auto'`, chosen by the frame budget. 1 by default: the frame is drawn at the display. */
+  renderScale?: import('../../frame/renderScaleOption.ts').RenderScale;
   /** The world's effect chain, drawn after temporal antialiasing (`world.effects`). */
   effects?: import('../../../../sdk-core/src/world/effect/chain.ts').EffectChain;
   /** Hears the mode of a surface that keeps WebGL2 from drawing `effects` on a frame, drawn
