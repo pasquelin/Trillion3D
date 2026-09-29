@@ -15,10 +15,8 @@ import {
   tileRegion,
   writeTileFromBitmap,
 } from './write.ts';
-
 /** Cooked-level reads in flight at most: beyond that, a tile waits for the next image. */
 const MAX_LEVEL_READS = 6;
-
 /**
  * Where a tile's texels come from, and how they reach the pool of its lane: a cooked level decoded
  * by the browser, or a block tile's record as the file holds it, held in the level store, or a
@@ -68,6 +66,16 @@ export function createTileSources(options: {
     }
   };
   return {
+    release(atlas: WebgpuTileAtlas, slot: number) {
+      const id = scratchId(atlas, slot),
+        scratch = live.get(id);
+      builds.release(id);
+      if (scratch) {
+        liveBytes -= scratch.bytes;
+        scratch.destroy();
+        live.delete(id);
+      }
+    },
     levels,
     /**
      * Serves a tile from its source. `waiting`: its bytes are not there yet, it will come back;

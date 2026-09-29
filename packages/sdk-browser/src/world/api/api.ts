@@ -56,6 +56,7 @@ export function createExplorerApi(inputs: Inputs) {
     setMeasuring,
     setComparison,
   } = inputs;
+  const materialReleases: (() => void)[] = [];
   return {
     capabilities,
     get fallbackReason() {
@@ -74,7 +75,10 @@ export function createExplorerApi(inputs: Inputs) {
     captureView,
     /** The WebGPU device the session draws on, when it has one: a world reopening keeps it. */
     gpuDevice,
-    dispose,
+    dispose() {
+      materialReleases.splice(0).forEach((release) => release());
+      dispose();
+    },
     setPose,
     awaitPages,
     flush,
@@ -153,6 +157,7 @@ export function createExplorerApi(inputs: Inputs) {
       moveNamed: inputs.moveNamed,
     }),
     ...createExplorerMaterialApi({
+      onDispose: (release) => materialReleases.push(release),
       check,
       source: context.source,
       associations: context.associations,

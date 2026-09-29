@@ -1,5 +1,6 @@
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { RenderBackend } from '../../backend/types.ts';
+import { runtimeMaterials } from './runtimeMaterials.ts';
 import type { GraphSurface } from '../../host/graph/surface.ts';
 import type { GraphTexture } from '../../host/graph/texture.ts';
 import { tableRankOf } from '../../host/prepared/materials.ts';
@@ -19,17 +20,11 @@ import {
   type SceneMaterialPatch,
 } from './materialValues.ts';
 import { materialEngines } from './materialEngines.ts';
-import {
-  assignment,
-  createdSurface,
-  PLAIN,
-  RUNTIME_MATERIAL_CEILING,
-  validateCreated,
-  type CreatedMaterial,
-} from './createdMaterials.ts';
+import { assignment, PLAIN } from './createdMaterials.ts';
 
 export type { SceneMaterial, SceneMaterialPatch } from './materialValues.ts';
 export { RUNTIME_MATERIAL_CEILING, type CreatedMaterial } from './createdMaterials.ts';
+export { RUNTIME_MAP_BYTES_CEILING } from './runtimeMaps.ts';
 
 type Inputs = {
   check: () => void;
@@ -39,6 +34,7 @@ type Inputs = {
   associations: BackendContext['associations'];
   backends: RenderBackend[];
   active: () => RenderBackend;
+  onDispose?: (release: () => void) => void;
 };
 
 /**
@@ -56,7 +52,9 @@ export function createExplorerMaterialApi(inputs: Inputs) {
   const { check, source, associations, backends, active } = inputs;
   /** The materials the page created, by id no table rank takes, each its surface per geometry
    *  variant a drawable asked (`PLAIN` first): a write reaches them all (`preparedMaterials`). */
-  const created = new Map<string, Map<string, GraphSurface>>();
+  const runtime = runtimeMaterials(check, backends),
+    { created } = runtime;
+  inputs.onDispose?.(runtime.dispose);
   /** The created material each assigned mesh wears: a change to one worn reaches the engines. */
   const wearing = new Map<HostMesh, string>();
   /** Built at the first call, not at open: most pages never ask. Before any write, so the values
@@ -134,7 +132,7 @@ export function createExplorerMaterialApi(inputs: Inputs) {
         const textures = worn.flatMap((surface) => [...materialTextures(surface)]);
         if (!textures.length) throw invalid(rank, 'tiling', patch.tiling);
         const { wearers } = scene();
-        const shared = textures.find((texture) => wearers.get(texture)!.size > 1);
+        const shared = textures.find((texture) => (wearers.get(texture)?.size ?? 1) > 1);
         if (shared)
           throw new EngineError(
             'MATERIAL_TEXTURE_SHARED',
@@ -152,23 +150,15 @@ export function createExplorerMaterialApi(inputs: Inputs) {
       for (const surface of worn) write(surface, patch, alpha?.to);
       return refreshed(alpha);
     },
-    /**
-     * A material of the page's own, without maps for now: listed, read and set as a scene
-     * material is; every check runs before anything is built, the ceiling first.
-     */
-    createMaterial(props: CreatedMaterial = {}): SceneMaterial {
+    createMaterial: runtime.createMaterial,
+    /** Decoded map bytes admitted or pending, bounded by RUNTIME_MAP_BYTES_CEILING. */
+    materialMapBytes: () => (check(), runtime.mapBytes()),
+    /** Drop an unused runtime material; reassign its drawables before dropping it. */
+    dropMaterial(id: string) {
       check();
-      if (created.size >= RUNTIME_MATERIAL_CEILING)
-        throw new EngineError(
-          'MATERIAL_CEILING',
-          `the page holds ${created.size} created materials, the ceiling`,
-          { held: created.size, asked: 1, ceiling: RUNTIME_MATERIAL_CEILING },
-        );
-      const id = `created-${created.size}`;
-      validateCreated(id, props);
-      const surface = createdSurface(props);
-      created.set(id, new Map([[PLAIN, surface]]));
-      return read(id, surface);
+      if ([...wearing.values()].includes(id))
+        throw new EngineError('UNSUPPORTED_SCENE_UPDATE', 'material is still assigned', { id });
+      runtime.drop(id);
     },
     /** Drawable `primitive` (`mesh/primitive`, as the manifest names it) wears created material
      *  `id` from the next frame, in its geometry's variant and its alpha mode's draw class (#846);
