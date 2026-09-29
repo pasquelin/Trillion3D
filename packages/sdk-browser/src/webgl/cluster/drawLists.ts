@@ -3,6 +3,7 @@ import { isDrawnNode } from '../../host/graph/kinds.ts';
 import type { HostMesh } from '../../host/resources.ts';
 import { firstMaterial } from '../../scene/materialSide.ts';
 import { physicsLink } from '../../physics/physicsLink.ts';
+import { createChangedSubtrees } from './changedSubtrees.ts';
 
 /** A list member's surface still sends it where it stands: a see-through surface to the
  *  see-through list, an opaque one to the opaque list unless `copies` names it. */
@@ -23,7 +24,9 @@ const see = (mesh: HostMesh) => !!firstMaterial(mesh.material)?.transparent;
  * nothing; one under a hidden node joins when that node is shown). A surface turned see-through
  * or back, set or written in place, is read on the members themselves. The copies list only grows
  * (`growBlendCopies`): a longer one walks again. A link the graph already had keeps hearing
- * everything, and gets the graph back at `dispose`.
+ * everything, and gets the graph back at `dispose`. The same signal names the subtrees whose world
+ * matrices `refresh()` brings up to date first (`changedSubtrees.ts`): the graph is never walked
+ * whole for its matrices.
  */
 export function createDrawLists(scene: Object3D, copies: readonly object[]) {
   const copied = new Set<object>();
@@ -33,13 +36,19 @@ export function createDrawLists(scene: Object3D, copies: readonly object[]) {
   const shown = new WeakMap<Object3D, boolean>();
   let stale = true;
   const previous = scene._link;
+  const matrices = createChangedSubtrees(scene);
   // The link chained as the physics chains its own (`physicsLink`): the one it replaces hears all.
   const link = physicsLink(previous, {
     pose(node) {
+      matrices.heard(node);
       const was = shown.get(node);
       if (was !== undefined && was !== node.visible) stale = true;
     },
-    structure() {
+    posed(nodes) {
+      for (const node of nodes) matrices.heard(node);
+    },
+    structure(node) {
+      matrices.heard(node);
       stale = true;
     },
     content() {},
@@ -62,8 +71,9 @@ export function createDrawLists(scene: Object3D, copies: readonly object[]) {
     opaque: opaque as readonly HostMesh[],
     /** Visible see-through meshes and copies, in graph order: read, never written. */
     seeThrough: seeThrough as readonly HostMesh[],
-    /** Brings the lists to the graph as it stands. */
+    /** Brings the graph's world matrices, then the lists, to the graph as it stands. */
     refresh() {
+      matrices.run();
       for (let i = copied.size; i < copies.length; i++) {
         copied.add(copies[i]);
         stale = true;

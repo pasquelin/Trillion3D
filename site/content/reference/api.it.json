@@ -4765,6 +4765,13 @@
       "depth": "Strati, per una pila di immagini."
     }
   },
+  "PlacementGrowth": {
+    "summary": "Ciò che un proprietario consegna a una sessione che ingrandisce sul posto i suoi buffer di istanze (`growth.ts`).",
+    "members": {
+      "growPlacements": "Un buffer di istanze della sessione è stato sostituito da uno più grande, prima le righe di `from` e il resto parcheggiato: la sessione legge `to` d’ora in poi e tiene le sue nuove righe, senza ricostruire tabelle (`growth.ts`). Se un motore non lo ha, il proprietario riapre la sessione su `to`.",
+      "growsInPlace": "Se `growPlacements` accetta ciascuno di `from` ingrandito a `capacity` righe, chiesto prima che il proprietario ne sostituisca uno: false li lascia come sono, e il proprietario riapre la sessione su buffer più grandi."
+    }
+  },
   "PlacementRows": {
     "summary": "Le righe di posizionamento delle mesh a specchio, una riga per copia posizionata.",
     "members": {
@@ -5482,6 +5489,15 @@
       "shadowPagesDrawn": "Ciò che ha prodotto l'invalidazione delle pagine: pagine ridisegnate dal fotogramma, pagine lasciate in coda per mancanza di budget, e quanto ha atteso la pagina obsoleta più vecchia che l'immagine legge. Zero ovunque è il valore normale di una scena immobile; `null` per un motore senza atlante delle ombre.",
       "shadowPagesTotal": "Pagine disegnate dall'apertura dell'esploratore, svuotamenti di `flush()` inclusi: il costo di un cambiamento è la differenza tra due letture.",
       "shadowPagesPending": "Pagine d'ombra in attesa.",
+      "shadowBatches": "Lotti d’ombra che l’immagine ha disegnato: conteggi dell’host su ciò che ha codificato, mai letti in uno shader, come i conteggi seguenti. Null per un motore senza atlante delle ombre.",
+      "shadowLayersDrawn": "Livelli del pool in cui hanno disegnato i passaggi d’ombra dell’immagine.",
+      "shadowPagesRestored": "Pagine disegnate da una copia del loro livello statico, rasterizzando solo i proiettori in movimento.",
+      "shadowPagesRasterized": "Pagine i cui proiettori statici sono stati rasterizzati di nuovo; con quelle ripristinate, ogni pagina disegnata.",
+      "shadowRestoreCopies": "Copie di pagine dal livello statico: una pagina ripristinata, o una pagina disegnata per intero sul suo livello.",
+      "shadowStaticDrawCalls": "Chiamate di disegno di proiettori statici: nel livello statico, o di una pagina disegnata intera senza di esso.",
+      "shadowMovingDrawCalls": "Chiamate di disegno dei soli proiettori in movimento, su pagine ripristinate dal livello statico.",
+      "shadowMovingCastersKept": "Di `shadowCastersKept`, i cluster tenuti per disegnare i soli proiettori in movimento.",
+      "shadowPagesStaledBy": "Pagine che l’immagine ha reso obsolete, per motivo: luce, proiettore fermo, proiettori in movimento, dettaglio, soglia del taglio o intervallo di profondità di un sole.",
       "shadowWaitMs": "Quanti millisecondi la pagina obsoleta più vecchia che l'immagine legge ha atteso di essere ridisegnata. Conta solo il tempo in cui l'immagine la legge; 0 una volta ridisegnata.",
       "shadowCutDrops": "Lotti del taglio dalla luce che hanno scartato lavoro — le loro viste hanno tenuto più cluster di quanti ne contengano le liste —, dall’apertura dell’esploratore: ognuno rimanda le sue pagine, ritirate fino al ridisegno (#525). Null su un motore senza taglio della luce su GPU, come i tre seguenti.",
       "shadowCutWithdrawnPages": "Pagine ridisegnate perché un taglio dalla luce le ha disegnate male, dall’apertura dell’esploratore: il suo lotto ha scartato lavoro, o il suo flag non è mai stato letto. Restano ritirate fino al ridisegno.",
@@ -5536,6 +5552,9 @@
       "receive": "È tornato un rapporto di richieste; il piano successivo lo legge. Uno più recente sostituisce uno non letto.",
       "commit": "Le pagine `[from, to)` della lista del fotogramma sono state codificate, la pagina `from + i` in `modes[i]`: i loro disegni arrivano prima che qualcuno le legga. L’ultimo lotto chiude la lista."
     }
+  },
+  "ShadowStaleReason": {
+    "summary": "Perché una pagina d’ombra è diventata obsoleta (`ShadowFrameMetrics.shadowPagesStaledBy`)."
   },
   "ShadowViewpoint": {
     "summary": "Ciò che il pianificatore sa della vista: una camera, non una matrice, per restare senza dipendenza.",
@@ -6795,6 +6814,15 @@
       "shadowPagesDrawn": "Ciò che ha prodotto l'invalidazione delle pagine: pagine ridisegnate dal fotogramma, pagine lasciate in coda per mancanza di budget, e quanto ha atteso la pagina obsoleta più vecchia che l'immagine legge. Zero ovunque è il valore normale di una scena immobile; `null` per un motore senza atlante delle ombre.",
       "shadowPagesTotal": "Pagine disegnate dall'apertura dell'esploratore, svuotamenti di `flush()` inclusi: il costo di un cambiamento è la differenza tra due letture.",
       "shadowPagesPending": "Pagine d'ombra in attesa.",
+      "shadowBatches": "Lotti d’ombra che l’immagine ha disegnato: conteggi dell’host su ciò che ha codificato, mai letti in uno shader, come i conteggi seguenti. Null per un motore senza atlante delle ombre.",
+      "shadowLayersDrawn": "Livelli del pool in cui hanno disegnato i passaggi d’ombra dell’immagine.",
+      "shadowPagesRestored": "Pagine disegnate da una copia del loro livello statico, rasterizzando solo i proiettori in movimento.",
+      "shadowPagesRasterized": "Pagine i cui proiettori statici sono stati rasterizzati di nuovo; con quelle ripristinate, ogni pagina disegnata.",
+      "shadowRestoreCopies": "Copie di pagine dal livello statico: una pagina ripristinata, o una pagina disegnata per intero sul suo livello.",
+      "shadowStaticDrawCalls": "Chiamate di disegno di proiettori statici: nel livello statico, o di una pagina disegnata intera senza di esso.",
+      "shadowMovingDrawCalls": "Chiamate di disegno dei soli proiettori in movimento, su pagine ripristinate dal livello statico.",
+      "shadowMovingCastersKept": "Di `shadowCastersKept`, i cluster tenuti per disegnare i soli proiettori in movimento.",
+      "shadowPagesStaledBy": "Pagine che l’immagine ha reso obsolete, per motivo: luce, proiettore fermo, proiettori in movimento, dettaglio, soglia del taglio o intervallo di profondità di un sole.",
       "shadowWaitMs": "Quanti millisecondi la pagina obsoleta più vecchia che l'immagine legge ha atteso di essere ridisegnata. Conta solo il tempo in cui l'immagine la legge; 0 una volta ridisegnata.",
       "shadowCutDrops": "Lotti del taglio dalla luce che hanno scartato lavoro — le loro viste hanno tenuto più cluster di quanti ne contengano le liste —, dall’apertura dell’esploratore: ognuno rimanda le sue pagine, ritirate fino al ridisegno (#525). Null su un motore senza taglio della luce su GPU, come i tre seguenti.",
       "shadowCutWithdrawnPages": "Pagine ridisegnate perché un taglio dalla luce le ha disegnate male, dall’apertura dell’esploratore: il suo lotto ha scartato lavoro, o il suo flag non è mai stato letto. Restano ritirate fino al ridisegno.",
@@ -7440,7 +7468,7 @@
     }
   },
   "SHADOW_RECORD_FLOATS": {
-    "summary": "Float di un record d’ombra, quello che legge l’ombreggiatura di una luce: sei matrici di facce di lampada — lì, gli intervalli di profondità di un sole, `zNear` e inverso dell’ampiezza ciascuno (`recordPack.ts`) —, poi il riferimento del piano del sole — `right`, `up`, `axis`, ciascuno completato a quattro —, poi l’origine dell’estensione di ogni livello di clipmap in due interi, poi un’intestazione `vec4f`: facce (lampada) o livelli (sole), la tangente del semicampo della lampada o il livello più fine del sole, il piano vicino della lampada e la prima voce del record nella tabella delle pagine."
+    "summary": "Float di un record d’ombra, quello che legge l’ombreggiatura di una luce: sei matrici di facce di lampada — lì, gli intervalli di profondità di un sole, `zNear, zFar` ciascuno (`recordPack.ts`) —, poi il riferimento del piano di luce del sole — `right, zNear`, `up, zFar`, `axis`, poi lo slot dell’intervallo corrente —, poi l’origine della finestra di ogni slot della clipmap in due interi, poi un’intestazione `vec4f`: facce (lampada) o livelli (sole), il semicampo tangente della lampada o il livello più fine del sole, il piano vicino della lampada e la prima voce del record nella tabella delle pagine."
   },
   "ShadowRequestReport": {
     "summary": "Ciò che l’ombreggiatura ha letto in un fotogramma: le voci della tabella richieste, senza ordine.",

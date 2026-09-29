@@ -29,7 +29,7 @@ import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from './displayFilter.ts';
 
 /** The view uniform of the pass (`uniforms.ts`), for the two forward stages here and the water
  *  composite; `exposure` and `toneCurve` are the composition's (`displayFilter.ts`). */
-export const BLEND_VIEW_WGSL = `struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,pixelScale:f32,viewport:vec2f,eye:vec4f,pixelRatio:f32,exposure:f32,toneCurve:u32,}`;
+export const BLEND_VIEW_WGSL = `struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,pixelScale:f32,viewport:vec2f,eye:vec4f,pixelRatio:f32,mipBias:f32,exposure:f32,toneCurve:u32,}`;
 
 export const BLEND_SHADER = `${BLEND_VIEW_WGSL}
 ${BLEND_ITEM_WGSL}

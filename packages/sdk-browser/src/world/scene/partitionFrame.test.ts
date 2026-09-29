@@ -176,8 +176,8 @@ function grid(side: number) {
   return { partitioned, port };
 }
 
-test('on a WebGPU session, which grows no buffer, a walk never leaves a cell waiting for rows', async () => {
-  // Its engine cannot grow rows in place, and the reach stays the one the rows were sized for.
+test('on an engine that grows no buffer, a walk never leaves a cell waiting for rows', async () => {
+  // It cannot grow rows in place, and the reach stays the one the rows were sized for.
   const { partitioned, port } = grid(24);
   const camera = hostFramingCamera(60, 16 / 9, 0.1, 30);
   camera.position.set(5, 2, 5);

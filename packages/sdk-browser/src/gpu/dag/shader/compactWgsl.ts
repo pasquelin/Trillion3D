@@ -1,3 +1,4 @@
+import { LANE_SCAN_WGSL } from '../../core/laneScanWgsl.ts';
 import { SELECTION_HEADER_WORDS } from '../layout.ts';
 
 /**
@@ -9,10 +10,10 @@ import { SELECTION_HEADER_WORDS } from '../layout.ts';
  * now reports only a count and that many identifiers.
  *
  * Order is that of the old walk, page by increasing page, not that of an atomic counter: each
- * block of sixty-four pages knows how many of its pages are drawn, a two-pass sweep gives each
- * block its offset, then each page finds its rank in its own block. Sum in u32, associative;
- * a block's offset depends only on the blocks before it. The returned list is therefore term
- * for term the one the CPU built.
+ * block of sixty-four pages knows how many of its pages are drawn, the shared lane scan
+ * (`../../core/laneScanWgsl.ts`) gives each block its offset, then each page finds its rank in its
+ * own block. Sum in u32, associative; a block's offset depends only on the blocks before it. The
+ * returned list is therefore term for term the one the CPU built.
  *
  * A block's count is no longer reread afterwards: `dagMask`, alone in setting a draw flag,
  * accumulates it in its own page's block. One fewer dispatch, and two million fewer flags
@@ -37,24 +38,20 @@ fn drawMaskWord(i:u32)->u32{return drawMaskBase()+(i>>5u);}
 fn drawBit(i:u32)->u32{return 1u<<(i&31u);}
 /** The drawn pages of \`mask\`, page \`i\`'s word, below page \`i\`. */
 fn drawnBefore(i:u32,mask:u32)->u32{return countOneBits(mask&(drawBit(i)-1u));}
-var<workgroup> laneTotals:array<u32,64>;
+${LANE_SCAN_WGSL}/** Each lane totals its run of blocks; the shared lane scan gives the run its offset. */
 @compute @workgroup_size(64)
-fn dagDrawPrefix(@builtin(local_invocation_id) lid:vec3u){
- let lane=lid.x;let count=blockCount();let base=blockBase();
- let chunk=(count+63u)/64u;
- let begin=min(lane*chunk,count);let end=min(begin+chunk,count);
+fn dagDrawPrefix(@builtin(local_invocation_index) lane:u32){
+ let count=blockCount();let base=blockBase();
+ let run=laneRun(lane,count);
  var total=0u;
- for(var b=begin;b<end;b++){total=total+atomicLoad(&work[base+b]);}
- laneTotals[lane]=total;
- workgroupBarrier();
- var cursor=0u;
- for(var l=0u;l<lane;l++){cursor=cursor+laneTotals[l];}
- for(var b=begin;b<end;b++){
+ for(var b=run.x;b<run.y;b++){total=total+atomicLoad(&work[base+b]);}
+ var cursor=laneScan(lane,total)-total;
+ for(var b=run.x;b<run.y;b++){
   let n=atomicLoad(&work[base+b]);
   atomicStore(&work[base+count+b],cursor);
   cursor=cursor+n;
  }
- // The last thread has summed every total again, empty slice or not: that is the total.
+ // The last lane's run ends the list, empty or not: its cursor is the total.
  if(lane==63u){out.pages[views[0u].listCap]=cursor;if(cursor>views[0u].listCap){atomicOr(&out.overflow,1u);}}
 }
 @compute @workgroup_size(64)
