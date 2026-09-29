@@ -1,5 +1,5 @@
 // #984 (audit CPU-22): the draw lists kept between images are the ones develop's full walk finds,
-// in the same order once sorted, on random graphs and random edit sequences.
+// in the same order once sorted, on random graphs and random edit sequences; lights too (#835).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createDrawLists } from './drawLists.ts';
@@ -10,7 +10,9 @@ import { Group, type Object3D } from '../../../../sdk-core/src/world/object/obje
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphSurface } from '../../host/graph/surface.ts';
-import { isDrawnNode } from '../../host/graph/kinds.ts';
+import { isDrawnNode, isLightNode } from '../../host/graph/kinds.ts';
+import { Light } from '../../../../sdk-core/src/world/light/light.ts';
+import { shownChain } from '../../placement/hidden.ts';
 import type { HostMesh } from '../../host/resources.ts';
 import { firstMaterial } from '../../scene/materialSide.ts';
 import { pick as pickOf, seeded } from '../../host/world/randomTree.fixture.ts';
@@ -32,7 +34,10 @@ function developLists(scene: Scene, copies: readonly object[]) {
       if (copied.has(node) || firstMaterial(node.material)?.transparent) seeThrough.push(node);
       else opaque.push(node);
     });
-  return { opaque, seeThrough };
+  // The WebGL2 frame's own walk for its lights, before #835: every light whose chain is shown.
+  const lights: Light[] = [];
+  scene.traverse((node) => void (isLightNode(node) && shownChain(node) && lights.push(node)));
+  return { opaque, seeThrough, lights };
 }
 
 type Graph = ReturnType<typeof graph>;
@@ -58,7 +63,13 @@ function graph(seed: number, size: number) {
     nodes: Object3D[] = [scene],
     copies: object[] = [];
   const make = () => {
-    const node = rnd() < 0.3 ? new Group() : new Mesh(pick(shapes), pick(surfaces));
+    const roll = rnd();
+    const node =
+      roll < 0.2
+        ? new Group()
+        : roll < 0.3
+          ? new Light('point')
+          : new Mesh(pick(shapes), pick(surfaces));
     node.renderOrder = rnd() < 0.2 ? pick(EDGES) : 0;
     node.position.set(rnd() * 8 - 4, rnd() * 8 - 4, -rnd() * 8);
     nodes.push(node);
@@ -131,8 +142,9 @@ function replay({ scene, copies, edits, kinds, pick }: Graph, steps: number) {
     lists.refresh();
     const want = developLists(scene, copies);
     const [opaque, seeThrough] = [[...lists.opaque], [...lists.seeThrough]];
-    const listed = named(want.opaque, want.seeThrough);
-    assert.deepEqual(named(opaque, seeThrough), listed, `lists after ${kind} (step ${step})`);
+    const listed = named(want.opaque, want.seeThrough, want.lights);
+    const keptLists = named(opaque, seeThrough, [...lists.lights]);
+    assert.deepEqual(keptLists, listed, `lists after ${kind} (step ${step})`);
     kept(opaque as OrderedNode[], seeThrough as OrderedNode[], SCREEN);
     developed(want.opaque as OrderedNode[], want.seeThrough as OrderedNode[], SCREEN);
     const sorted = named(want.opaque, want.seeThrough);
@@ -158,7 +170,7 @@ test('an empty graph draws nothing, a maximal one keeps develop lists', () => {
   const empty = graph(7, 0);
   const lists = createDrawLists(empty.scene, empty.copies);
   lists.refresh();
-  assert.deepEqual([lists.opaque, lists.seeThrough], [[], []]);
+  assert.deepEqual([lists.opaque, lists.seeThrough, lists.lights], [[], [], []]);
   replay(graph(3, 4096), 10);
 });
 
