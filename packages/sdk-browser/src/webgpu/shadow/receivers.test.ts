@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
-import { DEMAND_MARGIN_TEXELS } from '../../../../sdk-core/src/scene/light-shadow/demand.ts';
+import { demandMarginTexels } from '../../../../sdk-core/src/scene/light-shadow/demand.ts';
 import { VIEW } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import type { EngineCamera } from '../../camera/engineCamera.ts';
 import { PCF_REACH } from '../../lighting/direct/shadowWgsl.ts';
@@ -12,7 +12,7 @@ import { viewPlanes } from './demand.fixture.ts';
 import { shadowReceivers } from './receivers.ts';
 
 test("the demand's margin covers the normal offset, the taps and the neighbour page", () => {
-  assert.ok(DEMAND_MARGIN_TEXELS >= LIGHT_SETTINGS.shadowNormalOffsetTexels + PCF_REACH + 1.5);
+  assert.ok(demandMarginTexels() >= LIGHT_SETTINGS.shadowNormalOffsetTexels + PCF_REACH + 1.5);
 });
 
 test('the receivers are the drawn clusters the camera sees, in world space', () => {
