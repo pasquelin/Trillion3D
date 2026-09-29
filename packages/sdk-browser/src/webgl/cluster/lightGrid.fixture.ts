@@ -48,14 +48,30 @@ export const sent = (context: Context, format: string, from = 0) =>
     .filter((args) => args[4] === LIGHT_ROW_TEXELS && args[6] === format);
 
 /**
- * The slots a fragment at view-space `point` evaluates, as the program walks them
- * (`LIGHT_LOOP_GLSL`): the lights of every fragment and those of its cell, merged in slot order.
+ * The grid the frame last listed: `m` (view to grid), its `cells` along each axis, the `every`
+ * slots listed first for every fragment, the uploaded `data`, and the cell's `side`.
  */
-export function evaluated(context: Context, point: readonly [number, number, number]) {
+export function listedGrid(context: Context) {
   const [, m] = lastUniform(context, 'uniformMatrix4fv', 'viewToGrid') as [boolean, Float32Array];
   const cells = lastUniform(context, 'uniform3i', 'gridCells') as number[];
   const [every] = lastUniform(context, 'uniform1i', 'lightGrid') as number[];
   const data = sent(context, 'RED_INTEGER').at(-1)![8] as Int32Array;
+  return { m, cells, every, data, side: 1 / m[0] };
+}
+
+/** The world box of the grid's `cell`, for a view at the world's origin and axes. */
+export function cellBox(m: Float32Array, cell: readonly number[]) {
+  const lo = cell.map((c, a) => (c - m[12 + a]) / m[5 * a]) as [number, number, number];
+  const hi = lo.map((v, a) => v + 1 / m[5 * a]) as [number, number, number];
+  return { lo, hi };
+}
+
+/**
+ * The slots a fragment at view-space `point` evaluates, as the program walks them
+ * (`LIGHT_LOOP_GLSL`): the lights of every fragment and those of its cell, merged in slot order.
+ */
+export function evaluated(context: Context, point: readonly [number, number, number]) {
+  const { m, cells, every, data, side } = listedGrid(context);
   const cell = [0, 1, 2].map((a) =>
     Math.floor(m[a] * point[0] + m[4 + a] * point[1] + m[8 + a] * point[2] + m[12 + a]),
   );
@@ -67,10 +83,7 @@ export function evaluated(context: Context, point: readonly [number, number, num
   }
   // Each part in slot order, as the program's merge needs.
   const inOrder = slots.every((slot, n) => n === every || n === 0 || slots[n - 1] < slot);
-  // The cell's world box, for a view at the world's origin and axes: the grid's scale and offset.
-  const lo = cell.map((c, a) => (c - m[12 + a]) / m[5 * a]) as [number, number, number];
-  const hi = lo.map((v, a) => v + 1 / m[5 * a]) as [number, number, number];
-  return { slots: slots.sort((a, b) => a - b), inOrder, inGrid, box: { lo, hi }, side: 1 / m[0] };
+  return { slots: slots.sort((a, b) => a - b), inOrder, inGrid, box: cellBox(m, cell), side };
 }
 
 /** A unit triangle at `x`, height 1, at z 0; its surface a mirror when `mirror`. */
