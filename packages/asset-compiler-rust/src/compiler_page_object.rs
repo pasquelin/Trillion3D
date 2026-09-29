@@ -87,14 +87,16 @@ pub(crate) fn page_record(
     geometry: Value,
     (stream, offset): (usize, usize),
 ) -> Value {
-    let finite_parent = cluster.parent_error.is_finite();
-    let or_null = |finite: bool, value: Value| if finite { value } else { Value::Null };
+    let parent = |value: fn(&DagCluster) -> Value| match cluster.parent_error.is_finite() {
+        true => value(cluster),
+        false => Value::Null,
+    };
     json!({"id":rank,"url":format!("../../objects/{digest}.bin"),"sha256":digest,"bytes":length,
         "count":cluster.indices.len(),"start":cluster.source_rank as usize*3,"min":min,"max":max,
         "cone":{"axis":[x,y,z],"angle":angle},"role":if cluster.level==0{"exact"}else{"coarse"},
         "geometry":geometry,"level":cluster.level,"lodError":cluster.lod_error,"sphere":cluster.sphere,
-        "parentError":or_null(finite_parent,json!(cluster.parent_error)),
-        "parentSphere":or_null(finite_parent,json!(cluster.parent_sphere)),
+        "parentError":parent(|c|json!(c.parent_error)),
+        "parentSphere":parent(|c|json!(c.parent_sphere)),
         "group":cluster.group.map_or(Value::Null,|index|json!(index)),
         "source":cluster.source.map_or(Value::Null,|index|json!(index)),
         "stream":stream,"streamOffset":offset})
