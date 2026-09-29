@@ -2,8 +2,8 @@ import { LIGHT_SETTINGS, type ShadowViewpoint } from '../light/contracts.ts';
 import type { SceneLightStore } from '../light/store.ts';
 import { frustumExcludesBox } from '../../math/frustum/box.ts';
 import { castsShadow } from './casters.ts';
-import { boxFarthest, lampDemand, type DemandLight } from './demandLamp.ts';
-import { sunDemand } from './demandSun.ts';
+import { boxFarthest, createLampDemand, type DemandLight } from './demandLamp.ts';
+import { createSunDemand } from './demandSun.ts';
 import type { ShadowPool } from './pool.ts';
 import type { ShadowRequestReport, createShadowRequests } from './requests.ts';
 import type { SunLevels } from './sunLevels.ts';
@@ -25,11 +25,9 @@ export { RECEIVER_FLOATS, type ShadowReceivers };
  * sixteen taps keep under 3 texels —, then the taps' footprints and the neighbour page across a
  * seam, 1.5 texels. The browser test checks it against the WGSL constants.
  */
-export const DEMAND_MARGIN_TEXELS = LIGHT_SETTINGS.shadowNormalOffsetTexels + 3 + 1.5;
+export const demandMarginTexels = () => LIGHT_SETTINGS.shadowNormalOffsetTexels + 3 + 1.5;
 /** Halvings of a receiver whose levels span more than one, until each part is about a page. */
 const MAX_SPLITS = 12;
-/** A footprint's relative error the demand allows: the jitter of the projection, rounding. */
-const SLACK = 1 / 64;
 
 /**
  * THE EARLY DEMAND: the pages the frame's receivers read, known before its shadow raster, in the
@@ -50,6 +48,9 @@ export function createShadowDemand(table: ShadowTable, pool: ShadowPool, sun: Su
     stack = new Float64Array((MAX_SPLITS + 1) * RECEIVER_FLOATS),
     levels = new Int32Array(2),
     gathered = createReceiverCells(),
+    lampDemand = createLampDemand(),
+    sunDemand = createSunDemand(sun),
+    margin = demandMarginTexels(),
     report: ShadowRequestReport = {
       frame: -1,
       layoutEpoch: -1,
@@ -66,14 +67,15 @@ export function createShadowDemand(table: ShadowTable, pool: ShadowPool, sun: Su
     report.count++;
   };
   let view: ShadowViewpoint, receivers: ShadowReceivers;
-  /** Least and most footprint of a pixel over the box: its view depth, then its distance. */
+  /** Least and most footprint of a pixel over the box — its view depth, then its distance —,
+   *  widened by 1/64: the projection's jitter and rounding. */
   const footprint = (o: number, most: boolean) => {
     const { pixelNear } = receivers;
     if (receivers.orthographic) return pixelNear;
     const eye = view.position;
     if (most)
-      return (pixelNear * boxFarthest(stack, o, eye[0], eye[1], eye[2]) * (1 + SLACK)) / view.near;
-    return (pixelNear * Math.max(boxDepth(stack, o, view), view.near) * (1 - SLACK)) / view.near;
+      return (pixelNear * boxFarthest(stack, o, eye[0], eye[1], eye[2]) * (1 + 1 / 64)) / view.near;
+    return (pixelNear * Math.max(boxDepth(stack, o, view), view.near) * (1 - 1 / 64)) / view.near;
   };
   const visit = (light: DemandLight, depth: number) => {
     const o = depth * RECEIVER_FLOATS;
@@ -109,8 +111,7 @@ export function createShadowDemand(table: ShadowTable, pool: ShadowPool, sun: Su
       }
       return;
     }
-    for (let level = fine; level <= coarse; level++)
-      light.mark(stack, o, level, DEMAND_MARGIN_TEXELS);
+    for (let level = fine; level <= coarse; level++) light.mark(stack, o, level, margin);
   };
   /** True when `read`, of this layout, named no page the pool does not map. */
   const covers = (read: ShadowRequestReport) => {
@@ -144,7 +145,7 @@ export function createShadowDemand(table: ShadowTable, pool: ShadowPool, sun: Su
         const base = table.baseOf(slice);
         const reader =
           light.kind === 'directional'
-            ? sunDemand.aim(sun, slice, base, mark)
+            ? sunDemand.aim(slice, base, mark)
             : lampDemand.aim(light, base, mark);
         for (let r = 0; r < cells.count; r++) {
           if (!reader.reaches(cells.boxes, r * RECEIVER_FLOATS)) continue;
