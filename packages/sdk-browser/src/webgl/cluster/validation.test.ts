@@ -26,13 +26,8 @@ test('a frame reads a surface once for all its pages, their attributes each, a m
   assert.equal(reads, 1, 'three pages, one read of their surface');
   (pages[2] as { geometry: { attributes: object } }).geometry.attributes = {};
   validation.validate(pages, [], NO_COPIES);
-  assert.deepEqual(
-    heard,
-    ['position attribute is unsupported'],
-    'the attributes are read per page',
-  );
-  assert.equal(validation.leaves(pages[2]), true);
-  assert.equal(validation.leaves(pages[0]), false);
+  assert.deepEqual(heard, ['position attribute is unsupported'], 'attributes read per page');
+  assert.deepEqual(pages.map(validation.leaves), [false, false, true]);
   surface.premultipliedAlpha = true;
   validation.validate(pages, [], NO_COPIES);
   assert.match(heard.at(-1)!, /unsupported blend state/, 'the next frame reads the surface again');
