@@ -7,7 +7,7 @@ import {
 import { SUN_ORIGIN_WGSL } from '../../lighting/direct/shadowFactorWgsl.ts';
 import { shadowRequestWgsl } from '../../lighting/direct/shadowRequestWgsl.ts';
 import { SHADOW_DATA_WGSL } from '../../lighting/direct/shadowWgsl.ts';
-import { POOL_COUNTS, SHADOW_DRAW_LIST_WGSL, SHADOW_POOL_WGSL } from './poolWgsl.ts';
+import { POOL_FRAME_COUNTS, SHADOW_DRAW_LIST_WGSL, SHADOW_POOL_WGSL } from './poolWgsl.ts';
 
 /** Invocations of the one workgroup that allocates a frame's pages. */
 export const ALLOC_LANES = 256;
@@ -83,7 +83,7 @@ fn shadowEntryPage(e:u32)->vec4i{
  return vec4i(shadowLampView(face,mip),shadowFacePageX(pages,local),shadowFacePageY(pages,local),shadowLampCoarseness(mip));
 }
 fn beginAllocation(lane:u32){
- if(lane<${POOL_COUNTS.length}u){countClear(lane);}
+ if(lane<${POOL_FRAME_COUNTS}u){countClear(lane);}
  for(var i=lane;i<params.asks;i+=ALLOC_LANES){requestShadowPage(params.entries[i]&ENTRY_MASK);}
 }
 fn followPages(lane:u32){
