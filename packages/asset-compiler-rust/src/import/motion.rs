@@ -1,16 +1,10 @@
-//! What an FBX scene moves (#357): the skin a mesh bends by — each vertex's four strongest bones
-//! and the bone's inverse bind matrix —, the full-weight shape of each blend channel as a morph
-//! target, and the animation stacks, sampled into glTF clips. The intermediate scene is flat — every
-//! node placed in the world —, so a bone is a node posed in the world, and a clip moves each node
-//! by its world pose at each key, as the file evaluates it.
+//! FBX skin (four strongest bones), inverse binds, full-weight morphs and sampled clips (#357).
+//! The intermediate graph is flat; nodes and animation keys therefore use world poses.
 use super::*;
-
 /// Keys a second a stack is sampled at, and the most keys a clip holds (twenty minutes).
 const RATE: f64 = 30.0;
 const MAX_KEYS: usize = 36_000;
-
-/// The deformation a mesh declares: its first skin, and each blend channel's full-weight shape
-/// with, per shape, the rank of each vertex it offsets.
+/// First skin and full-weight blend shapes, indexed by source vertex.
 pub(super) struct MeshDeform<'a> {
     skin: Option<&'a ufbx::SkinDeformer>,
     pub(super) channels: Vec<&'a ufbx::BlendChannel>,
@@ -166,8 +160,7 @@ impl Importer<'_> {
         self.skins.len() - 1
     }
 
-    /// The skin of the mesh `node` places as glTF node `placed`, and what of it an animation may
-    /// move: its own pose unless skinned — its bones place it —, and its blend channels.
+    /// Bind skin and animation targets: bones place skins; otherwise tracks place the mesh.
     pub(super) fn bend<'a>(
         &mut self,
         node: &ufbx::Node,
@@ -196,8 +189,7 @@ impl Importer<'_> {
         }
     }
 
-    /// A joint for a cluster the file binds to no bone: a node at the origin, which leaves the
-    /// vertices it holds where their bind matrix puts them.
+    /// An origin joint leaves unbound vertices where their bind matrix places them.
     fn bone_less(&mut self) -> usize {
         self.nodes.push(json!({"name": ""}));
         self.nodes.len() - 1

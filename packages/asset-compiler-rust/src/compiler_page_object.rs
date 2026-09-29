@@ -1,13 +1,11 @@
 use super::*;
 use crate::dag::DagCluster;
 use crate::geometry_page_deform::{Deformation, MorphTarget};
-/// The geometry-page format every page of the cache is written in, declared once at the top of
-/// the manifest (`geometryPages`): the page header's magic and the sidecar version are the gates.
+/// Geometry codec metadata; header magic and sidecar version gate every page.
 pub fn geometry_page_format() -> Value {
     json!({"formatVersion":trillion3d_page_codec::VERSION,"codec":"quantized"})
 }
-/// The attributes a page carries beside its positions, read from the primitive's accessors: each
-/// holds `count` vertices, the width the format expects, or three for a colour.
+/// Page attributes with `count` vertices and codec widths (RGB colour also accepted).
 pub(super) fn page_attributes(
     g: &Value,
     bin: &[u8],
