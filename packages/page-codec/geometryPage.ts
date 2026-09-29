@@ -7,7 +7,7 @@
  * colour bytes — and packs the same streams, without sharing a line.
  */
 import { bitsFor, ceil32, octEncode, Packer, quantize, type QuantizedGrid } from './pageGrids.ts';
-import { storedPositions } from './pagePositions.ts';
+import { firstUse, storedPositions } from './pagePositions.ts';
 import {
   ATTRIBUTES,
   type PageAttribute,
@@ -118,17 +118,7 @@ export function encodeGeometryPage(
       cells.forEach((cell, i) => (cell.uv[set] = q.cells.slice(i * 2, i * 2 + 2)));
     }
   }
-  const unique: PageCell[] = [],
-    rank = new Map<string, number>();
-  const remap = cells.map((cell) => {
-    const key = JSON.stringify(cell);
-    let id = rank.get(key);
-    if (id === undefined) {
-      id = unique.push(cell) - 1;
-      rank.set(key, id);
-    }
-    return id;
-  });
+  const { distinct: unique, ranks: remap } = firstUse(cells, (cell) => JSON.stringify(cell));
   const pack = new Packer();
   const cornerBits = pack.corners(
     corners.map((id) => remap[id]),
