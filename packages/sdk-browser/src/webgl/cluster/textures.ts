@@ -159,7 +159,6 @@ export class WebglClusterTextures {
   }
   /** A new image: units unknown, drawn maps' readers reread at first bind, idle scratches out. */
   beginFrame() {
-    this.budget.beginFrame();
     this.bound.length = 0;
     this.followed.clear();
     this.mips.trim();
