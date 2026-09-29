@@ -22,17 +22,19 @@ import {
   stagedRequestsWord,
   writeTriangleTotals,
 } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
-import { sortRequestWords } from '../../../packages/sdk-browser/src/gpu/dag/request.ts';
 import { VIEW_FLAGS_WORD } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts';
 import { VIEW_LIGHT } from '../../../packages/sdk-browser/src/gpu/dag/shader/pagesWgsl.ts';
-import { mockEvictions } from './mockEvict.ts';
+import { mockEvictions, sortStagedRequests } from './mockEvict.ts';
+
+/** The camera cut's kernels the double replays, all on the selection's one bind group. */
+const DAG_STAGES = new Set(['dagMask', 'dagDrawScatter', 'dagSortRequests', 'dagListEvictions']);
 
 export type ComputeBind = {
   entries: Array<{ binding: number; resource: { buffer: { data: Uint8Array } } }>;
 };
 
 /** The DAG selection uniform block as the shader reads it: the camera, and the resident-cut switch. */
-export function readDagUniforms(data: Uint8Array) {
+function readDagUniforms(data: Uint8Array) {
   const f32 = new Float32Array(data.buffer, data.byteOffset, data.byteLength / 4);
   const u32 = new Uint32Array(data.buffer, data.byteOffset, data.byteLength / 4);
   return {
@@ -127,15 +129,26 @@ export function simulateComputeDispatch(
     );
     return;
   }
-  if (!packed || !computeBind) return;
+  const stage = computePipeline?.entryPoint;
+  if (!packed || !computeBind || !DAG_STAGES.has(stage ?? '')) return;
+  // The selection binds one buffer per `DAG_BINDING` slot: one missing is a validation error.
+  const slots = Object.keys(DAG_BINDING).length;
+  if (computeBind.entries.length !== slots)
+    throw new Error(`dag selection bind group requires ${slots} entries`);
   const byBinding = new Map(
     computeBind.entries.map((entry) => [entry.binding, entry.resource.buffer]),
   );
-  if (computePipeline?.entryPoint === 'dagSortRequests')
-    return sortStagedRequests(byBinding.get(DAG_BINDING.out)!.data, packed.pageCount);
-  if (computePipeline?.entryPoint === 'dagListEvictions')
-    return mockEvictions(byBinding, packed).list();
-  if (computePipeline?.entryPoint !== 'dagMask') return;
+  if (stage === 'dagSortRequests') return sortStagedRequests(byBinding, packed.pageCount);
+  if (stage === 'dagListEvictions') return mockEvictions(byBinding, packed).list();
+  // Compaction rereads the draw flags `dagMask` left, as `dagDrawPrefix` then `dagDrawScatter` do.
+  if (stage === 'dagDrawScatter')
+    return compactDrawnPages(
+      byBinding.get(DAG_BINDING.flags)!.data,
+      byBinding.get(DAG_BINDING.out)!.data,
+      packed.nodeCount,
+      packed.pageCount,
+    );
+  if (stage !== 'dagMask') return;
   const { uniforms, residentCut, light } = readDagUniforms(byBinding.get(DAG_BINDING.views)!.data);
   // The rule's residency lives in bits behind the cold records: the double rereads it through the
   // shared decoder, in the buffer the host writes, where the shader reads it.
@@ -159,18 +172,10 @@ export function simulateComputeDispatch(
   const result = evaluateDagSelectionKernel({ ...packed, worlds, rootNodes }, uniforms, resident);
   if (!light)
     mockEvictions(byBinding, packed).stamp([...result.pageIds, ...(result.drawablePageIds ?? [])]);
-  if (residentCut) {
-    const flags = new Uint32Array(byBinding.get(DAG_BINDING.flags)!.data.buffer);
-    flags.fill(0, packed.nodeCount, packed.nodeCount + packed.pageCount);
-    for (const id of result.drawablePageIds ?? []) flags[packed.nodeCount + id] = 1;
-    // The cut then compacts these flags: the sample reports only the count and its ranks.
-    compactDrawnPages(
-      byBinding.get(DAG_BINDING.flags)!.data,
-      byBinding.get(DAG_BINDING.out)!.data,
-      packed.nodeCount,
-      packed.pageCount,
-    );
-  }
+  // `dagMask` posts a draw flag for every page, resident cut or not: `dagDrawScatter` compacts them.
+  const flags = new Uint32Array(byBinding.get(DAG_BINDING.flags)!.data.buffer);
+  flags.fill(0, packed.nodeCount, packed.nodeCount + packed.pageCount);
+  for (const id of result.drawablePageIds ?? []) flags[packed.nodeCount + id] = 1;
   const out = byBinding.get(DAG_BINDING.out)!.data;
   const ints = new Uint32Array(out.buffer, out.byteOffset, out.byteLength / 4);
   ints[1] = result.frustumRejected;
@@ -184,11 +189,3 @@ export function simulateComputeDispatch(
   ints.set(list, at);
 }
 
-/** `dagSortRequests`: the staged requests into the sample, by rank, through the kernel's mirror. */
-function sortStagedRequests(out: Uint8Array, pageCount: number) {
-  const ints = new Uint32Array(out.buffer, out.byteOffset, out.byteLength / 4),
-    listCap = selectionListCap(pageCount),
-    at = stagedRequestsWord(listCap),
-    count = Math.min(ints[0], listCap);
-  ints.set(sortRequestWords(ints.subarray(at, at + count)), SELECTION_HEADER_WORDS);
-}

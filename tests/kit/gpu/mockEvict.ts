@@ -5,6 +5,7 @@ import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/
 import { dagFlagsWords } from '../../../packages/sdk-browser/src/gpu/dag/shader/lastUseWgsl.ts';
 import { canonicalPage, listEvictions } from '../../../packages/sdk-browser/src/gpu/dag/evict.ts';
 import * as L from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
+import { sortRequestWords } from '../../../packages/sdk-browser/src/gpu/dag/request.ts';
 import { words } from './mockComputeBlend.ts';
 
 /** The camera cut's last-use clock and `dagListEvictions`, replayed on the words the kernels read
@@ -38,4 +39,13 @@ export function mockEvictions(byBinding: Map<number, { data: Uint8Array }>, pack
       out.set(queue, L.evictionWord(listCap) + L.SELECTION_HEADER_WORDS);
     },
   };
+}
+
+/** `dagSortRequests`: the staged requests into the sample, by rank, through the kernel's mirror. */
+export function sortStagedRequests(byBinding: Map<number, { data: Uint8Array }>, pageCount: number) {
+  const ints = words(byBinding.get(DAG_BINDING.out)!.data),
+    listCap = L.selectionListCap(pageCount),
+    at = L.stagedRequestsWord(listCap),
+    count = Math.min(ints[0], listCap);
+  ints.set(sortRequestWords(ints.subarray(at, at + count)), L.SELECTION_HEADER_WORDS);
 }
