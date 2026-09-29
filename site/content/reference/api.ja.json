@@ -1000,7 +1000,9 @@
       "PHYSICS_FORMAT": "コンパイル済みモデルの事前処理された物理（`physics.json`）が別の形式か、エンジンとは別の Jolt で処理されています（`PHYSICS_FORMAT`）：再コンパイルしてください。物理がオフのまま正確なレイキャストが求められました（`PHYSICS_OFF`）。",
       "PHYSICS_OFF": "コンパイル済みモデルの事前処理された物理（`physics.json`）が別の形式か、エンジンとは別の Jolt で処理されています（`PHYSICS_FORMAT`）：再コンパイルしてください。物理がオフのまま正確なレイキャストが求められました（`PHYSICS_OFF`）。",
       "NO_VEHICLE": "`world.controls.vehicle` が `null` のまま `world.controls.kind` に `'vehicle'` が設定された：運転するものがない。",
-      "GUIDE_CEILING": "`world.guides` の呼び出しは `GUIDE_VERTEX_CEILING` を超える頂点を保持することになるため、何も追加されませんでした。"
+      "GUIDE_CEILING": "`world.guides` の呼び出しは `GUIDE_VERTEX_CEILING` を超える頂点を保持することになるため、何も追加されませんでした。",
+      "REFERENCE_SHADOWS_REDUCED": "参照画像は拒否されました：シャドウプールが本来のサイズ未満で動作しています（`REFERENCE_SHADOWS_REDUCED`）。リサイズでスーパーサンプリングが失われるインタラクティブなセッションで参照モードが要求されました（`REFERENCE_INTERACTIVE`）。",
+      "REFERENCE_INTERACTIVE": "参照画像は拒否されました：シャドウプールが本来のサイズ未満で動作しています（`REFERENCE_SHADOWS_REDUCED`）。リサイズでスーパーサンプリングが失われるインタラクティブなセッションで参照モードが要求されました（`REFERENCE_INTERACTIVE`）。"
     }
   },
   "EngineProfiler": {
@@ -2876,7 +2878,7 @@
     "summary": "ホストが所有するシーン階層契約のバージョン。"
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "ヘッダーの整数：シグネチャ、バージョン、三角形・ノード・グループ・所有者・ソースの各数、予約済みのゼロ。"
+    "summary": "ヘッダー整数：v3 所有者ヘッダー、その後に形状数、格納三角形数、配置数。"
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "'W'、'G'、'P'、'X'を、リトルエンディアンの符号なし32ビット整数として読んだもの。"
@@ -3097,7 +3099,7 @@
     }
   },
   "SceneProxy": {
-    "summary": "読み取り用プロキシ: その記述子と、そのキャッシュオブジェクトのバイト列に対するビューである列群。",
+    "summary": "読み込んだプロキシ：記述子と不変の列。共有三角形は読み込み時に展開されます。",
     "members": {
       "data": "その列群。"
     }
@@ -5050,7 +5052,7 @@
   },
   "decodeSceneProxy": {
     "summary": "1本の光線がそれに触れる前に、再度読み直され再検証されるプロキシ。",
-    "description": "配置：リトルエンディアンのヘッダー8ワードに続き、正規化されたジオメトリとツリーの各列、およびバージョン付きの所有情報が並びます。`docs/FORMAT.md` にすべての数と列を定義しています。各セクションの長さはヘッダーで決まります。存在しない三角形を参照するノードがあるとシェーダーが不正なデータを読み取るため、サイズが異なるファイルは全体を拒否します。"
+    "description": "11 個のリトルエンディアンのヘッダーワードに、共有・個別ジオメトリ、ツリー列、バージョン付き所有者データが続きます。各個数と列は `docs/FORMAT.md` で定義されます。長さが不正なファイルはレイから参照される前に拒否されます。"
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S`を`position`、`quaternion`、`scale`に分解する。"
