@@ -128,6 +128,7 @@ export function gpuFrames(poolSide: number, lights: SceneLight[], gpuDraws = tru
         allocation.writeFresh(poolSide, 1, 0, [0, 0], 0, freshSlices(store));
         const fresh = [data, state, allocation.drawList, allocation.freshFaces];
         fresh.push(allocation.freshVolumes, allocation.freshArgs, allocation.freshParams);
+        fresh.push(allocation.freshDispatch);
         for (const entry of ['composeShadowPages', 'sealShadowPages'])
           runShadowFresh(entry, ...fresh.map(bytes));
         const args = new Uint32Array(bytes(allocation.freshArgs).buffer);

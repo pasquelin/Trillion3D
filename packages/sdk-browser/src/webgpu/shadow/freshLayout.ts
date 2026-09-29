@@ -20,16 +20,17 @@ export const FRESH_FACE_WORDS = 28;
 export const FRESH_LAYER_SHIFT = 16;
 
 /**
- * THE WORDS OF THE GPU PAGES' ARGUMENTS (#1275), one buffer the passes share: the pair cull's
- * dispatch, the frame's region count, the pairs it may keep and keeps, the most corners a kept
- * caster draws; per pool layer two indirect draws — its pages cleared, its casters — then the
- * first region of each layer, the page of each region, and whether a region lost a caster.
+ * THE WORDS OF THE GPU PAGES' ARGUMENTS (#1275), one buffer the passes share: the frame's region
+ * count, the pairs the cull may keep and keeps, the most corners a kept caster draws; per pool
+ * layer two indirect draws — its pages cleared, its casters — then the first region of each layer,
+ * the page of each region, and whether a region lost a caster. The cull's dispatch is apart: a
+ * buffer a dispatch reads its size from, it may not write (`dispatch`, `allocBuffers.ts`).
  */
-export const FRESH_ARG = { dispatch: 0, regions: 3, capacity: 4, pairs: 5, corners: 6 } as const;
+export const FRESH_ARG = { regions: 0, capacity: 1, pairs: 2, corners: 3 } as const;
 /** Draws of a layer: its pages' squares cleared, then every kept caster. */
 export const FRESH_CLEAR = 0,
   FRESH_CASTERS = 1;
-const DRAWS = 8,
+const DRAWS = 4,
   DRAW_WORDS = 4;
 /** First word of layer `layer`'s draw `kind`. */
 export const freshDrawWord = (layer: number, kind: number) =>
