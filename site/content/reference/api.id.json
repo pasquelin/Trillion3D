@@ -1955,7 +1955,7 @@
       "wasmAvailable": "Modul WebAssembly dimuat, pada versi kontrak yang benar.",
       "wasmSimd": "Modul dikompilasi dengan `simd128`; `null` sampai sebuah modul dimuat.",
       "clockResolutionMs": "Resolusi jam thread, dalam milidetik; `null` sampai diperkirakan.",
-      "clockCoarse": "Benar saat jam terlalu kasar untuk memutuskan: semuanya tetap di jalur JavaScript.",
+      "clockCoarse": "Benar saat jam terlalu kasar untuk mengukur satu eksekusi: eksekusi diukur dalam kelompok gabungan.",
       "unavailableReason": "Kenapa jalur WebAssembly tidak bisa dimainkan, atau `null` saat bisa.",
       "operations": "Setiap operasi."
     }
@@ -5031,10 +5031,6 @@
   },
   "emptyIrradiance": {
     "summary": "Sebuah iradiansi yang kosong, siap menerima sumber."
-  },
-  "encodeManifestBinary": {
-    "summary": "Membagi sebuah manifest menjadi JSON kecil yang diurai pembaca dan kolom-kolom yang dipetakannya.",
-    "description": "Deskriptor yang dikembalikan membawa `sha256` kosong: hanya pemanggil, yang memegang byte yang sudah selesai, yang bisa meng-hash-nya."
   },
   "enginePose": {
     "summary": "Pose dunia yang dipublikasikan trace dan diagnostik, dibaca dari kamera mesin: matanya adalah translasi `world`, dan dekomposisi inti menghasilkan bit-bit `Matrix4.decompose`, yang `getWorldQuaternion` hanyalah panggilannya."

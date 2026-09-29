@@ -1937,7 +1937,7 @@
       "wasmAvailable": "O módulo WebAssembly está carregado, na versão de contrato correta.",
       "wasmSimd": "O módulo foi compilado com `simd128`; `null` até um módulo ser carregado.",
       "clockResolutionMs": "Resolução do relógio da thread, em milissegundos; `null` até ser estimada.",
-      "clockCoarse": "Verdadeiro quando o relógio é grosseiro demais para arbitrar: tudo permanece no caminho JavaScript.",
+      "clockCoarse": "Verdadeiro quando o relógio é grosseiro demais para cronometrar uma única execução: as execuções são cronometradas em lotes agrupados.",
       "unavailableReason": "Por que o caminho WebAssembly não é jogável, ou `null` quando é.",
       "operations": "Cada operação."
     }
@@ -5057,10 +5057,6 @@
   },
   "emptyIrradiance": {
     "summary": "Uma irradiância sem nada dentro, pronta para receber fontes."
-  },
-  "encodeManifestBinary": {
-    "summary": "Divide um manifesto no pequeno JSON que um leitor analisa e nas colunas que ele mapeia.",
-    "description": "O descritor devolvido carrega um `sha256` vazio: só o chamador, tendo os bytes finalizados, pode calculá-los."
   },
   "enginePose": {
     "summary": "Pose de mundo que rastros e diagnósticos publicam, lida da câmera do motor: o olho é a translação de `world`, e a decomposição do núcleo produz os bits de `Matrix4.decompose`, dos quais `getWorldQuaternion` é apenas a chamada."

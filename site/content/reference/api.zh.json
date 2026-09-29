@@ -1937,7 +1937,7 @@
       "wasmAvailable": "WebAssembly 模块已加载,且契约版本正确。",
       "wasmSimd": "该模块是否以 `simd128` 编译;在模块加载之前为 `null`。",
       "clockResolutionMs": "线程时钟分辨率,单位毫秒;在估算出之前为 `null`。",
-      "clockCoarse": "当时钟精度粗糙到无法用于裁定时为 true:此时所有内容都停留在 JavaScript 路径上。",
+      "clockCoarse": "当时钟过于粗糙、无法测量单次执行时为 true:执行会按合并的批次计时。",
       "unavailableReason": "WebAssembly 路径不可用的原因;若可用则为 `null`。",
       "operations": "各项运算。"
     }
@@ -5057,10 +5057,6 @@
   },
   "emptyIrradiance": {
     "summary": "一个空的辐照度值,内容为空,准备好接收光源。"
-  },
-  "encodeManifestBinary": {
-    "summary": "把一份清单拆分成读取器解析的小型 JSON,以及它所映射的各个列。",
-    "description": "返回的描述符携带一个空的 `sha256`:只有持有最终字节数据的调用者,才能对其进行哈希计算。"
   },
   "enginePose": {
     "summary": "追踪和诊断所公开的世界姿态,从引擎摄像机中读取:眼睛的位置就是 `world` 的平移分量,而核心的分解运算给出的正是 `Matrix4.decompose` 的各个比特,`getWorldQuaternion` 只是对它的一次调用。"

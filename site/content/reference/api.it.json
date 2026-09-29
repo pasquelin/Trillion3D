@@ -1529,10 +1529,6 @@
   "emptyIrradiance": {
     "summary": "Un'irradianza vuota, pronta a ricevere sorgenti."
   },
-  "encodeManifestBinary": {
-    "summary": "Separa un manifesto in un piccolo JSON che un lettore analizza e in colonne che proietta.",
-    "description": "Il descrittore restituito porta uno `sha256` vuoto: solo il chiamante, che detiene i byte finiti, può calcolarne l'impronta."
-  },
   "EngineCamera": {
     "summary": "La camera del motore: i numeri di un fotogramma, in buffer propri riscritti sul posto.",
     "description": "Nessuna struttura di una libreria dell'host attraversa una firma dopo `readCameraWorld` (`world.ts`, l'unica traduzione da una camera dell'host).",
@@ -3945,7 +3941,7 @@
       "wasmAvailable": "Il modulo WebAssembly è caricato, nella versione corretta del contratto.",
       "wasmSimd": "Il modulo è stato compilato con `simd128`; `null` finché non è caricato alcun modulo.",
       "clockResolutionMs": "Precisione dell'orologio del thread, in millisecondi; `null` finché non è stata stimata.",
-      "clockCoarse": "Vero quando l'orologio è troppo grossolano per decidere: tutto resta sulla via JavaScript.",
+      "clockCoarse": "Vero quando l'orologio è troppo grossolano per cronometrare una sola esecuzione: le esecuzioni sono cronometrate in lotti raggruppati.",
       "unavailableReason": "Perché la via WebAssembly non è praticabile, o `null` quando lo è.",
       "operations": "Ogni operazione."
     }

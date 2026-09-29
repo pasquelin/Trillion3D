@@ -1937,7 +1937,7 @@
       "wasmAvailable": "WebAssemblyモジュールが、正しい契約バージョンで読み込まれている。",
       "wasmSimd": "そのモジュールが`simd128`でコンパイルされていたかどうか; モジュールが読み込まれるまでは`null`。",
       "clockResolutionMs": "スレッドの時計の分解能、ミリ秒単位; 推定されるまでは`null`。",
-      "clockCoarse": "時計が裁定を行うには粗すぎるときtrue: すべてがJavaScriptパスに留まる。",
+      "clockCoarse": "時計が1回の実行を計測するには粗すぎるときtrue: 実行はまとめたバッチ単位で計測される。",
       "unavailableReason": "WebAssemblyパスが使えない理由。使える場合は`null`。",
       "operations": "各演算。"
     }
@@ -5057,10 +5057,6 @@
   },
   "emptyIrradiance": {
     "summary": "何も入っていない、光源を受け入れる準備ができた照度。"
-  },
-  "encodeManifestBinary": {
-    "summary": "マニフェストを、リーダーが解析する小さなJSONと、それがマッピングする列に分割する。",
-    "description": "返される記述子は空の`sha256`を運ぶ: 完成したバイト列を保持している呼び出し元だけが、それをハッシュできる。"
   },
   "enginePose": {
     "summary": "トレースと診断が公開する、エンジンカメラから読まれるワールド姿勢: 目は`world`の平行移動成分であり、コアの分解は`Matrix4.decompose`のビットを生み、`getWorldQuaternion`はその呼び出しにすぎない。"
