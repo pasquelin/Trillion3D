@@ -70,14 +70,9 @@ const emptyMesh = () => new Mesh(new Geometry(), []);
 /** A record with the world the oracle reads on it, as records carried it before #1226. */
 type Page = PageRec & { matrix: G.Matrix4 };
 const pageOf = (matrix: G.Matrix4, mesh?: HostMesh): Page => ({
-  id: 0,
-  url: '',
-  clusterId: '',
-  triangles: 0,
-  indexBytes: 0,
+  ...{ id: 0, url: '', clusterId: '', triangles: 0, indexBytes: 0, depthLayer: 0 },
   min: DUMMY_BOUNDS,
   max: DUMMY_BOUNDS,
-  depthLayer: 0,
   attributes: DUMMY_ATTRIBUTES,
   material: surfaceOf([]),
   declaration: [],
