@@ -57,6 +57,7 @@ async function main() {
     if (!isDist(dist)) throw new Error(`built SDK missing: ${dist}`);
     return side;
   });
+  flags.refuseUnread();
   if (sides[0].compression !== sides[1].compression)
     throw new Error('texture compression must match on both sides');
   const builds = await Promise.all(

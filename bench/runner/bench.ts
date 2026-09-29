@@ -37,20 +37,13 @@ const {
 const CTX: RunContext = { MANIFEST: null, OUT, settings, lights: null, poses: null };
 
 async function main() {
+  const { sides, scene, after, before } = options.equipSides(flags, settings);
+  // Every option is read by now: a misspelt or retired flag stops the run before any build.
+  flags.refuseUnread();
   await mkdir(OUT, { recursive: true });
-  const rawSides = options.resolveSides({
-    after: flags.get('after'),
-    before: flags.get('before'),
-    root: ROOT,
-  });
-  // Each side has its compiled cache (`--cache-<side>`, otherwise benchmark asset cache), engine
-  // (`--engine-<side>`, Chromium flags being union) and variant (`--variant-<side>`).
-  // `--scene name` sets asset cache before equipping sides: campaign thus runs each reference scene without repeating `--cache-*` paths.
-  options.applySceneFlag(flags);
-  const sides = rawSides.map((side) => options.equipSide(side, flags, settings));
+  const dists = options.resolveSides({ after, before, root: ROOT });
+  sides.forEach((side, i) => Object.assign(side, dists[i]));
   const FLAGS = [...new Set(sides.flatMap((side) => side.engine.flags))];
-  // Measured scene is from named caches; without any, benchmark reference scene.
-  const scene = options.sceneOf(sides.find((side) => side.cache)?.cache, flags.get('scene'));
   if (settings.gazeNetwork && !readsCache(scene))
     throw new Error('--gaze-network requires a compiled cache scene');
   if (settings.gazeNetwork && sides.some((side) => side.engine.id !== 'webgpu-page-raster'))
