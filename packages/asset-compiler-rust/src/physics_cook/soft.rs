@@ -108,6 +108,7 @@ fn soft_body(
     entry["settings"] = store_shape(o, &bytes)?;
     entry["vertices"] = json!(record.vertices.len() / SOFT_VERTEX_WORDS);
     entry["pressure"] = json!(record.pressure);
+    entry["render"] = json!({"version":1,"positions":record.vertices.chunks(4).flat_map(|v| v[..3].iter().copied()).collect::<Vec<_>>(),"indices":record.indices});
     place(&mut entry, placement);
     Ok(entry)
 }

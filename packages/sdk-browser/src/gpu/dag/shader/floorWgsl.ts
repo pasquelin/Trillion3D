@@ -73,6 +73,7 @@ fn errorFloor(error:f32,depth:f32,radius:f32,stretch:f32,focal:f32)->f32{
 /** A node's verdict: is its subtree too coarse for the frame's threshold? An open subtree —
  *  one holding a cluster whose finer group is not resident — never is. */
 fn floorPrunes(open:u32,sphere:vec4f,error:f32,e:mat4x4f,stretch:f32,focal:f32)->bool{
+ if(deformReach>0.0){return false;}
  if(open!=0u){return false;}
  // Depth only: the full product would throw three quarters away. Same form as
  // \`viewDepthOf\` (../../../page/selection/projection.ts), four multiplications instead of sixteen.
