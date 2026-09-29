@@ -4,40 +4,46 @@
  * rows are scattered across the table sends those rows and no row of the terrain between them.
  */
 export function createDirtyRows(drawSlots: number) {
-  const marks = new Uint8Array(drawSlots);
   const span = { from: drawSlots, to: -1 };
   let writes = 0;
-  /**
-   * Declares rows `[from, to]` dirty whose occupant, surface and class are kept — a pose, a
-   * diagnostic word —: they are uploaded, and a `rowsMoved` reading still holds, so a model that
-   * moves every image does not walk every row again (#410).
-   */
-  const markWords = (from: number, to = from) => {
-    if (to === from) marks[from] = 1;
-    else marks.fill(1, from, to + 1);
-    if (from < span.from) span.from = from;
-    if (to > span.to) span.to = to;
-  };
-  return {
-    marks,
+  const dirty = {
+    marks: new Uint8Array(drawSlots),
     span,
     /** Occupant writes since the table was made, never cleared: what `rowsMoved` compares. */
     get writes() {
       return writes;
     },
+    /**
+     * Declares rows `[from, to]` dirty whose occupant, surface and class are kept — a pose, a
+     * diagnostic word —: they are uploaded, and a `rowsMoved` reading still holds, so a model that
+     * moves every image does not walk every row again (#410).
+     */
+    markWords(from: number, to = from) {
+      if (to === from) dirty.marks[from] = 1;
+      else dirty.marks.fill(1, from, to + 1);
+      if (from < span.from) span.from = from;
+      if (to > span.to) span.to = to;
+    },
     /** Declares rows `[from, to]` dirty: an occupant, a surface or a class may have changed. */
     mark(from: number, to = from) {
       writes++;
-      markWords(from, to);
+      dirty.markWords(from, to);
     },
-    markWords,
     /** Every row uploaded: the marks cleared on the span alone. */
     clear() {
-      if (span.to >= span.from) marks.fill(0, span.from, span.to + 1);
-      span.from = drawSlots;
+      if (span.to >= span.from) dirty.marks.fill(0, span.from, span.to + 1);
+      span.from = dirty.marks.length;
       span.to = -1;
     },
+    /** The table grew to `rows` (`grow.ts`): the marks held so far are kept. */
+    grow(rows: number) {
+      const marks = new Uint8Array(rows);
+      marks.set(dirty.marks);
+      dirty.marks = marks;
+      if (span.to < span.from) span.from = rows;
+    },
   };
+  return dirty;
 }
 
 /** What a reader derived from rows `[0, count)` of `table` was read at, `writes` marks in. */
