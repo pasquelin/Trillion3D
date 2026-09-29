@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuPageTracking } from '../row/pageTracking.ts';
 import { createWebgpuResidencyQueue } from './queue.ts';
-import { createLowerTier } from './lowerTier.ts';
+import { createLowerMerge, createLowerTier } from './lowerTier.ts';
 import { createWebgpuResidentEnsurer } from './residentEnsurer.ts';
 import { ensurerOptions, lruCache, pageOf } from './residentEnsurer.fixture.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
@@ -60,6 +60,26 @@ test('the tier ahead holds tables for its last report only', () => {
   assert.ok(moving > empty, `a report's pages are counted (${empty} then ${moving} bytes)`);
   b.offerAhead(0);
   assert.ok(b.tier.hostBytes < moving, 'an empty report lets them go');
+});
+
+test('the jobs between two reports read one merged list, remade only after a report', () => {
+  const b = banc(8, [], ['a0', 'a1', 'a2']);
+  const merge = createLowerMerge(b.tracking.keyOf);
+  b.offerAhead(2);
+  const first = merge([b.tier]);
+  assert.deepEqual(
+    first.map((page) => page.url),
+    ['a0', 'a1'],
+  );
+  const copy = [...first];
+  assert.equal(merge([b.tier]), first, 'no report since: the same list, not rebuilt');
+  assert.deepEqual(first, copy);
+  b.offerAhead(3);
+  assert.deepEqual(
+    merge([b.tier]).map((page) => page.url),
+    ['a0', 'a1', 'a2'],
+    'a report remakes it',
+  );
 });
 
 test('after a stop, the pending set drains to full detail', async () => {
