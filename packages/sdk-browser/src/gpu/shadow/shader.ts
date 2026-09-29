@@ -12,6 +12,7 @@ import {
   tileDeclarations,
 } from '../../webgpu/tile/wgsl.ts';
 import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts';
+import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { FEEDBACK_RULE_WGSL, tileRequestIndexWgsl } from '../../webgpu/tile/requestWgsl.ts';
 import {
   FLAG_BLEND_CASTER,
@@ -48,6 +49,8 @@ import { BLEND_TRANSMITTANCE_WGSL } from './transmittance.ts';
  * so the exclusion is exactly the announced sphere — a raised near plane would have cut a cube.
  * A light without a radius carries a zero radius and nothing is discarded.
  */
+/** Clip units per 1/256 of a page texel: the rasterizer's subtexel step (#26 step C, #1016). */
+export const SHADOW_SNAP = (SHADOW_PAGE / 2) * 256;
 /** A row whose cutout reads a base map: masked, and with a map. */
 const CUTOUT_MAP = FLAG_MASK | FLAG_HAS_MAP;
 
@@ -67,6 +70,7 @@ struct ShadowView{viewProjection:mat4x4f,params:vec4f,emitter:vec4f,}
 @group(1) @binding(2) var<storage,read_write> tileFeedback:array<atomic<u32>>;
 @group(2) @binding(0) var shadowOpaque:texture_depth_2d;
 struct ShadowOut{@invariant @builtin(position) position:vec4f,@location(0) @interpolate(flat) instance:u32,@location(1) uv:vec2f,@location(2) fromEmitter:vec3f,}
+const SHADOW_SNAP:f32=${SHADOW_SNAP}.0;
 ${PAGE_LOOKUP_WGSL}
 ${PAGE_GEOMETRY_WGSL}
 ${tilePoolWgsl('0.0')}
@@ -90,6 +94,9 @@ fn shadowVertex(vertexIndex:u32,pageIndex:u32,blended:bool)->ShadowOut{
  // The out.position product is not reassociated: world position is composed apart, otherwise
  // the written depth would no longer be that from before this batch, to the bit.
  out.position=shadow.viewProjection*page.world*vec4f(vertex,1.0);
+ // A sun corner (w 1) snapped to the rasterizer's own 1/256 of a texel: the viewport adds the
+ // physical page's origin to it exactly, so the page rasterizes alike wherever the pool puts it.
+ if(out.position.w==1.0){out.position=vec4f(round(out.position.xy*SHADOW_SNAP)/SHADOW_SNAP,out.position.zw);}
  out.fromEmitter=(page.world*vec4f(vertex,1.0)).xyz-shadow.emitter.xyz;
  if((page.flags&4u)!=0u){out.uv=pageUv(page,h,id);}
  return out;
