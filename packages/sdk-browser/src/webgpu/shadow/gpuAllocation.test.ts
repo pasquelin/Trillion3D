@@ -1,7 +1,8 @@
-// #1275 part B: the GPU maps the pages a frame asks for, in that frame, and the host pool follows
-// its snapshots. Run from the shipped WGSL over a mock device (`gpuFrames.fixture.ts`), the
-// scheduling is the same whether the readback comes back each frame or is withheld: the GPU maps
-// the same pages, the host draws what it learns, and no page ever reads another entry's depth.
+// #1275: the GPU maps the pages a frame asks for, in that frame, draws those no draw filled, and
+// the host pool follows its snapshots. Run from the shipped WGSL over a mock device
+// (`gpuFrames.fixture.ts`), the scheduling is the same whether the readback comes back each frame
+// or is withheld: the GPU maps the same pages, the same pages are readable in every frame, and no
+// page ever reads another entry's depth.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { SceneLight, ShadowViewpoint } from '../../../../sdk-core/src/index.ts';
@@ -38,13 +39,14 @@ const MOVING = 8,
  * `MOVING` frames of a moving camera and lamp, then `STILL` at rest, over a pool of 100 pages that
  * one frame's reads fit and the moving frames' do not. Each report reaches the plan at the next
  * frame, or, `withheld`, none before the scene rests. Returns, frame by frame, the entry each GPU
- * page maps, then the last frame's reads and their words.
+ * page maps and which pages the frame read are readable, then the last frame's reads and words.
  */
 async function schedule(withheld: boolean) {
   const run = gpuFrames(10, [SUN, { ...LAMP, ...lampAt(0) }]),
     { plan, store, table, owner, drawnFor } = run,
     inbox: ShadowRequestReport[] = [],
-    identity: number[][] = [];
+    identity: number[][] = [],
+    readable: boolean[][] = [];
   let read: number[] = [];
   for (let frame = 1; frame <= MOVING + STILL; frame++) {
     if (!withheld || frame > MOVING) for (const report of inbox.splice(0)) plan.receive(report);
@@ -52,6 +54,7 @@ async function schedule(withheld: boolean) {
     store.set('lamp', lampAt(at));
     read = await run.frame(frame, viewAt(at), tiles.lits, (report) => inbox.push(report));
     identity.push([...owner]);
+    readable.push(read.map((entry) => (table[entry] & PAGE_VALID) !== 0));
     // No page reads another entry's depth: a word readable names a page drawn for its entry.
     owner.forEach((entry, page) => {
       if (entry >= 0 && table[entry] & PAGE_VALID)
@@ -61,7 +64,7 @@ async function schedule(withheld: boolean) {
     for (const entry of read) assert.ok(table[entry] & PAGE_MAPPED, `${entry} at ${frame}`);
     if (withheld && frame === MOVING) assert.equal(plan.requests.latest, -1, 'nothing read back');
   }
-  return { identity, read, words: read.map((entry) => table[entry]) };
+  return { identity, readable, read, words: read.map((entry) => table[entry]) };
 }
 
 test('with the readback withheld, the GPU maps the pages the readback path maps, and draws them', async () => {
@@ -79,14 +82,18 @@ test('with the readback withheld, the GPU maps the pages the readback path maps,
   back.identity.forEach((owners, frame) =>
     assert.deepEqual(withheld.identity[frame], owners, `identity at frame ${frame + 1}`),
   );
-  // Validity: once the reports land, every page the image reads is drawn, in the same page.
+  // Validity: the same pages readable in every frame — the GPU draws what it maps, the host what
+  // it learns —, and at rest every page the image reads is drawn, in the same page.
+  back.readable.forEach((readable, frame) =>
+    assert.deepEqual(withheld.readable[frame], readable, `validity at frame ${frame + 1}`),
+  );
   assert.deepEqual(withheld.words, back.words);
   for (const word of back.words) assert.ok(word & PAGE_VALID, `page ${word & PAGE_INDEX_MASK}`);
 });
 
 test('a lamp removed frees its pages on the GPU: the lamp its slice goes to reads none of them', async () => {
   const run = gpuFrames(10, [{ ...LAMP, ...lampAt(0) }]),
-    { plan, store, table, owner } = run,
+    { plan, store, table, owner, drawnAt } = run,
     inbox: ShadowRequestReport[] = [];
   const frame = (at: number) => {
     for (const report of inbox.splice(0)) plan.receive(report);
@@ -107,5 +114,9 @@ test('a lamp removed frees its pages on the GPU: the lamp its slice goes to read
   const read = await frame(5);
   assert.equal(store.sliceOf(0), slice);
   assert.ok(read.length > 0 && ofSlice().length > 0, 'the new lamp is mapped');
-  for (const entry of ofSlice()) assert.equal(table[entry] & PAGE_VALID, 0, `entry ${entry}`);
+  // Its entries are the old lamp's words: one readable holds a depth drawn since, for it.
+  owner.forEach((entry, page) => {
+    if (entry >= base && entry < base + SHADOW_TABLE_STRIDE && table[entry] & PAGE_VALID)
+      assert.equal(drawnAt[page], 5, `entry ${entry} reads page ${page} drawn before the swap`);
+  });
 });

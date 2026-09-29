@@ -77,9 +77,22 @@ const int = (x: Scalar) => Math.trunc(Number(x));
 const numeric = (f: (...x: number[]) => number) => each((...x) => f(...x.map(n)));
 const vec = (value: Value) => value as number[];
 
+/** A pointer: what `&x` gives an atomic (`shaderRun.fixture.ts`). */
+type Ref = { get: () => number; set: (value: number) => void };
+const swap = (p: Ref, value: number) => {
+  const old = p.get();
+  p.set(value);
+  return old;
+};
+
 export const builtins = {
   $b,
   $sw,
+  $ref: (get: Ref['get'], set: Ref['set']): Ref => ({ get, set }),
+  atomicAdd: (p: Ref, value: number) => swap(p, p.get() + value),
+  atomicMax: (p: Ref, value: number) => swap(p, Math.max(p.get(), value)),
+  atomicLoad: (p: Ref) => p.get(),
+  atomicStore: (p: Ref, value: number) => void p.set(value),
   vec2f: vector(2, float),
   vec3f: vector(3, float),
   vec4f: vector(4, float),
@@ -93,7 +106,11 @@ export const builtins = {
   saturate: numeric((x) => Math.min(Math.max(x, 0), 1)),
   abs: numeric(Math.abs),
   floor: numeric(Math.floor),
+  // WGSL rounds half to even: only whole numbers and near-whole ones are rounded here.
+  round: numeric(Math.round),
   sin: numeric(Math.sin),
+  cos: numeric(Math.cos),
+  asin: numeric(Math.asin),
   sqrt: numeric(Math.sqrt),
   log2: numeric(Math.log2),
   exp2: numeric((x) => 2 ** x),
