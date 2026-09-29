@@ -13,6 +13,7 @@
 use super::bounds::{bounding_sphere, enclosing_sphere};
 use super::{DagCluster, DagGroup};
 use crate::shared_math::{length, merge_aabb, point, sub};
+use rayon::prelude::*;
 use trillion3d_page_codec::min_ball::min_ball;
 
 /// Iterations of the Bădoiu–Clarkson walk toward the farthest ball.
@@ -114,11 +115,14 @@ pub fn ball_of_balls(spheres: &[[f64; 4]]) -> [f64; 4] {
 /// indices are untouched. Groups are stored level by level and a group's children come from
 /// level 0 or earlier groups, so one pass in order sees every child's final sphere first.
 pub fn tighten(dag: &mut [DagCluster], groups: &mut [DagGroup], positions: &[f32]) {
-    for cluster in dag.iter_mut().filter(|c| c.level == 0) {
-        let sphere = point_sphere(positions, &cluster.indices);
-        cluster.sphere = sphere;
-        cluster.parent_sphere = sphere;
-    }
+    // A root's parent sphere is its own; the group pass below rewrites every replaced cluster's.
+    dag.par_iter_mut()
+        .filter(|c| c.level == 0)
+        .for_each(|cluster| {
+            let sphere = point_sphere(positions, &cluster.indices);
+            cluster.sphere = sphere;
+            cluster.parent_sphere = sphere;
+        });
     for group in groups.iter_mut() {
         let spheres: Vec<[f64; 4]> = group.children.iter().map(|&id| dag[id].sphere).collect();
         let sphere = ball_of_balls(&spheres);

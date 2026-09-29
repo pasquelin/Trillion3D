@@ -88,12 +88,11 @@ fn every_group_publishes_at_least_its_texture_deviation() {
     assert!(!groups.is_empty());
     let mesh = (positions, uvs);
     for group in &groups {
-        let side = |ids: &[usize]| -> Vec<u32> {
-            ids.iter()
-                .flat_map(|&id| dag[id].indices.iter().copied())
-                .collect()
-        };
-        let measured = deviation(&mesh, &side(&group.children), &side(&group.outputs));
+        let measured = deviation(
+            &mesh,
+            &indices_of(&dag, &group.children),
+            &indices_of(&dag, &group.outputs),
+        );
         assert!(group.error >= measured, "{} below {measured}", group.error);
     }
 }

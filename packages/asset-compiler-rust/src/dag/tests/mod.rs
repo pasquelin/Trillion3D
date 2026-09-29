@@ -25,6 +25,13 @@ pub(super) fn cylinder(n: usize) -> (Vec<f32>, Vec<u32>) {
     (positions, indices)
 }
 
+/// The indices of the clusters `ids`, one list.
+pub(super) fn indices_of(dag: &[DagCluster], ids: &[usize]) -> Vec<u32> {
+    ids.iter()
+        .flat_map(|&id| dag[id].indices.iter().copied())
+        .collect()
+}
+
 /// Full mesh DAG, no UVs, no cancel point.
 pub(super) fn build_of(
     positions: &[f32],
