@@ -87,7 +87,7 @@ test('at a cold start, every page the first frame reads is drawn in it, however 
     before = run.table.slice();
   const read = await run.frame(1, viewAt(0), tiles.lits, () => {});
   const first = read.filter((entry) => !(before[entry] & PAGE_MAPPED));
-  // More than a batch of the host's regions holds: no cap on what the GPU draws in a frame.
+  // More than a batch of the host's regions holds: the GPU draws past it, as its pair list allows.
   assert.ok(first.length > MAX_SHADOW_REGIONS, `${first.length} pages first read`);
   assert.deepEqual(
     read.filter((entry) => !(run.table[entry] & PAGE_VALID)),

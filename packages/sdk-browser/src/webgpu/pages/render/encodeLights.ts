@@ -5,12 +5,7 @@ import {
 } from '../../../../../sdk-core/src/scene/core/environment.ts';
 import { uploadSceneLights } from '../state/lightBuffer.ts';
 import { planImageShadows } from './encodeShadows.ts';
-import { encodeShadowDemand } from '../../shadow/demandPass.ts';
-import {
-  encodeShadowAllocation,
-  encodeShadowFloors,
-  flushShadowTable,
-} from '../../shadow/allocPass.ts';
+import { encodeShadowAsks, flushShadowTable } from '../../shadow/allocPass.ts';
 import { encodeFreshPages } from '../../shadow/freshPass.ts';
 import { lightCutMetrics } from '../../shadow/casters.ts';
 import { encodeShadowBatches, noteShadowFrame } from './encodeShadowBatches.ts';
@@ -77,11 +72,9 @@ export function encodeDirectLights(
   // shadow light yet: nothing to record (`../../shadow/poolSize.ts`).
   if (lights.shadows?.texture) lights.pageRequests?.clear(encoder);
   const listed = encodeTileLists(rt, encoder, viewProjection, cam.eye);
-  // The plan's floors first, then, per pixel, the pages the resolve will read, marked before any
-  // page is drawn, and mapped.
-  encodeShadowFloors(rt, encoder);
-  if (listed) encodeShadowDemand(rt, encoder);
-  encodeShadowAllocation(rt, encoder);
+  // The plan's floors, then, per pixel, the pages the resolve will read, marked before any page is
+  // drawn, and mapped.
+  encodeShadowAsks(rt, encoder, listed);
   // Every page the plan marked is drawn now, batch after batch. A batch may refuse to encode
   // (reject or missing selection): its pages then stay stale, and their table words say what they
   // said — a page is readable only once its draw has landed.

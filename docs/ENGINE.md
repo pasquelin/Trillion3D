@@ -452,17 +452,17 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
 - **The GPU draws what it maps, in that frame** (#1275). The allocation lists every page it maps,
   and those it mapped before that no draw has filled since; the host's table words list every page
   they take the depth of — withdrawn when a light moves, or overwritten for another entry — while
-  the frame reads it. After the host's batches and words, one workgroup composes every listed page
-  into a region, whatever their number (`webgpu/shadow/freshWgsl.ts`): its view composed from its
+  the frame reads it. After the host's batches and words, one workgroup composes the listed pages
+  into regions, as many as the pair list holds every caster row of — the rest wait, unread, for
+  the next frame, the reader on their floor (`webgpu/shadow/freshWgsl.ts`): its view composed from its
   light's record by the page view model the host composes it with (`pageViewModel.ts`: a lamp
   page is its face's clip cropped to it, a sun page its view cropped by the orthography), its cull
   volume the page's own in light space, a lamp page's cone or a sun page's box. The pair cull then
   tests every caster row of the frame against every region (`freshCullWgsl.ts`): the row table is
   every resident page of every caster, whatever the camera or a light cut selected, so a caster the
   camera does not see keeps its shadow on a receiver it sees; each row a region keeps is one
-  `(region, row)` pair of one list. The seal makes readable each page none of whose pairs was lost
-  past the list's capacity — one that lost one waits for its next draw, never read short of a
-  caster —, and each pool layer's pass clears its pages and draws every pair in two indirect draws,
+  `(region, row)` pair of one list, never past its capacity. The seal makes each page readable,
+  and each pool layer's pass clears its pages and draws every pair in two indirect draws,
   the casters placed on their page in the vertex stage and kept to it by the fragment: no indirect
   draw sets a viewport (`freshPass.ts`, `freshDrawsWgsl.ts`). While a tinted transmittance layer is
   read, each layer's pass of it clears the same pages and draws their blended casters, as the host's

@@ -15,7 +15,7 @@ const RANK_SPAN = 128;
 /** Pages a key spans: every page a table word names. */
 export const PAGE_KEY_SPAN = PAGE_INDEX_MASK + 1;
 /** A page asked more than this many frames ago is as old as any older one. */
-export const AGE_CAP = 255;
+const AGE_CAP = 255;
 // Every key is a non-negative `i32`: the shaders' and the scheduler's numbers are the same.
 if (Math.max((SUN_LEVELS - 1) * LAMP_MIPS, (LAMP_MIPS - 1) * SUN_LEVELS) >= RANK_SPAN)
   throw new Error('SHADOW_RANK_SPAN');
