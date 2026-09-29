@@ -6,7 +6,7 @@ import {
   createHostDrawCamera,
   readHostDrawCamera,
 } from '../../../packages/sdk-browser/src/camera/world.ts';
-import { drawMatrix } from './webglClusterPixels.ts';
+import { drawMatrix, strictDegraded } from './webglClusterPixels.ts';
 
 const center = (gl: WebGLRenderingContext | WebGL2RenderingContext) => {
   const value = new Uint8Array(4);
@@ -49,7 +49,7 @@ export function windingComparisons() {
   rawCanvas.width = rawCanvas.height = witnessCanvas.width = witnessCanvas.height = 32;
   const gl = rawCanvas.getContext('webgl2', { antialias: false });
   if (!gl) return { unavailable: 'WebGL2 unavailable' };
-  const raw = new WebglClusterRenderer(gl),
+  const raw = new WebglClusterRenderer(gl, strictDegraded()),
     witness = new THREE.WebGLRenderer({ canvas: witnessCanvas, antialias: false }),
     mesh = inputs(),
     scene = new G.Scene(),

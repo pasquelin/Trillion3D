@@ -160,6 +160,8 @@ export function createWebgpuBlendState() {
      *  built with the plan, not a frame count. */
     blendTriangles: 0,
     transmissionTriangles: 0,
+    /** A blend of the plan filters the display value (`filtersDisplay`), built with the plan. */
+    filtersDisplay: false,
     /** Bind group ALL paged items share. */
     pagedGroup: undefined as GPUBindGroup | undefined,
   };

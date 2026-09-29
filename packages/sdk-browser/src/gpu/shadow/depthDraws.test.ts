@@ -1,7 +1,6 @@
 // #965: opaque shadow casters are drawn with no fragment stage, cutout ones with the fragment test.
-// Every draw places its corners through the same `shadowVertex`, so the depth is the same whichever
-// draws it; the cull files the two kinds in two lists of one slot; the three pipelines are compiled
-// at prepare, and a frame compiles none.
+// The cull files the two kinds in two lists of one slot; the three pipelines are compiled at
+// prepare, and a frame compiles none. That the depth is develop's is `depthSplit.test.ts`'s.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
@@ -10,50 +9,6 @@ import type { WebgpuPagesRuntime } from '../../webgpu/pages/runtime.ts';
 import { prepareShadowPipelines } from '../../webgpu/pages/prepare/lights.ts';
 import { createGpuShadowAtlas } from './atlas.ts';
 import { KEPT_LISTS_WGSL } from './cullShader.ts';
-import { SHADOW_DEPTH_SHADER } from './shader.ts';
-
-type Out = { position: unknown };
-type Entry = (vertexIndex: number, instanceIndex: number) => Out;
-type Entries = {
-  shadow_vs: Entry;
-  shadow_depth_vs: (vertexIndex: number, instanceIndex: number) => unknown;
-  shadow_cutout_vs: Entry;
-};
-
-test('the depth-only draw writes the position the fragment draw writes, from the same row', () => {
-  // The shipped entries, attributes aside, over a `shadowVertex` that names what it was given.
-  const source = SHADOW_DEPTH_SHADER.replace(/@\w+(?:\([^)]*\))? ?/g, '');
-  const instances = Array.from({ length: 16 }, (_, k) => 1000 + k);
-  const scope = {
-    shadowVertex: (vertex: number, page: number, blended: boolean) => ({
-      position: { vertex, page, blended },
-    }),
-    drawPage: (instance: number) => instances[8 + instance],
-    instances,
-    slotOffsets: [0, 8, 16],
-    uni: { drawSlot: 1 },
-  };
-  const entries = shaderFunctions<Entries>(
-    source,
-    ['shadow_vs', 'shadow_depth_vs', 'shadow_cutout_vs', 'cutoutPage'],
-    scope,
-  );
-  for (const [vertex, instance] of [
-    [0, 0],
-    [5, 3],
-    [383, 7],
-  ]) {
-    const drawn = entries.shadow_vs(vertex, instance).position;
-    assert.deepEqual(entries.shadow_depth_vs(vertex, instance), drawn, `${vertex}, ${instance}`);
-    assert.deepEqual(drawn, { vertex, page: 1008 + instance, blended: false });
-    // The cutout list runs from the slot's end down: its first caster is the slot's last row.
-    assert.deepEqual(entries.shadow_cutout_vs(vertex, instance).position, {
-      vertex,
-      page: 1015 - instance,
-      blended: false,
-    });
-  }
-});
 
 type Lists = {
   keptCount: (region: number, cutout: boolean) => number;

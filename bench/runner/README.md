@@ -263,6 +263,20 @@ engine of `dist/` at each anisotropy asked, and the p50 GPU time of its images p
 the whole image (`gpuFrameMs`), and the sum of its timed passes where the device has timestamp
 queries. The camera slides by a hair at every image, so none is held.
 
+## Light Iterations per Covered Pixel
+
+    node bench/runner/lightTileIterations.ts [--width 1920] [--height 1080] [--views survey150,roof30]
+
+The R&D audit's synthetic open city (`lightTileCity.ts`: 1,480 buildings, 11,140 lights and the
+sun), ray-cast into a reverse-Z depth buffer from its five views, and each tile's opaque list built
+by the tile pass's oracle (`bench/oracles/browser/gpuLightTileColumnOracle.ts`): the box alone (the
+test before #924), the box and the tile frustum's planes (now), and the lights that reach a covered
+pixel (the floor). Each covered pixel walks its tile's list once; sky pixels walk none, so the
+counts are per **covered** pixel, and the coverage is printed beside them. `missed` counts lights
+that reach a pixel and are dropped: 0 when the lists stay image-exact. Nothing is timed: the second
+table is the audit's cost model (20 lane instructions per light, half the peak rate), applied to
+each GPU class's pixels times the view's coverage — a model, never a frame time.
+
 ## Published reports
 
 Reports are part of the bilingual learning portal. Measurement, export and site build are
