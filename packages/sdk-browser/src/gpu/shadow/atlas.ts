@@ -13,6 +13,7 @@ import { createShadowTransmittance, type ShadowTransmittance } from './transmitt
 import { shadowTransmittanceDraws } from './transmittanceDraws.ts';
 import { shadowDepthDraws } from './depthDraws.ts';
 import { shadowFreshDraws } from '../../webgpu/shadow/freshDraws.ts';
+import { shadowGroupDraws } from './groupDraws.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
 import { SHADOW_FACE_STRIDE as FACE_STRIDE } from './batchBudget.ts';
 
@@ -79,6 +80,7 @@ export async function createGpuShadowAtlas(
     const layout = device.createPipelineLayout({ bindGroupLayouts: [pageLayout, faces.layout] });
     const depthDraws = shadowDepthDraws(device, module, layout);
     const transmittanceDraws = shadowTransmittanceDraws(device, module, [pageLayout, faces.layout]);
+    const freshDraws = shadowFreshDraws(device, module, faces.layout);
     const makePool = (poolSide: number, layers: number) =>
       shadowPoolTexture(device, poolSide, layers);
     const atlas = {
@@ -105,10 +107,10 @@ export async function createGpuShadowAtlas(
       prepareDepth: depthDraws.prepare,
       /** The pool's draws, compiled by `prepareDepth` or, failing it, now. */
       depthDraws: depthDraws.made,
-      /** The draws of the pages the GPU draws itself (`../../webgpu/shadow/freshDraws.ts`). */
-      freshDraws: shadowFreshDraws(device, module, faces.layout),
-      /** True when region `index`'s face carries an emitter envelope, which only a fragment
-       *  discards. */
+      /** The draws of the pages the GPU draws itself (`freshDraws.ts`), then the moving groups'. */
+      freshDraws,
+      groupDraws: shadowGroupDraws(device, module, freshDraws.pageLayout, faces.layout),
+      /** True when region `index`'s face carries an emitter envelope: only a fragment discards it. */
       hasEnvelope: pack.hasEnvelope,
       /** Group 1 of a region's draws: its face, and what the cutouts ask (`faceBindings.ts`). */
       get faceGroup() {
@@ -121,8 +123,8 @@ export async function createGpuShadowAtlas(
       allocationBytes: fixedBytes,
       makePool,
       /** Takes the pool's texture — granted or made now — before the first page is drawn; again at
-       *  a resize (`../../webgpu/shadow/poolResize.ts`), with its transmittance layer when one is
-       *  held. Returns what it held then, which the caller copies from and destroys. */
+       *  a resize (`poolResize.ts`), with its transmittance layer when one is held. Returns what it
+       *  held then, which the caller copies from and destroys. */
       sizePool(
         poolSide: number,
         layers = 1,
@@ -144,8 +146,7 @@ export async function createGpuShadowAtlas(
       /** Compiles the transmittance layer's draws off the frame (`shadowTransmittanceDraws`). */
       prepareTransmittance: transmittanceDraws.prepare,
       /** A transmittance layer for the pool of `targets`, `side` pages a side — the sized one by
-       *  default —, made now, not yet taken: what the shadows' grant asks the device for
-       *  (`../../webgpu/shadow/transmittanceGrant.ts`). */
+       *  default —, made now, not yet taken: what the grant asks for (`transmittanceGrant.ts`). */
       makeTransmittance(targets?: GPUTextureView[], side?: number) {
         const layers = targets ?? atlas.targets,
           pages = side ?? atlas.size / SHADOW_PAGE;
@@ -157,8 +158,7 @@ export async function createGpuShadowAtlas(
         transmittance = layer;
         atlas.allocationBytes += layer.bytes;
       },
-      /** The layer held, cleared by `encoder` the first time: the first frame a blended caster
-       *  holds a row. Nothing while none is held. */
+      /** The layer held, cleared by `encoder` the first frame a blended caster holds a row. */
       readTransmittance(encoder: GPUCommandEncoder) {
         if (transmittance && !cleared) {
           transmittance.clear(encoder);
@@ -181,8 +181,8 @@ export async function createGpuShadowAtlas(
           device.queue.writeBuffer(dataBuffer, first * 4, records, first, SHADOW_RECORD_FLOATS);
         });
       },
-      /** Pushes the records that changed, and the page-table words that did, and them alone —
-       *  into the table, or to `words` when the GPU allocates (`webgpu/shadow/allocPass.ts`). */
+      /** Pushes the records and page-table words that changed, alone — into the table, or to
+       *  `words` when the GPU allocates (`webgpu/shadow/allocPass.ts`). */
       flushData(table: ShadowTable, words?: (first: number, count: number) => void) {
         const at = SHADOW_TABLE_OFFSET;
         atlas.flushRecords();

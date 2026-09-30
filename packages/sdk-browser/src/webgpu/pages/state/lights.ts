@@ -23,6 +23,7 @@ import type { ShadowStaticLayer } from '../../../gpu/shadow/staticLayer.ts';
 import type { ShadowPageHiz } from '../../../gpu/shadow/pageHiz.ts';
 import type { ShadowOcclusion } from '../../../gpu/shadow/occlusion.ts';
 import type { ShadowPageQuads } from '../../../gpu/shadow/pageQuads.ts';
+import type { ShadowMovingGroups } from '../../shadow/movingGroups.ts';
 import { createShadowMemory, type ShadowMemory } from '../../shadow/memoryGrant.ts';
 import { createShadowWork, type ShadowWork } from '../../shadow/work.ts';
 
@@ -58,6 +59,8 @@ export interface WebgpuLightState {
   sceneBox: ReturnType<typeof createShadowSceneBox>;
   /** Per-page cull and the world spheres it reads; absent while the pool does not exist. */
   cull: GpuShadowCull | undefined;
+  /** The restored sun pages' moving casters, drawn by group (`../../shadow/movingGroups.ts`). */
+  movingGroups: ShadowMovingGroups | undefined;
   /** Each pass's clears and restores, two instanced draws; made with the atlas. */
   pageQuads: ShadowPageQuads | undefined;
   spheres: { buffer: GPUBuffer; packed: Float32Array<ArrayBuffer>; rows: number } | undefined;
@@ -139,6 +142,7 @@ export function createWebgpuLightState(
     pageHiz: undefined,
     occlusion: undefined,
     cull: undefined,
+    movingGroups: undefined,
     pageQuads: undefined,
     spheres: undefined,
     shadowGroups: new Array(2 * MAX_SHADOW_REGIONS).fill(undefined),
