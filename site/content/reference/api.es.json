@@ -5288,8 +5288,8 @@
       "disableRatio": "Relación de coste que la apaga.",
       "enableRatio": "Relación de coste que la vuelve a encender.",
       "consecutiveViolations": "Malas mediciones seguidas antes de apagar.",
-      "memoryBudgetBytes": "Límite de memoria.",
-      "maxEvictionsPerSecond": "Límite de desalojos por segundo.",
+      "memoryBudgetBytes": "Límite de memoria, finito y al menos 0.",
+      "maxEvictionsPerSecond": "Límite de desalojos por segundo, finito y al menos 0.",
       "requireGpuTiming": "Si el tiempo de GPU debe medirse."
     }
   },

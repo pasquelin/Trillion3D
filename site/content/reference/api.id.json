@@ -2990,8 +2990,8 @@
       "disableRatio": "Rasio biaya yang mematikannya.",
       "enableRatio": "Rasio biaya yang menyalakannya kembali.",
       "consecutiveViolations": "Sampel buruk berturut-turut sebelum dimatikan.",
-      "memoryBudgetBytes": "Batas atas memori.",
-      "maxEvictionsPerSecond": "Batas atas pengeluaran per detik.",
+      "memoryBudgetBytes": "Batas atas memori, terhingga dan paling sedikit 0.",
+      "maxEvictionsPerSecond": "Batas atas pengeluaran per detik, terhingga dan paling sedikit 0.",
       "requireGpuTiming": "Apakah waktu GPU harus diukur."
     }
   },
