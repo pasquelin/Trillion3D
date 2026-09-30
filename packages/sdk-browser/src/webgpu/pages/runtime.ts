@@ -1,4 +1,5 @@
-import { BOUNCE_SETTINGS, explorerSwitch, type Texture } from '../../../../sdk-core/src/index.ts';
+import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts';
+import { BOUNCE_SETTINGS, type Texture } from '../../../../sdk-core/src/index.ts';
 import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SEED_POOL_SIDE } from '../../../../sdk-core/src/scene/light-shadow/poolDemand.ts';
 import { TAA_CAPABILITIES } from '../../taa/capability.ts';

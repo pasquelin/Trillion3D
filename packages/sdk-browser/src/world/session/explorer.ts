@@ -1,8 +1,8 @@
+import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts';
 import { resolveExplorerTarget, type MeasuredWorldTarget } from './target.ts';
 import { interactiveOptions } from './interactiveOptions.ts';
 import { drawnOnArrival } from './familyUse.ts';
 import { startInteractiveExplorer } from './interactive.ts';
-import { explorerSwitch } from '../../../../sdk-core/src/index.ts';
 import { releaseOwned } from './lifecycle.ts';
 import { loadExplorerManifest } from './manifest.ts';
 import type { RenderBackend, MeasuredWorldOptions } from '../../backend/types.ts';

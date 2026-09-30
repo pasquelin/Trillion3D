@@ -1,4 +1,4 @@
-import { explorerSwitch } from '../../../sdk-core/src/index.ts';
+import { explorerSwitch } from '../../../sdk-core/src/runtime/explorerSwitches.ts';
 import { TAA_HISTORY_BYTES_PER_PIXEL, createTemporalAntialiasing } from './temporalAntialiasing.ts';
 import { dropTaaHistory, forgetTaaHistory } from './frame.ts';
 import { grantCapability } from '../webgpu/pages/io/drops.ts';
