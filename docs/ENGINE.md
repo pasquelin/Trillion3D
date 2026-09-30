@@ -32,12 +32,12 @@ scene is read, from what the machine offers. The `backend-choice` diagnostic rep
 reads the cache's prepared scene rather than `source.gltf`), the `reason` and the `textureSource`
 settled on.
 
-| Machine | Backend that renders | Scene file read |
-| --- | --- | --- |
-| A WebGPU device was granted | `webgpu-page-raster` | `source.gltf` |
-| WebGL2, cache with a prepared scene | `autonomous-pages-webgl` | `metadata.autonomousScene` |
-| WebGL2, cache without one | `autonomous-pages-webgl` | `source.gltf` |
-| Neither WebGPU nor WebGL2 | none — `NO_ENGINE_BACKEND` (`NO_WEBGL2` from the capability probe before it) | — |
+| Machine                             | Backend that renders                                                         | Scene file read            |
+| ----------------------------------- | ---------------------------------------------------------------------------- | -------------------------- |
+| A WebGPU device was granted         | `webgpu-page-raster`                                                         | `source.gltf`              |
+| WebGL2, cache with a prepared scene | `autonomous-pages-webgl`                                                     | `metadata.autonomousScene` |
+| WebGL2, cache without one           | `autonomous-pages-webgl`                                                     | `source.gltf`              |
+| Neither WebGPU nor WebGL2           | none — `NO_ENGINE_BACKEND` (`NO_WEBGL2` from the capability probe before it) | —                          |
 
 `autonomous-pages-webgl` decodes the cache's geometry pages itself, draws every page the cut selects
 — `submittedTriangles` equals `selectedTriangles` — and lights the scene from the cache's light
@@ -730,16 +730,16 @@ next is started, and a stage out of order is not out of scope. Nothing here is c
 engine: it comes from public material — SIGGRAPH talks of 2021 and 2022, published documentation —
 and from what this engine already has.
 
-| Reference piece | Role | What we have today | What is missing |
-| --- | --- | --- | --- |
-| Temporal antialiasing | denoises everything stochastic | shipped, exact at rest ([Temporal antialiasing](#temporal-antialiasing)) | — |
-| Screen traces | first shot of every ray: image depth and normal, almost free | a projected pixel-grid traversal for mirror and rough reflections, WebGPU and WebGL2 ([Light that bounces](#light-that-bounces)); no screen-traced bounce | L1 (short bounce) |
-| Distance fields (per mesh, then global) | off-screen rays without hardware ray tracing | certified-error resident proxy, walked triangle by triangle | L4 |
-| Surface cache | radiance of off-screen surfaces, updated under budget | one radiance per triangle and proxy face, swept under budget | L4 |
-| Screen probes (16 px grid) + world radiance cache | final gather, temporally filtered | cascaded SH2 world probes; no screen probe | L5 |
-| Reflections | screen traces, then distance fields reading the cache | screen traces first; on a miss, with bounce on, the resident-proxy ray read in the surface cache and the probes; GGX rough lobe, accumulated on opaque WebGPU receivers, cone-filtered on transparent ones | L4 (off-screen detail) |
-| Virtual shadow maps | virtual: 16 384² texels a map (128² pages); physical: a page pool of a set count; static pages cached | virtual: 8 192² texels a sun level (64² pages), 4 096² a lamp face; physical: a screen-sized pool (2 601 pages at 720p, 5 618 at most), per-pixel level, receiver-marked pages, a static layer ([SHADOWS.md](SHADOWS.md)) | — |
-| Stochastic direct lighting | few samples per pixel, denoised | tiled culling; four draws per moving pixel, exact at rest | L2 (denoise) |
+| Reference piece                                   | Role                                                                                                  | What we have today                                                                                                                                                                                                        | What is missing        |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| Temporal antialiasing                             | denoises everything stochastic                                                                        | shipped, exact at rest ([Temporal antialiasing](#temporal-antialiasing))                                                                                                                                                  | —                      |
+| Screen traces                                     | first shot of every ray: image depth and normal, almost free                                          | a projected pixel-grid traversal for mirror and rough reflections, WebGPU and WebGL2 ([Light that bounces](#light-that-bounces)); no screen-traced bounce                                                                 | L1 (short bounce)      |
+| Distance fields (per mesh, then global)           | off-screen rays without hardware ray tracing                                                          | certified-error resident proxy, walked triangle by triangle                                                                                                                                                               | L4                     |
+| Surface cache                                     | radiance of off-screen surfaces, updated under budget                                                 | one radiance per triangle and proxy face, swept under budget                                                                                                                                                              | L4                     |
+| Screen probes (16 px grid) + world radiance cache | final gather, temporally filtered                                                                     | cascaded SH2 world probes; no screen probe                                                                                                                                                                                | L5                     |
+| Reflections                                       | screen traces, then distance fields reading the cache                                                 | screen traces first; on a miss, with bounce on, the resident-proxy ray read in the surface cache and the probes; GGX rough lobe, accumulated on opaque WebGPU receivers, cone-filtered on transparent ones                | L4 (off-screen detail) |
+| Virtual shadow maps                               | virtual: 16 384² texels a map (128² pages); physical: a page pool of a set count; static pages cached | virtual: 8 192² texels a sun level (64² pages), 4 096² a lamp face; physical: a screen-sized pool (2 601 pages at 720p, 5 618 at most), per-pixel level, receiver-marked pages, a static layer ([SHADOWS.md](SHADOWS.md)) | —                      |
+| Stochastic direct lighting                        | few samples per pixel, denoised                                                                       | tiled culling; four draws per moving pixel, exact at rest                                                                                                                                                                 | L2 (denoise)           |
 
 What the web imposes, and the answer:
 
