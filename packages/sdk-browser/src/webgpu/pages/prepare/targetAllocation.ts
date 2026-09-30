@@ -3,6 +3,7 @@ import {
   wantsReflections,
   wantsRoughReflectionHistory,
   wantsReflectionCone,
+  REFLECTION_VIEW_BYTES,
 } from '../../../reflections/gpu.ts';
 import { reflectionConeAllocation } from '../../../reflections/conePyramid.ts';
 import { REFLECTION_HISTORY_BYTES_PER_PIXEL } from '../../../reflections/historyTargets.ts';
@@ -42,6 +43,6 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
       ? width * height * REFLECTION_HISTORY_BYTES_PER_PIXEL + REFLECTION_RESOLVE_VIEW_BYTES
       : 0) +
     display * DISPLAY_BYTES +
-    80
+    REFLECTION_VIEW_BYTES
   );
 }

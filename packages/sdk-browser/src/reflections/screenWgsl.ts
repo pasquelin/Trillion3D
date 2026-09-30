@@ -12,8 +12,9 @@ const SCREEN_RADIANCE: ScreenRadiance = {
 };
 
 const screenReflectionWgsl = (filtered?: string) => `
-// \`enabled\`: x the switch, yz the size the image draws in the source, which may be smaller.
-struct ReflectionView{matrix:mat4x4f,enabled:vec4f,}
+// \`enabled\`: x the switch, yz the size the image draws in the source, which may be smaller, w the
+// rough trace's seed; \`unbounded\`: x set in a reference session, whose rough samples walk unbounded.
+struct ReflectionView{matrix:mat4x4f,enabled:vec4f,unbounded:vec4f,}
 @group(1) @binding(0) var reflectionColor:texture_2d<f32>;
 @group(1) @binding(1) var reflectionDepth:texture_depth_2d;
 @group(1) @binding(2) var<uniform> reflectionView:ReflectionView;

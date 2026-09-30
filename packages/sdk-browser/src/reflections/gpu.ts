@@ -46,6 +46,9 @@ export function wantsReflectionCone(rt: WebgpuPagesRuntime) {
   );
 }
 
+/** `ReflectionView` (`screenWgsl.ts`): the matrix, `enabled` and `unbounded`. */
+export const REFLECTION_VIEW_BYTES = 96;
+
 export function createScreenReflection(
   device: GPUDevice,
   width: number,
@@ -71,11 +74,11 @@ export function createScreenReflection(
     if (active && cone) pyramid = createReflectionConePyramid(device, color, depth);
     if (active && rough) history = createReflectionHistory(device, width, height);
     uniform = device.createBuffer({
-      size: 80,
+      size: REFLECTION_VIEW_BYTES,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
     const heldUniform = uniform;
-    const packed = new Float32Array(20);
+    const packed = new Float32Array(REFLECTION_VIEW_BYTES / 4);
     const packedBits = new Uint32Array(packed.buffer);
     const groups = new WeakMap<GPUTextureView, GPUBindGroup>();
     const groupFor = () => {
@@ -104,12 +107,14 @@ export function createScreenReflection(
       },
       history,
       pyramid,
-      /** The view, whether it reflects, and the size the image draws in the source (`renderScale.ts`). */
+      /** The view, whether it reflects, the size the image draws in the source (`renderScale.ts`),
+       *  and whether rough samples walk unbounded, as a reference session draws them (#33). */
       update(
         matrix: ArrayLike<number>,
         enabled: boolean,
         drawn: readonly number[],
         frame?: ReflectionHistoryFrame,
+        unbounded = false,
       ) {
         if (history && frame) history.prepare(frame, matrix, drawn);
         packed.set(matrix);
@@ -117,6 +122,7 @@ export function createScreenReflection(
         packed[17] = drawn[0];
         packed[18] = drawn[1];
         packedBits[19] = ((history?.rank ?? 0) ^ (frame?.seed ?? 0)) >>> 0;
+        packed[20] = unbounded ? 1 : 0;
         device.queue.writeBuffer(heldUniform, 0, packed);
       },
       dispose() {
