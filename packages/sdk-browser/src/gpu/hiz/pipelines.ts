@@ -1,4 +1,5 @@
 import { HIZ_SHADER, HIZ_TEST_PAGES_ENTRIES, hizBindEntries } from './shader.ts';
+import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts';
 import { validated } from '../core/errorScope.ts';
 import { shaderFailed } from '../core/shaderModule.ts';
 import { oncePerDevice } from '../core/oncePerDevice.ts';
@@ -16,16 +17,15 @@ export const createHizPipelines = oncePerDevice((device) =>
     if (await shaderFailed(module)) return undefined;
     const pagesLayout = device.createBindGroupLayout({ entries: HIZ_TEST_PAGES_ENTRIES });
     const stage = (entryPoint: string, groups = [layout]) =>
-      device.createComputePipeline({
+      buildComputePipeline(device, {
         layout: device.createPipelineLayout({ bindGroupLayouts: groups }),
         compute: { module, entryPoint },
       });
-    return {
-      layout,
-      pagesLayout,
-      buildPipeline: stage('buildHiz'),
-      testPipeline: stage('testHiz', [layout, pagesLayout]),
-    };
+    const [buildPipeline, testPipeline] = await Promise.all([
+      stage('buildHiz'),
+      stage('testHiz', [layout, pagesLayout]),
+    ]);
+    return { layout, pagesLayout, buildPipeline, testPipeline };
   }),
 );
 
