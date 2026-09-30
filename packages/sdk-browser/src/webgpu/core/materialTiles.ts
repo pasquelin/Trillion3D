@@ -3,18 +3,18 @@ import { validated } from '../../gpu/core/errorScope.ts';
 import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts';
 import { MATERIAL_CLASS_KEYS } from '../../visibility/shader/materialClass.ts';
 import {
-  MATERIAL_TILE_SIZE,
   MATERIAL_TILE_SLOTS,
+  MATERIAL_TILE_SIZE,
   MATERIAL_TILES_SHADER,
 } from '../../visibility/shader/materialTilesWgsl.ts';
 import { createWebgpuBindIdentity } from './bindIdentity.ts';
 
 /** Label of the classification pass (`materialTilesWgsl.ts`). */
 export const MATERIAL_TILES_PASS = 'Trillion3D material tiles';
+/** Tiles on one axis of `pixels`: `materialTilesX`'s count (`materialTilesWgsl.ts`). */
+const materialTilesOn = (pixels: number) => Math.ceil(pixels / MATERIAL_TILE_SIZE);
 /** Bytes of one class's indirect draw: vertex count, instance count, first vertex, first instance. */
 const DRAW_BYTES = 16;
-/** Tiles on one axis of `pixels`. */
-export const materialTilesOn = (pixels: number) => Math.ceil(pixels / MATERIAL_TILE_SIZE);
 
 /** Group 1 of the class draws: the slot of each class key, and the tile lists. */
 export function materialTileDrawLayout(device: GPUDevice) {
