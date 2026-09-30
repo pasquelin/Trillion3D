@@ -47,6 +47,8 @@ function importNames(clause: ts.ImportClause): readonly string[] | '*' | undefin
 export function importFacts(file: string, content: string): ImportFacts {
   const facts: ImportFacts = { imports: [], reExports: [], stars: [], locals: new Set() };
   const source = ts.createSourceFile(file, content, ts.ScriptTarget.Latest, false);
+  // Only a file that writes `import(` can hold a dynamic import: the others skip the walk.
+  const dynamic = content.includes('import(');
   const visit = (node: ts.Node): void => {
     if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
       const [argument] = node.arguments;
@@ -81,7 +83,7 @@ export function importFacts(file: string, content: string): ImportFacts {
     } else if (ts.isExportAssignment(statement)) facts.locals.add('default');
     else if (hasModifier(statement, ts.SyntaxKind.ExportKeyword))
       for (const name of declaredNames(statement)) facts.locals.add(name);
-    visit(statement);
+    if (dynamic) visit(statement);
   }
   return facts;
 }

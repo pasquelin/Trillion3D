@@ -226,7 +226,8 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
    `/simplify`, elsewhere a read of the whole diff for what is duplicated, needless or at the wrong
    depth —, then check correctness against the requirements above. Fix findings; then
    `pnpm run check:changed`, the one local gate, runs once, on the final head (by the reviewer,
-   `skills/agents/reviewer.md`), and the CI runs the whole `validate`; the image proof and the timing follow on `develop` after the merge.
+   `skills/agents/reviewer.md`), and the CI runs the whole `validate`; the image proof and the
+   timing follow on `develop` after the merge.
 4. Commit with a descriptive English message and push the branch; the required `pr-body` check
    (`scripts/check-commit-identity.ts`) refuses a commit carrying a tool identity (author or
    committer) or a `Co-authored-by:` / `Generated` trailer, naming each offending hash, and refuses
