@@ -6,7 +6,7 @@ import { KIND_MORPH, KIND_SKIN, KIND_WAVE, KIND_SOFT, RECORD_HEAD, WAVE_FLOATS }
  * THE GPU DEFORMATION STAGE (#357) in the WebGL2 program's vertex stage: `DEFORM_WGSL`
  * (`deformWgsl.ts`) operation for operation, on the same records (`layout.ts`) — morph targets,
  * then the joints' linear blend, then the waves on the world point. The block is a float texture
- * of `LIGHT_ROW_TEXELS` texels a row (`webglDeformation.ts`), each record on a texel boundary, its
+ * of `LIGHT_ROW_TEXELS` texels a row (`../webgl/cluster/deformation.ts`), each record on a texel boundary, its
  * head's counts written as float values; `deformDraw` names the draw's record (its first float
  * plus one, zero for none), whether its page is skinned and how many targets its page carries,
  * whose displacements `morphDeltas` holds, two texels a target per vertex. The page's own joints

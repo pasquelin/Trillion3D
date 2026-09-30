@@ -1,4 +1,4 @@
-import { wantsSubsurface, SUBSURFACE_BYTES } from '../../../scene/subsurface.ts';
+import { wantsSubsurface, subsurfaceBytes } from '../../../scene/subsurface.ts';
 import { invertMatrix4 } from '../../../../../sdk-core/src/index.ts';
 import {
   SURFACE_BYTES_PER_PIXEL,
@@ -114,7 +114,7 @@ export async function captureSurfaceView(
   // charged once by the device ledger during admission, not again as owned capture bytes.
   const reserve =
     checkSurfaceSize(gpuDevice, options.width, options.height, SURFACE_BYTES_PER_PIXEL + 4) +
-    (wantsSubsurface(rt) ? options.width * options.height * SUBSURFACE_BYTES : SUBSURFACE_BYTES);
+    subsurfaceBytes(options.width, options.height, wantsSubsurface(rt));
   // Capture entry: the camera comes from the host like an image's, and the engine reads it as
   // it reads any other — resolved pose, declared optics — at the aspect ratio of the surface
   // written into rather than the one the camera declares for the host's own canvas.

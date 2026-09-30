@@ -1,4 +1,4 @@
-import { skinStreams } from './skin.ts';
+import { isSkinIndex, skinStreams } from './skin.ts';
 import type { Geometry } from './geometry.ts';
 import type { DrawnTriangles } from './drawn.ts';
 import { readComponent } from './bounds.ts';
@@ -10,6 +10,11 @@ export type DrawnDeformation = {
   weights?: Float32Array;
   targets: { positions: Float32Array; normals: Float32Array }[];
 };
+
+/** Whether `g` carries a skin or morph targets: only then does a drawn vertex keep which source
+ *  vertex it came from (`DrawnTriangles.sourceVertices`). */
+export const deforms = (g: Geometry) =>
+  !!g.morphAttributes.position?.length || Object.keys(g.attributes).some(isSkinIndex);
 
 /** Setup-time extraction only: animation uploads palettes and weights, never these vertices. */
 export function drawnDeformation(g: Geometry, drawn: DrawnTriangles | null) {
@@ -27,11 +32,11 @@ export function drawnDeformation(g: Geometry, drawn: DrawnTriangles | null) {
   };
   const targets = (g.morphAttributes.position ?? []).map((position, target) => {
     const positions = new Float32Array(count * 3),
-      normals = new Float32Array(count * 3);
-    for (let v = 0; v < count; v++)
+      normals = new Float32Array(count * 3),
+      normal = g.morphAttributes.normal?.[target];
+    for (let v = 0; v < count; v++) {
+      const vertex = source(v);
       for (let c = 0; c < 3; c++) {
-        const vertex = source(v),
-          normal = g.morphAttributes.normal?.[target];
         positions[v * 3 + c] =
           readComponent(g, position, vertex, c) -
           (g.morphTargetsRelative ? 0 : readComponent(g, g.attributes.position, vertex, c));
@@ -42,6 +47,7 @@ export function drawnDeformation(g: Geometry, drawn: DrawnTriangles | null) {
               ? 0
               : readComponent(g, g.attributes.normal, vertex, c));
       }
+    }
     return { positions, normals };
   });
   const joints = list(false),
