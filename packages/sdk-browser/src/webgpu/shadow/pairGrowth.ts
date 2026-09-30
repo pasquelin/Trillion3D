@@ -2,7 +2,7 @@ import { KEPT_ROW_BYTES as ROW_BYTES } from '../../gpu/shadow/keptList.ts';
 import { deviceMade } from '../../gpu/core/errorScope.ts';
 import { pendingAll } from '../../gpu/core/tableGrowth.ts';
 import { shadowTransmittanceBytes } from '../../gpu/shadow/transmittance.ts';
-import { SHADOW_GRANT_BYTES } from '../../residency/memoryBudget.ts';
+import { SHADOW_GRANT_BYTES } from '../../residency/shadowBudgetBytes.ts';
 import { storageBufferCap } from '../../residency/pools.ts';
 import {
   admitShadowBytes,
