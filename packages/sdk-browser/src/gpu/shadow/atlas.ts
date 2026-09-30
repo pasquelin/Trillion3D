@@ -4,7 +4,7 @@ import {
   SHADOW_PAGE,
   SHADOW_TABLE_ENTRIES,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { SHADOW_DEPTH_SHADER } from './shader.ts';
+import { clipsLampGroups, shadowDepthShader } from './depthModule.ts';
 import { MAX_SHADOW_REGIONS, createShadowRecordPack } from './recordPack.ts';
 import { createShadowFaceBindings } from './faceBindings.ts';
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
@@ -16,14 +16,13 @@ import { shadowFreshDraws } from '../../webgpu/shadow/freshDraws.ts';
 import { shadowGroupDraws } from './groupDraws.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
 import { SHADOW_FACE_STRIDE as FACE_STRIDE } from './batchBudget.ts';
-
 export { MAX_SHADOW_PAGES, MAX_SHADOW_REGIONS } from './recordPack.ts';
 
 /** Label of the measured pass; `gpuShadowsMs` is read under this name. */
 export const SHADOW_PASS = 'Trillion3D shadow atlas v1';
 /** Bytes of the records, before the page table in the same buffer: where the table starts. */
 export const SHADOW_TABLE_OFFSET = MAX_SHADOW_SLICES * SHADOW_RECORD_FLOATS * 4;
-/** Bytes of the records then the page table, one buffer; the table sized to the session's window. */
+/** Bytes of the records then the page table, one buffer, the table of the session's window. */
 const dataBytesOf = (tableEntries: number) => SHADOW_TABLE_OFFSET + tableEntries * 4;
 /** Bytes of the buffers beside the pool — faces, records, a table of `tableEntries` (`plan.ts`). */
 export const shadowBufferBytes = (tableEntries: number) =>
@@ -40,8 +39,8 @@ export type GpuShadowAtlas = Awaited<ReturnType<typeof createGpuShadowAtlas>>;
  * buffer holding every light's record then the page table (`SHADOW_DATA_WGSL`); the buffer the
  * opaque resolve records the pages it read in; and the uniform of each page a frame draws, read
  * by dynamic offset. The texture waits for `sizePool`: the first frame that casts grants the
- * seed, then the pages the scene reads size it (`poolDemand.ts`) — until then no page exists and
- * the shading reads the placeholder.
+ * budget's pool, then the pages the scene reads size it (`poolDemand.ts`), the shading reading the
+ * placeholder until then. Lamp groups clip by distances where the device can (`depthModule.ts`).
  */
 export async function createGpuShadowAtlas(
   device: GPUDevice,
@@ -76,7 +75,8 @@ export async function createGpuShadowAtlas(
     dataBuffer.destroy();
   };
   try {
-    const module = await createCheckedShaderModule(device, SHADOW_DEPTH_SHADER, 'SHADOW_DEPTH');
+    const lamps = clipsLampGroups(device),
+      module = await createCheckedShaderModule(device, shadowDepthShader(device), 'SHADOW_DEPTH');
     const layout = device.createPipelineLayout({ bindGroupLayouts: [pageLayout, faces.layout] });
     const depthDraws = shadowDepthDraws(device, module, layout);
     const transmittanceDraws = shadowTransmittanceDraws(device, module, [pageLayout, faces.layout]);
@@ -109,7 +109,7 @@ export async function createGpuShadowAtlas(
       depthDraws: depthDraws.made,
       /** The draws of the pages the GPU draws itself (`freshDraws.ts`), then the moving groups'. */
       freshDraws,
-      groupDraws: shadowGroupDraws(device, module, freshDraws.pageLayout, faces.layout),
+      groupDraws: shadowGroupDraws(device, module, freshDraws.pageLayout, faces.layout, lamps),
       /** True when region `index`'s face carries an emitter envelope: only a fragment discards it. */
       hasEnvelope: pack.hasEnvelope,
       /** Group 1 of a region's draws: its face, and what the cutouts ask (`faceBindings.ts`). */
