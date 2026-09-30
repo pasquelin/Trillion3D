@@ -6,13 +6,12 @@
 import {
   GRID,
   cellColumn,
-  columnFrame,
   gridSlice,
-  lightRun,
   sphereInColumn,
   toTileFrame,
   type TileView,
 } from '../oracles/browser/gpuLightGridOracle.ts';
+import { columnFrame, lightRun } from '../oracles/browser/gpuLightGridRunOracle.ts';
 import {
   pixelPoint,
   type Vec3,
