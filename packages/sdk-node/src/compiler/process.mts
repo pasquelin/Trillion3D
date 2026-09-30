@@ -5,7 +5,12 @@ import { join } from 'node:path';
 import type { CompilerEvent } from './contracts.ts';
 import { sourceNewerThan } from './freshness.mts';
 import { COMPILER_LINE_LIMIT, lineReader } from './lines.mts';
-import { compilerFileName, installedCompiler, requireSupportedPlatform } from './platform.mts';
+import {
+  compilerFileName,
+  compilerPackage,
+  installedCompiler,
+  requireSupportedPlatform,
+} from './platform.mts';
 
 /** Grace period between a cooperative cancel request on stdin and a hard kill. */
 export const CANCEL_GRACE_MS = 5000;
@@ -49,7 +54,7 @@ const announced = new Set<string>();
  * package or named by `TRILLION3D_COMPILER_BIN` is trusted — the variable's one is announced once
  * on stderr; the checkout's own build is refused while a crate source is newer than it, since its
  * products would carry the previous build's key. Outside a checkout, with none of them, a platform
- * no compiler is built for is refused by name.
+ * no compiler is built for is refused by name, and a built one by its missing package.
  */
 export function currentCompilerExecutable(
   explicit?: string,
@@ -59,12 +64,20 @@ export function currentCompilerExecutable(
 ) {
   const named = namedCompiler(explicit, environment, process.platform, installed);
   if (named) {
-    if (named.from === 'environment' && !announced.has(named.path))
+    if (named.from === 'environment' && !announced.has(named.path)) {
       process.stderr.write(`compiler: ${named.path} (TRILLION3D_COMPILER_BIN)\n`);
-    announced.add(named.path);
+      announced.add(named.path);
+    }
     return named.path;
   }
-  if (!existsSync(join(crate, 'Cargo.toml'))) requireSupportedPlatform();
+  if (!existsSync(join(crate, 'Cargo.toml'))) {
+    requireSupportedPlatform();
+    throw new Error(
+      `COMPILER_EXECUTABLE_MISSING: ${compilerPackage(process.platform, process.arch)} is not ` +
+        'installed — install trillion3d with its optional dependencies (none serves a Linux on ' +
+        'musl), or name a compiler with TRILLION3D_COMPILER_BIN.',
+    );
+  }
   const executable = built(crate, process.platform);
   const newer = sourceNewerThan(executable, crate);
   if (newer)

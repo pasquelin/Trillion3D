@@ -18,6 +18,12 @@ on:
       - packages/compiler/**
       - .cargo/**
       - scripts/compiler-*.ts
+      # What the scripts above run and read: the compile, the scenes, the platform names.
+      - scripts/native-compiler.ts
+      - scripts/site-caches.ts
+      - packages/sdk-node/src/compiler/platform.mts
+      - tests/fixtures/scenes/mountain-terrain/**
+      - tests/fixtures/scenes/kinetic-garden/**
       - .github/workflows/compiler.yml
   release:
     types: [published]
@@ -84,7 +90,10 @@ jobs:
         with:
           workspaces: base/packages/asset-compiler-rust
           key: dist-base
-      - run: cargo build --release --locked --bin trillion3d-compiler --manifest-path base/packages/asset-compiler-rust/Cargo.toml
+      # Cargo reads `.cargo/config.toml` from the folder it runs in, not the manifest's: run in
+      # `base` so that develop's compiler is built with develop's C and C++ flags.
+      - run: cargo build --release --locked --bin trillion3d-compiler --manifest-path packages/asset-compiler-rust/Cargo.toml
+        working-directory: base
       - run: node scripts/compiler-hashes.ts base/packages/asset-compiler-rust/target/release/trillion3d-compiler base.json "${{ github.base_ref }}"
       - uses: actions/upload-artifact@v4
         with:
