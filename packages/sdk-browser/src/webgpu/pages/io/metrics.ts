@@ -70,6 +70,7 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
       timing.lastGpuPassMs?.passes.find((pass) => pass.name === DEFORMATION_PASS)?.gpuMs ?? null,
     gpuFrameMs: timing.lastGpuFrameMs,
     gpuHostGapMs: timing.lastGpuHostGapMs,
+    gpuDeviceLost: run.lostCause ?? null,
     vramBytes: null,
     gpuAllocatedBytes: ledger?.bytes ?? null,
     gpuAllocatedByLabel: ledger?.byLabel ?? null,
