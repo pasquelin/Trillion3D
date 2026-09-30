@@ -1,4 +1,4 @@
-// The example of `docs/SDK.md` § "Batch math for hosts", run as a test: ten thousand boxes culled
+// The example of `docs/MATHS.md` § "Batch math for hosts", run as a test: ten thousand boxes culled
 // in one call, the survivors' centres brought into view space in a second one, every buffer
 // allocated once. It imports only this package: a host without `three` compiles it as-is.
 import test from 'node:test';
