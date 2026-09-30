@@ -540,8 +540,9 @@ marks.remove();
 
 ## Installation and environment API
 
-An application installs the package from npm, `npm install trillion3d`, which takes only its
-machine's compiler package ([COMPILER.md](COMPILER.md#platform-packages)); the portal's
+The package is not on npm yet. From its first release, an application installs it with
+`npm install trillion3d`, which takes only its machine's compiler package
+([COMPILER.md](COMPILER.md#platform-packages)); the portal's
 [Install page](https://www.trillion3d.com/#/en/learn/install) goes from the install to a drawn
 model. Its export conditions are in [Entry points](#entry-points). The licence is PolyForm
 Noncommercial 1.0.0 ([LICENSE](../LICENSE)): free for noncommercial use; a commercial use needs a
