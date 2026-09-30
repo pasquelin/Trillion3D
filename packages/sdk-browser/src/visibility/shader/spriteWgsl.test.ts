@@ -9,6 +9,7 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 import { rasterVisibilityIds } from '../buffer.ts';
 import { surfaceOf } from '../../page/surface.ts';
+import { locatedBy } from '../../page/selection/placements.fixture.ts';
 import { hostSurface } from '../../world/core/worldSurface.ts';
 import { object } from '../../../../sdk-core/src/world/object/index.ts';
 import { material } from '../../../../sdk-core/src/world/material/index.ts';
@@ -123,7 +124,7 @@ function covered(eye: number[], turn = 0, parameters: MaterialParameters = {}) {
   const page = { array: drawn.indices, attributes: geometry.attributes, placementIndex: 0 };
   const ids = rasterVisibilityIds(
     [{ ...page, material: surfaceOf(surface) }],
-    [{ world: matrix }],
+    locatedBy([{ world: matrix }]),
     camera(eye),
     [256, 256],
   );

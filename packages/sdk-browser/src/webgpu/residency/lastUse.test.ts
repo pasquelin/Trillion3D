@@ -25,7 +25,11 @@ function residency(slots: number, spare: string[]) {
   const sets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages: packed });
   const cut = createCutDelta(packed, []),
     drawn = createCutDelta(packed, []);
-  const closure = createGroupClosure([], packed),
+  const closure = createGroupClosure(
+      [],
+      { baseOfRoot: new Int32Array(0), rootOfPacked: new Int32Array(0) },
+      packed,
+    ),
     budget = createRequestAdmission(sets, tracking, closure);
   const cache = lruCache(slots);
   const pins = createWebgpuPinUpdater({

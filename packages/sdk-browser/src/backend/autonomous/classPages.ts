@@ -61,10 +61,12 @@ const ownClass = (primitive: Primitive, blended: boolean) =>
 const largestScale = (
   records: readonly PageRec[],
   roots: readonly ClusterRoot<PageRec>[],
+  rankOf: (rec: PageRec) => number,
   scratch = new Matrix4(),
 ) =>
   records.reduce((scale, rec) => {
-    const { elements } = rootOf(roots, rec).world;
+    // A per-primitive property: any placement of the record serves, so its first instance's root.
+    const { elements } = rootOf(roots, rankOf(rec)).world;
     return Math.max(scale, scratch.fromArray(elements).getMaxScaleOnAxis());
   }, 0);
 
@@ -95,7 +97,7 @@ export function createClassPages(env: ClassPagesEnvironment) {
     if (ownClass(primitive, blended)) return null;
     // Read before the first wait: the cut holds no placement.
     const mesh = moved[0].sourceMesh as HostMesh,
-      scale = largestScale(placed, env.roots);
+      scale = largestScale(placed, env.roots, draws.rootRankOf);
     const [vertices, corners] = await Promise.all([
       pagedGeometry(mesh).loadVertices(),
       Promise.all(primitive.pages.map((page) => context.readPage!(page.url))),

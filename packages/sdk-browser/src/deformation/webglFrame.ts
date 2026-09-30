@@ -56,8 +56,8 @@ export function createWebglDeformation(
       ].reduce((bytes, geometry) => bytes + geometryDeformationBytes(geometry), 0),
     /** The records the program reads, none when no root deforms. */
     source: () => (session.any ? source : undefined),
-    /** What a page mesh of `rec` carries: its placement's record, zero for none. */
-    wordOf: (rec: PageRec) => session.wordOfWorld(rootOf(roots, rec).world),
+    /** What a page mesh of `rec` placed by root `rank` carries: its placement's record, zero. */
+    wordOf: (_rec: PageRec, rank: number) => session.wordOfWorld(rootOf(roots, rank).world),
     pending: () => session.any && frame.pending(),
     update(cam: EngineCamera, viewport: readonly number[] | undefined, pixelError: number) {
       if (!session.any) return;

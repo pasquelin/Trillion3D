@@ -1,5 +1,6 @@
 import type { PageRec } from '../selection/selection.ts';
 import type { ClusterRoot } from '../selection/types.ts';
+import type { PlacementIndex } from '../selection/placements.ts';
 import type { IdDelta } from '../../webgpu/cut/delta.ts';
 import { createSparseInts, grown } from './sparseInts.ts';
 
@@ -27,7 +28,9 @@ export type GroupClosure = ReturnType<typeof createGroupClosure>;
  */
 export function createGroupClosure(
   roots: readonly ClusterRoot<PageRec>[],
-  /** The packed catalogue `apply` and `closeOver` read ids in; `closeOverRecords` needs none. */
+  /** The per-placement tables: the packed base of each root, the root of each packed rank (#1235). */
+  placement: PlacementIndex,
+  /** The packed catalogue `forEachHeld` resolves ids in. */
   packedPages: readonly PageRec[] = [],
 ) {
   /** Holders per group and per page, and the pages whose count moved in this difference with
@@ -48,7 +51,7 @@ export function createGroupClosure(
   let /** What a walk does: counts `step` on what it reaches, or hands each page to `visitor`. */
     step = 0,
     visitor: ((id: number, rec: PageRec) => void) | undefined;
-  const baseOf = (r: number) => roots[r].pages[0]?.packedIndex ?? 0;
+  const baseOf = (r: number) => placement.baseOfRoot[r] ?? 0;
   const touchId = (id: number, rec: PageRec) => {
     if (visitor) return visitor(id, rec);
     if (!seen.get(id)) {
@@ -80,7 +83,7 @@ export function createGroupClosure(
   };
   /** A page enters through its own group, or alone when nothing replaces it. */
   const enterAs = (id: number, rec: PageRec) => {
-    const r = rec.placementIndex ?? -1,
+    const r = id >= 0 && id < placement.rootOfPacked.length ? placement.rootOfPacked[id] : -1,
       owner = r >= 0 ? (roots[r]?.structure?.owners[id - baseOf(r)] ?? -1) : -1;
     if (owner >= 0) reach(r, owner);
     else touchId(id, rec);
@@ -117,12 +120,6 @@ export function createGroupClosure(
     ) {
       visitor = visit;
       for (let i = 0; i < ids.length && !full?.(); i++) enter(ids[i]);
-      endWalk();
-    },
-    /** The same, for records carrying their placement and packed index, without a catalogue. */
-    closeOverRecords(recs: readonly PageRec[], visit: (id: number, rec: PageRec) => void) {
-      visitor = visit;
-      for (const rec of recs) if (rec.packedIndex !== undefined) enterAs(rec.packedIndex, rec);
       endWalk();
     },
     /** Visits every page the cut closes over now, beside its record, in no particular order. */

@@ -1,5 +1,4 @@
 import { FLAG_SOFT_SOURCE } from '../cluster/format.ts';
-import { rootOf } from '../page/selection/placements.ts';
 import type { ClusterRoot } from '../page/selection/types.ts';
 import type { PageRec } from '../page/selection/selection.ts';
 import { pageAddress } from '../webgpu/row/pageSlots.ts';
@@ -18,6 +17,12 @@ export function deformationSlotBytes(
   roots: readonly ClusterRoot<PageRec>[] = [],
 ) {
   const ends = new Map<string, number>();
+  // One record serves every placement of its primitive (#1235): a page's placement is read from
+  // the first root that places it, a per-page property.
+  const placementOf = new Map<PageRec, ClusterRoot<PageRec>['placement']>();
+  for (const root of roots)
+    for (const page of root.pages)
+      if (!placementOf.has(page)) placementOf.set(page, root.placement);
   let bytes = sourceBytes;
   for (const page of pages) {
     delete page.deformationOutput;
@@ -28,9 +33,7 @@ export function deformationSlotBytes(
       !mesh?.waves &&
       mesh?.geometry?.usage !== 'dynamic' &&
       !((page.geometryPage?.flags ?? 0) & (FLAG_SOFT_SOURCE | 16 | 32)) &&
-      ![
-        ...((roots.length ? rootOf(roots, page).placement : undefined)?.rows.sourceModels ?? []),
-      ].some((source) => source.waves)
+      ![...(placementOf.get(page)?.rows.sourceModels ?? [])].some((source) => source.waves)
     )
       continue;
     const count = page.geometryPage?.vertexCount ?? page.attributes.position?.count ?? 0;

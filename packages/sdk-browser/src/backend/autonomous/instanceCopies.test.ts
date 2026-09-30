@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { createAutonomousInstances } from './instances.ts';
 import { createAutonomousGeometry } from './geometry.ts';
-import { rootOf, type ClusterRoot, type PageRec } from '../../page/selection/selection.ts';
+import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts';
 import { createPageDraws } from './pageDraws.ts';
 
 // An instance copies the geometry of every record the model owns, and shares the one rows place,
@@ -35,7 +35,8 @@ test('an instance changed or removed leaves the model and the other instances as
   const draws = createPageDraws(roots);
   draws.drawing(own).geometry = geometryOf();
   draws.drawing(rowed).geometry = geometryOf();
-  const worldOf = (rec: PageRec) => Array.from(rootOf(roots, rec).world.elements);
+  const worldOf = (rec: PageRec) =>
+    Array.from(roots.find((root) => root.pages.includes(rec))!.world.elements);
   const bytes = (geometry: unknown) =>
     (geometry as G.Geometry).index!.array.byteLength +
     (geometry as G.Geometry).attributes.position.array.byteLength;

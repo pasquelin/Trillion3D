@@ -15,6 +15,7 @@ import { cameraMoteur } from '../../../camera/camera.fixture.ts';
 import { createHizCounts } from '../../../hiz/hiz.ts';
 import { renderCpuCut } from './cpu.ts';
 import { createHeldResidency } from '../../../page/cut/held.ts';
+import { postPackedBases } from '../../../page/selection/placements.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /** An engine reduced to what the CPU cut walks before drawing. */
@@ -28,7 +29,7 @@ function banc(options: { ready: boolean; resident: boolean }) {
   );
   // The layout a WebGPU engine runs before any cut: every page ranks in the packed catalogue, and
   // `recordOf` is how the CPU path reads a published rank back (`.worktrees`).
-  allPages.forEach((page, index) => (page.packedIndex = index));
+  const placement = postPackedBases(roots);
   const residents = new Map(options.resident ? allPages.map((page) => [page.url, page]) : []);
   /** What `run.desired` carried before the image: the cut the previous image published. The bench
    *  camera only keeps `near`, so `far` alone says without ambiguity "nothing has moved". */
@@ -37,6 +38,11 @@ function banc(options: { ready: boolean; resident: boolean }) {
   const run = {
     gate: { resourcesChanged: () => journal.push('ressources') },
     shown: [] as PageRec[],
+    shownPacked: [] as number[],
+    drawnPacked: [] as number[],
+    opaquePackedScratch: [] as number[],
+    transparentPackedScratch: [] as number[],
+    culledPackedScratch: [] as number[],
     desired: [...tenue],
     drawn: [] as PageRec[],
     selectResult: createSelectionResult<PageRec>(),
@@ -80,7 +86,7 @@ function banc(options: { ready: boolean; resident: boolean }) {
       texturePool: {},
       tracking: { traceSet: () => ({}), traceRecs: () => ({}) },
     },
-    layout: { recordOf: (packed: number) => allPages[packed] },
+    layout: { recordOf: (packed: number) => allPages[packed], placement },
     gpu: {
       device: fakeDevice().device,
       cache: { get: (url: string) => residents.get(url) },

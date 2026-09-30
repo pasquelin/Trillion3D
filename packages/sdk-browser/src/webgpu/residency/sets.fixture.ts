@@ -20,7 +20,11 @@ export function world(packed: PageRec[], cover: readonly PageRec[] = []) {
   const sets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages: packed });
   const pages: PageRec[] = [];
   const delta = createCutDelta(packed, pages);
-  const closure = createGroupClosure([], packed),
+  const closure = createGroupClosure(
+      [],
+      { baseOfRoot: new Int32Array(0), rootOfPacked: new Int32Array(0) },
+      packed,
+    ),
     admission = createRequestAdmission(sets, tracking, closure);
   const cut = (difference: CutDelta = delta) => {
     closure.apply(difference);

@@ -16,13 +16,21 @@ type BlendState = ReturnType<typeof createWebgpuBlendState>;
  */
 export function selectWebgpuBlend(
   blendState: BlendState,
-  cut?: { drawn: readonly PageRec[]; roots: Placements },
+  cut?: {
+    drawn: readonly PageRec[];
+    /** The packed rank of each drawn page, rank by rank (#1235). */
+    packed: readonly number[];
+    roots: Placements;
+    rootOfPacked: Int32Array;
+  },
 ) {
   const selected = blendState.cpuSelectedPlacements;
   selected.clear();
   blendState.visibleBlend.length = 0;
   if (cut)
-    for (const rec of cut.drawn) if (rec.transparent) selected.add(rootOf(cut.roots, rec).world);
+    for (let i = 0; i < cut.drawn.length; i++)
+      if (cut.drawn[i].transparent)
+        selected.add(rootOf(cut.roots, cut.rootOfPacked[cut.packed[i]]).world);
   let rejected = 0;
   for (const item of blendState.blendGpu) {
     if (notDrawn(item)) continue;
@@ -49,7 +57,8 @@ export function selectWebgpuBlend(
 export function writeCpuTransparentInstances(
   blendState: BlendState,
   drawn: readonly PageRec[],
-  entryOf: (rec: PageRec) => number,
+  packed: readonly number[],
+  entryOf: (packed: number) => number,
 ) {
   const { table } = blendState;
   if (!table) return;
@@ -62,9 +71,8 @@ export function writeCpuTransparentInstances(
   counts.fill(0);
   let highest = 0;
   for (let i = 0; i < drawn.length; i++) {
-    const rec = drawn[i];
-    if (!rec.transparent) continue;
-    const entry = entryOf(rec);
+    if (!drawn[i].transparent) continue;
+    const entry = entryOf(packed[i]);
     if (entry < 0) continue;
     // The entry names its item: no search by placement per record.
     const index = table.itemOfEntry[entry],

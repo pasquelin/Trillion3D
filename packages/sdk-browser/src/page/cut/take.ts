@@ -32,14 +32,22 @@ function clipRecordBox(min: readonly number[], max: readonly number[]) {
 }
 
 /** Keep a cluster in the requested cut when `wanted`, in the drawn one when `drawn`. A requested
- *  cluster not drawn leaves the cut incomplete: its nearest resident ancestor stands in for it. */
-function keep<T extends PageRecord>(s: SelectionState<T>, rec: T, wanted: boolean, drawn: boolean) {
+ *  cluster not drawn leaves the cut incomplete: its nearest resident ancestor stands in for it.
+ *  The record decides; its packed rank and its root rank name the instance, rank by rank. */
+function keep<T extends PageRecord>(
+  s: SelectionState<T>,
+  rec: T,
+  index: number,
+  wanted: boolean,
+  drawn: boolean,
+) {
   const triangles = rec.triangles,
-    // The record decides, the packed rank names: the two lists stay parallel, rank by rank.
-    packed = rec.packedIndex ?? -1;
+    packed = s.flatBase < 0 ? -1 : s.flatBase + index,
+    root = s.flatRootRank;
   if (wanted) {
     s.wanted[s.wantedCount] = rec;
-    s.wantedPacked[s.wantedCount++] = packed;
+    s.wantedPacked[s.wantedCount] = packed;
+    s.wantedRoot[s.wantedCount++] = root;
     s.wantedTriangles += triangles;
     const level = rec.level;
     if (level !== undefined && level > s.lodLevel) s.lodLevel = level;
@@ -49,7 +57,8 @@ function keep<T extends PageRecord>(s: SelectionState<T>, rec: T, wanted: boolea
     return;
   }
   s.shown[s.shownCount] = rec;
-  s.shownPacked[s.shownCount++] = packed;
+  s.shownPacked[s.shownCount] = packed;
+  s.shownRoot[s.shownCount++] = root;
   s.shownTriangles += triangles;
 }
 
@@ -111,5 +120,5 @@ export function take<T extends PageRecord>(
   if (cones && rec.cone && coneSkipsPage(rec, s.flatCone, s.flatWorld, s.cam, rec.min!, rec.max!))
     return;
   if (uncovered) s.uncoveredTriangles += rec.triangles;
-  keep(s, rec, wanted, drawn);
+  keep(s, rec, index, wanted, drawn);
 }

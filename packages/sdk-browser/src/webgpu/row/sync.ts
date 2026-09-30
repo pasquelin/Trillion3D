@@ -22,9 +22,9 @@ export function createWebgpuRowSync(
   cacheReady: () => boolean,
   { commitRows, sourceRowOf, writePageRow }: Commit,
   /** Called when a page enters residency or leaves it, before the row changes. */
-  onResidenceChange: (rec: PageRec) => void = () => {},
+  onResidenceChange: (rec: PageRec, page: number) => void = () => {},
   /** Called when a blended caster's row is written again with another coverage. */
-  onCoverageChange: (rec: PageRec) => void = () => {},
+  onCoverageChange: (rec: PageRec, page: number) => void = () => {},
   /** The frame's one integration budget the owed records spend from (`claims.ts`). */
   budget?: FrameClock,
 ) {
