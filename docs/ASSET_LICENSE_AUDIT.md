@@ -39,13 +39,13 @@ license or ownership evidence; `acquisition` links the asset/source to that lice
 records original authorship. Retain historical purchase terms; a current listing is not proof
 of the license under which an earlier asset was acquired. Unknown license IDs remain unresolved.
 
-| Declaration                         | Documented checks                                                            |
-| ----------------------------------- | ---------------------------------------------------------------------------- |
-| `fab-standard`, `unity-asset-store` | Internal/embedded-product use only; reject standalone redistribution         |
-| `quixel-epic-engine`                | Reject use in Trillion3D                                                     |
-| `cc-by`                             | Require `attribution` and `changes` evidence (state explicitly if unchanged) |
-| `owned`                             | Require ownership and authorship evidence, through `terms` and `acquisition` |
-| Any other license                   | Human review required; no inferred commercial allowlist                      |
+| Declaration | Documented checks |
+| --- | --- |
+| `fab-standard`, `unity-asset-store` | Internal/embedded-product use only; reject standalone redistribution |
+| `quixel-epic-engine` | Reject use in Trillion3D |
+| `cc-by` | Require `attribution` and `changes` evidence (state explicitly if unchanged) |
+| `owned` | Require ownership and authorship evidence, through `terms` and `acquisition` |
+| Any other license | Human review required; no inferred commercial allowlist |
 
 `usage` is `internal`, `embedded-product`, `public-demo`, or `raw-distribution`. `public-demo`
 means publishing the underlying assets in a demo or public repository, not merely showing pixels
