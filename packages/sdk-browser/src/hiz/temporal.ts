@@ -83,7 +83,6 @@ export function applyTemporalHiz<T extends HizPage & VisPage>(
   counts: HizCounts;
 } {
   const { roots, rootOfPacked } = locations;
-  // A sublist locates its own pages by the same roots, with the packed ranks it gathered.
   const locate = (packed: number[]): PageLocations => ({ roots, packed, rootOfPacked });
   const all = locations.packed;
   resetHizCounts(counts);
@@ -107,9 +106,8 @@ export function applyTemporalHiz<T extends HizPage & VisPage>(
     history.pyramid &&
     history.camera &&
     sameHizView(history.camera, cam) &&
-    history.viewport &&
-    history.viewport[0] === viewport[0] &&
-    history.viewport[1] === viewport[1]
+    history.viewport?.[0] === viewport[0] &&
+    history.viewport?.[1] === viewport[1]
   );
 
   const occluders: T[] = [],

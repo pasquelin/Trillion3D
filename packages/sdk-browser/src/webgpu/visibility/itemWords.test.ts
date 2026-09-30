@@ -18,13 +18,7 @@ function runtime(n: number, drawLayerSlots: number) {
   const material = G.basicSurface();
   const packedRecs: PageRec[] = [];
   for (let i = 0; i < n; i++)
-    packedRecs.push(
-      pageRecFixture({
-        depthLayer: i % 3,
-        material: surfaceOf(material),
-        placementIndex: 0,
-      }),
-    );
+    packedRecs.push(pageRecFixture({ depthLayer: i % 3, material: surfaceOf(material) }));
   const dirty = createDirtyRows(Math.max(1, n));
   const layout = {
     rows: {
