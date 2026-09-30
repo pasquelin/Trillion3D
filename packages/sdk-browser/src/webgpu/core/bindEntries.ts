@@ -25,13 +25,13 @@ export type VisBindResources = AtlasResources & {
 };
 /** Resources of the hardware-resolve group, identical for both of its constructors. */
 export type ShadeBindResources = AtlasResources & {
-  shadingOffset: GPUBuffer;
   subsurface: GPUTextureView;
   visView: GPUTextureView;
   cache: GPUBuffer;
   position: GPUBuffer;
   uv: GPUBuffer;
-  normal: GPUBuffer;
+  /** The float pool's normal atlas (`floatAtlas.ts`). */
+  normal: GPUTextureView;
   pageTable: GPUBuffer;
   uniform: GPUBuffer;
 };
@@ -45,13 +45,14 @@ export type BlendLighting = {
   shadowTransmittance: GPUTextureView;
   shadowTranslucentDepth: GPUTextureView;
   bounceGrid: GPUBuffer;
-  probes: GPUBuffer;
+  /** The probes' atlas (`../../bounce/atlas.ts`). */
+  probes: GPUTextureView;
   /** Per-tile lamp lists: the blend pass reads the slice that concerns it. */
   tileLights: GPUBuffer;
   /** The resident proxy: the same far-shadow ray as the opaque resolve, not another. */
   proxy: GPUBuffer;
   /** The bounce surface cache transparent and water reflections read (`../../bounce/reflectWgsl.ts`). */
-  surfaceCache: GPUBuffer;
+  surfaceCache: GPUTextureView;
 };
 
 /** Resources of a transparent-mesh group: the mesh itself and the scene. */
@@ -65,7 +66,8 @@ export type BlendBindResources = AtlasResources &
     uniformSize: number;
     /** Item records, indexed by the item's rank in the scene (`../blend/items.ts`). */
     items: GPUBuffer;
-    normals: GPUBuffer;
+    /** The float pool's normal atlas, or the empty one. */
+    normals: GPUTextureView;
     /** Identity of a transparent cluster, one per draw-table entry. */
     clusterDiagnostic: GPUBuffer;
     /** Instance list expanded for the image, and each cluster's span in the cache. */
@@ -126,12 +128,11 @@ export function shadeBindEntries(r: ShadeBindResources): GPUBindGroupEntry[] {
   const b = SHADE_BINDINGS;
   return [
     resourceEntry(b.visView, () => r.visView),
-    bufferEntry(b.shadingOffset, () => r.shadingOffset),
     resourceEntry(b.subsurface, () => r.subsurface),
     bufferEntry(b.cache, () => r.cache),
     bufferEntry(b.position, () => r.position),
     bufferEntry(b.uv, () => r.uv),
-    bufferEntry(b.normal, () => r.normal),
+    resourceEntry(b.normal, () => r.normal),
     bufferEntry(b.pageTable, () => r.pageTable),
     ...atlasEntries(b.color, () => r.textures?.color),
     resourceEntry(b.sampler, () => r.sampler),
@@ -157,7 +158,7 @@ export function blendBindEntries(r: BlendBindResources): GPUBindGroupEntry[] {
     ...atlasEntries(b.color, () => r.textures?.color),
     resourceEntry(b.sampler, () => r.sampler),
     ...atlasEntries(b.data, () => r.textures?.data),
-    bufferEntry(b.normals, () => r.normals),
+    resourceEntry(b.normals, () => r.normals),
     bufferEntry(b.directLights, () => r.directLights),
     bufferEntry(b.clusterDiagnostic, () => r.clusterDiagnostic),
     bufferEntry(b.planInstances, () => r.planInstances),
@@ -168,10 +169,10 @@ export function blendBindEntries(r: BlendBindResources): GPUBindGroupEntry[] {
     resourceEntry(b.shadowTransmittance, () => r.shadowTransmittance),
     resourceEntry(b.shadowTranslucentDepth, () => r.shadowTranslucentDepth),
     bufferEntry(b.bounceGrid, () => r.bounceGrid),
-    bufferEntry(b.probes, () => r.probes),
+    resourceEntry(b.probes, () => r.probes),
     bufferEntry(b.tileLights, () => r.tileLights),
     bufferEntry(b.proxy, () => r.proxy),
-    bufferEntry(b.surfaceCache, () => r.surfaceCache),
+    resourceEntry(b.surfaceCache, () => r.surfaceCache),
   ];
 }
 

@@ -3632,7 +3632,6 @@
       "flags": "0 latar, 1 tanpa pencahayaan (berkabut), 2 dibaca, 3 ditampilkan apa adanya: diagnostik, tampilan normal atau kedalaman. 4 dan 5 adalah model difus dan toon (`./surfaceModel.ts`).",
       "views": "View tekstur GPU-nya.",
       "dispose": "Membebaskannya.",
-      "shadingOffset": "Offset penerima bayangan dengan presisi penuh, ditulis di samping G-buffer.",
       "subsurface": "Warna transmisi permukaan tipis yang independen; tekstur nol 1×1 saat dinonaktifkan.",
       "subsurfaceView": "Tampilan tekstur transmisi permukaan tipis.",
       "hasSubsurface": "Apakah transmisi permukaan tipis memiliki target berukuran penuh."

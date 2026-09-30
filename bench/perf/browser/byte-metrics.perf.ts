@@ -6,6 +6,7 @@ import { createWebgpuBlendState } from '../../../packages/sdk-browser/src/webgpu
 import { ensureWebgpuPositionBuffer } from '../../../packages/sdk-browser/src/webgpu/core/positions.ts';
 import { prepareWebgpuBlend } from '../../../packages/sdk-browser/src/webgpu/blend/prepare.ts';
 import { vertexBytesOf } from '../../../packages/sdk-browser/src/webgpu/pages/io/metrics.ts';
+import type { VertexPool } from '../../../packages/sdk-browser/src/webgpu/core/geometryPool.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import { referenceVertexBytes } from '../../oracles/browser/byte-metrics.ts';
 
@@ -58,8 +59,12 @@ function etat(pages: number, transparents: number, concats: boolean, depart: num
   prepareWebgpuBlend(appareil, copies, gpu, blendState, scene);
   const tamponDe = (size: number) => appareil.createBuffer({ size, usage: 0 });
   const vis = concats
-    ? { concatPos: tamponDe(0), concatUv: tamponDe(2 ** 31), concatNrm: tamponDe(4096) }
-    : { concatPos: undefined, concatUv: undefined, concatNrm: undefined };
+    ? {
+        concatPos: tamponDe(0),
+        concatUv: tamponDe(2 ** 31),
+        vertexPool: { normalBytes: 4096 } as VertexPool,
+      }
+    : { concatPos: undefined, concatUv: undefined, vertexPool: undefined };
   return { gpu, vis, blendState };
 }
 
@@ -84,7 +89,7 @@ await stress({
     vertexBytesOf(createWebgpuGpuState([1, 1]), {
       concatPos: undefined,
       concatUv: undefined,
-      concatNrm: undefined,
+      vertexPool: undefined,
     }),
   extremes: [{ name: 'empty', input: null }],
 });

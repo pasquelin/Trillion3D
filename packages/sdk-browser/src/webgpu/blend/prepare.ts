@@ -18,7 +18,7 @@ import {
 import { WATER_RANK_SHIFT } from '../water/rank.ts';
 import { neverCulled } from '../../visibility/shader/spriteWgsl.ts';
 import { ensureWebgpuPositionBuffer } from '../core/positions.ts';
-import { ensureBlendIndexBuffer, ensureBlendNormalBuffer, ensureBlendUvBuffer } from './buffers.ts';
+import { ensureBlendIndexBuffer, ensureBlendNormalAtlas, ensureBlendUvBuffer } from './buffers.ts';
 import type { createWebgpuBlendState } from './state.ts';
 import type { WebgpuGpuState } from '../pages/state/gpu.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
@@ -61,7 +61,7 @@ export function prepareWebgpuBlend(
       paged || pooled ? undefined : ensureBlendUvBuffer(device, copy.geometry.attributes, gpu);
     const tangentAttr = copy.geometry.attributes.tangent;
     const normal =
-      paged || pooled ? undefined : ensureBlendNormalBuffer(device, copy.geometry.attributes, gpu);
+      paged || pooled ? undefined : ensureBlendNormalAtlas(device, copy.geometry.attributes, gpu);
     const hasNormal = paged || pooled ? !!copy.geometry.attributes.normal : !!normal;
     let flags = 0;
     if (mat.lit) flags |= FLAG_LIT;
