@@ -1,30 +1,21 @@
 import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import {
-  shadowEntryBits,
-  claimWgsl,
-  laneRequestWgsl,
-  subgroupRequestWgsl,
-} from './requestLanesWgsl.ts';
+import { shadowEntryBits, laneRequestWgsl, subgroupRequestWgsl } from './requestLanesWgsl.ts';
 /** Words of the request buffer after the count and a list as long as the pool's (`shadowRequestCap`,
- *  read at run time): one bit per table entry — a page is listed once however many pixels read it
- *  —, then one per entry for its miss (#1211), listed once the same way. */
-export const shadowRequestBits = (pages = SUN_WINDOW) => 2 * shadowEntryBits(pages);
+ *  read at run time): one bit per table entry — a page is listed once however many pixels read it. */
+export const shadowRequestBits = (pages = SUN_WINDOW) => shadowEntryBits(pages);
 
 /**
  * What a reading asks of the scheduler. The shading that marks writes the page into the request
- * buffer the first time any pixel reads it this frame, a bit per table entry, and, apart, a page
- * it found drawn for a footprint that misses its texel (`requestShadowMiss`, per lane: a miss is
- * rare and brief). A pass that does not mark — the blend forward stage, which keeps its early
- * depth reject — reads without asking. `shadowRequesting` is the pass's to set on a lane that asks
- * per subgroup.
+ * buffer the first time any pixel reads it this frame, a bit per table entry. A pass that does not
+ * mark — the blend forward stage, which keeps its early depth reject — reads without asking.
+ * `shadowRequesting` is the pass's to set on a lane that asks per subgroup.
  */
 export const shadowRequestWgsl = (binding: number | null, pages = SUN_WINDOW) =>
   binding === null
-    ? 'fn requestShadowPage(e:u32){}\nfn requestShadowMiss(e:u32){}'
+    ? 'fn requestShadowPage(e:u32){}'
     : `@group(0) @binding(${binding}) var<storage,read_write> shadowRequests:array<atomic<u32>>;
 var<private> shadowRequesting:bool=false;
-${laneRequestWgsl(pages)}
-${claimWgsl('requestShadowMiss', shadowEntryBits(pages), true)}`;
+${laneRequestWgsl(pages)}`;
 
 /**
  * `shader`, a text that asks with `LANE_REQUEST_WGSL`, asking per subgroup instead: the feature

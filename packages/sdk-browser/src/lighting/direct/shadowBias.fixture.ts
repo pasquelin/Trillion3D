@@ -5,8 +5,8 @@ import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { dotVector3 } from '../../../../sdk-core/src/math/primitives/vector.ts';
 import { clampNumber as clamp } from '../../../../sdk-core/src/world/math/spherical.ts';
 import { DIRECT_LIGHT_WGSL } from './lightWgsl.ts';
-import { PCF_REACH, directShadowWgsl } from './shadowWgsl.ts';
-import { POISSON_16 } from './pcfTaps.ts';
+import { directShadowWgsl } from './shadowWgsl.ts';
+import { PCF_REACH, POISSON_16 } from './pcfTaps.ts';
 import { SHADOW_DEPTH_ROUNDING } from './shadowDepthRounding.ts';
 
 export type Vec = readonly number[];
