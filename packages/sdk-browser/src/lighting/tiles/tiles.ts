@@ -11,7 +11,7 @@ import { storageBufferCap } from '../../residency/pools.ts';
 export const LIGHT_TILES_PASS = 'Trillion3D light tiles v1';
 /** Columns of the light grid over `pixels`, at least one: the grid covers the whole target, never
  *  one column short. */
-export const tilesOn = (pixels: number) => Math.max(1, Math.ceil(pixels / LIGHT_SETTINGS.tileSize));
+const tilesOn = (pixels: number) => Math.max(1, Math.ceil(pixels / LIGHT_SETTINGS.tileSize));
 /** The pass's uniform: the inverse matrix, the viewport and columns, the origin, two depth rows. */
 const UNIFORM_FLOATS = 32;
 export type GpuLightTiles = Awaited<ReturnType<typeof createGpuLightTiles>>;
