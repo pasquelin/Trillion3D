@@ -8,6 +8,8 @@ import { clearValueOf } from '../../../../sdk-core/src/world/math/packedColour.t
 import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/scene/core/environment.ts';
 
 const DEFERRED_VIEW_BYTES = 160;
+/** First float of the view's `jitter` words (`VIEW_WGSL`). */
+const JITTER_WORD = 36;
 
 /**
  * The view's `jitter` words (`VIEW_WGSL`) of an image the TAA jitters by `jitter` pixels
@@ -32,13 +34,13 @@ export function createDeferredView(device: GPUDevice) {
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   const packed = new Float32Array(DEFERRED_VIEW_BYTES / 4);
-  packed.set(shadowJitterWords(null), 36);
+  const setJitter = (jitter: ArrayLike<number> | null) =>
+    packed.set(shadowJitterWords(jitter), JITTER_WORD);
+  setJitter(null);
   return {
     buffer,
     /** The TAA jitter of the next image `write` writes (`shadowJitterWords`). */
-    setJitter(jitter: ArrayLike<number> | null) {
-      packed.set(shadowJitterWords(jitter), 36);
-    },
+    setJitter,
     /** `rawOutput` skips the display chain; `sampledRank` non-zero draws a subset of each
      *  pixel's lights (`../direct/lightSamplingWgsl.ts`); `direct` carries the contract lights, the
      *  tiles in X and Y, the exposure, then the display curve's rank and the eye. */
