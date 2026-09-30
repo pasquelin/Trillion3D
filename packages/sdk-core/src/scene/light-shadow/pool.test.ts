@@ -7,7 +7,7 @@ import { createShadowTable } from './table.ts';
 import { createShadowPlan } from './plan.ts';
 import { createSceneLightStore } from '../light/store.ts';
 import { PAGE_MAPPED, PAGE_RANGE_SHIFT, PAGE_VALID } from './virtual.ts';
-import { PAGE_FOOTPRINT_SHIFT, pageFootprint } from './footprint.ts';
+import { PAGE_FOOTPRINT_EMPTY, PAGE_FOOTPRINT_SHIFT, pageFootprint } from './footprint.ts';
 import { SUN, VIEW, lampPages, planFrame, report, sunPages } from './lightShadow.fixture.ts';
 
 function mapped() {
@@ -55,7 +55,7 @@ test('a layer drawn in another depth range is drawn again with the page, never r
 test('a page carries the footprint it was drawn for; drawn whole, its word is what it was', () => {
   const { table, pool, page } = mapped();
   pool.drew(table, page, DRAW_ALL, 3);
-  assert.equal(pool.footprint[page], 0);
+  assert.equal(pool.footprint[page], PAGE_FOOTPRINT_EMPTY, 'no receiver named it yet');
   assert.equal(table.words[7], page | PAGE_MAPPED | PAGE_VALID | (3 << PAGE_RANGE_SHIFT));
   const part = pageFootprint(0, 0, 32, 64),
     whole = table.words[7];
