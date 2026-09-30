@@ -35,7 +35,6 @@ const MIN = [-50, 0, -50],
 const kept = (report: ShadowRequestReport): ShadowRequestReport => ({
   ...report,
   entries: report.entries.slice(),
-  cells: report.cells?.slice(),
   pool: report.pool && {
     ...report.pool,
     owner: report.pool.owner.slice(),

@@ -125,8 +125,7 @@ export function planImageShadows(rt: WebgpuPagesRuntime, cam: EngineCamera) {
  * Copies the shadow pages the resolve just asked for, stamped with the plan's state, for the
  * scheduler to read once the image is submitted (`../../shadow/pageRequests.ts`). An image that
  * lit nothing — unlit view, no light, no pool (no light casts a shadow) — asked for nothing and
- * copies nothing. Encoded after the transparents: whether any blend or water surface was drawn,
- * a reader that marks no cell, rides with it (`demandFootprint.ts`, #1211).
+ * copies nothing.
  */
 export function encodeShadowReadback(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const { lights, run, timing } = rt,
@@ -139,7 +138,6 @@ export function encodeShadowReadback(rt: WebgpuPagesRuntime, encoder: GPUCommand
     plan.stamp(store),
     plan.receive,
     plan.gpu.on,
-    run.blendDrawCalls > 0,
   );
   if (settle) timing.shadowPageRequests = settle;
 }
