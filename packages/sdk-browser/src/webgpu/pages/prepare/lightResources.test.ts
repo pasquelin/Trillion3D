@@ -4,7 +4,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore, type SceneLight } from '../../../../../sdk-core/src/index.ts';
-import { followLightThreshold, readsAsIs, wantsContractLighting } from './lightResources.ts';
+import {
+  directLightResources,
+  followLightThreshold,
+  readsAsIs,
+  wantsContractLighting,
+} from './lightResources.ts';
 import { createWebgpuLightState } from '../state/lights.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
@@ -72,4 +77,16 @@ test('the image reads its as-is flags once a row shows one, or under a diagnosti
   assert.equal(at(false, 'beauty'), false, 'no as-is surface: flagless');
   assert.equal(at(true, 'beauty'), true, 'a normal or depth surface took a row');
   assert.equal(at(false, 'wireframe'), true, 'a diagnostic view writes the flag');
+});
+
+test('a frame with no shadow slot asks for the resolve with no shadow code (#1249)', () => {
+  const b = banc();
+  const rt = { ...b.rt, bounce: {}, sunFar: {} } as unknown as WebgpuPagesRuntime;
+  b.store.add({ ...LAMPE });
+  b.store.add({ ...LAMPE, id: 'l1' });
+  assert.equal(directLightResources(rt).unshadowed, true, 'no light holds a slot');
+  b.store.assignSlice(1, 0);
+  assert.equal(directLightResources(rt).unshadowed, false, 'a slot: the program with shadows');
+  b.store.assignSlice(1, -1);
+  assert.equal(directLightResources(rt).unshadowed, true);
 });
