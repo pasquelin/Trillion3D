@@ -37,7 +37,13 @@ export function packPlatformPackages(options: {
       copyFileSync(binary, join(copy, 'bin', compilerFileName(process.platform)));
     const archive = packArchive(run, pnpm, copy, fixture).filename;
     const [platform, arch] = target.split('-');
-    return `  ${JSON.stringify(compilerPackage(platform, arch))}: ${JSON.stringify(`file:${archive}`)}`;
+    return { name: compilerPackage(platform, arch) as string, filename: archive };
   });
-  return `overrides:\n${overrides.join('\n')}\n`;
+  return platformOverrides(overrides);
 }
+
+/** The fixture's `pnpm-workspace.yaml` that points each platform package at its archive. */
+export const platformOverrides = (archives: { name: string; filename: string }[]) =>
+  `overrides:\n${archives
+    .map(({ name, filename }) => `  ${JSON.stringify(name)}: ${JSON.stringify(`file:${filename}`)}`)
+    .join('\n')}\n`;
