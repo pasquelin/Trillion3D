@@ -1,6 +1,4 @@
-import { MATERIAL_TILE_SIZE } from '../../visibility/shader/materialTilesWgsl.ts';
-
-const materialTilesOn = (pixels: number) => Math.ceil(pixels / MATERIAL_TILE_SIZE);
+import { materialTilesOn } from './materialTiles.ts';
 
 /**
  * The classification's lists as the pass leaves them, on the CPU: for each slot, the tiles of a

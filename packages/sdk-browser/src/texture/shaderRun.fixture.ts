@@ -8,7 +8,7 @@ export { Mat, type Vec } from './shaderRunBuiltins.fixture.ts';
 const SWIZZLE = /^(?:[xyzw]{1,4}|[rgba]{1,4})$/;
 /** A token, or what it skips: blanks and `//` comments. */
 const TOKEN =
-  /\s+|\/\/[^\n]*|((?:0x[\da-f]+|\d+\.?\d*(?:e[+-]?\d+)?|\.\d+(?:e[+-]?\d+)?)[uif]?|[A-Za-z_]\w*|&&|\|\||<=|>=|==|!=|>>|<<|\+\+|--|[-+*/%]=|->|[-+*/%<>=!&|^(){}[\];,.:@])/giy;
+  /\s+|\/\/[^\n]*|((?:0x[\da-f]+|\d+\.?\d*(?:e[+-]?\d+)?|\.\d+(?:e[+-]?\d+)?)[uif]?|[A-Za-z_]\w*|&&|\|\||<=|>=|==|!=|>>|<<|\+\+|--|[-+*/%]=|->|[-+*/%<>=!&|^~(){}[\];,.:@])/giy;
 const JS_RESERVED = new Set(['in', 'new', 'this', 'class', 'delete', 'typeof', 'void', 'with']);
 /** Each binary operator's precedence, the loosest first. */
 const BINARY: Record<string, number> = Object.fromEntries(
@@ -140,6 +140,8 @@ class Translator {
     const token = this.peek();
     if (token === '-') return (this.next(), `$b("-",0,${this.unary()})`);
     if (token === '!') return (this.next(), `(!${this.unary()})`);
+    // A bitwise not, of a `u32`: its 32 bits flipped, read unsigned.
+    if (token === '~') return (this.next(), `$b("^",${this.unary()},0xffffffff)`);
     // A pointer, what an atomic takes: read and written through `$ref`.
     if (token === '&') {
       this.next();

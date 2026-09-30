@@ -103,7 +103,7 @@ function encodeTileLists(
   const { lights, gpu } = rt,
     { tiles } = lights,
     [width, height] = gpu.targetSize;
-  if (!tiles || !gpu.depthView || !lights.buffer) return false;
+  if (!tiles || !lights.buffer) return false;
   if (!tiles.ensure(width, height, lights.buffer)) return false;
   tiles.update(viewProjection, eye, width, height);
   return tiles.encode(encoder, rt.run.frame);

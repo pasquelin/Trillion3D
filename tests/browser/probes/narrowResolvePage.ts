@@ -37,8 +37,8 @@ const UNREAD = [
   SUBSURFACE_BINDING,
 ];
 
-/** A tile record — its two counts, its lists, the pool after them — and the resolve reading it:
- *  \`contractLighting\`, or with \`drawn\` \`sampledTileLighting\` alone. */
+/** A cell record — its count, the shadow flag in its high bit, and where its list starts in the pool — and the resolve reading it:
+ *  \`contractLighting\`, or with \`drawn\` \`sampledSliceLighting\` alone. */
 export type ResolveRecord = {
   narrow: boolean;
   words: number[];
