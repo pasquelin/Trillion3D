@@ -63,7 +63,8 @@ export function unpackCdn(fixture: string, run: Run): UnpackedCdn {
   const archive = readdirSync(fixture).find((name) => name.endsWith('.tgz'));
   if (!archive) throw new Error('no packed archive in the fixture');
   mkdirSync(join(fixture, 'cdn'), { recursive: true });
-  run('tar', ['-xzf', join(fixture, archive), '-C', join(fixture, 'cdn')]);
+  // Relative paths: the GNU tar of Git Bash on Windows reads `C:` as a remote host.
+  run('tar', ['-xzf', archive, '-C', 'cdn'], fixture);
   const dist = join(fixture, 'cdn/package/dist');
   const files = bundleFiles(dist);
   if (!files.includes(BUNDLE_ENTRY)) throw new Error('archive has no CDN bundle');
