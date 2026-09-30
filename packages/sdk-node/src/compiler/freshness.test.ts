@@ -63,9 +63,18 @@ test('a binary named by TRILLION3D_COMPILER_BIN is trusted and announced once', 
   t.mock.method(process.stderr, 'write', (chunk: unknown) => written.push(chunk) > 0);
   try {
     const environment = { TRILLION3D_COMPILER_BIN: '/operator/compiler' };
-    assert.equal(currentCompilerExecutable(undefined, environment, { crate: root }), '/operator/compiler');
-    assert.equal(currentCompilerExecutable(undefined, environment, { crate: root }), '/operator/compiler');
-    assert.equal(currentCompilerExecutable('/caller/compiler', {}, { crate: root }), '/caller/compiler');
+    assert.equal(
+      currentCompilerExecutable(undefined, environment, { crate: root }),
+      '/operator/compiler',
+    );
+    assert.equal(
+      currentCompilerExecutable(undefined, environment, { crate: root }),
+      '/operator/compiler',
+    );
+    assert.equal(
+      currentCompilerExecutable('/caller/compiler', {}, { crate: root }),
+      '/caller/compiler',
+    );
   } finally {
     t.mock.restoreAll();
     await rm(root, { recursive: true, force: true });
