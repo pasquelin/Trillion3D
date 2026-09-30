@@ -113,7 +113,7 @@ export async function prepareShadowPipelines(rt: WebgpuPagesRuntime, device: GPU
   const work: Array<() => unknown> = [shadows.prepareDepth, () => shadowOcclusionPipeline(device)];
   // The pages the GPU draws itself (#1275): its pool's draws, and its layer's with the host's.
   if (rt.lights.allocation) work.push(shadows.freshDraws.prepare);
-  if (rt.vis.gpuDraw) work.push(() => lightRowMapPipeline(device));
+  if (rt.vis.gpuDraw) work.push(() => lightRowMapPipeline(device).pipeline.prepare());
   if (sceneCastsBlended(rt))
     work.push(shadows.prepareTransmittance, pageQuads.prepareTransmittance);
   // One that fails is compiled again, and said, where it is first used.
