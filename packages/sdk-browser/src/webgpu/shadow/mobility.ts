@@ -37,6 +37,10 @@ export function createShadowMobility() {
     },
     /** True once placement `rank` has moved: the static layer does not hold it. */
     moves: (rank: number) => moving[rank] === 1,
+    /** The pose placement `rank` was last seen at, a view of the state; none past the placements
+     *  it is sized for. */
+    poseOf: (rank: number) =>
+      rank >= 0 && rank < moving.length ? poses.subarray(rank * 16, rank * 16 + 16) : undefined,
     /** True while a row is a cutout: without one, no region's cutout list holds a caster. */
     get hasCutouts() {
       return cutouts > 0;
