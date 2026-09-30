@@ -64,3 +64,21 @@ test('the WebAssembly decoder reads the same deformation, bit for bit', async ()
   for (const name of Object.keys(js.attributes))
     assert.deepEqual(Array.from(wasm.attributes[name]), Array.from(js.attributes[name]), name);
 });
+
+test('joints near the top of the sixteen-bit range still encode a page the reader accepts', () => {
+  const { data } = encodeGeometryPage(
+    [0, 1, 2],
+    {
+      POSITION: floats([0, 0, 0, 1, 0, 0, 0, 1, 0], 3),
+      JOINTS_0: floats(
+        [65533, 65534, 65533, 65533, 65534, 65533, 65533, 65533, 65535, 65533, 65533, 65533],
+        4,
+      ),
+      WEIGHTS_0: floats([0.5, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0.5, 0.5, 0, 0], 4),
+    },
+    -8,
+  );
+  const joints = decodeGeometryPage(data).attributes.skinIndex;
+  assert.deepEqual(Array.from(joints.subarray(0, 2)), [65533, 65534]);
+  assert.deepEqual(Array.from(joints.subarray(8, 10)), [65535, 65533]);
+});
