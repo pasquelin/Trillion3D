@@ -8,7 +8,7 @@
  * — the CDN of its `importmap` played by the installed package, from another origin — and opened in
  * Chrome, where it must draw the model.
  *
- * `pnpm run proof:install-page [-- --model <file>]`: a Chrome proof, the recette's (AGENTS.md
+ * `node scripts/prove-install-page.ts [--model <file>]`: a Chrome proof, the recette's (AGENTS.md
  * rule 2). The default model is the morphing cube of the examples, a 2-unit cube at the origin.
  */
 import { copyFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -20,7 +20,7 @@ import { drawnShare } from './docs/examples/capture.ts';
 import { currentCompilerExecutable } from '../packages/sdk-node/src/compiler/executable.mts';
 import { codeBlocks, installPageHtml, walkthrough } from './install-page.ts';
 import { createInstalledFixture, packArchive } from './installed-package-fixture.ts';
-import { packPlatformArchives } from './installed-package-platforms.ts';
+import { packPlatformPackages } from './installed-package-platforms.ts';
 import { listen, staticServer } from './static-server.ts';
 
 /** The CDN the page's `importmap` names, and where the fixture server plays it. */
@@ -88,10 +88,13 @@ try {
   run(pnpm, ['run', 'build:native']);
   const binary = currentCompilerExecutable(undefined, {});
   const { filename: archive } = packArchive(run, pnpm, root, fixture);
-  const platforms = packPlatformArchives({ root, fixture, run, pnpm, binary });
+  // The platform packages' pnpm `overrides`, one `"name": "file:archive"` line each, are npm's too.
+  const [, ...lines] = packPlatformPackages({ root, fixture, run, pnpm, binary })
+    .trim()
+    .split('\n');
+  const overrides = JSON.parse(`{${lines.join(',')}}`) as Record<string, string>;
   const app = join(fixture, 'app');
   mkdirSync(join(app, 'public'), { recursive: true });
-  const overrides = Object.fromEntries(platforms.map(([name, file]) => [name, `file:${file}`]));
   writeFileSync(join(app, 'package.json'), `${JSON.stringify({ private: true, overrides })}\n`);
   const compiled: unknown[] = [];
   for (const command of commands) {
