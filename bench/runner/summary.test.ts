@@ -1,89 +1,61 @@
 // "honest measurement harness counters" batch: `resume()` gains three columns (submitted
 // triangles, held image, GPU selection fallback) and never writes 0 for an absent measurement — only a
-// dash does, as for columns already in place (`num`, `mo`).
+// dash does, as for columns already in place (`num`, `mo`). Each check reads the cell under its
+// header, never a pattern anywhere in the text.
 // Coverage-column tests live in `summaryCoverage.test.ts`, to keep both files under the line budget.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resume } from './summary.ts';
-import { baseSide, rapport } from './summaryTestFixtures.ts';
+import { baseSide, rapport, tableRow } from './summaryTestFixtures.ts';
 
-test('resume() publishes the three new columns, each under its own header', () => {
-  const texte = resume(rapport({ ...baseSide }));
-  assert.match(texte, /\| submitted triangles opaque\/total \| held image \|/);
-  assert.match(texte, /\| GPU selection fallback \|/);
-  assert.match(texte, /\| Hi-Z tested\/rejected\/>16 \(image\) \|/);
-});
+const SUBMITTED = 'submitted triangles opaque/total';
+const HELD = 'held image';
+const FALLBACK = 'GPU selection fallback';
+const HIZ = 'Hi-Z tested/rejected/>16 (image)';
+const readings = (side: Partial<typeof baseSide>) =>
+  tableRow(resume(rapport({ ...baseSide, ...side })), 'Readings');
 
-test('measured counters are displayed as is, never reduced to a dash', () => {
-  const texte = resume(
-    rapport({
-      ...baseSide,
-      submittedTriangles: 1500,
-      totalSubmittedTriangles: 1800,
-      frameHeld: true,
-      gpuSelectionFallback: false,
-      hiZ: {
-        tested: 200,
-        rejected: 40,
-        beyond16Texels: 5,
-        testedTriangles: null,
-        rejectedTriangles: null,
-        beyond16TexelsTriangles: null,
-        image: 42,
-      },
-    }),
-  );
-  assert.match(texte, /\| 1500\/1800 \| yes \|/, 'submitted triangles, opaque then total');
-  assert.match(texte, /\| no \|/, 'GPU selection fallback at false');
-  assert.match(
-    texte,
-    /\| 200\/40\/5 \(42\) \|/,
-    'Hi-Z tested/rejected/>16, then the counted image',
-  );
+test('measured counters are displayed as is, each under its own header', () => {
+  const row = readings({
+    submittedTriangles: 1500,
+    totalSubmittedTriangles: 1800,
+    frameHeld: true,
+    gpuSelectionFallback: false,
+    hiZ: {
+      tested: 200,
+      rejected: 40,
+      beyond16Texels: 5,
+      testedTriangles: null,
+      rejectedTriangles: null,
+      beyond16TexelsTriangles: null,
+      image: 42,
+    },
+  });
+  assert.equal(row[SUBMITTED], '1500/1800', 'submitted triangles, opaque then total');
+  assert.equal(row[HELD], 'yes');
+  assert.equal(row[FALLBACK], 'no');
+  assert.equal(row[HIZ], '200/40/5 (42)', 'Hi-Z tested/rejected/>16, then the counted image');
 });
 
 test('an absent counter is a dash, never a zero: `frameHeld`, `gpuSelectionFallback`, submitted triangles, Hi-Z', () => {
-  const texte = resume(
-    rapport({
-      ...baseSide,
-      submittedTriangles: null,
-      totalSubmittedTriangles: null,
-      frameHeld: null,
-      gpuSelectionFallback: null,
-      hiZ: {
-        tested: null,
-        rejected: null,
-        beyond16Texels: null,
-        testedTriangles: null,
-        rejectedTriangles: null,
-        beyond16TexelsTriangles: null,
-        image: null,
-      },
-    }),
-  );
-  assert.match(
-    texte,
-    /\| —\/— \| — \|/,
-    'no submitted triangles counted: two dashes, not two zeros',
-  );
-  assert.match(
-    texte,
-    /\| — \| —\/—\/— \(—\) \|/,
-    'neither GPU fallback nor Hi-Z are an inferred zero',
-  );
-  assert.doesNotMatch(texte, /\| 0\/0 \| no \|/, 'a `null` is never read as `0` or `no`');
+  const row = readings({
+    submittedTriangles: null,
+    totalSubmittedTriangles: null,
+    frameHeld: null,
+    gpuSelectionFallback: null,
+  });
+  assert.equal(row[SUBMITTED], '—/—', 'no submitted triangles counted: two dashes, not two zeros');
+  assert.equal(row[HELD], '—');
+  assert.equal(row[FALLBACK], '—', 'the GPU fallback is not an inferred `no`');
+  assert.equal(row[HIZ], '—/—/— (—)', 'nor Hi-Z an inferred zero');
 });
 
-test('frameHeld set to true is distinguished from frameHeld set to false, not just from absence', () => {
-  const held = resume(rapport({ ...baseSide, frameHeld: true }));
-  const released = resume(rapport({ ...baseSide, frameHeld: false }));
-  assert.match(held, /\| yes \|/);
-  assert.match(released, /\| no \|/);
-  assert.notEqual(held, released);
+test('frameHeld set to false is `no`, distinct from true and from absence', () => {
+  assert.equal(readings({ frameHeld: false })[HELD], 'no');
+  assert.equal(readings({ frameHeld: true })[HELD], 'yes');
 });
 
 test('resume() opens the computation path section, even when no side publishes it', () => {
-  const texte = resume(rapport({ ...baseSide }));
-  assert.match(texte, /## Batch compute path/);
-  assert.match(texte, /\| reading missing from this dist \|/);
+  const row = tableRow(resume(rapport({ ...baseSide })), 'Batch compute path');
+  assert.equal(row.module, 'reading missing from this dist');
 });

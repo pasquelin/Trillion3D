@@ -106,7 +106,8 @@ const config: KnipConfig = {
       // Rust, CMake, Emscripten and the C++ compiler (a regex: knip reads `c++` as one) are platform
       // tools; DaisyUI is loaded by Tailwind; the site build copies SVG files of
       // flag-icons by path (`scripts/docs/build-flags.ts`), importing no module of it.
-      ignoreDependencies: ['daisyui', 'flag-icons'],
+      // The tap runner is a Stryker plugin, loaded by name (`scripts/test-mutation.ts`).
+      ignoreDependencies: ['daisyui', 'flag-icons', '@stryker-mutator/tap-runner'],
       ignoreBinaries: ['rustc', 'emcmake', 'cmake', 'em-config', /^c\+\+$/],
     },
   },

@@ -86,6 +86,7 @@ function inertiaAt(cooked: ReturnType<typeof rescaled>, mass: number, to?: reado
 export function declaredMass({ motion, shape, scale: cookedAt }: CookedBody, scale: Scale) {
   const s = [scale.x, scale.y, scale.z],
     r = s.map((v, i) => v / cookedAt[i]);
+  // Stryker disable next-line ConditionalExpression: an implicit shape carries no `mass`
   const cooked = shape.type === 'cooked' && shape.mass ? rescaled(shape.mass, r) : null;
   const mass = motion.mass ?? cooked?.mass ?? 0;
   const declared = motion.centerOfMass?.map((c, i) => c * s[i]);
