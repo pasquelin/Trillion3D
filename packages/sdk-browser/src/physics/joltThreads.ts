@@ -9,6 +9,7 @@
  */
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import { startModuleWorker } from '../host/besideModule.ts';
+import { diagnosticWrite } from './joltWasi.ts';
 
 /** The exports of the threaded module a thread's set-up reads. */
 interface ThreadExports {
@@ -55,6 +56,7 @@ export function joltImports(
   const none = () => 0;
   const env: Record<string, unknown> = { memory, emscripten_notify_memory_growth: none };
   const wasi: Record<string, unknown> = {
+    fd_write: diagnosticWrite(memory),
     clock_time_get(_id: number, _precision: bigint, at: number) {
       new BigUint64Array(memory.buffer, at, 1)[0] = BigInt(Math.round(performance.now() * 1e6));
       return 0;

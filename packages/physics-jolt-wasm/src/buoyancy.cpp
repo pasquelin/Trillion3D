@@ -114,8 +114,17 @@ uint32_t runBuoyancy(const uint32_t *w) {
     submerged *= volume / total;
     // Jolt's buoyancy factor is the fluid's density over the body's: `density` is the water's.
     float factor = density * volume * body->GetMotionProperties()->GetInverseMass();
-    body->ApplyBuoyancyImpulse(volume, submerged, centre, factor, linearDrag, angularDrag, current,
-                               gravity, world.dt);
+    // Jolt bounds drag by the body's speed. Calculate in the water's frame so a current can
+    // accelerate a stationary body and the bound prevents overshooting the fluid's velocity.
+    auto *motion = body->GetMotionProperties();
+    motion->SubLinearVelocityStep(current);
+    Vec3 relative = motion->GetLinearVelocity() + motion->GetAngularVelocity().Cross(centre);
+    // A slow current still exerts force below Jolt's sleep threshold. Calm water may rest.
+    if (density != 0 && linearDrag > 0 && current.LengthSq() > 0 && relative.LengthSq() > 1.0e-12f)
+      body->ResetSleepTimer();
+    body->ApplyBuoyancyImpulse(volume, submerged, centre, factor, linearDrag, angularDrag,
+                               Vec3::sZero(), gravity, world.dt);
+    motion->AddLinearVelocityStep(current);
   }
   return HEADER_WORDS + count * PLANE_WORDS;
 }

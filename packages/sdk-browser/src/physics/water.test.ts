@@ -124,6 +124,8 @@ test('water set or removed wakes every dynamic body, so one asleep floats or fal
     };
     physics.handle.water = { waves: [], level: 2 };
     assert.deepEqual(woken(), [OP.wake, body._index]);
+    physics.handle.water = { waves: [], level: 2, current: [0.4, 0, 0] };
+    assert.deepEqual(woken(), [OP.wake, body._index]);
     physics.handle.water = null;
     assert.deepEqual(woken(), [OP.wake, body._index]);
     physics.dispose();
