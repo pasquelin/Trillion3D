@@ -3,10 +3,11 @@ import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bi
 import { SELECTION_WORKGROUP } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts';
 import { dagFlagsWords } from '../../../packages/sdk-browser/src/gpu/dag/shader/lastUseWgsl.ts';
-import { canonicalPage, listEvictions } from '../../../packages/sdk-browser/src/gpu/dag/evict.ts';
+import { canonicalPage } from '../../../packages/sdk-browser/src/gpu/dag/evict.ts';
 import * as L from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
 import { sortRequestWords } from '../../../packages/sdk-browser/src/gpu/dag/request.ts';
 import { words } from './mockComputeBlend.ts';
+import { listEvictions } from '../../../packages/sdk-browser/src/gpu/dag/evict.fixture.ts';
 
 /** The camera cut's last-use clock and `dagListEvictions`, replayed on the words the kernels read
  *  (`shader/lastUseWgsl.ts`, `shader/evictWgsl.ts`). */

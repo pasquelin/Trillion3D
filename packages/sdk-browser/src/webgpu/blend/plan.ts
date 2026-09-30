@@ -40,7 +40,7 @@ export const planEntry = (item: number, pipeline: number, shared: boolean, verte
   pipeline;
 export const planItem = (entry: number) => entry >>> PLAN_SHIFT;
 /** Cull mode of the entry, whoever applies it: its rank among the three pipelines of its mode. */
-export const planCull = (entry: number) => (entry & PLAN_PIPELINE_MASK) % 3;
+const planCull = (entry: number) => (entry & PLAN_PIPELINE_MASK) % 3;
 /** Cull mode the vertex stage applies to the entry's instances: zero when the pipeline culls. */
 export const planVertexCull = (entry: number) =>
   entry & PLAN_VERTEX_CULL_BIT ? planCull(entry) : PIPELINE_NONE;

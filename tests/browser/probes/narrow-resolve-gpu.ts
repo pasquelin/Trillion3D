@@ -10,13 +10,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { SceneLight } from '../../../packages/sdk-core/src/index.ts';
-import {
-  LIGHT_TILES_NARROW_SHADER,
-  LIGHT_TILES_SHADER,
-} from '../../../packages/sdk-browser/src/lighting/tiles/shader.ts';
 import { compactTile, tileLayout } from '../../../bench/oracles/browser/gpuLightTilesRankOracle.ts';
 import type { ResolveScene } from './narrowResolvePage.ts';
 import { resolveRandom, resolveSamples, runResolves } from './resolveProbe.ts';
+import { LIGHT_TILES_SHADERS } from '../../../packages/sdk-browser/src/lighting/tiles/shader.ts';
+
+/** The light-tile shader texts the engine compiles, by name. */
+const LIGHT_TILES_SHADER_TEXTS = new Map<string, string>(LIGHT_TILES_SHADERS);
+const LIGHT_TILES_NARROW_SHADER = LIGHT_TILES_SHADER_TEXTS.get('LIGHT_TILES_NARROW_SHADER')!;
+const LIGHT_TILES_SHADER = LIGHT_TILES_SHADER_TEXTS.get('LIGHT_TILES_SHADER')!;
 
 if (import.meta.main) {
   const WIDE = tileLayout(LIGHT_TILES_SHADER);

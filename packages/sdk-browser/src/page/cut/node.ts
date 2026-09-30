@@ -21,7 +21,7 @@ import { OWN_CEIL, OWN_FLOOR, OWN_SPHERE, PARENT_FLOOR, PARENT_SPHERE } from './
  * Rust mirror (CPU cut walk): `node_decision` and `node_decision_at_zero` of
  * `packages/page-codec-wasm/src/cut_error.rs`, pinned by `walkWasm.test.ts`.
  */
-export function nodeDecision<T extends PageRecord>(
+function nodeDecision<T extends PageRecord>(
   s: SelectionState<T>,
   values: Float64Array,
   at: number,
@@ -90,7 +90,7 @@ function floorAboveZero(values: Float64Array, error: number, radiusAt: number) {
  * sphere — which preparation does not produce — the general path would refuse the datum where
  * this one descends.
  */
-export function nodeDecisionAtZero(values: Float64Array, at: number) {
+function nodeDecisionAtZero(values: Float64Array, at: number) {
   if (floorAboveZero(values, values[at + OWN_FLOOR], at + OWN_SPHERE + 3)) return -1;
   if (values[at + OWN_CEIL] !== 0) return 0;
   return floorAboveZero(values, values[at + PARENT_FLOOR], at + PARENT_SPHERE + 3) ? 1 : 0;

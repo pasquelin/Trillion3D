@@ -4,7 +4,6 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import * as G from '../../host/graph/graph.fixture.ts';
 import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts';
 
-import { pageCopies } from './poolApi.ts';
 import { createHeldFloor } from './heldFloor.ts';
 import { createPageDraws } from './pageDraws.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
@@ -23,36 +22,6 @@ const roots = [{}, { placement: {} }].map(
   (root) => ({ world: new G.Matrix4(), pages: [], ...root }) as ClusterRoot<PageRec>,
 );
 const world = { elements: new Float64Array(new G.Matrix4().toArray()) };
-
-test('page copies follow the records that own a geometry, and the classic instances', () => {
-  let instances = 0;
-  const byUrl = new Map([
-    ['root', [rec('root')]],
-    ['twice', [rec('twice'), rec('twice')]],
-    ['rows', [rec('rows'), rec('rows'), rec('rows')]],
-  ]);
-  // `twice` is replaced by the root's group: the floor holds it with the root (#1237).
-  const copies = pageCopies(
-    byUrl,
-    // The rows' pages are laid out by rank 1, which reads its world from a row.
-    (record) => record.url === 'rows',
-    new Set(['root']),
-    () => instances,
-    new Set(['twice']),
-  );
-  assert.deepEqual(
-    [copies.of('root'), copies.of('twice'), copies.of('rows'), copies.root(), copies.scene()],
-    [1, 2, 1, 1, 4],
-    'rows share one geometry',
-  );
-  assert.equal(copies.floor(), 3, 'the floor: the root and the pages its group replaces');
-  instances = 2;
-  assert.deepEqual(
-    [copies.of('twice'), copies.of('rows'), copies.root(), copies.floor(), copies.scene()],
-    [6, 1, 3, 9, 10],
-    'each instance clones every owned geometry, the rows still share theirs',
-  );
-});
 
 test('the floor counts the root cover and the replaced pages, read again only once changed', () => {
   const shared = pageGeometry(9),

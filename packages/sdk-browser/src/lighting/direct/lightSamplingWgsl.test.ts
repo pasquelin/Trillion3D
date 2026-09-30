@@ -3,14 +3,21 @@ import assert from 'node:assert/strict';
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { DIRECT_LIGHT_SAMPLING_WGSL, SAMPLED_RANKS } from './lightSamplingWgsl.ts';
 import { DIRECT_LIGHTING_WGSL, declaredLightingWgsl } from './lightingWgsl.ts';
-import { BOUNCE_LIGHTING_SHADER, DIRECT_LIGHTING_SHADER } from '../deferred/shaders.ts';
 import { HASH_UNIT_WGSL } from '../../math/hashUnitWgsl.ts';
 import { shaderFunctions, wgslConstants } from '../../texture/shaderRule.fixture.ts';
-import { LIGHT_TILES_SHADER } from '../tiles/shader.ts';
 import {
   compactTile,
   tileLayout,
 } from '../../../../../bench/oracles/browser/gpuLightTilesRankOracle.ts';
+import { contractLightingShader } from '../deferred/shaders.ts';
+import { LIGHT_TILES_SHADERS } from '../tiles/shader.ts';
+
+/** The light-tile shader texts the engine compiles, by name. */
+const LIGHT_TILES_SHADER_TEXTS = new Map<string, string>(LIGHT_TILES_SHADERS);
+const LIGHT_TILES_SHADER = LIGHT_TILES_SHADER_TEXTS.get('LIGHT_TILES_SHADER')!;
+
+const BOUNCE_LIGHTING_SHADER = contractLightingShader(true, false);
+const DIRECT_LIGHTING_SHADER = contractLightingShader(false, false);
 
 const occurrences = (text: string, fragment: string) => text.split(fragment).length - 1;
 

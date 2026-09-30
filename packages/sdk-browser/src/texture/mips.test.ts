@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { generateMaterialMips, TEXTURE_MIPS_PASS } from './mipBatch.ts';
-import { TEXTURE_COVERAGE_PASS } from './coverageMips.ts';
+import { generateMaterialMips } from './mipBatch.ts';
 import { mipLevelCountFor } from './tiles.ts';
 import { installGpuGlobals } from '../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../tests/kit/gpu/mockGpu.ts';
+
+const TEXTURE_MIPS_PASS = 'Trillion3D texture mips';
+const TEXTURE_COVERAGE_PASS = 'Trillion3D texture coverage count';
 
 /** One chain alone: a 4×4 texture under `format`, its rule and its cutoff. */
 const oneChain = (

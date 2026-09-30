@@ -3,10 +3,7 @@ import type { TextureFrameMetrics } from '../texture/metricsContracts.ts';
 import type { ShadowFrameMetrics } from './shadowMetrics.ts';
 import type { OcclusionFrameMetrics } from './occlusionMetrics.ts';
 import type { GpuMemoryFrameMetrics } from './gpuMemory.ts';
-export type { ShadowFrameMetrics, ShadowStaleReason } from './shadowMetrics.ts';
-export type { OcclusionFrameMetrics } from './occlusionMetrics.ts';
 export type { TextureFrameMetrics } from '../texture/metricsContracts.ts';
-export type { GpuMemoryFrameMetrics } from './gpuMemory.ts';
 
 /** One timed GPU pass. `gpuMs` is null when the device returned no usable pair of timestamps. */
 export interface GpuPassTiming {

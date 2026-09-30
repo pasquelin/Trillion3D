@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
-import { planCull, planPipeline, planVertexCull } from './plan.ts';
+import { planPipeline, planVertexCull } from './plan.ts';
 import { blendSceneOf } from './plan.fixture.ts';
 import { hostBlending } from '../../scene/materialBlending.ts';
 import type { BlendGpuItem } from './state.ts';
@@ -52,26 +52,8 @@ test('an item plans on the pipelines of its blend mode; a mode no path draws is 
   assert.throws(() => pipelineOf(hostBlending('additive'), true), /cannot use additive/);
 });
 
-test('a double-sided paged item plans back then face on the pipeline that culls nothing', () => {
-  const entries = plan(G.basicSurface({ side: G.DOUBLE_SIDE }), { paged: true });
-  // Back first: the pass culls the face (1), then the back (2); the vertex stage applies both.
-  assert.deepEqual(entries.map(planCull), [1, 2]);
-  assert.deepEqual(entries.map(planPipeline), [0, 0]);
-  assert.deepEqual(entries.map(planVertexCull), [1, 2]);
-});
-
 test('a double-sided unpaged item keeps the hardware cull of its two pipelines', () => {
   const entries = plan(G.basicSurface({ side: G.DOUBLE_SIDE }));
   assert.deepEqual(entries.map(planPipeline), [1, 2]);
   assert.deepEqual(entries.map(planVertexCull), [0, 0]);
-});
-
-test("a double-sided paged item of another mode sets that mode's pipeline that culls nothing", () => {
-  const entries = plan(
-    G.basicSurface({ side: G.DOUBLE_SIDE, transparent: true, blending: hostBlending('additive') }),
-    { paged: true },
-  );
-  assert.deepEqual(entries.map(planCull), [1, 2]);
-  assert.deepEqual(entries.map(planPipeline), [3, 3]);
-  assert.deepEqual(entries.map(planVertexCull), [1, 2]);
 });

@@ -3,7 +3,7 @@ import { GraphTexture } from '../../host/graph/texture.ts';
 import { HOST_COLOUR_SPACE_SRGB } from '../../host/surfaceConstants.ts';
 
 /** Fixed decoded RGBA map budget per session; checked before making a texture or surface. */
-export const RUNTIME_MAP_BYTES_CEILING = 64 * 1024 * 1024;
+const RUNTIME_MAP_BYTES_CEILING = 64 * 1024 * 1024;
 
 /** Maps borrow caller-owned bitmaps until drop/session disposal. The engine never closes them. */
 export function runtimeMaps() {

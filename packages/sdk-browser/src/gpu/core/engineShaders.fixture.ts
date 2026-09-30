@@ -24,11 +24,7 @@ import { SHADOW_OCCLUSION_SHADER } from '../shadow/occlusionShader.ts';
 import { SHADOW_DEPTH_SHADER } from '../shadow/shader.ts';
 import { PAGE_QUAD_SHADER } from '../shadow/pageQuads.ts';
 import { PAGE_MOVE_SHADER } from '../shadow/pageMoves.ts';
-import { ALLOCATION_WGSL } from '../../webgpu/shadow/allocWgsl.ts';
-import { SHADOW_WORDS_WGSL } from '../../webgpu/shadow/wordsWgsl.ts';
-import { SHADOW_FRESH_WGSL } from '../../webgpu/shadow/freshWgsl.ts';
 import { SHADOW_FRESH_CULL_WGSL } from '../../webgpu/shadow/freshCullWgsl.ts';
-import { SHADOW_DEMAND_WGSL } from '../../webgpu/shadow/demandWgsl.ts';
 import { BOUNCE_PROBE_SHADER } from '../../bounce/probeWgsl.ts';
 import { BOUNCE_SURFACE_SHADER } from '../../bounce/surfaceWgsl.ts';
 import { AS_IS_SHARE_SHADER } from '../../lighting/deferred/asIsShare.ts';
@@ -37,32 +33,45 @@ import { DIAGNOSTIC_BLEND_WGSL } from '../../diagnostic/gpuVariant.ts';
 import { BLOOM_WGSL } from '../../effects/bloomWgsl.ts';
 import { GUIDE_WGSL } from '../../guides/guideShaders.ts';
 import {
-  BOUNCE_LIGHTING_SHADER,
   CONTRACT_COMPOSITIONS,
   contractLightingShader,
-  DIRECT_LIGHTING_SHADER,
   UNLIT_COMPOSITIONS,
   UNLIT_LIGHTING_SHADER,
 } from '../../lighting/deferred/shaders.ts';
 import { reflectionSource, withScreenReflections } from '../../reflections/screenWgsl.ts';
 import { withSubgroupShadowRequests } from '../../lighting/direct/shadowRequestWgsl.ts';
 import { LIGHT_TILES_SHADERS } from '../../lighting/tiles/shader.ts';
-import { TAA_SHADER, taaShader } from '../../taa/shaderWgsl.ts';
+import { taaShader } from '../../taa/shaderWgsl.ts';
 import { taaUpscaleShader } from '../../taa/upscaleWgsl.ts';
 import { MIP_SHADER, mipShader } from '../../texture/mips.ts';
 import { COVERAGE_WGSL } from '../../texture/coverageMips.ts';
 import { SHADE_SHADER, VIS_SHADER } from '../../visibility/buffer.ts';
 import { BLEND_EXPAND_SHADER } from '../../webgpu/blend/expandWgsl.ts';
-import { BLEND_SHADER } from '../../webgpu/blend/shader.ts';
 import { DISPLAY_FILTER_SHADER } from '../../webgpu/blend/displayFilterProgram.ts';
 import { SHADER as PREPARE_SHADER } from '../../webgpu/pages/prepare/shaders.ts';
 import { REDUCE_WGSL } from '../../webgpu/tile/reduce.ts';
 import { TRANSPARENT_COMPACT_SHADER } from '../../webgpu/transparent/shader.ts';
 import { waterCompositeShader, waterRoutedShader } from '../../webgpu/water/compositeWgsl.ts';
-import { WATER_DEPTH_RESTORE_SHADER } from '../../webgpu/water/depthRestore.ts';
 import { WATER_SURFACE_WGSL } from '../../webgpu/water/surfaceWgsl.ts';
 import { PARTICLES_WGSL } from '../../particles/webgpuParticles.ts';
 import { PARTICLE_DRAW_WGSL, PARTICLE_ROUTED_WGSL } from '../../particles/webgpuParticleDraw.ts';
+import { allocationWgsl } from '../../webgpu/shadow/allocWgsl.ts';
+import { shadowWordsWgsl } from '../../webgpu/shadow/wordsWgsl.ts';
+import { shadowFreshWgsl } from '../../webgpu/shadow/freshWgsl.ts';
+import { shadowDemandWgsl } from '../../webgpu/shadow/demandWgsl.ts';
+import { FULLSCREEN_VERTEX } from '../../lighting/deferred/shaders.ts';
+import { blendShader } from '../../webgpu/blend/shader.ts';
+import { depthRestoreWgsl } from './depthRestoreWgsl.ts';
+
+const ALLOCATION_WGSL = allocationWgsl();
+const SHADOW_WORDS_WGSL = shadowWordsWgsl();
+const SHADOW_FRESH_WGSL = shadowFreshWgsl();
+const SHADOW_DEMAND_WGSL = shadowDemandWgsl();
+const BOUNCE_LIGHTING_SHADER = contractLightingShader(true, false);
+const DIRECT_LIGHTING_SHADER = contractLightingShader(false, false);
+const TAA_SHADER = taaShader(true);
+const BLEND_SHADER = blendShader();
+const WATER_DEPTH_RESTORE_SHADER = FULLSCREEN_VERTEX + depthRestoreWgsl(0);
 
 const compositions = (label: string, sources: Record<string, string>) =>
   Object.fromEntries(Object.entries(sources).map(([input, code]) => [`${label}_${input}`, code]));

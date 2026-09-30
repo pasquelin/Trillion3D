@@ -20,7 +20,7 @@ import {
  * fragment stage of a class runs on its pixels only, compiled with the class's feature bits as
  * pipeline overrides. Every value written is exact in `f32`: a class never misses its pixels.
  */
-export const CLASS_FEATURE = {
+const CLASS_FEATURE = {
   HAS_UV: 1,
   HAS_MAP: 2,
   HAS_MASK: 4,
@@ -42,7 +42,7 @@ export type MaterialClassFeature = keyof typeof CLASS_FEATURE;
 /** Keys addressable: one more bit than the highest feature; key + 1 stays exact as a depth. */
 export const MATERIAL_CLASS_KEYS = 8192;
 /** Depth denominator: a power of two, so every class depth `(key + 1) / units` is exact in `f32`. */
-export const CLASS_DEPTH_UNITS = 16384;
+const CLASS_DEPTH_UNITS = 16384;
 /** Format of the material-depth target: exact for every class depth, like the opaque depth. */
 export const MATERIAL_DEPTH_FORMAT: GPUTextureFormat = 'depth32float';
 

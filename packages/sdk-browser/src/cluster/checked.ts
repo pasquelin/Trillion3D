@@ -12,7 +12,7 @@ const retriable = (status: number | null) =>
  *  tables, binary, images, texture levels, lights; some without an abort signal), while a user
  *  watches the model load: past ten seconds a named failure serves them better than an open wait.
  *  A streamed page or a physics tile asks once (`ONE_REQUEST`) and never waits. */
-export const RETRY_AFTER_CAP_MS = 10_000;
+const RETRY_AFTER_CAP_MS = 10_000;
 /** The ms `response`'s `Retry-After` asks to wait (seconds or an HTTP date), capped, 0 for none. */
 const retryAfter = (response: Response) => {
   const value = response.headers.get('retry-after') ?? '';

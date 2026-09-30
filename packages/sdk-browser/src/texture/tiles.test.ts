@@ -3,9 +3,7 @@ import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import {
   entryLevel,
-  entryPlace,
   packEntry,
-  placeIndex,
   placeOf,
   POOL_LAYER_SIDE,
   tailOffset,
@@ -17,6 +15,7 @@ import {
 } from './tiles.ts';
 import { texturePoolFor } from '../webgpu/residency/memoryBudgets.ts';
 import { noTails } from './noTails.fixture.ts';
+import { entryPlace, placeIndex } from './tiles.fixture.ts';
 
 test('a 2048² texture has five streamed levels of 256 + 64 + 16 + 4 + 1 tiles, and its tail starts at 64', () => {
   const layout = tileLayout(2048, 2048);

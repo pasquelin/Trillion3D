@@ -99,8 +99,6 @@ ${CONTRACT_BINDINGS_WGSL}
 ${STANDARD_LIGHTING_WGSL}
 ${directLightingWgsl(narrow, pages)}
 ${bounce ? BOUNCE_SURFACE_WGSL : contractSurface('')}`;
-export const DIRECT_LIGHTING_SHADER = contractLightingShader(false, false);
-export const BOUNCE_LIGHTING_SHADER = contractLightingShader(true, false);
 /**
  * How the composition reads a pixel's as-is share — 1 on a debug view (a normal or depth surface,
  * `AS_IS_FLAG`), 0 elsewhere —, binding 2, one read per pixel. A still image reads its surface

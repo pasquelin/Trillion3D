@@ -1,20 +1,19 @@
 // The view AHEAD of a moving camera (#488): the cut requests the pages the camera is about to need
 // before they are on screen, below every visible request, and a still camera cuts as before. Proven
-// on the oracle, the kernel's bit-for-bit mirror (`oracle/oracle.ts`, `shader/aheadWgsl.ts`).
+// on the oracle, the kernel's bit-for-bit mirror (`oracle/oracle.fixture.ts`, `shader/aheadWgsl.ts`).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
-import {
-  evaluateDagSelectionKernel,
-  packDagSelection,
-  packedWorldsToRenderOrigin,
-} from './selection.ts';
+import { packDagSelection } from './selection.ts';
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts';
 import { VIEWPORT } from './selectionHelpers.fixture.ts';
 import { cameraSelectionUniforms } from '../core/selection.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
-import { readCameraMotion, restartCameraMotion, type CameraMotion } from '../../camera/motion.ts';
+import { readCameraMotion, type CameraMotion } from '../../camera/motion.ts';
 import { PREFETCH_HORIZON_MS } from '../../backend/common.ts';
+import { restartCameraMotion } from '../../camera/motion.fixture.ts';
+import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts';
+import { packedWorldsToRenderOrigin } from './pack.fixture.ts';
 
 const SPEED = 40,
   HORIZON = PREFETCH_HORIZON_MS / 1000,

@@ -16,7 +16,7 @@ export type Limits = Parameters<typeof storageBufferCap>[0];
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
 
 /** The most ranks one `out` binding holds on this device. */
-export const deviceListCap = (limits: Limits) => listCapHeld(storageBufferCap(limits));
+const deviceListCap = (limits: Limits) => listCapHeld(storageBufferCap(limits));
 
 /** The cap a cut starts with: the readout's (`selectionListCap`, `layout.ts`), within the device. */
 export const initialListCap = (limits: Limits, pageCount: number) =>

@@ -105,6 +105,3 @@ ${PAGE_MODEL_FUNCTIONS.map((name) => {
   return `fn ${name}(${params.join(',')})->${signature[signature.length - 1]}{return ${body};}`;
 }).join('\n')}`;
 };
-
-/** The page model of the ordinary extent: what a session without reference mode compiles. */
-export const PAGE_MODEL_WGSL = pageModelWgsl();

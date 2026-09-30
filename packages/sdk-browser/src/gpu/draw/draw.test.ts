@@ -11,11 +11,13 @@ import {
   createGpuDraw,
   DRAW_INDIRECT_STRIDE,
   DRAW_ITEM_U32,
-  DRAW_SHADER,
-  evaluateDrawCompact,
-  indirectForDraw,
-  type DrawItem,
 } from './draw.ts';
+import { evaluateDrawCompact } from './cpu.fixture.ts';
+import { indirectForDraw } from './cpu.fixture.ts';
+import { type DrawItem } from './contract.ts';
+import { drawShader } from './shader.ts';
+
+const DRAW_SHADER = drawShader(1);
 
 test('compact keeps input order inside each bin and writes 16-byte indirects', () => {
   const items = [

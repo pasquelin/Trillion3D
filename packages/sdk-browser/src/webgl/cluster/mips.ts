@@ -12,7 +12,7 @@ import { allocated } from '../core/allocation.ts';
 /** The GLSL twin of the WebGPU reduction (`MIP_SHADER`, `../../texture/mips.ts`) under `weighted`;
  *  `source` is a copy of the level above, `extent` its size; with a `cutoff`, the row under it
  *  holds the level's `t` (`coverageMips.ts`). */
-export const MIP_FRAGMENT_GLSL = `#version 300 es
+const MIP_FRAGMENT_GLSL = `#version 300 es
 precision highp float;precision highp int;
 uniform highp sampler2D source;
 uniform ivec2 extent;

@@ -14,8 +14,8 @@ import { routedFilter } from '../blend/displayFilter.ts';
 import { activeAsIsShare } from '../pages/prepare/asIsShareTarget.ts';
 
 /** Labels of the two measured passes; their GPU durations are read under these names. */
-export const WATER_SURFACE_PASS = 'Trillion3D water surfaces';
-export const WATER_COMPOSITE_PASS = 'Trillion3D water composite';
+const WATER_SURFACE_PASS = 'Trillion3D water surfaces';
+const WATER_COMPOSITE_PASS = 'Trillion3D water composite';
 
 /**
  * The frame side of the water pass: the composite program, and everything an image reuses as long

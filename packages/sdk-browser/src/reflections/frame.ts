@@ -14,7 +14,7 @@ export function updateScreenReflection(
 
 /** Versions come from their writers: receiver motion alone cannot describe a
  * reflection's dependency on a moving, relit or newly resident reflected object. */
-export function reflectionFrame(rt: WebgpuPagesRuntime): ReflectionHistoryFrame | undefined {
+function reflectionFrame(rt: WebgpuPagesRuntime): ReflectionHistoryFrame | undefined {
   const { gpu, vis, run, layout, lights, bounce } = rt;
   if (
     !gpu.reflection?.history ||

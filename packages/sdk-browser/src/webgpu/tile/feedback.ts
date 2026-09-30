@@ -33,7 +33,7 @@ export const PICK_BLENDS = 2,
  * each pixel stepping through the picks as it speaks. A convergence image names every pick of every
  * pixel at once (`everyPick`, `requestWgsl.ts`).
  */
-export const PICK_CYCLE = (MAP_CHOICES + 1) * PICK_BLENDS * PICK_TAPS;
+const PICK_CYCLE = (MAP_CHOICES + 1) * PICK_BLENDS * PICK_TAPS;
 
 export type WebgpuTileFeedback = {
   readonly buffer: GPUBuffer;

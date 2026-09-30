@@ -31,11 +31,11 @@ export const REQUEST_PRIORITY_MAX = (1 << (32 - REQUEST_PAGE_BITS)) - 1;
 /** The priority bit of a request ahead of the camera: the field's top bit. */
 export const REQUEST_AHEAD = (REQUEST_PRIORITY_MAX + 1) >> 1;
 /** The highest error step of the visible tier. */
-export const REQUEST_STEP_MAX = REQUEST_AHEAD - 1;
+const REQUEST_STEP_MAX = REQUEST_AHEAD - 1;
 /** Quantization step: sixteen steps per error doubling, as before the tier bit, over thirty-two
  *  doublings — four billion pixels, past any finite error a screen projects; the near plane
  *  reached is `Infinity`, the tier's highest step. */
-export const REQUEST_PRIORITY_SCALE = 16;
+const REQUEST_PRIORITY_SCALE = 16;
 /** A request ahead splits its nine bits: three for its deadline, eight steps of the horizon — about
  *  two frames each at 60 Hz over the published 250 ms —, six for its error, two steps per doubling
  *  over the same thirty-two doublings. */
@@ -68,14 +68,14 @@ export function quantizeAheadPriority(pixels: number, due: number) {
   );
 }
 /** The order a priority is served in, highest first: the visible tier above the tier ahead. */
-export const requestRank = (priority: number) => priority ^ REQUEST_AHEAD;
+const requestRank = (priority: number) => priority ^ REQUEST_AHEAD;
 
 export const packRequest = (page: number, priority: number) =>
   ((priority << REQUEST_PAGE_BITS) | page) >>> 0;
 export const requestPage = (word: number) => word & (REQUEST_PAGE_MAX - 1);
 export const requestPriority = (word: number) => word >>> REQUEST_PAGE_BITS;
 /** The rank of a request word: what `dagSortRequests` orders by. */
-export const requestWordRank = (word: number) => requestRank(requestPriority(word));
+const requestWordRank = (word: number) => requestRank(requestPriority(word));
 /** In `words[start, end)`, sorted by rank, the first request of the view ahead: every visible
  *  request comes before it. */
 export function firstAheadRequest(words: ArrayLike<number>, start = 0, end = words.length) {

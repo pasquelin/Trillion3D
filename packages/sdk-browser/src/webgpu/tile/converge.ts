@@ -14,7 +14,7 @@ const CONVERGE_LIMIT = 64;
 /** Images a convergence draws at most over the still image's `phases`: the turns, then room for
  *  a whole quiet round closing on the replayed phase (`texturesConverged`) after the last tile
  *  served — at a low render scale a round outnumbers the turns. */
-export const convergeBound = (phases: number) => CONVERGE_LIMIT + 2 * phases;
+const convergeBound = (phases: number) => CONVERGE_LIMIT + 2 * phases;
 /** Images a barrier grants at most to the shadow pages' round trips: a report read, casters
  *  loaded, pages staled by their arrival. A still camera takes a few; a moving camera voids pages
  *  every image and never converges: the bound is there for it. */
@@ -24,7 +24,7 @@ const SHADOW_DRAIN_LIMIT = 64;
 const POSE_ROUNDS = 4;
 
 /** True when the barrier changed the raster: TAA must restart its still average (#25). */
-export const mustRestartTaaAfterSettle = (tilesServed: number, shadowFrames: number) =>
+const mustRestartTaaAfterSettle = (tilesServed: number, shadowFrames: number) =>
   tilesServed > 0 || shadowFrames > 0;
 
 /**
@@ -33,7 +33,7 @@ export const mustRestartTaaAfterSettle = (tilesServed: number, shadowFrames: num
  * no picture), ending on the replayed phase — image `image + 1` is a multiple of `phases`, so the
  * last image drawn is the one the next image follows —, and nothing is waited for that will come.
  */
-export const texturesConverged = (
+const texturesConverged = (
   quiet: number,
   phases: number,
   image: number,
@@ -96,12 +96,8 @@ async function convergeTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, pi
  *  page made or unmade resident after the last image (`seen`, `now`: the pool's residency
  *  revision), which no plan saw yet — the pages it stales, those a light cut drew coarser among
  *  them, are drawn again before the still average, not during it (#1016); or pages unsettled. */
-export const drainsAgain = (
-  offered: boolean,
-  seen: unknown,
-  now: unknown,
-  unsettled: () => boolean,
-) => offered || seen !== now || unsettled();
+const drainsAgain = (offered: boolean, seen: unknown, now: unknown, unsettled: () => boolean) =>
+  offered || seen !== now || unsettled();
 
 /**
  * Drains shadow maps: images are rendered until the pages the image reads are all mapped and

@@ -9,7 +9,6 @@ import {
 import { localTurnQuaternion } from '../../../../sdk-core/src/math/matrix/quaternion.ts';
 import type { TileView } from '../../../../../bench/oracles/browser/gpuLightTileColumnOracle.ts';
 import { tileViewInverse } from './tiles.ts';
-import { depthDistance } from '../../camera/depthConvention.ts';
 
 // The views and world points the tile-bounds tests draw lights around, in f64.
 
@@ -60,7 +59,7 @@ export function pixelRay(view: TileView, px: number, py: number) {
 export const rayParameter = (distance: number) => (distance - NEAR) / (FAR_CAST - NEAR);
 
 /** The depth the buffer holds at parameter `s` of a `pixelRay`. */
-export const rayDepth = (s: number) => depthDistance(NEAR + s * (FAR_CAST - NEAR), NEAR);
+export const rayDepth = (s: number) => NEAR / (NEAR + s * (FAR_CAST - NEAR));
 
 /** Distance from `c` to the segment `a`–`b`. */
 export function segmentDistance(a: Vec3, b: Vec3, c: Vec3) {

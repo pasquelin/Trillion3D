@@ -10,7 +10,9 @@ import { quadScene, camera } from './testScenes.fixture.ts';
 import { coarseQuadScene } from './testOccluder.fixture.ts';
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import type { WebgpuPagesBackend } from './runtime.ts';
-import { LAST_USE_WINDOW } from '../residency/pinUpdater.ts';
+import { DAG_READBACK_SLOTS } from '../../gpu/dag/layout.ts';
+
+const LAST_USE_WINDOW = DAG_READBACK_SLOTS + 1;
 
 test('a host eviction deferred for coverage is applied once the page is no longer pinned', async () => {
   installGpuGlobals();

@@ -78,56 +78,6 @@ function rangParProfondeur(count: number, bounds: Float64Array) {
 }
 
 /**
- * The nearest half becomes the frame's occluders: `rest[i]` is 0 for an occluder and 1 otherwise,
- * and the occluder count is returned. Boxes that clip the near plane stay in the rest, where they
- * cannot hide any other.
- *
- * Only the set of this half is read, never its order: what is needed is therefore a selection,
- * not a sort. It walks bytes from strongest to weakest, marks whole buckets that fit under the
- * sought rank in one go and only descends into the one that contains it — one pass over every
- * candidate, then over one in two hundred and fifty-six on average, instead of eight scatter
- * passes. The returned set is that of the stable sort, term for term: everything strictly
- * nearer than the rank key, then the first equal keys in candidate order — the order bucket
- * partition keeps, as the stable sort kept it.
- */
-export function splitOccludersFlat(count: number, bounds: Float64Array, rest: Uint8Array) {
-  for (let i = 0; i < count; i++) rest[i] = 1;
-  let inFront = chargeCles(count, bounds);
-  if (!inFront) return 0;
-  const occluders = Math.max(1, Math.floor(inFront / 2));
-  let need = occluders,
-    pool = splitOrder,
-    scratch = splitScratch;
-  for (let pass = 7; pass >= 0 && need > 0; pass--) {
-    const keys = pass < 4 ? splitLow : splitHigh,
-      shift = (pass & 3) * 8;
-    splitCounts.fill(0);
-    for (let i = 0; i < inFront; i++) splitCounts[(keys[pool[i]] >>> shift) & 255]++;
-    // Bucket of the sought rank: all those before it fit entirely below.
-    let below = 0,
-      digit = 0;
-    for (; digit < 255 && below + splitCounts[digit] < need; digit++) below += splitCounts[digit];
-    let kept = 0;
-    for (let i = 0; i < inFront; i++) {
-      const index = pool[i],
-        d = (keys[index] >>> shift) & 255;
-      if (d < digit) rest[index] = 0;
-      else if (d === digit) scratch[kept++] = index;
-    }
-    need -= below;
-    const swap = pool;
-    pool = scratch;
-    scratch = swap;
-    inFront = kept;
-  }
-  // What remains has the same eight bytes: candidate order breaks ties, as in the sort.
-  for (let i = 0; i < need; i++) rest[pool[i]] = 0;
-  splitOrder = pool;
-  splitScratch = scratch;
-  return occluders;
-}
-
-/**
  * The same split, returned as pages rather than flags: `occluders` receives the nearest half in
  * sort order, `rest` the rest of the sort then the near-plane clips in candidate order. No page
  * is projected twice and nothing is allocated per frame.

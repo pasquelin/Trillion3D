@@ -3,7 +3,6 @@
 // two copies in the same text would be two chances of seeing it drift, as before this lot.
 import { importWrapMode } from '../../host/textureImport.ts';
 import test from 'node:test';
-import { TAA_SHADER } from '../../taa/shaderWgsl.ts';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import {
@@ -14,13 +13,17 @@ import {
   MASK_KEEP_WGSL,
   BARY_WEIGHTS_WGSL,
 } from './pageWgsl.ts';
-import { WRAP_COORD_WGSL, wrapLinear } from '../wrapModes.ts';
+import { WRAP_COORD_WGSL } from '../wrapModes.ts';
 import { lineaireThree } from '../../../../../tests/browser/probes/addressingCases.ts';
 import { COLOR_SAMPLE_WGSL, DATA_SAMPLE_WGSL, maskAlphaWgsl } from '../../webgpu/tile/wgsl.ts';
 import { rasterSource } from '../../gpu/raster/shader.ts';
 import { SHADE_SHADER } from './shadeWgsl.ts';
 import { VIS_SHADER } from './visWgsl.ts';
 import { SHADOW_DEPTH_SHADER } from '../../gpu/shadow/shader.ts';
+import { taaShader } from '../../taa/shaderWgsl.ts';
+import { wrapLinear } from '../wrapModes.fixture.ts';
+
+const TAA_SHADER = taaShader(true);
 
 const SMALL_SHADER = rasterSource(4, 16);
 

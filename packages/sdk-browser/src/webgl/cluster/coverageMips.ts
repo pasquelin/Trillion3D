@@ -13,7 +13,7 @@ import { refusedNow } from '../core/allocation.ts';
  *  bytes level 0's own or a level's medians from the copy of the one above (`halved`): on the
  *  column of its bin, row `texel & 15` of the level's sixteen, channel `quarter` — no cell passes
  *  2^24 samples, where a float stops counting. */
-export const COVERAGE_COUNT_GLSL = `#version 300 es
+const COVERAGE_COUNT_GLSL = `#version 300 es
 uniform highp sampler2D source;uniform ivec2 extent;uniform ivec2 size;uniform bool halved;uniform uint cutoff;
 flat out uint quarter;
 ${COVERAGE_SCALE_GLSL}

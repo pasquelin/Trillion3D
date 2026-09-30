@@ -10,7 +10,7 @@ import {
 } from '../../diagnostic/gpuGeometry.ts';
 import { MATERIAL_DEPTH_FORMAT } from '../../visibility/shader/materialClass.ts';
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts';
-export const shadeTargetFormats = (feedback: boolean) => [
+const shadeTargetFormats = (feedback: boolean) => [
   ...SURFACE_FORMATS,
   ...(feedback ? [FEEDBACK_FORMAT] : []),
 ];

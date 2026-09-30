@@ -47,7 +47,7 @@ function coversLinear(material: Material) {
 /** Uploads one material's factors, maps and raster state; cached values are skipped. `side`
  *  names the faces of one pass of a two-sided transparent surface; undefined, the material's
  *  own faces draw. */
-export function bindClusterMaterial(
+function bindClusterMaterial(
   binding: Binding,
   material: Material,
   toneMapped: boolean,

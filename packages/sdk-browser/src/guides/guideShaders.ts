@@ -22,7 +22,7 @@ export const GUIDE_UNIFORM_FLOATS = 24;
  * end is first put on the near plane (`lineClip` at no width): a segment whose two ends both slid
  * there lies wholly behind it and keeps no width, so its caps draw no square either.
  */
-export const GUIDE_CORNER_WGSL = `fn guideCorner(ca:vec4f,cb:vec4f,corner:vec2f,width:f32,viewport:vec2f,pixelRatio:f32)->vec4f{
+const GUIDE_CORNER_WGSL = `fn guideCorner(ca:vec4f,cb:vec4f,corner:vec2f,width:f32,viewport:vec2f,pixelRatio:f32)->vec4f{
  let run=select(cb-ca,vec4f(1.0,0.0,0.0,0.0),length(cb-ca)==0.0);
  let na=lineClip(ca,run,0.0,viewport,pixelRatio);
  let nb=lineClip(cb,run,0.0,viewport,pixelRatio);
@@ -33,7 +33,7 @@ export const GUIDE_CORNER_WGSL = `fn guideCorner(ca:vec4f,cb:vec4f,corner:vec2f,
 }`;
 
 /** The same corner in the WebGL2 program, over `LINE_CLIP_GLSL`'s forward depth. */
-export const GUIDE_CORNER_GLSL = `vec4 guideCorner(vec4 ca,vec4 cb,vec2 corner,float width,vec2 viewport,float pixelRatio){
+const GUIDE_CORNER_GLSL = `vec4 guideCorner(vec4 ca,vec4 cb,vec2 corner,float width,vec2 viewport,float pixelRatio){
  vec4 run=length(cb-ca)==0.0?vec4(1.0,0.0,0.0,0.0):cb-ca;
  vec4 na=lineClip(ca,run,0.0,viewport,pixelRatio);
  vec4 nb=lineClip(cb,run,0.0,viewport,pixelRatio);
@@ -70,29 +70,6 @@ export function writeGuideView(
   into[22] = scene[0];
   into[23] = scene[1];
   return into;
-}
-
-/**
- * Depth slack of a guide at pixel `(x, y)` against the scene depth `depthAt`, the rule
- * `jitterSlack` applies in GUIDE_WGSL. The scene was drawn with this image's jitter `(jx, jy)`
- * pixels, the guide without it: the depth stored at a pixel is the surface's at `pixel − jitter`,
- * off by `∇d · j`, which `|jx|·|∂d/∂x| + |jy|·|∂d/∂y|` bounds — exactly on a plane, so a grid on
- * a floor or a box's edge neither shimmers nor half hides. Each slope is the smaller one-sided
- * difference: a silhouette beside the pixel opens no hole. No jitter, no slack.
- */
-export function jitterDepthSlack(
-  depthAt: (x: number, y: number) => number,
-  x: number,
-  y: number,
-  jitter: ArrayLike<number>,
-) {
-  const centre = depthAt(x, y);
-  const slope = (dx: number, dy: number) =>
-    Math.min(
-      Math.abs(depthAt(x + dx, y + dy) - centre),
-      Math.abs(centre - depthAt(x - dx, y - dy)),
-    );
-  return Math.abs(jitter[0]) * slope(1, 0) + Math.abs(jitter[1]) * slope(0, 1);
 }
 
 export const GUIDE_WGSL = /* wgsl */ `

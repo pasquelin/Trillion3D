@@ -14,13 +14,21 @@ import {
 } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
 import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
 import { SUN_LEVELS } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { SHADOW_REQUEST_BITS } from '../../lighting/direct/shadowRequestWgsl.ts';
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
-import { ALLOCATION_WGSL, ALLOC_LANES, ALLOC_PARAM_WORDS, ALLOC_PHASES } from './allocWgsl.ts';
+import { ALLOC_PARAM_WORDS } from './allocWgsl.ts';
 import { POOL_COUNTS } from './poolWgsl.ts';
-import { SHADOW_WORDS_WGSL, WORDS_HEADER } from './wordsWgsl.ts';
+import { WORDS_HEADER } from './wordsWgsl.ts';
+import { shadowRequestBits } from '../../lighting/direct/shadowRequestWgsl.ts';
+import { allocationWgsl } from './allocWgsl.ts';
+import { shadowWordsWgsl } from './wordsWgsl.ts';
+
+const SHADOW_REQUEST_BITS = shadowRequestBits();
+const ALLOCATION_WGSL = allocationWgsl();
+const ALLOC_LANES = 256;
+const ALLOC_PHASES = ['followPages', 'touchRequests', 'listCandidates'];
+const SHADOW_WORDS_WGSL = shadowWordsWgsl();
 
 type Lanes = Record<string, (...args: number[]) => void>;
 const u32 = (b: Uint8Array) => new Uint32Array(b.buffer, b.byteOffset, b.byteLength >> 2);

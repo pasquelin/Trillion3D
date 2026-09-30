@@ -45,7 +45,7 @@ export const sceneTargetBytes = (width: number, height: number) =>
 
 /** Bytes each kind holds on a `width × height` image, whatever the number of its passes: they
  *  run one after the other on the same resources. */
-export const EFFECT_KIND_BYTES: Record<EffectKind, (width: number, height: number) => number> = {
+const EFFECT_KIND_BYTES: Record<EffectKind, (width: number, height: number) => number> = {
   bloom: bloomLevelBytes,
 };
 

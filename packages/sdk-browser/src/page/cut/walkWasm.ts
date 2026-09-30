@@ -29,7 +29,7 @@ const release = new FinalizationRegistry<Arena>((arena) => arena.libere());
 /** Lens, result and stack: one reservation for the session's walks. */
 let scratch: Arena | null = null;
 /** Walks run to the end, and walks handed back to the JavaScript descent (`cut.rs::Bail`). */
-export const cutWalkRuns = { walked: 0, bailed: 0 };
+const cutWalkRuns = { walked: 0, bailed: 0 };
 /** Leaves copied out of module memory: taking a page may grow it and detach the view. */
 let leaves = new Uint32Array(64);
 

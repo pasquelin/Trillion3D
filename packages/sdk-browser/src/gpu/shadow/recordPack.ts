@@ -23,8 +23,8 @@ export const MAX_SHADOW_PAGES: number = LIGHT_SETTINGS.shadowPagesPerBatch;
 export const MAX_SHADOW_REGIONS = 2 * MAX_SHADOW_PAGES;
 /** Words of a face entry the depth pass reads — matrix, `params`, `emitter` —, before the page's
  *  clip square the page quads read (`writePage`). */
-export const SHADOW_FACE_READ_WORDS = 24,
-  SHADOW_FACE_READ_BYTES = SHADOW_FACE_READ_WORDS * 4;
+const SHADOW_FACE_READ_WORDS = 24;
+export const SHADOW_FACE_READ_BYTES = SHADOW_FACE_READ_WORDS * 4;
 /** First word of a face entry's emitter envelope, `emitter`: its centre, then its radius. */
 const FACE_EMITTER = 20;
 

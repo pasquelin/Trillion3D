@@ -11,10 +11,12 @@ import { PAGE_INFO_STRUCT_WGSL } from './pageWgsl.ts';
 import { VIS_SHADER } from './visWgsl.ts';
 import { SHADE_SHADER } from './shadeWgsl.ts';
 import { rasterSource } from '../../gpu/raster/shader.ts';
-import { BLEND_SHADER } from '../../webgpu/blend/shader.ts';
 import { BLEND_ITEM_WGSL } from '../../webgpu/blend/items.ts';
 import { CLUSTER_VERTEX } from '../../webgl/cluster/shaders.ts';
 import { SHADER as FALLBACK_SHADER } from '../../webgpu/pages/prepare/shaders.ts';
+import { blendShader } from '../../webgpu/blend/shader.ts';
+
+const BLEND_SHADER = blendShader();
 
 const SOURCES = { wgsl: LINE_CLIP_WGSL, glsl: LINE_CLIP_GLSL };
 

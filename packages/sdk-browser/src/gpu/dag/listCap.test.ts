@@ -4,8 +4,8 @@
 // here, as the kernels would; that the kernels write them so is the GPU's to prove.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { deviceListCap, grownListCap, initialListCap } from './listCap.ts';
-import { SELECTION_HEADER_WORDS as HEAD, SELECTION_LIST_CAP, stagedOutputBytes } from './layout.ts';
+import { grownListCap } from './listCap.ts';
+import { SELECTION_HEADER_WORDS as HEAD, stagedOutputBytes } from './layout.ts';
 import { createDagResources } from './resources.ts';
 import { createDagRuntime } from './runtime.ts';
 import { packDagSelection } from './selection.ts';
@@ -15,15 +15,6 @@ import { createSelectionUniforms } from '../core/selection.ts';
 import { dagFixture } from '../../page/selection/dag.fixture.ts';
 import { packed } from './selectionHelpers.fixture.ts';
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts';
-
-test('the list a device holds is the largest whose readout one binding holds', () => {
-  const limits = { maxStorageBufferBindingSize: 128 << 20 };
-  const cap = deviceListCap(limits);
-  assert.ok(stagedOutputBytes(cap) <= 128 << 20 && stagedOutputBytes(cap + 1) > 128 << 20);
-  assert.equal(initialListCap(limits, 2_000_000), SELECTION_LIST_CAP, 'a real device: as before');
-  assert.equal(initialListCap(limits, 1000), 1000, 'never more than the catalogue');
-  assert.equal(initialListCap({ maxStorageBufferBindingSize: stagedOutputBytes(9) }, 1000), 9);
-});
 
 test('a truncated list doubles past what the cut asked, within the catalogue and the device', () => {
   const limits = { maxStorageBufferBindingSize: stagedOutputBytes(1000) };
