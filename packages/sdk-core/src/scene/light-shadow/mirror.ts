@@ -12,8 +12,9 @@ export interface ShadowPoolSnapshot {
   owner: Int32Array;
   /** The frame each page was last asked for in. */
   requested: Int32Array;
-  /** Pages that frame mapped, and entries it had no page for. */
+  /** Pages that frame mapped. */
   allocated: number;
+  /** Entries that frame had no page for. */
   refused: number;
   /** Pages that frame listed for the GPU to draw (`listDraw`). */
   drawn: number;
