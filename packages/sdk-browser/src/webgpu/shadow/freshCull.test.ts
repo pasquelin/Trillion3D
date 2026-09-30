@@ -1,8 +1,9 @@
 // #1275: the cull of the pages the GPU draws itself (`freshCullWgsl.ts`) and their seal
 // (`sealShadowPages`), run from their shipped WGSL: a region keeps every caster row its volume
 // touches — the page table's and the blended casters' —, one pair each; every listed page is picked
-// and drawn when the pairs it keeps fit the list (#1363), and one the list leaves short waits,
-// unread and unclaimed, for the next frame.
+// and drawn when the pairs it keeps fit the list (#1363); past the list, whole regions alone are
+// admitted — one left short keeps no pair and waits, unread and unclaimed —, and the list, grown to
+// the pairs the seal counted (`freshPairs.ts`), draws every page the next frame at its level.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -13,7 +14,9 @@ import {
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
 import { MOBILITY_CORNER_SHIFT } from '../../gpu/shadow/cullShader.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { runShadowFresh, runShadowPairs } from './freshRun.fixture.ts';
+import { PAIR_BYTES, createFreshPairs } from './freshPairs.ts';
 import {
   FRESH_ARG,
   FRESH_CASTERS,
@@ -81,10 +84,10 @@ test('a region keeps every caster row its volume touches, the blended ones too',
 });
 
 /** Six listed pages of a pool of sixteen, three caster rows, room for `capacity` pairs; each
- *  region's volume holds the rows `holds(k)` says; the last frame's pairs `overflowed` the list
- *  or not. The compose, the cull and the seal, run in turn: the pages picked, the pairs kept, and
- *  which listed page is readable and claimed. */
-function frame(capacity: number, holds: (k: number) => number[], overflowed = false) {
+ *  region's volume holds the rows `holds(k)` says. The compose, the cull and the seal, run in turn:
+ *  the pages picked, the pairs kept, the pairs counted, and which listed page is readable and
+ *  claimed. */
+function frame(capacity: number, holds: (k: number) => number[]) {
   const pages = 16,
     listed = 6,
     rows = 3;
@@ -105,8 +108,6 @@ function frame(capacity: number, holds: (k: number) => number[], overflowed = fa
   }
   state[POOL_COUNTS.indexOf('drawn')] = listed;
   params.set([pages, 4, 1, rows, rows, rows, capacity]);
-  // The last frame's pair count, which the compose reads before it resets it.
-  if (overflowed) args.set([0, capacity, capacity + 1]);
   const bytes = (a: Uint32Array | Float32Array) => new Uint8Array(a.buffer);
   const fresh = (entry: string) =>
     runShadowFresh(
@@ -130,13 +131,14 @@ function frame(capacity: number, holds: (k: number) => number[], overflowed = fa
     if (holds(k).length < rows) volumeFloats[k * SHADOW_CULL_FLOATS + 11] = 1;
   for (let row = 0; row < rows; row++) spheres.set([row === 0 ? 0 : 50, 0, 0, 1], row * 4);
   runShadowPairs(...[spheres, params, volumeFloats, pairs, args, new Uint32Array(rows)].map(bytes));
-  const kept = args[FRESH_ARG.pairs];
+  const kept = Array.from({ length: args[FRESH_ARG.pairs] }, (_, i) => picked[pairs[2 * i]]);
   fresh('sealShadowPages');
   const drawn = Array.from({ length: listed }, (_, p) => ({
     readable: (table[40 + p] & PAGE_VALID) !== 0,
     claimed: drawnBy[p] === DRAWN_GPU,
   }));
-  return { picked, kept, drawn, casters: args[freshDrawWord(0, FRESH_CASTERS) + 1] };
+  const need = state[POOL_COUNTS.indexOf('pairs')];
+  return { picked, kept, need, drawn, casters: args[freshDrawWord(0, FRESH_CASTERS) + 1] };
 }
 
 test('every listed page is drawn in the frame when the pairs it keeps fit, not only as many as hold every row', () => {
@@ -144,28 +146,36 @@ test('every listed page is drawn in the frame when the pairs it keeps fit, not o
   // would have picked two pages.
   const { picked, kept, drawn, casters } = frame(7, () => [0]);
   assert.deepEqual(picked.sort(), [0, 1, 2, 3, 4, 5], 'every listed page picked');
-  assert.equal(kept, 6, 'one pair a region');
+  assert.equal(kept.length, 6, 'one pair a region');
   assert.equal(casters, 6, 'each layer draws the pairs kept');
   assert.deepEqual(drawn, Array(6).fill({ readable: true, claimed: true }), 'all readable');
 });
 
-test('a region the pair list leaves short stays unread and unclaimed, the others readable', () => {
+test('an overflow of the pair list does not end in a coarser read', async () => {
   // Every region keeps every row: eighteen pairs for a list of seven.
-  const { picked, kept, drawn, casters } = frame(7, () => [0, 1, 2]);
-  assert.equal(picked.length, 6);
-  assert.ok(kept > 7, 'the cull counted past the list');
-  assert.equal(casters, 7, 'no draw past the list');
-  const whole = drawn.filter((d) => d.readable);
-  assert.ok(whole.length > 0 && whole.length <= 2, 'the regions whose three pairs landed');
-  for (const d of drawn) assert.equal(d.claimed, d.readable, 'a short page is claimed by none');
-});
-
-test('after a frame the pair list overflowed, as many pages are picked as it holds every row of, and drawn', () => {
-  const { picked, drawn } = frame(7, () => [0, 1, 2], true);
-  assert.equal(picked.length, 2, 'two regions of three rows in a list of seven');
+  const over = frame(7, () => [0, 1, 2]);
+  assert.equal(over.picked.length, 6, 'every listed page picked');
+  assert.equal(over.need, 18, 'the seal counts every pair every region asked');
+  // Two regions admitted whole, six pairs: no region drawn short, none of its pairs wasted.
+  assert.equal(over.casters, 6);
+  const readable = over.picked.filter((p) => over.drawn[p].readable);
+  assert.deepEqual([...new Set(over.kept)].sort(), readable.sort(), 'pairs of readable pages only');
+  for (const p of readable)
+    assert.equal(over.kept.filter((k) => k === p).length, 3, 'all its rows');
+  for (const d of over.drawn) assert.equal(d.claimed, d.readable, 'a short page waits unclaimed');
+  // The count read back grows the list, once the device grants it: the next frame draws them all.
+  const list = createFreshPairs(fakeDevice().device),
+    kept = { size: 7 * PAIR_BYTES } as GPUBuffer;
+  list.need = over.need;
+  assert.equal(list.list(kept), kept, 'the growth lands in a later frame');
+  await new Promise((settled) => setTimeout(settled, 0));
+  const grown = list.list(kept).size / PAIR_BYTES;
+  assert.ok(grown >= 18, 'the list holds the need');
+  const next = frame(grown, () => [0, 1, 2]);
   assert.deepEqual(
-    drawn.map((d) => d.readable),
-    drawn.map((_, p) => picked.includes(p)),
-    'every page picked is drawn whole',
+    next.drawn,
+    Array(6).fill({ readable: true, claimed: true }),
+    'every level drawn',
   );
+  assert.equal(next.casters, 18);
 });
