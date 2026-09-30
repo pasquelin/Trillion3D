@@ -3189,6 +3189,13 @@
   "ScreenErrorVariant": {
     "summary": "一个簇的屏幕误差是如何被度量的:采用经过证明的上界,还是采用参考公式。"
   },
+  "ShadowAsks": {
+    "summary": "宿主向 GPU 分配器请求的条目，与像素请求的内容（`floors`）并列。",
+    "members": {
+      "entries": "被请求的条目，至多为前 `count` 个。",
+      "count": "`entries` 中有多少个已填充。"
+    }
+  },
   "ShadowAtlasDigest": {
     "summary": "一次阴影图集读取所公布的内容:它的尺寸、其中写入了什么,以及它的指纹。",
     "members": {
@@ -7630,6 +7637,17 @@
   },
   "SHADOW_RECORD_FLOATS": {
     "summary": "阴影记录的浮点数，即光源着色所读取的内容：六个灯面矩阵 — 太阳在此存放深度范围，每个为 `zNear, zFar`（`recordPack.ts`）—，然后是太阳光平面的坐标系 — `right, zNear`、`up, zFar`、`axis`，然后是当前范围的槽位 —，然后是每个 clipmap 槽位窗口原点的两个整数，最后是一个 `vec4f` 头：面（灯）或级别（太阳）、灯的切向半视场或太阳的最细级别、灯的近平面，以及记录在页表中的第一个条目。"
+  },
+  "ShadowPoolSnapshot": {
+    "summary": "一帧分配之后 GPU 分配器的池（`webgpu/shadow/allocWgsl.ts`）。",
+    "members": {
+      "owner": "每个物理页映射的条目，空闲页为 −1。",
+      "requested": "每个页最后一次被请求所在的帧。",
+      "allocated": "该帧映射的页，以及它没有页可用的条目。",
+      "refused": "该帧没有页可用的条目。",
+      "drawn": "该帧列出以供 GPU 绘制的页（`listDraw`）。",
+      "listings": "自池创建以来每一帧列出的页：随任何帧的列表移动，无论其自身的快照是否丢失。"
+    }
   },
   "ShadowRequestReport": {
     "summary": "着色在一帧中读取的内容：它请求的表条目，无顺序。",
