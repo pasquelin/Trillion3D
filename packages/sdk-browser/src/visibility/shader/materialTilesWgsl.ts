@@ -16,7 +16,7 @@ import { SHADE_UNI_WGSL } from './pixelTriangleWgsl.ts';
  * the slot `MATERIAL_TILE_SLOTS`: no pixel marks it, and it draws the full-screen triangle, as
  * before (`classTriangle`, `shadeDeclWgsl.ts`).
  */
-export const MATERIAL_TILE_SIZE = 32;
+const MATERIAL_TILE_SIZE = 32;
 /** Tiles on one axis of `pixels`: `materialTilesX`'s count. */
 export const materialTilesOn = (pixels: number) => Math.ceil(pixels / MATERIAL_TILE_SIZE);
 export const MATERIAL_TILE_SLOTS = 64;
