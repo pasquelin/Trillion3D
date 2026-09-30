@@ -1,46 +1,36 @@
 /**
- * The decision evidence for #958 (CMP-16): the gain the frame's own bound takes off the only scene
- * with compiled lamps, beside the audit's fixed pre-exposure cut it was asked to match. The scene
- * is `aerial-410` (`bench/runner/scenes/aerial.ts`): 600 point lamps, each 400 cd at 18 m (`LAMP`),
- * drawn on surfaces whose least roughness is 0.7 (`aerialModel.ts` walls). The compiler publishes
- * intensity in W/sr — one candela is 1/683 W/sr (`asset-compiler-rust/src/compiler_lights.rs`,
- * `LUMENS_PER_WATT`) — so a lamp's peak is 400/683. The audit's cut bounds the pre-exposure
- * irradiance at 1e-2 W/m² (`958-audit-cut` @ `e0c89bb2c`): 18 → 7.7775 m, a shadow footprint
- * −81.3 %; refused for the 4–8 LSB it loses at night. The frame's bound cuts at the exposure and
- * curve's own quantum instead, and on the same lamp gains one to a few per cent — an order of
- * magnitude under the cut. Compiler-side range math alone, no Chrome.
+ * The decision evidence for #958 (CMP-16): the gain the frame's perceptual cut takes off the only
+ * scene with compiled lamps, matching the audit's target. The scene is `aerial-410`
+ * (`bench/runner/scenes/aerial.ts`): 600 point lamps, each 400 cd at 18 m (`LAMP`). The compiler
+ * publishes intensity in W/sr — one candela is 1/683 W/sr (`asset-compiler-rust/src/compiler_lights.rs`,
+ * `LUMENS_PER_WATT`) — so a lamp's peak is 400/683. The quantum is the audit's exposure- and
+ * curve-aware floor (`perceptibleQuantum`), so the cut is exactly the audit's own at ACES and
+ * exposure 1 (18 → 7.7775 m, range −56.79 %, shadow footprint −81.3 %) and shallower as the
+ * exposure rises. Compiler-side range math alone, no Chrome.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { irradianceQuantum, visibleReach } from './lightReach.ts';
+import { perceptibleQuantum, visibleReach } from './lightReach.ts';
 
-/** `aerial-410`'s one lamp (`bench/runner/scenes/aerial.ts`) and the scene's least roughness. */
+/** `aerial-410`'s one lamp (`bench/runner/scenes/aerial.ts`). */
 const PEAK = 400 / 683,
-  RANGE = 18,
-  ROUGHNESS = 0.7;
-const EXPOSURES = [1, 2, 4, 8] as const;
-const CURVES = ['aces', 'linear'] as const;
+  RANGE = 18;
+const cut = (exposure: number, toneMapping: 'aces' | 'linear') =>
+  visibleReach(RANGE, PEAK, perceptibleQuantum({ exposure, toneMapping }));
 
-test('the frame bound gains one to a few per cent on the reference scene, under the audit cut', () => {
-  // The audit's fixed pre-exposure floor of 1e-2 W/m², through the same closed form.
-  const cut = visibleReach(RANGE, PEAK, 1e-2);
-  assert.ok(Math.abs(cut - 7.7775) < 0.01, `the audit's cut is ${cut} m`);
-  assert.ok(Math.abs(1 - (cut / RANGE) ** 2 - 0.813) < 0.01, 'its shadow footprint');
-  // The frame's own quantum, on the same lamp, at the night campaign's exposures and curves.
-  let widest = { range: 0, footprint: 0 };
-  for (const toneMapping of CURVES)
-    for (const exposure of EXPOSURES) {
-      const reach = visibleReach(
-        RANGE,
-        PEAK,
-        irradianceQuantum({ exposure, toneMapping }, ROUGHNESS),
-      );
-      widest = {
-        range: Math.max(widest.range, 1 - reach / RANGE),
-        footprint: Math.max(widest.footprint, 1 - (reach / RANGE) ** 2),
-      };
-    }
-  assert.ok(widest.range < 0.05, `the widest range gain is ${widest.range}`);
-  assert.ok(widest.footprint < 0.1, `the widest shadow-footprint gain is ${widest.footprint}`);
-  assert.ok(widest.range < (1 - cut / RANGE) / 10, 'an order of magnitude under the fixed cut');
+test('the perceptual cut reaches the audit target on the reference scene, and less at night', () => {
+  const day = cut(1, 'aces');
+  assert.ok(Math.abs(day - 7.7775) < 0.01, `the audit's cut is ${day} m`);
+  assert.ok(Math.abs(1 - day / RANGE - 0.5679) < 0.005, `the range gain is ${1 - day / RANGE}`);
+  const footprint = 1 - (day / RANGE) ** 2;
+  assert.ok(Math.abs(footprint - 0.813) < 0.01, `the shadow-footprint gain is ${footprint}`);
+  // A raised exposure lengthens the reach: the cut never steps, so the night loses less.
+  let previous = day;
+  for (const exposure of [2, 4, 8]) {
+    const reach = cut(exposure, 'aces');
+    assert.ok(reach > previous && reach <= RANGE, `exposure ${exposure}: ${reach} m`);
+    previous = reach;
+  }
+  // A flatter curve cuts no deeper than the steeper one.
+  assert.ok(cut(1, 'linear') > day, 'linear keeps the lamp farther than aces');
 });
