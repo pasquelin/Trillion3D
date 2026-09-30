@@ -63,12 +63,13 @@ test('a page whose parent is outside the cut brings its bundle, then both load i
   pages.forEach((page, index) => {
     page.streamUrl = `bundle-${[0, 1, 2, 2][index]}`;
     page.requestIndex = [0, 1, 2, 2][index];
-    page.packedIndex = index;
     if (page !== r) page.array = undefined;
   });
   linkBundleDependencies(primitive as never, pages);
+  // Each record's first packed rank: its place in the catalogue (#1235).
+  const rankOf = (rec: PageRec) => pages.indexOf(rec);
   const delta = createCutDelta(pages, []),
-    pending = createCutPending(pages, delta);
+    pending = createCutPending(pages, delta, undefined, undefined, rankOf);
   const requested = () => collectPendingUrls(pending.records, [], new RequestStamps(3));
   const arrive = (url: string, bytes: Uint32Array | undefined) =>
     pages.forEach(

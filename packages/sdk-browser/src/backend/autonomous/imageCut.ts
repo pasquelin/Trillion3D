@@ -22,7 +22,10 @@ export function createImageCut(options: {
   roots: ClusterRoot<PageRec>[];
   /** The drawn view's lists and size, read at each cut (`views.ts`); what it asks for, `requested`,
    *  is cut to what the pool admits. */
-  view: Pick<WebglViewState, 'shown' | 'desired' | 'requested' | 'viewport'>;
+  view: Pick<
+    WebglViewState,
+    'shown' | 'shownPacked' | 'desired' | 'desiredPacked' | 'requested' | 'viewport'
+  >;
   /** Moves when the placements change (`requests.ts`). */
   revision: () => number;
   pool: Pick<ReturnType<typeof createGeometryBudget>, 'admit' | 'fit'> & { readonly held: object };
@@ -47,13 +50,19 @@ export function createImageCut(options: {
   // fitted again before the next trim, so the image that first sees it already holds no more.
   let admittedTo: unknown;
   const cut = (cam: EngineCamera, pixelError: number) => {
-    const { desired, requested } = view;
+    const { desired, desiredPacked, shownPacked, requested } = view;
     requests.follow();
     selectOptions.pixelError = pixelError;
     selectOptions.viewport = view.viewport;
     selectOptions.wanted = desired;
     const selected = selectVisiblePages(roots, cam, selectOptions, view.shown);
-    requests.of(desired, requested);
+    // The packed ranks the cut published, rank by rank, kept beside the records (#1235): one record
+    // serves many placements, so a consumer of these lists reads its instance's rank here.
+    shownPacked.length = selected.shown.length;
+    for (let i = 0; i < selected.shown.length; i++) shownPacked[i] = selected.shownPacked[i];
+    desiredPacked.length = selected.wanted.length;
+    for (let i = 0; i < selected.wanted.length; i++) desiredPacked[i] = selected.wantedPacked[i];
+    requests.of(desiredPacked, requested);
     requested.length = pool.admit(requested, pixelError);
     admittedTo = pool.held;
     return selected;
