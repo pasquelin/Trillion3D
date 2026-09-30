@@ -6,8 +6,10 @@ import { functionText } from '../bounce/wgslBody.fixture.ts';
 
 const text = functionText(SCREEN_REFLECTION_WGSL, 'resolvedRadiance');
 const ray = functionText(SCREEN_REFLECTION_WGSL, 'resolvedReflectionRay');
+const traced = functionText(SCREEN_REFLECTION_WGSL, 'tracedRadiance');
+const fade = functionText(SCREEN_REFLECTION_WGSL, 'screenReflectionFade');
 const resolved = new Function(`
- const vec3f=x=>x,mix=(a,b,t)=>a*(1-t)+b*t;
+ const vec3f=x=>x,mix=(a,b,t)=>a*(1-t)+b*t,clamp=(x,a,b)=>Math.min(Math.max(x,a),b);
  return (enabled,hit,weight)=>{
   let fallbackCalls=0;
   const reflectionView={enabled:{x:enabled?1:0}},mirrorWeight=()=>weight;
@@ -15,6 +17,8 @@ const resolved = new Function(`
   const reflectedRadiance=()=>{fallbackCalls++;return 3;};
   function resolvedReflectionRay(P,N,R){${ray.slice(ray.indexOf('{') + 1)}}
   const filteredResolvedReflection=(P,N,R)=>resolvedReflectionRay(P,N,R);
+  function screenReflectionFade(rough){${fade.slice(fade.indexOf('{') + 1)}}
+  function tracedRadiance(P,N,R,rough){${traced.slice(traced.indexOf('{') + 1)}}
   function resolvedRadiance(P,N,R,rough){${text.slice(text.indexOf('{') + 1)}}
   return {value:resolvedRadiance(0,0,0,0),fallbackCalls};
  };`)() as (
