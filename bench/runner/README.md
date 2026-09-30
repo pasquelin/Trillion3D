@@ -376,13 +376,12 @@ queries exist. The camera slides a hair each image, so none is held.
     node bench/runner/lightTileIterations.ts [--width 1920] [--height 1080] [--views survey150,roof30]
 
 The R&D audit's synthetic open city (`lightTileCity.ts`: 1,480 buildings, 11,140 lights and the
-sun), ray-cast into reverse-Z depth from five views; each tile's opaque list is built by the tile
-pass's oracle (`bench/oracles/browser/gpuLightTileColumnOracle.ts`) three ways: box alone (before
-#924), box and tile-frustum planes (now), lights reaching a covered pixel (the floor). Counts are
-per **covered** pixel (sky walks none; coverage printed). `missed` = lights reaching a pixel yet
-dropped: 0 when lists stay image-exact. Untimed: the second table is the audit's cost model (20 lane
-instructions per light, half peak rate) times each GPU class's pixels and coverage — a model, never
-a frame time.
+sun), ray-cast into reverse-Z depth from five views; each pixel walks the list of its cell of the
+light grid, built by the grid pass's oracle (`bench/oracles/browser/gpuLightGridOracle.ts`, #1369):
+lights listed, lights reaching a covered pixel (the floor). Counts are per **covered** pixel (sky
+walks none; coverage printed). `missed` = lights reaching a pixel yet dropped: 0 when lists stay
+image-exact. Untimed: the second table is the audit's cost model (20 lane instructions per light,
+half peak rate) times each GPU class's pixels and coverage — a model, never a frame time.
 
 ## Published reports
 

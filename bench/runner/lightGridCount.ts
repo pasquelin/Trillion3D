@@ -7,6 +7,9 @@
 // within its column's planes, which alone can reach it). Develop's tile pass beside it: its depth
 // texels and tile × light tests. COUNTED, never timed.
 //
+// The lighting's MODEL, never a timing: the counts above priced at rates taken from measured numbers
+// (`LIGHTING_RATES`).
+//
 //   node bench/runner/lightGridCount.ts [--width 3456] [--height 2234] [--range 4]
 import { parseArgs } from 'node:util';
 import { camera } from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
@@ -14,6 +17,38 @@ import type { TileView } from '../oracles/browser/gpuLightGridOracle.ts';
 import { reaches, tilePassWork, walkGrid } from './lightGridWalk.ts';
 import { ATRIUM_POSES, atriumDepth, atriumLamps } from './lightTileAtrium.ts';
 import type { Light } from './lightTileCity.ts';
+
+/**
+ * The rates the model prices the counts at, each from a number measured on develop:
+ * - `pairNs`: the recette's 1.21 ms of develop's tile pass at 3456 × 2234, spread over its 6.048
+ *   million tile × light pairs (each two slices tested, the tile's 256 depth reads and reductions
+ *   folded in): 0.200 ns a light against a cell's bounds with its bookkeeping. The grid pass is
+ *   charged one pair a column × light test and two a run solved (its at most eight section
+ *   evaluations and two depths).
+ * - `texelPs`: a texel read or written, the TAA resolve's 1.30 ms envelope over its 19 texels a
+ *   display pixel (#1369's profile): 8.86 ps. The grid pass is charged two a list entry (its mark,
+ *   its write) and two a cell record.
+ * - `inRangePs`, `outOfRangePs`: a listed light in and out of the pixel's range in the resolve's
+ *   program with no shadow code, timed on the resolve (64 lamps, a million pixels, M2 Max, #1326,
+ *   docs/ENGINE.md): 27.8 and 10.6 ps a pixel.
+ */
+export const LIGHTING_RATES = {
+  pairNs: 1.21e6 / 6.048e6,
+  texelPs: 8.86,
+  inRangePs: 27.8,
+  outOfRangePs: 10.6,
+};
+
+/** Milliseconds the rates give the grid pass and the resolve's light work of a `countGrid`. */
+export function lightingModel({ listed, reach, work }: ReturnType<typeof countGrid>) {
+  const r = LIGHTING_RATES;
+  const tilePass =
+    ((work.columnTests + 2 * work.solves) * r.pairNs * 1e3 +
+      2 * (work.entries + work.cells) * r.texelPs) /
+    1e9;
+  const lightWork = (reach * r.inRangePs + (listed - reach) * r.outOfRangePs) / 1e9;
+  return { tilePass, lightWork, lighting: tilePass + lightWork };
+}
 
 /** Over the covered pixels of `view`: the lights their cells list, those reaching them, those
  *  missed; and the grid pass's work. */
@@ -44,6 +79,7 @@ async function main() {
   const rows = ATRIUM_POSES.map(({ eye, yaw, pitch }, pose) => {
     const view = camera(eye, yaw, pitch, 60, width, height);
     const s = countGrid(view, atriumDepth(view), lights);
+    const ms = Object.entries(lightingModel(s)).map(([k, v]) => [`${k} ms`, v.toFixed(3)]);
     return {
       pose,
       covered: s.covered,
@@ -51,6 +87,7 @@ async function main() {
       reach: (s.reach / s.covered).toFixed(2),
       missed: s.missed,
       ...s.work,
+      ...Object.fromEntries(ms),
     };
   });
   console.log(`200 lamps of range ${range} m, ${width} × ${height}: lights per covered pixel`);
