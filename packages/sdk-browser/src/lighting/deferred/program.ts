@@ -42,6 +42,8 @@ export interface DeferredSources {
   bounce?: boolean;
   /** Pages per side of a sun's clipmap the shadow shader was built with (`shadowRequestWgsl.ts`). */
   pages?: number;
+  /** A reference session's rough reflection trace, unbounded (`reflectionTrace`, #33). */
+  unboundedReflections?: boolean;
 }
 /** What composition reads: a colour and its accumulated share, else the lit image's flags, and
  *  the chain's last blend when it left it to the composition (#963). */
@@ -87,7 +89,9 @@ export async function createDeferredProgram(
   const lightingLayout = createDeferredLightingLayout(device, sources.direct, sources.bounce);
   const [light, reflection, compositions] = await Promise.all([
     makeFullscreenPipeline(device, lighting, lightingLayout, 'lightSurface', HDR),
-    sources.direct ? reflectionPipelines(device, text, lightingLayout) : undefined,
+    sources.direct
+      ? reflectionPipelines(device, text, lightingLayout, sources.unboundedReflections)
+      : undefined,
     createCompositions(device, sources.compose, sources.label),
   ]);
   /** What the light group names: rebuilt when one of them is replaced (`bindIdentity.ts`). */

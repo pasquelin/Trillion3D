@@ -24,6 +24,8 @@ export type LitPrograms = {
   precompile: boolean;
   bounce: boolean;
   onFailure?: (error: unknown) => void;
+  /** A reference session: rough reflection samples walk their whole ray (`reflectionTrace`, #33). */
+  unboundedReflections?: boolean;
 };
 
 /** The contract program these resources light with: with bounce, narrow, unshadowed. */
@@ -42,7 +44,14 @@ export async function createDeferredLighting(
   const placeholders = createDeferredPlaceholders(device);
   const bindings = { uniform: view.buffer, placeholders };
   // Programs, never a branch: the unlit view, and the contract ones (`contractVariants.ts`).
-  const variants = createContractVariants(device, bindings, pages, onReady, lit?.onFailure);
+  const variants = createContractVariants(
+    device,
+    bindings,
+    pages,
+    onReady,
+    lit?.onFailure,
+    lit?.unboundedReflections,
+  );
   // A narrow program starts its wide twin: the first frame finds either width ready. Prepare waits
   // for the one without bounce, which lights any first frame; the bounce pair lands meanwhile.
   const litReady = lit?.precompile ? variants.precompile(false) : Promise.resolve();

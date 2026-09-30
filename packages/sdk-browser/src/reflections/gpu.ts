@@ -46,8 +46,8 @@ export function wantsReflectionCone(rt: WebgpuPagesRuntime) {
   );
 }
 
-/** `ReflectionView` (`screenWgsl.ts`): the matrix, `enabled` and `unbounded`. */
-export const REFLECTION_VIEW_BYTES = 96;
+/** `ReflectionView` (`screenWgsl.ts`): the matrix and `enabled`. */
+export const REFLECTION_VIEW_BYTES = 80;
 
 export function createScreenReflection(
   device: GPUDevice,
@@ -107,14 +107,12 @@ export function createScreenReflection(
       },
       history,
       pyramid,
-      /** The view, whether it reflects, the size the image draws in the source (`renderScale.ts`),
-       *  and whether rough samples walk unbounded, as a reference session draws them (#33). */
+      /** The view, whether it reflects, and the size the image draws in the source (`renderScale.ts`). */
       update(
         matrix: ArrayLike<number>,
         enabled: boolean,
         drawn: readonly number[],
         frame?: ReflectionHistoryFrame,
-        unbounded = false,
       ) {
         if (history && frame) history.prepare(frame, matrix, drawn);
         packed.set(matrix);
@@ -122,7 +120,6 @@ export function createScreenReflection(
         packed[17] = drawn[0];
         packed[18] = drawn[1];
         packedBits[19] = ((history?.rank ?? 0) ^ (frame?.seed ?? 0)) >>> 0;
-        packed[20] = unbounded ? 1 : 0;
         device.queue.writeBuffer(heldUniform, 0, packed);
       },
       dispose() {
