@@ -35,7 +35,6 @@ export {
   BOX_VALUES,
   boxCornersInto,
   boxEmpty,
-  boxEquals,
   boxExpandByPoint,
   boxIsEmpty,
   boxTransform,
