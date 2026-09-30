@@ -30,7 +30,6 @@ const buildSurfaces = (): SurfaceBuffer => {
     normalRough: DUMMY_TEXTURE,
     emissiveAo: DUMMY_TEXTURE,
     flags: DUMMY_TEXTURE,
-    shadingOffset: {} as GPUBuffer,
     subsurface: DUMMY_TEXTURE,
     subsurfaceView: {} as GPUTextureView,
     hasSubsurface: false,

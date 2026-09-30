@@ -1,6 +1,7 @@
 import type { DirectLightResources } from '../../../lighting/deferred/program.ts';
 import type { LitPrograms } from '../../../lighting/deferred/deferred.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { receiverResources } from '../../visibility/receiver.ts';
 
 /**
  * True when the image must be lit by the declared lights. False in the only unlit view: `unlit`
@@ -71,9 +72,11 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
   const bounce = active && rt.bounce.wanted ? rt.bounce.probes : undefined;
   contractResources.bounceGrid = bounce?.uniform;
   contractResources.probes = bounce?.probes;
-  contractResources.surfaceCache = bounce?.surface.buffer;
+  contractResources.surfaceCache = bounce?.surface.view;
   // Far-shadow proxy: bound only if it exists, else the far surface is lit unshadowed. Both
   // lighting passes read this resolve, so they bind the same buffer and trace the same ray.
   contractResources.proxy = active ? rt.sunFar.gpu?.buffer() : undefined;
+  // What the shadow receiver offset is recomputed from: the frame's visibility buffer (#1410).
+  contractResources.receiver = active ? receiverResources(rt) : undefined;
   return contractResources;
 }

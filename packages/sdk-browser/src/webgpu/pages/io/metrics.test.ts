@@ -75,12 +75,13 @@ test("texture metrics are the streamer's, and `null` until it is built", () => {
     const vis = {
       concatPos: concat[0] === undefined ? undefined : buffer(concat[0]),
       concatUv: concat[1] === undefined ? undefined : buffer(concat[1]),
-      concatNrm: concat[2] === undefined ? undefined : buffer(concat[2]),
+      // The float pool's normals ride in its atlas (#1410): its bytes.
+      vertexPool: concat[2] === undefined ? undefined : { normalBytes: concat[2] },
     } as unknown as Parameters<typeof vertexBytesOf>[1];
     const blendGpu = blend.map(([index, uv, normal]) => ({
       index: index === undefined ? undefined : buffer(index),
       uv: uv === undefined ? undefined : buffer(uv),
-      normal: normal === undefined ? undefined : buffer(normal),
+      normal: normal === undefined ? undefined : { bytes: normal },
     }));
     for (const [index, uv, normal] of blend) tally += (index ?? 0) + (uv ?? 0) + (normal ?? 0);
     const gpu = { positionBuffers, vertexBytes: tally } as unknown as Pick<

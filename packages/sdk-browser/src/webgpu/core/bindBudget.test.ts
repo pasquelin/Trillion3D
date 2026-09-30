@@ -10,6 +10,8 @@ import { wgslStageBindings } from '../../gpu/core/wgslBindings.fixture.ts';
 import { VIS_BINDINGS } from './bindLayout.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
+import { createShadowDemand } from '../shadow/demandPass.ts';
+import { createDeferredLightingLayout } from '../../lighting/deferred/setup.ts';
 
 // Defect this test catches: a layout gains one more storage buffer than WebGPU's guaranteed
 // minimum, and the device refuses to create it — “The number of storage buffers (9) in the
@@ -33,6 +35,12 @@ async function passLayouts() {
     transparents: blendBindGroupLayout,
     'small triangles': await firstLayout((d) => createGpuRaster(d, 4, 4, 8)),
     'temporal antialiasing': await firstLayout((d) => createTemporalAntialiasing(d, [])),
+    // The demand recomputes the receiver offset from the page geometry (#1410).
+    'shadow demand': await firstLayout((d) => createShadowDemand(d)),
+    // The lit resolve recomputes it too, reading the float pool through one binding (#1410).
+    'deferred lighting': createDeferredLightingLayout(device, true),
+    // With bounce: its probes and surface cache are atlases, no storage buffer (#1410).
+    'deferred lighting with bounce': createDeferredLightingLayout(device, true, true),
   } as Record<string, unknown>;
 }
 
@@ -48,15 +56,17 @@ test('no layout exceeds the eight storage buffers guaranteed per stage', async (
   for (const [name, layout] of layouts) {
     const entries = entriesOf(layout);
     for (const [stage, bit] of Object.entries(stages)) {
-      const count = entries.filter(
-        (entry) =>
-          (entry.visibility & bit) !== 0 &&
-          (entry.buffer?.type === 'storage' || entry.buffer?.type === 'read-only-storage'),
+      const seen = entries.filter((entry) => (entry.visibility & bit) !== 0);
+      const count = seen.filter(
+        (entry) => entry.buffer?.type === 'storage' || entry.buffer?.type === 'read-only-storage',
       ).length;
       assert.ok(
         count <= GUARANTEED_STORAGE_BUFFERS_PER_STAGE,
         `${name} binds ${count} storage buffers at stage ${stage}, above the ${GUARANTEED_STORAGE_BUFFERS_PER_STAGE} guaranteed`,
       );
+      // The buffers moved to atlases (#1410) are textures: they hold the textures' own limit.
+      const textures = seen.filter((entry) => entry.texture).length;
+      assert.ok(textures <= 16, `${name} samples ${textures} textures at stage ${stage}, over 16`);
     }
   }
 });

@@ -18,6 +18,7 @@ import type { WebgpuGuidePass } from '../../../guides/guidePass.ts';
 import type { WebgpuParticles } from '../../../particles/webgpuParticles.ts';
 import type { DeviceGrant } from '../../../gpu/core/errorScope.ts';
 import type { FrameSize } from './renderScale.ts';
+import type { FloatAtlas } from '../../core/floatAtlas.ts';
 
 /** GPU resources of the forward path: page cache, pipelines, frame targets and presentation. */
 export interface WebgpuGpuState {
@@ -80,7 +81,8 @@ export interface WebgpuGpuState {
    *  "this geometry does not have this attribute", and is distinct from a missing entry. */
   blendIndexBuffers: Map<HostAttribute, GPUBuffer>;
   blendUvBuffers: Map<HostAttributes, GPUBuffer | undefined>;
-  blendNormalBuffers: Map<HostAttributes, GPUBuffer | undefined>;
+  /** Each transparent geometry's normal atlas (`../../blend/buffers.ts`). */
+  blendNormalBuffers: Map<HostAttributes, FloatAtlas | undefined>;
   /** Vertex bytes held through allocations: position buffers, then indices, UVs and normals of
    *  transparent meshes. The sample reads them instead of resuming them per image. */
   vertexBytes: number;
