@@ -868,7 +868,8 @@
       "worstStalls": "Die Blockadetabelle des Compilers: höchstens zehn Primitive mit einer blockierten Gruppe, die Wurzeln auf Stufe 0 behielt, die schlimmste zuerst. Fehlt in einem Cache, der davor kompiliert wurde.",
       "texturePreviews": "Ein Eintrag pro dekodiertem Paar (Textur, Atlas), angeordnet nach Textur dann nach Atlas; leer ohne dekodierbares Bild.",
       "textures": "Modell der gebackenen Stufen, relativ zum Manifest: {sha} der Fingerabdruck des Quellbildes, {kind} der Name des Atlas (PREVIEW_ATLAS_NAMES), {level} der Rang der Stufe. Fehlt bei einem vor den gebackenen Stufen kompilierten Cache, den dieser Leser über die Version der Begleitdatei ablehnt. `version` ist die der Stufen (`TEXTURE_PREVIEW_VERSION`): ein Leser liest keine Stufe einer anderen.",
-      "proxy": "Wo der residente Szenen-Proxy und sein BVH zu lesen sind: die Geometrie, die die Strahlen berühren. Fehlt bei einem vor der indirekten Beleuchtung kompilierten Cache, der so wie er ist lesbar bleibt."
+      "proxy": "Wo der residente Szenen-Proxy und sein BVH zu lesen sind: die Geometrie, die die Strahlen berühren. Fehlt bei einem vor der indirekten Beleuchtung kompilierten Cache, der so wie er ist lesbar bleibt.",
+      "impostors": "Vom Compiler gebackene Impostor-Atlanten pro Mesh (#817); fehlen in einem Cache vor den Impostoren."
     }
   },
   "clusterSphereValid": {
@@ -5575,6 +5576,13 @@
   "SHADOW_PAGE": {
     "summary": "Seitenlänge einer Schattenseite in Texeln: die Einheit des Pools, der virtuellen Karten und der Invalidierung."
   },
+  "ShadowAsks": {
+    "summary": "Einträge, die der Host dem GPU-Allocator abverlangt, neben dem, was die Pixel anfragen (`floors`).",
+    "members": {
+      "entries": "Die angefragten Einträge, höchstens die ersten `count` davon.",
+      "count": "Wie viele von `entries` gefüllt sind."
+    }
+  },
   "ShadowAtlasDigest": {
     "summary": "Was eine Lesung des Schattenatlas veröffentlicht: seine Größe, was hineingeschrieben ist, sein Fingerabdruck.",
     "members": {
@@ -5761,6 +5769,7 @@
       "texturePreviews": "Ein Eintrag pro dekodiertem Paar (Textur, Atlas), angeordnet nach Textur dann nach Atlas; leer ohne dekodierbares Bild.",
       "textures": "Modell der gebackenen Stufen, relativ zum Manifest: {sha} der Fingerabdruck des Quellbildes, {kind} der Name des Atlas (PREVIEW_ATLAS_NAMES), {level} der Rang der Stufe. Fehlt bei einem vor den gebackenen Stufen kompilierten Cache, den dieser Leser über die Version der Begleitdatei ablehnt. `version` ist die der Stufen (`TEXTURE_PREVIEW_VERSION`): ein Leser liest keine Stufe einer anderen.",
       "proxy": "Wo der residente Szenen-Proxy und sein BVH zu lesen sind: die Geometrie, die die Strahlen berühren. Fehlt bei einem vor der indirekten Beleuchtung kompilierten Cache, der so wie er ist lesbar bleibt.",
+      "impostors": "Vom Compiler gebackene Impostor-Atlanten pro Mesh (#817); fehlen in einem Cache vor den Impostoren.",
       "binary": "Die Binärdatei.",
       "primitives": "Ihre Primitive.",
       "worstStalls": "Die Blockadetabelle des Compilers: höchstens zehn Primitive mit einer blockierten Gruppe, die Wurzeln auf Stufe 0 behielt, die schlimmste zuerst. Fehlt in einem Cache, der davor kompiliert wurde."
@@ -6314,6 +6323,7 @@
       "atlas": "Welcher Atlas.",
       "level": "Welche Stufe.",
       "format": "Welches Format.",
+      "url": "Die eigene Adresse der Stufe, wenn der Cache eine auflistet — eine Impostor-Atlas-Stufe (`maps.<name>.levels[k].url`, #1239). Wird durch denselben Leser gelesen, gegen `base` aufgelöst, anstelle der Vorlage `textures.url`: ein Lader, ein Budget.",
       "range": "Die Bytes einer Block-Stufe, allein zu lesen — der Datensatz einer Kachel (`tileRecords.ts`) —, per HTTP Range; ein Server, der sie ignoriert, antwortet mit der ganzen Datei."
     }
   },
@@ -7631,6 +7641,17 @@
   "SHADOW_RECORD_FLOATS": {
     "summary": "Floats eines Schattendatensatzes, den das Shading eines Lichts liest: sechs Lampenflächen-Matrizen — dort die Tiefenbereiche einer Sonne, je `zNear, zFar` (`recordPack.ts`) —, dann der Lichtebenen-Rahmen der Sonne — `right, zNear`, `up, zFar`, `axis`, dann der Platz des aktuellen Bereichs —, dann der Ursprung des Fensters jedes Clipmap-Platzes als zwei Ganzzahlen, dann ein Kopf `vec4f`: Flächen (Lampe) oder Stufen (Sonne), der tangentiale Halbwinkel der Lampe oder die feinste Stufe der Sonne, die Nahebene der Lampe und der erste Eintrag des Datensatzes in der Seitentabelle."
   },
+  "ShadowPoolSnapshot": {
+    "summary": "Der Pool des GPU-Allocators nach der Allokation eines Frames (`webgpu/shadow/allocWgsl.ts`).",
+    "members": {
+      "owner": "Der Eintrag, den jede physische Seite abbildet, −1 für eine freie.",
+      "requested": "Der Frame, in dem jede Seite zuletzt angefragt wurde.",
+      "allocated": "Seiten, die dieser Frame abgebildet hat, und Einträge, für die er keine Seite hatte.",
+      "refused": "Einträge, für die dieser Frame keine Seite hatte.",
+      "drawn": "Seiten, die dieser Frame zum Zeichnen durch die GPU aufgelistet hat (`listDraw`).",
+      "listings": "Seiten, die jeder Frame seit dem Start des Pools aufgelistet hat: bewegt sich mit der Liste jedes Frames, ob dessen eigener Schnappschuss verloren ging oder nicht."
+    }
+  },
   "ShadowRequestReport": {
     "summary": "Was die Schattierung in einem Bild gelesen hat: die angeforderten Tabelleneinträge, ohne Reihenfolge.",
     "members": {
@@ -8107,5 +8128,162 @@
       "nodeName": "Der `name` des zu bewegenden Knotens.",
       "matrix": "Seine Weltpose, sechzehn Fließkommazahlen in spaltenmajorer Ordnung."
     }
+  },
+  "IMPOSTOR_PI": {
+    "summary": "π, ein einziges Literal für dieses Orakel und den WGSL-Spiegel, damit beide dieselbe Zahl runden."
+  },
+  "IMPOSTOR_VERSION": {
+    "summary": "Format des Abschnitts `impostors`, den eine Laufzeit liest (#817 Teil 1, vom Compiler gebacken)."
+  },
+  "ImpostorCard": {
+    "summary": "Eine der Kamera zugewandte Karte, die die Laufzeit anstelle der Cluster einer umgeschalteten Wurzel zeichnet.",
+    "members": {
+      "root": "Rang der Wurzel, die sie in den `roots` des Plans ersetzt.",
+      "mesh": "Ihre kompilierte Mesh-Nummer.",
+      "world": "Die Matrix der Wurzel in der Welt, wie angegeben.",
+      "centre": "Drehpunkt im Weltraum, der Mittelpunkt der umschließenden Kugel unter der Welt der Wurzel.",
+      "radius": "Radius im Weltraum `R = objectRadius × die Weltskalierung der Wurzel`.",
+      "frames": "Bilder pro Seite.",
+      "hemi": "Ob die Bilder obere hemi-oktaedrische sind.",
+      "maps": "Die drei Karten, die die Karte abtastet: Farbe+Abdeckung, Normale+Tiefe, gepacktes ORM."
+    }
+  },
+  "ImpostorLevel": {
+    "summary": "Eine gespeicherte Stufe einer Atlas-Karte: ein verlustfreies PNG-Objekt, eines pro Inhaltsadresse.",
+    "members": {
+      "url": "Wo die Bytes der Stufe gelesen werden.",
+      "sha256": "Fingerabdruck seiner Bytes.",
+      "bytes": "Seine Größe.",
+      "width": "Seine Breite in Texeln.",
+      "height": "Seine Höhe in Texeln."
+    }
+  },
+  "ImpostorMap": {
+    "summary": "Eine Karte des Atlas und ihre Mipmap-Kette, Stufe 0 zuerst.",
+    "members": {
+      "kind": "`coverage` für die Farbkette, `data` für die anderen.",
+      "levels": "Jede Stufe, die das Backen behalten hat."
+    }
+  },
+  "ImpostorMaps": {
+    "summary": "Die drei Karten, die eine Karte abtastet: Farbe und Abdeckung, Normale und Tiefe, gepacktes ORM.",
+    "members": {
+      "colourCoverage": "Grundfarbe (sRGB) und Abdeckung im Alpha.",
+      "normalDepth": "Objektnormale als `n·½+½` und Tiefe `D` im Alpha.",
+      "orm": "Verdeckung, Rauheit und Metallizität."
+    }
+  },
+  "ImpostorMesh": {
+    "summary": "Das Urteil des Compilers über ein gezeichnetes Mesh: gebacken, mit seinem Atlas, oder abgelehnt, mit seinem Grund.",
+    "members": {
+      "mesh": "Ihre kompilierte Mesh-Nummer.",
+      "sourceMesh": "Ihre Quell-Mesh-Nummer.",
+      "name": "Ihr Name.",
+      "placements": "Wie viele Knoten ihn platzieren.",
+      "masked": "Ob ein Material des Meshes seine Abdeckung auf Maske schneidet.",
+      "rootTriangles": "Die Dreiecke der DAG-Wurzel, über die Primitive des Meshes summiert.",
+      "radius": "Ihr umschließender Radius in Welt-Einheiten (Objektradius mal größte Platzierungsskalierung).",
+      "status": "`baked` oder `refused`.",
+      "coverage": "Mittlere Abdeckung der Bilder, bei einem `baked`-Eintrag: `c` der Umschaltung.",
+      "hemi": "Ob die Bilder obere hemi-oktaedrische sind.",
+      "frames": "Bilder pro Seite.",
+      "frameSide": "Bildseite in Texeln: `r_f` der Umschaltung.",
+      "atlasSide": "Atlasseite in Texeln (`frames · frameSide`).",
+      "centre": "Drehpunkt im Objektraum, der Mittelpunkt der umschließenden Kugel.",
+      "objectRadius": "Umschließender Radius im Objektraum, vor der Platzierungsskalierung.",
+      "bytes": "Bytes jeder gespeicherten Stufe.",
+      "maps": "Die drei Karten, bei einem `baked`-Eintrag.",
+      "switchDepth": "Die gebackenen Referenzabstände.",
+      "reason": "Warum ein Mesh abgelehnt wurde: sein Code.",
+      "detail": "Ein Satz, der die Zahlen nennt, die eine Ablehnung entschieden haben."
+    }
+  },
+  "ImpostorPlan": {
+    "summary": "Das Urteil der Umschaltung: die zu zeichnenden Karten und die Wurzeln, deren Cluster sie unterdrückt.",
+    "members": {
+      "cards": "Eine Karte pro umgeschalteter Wurzel, in Wurzelreihenfolge.",
+      "switched": "Wurzelränge, die die Umschaltung unterdrückt: 1 bei einer umgeschalteten Wurzel, 0 sonst."
+    }
+  },
+  "ImpostorRoot": {
+    "summary": "Was der Plan von einer Wurzel braucht: ihre kompilierte Mesh-Nummer und die Matrix in der Welt, die sie platziert.",
+    "members": {
+      "mesh": "Kompilierte Mesh-Nummer (`Primitive.mesh`); fehlt an einer Wurzel, die kein Impostor ersetzen darf.",
+      "world": "Matrix in der Welt der Platzierung, spaltenweise (`MatrixElements`)."
+    }
+  },
+  "ImpostorSection": {
+    "summary": "Der Abschnitt `impostors` des Manifests: das Urteil des Compilers über jedes gezeichnete Mesh.",
+    "members": {
+      "version": "Formatversion.",
+      "frames": "Bilder pro Seite, mit denen jeder Atlas des Abschnitts gebacken wurde.",
+      "focalPixels": "Die Brennweite in Pixeln, mit der das Backen Abstände beurteilte.",
+      "textureLimit": "Größte Atlasseite, die eine Karte hält.",
+      "baked": "Wie viele Meshes gebacken wurden.",
+      "refused": "Wie viele abgelehnt wurden.",
+      "meshes": "Das Urteil jedes Meshes, in Quellreihenfolge."
+    }
+  },
+  "ImpostorSwitchDepth": {
+    "summary": "Die beiden gebackenen Referenzabstände, in Metern bei den `focalPixels` des Manifests (#817).",
+    "members": {
+      "texel": "`z_tex`: Von hier an ist das Bild höchstens ein Texel pro Pixel.",
+      "triangles": "`z_tri`: Von hier an übersteigt die Wurzel die Anzahl der von ihr bedeckten Pixel."
+    }
+  },
+  "ImpostorSwitchInput": {
+    "summary": "Die vier gebackenen Zahlen, die die Umschaltung liest, plus die Platzierungsskalierung.",
+    "members": {
+      "objectRadius": "Umschließender Radius im Objektraum `objectRadius`.",
+      "rootTriangles": "Die Dreiecke der DAG-Wurzel `T`.",
+      "coverage": "Die gebackene mittlere Abdeckung `c`.",
+      "frameSide": "Die Bildseite in Texeln `r_f`.",
+      "maxWorldScale": "Größte Weltskalierung der Platzierungen des Meshes; eins, wenn unbekannt."
+    }
+  },
+  "assertImpostorSection": {
+    "summary": "Wirft die benannte Cache-Ablehnung, die der Abschnitt trägt, oder gibt ihn unverändert zurück."
+  },
+  "cellWeights": {
+    "summary": "Die drei Bilder, die eine Ansicht an Rasterposition `g` überblendet, und ihre baryzentrischen Gewichte."
+  },
+  "drawsImpostor": {
+    "summary": "Ob der Impostor bei `viewDepth` zeichnet, der Sichtteife des Drehpunkts in Metern."
+  },
+  "impostorBakedByMesh": {
+    "summary": "Die gebackenen Meshes des Abschnitts, nach ihrer kompilierten Mesh-Nummer verschlüsselt; abgelehnte Einträge bleiben draußen."
+  },
+  "impostorMeshBaked": {
+    "summary": "Ob ein Mesh-Eintrag einen zeichenbaren Atlas trägt: `baked` mit seinen drei Karten und einer Bildseite."
+  },
+  "impostorRadius": {
+    "summary": "`R`: der Radius im Objektraum bei der größten Weltskalierung, die eine Platzierung des Meshes ihm gibt."
+  },
+  "impostorSwitchDepth": {
+    "summary": "`z_s = max(z_tex, z_tri)` in Metern für die Brennweite `focalPixels` der Laufzeit."
+  },
+  "impostorSwitchOf": {
+    "summary": "Der Umschalt-Eingang, den ein gebackener Manifest-Eintrag trägt, oder `undefined`, wenn der Eintrag abgelehnt wird oder eine der vier Zahlen fehlt.",
+    "description": "Ein Objekt ist nur geeignet, wenn sein Mesh einen `baked`-Eintrag hat."
+  },
+  "impostorTexelDepth": {
+    "summary": "`z_tex`: die Tiefe, ab der ein Bild von `frameSide` Texeln höchstens ein Texel pro Pixel ist."
+  },
+  "impostorTriangleDepth": {
+    "summary": "`z_tri`: die Tiefe, ab der die `rootTriangles` der Wurzel die von ihr bedeckten Pixel übersteigen."
+  },
+  "octDecode": {
+    "summary": "Rasterkoordinaten `f ∈ [0, 1]²` zurück zu einer Einheitsrichtung, die Umkehrung von `octEncode`."
+  },
+  "octEncode": {
+    "summary": "Richtung `d` auf die Ebene `[-1, 1]²`: das volle Oktaeder oder das obere Hemi-Oktaeder."
+  },
+  "planImpostors": {
+    "summary": "Plant die Impostor-Stufe für eine Ansicht: jede Wurzel, deren Mesh einen gebackenen Eintrag hat und deren Umschaltung hält, ergibt eine Karte und wird als unterdrückt markiert.",
+    "description": "`view` bildet die Welt auf den Sichtraum ab (spaltenweise), und `focalPixels` ist die eine Brennweite der Engine in Pixeln am Viewport des Bildes."
+  },
+  "validateImpostorSection": {
+    "summary": "Ein kurzer Grund, warum der Abschnitt nicht verwendbar ist, oder `null`.",
+    "description": "Ein fehlender Abschnitt ist kein Fehler: Ein Cache, der ihn voraussetzt, zeichnet jedes Mesh vollständig, wie zuvor. Ein vorhandener wird als Ganzes abgelehnt, wenn seine Version unbekannt ist oder einem `baked`-Eintrag die Zahlen fehlen, die seine Umschaltung und seine Karte brauchen."
   }
 }

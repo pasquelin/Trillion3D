@@ -531,7 +531,8 @@
       "worstStalls": "编译器的停滞表：至多十个图元，其停滞组在第 0 级留下了根，最差的在前。在它之前编译的缓存中没有。",
       "texturePreviews": "每个已解码的(纹理, 图集)组合对应一条记录,先按纹理、再按图集排序;没有可解码图像时为空。",
       "textures": "预烘焙层级的路径模板,相对于清单文件:{sha} 是源图像摘要,{kind} 是图集名称(PREVIEW_ATLAS_NAMES),{level} 是层级序号。在支持预烘焙层级之前编译的缓存中不存在,本读取器会通过旁挂文件的版本号拒绝这类缓存。`version` 是层级的版本(`TEXTURE_PREVIEW_VERSION`):读取器不会读取其他版本的层级。",
-      "proxy": "从哪里读取常驻场景代理体及其 BVH(供光线命中的几何体)。在支持间接光照之前编译的缓存中不存在,但那类缓存依然可以照常读取。"
+      "proxy": "从哪里读取常驻场景代理体及其 BVH(供光线命中的几何体)。在支持间接光照之前编译的缓存中不存在,但那类缓存依然可以照常读取。",
+      "impostors": "编译器为每个网格烘焙的 impostor 图集(#817);在 impostor 之前编译的缓存中不存在。"
     }
   },
   "ClusterStructure": {
@@ -3189,6 +3190,13 @@
   "ScreenErrorVariant": {
     "summary": "一个簇的屏幕误差是如何被度量的:采用经过证明的上界,还是采用参考公式。"
   },
+  "ShadowAsks": {
+    "summary": "宿主向 GPU 分配器请求的条目，与像素请求的内容（`floors`）并列。",
+    "members": {
+      "entries": "被请求的条目，至多为前 `count` 个。",
+      "count": "`entries` 中有多少个已填充。"
+    }
+  },
   "ShadowAtlasDigest": {
     "summary": "一次阴影图集读取所公布的内容:它的尺寸、其中写入了什么,以及它的指纹。",
     "members": {
@@ -3344,6 +3352,7 @@
       "texturePreviews": "每个已解码的(纹理, 图集)组合对应一条记录,先按纹理、再按图集排序;没有可解码图像时为空。",
       "textures": "预烘焙层级的路径模板,相对于清单文件:{sha} 是源图像摘要,{kind} 是图集名称(PREVIEW_ATLAS_NAMES),{level} 是层级序号。在支持预烘焙层级之前编译的缓存中不存在,本读取器会通过旁挂文件的版本号拒绝这类缓存。`version` 是层级的版本(`TEXTURE_PREVIEW_VERSION`):读取器不会读取其他版本的层级。",
       "proxy": "从哪里读取常驻场景代理体及其 BVH(供光线命中的几何体)。在支持间接光照之前编译的缓存中不存在,但那类缓存依然可以照常读取。",
+      "impostors": "编译器为每个网格烘焙的 impostor 图集(#817);在 impostor 之前编译的缓存中不存在。",
       "binary": "该二进制文件。",
       "primitives": "它的图元。",
       "worstStalls": "编译器的停滞表：至多十个图元，其停滞组在第 0 级留下了根，最差的在前。在它之前编译的缓存中没有。"
@@ -3797,6 +3806,7 @@
       "atlas": "对应哪个图集。",
       "level": "对应哪个层级。",
       "format": "对应哪种格式。",
+      "url": "该层级自身的地址,当缓存列出地址时 — impostor 图集的一个层级(`maps.<name>.levels[k].url`,#1239)。通过这同一个读取器读取,相对 `base` 解析,取代 `textures.url` 模板:一个加载器,一份预算。",
       "range": "单独读取的块压缩层级字节——一个图块的记录(`tileRecords.ts`)——通过 HTTP Range 读取;忽略它的服务器会返回整个文件。"
     }
   },
@@ -7631,6 +7641,17 @@
   "SHADOW_RECORD_FLOATS": {
     "summary": "阴影记录的浮点数，即光源着色所读取的内容：六个灯面矩阵 — 太阳在此存放深度范围，每个为 `zNear, zFar`（`recordPack.ts`）—，然后是太阳光平面的坐标系 — `right, zNear`、`up, zFar`、`axis`，然后是当前范围的槽位 —，然后是每个 clipmap 槽位窗口原点的两个整数，最后是一个 `vec4f` 头：面（灯）或级别（太阳）、灯的切向半视场或太阳的最细级别、灯的近平面，以及记录在页表中的第一个条目。"
   },
+  "ShadowPoolSnapshot": {
+    "summary": "一帧分配之后 GPU 分配器的池（`webgpu/shadow/allocWgsl.ts`）。",
+    "members": {
+      "owner": "每个物理页映射的条目，空闲页为 −1。",
+      "requested": "每个页最后一次被请求所在的帧。",
+      "allocated": "该帧映射的页，以及它没有页可用的条目。",
+      "refused": "该帧没有页可用的条目。",
+      "drawn": "该帧列出以供 GPU 绘制的页（`listDraw`）。",
+      "listings": "自池创建以来每一帧列出的页：随任何帧的列表移动，无论其自身的快照是否丢失。"
+    }
+  },
   "ShadowRequestReport": {
     "summary": "着色在一帧中读取的内容：它请求的表条目，无顺序。",
     "members": {
@@ -8107,5 +8128,162 @@
       "nodeName": "要移动节点的 `name`。",
       "matrix": "其世界位姿，列主序的十六个浮点数。"
     }
+  },
+  "IMPOSTOR_PI": {
+    "summary": "π,这个权威实现与 WGSL 镜像共用一个字面量,使两者舍入同一个数。"
+  },
+  "IMPOSTOR_VERSION": {
+    "summary": "运行时读取的 `impostors` 区段格式(#817 第 1 部分,由编译器预烘焙)。"
+  },
+  "ImpostorCard": {
+    "summary": "运行时用来替代已切换根节点簇的一张朝向相机的卡片。",
+    "members": {
+      "root": "它在计划的 `roots` 中替代的根节点的序号。",
+      "mesh": "其编译后的网格编号。",
+      "world": "根节点的世界矩阵,原样给出。",
+      "centre": "世界空间中的轴心点,即根节点世界矩阵下包围球的球心。",
+      "radius": "世界空间半径 `R = objectRadius × 根节点的世界缩放`。",
+      "frames": "每边帧数。",
+      "hemi": "帧是否为上半八面体。",
+      "maps": "卡片采样的三张贴图:颜色+覆盖率、法线+深度、打包 ORM。"
+    }
+  },
+  "ImpostorLevel": {
+    "summary": "一张图集贴图的一个存储层级:一个无损 PNG 对象,每个内容地址一个。",
+    "members": {
+      "url": "读取该层级字节的位置。",
+      "sha256": "其字节的指纹。",
+      "bytes": "其大小。",
+      "width": "以纹素计的宽度。",
+      "height": "以纹素计的高度。"
+    }
+  },
+  "ImpostorMap": {
+    "summary": "图集的一张贴图及其 mip 链,层级 0 在前。",
+    "members": {
+      "kind": "颜色链为 `coverage`,其余为 `data`。",
+      "levels": "烘焙保留的每个层级。"
+    }
+  },
+  "ImpostorMaps": {
+    "summary": "卡片采样的三张贴图:颜色与覆盖率、法线与深度、打包 ORM。",
+    "members": {
+      "colourCoverage": "基础颜色(sRGB)与 alpha 中的覆盖率。",
+      "normalDepth": "物体法线为 `n·½+½`,深度 `D` 存于 alpha。",
+      "orm": "遮挡、粗糙度和金属度。"
+    }
+  },
+  "ImpostorMesh": {
+    "summary": "编译器对某个被绘制网格的判定:已预烘焙并带其图集,或被拒绝并附原因。",
+    "members": {
+      "mesh": "其编译后的网格编号。",
+      "sourceMesh": "其源网格编号。",
+      "name": "其名称。",
+      "placements": "有多少个节点摆放它。",
+      "masked": "网格的某个材质是否将其覆盖率裁切为遮罩。",
+      "rootTriangles": "DAG 根节点的三角形,对网格的图元求和。",
+      "radius": "以世界单位计的包围半径(物体半径乘以最大的摆放缩放)。",
+      "status": "`baked` 或 `refused`。",
+      "coverage": "`baked` 条目上各帧的平均覆盖率:切换的 `c`。",
+      "hemi": "帧是否为上半八面体。",
+      "frames": "每边帧数。",
+      "frameSide": "以纹素计的帧边长:切换的 `r_f`。",
+      "atlasSide": "以纹素计的图集边长(`frames · frameSide`)。",
+      "centre": "物体空间中的轴心点,即包围球的球心。",
+      "objectRadius": "物体空间中的包围半径,在摆放缩放之前。",
+      "bytes": "每个存储层级的字节数。",
+      "maps": "`baked` 条目上的三张贴图。",
+      "switchDepth": "预烘焙的参考距离。",
+      "reason": "网格被拒绝的原因:其代码。",
+      "detail": "给出决定拒绝的那些数字的一句话。"
+    }
+  },
+  "ImpostorPlan": {
+    "summary": "切换的判定:要绘制的卡片,以及其簇被抑制的根节点。",
+    "members": {
+      "cards": "每个已切换根节点一张卡片,按根节点顺序。",
+      "switched": "切换所抑制的根节点序号:已切换根节点处为 1,其余为 0。"
+    }
+  },
+  "ImpostorRoot": {
+    "summary": "计划对一个根节点的需要:其编译后的网格编号,以及摆放它的世界矩阵。",
+    "members": {
+      "mesh": "编译后的网格编号(`Primitive.mesh`);在没有任何 impostor 可替代的根节点上缺失。",
+      "world": "摆放的世界矩阵,列主序(`MatrixElements`)。"
+    }
+  },
+  "ImpostorSection": {
+    "summary": "清单的 `impostors` 区段:编译器对每个被绘制网格的判定。",
+    "members": {
+      "version": "格式版本。",
+      "frames": "该区段每个图集预烘焙时每边的帧数。",
+      "focalPixels": "烘焙用来判断距离的以像素计的焦距。",
+      "textureLimit": "任何卡片持有的最大图集边长。",
+      "baked": "预烘焙了多少个网格。",
+      "refused": "多少个被拒绝。",
+      "meshes": "每个网格的判定,按源顺序。"
+    }
+  },
+  "ImpostorSwitchDepth": {
+    "summary": "清单 `focalPixels` 处、以米计的两个预烘焙参考距离(#817)。",
+    "members": {
+      "texel": "`z_tex`:从该处起帧至多每像素一个纹素。",
+      "triangles": "`z_tri`:从该处起根节点的数量超过其覆盖的像素数。"
+    }
+  },
+  "ImpostorSwitchInput": {
+    "summary": "切换读取的四个预烘焙数值,加上摆放缩放。",
+    "members": {
+      "objectRadius": "物体空间中的包围半径 `objectRadius`。",
+      "rootTriangles": "DAG 根节点的三角形 `T`。",
+      "coverage": "预烘焙的平均覆盖率 `c`。",
+      "frameSide": "以纹素计的帧边长 `r_f`。",
+      "maxWorldScale": "网格摆放的最大世界缩放;未知时为 1。"
+    }
+  },
+  "assertImpostorSection": {
+    "summary": "抛出该区段携带的具名缓存拒绝,或原样返回。"
+  },
+  "cellWeights": {
+    "summary": "位于网格位置 `g` 的视图混合的三帧及其重心权重。"
+  },
+  "drawsImpostor": {
+    "summary": "impostor 是否在 `viewDepth`(轴心点的视图深度,单位米)处绘制。"
+  },
+  "impostorBakedByMesh": {
+    "summary": "该区段预烘焙的网格,以其编译后的网格编号为键;被拒绝的条目不予纳入。"
+  },
+  "impostorMeshBaked": {
+    "summary": "某个网格条目是否携带可绘制的图集:带三张贴图和一条帧边长的 `baked`。"
+  },
+  "impostorRadius": {
+    "summary": "`R`:网格的某个摆放使其达到的最大世界缩放处的物体空间半径。"
+  },
+  "impostorSwitchDepth": {
+    "summary": "运行时焦距 `focalPixels` 下、以米计的 `z_s = max(z_tex, z_tri)`。"
+  },
+  "impostorSwitchOf": {
+    "summary": "预烘焙清单条目携带的切换输入,或当条目被拒绝、或缺少四个数字之一时为 `undefined`。",
+    "description": "只有当物体的网格拥有 `baked` 条目时,该物体才合格。"
+  },
+  "impostorTexelDepth": {
+    "summary": "`z_tex`:`frameSide` 纹素的帧从此深度起至多每像素一个纹素。"
+  },
+  "impostorTriangleDepth": {
+    "summary": "`z_tri`:根节点的 `rootTriangles` 从此深度起超过其覆盖的像素数。"
+  },
+  "octDecode": {
+    "summary": "网格坐标 `f ∈ [0, 1]²` 还原为单位方向,`octEncode` 的逆。"
+  },
+  "octEncode": {
+    "summary": "方向 `d` 到平面 `[-1, 1]²`:完整的八面体,或上半八面体。"
+  },
+  "planImpostors": {
+    "summary": "为一个视图规划 impostor 层:每个网格拥有预烘焙条目且其切换成立的根节点都会产生一张卡片并被标记为已抑制。",
+    "description": "`view` 将世界映射到视图空间(列主序),`focalPixels` 是引擎在图像视口中的唯一以像素计的焦距。"
+  },
+  "validateImpostorSection": {
+    "summary": "该区段无法使用的简短原因,或 `null`。",
+    "description": "区段缺失不算错误:早于它的缓存会像以前一样完整绘制每个网格。当区段版本未知,或某个 `baked` 条目缺少其切换和卡片所需的数字时,整个区段会被拒绝。"
   }
 }

@@ -3,6 +3,7 @@ import { setHostPose } from '../../host/pagePose.ts';
 import { copyElements } from '../../math/matrixElements.ts';
 import type { HostNodeMatrix, MatrixElements } from '../../math/matrixElements.ts';
 import type { PageRec, ClusterRoot } from '../../page/selection/selection.ts';
+import type { PageDraws } from './pageDraws.ts';
 
 /** The two buffers the composition works in, allocated once: the core multiplies `Float64Array`
  *  alone — one caller passing another container makes its forty-eight accesses polymorphic for
@@ -41,11 +42,15 @@ export function deplaceInstance(
   instance: { roots: ClusterRoot<PageRec>[] },
   baseRoots: readonly ClusterRoot<PageRec>[],
   transform: Float64Array,
+  draws: PageDraws,
 ) {
   const { roots } = instance;
   for (let i = 0; i < roots.length; i++) {
     const { world, pages } = roots[i];
     placeInto(world, transform, baseRoots[i].world);
-    for (const rec of pages) if (rec.mesh) setHostPose(rec.mesh, world);
+    for (const rec of pages) {
+      const mesh = draws.find(rec)?.mesh;
+      if (mesh) setHostPose(mesh, world);
+    }
   }
 }
