@@ -1,35 +1,32 @@
-import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { MAX_SHADOW_REGIONS } from '../../gpu/shadow/atlas.ts';
 import {
   GROUP_CAPACITY_WORD,
   GROUP_TABLE_WORDS,
   GROUP_WORDS,
-  SHADOW_FACE_STRIDE,
   SHADOW_REGION_INDIRECT_BYTES,
 } from '../../gpu/shadow/batchBudget.ts';
 import { shadowBatchWrites } from '../../gpu/shadow/batchWrites.ts';
-import { GROUP_TESTED, SHADOW_GROUP_PAIRS_WGSL } from '../../gpu/shadow/groupWgsl.ts';
+import { SHADOW_GROUP_PAIRS_WGSL } from '../../gpu/shadow/groupWgsl.ts';
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
-import { DRAW_INDIRECT_STRIDE } from '../../gpu/draw/contract.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { shadowPageGroup } from './freshGroups.ts';
-import { createMovingGroupPlan, groupBlockSide } from './movingGroupPlan.ts';
+import { createMovingGroupPlan } from './movingGroupPlan.ts';
+import { createMovingGroupDraws } from './movingGroupDraws.ts';
 
 const READ: GPUBufferBindingType = 'read-only-storage',
   WRITE: GPUBufferBindingType = 'storage';
-/** Bytes of the faces the groups read: every region's, before the pass order (`pageQuads.ts`). */
-const FACES = MAX_SHADOW_REGIONS * SHADOW_FACE_STRIDE;
 
 /**
- * THE MOVING CASTERS OF A BATCH'S SUN PAGES, GROUPED IN INSTANCED DRAWS (#1345). A moving caster
- * restores and redraws each page it lands in; one draw a page cost a draw call and its state per
- * page, 250 a frame for 35 turning antennas. The restored sun pages of one pass, in one block of
- * its layer, with lists of one kind — the cull's, or all the occlusion test's — are one group
- * (`groupWgsl.ts`): after the cull and the occlusion test, one workgroup per region files its kept
- * places into its group's pairs and counts them into its group's two commands; each pass then draws
- * a group's opaque casters, and its cutout ones, in one indirect draw each, instead of one each a
- * page. A page draws the texels its own viewport drew, to the bit. Lamp pages, a region alone in
- * its group, and a batch with no group keep a draw each (`drawRegionCasters`).
+ * THE MOVING CASTERS OF A BATCH'S RESTORED PAGES, GROUPED IN INSTANCED DRAWS (#1345). A moving
+ * caster restores and redraws each page it lands in; one draw a page cost a draw call and its state
+ * per page, 250 a frame for 35 turning antennas. The restored pages of one pass with lists of one
+ * kind — the cull's, or all the occlusion test's —, in one block of its layer for a sun, anywhere
+ * in it for a lamp, are one group (`groupWgsl.ts`): after the cull and the occlusion test, one
+ * workgroup per region files its kept places into its group's pairs and counts them into its
+ * group's two commands; each pass then draws a group's opaque casters, and its cutout ones, in one
+ * indirect draw each, and the transmittance layer's pass its blended ones (`drawBlend`), instead of
+ * one each a page. A sun page draws the texels its own viewport drew, to the bit. Only a batch
+ * with no group, or without what a group binds, keeps a draw a page (`drawRegionCasters`).
  */
 export async function createShadowMovingGroups(device: GPUDevice) {
   const module = await createCheckedShaderModule(
@@ -71,8 +68,12 @@ export async function createShadowMovingGroups(device: GPUDevice) {
       kept?: GPUBuffer;
       visible?: GPUBuffer;
     } = {},
-    pairGroup: GPUBindGroup | undefined,
-    drawGroups: [GPUBindGroup | undefined, GPUBindGroup | undefined] = [undefined, undefined];
+    pairGroup: GPUBindGroup | undefined;
+  const draws = createMovingGroupDraws(device, {
+    ...{ table, args, passOf, bitsOf },
+    groups: () => groups,
+    pairs: () => pairs,
+  });
 
   return {
     /** Non-zero for a region of the batch its group draws: `drawRegionCasters` skips it. */
@@ -112,7 +113,7 @@ export async function createShadowMovingGroups(device: GPUDevice) {
           visible: occlusion?.visible,
         };
         pairGroup = undefined;
-        drawGroups = [undefined, undefined];
+        draws.forget();
       }
       pairGroup ??= device.createBindGroup({
         layout,
@@ -133,50 +134,9 @@ export async function createShadowMovingGroups(device: GPUDevice) {
       pass.end();
       return groups;
     },
-    /**
-     * Draws into `pass`, pool pass `k` of the batch, each of its groups: in its block's viewport,
-     * its opaque casters, then its cutout ones while any row is a cutout. Returns the draws.
-     */
-    draw(rt: WebgpuPagesRuntime, pass: GPURenderPassEncoder, k: number) {
-      const { shadows, cull, occlusion, mobility } = rt.lights,
-        pageGroup = shadowPageGroup(rt, device);
-      if (!groups || !shadows || !cull || !pairs || !pageGroup) return 0;
-      const draws = shadows.groupDraws.made(),
-        texels = rt.lights.plan.pool.side * SHADOW_PAGE,
-        block = groupBlockSide(texels);
-      let drawn = 0;
-      for (let g = 0; g < groups; g++) {
-        if (passOf[g] !== k) continue;
-        const bits = bitsOf[g],
-          x = bits & 1 ? texels - block : 0,
-          y = bits & 2 ? texels - block : 0,
-          lists = bits & GROUP_TESTED ? 1 : 0;
-        const group = (drawGroups[lists] ??= device.createBindGroup({
-          layout: shadows.groupDraws.layout,
-          entries: [
-            { binding: 4, resource: { buffer: shadows.faceUniform, size: FACES } },
-            { binding: 5, resource: { buffer: table } },
-            { binding: 6, resource: { buffer: pairs } },
-            { binding: 7, resource: { buffer: lists ? occlusion!.visible : cull.kept } },
-          ],
-        }));
-        pass.setViewport(x, y, block, block, 0, 1);
-        pass.setScissorRect(x, y, block, block);
-        if (!drawn) {
-          pass.setBindGroup(0, pageGroup);
-          pass.setBindGroup(1, shadows.faceGroup, [0]);
-        }
-        pass.setBindGroup(2, group);
-        pass.setPipeline(draws.opaque);
-        pass.drawIndirect(args, g * SHADOW_REGION_INDIRECT_BYTES);
-        drawn++;
-        if (!mobility.hasCutouts) continue;
-        pass.setPipeline(draws.cutout);
-        pass.drawIndirect(args, g * SHADOW_REGION_INDIRECT_BYTES + DRAW_INDIRECT_STRIDE);
-        drawn++;
-      }
-      return drawn;
-    },
+    /** Each group of pool pass `k` drawn into its pass, and into the transmittance layer's. */
+    draw: draws.draw,
+    drawBlend: draws.drawBlend,
     dispose() {
       table.destroy();
       args.destroy();
