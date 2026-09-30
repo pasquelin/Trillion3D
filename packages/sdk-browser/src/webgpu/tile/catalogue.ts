@@ -5,7 +5,7 @@ import { WHITE_TAIL, type PoolEncoding } from '../../texture/blockFormats.ts';
 import type { TextureLevelReader } from '../../texture/levelReader.ts';
 import type { CoverageReaders } from '../../texture/coverage.ts';
 import { tileLayout } from '../../texture/tiles.ts';
-import { sourceSize } from './live.ts';
+import { sourceSize } from '../../texture/pictureSize.ts';
 import type { TileTexture } from './tileTexture.ts';
 
 /**

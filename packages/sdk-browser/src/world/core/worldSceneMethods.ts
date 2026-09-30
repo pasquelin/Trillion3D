@@ -16,7 +16,7 @@ import { createWorldRaycast } from './worldRaycast.ts';
  */
 
 /** The move by name a world takes: `nodeName` posed so its world is `matrix`, its row marked and
- *  a frame asked. No node bears the name, a non-sixteen-float pose or a non-finite one is refused
+ *  a frame asked; a move that moves nothing asks none. No node bears the name, a non-sixteen-float pose or a non-finite one is refused
  *  by the code `namedNode`/`assertFiniteTransform` give (`host/world/moveByName.ts`). */
 export function namedMove(
   scene: Object3D,
@@ -25,7 +25,8 @@ export function namedMove(
 ) {
   return (nodeName: string, matrix: Float32Array) => {
     const node = poseNamed(scene, nodeName, matrix);
-    if (node) poses.moved(node);
+    if (!node) return;
+    poses.moved(node);
     invalidate();
   };
 }

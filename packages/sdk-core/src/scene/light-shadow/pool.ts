@@ -18,8 +18,8 @@ export const DRAW_ALL = 0,
   DRAW_DYNAMIC = 2;
 
 /** Host bytes a pool of `pages` allocates, per page 11·4 + 5 + 2·8, one bit per table entry. */
-export const shadowPoolHostBytes = (pages: number) =>
-  pages * (11 * 4 + 5 + 2 * 8) + SHADOW_TABLE_ENTRIES / 8;
+export const shadowPoolHostBytes = (pages: number, tableEntries = SHADOW_TABLE_ENTRIES) =>
+  pages * (11 * 4 + 5 + 2 * 8) + tableEntries / 8;
 
 /**
  * THE PHYSICAL PAGES of the shadow pool and what each one holds: the table entry that maps it,
@@ -29,12 +29,12 @@ export const shadowPoolHostBytes = (pages: number) =>
  * A page is taken from the free list, else from the least recently requested page the latest
  * report did not name. Only mapped pages go stale: the scheduler walks this table alone.
  */
-export function createShadowPool(side: number, layers = 1) {
+export function createShadowPool(side: number, layers = 1, tableEntries = SHADOW_TABLE_ENTRIES) {
   let free = new Int32Array(0),
     freeCount = 0;
   const order = createEvictionOrder();
   /** One bit per table entry: its page was evicted to make room, and it has not been drawn since. */
-  const evicted = new Uint32Array(SHADOW_TABLE_ENTRIES / 32);
+  const evicted = new Uint32Array(tableEntries / 32);
   const init = () => {
     const { owner, requested, named, dirty, valid, layered } = pool;
     owner.fill(-1);

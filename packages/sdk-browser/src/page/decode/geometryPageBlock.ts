@@ -7,8 +7,11 @@ import { FLAG_MORPH, FLAG_SKIN, OPTIONAL } from '../../cluster/format.ts';
  * buffer, so a page crosses a thread or the WebAssembly boundary whole.
  */
 /** Float width of each decoded attribute, by its name; `morph` is six per target. */
-const WIDTH: Record<string, number> = { position: 3, skinIndex: 4, skinWeight: 4, morph: 6 };
+const WIDTH: Record<string, number> = { position: 3, morph: 6 };
 for (const [name, width] of OPTIONAL) WIDTH[name] = width;
+/** Floats per vertex of attribute `name`: a skin stream holds `influences`, the morphs `targets`. */
+const widthOf = (name: string, targets: number, influences: number) =>
+  (name.startsWith('skin') ? influences : WIDTH[name]) * (name === 'morph' ? targets : 1);
 
 /** The attribute names a page with `flags` decodes, in write order. */
 export function pageAttributeNames(flags: number): string[] {
@@ -19,11 +22,7 @@ export function pageAttributeNames(flags: number): string[] {
 
 /** Floats per vertex of `names` with `targets` morph targets. */
 const floatsOf = (names: readonly string[], targets: number, influences = 4) =>
-  names.reduce(
-    (sum, name) =>
-      sum + (name.startsWith('skin') ? influences : WIDTH[name]) * (name === 'morph' ? targets : 1),
-    0,
-  );
+  names.reduce((sum, name) => sum + widthOf(name, targets, influences), 0);
 
 /** The morph targets a decoded block of `bytes` holds, from its counts: what the WebAssembly
  *  result block does not say itself. */
@@ -51,9 +50,11 @@ export function pageViews(
   const attributes: Record<string, Float32Array<ArrayBuffer>> = {};
   let cursor = indices.byteLength;
   for (const name of names) {
-    const width =
-      (name.startsWith('skin') ? influences : WIDTH[name]) * (name === 'morph' ? targets : 1);
-    attributes[name] = new Float32Array(block, cursor, vertexCount * width);
+    attributes[name] = new Float32Array(
+      block,
+      cursor,
+      vertexCount * widthOf(name, targets, influences),
+    );
     cursor += attributes[name].byteLength;
   }
   return { indices, attributes };

@@ -60,25 +60,26 @@ export function deferredLayoutEntries(
         texture: SHADOW_ARRAY,
       },
     );
+  // Shading offsets, subsurface, and the shadow pages the resolve reads, recorded for the
+  // scheduler: only the opaque resolve asks.
   if (direct && marks)
-    entries.push({
-      binding: SHADING_OFFSET_BINDING,
-      visibility: GPUShaderStage.FRAGMENT,
-      buffer: { type: 'read-only-storage' },
-    });
-  if (direct && marks)
-    entries.push({
-      binding: SUBSURFACE_BINDING,
-      visibility: GPUShaderStage.FRAGMENT,
-      texture: { sampleType: 'unfilterable-float' },
-    });
-  // The shadow pages the resolve reads, recorded for the scheduler: only the opaque resolve asks.
-  if (direct && marks)
-    entries.push({
-      binding: CONTRACT_SHADOW_BINDINGS.requests,
-      visibility: GPUShaderStage.FRAGMENT,
-      buffer: { type: 'storage' },
-    });
+    entries.push(
+      {
+        binding: SHADING_OFFSET_BINDING,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: { type: 'read-only-storage' },
+      },
+      {
+        binding: SUBSURFACE_BINDING,
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: { sampleType: 'unfilterable-float' },
+      },
+      {
+        binding: CONTRACT_SHADOW_BINDINGS.requests,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: { type: 'storage' },
+      },
+    );
   // Probe grid, their coefficients and the surface cache a reflection reads: bound only by the
   // bounce program, so a session without bounce keeps exactly the previous layout.
   if (bounce)

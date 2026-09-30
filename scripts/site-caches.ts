@@ -32,15 +32,15 @@ const example = (name: string): CookedScene => ({
   stdio: ['ignore', 'ignore', 'inherit'],
 });
 
-/** Every cooked scene: the examples (the hall's source is committed as is, written by no
- *  script), the terrain tiles' exact cook beside their simplified one (#414), the gallery's and
- *  the two scenes only the tests read. */
+/** The examples whose source is committed as is, written by no script. */
+const COMMITTED_SOURCES = ['hall', 'cesium-man', 'animated-morph-cube'];
+
+/** Every cooked scene: the examples (`modelScenes` and `COMMITTED_SOURCES`), the terrain tiles'
+ *  exact cook beside their simplified one (#414), the gallery's and the two scenes only the tests
+ *  read. */
 export const COOKED_SCENES: Record<string, CookedScene> = {
   ...Object.fromEntries(
-    [...Object.keys(modelScenes), 'hall', 'cesium-man', 'animated-morph-cube'].map((name) => [
-      name,
-      example(name),
-    ]),
+    [...Object.keys(modelScenes), ...COMMITTED_SOURCES].map((name) => [name, example(name)]),
   ),
   'terrain-tiles-none': {
     ...example('terrain-tiles'),

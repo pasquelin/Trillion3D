@@ -7,23 +7,28 @@ import { pixelsAtZero } from '../selection/projection.ts';
 import { drawsCluster } from './rule.ts';
 import { selectionScratch, type PageRecord, type SelectionState } from './state.ts';
 
-/** A page box as a light's cut reads it (`reached`): rewritten per use, no array made. */
+/** A page box grown for a light's cut: rewritten per use, no array made. */
 const grownMin = [0, 0, 0],
   grownMax = [0, 0, 0];
-let low: readonly number[] = grownMin,
-  high: readonly number[] = grownMax;
-/** `min`, `max` into `low`, `high`: grown by `reach` on every side when a deformation moves them
- *  (#357). */
-function reached(min: readonly number[], max: readonly number[], reach: number) {
-  low = min;
-  high = max;
-  if (!(reach > 0)) return;
-  for (let c = 0; c < 3; c++) {
-    grownMin[c] = min[c] - reach;
-    grownMax[c] = max[c] + reach;
+/** Whether the light's cut misses the page box `min`, `max`, grown by the root's reach on every
+ *  side when a deformation moves it (#357). */
+function missesLight<T extends PageRecord>(
+  s: SelectionState<T>,
+  min: readonly number[],
+  max: readonly number[],
+) {
+  const reach = s.flatReach;
+  let low = min,
+    high = max;
+  if (reach > 0) {
+    for (let c = 0; c < 3; c++) {
+      grownMin[c] = min[c] - reach;
+      grownMax[c] = max[c] + reach;
+    }
+    low = grownMin;
+    high = grownMax;
   }
-  low = grownMin;
-  high = grownMax;
+  return boxMissesLightPages(s.light!, low, high, s.flatElements, s.cam.perspective);
 }
 
 /** Frustum test of a page's world box against the selection planes. */
@@ -92,8 +97,7 @@ export function take<T extends PageRecord>(
       return;
     }
   } else if (!boxes && (!rec.min || !rec.max)) return;
-  if (s.light) reached(rec.min!, rec.max!, s.flatReach);
-  if (s.light && boxMissesLightPages(s.light, low, high, s.flatElements, s.cam.perspective)) {
+  if (s.light && missesLight(s, rec.min!, rec.max!)) {
     s.frustumRejected++;
     return;
   }

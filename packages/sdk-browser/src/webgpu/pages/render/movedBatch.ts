@@ -6,6 +6,7 @@ import {
   boxTransform,
   boxUnionBatch,
 } from '../../../../../sdk-core/src/index.ts';
+import { boxGrow } from '../../../../../sdk-core/src/math/primitives/box.ts';
 import { moveRootRows } from './movedRoot.ts';
 import { staleTemporalBox } from '../../../hiz/staleRegions.ts';
 import { appendRootsUnder } from './movedNode.ts';
@@ -165,10 +166,7 @@ export function noteRewritten(rt: WebgpuPagesRuntime, attributes: object, box: F
 export function noteDeformed(rt: WebgpuPagesRuntime, rank: number, reach: number) {
   const box = rt.layout.selectionRoots[rank].worldBox;
   if (!box) return;
-  for (let c = 0; c < 3; c++) {
-    moved[c] = box[c] - reach;
-    moved[c + 3] = box[c + 3] + reach;
-  }
+  boxGrow(moved, 0, box, 0, reach);
   declare(rt, promote(rt, rank));
 }
 

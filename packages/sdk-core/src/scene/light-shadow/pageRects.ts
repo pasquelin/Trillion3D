@@ -3,7 +3,7 @@ import { writeFace } from './faces.ts';
 import { sunBoxRect } from './math.ts';
 import type { SunLevels } from './sunLevels.ts';
 import { FULL_FACE } from './volume.ts';
-import { LAMP_MIPS, SUN_LEVELS, SUN_WINDOW, lampFacesOf, lampPagesAt } from './virtual.ts';
+import { LAMP_MIPS, SUN_LEVELS, lampFacesOf, lampPagesAt } from './virtual.ts';
 import { sunPageMetres } from './pageModel.ts';
 
 /** Light views of one light: a sun's clipmap levels, a lamp face at each mip. */
@@ -53,7 +53,7 @@ export function createPageRects() {
       const level = sun.finest[slice] + view;
       const ox = sun.originOf(slice, level, 0),
         oy = sun.originOf(slice, level, 1);
-      covered += setRect(view, 1 / sunPageMetres(level), 0, ox, oy, SUN_WINDOW);
+      covered += setRect(view, 1 / sunPageMetres(level), 0, ox, oy, sun.windowPages);
     }
     return covered;
   }
