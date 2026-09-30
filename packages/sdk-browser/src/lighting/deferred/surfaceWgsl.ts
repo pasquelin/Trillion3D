@@ -18,14 +18,12 @@ export const MIRROR_TERM_WGSL = '+mirrorLighting(base.rgb,base.a,normal.a,N,V,P)
  * (`pixelShadowed`, #1369) — nothing else reads it, and a pixel of any other tile, or of the program
  * with no shadow code, loads none of its eight neighbour depths nor its receiver offset: its footprint
  * and point unjittered, whence its shadow level (#1363); the turn of the shadow filters' taps this
- * jitter phase, and the taps a moving image takes (`shadowTapsOf`); a lane in the target asks per
- * subgroup; its receiver, moved by its shading-point offset (`receiverOffset`, recomputed from the
- * visibility buffer, #1410).
+ * jitter phase; a lane in the target asks per subgroup; its receiver, moved by its shading-point
+ * offset (`receiverOffset`, recomputed from the visibility buffer, #1410).
  */
 const SHADOW_SETUP_WGSL = `fn shadowSetup(coord:vec2i,pixel:vec4f,z:f32,P:vec3f){
  let level=pixelLevel(coord,pixel.xy,z,P);shadowFootprint=level.footprint;shadowUnjitter=level.unjitter;
  shadowRotation=view.jitter.zw;shadowRequesting=all(vec2u(pixel.xy)<textureDimensions(depth));
- shadowTaps=shadowTapsOf(u32(view.viewport.w));
  shadowReceiverOffset=receiverOffset(pixel.xy);
 }`;
 

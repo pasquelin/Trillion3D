@@ -10,7 +10,8 @@ import { storageBufferCap } from '../../residency/pools.ts';
 /** Label of the measured pass; `gpuLightListsMs` is read under this name, not by its rank. */
 export const LIGHT_TILES_PASS = 'Trillion3D light tiles v1';
 /** Tiles on one axis: the list always covers the whole target, never one tile short. */
-const tilesOn = (pixels: number) => Math.max(1, Math.ceil(pixels / LIGHT_SETTINGS.tileSize));
+/** Light tiles over `pixels`, at least one. */
+export const tilesOn = (pixels: number) => Math.max(1, Math.ceil(pixels / LIGHT_SETTINGS.tileSize));
 export type GpuLightTiles = Awaited<ReturnType<typeof createGpuLightTiles>>;
 
 /**
