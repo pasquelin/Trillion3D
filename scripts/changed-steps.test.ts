@@ -32,4 +32,6 @@ test('a source change runs the gates, the type check and the tests it selects', 
   ])
     assert.equal(isDocumentation(texture), false, texture);
   assert.equal(isDocumentation('site/assets/examples/thumbnails/crates.webp'), true);
+  // English types the site's dictionaries (`site/content/i18n/dictionary.ts`): code.
+  assert.equal(isDocumentation('site/i18n/en.json'), false);
 });
