@@ -23,25 +23,20 @@ export const PAGE_FOOTPRINT_EMPTY = 2 ** (4 * PAGE_FOOTPRINT_EDGE_BITS) - 1;
 /** A request entry's flag (#1211): the reader found the page drawn, for a footprint that misses
  *  its texel — the one thing a readback says of a texel. Above every table entry. */
 export const SHADOW_REQUEST_MISS = 2 ** 31;
-/** The receiver's cell (#1211), in the five bits below `SHADOW_REQUEST_MISS`: which of the 4×4
- *  cells of the page its texel lies in, one-based, zero for a claim that named no texel (the
- *  resolve's own request). Below it, the entry: a table of up to 2^26 entries, the widest window a
- *  session opens (`referenceSunWindow`) included, never only the ordinary one. */
-export const SHADOW_REQUEST_CELL_SHIFT = 26;
-export const SHADOW_REQUEST_CELL_MASK = 31;
-/** `2 ** SHADOW_REQUEST_CELL_SHIFT - 1`, written out: a literal a maths-only bundle drops. */
-export const SHADOW_REQUEST_ENTRY_MASK = 0x3ffffff;
-
-/** The footprint of the page-local cell `code` (1..16) a receiver marked: the 4×4 grid cell of
- *  `PAGE_FOOTPRINT_STEP` texels, one-based, zero for a claim that named no texel (whole page). */
-export function cellFootprint(code: number) {
-  const cells = 2 ** PAGE_FOOTPRINT_EDGE_BITS;
-  if (code < 1 || code > cells ** 2) return PAGE_FOOTPRINT_FULL;
-  const cell = code - 1,
-    x = cell % cells,
-    y = Math.floor(cell / cells),
-    first = PAGE_FOOTPRINT_STEP;
-  return pageFootprint(x * first, y * first, x * first + first - 1, y * first + first - 1);
+/** The footprint of the cells of `mask` (#1211), bit `x + 4y` for the 4×4 grid cell `(x, y)` of
+ *  `PAGE_FOOTPRINT_STEP` texels a receiver read: the least rectangle holding them all. An empty
+ *  mask names no cell: `PAGE_FOOTPRINT_EMPTY`, the union's neutral. */
+export function cellsFootprint(mask: number) {
+  const cells = 2 ** PAGE_FOOTPRINT_EDGE_BITS,
+    step = PAGE_FOOTPRINT_STEP;
+  let footprint = PAGE_FOOTPRINT_EMPTY;
+  for (let cell = 0; cell < cells ** 2; cell++) {
+    if (!((mask >>> cell) & 1)) continue;
+    const x = (cell % cells) * step,
+      y = Math.floor(cell / cells) * step;
+    footprint = footprintUnion(footprint, pageFootprint(x, y, x + step - 1, y + step - 1));
+  }
+  return footprint;
 }
 
 /** The footprint of the texels `[x0, x1] × [y0, y1]` of a page, relative to its first texel —
