@@ -5250,7 +5250,7 @@
     }
   },
   "resolveCompilerExecutable": {
-    "summary": "Findet das native Compiler-Programm: das angeforderte, sonst das in diesem Repository gebaute."
+    "summary": "Findet das native Compiler-Programm: das angeforderte, sonst das des installierten Plattformpakets, sonst das von `TRILLION3D_COMPILER_BIN` benannte, sonst das in diesem Repository gebaute."
   },
   "ReusedFolder": {
     "summary": "Was eine Aufgabe bewiesen hat, bevor sie einen bestehenden Ordner behielt, statt ihn zu schreiben (`null`, wenn sie kompiliert hat; `clusterHierarchyPagesMs` ist dann auch `null`).",

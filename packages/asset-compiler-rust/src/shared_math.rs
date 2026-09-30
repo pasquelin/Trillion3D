@@ -4,6 +4,8 @@
 //! same float ops, same order, same precision as original location.
 //! Site with detail difference stays local rather than aligned.
 
+pub(crate) mod wide;
+
 /// Extends bounding box by another box, axis by axis in axis order.
 ///
 /// `f64::min` and `f64::max` keep semantics: NaN in read box leaves bound
