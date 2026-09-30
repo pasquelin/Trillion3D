@@ -15,6 +15,7 @@ import { LAMP_SOFT_WGSL } from '../../lighting/direct/lampSoftWgsl.ts';
 import { SHADOW_FACTOR_WGSL } from '../../lighting/direct/shadowFactorWgsl.ts';
 import { POISSON_16 } from '../../lighting/direct/pcfTaps.ts';
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
+import { SHADOW_READ_STRUCTS } from './readStructs.fixture.ts';
 import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { SHADOW_DEMAND_WGSL } from '../../gpu/core/shaderTexts.fixture.ts';
 
@@ -103,16 +104,7 @@ const run: Run = shaderRun<Run>(
       blocked,
       through,
     }),
-    ShadowAt: (map: object, t: V, home: V, Q: V, texel: number) => ({ map, t, home, Q, texel }),
-    LampFacePoint: (clip: V, ndc: V, t: V) => ({ clip, ndc, t }),
-    LampAt: (at: object, clip: V, ndc: V, face: number, side: number, inside: boolean) => ({
-      ...{ at, clip, ndc },
-      ...{ face, side, inside },
-    }),
-    ShadowMap: (base: number, ring: number, pages: number, ox: number, oy: number) => ({
-      ...{ base, ring, pages },
-      ...{ ox, oy },
-    }),
+    ...SHADOW_READ_STRUCTS,
   },
 );
 
