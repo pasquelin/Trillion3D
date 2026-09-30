@@ -1,9 +1,11 @@
-import { MAX_SHADOW_SLICES, SHADOW_RECORD_FLOATS } from '../../../../sdk-core/src/index.ts';
+import { SHADOW_RECORD_FLOATS } from '../../../../sdk-core/src/index.ts';
 import type { ShadowTable } from '../../../../sdk-core/src/scene/light-shadow/table.ts';
 import {
   SHADOW_PAGE,
-  SHADOW_TABLE_ENTRIES,
+  SUN_WINDOW,
+  shadowTableStride,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { createShadowData, shadowBufferBytes } from './shadowData.ts';
 import { SHADOW_DEPTH_SHADER } from './shader.ts';
 import { MAX_SHADOW_REGIONS, createShadowRecordPack } from './recordPack.ts';
 import { createShadowFaceBindings } from './faceBindings.ts';
@@ -17,17 +19,10 @@ import { shadowGroupDraws } from './groupDraws.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
 import { SHADOW_FACE_STRIDE as FACE_STRIDE } from './batchBudget.ts';
 export { MAX_SHADOW_PAGES, MAX_SHADOW_REGIONS } from './recordPack.ts';
+export { SHADOW_BUFFER_BYTES, SHADOW_TABLE_OFFSET, shadowBufferBytes } from './shadowData.ts';
 
 /** Label of the measured pass; `gpuShadowsMs` is read under this name. */
 export const SHADOW_PASS = 'Trillion3D shadow atlas v1';
-/** Bytes of the records, before the page table in the same buffer: where the table starts. */
-export const SHADOW_TABLE_OFFSET = MAX_SHADOW_SLICES * SHADOW_RECORD_FLOATS * 4;
-/** Bytes of the records then the page table, one buffer, the table of the session's window. */
-const dataBytesOf = (tableEntries: number) => SHADOW_TABLE_OFFSET + tableEntries * 4;
-/** Bytes of the buffers beside the pool — faces, records, a table of `tableEntries` (`plan.ts`). */
-export const shadowBufferBytes = (tableEntries: number) =>
-  MAX_SHADOW_REGIONS * (FACE_STRIDE + 4) + dataBytesOf(tableEntries);
-export const SHADOW_BUFFER_BYTES = shadowBufferBytes(SHADOW_TABLE_ENTRIES);
 /** Bytes of a pool of `layers` of `poolSide` pages a side: one 32-bit depth texel each. */
 export const shadowAtlasBytes = (poolSide: number, layers = 1) =>
   (poolSide * SHADOW_PAGE) ** 2 * 4 * layers;
@@ -36,7 +31,8 @@ export type GpuShadowAtlas = Awaited<ReturnType<typeof createGpuShadowAtlas>>;
 
 /**
  * The shadow pool and what reads and fills it: a depth texture of `poolSide²` physical pages; one
- * buffer holding every light's record then the page table (`SHADOW_DATA_WGSL`); the buffer the
+ * buffer holding every light's record then the page table (`shadowData.ts`), `tableEntries` words
+ * long until a light's slice reaches past them (`holdTable`); the buffer the
  * opaque resolve records the pages it read in; and the uniform of each page a frame draws, read
  * by dynamic offset. The texture waits for `sizePool`: the first frame that casts grants the
  * budget's pool, then the pages the scene reads size it (`poolDemand.ts`), the shading reading the
@@ -45,10 +41,8 @@ export type GpuShadowAtlas = Awaited<ReturnType<typeof createGpuShadowAtlas>>;
 export async function createGpuShadowAtlas(
   device: GPUDevice,
   pageLayout: GPUBindGroupLayout,
-  tableEntries = SHADOW_TABLE_ENTRIES,
+  tableEntries = shadowTableStride(SUN_WINDOW),
 ) {
-  const dataBytes = dataBytesOf(tableEntries),
-    fixedBytes = shadowBufferBytes(tableEntries);
   let texture: GPUTexture | undefined,
     transmittance: ShadowTransmittance | undefined,
     cleared = false;
@@ -59,11 +53,7 @@ export async function createGpuShadowAtlas(
     size: MAX_SHADOW_REGIONS * (FACE_STRIDE + 4),
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
-  const dataBuffer = device.createBuffer({
-    label: 'Trillion3D shadow records and page table v1',
-    size: dataBytes,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  });
+  const data = createShadowData(device, tableEntries);
   const pack = createShadowRecordPack(FACE_STRIDE, 1),
     { records, facePacked } = pack;
   const faces = createShadowFaceBindings(device, faceUniform);
@@ -72,7 +62,7 @@ export async function createGpuShadowAtlas(
     transmittance?.destroy();
     faceUniform.destroy();
     faces.destroy();
-    dataBuffer.destroy();
+    data.destroy();
   };
   try {
     const module = await createCheckedShaderModule(device, SHADOW_DEPTH_SHADER, 'SHADOW_DEPTH');
@@ -99,7 +89,17 @@ export async function createGpuShadowAtlas(
       view: undefined as GPUTextureView | undefined,
       targets: [] as GPUTextureView[],
       passes: [] as GPURenderPassDescriptor[],
-      dataBuffer,
+      get dataBuffer() {
+        return data.buffer;
+      },
+      /** Bytes of the faces, records and table held beside the pool. */
+      get bufferBytes() {
+        return shadowBufferBytes(data.entries);
+      },
+      /** Grows the table to `entries` words, a light's slice reaching past it (`shadowData.ts`). */
+      holdTable(entries: number) {
+        atlas.allocationBytes += data.hold(entries);
+      },
       /** Host mirror of the records: what the shading rereads. */
       records: records as Readonly<Float32Array>,
       /** Compiles the pool's draws off the frame (`shadowDepthDraws`), at prepare. */
@@ -119,7 +119,7 @@ export async function createGpuShadowAtlas(
       cutoutRequests: faces.requests,
       faceUniform,
       faceStride: FACE_STRIDE,
-      allocationBytes: fixedBytes,
+      allocationBytes: shadowBufferBytes(tableEntries),
       makePool,
       /** Takes the pool's texture — granted or made now — before the first page is drawn; again at
        *  a resize (`poolResize.ts`), with its transmittance layer when one is held. Returns what it
@@ -132,7 +132,7 @@ export async function createGpuShadowAtlas(
       ) {
         const held = texture && { texture, transmittance };
         atlas.allocationBytes =
-          fixedBytes + shadowAtlasBytes(poolSide, layers) + (layer?.bytes ?? 0);
+          atlas.bufferBytes + shadowAtlasBytes(poolSide, layers) + (layer?.bytes ?? 0);
         atlas.size = poolSide * SHADOW_PAGE;
         texture = granted;
         transmittance = layer;
@@ -177,17 +177,14 @@ export async function createGpuShadowAtlas(
       flushRecords() {
         pack.flush((slice) => {
           const first = slice * SHADOW_RECORD_FLOATS;
-          device.queue.writeBuffer(dataBuffer, first * 4, records, first, SHADOW_RECORD_FLOATS);
+          device.queue.writeBuffer(data.buffer, first * 4, records, first, SHADOW_RECORD_FLOATS);
         });
       },
       /** Pushes the records and page-table words that changed, alone — into the table, or to
        *  `words` when the GPU allocates (`webgpu/shadow/allocPass.ts`). */
       flushData(table: ShadowTable, words?: (first: number, count: number) => void) {
-        const at = SHADOW_TABLE_OFFSET;
         atlas.flushRecords();
-        table.flush(
-          words ?? ((i, n) => device.queue.writeBuffer(dataBuffer, at + i * 4, table.words, i, n)),
-        );
+        table.flush(words ?? ((i, n) => data.writeWords(table, i, n)));
       },
       dispose: release,
     };

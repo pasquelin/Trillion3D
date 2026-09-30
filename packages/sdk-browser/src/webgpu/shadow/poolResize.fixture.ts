@@ -13,6 +13,7 @@ import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { asWebgpuDevice } from '../../../../../tests/kit/gpu/webgpuDevice.ts';
 import { createWebgpuLightState, type WebgpuLightState } from '../pages/state/lights.ts';
 import { sizeShadowPool } from './poolSize.ts';
+import { shadowBufferBytes } from '../../gpu/shadow/shadowData.ts';
 import { followShadowDemand } from './poolResize.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
@@ -97,6 +98,7 @@ export async function session(transmittance = false, sized = true) {
       return texture;
     },
     allocationBytes: 0,
+    bufferBytes: shadowBufferBytes(lights.plan.table.heldEntries),
     get transmittanceHeld() {
       return !!layer;
     },
