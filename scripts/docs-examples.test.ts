@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { access, readdir, readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { createElement } from 'react';
@@ -10,6 +10,7 @@ import { loadReactComponents } from './docs/render-react.ts';
 import { modelScenes } from './docs/examples/models.ts';
 import { exampleModules, thumbnailDelay } from './docs/examples/capture.ts';
 import { examplePages } from './docs/examples/pages.ts';
+import { isCookedManifest } from './site-caches.ts';
 import exampleWords from '../site/examples/i18n/en.json' with { type: 'json' };
 import type { Example as ExampleComponent } from '../site/app/examples/Example.tsx';
 import type { ExampleList as ExampleListComponent } from '../site/app/layout/ExampleList.tsx';
@@ -88,7 +89,7 @@ test('every example is one standalone HTML file that imports the built engine', 
     // source has it read by every page loading it, never copied.
     const sky = manifest.replace(/cache\/.*/, 'source/sky.json');
     if (existsSync(new URL(sky, site))) assert.ok(html.includes(`fetch('../${sky}')`), entry.id);
-    await access(new URL(manifest, site));
+    assert.ok(isCookedManifest(manifest), `${entry.id}: ${manifest}`);
     // A scene built around an imported model credits its author on the page, in its words.
     if (
       Object.keys(modelScenes).some((scene) => manifest.startsWith(`assets/examples/${scene}/`))
