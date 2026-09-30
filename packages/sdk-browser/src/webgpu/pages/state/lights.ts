@@ -98,6 +98,8 @@ export interface WebgpuLightState {
   shadowPages: number;
   /** Pages drawn since the state was created, every frame and drain together. */
   shadowPagesTotal: number;
+  /** The shadow version (`shadowEpoch`) the still average last took in (`taa/frame.ts`). */
+  shadowEpochSeen: number;
   /** Pages the light cut sent back to be drawn again, withdrawn or coarser (`redrawShortPages`). */
   lightCutWithdrawnPages: number;
   lightCutCoarsePages: number;
@@ -162,6 +164,7 @@ export function createWebgpuLightState(
     shadowFaces: 0,
     shadowPages: 0,
     shadowPagesTotal: 0,
+    shadowEpochSeen: 0,
     lightCutWithdrawnPages: 0,
     lightCutCoarsePages: 0,
     shadowWork: createShadowWork(),
@@ -181,6 +184,11 @@ export function disposeStaticLayer(lights: WebgpuLightState) {
   lights.occlusion?.dispose();
   lights.staticLayer = lights.pageHiz = lights.occlusion = undefined;
 }
+
+/** The shadow contents' version: the pages the host drew, and those the GPU listed to draw itself
+ *  (`listDraw`, known a snapshot late); a change of either is another shadow. */
+export const shadowEpoch = (lights: WebgpuLightState) =>
+  lights.shadowPagesTotal + lights.plan.gpu.drawn;
 
 /**
  * True while the shadow pages can still change what the image shows: a page stale and read — left
