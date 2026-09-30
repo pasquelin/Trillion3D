@@ -3,7 +3,7 @@ import { createReflectionConePyramid } from './conePyramid.ts';
 import { mipLevelCountFor } from '../texture/tiles.ts';
 import { refreshSurface, type PageSurface } from '../page/surface.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
-import { reflects } from './eligible.ts';
+import { screenReflects } from './eligible.ts';
 import { surfacesOfRows } from '../page/rowSurfaces.ts';
 import {
   createReflectionHistory,
@@ -12,10 +12,10 @@ import {
 } from './historyRuntime.ts';
 import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts';
 
-const reflecting = (surface: PageSurface) => reflects(refreshSurface(surface));
+const reflecting = (surface: PageSurface) => screenReflects(refreshSurface(surface));
 const roughReflecting = (surface: PageSurface) => {
   const material = refreshSurface(surface);
-  return reflects(material) && material.roughness > Number(ROUGHNESS_FLOOR);
+  return screenReflects(material) && material.roughness > Number(ROUGHNESS_FLOOR);
 };
 
 /** Only opaque receivers own this history. Forward transparents cannot borrow
