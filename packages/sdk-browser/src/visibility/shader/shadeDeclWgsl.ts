@@ -1,4 +1,9 @@
-import { FRAMEBUFFER_WGSL, SHADE_UNI_WGSL } from './receiverOffsetWgsl.ts';
+import {
+  FRAMEBUFFER_WGSL,
+  PIXEL_BARY_WGSL,
+  SHADE_UNI_WGSL,
+  VERTEX_NORMALS_WGSL,
+} from './pixelTriangleWgsl.ts';
 import { COTANGENT_FRAME_WGSL } from '../../cluster/decodeWgsl.ts';
 import { INVERSE_TRANSPOSE_WGSL } from '../../math/inverseTransposeWgsl.ts';
 import { TRIANGLE_PALETTE_WGSL } from '../../diagnostic/trianglePalette.ts';
@@ -69,6 +74,7 @@ ${VERT_NORMAL_WGSL}
 ${PAGE_NORMAL_WGSL}
 ${EDGE_WGSL}
 ${BARY_WEIGHTS_WGSL}
+${PIXEL_BARY_WGSL}
 ${UV_GRADIENTS_WGSL}
 ${TILE_POOL_WGSL}
 ${COLOR_SAMPLE_WGSL}
@@ -76,6 +82,7 @@ ${DATA_SAMPLE_WGSL}
 ${TILE_REQUEST_WGSL}
 ${SHADE_REQUEST_WGSL}
 ${INVERSE_TRANSPOSE_WGSL}
+${VERTEX_NORMALS_WGSL}
 ${COTANGENT_FRAME_WGSL}
 ${SURFACE_MODEL_SHADE_WGSL}
 // The fifth output is the tile rank this pixel asks of virtual textures, placed in the
