@@ -11,7 +11,7 @@ import { availableParallelism, setPriority } from 'node:os';
 import { join, relative, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { Stryker } from '@stryker-mutator/core';
-import { mutationMarkdown, summarizeMutation } from './mutation-summary.ts';
+import { mutationMarkdown, mutationTargets, summarizeMutation } from './mutation-summary.ts';
 import { localFileGlobs, repositoryFiles } from './repository-files.ts';
 import { isUnitTest } from './unit-tests.ts';
 
@@ -42,7 +42,7 @@ const mutationRun = (files: string[], full: boolean) =>
     testRunner: 'tap',
     plugins: ['@stryker-mutator/tap-runner'],
     tap: { testFiles: files },
-    mutate: values.mutate ?? [`${PACKAGE}**/*.ts`, '!**/*.test.ts', '!**/*.fixture.ts'],
+    mutate: mutationTargets(PACKAGE, values.mutate),
     coverageAnalysis: 'perTest',
     disableBail: full,
     // At least one runner: Stryker starts none at 0 and waits forever (under four cores).

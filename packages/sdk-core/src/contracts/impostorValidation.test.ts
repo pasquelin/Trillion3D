@@ -29,14 +29,17 @@ function section() {
     ],
   };
 }
+/** `value` has a problem, and the refusal names it under its code with more words around it. */
 const refused = (value: unknown) => {
-  assert.ok(validateImpostorSection(value));
+  const problem = validateImpostorSection(value);
+  assert.ok(problem);
   assert.throws(
     () => assertImpostorSection(value),
     (error: any) =>
       error.name === 'EngineError' &&
       error.code === 'UNSUPPORTED_FORMAT' &&
-      error.message.includes('Cannot read impostors:'),
+      error.message.includes(problem) &&
+      error.message.length > problem.length,
   );
 };
 
@@ -65,13 +68,14 @@ test('sections reject malformed headers and nonpositive switch inputs independen
   ])
     refused(value);
   for (const frames of [undefined, 1, 1.5, NaN, Infinity, '2']) refused({ ...section(), frames });
-  for (const key of ['frames', 'frameSide', 'objectRadius', 'rootTriangles', 'coverage']) {
-    const invalid =
-      key === 'frames'
-        ? [undefined, 0, 1, 2.5, NaN, Infinity, '2']
-        : key === 'frameSide'
-          ? [undefined, 0, -1, 1.5, NaN, Infinity, '4']
-          : [undefined, 0, -1, NaN, Infinity, '3'];
+  const positive = [undefined, 0, -1, NaN, Infinity, '3'];
+  for (const [key, invalid] of [
+    ['frames', [undefined, 0, 1, 2.5, NaN, Infinity, '2']],
+    ['frameSide', [undefined, 0, -1, 1.5, NaN, Infinity, '4']],
+    ['objectRadius', positive],
+    ['rootTriangles', positive],
+    ['coverage', positive],
+  ] as const) {
     for (const value of invalid) {
       const input = section();
       (input.meshes[0] as any)[key] = value;
@@ -131,10 +135,15 @@ test('all three maps and every stored level must be readable', () => {
       (value.meshes[0].maps[key] as any).levels = [level];
       refused(value);
     }
-    for (const field of ['url', 'sha256', 'bytes', 'width', 'height']) {
-      const invalid = ['url', 'sha256'].includes(field)
-        ? [undefined, '', 3]
-        : [undefined, -1, 0.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1, '4'];
+    const text = [undefined, '', 3];
+    const count = [undefined, -1, 0.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1, '4'];
+    for (const [field, invalid] of [
+      ['url', text],
+      ['sha256', text],
+      ['bytes', count],
+      ['width', count],
+      ['height', count],
+    ] as const) {
       for (const setting of invalid) {
         const value = section();
         (value.meshes[0].maps[key].levels[0] as any)[field] = setting;
