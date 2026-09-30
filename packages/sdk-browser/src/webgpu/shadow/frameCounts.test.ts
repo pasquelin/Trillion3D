@@ -1,5 +1,5 @@
 // The cumulative shadow page count the lesson and hosts read: it grows by what each frame drew,
-// and a sampled cull count covers every batch of the frame it names. Also the hold: a
+// and the sampled cull counts sum the device's own instance counts. Also the hold: a
 // representation change held until rest keeps the frame rendering until a plan consumes it, or a
 // frame that plans no shadow releases it to the list.
 import test from 'node:test';
@@ -8,14 +8,15 @@ import { createWebgpuLightState, shadowsUnsettled } from '../pages/state/lights.
 import { noteShadowFrame } from '../pages/render/encodeShadowBatches.ts';
 import { createGpuShadowCullCounts } from '../../gpu/shadow/cullCounts.ts';
 import { unsettledMask } from '../frame/hold.ts';
-import { planShadowRegions } from '../pages/render/shadowRegions.ts';
-import { shadowViewpointOf } from '../pages/render/shadowViewpoint.ts';
 import { encodeDirectLights } from '../pages/render/encodeLights.ts';
 import type { SceneLight } from '../../../../sdk-core/src/index.ts';
 import { settledRt } from '../frame/hold.fixture.ts';
 import { sunEntry } from '../../../../sdk-core/src/scene/light-shadow/pageModel.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
+import { planShadowRegions } from '../pages/render/shadowRegions.ts';
+import { sumKeptClusters } from '../../gpu/shadow/keptClusters.ts';
+import { shadowViewpointOf } from '../pages/render/shadowViewpoint.ts';
 
 installGpuGlobals();
 
@@ -26,6 +27,13 @@ test('shadowPagesTotal accumulates the pages each frame drew', () => {
   lights.shadowPages = 8;
   noteShadowFrame(lights);
   assert.equal(lights.shadowPagesTotal, 20);
+});
+
+test('the sampled cull counts sum the instance count of each region command', () => {
+  // Three commands of four words: vertex count, instance count, first vertex, first instance.
+  const words = new Uint32Array([32768, 67, 0, 0, 32768, 5, 0, 0, 32768, 900, 0, 0]);
+  assert.equal(sumKeptClusters(words, 2), 72);
+  assert.equal(sumKeptClusters(words, 3), 972);
 });
 
 const CAM = {

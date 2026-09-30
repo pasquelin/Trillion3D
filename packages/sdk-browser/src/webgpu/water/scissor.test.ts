@@ -3,10 +3,8 @@ import assert from 'node:assert/strict';
 import { createWaterPass, encodeWaterPass } from './pass.ts';
 import { prepared, replay, targets } from './pass.fixture.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
-
-const WATER_DEPTH_RESTORE = 'Trillion3D water depth restore';
-const WATER_COMPOSITE_PASS = 'Trillion3D water composite';
-const WATER_SURFACE_PASS = 'Trillion3D water surfaces';
+import { WATER_DEPTH_RESTORE } from './depthRestorePass.ts';
+import { WATER_COMPOSITE_PASS, WATER_SURFACE_PASS } from './passLabels.ts';
 
 test('cropped color origins, depth restore and scissors survive the next full frame', async () => {
   const { blendState, gpu } = prepared();

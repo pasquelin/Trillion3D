@@ -10,9 +10,8 @@ import { ADD_WORDS, OP, SHAPE, VIEW_WORDS } from './layout.ts';
 import { physicsMatterOf } from './matter.ts';
 import { ObjectPhysics } from './objectPhysics.ts';
 import { resolveShape } from './shape.ts';
-
-const JOLT_COMMIT = 'e77f175595e64cb44218cc9d9d56fc365ad0e36a';
-const RESTORE_WORDS = 3;
+import { JOLT_COMMIT } from './joltCommit.ts';
+import { RESTORE_WORDS } from './wire.fixture.ts';
 
 const one = { x: 1, y: 1, z: 1 };
 

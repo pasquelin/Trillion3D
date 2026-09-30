@@ -1,12 +1,12 @@
 import {
   DECLARED_FLOOR,
   RESPONSE_LEFT,
-  SOLE_FRICTION,
   type CharacterEvents,
   type CharacterInput,
   type CharacterSettings,
 } from './characterSettings.ts';
 import { hypot2 } from '../math/primitives/hypot.ts';
+import { gripOf } from './grip.ts';
 
 /**
  * WHAT A CHARACTER WISHES OVER ONE TICK, before it meets anything: the speed it gathers or loses,
@@ -45,13 +45,6 @@ export const createDrive = (): CharacterDrive => ({
   sinceJump: Infinity,
   floor: DECLARED_FLOOR,
 });
-
-/**
- * The friction between a rubber sole and a floor of friction `floor`: their geometric mean, the
- * rule the physics backend combines two bodies' frictions by (Jolt's default). 0.79 on stone,
- * 0.16 on ice.
- */
-const gripOf = (floor: number) => Math.sqrt(SOLE_FRICTION * Math.max(0, floor));
 
 /** The horizontal move of one tick, and whether it started with a jump. */
 export interface DriveStep {

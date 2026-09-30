@@ -4,16 +4,17 @@
 // `[0, 1]` and every depth reader converted. It now carries only one: the projection is composed
 // by the engine (`perspectiveProjection`), in REVERSED depth and infinite far plane — near at
 // 1, infinity at 0 — and `depthConvention.ts` publishes what follows: pipeline comparison,
-// the clear value, the sense of "nearer", conversion to distance.
+// the clear value, the sense of "nearer".
 //
-// What this file proves: the host clip convention no longer enters any engine number, the
-// Hi-Z bound of a box included; and a very distant point keeps a depth distinct from its
-// neighbour, where the forward projection crushed them.
+// What this file proves: the host clip convention no longer enters any engine number; the
+// Hi-Z bound of a box and the depth of a visibility-raster vertex do come out in that
+// convention; and a very distant point keeps a depth distinct from its neighbour, where
+// the forward projection crushed them.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createEngineCamera, readCameraWorld } from './world.ts';
-import { depthNearer } from './depthConvention.ts';
+import { DEPTH_CLEAR, DEPTH_COMPARE, DEPTH_NEAR, depthNearer } from './depthConvention.ts';
 import { HIZ_BOUNDS_VALUES, projectCornersInto } from '../hiz/corners.ts';
 import { projectVisibilityVertex } from '../visibility/projection.ts';
 import { IDENTITY_ELEMENTS } from '../math/matrixElements.ts';
@@ -55,6 +56,31 @@ test('the host clip convention no longer enters any engine number', () => {
       `projection[${i}] : ${webGL.projection[i]} au lieu de ${webGPU.projection[i]}`,
     );
   assert.deepEqual([...borne(webGL)], [...borne(webGPU)], 'same Hi-Z bounds');
+});
+
+test('engine depth is reversed: the near plane is 1, the far is 0', () => {
+  assert.equal(DEPTH_COMPARE, 'greater');
+  assert.equal(DEPTH_NEAR, 1);
+  assert.equal(DEPTH_CLEAR, 0);
+  assert.equal(depthNearer(DEPTH_NEAR, DEPTH_CLEAR), true);
+  assert.equal(depthNearer(DEPTH_CLEAR, DEPTH_NEAR), false);
+});
+
+test('the depth of a projected vertex is the near plane over its eye distance', () => {
+  // The origin, on the camera's optical axis: its eye distance is the camera's distance to it.
+  const position = { getX: () => 0, getY: () => 0, getZ: () => 0 };
+  const p = projectVisibilityVertex(
+    { elements: IDENTITY_ELEMENTS },
+    position,
+    0,
+    webGL,
+    LARGEUR,
+    HAUTEUR,
+  );
+  assert.ok(p, 'the vertex must project');
+  assert.ok(p!.z > 0 && p!.z < 1, `depth ${p!.z} outside the engine range`);
+  const distance = Math.hypot(2, 1, 8);
+  assert.ok(Math.abs(p!.z - NEAR / distance) < 1e-6 * p!.z, 'ndc = near / distance');
 });
 
 test('at 10⁶ units, two neighbouring vertices keep distinct depths in single precision', () => {

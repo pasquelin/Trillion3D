@@ -11,8 +11,7 @@ import * as sun from '../../../sdk-core/src/scene/light-shadow/sunView.fixture.t
 import { createShadowMobility } from '../webgpu/shadow/mobility.ts';
 import { createPlacementRows, placementWorld } from './rows.ts';
 import { followPlacementRows } from './update.ts';
-
-const SHADOWLESS_ROOT = 4;
+import { SHADOWLESS_ROOT } from '../visibility/shader/shadowlessRoot.ts';
 
 /** A small caster, the ground under it, a box far off: local boxes, placed at the origin. */
 const BOXES = [

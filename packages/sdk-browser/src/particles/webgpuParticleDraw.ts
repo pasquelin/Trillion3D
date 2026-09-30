@@ -1,25 +1,14 @@
 import { PARTICLE_BLENDS, type ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
 import { buildRenderPipeline } from '../lighting/deferred/fullscreen.ts';
-import { BLENDS, DRAW_FLOATS, drawOrder, writeDrawWords } from './drawWords.ts';
+import { DRAW_FLOATS, drawOrder, writeDrawWords } from './drawWords.ts';
 import { usedSlots } from './poolStates.ts';
-import {
-  displayMaskLayout,
-  displayTargets,
-  type DisplayFilter,
-} from '../webgpu/blend/displayFilter.ts';
-import { REACTIVE_TARGET } from '../lighting/deferred/asIsShare.ts';
+import { displayMaskLayout, type DisplayFilter } from '../webgpu/blend/displayFilter.ts';
 import { PARTICLE_DRAW_WGSL, PARTICLE_ROUTED_WGSL } from './particlesWgsl.ts';
+import { particleTargets } from './particleTargets.ts';
 
 /** The pass label the GPU timings name the particle draw by (`passesGpu`). */
 export const PARTICLE_DRAW_PASS = 'Trillion3D particle draw';
-
-/** A disc's targets: the lit image, its blend's display layers if `routed`, the reactive value. */
-const particleTargets = (blend: ParticlePool['blend'], routed = false): GPUColorTargetState[] => [
-  { format: 'rgba16float', blend: BLENDS[blend] },
-  ...(routed ? displayTargets(blend === 'additive' ? 'additive' : 'normal') : []),
-  REACTIVE_TARGET,
-];
 
 /** What the draw keeps in a pool's step state: its words, its group and the depth it was made on. */
 export type DrawState = {

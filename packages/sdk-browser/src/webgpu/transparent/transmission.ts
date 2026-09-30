@@ -2,14 +2,11 @@ import { WATER_RANK_SHIFT } from '../water/surfaceWgsl.ts';
 import { refreshSurface } from '../../page/surface.ts';
 import type { TransmissionBackdrop, WebgpuGpuState } from '../pages/state/gpu.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { WATER_BYTES_PER_PIXEL } from './waterBytes.ts';
 
 /** `transmission`, `ior`, `thickness`, `attenuationDistance`, then aligned `attenuationColor`:
  *  one record per transmissive item, read by water rank in a storage buffer. */
 export const VOLUME_WORDS = 8;
-/** The frozen backdrop costs a half-float colour (8 bytes) per pixel, and the depth the surface
- *  stage tests and writes 4 more; the other surfaces are the opaque resolve's, and the water word
- *  borrows the display colour (`../water/surfaceWgsl.ts`), already paid. */
-const WATER_BYTES_PER_PIXEL = 8 + 4;
 
 /** What the water pass adds to the image budget, zero with no transmissive surface. */
 export function backdropBytes(rt: WebgpuPagesRuntime, width: number, height: number) {

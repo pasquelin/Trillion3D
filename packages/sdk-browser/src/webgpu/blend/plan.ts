@@ -12,6 +12,7 @@ import {
   PLAN_VERTEX_CULL_BIT,
   planEntry,
 } from './planEntry.ts';
+import { planCull } from './planCull.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
 
 /** The three cull ranks of a pass's pipelines: a plan entry picks them without a test, and the
@@ -21,8 +22,6 @@ const PIPELINE_NONE = 0,
   PIPELINE_FRONT = 1,
   PIPELINE_BACK = 2;
 export const planItem = (entry: number) => entry >>> PLAN_SHIFT;
-/** Cull mode of the entry, whoever applies it: its rank among the three pipelines of its mode. */
-const planCull = (entry: number) => (entry & PLAN_PIPELINE_MASK) % 3;
 /** Cull mode the vertex stage applies to the entry's instances: zero when the pipeline culls. */
 export const planVertexCull = (entry: number) =>
   entry & PLAN_VERTEX_CULL_BIT ? planCull(entry) : PIPELINE_NONE;

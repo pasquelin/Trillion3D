@@ -7,10 +7,9 @@ import { camera, nearestQuadTexture, quadPages } from './buffer.fixture.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { surfaceOf } from '../page/surface.ts';
 import { identityRoots } from '../page/selection/placements.fixture.ts';
-import { visMaterial } from './shader/material.ts';
 import { DIRECT_LIGHTING_SHADER } from '../gpu/core/shaderTexts.fixture.ts';
-
-const VIS_INVALID = 0;
+import { visMaterial } from './shader/material.ts';
+import { VIS_INVALID } from './visWords.ts';
 
 test('Repeat wrap samples the same texel at UV 0.25 and 1.25', () => {
   const map = nearestQuadTexture();

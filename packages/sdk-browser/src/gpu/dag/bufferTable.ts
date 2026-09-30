@@ -4,7 +4,8 @@ import { dagWorkLayout } from './shader/floorWgsl.ts';
 import { dagFlagsWords } from './shader/lastUseWgsl.ts';
 import { stagedOutputBytes } from './layout.ts';
 import { FRAME_VEC4, type PackedDag } from './types.ts';
-import { ELEMENT_BYTES, dagSplit, flagPartWords, type DagSplit, type TableSplit } from './split.ts';
+import { ELEMENT_BYTES, dagSplit, flagPartWords, type DagSplit } from './split.ts';
+import { type TableSplit } from './splitFlags.ts';
 
 /** One storage buffer of a cut: its label, its bytes, and whether a copy reads it. */
 export type DagBufferRow = { label: string; size: number; copySource?: boolean };

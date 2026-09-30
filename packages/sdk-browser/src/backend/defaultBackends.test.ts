@@ -1,6 +1,6 @@
 // #274: with no `backends` option the engine's own path renders, and a Three witness is only ever
-// active because something said so. The temporary witness fallback of #298 is gone: a machine
-// that offers neither API fails by name.
+// active because something said so. #297: a machine without WebGPU takes the engine's own
+// autonomous WebGL2 path, which draws; the temporary witness fallback of #298 is gone.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
@@ -10,6 +10,7 @@ import { webgpuPagesBackend } from '../webgpu/pages/pages.ts';
 import { exactPagesBackend } from '../../../../bench/witnesses/exact/backend.ts';
 import { referenceBackend } from '../../../../bench/witnesses/referenceBackend.ts';
 import { EngineError, type ClusterManifest } from '../../../sdk-core/src/index.ts';
+import { autonomousCacheReady } from './autonomousCacheReady.ts';
 
 const cache = (autonomousScene: string | null) =>
   ({ autonomousScene, primitives: [] }) as unknown as ClusterManifest;
@@ -22,6 +23,17 @@ test('a WebGPU machine renders through the engine page raster by default', () =>
   assert.equal(choice.renderer, 'webgpu-page-raster');
   assert.equal(choice.origin, 'default');
   assert.match(choice.reason, /WebGPU device/);
+});
+
+test("a WebGL2-only machine renders through the engine's own autonomous path", () => {
+  const choice = chooseBackends({}, cache('scene.gltf'), undefined);
+  assert.deepEqual(choice.factories, [autonomousPagesBackend]);
+  assert.equal(choice.renderer, 'autonomous-pages-webgl');
+  assert.equal(choice.autonomous, true);
+  assert.equal(choice.origin, 'default');
+  assert.match(choice.reason, /no WebGPU device/);
+  assert.equal(autonomousCacheReady(cache('scene.gltf')), true);
+  assert.equal(autonomousCacheReady(cache(null)), false);
 });
 
 test('a witness renders only because the host opted into it', () => {

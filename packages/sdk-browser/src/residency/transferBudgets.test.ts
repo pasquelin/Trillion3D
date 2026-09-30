@@ -2,9 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { poolTaking } from '../webgpu/residency/memoryBudgets.ts';
 import { textureTransferBytesFor, textureUploadMsFor } from './transferBudgets.ts';
-
-const DEFAULT_TEXTURE_TRANSFER_BYTES = 16 * 1024 * 1024;
-const DEFAULT_TEXTURE_UPLOAD_MS = 1;
+import {
+  DEFAULT_TEXTURE_TRANSFER_BYTES,
+  DEFAULT_TEXTURE_UPLOAD_MS,
+} from './textureTransferDefaults.ts';
 
 test('the tile pass budgets are what the host declared, 16 MiB and 1 ms by default, one tile at least', () => {
   assert.equal(textureUploadMsFor(undefined), DEFAULT_TEXTURE_UPLOAD_MS);

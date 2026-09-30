@@ -4,8 +4,12 @@
 import type { SceneLight, ShadowViewpoint } from '../light/contracts.ts';
 import { createSceneLightStore, type SceneLightStore } from '../light/store.ts';
 import { createShadowPlan, type ShadowPlan } from './plan.ts';
-import { LAMP_MIPS, SUN_LEVELS } from './virtual.ts';
+import { LAMP_MIPS, SUN_LEVELS, SUN_WINDOW } from './virtual.ts';
+import { sunEntries } from './sunEntries.ts';
 import { lampEntry, sunEntry } from './pageModel.ts';
+
+/** The table entries of every sun level at the default window. */
+export const SUN_ENTRIES = sunEntries(SUN_WINDOW);
 
 export const VIEW: ShadowViewpoint = {
   position: [0, 5, 0],

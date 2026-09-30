@@ -1,27 +1,9 @@
-import { PAGE_FOOTPRINT_FULL, SHADOW_REQUEST_MISS, footprintUnion } from './footprint.ts';
-import { STALE_FULL, type ShadowPool } from './pool.ts';
+import { PAGE_FOOTPRINT_FULL, SHADOW_REQUEST_MISS } from './footprint.ts';
+import { type ShadowPool } from './pool.ts';
 import type { ShadowRequestReport } from './requests.ts';
 import type { ShadowTable } from './table.ts';
 import { PAGE_INDEX_MASK, PAGE_MAPPED } from './virtual.ts';
-
-/**
- * THE ONE WAY A PAGE'S FOOTPRINT GROWS: to its union with `footprint`, never less — a reader it
- * covered stays covered while the page is mapped. A drawn page it grows is stale in full, its
- * static layer too, for their casters were culled to the old one (`pages.ts`). True when that
- * staled a current page.
- */
-function reachFootprint(
-  pool: ShadowPool,
-  page: number,
-  footprint: number,
-  nowMs: number,
-  frame: number,
-) {
-  const next = footprintUnion(pool.footprint[page], footprint);
-  if (next === pool.footprint[page]) return false;
-  pool.footprint[page] = next;
-  return !!pool.valid[page] && pool.stale(page, nowMs, frame, STALE_FULL);
-}
+import { reachFootprint } from './reachFootprint.ts';
 
 /**
  * THE RECEIVERS' FOOTPRINT OF EVERY PAGE THEY NAME (#1211): the part of a page its receivers

@@ -10,8 +10,7 @@ import { Group, Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { createPhysicsBodies } from './bodies.ts';
 import { createPhysicsPoses } from './poses.ts';
 import { createTileStreamer } from './tiles.ts';
-
-const JOLT_COMMIT = 'e77f175595e64cb44218cc9d9d56fc365ad0e36a';
+import { JOLT_COMMIT } from '../../../sdk-core/src/physics/joltCommit.ts';
 
 /** The bytes of `tests/fixtures/physics/<name>`. */
 export const fixture = (name: string) =>

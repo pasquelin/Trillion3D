@@ -1,14 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { shaderFunctions } from '../texture/shaderRule.fixture.ts';
 import { Mat } from '../texture/shaderRun.fixture.ts';
 import { mulberry32 } from '../../../../site/examples/kit/random.ts';
 import { taaUpscaleShader } from './upscaleWgsl.ts';
-import { taaHistoryBlend } from './historyWgsl.ts';
-import { owed, upscaleRun, type UpscaleFrame } from './upscaleRun.fixture.ts';
 import { TAA_SHADER } from '../gpu/core/shaderTexts.fixture.ts';
+import { taaHistoryBlend } from './historyWgsl.ts';
+import { kernel, owed, upscaleRun, type UpscaleFrame } from './upscaleRun.fixture.ts';
+import { LANCZOS2_WGSL } from './lanczos2Wgsl.ts';
 
+type Kernel = { lanczos2: (x: number) => number };
 const near = (a: number[], b: number[], what: string) =>
   a.forEach((x, i) => assert.ok(Math.abs(x - b[i]) < 1e-9, `${what}: ${a} against ${b}`));
+
+test('the current image is resampled with Lanczos-2: one at its sample, zero at each integer', () => {
+  const { lanczos2 } = shaderFunctions<Kernel>(LANCZOS2_WGSL, ['lanczos2'], { sin: Math.sin });
+  assert.equal(lanczos2(0), 1);
+  for (const x of [1, 2, 3]) assert.ok(Math.abs(lanczos2(x)) < 1e-6, `zero at ${x}`);
+  assert.ok(lanczos2(0.5) > 0 && lanczos2(1.5) < 0, 'its negative lobe, which deringing clamps');
+  assert.ok(Math.abs(lanczos2(0.7) - kernel(0.7)) < 1e-6);
+});
 
 const random = mulberry32(816);
 const noise = Array.from({ length: 64 }, () => [random(), random(), random(), 1]);

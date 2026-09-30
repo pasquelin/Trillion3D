@@ -4,8 +4,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { createHizCounts, type HizPage } from '../../hiz/hiz.ts';
-import { buildHizPyramid } from '../../hiz/depth.ts';
-import { countUnoccluded } from '../../hiz/unoccluded.ts';
 import { cameraAt } from '../../../../../tests/fixtures/hiz.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
@@ -14,10 +12,9 @@ import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import { webgpuPagesBackend } from '../../webgpu/pages/pages.ts';
 import { quadScene, camera } from '../../webgpu/pages/testScenes.fixture.ts';
 import { PAGE_INFO_STRIDE } from '../buffer.ts';
-import { HIZ_REJECTED_WGSL } from '../../gpu/partition/contract.ts';
+import { HIZ_REJECTED_WGSL, ST_REJECTED } from '../../gpu/partition/contract.ts';
 import { ROW_HIZ_SLOT_WORD, restampHizSlot } from '../../webgpu/row/pageRow.ts';
 import { HIZ_SHADER, HIZ_TEST_PAGES_ENTRIES } from '../../gpu/hiz/shader.ts';
-import { ST_REJECTED } from '../../gpu/partition/contract.ts';
 import { transparentOcclusionShader } from '../../gpu/core/transparentOcclusionWgsl.ts';
 import { refreshTransparentCorners } from '../../webgpu/transparent/occlusionHost.ts';
 import type { WebgpuPagesRuntime } from '../../webgpu/pages/runtime.ts';
@@ -29,8 +26,9 @@ import { surfaceOf } from '../../page/surface.ts';
 import { createHostDrawCamera, readHostDrawCamera } from '../../camera/world.ts';
 import { WebglClusterCopies } from '../../webgl/cluster/copyCulling.ts';
 import { identityRoots } from '../../page/selection/placements.fixture.ts';
-
-const NO_HIZ_SLOT = 0xffffffff;
+import { buildHizPyramid } from '../../hiz/depth.ts';
+import { countUnoccluded } from '../../hiz/unoccluded.ts';
+import { NO_HIZ_SLOT } from '../../webgpu/row/noHizSlot.ts';
 
 const sprite = (sizeAttenuation: boolean) => ({ rotation: 0, sizeAttenuation });
 const spriteSurface = (sizeAttenuation: boolean, parameters = {}) =>

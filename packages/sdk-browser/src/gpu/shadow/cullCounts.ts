@@ -6,6 +6,7 @@ import {
   SHADOW_TESTED_SAMPLE_BYTES,
 } from './batchBudget.ts';
 import { DRAW_INDIRECT_WORDS } from '../draw/contract.ts';
+import { sumKeptClusters } from './keptClusters.ts';
 
 /** What the last sampled frame's region culls kept, and that frame's number: of the clusters
  *  kept, `moving` those of regions that draw moving casters alone (#991); `tested`, the casters
@@ -16,14 +17,6 @@ export interface ShadowCullCounts {
   kept: number;
   moving: number;
   tested: number;
-}
-
-/** Clusters the `commands` first commands draw: the device's own count, never estimated. */
-function sumKeptClusters(words: Uint32Array, commands: number) {
-  let kept = 0;
-  for (let command = 0; command < commands; command++)
-    kept += words[command * DRAW_INDIRECT_WORDS + 1];
-  return kept;
 }
 
 /**

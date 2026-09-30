@@ -8,22 +8,9 @@ import { samplingWords } from '../../texture/sampling.ts';
 import { allocated } from '../core/allocation.ts';
 import type { MipChain } from './mips.ts';
 import type { Matrix3UniformCache } from './uniforms.ts';
+import { physicalMapLayout } from './physicalMapLayout.ts';
 
 export const PHYSICAL_MAP_UNIT = 15;
-/** Allocation of native mip rectangles padded in the distinct images’ array layers; no source is resized. */
-function physicalMapLayout(sizes: readonly (readonly [number, number])[], limit: number) {
-  const width = Math.max(1, ...sizes.map((size) => size[0]));
-  const height = Math.max(1, ...sizes.map((size) => size[1]));
-  if (width > limit || height > limit) throw new Error('PHYSICAL_MAP_DEVICE_LIMIT');
-  const layers = Math.max(1, sizes.length);
-  const levels = mipLevelCountFor(width, height);
-  let bytes = 0;
-  for (let level = 0; level < levels; level++) {
-    const [w, h] = levelSize(width, height, level);
-    bytes += w * h * 4 * layers;
-  }
-  return { width, height, levels, layers, bytes };
-}
 /** Uses the existing texture cache's uploaded mip chains; arrays share identical image tuples across materials.
  * Only an image or sampling change copies texels. UV edits change uniforms alone. */
 export class WebglPhysicalMaps {

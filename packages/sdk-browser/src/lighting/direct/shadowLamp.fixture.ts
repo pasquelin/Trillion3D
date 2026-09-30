@@ -12,8 +12,7 @@ import { PAGES } from '../../../../sdk-core/src/scene/light-shadow/pageModel.ts'
 import { clampNumber as clamp } from '../../../../sdk-core/src/world/math/spherical.ts';
 import { BIAS, DEVELOP_BIAS, along, depthMargin, pcf, sub } from './shadowBias.fixture.ts';
 import type { Vec } from './shadowBias.fixture.ts';
-
-const SHADOW_DEPTH_ROUNDING = 2 * 2 ** -23;
+import { SHADOW_DEPTH_ROUNDING } from './shadowDepthRounding.ts';
 
 /** `pointFaceOf`: the major axis of the light-to-point direction, in `POINT_FACE_AXES` order. */
 export function pointFaceOf(d: Vec) {

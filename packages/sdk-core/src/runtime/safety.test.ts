@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createSafetyPolicy } from './safety.ts';
-import { type MeasuredCosts } from './safety.ts';
+import { createSafetyPolicy, type MeasuredCosts } from './safety.ts';
+
 const value = (cpuMs: number): MeasuredCosts => ({
   contextKey: 'same-scene-camera-materials-resolution',
   provenance: 'measured',
@@ -86,4 +86,28 @@ test('WebGL probing matches production attributes, loses the probe context, and 
   assert.equal(gpuCalls, 0);
   await detectCapabilities('webgl', host as unknown as HTMLCanvasElement, environment);
   assert.equal(probeCalls, 2);
+});
+test('Recovered fallback has no user notice; only unrecoverable failure is actionable', async () => {
+  const { userNotice } = await import('./events.ts');
+  assert.equal(
+    userNotice({
+      eventVersion: 1,
+      type: 'fallback',
+      audience: 'diagnostic',
+      recovered: true,
+      code: 'OOM',
+      detail: 'Backend and thresholds',
+    }),
+    null,
+  );
+  assert.deepEqual(
+    userNotice({
+      eventVersion: 1,
+      type: 'fatal',
+      audience: 'blocking',
+      recovered: false,
+      code: 'NO_RENDERER',
+    }),
+    { messageKey: 'scene-unavailable', action: 'retry' },
+  );
 });

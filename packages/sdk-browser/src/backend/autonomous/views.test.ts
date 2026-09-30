@@ -1,11 +1,14 @@
-// The WebGL2 path's views (`views.ts`, #1096): the pool admits the union of the views' requests
-// under its one budget (`poolUnion.ts`), and the residency pins that union (`residency.ts`).
+// The WebGL2 path's views (`views.ts`, #1096): one record per view for what a camera owns, one
+// switch that trades references, and the pool admitting the union of the views' requests under
+// its one budget (`poolUnion.ts`), the residency pinning that union (`residency.ts`).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PAGE } from './pool.fixture.ts';
 import { mount } from './poolCut.fixture.ts';
+import { createWebglViews, type WebglView } from './views.ts';
+import { VIEW_KEYS as KEYS } from './viewKeys.ts';
 import { createAutonomousResidency } from './residency.ts';
-import { type HostCamera } from '../../camera/world.ts';
+import { createEngineCamera, type HostCamera } from '../../camera/world.ts';
 import { dag, dagCamera } from '../../../../../bench/perf/browser/support/dagCut.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { HostRetentionDelta } from '../../streaming/types.ts';
@@ -23,10 +26,41 @@ const formerUrls = (
     ...modified,
     ...views.flatMap((view) => [...urls(view.shown), ...urls(view.requested)]),
   ]);
-
+const cutOf = (view: WebglView) => ({
+  shown: urls(view.shown),
+  desired: urls(view.desired),
+  requested: urls(view.requested),
+});
 /** A camera `height` units above `(x, y)` of the DAG's plane, looking straight down at it. */
 const above = (x: number, y: number, height: number) =>
   dagCamera(height, x, y) as unknown as HostCamera;
+
+test('a view drawn aside cuts into its own lists, and every reader reads the main view after', () => {
+  const m = mount(1000 * PAGE);
+  for (let i = 0; i < 8; i++) m.image(1);
+  const { views } = m,
+    { main, live } = views,
+    before = cutOf(main);
+  assert.ok(before.shown.length > 1, 'the main view drew a cut');
+  views.captureAside({ width: 64, height: 32 }, () => {
+    const aside = views.active;
+    assert.notEqual(aside, main);
+    m.place(above(2, 2, 7));
+    m.image(1);
+    for (const key of KEYS) assert.equal(live[key], aside[key], `${key} is the drawn view's`);
+    assert.deepEqual(live.viewport, [64, 32], "the cut reads the view's own size");
+    assert.notDeepEqual(urls(aside.desired), before.desired, 'the view aside cut its own');
+    assert.deepEqual(cutOf(main), before, "the main view's cut is untouched meanwhile");
+  });
+  for (const key of KEYS) assert.equal(live[key], main[key], `${key} is the main view's again`);
+  assert.equal(views.active, main);
+  assert.deepEqual(views.all, [main], 'the view aside is released');
+  assert.equal(views.others.length, 0);
+  assert.deepEqual(cutOf(main), before);
+  m.place(9);
+  m.image(1);
+  assert.deepEqual(cutOf(main), before, 'the main view draws on as if nothing was drawn aside');
+});
 
 test('the views ask for their union under the one budget, a shared page charged once', () => {
   const pages = dag({ feuilles: 256, seed: 11, residentes: 0 }),
@@ -88,6 +122,41 @@ test('the views ask for their union under the one budget, a shared page charged 
   );
 });
 
+test('one view: the switch never runs, and the pins and the queue are its own lists', () => {
+  let replaced = 0,
+    moved = 0;
+  const gate = { cam: createEngineCamera(), viewReplaced: () => void replaced++ },
+    views = createWebglViews([8, 8], gate, () => void moved++),
+    { main, live } = views,
+    cam = gate.cam;
+  views.use(main);
+  views.release(main);
+  assert.equal(replaced + moved, 0, 'nothing ran');
+  assert.equal(gate.cam, cam);
+  assert.deepEqual(views.all, [main]);
+  assert.equal(views.others.length, 0, 'the pool and the residency see no other view');
+  for (const key of KEYS) assert.equal(live[key], main[key]);
+  // Switched and back: the gate's camera and the live group follow, the host's size stays.
+  const side = views.create(4, 2);
+  views.use(side);
+  assert.equal(gate.cam, side.cam);
+  assert.deepEqual(views.others, [main]);
+  views.release(side);
+  assert.equal(gate.cam, cam);
+  assert.deepEqual(live.viewport, [8, 8]);
+  assert.equal(replaced, 2, 'each switch replaced the view');
+  assert.equal(views.others.length, 0);
+  // With one view, the pins and the queue are what the image keeps and asks for, as before views.
+  const page = (url: string, array?: Uint32Array) => ({ url, array }) as PageRec;
+  live.shown.push(page('a'), page('b', new Uint32Array(3)));
+  live.requested.push(page('c'), page('b', new Uint32Array(3)), page('d'));
+  const residency = createAutonomousResidency({
+    ...{ bootstrapUrls: new Set(['r']), modifiedPages: new Set(['m']) },
+    ...{ views: views.all, geometryStore: {} as never },
+  });
+  assert.deepEqual(residency.pendingUrls(), ['c', 'd']);
+  assert.deepEqual(retainedUrls(residency.retainedRanks()), ['r', 'm', 'a', 'b', 'c', 'd']);
+});
 test('WebGL rank pins match the former URL pins at every camera step', () => {
   const pages = dag({ feuilles: 256, seed: 11, residentes: 0 });
   const m = mount(1000 * PAGE, { pages });
