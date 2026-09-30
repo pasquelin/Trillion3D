@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mulberry32 } from '../../../../site/examples/kit/random.ts';
-import { upscaleRun, type UpscaleFrame } from './upscaleRun.fixture.ts';
+import { blend, upscaleRun, type UpscaleFrame } from './upscaleRun.fixture.ts';
 import { taaJitter, taaStillFrames, upscalePhases } from './jitter.ts';
 
 const near = (a: number[], b: number[], what: string) =>
@@ -11,12 +11,6 @@ const near = (a: number[], b: number[], what: string) =>
 const random = mulberry32(1343);
 const noise = Array.from({ length: 64 }, () => [random(), random(), random(), 1]);
 const noisy = (x: number, y: number) => noise[y * 8 + x];
-const luma = ([r, g, b]: number[]) => 0.25 * r + 0.5 * g + 0.25 * b;
-function blend(now: number[], then: number[], alpha: number) {
-  const wc = alpha / (1 + luma(now)),
-    wh = (1 - alpha) / (1 + luma(then));
-  return now.map((c, i) => (c * wc + then[i] * wh) / (wc + wh));
-}
 
 test('a still pixel weighs this image by how near its sample fell, against the weight held', () => {
   // Display pixel 2,2 of 16 lies at 0.75 of the 8×8 grid: with `ON` texel 1,1's sample lands on

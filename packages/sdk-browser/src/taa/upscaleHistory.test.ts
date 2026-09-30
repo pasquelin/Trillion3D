@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mulberry32 } from '../../../../site/examples/kit/random.ts';
-import { owed, upscaleRun, type UpscaleFrame } from './upscaleRun.fixture.ts';
+import { blend, owed, upscaleRun, type UpscaleFrame } from './upscaleRun.fixture.ts';
 import { FLAG_DYNAMIC } from '../visibility/types.ts';
 
 const near = (a: number[], b: number[], what: string) =>
@@ -12,13 +12,6 @@ const noise = Array.from({ length: 64 }, () => [random(), random(), random(), 1]
 const noisy = (x: number, y: number) => noise[y * 8 + x];
 /** A history of one colour, the render texel 1,1's: inside the box of the display pixel 2,2. */
 const kept = noisy(1, 1);
-const luma = ([r, g, b]: number[]) => 0.25 * r + 0.5 * g + 0.25 * b;
-/** Today's inverse-luminance blend of `now` and `then` at a current share `alpha`. */
-function blend(now: number[], then: number[], alpha: number) {
-  const wc = alpha / (1 + luma(now)),
-    wh = (1 - alpha) / (1 + luma(then));
-  return now.map((c, i) => (c * wc + then[i] * wh) / (wc + wh));
-}
 // Display pixel 2,2 of 16 lies at 0.75 of the 8×8 render grid; with this jitter the nearest
 // sample is 0.71 render pixel away, 1.41 display pixels, where Lanczos-2 gives nothing; with the
 // other, a sample lands on it.
