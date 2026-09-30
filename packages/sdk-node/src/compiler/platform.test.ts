@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -42,6 +42,24 @@ test('the installed platform package is the compiler, without TRILLION3D_COMPILE
     );
     const named = { TRILLION3D_COMPILER_BIN: '/operator/compiler' };
     assert.equal(resolveCompilerExecutable(undefined, named, 'linux', null), '/operator/compiler');
+  } finally {
+    await rm(fixture, { recursive: true, force: true });
+  }
+});
+
+// Behaviour: in this checkout the platform package is a workspace link to `packages/compiler/`, not
+// an install: a binary copied there does not pass the checkout's own build (#1352).
+test('a workspace link to the platform package is not an installed compiler', async () => {
+  const fixture = await realpath(await mkdtemp(join(tmpdir(), 'trillion3d-workspace-')));
+  const from = pathToFileURL(join(fixture, 'app.mjs'));
+  const source = join(fixture, 'packages/compiler/linux-x64');
+  try {
+    await mkdir(join(source, 'bin'), { recursive: true });
+    await writeFile(join(source, 'package.json'), '{"name":"@trillion3d/compiler-linux-x64"}');
+    await writeFile(join(source, 'bin/trillion3d-compiler'), '');
+    await mkdir(join(fixture, 'node_modules/@trillion3d'), { recursive: true });
+    await symlink(source, join(fixture, 'node_modules/@trillion3d/compiler-linux-x64'), 'dir');
+    assert.equal(installedCompiler('linux', 'x64', from), null);
   } finally {
     await rm(fixture, { recursive: true, force: true });
   }
