@@ -379,4 +379,4 @@ catalogue maps it to its public code. Exit codes and message prefixes:
 | [T3D-E086](messages/T3D-E086.md) | `COMPILER_EXIT` | error | The compiler stopped with an unexpected exit code and no error code. |
 | [T3D-E087](messages/T3D-E087.md) | `STRICT_WARNINGS` | error | The compile succeeded with warnings, which `--strict` turns into a failure. |
 | [T3D-E088](messages/T3D-E088.md) | `CUTOUT_SHEET_INVALID` | error | The cutout answer sheet is not one this version reads. |
-| [T3D-E089](messages/T3D-E089.md) | `CUTOUT_PREVIEW_UNSUPPORTED` | error | A cutout preview image is not a whole 8-bit RGBA PNG. |
+| [T3D-E089](messages/T3D-E089.md) | `PNG_UNSUPPORTED` | error | A PNG image is not a whole 8-bit RGBA, non-interlaced file. |
