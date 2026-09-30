@@ -3,7 +3,7 @@ import { boxGrow } from '../../../sdk-core/src/math/primitives/box.ts';
 import { readHostBox } from '../host/boxBounds.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import type { SessionDeformation } from './session.ts';
-import { noteDeformedBounds } from '../webgpu/pages/render/movedBatch.ts';
+import { noteDeformedBounds } from '../webgpu/pages/render/movedGeometry.ts';
 import { refitBlendHierarchy } from '../webgpu/blend/hierarchy.ts';
 
 const local = new Float64Array(6),
