@@ -1,13 +1,30 @@
 export { maxStretch, coneRejects } from './projectionOracles.ts';
-export { clusterErrorPixels } from '../lod/screenErrorBound.ts';
 export {
+  clusterErrorPixels,
+  clusterErrorAtDepth,
+  screenErrorBound,
+} from '../lod/screenErrorBound.ts';
+export {
+  referenceScreenError,
   screenErrorVariant,
   setScreenErrorVariant,
   type ScreenErrorVariant,
 } from '../lod/screenErrorVariant.ts';
 export { matrixWindingCw } from './matrix/orientation.ts';
-export { hizBuildPyramid, hizFootprintFar, hizOccluded } from '../hiz/oracles.ts';
-export { hizBuildFlat, hizFootprintFarFlat, type HizFlat } from '../hiz/pyramidFlat.ts';
+export {
+  HIZ_NOTHING,
+  hizReduceCeil,
+  hizBuildPyramid,
+  hizFootprintFar,
+  hizOccluded,
+} from '../hiz/oracles.ts';
+export {
+  hizBuildFlat,
+  hizFlatLayout,
+  hizFlatLevels,
+  hizFootprintFarFlat,
+  type HizFlat,
+} from '../hiz/pyramidFlat.ts';
 
 /** Exclusive prefix scan. */
 export function exclusiveScan(values: readonly number[]): [number[], number] {
