@@ -44,7 +44,7 @@ const COLLIDER = ' (Jolt collider)';
 /** What a run reports rather than builds: its times, its memory peak, the pages it found built,
  *  its settings (in `develop`'s heads until #1405), whether it found a cutout sheet (until #1370). */
 const MEASURE =
-  /Ms$|^peakRssBytes$|^reusedPages$|^threads$|^ramBudgetMb$|^admissionEstimatedBytes$|^compileWaves$|^found$/;
+  /Ms$|^(peakRssBytes|reusedPages|threads|ramBudgetMb|admissionEstimatedBytes|compileWaves|found)$/;
 
 /** A JSON file of `cache` without its run's measures, its folder read `<cache>`; other bytes as is. */
 function comparable(bytes: Buffer, file: string, cache: string): Buffer | string {
