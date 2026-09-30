@@ -94,7 +94,7 @@ test('water routes the colour it composed, lit or unlit', () => {
 });
 
 test('a blended surface routes through its pipeline, and the unfiltered one never', () => {
-  const surface = { rgb: [0.4, 0.5, 0.9], alpha: 0.7, rough: 0.5, request: 9 };
+  const surface = { rgb: [0.4, 0.5, 0.9], emissive: [0, 0, 0], alpha: 0.7, rough: 0.5, request: 9 };
   const fogFree = FOG_FREE_MODEL_BIT << MODEL_SHIFT;
   type Out = Layers & { request: number; asIs: number[] };
   type Fragment = (at: object, front: boolean) => Out;

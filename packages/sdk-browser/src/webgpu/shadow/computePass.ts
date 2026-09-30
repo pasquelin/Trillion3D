@@ -1,5 +1,6 @@
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts';
+import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts';
 
 /** A binding of a compute pass: a buffer of that type, or a texture of that sample type. */
 export type ComputeBinding = GPUBufferBindingType | { texture: GPUTextureSampleType };
@@ -29,7 +30,7 @@ export async function computePass(
         : { texture: { sampleType: type.texture } }),
     })),
   });
-  const pipeline = device.createComputePipeline({
+  const pipeline = await buildComputePipeline(device, {
     label,
     layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
     compute: { module, entryPoint },
