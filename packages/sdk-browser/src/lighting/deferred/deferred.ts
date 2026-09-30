@@ -26,6 +26,10 @@ export type LitPrograms = {
   onFailure?: (error: unknown) => void;
 };
 
+/** The contract program these resources light with: with bounce, narrow, unshadowed. */
+const contractOf = (direct: DirectLightResources) =>
+  [!!direct.bounceGrid && !!direct.probes, !!direct.narrow, !!direct.unshadowed] as const;
+
 /** Deferred and frozen-source lighting programs: the lit ones from the start when `lit` says so,
  *  else compiled lazily for the active lighting mode. */
 export async function createDeferredLighting(
@@ -110,12 +114,8 @@ export async function createDeferredLighting(
         direct: DirectLightResources = {},
         onFailure?: (error: unknown) => void,
       ) {
-        const wantsBounce = wantsContract && !!direct.bounceGrid && !!direct.probes;
         // A program still compiling lends the frame the best one ready (`contractVariants.ts`).
-        active =
-          (wantsContract &&
-            variants.pick(wantsBounce, !!direct.narrow, !!direct.unshadowed, onFailure)) ||
-          unlit;
+        active = (wantsContract && variants.pick(...contractOf(direct), onFailure)) || unlit;
         active.bind(surface, depth, hdr, direct);
       },
       settle() {
@@ -124,11 +124,7 @@ export async function createDeferredLighting(
       /** What a frame lit with these resources waits for: the lit program's compile while no ready
        *  one can light it, else nothing (`contractVariants.ts`). */
       awaited(direct: DirectLightResources) {
-        return variants.awaited(
-          !!direct.bounceGrid && !!direct.probes,
-          !!direct.narrow,
-          !!direct.unshadowed,
-        );
+        return variants.awaited(...contractOf(direct));
       },
       /** Draws the lighting, after the reflection source when the frame's program reflects; returns
        *  the passes drawn, which the frame counts (#1157). */
