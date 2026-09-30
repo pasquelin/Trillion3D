@@ -1,4 +1,4 @@
-import { besideModule } from '../../host/besideModule.ts';
+import { besideModule, startModuleWorker } from '../../host/besideModule.ts';
 import { PAGE_DECODE_PROTOCOL } from '../../../../sdk-core/src/index.ts';
 import type { PageDecodeAnswer, PageDecodeRequest } from '../../../../sdk-core/src/index.ts';
 
@@ -39,7 +39,7 @@ export function createPageDecodePool(size: number) {
     retired = false;
   const source = besideModule('pageDecodeWorker', import.meta.url);
   const spawn = () => {
-    const worker = new Worker(source, { type: 'module' });
+    const worker = startModuleWorker(source);
     worker.onmessage = (event: MessageEvent) => receive(worker, event.data as PageDecodeAnswer);
     worker.onerror = () => breakPool();
     worker.onmessageerror = () => breakPool();

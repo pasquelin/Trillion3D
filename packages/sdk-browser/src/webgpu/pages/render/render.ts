@@ -4,7 +4,6 @@ import { fallbackToCpuCut, invalidateTemporalPyramid } from '../io/drops.ts';
 import { renderGpuCut } from './gpuCut.ts';
 import { renderCpuCut } from './cpu.ts';
 import { uploadWorlds } from './worldUpload.ts';
-import { updateWebgpuDeformation } from '../../../deformation/webgpuFrame.ts';
 import { setWindingEpoch } from './winding.ts';
 import { holdWebgpuFrame } from '../../frame/hold.ts';
 import { sizeShadowPool } from '../../shadow/poolSize.ts';
@@ -87,7 +86,7 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
   marks.tilesEnd = performance.now();
   const worldsMoved = uploadWorlds(rt, cam);
   // The GPU deformation of this image, on the poses just uploaded (#357).
-  updateWebgpuDeformation(rt, cam, worldsMoved);
+  rt.vis.deformationCode?.updateWebgpuDeformation(rt, cam, worldsMoved);
   // A camera that moves invalidates the temporal pyramid, not the occluder half: the latter
   // only chooses the pass where a cluster is drawn, and this image's pyramid remains the sole
   // judge of what is withdrawn. The GPU partition still learns of the move: while the view

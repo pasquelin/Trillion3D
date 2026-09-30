@@ -1,5 +1,6 @@
 import { DIAGNOSTICS, type DiagnosticMode } from '../../../../sdk-core/src/index.ts';
-import { repaintHostGraph, type BeautyMaterials } from '../../host/scene/graphDiagnostic.ts';
+import type { BeautyMaterials } from '../../host/scene/graphDiagnostic.ts';
+import { families } from '../../host/families.ts';
 import type { RenderBackend } from '../../backend/types.ts';
 import type { HostDisposable } from '../../host/resources.ts';
 
@@ -14,6 +15,22 @@ type Inputs = {
 
 export function createExplorerDiagnosticApi(inputs: Inputs) {
   const { check, active: getActive, backends, beautyMaterials, overlays, setMode } = inputs;
+  const views = families.diagnostics,
+    noop = () => {};
+  let asked: DiagnosticMode = 'beauty';
+  /** Repaints the display graph of each engine that publishes one, on the views' code. */
+  const repaint = (mode: DiagnosticMode) => {
+    const code = views.get();
+    for (const backend of backends)
+      if (!backend.setDiagnostic && backend.hostDiagnostics)
+        code?.repaintHostGraph(
+          backend.scene,
+          mode,
+          backend.hostDiagnostics,
+          beautyMaterials,
+          overlays,
+        );
+  };
   return {
     setDiagnostic(mode: DiagnosticMode) {
       check();
@@ -33,17 +50,18 @@ export function createExplorerDiagnosticApi(inputs: Inputs) {
         throw new Error('Only the WebGPU visibility path resolves by material class');
       for (const [mesh, material] of beautyMaterials) mesh.material = material;
       overlays.splice(0).forEach((m) => m.dispose());
-      for (const backend of backends) {
-        if (backend.setDiagnostic) {
-          backend.setDiagnostic(mode);
-          continue;
-        }
-        // An engine that declares no diagnostic of its own is repainted on the display graph it
-        // publishes, with the host builders it hands in beside that graph.
-        if (!backend.hostDiagnostics)
+      for (const backend of backends)
+        if (backend.setDiagnostic) backend.setDiagnostic(mode);
+        else if (!backend.hostDiagnostics)
           throw new Error(`${backend.id} declares neither a diagnostic nor host builders`);
-        repaintHostGraph(backend.scene, mode, backend.hostDiagnostics, beautyMaterials, overlays);
-      }
+      // An engine that declares no diagnostic of its own is repainted on the display graph it
+      // publishes, with the host builders it hands in beside that graph, by the views' code: a
+      // family on demand, which the frames of a view wait for (`../session/familyUse.ts`) and which
+      // repaints on its arrival, the view still asked. Beauty before any view has nothing to undo.
+      asked = mode;
+      if (views.arrived) repaint(mode);
+      else if (mode !== 'beauty')
+        void views.load().then(() => asked === mode && repaint(mode), noop);
       setMode(mode);
     },
   };
