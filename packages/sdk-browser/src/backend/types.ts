@@ -165,6 +165,8 @@ export interface BackendContext {
   renderScale?: import('../frame/renderScaleOption.ts').RenderScale;
   /** A reference session's raised sun window, pages a side (`frame/referenceMode.ts`). */
   sunWindow?: number;
+  /** A reference session: rough reflection samples walk their whole ray, unbounded (#33). */
+  unboundedReflections?: boolean;
   /** The world's effect chain, drawn after temporal antialiasing; absent or empty, nothing is. */
   effects?: import('../../../sdk-core/src/world/effect/chain.ts').EffectChain;
   sceneLighting?: Object3D;

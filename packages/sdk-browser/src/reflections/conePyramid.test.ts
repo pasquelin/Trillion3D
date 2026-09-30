@@ -37,7 +37,7 @@ test('forward cone admission equals live descriptors at 4K and odd sizes without
     const bytes =
       gpu.textures.reduce((sum, texture) => sum + textureBytesOf(texture)!, 0) +
       gpu.buffers.reduce((sum, buffer) => sum + buffer.size, 0);
-    assert.equal(bytes - width * height * 8 - 80, extraBytes(width, height));
+    assert.equal(bytes - width * height * 8 - 96, extraBytes(width, height));
     assert.equal(
       reflectionConeAllocation(width, height, gpu.device.limits).bytes,
       extraBytes(width, height),
