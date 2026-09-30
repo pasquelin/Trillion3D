@@ -5,16 +5,16 @@ maintainer). The rules and who starts whom are in [AGENTS.md](../AGENTS.md); eac
 a skill in [`skills/`](../skills/) or an agent in [`skills/agents/`](../skills/agents/). A
 contributor who does not use an AI assistant can ignore this page.
 
-| Role      | File                    | Started by            | Does                                                              |
-| --------- | ----------------------- | --------------------- | ----------------------------------------------------------------- |
-| CTO       | `/t3d-cto`              | boss                  | one dev team: two issues at a time, each through a lead, to merge |
-| Lead      | agent `lead`            | CTO                   | runs its coder then its reviewer, opens the pull request, cleans  |
-| Coder     | agent `coder`           | lead                  | writes the code on a branch and pushes it                         |
-| Reviewer  | agent `reviewer`        | lead, CTO             | `simplify`, `code-review`, the issue's To-do, the gates and tests |
-| Recette   | `/loop 2h /t3d-recette` | boss                  | its own session: times `develop`, then proves its image           |
-| Writer    | `/t3d-writer`           | CTO, recette          | writes an issue on the template                                   |
-| Architect | `t3d-architect`         | CTO                   | on request: duplicates and bloat as To-do items                   |
-| Analyst   | `t3d-analyst`           | CTO                   | on request: where the company loses time                          |
+| Role | File | Started by | Does |
+| --- | --- | --- | --- |
+| CTO | `/t3d-cto` | boss | one dev team: two issues at a time, each through a lead, to merge |
+| Lead | agent `lead` | CTO | runs its coder then its reviewer, opens the pull request, cleans |
+| Coder | agent `coder` | lead | writes the code on a branch and pushes it |
+| Reviewer | agent `reviewer` | lead, CTO | `simplify`, `code-review`, the issue's To-do, the gates and tests |
+| Recette | `/loop 2h /t3d-recette` | boss | its own session: times `develop`, then proves its image |
+| Writer | `/t3d-writer` | CTO, recette | writes an issue on the template |
+| Architect | `t3d-architect` | CTO | on request: duplicates and bloat as To-do items |
+| Analyst | `t3d-analyst` | CTO | on request: where the company loses time |
 
 ## Running it
 
