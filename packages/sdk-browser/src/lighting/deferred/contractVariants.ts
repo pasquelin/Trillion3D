@@ -1,4 +1,5 @@
 import { CONTRACT_COMPOSITIONS, contractLightingShader } from './shaders.ts';
+import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { createDeferredProgram, type DeferredBindings, type DeferredProgram } from './program.ts';
 
 /** A contract program: compiled, compiling, and whether a frame asked for it. */
@@ -18,6 +19,7 @@ type Variant = { program?: DeferredProgram; pending?: Promise<unknown>; asked?: 
 export function createContractVariants(
   device: GPUDevice,
   bindings: DeferredBindings,
+  pages = SUN_WINDOW,
   onReady?: () => void,
 ) {
   /** `variants[+narrow][+bounce]`. */
@@ -31,11 +33,12 @@ export function createContractVariants(
     variant.pending = createDeferredProgram(
       device,
       {
-        lighting: contractLightingShader(bounce, narrow),
+        lighting: contractLightingShader(bounce, narrow, pages),
         compose: CONTRACT_COMPOSITIONS,
         label: `${bounce ? 'BOUNCE' : 'DIRECT'}${narrow ? '_NARROW' : ''}`,
         direct: true,
         bounce,
+        pages,
       },
       bindings,
     ).then(

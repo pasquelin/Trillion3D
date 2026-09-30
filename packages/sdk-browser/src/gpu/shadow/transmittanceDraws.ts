@@ -5,6 +5,7 @@ import {
   SHADOW_TRANSMITTANCE_FORMAT,
   TRANSMITTANCE_BLEND,
 } from './transmittance.ts';
+import { casterPrimitive } from './casterPrimitive.ts';
 
 /**
  * The two draws of the layer's pass, depth only then colour only, from the same entry points:
@@ -35,7 +36,7 @@ export function shadowTransmittanceDraws(
       layout,
       vertex: { module, entryPoint: 'shadow_blend_vs' },
       fragment: { module, entryPoint: 'shadow_blend_fs', targets: [target] },
-      primitive: { topology: 'triangle-list', cullMode: 'none' },
+      primitive: casterPrimitive(device, { topology: 'triangle-list', cullMode: 'none' }),
       depthStencil: { format: SHADOW_TRANSLUCENT_DEPTH_FORMAT, depthWriteEnabled, depthCompare },
     });
   const format = SHADOW_TRANSMITTANCE_FORMAT;

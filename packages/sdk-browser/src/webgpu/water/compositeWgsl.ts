@@ -69,7 +69,7 @@ export const WATER_BINDINGS = {
  * And the share transmitted through an empty backdrop keeps that emptiness as coverage, so the
  * display background shows through a surface in front of nothing instead of a black radiance.
  */
-export const WATER_COMPOSITE_SHADER = `${VIEW_WGSL}
+export const waterCompositeShader = (pages?: number) => `${VIEW_WGSL}
 ${BLEND_VIEW_WGSL}
 struct Volume{transmission:f32,ior:f32,thickness:f32,attenuationDistance:f32,attenuationColor:vec4f,}
 ${surfaceBindingsWgsl('waterWord:texture_2d<f32>')}
@@ -79,7 +79,7 @@ ${CONTRACT_BINDINGS_WGSL}
 @group(0) @binding(${WATER_BINDINGS.uniform}) var<uniform> uni:BlendView;
 @group(0) @binding(${WATER_BINDINGS.volumes}) var<storage,read> volumes:array<Volume>;
 ${STANDARD_LIGHTING_WGSL}
-${declaredLightingWgsl(WATER_BINDINGS.proxy, WATER_BINDINGS.shadowData, WATER_BINDINGS.shadowTransmittance)}
+${declaredLightingWgsl(WATER_BINDINGS.proxy, WATER_BINDINGS.shadowData, WATER_BINDINGS.shadowTransmittance, pages)}
 ${bounceApplyWgsl(WATER_BINDINGS.bounceGrid, WATER_BINDINGS.probes)}
 ${bounceReflectionWgsl(WATER_BINDINGS.surface)}
 ${WATER_UNPACK_WGSL}
@@ -176,12 +176,12 @@ struct Composed{@location(0) color:vec4f,@location(1) reactive:vec4f,}
 
 ${SCREEN_REFLECTION_WGSL}
 `;
-
-/** The composite of an image with display layers (`../blend/displayFilter.ts`): where the mask is
- *  set, the water maps the tint and the added value by its display colour, as a normal layer; the
- *  reactive value the temporal pass reads (`historyWgsl.ts`), green alone at the water's own
- *  coverage, is written after them. */
-export const WATER_ROUTED_SHADER = `${WATER_COMPOSITE_SHADER}${DISPLAY_ROUTE_WGSL}${displayMaskWgsl(2)}
+export const WATER_COMPOSITE_SHADER = waterCompositeShader();
+/** With display layers (`../blend/displayFilter.ts`): masked, tint and added value as a normal
+ *  layer's; then the reactive value (`historyWgsl.ts`), green alone at the water's coverage. */
+export const waterRoutedShader = (
+  pages?: number,
+) => `${waterCompositeShader(pages)}${DISPLAY_ROUTE_WGSL}${displayMaskWgsl(2)}
 struct Routed{@location(0) color:vec4f,@location(1) tint:vec4f,@location(2) add:vec4f,}
 struct RoutedReactive{@location(0) color:vec4f,@location(1) tint:vec4f,@location(2) add:vec4f,@location(3) reactive:vec4f,}
 fn waterRoute(pixel:vec4f,c:vec4f)->Route{

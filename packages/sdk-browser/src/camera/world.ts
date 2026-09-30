@@ -161,6 +161,7 @@ export function readCameraWorld(
   optics.far = camera.far;
   optics.zoom = camera.zoom;
   optics.orthographic = camera.orthographic;
+  optics.viewTile = (camera as { viewTile?: CameraOptics['viewTile'] }).viewTile ?? null;
   return writeEngineCamera(into, optics);
 }
 

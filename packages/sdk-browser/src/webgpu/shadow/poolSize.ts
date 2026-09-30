@@ -109,7 +109,11 @@ export function adoptShadowPool(
     requests = lights.pageRequests;
   lights.regions = createShadowRegionList(side);
   lights.poolView = viewport;
-  lights.pageRequests = createShadowPageRequests(device, lights.plan.pool.pages);
+  lights.pageRequests = createShadowPageRequests(
+    device,
+    lights.plan.pool.pages,
+    lights.plan.sunWindow,
+  );
   void requests?.settled().then(requests.dispose);
   diag.engineDiagnostic(
     'shadow-pool',
