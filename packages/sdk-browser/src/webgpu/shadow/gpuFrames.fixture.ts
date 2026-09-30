@@ -21,7 +21,7 @@ import {
 } from './allocRun.fixture.ts';
 import { runShadowFresh } from './freshRun.fixture.ts';
 import { POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
-import { freshSlices } from './freshPass.ts';
+import { freshSlices, freshWanted } from './freshPass.ts';
 import { FRESH_ARG, FRESH_REGION_PAGES } from './freshLayout.ts';
 import { createShadowPageRequests } from './pageRequests.ts';
 import { writeShadowRecords } from './pages.ts';
@@ -44,10 +44,15 @@ const kept = (report: ShadowRequestReport): ShadowRequestReport => ({
 
 /**
  * `lights` over a pool of `poolSide`² pages whose pages the GPU maps, and draws too unless
- * `gpuDraws` is false. Each page's depth is noted with the entry it was drawn for (`drawnFor`), as
- * the plan and the GPU draw it.
+ * `gpuDraws` is false — `'wanted'`: in the frames the engine runs its page draws in
+ * (`freshWanted`). Each page's depth is noted with the entry it was drawn for (`drawnFor`), as the
+ * plan and the GPU draw it.
  */
-export function gpuFrames(poolSide: number, lights: SceneLight[], gpuDraws = true) {
+export function gpuFrames(
+  poolSide: number,
+  lights: SceneLight[],
+  gpuDraws: boolean | 'wanted' = true,
+) {
   installGpuGlobals();
   const { device } = mockGpu({ compute: true }) as unknown as { device: GPUDevice };
   const store = createSceneLightStore(),
@@ -134,7 +139,8 @@ export function gpuFrames(poolSide: number, lights: SceneLight[], gpuDraws = tru
           bytes(allocation.drawList),
         );
       regions.length = 0;
-      if (gpuDraws) {
+      const wanted = gpuDraws === 'wanted' && freshWanted(plan, store.epoch, allocation.lost);
+      if (gpuDraws === true || wanted) {
         // No caster row: the cull keeps no pair, and every region is sealed readable.
         allocation.writeFresh(poolSide, 1, 0, [0, 0], 0, freshSlices(store));
         const fresh = [data, state, allocation.drawList, allocation.freshFaces];
