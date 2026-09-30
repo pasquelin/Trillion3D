@@ -1,8 +1,5 @@
-import {
-  EngineError,
-  explorerSwitch,
-  type GpuPassTimings,
-} from '../../../../sdk-core/src/index.ts';
+import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts';
+import { EngineError, type GpuPassTimings } from '../../../../sdk-core/src/index.ts';
 import { PAGE_REQUEST_BATCH, PREFETCH_BATCH, PREFETCH_INTERVAL_MS } from '../../backend/common.ts';
 import { PRIORITY_PREFETCH } from '../../streaming/priority.ts';
 import { fenceAllocations, settleAllocations } from '../../webgl/core/allocation.ts';

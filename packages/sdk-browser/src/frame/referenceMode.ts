@@ -1,4 +1,5 @@
-import { EngineError, LIGHT_SETTINGS, explorerSwitch } from '../../../sdk-core/src/index.ts';
+import { explorerSwitch } from '../../../sdk-core/src/runtime/explorerSwitches.ts';
+import { EngineError, LIGHT_SETTINGS } from '../../../sdk-core/src/index.ts';
 import {
   DEFAULT_FOV,
   DEFAULT_HEIGHT,
