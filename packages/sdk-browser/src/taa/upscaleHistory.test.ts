@@ -91,3 +91,19 @@ test('a dynamic geometry rejects its history as a reactive pixel does, no ghost 
   const still = frame({ jitter: FAR, id: on.id });
   near(upscaleRun(still)(2, 2).color, kept, 'a paged geometry keeps its history');
 });
+
+test('a moving pixel reads its identifiers once: its texel natively, its nearest and centre upscaled', () => {
+  // #1369: the tag, the motion and the dynamic test read the identifier the resolve read once.
+  const counted = (native: boolean) => {
+    let reads = 0;
+    const id = () => (reads++, 1 << 8);
+    const run = upscaleRun(frame({ id, display: native ? [8, 8] : [16, 16] }), true, false, native);
+    const { fetches } = run(2, 2);
+    return { reads, fetches };
+  };
+  assert.deepEqual(
+    [counted(true).reads, counted(false).reads],
+    [1, 2],
+    'the uncovered test tries the own tag first and reads no neighbour',
+  );
+});
