@@ -14,10 +14,11 @@ const lightingOf = (rt: Parameters<typeof reflectionFrame>[0]) => [
 /** A settled runtime with every surface its reflection reads, 4 shadow pages drawn so far. */
 function reflectingRt() {
   const rt = settledRt();
-  rt.gpu.reflection = { history: {} } as NonNullable<typeof rt.gpu.reflection>;
+  rt.gpu.reflection = { active: true } as NonNullable<typeof rt.gpu.reflection>;
   rt.gpu.depthTexture = {} as GPUTexture;
   rt.gpu.surfaces = { normalRough: {} } as NonNullable<typeof rt.gpu.surfaces>;
   rt.vis.visTexture = {} as GPUTexture;
+  rt.vis.visView = {} as GPUTextureView;
   rt.vis.pageTable = {} as GPUBuffer;
   rt.lights.shadowPagesTotal = 4;
   return rt;

@@ -12,7 +12,7 @@ function inputsOf(motion = {} as GPUBuffer): ReflectionSourceInputs {
     motion,
     eye: [1, 2, 3],
     metadata: { depth: {} as GPUTexture, ids: {} as GPUTexture },
-    placement: new Float64Array(REFLECTION_PLACEMENT_VERSIONS),
+    epoch: new Float64Array(REFLECTION_PLACEMENT_VERSIONS),
   };
 }
 
@@ -67,11 +67,11 @@ test('a placement moved without live motion asks the triangle check; live motion
   source.update(IDENTITY_MATRIX4, [8, 8], still);
   source.update(IDENTITY_MATRIX4, [8, 8], still);
   assert.equal(check(), 0, 'nothing moved');
-  still.placement[0]++;
+  still.epoch[0]++;
   source.update(IDENTITY_MATRIX4, [8, 8], still);
   assert.equal(check(), 1);
   const live = inputsOf();
-  live.placement[0] += 2;
+  live.epoch[0] += 2;
   source.update(IDENTITY_MATRIX4, [8, 8], live);
   assert.equal(check(), 0, 'live motion brings the mover back itself');
   source.dispose();

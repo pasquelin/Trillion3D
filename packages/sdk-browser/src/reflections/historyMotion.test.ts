@@ -23,6 +23,7 @@ test('with live motion a camera move and a moved source keep the history, reproj
   const current = gpu.device.createTexture({ size: [8, 8], format: 'rgba16float', usage: 1 });
   const frame: ReflectionHistoryFrame = {
     metadata: { depth: current, normal: current, ids: current },
+    ids: {} as GPUTextureView,
     pages: {} as GPUBuffer,
     motion: {} as GPUBuffer,
     eye: [0, 0, 0],

@@ -13,25 +13,34 @@ export type ReflectionMetadata = {
 /** The last image's depth and identifiers, the reflection source's copies (`source.ts`). */
 export type ReflectionPrevious = { depth: GPUTextureView; ids: GPUTextureView };
 
+/** Targets of `width × height` a reflection pass draws into, or copies into (`copies`), each
+ *  held in `textures` for one destruction; the history's and the source's (`source.ts`). */
+export function reflectionTargets(device: GPUDevice, width: number, height: number) {
+  const textures: GPUTexture[] = [];
+  return {
+    textures,
+    target: (label: string, format: GPUTextureFormat, copies = false) => {
+      const texture = device.createTexture({
+        label: `Trillion3D reflection ${label}`,
+        size: { width, height },
+        format,
+        usage:
+          GPUTextureUsage.TEXTURE_BINDING |
+          (copies ? GPUTextureUsage.COPY_DST : GPUTextureUsage.RENDER_ATTACHMENT),
+      });
+      textures.push(texture);
+      return { texture, view: texture.createView() };
+    },
+  };
+}
+
 export function createReflectionHistoryTargets(
   device: GPUDevice,
   width: number,
   height: number,
   kept: ReflectionPrevious,
 ) {
-  const textures: GPUTexture[] = [];
-  const target = (label: string, format: GPUTextureFormat, copies = false) => {
-    const texture = device.createTexture({
-      label: `Trillion3D reflection ${label}`,
-      size: { width, height },
-      format,
-      usage:
-        GPUTextureUsage.TEXTURE_BINDING |
-        (copies ? GPUTextureUsage.COPY_DST : GPUTextureUsage.RENDER_ATTACHMENT),
-    });
-    textures.push(texture);
-    return { texture, view: texture.createView() };
-  };
+  const { textures, target } = reflectionTargets(device, width, height);
   try {
     const images = [target('history A', 'rgba16float'), target('history B', 'rgba16float')];
     const normal = target('previous normal and roughness', 'rgba16float', true);
