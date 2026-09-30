@@ -32,8 +32,8 @@ async function executer({
 }: ExecuterEntree): Promise<ExecutionResultat> {
   const opened = await globalThis.openGpuModule(shader);
   if (!opened.module) return opened;
-  const { appareil, module } = opened;
-  const { device, erreurs } = appareil;
+  const { gpu, module } = opened;
+  const { device, erreurs } = gpu;
   const layout = device.createBindGroupLayout({ entries: layoutEntries });
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
   const etape = (entryPoint: string) =>
@@ -163,7 +163,7 @@ async function executer({
     const tampons = Object.values(buffers).map((b) => b.buffer);
     for (const buffer of [...tampons, lecture, compteurs, drapeaux]) buffer.destroy();
   }
-  const info = await appareil.fermer();
+  const info = await gpu.fermer();
   return { adaptateur: info.court, resultats, erreurs };
 }
 
