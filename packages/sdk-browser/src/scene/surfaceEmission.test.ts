@@ -9,6 +9,7 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts';
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts';
 import { contractSurfaceBody } from '../lighting/deferred/surfaceWgsl.ts';
 import { UNLIT_LIGHTING_SHADER } from '../lighting/deferred/shaders.ts';
+import { shadowDemandWgsl } from '../webgpu/shadow/demandWgsl.ts';
 import {
   EMISSIVE_AO_FLAG_WGSL,
   EMISSIVE_AO_SURFACE_FLAG,
@@ -78,4 +79,13 @@ test('the material pass writes the bit; the resolve and the unlit view fetch thr
     assert.doesNotMatch(reader.replace(SURFACE_EMISSIVE_AO_WGSL, ''), /textureLoad\(emissiveAo/);
     assert.match(reader, /surfaceEmissiveAo\(coord,(surfaceFlag|flag)\)/);
   }
+});
+
+test('the shadow demand reads the model under the bit: an unlit surface that emits asks nothing', () => {
+  const mask = Number(
+    /let flag=textureLoad\(flags,coord,0\)\.r&(\d+)u;/.exec(shadowDemandWgsl())?.[1],
+  );
+  assert.equal(mask, SURFACE_MODEL_MASK, 'the model bits alone, as the resolve reads them');
+  assert.equal((1 | EMISSIVE_AO_SURFACE_FLAG) & mask, 1, 'an unlit emissive pixel stays unlit');
+  assert.equal((2 | EMISSIVE_AO_SURFACE_FLAG | SUBSURFACE_FLAG) & mask, 2);
 });

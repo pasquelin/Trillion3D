@@ -52,95 +52,54 @@ export function frameBudget(pose = 1, width = DISPLAY.width, height = DISPLAY.he
   const material = countClassFragments(width, height, CLASSES, pose);
   const surface = Object.values(SURFACE_ACCESSES).reduce((a, b) => a + b, 0);
   const gbuffer = gbufferAccesses(RESOLVE_GBUFFER.after).texels;
+  const model = lightingModel(grid);
   const taa = countTaaFetches(1, false).fetches;
   const C = grid.covered;
+  const hiz = hizAccesses(width, height);
+  /** A stage's row: its count, priced as texels unless its own rate is given. */
+  const row = (stage: string, work: string, count: number, ms = texels(count)): Row => ({
+    stage,
+    work,
+    count,
+    ms,
+  });
   const rows: Row[] = [
-    { stage: 'visibility', work: 'clear, two targets', count: 2 * N, ms: texels(2 * N) },
-    {
-      stage: 'visibility',
-      work: 'raster fragments × 3 (depth test, depth, id)',
-      count: 3 * fragments,
-      ms: texels(3 * fragments),
-    },
-    {
-      stage: 'visibility',
-      work: 'triangles',
-      count: SPONZA_TRIANGLES,
-      ms: (SPONZA_TRIANGLES * r.trianglePs) / 1e9,
-    },
-    {
-      stage: 'visibility',
-      work: 'Hi-Z pyramid texels',
-      count: hizAccesses(width, height),
-      ms: texels(hizAccesses(width, height)),
-    },
-    {
-      stage: 'materials',
-      work: 'material depth and tile classification, 3 a pixel',
-      count: 3 * N,
-      ms: texels(3 * N),
-    },
-    {
-      stage: 'materials',
-      work: 'class fragments tested',
-      count: material.tiled * N,
-      ms: texels(material.tiled * N),
-    },
-    {
-      stage: 'materials',
-      work: `surface accesses, ${surface} a covered pixel`,
-      count: surface * C,
-      ms: texels(surface * C),
-    },
-    {
-      stage: 'lighting',
-      work: 'light grid pass (`lightingModel`)',
-      count: grid.work.columnTests,
-      ms: lightingModel(grid).tilePass,
-    },
-    {
-      stage: 'lighting',
-      work: `G-buffer, ${gbuffer} a covered pixel`,
-      count: gbuffer * C,
-      ms: texels(gbuffer * C),
-    },
-    {
-      stage: 'lighting',
-      work: 'lights shaded',
-      count: work.shaded,
-      ms: (work.shaded * r.shadedPs) / 1e9,
-    },
-    {
-      stage: 'lighting',
-      work: 'lights weighed by the moving draw',
-      count: work.weights,
-      ms: (work.weights * r.weightPs) / 1e9,
-    },
-    {
-      stage: 'lighting',
-      work: `shadow setups, ${SETUP_TEXELS} texels`,
-      count: work.setup,
-      ms: texels(work.setup * SETUP_TEXELS),
-    },
-    {
-      stage: 'shadows',
-      work: `shadow reads, ${PCF_GATHERS} gathers`,
-      count: work.shadows,
-      ms: texels(work.shadows * PCF_GATHERS),
-    },
-    {
-      stage: 'shadows',
-      work: 'demand: flags a pixel, setup and marks where a slot reaches',
-      count: N,
-      ms: texels(N + work.setup * (SETUP_TEXELS + 3) + work.demand * DEMAND_MARKS),
-    },
-    {
-      stage: 'antialiasing',
-      work: `TAA texels, ${taa} a display pixel`,
-      count: taa * N,
-      ms: texels(taa * N),
-    },
-    { stage: 'present', work: 'HDR read, display write', count: 2 * N, ms: texels(2 * N) },
+    row('visibility', 'clear, two targets', 2 * N),
+    row('visibility', 'raster fragments × 3 (depth test, depth, id)', 3 * fragments),
+    row('visibility', 'triangles', SPONZA_TRIANGLES, (SPONZA_TRIANGLES * r.trianglePs) / 1e9),
+    row('visibility', 'Hi-Z pyramid texels', hiz),
+    row('materials', 'material depth and tile classification, 3 a pixel', 3 * N),
+    row('materials', 'class fragments tested', material.tiled * N),
+    row('materials', `surface accesses, ${surface} a covered pixel`, surface * C),
+    row('lighting', 'light grid pass (`lightingModel`)', grid.work.columnTests, model.tilePass),
+    row('lighting', `G-buffer, ${gbuffer} a covered pixel`, gbuffer * C, model.gbuffer),
+    row('lighting', 'lights shaded', work.shaded, (work.shaded * r.shadedPs) / 1e9),
+    row(
+      'lighting',
+      'lights weighed by the moving draw',
+      work.weights,
+      (work.weights * r.weightPs) / 1e9,
+    ),
+    row(
+      'lighting',
+      `shadow setups, ${SETUP_TEXELS} texels`,
+      work.setup,
+      texels(work.setup * SETUP_TEXELS),
+    ),
+    row(
+      'shadows',
+      `shadow reads, ${PCF_GATHERS} gathers`,
+      work.shadows,
+      texels(work.shadows * PCF_GATHERS),
+    ),
+    row(
+      'shadows',
+      'demand: flags a pixel, setup and marks where a slot reaches',
+      N,
+      texels(N + work.setup * (SETUP_TEXELS + 3) + work.demand * DEMAND_MARKS),
+    ),
+    row('antialiasing', `TAA texels, ${taa} a display pixel`, taa * N),
+    row('present', 'HDR read, display write', 2 * N),
   ];
   return { rows, covered: C, total: rows.reduce((sum, row) => sum + row.ms, 0) };
 }
