@@ -31,6 +31,8 @@
     "!dist/witnesses",
     "README.md",
     "docs/SDK.md",
+    "docs/MATHS.md",
+    "docs/PHYSICS.md",
     "LICENSE",
     "THIRD_PARTY_NOTICES.md",
     "packages/README.md"

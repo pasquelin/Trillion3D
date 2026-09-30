@@ -238,7 +238,7 @@ around every moving body and the eye up to the simulation range, nearest first, 
 `budget.physics.memoryBytes`, leaving as they move away (a tile stays until half as far again as it
 came in). No scene is refused for its size: a tile that does not fit waits, the farthest leaving for
 it. Another format or Jolt's cook is refused (`PHYSICS_FORMAT`); a model compiled before the cook
-collides nowhere. A tile or soft-body settings the server refuses is `RESOURCE_HTTP_ERROR` on
+collides nowhere. A tile or a soft body's settings the server refuses is `RESOURCE_HTTP_ERROR` on
 `world.physics.error` ([Files over HTTP](SDK.md#files-over-http)); a model leaving the scene drops
 its pending reads, no error.
 
