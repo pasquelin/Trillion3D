@@ -88,7 +88,6 @@
     "check:site-types": "tsc -p tsconfig.site.json --noEmit",
     "check:tools-types": "tsc -p tsconfig.tools.json --noEmit",
     "proof:package": "node scripts/prove-installed-package.ts",
-    "proof:install-page": "node scripts/prove-install-page.ts",
     "perf:browser": "node --experimental-strip-types --test --test-concurrency=1 bench/perf/browser/*.perf.ts",
     "perf:core": "node --experimental-strip-types --test --test-concurrency=1 bench/perf/core/*.perf.ts",
     "perf:all": "node --experimental-strip-types --test --test-concurrency=1 bench/perf/*/*.perf.ts && node bench/runner/perf/aggregate.ts",

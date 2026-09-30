@@ -12,20 +12,21 @@ import { packArchive } from './installed-package-fixture.ts';
 const localPlatform = `${process.platform}-${process.arch}`;
 
 /**
- * The compiler's platform packages as a fixture installs them (#1352): each packed from a copy of
- * `packages/compiler/<os>-<arch>`, this machine's carrying `binary` when one is given, so that the
- * optional dependencies of `trillion3d` resolve without a registry and the install keeps the one
- * its platform runs. Returns each package's name and its archive.
+ * The compiler's platform packages as the fixture installs them (#1352): each packed from a copy
+ * of `packages/compiler/<os>-<arch>`, this machine's carrying `binary` when one is given, so that
+ * the optional dependencies of `trillion3d` resolve without a registry and the install keeps the
+ * one its platform runs. Returns the fixture's `pnpm-workspace.yaml`, which points each name at
+ * its archive.
  */
-export function packPlatformArchives(options: {
+export function packPlatformPackages(options: {
   root: string;
   fixture: string;
   run: Run;
   pnpm: string;
   binary: string | null;
-}): [name: string, archive: string][] {
+}): string {
   const { root, fixture, run, pnpm, binary } = options;
-  return COMPILER_PLATFORMS.map((target) => {
+  const overrides = COMPILER_PLATFORMS.map((target) => {
     const copy = join(fixture, 'platforms', target);
     mkdirSync(join(copy, 'bin'), { recursive: true });
     copyFileSync(
@@ -36,16 +37,7 @@ export function packPlatformArchives(options: {
       copyFileSync(binary, join(copy, 'bin', compilerFileName(process.platform)));
     const archive = packArchive(run, pnpm, copy, fixture).filename;
     const [platform, arch] = target.split('-');
-    const name = compilerPackage(platform, arch);
-    if (!name) throw new Error(`${target}: no compiler package`);
-    return [name, archive];
+    return `  ${JSON.stringify(compilerPackage(platform, arch))}: ${JSON.stringify(`file:${archive}`)}`;
   });
-}
-
-/** The fixture's `pnpm-workspace.yaml`: each platform package pointed at its archive. */
-export function packPlatformPackages(options: Parameters<typeof packPlatformArchives>[0]): string {
-  const overrides = packPlatformArchives(options).map(
-    ([name, archive]) => `  ${JSON.stringify(name)}: ${JSON.stringify(`file:${archive}`)}`,
-  );
   return `overrides:\n${overrides.join('\n')}\n`;
 }

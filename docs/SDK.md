@@ -581,7 +581,7 @@ beside every emitted chunk that keeps its relative URL, and serve that output di
 with the compiled scene cache. `pnpm run proof:package -- --browser` is the repository's executable
 esbuild configuration and verifies both worker tasks and WASM selection; `-- --bundle` emits and
 checks the same output, each module beside the chunk that fetches it, without a browser.
-`pnpm run proof:install-page` walks the portal's Install page through in a clean folder: its
+`node scripts/prove-install-page.ts` walks the portal's Install page through in a clean folder: its
 commands, the packed archive standing in for the registry, compile the example's morphing cube and
 its page draws it in Chrome, served with the page's two headers.
 
