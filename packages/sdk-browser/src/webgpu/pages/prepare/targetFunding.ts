@@ -16,7 +16,7 @@ const funded = new WeakMap<WebgpuPagesRuntime, number>();
 
 function refreshTargetFunding(rt: WebgpuPagesRuntime, size: FrameSize) {
   if (!rt.context.admitGpuMemory) return;
-  const bytes = gpuDeviceLedgerOf(rt.gpu.device)?.snapshot().bytes;
+  const bytes = gpuDeviceLedgerOf(rt.gpu.device)?.bytes;
   if (bytes === undefined || bytes === funded.get(rt)) return;
   try {
     return fundFrameTargets(rt, size, 0, true);
@@ -34,9 +34,10 @@ export function fundFrameTargets(
   const admit = rt.context.admitGpuMemory;
   if (!admit) return;
   const { setup, gpu, vis, lights, bounce } = rt;
-  const geometryMinimum = setup.geometryPoolFor(1).allocatedBytes + vertexBytesOf(gpu, vis);
-  const textureMinimum =
-    (setup.texturePools?.poolFor(1).allocatedBytes ?? 0) + (vis.textures?.sources.liveBytes ?? 0);
+  const vertexBytes = vertexBytesOf(gpu, vis);
+  const sourceBytes = vis.textures?.sources.liveBytes ?? 0;
+  const geometryMinimum = setup.geometryPoolFor(1).allocatedBytes + vertexBytes;
+  const textureMinimum = (setup.texturePools?.poolFor(1).allocatedBytes ?? 0) + sourceBytes;
   const history =
     gpu.temporal && !rt.capture.capturing
       ? size.width * size.height * TAA_HISTORY_BYTES_PER_PIXEL
@@ -56,14 +57,14 @@ export function fundFrameTargets(
     bounceProbes +
     effectTargets +
     setup.geometryPool.allocatedBytes +
-    vertexBytesOf(gpu, vis) +
+    vertexBytes +
     (setup.texturePools?.pool.allocatedBytes ?? 0) +
-    (vis.textures?.sources.liveBytes ?? 0);
-  const additionalHeld = Math.max(0, (ledger?.bytes ?? separatelyHeld) - separatelyHeld);
+    sourceBytes;
+  const unaccounted = (ledger?.bytes ?? separatelyHeld) - separatelyHeld;
   const pools = admit({
     frameTargets: current
-      ? Math.max(0, (ledger?.bytes ?? separatelyHeld) - separatelyHeld + gpu.targetBytes)
-      : bytes + history + additionalHeld,
+      ? Math.max(0, unaccounted + gpu.targetBytes)
+      : bytes + history + Math.max(0, unaccounted),
     shadowPool,
     bounceProbes,
     effectTargets,
@@ -73,7 +74,7 @@ export function fundFrameTargets(
   // This call may run inside prepare itself: the host report's wait would await
   // this very target grant. Admission only redistributes the existing tables.
   const record = () => {
-    funded.set(rt, gpuDeviceLedgerOf(gpu.device)?.snapshot().bytes ?? 0);
+    funded.set(rt, gpuDeviceLedgerOf(gpu.device)?.bytes ?? 0);
   };
   if (
     pools.geometryPoolBytes !== setup.geometryPool.budgetBytes ||
