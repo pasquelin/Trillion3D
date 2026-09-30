@@ -5,9 +5,9 @@ import type { PageRec } from '../../../page/selection/types.ts';
  * The one catalogue accessor of an engine.
  *
  * A packed rank is the engine's identity for an instance — a (placement, page) pair — and this is
- * the only way a consumer turns it back into a record: `recordOf(packed)`. The catalogue that owns
- * the rank has the last word, exactly as `catalogueIndexOf` checks a record's own rank: a rank set
- * by another engine yields the same record as an id missing from the table, nothing.
+ * the only way a consumer turns it back into a record: `recordOf(packed)`. A rank outside the
+ * catalogue yields nothing, like an id missing from the table. `indexOf` is the reverse direction,
+ * checked by the catalogue itself (`catalogueIndexOf`): a record it does not hold yields nothing.
  *
  * The cut and the residency route by packed ranks; no consumer builds a second catalogue or a
  * second record reference beside this one (#483 rule 4).
@@ -17,5 +17,5 @@ export type PageCatalogue = ReturnType<typeof createPageCatalogue>;
 export function createPageCatalogue(packedPages: readonly PageRec[]) {
   const recordOf = (packed: number) => (packed >= 0 ? packedPages[packed] : undefined);
   const indexOf = (rec: PageRec) => catalogueIndexOf(packedPages, rec);
-  return { packedPages, recordOf, indexOf };
+  return { recordOf, indexOf };
 }
