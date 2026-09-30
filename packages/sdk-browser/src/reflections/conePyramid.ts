@@ -22,6 +22,8 @@ export function createReflectionConePyramid(
     if (radiance) mips = createRadianceMipChain(device, color);
     ranges = createDepthBoundsMipChain(device, bounds, { view: depth, width, height });
     return {
+      /** Whether the radiance levels a cone reads were made: the fit of the targets reads it. */
+      radiance,
       view: bounds.createView(),
       encode(encoder: GPUCommandEncoder) {
         mips?.encode(encoder);

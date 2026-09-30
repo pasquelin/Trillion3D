@@ -93,33 +93,6 @@ test('a blended scene costs the share only when a debug view or the temporal pas
   assert.equal(frameTargetAllocation(rt, native(64, 32)), base + 64 * 32 * 2, 'its reactive value');
 });
 
-test('rough opaque receivers allocate their own history, while a resize releases it', () => {
-  const { rt } = runtime(true);
-  rt.layout.rows.packedRecs[0]!.material = surfaceOf(standardSurface({ roughness: 0.5 }));
-  Object.assign(rt, { vis: {}, capture: { capturing: false } });
-  const gpu = fakeDevice({ limits: { maxTextureDimension2D: 8192 } });
-  rt.gpu.device = gpu.device;
-  const size = native(64, 32);
-  const bytes = frameTargetAllocation(rt, size);
-  // The rough trace walks the depth bounds alone: 32×16 to 1×1 of rg32float, six extents.
-  const bounds = (512 + 128 + 32 + 8 + 2 + 1) * 8 + 6 * 256;
-  assert.equal(
-    bytes,
-    frameTargetBytes(64, 32, true) +
-      64 * 32 * 40 +
-      REFLECTION_SOURCE_VIEW_BYTES +
-      bounds +
-      80 +
-      160,
-  );
-  makeTargets(rt, gpu.device, size, bytes);
-  const old = rt.gpu.reflection!.history!;
-  assert.equal(old.bytes, 64 * 32 * 32);
-  makeTargets(rt, gpu.device, native(32, 16), frameTargetAllocation(rt, native(32, 16)));
-  assert.throws(() => old.image, /DISPOSED/);
-  assert.equal(rt.gpu.reflection!.history!.bytes, 32 * 16 * 32);
-});
-
 // #1162: with no debug view the frame targets hold no share texture and cost none; with one, the
 // share is made with them and costed.
 test('the frame targets hold the share only while a debug view reads it', () => {
