@@ -6,7 +6,6 @@ export function shadeLayout(device: GPUDevice) {
   const fragment = GPUShaderStage.FRAGMENT;
   return device.createBindGroupLayout({
     entries: [
-      { binding: b.shadingOffset, visibility: fragment, buffer: { type: 'storage' } },
       {
         binding: b.subsurface,
         visibility: fragment,
