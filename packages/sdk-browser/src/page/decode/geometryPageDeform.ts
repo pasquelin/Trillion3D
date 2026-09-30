@@ -117,7 +117,7 @@ export function validateRawDeformation(
   };
   if (flags & FLAG_SKIN)
     raw(
-      skinned + skin.influences * Math.ceil((vertexCount * skin.bits) / 32),
+      skinned + skin.influences * words(vertexCount, skin.bits),
       skin.influences * vertexCount,
       true,
     );

@@ -1,4 +1,4 @@
-import { reflectionLayout } from '../../reflections/gpu.ts';
+import { reflectionLayout } from '../../reflections/layout.ts';
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts';
 import { buildRenderPipeline } from '../../lighting/deferred/fullscreen.ts';
 import { BLEND_EQUATIONS, BLEND_MODES } from '../../scene/materialBlending.ts';

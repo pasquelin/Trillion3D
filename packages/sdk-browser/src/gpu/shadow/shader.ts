@@ -20,7 +20,7 @@ import {
   FLAG_MASK,
   FLAG_SAMPLED,
 } from '../../visibility/types.ts';
-import { BLEND_TRANSMITTANCE_WGSL } from './transmittance.ts';
+import { BLEND_TRANSMITTANCE_WGSL } from './transmittanceWgsl.ts';
 import { FRESH_LAYOUT_WGSL } from '../../webgpu/shadow/freshLayout.ts';
 import { SHADOW_FRESH_DRAWS_WGSL } from '../../webgpu/shadow/freshDrawsWgsl.ts';
 
