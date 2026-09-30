@@ -36,9 +36,10 @@
   `null`, never an estimate. Diagnostics outside measured beauty passes; unsupported capabilities
   reported. Interleave before and after at least five times (a busy machine biases otherwise);
   publish the run-to-run spread when a claim rests on a smaller difference.
-- A per-pass GPU duration says _where_, never _how much_: tile-based GPUs overlap passes (17 Sept.
-  2026: an unchanged composition pass read 7 ms with the sun, 2.4 ms without). A difference between
-  runs is read on the frame envelope, the total, only.
+- A per-pass GPU duration says _where_, never _how much_: tile-based GPUs overlap passes and a
+  pass's timestamp absorbs its neighbours' work (17 Sept. 2026: an unchanged composition pass read
+  7 ms with the sun, 2.4 ms without). A difference between runs is read on the frame envelope, the
+  total, only.
 - **Two scales of proof.** A pull request proves its change in seconds to a minute on the public
   scene that exercises it under `.mesure/assets/` (Khronos samples, the generated facade;
   `bench/runner/assets.ts` fetches and compiles them). The full campaign (every view and scene,
@@ -46,15 +47,20 @@
   published; the site keeps the latest report, each image stored once.
 - **After the merge** (AGENTS.md rule 2) issues carry `to audit`, and `to measure` when the diff can
   move the frame cost, until the recette's verdicts (labels per `skills/t3d-cto/SKILL.md`). `main`
-  moves only when no issue carries `to audit`, `to measure`, `audit ko` or `measure ko`.
+  moves only when no issue carries `to audit`, `to measure`, `audit ko` or `measure ko`. A pull
+  request carries the gates.
 - Outputs go under `.mesure/out/<issue>/` only (AGENTS.md rule 10); the numbers and any capture a
   claim rests on go in the issue's comment.
 
 ## Image and fidelity
 
-- No image loss (AGENTS.md rule 1): never reduce the displayed resolution or the draw distance
-  (lower internal resolution only under the mission's bar); never convert transparency to masking
-  **inside the engine** (the compiler reclassifies a material wrongly declared blended at import).
+- No image loss (AGENTS.md rule 1), declared or not: an optimisation that degrades the image is
+  refused, even measured and declared, unless it holds its class's proof below or this section's
+  tolerance. Sole exception: fluids lower their own quality automatically to hold their budget, and
+  say so in their diagnostics.
+- Never reduce the displayed resolution or the draw distance (lower internal resolution only under
+  the mission's bar); never convert transparency to masking **inside the engine** (the compiler
+  reclassifies a material wrongly declared blended at import).
 - **Two proof classes**, on the pull request's `Image proof class:` line (none declared is class 1):
   1. **Refactor or pure optimisation:** 0 px against `develop` (and `tri = selected`), no discussion.
   2. **Rendering technique** (temporal upscaler, radiance cache, cached shadow pages, f16 or wave

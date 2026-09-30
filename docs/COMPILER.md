@@ -391,7 +391,8 @@ the stage that raised it; it is shared by a batch's concurrent jobs.
 ## Batch mode
 
 `--jobs FILE` (or `--jobs -`, the batch read from stdin, which disables cancellation) runs many jobs
-in one process, each with its own `cache` (below):
+in one process, each with its own `cache` (a cache holds one pointer per scope and prunes itself, so
+two jobs sharing one would destroy each other's output):
 
 ```json
 {
