@@ -6,7 +6,8 @@ import { mulberry32 } from '../../../../site/examples/kit/random.ts';
 import { taaUpscaleShader } from './upscaleWgsl.ts';
 import { TAA_SHADER } from '../gpu/core/shaderTexts.fixture.ts';
 import { taaHistoryBlend } from './historyWgsl.ts';
-import { kernel, owed, upscaleRun, type UpscaleFrame } from './upscaleRun.fixture.ts';
+import { upscaleRun, type UpscaleFrame } from './upscaleRun.fixture.ts';
+import { kernel, owed } from './upscaleOwed.fixture.ts';
 import { LANCZOS2_WGSL } from './lanczos2Wgsl.ts';
 
 type Kernel = { lanczos2: (x: number) => number };

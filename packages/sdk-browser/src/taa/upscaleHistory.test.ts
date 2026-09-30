@@ -2,7 +2,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mulberry32 } from '../../../../site/examples/kit/random.ts';
-import { blend, owed, upscaleRun, type UpscaleFrame } from './upscaleRun.fixture.ts';
+import { upscaleRun, type UpscaleFrame } from './upscaleRun.fixture.ts';
+import { blend, owed } from './upscaleOwed.fixture.ts';
 import { FLAG_DYNAMIC } from '../visibility/types.ts';
 
 const near = (a: number[], b: number[], what: string) =>
