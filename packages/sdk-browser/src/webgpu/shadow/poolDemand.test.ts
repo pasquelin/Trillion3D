@@ -1,0 +1,50 @@
+// #1345: the shadow pool is sized from what the scene reads at the drawn size, never from the
+// display: a one-cube scene on the boss's screen holds a few hundred pages, not the 5 040 the
+// screen's bound asked, and a scene that asks past the memory budget is held at its ceiling.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  shadowPoolShape,
+  shadowPoolSize,
+} from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import {
+  askedPages,
+  demandPoolPages,
+} from '../../../../sdk-core/src/scene/light-shadow/poolDemand.ts';
+import { shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
+import { SHADOW_ATLAS_BYTES } from '../../residency/memoryBudget.ts';
+import { session } from './poolResize.fixture.ts';
+
+/** Pages a frame of a cube on a floor reads, its floor pages aside: the few levels its pixels
+ *  land on around it. */
+const CUBE_PAGES = 300;
+
+test('the shadow pool of a one-cube scene is sized from its demand, not from the display', async () => {
+  const s = await session(),
+    viewport = s.rt.setup.viewport as number[];
+  viewport.splice(0, 2, 3456, 2234);
+  await s.ask(CUBE_PAGES);
+  const { pool } = s.lights.plan,
+    asked = askedPages(s.lights.plan),
+    shape = shadowPoolShape(demandPoolPages(asked));
+  assert.ok(asked >= CUBE_PAGES && asked < CUBE_PAGES + 16, `${asked} pages asked`);
+  assert.deepEqual([pool.side, pool.layers], [shape.side, shape.layers], 'the demand sizes it');
+  const display = shadowPoolSize(3456, 2234);
+  assert.ok(pool.pages * 5 < display, `${pool.pages} pages, the display asked ${display}`);
+  assert.ok(shadowAtlasBytes(pool.side, pool.layers) < 64 * 2 ** 20, 'under 64 MiB');
+  // The same scene on another display asks the same pool.
+  viewport.splice(0, 2, 1280, 720);
+  await s.ask(CUBE_PAGES);
+  assert.equal(s.lights.plan.pool.pages, pool.pages, 'the display changes nothing');
+});
+
+test('a demand past the memory budget is held at its ceiling, said so', async () => {
+  const s = await session();
+  await s.ask(6000);
+  const { pool } = s.lights.plan;
+  assert.equal(shadowAtlasBytes(pool.side, pool.layers) <= SHADOW_ATLAS_BYTES, true);
+  const [, context] = s.said.filter(([phase]) => phase === 'shadow-pool').at(-1)!;
+  assert.equal(context.clamp, 'ceiling');
+  assert.equal(context.pages, pool.pages);
+  assert.equal(s.said.filter(([phase]) => phase === 'gpu-out-of-memory').length, 0);
+});
