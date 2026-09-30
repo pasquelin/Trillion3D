@@ -40,6 +40,11 @@ function runtime(n: number, drawLayerSlots: number) {
       },
     },
     selectionRoots: [{ world: new G.Matrix4() }],
+    // Every row draws a page of the one placement: its packed ranks all name root 0 (#1235).
+    placement: {
+      baseOfRoot: Int32Array.of(0),
+      rootOfPacked: Int32Array.from({ length: 1024 }, () => 0),
+    },
     drawItemWords: new Uint32Array(Math.max(1, n) * DRAW_ITEM_U32),
     itemWordsHold: createDrawItemWordsHold(n),
   };

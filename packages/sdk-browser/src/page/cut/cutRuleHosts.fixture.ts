@@ -54,11 +54,19 @@ function hostBackend(
 
 /** The CPU cut (`./cut.ts`) with the host answering for residency, as the WebGPU CPU path and the
  *  light cuts ask it: the rule on `./held.ts`'s readiness, its descent pruned on the open counts. */
-export function cpuBackend(dag: RuleDag, threshold: number, roots = placements(dag, 1)) {
+export function cpuBackend(
+  dag: RuleDag,
+  threshold: number,
+  roots = placements(dag, 1),
+  /** Root rank the feed cannot route, simulating a layout that posts no base for it: its moves
+   *  are read whole at every visit, and `unroutedReads` counts them (#1235). */
+  unrouted = -1,
+) {
   const cam = stripCamera(dag),
     on: boolean[] = [];
   const placement = postPackedBases(roots),
     rank = ranksOf(roots, placement);
+  if (unrouted >= 0) placement.baseOfRoot[unrouted] = -1;
   let reads = 0;
   const isResident = (page: PageRec) => (reads++, on[rank.get(page)!] === true);
   const options = {
