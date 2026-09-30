@@ -90,8 +90,10 @@ type PageRowResources = MaterialLayers & {
 export function createPageRowWriter(
   resources: PageRowResources,
   markRowDirty: (row: number) => void,
-  /** The roots a record's `placementIndex` ranks: its row's world is its root's. */
+  /** The placement roots, and the root rank of each packed rank (#1235): the row's world, its
+   *  placement word and its deformation record are its instance's root's. */
   roots: Placements,
+  rootRank: (packed: number) => number,
 ) {
   const { geometryBlocks } = resources;
   // What the catalogue fixes once and for all is not recomputed for every arriving page.
@@ -114,8 +116,9 @@ export function createPageRowWriter(
       maps = rowMaterial(mat, geo, resources);
     if (!rec.transparent && shownAsIs(mat.model)) resources.asIsShown = true;
     // Row placement: its world, and its rank, where the temporal pass reads the pixel motion
-    // matrix. A page without a placement does not exist in a WebGPU layout: `rootOf` throws.
-    floats.set(rootOf(roots, rec).world.elements, base);
+    // matrix. A packed rank without a placement does not exist in a WebGPU layout: `rootOf` throws.
+    const rank = rootRank(pageIndex);
+    floats.set(rootOf(roots, rank).world.elements, base);
     floats[base + 16] = mat.baseColor[0];
     floats[base + 17] = mat.baseColor[1];
     floats[base + 18] = mat.baseColor[2];
@@ -141,7 +144,7 @@ export function createPageRowWriter(
     // The Hi-Z verdict of a row lives at the row's own index, and the rows a frame does not test are
     // cleared on the GPU before the test, so no row ever reads the verdict of an earlier image. A
     // row never culled reads none, nor does a deformed one: its box is its rest pose's.
-    const deform = resources.deformation?.rowWord(rec.placementIndex) ?? 0;
+    const deform = resources.deformation?.rowWord(rank) ?? 0;
     ints[base + PAGE_DEFORM_WORD] = deform;
     ints[base + PAGE_DEFORM_COUNT_WORD] = rec.deformationOutput?.count ?? 0;
     ints[base + PAGE_DEFORM_OUTPUT_WORD] = deformOutputWord(rec.deformationOutput, offsetWords);
@@ -173,7 +176,7 @@ export function createPageRowWriter(
     // layer 0, one calculation source for the hardware path and the software raster alike.
     ints[base + 60] = depthLayerUnits(rec.depthLayer);
     floats[base + ROW_LINE_WIDTH_WORD] = mat.lineWidth ?? 0;
-    ints[base + ROW_PLACEMENT_WORD] = rec.placementIndex!;
+    ints[base + ROW_PLACEMENT_WORD] = rank;
     // The class the resolve draws this page under: its flags and map slots, as one word.
     ints[base + ROW_MATERIAL_CLASS_WORD] = maps.classKey;
     markRowDirty(row);

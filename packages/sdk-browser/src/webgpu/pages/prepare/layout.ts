@@ -9,7 +9,7 @@ import { VIS_MAX_PAGES } from '../../../visibility/buffer.ts';
 import { boundTableRows } from '../../row/tableRows.ts';
 import type { WebgpuPagesSetup } from './setup.ts';
 import type { BoxTransformLot } from '../../../math/batchRuntime.ts';
-import { postPlacements } from '../../../page/selection/placements.ts';
+import { postPackedBases } from '../../../page/selection/placements.ts';
 import { createPageCatalogue } from './catalogue.ts';
 
 export type WebgpuPagesLayout = ReturnType<typeof createWebgpuPagesLayout>;
@@ -62,10 +62,12 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
   // buffer. Placements grown in place append their opaque pages after the transparent ones: a
   // page's kind is read from the page, never from its rank.
   const selectionRoots = [...opaqueRoots, ...transparentRoots];
+  // One record serves every placement of its primitive (#1235): the packed order is the INSTANCES
+  // — a (placement, page) pair —, and the per-placement tables say which root each packed rank
+  // belongs to. Every reader finds a page's world, row and winding through `placement`, never on
+  // the shared record.
+  const placement = postPackedBases(selectionRoots);
   const packedPages: PageRec[] = selectionRoots.flatMap((root) => root.pages);
-  // A page's placement is its root's rank: where every reader finds its world, row and winding,
-  // and what the row carries to find the placement motion (`../../../taa/motion.ts`).
-  postPlacements(selectionRoots);
   const opaquePageCount = opaqueRoots.reduce((total, root) => total + root.pages.length, 0);
   const worldUpdates = new Float32Array(Math.max(1, selectionRoots.length) * 16);
   const gpuWanted: PageRec[] = bootstrap;
@@ -90,6 +92,8 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
     packedPages,
     /** The packed rank of a page to its record: the engine's one catalogue accessor. */
     recordOf: catalogue.recordOf,
+    /** The root rank of each packed rank, and the packed base of each root (#1235). */
+    placement,
     opaquePageCount,
     /** The pool addresses' placements, which rows grown in place add to. */
     copies,

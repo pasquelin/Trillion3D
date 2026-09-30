@@ -1,7 +1,7 @@
 import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts';
 
 import { hostPageBytes } from '../../host/pageObjects.ts';
-import { attachedPages } from '../../placement/autonomousPlacements.ts';
+import { attachedPages, drawnInstancedAt } from '../../placement/autonomousPlacements.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 import type { PageDraws } from './pageDraws.ts';
 
@@ -32,7 +32,9 @@ export function createHeldFloor(env: {
   function meshes() {
     if (meshesRead === revision) return counted;
     meshesRead = revision;
-    return (counted = attachedPages(bootstrap, roots));
+    return (counted = attachedPages(bootstrap, (rec) =>
+      drawnInstancedAt(roots, draws.rootRankOf(rec), rec),
+    ));
   }
   return {
     /** What the root cover holds changed; the pool reads the same revision (`coverRevision`). */

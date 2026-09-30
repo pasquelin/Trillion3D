@@ -43,7 +43,7 @@ const HELD = {};
 export function createRequestAdmission(
   sets: WebgpuResidencySets,
   { keyOf, wanted, topLevel }: Pick<Tracking, 'keyOf' | 'wanted' | 'topLevel'>,
-  closure: Pick<GroupClosure, 'closeOver' | 'closeOverRecords' | 'forEachHeld'>,
+  closure: Pick<GroupClosure, 'closeOver' | 'forEachHeld'>,
 ) {
   /** Per key the walk reached, one plus the visit that filed it: the first at its coarsest level.
    *  A visit a coarser one superseded has its level set to -1. */
@@ -65,7 +65,8 @@ export function createRequestAdmission(
     lastRoom = -1,
     lastRevision = -1,
     lastCut = -1,
-    lastFirst: readonly PageRec[] | null = null;
+    /** The capture's own packed ranks (`sets.drawnFirst`), or null. */
+    lastFirst: ArrayLike<number> | null = null;
   const visit = (_id: number, rec: PageRec) => {
     const key = keyOf(rec);
     if (sets.covers(key)) return;
@@ -153,7 +154,7 @@ export function createRequestAdmission(
       // A capture's pages again, above the union's coarsest: a coarser filing supersedes.
       if (first) {
         lift = top + 1;
-        closure.closeOverRecords(first, visit);
+        closure.closeOver(first, visit);
         lift = 0;
       }
       pages.length = visits;
