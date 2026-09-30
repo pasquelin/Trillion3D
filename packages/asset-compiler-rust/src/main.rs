@@ -25,6 +25,10 @@ use trillion3d_compiler::{
     COMPILER_VERSION, FORMAT_VERSION,
 };
 
+/// Per-thread heaps for the Rayon workers (`Cargo.toml`, `mimalloc`).
+#[global_allocator]
+static ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 fn emit(mut event: Value, job: &str) {
     if let Some(object) = event.as_object_mut() {
         object.insert("job".into(), json!(job));
