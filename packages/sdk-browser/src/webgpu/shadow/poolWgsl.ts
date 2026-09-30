@@ -23,7 +23,9 @@ export const POOL_FIELDS = [
 ] as const;
 /** The counts the allocation keeps, before the fields: what a snapshot reads back with them. Each
  *  frame's allocation clears those before `listings`, the pages every frame since the pool's seed
- *  listed (`listDraw`): a snapshot read after a lost one still shows that the GPU drew. */
+ *  listed (`listDraw`): a snapshot read after a lost one still shows that the GPU drew. Last, the
+ *  pairs the latest GPU page draws counted (`sealShadowPages`), which grow their list
+ *  (`pairGrowth.ts`). */
 export const POOL_COUNTS = [
   'needs',
   'candidates',
@@ -31,6 +33,7 @@ export const POOL_COUNTS = [
   'refused',
   'drawn',
   'listings',
+  'pairs',
 ] as const;
 /** The counts each frame's allocation starts from zero (`allocWgsl.ts`): all but `listings`. */
 export const POOL_FRAME_COUNTS = POOL_COUNTS.indexOf('listings');
@@ -50,6 +53,7 @@ fn countOne(i:u32){atomicAdd(&shadowPool.counts[i],1u);}
 fn countNext(i:u32)->u32{return atomicAdd(&shadowPool.counts[i],1u);}
 fn countRead(i:u32)->u32{return atomicLoad(&shadowPool.counts[i]);}
 fn countClear(i:u32){atomicStore(&shadowPool.counts[i],0u);}
+fn countSet(i:u32,v:u32){atomicStore(&shadowPool.counts[i],v);}
 const PAGE_MAPPED:u32=${PAGE_MAPPED}u;
 const PAGE_VALID:u32=${PAGE_VALID}u;
 const DRAWN_HOST:i32=${DRAWN_HOST};

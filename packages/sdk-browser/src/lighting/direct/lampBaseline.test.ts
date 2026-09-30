@@ -19,6 +19,7 @@ test('zero-radius lamps retain exactly the baseline PCF call; spot and request-o
     {
       shadows: { records: [record] },
       shadowFootprint: 0.01,
+      shadowUnjitter: [0, 0, 0],
       LAMP_MIP_COUNT: 1,
       SHADOW_DEPTH_ROUNDING: 0,
       shadowNormalTexels: () => 0,

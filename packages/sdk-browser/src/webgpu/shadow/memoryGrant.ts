@@ -9,7 +9,9 @@ export type ShadowPressure =
   | 'static-layer-over-grant'
   | 'static-layer-refused'
   | 'transmittance-over-grant'
-  | 'transmittance-refused';
+  | 'transmittance-refused'
+  | 'pairs-over-grant'
+  | 'pairs-refused';
 
 /**
  * THE SHADOW MEMORY GRANT: the one fixed share the GPU budget gives the shadows' pool and layers
@@ -25,7 +27,9 @@ export type ShadowPressure =
  * whole, every caster at once: no shadow is lost. A transmittance layer past the grant
  * (`transmittance-over-grant`) or refused (`transmittance-refused`) is never made nor asked again:
  * every opaque shadow stays drawn whole, and the blended casters let all the light through, said
- * under `shadow-memory` or `gpu-out-of-memory` (`transmittanceGrant.ts`).
+ * under `shadow-memory` or `gpu-out-of-memory` (`transmittanceGrant.ts`). A kept list grown past
+ * the grant for the GPU pages' pairs (`pairs-over-grant`) or refused (`pairs-refused`) stays as it
+ * is: the pages it cannot hold wait, whole, for the host (`pairGrowth.ts`).
  */
 export type ShadowMemory = {
   /** The most bytes an allocation asked the grant to hold at once, what it already held included. */
@@ -33,14 +37,24 @@ export type ShadowMemory = {
   bias: number;
   /** Replaced, never mutated, at each event: a frame's metrics publish it without a copy. */
   events: readonly ShadowPressure[];
+  /** Bytes of the kept lists' rows past the table's, grown for the GPU pages' pairs. */
+  pairBytes: number;
 };
 
 /** GPU bytes the shadow pool holds: its buffers and depth pages, their transmittance and static
- *  layers once made, and its request buffer. */
-export const shadowPoolHeld = ({ shadows, staticLayer, pageRequests }: WebgpuLightState) =>
-  (shadows?.allocationBytes ?? 0) + (staticLayer?.bytes ?? 0) + (pageRequests?.bytes ?? 0);
+ *  layers once made, its request buffer, and the kept lists' rows its GPU pages' pairs grew. */
+export const shadowPoolHeld = (lights: WebgpuLightState) =>
+  (lights.shadows?.allocationBytes ?? 0) +
+  (lights.staticLayer?.bytes ?? 0) +
+  (lights.pageRequests?.bytes ?? 0) +
+  lights.memory.pairBytes;
 
-export const createShadowMemory = (): ShadowMemory => ({ peakBytes: 0, bias: 0, events: [] });
+export const createShadowMemory = (): ShadowMemory => ({
+  peakBytes: 0,
+  bias: 0,
+  events: [],
+  pairBytes: 0,
+});
 
 /** Asks the grant for `bytes` more beside the `heldBytes` it holds and the `reserveBytes` kept for
  *  a later layer: true, and the peak raised to what is held then (the reserve not counted), when it
@@ -58,12 +72,12 @@ export function admitShadowBytes(
   return true;
 }
 
-/** `admitShadowBytes` for a late layer: past the grant, its pressure is recorded and said under
+/** `admitShadowBytes` for a late layer or the grown pair list: past the grant, its pressure is recorded and said under
  *  `shadow-memory` with the bytes asked, held and granted. */
 export function grantsShadowLayer(
   lights: WebgpuLightState,
   diagnose: WebgpuPagesRuntime['diag']['engineDiagnostic'],
-  pressure: 'static-layer-over-grant' | 'transmittance-over-grant',
+  pressure: 'static-layer-over-grant' | 'transmittance-over-grant' | 'pairs-over-grant',
   message: string,
   bytes: number,
   grantBytes = SHADOW_GRANT_BYTES,

@@ -17,20 +17,32 @@ import { shadowThroughWgsl } from '../../gpu/shadow/transmittance.ts';
 import { SHADOW_PAGE_WORD_WGSL } from './shadowPageWgsl.ts';
 import { POISSON_16 } from './pcfTaps.ts';
 
-/** Farthest texel centre any tap weighs, in texels from the read point: the tap's offset plus
- *  the bilinear footprint's texel on each axis. The depth margin covers the receiver over it. */
-export const PCF_REACH = Math.max(
-  ...POISSON_16.map(([x, y]) => Math.hypot(Math.abs(x) + 1, Math.abs(y) + 1)),
-);
+/** Radius of the taps' disk, in texels: the farthest tap from the read point, turned any way. */
+const POISSON_RADIUS = Math.max(...POISSON_16.map(([x, y]) => Math.hypot(x, y)));
+
+/** Farthest texel centre any tap weighs, in texels from the read point, the taps turned any way
+ *  (`shadowRotated`): the disk's radius, then the bilinear footprint's texel on each axis, at
+ *  most `√2` beyond it. The depth margin covers the receiver over it. */
+export const PCF_REACH = POISSON_RADIUS + Math.SQRT2;
 
 /** The PCF's taps as WGSL, in `scale`ths of a texel: a power of two, so exact. */
 const poissonWgsl = (name: string, scale: number) =>
   `const ${name}:array<vec2f,${POISSON_16.length}>=array<vec2f,${POISSON_16.length}>(${POISSON_16.map(([x, y]) => `vec2f(${x * scale},${y * scale})`).join(',')});`;
 
-/** The PCF's tap count and taps, a texel apart: also the PCSS disk's (\`lampSoftWgsl.ts\`), which
- *  the per-pixel demand walks (\`../../webgpu/shadow/demandWgsl.ts\`). */
+/**
+ * The PCF's tap count and taps, a texel apart: also the PCSS disk's (`lampSoftWgsl.ts`), which
+ * the per-pixel demand walks (`../../webgpu/shadow/demandWgsl.ts`). A pass that lights a surface
+ * the TAA accumulates turns them, each jitter phase, by the view's angle (`shadowRotation`,
+ * `shadowJitterWords`): the history averages the turns into a filter even around the point, as
+ * the reference engine's SMRT leaves its per-frame rays to the temporal filter, with no history of its own (#1363).
+ * Every pixel turns them alike: no pattern from pixel to pixel, no dither. Unturned — the default,
+ * any pass that sets none, an image the TAA does not accumulate —, a tap is its constant, to the bit.
+ */
 export const PCF_TAPS_WGSL = `const PCF_TAPS:u32=${LIGHT_SETTINGS.pcfTaps}u;
-${poissonWgsl('POISSON', 1)}`;
+${poissonWgsl('POISSON', 1)}
+/** Cosine and sine of the taps' turn this image. */
+var<private> shadowRotation:vec2f=vec2f(1.0,0.0);
+fn shadowRotated(v:vec2f)->vec2f{return vec2f(v.x*shadowRotation.x-v.y*shadowRotation.y,v.x*shadowRotation.y+v.y*shadowRotation.x);}`;
 
 /**
  * The shadow buffer as the GPU reads it: every slice's record (`SHADOW_RECORD_FLOATS`) — lamp
@@ -57,6 +69,9 @@ const PAGE_RANGE_SHIFT:u32=${PAGE_RANGE_SHIFT}u;
 const PAGE_RANGE_MASK:u32=${PAGE_RANGE_MASK}u;
 ${pageModelWgsl(window)}
 ${SHADOW_PAGE_WORD_WGSL}
+/** The point a pixel's unjittered centre holds less the one it holds (\`pixelLevel\`), which a
+ *  lamp's mip is chosen at: zero in a pass that sets none. */
+var<private> shadowUnjitter:vec3f=vec3f(0.0);
 /** Offset along the normal, in texels of the level read, of a receiver at incidence \`cosine\`:
  *  half a texel, plus, past 45°, the part of its plane's slope the depth margin leaves. */
 fn shadowNormalTexels(cosine:f32)->f32{
@@ -102,7 +117,8 @@ ${shadowPageReadWgsl(pages)}
 ${SHADOW_SAMPLE_WGSL}
 ${shadowThroughWgsl(transmittanceBinding)}
 /**
- * Sixteen taps a texel apart around \`t\`; a lamp face clamps them at its edge (\`side\` > 0).
+ * Sixteen taps a texel apart around \`t\`, turned this image (\`shadowRotated\`); a lamp face
+ * clamps them at its edge (\`side\` > 0).
  * Every tap's bilinear footprint lies within \`PCF_EDGE_TEXELS\` of \`t\` (\`pageModel.ts\`), so the
  * filter reaches at most the home page's neighbours across the one or two edges that close
  * (\`shadowPcfEdge\`, \`shadowPcfStep\`): their words are read, and
@@ -122,35 +138,39 @@ fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32,
  let offset=shadowOffset(homeWord,home);
  let step=vec2i(shadowPcfStep(t.x,first.x),shadowPcfStep(t.y,first.y));
  let up=step>vec2i(0);
- var nx=vec4f(offset,0.0);var ny=nx;var nd=nx;
- if(edge.x){nx=shadowNeighbour(m,home+vec2i(step.x,0),offset,homeWord,t);}
- if(edge.y){ny=shadowNeighbour(m,home+vec2i(0,step.y),offset,homeWord,t);}
- if(all(edge)){nd=shadowNeighbour(m,home+step,offset,homeWord,t);}
+ let n=shadowNeighbours(m,home,step,edge,offset,homeWord,t);
  if(!taps){return 0.0;}
  var lit=0.0;
  if(!any(edge)){
-  // \`shadowCompare\` per tap, in steps: \`(t + tap)·256\` is \`t·256 + tap·256\` to the bit.
+  // \`shadowCompare\` per tap, in steps: \`(t + tap)·256\` is \`t·256 + tap·256\` to the bit, a
+  // turned tap's too — a scale by a power of two commutes with every rounding.
   let texels=shadowAtlasTexels();let layer=i32(offset.z);let steps=t*SHADOW_SUBTEXELS;
   for(var tap=0u;tap<PCF_TAPS;tap++){
-   lit+=shadowSample(offset.xy+floor(steps+POISSON_STEPS[tap]+0.5)*SHADOW_SUBTEXEL,layer,texels,reference);
+   lit+=shadowSample(offset.xy+floor(steps+shadowRotated(POISSON_STEPS[tap])+0.5)*SHADOW_SUBTEXEL,layer,texels,reference);
   }
   return shadowThroughLit(offset,first,t,reference,lit/f32(PCF_TAPS));
  }
- let toward=select(vec2f(-1.0),vec2f(1.0),up);
- let seam=first+select(vec2f(0.0),vec2f(SHADOW_PAGE),up);
  for(var tap=0u;tap<PCF_TAPS;tap++){
-  var at=t+POISSON[tap];
+  var at=t+shadowRotated(POISSON[tap]);
   if(side>0.0){at=clamp(at,vec2f(0.5),vec2f(side-0.5));}
-  let h=clamp(at,first+0.5,first+SHADOW_PAGE-0.5);
-  let n=select(min(at,seam-0.5),max(at,seam+0.5),up);
-  let w=saturate(0.5+(seam-at)*toward);
-  var sum=w.x*w.y*shadowCompare(offset,h,reference);
-  if(edge.x){sum+=(1.0-w.x)*w.y*shadowCompare(nx.xyz,vec2f(select(h.x,n.x,nx.w>0.0),h.y),reference);}
-  if(edge.y){sum+=w.x*(1.0-w.y)*shadowCompare(ny.xyz,vec2f(h.x,select(h.y,n.y,ny.w>0.0)),reference);}
-  if(all(edge)){sum+=(1.0-w.x)*(1.0-w.y)*shadowCompare(nd.xyz,select(h,n,nd.w>0.0),reference);}
-  lit+=sum;
+  lit+=shadowSplitTap(offset,n,edge,up,first,at,reference);
  }
  return shadowThroughLit(offset,first,t,reference,lit/f32(PCF_TAPS));
+}
+/** \`shadowCompare\` at \`at\` split along the home page's seams (\`up\`): each page's share of the
+ *  footprint, \`saturate(0.5 + distance to the seam)\`, read in that page, the neighbours \`n\` on
+ *  the \`edge\` axes. Shared by \`shadowPcf\` and the PCSS filter (\`lampSoftCompare\`). */
+fn shadowSplitTap(offset:vec3f,n:ShadowNeighbours,edge:vec2<bool>,up:vec2<bool>,first:vec2f,at:vec2f,reference:f32)->f32{
+ let toward=select(vec2f(-1.0),vec2f(1.0),up);
+ let seam=first+select(vec2f(0.0),vec2f(SHADOW_PAGE),up);
+ let h=clamp(at,first+0.5,first+SHADOW_PAGE-0.5);
+ let beyond=select(min(at,seam-0.5),max(at,seam+0.5),up);
+ let w=saturate(0.5+(seam-at)*toward);
+ var sum=w.x*w.y*shadowCompare(offset,h,reference);
+ if(edge.x){sum+=(1.0-w.x)*w.y*shadowCompare(n.x.xyz,vec2f(select(h.x,beyond.x,n.x.w>0.0),h.y),reference);}
+ if(edge.y){sum+=w.x*(1.0-w.y)*shadowCompare(n.y.xyz,vec2f(h.x,select(h.y,beyond.y,n.y.w>0.0)),reference);}
+ if(all(edge)){sum+=(1.0-w.x)*(1.0-w.y)*shadowCompare(n.d.xyz,select(h,beyond,n.d.w>0.0),reference);}
+ return sum;
 }
 ${SHADOW_FACTOR_WGSL}
 ${LAMP_SOFT_WGSL}`;
