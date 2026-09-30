@@ -16,9 +16,9 @@ import {
   MOST_CELLS_ON_AXIS,
   MOST_ENTRIES,
   REACH_FLOATS,
-  sameValues,
   writeCells,
 } from './lightGrid.ts';
+import { sameValues } from '../../math/matrixElements.ts';
 
 /**
  * THE LIGHT GRID OF THE WEBGL2 PATH: a fragment evaluates the lights whose range reaches its cell

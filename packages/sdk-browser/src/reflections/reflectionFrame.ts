@@ -84,7 +84,7 @@ export function reflectionFrame(rt: WebgpuPagesRuntime): ReflectionHistoryFrame 
   // Every version mixed, the scene's scrambled: independent of wall clock.
   let seed = Math.imul(epoch[0], 747796405);
   for (let i = 1; i < epoch.length; i++) seed ^= epoch[i];
-  for (const version of lighting) seed ^= version;
+  for (let i = 0; i < lighting.length; i++) seed ^= lighting[i];
   frame.seed = seed >>> 0;
   frame.frame = run.frame;
   frame.camera = run.gate.cam.viewProjection;
