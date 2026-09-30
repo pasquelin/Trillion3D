@@ -12,9 +12,7 @@ import { flushWebgpuPages } from './render/flush.ts';
 import { renderWebgpuPages } from './render/render.ts';
 import { addWebgpuView, removeWebgpuView, renderWebgpuView } from './state/persistentView.ts';
 import type { WebgpuPagesBackend } from './runtime.ts';
-import { taaStillFrames, TAA_SAMPLES } from '../../taa/jitter.ts';
-
-const TAA_STILL_FRAMES = taaStillFrames(TAA_SAMPLES);
+import { TAA_STILL_FRAMES } from '../../taa/stillFrames.fixture.ts';
 
 const RECT = { x: 4, y: 4, width: 16, height: 8 };
 

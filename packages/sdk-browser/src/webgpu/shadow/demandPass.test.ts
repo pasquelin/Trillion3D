@@ -17,9 +17,7 @@ import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { shadowViewpointOf } from '../pages/render/shadowViewpoint.ts';
 import { HEIGHT, cameraAt, reportScene } from './reportScene.fixture.ts';
 import { floorTiles, tileGrid } from './shadingReads.fixture.ts';
-import { shadowDemandWgsl } from './demandWgsl.ts';
-
-const SHADOW_DEMAND_WGSL = shadowDemandWgsl();
+import { SHADOW_DEMAND_WGSL } from '../../gpu/core/shaderTexts.fixture.ts';
 
 type V = number[];
 type Demand = {

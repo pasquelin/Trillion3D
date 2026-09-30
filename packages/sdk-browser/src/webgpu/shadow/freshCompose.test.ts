@@ -14,6 +14,7 @@ import { writeLampPage } from '../../../../sdk-core/src/scene/light-shadow/faces
 import { writeSunSquare } from '../../../../sdk-core/src/scene/light-shadow/sunFaces.ts';
 import {
   LAMP,
+  SHADOW_TABLE_STRIDE,
   SUN,
   VIEW,
 } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
@@ -21,9 +22,7 @@ import {
   PAGE_INDEX_MASK,
   PAGE_VALID,
   SHADOW_PAGE,
-  SUN_WINDOW,
   pageOrigin,
-  shadowTableStride,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SHADOW_FACE_STRIDE } from '../../gpu/shadow/batchBudget.ts';
 import { createShadowRecordPack } from '../../gpu/shadow/recordPack.ts';
@@ -64,7 +63,7 @@ test('the GPU composes each page it draws as the host composes it, and makes it 
   assert.ok(regions.length > 0, 'the frame draws pages');
   regions.forEach((page, k) => {
     const entry = owner[page],
-      slice = Math.floor(entry / shadowTableStride(SUN_WINDOW));
+      slice = Math.floor(entry / SHADOW_TABLE_STRIDE);
     const light = store.light(store.ids.find((_, slot) => store.sliceOf(slot) === slice)!)!;
     const [at, x, y] = (['view', 'x', 'y'] as const).map((name) => field(name)[page]);
     const sun = light.kind === 'directional';
