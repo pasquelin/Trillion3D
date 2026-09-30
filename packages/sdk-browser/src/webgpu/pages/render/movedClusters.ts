@@ -1,9 +1,5 @@
-import {
-  BOX_VALUES,
-  boxEquals,
-  boxTransform,
-  boxUnionBatch,
-} from '../../../../../sdk-core/src/index.ts';
+import { BOX_VALUES, boxTransform, boxUnionBatch } from '../../../../../sdk-core/src/index.ts';
+import { boxEquals } from '../../../../../sdk-core/src/math/primitives/box.ts';
 import { grown } from '../../../../../sdk-core/src/math/transform-tree/transformTree.ts';
 import type { PageRec } from '../../../page/selection/selection.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
