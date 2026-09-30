@@ -1,7 +1,6 @@
 import { REFLECTION_CONE_WGSL } from './coneWgsl.ts';
 import { screenTraceShader } from './traceShader.ts';
 import { type ScreenRadiance, screenRadianceShader } from './screenRadianceShader.ts';
-import { FOG_FREE_SURFACE_FLAG } from '../scene/surfaceModel.ts';
 
 /** The WebGPU resolve: its fallback is the program's own reflection model, the probes with bounce
  *  and the environment without. */
@@ -22,7 +21,8 @@ fn reflectionProject(p:vec4f)->vec4f{let c=reflectionView.matrix*p;return vec4f(
 fn reflectionSize()->vec2f{return reflectionView.enabled.yz;}
 fn reflectionDepthAt(p:vec2i)->f32{return textureLoad(reflectionDepth,p,0);}
 fn reflectionClearDepth()->f32{return 0.0;}
-fn reflectionColorAt(p:vec2i)->vec3f{return textureLoad(reflectionColor,p,0).rgb;}
+// The reprojected source (source.ts): alpha 0 where the last image did not see the point.
+fn reflectionHitAt(p:vec2i)->vec4f{return textureLoad(reflectionColor,p,0);}
 ${screenTraceShader('wgsl')}
 ${REFLECTION_CONE_WGSL}
 ${screenRadianceShader('wgsl', { ...SCREEN_RADIANCE, filtered })}`;
@@ -53,12 +53,4 @@ export function withScreenReflections(shader: string, history = false) {
       ')*resolvedRadiance(P,N,reflect(-V,N),',
     ) + reflection
   );
-}
-
-/** Source radiance has no camera fog and no recursive mirror: consumed before any blending. */
-export function reflectionSource(shader: string) {
-  const cameraFog = `if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){rgb=fogged(rgb,P,view.display.yzw);}`;
-  return shader
-    .replace('+mirrorLighting(base.rgb,base.a,normal.a,N,V,P)', '')
-    .replaceAll(cameraFog, '');
 }

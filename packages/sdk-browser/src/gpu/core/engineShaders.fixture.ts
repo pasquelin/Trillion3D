@@ -30,7 +30,9 @@ import {
   UNLIT_COMPOSITIONS,
   UNLIT_LIGHTING_SHADER,
 } from '../../lighting/deferred/shaders.ts';
-import { reflectionSource, withScreenReflections } from '../../reflections/screenWgsl.ts';
+import { withScreenReflections } from '../../reflections/screenWgsl.ts';
+import { withReflectionSourceOutput } from '../../reflections/sourceOutputWgsl.ts';
+import { REFLECTION_SOURCE_WGSL } from '../../reflections/sourceWgsl.ts';
 import { withSubgroupShadowRequests } from '../../lighting/direct/shadowRequestWgsl.ts';
 import { LIGHT_TILES_SHADERS } from '../../lighting/tiles/shader.ts';
 import { taaShader } from '../../taa/shaderWgsl.ts';
@@ -82,10 +84,11 @@ function reflectionVariants() {
         let shader = contractLightingShader(bounce, narrow);
         if (subgroup) shader = withSubgroupShadowRequests(shader);
         const key = `REFLECTION_${bounce ? 'BOUNCE' : 'DIRECT'}_${narrow ? 'NARROW' : 'WIDE'}_${subgroup ? 'SUBGROUP' : 'PLAIN'}`;
-        variants[`${key}_SOURCE`] = reflectionSource(shader);
         variants[`${key}_TRACE`] = stochasticReflectionShader(shader);
         variants[`${key}_TRACE_REFERENCE`] = stochasticReflectionShader(shader, true);
-        variants[`${key}_HISTORY_COMPOSE`] = withScreenReflections(shader, true);
+        variants[`${key}_HISTORY_COMPOSE`] = withReflectionSourceOutput(
+          withScreenReflections(shader, true),
+        );
       }
   return variants;
 }
@@ -94,6 +97,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   DEFORMATION_COMPUTE_WGSL,
   ...reflectionVariants(),
   REFLECTION_RESOLVE_WGSL,
+  REFLECTION_SOURCE_WGSL,
   MIP_DEPTH_SHADER: mipShader(true),
   PRESENT_SHADER,
   PRESENT_AT_SHADER,
@@ -122,26 +126,16 @@ export const ENGINE_SHADERS: Record<string, string> = {
   UNLIT_LIGHTING_SHADER,
   DIRECT_LIGHTING_SHADER,
   BOUNCE_LIGHTING_SHADER,
-  REFLECTION_SOURCE_DIRECT: reflectionSource(DIRECT_LIGHTING_SHADER),
-  REFLECTION_SOURCE_BOUNCE: reflectionSource(BOUNCE_LIGHTING_SHADER),
   REFLECTION_RESOLVE_DIRECT: withScreenReflections(DIRECT_LIGHTING_SHADER),
   REFLECTION_RESOLVE_BOUNCE: withScreenReflections(BOUNCE_LIGHTING_SHADER),
   DIRECT_NARROW_LIGHTING: contractLightingShader(false, true),
   BOUNCE_NARROW_LIGHTING: contractLightingShader(true, true),
-  REFLECTION_SOURCE_DIRECT_NARROW: reflectionSource(contractLightingShader(false, true)),
-  REFLECTION_SOURCE_BOUNCE_NARROW: reflectionSource(contractLightingShader(true, true)),
   REFLECTION_RESOLVE_DIRECT_NARROW: withScreenReflections(contractLightingShader(false, true)),
   REFLECTION_RESOLVE_BOUNCE_NARROW: withScreenReflections(contractLightingShader(true, true)),
   DIRECT_SUBGROUP_LIGHTING: withSubgroupShadowRequests(DIRECT_LIGHTING_SHADER),
   BOUNCE_SUBGROUP_LIGHTING: withSubgroupShadowRequests(BOUNCE_LIGHTING_SHADER),
-  REFLECTION_SOURCE_DIRECT_SUBGROUP: reflectionSource(
-    withSubgroupShadowRequests(DIRECT_LIGHTING_SHADER),
-  ),
   REFLECTION_RESOLVE_DIRECT_SUBGROUP: withScreenReflections(
     withSubgroupShadowRequests(DIRECT_LIGHTING_SHADER),
-  ),
-  REFLECTION_SOURCE_BOUNCE_SUBGROUP: reflectionSource(
-    withSubgroupShadowRequests(BOUNCE_LIGHTING_SHADER),
   ),
   REFLECTION_RESOLVE_BOUNCE_SUBGROUP: withScreenReflections(
     withSubgroupShadowRequests(BOUNCE_LIGHTING_SHADER),

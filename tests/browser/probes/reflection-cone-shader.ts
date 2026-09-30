@@ -10,7 +10,7 @@ fn reflectionSize()->vec2f{return vec2f(64.0);}
 fn reflectionLastMip()->f32{return 6.0;}
 fn reflectionClearDepth()->f32{return 0.0;}
 fn reflectionDepthAt(p:vec2i)->f32{return 0.8;}
-fn reflectionColorAt(p:vec2i)->vec3f{return vec3f(1.0,(f32(p.x)+0.5)/64.0,0.0);}
+fn reflectionHitAt(p:vec2i)->vec4f{return vec4f(1.0,(f32(p.x)+0.5)/64.0,0.0,1.0);}
 fn reflectionBoundsAt(p:vec2i,level:i32)->vec2f{return vec2f(0.8);}
 fn reflectionMipColorAt(p:vec2i,level:i32)->vec4f{
  return vec4f(1.0,(f32(p.x)+0.5)*exp2(f32(level))/64.0,f32(level),1.0);

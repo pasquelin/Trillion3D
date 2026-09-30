@@ -27,7 +27,7 @@ import { REFERENCE_APPROXIMATIONS, REFERENCE_BOUNCE_BUDGET_MS } from './referenc
  *   and the most the portable texture side holds, box-filtered back in linear light and assembled
  *   (`referenceTiles.ts`);
  * - `reflectionTrace`: a rough reflection sample walks every pixel of its ray and resolves a miss
- *   by the program's whole fallback, never the fixed read budget (`reflections/boundedTraceWgsl.ts`).
+ *   by the program's whole fallback, never the capped Hi-Z walk (`reflections/hizTraceWgsl.ts`).
  * A still frame already shades every light of its tile (`LIGHT_SETTINGS.samplesPerPixel` samples a
  * moving one only): the capture is of a held, still frame.
  */
