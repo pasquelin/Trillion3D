@@ -83,7 +83,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     residentPagesDefault: attachCap,
     maxCachedPages: cacheCap,
     pixelError: options.pixelError ?? 0,
-    lodAdaptive: explorerSwitch(options, 'lodAdaptive'),
+    lodAdaptive: options.lodAdaptive,
     clearColor: options.clearColor ?? DEFAULT_CLEAR_COLOR,
     onDiagnostic: diagnosticChannel.enabled ? diagnosticChannel.emit : undefined,
     preparationStep: (step) => diagnose('backend-preparation-step', step, { kind: 'preparation' }),
@@ -95,7 +95,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     gpuCanvas: directGpu ? canvas : undefined,
     maxTextureTransferBytesPerFrame: options.maxTextureTransferBytesPerFrame,
     maxTextureUploadMsPerFrame: options.maxTextureUploadMsPerFrame,
-    temporalAntialiasing: explorerSwitch(options, 'temporalAntialiasing'),
+    temporalAntialiasing: options.temporalAntialiasing,
     renderScale: options.renderScale,
     // A reference session reads the finest shadow level over its whole canvas and field.
     sunWindow: options.reference ? referenceSunWindow(viewport[1], options.fov) : undefined,
@@ -106,21 +106,21 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     geometryPoolCeilingBytes: options.geometryPoolCeilingBytes,
     texturePoolBytes: options.texturePoolBytes,
     textureCompression: options.textureCompression,
-    stageProfile: explorerSwitch(options, 'stageProfile'),
+    stageProfile: options.stageProfile,
     feedbackTargetAB: options.feedbackTargetAB === true,
     // The diagnostic variant is checked here, once: outside `trace`, it is refused.
     diagnosticGpuVariant: resolveDiagnosticGpuVariant(
       options.diagnosticGpuVariant,
       diagnosticChannel.detail,
     ),
-    shadowPageInvalidation: explorerSwitch(options, 'shadowPageInvalidation'),
+    shadowPageInvalidation: options.shadowPageInvalidation,
     sceneLighting: sceneLightingSource,
     guides: options.guides,
     particles: options.particles,
     particlesRefused: options.particlesRefused,
     materialDegraded: options.materialDegraded,
     // Bounced light stays off unless asked: its step holds 1.1 to 1.3 ms on Emerald, above 1 ms.
-    bounce: explorerSwitch(options, 'bounce'),
+    bounce: options.bounce,
     bounceBudgetMs: options.bounceBudgetMs,
     readSceneProxy: createSceneProxyReader(metadata.proxy, base, options.pageCache, signal),
     // The reader exists as soon as the cache declares texture chains, whatever the host asked of
