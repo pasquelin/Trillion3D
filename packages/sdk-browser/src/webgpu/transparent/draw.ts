@@ -26,11 +26,10 @@ export function encodeTransparentInstances(rt: WebgpuPagesRuntime, encoder: GPUC
     compaction.encode(encoder, selection.maskBuffer, selection.maskOffset);
     return;
   }
-  // The record carries its packed rank; the table files a page by that rank alone (#1233).
-  writeCpuTransparentInstances(blendState, run.drawn, (rec) => {
-    const page = rec.packedIndex ?? -1;
-    return page < 0 ? -1 : table.entryOfPage[page];
-  });
+  // The packed rank travels beside the record (#1235): the table files a page by that rank alone.
+  writeCpuTransparentInstances(blendState, run.drawn, run.drawnPacked, (packed) =>
+    packed < 0 ? -1 : table.entryOfPage[packed],
+  );
   // Without a compaction the CPU lists are still written: the fallback pass reads them (#584).
   compaction?.uploadInstances(
     blendState.cpuInstances,

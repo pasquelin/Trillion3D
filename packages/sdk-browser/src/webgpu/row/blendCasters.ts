@@ -47,7 +47,7 @@ export function createBlendCasterRows(
   rows: Rows,
   packedPages: readonly PageRec[],
   writePageRow: Writer,
-  onCoverageChange: (rec: PageRec) => void = () => {},
+  onCoverageChange: (rec: PageRec, page: number) => void = () => {},
 ) {
   /** A packed rank back to its record: the one catalogue accessor (`../pages/prepare/catalogue.ts`). */
   const { recordOf } = createPageCatalogue(packedPages);
@@ -97,7 +97,7 @@ export function createBlendCasterRows(
     const offsetWords = rows.residentOffsetWords[page];
     writePageRow(rec, page, row, offsetWords, rows.pageTableFloats!, ints);
     if (held && (ints[coverage] !== before || wasTransmissive || rec.material.transmission > 0))
-      onCoverageChange(rec);
+      onCoverageChange(rec, page);
   };
   const release = (page: number, row: number) => {
     rows.blendRowOf[page] = -1;
@@ -125,7 +125,7 @@ export function createBlendCasterRows(
     if (!casts) {
       if (row < 0) return;
       release(page, row);
-      if (restale) onCoverageChange(rec);
+      if (restale) onCoverageChange(rec, page);
       return;
     }
     if (row >= 0) return write(page, row, restale);
@@ -135,7 +135,7 @@ export function createBlendCasterRows(
     rows.blendRowOf[page] = taken;
     note(page);
     write(page, taken, false);
-    if (restale) onCoverageChange(rec);
+    if (restale) onCoverageChange(rec, page);
   };
   return {
     follow,

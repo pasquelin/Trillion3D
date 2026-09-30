@@ -7,7 +7,7 @@ import { object } from '../../../../sdk-core/src/world/object/index.ts';
 import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts';
 import { material } from '../../../../sdk-core/src/world/material/index.ts';
 import { collectClusterPages, type PageRec } from '../../page/selection/selection.ts';
-import { postPlacements } from '../../page/selection/placements.ts';
+import { postPackedBases, type PageLocations } from '../../page/selection/placements.ts';
 import { rasterVisibilityIds } from '../../visibility/buffer.ts';
 import { buildHizPyramid, filterUnoccluded, visibilityDepth } from '../../hiz/hiz.ts';
 import { createEngineCamera, readCameraWorld } from '../../camera/world.ts';
@@ -30,17 +30,30 @@ async function recordsOf(source: ExplorerSource) {
   );
   for (const rec of allPages)
     rec.array = new Uint32Array(await resolveObjectURL(rec.url)!.arrayBuffer());
-  postPlacements(roots);
-  return { records: allPages as (PageRec & { array: Uint32Array })[], roots };
+  // Each record's placement, by its first packed rank (#1235): one record may serve several.
+  const placement = postPackedBases(roots),
+    first = new Map<PageRec, number>();
+  for (let r = 0; r < roots.length; r++)
+    for (let p = 0; p < roots[r].pages.length; p++)
+      if (!first.has(roots[r].pages[p])) first.set(roots[r].pages[p], placement.baseOfRoot[r] + p);
+  const packedOf = (rec: PageRec) => first.get(rec) ?? 0,
+    locationOf = (pages: readonly PageRec[]): PageLocations => ({
+      roots,
+      packed: pages.map(packedOf),
+      rootOfPacked: placement.rootOfPacked,
+    });
+  const records = allPages as (PageRec & { array: Uint32Array })[];
+  return { records, locations: locationOf(records), locationOf };
 }
 
 /** The dynamic records of the view from z = 5 that the Hi-Z test keeps, and all of them. */
-function keptOf({ records, roots }: Awaited<ReturnType<typeof recordsOf>>) {
+function keptOf({ records, locations, locationOf }: Awaited<ReturnType<typeof recordsOf>>) {
   const camera = readCameraWorld(createEngineCamera(), cameraAt(5)),
-    ids = rasterVisibilityIds(records, roots, camera, SIZE);
-  const pyramid = buildHizPyramid(visibilityDepth(ids, records, roots, camera, SIZE), ...SIZE);
+    ids = rasterVisibilityIds(records, locations, camera, SIZE);
+  const pyramid = buildHizPyramid(visibilityDepth(ids, records, locations, camera, SIZE), ...SIZE);
   const dynamic = records.filter((rec) => !rec.geometryPage);
-  return { dynamic, kept: filterUnoccluded(dynamic, roots, pyramid, camera, SIZE) };
+  // `locations` must be parallel to the list read: the dynamic subset gets its own (#1235).
+  return { dynamic, kept: filterUnoccluded(dynamic, locationOf(dynamic), pyramid, camera, SIZE) };
 }
 
 /** A wall at z = 0 and a dynamic sheet at `z`, drawn once. The wall's centre is off the view's:

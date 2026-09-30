@@ -5,7 +5,8 @@
 export { createExactPagesRender, createExactPagesRenderState } from './render.ts';
 export { createWebglFrameGate } from '../../../packages/sdk-browser/src/webgl/core/frameGate.ts';
 export { createExactPagesCpu } from './cpu.ts';
-export { createExactPagesRequests, createExactPagesRequestData } from './requests.ts';
+export { createExactPagesRequests } from './requests.ts';
+export { createExactPagesRequestData } from './requestData.ts';
 export { createExactPagesResidency } from './residency.ts';
 export { DEFAULT_CLEAR_COLOR } from '../../../packages/sdk-browser/src/backend/common.ts';
 export {
