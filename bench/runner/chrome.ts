@@ -70,9 +70,7 @@ export function assertBrowserEntryPoint(entry = process.argv[1], testRun = under
  * example with it. Refused unless a proof, bench or script run is the entry point
  * (`assertBrowserEntryPoint`).
  */
-export async function launchChrome(
-  options: Omit<LaunchOptions, 'channel' | 'executablePath'> = {},
-) {
+export async function launchChrome(options: LaunchOptions = {}) {
   assertBrowserEntryPoint();
   return chromium.launch({ ...options, channel: 'chrome', executablePath: undefined });
 }
