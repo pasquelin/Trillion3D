@@ -309,19 +309,29 @@ sends only the view-to-grid matrix (`webgl/cluster/lightLists.ts`, #835).
 tile, the reference engine's froxels on the existing tiles: its opaque depth range is cut into `clusterSlices`
 (16) logarithmically spaced slices along the view axis, and the record carries the tile's nearest
 and farthest depth and one 64-bit mask per slice (`clusterMasks`, `lighting/tiles/clusterWgsl.ts`,
-#1249). Bit `b` names the `b`-th run of `ceil(n / 64)` lights of the slice the resolve walks — the
-list, its pool room past 64 lights, or every light —, so a tile of any light count is covered, with
-no atomic, no pool room and no copy of the list: the tile pass's 256 lanes settle the bits, each
-testing a light's view-axis span once. The resolve takes its pixel's slice from its own depth and
-walks, in increasing rank, only the lights its mask names; each is rejected on its sphere alone
-(`beyondRange`) before its record is read in full, exactly where `declaredLight` would have
-returned zero before any shading, shadow or page read. The walk is a subsequence of the tile list
-and every term it drops is an exact zero, so the sum is the full one, term for term. A light is
-assigned to every slice its view-axis span touches — the span is at most its radius, the axis
-being a projection —, padded by a thousandth of its distance, so no light that lights a pixel is
-ever dropped (`clusterResolve.test.ts`; on a device, `tests/browser/probes/light-tiles-plain-gpu.ts`
-decodes the pass's own grid: no light reaching a pixel missing, two thirds of the list walked). A
-tile whose pixels see the background writes full masks and walks its whole list, as before.
+#1249). Bit `b` names the `b`-th run of `2^k` lights of the slice the resolve walks — one light
+while the slice fits 64, the list, its pool room past 64 lights, or every light —, so a tile of
+any light count is covered, with no atomic, no pool room and no copy of the list: the tile pass's
+256 lanes settle the bits, each testing a light's view-axis span once. The resolve takes its
+pixel's slice from its own depth and walks, in increasing rank, only the lights its mask names;
+each is first rejected on its sphere alone, past its range, before its record is read in full —
+exactly where `declaredLight` would have returned zero before any shading, shadow or page read. The
+walk is a subsequence of the tile list and every term it drops is an exact zero, so the sum is the
+full one, term for term. A light is assigned to every slice its view-axis span touches — the span
+is at most its radius, the axis being a projection —, padded by a thousandth of its distance, so
+no light that lights a pixel is ever dropped (`clusterResolve.test.ts`; on a device,
+`tests/browser/probes/light-tiles-plain-gpu.ts` decodes the pass's own grid: no light reaching a
+pixel missing, two thirds of the list walked). A tile whose pixels see the background writes full
+masks and walks its whole list, as before.
+
+**A scene with no shadow slot resolves with no shadow code.** An unshadowed light never runs the
+shadow code, yet timed on the resolve (64 lamps, a million pixels) that code costs it 40 % of its
+evaluation — the registers it holds lower the pixels in flight. A frame no light of which holds a
+shadow slot is resolved by a program built without it (`declaredLightWgsl`,
+`lighting/direct/lightLoopWgsl.ts`; `contractVariants.ts`), the same sums bit for bit
+(`tests/browser/probes/narrow-resolve-gpu.ts`); its twin with shadow code compiles beside it. Per
+light and pixel, against develop: in range 42.5 → 27.9 ps, out of range 28.1 → 10.2 ps; a scene with
+shadows 47.1 and 19.9 ps.
 
 **A moving image samples its shadowed lights.** It weighs every light of its tile without its
 shadow (the cheap part) and shades four in full, shadow included. A light worth a sample's share of
@@ -336,7 +346,7 @@ sampled — with no shadow to save, the three weight walks would cost three time
 the still one is, bit for bit, the resolve never walking the list a pixel at a time
 (`tileShadowed`, `tests/browser/probes/sampled-resolve-gpu.ts`, #1249). 200 unshadowed lamps of
 range 4 m in a sponza-sized atrium drop from 25.5 light evaluations per covered pixel to 7.6 at
-3456 × 2234 — the tile list averages 7.8, the cluster the pixel reads 7.6
+3456 × 2234 — the tile list averages 7.8, the slice the pixel walks 7.6, of which 6.9 reach it
 (`bench/runner/lightTileSampledCount.ts`). `metric.frame(world).lightsSampled` says the image ran at a sampled rank. Declared cost: a faint grain on lit surfaces where lights of different
 colours overlap, while the camera moves (`tests/browser/renders/sampled-lighting.browser.ts`). What
 remains: a spatial denoise before the history.
