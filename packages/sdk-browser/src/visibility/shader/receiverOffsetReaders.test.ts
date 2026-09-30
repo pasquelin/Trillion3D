@@ -4,6 +4,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { receiverOffsetWgsl } from './receiverOffsetWgsl.ts';
+import {
+  FRAMEBUFFER_WGSL,
+  PIXEL_BARY_WGSL,
+  SHADE_UNI_WGSL,
+  VERTEX_NORMALS_WGSL,
+} from './pixelTriangleWgsl.ts';
 import { SHADE_SHADER } from './shadeWgsl.ts';
 import { contractLightingShader } from '../../lighting/deferred/shaders.ts';
 import { shadowDemandWgsl } from '../../webgpu/shadow/demandWgsl.ts';
@@ -27,5 +33,12 @@ test('the lighting and the shadow demand call one shared offset function and bin
     assert.doesNotMatch(text, /shadingOffset/, `${name}: no offset target read`);
   }
   assert.doesNotMatch(SHADE_SHADER, /shadingOffset|shadingPointOffset/, 'the resolve stores none');
+  // The resolve places its pixel with the very functions the offset calls: they cannot drift.
+  const shared = receiverOffsetWgsl(0);
+  for (const text of [PIXEL_BARY_WGSL, VERTEX_NORMALS_WGSL, FRAMEBUFFER_WGSL, SHADE_UNI_WGSL]) {
+    assert.ok(SHADE_SHADER.includes(text) && shared.includes(text), 'one shared placement text');
+  }
+  assert.match(SHADE_SHADER, /=pixelBary\(/, 'the resolve calls the shared barycentrics');
+  assert.match(SHADE_SHADER, /=vertexNormals\(/, 'the resolve calls the shared normals');
   assert.equal('shadingOffset' in SHADE_BINDINGS, false, 'the resolve binds no offset target');
 });

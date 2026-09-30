@@ -138,7 +138,15 @@ const scope = {
 };
 // The shipped text the readers insert, which carries the shared routines both sides call.
 const SHIPPED = receiverOffsetWgsl(0);
-const HELPERS = ['framebuffer', 'edge', 'baryWeights', 'uniteOuZero', 'shadingPointOffset'];
+const HELPERS = [
+  'framebuffer',
+  'edge',
+  'baryWeights',
+  'pixelBary',
+  'vertexNormals',
+  'uniteOuZero',
+  'shadingPointOffset',
+];
 const { receiverOffset } = shaderRun<{ receiverOffset: (pixel: V) => V }>(
   SHIPPED,
   ['receiverOffset', ...HELPERS],

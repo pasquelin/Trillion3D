@@ -2,6 +2,7 @@ import { RECEIVER_BINDINGS } from '../../visibility/shader/receiverOffsetWgsl.ts
 import { SHADE_UNIFORM_BYTES } from '../../visibility/shader/request.ts';
 import { PAGE_INFO_STRIDE } from '../../visibility/types.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { bindingLayout, bindingResource, type ComputeBinding } from '../shadow/computePass.ts';
 
 /** What the receiver offset reads (`receiverOffsetWgsl.ts`), in `RECEIVER_BINDINGS` order: the
  *  visibility buffer, the resolve's uniform, the page table and the page geometry. */
@@ -17,12 +18,8 @@ export type ReceiverResources = [
 
 /** How each receiver binding is declared: the visibility buffer's words, the uniform, then five
  *  read-only buffers. */
-export const RECEIVER_BINDING_TYPES = RECEIVER_BINDINGS.map((name) =>
-  name === 'vis'
-    ? ({ texture: 'uint' } as const)
-    : name === 'uniform'
-      ? ('uniform' as const)
-      : ('read-only-storage' as const),
+export const RECEIVER_BINDING_TYPES: readonly ComputeBinding[] = RECEIVER_BINDINGS.map((name) =>
+  name === 'vis' ? { texture: 'uint' } : name === 'uniform' ? 'uniform' : 'read-only-storage',
 );
 
 /** The receiver bindings of a layout, from `first` on. */
@@ -30,17 +27,17 @@ export const receiverLayoutEntries = (
   first: number,
   visibility: GPUShaderStageFlags,
 ): GPUBindGroupLayoutEntry[] =>
-  RECEIVER_BINDING_TYPES.map((type, i) =>
-    typeof type === 'string'
-      ? { binding: first + i, visibility, buffer: { type } }
-      : { binding: first + i, visibility, texture: { sampleType: type.texture } },
-  );
+  RECEIVER_BINDING_TYPES.map((type, i) => ({
+    binding: first + i,
+    visibility,
+    ...bindingLayout(type),
+  }));
 
 /** The receiver entries of a bind group, from `first` on. */
 export const receiverEntries = (first: number, resources: ReceiverResources): GPUBindGroupEntry[] =>
   resources.map((resource, i) => ({
     binding: first + i,
-    resource: i === 0 ? (resource as GPUTextureView) : { buffer: resource as GPUBuffer },
+    resource: bindingResource(RECEIVER_BINDING_TYPES[i], resource),
   }));
 
 const held: (GPUTextureView | GPUBuffer)[] = [];
