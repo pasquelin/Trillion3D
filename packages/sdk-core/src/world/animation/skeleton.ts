@@ -7,7 +7,6 @@ export const PALETTE_FLOATS = 12;
 
 const meshInverse = new Float64Array(16),
   joint = new Float64Array(16),
-  bind = new Float64Array(16),
   boneWorld = new Float64Array(16);
 
 /**
@@ -20,6 +19,8 @@ export class Skeleton {
   /** The nodes that are its joints, in joint order. */ readonly bones: Object3D[];
   /** Sixteen numbers a bone, column-major: the inverse of its world matrix in the bind pose. */
   readonly boneInverses: Float64Array;
+  /** Each bone's sixteen numbers of `boneInverses`, as a view made once. */
+  private readonly inverses: Float64Array[];
   constructor(bones: Object3D[], boneInverses?: ArrayLike<number> | null) {
     this.bones = bones;
     this.boneInverses = new Float64Array(bones.length * 16);
@@ -30,6 +31,7 @@ export class Skeleton {
         invertMatrix4(joint, bone.matrixWorld.elements);
         this.boneInverses.set(joint, j * 16);
       });
+    this.inverses = bones.map((_, j) => this.boneInverses.subarray(j * 16, j * 16 + 16));
   }
 
   /**
@@ -46,16 +48,15 @@ export class Skeleton {
     boneWorlds?: readonly { elements: ArrayLike<number> }[],
   ) {
     invertMatrix4(meshInverse, meshWorld);
-    this.bones.forEach((bone, j) => {
-      bind.set(this.boneInverses.subarray(j * 16, j * 16 + 16));
-      boneWorld.set((boneWorlds?.[j] ?? bone.matrixWorld).elements);
-      multiplyMatrix4(joint, boneWorld, bind);
+    for (let j = 0; j < this.bones.length; j++) {
+      boneWorld.set((boneWorlds?.[j] ?? this.bones[j].matrixWorld).elements);
+      multiplyMatrix4(joint, boneWorld, this.inverses[j]);
       multiplyMatrix4(joint, meshInverse, joint);
       const base = at + j * PALETTE_FLOATS;
       for (let row = 0; row < 3; row++)
         for (let column = 0; column < 4; column++)
           out[base + row * 4 + column] = joint[column * 4 + row];
-    });
+    }
     return out;
   }
 }
@@ -102,13 +103,19 @@ export function paletteReach(
 export function paletteStretch(palette: Float32Array, at: number, joints: number) {
   let most = 1;
   for (let j = 0; j < joints; j++) {
-    const m = at + j * PALETTE_FLOATS,
-      cell = (row: number, c: number) => Math.abs(palette[m + row * 4 + c]);
+    const m = at + j * PALETTE_FLOATS;
     let rows = 0,
       columns = 0;
     for (let k = 0; k < 3; k++) {
-      rows = Math.max(rows, cell(k, 0) + cell(k, 1) + cell(k, 2));
-      columns = Math.max(columns, cell(0, k) + cell(1, k) + cell(2, k));
+      const r = m + k * 4;
+      rows = Math.max(
+        rows,
+        Math.abs(palette[r]) + Math.abs(palette[r + 1]) + Math.abs(palette[r + 2]),
+      );
+      columns = Math.max(
+        columns,
+        Math.abs(palette[m + k]) + Math.abs(palette[m + 4 + k]) + Math.abs(palette[m + 8 + k]),
+      );
     }
     most = Math.max(most, Math.sqrt(rows * columns));
   }

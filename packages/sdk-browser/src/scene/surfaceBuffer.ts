@@ -1,4 +1,4 @@
-import { SUBSURFACE_BYTES } from './subsurface.ts';
+import { SUBSURFACE_BYTES, subsurfaceBytes } from './subsurface.ts';
 import { SHADING_OFFSET_BYTES } from '../visibility/shader/shadingPoint.ts';
 import { storageBufferCap } from '../residency/pools.ts';
 
@@ -99,8 +99,7 @@ export function createSurfaceBuffer(
   hasSubsurface = false,
 ): SurfaceBuffer {
   const allocationBytes =
-    checkSurfaceSize(device, width, height) +
-    (hasSubsurface ? width * height : 1) * SUBSURFACE_BYTES;
+    checkSurfaceSize(device, width, height) + subsurfaceBytes(width, height, hasSubsurface);
   const offsetBytes = width * height * SHADING_OFFSET_BYTES;
   if (offsetBytes > storageBufferCap(device.limits)) throw new Error('SHADING_POINT_DEVICE_LIMIT');
   const textures: GPUTexture[] = [];
