@@ -6,7 +6,7 @@ import {
   compilerPackage,
 } from '../packages/sdk-node/src/compiler/platform.mts';
 import type { Run } from './installed-package-contracts.ts';
-import type { PackResult } from './installed-package-fixture.ts';
+import { packArchive } from './installed-package-fixture.ts';
 
 /** This machine's platform package, the one an install of `trillion3d` here takes. */
 const localPlatform = `${process.platform}-${process.arch}`;
@@ -35,11 +35,7 @@ export function packPlatformPackages(options: {
     );
     if (binary && target === localPlatform)
       copyFileSync(binary, join(copy, 'bin', compilerFileName(process.platform)));
-    const parsed = JSON.parse(
-      run(pnpm, ['pack', '--json', '--pack-destination', fixture], copy),
-    ) as PackResult | PackResult[];
-    const archive = (Array.isArray(parsed) ? parsed[0] : parsed)?.filename;
-    if (!archive) throw new Error(`pnpm pack did not report the ${target} archive`);
+    const archive = packArchive(run, pnpm, copy, fixture).filename;
     const [platform, arch] = target.split('-');
     return `  ${JSON.stringify(compilerPackage(platform, arch))}: ${JSON.stringify(`file:${archive}`)}`;
   });
