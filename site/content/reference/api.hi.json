@@ -2990,8 +2990,8 @@
       "disableRatio": "लागत अनुपात जो इसे बंद करता है।",
       "enableRatio": "लागत अनुपात जो इसे फिर चालू करता है।",
       "consecutiveViolations": "बंद होने से पहले लगातार ख़राब नमूने।",
-      "memoryBudgetBytes": "मेमोरी की सीमा।",
-      "maxEvictionsPerSecond": "प्रति सेकंड हटाव की सीमा।",
+      "memoryBudgetBytes": "मेमोरी की सीमा, सीमित और कम से कम 0।",
+      "maxEvictionsPerSecond": "प्रति सेकंड हटाव की सीमा, सीमित और कम से कम 0।",
       "requireGpuTiming": "क्या GPU समय नापा जाना ज़रूरी है।"
     }
   },
