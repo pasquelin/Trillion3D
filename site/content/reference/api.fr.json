@@ -5583,6 +5583,13 @@
   "SHADOW_PAGE": {
     "summary": "Côté d’une page de l’atlas, en texels : la case d’invalidation d’une face."
   },
+  "ShadowAsks": {
+    "summary": "Entrées que l’hôte demande à l’allocateur GPU, à côté de ce que demandent les pixels (`floors`).",
+    "members": {
+      "entries": "Les entrées demandées, au plus les `count` premières.",
+      "count": "Combien d’`entries` sont remplies."
+    }
+  },
   "ShadowAtlasDigest": {
     "summary": "Ce que publie une lecture de l’atlas d’ombres : sa taille, ce qui y est écrit, son empreinte.",
     "members": {
@@ -7630,6 +7637,17 @@
   },
   "SHADOW_RECORD_FLOATS": {
     "summary": "Flottants d’un enregistrement d’ombre, celui que lit l’ombrage d’une lumière : six matrices de faces de lampe — là, les plages de profondeur d’un soleil, `zNear, zFar` chacune (`recordPack.ts`) —, puis le repère du plan du soleil — `right, zNear`, `up, zFar`, `axis`, puis l’emplacement de la plage courante —, puis l’origine de la fenêtre de chaque niveau en deux entiers, puis un en-tête `vec4f` : faces (lampe) ou niveaux (soleil), demi-champ tangent de la lampe ou niveau le plus fin du soleil, plan proche de la lampe, et première entrée de la table des pages."
+  },
+  "ShadowPoolSnapshot": {
+    "summary": "Le pool de l’allocateur GPU après l’allocation d’une image (`webgpu/shadow/allocWgsl.ts`).",
+    "members": {
+      "owner": "L’entrée que mappe chaque page physique, −1 pour une page libre.",
+      "requested": "L’image dans laquelle chaque page a été demandée en dernier.",
+      "allocated": "Pages que cette image a mappées, et entrées pour lesquelles elle n’avait pas de page.",
+      "refused": "Entrées pour lesquelles cette image n’avait pas de page.",
+      "drawn": "Pages que cette image a listées pour que le GPU les dessine (`listDraw`).",
+      "listings": "Pages que chaque image a listées depuis la graine du pool : évolue avec la liste de toute image, que sa propre empreinte soit perdue ou non."
+    }
   },
   "ShadowRequestReport": {
     "summary": "Ce que l’ombrage a lu en une image : les entrées de la table qu’il a demandées, sans ordre.",
