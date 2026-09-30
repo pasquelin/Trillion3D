@@ -36,7 +36,7 @@ const SUN_WORDS = 16;
 export const SHADE_UNIFORM_WORDS = HEADER_WORDS + SUN_WORDS;
 export const SHADE_UNIFORM_BYTES = SHADE_UNIFORM_WORDS * 4;
 /** The sun as the resolve reads it: its record's frame rows and header. */
-export const SHADE_SUN_WGSL = 'struct ShadeSun{frame:array<vec4f,3>,info:vec4f,}';
+const SHADE_SUN_WGSL = 'struct ShadeSun{frame:array<vec4f,3>,info:vec4f,}';
 /** The resolve's uniform, which the material tiles read too (`materialTilesWgsl.ts`). */
 export const SHADE_UNI_WGSL = `${SHADE_SUN_WGSL}
 struct ShadeUni{viewProj:mat4x4f,viewport:vec2f,pixelRatio:f32,mipBias:f32,pageCount:u32,mode:u32,feedback:u32,pixelScale:f32,depthRamp:vec4f,sun:ShadeSun,}`;
