@@ -10,12 +10,13 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 export function deviceAnswer(rt: WebgpuPagesRuntime) {
   const refusal = gpuDeviceLedgerOf(rt.gpu.device)?.refusal;
   if (refusal) return Promise.reject(refusal);
+  if (!deviceAnswering(rt)) return undefined;
   const answers = [
     grantPending(rt.lights.shadowGrant),
     grantPending(rt.gpu.targetGrant),
     litProgramPending(rt),
   ].filter((answer) => answer !== undefined);
-  return answers.length ? Promise.all(answers) : undefined;
+  return Promise.all(answers);
 }
 
 /** Whether `deviceAnswer` has an answer in flight, read without allocating: the held frame asks it

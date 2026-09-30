@@ -32,7 +32,8 @@ export const litPrograms = (rt: WebgpuPagesRuntime): LitPrograms => ({
  *  program can light it, its compile — never the unlit stand-in meanwhile —, else nothing. */
 export function litProgramPending(rt: WebgpuPagesRuntime) {
   const { deferred } = rt.gpu;
-  return deferred && wantsContractLighting(rt)
+  // A lit image already has its program: nothing to read (`deviceAnswering` asks every frame).
+  return deferred && !deferred.usesContract && wantsContractLighting(rt)
     ? deferred.awaited(directLightResources(rt))
     : undefined;
 }
