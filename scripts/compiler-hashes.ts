@@ -70,7 +70,9 @@ export function cacheFingerprint(cache: string, prefix: string): Record<string, 
     const text = typeof content === 'string' ? content.replaceAll(SHA, '<sha>') : content;
     const collider = colliders.has(OBJECT.exec(file)?.[1] ?? '') ? COLLIDER : '';
     const name = `${prefix}/${file.replaceAll('\\', '/').replaceAll(SHA, '<sha>')}${collider}`;
-    hashes.set(name, [...(hashes.get(name) ?? []), sha256(text)]);
+    const list = hashes.get(name) ?? [];
+    list.push(sha256(text));
+    hashes.set(name, list);
   }
   return Object.fromEntries(
     [...hashes]
