@@ -28,15 +28,19 @@ export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera, quiet: 
   const converging = rt.run.textureConverging || !!rt.feedbackAB?.force;
   if (converging) {
     quiet = temporal.replay();
-    if (state.stillPhase !== null) state.scale = imageScale(rt, true);
+    if (state.stillPhase !== null) state.scale = imageScale(rt);
   } else {
     // A moving image draws its lights from a rank of its own; a still one shades them all, and
     // so does a moving one with no history yet — nothing would average its draws.
     state.sampledRank = quiet || !state.hasHistory ? 0 : (rt.run.frame % SAMPLED_RANKS) + 1;
-    state.scale = imageScale(rt, quiet);
+    const scale = imageScale(rt);
+    // A still average is of one scale and one set of phases: the controller lowering it restarts
+    // the average (#1343).
+    if (quiet && scale !== state.scale) state.stillFrames = 0;
+    state.scale = scale;
     temporal.checkpoint(quiet);
   }
-  drawFrameAt(rt, state.scale, !quiet);
+  drawFrameAt(rt, state.scale, !converging, quiet);
   if (!quiet) state.stillFrames = 0;
   else if (state.stillFrames++ === 0) {
     state.hasHistory = false;

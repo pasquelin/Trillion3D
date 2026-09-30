@@ -47,6 +47,8 @@ interface Resolved {
   share: number;
   /** The placement tag written beside the share, 0 to 255. */
   tag: number;
+  /** The weight a still average holds, as stored (`stillWeightOut`). */
+  held: number;
   layers: number[][];
   reads: number[][];
 }
@@ -101,10 +103,11 @@ export function upscaleRun(frame: UpscaleFrame, asIs = false, filtered = false, 
     historySampler: null,
     textureLoad: (texture: (at: Vec) => unknown, at: Vec) => texture(at),
     textureSampleLevel: (texture: (uv: number[]) => number[], _: null, uv: number[]) => texture(uv),
-    TaaOut: (color: number[], [share, tag]: number[], ...layers: number[][]) => ({
+    TaaOut: (color: number[], [share, tag, held]: number[], ...layers: number[][]) => ({
       color,
       share,
       tag: Math.round(tag * 255),
+      held,
       layers,
     }),
   };
@@ -112,7 +115,7 @@ export function upscaleRun(frame: UpscaleFrame, asIs = false, filtered = false, 
     (native ? taaShader : taaUpscaleShader)(asIs, asIs, filtered),
     [
       'resolve',
-      ...(native ? [] : ['lanczos2']),
+      ...(native ? [] : ['lanczos2', 'blackmanHarris']),
       'previousUv',
       'toYcocg',
       'fromYcocg',

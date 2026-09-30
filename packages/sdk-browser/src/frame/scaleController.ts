@@ -37,8 +37,9 @@ export function createScaleController(min: number, max: number, budget: number):
   return { s: max, min, max, budget, ema: HEADROOM * budget, since: 0 };
 }
 
-/** One controller step; `gpuMs` = whole-frame GPU time of a frame drawn at the current scale. */
-export function nextScale(c: ScaleController, gpuMs: number) {
+/** One controller step; `gpuMs` = whole-frame GPU time of a frame drawn at the current scale.
+ *  `rises` false: the step may only lower the scale (a still image, #1343). */
+export function nextScale(c: ScaleController, gpuMs: number, rises = true) {
   const target = HEADROOM * c.budget;
   c.ema += FILTER * (gpuMs - c.ema);
   c.since++;
@@ -46,7 +47,7 @@ export function nextScale(c: ScaleController, gpuMs: number) {
     measured = panic ? gpuMs : c.ema;
   const wanted = Math.min(c.max, Math.max(c.min, c.s * Math.sqrt(target / measured)));
   const down = wanted < c.s,
-    up = wanted > c.s && c.ema < DEAD_BAND * target;
+    up = rises && wanted > c.s && c.ema < DEAD_BAND * target;
   if (
     (panic && down) ||
     (Math.abs(wanted - c.s) >= THRESHOLD * c.s && c.since >= PERIOD && (down || up))
@@ -66,7 +67,9 @@ const REFRESH_WINDOW = 120,
 /**
  * The display's refresh interval, measured: the shortest interval between two consecutive frames
  * over the last `REFRESH_WINDOW`, which a frame that met the display's cadence gives exactly. A
- * pause longer than `PAUSE_MS` is no frame interval. `fallback` until a frame was measured.
+ * pause longer than `PAUSE_MS` is no frame interval. `fallback` until a frame was measured, and
+ * never longer: no display refreshes slower, so a device that never met its cadence is not taken
+ * for a slow display (#1343).
  */
 export function createRefreshClock(fallback: number) {
   const intervals = new Float64Array(REFRESH_WINDOW).fill(Infinity);
@@ -78,16 +81,17 @@ export function createRefreshClock(fallback: number) {
     get interval() {
       return interval;
     },
-    /** A frame began at `now`, ms. */
+    /** A frame began at `now`, ms; returns the interval since the last. */
     tick(now: number) {
       const gap = now - last;
       last = now;
-      if (!(gap > 0 && gap < PAUSE_MS)) return;
+      if (!(gap > 0 && gap < PAUSE_MS)) return gap;
       intervals[next] = gap;
       next = (next + 1) % REFRESH_WINDOW;
       let shortest = Infinity;
       for (const value of intervals) shortest = Math.min(shortest, value);
-      interval = shortest;
+      interval = Math.min(fallback, shortest);
+      return gap;
     },
   };
 }
