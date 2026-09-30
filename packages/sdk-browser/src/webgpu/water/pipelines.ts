@@ -5,7 +5,7 @@ import { deferredLayoutEntries } from '../../lighting/deferred/setup.ts';
 import { makeFullscreenPipeline } from '../../lighting/deferred/fullscreen.ts';
 import { readOnly } from '../core/bindLayout.ts';
 import { ALPHA_BLEND, blendStagePipelines } from '../blend/stagePipelines.ts';
-import { WATER_BINDINGS, WATER_COMPOSITE_SHADER, WATER_ROUTED_SHADER } from './compositeWgsl.ts';
+import { WATER_BINDINGS, waterCompositeShader, waterRoutedShader } from './compositeWgsl.ts';
 import { displayMaskLayout, displayTargets } from '../blend/displayFilter.ts';
 import { REACTIVE_TARGET } from '../../lighting/deferred/asIsShare.ts';
 
@@ -44,7 +44,7 @@ export const createWaterSurfacePipelines = (
   );
 
 /** Layout of the composite: the deferred bounce layout — the water word, a colour, in the flags'
- *  place —, then what `WATER_COMPOSITE_SHADER` alone declares. */
+ *  place —, then what `waterCompositeShader` alone declares. */
 export function createWaterCompositeLayout(device: GPUDevice) {
   const b = WATER_BINDINGS,
     fragment = GPUShaderStage.FRAGMENT,
@@ -88,12 +88,20 @@ const COMPOSE_ENTRIES = [
  * as the forward transmission pass was — source alpha over what the frame already holds, which at a
  * water pixel is the frozen backdrop itself; a pixel with no water discards, and the target keeps
  * its value. The plain composite is compiled here; compiled on the first image that asks, the one
- * routed through the display layers (`WATER_ROUTED_SHADER`: the tint and the added value of a
+ * routed through the display layers (`waterRoutedShader`: the tint and the added value of a
  * normal layer) and the ones carrying the reactive value (`asIsShare.ts`) as a last output. A scene
  * with no share and no display layers keeps the plain one alone — no extra target, no extra pipeline.
  */
-export async function createWaterComposites(device: GPUDevice, layout: GPUBindGroupLayout) {
-  const module = await createCheckedShaderModule(device, WATER_COMPOSITE_SHADER, 'WATER_COMPOSITE');
+export async function createWaterComposites(
+  device: GPUDevice,
+  layout: GPUBindGroupLayout,
+  sunWindow?: number,
+) {
+  const module = await createCheckedShaderModule(
+    device,
+    waterCompositeShader(sunWindow),
+    'WATER_COMPOSITE',
+  );
   const layouts = [layout, reflectionLayout(device)];
   const base = await makeFullscreenPipeline(
     device,
@@ -108,7 +116,7 @@ export async function createWaterComposites(device: GPUDevice, layout: GPUBindGr
     const code = filtered
       ? (routedModule ??= device.createShaderModule({
           label: 'WATER_ROUTED',
-          code: WATER_ROUTED_SHADER,
+          code: waterRoutedShader(sunWindow),
         }))
       : module;
     const bindGroupLayouts = filtered ? [...layouts, displayMaskLayout(device)] : layouts;

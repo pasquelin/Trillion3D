@@ -24,9 +24,9 @@ export const WATER_COMPOSITE_PASS = 'Trillion3D water composite';
  * when the shadow atlas or the probe grid arrive: `bind` writes their identities and rebuilds only
  * when one moved, so a still frame builds and allocates nothing.
  */
-export async function createWaterFrame(device: GPUDevice) {
+export async function createWaterFrame(device: GPUDevice, sunWindow?: number) {
   const layout = createWaterCompositeLayout(device);
-  const composites = await createWaterComposites(device, layout);
+  const composites = await createWaterComposites(device, layout, sunWindow);
   const freeze = await createWaterFreeze(device);
   const identity = createWebgpuBindIdentity();
   let group: GPUBindGroup | undefined, surfaces: SurfaceBuffer | undefined;
