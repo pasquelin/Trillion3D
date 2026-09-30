@@ -4,6 +4,7 @@ import { bitmapFixture } from '../../../world/api/bitmap.fixture.ts';
 import { createExplorerMaterialApi } from '../../../world/api/materialApi.ts';
 import { GraphTexture } from '../../../host/graph/texture.ts';
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
+import { tileBytes } from '../../../texture/tiles.ts';
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
 import { camera, quadScene } from '../testScenes.fixture.ts';
 import { webgpuPagesBackend } from '../pages.ts';
@@ -70,7 +71,8 @@ test('a bitmap after open uses the same source, texel extent and upload flags as
     runtime.api.dropMaterial(made.id);
     assert.equal(runtime.buffers.length, allocated, 'drop allocates no GPU buffers');
     assert.equal(runtime.api.materialMapBytes(), 0);
-    assert.equal(runtime.backend.metrics().textureResidentBytes, baseline);
+    // The lane the first map opened keeps the white fill, one tile (#1345).
+    assert.equal(runtime.backend.metrics().textureResidentBytes, baseline + tileBytes(4));
     const size = () =>
       runtime.buffers.filter((b) => b.label === 'Trillion3D texture pages color').at(-1)!.size;
     const emptySize = size();
@@ -98,7 +100,8 @@ test('a failed bitmap upload releases its pinned place and a later admission suc
     };
     await assert.rejects(api.createMaterial({ map: bitmap() }), /bad bitmap/);
     assert.equal(api.materialMapBytes(), 0);
-    assert.equal(backend.metrics().textureResidentBytes, before);
+    // Its place released; the lane it opened keeps the white fill, one tile (#1345).
+    assert.equal(backend.metrics().textureResidentBytes, before + tileBytes(4));
     device.queue.copyExternalImageToTexture = copy;
     const made = await api.createMaterial({ map: bitmap() });
     assert.equal(api.assignMaterial('0/0', made.id), true);
