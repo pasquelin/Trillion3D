@@ -88,16 +88,22 @@ ${contractSurface(
  * probe irradiance multiplied by the pixel's diffuse albedo, and what a mirror reflects (#31),
  * added to the direct. It is a separate program, not a branch, so a session without bounce runs
  * exactly the previous shader, bit for bit — and so is the `narrow` one, the resolve of a scene
- * of at most `TILE_LIGHTS` lights (`directLightingWgsl`, #849).
+ * of at most `TILE_LIGHTS` lights (`directLightingWgsl`, #849), and the one without `shadowed`,
+ * of a scene no light of which holds a shadow slot (#1249).
  */
-export const contractLightingShader = (bounce: boolean, narrow: boolean, pages = SUN_WINDOW) => `
+export const contractLightingShader = (
+  bounce: boolean,
+  narrow: boolean,
+  pages = SUN_WINDOW,
+  shadowed = true,
+) => `
 ${VIEW_WGSL}
 ${surfaceBindingsWgsl()}
 @group(0) @binding(${SUBSURFACE_BINDING}) var subsurfaceColor:texture_2d<f32>;
 @group(0) @binding(${SHADING_OFFSET_BINDING}) var<storage,read> shadingOffset:array<f32>;
 ${CONTRACT_BINDINGS_WGSL}
 ${STANDARD_LIGHTING_WGSL}
-${directLightingWgsl(narrow, pages)}
+${directLightingWgsl(narrow, pages, shadowed)}
 ${bounce ? BOUNCE_SURFACE_WGSL : contractSurface('')}`;
 export const DIRECT_LIGHTING_SHADER = contractLightingShader(false, false);
 export const BOUNCE_LIGHTING_SHADER = contractLightingShader(true, false);

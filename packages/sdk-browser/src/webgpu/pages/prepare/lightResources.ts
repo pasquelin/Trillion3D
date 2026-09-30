@@ -163,6 +163,12 @@ export function compilingContract(rt: WebgpuPagesRuntime) {
 
 const contractResources: DirectLightResources = {};
 
+/** Whether a light of the store holds a shadow slot, as the shaders read it (`params.y > -1`). */
+function sliced(store: WebgpuPagesRuntime['lights']['store']) {
+  for (let slot = 0; slot < store.count; slot++) if (store.sliceOf(slot) > -1) return true;
+  return false;
+}
+
 /**
  * Contract resources the deferred pass binds, or nothing when they do not exist. Each is returned as
  * it is held elsewhere, never copied or rebuilt: the pass compares what it is given to what it has
@@ -176,6 +182,8 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
   contractResources.tiles = active ? lights.tiles?.buffer : undefined;
   // The narrow resolve reads the narrow pass's lists: no tile past its list, no pool (#849).
   contractResources.narrow = active && !!lights.tiles && !lights.tiles.wide;
+  // No light holds a shadow slot this frame: the resolve with no shadow code (#1249).
+  contractResources.unshadowed = active && !sliced(lights.store);
   contractResources.slices = active ? lights.shadows?.dataBuffer : undefined;
   contractResources.requests = active ? lights.pageRequests?.buffer : undefined;
   contractResources.atlas = active ? lights.shadows?.view : undefined;
