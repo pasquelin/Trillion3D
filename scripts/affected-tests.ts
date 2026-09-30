@@ -15,8 +15,9 @@ export const AGGREGATOR_IMPORTS = 15;
 const barrel =
   /(?:^|\/)index\.ts$|^packages\/sdk\/[^/]+\.m?ts$|^packages\/sdk\/(?:browser|common)\//;
 
-/** How far a change travels through a file: `barrel` (an `index.ts` or the public facade) stops it,
- *  `aggregator` passes it only from a changed file it imports itself, `module` always passes it. */
+/** How far a change travels through a file: `barrel` (an `index.ts` or the public facade that only
+ *  re-exports) stops it, `aggregator` passes it only from a changed file it imports itself,
+ *  `module` always passes it. */
 type Role = 'barrel' | 'aggregator' | 'module';
 
 /** One source file of the graph: the files it reads values from, and its role. */
@@ -74,11 +75,14 @@ function resolver(facts: Facts, known: (file: string) => boolean) {
       modules: targets(importer, specifier),
     }));
     const modules = new Set(imports.flatMap(({ modules }) => modules));
-    const role: Role = barrel.test(importer)
-      ? 'barrel'
-      : !isUnitTest(importer) && modules.size >= AGGREGATOR_IMPORTS
-        ? 'aggregator'
-        : 'module';
+    // A barrel that imports values defines names of its own from them: a module, whose importers
+    // a change of what it imports reaches.
+    const role: Role =
+      barrel.test(importer) && !imports.length
+        ? 'barrel'
+        : !isUnitTest(importer) && modules.size >= AGGREGATOR_IMPORTS
+          ? 'aggregator'
+          : 'module';
     const read = imports.flatMap(({ names, modules }) =>
       modules.flatMap((target) =>
         names === '*'

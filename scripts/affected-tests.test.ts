@@ -153,3 +153,17 @@ test('the tests of the domain folder of a changed file run, whatever they import
     ['packages/sdk-browser/src/webgpu/shadow/atlas/atlas.test.ts'],
   );
 });
+
+test('a barrel that defines names from what it imports passes a change on to its importers', () => {
+  const files = new Map([
+    [
+      'packages/a/src/x/y/index.ts',
+      "import { M } from './m.ts';\nexport const make = () => new M();",
+    ],
+    ['packages/a/src/x/y/m.ts', 'export class M {}'],
+    ['packages/b/src/make.test.ts', "import { make } from '../../a/src/x/y/index.ts';"],
+  ]);
+  assert.deepEqual(relatedTests(files, new Set(['packages/a/src/x/y/m.ts'])), [
+    'packages/b/src/make.test.ts',
+  ]);
+});
