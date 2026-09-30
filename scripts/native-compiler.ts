@@ -34,6 +34,8 @@ export interface FullCompile {
   ramMb?: number;
   simplification?: 'none' | 'qem-endpoints';
   stdio?: StdioOptions;
+  /** The compiler to run: this checkout's by default (`nativeCompiler`). */
+  executable?: string;
 }
 
 /** Compiles one full cache with the native compiler; throws when it cannot start or fails. */
@@ -46,9 +48,10 @@ export function compileFullCache({
   ramMb = 256,
   simplification = 'none',
   stdio = 'inherit',
+  executable = nativeCompiler(),
 }: FullCompile) {
   const result = spawnSync(
-    nativeCompiler(),
+    executable,
     [
       source,
       cache,
