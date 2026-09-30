@@ -1,4 +1,5 @@
 import { surfaceOpacity } from '../../page/surface.ts';
+import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
 import { writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts';
 import { SURFACE_MODEL, shownAsIs } from '../../scene/surfaceModel.ts';
 import { writeDepthRamp } from '../../camera/depthConvention.ts';
@@ -90,7 +91,7 @@ export function bindClusterMaterial(
     Math.min(1, Math.max(0, mat.anisotropy ?? 0)),
     mat.anisotropyRotation ?? 0,
     Math.min(1, Math.max(0, mat.clearcoat ?? 0)),
-    Math.min(1, Math.max(0.0525, mat.clearcoatRoughness ?? 0)),
+    Math.min(1, Math.max(Number(ROUGHNESS_FLOOR), mat.clearcoatRoughness ?? 0)),
   );
   uniforms.f3(53, 'subsurfaceFactor', mat.subsurfaceColor ?? [0, 0, 0]);
   uniforms.i1(56, 'subsurfaceChannel', mat.subsurfaceMap?.channel ?? 0);

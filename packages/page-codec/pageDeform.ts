@@ -7,6 +7,9 @@
 import { bitsFor, type Packer, type QuantizedGrid } from './pageGrids.ts';
 import type { PageAttribute, PageAttributes } from './pageAttributes.ts';
 
+/** Header words of one morph target: its first stream, then its position and normal records. */
+export const MORPH_WORDS = 9;
+
 /** A morph target handed to the encoder: its displacements per source vertex. */
 export interface PageTarget {
   POSITION: PageAttribute;
@@ -18,7 +21,6 @@ export function deformCells(
   attributes: PageAttributes,
   targets: readonly PageTarget[],
   original: readonly number[],
-  _positionExponent: number,
 ) {
   const fields = original.map(() => [] as number[]);
   const ranks = [
@@ -53,7 +55,11 @@ export function deformCells(
         base = Math.min(base, joint);
         top = Math.max(top, joint);
       }
-    skin = { base, bits: bitsFor(top - base), influences: width };
+    const bits = bitsFor(top - base);
+    // The reader bounds every field the width allows, `base + 2^bits - 1`, to 65,535: a base that
+    // high comes down, the width unchanged since `top` stays within it.
+    base = Math.min(base, 65536 - 2 ** bits);
+    skin = { base, bits, influences: width };
     original.forEach((v, i) => {
       const own = sets.flatMap(({ weights }) =>
         Array.from({ length: weights.itemSize }, (_, j) => weights.array[v * weights.itemSize + j]),
@@ -66,19 +72,19 @@ export function deformCells(
     });
   }
   const morphs: { position: QuantizedGrid; normal: QuantizedGrid; start: number }[] = [];
-  for (const target of targets) {
-    const gather = (attribute: PageAttribute | undefined) =>
-      original.flatMap((v) => [0, 1, 2].map((c) => (attribute ? attribute.array[v * 3 + c] : 0)));
-    const raw = (values: number[]): QuantizedGrid => {
-      if (values.some((v) => !Number.isFinite(Math.fround(v))))
-        throw new Error('PAGE_ATTRIBUTE_NONFINITE');
-      return {
-        min: [0, 0, 0],
-        exponent: 0,
-        bits: [32, 32, 32],
-        cells: Array.from(new Uint32Array(new Float32Array(values).buffer)),
-      };
+  const gather = (attribute: PageAttribute | undefined) =>
+    original.flatMap((v) => [0, 1, 2].map((c) => (attribute ? attribute.array[v * 3 + c] : 0)));
+  const raw = (values: number[]): QuantizedGrid => {
+    if (values.some((v) => !Number.isFinite(Math.fround(v))))
+      throw new Error('PAGE_ATTRIBUTE_NONFINITE');
+    return {
+      min: [0, 0, 0],
+      exponent: 0,
+      bits: [32, 32, 32],
+      cells: Array.from(new Uint32Array(new Float32Array(values).buffer)),
     };
+  };
+  for (const target of targets) {
     const position = raw(gather(target.POSITION)),
       normal = raw(gather(target.NORMAL));
     original.forEach((_, i) =>
@@ -122,12 +128,13 @@ export function deformHeader(
   head: DataView,
   deform: ReturnType<typeof deformCells>,
   record: (word: number, grid: QuantizedGrid) => void,
+  headerWords: number,
 ) {
   const skin = deform.skin ?? { bits: 0, base: 0, influences: 0 };
   head.setUint32(92, (skin.bits | (deform.morphs.length << 6) | (skin.base << 14)) >>> 0, true);
   head.setUint32(96, skin.influences, true);
   deform.morphs.forEach(({ start, position, normal }, t) => {
-    const at = 25 + t * 9;
+    const at = headerWords + t * MORPH_WORDS;
     head.setUint32(at * 4, start, true);
     record(at + 1, position);
     record(at + 5, normal);

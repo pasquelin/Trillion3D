@@ -1,3 +1,4 @@
+import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
 import { PHYSICAL_MAPS_GLSL } from './physicalMapsShader.ts';
 
 /** Anisotropic GGX and a dielectric clear coat, from the Khronos material extension
@@ -15,7 +16,7 @@ void physicalFrame(vec3 N){
   if(dot(direction,direction)>0.0)physicalRead.y+=atan(direction.y,direction.x);
  }
  if(physicalMapInfo[1].x>0)physicalRead.z*=physicalMap(1).r;
- if(physicalMapInfo[2].x>0)physicalRead.w=clamp(physical.w*physicalMap(2).g,0.0525,1.0);
+ if(physicalMapInfo[2].x>0)physicalRead.w=clamp(physical.w*physicalMap(2).g,${ROUGHNESS_FLOOR},1.0);
  if(physicalMapInfo[3].x>0){
   vec2 uv=mapUv(physicalMapUv[3],sourceUv(physicalMapChannels.w));
   vec3 mapped=physicalMap(3).xyz*2.0-1.0;mapped.xy*=coatNormalScale;

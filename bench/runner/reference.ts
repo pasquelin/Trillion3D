@@ -12,7 +12,7 @@ import type { Page } from 'playwright';
 import { encodePng } from '../../packages/sdk-node/src/cutout/png.mts';
 import { sha256 } from '../../packages/sdk-node/src/compiler/provenance.mts';
 import { startServer, type Capture } from '../../tests/kit/server/staticServer.ts';
-import { launchChrome } from './chrome.ts';
+import { onFreshPage } from './chrome.ts';
 import { benchLights } from './lamps.ts';
 import * as options from './options.ts';
 import type * as ReferencePage from './referencePage.ts';
@@ -47,19 +47,14 @@ async function referenceScene(argv: string[], scene: string, dir: string, images
   const captures = new Map<string, Capture>();
   const mounts = options.resolveMounts(ROOT, sides, null);
   const { server, port } = await startServer({ port: settings.port, mounts, captures });
-  const onPage = async <T>(run: (page: Page) => Promise<T>) => {
-    const browser = await launchChrome({ headless: !settings.visible, args: side.engine.flags });
-    const page = await browser.newPage({
-      viewport: { width: settings.width, height: settings.height },
-      deviceScaleFactor: settings.dpr,
-    });
-    await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'load' });
-    try {
-      return await run(page);
-    } finally {
-      await browser.close();
-    }
+  const view = {
+    url: `http://127.0.0.1:${port}/`,
+    width: settings.width,
+    height: settings.height,
+    dpr: settings.dpr,
   };
+  const onPage = <T>(run: (page: Page) => Promise<T>) =>
+    onFreshPage({ headless: !settings.visible, args: side.engine.flags }, view, run);
   // The engine commit that drew them: the last one to change `packages/` in the tree drawn from,
   // the working tree or the commit `--after` named (`git <sha>` in `dists.ts`).
   const tree = /^git ([0-9a-f]+)/.exec(side.from)?.[1] ?? 'HEAD';

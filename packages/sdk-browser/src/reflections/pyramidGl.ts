@@ -1,4 +1,4 @@
-import { LIGHT_LIST_UNIT } from '../webgl/cluster/lightTexture.ts';
+import { PHYSICAL_MAP_UNIT } from '../webgl/cluster/physicalMaps.ts';
 import { RADIANCE_REDUCTION_GLSL } from '../texture/radianceReduction.ts';
 import { levelSize, mipLevelCountFor } from '../texture/tiles.ts';
 import {
@@ -8,7 +8,10 @@ import {
 } from '../webgl/core/fullscreenPass.ts';
 import { createWebglProgram } from '../webgl/core/program.ts';
 
-export const REFLECTION_BOUNDS_UNIT = LIGHT_LIST_UNIT + 1;
+/** Past the cluster program's units 0–15: 13 and 14 are the vertex stage's deformation units
+ * (`deformation.ts`), and a usampler may not share a unit with their samplers. WebGL2 guarantees
+ * 32 combined units. */
+export const REFLECTION_BOUNDS_UNIT = PHYSICAL_MAP_UNIT + 1;
 
 /** RG32UI preserves the exact depth bits without requiring float render targets.
  * Reduction reads only one accessible source mip, excluding the attached output mip. */
@@ -26,10 +29,8 @@ export class WebglReflectionPyramid {
     }
   >();
   private gl: WebGL2RenderingContext;
-  private unit: number;
-  constructor(gl: WebGL2RenderingContext, unit: number) {
+  constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
-    this.unit = unit;
   }
   private program(rule: 'radiance' | 'depth' | 'bounds') {
     let held = this.programs.get(rule);
@@ -79,7 +80,7 @@ void main(){color=${bounds ? 'floatBitsToUint(radianceReduction(ivec2(gl_FragCoo
       mask: gl.getParameter(gl.COLOR_WRITEMASK) as boolean[],
       toggles: FULLSCREEN_DISABLED.map((name) => gl.isEnabled(gl[name])),
     };
-    gl.activeTexture(gl.TEXTURE0 + this.unit);
+    gl.activeTexture(gl.TEXTURE0 + REFLECTION_BOUNDS_UNIT);
     if (!this.bounds || this.size[0] !== width || this.size[1] !== height) {
       if (this.bounds) gl.deleteTexture(this.bounds);
       this.bounds = gl.createTexture();
@@ -117,7 +118,7 @@ void main(){color=${bounds ? 'floatBitsToUint(radianceReduction(ivec2(gl_FragCoo
             outputLevel,
           );
           gl.useProgram(built.program);
-          gl.uniform1i(built.source, this.unit);
+          gl.uniform1i(built.source, REFLECTION_BOUNDS_UNIT);
           gl.uniform4i(built.extent, sw, sh, width, height);
           gl.viewport(0, 0, w, h);
           gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -140,7 +141,7 @@ void main(){color=${bounds ? 'floatBitsToUint(radianceReduction(ivec2(gl_FragCoo
     this.bind();
   }
   bind() {
-    this.gl.activeTexture(this.gl.TEXTURE0 + this.unit);
+    this.gl.activeTexture(this.gl.TEXTURE0 + REFLECTION_BOUNDS_UNIT);
     this.gl.bindTexture(this.gl.TEXTURE_2D, this.bounds);
   }
   dispose() {
