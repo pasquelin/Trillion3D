@@ -180,11 +180,26 @@ test('verbose adds the info codes and every occurrence under a single line per c
       phase: 'primitive',
       mesh,
       primitive: 0,
-      warnings: [{ code: 'DAG_FLAT', roots: mesh, pages: 9, groups: {}, rootTriangles: 0 }],
+      warnings: [
+        {
+          code: 'DAG_FLAT',
+          roots: mesh,
+          pages: 9,
+          groups: {},
+          rootTriangles: 0,
+          cause: 'seam-locked',
+          seamVertices: 0,
+          lockedVertices: 0,
+          uvIslands: 0,
+        },
+      ],
     });
   progress.event({ event: 'complete', job: 'job', ratio: 1, pointer: { primitives: 2 } });
   const text = out.text();
   assert.equal(text.match(/ DAG_FLAT ×/g)?.length, 1, text);
-  assert.match(text, /\n {4}DAG_FLAT mesh 3\/0: 3 roots of 9 pages\n {4}DAG_FLAT mesh 4\/0: /);
+  assert.match(
+    text,
+    /\n {4}DAG_FLAT mesh 3\/0: 3 roots of 9 pages \(cause seam-locked\)\n {4}DAG_FLAT mesh 4\/0: /,
+  );
   assert.match(text, /ℹ yard T3D-I\d{3} node-hidden ×1: /);
 });
