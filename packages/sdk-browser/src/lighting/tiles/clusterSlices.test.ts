@@ -87,5 +87,8 @@ test('the grid is settled in the record by the pass lanes, with no atomic, pool 
   // The masks live in the tile record: the pass reserves nothing in the pool and adds no atomic.
   assert.doesNotMatch(clusterPassWgsl, /atomicAdd|atomicOr|atomicStore|pool\./);
   // The list and pool writes land before the lanes read the walked slice back.
-  assert.match(clusterPassWgsl, /fn clusterMasks\(base:u32,lane:u32,count:u32\)\{\s*(\/\/[^\n]*\n\s*)*storageBarrier\(\);/);
+  assert.match(
+    clusterPassWgsl,
+    /fn clusterMasks\(base:u32,lane:u32,count:u32\)\{\s*(\/\/[^\n]*\n\s*)*storageBarrier\(\);/,
+  );
 });
