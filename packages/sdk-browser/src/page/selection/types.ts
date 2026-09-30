@@ -105,6 +105,10 @@ export type ClusterRoot<T> = {
    *  its packed rank, and its root is the one the layout ranked here. Posted by the layout, read
    *  by the cut (`page/cut/take.ts`) to publish the instances as packed ranks. */
   packedBase?: number;
+  /** Compiled mesh number of its primitive (`Primitive.mesh`), the key the compiler bakes each
+   *  `impostors` entry under: the runtime impostor switch looks the mesh up by exactly this number
+   *  (#1239), never through a table of its own. */
+  mesh?: number;
   /** `bounds`: per-node bounds derived from the nodes and the pages, once at prepare time.
    *  `links`: parent of each node and leaf node of each cluster, the same shared prepare. */
   culling?: {
