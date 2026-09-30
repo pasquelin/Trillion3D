@@ -1,5 +1,6 @@
 // The WGSL built-ins and operators `shaderRun` (`shaderRun.fixture.ts`) runs a shader with, in
 // JavaScript double precision.
+import { cross } from '../../../sdk-core/src/math/primitives/vectorTuple.ts';
 
 /** A vector: its components. A boolean vector holds booleans. */
 export type Vec = Array<number | boolean>;
@@ -93,14 +94,6 @@ export const builtins = {
   atomicMax: (p: Ref, value: number) => swap(p, Math.max(p.get(), value)),
   atomicLoad: (p: Ref) => p.get(),
   atomicStore: (p: Ref, value: number) => void p.set(value),
-  atomicOr: (p: Ref, value: number) => swap(p, (p.get() | value) >>> 0),
-  atomicCompareExchangeWeak: (p: Ref, compare: number, value: number) => {
-    const old = p.get();
-    if (old === compare) p.set(value);
-    return { old_value: old, exchanged: old === compare };
-  },
-  /** A runtime-sized array's length, through the pointer `&array` gives. */
-  arrayLength: (p: { get: () => unknown }) => (p.get() as ArrayLike<unknown>).length,
   vec2f: vector(2, float),
   vec3f: vector(3, float),
   vec4f: vector(4, float),
@@ -140,5 +133,7 @@ export const builtins = {
     const d = 2 * vec(i).reduce((sum, x, k) => sum + x * vec(normal)[k], 0);
     return vec(i).map((x, k) => x - d * vec(normal)[k]);
   },
+  cross: (a: Value, b: Value) =>
+    cross(vec(a) as Parameters<typeof cross>[0], vec(b) as Parameters<typeof cross>[1]),
   normalize: (v: Value) => vec(v).map((x) => x / Math.hypot(...vec(v))),
 };
