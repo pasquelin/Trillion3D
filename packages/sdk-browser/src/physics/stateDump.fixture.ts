@@ -44,9 +44,8 @@ function sortedEvents(words: Uint32Array) {
  * `motion` proves the poses, the soft words and the event set equal `develop`'s, not its event
  * order: the canonical order of the records the threads merge is the accepted route (boss's yes,
  * 29 Sept.), Jolt's own callback order being unreachable through the public API (#934). Two modules
- * that simulate the scene alike
- * give the same `motion`; `full` also holds the written-back vertices bit for bit, which a change
- * of their rounding alone moves (#975).
+ * that simulate the scene alike give the same `motion`; `full` also holds the written-back vertices
+ * bit for bit, which a change of their rounding alone moves (#975).
  */
 export function stateDump(
   jolt: Pick<JoltModule, 'step' | 'poses' | 'events' | 'soft'>,
