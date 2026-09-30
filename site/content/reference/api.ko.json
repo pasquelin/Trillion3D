@@ -2968,8 +2968,8 @@
       "disableRatio": "그것을 끄게 하는 비용 비율.",
       "enableRatio": "그것을 다시 켜게 하는 비용 비율.",
       "consecutiveViolations": "끄기 전의 연속된 나쁜 샘플 수.",
-      "memoryBudgetBytes": "메모리 상한.",
-      "maxEvictionsPerSecond": "초당 제거 상한.",
+      "memoryBudgetBytes": "메모리 상한, 유한하며 0 이상.",
+      "maxEvictionsPerSecond": "초당 제거 상한, 유한하며 0 이상.",
       "requireGpuTiming": "GPU 시간이 반드시 측정되어야 하는지 여부."
     }
   },

@@ -5298,8 +5298,8 @@
       "disableRatio": "Rapport de coût qui l’éteint.",
       "enableRatio": "Rapport de coût qui le rallume.",
       "consecutiveViolations": "Mauvaises mesures de suite avant d’éteindre.",
-      "memoryBudgetBytes": "Plafond de mémoire.",
-      "maxEvictionsPerSecond": "Plafond d’évictions par seconde.",
+      "memoryBudgetBytes": "Plafond de mémoire, fini et au moins 0.",
+      "maxEvictionsPerSecond": "Plafond d’évictions par seconde, fini et au moins 0.",
       "requireGpuTiming": "Si le temps GPU doit être mesuré."
     }
   },
