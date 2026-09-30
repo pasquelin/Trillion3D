@@ -184,7 +184,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       disposed = true;
       for (const part of [controls, physics, runtime]) part.dispose();
       pools.pageCache.clear();
-      diagnostic.notices.close();
+      diagnostic.close();
       frames.clear();
       device.dispose();
       releaseCanvas();

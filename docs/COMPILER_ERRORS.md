@@ -2,10 +2,11 @@
 
 <!-- Generated from packages/sdk-node/src/messages/messages.json by scripts/message-pages.ts: edit the catalogue, then run `pnpm run generate:messages`. -->
 
-Every message of the compiler and of its Node adapter has a stable public code, one sentence,
-its cause and the action to take, each on its own page. `T3D-Exxx` is an error: the job
-publishes nothing. `T3D-Wxxx` is a warning: always told, it never stops a compile that can
-succeed (`trillion3d-compile --strict` fails on it). `T3D-Ixxx` is an info, told on request
+Every message of the compiler, of its Node adapter and of the browser runtime has a stable
+public code, one sentence, its cause and the action to take, each on its own page.
+`T3D-Exxx` is an error: the job, or in the browser what needed it, goes no further.
+`T3D-Wxxx` is a warning: always told, it never stops a compile that can succeed
+(`trillion3d-compile --strict` fails on it). `T3D-Ixxx` is an info, told on request
 (`--verbose`). The events and the cache keep writing the symbolic name as `code`; the
 catalogue maps it to its public code. Exit codes and message prefixes:
 [COMPILER.md](COMPILER.md#exit-codes-and-error-codes).
@@ -380,3 +381,9 @@ catalogue maps it to its public code. Exit codes and message prefixes:
 | [T3D-E087](messages/T3D-E087.md) | `STRICT_WARNINGS` | error | The compile succeeded with warnings, which `--strict` turns into a failure. |
 | [T3D-E088](messages/T3D-E088.md) | `CUTOUT_SHEET_INVALID` | error | The cutout answer sheet is not one this version reads. |
 | [T3D-E089](messages/T3D-E089.md) | `PNG_UNSUPPORTED` | error | A PNG image is not a whole 8-bit RGBA, non-interlaced file. |
+
+## Browser runtime
+
+| Code | Name | Level | Message |
+| --- | --- | --- | --- |
+| [T3D-E090](messages/T3D-E090.md) | `FAMILY_LOAD_FAILED` | error | An optional family of the browser engine did not load. |
