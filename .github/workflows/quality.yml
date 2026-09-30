@@ -23,6 +23,33 @@ permissions:
   contents: read
 
 jobs:
+  # Whether the pull request changes anything but documentation, site images or translations
+  # (`scripts/code-change.ts`): when it does not, the code jobs below are skipped and `validate`
+  # still reports. The merge commit's first parent is the base branch, so two commits are enough.
+  # A push always runs every job: `develop`'s run is the record that the branch is green.
+  changes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.paths.outputs.code }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: package.json
+      - id: paths
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" = pull_request ]; then
+            git diff --name-only HEAD^1 HEAD | node scripts/code-change.ts >> "$GITHUB_OUTPUT"
+          else
+            echo code=true >> "$GITHUB_OUTPUT"
+          fi
+          cat "$GITHUB_OUTPUT"
+
   # The gates that read the sources alone, and nothing this workflow builds. They answer in under a
   # minute, which is when a formatting or a lint mistake should be reported.
   quick:
@@ -39,6 +66,8 @@ jobs:
 
   # The TypeScript build and the gates that read its products.
   typescript:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -49,6 +78,8 @@ jobs:
   # Clippy and the Rust tests, beside the unit shards. The Rust tests read the scene caches the
   # release compiler cooks, so this job builds both too (`scripts/validate-steps.ts`).
   native:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -88,6 +119,8 @@ jobs:
   # The unit suite, split into shards of the same file list (`node --test --test-shard`); it drives
   # the compiled compiler and reads `dist/`, so each shard has both (`scripts/validate-steps.ts`).
   unit:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
@@ -119,16 +152,19 @@ jobs:
           TRILLION3D_TEST_SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
 
   # The one required check of `.github/ruleset.json`: it stays a single stable name whatever the
-  # jobs above are split into. A group that failed, was cancelled or never ran fails it.
+  # jobs above are split into. A group that failed, was cancelled or never ran fails it; a code
+  # group may be skipped only when `changes` found a documentation-only change.
   validate:
-    needs: [quick, typescript, native, unit]
+    needs: [changes, quick, typescript, native, unit]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Every group green
+      - name: Every group green, the code groups skipped only on a documentation-only change
         env:
           RESULTS: ${{ toJSON(needs) }}
+          CODE: ${{ needs.changes.outputs.code }}
         run: |
           echo "$RESULTS"
-          echo "$RESULTS" | jq -e 'all(.[]; .result == "success")'
+          echo "$RESULTS" | jq -e --arg code "$CODE" \
+            'all(.[]; .result == "success" or ($code == "false" and .result == "skipped"))'

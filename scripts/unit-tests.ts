@@ -17,3 +17,15 @@ export function movesInventory(file: string): boolean {
 export function shardFlags(env: NodeJS.ProcessEnv): string[] {
   return env.TRILLION3D_TEST_SHARD ? [`--test-shard=${env.TRILLION3D_TEST_SHARD}`] : [];
 }
+
+/** The test processes a local run starts at once, `TRILLION3D_TEST_CONCURRENCY` overriding: `node`
+ *  would start one per core but one, and several agents checking at once would stall the machine. */
+export const LOCAL_TEST_CONCURRENCY = 2;
+
+/** The `node --test` flags of a run under `env`: its shard, and the concurrency cap of a local run.
+ *  A CI run, or any sharded one, keeps `node`'s full parallelism. */
+export function testRunFlags(env: NodeJS.ProcessEnv): string[] {
+  if (env.CI || env.TRILLION3D_TEST_SHARD) return shardFlags(env);
+  const cap = env.TRILLION3D_TEST_CONCURRENCY || String(LOCAL_TEST_CONCURRENCY);
+  return [`--test-concurrency=${cap}`];
+}
