@@ -1,4 +1,3 @@
-import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
 import { computePass } from './computePass.ts';
 import { allocationWgsl } from './allocWgsl.ts';
 import { WORDS_GROUP, shadowWordsWgsl } from './wordsWgsl.ts';
@@ -100,7 +99,7 @@ function encodeShadowFloors(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) 
     buffers = pageRequests?.allocation;
   if (!allocation || !buffers || !shadows?.texture) return undefined;
   if (!buffers.seeded) {
-    buffers.seed(plan, shadows.dataBuffer, SHADOW_TABLE_OFFSET);
+    buffers.seed(plan, shadows.dataBuffer);
     plan.gpu.set(true, run.frame);
   }
   // The records it decodes entries with are this frame's, as every write lands before the pass.

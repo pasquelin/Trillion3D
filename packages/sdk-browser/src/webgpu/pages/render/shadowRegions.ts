@@ -15,6 +15,7 @@ import { staticLayerGranted } from '../../shadow/poolSize.ts';
 import { noteShadowPressure } from '../../shadow/memoryGrant.ts';
 
 import { shadowViewpointOf } from './shadowViewpoint.ts';
+import { growShadowTable } from '../../shadow/shadowTableGrowth.ts';
 
 /**
  * Plans this image's shadow pages — every stale one the image reads — and writes every light's
@@ -58,8 +59,8 @@ export function planShadowRegions(
   ensureStaticLayer(rt);
   redrawShortPages(rt, frame, nowMs, residencyMoved);
   const count = plan.plan(store, view, box.min, box.max, frame, nowMs);
-  // The GPU table reaches every slice the plan claimed, before any of this frame's passes binds it.
-  shadows.holdTable(plan.table.heldEntries);
+  // A light whose slice the GPU table does not hold yet waits for it to grow.
+  growShadowTable(rt);
   lights.shadowSlots = writeShadowRecords(lights);
   lights.shadowsUpdated = plan.counts.lights;
   return count;

@@ -16,6 +16,11 @@ export function shadowTableHostBytes(poolPages: number, entries = ENTRIES) {
 const QUEUED = 1,
   WITHDRAWN = 2;
 
+/** Words a table holding `held` grows to for `wanted`: twice as many, or `wanted` if more, never
+ *  past `most` — the host's arrays and the GPU's buffer alike (`gpu/shadow/shadowData.ts`). */
+export const grownShadowEntries = (held: number, wanted: number, most: number) =>
+  Math.min(most, Math.max(wanted, 2 * held));
+
 /**
  * THE PAGE TABLE, host side: one word per virtual page of every shadow light — the physical page
  * it maps to and whether that page's draw has landed — and the range each light holds in it.
@@ -31,13 +36,14 @@ export function createShadowTable(poolPages: number, pages = SUN_WINDOW) {
     entries = shadowTableEntries(pages);
   /** Words rewritten in one frame before the upload falls back to the whole table. */
   const changedCap = poolPages * 4;
-  const words = new Uint32Array(entries);
+  let words = new Uint32Array(stride),
+    follows = false;
   const base = new Int32Array(MAX_SHADOW_SLICES).fill(-1),
     size = new Int32Array(MAX_SHADOW_SLICES);
   /** Per entry: `QUEUED` while its word waits in `changed`, `WITHDRAWN` while it waits in
    *  `withdrawnList` (`withdraw`). */
-  const queued = new Uint8Array(entries),
-    changed = new Int32Array(changedCap),
+  let queued = new Uint8Array(stride);
+  const changed = new Int32Array(changedCap),
     withdrawnList = new Int32Array(changedCap);
   let changedCount = 0,
     withdrawnCount = 0,
@@ -60,34 +66,62 @@ export function createShadowTable(poolPages: number, pages = SUN_WINDOW) {
   };
   /** The withdrawn marks the flush sent: past the list, every entry's. */
   const clearWithdrawn = () => {
-    if (withdrawnCount > changedCap) for (let e = 0; e < entries; e++) queued[e] &= QUEUED;
+    if (withdrawnCount > changedCap) for (let e = 0; e < queued.length; e++) queued[e] &= QUEUED;
     else for (let i = 0; i < withdrawnCount; i++) queued[withdrawnList[i]] &= QUEUED;
     withdrawnCount = 0;
   };
+  /** The words and their marks grown to `held`, kept. */
+  const hold = (held: number) => {
+    if (held <= words.length) return;
+    const grown = new Uint32Array(held),
+      marks = new Uint8Array(held);
+    grown.set(words);
+    marks.set(queued);
+    [words, queued, table.words, table.heldEntries] = [grown, marks, grown, held];
+  };
   const table = {
+    /** The words held (`heldEntries`): replaced when they grow. */
     words,
-    /** Bytes of every host array the table holds: what `shadowTableHostBytes` declares. */
-    hostBytes: [words, base, size, queued, changed, withdrawnList].reduce(
-      (sum, a) => sum + a.byteLength,
-      0,
-    ),
+    /** Bytes the host arrays reach, every slice's span held: what `shadowTableHostBytes`
+     *  declares. */
+    hostBytes: shadowTableHostBytes(poolPages, entries),
     entries,
-    /** Words from the first slice's span to the end of the highest slice's ever claimed, one span
-     *  at least: what the GPU table holds (`gpu/shadow/shadowData.ts`), as Unreal gives page-table
-     *  entries only to the lights in use. Never shrunk: a freed slice's pages may still be named
-     *  by the GPU's pool until it evicts them. A data field: the table keeps fast properties. */
+    /** Words held, host and GPU alike (`gpu/shadow/shadowData.ts`): one span, grown with the
+     *  slices claimed (`grownShadowEntries`), as Unreal gives page-table entries only to the
+     *  lights in use. Never shrunk: a freed slice's pages may still be named by the GPU's pool
+     *  until it evicts them. A data field: the table keeps fast properties. */
     heldEntries: stride,
+    /** Words the slices asked past those held while the table follows the GPU's (`follow`). */
+    wantedEntries: 0,
     /** Rises whenever a range is claimed or freed: requests read against another layout drop. */
     layoutEpoch: 0,
     /** Rises with every word that changes: what the shading reads, and so asks, changed. */
     version: 0,
     baseOf: (slice: number) => base[slice],
+    /** From now on the words grow when the GPU's table did (`hold`): a slice past them waits. */
+    follow() {
+      follows = true;
+    },
+    /** Grows the words to `held`, the GPU's table grown to as many. */
+    hold,
+    /** Whether `slice`'s span lies in the words held: grown to it at once, unless the table
+     *  follows the GPU's, which says no until then and notes the words wanted (`wantedEntries`),
+     *  a span past the slice's, so that the next light finds its span held. */
+    fits(slice: number) {
+      const end = (slice + 1) * stride;
+      if (follows)
+        table.wantedEntries = Math.max(table.wantedEntries, Math.min(entries, end + stride));
+      if (end <= words.length) return true;
+      if (follows) return false;
+      hold(grownShadowEntries(words.length, end, entries));
+      return true;
+    },
     /** Claims `count` words, at most `SHADOW_TABLE_STRIDE`, at the start of `slice`'s span. */
     claim(slice: number, count: number) {
       if (base[slice] >= 0 && size[slice] === count) return;
+      table.fits(slice);
       base[slice] = slice * stride;
       size[slice] = count;
-      table.heldEntries = Math.max(table.heldEntries, (slice + 1) * stride);
       table.layoutEpoch++;
     },
     /** Frees the range of `slice`; its words must already be unmapped by the caller. */
@@ -124,7 +158,7 @@ export function createShadowTable(poolPages: number, pages = SUN_WINDOW) {
     flush(upload: (first: number, count: number) => void) {
       if (whole) {
         whole = false;
-        upload(0, entries);
+        upload(0, words.length);
         for (let i = 0; i < changedCount; i++) queued[changed[i]] = 0;
         changedCount = 0;
         clearWithdrawn();
