@@ -1,6 +1,7 @@
 import { invertMatrix4 } from '../../../sdk-core/src/index.ts';
 import { createReflectionHistoryTargets, type ReflectionMetadata } from './historyTargets.ts';
 import {
+  REFLECTION_CHANGE_FRAMES,
   REFLECTION_CHANGE_WEIGHT,
   REFLECTION_RESOLVE_VIEW_BYTES,
   REFLECTION_HISTORY_WEIGHT,
@@ -52,6 +53,12 @@ export function createReflectionHistory(device: GPUDevice, width: number, height
     reuse = false,
     disposed = false;
   let stableFrames = 0;
+  /** Frames resolved since a source change, none pending: the change weight holds while it is
+   *  below `REFLECTION_CHANGE_FRAMES`, and the window closes a full window after that. */
+  let sinceChange = Infinity;
+  const complete = () =>
+    stableFrames >= REFLECTION_HISTORY_WEIGHT &&
+    sinceChange >= REFLECTION_CHANGE_FRAMES + REFLECTION_HISTORY_WEIGHT;
   let drawnWidth = width,
     drawnHeight = height;
   let current: ReflectionHistoryFrame | undefined;
@@ -71,12 +78,14 @@ export function createReflectionHistory(device: GPUDevice, width: number, height
     get reuse() {
       return reuse;
     },
-    /** The stationary filter window is complete; a new jitter still needs reprojection. */
+    /** The stationary filter window is complete, and no stale share of a changed source remains;
+     *  a new jitter still needs reprojection. */
     get settled() {
-      return stableFrames >= REFLECTION_HISTORY_WEIGHT;
+      return complete();
     },
     /** Source epochs cover reflected movers too, not just receiver identity. A changed source
-     *  keeps its history at `REFLECTION_CHANGE_WEIGHT`; only a new drawn extent drops it. */
+     *  keeps its history at `REFLECTION_CHANGE_WEIGHT` for `REFLECTION_CHANGE_FRAMES`; only a new
+     *  drawn extent drops it. */
     prepare(
       next: ReflectionHistoryFrame,
       projection: ArrayLike<number>,
@@ -94,13 +103,17 @@ export function createReflectionHistory(device: GPUDevice, width: number, height
         !cameraChanged &&
         written &&
         sameElements(previous, projection) &&
-        (stableFrames >= REFLECTION_HISTORY_WEIGHT || frame === next.frame);
+        (complete() || frame === next.frame);
       if (reuse) return;
       if (changed || cameraChanged) stableFrames = 0;
       if (resized) {
         written = false;
         rank = 0;
-      } else if (written) rank = (rank + 1) >>> 0;
+        sinceChange = Infinity;
+      } else if (written) {
+        rank = (rank + 1) >>> 0;
+        if (sourceChanged) sinceChange = 0;
+      }
       current = next;
       camera.set(next.camera);
       matrix = projection;
@@ -114,7 +127,10 @@ export function createReflectionHistory(device: GPUDevice, width: number, height
       packed[34] = 1 / drawnWidth;
       packed[35] = 1 / drawnHeight;
       packed[36] = written ? 1 : 0;
-      packed[37] = sourceChanged ? REFLECTION_CHANGE_WEIGHT : REFLECTION_HISTORY_WEIGHT;
+      packed[37] =
+        sinceChange < REFLECTION_CHANGE_FRAMES
+          ? REFLECTION_CHANGE_WEIGHT
+          : REFLECTION_HISTORY_WEIGHT;
       device.queue.writeBuffer(uniform, 0, packed);
     },
     encode(
@@ -173,6 +189,7 @@ export function createReflectionHistory(device: GPUDevice, width: number, height
       previous.set(matrix);
       written = true;
       stableFrames++;
+      sinceChange++;
       return image;
     },
     dispose() {
