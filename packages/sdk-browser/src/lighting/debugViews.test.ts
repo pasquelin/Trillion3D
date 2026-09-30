@@ -9,12 +9,11 @@ import assert from 'node:assert/strict';
 import { AS_IS_FLAG, SURFACE_MODEL, shownAsIs } from '../scene/surfaceModel.ts';
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts';
 import { CONTRACT_COMPOSITIONS, UNLIT_COMPOSITIONS } from './deferred/shaders.ts';
-import { taaShader } from '../taa/shaderWgsl.ts';
-import { contractLightingShader } from './deferred/shaders.ts';
-
-const BOUNCE_LIGHTING_SHADER = contractLightingShader(true, false);
-const DIRECT_LIGHTING_SHADER = contractLightingShader(false, false);
-const TAA_SHADER = taaShader(true);
+import {
+  BOUNCE_LIGHTING_SHADER,
+  DIRECT_LIGHTING_SHADER,
+  TAA_SHADER,
+} from '../gpu/core/shaderTexts.fixture.ts';
 
 /** The capture of `pattern` in `source`, asserted present. */
 function capture(source: string, pattern: RegExp) {
@@ -111,7 +110,7 @@ test('A jittered edge: the accumulated share follows the colour, no flip between
   assert.match(TAA_SHADER, /share\+=asIs\*weight;/);
   const [wcOf, whOf, colorOf, shareOf] = capture(
     TAA_SHADER,
-    /let wc=(.*?);\n let wh=(.*?);\n return TaaOut\((.*?),vec2f\((\(share\*wc.*?\)),tag\)\);/,
+    /let wc=(.*?);\n let wh=(.*?);\n return TaaOut\((.*?),vec4f\((\(share\*wc.*?\)),tag,0\.0,0\.0\)\);/,
   ).map(js);
   const blend = new Function(
     'alpha',

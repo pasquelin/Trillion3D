@@ -8,12 +8,9 @@ import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts';
 import { prepared, device } from '../webgpu/water/pass.fixture.ts';
 import { writeVolumeRecords } from '../webgpu/transparent/transmission.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
-import { blendShader } from '../webgpu/blend/shader.ts';
-import { contractLightingShader } from './deferred/shaders.ts';
 import { waterCompositeShader } from '../webgpu/water/compositeWgsl.ts';
+import { BLEND_SHADER, DIRECT_LIGHTING_SHADER } from '../gpu/core/shaderTexts.fixture.ts';
 
-const BLEND_SHADER = blendShader();
-const DIRECT_LIGHTING_SHADER = contractLightingShader(false, false);
 const WATER_COMPOSITE_SHADER = waterCompositeShader();
 
 test('a fog-free material reaches both the opaque flag and transparent shader', () => {

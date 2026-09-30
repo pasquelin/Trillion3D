@@ -1,6 +1,6 @@
 import type { ShadowViewpoint } from '../light/contracts.ts';
 import type { SceneLightStore } from '../light/store.ts';
-import { createShadowChanges } from './changes.ts';
+import { SHADOW_CHANGE_BOXES, createShadowChanges } from './changes.ts';
 import { createPageInvalidation } from './invalidate.ts';
 import { STALE_BY, createShadowCounts } from './counts.ts';
 import { createShadowAdmission } from './admit.ts';
@@ -30,7 +30,7 @@ export function createShadowPlan(poolSide: number, layers = 1, sunWindow = SUN_W
     table = createShadowTable(pool.pages, sunWindow),
     sun = createSunLevels(sunWindow),
     records = createShadowRecords(table, pool, sun),
-    changes = createShadowChanges(pool.pages),
+    changes = createShadowChanges(Math.max(pool.pages, SHADOW_CHANGE_BOXES)),
     counts = createShadowCounts(),
     invalidate = createPageInvalidation(pool, table, sun, changes, counts),
     thresholds = createShadowThresholds(pool),
@@ -69,8 +69,10 @@ export function createShadowPlan(poolSide: number, layers = 1, sunWindow = SUN_W
     spent,
     /** This frame's pages, the coarsest first, light view by light view. */
     admission,
-    /** A node has moved: its box stales the pages it covers at the next plan. */
+    /** A node has moved: its box stales the pages it covers at the next plan; the boxes the list
+     *  still holds apart (`changeRoom`). */
     worldChanged: changes.worldChanged,
+    changeRoom: changes.room,
     /** The same world at another precision: its box waits for the camera to rest. */
     representationChanged: changes.representationChanged,
     /** The threshold the light cuts select casters at, and their render origin (`thresholds.ts`). */
@@ -171,14 +173,8 @@ export function createShadowPlan(poolSide: number, layers = 1, sunWindow = SUN_W
     },
     /** Starts over. */
     reset() {
-      records.reset();
-      table.reset();
-      pool.reset();
-      thresholds.reset();
-      requests.reset();
-      changes.reset();
-      counts.reset();
-      admission.reset();
+      for (const part of [records, table, pool, thresholds, requests, changes, counts, admission])
+        part.reset();
       gpu.set(false, 0);
       report = null;
       resting = false;

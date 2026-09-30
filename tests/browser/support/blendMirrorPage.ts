@@ -8,9 +8,8 @@ import { ENVIRONMENT_COEFFICIENTS } from '../../../packages/sdk-core/src/scene/c
 import { mirrorProxy } from './mirrorProxy.ts';
 import { openGpuDevice as openDevice } from '../probes/webgpuDevice.ts';
 import { mirrorVertex, proxyOnlyReflection } from './blendMirrorVertex.ts';
-import { blendShader } from '../../../packages/sdk-browser/src/webgpu/blend/shader.ts';
+import { BLEND_SHADER } from '../../../packages/sdk-browser/src/gpu/core/shaderTexts.fixture.ts';
 
-const BLEND_SHADER = blendShader();
 /** Render the actual blend fragment with a known one-triangle resident proxy and face radiance. */
 export async function blendMirror() {
   const opened = await openDevice();

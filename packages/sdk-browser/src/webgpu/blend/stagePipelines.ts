@@ -59,12 +59,14 @@ export function pipelinesByMode(
   };
 }
 
-/** Normal always — a transmissive item draws in it —, then every mode a blend item declares: what
- *  both transparent paths compile up front. A scene of plain glass compiles normal alone. */
+/** Normal as soon as a transparent item exists — a transmissive one draws in it —, then every mode a
+ *  blend item declares: what both transparent paths compile up front. A scene of plain glass
+ *  compiles normal alone; one with no transparent item compiles no blend program (#1362), a mode
+ *  asked later compiles at its first draw (`at`). */
 export const declaredBlendModes = (items: readonly BlendGpuItem[]) =>
   BLEND_MODES.filter(
     (mode, rank) =>
-      !rank ||
+      (!rank && items.length > 0) ||
       items.some((item) => !item.transmissive && refreshSurface(item.surface).blending === mode),
   );
 

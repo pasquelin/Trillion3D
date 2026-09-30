@@ -6,8 +6,8 @@ import { referenceSunWindow } from '../../frame/referenceMode.ts';
 import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { blendShader } from '../blend/shader.ts';
 import { waterCompositeShader, waterRoutedShader } from '../water/compositeWgsl.ts';
+import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
 
-const BLEND_SHADER = blendShader();
 const WATER_COMPOSITE_SHADER = waterCompositeShader();
 
 /** The window a reference session at the boss's case runs with: 1117 CSS at DPR 2, 55°. */

@@ -1148,6 +1148,7 @@
       "gpuPassMs": "이 백엔드의 최신 GPU 패스 샘플; 기기가 타임스탬프 쿼리를 지원하지 않으면 null.",
       "gpuFrameMs": "`gpuPassMs.frame`이 가리키는 이미지의 GPU 시간. 어떤 `cpu*` 필드에도 절대 더해지지 않는다. 기기는 몇 이미지마다 측정되므로 숫자가 몇 이미지 전의 것일 수 있다. 첫 측정 전, 유지된 이미지부터 기기의 다음 측정까지, `timestamp-query`가 없는 기기, 그리고 `EXT_disjoint_timer_query_webgl2`가 없는 WebGL2에서는 null이다.",
       "gpuHostGapMs": "같은 이미지가 자신의 두 제출 사이에서 소비한 CPU 시간, 한 번만 제출할 경우 0. 이것은 호스트 시간이지 GPU 시간이 아니며, 그래서 `gpuFrameMs`가 이를 제외하는 것이다. 측정되지 않았을 때는 null.",
+      "gpuDeviceLost": "GPU 장치를 잃은 이유이며, 유지되는 동안에는 null입니다.",
       "uncoveredTriangles": "공개된 컷이 이름을 언급하지만 프레임이 그릴 수 없는 — 상주 페이지도, 대체할 조상도 없는 — 클러스터의 삼각형. 이미지의 실제 구멍이며, 유일하게 건강한 값은 0이다. 백엔드가 판단할 수 없을 때는 null(그것은 자신이 선택한 컷을 그대로 그리므로, 이런 상황이 생기지 않는다).",
       "drawnTriangles": "**현재 프레임**이 그리기에 넘기는 삼각형 수: 계층의 불투명·투명을 합친 클러스터 컷. 계층 밖의 투명 메시는 여기 포함되지 않으며(`transparentSubmittedTriangles`), 오클루전 배제도 빠지지 않는다(`hizRejectedTriangles`). 컷이 채택될 때 세어진다: 비동기 GPU 리드백을 기다리지 않으므로, `submittedTriangles`와 달리 시간이 부족해서 `null`이 되는 일이 없다.",
       "cpuSelectMs": "이 프레임의 클러스터 컷에 대한 CPU 시간, 선택 과정만을 측정한 것. CPU에서 컷을 고르지 않는 엔진에서는 null.",
@@ -3270,6 +3271,7 @@
       "counts": "마지막 계획이 한 일, 페이지 단위.",
       "spent": "마지막 계획이 요청 보고서를 읽고 페이지를 받아들이는 데 쓴 CPU 밀리초.",
       "worldChanged": "노드가 움직였습니다: 그 박스는 다음 계획에서 덮는 페이지를 낡게 만듭니다.",
+      "changeRoom": "넘치기 전에 목록이 아직 따로 담을 수 있는 상자 수.",
       "representationChanged": "다른 정밀도의 같은 월드: 그 박스는 카메라가 멈출 때까지 기다립니다.",
       "resting": "마지막 계획에서 카메라가 정지해 있었음: 그 뷰가 이전 계획의 뷰와 같았습니다.",
       "deferredChanges": "표현 변경이 카메라가 멈추기를 기다리는 동안 참.",
@@ -3693,7 +3695,8 @@
       "total": "전체 작업 수.",
       "stream": "어디에 쓸지.",
       "width": "막대 너비.",
-      "interval": "다시 그리기 사이의 최소 밀리초."
+      "interval": "다시 그리기 사이의 최소 밀리초.",
+      "verbose": "작업 종료 요약에 정보 코드와 모든 발생 위치도 표시합니다."
     }
   },
   "Texture-common": {
@@ -4323,6 +4326,7 @@
       "gpuPassMs": "이 백엔드의 최신 GPU 패스 샘플; 기기가 타임스탬프 쿼리를 지원하지 않으면 null.",
       "gpuFrameMs": "`gpuPassMs.frame`이 가리키는 이미지의 GPU 시간. 어떤 `cpu*` 필드에도 절대 더해지지 않는다. 기기는 몇 이미지마다 측정되므로 숫자가 몇 이미지 전의 것일 수 있다. 첫 측정 전, 유지된 이미지부터 기기의 다음 측정까지, `timestamp-query`가 없는 기기, 그리고 `EXT_disjoint_timer_query_webgl2`가 없는 WebGL2에서는 null이다.",
       "gpuHostGapMs": "같은 이미지가 자신의 두 제출 사이에서 소비한 CPU 시간, 한 번만 제출할 경우 0. 이것은 호스트 시간이지 GPU 시간이 아니며, 그래서 `gpuFrameMs`가 이를 제외하는 것이다. 측정되지 않았을 때는 null.",
+      "gpuDeviceLost": "GPU 장치를 잃은 이유이며, 유지되는 동안에는 null입니다.",
       "uncoveredTriangles": "공개된 컷이 이름을 언급하지만 프레임이 그릴 수 없는 — 상주 페이지도, 대체할 조상도 없는 — 클러스터의 삼각형. 이미지의 실제 구멍이며, 유일하게 건강한 값은 0이다. 백엔드가 판단할 수 없을 때는 null(그것은 자신이 선택한 컷을 그대로 그리므로, 이런 상황이 생기지 않는다).",
       "drawnTriangles": "**현재 프레임**이 그리기에 넘기는 삼각형 수: 계층의 불투명·투명을 합친 클러스터 컷. 계층 밖의 투명 메시는 여기 포함되지 않으며(`transparentSubmittedTriangles`), 오클루전 배제도 빠지지 않는다(`hizRejectedTriangles`). 컷이 채택될 때 세어진다: 비동기 GPU 리드백을 기다리지 않으므로, `submittedTriangles`와 달리 시간이 부족해서 `null`이 되는 일이 없다.",
       "cpuSelectMs": "이 프레임의 클러스터 컷에 대한 CPU 시간, 선택 과정만을 측정한 것. CPU에서 컷을 고르지 않는 엔진에서는 null.",
@@ -4438,7 +4442,7 @@
       "signal": "그 신호가 중단되면 월드의 로드를 멈춘다.",
       "physics": "물리를 켭니다(`world.physics`): `true`, 또는 중력과 예산. 그때만 Jolt를 불러옵니다.",
       "temporalAntialiasing": "시간적 안티앨리어싱, WebGPU 전용: 프레임에 걸쳐 누적되는 서브픽셀 흔들림. `false`는 각 픽셀을 기록 없이 중심에서 그리며, 픽셀 단위로 정확한 캡처가 요구하는 것; 나중에 `world.temporalAntialiasing`으로 바꾼다.",
-      "renderScale": "이미지를 그리는 축마다의 화면 비율로, 시간적 안티에일리어싱이 화면 크기로 다시 구성하기 전의 값입니다. `'auto'`는 프레임 예산이 `min`과 `max` 사이에서 고르게 하고(`{ min, max }`, 기본값 0.5와 1. 리샘플링만 하는 WebGL2에서는 `min`의 기본값이 1), 숫자는 고정합니다. 멈춘 이미지는 최댓값으로 그려집니다. 나중에 `world.renderScale`로 바꿉니다."
+      "renderScale": "이미지를 그리는 축마다의 화면 비율로, 시간적 안티에일리어싱이 화면 크기로 다시 구성하기 전의 값입니다. `'auto'`는 프레임 예산이 `min`과 `max` 사이에서 고르게 하고(`{ min, max }`, 기본값 0.5와 1. 리샘플링만 하는 WebGL2에서는 `min`의 기본값이 1), 숫자는 고정합니다. WebGPU에서는 멈춘 이미지도 그 배율로 그려지고 지터 위상으로 다시 구성됩니다. WebGL2에서는 최댓값으로 그려집니다. 나중에 `world.renderScale`로 바꿉니다."
     }
   },
   "RenderScale": {
@@ -5043,13 +5047,14 @@
   "createTerminalProgress": {
     "summary": "컴파일러의 이벤트를 따라가는, 터미널 안의 진행 표시줄.",
     "parameters": {
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}": "터미널 진행률 표시가 어떻게 보이는가.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.label": "작업의 이름.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.index": "작업의 번호.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.total": "전체 작업 수.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.stream": "어디에 쓸지.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.width": "막대 너비.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.interval": "다시 그리기 사이의 최소 밀리초."
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}": "터미널 진행률 표시가 어떻게 보이는가.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.label": "작업의 이름.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.index": "작업의 번호.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.total": "전체 작업 수.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.stream": "어디에 쓸지.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.width": "막대 너비.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.interval": "다시 그리기 사이의 최소 밀리초.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.verbose": "작업 종료 요약에 정보 코드와 모든 발생 위치도 표시합니다."
     }
   },
   "createTransformTree": {
@@ -5082,7 +5087,7 @@
       "options.signal": "그 신호가 중단되면 월드의 로드를 멈춘다.",
       "options.physics": "물리를 켭니다(`world.physics`): `true`, 또는 중력과 예산. 그때만 Jolt를 불러옵니다.",
       "options.temporalAntialiasing": "시간적 안티앨리어싱, WebGPU 전용: 프레임에 걸쳐 누적되는 서브픽셀 흔들림. `false`는 각 픽셀을 기록 없이 중심에서 그리며, 픽셀 단위로 정확한 캡처가 요구하는 것; 나중에 `world.temporalAntialiasing`으로 바꾼다.",
-      "options.renderScale": "이미지를 그리는 축마다의 화면 비율로, 시간적 안티에일리어싱이 화면 크기로 다시 구성하기 전의 값입니다. `'auto'`는 프레임 예산이 `min`과 `max` 사이에서 고르게 하고(`{ min, max }`, 기본값 0.5와 1. 리샘플링만 하는 WebGL2에서는 `min`의 기본값이 1), 숫자는 고정합니다. 멈춘 이미지는 최댓값으로 그려집니다. 나중에 `world.renderScale`로 바꿉니다."
+      "options.renderScale": "이미지를 그리는 축마다의 화면 비율로, 시간적 안티에일리어싱이 화면 크기로 다시 구성하기 전의 값입니다. `'auto'`는 프레임 예산이 `min`과 `max` 사이에서 고르게 하고(`{ min, max }`, 기본값 0.5와 1. 리샘플링만 하는 WebGL2에서는 `min`의 기본값이 1), 숫자는 고정합니다. WebGPU에서는 멈춘 이미지도 그 배율로 그려지고 지터 위상으로 다시 구성됩니다. WebGL2에서는 최댓값으로 그려집니다. 나중에 `world.renderScale`로 바꿉니다."
     }
   },
   "crossVector3": {

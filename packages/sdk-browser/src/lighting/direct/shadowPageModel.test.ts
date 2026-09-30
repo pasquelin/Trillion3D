@@ -22,17 +22,16 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { contractLightingShader } from '../deferred/shaders.ts';
 import { SHADOW_READ_AT_WGSL } from './shadowFactorWgsl.ts';
 import { pageModelWgsl } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
-import { blendShader } from '../../webgpu/blend/shader.ts';
 import { waterCompositeShader } from '../../webgpu/water/compositeWgsl.ts';
 import { shadowDemandWgsl } from '../../webgpu/shadow/demandWgsl.ts';
 import { allocationWgsl } from '../../webgpu/shadow/allocWgsl.ts';
 import { shadowFreshWgsl } from '../../webgpu/shadow/freshWgsl.ts';
 import { lampMipOffset } from '../../../../sdk-core/src/scene/light-shadow/pageModel.fixture.ts';
+import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
 
 const AGE_CAP = 255;
 const RANK_SPAN = 128;
 const PAGE_MODEL_WGSL = pageModelWgsl();
-const BLEND_SHADER = blendShader();
 const WATER_COMPOSITE_SHADER = waterCompositeShader();
 const SHADOW_DEMAND_WGSL = shadowDemandWgsl();
 const ALLOCATION_WGSL = allocationWgsl();

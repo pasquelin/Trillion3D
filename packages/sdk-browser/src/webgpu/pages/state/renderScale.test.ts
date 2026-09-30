@@ -3,15 +3,14 @@ import assert from 'node:assert/strict';
 import {
   drawFrameAt,
   frameSizeOf,
-  imageScale,
   renderMipBias,
   renderPixelRatio,
   type FrameSize,
 } from './renderScale.ts';
+import { renderExtent } from '../../../frame/renderScaleOption.ts';
 import { createScaleControl } from '../../../frame/scaleControl.ts';
 import type { RenderScale } from '../../../frame/renderScaleOption.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
-import { renderExtent } from '../../../frame/renderScaleOption.ts';
 
 const DISPLAY = [3456, 2234];
 
@@ -49,8 +48,8 @@ test('a render axis is the display at native size, else a multiple of eight', ()
   assert.equal(renderExtent(12, 0.5), 8, 'never below eight');
 });
 
-// #832: the targets are made once at the bounds' maximum, the display colour apart.
-test('the targets are made at the maximum, apart from the display wherever a scale may drop', () => {
+// #832: the targets start at the bounds' maximum, the display colour apart.
+test('the targets start at the maximum, apart from the display wherever a scale may drop', () => {
   const native = { width: 3456, height: 2234, renderWidth: 3456, renderHeight: 2234 };
   assert.deepEqual(sizeOf(runtime('auto').rt), { ...native, apart: true });
   assert.deepEqual(sizeOf(runtime({ min: 0.6, max: 0.8 }).rt), {
@@ -87,17 +86,31 @@ test('the frame is drawn below the display only when the temporal resolve recons
   }
 });
 
-test('a quiet image draws at the maximum, a moving one at the scale asked', () => {
-  const { rt } = runtime('auto');
-  assert.equal(imageScale(rt, true), 1, 'the held image is the native one');
-  assert.equal(imageScale(rt, false), 1, 'the controller starts at its maximum');
-  const fixed = runtime(0.6).rt;
-  assert.deepEqual([imageScale(fixed, true), imageScale(fixed, false)], [0.6, 0.6]);
-  const bounded = runtime({ min: 0.5, max: 0.8 }).rt;
-  assert.equal(imageScale(bounded, true), 0.8);
+test('an image draws at the scale asked, the controller starting at its maximum', () => {
+  assert.equal(runtime('auto').rt.scale.wanted(), 1);
+  assert.equal(runtime(0.6).rt.scale.wanted(), 0.6);
+  assert.equal(runtime({ min: 0.5, max: 0.8 }).rt.scale.wanted(), 0.8);
 });
 
-test('a scale change draws in the targets in place, the Hi-Z pyramid over the same size', () => {
+// #1343: the targets were made at the display's size whatever the scale drawn.
+test('the targets are made at the drawn size, on a ladder of eighths, not the display size', () => {
+  const { rt } = runtime('auto');
+  for (let frame = 0; frame < 4; frame++) rt.scale.tick((frame * 1000) / 120);
+  rt.scale.observe(12, 1);
+  const drawn = rt.scale.wanted();
+  assert.ok(drawn > 0.75 && drawn < 0.875, `a 12 ms frame at 120 Hz draws at ${drawn}`);
+  const made = { width: 3456, height: 2234, apart: true };
+  assert.deepEqual(
+    sizeOf(rt),
+    { ...made, renderWidth: 3456, renderHeight: 2234 },
+    'one eighth off',
+  );
+  rt.scale.observe(40, drawn);
+  assert.equal(rt.scale.wanted(), 0.5, 'a 40 ms frame drops to the minimum');
+  assert.deepEqual(sizeOf(rt), { ...made, renderWidth: 1728, renderHeight: 1120 });
+});
+
+test('a scale change within the targets draws in them in place, the Hi-Z pyramid over the same size', () => {
   const { rt, extents } = runtime('auto');
   drawFrameAt(rt, 0.5);
   assert.deepEqual(rt.gpu.targetSize, [1728, 1120]);
@@ -111,7 +124,7 @@ test('a scale change draws in the targets in place, the Hi-Z pyramid over the sa
 
 test('a fixed scale is honoured, and targets without a display apart draw whole', () => {
   const fixed = runtime(0.6, [2072, 1344]).rt;
-  drawFrameAt(fixed, imageScale(fixed, false));
+  drawFrameAt(fixed, fixed.scale.wanted());
   assert.deepEqual(fixed.gpu.targetSize, [2072, 1344]);
   assert.equal(fixed.scale.drawn, 0.6);
   const whole = runtime('auto', DISPLAY, false).rt;
