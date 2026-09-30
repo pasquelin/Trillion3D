@@ -12,15 +12,18 @@ type Variant = {
 
 /**
  * The contract programs, each compiled the first time a frame asks for it: with or without bounce,
- * wide or narrow (#849). A narrow program reads at most `TILE_LIGHTS` lights, so it stands in for
- * no wide one; a wide one serves any scene. While the asked one compiles, the frame is lit by the
- * best one ready — the same width without bounce, then a wide one —, else by none.
+ * wide or narrow (#849), with or without shadow code (#1249). A narrow program reads at most
+ * `TILE_LIGHTS` lights, so it stands in for no wide one; an unshadowed one reads no shadow, so it
+ * stands in for no scene that holds one; a wide program with shadow code serves any scene. While
+ * the asked one compiles, the frame is lit by the best one ready — the same width and shadows
+ * without bounce, then with shadow code, then a wide one —, else by none.
  *
- * A narrow program's wide twin compiles beside it, from the same frame: a scene that passes
- * `TILE_LIGHTS` lights finds its program ready as soon as a single program would have been, and
- * never falls back to the unlit view where one program would not. No frame waits for that twin
- * (`settle`) nor is redrawn at its arrival (`onReady`) until one asks for it. A failed compile is
- * said (`onFailure`) once, never retried.
+ * A narrow or unshadowed program's twin — wide, with shadow code — compiles beside it, from the
+ * same frame: a scene that passes `TILE_LIGHTS` lights, or whose light takes a shadow, finds its
+ * program ready as soon as a single program would have been, and never falls back to the unlit
+ * view where one program would not. No frame waits for that twin (`settle`) nor is redrawn at its
+ * arrival (`onReady`) until one asks for it. A failed compile is said (`onFailure`) once, never
+ * retried.
  */
 export function createContractVariants(
   device: GPUDevice,
@@ -29,20 +32,23 @@ export function createContractVariants(
   onReady?: () => void,
   reportFailure?: (error: unknown) => void,
 ) {
-  /** `variants[+narrow][+bounce]`. */
-  const variants: Variant[][] = [
-    [{}, {}],
-    [{}, {}],
-  ];
-  const compile = (bounce: boolean, narrow: boolean, onFailure = reportFailure) => {
-    const variant = variants[+narrow][+bounce];
+  /** `variants[+narrow + 2 * unshadowed][+bounce]`. */
+  const variants: Variant[][] = [0, 1, 2, 3].map(() => [{}, {}]);
+  const at = (narrow: boolean, unshadowed: boolean) => +narrow + 2 * +unshadowed;
+  const compile = (
+    bounce: boolean,
+    narrow: boolean,
+    unshadowed: boolean,
+    onFailure = reportFailure,
+  ) => {
+    const variant = variants[at(narrow, unshadowed)][+bounce];
     if (variant.program || variant.pending || variant.failed) return;
     variant.pending = createDeferredProgram(
       device,
       {
-        lighting: contractLightingShader(bounce, narrow, pages),
+        lighting: contractLightingShader(bounce, narrow, pages, !unshadowed),
         compose: CONTRACT_COMPOSITIONS,
-        label: `${bounce ? 'BOUNCE' : 'DIRECT'}${narrow ? '_NARROW' : ''}`,
+        label: `${bounce ? 'BOUNCE' : 'DIRECT'}${narrow ? '_NARROW' : ''}${unshadowed ? '_UNSHADOWED' : ''}`,
         direct: true,
         bounce,
         pages,
@@ -60,35 +66,49 @@ export function createContractVariants(
         onFailure?.(error);
       },
     );
-    if (narrow) compile(bounce, false, onFailure);
+    if (narrow || unshadowed) compile(bounce, false, false, onFailure);
   };
   /** The best program ready to light a frame that asks for this one, if any. */
-  const lending = (bounce: boolean, narrow: boolean) =>
-    variants[+narrow][+bounce].program ??
-    variants[+narrow][0].program ??
-    variants[0][+bounce].program ??
-    variants[0][0].program;
+  const lending = (bounce: boolean, narrow: boolean, unshadowed: boolean) => {
+    const asked = variants[at(narrow, unshadowed)];
+    const shadowed = variants[at(narrow, false)];
+    return (
+      asked[+bounce].program ??
+      asked[0].program ??
+      shadowed[+bounce].program ??
+      shadowed[0].program ??
+      variants[0][+bounce].program ??
+      variants[0][0].program
+    );
+  };
   return {
     /** The program to light this frame with, compiling the asked one; `undefined` if none is ready. */
-    pick(bounce: boolean, narrow: boolean, onFailure?: (error: unknown) => void) {
-      variants[+narrow][+bounce].asked = true;
-      compile(bounce, narrow, onFailure);
-      return lending(bounce, narrow);
+    pick(
+      bounce: boolean,
+      narrow: boolean,
+      unshadowed: boolean,
+      onFailure?: (error: unknown) => void,
+    ) {
+      variants[at(narrow, unshadowed)][+bounce].asked = true;
+      compile(bounce, narrow, unshadowed, onFailure);
+      return lending(bounce, narrow, unshadowed);
     },
-    /** Starts the narrow program and its wide twin before any frame asks for them, settled once
-     *  both landed or failed: prepare compiles the lit program beside the others. */
+    /** Starts the narrow program and its wide twin, both with shadow code, before any frame asks
+     *  for them, settled once both landed or failed: prepare compiles the lit program beside the
+     *  others, and a shadowed program lights any first frame. */
     precompile(bounce: boolean) {
-      compile(bounce, true);
-      const started = [variants[1][+bounce].pending, variants[0][+bounce].pending];
+      compile(bounce, true, false);
+      const started = [variants[at(true, false)][+bounce].pending, variants[0][+bounce].pending];
       return Promise.all(started).then(() => {});
     },
     /** The compile a frame asking for this program must wait for: none while a ready program
      *  lends itself, nor once it failed (the frame then falls back to the unlit view). */
-    awaited(bounce: boolean, narrow: boolean) {
-      if (lending(bounce, narrow)) return undefined;
-      variants[+narrow][+bounce].asked = true;
-      compile(bounce, narrow);
-      return variants[+narrow][+bounce].pending;
+    awaited(bounce: boolean, narrow: boolean, unshadowed: boolean) {
+      if (lending(bounce, narrow, unshadowed)) return undefined;
+      const variant = variants[at(narrow, unshadowed)][+bounce];
+      variant.asked = true;
+      compile(bounce, narrow, unshadowed);
+      return variant.pending;
     },
     /** Waits for the programs a frame asked for, never a twin compiling beside them. */
     settle() {

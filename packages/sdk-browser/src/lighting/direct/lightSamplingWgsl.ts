@@ -45,18 +45,24 @@ fn lightWeight(light:DirectLight,N:vec3f,P:vec3f)->f32{
 fn listedWeight(base:u32,index:u32,N:vec3f,P:vec3f)->f32{
  return lightWeight(directLights.items[tileLights[base+TILE_OPAQUE_BASE+index]],N,P);
 }
-/** Whether a moving image draws a tile's opaque list: the tile pass's flag, one word read once
+/** Whether a moving image draws a tile's opaque list: a list of \`LIGHT_SAMPLES\` to \`TILE_LIGHTS\`
+ *  lights one of which has a shadow slot — the tile pass's flag, one word read once
  *  (\`lightWgsl.ts\` \`TILE_SHADOW_BASE\`), where the resolve once walked the list a pixel at a
- *  time (#1249). A list \`sampledTileLighting\` sums in full anyway — of \`LIGHT_SAMPLES\` lights
- *  or fewer, or past \`TILE_LIGHTS\` — reads the flag too; the call then returns that full sum. */
+ *  time (#1249). A list \`sampledTileLighting\` would sum in full anyway answers false, as the list
+ *  walk it replaces did: that pixel takes the full sum at the one call site of a still image. */
 fn tileShadowed(tile:vec2u,tilesX:u32)->bool{
- return tileLights[(tile.y*tilesX+tile.x)*TILE_STRIDE+TILE_SHADOW_BASE]!=0u;
+ let base=(tile.y*tilesX+tile.x)*TILE_STRIDE;
+ return sampledList(tileLights[base])&&tileLights[base+TILE_SHADOW_BASE]!=0u;
 }
+/** Whether a list of \`kept\` opaque lights is drawn, not summed in full: more than
+ *  \`LIGHT_SAMPLES\` and within \`TILE_LIGHTS\`, the one bound \`tileShadowed\` and
+ *  \`sampledTileLighting\` share. */
+fn sampledList(kept:u32)->bool{return kept>LIGHT_SAMPLES&&kept<=TILE_LIGHTS;}
 fn sampledTileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,tile:vec2u,tilesX:u32,rank:u32,pixel:vec2f)->vec3f{
  let base=(tile.y*tilesX+tile.x)*TILE_STRIDE;
  let kept=tileLights[base];
  // A tile past its list walks its slice of the pool in full, exactly, as a short list does.
- if(kept<=LIGHT_SAMPLES||kept>TILE_LIGHTS){return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE);}
+ if(!sampledList(kept)){return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE);}
  // No private array of weights (#924): each loop recomputes the weight it reads, the same bits.
  var total=0.0;
  for(var index=0u;index<kept;index++){total+=listedWeight(base,index,N,P);}
