@@ -31,6 +31,7 @@ export function createContractVariants(
   pages = SUN_WINDOW,
   onReady?: () => void,
   reportFailure?: (error: unknown) => void,
+  unboundedReflections = false,
 ) {
   /** `variants[+narrow + 2 * unshadowed][+bounce]`. */
   const variants: Variant[][] = [0, 1, 2, 3].map(() => [{}, {}]);
@@ -52,6 +53,7 @@ export function createContractVariants(
         direct: true,
         bounce,
         pages,
+        unboundedReflections,
       },
       bindings,
     ).then(
