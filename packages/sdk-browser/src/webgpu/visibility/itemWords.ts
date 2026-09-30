@@ -67,9 +67,10 @@ function writeRun(rt: WebgpuPagesRuntime, from: number, to: number) {
     layerSlots = hold.layerSlots;
   for (let row = from; row <= to; row++) {
     const rec = rows.packedRecs[row]!,
-      word = row * DRAW_ITEM_U32;
+      word = row * DRAW_ITEM_U32,
+      rank = rt.layout.placement.rootOfPacked[rows.packedPageIndex[row]];
     drawItemWords[word] = row;
-    drawItemWords[word + 1] = visBin(rec, rt.layout.selectionRoots);
+    drawItemWords[word + 1] = visBin(rec, rank, rt.layout.selectionRoots);
     drawItemWords[word + 2] = rows.packedPageIndex[row];
     // The coplanar layer belongs to the table row, not to the image: it travels with the item.
     drawItemWords[word + 3] = Math.min(rec.depthLayer, layerSlots);

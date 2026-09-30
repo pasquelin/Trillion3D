@@ -1,6 +1,7 @@
 import { colouredHostSurface, hostPageScene, releaseHostSurface } from '../../host/pageObjects.ts';
 import { pageDiagnostics } from '../../host/pageDiagnostics.ts';
-import { attachedPages, autonomousPlacements } from '../../placement/autonomousPlacements.ts';
+import { autonomousPlacements } from '../../placement/autonomousPlacements.ts';
+import { backendMetrics } from './metrics.ts';
 import { collectClusterPages, indexPagesByUrl } from '../../page/selection/selection.ts';
 import { createAutonomousRender, createAutonomousRenderState } from './render.ts';
 import { autonomousCapabilities, publishAutonomousCapabilities } from './capabilities.ts';
@@ -9,7 +10,12 @@ import { createAutonomousGeometry } from './geometry.ts';
 import { createPageDraws } from './pageDraws.ts';
 import { createAutonomousInstances } from './instances.ts';
 import { createClassPages } from './classPages.ts';
-import { prepareAutonomousManifest, autonomousBootstrap, readPages } from './manifest.ts';
+import {
+  prepareAutonomousManifest,
+  autonomousBootstrap,
+  readPages,
+  showRootCover,
+} from './manifest.ts';
 import { createAutonomousResidency } from './residency.ts';
 import { createAutonomousPool } from './poolApi.ts';
 import { createHeldFloor } from './heldFloor.ts';
@@ -36,13 +42,12 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     baseBootstrap = bootstrap.slice();
   const byUrl = indexPagesByUrl(allPages, (rec) => rec.url), // by page, not by stream bundle
     bootstrapUrls = new Set(bootstrap.map((page) => page.url));
-  // The display graph's page ceiling: the host's, or the default raised to the root cover (#527).
   const hostCeiling = context.maxResidentPages ?? Infinity,
     pageDefault = context.residentPagesDefault ?? Math.max(1024, bootstrapUrls.size),
     cap = hostCeiling < Infinity ? hostCeiling : pageDefault,
     scene = hostPageScene(blendCopies);
   const draws = createPageDraws(roots);
-  for (const rec of allPages) draws.drawing(rec).material = rec.declaration;
+  for (const rec of allPages) draws.forEachDraw(rec, (draw) => (draw.material = rec.declaration));
   const declared = () =>
       allPages.flatMap((rec) => (draws.materialOf(rec) ? [draws.materialOf(rec)!] : [])),
     colorMaterials = new Map<HostMaterial, HostMaterial>(),
@@ -53,7 +58,6 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     hosts = { ...context, deformation: deformation.source },
     views = createWebglViews(context.viewport, gate, () => residency.keptChanged()),
     hostDraw = createSceneDraw(context.webglContext, scene, blendCopies, hosts, declared);
-  // The engine's own lighting (`contractLightingApi.ts`): the cache's lights, else the graph's.
   const { lighting, api: lightingApi } = createContractLighting(scene, context, gate.sceneChanged);
   let ready = false;
   const geometryStore = createAutonomousGeometry({
@@ -129,7 +133,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       pages.forEach((data, i) => acceptGeometryPage(urls[i], data));
       heldFloor.changed();
       ready = true;
-      for (const page of bootstrap) views.live.shown.push(page); // a spread overflows the stack
+      showRootCover(roots, views.live.shown, views.live.shownPacked);
       sync();
       residency.keptChanged();
       publishAutonomousCapabilities(context.onDiagnostic);
@@ -171,22 +175,18 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       if (alpha) classes.follow(alpha, allPages);
       (values ? gate.sceneChanged : gate.resourcesChanged)();
     },
-    metrics() {
-      return {
-        clusters: state.visible,
-        ...state.triangles,
-        ...pool.metrics,
-        cacheEvictions: residency.cacheEvictions,
-        frustumRejected: state.frustumRejected,
-        lodLevel: state.lodLevel,
-        submittedTriangles: geometryStore.state.submittedTriangles,
-        totalSubmittedTriangles: hostDraw.counters()?.triangles ?? null,
-        drawCalls: attachedPages(views.live.shown, roots),
-        coverageReady: ready,
-        coverageBudgetLimited: state.overBudget || pool.budget.coverageBudgetLimited,
-        frameHeld: state.frameHeld,
-      };
-    },
+    metrics: () =>
+      backendMetrics({
+        state,
+        pool,
+        residency,
+        geometryStore,
+        hostDraw,
+        shown: views.live.shown,
+        roots,
+        rootRankOf: draws.rootRankOf,
+        ready,
+      }),
     dispose() {
       ready = false;
       hostDraw.dispose();

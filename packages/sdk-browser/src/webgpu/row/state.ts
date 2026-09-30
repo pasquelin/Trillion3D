@@ -27,12 +27,10 @@ export function createWebgpuRowState(
   const pageIndicesByUrl = new Map<string, number[]>();
   const indexPages = (first: number) => {
     for (let i = first; i < packedPages.length; i++) {
-      const page = packedPages[i],
-        address = pageAddress(page);
+      const address = pageAddress(packedPages[i]);
       const indices = pageIndicesByUrl.get(address);
       if (indices) indices.push(i);
       else pageIndicesByUrl.set(address, [i]);
-      page.packedIndex = i;
     }
   };
   indexPages(0);
@@ -78,7 +76,9 @@ export function createWebgpuRowState(
     blendRowOf,
     residentFlags,
     pageIndicesByUrl,
-    pageIndexOf: (rec: PageRec) => catalogue.indexOf(rec),
+    /** A record's packed ranks all share its pool address: the address's first rank names it. A
+     *  caller that needs ONE instance's rank uses the packed list the cut publishes, never this. */
+    pageIndexOf: (rec: PageRec) => pageIndicesByUrl.get(pageAddress(rec))?.[0],
     residentOffsetWords,
     rowPageIndex,
     rowOffsetWords,

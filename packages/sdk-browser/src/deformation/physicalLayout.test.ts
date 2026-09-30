@@ -35,6 +35,7 @@ test('paged deformation metadata cannot overwrite transmission or thin-surface c
     },
     () => {},
     recRoots(),
+    () => 0,
   );
   const floats = new Float32Array((PAGE_INFO_STRIDE / 4) * 2);
   const words = new Uint32Array(floats.buffer);

@@ -73,7 +73,11 @@ export function createExactPagesRender(options: {
   viewport: [number, number] | undefined;
   cap: number;
   desired: PageRec[];
+  /** The packed rank of each desired record, rank by rank (#1235). */
+  desiredPacked: number[];
   shown: PageRec[];
+  /** The packed rank of each shown record, rank by rank (#1235). */
+  shownPacked: number[];
   syncResident: () => void;
   cpuProfile: ReturnType<typeof createCpuStepProfile>;
   gate: WebglFrameGate;
@@ -90,7 +94,9 @@ export function createExactPagesRender(options: {
     viewport,
     cap,
     desired,
+    desiredPacked,
     shown,
+    shownPacked,
     syncResident,
     cpuProfile,
     gate,
@@ -148,6 +154,12 @@ export function createExactPagesRender(options: {
     // camera are set before this bound; residency and submit come after.
     const cutStart = performance.now();
     const selected = selectVisiblePages(roots, cam, selectOptions, shown);
+    // The packed ranks the cut published, rank by rank, kept beside the records (#1235): one record
+    // serves every placement, so the requests close over these instances, never the records.
+    shownPacked.length = selected.shown.length;
+    for (let i = 0; i < selected.shown.length; i++) shownPacked[i] = selected.shownPacked[i];
+    desiredPacked.length = selected.wanted.length;
+    for (let i = 0; i < selected.wanted.length; i++) desiredPacked[i] = selected.wantedPacked[i];
     state.cpuSelectMs = performance.now() - cutStart;
     // Truncating a DAG cut would punch holes: its clusters are a partition, not a priority list.
     // Selection already answered the budget with a coarser threshold, so the cover is kept whole and

@@ -100,9 +100,6 @@ for (const name of Object.keys(backends) as (keyof typeof backends)[]) {
 test('both layouts let the feed route every move; a layout that does not is counted', () => {
   const setup = { roots: placements(dag, 2), bootstrap: [], cap: 64, pageBytes: 64 };
   const webgpu = createWebgpuPagesLayout(setup as unknown as WebgpuPagesSetup).selectionRoots;
-  const shuffled = placements(dag, 2),
-    [a, b] = shuffled[1].pages;
-  [a.packedIndex, b.packedIndex] = [b.packedIndex, a.packedIndex];
   const routed = (cut: ReturnType<typeof cpuBackend>) => {
     const next = random(4);
     for (let frame = 0; frame < 4; frame++) cut(residency(next));
@@ -110,5 +107,7 @@ test('both layouts let the feed route every move; a layout that does not is coun
   };
   assert.equal(routed(cpuBackend(dag, THRESHOLD, webgpu)), 0, 'the WebGPU layout');
   assert.equal(routed(webgl2Backend(dag, THRESHOLD, placements(dag, 2))), 0, 'the WebGL2 layout');
-  assert.equal(routed(cpuBackend(dag, THRESHOLD, shuffled)), 3, 'read whole at each later visit');
+  // A layout that posts no base for one placement: the feed cannot route its moves, so its pages
+  // are read whole at each later visit and counted.
+  assert.equal(routed(cpuBackend(dag, THRESHOLD, placements(dag, 2), 1)), 3, 'read whole again');
 });
