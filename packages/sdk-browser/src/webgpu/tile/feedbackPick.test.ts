@@ -5,9 +5,7 @@ import assert from 'node:assert/strict';
 import { FEEDBACK_EVERY, PICK_SHIFT, createWebgpuTileFeedback } from './feedback.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
-import { MAP_CHOICES, PICK_BLENDS, PICK_TAPS } from './feedback.ts';
-
-const PICK_CYCLE = (MAP_CHOICES + 1) * PICK_BLENDS * PICK_TAPS;
+import { PICK_CYCLE } from './pickCycle.ts';
 
 // #1016 review: ordinary images never turned the pick, so a live view never asked the sliver's
 // tile. Each pixel speaks once per phase round: the pick turns once per round, and each pixel

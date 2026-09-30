@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MAP_CHOICES, PICK_BLENDS, PICK_TAPS } from './feedback.ts';
+import { MAP_CHOICES, PICK_BLENDS, PICK_TAPS } from './pickCounts.ts';
 import { FEEDBACK_RULE_WGSL, TILE_REQUEST_WGSL } from './requestWgsl.ts';
 import { SHADE_REQUEST_WGSL } from '../../visibility/shader/request.ts';
 import { BLEND_REQUEST_WGSL } from '../blend/requestWgsl.ts';

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { checkUnused } from './check-unused.ts';
@@ -8,12 +8,14 @@ import { checkUnused } from './check-unused.ts';
 /** A repository in miniature: one package whose entry uses `used`, the repository's own
  *  production pass, and `extra` files on top. */
 function repository(extra: Record<string, string>) {
-  const root = mkdtempSync(join(tmpdir(), 'check-unused-'));
+  // Its real path: knip matches the root workspace (`'.'`) by it, and macOS's temp is a link.
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'check-unused-')));
   const files: Record<string, string> = {
     'package.json': '{ "name": "probe", "type": "module", "private": true }',
     'knip.config.ts': `export default {
-  entry: ['packages/sdk/index.ts', 'packages/**/*.test.ts'],
-  project: ['packages/**/*.ts'],
+  workspaces: {
+    '.': { entry: ['packages/sdk/index.ts', 'packages/**/*.test.ts'], project: ['packages/**/*.ts'] },
+  },
 };\n`,
     'packages/sdk/index.ts': "export { used } from '../sdk-core/src/lib.ts';\n",
     ...extra,

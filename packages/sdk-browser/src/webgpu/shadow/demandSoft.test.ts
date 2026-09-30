@@ -13,9 +13,7 @@ import { SHADOW_FACTOR_WGSL } from '../../lighting/direct/shadowFactorWgsl.ts';
 import { POISSON_16 } from '../../lighting/direct/pcfTaps.ts';
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts';
-import { shadowDemandWgsl } from './demandWgsl.ts';
-
-const SHADOW_DEMAND_WGSL = shadowDemandWgsl();
+import { SHADOW_DEMAND_WGSL } from '../../gpu/core/shaderTexts.fixture.ts';
 
 type V = number[];
 type PageMap = { base: number };

@@ -14,10 +14,7 @@ import { contractLightingShader } from '../deferred/shaders.ts';
 import { reflectionSource } from '../../reflections/screenWgsl.ts';
 import { CONSTANTS, SHADOW_WGSL } from './sunRangeRead.fixture.ts';
 import { DRAWN_BITS, footprintReads, type PageMap } from './shadowFootprint.fixture.ts';
-import { waterCompositeShader } from '../../webgpu/water/compositeWgsl.ts';
-import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
-
-const WATER_COMPOSITE_SHADER = waterCompositeShader();
+import { BLEND_SHADER, WATER_COMPOSITE_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
 
 type Read = (map: PageMap, p: number[], t: number[]) => number;
 /** The page table read, the pages asked for and those missed: swapped per read, the text

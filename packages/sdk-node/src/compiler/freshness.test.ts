@@ -5,8 +5,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { currentCompilerExecutable } from './executable.mts';
 import { sourceNewerThan } from './freshness.mts';
+import { compilerFileName } from './platform.mts';
 
-const binaryName = `trillion3d-compiler${process.platform === 'win32' ? '.exe' : ''}`;
+const binaryName = compilerFileName(process.platform);
 
 /** A crate built at `builtAt` from sources dated `editedAt`: seconds since the epoch. */
 async function crate(builtAt: number, editedAt: number) {
