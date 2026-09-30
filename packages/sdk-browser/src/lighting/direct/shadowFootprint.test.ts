@@ -23,7 +23,13 @@ type Read = (map: PageMap, p: number[], t: number[]) => number;
 const live = { table: new Uint32Array(0), asked: [] as number[], missed: [] as number[] };
 const { shadowPageWord } = shaderRun<{ shadowPageWord: Read }>(
   SHADOW_WGSL,
-  ['shadowPageWord', 'shadowPageEntry', 'shadowFootprintCovers', ...PAGE_MODEL_FUNCTIONS],
+  [
+    'shadowPageWord',
+    'shadowPageEntry',
+    'shadowFootprintCovers',
+    'shadowRequestCell',
+    ...PAGE_MODEL_FUNCTIONS,
+  ],
   {
     ...CONSTANTS,
     shadows: live,
