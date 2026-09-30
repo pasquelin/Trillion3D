@@ -89,7 +89,7 @@ priority on a quarter of the cores (`TRILLION3D_MUTATION_CONCURRENCY` overriding
 run retests only what changed. `--out <dir>` (default `.mesure/out/mutation/`) receives the score
 and the lists in `summary.md`, the kills credited to each test file in `kills.tsv`, every
 surviving mutant by file in `survivors.md`, and Stryker's `mutation.html` and `mutation.json`;
-`--mutate <glob>` narrows the run to some sources.
+`--mutate <glob>` narrows the run to some sources, never their tests or fixtures.
 
 A test file that kills no mutant catches no bug of the package's sources: it is strengthened until
 it kills one, or deleted. A surviving mutant is a change no test notices: a test is added that
