@@ -138,19 +138,24 @@ export const taaPhaseCount = (rt: WebgpuPagesRuntime) =>
 
 /** A tile or a shadow page that lands on a still image changes the raster in the middle of its
  *  average: the uniform average restarts on it, from phase zero at the next image, as a barrier's
- *  landing does (`mustRestartTaaAfterSettle`, #1016). The pages the GPU drew itself land too, known
- *  a snapshot late (`mirror.drawn`): diluted in the average, a shadow drawn at rest would stay faint
- *  (#1344). */
+ *  landing does (`mustRestartTaaAfterSettle`, #1016). */
 export function restartTaaOnLanding(rt: WebgpuPagesRuntime, landed: number) {
-  const temporal = rt.gpu.temporal,
-    listed = rt.lights?.plan.gpu.drawn ?? 0,
-    seen = gpuListings.get(rt) ?? listed;
-  gpuListings.set(rt, listed);
-  if (landed + listed - seen > 0 && temporal?.frame.active && temporal.frame.stillFrames > 0)
+  const temporal = rt.gpu.temporal;
+  if (landed > 0 && temporal?.frame.active && temporal.frame.stillFrames > 0)
     forgetTaaHistory(temporal);
 }
-/** The GPU's page listings each runtime's still average last saw. */
-const gpuListings = new WeakMap<WebgpuPagesRuntime, number>();
+
+/** The shadow pages the GPU drew itself since the last call, known a snapshot late
+ *  (`mirror.drawn`): they land as the host's do, else a shadow drawn at rest stays diluted in the
+ *  still average, faint (#1344). */
+export function gpuShadowPagesLanded(rt: WebgpuPagesRuntime) {
+  const drawn = rt.lights?.plan.gpu.drawn ?? 0,
+    seen = gpuDrawnSeen.get(rt) ?? drawn;
+  gpuDrawnSeen.set(rt, drawn);
+  return drawn - seen;
+}
+/** The GPU's page listings each runtime last counted (`gpuShadowPagesLanded`). */
+const gpuDrawnSeen = new WeakMap<WebgpuPagesRuntime, number>();
 
 /** History is to be remade: targets reallocated, or size changed. */
 export function dropTaaHistory(rt: WebgpuPagesRuntime) {
