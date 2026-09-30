@@ -21,6 +21,8 @@ import {
   FLAG_SAMPLED,
 } from '../../visibility/types.ts';
 import { BLEND_TRANSMITTANCE_WGSL } from './transmittance.ts';
+import { FRESH_LAYOUT_WGSL } from '../../webgpu/shadow/freshLayout.ts';
+import { SHADOW_FRESH_DRAWS_WGSL } from '../../webgpu/shadow/freshDrawsWgsl.ts';
 
 /** Subtexel steps the rasterizer snaps a corner to, per texel (#26 step C, #1016). */
 const SHADOW_SUBTEXELS = 256;
@@ -69,7 +71,11 @@ struct ShadowView{viewProjection:mat4x4f,params:vec4f,emitter:vec4f,}
 @group(1) @binding(1) var<uniform> cutoutWord:vec4u;
 @group(1) @binding(2) var<storage,read_write> tileFeedback:array<atomic<u32>>;
 @group(2) @binding(0) var shadowOpaque:texture_depth_2d;
-struct ShadowOut{@invariant @builtin(position) position:vec4f,@location(0) @interpolate(flat) instance:u32,@location(1) uv:vec2f,@location(2) fromEmitter:vec3f,}
+@group(2) @binding(1) var<storage,read> freshFaces:array<FreshView>;
+@group(2) @binding(2) var<storage,read> freshPairs:array<u32>;
+@group(2) @binding(3) var<storage,read> freshArgs:array<u32>;
+${FRESH_LAYOUT_WGSL}
+struct ShadowOut{@invariant @builtin(position) position:vec4f,@location(0) @interpolate(flat) instance:u32,@location(1) uv:vec2f,@location(2) fromEmitter:vec3f,@location(3) @interpolate(flat) region:u32,}
 ${PAGE_LOOKUP_WGSL}
 ${PAGE_GEOMETRY_WGSL}
 ${tilePoolWgsl('0.0')}
@@ -92,10 +98,10 @@ fn snapGrid(reach:f32)->f32{
  *  \`params.w / params.z\` texels wide) to \`snapGrid\`: the viewport adds the physical page's
  *  origin to it exactly, however far the caster reaches past the page, so a page rasterizes alike
  *  wherever the pool puts it. A perspective face (a lamp's) is left as it is. */
-fn sunSnap(p:vec4f)->vec4f{
- let m=shadow.viewProjection;
+fn sunSnap(view:ShadowView,p:vec4f)->vec4f{
+ let m=view.viewProjection;
  if(m[0].w!=0.0||m[1].w!=0.0||m[2].w!=0.0){return p;}
- let half=shadow.params.w*0.5;let pool=shadow.params.w/shadow.params.z+half;
+ let half=view.params.w*0.5;let pool=view.params.w/view.params.z+half;
  // An ordinary corner lies within the pool's f32 subtexel: its step is \`snapGrid\`'s first value,
  // a constant — no call, no division per axis, one branch each. Only a corner far past its page,
  // where f32 no longer holds 1/${SHADOW_SUBTEXELS} of a texel, takes the loop (#1016).
@@ -105,12 +111,13 @@ fn sunSnap(p:vec4f)->vec4f{
  if(abs(p.y)*half+pool>=edge){sy=half/snapGrid(abs(p.y)*half+pool);}
  return vec4f(round(p.x*sx)/sx,round(p.y*sy)/sy,p.z,p.w);
 }
-/** Corner \`vertexIndex\` of page-table row \`pageIndex\`, or none when its row is not of the kind
- *  drawn: \`blended\` casters alone into the transmittance layer, the others alone into the depth. */
-fn shadowVertex(vertexIndex:u32,pageIndex:u32,blended:bool)->ShadowOut{
+/** Corner \`vertexIndex\` of page-table row \`pageIndex\` seen by \`view\`, or none when its row is
+ *  not of the kind drawn: \`blended\` casters alone into the transmittance layer, the others alone
+ *  into the depth. */
+fn shadowVertexIn(view:ShadowView,vertexIndex:u32,pageIndex:u32,blended:bool)->ShadowOut{
  var out:ShadowOut;
  let page=pages[pageIndex];
- out.instance=pageIndex;out.uv=vec2f(0.0);out.fromEmitter=vec3f(0.0);
+ out.instance=pageIndex;out.uv=vec2f(0.0);out.fromEmitter=vec3f(0.0);out.region=0u;
  let kind=(page.flags&${FLAG_BLEND_CASTER}u)!=0u;
  if(vertexIndex>=page.indexCount||kind!=blended){out.position=vec4f(0.0,0.0,2.0,1.0);return out;}
  let h=pageHeader(page);
@@ -118,11 +125,13 @@ fn shadowVertex(vertexIndex:u32,pageIndex:u32,blended:bool)->ShadowOut{
  let vertex=pagePosition(page,h,id);
  // The out.position product is not reassociated: world position is composed apart, otherwise
  // the written depth would no longer be that from before this batch, to the bit.
- out.position=sunSnap(shadow.viewProjection*page.world*vec4f(vertex,1.0));
- out.fromEmitter=(page.world*vec4f(vertex,1.0)).xyz-shadow.emitter.xyz;
+ out.position=sunSnap(view,view.viewProjection*page.world*vec4f(vertex,1.0));
+ out.fromEmitter=(page.world*vec4f(vertex,1.0)).xyz-view.emitter.xyz;
  if((page.flags&4u)!=0u){out.uv=pageUv(page,h,id);}
  return out;
 }
+/** The same, seen by the face the draw binds. */
+fn shadowVertex(vertexIndex:u32,pageIndex:u32,blended:bool)->ShadowOut{return shadowVertexIn(shadow,vertexIndex,pageIndex,blended);}
 /** Row of a region's \`i\`-th cutout caster: its list runs from the slot's end down, and the slot
  *  table holds one offset more than regions, the end of the last. */
 fn cutoutPage(i:u32)->u32{return instances[slotOffsets[uni.drawSlot+1u]-1u-i];}
@@ -138,12 +147,13 @@ fn cutoutPage(i:u32)->u32{return instances[slotOffsets[uni.drawSlot+1u]-1u-i];}
 @vertex fn shadow_blend_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->ShadowOut{
  return shadowVertex(vertexIndex,drawPage(instanceIndex),true);
 }
-/** False on the emitter envelope and on a cutout's hole: what no caster keeps. */
-fn shadowKeep(in:ShadowOut,gx:vec2f,gy:vec2f)->bool{
- let radius=shadow.emitter.w;
+/** False on the emitter envelope \`emitter\` and on a cutout's hole: what no caster keeps. */
+fn shadowKeepAt(emitter:vec4f,in:ShadowOut,gx:vec2f,gy:vec2f)->bool{
+ let radius=emitter.w;
  if(radius>0.0&&dot(in.fromEmitter,in.fromEmitter)<radius*radius){return false;}
  return maskKeep(pages[in.instance],in.uv,1.0,gx,gy);
 }
+fn shadowKeep(frag:ShadowOut,gx:vec2f,gy:vec2f)->bool{return shadowKeepAt(shadow.emitter,frag,gx,gy);}
 /** A masked caster's texel asks for the base-map tile its cutout reads — the isotropic level, one
  *  of the two the read mixes, picked as the camera's pixels pick; both during a convergence
  *  (\`everyPick\`) —, in its phase, into the texture feedback's counters (\`faceBindings.ts\`): what
@@ -178,8 +188,12 @@ fn shadowHiddenByOpaque(p:vec4f)->bool{
  if(!shadowKeep(in,gx,gy)||shadowHiddenByOpaque(in.position)){discard;}
  let page=pages[in.instance];
  if(!volumeBoundary(page,front)){discard;}
- let m=shadow.viewProjection;
- var ray=in.fromEmitter;
- if(m[0].w==0.0&&m[1].w==0.0&&m[2].w==0.0){ray=vec3f(m[0].z,m[1].z,m[2].z);}
- return blendTransmittance(page,in.uv,gx,gy,ray);
-}`;
+ return blendTransmittance(page,in.uv,gx,gy,shadowBlendRay(shadow,in));
+}
+/** The ray through a blended caster's texel under \`view\`: from the emitter, or the sun's axis. */
+fn shadowBlendRay(view:ShadowView,in:ShadowOut)->vec3f{
+ let m=view.viewProjection;
+ if(m[0].w==0.0&&m[1].w==0.0&&m[2].w==0.0){return vec3f(m[0].z,m[1].z,m[2].z);}
+ return in.fromEmitter;
+}
+${SHADOW_FRESH_DRAWS_WGSL}`;
