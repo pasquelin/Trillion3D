@@ -49,10 +49,11 @@ function witnessPixels(
   const { uniforms } = resources,
     scene = new THREE.Scene();
   scene.background = new THREE.Color(0x000000);
+  const surfaceData = floatTexture(resources.surfaceTexture);
   const shared = {
     indirectCache: { value: floatTexture(resources.texture) },
     cacheSize: { value: new THREE.Vector2(...uniforms.cacheSize) },
-    surfaceData: { value: floatTexture(resources.surfaceTexture) },
+    surfaceData: { value: surfaceData },
     sphere: { value: new THREE.Vector4(...uniforms.sphere) },
     sphereRoughness: { value: uniforms.sphereRoughness },
     reflectionSamples: { value: uniforms.reflectionSamples },
@@ -61,7 +62,7 @@ function witnessPixels(
     emitterIndices: { value: uniforms.emitterIndices },
     directLightSamples: { value: uniforms.directLightSamples },
     directLightGrid: { value: uniforms.directLightGrid },
-    bvhData: { value: floatTexture(resources.bvhTexture) },
+    bvhData: { value: uniforms.useBvh ? floatTexture(resources.bvhTexture!) : surfaceData },
     useBvh: { value: uniforms.useBvh },
   };
   for (const copy of meshes.copies) {

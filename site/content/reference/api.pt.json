@@ -69,7 +69,6 @@
       "cascadeShares": "Fração do orçamento por nível, do mais fino ao mais grosseiro. O nível mais fino cerca a câmera e recebe a maior proporção de raios.",
       "raysPerProbe": "Raios traçados por sonda a cada atualização. Orçamento fixo configurável.",
       "raysPerFrame": "Máximo de raios de sonda por quadro: teto estático que limita o tamanho do dispatch de compute.",
-      "lightsPerRay": "Luzes testadas por célula do cache de superfície.",
       "surfaceTexelsPerFrame": "Teto de células do cache de superfície atualizadas por quadro.",
       "budgetMs": "Duração alvo do passo de rebote na GPU por quadro, em milissegundos.",
       "budgetSmoothing": "Fração de correção de erro mantida por amostra para evitar oscilações.",
@@ -1761,16 +1760,6 @@
       "reason": "O que o motor não faz e por quê, em uma frase; ausente quando tudo é aplicado."
     }
   },
-  "LightingSceneLight": {
-    "summary": "RGB linear e o centro de um painel em espaço de mundo.",
-    "description": "Intensidade zero mantém o painel presente.",
-    "members": {
-      "id": "O nome da luz.",
-      "color": "Sua cor, RGB linear.",
-      "intensity": "Quão forte é.",
-      "position": "O centro do painel."
-    }
-  },
   "LinearRgb": {
     "summary": "Uma cor RGB linear, `[0, 1]` por canal."
   },
@@ -2625,20 +2614,6 @@
       "clips": "1 quando a linha carrega a flag de corte, portanto nunca pode ser rejeitada."
     }
   },
-  "Patch": {
-    "summary": "u e v abrangem a célula completa; cross(u, v) aponta ao longo da normal.",
-    "members": {
-      "id": "O número do patch.",
-      "surface": "O número de sua superfície.",
-      "center": "Seu meio.",
-      "normal": "Para onde aponta.",
-      "u": "Seu primeiro lado.",
-      "v": "Seu segundo lado.",
-      "area": "Sua área.",
-      "albedo": "Quanta luz reflete.",
-      "emission": "Luz que emite."
-    }
-  },
   "Path": {
     "summary": "Segmentos retos por cada ponto, parametrizados pelo comprimento do arco.",
     "members": {
@@ -2978,14 +2953,6 @@
       "reason": "Por quê.",
       "changedAt": "Quando mudou pela última vez.",
       "revision": "Quantas vezes mudou."
-    }
-  },
-  "Scene-common": {
-    "summary": "A cena de teste do solucionador experimental de rebote de luz: superfícies cortadas em patches.",
-    "members": {
-      "surfaces": "Suas superfícies.",
-      "patches": "Seus patches.",
-      "sphere": "Uma bola brilhante opcional."
     }
   },
   "Scene": {
@@ -3519,21 +3486,6 @@
       "sha256": "Impressão digital de seus bytes."
     }
   },
-  "Surface": {
-    "summary": "origin é um canto; u e v abrangem o retângulo completo.",
-    "members": {
-      "id": "O nome da superfície.",
-      "origin": "Um canto.",
-      "u": "O primeiro lado a partir desse canto.",
-      "v": "O segundo lado a partir desse canto.",
-      "albedo": "Quanta luz reflete, por cor.",
-      "emission": "Luz que emite, por cor.",
-      "kind": "Fosca ou espelho.",
-      "moving": "Se ela se move.",
-      "columns": "Patches na largura.",
-      "rows": "Patches na altura."
-    }
-  },
   "SurfaceBuffer": {
     "summary": "Dados de superfície por pixel de um quadro, mantidos na GPU: profundidade, normais, material.",
     "members": {
@@ -3920,63 +3872,6 @@
       "examined": "Entradas que o teste examinou: todas as que nomeiam uma página."
     }
   },
-  "TransportOptions": {
-    "summary": "Como o solucionador de rebote de luz roda.",
-    "members": {
-      "raysPerPatch": "Total de raios determinísticos por patch; quatro amostras de origem compartilham esse orçamento.",
-      "maxIterations": "Máximo de rodadas do solucionador.",
-      "tolerance": "Limite absoluto de erro de radiância na norma máxima, para o operador amostrado.",
-      "warmStart": "Reutiliza a radiância anterior no modo de reutilização (padrão true). False dá aos dois modos inicialização idêntica do solucionador.",
-      "maxBytes": "Máximo de memória que pode usar.",
-      "now": "Seu relógio.",
-      "cancelled": "Pergunta se deve parar.",
-      "onProgress": "Ouve seu progresso."
-    }
-  },
-  "TransportProgress": {
-    "summary": "O quanto o solucionador de rebote de luz avançou.",
-    "members": {
-      "eventVersion": "Versão do formato de evento.",
-      "stage": "A etapa em que está.",
-      "completed": "Trabalho feito.",
-      "total": "Trabalho ao todo."
-    }
-  },
-  "TransportResult": {
-    "summary": "O que o solucionador de rebote de luz encontrou: a luz em cada patch, e seu custo.",
-    "members": {
-      "formatVersion": "Versão do formato de dados.",
-      "mode": "Construído de novo, ou reutilizado.",
-      "radiance": "Arrays de propriedade do estado, sobrescritos por atualizações posteriores. Copie antes de reter um quadro.",
-      "irradiance": "Irradiância incidente de todas as superfícies amostradas, incluindo o painel emissivo.",
-      "indirectIrradiance": "Irradiância incidente depois de pelo menos uma reflexão difusa: pi * matriz * (radiância - origem).",
-      "timings": "Tempo gasto, por etapa.",
-      "raysTraced": "Raios cujas interseções com a cena estática foram recalculadas.",
-      "raysReused": "Interseções estáticas reutilizadas; oclusores em movimento ainda podem ter sido testados.",
-      "movingRayTests": "Testes contra coisas em movimento.",
-      "staticSurfaceTests": "Testes contra superfícies paradas.",
-      "totalRays": "Raios ao todo.",
-      "rowsUpdated": "Linhas recalculadas.",
-      "iterations": "Rodadas do solucionador.",
-      "residual": "Erro restante.",
-      "errorBound": "Maior erro possível.",
-      "contraction": "Quão rápido converge.",
-      "converged": "Se atingiu a tolerância.",
-      "bytes": "Apenas payload de array tipado de propriedade própria, excluindo objetos JS e dados de cena de propriedade do chamador.",
-      "unsupported": "O que ainda não faz."
-    }
-  },
-  "TransportSnapshot": {
-    "summary": "O problema de rebote de luz, congelado: como os patches se veem uns aos outros.",
-    "members": {
-      "formatVersion": "Versão do formato de dados.",
-      "algorithmVersion": "Versão do algoritmo.",
-      "patchCount": "Patches ao todo.",
-      "matrix": "Fatores de forma em ordem de linha: E = pi * matriz * radiância.",
-      "source": "Luz que cada patch emite.",
-      "albedo": "Luz que cada patch reflete."
-    }
-  },
   "Triangle": {
     "summary": "Três cantos, enrolados no sentido anti-horário para a face da frente.",
     "members": {
@@ -4000,9 +3895,6 @@
       "messageKey": "Qual mensagem.",
       "action": "O que pode fazer."
     }
-  },
-  "Vec3": {
-    "summary": "Geometria compartilhada pelo solucionador de transporte experimental e sua fixture de navegador."
   },
   "Vec3Input": {
     "summary": "`[x, y, z]` ou um vetor, lido como três números."
@@ -4978,9 +4870,6 @@
       "options.onProgress": "Chamado a cada evento."
     }
   },
-  "createDefaultLightingSceneLights": {
-    "summary": "Cópias independentes para chamadores que animam controles individuais."
-  },
   "createDiagnosticChannel": {
     "summary": "Entrega de diagnóstico assíncrona e limitada para hosts de navegador.",
     "description": "`emit` apenas anexa o registro já criado e agenda uma microtarefa. Nunca invoca código do usuário e nunca serializa um registro. Isso mantém os observadores fora de uma chamada de renderização medida; `flush` é o ponto explícito de sincronização do host para relatórios de preparação/streaming.",
@@ -5002,9 +4891,6 @@
   },
   "createJob": {
     "summary": "Sem timers, DOM, sistema de arquivos ou UI."
-  },
-  "createLightingScene": {
-    "summary": "Ângulo de porta zero fecha a abertura; PI/2 gira a folha para dentro do cômodo à esquerda."
   },
   "createPageIntegrationPlan": {
     "summary": "Buffers de um plano, dimensionados para a requisição mais cheia do catálogo."
@@ -5060,21 +4946,6 @@
   },
   "createTransformTree": {
     "summary": "Uma hierarquia vazia, pronta para `capacity` nós sem crescimento."
-  },
-  "createTransport": {
-    "summary": "Um experimento de transporte amostrado denso, não um solucionador hierárquico.",
-    "description": "Ambos os modos usam raios idênticos. A reutilização armazena em cache interseções com retângulos estáticos, depois testa cada retângulo em movimento em sua NOVA posição. Remover um bloqueador antigo, portanto, restaura o acerto estático em cache sem luz obsoleta. Patches de origem em movimento relançam seus próprios raios. A esfera é um obstáculo de visibilidade absorvente; patches de espelho precisam ter refletância difusa zero. Nenhum dos dois transporta luz especular para difusa.",
-    "parameters": {
-      "options": "Como o solucionador de rebote de luz roda.",
-      "options.raysPerPatch": "Total de raios determinísticos por patch; quatro amostras de origem compartilham esse orçamento.",
-      "options.maxIterations": "Máximo de rodadas do solucionador.",
-      "options.tolerance": "Limite absoluto de erro de radiância na norma máxima, para o operador amostrado.",
-      "options.warmStart": "Reutiliza a radiância anterior no modo de reutilização (padrão true). False dá aos dois modos inicialização idêntica do solucionador.",
-      "options.maxBytes": "Máximo de memória que pode usar.",
-      "options.now": "Seu relógio.",
-      "options.cancelled": "Pergunta se deve parar.",
-      "options.onProgress": "Ouve seu progresso."
-    }
   },
   "createWorld": {
     "summary": "Cria um mundo: a cena, câmera, renderizador e laço de uma visão, desenhada assim que ele sabe como.",
@@ -5192,9 +5063,6 @@
   },
   "exclusiveScan": {
     "summary": "Varredura de prefixo exclusiva."
-  },
-  "exportLightingGltf": {
-    "summary": "glTF e um buffer binário separado, little-endian; os adaptadores possuem a persistência."
   },
   "filter": {
     "summary": "Regras de amostragem de textura."
@@ -6944,10 +6812,6 @@
   },
   "sideOf": {
     "summary": "O lado que um material de host declara, lido uma vez na fronteira para o enum próprio do motor."
-  },
-  "solveTransportOracle": {
-    "summary": "Solução linear direta independente; nunca chama o solucionador iterativo.",
-    "description": "O trabalho fica fora das execuções medidas."
   },
   "sortPages": {
     "summary": "Ordenação crescente no lugar de um prefixo de um array de índices de página.",

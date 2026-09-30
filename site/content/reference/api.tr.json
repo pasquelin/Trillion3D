@@ -69,7 +69,6 @@
       "cascadeShares": "En inceden en kabaya, seviye başına bütçe payı. En ince seviye kamerayı sarar ve ışın tahsislerinin en büyük oranını alır.",
       "raysPerProbe": "Her güncellemede prob başına izlenen ışın. Sabit, yapılandırılabilir bütçe.",
       "raysPerFrame": "Kare başına maksimum prob ışını: compute dispatch boyutunu sınırlayan statik tavan.",
-      "lightsPerRay": "Yüzey önbelleği hücresi başına test edilen ışık.",
       "surfaceTexelsPerFrame": "Kare başına güncellenen yüzey önbelleği hücresi tavanı.",
       "budgetMs": "Kare başına GPU'da yansıma geçişinin hedef süresi, milisaniye cinsinden.",
       "budgetSmoothing": "Salınımları önlemek için örnek başına tutulan hata düzeltme payı.",
@@ -1761,16 +1760,6 @@
       "reason": "Motorun yapmadığı şey ve nedeni, tek bir cümlede; her şey uygulandığında yoktur."
     }
   },
-  "LightingSceneLight": {
-    "summary": "Doğrusal RGB ve dünya-uzayı bir panel merkezi.",
-    "description": "Sıfır yoğunluk paneli mevcut tutar.",
-    "members": {
-      "id": "Işığın adı.",
-      "color": "Rengi, doğrusal RGB.",
-      "intensity": "Ne kadar güçlü olduğu.",
-      "position": "Panelin merkezi."
-    }
-  },
   "LinearRgb": {
     "summary": "Kanal başına `[0, 1]`, bir doğrusal RGB rengi."
   },
@@ -2625,20 +2614,6 @@
       "clips": "Satır kesim bayrağını taşıdığında 1, dolayısıyla asla reddedilemez."
     }
   },
-  "Patch": {
-    "summary": "u ve v tüm hücreyi kapsar; cross(u, v) normal boyunca işaret eder.",
-    "members": {
-      "id": "Yamanın numarası.",
-      "surface": "Yüzeyinin numarası.",
-      "center": "Ortası.",
-      "normal": "Baktığı yön.",
-      "u": "İlk kenarı.",
-      "v": "İkinci kenarı.",
-      "area": "Alanı.",
-      "albedo": "Ne kadar ışık yansıttığı.",
-      "emission": "Yaydığı ışık."
-    }
-  },
   "Path": {
     "summary": "Yay uzunluğuna göre parametrelenmiş, her noktadan geçen düz parçalar.",
     "members": {
@@ -2978,14 +2953,6 @@
       "reason": "Nedeni.",
       "changedAt": "En son ne zaman değiştiği.",
       "revision": "Kaç kez değiştiği."
-    }
-  },
-  "Scene-common": {
-    "summary": "Deneysel ışık yansıması çözücüsünün test sahnesi: yamalara kesilmiş yüzeyler.",
-    "members": {
-      "surfaces": "Yüzeyleri.",
-      "patches": "Yamaları.",
-      "sphere": "İsteğe bağlı parlak bir küre."
     }
   },
   "Scene": {
@@ -3519,21 +3486,6 @@
       "sha256": "Baytlarının parmak izi."
     }
   },
-  "Surface": {
-    "summary": "origin bir köşedir; u ve v tüm dikdörtgeni kapsar.",
-    "members": {
-      "id": "Yüzeyin adı.",
-      "origin": "Bir köşe.",
-      "u": "O köşeden ilk kenar.",
-      "v": "O köşeden ikinci kenar.",
-      "albedo": "Renk başına ne kadar ışık yansıttığı.",
-      "emission": "Renk başına yaydığı ışık.",
-      "kind": "Mat ya da ayna.",
-      "moving": "Hareket edip etmediği.",
-      "columns": "Genişlikte yamalar.",
-      "rows": "Yükseklikte yamalar."
-    }
-  },
   "SurfaceBuffer": {
     "summary": "GPU'da tutulan, bir karenin piksel başına yüzey verisi: derinlik, normaller, malzeme.",
     "members": {
@@ -3920,63 +3872,6 @@
       "examined": "Testin incelediği girdiler: bir sayfa adlandıran hepsi."
     }
   },
-  "TransportOptions": {
-    "summary": "Işık yansıması çözücüsünün nasıl çalıştığı.",
-    "members": {
-      "raysPerPatch": "Yama başına toplam deterministik ışın; dört köken örneği bu bütçeyi paylaşır.",
-      "maxIterations": "En fazla çözücü turu.",
-      "tolerance": "Örneklenen operatör için, maksimum normda mutlak ışınım hata sınırı.",
-      "warmStart": "Yeniden kullanım modunda önceki ışınımı yeniden kullanır (varsayılan true). False, her iki moda da özdeş çözücü ilklendirmesi verir.",
-      "maxBytes": "Kullanabileceği en fazla bellek.",
-      "now": "Onun saati.",
-      "cancelled": "Durup durmaması gerektiğini sorar.",
-      "onProgress": "İlerlemesini duyar."
-    }
-  },
-  "TransportProgress": {
-    "summary": "Işık yansıması çözücüsünün ne kadar ilerlediği.",
-    "members": {
-      "eventVersion": "Olay format sürümü.",
-      "stage": "Bulunduğu adım.",
-      "completed": "Tamamlanan iş.",
-      "total": "Toplam iş."
-    }
-  },
-  "TransportResult": {
-    "summary": "Işık yansıması çözücüsünün bulduğu şey: her yamadaki ışık, ve maliyeti.",
-    "members": {
-      "formatVersion": "Veri format sürümü.",
-      "mode": "Yeniden inşa edildi, ya da yeniden kullanıldı.",
-      "radiance": "Sonraki güncellemeler tarafından üzerine yazılan, duruma ait diziler. Bir kareyi tutmadan önce kopyalayın.",
-      "irradiance": "Emissive panel dahil, örneklenen tüm yüzeylerden gelen olay ışınımı.",
-      "indirectIrradiance": "En az bir difüz yansımadan sonraki olay ışınımı: pi * matris * (radyans - kaynak).",
-      "timings": "Adım başına harcanan süre.",
-      "raysTraced": "Statik sahneyle kesişimleri yeniden hesaplanan ışınlar.",
-      "raysReused": "Yeniden kullanılan statik kesişimler; hareketli gizleyenler yine de test edilmiş olabilir.",
-      "movingRayTests": "Hareketli şeylere karşı testler.",
-      "staticSurfaceTests": "Sabit yüzeylere karşı testler.",
-      "totalRays": "Toplam ışın.",
-      "rowsUpdated": "Yeniden hesaplanan satırlar.",
-      "iterations": "Çözücü turları.",
-      "residual": "Kalan hata.",
-      "errorBound": "Olası en büyük hata.",
-      "contraction": "Ne kadar hızlı yakınsadığı.",
-      "converged": "Toleransa ulaşıp ulaşmadığı.",
-      "bytes": "Yalnızca sahibi olduğu tipli dizi yükü, JS nesneleri ve çağırana ait sahne verisi hariç.",
-      "unsupported": "Henüz yapmadığı şey."
-    }
-  },
-  "TransportSnapshot": {
-    "summary": "Dondurulmuş ışık yansıması problemi: yamaların birbirini nasıl gördüğü.",
-    "members": {
-      "formatVersion": "Veri format sürümü.",
-      "algorithmVersion": "Algoritma sürümü.",
-      "patchCount": "Toplam yama.",
-      "matrix": "Satır-öncelikli form faktörleri: E = pi * matris * radyans.",
-      "source": "Her yamanın yaydığı ışık.",
-      "albedo": "Her yamanın yansıttığı ışık."
-    }
-  },
   "Triangle": {
     "summary": "Ön yüz için saat yönünün tersine sarılmış üç köşe.",
     "members": {
@@ -4000,9 +3895,6 @@
       "messageKey": "Hangi mesaj.",
       "action": "Yapabilecekleri şey."
     }
-  },
-  "Vec3": {
-    "summary": "Deneysel taşıma çözücüsü ve tarayıcı donanımı tarafından paylaşılan geometri."
   },
   "Vec3Input": {
     "summary": "`[x, y, z]` ya da üç sayı olarak okunan bir vektör."
@@ -4978,9 +4870,6 @@
       "options.onProgress": "Her olayda çağrılır."
     }
   },
-  "createDefaultLightingSceneLights": {
-    "summary": "Bireysel kontrolleri canlandıran çağıranlar için bağımsız kopyalar."
-  },
   "createDiagnosticChannel": {
     "summary": "Tarayıcı host'ları için sınırlı, asenkron tanı teslimatı.",
     "description": "`emit` yalnızca zaten oluşturulmuş kaydı ekler ve bir mikro görev zamanlar. Asla kullanıcı kodunu çağırmaz ve asla bir kaydı serileştirmez. Bu, gözlemcileri ölçülen bir render çağrısının dışında tutar; `flush`, hazırlık/akış raporları için açık host senkronizasyon noktasıdır.",
@@ -5002,9 +4891,6 @@
   },
   "createJob": {
     "summary": "Zamanlayıcı, DOM, dosya sistemi ya da UI yok."
-  },
-  "createLightingScene": {
-    "summary": "Sıfır kapı açısı açıklığı kapatır; PI/2 kanadı sol odaya doğru açar."
   },
   "createPageIntegrationPlan": {
     "summary": "Kataloğun en dolu isteği için boyutlandırılmış bir planın tamponları."
@@ -5060,21 +4946,6 @@
   },
   "createTransformTree": {
     "summary": "Büyüme olmadan `capacity` düğüm için hazır, boş bir hiyerarşi."
-  },
-  "createTransport": {
-    "summary": "Hiyerarşik bir çözücü değil, yoğun örneklenmiş bir taşıma deneyi.",
-    "description": "Her iki mod da özdeş ışınlar kullanır. Yeniden kullanım, statik dikdörtgenlerle kesişimleri önbelleğe alır, sonra her hareketli dikdörtgeni YENİ pozisyonunda test eder. Eski bir engelleyiciyi kaldırmak bu yüzden bayat ışık olmadan önbelleğe alınmış statik isabeti geri yükler. Hareketli kaynak yamaları kendi ışınlarını yeniden fırlatır. Küre, emici bir görünürlük engelidir; ayna yamalarının sıfır difüz yansıtma katsayısı olmalıdır. İkisi de speküler ışığı difüze taşımaz.",
-    "parameters": {
-      "options": "Işık yansıması çözücüsünün nasıl çalıştığı.",
-      "options.raysPerPatch": "Yama başına toplam deterministik ışın; dört köken örneği bu bütçeyi paylaşır.",
-      "options.maxIterations": "En fazla çözücü turu.",
-      "options.tolerance": "Örneklenen operatör için, maksimum normda mutlak ışınım hata sınırı.",
-      "options.warmStart": "Yeniden kullanım modunda önceki ışınımı yeniden kullanır (varsayılan true). False, her iki moda da özdeş çözücü ilklendirmesi verir.",
-      "options.maxBytes": "Kullanabileceği en fazla bellek.",
-      "options.now": "Onun saati.",
-      "options.cancelled": "Durup durmaması gerektiğini sorar.",
-      "options.onProgress": "İlerlemesini duyar."
-    }
   },
   "createWorld": {
     "summary": "Bir dünya oluşturur: bir görünümün sahnesi, kamerası, render motoru ve döngüsü, nasıl olduğunu bilir bilmez çizilir.",
@@ -5192,9 +5063,6 @@
   },
   "exclusiveScan": {
     "summary": "Dışlayıcı önek taraması."
-  },
-  "exportLightingGltf": {
-    "summary": "glTF ve ayrı, little-endian bir ikili tampon; adaptörler kalıcılığa sahiptir."
   },
   "filter": {
     "summary": "Doku örnekleme kuralları."
@@ -6944,10 +6812,6 @@
   },
   "sideOf": {
     "summary": "Bir host malzemesinin bildirdiği, sınırda bir kez motorun kendi enum'una okunan taraf."
-  },
-  "solveTransportOracle": {
-    "summary": "Bağımsız doğrudan doğrusal çözüm; asla yinelemeli çözücüyü çağırmaz.",
-    "description": "İş, ölçülen çalıştırmaların dışındadır."
   },
   "sortPages": {
     "summary": "Bir sayfa indeksi dizisinin bir önekinin yerinde artan sıralaması.",

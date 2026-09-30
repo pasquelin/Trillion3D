@@ -69,7 +69,6 @@
       "cascadeShares": "가장 세밀한 것부터 가장 거친 것까지, 레벨별 예산 배분 비율. 가장 세밀한 레벨은 카메라를 둘러싸며 광선 배분의 가장 큰 몫을 받는다.",
       "raysPerProbe": "한 번의 업데이트에서 프로브당 추적되는 광선 수. 고정되고 설정 가능한 예산.",
       "raysPerFrame": "프레임당 최대 프로브 광선 수: 컴퓨트 디스패치 크기를 제한하는 정적 상한.",
-      "lightsPerRay": "표면 캐시 셀당 테스트되는 조명 수.",
       "surfaceTexelsPerFrame": "프레임당 업데이트되는 표면 캐시 셀 수 상한.",
       "budgetMs": "GPU에서 프레임당 간접광 패스의 목표 시간(밀리초).",
       "budgetSmoothing": "진동을 막기 위해 샘플마다 유지되는 오차 보정 비율.",
@@ -1761,16 +1760,6 @@
       "reason": "엔진이 하지 않는 것과 그 이유를 한 문장으로; 모든 것이 적용되면 생략된다."
     }
   },
-  "LightingSceneLight": {
-    "summary": "선형 RGB와, 월드 공간에서의 패널 중심.",
-    "description": "강도가 0이어도 패널은 계속 존재한다.",
-    "members": {
-      "id": "조명의 이름.",
-      "color": "그것의 색상, 선형 RGB.",
-      "intensity": "그것의 세기.",
-      "position": "패널의 중심."
-    }
-  },
   "LinearRgb": {
     "summary": "하나의 선형 RGB 색상, 채널당 `[0, 1]`."
   },
@@ -2625,20 +2614,6 @@
       "clips": "그 행이 컷 플래그를 지니고 있으면 1. 따라서 결코 배제될 수 없다."
     }
   },
-  "Patch": {
-    "summary": "u와 v는 셀 전체에 걸쳐 있으며, cross(u, v)는 법선 방향을 가리킨다.",
-    "members": {
-      "id": "그 패치의 번호.",
-      "surface": "그 표면의 번호.",
-      "center": "그 중심.",
-      "normal": "그것이 향하는 방향.",
-      "u": "그것의 첫 번째 변.",
-      "v": "그것의 두 번째 변.",
-      "area": "그것의 면적.",
-      "albedo": "그것이 얼마나 많은 빛을 반사하는가.",
-      "emission": "그것이 내는 빛."
-    }
-  },
   "Path": {
     "summary": "모든 점을 지나는 직선 구간들, 호 길이로 매개변수화됨.",
     "members": {
@@ -2978,14 +2953,6 @@
       "reason": "이유.",
       "changedAt": "마지막으로 바뀐 시점.",
       "revision": "바뀐 횟수."
-    }
-  },
-  "Scene-common": {
-    "summary": "실험적인 간접광 반사 솔버의 테스트 씬: 패치로 잘린 표면들.",
-    "members": {
-      "surfaces": "그것의 표면들.",
-      "patches": "그것의 패치들.",
-      "sphere": "선택적인, 광택 있는 구."
     }
   },
   "Scene": {
@@ -3519,21 +3486,6 @@
       "sha256": "그 바이트의 지문."
     }
   },
-  "Surface": {
-    "summary": "origin은 한 꼭짓점이다; u와 v가 그 사각형 전체에 걸쳐 있다.",
-    "members": {
-      "id": "그 표면의 이름.",
-      "origin": "한 꼭짓점.",
-      "u": "그 꼭짓점으로부터의 첫 번째 변.",
-      "v": "그 꼭짓점으로부터의 두 번째 변.",
-      "albedo": "색상별로, 얼마나 많은 빛을 반사하는가.",
-      "emission": "색상별로, 그것이 내는 빛.",
-      "kind": "무광인지, 거울인지.",
-      "moving": "그것이 움직이는지 여부.",
-      "columns": "가로 방향 패치 수.",
-      "rows": "세로 방향 패치 수."
-    }
-  },
   "SurfaceBuffer": {
     "summary": "GPU에 보관되는, 한 프레임의 픽셀별 표면 데이터: 깊이, 법선, 재질.",
     "members": {
@@ -3920,63 +3872,6 @@
       "examined": "테스트가 검토한 항목들: 페이지를 지칭하는 모든 것."
     }
   },
-  "TransportOptions": {
-    "summary": "간접광 반사 솔버가 실행되는 방식.",
-    "members": {
-      "raysPerPatch": "패치당 결정론적 광선의 총수; 네 개의 시작점 샘플이 이 예산을 나눠 쓴다.",
-      "maxIterations": "솔버 최대 라운드 수.",
-      "tolerance": "샘플링된 연산자에 대한, 최대 노름 기준 절대 복사휘도 오차 상한.",
-      "warmStart": "재사용 모드에서 이전 복사휘도를 재사용한다(기본값 true). false로 하면 두 모드의 솔버 초기화가 동일해진다.",
-      "maxBytes": "그것이 사용할 수 있는 최대 메모리.",
-      "now": "그것의 시계.",
-      "cancelled": "멈춰야 하는지 묻는다.",
-      "onProgress": "그 진행 상황을 듣는다."
-    }
-  },
-  "TransportProgress": {
-    "summary": "간접광 반사 솔버가 어디까지 진행되었는가.",
-    "members": {
-      "eventVersion": "이벤트 포맷 버전.",
-      "stage": "그것이 있는 단계.",
-      "completed": "완료된 작업량.",
-      "total": "전체 작업량."
-    }
-  },
-  "TransportResult": {
-    "summary": "간접광 반사 솔버가 찾아낸 것: 모든 패치 위의 빛, 그리고 그 비용.",
-    "members": {
-      "formatVersion": "데이터 포맷 버전.",
-      "mode": "다시 만들어졌는지, 재사용되었는지.",
-      "radiance": "상태가 소유한 배열, 이후 업데이트에서 덮어써진다. 한 프레임을 보관하기 전에 복사할 것.",
-      "irradiance": "발광 패널을 포함한, 모든 샘플링된 표면으로부터의 입사 조도.",
-      "indirectIrradiance": "적어도 한 번의 확산 반사 이후의 입사 조도: pi * matrix * (radiance - source).",
-      "timings": "단계별로 걸린 시간.",
-      "raysTraced": "정적 씬과의 교차가 다시 계산된 광선.",
-      "raysReused": "재사용된 정적 교차; 움직이는 가림막은 여전히 테스트되었을 수 있다.",
-      "movingRayTests": "움직이는 것들에 대한 테스트.",
-      "staticSurfaceTests": "정지된 표면들에 대한 테스트.",
-      "totalRays": "전체 광선 수.",
-      "rowsUpdated": "다시 계산된 행 수.",
-      "iterations": "솔버 라운드 수.",
-      "residual": "남은 오차.",
-      "errorBound": "가능한 최대 오차.",
-      "contraction": "수렴하는 속도.",
-      "converged": "허용 오차에 도달했는지 여부.",
-      "bytes": "소유하고 있는 타입 배열 페이로드만. JS 객체와 호출자가 소유한 씬 데이터는 제외.",
-      "unsupported": "아직 하지 못하는 것."
-    }
-  },
-  "TransportSnapshot": {
-    "summary": "고정된, 간접광 문제: 패치들이 서로를 어떻게 보는가.",
-    "members": {
-      "formatVersion": "데이터 포맷 버전.",
-      "algorithmVersion": "알고리즘 버전.",
-      "patchCount": "전체 패치 수.",
-      "matrix": "행 우선 형태 인자들: E = pi * matrix * radiance.",
-      "source": "각 패치가 내는 빛.",
-      "albedo": "각 패치가 반사하는 빛."
-    }
-  },
   "Triangle": {
     "summary": "세 꼭짓점, 앞면 기준 반시계 방향으로 감김.",
     "members": {
@@ -4000,9 +3895,6 @@
       "messageKey": "어떤 메시지인가.",
       "action": "그들이 할 수 있는 것."
     }
-  },
-  "Vec3": {
-    "summary": "실험적인 전송 솔버와 그 브라우저 픽스처가 공유하는 지오메트리."
   },
   "Vec3Input": {
     "summary": "`[x, y, z]` 또는 벡터, 세 숫자로 읽힌다."
@@ -4978,9 +4870,6 @@
       "options.onProgress": "각 이벤트마다 호출된다."
     }
   },
-  "createDefaultLightingSceneLights": {
-    "summary": "개별 컨트롤을 애니메이션시키는 호출자를 위한 독립적인 사본."
-  },
   "createDiagnosticChannel": {
     "summary": "브라우저 호스트를 위한, 상한이 있는 비동기 진단 전달.",
     "description": "`emit`은 이미 만들어진 레코드를 추가하고 마이크로태스크를 예약할 뿐이다. 사용자 코드를 호출하는 일도, 레코드를 직렬화하는 일도 결코 없다. 이는 관찰자를 측정 대상 렌더링 호출 밖에 유지시킨다; `flush`는 준비/스트리밍 보고서를 위한, 명시적인 호스트 동기화 지점이다.",
@@ -5002,9 +4891,6 @@
   },
   "createJob": {
     "summary": "타이머도, DOM도, 파일시스템도, UI도 없다."
-  },
-  "createLightingScene": {
-    "summary": "문 각도 0은 입구를 닫고; PI/2는 문짝을 왼쪽 방으로 밀어 넣는다."
   },
   "createPageIntegrationPlan": {
     "summary": "계획의 버퍼, 카탈로그의 가장 큰 요청에 맞춘 크기."
@@ -5060,21 +4946,6 @@
   },
   "createTransformTree": {
     "summary": "빈 계층 구조. 성장 없이 `capacity`개의 노드를 받아들일 준비가 된 것."
-  },
-  "createTransport": {
-    "summary": "계층적 솔버가 아니라, 조밀하게 샘플링된 전송 실험.",
-    "description": "두 모드 모두 동일한 광선을 사용한다. 재사용 모드는 정적 사각형과의 교차를 캐시한 다음, 움직이는 모든 사각형을 그 **새로운** 위치에서 테스트한다. 따라서 오래된 가림막을 제거하면, 낡은 빛을 남기지 않고 캐시된 정적 히트가 복원된다. 움직이는 광원 패치는 자신의 광선을 다시 쏜다. 구는 빛을 흡수하는 가시성 장애물이며, 거울 패치는 확산 반사율이 0이어야 한다. 어느 쪽도 정반사광을 확산광으로 전송하지 않는다.",
-    "parameters": {
-      "options": "간접광 반사 솔버가 실행되는 방식.",
-      "options.raysPerPatch": "패치당 결정론적 광선의 총수; 네 개의 시작점 샘플이 이 예산을 나눠 쓴다.",
-      "options.maxIterations": "솔버 최대 라운드 수.",
-      "options.tolerance": "샘플링된 연산자에 대한, 최대 노름 기준 절대 복사휘도 오차 상한.",
-      "options.warmStart": "재사용 모드에서 이전 복사휘도를 재사용한다(기본값 true). false로 하면 두 모드의 솔버 초기화가 동일해진다.",
-      "options.maxBytes": "그것이 사용할 수 있는 최대 메모리.",
-      "options.now": "그것의 시계.",
-      "options.cancelled": "멈춰야 하는지 묻는다.",
-      "options.onProgress": "그 진행 상황을 듣는다."
-    }
   },
   "createWorld": {
     "summary": "월드를 만든다: 하나의 뷰의 씬, 카메라, 렌더러, 루프이며, 어떻게 그릴지 알게 되는 즉시 그려진다.",
@@ -5192,9 +5063,6 @@
   },
   "exclusiveScan": {
     "summary": "배타적 접두사 스캔."
-  },
-  "exportLightingGltf": {
-    "summary": "glTF와, 별도의 리틀 엔디안 이진 버퍼; 영속화는 어댑터가 담당한다."
   },
   "filter": {
     "summary": "텍스처 샘플링 규칙."
@@ -6944,10 +6812,6 @@
   },
   "sideOf": {
     "summary": "호스트 재질이 선언하는 면, 경계에서 한 번만 엔진 고유의 열거형으로 읽힌다."
-  },
-  "solveTransportOracle": {
-    "summary": "독립적인 직접 선형 솔버; 반복 솔버를 결코 호출하지 않는다.",
-    "description": "작업은 측정 대상 실행 밖에서 이루어진다."
   },
   "sortPages": {
     "summary": "페이지 인덱스 배열의 접두사를 제자리에서 오름차순으로 정렬한다.",

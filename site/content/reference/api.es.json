@@ -367,7 +367,6 @@
       "cascadeShares": "Parte del presupuesto por nivel, del más fino al más grueso. El nivel más fino rodea la cámara y recibe la mayor parte de los rayos.",
       "raysPerProbe": "Rayos trazados por sonda en cada actualización. Presupuesto fijo ajustable.",
       "raysPerFrame": "Rayos de sondas como máximo por fotograma: límite fijo que acota el tamaño del cálculo lanzado.",
-      "lightsPerRay": "Luces probadas por celda de la caché de superficie.",
       "surfaceTexelsPerFrame": "Límite de celdas de la caché de superficie actualizadas por fotograma.",
       "budgetMs": "Duración objetivo del paso de rebote en la GPU por fotograma, en milisegundos.",
       "budgetSmoothing": "Parte de la corrección de error conservada en cada medición, para evitar oscilaciones.",
@@ -1163,9 +1162,6 @@
       "options.onProgress": "Llamado en cada evento."
     }
   },
-  "createDefaultLightingSceneLights": {
-    "summary": "Copias independientes para quienes animan cada control por separado."
-  },
   "createDiagnosticChannel": {
     "summary": "Entrega acotada y asíncrona de diagnósticos para hosts de navegador.",
     "description": "`emit` solo añade el registro ya creado y programa una microtarea. Nunca llama a código de usuario ni serializa un registro. Esto mantiene a los observadores fuera de una llamada de renderizado medida; `flush` es el punto de sincronización explícito del host para los informes de preparación y transmisión.",
@@ -1187,9 +1183,6 @@
   },
   "createJob": {
     "summary": "Sin temporizador, sin DOM, sin archivos ni interfaz."
-  },
-  "createLightingScene": {
-    "summary": "Un ángulo de puerta nulo cierra la abertura; PI/2 gira la hoja hacia la habitación de la izquierda."
   },
   "createPageIntegrationPlan": {
     "summary": "Búferes de un plan, dimensionados para la mayor demanda del catálogo."
@@ -1245,21 +1238,6 @@
   },
   "createTransformTree": {
     "summary": "Una jerarquía vacía, lista para `capacity` nodos sin crecer."
-  },
-  "createTransport": {
-    "summary": "Un experimento de transporte muestreado denso, no un solucionador jerárquico.",
-    "description": "Ambos modos usan los mismos rayos. La reutilización guarda en caché las intersecciones con los rectángulos inmóviles, y luego prueba cada rectángulo que se mueve en su NUEVA posición. Retirar un obstáculo antiguo restablece así el impacto inmóvil en caché sin luz obsoleta. Los trozos de fuente que se mueven relanzan sus propios rayos. La esfera es un obstáculo de visibilidad que absorbe; los trozos espejo deben tener una reflexión difusa nula. Ninguno de los dos transporta luz especular hacia lo difuso.",
-    "parameters": {
-      "options": "Cómo funciona el solucionador del rebote de luz.",
-      "options.raysPerPatch": "Rayos determinísticos en total por trozo; cuatro puntos de partida se reparten este presupuesto.",
-      "options.maxIterations": "Vueltas máximas del solucionador.",
-      "options.tolerance": "Límite absoluto del error de radiancia en la norma del máximo, para el operador muestreado.",
-      "options.warmStart": "Reutiliza la radiancia anterior en modo reutilización (verdadero por defecto). Falso da a ambos modos el mismo punto de partida del solucionador.",
-      "options.maxBytes": "Memoria máxima que puede usar.",
-      "options.now": "Su reloj.",
-      "options.cancelled": "Pregunta si hay que detenerse.",
-      "options.onProgress": "Escucha su progreso."
-    }
   },
   "createWorld": {
     "summary": "Crea un mundo: la escena, la cámara, el motor de renderizado y el bucle de una vista, dibujada en cuanto sabe cómo.",
@@ -1730,9 +1708,6 @@
   },
   "EffectStage": {
     "summary": "Dónde se sitúa una pasada respecto a la curva de visualización: sobre la radiancia lineal de la escena, antes de que la exposición y la curva la lleven al rango de visualización, o sobre la imagen mostrada que produjeron."
-  },
-  "exportLightingGltf": {
-    "summary": "glTF y un búfer binario separado en little-endian; los adaptadores gestionan el guardado."
   },
   "ExtrudeOptions": {
     "summary": "Cómo `geometry.extrude` empuja una forma plana para convertirla en un sólido.",
@@ -2944,16 +2919,6 @@
       "shadows": "Las luces de este motor llevan sombras.",
       "transforms": "`setTransform` mueve de verdad un nodo nombrado en este motor.",
       "reason": "Lo que el motor no hace y por qué, en una frase; ausente cuando todo se aplica."
-    }
-  },
-  "LightingSceneLight": {
-    "summary": "RGB lineal y centro del panel en el mundo.",
-    "description": "Una intensidad nula mantiene el panel presente.",
-    "members": {
-      "id": "El nombre de la luz.",
-      "color": "Su color, en RGB lineal.",
-      "intensity": "Su fuerza.",
-      "position": "El centro del panel."
     }
   },
   "LightParameters": {
@@ -4808,20 +4773,6 @@
       "clips": "1 cuando la fila lleva la marca de recorte, y por tanto nunca puede ser rechazada."
     }
   },
-  "Patch": {
-    "summary": "u y v cubren toda la celda; cross(u, v) apunta según la normal.",
-    "members": {
-      "id": "El número del trozo.",
-      "surface": "El número de su superficie.",
-      "center": "Su centro.",
-      "normal": "Hacia dónde está girado.",
-      "u": "Su primer lado.",
-      "v": "Su segundo lado.",
-      "area": "Su área.",
-      "albedo": "Cuánta luz devuelve.",
-      "emission": "La luz que emite."
-    }
-  },
   "Path": {
     "summary": "Segmentos rectos por cada punto, parametrizados por la longitud de arco.",
     "members": {
@@ -5304,14 +5255,6 @@
   },
   "scaleVector3": {
     "summary": "`v.multiplyScalar(s)`: las tres componentes de `out` multiplicadas en el sitio."
-  },
-  "Scene-common": {
-    "summary": "La escena de prueba del solucionador experimental del rebote de luz: superficies cortadas en trozos.",
-    "members": {
-      "surfaces": "Sus superficies.",
-      "patches": "Sus trozos.",
-      "sphere": "Una esfera brillante, opcional."
-    }
   },
   "Scene": {
     "summary": "La raíz de la escena de un mundo: se le añaden objetos, se carga en ella un modelo compilado, y lo que llena la imagen detrás de ellos es `background`.",
@@ -5831,10 +5774,6 @@
       "roots": "Cuántas raíces."
     }
   },
-  "solveTransportOracle": {
-    "summary": "Resolución lineal directa independiente; nunca llama al solucionador iterativo.",
-    "description": "El trabajo está fuera de las medidas."
-  },
   "sortPages": {
     "summary": "Ordenación ascendente en el sitio del principio de un array de índices de páginas.",
     "description": "Las listas ordenadas aquí contienen casi siempre unas decenas de entradas ya ordenadas: la inserción entonces no mueve nada y no asigna nada. Una lista larga — la cola de las páginas que esperan su hoja durante una ráfaga de llegadas — pasa por la ordenación de arrays tipados, en n log n, al precio de una única vista sobre el principio del array."
@@ -5981,21 +5920,6 @@
   },
   "summarize": {
     "summary": "La media, la mediana, el percentil 95, el percentil 99 y el peor de una lista de tiempos."
-  },
-  "Surface": {
-    "summary": "origin es una esquina; u y v cubren todo el rectángulo.",
-    "members": {
-      "id": "El nombre de la superficie.",
-      "origin": "Una esquina.",
-      "u": "El primer lado desde esa esquina.",
-      "v": "El segundo lado desde esa esquina.",
-      "albedo": "Cuánta luz devuelve, por color.",
-      "emission": "Luz que emite, por color.",
-      "kind": "Mate o espejo.",
-      "moving": "Si se mueve.",
-      "columns": "Trozos en anchura.",
-      "rows": "Trozos hacia arriba."
-    }
   },
   "SurfaceBuffer": {
     "summary": "Datos de superficie por píxel de una imagen, conservados en la GPU: profundidad, normales, material.",
@@ -6510,63 +6434,6 @@
       "examined": "Entradas examinadas por la prueba: todas las que nombran una página."
     }
   },
-  "TransportOptions": {
-    "summary": "Cómo funciona el solucionador del rebote de luz.",
-    "members": {
-      "raysPerPatch": "Rayos determinísticos en total por trozo; cuatro puntos de partida se reparten este presupuesto.",
-      "maxIterations": "Vueltas máximas del solucionador.",
-      "tolerance": "Límite absoluto del error de radiancia en la norma del máximo, para el operador muestreado.",
-      "warmStart": "Reutiliza la radiancia anterior en modo reutilización (verdadero por defecto). Falso da a ambos modos el mismo punto de partida del solucionador.",
-      "maxBytes": "Memoria máxima que puede usar.",
-      "now": "Su reloj.",
-      "cancelled": "Pregunta si hay que detenerse.",
-      "onProgress": "Escucha su progreso."
-    }
-  },
-  "TransportProgress": {
-    "summary": "Hasta dónde ha llegado el solucionador del rebote de luz.",
-    "members": {
-      "eventVersion": "Versión del formato de los eventos.",
-      "stage": "La etapa en curso.",
-      "completed": "Trabajo hecho.",
-      "total": "Trabajo total."
-    }
-  },
-  "TransportResult": {
-    "summary": "Lo que ha encontrado el solucionador del rebote de luz: la luz sobre cada trozo, y su coste.",
-    "members": {
-      "formatVersion": "Versión del formato de los datos.",
-      "mode": "Rehecho, o reutilizado.",
-      "radiance": "Arrays mantenidos por el estado, sobrescritos por las siguientes actualizaciones. Cópialos antes de conservar una imagen.",
-      "irradiance": "Irradiancia recibida de todas las superficies muestreadas, panel emisivo incluido.",
-      "indirectIrradiance": "Irradiancia recibida tras al menos una reflexión difusa: pi * matrix * (radiance - source).",
-      "timings": "Tiempo empleado, por etapa.",
-      "raysTraced": "Rayos cuyas intersecciones con la escena inmóvil se recalcularon.",
-      "raysReused": "Intersecciones inmóviles reutilizadas; los obstáculos en movimiento pudieron probarse de todos modos.",
-      "movingRayTests": "Pruebas contra las cosas que se mueven.",
-      "staticSurfaceTests": "Pruebas contra las superficies inmóviles.",
-      "totalRays": "Rayos en total.",
-      "rowsUpdated": "Filas recalculadas.",
-      "iterations": "Vueltas del solucionador.",
-      "residual": "Error restante.",
-      "errorBound": "Mayor error posible.",
-      "contraction": "Velocidad de convergencia.",
-      "converged": "Si alcanzó la tolerancia.",
-      "bytes": "Solo los arrays tipados propios, sin los objetos JS ni los datos de escena del llamador.",
-      "unsupported": "Lo que todavía no hace."
-    }
-  },
-  "TransportSnapshot": {
-    "summary": "El problema del rebote de luz, congelado: cómo se ven los trozos entre sí.",
-    "members": {
-      "formatVersion": "Versión del formato de los datos.",
-      "algorithmVersion": "Versión del algoritmo.",
-      "patchCount": "Trozos en total.",
-      "matrix": "Factores de forma dispuestos por filas: E = pi * matrix * radiance.",
-      "source": "La luz que emite cada trozo.",
-      "albedo": "La luz que devuelve cada trozo."
-    }
-  },
   "Triangle": {
     "summary": "Tres esquinas, giradas en sentido antihorario para la cara frontal.",
     "members": {
@@ -6613,9 +6480,6 @@
   "validateSceneLight": {
     "summary": "Verifica una luz y devuelve una copia normalizada de ella.",
     "description": "Una luz rechazada nunca entra en el búfer: el contrato no acepta ni intensidad negativa, ni alcance nulo, ni foco sin dirección, ni luz direccional que pretenda tener una posición o un alcance."
-  },
-  "Vec3": {
-    "summary": "Geometría compartida por el solucionador de transporte experimental y su escena de prueba en el navegador."
   },
   "Vec3Input": {
     "summary": "`[x, y, z]` o un vector, leído como tres números."

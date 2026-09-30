@@ -69,7 +69,6 @@
       "cascadeShares": "Porsi anggaran per tingkat, dari terhalus ke terkasar. Tingkat terhalus mengelilingi kamera dan menerima proporsi alokasi sinar terbesar.",
       "raysPerProbe": "Sinar yang dilacak per probe per pembaruan. Anggaran tetap yang bisa diatur.",
       "raysPerFrame": "Jumlah maksimum sinar probe per bingkai: batas atas statis yang membatasi ukuran dispatch compute.",
-      "lightsPerRay": "Cahaya yang diuji per sel cache permukaan.",
       "surfaceTexelsPerFrame": "Batas atas sel cache permukaan yang diperbarui per bingkai.",
       "budgetMs": "Durasi target tahap pantulan di GPU per bingkai, dalam milidetik.",
       "budgetSmoothing": "Porsi koreksi galat yang disimpan per sampel untuk mencegah osilasi.",
@@ -1779,16 +1778,6 @@
       "reason": "Apa yang tidak dilakukan mesin dan kenapa, dalam satu kalimat; tidak ada saat semuanya diterapkan."
     }
   },
-  "LightingSceneLight": {
-    "summary": "RGB linear dan pusat panel dalam ruang dunia.",
-    "description": "Intensitas nol tetap menyimpan panelnya.",
-    "members": {
-      "color": "Warnanya, RGB linear.",
-      "id": "Nama lampu.",
-      "intensity": "Seberapa kuat lampunya.",
-      "position": "Pusat panel."
-    }
-  },
   "LinearRgb": {
     "summary": "Satu warna RGB linear, `[0, 1]` per kanal."
   },
@@ -2643,20 +2632,6 @@
       "clips": "1 saat baris membawa bendera potongan, karenanya tidak pernah bisa ditolak."
     }
   },
-  "Patch": {
-    "summary": "u dan v membentang seluruh sel; cross(u, v) mengarah sepanjang normal.",
-    "members": {
-      "id": "Nomor patch itu.",
-      "surface": "Nomor permukaannya.",
-      "center": "Tengahnya.",
-      "normal": "Arah hadapnya.",
-      "u": "Sisi pertamanya.",
-      "v": "Sisi keduanya.",
-      "area": "Luasnya.",
-      "albedo": "Seberapa banyak cahaya yang dipantulkannya.",
-      "emission": "Cahaya yang dipancarkannya."
-    }
-  },
   "Path": {
     "summary": "Segmen lurus melalui setiap titik, diparameterisasi menurut panjang busur.",
     "members": {
@@ -3076,14 +3051,6 @@
       "load": "Memuat sebuah model terkompilasi — URL manifestnya — dan menambahkannya ke scene ini.",
       "toJSON": "Scene sebagai JSON sederhana berversi: objeknya, bentuk lewat panggilan yang membangunnya, material, cahaya, bodi fisika tiap mesh seperti yang dideklarasikan, dan model yang dimuat lewat alamatnya; pose `camera` juga jika diberikan.",
       "fromJSON": "Mengganti isi scene dengan scene yang disimpan `toJSON`, penanda `helper`-nya tetap dipertahankan; selesai setelah model-modelnya dimuat. Format atau versi lain ditolak (`UNSUPPORTED_SCENE_FORMAT`). Panggilan yang dilakukan selama pembacaan berjalan satu per satu, berurutan, masing-masing pada hasil yang ditinggalkan panggilan sebelumnya: dua scene tersimpan tidak pernah bercampur."
-    }
-  },
-  "Scene-common": {
-    "summary": "Scene uji solver pantulan cahaya eksperimental: permukaan dipotong menjadi patch.",
-    "members": {
-      "surfaces": "Permukaannya.",
-      "patches": "Patch-nya.",
-      "sphere": "Sebuah bola mengkilap opsional."
     }
   },
   "SceneEnvironment": {
@@ -3603,21 +3570,6 @@
       "sha256": "Sidik jari byte-nya."
     }
   },
-  "Surface": {
-    "summary": "origin adalah sebuah sudut; u dan v membentang seluruh persegi panjang.",
-    "members": {
-      "id": "Nama permukaan itu.",
-      "origin": "Satu sudut.",
-      "u": "Sisi pertama dari sudut itu.",
-      "v": "Sisi kedua dari sudut itu.",
-      "albedo": "Seberapa banyak cahaya yang dipantulkannya, per warna.",
-      "emission": "Cahaya yang dipancarkannya, per warna.",
-      "kind": "Matte atau cermin.",
-      "moving": "Apakah ia bergerak.",
-      "columns": "Patch melintang.",
-      "rows": "Patch menaik."
-    }
-  },
   "SurfaceBuffer": {
     "summary": "Data permukaan per-piksel sebuah bingkai, disimpan di GPU: kedalaman, normal, material.",
     "members": {
@@ -4060,63 +4012,6 @@
       "examined": "Entri yang diperiksa uji itu: semua yang menyebut nama sebuah halaman."
     }
   },
-  "TransportOptions": {
-    "summary": "Bagaimana solver pantulan cahaya berjalan.",
-    "members": {
-      "raysPerPatch": "Total sinar deterministik per patch; empat sampel asal berbagi anggaran ini.",
-      "maxIterations": "Paling banyak putaran solver.",
-      "tolerance": "Batas galat radiansi mutlak dalam norma maksimum, untuk operator yang disampel.",
-      "warmStart": "Pakai ulang radiansi sebelumnya dalam mode pakai-ulang (bawaan benar). Salah memberi kedua mode inisialisasi solver yang identik.",
-      "maxBytes": "Paling banyak memori yang boleh dipakainya.",
-      "now": "Jamnya.",
-      "cancelled": "Menanyakan apakah harus berhenti.",
-      "onProgress": "Mendengar progresnya."
-    }
-  },
-  "TransportProgress": {
-    "summary": "Seberapa jauh solver pantulan cahaya sudah sampai.",
-    "members": {
-      "eventVersion": "Versi format peristiwa.",
-      "stage": "Langkah tempat ia berada.",
-      "completed": "Pekerjaan yang selesai.",
-      "total": "Pekerjaan secara keseluruhan."
-    }
-  },
-  "TransportResult": {
-    "summary": "Yang ditemukan solver pantulan cahaya: cahaya pada setiap patch, dan biayanya.",
-    "members": {
-      "formatVersion": "Versi format data.",
-      "mode": "Dibangun lagi, atau dipakai ulang.",
-      "radiance": "Larik milik status, ditimpa pembaruan berikutnya. Salin sebelum menyimpan sebuah bingkai.",
-      "irradiance": "Iradiansi datang dari semua permukaan yang disampel, termasuk panel emisif.",
-      "indirectIrradiance": "Iradiansi datang setelah setidaknya satu pantulan difus: pi * matrix * (radiance - source).",
-      "timings": "Waktu yang dihabiskan, per langkah.",
-      "raysTraced": "Sinar yang perpotongan scene statisnya dihitung ulang.",
-      "raysReused": "Perpotongan statis yang dipakai ulang; pengoklusi bergerak mungkin masih diuji.",
-      "movingRayTests": "Uji terhadap benda bergerak.",
-      "staticSurfaceTests": "Uji terhadap permukaan diam.",
-      "totalRays": "Sinar secara keseluruhan.",
-      "rowsUpdated": "Baris yang dihitung ulang.",
-      "iterations": "Putaran solver.",
-      "residual": "Galat yang tersisa.",
-      "errorBound": "Galat terbesar yang mungkin.",
-      "contraction": "Seberapa cepat ia berkonvergensi.",
-      "converged": "Apakah ia mencapai toleransi.",
-      "bytes": "Hanya payload typed-array yang dimiliki, tidak termasuk objek JS dan data scene milik pemanggil.",
-      "unsupported": "Apa yang belum dilakukannya."
-    }
-  },
-  "TransportSnapshot": {
-    "summary": "Masalah pantulan cahaya, dibekukan: bagaimana patch saling melihat.",
-    "members": {
-      "formatVersion": "Versi format data.",
-      "algorithmVersion": "Versi algoritma.",
-      "patchCount": "Patch secara keseluruhan.",
-      "matrix": "Faktor bentuk row-major: E = pi * matrix * radiance.",
-      "source": "Cahaya yang dipancarkan setiap patch.",
-      "albedo": "Cahaya yang dipantulkan setiap patch."
-    }
-  },
   "Triangle": {
     "summary": "Tiga sudut, dililit berlawanan jarum jam untuk muka depan.",
     "members": {
@@ -4140,9 +4035,6 @@
       "messageKey": "Pesan yang mana.",
       "action": "Apa yang bisa mereka lakukan."
     }
-  },
-  "Vec3": {
-    "summary": "Geometri yang dibagi solver transport eksperimental dan fixture peramban-nya."
   },
   "Vec3Input": {
     "summary": "`[x, y, z]` atau sebuah vektor, dibaca sebagai tiga angka."
@@ -4948,9 +4840,6 @@
       "options.onProgress": "Dipanggil pada setiap peristiwa."
     }
   },
-  "createDefaultLightingSceneLights": {
-    "summary": "Salinan independen untuk pemanggil yang menganimasikan kontrol individual."
-  },
   "createDiagnosticChannel": {
     "summary": "Pengiriman diagnostik asinkron dan terbatas untuk host browser.",
     "description": "`emit` hanya menambahkan rekaman yang sudah dibuat dan menjadwalkan sebuah microtask. Ia tidak pernah memanggil kode pengguna dan tidak pernah men-serialize sebuah rekaman. Ini menjaga pengamat di luar sebuah panggilan render yang diukur; `flush` adalah titik sinkronisasi host eksplisit untuk laporan persiapan/streaming.",
@@ -4972,9 +4861,6 @@
   },
   "createJob": {
     "summary": "Tanpa timer, DOM, sistem berkas atau UI."
-  },
-  "createLightingScene": {
-    "summary": "Sudut pintu nol menutup bukaan; PI/2 mengayunkan daun pintu ke ruangan kiri."
   },
   "createPageIntegrationPlan": {
     "summary": "Buffer sebuah rencana, berukuran untuk permintaan katalog terpenuh."
@@ -5030,21 +4916,6 @@
   },
   "createTransformTree": {
     "summary": "Sebuah hierarki kosong, siap untuk `capacity` node tanpa pertumbuhan."
-  },
-  "createTransport": {
-    "summary": "Sebuah eksperimen transport tersampel padat, bukan pemecah hierarkis.",
-    "description": "Kedua mode memakai sinar yang identik. Reuse men-cache irisan dengan persegi panjang statis, lalu menguji setiap persegi panjang bergerak pada posisi BARUNYA. Menghapus sebuah penghalang lama karenanya memulihkan hit statis yang di-cache tanpa cahaya basi. Patch sumber bergerak melakukan ulang sinar mereka sendiri. Bola itu adalah penghalang visibilitas yang menyerap; patch cermin harus punya reflektansi difus nol. Tak satu pun mentranspor cahaya spekular ke difus.",
-    "parameters": {
-      "options": "Bagaimana pemecah pantulan cahaya berjalan.",
-      "options.raysPerPatch": "Total sinar deterministik per patch; empat sampel titik asal berbagi anggaran ini.",
-      "options.maxIterations": "Ronde pemecah terbanyak.",
-      "options.tolerance": "Batas galat radiansi absolut dalam norma maksimum, untuk operator tersampel.",
-      "options.warmStart": "Menggunakan ulang radiansi sebelumnya dalam mode reuse (default benar). Salah memberi kedua mode inisialisasi pemecah yang identik.",
-      "options.maxBytes": "Memori terbanyak yang boleh dipakainya.",
-      "options.now": "Jamnya.",
-      "options.cancelled": "Menanyakan apakah harus berhenti.",
-      "options.onProgress": "Mendengar kemajuannya."
-    }
   },
   "createWorld": {
     "summary": "Membuat sebuah dunia: scene, kamera, renderer dan loop satu tampilan, digambar begitu ia tahu caranya.",
@@ -5162,9 +5033,6 @@
   },
   "exclusiveScan": {
     "summary": "Scan prefiks eksklusif."
-  },
-  "exportLightingGltf": {
-    "summary": "glTF dan buffer biner little-endian terpisah; adapter memiliki persistensinya."
   },
   "filter": {
     "summary": "Aturan pengambilan sampel tekstur."
@@ -6918,10 +6786,6 @@
   },
   "sideOf": {
     "summary": "Sisi yang dideklarasikan sebuah material host, dibaca sekali di batas ke dalam enum milik mesin sendiri."
-  },
-  "solveTransportOracle": {
-    "summary": "Pemecahan linear langsung independen; tidak pernah memanggil pemecah iteratif.",
-    "description": "Pekerjaan berada di luar run yang diukur."
   },
   "sortPages": {
     "summary": "Pengurutan naik di tempat sebuah prefiks array indeks halaman.",

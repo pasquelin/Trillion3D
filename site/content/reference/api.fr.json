@@ -367,7 +367,6 @@
       "cascadeShares": "Part du budget par niveau, du plus fin au plus grossier. Le niveau le plus fin entoure la caméra et reçoit la plus grande part des rayons.",
       "raysPerProbe": "Rayons tracés par sonde à chaque mise à jour. Budget fixe réglable.",
       "raysPerFrame": "Rayons de sondes maximum par image : plafond fixe qui borne la taille du calcul lancé.",
-      "lightsPerRay": "Lumières testées par case du cache de surface.",
       "surfaceTexelsPerFrame": "Plafond de cases du cache de surface mises à jour par image.",
       "budgetMs": "Durée visée de la passe de rebond sur le GPU par image, en millisecondes.",
       "budgetSmoothing": "Part de la correction d’erreur gardée à chaque mesure, pour éviter les oscillations.",
@@ -1163,9 +1162,6 @@
       "options.onProgress": "Appelé à chaque évènement."
     }
   },
-  "createDefaultLightingSceneLights": {
-    "summary": "Des copies indépendantes pour ceux qui animent chaque contrôle séparément."
-  },
   "createDiagnosticChannel": {
     "summary": "Livraison bornée et asynchrone des diagnostics pour les hôtes navigateur.",
     "description": "`emit` ne fait qu’ajouter l’enregistrement déjà créé et prévoir une micro-tâche. Il n’appelle jamais de code utilisateur et ne sérialise jamais un enregistrement. Cela garde les observateurs hors d’un appel de rendu mesuré ; `flush` est le point de synchronisation explicite de l’hôte pour les rapports de préparation et de flux.",
@@ -1187,9 +1183,6 @@
   },
   "createJob": {
     "summary": "Pas de minuterie, de DOM, de fichiers ni d’interface."
-  },
-  "createLightingScene": {
-    "summary": "Un angle de porte nul ferme l’ouverture ; PI/2 fait pivoter le battant dans la pièce de gauche."
   },
   "createPageIntegrationPlan": {
     "summary": "Tampons d’un plan, dimensionnés pour la plus grande demande du catalogue."
@@ -1245,21 +1238,6 @@
   },
   "createTransformTree": {
     "summary": "Une hiérarchie vide, prête pour `capacity` nœuds sans grandir."
-  },
-  "createTransport": {
-    "summary": "Une expérience de transport échantillonné dense, pas un solveur hiérarchique.",
-    "description": "Les deux modes utilisent les mêmes rayons. La réutilisation garde en cache les intersections avec les rectangles immobiles, puis teste chaque rectangle qui bouge à sa NOUVELLE position. Retirer un ancien obstacle rétablit donc l’impact immobile en cache sans lumière périmée. Les morceaux sources qui bougent relancent leurs propres rayons. La sphère est un obstacle de visibilité qui absorbe ; les morceaux miroirs doivent avoir une réflexion diffuse nulle. Aucun des deux ne transporte de lumière spéculaire vers le diffus.",
-    "parameters": {
-      "options": "Comment tourne le solveur du rebond de lumière.",
-      "options.raysPerPatch": "Rayons déterministes au total par morceau ; quatre points de départ se partagent ce budget.",
-      "options.maxIterations": "Tours maximum du solveur.",
-      "options.tolerance": "Borne absolue de l’erreur de radiance dans la norme du maximum, pour l’opérateur échantillonné.",
-      "options.warmStart": "Réutilise la radiance précédente en mode réutilisation (vrai par défaut). Faux donne aux deux modes le même départ du solveur.",
-      "options.maxBytes": "Mémoire maximale qu’il peut utiliser.",
-      "options.now": "Son horloge.",
-      "options.cancelled": "Demande s’il faut s’arrêter.",
-      "options.onProgress": "Entend sa progression."
-    }
   },
   "createWorld": {
     "summary": "Crée un monde : la scène, la caméra, le moteur de rendu et la boucle d’une vue, dessinée dès qu’il sait comment.",
@@ -1730,9 +1708,6 @@
   },
   "EffectStage": {
     "summary": "Où se place une passe par rapport à la courbe d’affichage : sur la radiance linéaire de la scène, avant que l’exposition et la courbe ne l’amènent dans la plage d’affichage, ou sur l’image affichée qu’elles ont produite."
-  },
-  "exportLightingGltf": {
-    "summary": "Du glTF et un tampon binaire séparé en little-endian ; les adaptateurs gèrent l’enregistrement."
   },
   "ExtrudeOptions": {
     "summary": "Comment `geometry.extrude` pousse une forme plate pour en faire un solide.",
@@ -2952,16 +2927,6 @@
       "shadows": "Les lumières de ce moteur portent des ombres.",
       "transforms": "`setTransform` déplace vraiment un nœud nommé dans ce moteur.",
       "reason": "Ce que le moteur ne fait pas et pourquoi, en une phrase ; absent quand tout est appliqué."
-    }
-  },
-  "LightingSceneLight": {
-    "summary": "RVB linéaire et centre du panneau dans le monde.",
-    "description": "Une intensité nulle garde le panneau présent.",
-    "members": {
-      "id": "Le nom de la lumière.",
-      "color": "Sa couleur, en RVB linéaire.",
-      "intensity": "Sa force.",
-      "position": "Le centre du panneau."
     }
   },
   "LightParameters": {
@@ -4816,20 +4781,6 @@
       "clips": "1 quand la rangée porte le drapeau de coupe, et ne peut donc jamais être rejetée."
     }
   },
-  "Patch": {
-    "summary": "u et v couvrent toute la case ; cross(u, v) pointe selon la normale.",
-    "members": {
-      "id": "Le numéro du morceau.",
-      "surface": "Le numéro de sa surface.",
-      "center": "Son milieu.",
-      "normal": "Dans quel sens il est tourné.",
-      "u": "Son premier côté.",
-      "v": "Son second côté.",
-      "area": "Son aire.",
-      "albedo": "Combien de lumière il renvoie.",
-      "emission": "La lumière qu’il émet."
-    }
-  },
   "Path": {
     "summary": "Des segments droits par chaque point, paramétrés par la longueur d’arc.",
     "members": {
@@ -5312,14 +5263,6 @@
   },
   "scaleVector3": {
     "summary": "`v.multiplyScalar(s)` : les trois composantes de `out` multipliées sur place."
-  },
-  "Scene-common": {
-    "summary": "La scène de test du solveur expérimental du rebond de lumière : des surfaces coupées en morceaux.",
-    "members": {
-      "surfaces": "Ses surfaces.",
-      "patches": "Ses morceaux.",
-      "sphere": "Une boule brillante, en option."
-    }
   },
   "Scene": {
     "summary": "La racine de la scène d’un monde : on y ajoute des objets, on y charge un modèle compilé, et ce qui remplit l’image derrière eux est `background`.",
@@ -5839,10 +5782,6 @@
       "roots": "Combien de racines."
     }
   },
-  "solveTransportOracle": {
-    "summary": "Résolution linéaire directe indépendante ; n’appelle jamais le solveur itératif.",
-    "description": "Le travail est hors des mesures."
-  },
   "sortPages": {
     "summary": "Tri croissant sur place du début d’un tableau d’indices de pages.",
     "description": "Les listes triées ici contiennent presque toujours quelques dizaines d’entrées déjà en ordre : l’insertion ne déplace alors rien et n’alloue rien. Une longue liste — la file des pages qui attendent leur feuille pendant une rafale d’arrivées — passe par le tri des tableaux typés, en n log n, au prix d’une seule vue sur le début du tableau."
@@ -5989,21 +5928,6 @@
   },
   "summarize": {
     "summary": "La moyenne, la médiane, le 95e, le 99e et le pire d’une liste de temps."
-  },
-  "Surface": {
-    "summary": "origin est un coin ; u et v couvrent tout le rectangle.",
-    "members": {
-      "id": "Le nom de la surface.",
-      "origin": "Un coin.",
-      "u": "Le premier côté partant de ce coin.",
-      "v": "Le deuxième côté partant de ce coin.",
-      "albedo": "Combien de lumière il renvoie, par couleur.",
-      "emission": "Lumière qu’il émet, par couleur.",
-      "kind": "Mat ou miroir.",
-      "moving": "S’il bouge.",
-      "columns": "Morceaux en largeur.",
-      "rows": "Morceaux vers le haut."
-    }
   },
   "SurfaceBuffer": {
     "summary": "Données de surface par pixel d’une image, gardées sur le GPU : profondeur, normales, matériau.",
@@ -6518,63 +6442,6 @@
       "examined": "Entrées examinées par le test : toutes celles qui nomment une page."
     }
   },
-  "TransportOptions": {
-    "summary": "Comment tourne le solveur du rebond de lumière.",
-    "members": {
-      "raysPerPatch": "Rayons déterministes au total par morceau ; quatre points de départ se partagent ce budget.",
-      "maxIterations": "Tours maximum du solveur.",
-      "tolerance": "Borne absolue de l’erreur de radiance dans la norme du maximum, pour l’opérateur échantillonné.",
-      "warmStart": "Réutilise la radiance précédente en mode réutilisation (vrai par défaut). Faux donne aux deux modes le même départ du solveur.",
-      "maxBytes": "Mémoire maximale qu’il peut utiliser.",
-      "now": "Son horloge.",
-      "cancelled": "Demande s’il faut s’arrêter.",
-      "onProgress": "Entend sa progression."
-    }
-  },
-  "TransportProgress": {
-    "summary": "Jusqu’où est arrivé le solveur du rebond de lumière.",
-    "members": {
-      "eventVersion": "Version du format des évènements.",
-      "stage": "L’étape en cours.",
-      "completed": "Travail fait.",
-      "total": "Travail total."
-    }
-  },
-  "TransportResult": {
-    "summary": "Ce qu’a trouvé le solveur du rebond de lumière : la lumière sur chaque morceau, et son coût.",
-    "members": {
-      "formatVersion": "Version du format des données.",
-      "mode": "Refait, ou réutilisé.",
-      "radiance": "Tableaux tenus par l’état, écrasés par les mises à jour suivantes. Copie-les avant de garder une image.",
-      "irradiance": "Irradiance reçue de toutes les surfaces échantillonnées, panneau émissif compris.",
-      "indirectIrradiance": "Irradiance reçue après au moins une réflexion diffuse : pi * matrix * (radiance - source).",
-      "timings": "Temps passé, par étape.",
-      "raysTraced": "Rayons dont les intersections avec la scène immobile ont été recalculées.",
-      "raysReused": "Intersections immobiles réutilisées ; des obstacles en mouvement ont pu être testés quand même.",
-      "movingRayTests": "Tests contre les choses qui bougent.",
-      "staticSurfaceTests": "Tests contre les surfaces immobiles.",
-      "totalRays": "Rayons au total.",
-      "rowsUpdated": "Rangées recalculées.",
-      "iterations": "Tours du solveur.",
-      "residual": "Erreur restante.",
-      "errorBound": "Plus grande erreur possible.",
-      "contraction": "Vitesse de convergence.",
-      "converged": "S’il a atteint la tolérance.",
-      "bytes": "Seulement les tableaux typés possédés, sans les objets JS ni les données de scène de l’appelant.",
-      "unsupported": "Ce qu’il ne fait pas encore."
-    }
-  },
-  "TransportSnapshot": {
-    "summary": "Le problème du rebond de lumière, figé : comment les morceaux se voient entre eux.",
-    "members": {
-      "formatVersion": "Version du format des données.",
-      "algorithmVersion": "Version de l’algorithme.",
-      "patchCount": "Morceaux au total.",
-      "matrix": "Facteurs de forme rangés par lignes : E = pi * matrix * radiance.",
-      "source": "La lumière qu’émet chaque morceau.",
-      "albedo": "La lumière que renvoie chaque morceau."
-    }
-  },
   "Triangle": {
     "summary": "Trois coins, tournés dans le sens inverse des aiguilles d’une montre pour la face avant.",
     "members": {
@@ -6621,9 +6488,6 @@
   "validateSceneLight": {
     "summary": "Vérifie une lumière et en renvoie une copie normalisée.",
     "description": "Une lumière refusée n’entre jamais dans le tampon : le contrat n’accepte ni intensité négative, ni portée nulle, ni spot sans direction, ni lumière directionnelle qui prétendrait avoir une position ou une portée."
-  },
-  "Vec3": {
-    "summary": "Géométrie partagée par le solveur de transport expérimental et sa scène de test dans le navigateur."
   },
   "Vec3Input": {
     "summary": "`[x, y, z]` ou un vecteur, lu comme trois nombres."

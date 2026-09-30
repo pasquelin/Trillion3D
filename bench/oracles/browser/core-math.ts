@@ -3,12 +3,8 @@
 // duplicates — it is against them that attached consumers are opposed, value by value, by `Object.is`.
 import * as THREE from 'three';
 import type { NumberSink } from '../../../packages/sdk-core/src/index.ts';
-import type {
-  Scene,
-  Surface,
-  Vec3,
-} from '../../../packages/sdk-core/src/lighting/scene/experimentScene.ts';
-import { EPSILON } from '../../../packages/sdk-core/src/lighting/transport/intersections.ts';
+import type { Scene, Surface, Vec3 } from '../../../tests/kit/lighting/scene/experimentScene.ts';
+import { EPSILON } from '../../../tests/kit/lighting/transport/intersections.ts';
 
 /** A cluster record as the world-sphere oracle reads it: matrix, then local box corners. */
 interface ClusterSphereRecord {

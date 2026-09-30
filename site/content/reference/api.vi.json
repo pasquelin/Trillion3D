@@ -69,7 +69,6 @@
       "cascadeShares": "Tỉ lệ ngân sách mỗi tầng, từ mịn nhất đến thô nhất. Tầng mịn nhất bao quanh camera và nhận tỉ lệ phân bổ tia lớn nhất.",
       "raysPerProbe": "Số tia được truy theo mỗi đầu dò mỗi lần cập nhật. Ngân sách cố định có thể cấu hình.",
       "raysPerFrame": "Số tia đầu dò tối đa mỗi khung hình: trần tĩnh giới hạn kích thước dispatch compute.",
-      "lightsPerRay": "Số nguồn sáng được kiểm tra mỗi ô nhớ đệm bề mặt.",
       "surfaceTexelsPerFrame": "Trần số ô nhớ đệm bề mặt được cập nhật mỗi khung hình.",
       "budgetMs": "Thời lượng mục tiêu của chặng dội lại trên GPU mỗi khung hình, tính bằng mili giây.",
       "budgetSmoothing": "Tỉ lệ sửa lỗi được giữ lại mỗi mẫu để tránh dao động.",
@@ -1779,16 +1778,6 @@
       "reason": "Những gì bộ máy không làm và vì sao, trong một câu; vắng mặt khi mọi thứ đều được áp dụng."
     }
   },
-  "LightingSceneLight": {
-    "summary": "RGB tuyến tính và tâm của một tấm trong không gian thế giới.",
-    "description": "Cường độ bằng không vẫn giữ tấm đó hiện diện.",
-    "members": {
-      "color": "Màu của nó, RGB tuyến tính.",
-      "id": "Tên của nguồn sáng.",
-      "intensity": "Nó mạnh đến mức nào.",
-      "position": "Tâm của tấm bảng."
-    }
-  },
   "LinearRgb": {
     "summary": "Một màu RGB tuyến tính, `[0, 1]` cho mỗi kênh."
   },
@@ -2643,20 +2632,6 @@
       "clips": "1 khi hàng mang cờ cắt, do đó không bao giờ có thể bị từ chối."
     }
   },
-  "Patch": {
-    "summary": "u và v trải khắp toàn bộ ô; cross(u, v) chỉ theo hướng pháp tuyến.",
-    "members": {
-      "id": "Số hiệu của mảnh vá.",
-      "surface": "Số hiệu bề mặt của nó.",
-      "center": "Điểm giữa của nó.",
-      "normal": "Hướng nó hướng tới.",
-      "u": "Cạnh thứ nhất của nó.",
-      "v": "Cạnh thứ hai của nó.",
-      "area": "Diện tích của nó.",
-      "albedo": "Nó phản xạ bao nhiêu ánh sáng.",
-      "emission": "Ánh sáng nó phát ra."
-    }
-  },
   "Path": {
     "summary": "Các đoạn thẳng đi qua mọi điểm, tham số hóa theo độ dài cung.",
     "members": {
@@ -3076,14 +3051,6 @@
       "load": "Tải một mô hình đã biên dịch — URL tệp kê khai của nó — và thêm nó vào cảnh này.",
       "toJSON": "Cảnh dưới dạng JSON đơn giản có phiên bản: các vật thể, hình khối theo lệnh gọi đã tạo ra chúng, vật liệu, ánh sáng, thân vật lý của mỗi lưới như đã khai báo, và mô hình đã nạp theo địa chỉ; cả tư thế của `camera` khi có truyền vào.",
       "fromJSON": "Thay thế nội dung của cảnh bằng một cảnh do `toJSON` lưu, vẫn giữ các dấu `helper` của nó; hoàn tất khi các mô hình của nó đã nạp xong. Định dạng hoặc phiên bản khác bị từ chối (`UNSUPPORTED_SCENE_FORMAT`). Các lệnh gọi được thực hiện trong lúc đang đọc sẽ chạy lần lượt, theo thứ tự, mỗi lệnh trên kết quả mà lệnh trước để lại: hai cảnh đã lưu không bao giờ bị trộn vào nhau."
-    }
-  },
-  "Scene-common": {
-    "summary": "Cảnh thử nghiệm của bộ giải ánh sáng dội thực nghiệm: các bề mặt được cắt thành các mảnh vá.",
-    "members": {
-      "surfaces": "Các bề mặt của nó.",
-      "patches": "Các mảnh vá của nó.",
-      "sphere": "Một quả cầu bóng bẩy tùy chọn."
     }
   },
   "SceneEnvironment": {
@@ -3603,21 +3570,6 @@
       "sha256": "Dấu vân tay của các byte của nó."
     }
   },
-  "Surface": {
-    "summary": "origin là một góc; u và v trải khắp toàn bộ hình chữ nhật.",
-    "members": {
-      "id": "Tên của bề mặt.",
-      "origin": "Một góc.",
-      "u": "Cạnh thứ nhất từ góc đó.",
-      "v": "Cạnh thứ hai từ góc đó.",
-      "albedo": "Nó phản xạ bao nhiêu ánh sáng, theo từng màu.",
-      "emission": "Ánh sáng nó phát ra, theo từng màu.",
-      "kind": "Mờ đục hay gương.",
-      "moving": "Nó có di chuyển hay không.",
-      "columns": "Số mảnh vá theo chiều ngang.",
-      "rows": "Số mảnh vá theo chiều dọc."
-    }
-  },
   "SurfaceBuffer": {
     "summary": "Dữ liệu bề mặt theo từng điểm ảnh của một khung hình, giữ trên GPU: độ sâu, pháp tuyến, vật liệu.",
     "members": {
@@ -4060,63 +4012,6 @@
       "examined": "Các mục mà phép kiểm tra đã xem xét: tất cả những mục nêu tên một trang."
     }
   },
-  "TransportOptions": {
-    "summary": "Cách bộ giải ánh sáng dội chạy.",
-    "members": {
-      "raysPerPatch": "Tổng số tia tất định cho mỗi mảnh vá; bốn mẫu gốc chia sẻ ngân sách này.",
-      "maxIterations": "Số vòng giải tối đa.",
-      "tolerance": "Giới hạn sai số độ chói tuyệt đối theo chuẩn lớn nhất, cho toán tử đã lấy mẫu.",
-      "warmStart": "Dùng lại độ chói trước đó ở chế độ tái sử dụng (mặc định đúng). Sai làm cho cả hai chế độ có cùng phép khởi tạo bộ giải.",
-      "maxBytes": "Bộ nhớ tối đa nó được phép dùng.",
-      "now": "Đồng hồ của nó.",
-      "cancelled": "Hỏi xem có nên dừng hay không.",
-      "onProgress": "Lắng nghe tiến độ của nó."
-    }
-  },
-  "TransportProgress": {
-    "summary": "Bộ giải ánh sáng dội đã tiến triển đến đâu.",
-    "members": {
-      "eventVersion": "Phiên bản định dạng sự kiện.",
-      "stage": "Bước mà nó đang ở.",
-      "completed": "Công việc đã xong.",
-      "total": "Tổng số công việc."
-    }
-  },
-  "TransportResult": {
-    "summary": "Những gì bộ giải ánh sáng dội tìm thấy: ánh sáng trên mỗi mảnh vá, và chi phí của nó.",
-    "members": {
-      "formatVersion": "Phiên bản định dạng dữ liệu.",
-      "mode": "Được dựng lại, hay được dùng lại.",
-      "radiance": "Các mảng do trạng thái sở hữu, bị ghi đè bởi các cập nhật sau. Sao chép trước khi giữ lại một khung hình.",
-      "irradiance": "Độ rọi tới từ mọi bề mặt được lấy mẫu, kể cả tấm phát sáng.",
-      "indirectIrradiance": "Độ rọi tới sau ít nhất một lần phản xạ khuếch tán: pi * matrix * (radiance - source).",
-      "timings": "Thời gian đã dùng, theo từng bước.",
-      "raysTraced": "Các tia mà giao điểm cảnh tĩnh của chúng đã được tính lại.",
-      "raysReused": "Các giao điểm tĩnh được dùng lại; các vật che khuất chuyển động vẫn có thể đã được kiểm tra.",
-      "movingRayTests": "Các phép kiểm tra với vật chuyển động.",
-      "staticSurfaceTests": "Các phép kiểm tra với bề mặt đứng yên.",
-      "totalRays": "Tổng số tia.",
-      "rowsUpdated": "Số hàng đã tính lại.",
-      "iterations": "Số vòng giải.",
-      "residual": "Sai số còn lại.",
-      "errorBound": "Sai số lớn nhất có thể.",
-      "contraction": "Nó hội tụ nhanh đến mức nào.",
-      "converged": "Nó có đạt được dung sai hay không.",
-      "bytes": "Chỉ riêng phần dữ liệu mảng có kiểu do nó sở hữu, không tính các đối tượng JS và dữ liệu cảnh do bên gọi sở hữu.",
-      "unsupported": "Những gì nó chưa làm được."
-    }
-  },
-  "TransportSnapshot": {
-    "summary": "Bài toán ánh sáng dội, được đóng băng: cách các mảnh vá nhìn thấy nhau.",
-    "members": {
-      "formatVersion": "Phiên bản định dạng dữ liệu.",
-      "algorithmVersion": "Phiên bản thuật toán.",
-      "patchCount": "Tổng số mảnh vá.",
-      "matrix": "Các hệ số hình dạng dạng row-major: E = pi * matrix * radiance.",
-      "source": "Ánh sáng mà mỗi mảnh vá phát ra.",
-      "albedo": "Ánh sáng mà mỗi mảnh vá phản xạ."
-    }
-  },
   "Triangle": {
     "summary": "Ba góc, cuộn ngược chiều kim đồng hồ cho mặt trước.",
     "members": {
@@ -4140,9 +4035,6 @@
       "messageKey": "Thông điệp nào.",
       "action": "Họ có thể làm gì."
     }
-  },
-  "Vec3": {
-    "summary": "Hình học được chia sẻ bởi bộ giải truyền tải thực nghiệm và bộ khung kiểm thử trình duyệt của nó."
   },
   "Vec3Input": {
     "summary": "`[x, y, z]` hoặc một vectơ, được đọc như ba con số."
@@ -4948,9 +4840,6 @@
       "options.onProgress": "Được gọi tại mỗi sự kiện."
     }
   },
-  "createDefaultLightingSceneLights": {
-    "summary": "Các bản sao độc lập cho những bên gọi tạo hoạt ảnh cho từng điều khiển riêng lẻ."
-  },
   "createDiagnosticChannel": {
     "summary": "Việc gửi chẩn đoán bất đồng bộ và có giới hạn cho các ứng dụng chủ trình duyệt.",
     "description": "`emit` chỉ thêm vào bản ghi đã được tạo sẵn và lên lịch một microtask. Nó không bao giờ gọi mã của người dùng và không bao giờ tuần tự hóa một bản ghi. Điều này giữ cho các trình quan sát nằm ngoài một lệnh gọi render đã được đo lường; `flush` là điểm đồng bộ hóa rõ ràng của ứng dụng chủ cho các báo cáo chuẩn bị/truyền phát.",
@@ -4972,9 +4861,6 @@
   },
   "createJob": {
     "summary": "Không có bộ đếm giờ, DOM, hệ thống tệp hay giao diện người dùng."
-  },
-  "createLightingScene": {
-    "summary": "Góc cửa bằng không đóng lỗ hở lại; PI/2 xoay cánh cửa vào phòng bên trái."
   },
   "createPageIntegrationPlan": {
     "summary": "Các bộ đệm của một kế hoạch, có kích thước cho yêu cầu đầy nhất của danh mục."
@@ -5030,21 +4916,6 @@
   },
   "createTransformTree": {
     "summary": "Một hệ thống phân cấp trống, sẵn sàng cho `capacity` node mà không cần tăng trưởng."
-  },
-  "createTransport": {
-    "summary": "Một thí nghiệm truyền tải lấy mẫu dày đặc, không phải một bộ giải phân cấp.",
-    "description": "Cả hai chế độ dùng các tia giống hệt nhau. Chế độ tái sử dụng lưu vào bộ nhớ đệm các giao điểm với các hình chữ nhật tĩnh, sau đó kiểm tra mọi hình chữ nhật di chuyển tại vị trí MỚI của nó. Do đó việc gỡ bỏ một vật cản cũ khôi phục lại điểm chạm tĩnh đã lưu mà không có ánh sáng lỗi thời. Các mảng nguồn di chuyển tự tính lại tia của riêng chúng. Hình cầu là một vật cản tầm nhìn hấp thụ; các mảng gương phải có độ phản xạ khuếch tán bằng không. Không chế độ nào truyền ánh sáng phản chiếu vào ánh sáng khuếch tán.",
-    "parameters": {
-      "options": "Cách bộ giải dội ánh sáng chạy.",
-      "options.raysPerPatch": "Tổng số tia tất định cho mỗi mảng; bốn mẫu điểm gốc chia sẻ ngân sách này.",
-      "options.maxIterations": "Số vòng giải nhiều nhất.",
-      "options.tolerance": "Giới hạn sai số độ chói tuyệt đối theo chuẩn tối đa, cho toán tử lấy mẫu.",
-      "options.warmStart": "Tái sử dụng độ chói trước đó trong chế độ tái sử dụng (mặc định đúng). Sai làm cho cả hai chế độ có cùng một khởi tạo bộ giải.",
-      "options.maxBytes": "Bộ nhớ tối đa nó có thể dùng.",
-      "options.now": "Đồng hồ của nó.",
-      "options.cancelled": "Hỏi xem có nên dừng lại không.",
-      "options.onProgress": "Lắng nghe tiến trình của nó."
-    }
   },
   "createWorld": {
     "summary": "Tạo một thế giới: cảnh, camera, trình dựng hình và vòng lặp của một khung nhìn, được vẽ ngay khi nó biết cách.",
@@ -5162,9 +5033,6 @@
   },
   "exclusiveScan": {
     "summary": "Quét tiền tố loại trừ (exclusive)."
-  },
-  "exportLightingGltf": {
-    "summary": "glTF và một bộ đệm nhị phân little-endian riêng biệt; các bộ chuyển đổi tự chịu trách nhiệm lưu trữ lâu dài."
   },
   "filter": {
     "summary": "Các quy tắc lấy mẫu kết cấu."
@@ -6918,10 +6786,6 @@
   },
   "sideOf": {
     "summary": "Mặt mà một vật liệu chủ khai báo, được đọc một lần tại ranh giới vào enum riêng của bộ máy."
-  },
-  "solveTransportOracle": {
-    "summary": "Giải trực tiếp tuyến tính độc lập; không bao giờ gọi bộ giải lặp.",
-    "description": "Công việc nằm ngoài các lần chạy được đo lường."
   },
   "sortPages": {
     "summary": "Sắp xếp tăng dần tại chỗ một tiền tố của một mảng chỉ số trang.",

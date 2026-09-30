@@ -367,7 +367,6 @@
       "cascadeShares": "Budgetanteil pro Stufe, von der feinsten zur gröbsten. Die feinste Stufe umgibt die Kamera und erhält den größten Anteil der Strahlen.",
       "raysPerProbe": "Bei jeder Aktualisierung pro Sonde verfolgte Strahlen. Fest einstellbares Budget.",
       "raysPerFrame": "Höchstens Sondenstrahlen pro Bild: feste Obergrenze, die die Größe der gestarteten Berechnung begrenzt.",
-      "lightsPerRay": "Pro Zelle des Oberflächen-Caches getestete Lichter.",
       "surfaceTexelsPerFrame": "Obergrenze der pro Bild aktualisierten Zellen des Oberflächen-Caches.",
       "budgetMs": "Angestrebte Dauer der Rebound-Passage auf der GPU pro Bild, in Millisekunden.",
       "budgetSmoothing": "Bei jeder Messung behaltener Anteil der Fehlerkorrektur, um Schwingungen zu vermeiden.",
@@ -1163,9 +1162,6 @@
       "options.onProgress": "Bei jedem Ereignis aufgerufen."
     }
   },
-  "createDefaultLightingSceneLights": {
-    "summary": "Unabhängige Kopien für alle, die jeden Regler separat animieren."
-  },
   "createDiagnosticChannel": {
     "summary": "Begrenzte, asynchrone Zustellung von Diagnosen für Browser-Hosts.",
     "description": "`emit` fügt nur den bereits erstellten Datensatz hinzu und plant eine Mikroaufgabe. Es ruft nie Anwendercode auf und serialisiert nie einen Datensatz. Das hält Beobachter außerhalb eines gemessenen Renderaufrufs; `flush` ist der explizite Synchronisationspunkt des Hosts für Vorbereitungs- und Streaming-Berichte.",
@@ -1187,9 +1183,6 @@
   },
   "createJob": {
     "summary": "Kein Timer, kein DOM, keine Dateien, keine Oberfläche."
-  },
-  "createLightingScene": {
-    "summary": "Ein Türwinkel von null schließt die Öffnung; PI/2 dreht den Flügel in den Raum links."
   },
   "createPageIntegrationPlan": {
     "summary": "Puffer eines Plans, dimensioniert für die größte Anfrage des Katalogs."
@@ -1245,21 +1238,6 @@
   },
   "createTransformTree": {
     "summary": "Eine leere Hierarchie, bereit für `capacity` Knoten, ohne zu wachsen."
-  },
-  "createTransport": {
-    "summary": "Ein Experiment mit dichtem, abgetastetem Transport, kein hierarchischer Löser.",
-    "description": "Beide Modi verwenden dieselben Strahlen. Die Wiederverwendung behält die Schnittpunkte mit unbewegten Rechtecken im Cache und testet dann jedes sich bewegende Rechteck an seiner NEUEN Position. Das Entfernen eines alten Hindernisses stellt daher den zwischengespeicherten unbewegten Einfluss wieder her, ohne ein veraltetes Licht. Sich bewegende Quellstücke starten ihre eigenen Strahlen neu. Die Kugel ist ein absorbierendes Sichtbarkeitshindernis; Spiegelstücke müssen eine diffuse Reflexion von null haben. Keiner von beiden transportiert spiegelndes Licht zum diffusen.",
-    "parameters": {
-      "options": "Wie der Löser des Lichtrückstrahlens läuft.",
-      "options.raysPerPatch": "Deterministische Strahlen insgesamt pro Stück; vier Startpunkte teilen sich dieses Budget.",
-      "options.maxIterations": "Höchste Anzahl Durchläufe des Lösers.",
-      "options.tolerance": "Absolute Grenze des Radianzfehlers in der Maximumsnorm, für den abgetasteten Operator.",
-      "options.warmStart": "Verwendet die vorherige Radianz im Wiederverwendungsmodus wieder (standardmäßig wahr). Falsch gibt beiden Modi denselben Startpunkt des Lösers.",
-      "options.maxBytes": "Maximaler Speicher, den er nutzen kann.",
-      "options.now": "Seine Uhr.",
-      "options.cancelled": "Fragt, ob angehalten werden soll.",
-      "options.onProgress": "Hört seinen Fortschritt."
-    }
   },
   "createWorld": {
     "summary": "Erstellt eine Welt: die Szene, die Kamera, das Rendering-Backend und die Schleife einer Ansicht, gezeichnet sobald sie weiß, wie.",
@@ -1730,9 +1708,6 @@
   },
   "EffectStage": {
     "summary": "Wo ein Durchgang relativ zur Anzeigekurve sitzt: auf der linearen Strahldichte der Szene, bevor Belichtung und Kurve sie in den Anzeigebereich bringen, oder auf dem angezeigten Bild, das sie erzeugt haben."
-  },
-  "exportLightingGltf": {
-    "summary": "glTF und ein getrennter binärer Puffer in Little-Endian; die Adapter übernehmen das Speichern."
   },
   "ExtrudeOptions": {
     "summary": "Wie `geometry.extrude` eine flache Form auszieht, um daraus einen Körper zu machen.",
@@ -2944,16 +2919,6 @@
       "shadows": "Die Lichter dieser Engine tragen Schatten.",
       "transforms": "`setTransform` bewegt wirklich einen benannten Knoten in dieser Engine.",
       "reason": "Was die Engine nicht tut und warum, in einem Satz; fehlt, wenn alles angewendet wird."
-    }
-  },
-  "LightingSceneLight": {
-    "summary": "Lineares RGB und Zentrum des Panels in der Welt.",
-    "description": "Eine Intensität von null behält das Panel vorhanden.",
-    "members": {
-      "id": "Der Name des Lichts.",
-      "color": "Seine Farbe, in linearem RGB.",
-      "intensity": "Seine Stärke.",
-      "position": "Das Zentrum des Panels."
     }
   },
   "LightParameters": {
@@ -4808,20 +4773,6 @@
       "clips": "1, wenn die Zeile die Schnittmarkierung trägt, und daher nie abgelehnt werden kann."
     }
   },
-  "Patch": {
-    "summary": "u und v decken die ganze Zelle ab; cross(u, v) zeigt entlang der Normale.",
-    "members": {
-      "id": "Die Nummer des Stücks.",
-      "surface": "Die Nummer seiner Oberfläche.",
-      "center": "Seine Mitte.",
-      "normal": "In welche Richtung es gedreht ist.",
-      "u": "Seine erste Seite.",
-      "v": "Seine zweite Seite.",
-      "area": "Seine Fläche.",
-      "albedo": "Wie viel Licht es zurückgibt.",
-      "emission": "Das Licht, das es abgibt."
-    }
-  },
   "Path": {
     "summary": "Gerade Segmente durch jeden Punkt, parametrisiert nach Bogenlänge.",
     "members": {
@@ -5304,14 +5255,6 @@
   },
   "scaleVector3": {
     "summary": "`v.multiplyScalar(s)`: die drei Komponenten von `out` an Ort und Stelle multipliziert."
-  },
-  "Scene-common": {
-    "summary": "Die Testszene des experimentellen Löser für das Lichtrückstrahlen: Oberflächen, in Stücke geschnitten.",
-    "members": {
-      "surfaces": "Ihre Oberflächen.",
-      "patches": "Ihre Stücke.",
-      "sphere": "Eine optionale glänzende Kugel."
-    }
   },
   "Scene": {
     "summary": "Die Wurzel der Szene einer Welt: man fügt ihr Objekte hinzu, lädt darin ein kompiliertes Modell, und das, was das Bild hinter ihnen füllt, ist `background`.",
@@ -5831,10 +5774,6 @@
       "roots": "Wie viele Wurzeln."
     }
   },
-  "solveTransportOracle": {
-    "summary": "Unabhängige direkte lineare Auflösung; ruft nie den iterativen Löser auf.",
-    "description": "Die Arbeit liegt außerhalb der Messungen."
-  },
   "sortPages": {
     "summary": "Aufsteigende Sortierung an Ort und Stelle des Anfangs eines Seitenindex-Arrays.",
     "description": "Die hier sortierten Listen enthalten fast immer einige Dutzend bereits geordnete Einträge: das Einfügen verschiebt dann nichts und weist nichts zu. Eine lange Liste — die Warteschlange der Seiten, die während eines Ankunftsschwalls auf ihr Blatt warten — durchläuft die Sortierung typisierter Arrays, in n log n, zum Preis einer einzigen Sicht auf den Anfang des Arrays."
@@ -5981,21 +5920,6 @@
   },
   "summarize": {
     "summary": "Der Durchschnitt, der Median, das 95., das 99. Perzentil und der schlechteste Wert einer Zeitliste."
-  },
-  "Surface": {
-    "summary": "origin ist eine Ecke; u und v decken das ganze Rechteck ab.",
-    "members": {
-      "id": "Der Name der Oberfläche.",
-      "origin": "Eine Ecke.",
-      "u": "Die erste Seite von dieser Ecke aus.",
-      "v": "Die zweite Seite von dieser Ecke aus.",
-      "albedo": "Wie viel Licht sie zurückgibt, pro Farbe.",
-      "emission": "Licht, das sie abgibt, pro Farbe.",
-      "kind": "Matt oder Spiegel.",
-      "moving": "Ob sie sich bewegt.",
-      "columns": "Stücke in der Breite.",
-      "rows": "Stücke nach oben."
-    }
   },
   "SurfaceBuffer": {
     "summary": "Oberflächendaten pro Pixel eines Bildes, auf der GPU gehalten: Tiefe, Normalen, Material.",
@@ -6510,63 +6434,6 @@
       "examined": "Vom Test geprüfte Einträge: alle, die eine Seite benennen."
     }
   },
-  "TransportOptions": {
-    "summary": "Wie der Löser des Lichtrückstrahlens läuft.",
-    "members": {
-      "raysPerPatch": "Deterministische Strahlen insgesamt pro Stück; vier Startpunkte teilen sich dieses Budget.",
-      "maxIterations": "Höchste Anzahl Durchläufe des Lösers.",
-      "tolerance": "Absolute Grenze des Radianzfehlers in der Maximumsnorm, für den abgetasteten Operator.",
-      "warmStart": "Verwendet die vorherige Radianz im Wiederverwendungsmodus wieder (standardmäßig wahr). Falsch gibt beiden Modi denselben Startpunkt des Lösers.",
-      "maxBytes": "Maximaler Speicher, den er nutzen kann.",
-      "now": "Seine Uhr.",
-      "cancelled": "Fragt, ob angehalten werden soll.",
-      "onProgress": "Hört seinen Fortschritt."
-    }
-  },
-  "TransportProgress": {
-    "summary": "Wie weit der Löser des Lichtrückstrahlens gekommen ist.",
-    "members": {
-      "eventVersion": "Version des Ereignisformats.",
-      "stage": "Die laufende Phase.",
-      "completed": "Erledigte Arbeit.",
-      "total": "Gesamte Arbeit."
-    }
-  },
-  "TransportResult": {
-    "summary": "Was der Löser des Lichtrückstrahlens gefunden hat: das Licht auf jedem Stück, und seine Kosten.",
-    "members": {
-      "formatVersion": "Version des Datenformats.",
-      "mode": "Neu gemacht, oder wiederverwendet.",
-      "radiance": "Vom Zustand gehaltene Arrays, von den nächsten Updates überschrieben. Kopiere sie, bevor du ein Bild behältst.",
-      "irradiance": "Von allen abgetasteten Oberflächen empfangene Bestrahlungsstärke, emittierendes Panel eingeschlossen.",
-      "indirectIrradiance": "Nach mindestens einer diffusen Reflexion empfangene Bestrahlungsstärke: pi * matrix * (radiance - source).",
-      "timings": "Verbrachte Zeit, pro Phase.",
-      "raysTraced": "Strahlen, deren Schnittpunkte mit der unbewegten Szene neu berechnet wurden.",
-      "raysReused": "Wiederverwendete unbewegte Schnittpunkte; sich bewegende Hindernisse konnten trotzdem getestet werden.",
-      "movingRayTests": "Tests gegen sich bewegende Dinge.",
-      "staticSurfaceTests": "Tests gegen unbewegte Oberflächen.",
-      "totalRays": "Strahlen insgesamt.",
-      "rowsUpdated": "Neu berechnete Zeilen.",
-      "iterations": "Durchläufe des Lösers.",
-      "residual": "Verbleibender Fehler.",
-      "errorBound": "Größter möglicher Fehler.",
-      "contraction": "Konvergenzgeschwindigkeit.",
-      "converged": "Ob die Toleranz erreicht wurde.",
-      "bytes": "Nur die besessenen typisierten Arrays, ohne JS-Objekte oder Szenendaten des Aufrufers.",
-      "unsupported": "Was er noch nicht tut."
-    }
-  },
-  "TransportSnapshot": {
-    "summary": "Das Lichtrückstrahlungsproblem, eingefroren: wie sich die Stücke gegenseitig sehen.",
-    "members": {
-      "formatVersion": "Version des Datenformats.",
-      "algorithmVersion": "Version des Algorithmus.",
-      "patchCount": "Stücke insgesamt.",
-      "matrix": "Formfaktoren, zeilenweise angeordnet: E = pi * matrix * radiance.",
-      "source": "Das Licht, das jedes Stück abgibt.",
-      "albedo": "Das Licht, das jedes Stück zurückgibt."
-    }
-  },
   "Triangle": {
     "summary": "Drei Ecken, im Gegenuhrzeigersinn für die Vorderseite gedreht.",
     "members": {
@@ -6613,9 +6480,6 @@
   "validateSceneLight": {
     "summary": "Prüft ein Licht und gibt eine normalisierte Kopie davon zurück.",
     "description": "Ein abgelehntes Licht gelangt nie in den Puffer: der Vertrag akzeptiert weder negative Intensität, noch null Reichweite, noch einen Spot ohne Richtung, noch ein Richtungslicht, das vorgibt, eine Position oder eine Reichweite zu haben."
-  },
-  "Vec3": {
-    "summary": "Von dem experimentellen Transport-Löser und seiner Testszene im Browser gemeinsam genutzte Geometrie."
   },
   "Vec3Input": {
     "summary": "`[x, y, z]` oder ein Vektor, als drei Zahlen gelesen."

@@ -367,7 +367,6 @@
       "cascadeShares": "Quota di budget per livello, dal più fine al più grossolano. Il livello più fine circonda la camera e riceve la quota maggiore dei raggi.",
       "raysPerProbe": "Raggi tracciati per sonda a ogni aggiornamento. Budget fisso regolabile.",
       "raysPerFrame": "Raggi di sonde al massimo per fotogramma: limite fisso che vincola la dimensione del calcolo avviato.",
-      "lightsPerRay": "Luci testate per cella della cache di superficie.",
       "surfaceTexelsPerFrame": "Limite di celle della cache di superficie aggiornate per fotogramma.",
       "budgetMs": "Durata mirata del passaggio di rimbalzo sulla GPU per fotogramma, in millisecondi.",
       "budgetSmoothing": "Quota della correzione di errore mantenuta a ogni misurazione, per evitare oscillazioni.",
@@ -1163,9 +1162,6 @@
       "options.onProgress": "Chiamato a ogni evento."
     }
   },
-  "createDefaultLightingSceneLights": {
-    "summary": "Copie indipendenti per chi anima ogni controllo separatamente."
-  },
   "createDiagnosticChannel": {
     "summary": "Consegna limitata e asincrona delle diagnostiche per host browser.",
     "description": "`emit` si limita ad aggiungere il record già creato e a pianificare un microtask. Non chiama mai codice utente e non serializza mai un record. Questo tiene gli osservatori fuori da una chiamata di rendering misurata; `flush` è il punto di sincronizzazione esplicito dell'host per i report di preparazione e streaming.",
@@ -1187,9 +1183,6 @@
   },
   "createJob": {
     "summary": "Nessun timer, nessun DOM, nessun file né interfaccia."
-  },
-  "createLightingScene": {
-    "summary": "Un angolo di porta nullo chiude l'apertura; PI/2 fa ruotare l'anta nella stanza a sinistra."
   },
   "createPageIntegrationPlan": {
     "summary": "Buffer di un piano, dimensionati per la richiesta più grande del catalogo."
@@ -1245,21 +1238,6 @@
   },
   "createTransformTree": {
     "summary": "Una gerarchia vuota, pronta per `capacity` nodi senza crescere."
-  },
-  "createTransport": {
-    "summary": "Un esperimento di trasporto campionato denso, non un risolutore gerarchico.",
-    "description": "Entrambe le modalità usano gli stessi raggi. Il riutilizzo mantiene in cache le intersezioni con i rettangoli immobili, poi testa ogni rettangolo che si muove nella sua NUOVA posizione. Rimuovere un vecchio ostacolo ripristina quindi l'impatto immobile in cache senza luce obsoleta. I pezzi sorgente che si muovono rilanciano i propri raggi. La sfera è un ostacolo di visibilità che assorbe; i pezzi specchio devono avere una riflessione diffusa nulla. Nessuno dei due trasporta luce speculare verso il diffuso.",
-    "parameters": {
-      "options": "Come gira il risolutore del rimbalzo di luce.",
-      "options.raysPerPatch": "Raggi deterministici totali per pezzo; quattro punti di partenza si dividono questo budget.",
-      "options.maxIterations": "Giri massimi del risolutore.",
-      "options.tolerance": "Limite assoluto dell'errore di radianza nella norma del massimo, per l'operatore campionato.",
-      "options.warmStart": "Riutilizza la radianza precedente in modalità riutilizzo (vero per impostazione predefinita). Falso dà a entrambe le modalità lo stesso punto di partenza del risolutore.",
-      "options.maxBytes": "Memoria massima che può usare.",
-      "options.now": "Il suo orologio.",
-      "options.cancelled": "Chiede se bisogna fermarsi.",
-      "options.onProgress": "Ascolta il suo avanzamento."
-    }
   },
   "createWorld": {
     "summary": "Crea un mondo: la scena, la camera, il motore di rendering e il ciclo di una vista, disegnata non appena sa come.",
@@ -1730,9 +1708,6 @@
   },
   "EffectStage": {
     "summary": "Dove si colloca una passata rispetto alla curva di visualizzazione: sulla radianza lineare della scena, prima che esposizione e curva la portino nell’intervallo di visualizzazione, o sull’immagine mostrata che hanno prodotto."
-  },
-  "exportLightingGltf": {
-    "summary": "glTF e un buffer binario separato in little-endian; gli adattatori gestiscono il salvataggio."
   },
   "ExtrudeOptions": {
     "summary": "Come `geometry.extrude` spinge una forma piatta per farne un solido.",
@@ -2944,16 +2919,6 @@
       "shadows": "Le luci di questo motore portano ombre.",
       "transforms": "`setTransform` sposta davvero un nodo nominato in questo motore.",
       "reason": "Ciò che il motore non fa e perché, in una frase; assente quando tutto viene applicato."
-    }
-  },
-  "LightingSceneLight": {
-    "summary": "RGB lineare e centro del pannello nel mondo.",
-    "description": "Un'intensità nulla mantiene il pannello presente.",
-    "members": {
-      "id": "Il nome della luce.",
-      "color": "Il suo colore, in RGB lineare.",
-      "intensity": "La sua forza.",
-      "position": "Il centro del pannello."
     }
   },
   "LightParameters": {
@@ -4808,20 +4773,6 @@
       "clips": "1 quando la riga porta il flag di taglio, e quindi non può mai essere rifiutata."
     }
   },
-  "Patch": {
-    "summary": "u e v coprono tutta la cella; cross(u, v) punta secondo la normale.",
-    "members": {
-      "id": "Il numero del pezzo.",
-      "surface": "Il numero della sua superficie.",
-      "center": "Il suo centro.",
-      "normal": "In quale direzione è ruotato.",
-      "u": "Il suo primo lato.",
-      "v": "Il suo secondo lato.",
-      "area": "La sua area.",
-      "albedo": "Quanta luce restituisce.",
-      "emission": "La luce che emette."
-    }
-  },
   "Path": {
     "summary": "Segmenti diritti per ogni punto, parametrizzati dalla lunghezza dell'arco.",
     "members": {
@@ -5304,14 +5255,6 @@
   },
   "scaleVector3": {
     "summary": "`v.multiplyScalar(s)`: le tre componenti di `out` moltiplicate sul posto."
-  },
-  "Scene-common": {
-    "summary": "La scena di prova del risolutore sperimentale del rimbalzo di luce: superfici tagliate in pezzi.",
-    "members": {
-      "surfaces": "Le sue superfici.",
-      "patches": "I suoi pezzi.",
-      "sphere": "Una sfera brillante, opzionale."
-    }
   },
   "Scene": {
     "summary": "La radice della scena di un mondo: vi si aggiungono oggetti, vi si carica un modello compilato, e ciò che riempie l'immagine dietro di essi è `background`.",
@@ -5831,10 +5774,6 @@
       "roots": "Quante radici."
     }
   },
-  "solveTransportOracle": {
-    "summary": "Risoluzione lineare diretta indipendente; non chiama mai il risolutore iterativo.",
-    "description": "Il lavoro è fuori dalle misure."
-  },
   "sortPages": {
     "summary": "Ordinamento crescente sul posto dell'inizio di un array di indici di pagine.",
     "description": "Le liste ordinate qui contengono quasi sempre alcune decine di voci già in ordine: l'inserimento allora non sposta nulla e non alloca nulla. Una lista lunga — la coda delle pagine in attesa del proprio foglio durante una raffica di arrivi — passa per l'ordinamento di array tipizzati, in n log n, al prezzo di una sola vista sull'inizio dell'array."
@@ -5981,21 +5920,6 @@
   },
   "summarize": {
     "summary": "La media, la mediana, il 95° percentile, il 99° percentile e il peggiore di una lista di tempi."
-  },
-  "Surface": {
-    "summary": "origin è un angolo; u e v coprono tutto il rettangolo.",
-    "members": {
-      "id": "Il nome della superficie.",
-      "origin": "Un angolo.",
-      "u": "Il primo lato da quell'angolo.",
-      "v": "Il secondo lato da quell'angolo.",
-      "albedo": "Quanta luce restituisce, per colore.",
-      "emission": "Luce che emette, per colore.",
-      "kind": "Opaco o specchio.",
-      "moving": "Se si muove.",
-      "columns": "Pezzi in larghezza.",
-      "rows": "Pezzi verso l'alto."
-    }
   },
   "SurfaceBuffer": {
     "summary": "Dati di superficie per pixel di un'immagine, mantenuti sulla GPU: profondità, normali, materiale.",
@@ -6510,63 +6434,6 @@
       "examined": "Voci esaminate dal test: tutte quelle che nominano una pagina."
     }
   },
-  "TransportOptions": {
-    "summary": "Come gira il risolutore del rimbalzo di luce.",
-    "members": {
-      "raysPerPatch": "Raggi deterministici totali per pezzo; quattro punti di partenza si dividono questo budget.",
-      "maxIterations": "Giri massimi del risolutore.",
-      "tolerance": "Limite assoluto dell'errore di radianza nella norma del massimo, per l'operatore campionato.",
-      "warmStart": "Riutilizza la radianza precedente in modalità riutilizzo (vero per impostazione predefinita). Falso dà a entrambe le modalità lo stesso punto di partenza del risolutore.",
-      "maxBytes": "Memoria massima che può usare.",
-      "now": "Il suo orologio.",
-      "cancelled": "Chiede se bisogna fermarsi.",
-      "onProgress": "Ascolta il suo avanzamento."
-    }
-  },
-  "TransportProgress": {
-    "summary": "Fino a dove è arrivato il risolutore del rimbalzo di luce.",
-    "members": {
-      "eventVersion": "Versione del formato degli eventi.",
-      "stage": "La fase in corso.",
-      "completed": "Lavoro fatto.",
-      "total": "Lavoro totale."
-    }
-  },
-  "TransportResult": {
-    "summary": "Ciò che ha trovato il risolutore del rimbalzo di luce: la luce su ogni pezzo, e il suo costo.",
-    "members": {
-      "formatVersion": "Versione del formato dei dati.",
-      "mode": "Rifatto, o riutilizzato.",
-      "radiance": "Array mantenuti dallo stato, sovrascritti dai successivi aggiornamenti. Copiali prima di conservare un'immagine.",
-      "irradiance": "Irradianza ricevuta da tutte le superfici campionate, pannello emissivo incluso.",
-      "indirectIrradiance": "Irradianza ricevuta dopo almeno una riflessione diffusa: pi * matrix * (radiance - source).",
-      "timings": "Tempo impiegato, per fase.",
-      "raysTraced": "Raggi le cui intersezioni con la scena immobile sono state ricalcolate.",
-      "raysReused": "Intersezioni immobili riutilizzate; gli ostacoli in movimento hanno comunque potuto essere testati.",
-      "movingRayTests": "Test contro le cose che si muovono.",
-      "staticSurfaceTests": "Test contro le superfici immobili.",
-      "totalRays": "Raggi totali.",
-      "rowsUpdated": "Righe ricalcolate.",
-      "iterations": "Giri del risolutore.",
-      "residual": "Errore residuo.",
-      "errorBound": "Errore massimo possibile.",
-      "contraction": "Velocità di convergenza.",
-      "converged": "Se ha raggiunto la tolleranza.",
-      "bytes": "Solo gli array tipizzati posseduti, senza gli oggetti JS né i dati di scena del chiamante.",
-      "unsupported": "Ciò che ancora non fa."
-    }
-  },
-  "TransportSnapshot": {
-    "summary": "Il problema del rimbalzo di luce, congelato: come si vedono i pezzi tra loro.",
-    "members": {
-      "formatVersion": "Versione del formato dei dati.",
-      "algorithmVersion": "Versione dell'algoritmo.",
-      "patchCount": "Pezzi totali.",
-      "matrix": "Fattori di forma disposti per righe: E = pi * matrix * radiance.",
-      "source": "La luce emessa da ogni pezzo.",
-      "albedo": "La luce restituita da ogni pezzo."
-    }
-  },
   "Triangle": {
     "summary": "Tre angoli, ruotati in senso antiorario per la faccia anteriore.",
     "members": {
@@ -6613,9 +6480,6 @@
   "validateSceneLight": {
     "summary": "Verifica una luce e ne restituisce una copia normalizzata.",
     "description": "Una luce rifiutata non entra mai nel buffer: il contratto non accetta né intensità negativa, né portata nulla, né spot senza direzione, né luce direzionale che pretenda di avere una posizione o una portata."
-  },
-  "Vec3": {
-    "summary": "Geometria condivisa dal risolutore di trasporto sperimentale e dalla sua scena di prova nel browser."
   },
   "Vec3Input": {
     "summary": "`[x, y, z]` o un vettore, letto come tre numeri."

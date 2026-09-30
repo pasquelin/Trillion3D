@@ -116,19 +116,6 @@ export type {
 } from './runtime/safety.ts';
 export { userNotice } from './runtime/events.ts';
 export type { RuntimeEvent, UserNotice } from './runtime/events.ts';
-export { createLightingScene } from './lighting/scene/experimentScene.ts';
-export { exportLightingGltf } from './lighting/scene/gltf.ts';
-export { createDefaultLightingSceneLights } from './lighting/scene/controls.ts';
-export type { Vec3, Surface, Patch, Scene } from './lighting/scene/experimentScene.ts';
-export type { LightingSceneLight } from './lighting/scene/types.ts';
-export { createTransport } from './lighting/transport/transport.ts';
-export { solveTransportOracle } from './lighting/transport/oracle.ts';
-export type {
-  TransportOptions,
-  TransportProgress,
-  TransportResult,
-  TransportSnapshot,
-} from './lighting/transport/contracts.ts';
 export {
   LIGHT_SETTINGS,
   MAX_SHADOW_SLICES,

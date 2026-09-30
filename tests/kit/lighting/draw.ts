@@ -37,7 +37,7 @@ class ObservationPass {
     this.gl = gl;
     this.resources = resources;
     this.meshes = meshes;
-    this.sources = [resources.texture, resources.surfaceTexture, resources.bvhTexture];
+    this.sources = [resources.texture, resources.surfaceTexture];
     this.program = createObservationProgram(gl, resources.surfaceCount);
     this.geometry = new WebglClusterGeometry(gl, {
       position: gl.getAttribLocation(this.program, 'position'),
@@ -47,7 +47,7 @@ class ObservationPass {
       color: -1,
     });
     gl.useProgram(this.program);
-    for (let unit = 0; unit < SAMPLERS.length; unit++) {
+    for (let unit = 0; unit < this.sources.length; unit++) {
       gl.uniform1i(this.at(SAMPLERS[unit]), unit);
       const texture = gl.createTexture()!;
       this.textures.push(texture);
@@ -67,11 +67,22 @@ class ObservationPass {
   /** Binds the three textures on their units; a texture whose texels moved is uploaded whole. */
   private bindTextures() {
     const gl = this.gl;
-    for (let unit = 0; unit < this.sources.length; unit++) {
-      const source = this.sources[unit];
+    const bvh = this.resources.uniforms.useBvh ? this.resources.bvhTexture : undefined;
+    const sources = bvh ? [...this.sources, bvh] : this.sources;
+    gl.uniform1i(this.at('bvhData'), bvh ? 2 : 1);
+    for (let unit = 0; unit < sources.length; unit++) {
+      const source = sources[unit];
+      const fresh = !this.textures[unit];
+      if (fresh) this.textures[unit] = gl.createTexture()!;
       gl.activeTexture(gl.TEXTURE0 + unit);
       gl.bindTexture(gl.TEXTURE_2D, this.textures[unit]);
-      if (!source.dirty && !this.fresh) continue;
+      if (fresh) {
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      }
+      if (!source.dirty && !this.fresh && !fresh) continue;
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
       gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
       gl.texImage2D(

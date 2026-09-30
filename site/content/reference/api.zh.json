@@ -69,7 +69,6 @@
       "cascadeShares": "从最精细到最粗糙,各层所占的预算比例。最精细的一层围绕摄像机,获得最大比例的光线分配。",
       "raysPerProbe": "每次更新时每个探针追踪的光线数。固定且可配置的预算。",
       "raysPerFrame": "每帧探针光线数的上限:限制计算调度规模的静态上限。",
-      "lightsPerRay": "每个表面缓存单元测试的光源数。",
       "surfaceTexelsPerFrame": "每帧更新的表面缓存单元数上限。",
       "budgetMs": "GPU 上每帧间接光照通道的目标时长(毫秒)。",
       "budgetSmoothing": "为防止震荡而在每个样本中保留的误差修正比例。",
@@ -1761,16 +1760,6 @@
       "reason": "用一句话说明引擎没有做到的事情,以及原因;当一切都已应用时省略此项。"
     }
   },
-  "LightingSceneLight": {
-    "summary": "线性 RGB 颜色,以及世界空间中一个面板的中心点。",
-    "description": "即使强度为零,该面板依然存在。",
-    "members": {
-      "id": "该光源的名称。",
-      "color": "它的颜色,线性 RGB。",
-      "intensity": "它的强度。",
-      "position": "该面板的中心点。"
-    }
-  },
   "LinearRgb": {
     "summary": "一个线性 RGB 颜色,每个通道取值 `[0, 1]`。"
   },
@@ -2625,20 +2614,6 @@
       "clips": "当该行携带裁切标志时为 1,因此永远不会被剔除。"
     }
   },
-  "Patch": {
-    "summary": "u 和 v 横跨整个单元格,cross(u, v) 指向法线方向。",
-    "members": {
-      "id": "该面片的编号。",
-      "surface": "其所属表面的编号。",
-      "center": "它的中心。",
-      "normal": "它所朝的方向。",
-      "u": "它的第一条边。",
-      "v": "它的第二条边。",
-      "area": "它的面积。",
-      "albedo": "它反射多少光。",
-      "emission": "它发出的光。"
-    }
-  },
   "Path": {
     "summary": "穿过每个点的直线段,按弧长参数化。",
     "members": {
@@ -2978,14 +2953,6 @@
       "reason": "原因。",
       "changedAt": "最近一次变化的时间。",
       "revision": "变化过的次数。"
-    }
-  },
-  "Scene-common": {
-    "summary": "实验性间接光反弹求解器的测试场景:被切分成若干面片的表面。",
-    "members": {
-      "surfaces": "它的各个表面。",
-      "patches": "它的各个面片。",
-      "sphere": "一个可选的光滑球体。"
     }
   },
   "Scene": {
@@ -3519,21 +3486,6 @@
       "sha256": "其字节内容的指纹。"
     }
   },
-  "Surface": {
-    "summary": "origin 是一个角点;u 和 v 横跨整个矩形。",
-    "members": {
-      "id": "该表面的名称。",
-      "origin": "其中一个角点。",
-      "u": "从该角点出发的第一条边。",
-      "v": "从该角点出发的第二条边。",
-      "albedo": "按颜色分别记录,它反射多少光。",
-      "emission": "按颜色分别记录,它发出多少光。",
-      "kind": "哑光还是镜面。",
-      "moving": "它是否会移动。",
-      "columns": "横向的面片数。",
-      "rows": "纵向的面片数。"
-    }
-  },
   "SurfaceBuffer": {
     "summary": "保存在 GPU 上的一帧逐像素表面数据:深度、法线、材质。",
     "members": {
@@ -3920,63 +3872,6 @@
       "examined": "测试所检查过的条目:所有指名了某个页面的条目。"
     }
   },
-  "TransportOptions": {
-    "summary": "间接光反弹求解器的运行方式。",
-    "members": {
-      "raysPerPatch": "每个面片确定性光线的总数;四个起点采样共享这一预算。",
-      "maxIterations": "求解器最多运行的轮数。",
-      "tolerance": "针对采样算子、以最大范数衡量的绝对辐亮度误差上限。",
-      "warmStart": "在重用模式下复用上一次的辐亮度结果(默认 true)。设为 false 会让两种模式的求解器初始化完全相同。",
-      "maxBytes": "它最多可以使用的内存量。",
-      "now": "它所用的时钟。",
-      "cancelled": "询问是否应当停止。",
-      "onProgress": "监听它的进度。"
-    }
-  },
-  "TransportProgress": {
-    "summary": "间接光反弹求解器进行到了什么程度。",
-    "members": {
-      "eventVersion": "事件格式版本。",
-      "stage": "它所处的步骤。",
-      "completed": "已完成的工作量。",
-      "total": "工作量总计。"
-    }
-  },
-  "TransportResult": {
-    "summary": "间接光反弹求解器计算出的结果:每个面片上的光照,以及它的开销。",
-    "members": {
-      "formatVersion": "数据格式版本。",
-      "mode": "重新构建,还是复用得来。",
-      "radiance": "由状态自身持有的数组,会被之后的更新覆盖。在保留某一帧之前请先复制它。",
-      "irradiance": "来自所有被采样表面(包括自发光面板)的入射辐照度。",
-      "indirectIrradiance": "经过至少一次漫反射之后的入射辐照度:pi * matrix * (radiance - source)。",
-      "timings": "按步骤划分的耗时。",
-      "raysTraced": "静态场景相交结果被重新计算过的光线数。",
-      "raysReused": "被复用的静态相交结果;移动的遮挡物仍可能对其进行了测试。",
-      "movingRayTests": "针对移动物体的测试次数。",
-      "staticSurfaceTests": "针对静止表面的测试次数。",
-      "totalRays": "光线总数。",
-      "rowsUpdated": "被重新计算的行数。",
-      "iterations": "求解器运行的轮数。",
-      "residual": "剩余的误差。",
-      "errorBound": "可能的最大误差。",
-      "contraction": "收敛的速度。",
-      "converged": "是否已达到容差要求。",
-      "bytes": "仅指自身持有的类型化数组数据量,不包括 JS 对象和调用者所持有的场景数据。",
-      "unsupported": "它尚不支持的功能。"
-    }
-  },
-  "TransportSnapshot": {
-    "summary": "被冻结的间接光传输问题:各个面片之间如何相互可见。",
-    "members": {
-      "formatVersion": "数据格式版本。",
-      "algorithmVersion": "算法版本。",
-      "patchCount": "面片总数。",
-      "matrix": "行优先的形状因子矩阵:E = pi * matrix * radiance。",
-      "source": "每个面片自身发出的光。",
-      "albedo": "每个面片反射的光。"
-    }
-  },
   "Triangle": {
     "summary": "三个顶点,正面按逆时针方向绕接。",
     "members": {
@@ -4000,9 +3895,6 @@
       "messageKey": "是哪条消息。",
       "action": "他们能做什么。"
     }
-  },
-  "Vec3": {
-    "summary": "实验性传输求解器及其浏览器测试装置所共用的几何体。"
   },
   "Vec3Input": {
     "summary": "`[x, y, z]` 或一个向量,读取为三个数字。"
@@ -4978,9 +4870,6 @@
       "options.onProgress": "每个事件发生时调用。"
     }
   },
-  "createDefaultLightingSceneLights": {
-    "summary": "供需要单独操纵各个控件的调用者使用的独立副本。"
-  },
   "createDiagnosticChannel": {
     "summary": "面向浏览器宿主的、带上限的异步诊断投递机制。",
     "description": "`emit` 只是把已经创建好的记录追加进去,并安排一个微任务,它从不调用用户代码,也从不对记录进行序列化。这让观察者始终处于被测量的渲染调用之外;`flush` 则是为准备/流式加载报告设置的、显式的宿主同步点。",
@@ -5002,9 +4891,6 @@
   },
   "createJob": {
     "summary": "没有计时器、DOM、文件系统或 UI。"
-  },
-  "createLightingScene": {
-    "summary": "门角度为零时关闭开口;PI/2 时把门扇摆到左侧房间里。"
   },
   "createPageIntegrationPlan": {
     "summary": "一份计划所用的缓冲区,大小按目录中最大请求来设定。"
@@ -5060,21 +4946,6 @@
   },
   "createTransformTree": {
     "summary": "一个空的层级结构,无需扩容即可容纳 `capacity` 个节点。"
-  },
-  "createTransport": {
-    "summary": "一次密集采样的传输实验,而不是一个层级化的求解器。",
-    "description": "两种模式使用完全相同的光线。重用模式会缓存与静态矩形的相交结果,然后对每一个移动中的矩形按其**新**位置重新测试。因此,移除一个旧的遮挡物,就会恢复缓存的静态命中结果,而不会残留过期的光照。移动中的光源面片会重新投射它们自己的光线。球体是一个吸收型的可见性障碍物;镜面面片的漫反射率必须为零。两种模式都不会把镜面光传输为漫反射光。",
-    "parameters": {
-      "options": "间接光反弹求解器的运行方式。",
-      "options.raysPerPatch": "每个面片确定性光线的总数;四个起点采样共享这一预算。",
-      "options.maxIterations": "求解器最多运行的轮数。",
-      "options.tolerance": "针对采样算子、以最大范数衡量的绝对辐亮度误差上限。",
-      "options.warmStart": "在重用模式下复用上一次的辐亮度结果(默认 true)。设为 false 会让两种模式的求解器初始化完全相同。",
-      "options.maxBytes": "它最多可以使用的内存量。",
-      "options.now": "它所用的时钟。",
-      "options.cancelled": "询问是否应当停止。",
-      "options.onProgress": "监听它的进度。"
-    }
   },
   "createWorld": {
     "summary": "创建一个世界:一个视图的场景、摄像机、渲染器和循环,一旦它知道如何绘制就会开始绘制。",
@@ -5192,9 +5063,6 @@
   },
   "exclusiveScan": {
     "summary": "不包含自身的前缀扫描(exclusive scan)。"
-  },
-  "exportLightingGltf": {
-    "summary": "glTF 以及一个独立的小端序二进制缓冲区;持久化保存由适配层负责。"
   },
   "filter": {
     "summary": "纹理采样规则。"
@@ -6944,10 +6812,6 @@
   },
   "sideOf": {
     "summary": "宿主材质所声明的那一面,在边界处一次性读入引擎自有的枚举类型。"
-  },
-  "solveTransportOracle": {
-    "summary": "一个独立的直接线性求解器;绝不会调用迭代求解器。",
-    "description": "这部分工作不在被测量的运行范围之内。"
   },
   "sortPages": {
     "summary": "对页面索引数组的一段前缀就地进行升序排序。",

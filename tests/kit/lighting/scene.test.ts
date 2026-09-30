@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createLightingScene } from '../../../packages/sdk-core/src/lighting/scene/experimentScene.ts';
+import { createLightingScene } from './scene/experimentScene.ts';
 import { createObservationResources } from './resources.ts';
 import type { LightingExperimentRenderState } from './contracts.ts';
 

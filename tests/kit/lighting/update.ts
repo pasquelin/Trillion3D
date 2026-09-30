@@ -23,8 +23,6 @@ export function updateObservation(
     patchOffsets,
     atlasWidth,
     texels,
-    bvh,
-    bvhTexture,
     texture,
     surfaceTexture,
   } = resources;
@@ -104,6 +102,7 @@ export function updateObservation(
   uniforms.sphereRoughness = sphere.roughness;
   meshes.updateTransforms();
   if (uniforms.useBvh) {
+    const { bvh, texture: bvhTexture } = resources.ensureBvh();
     const refitStart = performance.now();
     bvh.refit(surfaceTexels);
     rayDiagnostics.bvhRefitMs = performance.now() - refitStart;

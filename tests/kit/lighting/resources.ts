@@ -71,12 +71,12 @@ export function createObservationResources(state: LightingExperimentRenderState)
   const texture = floatTexture(texels, atlasWidth, atlasHeight);
   const surfaceTexels = new Float32Array(surfaceCount * 6 * 4);
   const surfaceTexture = floatTexture(surfaceTexels, 6, surfaceCount);
-  const bvh = createRectangleBvh(domain.surfaces);
-  const bvhTexture = floatTexture(bvh.data, 2, bvh.nodeCount);
+  let acceleration:
+    { bvh: ReturnType<typeof createRectangleBvh>; texture: ObservationTexture } | undefined;
   const rayDiagnostics: LightingExperimentRayDiagnostics = {
     rayTraversal: 'brute',
-    bvhNodeCount: bvh.nodeCount,
-    bvhNodeBytes: bvh.data.byteLength,
+    bvhNodeCount: 0,
+    bvhNodeBytes: 0,
     bvhRefitMs: 0,
   };
   state.rayDiagnostics = rayDiagnostics;
@@ -107,8 +107,18 @@ export function createObservationResources(state: LightingExperimentRenderState)
     texture,
     surfaceTexels,
     surfaceTexture,
-    bvh,
-    bvhTexture,
+    get bvhTexture() {
+      return acceleration?.texture;
+    },
+    ensureBvh() {
+      if (!acceleration) {
+        const bvh = createRectangleBvh(domain.surfaces);
+        acceleration = { bvh, texture: floatTexture(bvh.data, 2, bvh.nodeCount) };
+        rayDiagnostics.bvhNodeCount = bvh.nodeCount;
+        rayDiagnostics.bvhNodeBytes = bvh.data.byteLength;
+      }
+      return acceleration;
+    },
     rayDiagnostics,
     uniforms,
   };

@@ -1,9 +1,4 @@
-import type {
-  Patch,
-  Scene,
-  Surface,
-  Vec3,
-} from '../../packages/sdk-core/src/lighting/scene/experimentScene.ts';
+import type { Patch, Scene, Surface, Vec3 } from '../kit/lighting/scene/experimentScene.ts';
 export function sceneWithBlocker(open: boolean, intensity: number): Scene {
   return sceneFromSurfaces([
     {

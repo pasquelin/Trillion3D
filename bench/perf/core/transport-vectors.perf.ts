@@ -1,11 +1,7 @@
 // sdk-core vectors. Math.hypot(a, b, c) and transport scene validation.
-import { length } from '../../../packages/sdk-core/src/lighting/scene/math.ts';
-import { validateScene } from '../../../packages/sdk-core/src/lighting/transport/validation.ts';
-import type {
-  Patch,
-  Scene,
-  Vec3,
-} from '../../../packages/sdk-core/src/lighting/scene/experimentScene.ts';
+import { length } from '../../../tests/kit/lighting/scene/math.ts';
+import { validateScene } from '../../../tests/kit/lighting/transport/validation.ts';
+import type { Patch, Scene, Vec3 } from '../../../tests/kit/lighting/scene/experimentScene.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import type { MesureCas } from '../../core/index.ts';
 import { referenceLength, referenceValidateScene } from '../../oracles/core/transport-vectors.ts';
@@ -83,7 +79,7 @@ const passeScene = (fn: (scene: Scene) => void) => (liste: readonly Scene[]) =>
 
 const resLongueur = await mesure({
   name: 'Vec3 length',
-  fichier: 'packages/sdk-core/src/lighting/scene/math.ts',
+  fichier: 'tests/kit/lighting/scene/math.ts',
   cas: casLongueur,
   calcul: (liste: Vec3[]) => longueurs(liste, length),
   attendu: (liste: Vec3[]) => longueurs(liste, referenceLength),
@@ -92,7 +88,7 @@ const resLongueur = await mesure({
 
 const resScene = await mesure({
   name: 'transport scene normals',
-  fichier: 'packages/sdk-core/src/lighting/transport/validation.ts',
+  fichier: 'tests/kit/lighting/transport/validation.ts',
   cas: [
     { name: '8 000 patches', input: scenes, size: 8065 },
     { name: 'no scene', input: [], size: 0 },
