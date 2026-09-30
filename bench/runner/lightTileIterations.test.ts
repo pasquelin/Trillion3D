@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { NEAR, camera } from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
 import { blockIndex, depthField, emptyBlocks, type City, type Light } from './lightTileCity.ts';
-import { countView, walkAllPastList } from './lightTileCount.ts';
+import { countGrid } from './lightGridCount.ts';
 import { COST_MODEL, modelMs } from './lightTileIterations.ts';
 
 // Straight down from 100 m onto one 30 m building (x and z 8 to 52 m), the ground all around.
@@ -22,24 +22,19 @@ test('the city is ray-cast as the depth buffer holds it', () => {
   assert.ok(Math.abs(at(0, 0) * 100 - NEAR) < 1e-6, 'the ground, 100 m away');
 });
 
-test('iterations are summed over covered pixels and divided by them', () => {
+test('iterations are summed over covered pixels', () => {
   const everywhere: Light = { centre: [30, 0, 30], radius: 1000 };
   const farAway: Light = { centre: [5000, 0, 5000], radius: 1 };
   const depths = depthField(city([]), view);
   // The left half sees the sky: those pixels walk no list and are not covered.
   for (let y = 0; y < view.height; y++) depths.fill(0, y * view.width, y * view.width + 32);
-  const result = countView(view, depths, [everywhere, farAway]);
+  const result = countGrid(view, depths, [everywhere, farAway]);
   assert.equal(result.covered, (view.width * view.height) / 2);
-  assert.equal(result.coverage, 0.5);
-  assert.equal(result.tiles, 2 * 3, 'the right two columns of tiles');
-  // Every covered pixel walks the sun and the light that holds the whole view.
-  for (const key of ['before', 'after', 'reach', 'beforeAllPastList'] as const) {
-    assert.equal(result.perCoveredPixel[key], 2, key);
-    assert.equal(result.perPixel[key], 1, key);
-  }
-  assert.equal(result.missed, 0);
-  // Past a list, the audit's rule walks every light of the scene.
-  assert.deepEqual([64, 65].map(walkAllPastList(11141)), [64, 11141]);
+  // Every covered pixel walks the light that holds the whole view, and only it.
+  assert.deepEqual(
+    [result.listed, result.reach, result.missed],
+    [result.covered, result.covered, 0],
+  );
 });
 
 test('the cost model prices the covered pixels only', () => {

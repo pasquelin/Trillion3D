@@ -46,7 +46,7 @@ test('a list with a shadowed light is drawn as before, the others summed in full
   );
   assert.ok(
     one.moving > one.list && one.moving < one.develop,
-    'only the tiles a shadowed lamp reaches draw',
+    'only the cells a shadowed lamp reaches draw',
   );
   assert.equal(LIGHT_SETTINGS.samplesPerPixel, 4, 'the 2·L + 4 of the drawn resolve');
 });

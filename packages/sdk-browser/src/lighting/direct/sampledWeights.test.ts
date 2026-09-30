@@ -1,4 +1,4 @@
-// #1369: the shipped `sampledTileLighting`, run in JavaScript on a list of weights — each light's
+// #1369: the shipped `sampledSliceLighting`, run in JavaScript on a list of weights — each light's
 // unshadowed contribution its weight times a factor, as `lightWeight` and `declaredLight` are, zero
 // together. It walks the weights twice, shades at most `LIGHT_SAMPLES` lights, shades a light worth a
 // sample's share exactly once whatever the offset, and averaged over the offsets its estimate is the
@@ -17,10 +17,10 @@ const K = wgslConstants(DIRECT_LIGHTING_WGSL);
 type Light = { index: number };
 /** The list run, swapped per case: weights, contributions, the offset, and what was read. */
 const live = { weights: [0], values: [0], offset: 0, walked: 0, shaded: [] as number[] };
-const tileLights = new Uint32Array(K.TILE_STRIDE);
-const { sampledTileLighting } = shaderRun<{
-  sampledTileLighting: (...args: unknown[]) => number[];
-}>(DIRECT_LIGHTING_WGSL, ['sampledTileLighting', 'sampledList'], {
+const tileLights = new Uint32Array(MAX).map((_, i) => i);
+const { sampledSliceLighting } = shaderRun<{
+  sampledSliceLighting: (...args: unknown[]) => number[];
+}>(DIRECT_LIGHTING_WGSL, ['sampledSliceLighting'], {
   ...K,
   tileLights,
   directLights: { items: [...Array(MAX).keys()].map((index) => ({ index })) },
@@ -32,18 +32,13 @@ const { sampledTileLighting } = shaderRun<{
   ),
   hashUnit: () => live.offset,
   fract: (x: number) => x - Math.floor(x),
-  tileLighting: () => assert.fail('a sampled list is drawn'),
 });
 
 /** The estimate of the list at `offset`, the weights walked and the lights shaded. */
 function run(weights: number[], values: number[], offset: number) {
   Object.assign(live, { weights, values, offset, walked: 0, shaded: [] });
-  tileLights[0] = weights.length;
-  tileLights.set(
-    weights.map((_, i) => i),
-    K.TILE_OPAQUE_BASE,
-  );
-  const sum = sampledTileLighting(0, 0, 0, 0, 0, 0, 0, [0, 0], 1, 0, [0.5, 0.5])[0];
+  // The list, from word 0 of the pool: light `i` at word `i`.
+  const sum = sampledSliceLighting(0, 0, 0, 0, 0, 0, 0, [0, weights.length], 0, [0.5, 0.5])[0];
   return { sum, walked: live.walked, shaded: live.shaded };
 }
 

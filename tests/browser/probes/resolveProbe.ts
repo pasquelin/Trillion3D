@@ -40,6 +40,15 @@ export function resolveSamples(count: number, draw: ReturnType<typeof resolveRan
   return { points, samples };
 }
 
+/** A cell's record as the grid pass writes it (#1369), its list after it in the same buffer: its
+ *  count, the high bit set when a listed rank of `shadowed` holds a shadow slot, then where its list
+ *  starts — word 2 —, or with no `room` in the pool `TILE_NO_SLICE`: every light of the scene. */
+export const cellRecord = (list: number[], shadowed: number[] = [], room = true) => [
+  (list.length | (list.some((rank) => shadowed.includes(rank)) ? 0x80000000 : 0)) >>> 0,
+  room ? 2 : 0xffffffff,
+  ...(room ? list : []),
+];
+
 /** The sums of each record of each scene, as f32 bits; the page's errors, and with
  *  `pageErrors` its uncaught ones, must be none. */
 export async function runResolves(scenes: ResolveScene[], titre: string, pageErrors?: string[]) {

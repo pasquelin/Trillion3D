@@ -1,11 +1,11 @@
 // What the deferred resolve of a MOVING image spends per covered pixel beyond its G-buffer reads
-// (#1369), develop against this branch: the tile lists of the tile pass's oracle, each pixel's point
-// against each listed light's range. COUNTED, never timed; upper bounds where a term depends on a
-// weight or a facing the atrium does not model.
+// (#1369), develop's resolve against this branch's, both on the light grid's lists (`lightGridWalk.ts`),
+// each pixel's point against each listed light's range. COUNTED, never timed; upper bounds where a
+// term depends on a weight or a facing the atrium does not model.
 //
 // - `setup`: the pixels that set up a shadow read — eight neighbour depths for the unjittered
 //   footprint and the receiver offset recomputed from the visibility buffer (`shadowSetup`, #1410):
-//   develop at every lit pixel, now where the tile's list holds a shadowed light (`pixelShadowed`).
+//   develop at every lit pixel, now where the cell's list holds a shadowed light (`cellShadowed`).
 // - `weights`: `lightWeight` evaluations of a drawn list (`sampledTileLighting`): three walks of
 //   its `L` lights on develop, two now.
 // - `shaded`: lights shaded in full (`declaredLight`): a full sum's `L`, a drawn list's at most
@@ -16,21 +16,13 @@
 //   node bench/runner/resolveWorkCount.ts [--width 3456] [--height 2234] [--slots 64]
 import { parseArgs } from 'node:util';
 import { LIGHT_SETTINGS } from '../../packages/sdk-core/src/index.ts';
-import {
-  camera,
-  pixelPoint,
-} from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
-import {
-  sliceHits,
-  toTileFrame,
-  type TileView,
-} from '../oracles/browser/gpuLightTileColumnOracle.ts';
-import { coveredTile } from './lightTileCount.ts';
+import { camera } from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
+import type { TileView } from '../oracles/browser/gpuLightGridOracle.ts';
+import { reaches, walkGrid } from './lightGridWalk.ts';
 import { ATRIUM_POSES, atriumDepth, atriumLamps } from './lightTileAtrium.ts';
 import type { Light } from './lightTileCity.ts';
 
-const SIZE = LIGHT_SETTINGS.tileSize,
-  SAMPLES = LIGHT_SETTINGS.samplesPerPixel,
+const SAMPLES = LIGHT_SETTINGS.samplesPerPixel,
   LIST = LIGHT_SETTINGS.tileLights;
 
 export type Work = {
@@ -50,37 +42,23 @@ export function countResolveWork(
   slotted: boolean[],
 ) {
   const sums = { covered: 0, before: zero(), after: zero() };
-  for (let ty = 0; ty < Math.ceil(view.height / SIZE); ty++)
-    for (let tx = 0; tx < Math.ceil(view.width / SIZE); tx++) {
-      const covered = coveredTile(view, [tx, ty], depths);
-      if (!covered) continue;
-      const { pixels, bounds } = covered;
-      const listed = lights.flatMap((light, rank) =>
-        sliceHits(bounds, toTileFrame(view, light.centre), light.radius).opaque ? [rank] : [],
-      );
-      const L = listed.length,
-        flagged = listed.some((rank) => slotted[rank]),
-        drawn = flagged && L > SAMPLES && L <= LIST;
-      const shadowed = listed.filter((rank) => slotted[rank]).map((rank) => lights[rank]);
-      for (const [x, y, z] of pixels) {
-        const p = pixelPoint(view, x, y, z);
-        const reaching = shadowed.filter(
-          ({ centre: c, radius }) =>
-            (p[0] - c[0]) ** 2 + (p[1] - c[1]) ** 2 + (p[2] - c[2]) ** 2 < radius ** 2,
-        ).length;
-        const shadows = drawn ? Math.min(SAMPLES, reaching) : reaching;
-        sums.covered++;
-        for (const [side, walks, setup] of [
-          [sums.before, 3, true],
-          [sums.after, 2, flagged],
-        ] as const) {
-          side.setup += +setup;
-          side.weights += drawn ? walks * L : 0;
-          side.shaded += drawn ? SAMPLES : L;
-          side.shadows += shadows;
-        }
-      }
+  walkGrid(view, depths, lights, (p, listed) => {
+    const L = listed.length,
+      flagged = listed.some((rank) => slotted[rank]),
+      drawn = flagged && L > SAMPLES && L <= LIST;
+    const reaching = listed.filter((rank) => slotted[rank] && reaches(p, lights[rank])).length;
+    const shadows = drawn ? Math.min(SAMPLES, reaching) : reaching;
+    sums.covered++;
+    for (const [side, walks, setup] of [
+      [sums.before, 3, true],
+      [sums.after, 2, flagged],
+    ] as const) {
+      side.setup += +setup;
+      side.weights += drawn ? walks * L : 0;
+      side.shaded += drawn ? SAMPLES : L;
+      side.shadows += shadows;
     }
+  });
   return sums;
 }
 
