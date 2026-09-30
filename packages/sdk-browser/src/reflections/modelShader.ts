@@ -5,6 +5,9 @@ import { shaderLanguage } from '../math/shaderLanguage.ts';
 
 /** One roughness sample of the lobe table: transition resolution, not a rough-lobe filter. */
 export const MIRROR_TRANSITION_END = shaderFloat(Number(ROUGHNESS_FLOOR) + 1 / (LTC_SIZE - 1));
+/** Unreal's `r.SSR.MaxRoughness` default: a rougher lobe is never screen-traced and takes the
+ *  environment/probe reflection alone (#1341). */
+export const SCREEN_REFLECTION_MAX_ROUGHNESS = shaderFloat(0.6);
 export const mirrorWeightShader = (language: 'wgsl' | 'glsl') =>
   shaderLanguage(
     `

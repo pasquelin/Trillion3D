@@ -14,7 +14,7 @@ function instanceRows() {
   const rows = createWebgpuRowState([], ROWS),
     [bark, leaves] = [
       { ...surface(0.9), model: 4 },
-      { ...surface(0.8), model: 4 },
+      { ...surface(0.4), model: 4 },
     ],
     recs = Array.from({ length: ROWS }, (_, i) => ({ material: i % 7 ? leaves : bark }) as PageRec);
   rows.packedCount = ROWS;
