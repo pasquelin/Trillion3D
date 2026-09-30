@@ -121,10 +121,7 @@ test('the slots follow the classes held; a list is drawn indirectly, a class pas
   }) as typeof encoder.beginComputePass;
   const inputs = { vis: {}, pages: {}, uniform: {} } as never;
   tiles.encode(encoder, 100, 40, inputs);
-  assert.deepEqual(
-    [passes, computes.at(-1), tiles.tileCount],
-    [[MATERIAL_TILES_PASS], 'classify', 8],
-  );
+  assert.deepEqual([passes, computes.at(-1)], [[MATERIAL_TILES_PASS], 'classify']);
   const drawn: unknown[] = [];
   const pass = {
     drawIndirect: (_: unknown, offset: number) => drawn.push(['indirect', offset]),
@@ -134,11 +131,11 @@ test('the slots follow the classes held; a list is drawn indirectly, a class pas
   tiles.draw(pass, MATERIAL_TILE_SLOTS);
   assert.deepEqual(drawn, [
     ['indirect', 16],
-    ['draw', 6, 8],
+    ['draw', 3, undefined],
   ]);
 });
 
-test('a device that refuses the classification draws every class on every tile', async () => {
+test('a device that refuses the classification draws every class full screen', async () => {
   installGpuGlobals();
   class GPUPipelineError extends Error {}
   Object.assign(globalThis, { GPUPipelineError });
@@ -155,7 +152,7 @@ test('a device that refuses the classification draws every class on every tile',
     draw: (vertices: number, instances: number) => drawn.push([vertices, instances]),
   } as unknown as GPURenderPassEncoder;
   tiles.draw(pass, 0);
-  assert.deepEqual(drawn, [[6, 4]]);
+  assert.deepEqual(drawn, [[3, undefined]], 'one full-screen triangle');
 });
 
 test('a classification that does not compile fails by name, never silently whole', async () => {
