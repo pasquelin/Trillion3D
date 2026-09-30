@@ -2,7 +2,7 @@ import { PAGE_GEOMETRY_WGSL } from '../visibility/shader/pageGeometryWgsl.ts';
 import { PAGE_INFO_STRUCT_WGSL, VERT_NORMAL_WGSL } from '../visibility/shader/pageWgsl.ts';
 import { FLAG_CLUSTER_PAGE, FLAG_DYNAMIC } from '../visibility/types.ts';
 import { DEFORM_WGSL } from './deformWgsl.ts';
-import { dispatchGrid } from '../gpu/dag/shader/gridWgsl.ts';
+import { DEFAULT_GROUP_WIDTH, dispatchGrid } from '../gpu/dag/shader/gridWgsl.ts';
 
 /** Timestamp label published by the existing per-frame GPU timing recorder. */
 export const DEFORMATION_PASS = 'Trillion3D deformation';
@@ -24,7 +24,7 @@ fn storeDeformed(at:u32,v:vec3f,whole:bool){
 }
 @compute @workgroup_size(64)
 fn deform(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) lane:u32){
- let row=group.x+group.y*65535u;
+ let row=group.x+group.y*${DEFAULT_GROUP_WIDTH}u;
  if(row>=arrayLength(&pages)){return;}
  let page=pages[row];
  if(page.deformOutput==0u||page.indexCount==0u){return;}

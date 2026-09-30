@@ -70,7 +70,9 @@ if (import.meta.main) {
     return {
       narrow,
       drawn,
-      words: [...compactTile(layout, { opaque: list, blend: [], shadowed }, count, undefined, pool)],
+      words: [
+        ...compactTile(layout, { opaque: list, blend: [], shadowed }, count, undefined, pool),
+      ],
     };
   };
 

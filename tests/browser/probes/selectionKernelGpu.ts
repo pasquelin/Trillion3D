@@ -30,11 +30,10 @@ async function executer({
   layoutEntries,
   bindings,
 }: ExecuterEntree): Promise<ExecutionResultat> {
-  const appareil = await globalThis.openGpuDevice();
-  if (!appareil) return { indisponible: 'no WebGPU adapter' };
+  const opened = await globalThis.openGpuModule(shader);
+  if (!('module' in opened)) return opened;
+  const { appareil, module } = opened;
   const { device, erreurs } = appareil;
-  const { module, compilation } = await appareil.compile(shader);
-  if (compilation.length) return { compilation, erreurs };
   const layout = device.createBindGroupLayout({ entries: layoutEntries });
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
   const etape = (entryPoint: string) =>
