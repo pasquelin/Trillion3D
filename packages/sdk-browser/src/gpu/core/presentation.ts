@@ -1,9 +1,9 @@
 import { sharedGpuDevice } from './sessionHandle.ts';
 import { FULLSCREEN_VERTEX } from '../../lighting/deferred/deferred.ts';
+import { preparedPipeline, started } from '../../lighting/deferred/fullscreen.ts';
 import { createCanvasBlit } from '../../webgl/core/canvasBlit.ts';
 import { createPresentAt, type PresentRect } from './presentAt.ts';
 import { canvasImageKept, canvasImageReplaced, closeCanvasImage } from './canvasHandover.ts';
-
 export const PRESENT_SHADER = `@group(0) @binding(0) var image:texture_2d<f32>;
 ${FULLSCREEN_VERTEX}
 @fragment fn present(@builtin(position) pixel:vec4f)->@location(0) vec4f{return textureLoad(image,vec2i(pixel.xy),0);}`;
@@ -39,12 +39,14 @@ export function createGpuPresenter(device: GPUDevice, canvas: HTMLCanvasElement)
       ],
     });
     const module = device.createShaderModule({ code: PRESENT_SHADER });
-    const pipeline = device.createRenderPipeline({
-      layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-      vertex: { module, entryPoint: 'fullscreen' },
-      fragment: { module, entryPoint: 'present', targets: [{ format }] },
-      primitive: { topology: 'triangle-list' },
-    });
+    const pipeline = started(
+      preparedPipeline(device, {
+        layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
+        vertex: { module, entryPoint: 'fullscreen' },
+        fragment: { module, entryPoint: 'present', targets: [{ format }] },
+        primitive: { topology: 'triangle-list' },
+      }),
+    );
     let texture: GPUTexture | undefined,
       group: GPUBindGroup | undefined,
       // The canvas texture the whole image was last drawn into: a view is placed on it alone.
@@ -89,7 +91,7 @@ export function createGpuPresenter(device: GPUDevice, canvas: HTMLCanvasElement)
           label: 'Trillion3D direct present',
           colorAttachments: [{ view, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 1] }],
         });
-        pass.setPipeline(pipeline);
+        pass.setPipeline(pipeline.get());
         pass.setBindGroup(0, group!);
         pass.draw(3);
         pass.end();
@@ -117,9 +119,7 @@ export function createGpuPresenter(device: GPUDevice, canvas: HTMLCanvasElement)
 }
 
 /** Row pitch of a readback buffer: RGBA8 rows padded to WebGPU's 256-byte alignment. */
-export function readbackBytesPerRow(width: number) {
-  return Math.ceil((width * 4) / 256) * 256;
-}
+export const readbackBytesPerRow = (width: number) => Math.ceil((width * 4) / 256) * 256;
 
 /** Explicit diagnostic capture only. Copies WebGPU top-left rows to the SDK's bottom-left convention. */
 export async function readGpuImage(
