@@ -9,6 +9,7 @@ import {
 import { ALLOC_PARAM_WORDS } from './allocWgsl.ts';
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { FRESH_FACE_WORDS, FRESH_PARAM_WORDS, FRESH_PARAMS, freshArgWords } from './freshLayout.ts';
+import { createFreshPairs } from './freshPairs.ts';
 import { DRAWN_HOST, POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
 import { WORDS_HEADER, sentShadowWord } from './wordsWgsl.ts';
 
@@ -79,6 +80,8 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
     snapshotBytes: snapshotWords(pages) * 4,
     /** True once the GPU pool holds the host's. */
     seeded: false,
+    /** The list the GPU pages' pairs land in, sized by the counts snapshots read back. */
+    pairs: createFreshPairs(device),
     /** The GPU pool and its table as the host's `plan` holds them now: into `table` of `data`. */
     seed(plan: ShadowPlan, data: GPUBuffer, tableOffset: number) {
       const { pool, records, table } = plan,
@@ -165,11 +168,13 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
       into.refused = from[POOL_COUNTS.indexOf('refused')];
       into.drawn = from[POOL_COUNTS.indexOf('drawn')];
       into.listings = from[POOL_COUNTS.indexOf('listings')];
+      allocation.pairs.need = from[POOL_COUNTS.indexOf('pairs')];
       into.owner.set(signed.subarray(POOL_COUNTS.length, POOL_COUNTS.length + pages));
       into.requested.set(signed.subarray(POOL_COUNTS.length + pages));
     },
     dispose() {
       for (const buffer of Object.values(buffers)) buffer.destroy();
+      allocation.pairs.dispose();
     },
   };
   return allocation;

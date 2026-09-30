@@ -1,6 +1,7 @@
 // The pages the GPU draws itself (#1275), run from their shipped WGSL through `shaderRun`: the
 // compose and the seal over the bytes their bindings hold, lane after lane as their barriers order
-// them, and the pair cull over every row and region it dispatches — what the mock GPU dispatches
+// them, and the pair cull's count, admission and cull over every row and region they dispatch —
+// what the mock GPU dispatches
 // (`tests/kit/gpu/mockCompute.ts`) and the scheduling tests run.
 import { MAX_SHADOW_SLICES } from '../../../../sdk-core/src/index.ts';
 import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
@@ -50,6 +51,7 @@ const FUNCTIONS = [
   'composeLamp',
   'composeRegion',
   'freshDraw',
+  'freshRegionPairs',
   'poolAt',
   'shadowPoolPages',
   'poolLayer',
@@ -72,6 +74,7 @@ export function runShadowFresh(entry: string, ...bound: Uint8Array[]) {
     shadows: shadowsOf(data),
     shadowPool: { pages: new Int32Array(state.buffer, state.byteOffset + POOL_COUNTS.length * 4) },
     countRead: (i: number) => counts[i],
+    countSet: (i: number, v: number) => void (counts[i] = v),
     drawList: u32(drawList),
     faces: u32(faces),
     volumes: u32(volumes),
@@ -88,12 +91,15 @@ export function runShadowFresh(entry: string, ...bound: Uint8Array[]) {
   for (let lane = 0; lane < FRESH_LANES; lane++) lanes[entry](lane);
 }
 
+/** The pair cull's steps, in the order a frame runs them. */
+export const PAIR_STEPS = ['shadowCountPairs', 'admitShadowPairs', 'shadowCullPairs'] as const;
+
 /**
- * Runs `shadowCullPairs` over its bindings' bytes, in binding order — the spheres, the
- * parameters, the volumes, the pairs, the arguments and the rows' mobility —, every invocation of
- * the dispatch the arguments say.
+ * Runs the pair cull's `step` over its bindings' bytes, in binding order — the spheres, the
+ * parameters, the volumes, the pairs, the arguments and the rows' mobility —: its one invocation
+ * for the admission, every invocation of the dispatch the arguments say for the others.
  */
-export function runShadowPairs(...bound: Uint8Array[]) {
+export function runShadowPairStep(step: (typeof PAIR_STEPS)[number], ...bound: Uint8Array[]) {
   const [spheres, params, volumes, pairs, args, mobility] = bound,
     sphereFloats = f32(spheres),
     faceFloats = f32(volumes),
@@ -108,9 +114,9 @@ export function runShadowPairs(...bound: Uint8Array[]) {
       casters: faceWords[at(16)],
     };
   };
-  const { shadowCullPairs } = shaderRun<Lanes>(
+  const kernels = shaderRun<Lanes>(
     SHADOW_FRESH_CULL_WGSL,
-    ['shadowCullPairs', 'freshRow', 'keepPair', 'sphereTouches'],
+    [...PAIR_STEPS, 'freshRow', 'freshKeeps', 'freshRegionPairs', 'sphereTouches'],
     {
       ...wgslConstants(SHADOW_FRESH_CULL_WGSL),
       spheres: new Proxy([], {
@@ -126,11 +132,17 @@ export function runShadowPairs(...bound: Uint8Array[]) {
       mobility: u32(mobility),
     },
   );
+  const kernel = kernels[step] as unknown as (id?: number[]) => void;
+  if (step === 'admitShadowPairs') return kernel();
   // Every invocation of the dispatch the compose wrote: a row, then the blended ones, by region.
   const { rows, blendFirst, blendEnd } = paramsOf(params);
   for (let k = 0; k < words[FRESH_ARG.regions]; k++)
-    for (let x = 0; x < rows + blendEnd - blendFirst; x++)
-      (shadowCullPairs as unknown as (id: number[]) => void)([x, k, 0]);
+    for (let x = 0; x < rows + blendEnd - blendFirst; x++) kernel([x, k, 0]);
+}
+
+/** The pair cull's three steps in turn (`runShadowPairStep`). */
+export function runShadowPairs(...bound: Uint8Array[]) {
+  for (const step of PAIR_STEPS) runShadowPairStep(step, ...bound);
 }
 
 /** The shadow passes run from their WGSL, by entry point, over their bindings' bytes in binding
@@ -146,7 +158,9 @@ export function runShadowPass(
     applyShadowWords: () => runShadowWords(...(bound() as Parameters<typeof runShadowWords>)),
     composeShadowPages: () => runShadowFresh('composeShadowPages', ...bound()),
     sealShadowPages: () => runShadowFresh('sealShadowPages', ...bound()),
-    shadowCullPairs: () => runShadowPairs(...bound()),
+    ...Object.fromEntries(
+      PAIR_STEPS.map((step) => [step, () => runShadowPairStep(step, ...bound())]),
+    ),
   }[entryPoint ?? ''];
   run?.();
   return !!run;

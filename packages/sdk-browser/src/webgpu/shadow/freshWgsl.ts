@@ -32,14 +32,13 @@ const MAX_FRESH_REGIONS = 65535;
  * A page is claimed once (`DRAWN_GPU`) and composed by the page view model, as the host composes
  * it (`pageViewModel.ts`): a lamp page is its face's clip cropped to it, its cone the lamp's; a sun
  * page is its view cropped by the orthography, its box the square by the range's depth. Every
- * listed page is picked (\`pickPages\`), as the reference engine's virtual shadow maps draw every page a frame
+ * listed page is picked (`pickPages`), as the reference engine's virtual shadow maps draw every page a frame
  * marks in that frame (#1363): a receiver reads the level it asked for, never the coarser one. The
- * pair list is the one limit: a region a pair of which found it full is left short
- * (\`FRESH_REGION_SHORT\`), and the seal makes readable the others alone — never a page short of a
- * caster —; a short one waits, listed again, for the next frame or the host. A frame after one the
- * list overflowed picks no more pages than it holds every row of, as before: whatever order the
- * cull kept pairs in, those are drawn, and no page waits forever. The window is the session's
- * (`referenceMode.ts`), the ordinary constant by default.
+ * pair list is sized to the pairs the frames count (`freshPairs.ts`); a region it cannot hold whole
+ * is left short (`FRESH_REGION_SHORT`, `admitShadowPairs`) and the seal makes readable the others
+ * alone — never a page short of a caster —; a short one waits, listed again, for the next frame, by
+ * which the list has grown to the need the seal hands the host, or for the host. The window is the
+ * session's (`referenceMode.ts`), the ordinary constant by default.
  */
 export const shadowFreshWgsl = (pages = SUN_WINDOW) => `
 ${SHADOW_DATA_WGSL}
@@ -73,15 +72,12 @@ fn faceVec(i:u32,v:vec4f){faceF(i,v.x);faceF(i+1u,v.y);faceF(i+2u,v.z);faceF(i+3
 fn volumeVec(i:u32,v:vec4f){volumeF(i,v.x);volumeF(i+1u,v.y);volumeF(i+2u,v.z);volumeF(i+3u,v.w);}
 /** Lane 0: the listed pages still waiting for a draw, each claimed once, then laid out as regions
  *  layer after layer (\`FRESH_LAYER_STARTS\`, \`FRESH_REGION_PAGES\`): every one of them, as many as
- *  the cull's dispatch holds — the pairs they keep, not a pair of every row each, are the limit —;
- *  after a frame whose pairs overflowed the list (its count, not yet reset), no more than the list
- *  holds a pair of every row for. */
+ *  the cull's dispatch holds. */
 fn pickPages(){
  for(var l=0u;l<params.layers;l++){layerCount[l]=0u;}
  let listed=min(countRead(COUNT_DRAWN),params.pages);
- let rows=params.rows+params.blendEnd-params.blendFirst;let held=args[FRESH_PAIRS]<=args[FRESH_CAPACITY];
  var picked=0u;
- for(var i=0u;i<listed&&picked<MAX_REGIONS&&(held||(picked+1u)*rows<=params.capacity);i++){
+ for(var i=0u;i<listed&&picked<MAX_REGIONS;i++){
   let p=drawList[i];let e=shadowPool.pages[poolAt(POOL_OWNER,p)];
   if(e<0){continue;}
   let word=shadows.table[u32(e)];let by=poolAt(POOL_DRAWNBY,p);
@@ -142,8 +138,10 @@ fn composeLamp(k:u32,slice:u32,view:i32,x:f32,y:f32){
  volumeVec(w,vec4f(s.emitter.xyz,s.far.x));volumeVec(w+4u,vec4f(axis,shadowConeSpread(f,r,u,t,halfFov,axis,u0,u1,v0,v1)));
  volumeVec(w+8u,vec4f(0.0));volumeVec(w+12u,vec4f(0.0));
 }
-/** Region \`k\`: its page's view and volume, every caster of it kept (\`CASTERS_ALL\`). */
+/** Region \`k\`: its page's view and volume, every caster of it kept (\`CASTERS_ALL\`), no pair
+ *  counted yet. */
 fn composeRegion(k:u32){
+ args[freshRegionPairs(params.pages,k)]=0u;
  let p=args[FRESH_REGION_PAGES+k];let e=u32(shadowPool.pages[poolAt(POOL_OWNER,p)]);let slice=e/SHADOW_TABLE_STRIDE;
  let place=shadowPoolPlace(f32(p),f32(params.side))*PAGE_TEXELS;let size=f32(params.side)*PAGE_TEXELS;
  let at=k*FACE_WORDS;
@@ -172,9 +170,10 @@ fn composeRegion(k:u32){
   args[FRESH_REGIONS]=regions;args[FRESH_CAPACITY]=params.capacity;args[FRESH_PAIRS]=0u;args[FRESH_CORNERS]=0u;
  }
 }
-/** After the pair cull: each region that kept every pair is readable — full footprint, the sun's
- *  current range —; one left short (\`FRESH_REGION_SHORT\`) is not, and waits unclaimed for the
- *  next frame's pick. Each layer draws the pairs the list holds. */
+/** After the pair cull: each region admitted whole is readable — full footprint, the sun's current
+ *  range —; one left short (\`FRESH_REGION_SHORT\`) is not, and waits unclaimed for the next
+ *  frame's pick. Each layer draws the pairs kept; the pairs every region counted go to the pool's
+ *  counts, which the host reads back to size the list by (\`freshPairs.ts\`). */
 @compute @workgroup_size(${FRESH_LANES}) fn sealShadowPages(@builtin(local_invocation_index) lane:u32){
  let regions=args[FRESH_REGIONS];
  for(var k=lane;k<regions;k+=FRESH_LANES){
@@ -189,8 +188,9 @@ fn composeRegion(k:u32){
  }
  if(lane<params.layers){
   let casters=freshDraw(lane,${FRESH_CASTERS}u);
-  args[casters]=args[FRESH_CORNERS];args[casters+1u]=min(args[FRESH_PAIRS],args[FRESH_CAPACITY]);
+  args[casters]=args[FRESH_CORNERS];args[casters+1u]=args[FRESH_PAIRS];
  }
+ if(lane==0u){countSet(COUNT_PAIRS,args[FRESH_NEED]);}
 }`;
 /** The GPU pages of the ordinary window: what a pass compiled without a session window reads. */
 export const SHADOW_FRESH_WGSL = shadowFreshWgsl();

@@ -21,16 +21,16 @@
  */
 export const PIXEL_FOOTPRINT_WGSL = `
 struct PixelLevel{footprint:f32,unjitter:vec3f,}
-/** The depth held at \`coord + k·step\`, clamped to the image. */
-fn footprintDepth(coord:vec2i,step:vec2i,k:i32)->f32{
- return textureLoad(depth,clamp(coord+step*k,vec2i(0),vec2i(view.viewport.xy)-vec2i(1)),0);
+/** The depth held at \`coord + k·axis\`, clamped to the image. */
+fn footprintDepth(coord:vec2i,axis:vec2i,k:i32)->f32{
+ return textureLoad(depth,clamp(coord+axis*k,vec2i(0),vec2i(view.viewport.xy)-vec2i(1)),0);
 }
-/** The slope of the surface at \`coord\` (depth \`z\`) along \`step\`, from a side whose two pixels
+/** The slope of the surface at \`coord\` (depth \`z\`) along \`axis\`, from a side whose two pixels
  *  continue it, the straighter of two; none when neither does. */
-fn surfaceSlope(coord:vec2i,step:vec2i,z:f32)->f32{
- let before=footprintDepth(coord,step,-1);let after=footprintDepth(coord,step,1);
+fn surfaceSlope(coord:vec2i,axis:vec2i,z:f32)->f32{
+ let before=footprintDepth(coord,axis,-1);let after=footprintDepth(coord,axis,1);
  let into=vec2f(z-before,after-z);
- let beyond=vec2f(before-footprintDepth(coord,step,-2),footprintDepth(coord,step,2)-after);
+ let beyond=vec2f(before-footprintDepth(coord,axis,-2),footprintDepth(coord,axis,2)-after);
  let bend=abs(into-beyond);let continues=bend<abs(beyond);
  if(continues.x&&(!continues.y||bend.x<=bend.y)){return into.x;}
  return select(0.0,into.y,continues.y);
