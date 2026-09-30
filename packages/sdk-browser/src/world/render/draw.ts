@@ -9,6 +9,7 @@ import type { createFrameComposer } from './compose.ts';
 import type { HostCamera } from '../../camera/world.ts';
 import type { WebglRenderTarget } from '../../webgl/core/renderTarget.ts';
 import { retainVisiblePages } from '../../page/retainVisiblePages.ts';
+import { frameStart } from '../../frame/scheduling.ts';
 import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 import type { createExplorerStreaming } from '../scene/streaming.ts';
 import type { ExplorerHostState } from './hostState.ts';
@@ -70,7 +71,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     const { measuring } = state;
     const steps = backend as HostCpuProfile,
       scale = backend.renderScaleControl;
-    scale?.tick(performance.now(), gpuTimer?.supported === true);
+    scale?.tick(frameStart(), gpuTimer?.supported === true);
     // Before any command: the errors of allocations the GPU ran past, read without a wait.
     settleAllocations(webglSurface?.context);
     backend.render(camera);
