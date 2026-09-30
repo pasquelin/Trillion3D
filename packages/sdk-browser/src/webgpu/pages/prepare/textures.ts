@@ -18,9 +18,12 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { TileTexture } from '../../tile/tileTexture.ts';
 import type { WebgpuTileStreamer } from '../../tile/streamer.ts';
 
-/** Tiles each lane's textures would hold at full residency: their tails and streamed entries. */
+/** Tiles each lane's textures would hold at full residency: their tails and streamed entries. The
+ *  white fill (slot 0) of an atlas that never took a map asks none: no layer is allocated before
+ *  the first map, the fill read from the white stand-in meanwhile (`lanes.ts`). */
 export const laneDemand = (textures: readonly TileTexture[]) => {
   const demand = laneCounts();
+  if (textures.length === 1) return demand;
   for (const texture of textures)
     if (!texture.retired) demand[texture.lane] += 1 + texture.layout.entries;
   return demand;
