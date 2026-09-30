@@ -5682,7 +5682,7 @@
       "admission": "Les pages de cette image, vue de lumière par vue de lumière.",
       "stamp": "Ce que l’ombrage, les lumières et la vue confient à l’image suivante : un rapport qui porte ce tampon et ne nomme rien de neuf prouve que l’image ne lit que des pages dessinées.",
       "settled": "Vrai dès qu’un rapport prouve que l’état courant ne demande plus rien : l’image peut être tenue.",
-      "receive": "Un rapport de demandes est revenu : la liste de pages du GPU compte aussitôt (`gpu.hear`), le reste est lu par le prochain plan. Un plus récent remplace un rapport non lu.",
+      "receive": "Un rapport de demandes est revenu : la liste de pages du GPU compte aussitôt (`gpu.hear`), le reste est lu par le prochain plan.",
       "commit": "Les pages `[from, to)` de la liste de l’image ont été encodées, la page `from + i` dans `modes[i]` : leurs dessins arrivent avant que quiconque les lise. Le dernier lot ferme la liste.",
       "resize": "Le pool à une autre taille, ses pages gardées, ses tableaux refaits : renvoie où chaque page est allée.",
       "sunWindow": "Pages par côté du clipmap d’un soleil avec lequel tourne une session (`referenceMode.ts`).",
