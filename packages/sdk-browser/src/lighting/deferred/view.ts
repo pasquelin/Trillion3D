@@ -1,8 +1,8 @@
 /**
  * The view uniform of deferred resolve and composition (`VIEW_WGSL`): the inverse
  * view-projection, the camera, the viewport — size, raw-output flag, rank of a sampled image —,
- * the background, the contract's light parameters and the TAA jitter. One buffer, one packed array, written
- * once per image; the shader-side layout is the struct in `shaders.ts`.
+ * the background, the contract's light parameters and the TAA jitter. One buffer, one packed
+ * array, written once per image; the shader-side layout is the struct in `shaders.ts`.
  */
 import { clearValueOf } from '../../../../sdk-core/src/world/math/packedColour.ts';
 import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/scene/core/environment.ts';
