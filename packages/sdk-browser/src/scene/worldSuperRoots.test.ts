@@ -13,7 +13,11 @@ import { DAG_SELECTION_SHADER } from '../gpu/dag/shader/shader.ts';
 
 const THRESHOLD = 0.1;
 
-type WorldCluster = WorldSuperRootCluster & { units: [number, number]; group: number | null };
+type WorldCluster = WorldSuperRootCluster & {
+  units: [number, number];
+  group: number | null;
+  source: number | null;
+};
 
 /**
  * A world of three cells along x, each four object roots (level 0), continued into one cell
@@ -45,6 +49,7 @@ function worldDag() {
         triangles: 2,
         units: [u, u + 1],
         group: cell,
+        source: null,
       });
     }
   for (let cell = 0; cell < cells; cell++) {
@@ -62,6 +67,7 @@ function worldDag() {
       triangles: 2 * per,
       units: [cell * per, (cell + 1) * per],
       group: cells,
+      source: cell,
     });
     groups.push({
       level: 1,
@@ -85,6 +91,7 @@ function worldDag() {
     triangles: 2 * leaves,
     units: [0, leaves],
     group: null,
+    source: cells,
   });
   groups.push({
     level: 2,
@@ -95,7 +102,7 @@ function worldDag() {
   });
   const root = buildWorldSuperRootRoot(clusters, groups);
   const pages = root.pages.map((page, at) => ({ ...page, ...clusters[at] }));
-  return { ...root, pages, leaves };
+  return { ...root, structure: root.structure!, pages, leaves };
 }
 type WorldDag = ReturnType<typeof worldDag>;
 
