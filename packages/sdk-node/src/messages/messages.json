@@ -2889,6 +2889,24 @@
       "message": "A PNG image is not a whole 8-bit RGBA, non-interlaced file.",
       "cause": "The Node adapter's PNG reader (cutout previews, reference images) reads 8-bit RGBA, non-interlaced PNG files only, every row present.",
       "action": "Save the image again as 8-bit RGBA without interlacing; for a cutout preview, delete the cache folder's cutout previews and compile again."
+    },
+    {
+      "id": "T3D-W218",
+      "code": "image-block-budget-exceeded",
+      "level": "warn",
+      "group": "Images",
+      "message": "A compressed texture exceeds the allocation budget for its GPU blocks.",
+      "cause": "The sum of the native mip block payloads exceeds the received allocation ceiling; extraction or transcoding is refused before allocation",
+      "action": "Reduce the texture resolution or use the existing pixel fallback."
+    },
+    {
+      "id": "T3D-W219",
+      "code": "image-blocks-require-gpu",
+      "level": "warn",
+      "group": "Images",
+      "message": "A pixel-only consumer received compressed GPU blocks.",
+      "cause": "The Blocks image variant cannot be used as RGBA pixels without a decoder",
+      "action": "Use the image pixel decoder for previews and analysis, or upload the blocks through the supported GPU path."
     }
   ]
 }

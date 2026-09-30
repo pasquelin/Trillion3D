@@ -5,18 +5,20 @@
 //! defect this module closes: what is not converted is counted as a named reason, beside the image,
 //! without refusing the decode.
 //!
-//! **Straight alpha, everywhere.** Both `DecodedImage` variants carry non-premultiplied alpha.
+//! **Straight alpha, everywhere.** Pixel `DecodedImage` variants carry non-premultiplied alpha.
 //! A format whose samples are associated with their alpha — an OpenEXR, whose specification says
 //! associated alpha, a KTX 2.0 whose descriptor raises the premultiplied flag — is
 //! un-premultiplied by its driver before it leaves, never returned as-is: the consumer would not
 //! know it had to, and the preview would premultiply a second time.
 
-/// What a driver returns as pixels. Two outputs, and no bridge from one to the other: reducing a
+/// What a driver returns. Two pixel outputs, with no implicit bridge between them: reducing a
 /// float to eight bits would require a tone-mapping curve, hence a loss the source did not have,
 /// which the import policy forbids. A consumer that can only handle one variant refuses the other
 /// with a named report reason. Both carry **straight alpha**: a format with associated alpha is
 /// un-premultiplied by its driver, never returned as-is.
 pub enum DecodedImage {
+    /// Compressed samples for direct GPU upload, selected only by decode_for_gpu.
+    Blocks(super::CompressedImage),
     /// RGBA 8 bits per channel, straight alpha, at least one pixel. `ImageDecoded::transfer` says
     /// which transfer function these bytes are written in: the contract no longer assumes sRGB.
     Rgba8(image::RgbaImage),

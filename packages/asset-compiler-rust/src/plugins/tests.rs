@@ -23,7 +23,9 @@ mod webp;
 fn rgba8(decoded: image::ImageDecoded) -> ::image::RgbaImage {
     match decoded.image {
         image::DecodedImage::Rgba8(pixels) => pixels,
-        image::DecodedImage::RgbaF32 { .. } => panic!("this driver must yield RGBA8"),
+        image::DecodedImage::RgbaF32 { .. } | image::DecodedImage::Blocks(_) => {
+            panic!("this driver must yield RGBA8")
+        }
     }
 }
 
@@ -84,7 +86,9 @@ fn rgba_f32(decoded: image::ImageDecoded) -> (u32, u32, Vec<f32>) {
             height,
             data,
         } => (width, height, data),
-        image::DecodedImage::Rgba8(_) => panic!("this driver must yield float"),
+        image::DecodedImage::Rgba8(_) | image::DecodedImage::Blocks(_) => {
+            panic!("this driver must yield float")
+        }
     }
 }
 

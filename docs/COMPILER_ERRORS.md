@@ -214,6 +214,8 @@ catalogue maps it to its public code. Exit codes and message prefixes:
 | [T3D-W106](messages/T3D-W106.md) | `texture-out-of-bounds` | warning | A material names a texture the file does not declare, so its texture levels are not baked. |
 | [T3D-W107](messages/T3D-W107.md) | `texture-without-image` | warning | A glTF texture names no image, so its texture levels are not baked. |
 | [T3D-W108](messages/T3D-W108.md) | `texture-blocks-undecodable` | warning | A compressed texture level did not decode back during its quality check. |
+| [T3D-W218](messages/T3D-W218.md) | `image-block-budget-exceeded` | warning | A compressed texture exceeds the allocation budget for its GPU blocks. |
+| [T3D-W219](messages/T3D-W219.md) | `image-blocks-require-gpu` | warning | A pixel-only consumer received compressed GPU blocks. |
 
 ## USD
 

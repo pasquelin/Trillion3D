@@ -13,6 +13,7 @@ mod dds;
 mod decoded;
 mod exr;
 mod gif;
+mod gpu;
 mod hdr;
 mod icc;
 mod jpeg;
@@ -24,12 +25,12 @@ mod tiff;
 mod webp;
 
 pub use decoded::{DecodedImage, ImageDecoded, Transfer};
+pub use gpu::{decode_for_gpu, BlockLevel, BlockResult, CompressedImage};
 
 /// Version of the image driver contract. Changing it requires rereading every driver, and
-/// invalidates caches: since `image-plugin-3`, a driver returns an `ImageDecoded` — the pixels, the
-/// transfer function the file declares, and named reasons for what it declared that the output
-/// cannot carry.
-pub const VERSION: &str = "image-plugin-3";
+/// invalidates caches. Version 4 adds native GPU blocks beside the pixel representation; both
+/// carry the declared transfer function and named reasons for unsupported declarations.
+pub const VERSION: &str = "image-plugin-4";
 
 /// The registry: one driver per format. Adding a format means a module and a line here.
 pub static DECODERS: &[&dyn ImageDecoder] = &[
@@ -117,6 +118,10 @@ pub trait ImageDecoder: Plugin + Sync {
     /// Expanded container payload held alongside pixels, before any codec runs.
     fn expanded_payload_bytes(&self, _bytes: &[u8]) -> std::result::Result<usize, &'static str> {
         Ok(0)
+    }
+    /// GPU-ready blocks for supported formats, or None when pixel conversion is required.
+    fn compressed(&self, _bytes: &[u8], _max_alloc: u64, _supported: &[&str]) -> BlockResult {
+        Ok(None)
     }
     /// Decodes under this allocation ceiling. A larger image is a refusal, not a panic.
     fn decode(

@@ -1,3 +1,4 @@
+import { COMPRESSED_COPY_WGSL } from '../../texture/compressedCopyWgsl.ts';
 import { stochasticReflectionShader } from '../../reflections/sampleWgsl.ts';
 import { REFLECTION_RESOLVE_WGSL } from '../../reflections/resolveWgsl.ts';
 import { DEFORMATION_COMPUTE_WGSL } from '../../deformation/computeWgsl.ts';
@@ -90,6 +91,7 @@ function reflectionVariants() {
 }
 
 export const ENGINE_SHADERS: Record<string, string> = {
+  COMPRESSED_COPY_WGSL,
   DEFORMATION_COMPUTE_WGSL,
   ...reflectionVariants(),
   REFLECTION_RESOLVE_WGSL,

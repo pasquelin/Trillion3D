@@ -83,6 +83,8 @@ export async function loadPreparedScene(
   // The manifest pages the node table needs are read while the scene builds, which reads none.
   const [built, worldRoots] = await Promise.all([
     buildPreparedScene({
+      features: options.gpuDevice?.features,
+      maxTextureDimension2D: options.gpuDevice?.limits.maxTextureDimension2D,
       tables,
       metadata,
       sceneFile,

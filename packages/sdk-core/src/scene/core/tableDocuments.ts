@@ -74,6 +74,13 @@ interface TableMesh {
 
 /** An image a texture samples: an address beside the scene file, or a view of its binary. */
 interface TableImage {
+  /** Native block levels published by the image driver; pixels remain the fallback. */
+  compressed?: {
+    uri: string;
+    blockFormat: string;
+    transfer: 'srgb' | 'linear';
+    levels: readonly { width: number; height: number; offset: number; length: number }[];
+  } | null;
   /** Its name. */
   name: string;
   /** Its address, relative to the scene file; `null` when it lives in the binary. */

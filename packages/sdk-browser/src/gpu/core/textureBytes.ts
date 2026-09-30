@@ -1,3 +1,5 @@
+import { compressedBlockInfo } from '../../texture/compressedFormats.ts';
+
 /** Bytes per texel of the uncompressed formats the engine may allocate. */
 const BYTES_PER_TEXEL: Partial<Record<GPUTextureFormat, number>> = {
   r8unorm: 1,
@@ -29,20 +31,6 @@ const BYTES_PER_TEXEL: Partial<Record<GPUTextureFormat, number>> = {
   rgba32float: 16,
   rgba32uint: 16,
 };
-/** Bytes per 4×4 block of the compressed formats: what T5 will allocate. */
-const BYTES_PER_BLOCK: Partial<Record<GPUTextureFormat, number>> = {
-  'bc1-rgba-unorm': 8,
-  'bc1-rgba-unorm-srgb': 8,
-  'bc4-r-unorm': 8,
-  'bc3-rgba-unorm': 16,
-  'bc3-rgba-unorm-srgb': 16,
-  'bc5-rg-unorm': 16,
-  'bc7-rgba-unorm': 16,
-  'bc7-rgba-unorm-srgb': 16,
-  'astc-4x4-unorm': 16,
-  'astc-4x4-unorm-srgb': 16,
-};
-
 function extent(size: GPUExtent3D): [number, number, number] {
   if (Array.isArray(size)) return [size[0] ?? 1, size[1] ?? 1, size[2] ?? 1];
   const s = size as GPUExtent3DDict;
@@ -54,7 +42,7 @@ export function textureBytesOf(
   descriptor: Partial<GPUTextureDescriptor> & Pick<GPUTextureDescriptor, 'size' | 'format'>,
 ): number | null {
   const perTexel = BYTES_PER_TEXEL[descriptor.format];
-  const perBlock = BYTES_PER_BLOCK[descriptor.format];
+  const perBlock = compressedBlockInfo(descriptor.format)?.[1];
   if (perTexel === undefined && perBlock === undefined) return null;
   const [width, height, depth] = extent(descriptor.size);
   const levels = descriptor.mipLevelCount ?? 1;

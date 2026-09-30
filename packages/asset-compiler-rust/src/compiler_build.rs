@@ -1,4 +1,5 @@
 use super::*;
+mod finish;
 use compiler_autonomous::write_autonomous_scene;
 pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     check(o)?;
@@ -107,6 +108,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         compiler_coplanar::stage_depth_layers(&scene, &mut primitives, &progress)?;
     let (source, source_gltf) = write_source_scene(SourceSceneInputs {
         g,
+        images: (bin, &image_root, estimated_working_bytes),
         o,
         meshes: &meshes,
         chosen: &chosen,
@@ -170,11 +172,15 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let (world_products, world_report) =
         stage_world_roots((o, &pool), (&source, &directory), placed, &cells)?;
     let (physics_file, physics) = stage_physics(&scene, &primitives, &collisions, &directory)?;
-    products.extend([tables, source_bin, source_gltf, lights, physics_file]);
+    products.extend(
+        source_gltf
+            .into_iter()
+            .chain([tables, source_bin, lights, physics_file]),
+    );
     products.extend(world_products);
     let unsupported = compiler_format::unsupported(&o.simplification, autonomous_refusal);
     let cache_format = compiler_format::cache_format(&primitives);
-    let mut result = json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":DAG_ERROR_MODEL,"geometryPages":compiler_page_object::geometry_page_format(),"status":"ready","key":key,"scenePlugin":routed.plugin.map(plugins::provenance),"scope":o.scope,"clusterStrategy":DAG_CLUSTER_STRATEGY,"coplanar":coplanar_report,"texturePreviews":texture_preview_report,"cutouts":cutout_report,"proxy":proxy_descriptor,"impostors":impostors,"physics":physics,"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen.len(),"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"worldRoots":world_report,"worstStalls":compiler_primitive_stalls::worst_stalls(&primitives),"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":shared_math::elapsed_ms(cluster_start),"compileMs":shared_math::elapsed_ms(started),"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"phaseElapsedMs":phases.report(),"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"compileWaves":waves.len(),"peakRssBytes":perf::rss::peak_bytes(),"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
+    let result = json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":DAG_ERROR_MODEL,"geometryPages":compiler_page_object::geometry_page_format(),"status":"ready","key":key,"scenePlugin":routed.plugin.map(plugins::provenance),"scope":o.scope,"clusterStrategy":DAG_CLUSTER_STRATEGY,"coplanar":coplanar_report,"texturePreviews":texture_preview_report,"cutouts":cutout_report,"proxy":proxy_descriptor,"impostors":impostors,"physics":physics,"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen.len(),"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"worldRoots":world_report,"worstStalls":compiler_primitive_stalls::worst_stalls(&primitives),"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":shared_math::elapsed_ms(cluster_start),"compileMs":shared_math::elapsed_ms(started),"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"phaseElapsedMs":phases.report(),"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"compileWaves":waves.len(),"peakRssBytes":perf::rss::peak_bytes(),"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
     publish(
         &Publication {
             o,
@@ -189,12 +195,5 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         },
         &result,
     )?;
-    // Prune belongs to the job: the manifest carries `compileMs`, the caller `wallMs` after it.
-    let prune_start = Instant::now();
-    let keep = Keep::of_result(&result, &texture_previews)?;
-    let pruned = prune_cache(o, &key, keep, &progress)?;
-    result["metrics"]["pruneMs"] = json!(shared_math::elapsed_ms(prune_start));
-    result["metrics"]["wallMs"] = json!(shared_math::elapsed_ms(started));
-    progress(json!({"phase":"complete","completed":1,"total":1,"pruned":pruned}));
-    Ok(result)
+    finish::finish(o, &key, result, &texture_previews, started, &progress)
 }

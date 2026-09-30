@@ -16,6 +16,7 @@ const OPTIONAL_GPU_FEATURES: readonly GPUFeatureName[] = [
   'shader-f16',
   'depth-clip-control',
   ...Object.values(BLOCK_FEATURES),
+  'texture-compression-etc2',
 ];
 
 /**

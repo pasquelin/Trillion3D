@@ -1,3 +1,5 @@
+import { compressedImage } from '../../../../sdk-core/src/texture/compressed.ts';
+import { copyCompressedBase } from '../../texture/compressedCopy.ts';
 import type { Texture } from '../../../../sdk-core/src/index.ts';
 import { texelsRefusal, textureRgba } from '../../visibility/types.ts';
 import { premultipliedByte } from '../../visibility/math.ts';
@@ -54,6 +56,7 @@ export function createTileScratch(
     size: { width, height, depthOrArrayLayers: 1 },
     format,
     mipLevelCount: mipLevelCountFor(width, height),
+    viewFormats: format.endsWith('-srgb') ? [format.replace(/-srgb$/, '') as GPUTextureFormat] : [],
     usage:
       GPUTextureUsage.TEXTURE_BINDING |
       GPUTextureUsage.COPY_DST |
@@ -70,6 +73,13 @@ export function createTileScratch(
    *  `UNPACK_PREMULTIPLY_ALPHA_WEBGL`): the picture's last row lands at v = 0 (#362). */
   const upload = () => {
     const { map } = options;
+    const blocks = compressedImage(map.image);
+    if (blocks) {
+      if (blocks.width !== width || blocks.height !== height)
+        throw new Error('TEXTURE_SOURCE_SIZE');
+      copyCompressedBase(device, blocks, texture, format, map.flipY, map.premultiplyAlpha);
+      return;
+    }
     const rgba = textureRgba(map);
     if (rgba) {
       const refusal = texelsRefusal(map);

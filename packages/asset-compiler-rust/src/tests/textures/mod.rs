@@ -8,3 +8,5 @@ pub(in crate::tests) mod previews_golden;
 pub(in crate::tests) mod previews_import;
 pub(in crate::tests) mod previews_source;
 pub(in crate::tests) mod psd_golden;
+
+mod compressed_upload;

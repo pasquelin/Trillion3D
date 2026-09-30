@@ -161,6 +161,9 @@ fn every_registered_image_header_agrees_with_its_actual_decoder() {
         names.insert(driver.name());
         let expected = match driver.decode(&bytes, PREVIEW_MAX_ALLOC).unwrap().image {
             crate::plugins::image::DecodedImage::Rgba8(image) => image.dimensions(),
+            crate::plugins::image::DecodedImage::Blocks(_) => {
+                panic!("pixel driver returned GPU blocks")
+            }
             crate::plugins::image::DecodedImage::RgbaF32 { width, height, .. } => (width, height),
         };
         assert_eq!(

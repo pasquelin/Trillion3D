@@ -136,12 +136,16 @@ fn images(g: &Value, views: usize) -> Result<Vec<Value>> {
             if view.is_some_and(|view| view >= views) {
                 return Err(invalid("image.bufferView index is out of bounds"));
             }
-            Ok(json!({
+            let mut record = json!({
                 "name": image.get("name").and_then(Value::as_str).unwrap_or(""),
                 "uri": image.get("uri").cloned().unwrap_or(Value::Null),
                 "view": view,
                 "mimeType": image.get("mimeType").cloned().unwrap_or(Value::Null),
-            }))
+            });
+            if let Some(blocks) = image.pointer("/extras/trillion3dCompressed") {
+                record["compressed"] = blocks.clone();
+            }
+            Ok(record)
         })
         .collect()
 }

@@ -20,12 +20,9 @@
 //! lose at its encoder; the driver only does the reconstruction the codec specification
 //! defines, with no filter, no extra rounding, no re-encoding. The source is never modified.
 //!
-//! **Decoding is a fallback, not the destination.** The repository rule is that a texture
-//! received already compressed for the GPU keeps its compressed blocks on the GPU when the
-//! machine accepts them. This batch does not build that chain — transport, atlas and GPU are
-//! another job — and the `DecodedImage` contract has only an `Rgba8` variant. The driver is
-//! split to welcome it: `header` returns the surface and the bounds of its level 0, `format`
-//! names the codec and its block geometry, `level` and `basis` are only the reconstruction.
+//! **GPU upload keeps the source blocks.** `compressed` returns native mip levels when the
+//! requested formats accept them; the published scene carries these bytes to WebGPU. `decode`
+//! remains the explicit pixel path for cooked fallback chains and pixel-dependent analysis.
 //!
 //! **What the file declares around its texels** is read, not skipped: `dfd` returns the
 //! transfer function and the premultiplied-alpha flag of the format descriptor, `keys`
@@ -36,13 +33,14 @@
 //! falls outside the file is a refusal. Everything else — cubes, arrays, volumes, `vkFormat`
 //! off the list, unknown supercompression, truncated file, exceeded allocation ceiling — is a
 //! named refusal, never a panic: an unreadable texture lets the engine fall back to white.
-use super::{ImageDecoded, ImageDecoder, Plugin};
+use super::{BlockResult, ImageDecoded, ImageDecoder, Plugin};
 
 mod basis;
 mod declared;
 mod dfd;
 mod eac;
 mod format;
+mod gpu;
 mod header;
 mod keys;
 mod level;
@@ -93,6 +91,9 @@ impl Plugin for Ktx2 {
 }
 
 impl ImageDecoder for Ktx2 {
+    fn compressed(&self, bytes: &[u8], max_alloc: u64, supported: &[&str]) -> BlockResult {
+        gpu::read(bytes, max_alloc, supported)
+    }
     fn mime(&self) -> &'static str {
         "image/ktx2"
     }

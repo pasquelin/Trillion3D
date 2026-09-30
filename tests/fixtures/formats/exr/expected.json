@@ -1,6 +1,6 @@
 {
   "case": "A quad whose base colour is demi.exr, a 2 × 2 OpenEXR in four-channel half float, compiled by the shared harness.",
-  "imageContract": "image-plugin-3",
+  "imageContract": "image-plugin-4",
   "report": {
     "bakedLevels": 0,
     "base": 64,

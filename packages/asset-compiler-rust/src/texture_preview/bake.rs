@@ -42,6 +42,7 @@ pub(super) fn one_image(
             // A chain is RGBA8, the exact atlas format. Feeding a floating image
             // into it would need a tone map, a loss the source did not have: the
             // texture is named in the report and has no chain, never clipped.
+            DecodedImage::Blocks(_) => return Err(fail("image-blocks-require-gpu")),
             DecodedImage::RgbaF32 { .. } => return Err(fail("image-float-unsupported")),
         }
     };

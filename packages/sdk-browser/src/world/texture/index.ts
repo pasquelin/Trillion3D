@@ -94,7 +94,11 @@ export const texture = {
     width: number,
     height: number,
     format: string,
-  ) => of({ mipmaps, width, height }, 'compressed', format),
+  ) => {
+    const texture = of({ mipmaps, width, height, blockFormat: format }, 'compressed', format);
+    texture.flipY = false;
+    return texture;
+  },
 };
 
 export { Texture };

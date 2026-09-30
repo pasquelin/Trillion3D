@@ -44,10 +44,11 @@ pub(super) struct Surface {
     pub(super) level: std::ops::Range<usize>,
     /// `uncompressedByteLength` of level 0: what supercompression must return.
     pub(super) plain: usize,
+    pub(super) levels: u32,
 }
 
 /// The sixty-four-bit word at this offset: the level index only counts in 64 bits.
-fn long(bytes: &[u8], at: usize) -> std::result::Result<usize, &'static str> {
+pub(super) fn long(bytes: &[u8], at: usize) -> std::result::Result<usize, &'static str> {
     let long = u64::from_le_bytes(bytes[at..at + 8].try_into().map_err(|_| DATA_TRUNCATED)?);
     usize::try_from(long).map_err(|_| DATA_TRUNCATED)
 }
@@ -90,6 +91,7 @@ pub(super) fn parse(bytes: &[u8]) -> std::result::Result<Surface, &'static str> 
         supercompression,
         level,
         plain,
+        levels: levels as u32,
         transfer,
         premultiplied: descriptor.premultiplied,
     })

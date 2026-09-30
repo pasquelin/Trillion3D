@@ -1,6 +1,6 @@
 {
   "case": "A quad whose base colour is plat.hdr, a 4 × 2 Radiance RGBE with raw scanlines, compiled by the shared harness.",
-  "imageContract": "image-plugin-3",
+  "imageContract": "image-plugin-4",
   "report": {
     "bakedLevels": 0,
     "base": 64,

@@ -1,3 +1,5 @@
+import { supportsCompressed, validateCompressed } from '../../texture/compressedUpload.ts';
+import type { CompressedImage } from '../../../../sdk-core/src/texture/compressed.ts';
 /**
  * The images the prepared scene's textures sample, read from where the scene tables say they are —
  * an address beside the published document, or a view of its binary — and decoded the way the host
@@ -52,6 +54,8 @@ async function decodeBytes(bytes: Uint8Array<ArrayBuffer>, type: string) {
 }
 
 type Inputs = {
+  maxTextureDimension2D?: number;
+  features?: { has(name: GPUFeatureName): boolean };
   document: TableDocument;
   /** Address of the published document: relative image addresses resolve against it. */
   documentUrl: string;
@@ -73,6 +77,46 @@ type Inputs = {
 export function preparedImages(inputs: Inputs) {
   const { document, documentUrl, binary, skipped, signal, track, meter } = inputs;
   const read = async (rank: number): Promise<unknown> => {
+    const compressed = document.images[rank].compressed;
+    if (compressed && supportsCompressed(inputs.features, compressed.blockFormat)) {
+      const url = new URL(compressed.uri, documentUrl).href;
+      try {
+        return await track(
+          url,
+          (async () => {
+            const response = await checked(url, signal);
+            const buffer = await meter.read(response, url).arrayBuffer();
+            const mipmaps = compressed.levels.map((level) => {
+              if (
+                !Number.isSafeInteger(level.offset) ||
+                !Number.isSafeInteger(level.length) ||
+                level.offset < 0 ||
+                level.length < 0 ||
+                level.offset + level.length > buffer.byteLength
+              )
+                throw new Error('TEXTURE_BLOCK_LENGTH');
+              return {
+                width: level.width,
+                height: level.height,
+                data: new Uint8Array(buffer, level.offset, level.length),
+              };
+            });
+            if (!mipmaps.length) throw new Error('TEXTURE_BLOCK_DIMENSIONS');
+            const image = {
+              width: mipmaps[0].width,
+              height: mipmaps[0].height,
+              blockFormat: compressed.blockFormat,
+              mipmaps,
+            } satisfies CompressedImage;
+            validateCompressed(image, inputs.maxTextureDimension2D);
+            return image;
+          })(),
+        );
+      } catch {
+        // Native blocks are optional: retain the published pixel fallback on a failed read.
+        signal?.throwIfAborted();
+      }
+    }
     if (skipped.has(rank))
       return track(PLACEHOLDER_IMAGE, decodeAddress(PLACEHOLDER_IMAGE, signal, meter));
     const image = document.images[rank];
