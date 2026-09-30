@@ -46,8 +46,8 @@ are evicted least recently read first.
 The table gives each of the 64 shadow slices (`MAX_SHADOW_SLICES`) a fixed window of the largest
 range a light needs, a whole sun's 16 × 64 × 64 words (`SHADOW_TABLE_STRIDE`): 2^22 words, 16 MiB
 (`SHADOW_TABLE_ENTRIES`). The GPU total's shadow share counts it with the pool
-(`SHADOW_POOL_BYTES`, 899 MiB); less the batches' 5.0 MiB reserve, that share is the shadows' one
-grant (`SHADOW_GRANT_BYTES`, 894 MiB: the largest pool, its static layer, its transmittance layer,
+(`SHADOW_POOL_BYTES`, 902 MiB); less the batches' 5.2 MiB reserve, that share is the shadows' one
+grant (`SHADOW_GRANT_BYTES`, 896 MiB: the largest pool, its static layer, its transmittance layer,
 the table and the page requests, `webgpu/shadow/memoryGrant.ts`). A late allocation — static or
 transmittance layer — is asked of the grant with what is held, then of the device under an
 out-of-memory check, never inside a frame (`webgpu/shadow/transmittanceGrant.ts`). A scene whose
