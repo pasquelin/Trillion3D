@@ -1,7 +1,8 @@
 import type { TelemetryReport } from './telemetryTypes.ts';
 export type { TelemetryReport } from './telemetryTypes.ts';
 import type { FrameMetrics, ClusterManifest } from '../../../sdk-core/src/index.ts';
-import { frameStatistics, STUTTER_MS } from '../../../sdk-core/src/index.ts';
+import { frameStatistics } from '../../../sdk-core/src/index.ts';
+import { STUTTER_MS } from '../../../sdk-core/src/runtime/stats.ts';
 
 /** Watches frame after frame and says how smoothly the engine runs, and what slows it. */
 export class EngineProfiler {
