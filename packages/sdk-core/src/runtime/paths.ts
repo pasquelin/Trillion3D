@@ -8,7 +8,7 @@ const PATH_TURN: Record<Parameters<typeof makeCameraPath>[0], number> = {
   'round-trip': Math.PI / 4,
 };
 /** The camera paths a benchmark can replay, each with what it measures. */
-export const CAMERA_SCENARIOS = [
+export const CAMERA_SCENARIOS = /* @__PURE__ */ [
   {
     id: 'initial-load',
     scope:
