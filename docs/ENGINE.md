@@ -317,7 +317,7 @@ lists at most. A tile the pool has no room for walks every light, exactly, and t
 (256 lights or fewer) writes the pool from the masks its tiles still hold, never testing a light
 twice. A scene of 64 lights or fewer runs a narrow tile pass (64-bit masks, a 64-light array, one
 batch written straight at its ranks) and holds no pool; its deferred resolve is the narrow
-program too (a 64-light array, each listed light read with no branch), compiled on first use, its
+program too (a 64-light array, each listed light read at its rank, no pool branch), compiled on first use, its
 wide twin compiled beside it. A shadow caster past the 64 shadow slices lights without a shadow
 and is counted
 (`shadowCastersUnsliced`, #818). WebGL2 holds every light in a float texture grown with the
@@ -327,19 +327,23 @@ every fragment. The grid is listed on the CPU into one integer texture only when
 or range changes; a frame that moves the camera alone sends only the view-to-grid matrix
 (`webgl/cluster/lightLists.ts`, #835).
 
-**A pixel pays only for the lights that reach it.** The tile pass cuts each tile's opaque list into
-`clusterSlices` (16) logarithmically spaced clusters along the view axis and bins each kept light
-into every cluster its range sphere can reach, in increasing rank, into the view's pool
-(`clusterBins`, `lighting/tiles/clusterWgsl.ts`, #1249); the tile record carries one `(offset,
-count)` per slice, the tile's nearest and farthest depth, and a flag. The deferred resolve reads
-the pixel's own depth, takes its slice's list, and walks only those lights — a subsequence of the
-tile list, so the sum is the full one, term for term, without the zeros a light out of range would
-have added. A light is assigned to every cluster its view-axis span touches, and the span is at
-most its radius (the axis is a projection), so no light that lights a pixel is ever dropped; the
-false positives a 2D tile pays when its depth range spans near and far surfaces — 11 % of its list
-on the sponza-sized atrium — are what the slices remove. A tile with more lights than a list, one
-whose bins the pool cannot hold, or a scene of one batch keeps its whole list: the flag stays zero
-and the resolve falls back, exact as before.
+**A pixel pays only for the lights that reach it.** The tile pass lays a light grid over each
+tile, the reference engine's froxels on the existing tiles: its opaque depth range is cut into `clusterSlices`
+(16) logarithmically spaced slices along the view axis, and the record carries the tile's nearest
+and farthest depth and one 64-bit mask per slice (`clusterMasks`, `lighting/tiles/clusterWgsl.ts`,
+#1249). Bit `b` names the `b`-th run of `ceil(n / 64)` lights of the slice the resolve walks — the
+list, its pool room past 64 lights, or every light —, so a tile of any light count is covered, with
+no atomic, no pool room and no copy of the list: the tile pass's 256 lanes settle the bits, each
+testing a light's view-axis span once. The resolve takes its pixel's slice from its own depth and
+walks, in increasing rank, only the lights its mask names; each is rejected on its sphere alone
+(`beyondRange`) before its record is read in full, exactly where `declaredLight` would have
+returned zero before any shading, shadow or page read. The walk is a subsequence of the tile list
+and every term it drops is an exact zero, so the sum is the full one, term for term. A light is
+assigned to every slice its view-axis span touches — the span is at most its radius, the axis
+being a projection —, padded by a thousandth of its distance, so no light that lights a pixel is
+ever dropped (`clusterResolve.test.ts`; on a device, `tests/browser/probes/light-tiles-plain-gpu.ts`
+decodes the pass's own grid: no light reaching a pixel missing, two thirds of the list walked). A
+tile whose pixels see the background writes full masks and walks its whole list, as before.
 
 **A moving image shades a drawn subset of each pixel's lights when they cast shadows.** A moving
 image weighs every light of its tile without its shadow (the cheap part) and shades in full, shadow
@@ -350,7 +354,9 @@ golden ratio every image, each divided by its probability. The estimate is unbia
 averages it toward the full sum. A **still** image — the quiet ones, a capture, a diagnostic view —
 shades every light of the tile, so the held image is the exact sum, `0 px` A/A. The tile pass
 records, once per tile, whether its opaque list holds a shadowed light (`TILE_SHADOW_BASE`,
-`lighting/tiles/compactWgsl.ts`); the moving resolve reads that one word, so a list with no
+`lighting/tiles/compactWgsl.ts`); the moving resolve reads that word beside the list's count, and
+draws only a list of 5 to 64 lights that holds one, as the per-pixel list walk it replaces did, so a
+list with no
 shadowed light is never drawn — with no shadow to save, the three weight walks would cost three
 times the full sum — and is summed in full as the still one does, bit for bit, the resolve never
 walking the list a pixel at a time (`tileShadowed`, `tests/browser/probes/sampled-resolve-gpu.ts`,
