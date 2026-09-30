@@ -1,4 +1,4 @@
-import { PI } from '../shaderConstants.ts';
+import { PI } from '../../../../packages/sdk-browser/src/lighting/shaderConstants.ts';
 
 export const lightingSurfaceShader = `precision highp float;
 uniform highp sampler2D indirectCache;
