@@ -1,8 +1,4 @@
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import {
-  askedPages,
-  demandPoolPages,
-} from '../../../../sdk-core/src/scene/light-shadow/poolDemand.ts';
 import { shadowCasterLights } from '../../../../sdk-core/src/scene/light-shadow/casters.ts';
 import { shadowAtlasBytes, type GpuShadowAtlas } from '../../gpu/shadow/atlas.ts';
 import { grantedShadowPool, type Granted } from '../residency/poolGrants.ts';
@@ -46,8 +42,8 @@ export function staticLayerGranted(
   );
 }
 
-/** What the shadow pool asks of the device for `wanted` pages — what the scene reads
- *  (`demandPoolPages`) —, granted at most the memory budget's atlas bytes (`SHADOW_ATLAS_BYTES`);
+/** What the shadow pool asks of the device for `wanted` pages — the budget's, then what the scene
+ *  reads (`demandPoolPages`) —, granted at most the memory budget's atlas bytes (`SHADOW_ATLAS_BYTES`);
  *  nothing without a caster, or during a capture. `grant` asks it (`grantedShadowPool`). */
 export function askShadowPool(
   rt: WebgpuPagesRuntime,
@@ -115,12 +111,27 @@ export function adoptShadowPool(
   return { moved, held };
 }
 
+/** The pool full at its ceiling, said once as it comes to be, as Unreal warns of a physical page
+ *  pool overflow: what the scene asks past it reads the coarser level (`shadowPagesOverflow`). */
+export function sayShadowCeiling(rt: WebgpuPagesRuntime, wanted: number) {
+  rt.diag.engineDiagnostic(
+    'shadow-pool',
+    'The shadow pool is full at its ceiling: the pages past it read the coarser level',
+    { kind: 'warning', version: 2, wanted, pages: rt.lights.plan.pool.pages, clamp: 'ceiling' },
+  );
+}
+
+/** The pages of the budget's whole pool (`SHADOW_ATLAS_BYTES`): what the first frame is granted. */
+const BUDGET_POOL_PAGES = Math.floor(SHADOW_ATLAS_BYTES / shadowAtlasBytes(1));
+
 /**
  * Seeds the shadow pool at the first frame that draws a light casting a shadow (`askShadowPool`),
- * before any report says what the scene reads: the seed (`SEED_POOL_PAGES`), never the screen's
- * size. Until then no shadow page exists; the plan built at creation pages the granted pool from
- * then on (`adoptShadowPool`), keeping the host's settings. A capture never sizes the pool: the
- * next frame does. The reports then size it to the scene's demand (`poolResize.ts`).
+ * before any report says what the scene reads: the budget's whole pool, as Unreal allocates its
+ * physical pages up front from a setting (`r.Shadow.Virtual.MaxPhysicalPages`), so the first
+ * frames never read a coarser level for want of pages. Until then no shadow page exists; the plan
+ * built at creation pages the granted pool from then on (`adoptShadowPool`), keeping the host's
+ * settings. A capture never sizes the pool: the next frame does. The first report then sizes it to
+ * the scene's demand, and the reports after it follow that demand (`poolResize.ts`).
  *
  * The atlas texture is allocated under an out-of-memory check, like the geometry and texture pools
  * (`grantedShadowPool`): a pool the device refuses is drawn at half its bytes, down to the smallest
@@ -138,7 +149,7 @@ export function sizeShadowPool(rt: WebgpuPagesRuntime) {
     atlas = lights.shadows,
     device = rt.gpu.device;
   if (!atlas || !device || atlas.texture || lights.shadowGrant) return;
-  const ask = askShadowPool(rt, atlas, device, demandPoolPages(askedPages(lights.plan)));
+  const ask = askShadowPool(rt, atlas, device, BUDGET_POOL_PAGES);
   if (!ask) return;
   const done = ask.grant().then(
     async (granted) => {
