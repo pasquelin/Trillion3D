@@ -1,7 +1,7 @@
 import { BOUNCE_SETTINGS, PROBE_FLOATS } from '../../../sdk-core/src/index.ts';
 import {
   irradianceShader,
-  IRRADIANCE_TERMS,
+  filteredRadianceShader,
 } from '../../../sdk-core/src/scene/core/irradianceBasis.ts';
 
 /**
@@ -75,7 +75,7 @@ fn shIrradiance(slot:u32,n:vec3f)->vec3f{
  * a surface the probe sees, hence in another room, and the probe has nothing to tell it.
  */
 fn shFilteredRadiance(slot:u32,n:vec3f,bands:vec3f)->vec3f{
- return max(vec3f(0.0),${IRRADIANCE_TERMS.map((term, k) => `probes[slot+${k}u].xyz*((${term.polynomial('n')})*${term.basis}*bands.${k === 0 ? 'x' : k < 4 ? 'y' : 'z'})`).join('+')});
+ return max(vec3f(0.0),${filteredRadianceShader((k) => `probes[slot+${k}u].xyz`, 'n', 'bands')});
 }
 fn probeDistance(slot:u32,direction:vec3f)->f32{
  let positive=probes[slot+PROBE_DISTANCE_POSITIVE].xyz;
