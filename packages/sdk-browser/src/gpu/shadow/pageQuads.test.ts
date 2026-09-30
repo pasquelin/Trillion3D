@@ -11,7 +11,8 @@ import {
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { MAX_SHADOW_REGIONS as R, createShadowRecordPack } from './recordPack.ts';
 import { SHADOW_FACE_STRIDE } from './batchBudget.ts';
-import { PAGE_QUAD_SHADER, createShadowPageQuads } from './pageQuads.ts';
+import { createShadowPageQuads } from './pageQuads.ts';
+import { PAGE_QUAD_SHADER } from './pageWgsl.ts';
 import { createShadowRegionList } from '../../webgpu/shadow/regions.ts';
 import { pagePlan, planPagePasses } from '../../webgpu/shadow/pagePasses.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';

@@ -6,14 +6,15 @@ import assert from 'node:assert/strict';
 import { createEngineCamera } from '../../camera/world.ts';
 import { selectVisiblePages } from '../../page/selection/selection.ts';
 import { dagFixture } from '../../page/selection/dag.fixture.ts';
-import { evaluateDagSelectionKernel, packedWorldsToRenderOrigin } from '../../gpu/dag/selection.ts';
 import { packed } from '../../gpu/dag/selectionHelpers.fixture.ts';
 import { sunRun } from './runs.fixture.ts';
-import { faceEngineCamera } from './cpuCasters.ts';
 import { writeCpuCasters } from './cpuCasterRows.ts';
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { faceEngineCamera } from './faceCamera.ts';
+import { evaluateDagSelectionKernel } from '../../gpu/dag/oracle/oracle.fixture.ts';
+import { packedWorldsToRenderOrigin } from '../../gpu/dag/pack.fixture.ts';
 
 for (const [side, pages] of [
   [1024, [0, 7, 0, 7]],

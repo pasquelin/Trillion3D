@@ -5,17 +5,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   CANDIDATE_SECTION,
-  FLAG_SECTIONS,
   MASK_SECTION,
-  flagCuts,
   flagLocation,
   flagPartWords,
-  flagSectionStart,
-  splitTable,
   writeParts,
 } from './split.ts';
 import { dagFlagsWords } from './shader/lastUseWgsl.ts';
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts';
+import { flagCuts, flagSectionStart, splitTable } from './splitFlags.ts';
+import { FLAG_SECTIONS } from './flagSections.ts';
 
 test('a table splits in parts of as many whole elements as one binding holds', () => {
   assert.deepEqual(splitTable(10, 48, 4096), { per: 10, parts: 1 }, 'whole: one part');

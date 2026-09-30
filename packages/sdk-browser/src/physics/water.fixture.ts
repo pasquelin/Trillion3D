@@ -6,8 +6,8 @@ import {
   POSE_WORDS,
   SHAPE,
   type BodyRecord,
-  type CompoundPart,
 } from '../../../sdk-core/src/physics/index.ts';
+import { type CompoundPart } from '../../../sdk-core/src/physics/bodyRecord.ts';
 import type { JoltModule } from './joltModule.ts';
 import { createWaterStep } from './water.ts';
 

@@ -4,15 +4,11 @@
  * naming the address. It imports nothing else, so a worker loads it alone.
  */
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
+import { RETRY_AFTER_CAP_MS } from './retryCap.ts';
 /** Whether a failure of HTTP `status` a second request may not meet: the network (`null`), a
  *  timeout (408), a rate limit (429) or a server error (5xx). Any other 4xx would meet it again. */
 const retriable = (status: number | null) =>
   status === null || status >= 500 || status === 408 || status === 429;
-/** The longest wait a `Retry-After` gets, in ms. Only a whole-file read waits (a model's manifest,
- *  tables, binary, images, texture levels, lights; some without an abort signal), while a user
- *  watches the model load: past ten seconds a named failure serves them better than an open wait.
- *  A streamed page or a physics tile asks once (`ONE_REQUEST`) and never waits. */
-export const RETRY_AFTER_CAP_MS = 10_000;
 /** The ms `response`'s `Retry-After` asks to wait (seconds or an HTTP date), capped, 0 for none. */
 const retryAfter = (response: Response) => {
   const value = response.headers.get('retry-after') ?? '';

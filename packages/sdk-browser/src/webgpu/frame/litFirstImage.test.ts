@@ -5,7 +5,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createDeferredLighting } from '../../lighting/deferred/deferred.ts';
 import { UNLIT_LIGHTING_SHADER } from '../../lighting/deferred/shaders.ts';
-import { BLEND_SHADER } from '../blend/shader.ts';
 import { createWebgpuBlendPipelines } from '../blend/pipelines.ts';
 import { declaredBlendModes } from '../blend/stagePipelines.ts';
 import { createWebgpuPagesPipelines } from '../pages/prepare/pipelines.ts';
@@ -14,6 +13,7 @@ import { validated } from '../../gpu/core/errorScope.ts';
 import { createLightRowMap, lightRowMapPipeline } from '../../gpu/draw/lightRows.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { settledRt, surface, view } from './hold.fixture.ts';
+import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
 
 /** A fake device that names every render pipeline compiled off the thread, by its module. */
 function recordingDevice() {

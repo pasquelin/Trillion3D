@@ -6,14 +6,8 @@ import { clusterMaterialReason } from './compatibility.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import { CLUSTER_FRAGMENT } from './shaders.ts';
 import { runShaderText } from '../../visibility/shader/shaderText.fixture.ts';
-import { DIRECT_LIGHTING_SHADER } from '../../lighting/deferred/shaders.ts';
 import { PI } from '../../lighting/shaderConstants.ts';
-import {
-  MODEL_FLAG,
-  NORMAL_VIEW_COLOR,
-  SURFACE_MODEL,
-  SURFACE_MODEL_SHADE_WGSL,
-} from '../../scene/surfaceModel.ts';
+import { MODEL_FLAG, SURFACE_MODEL, SURFACE_MODEL_SHADE_WGSL } from '../../scene/surfaceModel.ts';
 import { SHADE_SHADER } from '../../visibility/shader/shadeWgsl.ts';
 import {
   crossVector3,
@@ -25,6 +19,8 @@ import {
   perspectiveProjection,
   updateCameraFrame,
 } from '../../../../sdk-core/src/math/primitives/camera.ts';
+import { DIRECT_LIGHTING_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
+import { NORMAL_VIEW_COLOR } from '../../scene/normalViewColor.ts';
 
 type Vector = number[];
 type Scope = NonNullable<Parameters<typeof runShaderText>[1]>;

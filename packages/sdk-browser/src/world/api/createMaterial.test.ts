@@ -2,7 +2,7 @@
 // not take refused by name,  and a ceiling on how many.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { RUNTIME_MATERIAL_CEILING } from './materialApi.ts';
+import { RUNTIME_MATERIAL_CEILING } from './createdMaterials.ts';
 import { refusal, scene } from './materialApi.fixture.ts';
 
 test('a created material reads back what the page named, glTF defaults elsewhere', async () => {

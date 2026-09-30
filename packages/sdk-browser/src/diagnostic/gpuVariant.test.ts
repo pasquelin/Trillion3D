@@ -5,12 +5,12 @@ import {
   composesOffscreen,
   countsBlendOverdraw,
   DIAGNOSTIC_BLEND_WGSL,
-  DIAGNOSTIC_GPU_VARIANTS,
   resolveDiagnosticGpuVariant,
   selectionRepeat,
 } from './gpuVariant.ts';
 import type { DiagnosticGpuVariant } from './gpuVariant.ts';
 import { requestsComputeRaster } from './gpuGeometry.ts';
+import { DIAGNOSTIC_GPU_VARIANTS } from './gpuVariants.ts';
 
 test('no variant requested: nothing to check, nothing to mount', () => {
   assert.equal(resolveDiagnosticGpuVariant(undefined, 'summary'), undefined);

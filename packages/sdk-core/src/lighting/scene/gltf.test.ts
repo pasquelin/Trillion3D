@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createLightingScene, exportLightingGltf, type Vec3 } from './experimentScene.ts';
+import { createLightingScene, type Vec3 } from './experimentScene.ts';
+import { exportLightingGltf } from './gltf.ts';
 import { sub, dot, cross, close } from '../../../../../tests/fixtures/lightingSceneTestHelpers.ts';
 import { readLightingGltf } from '../../../../../tests/fixtures/lightingSceneGltfTestHelpers.ts';
 

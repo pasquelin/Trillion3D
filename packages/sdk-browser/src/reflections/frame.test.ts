@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { reflectionFrame } from './frame.ts';
 import { noteShadowFrame } from '../webgpu/pages/render/encodeShadowBatches.ts';
 import { settledRt } from '../webgpu/frame/hold.fixture.ts';
 import { createShadowPlan } from '../../../sdk-core/src/scene/light-shadow/plan.ts';
+import { reflectionFrame } from './reflectionFrame.ts';
 
 /** A settled runtime with every surface its reflection reads, 4 shadow pages drawn so far. */
 function reflectingRt() {

@@ -12,10 +12,11 @@ import type { GpuRestCompact } from '../../../gpu/raster/restCompact.ts';
 import { MAX_DRAW_SLOTS } from '../../../gpu/draw/draw.ts';
 import type { WebgpuTileStreamer } from '../../tile/streamer.ts';
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../../core/bindIdentity.ts';
-import { createPresentClasses, type PresentClasses } from '../../core/materialPasses.ts';
+import { createPresentClasses } from '../../core/materialPasses.ts';
 import type { GeometryBlock } from '../../row/pageRowMaterial.ts';
 import type { VertexPool } from '../../core/geometryPool.ts';
 import type { BlendModePipelines } from '../../blend/stagePipelines.ts';
+import { type PresentClasses } from '../../core/presentClasses.ts';
 
 /** GPU resources of the visibility-buffer path: raster and shade pipelines, their bind groups, the
  *  concatenated geometry, the page table and the material atlases. */

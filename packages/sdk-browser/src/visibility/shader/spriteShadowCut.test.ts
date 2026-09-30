@@ -8,12 +8,13 @@ import { dagFixture, wideCamera } from '../../page/selection/dag.fixture.ts';
 import { collectClusterPages, selectVisiblePages } from '../../page/selection/selection.ts';
 import { createEngineCamera, readCameraWorld } from '../../camera/world.ts';
 import { kernelUniforms, packed, VIEWPORT } from '../../gpu/dag/selectionHelpers.fixture.ts';
-import { DAG_SELECTION_SHADER, evaluateDagSelectionKernel } from '../../gpu/dag/selection.ts';
+import { DAG_SELECTION_SHADER } from '../../gpu/dag/shader/shader.ts';
 import { createShadowSceneBox } from '../../webgpu/shadow/sceneBox.ts';
 import {
   createLightPages,
   markLightPages,
 } from '../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
+import { evaluateDagSelectionKernel } from '../../gpu/dag/oracle/oracle.fixture.ts';
 
 /** The test DAG, worn as a sprite when `sizeAttenuation` is given. */
 function surfaceFixture(sizeAttenuation?: boolean) {

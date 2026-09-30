@@ -5,7 +5,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
-import { bindClusterMaterial } from './materialBinding.ts';
 import { importHostTexture } from '../../host/textureImport.ts';
 import { pageDiagnostics } from '../../host/pageDiagnostics.ts';
 import { CLUSTER_FRAGMENT } from './shaders.ts';
@@ -18,6 +17,7 @@ import {
   HOST_BLENDING_NORMAL,
   HOST_BLENDING_SUBTRACTIVE,
 } from '../../host/surfaceConstants.ts';
+import { bindClusterMaterial } from './bindClusterMaterial.ts';
 
 type Binding = Parameters<typeof bindClusterMaterial>[0];
 

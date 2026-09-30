@@ -23,7 +23,7 @@ import { materialEngines } from './materialEngines.ts';
 import { assignment, PLAIN } from './createdMaterials.ts';
 
 export type { SceneMaterial, SceneMaterialPatch } from './materialValues.ts';
-export { RUNTIME_MATERIAL_CEILING, type CreatedMaterial } from './createdMaterials.ts';
+export { type CreatedMaterial } from './createdMaterials.ts';
 
 type Inputs = {
   check: () => void;

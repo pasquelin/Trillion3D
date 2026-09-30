@@ -8,8 +8,8 @@ import { manifestTableBytes } from '../streaming/manifestTables.ts';
 import { createPageStreamerWith } from '../streaming/pageStreamer.ts';
 import { servedPages } from '../streaming/servedPages.fixture.ts';
 import { worldBudget, worldPools } from '../world/core/worldBudget.ts';
-import { SHADOW_HOST_BYTES } from '../residency/memoryBudget.ts';
 import { DEFAULT_PHYSICS_BUDGET } from '../../../sdk-core/src/physics/index.ts';
+import { SHADOW_HOST_BYTES } from '../residency/shadowBudgetBytes.ts';
 
 const MiB = 1024 * 1024;
 const BASE = 'https://host/cache/full/clusters.json';

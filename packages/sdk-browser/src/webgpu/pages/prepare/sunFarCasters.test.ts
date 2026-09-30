@@ -7,8 +7,8 @@ import { Group, Object3D } from '../../../../../sdk-core/src/world/object/object
 import { object } from '../../../../../sdk-core/src/world/object/index.ts';
 import { geometry } from '../../../../../sdk-core/src/world/geometry/index.ts';
 import { registerPreparedNodeRank } from '../../../host/prepared/sourceRanks.ts';
-import { syncSunFarCasters } from './proxyMotion.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { syncSunFarCasters } from './sunFarCasters.ts';
 
 const mesh = () => object.mesh(geometry.box(1, 1, 1));
 

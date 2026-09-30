@@ -1,5 +1,6 @@
 import type { ShadowPlan } from './plan.ts';
 import { shadowPoolShape } from './virtual.ts';
+import { SHRINK_REPORTS } from './poolShrink.ts';
 
 /**
  * THE SHADOW POOL FOLLOWS WHAT THE SCENE ASKS, never the screen: a frame reads the pages its
@@ -34,11 +35,6 @@ export function askedPages(plan: ShadowPlan) {
  *  never below the seed. */
 export const demandPoolPages = (asked: number) =>
   Math.max(SEED_POOL_PAGES, Math.ceil(2 * HEADROOM * asked));
-
-/** Reports in a row whose demand fits a pool half as large before it shrinks: a demand that dips
- *  for a moment never frees what the next turn of the camera asks again. Declared: about half a
- *  second at 120 frames a second, a report a frame. */
-export const SHRINK_REPORTS = 60;
 
 /** What the pool follows between reports: the last report weighed, how many in a row asked for a
  *  pool half as large, the most they asked, and whether the last one asked more than the pool

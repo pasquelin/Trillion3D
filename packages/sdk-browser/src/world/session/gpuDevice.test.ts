@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { probeExplorerCapabilities } from './capabilityProbe.ts';
 import { grantedGpuFeatures, requestExplorerDevice } from './gpuDevice.ts';
-import { colorBytesPerSample } from '../../gpu/core/colorBytes.ts';
-import { waterSurfaceTargets } from '../../webgpu/water/pipelines.ts';
+import { waterSurfaceTargets } from '../../webgpu/water/surfaceTargets.ts';
 import type { ExplorerSession } from './session.ts';
+import { colorBytesPerSample } from '../../gpu/core/colorBytes.fixture.ts';
 
 /** An adapter offering `offered`; its device grants exactly what was asked. */
 function adapterOffering(offered: string[], limits: Record<string, number> = {}) {

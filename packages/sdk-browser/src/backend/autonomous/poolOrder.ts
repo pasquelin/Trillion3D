@@ -3,7 +3,7 @@ import { evictOldest } from '../../streaming/evictOldest.ts';
 import { createLastUse } from '../../residency/lastUse.ts';
 import { createPageKeys } from './pageKeys.ts';
 import { grown } from '../../page/cut/sparseInts.ts';
-import type { WebglViewState } from './views.ts';
+import { type WebglViewState } from './viewKeys.ts';
 
 /** Frames a page stays held once the image stopped keeping it: the WebGL2 image is drawn from the
  *  cut just taken on the CPU, no frame in flight reads a page the next cut no longer holds. */

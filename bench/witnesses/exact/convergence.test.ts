@@ -10,10 +10,8 @@ import {
   dagFixture,
   wideCamera,
 } from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts';
-import {
-  submittedDraws,
-  isClusterDrawMesh,
-} from '../../../packages/sdk-browser/src/cluster/batchMesh.ts';
+import { isClusterDrawMesh } from '../../../packages/sdk-browser/src/cluster/batchMesh.ts';
+import { submittedDraws } from '../../../packages/sdk-browser/src/cluster/submissions.fixture.ts';
 
 /** The exact witness on the DAG fixture, with no page in memory at the start. */
 function engine() {

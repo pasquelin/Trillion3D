@@ -5,9 +5,9 @@ import {
   type ShadowTransmittance,
 } from '../../gpu/shadow/transmittance.ts';
 import { refreshSurface } from '../../page/surface.ts';
-import { SHADOW_GRANT_BYTES } from '../../residency/memoryBudget.ts';
 import { grantsShadowLayer, noteShadowPressure } from './memoryGrant.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { SHADOW_GRANT_BYTES } from '../../residency/shadowBudgetBytes.ts';
 
 /** Whether a blended surface of the scene casts (`castsBlendShadow`): its pipelines are compiled at
  *  prepare, and its transmittance layer is asked with the pool. */

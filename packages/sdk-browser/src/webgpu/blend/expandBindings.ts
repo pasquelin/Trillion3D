@@ -1,5 +1,5 @@
 import { COMPUTE } from '../../gpu/core/computeBindings.ts';
-import { UNI_WORDS } from './runs.ts';
+import { UNI_WORDS } from './expandUniform.ts';
 
 /** Group-0 binding of each buffer the expansion kernel reads, under its WGSL name. */
 export const EXPAND_BINDING = {

@@ -1,4 +1,4 @@
-import { reflectionBandsShader } from '../../../packages/sdk-browser/src/reflections/environmentShader.ts';
+import { reflectionBandsShader } from '../../../packages/sdk-browser/src/reflections/bandsShader.ts';
 import { screenTraceShader } from '../../../packages/sdk-browser/src/reflections/traceShader.ts';
 import { reflectionConeShader } from '../../../packages/sdk-browser/src/reflections/coneShader.ts';
 import { reflectionConeFilterShader } from '../../../packages/sdk-browser/src/reflections/coneFilterShader.ts';

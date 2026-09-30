@@ -61,8 +61,7 @@ struct ResidentProxy{
  * disappears from a ray. The presence bit is the only way to skip an empty slot — an
  * inverted box would not suffice, the plane test only sees mins and maxes.
  */
-/** Slab ray/box traversal, guard at 1e-20. `../lighting/shader/intersections.ts` writes the
- *  same in GLSL with a 1e-19 guard: different thresholds, different languages, nothing to share. */
+/** Slab ray/box traversal, guard at 1e-20. */
 export const BOUNCE_NODE_WGSL = `
 const NODE_FLOATS:u32=${PROXY_NODE_FLOATS}u;
 const NODE_WORDS:u32=${PROXY_NODE_WORDS}u;

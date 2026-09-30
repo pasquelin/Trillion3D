@@ -9,7 +9,8 @@ import {
 import { ALLOC_PARAM_WORDS } from './allocWgsl.ts';
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { FRESH_FACE_WORDS, FRESH_PARAM_WORDS, FRESH_PARAMS, freshArgWords } from './freshLayout.ts';
-import { DRAWN_HOST, POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
+import { POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
+import { DRAWN_HOST } from './poolDrawn.ts';
 import { WORDS_HEADER, sentShadowWord } from './wordsWgsl.ts';
 
 /** The power of two at least `n`: what a bitonic sort of `n` keys spans. */

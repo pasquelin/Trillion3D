@@ -2,7 +2,8 @@
 // the evaluation are run on the very shader text the GPU receives, against analytic lighting.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { IRRADIANCE_TERMS, irradianceShader, radianceProjectionShader } from './irradianceBasis.ts';
+import { irradianceShader, radianceProjectionShader } from './irradianceBasis.ts';
+import { IRRADIANCE_TERMS } from './irradianceTerms.ts';
 
 type Vector = { x: number; y: number; z: number };
 

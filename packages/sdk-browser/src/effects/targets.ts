@@ -1,6 +1,7 @@
 import type { EffectKind, EffectPass } from '../../../sdk-core/src/world/effect/chain.ts';
 import type { Bloom } from '../../../sdk-core/src/world/effect/bloom.ts';
-import { BLOOM_TEXEL_BYTES, bloomLevelBytes } from './bloomFilter.ts';
+import { BLOOM_TEXEL_BYTES } from './bloomFilter.ts';
+import { EFFECT_KIND_BYTES } from './kindBytes.ts';
 
 /** Every built-in pass; a kind without its class here has no pass to draw (`never`). */
 type BuiltIn = Bloom;
@@ -42,12 +43,6 @@ export function effectTargetBytes(width: number, height: number, targets: number
  *  draws below the display in (`../world/render/renderScale.ts`). */
 export const sceneTargetBytes = (width: number, height: number) =>
   width * height * SCENE_TEXEL_BYTES;
-
-/** Bytes each kind holds on a `width × height` image, whatever the number of its passes: they
- *  run one after the other on the same resources. */
-export const EFFECT_KIND_BYTES: Record<EffectKind, (width: number, height: number) => number> = {
-  bloom: bloomLevelBytes,
-};
 
 /** Every kind, read off the one table typed by all of them. */
 export const EFFECT_KINDS = Object.keys(EFFECT_KIND_BYTES) as readonly EffectKind[];

@@ -4,9 +4,7 @@ import { createLightingSceneGeometry, createLightingScenePatches } from './geome
 import { addLightingSceneRooms } from './rooms.ts';
 import { addLightingSceneObjects } from './objects.ts';
 
-export type { Vec3, LightingSceneLight, Surface, Patch, Scene } from './types.ts';
-export { createDefaultLightingSceneLights, LIGHTING_CAMERA_POSES } from './controls.ts';
-export { exportLightingGltf } from './gltf.ts';
+export type { Vec3, Surface, Patch, Scene } from './types.ts';
 
 /** Door angle zero closes the opening; PI/2 swings the leaf into the left room. */
 export function createLightingScene(options: {

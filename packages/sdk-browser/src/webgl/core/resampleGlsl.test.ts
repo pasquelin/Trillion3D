@@ -3,8 +3,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { shaderFunctions } from '../../texture/shaderRule.fixture.ts';
-import { LANCZOS2_GLSL, LANCZOS2_WGSL } from '../../taa/upscaleWgsl.ts';
+import { LANCZOS2_GLSL } from '../../taa/upscaleWgsl.ts';
 import { resampleFragment } from './resampleGlsl.ts';
+import { LANCZOS2_WGSL } from '../../taa/lanczos2Wgsl.ts';
 
 type Kernel = { lanczos2: (x: number) => number };
 
