@@ -8,12 +8,10 @@ import { copyFileSync, readdirSync, rmSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build, type BuildOptions } from 'esbuild';
-import { foldPlugin } from './bundle-fold.ts';
+import { CHUNK_PREFIX, foldPlugin } from './bundle-fold.ts';
 
 /** The core module a page imports. */
 export const BUNDLE_ENTRY = 'trillion3d.module.js';
-/** The chunks of the optional families, named after the module that loads them. */
-const CHUNK_PREFIX = 'trillion3d-';
 
 const WORKERS = [
   'sdk-browser/src/page/decode/pageDecodeWorker.js',

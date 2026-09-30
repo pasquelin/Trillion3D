@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { physicsFiles } from './installed-package-cdn.ts';
+import { fluidFiles, physicsFiles } from './installed-package-cdn.ts';
 
 test('the physics of the CDN bundle is its worker, its modules and the chunk that starts them', () => {
   const dist = mkdtempSync(join(tmpdir(), 'trillion3d-cdn-'));
@@ -26,6 +26,19 @@ test('the physics of the CDN bundle is its worker, its modules and the chunk tha
       'physicsWorker.js',
       'trillion3d-session-A.js',
     ]);
+  } finally {
+    rmSync(dist, { recursive: true, force: true });
+  }
+});
+
+test('the fluids of the CDN bundle are the chunk of their code, never a chunk it shares', () => {
+  const dist = mkdtempSync(join(tmpdir(), 'trillion3d-cdn-'));
+  try {
+    // The core names the module in its build provenance, and fetches nothing.
+    const names = ['trillion3d.module.js', 'trillion3d-chunk-A.js', 'trillion3d-session-B.js'];
+    for (const name of [...names, 'trillion3d-fluidCode-C.js', 'trillion3d-fluidCode-C.js.map'])
+      writeFileSync(join(dist, name), '"sdk-browser/src/fluids/fluidCode.js"');
+    assert.deepEqual(fluidFiles(dist), ['trillion3d-fluidCode-C.js']);
   } finally {
     rmSync(dist, { recursive: true, force: true });
   }
