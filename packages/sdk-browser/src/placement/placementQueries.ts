@@ -18,15 +18,6 @@ export const drawnInstancedAt = (
   transparent = rec.transparent,
 ) => rowPlacedAt(roots, rank) && !transparent && !rec.deformRecord;
 
-/** True when the record `rec` — read through its first instance, a per-page property — is drawn
- *  instanced. A per-instance decision reads `drawnInstancedAt` with the instance's root rank. */
-export const drawnInstanced = (
-  roots: Roots,
-  rankOf: (rec: PageRec) => number,
-  rec: PageRec,
-  transparent = rec.transparent,
-) => drawnInstancedAt(roots, rankOf(rec), rec, transparent);
-
 /** The host meshes `recs` hang on the WebGL2 path's display graph, which its page ceiling bounds:
  *  one per record drawn on its own, one per PAGE for records drawn instanced — ten thousand opaque
  *  placements of a page are one mesh. `instanced(rec)` says which records are drawn instanced. */

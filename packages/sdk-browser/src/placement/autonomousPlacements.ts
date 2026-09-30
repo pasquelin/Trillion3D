@@ -24,12 +24,7 @@ import type { PlacementMount } from './backendSceneUpdates.ts';
 import { rootChildren } from '../residency/minimumCapacity.ts';
 import { poseNamed } from '../host/world/moveByName.ts';
 
-export {
-  attachedPages,
-  drawnInstanced,
-  drawnInstancedAt,
-  rowPlacedAt,
-} from './placementQueries.ts';
+export { attachedPages, drawnInstancedAt, rowPlacedAt } from './placementQueries.ts';
 
 type Placements = {
   context: BackendContext;
