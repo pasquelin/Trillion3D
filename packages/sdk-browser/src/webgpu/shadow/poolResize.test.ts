@@ -50,19 +50,32 @@ test('a demand larger then smaller re-sizes the pool, and every capacity follows
   assert.deepEqual(shape(), [51, 2, 5202], 'two layers of 51² on a device 8 192 wide');
   follows(5202);
   assert.equal(frameBatchCapacity(s.rt).batches > 109, true, 'more pages, more batches a frame');
-  // A demand that fits a pool half as large, report after report, gives the memory back.
-  for (let i = 1; i < SHRINK_REPORTS; i++) await s.ask(50);
+  // A demand that fits a pool half as large, report after report of a moving view, gives the
+  // memory back.
+  for (let i = 1; i < SHRINK_REPORTS; i++) await s.ask(50, true);
   assert.equal(s.lights.plan.pool.pages, 5202, 'not before the reports in a row');
-  await s.ask(50);
+  await s.ask(50, true);
   assert.deepEqual(shape(), [16, 1, 256], 'down to what the reports asked, the seed at least');
   follows(256);
   const sized = s.said.filter(([phase]) => phase === 'shadow-pool').map(([, c]) => c.side);
-  assert.deepEqual(sized, [16, 51, 51, 16]);
+  assert.deepEqual(sized, [51, 51, 16]);
   await s.ask(100);
   assert.equal(s.lights.plan.pool.pages, 256, 'a demand the pool holds keeps it');
   s.rt.capture.capturing = true;
   await s.ask(2000);
   assert.equal(s.lights.plan.pool.pages, 256, 'a capture resizes nothing');
+});
+
+test('a view at rest gives the memory back at its first report, not sixty reports later', async () => {
+  const s = await session();
+  await s.ask(1000, true);
+  assert.equal(s.lights.plan.pool.pages, 2601);
+  await s.ask(1000);
+  assert.equal(s.lights.plan.pool.pages, 2601, 'a resting view that asks as much keeps it');
+  await s.ask(50);
+  assert.equal(s.lights.plan.pool.pages, 256, 'one report of a resting view: what it asks');
+  await s.ask(100, true);
+  assert.equal(s.lights.plan.pool.pages, 256, 'moving again within it keeps it: no resize');
 });
 
 test('pages requested before and after the resize keep their content: none is drawn again', async () => {
@@ -85,13 +98,13 @@ test('pages requested before and after the resize keep their content: none is dr
     report(plan, store, frame, read());
     return drawn;
   };
-  for (let frame = 0; frame < 4; frame++) cycle(frame);
+  for (let frame = 0; frame < 4; frame++) cycle(s.base + frame);
   // A report asks 150 pages more: past half the seed, the pool grows once they are drawn.
   extra = Array.from({ length: 150 }, (_, i) =>
     sunPages(plan, slice(), plan.sun.finest[slice()] + 6, [[(i % 15) - 7, Math.floor(i / 15) - 5]]),
   ).flat();
-  cycle(4);
-  cycle(5);
+  cycle(s.base + 4);
+  cycle(s.base + 5);
   const entries = read(),
     before = entries.map((entry) => plan.table.words[entry]),
     mapped = new Map<number, number>();
@@ -124,8 +137,8 @@ test('pages requested before and after the resize keep their content: none is dr
     [0, 0],
     'one pass per target layer',
   );
-  assert.equal(cycle(6), 0, 'the frame after the resize draws no page again');
-  assert.equal(cycle(7), 0);
+  assert.equal(cycle(s.base + 6), 0, 'the frame after the resize draws no page again');
+  assert.equal(cycle(s.base + 7), 0);
 });
 
 test('a refused grant keeps the old pool and says so', async () => {
