@@ -4,7 +4,7 @@ import {
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
 import type { PoolClamp } from '../../residency/pools.ts';
-import { SHADOW_ATLAS_BYTES } from '../../residency/memoryBudget.ts';
+import { SHADOW_ATLAS_BYTES } from '../../residency/shadowBudgetBytes.ts';
 
 /** The smallest shadow pool: the side a one-pixel screen asks (`shadowPoolSide`). */
 const FLOOR_SIDE = shadowPoolSide(1, 1);

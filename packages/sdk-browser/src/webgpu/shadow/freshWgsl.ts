@@ -8,9 +8,7 @@ import { SHADOW_DATA_WGSL } from '../../lighting/direct/shadowWgsl.ts';
 import { shadowPoolWgsl } from './poolWgsl.ts';
 import { FRESH_CASTERS, FRESH_CLEAR, FRESH_FACE_WORDS, MAX_POOL_LAYERS } from './freshLayout.ts';
 import { FRESH_LAYOUT_WGSL, FRESH_PARAMS_WGSL } from './freshLayoutWgsl.ts';
-
-/** Invocations of the one workgroup that composes, then seals, a frame's GPU-drawn pages. */
-const FRESH_LANES = 64;
+import { FRESH_LANES } from './freshLanes.ts';
 /** Regions a frame's pair cull dispatches at most: a dispatch's second dimension. */
 const MAX_FRESH_REGIONS = 65535;
 

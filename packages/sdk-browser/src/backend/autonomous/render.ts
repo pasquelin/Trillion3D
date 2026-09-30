@@ -14,8 +14,9 @@ import { createRefusalAnswer } from './refusals.ts';
 import type { createAutonomousResidency } from './residency.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
 import type { PageDraws } from './pageDraws.ts';
-import type { WebglViewState } from './views.ts';
 import type { WebglDeformation } from '../../deformation/webglFrame.ts';
+import { stillFrame } from './stillFrame.ts';
+import { type WebglViewState } from './viewKeys.ts';
 
 /** What the autonomous frame decided, and whether it was held. */
 export type AutonomousRenderState = {
@@ -36,15 +37,6 @@ export const createAutonomousRenderState = (): AutonomousRenderState => ({
   overBudget: false,
   frameHeld: false,
 });
-
-/**
- * Whether a frame the gate held is the still frame a page waits for (`frameHeld`): as on WebGPU
- * (`../../webgpu/frame/hold.ts`, nothing pending), not while a page the view asks for is still
- * awaited — its arrival will change the image. A capture after a moving camera held the first
- * frame whose cut had not moved, pages missing, and its A/A drew what each run had loaded (#1016).
- */
-const stillFrame = (requested: readonly Pick<PageRec, 'array'>[]) =>
-  requested.every((rec) => !!rec.array);
 
 /**
  * One frame of the autonomous WebGL engine. The whole cut is rerun as soon as the view, the scene

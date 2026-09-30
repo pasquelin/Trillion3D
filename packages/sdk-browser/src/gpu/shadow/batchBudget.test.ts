@@ -1,18 +1,32 @@
 // The memory a frame's shadow batches add (#489, #483 rule 5, #831): granted for one pool layer in
-// full batches, each in at most one view per page; a frame's own batches and staging follow the
-// current pool, the views a batch runs and the device's buffer limit, within the grant.
+// full batches, each in at most one view per page, and counted in the memory budget from that one
+// rule; a frame's own batches and staging follow the current pool, the views a batch runs and the
+// device's buffer limit, within the grant. Checked here against what the modules allocate.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LAYER_PAGES } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
+import { createLightCutRedraws } from '../dag/lightCutRedraws.ts';
 import { DAG_MAX_VIEWS } from '../dag/shader/viewsWgsl.ts';
+import { shadowBatchWrites } from './batchWrites.ts';
+import { createGpuShadowCullCounts } from './cullCounts.ts';
 import { MAX_SHADOW_PAGES } from './recordPack.ts';
 import {
   MAX_SHADOW_BATCHES,
   MAX_SHADOW_RUNS,
+  SHADOW_BATCH_GPU_BYTES,
+  SHADOW_BATCH_HOST_BYTES,
   SHADOW_BATCH_WRITE_BYTES,
+  SHADOW_REGION_COMMANDS,
+  SHADOW_TESTED_WORD,
+  SHADOW_FLAG_FRAMES,
   SHADOW_STAGING_BYTES,
   shadowBatchCapacity,
 } from './batchBudget.ts';
+import { SHADOW_HOST_BYTES, SHADOW_POOL_BYTES } from '../../residency/shadowBudgetBytes.ts';
+import { createCpuCasterLists } from '../../webgpu/shadow/cpuCasterLists.ts';
+
+const MiB = 1024 * 1024;
 
 test('the grant holds one pool layer in full batches, each in at most one view per page', () => {
   assert.equal(LAYER_PAGES, 4096);
@@ -37,4 +51,35 @@ test("a frame's batches follow its pool, its views and the device, within the gr
   assert.equal(shadowBatchCapacity(64 * 64, DAG_MAX_VIEWS, large).batches, MAX_SHADOW_BATCHES);
   const small = shadowBatchCapacity(pool, DAG_MAX_VIEWS, 10 * SHADOW_BATCH_WRITE_BYTES + 3);
   assert.deepEqual(small, { batches: 11, stagingBytes: 10 * SHADOW_BATCH_WRITE_BYTES });
+});
+
+test('the GPU bytes the batches add are what the staging, flags, CPU lists and counts allocate', () => {
+  const { device, buffers } = fakeDevice();
+  const target = device.createBuffer({ size: SHADOW_BATCH_WRITE_BYTES, usage: 0 });
+  const writes = shadowBatchWrites(device);
+  writes.reserve(SHADOW_STAGING_BYTES);
+  writes.stage(device.createCommandEncoder());
+  writes.write(target, 0, Uint32Array.of(1));
+  writes.end();
+  createLightCutRedraws((d) => device.createBuffer(d), target, DAG_MAX_VIEWS);
+  const lists = createCpuCasterLists(device, 1);
+  // The cull's count sample, both lists a region (#965) and its tested word (#1211), and the
+  // occlusion test's.
+  createGpuShadowCullCounts(device, SHADOW_REGION_COMMANDS, SHADOW_TESTED_WORD);
+  createGpuShadowCullCounts(device);
+  const made = buffers.filter(
+    (buffer) => buffer !== (target as unknown) && buffer !== (lists.source as unknown),
+  );
+  const gpu = made.reduce((sum, { size }) => sum + size, 0);
+  assert.equal(gpu, SHADOW_BATCH_GPU_BYTES);
+  // A region's second command (#965) is staged and sampled with its first: about 0.4 MiB more.
+  assert.ok(SHADOW_BATCH_GPU_BYTES < 5.5 * MiB, `${SHADOW_BATCH_GPU_BYTES} bytes`);
+  const cpuHost = lists.bases.byteLength + lists.lengths.byteLength + lists.commands.byteLength;
+  assert.equal(cpuHost, MAX_SHADOW_RUNS * 24);
+  assert.ok(SHADOW_BATCH_HOST_BYTES > SHADOW_FLAG_FRAMES * MAX_SHADOW_BATCHES * MAX_SHADOW_PAGES);
+});
+
+test('the memory budget counts the batches with the shadows', () => {
+  assert.ok(SHADOW_POOL_BYTES > SHADOW_BATCH_GPU_BYTES);
+  assert.ok(SHADOW_HOST_BYTES > SHADOW_BATCH_HOST_BYTES);
 });

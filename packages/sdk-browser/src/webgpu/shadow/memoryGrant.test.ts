@@ -3,14 +3,31 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SUN } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
-import { SHADOW_GRANT_BYTES } from '../../residency/memoryBudget.ts';
-import { shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
+import { shadowPoolSize } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { SHADOW_BUFFER_BYTES, shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
 import { shadowTransmittanceBytes } from '../../gpu/shadow/transmittance.ts';
 import { SHADOW_LAYER_PASS } from '../../gpu/shadow/staticLayer.ts';
+import { shadowRequestBytes } from './pageRequests.ts';
+import { admitShadowBytes, createShadowMemory } from './memoryGrant.ts';
 import { staticLayerGranted } from './poolSize.ts';
 import { createWebgpuLightState } from '../pages/state/lights.ts';
 import { along, camera } from '../pages/testScenes.fixture.ts';
 import { floorCasterBackend } from './floorCaster.fixture.ts';
+import { shadowPoolFor } from './poolFor.ts';
+import { SHADOW_ATLAS_BYTES, SHADOW_GRANT_BYTES } from '../../residency/shadowBudgetBytes.ts';
+
+test('the grant holds the largest pool with its static and transmittance layers, not a byte more', () => {
+  const pool = shadowPoolFor(shadowPoolSize(16384, 16384), 64)(SHADOW_ATLAS_BYTES),
+    { side, layers } = pool;
+  const held = SHADOW_BUFFER_BYTES + pool.allocatedBytes + shadowRequestBytes(side ** 2 * layers);
+  const late = shadowAtlasBytes(side, layers) + shadowTransmittanceBytes(side, layers);
+  const memory = createShadowMemory();
+  assert.ok(admitShadowBytes(memory, held, late), `${held + late} within ${SHADOW_GRANT_BYTES}`);
+  assert.equal(memory.peakBytes, held + late, 'the peak counts the late layers with the pool');
+  const short = createShadowMemory();
+  assert.equal(admitShadowBytes(short, held, late, held + late - 1), false, 'one byte past');
+  assert.equal(short.peakBytes, 0, 'a refused allocation holds nothing');
+});
 
 test('a static layer past the grant is never made, and said by name', () => {
   const lights = createWebgpuLightState(8),

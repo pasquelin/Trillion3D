@@ -9,9 +9,7 @@ import { SUN_ORIGIN_WGSL } from '../../lighting/direct/shadowFactorWgsl.ts';
 import { shadowRequestWgsl } from '../../lighting/direct/shadowRequestWgsl.ts';
 import { SHADOW_DATA_WGSL } from '../../lighting/direct/shadowWgsl.ts';
 import { POOL_FRAME_COUNTS, SHADOW_DRAW_LIST_WGSL, shadowPoolWgsl } from './poolWgsl.ts';
-
-/** Invocations of the one workgroup that allocates a frame's pages. */
-const ALLOC_LANES = 256;
+import { ALLOC_LANES } from './allocLanes.ts';
 /** Words of the parameters before the host's asks: frame, pages, list cap, asks, where the
  *  candidates' keys start, the first frame whose asks no need evicts, then each slice's
  *  generation. */

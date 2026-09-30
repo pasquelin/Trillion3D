@@ -21,7 +21,6 @@ import { ensurePageTable } from './pageTable.ts';
 import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts';
 import { encodeVis } from './encodeVis.ts';
 import { dropVis } from '../io/drops.ts';
-import { forEachDirtyRun } from '../../row/dirty.ts';
 import { uploadRowCorners } from '../../visibility/corners.ts';
 import { refreshDrawItemWords } from '../../visibility/itemWords.ts';
 import { visLayerTop } from '../../visibility/uniforms.ts';
@@ -29,6 +28,7 @@ import { uploadClusterSpheres, uploadRowMobility } from '../../shadow/bounds.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { displayApart } from '../state/renderScale.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
+import { uploadDirtyRows } from './dirtyRows.ts';
 
 export { ensurePageTable, pageTableBuffer } from './pageTable.ts';
 
@@ -47,27 +47,6 @@ export function followDirtyRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
   }
   uploadRowCorners(rt);
   uploadDirtyRows(rt);
-}
-
-/** Uploads the rows whose bytes changed, run by run, and nothing when none did. */
-function uploadDirtyRows(rt: WebgpuPagesRuntime) {
-  const { rows } = rt.layout;
-  rt.timing.encodeCounts.rowsUploaded = 0;
-  if (rows.dirtyTo < rows.dirtyFrom || !rt.vis.pageTable || !rows.pageTableFloats) return;
-  forEachDirtyRun(rows.dirtyMarks, rows.dirtyFrom, rows.dirtyTo, rt, uploadRun);
-  rows.clearDirty();
-}
-
-function uploadRun(rt: WebgpuPagesRuntime, from: number, to: number) {
-  const floats = rt.layout.rows.pageTableFloats!;
-  rt.gpu.device!.queue.writeBuffer(
-    rt.vis.pageTable!,
-    from * PAGE_INFO_STRIDE,
-    floats.buffer as ArrayBuffer,
-    floats.byteOffset + from * PAGE_INFO_STRIDE,
-    (to - from + 1) * PAGE_INFO_STRIDE,
-  );
-  rt.timing.encodeCounts.rowsUploaded += to - from + 1;
 }
 
 /** Encodes and submits one image of the drawn cut; returns the triangles it submitted. */

@@ -3,20 +3,13 @@ import type { PageSurface } from '../page/surface.ts';
 import type { Texture } from '../../../sdk-core/src/index.ts';
 import { HOST_FORMAT_RGBA } from '../host/surfaceConstants.ts';
 import { texelFormatOf } from '../host/textureImport.ts';
-
-const VIS_INVALID = 0;
-/**
- * Visibility identifier layout: `(pageRow + 1) << 8 | triangleIndex`, zero meaning background.
- *
- * A page is one cluster, and a cluster holds at most 128 triangles in a DAG cache and 256 in an older
- * cache, so eight bits index a triangle and the twenty-four remaining bits address the page. That is
- * 16.7 M pages instead of the 65 535 a 16/16 split allowed, which a scene replicated a few times
- * exhausts immediately.
- */
-export const VIS_TRIANGLE_BITS = 8;
-export const VIS_TRIANGLE_MASK = (1 << VIS_TRIANGLE_BITS) - 1;
-/** Largest triangle count a page may carry; one more would collide with the next page's rows. */
-const VIS_MAX_PAGE_TRIANGLES = VIS_TRIANGLE_MASK + 1;
+import {
+  VIS_INVALID,
+  VIS_TRIANGLE_BITS,
+  VIS_TRIANGLE_MASK,
+  VIS_MAX_PAGE_TRIANGLES,
+} from './visWords.ts';
+export { VIS_TRIANGLE_BITS, VIS_TRIANGLE_MASK } from './visWords.ts';
 /** Largest addressable page count. Row `VIS_MAX_PAGES-1` still leaves 0xffffffff free as a sentinel. */
 export const VIS_MAX_PAGES = 0xfffffe;
 /** Rejects a page the identifier cannot address, naming the page so a bad cache is actionable. */

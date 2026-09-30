@@ -1,7 +1,7 @@
 // Lot 4c: at threshold zero, a node's decision is taken on the bounds alone, without projecting.
 // It matches the general path only under the invariant `cullingBounds` maintains — a finite
-// strictly positive bound always comes from a cluster that had its sphere —, which this test
-// proves.
+// strictly positive bound always comes from a cluster that had its sphere — and the second
+// test proves that. Oracle: `nodeDecision` from before the lot, in `../../../../../bench/oracles/browser/cut-budget.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -13,8 +13,33 @@ import {
   PARENT_SPHERE,
   cullingBounds,
 } from './bounds.ts';
-import type { PageRecord } from './state.ts';
+import type { PageRecord, SelectionState } from './state.ts';
+import { referenceNodeDecision } from '../../../../../bench/oracles/browser/cut-budget.ts';
+import { cameraMoteur } from '../../camera/camera.fixture.ts';
+import { obliqueCamera } from '../selection/dag.fixture.ts';
+import { nodeDecision, nodeDecisionAtZero } from './nodeDecision.ts';
 
+const camera = obliqueCamera();
+const view = camera.matrixWorldInverse.elements;
+const STRETCH = 1.25,
+  FOCAL = 640;
+const SLOTS = {
+  ownFloor: OWN_FLOOR,
+  ownCeil: OWN_CEIL,
+  parentFloor: PARENT_FLOOR,
+  ownSphere: OWN_SPHERE,
+  parentSphere: PARENT_SPHERE,
+};
+const state = {
+  pixelError: 0,
+  flatElements: view,
+  flatStretch: STRETCH,
+  flatFocal: FOCAL,
+  flatReach: 0,
+  cam: cameraMoteur(camera),
+} as unknown as SelectionState<PageRecord>;
+
+const ABSENTE = [0, 0, 0, -1];
 const PROCHE = [0, 0, 20, 2],
   LOIN = [-40, 5, 90, 30];
 
@@ -22,6 +47,45 @@ const PROCHE = [0, 0, 20, 2],
 function coherente(bound: number, sphere: number[]) {
   return !(bound > 0 && bound !== Infinity) || sphere[3] >= 0;
 }
+
+test('at threshold zero, the node decision without projection matches the general path', () => {
+  let vus = 0;
+  for (const floor of [0, 1e-6, 3, Infinity])
+    for (const ceil of [0, 1e-6, 3, Infinity])
+      for (const parentFloor of [0, 1e-6, 3, Infinity])
+        for (const own of [PROCHE, LOIN, ABSENTE])
+          for (const band of [PROCHE, LOIN, ABSENTE]) {
+            // The ceiling bounds the floor by construction: a node whose floor exceeds its
+            // ceiling never leaves `cullingBounds`.
+            if (floor > ceil) continue;
+            if (!coherente(floor, own) || !coherente(ceil, own) || !coherente(parentFloor, band))
+              continue;
+            vus++;
+            const values = new Float64Array(BOUND_STRIDE);
+            values[OWN_FLOOR] = floor;
+            values[OWN_CEIL] = ceil;
+            values[PARENT_FLOOR] = parentFloor;
+            for (let a = 0; a < 4; a++) values[OWN_SPHERE + a] = own[a];
+            for (let a = 0; a < 4; a++) values[PARENT_SPHERE + a] = band[a];
+            const reference = referenceNodeDecision(
+              values,
+              0,
+              SLOTS,
+              view,
+              STRETCH,
+              FOCAL,
+              camera.near,
+              0,
+            );
+            assert.equal(nodeDecision(state, values, 0), reference, `general ${floor}/${ceil}`);
+            assert.equal(
+              nodeDecisionAtZero(values, 0),
+              reference,
+              `zero threshold ${floor}/${ceil}`,
+            );
+          }
+  assert.ok(vus > 50, `only ${vus} coherent nodes`);
+});
 
 /** Clusters preparation can produce, plus those it leaves without an error band. */
 function pages(): PageRecord[] {

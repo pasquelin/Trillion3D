@@ -2,13 +2,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { shaderRun } from '../texture/shaderRun.fixture.ts';
 import { CATMULL_ROM_WGSL, CURRENT_SHARE_WGSL } from './historyWgsl.ts';
+import { REACTIVE_TARGET } from '../lighting/deferred/asIsShare.ts';
 import { IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { createTaaFrameState } from './frameState.ts';
 import { writeTaaView } from './view.ts';
 import type { EngineCamera } from '../camera/world.ts';
-
-const REACTIVE_MAX = 0.9;
+import { BLEND_SHADER } from '../gpu/core/shaderTexts.fixture.ts';
+import { AS_IS_SHARE_SHADER } from '../lighting/deferred/asIsShareWgsl.ts';
+import { REACTIVE_MAX } from './reactive.ts';
+import { blendTargets } from '../webgpu/blend/blendTargets.ts';
+import { particleTargets } from '../particles/particleTargets.ts';
+import { PARTICLE_DRAW_WGSL } from '../particles/particlesWgsl.ts';
 
 type Share = { currentShare: (a: number, reach: number, rho: number, fresh: boolean) => number };
 const { currentShare } = shaderRun<Share>(CURRENT_SHARE_WGSL, ['currentShare'], {});
@@ -72,6 +77,24 @@ test('the moving history keeps its sharpness where bilinear softens it', () => {
   assert.ok(Math.abs(sharp - 0.203125) < 1e-9, `Catmull-Rom ${sharp}`);
   // Never below zero, whatever its negative lobes.
   assert.ok(historyCatmullRom([4.2 / 8, 0.3]).every((c) => c >= 0 && c <= 1.1));
+});
+
+test('blends and particles write their coverage as the reactive value, seeded 0', () => {
+  // The seed: the as-is share in red, a reactive value of 0 in green.
+  assert.match(AS_IS_SHARE_SHADER, /return vec2f\(f32\(.*\),0\.0\);/);
+  // A blend writes 1 in green at its coverage, over what the pixel holds.
+  assert.match(BLEND_SHADER, /s\.request,vec4f\(0\.0,1\.0,0\.0,s\.alpha\*r\.keep\),/);
+  const share = blendTargets('normal', 0xf, false)[1]!;
+  assert.equal(share.format, 'rg8unorm');
+  assert.equal(share.blend?.color.srcFactor, 'src-alpha');
+  assert.equal(share.blend?.color.dstFactor, 'one-minus-src-alpha');
+  // A particle too, the as-is share untouched: green alone.
+  assert.match(PARTICLE_DRAW_WGSL, /return Lit\(c, vec4f\(0, 1, 0, c\.a\)\);/);
+  assert.equal(REACTIVE_TARGET.writeMask, 0x2);
+  assert.equal(REACTIVE_TARGET.blend, share.blend);
+  for (const routed of [false, true])
+    for (const blend of ['additive', 'premultiplied'] as const)
+      assert.equal(particleTargets(blend, routed).at(-1), REACTIVE_TARGET);
 });
 
 test('the uniform tells the resolve whether the image moves: at rest, today’s resolve', () => {

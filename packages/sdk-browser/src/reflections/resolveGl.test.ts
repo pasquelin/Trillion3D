@@ -1,8 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { reflectionResolveExtent } from './resolveGl.ts';
-
-const REFLECTION_RESOLVE_PIXELS = 1 << 16;
+import { REFLECTION_RESOLVE_PIXELS } from './resolvePixels.ts';
 
 test('a mirror whose image already fits the budget resolves at the image size', () => {
   assert.deepEqual(reflectionResolveExtent(256, 256), [256, 256]);

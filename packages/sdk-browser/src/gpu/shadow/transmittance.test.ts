@@ -10,14 +10,13 @@ import {
 } from './transmittance.ts';
 import { SHADOW_DEPTH_SHADER } from './shader.ts';
 import { directShadowWgsl } from '../../lighting/direct/shadowWgsl.ts';
-import { POISSON_16 } from '../../lighting/direct/pcfTaps.ts';
 import { throughAxis } from '../../lighting/direct/shadowPages.fixture.ts';
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { fromHalf, toHalf } from '../../../../sdk-core/src/lighting/ltcTable.ts';
 import { surfaceOpacity, type PageSurface } from '../../page/surface.ts';
-
-const TRANSMITTANCE_CLEAR = { r: 1, g: 1, b: 1, a: 1 };
+import { POISSON_16 } from '../../lighting/direct/pcfTaps.ts';
+import { TRANSMITTANCE_CLEAR } from './transmittanceClear.ts';
 
 /** A texel of the layer: its transmittance and its translucent depth (reversed: nearer is more). */
 type Texel = { t: number; d: number };

@@ -10,8 +10,7 @@ import {
   bloomLevelSizes,
 } from './bloomFilter.ts';
 import { cpuBloom, publishedDownTaps, publishedUpTaps, tapWords } from './bloom.fixture.ts';
-
-const BLOOM_LEVELS = 6;
+import { BLOOM_LEVELS } from './bloomLevels.ts';
 
 test('the down and up taps are the published 13-tap filter and 3×3 tent, each of weight 1', () => {
   assert.deepEqual(tapWords(BLOOM_DOWN_TAPS), tapWords(publishedDownTaps()));

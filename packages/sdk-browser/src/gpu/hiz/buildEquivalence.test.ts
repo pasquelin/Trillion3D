@@ -1,8 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { HIZ_SHADER } from './shader.ts';
-import { HIZ_BUILD_SIDE as S, HIZ_MAX_LEVELS, HIZ_PASS_LEVELS } from './uniforms.ts';
+import {
+  HIZ_BUILD_SIDE as S,
+  HIZ_MAX_LEVELS,
+  HIZ_PASS_LEVELS,
+  hizBuildPasses,
+} from './uniforms.ts';
 import { buildAfter, buildBefore, layout, lcg, type Scene } from './buildTranscripts.fixture.ts';
+import { hizLevelSizes } from './levelSizes.ts';
 
 // The pyramid used to be a copy of the level-0 texture then one dispatch per mip, each reading
 // the level above from the buffer. `buildHiz` reads the texture once, copies it on the way and
@@ -56,6 +62,38 @@ for (const [seed, hostile, trials] of [
     for (let trial = 0; trial < trials; trial++)
       assertSamePyramid(scene(rand, hostile), rand, `trial ${trial}`);
   });
+
+test('edge sizes: one texel, one row, one column, a tile edge, 1080p, a capped mip count', () => {
+  const rand = lcg(3);
+  const sizes: Array<[number, number, number]> = [
+    [1, 1, HIZ_MAX_LEVELS],
+    [1, 37, HIZ_MAX_LEVELS],
+    [37, 1, HIZ_MAX_LEVELS],
+    [16, 16, HIZ_MAX_LEVELS],
+    [17, 33, HIZ_MAX_LEVELS],
+    [128, 128, HIZ_MAX_LEVELS],
+    [1920, 1080, HIZ_MAX_LEVELS],
+    [300, 200, 2],
+  ];
+  for (const [width, height, maxLevels] of sizes) {
+    const texture = Float32Array.from({ length: width * height }, () => rand());
+    assertSamePyramid(
+      { texture, textureWidth: width, width, height, maxLevels },
+      rand,
+      `${width}×${height}`,
+    );
+  }
+  // 1080p: twelve mips in three dispatches, where the per-level build took twelve.
+  assert.deepEqual(
+    hizBuildPasses(hizLevelSizes(1920, 1080)).map(({ source, levels }) => [source, levels]),
+    [
+      [0, 4],
+      [4, 4],
+      [8, 3],
+    ],
+  );
+  assert.deepEqual(hizBuildPasses([[1, 1]]), [{ source: 0, width: 1, height: 1, levels: 0 }]);
+});
 
 test('the shipped build is one kernel over workgroup memory, with no copy kernel left', () => {
   assert.match(HIZ_SHADER, new RegExp(`var<workgroup> hizTile:array<f32,${S * S}>;`));

@@ -1,11 +1,10 @@
 import { sharedGpuDevice } from '../gpu/core/sessionHandle.ts';
 import { COVERAGE_WGSL } from './mipsWgsl.ts';
 import { levelSize } from './tiles.ts';
+import { TEXTURE_COVERAGE_PASS } from './coveragePass.ts';
 
 /** Bytes of one level's 256 bins. */
 export const LEVEL_BIN_BYTES = 1024;
-/** Label of a chain's coverage-count compute pass. */
-const TEXTURE_COVERAGE_PASS = 'Trillion3D texture coverage count';
 
 type CoverageProgram = {
   layout: GPUBindGroupLayout;

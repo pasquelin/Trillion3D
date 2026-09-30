@@ -5,8 +5,17 @@ import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { packedRowBase } from './pageRow.ts';
 import { emptyGeometryBlock, rowGeometry, rowMaterial } from './pageRowMaterial.ts';
-import { FLAG_UV } from '../../cluster/format.ts';
-import { FLAG_CLUSTER_PAGE, VIS_TRIANGLE_BITS } from '../../visibility/buffer.ts';
+import { FLAG_COLOR, FLAG_UV } from '../../cluster/format.ts';
+import {
+  FLAG_CLUSTER_PAGE,
+  FLAG_HAS_COLOR,
+  FLAG_SAMPLED,
+  VIS_TRIANGLE_BITS,
+} from '../../visibility/buffer.ts';
+import type { Texture } from '../../../../sdk-core/src/index.ts';
+import { PAGE_FILTER_SHIFT, PAGE_HEADER_WORDS, PAGE_SLOT_WORDS } from '../tile/pageTable.ts';
+import { SAMPLE_MAG_NEAREST } from '../../texture/sampling.ts';
+import { CLASS_FEATURE } from '../../visibility/shader/classWords.ts';
 import { visMaterial } from '../../visibility/shader/material.ts';
 
 test('packedRowBase shifts the rank by VIS_TRIANGLE_BITS bits, one rank further than the rank', () => {
@@ -85,7 +94,69 @@ test('the cluster-page flag rides the row without moving its material class', ()
 // Review of #389: whether a page runs the filter rule is the page's, read off its maps' headers,
 // never tested per sample: a page whose maps are all at the default carries no `FLAG_SAMPLED`,
 // and its resolve class compiles the default read alone.
+test('a page takes the filter rule, and its class, only when one of its maps has a filter word', () => {
+  const map = {} as Texture,
+    normal = {} as Texture;
+  const material = { ...visMaterial(G.standardSurface()), map, normalMap: normal };
+  const source = {
+    vertexBase: 0,
+    count: 3,
+    hasUv: true,
+    hasNormal: true,
+    hasTangent: false,
+    hasColor: false,
+  };
+  // Two page tables, four slots each; slot 3 of the data table is the normal map's.
+  const tables = { color: new Uint32Array(64), data: new Uint32Array(64) };
+  const layers = {
+    mapLayer: new Map([[map, 1]]),
+    dataLayer: new Map([[normal, 3]]),
+    textures: {
+      color: { pages: { words: tables.color } },
+      data: { pages: { words: tables.data } },
+    },
+  };
+  const plain = rowMaterial(material, source, layers);
+  assert.equal(plain.flags & FLAG_SAMPLED, 0);
+  assert.equal(plain.classKey & CLASS_FEATURE.HAS_SAMPLING, 0);
+  tables.data[PAGE_HEADER_WORDS + 3 * PAGE_SLOT_WORDS + 2] =
+    SAMPLE_MAG_NEAREST << PAGE_FILTER_SHIFT;
+  const sampled = rowMaterial(material, source, layers);
+  assert.equal(sampled.flags, plain.flags | FLAG_SAMPLED, 'its normal map is filtered');
+  assert.equal(sampled.classKey, plain.classKey | CLASS_FEATURE.HAS_SAMPLING);
+});
 
 // #347: a page that carries `COLOR_0` — a runtime cut, a compiled glTF — is drawn with its vertex
 // colours when its material asks for them, as the forward path draws it; any other row keeps the
 // flags and the class it had, so nothing it draws moves.
+test('a row multiplies by its vertex colours only when the material asks and the page has some', () => {
+  const layers = { mapLayer: new Map(), dataLayer: new Map() };
+  const block = emptyGeometryBlock();
+  const page = (flags: number) =>
+    rowGeometry(
+      {
+        attributes: {} as never,
+        geometryPage: {
+          url: 'g',
+          sha256: 'g',
+          bytes: 64,
+          vertexCount: 3,
+          indexCount: 3,
+          flags,
+          uncompressedBytes: 128,
+        },
+      },
+      new Map(),
+      block,
+    )!;
+  const asks = visMaterial(G.standardSurface({ vertexColors: true })),
+    ignores = visMaterial(G.standardSurface());
+  assert.equal(asks.vertexColors, true);
+  assert.equal(ignores.vertexColors, false);
+  const plain = rowMaterial(ignores, { ...page(FLAG_UV) }, layers);
+  const coloured = rowMaterial(asks, { ...page(FLAG_UV | FLAG_COLOR) }, layers);
+  assert.equal(coloured.flags, plain.flags | FLAG_HAS_COLOR);
+  assert.equal(coloured.classKey, plain.classKey | CLASS_FEATURE.HAS_VERTEX_COLOR);
+  assert.deepEqual(rowMaterial(ignores, { ...page(FLAG_UV | FLAG_COLOR) }, layers), plain);
+  assert.deepEqual(rowMaterial(asks, { ...page(FLAG_UV) }, layers), plain);
+});

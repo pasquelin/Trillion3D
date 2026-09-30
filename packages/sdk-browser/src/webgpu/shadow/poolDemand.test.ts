@@ -12,8 +12,8 @@ import {
   demandPoolPages,
 } from '../../../../sdk-core/src/scene/light-shadow/poolDemand.ts';
 import { shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
-import { SHADOW_ATLAS_BYTES } from '../../residency/memoryBudget.ts';
 import { session } from './poolResize.fixture.ts';
+import { SHADOW_ATLAS_BYTES } from '../../residency/shadowBudgetBytes.ts';
 
 /** Pages a frame of a cube on a floor reads, its floor pages aside: the few levels its pixels
  *  land on around it. */

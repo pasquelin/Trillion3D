@@ -11,9 +11,8 @@ import { writeVehicle } from './vehicleCommands.ts';
 import { WHEEL_ROLE } from './vehicleLayout.ts';
 import { VEHICLE_SPECS, type VehicleSpec } from './vehicleSpec.ts';
 import { wheelsOf } from './vehicleWheels.ts';
+import { VEHICLE_WORDS, WHEEL_WORDS } from './wire.fixture.ts';
 
-const VEHICLE_WORDS = 38;
-const WHEEL_WORDS = 6;
 const stuff = () => new Material('meshStandard');
 /** A body with a wheel of radius 0.3 and width 0.2 at each `[x, z]`, 0.3 below its centre. */
 function rig(at: number[][]) {

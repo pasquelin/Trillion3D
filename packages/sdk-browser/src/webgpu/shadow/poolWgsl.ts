@@ -3,17 +3,10 @@ import {
   PAGE_MAPPED,
   PAGE_VALID,
   SUN_WINDOW,
-  shadowEntrySpan,
-  shadowTableEntries,
   shadowTableStride,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { DRAWN_GPU, DRAWN_HOST, DRAWN_NONE } from './poolDrawn.ts';
-
-/** Mask of a listed request entry: every bit below the miss flag (`shadowRequestWgsl.ts`, bit 31),
- *  which lies above the most a `pages`-window table addresses. The ordinary window's table is a
- *  power of two, so this is its `entries - 1`, the mask it always was; a raised one is not, and the
- *  next power is the mask that keeps every entry and still clears the flag. */
-const shadowEntryMask = (pages: number) => shadowEntrySpan(shadowTableEntries(pages)) - 1;
+import { shadowEntryMask } from './entryMask.ts';
 
 /** A page's fields in the GPU pool, one array of `pages` words each after the counts: the entry
  *  it maps (−1 free) and the frame it was last asked in first, the words a snapshot reads back;

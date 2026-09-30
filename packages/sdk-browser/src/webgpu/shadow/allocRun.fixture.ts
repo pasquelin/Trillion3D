@@ -12,23 +12,17 @@ import {
   SHADOW_RECORD_INFO,
   SHADOW_RECORD_ORIGINS,
 } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
-import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelSignatures.ts';
 import { SUN_LEVELS } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { shadowRequestBits } from '../../lighting/direct/shadowRequestWgsl.ts';
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
 import { ALLOC_PARAM_WORDS } from './allocWgsl.ts';
 import { POOL_COUNTS } from './poolWgsl.ts';
 import { WORDS_HEADER } from './wordsWgsl.ts';
-import { shadowRequestBits } from '../../lighting/direct/shadowRequestWgsl.ts';
-import { allocationWgsl } from './allocWgsl.ts';
-import { shadowWordsWgsl } from './wordsWgsl.ts';
-
-const SHADOW_REQUEST_BITS = shadowRequestBits();
-const ALLOCATION_WGSL = allocationWgsl();
-const ALLOC_LANES = 256;
-const ALLOC_PHASES = ['followPages', 'touchRequests', 'listCandidates'];
-const SHADOW_WORDS_WGSL = shadowWordsWgsl();
+import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelSignatures.ts';
+import { ALLOC_LANES } from './allocLanes.ts';
+import { ALLOCATION_WGSL, SHADOW_WORDS_WGSL } from '../../gpu/core/shaderTexts.fixture.ts';
 
 type Lanes = Record<string, (...args: number[]) => void>;
 const u32 = (b: Uint8Array) => new Uint32Array(b.buffer, b.byteOffset, b.byteLength >> 2);
@@ -62,7 +56,7 @@ export function shadowsOf(data: Uint8Array) {
  *  listed by whoever set it. */
 export function claimShadowRequest(requests: Uint8Array, e: number) {
   const list = u32(requests),
-    cap = list.length - 1 - SHADOW_REQUEST_BITS,
+    cap = list.length - 1 - shadowRequestBits(),
     word = 1 + cap + (e >>> 5),
     bit = 1 << (e & 31);
   if (list[word] & bit) return;
@@ -85,6 +79,14 @@ function atomicsOf(state: Uint8Array, requests: Uint8Array) {
     requestShadowPage: (e: number) => claimShadowRequest(requests, e),
   };
 }
+
+/** The phases `allocateShadowPages` runs before its sorts, in its own order: each a lane's call
+ *  then a barrier, read from the shipped text. */
+const ALLOC_PHASES = [
+  ...ALLOCATION_WGSL.slice(ALLOCATION_WGSL.indexOf('fn allocateShadowPages')).matchAll(
+    /(\w+)\(lane\);storageBarrier\(\);/g,
+  ),
+].map((call) => call[1]);
 
 const FUNCTIONS = [
   'beginAllocation',

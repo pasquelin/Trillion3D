@@ -3,6 +3,7 @@
  * reads a host object, so this module names no rendering library — the host-library objects a
  * witness publishes live in `../host/scene/objects.ts`.
  */
+import { MAX_PREFETCH_HORIZON_MS } from './prefetchHorizon.ts';
 /** The ratio a session's drawing buffer was sized at (`devicePixels`): read live, a resize
  *  rewrites it. */
 export const pixelRatioOf = (options: { pixelRatio?: number }) =>
@@ -45,9 +46,6 @@ export const DEFAULT_FOV = 55,
   PREFETCH_INTERVAL_MS = 250,
   DEFAULT_CACHED_PAGES = 16384,
   DEFAULT_CLEAR_COLOR = 0x171d28;
-/** The farthest the view ahead looks, in milliseconds, whatever the round trip: past a second,
- *  the camera's velocity no longer says where it will be. */
-const MAX_PREFETCH_HORIZON_MS = 1000;
 /**
  * How far ahead of a moving camera the cut requests pages, in milliseconds: the published horizon
  * plus the pages' measured round trip (`../streaming/roundTrip.ts`) — a page asked for now lands a

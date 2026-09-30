@@ -4,13 +4,13 @@ import { geometryPoolFor } from './pools.ts';
 import { laneCounts, poolEncoding } from '../texture/blockFormats.ts';
 import { TILES_PER_LAYER } from '../texture/tiles.ts';
 import { texturePoolFor } from '../webgpu/residency/memoryBudgets.ts';
-import { DEFAULT_CPU_BUDGET, splitMemoryBudget } from './memoryBudget.ts';
+import { DEFAULT_CPU_BUDGET, splitMemoryBudget, defaultGpuBudget } from './memoryBudget.ts';
 import type { ActiveGpuMemory } from './activeMemory.ts';
 import { worldRootsFixture } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts';
-import { defaultGpuBudget, SHADOW_GRANT_BYTES } from './memoryBudget.ts';
 import { SHADOW_BATCH_GPU_BYTES } from '../gpu/shadow/batchBudget.ts';
 import { bounceProbeBytes } from '../bounce/limits.ts';
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts';
+import { SHADOW_GRANT_BYTES } from './shadowBudgetBytes.ts';
 
 const DEFAULT_GPU_BUDGET = defaultGpuBudget();
 const SHADOW_POOL_BYTES = SHADOW_GRANT_BYTES + SHADOW_BATCH_GPU_BYTES;

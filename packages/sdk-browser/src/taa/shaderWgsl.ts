@@ -11,15 +11,11 @@ import {
   shareText,
   taaHistoryBlend,
 } from './historyWgsl.ts';
+import { YCOCG_WGSL } from './ycocgWgsl.ts';
 
 /** Pass label; its timestamp duration absorbs that of the passes that precede it on
  *  some devices (apple metal-3), and is only read safely by envelope difference. */
 export const TAA_PASS = 'Trillion3D temporal antialiasing';
-
-/** YCoCg, the space where the neighbour box tightens best around the colour. */
-const YCOCG_WGSL = `
-fn toYcocg(c:vec3f)->vec3f{return vec3f(0.25*c.r+0.5*c.g+0.25*c.b,0.5*c.r-0.5*c.b,-0.25*c.r+0.5*c.g-0.25*c.b);}
-fn fromYcocg(c:vec3f)->vec3f{return vec3f(c.x+c.y-c.z,c.x+c.z,c.x-c.y-c.z);}`;
 
 /**
  * Where this pixel was on the previous frame, in history texture coordinates, and whether that
