@@ -1,3 +1,4 @@
+import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts';
 import { createFirstPersonCameraControls } from '../../camera/controls/firstPersonControls.ts';
 import { createFlyCameraControls } from '../../camera/controls/flyControls.ts';
 import {
@@ -8,7 +9,7 @@ import { createPanZoomCameraControls } from '../../camera/controls/panZoomContro
 import { createTrackballCameraControls } from '../../camera/controls/trackballControls.ts';
 import type { PivotCameraControls } from '../../camera/controls/types.ts';
 import { copyElements } from '../../math/matrixElements.ts';
-import { explorerSwitch, type CameraPose } from '../../../../sdk-core/src/index.ts';
+import type { CameraPose } from '../../../../sdk-core/src/index.ts';
 import type { MeasuredWorldOptions, PointOfInterest, RenderBackend } from '../../backend/types.ts';
 import { resolveCameraWorld, type HostCamera } from '../../camera/world.ts';
 

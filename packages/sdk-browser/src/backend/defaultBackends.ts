@@ -1,4 +1,5 @@
-import { EngineError, explorerSwitch, type ClusterManifest } from '../../../sdk-core/src/index.ts';
+import { explorerSwitch } from '../../../sdk-core/src/runtime/explorerSwitches.ts';
+import { EngineError, type ClusterManifest } from '../../../sdk-core/src/index.ts';
 import type { BackendFactory } from './types.ts';
 import { autonomousPagesBackend } from './autonomous/pages.ts';
 import { webgpuPagesBackend } from '../webgpu/pages/pages.ts';

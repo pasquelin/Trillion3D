@@ -1,4 +1,5 @@
-import { LIGHT_SETTINGS, explorerSwitch } from '../../../../../sdk-core/src/index.ts';
+import { explorerSwitch } from '../../../../../sdk-core/src/runtime/explorerSwitches.ts';
+import { LIGHT_SETTINGS } from '../../../../../sdk-core/src/index.ts';
 import { createGpuLightTiles } from '../../../lighting/tiles/tiles.ts';
 import { createGpuShadowAtlas } from '../../../gpu/shadow/atlas.ts';
 import { createGpuShadowCull } from '../../../gpu/shadow/cull.ts';

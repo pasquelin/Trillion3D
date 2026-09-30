@@ -1,4 +1,5 @@
-import { adaptivePixelError, explorerSwitch } from '../../../../sdk-core/src/index.ts';
+import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts';
+import { adaptivePixelError } from '../../../../sdk-core/src/index.ts';
 import type { CameraMotion, EngineCamera } from '../../camera/world.ts';
 import { readCameraMotion } from '../../camera/motion.ts';
 
