@@ -30,7 +30,8 @@ export const SHADOW_DEMAND_GROUP = 8;
  * (`WORLD_AT_WGSL`, the deferred pass's view uniform), moved by the pixel's shading-point offset
  * (`shadowReceiverOffset`), its normal turned from a light behind a thin subsurface surface
  * (`declaredLight`), its tile slice, its light gate, its footprint and point unjittered
- * (`pixelLevel`), the turn of its taps (`shadowRotated`), and the page model (`pageModel.ts`) its read takes the level, the map texel, the entry and the PCF's pages
+ * (`pixelLevel`), the turn of its taps (`shadowRotated`), and the page model (`pageModel.ts`) its
+ * read takes the level, the map texel, the entry and the PCF's pages
  * from. Unlike the read, the demand never falls back: a page not drawn yet is the one it wants.
  * The layout it marks is the session's window (`referenceMode.ts`), the ordinary constant by
  * default.
