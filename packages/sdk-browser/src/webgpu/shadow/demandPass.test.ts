@@ -13,6 +13,7 @@ import { POINT_FACES } from '../../../../sdk-core/src/scene/light/contracts.ts';
 import { SUN_LEVELS } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { dotVector3 } from '../../../../sdk-core/src/math/primitives/vector.ts';
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
+import { SHADOW_READ_STRUCTS } from './readStructs.fixture.ts';
 import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { shadowViewpointOf } from '../pages/render/shadowViewpoint.ts';
 import { HEIGHT, cameraAt, reportScene } from './reportScene.fixture.ts';
@@ -47,19 +48,7 @@ const demand = shaderRun<Demand>(
     shadows: live,
     shadowUnjitter: [0, 0, 0],
     requestShadowPage: (entry: number) => live.marked.add(entry),
-    ShadowAt: (map: object, t: V, home: V, Q: V, texel: number) => ({ map, t, home, Q, texel }),
-    LampFacePoint: (clip: V, ndc: V, t: V) => ({ clip, ndc, t }),
-    LampAt: (at: object, clip: V, ndc: V, face: number, side: number, inside: boolean) => ({
-      ...{ at, clip, ndc },
-      ...{ face, side, inside },
-    }),
-    ShadowMap: (base: number, ring: number, pages: number, ox: number, oy: number) => ({
-      base,
-      ring,
-      pages,
-      ox,
-      oy,
-    }),
+    ...SHADOW_READ_STRUCTS,
   },
 );
 

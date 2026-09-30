@@ -112,7 +112,8 @@ cache (`splitMemoryBudget`). The batches' buffers (`gpu/shadow/batchBudget.ts`, 
   its footprint in their own pages, weighted by hand — no seam, no guard band.
 - **Soft edges are smooth in one image and stable over time** (#1363). The PCF's sixteen taps and
   a point lamp's PCSS disk are the same every image — no per-frame turn or noise left for the TAA
-  to hide, as Unreal's filtered virtual shadow map lookups —; the TAA's jitter moves the receiver's
+  to hide, as Unreal's filtered (PCF) virtual shadow map lookup; unlike its SMRT, whose per-frame
+  random rays TSR denoises, a deliberate difference —; the TAA's jitter moves the receiver's
   sample over its pixel, and its history filters that, no second history. A PCSS filter tap is a
   bilinear comparison, so a penumbra is a ramp, never sixteen steps. Each PCSS stage reads the mip
   whose texel holds its disk within eight texels, never finer than the pixel's (`lampSoftMip`): the
