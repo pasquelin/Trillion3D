@@ -128,7 +128,6 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     shadowsRefused: options.shadowsRefused ?? noticeShadowRefusal({ say: diagnose }),
     importedLightIds,
     frameBudget: inputs.frameBudget,
-    worldRoots: inputs.worldRoots,
   };
   for (const factory of factories) {
     const backend = factory(context);
