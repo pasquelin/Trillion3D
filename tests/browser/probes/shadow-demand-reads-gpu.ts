@@ -14,9 +14,9 @@ declare global {
   var shadowDemandReads: { run: typeof run };
 }
 
-const here = dirname(fileURLToPath(import.meta.url));
-
 if (import.meta.main) {
+  const here = dirname(fileURLToPath(import.meta.url));
+
   test('the pages marked are the pages read, on a turning astrolabe and a ring of moving lamps', async () => {
     const script = await bundlePage(resolve(here, 'shadowDemandReadsPage.ts'), 'shadowDemandReads');
     const result = await dansPageWebgpu(() => globalThis.shadowDemandReads.run(), undefined, {
