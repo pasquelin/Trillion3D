@@ -8128,5 +8128,162 @@
       "nodeName": "El `name` del nodo que mover.",
       "matrix": "Su pose de mundo, dieciséis flotantes en orden por columnas."
     }
+  },
+  "IMPOSTOR_PI": {
+    "summary": "π, un único literal para este oráculo y el espejo WGSL, para que ambos redondeen el mismo número."
+  },
+  "IMPOSTOR_VERSION": {
+    "summary": "Formato de la sección `impostors` que lee un runtime (#817 parte 1, horneada por el compilador)."
+  },
+  "ImpostorCard": {
+    "summary": "Una tarjeta orientada a la cámara que el runtime dibuja en lugar de los clústeres de una raíz conmutada.",
+    "members": {
+      "root": "Rango de la raíz a la que reemplaza en los `roots` del plan.",
+      "mesh": "Su número de malla compilado.",
+      "world": "La matriz en el mundo de la raíz, tal como se da.",
+      "centre": "Pivote en el espacio del mundo, el centro de la esfera envolvente bajo el mundo de la raíz.",
+      "radius": "Radio en el espacio del mundo `R = objectRadius × la escala del mundo de la raíz`.",
+      "frames": "Fotogramas por lado.",
+      "hemi": "Si los fotogramas son hemi-octaédricos superiores.",
+      "maps": "Los tres mapas que muestrea la tarjeta: color+cobertura, normal+profundidad, ORM empaquetado."
+    }
+  },
+  "ImpostorLevel": {
+    "summary": "Un nivel almacenado de un mapa de atlas: un objeto PNG sin pérdidas, uno por dirección de contenido.",
+    "members": {
+      "url": "De dónde se leen los bytes del nivel.",
+      "sha256": "Huella de sus bytes.",
+      "bytes": "Su tamaño.",
+      "width": "Su anchura en téxeles.",
+      "height": "Su altura en téxeles."
+    }
+  },
+  "ImpostorMap": {
+    "summary": "Un mapa del atlas y su cadena de mipmaps, el nivel 0 primero.",
+    "members": {
+      "kind": "`coverage` para la cadena de color, `data` para las demás.",
+      "levels": "Cada nivel que conservó el horneado."
+    }
+  },
+  "ImpostorMaps": {
+    "summary": "Los tres mapas que muestrea una tarjeta: color y cobertura, normal y profundidad, ORM empaquetado.",
+    "members": {
+      "colourCoverage": "Color base (sRGB) y cobertura en el alfa.",
+      "normalDepth": "Normal del objeto como `n·½+½` y profundidad `D` en el alfa.",
+      "orm": "Oclusión, rugosidad y metalicidad."
+    }
+  },
+  "ImpostorMesh": {
+    "summary": "El veredicto del compilador sobre una malla dibujada: horneada, con su atlas, o rechazada, con su motivo.",
+    "members": {
+      "mesh": "Su número de malla compilado.",
+      "sourceMesh": "Su número de malla de origen.",
+      "name": "Su nombre.",
+      "placements": "Cuántos nodos lo colocan.",
+      "masked": "Si un material de la malla recorta su cobertura a máscara.",
+      "rootTriangles": "Los triángulos de la raíz del DAG, sumados sobre las primitivas de la malla.",
+      "radius": "Su radio envolvente en unidades del mundo (radio del objeto por la mayor escala de colocación).",
+      "status": "`baked` o `refused`.",
+      "coverage": "Cobertura media de los fotogramas, en una entrada `baked`: `c` de la conmutación.",
+      "hemi": "Si los fotogramas son hemi-octaédricos superiores.",
+      "frames": "Fotogramas por lado.",
+      "frameSide": "Lado del fotograma en téxeles: `r_f` de la conmutación.",
+      "atlasSide": "Lado del atlas en téxeles (`frames · frameSide`).",
+      "centre": "Pivote en el espacio del objeto, el centro de la esfera envolvente.",
+      "objectRadius": "Radio envolvente en el espacio del objeto, antes de la escala de colocación.",
+      "bytes": "Bytes de cada nivel almacenado.",
+      "maps": "Los tres mapas, en una entrada `baked`.",
+      "switchDepth": "Las distancias de referencia horneadas.",
+      "reason": "Por qué se rechazó una malla: su código.",
+      "detail": "Una frase que da los números que decidieron un rechazo."
+    }
+  },
+  "ImpostorPlan": {
+    "summary": "El veredicto de la conmutación: las tarjetas a dibujar y las raíces cuyos clústeres suprime.",
+    "members": {
+      "cards": "Una tarjeta por raíz conmutada, en orden de raíz.",
+      "switched": "Rangos de raíz que suprime la conmutación: 1 en una raíz conmutada, 0 en el resto."
+    }
+  },
+  "ImpostorRoot": {
+    "summary": "Lo que el plan necesita de una raíz: su número de malla compilado y la matriz en el mundo que la coloca.",
+    "members": {
+      "mesh": "Número de malla compilado (`Primitive.mesh`); ausente en una raíz que ningún impostor puede reemplazar.",
+      "world": "Matriz en el mundo de la colocación, por columnas (`MatrixElements`)."
+    }
+  },
+  "ImpostorSection": {
+    "summary": "La sección `impostors` del manifiesto: el veredicto del compilador sobre cada malla dibujada.",
+    "members": {
+      "version": "Versión del formato.",
+      "frames": "Fotogramas por lado con los que se horneó cada atlas de la sección.",
+      "focalPixels": "La distancia focal en píxeles con la que el horneado juzgó las distancias.",
+      "textureLimit": "Mayor lado de atlas que sostiene una tarjeta.",
+      "baked": "Cuántas mallas se hornearon.",
+      "refused": "Cuántas se rechazaron.",
+      "meshes": "El veredicto de cada malla, en orden de origen."
+    }
+  },
+  "ImpostorSwitchDepth": {
+    "summary": "Las dos distancias de referencia horneadas, en metros con los `focalPixels` del manifiesto (#817).",
+    "members": {
+      "texel": "`z_tex`: desde aquí, el fotograma es como máximo un téxel por píxel.",
+      "triangles": "`z_tri`: desde aquí, la raíz supera en número a los píxeles que cubre."
+    }
+  },
+  "ImpostorSwitchInput": {
+    "summary": "Los cuatro números horneados que lee la conmutación, más la escala de colocación.",
+    "members": {
+      "objectRadius": "Radio envolvente en el espacio del objeto `objectRadius`.",
+      "rootTriangles": "Los triángulos de la raíz del DAG `T`.",
+      "coverage": "La cobertura media horneada `c`.",
+      "frameSide": "El lado del fotograma en téxeles `r_f`.",
+      "maxWorldScale": "Mayor escala del mundo de las colocaciones de la malla; uno cuando se desconoce."
+    }
+  },
+  "assertImpostorSection": {
+    "summary": "Lanza el rechazo de caché con nombre que lleva la sección, o la devuelve sin cambios."
+  },
+  "cellWeights": {
+    "summary": "Los tres fotogramas que mezcla una vista en la posición de rejilla `g`, y sus pesos baricéntricos."
+  },
+  "drawsImpostor": {
+    "summary": "Si el impostor dibuja en `viewDepth`, la profundidad de vista del pivote en metros."
+  },
+  "impostorBakedByMesh": {
+    "summary": "Las mallas horneadas de la sección, indexadas por su número de malla compilado; las entradas rechazadas quedan fuera."
+  },
+  "impostorMeshBaked": {
+    "summary": "Si una entrada de malla lleva un atlas dibujable: `baked` con sus tres mapas y un lado de fotograma."
+  },
+  "impostorRadius": {
+    "summary": "`R`: el radio en el espacio del objeto con la mayor escala del mundo que le da una colocación de la malla."
+  },
+  "impostorSwitchDepth": {
+    "summary": "`z_s = max(z_tex, z_tri)` en metros para la distancia focal `focalPixels` del runtime."
+  },
+  "impostorSwitchOf": {
+    "summary": "La entrada de conmutación que lleva una entrada de manifiesto horneada, o `undefined` cuando la entrada se rechaza o pierde uno de los cuatro números.",
+    "description": "Un objeto es elegible solo cuando su malla tiene una entrada `baked`."
+  },
+  "impostorTexelDepth": {
+    "summary": "`z_tex`: la profundidad desde la que un fotograma de `frameSide` téxeles es como máximo un téxel por píxel."
+  },
+  "impostorTriangleDepth": {
+    "summary": "`z_tri`: la profundidad desde la que los `rootTriangles` de la raíz superan a los píxeles que cubre."
+  },
+  "octDecode": {
+    "summary": "Coordenadas de rejilla `f ∈ [0, 1]²` de vuelta a una dirección unitaria, la inversa de `octEncode`."
+  },
+  "octEncode": {
+    "summary": "Dirección `d` al plano `[-1, 1]²`: el octaedro completo, o el hemi-octaedro superior."
+  },
+  "planImpostors": {
+    "summary": "Planifica el nivel de impostores para una vista: cada raíz cuya malla tiene una entrada horneada y cuya conmutación se mantiene produce una tarjeta y se marca como suprimida.",
+    "description": "`view` lleva el mundo al espacio de vista (por columnas) y `focalPixels` es la única distancia focal del motor en píxeles en el viewport de la imagen."
+  },
+  "validateImpostorSection": {
+    "summary": "Un motivo breve por el que la sección no se puede usar, o `null`.",
+    "description": "Una sección ausente no es un error: una caché anterior a ella dibuja cada malla completa, como antes. Una presente se rechaza en conjunto cuando su versión es desconocida o una entrada `baked` carece de los números que necesitan su conmutación y su tarjeta."
   }
 }
