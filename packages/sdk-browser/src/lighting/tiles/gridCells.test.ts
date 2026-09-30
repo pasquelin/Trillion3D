@@ -10,16 +10,18 @@ import assert from 'node:assert/strict';
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import {
   GRID,
-  NEWTON_STEPS,
-  RUN_MARGIN,
   cellColumn,
-  columnFrame,
   gridSlice,
-  lightRun,
   sphereInColumn,
   toTileFrame,
   type TileView,
 } from '../../../../../bench/oracles/browser/gpuLightGridOracle.ts';
+import {
+  NEWTON_STEPS,
+  RUN_MARGIN,
+  columnFrame,
+  lightRun,
+} from '../../../../../bench/oracles/browser/gpuLightGridRunOracle.ts';
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
 import { NEAR, camera, pixelPoint, type Vec3 } from './tileCamera.fixture.ts';
 import { GRID_BOUNDS_WGSL } from './boundsWgsl.ts';
