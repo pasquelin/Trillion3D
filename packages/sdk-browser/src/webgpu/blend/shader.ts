@@ -26,10 +26,9 @@ import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from '../water/surfaceWgsl.ts';
 import { INSTANCE_CULL_SHIFT, INSTANCE_ITEM_MASK } from './runs.ts';
 import { FACING_DROP, FACING_SHIFT, FACING_WGSL } from './facing.ts';
 import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from './displayFilter.ts';
-/** The view uniform of the pass (`uniforms.ts`), for the two forward stages here and the water
- *  composite; `exposure` and `toneCurve` are the composition's (`displayFilter.ts`). */
+/** The pass's view uniform (`uniforms.ts`), the water composite's too (`displayFilter.ts`). */
 export const BLEND_VIEW_WGSL = `struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,pixelScale:f32,viewport:vec2f,eye:vec4f,pixelRatio:f32,mipBias:f32,exposure:f32,toneCurve:u32,}`;
-export const BLEND_SHADER = `${BLEND_VIEW_WGSL}
+export const blendShader = (pages?: number) => `${BLEND_VIEW_WGSL}
 ${BLEND_ITEM_WGSL}
 @group(0) @binding(${BLEND_BINDINGS.indices}) var<storage, read> indices:array<u32>;
 @group(0) @binding(${BLEND_BINDINGS.positions}) var<storage, read> positions:array<f32>;
@@ -45,7 +44,7 @@ ${PAGE_GEOMETRY_WGSL}
 ${VERT_NORMAL_WGSL}
 ${PAGE_NORMAL_WGSL}
 ${STANDARD_LIGHTING_WGSL}
-${declaredLightingWgsl(BLEND_BINDINGS.proxy, BLEND_BINDINGS.shadowData, BLEND_BINDINGS.shadowTransmittance)}
+${declaredLightingWgsl(BLEND_BINDINGS.proxy, BLEND_BINDINGS.shadowData, BLEND_BINDINGS.shadowTransmittance, pages)}
 ${bounceApplyWgsl(BLEND_BINDINGS.bounceGrid, BLEND_BINDINGS.probes)}
 ${bounceReflectionWgsl(BLEND_BINDINGS.surfaceCache)}
 ${MIRROR_LIGHTING_WGSL.replace(')*reflectedRadiance(', ')*resolvedRadiance(')}
@@ -198,3 +197,4 @@ fn blendFragment(in:VSOut,front:bool,masked:f32)->BlendOut{
 @fragment fn fs(in:VSOut,@builtin(front_facing) front:bool)->BlendOut{return blendFragment(in,front,0.0);}
 @fragment fn fsFiltered(in:VSOut,@builtin(front_facing) front:bool)->BlendOut{return blendFragment(in,front,maskAt(in.position));}
 `;
+export const BLEND_SHADER = blendShader();
