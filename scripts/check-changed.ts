@@ -1,7 +1,14 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { relatedTests } from './affected-tests.ts';
-import { changedSteps, formatPattern, isCodeChange, sourcePattern } from './changed-steps.ts';
+import {
+  changedSteps,
+  formatPattern,
+  isCodeChange,
+  isDocumentation,
+  sourcePattern,
+} from './changed-steps.ts';
+import { documentationTests } from './docs-tests.ts';
 import { generateApiFiles } from './generate-api-reference.ts';
 import { gitPaths } from './git-paths.ts';
 import { heavyStep } from './heavy-lock.ts';
@@ -10,7 +17,7 @@ import { repositoryFiles } from './repository-files.ts';
 import { run } from './run.ts';
 import { compileSiteCaches } from './site-caches.ts';
 import { changedTypeErrors, tsProjects } from './ts-projects.ts';
-import { testRunFlags } from './unit-tests.ts';
+import { runUnitTests } from './unit-tests.ts';
 
 // `pnpm run check:changed`, the one local gate: the gates of `validate` on the changed files, and
 // the unit tests the change can affect (`scripts/affected-tests.ts`), capped and run one heavy step
@@ -35,7 +42,13 @@ async function main(): Promise<void> {
       .filter((file) => code && sourcePattern.test(file) && existsSync(file))
       .map((file): [string, string] => [file, readFileSync(file, 'utf8')]),
   );
-  const testFiles = relatedTests(files, changed);
+  // A documentation change also runs the tests that read documentation (`scripts/docs-tests.ts`).
+  const testFiles = [
+    ...new Set([
+      ...relatedTests(files, changed),
+      ...([...changed].some(isDocumentation) ? documentationTests(paths) : []),
+    ]),
+  ];
   console.log(`Changed files: ${existing.length}; related tests: ${testFiles.length}`);
   const linted = existing.filter((file) => sourcePattern.test(file));
   for (const step of changedSteps([...changed], existing, testFiles.length))
@@ -84,20 +97,16 @@ async function main(): Promise<void> {
         heavyStep('clippy', runRust);
         break;
       case 'tests':
-        heavyStep('test', () =>
-          run('node', [
-            '--experimental-strip-types',
-            '--test',
-            ...testRunFlags(process.env),
-            ...testFiles,
-          ]),
-        );
+        runUnitTests(testFiles);
         break;
       // `check:x` is `node scripts/check-x.ts`, run directly: `pnpm run` would add a second to each.
       default:
         run('node', [`scripts/${step.replace(':', '-')}.ts`]);
     }
-  if (!code) console.log('Documentation only: no API generation, scene cache, type check or test.');
+  if (!code)
+    console.log(
+      'Documentation only: no API generation, scene cache or type check; its tests only.',
+    );
   else if (!testFiles.length) console.log('No related unit test; the CI runs the whole suite.');
 }
 

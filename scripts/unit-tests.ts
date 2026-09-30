@@ -1,3 +1,6 @@
+import { heavyStep } from './heavy-lock.ts';
+import { run } from './run.ts';
+
 /** Every maintained unit test: the one rule `pnpm test` and `check:changed` both read. */
 export function isUnitTest(file: string): boolean {
   return /^(?:packages|bench|tests|scripts|site\/examples\/kit)\/.*\.test\.(?:ts|mts)$/.test(file);
@@ -20,4 +23,10 @@ export function testRunFlags(env: NodeJS.ProcessEnv): string[] {
   if (env.TRILLION3D_TEST_SHARD) return [`--test-shard=${env.TRILLION3D_TEST_SHARD}`];
   if (env.CI) return [];
   return [`--test-concurrency=${env.TRILLION3D_TEST_CONCURRENCY || '2'}`];
+}
+
+/** Runs `files` under `node --test`, one heavy step on the machine, capped locally. */
+export function runUnitTests(files: readonly string[]): void {
+  const args = ['--experimental-strip-types', '--test', ...testRunFlags(process.env), ...files];
+  heavyStep('test', () => run(process.execPath, args));
 }
