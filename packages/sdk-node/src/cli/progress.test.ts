@@ -108,26 +108,21 @@ test('batch progress opens one line per job id and ignores batch-level lines', (
   assert.match(text, /2\/2 b/);
   assert.match(text, /✔ 1\/2 a 1 triangles/);
 });
+/** A primitive's DAG warning, its stall a locked seam. */
+const warning = (code: DagWarning['code'], roots: number, pages: number): DagWarning => ({
+  code,
+  roots,
+  pages,
+  groups: { seamLocked: 1 },
+  rootTriangles: 640,
+  ...{ cause: 'seam-locked', seamVertices: 30, lockedVertices: 4, uvIslands: 9 },
+});
 // Behaviour: warnings are counted while the job compiles and told once at its end — one line per
 // code, with its public code, count, worst case and documentation page — never one line per
 // primitive; an info code stays silent unless asked for.
 test('many flagged primitives are summarised in one line per code when the job completes', () => {
   const out = capture();
   const progress = createTerminalProgress({ label: 'village', stream: out.stream });
-  const stalls = {
-    cause: 'seam-locked' as const,
-    seamVertices: 30,
-    lockedVertices: 4,
-    uvIslands: 9,
-  };
-  const warning = (code: DagWarning['code'], roots: number, pages: number): DagWarning => ({
-    code,
-    roots,
-    pages,
-    groups: { seamLocked: 1 },
-    rootTriangles: 640,
-    ...stalls,
-  });
   const primitive = (mesh: number, warnings: DagWarning[]) =>
     progress.event({
       event: 'progress',
@@ -180,19 +175,7 @@ test('verbose adds the info codes and every occurrence under a single line per c
       phase: 'primitive',
       mesh,
       primitive: 0,
-      warnings: [
-        {
-          code: 'DAG_FLAT',
-          roots: mesh,
-          pages: 9,
-          groups: {},
-          rootTriangles: 0,
-          cause: 'seam-locked',
-          seamVertices: 0,
-          lockedVertices: 0,
-          uvIslands: 0,
-        },
-      ],
+      warnings: [warning('DAG_FLAT', mesh, 9)],
     });
   progress.event({ event: 'complete', job: 'job', ratio: 1, pointer: { primitives: 2 } });
   const text = out.text();
