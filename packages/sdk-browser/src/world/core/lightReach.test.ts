@@ -15,13 +15,11 @@ test('the quantum is the audit floor at ACES and exposure 1, and follows exposur
   for (const exposure of [2, 4, 8])
     assert.ok(
       Math.abs(perceptibleQuantum({ exposure, toneMapping: 'aces' }) - 1e-2 / exposure) < 1e-12,
-      `exposure ${exposure} halves the floor`,
+      `exposure ${exposure} divides the floor`,
     );
-  assert.equal(
-    perceptibleQuantum({ exposure: 2, toneMapping: 'linear' }),
-    perceptibleQuantum({ exposure: 2, toneMapping: 'aces' }) / 3.334,
-    'a flatter curve cuts no deeper than the steeper one',
-  );
+  const linear = perceptibleQuantum({ exposure: 2, toneMapping: 'linear' });
+  const aces = perceptibleQuantum({ exposure: 2, toneMapping: 'aces' });
+  assert.ok(Math.abs(linear - aces / 3.334) < 1e-15, 'a flatter curve cuts no deeper');
   for (const exposure of [0, -1, NaN, Infinity])
     assert.equal(perceptibleQuantum({ exposure, toneMapping: 'aces' }), 0, `${exposure}`);
   assert.equal(perceptibleQuantum({ exposure: 1, toneMapping: 'agx' }), 0, 'an unbounded curve');
@@ -69,4 +67,23 @@ test('a record keeps a range its emitter needs, and a rectangle its own', () => 
   const panel = lamp({ kind: 'rect' });
   boundReach(panel, quantum);
   assert.equal(panel.range, 30);
+});
+
+/**
+ * The decision evidence (#958): the cut on `aerial-410` (`bench/runner/scenes/aerial.ts`, 600
+ * point lamps of 400 cd authored to 18 m). The compiler publishes W/sr, one candela being 1/683
+ * W/sr (`asset-compiler-rust/src/compiler_lights.rs`, `LUMENS_PER_WATT`). Range math alone, no
+ * Chrome: at ACES and exposure 1 the cut is the audit's own.
+ */
+test('on aerial-410 the cut takes the audit gain: range -56.79 %, shadow footprint -81.3 %', () => {
+  const range = 18;
+  const reach = visibleReach(
+    range,
+    400 / 683,
+    perceptibleQuantum({ exposure: 1, toneMapping: 'aces' }),
+  );
+  assert.ok(Math.abs(reach - 7.7775) < 0.01, `the audit's cut is ${reach} m`);
+  assert.ok(Math.abs(1 - reach / range - 0.5679) < 0.005, `the range gain is ${1 - reach / range}`);
+  const footprint = 1 - (reach / range) ** 2;
+  assert.ok(Math.abs(footprint - 0.813) < 0.01, `the shadow-footprint gain is ${footprint}`);
 });

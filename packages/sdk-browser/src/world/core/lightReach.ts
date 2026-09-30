@@ -14,49 +14,39 @@
  * old window is left, decreasing, and under it. So the worst change anywhere is `I/R² · g(s)`.
  *
  * Invariant: a reach is never longer than the authored range, and never shorter than the lamp's
- * emitter. The quantum the change is held to is CMP-16's pre-exposure irradiance floor (the
- * audit's own 0.01 W/m²), made exposure- and curve-aware: divided by the frame's exposure and
- * scaled by the display curve's own steepness, so a rising auto-exposure lengthens the reach at
- * once — no pop — and a flatter curve cuts no deeper than the steeper one.
+ * emitter. The quantum `g` is held to is CMP-16's irradiance floor divided by the frame's exposure
+ * and scaled by the curve's steepness, so a rising auto-exposure lengthens the reach at once — no
+ * pop — and a flatter curve cuts no deeper than the steeper one.
  */
 import type { SceneEnvironment } from '../../../../sdk-core/src/scene/core/environment.ts';
 import type { SceneLight } from '../../../../sdk-core/src/scene/light/contracts.ts';
 
-/** The audit's pre-exposure irradiance floor (W/m², `958-audit-cut` @ `e0c89bb2c`): the cut's
- *  reference under ACES at exposure 1, where it takes a 400 cd lamp authored to 18 m down to
- *  7.7775 m (range −56.79 %, shadow footprint −81.3 %). */
+/** CMP-16's pre-exposure irradiance floor, W/m² (`958-audit-cut` @ `e0c89bb2c`), stated under ACES
+ *  at exposure 1. */
 const AUDIT_IRRADIANCE = 1e-2;
-/** The sRGB transfer's steepest slope: its linear foot, 12.92; its power part stays under it. */
-const SRGB_SLOPE = 12.92;
 /**
- * The steepest the display curve and the sRGB transfer move an output channel per unit of any mix
- * of input channels. `none`, `linear` and `reinhard` act channel by channel, slope at most one.
- * ACES (`lighting/toneCurveConstants.ts`): its 1/0.6 scale, its input rows summing to one, its
- * rational fit's steepest slope 0.90513 and its output's largest row sum 2.2095 give 3.3332,
- * rounded up. The steeper the chain, the smaller the irradiance change it shows.
+ * Each bounded display curve's steepness relative to ACES, the curve the floor is stated at:
+ * `none`, `linear` and `reinhard` act channel by channel, slope at most one; ACES
+ * (`lighting/toneCurveConstants.ts`) is 3.334 times steeper (its 1/0.6 scale, its rational fit's
+ * steepest slope 0.90513 and its output's largest row sum 2.2095). AgX's logarithm is unbounded
+ * near black, so it has none and keeps its ranges.
  */
-const DISPLAY_SLOPE: Partial<Record<Display['toneMapping'], number>> = {
-  none: SRGB_SLOPE,
-  linear: SRGB_SLOPE,
-  reinhard: SRGB_SLOPE,
-  aces: SRGB_SLOPE * 3.334,
+const CURVE_SCALE: Partial<Record<Display['toneMapping'], number>> = {
+  none: 1 / 3.334,
+  linear: 1 / 3.334,
+  reinhard: 1 / 3.334,
+  aces: 1,
 };
-/** The curve the floor is stated at, ACES's steepest. */
-const REFERENCE_SLOPE = DISPLAY_SLOPE['aces']!;
 
 /** What the frame does to radiance before it is shown: its exposure and its display curve. */
 export type Display = Required<Pick<SceneEnvironment, 'exposure' | 'toneMapping'>>;
 
-/**
- * The irradiance step the frame's exposure and curve make perceptible: the audit's floor at ACES
- * and exposure 1, divided by the exposure and scaled by the curve's own steepness relative to
- * ACES. A rising exposure lengthens a reach at once, so a fade never steps. With no slope (an
- * unbounded curve) or a non-positive, non-finite exposure it gives 0: the range stays.
- */
+/** The irradiance step the frame makes perceptible, or 0 (the range stays) for a curve with no
+ *  scale or a non-positive, non-finite exposure. */
 export function perceptibleQuantum({ exposure, toneMapping }: Display): number {
-  const slope = DISPLAY_SLOPE[toneMapping];
-  return slope && exposure > 0 && Number.isFinite(exposure)
-    ? AUDIT_IRRADIANCE / (exposure * (REFERENCE_SLOPE / slope))
+  const scale = CURVE_SCALE[toneMapping];
+  return scale && exposure > 0 && Number.isFinite(exposure)
+    ? (AUDIT_IRRADIANCE * scale) / exposure
     : 0;
 }
 
