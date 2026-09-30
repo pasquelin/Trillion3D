@@ -67,17 +67,19 @@ export function impostorBakedByMesh(
   section: ImpostorSection | undefined,
 ): Map<number, ImpostorMesh & { maps: ImpostorMaps; frames: number; frameSide: number }> {
   const byMesh: BakedByMesh = new Map();
-  for (const mesh of section?.meshes ?? [])
-    if (impostorMeshBaked(mesh)) byMesh.set(mesh.mesh, mesh);
+  if (section)
+    for (const mesh of section.meshes) if (impostorMeshBaked(mesh)) byMesh.set(mesh.mesh, mesh);
   return byMesh;
 }
 
 /** Baked meshes by mesh number: each entry holds the maps, frames and frame side the card reads. */
 type BakedByMesh = ReturnType<typeof impostorBakedByMesh>;
-const EMPTY_MESHES: BakedByMesh = new Map();
+/** The same, read by a root's mesh number, which a root no impostor may replace lacks. */
+type BakedLookup = ReadonlyMap<number | undefined, NonNullable<ReturnType<BakedByMesh['get']>>>;
+const EMPTY_MESHES: BakedLookup = new Map();
 /** The section's baked meshes, built once per section: the plan runs every frame, the map does not. */
-const bakedBySection = new WeakMap<ImpostorSection, BakedByMesh>();
-function bakedLookup(section: ImpostorSection | undefined): BakedByMesh {
+const bakedBySection = new WeakMap<ImpostorSection, BakedLookup>();
+function bakedLookup(section: ImpostorSection | undefined): BakedLookup {
   if (!section) return EMPTY_MESHES;
   let byMesh = bakedBySection.get(section);
   if (!byMesh) bakedBySection.set(section, (byMesh = impostorBakedByMesh(section)));
@@ -101,7 +103,7 @@ export function planImpostors(
   const point = new Float64Array(3);
   for (let rank = 0; rank < roots.length; rank++) {
     const root = roots[rank],
-      entry = root.mesh === undefined ? undefined : byMesh.get(root.mesh);
+      entry = byMesh.get(root.mesh);
     if (!entry) continue;
     const input = impostorSwitchOf(entry, maxStretch(root.world.elements));
     if (!input) continue;
