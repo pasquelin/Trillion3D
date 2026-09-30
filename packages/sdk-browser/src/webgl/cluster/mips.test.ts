@@ -107,10 +107,10 @@ test('a still scene files each surface once across frames, a hidden opaque one i
   const follow = t.mock.method(CoverageReaders.prototype, 'follow');
   const map = new G.GraphTexture({ width: 4, height: 4 } as TexImageSource);
   const geometry = G.boxGeometry();
-  const hidden = G.mesh(geometry, G.standardSurface({ map }));
+  const hidden = G.mesh(geometry, new G.GraphSurface('lambert', { map }));
   hidden.visible = false;
   const scene = new G.Scene();
-  scene.add(G.mesh(geometry, G.standardSurface({ map, alphaTest: 0.5 })), hidden);
+  scene.add(G.mesh(geometry, new G.GraphSurface('lambert', { map, alphaTest: 0.5 })), hidden);
   const gl = context();
   const draw = createSceneDraw(gl.gl, scene);
   for (let frame = 0; frame < 3; frame++) {
@@ -128,7 +128,7 @@ test('a still scene files each surface once across frames, a hidden opaque one i
 test('a world texel map is uploaded as stored, with its box chain', () => {
   const pixels = new Uint8Array(4 * 4 * 4).fill(128);
   const scene = new G.Scene();
-  const surface = material.meshStandard({ normalMap: texture.data(pixels, 4, 4) });
+  const surface = material.meshLambert({ normalMap: texture.data(pixels, 4, 4) });
   scene.add(G.mesh(G.boxGeometry(), hostSurface(surface, false, new Map())));
   const gl = context();
   const draw = createSceneDraw(gl.gl, scene);

@@ -42,8 +42,8 @@ export function machine(t: TestContext, pointer: URL) {
   const answers: Record<string, unknown> = {
     then: undefined, // not a promise
     isContextLost: () => false,
-    getSupportedExtensions: () => [],
-    getExtension: () => null,
+    getSupportedExtensions: () => ['EXT_color_buffer_half_float'],
+    getExtension: (name: string) => (name === 'EXT_color_buffer_half_float' ? {} : null),
     checkFramebufferStatus: () => 1, // every constant is 1: complete
     canvas,
   };

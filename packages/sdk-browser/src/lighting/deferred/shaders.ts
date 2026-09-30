@@ -1,3 +1,6 @@
+import { contractSurfaceBody } from './surfaceWgsl.ts';
+import { SUBSURFACE_BINDING } from '../../scene/subsurface.ts';
+import { SHADING_OFFSET_BINDING } from '../../visibility/shader/shadingPoint.ts';
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts';
 import { directLightingWgsl } from '../direct/lightingWgsl.ts';
 import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
@@ -8,7 +11,7 @@ import {
   bounceReflectionWgsl,
 } from '../../bounce/reflectWgsl.ts';
 import { TONE_MAPPING_WGSL } from '../toneMappingWgsl.ts';
-import { AS_IS_FLAG, FOG_FREE_SURFACE_FLAG } from '../../scene/surfaceModel.ts';
+import { AS_IS_FLAG } from '../../scene/surfaceModel.ts';
 import { BLOOM_COMPOSE_WGSL } from '../../effects/bloomLevel.ts';
 
 export const FULLSCREEN_VERTEX = `@vertex fn fullscreen(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return vec4f(f32(i32(i&1u)*4-1),f32(i32(i>>1u)*4-1),0.0,1.0);}`;
@@ -62,34 +65,20 @@ export const CONTRACT_BINDINGS_WGSL = `
 @group(0) @binding(9) var shadowAtlas:texture_depth_2d_array;
 @group(0) @binding(10) var shadowSampler:sampler_comparison;`;
 /** Shared body of the two contract programs: only the bounce lines separate them. */
-const contractSurface = (bounce: string, diagnostic = '') => `
-${FULLSCREEN_VERTEX}
+const contractSurface = (bounce: string, diagnostic = '') =>
+  `${FULLSCREEN_VERTEX}
 ${WORLD_AT_WGSL}
-@fragment fn lightSurface(@builtin(position) pixel:vec4f)->@location(0) vec4f{
- let coord=vec2i(pixel.xy);let surfaceFlag=textureLoad(flags,coord,0).r;let flag=surfaceFlag&${FOG_FREE_SURFACE_FLAG - 1}u;
- if(flag==0u){return vec4f(0.0);}
- let base=textureLoad(baseMetal,coord,0);
- if(flag==${AS_IS_FLAG}u){return vec4f(base.rgb,1.0);}
- let z=textureLoad(depth,coord,0);
- let P=worldAt(pixel.xy,z);
- if(flag==1u){var rgb=base.rgb;if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){rgb=fogged(rgb,P,view.display.yzw);}return vec4f(rgb,1.0);}
- let normal=textureLoad(normalRough,coord,0);let emissive=textureLoad(emissiveAo,coord,0);
- // Its footprint at its depth, the unit of its shadow level; a lane in the target asks per subgroup.
- shadowFootprint=length(worldAt(pixel.xy+vec2f(1.0,0.0),z)-P);shadowRequesting=all(vec2u(pixel.xy)<textureDimensions(depth));
- let V=normalize(view.camera.xyz-P*view.camera.w);let N=normalize(normal.xyz);
- surfaceModel=flag;
- ${diagnostic}
- let lit=contractLighting(base.rgb,base.a,normal.a,N,V,P,emissive.a,pixel.xy);
- let ambient=environmentLighting(base.rgb,base.a,N,emissive.a);
- var rgb=lit+ambient+emissive.rgb${bounce};if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){rgb=fogged(rgb,P,view.display.yzw);}
- return vec4f(rgb,1.0);
-}`;
+${contractSurfaceBody(bounce, diagnostic)}`;
 /** The bounce program's surface: bounced light and what a mirror reflects, added to the direct. */
 const BOUNCE_SURFACE_WGSL = `${BOUNCE_APPLY_WGSL}
 ${bounceReflectionWgsl(BOUNCE_SURFACE_BINDING)}
 ${MIRROR_LIGHTING_WGSL}
+fn thinBounce(N:vec3f,P:vec3f,ao:f32)->vec3f{
+ if(!any(thinSubsurface>vec3f(0.0))){return vec3f(0.0);}
+ return bounceLighting(thinSubsurface,0.0,-N,P,ao);
+}
 ${contractSurface(
-  '+bounceLighting(base.rgb,base.a,N,P,emissive.a)+mirrorLighting(base.rgb,base.a,normal.a,N,V,P)',
+  '+bounceLighting(base.rgb,base.a,N,P,emissive.a)+thinBounce(N,P,emissive.a)+mirrorLighting(base.rgb,base.a,normal.a,N,V,P)',
   'if(bounceOnly()){return vec4f(bounceIrradiance(N,P,view.lightParams.w),1.0);}',
 )}`;
 /** Contract program: deferred resolve lit by the declared lights only, with their shadows, seen
@@ -104,6 +93,8 @@ ${contractSurface(
 export const contractLightingShader = (bounce: boolean, narrow: boolean, pages = SUN_WINDOW) => `
 ${VIEW_WGSL}
 ${surfaceBindingsWgsl()}
+@group(0) @binding(${SUBSURFACE_BINDING}) var subsurfaceColor:texture_2d<f32>;
+@group(0) @binding(${SHADING_OFFSET_BINDING}) var<storage,read> shadingOffset:array<f32>;
 ${CONTRACT_BINDINGS_WGSL}
 ${STANDARD_LIGHTING_WGSL}
 ${directLightingWgsl(narrow, pages)}

@@ -13,7 +13,9 @@ import {
   PAGE_VALID,
   SUN_DEPTH_RANGES,
   SUN_LEVELS,
+  SUN_LEVEL_ENTRIES,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
 import { createShadowRecordPack } from '../../gpu/shadow/recordPack.ts';
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
@@ -24,10 +26,12 @@ import { directShadowWgsl } from './shadowWgsl.ts';
 /** The shipped shadow read: `shadowPcf`, its helpers, and `SHADOW_FACTOR_WGSL` after them. */
 export const SHADOW_WGSL = directShadowWgsl(0, null, 1);
 
-/** Its literal constants, and `SHADOW_SUBTEXEL`, which it computes from one of them. */
+/** Its literal constants, `SHADOW_SUBTEXEL`, which it computes from one of them, and the words of
+ *  a sun level develop's read below indexes with. */
 export const CONSTANTS: Record<string, number> = {
   ...wgslConstants(SHADOW_WGSL),
   SHADOW_SUBTEXEL: 1 / SHADOW_SUBTEXELS,
+  SUN_LEVEL_WORDS: SUN_LEVEL_ENTRIES,
 };
 
 /** Develop's `sunShadowFactor` before #991, its code verbatim: one reference,
@@ -131,13 +135,8 @@ type Range = { sunRangeReference: (index: number, drawn: number, z: number) => n
 export const rangeReference = (record: object) =>
   shaderRun<Range>(SHADOW_WGSL, ['sunRangeReference'], recordScope(record)).sunRangeReference;
 
-const NAMES = [
-  'sunShadowFactor',
-  'shadowNormalTexels',
-  'shadowDepthMargin',
-  'shadowRing',
-  'sunOrigin',
-];
+const NAMES = ['sunShadowFactor', 'shadowNormalTexels', 'shadowDepthMargin', 'sunOrigin'];
+NAMES.push('sunReadAt', ...PAGE_MODEL_FUNCTIONS);
 
 /** What `sunRead` swaps per call — the record and page table read, the spies — so that each text
  *  compiles once per footprint, a module-scope value the translated functions take as they start. */
@@ -152,6 +151,12 @@ const liveScope = { ...CONSTANTS, shadows: live };
 const liveRange = shaderRun<Range>(SHADOW_WGSL, ['sunRangeReference'], liveScope).sunRangeReference;
 const compiled = new Map<string, Map<number, Factor['sunShadowFactor']>>();
 
+/** A WGSL structure's constructor: its members by name, in order. */
+const struct =
+  (...names: string[]) =>
+  (...values: unknown[]) =>
+    Object.fromEntries(names.map((name, i) => [name, values[i]]));
+
 function factorOf(source: string, footprint: number) {
   const bySource = compiled.get(source) ?? new Map<number, Factor['sunShadowFactor']>();
   compiled.set(source, bySource);
@@ -160,13 +165,8 @@ function factorOf(source: string, footprint: number) {
     const scope = {
       ...liveScope,
       shadowFootprint: footprint,
-      ShadowMap: (base: number, ring: number, pages: number, ox: number, oy: number) => ({
-        base,
-        ring,
-        pages,
-        ox,
-        oy,
-      }),
+      ShadowAt: struct('map', 't', 'home', 'Q', 'texel'),
+      ShadowMap: struct('base', 'ring', 'pages', 'ox', 'oy'),
       shadowPageWord: (map: { base: number }, home: number[]) => live.word(map.base, home),
       shadowPcf: (...args: unknown[]) => live.pcf.push(args) / 64,
       sunRangeReference: (...args: [number, number, number]) => {

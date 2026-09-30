@@ -26,6 +26,24 @@ test('reflection resources have bounded active/inactive size, use shared depth a
   }
 });
 
+test('opaque rough history follows reflection ownership while mirrors allocate no history', () => {
+  for (const rough of [false, true]) {
+    const gpu = fakeDevice();
+    const reflection = createScreenReflection(
+      gpu.device,
+      64,
+      32,
+      {} as GPUTextureView,
+      true,
+      rough,
+    );
+    assert.equal(reflection.history?.bytes ?? 0, rough ? 64 * 32 * 32 : 0);
+    assert.equal(gpu.textures.length, rough ? 6 : 1);
+    reflection.dispose();
+    assert.equal(gpu.destroyed.length, rough ? 8 : 2);
+  }
+});
+
 test('capture release waits for a late grant, including rejection, before restoring the original reflection', async () => {
   for (const refused of [false, true]) {
     const gpu = fakeDevice(),

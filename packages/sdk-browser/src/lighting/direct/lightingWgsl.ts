@@ -20,8 +20,9 @@ export const CONTRACT_SHADOW_BINDINGS = {
   translucentDepth: 19,
 };
 
-/** The wide resolve's slices: a list, a pool slice past `TILE_LIGHTS`, or every light. */
-const WIDE_SLICE_WGSL = `
+/** A tile's slice of lights: a list, a pool slice past `TILE_LIGHTS`, or every light — what the
+ *  wide resolve walks, and the shadow demand pass (`../../webgpu/shadow/demandWgsl.ts`). */
+export const TILE_SLICE_WGSL = `
 /** Where the lights of a slice of a tile's list start, and how many: its count at countSlot, its
  *  list from firstSlot — past \`TILE_LIGHTS\`, from the start the list's first word names in the
  *  pool (#849). \`TILE_NO_SLICE\` when the pool had no room: every declared light of the scene. */
@@ -30,7 +31,9 @@ fn tileSlice(base:u32,countSlot:u32,firstSlot:u32)->vec2u{
  if(kept<=TILE_LIGHTS){return vec2u(base+firstSlot,kept);}
  let first=tileLights[base+firstSlot];
  return vec2u(first,select(kept,directLights.count,first==TILE_NO_SLICE));
-}
+}`;
+/** The wide resolve's slices (`TILE_SLICE_WGSL`) and their lighting. */
+const WIDE_SLICE_WGSL = `${TILE_SLICE_WGSL}
 /** The lights of a slice (\`tileSlice\`), or from \`TILE_NO_SLICE\` every light of the scene in rank
  *  order: the one loop that shades a pixel's lights in full. A light that misses the point adds
  *  an exact zero. */
@@ -86,18 +89,29 @@ ${directShadowWgsl(shadowBinding, requestBinding, transmittanceBinding, pages)}
 ${SURFACE_MODEL_LIGHT_WGSL}
 ${RECT_SHADING_WGSL}
 ${FOG_WGSL}
+var<private> thinSubsurface:vec3f=vec3f(0.0);
+/** Thin two-sided diffuse transmission: projected back irradiance, normalized over a hemisphere.
+ * Material contract: Epic public Two Sided Foliage; this is our Lambert implementation. */
+fn thinTransmission(cosine:f32,energy:f32)->f32{return max(-cosine,0.0)*energy*${INVERSE_PI};}
 fn declaredLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32)->vec3f{
- if(isRect(light)){return rectLight(light,rgb,metal,rough,N,V,P,ao);}
+ if(isRect(light)){
+  var transmitted=vec3f(0.0);
+  if(any(thinSubsurface>vec3f(0.0))){transmitted=thinSubsurface*rectIrradiance(light,P,-N).w*${INVERSE_PI}*light.colorIntensity.rgb*light.colorIntensity.w;}
+  return rectLight(light,rgb,metal,rough,N,V,P,ao)+transmitted;
+ }
  let incidence=directIncidence(light,P);
  if(incidence.w<=0.0){return vec3f(0.0);}
  // A surface facing away from the light gets its exact zero whatever the shadow: the filter's
  // taps are skipped, never the page reads and requests (\`shadowPcf\`). Toon bands light it.
- let facing=surfaceModel==${MODEL_FLAG.toon}u||select(dot(N,normalize(incidence.xyz)),dot(N,incidence.xyz),surfaceModel==${MODEL_FLAG.diffuse}u)>0.0;
- let shade=shadowFactor(i32(light.params.y),light,P,N,incidence.xyz,facing);
+ let back=any(thinSubsurface>vec3f(0.0))&&dot(N,incidence.xyz)<0.0;
+ let facing=back||surfaceModel==${MODEL_FLAG.toon}u||select(dot(N,normalize(incidence.xyz)),dot(N,incidence.xyz),surfaceModel==${MODEL_FLAG.diffuse}u)>0.0;
+ let shade=shadowFactor(i32(light.params.y),light,P+shadowReceiverOffset,select(N,-N,back),incidence.xyz,facing);
  if(shade<=0.0){return vec3f(0.0);}
  let energy=light.colorIntensity.w*incidence.w*shade;
- if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return modelLight(rgb,metal,N,incidence.xyz,energy,ao)*light.colorIntensity.rgb;}
- return standardLighting(rgb,metal,rough,N,V,vec4f(incidence.xyz,energy))*light.colorIntensity.rgb;
+ let color=light.colorIntensity.rgb*shadowTransmission;
+ let transmitted=thinSubsurface*thinTransmission(dot(N,normalize(incidence.xyz)),energy);
+ if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return (modelLight(rgb,metal,N,incidence.xyz,energy,ao)+transmitted)*color;}
+ return (standardLighting(rgb,metal,rough,N,V,vec4f(incidence.xyz,energy))+transmitted)*color;
 }
 /** The environment's irradiance at the normal N (\`packages/sdk-core/src/scene/core/environment.ts\`), on the diffuse lobe:
  *  what an ambient, a sky over a ground or a probe gives a surface, never shadowed. */

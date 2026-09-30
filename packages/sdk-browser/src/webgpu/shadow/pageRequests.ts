@@ -1,19 +1,27 @@
 import type { ShadowRequestReport } from '../../../../sdk-core/src/scene/light-shadow/requests.ts';
+import type { ShadowPoolSnapshot } from '../../../../sdk-core/src/scene/light-shadow/mirror.ts';
 import { shadowRequestBits } from '../../lighting/direct/shadowRequestWgsl.ts';
 import {
   SUN_WINDOW,
   shadowRequestCap,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { createShadowAllocationBuffers, shadowAllocationBytes } from './allocBuffers.ts';
 
 /** Readback slots in flight at most: a frame whose three predecessors are still mapping asks
  *  again the next frame, which reads the same image. */
 const SLOTS = 3;
-/** Bytes of the request buffer of a pool of `pages`: the count, the list, one bit per table entry. */
+/** Bytes of the request buffer of a pool of `pages` — the count, the list, one bit per table
+ *  entry of the session's `sunWindow` —, and of the buffers its pages are allocated in on the GPU
+ *  (`allocBuffers.ts`). */
 export const shadowRequestBytes = (pages: number, sunWindow = SUN_WINDOW) =>
+  requestBytes(pages, sunWindow) + shadowAllocationBytes(pages);
+const requestBytes = (pages: number, sunWindow = SUN_WINDOW) =>
   (1 + shadowRequestCap(pages) + shadowRequestBits(sunWindow)) * 4;
 
 type Slot = {
   buffer: GPUBuffer;
+  /** The GPU pool the copy carries, when the GPU allocates. */
+  pool: ShadowPoolSnapshot;
   busy: boolean;
   /** The read in progress, once the image that copied it is submitted. */
   reading: Promise<void> | undefined;
@@ -26,11 +34,14 @@ type Slot = {
  * before the resolve of every image that lights — a held image lights nothing and asks for
  * nothing. Each copy carries the frame, the table layout and the plan stamp it was read under, so
  * the scheduler reads it against the right windows and knows whether it proves a settled state.
- * The request buffer is made with the pool, its list as long as `shadowRequestCap` of its `pages`.
+ * The request buffer is made with the pool, its list as long as `shadowRequestCap` of its `pages`,
+ * and so are the buffers the GPU allocates its pages in: while it does, each copy carries the GPU
+ * pool after that frame's allocation too, the snapshot the host pool follows (`mirror.ts`).
  */
 export function createShadowPageRequests(device: GPUDevice, pages: number, sunWindow = SUN_WINDOW) {
   const cap = shadowRequestCap(pages),
-    listBytes = (1 + cap) * 4;
+    listBytes = (1 + cap) * 4,
+    allocation = createShadowAllocationBuffers(device, pages);
   const requestBuffer = device.createBuffer({
     label: 'Trillion3D shadow requests v1',
     size: shadowRequestBytes(pages, sunWindow),
@@ -41,9 +52,17 @@ export function createShadowPageRequests(device: GPUDevice, pages: number, sunWi
     slots.push({
       buffer: device.createBuffer({
         label: 'Trillion3D shadow request readback',
-        size: listBytes,
+        size: listBytes + allocation.snapshotBytes,
         usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
       }),
+      pool: {
+        owner: new Int32Array(pages),
+        requested: new Int32Array(pages),
+        allocated: 0,
+        refused: 0,
+        drawn: 0,
+        listings: 0,
+      },
       busy: false,
       reading: undefined,
       report: {
@@ -58,8 +77,10 @@ export function createShadowPageRequests(device: GPUDevice, pages: number, sunWi
   return {
     /** What the shading records its requests in (`../../lighting/direct/shadowRequestWgsl.ts`). */
     buffer: requestBuffer,
-    /** GPU bytes of the request buffer, counted in the pool (`shadowRequestBytes`). */
-    bytes: requestBuffer.size,
+    /** The buffers the GPU allocates the pool's pages in (`allocBuffers.ts`). */
+    allocation,
+    /** GPU bytes of the request buffer and allocation, counted in the pool (`shadowRequestBytes`). */
+    bytes: requestBuffer.size + allocation.bytes,
     /** Copies waiting for their image to be read back: an image may not hold before they land. */
     get inFlight() {
       return inFlight;
@@ -82,6 +103,8 @@ export function createShadowPageRequests(device: GPUDevice, pages: number, sunWi
       layoutEpoch: number,
       stamp: number,
       deliver: (report: ShadowRequestReport) => void,
+      /** The GPU allocates: the copy carries its pool. */
+      gpuPool = false,
     ) {
       const slot = slots.find((candidate) => !candidate.busy);
       if (!slot) return undefined;
@@ -91,6 +114,15 @@ export function createShadowPageRequests(device: GPUDevice, pages: number, sunWi
       slot.report.layoutEpoch = layoutEpoch;
       slot.report.stamp = stamp;
       encoder.copyBufferToBuffer(requestBuffer, 0, slot.buffer, 0, listBytes);
+      if (gpuPool)
+        encoder.copyBufferToBuffer(
+          allocation.state,
+          0,
+          slot.buffer,
+          listBytes,
+          allocation.snapshotBytes,
+        );
+      slot.report.pool = gpuPool ? slot.pool : undefined;
       return (submitted: boolean) => {
         const done = () => {
           slot.busy = false;
@@ -107,6 +139,7 @@ export function createShadowPageRequests(device: GPUDevice, pages: number, sunWi
             const words = new Uint32Array(slot.buffer.getMappedRange());
             slot.report.count = words[0];
             slot.report.entries.set(words.subarray(1, 1 + Math.min(words[0], cap)));
+            if (slot.report.pool) allocation.read(words.subarray(1 + cap), slot.report.pool);
             slot.buffer.unmap();
             deliver(slot.report);
           })
@@ -116,6 +149,7 @@ export function createShadowPageRequests(device: GPUDevice, pages: number, sunWi
     },
     dispose() {
       requestBuffer.destroy();
+      allocation.dispose();
       for (const slot of slots) slot.buffer.destroy();
     },
   };

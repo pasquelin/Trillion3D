@@ -14,8 +14,8 @@ import { createWebgpuLightState } from '../pages/state/lights.ts';
 import { shadingReads, type Lit } from './shadingReads.fixture.ts';
 
 /** The display the scenes draw at: the boss's case, 1728 × 1117 at a pixel ratio of two. */
-const WIDTH = 3456,
-  HEIGHT = 2234;
+const WIDTH = 3456;
+export const HEIGHT = 2234;
 
 /** A camera at `eye` looking along `forward`, 50° high, at the display's shape. */
 export function cameraAt(eye: number[], forward: number[]) {

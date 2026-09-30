@@ -607,6 +607,31 @@ values another material shares — is copied on write and opens the session agai
 `world.diagnostic.sessions` counts the sessions a world has opened, so a page and a test see a
 reopen.
 
+`material.meshPhysical` accepts `anisotropy` (strength, 0–1), `anisotropyRotation`
+(direction, radians), `clearcoat` and `clearcoatRoughness`. WebGL2 draws these lobes,
+including `anisotropyMap`, `clearcoatMap`, `clearcoatRoughnessMap` and
+`clearcoatNormalMap` with `clearcoatNormalScale`. Each map keeps its native dimensions,
+filtering, wrap, UV channel and transform. The anisotropy map's RG direction and B strength,
+clearcoat R and roughness G are linear data. The brushed-metal and car-paint examples select
+WebGL2 explicitly; these physical extensions remain unsupported on the WebGPU page raster.
+
+Lit materials can declare `subsurfaceColor` and an optional `subsurfaceMap` for thin
+**double-sided** surfaces, such as foliage. The color defaults to black (disabled), is independent
+of `color`, and tints light arriving through the back of the surface. The optional color texture
+multiplies it using its own UV transform. This is diffuse thin-surface transmission, not a volume
+random walk; use physical `transmission`, `thickness`, `attenuationColor` and
+`attenuationDistance` for a glass volume.
+
+With `transparentShadow: true`, normally blended glass tints the existing shadow-transmittance
+layer by its base color and texture. A nonzero volume thickness applies Beer attenuation once
+at the entrance of a closed mesh, scaled to world units along the light ray. This follows the
+declared-thickness raster approximation, not geometric entry/exit ray tracing. Thin sheets keep
+independent front and back boundaries. Alpha-only blended shadows preserve their previous
+coverage behavior; BLEND/MASK classification remains in the compiler.
+
+A shadow-casting point light with positive `radius` uses contact-hardening PCSS: the penumbra
+widens with source radius and receiver separation. Radius zero retains the existing PCF path.
+
 ### Geometry rewritten every frame
 
 A shape a page rewrites every frame — a sea, a cloth, a flag, a procedural mesh, an editor handle —
@@ -1220,15 +1245,13 @@ the next cut once they arrived (`geometryAllocationBytes` shows it; no pool is r
 `world.budget.cpu` what the world keeps in CPU memory. A fixed rule splits them, published
 as `world.budget.split`:
 
-- GPU: the shadow pool first, as 3840 × 2160 under one sun takes it (two layers of 53² pages, its
-  static layer and its transmittance layer), then the bounce probes at their largest, then the effect chain's targets
-  on the largest canvas the budget declares (`split.effectTargets`: 250.5 MiB on the default
-  3840 × 2160 canvas); the rest in two halves, geometry and textures, each capped at its ceiling.
-  The default total is 2 179 MiB, and at the defaults the split gives each pool its own default
-  (512 MiB each), so a page that sets nothing sees no change. The three fixed shares never shrink:
-  a total under them is refused (`GPU_BUDGET_UNDER_SHADOW_POOL`), so no total below 913 MiB is
-  taken on the default canvas. The pool a screen takes, its static layer and its fixed buffers always fit that
-  share, whatever the screen.
+- GPU: before opening, the split reserves the shadow pool, bounce probes and effect targets at
+  their declared maxima, then the geometry and texture pools up to their ceilings. The default
+  total remains 2 179 MiB, including 512 MiB for each streaming pool. Once WebGPU has active
+  resources, the split reserves their actual descriptor bytes, including image targets, shared
+  caches and other live views, before dividing the remainder between geometry and textures.
+  Root coverage and texture-tail minima are mandatory; a total below them is refused as
+  `GPU_BUDGET_UNDER_MINIMUM`. Admission never changes resolution or increases the declared total.
 - CPU: the shadow page table's host mirror first (25.9 MiB, `SHADOW_HOST_BYTES`, fixed whatever the screen), then the
   decoded-page cache takes the whole rest (`split.pageCache`); within it the session in place
   reserves its manifest tables (a fixed reckoning per catalogue entry, not a measured heap size)
@@ -1363,9 +1386,14 @@ before, and only the maps that fit what is left of `maxTextureTransferBytesPerFr
 `maxTextureUploadMsPerFrame` (1 ms) — one larger than the whole budget alone. A map not sent yet
 is uploaded by the first draw that binds it: a surface is never drawn without its picture.
 
-Frame targets are **not** budgeted: colour, depth, visibility, HDR, material surfaces, Hi-Z, the
-temporal history and a capture follow the resolution, and `gpuFrameTargetBytes` says what they cost.
-Only a size the device cannot make is refused (`SURFACE_DEVICE_LIMIT`).
+WebGPU frame targets follow the requested resolution and are admitted before allocation through
+that same GPU total; `gpuFrameTargetBytes` reports their descriptor bytes. The device ledger also
+checks later buffer and texture allocations, including shared caches, before calling WebGPU.
+A refusal (`GPU_BUDGET_EXCEEDED`, or an unknown format) prevents new image submission: the
+previous canvas image remains, and flush/capture rejects. It is a terminal admission failure for
+that session, which must be reopened with sufficient budget. Sessions sharing a refused cache
+must all release their admission before reopening. This bounds declared resource bytes, not
+unobservable driver overhead. Device dimension limits remain `SURFACE_DEVICE_LIMIT`.
 
 Out of memory on the frame targets is absorbed too: they are made under the pools' out-of-memory
 check, at prepare and when the view's size changes, and the frames are held meanwhile with nothing
@@ -1704,12 +1732,13 @@ support. See [the walking character](../site/examples/a-character-that-walks.htm
 
 - `scene.load` reads a versioned compiled manifest. Imported non-triangle primitives and
   unsupported glTF extensions are refused by the compiler.
-- Specular environment-map IBL and screen-space reflections are not implemented; the
-  bounce lighting exists but is off by default ([ENGINE.md](ENGINE.md#light-that-bounces)), and only
-  with it on does a surface at the roughness floor reflect the scene, at the proxy's detail.
-- WebGL2 draws a physical material's transmission volume, as factors, and nothing else of its
-  extensions: clearcoat, sheen, iridescence, anisotropy, dispersion, a specular factor, an IOR
-  without transmission, their maps and the transmission and thickness maps. A surface declaring one
+- Specular environment-map IBL is not implemented. Screen reflections read camera-visible opaque
+  radiance; off-screen geometry requires the existing WebGPU bounce proxy/probe fallback when
+  bounce is enabled. Rough reflection filtering and its bounded history are described in
+  [ENGINE.md](ENGINE.md#light-that-bounces); this is not an off-screen geometry reconstruction.
+- WebGL2 draws physical transmission-volume factors, anisotropy and clearcoat (including their
+  maps). Its remaining unsupported extensions are sheen, iridescence, dispersion, a specular
+  factor, an IOR without transmission, their maps and the transmission and thickness maps. A surface declaring one
   is drawn without it — the loop never stops — and the world's diagnostic channel says
   `material-degraded` once per surface and feature (`context.material`, `context.feature`). The
   WebGPU page raster lists material extensions among its unsupported capabilities and says nothing

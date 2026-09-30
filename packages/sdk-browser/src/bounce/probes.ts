@@ -11,8 +11,7 @@ import { bounceGroup, bounceLayout } from './bindings.ts';
 import { bounceProbeBytes, ensureBounceFits } from './limits.ts';
 import { BOUNCE_PROBE_PASS, BOUNCE_PROBE_SHADER } from './probeWgsl.ts';
 import { createBounceSchedule } from './schedule.ts';
-import { createBounceUniform } from './uniform.ts';
-import { createGpuBounceProxy } from './proxy.ts';
+import { createProbeStorage } from './probeStorage.ts';
 import { createGpuBounceSurface, type GpuBounceSurface } from './surface.ts';
 import { syncBounceProbes } from './probeSync.ts';
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
@@ -44,23 +43,13 @@ export async function createGpuBounceProbes(
   const budget = createBounceBudget(budgetMs);
   const probeBytes = bounceProbeBytes(cascades.reserveCount);
   ensureBounceFits(device, proxy, probeBytes, schedule.queue.byteLength);
-  const resident = createGpuBounceProxy(device, proxy);
-  const uniform = createBounceUniform(device, cascades);
-  const queue = device.createBuffer({
-    label: 'Trillion3D bounce probe queue v1',
-    size: schedule.queue.byteLength,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  });
-  const probes = device.createBuffer({
-    label: 'Trillion3D bounce probes v2',
-    size: probeBytes,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
-  });
-  const snapshot = device.createBuffer({
-    label: 'Trillion3D bounce probes snapshot v2',
-    size: probeBytes,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  });
+  const { resident, uniform, queue, probes, snapshot } = createProbeStorage(
+    device,
+    proxy,
+    cascades,
+    schedule.queue.byteLength,
+    probeBytes,
+  );
   const release = () => {
     queue.destroy();
     uniform.dispose();
@@ -142,18 +131,19 @@ export async function createGpuBounceProbes(
     get activeProbes() {
       return occupancy.marked;
     },
-    /** Probes updated by the last encoded frame, and rays they launched. */
     get lastProbes() {
       return updates;
+    },
+    /** Source radiance version for consumers with independent temporal histories. */
+    get encodedFrames() {
+      return frame;
     },
     get lastRays() {
       return updates * BOUNCE_SETTINGS.raysPerProbe;
     },
-    /** True while the bounce series is not closed: beyond that, nothing more is encoded. */
     get working() {
       return working();
     },
-    /** Stage timer, as the per-stage profile recorded it. `null` is not zero. */
     observeGpuMs(ms: number | null) {
       budget.observe(ms);
     },

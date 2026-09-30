@@ -11,26 +11,12 @@ const SWIZZLE = /^(?:[xyzw]{1,4}|[rgba]{1,4})$/;
 const TOKEN =
   /\s+|\/\/[^\n]*|((?:0x[\da-f]+|\d+\.?\d*(?:e[+-]?\d+)?|\.\d+(?:e[+-]?\d+)?)[uif]?|[A-Za-z_]\w*|&&|\|\||<=|>=|==|!=|>>|<<|\+\+|--|[-+*/%]=|->|[-+*/%<>=!&|^(){}[\];,.:@])/giy;
 const JS_RESERVED = new Set(['in', 'new', 'this', 'class', 'delete', 'typeof', 'void', 'with']);
-const BINARY: Record<string, number> = {
-  '||': 1,
-  '&&': 2,
-  '|': 3,
-  '^': 4,
-  '&': 5,
-  '==': 6,
-  '!=': 6,
-  '<': 7,
-  '>': 7,
-  '<=': 7,
-  '>=': 7,
-  '<<': 8,
-  '>>': 8,
-  '+': 9,
-  '-': 9,
-  '*': 10,
-  '/': 10,
-  '%': 10,
-};
+/** Each binary operator's precedence, the loosest first. */
+const BINARY: Record<string, number> = Object.fromEntries(
+  ['||', '&&', '|', '^', '&', '== !=', '< > <= >=', '<< >>', '+ -', '* / %'].flatMap((ops, i) =>
+    ops.split(' ').map((op) => [op, i + 1]),
+  ),
+);
 
 function tokens(text: string) {
   const out: string[] = [];
@@ -146,6 +132,12 @@ class Translator {
     const token = this.peek();
     if (token === '-') return (this.next(), `$b("-",0,${this.unary()})`);
     if (token === '!') return (this.next(), `(!${this.unary()})`);
+    // A pointer, what an atomic takes: read and written through `$ref`.
+    if (token === '&') {
+      this.next();
+      const target = this.postfix(this.primary());
+      return `$ref(()=>${target},(v)=>{${target}=v;})`;
+    }
     return this.postfix(this.primary());
   }
   primary() {

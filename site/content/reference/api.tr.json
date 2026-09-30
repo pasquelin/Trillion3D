@@ -433,8 +433,7 @@
       "near": "Çizilen en yakın mesafe.",
       "far": "Çizilen en uzak mesafe.",
       "zoom": "Büyütme.",
-      "orthographic": "Ortografik bir kameranın görüş kutusu.",
-      "viewTile": "Bu kameranın çizdiği daha geniş bir görünümün döşemesi. Yoksa görünüm tümüyle çizilir."
+      "orthographic": "Ortografik bir kameranın görüş kutusu."
     }
   },
   "CameraParameters": {
@@ -1619,7 +1618,7 @@
   },
   "LIGHT_FIELD": {
     "summary": "Tamponda bir ışığın alanı, tabanından itibaren float cinsinden.",
-    "description": "Işık başına dört `vec4f`.",
+    "description": "Işık başına beş `vec4f`.",
     "members": {
       "position": "Nerede durduğu.",
       "range": "Ne kadar uzağa ulaştığı.",
@@ -1632,7 +1631,8 @@
       "castsShadow": "Gölge düşürüp düşürmediği.",
       "cosInner": "Bir spot'un iç konisi, penumbrasının başladığı yer: hiçbiri olmadığında koninin kendi kenarı.",
       "halfWidth": "Bir dikdörtgenin yarı genişlik ekseni — `right` çarpı genişliğinin yarısı —, sonra yüksekliğinin yarısı.",
-      "halfHeight": "Bir dikdörtgenin yüksekliğinin yarısı."
+      "halfHeight": "Bir dikdörtgenin yüksekliğinin yarısı.",
+      "emitterRadius": "Nokta veya spot kaynağın yarıçapı; dikdörtgenlere ayrılmış şekil bileşenleriyle aynı alanı kullanır."
     }
   },
   "LIGHT_KIND": {
@@ -1866,6 +1866,8 @@
       "parameters.ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "parameters.thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "parameters.clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "parameters.anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "parameters.anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "parameters.clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "parameters.sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "parameters.iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -1885,7 +1887,9 @@
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "parameters.subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "parameters.subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     },
     "members": {
       "isMaterial": "Her zaman `true`: bir malzemeyi başka her şeyden ayırır.",
@@ -1912,7 +1916,8 @@
       "physics": "Onu giyen cisimlerin fizik madde ön ayarı.",
       "density": "kg/m³, bir cismin kütlesi için.",
       "friction": "Fizik sürtünmesi.",
-      "restitution": "Fizik sekmesi."
+      "restitution": "Fizik sekmesi.",
+      "subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır."
     }
   },
   "MaterialParameters": {
@@ -1933,6 +1938,8 @@
       "ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -1952,7 +1959,9 @@
       "physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     }
   },
   "MathPath": {
@@ -3019,7 +3028,7 @@
       "range": "Nokta, spot ve dikdörtgen: enerjinin tam olarak kaybolduğu, metre cinsinden menzil.",
       "coneAngle": "Bir spot'un açıklığı.",
       "penumbra": "Yalnızca spot: ışığın `[0, 1]`'de söndüğü, kenarından içe doğru koninin payı; olmadan kenar `spotEdgeSoftness` üzerinde yumuşar.",
-      "emitterRadius": "Yalnızca nokta ve spot: kaynağı tutan zarfın metre cinsinden yarıçapı. Gerçek bir ışık her zaman bir şeyin içine yerleştirilir — fener camı, reflektör, abajur — ve bu zarf başka herhangi biri gibi geometridir: bu alan olmadan, kendi ışığının gölge haritasına girer ve onu kapatır. Bildirildiğinde, o haritanın yakın düzlemi olur, bu yüzden kaynaktan bu yarıçaptan daha yakın olan hiçbir şey orada gölge düşürmez. Bu ışığın bir özelliğidir, asla bir nesne adı ya da malzeme türü değil: motor yalnızca yüzeyleri bilir. Kesinlikle pozitif ve menzilden kesinlikle küçük; yoksa hiçbir şey değişmez.",
+      "emitterRadius": "Yalnızca nokta ve spot: kaynağı tutan zarfın metre cinsinden yarıçapı. Gerçek bir ışık her zaman bir şeyin içine yerleştirilir — fener camı, reflektör, abajur — ve bu zarf başka herhangi biri gibi geometridir: bu alan olmadan, kendi ışığının gölge haritasına girer ve onu kapatır. Bu kürenin içindeki fragmanlar gölge düşürmez; haritanın yakın düzlemi menzile bağlı kalır. Nokta ışıkta bu yarıçap, temas yakınında gölge kenarlarını keskinleştiren filtrenin kaynak boyutunu da belirler. Bu ışığın bir özelliğidir, asla bir nesne adı ya da malzeme türü değil: motor yalnızca yüzeyleri bilir. Kesinlikle pozitif ve menzilden kesinlikle küçük; yoksa hiçbir şey değişmez.",
       "right": "Yalnızca dikdörtgen: genişliğinin boyunca gittiği, `direction`'a dik birim eksen.",
       "size": "Yalnızca dikdörtgen: genişliği ve yüksekliği, metre cinsinden.",
       "castsShadow": "Gölge düşürüp düşürmediği."
@@ -3269,7 +3278,7 @@
       "receive": "Bir istek raporu döndü; sonraki plan onu okur. Daha yenisi okunmamış olanın yerini alır.",
       "commit": "Karenin listesindeki `[from, to)` sayfaları kodlandı, `from + i` sayfası `modes[i]` içinde: çizimleri kimse okumadan önce tamamlanır. Son parti listeyi kapatır.",
       "resize": "Başka boyutta havuz; sayfaları korunur, dizileri yeniden oluşturulur: her sayfanın nereye gittiğini döndürür.",
-      "sunWindow": "Bir oturumun çalıştığı güneş clipmap’inin bir kenarındaki sayfa sayısı (`referenceMode.ts`)."
+      "gpu": "GPU’nun ayırması (`mirror.ts`): sayfaları GPU’nun eşleyip eşlemediği ve ana makinenin ondan istedikleri."
     }
   },
   "ShadowStaleReason": {
@@ -3517,9 +3526,13 @@
       "baseMetal": "RGB temel renk, A metaliklik.",
       "normalRough": "XYZ dünya normali, A pürüzlülük.",
       "emissiveAo": "RGB emissive, A ortam gizlenmesi.",
-      "flags": "0 arka plan, 1 aydınlatılmamış (sisli), 2 okunur, 3 olduğu gibi gösterilir: bir tanılama, bir normal ya da derinlik görünümü.",
+      "flags": "0 arka plan, 1 aydınlatılmamış (sisli), 2 okunur, 3 olduğu gibi gösterilir: bir tanılama, bir normal ya da derinlik görünümü. 4 ve 5, yayınık ve toon modelleridir (`./surfaceModel.ts`).",
       "views": "GPU doku görünümleri.",
-      "dispose": "Serbest bırakır."
+      "dispose": "Serbest bırakır.",
+      "shadingOffset": "G-buffer ile birlikte yazılan, tam hassasiyetli gölge alıcı yüzey ofseti.",
+      "subsurface": "İnce yüzeylerin bağımsız ışık geçirgenlik rengi; devre dışıyken sıfır değerli 1×1 doku.",
+      "subsurfaceView": "İnce yüzeylerin ışık iletimi dokusunun görünümü.",
+      "hasSubsurface": "İnce yüzeylerin ışık iletimi için tam boyutlu bir hedef bulunup bulunmadığı."
     }
   },
   "SurfaceCapture": {
@@ -5778,6 +5791,8 @@
       "parameters.ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "parameters.thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "parameters.clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "parameters.anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "parameters.anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "parameters.clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "parameters.sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "parameters.iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -5797,7 +5812,9 @@
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "parameters.subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "parameters.subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     }
   },
   "material.meshPhysical": {
@@ -5819,6 +5836,8 @@
       "parameters.ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "parameters.thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "parameters.clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "parameters.anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "parameters.anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "parameters.clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "parameters.sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "parameters.iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -5838,7 +5857,9 @@
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "parameters.subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "parameters.subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     }
   },
   "material.meshBasic": {
@@ -5860,6 +5881,8 @@
       "parameters.ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "parameters.thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "parameters.clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "parameters.anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "parameters.anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "parameters.clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "parameters.sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "parameters.iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -5879,7 +5902,9 @@
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "parameters.subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "parameters.subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     }
   },
   "material.meshPhong": {
@@ -5901,6 +5926,8 @@
       "parameters.ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "parameters.thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "parameters.clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "parameters.anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "parameters.anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "parameters.clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "parameters.sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "parameters.iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -5920,7 +5947,9 @@
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "parameters.subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "parameters.subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     }
   },
   "material.meshLambert": {
@@ -5942,6 +5971,8 @@
       "parameters.ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "parameters.thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "parameters.clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "parameters.anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "parameters.anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "parameters.clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "parameters.sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "parameters.iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -5961,7 +5992,9 @@
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "parameters.subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "parameters.subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     }
   },
   "material.meshToon": {
@@ -5983,6 +6016,8 @@
       "parameters.ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "parameters.thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "parameters.clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "parameters.anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "parameters.anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "parameters.clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "parameters.sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "parameters.iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -6002,7 +6037,9 @@
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "parameters.subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "parameters.subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     }
   },
   "material.meshNormal": {
@@ -6024,6 +6061,8 @@
       "parameters.ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "parameters.thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "parameters.clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "parameters.anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "parameters.anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "parameters.clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "parameters.sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "parameters.iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -6043,7 +6082,9 @@
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "parameters.subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "parameters.subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     }
   },
   "material.meshMatcap": {
@@ -6065,6 +6106,8 @@
       "parameters.ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "parameters.thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "parameters.clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "parameters.anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "parameters.anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "parameters.clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "parameters.sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "parameters.iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -6084,7 +6127,9 @@
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "parameters.subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "parameters.subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     }
   },
   "material.meshDepth": {
@@ -6106,6 +6151,8 @@
       "parameters.ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "parameters.thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "parameters.clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "parameters.anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "parameters.anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "parameters.clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "parameters.sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "parameters.iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -6125,7 +6172,9 @@
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "parameters.subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "parameters.subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     }
   },
   "material.points": {
@@ -6147,6 +6196,8 @@
       "parameters.ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "parameters.thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "parameters.clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "parameters.anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "parameters.anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "parameters.clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "parameters.sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "parameters.iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -6166,7 +6217,9 @@
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "parameters.subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "parameters.subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     }
   },
   "material.line": {
@@ -6188,6 +6241,8 @@
       "parameters.ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "parameters.thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "parameters.clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "parameters.anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "parameters.anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "parameters.clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "parameters.sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "parameters.iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -6207,7 +6262,9 @@
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "parameters.subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "parameters.subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     }
   },
   "material.lineDashed": {
@@ -6229,6 +6286,8 @@
       "parameters.ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "parameters.thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "parameters.clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "parameters.anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "parameters.anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "parameters.clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "parameters.sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "parameters.iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -6248,7 +6307,9 @@
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "parameters.subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "parameters.subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     }
   },
   "material.sprite": {
@@ -6270,6 +6331,8 @@
       "parameters.ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "parameters.thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "parameters.clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "parameters.anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "parameters.anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "parameters.clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "parameters.sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "parameters.iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -6289,7 +6352,9 @@
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "parameters.subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "parameters.subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     }
   },
   "material.shadow": {
@@ -6311,6 +6376,8 @@
       "parameters.ior": "Girerken ışığın ne kadar büküldüğü: cam için 1,5, su için 1,33.",
       "parameters.thickness": "Şeffaf bir yüzeyin ne kadar kalın olduğu.",
       "parameters.clearcoat": "Üstte şeffaf bir cila: 0'dan 1'e.",
+      "parameters.anisotropy": "Bildirilen anizotropi gücü, 0 ile 1 arasında; henüz çizilmiyor.",
+      "parameters.anisotropyRotation": "Bildirilen anizotropi yönü, radyan cinsinden; henüz çizilmiyor.",
       "parameters.clearcoatRoughness": "Cilanın ne kadar pürüzlü olduğu.",
       "parameters.sheen": "Kadife gibi, sıyırma açılarında yumuşak bir parıltı.",
       "parameters.iridescence": "Bir sabun köpüğü gibi, açıyla değişen gökkuşağı renkleri.",
@@ -6330,7 +6397,9 @@
       "parameters.physics": "Onu giyen cismin maddesi: yoğunluk, sürtünme, sekme.",
       "parameters.density": "kg/m³; hacimle çarpılınca kütleyi verir.",
       "parameters.friction": "Cismin ne kadar tuttuğu, 0 ve üstü.",
-      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası."
+      "parameters.restitution": "Cismin ne kadar sektiği, 0 ile 1 arası.",
+      "parameters.subsurfaceColor": "İnce, çift taraflı bir yüzeyden yayınık ışık geçirgenliği; siyah renk devre dışı bırakır.",
+      "parameters.subsurfaceMap": "subsurfaceColor ile çarpılan isteğe bağlı doğrusal geçirgenlik rengi."
     }
   },
   "material.createShader": {
@@ -7565,7 +7634,8 @@
       "layoutEpoch": "O karenin okuduğu tablo düzeni (`ShadowTable.layoutEpoch`).",
       "stamp": "O kare kodlandığında planın damgası (`ShadowPlan.stamp`).",
       "count": "İstenen girdiler, belki `entries`’in tuttuğundan fazla: kalanlar sonraki karede yeniden ister.",
-      "entries": "İstenen girdiler, en fazla ilk `count` tanesi."
+      "entries": "İstenen girdiler, en fazla ilk `count` tanesi.",
+      "pool": "GPU ayırdığında, o karenin ayırmasından sonraki GPU ayırıcısının havuzu."
     }
   },
   "VehicleDriver": {
