@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { currentCompilerExecutable, SUPPORTED_PLATFORMS } from './executable.mts';
+import { currentCompilerExecutable } from './executable.mts';
+import { COMPILER_PLATFORMS } from './platform.mts';
 
 /** An installed package: the crate folder beside it carries no `Cargo.toml`. */
 async function installed(run: (crate: string) => void) {
@@ -20,7 +21,12 @@ async function installed(run: (crate: string) => void) {
 test('a missing compiler in an installed package gives the actions and no repository path', () =>
   installed((crate) =>
     assert.throws(
-      () => currentCompilerExecutable(undefined, {}, { crate, platform: 'linux', arch: 'x64' }),
+      () =>
+        currentCompilerExecutable(
+          undefined,
+          {},
+          { crate, platform: 'linux', arch: 'x64', installed: null },
+        ),
       (error: Error) =>
         /^T3D-E\d{3} COMPILER_EXECUTABLE_MISSING: /.test(error.message) &&
         error.message.includes('Reinstall') &&
@@ -39,7 +45,7 @@ test('an unsupported platform is told the supported list', () =>
       (error: Error) =>
         error.message.includes('COMPILER_PLATFORM_UNSUPPORTED') &&
         error.message.includes('aix-ppc64') &&
-        SUPPORTED_PLATFORMS.every((machine) => error.message.includes(machine)) &&
+        COMPILER_PLATFORMS.every((machine) => error.message.includes(machine)) &&
         !error.message.includes('packages/'),
     ),
   ));
