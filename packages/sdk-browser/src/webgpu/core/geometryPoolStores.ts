@@ -1,5 +1,5 @@
 import { BUFFERS, growthCopies, type BufferKey, type Stores } from './geometryPoolLayout.ts';
-import { copyFloatAtlas, createFloatAtlas } from './floatAtlas.ts';
+import { createFloatAtlas } from './floatAtlas.ts';
 
 /** What the float vertex pool keeps on the device (`geometryPool.ts`): its position and UV
  *  storage buffers and its normal atlas (`floatAtlas.ts`, #1410). */
@@ -27,8 +27,8 @@ export const createPoolStores = (device: GPUDevice, floats: Stores<number>): Poo
   concatNrm: createFloatAtlas(device, label('concatNrm'), floats.concatNrm),
 });
 
-/** Copies what the stores of a pool of `from` vertices hold into the wider ones of `to`: each
- *  buffer's regions (`growthCopies`), the normal atlas whole. */
+/** Copies what the buffers of a pool of `from` vertices hold into the wider ones of `to`, region
+ *  by region (`growthCopies`). The normal atlas, whose rows follow its size, is written again. */
 export function copyPoolStores(
   encoder: GPUCommandEncoder,
   held: PoolStores,
@@ -40,7 +40,6 @@ export function copyPoolStores(
     for (const [source, destination, count] of growthCopies(key, from, to, tail, coloured))
       if (count > 0)
         encoder.copyBufferToBuffer(held[key], source * 4, made[key], destination * 4, count * 4);
-  copyFloatAtlas(encoder, held.concatNrm, made.concatNrm);
 }
 
 /** Frees the stores. */
