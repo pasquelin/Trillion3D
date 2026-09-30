@@ -1,76 +1,83 @@
-import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
-import { anyMoving, refuseAll } from './poolStates.ts';
-import { viewProj } from '../webgpu/pages/helpers.ts';
-import { routedFilter } from '../webgpu/blend/displayFilter.ts';
-import { createWebgpuParticles } from './webgpuParticleSystem.ts';
+import { PARTICLE_FLOATS, type ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
+import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
+import { bounceGroup, bounceLayout } from '../bounce/bindings.ts';
+import { createPoolStates, usedSlots } from './poolStates.ts';
+import { createWebgpuParticleDraw, type DrawState } from './webgpuParticleDraw.ts';
+import { DRAW_FLOATS } from './drawWords.ts';
+import { PARTICLES_WGSL, PARTICLE_WORKGROUP } from './particlesWgsl.ts';
+import { createStepWords } from './stepWords.ts';
+import { PARTICLES_PASS } from './webgpuParticleFrame.ts';
+
+type PoolState = DrawState & { step: GPUBuffer; staged: GPUBuffer; group: GPUBindGroup };
+
+/**
+ * The WebGPU particle step: one compute pass, timed under `PARTICLES_PASS`, one dispatch per pool
+ * that has records or time to take. A pool's state is one storage buffer made the first time it
+ * is stepped; its records ride in a staging buffer of the pool's size, written up to the image's
+ * count. The pipeline compiles in the background; until it arrives no pool is taken, so what they
+ * stage waits. `fail` hears a pipeline that could not be made, and every pool is then `refused`.
+ */
+export function createWebgpuParticles(device: GPUDevice, fail: (error: unknown) => void) {
+  const layout = bounceLayout(device, ['uniform', 'read-only-storage', 'storage']);
+  let pipeline: GPUComputePipeline | null | undefined;
+  createCheckedShaderModule(device, PARTICLES_WGSL, 'PARTICLES')
+    .then((module) =>
+      device.createComputePipelineAsync({
+        label: PARTICLES_PASS,
+        layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
+        compute: { module, entryPoint: 'main' },
+      }),
+    )
+    .then((made) => (pipeline = made))
+    .catch((error) => ((pipeline = null), fail(error)));
+  const words = createStepWords();
+  const pass: GPUComputePassDescriptor = { label: PARTICLES_PASS };
+  const buffer = (name: string, size: number, usage: number) =>
+    device.createBuffer({ label: `${PARTICLES_PASS} ${name}`, size, usage });
+  const made = createPoolStates<PoolState>(
+    (pool) => {
+      const { STORAGE, UNIFORM, COPY_DST } = GPUBufferUsage;
+      const step = buffer('step', words.buffer.byteLength, UNIFORM | COPY_DST),
+        staged = buffer('staging', pool.staging.byteLength, STORAGE | COPY_DST),
+        state = buffer('state', pool.capacity * PARTICLE_FLOATS * 4, STORAGE),
+        draw = buffer('draw', DRAW_FLOATS * 4, UNIFORM | COPY_DST),
+        group = bounceGroup(device, layout, [step, staged, state]);
+      return { step, staged, state, draw, group };
+    },
+    (kept) => [kept.step, kept.staged, kept.state, kept.draw].forEach((gone) => gone.destroy()),
+  );
+  const drawn = createWebgpuParticleDraw(device, made.peek, fail);
+  return {
+    /** Steps `pools` in `encoder`; returns the dispatches encoded. */
+    run(pools: readonly ParticlePool[], encoder: GPUCommandEncoder) {
+      if (pipeline === undefined) return 0;
+      let computing: GPUComputePassEncoder | undefined,
+        dispatches = 0;
+      for (const pool of pools) {
+        pool.refused = !pipeline || drawn.refused();
+        const step = pool.flush(),
+          { count } = step;
+        if (!pipeline || pool.refused || (!count && !step.dt)) continue;
+        const kept = made.of(pool);
+        words.write(pool, step);
+        device.queue.writeBuffer(kept.step, 0, words.buffer);
+        if (count)
+          device.queue.writeBuffer(kept.staged, 0, pool.staging, 0, count * PARTICLE_FLOATS);
+        if (!computing) {
+          computing = encoder.beginComputePass(pass);
+          computing.setPipeline(pipeline);
+        }
+        computing.setBindGroup(0, kept.group);
+        computing.dispatchWorkgroups(Math.ceil(usedSlots(pool) / PARTICLE_WORKGROUP));
+        dispatches++;
+      }
+      computing?.end();
+      made.keep(pools);
+      return dispatches;
+    },
+    draw: drawn.draw,
+    dispose: made.dispose,
+  };
+}
 
 export type WebgpuParticles = ReturnType<typeof createWebgpuParticles>;
-
-/** True while one of the world's pools moves: the image changes, and is not held. */
-export const particlesMoved = (rt: WebgpuPagesRuntime) => anyMoving(rt.context.particles);
-
-/** The world's pools on this image, stepped in the image's command buffer ahead of its
- *  transparent stage, which draws them (#755), once a frame whatever the views drawn. */
-export function encodeParticles(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  encoder: GPUCommandEncoder,
-) {
-  const pools = rt.context.particles;
-  // Once made, the step runs with no pool left too: it gives a released pool's buffers back.
-  if (!pools || (!pools.length && !rt.gpu.particles)) return;
-  if (!rt.vis.visEnabled) {
-    // A capability refusal, told once like WebGL2's (`particlesRefused`); the session goes on.
-    if (refuseAll(pools))
-      rt.context.particlesRefused?.(
-        'PARTICLES_UNSUPPORTED: particles draw on the visibility buffer',
-      );
-    // A visibility buffer dropped mid-session: the step made before it gives its buffers back.
-    rt.gpu.particles?.dispose();
-    rt.gpu.particles = undefined;
-    return;
-  }
-  // One step a frame, the main view's: a view drawn beside it draws the pools as they stand.
-  if (rt.views.active !== rt.views.main) return;
-  rt.gpu.particles ??= createWebgpuParticles(device, (error) =>
-    rt.diag.diagnosticFailure('particles-unavailable', error),
-  );
-  rt.run.gpuComputeDispatches += rt.gpu.particles.run(pools, encoder);
-}
-
-/** Whether this image draws the world's pools: it has some, and shows beauty. */
-export const drawsParticles = (rt: Pick<WebgpuPagesRuntime, 'context' | 'run'>) =>
-  !!rt.context.particles && rt.run.diagnostic === 'beauty';
-
-/** What this image draws the pools with, once a camera and the targets are; else `undefined`. */
-function particleDrawOf(rt: WebgpuPagesRuntime) {
-  const { hdrView, depthView, asIsShare, particles } = rt.gpu;
-  const pools = rt.context.particles;
-  if (!pools || !particles || !hdrView || !depthView || !asIsShare || !rt.run.lastCamera) return;
-  if (drawsParticles(rt)) return { pools, particles, hdrView, depthView, reactive: asIsShare.view };
-}
-
-/** The stepped pools over the lit image and its transparents, in beauty, their coverage the reactive
- *  value (`asIsShare.ts`); `tone`, the exposure and curve (`directTiles`), shows a routed disc. */
-export function drawParticles(
-  rt: WebgpuPagesRuntime,
-  encoder: GPUCommandEncoder,
-  tone: ArrayLike<number>,
-) {
-  const drawn = particleDrawOf(rt),
-    { run } = rt;
-  if (!drawn) return;
-  run.gpuDrawCalls += drawn.particles.draw(
-    drawn.pools,
-    encoder,
-    drawn.hdrView,
-    drawn.reactive,
-    drawn.depthView,
-    rt.gpu.targetSize,
-    viewProj,
-    run.gate.cam.eye,
-    routedFilter(rt.gpu.displayFilter),
-    tone,
-    rt.lights.store.unlit,
-  );
-}

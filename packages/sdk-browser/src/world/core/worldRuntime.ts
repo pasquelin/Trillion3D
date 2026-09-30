@@ -174,9 +174,12 @@ export function createWorldRuntime(inputs: Inputs) {
     /** Settles once the session reflects every change made so far. */
     async settled() {
       while (resolving || reopens.running) await (resolving ?? reopens.running);
+      await explorer?.familiesPending(); // a family on its way: a change not drawn yet
     },
-    render() {
-      if (!explorer) return null;
+    /** A frame, `ahead` stepping first; one waiting for a family (`familyUse.ts`) does neither. */
+    render(ahead?: () => void) {
+      if (!explorer || explorer.familiesPending()) return null;
+      ahead?.();
       beforeFrame(); // what it applies may close the session: that frame has no image
       if (!explorer) return null;
       const metrics = explorer.render();
