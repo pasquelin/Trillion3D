@@ -8,7 +8,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { contractLightingShader } from './shaders.ts';
 import { createDeferredLighting } from './deferred.ts';
-import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts';
+import { recorder } from './recorder.fixture.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
 /** The two rectangle branches of the light loop: its term, then its sampling weight. */
@@ -35,24 +35,8 @@ test('the rectless program is the full one less its two rectangle branches', () 
 test('a scene with no rectangle is lit by the rectless program, one with a rectangle never is', async () => {
   const { device } = fakeDevice();
   const lighting = await createDeferredLighting(device);
-  const labels: string[] = [];
-  const encoder = {
-    beginRenderPass: () => ({
-      setPipeline: (pipeline: GPURenderPipelineDescriptor) =>
-        labels.push(pipeline.fragment!.module.label),
-      setBindGroup() {},
-      setViewport() {},
-      draw() {},
-      end() {},
-    }),
-  } as unknown as GPUCommandEncoder;
-  const views = [0, 1, 2, 3].map(() => ({}) as GPUTextureView),
-    surface = { views: () => views } as unknown as SurfaceBuffer,
-    view = {} as GPUTextureView;
-  const frame = (rectless: boolean) => {
-    lighting.bind(surface, view, view, true, { lights: {} as GPUBuffer, rectless });
-    if (lighting.usesContract) lighting.light(encoder, view);
-  };
+  const { labels, draw } = recorder(lighting);
+  const frame = (rectless: boolean) => draw({ rectless });
   frame(true);
   await lighting.settle();
   // The twin with rectangle code compiled beside it: a rectangle added is lit at once.
