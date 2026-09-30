@@ -87,6 +87,7 @@ export async function prepareFeedbackAb(
     false,
     rt.vis.blendBindGroupLayout,
     blendWritesShare(rt),
+    rt.lights.plan.sunWindow,
   );
   if (blend.waterRefused) throw blend.waterRefused;
   if (rt.blendState.transmissive > 0 && !rt.blendState.water)
