@@ -5,6 +5,7 @@ import { asHostLibrary, type HostMesh } from '../../../packages/sdk-browser/src/
 import { surfaceColorAttachments } from '../../../packages/sdk-browser/src/webgpu/pages/prepare/attachments.ts';
 import { anneauFroid } from '../../../packages/sdk-browser/src/world/render/draw.ts';
 import { deplaceInstance } from '../../../packages/sdk-browser/src/backend/autonomous/instancePose.ts';
+import { createPageDraws } from '../../../packages/sdk-browser/src/backend/autonomous/pageDraws.ts';
 import type { SurfaceBuffer } from '../../../packages/sdk-browser/src/scene/surfaceBuffer.ts';
 import type {
   PageRec,
@@ -64,12 +65,11 @@ const imagesSurfaces: SurfaceBuffer[] = [];
 for (let i = 0; i < 2000; i++) imagesSurfaces.push(petite);
 const redimensionnee = [petite, petite, grande, grande, petite, liberee, grande];
 
-/** Fields the instance displacement never reads: shared across every fixture record/root. */
 const DUMMY_ATTRIBUTES: G.Geometry['attributes'] = {};
 const DUMMY_BOUNDS: number[] = [0, 0, 0];
 const emptyMesh = () => new Mesh(new Geometry(), []);
-/** A record with the world the oracle reads on it, as records carried it before #1226. */
-type Page = PageRec & { matrix: G.Matrix4 };
+/** A record with the world the oracle reads on it, and the draw state it carried before #1234. */
+type Page = PageRec & { matrix: G.Matrix4; mesh?: HostMesh; attached: boolean };
 const pageOf = (matrix: G.Matrix4, mesh?: HostMesh): Page => ({
   ...{ id: 0, url: '', clusterId: '', triangles: 0, indexBytes: 0, depthLayer: 0 },
   min: DUMMY_BOUNDS,
@@ -82,7 +82,6 @@ const pageOf = (matrix: G.Matrix4, mesh?: HostMesh): Page => ({
   attached: true,
   mesh,
 });
-
 const instanceDe = (pages: number) => {
   const basePages: Page[] = [],
     baseRoots: ClusterRoot<PageRec>[] = [],
@@ -92,13 +91,15 @@ const instanceDe = (pages: number) => {
     baseRoots.push({ world: new G.Matrix4().makeScale(1 + i, 2, 3), pages: [] });
     roots.push({ world: new G.Matrix4(), pages: [] });
   }
-  // Page `i` is placed by root `i % 10`: the world the oracle reads on it is that root's.
+  // Page `i` is placed by root `i % 10`: its mesh moves with that root (`deplaceInstance`).
   for (let i = 0; i < pages; i++) {
     basePages.push(pageOf(new G.Matrix4().makeScale(1 + (i % 10), 2, 3)));
     clones.push(pageOf(new G.Matrix4(), i % 3 ? emptyMesh() : undefined));
     roots[i % 10].pages.push(clones[i]);
   }
-  return { basePages, baseRoots, instance: { pages: clones, bases: basePages, roots } };
+  const draws = createPageDraws(roots);
+  for (const rec of clones) draws.drawing(rec).mesh = rec.mesh;
+  return { basePages, baseRoots, instance: { pages: clones, bases: basePages, roots, draws } };
 };
 const petiteInstance = instanceDe(100),
   grosseInstance = instanceDe(5000);
@@ -121,7 +122,6 @@ const passeInstance =
     const { basePages, baseRoots, instance } = input;
     fn(instance, basePages, baseRoots, new Float64Array(transformation.elements));
     const output: number[] = [];
-    // What both place: the meshes of the pages, and the roots (the oracle's pages, their roots').
     for (const rec of instance.pages) output.push(...(rec.mesh?.matrix.elements ?? []));
     for (const root of instance.roots) output.push(...Array.from(root.world.elements));
     return Float64Array.from(output);
@@ -155,7 +155,7 @@ const resInstance = await mesure({
     { name: '5 000 pages', input: grosseInstance, size: 5000 },
     { name: '100 pages', input: petiteInstance, size: 100 },
   ],
-  calcul: passeInstance((inst, _bases, racines, t) => deplaceInstance(inst, racines, t)),
+  calcul: passeInstance((inst, _b, r, t) => deplaceInstance(inst, r, t, inst.draws)),
   attendu: passeInstance((inst, bases, racines, t) =>
     referenceUpdateInstance(
       asHostLibrary<Parameters<typeof referenceUpdateInstance>[0]>(inst),

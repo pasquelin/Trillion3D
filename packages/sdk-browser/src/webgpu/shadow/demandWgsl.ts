@@ -8,8 +8,9 @@ import { shadowRequestWgsl } from '../../lighting/direct/shadowRequestWgsl.ts';
 import {
   PCF_TAPS_WGSL,
   SHADOW_DATA_WGSL,
-  SHADOW_PAGE_READ_WGSL,
+  shadowPageReadWgsl,
 } from '../../lighting/direct/shadowWgsl.ts';
+import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SUBSURFACE_FLAG } from '../../scene/subsurface.ts';
 import { AS_IS_FLAG, FOG_FREE_SURFACE_FLAG } from '../../scene/surfaceModel.ts';
 
@@ -31,8 +32,10 @@ export const SHADOW_DEMAND_GROUP = 8;
  * (`declaredLight`), its tile slice, its light gate, and the page
  * model (`pageModel.ts`) its read takes the level, the map texel, the entry and the PCF's pages
  * from. Unlike the read, the demand never falls back: a page not drawn yet is the one it wants.
+ * The layout it marks is the session's window (`referenceMode.ts`), the ordinary constant by
+ * default.
  */
-export const SHADOW_DEMAND_WGSL = `
+export const shadowDemandWgsl = (pages = SUN_WINDOW) => `
 ${VIEW_WGSL}
 @group(0) @binding(0) var depth:texture_depth_2d;
 @group(0) @binding(1) var normalRough:texture_2d<f32>;
@@ -42,11 +45,11 @@ ${VIEW_WGSL}
 @group(0) @binding(5) var<storage,read> tileLights:array<u32>;
 ${SHADOW_DATA_WGSL}
 @group(0) @binding(6) var<storage,read> shadows:ShadowData;
-${shadowRequestWgsl(7)}
+${shadowRequestWgsl(7, pages)}
 @group(0) @binding(8) var<storage,read> shadingOffset:array<f32>;
 ${DIRECT_LIGHT_WGSL}
 ${TILE_SLICE_WGSL}
-${SHADOW_PAGE_READ_WGSL}
+${shadowPageReadWgsl(pages)}
 ${SHADOW_READ_AT_WGSL}
 ${PCF_TAPS_WGSL}
 ${LAMP_SOFT_DISK_WGSL}
@@ -175,3 +178,5 @@ fn demandLight(light:DirectLight,at:vec3f,receiver:vec3f,N:vec3f,thin:bool,footp
   demandLight(directLights.items[light],at,P,N,thin,footprint);
  }
 }`;
+/** The demand of the ordinary window: what a pass compiled without a session window marks. */
+export const SHADOW_DEMAND_WGSL = shadowDemandWgsl();

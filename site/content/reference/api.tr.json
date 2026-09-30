@@ -433,7 +433,8 @@
       "near": "Çizilen en yakın mesafe.",
       "far": "Çizilen en uzak mesafe.",
       "zoom": "Büyütme.",
-      "orthographic": "Ortografik bir kameranın görüş kutusu."
+      "orthographic": "Ortografik bir kameranın görüş kutusu.",
+      "viewTile": "Bu kameranın çizdiği daha geniş bir görünümün döşemesi. Yoksa görünüm tümüyle çizilir."
     }
   },
   "CameraParameters": {
@@ -531,7 +532,8 @@
       "worstStalls": "Derleyicinin takılma tablosu: düzey 0'da kök bırakan takılmış bir grubu olan en fazla on primitif, en kötüsü önce. Ondan önce derlenmiş bir önbellekte yoktur.",
       "texturePreviews": "Önce dokuya, sonra atlasa göre sıralanmış, çözülen her (doku, atlas) için bir giriş; çözülebilir bir görsel olmadan boş.",
       "textures": "Manifestoya göreli, önceden pişirilmiş seviyeler için şablon: {sha} kaynak görselin özeti, {kind} atlas adı (PREVIEW_ATLAS_NAMES), {level} seviye sırası. Bu okuyucunun yardımcı sürüm üzerinden reddettiği, önceden pişirilmiş seviyelerden önce derlenmiş bir önbellekte bulunmaz. `version` seviyelerin sürümüdür (`TEXTURE_PREVIEW_VERSION`): bir okuyucu başka bir sürümün seviyesini okumaz.",
-      "proxy": "Yerleşik sahne proxy'sinin ve onun BVH'sinin nereden okunacağı: ışınların çarptığı geometri. Olduğu gibi okunabilir kalan, yansımadan önce derlenmiş bir önbellekte bulunmaz."
+      "proxy": "Yerleşik sahne proxy'sinin ve onun BVH'sinin nereden okunacağı: ışınların çarptığı geometri. Olduğu gibi okunabilir kalan, yansımadan önce derlenmiş bir önbellekte bulunmaz.",
+      "impostors": "Derleyicinin her mesh için pişirdiği impostor atlasları (#817); impostor öncesi derlenmiş önbellekte bulunmaz."
     }
   },
   "ClusterStructure": {
@@ -3189,6 +3191,13 @@
   "ScreenErrorVariant": {
     "summary": "Bir cluster'ın ekran hatasının nasıl ölçüldüğü: kanıtlanmış sınır, ya da referans formülü."
   },
+  "ShadowAsks": {
+    "summary": "Ana makinenin GPU ayırıcısından istediği girdiler, piksellerin istediğinin (`floors`) yanında.",
+    "members": {
+      "entries": "İstenen girdiler, en fazla ilk `count` tanesi.",
+      "count": "`entries` öğelerinden kaçının dolu olduğu."
+    }
+  },
   "ShadowAtlasDigest": {
     "summary": "Bir gölge atlası okumasının yayımladığı şey: boyutu, orada yazılı olan, parmak izi.",
     "members": {
@@ -3282,6 +3291,7 @@
       "receive": "Bir istek raporu döndü; sonraki plan onu okur. Daha yenisi okunmamış olanın yerini alır.",
       "commit": "Karenin listesindeki `[from, to)` sayfaları kodlandı, `from + i` sayfası `modes[i]` içinde: çizimleri kimse okumadan önce tamamlanır. Son parti listeyi kapatır.",
       "resize": "Başka boyutta havuz; sayfaları korunur, dizileri yeniden oluşturulur: her sayfanın nereye gittiğini döndürür.",
+      "sunWindow": "Bir oturumun çalıştığı güneş clipmap’inin bir kenarındaki sayfa sayısı (`referenceMode.ts`).",
       "gpu": "GPU’nun ayırması (`mirror.ts`): sayfaları GPU’nun eşleyip eşlemediği ve ana makinenin ondan istedikleri."
     }
   },
@@ -3344,6 +3354,7 @@
       "texturePreviews": "Önce dokuya, sonra atlasa göre sıralanmış, çözülen her (doku, atlas) için bir giriş; çözülebilir bir görsel olmadan boş.",
       "textures": "Manifestoya göreli, önceden pişirilmiş seviyeler için şablon: {sha} kaynak görselin özeti, {kind} atlas adı (PREVIEW_ATLAS_NAMES), {level} seviye sırası. Bu okuyucunun yardımcı sürüm üzerinden reddettiği, önceden pişirilmiş seviyelerden önce derlenmiş bir önbellekte bulunmaz. `version` seviyelerin sürümüdür (`TEXTURE_PREVIEW_VERSION`): bir okuyucu başka bir sürümün seviyesini okumaz.",
       "proxy": "Yerleşik sahne proxy'sinin ve onun BVH'sinin nereden okunacağı: ışınların çarptığı geometri. Olduğu gibi okunabilir kalan, yansımadan önce derlenmiş bir önbellekte bulunmaz.",
+      "impostors": "Derleyicinin her mesh için pişirdiği impostor atlasları (#817); impostor öncesi derlenmiş önbellekte bulunmaz.",
       "binary": "İkili dosya.",
       "primitives": "Primitifleri.",
       "worstStalls": "Derleyicinin takılma tablosu: düzey 0'da kök bırakan takılmış bir grubu olan en fazla on primitif, en kötüsü önce. Ondan önce derlenmiş bir önbellekte yoktur."
@@ -3797,6 +3808,7 @@
       "atlas": "Hangi atlas.",
       "level": "Hangi seviye.",
       "format": "Hangi format.",
+      "url": "Önbellek bir tane listelediğinde, seviyenin kendi adresi — bir impostor atlası seviyesi (`maps.<name>.levels[k].url`, #1239). Bu aynı okuyucuyla okunur, `textures.url` şablonu yerine `base`e göre çözülür: bir yükleyici, bir bütçe.",
       "range": "Bir blok seviyesinin tek başına okunacak baytları — bir karonun kaydı (`tileRecords.ts`) —, bir HTTP Range isteğiyle; bunu yok sayan bir sunucu dosyanın tamamını döndürür."
     }
   },
@@ -7631,6 +7643,17 @@
   "SHADOW_RECORD_FLOATS": {
     "summary": "Bir gölge kaydının float’ları, bir ışığın gölgelendirmesinin okuduğu: altı lamba yüzü matrisi — orada bir güneşin derinlik aralıkları, her biri `zNear, zFar` (`recordPack.ts`) —, sonra güneşin ışık düzlemi çerçevesi — `right, zNear`, `up, zFar`, `axis`, sonra geçerli aralığın yuvası —, sonra her clipmap yuvasının pencere başlangıcı iki tamsayı olarak, sonra bir `vec4f` başlığı: yüzler (lamba) ya da seviyeler (güneş), lambanın teğet yarı açısı ya da güneşin en ince seviyesi, lambanın yakın düzlemi ve kaydın sayfa tablosundaki ilk girdisi."
   },
+  "ShadowPoolSnapshot": {
+    "summary": "Bir karenin ayrılmasından sonra GPU ayırıcısının havuzu (`webgpu/shadow/allocWgsl.ts`).",
+    "members": {
+      "owner": "Her fiziksel sayfanın eşlediği girdi, boş bir sayfa için −1.",
+      "requested": "Her sayfanın en son istendiği kare.",
+      "allocated": "O karenin eşlediği sayfalar ve sayfası olmayan girdiler.",
+      "refused": "O karede sayfası olmayan girdiler.",
+      "drawn": "O karenin GPU'nun çizmesi için listelediği sayfalar (`listDraw`).",
+      "listings": "Havuzun başlangıcından beri her karenin listelediği sayfalar: herhangi bir karenin listesiyle birlikte değişir, kendi anlık görüntüsü kaybolsa da kaybolmasa da."
+    }
+  },
   "ShadowRequestReport": {
     "summary": "Gölgelendirmenin bir karede okuduğu: istediği tablo girdileri, sırasız.",
     "members": {
@@ -8107,5 +8130,162 @@
       "nodeName": "Taşınacak düğümün `name` değeri.",
       "matrix": "Dünya duruşu, sütun-büyük sırada on altı kayan noktalı sayı."
     }
+  },
+  "IMPOSTOR_PI": {
+    "summary": "π, bu oracle ve WGSL aynası için tek bir literal; böylece ikisi de aynı sayıyı yuvarlar."
+  },
+  "IMPOSTOR_VERSION": {
+    "summary": "Çalışma zamanının okuduğu `impostors` bölümünün biçimi (#817 bölüm 1, derleyici tarafından pişirilir)."
+  },
+  "ImpostorCard": {
+    "summary": "Çalışma zamanının, geçiş yapılmış bir kökün cluster'ları yerine çizdiği, kameraya bakan tek bir kart.",
+    "members": {
+      "root": "Planın `roots` dizisinde yerini aldığı kökün sırası.",
+      "mesh": "Derlenmiş mesh numarası.",
+      "world": "Kökün dünya matrisi, verildiği gibi.",
+      "centre": "Dünya uzayında pivot; kökün dünyası altındaki sınırlayıcı kürenin merkezi.",
+      "radius": "Dünya uzayında yarıçap `R = objectRadius × kökün dünya ölçeği`.",
+      "frames": "Kenar başına kare.",
+      "hemi": "Karelerin üst yarı-oktahedral olup olmadığı.",
+      "maps": "Kartın örneklediği üç harita: renk+kapsam, normal+derinlik, paketlenmiş ORM."
+    }
+  },
+  "ImpostorLevel": {
+    "summary": "Bir atlas haritasının saklanan tek bir seviyesi: içerik adresi başına bir tane, kayıpsız PNG nesnesi.",
+    "members": {
+      "url": "Seviyenin baytlarının okunduğu yer.",
+      "sha256": "Baytlarının parmak izi.",
+      "bytes": "Boyutu.",
+      "width": "Teksel cinsinden genişliği.",
+      "height": "Teksel cinsinden yüksekliği."
+    }
+  },
+  "ImpostorMap": {
+    "summary": "Atlasın bir haritası ve mip zinciri, önce seviye 0.",
+    "members": {
+      "kind": "Renk zinciri için `coverage`, diğerleri için `data`.",
+      "levels": "Pişirmenin sakladığı her seviye."
+    }
+  },
+  "ImpostorMaps": {
+    "summary": "Kartın örneklediği üç harita: renk ve kapsam, normal ve derinlik, paketlenmiş ORM.",
+    "members": {
+      "colourCoverage": "Temel renk (sRGB) ve alfa içinde kapsam.",
+      "normalDepth": "Nesne normali `n·½+½` olarak, derinlik `D` alfa içinde.",
+      "orm": "Gizlenme, pürüzlülük ve metallik."
+    }
+  },
+  "ImpostorMesh": {
+    "summary": "Derleyicinin çizilen bir mesh hakkındaki kararı: atlasıyla birlikte pişirilmiş ya da nedeniyle birlikte reddedilmiş.",
+    "members": {
+      "mesh": "Derlenmiş mesh numarası.",
+      "sourceMesh": "Kaynak mesh numarası.",
+      "name": "Adı.",
+      "placements": "Onu kaç düğüm yerleştiriyor.",
+      "masked": "Mesh'in bir malzemesi kapsamını maskeye mi kesiyor.",
+      "rootTriangles": "DAG kökünün üçgenleri, mesh'in ilkelleri üzerinden toplanır.",
+      "radius": "Dünya birimlerinde sınırlayıcı yarıçapı (nesne yarıçapı çarpı en büyük yerleştirme ölçeği).",
+      "status": "`baked` ya da `refused`.",
+      "coverage": "`baked` girdisinde karelerin ortalama kapsamı: geçişin `c` değeri.",
+      "hemi": "Karelerin üst yarı-oktahedral olup olmadığı.",
+      "frames": "Kenar başına kare.",
+      "frameSide": "Teksel cinsinden kare kenarı: geçişin `r_f` değeri.",
+      "atlasSide": "Teksel cinsinden atlas kenarı (`frames · frameSide`).",
+      "centre": "Nesne uzayında pivot, sınırlayıcı kürenin merkezi.",
+      "objectRadius": "Nesne uzayında sınırlayıcı yarıçap, yerleştirme ölçeğinden önce.",
+      "bytes": "Saklanan her seviyenin baytları.",
+      "maps": "`baked` girdisindeki üç harita.",
+      "switchDepth": "Pişirilmiş referans mesafeleri.",
+      "reason": "Bir mesh neden reddedildi: kodu.",
+      "detail": "Bir reddi belirleyen sayıları veren bir cümle."
+    }
+  },
+  "ImpostorPlan": {
+    "summary": "Geçişin kararı: çizilecek kartlar ve cluster'larını bastırdığı kökler.",
+    "members": {
+      "cards": "Geçiş yapılmış her kök için bir kart, kök sırasına göre.",
+      "switched": "Geçişin bastırdığı kök sıraları: geçiş yapılmış kökte 1, diğerlerinde 0."
+    }
+  },
+  "ImpostorRoot": {
+    "summary": "Planın bir kökten istediği: derlenmiş mesh numarası ve onu yerleştiren dünya matrisi.",
+    "members": {
+      "mesh": "Derlenmiş mesh numarası (`Primitive.mesh`); hiçbir impostor'un değiştiremeyeceği bir kökte yoktur.",
+      "world": "Yerleştirmenin dünya matrisi, sütun-büyük (`MatrixElements`)."
+    }
+  },
+  "ImpostorSection": {
+    "summary": "Manifestonun `impostors` bölümü: derleyicinin çizilen her mesh hakkındaki kararı.",
+    "members": {
+      "version": "Biçim sürümü.",
+      "frames": "Bölümün her atlasının pişirildiği kenar başına kare sayısı.",
+      "focalPixels": "Pişirmenin mesafeleri değerlendirdiği piksel cinsinden odak uzaklığı.",
+      "textureLimit": "Herhangi bir kartın tuttuğu en büyük atlas kenarı.",
+      "baked": "Kaç mesh pişirildi.",
+      "refused": "Kaç tanesi reddedildi.",
+      "meshes": "Her mesh'in kararı, kaynak sırasına göre."
+    }
+  },
+  "ImpostorSwitchDepth": {
+    "summary": "Manifestonun `focalPixels` değerinde metre cinsinden iki pişirilmiş referans mesafesi (#817).",
+    "members": {
+      "texel": "`z_tex`: buradan itibaren kare, piksel başına en fazla bir teksel.",
+      "triangles": "`z_tri`: buradan itibaren kök, kapladığı piksel sayısını aşar."
+    }
+  },
+  "ImpostorSwitchInput": {
+    "summary": "Geçişin okuduğu dört pişirilmiş sayı ve yerleştirme ölçeği.",
+    "members": {
+      "objectRadius": "Nesne uzayında sınırlayıcı yarıçap `objectRadius`.",
+      "rootTriangles": "DAG kökünün üçgenleri `T`.",
+      "coverage": "Pişirilmiş ortalama kapsam `c`.",
+      "frameSide": "Teksel cinsinden kare kenarı `r_f`.",
+      "maxWorldScale": "Mesh'in yerleştirmelerinin en büyük dünya ölçeği; bilinmediğinde bir."
+    }
+  },
+  "assertImpostorSection": {
+    "summary": "Bölümün taşıdığı adlandırılmış önbellek reddini fırlatır ya da onu değiştirmeden döndürür."
+  },
+  "cellWeights": {
+    "summary": "`g` ızgara konumundaki bir görünümün harmanladığı üç kare ve barisantrik ağırlıkları."
+  },
+  "drawsImpostor": {
+    "summary": "Impostor'un `viewDepth` değerinde (pivotun metre cinsinden görünüm derinliği) çizip çizmediği."
+  },
+  "impostorBakedByMesh": {
+    "summary": "Bölümün pişirilmiş mesh'leri, derlenmiş mesh numarasıyla anahtarlanır; reddedilen girdiler dışarıda bırakılır."
+  },
+  "impostorMeshBaked": {
+    "summary": "Bir mesh girdisi çizilebilir bir atlas taşıyor mu: üç haritası ve bir kare kenarıyla `baked`."
+  },
+  "impostorRadius": {
+    "summary": "`R`: mesh'in bir yerleştirmesinin ona verdiği en büyük dünya ölçeğinde, nesne uzayındaki yarıçap."
+  },
+  "impostorSwitchDepth": {
+    "summary": "Çalışma zamanı odak uzaklığı `focalPixels` için metre cinsinden `z_s = max(z_tex, z_tri)`."
+  },
+  "impostorSwitchOf": {
+    "summary": "Pişirilmiş bir manifest girdisinin taşıdığı geçiş girdisi ya da girdi reddedildiğinde veya dört sayıdan birini kaçırdığında `undefined`.",
+    "description": "Bir nesne yalnızca mesh'inin `baked` girdisi varsa uygundur."
+  },
+  "impostorTexelDepth": {
+    "summary": "`z_tex`: `frameSide` teksellik bir karenin piksel başına en fazla bir teksel olduğu derinlik."
+  },
+  "impostorTriangleDepth": {
+    "summary": "`z_tri`: kökün `rootTriangles` değerinin, kapladığı pikselleri aştığı derinlik."
+  },
+  "octDecode": {
+    "summary": "Izgara koordinatları `f ∈ [0, 1]²` birim yöne geri, `octEncode`'un tersi."
+  },
+  "octEncode": {
+    "summary": "`d` yönü `[-1, 1]²` düzlemine: tam oktahedron ya da üst yarı-oktahedron."
+  },
+  "planImpostors": {
+    "summary": "Bir görünüm için impostor katmanını planlar: mesh'i pişirilmiş girdiye sahip ve geçişi tutan her kök bir kart üretir ve bastırılmış olarak işaretlenir.",
+    "description": "`view` dünyayı görünüm uzayına eşler (sütun-büyük) ve `focalPixels` motorun görüntünün viewport'undaki piksel cinsinden tek odak uzaklığıdır."
+  },
+  "validateImpostorSection": {
+    "summary": "Bölümün kullanılamamasının kısa nedeni ya da `null`.",
+    "description": "Olmayan bölüm hata değildir: ondan önceki bir önbellek her mesh'i eskisi gibi tam çizer. Var olan bölüm, sürümü bilinmediğinde ya da bir `baked` girdisi geçişinin ve kartının ihtiyaç duyduğu sayıları kaçırdığında bir bütün olarak reddedilir."
   }
 }
