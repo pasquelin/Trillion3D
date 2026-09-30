@@ -37,15 +37,19 @@ if (import.meta.main) {
   const SHADOWED = [0];
 
   type Reach = (light: number) => boolean;
-  /** A case of `count` lights, the opaque slice keeping `opaque`, the blend one `blend`. */
+  /** A case of `count` lights, the opaque slice keeping `opaque`, the blend one `blend`, the
+   *  opaque slice's depth mask dropping `masked` of its own (#1369). */
   function spillCase(
     name: string,
     count: number,
     opaque: Reach,
     blend: Reach,
-    { capacity = 2 * count, head = 0, narrow = false } = {},
+    { capacity = 2 * count, head = 0, narrow = false, masked = (() => false) as Reach } = {},
   ): SpillCase {
-    const keeps = Array.from({ length: count }, (_, i) => +opaque(i) | (+blend(i) << 1));
+    const keeps = Array.from(
+      { length: count },
+      (_, i) => +opaque(i) | (+blend(i) << 1) | (+masked(i) << 2),
+    );
     const words = narrow ? NARROW : WIDE;
     return { name, words, pool: !narrow, count, keeps, capacity: narrow ? 0 : capacity, head };
   }
@@ -64,6 +68,8 @@ if (import.meta.main) {
   spillCase('narrow, one light', 1, all, none, { narrow: true }),
   spillCase('narrow, holey masks across a word', 33, even, (i) => i % 3 !== 0, { narrow: true }),
   spillCase('narrow, a full list', LIST, all, all, { narrow: true }),
+  spillCase('narrow, the depth mask drops a third', 40, all, none, { narrow: true, masked: (i) => i % 3 === 2 }),
+  spillCase('the depth mask brings a slice back within its list', 150, all, none, { masked: (i) => i >= LIST }),
   spillCase('wide, within the lists', 100, (i) => i % 3 === 0, (i) => i % 5 === 0),
   spillCase('wide, one light past a list', LIST + 1, all, (i) => i < LIST),
   spillCase('one batch, both slices past a list', 200, (i) => i % 3 !== 0, (i) => i % 3 === 0),
@@ -98,11 +104,12 @@ if (import.meta.main) {
       flagged = 0;
     for (const [k, c] of CASES.entries()) {
       const layout = tileLayout(spillHarness(c.words, c.pool));
-      const keeps = (bit: number) => c.keeps.flatMap((keep, i) => (keep & bit ? [i] : []));
+      const keeps = (bit: number, drop = 0) =>
+        c.keeps.flatMap((keep, i) => (keep & bit && !(keep & drop) ? [i] : []));
       const pool = { capacity: c.capacity, head: c.head, overflow: 0 };
       const tiles = compactTile(
         layout,
-        { opaque: keeps(1), blend: keeps(2), shadowed: SHADOWED },
+        { opaque: keeps(1, 4), listed: keeps(1), blend: keeps(2), shadowed: SHADOWED },
         c.count,
         undefined,
         pool,

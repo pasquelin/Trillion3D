@@ -17,9 +17,11 @@ export const tileCompactWgsl = (words: number, pool: boolean) => `
 const OPAQUE_MASK:u32=0u;
 const BLEND_MASK:u32=${words}u;
 var<workgroup> hits:array<atomic<u32>,${2 * words}u>;
-/** One when any light kept in the OPAQUE slice reads a shadow slot (\`light.params.y>-1.0\`): the
- *  per-tile fact the moving resolve reads once, rather than walking the list a pixel at a time
- *  (#1249). A light of the blend slice alone never sets it. */
+/** The OPAQUE slice's lights before the depth mask (\`depthBinsHit\`), and one when any of them reads
+ *  a shadow slot (\`light.params.y>-1.0\`): the list the moving resolve chose its sum by before the
+ *  mask (#1249, #1369), settled once here rather than walked a pixel at a time. A light of the
+ *  blend slice alone never counts. */
+var<workgroup> listed:atomic<u32>;
 var<workgroup> shadowed:atomic<u32>;
 /** Rank of a kept light: the number of kept bits before it in the same slice. */
 fn rankBefore(mask:u32,lane:u32)->u32{
@@ -39,13 +41,20 @@ fn maskTotal(mask:u32,words:u32)->u32{
 }
 /** Tests light \`index\` against the slices and sets its bit, thread \`lane\` of the batch. A
  *  directional light reaches everywhere: no tile bound can reject it. The others are kept only
- *  if their range sphere, brought into the pass's frame, touches the slice. */
+ *  if their range sphere, brought into the pass's frame, touches the slice — and, in the opaque
+ *  one, a depth bin its pixels fill (#1369). */
 fn markLight(index:u32,lane:u32,hasOpaque:bool,seesSky:bool){
  let light=lights.items[index];
+ let sun=isSun(light);
+ let centre=light.positionRange.xyz-view.origin.xyz;
  var keep=vec2<bool>(hasOpaque,true);
- if(!isSun(light)){keep=sliceHits(light.positionRange.xyz-view.origin.xyz,light.positionRange.w,hasOpaque,seesSky);}
+ if(!sun){keep=sliceHits(centre,light.positionRange.w,hasOpaque,seesSky);}
  let bit=1u<<(lane%32u);
- if(keep.x){atomicOr(&hits[OPAQUE_MASK+lane/32u],bit);if(light.params.y>-1.0){atomicOr(&shadowed,1u);}}
+ if(keep.x){
+  atomicAdd(&listed,1u);
+  if(light.params.y>-1.0){atomicOr(&shadowed,1u);}
+  if(sun||depthBinsHit(centre,light.positionRange.w)){atomicOr(&hits[OPAQUE_MASK+lane/32u],bit);}
+ }
  if(keep.y){atomicOr(&hits[BLEND_MASK+lane/32u],bit);}
 }${pool ? batchedWalkWgsl(words) : NARROW_WALK_WGSL}`;
 
@@ -114,7 +123,7 @@ fn spill(slice:u32,total:u32,slot:u32){
  */
 export const tileCompactResetWgsl = (words: number, pool: boolean) =>
   `${pool ? WALK_RESET_WGSL : ''} if(lane<${2 * words}u){atomicStore(&hits[lane],0u);}
- if(lane==0u){atomicStore(&shadowed,0u);}`;
+ if(lane==0u){atomicStore(&listed,0u);atomicStore(&shadowed,0u);}`;
 
 /** The wide pass's walk state: nothing kept, each slice writing its list, a list's room. */
 const WALK_RESET_WGSL = ` if(lane==0u){
@@ -122,8 +131,12 @@ const WALK_RESET_WGSL = ` if(lane==0u){
  }
 `;
 
-/** Thread zero's flag word of the record: `shadowed` is only ever zero or one. */
-const SHADOW_FLAG_WGSL = 'tiles[base+TILE_SHADOW_BASE]=atomicLoad(&shadowed);';
+/** Thread zero's flag word of the record: one when a moving image draws the opaque list — the
+ *  list before the depth mask is one \`sampledList\` draws and holds a shadowed light —, the choice
+ *  the resolve made on that list, so the mask never changes which sum a pixel takes (#1369). The
+ *  first walk's count: a second walk into the pool counts again, after this word is written. */
+const SHADOW_FLAG_WGSL =
+  'tiles[base+TILE_SHADOW_BASE]=select(0u,1u,atomicLoad(&shadowed)!=0u&&sampledList(atomicLoad(&listed)));';
 
 /**
  * The compaction of the tile's `count` lights into its record at `base`, in uniform control flow:

@@ -2,7 +2,8 @@
  * The shipped tile compaction (`packages/sdk-browser/src/lighting/tiles/compactWgsl.ts`) in one
  * workgroup of the tile pass's size, its statements and functions as the pass includes them. Only
  * the slice test is the probe's: light `i` sits at `x = i`, `keeps[i]` names the slices it
- * reaches — bit 0 the opaque one, bit 1 the blend one —, so a case sets any mask it wants, and
+ * reaches — bit 0 the opaque one, bit 1 the blend one, bit 2 dropped by the opaque slice's depth
+ * mask —, so a case sets any mask it wants, and
  * the WGSL's lists, pool and overflow meet the oracle's (`light-tiles-spill-gpu.ts`, #849).
  */
 import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/index.ts';
@@ -44,6 +45,8 @@ fn sliceHits(centre:vec3f,radius:f32,hasOpaque:bool,seesSky:bool)->vec2<bool>{
  let keep=keeps[u32(centre.x)];
  return vec2<bool>((keep&1u)!=0u,(keep&2u)!=0u);
 }
+/** The probe's depth mask: bit 2 of \`keeps\` drops a light the opaque slice keeps (#1369). */
+fn depthBinsHit(centre:vec3f,radius:f32)->bool{return (keeps[u32(centre.x)]&4u)==0u;}
 ${tileCompactWgsl(words, pool)}
 @compute @workgroup_size(${LIGHT_SETTINGS.tileSize},${LIGHT_SETTINGS.tileSize},1)
 fn main(@builtin(local_invocation_index) lane:u32){
