@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { DIAGNOSTICS, type DiagnosticMode } from './diagnostics.ts';
-import { SHADE_MODE } from '../../../sdk-browser/src/webgpu/visibility/uniforms.ts';
+import { SHADE_MODE } from '../../../sdk-browser/src/visibility/shader/shadeMode.ts';
 import { createExplorerDiagnosticApi } from '../../../sdk-browser/src/world/api/diagnosticApi.ts';
 import type { RenderBackend } from '../../../sdk-browser/src/backend/types.ts';
 
