@@ -1,11 +1,12 @@
 // The world super-roots drawn by the ONE cut (#1238): a cell's super-root stands in for its
 // per-instance roots when those are not resident, and the surface is covered exactly once across a
-// cell's arrival and departure. Proved on the CPU oracle and on the kernel's own WGSL text, through
-// the engine's existing shapes (`buildWorldSuperRootRoot`, `packDagSelection`,
-// `evaluateDagSelectionKernel`).
+// cell's arrival and departure. Driven by the cook's own table shape — `worldRootsDag`, a
+// world-roots.json fixture extended with the `clusters` and `groups` keys #1238 adds — read through
+// the runtime's `worldRootDag`, and proved on the CPU oracle and the kernel's own WGSL text.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildWorldSuperRootRoot, type WorldSuperRootCluster } from './worldSuperRoots.ts';
+import { worldRootDag } from './worldSuperRoots.ts';
+import { worldRootsDag } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts';
 import { oracleBackend, wgslBackend } from '../page/cut/cutRuleBackends.fixture.ts';
 import { ruleChecks } from '../page/cut/cutRuleChecks.fixture.ts';
 import { coverFault } from '../page/cut/cutRule.fixture.ts';
@@ -13,95 +14,15 @@ import { DAG_SELECTION_SHADER } from '../gpu/dag/shader/shader.ts';
 
 const THRESHOLD = 0.1;
 
-type WorldCluster = WorldSuperRootCluster & {
-  units: [number, number];
-  group: number | null;
-  source: number | null;
-};
-
-/**
- * A world of three cells along x, each four object roots (level 0), continued into one cell
- * super-root (level 1) and one world top (level 2): the shape the cook publishes (#1188), ordered
- * by its world rank. `group` names the cluster's owner group (null on the world top), `source` the
- * group that produced it, `units` the leaf units each covers, so coverage can be checked.
- */
+/** The world DAG the cook publishes, as the runtime reads it (`worldRootDag`), with the group that
+ *  replaces each cluster and the leaf units it covers attached, so a coverage check can read them. */
 function worldDag() {
-  const cells = 3,
-    per = 4,
-    leaves = cells * per,
-    e1 = 0.05,
-    e2 = 0.5;
-  const clusters: WorldCluster[] = [];
-  const groups: { level: number; error: number; sphere: number[]; children: number[]; outputs: number[] }[] = [];
-  for (let cell = 0; cell < cells; cell++)
-    for (let i = 0; i < per; i++) {
-      const u = cell * per + i;
-      clusters.push({
-        cluster: u,
-        url: `cell${cell}/root${i}`,
-        level: 0,
-        lodError: 0,
-        sphere: [u + 0.5, 0, 0, 0.5],
-        parentError: e1,
-        parentSphere: [cell * per + 2, 0, 0, 2],
-        min: [u, -0.25, -0.25],
-        max: [u + 1, 0.25, 0.25],
-        triangles: 2,
-        units: [u, u + 1],
-        group: cell,
-        source: null,
-      });
-    }
-  for (let cell = 0; cell < cells; cell++) {
-    const cluster = clusters.length;
-    clusters.push({
-      cluster,
-      url: `cell${cell}`,
-      level: 1,
-      lodError: e1,
-      sphere: [cell * per + 2, 0, 0, 2],
-      parentError: e2,
-      parentSphere: [leaves / 2, 0, 0, leaves / 2],
-      min: [cell * per, -0.25, -0.25],
-      max: [(cell + 1) * per, 0.25, 0.25],
-      triangles: 2 * per,
-      units: [cell * per, (cell + 1) * per],
-      group: cells,
-      source: cell,
-    });
-    groups.push({
-      level: 1,
-      error: e1,
-      sphere: [cell * per + 2, 0, 0, 2],
-      children: [cell * per, cell * per + 1, cell * per + 2, cell * per + 3],
-      outputs: [cluster],
-    });
-  }
-  const top = clusters.length;
-  clusters.push({
-    cluster: top,
-    url: 'world-top',
-    level: 2,
-    lodError: e2,
-    sphere: [leaves / 2, 0, 0, leaves / 2],
-    parentError: null,
-    parentSphere: null,
-    min: [0, -0.25, -0.25],
-    max: [leaves, 0.25, 0.25],
-    triangles: 2 * leaves,
-    units: [0, leaves],
-    group: null,
-    source: cells,
-  });
-  groups.push({
-    level: 2,
-    error: e2,
-    sphere: [leaves / 2, 0, 0, leaves / 2],
-    children: [leaves, leaves + 1, leaves + 2],
-    outputs: [top],
-  });
-  const root = buildWorldSuperRootRoot(clusters, groups);
-  const pages = root.pages.map((page, at) => ({ ...page, ...clusters[at] }));
+  const { clusters, groups, leaves } = worldRootsDag();
+  const owner = new Array<number | null>(clusters.length).fill(null);
+  for (const [at, group] of groups.entries())
+    for (const child of group.children) owner[child] = at;
+  const root = worldRootDag({ clusters, groups, payload: { url: 'world-roots.bin' } })!;
+  const pages = root.pages.map((page, at) => ({ ...page, ...clusters[at], group: owner[at] }));
   return { ...root, structure: root.structure!, pages, leaves };
 }
 type WorldDag = ReturnType<typeof worldDag>;

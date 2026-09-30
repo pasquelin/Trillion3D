@@ -49,3 +49,120 @@ export function worldRootsFixture(sha256: (bytes: Uint8Array) => string = () => 
   };
   return { table, bin };
 }
+
+/** One world cluster as the cook's `clusters` key publishes it (FORMAT.md, World super-roots):
+ *  its rank, the fields the runtime cut projects, and where its page lives — a super-root names
+ *  its `bundle` and `offset` in the binary, an object root its `origin` (the placed instance). The
+ *  test-only `units` names the leaf unit span it covers, so a coverage check can run. */
+export type WorldRootsCookedCluster = {
+  cluster: number;
+  level: number;
+  lodError: number;
+  sphere: number[];
+  parentError: number | null;
+  parentSphere: number[] | null;
+  min: number[];
+  max: number[];
+  triangles: number;
+  material: number | null;
+  bundle: number | null;
+  offset: number | null;
+  origin: number | null;
+  units: [number, number];
+};
+/** One group of the world DAG, its children and outputs named by world rank. */
+export type WorldRootsCookedGroup = {
+  level: number;
+  error: number;
+  sphere: number[];
+  children: number[];
+  outputs: number[];
+};
+
+/**
+ * A world of three cells along x, each four object roots (level 0, kept in the objects' own
+ * streams), continued into one cell super-root (level 1) and one world top (level 2): the shape
+ * the cook publishes, its `clusters` and `groups` as #1238 adds them to `world-roots.json`. Cell
+ * 2 far, its object roots unread, its super-root must stand in. `units` spans the leaf unit each
+ * cluster covers, so a coverage check can read it.
+ */
+export function worldRootsDag() {
+  const cells = 3,
+    per = 4,
+    leaves = cells * per,
+    e1 = 0.05,
+    e2 = 0.5;
+  const clusters: WorldRootsCookedCluster[] = [];
+  const groups: WorldRootsCookedGroup[] = [];
+  for (let cell = 0; cell < cells; cell++)
+    for (let i = 0; i < per; i++) {
+      const u = cell * per + i;
+      clusters.push({
+        cluster: u,
+        level: 0,
+        lodError: 0,
+        sphere: [u + 0.5, 0, 0, 0.5],
+        parentError: e1,
+        parentSphere: [cell * per + 2, 0, 0, 2],
+        min: [u, -0.25, -0.25],
+        max: [u + 1, 0.25, 0.25],
+        triangles: 2,
+        material: null,
+        bundle: null,
+        offset: null,
+        origin: u,
+        units: [u, u + 1],
+      });
+    }
+  for (let cell = 0; cell < cells; cell++) {
+    const cluster = clusters.length;
+    clusters.push({
+      cluster,
+      level: 1,
+      lodError: e1,
+      sphere: [cell * per + 2, 0, 0, 2],
+      parentError: e2,
+      parentSphere: [leaves / 2, 0, 0, leaves / 2],
+      min: [cell * per, -0.25, -0.25],
+      max: [(cell + 1) * per, 0.25, 0.25],
+      triangles: 2 * per,
+      material: null,
+      bundle: cell + 1,
+      offset: 0,
+      origin: null,
+      units: [cell * per, (cell + 1) * per],
+    });
+    groups.push({
+      level: 1,
+      error: e1,
+      sphere: [cell * per + 2, 0, 0, 2],
+      children: [cell * per, cell * per + 1, cell * per + 2, cell * per + 3],
+      outputs: [cluster],
+    });
+  }
+  const top = clusters.length;
+  clusters.push({
+    cluster: top,
+    level: 2,
+    lodError: e2,
+    sphere: [leaves / 2, 0, 0, leaves / 2],
+    parentError: null,
+    parentSphere: null,
+    min: [0, -0.25, -0.25],
+    max: [leaves, 0.25, 0.25],
+    triangles: 2 * leaves,
+    material: null,
+    bundle: 0,
+    offset: 0,
+    origin: null,
+    units: [0, leaves],
+  });
+  groups.push({
+    level: 2,
+    error: e2,
+    sphere: [leaves / 2, 0, 0, leaves / 2],
+    children: [leaves, leaves + 1, leaves + 2],
+    outputs: [top],
+  });
+  return { clusters, groups, leaves };
+}
