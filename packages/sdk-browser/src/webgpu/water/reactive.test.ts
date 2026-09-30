@@ -1,6 +1,6 @@
 // #833: the water composite writes its coverage as the reactive value into the same target the
 // blend pass and the particles write (`asIsShare.ts`), so the temporal resolve shortens a pixel's
-// history behind water as it does behind a blend or a particle — moving or at rest.
+// history behind water as it does behind a blend or a particle, while the image moves.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { REACTIVE_TARGET } from '../../lighting/deferred/asIsShare.ts';
