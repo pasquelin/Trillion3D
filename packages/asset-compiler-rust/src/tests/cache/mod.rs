@@ -6,6 +6,7 @@ pub(in crate::tests) mod import_and_prune;
 pub(in crate::tests) mod lock;
 pub(in crate::tests) mod reuse;
 pub(in crate::tests) mod reuse_proof;
+pub(in crate::tests) mod run_settings;
 
 /// Two one-triangle OBJ files in one folder, the folder compiled at full scope: the start of
 /// every prune test, which then compiles another scope over the same cache.
