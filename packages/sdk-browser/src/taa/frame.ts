@@ -145,10 +145,15 @@ export function restartTaaOnLanding(rt: WebgpuPagesRuntime, landed: number) {
     forgetTaaHistory(temporal);
 }
 
-/** The shadow pages the GPU drew itself since the last call, known a snapshot late
- *  (`mirror.drawn`): they land as the host's do, else a shadow drawn at rest stays diluted in the
- *  still average, faint (#1344). */
-export function gpuShadowPagesLanded(rt: WebgpuPagesRuntime) {
+/** The shadow pages the frame landed: the host's (`shadowPages`), and those the GPU drew itself,
+ *  known a snapshot late (`mirror.drawn`) — else a shadow drawn at rest stays diluted in the still
+ *  average, faint (#1344). */
+export function restartTaaOnShadowLanding(rt: WebgpuPagesRuntime) {
+  restartTaaOnLanding(rt, rt.lights.shadowPages + gpuShadowPagesLanded(rt));
+}
+
+/** The pages the GPU drew itself since the last call. */
+function gpuShadowPagesLanded(rt: WebgpuPagesRuntime) {
   const drawn = rt.lights?.plan.gpu.drawn ?? 0,
     seen = gpuDrawnSeen.get(rt) ?? drawn;
   gpuDrawnSeen.set(rt, drawn);
