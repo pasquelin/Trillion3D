@@ -13,14 +13,17 @@ export interface BesideRule {
   beside: string[];
 }
 
+/** Jolt's two modules with the worker that runs them: the physics a page fetches. */
+export const PHYSICS_RULE: BesideRule = {
+  marker: 'joltPhysics.wasm',
+  beside: ['physicsWorker.js', 'joltPhysics.wasm', 'joltPhysicsThreads.wasm'],
+};
+
 /** The engine's modules, each fetched beside the chunk that names it: the page decoder's, and
- *  Jolt's two with the worker that runs them. */
+ *  the physics'. */
 const BESIDE_RULES: BesideRule[] = [
   { marker: 'pageCodec.wasm', beside: ['pageCodec.wasm'] },
-  {
-    marker: 'joltPhysics.wasm',
-    beside: ['physicsWorker.js', 'joltPhysics.wasm', 'joltPhysicsThreads.wasm'],
-  },
+  PHYSICS_RULE,
 ];
 
 /** Every rule's module found missing beside a chunk that names it, as one line each; a rule no

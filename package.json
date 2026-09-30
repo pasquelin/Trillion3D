@@ -5,6 +5,8 @@
   "type": "module",
   "private": true,
   "sideEffects": false,
+  "unpkg": "./dist/trillion3d.module.js",
+  "jsdelivr": "./dist/trillion3d.module.js",
   "license": "PolyForm-Noncommercial-1.0.0",
   "exports": {
     ".": {
@@ -19,6 +21,10 @@
       "types": "./dist/sdk/index.d.ts",
       "import": "./dist/sdk/index.js",
       "default": "./dist/sdk/index.js"
+    },
+    "./module": {
+      "types": "./dist/sdk/browser.d.ts",
+      "default": "./dist/trillion3d.module.js"
     },
     "./package.json": "./package.json"
   },
@@ -75,6 +81,7 @@
     "check:translations": "node scripts/check-translations.ts",
     "check:english": "node scripts/check-english.ts",
     "check:thumbnails": "node scripts/check-thumbnails.ts",
+    "check:bundle-size": "node scripts/check-bundle-size.ts",
     "check:dts": "node scripts/rewrite-dts-extensions.ts --check",
     "check:no-js": "node scripts/check-no-js.ts",
     "check:docs-bundles": "node scripts/docs-build.ts --untracked",
