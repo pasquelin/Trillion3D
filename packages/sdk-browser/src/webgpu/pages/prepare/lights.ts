@@ -1,4 +1,4 @@
-import { LIGHT_SETTINGS } from '../../../../../sdk-core/src/index.ts';
+import { LIGHT_SETTINGS, explorerSwitch } from '../../../../../sdk-core/src/index.ts';
 import { createGpuLightTiles } from '../../../lighting/tiles/tiles.ts';
 import { createGpuShadowAtlas } from '../../../gpu/shadow/atlas.ts';
 import { createGpuShadowCull } from '../../../gpu/shadow/cull.ts';
@@ -32,7 +32,7 @@ const SHADOW_APPROXIMATIONS = [
 export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { lights, vis, capabilities, diag } = rt,
     { casterSlots } = rt.layout.rows;
-  if (rt.context.shadowPageInvalidation === false) lights.plan.setPageInvalidation(false);
+  if (!explorerSwitch(rt.context, 'shadowPageInvalidation')) lights.plan.setPageInvalidation(false);
   if (!lights.buffer || !vis.visEnabled || !vis.visBindGroupLayout) {
     lights.shadowReason = 'visibility buffer unavailable';
     return;

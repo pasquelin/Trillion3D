@@ -1,7 +1,11 @@
 import type { HostTexture } from '../../host/resources.ts';
 import { DEFAULT_CLEAR_COLOR, isCancelled, pixelRatioOf } from '../../backend/common.ts';
 import { referenceSunWindow } from '../../frame/referenceMode.ts';
-import { createSceneLightStore, dagWarningsDiagnostic } from '../../../../sdk-core/src/index.ts';
+import {
+  createSceneLightStore,
+  dagWarningsDiagnostic,
+  explorerSwitch,
+} from '../../../../sdk-core/src/index.ts';
 import { createSceneProxyReader } from '../../scene/proxyLoad.ts';
 import { createTextureLevelReader } from '../../texture/levelReader.ts';
 import { resolveDiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts';
@@ -43,7 +47,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
   // from its first frame that it has a source, and no engine prepares on an empty store that
   // would then have to be pushed. A cache without this product declares none, as before.
   let importedLightIds: string[] = [];
-  if (options.importedLights !== false) {
+  if (explorerSwitch(options, 'importedLights')) {
     const imported = await loadImportedLights(base, signal);
     importedLightIds = declareImportedLights(sceneLights, imported.lights);
     if (importedLightIds.length || Object.keys(imported.rejected).length)
@@ -79,7 +83,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     residentPagesDefault: attachCap,
     maxCachedPages: cacheCap,
     pixelError: options.pixelError ?? 0,
-    lodAdaptive: options.lodAdaptive,
+    lodAdaptive: explorerSwitch(options, 'lodAdaptive'),
     clearColor: options.clearColor ?? DEFAULT_CLEAR_COLOR,
     onDiagnostic: diagnosticChannel.enabled ? diagnosticChannel.emit : undefined,
     preparationStep: (step) => diagnose('backend-preparation-step', step, { kind: 'preparation' }),
@@ -91,7 +95,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     gpuCanvas: directGpu ? canvas : undefined,
     maxTextureTransferBytesPerFrame: options.maxTextureTransferBytesPerFrame,
     maxTextureUploadMsPerFrame: options.maxTextureUploadMsPerFrame,
-    temporalAntialiasing: options.temporalAntialiasing ?? true,
+    temporalAntialiasing: explorerSwitch(options, 'temporalAntialiasing'),
     renderScale: options.renderScale,
     // A reference session reads the finest shadow level over its whole canvas and field.
     sunWindow: options.reference ? referenceSunWindow(viewport[1], options.fov) : undefined,
@@ -102,21 +106,21 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     geometryPoolCeilingBytes: options.geometryPoolCeilingBytes,
     texturePoolBytes: options.texturePoolBytes,
     textureCompression: options.textureCompression,
-    stageProfile: options.stageProfile === true,
+    stageProfile: explorerSwitch(options, 'stageProfile'),
     feedbackTargetAB: options.feedbackTargetAB === true,
     // The diagnostic variant is checked here, once: outside `trace`, it is refused.
     diagnosticGpuVariant: resolveDiagnosticGpuVariant(
       options.diagnosticGpuVariant,
       diagnosticChannel.detail,
     ),
-    shadowPageInvalidation: options.shadowPageInvalidation,
+    shadowPageInvalidation: explorerSwitch(options, 'shadowPageInvalidation'),
     sceneLighting: sceneLightingSource,
     guides: options.guides,
     particles: options.particles,
     particlesRefused: options.particlesRefused,
     materialDegraded: options.materialDegraded,
     // Bounced light stays off unless asked: its step holds 1.1 to 1.3 ms on Emerald, above 1 ms.
-    bounce: options.bounce,
+    bounce: explorerSwitch(options, 'bounce'),
     bounceBudgetMs: options.bounceBudgetMs,
     readSceneProxy: createSceneProxyReader(metadata.proxy, base, options.pageCache, signal),
     // The reader exists as soon as the cache declares texture chains, whatever the host asked of

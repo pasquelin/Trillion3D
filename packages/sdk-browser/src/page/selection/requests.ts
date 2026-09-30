@@ -1,4 +1,4 @@
-import { adaptivePixelError } from '../../../../sdk-core/src/index.ts';
+import { adaptivePixelError, explorerSwitch } from '../../../../sdk-core/src/index.ts';
 import type { CameraMotion, EngineCamera } from '../../camera/world.ts';
 import { readCameraMotion } from '../../camera/motion.ts';
 
@@ -13,7 +13,7 @@ export function resolvePixelError(
     motion,
     typeof performance !== 'undefined' ? performance.now() : 0,
   );
-  if (!context.lodAdaptive || !(base > 0)) return base;
+  if (!explorerSwitch(context, 'lodAdaptive') || !(base > 0)) return base;
   return adaptivePixelError(base, speed, Math.max(cam.far * 0.05, 1));
 }
 /** The request key of a record: its streaming bundle when the cache has one, its own page otherwise. */
