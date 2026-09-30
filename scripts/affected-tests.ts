@@ -92,10 +92,7 @@ function resolver(facts: Facts, known: (file: string) => boolean) {
 
 /** Each source file's value dependencies: the modules it imports, and through them the files that
  *  define what it reads. */
-function importGraph(
-  files: Map<string, string>,
-  changed: Set<string>,
-): Map<string, GraphNode> {
+function importGraph(files: Map<string, string>, changed: Set<string>): Map<string, GraphNode> {
   const facts: Facts = new Map([...files].map(([file, text]) => [file, importFacts(file, text)]));
   const node = resolver(facts, (path) => files.has(path) || changed.has(path));
   return new Map([...files.keys()].map((file) => [file, node(file)]));
