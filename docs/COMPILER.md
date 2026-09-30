@@ -240,23 +240,30 @@ not restart the bar.
 | `progress` | During the job | `phase` and its fields, below |
 | `stall` | The job succeeded, before `complete` | one line per row of the manifest's `worstStalls` ([FORMAT.md](FORMAT.md)), in order: `rank`, `index`, `mesh`, `primitive`, `rootTriangles`, `cause`, `seamVertices`, `lockedVertices`, `uvIslands`; in batch mode too |
 | `complete` | The job succeeded | `pointer` (same object as stdout), `ms` |
-| `cancelled` | The job stopped on a cancel request | `status:"error"`, `code:"CANCELLED"`, `message`, `ms` |
-| `error` | The job failed | `status:"error"`, `code`, `message`, `ms` |
+| `cancelled` | The job stopped on a cancel request | `status:"error"`, `code:"CANCELLED"`, `message`, `ms`, and the code's catalogue fields |
+| `error` | The job failed | `status:"error"`, `code`, `message`, `ms`, and the code's catalogue fields |
 | `done` | Once, last line of `--jobs` | `completed`, `failed`, `cancelled`, `ms` |
+
+Every `code` the catalogue knows ([COMPILER_ERRORS.md](COMPILER_ERRORS.md), one source of truth in
+`packages/sdk-node/src/messages/messages.json`) leaves with its catalogue fields beside it: `id`, the
+stable public code (`T3D-Exxx` error, `T3D-Wxxx` warning, `T3D-Ixxx` info), `level` (`error`,
+`warn`, `info`), `action`, what the user does, and `docs`, the code's documentation page. An error
+event carries them, and so does each of a `primitive` event's `warnings`. `code` stays the symbolic
+name the cache writes, so no cache byte depends on the catalogue.
 
 Progress phases, in order:
 
 | `phase` | Fields | Meaning |
 | --- | --- | --- |
 | `import-source` | `step` = `parse` (`file`, `index`, `files`, `completed`, `total` in bytes) → `meshes` (`completed`, `total` in nodes) → `write` (`bytes`) → `complete` (`key`, `triangles`, `meshNodes`, `ms`), or `reused` (`key`) for a reused import | FBX/OBJ only |
-| `import` | `completed`, `total`, `ms`, `primitives`, `nodes` | glTF loaded and validated, source geometry written; `primitives` `primitive` events follow |
+| `import` | `completed`, `total`, `ms`, `primitives`, `nodes`, `unsupported` (the source import's report, counts by code; `null` for a glTF source) | glTF loaded and validated, source geometry written; `primitives` `primitive` events follow |
 | `primitive` | `mesh`, `primitive`, `pages`; on a DAG primitive `timings` (elapsed ms of its stages, each from the end of the one before: `dagMs`, `cullingMs`, then `physicsMs` and `pagesMs` side by side, `reportMs`); `warnings` if any | One primitive clustered and paged (primitives run in parallel, in no fixed order) |
 | `bootstrap` | `completed`, `total` | Root bundles assembled |
 | `textures` | `completed`, `total` | One source image decoded, its mip chain baked for every atlas reading it, its levels written |
 | `cutouts` | `pending`, `sheet` | Cutout sheet written; `pending` textures still unanswered, `sheet` its path |
 | `proxy` | `triangles`, `nodes`, `errorMetres` | Resident proxy built |
 | `lights` | `lights`, `rejected`, `counts` | Scene lights written; `rejected` lamps left out, `counts` what was filled in or omitted on a lamp kept |
-| `reuse` | `completed` (1 reused, 0 refused), `files`, `fileBytes`, `objects`, `objectBytes`, `textureLevels`, `validateMs`, or `reason` | The key's folder was proven and kept — no `import`, `primitive`, `textures`, `proxy` or `lights` follow — or refused for the named reason and rebuilt ([Reusing a compiled folder](#reusing-a-compiled-folder)) |
+| `reuse` | `completed` (1 reused, 0 refused), `files`, `fileBytes`, `objects`, `objectBytes`, `textureLevels`, `validateMs`, or `reason` | The key's folder was proven and kept — no `textures` or `proxy` follow, and `import` (its `unsupported` report), `primitive` (only those with `warnings`) and `lights` only tell again the warnings the kept product carries — or refused for the named reason and rebuilt ([Reusing a compiled folder](#reusing-a-compiled-folder)) |
 | `prune` | `removedKeys`, `removedObjects`, `removedBytes`, `removedTextures`, `removedTextureBytes` | Stale keys, imports, orphan objects and texture levels removed (emitted only when something was) |
 | `complete` | `completed`, `total`, `pruned` | Pointer written; `pruned` summarises the prune |
 
@@ -289,6 +296,8 @@ stdout for one job:
     "ramBudgetMb": 8192
   },
   "unsupported": ["hard RSS enforcement", "N-API binding"],
+  "textureSkipped": {},
+  "textureNotes": {},
   "reused": null
 }
 ```
@@ -298,8 +307,10 @@ stdout for one job:
 carries the proof's counts (`files`, `fileBytes`, `objects`, `objectBytes`, `textureLevels`,
 `validateMs`), `metrics.clusterHierarchyPagesMs` is `null` (no hierarchy built) and
 `metrics.importMs` runs to the decision — routing, loading, key and proof (`reused.validateMs` is
-the proof alone). On failure stdout carries `{"status":"error","code":…,"message":…}` ([exit
-codes](#exit-codes-and-error-codes)).
+the proof alone). `textureSkipped` and `textureNotes` count the texture stage's reasons by code
+(`texturePreviews.skipped` and `.notes` of the manifest), so a host summarises them without reading
+it. On failure stdout carries `{"status":"error","code":…,"message":…}` with the code's catalogue
+fields ([exit codes](#exit-codes-and-error-codes)).
 
 A cache never needs wiping: after every successful job the compiler removes the scope's other keys,
 stale FBX/OBJ imports, and every object under `objects/` and texture level no surviving manifest
@@ -956,8 +967,12 @@ A refusal raised while a primitive compiles starts `Mesh <m> primitive <p>: ` (s
 primitive), since page ids restart at 0 in every primitive; a cancellation keeps its message. A
 ceiling exceeded is refused before allocating.
 
-Every code and its meaning, global and per driver (archives, lights and OBJ/MTL materials, Blender,
-images, USD, Alembic, Maya ASCII, Unity): [COMPILER_ERRORS.md](COMPILER_ERRORS.md).
+Every code, global and per driver (archives, lights and OBJ/MTL materials, Blender, images, USD,
+Alembic, Maya ASCII, Unity) and of the Node adapter, has a stable public code, one sentence, its
+cause and the action to take, one page per code: [COMPILER_ERRORS.md](COMPILER_ERRORS.md). An error
+publishes nothing; a warning is always told and never stops a compile that can succeed; an info is
+told on request. The catalogue is `packages/sdk-node/src/messages/messages.json`, embedded in the
+compiler, read by the Node adapter, and the source of the pages (`pnpm run generate:messages`).
 
 ## Using it from Node
 
@@ -991,17 +1006,24 @@ const summary = await prepareMany(jobs, { workers: 4, ramBudgetMb: 32768, thread
 summary.jobs[0].pointer; // pointers only; nothing is read from disk
 ```
 
-`createTerminalProgress({label, index, total})` returns an object whose `event` method takes every
+`createTerminalProgress({label, index, total, verbose})` returns an object whose `event` method takes every
 compiler event and draws one live line (spinner, bar from `ratio`, phase, elapsed) on a TTY, one
 plain line per phase change elsewhere; `createBatchProgress()` does it per job for
 `prepareMany({onEvent})`; `progress.note(text)` shows a host-side step (a copy, a manifest check)
-before the compiler starts. The `trillion3d-compile` CLI uses it on a TTY and prints raw JSON events
-on a pipe (`TRILLION3D_RAW_EVENTS=1` forces them).
+before the compiler starts. The warnings of a job are counted while it compiles and told once when it
+ends, one line per code — its public code, count, worst case, action and documentation page — never
+one line per primitive; info codes stay silent unless `verbose`, which also lists every occurrence
+under its code. A reused folder tells the same warnings as the compile that wrote it. The `trillion3d-compile` CLI uses it on a TTY and
+prints raw JSON events on a pipe (`TRILLION3D_RAW_EVENTS=1` forces them), followed by the same
+summary as `{"event":"message", "id", "code", "level", "count", …}` events. `--verbose` adds the info
+codes and every occurrence; `--strict` exits 3 when the compile succeeded with a warning
+(`STRICT_WARNINGS`), the cache written; any failure exits 1.
 
 ```js
 const progress = createTerminalProgress({ label: 'city', index: 0, total: 8 });
 await prepare(source, cache, 'full', 150000, { resourceBaseUrl, onProgress: progress.event });
 // ⠹ 1/8 city [██████████░░░░░░░░░░░░░░]  42% clustering 118/281 primitives 6.2s
+// ⚠ city T3D-W003 DAG_FLAT ×2: A primitive of several clusters built no coarser level, … Worst: mesh 7/0, 98 roots of 98 pages. Look at …
 // ✔ 1/8 city 1,132,930 triangles, 412 primitives, 3395 ms 4.1s
 ```
 
@@ -1012,8 +1034,9 @@ newer than that build, so no cook publishes under the previous build's key (`pnp
 rebuilds it). Outside a checkout, a platform none of them serves is refused with
 `COMPILER_PLATFORM_UNSUPPORTED` and the supported list, and a supported one whose package is not
 installed (optional dependencies omitted, a Linux on musl) with `COMPILER_EXECUTABLE_MISSING` and
-the package's name. Node never buffers a manifest: about 90 MB
-RSS whatever the model size.
+the package's name; each error carries its public code and a link to its page
+([COMPILER_ERRORS.md](COMPILER_ERRORS.md)). Node never buffers a manifest: about 90 MB RSS whatever
+the model size.
 
 ### Platform packages
 

@@ -1148,6 +1148,7 @@
       "gpuPassMs": "Последняя выборка прохода GPU этого бэкенда; null, когда устройство не предоставляет запросы временных меток.",
       "gpuFrameMs": "Длительность GPU изображения, которое описывает `gpuPassMs.frame`. Никогда не складывается с полем `cpu*`. Устройство замеряется раз в несколько изображений, поэтому число может быть на несколько изображений старше. Null до первого замера, от удержанного изображения до следующего замера устройства, на устройстве без `timestamp-query` и в WebGL2 без `EXT_disjoint_timer_query_webgl2`.",
       "gpuHostGapMs": "Время CPU, которое то же изображение провело между двумя своими собственными отправками, и ноль, когда оно отправляется один раз. Это время хоста, а не время GPU, поэтому `gpuFrameMs` его исключает. Null, когда не измерено.",
+      "gpuDeviceLost": "Почему GPU-устройство было потеряно; null, пока оно держится.",
       "uncoveredTriangles": "Треугольники кластеров, которые называет опубликованный срез, но которые кадр не может нарисовать — нет резидентной страницы и нет покрывающего предка. Настоящая дыра в изображении: ноль — единственное здоровое значение. Null, когда бэкенд не может сказать (он рисует срез, который выбрал, так что у него никогда его нет).",
       "drawnTriangles": "Треугольники, которые ТЕКУЩИЙ КАДР передаёт на отрисовку: его срез кластеров, непрозрачные и прозрачные части иерархии вместе. Прозрачные мешы вне иерархии в него не входят (`transparentSubmittedTriangles`), и отказ по окклюзии не вычитается (`hizRejectedTriangles`). Считается при принятии среза: никакое асинхронное чтение GPU обратно не ожидается, поэтому он никогда не `null` из-за нехватки времени, в отличие от `submittedTriangles`.",
       "cpuSelectMs": "Время CPU среза кластеров этого кадра, измеренное только вокруг выбора. Null на движке, который не выбирает свой срез на CPU.",
@@ -3693,7 +3694,8 @@
       "total": "Сколько задач всего.",
       "stream": "Куда писать.",
       "width": "Ширина полосы.",
-      "interval": "Минимум миллисекунд между перерисовками."
+      "interval": "Минимум миллисекунд между перерисовками.",
+      "verbose": "Также выводит информационные коды и каждое появление в итоговой сводке задачи."
     }
   },
   "Texture-common": {
@@ -4323,6 +4325,7 @@
       "gpuPassMs": "Последняя выборка прохода GPU этого бэкенда; null, когда устройство не предоставляет запросы временных меток.",
       "gpuFrameMs": "Длительность GPU изображения, которое описывает `gpuPassMs.frame`. Никогда не складывается с полем `cpu*`. Устройство замеряется раз в несколько изображений, поэтому число может быть на несколько изображений старше. Null до первого замера, от удержанного изображения до следующего замера устройства, на устройстве без `timestamp-query` и в WebGL2 без `EXT_disjoint_timer_query_webgl2`.",
       "gpuHostGapMs": "Время CPU, которое то же изображение провело между двумя своими собственными отправками, и ноль, когда оно отправляется один раз. Это время хоста, а не время GPU, поэтому `gpuFrameMs` его исключает. Null, когда не измерено.",
+      "gpuDeviceLost": "Почему GPU-устройство было потеряно; null, пока оно держится.",
       "uncoveredTriangles": "Треугольники кластеров, которые называет опубликованный срез, но которые кадр не может нарисовать — нет резидентной страницы и нет покрывающего предка. Настоящая дыра в изображении: ноль — единственное здоровое значение. Null, когда бэкенд не может сказать (он рисует срез, который выбрал, так что у него никогда его нет).",
       "drawnTriangles": "Треугольники, которые ТЕКУЩИЙ КАДР передаёт на отрисовку: его срез кластеров, непрозрачные и прозрачные части иерархии вместе. Прозрачные мешы вне иерархии в него не входят (`transparentSubmittedTriangles`), и отказ по окклюзии не вычитается (`hizRejectedTriangles`). Считается при принятии среза: никакое асинхронное чтение GPU обратно не ожидается, поэтому он никогда не `null` из-за нехватки времени, в отличие от `submittedTriangles`.",
       "cpuSelectMs": "Время CPU среза кластеров этого кадра, измеренное только вокруг выбора. Null на движке, который не выбирает свой срез на CPU.",
@@ -5043,13 +5046,14 @@
   "createTerminalProgress": {
     "summary": "Полоса прогресса в терминале, следующая за событиями компилятора.",
     "parameters": {
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}": "Как выглядит отображение прогресса в терминале.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.label": "Имя задачи.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.index": "Номер задачи.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.total": "Сколько задач всего.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.stream": "Куда писать.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.width": "Ширина полосы.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.interval": "Минимум миллисекунд между перерисовками."
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}": "Как выглядит отображение прогресса в терминале.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.label": "Имя задачи.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.index": "Номер задачи.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.total": "Сколько задач всего.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.stream": "Куда писать.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.width": "Ширина полосы.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.interval": "Минимум миллисекунд между перерисовками.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.verbose": "Также выводит информационные коды и каждое появление в итоговой сводке задачи."
     }
   },
   "createTransformTree": {

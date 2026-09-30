@@ -37,12 +37,21 @@ test('the installed platform package is the compiler, without TRILLION3D_COMPILE
     );
     assert.equal(resolveCompilerExecutable(undefined, {}, 'linux', found), binary);
     assert.equal(
-      currentCompilerExecutable(undefined, {}, join(fixture, 'no-crate'), found),
+      currentCompilerExecutable(
+        undefined,
+        {},
+        { crate: join(fixture, 'no-crate'), installed: found },
+      ),
       binary,
     );
     assert.throws(
-      () => currentCompilerExecutable(undefined, {}, join(fixture, 'no-crate'), null),
-      /^Error: COMPILER_(EXECUTABLE_MISSING: @trillion3d\/compiler-|PLATFORM_UNSUPPORTED: )/,
+      () =>
+        currentCompilerExecutable(
+          undefined,
+          {},
+          { crate: join(fixture, 'no-crate'), installed: null },
+        ),
+      /^Error: T3D-E\d{3} COMPILER_(EXECUTABLE_MISSING: .*\(@trillion3d\/compiler-|PLATFORM_UNSUPPORTED: )/,
       'no package, no checkout: the package to install is named',
     );
     const named = { TRILLION3D_COMPILER_BIN: '/operator/compiler' };
@@ -77,7 +86,7 @@ test('an unsupported platform is refused with the platforms a compiler is built 
   assert.throws(
     () => requireSupportedPlatform('freebsd', 'x64'),
     (error: Error) =>
-      error.message.startsWith('COMPILER_PLATFORM_UNSUPPORTED: ') &&
+      /^T3D-E\d{3} COMPILER_PLATFORM_UNSUPPORTED: /.test(error.message) &&
       error.message.includes('freebsd-x64') &&
       COMPILER_PLATFORMS.every((platform) => error.message.includes(platform)),
   );

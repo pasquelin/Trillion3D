@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import type { CompilerEvent } from './contracts.ts';
 import { currentCompilerExecutable } from './executable.mts';
+import { compilerError } from '../messages/catalogue.mts';
 import { COMPILER_LINE_LIMIT, lineReader } from './lines.mts';
 
 /** Grace period between a cooperative cancel request on stdin and a hard kill. */
@@ -36,7 +37,7 @@ export function runCompiler<T>(
     });
     let settled = false;
     let killTimer: ReturnType<typeof setTimeout> | null = null;
-    let lastError: string | null = null;
+    let lastError: Error | null = null;
     let stdout = '';
     const finish = <V,>(fn: (value: V) => void, value: V) => {
       if (settled) return;
@@ -76,7 +77,7 @@ export function runCompiler<T>(
     child.stderr.setEncoding('utf8');
     child.stdout.on('data', (chunk) => {
       stdout += chunk;
-      if (stdout.length > COMPILER_LINE_LIMIT) fail(new Error('COMPILER_LINE_LIMIT'));
+      if (stdout.length > COMPILER_LINE_LIMIT) fail(compilerError('COMPILER_LINE_LIMIT'));
     });
     child.stderr.on(
       'data',
@@ -86,31 +87,32 @@ export function runCompiler<T>(
           try {
             event = JSON.parse(line) as CompilerEvent;
           } catch {
-            lastError = line;
+            lastError = compilerError('COMPILER_EXIT', line);
             return;
           }
-          if (event.status === 'error') lastError = event.code ?? line;
+          if (event.status === 'error')
+            lastError = compilerError(event.code ?? 'COMPILER_EXIT', event.message ?? line);
           try {
             onEvent?.(event);
           } catch (error) {
             fail(error);
           }
         },
-        () => fail(new Error('COMPILER_LINE_LIMIT')),
+        () => fail(compilerError('COMPILER_LINE_LIMIT')),
       ),
     );
     child.on('error', (error: NodeJS.ErrnoException) =>
       fail(
         error.code === 'ENOENT'
-          ? new Error(`COMPILER_EXECUTABLE_MISSING: ${executable}`, { cause: error })
+          ? compilerError('COMPILER_EXECUTABLE_MISSING', executable, { cause: error })
           : error.code === 'EACCES'
-            ? new Error(`COMPILER_EXECUTABLE_NOT_EXECUTABLE: ${executable}`, { cause: error })
+            ? compilerError('COMPILER_EXECUTABLE_NOT_EXECUTABLE', executable, { cause: error })
             : error,
       ),
     );
     child.on('close', (code) => {
       if (options.signal?.aborted) {
-        finish(reject, new Error('CANCELLED'));
+        finish(reject, compilerError('CANCELLED'));
         return;
       }
       let output: T | null = null;
@@ -124,16 +126,17 @@ export function runCompiler<T>(
         return;
       }
       if (code !== 0) {
+        const refusal = output as { code?: string; message?: string } | null;
         finish(
           reject,
-          new Error(
-            (output as { code?: string } | null)?.code ?? lastError ?? `COMPILER_EXIT_${code}`,
-          ),
+          refusal?.code
+            ? compilerError(refusal.code, refusal.message)
+            : (lastError ?? compilerError('COMPILER_EXIT', `exit code ${code}`)),
         );
         return;
       }
       if (!output) {
-        finish(reject, new Error('COMPILER_NO_POINTER'));
+        finish(reject, compilerError('COMPILER_NO_POINTER'));
         return;
       }
       finish(resolve, output);

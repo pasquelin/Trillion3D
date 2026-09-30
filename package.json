@@ -69,6 +69,7 @@
     "check:docs-three": "node scripts/check-docs-three.ts",
     "check:sdk-facade": "node scripts/generate-sdk-facade.ts --check",
     "generate:api": "node scripts/generate-api-reference.ts",
+    "generate:messages": "node scripts/message-pages.ts",
     "compile:caches": "node scripts/site-caches.ts",
     "check:i18n": "node scripts/check-i18n.ts",
     "check:translations": "node scripts/check-translations.ts",
