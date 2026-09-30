@@ -11,9 +11,10 @@ import { gzipSync } from 'node:zlib';
 import { BUNDLE_ENTRY } from './build-bundle.ts';
 import { FAMILY_MODULES, familyChunks, type Family } from './bundle-fold.ts';
 
-/** The budget of the gzip core, in bytes: the core of #1353 (744 KB) and room for a few features.
- *  A declared value, not a derived one; a pull request that crosses it says why, and raises it. */
-const CORE_BUDGET_BYTES = 800_000;
+/** The budget of the gzip core, in bytes: the core of #1353 once every optional family left it
+ *  (674 508 bytes) and a margin of about 2 %. A declared value, not a derived one; a pull request
+ *  that crosses it says why, and raises it. */
+const CORE_BUDGET_BYTES = 688_000;
 
 /** `from"./x.js"` and a bare `import"./x.js"`, as esbuild writes them, never `import("./x.js")`. */
 const STATIC_IMPORT = /(?:\bfrom\s*|\bimport\s*)(["'])(\.\/[^"']+)\1/g;

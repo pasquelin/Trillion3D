@@ -38,5 +38,3 @@ export function onDemand<M>(load: () => Promise<M>) {
     },
   };
 }
-
-export type OnDemand<M> = ReturnType<typeof onDemand<M>>;
