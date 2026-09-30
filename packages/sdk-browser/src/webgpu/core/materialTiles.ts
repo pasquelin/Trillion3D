@@ -28,9 +28,10 @@ export function materialTileDrawLayout(device: GPUDevice) {
   });
 }
 
-/** The classification's pipeline and layout; none on a device that refuses them (`validated`). A
- *  shader that does not compile is a defect, thrown by name. */
-function classifier(device: GPUDevice) {
+/** The classification's pipeline and layout; none on a device with no compute or that refuses them
+ *  (`validated`). A shader that does not compile is a defect, thrown by name. */
+async function classifier(device: GPUDevice) {
+  if (typeof device.createComputePipeline !== 'function') return undefined;
   const compute = GPUShaderStage.COMPUTE,
     storage: GPUBufferBindingLayout = { type: 'storage' },
     readOnly: GPUBufferBindingLayout = { type: 'read-only-storage' };
