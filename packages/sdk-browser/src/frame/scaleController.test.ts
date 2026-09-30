@@ -67,10 +67,18 @@ test('the refresh interval is the shortest frame interval, pauses aside', () => 
   assert.ok(Math.abs(clock.interval - 8.3) < 1e-9);
 });
 
-// #1343: a device that never met its cadence took its slow frames for the display's refresh.
-test('the refresh interval is never longer than the fallback: no display is slower', () => {
+/** The refresh measured from frames drawn every `frameMs` on a display refreshing every `vsyncMs`:
+ *  each frame begins at the first refresh after it is ready, as rAF does. */
+function measured(vsyncMs: number, frameMs: number) {
   const clock = createRefreshClock(1000 / 60);
-  let now = 0;
-  for (let frame = 0; frame < 10; frame++) clock.tick((now += 50));
-  assert.equal(clock.interval, 1000 / 60);
+  for (let frame = 0; frame < 60; frame++)
+    clock.tick(Math.ceil((frame * frameMs) / vsyncMs - 1e-9) * vsyncMs);
+  return clock.interval;
+}
+
+// #1343: the budget follows the display, no fixed cap; slow frames never pass for a slow display.
+test('the refresh budget follows the display, a device that misses its cadence included', () => {
+  assert.ok(Math.abs(measured(1000 / 120, 1000 / 120) - 8.33) < 0.01, '120 Hz: 8.3 ms');
+  assert.ok(Math.abs(measured(1000 / 60, 1000 / 60) - 16.67) < 0.01, '60 Hz: 16.7 ms');
+  assert.ok(Math.abs(measured(1000 / 120, 1000 / 16) - 8.33) < 0.01, '16 fps at 120 Hz: 8.3 ms');
 });
