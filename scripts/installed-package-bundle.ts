@@ -8,6 +8,7 @@ import {
 import type { InstalledBrowserProof } from './installed-package-browser-result.ts';
 import type { Run } from './installed-package-contracts.ts';
 import { missingBeside } from './installed-package-beside.ts';
+import { proveCdnBrowser, unpackCdn, type UnpackedCdn } from './installed-package-cdn.ts';
 
 const sceneCaches = ['native-cache-primer', 'native-cache-replay'];
 
@@ -29,6 +30,8 @@ export interface EmittedBrowserBundle {
   outputRoot: string;
   assets: BundleAsset[];
   metafile: Metafile;
+  /** The package's own CDN bundle, as the archive ships it, checked (#1353). */
+  cdn: UnpackedCdn;
 }
 
 export interface BrowserModesOptions {
@@ -117,6 +120,7 @@ export function emitInstalledBrowserBundle({
     outputRoot,
     assets,
     metafile: JSON.parse(readFileSync(metafile, 'utf8')) as Metafile,
+    cdn: unpackCdn(fixture, run),
   };
 }
 
@@ -135,6 +139,7 @@ async function proveBundledInstalledOutput(
 export interface InstalledBrowserModesProof {
   direct: InstalledBrowserProof;
   bundled: { bundle: EmittedBrowserBundle; proof: InstalledBrowserProof };
+  cdn: InstalledBrowserProof & { physicsRequests: string[]; familyRequests: string[] };
 }
 
 export async function proveInstalledBrowserModes(
@@ -154,7 +159,17 @@ export async function proveInstalledBrowserModes(
   if (direct.capture.sha256 !== bundled.proof.capture.sha256)
     throw new Error('direct and bundled installed browser captures differ');
   bundled.proof.capture.differentPixelsFromDirect = 0;
-  return { direct, bundled };
+  // The CDN bundle draws what the unbundled entry draws, byte for byte (class 1, #1353).
+  const cdn = await proveCdnBrowser({
+    fixture: options.fixture,
+    packageName: options.packageName,
+    unpacked: bundled.bundle.cdn,
+    ...urls,
+  });
+  if (direct.capture.sha256 !== cdn.capture.sha256)
+    throw new Error('direct and CDN installed browser captures differ');
+  cdn.capture.differentPixelsFromDirect = 0;
+  return { direct, bundled, cdn };
 }
 
 export function browserEvidence(run: InstalledBrowserModesProof | null) {
@@ -162,5 +177,6 @@ export function browserEvidence(run: InstalledBrowserModesProof | null) {
   return {
     modules: run.direct,
     bundle: { ...run.bundled.proof, assets: run.bundled.bundle.assets },
+    cdn: run.cdn,
   };
 }

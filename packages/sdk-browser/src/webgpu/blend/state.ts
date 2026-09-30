@@ -12,7 +12,7 @@ import type { TransparentOcclusion } from '../../gpu/core/transparentOcclusion.t
 import type { TransparentTable } from '../transparent/table.ts';
 import type { BlendExpand } from './expand.ts';
 import { createWaterBounds } from '../water/bounds.ts';
-import type { WaterPass } from '../water/pass.ts';
+import type { WaterPass } from '../water/waterPass.ts';
 import { BLEND_VIEW_SIZE } from './uniforms.ts';
 import { createBlendHierarchy } from './hierarchy.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';

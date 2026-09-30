@@ -8,6 +8,10 @@ import type { RenderBackend } from '../backend/types.ts';
 import { createFrameComposer } from '../world/render/compose.ts';
 import { createTestContext } from '../webgl/core/testContext.fixture.ts';
 import { createGuideSet } from './guideSet.ts';
+import { families } from '../host/families.ts';
+
+// The guides' code, which a frame that draws them waits for (`familyUse.ts`), arrived.
+await families.guides.load();
 
 const camera = G.perspectiveCamera();
 

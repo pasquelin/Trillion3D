@@ -6,6 +6,10 @@ import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
 import { camera, disposeQuadRun, quadBackend } from '../testScenes.fixture.ts';
 import { createGuideSet } from '../../../guides/guideSet.ts';
+import { families } from '../../../host/families.ts';
+
+// The guides' code, which a frame that draws them waits for (`familyUse.ts`), arrived.
+await families.guides.load();
 
 test('the fallback image draws the guides last, as the composed one does', async () => {
   installGpuGlobals();
