@@ -42,9 +42,9 @@ test('a pixel with no history takes the current sample whole: first image, or un
   // Still around the pixel — one texel of its 3×3 is the ball —: an edge, the history kept.
   const edge = { ...gone, id: (x: number, y: number) => (x === 2 && y === 1 ? 1 << 8 : 0) };
   assert.notDeepEqual(upscaleRun(edge)(2, 2).color, owed(edge, 2, 2));
-  // At rest nothing is told uncovered: today's resolve.
+  // At rest nothing is told uncovered: the sample on the pixel meets the history, one colour.
   const still = { ...gone, moving: false };
-  near(upscaleRun(still)(2, 2).color, blend(owed(still, 2, 2), kept, 0.25), 'at rest');
+  near(upscaleRun(still)(2, 2).color, kept, 'at rest');
 });
 
 test('each pixel writes the tag of the placement its nearest texel shows', () => {

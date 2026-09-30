@@ -17,10 +17,12 @@ function blackmanHarris(distance: number) {
   return 0.35875 - 0.48829 * Math.cos(x) + 0.14128 * Math.cos(2 * x) - 0.01168 * Math.cos(3 * x);
 }
 
-/** The same window in WGSL, for the still image drawn below the display (`upscaleWgsl.ts`). */
+/** The same window in WGSL, for the still image drawn below the display (`upscaleWgsl.ts`), and
+ *  zero from the radius on, where the window keeps six hundred-thousandths. */
 export const BLACKMAN_HARRIS_WGSL = `
 fn blackmanHarris(d:f32)->f32{
- let x=clamp(d,0.0,1.0)*${Math.PI}+${Math.PI};
+ if(d>=1.0){return 0.0;}
+ let x=max(d,0.0)*${Math.PI}+${Math.PI};
  return 0.35875-0.48829*cos(x)+0.14128*cos(2.0*x)-0.01168*cos(3.0*x);
 }`;
 

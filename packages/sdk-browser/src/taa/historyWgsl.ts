@@ -120,5 +120,8 @@ ${layer.layerWgsl(filtered, 'kept')} return ${layer.taaOut(asIs, filtered, true,
  * is read beside its tag, this image's added to it into `count`, which is written; the current
  * share is this image's part of it, none when no sample fell near. Over the phases the average
  * then gathers, per display pixel, the samples of that pixel: the detail the display size shows.
+ * Its history is not boxed: at rest it holds the same scene, and the box of one image's render
+ * texels, which guards a moving history against ghosts, would clip the detail finer than the
+ * render grid that only the phases together carry.
  */
-export const STILL_AVERAGE_WGSL = `let held=textureSampleLevel(tagHistory,historySampler,previous.xy,0.0).b;count=${stillWeightIn('held')}+stillTotal;alpha=select(0.0,stillTotal/count,count>0.0);`;
+export const STILL_AVERAGE_WGSL = `let held=textureSampleLevel(tagHistory,historySampler,previous.xy,0.0).b;count=${stillWeightIn('held')}+stillTotal;alpha=select(0.0,stillTotal/count,count>0.0);lo=vec4f(-1e9);hi=vec4f(1e9);`;
