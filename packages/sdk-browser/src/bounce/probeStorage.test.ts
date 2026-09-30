@@ -15,18 +15,21 @@ test('a refused probe snapshot releases the entire new probe bundle, preserving 
   const previous = gpu.device.createBuffer({ size: 64, usage: 0 });
   const proxy = ownedProxy();
   const cascades = createBounceCascades(proxy.bounds);
-  const originalCreate = gpu.device.createBuffer.bind(gpu.device);
-  gpu.device.createBuffer = (descriptor) => {
-    if (descriptor.label === 'Trillion3D bounce probes snapshot v2') ceiling = ledger.bytes;
+  const originalCreate = gpu.device.createTexture.bind(gpu.device);
+  gpu.device.createTexture = (descriptor) => {
+    if (descriptor.label === 'Trillion3D bounce probes snapshot v3') ceiling = ledger.bytes;
     return originalCreate(descriptor);
   };
   assert.throws(
-    () => createProbeStorage(gpu.device, proxy, cascades, 16, 64),
+    () => createProbeStorage(gpu.device, proxy, cascades, 16, [11, 1, 1]),
     /GPU_BUDGET_EXCEEDED/,
   );
   assert.equal(ledger.bytes, 64);
   assert.equal(gpu.destroyed.includes(previous), false);
-  assert.ok(gpu.buffers.length > 3, 'several successful creations precede the refused snapshot');
-  assert.ok(gpu.buffers.slice(1).every((buffer) => gpu.destroyed.includes(buffer)));
-  assert.ok(gpu.buffers.every((buffer) => buffer.label !== 'Trillion3D bounce probes snapshot v2'));
+  assert.ok(gpu.buffers.length > 2, 'several successful creations precede the refused snapshot');
+  const made = [...gpu.buffers.slice(1), ...gpu.textures];
+  assert.ok(made.every((resource) => gpu.destroyed.includes(resource)));
+  assert.ok(
+    gpu.textures.every((texture) => texture.label !== 'Trillion3D bounce probes snapshot v3'),
+  );
 });

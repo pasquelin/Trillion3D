@@ -3548,7 +3548,6 @@
       "flags": "0 fundo, 1 não iluminado (com névoa), 2 lido, 3 mostrado como está: um diagnóstico, uma vista de normais ou de profundidade. 4 e 5: modelos difuso e toon (`./surfaceModel.ts`).",
       "views": "Suas views de textura de GPU.",
       "dispose": "A libera.",
-      "shadingOffset": "Deslocamento do receptor de sombras com precisão total, gravado junto ao G-buffer.",
       "subsurface": "Cor independente de transmissão de superfícies finas; textura de zeros de 1×1 quando desativada.",
       "subsurfaceView": "Vista da textura de transmissão de superfícies finas.",
       "hasSubsurface": "Se a transmissão de superfícies finas tem um destino de tamanho completo."

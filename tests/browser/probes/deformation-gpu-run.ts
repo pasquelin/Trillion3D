@@ -39,9 +39,19 @@ export async function probe(args: Args) {
     device.queue.writeBuffer(buffer, 0, new Uint32Array(values));
     return buffer;
   });
+  // The normals ride in the float pool's r32float atlas (`floatAtlas.ts`, #1410): one row.
+  const normals = device.createTexture({
+    size: [8192, 1, 1],
+    format: 'r32float',
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+  });
+  device.queue.writeTexture({ texture: normals }, new Uint32Array(data[2]), {}, [data[2].length]);
   const group = device.createBindGroup({
     layout: bindLayout,
-    entries: buffers.map((buffer, binding) => ({ binding, resource: { buffer } })),
+    entries: buffers.map((buffer, binding) => ({
+      binding,
+      resource: binding === 2 ? normals.createView({ dimension: '2d-array' }) : { buffer },
+    })),
   });
   const read = device.createBuffer({
     size: 3 * 11 * 4,
