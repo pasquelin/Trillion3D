@@ -49,7 +49,9 @@ interface Walkthrough {
 
 /** The walkthrough `blocks` describe; a missing step is refused by name. */
 export function walkthrough(blocks: string[]): Walkthrough {
-  const commands = blocks.filter((block) => /^np[mx] /.test(block)).flatMap((b) => b.split('\n'));
+  const commands = blocks
+    .filter((block) => /^np[mx] /.test(block))
+    .flatMap((block) => block.split('\n'));
   const page = blocks.find((block) => block.startsWith('<!doctype html>'));
   const headerLines = blocks.find((block) => block.startsWith('Cross-Origin-'));
   if (!commands.some((line) => line.startsWith('npm install ')))
