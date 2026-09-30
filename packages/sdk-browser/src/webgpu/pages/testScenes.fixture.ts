@@ -118,6 +118,8 @@ export const SHADOW_LIMITS = {
   maxStorageBufferBindingSize: 1 << 27,
   maxTextureDimension2D: 8192,
   maxComputeWorkgroupsPerDimension: 65535,
+  // The spec's default: the reflection's depth-bounds levels step their uniform by it.
+  minUniformBufferOffsetAlignment: 256,
 };
 /** A pose `x` metres along the X axis. */
 export const along = (x: number) => Float32Array.of(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, 0, 0, 1);

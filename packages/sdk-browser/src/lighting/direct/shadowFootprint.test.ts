@@ -11,7 +11,7 @@ import { seeded } from '../../../../../site/examples/kit/random.ts';
 import { functionsOf } from '../../texture/shaderRule.fixture.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { contractLightingShader } from '../deferred/shaders.ts';
-import { reflectionSource } from '../../reflections/screenWgsl.ts';
+import { withScreenReflections } from '../../reflections/screenWgsl.ts';
 import { BLEND_SHADER } from '../../webgpu/blend/shader.ts';
 import { WATER_COMPOSITE_SHADER } from '../../webgpu/water/compositeWgsl.ts';
 import { CONSTANTS, SHADOW_WGSL } from './sunRangeRead.fixture.ts';
@@ -82,7 +82,7 @@ test('every pass that lights a surface reads the page table through the footprin
   for (const [name, shader] of Object.entries({
     opaque,
     narrow: contractLightingShader(false, true),
-    reflections: reflectionSource(opaque),
+    reflections: withScreenReflections(opaque, true),
     blend: BLEND_SHADER,
     water: WATER_COMPOSITE_SHADER,
   })) {

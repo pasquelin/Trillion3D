@@ -1,5 +1,5 @@
-// #685: the unfogged image the screen reflections read is a render pass of its own, before the
-// lighting. A GPU timing names a pass by its label: without one it read `beginRenderPass`.
+// #685: the image the screen reflections read is a render pass of its own, before the lighting.
+// A GPU timing names a pass by its label: without one it read `beginRenderPass`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DEFERRED_LIGHTING_PASS } from './deferred.ts';
@@ -33,5 +33,34 @@ test('the lighting counts exactly the passes it draws, mirror or not, contract o
       assert.equal(h.passes.length, contract && reflection?.active ? 2 : 1, case_);
     }
   }
+  lighting.dispose();
+});
+
+// #1342: the source is the last lit image reprojected, never a second lighting of the surfaces.
+test('only the final pass lights a surface: the source reprojects, the rough trace reads it', async () => {
+  const h = await contractLighting();
+  const { lighting, encoder, target } = h;
+  const history = {
+    reuse: false,
+    encode(into: GPUCommandEncoder, _scratch: GPUTextureView, pipeline: GPURenderPipeline) {
+      const pass = into.beginRenderPass({ colorAttachments: [] });
+      pass.setPipeline(pipeline);
+      pass.draw(3);
+      pass.end();
+    },
+  };
+  const reflection = {
+    ...{ active: true, view: target, group: {}, sourceGroup: {}, history },
+  } as unknown as ScreenReflection;
+  lighting.light(encoder, target, reflection);
+  const entries = h.passes.map(
+    ({ pipeline }) => (pipeline as unknown as GPURenderPipelineDescriptor).fragment!.entryPoint,
+  );
+  assert.deepEqual(entries, [
+    'reprojectReflectionSource',
+    'traceRoughReflection',
+    'resolveRoughReflection',
+    'lightSurface',
+  ]);
   lighting.dispose();
 });

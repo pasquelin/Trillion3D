@@ -1,10 +1,14 @@
 import type { ScreenReflection } from './gpu.ts';
 import type { DeferredProgram } from '../lighting/deferred/program.ts';
 
-/** The unfogged image consumed by opaque and forward screen reflections. */
+/** The last lit image reprojected to this one's pixels, consumed by every screen reflection. */
 export const REFLECTION_SOURCE_PASS = 'Trillion3D reflection source';
 
-/** Encode source then stochastic trace/resolve, borrowing the existing HDR target. */
+/**
+ * Encode the source, then the rough trace and its resolve, borrowing the HDR target. The source is
+ * the last image the target holds, read before the trace clears it: no lighting runs twice. The
+ * trace draws one ray per 2 × 2 block, in the target's top-left quarter (`sampleWgsl.ts`).
+ */
 export function encodeReflectionSource(
   encoder: GPUCommandEncoder,
   target: GPUTextureView,
@@ -24,10 +28,14 @@ export function encodeReflectionSource(
       },
     ],
   });
-  source.setViewport(0, 0, drawn[0], drawn[1], 0, 1);
-  source.setPipeline(reflected.source);
-  source.setBindGroup(0, group);
-  source.draw(3);
+  const reprojected = reflection.sourceGroup;
+  // Without its inputs yet, the cleared source answers no ray: every one reads the fallback.
+  if (reprojected) {
+    source.setViewport(0, 0, drawn[0], drawn[1], 0, 1);
+    source.setPipeline(reflected.source);
+    source.setBindGroup(0, reprojected);
+    source.draw(3);
+  }
   source.end();
   reflection.pyramid?.encode(encoder);
   if (reflection.history && !reflection.history.reuse) {
@@ -37,7 +45,7 @@ export function encodeReflectionSource(
         { view: target, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] },
       ],
     });
-    trace.setViewport(0, 0, drawn[0], drawn[1], 0, 1);
+    trace.setViewport(0, 0, Math.ceil(drawn[0] / 2), Math.ceil(drawn[1] / 2), 0, 1);
     trace.setPipeline(reflected.trace);
     trace.setBindGroup(0, group);
     trace.setBindGroup(1, reflection.group);

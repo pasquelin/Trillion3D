@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts';
 import { createReflectionHistory, type ReflectionHistoryFrame } from './historyRuntime.ts';
-import { REFLECTION_HISTORY_WEIGHT } from './resolveWgsl.ts';
+import { REFLECTION_HISTORY_WEIGHT, REFLECTION_MOVING_WEIGHT } from './resolveWgsl.ts';
 
 test('first frame rejects history, replay consumes nothing, and a changed source resets the sequence', () => {
   const gpu = fakeDevice();
@@ -13,6 +13,8 @@ test('first frame rejects history, replay consumes nothing, and a changed source
     metadata: { depth: current, normal: current, ids: current },
     pages: {} as GPUBuffer,
     motion: {} as GPUBuffer,
+    reprojects: false,
+    eye: [0, 0, 0],
     epoch: 'initial',
     seed: 1,
     frame: 10,
@@ -115,4 +117,56 @@ test('resolve uniform refusal releases the complete 32-byte history', () => {
   });
   assert.throws(() => createReflectionHistory(gpu.device, 8, 8), /NO_MEMORY/);
   assert.equal(gpu.destroyed.length, 5);
+});
+
+test('with live motion a camera move and a moved source keep the history, reprojected', () => {
+  const gpu = fakeDevice();
+  const history = createReflectionHistory(gpu.device, 8, 8);
+  const current = gpu.device.createTexture({ size: [8, 8], format: 'rgba16float', usage: 1 });
+  const frame: ReflectionHistoryFrame = {
+    metadata: { depth: current, normal: current, ids: current },
+    pages: {} as GPUBuffer,
+    motion: {} as GPUBuffer,
+    reprojects: true,
+    eye: [0, 0, 0],
+    epoch: 'still',
+    seed: 0,
+    frame: 0,
+    camera: IDENTITY_MATRIX4,
+  };
+  const encoder = {
+    ...gpu.device.createCommandEncoder(),
+    beginRenderPass: () => ({
+      setViewport() {},
+      setPipeline() {},
+      setBindGroup() {},
+      draw() {},
+      end() {},
+    }),
+  } as unknown as GPUCommandEncoder;
+  const params = () => Array.from(gpu.writes.at(-1)!.data.slice(36, 39));
+  const step = (change: () => void) => {
+    frame.frame++;
+    change();
+    history.prepare(frame, frame.camera);
+    history.encode(
+      encoder,
+      current.createView(),
+      {} as GPURenderPipeline,
+      {} as GPUBindGroupLayout,
+    );
+  };
+  step(() => {});
+  step(() => {});
+  assert.deepEqual(params(), [1, REFLECTION_HISTORY_WEIGHT, 1], 'still: whole window, motion read');
+  step(() => (frame.camera = [...IDENTITY_MATRIX4.slice(0, 12), 0.5, 0, 0, 1]));
+  assert.deepEqual(params(), [1, REFLECTION_MOVING_WEIGHT, 1], 'a camera move keeps it');
+  step(() => (frame.epoch = 'gear-turned'));
+  assert.deepEqual(params(), [1, REFLECTION_MOVING_WEIGHT, 1], 'a moved source keeps it');
+  assert.equal(history.reuse, false);
+  frame.reprojects = false;
+  step(() => (frame.epoch = 'gear-turned-again'));
+  assert.equal(params()[0], 0, 'without motion to follow, a moved source resets it');
+  history.dispose();
+  current.destroy();
 });

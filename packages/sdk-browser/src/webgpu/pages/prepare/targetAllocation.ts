@@ -7,6 +7,7 @@ import {
 import { reflectionConeAllocation } from '../../../reflections/conePyramid.ts';
 import { REFLECTION_HISTORY_BYTES_PER_PIXEL } from '../../../reflections/historyTargets.ts';
 import { REFLECTION_RESOLVE_VIEW_BYTES } from '../../../reflections/resolveWgsl.ts';
+import { REFLECTION_SOURCE_VIEW_BYTES } from '../../../reflections/source.ts';
 import { checkSurfaceSize, frameTargetBytes } from '../../../scene/surfaceBuffer.ts';
 import { AS_IS_SHARE_BYTES } from '../../../lighting/deferred/asIsShare.ts';
 import { wantsAsIsShare } from './asIsShareTarget.ts';
@@ -25,6 +26,8 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
     { renderWidth: width, renderHeight: height } = size,
     display = size.apart ? size.width * size.height : 0;
   if (!gpuDevice) throw new Error('WEBGPU_UNAVAILABLE');
+  const cone = wantsReflectionCone(rt),
+    rough = wantsRoughReflectionHistory(rt);
   checkSurfaceSize(gpuDevice, size.width, size.height, 1);
   return (
     frameTargetBytes(width, height, reserveHiz) -
@@ -34,11 +37,9 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
     // frameTargetBytes already counts the 1×1 placeholder.
     subsurfaceBytes(width, height, wantsSubsurface(rt)) -
     SUBSURFACE_BYTES +
-    (wantsReflectionCone(rt)
-      ? reflectionConeAllocation(width, height, gpuDevice.limits).bytes
-      : 0) +
-    (wantsReflections(rt) ? width * height * 8 : 8) +
-    (wantsRoughReflectionHistory(rt)
+    (cone || rough ? reflectionConeAllocation(width, height, gpuDevice.limits, cone).bytes : 0) +
+    (wantsReflections(rt) ? width * height * 8 + REFLECTION_SOURCE_VIEW_BYTES : 8) +
+    (rough
       ? width * height * REFLECTION_HISTORY_BYTES_PER_PIXEL + REFLECTION_RESOLVE_VIEW_BYTES
       : 0) +
     display * DISPLAY_BYTES +
