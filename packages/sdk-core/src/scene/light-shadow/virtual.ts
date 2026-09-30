@@ -70,19 +70,31 @@ export function shadowPoolSize(width: number, height: number, lights = 1) {
 /** Entries a request report lists, for a pool of `pages`: never fewer than the pool holds — a full
  *  list names every page the pool can keep. */
 export const shadowRequestCap = (pages: number) => Math.max(LIGHT_SETTINGS.shadowRequestCap, pages);
-/** Entries of a sun level, of a whole sun, of one lamp face (every mip). */
-export const SUN_LEVEL_ENTRIES = SUN_WINDOW * SUN_WINDOW;
-export const SUN_ENTRIES = SUN_LEVELS * SUN_LEVEL_ENTRIES;
+/** Entries of one lamp face (every mip). */
 export const LAMP_FACE_ENTRIES = (() => {
   let total = 0;
   for (let mip = 0; mip < LAMP_MIPS; mip++) total += (LAMP_SIDE >> mip) ** 2;
   return total;
 })();
+/** The extent is a session's, not the module's: a reference session raises it so every pixel of a
+ *  wide view reads the finest clipmap level (`referenceMode.ts`), an ordinary one keeps the
+ *  constant. Every size an extent implies is a function of its pages, the constant the default. */
+export const sunLevelEntries = (pages: number) => pages * pages;
+export const sunEntries = (pages: number) => SUN_LEVELS * sunLevelEntries(pages);
 /** Words of the page table each slice owns: the largest range a light needs, a whole sun or a
  *  point light's six faces — so a slice of any kind always finds its span. */
-export const SHADOW_TABLE_STRIDE = Math.max(SUN_ENTRIES, POINT_FACES * LAMP_FACE_ENTRIES);
+export const shadowTableStride = (pages: number) =>
+  Math.max(sunEntries(pages), POINT_FACES * LAMP_FACE_ENTRIES);
 /** Words of the whole page table: one span per shadow slice, one slice per light. */
-export const SHADOW_TABLE_ENTRIES = MAX_SHADOW_SLICES * SHADOW_TABLE_STRIDE;
+export const shadowTableEntries = (pages: number) => MAX_SHADOW_SLICES * shadowTableStride(pages);
+/** The power of two past every entry of a table of `entries`: the field an entry takes in a sort
+ *  key (`shadowNeedKey`) and the mask that reads it back (`poolWgsl.ts`). The ordinary table is a
+ *  power of two, so it is its own span; a raised extent's is the next power. */
+export const shadowEntrySpan = (entries: number) => 2 ** Math.ceil(Math.log2(entries));
+export const SUN_LEVEL_ENTRIES = sunLevelEntries(SUN_WINDOW);
+export const SUN_ENTRIES = sunEntries(SUN_WINDOW);
+export const SHADOW_TABLE_STRIDE = shadowTableStride(SUN_WINDOW);
+export const SHADOW_TABLE_ENTRIES = shadowTableEntries(SUN_WINDOW);
 /** A table word: the physical page in the low bits, `PAGE_MAPPED` while it holds one, and
  *  `PAGE_VALID` while its depth may be read — set once its draw has landed, cleared while what it
  *  holds is wrong and waits to be drawn again (`pool.withdraw`). A page not valid hands the point
@@ -128,8 +140,8 @@ export const lampPagesAt = (mip: number) => LAMP_SIDE >> mip;
 export const lampFacesOf = (rank: number) => (rank === LIGHT_KIND.point ? POINT_FACES : 1);
 
 /** Table entries a light of kind `rank` needs: a whole sun, or its lamp faces. */
-export function tableEntriesOf(rank: number) {
-  if (rank === LIGHT_KIND.directional) return SUN_ENTRIES;
+export function tableEntriesOf(rank: number, pages = SUN_WINDOW) {
+  if (rank === LIGHT_KIND.directional) return sunEntries(pages);
   return lampFacesOf(rank) * LAMP_FACE_ENTRIES;
 }
 

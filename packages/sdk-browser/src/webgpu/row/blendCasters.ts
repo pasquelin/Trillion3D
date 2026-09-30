@@ -9,6 +9,7 @@ import {
 } from './pageRow.ts';
 import type { createWebgpuRowState } from './state.ts';
 import { awaitsPageBytes } from './pageSlots.ts';
+import { createPageCatalogue } from '../pages/prepare/catalogue.ts';
 
 type Rows = ReturnType<typeof createWebgpuRowState>;
 type Writer = ReturnType<typeof createPageRowWriter>;
@@ -48,6 +49,8 @@ export function createBlendCasterRows(
   writePageRow: Writer,
   onCoverageChange: (rec: PageRec) => void = () => {},
 ) {
+  /** A packed rank back to its record: the one catalogue accessor (`../pages/prepare/catalogue.ts`). */
+  const { recordOf } = createPageCatalogue(packedPages);
   let first = -1,
     free = new Int32Array(0),
     freeCount = 0;
@@ -84,7 +87,7 @@ export function createBlendCasterRows(
     if (first !== rows.blendFirst || free.length !== rows.casterSlots - first) seat();
   };
   const write = (page: number, row: number, held: boolean) => {
-    const rec = packedPages[page],
+    const rec = recordOf(page)!,
       ints = rows.pageTableInts!,
       coverage = row * ROW_WORDS + ROW_BLEND_COVERAGE_WORD,
       before = ints[coverage],
@@ -110,7 +113,7 @@ export function createBlendCasterRows(
    * rewrote the surface, whose shadow then changes with its row — taken, given back or rewritten.
    */
   const follow = (page: number, restale = false) => {
-    const rec = packedPages[page];
+    const rec = recordOf(page)!;
     if (!rec.transparent || !rows.pageTableInts) return;
     followTable();
     const row = rows.blendRowOf[page];
