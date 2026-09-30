@@ -7,13 +7,30 @@ import { sourceNewerThan } from './freshness.mts';
 import { COMPILER_LINE_LIMIT, lineReader } from './lines.mts';
 import { compilerFileName, installedCompiler, requireSupportedPlatform } from './platform.mts';
 
-export { COMPILER_LINE_LIMIT };
 /** Grace period between a cooperative cancel request on stdin and a hard kill. */
 export const CANCEL_GRACE_MS = 5000;
 /** The crate this checkout builds the compiler from; absent from an installed package. */
 const CRATE = fileURLToPath(new URL('../../../../packages/asset-compiler-rust/', import.meta.url));
 const built = (crate: string, platform: NodeJS.Platform) =>
   join(crate, 'target/release', compilerFileName(platform));
+type Source = { path: string; from: 'explicit' | 'installed' | 'environment' } | null;
+/**
+ * The compiler named rather than built here, in the order asked: the caller's, the installed
+ * platform package's (`platform.mts`, looked up only when the caller named none), then
+ * `TRILLION3D_COMPILER_BIN`'s.
+ */
+function namedCompiler(
+  explicit: string | undefined,
+  environment: NodeJS.ProcessEnv,
+  platform: NodeJS.Platform,
+  installed: string | null | undefined,
+): Source {
+  if (explicit) return { path: explicit, from: 'explicit' };
+  const found = installed === undefined ? installedCompiler(platform) : installed;
+  if (found) return { path: found, from: 'installed' };
+  const variable = environment.TRILLION3D_COMPILER_BIN;
+  return variable ? { path: variable, from: 'environment' } : null;
+}
 /**
  * Finds the native compiler program: the one asked for, else the installed platform package's
  * (`platform.mts`), else `TRILLION3D_COMPILER_BIN`'s, else the one built in this checkout.
@@ -22,9 +39,9 @@ export function resolveCompilerExecutable(
   explicit?: string,
   environment: NodeJS.ProcessEnv = process.env,
   platform = process.platform,
-  installed = installedCompiler(platform),
+  installed?: string | null,
 ) {
-  return explicit || installed || environment.TRILLION3D_COMPILER_BIN || built(CRATE, platform);
+  return namedCompiler(explicit, environment, platform, installed)?.path ?? built(CRATE, platform);
 }
 const announced = new Set<string>();
 /**
@@ -38,16 +55,14 @@ export function currentCompilerExecutable(
   explicit?: string,
   environment = process.env,
   crate = CRATE,
-  installed = installedCompiler(),
+  installed?: string | null,
 ) {
-  if (explicit) return explicit;
-  if (installed) return installed;
-  const named = environment.TRILLION3D_COMPILER_BIN;
+  const named = namedCompiler(explicit, environment, process.platform, installed);
   if (named) {
-    if (!announced.has(named))
-      process.stderr.write(`compiler: ${named} (TRILLION3D_COMPILER_BIN)\n`);
-    announced.add(named);
-    return named;
+    if (named.from === 'environment' && !announced.has(named.path))
+      process.stderr.write(`compiler: ${named.path} (TRILLION3D_COMPILER_BIN)\n`);
+    announced.add(named.path);
+    return named.path;
   }
   if (!existsSync(join(crate, 'Cargo.toml'))) requireSupportedPlatform();
   const executable = built(crate, process.platform);

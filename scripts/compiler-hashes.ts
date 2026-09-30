@@ -11,10 +11,10 @@
  *   node scripts/compiler-hashes.ts <compiler> <record.json> [<name>]
  *   node scripts/compiler-hashes.ts --compare <reference.json> <record.json>...
  */
-import { createHash } from 'node:crypto';
 import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { sha256 } from '../packages/sdk-node/src/compiler/provenance.mts';
 import { compileFullCache } from './native-compiler.ts';
 import { COOKED_SCENES } from './site-caches.ts';
 
@@ -30,7 +30,6 @@ export interface HashRecord {
 }
 
 const ROOT = resolve(import.meta.dirname, '..');
-const sha256 = (bytes: Buffer | string) => createHash('sha256').update(bytes).digest('hex');
 
 const SHA = /[0-9a-f]{64}/g;
 /** What a run reports rather than builds: its times, its memory peak, the pages it found built. */
@@ -66,9 +65,12 @@ export function cacheFingerprint(cache: string, prefix: string): Record<string, 
   );
 }
 
-/** Compiles every reference scene with `executable` into a fresh folder and fingerprints it. */
-export function referenceHashes(executable: string): Record<string, string> {
-  let files: Record<string, string> = {};
+/** Compiles every reference scene with `executable` into a fresh folder, handed to `visit` before
+ *  it is removed; with no `visit`, a training run of profile-guided optimisation. */
+export function compileReferenceScenes(
+  executable: string,
+  visit: (cache: string, name: string) => void = () => {},
+): void {
   for (const name of REFERENCE_SCENES) {
     const { directory, ...compile } = COOKED_SCENES[name];
     const cache = mkdtempSync(join(tmpdir(), `trillion3d-${name}-`));
@@ -80,11 +82,19 @@ export function referenceHashes(executable: string): Record<string, string> {
         executable,
         stdio: ['ignore', 'ignore', 'inherit'],
       });
-      files = { ...files, ...cacheFingerprint(cache, name) };
+      visit(cache, name);
     } finally {
       rmSync(cache, { recursive: true, force: true });
     }
   }
+}
+
+/** Every reference scene compiled with `executable`, fingerprinted. */
+export function referenceHashes(executable: string): Record<string, string> {
+  const files: Record<string, string> = {};
+  compileReferenceScenes(executable, (cache, name) =>
+    Object.assign(files, cacheFingerprint(cache, name)),
+  );
   return files;
 }
 

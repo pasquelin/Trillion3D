@@ -11,14 +11,14 @@ import {
 } from './installed-package-bundle.ts';
 import { compileInstalledScene, type CompiledScene } from './installed-package-scene.ts';
 import { packPlatformPackages } from './installed-package-platforms.ts';
-import { compilerFileName } from '../packages/sdk-node/src/compiler/platform.mts';
+import { currentCompilerExecutable } from '../packages/sdk-node/src/compiler/process.mts';
 import { proveInstalledRuntime } from './installed-package-runtime.ts';
 import { proveInstalledTypes } from './installed-package-types.ts';
 import {
   createInstalledFixture,
   type ExportsManifest,
   type PackageJson,
-  type PackResult,
+  packArchive,
 } from './installed-package-fixture.ts';
 
 /** Whether the fixture's virtual store holds any version of the host library. */
@@ -36,15 +36,11 @@ try {
   const proveBundle = process.argv.includes('--bundle') && !proveBrowser;
   const proveNative = process.argv.includes('--native') || proveBrowser || proveBundle;
   if (proveNative) run(pnpm, ['run', 'build:native']);
-  // The compiler reaches the application in this machine's platform package (#1352).
-  const executable = proveNative
-    ? join(root, 'packages/asset-compiler-rust/target/release', compilerFileName(process.platform))
-    : null;
-  const parsedPack = JSON.parse(run(pnpm, ['pack', '--json', '--pack-destination', fixture])) as
-    PackResult | PackResult[];
-  const packed: PackResult = Array.isArray(parsedPack) ? (parsedPack[0] ?? {}) : parsedPack;
-  const archive = packed.filename;
-  if (!archive) throw new Error('pnpm pack did not report an archive');
+  // The compiler reaches the application in this machine's platform package (#1352): the
+  // checkout's build just made, refused if older than its sources.
+  const executable = proveNative ? currentCompilerExecutable(undefined, {}) : null;
+  const packed = packArchive(run, pnpm, root, fixture);
+  const { filename: archive } = packed;
   const source = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as PackageJson;
   // The consumer installs the package alone: since #275 it neither declares nor needs the host
   // library, and the proof reads the installed tree to say so.
