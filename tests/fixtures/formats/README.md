@@ -164,16 +164,16 @@ of them through the whole compiler and pins the bytes of its previews in `expect
 
 ### What the driver reads
 
-| file                          | header | depth                        | row order | what it puts under watch                                  |
-| ----------------------------- | ------ | ---------------------------- | --------- | --------------------------------------------------------- |
-| `vraies-couleurs-24-bas.bmp`  | Info   | 24-bit `BI_RGB`              | bottom-up | BGR → RGB, rows restored to order, alpha filled to 255    |
-| `vraies-couleurs-32-haut.bmp` | V3     | 32-bit `BI_BITFIELDS`        | top-down  | V3 header alpha mask, straight alpha kept (128 and 0)     |
-| `palette-8.bmp`               | Info   | 8 bits, 8-entry palette      | bottom-up | indices resolved to the same colours                      |
-| `palette-8-rle.bmp`           | Info   | 8-bit `BI_RLE8`              | bottom-up | absolute mode, end of line and end of bitmap              |
-| `palette-4.bmp`               | Info   | 4 bits, 8-entry palette      | bottom-up | two indices per byte, row padded to four bytes            |
-| `palette-1.bmp`               | Info   | 1 bit, 2-entry palette       | bottom-up | one index per bit; its reference is a checkerboard        |
-| `r5g5b5.bmp`                  | Info   | 16-bit `BI_RGB`              | bottom-up | the default 5-5-5 masks, with no mask field               |
-| `r5g6b5.bmp`                  | Info   | 16-bit `BI_BITFIELDS`        | bottom-up | 5-6-5 masks read after the header, six bits on green      |
+| file | header | depth | row order | what it puts under watch |
+| --- | --- | --- | --- | --- |
+| `vraies-couleurs-24-bas.bmp` | Info | 24-bit `BI_RGB` | bottom-up | BGR → RGB, rows restored to order, alpha filled to 255 |
+| `vraies-couleurs-32-haut.bmp` | V3 | 32-bit `BI_BITFIELDS` | top-down | V3 header alpha mask, straight alpha kept (128 and 0) |
+| `palette-8.bmp` | Info | 8 bits, 8-entry palette | bottom-up | indices resolved to the same colours |
+| `palette-8-rle.bmp` | Info | 8-bit `BI_RLE8` | bottom-up | absolute mode, end of line and end of bitmap |
+| `palette-4.bmp` | Info | 4 bits, 8-entry palette | bottom-up | two indices per byte, row padded to four bytes |
+| `palette-1.bmp` | Info | 1 bit, 2-entry palette | bottom-up | one index per bit; its reference is a checkerboard |
+| `r5g5b5.bmp` | Info | 16-bit `BI_RGB` | bottom-up | the default 5-5-5 masks, with no mask field |
+| `r5g6b5.bmp` | Info | 16-bit `BI_BITFIELDS` | bottom-up | 5-6-5 masks read after the header, six bits on green |
 
 The eight carry the same image — except `palette-1.bmp`, which a single bit reduces to two colours, and
 `vraies-couleurs-32-haut.bmp`, the only one that carries an alpha. The golden checks this explicitly: neither
@@ -194,11 +194,11 @@ both 16-bit writings yield those bytes and not their neighbours.
 
 ### What the driver refuses, and under which name
 
-| file                  | rejection                        | why                                                                                               |
-| --------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `masques-10-bits.bmp` | `bmp-bitfields-lossy`            | 32-bit with 10-10-10 masks: the decoder would keep only the eight high bits of each channel       |
-| `jpeg-embarque.bmp`   | `bmp-embedded-codec-unsupported` | `BI_JPEG`: the file does not wrap pixels but a whole format, which has its own driver             |
-| `tronque.bmp`         | `image-decode-failed`            | 31 bytes out of 196,662: header recognised, pixel read refused                                    |
+| file | rejection | why |
+| --- | --- | --- |
+| `masques-10-bits.bmp` | `bmp-bitfields-lossy` | 32-bit with 10-10-10 masks: the decoder would keep only the eight high bits of each channel |
+| `jpeg-embarque.bmp` | `bmp-embedded-codec-unsupported` | `BI_JPEG`: the file does not wrap pixels but a whole format, which has its own driver |
+| `tronque.bmp` | `image-decode-failed` | 31 bytes out of 196,662: header recognised, pixel read refused |
 
 The golden adds two rejections that no file carries, obtained by rewriting two fields of a readable
 header: a 64-bit depth (`bmp-depth-unsupported`) and the
@@ -310,15 +310,15 @@ a minimal fixture, and the blocks of the test above say the same thing exactly.
 Six tiny files and a scene. Two files carry the same image in the two precisions
 of the subset; four are there to be refused, each by name.
 
-| file                      | what it carries                                   | what it puts under watch                                                                                                           |
-| ------------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `demi.exr`                | 2 × 2, `A`, `B`, `G`, `R` channels in half-float  | read order, the four channels, an alpha that is neither 0 nor 1, and un-premultiplication                                          |
-| `flottant.exr`            | 2 × 2, `B`, `G`, `R` channels in single float     | the same RGB values as `demi.exr` — half extends without rounding — and the opaque alpha the specification requires when the channel is missing |
-| `canaux-xyz.exr`          | 2 × 2, `X`, `Y`, `Z` channels                     | a channel set of another name: rejection `exr-channels-unsupported`                                                                |
-| `profond.exr`             | `demi.exr` with the deep-data flag                | the version field is enough: rejection `exr-deep-unsupported` before any other read                                                |
-| `multi-parties.exr`       | `demi.exr` with the multi-part flag               | rejection `exr-multipart-unsupported`: nothing says which part is the texture                                                      |
-| `tronque.exr`             | 40 of the 395 bytes of `demi.exr`                 | the magic is there, the header is not: rejection `exr-header-invalid`                                                              |
-| `scene.gltf`, `scene.bin` | a quad whose base colour is `demi.exr`            | the full path through to the preview report, where the float texture is named                                                      |
+| file | what it carries | what it puts under watch |
+| --- | --- | --- |
+| `demi.exr` | 2 × 2, `A`, `B`, `G`, `R` channels in half-float | read order, the four channels, an alpha that is neither 0 nor 1, and un-premultiplication |
+| `flottant.exr` | 2 × 2, `B`, `G`, `R` channels in single float | the same RGB values as `demi.exr` — half extends without rounding — and the opaque alpha the specification requires when the channel is missing |
+| `canaux-xyz.exr` | 2 × 2, `X`, `Y`, `Z` channels | a channel set of another name: rejection `exr-channels-unsupported` |
+| `profond.exr` | `demi.exr` with the deep-data flag | the version field is enough: rejection `exr-deep-unsupported` before any other read |
+| `multi-parties.exr` | `demi.exr` with the multi-part flag | rejection `exr-multipart-unsupported`: nothing says which part is the texture |
+| `tronque.exr` | 40 of the 395 bytes of `demi.exr` | the magic is there, the header is not: rejection `exr-header-invalid` |
+| `scene.gltf`, `scene.bin` | a quad whose base colour is `demi.exr` | the full path through to the preview report, where the float texture is named |
 
 The two readable files carry the same RGB image, and `src/plugins/tests/exr.rs` compares their
 values **one by one** against a reference written in the clear in the test. The chosen values — 0, ⅛,
@@ -383,11 +383,11 @@ pins the bytes of its previews in `expected.json`.
 
 ### What the driver reads
 
-| file                  | colour table       | what it puts under watch                                                             |
-| --------------------- | ------------------ | ------------------------------------------------------------------------------------ |
-| `palette-globale.gif` | global, 8 entries  | the table colours rendered as-is — the format is indexed, nothing is rounded         |
-| `palette-locale.gif`  | local, 8 entries   | a table carried by the image descriptor, with no global table in the file at all     |
-| `transparence.gif`    | global, 8 entries  | the index declared transparent becomes a zero alpha, **and its colour stays that of the table** |
+| file | colour table | what it puts under watch |
+| --- | --- | --- |
+| `palette-globale.gif` | global, 8 entries | the table colours rendered as-is — the format is indexed, nothing is rounded |
+| `palette-locale.gif` | local, 8 entries | a table carried by the image descriptor, with no global table in the file at all |
+| `transparence.gif` | global, 8 entries | the index declared transparent becomes a zero alpha, **and its colour stays that of the table** |
 
 The three carry the same image; only `transparence.gif` changes the alpha, and only it. The golden
 checks this explicitly: where the table comes from does not change a pixel, and transparency does not
@@ -395,10 +395,10 @@ touch the colour — nothing is erased, filled with white, or premultiplied.
 
 ### What the driver refuses, and under which name
 
-| file          | rejection                     | why                                                                                                                                                                                                                                                      |
-| ------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `anime.gif`   | `image-animation-unsupported` | two image descriptors: an animation is not a texture, and choosing one image by default would be arbitrary. That is the `webp` driver's reason, shared on purpose — an animation rejection is an animation rejection, whichever format carries it        |
-| `tronque.gif` | `image-decode-failed`         | 31 bytes out of 17,976: the signature is recognised, the decode refused                                                                                                                                                                                  |
+| file | rejection | why |
+| --- | --- | --- |
+| `anime.gif` | `image-animation-unsupported` | two image descriptors: an animation is not a texture, and choosing one image by default would be arbitrary. That is the `webp` driver's reason, shared on purpose — an animation rejection is an animation rejection, whichever format carries it |
+| `tronque.gif` | `image-decode-failed` | 31 bytes out of 17,976: the signature is recognised, the decode refused |
 
 The golden adds three cases that need no extra file, taken from the previous two:
 the `GIF87a` signature rewritten onto `palette-globale.gif` — the version without extensions, which the
@@ -463,16 +463,16 @@ position can be checked against the world position the file declares.
 Seven tiny files and a scene. Four carry the same image written four ways; three
 are there to be refused, each by name.
 
-| file                      | what it carries                                | what it puts under watch                                                        |
-| ------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------- |
-| `plat.hdr`                | 4 × 2, raw scanlines                           | four bytes per pixel, with no marker at all                                     |
-| `rle-ancienne.hdr`        | 4 × 2, `1,1,1,n` markers                       | the “Real Pixels” compression: same pixels as `plat.hdr`                        |
-| `signature-rgbe.hdr`      | 4 × 2, `#?RGBE` signature                      | the format's second signature, which old files carry                            |
-| `rle-nouvelle.hdr`        | 8 × 1, `2, 2, width` header                    | per-component compression, its runs **and** its raw packets in the same scanline |
-| `xyze.hdr`                | `FORMAT=32-bit_rle_xyze`                       | another colour space: rejection `hdr-format-unsupported`                        |
-| `bas-en-haut.hdr`         | resolution `+Y 2 +X 4`                         | an orientation that would have to be flipped: rejection `hdr-orientation-unsupported` |
-| `tronque.hdr`             | 7 of the 32 pixel bytes                        | rejection `hdr-data-truncated`, never a half scanline                           |
-| `scene.gltf`, `scene.bin` | a quad whose base colour is `plat.hdr`         | the full path through to the preview report, where the float texture is named   |
+| file | what it carries | what it puts under watch |
+| --- | --- | --- |
+| `plat.hdr` | 4 × 2, raw scanlines | four bytes per pixel, with no marker at all |
+| `rle-ancienne.hdr` | 4 × 2, `1,1,1,n` markers | the “Real Pixels” compression: same pixels as `plat.hdr` |
+| `signature-rgbe.hdr` | 4 × 2, `#?RGBE` signature | the format's second signature, which old files carry |
+| `rle-nouvelle.hdr` | 8 × 1, `2, 2, width` header | per-component compression, its runs **and** its raw packets in the same scanline |
+| `xyze.hdr` | `FORMAT=32-bit_rle_xyze` | another colour space: rejection `hdr-format-unsupported` |
+| `bas-en-haut.hdr` | resolution `+Y 2 +X 4` | an orientation that would have to be flipped: rejection `hdr-orientation-unsupported` |
+| `tronque.hdr` | 7 of the 32 pixel bytes | rejection `hdr-data-truncated`, never a half scanline |
+| `scene.gltf`, `scene.bin` | a quad whose base colour is `plat.hdr` | the full path through to the preview report, where the float texture is named |
 
 `src/plugins/tests/hdr.rs` compares the values **one by one** against a reference written in the clear in
 the test. The four RGBE quadruplets used have exponents readable by eye — `2^-8`, `2^-7`,
@@ -546,13 +546,13 @@ that `src/plugins/tests/ktx2/bytes.rs` writes field by field from the Khronos sp
 
 ### 1. The five files
 
-| file             | what it carries                                                       | what it proves                                                                                                            |
-| ---------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `base.ktx2`      | 4 × 4, `VK_FORMAT_R8G8B8A8_SRGB`, `supercompressionScheme` 0          | an uncompressed level comes out byte for byte; its sixteen texels are written in the clear in `src/plugins/tests/ktx2.rs` |
-| `base-zstd.ktx2` | the same level under `KTX_SS_ZSTD`                                    | supercompression is only a wrapper: undone, it yields exactly the same texels                                             |
-| `uastc.ktx2`     | 16 × 16, `VK_FORMAT_UNDEFINED`, UASTC LDR 4 × 4 payload               | the Basis Universal path without supercompression, sixteen blocks of sixteen bytes                                        |
-| `basis.ktx2`     | 256 × 256, `VK_FORMAT_UNDEFINED`, ETC1S payload under `KTX_SS_BASIS_LZ` | the supercompressed Basis Universal path, codebooks included, as a third-party encoder writes it                        |
-| `tronque.ktx2`   | forty bytes of `basis.ktx2`                                           | the identifier is there, the header is not, and the rejection is named                                                    |
+| file | what it carries | what it proves |
+| --- | --- | --- |
+| `base.ktx2` | 4 × 4, `VK_FORMAT_R8G8B8A8_SRGB`, `supercompressionScheme` 0 | an uncompressed level comes out byte for byte; its sixteen texels are written in the clear in `src/plugins/tests/ktx2.rs` |
+| `base-zstd.ktx2` | the same level under `KTX_SS_ZSTD` | supercompression is only a wrapper: undone, it yields exactly the same texels |
+| `uastc.ktx2` | 16 × 16, `VK_FORMAT_UNDEFINED`, UASTC LDR 4 × 4 payload | the Basis Universal path without supercompression, sixteen blocks of sixteen bytes |
+| `basis.ktx2` | 256 × 256, `VK_FORMAT_UNDEFINED`, ETC1S payload under `KTX_SS_BASIS_LZ` | the supercompressed Basis Universal path, codebooks included, as a third-party encoder writes it |
+| `tronque.ktx2` | forty bytes of `basis.ktx2` | the identifier is there, the header is not, and the rejection is named |
 
 ### 2. The test containers
 
@@ -622,10 +622,10 @@ behaviours that only the inside of the driver proves — text splitting, writing
 slices, resolving a corner from its edge — are in
 [`../../../../packages/asset-compiler-rust/src/plugins/scene/ma/tests.rs`](../../../packages/asset-compiler-rust/src/plugins/scene/ma/tests.rs).
 
-| file                             | what it pins                                                                                    |
-| -------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `minuscule/scene.ma`             | the scene: `transform` hierarchy, `mesh` of two quadrilaterals, two shaded face groups, instance via `parent -add`, `lambert` and `standardSurface` of which one is textured |
-| `minuscule/textures/checker.png` | the texture the `standardSurface` cites, resolved relative to the source folder                 |
+| file | what it pins |
+| --- | --- |
+| `minuscule/scene.ma` | the scene: `transform` hierarchy, `mesh` of two quadrilaterals, two shaded face groups, instance via `parent -add`, `lambert` and `standardSurface` of which one is textured |
+| `minuscule/textures/checker.png` | the texture the `standardSurface` cites, resolved relative to the source folder |
 
 What each choice puts under watch:
 
@@ -677,21 +677,21 @@ class is read from the material alone, and each scene stays two readable files.
 
 ### `classes-materiaux` — opaque, cutout, blend
 
-| mesh         | material                                         | class  | compiler packing  |
-| ------------ | ------------------------------------------------ | ------ | ----------------- |
-| `opaque0..2` | `beton`                                          | opaque | `exact-clusters`  |
-| `grille`     | `grillage`, `alphaMode: MASK`, `alphaCutoff 0.5` | cutout | `exact-clusters`  |
-| `vitre`      | `vitre`, `alphaMode: BLEND`                      | blend  | `clustered-blend` |
+| mesh | material | class | compiler packing |
+| --- | --- | --- | --- |
+| `opaque0..2` | `beton` | opaque | `exact-clusters` |
+| `grille` | `grillage`, `alphaMode: MASK`, `alphaCutoff 0.5` | cutout | `exact-clusters` |
+| `vitre` | `vitre`, `alphaMode: BLEND` | blend | `clustered-blend` |
 
 4,516 triangles. This is the scene the harness measures.
 
 ### `transmission` — the fourth class, and something to see it with
 
-| mesh       | material                                                                                                                                     | class        | compiler packing |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ---------------- |
-| `fond`     | `fond`, opaque                                                                                                                               | opaque       | `exact-clusters` |
-| `bloc0..2` | `beton`, opaque                                                                                                                              | opaque       | `exact-clusters` |
-| `eau`      | `eau`, `KHR_materials_transmission` 1.0, `KHR_materials_ior` 1.33, `KHR_materials_volume` (thickness 2.5, distance 6, colour 0.35/0.72/0.68) | transmission | `shared-blend`   |
+| mesh | material | class | compiler packing |
+| --- | --- | --- | --- |
+| `fond` | `fond`, opaque | opaque | `exact-clusters` |
+| `bloc0..2` | `beton`, opaque | opaque | `exact-clusters` |
+| `eau` | `eau`, `KHR_materials_transmission` 1.0, `KHR_materials_ior` 1.33, `KHR_materials_volume` (thickness 2.5, distance 6, colour 0.35/0.72/0.68) | transmission | `shared-blend` |
 
 2,880 triangles. A water plane at `y = 0` above a ground at `y = -2.5` and three blocks, of which two
 pierce the surface: what is looked at is the deviation of the ground under the water against the straight line of
@@ -708,12 +708,12 @@ would still carry pages remains refused.
 
 ### `emetteur-sphere` — the emitter's spherical exclusion
 
-| mesh                  | material                               | role                                                                                         |
-| --------------------- | -------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `sol`                 | `sol`, opaque                          | receives the shadow                                                                          |
-| `occultant-diagonale` | `occultant`, opaque                    | 0.3121 m from the lamp centre (0.19, 0.18, 0.17 relative) — outside the 0.20 m radius sphere |
-| `occultant-proche`    | `occultant`, opaque                    | 0.15 m from the lamp centre — inside the sphere                                              |
-| `enveloppe-lampe`     | `enveloppe`, non-zero `emissiveFactor` | the luminaire around the lamp: six vertices at 0.20 m from its centre                        |
+| mesh | material | role |
+| --- | --- | --- |
+| `sol` | `sol`, opaque | receives the shadow |
+| `occultant-diagonale` | `occultant`, opaque | 0.3121 m from the lamp centre (0.19, 0.18, 0.17 relative) — outside the 0.20 m radius sphere |
+| `occultant-proche` | `occultant`, opaque | 0.15 m from the lamp centre — inside the sphere |
+| `enveloppe-lampe` | `enveloppe`, non-zero `emissiveFactor` | the luminaire around the lamp: six vertices at 0.20 m from its centre |
 
 34 triangles, one point lamp (`lampe`, `KHR_lights_punctual`, range 3 m). The glTF declares
 no radius: `KHR_lights_punctual` carries none (`docs/SDK.md`). It is the compiler that writes
@@ -752,11 +752,11 @@ rendering it**. The golden is [`../../../../packages/asset-compiler-rust/src/tes
 requires modifying the source between two compilations — library touched, missing, truncated, texture
 name to escape — is in [`../../../../packages/asset-compiler-rust/src/tests/formats/obj_mtl.rs`](../../../packages/asset-compiler-rust/src/tests/formats/obj_mtl.rs).
 
-| file                       | what it pins                                                                                                                                                                         |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `minuscule/scene.obj`      | two groups, a quadrilateral and a pentagon, shaded by two `usemtl`                                                                                                                   |
-| `minuscule/scene.mtl`      | everything a library declares: `Ka`, `Kd`, `Ks`, `Ns`, `Ni`, `d`, `Ke`, `map_Ka`, `map_Kd`, `map_d`, `norm`, `map_Bump`, `map_Ke`, and the `-s`, `-o`, `-bm`, `-clamp` options      |
-| `minuscule/textures/*.png` | six 2×2 images: three enter the output, three prove a report code                                                                                                                    |
+| file | what it pins |
+| --- | --- |
+| `minuscule/scene.obj` | two groups, a quadrilateral and a pentagon, shaded by two `usemtl` |
+| `minuscule/scene.mtl` | everything a library declares: `Ka`, `Kd`, `Ks`, `Ns`, `Ni`, `d`, `Ke`, `map_Ka`, `map_Kd`, `map_d`, `norm`, `map_Bump`, `map_Ke`, and the `-s`, `-o`, `-bm`, `-clamp` options |
+| `minuscule/textures/*.png` | six 2×2 images: three enter the output, three prove a report code |
 
 What each choice puts under watch:
 
@@ -808,14 +808,14 @@ carry a colour profile. The golden
 `src/plugins/tests/png.rs` feeds them to the image registry and compares the result against a reference
 written in the clear in the test.
 
-| file            | colour type     | depth                   | what it puts under watch                                                              |
-| --------------- | --------------- | ----------------------- | ------------------------------------------------------------------------------------- |
-| `rgb8.png`      | 2 (RGB)         | 8 bits per channel      | the common case: decoded, alpha filled to 255, pixels unchanged                       |
-| `palette4.png`  | 3 (palette)     | 4 bits, 24-bit palette  | under eight bits the expansion to RGBA8 copies, it loses nothing                      |
-| `rgb16.png`     | 2 (RGB)         | 16 bits per channel     | refused under `image-depth-unsupported`, before any decoding                          |
-| `anime.png`     | 2 (RGB)         | 8 bits, two frames      | APNG: the default image comes out, the animation is counted under `image-animation-first-frame` |
-| `icc-autre.png` | 2 (RGB)         | 8 bits, `iCCP` chunk    | a profile that is not the output's: counted under `image-icc-profile-ignored`         |
-| `icc-srgb.png`  | 2 (RGB)         | 8 bits, `iCCP` chunk    | a profile that names itself sRGB: nothing to convert, nothing to count                |
+| file | colour type | depth | what it puts under watch |
+| --- | --- | --- | --- |
+| `rgb8.png` | 2 (RGB) | 8 bits per channel | the common case: decoded, alpha filled to 255, pixels unchanged |
+| `palette4.png` | 3 (palette) | 4 bits, 24-bit palette | under eight bits the expansion to RGBA8 copies, it loses nothing |
+| `rgb16.png` | 2 (RGB) | 16 bits per channel | refused under `image-depth-unsupported`, before any decoding |
+| `anime.png` | 2 (RGB) | 8 bits, two frames | APNG: the default image comes out, the animation is counted under `image-animation-first-frame` |
+| `icc-autre.png` | 2 (RGB) | 8 bits, `iCCP` chunk | a profile that is not the output's: counted under `image-icc-profile-ignored` |
+| `icc-srgb.png` | 2 (RGB) | 8 bits, `iCCP` chunk | a profile that names itself sRGB: nothing to convert, nothing to count |
 
 The drawing is the same everywhere: red, green on the top row, blue, yellow on the bottom. The two
 readable fixtures must therefore yield exactly the same four pixels — that is the proof that bit depth
@@ -867,13 +867,13 @@ run over them during development, read in place, never modified. Only one file c
 behaviour, the one the decision targeted; the other four yield what their colour type
 announces:
 
-| file               | colour type     | depth      | verdict                           |
-| ------------------ | --------------- | ---------- | --------------------------------- |
-| `rgb8.png`         | 2 (RGB)         | 8 bits     | decoded                           |
-| `rgba8-binary.png` | 6 (RGBA)        | 8 bits     | decoded, alpha kept               |
-| `palette.png`      | 3 (palette)     | 8 bits     | decoded                           |
-| `gray.png`         | 0 (grey)        | 8 bits     | decoded                           |
-| `rgb16.png`        | 2 (RGB)         | 16 bits    | refused, `image-depth-unsupported` |
+| file | colour type | depth | verdict |
+| --- | --- | --- | --- |
+| `rgb8.png` | 2 (RGB) | 8 bits | decoded |
+| `rgba8-binary.png` | 6 (RGBA) | 8 bits | decoded, alpha kept |
+| `palette.png` | 3 (palette) | 8 bits | decoded |
+| `gray.png` | 0 (grey) | 8 bits | decoded |
+| `rgb16.png` | 2 (RGB) | 16 bits | refused, `image-depth-unsupported` |
 
 They are not committed here: one hundred and forty kilobytes for pixels that cannot be written
 in the clear do not make a minimal fixture, and the `tests/assets/` folder is shipped off git.
@@ -959,14 +959,14 @@ not contain.
 
 ### What the driver reads
 
-| file                 | what it carries                              | what it puts under watch                                                                                                               |
-| -------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `rgb-brut.psd`       | 4 × 2, 8-bit RGB, compression 0              | the three planes as-is, one whole channel after another                                                                                |
-| `rgb-rle.psd`        | 4 × 2, 8-bit RGB, compression 1              | PackBits: same pixels as `rgb-brut.psd`, a run and a raw packet in the same scanline                                                   |
-| `rgba-rle.psd`       | 4 × 2, RGB + one extra plane, compression 1  | nothing declares transparency: the fourth plane is a saved alpha channel, read, written nowhere and counted `psd-alpha-channel-ignored` |
-| `gris-brut.psd`      | 4 × 2, 8-bit grayscale, compression 0        | the single colour channel carries the three components, with no profile and no matrix                                                  |
-| `gris-alpha-rle.psd` | 4 × 2, grey + one extra plane, compression 1 | the same case in a mode with a single colour channel                                                                                   |
-| `grand-format.psb`   | 4 × 2, 8-bit RGB, PSB, compression 1         | version 2 of the format: layer-section length on eight bytes, per-scanline byte count on four                                          |
+| file | what it carries | what it puts under watch |
+| --- | --- | --- |
+| `rgb-brut.psd` | 4 × 2, 8-bit RGB, compression 0 | the three planes as-is, one whole channel after another |
+| `rgb-rle.psd` | 4 × 2, 8-bit RGB, compression 1 | PackBits: same pixels as `rgb-brut.psd`, a run and a raw packet in the same scanline |
+| `rgba-rle.psd` | 4 × 2, RGB + one extra plane, compression 1 | nothing declares transparency: the fourth plane is a saved alpha channel, read, written nowhere and counted `psd-alpha-channel-ignored` |
+| `gris-brut.psd` | 4 × 2, 8-bit grayscale, compression 0 | the single colour channel carries the three components, with no profile and no matrix |
+| `gris-alpha-rle.psd` | 4 × 2, grey + one extra plane, compression 1 | the same case in a mode with a single colour channel |
+| `grand-format.psb` | 4 × 2, 8-bit RGB, PSB, compression 1 | version 2 of the format: layer-section length on eight bytes, per-scanline byte count on four |
 
 The five 4 × 2 files carry the same composite — three identical pixels, one isolated pixel, then
 a vivid colour and a grey run. That is the proof that compression, colour mode and format
@@ -997,14 +997,14 @@ to write a whole layer record, they fault exactly the field that decides.
 
 ### What the driver refuses, and under which name
 
-| file                 | rejection                     | why                                                                                                  |
-| -------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `seize-bits.psd`     | `psd-depth-unsupported`       | sixteen bits per channel: bringing them down to eight would be a loss the source did not have        |
-| `cmjn.psd`           | `psd-color-mode-unsupported`  | CMYK mode: converting it would require a profile the driver would choose in place of the source      |
-| `canaux-en-trop.psd` | `psd-channels-unsupported`    | two planes more than the colour channels: nothing in the header says which one is a transparency     |
-| `zip.psd`            | `psd-compression-unsupported` | composite compressed by ZIP, outside the raw and PackBits subset                                     |
-| `sans-composite.psd` | `psd-composite-missing`       | the file stops after the layer section: no flattened image to read, and it is not recomposed         |
-| `tronque.psd`        | `psd-data-truncated`          | 7 of the 24 pixel bytes: never a half plane                                                          |
+| file | rejection | why |
+| --- | --- | --- |
+| `seize-bits.psd` | `psd-depth-unsupported` | sixteen bits per channel: bringing them down to eight would be a loss the source did not have |
+| `cmjn.psd` | `psd-color-mode-unsupported` | CMYK mode: converting it would require a profile the driver would choose in place of the source |
+| `canaux-en-trop.psd` | `psd-channels-unsupported` | two planes more than the colour channels: nothing in the header says which one is a transparency |
+| `zip.psd` | `psd-compression-unsupported` | composite compressed by ZIP, outside the raw and PackBits subset |
+| `sans-composite.psd` | `psd-composite-missing` | the file stops after the layer section: no flattened image to read, and it is not recomposed |
+| `tronque.psd` | `psd-data-truncated` | 7 of the 24 pixel bytes: never a half plane |
 
 The test adds a case that needs no file: `rgb-brut.psd` whose width is set to
 zero, refused as `psd-header-invalid`, and a signature whose version number is unknown, which the
@@ -1084,28 +1084,28 @@ pixel image whose eight values are known.
 
 ### What the driver reads
 
-| file                     | profile       | compression | what it puts under watch                       |
-| ------------------------ | ------------- | ----------- | ---------------------------------------------- |
-| `rgb8-brut-ii.tiff`      | 8-bit RGB     | none (1)    | little-endian IFD, `BitsPerSample` array off-field, alpha filled to 255 |
-| `rgb8-brut-mm.tiff`      | 8-bit RGB     | none (1)    | the same file big-endian: byte order does not change a pixel |
-| `rgb8-lzw.tiff`          | 8-bit RGB     | LZW (5)     | variable-length codes, same pixels as the raw  |
-| `rgb8-deflate.tiff`      | 8-bit RGB     | Deflate (8) | the other tag of the same codec                |
-| `rgb8-packbits.tiff`     | 8-bit RGB     | PackBits (32773) | repeated packets and raw packets          |
-| `rgba8-brut.tiff`        | 8-bit RGBA    | none (1)    | `ExtraSamples = 2` (unassociated alpha): the four bytes pass as-is, including a zero alpha |
-| `gris8-brut.tiff`        | 8-bit grey    | none (1)    | black at zero, value copied onto the three channels, alpha 255 |
+| file | profile | compression | what it puts under watch |
+| --- | --- | --- | --- |
+| `rgb8-brut-ii.tiff` | 8-bit RGB | none (1) | little-endian IFD, `BitsPerSample` array off-field, alpha filled to 255 |
+| `rgb8-brut-mm.tiff` | 8-bit RGB | none (1) | the same file big-endian: byte order does not change a pixel |
+| `rgb8-lzw.tiff` | 8-bit RGB | LZW (5) | variable-length codes, same pixels as the raw |
+| `rgb8-deflate.tiff` | 8-bit RGB | Deflate (8) | the other tag of the same codec |
+| `rgb8-packbits.tiff` | 8-bit RGB | PackBits (32773) | repeated packets and raw packets |
+| `rgba8-brut.tiff` | 8-bit RGBA | none (1) | `ExtraSamples = 2` (unassociated alpha): the four bytes pass as-is, including a zero alpha |
+| `gris8-brut.tiff` | 8-bit grey | none (1) | black at zero, value copied onto the three channels, alpha 255 |
 
 ### What the driver refuses, and under which name
 
-| file                         | rejection                  | why                                              |
-| ---------------------------- | -------------------------- | ------------------------------------------------ |
-| `gris16.tiff`                | `image-depth-unsupported`  | 16 bits per component: `DecodedImage` has only `Rgba8`, silently narrowing would add loss |
-| `palette8.tiff`              | `image-profile-unsupported`| `Photometric = 3`; the reading library does not expand TIFF palettes |
-| `rgb8-jpeg.tiff`             | `image-profile-unsupported`| JPEG-in-TIFF (compression 7)                     |
-| `ccitt-g4.tiff`              | `image-profile-unsupported`| CCITT Group 4 (compression 4), bilevel           |
-| `deux-pages.tiff`            | `image-profile-unsupported`| two IFDs: a single page would be rendered, the other would vanish with no report |
-| `rgb8-plans-separes.tiff`    | `image-profile-unsupported`| `PlanarConfiguration = 2`: one strip per component |
-| `rgba8-alpha-associe.tiff`   | `image-profile-unsupported`| `ExtraSamples = 1`, premultiplied alpha: rendering it as-is would change the colours |
-| `tronque.tif`                | `image-decode-failed`      | 31 bytes out of 196,748: the header is a TIFF header, it is the read that fails |
+| file | rejection | why |
+| --- | --- | --- |
+| `gris16.tiff` | `image-depth-unsupported` | 16 bits per component: `DecodedImage` has only `Rgba8`, silently narrowing would add loss |
+| `palette8.tiff` | `image-profile-unsupported` | `Photometric = 3`; the reading library does not expand TIFF palettes |
+| `rgb8-jpeg.tiff` | `image-profile-unsupported` | JPEG-in-TIFF (compression 7) |
+| `ccitt-g4.tiff` | `image-profile-unsupported` | CCITT Group 4 (compression 4), bilevel |
+| `deux-pages.tiff` | `image-profile-unsupported` | two IFDs: a single page would be rendered, the other would vanish with no report |
+| `rgb8-plans-separes.tiff` | `image-profile-unsupported` | `PlanarConfiguration = 2`: one strip per component |
+| `rgba8-alpha-associe.tiff` | `image-profile-unsupported` | `ExtraSamples = 1`, premultiplied alpha: rendering it as-is would change the colours |
+| `tronque.tif` | `image-decode-failed` | 31 bytes out of 196,748: the header is a TIFF header, it is the read that fails |
 
 BigTIFF has no file: its first four bytes (`II+\0`, `MM\0+`) suffice and are written
 in the golden. The driver claims them so the rejection is named rather than letting the file come out
@@ -1197,13 +1197,13 @@ Unity project **inside** its `.unitypackage` and **flat** outside it. The golden
 (`../../../../packages/asset-compiler-rust/src/tests/formats/unity/package_golden.rs`) compiles both through the shared harness, compares the
 second against the first, then compares the first against `expected.json`.
 
-| file                             | what it pins                                                                                         |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `test.unitypackage`              | the package: 11 GUID folders, each with `pathname`, `asset` and `asset.meta` — scene, prefabs, materials, FBX, TGA texture |
-| `hors-paquet/Assets/`            | the contents of `test.unitypackage`, rebuilt once and for all: the same project without a container  |
+| file | what it pins |
+| --- | --- |
+| `test.unitypackage` | the package: 11 GUID folders, each with `pathname`, `asset` and `asset.meta` — scene, prefabs, materials, FBX, TGA texture |
+| `hors-paquet/Assets/` | the contents of `test.unitypackage`, rebuilt once and for all: the same project without a container |
 | `sortie-de-dossier.unitypackage` | a `pathname` `../escape/Map.unity`: escape from the extraction folder, refused `ARCHIVE_PATH_ESCAPE` |
-| `tronque.unitypackage`           | 31 of the 26,432 bytes of `test.unitypackage`: the gzip stream stops, rejection `ARCHIVE_UNREADABLE` |
-| `vide.unitypackage`              | the 63 bytes of a tar.gz with no entry: rejection `ARCHIVE_EMPTY`                                    |
+| `tronque.unitypackage` | 31 of the 26,432 bytes of `test.unitypackage`: the gzip stream stops, rejection `ARCHIVE_UNREADABLE` |
+| `vide.unitypackage` | the 63 bytes of a tar.gz with no entry: rejection `ARCHIVE_EMPTY` |
 
 What each choice puts under watch:
 
@@ -1271,12 +1271,12 @@ Two fixtures, two distinct questions. The golden is
 `packages/asset-compiler-rust/src/tests/formats/usd/driver.rs`, what is counted in the report in `packages/asset-compiler-rust/src/tests/formats/usd/report.rs`, hard rejections in
 `packages/asset-compiler-rust/src/tests/formats/usd/refusal.rs`.
 
-| file                         | what it pins                                                                      |
-| ---------------------------- | --------------------------------------------------------------------------------- |
-| `minuscule/scene.usda`       | what the driver produces: `Xform` hierarchy, `Mesh` of two quads, `GeomSubset` `materialBind`, two materials of which one is textured |
+| file | what it pins |
+| --- | --- |
+| `minuscule/scene.usda` | what the driver produces: `Xform` hierarchy, `Mesh` of two quads, `GeomSubset` `materialBind`, two materials of which one is textured |
 | `minuscule/textures/checker.png` | the texture the translucent material cites, resolved relative to the layer folder |
-| `corpus/usda/scene.usda`     | the same scene as `corpus/usdc`, in text                                          |
-| `corpus/usdc/scene.usdc`     | the same scene as `corpus/usda`, in binary “crate”                                |
+| `corpus/usda/scene.usda` | the same scene as `corpus/usdc`, in text |
+| `corpus/usdc/scene.usdc` | the same scene as `corpus/usda`, in binary “crate” |
 
 What each choice puts under watch:
 
@@ -1320,12 +1320,12 @@ A container must change nothing about the scene it wraps. The package carries th
 ([`../../../../packages/asset-compiler-rust/src/tests/formats/usd/usdz_golden.rs`](../../../packages/asset-compiler-rust/src/tests/formats/usd/usdz_golden.rs)) compiles both, compares the
 second against the first, then compares the first against `expected.json`.
 
-| file                | what it pins                                                                    |
-| ------------------- | ------------------------------------------------------------------------------- |
-| `scene.usdz`        | the conforming package: entries stored as-is, payloads aligned on 64 bytes, one `usdc` layer and its texture in a subfolder |
-| `compressee.usdz`   | a `deflate` entry: rejection `USDZ_LAYOUT_INVALID`, nothing is extracted        |
-| `sans-scene.usdz`   | a package that does not open on a USD layer: rejection `USDZ_ROOT_LAYER_MISSING` |
-| `deux-scenes.usdz`  | two layers: a triangle first, a quadrilateral next. The package delivers the first, and the triangle count says so |
+| file | what it pins |
+| --- | --- |
+| `scene.usdz` | the conforming package: entries stored as-is, payloads aligned on 64 bytes, one `usdc` layer and its texture in a subfolder |
+| `compressee.usdz` | a `deflate` entry: rejection `USDZ_LAYOUT_INVALID`, nothing is extracted |
+| `sans-scene.usdz` | a package that does not open on a USD layer: rejection `USDZ_ROOT_LAYER_MISSING` |
+| `deux-scenes.usdz` | two layers: a triangle first, a quadrilateral next. The package delivers the first, and the triangle count says so |
 
 What each choice puts under watch:
 
@@ -1405,18 +1405,18 @@ writings of the same stream **byte for byte** and checks five texels written in 
 
 ### What the driver reads
 
-| file                     | container                | what it puts under watch                                       |
-| ------------------------ | ------------------------ | -------------------------------------------------------------- |
-| `sans-perte.webp`        | `VP8L` alone             | 256 × 256 RGBA8, zero alpha and opaque alpha mixed: nothing is filled by default nor premultiplied |
+| file | container | what it puts under watch |
+| --- | --- | --- |
+| `sans-perte.webp` | `VP8L` alone | 256 × 256 RGBA8, zero alpha and opaque alpha mixed: nothing is filled by default nor premultiplied |
 | `etendu-sans-perte.webp` | `VP8X` + `ICCP` + `VP8L` | the metadata chunks are walked without touching a pixel: the yielded bytes are those of the `VP8L` alone |
 
 ### What the driver refuses, and under which name
 
-| file               | rejection                      | why                                                           |
-| ------------------ | ------------------------------ | ------------------------------------------------------------- |
-| `avec-perte.webp`  | `image-lossy-unsupported`      | `VP8X` + `ALPH` + `VP8 `: the lossy stream is *behind* optional chunks, the driver must walk the container and not look at the first chunk |
-| `anime.webp`       | `image-animation-unsupported`  | `VP8X` + `ANIM` + `ANMF`: flattening an animation onto a frame chosen by default would be arbitrary, not a faithful read |
-| `tronque.webp`     | `image-decode-failed`          | 40 of 192 bytes: the size announced by `RIFF` exceeds what the file carries, an amputated stream is not handed to the decoder |
+| file | rejection | why |
+| --- | --- | --- |
+| `avec-perte.webp` | `image-lossy-unsupported` | `VP8X` + `ALPH` + `VP8 `: the lossy stream is *behind* optional chunks, the driver must walk the container and not look at the first chunk |
+| `anime.webp` | `image-animation-unsupported` | `VP8X` + `ANIM` + `ANMF`: flattening an animation onto a frame chosen by default would be arbitrary, not a faithful read |
+| `tronque.webp` | `image-decode-failed` | 40 of 192 bytes: the size announced by `RIFF` exceeds what the file carries, an amputated stream is not handed to the decoder |
 
 The test adds two cases that need no file: a `VP8L` whose chunk name is rewritten
 to `VP8 ` — the lossy stream without an extended container, refused by the same path — and a RIFF
@@ -1447,13 +1447,13 @@ compiles both through the shared harness, compares the second against the first 
 which proves that the two compilations are one — then compares the first against
 `expected.json`.
 
-| file                       | what it pins                                                             |
-| -------------------------- | ------------------------------------------------------------------------ |
-| `scene.zip`                | the archive: a single root folder `scene/`, a `.gltf`, its `.bin` and a texture in a subfolder |
-| `hors-archive/`            | the contents of `scene.zip`, extracted once and for all: the same scene without a container |
-| `sortie-de-dossier.zip`    | an entry `../escape.gltf`: escape from the extraction folder, refused `ARCHIVE_PATH_ESCAPE` |
-| `tronquee.zip`             | 31 of the 4,406 bytes of `scene.zip`: the central directory is missing, rejection `ARCHIVE_UNREADABLE` |
-| `vide.zip`                 | the 22 bytes of an archive with no entry: rejection `ARCHIVE_EMPTY`      |
+| file | what it pins |
+| --- | --- |
+| `scene.zip` | the archive: a single root folder `scene/`, a `.gltf`, its `.bin` and a texture in a subfolder |
+| `hors-archive/` | the contents of `scene.zip`, extracted once and for all: the same scene without a container |
+| `sortie-de-dossier.zip` | an entry `../escape.gltf`: escape from the extraction folder, refused `ARCHIVE_PATH_ESCAPE` |
+| `tronquee.zip` | 31 of the 4,406 bytes of `scene.zip`: the central directory is missing, rejection `ARCHIVE_UNREADABLE` |
+| `vide.zip` | the 22 bytes of an archive with no entry: rejection `ARCHIVE_EMPTY` |
 
 What each choice puts under watch:
 

@@ -32,12 +32,12 @@ diagnostic: `origin` (`default` or `host`), `renderer` (the backend id that draw
 (true when the session reads the cache's prepared scene rather than `source.gltf`), the `reason`
 that decided it and the `textureSource` it settled on.
 
-| Machine                             | Backend that renders                                                         | Scene file read            |
-| ----------------------------------- | ---------------------------------------------------------------------------- | -------------------------- |
-| A WebGPU device was granted         | `webgpu-page-raster`                                                         | `source.gltf`              |
-| WebGL2, cache with a prepared scene | `autonomous-pages-webgl`                                                     | `metadata.autonomousScene` |
-| WebGL2, cache without one           | `autonomous-pages-webgl`                                                     | `source.gltf`              |
-| Neither WebGPU nor WebGL2           | none — `NO_ENGINE_BACKEND` (`NO_WEBGL2` from the capability probe before it) | —                          |
+| Machine | Backend that renders | Scene file read |
+| --- | --- | --- |
+| A WebGPU device was granted | `webgpu-page-raster` | `source.gltf` |
+| WebGL2, cache with a prepared scene | `autonomous-pages-webgl` | `metadata.autonomousScene` |
+| WebGL2, cache without one | `autonomous-pages-webgl` | `source.gltf` |
+| Neither WebGPU nor WebGL2 | none — `NO_ENGINE_BACKEND` (`NO_WEBGL2` from the capability probe before it) | — |
 
 `autonomous-pages-webgl` decodes the cache's geometry pages itself, draws every page the cut selects
 — `submittedTriangles` equals `selectedTriangles` — and lights the scene from the cache's light
@@ -600,12 +600,12 @@ driven, walker walking), on a loaded machine. The runs posted 28 Sept. 20:02 UTC
 #989 and #990, median GPU ms of five interleaved pairs, load 15–75, batch `884cde8b5` →
 `e36d93ea1` (it holds the capacity change #1045 and the static-survival change #1064):
 
-| Example (GPU p50 ms) | before | after | paired difference            |
-| -------------------- | ------ | ----- | ---------------------------- |
-| falling-boxes        | 28.1   | 25.4  | −1.0 to −3.2 (5/5 faster)    |
-| spin-an-astrolabe    | 30.7   | 28.3  | −1.4 to −4.2 (5/5 faster)    |
-| drive-a-car          | 25.8   | 26.4  | −1.0 to +1.7                 |
-| a-walker-among-balls | 59.2   | 60.2  | −0.8 to +2.4 (one +44 spike) |
+| Example (GPU p50 ms) | before | after | paired difference |
+| --- | --- | --- | --- |
+| falling-boxes | 28.1 | 25.4 | −1.0 to −3.2 (5/5 faster) |
+| spin-an-astrolabe | 30.7 | 28.3 | −1.4 to −4.2 (5/5 faster) |
+| drive-a-car | 25.8 | 26.4 | −1.0 to +1.7 |
+| a-walker-among-balls | 59.2 | 60.2 | −0.8 to +2.4 (one +44 spike) |
 
 On both sides the CPU frame stayed at 1.4–2.3 ms and every scene under 60 fps on the GPU
 (25–60 ms): on 28 Sept. the programme's 120 fps target (#525) was not met. The idle
@@ -1060,10 +1060,10 @@ sixteen times larger, seen from the same view with the same pool, costs the same
 (`page/cut/viewBound.test.ts`).
 Shared URLs occupy one slot across instances. Two counters say different things:
 
-| Field            | Meaning                                                                                         | Reported by          |
-| ---------------- | ----------------------------------------------------------------------------------------------- | -------------------- |
-| `pagesDetached`  | clusters that left the drawn cut since the backend was created: cut churn, not memory pressure  | the WebGL page paths |
-| `cacheEvictions` | pages actually evicted from the cache that feeds the drawn geometry: the memory-pressure signal | every backend        |
+| Field | Meaning | Reported by |
+| --- | --- | --- |
+| `pagesDetached` | clusters that left the drawn cut since the backend was created: cut churn, not memory pressure | the WebGL page paths |
+| `cacheEvictions` | pages actually evicted from the cache that feeds the drawn geometry: the memory-pressure signal | every backend |
 
 `coverageReady`, `coverageBudgetLimited` and `streamingError` report coverage; the `coverage-*`
 diagnostics trace bootstrap, budget, upload and streaming failures. A failed URL is retried at
@@ -1286,16 +1286,16 @@ performance, on the web.
 
 What the reference is made of, and our counterpart:
 
-| Reference piece                                   | Role                                                                                                  | What we have today                                                                                                                                                                             | What is missing |
-| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
-| Temporal antialiasing                             | denoises everything stochastic                                                                        | shipped, 0 px A/A                                                                                                                                                                              | —               |
-| Screen traces                                     | first shot of every ray: image depth and normal, almost free                                          | nothing                                                                                                                                                                                        | L1              |
-| Distance fields (per mesh, then global)           | off-screen rays without hardware ray tracing                                                          | certified-error resident proxy, walked triangle by triangle                                                                                                                                    | L4              |
-| Surface cache                                     | radiance of off-screen surfaces, updated under budget                                                 | one radiance per triangle and proxy face, swept under budget                                                                                                                                   | L4              |
-| Screen probes (16 px grid) + world radiance cache | final gather, temporally filtered                                                                     | cascaded SH2 world probes; no screen probe                                                                                                                                                     | L5              |
-| Reflections                                       | screen traces, then distance fields reading the cache                                                 | mirror-limit ray against the resident proxy, read in the surface cache (bounce on)                                                                                                             | L1, L6          |
-| Virtual shadow maps                               | virtual: 16 384² texels a map (128² pages); physical: a page pool of a set count; static pages cached | virtual: 8 192² texels a sun level (64² pages), 4 096² a lamp face; physical: a screen-sized pool (2 601 pages at 720p, 5 618 at most), per-pixel level, receiver-marked pages, a static layer | L3              |
-| Stochastic direct lighting                        | few samples per pixel, denoised                                                                       | tiled culling; four draws per moving pixel, exact at rest                                                                                                                                      | L2 (denoise)    |
+| Reference piece | Role | What we have today | What is missing |
+| --- | --- | --- | --- |
+| Temporal antialiasing | denoises everything stochastic | shipped, 0 px A/A | — |
+| Screen traces | first shot of every ray: image depth and normal, almost free | nothing | L1 |
+| Distance fields (per mesh, then global) | off-screen rays without hardware ray tracing | certified-error resident proxy, walked triangle by triangle | L4 |
+| Surface cache | radiance of off-screen surfaces, updated under budget | one radiance per triangle and proxy face, swept under budget | L4 |
+| Screen probes (16 px grid) + world radiance cache | final gather, temporally filtered | cascaded SH2 world probes; no screen probe | L5 |
+| Reflections | screen traces, then distance fields reading the cache | mirror-limit ray against the resident proxy, read in the surface cache (bounce on) | L1, L6 |
+| Virtual shadow maps | virtual: 16 384² texels a map (128² pages); physical: a page pool of a set count; static pages cached | virtual: 8 192² texels a sun level (64² pages), 4 096² a lamp face; physical: a screen-sized pool (2 601 pages at 720p, 5 618 at most), per-pixel level, receiver-marked pages, a static layer | L3 |
+| Stochastic direct lighting | few samples per pixel, denoised | tiled culling; four draws per moving pixel, exact at rest | L2 (denoise) |
 
 What the web imposes, and the answer:
 
