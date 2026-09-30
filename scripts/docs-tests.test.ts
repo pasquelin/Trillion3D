@@ -41,6 +41,7 @@ test('the tests that read documentation in the repository are the set a document
     'scripts/docs-examples-words.test.ts',
     'scripts/check-thumbnails.test.ts',
     'site/examples/kit/banner.test.ts',
+    'bench/runner/publishReport.test.ts',
   ])
     assert.ok(found.includes(reader), reader);
   assert.ok(!found.includes('tests/integration/public-package-root.test.ts'), 'reads the notices');

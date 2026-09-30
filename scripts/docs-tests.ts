@@ -12,9 +12,9 @@ import { isUnitTest, runUnitTests } from './unit-tests.ts';
 // string, so a new reader joins it by itself. The engine (`packages/`) reads no documentation.
 
 /** A string that names documentation: Markdown, a `docs/` path, a translation folder, the example
- *  thumbnails or the pull request template. The notices ship in the package, and are code. */
+ *  thumbnails, the published reports and their images, or the pull request template. The notices ship in the package, and are code. */
 const documentPath =
-  /(?:(?<!THIRD_PARTY_NOTICES)\.md$|(?:^|\/)docs(?:\/|$)|(?:^|\/)i18n\/|(?:^|\/)thumbnails(?:\/|$)|PULL_REQUEST_TEMPLATE)/;
+  /(?:(?<!THIRD_PARTY_NOTICES)\.md$|(?:^|\/)docs(?:\/|$)|(?:^|\/)i18n\/|(?:^|\/)thumbnails(?:\/|$)|(?:^|\/)site\/reports(?:\/|$)|PULL_REQUEST_TEMPLATE)/;
 /** A module path: an import of code reads no documentation, whatever its folder. */
 const modulePath = /\.(?:[cm]?[jt]sx?)$/;
 
