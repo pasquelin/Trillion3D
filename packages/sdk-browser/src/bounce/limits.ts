@@ -10,7 +10,8 @@
 
 import { PROBE_FLOATS, type SceneProxy } from '../../../sdk-core/src/index.ts';
 import { PROXY_HEADER_BYTES } from './nodeWgsl.ts';
-import { surfaceCacheBytes } from './surfaceWgsl.ts';
+import { surfaceCacheTexels } from './surfaceWgsl.ts';
+import { atlasExtent } from './atlas.ts';
 import { BOUNCE_GRID_BYTES } from './uniform.ts';
 
 /** Bytes of one copy of `probes` probes on the GPU: never an empty binding. */
@@ -22,6 +23,22 @@ type BounceBinding = {
   bytes: number;
   limit: 'maxStorageBufferBindingSize' | 'maxUniformBufferBindingSize';
 };
+
+/** A planned atlas (`atlas.ts`): its diagnostic name and its width, height and layers. */
+type BounceAtlas = { name: string; extent: readonly number[] };
+
+/** The first atlas this device cannot make, written in the clear, or `null`. */
+function atlasLimitFailure(device: GPUDevice, atlases: readonly BounceAtlas[]) {
+  const { maxTextureDimension2D: side, maxTextureArrayLayers: layers } = device.limits;
+  for (const { name, extent } of atlases) {
+    const [width, height, count = 1] = extent;
+    if (width > side || height > side)
+      return `bounce atlas "${name}" needs ${width}×${height} texels, over this device's maxTextureDimension2D of ${side}`;
+    if (count > layers)
+      return `bounce atlas "${name}" needs ${count} layers, over this device's maxTextureArrayLayers of ${layers}`;
+  }
+  return null;
+}
 
 /**
  * The first overflow, written in the clear, or `null` when everything fits. Binding order is
@@ -58,24 +75,17 @@ function residentProxyBytes(proxy: SceneProxy) {
 }
 
 /**
- * Bytes of each binding bounce will create, in the order it creates them: the resident
- * proxy and its albedo, the two probe copies, the frame queue, the surface cache and
- * the cascade uniform.
+ * Bytes of each buffer binding bounce will create, in the order it creates them: the resident
+ * proxy and its albedo, the frame queue and the cascade uniform. The probes, their snapshot and
+ * the surface cache are atlases, checked against the texture limits (`atlasLimitFailure`).
  */
-function plannedBindings(
-  proxy: SceneProxy,
-  probeBytes: number,
-  queueBytes: number,
-): BounceBinding[] {
+function plannedBindings(proxy: SceneProxy, queueBytes: number): BounceBinding[] {
   const data = proxy.data,
     storage = 'maxStorageBufferBindingSize';
   return [
     { name: 'resident proxy', bytes: residentProxyBytes(proxy), limit: storage },
     { name: 'proxy albedo', bytes: data?.albedo.byteLength ?? 4, limit: storage },
-    { name: 'probes', bytes: probeBytes, limit: storage },
-    { name: 'probes snapshot', bytes: probeBytes, limit: storage },
     { name: 'probe queue', bytes: queueBytes, limit: storage },
-    { name: 'surface cache', bytes: surfaceCacheBytes(proxy.triangles), limit: storage },
     { name: 'cascades uniform', bytes: BOUNCE_GRID_BYTES, limit: 'maxUniformBufferBindingSize' },
   ];
 }
@@ -87,10 +97,15 @@ function plannedBindings(
 export function ensureBounceFits(
   device: GPUDevice,
   proxy: SceneProxy,
-  probeBytes: number,
+  probeExtent: readonly number[],
   queueBytes: number,
 ) {
-  const failure = bounceLimitFailure(device, plannedBindings(proxy, probeBytes, queueBytes));
+  const failure =
+    bounceLimitFailure(device, plannedBindings(proxy, queueBytes)) ??
+    atlasLimitFailure(device, [
+      { name: 'probes', extent: probeExtent },
+      { name: 'surface cache', extent: atlasExtent(surfaceCacheTexels(proxy.triangles)) },
+    ]);
   if (failure) throw new Error(failure);
 }
 

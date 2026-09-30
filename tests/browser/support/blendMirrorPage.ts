@@ -39,7 +39,14 @@ export async function blendMirror() {
   grid[7] = 1;
   const gridBuffer = buffer(1024, grid);
   const colours = new Float32Array([0.8, 0.2, 0.05, 1, 0.8, 0.2, 0.05, 1]);
-  const cache = buffer(32, colours);
+  // The surface cache's atlas (#1410): the triangle's two faces, one texel each.
+  const cacheTexture = device.createTexture({
+    size: [2, 1],
+    format: 'rgba32float',
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+  });
+  device.queue.writeTexture({ texture: cacheTexture }, colours, { bytesPerRow: 32 }, [2, 1]);
+  const cache = cacheTexture.createView();
   const proxy = createGpuBounceProxy(device, mirrorProxy());
   const sampled = (format: GPUTextureFormat, green = 255) => {
     const texture = device.createTexture({
@@ -79,12 +86,14 @@ export async function blendMirror() {
   resources.set(B.shadowAtlas, depthView);
   resources.set(B.shadowTranslucentDepth, depthView);
   resources.set(B.shadowTransmittance, transmittance);
+  resources.set(B.probes, transmittance); // no probe, no normal: zero atlases (#1410)
+  resources.set(B.normals, sampled('r32float'));
+  resources.set(B.surfaceCache, cache);
   for (const [slot, value] of [
     [B.uniform, viewBuffer],
     [B.directLights, lightBuffer],
     [B.bounceGrid, gridBuffer],
     [B.proxy, proxy.buffer],
-    [B.surfaceCache, cache],
   ] as const)
     resources.set(slot, { buffer: value });
   const group = device.createBindGroup({
@@ -164,7 +173,8 @@ export async function blendMirror() {
     PROXY_HEADER_BYTES,
     new Float32Array([-0.45, -0.2, 1, 0.4, -0.2, 1, -0.45, 0.5, 1]),
   );
-  device.queue.writeBuffer(cache, 0, new Float32Array([0.05, 0.8, 0.2, 1, 0.05, 0.8, 0.2, 1]));
+  const green = new Float32Array([0.05, 0.8, 0.2, 1, 0.05, 0.8, 0.2, 1]);
+  device.queue.writeTexture({ texture: cacheTexture }, green, { bytesPerRow: 32 }, [2, 1]);
   const second = await render(BLEND_SHADER);
   grid[7] = 0;
   device.queue.writeBuffer(gridBuffer, 0, grid);

@@ -9,6 +9,9 @@ import { BLEND_VIEW_SIZE } from './uniforms.ts';
 import type { BlendGpuItem } from './state.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
+/** The deferred stand-ins' normal atlas: one row of zeros (`../visibility/receiver.ts`). */
+const emptyNormals = (rt: WebgpuPagesRuntime) => rt.gpu.deferred?.placeholders.emptyNormals;
+
 /** One resource contract for construction and invalidation, with owners read lazily. */
 export function blendEntries(rt: WebgpuPagesRuntime, item?: BlendGpuItem) {
   return blendBindEntries(
@@ -21,7 +24,8 @@ export function blendEntries(rt: WebgpuPagesRuntime, item?: BlendGpuItem) {
       items: () => rt.blendState.itemBuffer,
       textures: () => rt.vis.textures,
       sampler: () => rt.vis.mapsSampler,
-      normals: () => (item ? (item.normal ?? rt.gpu.zeroUv) : rt.vis.concatNrm),
+      // An item without normals reads the empty normal atlas: zeros, as the zero buffer read.
+      normals: () => (item ? (item.normal?.view ?? emptyNormals(rt)) : rt.vis.concatNrm),
       clusterDiagnostic: () => rt.blendState.compaction?.diagnosticBuffer ?? rt.gpu.zeroUv,
       planInstances: () => rt.blendState.expandedBuffer ?? rt.gpu.zeroUv,
       clusterSpans: () => rt.blendState.compaction?.spanBuffer ?? rt.gpu.zeroUv,
