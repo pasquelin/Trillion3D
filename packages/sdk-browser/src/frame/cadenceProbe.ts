@@ -7,6 +7,9 @@ const STEADY = 8,
   PROBE_FRAMES = 8;
 /** A period below this share of the probed one is the faster display found. */
 const FOUND = 0.75;
+/** A cadence this fast already meets the rate the engine aims at (120 fps): a faster display is
+ *  not looked for, so a device that holds 120 Hz never pays a probe's drop. */
+const AIM_MS = 1000 / 120;
 
 /**
  * A steady cadence is a display's refresh or a device that misses every other one (#1343): frames
@@ -16,6 +19,8 @@ const FOUND = 0.75;
  * fits half the period; if the clock then finds the shorter period, the display is faster and the
  * scale stays; if not, it goes back. With GPU times, a frame
  * already under half the period is limited elsewhere (the CPU, or the display itself): no probe.
+ * Its cost where the display sets the cadence: one drop of `PROBE_FRAMES` moving frames per
+ * display, slower than 120 Hz only (`AIM_MS`), the scale back as before; never a repeat.
  */
 export function createCadenceProbe() {
   let steady = 0,
@@ -28,8 +33,10 @@ export function createCadenceProbe() {
     get active() {
       return left > 0;
     },
-    /** Another display or controller: a running probe ends, and its periods are probed again. */
-    reset() {
+    /** Another display or controller: a running probe ends — `c`'s scale back where it began,
+     *  given the controller it lowered —, and its periods are probed again. */
+    reset(c?: ScaleController) {
+      if (c && left > 0) rescale(c, from);
       tried = Number.NaN;
       steady = left = 0;
     },
@@ -51,6 +58,7 @@ export function createCadenceProbe() {
         steady < STEADY ||
         !moving ||
         c.since < PERIOD ||
+        period <= (1 + GRID_TOLERANCE) * AIM_MS ||
         Math.abs(tried - period) <= GRID_TOLERANCE * period
       )
         return;

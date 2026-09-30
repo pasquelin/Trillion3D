@@ -8,34 +8,55 @@ const REFRESH_WINDOW = 120,
  *  the shortest period sought: no display refreshes faster than 500 Hz. */
 export const GRID_TOLERANCE = 0.1;
 const SHORTEST_PERIOD_MS = 2;
+/** A timer rounded to whole milliseconds (Safari, a page not cross-origin isolated) strays by up
+ *  to this much, 8 or 9 ms at 120 Hz; a period under this many roundings is not sought, since
+ *  its grid would then cover almost any interval. */
+const COARSE_MS = 1,
+  COARSE_PERIODS = 4;
 /** Intervals that must sit together for their value to be a period — a lone late or early frame
  *  is none —, and the share of the window a period must hold on its grid. */
 const SUPPORT = 3,
   ON_GRID = 0.9;
 
-/** Whether `gap` is a whole number of `period`s, within the tolerance. */
-function onGrid(gap: number, period: number) {
-  const n = Math.max(1, Math.round(gap / period));
-  return Math.abs(gap - n * period) <= GRID_TOLERANCE * period;
-}
+/** How far an interval may stray from a whole number of `period`s, a timer rounded to
+ *  `resolution` ms. */
+const slack = (period: number, resolution: number) =>
+  Math.max(GRID_TOLERANCE * period, resolution);
 
-/** Whether nine in ten of the ascending `gaps` are a whole number of `period`s: a wrong period
- *  stops at its first misses past the tenth, so a window no grid holds costs little. */
-function holds(gaps: Float64Array, period: number) {
-  let misses = (1 - ON_GRID) * gaps.length;
-  for (let i = 0; i < gaps.length; i++) if (!onGrid(gaps[i], period) && --misses < 0) return false;
-  return true;
+/**
+ * The period the ascending `gaps` hold, near `period`: where nine in ten of them are a whole
+ * number of it, the one that fits them best (their sum over the refreshes they span), which a
+ * rounded timer's 8 and 9 ms bring back to 8.33; null otherwise. A wrong period stops at its
+ * first misses past the tenth, so a window no grid holds costs little.
+ */
+function fit(gaps: Float64Array, period: number, resolution: number) {
+  const tolerance = slack(period, resolution);
+  let misses = (1 - ON_GRID) * gaps.length,
+    time = 0,
+    refreshes = 0;
+  for (let i = 0; i < gaps.length; i++) {
+    const n = Math.max(1, Math.round(gaps[i] / period));
+    if (Math.abs(gaps[i] - n * period) <= tolerance) {
+      time += gaps[i];
+      refreshes += n;
+    } else if (--misses < 0) return null;
+  }
+  return time / refreshes;
 }
 
 /** The period of the ascending `gaps`: from the shortest group of `SUPPORT` intervals within the
  *  tolerance of each other, its median over the smallest divisor whose grid holds the window;
  *  the next group where none does. Null where no group gives one. */
-function gridPeriod(gaps: Float64Array) {
+function gridPeriod(gaps: Float64Array, resolution: number) {
+  const shortest = Math.max(SHORTEST_PERIOD_MS, COARSE_PERIODS * resolution);
   for (let i = 0, j = 0; i < gaps.length; i = j) {
-    while (j < gaps.length && gaps[j] <= gaps[i] * (1 + GRID_TOLERANCE)) j++;
+    while (j < gaps.length && gaps[j] <= gaps[i] + slack(gaps[i], resolution)) j++;
     if (j - i < SUPPORT) continue;
     const base = gaps[(i + j - 1) >> 1];
-    for (let k = 1; base / k >= SHORTEST_PERIOD_MS; k++) if (holds(gaps, base / k)) return base / k;
+    for (let k = 1; base / k >= shortest; k++) {
+      const period = fit(gaps, base / k, resolution);
+      if (period !== null) return period;
+    }
   }
   return null;
 }
@@ -59,7 +80,9 @@ export function createRefreshClock(fallback: number) {
     next = 0,
     count = 0,
     interval = fallback,
-    settled = false;
+    settled = false,
+    /** The timer's rounding, ms: whole milliseconds until a timestamp shows a fraction. */
+    resolution = COARSE_MS;
   return {
     /** The measured interval, ms. */
     get interval() {
@@ -79,6 +102,7 @@ export function createRefreshClock(fallback: number) {
     tick(now: number) {
       const gap = now - last;
       last = now;
+      if (now % 1 !== 0) resolution = 0;
       if (!(gap > 0 && gap < PAUSE_MS)) return gap;
       gaps[next] = gap;
       ends[next] = now;
@@ -86,7 +110,7 @@ export function createRefreshClock(fallback: number) {
       count = Math.min(count + 1, REFRESH_WINDOW);
       let n = 0;
       for (let i = 0; i < count; i++) if (ends[i] > now - WINDOW_MS) live[n++] = gaps[i];
-      const period = gridPeriod(live.subarray(0, n).sort());
+      const period = gridPeriod(live.subarray(0, n).sort(), resolution);
       if (period !== null) {
         interval = period;
         settled = true;

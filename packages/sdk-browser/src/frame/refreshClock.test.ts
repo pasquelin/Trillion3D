@@ -9,7 +9,8 @@ test('the refresh interval is the period several intervals share, pauses aside',
   assert.equal(clock.interval, 1000 / 60, 'the fallback before any frame');
   let now = 0;
   for (const gap of [0, 8.4, 16.7, 8.3, 500, 8.3]) clock.tick((now += gap));
-  assert.ok(near(clock.interval, 8.3), `${clock.interval}`);
+  // The period that fits them all: 41.7 ms over five refreshes.
+  assert.ok(near(clock.interval, 8.34), `${clock.interval}`);
 });
 
 /** The refresh measured from frames drawn every `frameMs` on a display refreshing every `vsyncMs`:
@@ -49,4 +50,12 @@ test('the period rises once the display slows, and a reset forgets the old one',
   assert.equal(clock.settled, false);
   for (let frame = 0; frame < 4; frame++) clock.tick((now += 1000 / 30));
   assert.ok(near(clock.interval, 33.33) && clock.settled, 'a reset measures anew at once');
+});
+
+// #1343: a timer rounded to whole milliseconds reads 120 Hz as 8 and 9 ms, which a tenth of the
+// period (0.83 ms) never held: the clock never settled.
+test('a timer rounded to the millisecond still measures 120 Hz', () => {
+  const clock = createRefreshClock(1000 / 60);
+  for (let frame = 0; frame < 120; frame++) clock.tick(Math.round((frame * 1000) / 120));
+  assert.ok(clock.settled && near(clock.interval, 8.33), `${clock.interval}`);
 });
