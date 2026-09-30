@@ -11,6 +11,7 @@ import { declaredBlendModes } from '../blend/stagePipelines.ts';
 import { createWebgpuPagesPipelines } from '../pages/prepare/pipelines.ts';
 import { litPrograms } from '../pages/prepare/contractLight.ts';
 import { validated } from '../../gpu/core/errorScope.ts';
+import { createLightRowMap, lightRowMapPipeline } from '../../gpu/draw/lightRows.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { settledRt, surface, view } from './hold.fixture.ts';
 
@@ -88,6 +89,25 @@ test('prepare creates its pipelines together, off the thread, never one after an
   assert.equal(started, 3, 'all three compile before any has landed');
   release();
   assert.ok((await made).pipelineNone);
+});
+
+test("the light cut's row map compiles off the thread at prepare, never at the first light cut", async () => {
+  const { device } = fakeDevice();
+  let onThread = 0;
+  const compile = device.createComputePipeline.bind(device);
+  device.createComputePipeline = (descriptor) => (onThread++, compile(descriptor));
+  // What `../pages/prepare/lights.ts` starts for a scene the GPU draws.
+  await lightRowMapPipeline(device).pipeline.prepare();
+  const map = createLightRowMap(device, device.createBuffer({ size: 64, usage: 0 }), 16, []);
+  const set: string[] = [];
+  const pass = {
+    setPipeline: (pipeline: { entryPoint: string }) => set.push(pipeline.entryPoint),
+    setBindGroup() {},
+    dispatchWorkgroups() {},
+  } as unknown as GPUComputePassEncoder;
+  map.encode(pass, 4);
+  assert.deepEqual(set, ['mapRows'], 'the first light cut maps its rows');
+  assert.equal(onThread, 0, 'with the pipeline prepare compiled');
 });
 
 test('a pipeline the device refuses off the thread is a refusal, not a throw', async () => {
