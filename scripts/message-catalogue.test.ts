@@ -78,6 +78,12 @@ test('every code emitted by the Node adapter is in the catalogue', () => {
   assert.deepEqual(problems, []);
 });
 
+test("the browser runtime's family refusal carries its catalogue code (#1404)", () => {
+  const loader = readFileSync(join(ROOT, 'packages/sdk-browser/src/host/onDemand.ts'), 'utf8');
+  const id = /FAMILY_LOAD_FAILED_ID = '([^']+)'/.exec(loader)?.[1];
+  assert.equal(id, messageOf('FAMILY_LOAD_FAILED')?.id);
+});
+
 // Behaviour: ids are unique and say their level, every entry has one sentence, a cause and an
 // action, and every code has its documentation page, current with the catalogue.
 test('every catalogue code is well formed and has its documentation page', () => {

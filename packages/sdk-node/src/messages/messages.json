@@ -2889,6 +2889,15 @@
       "message": "A PNG image is not a whole 8-bit RGBA, non-interlaced file.",
       "cause": "The Node adapter's PNG reader (cutout previews, reference images) reads 8-bit RGBA, non-interlaced PNG files only, every row present.",
       "action": "Save the image again as 8-bit RGBA without interlacing; for a cutout preview, delete the cache folder's cutout previews and compile again."
+    },
+    {
+      "id": "T3D-E090",
+      "code": "FAMILY_LOAD_FAILED",
+      "level": "error",
+      "group": "Browser runtime",
+      "message": "An optional family of the browser engine did not load.",
+      "cause": "The chunk of a family the page uses (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement) failed to import twice in a row, as the engine's HTTP loader asks a file twice: a network drop, a CDN that does not answer, or a chunk missing from the served folder. `details.family` names the family; the frames that draw with it wait for it.",
+      "action": "Check that every chunk of the bundle is served beside the entry module and reachable; the engine asks the family again on its next use."
     }
   ]
 }
