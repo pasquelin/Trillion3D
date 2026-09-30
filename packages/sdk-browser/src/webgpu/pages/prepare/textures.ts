@@ -24,8 +24,8 @@ import type { WebgpuTileStreamer } from '../../tile/streamer.ts';
 const perLane = (textures: readonly TileTexture[], each: (texture: TileTexture) => number) => {
   const counts = laneCounts(),
     [fill] = textures;
-  for (const texture of textures.slice(1))
-    if (!texture.retired) counts[texture.lane] += each(texture);
+  for (let slot = 1; slot < textures.length; slot++)
+    if (!textures[slot].retired) counts[textures[slot].lane] += each(textures[slot]);
   if (fill && counts[fill.lane]) counts[fill.lane] += each(fill);
   return counts;
 };

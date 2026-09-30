@@ -19,7 +19,7 @@ import { shadowGroupDraws } from './groupDraws.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
 import { SHADOW_FACE_STRIDE as FACE_STRIDE } from './batchBudget.ts';
 export { MAX_SHADOW_PAGES, MAX_SHADOW_REGIONS } from './recordPack.ts';
-export { SHADOW_BUFFER_BYTES, SHADOW_TABLE_OFFSET } from './shadowData.ts';
+export { SHADOW_BUFFER_BYTES } from './shadowData.ts';
 
 /** Label of the measured pass; `gpuShadowsMs` is read under this name. */
 export const SHADOW_PASS = 'Trillion3D shadow atlas v1';
@@ -32,8 +32,8 @@ export type GpuShadowAtlas = Awaited<ReturnType<typeof createGpuShadowAtlas>>;
 /**
  * The shadow pool and what reads and fills it: a depth texture of `poolSide²` physical pages; one
  * buffer holding every light's record then the page table (`shadowData.ts`), `tableEntries` words
- * long until a light's slice reaches past them (`growTable`); the buffer the
- * opaque resolve records the pages it read in; and the uniform of each page a frame draws, read
+ * long until a light's slice reaches past them (`growTable`), at most `mostEntries`; the buffer
+ * the opaque resolve records the pages it read in; and the uniform of each page a frame draws, read
  * by dynamic offset. The texture waits for `sizePool`: the first frame that casts grants the
  * budget's pool, then the pages the scene reads size it (`poolDemand.ts`), the shading reading the
  * placeholder until then. Lamp groups clip by distances where the device can (`depthModule.ts`).
@@ -42,6 +42,7 @@ export async function createGpuShadowAtlas(
   device: GPUDevice,
   pageLayout: GPUBindGroupLayout,
   tableEntries = shadowTableStride(SUN_WINDOW),
+  mostEntries?: number,
 ) {
   let texture: GPUTexture | undefined,
     transmittance: ShadowTransmittance | undefined,
@@ -53,7 +54,7 @@ export async function createGpuShadowAtlas(
     size: MAX_SHADOW_REGIONS * (FACE_STRIDE + 4),
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
-  const data = createShadowData(device, tableEntries);
+  const data = createShadowData(device, tableEntries, mostEntries);
   const pack = createShadowRecordPack(FACE_STRIDE, 1),
     { records, facePacked } = pack;
   const faces = createShadowFaceBindings(device, faceUniform);

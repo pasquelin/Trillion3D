@@ -12,7 +12,7 @@ import {
   SHADOW_TABLE_ENTRIES,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
-import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
+import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/shadowData.fixture.ts';
 import { MOBILITY_CORNER_SHIFT } from '../../gpu/shadow/cullShader.ts';
 import { runShadowFresh, runShadowPairs } from './freshRun.fixture.ts';
 import { keptPairs, keptRows } from './pairRows.ts';

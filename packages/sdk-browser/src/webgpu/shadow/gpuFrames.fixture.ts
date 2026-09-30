@@ -11,7 +11,7 @@ import type { ShadowRequestReport } from '../../../../sdk-core/src/scene/light-s
 import { SHADOW_TABLE_ENTRIES } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
-import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
+import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/shadowData.fixture.ts';
 import { createShadowRecordPack } from '../../gpu/shadow/recordPack.ts';
 import {
   claimShadowRequest,
