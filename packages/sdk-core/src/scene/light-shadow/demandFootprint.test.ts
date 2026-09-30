@@ -8,7 +8,9 @@ import {
   PAGE_FOOTPRINT_EMPTY,
   PAGE_FOOTPRINT_FULL,
   PAGE_FOOTPRINT_SHIFT,
+  SHADOW_REQUEST_CELL_MASK,
   SHADOW_REQUEST_CELL_SHIFT,
+  SHADOW_REQUEST_ENTRY_MASK,
   SHADOW_REQUEST_MISS,
   cellFootprint,
   footprintDrawn,
@@ -19,6 +21,7 @@ import {
 import { createDemandFootprints, reachFootprint } from './demandFootprint.ts';
 import { DRAW_ALL, STALE_FULL, createShadowPool } from './pool.ts';
 import { createShadowTable } from './table.ts';
+import { shadowTableEntries } from './virtual.ts';
 
 const narrow = pageFootprint(0, 0, 32, 32),
   wider = pageFootprint(8, 8, 40, 40);
@@ -139,4 +142,17 @@ test('a reader that misses the footprint grows its page by the cell of its texel
   footprints.widened = 0;
   footprints.read(missed(table.layoutEpoch + 1, [miss(entry, cell)]), 0, 3);
   assert.equal(footprints.widened, 0);
+});
+
+test('a mark keeps its entry and its cell on a wider window than the ordinary one', () => {
+  // The boss's reference view (1117 CSS at DPR 2, 55°) opens a 68-page sun window
+  // (`referenceSunWindow`): its table outgrows the ordinary one, and its last entry and the cell
+  // above it must not share a bit, a miss's flag included.
+  const last = shadowTableEntries(68) - 1;
+  for (const flag of [0, SHADOW_REQUEST_MISS]) {
+    const word = (last | (16 << SHADOW_REQUEST_CELL_SHIFT) | flag) >>> 0;
+    assert.equal(word & SHADOW_REQUEST_ENTRY_MASK, last);
+    assert.equal((word >>> SHADOW_REQUEST_CELL_SHIFT) & SHADOW_REQUEST_CELL_MASK, 16);
+    assert.equal(word >= SHADOW_REQUEST_MISS, flag !== 0);
+  }
 });
