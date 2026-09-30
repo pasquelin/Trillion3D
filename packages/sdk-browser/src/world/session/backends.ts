@@ -95,6 +95,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     renderScale: options.renderScale,
     // A reference session reads the finest shadow level over its whole canvas and field.
     sunWindow: options.reference ? referenceSunWindow(viewport[1], options.fov) : undefined,
+    unboundedReflections: options.reference === true,
     effects: options.effects,
     geometryPoolBytes: options.geometryPoolBytes,
     admitGpuMemory: options.admitGpuMemory,

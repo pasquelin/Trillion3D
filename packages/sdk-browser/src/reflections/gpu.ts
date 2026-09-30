@@ -5,11 +5,8 @@ import { refreshSurface, type PageSurface } from '../page/surface.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import { screenReflects } from './eligible.ts';
 import { surfacesOfRows } from '../page/rowSurfaces.ts';
-import {
-  createReflectionHistory,
-  type ReflectionHistory,
-  type ReflectionHistoryFrame,
-} from './historyRuntime.ts';
+import { createReflectionHistory, type ReflectionHistory } from './historyRuntime.ts';
+import type { ReflectionHistoryFrame } from './historyFrame.ts';
 import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts';
 import {
   createReflectionSource,
@@ -61,6 +58,9 @@ export function reflectionPlan(rt: WebgpuPagesRuntime) {
   return { active, rough, cone, pyramid: rough || cone };
 }
 
+/** `ReflectionView` (`screenWgsl.ts`): the matrix and `enabled`. */
+export const REFLECTION_VIEW_BYTES = 80;
+
 export function createScreenReflection(
   device: GPUDevice,
   width: number,
@@ -88,7 +88,7 @@ export function createScreenReflection(
     if (active && (cone || rough))
       pyramid = createReflectionConePyramid(device, color, depth, cone);
     uniform = device.createBuffer({
-      size: 80,
+      size: REFLECTION_VIEW_BYTES,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
     if (active) reprojection = createReflectionSource(device, width, height, depth);
@@ -96,7 +96,7 @@ export function createScreenReflection(
     if (reprojection && rough)
       history = createReflectionHistory(device, width, height, reprojection.previous);
     const heldUniform = uniform;
-    const packed = new Float32Array(20);
+    const packed = new Float32Array(REFLECTION_VIEW_BYTES / 4);
     const packedBits = new Uint32Array(packed.buffer);
     const groups = new WeakMap<GPUTextureView, GPUBindGroup>();
     const groupFor = () => {

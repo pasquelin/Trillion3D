@@ -4,13 +4,24 @@ import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts';
 import { withScreenReflections } from './screenWgsl.ts';
 import { GGX_REFLECTION_SAMPLE_WGSL } from './ggxSampleWgsl.ts';
 import { HIZ_TRACE_WGSL, REFLECTION_PHASE_WGSL } from './hizTraceWgsl.ts';
+import { MIRROR_TRANSITION_END } from './modelShader.ts';
 
-/** One ray per 2 × 2 block (`reflectionPhase`, the reference's half-resolution trace), walked
- *  over the depth pyramid within its step cap (`hizTraceWgsl.ts`); a miss reads the program's own
- *  reflection model, as the full-resolution walk's does. */
-const STOCHASTIC_REFLECTION_WGSL = `${GGX_REFLECTION_SAMPLE_WGSL}
+/** A sample is bounded: one ray per 2 × 2 block (`reflectionPhase`, the reference's
+ *  half-resolution trace), walked over the depth pyramid within its step cap (`hizTraceWgsl.ts`),
+ *  and a miss reads the program's filtered reflection along the sampled ray at the first roughness
+ *  the probes filter — never a proxy ray per pixel (#33). A reference session's program takes the
+ *  mirror's whole walk and fallback instead (`reflectionTrace`, `frame/referenceMode.ts`): two
+ *  programs, never a branch. */
+const BOUNDED_SAMPLE = `
+ let hit=screenReflectionHiZ(P,sample.xyz);
+ if(hit.a!=0.0){return vec4f(hit.rgb,sample.w);}
+ return vec4f(filteredReflectedRadiance(P,N,sample.xyz,${MIRROR_TRANSITION_END}),sample.w);`;
+const UNBOUNDED_SAMPLE = `
+ return vec4f(resolvedReflectionRay(P,N,sample.xyz),sample.w);`;
+
+const stochasticReflectionWgsl = (unbounded: boolean) => `${GGX_REFLECTION_SAMPLE_WGSL}
 ${REFLECTION_PHASE_WGSL}
-${HIZ_TRACE_WGSL}
+${unbounded ? '' : HIZ_TRACE_WGSL}
 @fragment fn traceRoughReflection(@builtin(position) texel:vec4f)->@location(0) vec4f{
  let seed=bitcast<u32>(reflectionView.enabled.w);
  let at=min(vec2i(texel.xy)*2+reflectionPhase(seed),vec2i(reflectionView.enabled.yz)-vec2i(1));
@@ -29,15 +40,16 @@ ${HIZ_TRACE_WGSL}
  let xi=vec2f(hashUnit(pixelSeed^seed),hashUnit(pixelSeed^seed^0x9e3779b9u));
  let sample=stochasticReflection(reflect(-V,N),nr.a,min(xi,vec2f(0.99999994)));
  if(sample.w<=0.0){return vec4f(0.0);}
- let hit=screenReflectionHiZ(P,sample.xyz);
- if(hit.a!=0.0){return vec4f(hit.rgb,sample.w);}
- return vec4f(reflectedRadiance(P,N,sample.xyz,${ROUGHNESS_FLOOR}),sample.w);
+ ${unbounded ? UNBOUNDED_SAMPLE : BOUNDED_SAMPLE}
 }`;
 
-/** The trace borrows the same lighting/proxy bindings as the final resolve. */
-export function stochasticReflectionShader(shader: string) {
+/** The trace borrows the same lighting/proxy bindings as the final resolve; `unbounded`, a
+ *  reference session's program (#33). */
+export function stochasticReflectionShader(shader: string, unbounded = false) {
   const source = withScreenReflections(shader);
   return (
-    source + (source.includes('fn hashUnit(') ? '' : HASH_UNIT_WGSL) + STOCHASTIC_REFLECTION_WGSL
+    source +
+    (source.includes('fn hashUnit(') ? '' : HASH_UNIT_WGSL) +
+    stochasticReflectionWgsl(unbounded)
   );
 }

@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { textureBytesOf } from '../gpu/core/textureBytes.ts';
-import { createScreenReflection } from './gpu.ts';
+import { createScreenReflection, REFLECTION_VIEW_BYTES } from './gpu.ts';
 import { reflectionConeAllocation } from './conePyramid.ts';
 
 function extraBytes(width: number, height: number) {
@@ -42,7 +42,7 @@ test('forward cone admission equals live descriptors at 4K and odd sizes without
     assert.equal(
       bytes -
         width * height * (8 + REFLECTION_SOURCE_BYTES_PER_PIXEL) -
-        80 -
+        REFLECTION_VIEW_BYTES -
         REFLECTION_SOURCE_VIEW_BYTES,
       extraBytes(width, height),
     );

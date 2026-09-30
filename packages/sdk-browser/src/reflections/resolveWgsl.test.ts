@@ -1,7 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { shaderRun, Mat } from '../texture/shaderRun.fixture.ts';
-import { REFLECTION_RESOLVE_WGSL, REFLECTION_MOVING_WEIGHT } from './resolveWgsl.ts';
+import {
+  REFLECTION_CHANGE_WEIGHT,
+  REFLECTION_HISTORY_WEIGHT,
+  REFLECTION_MOVING_WEIGHT,
+  REFLECTION_RESOLVE_WGSL,
+} from './resolveWgsl.ts';
 
 function fixture() {
   const samples: Record<string, number | number[]> = {
@@ -19,7 +24,7 @@ function fixture() {
     prevViewProj: identity,
     invViewProj: identity,
     viewport: [8, 8, 1 / 8, 1 / 8],
-    params: [1, 64, 0, 0],
+    params: [1, REFLECTION_HISTORY_WEIGHT, 0, 0],
   };
   const motion = [identity];
   const uv = [0.5, 0.5, 1];
@@ -119,8 +124,21 @@ test('a moved receiver keeps its history through the placement motion, its weigh
   f.motion[0] = new Mat([0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
   f.view.params[2] = 1;
   assert.deepEqual(f.resolve(), [8, 16, 24, 4]);
-  f.samples.historyColor = [10, 20, 30, 64];
+  f.samples.historyColor = [10, 20, 30, REFLECTION_HISTORY_WEIGHT];
   f.view.params[1] = REFLECTION_MOVING_WEIGHT;
   const moving = f.resolve();
   assert.equal(moving[3], REFLECTION_MOVING_WEIGHT + 1, 'the kept weight is the moving cap');
+});
+
+test('a changed source keeps its history at the change weight, never restarts from one sample', () => {
+  const f = fixture();
+  f.samples.historyColor = [10, 20, 30, REFLECTION_HISTORY_WEIGHT];
+  f.view.params[1] = REFLECTION_CHANGE_WEIGHT;
+  const share = 1 / (REFLECTION_CHANGE_WEIGHT + 1);
+  assert.deepEqual(f.resolve(), [
+    10 + (2 - 10) * share,
+    20 + (4 - 20) * share,
+    30 + (6 - 30) * share,
+    REFLECTION_CHANGE_WEIGHT + 1,
+  ]);
 });
