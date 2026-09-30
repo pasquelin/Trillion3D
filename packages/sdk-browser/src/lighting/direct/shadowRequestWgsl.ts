@@ -1,4 +1,8 @@
-import { SHADOW_REQUEST_MISS } from '../../../../sdk-core/src/scene/light-shadow/footprint.ts';
+import {
+  PAGE_FOOTPRINT_STEP,
+  SHADOW_REQUEST_CELL_SHIFT,
+  SHADOW_REQUEST_MISS,
+} from '../../../../sdk-core/src/scene/light-shadow/footprint.ts';
 import { SHADOW_TABLE_ENTRIES } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 
 /** Words of one bit per table entry. */
@@ -8,20 +12,44 @@ const ENTRY_BITS = SHADOW_TABLE_ENTRIES / 32;
  *  —, then one per entry for its miss (#1211), listed once the same way. */
 export const SHADOW_REQUEST_BITS = 2 * ENTRY_BITS;
 
+/**
+ * The receiver's cell of the page-local texel `l` (#1211): which of the 4×4 `PAGE_FOOTPRINT_STEP`
+ * texel cells the texel lies in, one-based — zero is a claim that named no texel. Every reader that
+ * marks a page carries it, so the page's footprint narrows to what its receivers read.
+ */
+export const SHADOW_REQUEST_CELL_WGSL = `fn shadowRequestCell(l:vec2f)->u32{
+ return 1u+min(u32(l.x/${PAGE_FOOTPRINT_STEP}.0),3u)+4u*min(u32(l.y/${PAGE_FOOTPRINT_STEP}.0),3u);
+}`;
+
+/** The cell of a claim above its entry, in the list word `footprint.ts` reads back. */
+const storeClaim = (miss = false) =>
+  `atomicStore(&shadowRequests[1u+at], e | (cell<<${SHADOW_REQUEST_CELL_SHIFT}u)${
+    miss ? ` | ${SHADOW_REQUEST_MISS}u` : ''
+  });`;
+
 /** The claim of page `e` by one lane: its bit tested before the atomic, then set, and the page
  *  listed by whoever set it first — so a page thousands of pixels read costs one list slot. A
  *  miss claims its own bit and lists its entry flagged (`SHADOW_REQUEST_MISS`). */
-const claimWgsl = (name: string, miss = false) => `fn ${name}(e:u32){
+const claimWgsl = (name: string, miss = false, cell = false) => `fn ${name}(e:u32${
+  cell ? ',cell:u32' : ''
+}){
  let cap=arrayLength(&shadowRequests)-${1 + SHADOW_REQUEST_BITS}u;let word=1u+cap+${miss ? `${ENTRY_BITS}u+` : ''}(e>>5u);let bit=1u<<(e&31u);
  if((atomicLoad(&shadowRequests[word])&bit)!=0u){return;}
  if((atomicOr(&shadowRequests[word],bit)&bit)!=0u){return;}
  let at=atomicAdd(&shadowRequests[0],1u);
- if(at<cap){atomicStore(&shadowRequests[1u+at],e${miss ? `|${SHADOW_REQUEST_MISS}u` : ''});}
+ if(at<cap){${cell ? storeClaim(miss) : `atomicStore(&shadowRequests[1u+at],e${miss ? `|${SHADOW_REQUEST_MISS}u` : ''});`}}
 }`;
 
 /** The per-lane request, every device's: each lane claims its own page. The fallback of
  *  `SUBGROUP_REQUEST_WGSL`, and the text `withSubgroupShadowRequests` replaces. */
 export const LANE_REQUEST_WGSL = claimWgsl('requestShadowPage');
+/** The per-pixel demand's request (`demandWgsl.ts`): the page, with the cell of the texel its
+ *  receiver reads — how a page's footprint is fed (#1211). Per lane: the demand marks the texel
+ *  of every invocation, and a page marked by many pixels costs one list slot as any other. */
+export const CELL_REQUEST_WGSL = claimWgsl('requestShadowPageAt', false, true);
+/** The miss a reader raises (#1211, `shadowPageWgsl.ts`): the page, with the cell of the texel
+ *  the footprint missed — the page grows by that cell, never whole (`demandFootprint.ts`). */
+export const MISS_REQUEST_WGSL = claimWgsl('requestShadowMiss', true, true);
 
 /** Election rounds a subgroup runs before its lanes left claim their own pages: a bound on the
  *  serial work of a subgroup whose lanes read many pages, never a change of the pages asked for. */
@@ -62,11 +90,13 @@ fn requestShadowPage(e:u32){
  */
 export const shadowRequestWgsl = (binding: number | null) =>
   binding === null
-    ? 'fn requestShadowPage(e:u32){}\nfn requestShadowMiss(e:u32){}'
+    ? `${SHADOW_REQUEST_CELL_WGSL}\nfn requestShadowPage(e:u32){}\nfn requestShadowPageAt(e:u32,cell:u32){}\nfn requestShadowMiss(e:u32,cell:u32){}`
     : `@group(0) @binding(${binding}) var<storage,read_write> shadowRequests:array<atomic<u32>>;
 var<private> shadowRequesting:bool=false;
+${SHADOW_REQUEST_CELL_WGSL}
 ${LANE_REQUEST_WGSL}
-${claimWgsl('requestShadowMiss', true)}`;
+${CELL_REQUEST_WGSL}
+${MISS_REQUEST_WGSL}`;
 
 /**
  * `shader`, a text that asks with `LANE_REQUEST_WGSL`, asking per subgroup instead: the feature

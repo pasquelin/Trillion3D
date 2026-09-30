@@ -18,7 +18,8 @@ import {
  *
  * A page carries the footprint it was drawn for (`footprint.ts`): a read whose texel lies outside
  * it takes the page as not drawn — asked for, never read —, as a page not drawn yet, and says it
- * missed (`requestShadowMiss`): the scheduler draws the page whole (`demandFootprint.ts`).
+ * missed (`requestShadowMiss`, with the cell of the texel it read): the page grows by that cell
+ * (`demandFootprint.ts`).
  */
 export const SHADOW_PAGE_WORD_WGSL = `
 const PAGE_FOOTPRINT_SHIFT:u32=${PAGE_FOOTPRINT_SHIFT}u;
@@ -58,7 +59,8 @@ fn shadowPageWord(m:ShadowMap,p:vec2i,t:vec2f)->u32{
  let q=clamp(p,vec2i(0),vec2i(m.pages-1));
  requestShadowPage(u32(e));
  let word=shadows.table[u32(e)];
- let covered=shadowFootprintCovers(word,clamp(t-vec2f(q)*SHADOW_PAGE,vec2f(0.0),vec2f(SHADOW_PAGE)));
- if(!covered){requestShadowMiss(u32(e));}
+ let local=clamp(t-vec2f(q)*SHADOW_PAGE,vec2f(0.0),vec2f(SHADOW_PAGE));
+ let covered=shadowFootprintCovers(word,local);
+ if(!covered){requestShadowMiss(u32(e),shadowRequestCell(local));}
  return select(0u,word&PAGE_DRAWN_BITS,(word&PAGE_VALID)!=0u&&covered);
 }`;

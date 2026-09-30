@@ -10,7 +10,10 @@ import { directShadowWgsl } from '../../../packages/sdk-browser/src/lighting/dir
 import { SHADOW_REQUEST_BITS } from '../../../packages/sdk-browser/src/lighting/direct/shadowRequestWgsl.ts';
 import { footprintReads } from '../../../packages/sdk-browser/src/lighting/direct/shadowFootprint.fixture.ts';
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts';
-import { SHADOW_REQUEST_MISS } from '../../../packages/sdk-core/src/scene/light-shadow/footprint.ts';
+import {
+  SHADOW_REQUEST_ENTRY_MASK,
+  SHADOW_REQUEST_MISS,
+} from '../../../packages/sdk-core/src/scene/light-shadow/footprint.ts';
 
 /** The shadow read as a pass declares it; the far ray, which no page read reaches, lit. */
 const SHADER = `${DIRECT_LIGHT_WGSL}
@@ -80,8 +83,14 @@ export async function run() {
   const read = [...((await readGpuBuffer(device, output, reads.length * 4)) ?? [])];
   const listed = (await readGpuBuffer(device, requests, (1 + cap) * 4)) ?? [];
   const entries = [...listed.slice(1, 1 + Math.min(listed[0] ?? 0, cap))];
-  const asked = entries.filter((entry) => entry < SHADOW_REQUEST_MISS),
-    missed = entries.filter((e) => e >= SHADOW_REQUEST_MISS).map((e) => e - SHADOW_REQUEST_MISS);
+  // A miss rides above the entry, with the cell of the texel read (`footprint.ts`): the entry is
+  // what the read named.
+  const asked = entries
+      .filter((entry) => entry < SHADOW_REQUEST_MISS)
+      .map((e) => e & SHADOW_REQUEST_ENTRY_MASK),
+    missed = entries
+      .filter((e) => e >= SHADOW_REQUEST_MISS)
+      .map((e) => e & SHADOW_REQUEST_ENTRY_MASK);
   device.destroy();
   return { errors, reads, read, asked, missed };
 }
