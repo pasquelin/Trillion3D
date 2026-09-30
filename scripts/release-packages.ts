@@ -37,23 +37,24 @@ export type Lookup = (spec: string) => boolean;
 const RECORD = 'release.json';
 /** What the package never carries: the documentation site and the bench's witnesses. */
 const LEFT_OUT = /^dist\/(site|witnesses)\//;
-const compilerFolder = (root: string, platform: string) =>
-  join(root, 'packages/compiler', platform);
+
+/** One compiler package: its name, its folder and the program its `bin/` carries. */
+const compilers = (root: string) =>
+  COMPILER_PLATFORMS.map((platform) => {
+    const [os, arch] = platform.split('-');
+    const folder = join(root, 'packages/compiler', platform);
+    return {
+      name: compilerPackage(os, arch) as string,
+      folder,
+      binary: join(folder, 'bin', compilerFileName(os as NodeJS.Platform)),
+    };
+  });
 
 /** The released packages in publication order: `trillion3d` last, so that it never names a
  *  compiler package not yet out. */
-export const releaseNames = () => [
-  ...COMPILER_PLATFORMS.map((platform) => {
-    const [os, arch] = platform.split('-');
-    return compilerPackage(os, arch) as string;
-  }),
-  'trillion3d',
-];
+export const releaseNames = () => [...compilers('').map(({ name }) => name), 'trillion3d'];
 
-const releaseFolders = (root: string) => [
-  ...COMPILER_PLATFORMS.map((platform) => compilerFolder(root, platform)),
-  root,
-];
+const releaseFolders = (root: string) => [...compilers(root).map(({ folder }) => folder), root];
 
 /** The one version of the six packages; refuses a package at another. */
 export function releaseVersion(root: string): string {
@@ -79,13 +80,7 @@ export function releaseVersion(root: string): string {
  * again: an Actions artifact does not keep the execute bit. Refuses a missing platform.
  */
 export function stageCompilers(root: string): void {
-  const binaries = COMPILER_PLATFORMS.map((platform) =>
-    join(
-      compilerFolder(root, platform),
-      'bin',
-      compilerFileName(platform.split('-')[0] as NodeJS.Platform),
-    ),
-  );
+  const binaries = compilers(root).map(({ binary }) => binary);
   const missing = binaries.filter((binary) => !existsSync(binary));
   if (missing.length > 0) throw new Error(`compiler missing: ${missing.join(', ')}`);
   for (const binary of binaries) chmodSync(binary, 0o755);
