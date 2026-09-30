@@ -19,11 +19,11 @@ test('stageQuantiles computes p50 and p95 from the series', () => {
 
 test('every stage an engine records reads as its own words, and every label names such a stage', () => {
   const recorded = new Set<string>([...WEBGPU_STAGES, ...WEBGL_STAGES]);
-  const labels = [...recorded].map(stageLabel);
-  for (const [i, stage] of [...recorded].entries()) {
-    assert.notEqual(labels[i].trim(), '', `${stage} has words`);
-    assert.notEqual(labels[i], stage, `${stage} is not shown as its key`);
+  for (const stage of recorded) {
+    assert.notEqual(stageLabel(stage).trim(), '', `${stage} has words`);
+    assert.notEqual(stageLabel(stage), stage, `${stage} is not shown as its key`);
   }
+  const labels = Object.values(STAGE_LABELS);
   assert.equal(new Set(labels).size, labels.length, 'no two stages read the same');
   assert.deepEqual(Object.keys(STAGE_LABELS).sort(), [...recorded].sort());
   assert.ok(Object.isFrozen(STAGE_LABELS));

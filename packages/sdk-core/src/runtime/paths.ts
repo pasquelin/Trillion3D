@@ -1,29 +1,4 @@
 import type { CameraPose } from '../contracts/index.ts';
-/** The camera paths a benchmark can replay, each with what it measures. */
-export const CAMERA_SCENARIOS = [
-  {
-    id: 'initial-load',
-    available: true,
-    scope:
-      'Preparation wall time and actual resource/page progress; not a cold OS/GPU cache guarantee',
-  },
-  { id: 'stationary', available: true, scope: 'Fixed selected camera' },
-  { id: 'slow-orbit', available: true, scope: 'Geometric orbit' },
-  { id: 'fast-orbit', available: true, scope: 'Geometric orbit with rapid angular changes' },
-  { id: 'near-far', available: true, scope: 'Same target, camera distance sweep' },
-  {
-    id: 'round-trip',
-    available: true,
-    scope:
-      'Same exact resident path forward/reverse; eviction is measured when the exact-cluster backend is selected',
-  },
-  ...['visibility-jump', 'memory-pressure', 'long-session', 'pop-in', 'stop-resume'].map((id) => ({
-    id,
-    available: false,
-    scope:
-      'Requires a calibrated path or an unimplemented backend capability; user-recorded paths can already be replayed',
-  })),
-];
 /** How far each path turns around the target over its length, in radians. */
 const PATH_TURN: Record<Parameters<typeof makeCameraPath>[0], number> = {
   stationary: 0,
@@ -32,6 +7,32 @@ const PATH_TURN: Record<Parameters<typeof makeCameraPath>[0], number> = {
   'near-far': 0,
   'round-trip': Math.PI / 4,
 };
+/** The camera paths a benchmark can replay, each with what it measures. */
+export const CAMERA_SCENARIOS = [
+  {
+    id: 'initial-load',
+    scope:
+      'Preparation wall time and actual resource/page progress; not a cold OS/GPU cache guarantee',
+  },
+  { id: 'stationary', scope: 'Fixed selected camera' },
+  { id: 'slow-orbit', scope: 'Geometric orbit' },
+  { id: 'fast-orbit', scope: 'Geometric orbit with rapid angular changes' },
+  { id: 'near-far', scope: 'Same target, camera distance sweep' },
+  {
+    id: 'round-trip',
+    scope:
+      'Same exact resident path forward/reverse; eviction is measured when the exact-cluster backend is selected',
+  },
+  ...['visibility-jump', 'memory-pressure', 'long-session', 'pop-in', 'stop-resume'].map((id) => ({
+    id,
+    scope:
+      'Requires a calibrated path or an unimplemented backend capability; user-recorded paths can already be replayed',
+  })),
+].map((scenario) => ({
+  ...scenario,
+  // The initial load is measured while the scene loads, on no path; the others replay theirs.
+  available: scenario.id === 'initial-load' || Object.hasOwn(PATH_TURN, scenario.id),
+}));
 /** A list of camera poses along a named path, from a home pose. */
 export function makeCameraPath(
   kind: 'stationary' | 'slow-orbit' | 'fast-orbit' | 'near-far' | 'round-trip',

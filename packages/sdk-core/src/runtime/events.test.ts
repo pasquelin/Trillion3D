@@ -18,10 +18,6 @@ test('only an unrecovered blocking fatal event offers the scene retry action', (
         if (type === 'fatal' && audience === 'blocking' && recovered === false)
           assert.deepEqual(notice, { messageKey: 'scene-unavailable', action: 'retry' });
         else assert.equal(notice, null);
-        if (notice) {
-          assert.equal('code' in notice, false);
-          assert.equal('detail' in notice, false);
-        }
       }
 });
 
