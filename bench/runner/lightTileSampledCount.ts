@@ -16,10 +16,8 @@ import {
   camera,
   pixelPoint,
 } from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
-import {
-  clusterSliceIndexWgsl,
-  CLUSTER_SLICES,
-} from '../../packages/sdk-browser/src/lighting/tiles/clusterWgsl.ts';
+import { CLUSTER_SLICES } from '../../packages/sdk-browser/src/lighting/tiles/clusterWgsl.ts';
+import { sliceMap } from '../../packages/sdk-browser/src/lighting/tiles/clusterSlices.fixture.ts';
 import {
   sliceHits,
   tileBounds,
@@ -32,17 +30,7 @@ import type { Light } from './lightTileCity.ts';
 const SIZE = LIGHT_SETTINGS.tileSize;
 const K = wgslConstants(DIRECT_LIGHTING_WGSL);
 type Contract = (...args: unknown[]) => unknown;
-/** The shipped slice mapping, run as JavaScript: the slice of an axis distance and the span of a
- *  light on it, so the witness counts what the WGSL does, not a second algorithm. */
-type SliceMap = {
-  clusterSliceIndex: (d: number, front: number, back: number) => number;
-  clusterSliceSpan: (d: number, r: number, front: number, back: number) => { x: number; y: number };
-};
-const MAP = shaderFunctions<SliceMap>(
-  clusterSliceIndexWgsl,
-  ['clusterSliceIndex', 'clusterSliceSpan'],
-  { CLUSTER_SLICES, log: Math.log, floor: Math.floor },
-);
+const MAP = sliceMap();
 
 /** The view axis of the pass's frame: the centre ray's direction. */
 const axisOf = (view: TileView) => {
@@ -131,6 +119,8 @@ export function countSampled(
   const cluster = (...args: unknown[]) => {
     const pixel = args[7] as { x: number; y: number };
     const index = Math.floor(pixel.y / SIZE) * tilesX + Math.floor(pixel.x / SIZE);
+    const L = records[index * K.TILE_STRIDE];
+    if (L > K.TILE_LIGHTS) return void (evaluations += L); // no cluster past the list: all of it
     const z = depths[Math.floor(pixel.y) * view.width + Math.floor(pixel.x)];
     const slice = MAP.clusterSliceIndex(NEAR / z, fronts[index], backs[index]);
     evaluations += counts[index][slice] ?? 0;

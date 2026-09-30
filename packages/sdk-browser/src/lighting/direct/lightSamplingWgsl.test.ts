@@ -104,10 +104,9 @@ test('one loop shades the lights of a pixel in full: its list, its pool slice or
     'defined once, read by the list and by the factor of a drawn light',
   );
   // One call to the shading in the full loop (\`sliceLighting\`), one in the sampled one: no walk
-  // over the scene beside them, the no-tile fallback of the blend pass included.
-  // One loop shades the tile list, the cluster loop shades the pixel's slice: both read a light
-  // by rank, no walk over the scene beside them.
-  assert.equal(occurrences(DIRECT_LIGHTING_WGSL, 'declaredLight(directLights.items['), 2);
+  // over the scene beside them, the no-tile fallback of the blend pass included. The cluster's
+  // slice is one more slice of that loop.
+  assert.equal(occurrences(DIRECT_LIGHTING_WGSL, 'declaredLight(directLights.items['), 1);
   assert.equal(occurrences(declaredLightingWgsl(11, 18, 26), 'declaredLight('), 2);
 });
 
