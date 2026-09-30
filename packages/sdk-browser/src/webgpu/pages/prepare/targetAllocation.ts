@@ -1,5 +1,5 @@
 import { wantsSubsurface, subsurfaceBytes, SUBSURFACE_BYTES } from '../../../scene/subsurface.ts';
-import { reflectionPlan } from '../../../reflections/gpu.ts';
+import { reflectionPlan, REFLECTION_VIEW_BYTES } from '../../../reflections/gpu.ts';
 import { reflectionConeAllocation } from '../../../reflections/conePyramid.ts';
 import { REFLECTION_HISTORY_BYTES_PER_PIXEL } from '../../../reflections/historyTargets.ts';
 import { REFLECTION_RESOLVE_VIEW_BYTES } from '../../../reflections/resolveWgsl.ts';
@@ -44,6 +44,6 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
       ? width * height * REFLECTION_HISTORY_BYTES_PER_PIXEL + REFLECTION_RESOLVE_VIEW_BYTES
       : 0) +
     display * DISPLAY_BYTES +
-    80
+    REFLECTION_VIEW_BYTES
   );
 }

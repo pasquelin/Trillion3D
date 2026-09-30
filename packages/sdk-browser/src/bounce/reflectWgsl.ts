@@ -32,7 +32,9 @@ fn rayRadiance(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
 
 /** The rough GGX prefilter convolves the existing radiance probe coefficients;
  * the mirror limit preserves the single original ray. The transition interpolates toward
- * the filtered lobe, never toward zero energy. With no probe yet, the environment answers. */
+ * the filtered lobe, never toward zero energy. With no probe yet, the environment answers.
+ * `filteredReflectedRadiance` is the filtered lobe alone, never a proxy ray: what a rough
+ * reflection sample's miss reads (#33, `reflections/sampleWgsl.ts`). */
 export const bounceReflectionWgsl = (binding: number) => `
 @group(0) @binding(${binding}) var<storage,read> surface:array<vec4f>;
 ${SURFACE_RAY_WGSL}
@@ -43,6 +45,10 @@ fn proxyReflectionRay(P:vec3f,N:vec3f,R:vec3f)->vec3f{
  let hit=rayRadiance(P+N*proxy.offsetMetres+R*proxy.startMetres,R,reach);
  if(hit.w<reach){return hit.rgb;}
  return sampleBounce(P,R)*INVERSE_PI;
+}
+fn filteredReflectedRadiance(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{
+ if(bounce.counts.w==0u){return environmentReflection(R,rough);}
+ return filteredProbeReflection(P,N,R,rough);
 }
 fn reflectedRadiance(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{
  if(bounce.counts.w==0u){return environmentReflection(R,rough);}
@@ -70,5 +76,6 @@ export const MIRROR_LIGHTING_WGSL = mirrorLightingShader('wgsl');
 export const DIRECT_REFLECTION_WGSL = `
 ${mirrorWeightShader('wgsl')}
 ${ENVIRONMENT_REFLECTION_WGSL}
+fn filteredReflectedRadiance(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{return environmentReflection(R,rough);}
 fn reflectedRadiance(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{return environmentReflection(R,rough);}
 ${MIRROR_LIGHTING_WGSL}`;
