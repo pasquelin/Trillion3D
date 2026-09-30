@@ -23,11 +23,13 @@ const config: KnipConfig = {
         'scripts/*.test.ts',
         'scripts/*.browser.ts',
         // Run by hand: the example scenes' sources and thumbnails (`docs/LEARNING_PORTAL.md`), the
-        // first-load proof of the site (`docs/TESTS.md`), the area-light table fit (`ltcTable.ts`).
+        // first-load proof of the site (`docs/TESTS.md`), the area-light table fit (`ltcTable.ts`),
+        // the Install page walkthrough (#1355, the recette's Chrome proof).
         'scripts/docs-examples-assets.ts',
         'scripts/docs-examples-thumbnails.ts',
         'scripts/site-first-load.ts',
         'scripts/ltc-fit.ts',
+        'scripts/prove-install-page.ts',
         // Run by `scripts/build.ts`, steps of `pnpm run build`.
         'scripts/{build-witnesses,copy-resources}.ts',
         // Run by git through the one-line shims of `.githooks/`.
