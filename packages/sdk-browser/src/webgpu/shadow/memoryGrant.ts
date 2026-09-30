@@ -11,7 +11,8 @@ export type ShadowPressure =
   | 'transmittance-over-grant'
   | 'transmittance-refused'
   | 'pairs-over-grant'
-  | 'pairs-refused';
+  | 'pairs-refused'
+  | 'table-refused';
 
 /**
  * THE SHADOW MEMORY GRANT: the one fixed share the GPU budget gives the shadows' pool and layers
@@ -29,7 +30,9 @@ export type ShadowPressure =
  * every opaque shadow stays drawn whole, and the blended casters let all the light through, said
  * under `shadow-memory` or `gpu-out-of-memory` (`transmittanceGrant.ts`). A kept list grown past
  * the grant for the GPU pages' pairs (`pairs-over-grant`) or refused (`pairs-refused`) stays as it
- * is: the pages it cannot hold wait, whole, for the host (`pairGrowth.ts`).
+ * is: the pages it cannot hold wait, whole, for the host (`pairGrowth.ts`). A page table the device
+ * refuses to grow (`table-refused`) stays as it is: a light past it lights unshadowed, counted
+ * (`shadowTableGrowth.ts`).
  */
 export type ShadowMemory = {
   /** The most bytes an allocation asked the grant to hold at once, what it already held included. */
