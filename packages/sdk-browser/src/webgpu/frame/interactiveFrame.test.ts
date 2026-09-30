@@ -1,104 +1,61 @@
-// A light that lands while the loop waits on something else starts the contract program's compile
-// in a frame whose drain never runs; the frames after it are held. The drain of a held frame must
-// still wait for that program, or the loop idles on the unlit image until a foreign invalidation
-// (#370, #536). Real bricks: the scheduler, `pendingWebgpuFrame`, the deferred lighting, the hold.
+// A light that lands on an unlit view starts the lit program's compile; until it lands, the frame is
+// held (`deviceAnswer`), never drawn with the unlit stand-in, and its arrival asks the lit frame
+// (#370, #536, #1362). Real bricks: `pendingWebgpuFrame`, the deferred lighting, the hold.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { holdWebgpuFrame, keepWebgpuFrame } from './hold.ts';
 import { pendingWebgpuFrame } from './interactiveFrame.ts';
+import { deviceAnswering } from './deviceAnswer.ts';
 import { createDeferredLighting } from '../../lighting/deferred/deferred.ts';
 import { wantsContractLighting } from '../pages/prepare/lightResources.ts';
-import { createExplorerFrameScheduler } from '../../world/render/frameScheduler.ts';
-import { frameQueue } from '../../world/render/frameQueue.fixture.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { deferredLightingHarness, settledRt, surface, view } from './hold.fixture.ts';
 
 installGpuGlobals();
 
-const turn = () => new Promise((done) => setImmediate(done));
-
-/** The loop idle on the unlit image, held, while the contract program still compiles. */
-async function heldWhileCompiling() {
+/** An unlit view drawn once, then a light turned on: frames asked while the lit program compiles. */
+async function lightTurnedOn() {
   const h = deferredLightingHarness();
   const rt = settledRt();
-  const store = { count: 0, unlit: true };
-  let texturesServed = () => {};
-  const textures = new Promise<void>((done) => (texturesServed = done));
+  const store = { count: 0, unlit: true, sliceOf: () => -1 };
   Object.assign(rt.lights, { store });
-  Object.assign(rt.vis, { textures: { counters: { pending: 0 }, settled: () => textures } });
   // The wiring of `../pages/prepare/prepare.ts`: an arrived program breaks the hold.
   const lighting = await createDeferredLighting(h.device, () => rt.run.gate.resourcesChanged());
   rt.gpu.deferred = lighting;
-  const requested = frameQueue();
-  const scheduler = createExplorerFrameScheduler({
-    request: requested.request,
-    cancel: requested.cancel,
-    // `renderWebgpuPages` reduced to its two outcomes: the frame held, or encoded and kept.
-    render() {
-      if (holdWebgpuFrame(rt, h.device)) return;
-      lighting.bind(
-        surface,
-        view(),
-        view(),
-        wantsContractLighting(rt),
-        { lights: {} as GPUBuffer },
-        () => {},
-      );
-      rt.run.frame++;
-      keepWebgpuFrame(rt);
-    },
-    pending: () => pendingWebgpuFrame(rt),
-    error: (error) => assert.fail(String(error)),
-    limited: () => assert.fail('the loop hit its frame limit'),
-  });
-  const draw = () => assert.ok(requested.run());
-
-  // An unlit frame whose drain passes the contract check, then waits on a texture tile.
-  scheduler.invalidate();
-  draw();
-  await turn();
-  // The lights land: `refreshSceneLights` breaks the hold, the page asks for frames.
+  let drawn = 0;
+  /** `renderWebgpuPages` reduced to its two outcomes: the frame held, or encoded and kept. */
+  const render = () => {
+    if (holdWebgpuFrame(rt, h.device)) return false;
+    const lit = wantsContractLighting(rt);
+    lighting.bind(surface, view(), view(), lit, { lights: {} as GPUBuffer }, () => {});
+    drawn++;
+    keepWebgpuFrame(rt);
+    return true;
+  };
+  assert.equal(render(), true, 'the unlit view draws at once');
   Object.assign(store, { count: 1, unlit: false });
   rt.run.gate.sceneChanged();
-  for (let frame = 0; frame < 8 && !rt.run.frameHeld; frame++) {
-    scheduler.invalidate();
-    draw();
-  }
-  assert.equal(rt.run.frameHeld, true, 'the frames after the lights are held');
-  assert.equal(lighting.usesContract, false, 'the program still compiles: the image is unlit');
-
-  // The tile lands: the waiting drain asks one frame, held again; the page asks nothing more.
-  texturesServed();
-  await turn();
-  draw();
-  assert.equal(rt.run.frameHeld, true);
-  await turn();
-  // The frame it asked right after comes while the program compiles: held by the loop (#983).
-  const frame = rt.run.frame;
-  draw();
-  assert.equal(rt.run.frame, frame, 'nothing drawn before the feedback');
-  assert.equal(requested.size, 0, 'the loop waits');
-  return { h, lighting, requested, draw, scheduler };
+  for (let frame = 0; frame < 4; frame++) assert.equal(render(), false, 'held while compiling');
+  assert.equal(drawn, 1, 'no frame is drawn with the unlit stand-in while the lit view is wanted');
+  assert.equal(lighting.usesContract, false);
+  assert.equal(deviceAnswering(rt), true, 'the lit program is what the frame waits for');
+  return { h, rt, lighting, render, answer: pendingWebgpuFrame(rt) };
 }
 
-test('a loop held while the contract program compiles draws the lit frame when it lands', async () => {
-  const { h, lighting, requested, draw, scheduler } = await heldWhileCompiling();
+test('a frame held on the lit program is drawn lit once it lands', async () => {
+  const { h, rt, lighting, render, answer } = await lightTurnedOn();
   h.finishCompilation();
-  await lighting.settle();
-  await turn();
-  assert.equal(requested.size, 1, 'the arrived program asks its frame');
-  draw();
-  assert.equal(lighting.usesContract, true, 'the lights now light the image');
-  scheduler.dispose();
+  assert.equal(await answer, true, 'the arrived program asks its frame');
+  assert.equal(deviceAnswering(rt), false);
+  assert.equal(render(), true);
+  assert.equal(lighting.usesContract, true, 'the first frame drawn after the light is lit');
 });
 
-test('a contract program that fails to compile leaves the held loop idle', async () => {
-  const { h, lighting, requested, scheduler } = await heldWhileCompiling();
+test('a lit program that fails to compile lets the unlit view by, never holds for ever', async () => {
+  const { h, rt, lighting, render, answer } = await lightTurnedOn();
   h.failCompilation();
-  await lighting.settle();
-  await turn();
-  // Nothing arrived, so nothing changed: no held frame is redrawn after the reported failure.
-  assert.equal(requested.size, 0, 'the failed program asks no frame');
-  assert.equal(lighting.usesContract, false);
-  scheduler.dispose();
+  assert.equal(await answer, true, 'the failed compile asks one frame');
+  assert.equal(deviceAnswering(rt), false, 'nothing is awaited any more');
+  assert.equal(render(), true);
+  assert.equal(lighting.usesContract, false, 'the failure is said and the unlit view drawn');
 });

@@ -15,10 +15,10 @@ import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /** The pipelines the fallback pass sets, one per item it draws, read as the blend of their target. */
-function drawn(blendings: (number | undefined)[]) {
+async function drawn(blendings: (number | undefined)[]) {
   // The fake's render pipeline is its descriptor: `setPipeline` reads the blend it was made with.
   const { device } = fakeDevice();
-  const { pipelineBlend } = createWebgpuPagesPipelines(device, 256);
+  const { pipelineBlend } = await createWebgpuPagesPipelines(device, 256);
   const set: GPUBlendState[] = [];
   const pass = {
     setViewport() {},
@@ -55,9 +55,9 @@ function drawn(blendings: (number | undefined)[]) {
   return set;
 }
 
-test('the fallback pass draws each item with the equation of its own blending mode', () => {
+test('the fallback pass draws each item with the equation of its own blending mode', async () => {
   const modes: Blending[] = ['additive', 'normal', 'normal', 'multiply', 'subtractive'];
-  const set = drawn(modes.map(hostBlending));
+  const set = await drawn(modes.map(hostBlending));
   // The pipeline is set when the mode changes, never twice in a row for the same one.
   assert.deepEqual(
     set,
@@ -67,8 +67,8 @@ test('the fallback pass draws each item with the equation of its own blending mo
   );
 });
 
-test('the fallback pass refuses by name a blending no path draws', () => {
-  assert.throws(() => drawn([99]), /declares a blending no path draws/);
+test('the fallback pass refuses by name a blending no path draws', async () => {
+  await assert.rejects(drawn([99]), /declares a blending no path draws/);
 });
 
 // #348: the transparent fallback reads float positions and no direction, so it cannot widen a
