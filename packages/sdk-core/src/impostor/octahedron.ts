@@ -5,14 +5,11 @@
  * centre. Direction `d` to the plane `[-1, 1]²`, the full octahedron or the upper hemi-octahedron.
  */
 
+import { unit } from '../math/primitives/vectorTuple.ts';
+
 /** ±1, never 0: the fold of the lower half needs a side even on an axis, where `sign(0) = 0`. */
 function side(x: number): number {
   return x < 0 ? -1 : 1;
-}
-
-function unit(v: [number, number, number]): [number, number, number] {
-  const length = Math.hypot(v[0], v[1], v[2]) || 1;
-  return [v[0] / length, v[1] / length, v[2] / length];
 }
 
 /** Direction `d` to the plane `[-1, 1]²`: the full octahedron, or the upper hemi-octahedron. */

@@ -54,7 +54,7 @@ export interface ImpostorSwitchInput {
 
 /** `z_s = max(z_tex, z_tri)` in metres for the runtime focal length `focalPixels`. */
 export function impostorSwitchDepth(input: ImpostorSwitchInput, focalPixels: number): number {
-  const radius = impostorRadius(input.objectRadius, input.maxWorldScale ?? 1);
+  const radius = impostorRadius(input.objectRadius, input.maxWorldScale);
   return Math.max(
     impostorTexelDepth(radius, input.frameSide, focalPixels),
     impostorTriangleDepth(radius, input.rootTriangles, input.coverage, focalPixels),
@@ -86,15 +86,14 @@ export function impostorSwitchOf(
     !Number.isFinite(rootTriangles) ||
     rootTriangles <= 0 ||
     !Number.isFinite(coverage) ||
-    (coverage as number) <= 0 ||
-    !Number.isFinite(frameSide)
+    (coverage as number) <= 0
   )
     return undefined;
   return {
     objectRadius: objectRadius as number,
     rootTriangles,
     coverage: coverage as number,
-    frameSide: frameSide as number,
+    frameSide,
     maxWorldScale,
   };
 }
