@@ -42,8 +42,9 @@ const { values } = parseArgs({
 });
 const windows = process.platform === 'win32';
 const [pnpm, npm, npx] = ['pnpm', 'npm', 'npx'].map((name) => (windows ? `${name}.cmd` : name));
-const { fixture, logs, run } = createInstalledFixture(root);
+// The page is read before the clean folder is made: a page missing a step leaves no folder behind.
 const { commands, page, headers } = walkthrough(codeBlocks(await installPageHtml('en')));
+const { fixture, logs, run } = createInstalledFixture(root);
 // The compiler comes from the installed platform package, never from a variable of this shell.
 const { TRILLION3D_COMPILER_BIN: _named, ...environment } = process.env;
 
@@ -62,9 +63,12 @@ async function draw(app: string) {
         : undefined,
   });
   port = await listen(server);
-  const browser = await launchChrome({ headless: true });
+  let browser: Awaited<ReturnType<typeof launchChrome>> | undefined;
   const errors: string[] = [];
   try {
+    // Launched inside the `try`: a Chrome that fails to start still closes the server, and the
+    // proof exits instead of waiting on it.
+    browser = await launchChrome({ headless: true });
     const tab = await browser.newPage({ viewport: { width: 640, height: 400 } });
     tab.on('pageerror', (error) => errors.push(error.message));
     await tab.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'networkidle' });
@@ -78,7 +82,7 @@ async function draw(app: string) {
     if (drawn < DRAWN) throw new Error(`the page drew ${(drawn * 100).toFixed(2)} % of its canvas`);
     return { isolated, drawn: Number(drawn.toFixed(3)) };
   } finally {
-    await browser.close();
+    await browser?.close();
     await new Promise((settle) => server.close(settle));
   }
 }
@@ -88,7 +92,8 @@ try {
   run(pnpm, ['run', 'build:native']);
   const binary = currentCompilerExecutable(undefined, {});
   const { filename: archive } = packArchive(run, pnpm, root, fixture);
-  // The platform packages' pnpm `overrides`, one `"name": "file:archive"` line each, are npm's too.
+  // The platform packages' pnpm `overrides`, one `"name": "file:archive"` line each under an
+  // `overrides:` header (that exact text of `packPlatformPackages`), are npm's too.
   const [, ...lines] = packPlatformPackages({ root, fixture, run, pnpm, binary })
     .trim()
     .split('\n');
@@ -108,6 +113,7 @@ try {
       );
       continue;
     }
+    if (args[0] !== 'trillion3d-compile') throw new Error(`${command}: not a step of the page`);
     // The model the page names is the fixture, copied where the page expects it.
     copyFileSync(values.model, join(app, args[1]));
     const result = JSON.parse(run(npx, args, app, environment)) as { status: string };
