@@ -98,9 +98,9 @@ export function createShadowPlan(poolSide: number, layers = 1, sunWindow = SUN_W
     stamp: stampOf,
     /** True once a report proves the current state asks for nothing: the image may hold. */
     settled: (store: SceneLightStore) => settledStamp === stampOf(store),
-    /** A request report came back; the next plan reads it. A newer one replaces an unread one. */
+    /** A report came back: its GPU listing counts now (`gpu.hear`), the next plan reads the rest. */
     receive(next: ShadowRequestReport) {
-      if (!report || next.frame > report.frame) report = next;
+      if (!report || next.frame > report.frame) gpu.hear((report = next));
     },
     /** Plans a frame: stales what moved, reads the last report, admits every page to draw. */
     plan(

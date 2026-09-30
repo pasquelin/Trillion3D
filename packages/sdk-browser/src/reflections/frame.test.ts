@@ -50,19 +50,19 @@ test('pages the GPU draws itself change the reflected source epoch, a lost snaps
       ({
         frame: 0,
         pool: { owner: new Int32Array(0), requested: new Int32Array(0), drawn, listings },
-      }) as unknown as Parameters<typeof plan.gpu.follow>[0];
+      }) as unknown as Parameters<typeof plan.gpu.hear>[0];
   const before = reflectionFrame(rt)!.epoch;
-  plan.gpu.follow(snapshot(3, 3), 0, 1);
+  plan.gpu.hear(snapshot(3, 3));
   const landed = reflectionFrame(rt)!.epoch;
   assert.notEqual(landed, before, 'the GPU drew pages the host never drew');
-  plan.gpu.follow(snapshot(0, 3), 0, 2);
+  plan.gpu.hear(snapshot(0, 3));
   assert.equal(
     reflectionFrame(rt)!.epoch,
     landed,
     'a snapshot that lists none permits convergence',
   );
   // Frame 3 listed 2 pages; its snapshot never came back (every readback slot busy, or replaced).
-  plan.gpu.follow(snapshot(0, 5), 0, 4);
+  plan.gpu.hear(snapshot(0, 5));
   const lost = reflectionFrame(rt)!.epoch;
   assert.notEqual(lost, landed, 'the next snapshot shows the draw its lost one listed');
   plan.resize(plan.pool.side, plan.pool.layers);
