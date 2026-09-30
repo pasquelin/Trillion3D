@@ -10,6 +10,10 @@ export const REFLECTION_HISTORY_WEIGHT = 64;
  *  view, which changes shadow pages and probes every frame, still averages five samples rather
  *  than restarting from one, which flickers. */
 export const REFLECTION_CHANGE_WEIGHT = 4;
+/** Frames a changed source keeps the change weight: its stale share falls to (4/5)^24 < 1/200,
+ *  and the window's 64 samples after it dilute that below 1/2000, under a 1/255 step: a held
+ *  image keeps nothing of what a reflection showed before (#33). */
+export const REFLECTION_CHANGE_FRAMES = 24;
 export const REFLECTION_RESOLVE_VIEW_BYTES = 160;
 
 /** Dedicated ratio-estimator resolve. It shares only reprojection mathematics
