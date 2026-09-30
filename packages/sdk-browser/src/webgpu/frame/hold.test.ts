@@ -44,7 +44,7 @@ test('GEO-02: the contract program that finishes compiling breaks the held frame
   >;
 
   // What the hold asks the lit program for (`contractLight.ts`): no light holds a shadow slot.
-  const direct = { lights: {} as GPUBuffer, unshadowed: true };
+  const direct = { lights: {} as GPUBuffer, unshadowed: true, rectless: true };
   // Two identical real frames: DIRECT compilation is started, `unlit` renders while waiting.
   for (let i = 0; i < 2; i++) {
     lighting.bind(surface, view(), view(), true, direct, () => {});

@@ -70,7 +70,10 @@ test('sixteen threads de-project the corners between two barriers, seven build t
     assert.match(LIGHT_TILES_SHADER, new RegExp(`const ${name.toUpperCase()}_ROW:u32=${row}u;`));
   // Seven lanes build the bounds from the rows at once (#1369): the column's five planes, the slab
   // from the near one, the two boxes.
-  assert.match(LIGHT_TILES_SHADER, /if\(lightCount>0u\)\{tileBoundsOfLane\(lane,hasOpaque,seesSky\);\}/);
+  assert.match(
+    LIGHT_TILES_SHADER,
+    /if\(lightCount>0u\)\{tileBoundsOfLane\(lane,hasOpaque,seesSky\);\}/,
+  );
   assert.match(LIGHT_TILES_SHADER, /if\(lane<5u\)\{column\[lane\]=columnPlane\(lane\);\}/);
   assert.match(LIGHT_TILES_SHADER, /if\(lane==4u\)\{tileSlab\(\);\}/);
   // Each plane is the expression thread zero ran, the oracle's \`tileColumn\`: the same bits.

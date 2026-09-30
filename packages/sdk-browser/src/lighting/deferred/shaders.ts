@@ -93,14 +93,16 @@ ${contractSurface(MIRROR_TERM_WGSL)}`;
  * added to the direct; without, a specular lobe reflects the environment alone (#1341). It is a
  * separate program, not a branch, so a session without bounce never pays for the probes — and so
  * is the `narrow` one, the resolve of a scene of at most `TILE_LIGHTS` lights
- * (`directLightingWgsl`, #849), and the one without `shadowed`, of a scene no light of which holds
- * a shadow slot (#1249).
+ * (`directLightingWgsl`, #849), the one without `shadowed`, of a scene no light of which holds
+ * a shadow slot (#1249), and the one without `rects`, of a scene that holds no rectangle light
+ * (#1369).
  */
 export const contractLightingShader = (
   bounce: boolean,
   narrow: boolean,
   pages = SUN_WINDOW,
   shadowed = true,
+  rects = true,
 ) => `
 ${VIEW_WGSL}
 ${surfaceBindingsWgsl()}
@@ -108,7 +110,7 @@ ${surfaceBindingsWgsl()}
 @group(0) @binding(${SHADING_OFFSET_BINDING}) var<storage,read> shadingOffset:array<f32>;
 ${CONTRACT_BINDINGS_WGSL}
 ${STANDARD_LIGHTING_WGSL}
-${directLightingWgsl(narrow, pages, shadowed)}
+${directLightingWgsl(narrow, pages, shadowed, rects)}
 ${bounce ? BOUNCE_SURFACE_WGSL : DIRECT_SURFACE_WGSL}`;
 /**
  * How the composition reads a pixel's as-is share — 1 on a debug view (a normal or depth surface,
