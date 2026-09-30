@@ -109,13 +109,16 @@ export function createShadowMirror(
       drops = records.drops;
       from = Math.max(from, frame);
     },
+    /** A report came back: what its frame listed counts at once, read by the plan or not — an
+     *  image does not hold on pages its GPU mapped and has not drawn (`shadowsUnsettled`, #1344). */
+    hear(report: ShadowRequestReport) {
+      if (!report.pool) return;
+      mirror.listed = report.pool.drawn;
+      mirror.drawn = report.pool.listings;
+    },
     /** Follows the GPU's pool in `report`; false when it is not the GPU's, or can no longer be. */
     follow(report: ShadowRequestReport, nowMs: number, frame: number) {
       const snapshot = report.pool;
-      if (snapshot) {
-        mirror.listed = snapshot.drawn;
-        mirror.drawn = snapshot.listings;
-      }
       if (!snapshot || report.frame < from || snapshot.owner.length !== pool.pages) return false;
       if (report.layoutEpoch !== table.layoutEpoch) return false;
       apply(snapshot, report.frame, nowMs, frame);
