@@ -1,76 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { shaderRun, Mat } from '../texture/shaderRun.fixture.ts';
+import { Mat } from '../texture/shaderRun.fixture.ts';
 import { wgslConstants } from '../texture/shaderRule.fixture.ts';
 import {
-  REFLECTION_CHANGE_WEIGHT,
+  REFLECTION_CHANGE_FRAMES,
+  REFLECTION_CHANGE_KEPT,
   REFLECTION_HISTORY_WEIGHT,
-  REFLECTION_MOVING_WEIGHT,
+  REFLECTION_MOVING_KEPT,
   REFLECTION_RESOLVE_WGSL,
+  REFLECTION_STILL_FRAMES,
 } from './resolveWgsl.ts';
-
-function fixture() {
-  const samples: Record<string, number | number[] | ((at: number[]) => number | number[])> = {
-    ids: [0x107, 0, 0, 0],
-    sampleColor: [2, 4, 6, 1],
-    depth: 0.5,
-    normalRough: [0, 0, 1, 0.5],
-    previousIds: [0x107, 0, 0, 0],
-    previousNormal: [0, 0, 1, 0.5],
-    previousDepth: 0.5,
-    historyColor: [10, 20, 30, 3],
-  };
-  const identity = new Mat([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
-  const view = {
-    prevViewProj: identity,
-    invViewProj: identity,
-    viewport: [8, 8, 1 / 8, 1 / 8],
-    params: [1, REFLECTION_HISTORY_WEIGHT, 0, 0],
-  };
-  const motion = [identity];
-  const uv = [0.5, 0.5, 1];
-  const { resolveRoughReflection } = shaderRun<{
-    resolveRoughReflection: (pixel: number[]) => number[];
-  }>(
-    REFLECTION_RESOLVE_WGSL,
-    [
-      'resolveRoughReflection',
-      'previousDepthOf',
-      'pointAt',
-      'clipAt',
-      'roughSamples',
-      'reflectionPhase',
-      'placementOf',
-    ],
-    {
-      ...wgslConstants(REFLECTION_RESOLVE_WGSL),
-      ...Object.fromEntries(Object.keys(samples).map((key) => [key, key])),
-      view,
-      motion,
-      pages: [{ placement: 0 }],
-      previousUv: () => uv,
-      dpdx: () => 0,
-      dpdy: () => 0,
-      // Pixel (4, 4) at phase 0 was traced by the half-resolution texel (2, 2) alone. A sample
-      // given as a function reads the pixel.
-      textureLoad: (name: string, at: number[]) => {
-        const value = samples[name];
-        if (name === 'sampleColor' && !traced.some((q) => q[0] === at[0] && q[1] === at[1]))
-          return [0, 0, 0, 0];
-        return typeof value === 'function' ? value(at) : value;
-      },
-    },
-  );
-  const traced = [[2, 2]];
-  return {
-    samples,
-    view,
-    uv,
-    motion,
-    traced,
-    resolve: () => resolveRoughReflection([4, 4, 0, 1]),
-  };
-}
+import { historyConfidence } from './historyFrame.ts';
+import { fixture } from './resolveWgsl.fixture.ts';
 
 test('the shipped resolve combines weighted radiance and preserves zero-weight samples', () => {
   const f = fixture();
@@ -152,20 +93,43 @@ test('a moved receiver keeps its history through the placement motion, its weigh
   f.view.params[2] = 1;
   assert.deepEqual(f.resolve(), [8, 16, 24, 4]);
   f.samples.historyColor = [10, 20, 30, REFLECTION_HISTORY_WEIGHT];
-  f.view.params[1] = REFLECTION_MOVING_WEIGHT;
+  f.view.params[1] = REFLECTION_MOVING_KEPT;
   const moving = f.resolve();
-  assert.equal(moving[3], REFLECTION_MOVING_WEIGHT + 1, 'the kept weight is the moving cap');
+  assert.equal(moving[3], REFLECTION_MOVING_KEPT + 1, 'the kept weight is the moving cap');
 });
 
-test('a changed source keeps its history at the change weight, never restarts from one sample', () => {
+test('a changed source keeps its history at the change cap, never restarts from one sample', () => {
   const f = fixture();
   f.samples.historyColor = [10, 20, 30, REFLECTION_HISTORY_WEIGHT];
-  f.view.params[1] = REFLECTION_CHANGE_WEIGHT;
-  const share = 1 / (REFLECTION_CHANGE_WEIGHT + 1);
+  f.view.params[1] = REFLECTION_CHANGE_KEPT;
+  const share = 1 / (REFLECTION_CHANGE_KEPT + 1);
   assert.deepEqual(f.resolve(), [
     10 + (2 - 10) * share,
     20 + (4 - 20) * share,
     30 + (6 - 30) * share,
-    REFLECTION_CHANGE_WEIGHT + 1,
+    REFLECTION_CHANGE_KEPT + 1,
   ]);
+});
+
+test('#1346: a source moved without motion leaves under 1/255 of its old reflection, glossy or rough', () => {
+  for (const roughness of [0.06, 0.2, 0.3, 0.6]) {
+    const f = fixture();
+    // A flat floor: every texel around the pixel traced, on its receiver, lobe and plane.
+    f.traced.length = 0;
+    for (let k = 0; k < 16; k++) f.traced.push([k & 3, k >> 2]);
+    f.samples.normalRough = f.samples.previousNormal = [0, 0, 1, roughness];
+    let rank = 0;
+    const frame = (value: number, sinceChange: number) => {
+      f.samples.sampleColor = [value, value, value, 1];
+      f.view.params[1] = historyConfidence(false, sinceChange, false);
+      f.view.params[3] = rank++ & 3;
+      f.samples.historyColor = f.resolve();
+    };
+    // A settled reflection of 1; then the source moves and reflects 0, through the change and the
+    // still window the runtime keeps before the image may rest (`historyRuntime.ts`).
+    for (let i = 0; i < 4 * REFLECTION_STILL_FRAMES; i++) frame(1, Infinity);
+    for (let i = 0; i < REFLECTION_CHANGE_FRAMES + REFLECTION_STILL_FRAMES; i++) frame(0, i);
+    const stale = (f.samples.historyColor as number[])[0];
+    assert.ok(stale <= 1 / 255, `${stale * 255}/255 left at roughness ${roughness}`);
+  }
 });

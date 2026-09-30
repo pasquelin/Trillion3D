@@ -3,31 +3,32 @@ import { taaReprojectWgsl } from '../taa/shaderWgsl.ts';
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts';
 import { REFLECTION_PHASE_WGSL } from './hizTraceWgsl.ts';
 
-/** The weight cap a history stores: a bounded effective weight, not an unbounded Monte Carlo
- * counter, never the still window (`REFLECTION_STILL_FRAMES`). At this scale binary16 has 1/32
- * weight spacing; RGB arithmetic remains binary32. */
+/** The weight a history stores at most: a bound on binary16 storage, never the window it keeps
+ *  (`params.y`). At this scale binary16 has 1/32 weight spacing; RGB arithmetic remains binary32. */
 export const REFLECTION_HISTORY_WEIGHT = 64;
-/** Frames a still history accumulates before the image may rest (#1346): the reference's rough
- *  reflections average about this many reprojected frames behind a spatial filter. A declared
- *  class 2 on reflective pixels, bounded against `develop`'s converged still image. */
+/** Frames a still history accumulates before the image may rest (#1346), and the frames of its own
+ *  filtered weight it keeps at most: the reference's rough reflections average about this many
+ *  reprojected frames behind a spatial filter. A declared class 2 on reflective pixels, bounded
+ *  against `develop`'s converged still image. */
 export const REFLECTION_STILL_FRAMES = 12;
 /** The spatial filter's reach in pixels at roughness 0, twice it at roughness 1: a tent over the
  *  half-resolution texels traced around a pixel, kept on its receiver, lobe and plane. */
 const REFLECTION_FILTER_RADIUS = 2;
 /** A neighbour off the pixel's plane by more than this share of its distance is another surface. */
 const REFLECTION_FILTER_PLANE = 0.1;
-/** The weight a history keeps while its sources or camera move: a reflection lags them by about
- *  this many samples, a few a frame (`roughSamples`), never the full cap (`REFLECTION_HISTORY_WEIGHT`). */
-export const REFLECTION_MOVING_WEIGHT = 16;
-/** The confidence a history keeps across a placement change it cannot follow (#33): without live
- *  motion, a moved or newly resident source leaves its stale share at 4/(4+W) per frame, W the
- *  frame's filtered weight, while a moving view, which changes shadow pages and probes every frame,
- *  still averages several samples rather than restarting from one, which flickers. */
-export const REFLECTION_CHANGE_WEIGHT = 4;
-/** Frames a changed source keeps the change weight: on a flat receiver the filter gathers W >= 4
- *  a frame, the stale share falls to (1/2)^8 = 1/256, and the still window after it dilutes that
- *  below 1/2000, under a 1/255 step: a held image keeps nothing of what a reflection showed
- *  before (#33), and the change plus the window close within 20 frames (#1346). */
+/** The frames of its own weight a history keeps while its sources or camera move: a reflection
+ *  lags them by about this many frames. */
+export const REFLECTION_MOVING_KEPT = 4;
+/** The frames of its own weight a history keeps across a placement change it cannot follow (#33):
+ *  a moved or newly resident source's stale share halves each frame, whatever weight W the filter
+ *  gathers there (about 1 on a glossy receiver, more on a rough one), while a moving view, which
+ *  changes probes every frame, still averages two samples rather than restarting from one, which
+ *  flickers. */
+export const REFLECTION_CHANGE_KEPT = 1;
+/** Frames a changed source keeps `REFLECTION_CHANGE_KEPT`: the stale share falls to
+ *  (1/2)^8 = 1/256 at any roughness, under a 1/255 step, and the still window after it dilutes it
+ *  further: a held image keeps nothing of what a reflection showed before (#33), and the change
+ *  plus the window close within 20 frames (#1346). */
 export const REFLECTION_CHANGE_FRAMES = 8;
 export const REFLECTION_RESOLVE_VIEW_BYTES = 160;
 
@@ -56,8 +57,9 @@ fn previousDepthOf(pixel:vec2f,z:f32,id:u32)->vec2f{
  * receiver, lobe and plane, each by a tent of its distance (`REFLECTION_FILTER_RADIUS`): the
  * reference's ray reuse and its bilateral spatial filter in one gather. History follows the
  * placement motion (`params.z`) and is dropped only where its receiver, normal
- * or depth disagree; `params.y` caps its weight (the full cap, the moving cap, or
- * `REFLECTION_CHANGE_WEIGHT` after a change it cannot follow), `params.w` the trace seed's low bits. */
+ * or depth disagree; `params.y` caps it in frames of this image's filtered weight (the still
+ * window, the moving cap, or `REFLECTION_CHANGE_KEPT` after a change it cannot follow): the share
+ * a frame renews is the same at every roughness. `params.w` is the trace seed's low bits. */
 export const REFLECTION_RESOLVE_WGSL = `
 ${FULLSCREEN_VERTEX}
 ${PAGE_INFO_STRUCT_WGSL}
@@ -126,7 +128,8 @@ fn roughSamples(at:vec2i,id:u32,nr:vec4f,z:f32)->vec4f{
    if(abs(oldDepth-expected.x)<=expected.y){history=textureLoad(historyColor,prior,0);}
   }
  }
- let kept=min(history.a,view.params.y);
+ // A pixel no texel reached this image keeps its history as it is.
+ let kept=select(min(history.a,view.params.y*current.a),history.a,current.a<=0.0);
  let total=kept+current.a;
  if(total<=0.0){return vec4f(0.0);}
  let mean=history.rgb+(current.rgb-history.rgb)*(current.a/total);

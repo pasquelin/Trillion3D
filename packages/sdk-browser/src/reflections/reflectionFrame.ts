@@ -41,7 +41,7 @@ export function reflectionFrame(rt: WebgpuPagesRuntime): ReflectionHistoryFrame 
   // The placement motion the temporal pass writes before this image's submission, live only while
   // that pass accumulates: moved sources are then reprojected. Otherwise the page table, bound and
   // never read, and a pose change keeps the history at the change weight
-  // (`REFLECTION_CHANGE_WEIGHT`). No second table is made.
+  // (`REFLECTION_CHANGE_KEPT`). No second table is made.
   frame.motion = gpu.temporal?.frame.active ? gpu.temporal.motion.buffer : vis.pageTable;
   frame.eye = run.gate.cam.eye;
   // What places a reflected point: the scene, residency, poses, the bounce proxy, the probes and
