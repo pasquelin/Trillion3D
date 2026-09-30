@@ -20,8 +20,6 @@ export function leafCone(page: { cone?: NormalCone; material?: PageSurface }): N
   return page.cone ?? OPEN_CONE;
 }
 
-const loneContext = createConeContext();
-
 /**
  * Conformality of a transformation, independent of its scale: 3×3 matrix is divided by sum
  * of absolute values of its terms before squaring, then its 3 columns must have same
@@ -137,16 +135,4 @@ export function coneCullsPageWith(
     ctx.camZ,
     ctx.camW,
   );
-}
-
-/** Same culling for a caller without context: sets one for this single cluster. */
-export function coneCullsPage(
-  cone: NormalCone,
-  world: MatrixElements,
-  min: number[],
-  max: number[],
-  eye: ArrayLike<number>,
-  surface?: PageSurface,
-): boolean {
-  return coneCullsPageWith(coneContextFor(loneContext, world, eye), cone, world, min, max, surface);
 }

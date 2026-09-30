@@ -4,7 +4,7 @@ import {
   SHADOW_VOLUME_WGSL,
 } from '../../gpu/shadow/cullShader.ts';
 import { LANE_SCAN_WGSL } from '../../gpu/core/laneScanWgsl.ts';
-import { FRESH_LAYOUT_WGSL, FRESH_PARAMS_WGSL } from './freshLayout.ts';
+import { FRESH_LAYOUT_WGSL, FRESH_PARAMS_WGSL } from './freshLayoutWgsl.ts';
 
 /**
  * THE CULL OF THE PAGES THE GPU DRAWS ITSELF (#1275): one invocation per caster row and per

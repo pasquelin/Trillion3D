@@ -15,7 +15,8 @@ import { createShadowPool } from '../../../../sdk-core/src/scene/light-shadow/po
 import { createShadowTable } from '../../../../sdk-core/src/scene/light-shadow/table.ts';
 import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
 import { runShadowWords } from './allocRun.fixture.ts';
-import { DRAWN_GPU, DRAWN_HOST, DRAWN_NONE, POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
+import { POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
+import { DRAWN_GPU, DRAWN_HOST, DRAWN_NONE } from './poolDrawn.ts';
 import { WORDS_HEADER, sentShadowWord } from './wordsWgsl.ts';
 
 test('a host word is kept for the page its entry owns on the GPU; a draw into another withdraws it', () => {

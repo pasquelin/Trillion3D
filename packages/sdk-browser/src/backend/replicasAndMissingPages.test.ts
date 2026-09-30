@@ -10,7 +10,8 @@ import {
   quadIndices,
   frontCamera,
 } from './pagesBackendScenes.fixture.ts';
-import { drawWorld, submittedDraws } from '../cluster/batchMesh.ts';
+import { drawWorld } from '../cluster/batchMesh.ts';
+import { submittedDraws } from '../cluster/submissions.fixture.ts';
 
 test('exact pages keep replica meshes in separate batches despite shared glTF ids', () => {
   const { geometry, material, mesh: m1, source } = quadScene();

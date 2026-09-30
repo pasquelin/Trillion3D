@@ -8137,7 +8137,7 @@
     }
   },
   "IMPOSTOR_PI": {
-    "summary": "π, ein einziges Literal für dieses Orakel und den WGSL-Spiegel, damit beide dieselbe Zahl runden."
+    "summary": "π, ein einziges Literal, damit jeder Leser des Umschalters dieselbe Zahl rundet."
   },
   "IMPOSTOR_VERSION": {
     "summary": "Format des Abschnitts `impostors`, den eine Laufzeit liest (#817 Teil 1, vom Compiler gebacken)."

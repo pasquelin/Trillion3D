@@ -38,7 +38,6 @@ import { families } from '../../host/families.ts';
 import { claimWebgpuDevice, markWebgpuLost } from './io/lost.ts';
 import { webgpuAudits } from './io/audits.ts';
 import type { GpuDeviceClaim } from '../../gpu/core/deviceOwners.ts';
-export { outputColorDiagnostic } from './helpers.ts';
 const views = () => families.diagnostics.load();
 /** WebGPU raster of cluster pages. GPU frustum + per-cluster error band when compute is available;
  *  `selectVisiblePages` remains the CPU oracle and the silent fallback. The state lives in the

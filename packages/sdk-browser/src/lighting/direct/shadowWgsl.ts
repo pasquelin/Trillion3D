@@ -15,26 +15,7 @@ import { shadowRequestWgsl } from './shadowRequestWgsl.ts';
 import { SHADOW_SAMPLE_WGSL, SHADOW_SUBTEXELS } from './shadowSampleWgsl.ts';
 import { shadowThroughWgsl } from '../../gpu/shadow/transmittance.ts';
 import { SHADOW_PAGE_WORD_WGSL } from './shadowPageWgsl.ts';
-
-/** The PCF's taps, in texels around the read point. */
-export const POISSON_16 = [
-  [-0.94201624, -0.39906216],
-  [0.94558609, -0.76890725],
-  [-0.094184101, -0.9293887],
-  [0.34495938, 0.2938776],
-  [-0.91588581, 0.45771432],
-  [-0.81544232, -0.87912464],
-  [-0.38277543, 0.27676845],
-  [0.97484398, 0.75648379],
-  [0.44323325, -0.97511554],
-  [0.53742981, -0.4737342],
-  [-0.26496911, -0.41893023],
-  [0.79197514, 0.19090188],
-  [-0.2418884, 0.99706507],
-  [-0.81409955, 0.9143759],
-  [0.19984126, 0.78641367],
-  [0.14383161, -0.1410079],
-];
+import { POISSON_16 } from './pcfTaps.ts';
 
 /** Radius of the taps' disk, in texels: the farthest tap from the read point, turned any way. */
 const POISSON_RADIUS = Math.max(...POISSON_16.map(([x, y]) => Math.hypot(x, y)));
@@ -97,8 +78,6 @@ fn shadowNormalTexels(cosine:f32)->f32{
  return SHADOW_NORMAL_TEXELS+SHADOW_PCF_REACH*max(sqrt(1.0-cosine*cosine)-cosine,0.0);
 }`;
 }
-/** The page model of the ordinary window: what a pass compiled without a session window reads. */
-export const SHADOW_PAGE_READ_WGSL = shadowPageReadWgsl();
 
 /**
  * The virtual shadow read, shared by every pass that lights a surface: records and page table,

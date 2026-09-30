@@ -9,7 +9,7 @@ import { createSceneDraw } from './sceneDraw.ts';
 import { createTestContext } from '../core/testContext.fixture.ts';
 import { createHostDrawCamera, type HostCamera } from '../../camera/world.ts';
 import { hostTextureWritten } from '../../host/textureImport.ts';
-import { sentBytes } from './textureQueue.ts';
+import { sentBytes } from './sentBytes.ts';
 
 const output = { toneMapped: false, framebuffer: null, width: 8, height: 4 };
 

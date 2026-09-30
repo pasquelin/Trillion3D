@@ -14,10 +14,10 @@ import { FRAME_VEC4 } from './types.ts';
 import { OUT_COUNT, OUT_FLAGS, SELECTION_HEADER_WORDS } from './layout.ts';
 import { packRequest } from './request.ts';
 import { COARSER_VIEWS, DAG_UNIFORM_BYTES, LIST_FULL } from './shader/viewsWgsl.ts';
-import { VIEW_FLAGS_WORD } from './uniforms.ts';
 import { VIEW_APPEND } from './shader/pagesWgsl.ts';
 import { createCameraFrames } from './frameRanges.ts';
 import { DRAW_FULL } from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
+import { VIEW_FLAGS_WORD } from './viewFlagsWord.ts';
 
 const CASTERS = 16;
 

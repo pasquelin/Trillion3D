@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SCENE_MODEL_VERSION, type SceneNode } from './node.ts';
+import { type SceneNode } from './node.ts';
+import { SCENE_MODEL_VERSION } from './nodeContracts.ts';
 import { createSceneRoot } from './root.ts';
 import { mismatch } from './nodeAttach.fixture.ts';
 

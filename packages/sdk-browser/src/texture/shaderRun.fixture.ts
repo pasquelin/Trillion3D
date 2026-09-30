@@ -18,6 +18,13 @@ const BINARY: Record<string, number> = Object.fromEntries(
   ),
 );
 
+/** WGSL's zero of a type declared with no value (`var c:array<vec3f,3>;`): `[]`, `[0,0]`, `0`. */
+function zeroOf(type: string[]) {
+  if (type[0] === 'array') return '[]';
+  const size = /^vec([234])/.exec(type[0] ?? '')?.[1];
+  return size ? `[${Array(Number(size)).fill(0)}]` : '0';
+}
+
 function tokens(text: string) {
   const out: string[] = [];
   TOKEN.lastIndex = 0;
@@ -102,10 +109,11 @@ class Translator {
     let text: string;
     if (['let', 'var', 'const'].includes(this.peek())) {
       this.next();
-      const name = this.next();
-      while (this.peek() !== '=') this.next();
-      this.next();
-      text = `let ${name}=${this.expression()}`;
+      const name = this.next(),
+        type: string[] = [];
+      while (this.peek() !== '=' && this.peek() !== end) type.push(this.next());
+      if (this.peek() === end) text = `let ${name}=${zeroOf(type.slice(1))}`;
+      else text = (this.next(), `let ${name}=${this.expression()}`);
     } else {
       const target = this.expression(),
         op = this.peek();

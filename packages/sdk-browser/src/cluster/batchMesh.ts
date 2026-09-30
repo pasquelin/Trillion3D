@@ -40,16 +40,6 @@ export const asWholeMesh = (mesh: HostMesh): WholeMesh => mesh as unknown as Who
 /** A paged-cluster submission: a batch record, or a whole page mesh of a diagnostic mode. */
 export type ClusterDraw = ClusterDrawMesh | WholeMesh;
 
-/** A backend whose paged clusters the engine's program draws publishes its submissions here.
- *  The raster oracle and the tests read them; a host never does, so the public backend
- *  contract does not carry it. */
-interface ClusterDrawSource {
-  clusterDraws(): readonly ClusterDraw[];
-}
-/** The draw records a backend submits for the cut; none from one that owns no cluster. */
-export function submittedDraws(backend: object): readonly ClusterDraw[] {
-  return (backend as Partial<ClusterDrawSource>).clusterDraws?.() ?? [];
-}
 /** A batch record, as opposed to the whole page mesh of a diagnostic mode. */
 export const isClusterDrawMesh = (draw: ClusterDraw): draw is ClusterDrawMesh =>
   '_multiDrawCount' in draw;
@@ -57,19 +47,6 @@ export const isClusterDrawMesh = (draw: ClusterDraw): draw is ClusterDrawMesh =>
  *  the world matrix its graph resolved through its parents. */
 export const drawWorld = (draw: ClusterDraw) =>
   (isClusterDrawMesh(draw) ? draw.matrix : draw.matrixWorld).elements;
-/** Index ranges a submission draws: those of a batch record, the whole index — or the whole
- *  vertex list, a wireframe page being non-indexed — of a page mesh. */
-export function* drawnRanges(draw: ClusterDraw): Generator<[number, number]> {
-  if (!isClusterDrawMesh(draw)) {
-    yield [0, draw.geometry.index?.count ?? draw.geometry.attributes.position.count];
-    return;
-  }
-  for (let range = 0; range < draw._multiDrawCount; range++)
-    yield [
-      draw._multiDrawStarts[range] / Uint32Array.BYTES_PER_ELEMENT,
-      draw._multiDrawCounts[range],
-    ];
-}
 /** Triangles one pass of a batch record submits: the sum of its visible ranges. */
 export function recordTriangles(record: ClusterDrawMesh) {
   let indices = 0;

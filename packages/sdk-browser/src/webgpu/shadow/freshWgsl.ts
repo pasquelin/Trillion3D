@@ -6,17 +6,9 @@ import { CASTERS_ALL, SHADOW_CULL_GROUP } from '../../gpu/shadow/cullShader.ts';
 import { SHADOW_PLACE_WGSL } from '../../lighting/direct/shadowSampleWgsl.ts';
 import { SHADOW_DATA_WGSL } from '../../lighting/direct/shadowWgsl.ts';
 import { shadowPoolWgsl } from './poolWgsl.ts';
-import {
-  FRESH_CASTERS,
-  FRESH_CLEAR,
-  FRESH_FACE_WORDS,
-  FRESH_LAYOUT_WGSL,
-  FRESH_PARAMS_WGSL,
-  MAX_POOL_LAYERS,
-} from './freshLayout.ts';
-
-/** Invocations of the one workgroup that composes, then seals, a frame's GPU-drawn pages. */
-export const FRESH_LANES = 64;
+import { FRESH_CASTERS, FRESH_CLEAR, FRESH_FACE_WORDS, MAX_POOL_LAYERS } from './freshLayout.ts';
+import { FRESH_LAYOUT_WGSL, FRESH_PARAMS_WGSL } from './freshLayoutWgsl.ts';
+import { FRESH_LANES } from './freshLanes.ts';
 /** Regions a frame's pair cull dispatches at most: a dispatch's second dimension. */
 const MAX_FRESH_REGIONS = 65535;
 
@@ -192,5 +184,3 @@ fn composeRegion(k:u32){
  }
  if(lane==0u){countSet(COUNT_PAIRS,args[FRESH_NEED]);}
 }`;
-/** The GPU pages of the ordinary window: what a pass compiled without a session window reads. */
-export const SHADOW_FRESH_WGSL = shadowFreshWgsl();

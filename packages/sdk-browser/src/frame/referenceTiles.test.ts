@@ -1,12 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  PORTABLE_TEXTURE_SIDE,
-  REFERENCE_MAX_TILES,
-  placeTile,
-  referenceTilePlan,
-} from './referenceTiles.ts';
+import { referenceTilePlan } from './referenceTiles.ts';
 import { createEngineCamera, writeEngineCamera } from '../camera/engineCamera.ts';
+import { PORTABLE_TEXTURE_SIDE, placeTile, REFERENCE_MAX_TILES } from './referenceTilePlacement.ts';
 
 const BOSS = { width: 1728, height: 1117, pixelRatio: 2 };
 

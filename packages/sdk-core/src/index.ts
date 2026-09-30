@@ -14,24 +14,23 @@ export {
   depthLayerUnits,
   biasedDepthBits,
 } from './lod/depthLayer.ts';
+export { MANIFEST_BINARY_MAGIC, MANIFEST_BINARY_VERSION } from './manifest/binaryFormat.ts';
 export {
-  MANIFEST_BINARY_MAGIC,
-  MANIFEST_BINARY_VERSION,
   PREVIEW_BASE,
-  PREVIEW_MAX_LEVELS,
   TEXTURE_PREVIEW_VERSION,
-  assertManifestBinary,
-  decodeManifestBinary,
-  decodeManifestPreviews,
-  isBinaryManifest,
-  manifestBinaryRanges,
   previewFirstLevel,
   previewIsWhole,
   previewLastLevel,
-  previewLevelCount,
   previewLevelSize,
-  previewPixelBytes,
 } from './manifest/binary.ts';
+export {
+  PREVIEW_MAX_LEVELS,
+  previewLevelCount,
+  previewPixelBytes,
+} from './texture/previewLevels.ts';
+export { assertManifestBinary, isBinaryManifest } from './manifest/binaryTypes.ts';
+export { decodeManifestBinary, decodeManifestPreviews } from './manifest/binaryDecode.ts';
+export { manifestBinaryRanges } from './manifest/binaryLayout.ts';
 export { readPagedManifest } from './manifest/paged.ts';
 export {
   textureLevelFormat,
@@ -59,7 +58,7 @@ export type {
   SlimClusterManifest,
   SlimPrimitive,
   SlimPrimitiveBinary,
-} from './manifest/binary.ts';
+} from './manifest/binaryTypes.ts';
 export * from './runtime/diagnostics.ts';
 export { dagWarningsDiagnostic } from './contracts/dagWarnings.ts';
 export { LOD_QUALITY, lodQuality, adaptivePixelError } from './lod/policy.ts';
@@ -95,7 +94,8 @@ export {
 export type { PageIntegrationPlan } from './page/integrationPlan.ts';
 export * from './math/oracles.ts';
 export * from './math/index.ts';
-export { SCENE_MODEL_VERSION, SceneNode, type SceneNodeOptions } from './scene/core/node.ts';
+export { SceneNode, type SceneNodeOptions } from './scene/core/node.ts';
+export { SCENE_MODEL_VERSION } from './scene/core/nodeContracts.ts';
 export type { SceneState } from './scene/core/nodeContracts.ts';
 export { SceneRoot, createSceneRoot } from './scene/core/root.ts';
 export type { AlphaMode, LinearRgb, Material, Side } from './contracts/material.ts';
@@ -116,19 +116,13 @@ export type {
 } from './runtime/safety.ts';
 export { userNotice } from './runtime/events.ts';
 export type { RuntimeEvent, UserNotice } from './runtime/events.ts';
-export {
-  createLightingScene,
-  exportLightingGltf,
-  createDefaultLightingSceneLights,
-} from './lighting/scene/experimentScene.ts';
-export type {
-  Vec3,
-  Surface,
-  Patch,
-  Scene,
-  LightingSceneLight,
-} from './lighting/scene/experimentScene.ts';
-export { createTransport, solveTransportOracle } from './lighting/transport/transport.ts';
+export { createLightingScene } from './lighting/scene/experimentScene.ts';
+export { exportLightingGltf } from './lighting/scene/gltf.ts';
+export { createDefaultLightingSceneLights } from './lighting/scene/controls.ts';
+export type { Vec3, Surface, Patch, Scene } from './lighting/scene/experimentScene.ts';
+export type { LightingSceneLight } from './lighting/scene/types.ts';
+export { createTransport } from './lighting/transport/transport.ts';
+export { solveTransportOracle } from './lighting/transport/oracle.ts';
 export type {
   TransportOptions,
   TransportProgress,

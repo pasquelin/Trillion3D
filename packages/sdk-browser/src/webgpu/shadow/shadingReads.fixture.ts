@@ -17,11 +17,11 @@ import {
 import {
   PAGES,
   lampEntry,
-  pcfPages,
   sunEntry,
 } from '../../../../sdk-core/src/scene/light-shadow/pageModel.ts';
 import { BIAS, along, sub, type Vec } from '../../lighting/direct/shadowBias.fixture.ts';
 import { pointFaceOf } from '../../lighting/direct/shadowLamp.fixture.ts';
+import { pcfPages } from '../../../../sdk-core/src/scene/light-shadow/pageModel.fixture.ts';
 
 /** The lines of `shadowFactorWgsl.ts` and `shadowWgsl.ts` this fixture restates. */
 export const READ = [

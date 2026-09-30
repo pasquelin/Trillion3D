@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BLEND_EXPAND_SHADER } from './expandWgsl.ts';
 import { blendExpandBindEntries, EXPAND_BINDING } from './expandBindings.ts';
-import { UNI_WORDS } from './runs.ts';
+import { UNI_WORDS } from './expandUniform.ts';
 import { entryBufferBindings, wgslBufferBindings } from '../../gpu/core/wgslBindings.fixture.ts';
 
 test('the blend-expand layout entries are the bindings its shader declares', () => {
