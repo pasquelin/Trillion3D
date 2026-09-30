@@ -45,10 +45,10 @@ export function closestBetweenSegments(out: Float64Array, first: Numbers, second
     s = denominator > 0 ? unit((b * f - c * e) / denominator) : 0;
     t = (b * s + f) / e;
     // At exactly 0 or 1, `s` already is its recomputation.
-    // Stryker disable next-line EqualityOperator: t exactly 0
+    // Stryker disable EqualityOperator: t exactly 0 or 1
     if (t < 0) [t, s] = [0, unit(-c / a)];
-    // Stryker disable next-line EqualityOperator: t exactly 1
     else if (t > 1) [t, s] = [1, unit((b - c) / a)];
+    // Stryker restore EqualityOperator
   }
   for (let k = 0; k < 3; k++) {
     out[k] = first[k] + s * (first[3 + k] - first[k]);
