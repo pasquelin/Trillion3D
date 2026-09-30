@@ -98,7 +98,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     parentsOf = createPageParents(
       rt.layout.selectionRoots,
       rt.layout.placement,
-      (rec) => rows.pageIndicesByUrl.get(pageAddress(rec))?.[0] ?? -1,
+      (rec) => rows.pageIndexOf(rec) ?? -1,
     );
   const pinUpdater = createWebgpuPinUpdater({
     tracking,

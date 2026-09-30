@@ -68,7 +68,7 @@ function banc() {
       },
       rows: {
         watchTouched: (subscriber: typeof watcher) => void (watcher = subscriber),
-        pageIndicesByUrl: new Map<string, number[]>(),
+        pageIndexOf: () => undefined,
       },
     },
   } as unknown as WebgpuPagesCore;

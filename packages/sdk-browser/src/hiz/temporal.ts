@@ -116,16 +116,15 @@ export function applyTemporalHiz<T extends HizPage & VisPage>(
     restPacked: number[] = [];
   if (hasPrev) {
     const prevCam = history.camera!,
-      keptPacked: number[] = [];
-    const unoccludedSet = new Set(
-      filterUnoccluded(selected, locations, history.pyramid!, prevCam, viewport, keptPacked),
-    );
+      keptIndices: number[] = [];
+    filterUnoccluded(selected, locations, history.pyramid!, prevCam, viewport, keptIndices);
+    // Membership is by rank in the cut, one instance each: a record may serve several placements.
+    const unoccluded = new Uint8Array(selected.length);
+    for (const i of keptIndices) unoccluded[i] = 1;
     if (history.stale?.length)
-      keepStaleRegions(selected, locations, history.stale, prevCam, viewport, unoccludedSet);
-    // Membership is per record, so a record one placement keeps is kept for all: the cut then
-    // drops no page it would have drawn, only keeps some it could have.
+      keepStaleRegions(selected, locations, history.stale, prevCam, viewport, unoccluded);
     for (let i = 0; i < selected.length; i++)
-      if (unoccludedSet.has(selected[i])) {
+      if (unoccluded[i]) {
         occluders.push(selected[i]);
         occludersPacked.push(all[i]);
       } else {
@@ -169,7 +168,7 @@ export function applyTemporalHiz<T extends HizPage & VisPage>(
     viewport[1],
     history.passPyramid,
   );
-  const keptPacked: number[] = [];
+  const keptIndices: number[] = [];
   const disoccluded = countUnoccluded(
     rest,
     locate(restPacked),
@@ -177,10 +176,10 @@ export function applyTemporalHiz<T extends HizPage & VisPage>(
     cam,
     viewport,
     counts,
-    keptPacked,
+    keptIndices,
   );
   const shown = [...occluders, ...disoccluded],
-    shownPacked = [...occludersPacked, ...keptPacked];
+    shownPacked = [...occludersPacked, ...keptIndices.map((i) => restPacked[i])];
 
   retiens(
     history,

@@ -4,6 +4,7 @@ import { applyTemporalHiz, resetHizCounts } from '../../../hiz/hiz.ts';
 import { pageAddress } from '../../row/pageSlots.ts';
 import {
   appendAll,
+  copyPacked,
   markDrawnDiverged,
   partitionByPass,
   partitionPacked,
@@ -42,8 +43,7 @@ function selectCpuCut(rt: WebgpuPagesRuntime, cam: EngineCamera, pixelError: num
   );
   // The packed ranks the cut published, rank by rank, kept beside the records: one record serves
   // every placement of its primitive (#1235).
-  run.shownPacked.length = run.shown.length;
-  for (let i = 0; i < run.shown.length; i++) run.shownPacked[i] = selected.shownPacked[i];
+  copyPacked(run.shownPacked, selected.shownPacked, run.shown.length);
   return selected;
 }
 
@@ -54,7 +54,7 @@ function cullWithTemporalHiz(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   ready.length = 0;
   appendAll(ready, run.shown);
   if (!vis.visEnabled || vis.gpuHiz || ready.length < 2 || !ready.every((page) => page.array)) {
-    run.drawnPacked = run.shownPacked;
+    copyPacked(run.drawnPacked, run.shownPacked);
     return ready;
   }
   const roots = rt.layout.selectionRoots,
@@ -75,19 +75,19 @@ function cullWithTemporalHiz(rt: WebgpuPagesRuntime, cam: EngineCamera) {
     run.cpuHizCounted = true;
     run.culledScratch.length = 0;
     appendAll(run.culledScratch, cut.shown, partitionByPass(ready, true, run.transparentScratch));
-    run.culledPackedScratch.length = 0;
+    // Written in place: the GPU cut's adopter and the row sync hold this very array (#1235).
+    run.drawnPacked.length = 0;
     appendAll(
-      run.culledPackedScratch,
+      run.drawnPacked,
       cut.shownPacked,
       partitionPacked(ready, run.shownPacked, true, run.transparentPackedScratch),
     );
-    run.drawnPacked = run.culledPackedScratch;
     return run.culledScratch;
   } catch (error) {
     resetHizCounts(run.cpuHizCounts);
     run.cpuHizCounted = false;
     diag.diagnosticFailure('hiz-frame-fallback', error); /* Keep the selected cut. */
-    run.drawnPacked = run.shownPacked;
+    copyPacked(run.drawnPacked, run.shownPacked);
     return ready;
   }
 }

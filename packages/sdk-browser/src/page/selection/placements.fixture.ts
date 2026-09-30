@@ -44,5 +44,3 @@ export function locatedBy(roots: Placements): PageLocations {
 
 /** Locations of `count` pages all placed by the single identity root. */
 export const identityLocations = (_count: number): PageLocations => identityRoots();
-
-

@@ -9,10 +9,6 @@ export interface SelectionResult<T> {
    *  `wanted`, rank by rank, so no stale tail is read. */
   shownPacked: Int32Array;
   wantedPacked: Int32Array;
-  /** The placement of each kept page, by root rank, parallel to `shown` and `wanted` rank by rank:
-   *  one record serves several placements, so the root travels beside the record, never on it. */
-  shownRoot: Int32Array;
-  wantedRoot: Int32Array;
   visible: number;
   selectedTriangles: number;
   displayedTriangles: number;
@@ -36,8 +32,6 @@ export function createSelectionResult<T>(): SelectionResult<T> {
     wanted: [],
     shownPacked: new Int32Array(0),
     wantedPacked: new Int32Array(0),
-    shownRoot: new Int32Array(0),
-    wantedRoot: new Int32Array(0),
     visible: 0,
     selectedTriangles: 0,
     displayedTriangles: 0,

@@ -75,7 +75,6 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   /** Packed-rank scratch of the CPU cut's opaque and transparent partitions. */
   opaquePackedScratch: number[];
   transparentPackedScratch: number[];
-  culledPackedScratch: number[];
   /** True when `drawn` copies `shown` as-is; written only by the copies in `../helpers.ts`. */
   drawnMirrorsShown: boolean;
   /** Pages the residency path had to touch this image; null before a GPU cut reported one. */

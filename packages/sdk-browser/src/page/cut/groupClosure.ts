@@ -23,7 +23,7 @@ export type GroupClosure = ReturnType<typeof createGroupClosure>;
 /**
  * Every table is sparse (`./sparseInts.ts`): it holds the groups and pages the cut closes over,
  * never the placements' catalogue (#483 rule 6). A placement's pages are packed contiguously from
- * its first page's `packedIndex`, and a group is keyed by its first member's packed id, which no
+ * its root's packed base (`postPackedBases`, #1235), and a group is keyed by its first member's packed id, which no
  * other group shares.
  */
 export function createGroupClosure(
