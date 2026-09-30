@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { shaderRun, Mat } from '../texture/shaderRun.fixture.ts';
+import { wgslConstants } from '../texture/shaderRule.fixture.ts';
 import {
   REFLECTION_CHANGE_WEIGHT,
-  REFLECTION_FILTER_RADIUS,
   REFLECTION_HISTORY_WEIGHT,
   REFLECTION_MOVING_WEIGHT,
   REFLECTION_RESOLVE_WGSL,
@@ -37,11 +37,13 @@ function fixture() {
       'resolveRoughReflection',
       'previousDepthOf',
       'pointAt',
+      'clipAt',
       'roughSamples',
       'reflectionPhase',
       'placementOf',
     ],
     {
+      ...wgslConstants(REFLECTION_RESOLVE_WGSL),
       ...Object.fromEntries(Object.keys(samples).map((key) => [key, key])),
       view,
       motion,
@@ -120,7 +122,8 @@ test('#1346: the texels around a pixel are filtered by a tent of distance, on it
   f.samples.historyColor = [0, 0, 0, 0];
   // Owners (2, 2), (4, 2), (2, 4) and (6, 6) around (4, 4); the radius at roughness 0.5 is 3.
   f.traced.push([1, 1], [2, 1], [1, 2], [3, 3]);
-  const tent = (distance: number) => 1 - distance / (REFLECTION_FILTER_RADIUS * 1.5);
+  const { REFLECTION_FILTER_RADIUS } = wgslConstants(REFLECTION_RESOLVE_WGSL);
+  const tent = (distance: number) => 1 - distance / (REFLECTION_FILTER_RADIUS * (1 + 0.5));
   const weight = 1 + 2 * tent(2) + 2 * tent(2 * Math.SQRT2);
   const near = (value: number[], expected: number[]) =>
     value.forEach((v, i) => assert.ok(Math.abs(v - expected[i]) < 1e-9, `${value} ~ ${expected}`));

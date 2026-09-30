@@ -35,7 +35,8 @@ fn reflectionConeSlope(rough:f32)->f32{
  var cosine:f32=(1.0-(k+1.0)*u)/(1.0+(k-1.0)*u);
  return sqrt(max(0.0,1.0-cosine*cosine))/max(cosine,1e-6);
 }
-fn screenReflectionCone(P:vec3f,R:vec3f,rough:f32)->vec4f{${REFLECTION_SEGMENT} var axis:vec3f=vec3f(0.0,0.0,1.0);
+fn screenReflectionCone(P:vec3f,R:vec3f,rough:f32)->vec4f{${REFLECTION_SEGMENT}
+ var axis:vec3f=vec3f(0.0,0.0,1.0);
  if(abs(R.z)>0.999){axis=vec3f(0.0,1.0,0.0);}
  var T:vec3f=normalize(cross(axis,R));var B:vec3f=cross(R,T);
  var projectedT:vec4f=reflectionProject(vec4f(T,0.0));
