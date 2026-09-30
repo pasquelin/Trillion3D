@@ -7,8 +7,6 @@ import { createShadowTable } from './table.ts';
 import { createShadowPlan } from './plan.ts';
 import { createSceneLightStore } from '../light/store.ts';
 import { PAGE_INDEX_MASK, PAGE_MAPPED, PAGE_RANGE_SHIFT } from './virtual.ts';
-import { SHADOW_CULL_FLOATS } from './faces.ts';
-import { writeSunSquare } from './sunFaces.ts';
 import { sunPageMetres } from './pageModel.ts';
 import {
   SUN,
@@ -17,6 +15,7 @@ import {
   planFrame,
   report,
   sunPages,
+  sunPageVolume,
   sunScene,
 } from './lightShadow.fixture.ts';
 
@@ -121,9 +120,8 @@ test('a page a mover covers in part is never reported valid-cached until its mov
     cached = plan.counts.cachedPages;
   assert.equal(pool.layered[page], 1, 'its static casters are in the layer');
   // A moving caster a tenth of the page wide, over the page's centre: it covers a part of it.
-  const volume = new Float32Array(SHADOW_CULL_FLOATS),
+  const volume = sunPageVolume(plan, slice, level, 3, 2),
     half = sunPageMetres(level) / 20;
-  writeSunSquare(new Float32Array(16), 0, volume, 0, plan.sun, slice, level, 3, 2);
   const centre = [0, 1, 2].map((a) => volume[a]);
   plan.worldChanged(
     centre.map((c) => c - half),

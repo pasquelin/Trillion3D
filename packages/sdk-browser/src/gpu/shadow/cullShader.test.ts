@@ -5,8 +5,6 @@
 // restates, so the two cannot drift apart silently.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
-import { writeSunSquare } from '../../../../sdk-core/src/scene/light-shadow/sunFaces.ts';
 import {
   PAGE_INDEX_MASK,
   PAGE_VALID,
@@ -18,18 +16,13 @@ import { SHADER_BOX, keeps } from './cullBox.fixture.ts';
 import { SHADOW_FRESH_CULL_WGSL } from '../../webgpu/shadow/freshCullWgsl.ts';
 import { pcfPages } from '../../../../sdk-core/src/scene/light-shadow/pageModel.fixture.ts';
 import {
-  createShadowPlan,
-  type ShadowPlan,
-} from '../../../../sdk-core/src/scene/light-shadow/plan.ts';
-import { createSceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts';
-import {
-  SUN,
   VIEW,
   planFrame,
   report,
+  sunPageVolume,
   sunScene,
 } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
-import { PCF_REACH } from '../../lighting/direct/shadowWgsl.ts';
+import { PCF_REACH } from '../../lighting/direct/pcfTaps.ts';
 import { shadingReads } from '../../webgpu/shadow/shadingReads.fixture.ts';
 
 test("every cull runs the box test this file restates, the GPU pages' too", () => {
@@ -41,8 +34,7 @@ test("a caster outside a page's square is not drawn into it; one reaching it is"
   const { plan, slice } = sunScene();
   const level = plan.sun.finest[slice] + 4,
     size = sunPageMetres(level);
-  const volume = new Float32Array(SHADOW_CULL_FLOATS);
-  writeSunSquare(new Float32Array(16), 0, volume, 0, plan.sun, slice, level, 3, 2);
+  const volume = sunPageVolume(plan, slice, level, 3, 2);
   const right = plan.sun.frame.subarray(slice * 9, slice * 9 + 3);
   const beside = (pages: number) => [0, 1, 2].map((a) => volume[a] + right[a] * pages * size);
   assert.ok(keeps(volume, beside(0), 0.1 * size), 'a caster inside the page');
@@ -50,19 +42,12 @@ test("a caster outside a page's square is not drawn into it; one reaching it is"
   assert.ok(keeps(volume, beside(0.7), 0.3 * size), 'a caster reaching over its edge');
 });
 
-/** The cull volume of sun page `(ax, ay)` at `level`: what the frame's draw of it culls with. */
-function pageVolume(plan: ShadowPlan, slice: number, level: number, ax: number, ay: number) {
-  const volume = new Float32Array(SHADOW_CULL_FLOATS);
-  writeSunSquare(new Float32Array(16), 0, volume, 0, plan.sun, slice, level, ax, ay);
-  return volume;
-}
-
 test('a caster whose widened bounds miss a page is not drawn into it; its filter reads the next', () => {
   const { plan, slice } = sunScene();
   const level = plan.sun.finest[slice] + 4,
     texel = sunPageMetres(level) / SHADOW_PAGE,
-    home = pageVolume(plan, slice, level, 3, 2),
-    next = pageVolume(plan, slice, level, 4, 2),
+    home = sunPageVolume(plan, slice, level, 3, 2),
+    next = sunPageVolume(plan, slice, level, 4, 2),
     frame = plan.sun.frame.subarray(slice * 9, slice * 9 + 6);
   // The world point of texel `(x, y)` of page (3, 2), on the plane of its box's centre.
   const at = (x: number, y: number) => {
@@ -88,19 +73,14 @@ test('a caster whose widened bounds miss a page is not drawn into it; its filter
 test('an off-camera wall over a visible floor keeps its shadow pages and casters', () => {
   // A scene twenty metres high, the sun straight overhead: a wall block 15 m up, over a floor
   // point ten metres ahead of the eye. The eye (5 m up, looking down −Z) sees the floor, not the wall.
-  const store = createSceneLightStore(),
-    plan = createShadowPlan(32),
-    min = [-50, 0, -50],
-    max = [50, 20, 50];
-  store.add(SUN);
+  const min = [-50, 0, -50],
+    max = [50, 20, 50],
+    { store, plan, slice } = sunScene(min, max);
   const floor = [0, 0, -10],
     wall = [0, 15.5, -10];
   const above = (p: number[]) => Math.atan2(p[1] - VIEW.position[1], VIEW.position[2] - p[2]);
   assert.ok(above(wall) > VIEW.halfFovY, 'the wall is off-camera');
   assert.ok(-above(floor) < VIEW.halfFovY, 'the floor is seen');
-  planFrame(plan, store, 0, VIEW, min, max);
-  plan.commit();
-  const slice = store.sliceOf(0);
   // The shading of the floor asks for its pages; the next frame maps and draws them.
   const reads = shadingReads(plan, store, VIEW, [{ P: floor, N: [0, 1, 0] }]);
   assert.ok(reads.length > 0);
@@ -112,7 +92,7 @@ test('an off-camera wall over a visible floor keeps its shadow pages and casters
     assert.ok(word & PAGE_VALID, `the floor's page ${entry} is kept and drawn`);
     const page = word & PAGE_INDEX_MASK,
       { pool } = plan,
-      volume = pageVolume(plan, slice, pool.view[page], pool.x[page], pool.y[page]);
+      volume = sunPageVolume(plan, slice, pool.view[page], pool.x[page], pool.y[page]);
     assert.ok(keeps(volume, wall, 0.5), `the wall is drawn into page ${entry}`);
   }
 });
