@@ -5,17 +5,17 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { bindingLayout, bindingResource, type ComputeBinding } from '../shadow/computePass.ts';
 
 /** What the receiver offset reads (`receiverOffsetWgsl.ts`), in `RECEIVER_BINDINGS` order: the
- *  visibility buffer, the resolve's uniform, the page table and the page geometry. */
+ *  visibility buffer, the resolve's uniform, the page table, the page cache and the float pool's
+ *  position buffer, its normals included. */
 export type ReceiverResources = [
   vis: GPUTextureView,
   uniform: GPUBuffer,
   pages: GPUBuffer,
   indices: GPUBuffer,
-  positions: GPUBuffer,
-  normals: GPUBuffer,
+  geometry: GPUBuffer,
 ];
 
-/** How each receiver binding is declared: the visibility buffer's words, the uniform, then four
+/** How each receiver binding is declared: the visibility buffer's words, the uniform, then three
  *  read-only buffers. */
 export const RECEIVER_BINDING_TYPES: readonly ComputeBinding[] = RECEIVER_BINDINGS.map((name) =>
   name === 'vis' ? { texture: 'uint' } : name === 'uniform' ? 'uniform' : 'read-only-storage',
@@ -47,16 +47,14 @@ const held: (GPUTextureView | GPUBuffer)[] = [];
  * lit. The array is reused from one image to the next: nothing is allocated.
  */
 export function receiverResources({ vis, gpu }: WebgpuPagesRuntime) {
-  const { visView, shadeUniform, pageTable, concatPos, concatNrm } = vis,
+  const { visView, shadeUniform, pageTable, concatPos } = vis,
     indices = gpu.cache?.buffer;
-  if (!visView || !shadeUniform || !pageTable || !indices || !concatPos || !concatNrm)
-    return undefined;
+  if (!visView || !shadeUniform || !pageTable || !indices || !concatPos) return undefined;
   held[0] = visView;
   held[1] = shadeUniform;
   held[2] = pageTable;
   held[3] = indices;
   held[4] = concatPos;
-  held[5] = concatNrm;
   return held as unknown as ReceiverResources;
 }
 
@@ -81,7 +79,7 @@ export function receiverPlaceholders(device: GPUDevice) {
     size: PAGE_INFO_STRIDE,
     usage: GPUBufferUsage.STORAGE,
   });
-  const resources: ReceiverResources = [vis.createView(), uniform, page, page, page, page];
+  const resources: ReceiverResources = [vis.createView(), uniform, page, page, page];
   return {
     resources,
     dispose() {

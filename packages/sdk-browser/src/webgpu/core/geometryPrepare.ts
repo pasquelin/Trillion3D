@@ -21,7 +21,8 @@ const noWholeCopy: WholePool = () => ({ placed: [], floats: 0, upload: () => und
 export type VertexPoolGrowth = {
   concatPos: GPUBuffer;
   concatUv: GPUBuffer;
-  concatNrm: GPUBuffer;
+  /** The normals' range of the position buffer (`geometryPoolLayout.ts`, #1410). */
+  concatNrm: GPUBufferBinding;
   wholeDeformation: WholeTable;
 };
 

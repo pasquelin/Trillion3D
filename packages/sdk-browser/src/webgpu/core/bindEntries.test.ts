@@ -44,7 +44,7 @@ function stubVis(layouts: Record<string, unknown>) {
     ...layouts,
     concatPos: token(),
     concatUv: token(),
-    concatNrm: token(),
+    concatNrm: { buffer: token(), offset: 256, size: 28 },
     pageTable: { size: 3 * PAGE_INFO_STRIDE } as GPUBuffer,
     visUniform: token(),
     shadeUniform: token(),

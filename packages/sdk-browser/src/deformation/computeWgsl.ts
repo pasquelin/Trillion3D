@@ -8,7 +8,7 @@ import { DEFAULT_GROUP_WIDTH } from '../gpu/dag/shader/gridWgsl.ts';
 export const DEFORMATION_COMPUTE_WGSL = `${PAGE_INFO_STRUCT_WGSL}
 @group(0) @binding(0) var<storage,read_write> indices:array<u32>;
 @group(0) @binding(1) var<storage,read_write> positions:array<f32>;
-@group(0) @binding(2) var<storage,read> normals:array<f32>;
+@group(0) @binding(2) var<storage,read_write> normals:array<f32>;
 @group(0) @binding(3) var<storage,read> pages:array<PageInfo>;
 @group(0) @binding(4) var<storage,read> uvs:array<f32>;
 @group(0) @binding(5) var<uniform> image:vec4u;
@@ -45,10 +45,12 @@ fn deform(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) la
  }
 }`;
 
-/** The stage's binding contract, reused by GPU probes. */
+/** The stage's binding contract, reused by GPU probes. The normals are a range of the position
+ *  buffer the stage writes (#1410): a buffer written in a dispatch is read there by no read-only
+ *  binding, so they are bound writable too — never written. */
 export const deformationBindings = (): GPUBindGroupLayoutEntry[] =>
   Array.from({ length: 6 }, (_, binding) => ({
     binding,
     visibility: GPUShaderStage.COMPUTE,
-    buffer: { type: binding === 5 ? 'uniform' : binding <= 1 ? 'storage' : 'read-only-storage' },
+    buffer: { type: binding === 5 ? 'uniform' : binding <= 2 ? 'storage' : 'read-only-storage' },
   }));

@@ -32,8 +32,11 @@ const HEADER_WORDS = 28;
 export const DEPTH_RAMP_WORD = 24;
 /** Floats of the sun the uniform carries: the three frame rows, then the header. */
 const SUN_WORDS = 16;
-/** Words of the resolve uniform: the header, then the sun. */
-export const SHADE_UNIFORM_WORDS = HEADER_WORDS + SUN_WORDS;
+/** The float of the pool's position buffer its normals start at, after the sun: what the shadow
+ *  receiver offset reads them from, the one binding it holds of the pool (#1410). */
+export const NORMAL_BASE_WORD = HEADER_WORDS + SUN_WORDS;
+/** Words of the resolve uniform: the header, the sun, then the normals' start and its padding. */
+export const SHADE_UNIFORM_WORDS = NORMAL_BASE_WORD + 4;
 export const SHADE_UNIFORM_BYTES = SHADE_UNIFORM_WORDS * 4;
 /** The sun as the resolve reads it: its record's frame rows and header. */
 export const SHADE_SUN_WGSL = 'struct ShadeSun{frame:array<vec4f,3>,info:vec4f,}';

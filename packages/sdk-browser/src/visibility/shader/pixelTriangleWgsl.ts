@@ -6,9 +6,10 @@ import { SHADE_SUN_WGSL } from './request.ts';
  * so the offset follows the very point and normals the resolve shaded.
  */
 
-/** The surface resolve's uniform: its camera, viewport and page count. */
+/** The surface resolve's uniform: its camera, viewport and page count; the start of the float
+ *  pool's normals, which the receiver offset reads (`NORMAL_BASE_WORD`). */
 export const SHADE_UNI_WGSL = `${SHADE_SUN_WGSL}
-struct ShadeUni{viewProj:mat4x4f,viewport:vec2f,pixelRatio:f32,mipBias:f32,pageCount:u32,mode:u32,feedback:u32,pixelScale:f32,depthRamp:vec4f,sun:ShadeSun,}`;
+struct ShadeUni{viewProj:mat4x4f,viewport:vec2f,pixelRatio:f32,mipBias:f32,pageCount:u32,mode:u32,feedback:u32,pixelScale:f32,depthRamp:vec4f,sun:ShadeSun,normalBase:u32,}`;
 
 /** A clip position on the resolve's framebuffer: pixels, then the depth. */
 export const FRAMEBUFFER_WGSL = `fn framebuffer(clip:vec4f)->vec3f{
