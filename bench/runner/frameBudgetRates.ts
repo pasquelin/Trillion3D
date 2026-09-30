@@ -1,7 +1,10 @@
 // What the whole-frame budget of the boss's case (`frameBudget.ts`, #1369) prices its counts at,
 // and the per-pixel accesses it counts where no counter walks the shipped shader.
+import { LIGHT_SETTINGS } from '../../packages/sdk-core/src/index.ts';
+import { hizLevelSizes } from '../../packages/sdk-browser/src/gpu/hiz/levelSizes.ts';
 import { benchLights } from './lamps.ts';
 import { LIGHTING_RATES } from './lightGridCount.ts';
+import { ATRIUM_BOUNDS } from './lightTileAtrium.ts';
 import type { Light } from './lightTileCity.ts';
 
 /** Sponza's triangles, from its glTF's index accessors (103 primitives). */
@@ -11,8 +14,7 @@ export const CLASSES = 6;
 
 /**
  * The rates, each from a measured number:
- * - `texelPs`: a texel read or written, the TAA resolve's 1.30 ms envelope over its 19 texels a
- *   display pixel (`LIGHTING_RATES`), 8.86 ps: the MODELLED rate of every per-pixel memory access.
+ * - `texelPs`: the lighting model's texel rate (`LIGHTING_RATES`), MODELLED: every per-pixel access.
  * - `trianglePs`: a triangle drawn into the visibility buffer, UE5's Nanite raster on PS5 — main and
  *   post pass, 1,148 + 183 µs for 25 million triangles (docs/REFERENCE.md) —: a reference's rate.
  * - `shadedPs`, `weightPs`: a light shaded, and a light weighed or listed out of range, in the
@@ -33,8 +35,8 @@ export const SURFACE_ACCESSES = { visibility: 1, page: 1, vertex: 12, maps: 3, t
 /** A shadow setup's texels: eight neighbour depths and the receiver offset's visibility texel,
  *  triangle indices and positions (`shadowSetup`, `receiverOffsetWgsl.ts`). */
 export const SETUP_TEXELS = 8 + 7;
-/** The PCF's depth gathers a shadow read (`resolveWorkCount.ts`). */
-export const PCF_GATHERS = 16;
+/** The PCF's depth gathers a shadow read: its taps (`PCF_TAPS_WGSL`). */
+export const PCF_GATHERS = LIGHT_SETTINGS.pcfTaps;
 /** Page-table accesses the demand pass spends a light it marks: its home page and the PCF's
  *  neighbours across a page edge (`demandWgsl.ts`). */
 export const DEMAND_MARKS = 4;
@@ -46,21 +48,16 @@ export const UNCOUNTED = [
   'the CPU: the recette timed it at 1.8 ms p50 on this case',
 ];
 
-/** Texel reads and writes of the Hi-Z pyramid of a `width` × `height` depth: the copy of level 0,
- *  then four reads and one write a texel of every coarser level. */
-export function hizAccesses(width: number, height: number) {
-  let total = 2 * width * height;
-  for (let w = width, h = height; w > 1 || h > 1;) {
-    [w, h] = [Math.max(1, Math.ceil(w / 2)), Math.max(1, Math.ceil(h / 2))];
-    total += 5 * w * h;
-  }
-  return total;
-}
+/** Texel reads and writes of the Hi-Z pyramid of a `width` × `height` depth (`hizLevelSizes`): the
+ *  copy of level 0, then four reads and one write a texel of every coarser level. */
+export const hizAccesses = (width: number, height: number) =>
+  hizLevelSizes(width, height)
+    .slice(1)
+    .reduce((total, [w, h]) => total + 5 * w * h, 2 * width * height);
 
 /** The bench's 200 lamps over the atrium's footprint (`benchLights`), as the grid sees them. */
-export function atriumBenchLamps(count = 200): Light[] {
-  const bounds = { min: { x: -15.3, y: -0.3, z: -7.3 }, max: { x: 15.3, y: 14, z: 7.3 } };
-  const plan = benchLights(bounds, { lights: count, lightShadows: true, sun: false });
+export function atriumBenchLamps(): Light[] {
+  const plan = benchLights(ATRIUM_BOUNDS, { lights: 200, lightShadows: true, sun: false });
   return (plan?.lights ?? []).map((light) => ({
     centre: (light.position ?? [0, 0, 0]).map(Math.fround) as Light['centre'],
     radius: Math.fround(light.range ?? 0),

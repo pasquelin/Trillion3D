@@ -18,6 +18,11 @@ const HALF_X = 15,
   HEIGHT = 14,
   ARCADE_Z = 4;
 const box = (lo: Vec3, hi: Vec3): Box => ({ lo, hi });
+/** The atrium's footprint, its 0.3 m floor and end walls included: the box its model spans. */
+export const ATRIUM_BOUNDS = {
+  min: { x: -HALF_X - 0.3, y: -0.3, z: -HALF_Z - 0.3 },
+  max: { x: HALF_X + 0.3, y: HEIGHT, z: HALF_Z + 0.3 },
+};
 
 /** The atrium's boxes: floor, walls, two storeys of arcades on each side, drapes, gallery roofs. */
 function atriumBoxes(): Box[] {

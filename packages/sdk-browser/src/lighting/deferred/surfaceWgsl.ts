@@ -15,11 +15,11 @@ export const CAMERA_FOG_WGSL = `if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){
 export const MIRROR_TERM_WGSL = '+mirrorLighting(base.rgb,base.a,normal.a,N,V,P)';
 
 /**
- * What a shadow read needs of its pixel, set only where its cell lists a shadowed light
- * (`cellShadowed`, #1369) — nothing else reads it, and a pixel of any other cell, or of the program
- * with no shadow code, loads none of its eight neighbour depths nor its receiver offset: its footprint
- * and point unjittered, whence its shadow level (#1363); a lane in the target asks per subgroup; its receiver, moved by its shading-point
- * offset (`receiverOffset`, recomputed from the visibility buffer, #1410).
+ * What a shadow read needs of its pixel: its footprint and point unjittered, whence its shadow level
+ * (#1363); whether its lane asks for pages (a lane in the target asks per subgroup); its receiver,
+ * moved by its shading-point offset (`receiverOffset`, from the visibility buffer, #1410).
+ * Set only where the pixel's cell lists a shadowed light (`cellShadowed`, #1369): nothing else reads
+ * it, so a pixel of another cell loads none of its eight neighbour depths nor its receiver offset.
  */
 const SHADOW_SETUP_WGSL = `fn shadowSetup(coord:vec2i,pixel:vec4f,z:f32,P:vec3f){
  let level=pixelLevel(coord,pixel.xy,z,P);shadowFootprint=level.footprint;shadowUnjitter=level.unjitter;

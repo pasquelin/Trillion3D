@@ -10,7 +10,6 @@ import {
   atriumBenchLamps,
   hizAccesses,
 } from './frameBudgetRates.ts';
-import { LIGHTING_RATES } from './lightGridCount.ts';
 
 test('the bench lamps over the atrium: 200 on a grid two metres up, a range of 0.75 cell', () => {
   const lamps = atriumBenchLamps();
@@ -38,7 +37,6 @@ test('every stage has its rows, each its count at its rate, the frame their sum'
   const triangles = rows.find((row) => row.work === 'triangles')!;
   assert.equal(triangles.count, SPONZA_TRIANGLES);
   assert.ok(rows.every((row) => row.ms >= 0 && Number.isFinite(row.ms)));
-  assert.equal(FRAME_RATES.texelPs, LIGHTING_RATES.texelPs, 'one texel rate');
   assert.ok(Math.abs(FRAME_RATES.trianglePs - 53.24) < 1e-9, "UE5's 1,331 µs for 25 million");
   assert.ok(
     UNCOUNTED.some((what) => what.includes('shadow passes')),

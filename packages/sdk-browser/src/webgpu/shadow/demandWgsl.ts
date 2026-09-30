@@ -13,7 +13,7 @@ import {
 } from '../../lighting/direct/shadowWgsl.ts';
 import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SUBSURFACE_FLAG } from '../../scene/subsurface.ts';
-import { AS_IS_FLAG, FOG_FREE_SURFACE_FLAG } from '../../scene/surfaceModel.ts';
+import { AS_IS_FLAG, SURFACE_MODEL_MASK } from '../../scene/surfaceModel.ts';
 import { receiverOffsetWgsl } from '../../visibility/shader/receiverOffsetWgsl.ts';
 
 /** Pixels a side of a workgroup of the demand pass. */
@@ -157,7 +157,7 @@ fn demandLight(light:DirectLight,at:vec3f,receiver:vec3f,N:vec3f,thin:bool,footp
 @compute @workgroup_size(${SHADOW_DEMAND_GROUP},${SHADOW_DEMAND_GROUP}) fn markShadowDemand(@builtin(global_invocation_id) id:vec3u){
  if(any(vec2f(id.xy)>=view.viewport.xy)||u32(view.lightParams.x)==0u){return;}
  let coord=vec2i(id.xy);
- let flag=textureLoad(flags,coord,0).r&${FOG_FREE_SURFACE_FLAG - 1}u;
+ let flag=textureLoad(flags,coord,0).r&${SURFACE_MODEL_MASK}u;
  if(flag<=1u||flag==${AS_IS_FLAG}u){return;}
  // The resolve's cell (\`pixelCell\`, \`surfaceWgsl.ts\`): a cell that lists no light with a shadow
  // slot asks nothing, as the resolve sets up no shadow read there (\`cellShadowed\`).
