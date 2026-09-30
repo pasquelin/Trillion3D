@@ -5575,6 +5575,13 @@
   "SHADOW_PAGE": {
     "summary": "Lado de una página de sombra, en téxeles: la unidad del pool, de los mapas virtuales y de la invalidación."
   },
+  "ShadowAsks": {
+    "summary": "Entradas que el host pide al asignador de GPU, junto a lo que piden los píxeles (`floors`).",
+    "members": {
+      "entries": "Las entradas pedidas, como mucho las primeras `count`.",
+      "count": "Cuántas de `entries` están rellenas."
+    }
+  },
   "ShadowAtlasDigest": {
     "summary": "Lo que publica una lectura del atlas de sombras: su tamaño, lo que hay escrito en él, su huella.",
     "members": {
@@ -7630,6 +7637,17 @@
   },
   "SHADOW_RECORD_FLOATS": {
     "summary": "Flotantes de un registro de sombra, el que lee el sombreado de una luz: seis matrices de caras de lámpara — ahí, los rangos de profundidad de un sol, `zNear, zFar` cada uno (`recordPack.ts`) —, luego el marco del plano de luz del sol — `right, zNear`, `up, zFar`, `axis`, luego la ranura del rango actual —, luego el origen de la ventana de cada ranura del clipmap en dos enteros, luego una cabecera `vec4f`: caras (lámpara) o niveles (sol), el semicampo tangente de la lámpara o el nivel más fino del sol, el plano cercano de la lámpara y la primera entrada del registro en la tabla de páginas."
+  },
+  "ShadowPoolSnapshot": {
+    "summary": "El conjunto del asignador de GPU tras la asignación de un fotograma (`webgpu/shadow/allocWgsl.ts`).",
+    "members": {
+      "owner": "La entrada que mapea cada página física, −1 para una libre.",
+      "requested": "El fotograma en el que se pidió cada página por última vez.",
+      "allocated": "Páginas que ese fotograma mapeó, y entradas para las que no tenía página.",
+      "refused": "Entradas para las que ese fotograma no tenía página.",
+      "drawn": "Páginas que ese fotograma listó para que la GPU las dibuje (`listDraw`).",
+      "listings": "Páginas que cada fotograma listó desde la semilla del conjunto: se mueve con la lista de cualquier fotograma, se pierda o no su propia instantánea."
+    }
   },
   "ShadowRequestReport": {
     "summary": "Lo que el sombreado leyó en una imagen: las entradas de la tabla que pidió, sin orden.",
