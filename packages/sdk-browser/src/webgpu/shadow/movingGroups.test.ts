@@ -1,68 +1,33 @@
-// #1345: the moving casters of a pass's restored sun pages are drawn by group, one instanced draw
-// per group and list instead of one per page. The shipped pairs kernel files every kept caster of
-// every grouped page once in its group's draw, and the shipped vertex stage draws each by its own
-// page's view; a lamp page, and a page alone in its block, keep their own draw.
+// #1345: the moving casters of a pass's restored pages are drawn by group, one instanced draw per
+// group and list instead of one per page. The shipped pairs kernel files every kept caster of every
+// grouped page once in its group's draw, and the shipped vertex stage draws each by its own page's
+// view; a lamp's pages and a page alone in its block are groups too: no restored page keeps a draw
+// of its own, as Unreal draws every page of a light in batched draws.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
-import { DRAW_DYNAMIC } from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import {
-  LAMP,
-  SUN,
-  VIEW,
-} from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { MAX_SHADOW_REGIONS } from '../../gpu/shadow/atlas.ts';
 import { GROUP_CAPACITY_WORD } from '../../gpu/shadow/batchBudget.ts';
-import { SHADOW_GROUP_PAIRS_WGSL } from '../../gpu/shadow/groupWgsl.ts';
+import { GROUP_LAYER, SHADOW_GROUP_PAIRS_WGSL } from '../../gpu/shadow/groupWgsl.ts';
 import { SHADOW_DEPTH_SHADER } from '../../gpu/shadow/shader.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
-import { createWebgpuLightState } from '../pages/state/lights.ts';
 import { drawRegionCasters } from '../pages/render/encodeRegionDraws.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { createMovingGroupPlan } from './movingGroupPlan.ts';
 import { createShadowMovingGroups } from './movingGroups.ts';
-import { planPagePasses } from './pagePasses.ts';
+import { batch, CAPACITY, KEPT, PAGES, SIDE } from './movingGroups.fixture.ts';
 
-/** A pool of 51² pages, 6 528 texels a side: its blocks are 4 096 texels, at its start or end. */
-const SIDE = 51,
-  CAPACITY = 10;
-/** Two sun pages in the first block, two in the right one, one alone in the bottom one, a lamp's. */
-const PAGES = [0, 1, 40, 41, 40 * SIDE, 5];
-/** Each region's kept casters, opaque then cutout, and the corners each list draws. */
-const KEPT = [
-  [3, 1, 30, 12],
-  [2, 0, 45, 0],
-  [1, 2, 9, 20],
-  [0, 0, 0, 0],
-];
-
-function batch() {
-  const lights = createWebgpuLightState(SIDE);
-  lights.store.add(SUN);
-  lights.store.add(LAMP);
-  lights.plan.plan(lights.store, VIEW, [-10, 0, -10], [10, 5, 10], 0, 0);
-  const volumes = new Float32Array(MAX_SHADOW_REGIONS * SHADOW_CULL_FLOATS);
-  for (const [i, page] of PAGES.entries()) {
-    lights.plan.pool.slice[page] = lights.store.sliceOf(i === 5 ? 1 : 0);
-    lights.regions.push(page, DRAW_DYNAMIC, volumes, new Uint32Array(volumes.buffer));
-  }
-  planPagePasses(lights.regions, PAGES.length);
-  return { lights, rt: { lights } as unknown as WebgpuPagesRuntime };
-}
-
-test("a pass's restored sun pages are grouped by block; a lamp page and a lone one are not", () => {
+test("a pass's restored pages are grouped: sun pages by block, alone or not, a lamp's by layer", () => {
   const { rt } = batch(),
     grouping = createMovingGroupPlan();
-  assert.equal(grouping.plan(rt, PAGES.length, false, CAPACITY), 2);
-  assert.deepEqual(
-    [...grouping.words.subarray(0, 6)].map((w) => (w ? 1 : 0)),
-    [1, 1, 1, 1, 0, 0],
-  );
-  assert.deepEqual([...grouping.words.subarray(0, 6)], [1, 1, 2, 2, 0, 0]);
+  assert.equal(grouping.plan(rt, PAGES.length, false, CAPACITY), 4);
+  assert.deepEqual([...grouping.words.subarray(0, 6)], [1, 1, 2, 2, 3, 4], 'every page grouped');
   const head = MAX_SHADOW_REGIONS;
-  assert.deepEqual([...grouping.words.subarray(head, head + 6)], [0, 20, 0, 20, 40, 1]);
+  assert.deepEqual(
+    [...grouping.words.subarray(head, head + 12)],
+    [0, 20, 0, 20, 40, 1, 40, 50, 2, 50, 60, GROUP_LAYER],
+  );
   assert.equal(grouping.words[GROUP_CAPACITY_WORD], CAPACITY);
 });
 
@@ -73,8 +38,8 @@ test('every kept caster of a grouped page is drawn once, in its group, by its ow
   const culled = new Uint32Array(MAX_SHADOW_REGIONS * 8);
   for (const [region, [opaque, cutout, corners, cutCorners]] of KEPT.entries())
     culled.set([corners, opaque, 0, 0, cutCorners, cutout, 0, 0], region * 8);
-  const args = new Array<number>(16).fill(0),
-    pairs = new Array<number>(40).fill(-1);
+  const args = new Array<number>(32).fill(0),
+    pairs = new Array<number>(60).fill(-1);
   // One lane does the whole workgroup's copies: the kernel's stride of 64 lanes, one.
   const kernel = shaderRun<{ shadowGroupPairs: (wg: number[], lane: number) => void }>(
     SHADOW_GROUP_PAIRS_WGSL.replace('i+=64u', 'i+=1u'),
@@ -86,7 +51,13 @@ test('every kept caster of a grouped page is drawn once, in its group, by its ow
     },
   );
   for (let region = 0; region < PAGES.length; region++) kernel.shadowGroupPairs([region, 0, 0], 0);
-  assert.deepEqual(args, [45, 5, 0, 0, 12, 1, 0, 0, 9, 1, 65536, 0, 20, 2, 65536, 0]);
+  // The lone page's and the lamp's groups keep none: their pages have no kept caster here.
+  const none = (g: number) => [0, 0, g << 16, 0, 0, 0, g << 16, 0];
+  assert.deepEqual(args, [
+    ...[45, 5, 0, 0, 12, 1, 0, 0, 9, 1, 65536, 0, 20, 2, 65536, 0],
+    ...none(2),
+    ...none(3),
+  ]);
   const texels = SIDE * SHADOW_PAGE,
     views = PAGES.map((page) => {
       const [x, y] = [(page % SIDE) * SHADOW_PAGE, Math.floor(page / SIDE) * SHADOW_PAGE];
@@ -94,7 +65,7 @@ test('every kept caster of a grouped page is drawn once, in its group, by its ow
     });
   const drawn: string[] = [];
   const { groupCaster } = shaderRun<{
-    groupCaster: (vertex: number, instance: number, cutout: boolean) => Record<string, number>;
+    groupCaster: (v: number, i: number, cutout: boolean, blend: boolean) => Record<string, number>;
   }>(SHADOW_DEPTH_SHADER, ['groupCaster', 'groupBlock', 'groupPlace', 'pageFirst'], {
     ...{ groupTable: grouping.words, groupPairs: pairs, groupViews: views },
     groupInstances: Array.from({ length: 60 }, (_, place) => 1000 + place),
@@ -107,7 +78,7 @@ test('every kept caster of a grouped page is drawn once, in its group, by its ow
   for (let group = 0; group < 2; group++)
     for (const cutout of [false, true])
       for (let i = 0; i < args[group * 8 + (cutout ? 5 : 1)]; i++) {
-        const out = groupCaster((group << 16) + 7, i, cutout);
+        const out = groupCaster((group << 16) + 7, i, cutout, false);
         assert.equal(Math.trunc(out.region), Number(drawn.at(-1)!.split(':')[0]));
       }
   // Region `r`'s rank `k` sits at `r · 10 + k`, a cutout's at `r · 10 + 9 − k`.
@@ -119,7 +90,7 @@ test('every kept caster of a grouped page is drawn once, in its group, by its ow
   );
 });
 
-test('a grouped page is skipped by its own draws and drawn by its group, in its block', async () => {
+test('a grouped page is skipped by its own draws and drawn by its group, in the pool and at half', async () => {
   const { lights, rt } = batch(),
     { device } = fakeDevice();
   const groups = await createShadowMovingGroups(device),
@@ -131,7 +102,11 @@ test('a grouped page is skipped by its own draws and drawn by its group, in its 
       faceUniform: {},
       hasEnvelope: () => false,
       freshDraws: { pageLayout: {} },
-      groupDraws: { layout: {}, made: () => ({ opaque: 'opaque', cutout: 'cutout' }) },
+      targets: [{}],
+      groupDraws: {
+        ...{ layout: {}, blendLayout: {}, blended: () => ['depth', 'colour'] },
+        made: () => ({ opaque: 'opaque', cutout: 'cutout' }),
+      },
     },
     mobility: { hasCutouts: true },
     shadowGroupsKey: key,
@@ -152,7 +127,7 @@ test('a grouped page is skipped by its own draws and drawn by its group, in its 
       end() {},
     }),
   } as unknown as GPUCommandEncoder;
-  assert.equal(groups.encode(rt, encoder, PAGES.length, false), 2);
+  assert.equal(groups.encode(rt, encoder, PAGES.length, false), 4);
   assert.deepEqual(dispatched, [PAGES.length], 'one workgroup a region');
   const calls: string[] = [];
   const pass = new Proxy({} as GPURenderPassEncoder, {
@@ -171,23 +146,40 @@ test('a grouped page is skipped by its own draws and drawn by its group, in its 
     ['depth' as never],
     groups.grouped,
   );
-  assert.equal(alone, 2, 'the lone sun page and the lamp page');
+  assert.equal(alone, 0, 'no page keeps a draw of its own');
   calls.length = 0;
-  assert.equal(groups.draw(rt, pass, 0), 4, 'two groups, their opaque and cutout lists');
-  const far = SIDE * SHADOW_PAGE - 4096;
-  assert.deepEqual(
-    calls.filter((c) => /^(setViewport|drawIndirect|setPipeline)/.test(c)),
+  assert.equal(groups.draw(rt, pass, 0), 8, 'four groups, their opaque and cutout lists');
+  const texels = SIDE * SHADOW_PAGE,
+    far = texels - 4096;
+  const viewports = (scale: number) =>
     [
-      'setViewport 0,0,4096,4096,0,1',
+      [0, 0, 4096],
+      [far, 0, 4096],
+      [0, far, 4096],
+      [0, 0, texels],
+    ].map((v) => `setViewport ${v.map((n) => n / scale)},${v[2] / scale},0,1`);
+  const drawn = () => calls.filter((c) => /^(setViewport|drawIndirect|setPipeline)/.test(c));
+  assert.deepEqual(
+    drawn(),
+    viewports(1).flatMap((viewport, g) => [
+      viewport,
       'setPipeline opaque',
-      'drawIndirect ·,0',
+      `drawIndirect ·,${32 * g}`,
       'setPipeline cutout',
-      'drawIndirect ·,16',
-      `setViewport ${far},0,4096,4096,0,1`,
-      'setPipeline opaque',
-      'drawIndirect ·,32',
-      'setPipeline cutout',
-      'drawIndirect ·,48',
-    ],
+      `drawIndirect ·,${32 * g + 16}`,
+    ]),
+  );
+  // The transmittance layer's pass: each group's blended casters, depth then colour, at half.
+  calls.length = 0;
+  assert.equal(groups.drawBlend(rt, pass, 0, 0), 8);
+  assert.deepEqual(
+    drawn(),
+    viewports(2).flatMap((viewport, g) => [
+      viewport,
+      'setPipeline depth',
+      `drawIndirect ·,${32 * g}`,
+      'setPipeline colour',
+      `drawIndirect ·,${32 * g}`,
+    ]),
   );
 });
