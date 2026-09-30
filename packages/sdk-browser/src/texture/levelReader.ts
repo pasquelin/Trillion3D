@@ -21,6 +21,10 @@ export type TextureLevelRequest = {
   level: number;
   /** Which format. */
   format: TextureLevelFormat;
+  /** The level's own address, when the cache lists one — an impostor atlas level
+   *  (`maps.<name>.levels[k].url`, #1239). Read through this same reader, resolved against `base`,
+   *  in place of the `textures.url` template: one loader, one budget. */
+  url?: string;
   /** A block level's bytes to read alone — one tile's record (`tileRecords.ts`) —, by an HTTP
    *  Range; a server that ignores it answers the whole file. */
   range?: { offset: number; bytes: number };
@@ -71,8 +75,16 @@ export function createTextureLevelReader(
 ): TextureLevelReader | undefined {
   store?.keepOnly(key);
   if (!textures || typeof createImageBitmap !== 'function') return undefined;
-  const read = async ({ sha256, atlas, level, format, range }: TextureLevelRequest) => {
-    const url = new URL(textureLevelUrl(textures.url, sha256, atlas, level, format), base).href;
+  const read = async ({
+    sha256,
+    atlas,
+    level,
+    format,
+    url: direct,
+    range,
+  }: TextureLevelRequest) => {
+    const url = new URL(direct ?? textureLevelUrl(textures.url, sha256, atlas, level, format), base)
+      .href;
     const headers = range && { Range: `bytes=${range.offset}-${range.offset + range.bytes - 1}` };
     const response = await checked(url, signal, undefined, headers);
     if (format === PREVIEW_LOSSLESS_FORMAT)

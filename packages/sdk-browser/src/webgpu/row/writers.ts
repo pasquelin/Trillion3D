@@ -3,6 +3,7 @@ import { ROW_ID_BASE_WORD, packedRowBase, restampHizSlot } from './pageRow.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { createPageRowWriter } from './pageRow.ts';
 import type { createWebgpuRowState } from './state.ts';
+import { createPageCatalogue } from '../pages/prepare/catalogue.ts';
 
 type Rows = ReturnType<typeof createWebgpuRowState>;
 type Writer = ReturnType<typeof createPageRowWriter>;
@@ -15,10 +16,12 @@ type Writer = ReturnType<typeof createPageRowWriter>;
 export function createWebgpuRowWriters(rows: Rows, packedPages: PageRec[], writePageRow: Writer) {
   const rowWords = PAGE_INFO_STRIDE / 4;
   const state = { changed: false };
+  /** A packed rank back to its record: the one catalogue accessor (`../pages/prepare/catalogue.ts`). */
+  const { recordOf } = createPageCatalogue(packedPages);
 
   /** Posts page `page` at rank `row`: the row is written, therefore declared dirty, by the writer. */
   const assign = (row: number, page: number, offsetWords: number) => {
-    const rec = packedPages[page];
+    const rec = recordOf(page)!;
     rows.packedRecs[row] = rec;
     rows.packedPositions[row] = rows.pagePositions[page];
     rows.packedPageIndex[row] = page;
