@@ -168,6 +168,9 @@ fn demandLight(light:DirectLight,at:vec3f,receiver:vec3f,N:vec3f,thin:bool,footp
  if(flag<=1u||flag==${AS_IS_FLAG}u){return;}
  let tile=id.xy/TILE_SIZE;let tilesX=u32(view.lightParams.y);
  if(tile.x>=tilesX||tile.y>=u32(view.lightParams.z)){return;}
+ // A tile without a light asks nothing: its pixels load no depth.
+ let slice=tileSlice((tile.y*tilesX+tile.x)*TILE_STRIDE,0u,TILE_OPAQUE_BASE);
+ if(slice.y==0u){return;}
  // The resolve's point, footprint and taps' turn, at the pixel's centre (\`surfaceWgsl.ts\`).
  let z=textureLoad(depth,coord,0);let pixel=vec2f(id.xy)+0.5;
  let at=worldAt(pixel,z);
@@ -177,7 +180,6 @@ fn demandLight(light:DirectLight,at:vec3f,receiver:vec3f,N:vec3f,thin:bool,footp
  let P=at+vec3f(shadingOffset[receiverAt],shadingOffset[receiverAt+1u],shadingOffset[receiverAt+2u]);
  let N=normalize(textureLoad(normalRough,coord,0).xyz);
  let thin=(textureLoad(flags,coord,0).r&${SUBSURFACE_FLAG}u)!=0u;
- let slice=tileSlice((tile.y*tilesX+tile.x)*TILE_STRIDE,0u,TILE_OPAQUE_BASE);
  for(var index=0u;index<slice.y;index++){
   var light=index;
   if(slice.x!=TILE_NO_SLICE){light=tileLights[slice.x+index];}

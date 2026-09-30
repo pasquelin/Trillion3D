@@ -1,9 +1,9 @@
 // #1275: the cull of the pages the GPU draws itself (`freshCullWgsl.ts`) and their seal
 // (`sealShadowPages`), run from their shipped WGSL: a region keeps every caster row its volume
 // touches — the page table's and the blended casters' —, one pair each; every listed page is picked
-// and drawn when the pairs it keeps fit the list (#1363); past the list, whole regions alone are
-// admitted — one left short keeps no pair and waits, unread and unclaimed —, and the list, grown to
-// the pairs the seal counted (`freshPairs.ts`), draws every page the next frame at its level.
+// and drawn when the pairs it keeps fit the list (#1363); past the list, the longest prefix of whole
+// regions is admitted — one left short keeps no pair and waits, unread and unclaimed —, and the
+// kept list, grown to the pairs the seal counted (`pairGrowth.ts`), draws every page the next frame.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -14,9 +14,8 @@ import {
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
 import { MOBILITY_CORNER_SHIFT } from '../../gpu/shadow/cullShader.ts';
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { runShadowFresh, runShadowPairs } from './freshRun.fixture.ts';
-import { PAIR_BYTES, createFreshPairs } from './freshPairs.ts';
+import { keptPairs, keptRows } from './pairGrowth.ts';
 import {
   FRESH_ARG,
   FRESH_CASTERS,
@@ -52,7 +51,7 @@ function cull(rows: number[][], tableRows: number, capacity: number) {
     Math.max(rows.length, tableRows + 2),
     capacity,
   ]);
-  args.set([2, capacity]);
+  args[FRESH_ARG.regions] = 2;
   runShadowPairs(
     ...[spheres, params, volumes(), pairs, args, mobility].map((a) => new Uint8Array(a.buffer)),
   );
@@ -151,7 +150,7 @@ test('every listed page is drawn in the frame when the pairs it keeps fit, not o
   assert.deepEqual(drawn, Array(6).fill({ readable: true, claimed: true }), 'all readable');
 });
 
-test('an overflow of the pair list does not end in a coarser read', async () => {
+test('an overflow of the pair list does not end in a coarser read', () => {
   // Every region keeps every row: eighteen pairs for a list of seven.
   const over = frame(7, () => [0, 1, 2]);
   assert.equal(over.picked.length, 6, 'every listed page picked');
@@ -163,13 +162,8 @@ test('an overflow of the pair list does not end in a coarser read', async () => 
   for (const p of readable)
     assert.equal(over.kept.filter((k) => k === p).length, 3, 'all its rows');
   for (const d of over.drawn) assert.equal(d.claimed, d.readable, 'a short page waits unclaimed');
-  // The count read back grows the list, once the device grants it: the next frame draws them all.
-  const list = createFreshPairs(fakeDevice().device),
-    kept = { size: 7 * PAIR_BYTES } as GPUBuffer;
-  list.need = over.need;
-  assert.equal(list.list(kept), kept, 'the growth lands in a later frame');
-  await new Promise((settled) => setTimeout(settled, 0));
-  const grown = list.list(kept).size / PAIR_BYTES;
+  // The count read back grows the kept list (`growPairList`): the next frame draws them all.
+  const grown = keptPairs(keptRows(3, over.need));
   assert.ok(grown >= 18, 'the list holds the need');
   const next = frame(grown, () => [0, 1, 2]);
   assert.deepEqual(

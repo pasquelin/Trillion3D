@@ -21,10 +21,8 @@ const WORD_DRAW_SLOT = 20,
   WORD_INDIRECT = 21,
   NO_CASTER = new Uint32Array(1);
 
-/**
- * The cull's single bind table: its order names both the layout and the group — spheres, source
- * list, source indirect, kept, produced indirect, per-face uniform, volumes, row mobility.
- */
+/** The cull's single bind table, in the order of both layout and group: spheres, source list,
+ *  source indirect, kept, produced indirect, per-face uniform, volumes, row mobility. */
 const READ = 'read-only-storage',
   WRITE = 'storage',
   UNIFORM = 'uniform';
@@ -46,11 +44,9 @@ export interface ShadowCullSource {
 
 export type GpuShadowCull = Awaited<ReturnType<typeof createGpuShadowCull>>;
 
-/**
- * Per-region cull: one instance list per redrawn region, and the matching indirect command. All
- * buffers are allocated once for a batch — at most `MAX_SHADOW_REGIONS` regions, at most
- * `capacity` clusters each — and a frame, whatever its batches, allocates nothing.
- */
+/** Per-region cull: one instance list per redrawn region, and its indirect command. Every buffer is
+ *  made once for a batch — at most `MAX_SHADOW_REGIONS` regions, `capacity` clusters each (grown in
+ *  place, `grow`) —; a frame, whatever its batches, allocates nothing. */
 export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
   const indirect = device.createBuffer({
@@ -117,6 +113,10 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
     return {
       get kept() {
         return targets.kept;
+      },
+      /** Rows each region's list holds: the table's caster rows, or the GPU pages' pairs' more. */
+      get capacity() {
+        return targets.capacity;
       },
       /** Lists of `rows` rows a region, made now and put in place by `commit` (`keptList.ts`). */
       grow: (rows: number) =>

@@ -50,8 +50,8 @@ export function shadowPageGroup(rt: WebgpuPagesRuntime, device: GPUDevice) {
 
 /**
  * The groups of the draws of the pages the GPU draws itself (`freshDraws.ts`): group 0, the page
- * rows (`shadowPageGroup`); group 2 into the pool — their views, the kept `pairs`
- * (`freshPairs.ts`) and the arguments —, and into each layer of the
+ * rows (`shadowPageGroup`); group 2 into the pool — their views, the kept `pairs` (the cull's
+ * kept list, `pairGrowth.ts`) and the arguments —, and into each layer of the
  * transmittance layer the same after the pool's opaque depth of that layer. Made again only when
  * one of them changed identity; undefined while a resource is missing.
  */

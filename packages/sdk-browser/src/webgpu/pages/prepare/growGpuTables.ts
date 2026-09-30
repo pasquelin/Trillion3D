@@ -25,7 +25,8 @@ export function gpuGrowth(
 ) {
   const { vis, lights, gpu } = rt,
     { gpuDraw: draw, gpuHiz: hiz } = vis,
-    pageTable = rt.layout.rows.pageTableFloats;
+    pageTable = rt.layout.rows.pageTableFloats,
+    keptRows = Math.max(casterSlots, lights.cull?.capacity ?? 0);
   const uniformBytes = Math.max(1, slots) * UNIFORM_STRIDE;
   const uniform =
     gpu.uniformBuffer && gpu.uniformBuffer.size < uniformBytes
@@ -60,8 +61,9 @@ export function gpuGrowth(
         slotUsed: draw.slotUsedBuffer,
       })),
     vis.gpuRestCompact?.growWork(drawSlots, restSlotCount(vis.drawLayerSlots), drawSlots),
-    lights.cull?.grow(casterSlots),
-    lights.occlusion?.grow(casterSlots),
+    // The kept lists keep the rows the GPU pages' pairs grew them to (`pairGrowth.ts`).
+    lights.cull?.grow(keptRows),
+    lights.occlusion?.grow(keptRows),
     ...growShadowRows(lights, device, casterSlots),
   ]);
 }

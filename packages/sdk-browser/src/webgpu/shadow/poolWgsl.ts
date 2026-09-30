@@ -35,8 +35,8 @@ export const DRAWN_HOST = 0,
 /** The counts the allocation keeps, before the fields: what a snapshot reads back with them. Each
  *  frame's allocation clears those before `listings`, the pages every frame since the pool's seed
  *  listed (`listDraw`): a snapshot read after a lost one still shows that the GPU drew. Last, the
- *  pairs the latest GPU page draws counted (`sealShadowPages`), which size their list
- *  (`freshPairs.ts`). */
+ *  pairs the latest GPU page draws counted (`sealShadowPages`), which grow their list
+ *  (`pairGrowth.ts`). */
 export const POOL_COUNTS = [
   'needs',
   'candidates',
