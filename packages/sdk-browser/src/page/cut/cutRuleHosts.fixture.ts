@@ -4,7 +4,8 @@
  * the pages whose residency flipped, as the WebGPU rank journal and the WebGL2 page store do, and
  * counts the residency answers its cuts asked for.
  */
-import { selectVisiblePages, type SelectionResult } from './cut.ts';
+import { selectVisiblePages } from './cut.ts';
+import type { SelectionResult } from './state.ts';
 import { createHeldResidency, type HeldResidency } from './held.ts';
 import { postPackedBases, type PlacementIndex } from '../selection/placements.ts';
 import { createImageCut } from '../../backend/autonomous/imageCut.ts';

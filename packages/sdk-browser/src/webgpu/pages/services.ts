@@ -15,7 +15,7 @@ import { createGroupClosure } from '../../page/cut/groupClosure.ts';
 import { createImageRelevance } from '../residency/imageRelevance.ts';
 import { createWebgpuCutPublication } from '../cut/publication.ts';
 import { acceptPage, dropPage } from './io/pageApi.ts';
-import { readGeometryPageHeader } from '../../page/decode/geometryPageHeader.ts';
+import { createPageSource } from './readPage.ts';
 import { awaitsPageBytes, pageAddress, readGeometryAhead } from '../row/pageSlots.ts';
 import { markWebgpuLost } from './io/lost.ts';
 import type { WebgpuPagesCore } from './runtime.ts';
@@ -85,25 +85,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
       ),
     context.frameBudget,
   );
-  /**
-   * The bytes one pool slot holds for a cluster: its quantized geometry page, read from the
-   * host's page reader at the address the manifest gives it, or — for a cache that carries no
-   * geometry page — the index page the arrival already left in memory. The slot is written from
-   * one of the two, never from both, at the admission's `priority`.
-   */
-  const read = async (key: string, _signal?: AbortSignal, priority?: number) => {
-    const geometryUrl = geometryUrls.get(key);
-    if (geometryUrl === undefined)
-      return sourceBytes.get(key) ?? Promise.reject(new Error('Missing page'));
-    if (!context.readGeometryPage) throw new Error('Missing geometry page reader');
-    const bytes = await context.readGeometryPage(geometryUrl, undefined, priority);
-    // The pool uploads these words as they are and the shaders decode them in place, so nothing
-    // downstream would ever notice a forged or truncated page. The format's own gate is read
-    // here, once per admission: magic, version, grids, and counts that measure exactly this many
-    // bytes. A page that fails it is refused through the loader's error path, never uploaded.
-    readGeometryPageHeader(bytes);
-    return bytes;
-  };
+  const pageSource = createPageSource(rt);
   // A cluster drawn from its quantized page needs no index page: its slot is filled from the page
   // reader above. Only a cluster that still draws from an index buffer waits for one.
   const hasBytes = (rec: PageRec) => !awaitsPageBytes(rec) || sourceBytes.has(pageAddress(rec));
@@ -195,7 +177,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     syncRowsFromCut,
     rowsOwed,
     blendCasters,
-    pageSource: { read },
+    pageSource,
     hasBytes,
     poolHolds,
     /** Hands the cache's residency changes to the rank journal: a CPU cut reads what it holds. */

@@ -47,7 +47,7 @@ test('an instance changed or removed leaves the model and the other instances as
     roots,
     allPages,
     bootstrap: [],
-    views: { live: { shown: [] }, lists: () => [] },
+    views: { live: { shown: [], shownPacked: [] }, lists: () => [] },
     byUrl,
     descriptors: new Map(),
     draws,

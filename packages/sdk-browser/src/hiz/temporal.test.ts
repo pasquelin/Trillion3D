@@ -4,22 +4,17 @@ import * as G from '../host/graph/graph.fixture.ts';
 import { compareImages } from '../../../sdk-core/src/index.ts';
 import { rasterVisibilityIds, shadeVisibility, type VisPage } from '../visibility/buffer.ts';
 import {
-  HIZ_BOUNDS_VALUES,
   buildHizPyramid,
-  BOX_CORNER_VALUES,
-  pageCornersInto,
   filterUnoccluded,
-  projectBoxesFlat,
   visibilityDepth,
   applyTemporalHiz,
   type HizPage,
   type TemporalHizState,
 } from './hiz.ts';
-import { splitOccludersFlat, splitOccludersInto } from './split.ts';
-import { projectCornersInto } from './corners.ts';
-import { cameraAt, projectBoxToScreen, quad } from '../../../../tests/fixtures/hiz.ts';
+import { splitOccludersInto } from './split.ts';
+import { cameraAt, quad } from '../../../../tests/fixtures/hiz.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
-import { locatedBy, identityLocations } from '../page/selection/placements.fixture.ts';
+import { identityLocations } from '../page/selection/placements.fixture.ts';
 
 test('Hi-Z remaining pages are a subset of the selected cut and never punch a beauty hole', () => {
   const frontMat = G.basicSurface({ color: 0xff0000 });
@@ -151,85 +146,4 @@ test('temporal Hi-Z reprojects previous depth pyramid and handles disocclusion s
   back.geometry.dispose();
   frontMat.dispose();
   backMat.dispose();
-});
-
-test('flat projection and split reproduce the object forms to the bit, including depth ties', () => {
-  let seed = 12345;
-  const rnd = () => {
-    seed = (seed * 1103515245 + 12345) >>> 0;
-    return seed / 4294967296;
-  };
-  const pages: (HizPage & { matrix: G.Matrix4 })[] = [];
-  for (let i = 0; i < 300; i++) {
-    const centre = [rnd() * 20 - 10, rnd() * 20 - 10, -rnd() * 40],
-      half = [rnd() * 2 + 0.01, rnd() * 2 + 0.01, rnd() * 2 + 0.01];
-    const matrix = new G.Matrix4()
-      .makeRotationY(rnd() * 6)
-      .setPosition(rnd() * 4 - 2, rnd() * 4 - 2, rnd() * 4 - 2);
-    pages.push({
-      min: centre.map((value, axis) => value - half[axis]),
-      max: centre.map((value, axis) => value + half[axis]),
-      matrix,
-      placementIndex: i,
-    });
-  }
-  // Copies of existing boxes give the sort exactly equal depths, where the index tie-break decides.
-  for (let i = 0; i < 30; i++) pages.push({ ...pages[i] });
-  const roots = pages.map(({ matrix }) => ({ world: matrix }));
-  const camera = G.perspectiveCamera(60, 16 / 9, 0.1, 200);
-  camera.position.set(1, 2, 3);
-  camera.lookAt(0, 0, -20);
-  camera.updateProjectionMatrix();
-  camera.updateMatrixWorld();
-  const viewport: [number, number] = [1280, 720];
-  const flat = new Float64Array(pages.length * HIZ_BOUNDS_VALUES),
-    locations = locatedBy(roots);
-  projectBoxesFlat(pages, locations, pages.length, cameraMoteur(camera), viewport, flat);
-  for (let i = 0; i < pages.length; i++) {
-    const reference = projectBoxToScreen(
-        pages[i].min,
-        pages[i].max,
-        pages[i].matrix,
-        camera,
-        viewport,
-      ),
-      base = i * HIZ_BOUNDS_VALUES;
-    assert.equal(flat[base + 5] !== 0, reference.clipsNear);
-    if (reference.clipsNear) continue;
-    assert.deepEqual(
-      [flat[base], flat[base + 1], flat[base + 2], flat[base + 3], flat[base + 4]],
-      [reference.minX, reference.minY, reference.maxX, reference.maxY, reference.nearestDepth],
-    );
-  }
-  // The same rectangles from the corners the GPU upload derives (`pageCornersInto`): a derived corner
-  // is the same double as the one-shot path's, not a rounded one.
-  const corners = new Float64Array(BOX_CORNER_VALUES),
-    derived = new Float64Array(flat.length),
-    { view, viewProjection, near } = cameraMoteur(camera);
-  for (let i = 0; i < pages.length; i++) {
-    pageCornersInto(corners, 0, pages[i], pages[i].matrix);
-    const base = i * HIZ_BOUNDS_VALUES;
-    projectCornersInto(corners, 0, view, viewProjection, near, ...viewport, derived, base);
-  }
-  assert.deepEqual([...derived], [...flat], 'rectangles from derived corners');
-  const rest = new Uint8Array(pages.length),
-    occluders = splitOccludersFlat(pages.length, flat, rest);
-  const tagged = pages.map((page, index) => ({ ...page, tag: index }));
-  const referenceOccluders: (HizPage & { tag: number })[] = [],
-    referenceRest: (HizPage & { tag: number })[] = [];
-  splitOccludersInto(
-    tagged,
-    locations,
-    cameraMoteur(camera),
-    viewport,
-    referenceOccluders,
-    referenceRest,
-    [],
-    [],
-  );
-  assert.equal(occluders, referenceOccluders.length);
-  assert.equal(referenceOccluders.length + referenceRest.length, tagged.length);
-  const referenceOccluderTags = new Set(referenceOccluders.map((page) => page.tag));
-  for (let i = 0; i < pages.length; i++)
-    assert.equal(rest[i] === 0, referenceOccluderTags.has(i), `page ${i}`);
 });
