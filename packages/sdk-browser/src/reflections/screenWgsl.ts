@@ -48,7 +48,7 @@ fn resolvedRadiance(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{
 
 /** The rough history holds a ratio mean; a pixel that has only drawn below-horizon samples holds
  *  no weight, and leaves its whole lobe to the environment reflection, never black (#1341). */
-export const HELD_REFLECTION_WGSL = `
+const HELD_REFLECTION_WGSL = `
 @group(1) @binding(3) var roughHistory:texture_2d<f32>;
 fn heldReflection(P:vec3f)->vec4f{
  let projected=reflectionProject(vec4f(P,1.0));

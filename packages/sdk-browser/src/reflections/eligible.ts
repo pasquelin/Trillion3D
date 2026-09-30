@@ -4,13 +4,13 @@ import { MIRROR_TRANSITION_END, SCREEN_REFLECTION_CUTOFF } from './modelShader.t
 /** Every lit physical surface has a specular lobe, including a fully rough dielectric. */
 export const reflects = (surface: PageSurface) => surface.lit && (surface.model ?? 0) === 0;
 
-/** A screen-traced receiver: a specular lobe under the cutoff somewhere (#1341). A roughness map
- *  can lower any factor under it, so a mapped surface stays eligible; the shader cuts per pixel. */
-export const screenReflects = (surface: PageSurface) =>
-  reflects(surface) && (!!surface.roughnessMap || surface.roughness < SCREEN_REFLECTION_CUTOFF);
+/** The receivers with a specular lobe under `limit` somewhere: a roughness map can lower any
+ *  factor under it, so a mapped surface stays eligible and the shader cuts per pixel. */
+const reflectsUnder = (limit: number) => (surface: PageSurface) =>
+  reflects(surface) && (!!surface.roughnessMap || surface.roughness < limit);
 
-/** A mirror receiver: the surfaces the reduced-resolution resolve precomputes (#1292). A roughness
- *  map can lower any factor to the mirror range, so it stays eligible. */
-export const mirrorRange = (surface: PageSurface) =>
-  reflects(surface) &&
-  (!!surface.roughnessMap || surface.roughness < Number(MIRROR_TRANSITION_END));
+/** A screen-traced receiver: under Unreal's maximum roughness (#1341). */
+export const screenReflects = reflectsUnder(SCREEN_REFLECTION_CUTOFF);
+
+/** A mirror receiver: the surfaces the reduced-resolution resolve precomputes (#1292). */
+export const mirrorRange = reflectsUnder(Number(MIRROR_TRANSITION_END));

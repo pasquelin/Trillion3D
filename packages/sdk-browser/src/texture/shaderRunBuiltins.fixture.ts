@@ -121,14 +121,24 @@ export const builtins = {
   asin: numeric(Math.asin),
   atan: numeric(Math.atan),
   sqrt: numeric(Math.sqrt),
+  log: numeric(Math.log),
   log2: numeric(Math.log2),
   exp2: numeric((x) => 2 ** x),
   pow: numeric((x, y) => x ** y),
+  mix: numeric((a, b, t) => a + (b - a) * t),
+  smoothstep: numeric((e0, e1, x) => {
+    const t = Math.min(Math.max((x - e0) / (e1 - e0), 0), 1);
+    return t * t * (3 - 2 * t);
+  }),
   select: each((no, yes, when) => (when ? yes : no)),
   all: (v: Value) => (Array.isArray(v) ? v.every(Boolean) : !!v),
   any: (v: Value) => (Array.isArray(v) ? v.some(Boolean) : !!v),
   dot: (a: Value, b: Value) => vec(a).reduce((sum, x, i) => sum + x * vec(b)[i], 0),
   length: (v: Value) => (Array.isArray(v) ? Math.hypot(...vec(v)) : Math.abs(n(v as Scalar))),
   distance: (a: Value, b: Value) => Math.hypot(...vec(a).map((x, i) => x - vec(b)[i])),
+  reflect: (i: Value, normal: Value) => {
+    const d = 2 * vec(i).reduce((sum, x, k) => sum + x * vec(normal)[k], 0);
+    return vec(i).map((x, k) => x - d * vec(normal)[k]);
+  },
   normalize: (v: Value) => vec(v).map((x) => x / Math.hypot(...vec(v))),
 };

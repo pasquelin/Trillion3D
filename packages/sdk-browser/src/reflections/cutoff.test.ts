@@ -17,6 +17,7 @@ import { BOUNCE_LIGHTING_SHADER, DIRECT_LIGHTING_SHADER } from '../lighting/defe
 import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts';
 import { contractLighting } from '../lighting/deferred/contractLighting.fixture.ts';
 import { REFLECTION_SOURCE_PASS } from './encode.ts';
+import { IRRADIANCE_TERMS } from '../../../sdk-core/src/scene/core/irradianceBasis.ts';
 import {
   ENVIRONMENT,
   FILTERED,
@@ -72,29 +73,12 @@ test('a surface rougher than the cutoff takes the environment reflection, a poli
   assert.deepEqual(resolvedDisplay({ enabled: 0 }).at(0.2), ENVIRONMENT, 'no pass, no trace');
 });
 
-const add = (a: number[], b: number[]) => a.map((x, i) => x + b[i]);
 /** An environment brighter overhead: a constant and a `y` term (`irradianceBasis.ts`). */
 const environment = [[2, 2, 2, 0], [1, 1, 1, 0], ...Array.from({ length: 7 }, () => [0, 0, 0, 0])];
-const BUILTINS = {
-  directLights: { environment },
-  mix: (a: number[], b: number[], t: number) =>
-    add(
-      a,
-      b.map((x, i) => (x - a[i]) * t),
-    ),
-  smoothstep: (e0: number, e1: number, x: number) => {
-    const t = Math.min(Math.max((x - e0) / (e1 - e0), 0), 1);
-    return t * t * (3 - 2 * t);
-  },
-  log: Math.log,
-  reflect: (I: number[], N: number[]) => {
-    const d = 2 * I.reduce((sum, x, i) => sum + x * N[i], 0);
-    return I.map((x, i) => x - d * N[i]);
-  },
-};
+const BUILTINS = { directLights: { environment } };
 const UP = [0, 1, 0];
 /** The environment's radiance straight up, as a mirror sees it: 2·Y₀ + 1·Y₁(up). */
-const OVERHEAD = 2 * 0.2820948 + 0.4886025;
+const OVERHEAD = 2 * IRRADIANCE_TERMS[0].basis + IRRADIANCE_TERMS[1].basis;
 
 test('a missed or below-horizon sample returns the environment reflection, not black', () => {
   // The shipped direct program with its screen reflections and rough history: every trace misses,
@@ -130,7 +114,10 @@ test('a missed or below-horizon sample returns the environment reflection, not b
   for (const x of mirror) assert.ok(Math.abs(x - OVERHEAD) < 1e-3, `a missed mirror ray: ${x}`);
   for (const rough of [0.2, (3 * CUTOFF) / 4, 0.8, 1]) {
     const [r, g, b] = metal(rough);
-    assert.ok(r > 2 * 0.2820948 && r < mirror[0], `rough ${rough}: a wider lobe, never black`);
+    assert.ok(
+      r > 2 * IRRADIANCE_TERMS[0].basis && r < mirror[0],
+      `rough ${rough}: a wider lobe, never black`,
+    );
     assert.deepEqual([g, b], [r, r]);
   }
   // The bounce program before its first probe answers the same environment.
