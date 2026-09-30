@@ -117,7 +117,7 @@ export function gpuFrames(
         list = bytes(requests.buffer);
       list.fill(0);
       if (!allocation.seeded) {
-        allocation.seed(plan, data, SHADOW_TABLE_OFFSET);
+        allocation.seed(plan, data);
         plan.gpu.set(true, frame);
       }
       allocation.writeParams(frame, plan.records.generation, plan.gpu.asks, keepFrom);
