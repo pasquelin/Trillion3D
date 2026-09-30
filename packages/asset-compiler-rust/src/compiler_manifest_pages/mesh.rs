@@ -9,10 +9,21 @@ use std::{cell::RefCell, ops::Range};
 /// the run's result and its pointer carry it.
 pub(crate) const RUN_REPORT: &str = "reusedPages";
 
-/// Whether the metric `name` is what a run measured of itself — a time, its memory peak — rather
-/// than what it built: the head leaves it to the run's result and pointer (#1370).
+/// The metrics a run's settings decide — its threads, its RAM budget, the working set it admitted
+/// and the waves it cut from them — which change how fast and in how much memory it compiles,
+/// never what it writes (#1405).
+const RUN_SETTINGS: [&str; 4] = [
+    "threads",
+    "ramBudgetMb",
+    "admissionEstimatedBytes",
+    "compileWaves",
+];
+
+/// Whether the metric `name` is what a run measured of itself — a time, its memory peak (#1370),
+/// its settings (#1405) — rather than what it built: the head leaves it to the run's result and
+/// pointer.
 pub(super) fn is_run_measure(name: &str) -> bool {
-    name.ends_with("Ms") || name == "peakRssBytes"
+    name.ends_with("Ms") || name == "peakRssBytes" || RUN_SETTINGS.contains(&name)
 }
 
 /// `page` without the run's report of its primitives.
