@@ -71,7 +71,7 @@ function scene() {
     roots,
     allPages,
     bootstrap: [],
-    views: { live: { shown }, lists: () => [shown] },
+    views: { live: { shown, shownPacked: [0, 1, 2] }, lists: () => [shown] },
     byUrl: new Map([
       ['a', [a0.rec, a1.rec]],
       ['b', [b0.rec, b1.rec]],
