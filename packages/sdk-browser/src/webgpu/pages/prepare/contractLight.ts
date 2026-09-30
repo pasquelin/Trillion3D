@@ -26,6 +26,7 @@ export const litPrograms = (rt: WebgpuPagesRuntime): LitPrograms => ({
   precompile: wantsContractLighting(rt),
   bounce: rt.bounce.wanted,
   onFailure: (error) => rt.diag.diagnosticFailure('direct-lighting-program-failed', error),
+  unboundedReflections: rt.context.unboundedReflections === true,
 });
 
 /** The lit program the frame waits for (#1362): while the image wants the contract and no compiled

@@ -9,6 +9,15 @@ export const REFLECTION_HISTORY_WEIGHT = 64;
 /** The weight a history keeps while its sources or camera move: a reflection lags them by about
  *  this many samples, four a frame (`roughSamples`), never the still window's sixty-four. */
 export const REFLECTION_MOVING_WEIGHT = 16;
+/** The confidence a history keeps across a placement change it cannot follow (#33): without live
+ *  motion, a moved or newly resident source leaves its stale share at 4/5 per frame, halved in three
+ *  frames, while a moving view, which changes shadow pages and probes every frame, still averages
+ *  five samples rather than restarting from one, which flickers. */
+export const REFLECTION_CHANGE_WEIGHT = 4;
+/** Frames a changed source keeps the change weight: its stale share falls to (4/5)^24 < 1/200,
+ *  and the window's 64 samples after it dilute that below 1/2000, under a 1/255 step: a held
+ *  image keeps nothing of what a reflection showed before (#33). */
+export const REFLECTION_CHANGE_FRAMES = 24;
 export const REFLECTION_RESOLVE_VIEW_BYTES = 160;
 
 /** The depth the point drawn at `pixel` (depth `z`, identifier `id`) had on the last image, moved
@@ -32,7 +41,8 @@ fn previousDepthOf(pixel:vec2f,z:f32,id:u32)->vec2f{
  * (`reflectionPhase`): a pixel takes the four texels around it whose pixel is on
  * its receiver with its lobe, the reference's ray reuse. History follows the
  * placement motion (`params.z`) and is dropped only where its receiver, normal
- * or depth disagree; `params.y` caps its weight, `params.w` the trace seed's low bits. */
+ * or depth disagree; `params.y` caps its weight (the full window, the moving cap, or
+ * `REFLECTION_CHANGE_WEIGHT` after a change it cannot follow), `params.w` the trace seed's low bits. */
 export const REFLECTION_RESOLVE_WGSL = `
 ${FULLSCREEN_VERTEX}
 ${PAGE_INFO_STRUCT_WGSL}
