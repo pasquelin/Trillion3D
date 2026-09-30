@@ -39,18 +39,44 @@ export async function buildComputeStages<E extends string>(
   >;
 }
 
-/** A render pipeline compiled off the frame by `prepare`, or at once by `get` when nothing
- *  prepared it: a frame never compiles what prepare did. */
-export function preparedPipeline(device: GPUDevice, descriptor: GPURenderPipelineDescriptor) {
-  let made: GPURenderPipeline | undefined;
+/** A pipeline compiled off the frame by `prepare`, or at once by `get` when nothing prepared it: a
+ *  frame never compiles what prepare did. */
+function prepared<D, P>(descriptor: D, build: (d: D) => Promise<P>, create: (d: D) => P) {
+  let made: P | undefined;
   return {
     async prepare() {
       if (made) return;
-      const built = await buildRenderPipeline(device, descriptor);
+      const built = await build(descriptor);
       made ??= built;
     },
-    get: () => (made ??= device.createRenderPipeline(descriptor)),
+    get: () => (made ??= create(descriptor)),
   };
+}
+
+/** A render pipeline prepared off the frame (`prepared`). */
+export const preparedPipeline = (device: GPUDevice, descriptor: GPURenderPipelineDescriptor) =>
+  prepared(
+    descriptor,
+    (d) => buildRenderPipeline(device, d),
+    (d) => device.createRenderPipeline(d),
+  );
+
+/** A compute pipeline prepared off the frame (`prepared`). */
+export const preparedComputePipeline = (
+  device: GPUDevice,
+  descriptor: GPUComputePipelineDescriptor,
+) =>
+  prepared(
+    descriptor,
+    (d) => buildComputePipeline(device, d),
+    (d) => device.createComputePipeline(d),
+  );
+
+/** `pipeline`, its compile started now off the thread with nothing awaiting it (#1362): a use
+ *  before it lands compiles it at once (`prepared`). */
+export function started<P extends { prepare(): Promise<void> }>(pipeline: P) {
+  pipeline.prepare().catch(() => undefined);
+  return pipeline;
 }
 
 /** A fullscreen-triangle pipeline on one bind group layout or one per group, at the targets given. */

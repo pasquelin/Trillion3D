@@ -170,7 +170,7 @@ export function createWebgpuShadePipelines(
     device.createRenderPipeline(shadeDescriptor(key, false));
   const single = classes.length === 1 && !variesShade(variant);
   return scoped(device, async () => {
-    const [materialDepthPipeline, singlePipeline, ...shaded] = await Promise.all([
+    const [materialDepthPipeline, singlePipeline, shaded] = await Promise.all([
       buildRenderPipeline(device, {
         layout,
         vertex: { module: shadeModule, entryPoint: 'shade_vs' },
@@ -179,15 +179,15 @@ export function createWebgpuShadePipelines(
         depthStencil: { ...classDepth, depthWriteEnabled: true, depthCompare: 'always' },
       }),
       single ? buildRenderPipeline(device, shadeDescriptor(classes[0], true)) : undefined,
-      ...classes.map((key) => buildRenderPipeline(device, shadeDescriptor(key, false))),
+      Promise.all(classes.map((key) => buildRenderPipeline(device, shadeDescriptor(key, false)))),
     ]);
     const singleShadePipelines = new Map<number, GPURenderPipeline>();
     if (singlePipeline) singleShadePipelines.set(classes[0], singlePipeline);
     return {
       shadeBindGroupLayout,
-      materialDepthPipeline: materialDepthPipeline!,
+      materialDepthPipeline,
       shadePipelineFor,
-      shadePipelines: new Map(classes.map((key, at) => [key, shaded[at]!])),
+      shadePipelines: new Map(classes.map((key, at) => [key, shaded[at]])),
       singleShadePipelines,
     };
   });

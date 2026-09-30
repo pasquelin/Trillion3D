@@ -6,58 +6,53 @@ import { stochasticReflectionShader } from './sampleWgsl.ts';
 import { REFLECTION_RESOLVE_WGSL, reflectionResolveLayout } from './resolveWgsl.ts';
 
 /** Frozen source and final resolve are separate programs: no uniform can change between
- * two encoded passes through queue.writeBuffer before their shared submission. */
+ * two encoded passes through queue.writeBuffer before their shared submission. The four compile
+ * together, off the thread (#1362): the lit program the first image waits for is its slowest one,
+ * never their sum. */
 export async function reflectionPipelines(
   device: GPUDevice,
   shader: string,
   layout: GPUBindGroupLayout,
   bounce: boolean,
 ) {
-  const source = await createCheckedShaderModule(
-    device,
-    reflectionSource(shader),
-    'REFLECTION_SOURCE',
-  );
-  const final = await createCheckedShaderModule(
-    device,
-    withScreenReflections(shader, !bounce, true),
-    'REFLECTION_RESOLVE',
-  );
   const targets: GPUColorTargetState[] = [{ format: 'rgba16float' }];
-  const trace = await createCheckedShaderModule(
-    device,
-    stochasticReflectionShader(shader, !bounce),
-    'REFLECTION_TRACE',
-  );
-  const resolve = await createCheckedShaderModule(
-    device,
-    REFLECTION_RESOLVE_WGSL,
-    'REFLECTION_HISTORY',
-  );
   const resolveLayout = reflectionResolveLayout(device);
-  return {
-    trace: await makeFullscreenPipeline(
-      device,
-      trace,
+  // Each module is checked where its text is named: the shader sweep reads the call
+  // (`engineShaders.test.ts`).
+  const program = async (
+    module: Promise<GPUShaderModule>,
+    bind: GPUBindGroupLayout | readonly GPUBindGroupLayout[],
+    entryPoint: string,
+  ) => makeFullscreenPipeline(device, await module, bind, entryPoint, targets);
+  const [trace, resolve, source, final] = await Promise.all([
+    program(
+      createCheckedShaderModule(
+        device,
+        stochasticReflectionShader(shader, !bounce),
+        'REFLECTION_TRACE',
+      ),
       [layout, reflectionLayout(device)],
       'traceRoughReflection',
-      targets,
     ),
-    resolve: await makeFullscreenPipeline(
-      device,
-      resolve,
+    program(
+      createCheckedShaderModule(device, REFLECTION_RESOLVE_WGSL, 'REFLECTION_HISTORY'),
       resolveLayout,
       'resolveRoughReflection',
-      targets,
     ),
-    resolveLayout,
-    source: await makeFullscreenPipeline(device, source, layout, 'lightSurface', targets),
-    final: await makeFullscreenPipeline(
-      device,
-      final,
+    program(
+      createCheckedShaderModule(device, reflectionSource(shader), 'REFLECTION_SOURCE'),
+      layout,
+      'lightSurface',
+    ),
+    program(
+      createCheckedShaderModule(
+        device,
+        withScreenReflections(shader, !bounce, true),
+        'REFLECTION_RESOLVE',
+      ),
       [layout, reflectionLayout(device)],
       'lightSurface',
-      targets,
     ),
-  };
+  ]);
+  return { trace, resolve, resolveLayout, source, final };
 }

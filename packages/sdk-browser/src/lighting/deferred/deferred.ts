@@ -42,8 +42,8 @@ export async function createDeferredLighting(
   const variants = createContractVariants(device, bindings, pages, onReady, lit?.onFailure);
   // A narrow program starts its wide twin: the first frame finds either width ready. Prepare waits
   // for the one without bounce, which lights any first frame; the bounce pair lands meanwhile.
-  const litReady = lit?.precompile ? variants.precompile(false, true) : Promise.resolve();
-  if (lit?.precompile && lit.bounce) void variants.precompile(true, true);
+  const litReady = lit?.precompile ? variants.precompile(false) : Promise.resolve();
+  if (lit?.precompile && lit.bounce) void variants.precompile(true);
   try {
     const unlit = await createDeferredProgram(
       device,

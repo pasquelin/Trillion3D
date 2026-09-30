@@ -75,11 +75,11 @@ export function createContractVariants(
       compile(bounce, narrow, onFailure);
       return lending(bounce, narrow);
     },
-    /** Starts a program before any frame asks for it (a narrow one with its wide twin), settled
-     *  once both landed or failed: prepare compiles the lit program beside the others. */
-    precompile(bounce: boolean, narrow: boolean) {
-      compile(bounce, narrow);
-      const started = [variants[+narrow][+bounce].pending, variants[0][+bounce].pending];
+    /** Starts the narrow program and its wide twin before any frame asks for them, settled once
+     *  both landed or failed: prepare compiles the lit program beside the others. */
+    precompile(bounce: boolean) {
+      compile(bounce, true);
+      const started = [variants[1][+bounce].pending, variants[0][+bounce].pending];
       return Promise.all(started).then(() => {});
     },
     /** The compile a frame asking for this program must wait for: none while a ready program
