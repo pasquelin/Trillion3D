@@ -30,6 +30,8 @@ on:
       - .github/workflows/compiler.yml
   release:
     types: [published]
+  # The `Release` workflow's five compilers (#1354), which it packs from this run's artifacts.
+  workflow_call:
   workflow_dispatch:
 
 concurrency:
