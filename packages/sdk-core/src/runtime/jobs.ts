@@ -27,17 +27,18 @@ export interface JobSnapshot<T> {
   /** What went wrong. */
   error: { code: string; message: string } | null;
 }
-function disposeOwned<T>(value: T, hook?: (result: T) => void) {
+const noop = () => {};
+function disposeOwned<T>(value: T, hook: (result: T) => void) {
   try {
-    if (value && typeof value === 'object' && 'dispose' in value) {
-      const dispose = (value as { dispose: unknown }).dispose;
-      if (typeof dispose === 'function') dispose.call(value);
-    }
+    // Read once: a getter may hand out the disposer a single time, and may throw. `Object` gives
+    // `null` and the primitives a disposer-less object.
+    const dispose = (Object(value) as { dispose?: unknown }).dispose;
+    if (typeof dispose === 'function') dispose.call(value);
   } catch {
-    /* Disposal cannot change job status, including property access failures. */
+    /* Disposal cannot change job status, including a disposer that cannot be read. */
   }
   try {
-    hook?.(value);
+    hook(value);
   } catch {
     /* Host disposal hooks cannot change job status. */
   }
@@ -53,7 +54,9 @@ export function createJob<T>(
   } = {},
 ) {
   const controller = new AbortController(),
-    listeners = new Set<() => void>();
+    listeners = new Set<() => void>(),
+    // Read once: the caller may reuse or edit its options object while the job runs.
+    { signal: external, telemetry = noop, disposeResult = noop } = options;
   let snapshot: JobSnapshot<T> = {
     eventVersion: 1,
     id,
@@ -72,17 +75,17 @@ export function createJob<T>(
       }
     }
     try {
-      options.telemetry?.(snapshot);
+      telemetry(snapshot);
     } catch {
       /* Telemetry cannot turn successful work into failure. */
     }
   };
-  const relay = () => controller.abort(options.signal?.reason);
-  options.signal?.addEventListener('abort', relay, { once: true });
-  if (options.signal?.aborted) relay();
+  // Only ever listening on, or called for, the external signal.
+  const relay = () => controller.abort(external!.reason);
+  external?.addEventListener('abort', relay);
+  if (external?.aborted) relay();
   const promise = Promise.resolve().then(async () => {
-    let result: T | undefined,
-      completed = false;
+    let result: T | undefined;
     try {
       controller.signal.throwIfAborted();
       publish({ status: 'running' });
@@ -94,11 +97,11 @@ export function createJob<T>(
         },
       });
       controller.signal.throwIfAborted();
-      completed = true;
       publish({ status: 'completed', result });
       return result;
     } catch (error) {
-      if (result !== undefined && !completed) disposeOwned(result, options.disposeResult);
+      // Only work that returned and was then cancelled leaves a result nobody will receive.
+      if (result !== undefined) disposeOwned(result, disposeResult);
       const message = String(error);
       publish({
         status: controller.signal.aborted ? 'cancelled' : 'failed',
@@ -106,7 +109,7 @@ export function createJob<T>(
       });
       throw error;
     } finally {
-      options.signal?.removeEventListener('abort', relay);
+      external?.removeEventListener('abort', relay);
     }
   });
   return {

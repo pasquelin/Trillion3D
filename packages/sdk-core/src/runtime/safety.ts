@@ -42,9 +42,9 @@ export interface SafetyConfig {
   enableRatio: number;
   /** Bad samples in a row before turning off. */
   consecutiveViolations: number;
-  /** Memory ceiling. */
+  /** Memory ceiling, finite and at least 0. */
   memoryBudgetBytes?: number;
-  /** Eviction ceiling per second. */
+  /** Eviction ceiling per second, finite and at least 0. */
   maxEvictionsPerSecond?: number;
   /** Whether GPU time must be measured. */
   requireGpuTiming?: boolean;
@@ -61,7 +61,10 @@ export function createSafetyPolicy(config: SafetyConfig) {
     !Number.isFinite(config.enableRatio) ||
     config.enableRatio <= 0 ||
     !Number.isFinite(config.disableRatio) ||
-    config.enableRatio >= config.disableRatio
+    config.enableRatio >= config.disableRatio ||
+    ![config.memoryBudgetBytes, config.maxEvictionsPerSecond].every(
+      (ceiling) => ceiling === undefined || (Number.isFinite(ceiling) && ceiling >= 0),
+    )
   )
     throw new Error('INVALID_SAFETY_POLICY');
   let decision: SafetyDecision = {
@@ -74,8 +77,9 @@ export function createSafetyPolicy(config: SafetyConfig) {
     good = 0,
     bad = 0,
     lastTime = -Infinity;
+  // Each reason belongs to one state (only the benefit reason is enabled): comparing reasons is enough.
   const transition = (enabled: boolean, reason: string, now: number) => {
-    if (decision.enabled !== enabled || decision.reason !== reason)
+    if (decision.reason !== reason)
       decision = {
         tier: enabled ? 'full' : 'baseline',
         enabled,
@@ -124,14 +128,11 @@ export function createSafetyPolicy(config: SafetyConfig) {
       ];
       if (candidate.gpuMs !== null && reference.gpuMs !== null)
         ratios.push(ratio(candidate.gpuMs, reference.gpuMs));
-      const pressure =
-        config.memoryBudgetBytes !== undefined &&
-        candidate.memoryBytes !== null &&
-        candidate.memoryBytes > config.memoryBudgetBytes;
+      // No ceiling is no limit. Memory is measured whenever it has a budget (refused above); an
+      // unmeasured eviction rate counts as none, so missing evidence never fabricates thrashing.
+      const pressure = (candidate.memoryBytes ?? 0) > (config.memoryBudgetBytes ?? Infinity);
       const thrashing =
-        config.maxEvictionsPerSecond !== undefined &&
-        candidate.evictionsPerSecond !== null &&
-        candidate.evictionsPerSecond > config.maxEvictionsPerSecond;
+        (candidate.evictionsPerSecond ?? 0) > (config.maxEvictionsPerSecond ?? Infinity);
       if (pressure || thrashing) {
         good = bad = 0;
         return transition(
