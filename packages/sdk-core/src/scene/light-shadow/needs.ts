@@ -20,7 +20,7 @@ export function createShadowNeeds(table: ShadowTable, pool: ShadowPool, capacity
     rank = new Float64Array(capacity),
     order = new Int32Array(capacity);
   let count = 0;
-  // The key the GPU sorts by, over this table's entries: a raised window's reach past the ordinary.
+  // The key the GPU sorts by, over this table's entries: a raised extent's reach past the ordinary.
   const { shadowNeedKey } = pageKeyModel(NUMBERS, shadowEntrySpan(table.entries));
   const key = (n: number) => shadowNeedKey(rank[n], entry[n]);
   const coarsestFirst = (a: number, b: number) => key(a) - key(b) || a - b;

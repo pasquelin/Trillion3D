@@ -180,6 +180,5 @@ export type {
   CameraOptics,
   EngineCamera,
   OrthographicBox,
-  ViewTile,
 } from '../../sdk-browser/src/camera/engineCamera.ts';
 export { materialSide, sideOf } from '../../sdk-browser/src/scene/materialSide.ts';
