@@ -85,11 +85,14 @@ export function worldRootsPageSource(
   read: WorldRootsByteReader,
 ): WorldRootsPageSource {
   const bundles = new Map<number, Promise<WorldRootsPage[]>>();
-  const bundlePages = (bundle: number, signal?: AbortSignal) => {
+  // The bundle read is shared by every page of the bundle, so it carries no caller's signal: one
+  // caller aborting must not fail another's page (`page` checks its own signal after the read).
+  const bundlePages = (bundle: number) => {
     let known = bundles.get(bundle);
     if (!known) {
       const range = table.bundles[bundle];
-      known = read(range.offset, range.bytes, signal).then((bytes) =>
+      if (!range) return Promise.reject(new Error(`WORLD_PAGE_MISSING: bundle ${bundle}`));
+      known = read(range.offset, range.bytes).then((bytes) =>
         worldBundlePages(bytes, range.count, bundle),
       );
       // A failed read is not kept: the next request asks again, as the engine's loader retries.
@@ -114,8 +117,9 @@ export function worldRootsPageSource(
       .forEach((offset, index) => rankInBundle.set(`${bundle}:${offset}`, index));
   const page = async (address: string, signal?: AbortSignal) => {
     const { bundle, offset } = worldRootsPageLocation(address),
-      pages = await bundlePages(bundle, signal),
+      pages = await bundlePages(bundle),
       index = rankInBundle.get(`${bundle}:${offset}`) ?? -1;
+    signal?.throwIfAborted();
     if (index < 0 || index >= pages.length) throw new Error(`WORLD_PAGE_MISSING: ${address}`);
     return pages[index];
   };
