@@ -21,6 +21,10 @@ export function prepareDeformationGeometry(rt: WebgpuPagesRuntime, device: GPUDe
       vis.geometryBlocks,
       vis.deformation,
       blendState.blendGpu,
+      (growth) => {
+        Object.assign(vis, growth);
+        rt.run.gate.resourcesChanged();
+      },
     ),
   );
 }
