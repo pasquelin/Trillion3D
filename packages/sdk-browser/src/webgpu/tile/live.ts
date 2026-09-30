@@ -1,17 +1,9 @@
 import type { WebgpuTileAtlas } from './atlas.ts';
 import type { TileTexture } from './tileTexture.ts';
 import { levelSize } from '../../texture/tiles.ts';
-import { pictureSize } from '../../texture/pictureSize.ts';
-import { textureRgba } from '../../visibility/types.ts';
-import type { Texture } from '../../../../sdk-core/src/index.ts';
+import { sourceSize } from '../../texture/pictureSize.ts';
 import { tailSlotOf, tileKeyOf } from './ids.ts';
 import { copyTailFromTexture, copyTileFromTexture, tileRegion } from './write.ts';
-
-/** The size of a texture's texels: its bytes in memory, else its picture's. */
-export function sourceSize(map: Texture): [number, number] {
-  const rgba = textureRgba(map);
-  return rgba ? [rgba.width, rgba.height] : pictureSize(map.image);
-}
 
 /** True when a texture's source still has the size its tiles were laid out at; a cooked chain,
  *  read from the cache, always has. */
