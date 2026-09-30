@@ -6,9 +6,16 @@ import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.
 import type { PageRec as EngineRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
 import type { MatrixElements } from '../../../packages/sdk-browser/src/math/matrixElements.ts';
 
-/** A record as the oracle read it, before #1226: with the world of the root that places it. */
-type PageRec = EngineRec & { matrix: MatrixElements };
+/** A record as the oracle read it, before #1226 and #1234: the world of its root and the
+ *  per-instance draw state the engine kept on the record then. */
+type PageRec = EngineRec & {
+  matrix: MatrixElements;
+  geometry?: Geometry;
+  mesh?: HostMesh;
+  attached: boolean;
+};
 import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts';
+import type { HostMesh } from '../../../packages/sdk-browser/src/host/resources.ts';
 
 /**
  * `packages/sdk-browser/src/backend/autonomous/geometry.ts` before batch G: `attach` and `detach` held no set, and
