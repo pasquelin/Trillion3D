@@ -5,24 +5,12 @@
 // property — every reaching light present, in increasing rank order — is checked on random cases.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
-import { shaderFunctions } from '../../texture/shaderRule.fixture.ts';
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
-import { clusterSliceIndexWgsl, CLUSTER_SLICES } from './clusterWgsl.ts';
-
-type Map = {
-  clusterSliceIndex: (d: number, front: number, back: number) => number;
-  clusterSliceSpan: (d: number, r: number, front: number, back: number) => { x: number; y: number };
-};
-const mapping = (): Map =>
-  shaderFunctions<Map>(clusterSliceIndexWgsl, ['clusterSliceIndex', 'clusterSliceSpan'], {
-    CLUSTER_SLICES,
-    log: Math.log,
-    floor: Math.floor,
-  });
+import { clusterBinsWgsl, CLUSTER_SLICES } from './clusterWgsl.ts';
+import { sliceMap, type SliceMap } from './clusterSlices.fixture.ts';
 
 test('the shipped slice mapping is bounded, monotone and log-spaced on the tile range', () => {
-  const { clusterSliceIndex } = mapping();
+  const { clusterSliceIndex } = sliceMap();
   const [front, back] = [0.5, 500];
   assert.equal(clusterSliceIndex(front, front, back), 0, 'the tile front is the first slice');
   assert.equal(clusterSliceIndex(back, front, back), CLUSTER_SLICES - 1, 'its back the last');
@@ -43,7 +31,7 @@ test('the shipped slice mapping is bounded, monotone and log-spaced on the tile 
 
 /** The slice of an axis distance, and the span of a sphere on it, as the shader computes them. */
 const bin = (
-  map: Map,
+  map: SliceMap,
   lights: { axis: number; radius: number; rank: number }[],
   front: number,
   back: number,
@@ -59,7 +47,7 @@ const bin = (
     }));
 
 test('every light that reaches a pixel is in its cluster, in increasing rank order', () => {
-  const map = mapping();
+  const map = sliceMap();
   for (let seed = 1; seed <= 300; seed++) {
     const r = random(seed);
     const [front, back] = [0.2 + r() * 2, 20 + r() * 400];
@@ -91,7 +79,17 @@ test('every light that reaches a pixel is in its cluster, in increasing rank ord
   }
 });
 
-test('the slices are the published setting, and the resolve reads the flag once', () => {
-  assert.equal(CLUSTER_SLICES, LIGHT_SETTINGS.clusterSlices);
+test('each tile bins into its own pool room, names a full pool, and reads the list after it lands', () => {
   assert.ok(CLUSTER_SLICES >= 2 && CLUSTER_SLICES <= 64, 'a usable slice count');
+  // The descriptors start at the room the tile's atomic add returned, never at the pool's start
+  // for every tile, which would write all tiles' bins over one another.
+  assert.match(clusterBinsWgsl, /clusterFirst=pool\.start\+at;/);
+  assert.match(clusterBinsWgsl, /TILE_CLUSTER_BASE\+2u\*s\]=clusterFirst\+sliceStart\[s\]/);
+  // A pool too small for the bins raises the overflow, so the next frame grows it.
+  assert.match(clusterBinsWgsl, /else\{atomicStore\(&pool\.overflow,1u\);\}/);
+  // The compaction's storage writes are visible before any lane reads the list back.
+  assert.match(
+    clusterBinsWgsl,
+    /workgroupUniformLoad\(&counted\)\.x;\s*(\/\/[^\n]*\n\s*)*storageBarrier\(\);/,
+  );
 });
