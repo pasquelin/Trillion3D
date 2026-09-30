@@ -27,6 +27,31 @@ test('the world axes land on their places of the plane and decode back from the 
   }
 });
 
+test('the plane point depends on the direction alone, and the equator lies on the upper face', () => {
+  for (const hemi of [false, true])
+    for (const direction of [
+      [1, -1, 0],
+      [-3, -2, 5],
+      [2, 1, -1],
+    ])
+      for (const scale of [2 ** -1000, 2 ** 1000])
+        assert.deepEqual(
+          octEncode(
+            direction.map((value) => value * scale),
+            hemi,
+          ),
+          octEncode(direction, hemi),
+          `${direction} × ${scale} hemi ${hemi}`,
+        );
+  // The fold of the lower face would round these equator points otherwise than the upper face.
+  for (const [x, z] of [
+    [1, 2],
+    [-3, 1],
+    [-1.9, 0.9],
+  ])
+    assert.deepEqual(octEncode([x, 0, z], false), octEncode([x, 1e-300, z], false), `${x}, ${z}`);
+});
+
 test('the upper hemi-octahedron folds a direction below the horizon onto it', () => {
   for (const [x, z] of [
     [1, 1],
