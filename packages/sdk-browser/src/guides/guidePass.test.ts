@@ -14,6 +14,10 @@ import {
   guidesMoved,
   guidesShown,
 } from '../webgpu/pages/render/encodeGuides.ts';
+import { families } from '../host/families.ts';
+
+// The guides' code, which a frame that draws them waits for (`familyUse.ts`), arrived.
+await families.guides.load();
 
 /** The kit's recording device, and an encoder whose render passes record what they are asked. */
 function recorder() {

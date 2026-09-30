@@ -4,6 +4,7 @@ import { createExplorerCaptureView } from '../capture/view.ts';
 import { createExplorerHostState } from './hostState.ts';
 import { createExplorerHostFrame } from './hostFrame.ts';
 import { createExplorerLifecycle } from '../session/lifecycle.ts';
+import { frameWaits } from '../session/familyUse.ts';
 import type { ExplorerResources, prepareExplorer } from '../session/prepare.ts';
 import type { ExplorerSession } from '../session/session.ts';
 
@@ -91,7 +92,13 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     backends,
     canvas,
     render,
+    /** The families the next frame draws with still on their way, `undefined` once none is: a
+     *  frame that waits is not drawn (`familyUse.ts`). */
+    familiesPending: () => frameWaits(options, state.diagnostic),
     async pendingFrame() {
+      // A frame that waited for a family is drawn once it has arrived.
+      const families = frameWaits(options, state.diagnostic);
+      if (families) return families.then(() => !state.disposed);
       const loading = streaming.promise;
       await loading;
       if (state.disposed) return false;

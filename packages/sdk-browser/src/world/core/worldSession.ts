@@ -2,6 +2,7 @@ import type { MeasuredWorld } from '../session/explorer.ts';
 import type { FrameMetrics, JobProgress } from '../../../../sdk-core/src/index.ts';
 import type { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts';
 import type { World } from './world.ts';
+import { families } from '../../host/families.ts';
 export type { JobProgress };
 
 /** What the families that read a world's engine reach it by, without the page holding it. */
@@ -29,6 +30,7 @@ export function attachParticles(world: World, pool: ParticlePool) {
   const pools = worlds.get(world)?.particles;
   if (!pools || pools.includes(pool)) throw new Error('PARTICLES_ATTACH: attached, or no world');
   pools.push(pool);
+  families.particles.get(); // started now: the next frame, which draws the pool, waits for it
   const stops = [
     world.beforeFrame(({ delta }) => pool.advance(delta)),
     world.onFrame(() => pool.moving && world.invalidate()), // after every hook's emission
