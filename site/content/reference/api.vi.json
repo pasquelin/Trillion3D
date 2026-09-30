@@ -538,7 +538,8 @@
       "worstStalls": "Bảng tắc nghẽn của trình biên dịch: tối đa mười primitive có một nhóm bị tắc giữ lại gốc ở cấp 0, tệ nhất trước. Không có trong bộ nhớ đệm biên dịch trước nó.",
       "texturePreviews": "Một mục cho mỗi cặp (kết cấu, atlas) đã giải mã, sắp theo kết cấu rồi theo atlas; rỗng nếu không có ảnh nào giải mã được.",
       "textures": "Mẫu cho các mức đã nướng sẵn, tương đối so với tệp kê khai: {sha} là mã băm ảnh nguồn, {kind} là tên atlas (PREVIEW_ATLAS_NAMES), {level} là thứ hạng mức. Không có trong bộ nhớ đệm được biên dịch trước khi có tính năng nướng mức, mà trình đọc này từ chối qua phiên bản tệp phụ. `version` là phiên bản của các mức (`TEXTURE_PREVIEW_VERSION`): bộ đọc không đọc mức nào của phiên bản khác.",
-      "proxy": "Nơi để đọc proxy cảnh đang lưu trú và BVH của nó: hình học bị các tia va vào. Không có trong bộ nhớ đệm được biên dịch trước khi có tính năng dội lại, vẫn đọc được nguyên trạng."
+      "proxy": "Nơi để đọc proxy cảnh đang lưu trú và BVH của nó: hình học bị các tia va vào. Không có trong bộ nhớ đệm được biên dịch trước khi có tính năng dội lại, vẫn đọc được nguyên trạng.",
+      "impostors": "Tập bản đồ impostor được trình biên dịch nướng theo từng lưới (#817); không có trong bộ nhớ đệm biên dịch trước impostor."
     }
   },
   "ClusterStructure": {
@@ -1169,6 +1170,9 @@
       "gpuDeformationMs": "Thời gian biến dạng GPU của khung hình `gpuPassMs`; null trước khi đo hoặc khi không hỗ trợ."
     }
   },
+  "FramePass": {
+    "summary": "Đặt tên cho các lượt của khung hình đang được vẽ; mỗi lần gọi đóng lượt trước và mở lượt kế tiếp."
+  },
   "Frustum": {
     "summary": "Sáu mặt phẳng, được đọc từ một view-projection bởi lõi (`math/frustum/frustum.ts`).",
     "members": {
@@ -1489,7 +1493,8 @@
       "width": "Chiều rộng tính bằng điểm ảnh.",
       "height": "Chiều cao tính bằng điểm ảnh.",
       "displayWidth": "Chiều rộng mà ảnh được hiển thị khi nó được vẽ nhỏ hơn (`world.renderScale`): các mức texture và độ rộng đường theo tỉ lệ đó. `width` khi không có.",
-      "linear": "Độ rọi tuyến tính, không qua đường cong, không mã hóa, trên nền đen trong suốt: đầu vào của chuỗi hiệu ứng, có alpha là độ phủ."
+      "linear": "Độ rọi tuyến tính, không qua đường cong, không mã hóa, trên nền đen trong suốt: đầu vào của chuỗi hiệu ứng, có alpha là độ phủ.",
+      "pass": "Đặt tên cho các lượt GPU của lần vẽ này cho bộ đếm khung hình, theo thứ tự, khi có thứ đang đọc (`../core/frameTimer.ts`); vắng mặt ở lần vẽ mà không gì đo nó."
     }
   },
   "HostMaterial": {
@@ -3269,6 +3274,13 @@
   "ScreenErrorVariant": {
     "summary": "Cách sai số màn hình của một cụm được đo: cận đã được chứng minh, hoặc công thức tham chiếu."
   },
+  "ShadowAsks": {
+    "summary": "Các mục mà máy chủ yêu cầu trình cấp phát GPU, bên cạnh điều các điểm ảnh yêu cầu (`floors`).",
+    "members": {
+      "entries": "Các mục được yêu cầu, nhiều nhất là `count` mục đầu tiên.",
+      "count": "Có bao nhiêu mục trong `entries` đã được điền."
+    }
+  },
   "ShadowAtlasDigest": {
     "summary": "Những gì một lần đọc atlas bóng đổ công bố: kích thước của nó, những gì được ghi ở đó, dấu vân tay của nó.",
     "members": {
@@ -3424,6 +3436,7 @@
       "texturePreviews": "Một mục cho mỗi cặp (kết cấu, atlas) đã giải mã, sắp theo kết cấu rồi theo atlas; rỗng nếu không có ảnh nào giải mã được.",
       "textures": "Mẫu cho các mức đã nướng sẵn, tương đối so với tệp kê khai: {sha} là mã băm ảnh nguồn, {kind} là tên atlas (PREVIEW_ATLAS_NAMES), {level} là thứ hạng mức. Vắng mặt khỏi bộ nhớ đệm được biên dịch trước khi có tính năng nướng mức, mà trình đọc này từ chối qua phiên bản tệp phụ. `version` là phiên bản của các mức (`TEXTURE_PREVIEW_VERSION`): bộ đọc không đọc mức nào của phiên bản khác.",
       "proxy": "Nơi để đọc proxy cảnh đang lưu trú và BVH của nó: hình học bị các tia va vào. Vắng mặt khỏi bộ nhớ đệm được biên dịch trước khi có tính năng dội lại, vẫn đọc được nguyên trạng.",
+      "impostors": "Tập bản đồ impostor được trình biên dịch nướng theo từng lưới (#817); không có trong bộ nhớ đệm biên dịch trước impostor.",
       "binary": "Tệp nhị phân.",
       "primitives": "Các nguyên thủy của nó.",
       "worstStalls": "Bảng tắc nghẽn của trình biên dịch: tối đa mười primitive có một nhóm bị tắc giữ lại gốc ở cấp 0, tệ nhất trước. Không có trong bộ nhớ đệm biên dịch trước nó."
@@ -3877,6 +3890,7 @@
       "atlas": "Atlas nào.",
       "level": "Mức nào.",
       "format": "Định dạng nào.",
+      "url": "Địa chỉ riêng của cấp độ, khi bộ nhớ đệm liệt kê một địa chỉ — một cấp độ tập bản đồ impostor (`maps.<name>.levels[k].url`, #1239). Được đọc qua chính trình đọc này, phân giải so với `base`, thay cho mẫu `textures.url`: một trình tải, một ngân sách.",
       "range": "Các byte của một mức dạng khối được đọc riêng — bản ghi của một ô (`tileRecords.ts`) —, bằng một yêu cầu HTTP Range; máy chủ bỏ qua nó sẽ trả về toàn bộ tệp."
     }
   },
@@ -7628,6 +7642,17 @@
   "SHADOW_RECORD_FLOATS": {
     "summary": "Các số float của một bản ghi bóng, bản mà phần đổ bóng của một nguồn sáng đọc: sáu ma trận mặt đèn — ở đó là các dải độ sâu của mặt trời, mỗi dải `zNear, zFar` (`recordPack.ts`) —, rồi khung mặt phẳng ánh sáng của mặt trời — `right, zNear`, `up, zFar`, `axis`, rồi ô của dải hiện tại —, rồi gốc cửa sổ của mỗi ô clipmap dưới dạng hai số nguyên, rồi một phần đầu `vec4f`: các mặt (đèn) hoặc các mức (mặt trời), nửa trường tiếp tuyến của đèn hoặc mức mịn nhất của mặt trời, mặt phẳng gần của đèn, và mục đầu tiên của bản ghi trong bảng trang."
   },
+  "ShadowPoolSnapshot": {
+    "summary": "Bể của trình cấp phát GPU sau khi cấp phát một khung hình (`webgpu/shadow/allocWgsl.ts`).",
+    "members": {
+      "owner": "Mục mà mỗi trang vật lý ánh xạ, −1 cho một trang trống.",
+      "requested": "Khung hình mà mỗi trang được yêu cầu lần cuối.",
+      "allocated": "Các trang mà khung hình đó ánh xạ, và các mục mà nó không có trang.",
+      "refused": "Các mục mà khung hình đó không có trang.",
+      "drawn": "Các trang mà khung hình đó liệt kê để GPU vẽ (`listDraw`).",
+      "listings": "Các trang mà mọi khung hình liệt kê kể từ khi khởi tạo bể: thay đổi cùng danh sách của bất kỳ khung hình nào, dù ảnh chụp của chính nó có mất hay không."
+    }
+  },
   "ShadowRequestReport": {
     "summary": "Những gì phép tô bóng đã đọc trong một khung: các mục bảng nó yêu cầu, không theo thứ tự.",
     "members": {
@@ -8104,5 +8129,162 @@
       "nodeName": "`name` của nút cần di chuyển.",
       "matrix": "Tư thế thế giới của nó, mười sáu số thực theo thứ tự cột."
     }
+  },
+  "IMPOSTOR_PI": {
+    "summary": "π, một literal duy nhất cho oracle này và bản sao WGSL, để cả hai làm tròn cùng một số."
+  },
+  "IMPOSTOR_VERSION": {
+    "summary": "Định dạng của phần `impostors` mà runtime đọc (#817 phần 1, do trình biên dịch nướng)."
+  },
+  "ImpostorCard": {
+    "summary": "Một thẻ hướng về camera mà runtime vẽ thay cho các cụm của một gốc đã chuyển đổi.",
+    "members": {
+      "root": "Thứ hạng của gốc mà nó thay thế trong `roots` của kế hoạch.",
+      "mesh": "Số mesh đã biên dịch của nó.",
+      "world": "Ma trận thế giới của gốc, như được cấp.",
+      "centre": "Điểm xoay trong không gian thế giới, tâm của hình cầu bao dưới thế giới của gốc.",
+      "radius": "Bán kính trong không gian thế giới `R = objectRadius × tỉ lệ thế giới của gốc`.",
+      "frames": "Số khung hình mỗi cạnh.",
+      "hemi": "Các khung hình có phải bán bát diện trên không.",
+      "maps": "Ba bản đồ mà thẻ lấy mẫu: màu+độ phủ, pháp tuyến+độ sâu, ORM đóng gói."
+    }
+  },
+  "ImpostorLevel": {
+    "summary": "Một mức được lưu của một bản đồ atlas: một đối tượng PNG không mất dữ liệu, mỗi địa chỉ nội dung một cái.",
+    "members": {
+      "url": "Nơi đọc các byte của mức.",
+      "sha256": "Dấu vân tay các byte của nó.",
+      "bytes": "Kích thước của nó.",
+      "width": "Chiều rộng tính bằng texel.",
+      "height": "Chiều cao tính bằng texel."
+    }
+  },
+  "ImpostorMap": {
+    "summary": "Một bản đồ của atlas và chuỗi mip của nó, mức 0 trước.",
+    "members": {
+      "kind": "`coverage` cho chuỗi màu, `data` cho các chuỗi khác.",
+      "levels": "Mọi mức mà quá trình nướng giữ lại."
+    }
+  },
+  "ImpostorMaps": {
+    "summary": "Ba bản đồ mà thẻ lấy mẫu: màu và độ phủ, pháp tuyến và độ sâu, ORM đóng gói.",
+    "members": {
+      "colourCoverage": "Màu cơ sở (sRGB) và độ phủ trong alpha.",
+      "normalDepth": "Pháp tuyến đối tượng dưới dạng `n·½+½` và độ sâu `D` trong alpha.",
+      "orm": "Che khuất, độ nhám và kim loại."
+    }
+  },
+  "ImpostorMesh": {
+    "summary": "Phán quyết của trình biên dịch về một mesh được vẽ: đã nướng, cùng atlas của nó, hoặc bị từ chối, kèm lý do.",
+    "members": {
+      "mesh": "Số mesh đã biên dịch của nó.",
+      "sourceMesh": "Số mesh nguồn của nó.",
+      "name": "Tên của nó.",
+      "placements": "Bao nhiêu node đặt nó.",
+      "masked": "Liệu một vật liệu của mesh có cắt độ phủ của nó thành mặt nạ không.",
+      "rootTriangles": "Tam giác của gốc DAG, cộng dồn trên các nguyên thủy của mesh.",
+      "radius": "Bán kính bao của nó theo đơn vị thế giới (bán kính đối tượng nhân tỉ lệ đặt lớn nhất).",
+      "status": "`baked` hoặc `refused`.",
+      "coverage": "Độ phủ trung bình của các khung hình, trên mục `baked`: `c` của chuyển đổi.",
+      "hemi": "Các khung hình có phải bán bát diện trên không.",
+      "frames": "Số khung hình mỗi cạnh.",
+      "frameSide": "Cạnh khung hình tính bằng texel: `r_f` của chuyển đổi.",
+      "atlasSide": "Cạnh atlas tính bằng texel (`frames · frameSide`).",
+      "centre": "Điểm xoay trong không gian đối tượng, tâm của hình cầu bao.",
+      "objectRadius": "Bán kính bao trong không gian đối tượng, trước tỉ lệ đặt.",
+      "bytes": "Số byte của mọi mức được lưu.",
+      "maps": "Ba bản đồ, trên mục `baked`.",
+      "switchDepth": "Các khoảng cách tham chiếu đã nướng.",
+      "reason": "Vì sao một mesh bị từ chối: mã của nó.",
+      "detail": "Một câu nêu các con số đã quyết định việc từ chối."
+    }
+  },
+  "ImpostorPlan": {
+    "summary": "Phán quyết của việc chuyển đổi: các thẻ cần vẽ, và những gốc mà nó loại bỏ cụm.",
+    "members": {
+      "cards": "Một thẻ cho mỗi gốc đã chuyển đổi, theo thứ tự gốc.",
+      "switched": "Thứ hạng gốc mà việc chuyển đổi loại bỏ: 1 tại gốc đã chuyển, 0 ở nơi khác."
+    }
+  },
+  "ImpostorRoot": {
+    "summary": "Điều kế hoạch cần ở một gốc: số mesh đã biên dịch và ma trận thế giới đặt nó.",
+    "members": {
+      "mesh": "Số mesh đã biên dịch (`Primitive.mesh`); không có trên gốc mà không impostor nào được thay thế.",
+      "world": "Ma trận thế giới của vị trí đặt, theo cột (`MatrixElements`)."
+    }
+  },
+  "ImpostorSection": {
+    "summary": "Phần `impostors` của tệp kê khai: phán quyết của trình biên dịch về mọi mesh được vẽ.",
+    "members": {
+      "version": "Phiên bản định dạng.",
+      "frames": "Số khung hình mỗi cạnh mà mọi atlas của phần này được nướng.",
+      "focalPixels": "Tiêu cự tính bằng pixel mà quá trình nướng dùng để xét khoảng cách.",
+      "textureLimit": "Cạnh atlas lớn nhất mà bất kỳ thẻ nào giữ.",
+      "baked": "Bao nhiêu mesh đã được nướng.",
+      "refused": "Bao nhiêu cái bị từ chối.",
+      "meshes": "Phán quyết của mọi mesh, theo thứ tự nguồn."
+    }
+  },
+  "ImpostorSwitchDepth": {
+    "summary": "Hai khoảng cách tham chiếu đã nướng, tính bằng mét tại `focalPixels` của tệp kê khai (#817).",
+    "members": {
+      "texel": "`z_tex`: từ đây khung hình tối đa một texel mỗi pixel.",
+      "triangles": "`z_tri`: từ đây gốc vượt quá số pixel mà nó bao phủ."
+    }
+  },
+  "ImpostorSwitchInput": {
+    "summary": "Bốn con số đã nướng mà việc chuyển đổi đọc, cộng với tỉ lệ đặt.",
+    "members": {
+      "objectRadius": "Bán kính bao trong không gian đối tượng `objectRadius`.",
+      "rootTriangles": "Tam giác của gốc DAG `T`.",
+      "coverage": "Độ phủ trung bình đã nướng `c`.",
+      "frameSide": "Cạnh khung hình tính bằng texel `r_f`.",
+      "maxWorldScale": "Tỉ lệ thế giới lớn nhất trong các vị trí đặt của mesh; bằng một khi chưa biết."
+    }
+  },
+  "assertImpostorSection": {
+    "summary": "Ném lỗi từ chối bộ nhớ đệm có tên mà phần này mang, hoặc trả lại nó nguyên vẹn."
+  },
+  "cellWeights": {
+    "summary": "Ba khung hình mà một khung nhìn tại vị trí lưới `g` pha trộn, và trọng số trọng tâm của chúng."
+  },
+  "drawsImpostor": {
+    "summary": "Impostor có vẽ tại `viewDepth`, độ sâu khung nhìn của điểm xoay tính bằng mét, hay không."
+  },
+  "impostorBakedByMesh": {
+    "summary": "Các mesh đã nướng của phần này, khóa theo số mesh đã biên dịch; các mục bị từ chối bị bỏ ra ngoài."
+  },
+  "impostorMeshBaked": {
+    "summary": "Liệu một mục mesh có mang atlas vẽ được không: `baked` với ba bản đồ và một cạnh khung hình."
+  },
+  "impostorRadius": {
+    "summary": "`R`: bán kính trong không gian đối tượng tại tỉ lệ thế giới lớn nhất mà một vị trí đặt của mesh mang lại."
+  },
+  "impostorSwitchDepth": {
+    "summary": "`z_s = max(z_tex, z_tri)` tính bằng mét cho tiêu cự `focalPixels` của runtime."
+  },
+  "impostorSwitchOf": {
+    "summary": "Đầu vào chuyển đổi mà một mục kê khai đã nướng mang, hoặc `undefined` khi mục đó bị từ chối hoặc thiếu một trong bốn con số.",
+    "description": "Một đối tượng chỉ đủ điều kiện khi mesh của nó có mục `baked`."
+  },
+  "impostorTexelDepth": {
+    "summary": "`z_tex`: độ sâu mà từ đó một khung hình `frameSide` texel là tối đa một texel mỗi pixel."
+  },
+  "impostorTriangleDepth": {
+    "summary": "`z_tri`: độ sâu mà từ đó `rootTriangles` của gốc vượt quá số pixel mà nó bao phủ."
+  },
+  "octDecode": {
+    "summary": "Tọa độ lưới `f ∈ [0, 1]²` trở lại thành hướng đơn vị, phép nghịch của `octEncode`."
+  },
+  "octEncode": {
+    "summary": "Hướng `d` lên mặt phẳng `[-1, 1]²`: bát diện đầy đủ, hoặc bán bát diện trên."
+  },
+  "planImpostors": {
+    "summary": "Lập kế hoạch tầng impostor cho một khung nhìn: mọi gốc có mesh mang mục đã nướng và chuyển đổi của nó còn hiệu lực sẽ tạo một thẻ và được đánh dấu là bị loại bỏ.",
+    "description": "`view` ánh xạ thế giới sang không gian khung nhìn (theo cột) và `focalPixels` là tiêu cự duy nhất của bộ máy tính bằng pixel tại khung nhìn của hình ảnh."
+  },
+  "validateImpostorSection": {
+    "summary": "Một lý do ngắn khiến phần này không dùng được, hoặc `null`.",
+    "description": "Phần vắng mặt không phải lỗi: bộ nhớ đệm trước nó vẽ mọi mesh đầy đủ, như trước. Phần hiện diện bị từ chối toàn bộ khi phiên bản của nó chưa biết hoặc một mục `baked` thiếu các con số mà chuyển đổi và thẻ của nó cần."
   }
 }

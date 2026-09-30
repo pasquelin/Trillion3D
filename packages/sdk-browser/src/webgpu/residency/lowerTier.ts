@@ -60,15 +60,11 @@ export function createLowerTier(options: {
       begin();
       closeOver(requested, push, full);
     },
-    /** The CPU light cuts' wanted pages, one list per redrawn face. */
-    offerPages(lists: ReadonlyArray<readonly PageRec[]>, count: number) {
+    /** The CPU light cuts' wanted pages as packed ranks, one list per redrawn face (`cpuCasters.ts`). */
+    offerPages(lists: ReadonlyArray<readonly number[]>, count: number) {
       begin();
       ids.length = 0;
-      for (let run = 0; run < count; run++)
-        for (const rec of lists[run]) {
-          const id = rec.packedIndex ?? -1;
-          if (id >= 0) ids.push(id);
-        }
+      for (let run = 0; run < count; run++) for (const id of lists[run]) if (id >= 0) ids.push(id);
       closeOver(ids, push, full);
     },
   };

@@ -2,6 +2,7 @@ import type { PageRec } from '../../page/selection/selection.ts';
 import type { GpuSelection } from '../../gpu/core/selection.ts';
 import type { createGpuPageCache } from '../../gpu/page/pages.ts';
 import { pageAddress } from '../row/pageSlots.ts';
+import { createPageCatalogue } from '../pages/prepare/catalogue.ts';
 
 type Cache = Pick<ReturnType<typeof createGpuPageCache>, 'evictInOrder'>;
 
@@ -16,7 +17,8 @@ export function createEvictionFeed(
 ) {
   let last: unknown,
     ids = new Int32Array(0);
-  const order = { count: 0, keyAt: (at: number) => pageAddress(packedPages[ids[at]]) };
+  const { recordOf } = createPageCatalogue(packedPages);
+  const order = { count: 0, keyAt: (at: number) => pageAddress(recordOf(ids[at])!) };
   return (selection: GpuSelection | null) => {
     const cache = getCache();
     if (!cache) return;
