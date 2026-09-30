@@ -114,3 +114,19 @@ test('a bundle of several pages resolves the one its offset names (#1238)', asyn
   assert.deepEqual([...atLow.positions], [0, 0, 0, 1, 0, 0, 0, 1, 0]);
   assert.deepEqual([...atHigh.positions], [2, 0, 0, 3, 0, 0, 2, 1, 0]);
 });
+
+test('one caller aborting leaves the shared bundle read to the others; no bundle, no page (#1238)', async () => {
+  const source = worldRootsPageFixtureSource(),
+    address = worldRootsPageAddress('world-roots.bin', 1, 0),
+    aborted = AbortSignal.abort();
+  const [cancelled, kept] = await Promise.allSettled([
+    source.page(address, aborted),
+    source.page(address),
+  ]);
+  assert.equal(cancelled.status, 'rejected', 'the aborted caller is refused');
+  assert.equal(kept.status, 'fulfilled', 'the other caller of the same bundle gets its page');
+  await assert.rejects(
+    source.page(worldRootsPageAddress('world-roots.bin', 99, 0)),
+    /WORLD_PAGE_MISSING/,
+  );
+});
