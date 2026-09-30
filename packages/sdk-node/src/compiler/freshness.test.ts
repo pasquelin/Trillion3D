@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, rm, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { currentCompilerExecutable } from './process.mts';
+import { currentCompilerExecutable } from './executable.mts';
 import { sourceNewerThan } from './freshness.mts';
 
 const binaryName = `trillion3d-compiler${process.platform === 'win32' ? '.exe' : ''}`;

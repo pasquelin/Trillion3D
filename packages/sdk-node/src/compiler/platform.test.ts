@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from 'node
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { currentCompilerExecutable, resolveCompilerExecutable } from './process.mts';
+import { currentCompilerExecutable, resolveCompilerExecutable } from './executable.mts';
 import {
   COMPILER_PLATFORMS,
   compilerPackage,

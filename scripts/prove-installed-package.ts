@@ -11,7 +11,7 @@ import {
 } from './installed-package-bundle.ts';
 import { compileInstalledScene, type CompiledScene } from './installed-package-scene.ts';
 import { packPlatformPackages } from './installed-package-platforms.ts';
-import { currentCompilerExecutable } from '../packages/sdk-node/src/compiler/process.mts';
+import { currentCompilerExecutable } from '../packages/sdk-node/src/compiler/executable.mts';
 import { proveInstalledRuntime } from './installed-package-runtime.ts';
 import { proveInstalledTypes } from './installed-package-types.ts';
 import {
