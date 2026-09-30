@@ -20,8 +20,7 @@ const SUPPORT = 3,
 
 /** How far an interval may stray from a whole number of `period`s, a timer rounded to
  *  `resolution` ms. */
-const slack = (period: number, resolution: number) =>
-  Math.max(GRID_TOLERANCE * period, resolution);
+const slack = (period: number, resolution: number) => Math.max(GRID_TOLERANCE * period, resolution);
 
 /**
  * The period the ascending `gaps` hold, near `period`: where nine in ten of them are a whole
