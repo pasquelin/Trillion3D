@@ -21,7 +21,8 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { createWebgpuLightState } from '../../webgpu/pages/state/lights.ts';
 import { followShadowTable, growShadowTable } from '../../webgpu/shadow/shadowTableGrowth.ts';
 import type { WebgpuPagesRuntime } from '../../webgpu/pages/runtime.ts';
-import { createGpuShadowAtlas, SHADOW_TABLE_OFFSET } from './atlas.ts';
+import { createGpuShadowAtlas } from './atlas.ts';
+import { SHADOW_TABLE_OFFSET } from './shadowData.fixture.ts';
 
 const STRIDE = shadowTableStride(SUN_WINDOW);
 const plan = (lights: ReturnType<typeof createWebgpuLightState>) =>

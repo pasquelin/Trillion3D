@@ -91,13 +91,14 @@ export function createMovingGroupDraws(device: GPUDevice, held: MovingGroupsHeld
     const { passOf, bitsOf } = held,
       scale = side < DEPTH ? 1 : 2,
       texels = rt.lights.plan.pool.side * SHADOW_PAGE,
+      sunBlock = groupBlockSide(texels),
       offset = side === CUTOUT ? DRAW_INDIRECT_STRIDE : 0;
     let drawn = 0,
       bound: GPURenderPipeline | undefined;
     for (let g = 0; g < held.groups; g++) {
       if (passOf[g] !== k) continue;
       const bits = bitsOf[g],
-        block = bits & GROUP_LAYER ? texels : groupBlockSide(texels),
+        block = bits & GROUP_LAYER ? texels : sunBlock,
         x = (bits & 1 ? texels - block : 0) / scale,
         y = (bits & 2 ? texels - block : 0) / scale,
         pipeline = pipelineOf(rt, side, !!(bits & GROUP_LAYER));
