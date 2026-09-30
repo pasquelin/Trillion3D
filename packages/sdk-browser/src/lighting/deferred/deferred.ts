@@ -3,7 +3,7 @@ import type { ScreenReflection } from '../../reflections/gpu.ts';
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts';
 import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { UNLIT_COMPOSITIONS, UNLIT_LIGHTING_SHADER } from './shaders.ts';
-import { createContractVariants } from './contractVariants.ts';
+import { createContractVariants, type ContractVariantOptions } from './contractVariants.ts';
 import { createDeferredPlaceholders } from './setup.ts';
 import {
   createDeferredProgram,
@@ -20,10 +20,9 @@ export const DEFERRED_LIGHTING_PASS = 'Trillion3D deferred lighting';
 /** The lit programs: when `precompile`, those a first frame asks for compile from the start beside
  *  the unlit one (#1362), without bounce always, with it too when `bounce`; `onFailure` hears any
  *  contract compile that fails, precompiled or asked later. */
-export type LitPrograms = {
+export type LitPrograms = ContractVariantOptions & {
   precompile: boolean;
   bounce: boolean;
-  onFailure?: (error: unknown) => void;
 };
 
 /** The contract program these resources light with: with bounce, narrow, unshadowed. */
@@ -42,7 +41,7 @@ export async function createDeferredLighting(
   const placeholders = createDeferredPlaceholders(device);
   const bindings = { uniform: view.buffer, placeholders };
   // Programs, never a branch: the unlit view, and the contract ones (`contractVariants.ts`).
-  const variants = createContractVariants(device, bindings, pages, onReady, lit?.onFailure);
+  const variants = createContractVariants(device, bindings, pages, onReady, lit);
   // A narrow program starts its wide twin: the first frame finds either width ready. Prepare waits
   // for the one without bounce, which lights any first frame; the bounce pair lands meanwhile.
   const litReady = lit?.precompile ? variants.precompile(false) : Promise.resolve();

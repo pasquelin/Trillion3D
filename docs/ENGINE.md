@@ -416,11 +416,19 @@ image.
 mirrors at the roughness floor (0.0525) keep the exact ray path. Opaque WebGPU receivers take
 deterministic GGX samples and accumulate a dedicated mean with bounded confidence: 32 bytes per
 pixel for two RGBA16F mean/weight images and one previous depth, normal/roughness, and identity
-image; calculations f32, mean storage f16. Reprojection rejects incompatible identity, depth, normal
-and roughness; source changes invalidate the accumulation. A static image closes its filter window
-after 64 accepted frames; a changed jitter still reprojects until the temporal image can be held —
-a bounded effective weight, not infinite Monte Carlo convergence. Captures/replay add no duplicate
-samples; drawn extent changes discard the history; shadow-page landings advance the source epoch
+image; calculations f32, mean storage f16. Each sample's cost is fixed (#33): its screen march reads
+at most 16 depths however long its projected ray (one per pixel of its major axis on a short one,
+evenly spaced and jittered per frame on a long one, each testing the ray's depth interval since the
+last), and a miss reads the probes along the sampled ray at the first filtered roughness instead of
+a resident-proxy ray per pixel; the reference mode (`reflectionTrace`) walks every pixel and keeps
+the proxy fallback. Reprojection rejects incompatible identity, depth, normal and roughness; a
+source change (moved, relit or newly resident reflected content, shadow pages, probes) caps the
+history's confidence at 4 samples for 24 frames instead of restarting it from one, so a moving view
+does not flicker and a stale reflection halves in three frames; a full window after that, no stale
+share is left. A static image closes its filter window after 64 accepted frames; a changed jitter
+still reprojects until the temporal image can be held — a bounded effective weight, not infinite
+Monte Carlo convergence. Captures/replay add no duplicate samples; drawn extent changes discard the
+history; shadow-page landings advance the source epoch
 before resolving the same image. Transparent receivers use their own position and direction, with a
 deterministic cone footprint from travel distance and GGX roughness: both shader languages filter
 the unfogged source's radiance mips, reject incompatible near/far depth bounds and never reuse the
