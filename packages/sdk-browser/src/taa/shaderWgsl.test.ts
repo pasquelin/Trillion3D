@@ -8,6 +8,8 @@ import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts';
 import { TAA_WEIGHTS } from './filterWeights.ts';
 import { YCOCG_WGSL } from './ycocgWgsl.ts';
 import { ROW_PLACEMENT_WORD } from '../webgpu/row/rowPlacement.ts';
+import { REFLECTION_RESOLVE_WGSL } from '../reflections/resolveWgsl.ts';
+import { REFLECTION_SOURCE_WGSL } from '../reflections/sourceWgsl.ts';
 
 const TAA_REPROJECT_WGSL = taaReprojectWgsl();
 
@@ -95,4 +97,16 @@ test('the flagless resolve is the flag-reading one without its share, written as
   for (const line of own) assert.match(line, /TaaOut\(.*,vec4f\(0\.0,tag,0\.0,0\.0\)\);\}?$/);
   const removed = TAA_SHADER.split('\n').filter((line) => !flagless.includes(line));
   for (const line of removed) assert.match(line, /share|var flags|asIs|TaaOut/, line);
+});
+
+// #1369: `previousUv` takes the identifier its caller read once, never the texel to read it at: the
+// reflections' reprojections hand it theirs, as the resolve does.
+test('every reprojection hands previousUv the identifier it read', () => {
+  for (const shader of [TAA_SHADER, REFLECTION_RESOLVE_WGSL, REFLECTION_SOURCE_WGSL]) {
+    const calls = [...shader.matchAll(/previousUv\(([^()]*(?:\([^()]*\))?[^()]*)\)/g)]
+      .map((call) => call[1].split(',').at(-1))
+      .filter((last) => last !== 'id:u32');
+    assert.ok(calls.length > 0);
+    for (const last of calls) assert.equal(last, 'id');
+  }
 });

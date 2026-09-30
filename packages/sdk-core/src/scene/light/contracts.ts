@@ -65,15 +65,18 @@ export type SceneLightingView = 'auto' | 'lit' | 'unlit' | 'bounce';
  */
 export const LIGHT_SETTINGS = {
   /**
-   * Lights a screen tile's list holds, in each of its two depth slices: its memory is this, per
-   * tile, whatever the scene holds. A tile more lights reach takes their indices from a pool the
-   * size of the view and walks exactly them; one the pool has no room for walks every light of
-   * the scene — those that miss it add an exact zero —, so no light is ever dropped (X2).
+   * The longest list of a cell of the light grid a MOVING image draws from (X2): past it, the
+   * cell's lights are summed in full. A scene of at most this many lights resolves with a light
+   * array that long. A cell's list holds every light that reaches it, however many, in a pool the
+   * size of the view; a cell the pool has no room for walks every light of the scene — those that
+   * miss it add an exact zero —, so no light is ever dropped.
    */
   tileLights: 64,
-  /** Side in pixels of a screen tile of the light list. */
+  /** Side in pixels of a cell of the light grid, the reference engine's light grid pixel size. */
   tileSize: 64,
+  /** Depth slices of the light grid: past the last, a cell reaches to infinity. */
   gridSlices: 256,
+  /** Slices of the light grid to a doubling of the view depth, from the near plane. */
   gridSlicesPerOctave: 16,
   /**
    * Lights shaded in full — shadow read included — per pixel of a MOVING image (X2): the
