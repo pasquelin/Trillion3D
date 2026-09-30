@@ -87,11 +87,14 @@ export function createScreenReflection(
     // The rough trace walks the cone's depth bounds; its radiance levels only where a cone reads.
     if (active && (cone || rough))
       pyramid = createReflectionConePyramid(device, color, depth, cone);
-    if (active && rough) history = createReflectionHistory(device, width, height);
     uniform = device.createBuffer({
       size: 80,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
+    if (active) reprojection = createReflectionSource(device, width, height, depth);
+    // The history reads the last depth and identifiers the source keeps.
+    if (reprojection && rough)
+      history = createReflectionHistory(device, width, height, reprojection.previous);
     const heldUniform = uniform;
     const packed = new Float32Array(20);
     const packedBits = new Uint32Array(packed.buffer);
@@ -113,7 +116,6 @@ export function createScreenReflection(
       groups.set(image, group);
       return group;
     };
-    if (active) reprojection = createReflectionSource(device, width, height, depth);
     groupFor();
     return {
       active,
@@ -127,8 +129,16 @@ export function createScreenReflection(
       get sourceGroup() {
         return reprojection?.group;
       },
+      /** The lighting's second target, the next image's source (`sourceOutputWgsl.ts`). */
+      get sourceTarget() {
+        return reprojection?.target;
+      },
+      /** Keeps this image's depth and identifiers for the next one's source, after their readers. */
+      keepSource(encoder: GPUCommandEncoder) {
+        reprojection?.keep(encoder);
+      },
       /** The view, whether it reflects, and the size the image draws in the source (`renderScale.ts`);
-       *  `source`, what the last lit image is reprojected from. */
+       *  `source`, what the last image is reprojected through. */
       update(
         matrix: ArrayLike<number>,
         enabled: boolean,

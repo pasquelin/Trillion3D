@@ -11,6 +11,21 @@ export const REFLECTION_HISTORY_WEIGHT = 64;
 export const REFLECTION_MOVING_WEIGHT = 16;
 export const REFLECTION_RESOLVE_VIEW_BYTES = 160;
 
+/** The depth the point drawn at `pixel` (depth `z`, identifier `id`) had on the last image, moved
+ *  back by its placement's motion while `params.z` says it is live, and the one-pixel slope a
+ *  stored depth may differ from it by. It is called before any non-uniform return: the slope is a
+ *  derivative. A stored depth off it is another surface, the point was hidden (disocclusion): the
+ *  history resolve and the reflection source (`sourceWgsl.ts`) reject by it. */
+export const PREVIOUS_DEPTH_WGSL = `
+fn previousDepthOf(pixel:vec2f,z:f32,id:u32)->vec2f{
+ let ndc=vec2f(pixel.x*view.viewport.z*2.0-1.0,1.0-pixel.y*view.viewport.w*2.0);
+ var position=view.invViewProj*vec4f(ndc,z,1.0);
+ if(view.params.z!=0.0&&id!=0u){position=motion[placementOf(id)]*position;}
+ let projected=view.prevViewProj*position;
+ let expected=projected.z/projected.w;
+ return vec2f(expected,max(abs(dpdx(expected))+abs(dpdy(expected)),1e-7));
+}`;
+
 /** Dedicated ratio-estimator resolve. It shares only reprojection mathematics
  * with TAA: no neighbourhood clamp, colour transform or TAA history is involved.
  * The trace ran at half resolution, each texel for one pixel of its 2 × 2 block
@@ -34,6 +49,7 @@ struct ReflectionResolveView{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:v
 @group(0) @binding(9) var<storage,read> pages:array<PageInfo>;
 @group(0) @binding(10) var<storage,read> motion:array<mat4x4f>;
 ${taaReprojectWgsl(false)}
+${PREVIOUS_DEPTH_WGSL}
 ${REFLECTION_PHASE_WGSL}
 fn roughSamples(at:vec2i,id:u32,nr:vec4f)->vec4f{
  let drawn=vec2i(view.viewport.xy);let half=vec2i((drawn+vec2i(1))/2);
@@ -59,16 +75,9 @@ fn roughSamples(at:vec2i,id:u32,nr:vec4f)->vec4f{
 @fragment fn resolveRoughReflection(@builtin(position) pixel:vec4f)->@location(0) vec4f{
  let at=vec2i(pixel.xy);let id=textureLoad(ids,at,0).r;
  let z=textureLoad(depth,at,0);let nr=textureLoad(normalRough,at,0);
- let ndc=vec2f(pixel.x*view.viewport.z*2.0-1.0,1.0-pixel.y*view.viewport.w*2.0);
- var position=view.invViewProj*vec4f(ndc,z,1.0);
+ let expected=previousDepthOf(pixel.xy,z,id);
  var normal=nr.xyz;
- if(view.params.z!=0.0&&id!=0u){
-  let moved=motion[placementOf(id)];
-  position=moved*position;normal=(moved*vec4f(normal,0.0)).xyz;
- }
- let projected=view.prevViewProj*position;
- let expected=projected.z/projected.w;
- let tolerance=max(abs(dpdx(expected))+abs(dpdy(expected)),1e-7);
+ if(view.params.z!=0.0&&id!=0u){normal=(motion[placementOf(id)]*vec4f(normal,0.0)).xyz;}
  if(id==0u){return vec4f(0.0);}
  let current=roughSamples(at,id,nr);
  var history=vec4f(0.0);
@@ -80,7 +89,7 @@ fn roughSamples(at:vec2i,id:u32,nr:vec4f)->vec4f{
   // Reject a different receiver, material lobe or shading normal before any mean is read.
   if(oldId==id&&dot(oldNormal.xyz,normal)>0.999&&abs(oldNormal.a-nr.a)<=0.001){
    let oldDepth=textureLoad(previousDepth,prior,0);
-   if(abs(oldDepth-expected)<=tolerance){history=textureLoad(historyColor,prior,0);}
+   if(abs(oldDepth-expected.x)<=expected.y){history=textureLoad(historyColor,prior,0);}
   }
  }
  let kept=min(history.a,view.params.y);

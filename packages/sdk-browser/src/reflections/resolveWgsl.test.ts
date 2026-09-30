@@ -27,7 +27,7 @@ function fixture() {
     resolveRoughReflection: (pixel: number[]) => number[];
   }>(
     REFLECTION_RESOLVE_WGSL,
-    ['resolveRoughReflection', 'roughSamples', 'reflectionPhase', 'placementOf'],
+    ['resolveRoughReflection', 'previousDepthOf', 'roughSamples', 'reflectionPhase', 'placementOf'],
     {
       ...Object.fromEntries(Object.keys(samples).map((key) => [key, key])),
       view,
