@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuVisibilityShaders } from '../visibility/shaders.ts';
-import { createWebgpuShadePipelines } from '../visibility/pipelines.ts';
+import { createWebgpuShadePipelines } from '../visibility/shadePipelines.ts';
 import { createWebgpuBlendPipelines } from '../blend/pipelines.ts';
 import { createGpuRaster } from '../../gpu/raster/raster.ts';
 import { createTemporalAntialiasing } from '../../taa/temporalAntialiasing.ts';

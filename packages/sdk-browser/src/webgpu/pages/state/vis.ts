@@ -17,6 +17,7 @@ import type { GeometryBlock } from '../../row/pageRowMaterial.ts';
 import type { VertexPool } from '../../core/geometryPool.ts';
 import type { BlendModePipelines } from '../../blend/stagePipelines.ts';
 import { type PresentClasses } from '../../core/presentClasses.ts';
+import type { MaterialTiles } from '../../core/materialTiles.ts';
 
 /** GPU resources of the visibility-buffer path: raster and shade pipelines, their bind groups, the
  *  concatenated geometry, the page table and the material atlases. */
@@ -47,6 +48,8 @@ export interface WebgpuVisState {
   singleShadePipelines: Map<number, GPURenderPipeline>;
   /** Classes the image being encoded has rows of (`../../core/materialPasses.ts`). */
   presentClasses: PresentClasses;
+  /** The screen tiles each class draws (`../../core/materialTiles.ts`). */
+  materialTiles: MaterialTiles | undefined;
   gpuHiz: GpuHiz | undefined;
   gpuRaster: GpuRaster | undefined;
   visHizRestBack: GPURenderPipeline | undefined;
@@ -121,6 +124,7 @@ export function createWebgpuVisState(): WebgpuVisState {
     shadePipelineFor: undefined,
     singleShadePipelines: new Map(),
     presentClasses: createPresentClasses(),
+    materialTiles: undefined,
     gpuHiz: undefined,
     gpuRaster: undefined,
     visHizRestBack: undefined,

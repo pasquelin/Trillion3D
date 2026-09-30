@@ -12,7 +12,7 @@ import {
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { DIAGNOSTICS } from '../../../../sdk-core/src/index.ts';
 import { createExplorerDiagnosticApi } from '../../world/api/diagnosticApi.ts';
-import { createWebgpuShadePipelines } from '../../webgpu/visibility/pipelines.ts';
+import { createWebgpuShadePipelines } from '../../webgpu/visibility/shadePipelines.ts';
 import { CLASS_DEPTH_UNITS, CLASS_FEATURE } from './classWords.ts';
 
 const noMaps = { rough: 0, metal: 0, ao: 0, emissive: 0, normal: 0 };
