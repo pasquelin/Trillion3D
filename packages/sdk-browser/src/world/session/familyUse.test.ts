@@ -53,7 +53,12 @@ test("a session's own loop: the frame waits for its pools' code, neither stepped
     landings: () => undefined,
   };
   const explorer = { render: () => (done.push('draw'), {}), resize() {} };
-  const config = { ownControls: false, pixelRatio: 1, beforeFrame: () => done.push('step') };
+  const config = {
+    manifestUrl: '',
+    ownControls: false,
+    pixelRatio: 1,
+    beforeFrame: () => done.push('step'),
+  };
   const events = { emit() {}, diagnose() {} };
   startInteractiveExplorer(explorer as never, runtime as never, config, events);
   assert.deepEqual(done, [], 'the first frame waits');
@@ -66,9 +71,13 @@ test("a session's own loop: the frame waits for its pools' code, neither stepped
 });
 
 test("a session opens with its first frame's families, and the provenance only when heard", async () => {
-  assert.equal(sessionFamilies({}, false), undefined, 'a plain session waits for nothing');
+  assert.equal(
+    sessionFamilies({ manifestUrl: '' }, false),
+    undefined,
+    'a plain session waits for nothing',
+  );
   await families.measurement.settled();
   assert.equal(families.measurement.arrived, false, 'nothing fetched it');
-  await sessionFamilies({}, true);
+  await sessionFamilies({ manifestUrl: '' }, true);
   assert.equal(families.measurement.get()?.SDK_BUILD_PROVENANCE.version, 1);
 });

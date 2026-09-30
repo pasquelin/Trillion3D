@@ -22,7 +22,8 @@ const standIns = new Map<string, string>();
 export function startModuleWorker(url: URL | string) {
   const href = String(url);
   const origin = globalThis.location?.origin;
-  if (!origin || new URL(href).origin === origin) return new Worker(href, { type: 'module' });
+  // Same origin, or no page (Node): started on the URL as given, exactly as before the bundle.
+  if (!origin || new URL(href).origin === origin) return new Worker(url, { type: 'module' });
   let standIn = standIns.get(href);
   if (!standIn) {
     const source = `import ${JSON.stringify(href)};`;
