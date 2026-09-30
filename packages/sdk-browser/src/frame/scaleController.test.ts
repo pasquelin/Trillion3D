@@ -66,3 +66,11 @@ test('the refresh interval is the shortest frame interval, pauses aside', () => 
   for (const gap of [0, 8.4, 16.7, 8.3, 500, 9]) clock.tick((now += gap));
   assert.ok(Math.abs(clock.interval - 8.3) < 1e-9);
 });
+
+// #1343: a device that never met its cadence took its slow frames for the display's refresh.
+test('the refresh interval is never longer than the fallback: no display is slower', () => {
+  const clock = createRefreshClock(1000 / 60);
+  let now = 0;
+  for (let frame = 0; frame < 10; frame++) clock.tick((now += 50));
+  assert.equal(clock.interval, 1000 / 60);
+});

@@ -87,14 +87,24 @@ test('the frame is drawn below the display only when the temporal resolve recons
   }
 });
 
-test('a quiet image draws at the maximum, a moving one at the scale asked', () => {
+test('an image draws at the scale asked, the controller starting at its maximum', () => {
+  assert.equal(imageScale(runtime('auto').rt), 1);
+  assert.equal(imageScale(runtime(0.6).rt), 0.6);
+  assert.equal(imageScale(runtime({ min: 0.5, max: 0.8 }).rt), 0.8);
+});
+
+// #1343: the targets were made at the display's size whatever the scale drawn.
+test('the targets are made at the drawn size, up to the next eighth, not the display size', () => {
   const { rt } = runtime('auto');
-  assert.equal(imageScale(rt, true), 1, 'the held image is the native one');
-  assert.equal(imageScale(rt, false), 1, 'the controller starts at its maximum');
-  const fixed = runtime(0.6).rt;
-  assert.deepEqual([imageScale(fixed, true), imageScale(fixed, false)], [0.6, 0.6]);
-  const bounded = runtime({ min: 0.5, max: 0.8 }).rt;
-  assert.equal(imageScale(bounded, true), 0.8);
+  for (let frame = 0; frame < 4; frame++) rt.scale.tick((frame * 1000) / 120);
+  rt.scale.observe(12, 1);
+  const drawn = imageScale(rt);
+  assert.ok(drawn > 0.75 && drawn < 0.875, `a 12 ms frame at 120 Hz draws at ${drawn}`);
+  const made = { width: 3456, height: 2234, apart: true };
+  assert.deepEqual(sizeOf(rt), { ...made, renderWidth: 3024, renderHeight: 1952 });
+  rt.scale.observe(40, drawn);
+  assert.equal(imageScale(rt), 0.5, 'a 40 ms frame drops to the minimum');
+  assert.deepEqual(sizeOf(rt), { ...made, renderWidth: 1728, renderHeight: 1120 });
 });
 
 test('a scale change draws in the targets in place, the Hi-Z pyramid over the same size', () => {
@@ -111,7 +121,7 @@ test('a scale change draws in the targets in place, the Hi-Z pyramid over the sa
 
 test('a fixed scale is honoured, and targets without a display apart draw whole', () => {
   const fixed = runtime(0.6, [2072, 1344]).rt;
-  drawFrameAt(fixed, imageScale(fixed, false));
+  drawFrameAt(fixed, imageScale(fixed));
   assert.deepEqual(fixed.gpu.targetSize, [2072, 1344]);
   assert.equal(fixed.scale.drawn, 0.6);
   const whole = runtime('auto', DISPLAY, false).rt;
