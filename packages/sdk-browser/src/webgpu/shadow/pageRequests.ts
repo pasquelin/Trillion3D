@@ -1,10 +1,6 @@
 import type { ShadowRequestReport } from '../../../../sdk-core/src/scene/light-shadow/requests.ts';
 import type { ShadowPoolSnapshot } from '../../../../sdk-core/src/scene/light-shadow/mirror.ts';
-import {
-  shadowCellWords,
-  shadowRequestBits,
-  shadowRequestWords,
-} from '../../lighting/direct/shadowRequestWgsl.ts';
+import { shadowRequestBits } from '../../lighting/direct/shadowRequestWgsl.ts';
 import {
   SUN_WINDOW,
   shadowRequestCap,
@@ -15,12 +11,12 @@ import { createShadowAllocationBuffers, shadowAllocationBytes } from './allocBuf
  *  again the next frame, which reads the same image. */
 const SLOTS = 3;
 /** Bytes of the request buffer of a pool of `pages` — the count, the list, one bit per table
- *  entry of the session's `sunWindow`, the cell table —, and of the buffers its pages are allocated in on the GPU
+ *  entry of the session's `sunWindow` —, and of the buffers its pages are allocated in on the GPU
  *  (`allocBuffers.ts`). */
 export const shadowRequestBytes = (pages: number, sunWindow = SUN_WINDOW) =>
   requestBytes(pages, sunWindow) + shadowAllocationBytes(pages);
 const requestBytes = (pages: number, sunWindow = SUN_WINDOW) =>
-  shadowRequestWords(shadowRequestCap(pages), sunWindow) * 4;
+  (1 + shadowRequestCap(pages) + shadowRequestBits(sunWindow)) * 4;
 
 type Slot = {
   buffer: GPUBuffer;
@@ -45,8 +41,6 @@ type Slot = {
 export function createShadowPageRequests(device: GPUDevice, pages: number, sunWindow = SUN_WINDOW) {
   const cap = shadowRequestCap(pages),
     listBytes = (1 + cap) * 4,
-    cellBytes = shadowCellWords(cap) * 4,
-    cellOffset = (1 + cap + shadowRequestBits(sunWindow)) * 4,
     allocation = createShadowAllocationBuffers(device, pages);
   const requestBuffer = device.createBuffer({
     label: 'Trillion3D shadow requests v1',
@@ -58,7 +52,7 @@ export function createShadowPageRequests(device: GPUDevice, pages: number, sunWi
     slots.push({
       buffer: device.createBuffer({
         label: 'Trillion3D shadow request readback',
-        size: listBytes + allocation.snapshotBytes + cellBytes,
+        size: listBytes + allocation.snapshotBytes,
         usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
       }),
       pool: {
@@ -77,7 +71,6 @@ export function createShadowPageRequests(device: GPUDevice, pages: number, sunWi
         stamp: -1,
         count: 0,
         entries: new Uint32Array(cap),
-        cells: new Uint32Array(shadowCellWords(cap)),
       },
     });
   let inFlight = 0;
@@ -112,8 +105,6 @@ export function createShadowPageRequests(device: GPUDevice, pages: number, sunWi
       deliver: (report: ShadowRequestReport) => void,
       /** The GPU allocates: the copy carries its pool. */
       gpuPool = false,
-      /** The image lit a blend or water surface, which marks no cell (`demandFootprint.ts`). */
-      transparent = false,
     ) {
       const slot = slots.find((candidate) => !candidate.busy);
       if (!slot) return undefined;
@@ -122,10 +113,7 @@ export function createShadowPageRequests(device: GPUDevice, pages: number, sunWi
       slot.report.frame = frame;
       slot.report.layoutEpoch = layoutEpoch;
       slot.report.stamp = stamp;
-      slot.report.transparent = transparent;
       encoder.copyBufferToBuffer(requestBuffer, 0, slot.buffer, 0, listBytes);
-      const cellsAt = listBytes + allocation.snapshotBytes;
-      encoder.copyBufferToBuffer(requestBuffer, cellOffset, slot.buffer, cellsAt, cellBytes);
       if (gpuPool)
         encoder.copyBufferToBuffer(
           allocation.state,
@@ -151,9 +139,7 @@ export function createShadowPageRequests(device: GPUDevice, pages: number, sunWi
             const words = new Uint32Array(slot.buffer.getMappedRange());
             slot.report.count = words[0];
             slot.report.entries.set(words.subarray(1, 1 + Math.min(words[0], cap)));
-            if (slot.report.pool)
-              allocation.read(words.subarray(1 + cap, cellsAt / 4), slot.report.pool);
-            slot.report.cells?.set(words.subarray(cellsAt / 4, (cellsAt + cellBytes) / 4));
+            if (slot.report.pool) allocation.read(words.subarray(1 + cap), slot.report.pool);
             slot.buffer.unmap();
             deliver(slot.report);
           })

@@ -18,6 +18,8 @@ export interface TaaFrameState {
   stillFrames: number;
   /** Scene revision of the last accumulated image: another one causes poses to be compared. */
   sceneSeen: number;
+  /** Shadow version (`shadowEpoch`) of the last image: another one restarts a still average. */
+  shadowsSeen: number;
   /** True when the current image accumulates: rendered with jitter, resolved by the pass. */
   active: boolean;
   /** Scale the last ordinary image was drawn at (`imageScale`), which a convergence image keeps. */
@@ -54,6 +56,7 @@ export function createTaaFrameState(): TaaFrameState {
     hasHistory: false,
     stillFrames: 0,
     sceneSeen: -1,
+    shadowsSeen: 0,
     active: false,
     scale: 1,
     sampledRank: 0,
