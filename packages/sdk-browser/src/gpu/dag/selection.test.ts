@@ -4,12 +4,8 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { clusterErrorPixels, maxStretch } from '../../../../sdk-core/src/index.ts';
 import { cameraSelectionUniforms } from '../core/selection.ts';
-import {
-  createGpuDagSelection,
-  evaluateDagSelectionKernel,
-  packDagSelection,
-  DAG_SELECTION_SHADER,
-} from './selection.ts';
+import { createGpuDagSelection, packDagSelection } from './selection.ts';
+import { DAG_SELECTION_SHADER } from './shader/shader.ts';
 import { dagFixture, wideCamera } from '../../page/selection/dag.fixture.ts';
 import { dagCulling } from '../../page/selection/helpers.fixture.ts';
 import {
@@ -23,6 +19,7 @@ import { mockDagDevice } from './selection.fixture.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 import { ruleResidency } from './readiness.fixture.ts';
+import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts';
 
 test('the kernel projects a cluster error exactly like clusterErrorPixels', () => {
   // The WGSL band test is the certified bound of `screenErrorBound`: minimum depth, side reach and

@@ -1,9 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createWebgpuBindIdentity, entriesIdentity } from './bindIdentity.ts';
+import { createWebgpuBindIdentity } from './bindIdentity.ts';
 import { bindGroupFor, voidStaleFallbackGroups } from '../pages/prepare/pipelineFor.ts';
 import type { WebgpuPagesCore } from '../pages/runtime.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
+import { entriesIdentity } from './entriesIdentity.ts';
 
 test('a family moves when one of the resources it names changes identity, and only then', () => {
   const identity = createWebgpuBindIdentity();

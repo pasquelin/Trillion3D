@@ -12,7 +12,7 @@ import {
   type DirectLightResources,
 } from './program.ts';
 import { ZERO_DIRECT, createDeferredView } from './view.ts';
-export { DIRECT_LIGHTING_SHADER, FULLSCREEN_VERTEX } from './shaders.ts';
+export { FULLSCREEN_VERTEX } from './shaders.ts';
 
 /** Label of the measured pass; `gpuLightingMs` is read under this name. */
 export const DEFERRED_LIGHTING_PASS = 'Trillion3D deferred lighting';

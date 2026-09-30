@@ -4,16 +4,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
-import { disposeQuadRun, quadBackend } from '../testScenes.fixture.ts';
-import {
-  splitMemoryBudget,
-  DEFAULT_CPU_BUDGET,
-  DEFAULT_GPU_BUDGET,
-} from '../../../residency/memoryBudget.ts';
+import { disposeQuadRun, quadBackend, SHADOW_LIMITS, camera } from '../testScenes.fixture.ts';
+import { splitMemoryBudget, DEFAULT_CPU_BUDGET } from '../../../residency/memoryBudget.ts';
 import type { ActiveGpuMemory } from '../../../residency/activeMemory.ts';
 import * as G from '../../../host/graph/graph.fixture.ts';
 import { hostSide } from '../../../scene/materialSide.ts';
-import { SHADOW_LIMITS, camera } from '../testScenes.fixture.ts';
+import { DEFAULT_GPU_BUDGET } from '../../../residency/budget.fixture.ts';
 
 const recordAdmission = (admissions: ActiveGpuMemory[]) => (active: ActiveGpuMemory) => {
   admissions.push(active);

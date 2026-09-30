@@ -10,8 +10,9 @@ import {
 import { SAMPLE_MAG_NEAREST, SAMPLE_TRANSFORMED } from '../../texture/sampling.ts';
 import type { Texture } from '../../../../sdk-core/src/index.ts';
 import { slotSampled } from './samplingHeaders.ts';
-import { entryLevel, entryPlace, MAX_LEVELS, packEntry, tileLayout } from '../../texture/tiles.ts';
+import { entryLevel, MAX_LEVELS, packEntry, tileLayout } from '../../texture/tiles.ts';
 import { fakeDevice, type FakeWrite } from '../../../../../tests/kit/gpu/fakeDevice.ts';
+import { entryPlace } from '../../texture/tiles.fixture.ts';
 
 /** The writes of a device, in words: first word written, and the word count or -1 for all. */
 const words = (writes: FakeWrite[]) =>

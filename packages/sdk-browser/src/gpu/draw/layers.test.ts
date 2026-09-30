@@ -1,13 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  BIN_BACK,
-  BIN_FRONT,
-  BIN_NONE,
-  evaluateDrawCompact,
-  slotCount,
-  type DrawItem,
-} from './draw.ts';
+import { BIN_BACK, BIN_FRONT, BIN_NONE, slotCount } from './draw.ts';
+import { evaluateDrawCompact } from './cpu.fixture.ts';
+import type { DrawItem } from './cpu.fixture.ts';
 import { drawShader } from './shader.ts';
 import { PRE_LAYERS_GPU_DRAW_SHADER_SOURCE } from '../../../../../tests/fixtures/gpuDrawShaderPreLayers.ts';
 

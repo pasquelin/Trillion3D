@@ -1,6 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { LIGHT_TILES_SHADER } from './shader.ts';
 import {
   compactTile,
   tileLayout,
@@ -14,6 +13,7 @@ import {
   type TileView,
 } from '../../../../../bench/oracles/browser/gpuLightTileColumnOracle.ts';
 import { camera } from './tileCamera.fixture.ts';
+import { LIGHT_TILES_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
 
 // Issue #28: a blend surface in front of the sky may stand at any distance, so a tile with a
 // sky pixel gives its blend list the tile's whole column — never a box that stops at the

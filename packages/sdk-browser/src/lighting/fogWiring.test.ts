@@ -5,18 +5,18 @@
 // material, the diagnostic views and the composition are left as they were.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  BOUNCE_LIGHTING_SHADER,
-  CONTRACT_COMPOSITIONS,
-  DIRECT_LIGHTING_SHADER,
-  UNLIT_LIGHTING_SHADER,
-} from './deferred/shaders.ts';
-import { BLEND_SHADER, BLEND_VIEW_WGSL } from '../webgpu/blend/shader.ts';
+import { CONTRACT_COMPOSITIONS, UNLIT_LIGHTING_SHADER } from './deferred/shaders.ts';
+import { BLEND_VIEW_WGSL } from '../webgpu/blend/shader.ts';
 import { BLEND_VIEW_SIZE } from '../webgpu/blend/uniforms.ts';
-import { WATER_COMPOSITE_SHADER } from '../webgpu/water/compositeWgsl.ts';
 import { CLUSTER_FRAGMENT } from '../webgl/cluster/shaders.ts';
 import { SURFACE_MODEL } from '../scene/surfaceModel.ts';
 import { SHADE_SHADER as SURFACE_SHADE } from '../visibility/shader/shadeWgsl.ts';
+import {
+  BLEND_SHADER,
+  BOUNCE_LIGHTING_SHADER,
+  DIRECT_LIGHTING_SHADER,
+  WATER_COMPOSITE_SHADER,
+} from '../gpu/core/shaderTexts.fixture.ts';
 
 test('the opaque resolve fogs its lit sum at the pixel, from the eye in display.yzw', () => {
   for (const shader of [DIRECT_LIGHTING_SHADER, BOUNCE_LIGHTING_SHADER])

@@ -12,10 +12,7 @@ import {
   coneCullsPageWith,
   createConeContext,
 } from '../../../packages/sdk-browser/src/page/cone/cone.ts';
-import {
-  packDagSelection,
-  packedWorldsToRenderOrigin,
-} from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
+import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.ts';
 import type { NormalCone } from '../../../packages/sdk-browser/src/page/cone/cone.ts';
 import type { DagRoot } from '../../../packages/sdk-browser/src/gpu/dag/types.ts';
@@ -23,6 +20,7 @@ import { poseMonde } from './lightingNormalCases.ts';
 import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 import { project } from './cameraRig.ts';
+import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts';
 
 type Vec3T = [number, number, number];
 interface Boite {

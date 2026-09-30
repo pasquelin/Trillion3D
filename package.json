@@ -68,7 +68,7 @@
     "check:lines": "node scripts/check-file-lines.ts",
     "check:duplicates": "jscpd packages scripts tests bench site --format typescript,rust,tsx --no-tips",
     "check:helpers": "node scripts/check-helpers.ts",
-    "check:unused": "knip",
+    "check:unused": "node scripts/check-unused.ts",
     "validate": "node scripts/validate.ts",
     "check:structure": "tsc -p tsconfig.core.json --noEmit",
     "check:links": "node scripts/check-links.ts",

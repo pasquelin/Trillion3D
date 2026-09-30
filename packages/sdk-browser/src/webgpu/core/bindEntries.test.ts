@@ -6,7 +6,6 @@ import { createWebgpuShadePipelines } from '../visibility/pipelines.ts';
 import { createWebgpuBlendPipelines } from '../blend/pipelines.ts';
 import { ensureWebgpuVisibilityBindings } from '../visibility/bindings.ts';
 import { ensureWebgpuShadeBindings } from './shadeBindings.ts';
-import { visGroupFor } from '../visibility/drawer.ts';
 import { drawBlendPass } from '../blend/draw.ts';
 import { blendLightResources } from '../blend/lighting.ts';
 import { buildBlendStatics } from '../blend/plan.ts';
@@ -20,6 +19,7 @@ import { createGpuRaster } from '../../gpu/raster/raster.ts';
 import type { WebgpuTileStreamer } from '../tile/streamer.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
+import { visGroupFor } from '../visibility/visGroup.ts';
 
 type Recorded = { layout: { entries: unknown[] }; entries: unknown[] };
 

@@ -5,11 +5,12 @@ import assert from 'node:assert/strict';
 import type { PageRec } from '../../page/selection/selection.ts';
 import { createCutDelta } from '../cut/delta.ts';
 import { createWebgpuPageTracking } from '../row/pageTracking.ts';
-import { LAST_USE_WINDOW as W, createWebgpuPinUpdater } from './pinUpdater.ts';
+import { createWebgpuPinUpdater } from './pinUpdater.ts';
 import { createWebgpuResidencySets } from './sets.ts';
 import { createGroupClosure } from '../../page/cut/groupClosure.ts';
 import { createRequestAdmission } from './requestAdmission.ts';
 import { lruCache, pageOf } from './residentEnsurer.fixture.ts';
+import { LAST_USE_WINDOW as W } from './lastUseWindow.ts';
 
 /** A binary DAG of `leaves` leaves, heap-ordered: page `i` depends on page `(i - 1) >> 1`. All
  *  resident. Returns an image driver and the work counter every cache and DAG read feeds. */
