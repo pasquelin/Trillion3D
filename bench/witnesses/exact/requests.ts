@@ -3,7 +3,6 @@ import type { HostAttribute } from '../../../packages/sdk-browser/src/host/resou
 import {
   acceptPageArray,
   collectPendingUrls,
-  indexPagesByUrl,
   RequestStamps,
   selectVisiblePages,
   type ClusterRoot,
@@ -22,29 +21,6 @@ import type { ArrivalPlan } from '../../../packages/sdk-browser/src/page/integra
 import { ClusterBatches } from './batches/batches.ts';
 import { createAutonomousRequests } from '../../../packages/sdk-browser/src/backend/autonomous/requests.ts';
 import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts';
-
-export function createExactPagesRequestData(allPages: PageRec[], requestCount: number) {
-  const byUrl = indexPagesByUrl(allPages);
-  const pendingScratch: string[] = [],
-    urlScratch: string[] = [],
-    missingRoots: PageRec[] = [];
-  const bundled = allPages.some((rec) => rec.streamUrl !== undefined);
-  const requestStamps = new RequestStamps(requestCount);
-  const prefetchScratch: string[] = [],
-    prefetchShown: PageRec[] = [];
-  const pixelScaleScratch: number[] = [1, 1];
-  return {
-    byUrl,
-    pendingScratch,
-    urlScratch,
-    missingRoots,
-    bundled,
-    requestStamps,
-    prefetchScratch,
-    prefetchShown,
-    pixelScaleScratch,
-  };
-}
 
 export type ExactPagesRequestContext = {
   bootstrap: PageRec[];
@@ -83,7 +59,6 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
     missingRoots,
     pendingScratch,
     requestStamps,
-    desired,
     desiredPacked,
     shown,
     shownPacked,

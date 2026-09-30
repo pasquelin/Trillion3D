@@ -17,6 +17,7 @@ import {
   submitColorCopy,
 } from './encoder.ts';
 import { encodeBlend } from './encodeBlend.ts';
+import { ensurePageTable } from './pageTable.ts';
 import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts';
 import { encodeVis } from './encodeVis.ts';
 import { dropVis } from '../io/drops.ts';
@@ -29,28 +30,7 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { displayApart } from '../state/renderScale.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
 
-/** The row table spans every row a page can claim — the visibility rows, then the blended
- *  casters' (`../../row/blendCasters.ts`) —, so it is allocated once, and replaced only when the
- *  table grows (`../prepare/growTables.ts`); the layout bounds those rows to one binding of the
- *  device (`../../row/tableRows.ts`). */
-export function ensurePageTable(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  const { vis } = rt,
-    { rows } = rt.layout;
-  if (rows.pageTableFloats) return;
-  const bytes = Math.max(PAGE_INFO_STRIDE, rows.casterSlots * PAGE_INFO_STRIDE);
-  rows.pageTableFloats = new Float32Array(bytes / 4);
-  rows.pageTableInts = new Uint32Array(rows.pageTableFloats.buffer);
-  vis.pageTable?.destroy();
-  vis.pageTable = pageTableBuffer(device, bytes);
-}
-
-/** The GPU page table of `bytes` bytes: the rows every pass binds whole. */
-export const pageTableBuffer = (device: GPUDevice, bytes: number) =>
-  device.createBuffer({
-    label: 'Trillion3D page table',
-    size: bytes,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  });
+export { ensurePageTable, pageTableBuffer } from './pageTable.ts';
 
 /**
  * Brings every reader of the row table's dirty marks up to date, then uploads the rows and clears

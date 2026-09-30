@@ -33,6 +33,8 @@ interface Monde {
   roots: ClusterRoot<PageRec>[];
   allPages: PageRec[];
   shown: PageRec[];
+  /** The packed rank of each shown record (#1235). */
+  shownPacked: number[];
   desired: PageRec[];
   requested: PageRec[];
 }
@@ -53,7 +55,6 @@ function monde(total: number, depart: number): Monde {
       declaration: materiau,
       renderOrder: i,
       matrix: new G.Matrix4().makeTranslation(alea(), alea(), alea()),
-      placementIndex: i,
       array: new Uint32Array(3),
       triangles: i < HOSTILES.length ? HOSTILES[i] : Math.floor(alea() * 400),
       // The exercised sync() path never reads these; filled with real, harmless values so the
@@ -65,11 +66,11 @@ function monde(total: number, depart: number): Monde {
       attributes: geometrie.attributes,
     });
   const roots = allPages.map((rec) => ({ world: rec.matrix, pages: [rec] }));
-  return { scene, roots, allPages, shown: [], desired: [], requested: [] };
+  return { scene, roots, allPages, shown: [], shownPacked: [], desired: [], requested: [] };
 }
 
 /** The one view a world draws, as the geometry store reads it (`views.ts`). */
-const viewOf = (w: Pick<WebglViewState, 'shown' | 'desired' | 'requested'>) => ({
+const viewOf = (w: Pick<WebglViewState, 'shown' | 'shownPacked' | 'desired' | 'requested'>) => ({
   live: w,
   lists: () => [w.shown, w.desired, w.requested],
 });
@@ -96,7 +97,11 @@ const passe = (
 ) =>
   suite.map((indices) => {
     m.shown.length = 0;
-    for (const index of indices) m.shown.push(m.allPages[index]);
+    m.shownPacked.length = 0;
+    for (const index of indices) {
+      m.shown.push(m.allPages[index]);
+      m.shownPacked.push(index);
+    }
     sync();
     return empreinte(m, etat.submittedTriangles);
   });
@@ -163,7 +168,15 @@ await stress({
   extremes: [
     {
       name: 'empty',
-      input: { scene: new Scene(), roots: [], allPages: [], shown: [], desired: [], requested: [] },
+      input: {
+        scene: new Scene(),
+        roots: [],
+        allPages: [],
+        shown: [],
+        shownPacked: [],
+        desired: [],
+        requested: [],
+      },
     },
   ],
 });

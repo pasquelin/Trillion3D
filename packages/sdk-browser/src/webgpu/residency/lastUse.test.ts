@@ -19,7 +19,6 @@ const FULL = /ALL_PAGES_PINNED/;
 function residency(slots: number, spare: string[]) {
   const { pages, parentsOf } = placement();
   const packed = [...pages, ...spare.map(pageOf)];
-  packed.forEach((page, index) => (page.packedIndex = index));
   const tracking = createWebgpuPageTracking(packed);
   const bootstrapKey = new Uint8Array(tracking.keyCount);
   const sets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages: packed });

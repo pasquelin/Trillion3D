@@ -35,6 +35,12 @@ export function pageVisible(cas: Cas) {
 
 /** The root the page of `pageVisible` ranks: the case's world. */
 export const rootsOf = (cas: Cas) => [{ world: cas.world }];
+/** The case's one page placed by its one root (#1235): the consumers read locations, not roots. */
+export const locationsOf = (cas: Cas) => ({
+  roots: rootsOf(cas),
+  packed: [0],
+  rootOfPacked: Int32Array.of(0),
+});
 
 /** `viewProj` matrix of the shared camera, column-major, as the engine assembles it. */
 function viewProjection(): number[] {
@@ -51,7 +57,7 @@ function viewProjection(): number[] {
  */
 export function sensDuMoteur(cas: Cas): 'cw' | 'ccw' {
   // `windingCw` only reads its root's `world` (and caches on it), as its own doc says.
-  return windingCw(rootsOf(cas), { placementIndex: 0 }) ? 'cw' : 'ccw';
+  return windingCw(rootsOf(cas), 0) ? 'cw' : 'ccw';
 }
 
 /**

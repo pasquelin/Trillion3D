@@ -12,8 +12,6 @@ export const rec = (url: string, level: number) => ({ url, level }) as unknown a
  *  a difference through the group closure, as the publication does; `budget` is the CPU cut's
  *  admission at `room`, true past it. */
 export function world(packed: PageRec[], cover: readonly PageRec[] = []) {
-  // The page's rank travels on the page, as the engine catalogue posts it.
-  packed.forEach((page, index) => (page.packedIndex = index));
   const tracking = createWebgpuPageTracking([...packed, ...cover]);
   const bootstrapKey = new Uint8Array(tracking.keyCount);
   for (const page of cover) bootstrapKey[tracking.keyOf(page)] = 1;
