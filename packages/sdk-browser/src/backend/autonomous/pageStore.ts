@@ -16,7 +16,7 @@ import { dynamicSource, sourcedPageGeometry } from './sourcedPages.ts';
 import type { PageDraws } from './pageDraws.ts';
 
 type PageStoreEnvironment = {
-  /** The roots a record's `placementIndex` ranks: whether a row places it is its root's. */
+  /** The engine's roots: whether a row places a page is its root's (#1235). */
   roots: readonly ClusterRoot<PageRec>[];
   byUrl: Map<string, PageRec[]>;
   descriptors: Map<string, GeometryPageDescriptor>;

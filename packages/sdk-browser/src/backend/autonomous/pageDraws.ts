@@ -32,22 +32,18 @@ export function createPageDraws(roots: readonly ClusterRoot<PageRec>[] = []) {
     draws: PageDraw[] = [],
     catalogue: PageCatalogue = createPageCatalogue(pages),
     placement: PlacementIndex = postPackedBases(roots);
-  /** The first packed rank of each record: a per-PAGE lookup, never a per-instance one. */
-  let first = new Map<PageRec, number>();
+  /** The packed ranks of each record's instances, in packed order: its first names the page. */
+  let ranks = new Map<PageRec, number[]>();
   /** The draws of each root, by record, carried from one layout to the next: a row's state is its
    *  own, and a layout that inserts or moves a page keeps the others' (#1234). */
   let owned = new Map<ClusterRoot<PageRec>, Map<PageRec, PageDraw>>();
-  /** A record that had a single instance, and how many it had: a re-layout that recreates the root
-   *  object — a synthetic layout — carries its draw from here (#1235). */
-  let single = new Map<PageRec, PageDraw>(),
-    instances = new Map<PageRec, number>();
 
   /** Lays `roots` out: one packed rank per (placement, page), the catalogue over the packed order,
    *  and each instance's draw state carried from the root it belonged to; a new instance is blank. */
   function layOut(next: readonly ClusterRoot<PageRec>[]) {
     const nextPages: PageRec[] = [],
       nextDraws: PageDraw[] = [],
-      nextFirst = new Map<PageRec, number>(),
+      nextRanks = new Map<PageRec, number[]>(),
       nextOwned = new Map<ClusterRoot<PageRec>, Map<PageRec, PageDraw>>();
     // Pass 1: the draw a root it is already known by carries, by record.
     const carried: (PageDraw | undefined)[][] = [],
@@ -62,20 +58,24 @@ export function createPageDraws(roots: readonly ClusterRoot<PageRec>[] = []) {
       }
       carried.push(row);
     }
-    // Pass 2: a root without one reclaims a single-instance record's draw, never one already taken.
+    // Pass 2: a root without one reclaims a single-instance record's draw, never one already taken:
+    // a re-layout that recreates the root object — a synthetic layout — carries it this way (#1235).
     for (let r = 0; r < next.length; r++) {
       const root = next[r],
         byRecord = new Map<PageRec, PageDraw>();
       for (let p = 0; p < root.pages.length; p++) {
         const rec = root.pages[p];
         let draw = carried[r][p];
-        if (!draw && (instances.get(rec) ?? 0) === 1 && !assigned.has(rec)) {
-          draw = single.get(rec);
+        const before = ranks.get(rec);
+        if (!draw && before?.length === 1 && !assigned.has(rec)) {
+          draw = draws[before[0]];
           assigned.add(rec);
         }
-        if (!draw || draw.page !== rec) draw = blank(rec);
+        if (!draw) draw = blank(rec);
         byRecord.set(rec, draw);
-        if (!nextFirst.has(rec)) nextFirst.set(rec, nextPages.length);
+        const own = nextRanks.get(rec);
+        if (own) own.push(nextPages.length);
+        else nextRanks.set(rec, [nextPages.length]);
         nextPages.push(rec);
         nextDraws.push(draw);
       }
@@ -83,14 +83,8 @@ export function createPageDraws(roots: readonly ClusterRoot<PageRec>[] = []) {
     }
     pages = nextPages;
     draws = nextDraws;
-    first = nextFirst;
+    ranks = nextRanks;
     owned = nextOwned;
-    single = new Map();
-    instances = new Map();
-    for (const draw of nextDraws) {
-      instances.set(draw.page, (instances.get(draw.page) ?? 0) + 1);
-      if (!single.has(draw.page)) single.set(draw.page, draw);
-    }
     placement = postPackedBases(next);
     catalogue = createPageCatalogue(pages);
   }
@@ -100,7 +94,7 @@ export function createPageDraws(roots: readonly ClusterRoot<PageRec>[] = []) {
   const at = (packed: number): PageDraw | undefined => draws[packed];
   /** The FIRST instance of `rec`: a per-page reader uses this; a per-instance one uses `at`. */
   const find = (rec: PageRec): PageDraw | undefined => {
-    const packed = first.get(rec);
+    const packed = ranks.get(rec)?.[0];
     return packed === undefined ? undefined : draws[packed];
   };
   /** The state of `rec`'s first instance, which must be laid out. */
@@ -114,10 +108,10 @@ export function createPageDraws(roots: readonly ClusterRoot<PageRec>[] = []) {
       return pages;
     },
     /** The packed rank of `rec`'s first instance, or -1: a per-page lookup, not per-instance. */
-    firstPacked: (rec: PageRec) => first.get(rec) ?? -1,
+    firstPacked: (rec: PageRec) => ranks.get(rec)?.[0] ?? -1,
     /** The root rank of `rec`'s first instance, or -1: a per-page lookup, for a per-page property. */
     rootRankOf: (rec: PageRec) => {
-      const packed = first.get(rec);
+      const packed = ranks.get(rec)?.[0];
       return packed === undefined ? -1 : (placement.rootOfPacked[packed] ?? -1);
     },
     /** The per-placement tables, rebuilt at each layout (#1235). */
@@ -133,19 +127,18 @@ export function createPageDraws(roots: readonly ClusterRoot<PageRec>[] = []) {
     /** What a consumer resolves the cut's packed ranks through (`recordOf`). */
     recordOf: (packed: number) => catalogue.recordOf(packed),
     /** Runs `visit` on the packed rank of every instance of `rec`: a shared page's roots all hear
-     *  of a change to the page's bytes or array. Not hot: called on a coverage flip. */
+     *  of a change to the page's bytes or array. */
     forEachRank(rec: PageRec, visit: (packed: number) => void) {
-      for (let packed = 0; packed < pages.length; packed++)
-        if (pages[packed] === rec) visit(packed);
+      for (const packed of ranks.get(rec) ?? []) visit(packed);
     },
     /** Gives back what every instance of `rec` that left the scene owned, before its state drops. */
     forget(rec: PageRec) {
-      for (const draw of draws)
-        if (draw.page === rec) {
-          draw.geometry = draw.mesh = undefined;
-          draw.material = undefined;
-          draw.attached = false;
-        }
+      for (const packed of ranks.get(rec) ?? []) {
+        const draw = draws[packed];
+        draw.geometry = draw.mesh = undefined;
+        draw.material = undefined;
+        draw.attached = false;
+      }
     },
   };
 }

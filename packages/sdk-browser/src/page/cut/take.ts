@@ -47,12 +47,10 @@ function keep<T extends PageRecord>(
   drawn: boolean,
 ) {
   const triangles = rec.triangles,
-    packed = s.flatBase < 0 ? -1 : s.flatBase + index,
-    root = s.flatRootRank;
+    packed = s.flatBase < 0 ? -1 : s.flatBase + index;
   if (wanted) {
     s.wanted[s.wantedCount] = rec;
-    s.wantedPacked[s.wantedCount] = packed;
-    s.wantedRoot[s.wantedCount++] = root;
+    s.wantedPacked[s.wantedCount++] = packed;
     s.wantedTriangles += triangles;
     const level = rec.level;
     if (level !== undefined && level > s.lodLevel) s.lodLevel = level;
@@ -62,8 +60,7 @@ function keep<T extends PageRecord>(
     return;
   }
   s.shown[s.shownCount] = rec;
-  s.shownPacked[s.shownCount] = packed;
-  s.shownRoot[s.shownCount++] = root;
+  s.shownPacked[s.shownCount++] = packed;
   s.shownTriangles += triangles;
 }
 

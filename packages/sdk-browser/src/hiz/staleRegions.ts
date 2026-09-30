@@ -25,20 +25,20 @@ export function staleTemporalBox(
     history.pyramid = history.camera = undefined;
     return;
   }
-  (history.stale ??= []).push({ min: box.slice(0, 3), max: box.slice(3), placementIndex: 0 });
+  (history.stale ??= []).push({ min: box.slice(0, 3), max: box.slice(3) });
 }
 
 let staleBounds = new Float64Array(HIZ_BOUNDS_VALUES);
 
-/** Adds to `kept` every page of `pages` (located by `locations`) whose rectangle meets a staled
- *  region, seen from `cam`. */
+/** Marks in `kept`, by rank in `pages`, every page (located by `locations`) whose rectangle meets
+ *  a staled region, seen from `cam`: by rank, since one record may stand for several placements. */
 export function keepStaleRegions<T extends HizPage>(
   pages: readonly T[],
   locations: PageLocations,
   stale: readonly HizPage[],
   cam: EngineCamera,
   viewport: [number, number],
-  kept: Set<T>,
+  kept: Uint8Array,
 ) {
   const need = stale.length * HIZ_BOUNDS_VALUES;
   if (staleBounds.length < need) staleBounds = new Float64Array(need);
@@ -55,7 +55,7 @@ export function keepStaleRegions<T extends HizPage>(
           bounds[at + 1] <= staleBounds[s + 3] &&
           bounds[at + 3] >= staleBounds[s + 1])
       ) {
-        kept.add(pages[i]);
+        kept[i] = 1;
         break;
       }
   }

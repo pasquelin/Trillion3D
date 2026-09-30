@@ -28,14 +28,8 @@ export interface SelectionState<T extends PageRecord> {
    *  instance, never a record. Reused `Int32Array`s preallocated to the cut's capacity (`fitPacked`). */
   wantedPacked: Int32Array;
   shownPacked: Int32Array;
-  /** The same two cuts by ROOT rank, rank by rank: the placement that places each kept page. One
-   *  record serves every placement of its primitive, so a reader that has a kept page finds its
-   *  root here, never on the record (#1235). Reused `Int32Array`s (`fitPacked`). */
-  wantedRoot: Int32Array;
-  shownRoot: Int32Array;
-  /** Root rank and packed base of the root the cut is walking: set by `selectFlat` per root, like
-   *  `flatWorld`, so a kept page is named without a field on the shared record. */
-  flatRootRank: number;
+  /** Packed base of the root the cut is walking: set by `selectFlat` per root, like `flatWorld`,
+   *  so a kept page is named without a field on the shared record (#1235). */
   flatBase: number;
   pixelError: number;
   frustumRejected: number;
@@ -127,9 +121,6 @@ const reusedState: SelectionState<PageRecord> = {
   shown: [],
   wantedPacked: new Int32Array(0),
   shownPacked: new Int32Array(0),
-  wantedRoot: new Int32Array(0),
-  shownRoot: new Int32Array(0),
-  flatRootRank: -1,
   flatBase: -1,
   pixelError: 0,
   frustumRejected: 0,
