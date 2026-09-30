@@ -1,0 +1,55 @@
+import { PROBE_FLOATS } from '../../../sdk-core/src/index.ts';
+
+/**
+ * THE BOUNCE ATLASES (#1410): the probe cascades and the surface cache are float textures read
+ * with `textureLoad` and written by their compute passes as storage textures — like a surface
+ * cache atlas —, no longer storage buffers: the deferred lighting holds its storage buffers
+ * within the eight WebGPU guarantees. `rgba32float` keeps every value bit for bit. A flat texel
+ * `i` sits at `(i % width, i / width)`, row by row; no entry is ever dropped: a size the device
+ * cannot hold is refused before anything is made (`limits.ts`).
+ */
+export const BOUNCE_ATLAS_FORMAT: GPUTextureFormat = 'rgba32float';
+
+/** The widest and tallest 2D texture every WebGPU device holds (`maxTextureDimension2D`). */
+export const ATLAS_DIMENSION = 8192;
+
+/** Vectors of a probe: its texels in the atlas. */
+export const PROBE_TEXELS = PROBE_FLOATS / 4;
+
+/** Width and height of an atlas of `texels` texels: the fewest rows of at most `ATLAS_DIMENSION`,
+ *  filled evenly, so that under one texel per row is padding. */
+export function atlasExtent(texels: number): [number, number] {
+  const count = Math.max(1, texels);
+  const height = Math.ceil(count / ATLAS_DIMENSION);
+  return [Math.ceil(count / height), height];
+}
+
+/**
+ * The probe cascades' atlas: one layer per cascade level, each exactly `side³` probes — `side`
+ * probes of `PROBE_TEXELS` texels a row, `side²` rows —, so a level is cleared alone (a render
+ * pass on its layer) and the atlas weighs the bytes the buffer did.
+ */
+export const probeAtlasExtent = (side: number, levels: number): [number, number, number] => [
+  Math.max(1, side * PROBE_TEXELS),
+  Math.max(1, side * side),
+  Math.max(1, levels),
+];
+
+/** Bytes of an `rgba32float` atlas of this extent. */
+export const atlasBytes = ([width, height, layers = 1]: readonly number[]) =>
+  width * height * layers * 16;
+
+/** The probe vector `i`, read from the cascades' layers: what `probes[i]` was (`gridWgsl.ts`). */
+export const PROBE_AT_WGSL = `fn probeAt(i:u32)->vec4f{
+ let size=textureDimensions(probes);let perLayer=size.x*size.y;let local=i%perLayer;
+ return textureLoad(probes,vec2u(local%size.x,local/size.x),i/perLayer,0);
+}`;
+
+/** A zeroed atlas one row of `width` texels long: what a pass binds while bounce is off. */
+export const emptyAtlas = (device: GPUDevice, label: string, width = 1) =>
+  device.createTexture({
+    label,
+    size: [width, 1, 1],
+    format: BOUNCE_ATLAS_FORMAT,
+    usage: GPUTextureUsage.TEXTURE_BINDING,
+  });

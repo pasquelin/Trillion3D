@@ -1,4 +1,5 @@
 import { BOUNCE_SETTINGS, PROBE_FLOATS } from '../../../sdk-core/src/index.ts';
+import { PROBE_AT_WGSL } from './atlas.ts';
 import {
   irradianceShader,
   filteredRadianceShader,
@@ -12,9 +13,9 @@ export const INVERSE_PI_WGSL = `const INVERSE_PI:f32=0.31830989;`;
 
 /**
  * Probe cascades, as both the update pass and deferred resolve read them. One declaration:
- * both shaders name `bounce` and `probes`, so the same interpolation applies irradiance on a
- * pixel and rereads it at the point a ray hit — that second use is what gives higher-order
- * bounces.
+ * both shaders name `bounce` and `probes`, the cascades' atlas read by `probeAt` (`atlas.ts`),
+ * so the same interpolation applies irradiance on a pixel and rereads it at the point a ray
+ * hit — that second use is what gives higher-order bounces.
  *
  * Each level is a cube of probes on a global lattice: a probe lives at the centre of its
  * cell, at `(cell + ½) · spacing`, and therefore never moves. A level that follows the
@@ -32,6 +33,7 @@ struct BounceGrid{
  levels:array<BounceLevel,${BOUNCE_SETTINGS.cascadeLevels}>,
 }
 const PROBE_VECTORS:u32=${PROBE_FLOATS / 4}u;
+${PROBE_AT_WGSL}
 const CASCADE_LEVELS:u32=${BOUNCE_SETTINGS.cascadeLevels}u;
 /** The w lanes that carry a probe's state, slot by slot. */
 const PROBE_CHANGE:u32=1u;
@@ -59,7 +61,7 @@ fn probeSlot(level:u32,cell:vec3i)->u32{return probeSlotWrapped(level,probeWrap(
 fn probeCentre(cell:vec3i,spacing:f32)->vec3f{return (vec3f(cell)+vec3f(0.5))*spacing;}
 /** The cell the probe says it carries. Different from the one sought: it knows nothing of here. */
 fn probeCell(slot:u32)->vec3i{
- return vec3i(i32(probes[slot+PROBE_CELL].w),i32(probes[slot+PROBE_CELL+1u].w),i32(probes[slot+PROBE_CELL+2u].w));
+ return vec3i(i32(probeAt(slot+PROBE_CELL).w),i32(probeAt(slot+PROBE_CELL+1u).w),i32(probeAt(slot+PROBE_CELL+2u).w));
 }
 /**
  * Irradiance of the probe's order-2 spherical harmonics, convolved with the cosine lobe — the
@@ -67,7 +69,7 @@ fn probeCell(slot:u32)->vec3i{
  * basis can go below zero where true irradiance cannot.
  */
 fn shIrradiance(slot:u32,n:vec3f)->vec3f{
- return max(vec3f(0.0),${irradianceShader((k) => `probes[slot+${k}u].xyz`, 'n')});
+ return max(vec3f(0.0),${irradianceShader((k) => `probeAt(slot+${k}u).xyz`, 'n')});
 }
 /**
  * Mean distance the probe measured in a direction, interpolated among its six axes.
@@ -75,11 +77,11 @@ fn shIrradiance(slot:u32,n:vec3f)->vec3f{
  * a surface the probe sees, hence in another room, and the probe has nothing to tell it.
  */
 fn shFilteredRadiance(slot:u32,n:vec3f,bands:vec3f)->vec3f{
- return max(vec3f(0.0),${filteredRadianceShader((k) => `probes[slot+${k}u].xyz`, 'n', 'bands')});
+ return max(vec3f(0.0),${filteredRadianceShader((k) => `probeAt(slot+${k}u).xyz`, 'n', 'bands')});
 }
 fn probeDistance(slot:u32,direction:vec3f)->f32{
- let positive=probes[slot+PROBE_DISTANCE_POSITIVE].xyz;
- let negative=probes[slot+PROBE_DISTANCE_NEGATIVE].xyz;
+ let positive=probeAt(slot+PROBE_DISTANCE_POSITIVE).xyz;
+ let negative=probeAt(slot+PROBE_DISTANCE_NEGATIVE).xyz;
  let weight=abs(direction);
  let picked=select(negative,positive,direction>vec3f(0.0));
  return dot(picked,weight)/max(weight.x+weight.y+weight.z,1e-6);
@@ -113,7 +115,7 @@ fn sampleLevelField(level:u32,P:vec3f,N:vec3f,R:vec3f,bands:vec3f,specular:bool)
   let next=wrappedCorner+offset;
   let slot=probeSlotWrapped(level,select(next,vec3u(0u),next>=wrapAt));
   if(any(probeCell(slot)!=cell)){continue;}
-  if(probes[slot+PROBE_VALID].w<0.5){continue;}
+  if(probeAt(slot+PROBE_VALID).w<0.5){continue;}
   let toProbe=probeCentre(cell,spacing)-biased;
   let distance=length(toProbe);
   let direction=toProbe/max(distance,1e-6);

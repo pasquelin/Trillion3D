@@ -25,10 +25,11 @@ export interface DirectLightResources {
   requests?: GPUBuffer;
   atlas?: GPUTextureView;
   transmittance?: { view: GPUTextureView; depthView: GPUTextureView };
-  /** Probe grid, coefficients, mirror surface cache: one lifetime, the probes' identity. */
+  /** Probe grid, coefficients, mirror surface cache — the two atlases of `atlas.ts`: one
+   *  lifetime, the probes' identity. */
   bounceGrid?: GPUBuffer;
-  probes?: GPUBuffer;
-  surfaceCache?: GPUBuffer;
+  probes?: GPUTextureView;
+  surfaceCache?: GPUTextureView;
   /** Resident proxy with the far-shadow settings and counters; absent, a zero substitute. */
   proxy?: GPUBuffer;
   /** True when the narrow tile pass wrote the lists (`contractVariants.ts`, #849). */
@@ -182,8 +183,8 @@ export async function createDeferredProgram(
       if (sources.bounce && direct.bounceGrid && direct.probes && direct.surfaceCache)
         entries.push(
           { binding: 11, resource: { buffer: direct.bounceGrid } },
-          { binding: 12, resource: { buffer: direct.probes } },
-          { binding: BOUNCE_SURFACE_BINDING, resource: { buffer: direct.surfaceCache } },
+          { binding: 12, resource: direct.probes },
+          { binding: BOUNCE_SURFACE_BINDING, resource: direct.surfaceCache },
         );
       lightGroup = device.createBindGroup({ layout: lightingLayout, entries });
     },
