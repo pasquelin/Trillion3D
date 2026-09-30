@@ -7,6 +7,7 @@ import type { AccumulatedImage } from '../lighting/deferred/program.ts';
 import type { TemporalAntialiasing } from './temporalAntialiasing.ts';
 import { writtenFilter } from '../webgpu/blend/displayFilter.ts';
 import { drawFrameAt, imageScale } from '../webgpu/pages/state/renderScale.ts';
+import { shadowEpoch } from '../webgpu/pages/state/lights.ts';
 
 /**
  * Image entry of the pass, called once per image, where the quiet of the image is known. A
@@ -145,23 +146,15 @@ export function restartTaaOnLanding(rt: WebgpuPagesRuntime, landed: number) {
     forgetTaaHistory(temporal);
 }
 
-/** The shadow pages the frame landed: the host's (`shadowPages`), and those the GPU drew itself,
- *  known a snapshot late (`mirror.drawn`) — else a shadow drawn at rest stays diluted in the still
- *  average, faint (#1344). */
+/** A shadow landed since the still average last looked: pages the host drew, or pages the GPU drew
+ *  itself, known a snapshot late (`shadowEpoch`) — else a shadow drawn at rest stays diluted in the
+ *  still average, faint (#1344). */
 export function restartTaaOnShadowLanding(rt: WebgpuPagesRuntime) {
-  restartTaaOnLanding(rt, rt.lights.shadowPages + gpuShadowPagesLanded(rt));
+  const { lights } = rt,
+    epoch = shadowEpoch(lights);
+  restartTaaOnLanding(rt, epoch === lights.shadowEpochSeen ? 0 : 1);
+  lights.shadowEpochSeen = epoch;
 }
-
-/** The pages the GPU drew itself since the last call. */
-function gpuShadowPagesLanded(rt: WebgpuPagesRuntime) {
-  const drawn = rt.lights?.plan.gpu.drawn ?? 0,
-    seen = gpuDrawnSeen.get(rt) ?? drawn;
-  gpuDrawnSeen.set(rt, drawn);
-  // A reseeded GPU pool counts its listings from zero again: all it shows is new.
-  return drawn >= seen ? drawn - seen : drawn;
-}
-/** The GPU's page listings each runtime last counted (`gpuShadowPagesLanded`). */
-const gpuDrawnSeen = new WeakMap<WebgpuPagesRuntime, number>();
 
 /** History is to be remade: targets reallocated, or size changed. */
 export function dropTaaHistory(rt: WebgpuPagesRuntime) {

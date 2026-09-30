@@ -36,8 +36,8 @@ export function createShadowPlan(poolSide: number, layers = 1, sunWindow = SUN_W
     thresholds = createShadowThresholds(pool),
     posed = new Int32Array(records.taken.length),
     spent = { requestsMs: NaN, admissionMs: NaN },
-    lightsState = { records, counts, sun, posed, invalidate },
-    footprints = createDemandFootprints(table, pool);
+    lightsState = { records, counts, sun, posed, invalidate };
+  const footprints = createDemandFootprints(table, pool);
   let requests = createShadowRequests(table, pool, records, sun),
     gpu = createShadowMirror(table, pool, records, sun),
     admission = createShadowAdmission(pool.pages),
