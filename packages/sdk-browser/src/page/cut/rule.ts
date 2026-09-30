@@ -1,6 +1,6 @@
 /**
  * THE CUT RULE: the GPU kernel (`../../gpu/dag/shader/shader.ts`) and its CPU model
- * (`../../gpu/dag/oracle/oracle.ts`) decide a cluster with the predicate below, and nothing else
+ * (`../../gpu/dag/oracle/oracle.fixture.ts`) decide a cluster with the predicate below, and nothing else
  * draws or withholds a cluster there.
  *
  * A cluster is drawn when it is resident, its parent group is still too coarse for the threshold,

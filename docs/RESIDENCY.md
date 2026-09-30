@@ -12,7 +12,7 @@ resident:
 
 `draw(c) = resident(c) && parentError(c) > t && (clusterError(c) <= t || !resident(childGroup(c)))`
 
-The kernel compiles the same expression (`dagMask`) as its CPU model (`gpu/dag/oracle/oracle.ts`);
+The kernel compiles the same expression (`dagMask`) as its CPU model (`gpu/dag/oracle/oracle.fixture.ts`);
 the threshold is always the host's. Residency is read by group (`page/cut/readiness.ts`): a group is
 resident when every cluster it replaces is, and so is every group above it (a cluster nothing
 replaces stands for itself). A group then draws all its outputs or all its members, never both or

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { GpuCut, GpuSelection } from '../../gpu/core/selection.ts';
 import { createEvictionFeed } from './evictionFeed.ts';
-import type { EvictionOrder } from '../../gpu/page/types.ts';
+import { type EvictionOrder } from '../../gpu/page/evictionOrder.ts';
 
 test('the queue reaches the cache as addresses, reading only the listed records', () => {
   const catalogue = Array.from({ length: 10_000 }, (_, id) => ({ url: `p${id}` }) as PageRec);

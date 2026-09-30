@@ -14,18 +14,15 @@ import {
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { pageModel } from '../../../../sdk-core/src/scene/light-shadow/pageModel.ts';
 import { NUMBERS } from '../../../../sdk-core/src/scene/light-shadow/pageOps.ts';
-import { RANK_SPAN } from '../../../../sdk-core/src/scene/light-shadow/pageKeys.ts';
-import { shadowEntryMask } from './poolWgsl.ts';
-import { BLEND_SHADER, blendShader } from '../blend/shader.ts';
-import {
-  WATER_COMPOSITE_SHADER,
-  waterCompositeShader,
-  waterRoutedShader,
-} from '../water/compositeWgsl.ts';
+import { blendShader } from '../blend/shader.ts';
+import { waterCompositeShader, waterRoutedShader } from '../water/compositeWgsl.ts';
 import { allocationWgsl } from './allocWgsl.ts';
 import { shadowDemandWgsl } from './demandWgsl.ts';
 import { shadowFreshWgsl } from './freshWgsl.ts';
 import { shadowWordsWgsl } from './wordsWgsl.ts';
+import { BLEND_SHADER, WATER_COMPOSITE_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
+import { RANK_SPAN } from '../../../../sdk-core/src/scene/light-shadow/rankSpan.ts';
+import { shadowEntryMask } from './entryMask.ts';
 
 /** The window a reference session at the boss's case runs with: 1117 CSS at DPR 2, 55°. */
 const REFERENCE_SUN_WINDOW = referenceSunWindow(1117 * 2, 55);

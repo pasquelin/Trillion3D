@@ -1,6 +1,13 @@
 import * as G from '../host/graph/graph.fixture.ts';
 import { surfaceOf } from '../page/surface.ts';
 import type { VisPage } from './buffer.ts';
+import { triangleAt } from './math.ts';
+import { UV_GRADIENTS_WGSL } from './shader/shadeDeclWgsl.ts';
+import { shaderRun } from '../texture/shaderRun.fixture.ts';
+import { unpackVisibilityId } from './types.ts';
+import type { EngineCamera } from '../camera/world.ts';
+import { DEFAULT_PIXEL_RATIO } from '../backend/common.ts';
+import { locationOf, type PageLocations } from '../page/selection/placements.ts';
 import { identityRoots } from '../page/selection/placements.fixture.ts';
 
 export function camera() {
@@ -56,3 +63,46 @@ export function nearestQuadTexture() {
   map.needsUpdate = true;
   return map;
 }
+
+/** Analytical UV derivatives of the winning triangle, by the resolve's own gradients. Not a finite
+ *  difference across visbuffer discontinuities. */
+export function visibilityUvDerivatives(
+  ids: Uint32Array,
+  pages: VisPage[],
+  locations: PageLocations,
+  cam: EngineCamera,
+  viewport: [number, number],
+  x: number,
+  y: number,
+  pixelRatio = DEFAULT_PIXEL_RATIO,
+) {
+  const [width, height] = viewport,
+    unpacked = unpackVisibilityId(ids[y * width + x]);
+  if (!unpacked) return null;
+  const page = pages[unpacked.pageIndex];
+  if (!page) return null;
+  const tri = triangleAt(
+    page,
+    locationOf(locations, unpacked.pageIndex).world,
+    unpacked.triangleIndex,
+    cam,
+    width,
+    height,
+    pixelRatio,
+  );
+  if (!tri) return null;
+  const uv = page.attributes.uv;
+  const uva: [number, number] = uv ? [uv.getX(tri.i0), uv.getY(tri.i0)] : [0, 0];
+  const uvb: [number, number] = uv ? [uv.getX(tri.i1), uv.getY(tri.i1)] : [0, 0];
+  const uvc: [number, number] = uv ? [uv.getX(tri.i2), uv.getY(tri.i2)] : [0, 0];
+  const at = (p: { x: number; y: number }) => [p.x, p.y],
+    iw = [tri.a.invW, tri.b.invW, tri.c.invW];
+  const [dx, dy] = uvGradients(at(tri.a), at(tri.b), at(tri.c), [x, y], uva, uvb, uvc, iw);
+  return { duDx: dx[0], dvDx: dx[1], duDy: dy[0], dvDy: dy[1] };
+}
+
+/** The resolve's own UV gradients (`UV_GRADIENTS_WGSL`), run as shipped: the columns `d(u,v)/dx`
+ *  and `d(u,v)/dy`. */
+const { uvGradients } = shaderRun<{
+  uvGradients: (...corners: number[][]) => [number[], number[]];
+}>(UV_GRADIENTS_WGSL, ['uvGradients'], { mat2x2f: (dx: number[], dy: number[]) => [dx, dy] });

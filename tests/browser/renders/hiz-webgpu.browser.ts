@@ -4,7 +4,8 @@ import { createHash } from 'node:crypto';
 import { blankPageServer } from '../../kit/server/blankPage.ts';
 import { resolve } from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { HIZ_SHADER, hizBindEntries } from '../../../packages/sdk-browser/src/gpu/hiz/hiz.ts';
+import { HIZ_SHADER } from '../../../packages/sdk-browser/src/gpu/hiz/shader.ts';
+import { hizBindEntries } from '../../../packages/sdk-browser/src/gpu/hiz/shader.ts';
 import { HIZ_TEST_PAGES_ENTRIES } from '../../../packages/sdk-browser/src/gpu/hiz/shader.ts';
 import { PAGE_INFO_STRIDE } from '../../../packages/sdk-browser/src/visibility/types.ts';
 import {

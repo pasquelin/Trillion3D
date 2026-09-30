@@ -13,7 +13,7 @@ import {
 } from '../../webgpu/tile/wgsl.ts';
 import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts';
 import { FEEDBACK_RULE_WGSL, tileRequestIndexWgsl } from '../../webgpu/tile/requestWgsl.ts';
-import { PICK_BLENDS } from '../../webgpu/tile/feedback.ts';
+import { PICK_BLENDS } from '../../webgpu/tile/pickCounts.ts';
 import {
   FLAG_BLEND_CASTER,
   FLAG_HAS_MAP,
@@ -21,7 +21,7 @@ import {
   FLAG_SAMPLED,
 } from '../../visibility/types.ts';
 import { BLEND_TRANSMITTANCE_WGSL } from './transmittanceWgsl.ts';
-import { FRESH_LAYOUT_WGSL } from '../../webgpu/shadow/freshLayout.ts';
+import { FRESH_LAYOUT_WGSL } from '../../webgpu/shadow/freshLayoutWgsl.ts';
 import { SHADOW_FRESH_DRAWS_WGSL } from '../../webgpu/shadow/freshDrawsWgsl.ts';
 import { SHADOW_GROUP_DRAWS_WGSL } from './groupWgsl.ts';
 

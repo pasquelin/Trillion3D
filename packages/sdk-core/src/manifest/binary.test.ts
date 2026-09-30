@@ -1,12 +1,10 @@
 import { TEMPLATES, sha, manifest } from '../../../../tests/fixtures/manifestBinary.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  assertManifestBinary,
-  decodeManifestBinary,
-  MANIFEST_BINARY_MAGIC,
-  MANIFEST_BINARY_VERSION,
-} from './binary.ts';
+import { assertManifestBinary } from './binaryTypes.ts';
+import { decodeManifestBinary } from './binaryDecode.ts';
+import { MANIFEST_BINARY_MAGIC } from './binaryFormat.ts';
+import { MANIFEST_BINARY_VERSION } from './binaryFormat.ts';
 import { encodeManifestBinary } from '../../../../tests/fixtures/manifestBinaryEncode.ts';
 import { assertCacheIdentity, EngineError, type ClusterManifest } from '../contracts/index.ts';
 import { MAX_DEPTH_LAYER } from '../lod/depthLayer.ts';

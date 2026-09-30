@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { encodeDagKernels } from './encode.ts';
-import { DAG_SELECTION_SHADER } from './selection.ts';
+import { DAG_SELECTION_SHADER } from './shader/shader.ts';
 import { encodeurTemoin, ressources, ETAGES, LIVE, CAND } from './encode.fixture.ts';
 
 test('each cut kernel dispatches over the list the previous one filled', () => {

@@ -176,7 +176,6 @@ struct Composed{@location(0) color:vec4f,@location(1) reactive:vec4f,}
 
 ${SCREEN_REFLECTION_WGSL}
 `;
-export const WATER_COMPOSITE_SHADER = waterCompositeShader();
 /** With display layers (`../blend/displayFilter.ts`): masked, tint and added value as a normal
  *  layer's; then the reactive value (`historyWgsl.ts`), green alone at the water's coverage. */
 export const waterRoutedShader = (

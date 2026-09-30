@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { shadeTargetFormats } from '../../visibility/pipelines.ts';
-import { blendTargets } from '../../blend/pipelines.ts';
-import { waterSurfaceTargets } from '../../water/pipelines.ts';
 import { shadeColorAttachments } from '../prepare/attachments.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { waterSurfaceTargets } from '../../water/surfaceTargets.ts';
+import { shadeTargetFormats } from '../../visibility/shadeTargets.ts';
+import { blendTargets } from '../../blend/blendTargets.ts';
 
 test('opaque, blend and water pipelines omit exactly the feedback output', () => {
   assert.equal(shadeTargetFormats(true).length, 5);

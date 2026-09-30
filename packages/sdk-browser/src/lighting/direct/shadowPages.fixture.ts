@@ -3,7 +3,7 @@
 // lines restated here; `shadowBias.test.ts` pins them.
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { PAGES } from '../../../../sdk-core/src/scene/light-shadow/pageModel.ts';
-import { POISSON_16 } from './shadowWgsl.ts';
+import { POISSON_16 } from './pcfTaps.ts';
 import { clampNumber as clamp } from '../../../../sdk-core/src/world/math/spherical.ts';
 import { compare, litOf, pcf, type Stored } from './shadowBias.fixture.ts';
 

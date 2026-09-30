@@ -12,17 +12,10 @@ import {
   HOST_FILTER_NEAREST,
   HOST_FILTER_NEAREST_MIP_LINEAR,
   HOST_FILTER_NEAREST_MIP_NEAREST,
-  HOST_WRAP_CLAMP_TO_EDGE,
-  HOST_WRAP_MIRRORED_REPEAT,
 } from './surfaceConstants.ts';
-import type { Texture, TextureFilter, WrapMode } from '../../../sdk-core/src/index.ts';
+import { importWrapMode } from './wrapImport.ts';
+import type { Texture, TextureFilter } from '../../../sdk-core/src/index.ts';
 import { AFFINE } from '../../../sdk-core/src/texture/contract.ts';
-
-/** Addressing the host declared, in the engine's words; anything else repeats, as the samplers do. */
-export function importWrapMode(wrap: number): WrapMode {
-  if (wrap === HOST_WRAP_CLAMP_TO_EDGE) return 'clamp';
-  return wrap === HOST_WRAP_MIRRORED_REPEAT ? 'mirror' : 'repeat';
-}
 
 /** Filtering the host declared; an unknown constant reads linear, as the binders already did. */
 function filterOf(filter: number): TextureFilter {

@@ -43,6 +43,7 @@ export type ChangedStep =
   | 'lint'
   | 'types'
   | 'duplicates'
+  | 'check:unused'
   | 'check:links'
   | 'check:i18n'
   | (typeof TREE_GATES)[number]
@@ -66,6 +67,8 @@ export function changedSteps(
   if (sources) steps.push('lint');
   if (code) steps.push('types');
   if (sources || existing.some((file) => file.endsWith('.rs'))) steps.push('duplicates');
+  // A deleted source can leave an export only its tests used: any code change, deletions included.
+  if (code) steps.push('check:unused');
   if (existing.some((file) => markdown.test(file))) steps.push('check:links');
   if (existing.some((file) => translation.test(file))) steps.push('check:i18n');
   steps.push(...TREE_GATES);

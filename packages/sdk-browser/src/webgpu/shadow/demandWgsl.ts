@@ -170,5 +170,3 @@ fn demandLight(light:DirectLight,at:vec3f,receiver:vec3f,N:vec3f,thin:bool,footp
   demandLight(directLights.items[light],at,P,N,thin,footprint);
  }
 }`;
-/** The demand of the ordinary window: what a pass compiled without a session window marks. */
-export const SHADOW_DEMAND_WGSL = shadowDemandWgsl();

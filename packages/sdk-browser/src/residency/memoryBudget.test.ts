@@ -8,18 +8,15 @@ import { createWebglEffects } from '../effects/webglEffects.ts';
 import { createWebgpuEffects } from '../effects/webgpuEffects.ts';
 import { createTestContext } from '../webgl/core/testContext.fixture.ts';
 import { effectChainBytesAt } from '../effects/targets.ts';
-import { DEFAULT_GEOMETRY_POOL_BUDGET } from './pools.ts';
-import { DEFAULT_TEXTURE_POOL_BUDGET } from './pools.ts';
+import { DEFAULT_GEOMETRY_POOL_BUDGET, DEFAULT_TEXTURE_POOL_BUDGET } from './pools.ts';
 import {
-  BOUNCE_PROBE_BYTES,
   DEFAULT_BUDGET_CANVAS,
   DEFAULT_CPU_BUDGET,
-  DEFAULT_GPU_BUDGET,
-  EFFECT_TARGET_BYTES,
   effectTargetExcess,
-  SHADOW_POOL_BYTES,
   splitMemoryBudget,
 } from './memoryBudget.ts';
+import { BOUNCE_PROBE_BYTES, SHADOW_POOL_BYTES } from './shadowBudgetBytes.ts';
+import { DEFAULT_GPU_BUDGET, EFFECT_TARGET_BYTES } from './budget.fixture.ts';
 
 const [width, height] = [3840, 2160];
 const MiB = 1024 * 1024;

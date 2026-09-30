@@ -11,6 +11,7 @@ import {
   type ReferenceTilePlan,
 } from './referenceTiles.ts';
 import type { MeasuredWorldOptions } from '../world/session/options.ts';
+import { REFERENCE_APPROXIMATIONS, REFERENCE_BOUNCE_BUDGET_MS } from './referenceApproximations.ts';
 
 /**
  * THE ENGINE'S REFERENCE MODE (#1281): the image a rendering technique is held to (CONTRIBUTING.md,
@@ -28,17 +29,6 @@ import type { MeasuredWorldOptions } from '../world/session/options.ts';
  * A still frame already shades every light of its tile (`LIGHT_SETTINGS.samplesPerPixel` samples a
  * moving one only): the capture is of a held, still frame.
  */
-export const REFERENCE_APPROXIMATIONS = [
-  'renderScale',
-  'temporalReuse',
-  'probeBudget',
-  'shadowResolution',
-  'supersampling',
-] as const;
-
-/** The bounce target of the reference, in milliseconds: far past any frame, so the budget never
- *  lowers the probes traced below their per-frame ceiling (`createBounceBudget`). */
-export const REFERENCE_BOUNCE_BUDGET_MS = 1000;
 
 /**
  * Pages a side of a clipmap level a view of `height` device pixels at vertical field `fov` needs
