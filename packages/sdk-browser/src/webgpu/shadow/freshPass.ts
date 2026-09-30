@@ -1,6 +1,7 @@
 import { MAX_SHADOW_SLICES } from '../../../../sdk-core/src/index.ts';
 import { writeFace } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
 import type { SceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts';
+import type { ShadowPlan } from '../../../../sdk-core/src/scene/light-shadow/plan.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { FRESH_CASTERS, FRESH_CLEAR, FRESH_SLICE_FLOATS, freshDrawWord } from './freshLayout.ts';
 import { freshGroups } from './freshGroups.ts';
@@ -31,16 +32,15 @@ export function freshSlices(store: SceneLightStore) {
 /**
  * Whether this frame may hand the GPU a page to draw: the view or anything in the world moved — a
  * caster's own surface asks new pages as it moves — (`gpu.moved`), a light was added, set or
- * removed (`store.epoch`), the host took a page's depth away (`allocation.lost`), or the latest
- * snapshot's frame listed pages (`gpu.listed`). Otherwise the frame asks for the pages the last one
- * did, which are drawn, and runs none of the GPU's page work.
+ * removed (light `epoch`), the host took `lost` pages' depth away (`allocation.lost`), or the
+ * latest snapshot's frame listed pages (`gpu.listed`) — a frame at rest runs while it does
+ * (`shadowsUnsettled`). Otherwise the frame asks for the pages the last one did, which are drawn,
+ * and runs none of the GPU's page work.
  */
-function freshWanted(rt: WebgpuPagesRuntime) {
-  const { plan, store, pageRequests } = rt.lights,
-    held = epochs.get(plan);
-  epochs.set(plan, store.epoch);
-  if (plan.gpu.moved || held !== store.epoch || plan.gpu.listed > 0) return true;
-  return (pageRequests?.allocation.lost ?? 0) > 0;
+export function freshWanted(plan: ShadowPlan, epoch: number, lost: number) {
+  const held = epochs.get(plan);
+  epochs.set(plan, epoch);
+  return plan.gpu.moved || held !== epoch || plan.gpu.listed > 0 || lost > 0;
 }
 const epochs = new WeakMap<object, number>();
 
@@ -68,7 +68,8 @@ export function encodeFreshPages(
     { allocation, pageRequests, shadows, plan, cull, spheres, mobilityRows } = lights,
     buffers = pageRequests?.allocation;
   if (!allocation || !buffers?.seeded || !plan.gpu.on || !shadows?.texture) return;
-  if (!cull || !spheres || !mobilityRows || !freshWanted(rt)) return;
+  if (!cull || !spheres || !mobilityRows) return;
+  if (!freshWanted(plan, lights.store.epoch, buffers.lost)) return;
   const groups = freshGroups(rt, device);
   if (!groups) return;
   const { side, layers } = plan.pool,

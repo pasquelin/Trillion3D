@@ -3288,7 +3288,7 @@
       "admission": "Bu karenin sayfaları, ışık görünümü ışık görünümü.",
       "stamp": "Gölgelendirme, ışıklar ve görünümün sonraki görüntüye verdiği: bununla damgalanmış ve yeni hiçbir şey adlandırmayan bir rapor, görüntünün yalnızca çizileni okuduğunu kanıtlar.",
       "settled": "Bir rapor mevcut durumun hiçbir şey istemediğini kanıtladığında doğru: görüntü tutulabilir.",
-      "receive": "Bir istek raporu döndü; sonraki plan onu okur. Daha yenisi okunmamış olanın yerini alır.",
+      "receive": "Bir istek raporu döndü: GPU'nun sayfa listesi hemen sayılır (`gpu.hear`), gerisini sonraki plan okur.",
       "commit": "Karenin listesindeki `[from, to)` sayfaları kodlandı, `from + i` sayfası `modes[i]` içinde: çizimleri kimse okumadan önce tamamlanır. Son parti listeyi kapatır.",
       "resize": "Başka boyutta havuz; sayfaları korunur, dizileri yeniden oluşturulur: her sayfanın nereye gittiğini döndürür.",
       "sunWindow": "Bir oturumun çalıştığı güneş clipmap’inin bir kenarındaki sayfa sayısı (`referenceMode.ts`).",
