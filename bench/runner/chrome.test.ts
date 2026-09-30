@@ -79,7 +79,7 @@ test('a harness run from a scratch folder reaches Playwright, stubbed: nothing s
 test('a channel or a browser path given to launchChrome never opens another browser', () => {
   const printed = scratchHarness(
     'async (options) => JSON.stringify([options.channel, options.executablePath ?? null])',
-    "launchChrome({ headless: true, channel: 'chromium', executablePath: '/shell' } as never)",
+    "launchChrome({ headless: true, channel: 'chromium', executablePath: '/shell' })",
   );
   assert.equal(printed, '["chrome",null]\n');
 });
