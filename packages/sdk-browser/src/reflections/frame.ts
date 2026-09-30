@@ -1,5 +1,5 @@
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
-import { shadowEpoch } from '../webgpu/pages/state/lights.ts';
+import { shadowEpoch } from '../webgpu/pages/state/shadowEpoch.ts';
 import type { ReflectionHistoryFrame } from './historyRuntime.ts';
 
 const frames = new WeakMap<object, ReflectionHistoryFrame>();
