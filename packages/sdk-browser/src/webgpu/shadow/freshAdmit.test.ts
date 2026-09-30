@@ -3,14 +3,8 @@
 // region its place in the list and admits the longest prefix of whole regions the list holds.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { runShadowPairStep } from './freshRun.fixture.ts';
-import {
-  FRESH_ARG,
-  FRESH_PARAMS,
-  FRESH_SHORT,
-  freshArgWords,
-  freshRegionPairs,
-} from './freshLayout.ts';
+import { freshRegionPairs, runShadowPairStep } from './freshRun.fixture.ts';
+import { FRESH_ARG, FRESH_PARAMS, FRESH_SHORT, freshArgWords } from './freshLayout.ts';
 
 test('the admission gives each region its place over the lanes and admits the longest whole prefix', () => {
   // A hundred and fifty regions, runs of three a lane, counting 0 to 4 pairs each.

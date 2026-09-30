@@ -7,7 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { clampNumber as clamp } from '../../../../sdk-core/src/world/math/spherical.ts';
-import { PCF_EDGE_TEXELS } from '../../../../sdk-core/src/scene/light-shadow/pageModel.ts';
+import { PCF_EDGE_TEXELS } from '../../../../sdk-core/src/scene/light-shadow/pcfEdge.ts';
 import { mulberry32 } from '../../../../../site/examples/kit/random.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { hash } from './shadowPages.fixture.ts';
