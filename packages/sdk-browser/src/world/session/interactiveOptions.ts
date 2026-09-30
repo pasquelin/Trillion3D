@@ -1,4 +1,5 @@
-import { EngineError, explorerSwitch } from '../../../../sdk-core/src/index.ts';
+import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts';
+import { EngineError } from '../../../../sdk-core/src/index.ts';
 import { webgpuPagesBackend } from '../../webgpu/pages/pages.ts';
 import type { BackendFactory } from '../../backend/types.ts';
 import type { MeasuredWorldOptions } from './options.ts';

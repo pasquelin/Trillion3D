@@ -1,4 +1,5 @@
-import { EngineError, explorerSwitch } from '../../../../sdk-core/src/index.ts';
+import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts';
+import { EngineError } from '../../../../sdk-core/src/index.ts';
 import { detectCapabilities } from '../../measurement/capabilities.ts';
 import { grantedGpuFeatures, requestExplorerDevice } from './gpuDevice.ts';
 import { webgpuPagesBackend } from '../../webgpu/pages/pages.ts';
