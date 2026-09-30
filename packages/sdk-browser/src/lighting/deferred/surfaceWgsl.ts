@@ -14,8 +14,8 @@ export const CAMERA_FOG_WGSL = `if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){
 export const MIRROR_TERM_WGSL = '+mirrorLighting(base.rgb,base.a,normal.a,N,V,P)';
 
 /**
- * What a shadow read needs of its pixel, set only where its tile lists a shadowed light
- * (`pixelShadowed`, #1369) — nothing else reads it, and a pixel of any other tile, or of the program
+ * What a shadow read needs of its pixel, set only where its cell lists a shadowed light
+ * (`cellShadowed`, #1369) — nothing else reads it, and a pixel of any other cell, or of the program
  * with no shadow code, loads none of its eight neighbour depths nor its receiver offset: its footprint
  * and point unjittered, whence its shadow level (#1363); a lane in the target asks per subgroup; its receiver, moved by its shading-point
  * offset (`receiverOffset`, recomputed from the visibility buffer, #1410).
@@ -38,13 +38,15 @@ ${LIGHT_SURFACE_ENTRY}
  let P=worldAt(pixel.xy,z);
  if(flag==1u){var rgb=base.rgb;${CAMERA_FOG_WGSL}return vec4f(rgb,1.0);}
  let normal=textureLoad(normalRough,coord,0);let emissive=textureLoad(emissiveAo,coord,0);
- if(pixelShadowed(pixel.xy)){shadowSetup(coord,pixel,z,P);}
+ // The pixel's cell of the light grid, read once: its shadow flag, then its list (#1369).
+ let cell=pixelCell(pixel.xy,z);let shadowed=cellShadowed(cell);
+ if(shadowed){shadowSetup(coord,pixel,z,P);}
  let V=normalize(view.camera.xyz-P*view.camera.w);let N=normalize(normal.xyz);
  surfaceModel=flag;
  thinSubsurface=vec3f(0.0);
  if((surfaceFlag&${SUBSURFACE_FLAG}u)!=0u){thinSubsurface=textureLoad(subsurfaceColor,coord,0).rgb;}
  ${diagnostic}
- let lit=contractLighting(base.rgb,base.a,normal.a,N,V,P,emissive.a,pixel.xy);
+ let lit=contractLighting(base.rgb,base.a,normal.a,N,V,P,emissive.a,pixel.xy,cell,shadowed);
  var ambient=environmentLighting(base.rgb,base.a,N,emissive.a);
  if(any(thinSubsurface>vec3f(0.0))){ambient+=environmentLighting(thinSubsurface,0.0,-N,emissive.a);}
  var rgb=lit+ambient+emissive.rgb${bounce};${CAMERA_FOG_WGSL}

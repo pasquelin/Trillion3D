@@ -149,12 +149,12 @@ fn waterColor(pixel:vec4f)->vec4f{
  let f0=pow((vol.ior-1.0)/(vol.ior+1.0),2.0);
  let F=f0+(1.0-f0)*pow(clamp(1.0-max(dot(Nv,V),0.0),0.0,1.0),5.0);
  if(!unlit){
-  lit=declaredLighting(base.rgb,metal,rough,Nv,V,P,ao,pixel.xy)+bounceLighting(base.rgb,metal,Nv,P,ao)+environmentLighting(base.rgb,metal,Nv,ao)+emissiveAo.rgb;
+  lit=declaredLighting(base.rgb,metal,rough,Nv,V,P,ao,pixel.xy,fragZ)+bounceLighting(base.rgb,metal,Nv,P,ao)+environmentLighting(base.rgb,metal,Nv,ao)+emissiveAo.rgb;
   // What the mirror direction sees, weighted by Fresnel — the engine's one reflection model: the
   // proxy traced at the roughness floor, the probe irradiance over π above it, exactly zero without
   // bounce — and the specular of the declared lights on a null albedo: the diffuse lobe cancels,
   // the dielectric specular lobe stays.
-  reflected=F*resolvedRadiance(P,Nv,reflect(-V,Nv),rough)+declaredLighting(vec3f(0.0),0.0,rough,Nv,V,P,ao,pixel.xy);
+  reflected=F*resolvedRadiance(P,Nv,reflect(-V,Nv),rough)+declaredLighting(vec3f(0.0),0.0,rough,Nv,V,P,ao,pixel.xy,fragZ);
  }
  let through=transmittedBackdrop(vol,P,Nv,V,coord,fragZ);
  // The glTF composition, a = alpha + t(1-alpha) with a·C carrying the whole transmitted share,
