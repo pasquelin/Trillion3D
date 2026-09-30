@@ -9,13 +9,8 @@ import { BOUNCE_SETTINGS, createBounceCascades } from '../../../sdk-core/src/ind
 import { ownedProxy } from '../../../sdk-core/src/scene/core/proxy.fixture.ts';
 import { shaderRun, type Vec } from '../texture/shaderRun.fixture.ts';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
-import {
-  ATLAS_DIMENSION,
-  PROBE_TEXELS,
-  atlasBytes,
-  atlasExtent,
-  probeAtlasExtent,
-} from './atlas.ts';
+import { PORTABLE_TEXTURE_SIDE as ATLAS_DIMENSION } from '../frame/referenceTilePlacement.ts';
+import { PROBE_TEXELS, atlasBytes, atlasExtent, probeAtlasExtent } from './atlas.ts';
 import { bounceProbeBytes, ensureBounceFits } from './limits.ts';
 import { BOUNCE_PROBE_SHADER } from './probeWgsl.ts';
 

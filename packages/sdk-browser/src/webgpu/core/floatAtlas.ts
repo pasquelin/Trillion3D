@@ -11,14 +11,14 @@ import { PORTABLE_TEXTURE_SIDE } from '../../frame/referenceTilePlacement.ts';
  * `FLOAT_ATLAS_WIDTH` allows it, so it weighs the very bytes the buffer did: the memory budgets
  * the engine funds from them see no change.
  */
-export const FLOAT_ATLAS_WIDTH = PORTABLE_TEXTURE_SIDE;
-export const FLOAT_ATLAS_ROWS = PORTABLE_TEXTURE_SIDE;
+const FLOAT_ATLAS_WIDTH = PORTABLE_TEXTURE_SIDE;
+const FLOAT_ATLAS_ROWS = PORTABLE_TEXTURE_SIDE;
 /** Layers every WebGPU device holds (`maxTextureArrayLayers`). */
 const FLOAT_ATLAS_LAYERS = 256;
 
 /** Width, rows and layers of an atlas of `floats` floats: the fewest rows that divide them — a
  *  layer's rows, or whole layers —; rows of `FLOAT_ATLAS_WIDTH`, padded, when none does. */
-export function floatAtlasExtent(floats: number): [number, number, number] {
+function floatAtlasExtent(floats: number): [number, number, number] {
   const count = Math.max(1, floats),
     least = Math.ceil(count / FLOAT_ATLAS_WIDTH);
   for (let rows = least; rows <= FLOAT_ATLAS_ROWS; rows++)
