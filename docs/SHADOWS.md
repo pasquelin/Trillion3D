@@ -275,20 +275,23 @@ show a net gain beyond run spread, transition frames included.
 
 **Moving casters by group** (#1345, `webgpu/shadow/movingGroups.ts`). A restored page drew its
 moving casters in one draw of its own, in its page's viewport: 250 draws a frame for 35 turning
-antennas. the reference engine draws the pages of a light in batched draws; so here every restored sun page of
-one pass whose lists are of one kind (the cull's, or the occlusion test's) is in a group, by its
-block of the layer — a square of the layer's largest power of two of texels, at its start or its
-end on each axis, which holds every page —, alone in it or not. After
-the cull and the occlusion test, a compute pass files each page's kept casters into its group's
-list and counts them into its two indirect commands, and the pass draws each group's opaque
+antennas. the reference engine's virtual shadow maps draw all the pages of a light in one pass; so here every
+restored page of one pass whose lists are of one kind (the cull's, or the occlusion test's) is in
+a group: a sun page by its block of the layer — a square of the layer's largest power of two of
+texels, at its start or its end on each axis, which holds every page —, alone in it or not; a lamp
+page by its layer. After the cull and the occlusion test, a compute pass files each page's kept
+casters into its group's list and counts them into its two indirect commands, and the pass draws each group's opaque
 casters, then its cutout ones, in one instanced draw each; the transmittance layer's pass draws each
 group's blended casters, depth only then colour only, at half (`movingGroupDraws.ts`). A sun corner
 is carried from its page's viewport to the block's (`groupPlace`, `gpu/shadow/groupWgsl.ts`): the
 snapped sun corner and the power-of-two block make the rasterizer's f32 window position the one the
 page's own viewport gave, to the bit, at the pool's resolution and at half (`groupPlace.test.ts`).
-The fragment keeps its page's texels alone. A lamp page keeps its own draw in its page's viewport:
-its perspective corner, carried onto the layer (`x·s + o·w`), is divided by `w` in f32 and lands an
-ulp apart on some corners (`groupPlace.test.ts`), which would move a texel edge — not class 1.
+A lamp corner is carried onto its page's square of the layer in clip space by the GPU pages'
+`freshPlace` (`x·s + o·w`), each caster clipped to its page by four clip distances
+(`clip-distances`; a device without the feature draws lamp pages one by one): after the f32 divide
+by `w`, its window position lies within one ulp of the one its page's viewport gave (one texel edge
+at most, `groupPlace.test.ts`) — class 2, against `develop`'s lamp shadows. The fragment keeps its
+page's texels alone, off a lamp's emitter envelope.
 
 Every shadow pipeline — static layer, light-cut row map, page pyramids (the camera's Hi-Z kernels),
 occlusion test and, if blended surfaces cast, transmittance draws — is compiled at prepare, in its
