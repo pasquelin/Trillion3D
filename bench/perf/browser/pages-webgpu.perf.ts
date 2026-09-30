@@ -39,7 +39,6 @@ const pageOf = (matrix: G.Matrix4): Cluster => ({
   placementIndex: 0,
   roots: [{ world: matrix }],
   renderOrder: 0,
-  attached: true,
 });
 
 function clusters(nombre: number): Cluster[] {

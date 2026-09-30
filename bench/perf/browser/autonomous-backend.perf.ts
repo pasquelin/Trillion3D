@@ -3,10 +3,13 @@ import { Scene } from '../../../packages/sdk-browser/src/world/core/scene.ts';
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 import { createAutonomousGeometry } from '../../../packages/sdk-browser/src/backend/autonomous/geometry.ts';
+import { createPageDraws } from '../../../packages/sdk-browser/src/backend/autonomous/pageDraws.ts';
 import type {
   ClusterRoot,
   PageRec as EngineRec,
 } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
+import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts';
+import type { HostMesh } from '../../../packages/sdk-browser/src/host/resources.ts';
 import type { WebglViewState } from '../../../packages/sdk-browser/src/backend/autonomous/views.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import { referenceAutonomousSync } from '../../oracles/browser/autonomous-backend.ts';
@@ -16,12 +19,18 @@ const HOSTILES = [...HOSTILE_FLOATS, 1.7976931348623157e308];
 const geometrie = new G.Geometry();
 const materiau = G.basicSurface();
 
-/** A record with the world the oracle reads on it: its own root's, which the engine reads. */
-type PageRec = EngineRec & { matrix: G.Matrix4 };
+/** A record with the world the oracle reads on it, and the draw state the record carried before
+ *  #1234; the engine now reads the latter from a `PageDraws` table. */
+type PageRec = EngineRec & {
+  matrix: G.Matrix4;
+  geometry?: Geometry;
+  mesh?: HostMesh;
+  attached: boolean;
+};
 
 interface Monde {
   scene: Scene;
-  roots: ClusterRoot<EngineRec>[];
+  roots: ClusterRoot<PageRec>[];
   allPages: PageRec[];
   shown: PageRec[];
   desired: PageRec[];
@@ -97,13 +106,15 @@ function cas(name: string, total: number, tailles: readonly number[], mesure = t
   const left = monde(total, 0x9e37 ^ total),
     right = monde(total, 0x9e37 ^ total);
   const oracle = referenceAutonomousSync(left);
+  const draws = createPageDraws(right.roots);
+  for (const rec of right.allPages) draws.drawing(rec).geometry = rec.geometry;
   const paquet = createAutonomousGeometry({
     ...right,
     views: viewOf(right),
     bootstrap: [],
     byUrl: new Map(),
     descriptors: new Map(),
-    baseMaterials: new Map(),
+    draws,
     colorMaterials: new Map(),
     modifiedPages: new Set(),
   });
@@ -135,17 +146,20 @@ const resAutonome = await mesure({
 
 await stress({
   name: 'createAutonomousGeometry extremes',
-  calcul: (m: Monde) =>
-    createAutonomousGeometry({
+  calcul: (m: Monde) => {
+    const draws = createPageDraws(m.roots);
+    for (const rec of m.allPages) draws.drawing(rec).geometry = rec.geometry;
+    return createAutonomousGeometry({
       ...m,
       views: viewOf(m),
       bootstrap: [],
       byUrl: new Map(),
       descriptors: new Map(),
-      baseMaterials: new Map(),
+      draws,
       colorMaterials: new Map(),
       modifiedPages: new Set(),
-    }).sync(),
+    }).sync();
+  },
   extremes: [
     {
       name: 'empty',
