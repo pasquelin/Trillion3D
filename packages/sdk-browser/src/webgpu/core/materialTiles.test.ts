@@ -153,3 +153,16 @@ test('a device that refuses the classification draws every class on every tile',
   tiles.draw(pass, 0);
   assert.deepEqual(drawn, [[6, 4]]);
 });
+
+test('a classification that does not compile fails by name, never silently whole', async () => {
+  installGpuGlobals();
+  const { device } = mockGpu({ compute: true });
+  const refused = {
+    getCompilationInfo: async () => ({ messages: [{ type: 'error', message: 'x' }] }),
+  };
+  device.createShaderModule = (() => refused) as unknown as typeof device.createShaderModule;
+  await assert.rejects(
+    createMaterialTiles(device, materialTileDrawLayout(device)),
+    /MATERIAL_TILES: x/,
+  );
+});
