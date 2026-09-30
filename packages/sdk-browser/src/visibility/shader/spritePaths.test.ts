@@ -12,11 +12,11 @@ import { VIS_SHADER } from './visWgsl.ts';
 import { SHADE_SHADER } from './shadeWgsl.ts';
 import { rasterSource } from '../../gpu/raster/shader.ts';
 import { SHADOW_DEPTH_SHADER } from '../../gpu/shadow/shader.ts';
-import { BLEND_SHADER } from '../../webgpu/blend/shader.ts';
 import { BLEND_ITEM_WGSL } from '../../webgpu/blend/items.ts';
 import { CLUSTER_VERTEX } from '../../webgl/cluster/shaders.ts';
 import { SHADER as FALLBACK_SHADER } from '../../webgpu/pages/prepare/shaders.ts';
 import { ROW_SPRITE_WORD } from '../../webgpu/row/pageRow.ts';
+import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
 
 test('a surface writes its sprite words: its turn and its size rule, zeros when it is none', () => {
   const words = [9, 9, 9, 9];

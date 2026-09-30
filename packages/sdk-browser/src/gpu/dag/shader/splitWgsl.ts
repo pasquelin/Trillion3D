@@ -1,6 +1,8 @@
 import { DAG_ACCESS_WGSL, dagPartBindings } from './bindings.ts';
 import { DAG_SELECTION_SHADER } from './shader.ts';
-import { PAGE_SECTIONS, dagPartCounts, type DagSplit, type TableSplit } from '../split.ts';
+import { dagPartCounts, type DagSplit } from '../split.ts';
+import { type TableSplit } from '../splitFlags.ts';
+import { PAGE_SECTIONS } from '../flagSections.ts';
 
 /** Part `part` of `table`: the table itself for the first, the part's own binding after. */
 const partName = (table: string, part: number) => (part ? `${table}${part}` : table);

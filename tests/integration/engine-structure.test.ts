@@ -6,7 +6,8 @@ const core = new URL('../../packages/sdk-core/src/', import.meta.url);
 const browser = new URL('../../packages/sdk-browser/src/', import.meta.url);
 test('sdk-core excludes browser, UI and filesystem dependencies', async () => {
   const files = (await readdir(core, { recursive: true })).filter(
-    (name) => name.endsWith('.ts') && !name.endsWith('.test.ts'),
+    // Tests and their fixtures are not shipped (`packages/sdk-core/package.json`, `files`).
+    (name) => name.endsWith('.ts') && !name.endsWith('.test.ts') && !name.endsWith('.fixture.ts'),
   );
   assert.ok(files.length > 100, 'the core package must be found');
   for (const file of files) {
@@ -48,7 +49,8 @@ const POSE_LOCALE: Record<string, string> = {
   'camera/controls/pose.ts': 'the camera-controller boundary: a controller writes a local pose',
   'world/api/cameraApi.ts': 'host round-trip: `homePose` returns what `setCameraPose` rewrites',
   'world/render/hostState.ts': 'the host restores the local pose it had recorded',
-  'gpu/dag/oracle/predicates.ts': 'the oracle POSES a parentless camera from a world position',
+  'gpu/dag/oracle/predicates.fixture.ts':
+    'the oracle POSES a parentless camera from a world position',
   'page/selection/dag.fixture.ts': 'test scene builder: it poses the camera',
   'page/selection/blend.fixture.ts': 'test scene builder: it poses the camera',
   'visibility/buffer.fixture.ts': 'test scene builder: it poses the camera',
@@ -70,7 +72,7 @@ const POSE_LOCALE: Record<string, string> = {
  */
 const LISENT_LA_POSE: Record<string, string> = {
   'camera/world.ts': 'the contract',
-  'page/raster.ts': 'host-graph raster oracle — resolves (callable alone)',
+  'page/raster.fixture.ts': 'host-graph raster oracle — resolves (callable alone)',
   'physics/view.ts': 'the eye, facing and range the physics worker is sent, once they change',
 };
 

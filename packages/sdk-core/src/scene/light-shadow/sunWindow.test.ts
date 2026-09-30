@@ -5,18 +5,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  SUN_ENTRIES,
   SUN_WINDOW,
   shadowTableEntries,
   shadowTableStride,
-  sunEntries,
   sunLevelEntries,
   tableEntriesOf,
 } from './virtual.ts';
 import { sunEntry } from './pageModel.ts';
 import { createSunLevels } from './sunLevels.ts';
 import { LIGHT_KIND } from '../light/contracts.ts';
-import { VIEW } from './lightShadow.fixture.ts';
+import { VIEW, SUN_ENTRIES } from './lightShadow.fixture.ts';
+import { sunEntries } from './sunEntries.ts';
 
 const AXIS = [0, -1, 0];
 // The boss's case: 2234 device pixels at a 55° vertical field reach 4291, so `pages · 64 ≥ 4291`

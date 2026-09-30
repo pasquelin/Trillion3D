@@ -1,4 +1,5 @@
 import { REST_COMPACT_SHADER, REST_COMPACT_WORKGROUP } from './restCompactWgsl.ts';
+import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts';
 import { validated } from '../core/errorScope.ts';
 import { cleanupFailedHiz } from '../hiz/pipelines.ts';
 import { bounceGroup, bounceLayout } from '../../bounce/bindings.ts';
@@ -71,13 +72,16 @@ export async function createGpuRestCompact(
       const module = device.createShaderModule({ code: REST_COMPACT_SHADER });
       if (await shaderFailed(module)) return undefined;
       const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
-      const stage = (entryPoint: string) =>
-        device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } });
+      const stages = await buildComputeStages(device, pipelineLayout, module, [
+        'restCount',
+        'restScan',
+        'restScatter',
+      ]);
       return {
         layout,
-        countPipeline: stage('restCount'),
-        scanPipeline: stage('restScan'),
-        scatterPipeline: stage('restScatter'),
+        countPipeline: stages.restCount,
+        scanPipeline: stages.restScan,
+        scatterPipeline: stages.restScatter,
       };
     });
     if (!made) return bail();

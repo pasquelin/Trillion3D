@@ -1,19 +1,22 @@
 // A mirror reflects the scene (#31): with bounce on, the opaque resolve adds to a smooth surface the
 // radiance its mirror direction meets in the resident proxy, read in the surface cache; the water
-// reads the same function. Without bounce the resolve is the direct program, untouched.
+// reads the same function. Without bounce the direct program reflects the environment alone.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BOUNCE_LIGHTING_SHADER, DIRECT_LIGHTING_SHADER } from '../lighting/deferred/shaders.ts';
 import { createDeferredLighting } from '../lighting/deferred/deferred.ts';
 import type { DirectLightResources } from '../lighting/deferred/program.ts';
 import type { SurfaceBuffer } from '../scene/surfaceBuffer.ts';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
-import { WATER_COMPOSITE_SHADER } from '../webgpu/water/compositeWgsl.ts';
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts';
 import { BOUNCE_PROBE_SHADER } from './probeWgsl.ts';
 import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts';
 import { BOUNCE_SURFACE_BINDING, SURFACE_RAY_WGSL } from './reflectWgsl.ts';
 import { functionText as body } from './wgslBody.fixture.ts';
+import {
+  BOUNCE_LIGHTING_SHADER,
+  DIRECT_LIGHTING_SHADER,
+  WATER_COMPOSITE_SHADER,
+} from '../gpu/core/shaderTexts.fixture.ts';
 
 test('with bounce, a smooth surface adds what its mirror direction meets in the proxy', () => {
   // The term is part of the lit sum, fed the pixel's own roughness.
@@ -54,11 +57,11 @@ test('diffuse and toon keep no specular lobe, while rough physical materials ret
 });
 
 test('the direct base has no proxy fallback; the bounce variant binds its surface cache', async () => {
-  assert.doesNotMatch(DIRECT_LIGHTING_SHADER, /mirrorLighting|reflectedRadiance|rayRadiance/);
-  // Without probes the reflection returns before firing a ray.
+  assert.doesNotMatch(DIRECT_LIGHTING_SHADER, /rayRadiance|sampleProbeField/);
+  // Without probes the reflection reads the environment before firing a ray (#1341).
   assert.match(
     body(BOUNCE_LIGHTING_SHADER, 'reflectedRadiance'),
-    /^fn reflectedRadiance\([^)]*\)->vec3f\{\n if\(bounce\.counts\.w==0u\)\{return vec3f\(0\.0\);\}/,
+    /^fn reflectedRadiance\([^)]*\)->vec3f\{\n if\(bounce\.counts\.w==0u\)\{return environmentReflection\(R,rough\);\}/,
   );
   const { device, bindGroups } = fakeDevice(),
     lighting = await createDeferredLighting(device),

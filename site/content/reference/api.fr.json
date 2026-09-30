@@ -1232,13 +1232,14 @@
   "createTerminalProgress": {
     "summary": "Une barre de progression dans le terminal qui suit les évènements du compilateur.",
     "parameters": {
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}": "L’aspect d’un affichage de progression dans le terminal.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.label": "Le nom de la tâche.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.index": "Le numéro de la tâche.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.total": "Combien de tâches au total.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.stream": "Où écrire.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.width": "Largeur de la barre.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.interval": "Millisecondes minimum entre deux dessins."
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}": "L’aspect d’un affichage de progression dans le terminal.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.label": "Le nom de la tâche.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.index": "Le numéro de la tâche.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.total": "Combien de tâches au total.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.stream": "Où écrire.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.width": "Largeur de la barre.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.interval": "Millisecondes minimum entre deux dessins.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.verbose": "Indique aussi les codes d’information et chaque occurrence dans le résumé de fin de tâche."
     }
   },
   "createTransformTree": {
@@ -1271,7 +1272,7 @@
       "options.signal": "Arrête les chargements du monde quand le signal est annulé.",
       "options.physics": "Allume la physique (`world.physics`) : `true`, ou gravité et budgets. Jolt n’est chargé qu’alors.",
       "options.temporalAntialiasing": "L’anticrénelage temporel, WebGPU seulement : un décalage sous-pixel accumulé au fil des images. `false` dessine chaque pixel en son centre, sans historique, ce que demande une capture exacte au pixel près ; changé ensuite par `world.temporalAntialiasing`.",
-      "options.renderScale": "La fraction de l’affichage par axe à laquelle l’image est dessinée, avant que l’anticrénelage temporel ne la reconstruise à l’affichage : `'auto'` laisse le budget d’image la choisir entre `min` et `max` (`{ min, max }`, 0,5 et 1 par défaut ; sur WebGL2, qui ne fait que rééchantillonner, `min` vaut 1 par défaut), un nombre la fixe ; une image immobile est dessinée au maximum. Changée ensuite par `world.renderScale`."
+      "options.renderScale": "La fraction de l’affichage par axe à laquelle l’image est dessinée, avant que l’anticrénelage temporel ne la reconstruise à l’affichage : `'auto'` laisse le budget d’image la choisir entre `min` et `max` (`{ min, max }`, 0,5 et 1 par défaut ; sur WebGL2, qui ne fait que rééchantillonner, `min` vaut 1 par défaut), un nombre la fixe. Sur WebGPU, une image immobile est dessinée à cette échelle aussi et reconstruite à partir de ses phases de jitter ; sur WebGL2, elle est dessinée au maximum. Changée ensuite par `world.renderScale`."
     }
   },
   "crossVector3": {
@@ -1857,6 +1858,7 @@
       "gpuPassMs": "Dernière mesure de passes GPU de ce moteur ; null quand l’appareil ne sait pas faire d’horodatages.",
       "gpuFrameMs": "Durée GPU de l’image que décrit `gpuPassMs.frame`. Jamais ajoutée à un champ `cpu*`. L’appareil est échantillonné toutes les quelques images, donc un nombre peut dater de quelques images. Vaut null avant le premier échantillon, depuis une image gardée jusqu’au prochain échantillon de l’appareil, sur un appareil sans `timestamp-query` et sur WebGL2 sans `EXT_disjoint_timer_query_webgl2`.",
       "gpuHostGapMs": "Temps CPU que la même image a passé entre deux de ses propres envois, et zéro quand elle n’envoie qu’une fois. C’est du temps de l’hôte, pas du GPU, c’est pourquoi `gpuFrameMs` l’exclut. Null quand il n’est pas mesuré.",
+      "gpuDeviceLost": "Pourquoi l’appareil GPU a été perdu ; null tant qu’il tient.",
       "uncoveredTriangles": "Triangles des clusters que nomme la coupe publiée mais que l’image ne peut pas dessiner — pas de page résidente et pas d’ancêtre qui couvre. Un vrai trou dans l’image : zéro est la seule valeur saine. Null quand un moteur ne peut pas le dire (il dessine la coupe qu’il a choisie, donc il n’en a jamais).",
       "drawnTriangles": "Triangles que l’IMAGE ACTUELLE donne au dessin : sa coupe de clusters, opaques et transparents de la hiérarchie réunis. Les maillages transparents hors de la hiérarchie n’y sont pas (`transparentSubmittedTriangles`), et le rejet par occultation n’est pas retiré (`hizRejectedTriangles`). Compté à l’adoption de la coupe : aucune relecture GPU asynchrone n’est attendue, donc il ne vaut jamais `null` faute de temps, contrairement à `submittedTriangles`.",
       "cpuSelectMs": "Temps CPU de la coupe de clusters de cette image, mesuré autour de la sélection seule. Null pour un moteur qui ne choisit pas sa coupe sur le CPU.",
@@ -5256,7 +5258,7 @@
     }
   },
   "resolveCompilerExecutable": {
-    "summary": "Trouve le programme du compilateur natif : celui demandé, sinon celui construit dans ce dépôt."
+    "summary": "Trouve le programme du compilateur natif : celui demandé, sinon celui du paquet de plateforme installé, sinon celui que nomme `TRILLION3D_COMPILER_BIN`, sinon celui construit dans ce dépôt."
   },
   "ReusedFolder": {
     "summary": "Ce qu’une tâche a prouvé avant de garder un dossier existant au lieu de l’écrire (`null` quand elle a compilé ; `clusterHierarchyPagesMs` est alors `null` aussi).",
@@ -5664,6 +5666,7 @@
       "counts": "Nombres pour le diagnostic.",
       "spent": "Millisecondes CPU que le dernier plan a passées à lire le rapport de requêtes et à admettre les pages.",
       "worldChanged": "Un nœud a bougé : sa boîte entre dans la liste que le planificateur traitera à la prochaine image.",
+      "changeRoom": "Boîtes que la liste garde encore à part avant le débordement.",
       "representationChanged": "Le même monde à une autre précision — niveau de détail, résidence, tuile de couleur — : sa boîte attend que la caméra s’arrête, puis entre dans la liste (`changes.ts`).",
       "resting": "La caméra était au repos au dernier plan : sa vue était celle du plan précédent.",
       "deferredChanges": "Vrai tant qu’un changement de représentation attend que la caméra s’arrête : l’image ne doit pas être gardée avant qu’un plan le consomme.",
@@ -6147,7 +6150,8 @@
       "total": "Combien de tâches au total.",
       "stream": "Où écrire.",
       "width": "Largeur de la barre.",
-      "interval": "Millisecondes minimum entre deux dessins."
+      "interval": "Millisecondes minimum entre deux dessins.",
+      "verbose": "Indique aussi les codes d’information et chaque occurrence dans le résumé de fin de tâche."
     }
   },
   "texture": {
@@ -6960,6 +6964,7 @@
       "gpuPassMs": "Dernière mesure de passes GPU de ce moteur ; null quand l’appareil ne sait pas faire d’horodatages.",
       "gpuFrameMs": "Durée GPU de l’image que décrit `gpuPassMs.frame`. Jamais ajoutée à un champ `cpu*`. L’appareil est échantillonné toutes les quelques images, donc un nombre peut dater de quelques images. Vaut null avant le premier échantillon, depuis une image gardée jusqu’au prochain échantillon de l’appareil, sur un appareil sans `timestamp-query` et sur WebGL2 sans `EXT_disjoint_timer_query_webgl2`.",
       "gpuHostGapMs": "Temps CPU que la même image a passé entre deux de ses propres envois, et zéro quand elle n’envoie qu’une fois. C’est du temps de l’hôte, pas du GPU, c’est pourquoi `gpuFrameMs` l’exclut. Null quand il n’est pas mesuré.",
+      "gpuDeviceLost": "Pourquoi l’appareil GPU a été perdu ; null tant qu’il tient.",
       "uncoveredTriangles": "Triangles des clusters que nomme la coupe publiée mais que l’image ne peut pas dessiner — pas de page résidente et pas d’ancêtre qui couvre. Un vrai trou dans l’image : zéro est la seule valeur saine. Null quand un moteur ne peut pas le dire (il dessine la coupe qu’il a choisie, donc il n’en a jamais).",
       "drawnTriangles": "Triangles que l’IMAGE ACTUELLE donne au dessin : sa coupe de clusters, opaques et transparents de la hiérarchie réunis. Les maillages transparents hors de la hiérarchie n’y sont pas (`transparentSubmittedTriangles`), et le rejet par occultation n’est pas retiré (`hizRejectedTriangles`). Compté à l’adoption de la coupe : aucune relecture GPU asynchrone n’est attendue, donc il ne vaut jamais `null` faute de temps, contrairement à `submittedTriangles`.",
       "cpuSelectMs": "Temps CPU de la coupe de clusters de cette image, mesuré autour de la sélection seule. Null pour un moteur qui ne choisit pas sa coupe sur le CPU.",
@@ -7075,7 +7080,7 @@
       "signal": "Arrête les chargements du monde quand le signal est annulé.",
       "physics": "Allume la physique (`world.physics`) : `true`, ou gravité et budgets. Jolt n’est chargé qu’alors.",
       "temporalAntialiasing": "L’anticrénelage temporel, WebGPU seulement : un décalage sous-pixel accumulé au fil des images. `false` dessine chaque pixel en son centre, sans historique, ce que demande une capture exacte au pixel près ; changé ensuite par `world.temporalAntialiasing`.",
-      "renderScale": "La fraction de l’affichage par axe à laquelle l’image est dessinée, avant que l’anticrénelage temporel ne la reconstruise à l’affichage : `'auto'` laisse le budget d’image la choisir entre `min` et `max` (`{ min, max }`, 0,5 et 1 par défaut ; sur WebGL2, qui ne fait que rééchantillonner, `min` vaut 1 par défaut), un nombre la fixe ; une image immobile est dessinée au maximum. Changée ensuite par `world.renderScale`."
+      "renderScale": "La fraction de l’affichage par axe à laquelle l’image est dessinée, avant que l’anticrénelage temporel ne la reconstruise à l’affichage : `'auto'` laisse le budget d’image la choisir entre `min` et `max` (`{ min, max }`, 0,5 et 1 par défaut ; sur WebGL2, qui ne fait que rééchantillonner, `min` vaut 1 par défaut), un nombre la fixe. Sur WebGPU, une image immobile est dessinée à cette échelle aussi et reconstruite à partir de ses phases de jitter ; sur WebGL2, elle est dessinée au maximum. Changée ensuite par `world.renderScale`."
     }
   },
   "RenderScale": {
@@ -8132,7 +8137,7 @@
     }
   },
   "IMPOSTOR_PI": {
-    "summary": "π, un seul littéral pour cet oracle et le miroir WGSL, afin que les deux arrondissent le même nombre."
+    "summary": "π, un seul littéral, afin que chaque lecteur de la bascule arrondisse le même nombre."
   },
   "IMPOSTOR_VERSION": {
     "summary": "Format de la section `impostors` que lit une exécution (#817 partie 1, cuite par le compilateur)."

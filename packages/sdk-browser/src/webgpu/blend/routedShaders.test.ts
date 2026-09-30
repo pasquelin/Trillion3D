@@ -6,12 +6,12 @@ import assert from 'node:assert/strict';
 import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { close, display, srgb } from './blendModel.fixture.ts';
 import { ACES, ROUTE_FUNCTIONS, routeScope } from './displayRun.fixture.ts';
-import { PARTICLE_ROUTED_WGSL } from '../../particles/webgpuParticleDraw.ts';
+import { PARTICLE_ROUTED_WGSL } from '../../particles/particlesWgsl.ts';
 import { waterRoutedShader } from '../water/compositeWgsl.ts';
-import { BLEND_SHADER } from './shader.ts';
 import { FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts';
 import { FOG_FREE_MODEL_BIT, MODEL_SHIFT } from '../../scene/surfaceModel.ts';
 import { IDENTITY_MATRIX4 } from '../../../../sdk-core/src/index.ts';
+import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
 
 type Layers = { color: number[]; tint: number[]; add: number[] };
 const layers = (color: number[], tint: number[], add: number[]): Layers => ({ color, tint, add });
@@ -94,7 +94,7 @@ test('water routes the colour it composed, lit or unlit', () => {
 });
 
 test('a blended surface routes through its pipeline, and the unfiltered one never', () => {
-  const surface = { rgb: [0.4, 0.5, 0.9], alpha: 0.7, rough: 0.5, request: 9 };
+  const surface = { rgb: [0.4, 0.5, 0.9], emissive: [0, 0, 0], alpha: 0.7, rough: 0.5, request: 9 };
   const fogFree = FOG_FREE_MODEL_BIT << MODEL_SHIFT;
   type Out = Layers & { request: number; asIs: number[] };
   type Fragment = (at: object, front: boolean) => Out;

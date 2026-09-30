@@ -1,11 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TAA_REPROJECT_WGSL, TAA_SHADER, YCOCG_WGSL, taaShader } from './shaderWgsl.ts';
+import { taaReprojectWgsl, taaShader } from './shaderWgsl.ts';
+import { TAA_SHADER } from '../gpu/core/shaderTexts.fixture.ts';
 import { TAA_BINDINGS, TAA_VIEW_BYTES } from './bindingsWgsl.ts';
 import { TAA_DEFORM_WGSL } from './deformWgsl.ts';
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts';
-import { ROW_PLACEMENT_WORD } from '../webgpu/row/pageRow.ts';
-import { TAA_WEIGHTS } from './weights.ts';
+import { TAA_WEIGHTS } from './filterWeights.ts';
+import { YCOCG_WGSL } from './ycocgWgsl.ts';
+import { ROW_PLACEMENT_WORD } from '../webgpu/row/rowPlacement.ts';
+
+const TAA_REPROJECT_WGSL = taaReprojectWgsl();
 
 const occurrences = (text: string, fragment: string) => text.split(fragment).length - 1;
 
@@ -69,7 +73,9 @@ test('the background, at zero depth, reprojects as a direction and not as a poin
 test('the flagless resolve is the flag-reading one without its share, written as 0', () => {
   const flagless = taaShader(false);
   assert.doesNotMatch(flagless, /var flags|textureLoad\(flags|shareHistory|shareLo|keptShare/);
-  const outputs = (text: string) => [...text.matchAll(/TaaOut\((.*),vec2f\((.*),tag\)\);\}?$/gm)];
+  const outputs = (text: string) => [
+    ...text.matchAll(/TaaOut\((.*),vec4f\((.*),tag,0\.0,0\.0\)\);\}?$/gm),
+  ];
   const kept = outputs(TAA_SHADER),
     zero = outputs(flagless);
   assert.equal(zero.length, 3);
@@ -81,7 +87,7 @@ test('the flagless resolve is the flag-reading one without its share, written as
   const flagged = new Set(TAA_SHADER.split('\n'));
   const own = flagless.split('\n').filter((line) => !flagged.has(line));
   assert.equal(own.length, 3, 'only its three outputs are its own');
-  for (const line of own) assert.match(line, /TaaOut\(.*,vec2f\(0\.0,tag\)\);\}?$/);
+  for (const line of own) assert.match(line, /TaaOut\(.*,vec4f\(0\.0,tag,0\.0,0\.0\)\);\}?$/);
   const removed = TAA_SHADER.split('\n').filter((line) => !flagless.includes(line));
   for (const line of removed) assert.match(line, /share|var flags|asIs|TaaOut/, line);
 });

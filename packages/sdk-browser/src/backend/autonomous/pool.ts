@@ -9,9 +9,9 @@ import {
 } from '../../diagnostic/engineDiagnostic.ts';
 import { createResidentOrder } from './poolOrder.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
-import type { WebglViewState } from './views.ts';
 import { createUnionFit, type Ranked } from './poolUnion.ts';
 import { halvedPool, outOfMemoryContext } from '../../residency/outOfMemory.ts';
+import { type WebglViewState } from './viewKeys.ts';
 
 /**
  * The geometry copies a page holds once resident: one per record that owns its geometry — every

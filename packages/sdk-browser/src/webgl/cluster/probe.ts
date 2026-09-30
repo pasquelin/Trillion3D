@@ -1,5 +1,7 @@
 import { ENVIRONMENT_COEFFICIENTS } from '../../../../sdk-core/src/scene/core/environment.ts';
 import { irradianceShader } from '../../../../sdk-core/src/scene/core/irradianceBasis.ts';
+import { environmentReflectionShader } from '../../reflections/environmentShader.ts';
+import { PROBE_ENVIRONMENT } from './probeEnvironment.ts';
 import { addLightIrradiance } from '../../../../sdk-core/src/world/light/lightRecord.ts';
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
 
@@ -9,13 +11,15 @@ import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
  * — same band order, same cosine-lobe factors, a world-space normal, a clamp at zero. A probe
  * takes no light slot: every visible one adds into the same nine coefficients, scaled by its
  * intensity — its colour everywhere when it carries none, as a world adds it (`addLightIrradiance`)
- * — and the program evaluates them once per pixel.
+ * — and the program evaluates them once per pixel. A specular lobe reads the same coefficients
+ * along its reflected ray, the WebGPU environment reflection (`environmentShader.ts`, #1341).
  */
 export const PROBE_IRRADIANCE_GLSL = `
 uniform vec3 probeSh[${ENVIRONMENT_COEFFICIENTS}];uniform mat3 viewRotation;
 vec3 probeIrradiance(vec3 viewNormal){vec3 N=viewNormal*viewRotation;
 vec3 E=${irradianceShader((k) => `probeSh[${k}]`, 'N')};
-return max(E,vec3(0.0));}`;
+return max(E,vec3(0.0));}
+${environmentReflectionShader('glsl', PROBE_ENVIRONMENT)}`;
 
 /** The summed coefficients of the frame's visible probes, and the rotation that carries a
  *  view-space normal back to the world the coefficients are expressed in. */

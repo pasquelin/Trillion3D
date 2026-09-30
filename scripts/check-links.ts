@@ -53,7 +53,8 @@ function prose(text: string): string {
   return text.replace(/^\s*(`{3,}|~{3,}).*?^\s*\1\s*$/gms, '');
 }
 
-function slug(heading: string): string {
+/** The anchor GitHub gives a Markdown heading. */
+export function slug(heading: string): string {
   let s = heading.replace(/<[^>]*>/g, '');
   s = s.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1');
   const lowered = s.toLowerCase();

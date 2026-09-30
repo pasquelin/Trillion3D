@@ -36,16 +36,18 @@ test('the TAA hold cannot freeze an unfinished reflection window', () => {
 test('GEO-02: the contract program that finishes compiling breaks the held frame', async () => {
   const h = deferredLightingHarness();
   const rt = settledRt();
-  // The wiring of `../pages/prepare/prepare.ts`, word for word.
+  // The wiring of `../pages/prepare/preparePages.ts`, word for word.
   const lighting = await createDeferredLighting(h.device, () => rt.run.gate.resourcesChanged());
   rt.gpu.deferred = lighting;
   rt.gpu.reflection = { active: true, history: { settled: false } } as NonNullable<
     typeof rt.gpu.reflection
   >;
 
+  // What the hold asks the lit program for (`contractLight.ts`): no light holds a shadow slot.
+  const direct = { lights: {} as GPUBuffer, unshadowed: true };
   // Two identical real frames: DIRECT compilation is started, `unlit` renders while waiting.
   for (let i = 0; i < 2; i++) {
-    lighting.bind(surface, view(), view(), true, { lights: {} as GPUBuffer }, () => {});
+    lighting.bind(surface, view(), view(), true, direct, () => {});
     rt.run.frame++;
     keepWebgpuFrame(rt);
   }
@@ -68,7 +70,7 @@ test('GEO-02: the contract program that finishes compiling breaks the held frame
   assert.equal(rt.run.frameHeld, false);
 
   // The remade frame adopts the contract program: the declared light finally lights.
-  lighting.bind(surface, view(), view(), true, { lights: {} as GPUBuffer }, () => {});
+  lighting.bind(surface, view(), view(), true, direct, () => {});
   rt.run.frame++;
   keepWebgpuFrame(rt);
   assert.equal(lighting.usesContract, true, 'contract draws the frame after arrival');

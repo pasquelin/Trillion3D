@@ -7,9 +7,11 @@ import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { effect } from '../../../sdk-core/src/world/effect/index.ts';
 import type { Bloom } from '../../../sdk-core/src/world/effect/bloom.ts';
 import { createTestContext } from '../webgl/core/testContext.fixture.ts';
-import { EFFECT_KIND_BYTES } from './targets.ts';
-import { createWebglEffects, WEBGL_KINDS } from './webglEffects.ts';
-import { createWebgpuEffects, WEBGPU_KINDS } from './webgpuEffects.ts';
+import { createWebglEffects } from './webglEffects.ts';
+import { createWebgpuEffects } from './webgpuEffects.ts';
+import { WEBGL_KINDS } from './webglKinds.ts';
+import { WEBGPU_KINDS } from './webgpuKinds.ts';
+import { EFFECT_KIND_BYTES } from './kindBytes.ts';
 
 /** A kind that records what it is asked: sizes, and each pass with its rank. */
 function spy() {

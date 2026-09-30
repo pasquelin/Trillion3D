@@ -17,9 +17,7 @@ import { createDagResources } from './resources.ts';
 import { createDagRuntime } from './runtime.ts';
 import { dagDeviceRefusal } from './deviceRefusal.ts';
 import { createDagLightCut, type DagLightCut } from './lightCut.ts';
-export { packDagSelection, packedWorldsToRenderOrigin } from './pack.ts';
-export { DAG_SELECTION_SHADER } from './shader/shader.ts';
-export { evaluateDagSelectionKernel } from './oracle/oracle.ts';
+export { packDagSelection } from './pack.ts';
 export type { PackedDag } from './types.ts';
 
 const lightCuts = new WeakMap<

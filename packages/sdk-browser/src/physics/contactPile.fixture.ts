@@ -14,7 +14,7 @@ import {
   softBodyOf,
   writeSoft,
 } from '../../../sdk-core/src/physics/index.ts';
-import { softSettings } from '../../../sdk-core/src/physics/soft.ts';
+import { softSettings } from '../../../sdk-core/src/physics/softSettings.ts';
 import { plane } from '../../../sdk-core/src/world/geometry/basic.ts';
 import type { JoltModule } from './joltModule.ts';
 import { body, FLAT, id } from './records.fixture.ts';

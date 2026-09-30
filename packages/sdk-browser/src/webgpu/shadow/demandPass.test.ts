@@ -7,17 +7,17 @@ import assert from 'node:assert/strict';
 import type { SceneLight } from '../../../../sdk-core/src/index.ts';
 import { writeFace } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
 import { LAMP, SUN } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
-import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
+import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelSignatures.ts';
 import type { ShadowPlan } from '../../../../sdk-core/src/scene/light-shadow/plan.ts';
 import { POINT_FACES } from '../../../../sdk-core/src/scene/light/contracts.ts';
 import { SUN_LEVELS } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { dotVector3 } from '../../../../sdk-core/src/math/primitives/vector.ts';
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts';
-import { shadowViewpointOf } from '../pages/render/encodeShadows.ts';
-import { SHADOW_DEMAND_WGSL } from './demandWgsl.ts';
+import { shadowViewpointOf } from '../pages/render/shadowViewpoint.ts';
 import { HEIGHT, cameraAt, reportScene } from './reportScene.fixture.ts';
 import { floorTiles, tileGrid } from './shadingReads.fixture.ts';
+import { SHADOW_DEMAND_WGSL } from '../../gpu/core/shaderTexts.fixture.ts';
 
 type V = number[];
 type Demand = {

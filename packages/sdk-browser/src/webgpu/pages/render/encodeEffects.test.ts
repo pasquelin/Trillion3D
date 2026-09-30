@@ -9,11 +9,15 @@ import { holdWebgpuFrame, keepWebgpuFrame, unsettledMask } from '../../frame/hol
 import { settledRt } from '../../frame/hold.fixture.ts';
 import { encodeEffects } from './encodeEffects.ts';
 import { pendingWebgpuFrame } from '../../frame/interactiveFrame.ts';
-import { WEBGPU_KINDS } from '../../../effects/webgpuEffects.ts';
 import { createExplorerFrameScheduler } from '../../../world/render/frameScheduler.ts';
 import { frameQueue } from '../../../world/render/frameQueue.fixture.ts';
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
 import type { AccumulatedImage } from '../../../lighting/deferred/program.ts';
+import { WEBGPU_KINDS } from '../../../effects/webgpuKinds.ts';
+import { families } from '../../../host/families.ts';
+
+// The effects' code, which a frame that draws them waits for (`familyUse.ts`), arrived.
+await families.effects.load();
 
 const input = { color: {}, share: {} } as AccumulatedImage;
 /** Counts the passes the chain begins. */

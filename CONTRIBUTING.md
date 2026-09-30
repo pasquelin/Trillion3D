@@ -103,8 +103,9 @@ The rules of #483, binding on every change to geometry, streaming, memory, shado
 ## Quality and evidence
 
 - Code first; one final test pass, one test per changed behaviour. No dead or deprecated code,
-  abandoned-format compatibility or claim of an unimplemented feature. A differential test against a
-  frozen oracle proves only what the sides do differently; shared code is proved directly.
+  abandoned-format compatibility or claim of an unimplemented feature. A source file or export that
+  only a test, a fixture or the test kit uses is dead code (`check:unused`). A differential test
+  against a frozen oracle proves only what the sides do differently; shared code is proved directly.
 - **pnpm.** `pnpm run check:changed` is the one local gate: changed-file format, lint, types, lines
   and duplicates, and the unit tests the change can affect — its domain folder's and those that
   really use it (`scripts/affected-tests.ts`); a documentation, site image or translation change runs
@@ -137,7 +138,9 @@ The rules of #483, binding on every change to geometry, streaming, memory, shado
 - **Self-contained**: builds, tests, measures and proves itself with its own dependencies
   (`pnpm install`), the machine's Chrome and its own assets (`.mesure/assets/`, off git). Nothing
   reads another project on disk (no neighbour path, no external harness); no host code to make the
-  engine work, no writing into a host's folders.
+  engine work, no writing into a host's folders. Every browser, a scratch harness's included, is
+  the system Chrome opened by `launchChrome` (`bench/runner/chrome.ts`), never `chromium.launch`:
+  Playwright's own headless shell loses the WebGPU device after the first frame (#1364).
 - React/Electron/Vite, DOM and platform filesystem APIs stay out of runtime-core/shared contracts
   (use adapters); consume public entry points, never application internals. Generic Rust
   library/CLI code lives in `packages/`, never numbered benchmarks.

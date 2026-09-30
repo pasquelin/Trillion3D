@@ -1,5 +1,4 @@
 import type { Bloom } from '../../../sdk-core/src/world/effect/bloom.ts';
-import type { WebglEffectKind } from './webglEffects.ts';
 import { FULLSCREEN_VERTEX } from '../webgl/core/fullscreenPass.ts';
 import { createWebglProgram } from '../webgl/core/program.ts';
 import {
@@ -10,6 +9,7 @@ import {
 } from '../webgl/core/renderTarget.ts';
 import { bloomBlend, bloomLevelBytes, bloomLevelSizes } from './bloomFilter.ts';
 import { BLOOM_GLSL } from './bloomGlsl.ts';
+import { type WebglEffectKind } from './webglKinds.ts';
 
 type Program = ReturnType<typeof bloomProgram>;
 

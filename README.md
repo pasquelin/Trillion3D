@@ -65,9 +65,12 @@ pnpm test                # unit and integration tests (node --test)
 pnpm run test:native     # cargo test
 ```
 
-The package is private and consumed locally; it is not published to npm. A host supplies its own
-scenes; the bench's are fetched and cooked off git into `.mesure/assets/` by
-`node bench/runner/assets.ts` ([Assets](bench/runner/README.md#assets)).
+This builds the repository. The package is not on npm yet; from its first release, an application
+installs it instead — `npm install trillion3d`, then `npx trillion3d-compile` for its models — as
+the portal's [Install page](https://www.trillion3d.com/#/en/learn/install) shows step by step, with the CDN
+`importmap`, the supported platforms and the server headers. A host supplies its own scenes; the
+bench's are fetched and cooked off git into `.mesure/assets/` by `node bench/runner/assets.ts`
+([Assets](bench/runner/README.md#assets)).
 
 ```js
 import { createWorld, object, geometry, material, light } from 'trillion3d';
@@ -109,6 +112,26 @@ process adapter and compilation jobs; a browser bundler adds `createWorld` and i
 (`geometry`, `material`, `light`, `camera`, `object`, `page`, `budget`, `metric`, `diagnostic`,
 `capability`, `capture`, `pose`, `batch`, …) — see
 [Installation and environment API](docs/SDK.md#installation-and-environment-api).
+
+Without a bundler, a page imports the browser entry built as one module, `trillion3d/module`
+(`dist/trillion3d.module.js`), with its workers, WebAssembly modules and source map beside it. A
+CDN serving the package's files (jsDelivr, unpkg) needs one `importmap` line; the workers start
+across origins. Each optional family is a chunk of its own, fetched with the scene that uses it and
+waited for as its other resources, so no frame is drawn without it: physics (its chunk, worker and
+WebAssembly, when a world enables it), particles, WebGPU transmission (glass and water), WebGPU
+deformation, the effect chain, guides, diagnostic views and the measurement's build provenance; a
+plain scene fetches none. Physics threads need a cross-origin isolated page (COOP/COEP); without it
+the single-thread physics runs, silently. `pnpm run check:bundle-size` holds the gzip core to its
+budget.
+
+```html
+<script type="importmap">
+  { "imports": { "trillion3d": "https://cdn.jsdelivr.net/npm/trillion3d/dist/trillion3d.module.js" } }
+</script>
+<script type="module">
+  import { createWorld } from 'trillion3d';
+</script>
+```
 
 An application owns the canvas, its resource URLs and controller disposal; the world owns its own
 loop by default (`interactive: false` + `world.render()` for a host-led loop instead). Node hosts

@@ -6,14 +6,14 @@ import assert from 'node:assert/strict';
 import type { SceneLight } from '../../../../sdk-core/src/index.ts';
 import { writeFace } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
 import { LAMP } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
-import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
+import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelSignatures.ts';
 import { POINT_FACES } from '../../../../sdk-core/src/scene/light/contracts.ts';
 import { LAMP_SOFT_WGSL } from '../../lighting/direct/lampSoftWgsl.ts';
 import { SHADOW_FACTOR_WGSL } from '../../lighting/direct/shadowFactorWgsl.ts';
-import { POISSON_16 } from '../../lighting/direct/shadowWgsl.ts';
+import { POISSON_16 } from '../../lighting/direct/pcfTaps.ts';
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts';
-import { SHADOW_DEMAND_WGSL } from './demandWgsl.ts';
+import { SHADOW_DEMAND_WGSL } from '../../gpu/core/shaderTexts.fixture.ts';
 
 type V = number[];
 type PageMap = { base: number };

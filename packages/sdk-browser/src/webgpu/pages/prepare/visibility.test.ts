@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { prepareWebgpuVisibility } from './visibility.ts';
 import { mountDevice } from '../../water/pass.fixture.ts';
-import { colorBytesPerSample } from '../../../gpu/core/colorBytes.ts';
 import type { BlendGpuItem } from '../../blend/state.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { colorBytesPerSample } from '../../../gpu/core/colorBytes.fixture.ts';
 
 const STOP = new Error('past the blend pipelines');
 

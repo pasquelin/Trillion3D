@@ -10,8 +10,9 @@ import {
   DRAW_FULL,
 } from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
 import { CASTERS_ALL, CASTERS_MOVING, CASTERS_STATIC } from '../../gpu/shadow/cullShader.ts';
-import { createShadowRegionList, REGION_CLEAR, REGION_RESTORE, REGION_STATIC } from './regions.ts';
+import { createShadowRegionList, REGION_RESTORE, REGION_STATIC } from './regions.ts';
 import { directShadowWgsl } from '../../lighting/direct/shadowWgsl.ts';
+import { REGION_CLEAR } from './regionClear.ts';
 
 test('regions follow the draw mode: whole, layer then moving casters, or moving casters alone', () => {
   const list = createShadowRegionList(32);

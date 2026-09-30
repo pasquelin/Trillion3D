@@ -65,10 +65,6 @@ export const SHAPE = {
  */
 export const PART_WORDS = 11;
 
-/** Words of RESTORE before its bytes: `op, handle, byteCount`, then a shape's Jolt binary state
- *  padded to whole words. RELEASE is `op, handle`: bodies built from it keep it. */
-export const RESTORE_WORDS = 3;
-
 /**
  * A scene query (`jolt_cast`): `kind, origin x, y, z, travel x, y, z, a, b, c, ignored` — a ray,
  * or a sphere (radius `a`), box (half extents `a, b, c`) or capsule (half height `a`, radius `b`)

@@ -7,9 +7,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DISPATCH_SCENE, sceneView } from '../../../tests/browser/probes/cutDispatchesScene.ts';
-import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import { DAG_NODE_FLOATS } from '../../../packages/sdk-browser/src/gpu/dag/types.ts';
-import { NODE_FLOOR } from '../../../packages/sdk-browser/src/gpu/dag/packNodes.ts';
+import { NODE_FLOOR } from '../../../packages/sdk-browser/src/gpu/dag/nodeLayout.ts';
+import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts';
 
 test('the dispatch scene draws the same cut whether the descent drops on the floor or not', () => {
   const { packed, uniforms, resident } = sceneView(DISPATCH_SCENE.feuilles, DISPATCH_SCENE.niveaux);

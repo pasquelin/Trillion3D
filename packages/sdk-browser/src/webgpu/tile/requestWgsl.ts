@@ -1,12 +1,6 @@
 import { WRAP_MAP } from '../../visibility/wrapModes.ts';
-import {
-  FEEDBACK_EVERY,
-  FEEDBACK_STRIDE,
-  MAP_CHOICES,
-  PICK_BLENDS,
-  PICK_SHIFT,
-  PICK_TAPS,
-} from './feedback.ts';
+import { FEEDBACK_EVERY, FEEDBACK_STRIDE, PICK_SHIFT } from './feedback.ts';
+import { MAP_CHOICES, PICK_BLENDS, PICK_TAPS } from './pickCounts.ts';
 
 const STRIDE_MASK = FEEDBACK_STRIDE - 1;
 

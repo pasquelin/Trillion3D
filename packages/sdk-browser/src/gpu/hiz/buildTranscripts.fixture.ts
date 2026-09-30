@@ -1,5 +1,5 @@
 import { encodeHizPyramid } from './pyramid.ts';
-import { evaluateHizReduce, pyramidBytes } from './oracle.ts';
+import { pyramidBytes } from './oracle.ts';
 import {
   HIZ_BUILD_SIDE as S,
   HIZ_PASS_LEVELS,
@@ -7,6 +7,7 @@ import {
   hizBuildPasses,
   hizBuildWords,
 } from './uniforms.ts';
+import { evaluateHizReduce } from './oracle.fixture.ts';
 
 // The pyramid build of develop (a copy of level 0, then the per-level reduction the oracle
 // states) and `buildHiz` transcribed line by line, for `buildEquivalence.test.ts`.

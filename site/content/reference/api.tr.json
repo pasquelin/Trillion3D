@@ -1148,6 +1148,7 @@
       "gpuPassMs": "Bu backend'in en son GPU geçiş örneği; cihaz zaman damgası sorgusu sunmadığında null.",
       "gpuFrameMs": "`gpuPassMs.frame`'in betimlediği görselin GPU süresi. Asla bir `cpu*` alanına eklenmez. Cihaz birkaç görselde bir örneklenir, bu yüzden bir sayı birkaç görsel öncesine ait olabilir. İlk örnekten önce, tutulan bir görselden cihazın bir sonraki örneğine kadar, `timestamp-query` olmayan bir cihazda ve `EXT_disjoint_timer_query_webgl2` olmadan WebGL2’de null’dır.",
       "gpuHostGapMs": "Aynı görselin kendi iki gönderimi arasında geçirdiği CPU süresi, ve bir kez gönderdiğinde sıfır. Bu, GPU süresi değil host süresidir, bu yüzden `gpuFrameMs` onu hariç tutar. Ölçülmediğinde null.",
+      "gpuDeviceLost": "GPU aygıtının neden kaybedildiği; aygıt ayakta kaldıkça null.",
       "uncoveredTriangles": "Yayımlanan kesitin adlandırdığı ama karenin çizemediği cluster'ların üçgenleri — yerleşik sayfa yok ve kapsayan ata yok. Görseldeki gerçek bir boşluk: sıfır tek sağlıklı değerdir. Bir backend söyleyemediğinde null (seçtiği kesiti çizer, bu yüzden asla bir tanesi olmaz).",
       "drawnTriangles": "MEVCUT KARE'nin çizime verdiği üçgenler: hiyerarşinin opak ve şeffaf birleşik cluster kesiti. Hiyerarşi dışındaki şeffaf meshler bunun içinde değildir (`transparentSubmittedTriangles`), ve gizlenme reddi çıkarılmaz (`hizRejectedTriangles`). Kesit kabulünde sayılır: hiçbir asenkron GPU geri okuması beklenmez, bu yüzden `submittedTriangles`'ın aksine, zaman yokluğundan dolayı asla `null` değildir.",
       "cpuSelectMs": "Sadece seçim etrafında ölçülen, bu karenin cluster kesitinin CPU süresi. Kesitini CPU'da seçmeyen bir motorda null.",
@@ -3270,6 +3271,7 @@
       "counts": "Son planın yaptığı, sayfa olarak.",
       "spent": "Son planın istek raporunu okumak ve sayfaları kabul etmek için harcadığı CPU milisaniyeleri.",
       "worldChanged": "Bir düğüm hareket etti: kutusu bir sonraki planda kapladığı sayfaları eskitir.",
+      "changeRoom": "Liste taşmadan önce hâlâ ayrı tutabildiği kutu sayısı.",
       "representationChanged": "Aynı dünya başka bir hassasiyette: kutusu kameranın durmasını bekler.",
       "resting": "Kamera son planda duruyordu: görünümü bir önceki planınkiyle aynıydı.",
       "deferredChanges": "Bir gösterim değişikliği kameranın durmasını beklerken doğru.",
@@ -3693,7 +3695,8 @@
       "total": "Toplam kaç görev.",
       "stream": "Nereye yazılacağı.",
       "width": "Çubuk genişliği.",
-      "interval": "Yeniden çizimler arasındaki en az milisaniye."
+      "interval": "Yeniden çizimler arasındaki en az milisaniye.",
+      "verbose": "Görev sonu özetinde bilgi kodlarını ve her oluşumu da gösterir."
     }
   },
   "Texture-common": {
@@ -4323,6 +4326,7 @@
       "gpuPassMs": "Bu backend'in en son GPU geçiş örneği; cihaz zaman damgası sorgusu sunmadığında null.",
       "gpuFrameMs": "`gpuPassMs.frame`'in betimlediği görselin GPU süresi. Asla bir `cpu*` alanına eklenmez. Cihaz birkaç görselde bir örneklenir, bu yüzden bir sayı birkaç görsel öncesine ait olabilir. İlk örnekten önce, tutulan bir görselden cihazın bir sonraki örneğine kadar, `timestamp-query` olmayan bir cihazda ve `EXT_disjoint_timer_query_webgl2` olmadan WebGL2’de null’dır.",
       "gpuHostGapMs": "Aynı görselin kendi iki gönderimi arasında geçirdiği CPU süresi, ve bir kez gönderdiğinde sıfır. Bu, GPU süresi değil host süresidir, bu yüzden `gpuFrameMs` onu hariç tutar. Ölçülmediğinde null.",
+      "gpuDeviceLost": "GPU aygıtının neden kaybedildiği; aygıt ayakta kaldıkça null.",
       "uncoveredTriangles": "Yayımlanan kesitin adlandırdığı ama karenin çizemediği cluster'ların üçgenleri — yerleşik sayfa yok ve kapsayan ata yok. Görseldeki gerçek bir boşluk: sıfır tek sağlıklı değerdir. Bir backend söyleyemediğinde null (seçtiği kesiti çizer, bu yüzden asla bir tanesi olmaz).",
       "drawnTriangles": "MEVCUT KARE'nin çizime verdiği üçgenler: hiyerarşinin opak ve şeffaf birleşik cluster kesiti. Hiyerarşi dışındaki şeffaf meshler bunun içinde değildir (`transparentSubmittedTriangles`), ve gizlenme reddi çıkarılmaz (`hizRejectedTriangles`). Kesit kabulünde sayılır: hiçbir asenkron GPU geri okuması beklenmez, bu yüzden `submittedTriangles`'ın aksine, zaman yokluğundan dolayı asla `null` değildir.",
       "cpuSelectMs": "Sadece seçim etrafında ölçülen, bu karenin cluster kesitinin CPU süresi. Kesitini CPU'da seçmeyen bir motorda null.",
@@ -4438,7 +4442,7 @@
       "signal": "Sinyal iptal edildiğinde dünyanın yüklemelerini durdurur.",
       "physics": "Fiziği açar (`world.physics`): `true` ya da yerçekimi ve bütçeler. Jolt ancak o zaman yüklenir.",
       "temporalAntialiasing": "Zamansal kenar yumuşatma, yalnızca WebGPU: kareler boyunca biriktirilen piksel altı kaydırma. `false` her pikseli merkezinde, geçmiş olmadan çizer; piksel hassasiyetinde bir yakalamanın istediği budur; sonradan `world.temporalAntialiasing` ile değiştirilir.",
-      "renderScale": "Görüntünün eksen başına ekranın hangi oranında çizildiği, zamansal kenar yumuşatma onu ekran boyutuna yeniden kurmadan önce: `'auto'` onu kare bütçesinin `min` ile `max` arasında seçmesine bırakır (`{ min, max }`, varsayılan 0,5 ve 1; yalnızca yeniden örnekleyen WebGL2'de `min` varsayılan olarak 1'dir), bir sayı onu sabitler; hareketsiz bir görüntü en yüksek değerde çizilir. Sonradan `world.renderScale` ile değiştirilir."
+      "renderScale": "Görüntünün eksen başına ekranın hangi oranında çizildiği, zamansal kenar yumuşatma onu ekran boyutuna yeniden kurmadan önce: `'auto'` onu kare bütçesinin `min` ile `max` arasında seçmesine bırakır (`{ min, max }`, varsayılan 0,5 ve 1; yalnızca yeniden örnekleyen WebGL2'de `min` varsayılan olarak 1'dir), bir sayı onu sabitler. WebGPU'da hareketsiz bir görüntü de bu ölçekte çizilir ve titreşim (jitter) evrelerinden yeniden kurulur; WebGL2'de en yüksek değerde çizilir. Sonradan `world.renderScale` ile değiştirilir."
     }
   },
   "RenderScale": {
@@ -5043,13 +5047,14 @@
   "createTerminalProgress": {
     "summary": "Derleyicinin olaylarını takip eden, terminalde bir ilerleme çubuğu.",
     "parameters": {
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}": "Bir terminal ilerleme görüntüsünün neye benzediği.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.label": "Görevin adı.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.index": "Görevin numarası.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.total": "Toplam kaç görev.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.stream": "Nereye yazılacağı.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.width": "Çubuk genişliği.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.interval": "Yeniden çizimler arasındaki en az milisaniye."
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}": "Bir terminal ilerleme görüntüsünün neye benzediği.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.label": "Görevin adı.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.index": "Görevin numarası.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.total": "Toplam kaç görev.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.stream": "Nereye yazılacağı.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.width": "Çubuk genişliği.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.interval": "Yeniden çizimler arasındaki en az milisaniye.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.verbose": "Görev sonu özetinde bilgi kodlarını ve her oluşumu da gösterir."
     }
   },
   "createTransformTree": {
@@ -5082,7 +5087,7 @@
       "options.signal": "Sinyal iptal edildiğinde dünyanın yüklemelerini durdurur.",
       "options.physics": "Fiziği açar (`world.physics`): `true` ya da yerçekimi ve bütçeler. Jolt ancak o zaman yüklenir.",
       "options.temporalAntialiasing": "Zamansal kenar yumuşatma, yalnızca WebGPU: kareler boyunca biriktirilen piksel altı kaydırma. `false` her pikseli merkezinde, geçmiş olmadan çizer; piksel hassasiyetinde bir yakalamanın istediği budur; sonradan `world.temporalAntialiasing` ile değiştirilir.",
-      "options.renderScale": "Görüntünün eksen başına ekranın hangi oranında çizildiği, zamansal kenar yumuşatma onu ekran boyutuna yeniden kurmadan önce: `'auto'` onu kare bütçesinin `min` ile `max` arasında seçmesine bırakır (`{ min, max }`, varsayılan 0,5 ve 1; yalnızca yeniden örnekleyen WebGL2'de `min` varsayılan olarak 1'dir), bir sayı onu sabitler; hareketsiz bir görüntü en yüksek değerde çizilir. Sonradan `world.renderScale` ile değiştirilir."
+      "options.renderScale": "Görüntünün eksen başına ekranın hangi oranında çizildiği, zamansal kenar yumuşatma onu ekran boyutuna yeniden kurmadan önce: `'auto'` onu kare bütçesinin `min` ile `max` arasında seçmesine bırakır (`{ min, max }`, varsayılan 0,5 ve 1; yalnızca yeniden örnekleyen WebGL2'de `min` varsayılan olarak 1'dir), bir sayı onu sabitler. WebGPU'da hareketsiz bir görüntü de bu ölçekte çizilir ve titreşim (jitter) evrelerinden yeniden kurulur; WebGL2'de en yüksek değerde çizilir. Sonradan `world.renderScale` ile değiştirilir."
     }
   },
   "crossVector3": {
@@ -6879,7 +6884,7 @@
     "summary": "`node`'u `parent`'a (`-1`: kök) ekler, referansın `add`'i gibi: matrisler bir sonraki güncellemeye kadar hareket etmez."
   },
   "resolveCompilerExecutable": {
-    "summary": "Yerel derleyici programını bulur: istenen, yoksa bu checkout'ta derlenen."
+    "summary": "Yerel derleyici programını bulur: istenen, yoksa kurulu platform paketindeki, yoksa `TRILLION3D_COMPILER_BIN` ile belirtilen, yoksa bu checkout'ta derlenen."
   },
   "reviewCutouts": {
     "summary": "Model model, her kesilmiş yüzeyin doğru görünüp görünmediğini sorar, ve yanıtları kaydeder.",
@@ -8132,7 +8137,7 @@
     }
   },
   "IMPOSTOR_PI": {
-    "summary": "π, bu oracle ve WGSL aynası için tek bir literal; böylece ikisi de aynı sayıyı yuvarlar."
+    "summary": "π, tek bir değişmez; geçişi okuyan her taraf aynı sayıyı yuvarlasın diye."
   },
   "IMPOSTOR_VERSION": {
     "summary": "Çalışma zamanının okuduğu `impostors` bölümünün biçimi (#817 bölüm 1, derleyici tarafından pişirilir)."

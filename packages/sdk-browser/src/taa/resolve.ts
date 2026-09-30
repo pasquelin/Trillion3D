@@ -5,9 +5,10 @@ import { taaShader } from './shaderWgsl.ts';
 import { createTaaLayout } from './bindingsWgsl.ts';
 import { taaUpscaleShader } from './upscaleWgsl.ts';
 
-/** Format of the as-is share accumulated beside the colour, filtered like it, and of the
- *  placement tag each pixel keeps beside it (`historyWgsl.ts`). */
-export const SHARE_FORMAT: GPUTextureFormat = 'rg8unorm';
+/** Format of the as-is share accumulated beside the colour, filtered like it, of the placement
+ *  tag each pixel keeps beside it (`historyWgsl.ts`), and of the weight a still average drawn
+ *  below the display holds (`layers.ts`, `stillWeightOut`). */
+export const SHARE_FORMAT: GPUTextureFormat = 'rgba8unorm';
 
 type TaaResolveKind = 'asIs' | 'flagless' | 'blended';
 

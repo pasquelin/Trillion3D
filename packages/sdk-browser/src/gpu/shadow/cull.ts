@@ -5,6 +5,7 @@ import { SHADOW_CULL_SHADER } from './cullShader.ts';
 import { createGpuShadowCullCounts } from './cullCounts.ts';
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
 import { createShadowLightCull } from './lightCull.ts';
+import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
 import {
   CULL_UNIFORM_WORDS,
@@ -104,7 +105,7 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
       })),
     });
     const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
-    const scatter = device.createComputePipeline({
+    const scatter = await buildComputePipeline(device, {
       layout: pipelineLayout,
       compute: { module, entryPoint: 'shadowCullScatter' },
     });

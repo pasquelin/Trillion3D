@@ -9,13 +9,10 @@ import { worldStretch } from './logic.ts';
 import { selectionScratch, type PageRecord, type SelectionState } from './state.ts';
 import { traverse } from './visit.ts';
 import type { ClusterRoot } from '../selection/types.ts';
-import { CASTS_NO_SHADOW, SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts';
+import { CASTS_NO_SHADOW } from '../../visibility/shader/spriteWgsl.ts';
+import { OPEN_PLANES, openMark } from './openRoot.ts';
 
-/** True when a camera cut lets every node and page of a root through: a root never culled
- *  (`SPRITE_UNCULLED`). A light's cut never walks a root that casts no shadow (`castsNoShadow`).
- *  Read here and by the GPU cut's oracle (`dagViewFrames`). */
-export const openMark = (mark: number | undefined, light: unknown) =>
-  ((mark ?? 0) & SPRITE_UNCULLED) !== 0 && !light;
+/** True when a camera cut walks `root` open (`openMark`). */
 export const openToCamera = <T>(s: { light?: unknown }, root: ClusterRoot<T>) =>
   openMark(root.mark, s.light);
 
@@ -23,10 +20,6 @@ export const openToCamera = <T>(s: { light?: unknown }, root: ClusterRoot<T>) =>
  *  (`CASTS_NO_SHADOW`). Read by the CPU cut and the GPU cut's oracle (`dagOracleDescent`). */
 export const castsNoShadow = (mark: number | undefined, light: unknown) =>
   !!light && ((mark ?? 0) & CASTS_NO_SHADOW) !== 0;
-
-/** Six planes no box leaves, `(0, 0, 0, 1)` each: what an open root is walked against, here and
- *  in the GPU cut's oracle (`dagViewFrames`). */
-export const OPEN_PLANES = Float64Array.from({ length: 24 }, (_, i) => (i % 4 === 3 ? 1 : 0));
 
 /** Moves each of the six planes out by `reach` along every axis: a box then clears a plane only
  *  if the box grown by `reach` on each side would — the GPU cut does the same (`putPlanes`). */

@@ -43,3 +43,6 @@ site/data/api-inventory.json
 site/assets/**/cache/
 site/assets/**/cache-*/
 tests/fixtures/scenes/*/cache/
+
+# The compiler binary a platform package ships, copied in by `scripts/compiler-dist.ts` (#1352).
+packages/compiler/*/bin

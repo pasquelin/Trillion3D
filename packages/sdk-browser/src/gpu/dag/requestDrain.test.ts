@@ -5,10 +5,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
-import { createGpuDagSelection, evaluateDagSelectionKernel } from './selection.ts';
+import { createGpuDagSelection } from './selection.ts';
 import { requestScene } from './requestScene.fixture.ts';
 import { SELECTION_HEADER_WORDS } from './layout.ts';
-import { REQUEST_STEP_MAX, packRequest, requestWordRank, sortRequestWords } from './request.ts';
+import { REQUEST_STEP_MAX, packRequest } from './request.ts';
+import { sortRequestWords, requestWordRank } from './request.fixture.ts';
+import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts';
 
 test('the requests reach the host in requestRank order, sorted by the GPU', async () => {
   installGpuGlobals();

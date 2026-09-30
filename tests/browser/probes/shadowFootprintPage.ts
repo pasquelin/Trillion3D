@@ -7,10 +7,12 @@
 import { MAX_SHADOW_SLICES, SHADOW_RECORD_FLOATS } from '../../../packages/sdk-core/src/index.ts';
 import { DIRECT_LIGHT_WGSL } from '../../../packages/sdk-browser/src/lighting/direct/lightWgsl.ts';
 import { directShadowWgsl } from '../../../packages/sdk-browser/src/lighting/direct/shadowWgsl.ts';
-import { SHADOW_REQUEST_BITS } from '../../../packages/sdk-browser/src/lighting/direct/shadowRequestWgsl.ts';
 import { footprintReads } from '../../../packages/sdk-browser/src/lighting/direct/shadowFootprint.fixture.ts';
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts';
 import { SHADOW_REQUEST_MISS } from '../../../packages/sdk-core/src/scene/light-shadow/footprint.ts';
+import { shadowRequestBits } from '../../../packages/sdk-browser/src/lighting/direct/shadowRequestWgsl.ts';
+
+const SHADOW_REQUEST_BITS = shadowRequestBits();
 
 /** The shadow read as a pass declares it; the far ray, which no page read reaches, lit. */
 const SHADER = `${DIRECT_LIGHT_WGSL}
