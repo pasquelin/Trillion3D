@@ -229,6 +229,7 @@ optimising](../CONTRIBUTING.md#measure-before-optimising).
 | `pnpm run check:no-js` | No JavaScript source under `site/`: the site is TypeScript |
 | `pnpm run check:docs-three` | Three.js named only in witness, benchmark, measurement or migration sections |
 | `pnpm run check:docs-bundles` | No build product of the site (`dist/site/`) is tracked by git |
+| `pnpm run check:bundle-size` | After `build`: the gzip CDN core (`dist/trillion3d.module.js` and its static chunks) within its declared budget, each optional family (`FAMILY_MODULES`) a chunk of its own |
 | `pnpm run check:site-types` | The site under `site/` type-checks (`tsconfig.site.json`, `allowJs` off) |
 | `pnpm run validate` | Complete gate: formatting, linting, tests, builds, structure, links |
 

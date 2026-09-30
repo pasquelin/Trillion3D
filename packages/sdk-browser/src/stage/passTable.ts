@@ -13,8 +13,7 @@ import {
 import { LIGHT_CUT_PASS } from '../gpu/dag/encode.ts';
 import { SHADOW_PAGE_PASSES } from '../webgpu/shadow/allocPass.ts';
 import { MATERIAL_DEPTH_PASS, MATERIAL_SURFACES_PASS } from '../webgpu/core/materialPasses.ts';
-import { PARTICLE_DRAW_PASS } from '../particles/webgpuParticleDraw.ts';
-import { PARTICLES_PASS } from '../particles/webgpuParticleSystem.ts';
+import { PARTICLE_DRAW_PASS, PARTICLES_PASS } from '../particles/webgpuParticleFrame.ts';
 
 /**
  * The two blocks of a frame that can be set against a published profile, and nothing else.

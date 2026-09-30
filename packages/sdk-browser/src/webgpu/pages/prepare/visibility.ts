@@ -20,7 +20,7 @@ import { SURFACE_BYTES_PER_PIXEL, SURFACE_FORMATS } from '../../../scene/surface
 import { dropGpuHiz, dropVis, grantCapability } from '../io/drops.ts';
 import { VIS_FEATURES, type WebgpuPagesRuntime } from '../runtime.ts';
 import { isCancelled } from '../../../backend/common.ts';
-import { prepareFeedbackAb } from '../diagnostic/feedbackAb.ts';
+import { families } from '../../../host/families.ts';
 import { blendWritesShare } from './asIsShareTarget.ts';
 
 /** Builds the forward material pipelines, the visibility raster and shade pipelines, the Hi-Z
@@ -150,8 +150,8 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     });
   ensureWebgpuShadeBindings(rt, gpuDevice);
-  if (shaders.shadeWithoutFeedback)
-    await prepareFeedbackAb(rt, gpuDevice, shaders.shadeWithoutFeedback, classes);
+  const ab = shaders.shadeWithoutFeedback && (await families.diagnostics.load()); // a view's
+  if (ab) await ab.prepareFeedbackAb(rt, gpuDevice, shaders.shadeWithoutFeedback!, classes);
   vis.visEnabled =
     !!vis.visTexture &&
     !!vis.shadeBindGroup &&

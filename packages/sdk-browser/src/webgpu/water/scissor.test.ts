@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createWaterPass, encodeWaterPass } from './pass.ts';
+import { encodeWaterPass } from './pass.ts';
+import { createWaterPass } from './waterPass.ts';
 import { prepared, replay, targets } from './pass.fixture.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { WATER_DEPTH_RESTORE } from './depthRestorePass.ts';

@@ -1,8 +1,6 @@
 import { DEFORMATION_COMPUTE_WGSL, deformationBindings } from './computeWgsl.ts';
 import { dispatchGrid } from '../gpu/dag/shader/gridWgsl.ts';
-
-/** Timestamp label published by the existing per-frame GPU timing recorder. */
-export const DEFORMATION_PASS = 'Trillion3D deformation';
+import { DEFORMATION_PASS } from './pass.ts';
 
 /** Builds once; binding identities follow cache relocation and table growth, never a steady frame. */
 export async function createDeformationCompute(device: GPUDevice) {

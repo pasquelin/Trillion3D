@@ -6,9 +6,7 @@ import { usedSlots } from './poolStates.ts';
 import { displayMaskLayout, type DisplayFilter } from '../webgpu/blend/displayFilter.ts';
 import { PARTICLE_DRAW_WGSL, PARTICLE_ROUTED_WGSL } from './particlesWgsl.ts';
 import { particleTargets } from './particleTargets.ts';
-
-/** The pass label the GPU timings name the particle draw by (`passesGpu`). */
-export const PARTICLE_DRAW_PASS = 'Trillion3D particle draw';
+import { PARTICLE_DRAW_PASS } from './webgpuParticleFrame.ts';
 
 /** What the draw keeps in a pool's step state: its words, its group and the depth it was made on. */
 export type DrawState = {

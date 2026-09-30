@@ -1,4 +1,4 @@
-import { wholeDeformationPool } from '../../deformation/wholePool.ts';
+import type { wholeDeformationPool } from '../../deformation/wholePool.ts';
 import type { BlendGpuItem } from '../blend/state.ts';
 import type { HostAttributes } from '../../host/resources.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
@@ -7,12 +7,22 @@ import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.
 import type { SessionDeformation } from '../../deformation/session.ts';
 import { createVertexPool } from './geometryPool.ts';
 type GeometryBlocks = Map<HostAttributes, GeometryBlock>;
+type WholeTable = { table: GPUBuffer; count: number } | undefined;
+/** The whole copies a pool holds after its vertices (`wholeDeformationPool`, deformation's code). */
+type WholePool = (...args: Parameters<typeof wholeDeformationPool>) => Pick<
+  ReturnType<typeof wholeDeformationPool>,
+  'placed' | 'floats'
+> & {
+  upload: (...args: Parameters<ReturnType<typeof wholeDeformationPool>['upload']>) => WholeTable;
+};
+/** A session that deforms nothing places no whole copy: no float, and nothing to upload. */
+const noWholeCopy: WholePool = () => ({ placed: [], floats: 0, upload: () => undefined });
 /** What a growth of the pool hands the runtime: the wider buffers and the re-placed block. */
 export type VertexPoolGrowth = {
   concatPos: GPUBuffer;
   concatUv: GPUBuffer;
   concatNrm: GPUBuffer;
-  wholeDeformation: { table: GPUBuffer; count: number } | undefined;
+  wholeDeformation: WholeTable;
 };
 
 /**
@@ -21,7 +31,8 @@ export type VertexPoolGrowth = {
  * page contributes no vertex here, and its primitive contributes none unless another of its
  * clusters needs one: that is the whole point of reading a page in place. The float pool it makes
  * (`./geometryPool.ts`) grows its room in place (#1293): `grown` hears each growth with the wider
- * buffers and the deformation block re-placed after them.
+ * buffers and the deformation block re-placed after them. `wholePool` places the whole copies,
+ * the code of a session that deforms.
  */
 export function prepareWebgpuGeometry(
   device: GPUDevice,
@@ -30,12 +41,13 @@ export function prepareWebgpuGeometry(
   deformation?: SessionDeformation,
   items: readonly BlendGpuItem[] = [],
   grown?: (update: VertexPoolGrowth) => void,
+  wholePool: WholePool = noWholeCopy,
 ) {
   const sourced = new Map<HostAttributes, boolean>();
   for (const rec of allPages)
     if (!rec.geometryPage)
       sourced.set(rec.attributes, rec.sourceMesh?.geometry.usage === 'dynamic');
-  const whole = wholeDeformationPool(items, deformation);
+  const whole = wholePool(items, deformation);
   for (const item of whole.placed) sourced.set(item.sourceGeometry.attributes, false);
   let vertices = 0,
     room = 0,
