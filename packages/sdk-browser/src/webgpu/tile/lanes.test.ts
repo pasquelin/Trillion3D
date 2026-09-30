@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import { createWebgpuTileAtlas } from './atlas.ts';
 import { tileLayout } from '../../texture/tiles.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
-import { poolEncoding } from '../../texture/blockFormats.ts';
+import { poolEncoding, WHITE_TAIL } from '../../texture/blockFormats.ts';
 import { textureDevice } from './textureDevice.fixture.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
 installGpuGlobals();
 
@@ -81,5 +82,30 @@ test('an appended texture opens its lane, pins its tail there and hands out new 
   assert.deepEqual([atlas.poolOf(0).resident, atlas.poolOf(1).resident], [2, 1]);
   assert.equal(atlas.pages.entryOf({ slot: 0, level: 0, tx: 0, ty: 0 }), held);
   assert.equal(atlas.pages.words[1], 2);
+  atlas.destroy();
+});
+
+// #1345: an atlas whose only texture is the white fill takes no layer: the fill reads the
+// stand-in, written opaque white — every tap of its one texel read white in its pool —, until a
+// map opens its lane, where the fill then takes its place first.
+test('the white fill alone takes no pool, reads the white stand-in, and joins its lane once opened', () => {
+  const { device, texelWrites } = fakeDevice();
+  const encoding = poolEncoding(undefined),
+    fill = { layout: tileLayout(1, 1), lane: 'lossless' as const };
+  const atlas = createWebgpuTileAtlas(device, {
+    kind: 'color',
+    encoding,
+    layers: { lossless: 0, rgba: 0, 'two-channel': 0 },
+    feedbackOffset: 0,
+    textures: [{ ...fill, source: { kind: 'bytes' as const, tail: WHITE_TAIL } }],
+  });
+  assert.equal(atlas.pools.length, 0, 'no layer');
+  assert.deepEqual([...(texelWrites[0].data as Uint8Array)], new Array(64).fill(255));
+  atlas.pinTails(device.queue, () => {});
+  assert.equal(atlas.pages.words[4 + 3] >>> 24, encoding.tapOf('lossless'), 'the stand-in lane');
+  assert.equal(atlas.residentIn('lossless'), 0);
+  atlas.resize(device, { lossless: 1, rgba: 0, 'two-channel': 0 });
+  assert.deepEqual(atlas.poolOf(0).occupied(), [0], 'the fill pinned first in the opened lane');
+  assert.equal(texelWrites.length, 2, 'its white texel written there');
   atlas.destroy();
 });
