@@ -55,3 +55,15 @@ export async function openGpuDevice(
     },
   };
 }
+
+/**
+ * Opens the device and compiles `code`, the prologue of every one-shader probe: the device and its
+ * module, or the result the probe returns as is (no adapter, or the compiler's errors).
+ */
+export async function openGpuModule(code: string) {
+  const appareil = await openGpuDevice();
+  if (!appareil) return { indisponible: 'no WebGPU adapter' };
+  const { module, compilation } = await appareil.compile(code);
+  if (compilation.length) return { compilation, erreurs: appareil.erreurs };
+  return { appareil, module };
+}

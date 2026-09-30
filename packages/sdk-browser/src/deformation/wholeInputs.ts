@@ -3,9 +3,12 @@ import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 import { readComponent } from '../../../sdk-core/src/world/geometry/bounds.ts';
 import { FLAG_SKIN, FLAG_SOFT_SOURCE } from '../cluster/format.ts';
 
+/** Simulated vertices a soft source id may name, unless the caller gives its own bound. */
+const SOFT_VERTICES = 65536;
+
 /** Throws `PHYSICS_FORMAT` unless `ids` names one simulated vertex below `softVertices` for each
  *  of `count` vertices. */
-export function checkSoftSourceIds(count: number, ids: readonly number[], softVertices = 65536) {
+export function checkSoftSourceIds(count: number, ids: readonly number[], softVertices = SOFT_VERTICES) {
   if (
     ids.length !== count ||
     ids.some((id) => !Number.isInteger(id) || id < 0 || id >= softVertices)
@@ -17,7 +20,7 @@ export function checkSoftSourceIds(count: number, ids: readonly number[], softVe
 export function wholeDeformationInputs(
   geometry: Geometry,
   softSourceIds?: readonly number[],
-  softVertices = 65536,
+  softVertices = SOFT_VERTICES,
 ) {
   const count = geometry.attributes.position?.count ?? 0;
   const targets = geometry.morphAttributes.position ?? [];
