@@ -5,11 +5,8 @@ import { EXPLORER_OPTIONS_SCHEMA } from './explorerOptionsSchema.ts';
 import { BOUNCE_SETTINGS } from '../bounce/contracts.ts';
 import { SCREEN_ERROR_VARIANTS } from '../lod/screenErrorVariants.ts';
 import type { MathPathMode } from '../math/path/contracts.ts';
-import {
-  EXPLORER_SWITCHES,
-  explorerSwitch,
-  type ExplorerSwitch,
-} from '../runtime/explorerSwitches.ts';
+import { explorerSwitch, type ExplorerSwitch } from '../runtime/explorerSwitches.ts';
+import { EXPLORER_SWITCH_NAMES } from '../runtime/explorerSwitches.fixture.ts';
 import {
   DEFAULT_GEOMETRY_POOL_BUDGET,
   DEFAULT_TEXTURE_POOL_BUDGET,
@@ -116,7 +113,7 @@ test('a switch the host leaves out is set in the engine as the schema advertises
   const advertised = Object.entries(EXPLORER_OPTIONS_SCHEMA.properties).filter(
     ([, property]) => property.type === 'boolean' && property.default !== undefined,
   );
-  assert.deepEqual(advertised.map(([key]) => key).sort(), Object.keys(EXPLORER_SWITCHES).sort());
+  assert.deepEqual(advertised.map(([key]) => key).sort(), [...EXPLORER_SWITCH_NAMES].sort());
   for (const [key, property] of advertised)
     assert.equal(explorerSwitch({}, key as ExplorerSwitch), property.default, key);
 });
