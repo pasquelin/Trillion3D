@@ -24,6 +24,16 @@ export type MutationSummary = {
   survivors: { file: string; count: number; mutants: MutantOutcome[] }[];
 };
 
+/**
+ * What Stryker mutates: the `narrowed` globs, else every source under `root`; a test or a fixture
+ * never, even in a narrowed run, as its mutant is no bug of the sources to catch.
+ */
+export const mutationTargets = (root: string, narrowed?: readonly string[]) => [
+  ...(narrowed ?? [`${root}**/*.ts`]),
+  '!**/*.test.ts',
+  '!**/*.fixture.ts',
+];
+
 const DETECTED = new Set(['Killed', 'Timeout']);
 const UNDETECTED = new Set(['Survived', 'NoCoverage']);
 
