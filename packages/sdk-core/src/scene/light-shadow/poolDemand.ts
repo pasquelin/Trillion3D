@@ -41,8 +41,12 @@ const demandPoolPages = (asked: number) =>
  *  many in a row asked for a pool half as large, the most they asked, whether the last one asked
  *  more than the pool holds (`over`), and whether a report sized the pool yet (`sized`). */
 export const createPoolDemand = () => ({
-  ...{ latest: -1, read: -1, low: 0, peak: 0 },
-  ...{ over: false, sized: false },
+  latest: -1,
+  read: -1,
+  low: 0,
+  peak: 0,
+  over: false,
+  sized: false,
 });
 export type PoolDemand = ReturnType<typeof createPoolDemand>;
 

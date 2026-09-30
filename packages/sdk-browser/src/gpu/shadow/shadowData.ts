@@ -9,7 +9,7 @@ import { MAX_SHADOW_REGIONS } from './recordPack.ts';
 import { SHADOW_FACE_STRIDE } from './batchBudget.ts';
 
 /** Bytes of the records, before the page table in the same buffer: where the table starts. */
-export const SHADOW_TABLE_OFFSET = MAX_SHADOW_SLICES * SHADOW_RECORD_FLOATS * 4;
+const SHADOW_TABLE_OFFSET = MAX_SHADOW_SLICES * SHADOW_RECORD_FLOATS * 4;
 /** Bytes of the records then a page table of `tableEntries` words, one buffer. */
 const shadowDataBytes = (tableEntries: number) => SHADOW_TABLE_OFFSET + tableEntries * 4;
 /** Bytes of the buffers beside the pool — faces, records, a table of `tableEntries` (`atlas.ts`). */
@@ -37,9 +37,15 @@ export function writeShadowTable(
  * lights in use: one sun holds one slice's span, not the 64 slices' 16 MiB. A slice past it waits
  * (`table.fits`) while the buffer grows by the tables' own path (`grow`, `pendingBuffers`): made
  * under the device's out-of-memory check, then put in place with the copy of the old one's words,
- * submitted with it, before any frame binds it (every reader takes `buffer` each frame).
+ * submitted with it, before any frame binds it (every reader takes `buffer` each frame). It grows
+ * to `most` words at most: the whole table of the session's sun window (`table.entries`), larger
+ * than `SHADOW_TABLE_ENTRIES` in a reference session.
  */
-export function createShadowData(device: GPUDevice, tableEntries: number) {
+export function createShadowData(
+  device: GPUDevice,
+  tableEntries: number,
+  most = SHADOW_TABLE_ENTRIES,
+) {
   const make = (entries: number) =>
     device.createBuffer({
       label: 'Trillion3D shadow records and page table v1',
@@ -61,7 +67,7 @@ export function createShadowData(device: GPUDevice, tableEntries: number) {
      *  holds them. */
     grow(wanted: number, adopted: (bytes: number) => void) {
       if (wanted <= entries) return undefined;
-      const size = grownShadowEntries(entries, wanted, SHADOW_TABLE_ENTRIES),
+      const size = grownShadowEntries(entries, wanted, most),
         next = make(size);
       return pendingBuffers([next], () => {
         const old = buffer,
