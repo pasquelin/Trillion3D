@@ -110,12 +110,23 @@ cache (`splitMemoryBudget`). The batches' buffers (`gpu/shadow/batchBudget.ts`, 
   (`proxy.bin`) answers, deterministic and unaccumulated (`sun-far-shadow` publishes its bounds).
   The PCF taps each find their own page: a tap within a texel of a seam compares the four texels of
   its footprint in their own pages, weighted by hand — no seam, no guard band.
-- **Soft edges are filtered over time** (#1363). The PCF's sixteen taps and a point lamp's PCSS
-  disk turn each jitter phase by the phase's own angle (`shadowRotated`, `shadowJitterWords`), every
-  pixel alike, and the TAA's history averages the turns into a filter even around the point, as
-  the reference engine's SMRT leaves its per-frame rays to the temporal filter: no second history, no dither. A
-  PCSS filter tap is a bilinear comparison, so a penumbra is a ramp, never sixteen steps. An image
-  the TAA does not accumulate turns nothing.
+- **Soft edges are smooth in one image and stable over time** (#1363). The PCF's sixteen taps and
+  a point lamp's PCSS disk are the same every image — no per-frame turn or noise left for the TAA
+  to hide, as the reference engine's filtered (PCF) virtual shadow map lookup; unlike its SMRT, whose per-frame
+  random rays TSR denoises, a deliberate difference —; the TAA's jitter moves the receiver's
+  sample over its pixel, and its history filters that, no second history. A PCSS filter tap is a
+  bilinear comparison, so a penumbra is a ramp, never sixteen steps. Each PCSS stage reads the mip
+  whose texel holds its disk within eight texels, never finer than the pixel's (`lampSoftMip`): the
+  search the mip of the lamp's whole disk, the filter that of the penumbra it found, as a
+  mipmapped filter reads the level of its kernel. Its taps then lie a few texels apart, and a tap
+  costs the same whatever the lamp's radius. A tap's receiver plane stops a disk's width past the
+  disk: at a curved receiver's terminator, where the plane holds the ray, the tap reads the map
+  there instead of flying across it or answering lit.
+- **The soft shadow's demand is bounded** (#1363). A pixel marks, from its own mip to its search's,
+  the pages under the box the disk's square projects to in each face it touches — at most two a
+  side under eight texels, one page a face at the last mip (`demandSoftLamp`): a mip chain's length
+  bounds it, whatever the lamp's radius or the pages its disk crosses, and it is the same every
+  image, so the pages a frame maps are the frame before's while nothing moves.
 
 ## Demand, mapping and drawing in one frame
 

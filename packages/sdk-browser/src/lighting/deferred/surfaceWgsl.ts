@@ -24,10 +24,10 @@ ${LIGHT_SURFACE_ENTRY}
  let P=worldAt(pixel.xy,z);
  if(flag==1u){var rgb=base.rgb;${CAMERA_FOG_WGSL}return vec4f(rgb,1.0);}
  let normal=textureLoad(normalRough,coord,0);let emissive=textureLoad(emissiveAo,coord,0);
- // Its footprint and point unjittered, whence its shadow level, and the turn of the shadow filters'
- // taps this jitter phase (#1363); a lane in the target asks per subgroup.
+ // Its footprint and point unjittered, whence its shadow level (#1363); a lane in the target asks
+ // per subgroup.
  let level=pixelLevel(coord,pixel.xy,z,P);shadowFootprint=level.footprint;shadowUnjitter=level.unjitter;
- shadowRotation=view.jitter.zw;shadowRequesting=all(vec2u(pixel.xy)<textureDimensions(depth));
+ shadowRequesting=all(vec2u(pixel.xy)<textureDimensions(depth));
  let V=normalize(view.camera.xyz-P*view.camera.w);let N=normalize(normal.xyz);
  surfaceModel=flag;
  thinSubsurface=vec3f(0.0);
