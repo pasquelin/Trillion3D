@@ -5,11 +5,15 @@
 # `cc` reads these for the host and for a cross target; CMake, which builds Jolt, does not: its
 # flags are the build script's (`build.rs`, `CROSS_PLATFORM_DETERMINISTIC`). The C sources `cc`
 # builds (ufbx, mimalloc) are held to the same rule. Rust never fuses on its own.
+# `cc` also hands a clang the profile flags of rustc (`-Cprofile-generate`, `-Cprofile-use`, which
+# `scripts/compiler-dist.ts` adds): that clang's LLVM is not rustc's, its instrumented C is not
+# what rustc's profile runtime reads, and the trained binary crashed (Apple clang 15, #1352). The
+# `-fno-profile-*` flags, read last, keep profile guidance to the Rust code; without them no flag.
 [env]
-HOST_CXXFLAGS = { value = "-ffp-contract=off", force = true }
-TARGET_CXXFLAGS = { value = "-ffp-contract=off", force = true }
-HOST_CFLAGS = { value = "-ffp-contract=off", force = true }
-TARGET_CFLAGS = { value = "-ffp-contract=off", force = true }
+HOST_CXXFLAGS = { value = "-ffp-contract=off -fno-profile-generate -fno-profile-use", force = true }
+TARGET_CXXFLAGS = { value = "-ffp-contract=off -fno-profile-generate -fno-profile-use", force = true }
+HOST_CFLAGS = { value = "-ffp-contract=off -fno-profile-generate -fno-profile-use", force = true }
+TARGET_CFLAGS = { value = "-ffp-contract=off -fno-profile-generate -fno-profile-use", force = true }
 
 # The macOS arm64 build assumes the Apple M1, the first Apple silicon, and nothing newer: every
 # such Mac runs it (#1352). The C and C++ compilers already assume it for this target. The x86-64
