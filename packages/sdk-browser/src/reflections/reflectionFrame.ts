@@ -1,6 +1,6 @@
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import { shadowEpoch } from '../webgpu/pages/state/shadowEpoch.ts';
-import type { ReflectionHistoryFrame } from './historyRuntime.ts';
+import { REFLECTION_SOURCE_VERSIONS, type ReflectionHistoryFrame } from './historyRuntime.ts';
 
 const frames = new WeakMap<object, ReflectionHistoryFrame>();
 
@@ -29,7 +29,7 @@ export function reflectionFrame(rt: WebgpuPagesRuntime): ReflectionHistoryFrame 
       metadata: { depth: gpu.depthTexture, normal: gpu.surfaces.normalRough, ids: vis.visTexture },
       pages: vis.pageTable,
       motion: vis.pageTable,
-      epoch: '',
+      epoch: new Float64Array(REFLECTION_SOURCE_VERSIONS),
       seed: 0,
       frame: -1,
       camera: run.gate.cam.viewProjection,
@@ -43,7 +43,15 @@ export function reflectionFrame(rt: WebgpuPagesRuntime): ReflectionHistoryFrame 
   // The shared helper's motion branch is disabled: every source pose change invalidates.
   // No second placement table is created when the host has disabled TAA.
   frame.motion = gpu.temporal?.motion.buffer ?? vis.pageTable;
-  frame.epoch = `${scene}/${resources}/${rowEpoch}/${lightEpoch}/${proxyEpoch}/${radianceEpoch}/${shadowVersion}/${deformationEpoch}`;
+  const { epoch } = frame;
+  epoch[0] = scene;
+  epoch[1] = resources;
+  epoch[2] = rowEpoch;
+  epoch[3] = lightEpoch;
+  epoch[4] = proxyEpoch;
+  epoch[5] = radianceEpoch;
+  epoch[6] = shadowVersion;
+  epoch[7] = deformationEpoch;
   frame.seed =
     (Math.imul(scene, 747796405) ^
       resources ^
