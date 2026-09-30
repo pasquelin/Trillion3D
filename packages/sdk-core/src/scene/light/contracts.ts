@@ -74,6 +74,16 @@ export const LIGHT_SETTINGS = {
   /** Side in pixels of a screen tile of the light list. */
   tileSize: 16,
   /**
+   * Depth slices of a screen tile (#1249): a tile's opaque slice is cut into this many
+   * logarithmically spaced clusters along the view axis, and each pixel reads the cluster its
+   * own depth falls in, so it pays only for the lights that reach it — not for those the tile's
+   * nearer and farther surfaces also hold. A light is assigned to every cluster its range sphere
+   * can reach, so no light that lights a pixel is ever dropped; clustering only removes the
+   * lights that would have contributed exactly zero there (`directIncidence`). `1` is the
+   * undeformed tile.
+   */
+  clusterSlices: 16,
+  /**
    * Lights shaded in full — shadow read included — per pixel of a MOVING image (X2): the
    * others are weighed without their shadow, and the shaded ones are drawn in proportion, so
    * the estimate is unbiased and temporal antialiasing averages it. A still image shades
