@@ -27,4 +27,3 @@ export const LANE_REQUEST_WGSL = laneRequestWgsl();
 export const SUBGROUP_REQUEST_WGSL = subgroupRequestWgsl();
 export const WATER_COMPOSITE_SHADER = waterCompositeShader();
 export const MIP_SHADER = mipShader(false);
-
