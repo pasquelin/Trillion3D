@@ -17,7 +17,7 @@ installGpuGlobals();
 async function lightTurnedOn() {
   const h = deferredLightingHarness();
   const rt = settledRt();
-  const store = { count: 0, unlit: true };
+  const store = { count: 0, unlit: true, sliceOf: () => -1 };
   Object.assign(rt.lights, { store });
   // The wiring of `../pages/prepare/prepare.ts`: an arrived program breaks the hold.
   const lighting = await createDeferredLighting(h.device, () => rt.run.gate.resourcesChanged());
