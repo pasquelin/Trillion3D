@@ -17,6 +17,12 @@ export function isDocumentation(file: string): boolean {
   return markdown.test(file) || translation.test(file) || siteImage.test(file);
 }
 
+/** Whether `paths` touch anything but documentation: an empty list counts as code, so a change
+ *  that could not be listed never skips a gate. */
+export function isCodeChange(paths: readonly string[]): boolean {
+  return !paths.length || !paths.every(isDocumentation);
+}
+
 /** A step of `check:changed`; `check:x` names the gate `node scripts/check-x.ts`. */
 export type ChangedStep =
   | 'generate:api'
@@ -41,10 +47,13 @@ export function changedSteps(
   existing: readonly string[],
   tests: number,
 ): ChangedStep[] {
-  const code = !changed.every(isDocumentation);
+  const code = isCodeChange(changed);
   const steps: ChangedStep[] = code ? ['generate:api', 'compile:caches', 'check:lines'] : [];
   if (existing.some((file) => formatPattern.test(file))) steps.push('format');
-  if (code) steps.push('lint', 'types', 'duplicates');
+  const sources = existing.some((file) => sourcePattern.test(file));
+  if (sources) steps.push('lint');
+  if (code) steps.push('types');
+  if (sources || existing.some((file) => file.endsWith('.rs'))) steps.push('duplicates');
   if (existing.some((file) => markdown.test(file))) steps.push('check:links');
   if (existing.some((file) => translation.test(file))) steps.push('check:i18n');
   steps.push(...TREE_GATES);

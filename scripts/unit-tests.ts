@@ -11,21 +11,13 @@ export function movesInventory(file: string): boolean {
   return isUnitTest(file) || file.startsWith('tests/') || file.startsWith('bench/');
 }
 
-/** The `node --test` flag that runs one shard of the suite, `TRILLION3D_TEST_SHARD` (`2/3`), which
- *  `node` itself checks: the CI splits the one file list over parallel jobs. None when unset, so a
- *  local run keeps every test. */
-export function shardFlags(env: NodeJS.ProcessEnv): string[] {
-  return env.TRILLION3D_TEST_SHARD ? [`--test-shard=${env.TRILLION3D_TEST_SHARD}`] : [];
-}
-
-/** The test processes a local run starts at once, `TRILLION3D_TEST_CONCURRENCY` overriding: `node`
- *  would start one per core but one, and several agents checking at once would stall the machine. */
-const LOCAL_TEST_CONCURRENCY = 2;
-
-/** The `node --test` flags of a run under `env`: its shard, and the concurrency cap of a local run.
- *  A CI run, or any sharded one, keeps `node`'s full parallelism. */
+/** The `node --test` flags of a run under `env`. A shard, `TRILLION3D_TEST_SHARD` (`2/3`), which
+ *  `node` itself checks, runs its share of the one file list at full parallelism, as does any CI
+ *  run. A local run keeps every test but starts two processes at once (`TRILLION3D_TEST_CONCURRENCY`
+ *  overriding): `node` would start one per core but one, and several agents checking at once would
+ *  stall the machine. */
 export function testRunFlags(env: NodeJS.ProcessEnv): string[] {
-  if (env.CI || env.TRILLION3D_TEST_SHARD) return shardFlags(env);
-  const cap = env.TRILLION3D_TEST_CONCURRENCY || String(LOCAL_TEST_CONCURRENCY);
-  return [`--test-concurrency=${cap}`];
+  if (env.TRILLION3D_TEST_SHARD) return [`--test-shard=${env.TRILLION3D_TEST_SHARD}`];
+  if (env.CI) return [];
+  return [`--test-concurrency=${env.TRILLION3D_TEST_CONCURRENCY || '2'}`];
 }

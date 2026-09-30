@@ -88,8 +88,9 @@ test('a lock whose process is dead is taken over', () => {
 });
 
 test('the CI takes no lock', () => {
+  const env: NodeJS.ProcessEnv = { CI: 'true' };
   assert.equal(
-    heavyStep('test', () => process.env.TRILLION3D_HEAVY_LOCK, { CI: 'true' }),
+    heavyStep('test', () => env.TRILLION3D_HEAVY_LOCK, env),
     undefined,
   );
 });

@@ -122,8 +122,10 @@ export function compileSiteCaches(required = true): void {
     console.warn(`Scene caches not compiled (${(error as Error).message}): ${names}.`);
     return;
   }
-  for (const scene of stale) compileCache(scene);
+  // Only a real compilation is a heavy step: a fresh check never waits for another worktree's.
+  heavyStep('compile:caches', () => {
+    for (const scene of stale) compileCache(scene);
+  });
 }
 
-if (import.meta.filename === process.argv[1])
-  heavyStep('compile:caches', () => compileSiteCaches());
+if (import.meta.filename === process.argv[1]) compileSiteCaches();

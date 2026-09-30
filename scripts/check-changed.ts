@@ -1,13 +1,13 @@
-import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { relatedTests } from './affected-tests.ts';
-import { changedSteps, formatPattern, isDocumentation, sourcePattern } from './changed-steps.ts';
+import { changedSteps, formatPattern, isCodeChange, sourcePattern } from './changed-steps.ts';
 import { generateApiFiles } from './generate-api-reference.ts';
 import { gitPaths } from './git-paths.ts';
 import { heavyStep } from './heavy-lock.ts';
 import { pnpmCommand } from './only-pnpm.ts';
 import { repositoryFiles } from './repository-files.ts';
+import { run } from './run.ts';
 import { compileSiteCaches } from './site-caches.ts';
 import { changedTypeErrors, tsProjects } from './ts-projects.ts';
 import { testRunFlags } from './unit-tests.ts';
@@ -15,12 +15,6 @@ import { testRunFlags } from './unit-tests.ts';
 // `pnpm run check:changed`, the one local gate: the gates of `validate` on the changed files, and
 // the unit tests the change can affect (`scripts/affected-tests.ts`), capped and run one heavy step
 // at a time on the machine. The whole `validate` is the CI's.
-
-function run(command: string, args: string[]): void {
-  const result = spawnSync(command, args, { stdio: 'inherit' });
-  if (result.error) throw result.error;
-  if (result.status !== 0) process.exit(result.status ?? 1);
-}
 
 export function existingChangedFiles(changed: Iterable<string>, root = process.cwd()): string[] {
   const maintained = new Set(repositoryFiles(root));
@@ -35,7 +29,7 @@ async function main(): Promise<void> {
   ]);
   const existing = existingChangedFiles(changed);
   const paths = await gitPaths(['ls-files', '-z']);
-  const code = ![...changed].every(isDocumentation);
+  const code = isCodeChange([...changed]);
   const files = new Map(
     [...new Set([...paths, ...existing])]
       .filter((file) => code && sourcePattern.test(file) && existsSync(file))
@@ -51,7 +45,7 @@ async function main(): Promise<void> {
         await generateApiFiles();
         break;
       case 'compile:caches':
-        heavyStep(step, () => compileSiteCaches(false));
+        compileSiteCaches(false);
         break;
       case 'check:lines':
         run('node', ['scripts/check-file-lines.ts', '--changed']);
@@ -63,7 +57,7 @@ async function main(): Promise<void> {
         ]);
         break;
       case 'lint':
-        if (linted.length) run('node_modules/.bin/eslint', linted);
+        run('node_modules/.bin/eslint', linted);
         break;
       case 'types': {
         // `tsc --noEmit` on every project that owns a changed file (#1071).
@@ -76,21 +70,16 @@ async function main(): Promise<void> {
         }
         break;
       }
-      case 'duplicates': {
-        const candidates = existing.filter(
-          (file) => sourcePattern.test(file) || file.endsWith('.rs'),
-        );
-        if (candidates.length)
-          run('node_modules/.bin/jscpd', [
-            ...candidates,
-            '--format',
-            'typescript,javascript,rust',
-            '--cross-formats',
-            'js-ts',
-            '--no-tips',
-          ]);
+      case 'duplicates':
+        run('node_modules/.bin/jscpd', [
+          ...existing.filter((file) => sourcePattern.test(file) || file.endsWith('.rs')),
+          '--format',
+          'typescript,javascript,rust',
+          '--cross-formats',
+          'js-ts',
+          '--no-tips',
+        ]);
         break;
-      }
       case 'rust':
         heavyStep('clippy', runRust);
         break;
