@@ -11,7 +11,7 @@ import { startInteractiveExplorer } from './interactive.ts';
 
 const turn = () => new Promise((wake) => setImmediate(wake));
 
-test('a plain frame draws with no family; pools, passes, a shown guide and a view name theirs', () => {
+test('a plain frame draws with no family; pools, passes, guides, views and A/B name theirs', () => {
   const guides = createGuideSet();
   const held = { particles: [], effects: new EffectChain(), guides };
   assert.deepEqual(frameFamilies(held, 'beauty'), []);
@@ -26,6 +26,7 @@ test('a plain frame draws with no family; pools, passes, a shown guide and a vie
   ]);
   line.setVisible(false);
   assert.ok(!frameFamilies(held, 'beauty').includes('guides'), 'a hidden guide draws nothing');
+  assert.ok(frameFamilies(held, 'beauty', true).includes('measurement'), 'an A/B layout');
 });
 
 test("a session's own loop: the frame waits for its pools' code, neither stepped nor drawn (#1353)", async () => {
