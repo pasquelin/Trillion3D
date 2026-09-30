@@ -1,9 +1,12 @@
 import type { JsonSchemaObject } from './types.ts';
 import { SCREEN_ERROR_VARIANTS } from '../lod/screenErrorVariants.ts';
+import { explorerSwitch } from '../runtime/explorerSwitches.ts';
 
 /**
  * Comprehensive JSON Schema documenting all initialization options for the Trillion3D explorer (MeasuredWorldOptions).
- * Enables LLMs to understand, validate, and tune the 3D engine configuration.
+ * Enables LLMs to understand, validate, and tune the 3D engine configuration. Each on/off default is
+ * the engine's own (`explorerSwitch`), read through a pure call so a bundle that never reads the
+ * schema drops it.
  */
 export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
   type: 'object',
@@ -12,7 +15,7 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
   properties: {
     interactive: {
       type: 'boolean',
-      default: false,
+      default: /* @__PURE__ */ explorerSwitch({}, 'interactive'),
       description:
         'Browser-owned controls, CSS size, device pixel ratio and demand-driven rendering. Defaults to direct WebGPU; rejects when unavailable.',
     },
@@ -55,7 +58,7 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
     },
     temporalAntialiasing: {
       type: 'boolean',
-      default: true,
+      default: /* @__PURE__ */ explorerSwitch({}, 'temporalAntialiasing'),
       description:
         'Temporal antialiasing (TAA) enabled by default: Halton(2,3) sub-pixel jitter and reprojection accumulation. Disable (false) for pixel-exact benchmarks without history.',
     },
@@ -68,18 +71,18 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
     },
     lodAdaptive: {
       type: 'boolean',
-      default: false,
+      default: /* @__PURE__ */ explorerSwitch({}, 'lodAdaptive'),
       description: 'Enables dynamic adaptation of LOD error threshold based on scene workload.',
     },
     shadowPageInvalidation: {
       type: 'boolean',
-      default: true,
+      default: /* @__PURE__ */ explorerSwitch({}, 'shadowPageInvalidation'),
       description:
         'Invalidation of shadow map pages per 128x128 page. false stales every page of each light a moving object touches.',
     },
     bounce: {
       type: 'boolean',
-      default: false,
+      default: /* @__PURE__ */ explorerSwitch({}, 'bounce'),
       description:
         'Dynamic global illumination (GI) via radiance probe bounce. Incompatible with very tight GPU time budgets.',
     },
@@ -93,7 +96,7 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
     },
     importedLights: {
       type: 'boolean',
-      default: true,
+      default: /* @__PURE__ */ explorerSwitch({}, 'importedLights'),
       description:
         'Enables lights imported from the source scene file. false opens the scene with zero lights.',
     },
@@ -127,13 +130,13 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
     },
     autonomousGeometry: {
       type: 'boolean',
-      default: false,
+      default: /* @__PURE__ */ explorerSwitch({}, 'autonomousGeometry'),
       description:
         'Static WebGL2 rendering of prepared pages without downloading full source geometry buffers.',
     },
     stageProfile: {
       type: 'boolean',
-      default: false,
+      default: /* @__PURE__ */ explorerSwitch({}, 'stageProfile'),
       description: 'Enables per-stage GPU/CPU timing accessible via explorer.stageProfile().',
     },
     diagnosticDetail: {

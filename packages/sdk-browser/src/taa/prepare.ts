@@ -1,3 +1,4 @@
+import { explorerSwitch } from '../../../sdk-core/src/index.ts';
 import { TAA_HISTORY_BYTES_PER_PIXEL, createTemporalAntialiasing } from './temporalAntialiasing.ts';
 import { dropTaaHistory, forgetTaaHistory } from './frame.ts';
 import { grantCapability } from '../webgpu/pages/io/drops.ts';
@@ -15,7 +16,7 @@ import { TAA_CAPABILITIES } from './capability.ts';
  * (`../webgpu/pages/state/renderScale.ts`).
  */
 export async function prepareTemporalAntialiasing(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  rt.gpu.temporalWanted = rt.context.temporalAntialiasing !== false;
+  rt.gpu.temporalWanted = explorerSwitch(rt.context, 'temporalAntialiasing');
   if (rt.gpu.temporalWanted) await rigTemporalAntialiasing(rt, device);
 }
 

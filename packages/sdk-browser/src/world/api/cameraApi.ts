@@ -8,7 +8,7 @@ import { createPanZoomCameraControls } from '../../camera/controls/panZoomContro
 import { createTrackballCameraControls } from '../../camera/controls/trackballControls.ts';
 import type { PivotCameraControls } from '../../camera/controls/types.ts';
 import { copyElements } from '../../math/matrixElements.ts';
-import type { CameraPose } from '../../../../sdk-core/src/index.ts';
+import { explorerSwitch, type CameraPose } from '../../../../sdk-core/src/index.ts';
 import type { MeasuredWorldOptions, PointOfInterest, RenderBackend } from '../../backend/types.ts';
 import { resolveCameraWorld, type HostCamera } from '../../camera/world.ts';
 
@@ -145,7 +145,7 @@ export function createExplorerCameraApi(inputs: Inputs) {
      */
     controls() {
       check();
-      if (options.interactive && orbit) return orbit;
+      if (explorerSwitch(options, 'interactive') && orbit) return orbit;
       const controls = pivot(createOrbitCameraControls(camera, canvas));
       const release = controls.dispose;
       controls.dispose = () => {

@@ -1,4 +1,4 @@
-import { BOUNCE_SETTINGS, type Texture } from '../../../../sdk-core/src/index.ts';
+import { BOUNCE_SETTINGS, explorerSwitch, type Texture } from '../../../../sdk-core/src/index.ts';
 import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SEED_POOL_SIDE } from '../../../../sdk-core/src/scene/light-shadow/poolDemand.ts';
 import { TAA_CAPABILITIES } from '../../taa/capability.ts';
@@ -163,7 +163,7 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     vis,
     lights,
     bounce: createWebgpuBounceState(
-      context.bounce === true,
+      explorerSwitch(context, 'bounce'),
       context.bounceBudgetMs ?? BOUNCE_SETTINGS.budgetMs,
     ),
     sunFar: createWebgpuSunFarState(),
@@ -171,7 +171,7 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     capture: createWebgpuCaptureState(),
     views: createWebgpuViews({ run, gpu, vis, setup }),
     timing: createWebgpuTimingState(
-      context.stageProfile ? createWebgpuStageProfiler() : undefined,
+      explorerSwitch(context, 'stageProfile') ? createWebgpuStageProfiler() : undefined,
       () => layout.selectionRoots.length,
     ),
     scale: createScaleControl(context.renderScale),

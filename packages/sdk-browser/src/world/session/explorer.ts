@@ -2,6 +2,7 @@ import { resolveExplorerTarget, type MeasuredWorldTarget } from './target.ts';
 import { interactiveOptions } from './interactiveOptions.ts';
 import { drawnOnArrival } from './familyUse.ts';
 import { startInteractiveExplorer } from './interactive.ts';
+import { explorerSwitch } from '../../../../sdk-core/src/index.ts';
 import { releaseOwned } from './lifecycle.ts';
 import { loadExplorerManifest } from './manifest.ts';
 import type { RenderBackend, MeasuredWorldOptions } from '../../backend/types.ts';
@@ -22,7 +23,7 @@ export async function openMeasuredWorld(
   const canvas = resolveExplorerTarget(target);
   const { options, reference } = referenceOptions(interactiveOptions(canvas, original));
   options.signal?.throwIfAborted();
-  const lifetime = options.interactive ? new AbortController() : undefined;
+  const lifetime = explorerSwitch(options, 'interactive') ? new AbortController() : undefined;
   if (lifetime)
     options.signal = options.signal
       ? AbortSignal.any([options.signal, lifetime.signal])
@@ -89,7 +90,7 @@ export async function openMeasuredWorld(
       preparationMs: performance.now() - preparationStart,
       moveNamed: source?.moveNamed,
     });
-    const invalidate = options.interactive
+    const invalidate = explorerSwitch(options, 'interactive')
       ? startInteractiveExplorer(explorer, runtime, original, { emit, diagnose })
       : drawnOnArrival(
           runtime.familiesPending,
