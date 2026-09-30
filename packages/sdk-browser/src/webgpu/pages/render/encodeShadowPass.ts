@@ -14,7 +14,8 @@ import { feedbackPublished } from './encoder.ts';
  * then the moving casters of each restored page tested against its static layer; then a render
  * pass per layer of the pool. In each pass, every region starts from its page cleared to far or
  * restored from the static layer — two instanced draws for the pass, whatever its regions
- * (`../../../gpu/shadow/pageQuads.ts`) —, then draws its casters.
+ * (`../../../gpu/shadow/pageQuads.ts`) —, then draws its casters: the moving casters of its
+ * restored sun pages by group, one or two instanced draws each (`../../shadow/movingGroups.ts`).
  *
  * **The casters' viewport is the physical page, the matrix the virtual page's own projection.**
  * The page fills the clip square, so the rasterizer clips every caster at its edge and no other
@@ -52,6 +53,7 @@ export function encodeShadowAtlas(
   const { order, layer, first, clears, restores, layerPasses } = pagePlan;
   quads.begin(count, order);
   const depthDraws = shadows.depthDraws();
+  let grouped: Uint8Array | undefined;
   // Each pass of the static layer's (`inLayer`) or the pool's: its clears and restores, two
   // instanced draws, then each region's casters in its page's viewport.
   const draw = (passes: GPURenderPassDescriptor[], inLayer: boolean, tested: boolean) => {
@@ -67,7 +69,9 @@ export function encodeShadowAtlas(
         restores[k],
         staticLayer?.groups[at],
       );
-      const draws = drawRegionCasters(rt, device, pass, k, tested, 1, depthDraws);
+      const draws =
+        drawRegionCasters(rt, device, pass, k, tested, 1, depthDraws, grouped) +
+        (grouped ? lights.movingGroups!.draw(rt, pass, k) : 0);
       run.gpuDrawCalls += draws;
       // A pool pass restores its pages from the static layer and draws their moving casters, or
       // clears them and draws every caster: no frame does both (`pool.drawMode`).
@@ -78,6 +82,9 @@ export function encodeShadowAtlas(
   };
   if (regions.layered) draw(staticLayer!.passes, true, false);
   const tested = encodeOcclusion(rt, encoder, count);
+  // The restored sun pages' moving casters, by group (`movingGroups.ts`): after the lists they read.
+  const groups = lights.movingGroups?.encode(rt, encoder, count, tested) ?? 0;
+  grouped = groups ? lights.movingGroups!.grouped : undefined;
   draw(shadows.passes, false, tested);
   const casters = rt.services.blendCasters.used > 0;
   const transmittance = casters ? frameTransmittance(rt, encoder) : shadows.transmittance;
