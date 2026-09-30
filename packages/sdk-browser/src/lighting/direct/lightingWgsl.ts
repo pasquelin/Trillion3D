@@ -5,6 +5,7 @@ import { RECT_SHADING_WGSL } from './rectLightWgsl.ts';
 import { irradianceShader } from '../../../../sdk-core/src/scene/core/irradianceBasis.ts';
 import { MODEL_FLAG, SURFACE_MODEL_LIGHT_WGSL } from '../../scene/surfaceModel.ts';
 import { DIRECT_LIGHT_SAMPLING_WGSL } from './lightSamplingWgsl.ts';
+import { CLUSTER_LEADING_WGSL, clusterResolveWgsl } from '../tiles/clusterWgsl.ts';
 import { directShadowWgsl } from './shadowWgsl.ts';
 import { sunFarShadowWgsl, SUN_FAR_PROXY_BINDING } from '../../gpu/shadow/sunFarShadowWgsl.ts';
 import { INVERSE_PI } from '../shaderConstants.ts';
@@ -81,6 +82,7 @@ const lightingBase = (
   narrow = false,
 ) => `
 ${directLightWgsl(narrow ? LIGHT_SETTINGS.tileLights : undefined)}
+${CLUSTER_LEADING_WGSL}
 ${residentProxyWgsl(proxyBinding, requestBinding !== null)}
 ${sunFarShadowWgsl(requestBinding !== null)}
 ${directShadowWgsl(shadowBinding, requestBinding, transmittanceBinding)}
@@ -147,7 +149,11 @@ fn tileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,til
 export const directLightingWgsl = (narrow = false) => `
 ${lightingBase(SUN_FAR_PROXY_BINDING, CONTRACT_SHADOW_BINDINGS.data, CONTRACT_SHADOW_BINDINGS.requests, CONTRACT_SHADOW_BINDINGS.transmittance, narrow)}
 ${DIRECT_LIGHT_SAMPLING_WGSL}
-/** Contribution of the contract lights to the pixel, tile by tile and light by light. */
+${clusterResolveWgsl}
+/** Contribution of the contract lights to the pixel, tile by tile and light by light. A resolve
+ *  reads the pixel's cluster (clusterLighting, #1249) on a still image and on a moving one whose
+ *  tile list holds no shadowed light; a tile that wrote no cluster reads its own opaque list, and
+ *  the sample budget keeps the shadowed path. */
 fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f)->vec3f{
  if(u32(view.lightParams.x)==0u){return vec3f(0.0);}
  let tile=pixelTile(pixel);
@@ -155,7 +161,7 @@ fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
  let tilesY=u32(view.lightParams.z);
  if(tile.x>=tilesX||tile.y>=tilesY){return vec3f(0.0);}
  let rank=u32(view.viewport.w);
- if(rank==0u||!tileShadowed(tile,tilesX)){return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE);}
+ if(rank==0u||!tileShadowed(tile,tilesX)){return clusterLighting(rgb,metal,rough,N,V,P,ao,pixel);}
  return sampledTileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,rank,pixel);
 }`;
 export const DIRECT_LIGHTING_WGSL = directLightingWgsl();

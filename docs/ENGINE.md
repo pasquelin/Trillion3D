@@ -327,6 +327,20 @@ every fragment. The grid is listed on the CPU into one integer texture only when
 or range changes; a frame that moves the camera alone sends only the view-to-grid matrix
 (`webgl/cluster/lightLists.ts`, #835).
 
+**A pixel pays only for the lights that reach it.** The tile pass cuts each tile's opaque list into
+`clusterSlices` (16) logarithmically spaced clusters along the view axis and bins each kept light
+into every cluster its range sphere can reach, in increasing rank, into the view's pool
+(`clusterBins`, `lighting/tiles/clusterWgsl.ts`, #1249); the tile record carries one `(offset,
+count)` per slice, the tile's nearest and farthest depth, and a flag. The deferred resolve reads
+the pixel's own depth, takes its slice's list, and walks only those lights — a subsequence of the
+tile list, so the sum is the full one, term for term, without the zeros a light out of range would
+have added. A light is assigned to every cluster its view-axis span touches, and the span is at
+most its radius (the axis is a projection), so no light that lights a pixel is ever dropped; the
+false positives a 2D tile pays when its depth range spans near and far surfaces — 11 % of its list
+on the sponza-sized atrium — are what the slices remove. A tile with more lights than a list, one
+whose bins the pool cannot hold, or a scene of one batch keeps its whole list: the flag stays zero
+and the resolve falls back, exact as before.
+
 **A moving image shades a drawn subset of each pixel's lights when they cast shadows.** A moving
 image weighs every light of its tile without its shadow (the cheap part) and shades in full, shadow
 included, four of them. A
@@ -341,8 +355,9 @@ shadowed light is never drawn — with no shadow to save, the three weight walks
 times the full sum — and is summed in full as the still one does, bit for bit, the resolve never
 walking the list a pixel at a time (`tileShadowed`, `tests/browser/probes/sampled-resolve-gpu.ts`,
 #1249). 200 unshadowed lamps of
-range 4 m in a sponza-sized atrium drop from 23.8 light evaluations per covered pixel to 7.4 at
-3456 × 2234 (`bench/runner/lightTileSampledCount.ts`).
+range 4 m in a sponza-sized atrium drop from 25.5 light evaluations per covered pixel to 7.6 at
+3456 × 2234 — the tile list averages 7.8, the cluster the pixel reads 7.6
+(`bench/runner/lightTileSampledCount.ts`).
 `metric.frame(world).lightsSampled` says the image ran at a sampled rank. Declared cost: a faint grain on lit surfaces
 where lights of different colours overlap, while the camera moves
 (`tests/browser/renders/sampled-lighting.browser.ts`). What remains: a spatial denoise before the
