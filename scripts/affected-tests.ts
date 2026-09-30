@@ -17,10 +17,10 @@ const barrel =
 
 /** How far a change travels through a file: `barrel` (an `index.ts` or the public facade) stops it,
  *  `aggregator` passes it only from a changed file it imports itself, `module` always passes it. */
-export type Role = 'barrel' | 'aggregator' | 'module';
+type Role = 'barrel' | 'aggregator' | 'module';
 
 /** One source file of the graph: the files it reads values from, and its role. */
-export interface GraphNode {
+interface GraphNode {
   dependencies: Set<string>;
   role: Role;
 }
@@ -92,7 +92,7 @@ function resolver(facts: Facts, known: (file: string) => boolean) {
 
 /** Each source file's value dependencies: the modules it imports, and through them the files that
  *  define what it reads. */
-export function importGraph(
+function importGraph(
   files: Map<string, string>,
   changed: Set<string>,
 ): Map<string, GraphNode> {
@@ -107,7 +107,7 @@ export function relatedTests(files: Map<string, string>, changed: Set<string>): 
 }
 
 /** The unit tests of `graph` that `changed` can affect, sorted. */
-export function affectedTests(graph: Map<string, GraphNode>, changed: Set<string>): string[] {
+function affectedTests(graph: Map<string, GraphNode>, changed: Set<string>): string[] {
   const importers = new Map<string, string[]>();
   for (const [file, { dependencies }] of graph)
     for (const dependency of dependencies) {

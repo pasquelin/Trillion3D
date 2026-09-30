@@ -136,7 +136,7 @@ test('a chain passes an aggregator only from a file it imports itself', () => {
   assert.deepEqual(select('scripts/leaf.ts'), ['scripts/part0.test.ts']);
 });
 
-test('the tests of the changed file's own domain folder run, whatever they import', () => {
+test('the tests of the domain folder of a changed file run, whatever they import', () => {
   const files = new Map([
     ['packages/sdk-browser/src/webgpu/shadow/pass.ts', 'export const pass = 1;'],
     ['packages/sdk-browser/src/webgpu/shadow/atlas/atlas.test.ts', ''],

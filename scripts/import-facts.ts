@@ -3,7 +3,7 @@ import ts from 'typescript';
 
 /** One value import of a module: the names it reads, or `'*'` for the whole module (a namespace,
  *  side-effect or dynamic import). Type-only imports are left out: they run no code. */
-export interface ValueImport {
+interface ValueImport {
   specifier: string;
   names: readonly string[] | '*';
 }
@@ -19,19 +19,15 @@ export interface ImportFacts {
   locals: Set<string>;
 }
 
-const hasExport = (node: ts.Node): boolean =>
-  ts.canHaveModifiers(node) &&
-  (ts.getModifiers(node) ?? []).some(({ kind }) => kind === ts.SyntaxKind.ExportKeyword);
+const hasModifier = (node: ts.Node, modifier: ts.SyntaxKind): boolean =>
+  ts.canHaveModifiers(node) && (ts.getModifiers(node) ?? []).some(({ kind }) => kind === modifier);
 
 function declaredNames(node: ts.Statement): string[] {
   if (ts.isVariableStatement(node))
     return node.declarationList.declarations.flatMap(({ name }) =>
       ts.isIdentifier(name) ? [name.text] : [],
     );
-  const isDefault = (ts.getModifiers(node) ?? []).some(
-    ({ kind }) => kind === ts.SyntaxKind.DefaultKeyword,
-  );
-  if (isDefault) return ['default'];
+  if (hasModifier(node, ts.SyntaxKind.DefaultKeyword)) return ['default'];
   const named = node as ts.Statement & { name?: ts.Node };
   return named.name && ts.isIdentifier(named.name) ? [named.name.text] : [];
 }
@@ -83,7 +79,7 @@ export function importFacts(file: string, content: string): ImportFacts {
               alias: element.name.text,
             });
     } else if (ts.isExportAssignment(statement)) facts.locals.add('default');
-    else if (hasExport(statement))
+    else if (hasModifier(statement, ts.SyntaxKind.ExportKeyword))
       for (const name of declaredNames(statement)) facts.locals.add(name);
     visit(statement);
   }

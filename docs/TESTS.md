@@ -53,8 +53,8 @@ The compiler's own tests stay in its crate (`packages/asset-compiler-rust/src/te
 | `pnpm run perf:all` | every benchmark of `bench/perf/`, then the aggregated report         |
 | `pnpm run validate` | full pre-merge validation gate                                       |
 
-`pnpm run test:changed` and `pnpm run check:changed` only execute what modified files
-touch; neither replaces `validate`. `check:changed` also type-checks (`tsc --noEmit`) every
+`pnpm run check:changed`, the one local gate, only executes what modified files touch
+(`scripts/affected-tests.ts`); it does not replace `validate`, which the CI runs. `check:changed` also type-checks (`tsc --noEmit`) every
 tracked `tsconfig*.json` project that owns a changed TypeScript file, by listing it or reaching it
 through an import (`scripts/ts-projects.ts`); a changed file no project reaches fails the gate,
 unless a type-check-only (`noEmit`) project's `include` covers it and its `exclude` takes it
