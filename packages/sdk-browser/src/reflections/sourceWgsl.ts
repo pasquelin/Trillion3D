@@ -35,7 +35,7 @@ ${PREVIOUS_DEPTH_WGSL}
  let at=vec2i(pixel.xy);let z=textureLoad(depth,at,0);let id=textureLoad(ids,at,0).r;
  let expected=previousDepthOf(pixel.xy,z,id);
  if(view.params.x==0.0||z==0.0){return vec4f(0.0);}
- let uv=previousUv(at,z,at);
+ let uv=previousUv(at,z,id);
  if(uv.z==0.0){return vec4f(0.0);}
  let prior=min(vec2i(uv.xy*view.last.xy),vec2i(view.last.xy)-vec2i(1));
  if(abs(textureLoad(lastDepth,prior,0)-expected.x)>expected.y){return vec4f(0.0);}
