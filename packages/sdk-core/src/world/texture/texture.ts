@@ -83,7 +83,7 @@ export class Texture {
         if (vector && target[key] === value) return true;
         if (vector) unlisten(target[key], placed);
         Reflect.set(target, key, value);
-        if (typeof key !== 'string' || COUNTERS.has(key)) return true;
+        if (typeof key !== 'string' || COUNTERS.has(key) || key === 'needsUpdate') return true;
         if (vector) listen(value, placed);
         target.touch(COUNTER[key] ?? 'version');
         return true;
