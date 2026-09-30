@@ -21,7 +21,8 @@ export type {
   TerminalProgress,
   TerminalProgressOptions,
 } from '../sdk-node/src/compiler/contracts.ts';
-export { CANCEL_GRACE_MS, COMPILER_LINE_LIMIT } from '../sdk-node/src/compiler/process.mts';
+export { CANCEL_GRACE_MS } from '../sdk-node/src/compiler/process.mts';
+export { COMPILER_LINE_LIMIT } from '../sdk-node/src/compiler/lines.mts';
 export { createBatchProgress, createTerminalProgress } from '../sdk-node/src/cli/progress.mts';
 export { createCompilationJob, prepare, prepareMany } from '../sdk-node/src/index.mts';
 export { getSdkProvenance } from '../sdk-node/src/compiler/provenance.mts';

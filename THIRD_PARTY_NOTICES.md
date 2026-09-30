@@ -30,6 +30,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - Licence: Apache-2.0; see https://www.apache.org/licenses/LICENSE-2.0.
 - Only mesh decoding and EdgeBreaker valence decoding are enabled; no encoder or point-cloud decoder is linked.
 
+## mimalloc
+
+- Linked into the native compiler binary as its allocator (#1352), through the crates `mimalloc`
+  and `libmimalloc-sys`, versions pinned in `packages/asset-compiler-rust/Cargo.lock`.
+- Source: https://github.com/microsoft/mimalloc and https://github.com/purpleprotocol/mimalloc_rust.
+- Licence: MIT; copyright (c) 2018-2021 Microsoft Corporation, Daan Leijen, and (c) 2019 Octavian
+  Oncescu. Notices kept with the dependency.
+
 ## Image and texture readers of the native compiler
 
 Shipped in the native asset compiler, versions pinned in

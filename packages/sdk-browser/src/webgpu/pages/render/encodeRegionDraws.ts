@@ -50,6 +50,10 @@ export function encodeOcclusion(rt: WebgpuPagesRuntime, encoder: GPUCommandEncod
   return true;
 }
 
+/** Whether `region` draws its visible lists, the occlusion test run for the batch (`tested`). */
+export const regionTested = (region: number, tested: boolean) =>
+  tested && slotOf[region] !== HIZ_UNTESTED;
+
 /**
  * The casters of each region of pass `k` of `pagePlan` drawn into `pass`, in its page's viewport
  * and scissor — the page's texels divided by `scale`, 2 in the transmittance layer —: the page
@@ -59,8 +63,9 @@ export function encodeOcclusion(rt: WebgpuPagesRuntime, encoder: GPUCommandEncod
  * or with the fragment that strips the face's emitter envelope, then the cutout one while any row
  * is a cutout; the transmittance layer's draw the first list, which holds the blended casters,
  * once each. A region whose light view has no caster on the CPU cut (`regions.casterless`) keeps
- * zero instances in every command: it encodes no bind group and no draw (#1210). A pipeline is set
- * only when it changes. Returns the draws encoded.
+ * zero instances in every command: it encodes no bind group and no draw (#1210); nor does one its
+ * moving group draws (`grouped`, `../../shadow/movingGroups.ts`). A pipeline is set only when it
+ * changes. Returns the draws encoded.
  */
 export function drawRegionCasters(
   rt: WebgpuPagesRuntime,
@@ -70,6 +75,7 @@ export function drawRegionCasters(
   tested: boolean,
   scale: number,
   draws: readonly GPURenderPipeline[] | ShadowDepthDraws,
+  grouped?: Uint32Array,
 ) {
   const { shadows, cull, regions, occlusion } = rt.lights,
     { order, first, clears, restores } = pagePlan,
@@ -85,8 +91,8 @@ export function drawRegionCasters(
   };
   for (let i = first[k]; i < first[k] + clears[k] + restores[k]; i++) {
     const region = order[i];
-    if (regions.casterless(region)) continue;
-    const visible = tested && slotOf[region] !== HIZ_UNTESTED;
+    if (regions.casterless(region) || grouped?.[region]) continue;
+    const visible = regionTested(region, tested);
     const group = shadowRegionGroup(rt, device, region, visible);
     if (!group) continue;
     const x = regions.x(region) / scale,
