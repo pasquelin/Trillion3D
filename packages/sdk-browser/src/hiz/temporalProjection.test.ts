@@ -17,6 +17,8 @@ import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { locatedBy } from '../page/selection/placements.fixture.ts';
 import type { Placements } from '../page/selection/placements.ts';
 
+const engineCamera = cameraMoteur;
+
 test('flat projection and split reproduce the object forms to the bit, including depth ties', () => {
   let seed = 12345;
   const rnd = () => {
@@ -45,7 +47,7 @@ test('flat projection and split reproduce the object forms to the bit, including
   camera.updateProjectionMatrix();
   camera.updateMatrixWorld();
   const viewport: [number, number] = [1280, 720],
-    engine = cameraMoteur(camera);
+    engine = engineCamera(camera);
   const flat = new Float64Array(pages.length * HIZ_BOUNDS_VALUES),
     locations = locatedBy(roots);
   projectBoxesFlat(pages, locations, pages.length, engine, viewport, flat);
@@ -114,7 +116,7 @@ test('temporal Hi-Z keeps or rejects each placement of a shared record on its ow
   ] as unknown as Placements;
   const selected = [wall.page, prop.page, prop.page, back.page],
     locations = locatedBy(roots),
-    cam = cameraMoteur(cameraAt(5)),
+    cam = engineCamera(cameraAt(5)),
     size: [number, number] = [32, 32],
     history: TemporalHizState = {};
   const first = applyTemporalHiz(selected, locations, cam, size, history);

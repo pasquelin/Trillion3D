@@ -38,7 +38,6 @@ test('the CPU Hi-Z test keeps a constant-size sprite whose box a nearer surface 
   const page = (sizeAttenuation: boolean): HizPage => ({
     min: [-0.05, -0.05, -3],
     max: [0.05, 0.05, -3],
-    placementIndex: 0,
     material: { sprite: sprite(sizeAttenuation) },
   });
   const [constant, attenuated] = [page(false), page(true)];
