@@ -3,7 +3,6 @@
 // them, and the pair cull over every row and region it dispatches — what the mock GPU dispatches
 // (`tests/kit/gpu/mockCompute.ts`) and the scheduling tests run.
 import { MAX_SHADOW_SLICES } from '../../../../sdk-core/src/index.ts';
-import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelSignatures.ts';
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import {
@@ -13,13 +12,11 @@ import {
   shadowsOf,
 } from './allocRun.fixture.ts';
 import { SHADOW_FRESH_CULL_WGSL } from './freshCullWgsl.ts';
-import { FRESH_PARAM_WORDS, FRESH_SLICE_FLOATS } from './freshLayout.ts';
+import { FRESH_ARG, FRESH_PARAM_WORDS, FRESH_SLICE_FLOATS } from './freshLayout.ts';
 import { POOL_COUNTS } from './poolWgsl.ts';
-import { shadowFreshWgsl } from './freshWgsl.ts';
-
-const FRESH_ARG = { regions: 0, capacity: 1, pairs: 2, corners: 3 } as const;
-const FRESH_LANES = 64;
-const SHADOW_FRESH_WGSL = shadowFreshWgsl();
+import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelSignatures.ts';
+import { FRESH_LANES } from './freshLanes.ts';
+import { SHADOW_FRESH_WGSL } from '../../gpu/core/shaderTexts.fixture.ts';
 
 const u32 = (b: Uint8Array) => new Uint32Array(b.buffer, b.byteOffset, b.byteLength >> 2);
 const f32 = (b: Uint8Array) => new Float32Array(b.buffer, b.byteOffset, b.byteLength >> 2);

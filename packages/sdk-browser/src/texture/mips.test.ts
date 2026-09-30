@@ -4,9 +4,8 @@ import { generateMaterialMips } from './mipBatch.ts';
 import { mipLevelCountFor } from './tiles.ts';
 import { installGpuGlobals } from '../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../tests/kit/gpu/mockGpu.ts';
-
-const TEXTURE_MIPS_PASS = 'Trillion3D texture mips';
-const TEXTURE_COVERAGE_PASS = 'Trillion3D texture coverage count';
+import { TEXTURE_MIPS_PASS } from './mipsPass.ts';
+import { TEXTURE_COVERAGE_PASS } from './coveragePass.ts';
 
 /** One chain alone: a 4×4 texture under `format`, its rule and its cutoff. */
 const oneChain = (

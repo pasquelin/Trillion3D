@@ -3,6 +3,15 @@
 // decision, and that the shared distance does not change a bit.
 import { clusterErrorPixels } from '../../../packages/sdk-core/src/index.ts';
 
+/** Bound-array offsets read at fixed slots, as `packages/sdk-browser/src/page/cut/bounds.ts` lays them out. */
+interface BoundSlots {
+  ownFloor: number;
+  ownCeil: number;
+  parentFloor: number;
+  ownSphere: number;
+  parentSphere: number;
+}
+
 /** `packages/sdk-browser/src/page/selection/math.ts` before batch 4c: the centre projected into a shared buffer. */
 const centre = new Float64Array(3);
 export function referenceProjectCentre(
@@ -53,4 +62,37 @@ export function referenceErrorFloorPixels(
   const far = -c[2] + radius * stretch;
   if (!(far > 0)) return Infinity;
   return (error * stretch * focal) / far;
+}
+
+/** `nodeDecision` from before batch 4c, bounds read at the same offsets. */
+export function referenceNodeDecision(
+  values: ArrayLike<number>,
+  at: number,
+  slots: BoundSlots,
+  e: ArrayLike<number>,
+  stretch: number,
+  focal: number,
+  near: number,
+  limit: number,
+) {
+  const { ownFloor, ownCeil, parentFloor, ownSphere, parentSphere } = slots;
+  const own = referenceProjectCentre(values, at + ownSphere, e),
+    radius = values[at + ownSphere + 3];
+  if (referenceErrorFloorPixels(values[at + ownFloor], stretch, own, radius, focal) > limit)
+    return -1;
+  if (
+    clusterErrorPixels(values[at + ownCeil], stretch, own[0], own[1], own[2], radius, focal, near) >
+    limit
+  )
+    return 0;
+  const band = referenceProjectCentre(values, at + parentSphere, e);
+  return referenceErrorFloorPixels(
+    values[at + parentFloor],
+    stretch,
+    band,
+    values[at + parentSphere + 3],
+    focal,
+  ) > limit
+    ? 1
+    : 0;
 }

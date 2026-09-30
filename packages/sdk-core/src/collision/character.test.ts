@@ -5,8 +5,9 @@ import { Mesh } from '../world/object/mesh.ts';
 import { meshCollision } from './meshTriangles.ts';
 import { createCharacterBody } from './characterBody.ts';
 import { HUMAN_BODY, type CharacterInput, type CharacterSettings } from './characterSettings.ts';
-
-const MAX_CHARACTER_DELTA = 0.25;
+import { createDrive } from './characterDrive.ts';
+import { MAX_CHARACTER_DELTA } from './characterDelta.ts';
+import { gripOf } from './grip.ts';
 
 /** An axis-aligned block from its two corners, as a mesh the collision world reads. */
 function block(x0: number, y0: number, z0: number, x1: number, y1: number, z1: number) {
@@ -15,6 +16,9 @@ function block(x0: number, y0: number, z0: number, x1: number, y1: number, z1: n
   return mesh;
 }
 
+/** A sole's push on the floor a body stands on without physics, m/s², and the legs' rate. */
+const push = gripOf(createDrive().floor) * HUMAN_BODY.gravity,
+  rateOf = (time: number) => -Math.log(0.05) / time;
 const FLOOR = () => block(-50, -1, -50, 50, 0, 50);
 const STILL: CharacterInput = { wishX: 0, wishZ: 0, sprint: false };
 const EAST: CharacterInput = { wishX: 1, wishZ: 0, sprint: false };
@@ -98,10 +102,46 @@ test('a jump reaches v² / 2g and lands after the rise and the heavier fall', ()
   assert.ok(air > 0.55 && air < 0.65 && made.onGround, `air ${air}`);
 });
 
+test("a key starts the jog at the floor's push, and is seen in the first frame", () => {
+  const made = body([FLOOR()]);
+  live(made, 0.5, STILL);
+  const frame = 1 / 60,
+    v = HUMAN_BODY.walkSpeed,
+    rate = rateOf(HUMAN_BODY.responseTime);
+  // From rest the sole pushes at μ g, the whole first frame: `push t² / 2`.
+  const first = made.advance(frame, EAST)[0],
+    ran = (t: number) => (push * t * t) / 2;
+  // Drawn at the present: at most one tick of the fixed step late, under one frame.
+  assert.ok(first >= ran(frame - 1 / 120) - 1e-9 && first <= ran(frame) + 1e-9, `first ${first}`);
+  let t = frame;
+  for (; made.velocity[0] < 0.95 * v; t += frame) made.advance(frame, EAST);
+  // The push closes the gap down to push / rate, the legs' exponential the rest.
+  const expected = (v - push / rate) / push + Math.log(push / rate / (0.05 * v)) / rate;
+  assert.ok(Math.abs(t - expected) <= frame, `jog reached after ${t} s, expected ${expected}`);
+});
+
 test('20 m/s never tunnels through a 0.1 m wall, even at 30 Hz', () => {
   const made = body([FLOOR(), block(2, 0, -5, 2.1, 3, 5)], 0, 0, 0, { walkSpeed: 20 });
   const feet = live(made, 1, EAST, 1 / 30);
   assert.ok(feet[0] < 2, `tunnelled to ${feet[0]}`);
+});
+
+test('released keys glide v² / (2 μ g) on the declared stone floor, then it stays still', () => {
+  const made = body([FLOOR()]);
+  const moving = live(made, 2, EAST);
+  const stopped = live(made, 3, STILL);
+  const glide = stopped[0] - moving[0],
+    v = HUMAN_BODY.walkSpeed,
+    rate = rateOf(HUMAN_BODY.stopTime);
+  // The legs' exponential closes the last push / rate, a centimetre more; the body is drawn up
+  // to one tick behind the one it lives. 0.79 m on stone.
+  const expected = (v * v) / (2 * push);
+  assert.ok(
+    glide >= expected - 1e-3 && glide <= expected + push / rate ** 2 + v / 120,
+    `glide ${glide}, expected ${expected}`,
+  );
+  assert.deepEqual([...made.velocity], [0, 0, 0]);
+  assert.deepEqual(live(made, 1, STILL), stopped);
 });
 
 test('the motion is the same at 30 Hz and at 144 Hz', () => {

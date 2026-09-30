@@ -1,4 +1,5 @@
 import { LIGHT_KIND, LIGHT_SETTINGS, MAX_SHADOW_SLICES, POINT_FACES } from '../light/contracts.ts';
+import { SHADOW_PAGE, SUN_LEVELS, tiles, priorPoolPages, sunEntries } from './sunEntries.ts';
 
 /**
  * THE VIRTUAL LAYOUT OF SHADOW MAPS: what a page of each light is, and where its word sits in
@@ -14,21 +15,12 @@ import { LIGHT_KIND, LIGHT_SETTINGS, MAX_SHADOW_SLICES, POINT_FACES } from '../l
  *
  * The physical pool is the one size here that depends on the world: `shadowPoolSize`.
  */
-/** Side of a shadow page, in texels: the unit of the pool, of the virtual maps and of invalidation. */
-export const SHADOW_PAGE: number = LIGHT_SETTINGS.shadowPage;
+export { SHADOW_PAGE, SUN_LEVELS, sunLevelEntries } from './sunEntries.ts';
 /** Pages per side of a lamp face's finest mip. */
 export const LAMP_SIDE = Math.floor(LIGHT_SETTINGS.lampFaceSize / SHADOW_PAGE);
-export const SUN_LEVELS: number = LIGHT_SETTINGS.sunLevels;
 export const SUN_WINDOW: number = LIGHT_SETTINGS.sunLevelPages;
 /** Mips of a lamp face, from `LAMP_SIDE` pages per side down to one. */
 export const LAMP_MIPS = Math.log2(LAMP_SIDE) + 1;
-/** Pages a side of a sun's `2W × 2H` texel rectangle: one per `P / 2` screen pixels. */
-const tiles = (pixels: number) => Math.ceil((2 * Math.max(1, pixels)) / SHADOW_PAGE);
-/** The pool the first frame asks for `lights` shadowed lights, each read over the whole smooth
- *  `w × h` screen — its texel rectangle, and a third more while pages wait —, twice: the report
- *  the pool holds and the next one, which a turn of the camera may renew in full. */
-const priorPoolPages = (w: number, h: number, lights: number) =>
-  2 * lights * Math.ceil((4 * tiles(w) * tiles(h)) / 3);
 /**
  * Physical pages of the shadow pool, for a `width × height` screen and its `lights` shadowed
  * lights: a fixed budget, derived once from the screen the first
@@ -76,11 +68,6 @@ export const LAMP_FACE_ENTRIES = (() => {
   for (let mip = 0; mip < LAMP_MIPS; mip++) total += (LAMP_SIDE >> mip) ** 2;
   return total;
 })();
-/** The extent is a session's, not the module's: a reference session raises it so every pixel of a
- *  wide view reads the finest clipmap level (`referenceMode.ts`), an ordinary one keeps the
- *  constant. Every size an extent implies is a function of its pages, the constant the default. */
-export const sunLevelEntries = (pages: number) => pages * pages;
-const sunEntries = (pages: number) => SUN_LEVELS * sunLevelEntries(pages);
 /** Words of the page table each slice owns: the largest range a light needs, a whole sun or a
  *  point light's six faces — so a slice of any kind always finds its span. */
 export const shadowTableStride = (pages: number) =>

@@ -36,10 +36,10 @@ export function quantizeAheadPriority(pixels: number, due: number) {
   );
 }
 /** The order a priority is served in, highest first: the visible tier above the tier ahead. */
-const requestRank = (priority: number) => priority ^ REQUEST_AHEAD;
+export const requestRank = (priority: number) => priority ^ REQUEST_AHEAD;
 
 /** The rank of a request word: what `dagSortRequests` orders by. */
-const requestWordRank = (word: number) => requestRank(requestPriority(word));
+export const requestWordRank = (word: number) => requestRank(requestPriority(word));
 /** In `words[start, end)`, sorted by rank, the first request of the view ahead: every visible
  *  request comes before it. */
 export function firstAheadRequest(words: ArrayLike<number>, start = 0, end = words.length) {

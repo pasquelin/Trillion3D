@@ -13,10 +13,8 @@ import { cameraMoteur as engineCameraOf } from './camera.fixture.ts';
 import { random as reproducible } from '../page/cut/cutRuleChecks.fixture.ts';
 import { PREFETCH_HORIZON_MS, prefetchHorizonMs } from '../backend/common.ts';
 import { restartCameraMotion } from './motion.fixture.ts';
-
-const MAX_PREFETCH_HORIZON_MS = 1000;
-
-const AHEAD_SMOOTHING_MS = 100;
+import { AHEAD_SMOOTHING_MS } from './motionSmoothing.ts';
+import { MAX_PREFETCH_HORIZON_MS } from '../backend/prefetchHorizon.ts';
 
 /** A bare engine camera: the eye and the way back are all the motion reads. */
 const pose = (eye: number[], back = [0, 0, 1]) => {

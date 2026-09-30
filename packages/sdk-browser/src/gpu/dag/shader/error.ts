@@ -11,9 +11,7 @@
  */
 import { CLUSTER_LEVEL_SHIFT } from '../clusterFlags.ts';
 import type { ScreenErrorVariant } from '../../../../../sdk-core/src/index.ts';
-
-/** Declaration `withScreenErrorVariant` returns, written once for both. */
-const REFERENCE_ERROR_DECL = 'const REFERENCE_ERROR:bool=false;';
+import { REFERENCE_ERROR_DECL } from './referenceErrorDecl.ts';
 
 export const DAG_ERROR_WGSL = `
 ${REFERENCE_ERROR_DECL}

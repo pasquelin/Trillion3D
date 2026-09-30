@@ -1,9 +1,7 @@
 import { EngineError } from '../../../../sdk-core/src/index.ts';
 import { GraphTexture } from '../../host/graph/texture.ts';
 import { HOST_COLOUR_SPACE_SRGB } from '../../host/surfaceConstants.ts';
-
-/** Fixed decoded RGBA map budget per session; checked before making a texture or surface. */
-const RUNTIME_MAP_BYTES_CEILING = 64 * 1024 * 1024;
+import { RUNTIME_MAP_BYTES_CEILING } from './runtimeMapCeiling.ts';
 
 /** Maps borrow caller-owned bitmaps until drop/session disposal. The engine never closes them. */
 export function runtimeMaps() {

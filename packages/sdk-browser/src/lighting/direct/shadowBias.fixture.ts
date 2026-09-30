@@ -7,8 +7,7 @@ import { clampNumber as clamp } from '../../../../sdk-core/src/world/math/spheri
 import { DIRECT_LIGHT_WGSL } from './lightWgsl.ts';
 import { PCF_REACH, directShadowWgsl } from './shadowWgsl.ts';
 import { POISSON_16 } from './pcfTaps.ts';
-
-const SHADOW_DEPTH_ROUNDING = 2 * 2 ** -23;
+import { SHADOW_DEPTH_ROUNDING } from './shadowDepthRounding.ts';
 
 export type Vec = readonly number[];
 /** The depth map: the distance along the light stored at a texel centre. */

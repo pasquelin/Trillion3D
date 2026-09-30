@@ -5,8 +5,7 @@ import { bitmapFixture } from './bitmap.fixture.ts';
 import { refusal } from './materialApi.fixture.ts';
 import type { RenderBackend } from '../../backend/types.ts';
 import type { GraphSurface } from '../../host/graph/surface.ts';
-
-const RUNTIME_MAP_BYTES_CEILING = 64 * 1024 * 1024;
+import { RUNTIME_MAP_BYTES_CEILING } from './runtimeMapCeiling.ts';
 
 function engine(admit: (surface: GraphSurface) => Promise<void> = async () => {}) {
   const released: GraphSurface[] = [];

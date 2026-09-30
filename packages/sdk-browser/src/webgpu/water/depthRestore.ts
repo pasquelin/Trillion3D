@@ -4,8 +4,7 @@ import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import { staticLayerEntries } from '../../gpu/shadow/staticLayer.ts';
 import { FULLSCREEN_VERTEX } from '../../lighting/deferred/shaders.ts';
 import { buildRenderPipeline } from '../../lighting/deferred/fullscreen.ts';
-
-const WATER_DEPTH_RESTORE = 'Trillion3D water depth restore';
+import { WATER_DEPTH_RESTORE } from './depthRestorePass.ts';
 /** The fullscreen triangle writing each texel's own opaque depth. */
 const WATER_DEPTH_RESTORE_SHADER = FULLSCREEN_VERTEX + depthRestoreWgsl(0);
 /** WebGPU forbids cropped depth texture copies. Restore texels through the same fragment as

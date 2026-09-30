@@ -8,8 +8,7 @@ import { LAMP_SIDE, SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-sha
 import { pcf } from './shadowBias.fixture.ts';
 import { lampAt, lampOver } from './shadowLamp.fixture.ts';
 import { pagedPcf } from './shadowPages.fixture.ts';
-
-const SHADOW_DEPTH_ROUNDING = 2 * 2 ** -23;
+import { SHADOW_DEPTH_ROUNDING } from './shadowDepthRounding.ts';
 
 test('a filter across a page border reads the same depths as one inside a page', () => {
   // The home page and its eight neighbours, each placed anywhere in the pool.

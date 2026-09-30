@@ -17,9 +17,10 @@ import { difference, image } from './sceneImageProof.ts';
 import { executerAppareil } from './deviceProof.ts';
 import { BACKGROUND, CASES, GROUND, WATER, type WaterCase } from './waterPassCases.ts';
 import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backend/types.ts';
-
-const WATER_COMPOSITE_PASS = 'Trillion3D water composite';
-const WATER_SURFACE_PASS = 'Trillion3D water surfaces';
+import {
+  WATER_COMPOSITE_PASS,
+  WATER_SURFACE_PASS,
+} from '../../../packages/sdk-browser/src/webgpu/water/passLabels.ts';
 
 function scene(pagine: boolean, kase: WaterCase): ScenePreparee {
   const bati = batisseur();

@@ -5,8 +5,7 @@ import { geometry } from '../geometry/index.ts';
 import { Ray } from '../math/volumes.ts';
 import { Vector3 } from '../math/vector3.ts';
 import { heldTree, raycastTreeBudget } from './raycastTrees.ts';
-
-const RAYCAST_TREE_BUDGET = 64 * 1024 * 1024;
+import { RAYCAST_TREE_BUDGET } from './raycastTreeBudget.ts';
 
 const down = new Ray(new Vector3(0, 10, 0), new Vector3(0, -1, 0));
 

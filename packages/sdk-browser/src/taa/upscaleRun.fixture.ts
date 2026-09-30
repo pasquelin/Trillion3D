@@ -143,7 +143,7 @@ export function upscaleRun(frame: UpscaleFrame, asIs = false, filtered = false, 
 
 const sinc = (x: number) => (x === 0 ? 1 : Math.sin(Math.PI * x) / (Math.PI * x));
 /** Lanczos-2 from its definition, `sinc(x)·sinc(x/2)` on `|x| < 2`. */
-const kernel = (x: number) => (x >= 2 ? 0 : sinc(x) * sinc(x / 2));
+export const kernel = (x: number) => (x >= 2 ? 0 : sinc(x) * sinc(x / 2));
 
 /**
  * What a display pixel is owed, from the definition: its place `r` in the render grid (texel

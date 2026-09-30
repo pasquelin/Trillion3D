@@ -1,15 +1,12 @@
 import * as layer from './layers.ts';
 import { FLAG_DYNAMIC } from '../visibility/types.ts';
+import { REACTIVE_MAX } from './reactive.ts';
 
 /** `text` in a resolve that carries the as-is share, `none` in the flagless one. */
 export const shareText =
   (asIs: boolean) =>
   (text: string, none = '') =>
     asIs ? text : none;
-
-/** The most a reactive value lets the current image take: FSR 2 holds it below 1, so a
- *  transparent never drops its history whole and still averages its jitter. */
-const REACTIVE_MAX = 0.9;
 
 /**
  * History read while the image moves: Catmull-Rom on the 4×4 texels around the point, in five

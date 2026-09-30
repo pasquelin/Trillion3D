@@ -31,12 +31,10 @@ import type { CameraOptics } from '../../camera/engineCamera.ts';
 import { stretchOf } from './boxes.ts';
 import type { CellIndex, IndexPage } from './cellIndex.ts';
 import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
+import { AHEAD } from './aheadShare.ts';
 
 const inverse = new Float64Array(MATRIX_VALUES),
   view = new Float64Array(4);
-
-/** How far past the reach, as a fraction of it, a cell is read ahead at the prefetch priority. */
-const AHEAD = 0.25;
 /** How far past the reach, as a fraction of it, a read cell is kept: past `AHEAD`, so a cell read
  *  ahead is not dropped by the next step. */
 export const KEEP = 0.5;

@@ -2,18 +2,24 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
 import { compareImages } from '../../../sdk-core/src/index.ts';
+import { rasterPages } from '../page/raster.fixture.ts';
 import {
   unpackVisibilityId,
   rasterVisibilityIds,
   shadeVisibility,
   type VisPage,
 } from './buffer.ts';
-import { camera, quadPages, centerId, nearestQuadTexture } from './buffer.fixture.ts';
+import {
+  camera,
+  quadPages,
+  centerId,
+  nearestQuadTexture,
+  visibilityUvDerivatives,
+} from './buffer.fixture.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { surfaceOf } from '../page/surface.ts';
 import { identityRoots } from '../page/selection/placements.fixture.ts';
-
-const VIS_INVALID = 0;
+import { VIS_INVALID } from './visWords.ts';
 
 test('the closer triangle wins the visibility id when two pages overlap', () => {
   const geometry = new G.Geometry();
@@ -46,6 +52,20 @@ test('the closer triangle wins the visibility id when two pages overlap', () => 
   nearMat.dispose();
 });
 
+test('visbuffer beauty for untextured MeshBasicMaterial matches the documented rasterPages reference', () => {
+  const material = G.basicSurface({ color: 0xff0000 });
+  const { pages, geometry } = quadPages(material);
+  const cam = camera(),
+    size: [number, number] = [32, 32];
+  const ids = rasterVisibilityIds(pages, identityRoots(), cameraMoteur(cam), size);
+  const beauty = shadeVisibility(ids, pages, identityRoots(), cameraMoteur(cam), size);
+  const expected = rasterPages(pages, identityRoots(), cam, size);
+  const image = compareImages(expected, beauty);
+  assert.equal(image.maxChannelError, 0);
+  geometry.dispose();
+  material.dispose();
+});
+
 test('the second pass samples the source map at reconstructed UVs', () => {
   const map = nearestQuadTexture();
   const material = G.basicSurface({ color: 0xffffff, map });
@@ -73,4 +93,64 @@ test('the second pass samples the source map at reconstructed UVs', () => {
   material.dispose();
   untextured.dispose();
   map.dispose();
+});
+
+test('UV derivatives come from the winning triangle, not a neighbour across a visbuffer seam', () => {
+  const geometry = new G.Geometry();
+  geometry.setAttribute(
+    'position',
+    G.floatAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, -1, 0, 1, 1, 0, -1, 1, 0], 3),
+  );
+  geometry.setAttribute('uv', G.floatAttribute([0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1], 2));
+  const material = G.basicSurface({ color: 0xffffff });
+  const pages: VisPage[] = [
+    {
+      array: new Uint32Array([0, 1, 2]),
+      attributes: geometry.attributes,
+      placementIndex: 0,
+      material: surfaceOf(material),
+      clusterId: 'left',
+    },
+    {
+      array: new Uint32Array([3, 4, 5]),
+      attributes: geometry.attributes,
+      placementIndex: 0,
+      material: surfaceOf(material),
+      clusterId: 'right',
+    },
+  ];
+  const cam = camera(),
+    size: [number, number] = [32, 32];
+  const ids = rasterVisibilityIds(pages, identityRoots(), cameraMoteur(cam), size);
+  let left: { x: number; y: number } | undefined, right: { x: number; y: number } | undefined;
+  for (let y = 0; y < 32; y++)
+    for (let x = 0; x < 32; x++) {
+      const unpacked = unpackVisibilityId(ids[y * 32 + x]);
+      if (!unpacked) continue;
+      if (unpacked.pageIndex === 0 && !left) left = { x, y };
+      if (unpacked.pageIndex === 1) right = { x, y };
+    }
+  assert.ok(left && right);
+  const dLeft = visibilityUvDerivatives(
+    ids,
+    pages,
+    identityRoots(),
+    cameraMoteur(cam),
+    size,
+    left!.x,
+    left!.y,
+  )!;
+  const dRight = visibilityUvDerivatives(
+    ids,
+    pages,
+    identityRoots(),
+    cameraMoteur(cam),
+    size,
+    right!.x,
+    right!.y,
+  )!;
+  assert.ok(Math.hypot(dLeft.duDx, dLeft.dvDx, dLeft.duDy, dLeft.dvDy) < 1e-5);
+  assert.ok(Math.hypot(dRight.duDx, dRight.dvDx, dRight.duDy, dRight.dvDy) < 1e-5);
+  geometry.dispose();
+  material.dispose();
 });

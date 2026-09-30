@@ -7,8 +7,7 @@ import { ROW_BLEND_COVERAGE_WORD, ROW_FLAGS_WORD } from './pageRow.ts';
 import { createWebgpuRowSync } from './sync.ts';
 import { createWebgpuRowCommit } from './commit.ts';
 import { catalogue, mount, STRIDE } from './blendCasters.fixture.ts';
-
-const NO_ROW = 0xffffffff;
+import { NO_ROW } from './noRow.ts';
 
 test('a blended caster is listed in a shadow-only row and pinned where the light cull reads', () => {
   const pages = catalogue(0.4);

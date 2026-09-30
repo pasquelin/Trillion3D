@@ -23,8 +23,7 @@ import {
   tile,
 } from './tiles.fixture.ts';
 import { body } from './records.fixture.ts';
-
-const RESTORE_WORDS = 3;
+import { RESTORE_WORDS } from '../../../sdk-core/src/physics/wire.fixture.ts';
 
 /** The golden hull of a unit cube from the origin (`physics_cook/mass_tests.rs`). */
 const hull = async () => new Uint8Array(await fixture('cube-hull.bin'));

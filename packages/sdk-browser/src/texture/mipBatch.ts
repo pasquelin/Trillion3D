@@ -3,9 +3,7 @@ import { uniformStride } from '../residency/pools.ts';
 import { levelSize, mipLevelCountFor } from './tiles.ts';
 import { countCoverage, LEVEL_BIN_BYTES, type CoverageChain } from './coverageMips.ts';
 import { heldBuffer, mipPipeline } from './mips.ts';
-
-/** Label of each level's reduction render pass. */
-const TEXTURE_MIPS_PASS = 'Trillion3D texture mips';
+import { TEXTURE_MIPS_PASS } from './mipsPass.ts';
 
 /** One texture of a batch: its size, its colour rule — weighted by alpha when every reader takes
  *  alpha for coverage, in straight alpha (`../webgpu/tile/scratch.ts`) — and its readers' cutoff

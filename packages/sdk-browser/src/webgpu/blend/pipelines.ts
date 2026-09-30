@@ -1,6 +1,5 @@
 import { SHADOW_ARRAY } from '../../gpu/shadow/layers.ts';
 import { blendShader } from './shader.ts';
-import { FEEDBACK_FORMAT } from '../../scene/surfaceBuffer.ts';
 import { BLEND_VIEW_SIZE } from './uniforms.ts';
 import type { BlendGpuItem } from './state.ts';
 import { BLEND_BINDINGS, atlasLayoutEntries, readOnly } from '../core/bindLayout.ts';
@@ -11,11 +10,8 @@ import {
   stageDescriptors,
   type BlendModePipelines,
 } from './stagePipelines.ts';
-import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
 import { BLEND_MODES } from '../../scene/materialBlending.ts';
-import { COVERAGE_EQUATIONS, filtersDisplay } from './equations.ts';
-import { displayTargets } from './displayFilter.ts';
-import { SHARE_TARGET } from '../../lighting/deferred/asIsShare.ts';
+import { filtersDisplay } from './equations.ts';
 import { createRoutedPipelines } from './routedPipelines.ts';
 import { createWaterPass, type WaterPass } from '../water/pass.ts';
 import {
@@ -24,25 +20,8 @@ import {
   type DiagnosticGpuVariant,
 } from '../../diagnostic/gpuVariant.ts';
 import { feedbackFreeEntry } from '../tile/feedbackAbWgsl.ts';
-/** The pass's targets in `mode`; `filtered`, with the display layers (`displayFilter.ts`); `share`,
- *  with the share a debug view or the temporal pass reads (`asIsShare.ts`), else an empty slot. */
-const blendTargets = (
-  mode: Blending,
-  mask: GPUColorWriteFlags,
-  feedback: boolean,
-  filtered = false,
-  share = true,
-): (GPUColorTargetState | null)[] => [
-  // A filtering mode of a filtered image leaves the lit target to the display layers.
-  {
-    format: 'rgba16float',
-    writeMask: filtered && filtersDisplay(mode) ? 0 : mask,
-    blend: COVERAGE_EQUATIONS[mode],
-  },
-  ...(feedback ? [{ format: FEEDBACK_FORMAT }] : []),
-  share ? SHARE_TARGET : null, // every mode covers it at its alpha (#365), green included (#833)
-  ...(filtered ? displayTargets(mode) : []),
-];
+import { blendTargets } from './blendTargets.ts';
+
 /** The blend fragment's values, in their order: what a feedback-free entry keeps. */
 const BLEND_OUT: [string, string][] = ['color', 'asIs', 'tint', 'add'].map((name) => [
   name,

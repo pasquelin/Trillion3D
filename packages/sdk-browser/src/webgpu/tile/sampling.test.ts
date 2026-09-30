@@ -14,8 +14,7 @@ import {
 } from '../../texture/sampling.ts';
 import { SAMPLING_WGSL, atlasReadWgsl } from './samplingWgsl.ts';
 import { maskAlphaWgsl } from './wgsl.ts';
-
-const MAX_ANISOTROPY = 16;
+import { MAX_ANISOTROPY } from '../../texture/maxAnisotropy.ts';
 
 const IDENTITY = [1, 0, 0, 0, 1, 0, 0, 0, 1];
 
