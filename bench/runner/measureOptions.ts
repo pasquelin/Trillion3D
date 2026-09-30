@@ -10,6 +10,7 @@ import type {
 import type { SceneLight } from '../../packages/sdk-core/src/scene/light/contracts.ts';
 import type { ScreenErrorVariant } from '../../packages/sdk-core/src/index.ts';
 import type { TextureCompression } from '../../packages/sdk-browser/src/texture/blockFormats.ts';
+import type { RenderScale } from '../../packages/sdk-browser/src/frame/renderScaleOption.ts';
 import type { MovingLightPlan } from './lamps.ts';
 import type { CutSelection, MovingNode, LiveTuning, NetworkBytes } from './report/types.ts';
 import type { LivePools } from './benchSettings.ts';
@@ -55,8 +56,9 @@ export interface MeasureViewOptions {
   textureUploadMs: number | null;
   /** Block format asked of the texture pools; `undefined` leaves the engine's own choice. */
   textureCompression: TextureCompression | undefined;
-  /** Fraction of the display per axis the frame is drawn at; `undefined` leaves the display's. */
-  renderScale?: number;
+  /** Fraction of the display per axis the frame is drawn at, `'auto'` the frame budget's pick;
+   *  `undefined` leaves the display's. */
+  renderScale?: RenderScale;
   temporalAntialiasing: boolean;
   mathPath: 'js' | 'wasm' | null;
   movingNode: string | null;

@@ -339,6 +339,12 @@ lamps of range 4 m list 6.40–8.30 lights per covered pixel at 3456 × 2234 whe
 (`bench/runner/lightGridCount.ts`), the floor no finer grid goes under, and the lights listed past
 it pay only the range reject. The tile pass's bounds — five column planes, the slab, two boxes — are built by seven
 lanes at once, where thread zero built them one after the other, to the same bits.
+The lighting runs at the render scale (the reference engine's screen percentage, reconstructed by the history
+resolve): the tile pass and the resolve cover the drawn `w × h` the controller picks under `'auto'`,
+never the display. In the boss's case — 3456 × 2234, a 120 Hz display, the 24.5 ms frame measured
+with 200 lamps — the controller picks at most 0.553 (1912 × 1240), where 200 unshadowed lamps
+count 0.91–1.01 ms of tile pass, light work and G-buffer traffic, against 2.52 ms and more at the
+display (`bench/runner/lightingScaleCount.ts`); a still image, drawn at the display, is lit there.
 
 **A moving image samples its shadowed lights**, as the reference engine's stochastic light sampling draws a fixed few samples a
 pixel from the light grid's cell and leaves their noise to the temporal history. It weighs every
