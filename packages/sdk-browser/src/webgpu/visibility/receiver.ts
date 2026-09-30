@@ -12,11 +12,10 @@ export type ReceiverResources = [
   pages: GPUBuffer,
   indices: GPUBuffer,
   positions: GPUBuffer,
-  uvs: GPUBuffer,
   normals: GPUBuffer,
 ];
 
-/** How each receiver binding is declared: the visibility buffer's words, the uniform, then five
+/** How each receiver binding is declared: the visibility buffer's words, the uniform, then four
  *  read-only buffers. */
 export const RECEIVER_BINDING_TYPES: readonly ComputeBinding[] = RECEIVER_BINDINGS.map((name) =>
   name === 'vis' ? { texture: 'uint' } : name === 'uniform' ? 'uniform' : 'read-only-storage',
@@ -48,17 +47,16 @@ const held: (GPUTextureView | GPUBuffer)[] = [];
  * lit. The array is reused from one image to the next: nothing is allocated.
  */
 export function receiverResources({ vis, gpu }: WebgpuPagesRuntime) {
-  const { visView, shadeUniform, pageTable, concatPos, concatUv, concatNrm } = vis,
+  const { visView, shadeUniform, pageTable, concatPos, concatNrm } = vis,
     indices = gpu.cache?.buffer;
-  if (!visView || !shadeUniform || !pageTable || !indices || !concatPos || !concatUv || !concatNrm)
+  if (!visView || !shadeUniform || !pageTable || !indices || !concatPos || !concatNrm)
     return undefined;
   held[0] = visView;
   held[1] = shadeUniform;
   held[2] = pageTable;
   held[3] = indices;
   held[4] = concatPos;
-  held[5] = concatUv;
-  held[6] = concatNrm;
+  held[5] = concatNrm;
   return held as unknown as ReceiverResources;
 }
 
@@ -83,7 +81,7 @@ export function receiverPlaceholders(device: GPUDevice) {
     size: PAGE_INFO_STRIDE,
     usage: GPUBufferUsage.STORAGE,
   });
-  const resources: ReceiverResources = [vis.createView(), uniform, page, page, page, page, page];
+  const resources: ReceiverResources = [vis.createView(), uniform, page, page, page, page];
   return {
     resources,
     dispose() {
