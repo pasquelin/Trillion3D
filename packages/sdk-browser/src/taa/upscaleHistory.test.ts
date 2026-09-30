@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mulberry32 } from '../../../../site/examples/kit/random.ts';
-import { owed, upscaleRun, type UpscaleFrame } from './upscaleRun.fixture.ts';
+import { blend, owed, upscaleRun, type UpscaleFrame } from './upscaleRun.fixture.ts';
 import { FLAG_DYNAMIC } from '../visibility/types.ts';
 
 const near = (a: number[], b: number[], what: string) =>
@@ -12,13 +12,6 @@ const noise = Array.from({ length: 64 }, () => [random(), random(), random(), 1]
 const noisy = (x: number, y: number) => noise[y * 8 + x];
 /** A history of one colour, the render texel 1,1's: inside the box of the display pixel 2,2. */
 const kept = noisy(1, 1);
-const luma = ([r, g, b]: number[]) => 0.25 * r + 0.5 * g + 0.25 * b;
-/** Today's inverse-luminance blend of `now` and `then` at a current share `alpha`. */
-function blend(now: number[], then: number[], alpha: number) {
-  const wc = alpha / (1 + luma(now)),
-    wh = (1 - alpha) / (1 + luma(then));
-  return now.map((c, i) => (c * wc + then[i] * wh) / (wc + wh));
-}
 // Display pixel 2,2 of 16 lies at 0.75 of the 8×8 render grid; with this jitter the nearest
 // sample is 0.71 render pixel away, 1.41 display pixels, where Lanczos-2 gives nothing; with the
 // other, a sample lands on it.
@@ -42,9 +35,9 @@ test('a pixel with no history takes the current sample whole: first image, or un
   // Still around the pixel — one texel of its 3×3 is the ball —: an edge, the history kept.
   const edge = { ...gone, id: (x: number, y: number) => (x === 2 && y === 1 ? 1 << 8 : 0) };
   assert.notDeepEqual(upscaleRun(edge)(2, 2).color, owed(edge, 2, 2));
-  // At rest nothing is told uncovered: today's resolve.
+  // At rest nothing is told uncovered: the sample on the pixel meets the history, one colour.
   const still = { ...gone, moving: false };
-  near(upscaleRun(still)(2, 2).color, blend(owed(still, 2, 2), kept, 0.25), 'at rest');
+  near(upscaleRun(still)(2, 2).color, kept, 'at rest');
 });
 
 test('each pixel writes the tag of the placement its nearest texel shows', () => {
@@ -69,16 +62,20 @@ test('a reactive value shortens the history, up to 0.9 of the current image', ()
   }
 });
 
-test('the reactive value acts only while the image moves: at rest, today’s resolve to the bit', () => {
+test('the reactive value acts only while the image moves: at rest, the still average', () => {
   // The image still: the history read is the single bilinear tap and the reactive value the blends,
-  // particles and water wrote is not read, so today's 1/k share stands whatever `rho` holds.
+  // particles and water wrote is not read, so the still average's share stands whatever `rho`
+  // holds: this image's weight, one, against the three the history holds (#1343).
+  const then = noisy(2, 1);
   for (const rho of [0, 0.1, 0.5, 1]) {
-    const glass = frame({ jitter: ON, moving: false, reactive: () => rho });
-    near(
-      upscaleRun(glass)(2, 2).color,
-      blend(owed(glass, 2, 2), kept, 0.25),
-      `reactive ${rho} at rest`,
-    );
+    const glass = frame({
+      jitter: ON,
+      moving: false,
+      history: () => then,
+      tags: () => [0, 0, Math.sqrt(3 / 16), 0],
+      reactive: () => rho,
+    });
+    near(upscaleRun(glass)(2, 2).color, blend(kept, then, 1 / 4), `reactive ${rho} at rest`);
   }
 });
 
