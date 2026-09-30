@@ -32,8 +32,10 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
   if (!gpuDevice || !gpu.cache) throw new Error('WEBGPU_UNAVAILABLE');
   const marks = rt.timing.marks;
   marks.preStart = performance.now();
-  // The display's cadence, read on the main view's frames: the render-scale budget.
-  if (rt.views.active === rt.views.main && !capture.capturing) rt.scale.tick(marks.preStart);
+  // The display's cadence, read on the main view's frames: the render-scale budget, and its cost
+  // where the device cannot timestamp.
+  if (rt.views.active === rt.views.main && !capture.capturing)
+    rt.scale.tick(marks.preStart, rt.timing.gpuTiming?.supported === true);
   run.lastCamera = camera;
   // Image entry: order and its guarantees live in `../../../frame/gateCore.ts`, which also copies the host
   // camera into the engine's — everything that follows only reads the latter. The list of nodes

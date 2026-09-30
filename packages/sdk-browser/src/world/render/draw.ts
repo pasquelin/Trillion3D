@@ -70,7 +70,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     const { measuring } = state;
     const steps = backend as HostCpuProfile,
       scale = backend.renderScaleControl;
-    scale?.tick(performance.now());
+    scale?.tick(performance.now(), gpuTimer?.supported === true);
     // Before any command: the errors of allocations the GPU ran past, read without a wait.
     settleAllocations(webglSurface?.context);
     backend.render(camera);
