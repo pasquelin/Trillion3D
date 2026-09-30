@@ -139,8 +139,7 @@ export function createWorldRuntime(inputs: Inputs) {
       poses.apply(scene, contents.seats, twins, (rows, from, to) =>
         session.updatePlacements(rows, from, to),
       );
-    if (lightsChanged)
-      session.setEnvironment(lights.environment(scene, session, inputs.display(), mirror?.root));
+    if (lightsChanged) session.setEnvironment(lights.environment(scene, session, inputs.display()));
     lightsChanged = false;
     background.write(session, backgroundRefused);
   };

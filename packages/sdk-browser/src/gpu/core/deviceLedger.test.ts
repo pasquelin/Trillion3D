@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { gpuDeviceLedgerOf, installGpuDeviceLedger, textureBytesOf } from './deviceLedger.ts';
+import { gpuDeviceLedgerOf, installGpuDeviceLedger } from './deviceLedger.ts';
+import { textureBytesOf } from './textureBytes.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
 test('a texture is counted over all its levels, layers and format', () => {

@@ -1,5 +1,6 @@
 import type { HostTexture } from '../../host/resources.ts';
 import { DEFAULT_CLEAR_COLOR, isCancelled, pixelRatioOf } from '../../backend/common.ts';
+import { referenceSunWindow } from '../../frame/referenceMode.ts';
 import { createSceneLightStore, dagWarningsDiagnostic } from '../../../../sdk-core/src/index.ts';
 import { createSceneProxyReader } from '../../scene/proxyLoad.ts';
 import { createTextureLevelReader } from '../../texture/levelReader.ts';
@@ -94,6 +95,8 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     maxTextureUploadMsPerFrame: options.maxTextureUploadMsPerFrame,
     temporalAntialiasing: options.temporalAntialiasing ?? true,
     renderScale: options.renderScale,
+    // A reference session reads the finest shadow level over its whole canvas and field.
+    sunWindow: options.reference ? referenceSunWindow(viewport[1], options.fov) : undefined,
     effects: options.effects,
     geometryPoolBytes: options.geometryPoolBytes,
     admitGpuMemory: options.admitGpuMemory,

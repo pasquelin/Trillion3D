@@ -136,11 +136,12 @@ export class Mixer {
       action.time += seconds * action.timeScale;
       if (action.loop === 'once' && action.time >= action.clip.duration) action.playingNow = false;
       active ||= action.playingNow;
+      const time = action.clipTime();
       for (const tr of action.clip.tracks) {
         const target = action.bindingOf(tr);
         if (!target) continue;
         const blend = blends.of(target, tr.kind === 'quaternion'),
-          value = sample(tr, action.clipTime(), target);
+          value = sample(tr, time, target);
         if (action.blendMode === 'normal') blends.add(blend, value, action.weight);
         else blends.addDifference(blend, difference(tr, value, target.reference!), action.weight);
       }

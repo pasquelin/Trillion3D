@@ -19,6 +19,9 @@ pub(super) fn skin_fields(
             "A page names a joint past 65,535",
         ));
     }
+    // The reader bounds every field the width allows, `base + 2^bits - 1`, to 65,535: a base that
+    // high comes down, the width unchanged since `top` stays within it.
+    let base = base.min(0x1_0000 - (1u32 << bits));
     for (vertex, &v) in fields.iter_mut().zip(original) {
         vertex.extend(joints[at(v)].iter().map(|j| j - base));
         vertex.extend(weights[at(v)].iter().map(|w| w.to_bits()));

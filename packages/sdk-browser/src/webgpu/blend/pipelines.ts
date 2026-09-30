@@ -1,5 +1,5 @@
 import { SHADOW_ARRAY } from '../../gpu/shadow/layers.ts';
-import { BLEND_SHADER } from './shader.ts';
+import { blendShader } from './shader.ts';
 import { FEEDBACK_FORMAT } from '../../scene/surfaceBuffer.ts';
 import { BLEND_VIEW_SIZE } from './uniforms.ts';
 import type { BlendGpuItem } from './state.ts';
@@ -108,7 +108,7 @@ function blendLayout(device: GPUDevice) {
 }
 
 /** Builds the forward-material pipelines for transparent draws, and the water pass of a scene
- *  that transmits. */
+ *  that transmits; both read the shadows of the session's sun window (`sunWindow`). */
 export async function createWebgpuBlendPipelines(
   device: GPUDevice,
   items: BlendGpuItem[],
@@ -116,6 +116,7 @@ export async function createWebgpuBlendPipelines(
   feedback = true,
   sharedLayout?: GPUBindGroupLayout,
   share = false,
+  sunWindow?: number,
 ) {
   // Without a variant, production compiles no diagnostic stage and has no write mask of its own.
   const selected = blendVariantPipeline(variant);
@@ -126,7 +127,9 @@ export async function createWebgpuBlendPipelines(
   // the transmission slice draws as one more blend, the same fragment stage measured on all.
   const wantsWater = !variant && items.some((item) => item.transmissive);
   let code =
-    BLEND_SHADER + (wantsWater ? WATER_SURFACE_WGSL : '') + (variant ? DIAGNOSTIC_BLEND_WGSL : '');
+    blendShader(sunWindow) +
+    (wantsWater ? WATER_SURFACE_WGSL : '') +
+    (variant ? DIAGNOSTIC_BLEND_WGSL : '');
   if (!feedback) {
     for (const entry of ['fs', 'fsFiltered'])
       code = feedbackFreeEntry(code, entry, 'BlendOut', BLEND_OUT, ...FRAGMENT_IN);
@@ -187,14 +190,9 @@ export async function createWebgpuBlendPipelines(
   let water: WaterPass | undefined, waterRefused: Error | undefined;
   if (wantsWater)
     try {
-      water = await createWaterPass(device, blendModule, blendBindGroupLayout, feedback);
+      water = await createWaterPass(device, blendModule, blendBindGroupLayout, feedback, sunWindow);
     } catch (error) {
       waterRefused = error instanceof Error ? error : new Error(String(error));
     }
-  return {
-    blendBindGroupLayout,
-    blendPipelines,
-    water,
-    waterRefused,
-  };
+  return { blendBindGroupLayout, blendPipelines, water, waterRefused };
 }

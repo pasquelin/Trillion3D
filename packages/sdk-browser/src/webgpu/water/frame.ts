@@ -9,11 +9,7 @@ import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts';
 import type { WebgpuGpuState } from '../pages/state/gpu.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { WATER_BINDINGS } from './compositeWgsl.ts';
-import {
-  createWaterCompositeLayout,
-  createWaterCompositePipeline,
-  createWaterComposites,
-} from './pipelines.ts';
+import { createWaterCompositeLayout, createWaterComposites } from './pipelines.ts';
 import { routedFilter } from '../blend/displayFilter.ts';
 import { activeAsIsShare } from '../pages/prepare/asIsShareTarget.ts';
 
@@ -28,10 +24,9 @@ export const WATER_COMPOSITE_PASS = 'Trillion3D water composite';
  * when the shadow atlas or the probe grid arrive: `bind` writes their identities and rebuilds only
  * when one moved, so a still frame builds and allocates nothing.
  */
-export async function createWaterFrame(device: GPUDevice) {
+export async function createWaterFrame(device: GPUDevice, sunWindow?: number) {
   const layout = createWaterCompositeLayout(device);
-  const pipeline = await createWaterCompositePipeline(device, layout);
-  const composites = createWaterComposites(device, layout, pipeline);
+  const composites = await createWaterComposites(device, layout, sunWindow);
   const freeze = await createWaterFreeze(device);
   const identity = createWebgpuBindIdentity();
   let group: GPUBindGroup | undefined, surfaces: SurfaceBuffer | undefined;
@@ -64,6 +59,8 @@ export async function createWaterFrame(device: GPUDevice) {
     colorAttachments: [target],
   };
   const plain = compositePass.colorAttachments;
+  /** The share's attachment, its view named each image that has one (`asIsShare.ts`). */
+  const shareTarget: GPURenderPassColorAttachment = { ...target };
   return {
     /** Names the frame's targets and resources; false while one of them does not exist. */
     bind(gpu: WebgpuGpuState, uniform: GPUBuffer, lighting: BlendLighting) {
@@ -164,12 +161,12 @@ export async function createWaterFrame(device: GPUDevice) {
       const encoded = drawBlendRuns(rt, device, pass, 1, pipelines);
       pass.end();
       const share = activeAsIsShare(rt),
-        filter = routedFilter(rt.gpu.displayFilter),
-        layers = filter ? filter.attachments() : [];
-      compositePass.colorAttachments = share
-        ? [target, ...layers, { view: share.view, loadOp: 'load', storeOp: 'store' }]
-        : filter
-          ? [target, ...layers]
+        filter = routedFilter(rt.gpu.displayFilter);
+      if (share) shareTarget.view = share.view;
+      // The attachments in the order of the composite's targets (`waterCompositeTargets`).
+      compositePass.colorAttachments =
+        filter || share
+          ? [target, ...(filter ? filter.attachments() : []), ...(share ? [shareTarget] : [])]
           : plain;
       const composite = encoder.beginRenderPass(compositePass);
       scissorTo(composite, rect);
