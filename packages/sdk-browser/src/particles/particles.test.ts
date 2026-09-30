@@ -1,5 +1,5 @@
-// The CPU half of the WebGPU particle step (#420): the words it hands the GPU for a pool, and a
-// frame with a pool never held. What the GPU does with them is the recette's.
+// The CPU half of the WebGPU particle step (#420): a still frame is held until one of the world's
+// pools moves. What the GPU does with the pools is the recette's.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';

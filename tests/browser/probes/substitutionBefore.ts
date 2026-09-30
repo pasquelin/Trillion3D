@@ -35,8 +35,8 @@ function occurrences(texte: string, bloc: string): number {
 
 /**
  * Returns `texte` with `livre` replaced by `avant`, or fails naming exactly what is
- * missing. `nom` names the treated text and `origine` the file where both blocks live,
- * so the message says where to go when the kernel has moved. `marqueur` is the fragment
+ * missing. `nom` names the treated text and `origine` the file of the previous form, beside the
+ * shipped one, so the message says where to go when the kernel has moved. `marqueur` is the fragment
  * that distinguishes the previous form from the shipped one.
  */
 export function substitueFormeAvant({
@@ -54,7 +54,7 @@ export function substitueFormeAvant({
   origine: string;
   marqueur: string;
 }): string {
-  const ou = `${name}: both forms come from ${origine}`;
+  const ou = `${name}: the previous form comes from ${origine}`;
   assert.notEqual(
     livre,
     before,

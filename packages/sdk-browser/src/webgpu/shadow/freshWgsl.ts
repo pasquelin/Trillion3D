@@ -6,14 +6,8 @@ import { CASTERS_ALL, SHADOW_CULL_GROUP } from '../../gpu/shadow/cullShader.ts';
 import { SHADOW_PLACE_WGSL } from '../../lighting/direct/shadowSampleWgsl.ts';
 import { SHADOW_DATA_WGSL } from '../../lighting/direct/shadowWgsl.ts';
 import { shadowPoolWgsl } from './poolWgsl.ts';
-import {
-  FRESH_CASTERS,
-  FRESH_CLEAR,
-  FRESH_FACE_WORDS,
-  FRESH_LAYOUT_WGSL,
-  FRESH_PARAMS_WGSL,
-  MAX_POOL_LAYERS,
-} from './freshLayout.ts';
+import { FRESH_CASTERS, FRESH_CLEAR, FRESH_FACE_WORDS, MAX_POOL_LAYERS } from './freshLayout.ts';
+import { FRESH_LAYOUT_WGSL, FRESH_PARAMS_WGSL } from './freshLayoutWgsl.ts';
 
 /** Invocations of the one workgroup that composes, then seals, a frame's GPU-drawn pages. */
 const FRESH_LANES = 64;

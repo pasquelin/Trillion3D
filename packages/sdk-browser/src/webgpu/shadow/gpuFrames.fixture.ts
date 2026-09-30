@@ -21,7 +21,7 @@ import {
 } from './allocRun.fixture.ts';
 import { runShadowFresh } from './freshRun.fixture.ts';
 import { POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
-import { freshSlices, freshWanted } from './freshPass.ts';
+import { freshSlices, freshWanted } from './freshInputs.ts';
 import { FRESH_REGION_PAGES } from './freshLayout.ts';
 import { createShadowPageRequests } from './pageRequests.ts';
 import { writeShadowRecords } from './pages.ts';

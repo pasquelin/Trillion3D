@@ -25,7 +25,7 @@ import { tileCompactResetWgsl, tileCompactStatementsWgsl, tileCompactWgsl } from
  * sky —, so the slice is the tile's whole column: bounded across by its four side planes and in
  * front by the near plane, unbounded in depth. One pass, one depth reduce, two compacts.
  *
- * The pass works in the frame of the eye rounded to f32 (`tileViewInverse`, `./tiles.ts`): its
+ * The pass works in the frame of the eye rounded to f32 (`tileViewInverse`, `./tileFrame.ts`): its
  * corners and planes are unprojected there, and a light's centre is brought there by one
  * subtraction.
  *

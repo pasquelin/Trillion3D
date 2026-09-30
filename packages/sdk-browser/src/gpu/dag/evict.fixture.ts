@@ -1,10 +1,5 @@
-import {
-  packRequest,
-  REQUEST_AHEAD,
-  sortRequestWords,
-  requestPage,
-  requestPriority,
-} from './request.ts';
+import { packRequest, REQUEST_AHEAD, requestPage, requestPriority } from './request.ts';
+import { sortRequestWords } from './request.fixture.ts';
 import { EVICT_LEVELS, EVICT_AGES } from './evict.ts';
 
 /** CPU mirror of `dagListEvictions`: the pool's listed pages (`poolList.ts`) not stamped `now`, by

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { probeExplorerCapabilities } from './capabilityProbe.ts';
 import { grantedGpuFeatures, requestExplorerDevice } from './gpuDevice.ts';
-import { waterSurfaceTargets } from '../../webgpu/water/pipelines.ts';
+import { waterSurfaceTargets } from '../../webgpu/water/surfaceTargets.ts';
 import type { ExplorerSession } from './session.ts';
 import { colorBytesPerSample } from '../../gpu/core/colorBytes.fixture.ts';
 

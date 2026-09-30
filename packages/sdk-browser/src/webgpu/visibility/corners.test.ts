@@ -1,6 +1,5 @@
-// A moved model forgets and sends its own rows, not the terrain rows between them (#428). The
-// table used to keep one dirty interval: a model whose rows sit at both ends of the table dropped
-// the occlusion history of every row in between and sent them all again, each image it moved.
+// The occlusion history of the table's rows (#428): a table that grew forgets the rows that
+// entered, and a new age sends every row once.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { uploadRowCorners, createCornerUploadHold } from './corners.ts';

@@ -14,7 +14,7 @@ import {
 } from './draw.ts';
 import { evaluateDrawCompact } from './cpu.fixture.ts';
 import { indirectForDraw } from './cpu.fixture.ts';
-import { type DrawItem } from './contract.ts';
+import type { DrawItem } from './cpu.fixture.ts';
 import { drawShader } from './shader.ts';
 
 const DRAW_SHADER = drawShader(1);

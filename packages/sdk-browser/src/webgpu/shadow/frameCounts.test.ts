@@ -1,5 +1,5 @@
 // The cumulative shadow page count the lesson and hosts read: it grows by what each frame drew,
-// and the sampled cull counts sum the device's own instance counts. Also the hold: a
+// and a sampled cull count covers every batch of the frame it names. Also the hold: a
 // representation change held until rest keeps the frame rendering until a plan consumes it, or a
 // frame that plans no shadow releases it to the list.
 import test from 'node:test';
@@ -8,7 +8,8 @@ import { createWebgpuLightState, shadowsUnsettled } from '../pages/state/lights.
 import { noteShadowFrame } from '../pages/render/encodeShadowBatches.ts';
 import { createGpuShadowCullCounts } from '../../gpu/shadow/cullCounts.ts';
 import { unsettledMask } from '../frame/hold.ts';
-import { planShadowRegions, shadowViewpointOf } from '../pages/render/encodeShadows.ts';
+import { planShadowRegions } from '../pages/render/shadowRegions.ts';
+import { shadowViewpointOf } from '../pages/render/shadowViewpoint.ts';
 import { encodeDirectLights } from '../pages/render/encodeLights.ts';
 import type { SceneLight } from '../../../../sdk-core/src/index.ts';
 import { settledRt } from '../frame/hold.fixture.ts';

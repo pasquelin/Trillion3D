@@ -9,7 +9,8 @@ import {
   castsBlendShadow,
 } from './transmittance.ts';
 import { SHADOW_DEPTH_SHADER } from './shader.ts';
-import { POISSON_16, directShadowWgsl } from '../../lighting/direct/shadowWgsl.ts';
+import { directShadowWgsl } from '../../lighting/direct/shadowWgsl.ts';
+import { POISSON_16 } from '../../lighting/direct/pcfTaps.ts';
 import { throughAxis } from '../../lighting/direct/shadowPages.fixture.ts';
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';

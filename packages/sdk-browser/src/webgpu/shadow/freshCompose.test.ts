@@ -1,8 +1,5 @@
-// #1275: the pages the GPU draws itself, composed by the shipped WGSL (`freshWgsl.ts`) over a mock
-// device: each is the projection and the cull volume the host composes for the same page
-// (`writeLampPage`, `writeSunSquare`, on the one page model), placed where the host places it
-// (`writePage`) and readable; and the casters the depth shader draws for it land on its square of
-// the pool's layer, its fragments kept to its page alone.
+// #1275: the pages the GPU draws itself (`freshWgsl.ts`): the casters the depth shader draws for
+// one land on its square of the pool's layer, its fragments kept to its page alone.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SHADOW_PAGE, pageOrigin } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';

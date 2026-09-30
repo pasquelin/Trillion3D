@@ -1,7 +1,7 @@
 // #966 (OMB-21): granted `subgroups`, the resolve asks for a shadow page once per subgroup and
 // distinct page, not once per lane — and asks for exactly the pages the per-lane path asks for.
-// The shaders cannot run under node: the texts are pinned, and the election they ship is replayed
-// on subgroups of 4 to 64 lanes against the per-lane path.
+// The shaders cannot run under node: the election they ship is replayed on subgroups of 4 to 64
+// lanes against the per-lane path.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { seeded } from '../../../../../site/examples/kit/random.ts';

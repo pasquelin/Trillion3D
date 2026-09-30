@@ -1,5 +1,4 @@
-// A page becomes one region, or two when its static layer is redrawn: each names its start and
-// the casters its cull keeps, the second one's volume copied from the first.
+// A page's region opens the pool layer that holds the page, where the shading reads it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';

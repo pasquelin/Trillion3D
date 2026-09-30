@@ -1,4 +1,4 @@
-import { CLUSTER_LEVEL_SHIFT } from '../layout.ts';
+import { CLUSTER_LEVEL_SHIFT } from '../clusterFlags.ts';
 
 /**
  * The kernel that follows the descent, and that visits only what it kept.

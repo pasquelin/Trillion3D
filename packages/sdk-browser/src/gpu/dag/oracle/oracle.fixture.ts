@@ -1,20 +1,25 @@
-import { dagRecords, bandError, worldOf, boxInto, trianglesOf, flagsOf } from '../records.ts';
-import { dagViewFrames } from './math.ts';
-import { dagOracleDescent, AHEAD_LEAF } from './descent.ts';
-import { createDagOraclePredicates } from './predicates.ts';
-import { aheadDue } from '../aheadDue.ts';
 import {
-  packRequest,
+  dagRecords,
+  bandError,
+  worldOf,
+  boxInto,
+  trianglesOf,
+  flagsOf,
+} from '../records.fixture.ts';
+import { dagViewFrames } from './math.fixture.ts';
+import { dagOracleDescent, AHEAD_LEAF } from './descent.fixture.ts';
+import { createDagOraclePredicates } from './predicates.fixture.ts';
+import { aheadDue } from '../aheadDue.fixture.ts';
+import { packRequest, requestPage, requestPriority } from '../request.ts';
+import {
   quantizeAheadPriority,
   quantizeRequestPriority,
   sortRequestWords,
   firstAheadRequest,
-  requestPage,
-  requestPriority,
-} from '../request.ts';
-import { CLUSTER_TRANSPARENT, clusterLevel } from '../layout.ts';
+} from '../request.fixture.ts';
+import { CLUSTER_LEVEL_SHIFT, CLUSTER_TRANSPARENT } from '../clusterFlags.ts';
 import type { PackedDag, DagViewUniforms } from '../types.ts';
-import type { CutRuleAt } from './predicates.ts';
+import type { CutRuleAt } from './predicates.fixture.ts';
 import type { SelectionResult } from '../../core/selection.ts';
 
 /**
@@ -45,7 +50,7 @@ export function evaluateDagSelectionKernel(
   // The single decoder of the compact layout: the same one the buffer double rereads, so
   // no field rank is written anywhere but once, in `../layout.ts`.
   const records = dagRecords(packed);
-  // The per-primitive prologue and per-node verdict are those of `math.ts`,
+  // The per-primitive prologue and per-node verdict are those of `math.fixture.ts`,
   // written once: frontier counting rereads them, and neither it nor the oracle can drift alone.
   const frames = dagViewFrames(packed, uniforms);
   const { pixelError } = frames;
@@ -119,7 +124,7 @@ export function evaluateDagSelectionKernel(
       wantAhead(i);
       continue;
     }
-    const level = clusterLevel(flagsOf(records, i));
+    const level = flagsOf(records, i) >>> CLUSTER_LEVEL_SHIFT;
     if (level > lodLevel) lodLevel = level;
     requestWords.push(packRequest(i, quantizeRequestPriority(replaced(camera, i))));
   }

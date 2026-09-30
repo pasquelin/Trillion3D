@@ -1,7 +1,5 @@
-// #1281: the reference-scoped sun window is one session parameter, the GPU shadow passes included.
-// The demand, allocation, pool and fresh-page shaders compile the window the plan runs with, so the
-// reference session's 68-page clipmap is addressed — entry mask, table stride, level words, request
-// bitset — exactly as the shading reads it; the ordinary window compiles the constant, byte for byte.
+// #1281: the reference-scoped sun window is one session parameter: the transparent and water
+// passes read the shadows of the session window too.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { referenceSunWindow } from '../../frame/referenceMode.ts';

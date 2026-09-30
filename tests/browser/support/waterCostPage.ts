@@ -4,7 +4,7 @@ import type {
   BackendFactory,
 } from '../../../packages/sdk-browser/src/backend/types.ts';
 import { summarize } from '../../../packages/sdk-core/src/runtime/stats.ts';
-import { waterSurfaceTargets } from '../../../packages/sdk-browser/src/webgpu/water/pipelines.ts';
+import { waterSurfaceTargets } from '../../../packages/sdk-browser/src/webgpu/water/surfaceTargets.ts';
 import { engine, releaseScene } from './sharedSceneProof.ts';
 import {
   BACKGROUND,

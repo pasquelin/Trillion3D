@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { taaWeights } from './weights.ts';
+import { taaWeights } from './filterWeights.ts';
 
 const TAA_WEIGHTS = 12;
 
