@@ -1,18 +1,15 @@
 // #1211: a page's shadow casters are culled to the footprint its receivers read, grown as more
-// name it — never less while it is mapped, so what a reader took stays covered. A reader whose
-// texel the footprint misses says so in the readback (`SHADOW_REQUEST_MISS`), and its page is
-// drawn whole; a page drawn for a part of a page is stale, never current.
+// name it — never less while it is mapped, so what a reader took stays covered. Every cell a
+// reader took, marked or missed, comes back in the frame's cell table; a page drawn whole narrows
+// only from a whole frame's; a page drawn for a part of a page is stale, never current.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   PAGE_FOOTPRINT_EMPTY,
   PAGE_FOOTPRINT_FULL,
   PAGE_FOOTPRINT_SHIFT,
-  SHADOW_REQUEST_CELL_MASK,
-  SHADOW_REQUEST_CELL_SHIFT,
-  SHADOW_REQUEST_ENTRY_MASK,
   SHADOW_REQUEST_MISS,
-  cellFootprint,
+  cellsFootprint,
   footprintDrawn,
   footprintRect,
   footprintUnion,
@@ -21,7 +18,6 @@ import {
 import { createDemandFootprints, reachFootprint } from './demandFootprint.ts';
 import { DRAW_ALL, STALE_FULL, createShadowPool } from './pool.ts';
 import { createShadowTable } from './table.ts';
-import { shadowTableEntries } from './virtual.ts';
 
 const narrow = pageFootprint(0, 0, 32, 32),
   wider = pageFootprint(8, 8, 40, 40);
@@ -80,79 +76,72 @@ test('growing a page\u2019s footprint stales it in full, once; a whole page neve
   assert.equal(pool.footprint[page], PAGE_FOOTPRINT_FULL);
 });
 
-test('a per-pixel mark narrows its page to the cell its receiver reads, and counts it', () => {
+/** A pool of one table with pages 7 and 8 mapped, and their footprints' reader. */
+function mapped() {
   const table = createShadowTable(1024),
     pool = createShadowPool(32);
   pool.beginAllocation(0);
-  const entry = 7,
-    page = pool.take(table, entry, 0, 0, 0),
-    footprints = createDemandFootprints(table, pool);
-  pool.drew(table, page, DRAW_ALL, 0);
-  // The demand marked entry 7 for the cell at page texel (96, 96): the last cell of the page.
-  const cell = 1 + 3 + 4 * 3,
-    mark = (layoutEpoch: number, code: number) => ({
-      frame: 1,
-      layoutEpoch,
-      stamp: 0,
-      count: 1,
-      entries: Uint32Array.of(entry | (code << SHADOW_REQUEST_CELL_SHIFT)),
-    });
-  footprints.widened = 0;
-  footprints.read(mark(table.layoutEpoch, cell), 0, 1);
+  const pages = [pool.take(table, 7, 0, 0, 0), pool.take(table, 8, 0, 0, 0)];
+  return { table, pool, pages, footprints: createDemandFootprints(table, pool) };
+}
+/** A report of `layoutEpoch`: its cell table — `overflow`, then each entry's key and mask —,
+ *  the entries it listed, and whether a transparent surface was lit. */
+const report = (
+  layoutEpoch: number,
+  masks: Array<[number, number]>,
+  { overflow = 0, entries = [] as number[], transparent = false } = {},
+) => ({
+  ...{ frame: 1, layoutEpoch, stamp: 0, count: entries.length, transparent },
+  entries: Uint32Array.from(entries),
+  cells: Uint32Array.from([overflow, ...masks.flatMap(([e, mask]) => [0, 0, e + 1, mask])]),
+});
+/** The bit of the 4×4 cell `(x, y)` of a page. */
+const cell = (x: number, y: number) => 1 << (x + 4 * y);
+
+test('a page drawn whole narrows to every cell its receivers read in one frame, counted once', () => {
+  const { table, pool, pages, footprints } = mapped();
+  pool.drew(table, pages[0], DRAW_ALL, 0);
+  // Three receivers read three cells of page 7: the claim listed it once, the mask holds all.
+  const mask = cell(0, 0) | cell(3, 0) | cell(1, 2);
+  footprints.read(report(table.layoutEpoch, [[7, mask]]), 0, 1);
   assert.equal(footprints.widened, 1);
-  assert.equal(pool.footprint[page], cellFootprint(cell), 'narrowed to the cell read');
-  assert.notEqual(cellFootprint(cell), PAGE_FOOTPRINT_FULL);
+  assert.equal(pool.footprint[pages[0]], cellsFootprint(mask));
+  assert.equal(cellsFootprint(mask), pageFootprint(0, 0, 127, 95), 'the rectangle of the three');
   // Another layout: nothing grows.
   footprints.widened = 0;
-  footprints.read(mark(table.layoutEpoch + 1, cell), 0, 2);
+  footprints.read(report(table.layoutEpoch + 1, [[7, cell(3, 3)]]), 0, 2);
   assert.equal(footprints.widened, 0);
 });
 
-test('a reader that misses the footprint grows its page by the cell of its texel, counted once', () => {
-  const table = createShadowTable(1024),
-    pool = createShadowPool(32);
-  pool.beginAllocation(0);
-  const entry = 7,
-    page = pool.take(table, entry, 0, 0, 0),
-    plain = pool.take(table, 8, 0, 0, 0),
-    footprints = createDemandFootprints(table, pool);
-  pool.drew(table, page, DRAW_ALL, 0, narrow);
-  pool.drew(table, plain, DRAW_ALL, 0, narrow);
-  // The read missed its page at page texel (96, 0): the miss names that cell, not the whole page.
-  const cell = 1 + 3,
-    missed = (layoutEpoch: number, entries: number[]) => ({
-      frame: 1,
-      layoutEpoch,
-      stamp: 0,
-      count: entries.length,
-      entries: Uint32Array.from(entries),
-    }),
-    miss = (target: number, code: number) =>
-      target | SHADOW_REQUEST_MISS | (code << SHADOW_REQUEST_CELL_SHIFT);
-  footprints.widened = 0;
-  footprints.read(missed(table.layoutEpoch, [miss(entry, cell)]), 0, 1);
-  assert.equal(footprints.widened, 1);
-  assert.equal(pool.footprint[page], footprintUnion(narrow, cellFootprint(cell)));
-  // A miss that named no cell still draws the page whole, as before.
-  footprints.widened = 0;
-  footprints.read(missed(table.layoutEpoch, [miss(8, 0)]), 0, 2);
-  assert.equal(footprints.widened, 1);
-  assert.equal(pool.footprint[plain], PAGE_FOOTPRINT_FULL, 'the page is drawn whole');
-  // A report read against another table layout names ranges that moved: nothing grows.
-  footprints.widened = 0;
-  footprints.read(missed(table.layoutEpoch + 1, [miss(entry, cell)]), 0, 3);
-  assert.equal(footprints.widened, 0);
+test('a partial table never narrows a page drawn whole; a narrowed page grows, a missed one whole', () => {
+  const { table, pool, pages, footprints } = mapped();
+  pool.drew(table, pages[0], DRAW_ALL, 0);
+  pool.drew(table, pages[1], DRAW_ALL, 0, narrow);
+  const options = { overflow: 1, entries: [8 + SHADOW_REQUEST_MISS] };
+  footprints.read(report(table.layoutEpoch, [[7, cell(0, 0)]], options), 0, 1);
+  assert.equal(pool.footprint[pages[0]], PAGE_FOOTPRINT_EMPTY, 'still drawn whole');
+  assert.equal(pool.footprint[pages[1]], PAGE_FOOTPRINT_FULL, 'its miss drew it whole');
+  // A whole table: the page drawn whole narrows, a missed cell grows the narrowed one by itself.
+  pool.drew(table, pages[1], DRAW_ALL, 0, narrow);
+  footprints.read(
+    report(table.layoutEpoch, [
+      [7, cell(0, 0)],
+      [8, cell(3, 3)],
+    ]),
+    0,
+    2,
+  );
+  assert.equal(pool.footprint[pages[0]], cellsFootprint(cell(0, 0)));
+  assert.equal(pool.footprint[pages[1]], footprintUnion(narrow, cellsFootprint(cell(3, 3))));
 });
 
-test('a mark keeps its entry and its cell on a wider window than the ordinary one', () => {
-  // The boss's reference view (1117 CSS at DPR 2, 55°) opens a 68-page sun window
-  // (`referenceSunWindow`): its table outgrows the ordinary one, and its last entry and the cell
-  // above it must not share a bit, a miss's flag included.
-  const last = shadowTableEntries(68) - 1;
-  for (const flag of [0, SHADOW_REQUEST_MISS]) {
-    const word = (last | (16 << SHADOW_REQUEST_CELL_SHIFT) | flag) >>> 0;
-    assert.equal(word & SHADOW_REQUEST_ENTRY_MASK, last);
-    assert.equal((word >>> SHADOW_REQUEST_CELL_SHIFT) & SHADOW_REQUEST_CELL_MASK, 16);
-    assert.equal(word >= SHADOW_REQUEST_MISS, flag !== 0);
-  }
+test('while a blend or water surface is lit, no page narrows and a narrowed one is drawn whole', () => {
+  const { table, pool, pages, footprints } = mapped();
+  pool.drew(table, pages[0], DRAW_ALL, 0);
+  pool.drew(table, pages[1], DRAW_ALL, 0, narrow);
+  const lit = report(table.layoutEpoch, [[7, cell(0, 0)]], { transparent: true });
+  footprints.read(lit, 0, 1);
+  assert.equal(footprints.widened, 1, 'the narrowed page only');
+  assert.equal(pool.footprint[pages[0]], PAGE_FOOTPRINT_EMPTY);
+  assert.equal(pool.footprint[pages[1]], PAGE_FOOTPRINT_FULL);
 });

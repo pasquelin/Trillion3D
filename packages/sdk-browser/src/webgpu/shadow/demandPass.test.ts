@@ -142,7 +142,7 @@ test('the demand marks, at each lit point, the pages the shading reads there', (
     [...live.marked].sort((a, b) => a - b),
     read,
   );
-  // Every marked page is marked for a cell of it (1..16), #1211: the footprint its receiver reads.
+  // Every marked page is marked for a cell of it (0..15), #1211: the footprint its receiver reads.
   for (const [entry, cell] of live.cells)
-    assert.ok(cell >= 1 && cell <= 16, `entry ${entry} cell ${cell}`);
+    assert.ok(cell >= 0 && cell < 16, `entry ${entry} cell ${cell}`);
 });
