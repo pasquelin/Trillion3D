@@ -58,14 +58,26 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
     moving = new Uint8Array(placed.length),
     dirty = new Uint8Array(placed.length);
   let floats = 0;
-  placed.forEach((entry, i) => {
-    if (!entry) return;
+  // A record's shape is fixed with the session: its layout is measured once.
+  const layouts = placed.map((entry, i) => {
+    if (!entry) return null;
+    const layout = recordLayout(entry.shape);
     bases[i] = floats + 1;
     // Each record starts on a four-float boundary: the WebGL2 stage reads its palette by texel.
-    floats += Math.ceil(recordLayout(entry.shape).floats / 4) * 4;
+    floats += Math.ceil(layout.floats / 4) * 4;
+    return layout;
   });
   const block = new Float32Array(Math.max(1, floats)),
     words = new Uint32Array(block.buffer);
+  // A record's counts are fixed with the session too: its head is written once.
+  placed.forEach((entry, i) => {
+    if (!entry) return;
+    const at = bases[i] - 1;
+    words[at + 2] = entry.shape.joints;
+    words[at + 3] = entry.shape.targets;
+    words[at + 4] = entry.shape.waves;
+    words[at + 5] = entry.shape.soft ?? 0;
+  });
   const owners: (object | null | undefined)[] = new Array(placed.length);
   let first = true,
     revision = 0;
@@ -75,7 +87,7 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
     owners[i] = entry.mesh.sourceIdentity;
     const at = bases[i] - 1,
       { shape, mesh } = entry,
-      layout = recordLayout(shape),
+      layout = layouts[i]!,
       joints = shape.joints * PALETTE_FLOATS,
       palette = at + layout.palette,
       weights = at + layout.weights;
@@ -115,13 +127,9 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
       most += soft.reach;
       kinds |= KIND_SOFT;
     }
-    words[at + 5] = shape.soft ?? 0;
-    if (kinds && skipped(i, most)) [kinds, most] = [0, 0];
+    if (kinds && skipped(i, most)) kinds = most = 0;
     words[at] = kinds;
     if (cold) words[at + 1] = kinds;
-    words[at + 2] = shape.joints;
-    words[at + 3] = shape.targets;
-    words[at + 4] = shape.waves;
     moving[i] = moved || words[at] !== words[at + 1] ? 1 : 0;
     dirty[i] = cold || moving[i] ? 1 : 0;
     return most;
@@ -129,7 +137,7 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
   /** Whether placement `i`'s morph weights or waves moved since its record was written: what a
    *  mixer or a clock changes without moving a node, which no scene revision announces. */
   const stale = (i: number, entry: Deformed) => {
-    const layout = recordLayout(entry.shape),
+    const layout = layouts[i]!,
       at = bases[i] - 1;
     if (owners[i] !== entry.mesh.sourceIdentity) return true;
     if (entry.mesh.softSource && entry.mesh.softSource.version !== words[at + 6]) return true;
@@ -144,6 +152,7 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
       return revision;
     },
     block,
+    words,
     bases,
     reach,
     moving,

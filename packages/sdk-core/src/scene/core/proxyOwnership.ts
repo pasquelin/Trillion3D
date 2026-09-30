@@ -1,5 +1,5 @@
-import { EngineError } from '../../contracts/cache.ts';
 import type { SceneProxyDescriptor } from '../../contracts/proxy.ts';
+import { invalidProxy } from './proxyError.ts';
 
 /** Read the versioned ownership suffix, never infer owners from geometry or names. */
 export function decodeProxyOwnership(d: SceneProxyDescriptor, buffer: ArrayBuffer, start: number) {
@@ -19,7 +19,7 @@ export function decodeProxyOwnership(d: SceneProxyDescriptor, buffer: ArrayBuffe
   const bindWorlds = new Float64Array(d.instances * 16);
   for (let i = 0; i < bindWorlds.length; i++) bindWorlds[i] = bytes.getFloat64(at + i * 8, true);
   const refuse = (reason: string): never => {
-    throw new EngineError('INVALID_CACHE', `Invalid proxy ownership: ${reason}`);
+    throw invalidProxy(`Invalid proxy ownership: ${reason}`, {});
   };
   if (groupOffsets[0] !== 0 || groupOffsets[d.groups] !== d.owners) refuse('group extent');
   for (let i = 0; i < d.groups; i++)

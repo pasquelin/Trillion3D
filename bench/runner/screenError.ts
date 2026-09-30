@@ -13,7 +13,7 @@
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { launchChrome } from './chrome.ts';
+import { onFreshPage } from './chrome.ts';
 import { readBounds } from './page.ts';
 import { ENGINES, parseArgs, resolveMounts, resolveSides, sdkEntryUrl } from './options.ts';
 import { sceneDerived } from './scene.ts';
@@ -62,29 +62,24 @@ function webgl2Triangles(tri: NonNullable<Capture>, two: Capture | undefined) {
   return { triangles, twoSided: new Uint8Array(two.body).subarray(0, triangles.length / 9) };
 }
 
-/** Runs `work` on a fresh page of a fresh Chrome, killed by its own PID afterwards. */
-async function onFreshPage<T>(
-  engine: string,
-  work: (page: import('playwright').Page) => Promise<T>,
-) {
-  const browser = await launchChrome({ headless: true, args: ENGINES[engine].flags });
+/** Runs `work` on a fresh page of a fresh Chrome (`onFreshPage`), with the page's errors. */
+async function onPage<T>(engine: string, work: (page: import('playwright').Page) => Promise<T>) {
   const errors: string[] = [];
-  try {
-    const page = await browser.newPage({
-      viewport: { width: WIDTH, height: HEIGHT },
-      deviceScaleFactor: DPR,
-    });
-    page.on('pageerror', (e) => errors.push(`pageerror ${e.message}`));
-    page.on(
-      'console',
-      (m) => m.type() === 'error' && errors.push(`console ${m.text().slice(0, 300)}`),
-    );
-    page.on('response', (r) => r.status() >= 400 && errors.push(`http ${r.status()} ${r.url()}`));
-    await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'load' });
-    return { result: await work(page), errors };
-  } finally {
-    await browser.close();
-  }
+  const view = { url: `http://127.0.0.1:${port}/`, width: WIDTH, height: HEIGHT, dpr: DPR };
+  const result = await onFreshPage(
+    { headless: true, args: ENGINES[engine].flags },
+    view,
+    work,
+    (page) => {
+      page.on('pageerror', (e) => errors.push(`pageerror ${e.message}`));
+      page.on(
+        'console',
+        (m) => m.type() === 'error' && errors.push(`console ${m.text().slice(0, 300)}`),
+      );
+      page.on('response', (r) => r.status() >= 400 && errors.push(`http ${r.status()} ${r.url()}`));
+    },
+  );
+  return { result, errors };
 }
 
 const rows = [];
@@ -92,11 +87,8 @@ try {
   const poses: NamedPose[] =
     set === 'bench'
       ? benchPoses(
-          (
-            await onFreshPage('webgpu', (page) =>
-              page.evaluate(readBounds, { sdkUrl, manifestUrl }),
-            )
-          ).result,
+          (await onPage('webgpu', (page) => page.evaluate(readBounds, { sdkUrl, manifestUrl })))
+            .result,
         )
       : auditPoses(set, source, sourceTree);
   for (const backend of backends)
@@ -113,7 +105,7 @@ try {
         poses,
         tag,
       };
-      const { result, errors } = await onFreshPage(backend, (page) =>
+      const { result, errors } = await onPage(backend, (page) =>
         page.evaluate(async ({ url, o }) => (await import(url)).holdAndCapture(o), {
           url: PAGE,
           o: options,

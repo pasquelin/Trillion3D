@@ -10,11 +10,12 @@
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { issuesApi, namedIssues, prose, withoutComments } from './close-named-issues.ts';
+import { GENERATED_FOOTER } from './check-commit-identity.ts';
 
 const REVIEW_LINES = ['Simplification pass', 'Correctness review'];
 
-/** A tool's own signature never belongs to a body: its footer, its session link (rule 9). */
-const GENERATED_FOOTER = /^[^\S\n]*(?:🤖\s*)?generated (?:with|by)\b/im;
+/** A tool's own signature never belongs to a body: its footer (`GENERATED_FOOTER`), its session
+ *  link (rule 9). */
 const TOOL_SESSION =
   /\b(?:claude\.ai|chatgpt\.com|chat\.openai\.com|copilot\.microsoft\.com|gemini\.google\.com)\b/i;
 

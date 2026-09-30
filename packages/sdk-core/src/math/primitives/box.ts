@@ -35,6 +35,20 @@ export function boxExpandByPoint(out: Float64Array, o: number, x: number, y: num
   out[o + 5] = Math.max(out[o + 5], z);
 }
 
+/** The box at `bo` of `box` grown by `g` on every side, into `out` at `o` (the same box allowed). */
+export function boxGrow(
+  out: Float64Array,
+  o: number,
+  box: ArrayLike<number>,
+  bo: number,
+  g: number,
+) {
+  for (let c = 0; c < 3; c++) {
+    out[o + c] = box[bo + c] - g;
+    out[o + c + 3] = box[bo + c + 3] + g;
+  }
+}
+
 /** Union of the box with another given by its six bounds. */
 export function boxUnion(
   out: Float64Array,

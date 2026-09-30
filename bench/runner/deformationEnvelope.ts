@@ -10,18 +10,13 @@ type Source = {
 export function deformationEnvelope(world: Source, frames = 120, warmup = 30) {
   if (!Number.isInteger(frames) || frames < 1 || !Number.isInteger(warmup) || warmup < 0)
     throw new Error('INVALID_FRAME_COUNT');
-  return new Promise<{
-    cpuFrameMs: number[];
-    gpuDeformationMs: (number | null)[];
-    geometryAllocationBytes: (number | null)[];
-    vramBytes: (number | null)[];
-  }>((resolve) => {
-    const result = {
-      cpuFrameMs: [] as number[],
-      gpuDeformationMs: [] as (number | null)[],
-      geometryAllocationBytes: [] as (number | null)[],
-      vramBytes: [] as (number | null)[],
-    };
+  const result = {
+    cpuFrameMs: [] as number[],
+    gpuDeformationMs: [] as (number | null)[],
+    geometryAllocationBytes: [] as (number | null)[],
+    vramBytes: [] as (number | null)[],
+  };
+  return new Promise<typeof result>((resolve) => {
     let seen = 0;
     const unsubscribe = world.onFrame(({ metrics }) => {
       if (seen++ >= warmup) {
