@@ -606,6 +606,7 @@
       "selectedNodes": "被保留的节点数。",
       "primitives": "被保留的图元数。",
       "metrics": "耗时与体积。",
+      "reusedPages": "本次运行发现已构建的页面数（保留的文件夹为 `null`）。",
       "reused": "被复用了什么。"
     }
   },

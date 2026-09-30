@@ -606,6 +606,7 @@
       "selectedNodes": "Nós mantidos.",
       "primitives": "Primitivas mantidas.",
       "metrics": "Tempo e tamanho.",
+      "reusedPages": "Páginas que a execução encontrou já construídas (`null` numa pasta mantida).",
       "reused": "O que foi reutilizado."
     }
   },
