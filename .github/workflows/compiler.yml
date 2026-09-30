@@ -95,8 +95,11 @@ jobs:
         with:
           workspaces: base/packages/asset-compiler-rust
           key: dist-base
-      # Cargo reads `.cargo/config.toml` from the folder it runs in, not the manifest's: run in
-      # `base` so that develop's compiler is built with develop's C and C++ flags.
+      # Cargo reads `.cargo/config.toml` from the folder it runs in, not the manifest's, and from
+      # every folder above it, merged: run in `base`, and remove this branch's one above it, so that
+      # develop's compiler is built with develop's C and C++ flags alone.
+      - run: rm -r .cargo
+        shell: bash
       - run: cargo build --release --locked --bin trillion3d-compiler --manifest-path packages/asset-compiler-rust/Cargo.toml
         working-directory: base
       - run: node scripts/compiler-hashes.ts base/packages/asset-compiler-rust/target/release/trillion3d-compiler base.json "${{ github.base_ref }}"
