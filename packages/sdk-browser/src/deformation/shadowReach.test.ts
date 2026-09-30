@@ -20,7 +20,7 @@ test('deformation refreshes only its caster rows and grows CPU/GPU light and occ
       world,
     ),
   ]);
-  const rec = { min: [-1, -1, -1], max: [1, 1, 1], placementIndex: 0, packedIndex: 0 } as PageRec;
+  const rec = { min: [-1, -1, -1], max: [1, 1, 1] } as unknown as PageRec;
   const root = {
     world,
     pages: [rec],

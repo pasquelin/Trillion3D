@@ -17,8 +17,7 @@ function pageGeometry(floats: number) {
   return geometry as unknown as Geometry;
 }
 
-const rec = (url: string, extra: Partial<PageRec> = {}) =>
-  ({ url, placementIndex: 0, ...extra }) as PageRec;
+const rec = (url: string, extra: Partial<PageRec> = {}) => ({ url, ...extra }) as PageRec;
 /** Rank 0 placed at its node, rank 1 by a row. */
 const roots = [{}, { placement: {} }].map(
   (root) => ({ world: new G.Matrix4(), pages: [], ...root }) as ClusterRoot<PageRec>,
@@ -27,16 +26,16 @@ const world = { elements: new Float64Array(new G.Matrix4().toArray()) };
 
 test('page copies follow the records that own a geometry, and the classic instances', () => {
   let instances = 0;
-  const placed = { placementIndex: 1 };
   const byUrl = new Map([
     ['root', [rec('root')]],
     ['twice', [rec('twice'), rec('twice')]],
-    ['rows', [rec('rows', placed), rec('rows', placed), rec('rows', placed)]],
+    ['rows', [rec('rows'), rec('rows'), rec('rows')]],
   ]);
   // `twice` is replaced by the root's group: the floor holds it with the root (#1237).
   const copies = pageCopies(
     byUrl,
-    (record) => !!roots[(record as { placementIndex?: number }).placementIndex ?? 0]?.placement,
+    // The rows' pages are laid out by rank 1, which reads its world from a row.
+    (record) => record.url === 'rows',
     new Set(['root']),
     () => instances,
     new Set(['twice']),

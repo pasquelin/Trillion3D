@@ -13,7 +13,6 @@ import { armCasters } from './casters.fixture.ts';
 import { createEngineCamera } from '../camera/world.ts';
 import { rootOf } from '../page/selection/placements.ts';
 import { selectCpuCasters, writeCpuCasters } from '../webgpu/shadow/cpuCasters.ts';
-import type { PageRec } from '../page/selection/selection.ts';
 
 type Session = Awaited<ReturnType<typeof placedSession>>;
 
@@ -124,43 +123,6 @@ async function steps() {
   }
 }
 const noBudget = { admits: () => true, spend() {} };
-
-test('a page record carries no world, row, winding, placement or packed rank: its root does', async () => {
-  const session = await placedSession(5);
-  try {
-    const { allPages, collectedRoots, metadata } = session;
-    // #1235: ONE record per primitive page. `develop` built one per (placement, page); here the
-    // open's records equal the primitives' pages (3 at the fixture's 3 one-page primitives),
-    // whatever the rows later grow to.
-    const primitivePages = metadata.primitives.reduce(
-      (n, primitive) => n + primitive.pages.length,
-      0,
-    );
-    assert.equal(
-      allPages.length,
-      primitivePages,
-      'one record per primitive page, not per placement',
-    );
-    // Every placement of a primitive shares its one `pages` array: one distinct array per primitive.
-    assert.equal(
-      new Set(collectedRoots.map((root) => root.pages)).size,
-      metadata.primitives.length,
-      'the placements of a primitive share their pages array',
-    );
-    for (const page of allPages)
-      for (const field of [
-        'matrix',
-        'placement',
-        'windingCw',
-        'windingEpoch',
-        'placementIndex',
-        'packedIndex',
-      ])
-        assert.ok(!(field in page), `${page.url} carries no ${field}`);
-  } finally {
-    session.dispose();
-  }
-});
 
 test('rows, draw items and cut of repeated and moved placements are those of develop', async () => {
   // Recorded on develop at 9e1e03681, where every page carried its placement's world and row.

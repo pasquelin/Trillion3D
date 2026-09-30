@@ -1,15 +1,12 @@
 import type { CameraMotion, EngineCamera, HostCamera } from '../../../camera/world.ts';
 import type { DiagnosticMode } from '../../../../../sdk-core/src/index.ts';
-import { createSelectionResult } from '../../../page/selection/selection.ts';
 import type { PageRec, SelectionResult } from '../../../page/selection/selection.ts';
-import { createSelectionUniforms } from '../../../gpu/core/selection.ts';
 import type { GpuSelection, SelectionUniforms } from '../../../gpu/core/selection.ts';
-import { createHizCounts, type HizCounts, type TemporalHizState } from '../../../hiz/hiz.ts';
-import { unmirroredDrawn } from '../helpers.ts';
-import { createFrameGateCore, type FrameGateCore } from '../../../frame/gateCore.ts';
-import { HOLD_SIGNATURE_VALUES } from '../../frame/signature.ts';
-import { createWebgpuBudgetState, type WebgpuBudgetState } from '../../residency/budgetState.ts';
-import { RASTER_BACKGROUND } from '../../../page/raster.ts';
+import type { HizCounts, TemporalHizState } from '../../../hiz/hiz.ts';
+import type { FrameGateCore } from '../../../frame/gateCore.ts';
+import type { WebgpuBudgetState } from '../../residency/budgetState.ts';
+
+export { createWebgpuRunState } from './runState.ts';
 
 /** What the current image decided and counted: the cut, the coverage budget, the metrics the host
  *  reads, and the occlusion history the next image inherits. */
@@ -128,86 +125,4 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   /** Ordered signature of the tested half: two images that share it share their occluders, therefore
    *  the partition the next one inherits. */
   occluderSignature: number;
-}
-
-export function createWebgpuRunState(clearColor = RASTER_BACKGROUND): WebgpuRunState {
-  return {
-    clearColor,
-    lost: false,
-    overBudget: false,
-    visible: 0,
-    selectedTriangles: 0,
-    submittedTriangles: 0,
-    frustumRejected: 0,
-    lodLevel: 0,
-    frame: 0,
-    imageRevision: 0,
-    diagnostic: 'beauty',
-    diagnosticPixelError: 0,
-    lastCamera: undefined,
-    gpuSelection: undefined,
-    gpuFrameActive: false,
-    hizPyramidFresh: false,
-    gpuMetricsReady: false,
-    ...createWebgpuBudgetState(),
-    deferredDrops: new Set(),
-    blendPagedTriangles: 0,
-    blendUnpagedTriangles: 0,
-    blendSubmittedTriangles: 0,
-    blendDrawCalls: 0,
-    drawnTriangles: 0,
-    blendFrustumRejected: 0,
-    gpuDrawCalls: 0,
-    gpuComputeDispatches: 0,
-    lastProgressMs: 0,
-    renderPathLogged: false,
-    outputDiagnosticLogged: false,
-    noOccluderHistory: true,
-    hizViewMoved: true,
-    previousHizView: undefined,
-    temporalHizState: {},
-    cpuHizCounts: createHizCounts(),
-    cpuHizCounted: false,
-    rowsSyncedFrame: -1,
-    cameraRows: 0,
-    motion: {},
-    selectionUniforms: createSelectionUniforms(),
-    selectResult: createSelectionResult(),
-    cpuSelectMs: null,
-    shown: [],
-    shownPacked: [],
-    desired: [],
-    desiredPacked: [],
-    drawn: [],
-    drawnPacked: [],
-    opaquePackedScratch: [],
-    transparentPackedScratch: [],
-    culledPackedScratch: [],
-    ...unmirroredDrawn(),
-    pagesEntered: null,
-    pagesExited: null,
-    opaqueScratch: [],
-    transparentScratch: [],
-    culledScratch: [],
-    readyScratch: [],
-    pendingScratch: [],
-    awaitedScratch: [],
-    hostPendingScratch: [],
-    urlScratch: [],
-    cutHeld: false,
-    cutEpoch: 0,
-    pageArrayEpoch: 0,
-    pendingHeld: { epoch: -1, cut: -1, limited: false, ready: false },
-    urlsHeld: { epoch: -1, cut: -1, limited: false },
-    ranksHeld: { epoch: -1, cut: -1, limited: false },
-    requestedScratch: new Set<string>(),
-    gate: createFrameGateCore(HOLD_SIGNATURE_VALUES),
-    frameHeld: false,
-    textureConverging: false,
-    feedbackWritten: false,
-    worldUploadRevision: 0,
-    // No frame before the first image: it rebases, whatever happens.
-    worldUploadOrigin: new Float64Array([NaN, NaN, NaN]),
-    occluderSignature: 0,
-  };
 }

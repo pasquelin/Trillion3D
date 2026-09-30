@@ -24,7 +24,6 @@ export const pageOf = (url: string) =>
     max: DUMMY_BOUNDS,
     depthLayer: 0,
     material: surfaceOf([]),
-    placementIndex: 0,
     renderOrder: 0,
     attached: true,
   }) as unknown as PageRec;
@@ -35,7 +34,6 @@ export function placement() {
   const pages = ['r', 'm', 'a', 'b'].map(pageOf);
   const groups = [0, 1, 1].map((group, i) => [pages[i + 1], group] as const);
   for (const [page, group] of groups) page.group = group;
-  for (const page of pages) page.placementIndex = 0;
   const band = { error: 1, sphere: [0, 0, 0, 1] };
   const structure = structureIndex(
     {

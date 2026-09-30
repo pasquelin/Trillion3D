@@ -1,7 +1,6 @@
 import { surfaceOf, type PageSurface } from '../../../../packages/sdk-browser/src/page/surface.ts';
-// Bench inputs: realistic (a cut of thousands of pages in front of a camera) and hostile
-// (degenerate triangles, vertices behind the camera, NaN, Infinity, -0, empty or inverted boxes).
-// Everything comes from a seeded generator: two runs see the exact same floats.
+import type { PageLocations } from '../../../../packages/sdk-browser/src/page/selection/placements.ts';
+// Bench inputs, realistic and hostile, from a seeded generator: two runs see the exact same floats.
 import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { graine } from '../../../core/index.ts';
 
@@ -18,6 +17,13 @@ const MAUVAIS = [NaN, Infinity, -Infinity, -0];
 /** The one root every page and box below ranks: the identity, their `matrix` too, which the
  *  oracles read on them as pages carried it before #1226. */
 export const roots = [{ world: new G.Matrix4() }];
+/** The one root placed, for the consumers that read a list through its locations (#1235). */
+export const located = (count: number): PageLocations => ({
+  roots,
+  packed: Array.from({ length: count }, () => 0),
+  rootOfPacked: Int32Array.of(0),
+});
+
 type Placed = { matrix: G.Matrix4; placementIndex: number };
 const placed = (): Placed => ({ matrix: new G.Matrix4(), placementIndex: 0 });
 
@@ -44,11 +50,7 @@ export interface SceneBox extends Placed {
 /** `[x0, y0, x1, y1, huge]`: a screen rectangle that `hizTestRect` must classify. */
 export type SceneRect = [number, number, number, number, boolean];
 
-/**
- * A page of `triangles` triangles placed at random in a tile. `hostile` replaces some
- * vertices with values the hot path must walk without flinching: a degenerate zero-area
- * triangle, a vertex behind the camera, a non-finite coordinate or a negative zero.
- */
+/** A page of `triangles` triangles at random in a tile; `hostile` plants degenerate ones. */
 function page(
   alea: () => number,
   index: number,
@@ -134,10 +136,7 @@ export function coupe({
   return liste;
 }
 
-/**
- * Boxes only, without geometry: what Hi-Z projects and sorts. `degenerees` adds the empty
- * box, the inverted box (min > max), the infinite box and the box that crosses the near plane.
- */
+/** Boxes only, what Hi-Z projects and sorts; `degenerees` adds the empty, inverted and infinite. */
 export function boites({
   count = 20000,
   seed = 11,

@@ -65,7 +65,6 @@ const largestScale = (
   scratch = new Matrix4(),
 ) =>
   records.reduce((scale, rec) => {
-    // A per-primitive property: any placement of the record serves, so its first instance's root.
     const { elements } = rootOf(roots, rankOf(rec)).world;
     return Math.max(scale, scratch.fromArray(elements).getMaxScaleOnAxis());
   }, 0);

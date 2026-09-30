@@ -34,7 +34,7 @@ test('deformation row growth requests a structural reopen while stable owners re
 });
 
 test('WebGL keeps deformation placements separate when their records differ', () => {
-  const page = { placementIndex: 0, transparent: false, deformRecord: 1 } as PageRec;
+  const page = { transparent: false, deformRecord: 1 } as unknown as PageRec;
   const roots = [{ placement: {} }] as ClusterRoot<PageRec>[];
   assert.equal(drawnInstancedAt(roots, 0, page), false);
   page.deformRecord = 0;

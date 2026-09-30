@@ -42,12 +42,10 @@ export function createWebgpuCutPublication(
     { rows, packedPages, recordOf } = rt.layout,
     { ahead } = tiers;
   const cutDelta = createCutDelta(packedPages, run.desired);
-  // The drawable cut writes its records itself, reading its sequence once: `run.shown` is then
-  // only a copy of it, and only when the image adopts the readback that produced it.
+  // The drawable cut writes its records itself; `run.shown` is only a copy of it, when adopted.
   const drawnPages: PageRec[] = [];
   const drawnDelta = createCutDelta(packedPages, drawnPages);
-  // What the cache is asked for is the cut closed over its groups (`../../page/cut/groupClosure.ts`); what the
-  // image waits for is the part of it the pool accepted.
+  // The cache is asked for the cut closed over its groups; the image waits for what the pool took.
   const rankOf = (rec: PageRec) => rows.pageIndicesByUrl.get(pageAddress(rec))?.[0] ?? -1;
   const cutPending = createCutPending(
     packedPages,
@@ -56,8 +54,7 @@ export function createWebgpuCutPublication(
     () => residencySets.acceptedRevision,
     rankOf,
   );
-  // The CPU cut's residency: the pool's slots, their readiness moved by the rank journal. The
-  // layout's placements never move, but the tables are rebuilt when it grows (`webgpuGrowth.ts`).
+  // The CPU cut's residency: the pool's slots, moved by the rank journal; the tables follow a grow.
   const placement = {
     get baseOfRoot() {
       return rt.layout.placement.baseOfRoot;
@@ -68,21 +65,15 @@ export function createWebgpuCutPublication(
   };
   const held = createHeldResidency({ isResident: poolHolds }, placement);
   held.track(rt.layout.selectionRoots);
-  // The three ways a cluster's coverage flips — bytes received, bytes released, a cache slot taken
-  // or given back — all go through the rank journal, which names them one by one.
+  // Every coverage flip — bytes in or out, a slot taken or given — goes through the rank journal.
   rows.watchTouched(coverageWatcher(cutPending, held, recordOf));
   const publishCut = (cut: CutDelta) => {
     closure.apply(cut);
     residencySets.applyCut(closure.delta);
     cutPending.apply();
   };
-  /**
-   * Every view publishes its cut by differences of its own into the same sets, which count each
-   * page per placement: what they ask for, keep and rank under the one page budget is the union of
-   * the views' cuts, a page two views share ranked at its coarsest level
-   * (`../residency/requestAdmission.ts`). The main view's are the two above, which the GPU cut adopts
-   * too: with one view, nothing else is made.
-   */
+  // Every view publishes its cut into the same sets, which count each page per placement: the budget
+  // ranks the union of the views' cuts. The main view's are the two above; with one view, no more.
   views.main.cut = { asked: cutDelta, drawn: drawnDelta };
   /** The drawn view's differences; another view's are made at its first cut, on its `desired`. */
   const activeCut = () =>
@@ -90,8 +81,7 @@ export function createWebgpuCutPublication(
       asked: createCutDelta(packedPages, run.desired),
       drawn: createCutDelta(packedPages),
     });
-  /** A view publishes the cut it asks for, `wanted`, and the one it draws, `shown`, both as the
-   *  packed ranks the CPU cut names its instances by. */
+  /** A view publishes `wanted` and `shown`, both as the packed ranks the CPU cut names them by. */
   const adopt = (
     own: ViewCut,
     wanted: ArrayLike<number>,
@@ -100,15 +90,13 @@ export function createWebgpuCutPublication(
     shownCount = shown.length,
   ) => {
     own.asked.apply(wanted, wantedCount);
-    // The packed ranks of the wanted cut, rank by rank beside `run.desired` (#1235): the difference
-    // names the instances it keeps, so a reader of the records finds each one's placement.
+    // The packed ranks of the wanted cut, rank by rank beside `run.desired` (#1235).
     copyPacked(run.desiredPacked, own.asked.ids, own.asked.count);
     publishCut(own.asked);
     own.drawn.apply(shown, shownCount);
     residencySets.applyDrawn(own.drawn);
   };
-  // Readback describes submitted work and future streaming requests. It never
-  // decides the cut drawn for a moving camera; the current GPU mask does that.
+  // Readback describes submitted work; the current GPU mask decides what a moving camera draws.
   const cutAdopter = createWebgpuCutAdopter({
     selection: () => run.gpuSelection,
     desired: run.desired,
@@ -135,8 +123,8 @@ export function createWebgpuCutPublication(
   // only serves bootstrap has no reason to stay hooked on it.
   cutDelta.adoptRecords(rt.layout.gpuWanted, rankOf);
   publishCut(cutDelta);
-  /** Adopts the readback and says whether the IMAGE changed: whether the displayed lists were
-   *  rewritten. A fresh readback republishing the same identifiers in the same order rewrites none. */
+  /** Adopts the readback and says whether the IMAGE changed: a readback republishing the same
+   *  identifiers in the same order rewrites none. */
   const adoptGpuCut = () => {
     const adopted = cutAdopter.adopt(),
       metrics = cutAdopter.metrics;
@@ -162,10 +150,8 @@ export function createWebgpuCutPublication(
     /** The CPU cut's residency, moved by the rank journal: the cache's changes reach it once the
      *  mirror is synced (`../residency/mirror.ts`). */
     heldResidency: held,
-    /** Bytes of the cut's host tables — the group closure, the rule's readiness on the GPU and in
-     *  the CPU cut, the residency sets, the two differences, the pending set and the two lower
-     *  tiers —, each sized by what the view asks for and the pool holds, never by the catalogue
-     *  (#483 rule 6), each read in constant time, never by walking the placements (#483 rule 7). */
+    /** Bytes of the cut's host tables, each sized by what the view asks for and the pool holds,
+     *  never by the catalogue (#483 rule 6), each read in constant time (#483 rule 7). */
     hostTableBytes: () =>
       closure.hostBytes +
       (run.gpuSelection?.hostBytes ?? 0) +
@@ -180,14 +166,8 @@ export function createWebgpuCutPublication(
         ? 0
         : (views.active.cut?.asked.hostBytes ?? 0) + (views.active.cut?.drawn.hostBytes ?? 0)),
     adoptGpuCut,
-    /**
-     * The CPU cut publishes its own through the same differences: `wanted` writes `run.desired`
-     * itself, and the same readers follow. Called once per image that draws, and only once its
-     * guards have passed: what it sets, the image holds. The caller has already forgotten the
-     * readback and aged the lists before choosing — it is the caller that covers an erroneous
-     * exit of the cut, as it does for the copy of `drawn` — so none of that is redone here.
-     * Republishing it as-is changes nothing: the difference is empty.
-     */
+    /** The CPU cut publishes its own through the same differences: `wanted` writes `run.desired`,
+     *  called once per drawing image after its guards. Republishing as-is changes nothing. */
     adoptCpuCut(
       wanted: ArrayLike<number>,
       shown: ArrayLike<number>,
