@@ -28,17 +28,13 @@ export interface JobSnapshot<T> {
   error: { code: string; message: string } | null;
 }
 function disposeOwned<T>(value: T, hook?: (result: T) => void) {
-  if (
-    value &&
-    typeof value === 'object' &&
-    'dispose' in value &&
-    typeof (value as { dispose: unknown }).dispose === 'function'
-  ) {
-    try {
-      (value as { dispose: () => void }).dispose();
-    } catch {
-      /* Disposal cannot change job status. */
+  try {
+    if (value && typeof value === 'object' && 'dispose' in value) {
+      const dispose = (value as { dispose: unknown }).dispose;
+      if (typeof dispose === 'function') dispose.call(value);
     }
+  } catch {
+    /* Disposal cannot change job status, including property access failures. */
   }
   try {
     hook?.(value);
