@@ -38,6 +38,8 @@ export function octDecode(f: readonly number[], hemi: boolean): [number, number,
   const u = f[0] * 2 - 1,
     v = f[1] * 2 - 1,
     y = 1 - Math.abs(u) - Math.abs(v);
+  // At `y = 0` the fold is the identity bit for bit: `u = 2f − 1` is exact, so is `1 − |u|`, and
+  // `1 − |v|` gives `|u|` back; `y <= 0` would draw the same equator.
   if (y < 0) return unit([side(u) * (1 - Math.abs(v)), y, side(v) * (1 - Math.abs(u))]);
   return unit([u, y, v]);
 }
