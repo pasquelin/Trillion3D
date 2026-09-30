@@ -2,252 +2,196 @@
 
 ## The mission
 
-- **Build virtualized geometry for the web, at the performance of the best desktop engines.**
-  Geometry streamed by clusters, one cut through a DAG per frame, a visibility buffer, temporal
-  antialiasing for the image, fixed streaming and memory budgets. The techniques come from the
-  published literature (papers, talks, documentation); the desktop engines that ship them are
-  **points of comparison for the numbers**, nothing more. At every trade-off, take the solution the
-  published state of the art has proven.
-- **The end goal is the whole image, not only the geometry: real-time dynamic global illumination,
-  reflections and shadows, at that same performance, rebuilt for the web's constraints (no hardware
-  ray tracing, bounded and unreadable GPU memory, one browser frame).** The geometry, the temporal
-  antialiasing and the memory budgets are the foundation; the lighting is what they are for. It is
-  reached by stages, each measured, and the strategy lives in `docs/ENGINE.md` § "Lighting: the target and the stages".
-  A stage that is out of order is not out of scope.
-- **The bar, in this order: a perfect image, then the frame rate.** The same engine runs on the
-  web and in a native application, with the same image in both. A frame holds 60 fps at the least
-  and never needs more than 120, at the screen's own resolution and pixel ratio (up to 4K); a
-  lower internal resolution is allowed only when temporal reconstruction makes the image proof
-  show no loss; an open world opens and is crossed without a hitch, a pop or a hole.
-- **Never copy another engine's code, shaders or assets into this repository.** Not one line, ever.
-  Commercial engines are not open source and their sources are licence-covered; reimplement from
-  public material only — papers, talks, documentation, observed behaviour. Third-party engines and
-  their feature names are trademarks of their owners: they may be cited as a benchmark in a
-  measurement or a comparison table, never in a mission statement, a tagline, a badge, a package
-  name or anything that presents this project as a port or a clone of them.
-- Parity means four things, and none of them is a pixel count: fixed memory and millisecond budgets,
-  residency driven by what the frame actually reads, compression at cook time, no work in a still
-  scene. A batch that misses these has not reached the reference, however good it looks.
+- **Virtualized geometry for the web** (clusters streamed, one DAG cut per frame, a visibility
+  buffer, TAA, fixed streaming and memory budgets) at the best desktop engines' performance, from
+  the published literature; at each trade-off, what the state of the art has proven. Those engines
+  are points of comparison for the numbers only. **End goal, the whole image:** real-time dynamic
+  global illumination, reflections and shadows at that performance, within the web's limits (no
+  hardware ray tracing, bounded unreadable GPU memory, one browser frame), by measured stages in
+  `docs/ENGINE.md` § "Lighting: the target and the stages"; a stage out of order is not out of scope.
+- **A perfect image, then the frame rate**, the same on web and native: 60 fps at least, never
+  needing more than 120, at the screen's resolution and pixel ratio (up to 4K); a lower internal
+  resolution only when the TAA image proof shows no loss; an open world opens and is crossed without
+  a hitch, a pop or a hole.
+- **Never copy another engine's code, shaders or assets**, not one line (licence-covered);
+  reimplement from papers, talks, documentation, observed behaviour. Third-party engines and feature
+  names are trademarks: only as a benchmark in a measurement or comparison table, never in a mission
+  statement, tagline, badge, package name or anything presenting this project as a port or clone.
+- **Parity**, never a pixel count: fixed memory and millisecond budgets, residency driven by what
+  the frame reads, compression at cook time, no work in a still scene. Missing one is not parity.
 
 ## Measure before optimising
 
-- Under identical input, camera, quality and budgets, image quality and performance must equal or
-  exceed the Three.js witness. A measured regression reopens its issue in 🔴; it never holds a merge.
-  Measurement noise is not an exemption, and an unmeasured metric is never evidence of parity.
-- **Every millisecond counts, measured.** The frame's largest costs are ranked on a real scene
-  (the per-stage profile, `bench/runner/README.md`): small calculations repeated per frame or per
-  page, allocations in a frame, a JavaScript kernel that belongs in Rust or WebAssembly, work the
-  compiler could bake once.
-- **Never optimise a path whose cost is not measured.** State its share of the frame first, on a real
-  scene, or say plainly that it is unknown. A batch justified by a supposition is a batch to stop.
-- Measure the whole frame before a part of it: the engine publishes a per-step CPU profile
-  (`packages/sdk-browser/src/webgpu/pages/render/cpuSteps.ts`, `cpu-timing` diagnostic) and the repository has its own bench
-  (`bench/runner/bench.ts`, README alongside). Read them before choosing a target.
-- When a measurement contradicts a plan, the measurement wins, and the
-  plan is corrected in the same batch.
-- Compare identical input, camera, quality, machine and resource budget. Record DPR, error
-  threshold, resolution and commit. FPS = 1000 / rAF interval; state display cap. Never add CPU and
-  GPU times. Unmeasured values = `null`, never estimates presented as measurements. Keep diagnostics
-  outside measured beauty passes; report unsupported capabilities. Interleave before and after at
-  least five times, so a busy machine does not bias the result, and publish the run-to-run spread
-  whenever a claim rests on a difference smaller than it.
-- **Two scales of proof.** A pull request proves its change on the public test scenes under
-  `.mesure/assets/` (Khronos sample models, the generated facade; `bench/runner/assets.ts` fetches
-  and compiles them), on the scene that exercises the change, in seconds to a minute. The full
-  campaign — every view, every scene, the run-to-run spread, the frame envelope — runs once, on the
-  release pull request from `develop` to `main`, and its numbers are the ones published. The site
-  keeps one report, the latest, each image stored once.
-- **Image proof and timing on `develop`, by batch, after the merge** (AGENTS.md rule 2). Merged
-  issues carry `to audit`, and `to measure` when their diff can move the frame cost. The acceptance
-  session times (`measure ok`), then proves the image (`audited`), by batch, on one pair of trees
-  against `develop` before the oldest of them; nothing else of the batch runs beside a timing. A
-  failure reopens the issue in 🔴, labelled `audit ko` or `measure ko`, with the numbers in a
-  comment; a defect no issue covers gets a new one. Neither holds a merge. `main` moves only when
-  no issue carries `to audit`, `to measure`, `audit ko` or `measure ko`. A pull request carries the
-  gates.
-- **A campaign's outputs are deleted once published.** A cook, a bench or a proof writes under
-  `.mesure/out/<issue>/` and nowhere else; the numbers, and any capture a claim rests on, go into
-  the issue's comment, and the folder is removed once they are posted.
-- A per-pass GPU duration says _where_, never _how much_: on tile-based GPUs passes overlap and a
-  pass's timestamp absorbs its neighbours' work (17 Sept. 2026: a composition pass read 7 ms with
-  the sun and 2.4 ms without, having not changed). The frame envelope is the total; a difference
-  between two runs is read on the envelope only.
+- With identical input, camera, quality and budgets, image and performance equal or exceed the
+  Three.js witness. A measured regression reopens its issue in 🔴, never holding a merge; noise is no
+  exemption, an unmeasured metric never evidence of parity.
+- **Never optimise an unmeasured path.** State its share of the frame on a real scene, or say it is
+  unknown; a batch justified by a supposition is stopped. Rank the largest costs with the per-step
+  CPU profile (`packages/sdk-browser/src/webgpu/pages/render/cpuSteps.ts`, `cpu-timing` diagnostic)
+  and the bench (`bench/runner/bench.ts`, `bench/runner/README.md`): repeated small calculations,
+  allocations in a frame, a JavaScript kernel that belongs in Rust or WebAssembly, work the compiler
+  could bake once. A measurement that contradicts a plan wins; the plan is fixed in the same batch.
+- **Records:** same input, camera, quality, machine and budget; DPR, error threshold, resolution,
+  commit; FPS = 1000 / rAF interval, display cap stated. Never add CPU and GPU times. Unmeasured =
+  `null`, never an estimate. Diagnostics outside measured beauty passes; unsupported capabilities
+  reported. Interleave before and after at least five times (a busy machine biases otherwise);
+  publish the run-to-run spread when a claim rests on a smaller difference.
+- A per-pass GPU duration says _where_, never _how much_: tile-based GPUs overlap passes (17 Sept.
+  2026: an unchanged composition pass read 7 ms with the sun, 2.4 ms without). A difference between
+  runs is read on the frame envelope, the total, only.
+- **Two scales of proof.** A pull request proves its change in seconds to a minute on the public
+  scene that exercises it under `.mesure/assets/` (Khronos samples, the generated facade;
+  `bench/runner/assets.ts` fetches and compiles them). The full campaign (every view and scene,
+  spread, envelope) runs once, on the release pull request `develop` → `main`, and is what is
+  published; the site keeps the latest report, each image stored once.
+- **After the merge** (AGENTS.md rule 2) issues carry `to audit`, and `to measure` when the diff can
+  move the frame cost, until the recette's verdicts (labels per `skills/t3d-cto/SKILL.md`). `main`
+  moves only when no issue carries `to audit`, `to measure`, `audit ko` or `measure ko`.
+- Outputs go under `.mesure/out/<issue>/` only (AGENTS.md rule 10); the numbers and any capture a
+  claim rests on go in the issue's comment.
 
 ## Image and fidelity
 
-- Never reduce the displayed resolution or the draw distance (a lower internal resolution only
-  under the mission's bar). Never convert transparency to masking **inside the engine**: a source
-  material wrongly declared blended is reclassified by the compiler at import.
-- **Two proof classes**, the pull request declaring its own (none declared is class 1):
-  1. **Refactor or pure optimisation:** 0 px against `develop` (and `tri = selected`). A batch that
-     keeps them owes no discussion.
-  2. **Rendering technique** (a temporal upscaler, a radiance cache, cached shadow pages, f16 or
-     wave intrinsics: controlled approximations): error against a named reference image within a
-     bound the pull request states: mean and 99.9th-percentile channel error and mean LDR-FLIP (`bench/runner/flip.ts`),
-     from `bench/runner/imageDiff.ts::referenceDiff` (`bench.ts --reference`, against the engine's
-     reference images that `bench/references/` names, drawn off git into `.mesure/references/`), with no visible defect (no flicker, trail,
-     hole or lost detail) on still and moving captures. The pull request declares its class on
-     the `Image proof class:` line of its template.
-- **A proof needs a stable A/A.** A branch-against-develop difference proves something only on a
-  capture whose A/A is 0 px (or the masked exception below); a broad A/A spread proves nothing. A
-  scene that is not A/A-stable is first made stable (frozen clock, pinned frame) or replaced by a
-  stable scene on the same path. `health-check` is exempt until #964 makes it stable: its proof is
-  no error, pages drawn, and its verdict.
-- **At most 4 px of A/A on a still capture is accepted** when it is isolated to a masked cut-out at
-  the alpha cutoff, below human discrimination at the capture resolution, and declared in the batch.
-  That is GPU keep/discard on the same foliage pixel, not a residency, shadow-page or TAA bug.
-  Replacing the cutoff with a hash that explodes A/A is refused (#25).
-- **No image loss, declared or not.** An optimisation that degrades the image is refused, even
-  measured and declared: it holds its class's proof above, or the tolerance this section names, or
-  it does not merge. Sole exception: fluids may lower their own quality automatically to hold their
-  budget, and say so in their diagnostics.
+- No image loss (AGENTS.md rule 1): never reduce the displayed resolution or the draw distance
+  (lower internal resolution only under the mission's bar); never convert transparency to masking
+  **inside the engine** (the compiler reclassifies a material wrongly declared blended at import).
+- **Two proof classes**, on the pull request's `Image proof class:` line (none declared is class 1):
+  1. **Refactor or pure optimisation:** 0 px against `develop` (and `tri = selected`), no discussion.
+  2. **Rendering technique** (temporal upscaler, radiance cache, cached shadow pages, f16 or wave
+     intrinsics): within a stated bound of a named reference image — mean and 99.9th-percentile
+     channel error and mean LDR-FLIP (`bench/runner/flip.ts`), by
+     `bench/runner/imageDiff.ts::referenceDiff` (`bench.ts --reference`, against the references
+     `bench/references/` names, drawn off git into `.mesure/references/`) — and no flicker, trail,
+     hole or lost detail on still and moving captures.
+- **A proof needs a stable A/A** (0 px, or the exception below); a broad spread proves nothing. An
+  unstable scene is first frozen (clock, frame) or replaced by a stable one on the same path.
+  `health-check` is exempt until #1321 makes it stable: its proof is no error, pages drawn, its
+  verdict.
+- **At most 4 px of A/A on a still capture** is accepted when isolated to a masked cut-out at the
+  alpha cutoff, below human discrimination at the capture resolution, and declared (GPU
+  keep/discard on one foliage pixel, not a residency, shadow-page or TAA bug). A hash replacing the
+  cutoff that explodes A/A is refused (#25).
 
 ## Streaming, memory and shadows
 
 The rules of #483, binding on every change to geometry, streaming, memory, shadows or examples:
 
-1. **No hole, ever.** Every surface of every frame is drawn by a resident representation of
-   itself: the wanted cluster or its nearest resident ancestor.
-2. **No image loss.** A still image converges to full detail (A/A 0 px); coarsening is temporary,
+1. **No hole, ever**: every surface of every frame is drawn by the wanted cluster or its nearest
+   resident ancestor.
+2. **No image loss**: a still image converges to full detail (A/A 0 px); coarsening is temporary,
    one DAG level at a time.
-3. **Compiler first.** Errors, bounds, normal cones, page dependencies and order, world-scale roots
+3. **Compiler first**: errors, bounds, normal cones, page dependencies and order, world-scale roots
    are computed at cook, and the cook refuses a result that breaks an invariant.
-4. **One mechanism per concern**: one cut rule, one residency cache, one request queue, one memory
-   budget. What a change replaces is deleted in the same pull request.
+4. **One mechanism per concern** (one cut rule, residency cache, request queue, memory budget); what
+   a change replaces is deleted in the same pull request.
 5. **Fixed budgets, never read from the machine**, one global memory budget; out of memory is one
    level coarser, never a crash; a lost device is rebuilt without reloading the page.
 6. **Bounded by the view**, not by the world's size.
 7. **Main thread bounded**: decoding, parsing and IO in workers.
 8. **WebGL2 is degraded, never broken**: same rules, declared missing features, no hole.
 9. **Proven by a test of the invariant**, on two scenes, one of them an open world.
-10. **Nothing is rebuilt every frame**: no recut, re-hash or session reopen for moving content;
-    it takes the dynamic or GPU-deformation path.
+10. **Nothing is rebuilt every frame**: no recut, re-hash or session reopen for moving content; it
+    takes the dynamic or GPU-deformation path.
 11. **Examples use the engine**, never a per-frame workaround for a missing feature.
 
 ## Quality and evidence
 
-- Code first; one final test pass, one test per changed behavior. No dead/deprecated code,
-  abandoned-format compatibility or claims of unimplemented features.
-- A differential test against a frozen oracle proves only what the two sides do differently. Where
-  they share code, prove it directly.
-- **This repository uses pnpm.** `pnpm run check:changed` checks changed-file format, lint, types,
-  lines, duplicates and import-related unit tests; `pnpm run test:changed` runs only those tests. Also
-  inspect dependants after deletions, public-export or configuration changes.
-- Before merge: `pnpm run validate` (format, JS/TS lint + Clippy, unused code/files/dependencies,
-  TS/native builds, structure, declarations, links, JS/TS/Rust tests).
-- **All wording in the repository must be in English.** Comments, docstrings, documentation,
-  commit messages and test descriptions are strictly written in English.
-- Every maintained JS/TS/Rust source file, including variants, must fit 200 physical lines; no legacy
-  exceptions. Split by responsibility, preserve public contracts. Gate: `pnpm run check:lines`.
-- `pnpm run check:duplicates` rejects blocks ≥8 lines and ≥64 tokens across TS/TSX/Rust, and
-  `pnpm run check:helpers` a small helper copied, name, signature and body alike, into a second
-  module of the same package or crate. Resolve every finding before integration; share logic only
-  for identical behavior.
+- Code first; one final test pass, one test per changed behaviour. No dead or deprecated code,
+  abandoned-format compatibility or claim of an unimplemented feature. A differential test against a
+  frozen oracle proves only what the sides do differently; shared code is proved directly.
+- **pnpm.** `pnpm run check:changed` checks changed files (format, lint, types, lines, duplicates,
+  import-related unit tests); `pnpm run test:changed` runs only those tests; inspect dependants
+  after deletions, public-export or configuration changes. Before merge `pnpm run validate`: format,
+  JS/TS lint + Clippy, unused code/files/dependencies, TS/native builds, structure, declarations,
+  links, JS/TS/Rust tests.
+- **Everything in English**: comments, docstrings, documentation, commit messages, test names.
+- Every maintained JS/TS/Rust source file, variants included, fits 200 physical lines, no legacy
+  exception; split by responsibility, keep public contracts (`pnpm run check:lines`).
+- `pnpm run check:duplicates` rejects blocks ≥8 lines and ≥64 tokens across TS/TSX/Rust,
+  `pnpm run check:helpers` a small helper copied (name, signature, body) into a second module of the
+  same package or crate. Resolve every finding; share logic only for identical behaviour.
 
 ## Engine and package boundaries
 
-- Generic engine: no scene names, hardcoded lights/cameras or object-type special cases. Use imported
-  material/light properties; one lighting model for opaque and transparent surfaces, one reflection
-  model for reflective surfaces. Benchmark fixes must generalize to any imported scene.
-- **No constant is chosen by sweeping a measurement scene.** Benchmark scenes prove, they never
-  tune. Every algorithmic value is derived from what the imported object carries — texture
-  dimensions, attribute amplitude, triangle density, the screen unit — and must hold on a model
-  nobody has measured. Two errors compared are converted to the same unit, the screen pixel. A value
-  that cannot be derived is declared as such, with what it stands for and its sensitivity. Proof
-  runs on two scenes, one of which was never tuned on.
-- **This repository is self-contained.** It builds, tests, measures and proves itself with only its
-  own dependencies (`pnpm install`), the machine's Chrome and its own assets (`.mesure/assets/`, off
-  git). No code, script, test or doc may read another project on disk — no neighbour path, no
-  external harness. Every test, visual proof and benchmark runs on the repository's own standalone
-  tools. Never add host code to make the engine work, never write into a host's folders.
-- Keep React/Electron/Vite, DOM and platform filesystem APIs out of runtime-core/shared contracts;
-  use browser/filesystem adapters. Consume public entry points; packages never import application
-  internals.
-- All generic Rust library/CLI code belongs in `packages/`, never numbered benchmarks.
-  `tests/integration/engine-structure.test.ts` checks core/adapter boundaries in the unit suite;
+- Generic engine: no scene names, hardcoded lights/cameras or object-type special cases; imported
+  material/light properties; one lighting model for opaque and transparent, one reflection model.
+  Benchmark fixes generalize to any imported scene.
+- **No constant tuned on a measurement scene**: scenes prove, never tune. Every algorithmic value
+  derives from what the object carries (texture dimensions, attribute amplitude, triangle density,
+  the screen unit) and holds on an unmeasured model; compared errors share one unit, the screen
+  pixel. A value that cannot be derived is declared, with what it stands for and its sensitivity.
+  Proof on two scenes, one never tuned on.
+- **Self-contained**: builds, tests, measures and proves itself with its own dependencies
+  (`pnpm install`), the machine's Chrome and its own assets (`.mesure/assets/`, off git). Nothing
+  reads another project on disk (no neighbour path, no external harness); no host code to make the
+  engine work, no writing into a host's folders.
+- React/Electron/Vite, DOM and platform filesystem APIs stay out of runtime-core/shared contracts
+  (use adapters); consume public entry points, never application internals. Generic Rust
+  library/CLI code lives in `packages/`, never numbered benchmarks.
+  `tests/integration/engine-structure.test.ts` checks core/adapter boundaries;
   `pnpm run check:structure` type-checks sdk-core without DOM.
-- Separate `formatVersion` from `compilerVersion`; reject unknown formats and incompatible caches.
-  Compiler/cache-identity changes require correctness fixtures and source provenance. Never overwrite
+- Separate `formatVersion` from `compilerVersion`; reject unknown formats and incompatible caches;
+  compiler/cache-identity changes need correctness fixtures and source provenance; never overwrite
   source assets.
-- Bound workers and allocations for constrained machines; admission estimates are not enforced RSS
-  limits. New stages need versioned contracts, bounded cancellation, observable work and explicit
-  failure semantics. Algorithms belong in libraries, not CLI/UI.
-
-- **Compiled build outputs (`dist/`, bundles, binaries) are not tracked, with one exception: the
-  WebAssembly modules** (`pageCodec.wasm`, `joltPhysics.wasm`, `joltPhysicsThreads.wasm`). Their
-  toolchains — the Rust `wasm32` target with LLVM tools, and emscripten, CMake, Ninja and the Jolt
-  submodule — are not installed by `pnpm install`, yet the unit suite, the site build, the npm package and every
-  checkout read the modules. Tracking them keeps the repository self-contained and makes every
-  consumer run the same bytes. The cost is staleness, so a change to their sources
-  (`packages/page-codec-wasm`, `packages/physics-jolt-wasm`) rebuilds them (`build:wasm`,
-  `build:physics`) and commits the result in the same pull request.
+- Bound workers and allocations for constrained machines (admission estimates are not enforced RSS
+  limits). New stages: versioned contracts, bounded cancellation, observable work, explicit failure
+  semantics. Algorithms in libraries, not CLI/UI.
+- **Build outputs (`dist/`, bundles, binaries) are untracked, except the WebAssembly modules**
+  (`pageCodec.wasm`, `joltPhysics.wasm`, `joltPhysicsThreads.wasm`): their toolchains (Rust `wasm32`
+  with LLVM tools; emscripten, CMake, Ninja, the Jolt submodule) are not in `pnpm install`, yet the
+  unit suite, site build, npm package and every checkout read them, all on the same bytes. So a
+  change under `packages/page-codec-wasm` or `packages/physics-jolt-wasm` rebuilds them
+  (`build:wasm`, `build:physics`) and commits the result in the same pull request.
 
 ## Native compiler (`packages/asset-compiler-rust`)
 
 - Thin CLI; library algorithms behind versioned strategy/stage contracts. Preserve triangle/material
-  identity, validate every persisted cache entry, retain golden fixtures and raw before/after timings.
+  identity, validate every persisted cache entry, keep golden fixtures and raw before/after timings.
 - Never claim undelivered simplification, compression, hard memory enforcement, N-API bindings or
   platform releases.
 
 ## Personal tools stay local
 
-The agent rules (`AGENTS.md`) are tool-neutral and tracked.
-The company's shared assistant skills and agents are tracked in `skills/` and aliased into the
-local `.claude/` by `pnpm install` (`pnpm run skills:link`, see `docs/COMPANY.md`); nothing in the
-workflow requires them, and `.claude/` itself stays local.
-Personal assistant instructions, prompts, generated knowledge indexes and local tool settings
-must remain untracked. The shared setup, validation and contribution workflow must work without
-any personal assistant or indexing tool. Do not introduce such requirements in documentation,
-configuration, scripts, commit messages or pull-request templates.
-
-The local-files section in `.gitignore` defines the excluded paths. Keep those exclusions in place;
-never force-add their contents. `pnpm run check:local`, also run by validation, rejects tracked
-files covered by `.gitignore`. Shared checks exclude ignored local files. Keep personal helper
-scripts outside maintained source folders when they are not already covered by that policy.
-Before removing a previously tracked personal file, back it up outside the checkout and preserve
-its contents locally. Pulling a deletion can remove a previously tracked copy in another checkout.
+`AGENTS.md` is tool-neutral; the shared skills and agents in `skills/` are aliased into the local
+`.claude/` by `pnpm install` (`pnpm run skills:link`, `docs/COMPANY.md`). Nothing in the workflow
+requires them or any personal assistant or indexing tool; tool commands named here (`/simplify`) are
+optional aids, and no doc, configuration, script, commit message or template may require one.
+Personal instructions, prompts, generated knowledge indexes and local settings stay untracked.
+The local-files section of `.gitignore` lists them: never force-add; `pnpm run check:local` (in
+validation) rejects tracked files it covers; shared checks skip them. Personal helper scripts stay
+outside maintained source folders. Back up a previously tracked personal file outside the checkout
+before removing it: pulling the deletion removes it in other checkouts.
 
 ## Contribution workflow
 
-1. Work from one issue per batch; only a CTO or the acceptance session opens issues, on
-   `.github/ISSUE_TEMPLATE/task.md` (AGENTS.md rule 5). Create a branch named `<issue>-<short-name>`
-   from `origin/develop` in an isolated worktree under `.worktrees/<branch>/` (ignored by git and by
-   every tool), then run `pnpm install`. Logs and throwaway files go in `.worktrees/logs/`. Mark the
-   issue `in progress`.
-2. Implement the issue and record the relevant proof. Keep changes limited to the batch.
-3. Review the diff twice: first simplify duplicated or unnecessary work — in Claude Code
-   `/simplify`, elsewhere a read of the whole diff for what is duplicated, needless or at the wrong
-   depth —, then check correctness against the requirements above. Fix findings; then
-   `pnpm run check:changed`, `pnpm run test:changed` and the `validate` group the diff touches run
-   once, on the final head (by the reviewer, `skills/agents/reviewer.md`), and the CI runs the
-   whole `validate`; the image proof and the timing follow on `develop` after the merge.
-4. Commit with a descriptive English message and push the branch; the required `pr-body` check
-   (`scripts/check-commit-identity.ts`) refuses a commit carrying a tool identity (author or
-   committer) or a `Co-authored-by:` / `Generated` trailer, naming each offending hash, and refuses
-   a body with a "Generated with …" footer or a tool session link (AGENTS.md rule 9). Write the
-   pull request body in a file, using `.github/PULL_REQUEST_TEMPLATE.md` and beginning with
-   `Closes #<issue>` (AGENTS.md rule 5). Describe what both local review passes found under "Local
-   review before push". Add `in review`; `in progress` stays until the merge. No pull request yet
-   (AGENTS.md rule 11).
-5. Obtain an independent review and resolve its findings. Then open the pull request, with its "Lead
-   verification" section, one line per To-do and Proof item (each Proof line of the issue quoted,
-   or under "Not proven" with the boss's yes: the CI checks it), and auto-merge on: it merges into
-   `develop` once `validate` is green on a head that merged `develop` and merges cleanly into it
-   (AGENTS.md rule 11); the image proof and the timing follow by batch on `develop`. `main` moves
-   only on the maintainer's word. Never push directly to `develop` or `main`, or rewrite published
-   history.
-6. After merge, remove the worktree and merged branch; remove `in progress`, `in review`, the
-   assignee and any old verdict, add `to audit` and, when the diff can move the frame cost,
-   `to measure` (`skills/agents/lead.md` step 4); and check the issue is closed: GitHub's `Closes #n`
-   acts only on `main`, so [`close-issues.yml`](.github/workflows/close-issues.yml) closes, as
-   completed and with a comment linking the pull request, every issue a body merged into `develop`
-   names with a closing keyword. A regression found after the merge reopens the issue, labelled
-   `audit ko` or `measure ko`, with the findings in a comment.
+The rules are AGENTS.md's; this is the procedure.
 
-A release from `develop` to `main` has its own issue and pull request. Its head is `develop`;
-no separate release branch is needed. Use the same template and `Closes #<issue>` first line (the release delivers its whole issue),
-name the already reviewed implementation pull requests in the local-review section, and wait
-for validation and maintainer approval. Nothing built is committed on any branch: the site
-workflow (`.github/workflows/pages.yml`) builds the site from `main` (`site/` sources,
-`dist/site/` output) and deploys that tree, so a change is published only after that release
-merges.
+1. One issue per batch (AGENTS.md rule 5): branch `<issue>-<short-name>` from `origin/develop` in
+   `.worktrees/<branch>/` (ignored by git and every tool), `pnpm install`, logs and throwaway files
+   in `.worktrees/logs/`; mark the issue `in progress`.
+2. Implement it and record its proof, nothing beyond the batch.
+3. Review the diff twice: simplify (with Claude Code, `/simplify`; otherwise read the whole diff for
+   what is duplicated, needless or at the wrong depth), then correctness against these rules. Fix;
+   then `pnpm run check:changed`, `pnpm run test:changed` and the touched `validate` group run once
+   on the final head (the reviewer, `skills/agents/reviewer.md`); the CI runs all of `validate`.
+4. Commit in English, push. The required `pr-body` check (`scripts/check-commit-identity.ts`)
+   refuses, naming each hash, a tool identity (author or committer), a `Co-authored-by:` or
+   `Generated` trailer, a "Generated with …" footer or a tool session link (AGENTS.md rule 9). Write
+   the body in a file from `.github/PULL_REQUEST_TEMPLATE.md`, `Closes #<issue>` first, both passes'
+   findings under "Local review before push". Add `in review` (`in progress` stays to the merge).
+5. After an independent review, findings resolved, open the pull request (AGENTS.md rule 11) with
+   "Lead verification": one line per To-do and Proof item, each Proof line quoted or under
+   "Not proven" with the boss's yes (the CI checks it). It merges into `develop` once `validate` is
+   green on a head that merged `develop` and merges cleanly. `main` moves only on the maintainer's
+   word. Never push to `develop` or `main`, never rewrite published history.
+6. After merge: remove the worktree and branch; labels per `skills/t3d-cto/SKILL.md` (set by the
+   lead, `skills/agents/lead.md`). `Closes #n` acts only on `main`, so
+   [`close-issues.yml`](.github/workflows/close-issues.yml) closes as completed, with a comment
+   linking the pull request, each issue a body merged into `develop` names with a closing keyword;
+   check it is closed.
+
+A release `develop` → `main`: its own issue and pull request, head `develop` (no release branch),
+the same template and `Closes #<issue>` first (it delivers its whole issue), the reviewed pull
+requests named under local review, then validation and maintainer approval. Nothing built is
+committed: `.github/workflows/pages.yml` builds the site from `main` (`site/` sources, `dist/site/`
+output) and deploys it, so a change is published only after its release merges.
