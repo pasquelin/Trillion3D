@@ -53,8 +53,8 @@ export function prepareWebgpuGeometry(
   const deformFloats = deformation?.floats ?? 0;
   const vertexBase = (geometry: Geometry) => geometryBlocks.get(geometry.attributes)!.vertexBase;
   let wholeDeformation: VertexPoolGrowth['wholeDeformation'];
-  /** A growth of the pool: the deformation block moves after the wider vertices (#1293). */
-  const regrow = (count: number) => {
+  /** Places the deformation block after `count` vertices and points the whole copies at it. */
+  const placeWhole = (count: number) => {
     deformation?.place(count * 3);
     wholeDeformation = whole.placed.length
       ? whole.upload(device, vertexPool.concatPos, count * 3 + deformFloats, vertexBase)
@@ -63,6 +63,10 @@ export function prepareWebgpuGeometry(
       item.uv = vertexPool.concatUv;
       item.normal = vertexPool.concatNrm;
     }
+  };
+  /** A growth of the pool: the deformation block moves after the wider vertices (#1293). */
+  const regrow = (count: number) => {
+    placeWhole(count);
     grown?.({
       concatPos: vertexPool.concatPos,
       concatUv: vertexPool.concatUv,
@@ -78,15 +82,8 @@ export function prepareWebgpuGeometry(
     deformFloats + whole.floats,
     regrow,
   );
-  deformation?.place(capacity * 3);
   vertexPool.pack(sourced);
+  placeWhole(capacity);
   const { concatPos, concatUv, concatNrm } = vertexPool;
-  wholeDeformation = whole.placed.length
-    ? whole.upload(device, concatPos, capacity * 3 + deformFloats, vertexBase)
-    : undefined;
-  for (const item of whole.placed) {
-    item.uv = concatUv;
-    item.normal = concatNrm;
-  }
   return { concatPos, concatUv, concatNrm, vertexPool, wholeDeformation };
 }
