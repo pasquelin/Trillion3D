@@ -14,7 +14,7 @@ const CASTERS = ['casters', 'tintDepth', 'tintColour'] as const;
 const CLEARS = ['clear', 'tintClear'] as const;
 
 /** The five draws built on a device granting `features`, reading each one's `unclippedDepth`. */
-function built(features: string[]) {
+function built(features: GPUFeatureName[]) {
   const { device } = fakeDevice({ features });
   const draws = shadowFreshDraws(device, {} as GPUShaderModule, {} as GPUBindGroupLayout).made();
   const unclipped = (name: (typeof CASTERS)[number] | (typeof CLEARS)[number]) =>
