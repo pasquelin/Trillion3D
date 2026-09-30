@@ -30,13 +30,6 @@ if(all(greaterThanEqual(g,vec3(0.0)))&&all(lessThan(g,vec3(gridCells)))){ivec3 c
 int ia=a<lightGrid?listEntry(a):NO_LIGHT,ib=b<bEnd?listEntry(b):NO_LIGHT;
 while(min(ia,ib)<NO_LIGHT){int i;if(ia<ib){i=ia;ia=++a<lightGrid?listEntry(a):NO_LIGHT;}else{i=ib;ib=++b<bEnd?listEntry(b):NO_LIGHT;}`;
 
-/** Whether `a` holds `b`'s values, as many. */
-export function sameValues(a: Float64Array, b: Float64Array) {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
-  return true;
-}
-
 /**
  * Writes into `data`, from texel `every`, each of the `total` cells' first entry and one past the
  * last cell, then each cell's lamps: a counting sort of the `found` (cell, slot) `pairs` by cell,

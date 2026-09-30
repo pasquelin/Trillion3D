@@ -10,6 +10,13 @@ export function sameElements(held: ArrayLike<number>, now: ArrayLike<number>, he
   return true;
 }
 
+/** Whether `a` holds `b`'s values, as many: version lists and light reaches alike. */
+export function sameValues(a: ArrayLike<number>, b: ArrayLike<number>) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
 /**
  * In both directions: HOST matrix copied into owned buffer, or core result set
  * into HOST matrix. Core only computes in `Float64Array` — single buffer type for
