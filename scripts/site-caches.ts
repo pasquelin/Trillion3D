@@ -68,6 +68,20 @@ export const COOKED_SCENES: Record<string, CookedScene> = {
 export const sourceOf = ({ directory }: CookedScene, root = ROOT) =>
   resolve(root, directory, 'source');
 
+/** Whether `manifest`, under `site/`, is in the cache of a scene `compile:caches` cooks, and exists
+ *  once that cache is compiled: a checkout without the compiler (a documentation-only run) has
+ *  none. */
+export function isCookedManifest(manifest: string, root = ROOT): boolean {
+  const path = `site/${manifest}`;
+  const scene = Object.values(COOKED_SCENES).find((cooked) =>
+    path.startsWith(`${cooked.directory}/${cacheOf(cooked)}/`),
+  );
+  if (!scene) return false;
+  return (
+    !existsSync(resolve(root, scene.directory, cacheOf(scene))) || existsSync(resolve(root, path))
+  );
+}
+
 /** Written beside a compiled cache: the options it was compiled with and the source files it
  *  read, so a file removed or renamed since, which no timestamp shows, makes it stale. */
 const stampPath = (scene: CookedScene, root = ROOT) =>
