@@ -37,6 +37,7 @@ const demand = shaderRun<Demand>(
     'sunOrigin',
     'sunReadAt',
     'lampReadAt',
+    'lampFacePoint',
     'shadowNormalTexels',
     'pointFaceOf',
     ...PAGE_MODEL_FUNCTIONS,
@@ -47,6 +48,7 @@ const demand = shaderRun<Demand>(
     shadowUnjitter: [0, 0, 0],
     requestShadowPage: (entry: number) => live.marked.add(entry),
     ShadowAt: (map: object, t: V, home: V, Q: V, texel: number) => ({ map, t, home, Q, texel }),
+    LampFacePoint: (clip: V, ndc: V, t: V) => ({ clip, ndc, t }),
     LampAt: (at: object, clip: V, ndc: V, face: number, side: number, inside: boolean) => ({
       ...{ at, clip, ndc },
       ...{ face, side, inside },

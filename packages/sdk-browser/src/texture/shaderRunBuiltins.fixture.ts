@@ -108,6 +108,7 @@ export const builtins = {
   saturate: numeric((x) => Math.min(Math.max(x, 0), 1)),
   abs: numeric(Math.abs),
   floor: numeric(Math.floor),
+  ceil: numeric(Math.ceil),
   // WGSL rounds half to even: only whole numbers and near-whole ones are rounded here.
   round: numeric(Math.round),
   sin: numeric(Math.sin),
