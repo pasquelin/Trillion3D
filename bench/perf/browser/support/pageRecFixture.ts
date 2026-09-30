@@ -23,7 +23,6 @@ export function pageRecFixture(fields: Partial<PageRec> = {}): PageRec {
     declaration: [],
     placementIndex: 0,
     renderOrder: 0,
-    attached: false,
     ...fields,
   };
 }
