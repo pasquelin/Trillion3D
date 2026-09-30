@@ -10,10 +10,10 @@ const trace = (bounce: boolean, unbounded: boolean) =>
     'traceRoughReflection',
   ]);
 
-test('a rough sample spends the bounded march, and a miss reads the filtered probes, never a proxy ray', () => {
+test('a rough sample spends the bounded Hi-Z walk, and a miss reads the filtered probes, never a proxy ray', () => {
   for (const bounce of [false, true]) {
     const sample = trace(bounce, false);
-    assert.match(sample, /roughScreenReflection\(P,sample\.xyz,/);
+    assert.match(sample, /screenReflectionHiZ\(P,sample\.xyz\)/);
     assert.ok(
       sample.includes(`filteredReflectedRadiance(P,N,sample.xyz,${MIRROR_TRANSITION_END})`),
     );
@@ -25,10 +25,10 @@ test("a reference session's program walks the whole ray with the program's whole
   for (const bounce of [false, true]) {
     const sample = trace(bounce, true);
     assert.match(sample, /return vec4f\(resolvedReflectionRay\(P,N,sample\.xyz\),sample\.w\);/);
-    assert.doesNotMatch(sample, /roughScreenReflection/);
+    assert.doesNotMatch(sample, /screenReflectionHiZ/);
     assert.doesNotMatch(
       stochasticReflectionShader(contractLightingShader(bounce, false), true),
-      /fn roughMarch/,
+      /fn reflectionHiZWalk/,
     );
   }
 });

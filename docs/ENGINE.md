@@ -416,26 +416,27 @@ image.
 mirrors at the roughness floor (0.0525) keep the exact ray path. Opaque WebGPU receivers take
 deterministic GGX samples and accumulate a dedicated mean with bounded confidence: 32 bytes per
 pixel for two RGBA16F mean/weight images and one previous depth, normal/roughness, and identity
-image; calculations f32, mean storage f16. Each sample's cost is fixed (#33): its screen march reads
-at most 16 depths however long its projected ray (one per pixel of its major axis on a short one,
-evenly spaced and jittered per frame on a long one, each testing the ray's depth interval since the
-last), and a miss reads the probes along the sampled ray at the first filtered roughness instead of
-a resident-proxy ray per pixel; the reference mode (`reflectionTrace`) walks every pixel and keeps
-the proxy fallback. Reprojection rejects incompatible identity, depth, normal and roughness; a
-source change (moved, relit or newly resident reflected content, shadow pages, probes) caps the
-history's confidence at 4 samples for 24 frames instead of restarting it from one, so a moving view
-does not flicker and a stale reflection halves in three frames; a full window after that, no stale
-share is left. A static image closes its filter window after 64 accepted frames; a changed jitter
-still reprojects until the temporal image can be held — a bounded effective weight, not infinite
-Monte Carlo convergence. Captures/replay add no duplicate samples; drawn extent changes discard the
-history; shadow-page landings advance the source epoch
-before resolving the same image. Transparent receivers use their own position and direction, with a
-deterministic cone footprint from travel distance and GGX roughness: both shader languages filter
-the unfogged source's radiance mips, reject incompatible near/far depth bounds and never reuse the
-opaque surface's history. The cone hierarchy costs the sum of its mip dimensions (odd edges
-included), not another full-resolution history. A screen miss keeps the proxy/probe fallback, whose
-low-order coefficients cannot recover fine off-screen detail. Diffuse and toon materials have no
-specular lobe.
+image; calculations f32, mean storage f16. Each sample's cost is fixed (#33, #1342): one ray per 2 ×
+2 block at half resolution, four successive frames reaching every pixel, walked over the depth
+pyramid in at most 64 steps (a cell whose depth range the ray cannot cross is skipped whole), and a
+miss reads the probes along the sampled ray at the first filtered roughness instead of a
+resident-proxy ray per pixel; the reference mode (`reflectionTrace`) walks every pixel and keeps the
+proxy fallback. Reprojection follows the placement motion while the temporal pass runs, and rejects
+incompatible identity, depth, normal and roughness; a relit source (lights, materials) restarts the
+history. A moved source is reprojected, its confidence capped at 16 samples while it moves; without
+live motion, a placement change (moved or newly resident reflected content, shadow pages, probes)
+caps it at 4 samples for 24 frames instead of restarting it from one, so a moving view does not
+flicker and a stale reflection halves in three frames; a full window after that, no stale share is
+left. A static image closes its filter window after 64 accepted frames; a changed jitter still
+reprojects until the temporal image can be held — a bounded effective weight, not infinite Monte
+Carlo convergence. Captures/replay add no duplicate samples; drawn extent changes discard the
+history; shadow-page landings advance the source epoch before resolving the same image. Transparent
+receivers use their own position and direction, with a deterministic cone footprint from travel
+distance and GGX roughness: both shader languages filter the unfogged source's radiance mips, reject
+incompatible near/far depth bounds and never reuse the opaque surface's history. The cone hierarchy
+costs the sum of its mip dimensions (odd edges included), not another full-resolution history. A
+screen miss keeps the proxy/probe fallback, whose low-order coefficients cannot recover fine
+off-screen detail. Diffuse and toon materials have no specular lobe.
 
 Reflection targets belong to their camera view, resize and dispose with it, and count in the
 frame-target reservation; no extra user budget controls them. GPU arithmetic, shader compilation,
