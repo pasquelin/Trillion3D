@@ -38,23 +38,29 @@ const SHADE_WGSL = `
 
 /**
  * The one loop that shades a pixel's lights in full: the lights of a slice (`tileSlice`) — or,
- * from `TILE_NO_SLICE`, every light of the scene — in increasing rank. A light is first rejected on
- * its sphere alone, before its record is read in full, where it lies past its range by a
+ * from `TILE_NO_SLICE`, every light of the scene — in increasing rank. The narrow resolve's slice
+ * is the list itself (#849), read at its listed rank.
+ *
+ * With `reject` — the program with no shadow code (#1249) — a light is first rejected on its
+ * sphere alone, before its record is read in full, where it lies past its range by a
  * ten-thousandth of its squared range (`RANGE_REJECT`): there `directIncidence` would have returned
- * zero before any shading, shadow or page read, so the sum loses an exact zero only (#1249). Timed
- * on the resolve (64 lamps, a million pixels), it takes 30 % off a light out of range for 13 % on
- * one in range. The kind is read alone (`isSunKind`), not through `isSun`, which takes the whole record. The
- * narrow resolve's slice is the list itself (#849), read at its listed rank.
+ * zero before any shading, so the sum loses an exact zero only. The kind is read alone
+ * (`isSunKind`), not through `isSun`, which takes the whole record. Timed on the resolve (64
+ * lamps, a million pixels), it takes 30 % off a light out of range for 13 % on one in range: in
+ * the program with shadow code that 13 % is not repaid (42.3 → 47.9 ps a light in range), so that
+ * program keeps develop's loop, the reject left out, and costs a light what develop's does.
  */
-export const sliceLightingWgsl = (narrow: boolean) => `
+export const sliceLightingWgsl = (narrow: boolean, reject: boolean) => `
 fn sliceLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,slice:vec2u)->vec3f{
  var result=vec3f(0.0);
  for(var index=0u;index<slice.y;index++){
-  ${narrow ? 'let light=tileLights[slice.x+index];' : 'var light=index;if(slice.x!=TILE_NO_SLICE){light=tileLights[slice.x+index];}'}
-  let sphere=directLights.items[light].positionRange;
-  let offset=sphere.xyz-P;
-  if(!isSunKind(directLights.items[light].params.x)&&dot(offset,offset)>sphere.w*sphere.w*RANGE_REJECT){continue;}
+  ${narrow ? 'let light=tileLights[slice.x+index];' : 'var light=index;if(slice.x!=TILE_NO_SLICE){light=tileLights[slice.x+index];}'}${reject ? RANGE_REJECT_WGSL : ''}
   result+=declaredLight(directLights.items[light],rgb,metal,rough,N,V,P,ao);
  }
  return result;
 }`;
+
+const RANGE_REJECT_WGSL = `
+  let sphere=directLights.items[light].positionRange;
+  let offset=sphere.xyz-P;
+  if(!isSunKind(directLights.items[light].params.x)&&dot(offset,offset)>sphere.w*sphere.w*RANGE_REJECT){continue;}`;
