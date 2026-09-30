@@ -5290,8 +5290,8 @@
       "disableRatio": "Kostenverhältnis, das sie abschaltet.",
       "enableRatio": "Kostenverhältnis, das sie wieder einschaltet.",
       "consecutiveViolations": "Aufeinanderfolgende schlechte Messungen vor dem Abschalten.",
-      "memoryBudgetBytes": "Speicherobergrenze.",
-      "maxEvictionsPerSecond": "Obergrenze der Verdrängungen pro Sekunde.",
+      "memoryBudgetBytes": "Speicherobergrenze, endlich und mindestens 0.",
+      "maxEvictionsPerSecond": "Obergrenze der Verdrängungen pro Sekunde, endlich und mindestens 0.",
       "requireGpuTiming": "Ob die GPU-Zeit gemessen werden muss."
     }
   },

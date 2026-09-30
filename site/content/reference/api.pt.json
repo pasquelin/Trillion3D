@@ -2968,8 +2968,8 @@
       "disableRatio": "Razão de custo que o desliga.",
       "enableRatio": "Razão de custo que o liga de volta.",
       "consecutiveViolations": "Amostras ruins seguidas antes de desligar.",
-      "memoryBudgetBytes": "Teto de memória.",
-      "maxEvictionsPerSecond": "Teto de remoções por segundo.",
+      "memoryBudgetBytes": "Teto de memória, finito e no mínimo 0.",
+      "maxEvictionsPerSecond": "Teto de remoções por segundo, finito e no mínimo 0.",
       "requireGpuTiming": "Se o tempo de GPU precisa ser medido."
     }
   },

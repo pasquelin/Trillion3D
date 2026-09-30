@@ -2968,8 +2968,8 @@
       "disableRatio": "触发关闭的开销比例。",
       "enableRatio": "触发重新打开的开销比例。",
       "consecutiveViolations": "关闭前连续出现的不良样本数。",
-      "memoryBudgetBytes": "内存上限。",
-      "maxEvictionsPerSecond": "每秒淘汰次数的上限。",
+      "memoryBudgetBytes": "内存上限，有限且不小于 0。",
+      "maxEvictionsPerSecond": "每秒淘汰次数的上限，有限且不小于 0。",
       "requireGpuTiming": "是否必须测量 GPU 时间。"
     }
   },

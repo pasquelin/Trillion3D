@@ -12,18 +12,7 @@ import {
 import { writeDepthRamp } from '../../camera/depthConvention.ts';
 import { pixelFootprintOf } from '../../streaming/priority.ts';
 import { renderMipBias, renderPixelRatio } from '../pages/state/renderScale.ts';
-import type { DiagnosticMode } from '../../../../sdk-core/src/index.ts';
-
-/** `uni.mode` of the resolve, per diagnostic view (`../../visibility/shader/shadeWgsl.ts`); beauty is zero. */
-const SHADE_MODE: Partial<Record<DiagnosticMode, number>> = {
-  wireframe: 1,
-  clusters: 2,
-  pages: 3,
-  lod: 4,
-  visibility: 5,
-  'screen-error': 6,
-  materials: 7,
-};
+import { SHADE_MODE } from '../../visibility/shader/shadeMode.ts';
 
 /** One entry per indirect draw slot, plus the direct path's. Size follows the scene's coplanar-layer
  *  count: with no layer, it is exactly the previous buffer. */
