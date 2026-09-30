@@ -12,7 +12,6 @@ test('the source answers from the second image on, through the last matrix and l
     ids: {} as GPUTextureView,
     pages: {} as GPUBuffer,
     motion: {} as GPUBuffer,
-    reprojects: true,
     eye: [1, 2, 3],
   };
   const sent = () => gpu.writes.at(-1)!.data as Float32Array;

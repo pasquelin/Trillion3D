@@ -1,9 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { HIZ_WALK_WGSL, REFLECTION_TRACE_STEPS } from './hizTraceWgsl.ts';
+import { HIZ_TRACE_WGSL } from './hizTraceWgsl.ts';
+import { functionText } from '../bounce/wgslBody.fixture.ts';
 
 // Runs the production walk's own text: only declarations and constructors are translated.
-const body = HIZ_WALK_WGSL.slice(HIZ_WALK_WGSL.indexOf('{\n') + 1, HIZ_WALK_WGSL.lastIndexOf('\n}'))
+const HIZ_WALK = functionText(HIZ_TRACE_WGSL, 'reflectionHiZWalk');
+/** The step cap, as the walk's loop reads it. */
+const REFLECTION_TRACE_STEPS = Number(/i<(\d+);/.exec(HIZ_WALK)![1]);
+const body = HIZ_WALK.slice(HIZ_WALK.indexOf('{\n') + 1)
   .replace(/(?:var|let) (\w+):\w+=/g, 'let $1=')
   .replace(/range\.x/g, 'range[0]')
   .replace(/range\.y/g, 'range[1]');

@@ -1,6 +1,7 @@
-import { invertMatrix4, matrixAtRenderOrigin } from '../../../sdk-core/src/index.ts';
 import { FULLSCREEN_VERTEX } from '../lighting/deferred/shaders.ts';
 import { taaReprojectWgsl } from '../taa/shaderWgsl.ts';
+import { writeReprojection } from '../taa/view.ts';
+import { oncePerDevice } from '../gpu/core/oncePerDevice.ts';
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts';
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts';
 
@@ -33,12 +34,9 @@ ${taaReprojectWgsl(false)}
  return vec4f(textureSampleLevel(lastImage,lastSampler,uv.xy*view.last.xy*view.last.zw,0.0).rgb,1.0);
 }`;
 
-const layouts = new WeakMap<GPUDevice, GPUBindGroupLayout>();
-export function reflectionSourceLayout(device: GPUDevice) {
-  let layout = layouts.get(device);
-  if (layout) return layout;
+export const reflectionSourceLayout = oncePerDevice((device) => {
   const visibility = GPUShaderStage.FRAGMENT;
-  layout = device.createBindGroupLayout({
+  return device.createBindGroupLayout({
     entries: [
       { binding: 0, visibility, texture: { sampleType: 'float' } },
       { binding: 1, visibility, sampler: { type: 'filtering' } },
@@ -49,19 +47,16 @@ export function reflectionSourceLayout(device: GPUDevice) {
       { binding: 6, visibility, buffer: { type: 'read-only-storage' } },
     ],
   });
-  layouts.set(device, layout);
-  return layout;
-}
+});
 
 /** What the reprojection reads beside the depth: the last lit image, this image's identifiers,
- *  the page table and the placement motion, live (`reprojects`) only while the temporal pass
- *  writes it; `eye`, the render origin that motion is written at. */
+ *  the page table and the placement motion, live only while the temporal pass writes it (the
+ *  page table otherwise, bound and never read); `eye`, the render origin that motion is written at. */
 export interface ReflectionSourceInputs {
   last: GPUTextureView;
   ids: GPUTextureView;
   pages: GPUBuffer;
   motion: GPUBuffer;
-  reprojects: boolean;
   eye: ArrayLike<number>;
 }
 
@@ -79,20 +74,18 @@ export function createReflectionSource(
   });
   const sampler = device.createSampler({ magFilter: 'linear', minFilter: 'linear' });
   const packed = new Float32Array(REFLECTION_SOURCE_VIEW_BYTES / 4),
-    anchored = new Float64Array(16),
     last = new Float64Array(16),
     lastDrawn = [0, 0];
   const identity = createWebgpuBindIdentity();
   let drawnBefore = false,
     group: GPUBindGroup | undefined;
   return {
-    /** The bind group of the last `update` given inputs; none before. */
+    /** The bind group of the last `update`, none unless it was given inputs. */
     get group() {
       return group;
     },
     /** This image's view and drawn size; each call is one lit image, the next one's source. */
     update(matrix: ArrayLike<number>, drawn: readonly number[], inputs?: ReflectionSourceInputs) {
-      packed.fill(0);
       if (inputs) {
         const next = identity.next;
         next[0] = inputs.last;
@@ -112,14 +105,17 @@ export function createReflectionSource(
               { binding: 6, resource: { buffer: inputs.motion } },
             ],
           });
-        packed.set(matrixAtRenderOrigin(anchored, last, inputs.eye), 0);
-        packed.set(invertMatrix4(anchored, matrixAtRenderOrigin(anchored, matrix, inputs.eye)), 16);
+        writeReprojection(packed, last, matrix, inputs.eye, drawn);
         packed[36] = drawnBefore ? 1 : 0;
-        packed[38] = inputs.reprojects ? 1 : 0;
-      }
-      packed.set([drawn[0], drawn[1], 1 / drawn[0], 1 / drawn[1]], 32);
-      packed.set([lastDrawn[0], lastDrawn[1], 1 / width, 1 / height], 40);
-      device.queue.writeBuffer(uniform, 0, packed);
+        // The motion is live unless it is the page table (`liveMotion`).
+        packed[38] = inputs.motion !== inputs.pages ? 1 : 0;
+        packed[40] = lastDrawn[0];
+        packed[41] = lastDrawn[1];
+        packed[42] = 1 / width;
+        packed[43] = 1 / height;
+        device.queue.writeBuffer(uniform, 0, packed);
+        // Without inputs no source is drawn (`encode.ts`): nothing reads the uniform.
+      } else group = undefined;
       last.set(matrix);
       lastDrawn[0] = drawn[0];
       lastDrawn[1] = drawn[1];

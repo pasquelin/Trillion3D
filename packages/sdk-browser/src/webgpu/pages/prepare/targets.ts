@@ -1,10 +1,5 @@
 import { wantsSubsurface } from '../../../scene/subsurface.ts';
-import {
-  createScreenReflection,
-  wantsReflections,
-  wantsRoughReflectionHistory,
-  wantsReflectionCone,
-} from '../../../reflections/gpu.ts';
+import { createScreenReflection, reflectionPlan } from '../../../reflections/gpu.ts';
 import {
   DISPLAY_FORMAT,
   FEEDBACK_FORMAT,
@@ -22,8 +17,7 @@ import { makeAsIsShare, wantsAsIsShare } from './asIsShareTarget.ts';
 /** True when the drawn view's frame targets in place are those of `size`, both sizes alike. */
 export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
   const { gpu, vis } = rt,
-    rough = wantsRoughReflectionHistory(rt),
-    cone = wantsReflectionCone(rt),
+    plan = reflectionPlan(rt),
     pyramid = gpu.reflection?.pyramid;
   return (
     !!gpu.colorTexture &&
@@ -35,12 +29,12 @@ export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
     !!gpu.surfaces &&
     gpu.surfaces.hasSubsurface === wantsSubsurface(rt) &&
     !!gpu.feedbackTexture === (rt.feedbackAB?.target !== false) &&
-    gpu.reflection?.active === wantsReflections(rt) &&
-    !!gpu.reflection?.history === rough &&
-    // The pyramid is made for either (`createScreenReflection`), its radiance for a cone alone:
-    // judged by that same rule, rough receivers alone find their targets in place.
-    !!pyramid === (rough || cone) &&
-    !!pyramid?.radiance === cone &&
+    // Judged by the plan the targets were made from (`makeTargets`): a fit that asked otherwise
+    // would remake them every image, and a prepare would never settle.
+    gpu.reflection?.active === plan.active &&
+    !!gpu.reflection?.history === plan.rough &&
+    !!pyramid === plan.pyramid &&
+    !!pyramid?.radiance === plan.cone &&
     (!vis.visEnabled || !!vis.visTexture)
   );
 }
@@ -143,14 +137,15 @@ export function makeTargets(
   gpu.displayView = size.apart ? gpu.displayTexture.createView() : gpu.colorView;
   gpu.depthView = gpu.depthTexture.createView();
   gpu.hdrView = gpu.hdrTexture.createView();
+  const plan = reflectionPlan(rt);
   gpu.reflection = createScreenReflection(
     device,
     width,
     height,
     gpu.depthView,
-    wantsReflections(rt),
-    wantsRoughReflectionHistory(rt),
-    wantsReflectionCone(rt),
+    plan.active,
+    plan.rough,
+    plan.cone,
   );
   gpu.backdrop = createBackdrop(device, width, height, blendState.transmissive > 0);
   // Temporal history follows the display size.
