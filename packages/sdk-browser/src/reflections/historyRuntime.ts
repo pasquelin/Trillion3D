@@ -98,20 +98,19 @@ export function createReflectionHistory(
       const moved = next.epoch !== epoch;
       const relit = next.lighting !== lighting;
       const reprojects = next.motion !== next.pages;
+      const changed = resized || moved || relit;
       const resets = resized || relit || (moved && !reprojects);
       drawnWidth = drawn[0];
       drawnHeight = drawn[1];
       const cameraChanged = !sameElements(camera, next.camera);
       reuse =
-        !resized &&
-        !moved &&
-        !relit &&
+        !changed &&
         !cameraChanged &&
         written &&
         sameElements(previous, projection) &&
         (stableFrames >= REFLECTION_HISTORY_WEIGHT || frame === next.frame);
       if (reuse) return;
-      if (moved || relit || resized || cameraChanged) stableFrames = 0;
+      if (changed || cameraChanged) stableFrames = 0;
       if (resets) {
         written = false;
         rank = 0;

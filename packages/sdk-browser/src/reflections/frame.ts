@@ -1,6 +1,7 @@
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import { liveMotion, placementEpoch, reflectionFrame } from './reflectionFrame.ts';
 import type { ReflectionSourceInputs } from './source.ts';
+import type { ReflectionHistoryFrame } from './historyRuntime.ts';
 
 const sources = new WeakMap<object, ReflectionSourceInputs>();
 
@@ -9,19 +10,21 @@ export function updateScreenReflection(
   matrix: ArrayLike<number>,
   enabled: boolean,
 ) {
+  const frame = reflectionFrame(rt);
   rt.gpu.reflection?.update(
     matrix,
     enabled,
     rt.gpu.targetSize,
-    reflectionFrame(rt),
-    reflectionSourceInputs(rt),
+    frame,
+    reflectionSourceInputs(rt, frame),
   );
 }
 
 /** What the last image is reprojected through: this image's identifiers and placement motion, and
  *  the depth and identifiers kept for the next one. The image itself is the unfogged one the
- *  lighting wrote beside the lit image (`source.ts`), never the HDR target. */
-function reflectionSourceInputs(rt: WebgpuPagesRuntime) {
+ *  lighting wrote beside the lit image (`source.ts`), never the HDR target. The history frame's
+ *  motion and placement, when there is one, are this image's already. */
+function reflectionSourceInputs(rt: WebgpuPagesRuntime, frame?: ReflectionHistoryFrame) {
   const { gpu, vis, run } = rt;
   if (!gpu.reflection?.active || !gpu.depthTexture) return undefined;
   if (!vis.visView || !vis.visTexture || !vis.pageTable) return undefined;
@@ -32,10 +35,10 @@ function reflectionSourceInputs(rt: WebgpuPagesRuntime) {
   }
   inputs.ids = vis.visView;
   inputs.pages = vis.pageTable;
-  inputs.motion = liveMotion(rt, vis.pageTable);
+  inputs.motion = frame?.motion ?? liveMotion(rt, vis.pageTable);
   inputs.eye = run.gate.cam.eye;
   inputs.metadata.depth = gpu.depthTexture;
   inputs.metadata.ids = vis.visTexture;
-  inputs.placement = placementEpoch(rt);
+  inputs.placement = frame?.epoch ?? placementEpoch(rt);
   return inputs;
 }

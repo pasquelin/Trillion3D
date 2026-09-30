@@ -36,10 +36,11 @@ export function encodeReflectionSource(
     source.draw(3);
   }
   source.end();
-  const traced = !!reflection.history && !reflection.history.reuse;
+  const history = reflection.history;
+  const traced = !!history && !history.reuse;
   // Without radiance levels only the trace reads the depth bounds: an image it skips skips them.
   if (reflection.pyramid?.radiance || traced) reflection.pyramid?.encode(encoder);
-  if (traced && reflection.history) {
+  if (traced) {
     const trace = encoder.beginRenderPass({
       label: 'Trillion3D rough reflection trace',
       colorAttachments: [
@@ -52,7 +53,7 @@ export function encodeReflectionSource(
     trace.setBindGroup(1, reflection.group);
     trace.draw(3);
     trace.end();
-    reflection.history.encode(encoder, target, reflected.resolve, reflected.resolveLayout);
+    history.encode(encoder, target, reflected.resolve, reflected.resolveLayout);
   }
   reflection.keepSource(encoder);
 }
