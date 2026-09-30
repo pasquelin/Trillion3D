@@ -6,6 +6,11 @@ import { BOUNCE_SETTINGS } from '../bounce/contracts.ts';
 import { SCREEN_ERROR_VARIANTS } from '../lod/screenErrorVariants.ts';
 import type { MathPathMode } from '../math/path/contracts.ts';
 import {
+  EXPLORER_SWITCHES,
+  explorerSwitch,
+  type ExplorerSwitch,
+} from '../runtime/explorerSwitches.ts';
+import {
   DEFAULT_GEOMETRY_POOL_BUDGET,
   DEFAULT_TEXTURE_POOL_BUDGET,
 } from '../../../sdk-browser/src/residency/pools.ts';
@@ -104,5 +109,18 @@ test('an explorer request naming only its manifest is completed with the engine 
     assert.notEqual(request[key], undefined, key);
     // Each default, alone, passes the checks of its own field.
     assert.equal(validate({ ...explorer, [key]: request[key] }), true, key);
+  }
+});
+
+test('a switch the host leaves out is set in the engine as the schema advertises it', () => {
+  const advertised = Object.entries(EXPLORER_OPTIONS_SCHEMA.properties).filter(
+    ([, property]) => property.type === 'boolean' && property.default !== undefined,
+  );
+  assert.deepEqual(advertised.map(([key]) => key).sort(), Object.keys(EXPLORER_SWITCHES).sort());
+  for (const [key, { default: value }] of advertised) {
+    const name = key as ExplorerSwitch;
+    assert.equal(typeof value, 'boolean', key);
+    assert.equal(explorerSwitch({}, name), value, key);
+    assert.equal(explorerSwitch({ [name]: !value }, name), !value, key);
   }
 });
