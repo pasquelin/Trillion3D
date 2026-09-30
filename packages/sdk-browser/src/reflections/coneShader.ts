@@ -1,4 +1,5 @@
 import { shaderLanguage } from '../math/shaderLanguage.ts';
+import { REFLECTION_SEGMENT } from './traceShader.ts';
 
 /** Screen-space cone tracing (Hermanns/Franke, SIGGRAPH 2014).
  * The cone contains half the N.L-weighted GGX directional mass; it is a finite
@@ -34,17 +35,7 @@ fn reflectionConeSlope(rough:f32)->f32{
  var cosine:f32=(1.0-(k+1.0)*u)/(1.0+(k-1.0)*u);
  return sqrt(max(0.0,1.0-cosine*cosine))/max(cosine,1e-6);
 }
-fn screenReflectionCone(P:vec3f,R:vec3f,rough:f32)->vec4f{
- var c:vec4f=reflectionProject(vec4f(P,1.0));
- var d:vec4f=reflectionProject(vec4f(R,0.0));
- var reach:f32=reflectionExit(c,d);
- if(reach<=0.0||c.w<=0.0){return vec4f(0.0);}
- var e:vec4f=c+d*reach;
- if(e.w<=0.0){return vec4f(0.0);}
- var size:vec2f=reflectionSize();
- var start:vec2f=(c.xy/c.w*0.5+vec2f(0.5))*size;
- var delta:vec2f=(e.xy/e.w-c.xy/c.w)*0.5*size;
- var axis:vec3f=vec3f(0.0,0.0,1.0);
+fn screenReflectionCone(P:vec3f,R:vec3f,rough:f32)->vec4f{${REFLECTION_SEGMENT} var axis:vec3f=vec3f(0.0,0.0,1.0);
  if(abs(R.z)>0.999){axis=vec3f(0.0,1.0,0.0);}
  var T:vec3f=normalize(cross(axis,R));var B:vec3f=cross(R,T);
  var projectedT:vec4f=reflectionProject(vec4f(T,0.0));
@@ -71,8 +62,8 @@ fn screenReflectionCone(P:vec3f,R:vec3f,rough:f32)->vec4f{
   if(delta.y>0.0){boundary.y=((cell.y+1.0)*side-start.y)/delta.y;}
   if(delta.y<0.0){boundary.y=(cell.y*side-start.y)/delta.y;}
   var exited:f32=min(1.0,min(boundary.x,boundary.y));
-  var z0:f32=mix(c.z/c.w,e.z/e.w,entered);
-  var z1:f32=mix(c.z/c.w,e.z/e.w,exited);
+  var z0:f32=mix(a.z,b.z,entered);
+  var z1:f32=mix(a.z,b.z,exited);
   var zSpread:f32=(spread.z+abs(centre.z/centre.w)*spread.w)/nearW;
   var limits:vec2f=vec2f(min(z0,z1)-zSpread,max(z0,z1)+zSpread);
   if(!all(pixel==vec2i(floor(start)))){
