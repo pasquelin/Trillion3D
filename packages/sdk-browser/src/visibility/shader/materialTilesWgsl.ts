@@ -12,20 +12,21 @@ import { SHADE_UNI_WGSL } from './request.ts';
  * fragments that pass the depth test are the same, shaded by the same code: only the pixels of
  * tiles a class has none of are no longer rasterised for it.
  *
- * A class the image holds past `MATERIAL_TILE_SLOTS` has no list: its slot reads
- * `MATERIAL_TILE_SLOTS` and it draws every tile, as the full-screen triangle did.
+ * A class with no list — past the first `MATERIAL_TILE_SLOTS` held, or not held at all — has
+ * the slot `MATERIAL_TILE_SLOTS`: no pixel marks it, and drawn it covers every tile, as the
+ * full-screen triangle did.
  */
 export const MATERIAL_TILE_SIZE = 32;
 export const MATERIAL_TILE_SLOTS = 64;
 /** Lanes of a tile's workgroup per axis: a lane reads the tile's pixels that many apart. */
 const LANES = 8;
-/** Slot of a class the image does not hold: no pixel of it is marked. */
-export const NO_MATERIAL_SLOT = 0xffffffff;
 
 const CONSTANTS_WGSL = `const MATERIAL_TILE_SIZE:u32=${MATERIAL_TILE_SIZE}u;
 const MATERIAL_TILE_SLOTS:u32=${MATERIAL_TILE_SLOTS}u;
 /** Tiles on a row of the image \`size\`: the dispatch's and the draw's one count. */
-fn materialTilesX(size:vec2u)->u32{return (size.x+MATERIAL_TILE_SIZE-1u)/MATERIAL_TILE_SIZE;}`;
+fn materialTilesX(size:vec2u)->u32{return (size.x+MATERIAL_TILE_SIZE-1u)/MATERIAL_TILE_SIZE;}
+/** Where slot \`slot\`'s list starts in \`classTiles\`: the one layout the lists are written and read in. */
+fn tileListStart(slot:u32)->u32{return slot*(arrayLength(&classTiles)/MATERIAL_TILE_SLOTS);}`;
 
 /**
  * The class draws' vertex stage, in the resolve's module: quad corner `i` of tile `n` of the
@@ -45,7 +46,7 @@ fn materialTileCorner(tile:u32,i:u32,tilesX:u32)->vec2u{
 @vertex fn shade_tile_vs(@builtin(vertex_index) i:u32,@builtin(instance_index) n:u32)->@builtin(position) vec4f{
  let slot=classSlots[CLASS_KEY];
  var tile=n;
- if(slot<MATERIAL_TILE_SLOTS){tile=classTiles[slot*(arrayLength(&classTiles)/MATERIAL_TILE_SLOTS)+n];}
+ if(slot<MATERIAL_TILE_SLOTS){tile=classTiles[tileListStart(slot)+n];}
  let pixel=vec2f(materialTileCorner(tile,i,materialTilesX(vec2u(uni.viewport))));
  return vec4f(pixel.x/uni.viewport.x*2.0-1.0,1.0-pixel.y/uni.viewport.y*2.0,CLASS_DEPTH,1.0);
 }`;
@@ -66,11 +67,11 @@ ${SHADE_UNI_WGSL}
 ${MATERIAL_CLASS_WGSL}
 ${CONSTANTS_WGSL}
 var<workgroup> held:array<atomic<u32>,2>;
-/** Slot of a pixel's class, \`MATERIAL_TILE_SLOTS\` or more for none: the background, a class
- *  the image does not hold, one past the slots. */
+/** Slot of a pixel's class, \`MATERIAL_TILE_SLOTS\` for none: the background, a class the image
+ *  does not hold, one past the slots. */
 fn pixelSlot(id:u32)->u32{
  let key=materialClassOf(id);
- if(key==0u){return ${NO_MATERIAL_SLOT}u;}
+ if(key==0u){return MATERIAL_TILE_SLOTS;}
  return classSlots[key-1u];
 }
 @compute @workgroup_size(${LANES},${LANES}) fn classify(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_id) lane:vec3u,@builtin(local_invocation_index) index:u32){
@@ -88,5 +89,5 @@ fn pixelSlot(id:u32)->u32{
  if(index>=MATERIAL_TILE_SLOTS||((atomicLoad(&held[index>>5u])>>(index&31u))&1u)==0u){return;}
  let at=atomicAdd(&tileDraws[index*4u+1u],1u);
  if(at==0u){atomicStore(&tileDraws[index*4u],6u);}
- classTiles[index*(arrayLength(&classTiles)/MATERIAL_TILE_SLOTS)+at]=group.y*materialTilesX(size)+group.x;
+ classTiles[tileListStart(index)+at]=group.y*materialTilesX(size)+group.x;
 }`;

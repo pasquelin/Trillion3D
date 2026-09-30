@@ -14,10 +14,10 @@ import {
 } from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
 import {
   sliceHits,
-  tileBounds,
   toTileFrame,
   type TileView,
 } from '../oracles/browser/gpuLightTileColumnOracle.ts';
+import { coveredTile } from './lightTileCount.ts';
 import { ATRIUM_POSES, atriumDepth, atriumLamps } from './lightTileAtrium.ts';
 import type { Light } from './lightTileCity.ts';
 
@@ -28,13 +28,9 @@ export function countGrid(view: TileView, depths: Float32Array, lights: Light[])
   const sums = { covered: 0, listed: 0, reach: 0 };
   for (let ty = 0; ty < Math.ceil(view.height / SIZE); ty++)
     for (let tx = 0; tx < Math.ceil(view.width / SIZE); tx++) {
-      const pixels: [number, number, number][] = [];
-      for (let y = ty * SIZE; y < Math.min((ty + 1) * SIZE, view.height); y++)
-        for (let x = tx * SIZE; x < Math.min((tx + 1) * SIZE, view.width); x++)
-          if (depths[y * view.width + x] > 0) pixels.push([x, y, depths[y * view.width + x]]);
-      if (!pixels.length) continue;
-      const zs = pixels.map((p) => p[2]);
-      const bounds = tileBounds(view, [tx, ty], Math.max(...zs), Math.min(...zs));
+      const covered = coveredTile(view, [tx, ty], depths);
+      if (!covered) continue;
+      const { pixels, bounds } = covered;
       const listed = lights.filter(
         ({ centre, radius }) => sliceHits(bounds, toTileFrame(view, centre), radius).opaque,
       );

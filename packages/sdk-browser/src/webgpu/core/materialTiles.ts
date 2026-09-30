@@ -1,10 +1,10 @@
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
+import { validated } from '../../gpu/core/errorScope.ts';
 import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts';
 import { MATERIAL_CLASS_KEYS } from '../../visibility/shader/materialClass.ts';
 import {
   MATERIAL_TILE_SIZE,
   MATERIAL_TILE_SLOTS,
-  NO_MATERIAL_SLOT,
   MATERIAL_TILES_SHADER,
 } from '../../visibility/shader/materialTilesWgsl.ts';
 import { createWebgpuBindIdentity } from './bindIdentity.ts';
@@ -28,13 +28,13 @@ export function materialTileDrawLayout(device: GPUDevice) {
   });
 }
 
-/** The classification's pipeline and layout; none on a device that refuses the pipeline. A shader
- *  that does not compile is a defect, thrown by name. */
-async function classifier(device: GPUDevice) {
+/** The classification's pipeline and layout; none on a device that refuses them (`validated`). A
+ *  shader that does not compile is a defect, thrown by name. */
+function classifier(device: GPUDevice) {
   const compute = GPUShaderStage.COMPUTE,
     storage: GPUBufferBindingLayout = { type: 'storage' },
     readOnly: GPUBufferBindingLayout = { type: 'read-only-storage' };
-  try {
+  return validated(device, async () => {
     const module = await createCheckedShaderModule(device, MATERIAL_TILES_SHADER, 'MATERIAL_TILES');
     const layout = device.createBindGroupLayout({
       entries: [
@@ -51,10 +51,7 @@ async function classifier(device: GPUDevice) {
       compute: { module, entryPoint: 'classify' },
     });
     return { layout, pipeline };
-  } catch (error) {
-    if (error instanceof Error && error.message.startsWith('MATERIAL_TILES')) throw error;
-    return undefined;
-  }
+  });
 }
 
 /** What the classification reads each image: the visibility buffer, its page table and the
@@ -71,7 +68,7 @@ export type MaterialTileInputs = { vis: GPUTextureView; pages: GPUBuffer; unifor
 export async function createMaterialTiles(device: GPUDevice, drawLayout: GPUBindGroupLayout) {
   const classify = await classifier(device);
   const listed = classify ? MATERIAL_TILE_SLOTS : 0;
-  const slotWords = new Uint32Array(MATERIAL_CLASS_KEYS).fill(NO_MATERIAL_SLOT);
+  const slotWords = new Uint32Array(MATERIAL_CLASS_KEYS).fill(MATERIAL_TILE_SLOTS);
   const slots = device.createBuffer({
     label: 'Trillion3D material tile slots',
     size: slotWords.byteLength,
@@ -100,7 +97,7 @@ export async function createMaterialTiles(device: GPUDevice, drawLayout: GPUBind
      *  list; rewrites the table when they changed. */
     assign(keys: readonly number[]) {
       if (keys.length === held.length && keys.every((key, at) => held[at] === key)) return;
-      for (const key of held) slotWords[key] = NO_MATERIAL_SLOT;
+      for (const key of held) slotWords[key] = MATERIAL_TILE_SLOTS;
       keys.forEach((key, at) => (slotWords[key] = at < listed ? at : MATERIAL_TILE_SLOTS));
       held = keys.slice();
       device.queue.writeBuffer(slots, 0, slotWords);
@@ -159,9 +156,6 @@ export async function createMaterialTiles(device: GPUDevice, drawLayout: GPUBind
       tiles?.destroy();
       slots.destroy();
       draws.destroy();
-      tiles = undefined;
-      capacity = 0;
-      classifyGroup = drawGroup = undefined;
     },
   };
 }
