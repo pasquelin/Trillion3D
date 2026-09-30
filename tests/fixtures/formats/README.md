@@ -162,7 +162,7 @@ unique only within each ID); all Zstandard-compressed. A `Cube` mesh — six qua
 alternating by face, smooth faces with the four top edges sharp, one UV map — instanced by `CubeA`
 and `CubeB`, and an `Ngon` mesh — one flat-shaded pentagon, one corner dented and raised off its
 plane, no UV — held by `Ngon`. `src/tests/formats/blend_layouts.rs` proves the three cook to the
-same nodes, triangles, normals and UVs, bit for bit. Regenerate with
+same nodes, triangles, normals and UVs, bit for bit. Regenerate from `blend/layouts/` with
 `Blender --background --factory-startup --python layouts.py -- <out.blend>`.
 
 ### What the repository does not own
@@ -810,7 +810,7 @@ shared harness, compares the second against the first, then the first against `e
   byte moved by extraction shows there. `files` stands in for identity: the two compilations'
   equality rests on it.
 - **The three traps:** each refused by its own code, nothing extracted. Regenerate the two
-  synthetic ones with `sh traps.sh` from this folder.
+  synthetic ones with `sh traps.sh` from `unitypackage/`.
 
 `expected.json` also pins the `unitypackage` → inner driver chain, the three rejection codes, the
 files read with their fingerprint and the Unity driver counts.
@@ -858,7 +858,7 @@ the intermediate scene and the sidecar, is the real subject — then the first a
 The root layer is neither guessed nor searched: AOUSD wants the package's **first** entry to be the
 root layer, everything after it a resource, never a candidate scene; a package that does not open on
 a USD layer does not say which scene it delivers, so it is refused under its own name. Regenerate
-the three traps with `python3 traps.py` from this folder (it reproduces the committed bytes).
+the three traps with `python3 traps.py` from `usdz/` (it reproduces the committed bytes).
 `expected.json` also pins the `usdz` → `usd` chain, the two rejection codes and the two-layer
 package's triangle count. Regenerate:
 
@@ -904,5 +904,5 @@ compilations are one: the key serves only that equality, the real subject — th
 | `vide.zip` | the 22 bytes of an archive with no entry: rejection `ARCHIVE_EMPTY` |
 
 Each trap is refused by its own code, nothing extracted; regenerate the two synthetic ones with
-`sh traps.sh` from this folder. `expected.json` also pins the `zip` → inner driver chain and the
+`sh traps.sh` from `zip/`. `expected.json` also pins the `zip` → inner driver chain and the
 three rejection codes.

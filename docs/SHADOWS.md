@@ -154,7 +154,7 @@ moving depth, the moving casters drawn over it.
 
 | Cause | Pages staled | Read until redrawn? |
 | --- | --- | --- |
-| A light moves — kind, position, direction, range, cone, a rect's frame and size, emitter radius, whether it casts —, or a sun's clipmap moves its projection | every page it maps, floor included, redrawn whole at the new pose — its floors and every page the latest report named —, shaded with the light's current matrices | no: their depth is the old projection's |
+| A light moves — kind, position, direction, range, cone, a rect's frame and size, emitter radius, whether it casts —, or a sun's clipmap moves its projection | every page it maps, floor included, redrawn whole at the new pose, shaded with the light's current matrices | no: their depth is the old projection's |
 | Intensity, colour or penumbra | none | — |
 | A still caster moves, is added, removed, hidden or shown, or its material, cutout texture or residency changes | the mapped pages its projected box, where it was and where it is, covers; redrawn whole, static casters into the layer | no: their static layer is wrong |
 | An object already moving moves | the same box's pages; restored from the layer, moving casters drawn over | yes: a static shadow never vanishes while something near it moves |
@@ -204,21 +204,22 @@ report proves it reads only drawn pages.
 A placement turns moving the first time its pose or its row's flag actually changes
 (`webgpu/shadow/mobility.ts`) — a pose rewritten where it stands, or a row inside a written range,
 is no move — and stays so. From then on the pool keeps a static layer, a second depth texture the
-pool's size, allocated at that first move. A page drawn in full writes its static casters into the
-layer, restores itself from it and draws its moving casters over; a page only a mover crossed is
-restored and gets its moving casters alone, split by one word per row in the page cull. A mover
-never goes back into the layer (#993): that would cost two layer redraws per pause, static casters
-included, and a rest timer would be a scene-tuned constant; revisit only if falling boxes and a
-walker or car at 1728×1117 CSS, DPR 2, show a net gain beyond run spread, transition frames
-included.
+pool's size, allocated at that first move: a scene where nothing moves pays neither its bytes nor
+its pass. A page drawn in full writes its static casters into the layer, restores itself from it and
+draws its moving casters over; a page only a mover crossed is restored and gets its moving casters
+alone, split by one word per row in the page cull. A mover never goes back into the layer (#993):
+staying moving costs its casters only in the pages another mover makes the frame redraw, while
+rejoining would cost two layer redraws per pause, static casters included, and a rest timer would be
+a scene-tuned constant; revisit only if falling boxes and a walker or car at 1728×1117 CSS, DPR 2,
+show a net gain beyond run spread, transition frames included.
 
 Every shadow pipeline — static layer, light-cut row map, page pyramids (the camera's Hi-Z kernels),
 occlusion test and, if blended surfaces cast, transmittance draws — is compiled at prepare, in its
 own step (`shadow pipelines`, `webgpu/pages/prepare/lights.ts`), except the draws of a blended
 caster prepare did not see, compiled at its first frame.
 
-On a code-built scene with one ball moving over a static ground, 1280×720, the pages redraw 4.4
-pages a frame (6 at most) with one light cut, against 224 pages on `develop`, and the frame after
+On a code-built scene with one ball moving over a static ground, 1280×720, 4.4 pages a frame are
+redrawn (6 at most) with one light cut, against 224 pages on `develop`, and the frame after
 the motion is 0 px from a fresh render of the same pose.
 
 **Measured.** The layer costs the pool's bytes again and one restore draw per redrawn page. Paired
@@ -286,8 +287,8 @@ group and no draw (`regions.casterless`, #1210).
 
 ## Depth draws
 
-An opaque caster runs no fragment stage: the depth's fragment stage writes nothing and only discards
-a cutout's hole or the emitter envelope. The page cull files each region's casters in two lists of
+The depth's fragment stage writes nothing and only discards a cutout's hole or the emitter envelope;
+an opaque caster runs none unless its face carries an emitter envelope. The page cull files each region's casters in two lists of
 its slot (`KEPT_LISTS_WGSL`, `gpu/shadow/cullShader.ts`) by the cutout bit of the row's mobility
 word (`MOBILITY_CUTOUT`, set from the row's `FLAG_MASK` in `webgpu/shadow/bounds.ts`): opaque ones
 from the start, counted by the region's first command, cutout ones from the end down, counted by its

@@ -31,9 +31,9 @@ code, merge or block a pull request; a thumbnail pull request is the one you ope
    dropped; cut scenes, never rounds below 5. A run unfinished at batch end is named in the issue's
    comment; the issue keeps `to measure`, loses `measuring`, and the run goes first next batch.
 3. **Image** next: the proofs the `to audit` issues name (`docs/TESTS.md`), before and after, on a
-   stable A/A (a scene not at 0 px, e.g. physics or a moving camera, is frozen or replaced on the
-   same path). A before side that cannot draw (a defect fixed in the batch) is replaced by the last
-   commit that draws, named in the verdict. A batch ko, timing or image, is narrowed to its issue by
+   stable A/A (a scene whose A/A is not 0 px, e.g. physics or a moving camera, proves nothing
+   until frozen or replaced by another on the same path). A before side that cannot draw (a defect
+   fixed in the batch) is replaced by the last commit that draws, named in the verdict. A batch ko, timing or image, is narrowed to its issue by
    timing or proving that merge alone. Each pull request is proved in the class its
    `Image proof class:` line declares, per CONTRIBUTING.md "Image and fidelity" (class 2 through
    `bench.ts --reference`; a missing reference or a changed exact engine image is redrawn by
