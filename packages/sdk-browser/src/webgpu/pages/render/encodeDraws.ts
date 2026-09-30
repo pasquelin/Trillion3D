@@ -136,7 +136,15 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
       const rec = rows.packedRecs[row];
       if (!rec) continue;
       rows.pageTableFloats[row * rowWords + 56] = screenErrorRatio(
-        projectedPageError(rec, rootOf(rt.layout.selectionRoots, rec).world, cam, viewport),
+        projectedPageError(
+          rec,
+          rootOf(
+            rt.layout.selectionRoots,
+            rt.layout.placement.rootOfPacked[rows.packedPageIndex[row]],
+          ).world,
+          cam,
+          viewport,
+        ),
         run.diagnosticPixelError,
       );
       rows.markRowWords(row);

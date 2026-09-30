@@ -90,15 +90,18 @@ function scene(seed: number) {
   }
   if (drawn.length) drawn.push(drawn[pick(drawn.length)]);
   drawn.push({ ...packedPages[0], transparent: true } as PageRec);
-  return { table, drawn: next() < 0.05 ? [] : drawn, entryOf, roots };
+  return { table, drawn: next() < 0.05 ? [] : drawn, entryOf, roots, pageOf };
 }
 
 test('CPU transparent instances are word for word those of the lookup by placement', () => {
   for (let seed = 1; seed <= 300; seed++) {
-    const { table, drawn, entryOf, roots } = scene(seed);
+    const { table, drawn, entryOf, roots, pageOf } = scene(seed);
     const blendState = createWebgpuBlendState();
     blendState.table = table;
-    writeCpuTransparentInstances(blendState, drawn, entryOf);
+    const drawnPacked = drawn.map((rec) => pageOf.get(rec) ?? -1);
+    writeCpuTransparentInstances(blendState, drawn, drawnPacked, (packed) =>
+      packed < 0 ? -1 : table.entryOfPage[packed],
+    );
     const expected = developInstances(table, drawn, entryOf, roots);
     assert.deepEqual(
       {

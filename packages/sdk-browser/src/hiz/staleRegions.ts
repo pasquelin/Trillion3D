@@ -1,10 +1,9 @@
 import { HIZ_BOUNDS_VALUES } from './corners.ts';
-import { boundsFor, projectBoxesFlat } from './projection.ts';
-import { IDENTITY_ELEMENTS } from '../math/matrixElements.ts';
+import { IDENTITY_LOCATIONS, boundsFor, projectBoxesFlat } from './projection.ts';
 import type { EngineCamera } from '../camera/world.ts';
 import type { HizPage } from './types.ts';
 import type { TemporalHizState } from './temporal.ts';
-import type { Placements } from '../page/selection/placements.ts';
+import type { PageLocations } from '../page/selection/placements.ts';
 
 /**
  * THE REGIONS OF THE TEMPORAL PYRAMID A MOVE STALED (CPU-14). A moved root leaves the history's
@@ -29,14 +28,13 @@ export function staleTemporalBox(
   (history.stale ??= []).push({ min: box.slice(0, 3), max: box.slice(3), placementIndex: 0 });
 }
 
-/** A staled box is a world box: the one root it ranks places it by the identity. */
-const WORLD: Placements = [{ world: { elements: IDENTITY_ELEMENTS } }];
 let staleBounds = new Float64Array(HIZ_BOUNDS_VALUES);
 
-/** Adds to `kept` every page of `pages` (placed by `roots`) whose rectangle meets a staled region, seen from `cam`. */
+/** Adds to `kept` every page of `pages` (located by `locations`) whose rectangle meets a staled
+ *  region, seen from `cam`. */
 export function keepStaleRegions<T extends HizPage>(
   pages: readonly T[],
-  roots: Placements,
+  locations: PageLocations,
   stale: readonly HizPage[],
   cam: EngineCamera,
   viewport: [number, number],
@@ -44,9 +42,9 @@ export function keepStaleRegions<T extends HizPage>(
 ) {
   const need = stale.length * HIZ_BOUNDS_VALUES;
   if (staleBounds.length < need) staleBounds = new Float64Array(need);
-  projectBoxesFlat(stale, WORLD, stale.length, cam, viewport, staleBounds);
+  projectBoxesFlat(stale, IDENTITY_LOCATIONS, stale.length, cam, viewport, staleBounds);
   const bounds = boundsFor(pages.length);
-  projectBoxesFlat(pages, roots, pages.length, cam, viewport, bounds);
+  projectBoxesFlat(pages, locations, pages.length, cam, viewport, bounds);
   for (let i = 0; i < pages.length; i++) {
     const at = i * HIZ_BOUNDS_VALUES;
     for (let s = 0; s < need; s += HIZ_BOUNDS_VALUES)

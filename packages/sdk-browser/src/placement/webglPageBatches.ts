@@ -79,9 +79,11 @@ export function createWebglPageBatches(scene: Scene, roots: Placements, draws: P
     rowsWritten() {
       rowsWritten = true;
     },
-    /** Draws `shown` — records placed by rows, each with its geometry — this frame. */
-    draw(shown: readonly PageRec[]) {
+    /** Draws `shown` — records placed by rows, each with its geometry, and the packed rank of each
+     *  instance (`shownPacked`, #1235) — this frame. */
+    draw(shown: readonly PageRec[], shownPacked: readonly number[]) {
       if (unchanged(shown)) return;
+      const rootOfPacked = draws.placement.rootOfPacked;
       for (const bySurface of groups.values())
         for (const group of bySurface.values()) group.count = 0;
       for (const rec of shown) groupOf(rec).count++;
@@ -101,9 +103,14 @@ export function createWebglPageBatches(scene: Scene, roots: Placements, draws: P
         }
         if (!bySurface.size) groups.delete(geometry);
       }
-      for (const rec of shown) {
-        const group = groupOf(rec);
-        setHostInstance(group.mesh!, group.count++, rootOf(roots, rec).world);
+      for (let i = 0; i < shown.length; i++) {
+        const rec = shown[i],
+          group = groupOf(rec);
+        setHostInstance(
+          group.mesh!,
+          group.count++,
+          rootOf(roots, rootOfPacked[shownPacked[i]]).world,
+        );
       }
       for (const bySurface of groups.values())
         for (const group of bySurface.values()) setHostInstanceCount(group.mesh!, group.count);

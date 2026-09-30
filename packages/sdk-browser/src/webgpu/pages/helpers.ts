@@ -58,7 +58,25 @@ export function partitionByPass(source: readonly PageRec[], transparent: boolean
     if (!!source[i].transparent === transparent) into.push(source[i]);
   return into;
 }
-type DrawnMirror = { shown: PageRec[]; drawn: PageRec[]; drawnMirrorsShown: boolean };
+/** The packed ranks of `partitionByPass`, in the same order: the two lists stay parallel. */
+export function partitionPacked(
+  source: readonly PageRec[],
+  packed: readonly number[],
+  transparent: boolean,
+  into: number[],
+) {
+  into.length = 0;
+  for (let i = 0; i < source.length; i++)
+    if (!!source[i].transparent === transparent) into.push(packed[i]);
+  return into;
+}
+type DrawnMirror = {
+  shown: PageRec[];
+  shownPacked: number[];
+  drawn: PageRec[];
+  drawnPacked: number[];
+  drawnMirrorsShown: boolean;
+};
 type DrawnMirrorFlag = Pick<DrawnMirror, 'drawnMirrorsShown'>;
 /**
  * Sole owner of the `drawnMirrorsShown` flag: true when `drawn` is the copy of `shown` as it
@@ -82,9 +100,15 @@ export function copyPages<T>(target: T[], source: readonly T[]) {
   for (let i = 0; i < source.length; i++) target[i] = source[i];
   target.length = source.length;
 }
+/** The same for packed ranks, from a typed list: `target` takes `source`'s live length. */
+export function copyPacked(target: number[], source: ArrayLike<number>) {
+  for (let i = 0; i < source.length; i++) target[i] = source[i];
+  target.length = source.length;
+}
 /** Remakes `drawn` from `shown`, whether the flag is raised or not. */
 export function copyDrawnFromShown(run: DrawnMirror) {
   copyPages(run.drawn, run.shown);
+  copyPages(run.drawnPacked, run.shownPacked);
   markDrawnMirrored(run);
 }
 /** Remakes `drawn` from `shown` if it is no longer the copy of it; returns true if it did. */

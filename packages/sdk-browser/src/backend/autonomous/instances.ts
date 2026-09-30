@@ -8,7 +8,7 @@ import type { createAutonomousGeometry } from './geometry.ts';
 import type { PageDraws } from './pageDraws.ts';
 import { createPaints } from './paints.ts';
 import { composedPose, deplaceInstance } from './instancePose.ts';
-import { attachedPages, drawnInstanced } from '../../placement/autonomousPlacements.ts';
+import { attachedPages, drawnInstancedAt } from '../../placement/autonomousPlacements.ts';
 import type { HeldFloor } from './heldFloor.ts';
 import { blendMoves, type AlphaChange } from '../../placement/backendSceneUpdates.ts';
 import type { SurfaceAssignment } from '../../placement/backendSceneUpdates.ts';
@@ -66,8 +66,9 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
     materialClassRefusal(alpha: AlphaChange) {
       const unpaged = unpagedRefusal(allPages, alpha);
       if (unpaged) return unpaged;
-      const instanced = (rec: PageRec) => drawnInstanced(roots, rec, blendOf(rec, alpha));
-      if (blendMoves(alpha) && overCeiling(0, attachedPages(bootstrap, roots, instanced)))
+      const instanced = (rec: PageRec) =>
+        drawnInstancedAt(roots, draws.rootRankOf(rec), rec, blendOf(rec, alpha));
+      if (blendMoves(alpha) && overCeiling(0, attachedPages(bootstrap, instanced)))
         return 'AUTONOMOUS_ROOT_BUDGET: the cover would hang more meshes than the host allows';
     },
     /** Classic instances held: each holds its own copy of every page geometry. */

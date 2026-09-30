@@ -1,7 +1,7 @@
 import type { GpuCut, GpuSelection, SelectionUniforms } from '../../gpu/core/selection.ts';
 import { sameSelectionUniforms } from '../../gpu/core/selection.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
-import { copyPages } from '../pages/helpers.ts';
+import { copyPages, copyPacked } from '../pages/helpers.ts';
 import type { CutDelta } from './delta.ts';
 
 /**
@@ -16,7 +16,11 @@ export function createWebgpuCutAdopter(options: {
   selection: () => GpuSelection | undefined;
   desired: PageRec[];
   shown: PageRec[];
+  /** The packed rank of each shown page, rank by rank (#1235). */
+  shownPacked: number[];
   drawn: PageRec[];
+  /** The packed rank of each drawn page, rank by rank. */
+  drawnPacked: number[];
   uniforms: SelectionUniforms;
   delta: CutDelta;
   /** The drawable cut as a difference, kept apart because it is not the cut that was asked for. */
@@ -117,6 +121,8 @@ export function createWebgpuCutAdopter(options: {
       // second time in the catalogue, at sparse ranks, would yield exactly the same array.
       copyPages(shown, options.drawnPages);
       copyPages(drawn, shown);
+      copyPacked(options.shownPacked, drawnDelta.ids);
+      copyPacked(options.drawnPacked, drawnDelta.ids);
       options.onDrawnMirrored();
       shownCut = cut;
       shownSeq = drawnSeq;
