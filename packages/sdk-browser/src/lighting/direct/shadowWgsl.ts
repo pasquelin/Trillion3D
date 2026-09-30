@@ -159,10 +159,7 @@ fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32,
  let offset=shadowOffset(homeWord,home);
  let step=vec2i(shadowPcfStep(t.x,first.x),shadowPcfStep(t.y,first.y));
  let up=step>vec2i(0);
- var nx=vec4f(offset,0.0);var ny=nx;var nd=nx;
- if(edge.x){nx=shadowNeighbour(m,home+vec2i(step.x,0),offset,homeWord,t);}
- if(edge.y){ny=shadowNeighbour(m,home+vec2i(0,step.y),offset,homeWord,t);}
- if(all(edge)){nd=shadowNeighbour(m,home+step,offset,homeWord,t);}
+ let n=shadowNeighbours(m,home,step,edge,offset,homeWord,t);
  if(!taps){return 0.0;}
  var lit=0.0;
  if(!any(edge)){
@@ -177,23 +174,34 @@ fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32,
  for(var tap=0u;tap<PCF_TAPS;tap++){
   var at=t+shadowRotated(POISSON[tap]);
   if(side>0.0){at=clamp(at,vec2f(0.5),vec2f(side-0.5));}
-  lit+=shadowSplitTap(offset,nx,ny,nd,edge,up,first,at,reference);
+  lit+=shadowSplitTap(offset,n,edge,up,first,at,reference);
  }
  return shadowThroughLit(offset,first,t,reference,lit/f32(PCF_TAPS));
 }
+/** The neighbours of page \`home\` a tap reads across the \`edge\` axes, toward \`step\`: along x,
+ *  along y and across the corner (\`shadowNeighbour\`). Shared by \`shadowPcf\` and the PCSS filter
+ *  (\`lampSoftCompare\`). */
+struct ShadowNeighbours{x:vec4f,y:vec4f,d:vec4f,}
+fn shadowNeighbours(m:ShadowMap,home:vec2i,step:vec2i,edge:vec2<bool>,offset:vec3f,word:u32,t:vec2f)->ShadowNeighbours{
+ var nx=vec4f(offset,0.0);var ny=nx;var nd=nx;
+ if(edge.x){nx=shadowNeighbour(m,home+vec2i(step.x,0),offset,word,t);}
+ if(edge.y){ny=shadowNeighbour(m,home+vec2i(0,step.y),offset,word,t);}
+ if(all(edge)){nd=shadowNeighbour(m,home+step,offset,word,t);}
+ return ShadowNeighbours(nx,ny,nd);
+}
 /** \`shadowCompare\` at \`at\` split along the home page's seams (\`up\`): each page's share of the
- *  footprint, \`saturate(0.5 + distance to the seam)\`, read in that page, the neighbours \`nx\`, \`ny\`,
- *  \`nd\` on the \`edge\` axes. Shared by \`shadowPcf\` and the PCSS filter (\`lampSoftCompare\`). */
-fn shadowSplitTap(offset:vec3f,nx:vec4f,ny:vec4f,nd:vec4f,edge:vec2<bool>,up:vec2<bool>,first:vec2f,at:vec2f,reference:f32)->f32{
+ *  footprint, \`saturate(0.5 + distance to the seam)\`, read in that page, the neighbours \`n\` on
+ *  the \`edge\` axes. Shared by \`shadowPcf\` and the PCSS filter (\`lampSoftCompare\`). */
+fn shadowSplitTap(offset:vec3f,n:ShadowNeighbours,edge:vec2<bool>,up:vec2<bool>,first:vec2f,at:vec2f,reference:f32)->f32{
  let toward=select(vec2f(-1.0),vec2f(1.0),up);
  let seam=first+select(vec2f(0.0),vec2f(SHADOW_PAGE),up);
  let h=clamp(at,first+0.5,first+SHADOW_PAGE-0.5);
- let n=select(min(at,seam-0.5),max(at,seam+0.5),up);
+ let beyond=select(min(at,seam-0.5),max(at,seam+0.5),up);
  let w=saturate(0.5+(seam-at)*toward);
  var sum=w.x*w.y*shadowCompare(offset,h,reference);
- if(edge.x){sum+=(1.0-w.x)*w.y*shadowCompare(nx.xyz,vec2f(select(h.x,n.x,nx.w>0.0),h.y),reference);}
- if(edge.y){sum+=w.x*(1.0-w.y)*shadowCompare(ny.xyz,vec2f(h.x,select(h.y,n.y,ny.w>0.0)),reference);}
- if(all(edge)){sum+=(1.0-w.x)*(1.0-w.y)*shadowCompare(nd.xyz,select(h,n,nd.w>0.0),reference);}
+ if(edge.x){sum+=(1.0-w.x)*w.y*shadowCompare(n.x.xyz,vec2f(select(h.x,beyond.x,n.x.w>0.0),h.y),reference);}
+ if(edge.y){sum+=w.x*(1.0-w.y)*shadowCompare(n.y.xyz,vec2f(h.x,select(h.y,beyond.y,n.y.w>0.0)),reference);}
+ if(all(edge)){sum+=(1.0-w.x)*(1.0-w.y)*shadowCompare(n.d.xyz,select(h,beyond,n.d.w>0.0),reference);}
  return sum;
 }
 ${SHADOW_FACTOR_WGSL}
