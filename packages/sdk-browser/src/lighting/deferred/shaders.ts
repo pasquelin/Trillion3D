@@ -93,16 +93,22 @@ ${contractSurface('+mirrorLighting(base.rgb,base.a,normal.a,N,V,P)')}`;
  * added to the direct; without, a specular lobe reflects the environment alone (#1341). It is a
  * separate program, not a branch, so a session without bounce never pays for the probes — and so
  * is the `narrow` one, the resolve of a scene of at most `TILE_LIGHTS` lights
- * (`directLightingWgsl`, #849).
+ * (`directLightingWgsl`, #849), and the one without `shadowed`, of a scene no light of which holds
+ * a shadow slot (#1249).
  */
-export const contractLightingShader = (bounce: boolean, narrow: boolean, pages = SUN_WINDOW) => `
+export const contractLightingShader = (
+  bounce: boolean,
+  narrow: boolean,
+  pages = SUN_WINDOW,
+  shadowed = true,
+) => `
 ${VIEW_WGSL}
 ${surfaceBindingsWgsl()}
 @group(0) @binding(${SUBSURFACE_BINDING}) var subsurfaceColor:texture_2d<f32>;
 @group(0) @binding(${SHADING_OFFSET_BINDING}) var<storage,read> shadingOffset:array<f32>;
 ${CONTRACT_BINDINGS_WGSL}
 ${STANDARD_LIGHTING_WGSL}
-${directLightingWgsl(narrow, pages)}
+${directLightingWgsl(narrow, pages, shadowed)}
 ${bounce ? BOUNCE_SURFACE_WGSL : DIRECT_SURFACE_WGSL}`;
 export const DIRECT_LIGHTING_SHADER = contractLightingShader(false, false);
 export const BOUNCE_LIGHTING_SHADER = contractLightingShader(true, false);
