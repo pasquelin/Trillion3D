@@ -112,7 +112,9 @@ export function packRelease(options: {
     if (publishable) writeFileSync(path, `${JSON.stringify(manifest, null, 2)}\n`);
     let packed: PackResult & { filename: string };
     try {
-      packed = packArchive(run, pnpm, folder, out);
+      // `pnpm pack` drops the execute bit of a file its `bin` does not name, `npm pack` keeps it:
+      // a compiler packed by pnpm installs as a program nobody may run.
+      packed = packArchive(run, folder === root ? pnpm : 'npm', folder, out);
     } finally {
       if (publishable) writeFileSync(path, original);
     }
