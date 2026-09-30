@@ -108,6 +108,9 @@ export const PAGE_INDEX_MASK = 0xffff;
 export const SUN_DEPTH_RANGES = (POINT_FACES * 16) / 2;
 export const PAGE_RANGE_SHIFT = 18;
 export const PAGE_RANGE_MASK = 2 ** Math.ceil(Math.log2(SUN_DEPTH_RANGES)) - 1;
+/** In a word the host sends the GPU and never in a table (`wordsWgsl.ts`): the page is withdrawn,
+ *  whoever drew it, the GPU included. A word not valid has no range: it takes the range's bit. */
+export const PAGE_WITHDRAWN = 1 << PAGE_RANGE_SHIFT;
 /** Pages a side of one layer of the pool: an 8 192-texel square, the largest 2D texture side
  *  WebGPU guarantees on every device (the default `maxTextureDimension2D`). */
 const LAYER_SIDE = Math.floor(8192 / SHADOW_PAGE);

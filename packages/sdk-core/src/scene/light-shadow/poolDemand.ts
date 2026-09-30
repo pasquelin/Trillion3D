@@ -41,8 +41,9 @@ export const demandPoolPages = (asked: number) =>
 export const SHRINK_REPORTS = 60;
 
 /** What the pool follows between reports: the last report weighed, how many in a row asked for a
- *  pool half as large, the most they asked. */
-export const createPoolDemand = () => ({ latest: -1, low: 0, peak: 0 });
+ *  pool half as large, the most they asked, and whether the last one asked more than the pool
+ *  holds (`over`). */
+export const createPoolDemand = () => ({ latest: -1, low: 0, peak: 0, over: false });
 export type PoolDemand = ReturnType<typeof createPoolDemand>;
 
 /**
@@ -58,6 +59,7 @@ export function followDemand(plan: ShadowPlan, demand: PoolDemand) {
   const asked = askedPages(plan),
     pages = plan.pool.pages,
     wanted = demandPoolPages(asked);
+  demand.over = 2 * asked > pages;
   if (2 * asked > pages || 2 * wanted > pages) {
     demand.low = demand.peak = 0;
     return 2 * asked > pages ? wanted : undefined;
