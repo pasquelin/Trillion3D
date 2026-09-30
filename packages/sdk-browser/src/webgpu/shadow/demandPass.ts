@@ -1,5 +1,6 @@
 import { computePass, type ComputeBinding } from './computePass.ts';
-import { SHADOW_DEMAND_GROUP, SHADOW_DEMAND_WGSL } from './demandWgsl.ts';
+import { SHADOW_DEMAND_GROUP, shadowDemandWgsl } from './demandWgsl.ts';
+import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /** Label of the demand pass, as a frame's passes are timed. */
@@ -34,11 +35,12 @@ const BINDINGS: ComputeBinding[] = [
 
 /**
  * The per-pixel demand of shadow pages (`demandWgsl.ts`): a compute pass of the shadow page
- * passes (`computePass.ts`), compiled at prepare. It owns no buffer: it reads the frame's own and
- * marks the request buffer the resolve records into, before the shadow pages are drawn.
+ * passes (`computePass.ts`), compiled at prepare for the session's window. It owns no buffer: it
+ * reads the frame's own and marks the request buffer the resolve records into, before the shadow
+ * pages are drawn.
  */
-export const createShadowDemand = (device: GPUDevice) =>
-  computePass(device, SHADOW_DEMAND_WGSL, SHADOW_DEMAND_PASS, 'markShadowDemand', BINDINGS);
+export const createShadowDemand = (device: GPUDevice, pages = SUN_WINDOW) =>
+  computePass(device, shadowDemandWgsl(pages), SHADOW_DEMAND_PASS, 'markShadowDemand', BINDINGS);
 
 export type ShadowDemand = Awaited<ReturnType<typeof createShadowDemand>>;
 

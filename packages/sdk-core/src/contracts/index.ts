@@ -1,4 +1,5 @@
 export * from './base.ts';
+export * from './impostor.ts';
 export * from './metrics.ts';
 export * from './geometry.ts';
 export * from '../page/contracts.ts';

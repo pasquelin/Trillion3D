@@ -5,6 +5,7 @@ import { worldStretch } from './logic.ts';
 import {
   IDENTITY_WORLD,
   createSelectionResult,
+  fitPacked,
   selectionScratch,
   selectionState,
   type PageRecord,
@@ -37,6 +38,11 @@ export function selectVisiblePages<T extends PageRecord>(
     result?: SelectionResult<T>;
     /** Selects shadow casters from a light into these pages (`SelectionState.light`). */
     light?: LightPages;
+    /** Per-root suppression of the impostor plan (`ImpostorPlan.switched`, #1239/#1314): one entry
+     *  per root, `1` at a switched root. The plan already tied the switch to its card, so a `1`
+     *  here is the whole decision: the root's clusters are skipped and its card is drawn instead.
+     *  Absent, every root is cut as before — WebGL2 and a pre-impostor cache keep their behaviour. */
+    switched?: ArrayLike<number>;
   },
   into?: T[],
 ): SelectionResult<T> {
@@ -47,13 +53,26 @@ export function selectVisiblePages<T extends PageRecord>(
   // computes them once, for all of its consumers, and nothing is copied here.
   const worldPlanes = cam.planes;
   pixelScaleOf(cam.projection, viewport, selectionScratch.pixelScale);
+  const result = options.result ?? createSelectionResult<T>();
   const shown = into ?? ([] as T[]);
   const wanted = options.wanted ?? ([] as T[]);
+  // The packed lists are the result's own, parallel to the records, written by the same `keep`
+  // (rank by rank). The cut cannot name more instances than the roots hold pages: their two
+  // `Int32Array`s are widened once to that capacity and their end is the two record counts, so a
+  // reader walks `shownPacked[0 .. shown.length)` and no stale tail is ever read.
+  let capacity = 0;
+  for (const root of roots) capacity += root.pages.length;
+  result.shownPacked = fitPacked(result.shownPacked, capacity);
+  result.wantedPacked = fitPacked(result.wantedPacked, capacity);
+  const shownPacked = result.shownPacked,
+    wantedPacked = result.wantedPacked;
   // Cut state is set on the reused object: a render image allocates nothing here.
   const state = selectionState<T>();
   state.cam = cam;
   state.wanted = wanted;
   state.shown = shown;
+  state.wantedPacked = wantedPacked;
+  state.shownPacked = shownPacked;
   state.light = options.light;
   state.held = held;
   state.pixelError = options.pixelError ?? 0;
@@ -73,10 +92,13 @@ export function selectVisiblePages<T extends PageRecord>(
   state.nodesTested = 0;
   state.lodLevel = 0;
   state.complete = true;
-  for (const root of roots) {
+  const { switched } = options;
+  for (let rank = 0; rank < roots.length; rank++) {
+    const root = roots[rank];
     // A parked instance-buffer row places nothing: its root waits in the tables, untested. A
-    // light's cut takes no root that casts no shadow.
-    if (root.parked || castsNoShadow(root.mark, state.light)) continue;
+    // light's cut takes no root that casts no shadow. A switched root is drawn by its card
+    // (`planImpostors`): its clusters are dropped here, in the same breath as the card it yields.
+    if (root.parked || castsNoShadow(root.mark, state.light) || switched?.[rank]) continue;
     const box = root.worldBox,
       // A deformation's reach, in the world: its units stretched by the root's placement (#357).
       g = root.reach ? root.reach * worldStretch(root) : 0;
@@ -100,8 +122,10 @@ export function selectVisiblePages<T extends PageRecord>(
     multiplyMatrix4(viewMatrix, cam.view, rootWorld);
     selectFlat(state, root);
   }
-  // The cut is finished: both lists take their length here, and only once. They thus keep their
-  // capacity from one image to the next.
+  // The cut is finished: the record lists take their length here, and only once. The packed lists
+  // keep their buffer whole — the records are their count, rank by rank, and a reader walks them
+  // together —, so neither the records nor the packed ranks lose their capacity from one image to
+  // the next.
   shown.length = state.shownCount;
   wanted.length = state.wantedCount;
   // Both sums are held as a running total: no more sweep of the records after the cut.
@@ -109,7 +133,6 @@ export function selectVisiblePages<T extends PageRecord>(
   let selectedTriangles = state.wantedTriangles;
   if (!wanted.length) selectedTriangles = displayedTriangles;
   // The result is written into the caller's object when it supplies one: nothing is allocated.
-  const result = options.result ?? createSelectionResult<T>();
   result.shown = shown;
   result.wanted = wanted;
   result.visible = wanted.length || shown.length;

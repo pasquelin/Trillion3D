@@ -9,6 +9,7 @@ import {
 import { blendFixture, camera } from './blend.fixture.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 import { createHeldResidency } from '../cut/held.ts';
+import { createSelectionResult } from '../cut/state.ts';
 
 /** Two frames of one view agree on what they show, want and reject. */
 function assertSameCut(first: SelectionResult<PageRec>, second: SelectionResult<PageRec>) {
@@ -36,19 +37,7 @@ test('a cut frame reuses its flat table, result and arrays: it allocates nothing
   const table = roots[0].culling,
     shown: PageRec[] = [],
     wanted: PageRec[] = [];
-  const result: SelectionResult<PageRec> = {
-    shown,
-    wanted,
-    visible: 0,
-    selectedTriangles: 0,
-    displayedTriangles: 0,
-    frustumRejected: 0,
-    nodesTested: 0,
-    lodLevel: 0,
-    complete: true,
-    uncoveredTriangles: 0,
-    pixelError: 0,
-  };
+  const result = createSelectionResult<PageRec>();
   const cam = camera(),
     ask = {
       pixelError: 100,

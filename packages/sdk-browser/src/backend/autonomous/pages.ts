@@ -6,6 +6,7 @@ import { createAutonomousRender, createAutonomousRenderState } from './render.ts
 import { autonomousCapabilities, publishAutonomousCapabilities } from './capabilities.ts';
 import { createWebglFrameGate } from '../../webgl/core/frameGate.ts';
 import { createAutonomousGeometry } from './geometry.ts';
+import { createPageDraws } from './pageDraws.ts';
 import { createAutonomousInstances } from './instances.ts';
 import { createClassPages } from './classPages.ts';
 import { prepareAutonomousManifest, autonomousBootstrap, readPages } from './manifest.ts';
@@ -40,8 +41,10 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     pageDefault = context.residentPagesDefault ?? Math.max(1024, bootstrapUrls.size),
     cap = hostCeiling < Infinity ? hostCeiling : pageDefault,
     scene = hostPageScene(blendCopies);
-  const baseMaterials = new Map(allPages.map((rec) => [rec, rec.declaration] as const)),
-    declared = () => baseMaterials.values(), // every page's surface: the draw's census (#840)
+  const draws = createPageDraws(roots);
+  for (const rec of allPages) draws.drawing(rec).material = rec.declaration;
+  const declared = () =>
+      allPages.flatMap((rec) => (draws.materialOf(rec) ? [draws.materialOf(rec)!] : [])),
     colorMaterials = new Map<HostMaterial, HostMaterial>(),
     modifiedPages = new Set<string>();
   const state = createAutonomousRenderState(),
@@ -55,13 +58,13 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
   let ready = false;
   const geometryStore = createAutonomousGeometry({
     ...{ scene, roots, allPages, bootstrap, views, byUrl, descriptors },
-    ...{ baseMaterials, colorMaterials, modifiedPages, deformWord: deformation.wordOf },
+    ...{ draws, colorMaterials, modifiedPages, deformWord: deformation.wordOf },
   });
   const { sync, acceptGeometryPage } = geometryStore;
-  const classes = createClassPages({ context, roots, geometryStore, wears, gate });
+  const classes = createClassPages({ context, roots, draws, geometryStore, wears, gate });
   // The tables a placement enters: instances and instance-buffer rows append to the same.
-  const tables = { roots, allPages, bootstrap, byUrl, baseMaterials, blendOf };
-  const heldFloor = createHeldFloor({ roots, bootstrap, modifiedPages, byUrl, hostCeiling });
+  const tables = { roots, allPages, bootstrap, byUrl, draws, blendOf };
+  const heldFloor = createHeldFloor({ roots, bootstrap, modifiedPages, byUrl, draws, hostCeiling });
   const ceiling =
     hostCeiling < Infinity ? () => hostCeiling : () => Math.max(pageDefault, heldFloor.meshes());
   const { disposeOwnedMaterials, instanceCount, ...instances } = createAutonomousInstances({
@@ -97,7 +100,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     views,
   });
   const frame = createAutonomousRender({
-    ...{ state, context, gate, lighting, roots, blendCopies, worlds, deformation, ceiling },
+    ...{ state, context, gate, lighting, roots, draws, blendCopies, worlds, deformation, ceiling },
     view: views.live,
     revision: () => heldFloor.placements,
     geometry: geometryStore,
