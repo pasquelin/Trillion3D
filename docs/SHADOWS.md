@@ -140,7 +140,9 @@ cache (`splitMemoryBudget`). The batches' buffers (`gpu/shadow/batchBudget.ts`, 
   take (withdrawn on a light move, or overwritten for another entry). One workgroup composes the
   listed pages into regions, every one of them, as the reference engine's virtual shadow maps draw every page a
   frame marks (#1363): a region whose pairs the list could not all hold is left short and waits,
-  unread, the reader on the coarser level (`webgpu/shadow/freshWgsl.ts`) —, each view composed from its
+  unread, the reader on the coarser level, and the frame after such an overflow picks only as many
+  pages as the list holds every caster row of, so none waits forever (`webgpu/shadow/freshWgsl.ts`)
+  —, each view composed from its
   light's record by the host's page view model (`pageViewModel.ts`: a lamp page is its face's clip
   cropped to it, a sun page its view cropped by the orthography), its cull volume a lamp page's cone
   or a sun page's box. The pair cull tests every caster row against every region
