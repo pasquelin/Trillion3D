@@ -18,6 +18,7 @@ import { refreshBlendScene } from '../../blend/resources.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { followLiveTextures } from '../io/memory.ts';
 import { beginTaaFrame, restartTaaOnLanding } from '../../../taa/frame.ts';
+import { frameStart } from '../../../frame/scheduling.ts';
 
 /** Renders one image: refreshes the scene inputs a row depends on, then hands the frame to the GPU
  *  cut when it is available and to the CPU reference cut otherwise. */
@@ -32,10 +33,10 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
   if (!gpuDevice || !gpu.cache) throw new Error('WEBGPU_UNAVAILABLE');
   const marks = rt.timing.marks;
   marks.preStart = performance.now();
-  // The display's cadence, read on the main view's frames: the render-scale budget, and its cost
-  // where the device cannot timestamp.
+  // The display's cadence, read on the main view's frames at the frame's rAF timestamp: the
+  // render-scale budget, and its cost where the device cannot timestamp.
   if (rt.views.active === rt.views.main && !capture.capturing)
-    rt.scale.tick(marks.preStart, rt.timing.gpuTiming?.supported === true);
+    rt.scale.tick(frameStart(), rt.timing.gpuTiming?.supported === true);
   run.lastCamera = camera;
   // Image entry: order and its guarantees live in `../../../frame/gateCore.ts`, which also copies the host
   // camera into the engine's — everything that follows only reads the latter. The list of nodes
