@@ -136,8 +136,8 @@ export function createSelectionResult<T>(): SelectionResult<T> {
  * a cut that has been seen reuses its two lists for life, and a larger one allocates once.
  */
 export function fitPacked(list: Int32Array, needed: number): Int32Array {
-  if (list.buffer.byteLength / 4 >= needed) return list;
-  let size = Math.max(8, list.buffer.byteLength / 4);
+  if (list.length >= needed) return list;
+  let size = Math.max(8, list.length);
   while (size < needed) size <<= 1;
   return new Int32Array(size);
 }
