@@ -2,7 +2,7 @@ import { deviceMade, grantPending, startGrant } from '../../gpu/core/errorScope.
 import { layerViews } from '../../gpu/shadow/layers.ts';
 import { createShadowPageMover } from '../../gpu/shadow/pageMoves.ts';
 import { shadowTransmittanceBytes } from '../../gpu/shadow/transmittance.ts';
-import { shadowBufferBytes, type GpuShadowAtlas } from '../../gpu/shadow/atlas.ts';
+import type { GpuShadowAtlas } from '../../gpu/shadow/atlas.ts';
 import { admitShadowBytes, noteShadowPressure, shadowPoolHeld } from './memoryGrant.ts';
 import { disposeStaticLayer, type WebgpuLightState } from '../pages/state/lights.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
@@ -159,8 +159,7 @@ function layerFits(
   layers: number,
 ) {
   const { lights } = rt,
-    buffers = shadowBufferBytes(lights.plan.table.entries),
-    heldBytes = shadowPoolHeld(lights) - atlas.allocationBytes + buffers + poolBytes,
+    heldBytes = shadowPoolHeld(lights) - atlas.allocationBytes + atlas.bufferBytes + poolBytes,
     requestedBytes = shadowTransmittanceBytes(side, layers);
   if (admitShadowBytes(lights.memory, heldBytes, requestedBytes)) return true;
   noteShadowPressure(lights.memory, 'transmittance-over-grant');

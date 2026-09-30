@@ -125,7 +125,12 @@ export function mockGpu({
       const target = [...(desc.fragment?.targets ?? [])][0];
       if (rejectR32 && target?.format === 'r32uint') throw new Error('NO_R32UINT');
       const blend = target?.blend;
-      return { entryPoint: desc.vertex?.entryPoint, fragment: desc.fragment?.entryPoint, blend };
+      return {
+        entryPoint: desc.vertex?.entryPoint,
+        fragment: desc.fragment?.entryPoint,
+        blend,
+        getBindGroupLayout: () => ({}),
+      };
     },
     createBindGroup: (desc: unknown) => desc,
     createCommandEncoder: createMockCommandEncoderFactory({

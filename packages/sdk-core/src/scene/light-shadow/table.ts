@@ -72,6 +72,11 @@ export function createShadowTable(poolPages: number, pages = SUN_WINDOW) {
       0,
     ),
     entries,
+    /** Words from the first slice's span to the end of the highest slice's ever claimed, one span
+     *  at least: what the GPU table holds (`gpu/shadow/shadowData.ts`), as the reference engine gives page-table
+     *  entries only to the lights in use. Never shrunk: a freed slice's pages may still be named
+     *  by the GPU's pool until it evicts them. A data field: the table keeps fast properties. */
+    heldEntries: stride,
     /** Rises whenever a range is claimed or freed: requests read against another layout drop. */
     layoutEpoch: 0,
     /** Rises with every word that changes: what the shading reads, and so asks, changed. */
@@ -82,6 +87,7 @@ export function createShadowTable(poolPages: number, pages = SUN_WINDOW) {
       if (base[slice] >= 0 && size[slice] === count) return;
       base[slice] = slice * stride;
       size[slice] = count;
+      table.heldEntries = Math.max(table.heldEntries, (slice + 1) * stride);
       table.layoutEpoch++;
     },
     /** Frees the range of `slice`; its words must already be unmapped by the caller. */
