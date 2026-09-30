@@ -5,9 +5,15 @@ use crate::compiler_tables::partition::split::halving;
 use std::{cell::RefCell, ops::Range};
 
 /// What a run reports of each primitive — how many of its pages it found already built — rather
-/// than what it built: the head keeps it, one per primitive, so a rebuild writes the same mesh
-/// pages and the same region pages naming them.
-pub(super) const RUN_REPORT: &str = "reusedPages";
+/// than what it built: no page keeps it, so a cold and a warm compile write the same bytes (#1370);
+/// the run's result and its pointer carry it.
+pub(crate) const RUN_REPORT: &str = "reusedPages";
+
+/// Whether the metric `name` is what a run measured of itself — a time, its memory peak — rather
+/// than what it built: the head leaves it to the run's result and pointer (#1370).
+pub(super) fn is_run_measure(name: &str) -> bool {
+    name.ends_with("Ms") || name == "peakRssBytes"
+}
 
 /// `page` without the run's report of its primitives.
 pub(super) fn without_run_report(mut page: Value) -> Value {
