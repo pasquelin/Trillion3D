@@ -5,7 +5,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PAGE } from './pool.fixture.ts';
 import { mount } from './poolCut.fixture.ts';
-import { createWebglViews, VIEW_KEYS as KEYS, type WebglView } from './views.ts';
+import { createWebglViews, type WebglView } from './views.ts';
+import { VIEW_KEYS as KEYS } from './viewKeys.ts';
 import { createAutonomousResidency } from './residency.ts';
 import { createEngineCamera, type HostCamera } from '../../camera/world.ts';
 import { dag, dagCamera } from '../../../../../bench/perf/browser/support/dagCut.ts';
@@ -30,7 +31,6 @@ const cutOf = (view: WebglView) => ({
   desired: urls(view.desired),
   requested: urls(view.requested),
 });
-
 /** A camera `height` units above `(x, y)` of the DAG's plane, looking straight down at it. */
 const above = (x: number, y: number, height: number) =>
   dagCamera(height, x, y) as unknown as HostCamera;

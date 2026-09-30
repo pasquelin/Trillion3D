@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
 import { exactPagesBackend } from '../../../../bench/witnesses/measurement.ts';
 import { dagRoots, DAG, MANIFEST_IDENTITY } from './pagesBackend.fixture.ts';
-import { submittedDraws } from '../cluster/batchMesh.ts';
+import { submittedDraws } from '../cluster/submissions.fixture.ts';
 
 test('exact pages batch clusters of the same primitive in beauty mode and unbatch in diagnostic mode', () => {
   const g1 = new G.Geometry();

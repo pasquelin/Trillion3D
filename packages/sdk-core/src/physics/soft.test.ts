@@ -11,11 +11,12 @@ import {
   SOFT_FOOTPRINT,
   SOFT_LINEAR_DENSITY,
   softBodyOf,
-  softSettings,
   type SoftBodyOptions,
 } from './soft.ts';
 import { writeSoft } from './softCommands.ts';
-import { SOFT_VERTEX_WORDS, SOFT_WORDS } from './softLayout.ts';
+import { SOFT_VERTEX_WORDS } from './softLayout.ts';
+import { softSettings } from './softSettings.ts';
+import { SOFT_WORDS } from './wire.fixture.ts';
 
 const one = { x: 1, y: 1, z: 1 };
 const masses = (vertices: Float32Array) => vertices.filter((_, i) => i % SOFT_VERTEX_WORDS === 3);

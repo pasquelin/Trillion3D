@@ -5,10 +5,9 @@ import assert from 'node:assert/strict';
 import { material } from '../../../../sdk-core/src/world/material/index.ts';
 import { object } from '../../../../sdk-core/src/world/object/index.ts';
 import { drawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts';
-import type { HostMesh } from '../../host/resources.ts';
+import type { HostMesh, HostAttributes } from '../../host/resources.ts';
 import type { GraphSurface } from '../../host/graph/surface.ts';
 import { clusterMaterialReason } from '../../host/surfaceGate.ts';
-import type { HostAttributes } from '../../host/resources.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { importHostSurface } from '../../host/surfaceImport.ts';
 import { hostSide } from '../../scene/materialSide.ts';
@@ -24,11 +23,11 @@ import { SPRITE_UNCULLED, spriteAt } from '../../visibility/shader/spriteWgsl.ts
 import { dagFixture } from '../../page/selection/dag.fixture.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import { drawPasses } from '../../cluster/batchMesh.ts';
-import { planCull } from '../../webgpu/blend/plan.ts';
 import { blendSceneOf } from '../../webgpu/blend/plan.fixture.ts';
 import type { BlendGpuItem } from '../../webgpu/blend/state.ts';
 import { packed } from '../../gpu/dag/selectionHelpers.fixture.ts';
 import { primitiveFrameWords, primitiveWordAt } from '../../gpu/dag/worlds.ts';
+import { planCull } from '../../webgpu/blend/planCull.ts';
 
 test('a sprite surface carries its turn and size rule, both sides, and a repaint writes its turn', () => {
   const picture = material.sprite({ rotation: 0.4, sizeAttenuation: false });

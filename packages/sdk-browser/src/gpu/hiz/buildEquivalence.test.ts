@@ -1,6 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { hizLevelSizes } from './oracle.ts';
 import { HIZ_SHADER } from './shader.ts';
 import {
   HIZ_BUILD_SIDE as S,
@@ -9,6 +8,7 @@ import {
   hizBuildPasses,
 } from './uniforms.ts';
 import { buildAfter, buildBefore, layout, lcg, type Scene } from './buildTranscripts.fixture.ts';
+import { hizLevelSizes } from './levelSizes.ts';
 
 // The pyramid used to be a copy of the level-0 texture then one dispatch per mip, each reading
 // the level above from the buffer. `buildHiz` reads the texture once, copies it on the way and

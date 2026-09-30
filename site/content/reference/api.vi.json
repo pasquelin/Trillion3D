@@ -8138,7 +8138,7 @@
     }
   },
   "IMPOSTOR_PI": {
-    "summary": "π, một literal duy nhất cho oracle này và bản sao WGSL, để cả hai làm tròn cùng một số."
+    "summary": "π, một hằng duy nhất, để mọi nơi đọc phép chuyển đều làm tròn cùng một số."
   },
   "IMPOSTOR_VERSION": {
     "summary": "Định dạng của phần `impostors` mà runtime đọc (#817 phần 1, do trình biên dịch nướng)."

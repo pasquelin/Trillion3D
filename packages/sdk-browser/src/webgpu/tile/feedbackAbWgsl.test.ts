@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { SHADE_SHADER } from '../../visibility/buffer.ts';
-import { BLEND_SHADER } from '../blend/shader.ts';
 import { WATER_SURFACE_WGSL } from '../water/surfaceWgsl.ts';
 import { feedbackFreeEntry } from './feedbackAbWgsl.ts';
+import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
 
 test('target-free opaque resolve projects the same four surface outputs', () => {
   const code = feedbackFreeEntry(

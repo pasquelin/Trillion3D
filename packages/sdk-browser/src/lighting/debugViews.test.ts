@@ -8,18 +8,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { AS_IS_FLAG, SURFACE_MODEL, shownAsIs } from '../scene/surfaceModel.ts';
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts';
-import {
-  BOUNCE_LIGHTING_SHADER,
-  CONTRACT_COMPOSITIONS,
-  DIRECT_LIGHTING_SHADER,
-  UNLIT_COMPOSITIONS,
-} from './deferred/shaders.ts';
-import { TAA_SHADER, taaShader } from '../taa/shaderWgsl.ts';
-import { BLEND_SHADER } from '../webgpu/blend/shader.ts';
+import { CONTRACT_COMPOSITIONS, UNLIT_COMPOSITIONS } from './deferred/shaders.ts';
+import { taaShader } from '../taa/shaderWgsl.ts';
 import { BLEND_MODES } from '../scene/materialBlending.ts';
-import { blendTargets } from '../webgpu/blend/pipelines.ts';
 import { written, type Rgba } from '../webgpu/blend/blendModel.fixture.ts';
-import { AS_IS_SHARE_SHADER } from './deferred/asIsShare.ts';
+import {
+  BLEND_SHADER,
+  BOUNCE_LIGHTING_SHADER,
+  DIRECT_LIGHTING_SHADER,
+  TAA_SHADER,
+} from '../gpu/core/shaderTexts.fixture.ts';
+import { AS_IS_SHARE_SHADER } from './deferred/asIsShareWgsl.ts';
+import { blendTargets } from '../webgpu/blend/blendTargets.ts';
 
 /** The capture of `pattern` in `source`, asserted present. */
 function capture(source: string, pattern: RegExp) {

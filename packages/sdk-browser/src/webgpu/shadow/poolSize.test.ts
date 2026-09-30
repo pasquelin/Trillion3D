@@ -6,13 +6,14 @@ import {
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SEED_POOL_SIDE } from '../../../../sdk-core/src/scene/light-shadow/poolDemand.ts';
 import { createWebgpuLightState } from '../pages/state/lights.ts';
-import { shadowPoolFor, sizeShadowPool } from './poolSize.ts';
-import { SHADOW_ATLAS_BYTES } from '../../residency/memoryBudget.ts';
+import { sizeShadowPool } from './poolSize.ts';
+import { shadowPoolFor } from './poolFor.ts';
 import { shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
 import { SUN } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { refusingDevice } from './poolDevice.fixture.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { SHADOW_ATLAS_BYTES } from '../../residency/shadowBudgetBytes.ts';
 
 /** A session whose device, 8192 texels wide, refuses, as out of memory, every texture
  *  past `limit` bytes; its atlas records the side it was sized at, and what the frame was told. */

@@ -3,6 +3,7 @@ import { mathBatchWasm } from '../../math/batchState.ts';
 import type { SdkWasm } from '../decode/geometryPageWasm.ts';
 import { reserveArena, type Arena } from '../decode/wasmArena.ts';
 import { selectionScratch, type PageRecord, type SelectionState } from './state.ts';
+import { cutWalkRuns } from './walkRuns.ts';
 
 /**
  * The cut's node walk in the SDK WebAssembly module (`packages/page-codec-wasm/src/cut.rs`): the
@@ -28,8 +29,6 @@ const held = new WeakMap<Float64Array, Held>();
 const release = new FinalizationRegistry<Arena>((arena) => arena.libere());
 /** Lens, result and stack: one reservation for the session's walks. */
 let scratch: Arena | null = null;
-/** Walks run to the end, and walks handed back to the JavaScript descent (`cut.rs::Bail`). */
-export const cutWalkRuns = { walked: 0, bailed: 0 };
 /** Leaves copied out of module memory: taking a page may grow it and detach the view. */
 let leaves = new Uint32Array(64);
 

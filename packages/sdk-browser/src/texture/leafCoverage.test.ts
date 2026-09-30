@@ -5,14 +5,14 @@
 // at 0.5 (C = 128), and of the compiler's noise table, whose texel and filtered counts disagree.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MIP_SHADER } from './mips.ts';
-import { COVERAGE_WGSL } from './coverageMips.ts';
 import { readFileSync } from 'node:fs';
 import { COVERAGE_PICK_GLSL } from './coverageRule.ts';
-import { MIP_FRAGMENT_GLSL } from '../webgl/cluster/mips.ts';
-import { COVERAGE_COUNT_GLSL } from '../webgl/cluster/coverageMips.ts';
 import { shaderFunctions, vec } from './shaderRule.fixture.ts';
 import { leafAlpha } from '../../../../tests/fixtures/leafTexture.ts';
+import { COVERAGE_WGSL } from './mipsWgsl.ts';
+import { MIP_FRAGMENT_GLSL } from '../webgl/cluster/mipFragment.ts';
+import { COVERAGE_COUNT_GLSL } from '../webgl/cluster/coverageCountGlsl.ts';
+import { MIP_SHADER } from '../gpu/core/shaderTexts.fixture.ts';
 
 const C = 128;
 type Alpha = { x: number; y: number; z: number; w: number };

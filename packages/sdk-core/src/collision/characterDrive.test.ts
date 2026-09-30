@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createDrive, driveTick, gripOf } from './characterDrive.ts';
+import { createDrive, driveTick } from './characterDrive.ts';
 import { HUMAN_BODY, type CharacterSettings } from './characterSettings.ts';
 import { PHYSICS_MATERIALS } from '../physics/options.ts';
+import { gripOf } from './grip.ts';
 
 const STILL = { wishX: 0, wishZ: 0, sprint: false },
   EAST = { wishX: 1, wishZ: 0, sprint: false };

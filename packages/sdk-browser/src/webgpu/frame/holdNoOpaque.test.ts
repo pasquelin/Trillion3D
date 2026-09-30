@@ -7,8 +7,8 @@ import assert from 'node:assert/strict';
 import { unsettledMask, unsettledReasons } from './hold.ts';
 import { settledRt } from './hold.fixture.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
-import { TAA_STILL_FRAMES } from '../../taa/jitter.ts';
 import { camera, flushedGpuScene, quadScene } from '../pages/testScenes.fixture.ts';
+import { TAA_STILL_FRAMES } from '../../taa/stillFrames.fixture.ts';
 
 test('#198: a view without a packed row owes no occluder history', () => {
   const rt = settledRt();

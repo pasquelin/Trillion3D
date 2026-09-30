@@ -4,7 +4,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
-import { buildHizPyramid, countUnoccluded, createHizCounts, type HizPage } from './hiz.ts';
+import { createHizCounts, type HizPage } from './hiz.ts';
+import { buildHizPyramid } from './depth.ts';
+import { countUnoccluded } from './unoccluded.ts';
 import { splitOccludersInto } from './split.ts';
 import {
   referenceCountUnoccluded,

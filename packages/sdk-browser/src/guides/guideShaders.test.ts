@@ -2,13 +2,8 @@
 // copies it), and the corners both programs place with the engine's line corner.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  GUIDE_CORNER_GLSL,
-  GUIDE_CORNER_WGSL,
-  GUIDE_GLSL_VERTEX,
-  GUIDE_WGSL,
-  jitterDepthSlack,
-} from './guideShaders.ts';
+import { GUIDE_GLSL_VERTEX, GUIDE_WGSL } from './guideShaders.ts';
+import { shaderRun } from '../texture/shaderRun.fixture.ts';
 import { LINE_CLIP_GLSL, LINE_CLIP_WGSL } from '../visibility/shader/lineWgsl.ts';
 import { runShaderText } from '../visibility/shader/shaderText.fixture.ts';
 import {
@@ -16,6 +11,23 @@ import {
   LINE_VIEWPORT,
   toPixels,
 } from '../visibility/shader/lineProjection.fixture.ts';
+import { GUIDE_CORNER_GLSL, GUIDE_CORNER_WGSL } from './guideCorner.ts';
+
+/** The depth slack `GUIDE_WGSL` gives a guide at pixel `(x, y)` over the scene depth `depthAt`,
+ *  the image jittered by `(jx, jy)` pixels: its own `jitterSlack`, run as shipped. */
+function jitterDepthSlack(
+  depthAt: (x: number, y: number) => number,
+  x: number,
+  y: number,
+  [jx, jy]: number[],
+) {
+  const { jitterSlack } = shaderRun<{ jitterSlack: (p: number[], centre: number) => number }>(
+    GUIDE_WGSL,
+    ['slopeAlong', 'jitterSlack'],
+    { view: { viewport: [0, 0, jx, jy] }, sceneAt: (p: number[]) => depthAt(p[0], p[1]) },
+  );
+  return jitterSlack([x, y], depthAt(x, y));
+}
 
 /** Reversed depth of a tilted plane at pixel `(x, y)`, the jitter `(jx, jy)` pixels applied. */
 const plane =

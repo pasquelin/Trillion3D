@@ -10,10 +10,11 @@ import {
   COVERAGE_SCALE_GLSL,
   COVERAGE_SCALE_WGSL,
 } from './coverageRule.ts';
-import { CoverageReaders, cutoffByte } from './coverage.ts';
+import { CoverageReaders } from './coverage.ts';
 import type { PageSurface } from '../page/surface.ts';
 import type { Texture } from '../../../sdk-core/src/index.ts';
 import { shaderFunctions, vec } from './shaderRule.fixture.ts';
+import { cutoffByte } from './cutoffByte.ts';
 
 const NAMES = ['scaled', 'wide', 'pick', 'below', 'apart'];
 

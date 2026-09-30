@@ -6,7 +6,6 @@ import type { GeometryBlock } from '../row/pageRowMaterial.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 import type { SessionDeformation } from '../../deformation/session.ts';
 import { createVertexPool } from './geometryPool.ts';
-export { createVertexPool, type VertexPool } from './geometryPool.ts';
 type GeometryBlocks = Map<HostAttributes, GeometryBlock>;
 type WholeTable = { table: GPUBuffer; count: number } | undefined;
 /** The whole copies a pool holds after its vertices (`wholeDeformationPool`, deformation's code). */

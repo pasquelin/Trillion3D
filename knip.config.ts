@@ -14,20 +14,28 @@ const config: KnipConfig = {
         'packages/sdk-browser/src/page/decode/pageDecodeWorker.ts',
         'packages/sdk-browser/src/page/integration/pageIntegrationWorker.ts',
         'packages/sdk-browser/src/physics/physicsWorker.ts',
+        // The public API's source (`scripts/sdk-api-model.ts`, `ENTRIES`): the facade below is
+        // generated from these three entries, so every name they export is public.
+        'packages/sdk-core/src/index.ts',
+        'packages/sdk-browser/src/index.ts',
         'packages/sdk-node/src/index.mts',
         'packages/sdk/{index,browser,node}.{ts,mts}',
         'packages/page-codec/geometryPage.ts',
+        // The second pass of `check:unused` (`scripts/check-unused.ts`), read by knip itself.
+        'knip.production.config.ts',
         'packages/**/*.test.ts',
         // The scripts `package.json` and the workflows run are found by knip itself; the tests and
         // the browser proofs, run by `node --test`, are entries by rule. Any other script is dead.
         'scripts/*.test.ts',
         'scripts/*.browser.ts',
         // Run by hand: the example scenes' sources and thumbnails (`docs/LEARNING_PORTAL.md`), the
-        // first-load proof of the site (`docs/TESTS.md`), the area-light table fit (`ltcTable.ts`).
+        // first-load proof of the site (`docs/TESTS.md`), the area-light table fit (`ltcTable.ts`),
+        // the Install page walkthrough (#1355, the recette's Chrome proof).
         'scripts/docs-examples-assets.ts',
         'scripts/docs-examples-thumbnails.ts',
         'scripts/site-first-load.ts',
         'scripts/ltc-fit.ts',
+        'scripts/prove-install-page.ts',
         // Run by `scripts/build.ts`, steps of `pnpm run build`.
         'scripts/{build-witnesses,copy-resources}.ts',
         // Run by git through the one-line shims of `.githooks/`.

@@ -7,7 +7,7 @@ import {
   type SoftBodyOptions,
   type SoftBodyRecord,
 } from '../../../sdk-core/src/physics/index.ts';
-import { softSettings } from '../../../sdk-core/src/physics/soft.ts';
+import { softSettings } from '../../../sdk-core/src/physics/softSettings.ts';
 import { plane } from '../../../sdk-core/src/world/geometry/basic.ts';
 import { fromArrays } from '../../../sdk-core/src/world/geometry/builder.ts';
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';

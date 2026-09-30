@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { DAG_UNIFORM_BYTES, DAG_VIEWS_WGSL } from '../dag/shader/viewsWgsl.ts';
 import { lightCutCapacity } from '../dag/lightCutCapacity.ts';
-import { MAX_SHADOW_PAGES, MAX_SHADOW_REGIONS, SHADOW_FACE_READ_WORDS } from './recordPack.ts';
+import { MAX_SHADOW_PAGES, MAX_SHADOW_REGIONS } from './recordPack.ts';
 import {
   MAX_SHADOW_BATCHES,
   OCCLUSION_SLOT_WORDS,
@@ -17,11 +17,12 @@ import {
 } from './batchBudget.ts';
 import { SHADOW_CULL_SHADER, SHADOW_LIGHT_CULL_SHADER } from './cullShader.ts';
 import { SHADOW_OCCLUSION_SHADER } from './occlusionShader.ts';
-import { PAGE_QUAD_SHADER } from './pageQuads.ts';
 import { SHADOW_DEPTH_SHADER } from './shader.ts';
 import { createGpuShadowCull, type ShadowCullSource } from './cull.ts';
 import { DRAW_INDIRECT_WORDS } from '../draw/contract.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
+import { PAGE_QUAD_SHADER } from './pageWgsl.ts';
+import { SHADOW_FACE_READ_WORDS } from './faceReadWords.ts';
 
 /** The first integer `pattern` captures in `wgsl`. */
 const read = (wgsl: string, pattern: RegExp) => Number(wgsl.match(pattern)![1]);

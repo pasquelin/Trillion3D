@@ -17,7 +17,6 @@
  *  - the clear value of a depth target (`DEPTH_CLEAR`), which is the far;
  *  - the sense of extrema: what "nearer" is (`depthNearer`), hence the sense of Hi-Z
  *    reduction, which keeps the FARTHEST of a square, hence the MINIMUM;
- *  - conversion of a normalized depth to eye distance (`depthDistance`) and the inverse.
  *
  * WHAT DOES NOT CHANGE. Normalized x and y are `[−1, 1]` and their passage to the screen
  * depends on nothing here. The host WebGL2 path, for its part, draws with the host-library
@@ -43,16 +42,6 @@ export const DEPTH_CLEAR = 0;
 /** Is `a` strictly nearer the eye than `b`? The only place that says so. */
 export function depthNearer(a: number, b: number) {
   return a > b;
-}
-
-/**
- * Eye distance of a normalized depth, `near` being the projection's near plane:
- * `ndc = near / distance`, hence `distance = near / ndc`. A zero depth — the far — yields
- * infinity, which is what it describes. The formula is its own inverse: the same function
- * yields the normalized depth of a point at `distance` from the eye.
- */
-export function depthDistance(depth: number, near: number) {
-  return near / depth;
 }
 
 /**
