@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { HIZ_BOUNDS_VALUES } from './hiz.ts';
-import { splitOccludersFlat } from './split.ts';
+import { rankByDepth } from './depthRank.ts';
+import { HIZ_BOUNDS_VALUES } from './corners.ts';
 
 const keyDouble = new Float64Array(1),
   keyWords = new Uint32Array(keyDouble.buffer);
@@ -21,24 +21,19 @@ function orderable(value: number) {
 }
 
 /**
- * The nearest half as the stable sort gave it: candidates ranked on the sortable key, ties
- * broken by their index, then the first half. This is the reference the selection must return
- * term for term.
+ * The candidates as the stable sort ranks them: those in front of the near plane, on the sortable
+ * key, ties broken by their index. The rank the split takes its nearest half from must be this
+ * one term for term.
  */
-function moitieTriee(count: number, bounds: Float64Array) {
+function stableRank(count: number, bounds: Float64Array) {
   const candidates: number[] = [];
   for (let i = 0; i < count; i++) if (bounds[i * HIZ_BOUNDS_VALUES + 5] === 0) candidates.push(i);
-  const rest = new Uint8Array(count).fill(1);
-  if (!candidates.length) return { rest, occluders: 0 };
   const keys = new Map(candidates.map((i) => [i, orderable(bounds[i * HIZ_BOUNDS_VALUES + 4])]));
-  candidates.sort((a, b) => {
+  return candidates.sort((a, b) => {
     const ka = keys.get(a)!,
       kb = keys.get(b)!;
     return ka.high - kb.high || ka.low - kb.low || a - b;
   });
-  const occluders = Math.max(1, Math.floor(candidates.length / 2));
-  for (let i = 0; i < occluders; i++) rest[candidates[i]] = 0;
-  return { rest, occluders };
 }
 
 /** A cut described by its depths alone; `null` clips the near plane. */
@@ -54,18 +49,11 @@ function bounds(depths: readonly (number | null)[]) {
 
 function memeEnsemble(depths: readonly (number | null)[], why: string) {
   const flat = bounds(depths);
-  const attendu = moitieTriee(depths.length, flat);
-  const obtenu = new Uint8Array(Math.max(1, depths.length));
-  const occluders = splitOccludersFlat(depths.length, flat, obtenu);
-  assert.equal(occluders, attendu.occluders, `occluder count — ${why}`);
-  assert.deepEqual(
-    [...obtenu.subarray(0, depths.length)],
-    [...attendu.rest],
-    `nearest half — ${why}`,
-  );
+  const { inFront, order } = rankByDepth(depths.length, flat);
+  assert.deepEqual([...order.subarray(0, inFront)], stableRank(depths.length, flat), why);
 }
 
-test('nearest-half selection returns the set of the stable sort', () => {
+test('the depth rank of the split is the stable sort', () => {
   memeEnsemble([], 'no box');
   memeEnsemble([null, null], 'all clip the near plane');
   memeEnsemble([0.5], 'a single box');
@@ -77,7 +65,7 @@ test('nearest-half selection returns the set of the stable sort', () => {
   memeEnsemble([NaN, NaN, 1, 2], 'NaN, which no numeric comparison orders');
 });
 
-test('the selection holds on large cuts, on rare keys as on dense keys', () => {
+test('the depth rank holds on large cuts, on rare keys as on dense keys', () => {
   let seed = 20260916;
   const rand = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
   for (const distinct of [1, 2, 7, 1000, 0]) {

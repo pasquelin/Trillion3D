@@ -1,9 +1,5 @@
-export type { HizPage, HizBounds, HizPyramid } from './types.ts';
-export { buildHizPyramid, visibilityDepth } from './depth.ts';
-export { HIZ_BOUNDS_VALUES, BOX_CORNER_VALUES, pageCornersInto } from './corners.ts';
-export { projectBoxesFlat } from './projection.ts';
-export { hizRejects } from './occlusion.ts';
-export { filterUnoccluded, countUnoccluded } from './unoccluded.ts';
+export type { HizPage } from './types.ts';
+export { BOX_CORNER_VALUES, pageCornersInto } from './corners.ts';
 export { createHizCounts, resetHizCounts } from './counts.ts';
 export type { HizCounts } from './counts.ts';
 export { sameHizView, applyTemporalHiz } from './temporal.ts';

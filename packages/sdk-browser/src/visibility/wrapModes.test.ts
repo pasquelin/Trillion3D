@@ -4,7 +4,7 @@
 // samples — not the material flags, which carried only one for all of them.
 // Proof on a real GPU is the `tests/browser/probes/addressing-maps-gpu.ts` bench.
 import type { Texture } from '../../../sdk-core/src/index.ts';
-import { importWrapMode } from '../host/textureImport.ts';
+import { importWrapMode } from '../host/wrapImport.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
@@ -16,9 +16,9 @@ import {
   wrapNibble,
 } from './wrapModes.ts';
 import { SHADE_SHADER } from './shader/shadeWgsl.ts';
-import { BLEND_SHADER } from '../webgpu/blend/shader.ts';
 import { MASK_KEEP_WGSL } from './shader/pageWgsl.ts';
 import { CARTES, nibblesDuMelange } from '../../../../tests/browser/probes/addressingMaps.ts';
+import { BLEND_SHADER } from '../gpu/core/shaderTexts.fixture.ts';
 
 const carte = (wrapS: number, wrapT: number) =>
   ({ wrapS: importWrapMode(wrapS), wrapT: importWrapMode(wrapT) }) as Texture;

@@ -1,11 +1,12 @@
+import { DRAW_UNPAGED } from './plan.ts';
 import {
-  DRAW_UNPAGED,
   PLAN_PIPELINE_MASK,
   PLAN_SHARED_BIT,
   PLAN_SHIFT,
   PLAN_VERTEX_CULL_BIT,
-} from './plan.ts';
-import { EXPAND_GROUP, expandUniformWgsl, INSTANCE_CULL_SHIFT, RUN_WORDS } from './runs.ts';
+} from './planEntry.ts';
+import { EXPAND_GROUP, INSTANCE_CULL_SHIFT, RUN_WORDS } from './runs.ts';
+import { expandUniformWgsl } from './expandUniform.ts';
 import { EXPAND_BINDING as B } from './expandBindings.ts';
 import { LANE_SCAN_WGSL } from '../../gpu/core/laneScanWgsl.ts';
 

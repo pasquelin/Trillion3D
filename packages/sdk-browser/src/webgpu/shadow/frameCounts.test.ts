@@ -6,15 +6,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuLightState, shadowsUnsettled } from '../pages/state/lights.ts';
 import { noteShadowFrame } from '../pages/render/encodeShadowBatches.ts';
-import { createGpuShadowCullCounts, sumKeptClusters } from '../../gpu/shadow/cullCounts.ts';
+import { createGpuShadowCullCounts } from '../../gpu/shadow/cullCounts.ts';
 import { unsettledMask } from '../frame/hold.ts';
-import { planShadowRegions, shadowViewpointOf } from '../pages/render/encodeShadows.ts';
 import { encodeDirectLights } from '../pages/render/encodeLights.ts';
 import type { SceneLight } from '../../../../sdk-core/src/index.ts';
 import { settledRt } from '../frame/hold.fixture.ts';
 import { sunEntry } from '../../../../sdk-core/src/scene/light-shadow/pageModel.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
+import { planShadowRegions } from '../pages/render/shadowRegions.ts';
+import { sumKeptClusters } from '../../gpu/shadow/keptClusters.ts';
+import { shadowViewpointOf } from '../pages/render/shadowViewpoint.ts';
 
 installGpuGlobals();
 

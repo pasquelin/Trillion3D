@@ -12,11 +12,12 @@ import {
   footprintDrawn,
   footprintRect,
   footprintUnion,
-  pageFootprint,
 } from './footprint.ts';
-import { createDemandFootprints, reachFootprint } from './demandFootprint.ts';
+import { createDemandFootprints } from './demandFootprint.ts';
 import { DRAW_ALL, STALE_FULL, createShadowPool } from './pool.ts';
 import { createShadowTable } from './table.ts';
+import { reachFootprint } from './reachFootprint.ts';
+import { pageFootprint } from './footprint.fixture.ts';
 
 const narrow = pageFootprint(0, 0, 32, 32),
   wider = pageFootprint(8, 8, 40, 40);

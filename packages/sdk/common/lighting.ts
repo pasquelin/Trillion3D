@@ -64,7 +64,7 @@ export type {
   SceneProxyDescriptor,
 } from '../../sdk-core/src/contracts/proxy.ts';
 export { regionRect } from '../../sdk-core/src/scene/light-shadow/volume.ts';
-export { SHADOW_PAGE } from '../../sdk-core/src/scene/light-shadow/virtual.ts';
+export { SHADOW_PAGE } from '../../sdk-core/src/scene/light-shadow/sunEntries.ts';
 export type {
   ShadowRequestReport,
   ShadowAsks,

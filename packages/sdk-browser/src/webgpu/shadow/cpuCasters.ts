@@ -1,15 +1,12 @@
-import { DRAW_INDIRECT_WORDS } from '../../gpu/draw/contract.ts';
-import { invertMatrix4, updateCameraFrame } from '../../../../sdk-core/src/index.ts';
-import { createEngineCamera, type EngineCamera } from '../../camera/world.ts';
-import { selectVisiblePages, type PageRec } from '../../page/selection/selection.ts';
-import { createSelectionResult } from '../../page/cut/state.ts';
+import { type EngineCamera } from '../../camera/world.ts';
+import { selectVisiblePages } from '../../page/selection/selection.ts';
 import { MAX_SHADOW_RUNS } from '../../gpu/shadow/batchBudget.ts';
-import { DRAW_INDIRECT_STRIDE } from '../../gpu/draw/contract.ts';
 import { planImageShadows } from '../pages/render/encodeShadows.ts';
 import { forEachShadowBatch } from '../pages/render/encodeShadowBatches.ts';
 import { writeShadowPages } from './pages.ts';
-import type { ShadowRun } from './runs.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { faceEngineCamera } from './faceCamera.ts';
+import { createCpuCasterLists } from './cpuCasterLists.ts';
 
 /** The casters' rows, written from the packed ranks this cut publishes (`./cpuCasterRows.ts`). */
 export { writeCpuCasters } from './cpuCasterRows.ts';
@@ -22,65 +19,6 @@ export { writeCpuCasters } from './cpuCasterRows.ts';
  * start and never grow. The rows' buffer grows to the next power of two a frame needs.
  */
 export type CpuCasterLists = ReturnType<typeof createCpuCasterLists>;
-
-/** Usage of the lists' buffers, read when one is made: the GPU globals exist only then. */
-const storage = () => GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
-
-export function createCpuCasterLists(device: GPUDevice, pageCount: number) {
-  return {
-    frame: -1,
-    /** Faces of every batch of the frame, together. */
-    runs: 0,
-    source: device.createBuffer({
-      label: 'Trillion3D CPU light casters',
-      size: 4,
-      usage: storage(),
-    }),
-    indirect: device.createBuffer({
-      size: MAX_SHADOW_RUNS * DRAW_INDIRECT_STRIDE,
-      usage: storage(),
-    }),
-    bases: new Uint32Array(MAX_SHADOW_RUNS),
-    lengths: new Uint32Array(MAX_SHADOW_RUNS),
-    commands: new Uint32Array(MAX_SHADOW_RUNS * DRAW_INDIRECT_WORDS),
-    words: new Uint32Array(1),
-    /** The cut's record scratch per face, and the packed ranks it publishes beside them. */
-    shown: [] as PageRec[][],
-    wanted: [] as PageRec[][],
-    shownPacked: [] as number[][],
-    wantedPacked: [] as number[][],
-    casters: [] as PageRec[],
-    /** The packed rank of each caster, rank by rank (#1235): one record serves many placements. */
-    castersPacked: [] as number[],
-    /** Per catalogue page: the frame that last marked it, and its row that frame. */
-    marks: new Uint32Array(pageCount),
-    rowOf: new Int32Array(pageCount),
-    result: createSelectionResult<PageRec>(),
-    camera: createEngineCamera(),
-    viewport: [1, 1] as [number, number],
-  };
-}
-
-/**
- * The face as a camera the CPU cut reads: its world pose, the projection cropped to the region,
- * no far plane beyond the projection's own. The viewport makes the cut's pixel scale the face's
- * texel scale: its error is counted in the map's texels, as the GPU light cut counts it.
- */
-export function faceEngineCamera(run: ShadowRun, into: EngineCamera, viewport: number[]) {
-  const { face } = run;
-  invertMatrix4(into.world, face.worldView);
-  into.projection.set(face.clip);
-  updateCameraFrame(into, into.projection, into.world, Infinity);
-  // An orthography weighs no depth against its near plane (clip w is 1): the CPU cut only asks
-  // for a positive one, and the smallest leaves every error as the GPU computes it.
-  into.near = face.perspective ? face.near : Number.MIN_VALUE;
-  into.far = Infinity;
-  into.perspective = face.perspective;
-  for (let a = 0; a < 3; a++) into.eye[a] = into.world[12 + a];
-  viewport[0] = (2 * face.focal) / Math.abs(face.clip[0]);
-  viewport[1] = (2 * face.focal) / Math.abs(face.clip[5]);
-  return into;
-}
 
 /** A list of casters for each of `runs` faces: never more than `MAX_SHADOW_RUNS`, what the
  *  offsets and commands hold. */

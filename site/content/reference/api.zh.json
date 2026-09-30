@@ -8137,7 +8137,7 @@
     }
   },
   "IMPOSTOR_PI": {
-    "summary": "π,这个权威实现与 WGSL 镜像共用一个字面量,使两者舍入同一个数。"
+    "summary": "π，唯一的字面量，使切换的每个读取方都舍入同一个数。"
   },
   "IMPOSTOR_VERSION": {
     "summary": "运行时读取的 `impostors` 区段格式(#817 第 1 部分,由编译器预烘焙)。"

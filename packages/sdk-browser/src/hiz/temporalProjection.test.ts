@@ -2,20 +2,20 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
 import {
-  HIZ_BOUNDS_VALUES,
   BOX_CORNER_VALUES,
   pageCornersInto,
-  projectBoxesFlat,
   applyTemporalHiz,
   type HizPage,
   type TemporalHizState,
 } from './hiz.ts';
-import { splitOccludersFlat, splitOccludersInto } from './split.ts';
-import { projectCornersInto } from './corners.ts';
+import { splitOccludersInto } from './split.ts';
+import { rankByDepth } from './depthRank.ts';
+import { projectCornersInto, HIZ_BOUNDS_VALUES } from './corners.ts';
 import { cameraAt, projectBoxToScreen, quad } from '../../../../tests/fixtures/hiz.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { locatedBy } from '../page/selection/placements.fixture.ts';
 import type { Placements } from '../page/selection/placements.ts';
+import { projectBoxesFlat } from './projection.ts';
 
 const engineCamera = cameraMoteur;
 
@@ -78,8 +78,8 @@ test('flat projection and split reproduce the object forms to the bit, including
     projectCornersInto(corners, 0, view, viewProjection, near, ...viewport, derived, base);
   }
   assert.deepEqual([...derived], [...flat], 'rectangles from derived corners');
-  const rest = new Uint8Array(pages.length),
-    occluders = splitOccludersFlat(pages.length, flat, rest);
+  const { inFront, order } = rankByDepth(pages.length, flat),
+    ranked = [...order.subarray(0, inFront)];
   const tagged = pages.map((page, index) => ({ ...page, tag: index }));
   const referenceOccluders: (HizPage & { tag: number })[] = [],
     referenceRest: (HizPage & { tag: number })[] = [];
@@ -93,11 +93,10 @@ test('flat projection and split reproduce the object forms to the bit, including
     [],
     [],
   );
-  assert.equal(occluders, referenceOccluders.length);
   assert.equal(referenceOccluders.length + referenceRest.length, tagged.length);
-  const referenceOccluderTags = new Set(referenceOccluders.map((page) => page.tag));
-  for (let i = 0; i < pages.length; i++)
-    assert.equal(rest[i] === 0, referenceOccluderTags.has(i), `page ${i}`);
+  // The pages split as the flat rectangles rank: the nearest half, then the rest in rank order.
+  const split = [...referenceOccluders, ...referenceRest].map((page) => page.tag);
+  assert.deepEqual(split.slice(0, inFront), ranked);
 });
 
 test('temporal Hi-Z keeps or rejects each placement of a shared record on its own (#1235)', () => {

@@ -4,6 +4,7 @@ import type { CharacterEvents, CharacterInput, CharacterSettings } from './chara
 import type { CharacterCollision } from './characterCollision.ts';
 import { createDrive, driveTick, type DriveStep } from './characterDrive.ts';
 import { hypot2 } from '../math/primitives/hypot.ts';
+import { MAX_CHARACTER_DELTA } from './characterDelta.ts';
 
 /**
  * A CHARACTER BODY: a capsule with a velocity, integrated on a fixed tick against a collision
@@ -27,11 +28,6 @@ import { hypot2 } from '../math/primitives/hypot.ts';
 /** Seconds per tick. The motion inside a tick is exact, so the tick only sets how often the
  *  contacts are read and how late a landing or a jump can be noticed: one tick, 8 ms. */
 const CHARACTER_TICK = 1 / 120;
-
-/** Seconds one call lives at most, the usual clamp of a fixed-step loop: a stall (a hidden tab,
- *  a long frame) resumes where it stopped, 0.25 s later at most, instead of spending one frame on
- *  the whole stall. Any shorter delta is caught up in full, so a page at 5 fps walks as fast. */
-export const MAX_CHARACTER_DELTA = 0.25;
 
 /** What a character's controller drives, whatever the body collides with. */
 export interface CharacterBody {

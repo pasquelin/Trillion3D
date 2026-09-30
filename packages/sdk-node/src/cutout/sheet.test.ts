@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import { mkdtemp, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { readSheet, pendingOf, answerSheet, SHEET_FILE, type Sheet } from './sheet.mts';
+import { readSheet, pendingOf, answerSheet, type Sheet } from './sheet.mts';
 import { leaf as feuille } from './cutout.fixture.ts';
+import { CUTOUT_SHEET_FILE as SHEET_FILE } from '../../../sdk-core/src/index.ts';
 
 type SheetTexture = Sheet['textures'][string];
 

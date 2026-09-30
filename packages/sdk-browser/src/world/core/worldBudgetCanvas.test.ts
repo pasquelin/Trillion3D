@@ -5,16 +5,13 @@ import assert from 'node:assert/strict';
 import { worldBudget, worldPools } from './worldBudget.ts';
 import { noticeEffectBudget } from '../diagnostic/worldNotices.ts';
 import { DEFAULT_GEOMETRY_POOL_BUDGET } from '../../residency/pools.ts';
-import {
-  DEFAULT_BUDGET_CANVAS,
-  DEFAULT_GPU_BUDGET,
-  EFFECT_TARGET_BYTES,
-} from '../../residency/memoryBudget.ts';
+import { DEFAULT_BUDGET_CANVAS } from '../../residency/memoryBudget.ts';
 import { effectChainBytesAt } from '../../effects/targets.ts';
 import { createWebglEffects } from '../../effects/webglEffects.ts';
 import { createTestContext } from '../../webgl/core/testContext.fixture.ts';
 import { effect } from '../../../../sdk-core/src/world/effect/index.ts';
 import { DEFAULT_PHYSICS_BUDGET } from '../../../../sdk-core/src/physics/index.ts';
+import { DEFAULT_GPU_BUDGET, EFFECT_TARGET_BYTES } from '../../residency/budget.fixture.ts';
 
 const budget = (pools = worldPools()) =>
   worldBudget(pools, { explorer: null }, { last: null }, () => 'webgpu', {

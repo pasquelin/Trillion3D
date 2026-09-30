@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { TEMPLATES, sha } from '../../../../tests/fixtures/manifestBinary.ts';
 import { preview } from '../../../../tests/fixtures/manifestBinaryPreview.ts';
-import { decodeManifestBinary, type SlimClusterManifest } from './binary.ts';
+import { decodeManifestBinary } from './binaryDecode.ts';
 import { encodeManifestBinary } from '../../../../tests/fixtures/manifestBinaryEncode.ts';
 import {
   CLUSTERED_BLEND_FORMAT_VERSION,
@@ -54,7 +54,7 @@ const PREVIEW_FIRST_LEVEL = 6,
   PREVIEW_ATLAS = 10,
   PREVIEW_BAKED_LEVELS = 11,
   PREVIEW_LAYOUTS = 12;
-function refused(buffer: ArrayBuffer, slim: SlimClusterManifest) {
+function refused(buffer: ArrayBuffer, slim: Parameters<typeof decodeManifestBinary>[0]) {
   assert.throws(
     () => decodeManifestBinary(slim, buffer),
     (error: unknown) => error instanceof EngineError && error.code === 'INVALID_CACHE',

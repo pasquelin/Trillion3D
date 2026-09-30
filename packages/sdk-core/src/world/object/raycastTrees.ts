@@ -1,5 +1,6 @@
 import type { Geometry } from '../geometry/geometry.ts';
 import type { TriangleTree } from '../../collision/triangleTree.ts';
+import { RAYCAST_TREE_BUDGET } from './raycastTreeBudget.ts';
 
 /**
  * THE RAYCAST TREE CACHE. `raycast` keeps the triangle tree of each shape it was cast at, in the
@@ -16,9 +17,6 @@ export interface ShapeTree {
   tree: TriangleTree;
   ranks: Uint32Array;
 }
-
-/** Bytes the cache holds by default: about 1.3 million triangles at 52 bytes each. */
-export const RAYCAST_TREE_BUDGET = 64 * 1024 * 1024;
 
 type Held = ShapeTree & { key: WeakRef<Geometry>; bytes: number };
 

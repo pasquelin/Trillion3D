@@ -5,7 +5,7 @@ import * as G from '../../../host/graph/graph.fixture.ts';
 import { compareImages, type ClusterManifest } from '../../../../../sdk-core/src/index.ts';
 import { exactPagesBackend } from '../../../../../../bench/witnesses/measurement.ts';
 import { webgpuPagesBackend } from '../pages.ts';
-import { rasterPageRecords } from '../../../page/raster.ts';
+import { rasterPageRecords } from '../../../page/raster.fixture.ts';
 import {
   drawnPageIds,
   indirectDraws,

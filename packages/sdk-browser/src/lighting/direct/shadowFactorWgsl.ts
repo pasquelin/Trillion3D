@@ -1,4 +1,5 @@
 import { POINT_FACES } from '../../../../sdk-core/src/index.ts';
+import { SHADOW_DEPTH_ROUNDING } from './shadowDepthRounding.ts';
 
 /** Window origin of clipmap slot \`slot\` of record \`index\`: every reader of a sun's record. */
 export const SUN_ORIGIN_WGSL = `
@@ -43,11 +44,6 @@ fn lampReadAt(index:u32,lamp:vec3f,P:vec3f,N:vec3f,offset:f32,texel0:f32,mip:u32
  let home=clamp(vec2i(shadowPageOfTexel(t.x),shadowPageOfTexel(t.y)),vec2i(0),vec2i(i32(pages)-1));
  return LampAt(ShadowAt(map,t,home,Q,texel),clip,ndc,face,side,inside);
 }`;
-
-/** A map's depth is float32 in [0, 1]: its epsilon, 2⁻²³, rounds the stored depth and again the
- *  reference, so a margin under their sum is lost — at a fine texel of a wide map, half a texel
- *  is under it. The floor is the format's, in the map's own depth: never a length of the scene. */
-export const SHADOW_DEPTH_ROUNDING = 2 * 2 ** -23;
 
 /**
  * Which page a lit point reads, and the fraction of light that reaches it.
