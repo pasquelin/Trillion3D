@@ -31,9 +31,9 @@ ${unbounded ? '' : HIZ_TRACE_WGSL}
  let nr=textureLoad(normalRough,at,0);
  // Mirrors take the exact ray; past the cutoff the display reads the environment alone (#1341).
  if(nr.a<=${ROUGHNESS_FLOOR}||screenReflectionFade(nr.a)==0.0){return vec4f(0.0);}
- // No shadow is read, hence none asked (#1346): a hit reads the last image, a miss the probes; a
- // page the trace asked would land, move the reflection epoch and restart the TAA history.
  let P=worldAt(pixel,textureLoad(depth,at,0));
+ shadowFootprint=length(worldAt(pixel+vec2f(1.0,0.0),textureLoad(depth,at,0))-P);
+ shadowRequesting=all(vec2u(pixel)<textureDimensions(depth));
  let N=normalize(nr.xyz);let V=normalize(view.camera.xyz-P*view.camera.w);
  let pixelSeed=u32(at.y)*u32(reflectionView.enabled.y)+u32(at.x);
  // Integer rank and source epoch are mixed by the caller, independent of wall clock.
