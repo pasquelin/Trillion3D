@@ -1,6 +1,6 @@
 /** Steps a rough ray takes at most; past them it misses and its lobe reads the fallback, as a ray
  *  leaving the screen does. The reference's hierarchical trace holds a fixed count the same way. */
-export const REFLECTION_TRACE_STEPS = 64;
+const REFLECTION_TRACE_STEPS = 64;
 
 /** Which pixel of its 2 × 2 block a half-resolution trace texel serves at `seed`: the four in
  *  turn, so four frames reach every pixel. The trace and the history resolve read the same one. */
@@ -15,7 +15,7 @@ fn reflectionPhase(seed:u32)->vec2i{return vec2i(i32(((seed+1u)>>1u)&1u),i32(see
  * one the full-resolution walk makes (`traceShader.ts`). The receiver's pixel never answers.
  * Written per axis, so the Node test runs this very text.
  */
-export const HIZ_WALK_WGSL = `
+const HIZ_WALK_WGSL = `
 fn reflectionHiZWalk(start:vec2f,delta:vec2f,za:f32,zb:f32,size:vec2f)->vec4f{
  var top:i32=reflectionTopLevel();
  var ox:i32=i32(floor(start.x));var oy:i32=i32(floor(start.y));

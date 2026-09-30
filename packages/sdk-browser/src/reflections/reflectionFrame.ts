@@ -36,7 +36,6 @@ export function reflectionFrame(rt: WebgpuPagesRuntime): ReflectionHistoryFrame 
       metadata: { depth: gpu.depthTexture, normal: gpu.surfaces.normalRough, ids: vis.visTexture },
       pages: vis.pageTable,
       motion: vis.pageTable,
-      reprojects: false,
       eye: run.gate.cam.eye,
       epoch: '',
       seed: 0,
@@ -52,7 +51,6 @@ export function reflectionFrame(rt: WebgpuPagesRuntime): ReflectionHistoryFrame 
   // Moved sources are reprojected through the temporal pass's motion; without that pass, whose
   // motion then stands still, a pose change resets the history. No second table is made.
   frame.motion = liveMotion(rt, vis.pageTable);
-  frame.reprojects = frame.motion !== vis.pageTable;
   frame.eye = run.gate.cam.eye;
   frame.epoch = `${scene}/${resources}/${rowEpoch}/${lightEpoch}/${proxyEpoch}/${radianceEpoch}/${shadowVersion}/${deformationEpoch}`;
   frame.seed =

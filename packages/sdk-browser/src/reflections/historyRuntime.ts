@@ -1,4 +1,4 @@
-import { invertMatrix4, matrixAtRenderOrigin } from '../../../sdk-core/src/index.ts';
+import { writeReprojection } from '../taa/view.ts';
 import { createReflectionHistoryTargets, type ReflectionMetadata } from './historyTargets.ts';
 import {
   REFLECTION_RESOLVE_VIEW_BYTES,
@@ -11,10 +11,9 @@ import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/cor
 export interface ReflectionHistoryFrame {
   metadata: ReflectionMetadata;
   pages: GPUBuffer;
-  /** The temporal pass's placement motion; read only where `reprojects`. */
+  /** The temporal pass's placement motion (`liveMotion`), live this image unless it is `pages`:
+   *  a moved source is then reprojected, never a reason to reset. */
   motion: GPUBuffer;
-  /** The motion is live this image: a moved source is reprojected, never a reason to reset. */
-  reprojects: boolean;
   /** The render origin the motion is written at, where both matrices are anchored. */
   eye: ArrayLike<number>;
   epoch: string;
@@ -42,8 +41,7 @@ export function createReflectionHistory(device: GPUDevice, width: number, height
   }
   const packed = new Float32Array(40);
   const previous = new Float64Array(16),
-    camera = new Float64Array(16),
-    anchored = new Float64Array(16);
+    camera = new Float64Array(16);
   let epoch = '',
     frame = -1,
     written = false,
@@ -84,12 +82,13 @@ export function createReflectionHistory(device: GPUDevice, width: number, height
     ) {
       const resized = drawnWidth !== drawn[0] || drawnHeight !== drawn[1];
       const moved = next.epoch !== epoch;
-      const changed = resized || (moved && !next.reprojects);
+      const reprojects = next.motion !== next.pages;
+      const resets = resized || (moved && !reprojects);
       drawnWidth = drawn[0];
       drawnHeight = drawn[1];
       const cameraChanged = !sameElements(camera, next.camera);
       reuse =
-        !changed &&
+        !resized &&
         !moved &&
         !cameraChanged &&
         written &&
@@ -97,7 +96,7 @@ export function createReflectionHistory(device: GPUDevice, width: number, height
         (stableFrames >= REFLECTION_HISTORY_WEIGHT || frame === next.frame);
       if (reuse) return;
       if (moved || resized || cameraChanged) stableFrames = 0;
-      if (changed) {
+      if (resets) {
         written = false;
         rank = 0;
       } else if (written) rank = (rank + 1) >>> 0;
@@ -106,18 +105,13 @@ export function createReflectionHistory(device: GPUDevice, width: number, height
       matrix = projection;
       epoch = next.epoch;
       frame = next.frame;
-      packed.set(matrixAtRenderOrigin(anchored, written ? previous : projection, next.eye), 0);
-      matrixAtRenderOrigin(anchored, projection, next.eye);
-      packed.set(invertMatrix4(anchored, anchored), 16);
-      packed[32] = drawnWidth;
-      packed[33] = drawnHeight;
-      packed[34] = 1 / drawnWidth;
-      packed[35] = 1 / drawnHeight;
+      writeReprojection(packed, written ? previous : projection, projection, next.eye, drawn);
       packed[36] = written ? 1 : 0;
       packed[37] = moved || cameraChanged ? REFLECTION_MOVING_WEIGHT : REFLECTION_HISTORY_WEIGHT;
-      packed[38] = next.reprojects ? 1 : 0;
-      // The low bits of the trace's seed (`gpu.ts`): which pixel of each 2 × 2 block it traced.
-      packed[39] = (rank ^ next.seed) & 3;
+      packed[38] = reprojects ? 1 : 0;
+      // The low bits of the trace's seed, the rank's alone (`gpu.ts`): which pixel of each 2 × 2
+      // block it traced; four successive ranks visit all four.
+      packed[39] = rank & 3;
       device.queue.writeBuffer(uniform, 0, packed);
     },
     encode(
