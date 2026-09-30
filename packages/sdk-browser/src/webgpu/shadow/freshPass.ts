@@ -53,8 +53,8 @@ const epochs = new WeakMap<object, number>();
  * region cull's kept list, grown to the frames' need (`pairGrowth.ts`); the seal makes readable
  * each page admitted; then each pool layer's pass clears its pages' squares and draws every kept
  * pair, in two indirect draws (`freshDrawsWgsl.ts`), and, while a tinted layer is read, that
- * layer's pass the same with the blended casters: no indirect draw sets a viewport. The host draws a page again, with its light cut and static layer, once a
- * report tells it the page (`mirror.ts`).
+ * layer's pass the same with the blended casters: no indirect draw sets a viewport. The host draws
+ * a page again, with its light cut and static layer, once a report tells it the page (`mirror.ts`).
  *
  * Nothing without the GPU allocation, the cull's rows or the draws, and nothing in a frame that
  * has nothing new to draw (`freshWanted`): a frame at rest runs none of it.
