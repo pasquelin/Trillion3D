@@ -22,8 +22,8 @@ export const families = {
   guides: onDemand(() => import('../guides/guideCode.ts')),
   /** The diagnostic views: the host graph's, and the WebGPU feedback A/B measurements. */
   diagnostics: onDemand(() => import('../diagnostic/viewCode.ts')),
-  /** The build provenance table a measurement reads. */
-  measurement: onDemand(() => import('../measurement/buildProvenance.ts')),
+  /** The measurement's build provenance table and comparison compositor. */
+  measurement: onDemand(() => import('../measurement/measurementCode.ts')),
 };
 export type FamilyName = keyof typeof families;
 

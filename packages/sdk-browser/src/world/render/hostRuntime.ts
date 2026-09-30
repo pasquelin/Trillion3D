@@ -44,6 +44,8 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     check,
     setPose,
   } = host;
+  /** The frame composes two engines in a layout (`render.ts`): the measurement's compositor. */
+  const comparing = () => state.comparisonLayout !== 'single' && !state.measuring;
   const { render, profiler, streaming, followCells } = createExplorerHostFrame(session, {
     prepared,
     host,
@@ -94,10 +96,10 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     render,
     /** The families the next frame draws with still on their way, `undefined` once none is: a
      *  frame that waits is not drawn (`familyUse.ts`). */
-    familiesPending: () => frameWaits(options, state.diagnostic),
+    familiesPending: () => frameWaits(options, state.diagnostic, comparing()),
     async pendingFrame() {
       // A frame that waited for a family on its way is drawn once it has arrived.
-      const families = frameWaits(options, state.diagnostic);
+      const families = frameWaits(options, state.diagnostic, comparing());
       const loading = streaming.promise;
       await Promise.all([families, loading]);
       if (state.disposed) return false;
