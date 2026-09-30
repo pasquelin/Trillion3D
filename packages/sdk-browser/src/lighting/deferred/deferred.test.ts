@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createDeferredLighting } from './deferred.ts';
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts';
-import { gpuHarness } from './contractLighting.fixture.ts';
+import { contractLighting, gpuHarness } from './contractLighting.fixture.ts';
 
 test('composition presents and preserves the capture target in one fullscreen draw', async () => {
   const h = gpuHarness(),
@@ -130,4 +130,25 @@ test('an image is composed with the share it read, one group per pair (#349)', a
     ],
   );
   lighting.dispose();
+});
+
+test('the light group is made again when the shadow data buffer is replaced (#1345)', async () => {
+  // A second shadow-casting light grows the page table: its buffer is replaced (`shadowData.ts`).
+  const h = await contractLighting(),
+    lights = {} as GPUBuffer,
+    [held, grown] = [{}, {}] as GPUBuffer[];
+  const slicesRead = () =>
+    h.bindGroups
+      .map((group) => Array.from(group.entries).find((entry) => entry.binding === 8))
+      .filter((entry) => entry)
+      .map((entry) => (entry!.resource as GPUBufferBinding).buffer);
+  h.lighting.bind(h.surface, h.target, h.target, true, { lights, slices: held });
+  h.lighting.bind(h.surface, h.target, h.target, true, { lights, slices: held });
+  h.lighting.bind(h.surface, h.target, h.target, true, { lights, slices: grown });
+  assert.deepEqual(
+    slicesRead().slice(-2),
+    [held, grown],
+    'made once per buffer, the grown one read',
+  );
+  h.lighting.dispose();
 });

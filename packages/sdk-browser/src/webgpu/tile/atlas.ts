@@ -44,8 +44,7 @@ export function createWebgpuTileAtlas(
   };
   let evictions = 0,
     refused = 0,
-    victimsFrame = -1,
-    fillPinned = false;
+    victimsFrame = -1;
   // Eviction victims, queued once per image and per lane, taken in order.
   const victimsOf = (lane: Lane, frame: number) => {
     if (victimsFrame !== frame) {
@@ -61,6 +60,9 @@ export function createWebgpuTileAtlas(
     evictions++;
     return index;
   };
+  /** The white fill never opens a lane (`laneDemand`): until a map opens its own, it takes no
+   *  layer and reads the white stand-in (`lanes.ts`). */
+  const fillWaits = () => !lanes.lanes.has(textures[0].lane);
   const pinTails: WebgpuTileAtlas['pinTails'] = (
     queue,
     fromHost,
@@ -70,13 +72,10 @@ export function createWebgpuTileAtlas(
     for (let slot = from; slot < to; slot++) {
       const { layout, source, lane, retired } = textures[slot];
       if (retired) continue;
-      // The white fill of an atlas with no map takes no layer: it reads the white stand-in, until
-      // a map opens its lane (`resize`).
-      if (slot === 0 && !lanes.lanes.has(lane)) {
+      if (slot === 0 && fillWaits()) {
         pages.setTail(0, { x: 0, y: 0, layer: 0 }, encoding.tapOf(lane));
         continue;
       }
-      fillPinned ||= slot === 0;
       const pool = lanes.of(slot).pool;
       // The floor holds every tail (`texturePoolFor`): a pool drawn under it refuses by name.
       const index = pool.acquire(tailId(slot), 0, true);
@@ -179,9 +178,10 @@ export function createWebgpuTileAtlas(
     },
     flush: (target) => pages.flush(target),
     resize(target, layers) {
-      const result = lanes.resize(target, layers, pages);
+      const waited = fillWaits(),
+        result = lanes.resize(target, layers, pages);
       // The fill's lane opened by a map appended after open: the fill takes its place in it.
-      if (!fillPinned && lanes.lanes.has(textures[0].lane)) pinTails(target.queue, () => {}, 0, 1);
+      if (waited && !fillWaits()) pinTails(target.queue, () => {}, 0, 1);
       if (result.replaced) {
         views = lanes.views();
         pools = lanes.pools();
