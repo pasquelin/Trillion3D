@@ -20,19 +20,20 @@ export interface PackResult {
   files?: { path: string }[];
 }
 
-/** Packs the package of `cwd` into `destination` and returns the archive `pnpm pack` reports. */
+/** Packs the package of `cwd` into `destination` with `packer` (`pnpm` or `npm`) and returns the
+ *  archive it reports. */
 export function packArchive(
   run: Run,
-  pnpm: string,
+  packer: string,
   cwd: string,
   destination: string,
 ): PackResult & { filename: string } {
   const parsed = JSON.parse(
-    run(pnpm, ['pack', '--json', '--pack-destination', destination], cwd),
+    run(packer, ['pack', '--json', '--pack-destination', destination], cwd),
   ) as PackResult | PackResult[];
   const packed = (Array.isArray(parsed) ? parsed[0] : parsed) ?? {};
   const { filename } = packed;
-  if (!filename) throw new Error(`pnpm pack did not report the archive of ${cwd}`);
+  if (!filename) throw new Error(`${packer} pack did not report the archive of ${cwd}`);
   return { ...packed, filename };
 }
 
