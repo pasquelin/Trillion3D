@@ -9,14 +9,14 @@ import {
   taaSampledRank,
   taaSettled,
 } from './frame.ts';
-import { TAA_STILL_FRAMES } from './jitter.ts';
 import { createTaaFrameState } from './frameState.ts';
 import { createScaleControl } from '../frame/scaleControl.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import type { EngineCamera } from '../camera/world.ts';
 import type { TaaInputs } from './inputs.ts';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
-
+import { taaStillFrames, TAA_SAMPLES } from './jitter.ts';
+const TAA_STILL_FRAMES = taaStillFrames(TAA_SAMPLES);
 /** The strict minimum of an engine: the fake pass, its inputs, the camera and the revisions. */
 function runtime() {
   const encoded: unknown[] = [];

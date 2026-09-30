@@ -22,10 +22,12 @@ import {
 import { runShadowFresh } from './freshRun.fixture.ts';
 import { POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
 import { freshSlices, freshWanted } from './freshPass.ts';
-import { FRESH_ARG, FRESH_REGION_PAGES } from './freshLayout.ts';
+import { FRESH_REGION_PAGES } from './freshLayout.ts';
 import { createShadowPageRequests } from './pageRequests.ts';
 import { writeShadowRecords } from './pages.ts';
 import { shadingReads, type Lit } from './shadingReads.fixture.ts';
+
+const FRESH_ARG = { regions: 0, capacity: 1, pairs: 2, corners: 3 } as const;
 
 /** The scene's box: a ground a hundred metres wide, ten metres deep. */
 const MIN = [-50, 0, -50],

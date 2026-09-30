@@ -4,14 +4,9 @@ import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { createCellBoxes } from './boxes.ts';
 import { openAll, paged } from './paged.fixture.ts';
 import { createCellIndex } from './cellIndex.ts';
-import {
-  AHEAD,
-  boxDistance,
-  cellReach,
-  inCellFrame,
-  KEEP,
-  planCells as planIndexed,
-} from './plan.ts';
+import { boxDistance, cellReach, inCellFrame, KEEP, planCells as planIndexed } from './plan.ts';
+
+const AHEAD = 0.25;
 
 const optics = { fov: 60, aspect: 16 / 9, near: 0.1, far: 1e6, zoom: 1 };
 const cell = (x: number) => ({ bounds: [x, 0, 0, x + 1, 1, 1] });

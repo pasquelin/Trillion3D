@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createTransport,
-  solveTransportOracle,
   LightingTransportError,
   LIGHTING_TRANSPORT_ALGORITHM_VERSION,
 } from './transport.ts';
+import { solveTransportOracle } from './oracle.ts';
 import { sceneWithBlocker } from '../../../../../tests/fixtures/lightingTransportScene.ts';
 test('dense oracle matches the closed-form two-surface multiple-bounce solution', () => {
   const source = Float64Array.of(1, 2, 3, 4, 5, 6);

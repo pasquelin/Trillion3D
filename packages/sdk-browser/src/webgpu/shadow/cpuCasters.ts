@@ -26,7 +26,7 @@ export type CpuCasterLists = ReturnType<typeof createCpuCasterLists>;
 /** Usage of the lists' buffers, read when one is made: the GPU globals exist only then. */
 const storage = () => GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
 
-export function createCpuCasterLists(device: GPUDevice, pageCount: number) {
+function createCpuCasterLists(device: GPUDevice, pageCount: number) {
   return {
     frame: -1,
     /** Faces of every batch of the frame, together. */
@@ -66,7 +66,7 @@ export function createCpuCasterLists(device: GPUDevice, pageCount: number) {
  * no far plane beyond the projection's own. The viewport makes the cut's pixel scale the face's
  * texel scale: its error is counted in the map's texels, as the GPU light cut counts it.
  */
-export function faceEngineCamera(run: ShadowRun, into: EngineCamera, viewport: number[]) {
+function faceEngineCamera(run: ShadowRun, into: EngineCamera, viewport: number[]) {
   const { face } = run;
   invertMatrix4(into.world, face.worldView);
   into.projection.set(face.clip);

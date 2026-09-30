@@ -3,7 +3,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   TRANSMITTANCE_BLEND,
-  TRANSMITTANCE_CLEAR,
   createShadowTransmittance,
   shadowTransmittanceBytes,
 } from './transmittance.ts';
@@ -11,6 +10,8 @@ import { shadowTransmittanceDraws } from './transmittanceDraws.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
+
+const TRANSMITTANCE_CLEAR = { r: 1, g: 1, b: 1, a: 1 };
 
 /** Every call an object receives, by name, in order. */
 function recorder<T>() {

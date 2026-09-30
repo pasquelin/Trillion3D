@@ -2,8 +2,6 @@ import { upscaleMipBias } from '../../../taa/jitter.ts';
 import { renderExtent, type RenderScaleBounds } from '../../../frame/renderScaleOption.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
-export { renderExtent };
-
 /**
  * The session's render-scale bounds where the drawn view's frame may be drawn below the display:
  * the temporal resolve reconstructs it — its pass rigged and wanted, in the beauty view, on the

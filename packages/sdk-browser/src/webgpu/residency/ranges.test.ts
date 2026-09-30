@@ -5,7 +5,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
 import { RESIDENCY_RULE, coalesceRanges } from './ranges.ts';
-import { PAGE_TABLE_RULE } from '../tile/pageUploads.ts';
+
+const PAGE_TABLE_RULE = { gap: 16, cap: 64, overflow: 'narrowest' } as const;
 
 /** develop's `coalesceResidencyRanges`: past the cap, one range covers everything. */
 function developResidency(sorted: Int32Array, count: number) {

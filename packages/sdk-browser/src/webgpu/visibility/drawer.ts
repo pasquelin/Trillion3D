@@ -8,12 +8,7 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
  *  slot groups share every resource with the representative slot 0 but their uniform offset,
  *  and are built only when every resource their entries name exists. Shadow depth passes reuse
  *  exactly these groups: same page table, same selection, same slot uniform. */
-export function visGroupFor(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  slot: number,
-  rest: boolean,
-) {
+function visGroupFor(rt: WebgpuPagesRuntime, device: GPUDevice, slot: number, rest: boolean) {
   const { vis } = rt,
     layout = vis.visBindGroupLayout,
     key = slot * 2 + (rest ? 1 : 0);

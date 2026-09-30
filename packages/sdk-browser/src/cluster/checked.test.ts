@@ -3,8 +3,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { loadClusterManifest } from '../scene/manifestLoad.ts';
-import { checked, optionalFile, RETRY_AFTER_CAP_MS } from './checked.ts';
+import { checked, optionalFile } from './checked.ts';
 import { answering, refusedWith, type Answer } from './answers.fixture.ts';
+
+const RETRY_AFTER_CAP_MS = 10_000;
 
 /** The example cache that drew nothing in the browser: its own files, served from the site. */
 const site = resolve(import.meta.dirname, '../../../../site');

@@ -11,7 +11,7 @@ import type { DiagnosticDetail } from '../backend/types.ts';
  * and no production path turns one on. The only way is `diagnosticGpuVariant` of
  * `openMeasuredWorld`, refused outside `diagnosticDetail: 'trace'`.
  */
-export const DIAGNOSTIC_GPU_VARIANTS = [
+const DIAGNOSTIC_GPU_VARIANTS = [
   /** Blend fragment stage renders a constant colour: no texture, no lighting. */
   'blend-flat',
   /** Fragment stage discards immediately: only vertices and rasterisation remain. */

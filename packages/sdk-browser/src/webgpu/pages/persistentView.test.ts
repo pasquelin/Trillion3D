@@ -6,13 +6,15 @@ import assert from 'node:assert/strict';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts';
 import { effect } from '../../../../sdk-core/src/world/effect/index.ts';
-import { TAA_STILL_FRAMES } from '../../taa/jitter.ts';
 import { camera, flushedGpuScene, quadScene } from './testScenes.fixture.ts';
 import { awayCamera, drawnQuad } from './drawnQuad.fixture.ts';
 import { flushWebgpuPages } from './render/flush.ts';
 import { renderWebgpuPages } from './render/render.ts';
 import { addWebgpuView, removeWebgpuView, renderWebgpuView } from './state/persistentView.ts';
 import type { WebgpuPagesBackend } from './runtime.ts';
+import { taaStillFrames, TAA_SAMPLES } from '../../taa/jitter.ts';
+
+const TAA_STILL_FRAMES = taaStillFrames(TAA_SAMPLES);
 
 const RECT = { x: 4, y: 4, width: 16, height: 8 };
 

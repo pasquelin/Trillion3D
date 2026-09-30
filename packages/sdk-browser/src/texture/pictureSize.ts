@@ -7,7 +7,7 @@ import { textureRgba } from '../visibility/types.ts';
  * video frame's display size; anything else by its `width` and `height`. At least one pixel each
  * way, so a video not yet playing still has a texture to hold its first frame (#362).
  */
-export function pictureSize(image: unknown): [number, number] {
+function pictureSize(image: unknown): [number, number] {
   const picture = image as {
     videoWidth?: number;
     videoHeight?: number;

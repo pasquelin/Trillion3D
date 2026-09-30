@@ -16,7 +16,6 @@ import * as THREE from 'three';
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { threeTexture } from '../../../bench/witnesses/three/fromGraph.ts';
 import { sampleLinear, wrapTexel } from '../../../packages/sdk-browser/src/visibility/math.ts';
-import { wrapLinear } from '../../../packages/sdk-browser/src/visibility/wrapModes.ts';
 import { rasterVisibility } from '../../../packages/sdk-browser/src/visibility/raster.ts';
 import { cas, lineaireThree, melange, octetsTexture, texelThree } from './addressingCases.ts';
 import type { AdressageCas } from './addressingCases.ts';
@@ -25,6 +24,7 @@ import { CARTES, materielMelange, TEXTURE, UV } from './addressingMaps.ts';
 import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 import { identityRoots } from '../../../packages/sdk-browser/src/page/selection/placements.fixture.ts';
+import { wrapLinear } from '../../../packages/sdk-browser/src/visibility/wrapModes.fixture.ts';
 
 if (import.meta.main) {
   const textures = new Map<string, G.GraphTexture>();

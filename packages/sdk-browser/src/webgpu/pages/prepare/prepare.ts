@@ -42,7 +42,7 @@ export async function prepareWebgpuBackend(rt: WebgpuPagesRuntime, device: GPUDe
 
 /** Builds every GPU resource an image needs, once; `gpuDevice` is then kept as `gpu.device`. A
  *  backend closed or a device lost starts no further step; the teardown releases what steps built. */
-export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
+async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { gpu, vis, run, context, diag, capabilities, blendState, services } = rt,
     { allPages, blendCopies, scene, cap } = rt.setup,
     { packedPages, selectionRoots, rows } = rt.layout;

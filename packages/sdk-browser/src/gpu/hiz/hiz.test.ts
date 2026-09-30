@@ -2,15 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { hizBuildPyramid, hizReduceCeil } from '../../../../sdk-core/src/index.ts';
 import { DEPTH_CLEAR } from '../../camera/depthConvention.ts';
-import { buildHizPyramid, hizRejects, type HizBounds } from '../../hiz/hiz.ts';
-import {
-  evaluateHizReduce,
-  evaluateHizTest,
-  hizLevelSizes,
-  HIZ_SHADER,
-  packHizPyramid,
-} from './hiz.ts';
+import { hizRejects, type HizBounds } from '../../hiz/hiz.ts';
+import { buildHizPyramid } from '../../hiz/depth.ts';
+import { HIZ_SHADER } from './shader.ts';
 import { VERDICT_KEPT, VERDICT_REJECTED } from '../partition/contract.ts';
+import { evaluateHizReduce } from './oracle.fixture.ts';
+import { evaluateHizTest } from './oracle.fixture.ts';
+import { packHizPyramid } from './oracle.fixture.ts';
 
 /** Verdict of a single box, the pyramid reduced to its level zero. */
 const verdictAtLevelZero = (pyramid: Parameters<typeof levelZero>[0], bounds: HizBounds) =>
@@ -28,23 +26,6 @@ function levelZero(pyramid: { data: Float32Array; widths: Int32Array; heights: I
   }
   return rows;
 }
-
-test('Hi-Z level sizes reduce by ceil 2 until a single texel', () => {
-  assert.deepEqual(hizLevelSizes(32, 32), [
-    [32, 32],
-    [16, 16],
-    [8, 8],
-    [4, 4],
-    [2, 2],
-    [1, 1],
-  ]);
-  assert.deepEqual(hizLevelSizes(3, 3), [
-    [3, 3],
-    [2, 2],
-    [1, 1],
-  ]);
-  assert.deepEqual(hizLevelSizes(1, 1), [[1, 1]]);
-});
 
 test('packed GPU pyramid matches the JS ceil-min oracle including a background hole', () => {
   const depth = [

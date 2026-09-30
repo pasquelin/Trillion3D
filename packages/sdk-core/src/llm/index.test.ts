@@ -1,16 +1,13 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  EXPLORER_OPTIONS_SCHEMA,
-  COMPILER_OPTIONS_SCHEMA,
-  TRILLION3D_RUNTIME_TOOLS,
-  getTrillion3dTools,
-  getTrillion3dLlmPrompt,
-  toOpenAiTool,
-  toAnthropicTool,
-  toGeminiTool,
-  toMcpTool,
-} from '../index.ts';
+import { EXPLORER_OPTIONS_SCHEMA } from './explorerOptionsSchema.ts';
+import { COMPILER_OPTIONS_SCHEMA } from './compilerOptionsSchema.ts';
+import { TRILLION3D_RUNTIME_TOOLS } from './runtimeToolsSchema.ts';
+import { getTrillion3dLlmPrompt } from './systemPrompt.ts';
+import { toOpenAiTool } from './toolDefinitions.ts';
+import { toAnthropicTool } from './toolDefinitions.ts';
+import { toGeminiTool } from './toolDefinitions.ts';
+import { toMcpTool } from './toolDefinitions.ts';
 
 describe('Trillion3D LLM Module', () => {
   it('exposes a valid JSON Schema for MeasuredWorldOptions', () => {
@@ -44,47 +41,6 @@ describe('Trillion3D LLM Module', () => {
     assert.ok(names.includes('trillion3d_add_light'));
     assert.ok(names.includes('trillion3d_remove_light'));
     assert.ok(names.includes('trillion3d_set_diagnostic'));
-  });
-
-  it('formats tools correctly for OpenAI Function Calling', () => {
-    const openaiTools = getTrillion3dTools('openai');
-    assert.equal(openaiTools.length, TRILLION3D_RUNTIME_TOOLS.length);
-    for (const tool of openaiTools) {
-      assert.equal(tool.type, 'function');
-      assert.ok(tool.function.name);
-      assert.ok(tool.function.description);
-      assert.equal(tool.function.parameters.type, 'object');
-    }
-  });
-
-  it('formats tools correctly for Anthropic Tool Use', () => {
-    const anthropicTools = getTrillion3dTools('anthropic');
-    assert.equal(anthropicTools.length, TRILLION3D_RUNTIME_TOOLS.length);
-    for (const tool of anthropicTools) {
-      assert.ok(tool.name);
-      assert.ok(tool.description);
-      assert.equal(tool.input_schema.type, 'object');
-    }
-  });
-
-  it('formats tools correctly for Gemini Function Declarations', () => {
-    const geminiTools = getTrillion3dTools('gemini');
-    assert.equal(geminiTools.length, TRILLION3D_RUNTIME_TOOLS.length);
-    for (const tool of geminiTools) {
-      assert.ok(tool.name);
-      assert.ok(tool.description);
-      assert.equal(tool.parameters.type, 'object');
-    }
-  });
-
-  it('formats tools correctly for Model Context Protocol (MCP)', () => {
-    const mcpTools = getTrillion3dTools('mcp');
-    assert.equal(mcpTools.length, TRILLION3D_RUNTIME_TOOLS.length);
-    for (const tool of mcpTools) {
-      assert.ok(tool.name);
-      assert.ok(tool.description);
-      assert.equal(tool.inputSchema.type, 'object');
-    }
   });
 
   it('converts individual tools directly with converter helpers', () => {

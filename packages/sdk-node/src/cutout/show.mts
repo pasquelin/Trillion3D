@@ -134,7 +134,7 @@ async function keypress(input: NodeJS.ReadStream = process.stdin): Promise<strin
 }
 
 /** What a key means. An unknown key means nothing, and the caller asks again. */
-export function answerOf(key: string, proposal: boolean): Answer | null {
+function answerOf(key: string, proposal: boolean): Answer | null {
   if (key === '\r' || key === '\n' || key === ' ') return proposal ? 'cutout' : 'blend';
   if (key === 'd' || key === 'D') return 'cutout';
   if (key === 'v' || key === 'V') return 'blend';

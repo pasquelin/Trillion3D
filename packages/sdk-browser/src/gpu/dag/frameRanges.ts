@@ -24,10 +24,7 @@ export const framesBytes = (count: number) => count * PRIMITIVE_BYTES;
  * range (`encode.ts`). A scene the device holds whole is one range: the layout, the kernels
  * (`SPLIT`, `shader/viewsWgsl.ts`) and the dispatches of before.
  */
-export function cameraFrameRanges(
-  limits: Parameters<typeof storageBufferCap>[0],
-  worldCount: number,
-) {
+function cameraFrameRanges(limits: Parameters<typeof storageBufferCap>[0], worldCount: number) {
   const per = Math.max(1, Math.floor(storageBufferCap(limits) / PRIMITIVE_BYTES));
   const ranges: { first: number; count: number }[] = [];
   for (let first = 0; first < worldCount; first += per)

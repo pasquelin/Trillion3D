@@ -4,8 +4,10 @@
 import { Mat, shaderRun, type Vec } from '../texture/shaderRun.fixture.ts';
 import { taaUpscaleShader } from './upscaleWgsl.ts';
 import { taaShader } from './shaderWgsl.ts';
-import { taaWeights, TAA_WEIGHTS } from './weights.ts';
+import { taaWeights } from './weights.ts';
 import { IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts';
+
+const TAA_WEIGHTS = 12;
 
 const IDENTITY = new Mat([...IDENTITY_MATRIX4]);
 
@@ -133,7 +135,7 @@ export function upscaleRun(frame: UpscaleFrame, asIs = false, filtered = false, 
 
 const sinc = (x: number) => (x === 0 ? 1 : Math.sin(Math.PI * x) / (Math.PI * x));
 /** Lanczos-2 from its definition, `sinc(x)·sinc(x/2)` on `|x| < 2`. */
-export const kernel = (x: number) => (x >= 2 ? 0 : sinc(x) * sinc(x / 2));
+const kernel = (x: number) => (x >= 2 ? 0 : sinc(x) * sinc(x / 2));
 
 /**
  * What a display pixel is owed, from the definition: its place `r` in the render grid (texel

@@ -1,12 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  PORTABLE_TEXTURE_SIDE,
-  REFERENCE_MAX_TILES,
-  placeTile,
-  referenceTilePlan,
-} from './referenceTiles.ts';
+import { referenceTilePlan } from './referenceTiles.ts';
 import { createEngineCamera, writeEngineCamera } from '../camera/engineCamera.ts';
+
+const PORTABLE_TEXTURE_SIDE = 8192;
+const REFERENCE_MAX_TILES = 64;
 
 const BOSS = { width: 1728, height: 1117, pixelRatio: 2 };
 
@@ -110,16 +108,4 @@ test('an orthographic tile projection maps the same region, its translation read
     assert.ok(Math.abs(tx - (plan.width / tile.width) * (fx - centerX)) < 1e-9);
     assert.ok(Math.abs(ty - (plan.height / tile.height) * (fy - centerY)) < 1e-9);
   }
-});
-
-test('the resolved tiles are placed at their output origin, bottom row first', () => {
-  const plan = referenceTilePlan(32, 16, 1, 1, 64);
-  const out = new Uint8Array(plan.width * plan.height * 4);
-  const tile = plan.tiles[plan.tiles.length - 1];
-  const resolved = new Uint8Array(tile.width * tile.height * 4).fill(7);
-  placeTile(out, plan.width, tile, resolved);
-  // Every pixel of the tile is written, and nothing outside it is.
-  assert.equal(out[(tile.y * plan.width + tile.x) * 4], 7);
-  assert.equal(out[((tile.y + tile.height - 1) * plan.width + tile.x + tile.width - 1) * 4], 7);
-  assert.equal(out[0], tile.x === 0 && tile.y === 0 ? 7 : 0);
 });

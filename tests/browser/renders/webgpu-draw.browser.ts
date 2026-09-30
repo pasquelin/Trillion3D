@@ -5,14 +5,10 @@ import { createHash } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { routeBrowserFixtures } from '../../kit/server/fixtureRoute.ts';
-import {
-  BASE_SLOTS,
-  DRAW_ITEM_U32,
-  DRAW_SHADER,
-  drawBindEntries,
-  evaluateDrawCompact,
-  indirectForDraw,
-} from '../../../packages/sdk-browser/src/gpu/draw/draw.ts';
+import { BASE_SLOTS, DRAW_ITEM_U32 } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts';
+import { drawBindEntries } from '../../../packages/sdk-browser/src/gpu/draw/shader.ts';
+import { evaluateDrawCompact } from '../../../packages/sdk-browser/src/gpu/draw/cpu.fixture.ts';
+import { indirectForDraw } from '../../../packages/sdk-browser/src/gpu/draw/cpu.fixture.ts';
 import {
   VIS_SHADER,
   PAGE_INFO_STRIDE,
@@ -21,7 +17,10 @@ import {
   VIS_BINDINGS,
   VIS_UNIFORM_BYTES,
 } from '../../../packages/sdk-browser/src/webgpu/core/bindLayout.ts';
-import type { DrawItem } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts';
+import type { DrawItem } from '../../../packages/sdk-browser/src/gpu/draw/contract.ts';
+import { drawShader } from '../../../packages/sdk-browser/src/gpu/draw/shader.ts';
+
+const DRAW_SHADER = drawShader(1);
 
 const cap = 192,
   maxVertexCount = 3;

@@ -66,14 +66,11 @@ export function createWaterCompositeLayout(device: GPUDevice) {
 /** The composite's targets: the HDR target, then, `routed`, a normal layer's display layers, then,
  *  when the frame has a share (`asIsShare.ts`), the reactive value's — green alone, as a
  *  particle's. */
-export const waterCompositeTargets = (share: boolean, routed = false): GPUColorTargetState[] => [
+const waterCompositeTargets = (share: boolean, routed = false): GPUColorTargetState[] => [
   { format: 'rgba16float', blend: ALPHA_BLEND },
   ...(routed ? displayTargets('normal') : []),
   ...(share ? [REACTIVE_TARGET] : []),
 ];
-
-/** An image with no share keeps the composite it had before #833: no reactive target. */
-export const WATER_ROUTED_TARGETS: GPUColorTargetState[] = waterCompositeTargets(false, true);
 
 /** Each composite's entry point, indexed as `createWaterComposites` caches them. */
 const COMPOSE_ENTRIES = [

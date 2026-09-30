@@ -10,7 +10,7 @@ import { CUTOUT_SHEET_FILE, CUTOUT_SHEET_VERSION } from '../../../sdk-core/src/i
  * one answer covers every model that shares that texture — which is why the sheets are read as a
  * batch and written as a batch.
  */
-export const SHEET_FILE = CUTOUT_SHEET_FILE;
+const SHEET_FILE = CUTOUT_SHEET_FILE;
 
 interface SheetTexture {
   image?: string;

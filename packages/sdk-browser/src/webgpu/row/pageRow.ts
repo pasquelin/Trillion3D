@@ -34,7 +34,7 @@ export const ROW_VERTEX_BASE_WORD = 26,
   ROW_HIZ_SLOT_WORD = 31;
 /** The Hi-Z slot of a row never culled (`neverCulled`): none, which every reader of the verdict
  *  draws unjudged (`HIZ_REJECTED_WGSL`, `rowVerdict`). */
-export const NO_HIZ_SLOT = 0xffffffff;
+const NO_HIZ_SLOT = 0xffffffff;
 /** Stamps rank `row` as the Hi-Z slot of the row at `base`, unless the row has none. */
 export function restampHizSlot(ints: Uint32Array, base: number, row: number) {
   if (ints[base + ROW_HIZ_SLOT_WORD] !== NO_HIZ_SLOT) ints[base + ROW_HIZ_SLOT_WORD] = row;
@@ -55,7 +55,7 @@ export const ROW_DASH_WORD = 28;
 /** Row words of a sprite's turn and size rule (`PageInfo.sprite`, `spriteAt`); zero on any other row. */
 export const ROW_SPRITE_WORD = 36;
 /** Row word that carries the line's placement (`PageInfo.placement`). */
-export const ROW_PLACEMENT_WORD = 62;
+const ROW_PLACEMENT_WORD = 62;
 /** Row word that carries the resolve class key (`PageInfo.materialClass`, `../../visibility/shader/materialClass.ts`). */
 export const ROW_MATERIAL_CLASS_WORD = 63;
 /** Row word that holds how many indices the page draws: what the GPU reads to draw it, and so the

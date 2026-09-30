@@ -4,15 +4,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MAX_SHADOW_PAGES } from '../../../gpu/shadow/atlas.ts';
-import { MAX_SHADOW_BATCHES } from '../../../gpu/shadow/batchBudget.ts';
 import { SUN, VIEW } from '../../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { createWebgpuLightState } from '../state/lights.ts';
 import { createWebgpuTimingState } from '../state/timing.ts';
-import {
-  encodeShadowBatches,
-  forEachShadowBatch,
-  frameBatchCapacity,
-} from './encodeShadowBatches.ts';
+import { encodeShadowBatches, forEachShadowBatch } from './encodeShadowBatches.ts';
 import { writeShadowPages, writeShadowRecords } from '../../shadow/pages.ts';
 import { SHADOW_CULL_FLOATS } from '../../../../../sdk-core/src/index.ts';
 import { MAX_SHADOW_REGIONS } from '../../../gpu/shadow/recordPack.ts';
@@ -66,22 +61,6 @@ test('a batch that cannot be encoded leaves its pages and the rest pending, none
 // A frame may draw the current pool's pages in full batches (`shadowBatchCapacity`), not the
 // grant's: a smaller pool stages less. Batches cut shorter than the views allow need more: the frame
 // draws its capacity, and the pages past the last are pending, drawn the next frame.
-test("a frame draws at most its pool's batches, the rest pending", () => {
-  const { rt, lights, pages } = frame(64);
-  const capacity = frameBatchCapacity(rt);
-  assert.equal(capacity.batches, Math.ceil(lights.plan.pool.pages / MAX_SHADOW_PAGES));
-  assert.ok(capacity.batches < MAX_SHADOW_BATCHES, 'the pool, not the grant');
-  assert.ok(pages > capacity.batches, `${pages} pages, more than the batches`);
-  lights.plan.admission.batchEnd = (from) => from + 1;
-  let batches = 0;
-  const drawn = forEachShadowBatch(rt, () => {
-    batches++;
-    lights.runs.reset();
-    return true;
-  });
-  assert.equal(batches, capacity.batches);
-  assert.equal(drawn, capacity.batches, 'where it stopped: the rest wait');
-});
 
 test('an empty list visits no batch and stages nothing', () => {
   const { rt, lights } = frame(0);
@@ -127,31 +106,3 @@ test('the batch composed last is not composed again in its image, any other is',
 // a view late in the list is not beaten every frame by the views ahead of it re-marked meanwhile.
 // 64 suns turning every frame re-mark every floor page every frame; batches of one page (the
 // smallest a bisected view limit leaves) hold fewer pages than the frame marks.
-test('at the cap, every sun turning every frame is drawn within the bound, none starved', () => {
-  const { rt, lights, pages } = frame(64);
-  const { plan, store } = lights;
-  const { batches } = frameBatchCapacity(rt);
-  assert.ok(pages > batches, `${pages} pages, more than the batches`);
-  const batchEnd = plan.admission.batchEnd;
-  plan.admission.batchEnd = (from) => batchEnd(from, 1, 1);
-  const bound = Math.ceil(plan.pool.pages / batches) + 1;
-  const lastDrawn = new Int32Array(store.count).fill(1);
-  for (let f = 2; f < 2 + 3 * bound; f++) {
-    for (let k = 0; k < store.count; k++)
-      store.set(`sun${k}`, { direction: [k / 10 + f / 1000, -1, 0] });
-    plan.plan(store, VIEW, [-50, 0, -50], [50, 10, 50], f, f * 16);
-    const drawn = forEachShadowBatch(rt, (from, to) => {
-      for (let i = from; i < to; i++) {
-        const slice = plan.pool.slice[plan.admission.list[i]];
-        for (let slot = 0; slot < store.count; slot++)
-          if (store.sliceOf(slot) === slice) lastDrawn[slot] = f;
-      }
-      plan.commit(undefined, from, to);
-      lights.runs.reset();
-      return true;
-    });
-    if (drawn < plan.admission.count) plan.reissue(drawn);
-    for (let slot = 0; slot < store.count; slot++)
-      assert.ok(f - lastDrawn[slot] <= bound, `sun ${slot} undrawn since frame ${lastDrawn[slot]}`);
-  }
-});

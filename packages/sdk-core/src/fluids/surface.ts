@@ -20,7 +20,7 @@ export function waveHeight(waves: Waves, x: number, z: number) {
 }
 
 /** The rest point `[x, ·, z]` the waves carry to the world position `(x, z)`, into `out`. */
-export function waveRest(waves: Waves, x: number, z: number, out: Float64Array | number[]) {
+function waveRest(waves: Waves, x: number, z: number, out: Float64Array | number[]) {
   let px = x,
     pz = z;
   for (let n = 0; n < HEIGHT_ITERATIONS; n++) {

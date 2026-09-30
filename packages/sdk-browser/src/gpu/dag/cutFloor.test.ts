@@ -12,8 +12,7 @@ import test from 'node:test';
 import { asHostLibrary } from '../../host/resources.ts';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
-import { packDagSelection, packedWorldsToRenderOrigin } from './pack.ts';
-import { evaluateDagSelectionKernel } from './selection.ts';
+import { packDagSelection } from './pack.ts';
 import { cameraSelectionUniforms } from '../core/selection.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 import { dagRecords, worldOf } from './records.ts';
@@ -23,6 +22,8 @@ import { DAG_NODE_FLOATS } from './types.ts';
 import { createDagOraclePredicates } from './oracle/predicates.ts';
 import { descenteComptee } from './cutFrontier.fixture.ts';
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts';
+import { packedWorldsToRenderOrigin } from './pack.fixture.ts';
+import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts';
 
 const pages = scenePages(4096, 8);
 const cam = G.perspectiveCamera(55, 16 / 9, 0.1, 200);

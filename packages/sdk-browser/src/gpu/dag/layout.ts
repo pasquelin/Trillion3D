@@ -114,27 +114,8 @@ export const OUT_COUNT = 0,
   OUT_FLAGS = 3,
   OUT_SELECTED_TRIANGLES = 4,
   OUT_TRANSPARENT_TRIANGLES = 5,
-  /** The counter of the requests ahead of the camera, past their cap included. */
-  OUT_AHEAD = 6,
   /** How many requests ahead the snapshot holds, behind every one of the camera's (`dagSortRequests`). */
   OUT_AHEAD_PLACED = 7;
-
-/**
- * The two triangle totals placed in the header, in the order THIS file fixes. `dagMask`
- * writes them on the GPU (`shader/totalsWgsl.ts`); anything that stands in for the GPU
- * must write them the same way, or else adoption — which reads the GPU first — would
- * take an empty header for a frame without triangles.
- */
-export function writeTriangleTotals(
-  ints: Uint32Array,
-  totaux: {
-    selectedTriangles?: number;
-    transparentTriangles?: number;
-  },
-) {
-  ints[OUT_SELECTED_TRIANGLES] = totaux.selectedTriangles ?? 0;
-  ints[OUT_TRANSPARENT_TRIANGLES] = totaux.transparentTriangles ?? 0;
-}
 
 /** First residency word, behind the working table's word per page: the cut rule's `resident(c)`
  *  (`../../page/cut/readiness.ts`, `ready`). */
@@ -149,8 +130,6 @@ export const poolBase = (pageCount: number) => childBase(pageCount) + residentWo
 export const keyBase = (pageCount: number) => poolBase(pageCount) + 1 + selectionListCap(pageCount);
 /** First cold record, behind the bit sets, the pool's list and the key column. */
 export const coldBase = (pageCount: number) => keyBase(pageCount) + Math.max(0, pageCount);
-const residentBit = (bits: Uint32Array, base: number, page: number) =>
-  (bits[base + (page >>> 5)] & (1 << (page & 31))) !== 0;
 
 /** Hot field ranks, in the order `struct Cluster` of the shader declares them. */
 export const HOT_SPHERE = 0,
@@ -167,17 +146,3 @@ export const COLD_CONE = 0,
   COLD_OWNER = 11,
   /** Cluster triangles, read as an INTEGER word: those are what the totals accumulate. */
   COLD_TRIANGLES = 12;
-
-/**
- * One of the two residency columns returned to the oracle, one word per cluster: what the buffer
- * doubles read in the same cold buffer as the shader, instead of a rank copied on their side.
- */
-export function residentFlags(
-  bits: Uint32Array,
-  pageCount: number,
-  base = residentBase(pageCount),
-) {
-  return Uint32Array.from({ length: pageCount }, (_, page) =>
-    residentBit(bits, base, page) ? 1 : 0,
-  );
-}

@@ -52,7 +52,7 @@ export const SAMPLE_MAG_NEAREST = 1,
   SAMPLE_FILTER_MASK = (1 << SAMPLE_WRAP_SHIFT) - 1;
 
 /** The most reads anisotropic filtering takes, WebGPU's `maxAnisotropy` ceiling. */
-export const MAX_ANISOTROPY = 16;
+const MAX_ANISOTROPY = 16;
 
 /** Header words of a texture's UV transform: the affine 2 × 3 part. */
 export const TRANSFORM_WORDS = 6;

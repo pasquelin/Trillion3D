@@ -4,10 +4,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { FLAG_BLEND_CASTER } from '../../visibility/buffer.ts';
 import { ROW_BLEND_COVERAGE_WORD, ROW_FLAGS_WORD } from './pageRow.ts';
-import { NO_ROW } from './blendCasters.ts';
 import { createWebgpuRowSync } from './sync.ts';
 import { createWebgpuRowCommit } from './commit.ts';
 import { catalogue, mount, STRIDE } from './blendCasters.fixture.ts';
+
+const NO_ROW = 0xffffffff;
 
 test('a blended caster is listed in a shadow-only row and pinned where the light cull reads', () => {
   const pages = catalogue(0.4);

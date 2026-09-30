@@ -65,7 +65,7 @@ type PoolState = DrawState & { step: GPUBuffer; staged: GPUBuffer; group: GPUBin
  * count. The pipeline compiles in the background; until it arrives no pool is taken, so what they
  * stage waits. `fail` hears a pipeline that could not be made, and every pool is then `refused`.
  */
-export function createWebgpuParticles(device: GPUDevice, fail: (error: unknown) => void) {
+function createWebgpuParticles(device: GPUDevice, fail: (error: unknown) => void) {
   const layout = bounceLayout(device, ['uniform', 'read-only-storage', 'storage']);
   let pipeline: GPUComputePipeline | null | undefined;
   createCheckedShaderModule(device, PARTICLES_WGSL, 'PARTICLES')

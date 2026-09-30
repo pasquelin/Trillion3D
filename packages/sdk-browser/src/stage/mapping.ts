@@ -94,18 +94,12 @@ const PASSES: Readonly<Record<string, PassRow>> = Object.freeze({
   'Trillion3D explicit capture': ['present', 'other'],
 });
 
-/** The passes the broad Shadows stage spans, and no other: its `gpuShadowsMs` sums exactly these.
- *  The light cut, which chooses casters for the shadows, is its own stage (`shadowCasters`). */
-export const SHADOW_STAGE_PASSES: readonly string[] = Object.freeze(
-  Object.keys(PASSES).filter((name) => PASSES[name][0] === 'shadows'),
-);
-
 /** Stage of a pass, by its label. Unknown is `geometry`. */
 export const gpuPassStageOf = (name: string) => PASSES[name]?.[0] ?? 'geometry';
 /** Block of a pass, by its label. Unknown is `other`. */
 export const gpuPassBlockOf = (name: string): GpuPassBlock => PASSES[name]?.[1] ?? 'other';
 /** Shadow part of a pass, by its label. A pass that serves no shadow page is `other`. */
-export const gpuShadowPartOf = (name: string) => PASSES[name]?.[2] ?? 'other';
+const gpuShadowPartOf = (name: string) => PASSES[name]?.[2] ?? 'other';
 
 /** Stages the WebGPU engine can name, in the order they occur. */
 export const WEBGPU_STAGES = [

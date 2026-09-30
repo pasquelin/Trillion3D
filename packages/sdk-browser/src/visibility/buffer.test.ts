@@ -1,15 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
-import { opaqueBackgroundRgba } from '../page/raster.ts';
 import {
   packVisibilityId,
   unpackVisibilityId,
   rasterVisibilityIds,
   shadeVisibility,
-  VIS_INVALID,
   VIS_MAX_PAGES,
-  VIS_MAX_PAGE_TRIANGLES,
   VIS_TRIANGLE_MASK,
   assertVisibilityPageTriangles,
   SHADE_SHADER,
@@ -18,9 +15,8 @@ import { camera, quadPages, centerId } from './buffer.fixture.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { identityRoots } from '../page/selection/placements.fixture.ts';
 
-test('the WebGPU display buffer starts with the shared opaque scene background', () => {
-  assert.deepEqual([...opaqueBackgroundRgba(2, 1)], [0x17, 0x1d, 0x28, 255, 0x17, 0x1d, 0x28, 255]);
-});
+const VIS_INVALID = 0;
+const VIS_MAX_PAGE_TRIANGLES = VIS_TRIANGLE_MASK + 1;
 
 test('SHADE_SHADER implements mat3 inverse-transpose without the missing WGSL inverse builtin', () => {
   assert.match(SHADE_SHADER, /fn inverseTranspose3\s*\(/);

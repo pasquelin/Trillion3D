@@ -17,7 +17,7 @@ export const FRESH_PARAMS = FRESH_PARAM_WORDS + MAX_SHADOW_SLICES * FRESH_SLICE_
  *  emitter, clip square. */
 export const FRESH_FACE_WORDS = 28;
 /** A draw's first vertex carries its layer this many bits up; its corner is below. */
-export const FRESH_LAYER_SHIFT = 16;
+const FRESH_LAYER_SHIFT = 16;
 
 /**
  * THE WORDS OF THE GPU PAGES' ARGUMENTS (#1275), one buffer the passes share: the frame's region
@@ -26,7 +26,7 @@ export const FRESH_LAYER_SHIFT = 16;
  * and the page of each region. The cull's dispatch is apart: a
  * buffer a dispatch reads its size from, it may not write (`dispatch`, `allocBuffers.ts`).
  */
-export const FRESH_ARG = { regions: 0, capacity: 1, pairs: 2, corners: 3 } as const;
+const FRESH_ARG = { regions: 0, capacity: 1, pairs: 2, corners: 3 } as const;
 /** Draws of a layer: its pages' squares cleared, then every kept caster. */
 export const FRESH_CLEAR = 0,
   FRESH_CASTERS = 1;
@@ -35,7 +35,7 @@ const DRAWS = 4,
 /** First word of layer `layer`'s draw `kind`. */
 export const freshDrawWord = (layer: number, kind: number) =>
   DRAWS + (layer * 2 + kind) * DRAW_WORDS;
-export const FRESH_LAYER_STARTS = DRAWS + MAX_POOL_LAYERS * 2 * DRAW_WORDS;
+const FRESH_LAYER_STARTS = DRAWS + MAX_POOL_LAYERS * 2 * DRAW_WORDS;
 export const FRESH_REGION_PAGES = FRESH_LAYER_STARTS + MAX_POOL_LAYERS;
 /** Words of the arguments of a pool of `pages`: its regions' pages. */
 export const freshArgWords = (pages: number) => FRESH_REGION_PAGES + pages;

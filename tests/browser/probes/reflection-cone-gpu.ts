@@ -2,9 +2,11 @@ import { ggxIntegral } from '../../../packages/sdk-browser/src/reflections/ggxIn
 // Numeric ray/cone diagnosis and real forward pipeline validation; no image/timing proof.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BLEND_SHADER } from '../../../packages/sdk-browser/src/webgpu/blend/shader.ts';
 import { CONE_DIAGNOSTIC_WGSL } from './reflection-cone-shader.ts';
 import { dansPageWebgpu } from './pageWebgpu.ts';
+import { blendShader } from '../../../packages/sdk-browser/src/webgpu/blend/shader.ts';
+
+const BLEND_SHADER = blendShader();
 
 async function diagnose({ compute, forward }: { compute: string; forward: string }) {
   const opened = await globalThis.openGpuDevice();

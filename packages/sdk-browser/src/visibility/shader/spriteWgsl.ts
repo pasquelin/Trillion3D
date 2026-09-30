@@ -69,7 +69,7 @@ export const SPRITE_ROOT = 1;
 export const SPRITE_UNCULLED = 2;
 /** The root mark's bit on a root whose mesh, or the row placing it, says `castShadow = false`
  *  (`PlacementRows.shadowless`): no light cut opens it either. */
-export const SHADOWLESS_ROOT = 4;
+const SHADOWLESS_ROOT = 4;
 /** The bits of a root that casts no shadow: what every light cut tests (`castsNoShadow`). */
 export const CASTS_NO_SHADOW = SPRITE_ROOT | SHADOWLESS_ROOT;
 /** `mark` with its shadowless bit set when `shadowless`, cleared otherwise. */

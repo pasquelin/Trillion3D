@@ -1,13 +1,10 @@
-import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts';
 import { primitiveWordAt } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts';
-import {
-  DRAW_ITEM_U32,
-  evaluateDrawCompact,
-  indirectForDraw,
-  type DrawItem,
-} from '../../../packages/sdk-browser/src/gpu/draw/draw.ts';
+import { DRAW_ITEM_U32 } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts';
+import { evaluateDrawCompact } from '../../../packages/sdk-browser/src/gpu/draw/cpu.fixture.ts';
+import { indirectForDraw } from '../../../packages/sdk-browser/src/gpu/draw/cpu.fixture.ts';
+import { type DrawItem } from '../../../packages/sdk-browser/src/gpu/draw/contract.ts';
 import { compactDrawnPages } from './globals.ts';
 import {
   simulateBlendExpansion,
@@ -17,15 +14,17 @@ import {
 import {
   SELECTION_HEADER_WORDS,
   childBase,
-  residentFlags,
   selectionListCap,
   stagedRequestsWord,
-  writeTriangleTotals,
 } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
-import { VIEW_FLAGS_WORD } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts';
 import { VIEW_LIGHT } from '../../../packages/sdk-browser/src/gpu/dag/shader/pagesWgsl.ts';
 import { mockEvictions, sortStagedRequests } from './mockEvict.ts';
 import { runShadowPass } from '../../../packages/sdk-browser/src/webgpu/shadow/freshRun.fixture.ts';
+import { residentFlags } from '../../../packages/sdk-browser/src/gpu/dag/layout.fixture.ts';
+import { writeTriangleTotals } from '../../../packages/sdk-browser/src/gpu/dag/layout.fixture.ts';
+import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts';
+
+const VIEW_FLAGS_WORD = 54;
 
 /** The camera cut's kernels the double replays, all on the selection's one bind group. */
 const DAG_STAGES = new Set(['dagMask', 'dagDrawScatter', 'dagSortRequests', 'dagListEvictions']);

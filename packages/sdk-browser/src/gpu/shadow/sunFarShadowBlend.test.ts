@@ -15,7 +15,9 @@ import { SUN_FAR_PROXY_BINDING } from './sunFarShadowWgsl.ts';
 import { BLEND_BINDINGS } from '../../webgpu/core/bindLayout.ts';
 import { createWebgpuBlendPipelines } from '../../webgpu/blend/pipelines.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
-import { BLEND_SHADER } from '../../webgpu/blend/shader.ts';
+import { blendShader } from '../../webgpu/blend/shader.ts';
+
+const BLEND_SHADER = blendShader();
 
 /** Layout entries, as the fake device received them. */
 type LayoutEntries = { entries: Array<GPUBindGroupLayoutEntry> };

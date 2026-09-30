@@ -10,7 +10,7 @@ import { PAGE_INDEX_MASK, PAGE_MAPPED } from './virtual.ts';
  * static layer too, for their casters were culled to the old one (`pages.ts`). True when that
  * staled a current page.
  */
-export function reachFootprint(
+function reachFootprint(
   pool: ShadowPool,
   page: number,
   footprint: number,

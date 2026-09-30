@@ -9,7 +9,7 @@ import { TAA_SAMPLES, taaJitter } from './jitter.ts';
 import { hypot2 } from '../../../sdk-core/src/math/primitives/hypot.ts';
 
 /** Nine weights, stored neighbour by neighbour (dy then dx, from −1 to 1), three `vec4f` in the uniform. */
-export const TAA_WEIGHTS = 12;
+const TAA_WEIGHTS = 12;
 
 /** The window on `[0, 1]` of the radius, zero beyond. */
 function blackmanHarris(distance: number) {

@@ -5,8 +5,9 @@ import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { dotVector3 } from '../../../../sdk-core/src/math/primitives/vector.ts';
 import { clampNumber as clamp } from '../../../../sdk-core/src/world/math/spherical.ts';
 import { DIRECT_LIGHT_WGSL } from './lightWgsl.ts';
-import { SHADOW_DEPTH_ROUNDING } from './shadowFactorWgsl.ts';
 import { PCF_REACH, POISSON_16, directShadowWgsl } from './shadowWgsl.ts';
+
+const SHADOW_DEPTH_ROUNDING = 2 * 2 ** -23;
 
 export type Vec = readonly number[];
 /** The depth map: the distance along the light stored at a texel centre. */

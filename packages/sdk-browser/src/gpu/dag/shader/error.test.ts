@@ -3,9 +3,11 @@
 // sdk-core word for word.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { referenceScreenError } from '../../../../../sdk-core/src/index.ts';
 import { DAG_SELECTION_SHADER } from './shader.ts';
-import { REFERENCE_ERROR_DECL, withScreenErrorVariant } from './error.ts';
+import { withScreenErrorVariant } from './error.ts';
+import { referenceScreenError } from '../../../../../sdk-core/src/lod/screenErrorVariant.ts';
+
+const REFERENCE_ERROR_DECL = 'const REFERENCE_ERROR:bool=false;';
 
 test('the default text is returned character for character, the constant being false', () => {
   assert.ok(DAG_SELECTION_SHADER.includes(REFERENCE_ERROR_DECL));

@@ -35,7 +35,7 @@ export type WebgpuEffectKind<P> = {
 type Kinds = { [K in EffectKind]: WebgpuEffectKind<EffectPassOf<K>> };
 
 /** Each kind's WebGPU implementation: the one place a new built-in or a custom pass plugs in. */
-export const WEBGPU_KINDS: { [K in EffectKind]: (device: GPUDevice) => Promise<Kinds[K]> } = {
+const WEBGPU_KINDS: { [K in EffectKind]: (device: GPUDevice) => Promise<Kinds[K]> } = {
   bloom: createWebgpuBloom,
 };
 

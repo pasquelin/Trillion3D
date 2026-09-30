@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { checkGeometryPoolBudget, checkTexturePoolBudget } from './pools.ts';
-import { DEFAULT_CPU_BUDGET, DEFAULT_GPU_BUDGET, splitMemoryBudget } from './memoryBudget.ts';
+import { DEFAULT_CPU_BUDGET, splitMemoryBudget } from './memoryBudget.ts';
+import { defaultGpuBudget } from './memoryBudget.ts';
+
+const DEFAULT_GPU_BUDGET = defaultGpuBudget();
 
 test('every budget entry point preserves its named error for invalid positive safe integers', () => {
   const cases: [string, (value: number) => unknown][] = [

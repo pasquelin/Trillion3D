@@ -12,7 +12,7 @@ const alphaIsCoverage = (mat: PageSurface) =>
  *  keeps: `b / 255 × factor >= alphaTest` in f32, the product the engine cuts; 255 when none does,
  *  which the lowest over a texture's readers ignores beside any other (`cutoff_byte`,
  *  `coverage.rs`). */
-export function cutoffByte(alphaTest: number, factor: number) {
+function cutoffByte(alphaTest: number, factor: number) {
   const cut = Math.fround(alphaTest),
     f = Math.fround(factor);
   // The test only grows with the byte, and f32 rounding moves its threshold `cut × 255 / f` by far

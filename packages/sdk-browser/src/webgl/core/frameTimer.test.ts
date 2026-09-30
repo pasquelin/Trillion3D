@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createWebglFrameTimer, WHOLE_FRAME_PASS } from './frameTimer.ts';
+import { createWebglFrameTimer } from './frameTimer.ts';
+
+const WHOLE_FRAME_PASS = 'Trillion3D WebGL2 frame';
 
 const TIME_ELAPSED_EXT = 0x88bf;
 const GPU_DISJOINT_EXT = 0x8fbb;

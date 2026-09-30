@@ -10,7 +10,6 @@ const shadowEntryBits = (pages = SUN_WINDOW) => shadowTableEntries(pages) / 32;
  *  read at run time): one bit per table entry — a page is listed once however many pixels read it
  *  —, then one per entry for its miss (#1211), listed once the same way. */
 export const shadowRequestBits = (pages = SUN_WINDOW) => 2 * shadowEntryBits(pages);
-export const SHADOW_REQUEST_BITS = shadowRequestBits();
 
 /** The claim of page `e` by one lane: its bit tested before the atomic, then set, and the page
  *  listed by whoever set it first — so a page thousands of pixels read costs one list slot. A
@@ -27,7 +26,6 @@ const claimWgsl = (name: string, entryBits: number, miss = false) => `fn ${name}
  *  `SUBGROUP_REQUEST_WGSL`, and the text `withSubgroupShadowRequests` replaces. */
 const laneRequestWgsl = (pages = SUN_WINDOW) =>
   claimWgsl('requestShadowPage', shadowEntryBits(pages));
-export const LANE_REQUEST_WGSL = laneRequestWgsl();
 
 /** Election rounds a subgroup runs before its lanes left claim their own pages: a bound on the
  *  serial work of a subgroup whose lanes read many pages, never a change of the pages asked for. */
@@ -58,7 +56,6 @@ fn requestShadowPage(e:u32){
  }
  shadowClaimPage(e);
 }`;
-export const SUBGROUP_REQUEST_WGSL = subgroupRequestWgsl();
 
 /**
  * What a reading asks of the scheduler. The shading that marks writes the page into the request

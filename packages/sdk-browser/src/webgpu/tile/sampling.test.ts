@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { Texture } from '../../../../sdk-core/src/index.ts';
 import {
-  MAX_ANISOTROPY,
   SAMPLE_ANISOTROPY_SHIFT,
   SAMPLE_MAG_HALF,
   SAMPLE_MAG_NEAREST,
@@ -15,6 +14,8 @@ import {
 } from '../../texture/sampling.ts';
 import { SAMPLING_WGSL, atlasReadWgsl } from './samplingWgsl.ts';
 import { maskAlphaWgsl } from './wgsl.ts';
+
+const MAX_ANISOTROPY = 16;
 
 const IDENTITY = [1, 0, 0, 0, 1, 0, 0, 0, 1];
 

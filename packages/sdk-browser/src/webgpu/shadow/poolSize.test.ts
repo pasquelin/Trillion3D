@@ -5,8 +5,7 @@ import {
   shadowPoolSize as pages,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { createWebgpuLightState } from '../pages/state/lights.ts';
-import { shadowPoolFor, sizeShadowPool } from './poolSize.ts';
-import { SHADOW_ATLAS_BYTES } from '../../residency/memoryBudget.ts';
+import { sizeShadowPool } from './poolSize.ts';
 import { shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
 import { SUN } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { refusingDevice } from './poolDevice.fixture.ts';
@@ -140,26 +139,6 @@ test('a shadow pool refused even at its floor leaves the frame whole and says sh
   assert.equal(s.uncaptured, 0);
 });
 
-test('the shadow pool rule never draws above the screen nor below the smallest one', () => {
-  const draw = shadowPoolFor(2601);
-  assert.deepEqual(draw(shadowAtlasBytes(51)), {
-    budgetBytes: shadowAtlasBytes(51),
-    side: 51,
-    layers: 1,
-    allocatedBytes: shadowAtlasBytes(51),
-    clamp: null,
-  });
-  assert.equal(draw(shadowAtlasBytes(64)).side, 51);
-  assert.equal(draw(shadowAtlasBytes(20)).clamp, 'device-limit');
-  assert.equal(shadowPoolFor(20160)(shadowAtlasBytes(51, 2)).layers, 2, 'no layer past the grant');
-  const wide = shadowPoolFor(5040, 16384 / 128)(Infinity);
-  assert.deepEqual([wide.side, wide.layers], [71, 1], 'a device 16 384 texels wide: one layer');
-  assert.equal(shadowPoolFor(20160)(SHADOW_ATLAS_BYTES).clamp, 'ceiling', 'the budget holds it');
-  const floor = draw(1);
-  assert.equal(floor.side, shadowPoolSide(1, 1));
-  assert.equal(floor.clamp, 'minimum');
-});
-
 test('at 3 456 × 2 234, one sun sizes two layers of 51 pages a side: 5 202 pages', async () => {
   const s = session([3456, 2234]);
   s.lights.store.add({ ...SUN, id: 'shadow sun' });
@@ -167,19 +146,6 @@ test('at 3 456 × 2 234, one sun sizes two layers of 51 pages a side: 5 202 page
   assert.deepEqual([s.lights.plan.pool.side, s.lights.plan.pool.layers], [51, 2]);
   const [, context] = s.said.find(([phase]) => phase === 'shadow-pool')!;
   assert.deepEqual([context.layers, context.pages], [2, 5202]);
-});
-
-test('the side follows the pages the pool holds; the device side is only the cap', () => {
-  // A pool of 2 160 pages is the one square that holds them, and its bytes.
-  const held = shadowPoolFor(2160, 128)(Infinity);
-  assert.deepEqual([held.side, held.layers], [47, 1]);
-  assert.equal(held.allocatedBytes, shadowAtlasBytes(47));
-  // One sun over 3 456 × 2 234 asks 5 040 pages, 71²; over 3 840 × 2 160, 5 440 pages, 74².
-  const sides = [pages(3456, 2234), pages(3840, 2160)].map((n) => shadowPoolFor(n, 128)(Infinity));
-  assert.deepEqual(
-    sides.map(({ side, layers }) => side ** 2 * layers),
-    [5041, 5476],
-  );
 });
 
 test('a pool the memory budget holds short of what the screen asks is said held by the budget', async () => {

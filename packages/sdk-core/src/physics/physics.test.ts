@@ -5,11 +5,14 @@ import { box, plane, sphere } from '../world/geometry/basic.ts';
 import { capsule } from '../world/geometry/round.ts';
 import { Material } from '../world/material/material.ts';
 import { CommandWriter } from './commands.ts';
-import { JOLT_COMMIT, readCookedPhysics } from './cooked.ts';
-import { ADD_WORDS, OP, RESTORE_WORDS, SHAPE, VIEW_WORDS } from './layout.ts';
+import { readCookedPhysics } from './cooked.ts';
+import { ADD_WORDS, OP, SHAPE, VIEW_WORDS } from './layout.ts';
 import { physicsMatterOf } from './matter.ts';
 import { ObjectPhysics } from './objectPhysics.ts';
 import { resolveShape } from './shape.ts';
+
+const JOLT_COMMIT = 'e77f175595e64cb44218cc9d9d56fc365ad0e36a';
+const RESTORE_WORDS = 3;
 
 const one = { x: 1, y: 1, z: 1 };
 

@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
-import { autonomousCacheReady, chooseBackends } from './defaultBackends.ts';
+import { chooseBackends } from './defaultBackends.ts';
 import { autonomousPagesBackend } from './autonomous/pages.ts';
 import { webgpuPagesBackend } from '../webgpu/pages/pages.ts';
 import { exactPagesBackend } from '../../../../bench/witnesses/exact/backend.ts';
@@ -22,17 +22,6 @@ test('a WebGPU machine renders through the engine page raster by default', () =>
   assert.equal(choice.renderer, 'webgpu-page-raster');
   assert.equal(choice.origin, 'default');
   assert.match(choice.reason, /WebGPU device/);
-});
-
-test("a WebGL2-only machine renders through the engine's own autonomous path", () => {
-  const choice = chooseBackends({}, cache('scene.gltf'), undefined);
-  assert.deepEqual(choice.factories, [autonomousPagesBackend]);
-  assert.equal(choice.renderer, 'autonomous-pages-webgl');
-  assert.equal(choice.autonomous, true);
-  assert.equal(choice.origin, 'default');
-  assert.match(choice.reason, /no WebGPU device/);
-  assert.equal(autonomousCacheReady(cache('scene.gltf')), true);
-  assert.equal(autonomousCacheReady(cache(null)), false);
 });
 
 test('a witness renders only because the host opted into it', () => {

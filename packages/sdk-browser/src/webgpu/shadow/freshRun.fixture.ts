@@ -13,9 +13,13 @@ import {
   shadowsOf,
 } from './allocRun.fixture.ts';
 import { SHADOW_FRESH_CULL_WGSL } from './freshCullWgsl.ts';
-import { FRESH_ARG, FRESH_PARAM_WORDS, FRESH_SLICE_FLOATS } from './freshLayout.ts';
-import { FRESH_LANES, SHADOW_FRESH_WGSL } from './freshWgsl.ts';
+import { FRESH_PARAM_WORDS, FRESH_SLICE_FLOATS } from './freshLayout.ts';
 import { POOL_COUNTS } from './poolWgsl.ts';
+import { shadowFreshWgsl } from './freshWgsl.ts';
+
+const FRESH_ARG = { regions: 0, capacity: 1, pairs: 2, corners: 3 } as const;
+const FRESH_LANES = 64;
+const SHADOW_FRESH_WGSL = shadowFreshWgsl();
 
 const u32 = (b: Uint8Array) => new Uint32Array(b.buffer, b.byteOffset, b.byteLength >> 2);
 const f32 = (b: Uint8Array) => new Float32Array(b.buffer, b.byteOffset, b.byteLength >> 2);
