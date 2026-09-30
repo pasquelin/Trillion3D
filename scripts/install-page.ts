@@ -7,7 +7,7 @@
 import { loadDictionary } from '../site/content/i18n/dictionary.ts';
 
 /** The page's entry id, `#/<locale>/learn/install` on the portal. */
-const INSTALL_PAGE = 'install';
+const INSTALL_PAGE = 'install' as const;
 
 /** Where the page links a repository file: `blob/<branch>/<path>`. */
 const REPOSITORY_FILE =
@@ -22,9 +22,7 @@ const ENTITIES: Record<string, string> = {
 
 /** The Install page's HTML in `locale`. */
 export async function installPageHtml(locale: string): Promise<string> {
-  const written: Record<string, { html?: string } | undefined> = (await loadDictionary(locale))
-    .written;
-  const html = written[INSTALL_PAGE]?.html;
+  const html = (await loadDictionary(locale)).written[INSTALL_PAGE]?.html;
   if (!html) throw new Error(`${locale}: no Install page`);
   return html;
 }
@@ -32,7 +30,7 @@ export async function installPageHtml(locale: string): Promise<string> {
 /** The text of each `<pre><code>` block of `html`, its entities decoded. */
 export const codeBlocks = (html: string): string[] =>
   [...html.matchAll(/<pre><code>([\s\S]*?)<\/code><\/pre>/g)].map(([, text]) =>
-    text.replace(/&(?:lt|gt|amp|quot|#39);/g, (entity) => ENTITIES[entity]),
+    text.replace(/&[a-z#0-9]+;/g, (entity) => ENTITIES[entity] ?? entity),
   );
 
 /** The repository files `html` links to, by path from the repository's root, anchors dropped. */
@@ -60,11 +58,6 @@ export function walkthrough(blocks: string[]): Walkthrough {
     throw new Error('the Install page compiles nothing');
   if (!page) throw new Error('the Install page has no page to draw with');
   if (!headerLines) throw new Error('the Install page names no server header');
-  const headers = Object.fromEntries(
-    headerLines.split('\n').map((line) => {
-      const [name, value] = line.split(': ');
-      return [name, value];
-    }),
-  );
+  const headers = Object.fromEntries(headerLines.split('\n').map((line) => line.split(': ')));
   return { commands, page, headers };
 }
