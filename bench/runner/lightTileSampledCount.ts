@@ -2,8 +2,8 @@
 // and `tileShadowed`, run as JavaScript on each tile's opaque list as the tile pass's oracle
 // builds it — a record whose last word the pass sets once, never a per-pixel walk. COUNTED,
 // never timed. A full sum walks its `L` lights once; `sampledTileLighting` walks a list of
-// `LIGHT_SAMPLES` to `TILE_LIGHTS` lights three times — its three `lightWeight` loops — then
-// shades `LIGHT_SAMPLES` of them: `3·L + LIGHT_SAMPLES`.
+// `LIGHT_SAMPLES` to `TILE_LIGHTS` lights twice — its two `lightWeight` loops (#1369) — then
+// shades `LIGHT_SAMPLES` of them: `2·L + LIGHT_SAMPLES`.
 //
 //   node bench/runner/lightTileSampledCount.ts [--width 3456] [--height 2234]
 import { parseArgs } from 'node:util';
@@ -70,7 +70,7 @@ export function countSampled(
   const full = (...args: unknown[]) => (evaluations += kept(args[7] as { x: number; y: number }));
   const sampled = (...args: unknown[]) => {
     const L = kept(args[7] as { x: number; y: number });
-    evaluations += L <= K.LIGHT_SAMPLES || L > K.TILE_LIGHTS ? L : 3 * L + K.LIGHT_SAMPLES;
+    evaluations += L <= K.LIGHT_SAMPLES || L > K.TILE_LIGHTS ? L : 2 * L + K.LIGHT_SAMPLES;
   };
   const { contractLighting } = shaderFunctions<{ contractLighting: Contract }>(
     DIRECT_LIGHTING_WGSL,
