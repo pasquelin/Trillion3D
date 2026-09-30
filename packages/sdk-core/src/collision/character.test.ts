@@ -3,9 +3,11 @@ import assert from 'node:assert/strict';
 import { box } from '../world/geometry/basic.ts';
 import { Mesh } from '../world/object/mesh.ts';
 import { meshCollision } from './meshTriangles.ts';
-import { createCharacterBody, MAX_CHARACTER_DELTA } from './characterBody.ts';
+import { createCharacterBody } from './characterBody.ts';
 import { HUMAN_BODY, type CharacterInput, type CharacterSettings } from './characterSettings.ts';
-import { createDrive, gripOf } from './characterDrive.ts';
+import { createDrive } from './characterDrive.ts';
+import { MAX_CHARACTER_DELTA } from './characterDelta.ts';
+import { gripOf } from './grip.ts';
 
 /** An axis-aligned block from its two corners, as a mesh the collision world reads. */
 function block(x0: number, y0: number, z0: number, x1: number, y1: number, z1: number) {
@@ -17,7 +19,6 @@ function block(x0: number, y0: number, z0: number, x1: number, y1: number, z1: n
 /** A sole's push on the floor a body stands on without physics, m/s², and the legs' rate. */
 const push = gripOf(createDrive().floor) * HUMAN_BODY.gravity,
   rateOf = (time: number) => -Math.log(0.05) / time;
-
 const FLOOR = () => block(-50, -1, -50, 50, 0, 50);
 const STILL: CharacterInput = { wishX: 0, wishZ: 0, sprint: false };
 const EAST: CharacterInput = { wishX: 1, wishZ: 0, sprint: false };

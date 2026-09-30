@@ -7,6 +7,7 @@ import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.
 import { BOUNCE_APPLY_WGSL } from '../../bounce/applyWgsl.ts';
 import {
   BOUNCE_SURFACE_BINDING,
+  DIRECT_REFLECTION_WGSL,
   MIRROR_LIGHTING_WGSL,
   bounceReflectionWgsl,
 } from '../../bounce/reflectWgsl.ts';
@@ -43,10 +44,10 @@ export const surfaceBindingsWgsl = (third = 'flags:texture_2d<u32>') => `
 @group(0) @binding(4) var depth:texture_depth_2d;
 @group(0) @binding(5) var<uniform> view:View;`;
 /**
- * Unlit view: material albedo as-is, with no light, no ambient and no emission. This is not
- * a light, it is a diagnostic view — the one geometry benches that compare images pixel for
- * pixel ask for, and the one the engine renders by default as long as no light is declared,
- * because a scene with no source has nothing to light (P6).
+ * Unlit view: material albedo as-is, with no light and no ambient; what a surface emits is kept, as
+ * in the lit image (#1362). This is not a light, it is a diagnostic view — the one geometry benches
+ * that compare images pixel for pixel ask for, and the one the engine renders by default as long as
+ * no light is declared, because a scene with no source has nothing to light (P6).
  */
 export const UNLIT_LIGHTING_SHADER = `
 ${VIEW_WGSL}
@@ -55,7 +56,7 @@ ${FULLSCREEN_VERTEX}
 @fragment fn lightSurface(@builtin(position) pixel:vec4f)->@location(0) vec4f{
  let coord=vec2i(pixel.xy);let flag=textureLoad(flags,coord,0).r;
  if(flag==0u){return vec4f(0.0);}
- return vec4f(textureLoad(baseMetal,coord,0).rgb,1.0);
+ return vec4f(textureLoad(baseMetal,coord,0).rgb+textureLoad(emissiveAo,coord,0).rgb,1.0);
 }`;
 /** Contract bindings: declared lights, their per-tile lists and their shadow pool. The shadow
  *  records and page table, binding 8, are declared with the shadow read (`directShadowWgsl`). */
@@ -81,26 +82,34 @@ ${contractSurface(
   '+bounceLighting(base.rgb,base.a,N,P,emissive.a)+thinBounce(N,P,emissive.a)+mirrorLighting(base.rgb,base.a,normal.a,N,V,P)',
   'if(bounceOnly()){return vec4f(bounceIrradiance(N,P,view.lightParams.w),1.0);}',
 )}`;
+/** The direct program's surface: what a specular lobe reflects of the environment (#1341). */
+const DIRECT_SURFACE_WGSL = `${DIRECT_REFLECTION_WGSL}
+${contractSurface('+mirrorLighting(base.rgb,base.a,normal.a,N,V,P)')}`;
 /** Contract program: deferred resolve lit by the declared lights only, with their shadows, seen
  * through the scene's fog. No ambient term, no constant sky, no light written in the scene is
  * added (P6). An unlit material shows its colour with no response to light, still seen through
  * the fog; a diagnostic, normal or depth surface comes out as-is. With `bounce`, bounced light:
  * probe irradiance multiplied by the pixel's diffuse albedo, and what a mirror reflects (#31),
- * added to the direct. It is a separate program, not a branch, so a session without bounce runs
- * exactly the previous shader, bit for bit — and so is the `narrow` one, the resolve of a scene
- * of at most `TILE_LIGHTS` lights (`directLightingWgsl`, #849).
+ * added to the direct; without, a specular lobe reflects the environment alone (#1341). It is a
+ * separate program, not a branch, so a session without bounce never pays for the probes — and so
+ * is the `narrow` one, the resolve of a scene of at most `TILE_LIGHTS` lights
+ * (`directLightingWgsl`, #849), and the one without `shadowed`, of a scene no light of which holds
+ * a shadow slot (#1249).
  */
-export const contractLightingShader = (bounce: boolean, narrow: boolean, pages = SUN_WINDOW) => `
+export const contractLightingShader = (
+  bounce: boolean,
+  narrow: boolean,
+  pages = SUN_WINDOW,
+  shadowed = true,
+) => `
 ${VIEW_WGSL}
 ${surfaceBindingsWgsl()}
 @group(0) @binding(${SUBSURFACE_BINDING}) var subsurfaceColor:texture_2d<f32>;
 @group(0) @binding(${SHADING_OFFSET_BINDING}) var<storage,read> shadingOffset:array<f32>;
 ${CONTRACT_BINDINGS_WGSL}
 ${STANDARD_LIGHTING_WGSL}
-${directLightingWgsl(narrow, pages)}
-${bounce ? BOUNCE_SURFACE_WGSL : contractSurface('')}`;
-export const DIRECT_LIGHTING_SHADER = contractLightingShader(false, false);
-export const BOUNCE_LIGHTING_SHADER = contractLightingShader(true, false);
+${directLightingWgsl(narrow, pages, shadowed)}
+${bounce ? BOUNCE_SURFACE_WGSL : DIRECT_SURFACE_WGSL}`;
 /**
  * How the composition reads a pixel's as-is share — 1 on a debug view (a normal or depth surface,
  * `AS_IS_FLAG`), 0 elsewhere —, binding 2, one read per pixel. A still image reads its surface

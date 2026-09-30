@@ -20,7 +20,14 @@ test('a documentation, image or translation change runs no build or cache compil
 test('a source change runs the gates, the type check and the tests it selects', () => {
   const changed = ['packages/sdk-core/src/a.ts', 'README.md'];
   const steps = changedSteps(changed, changed, 3);
-  for (const step of ['generate:api', 'compile:caches', 'types', 'tests', 'check:links'] as const)
+  for (const step of [
+    'generate:api',
+    'compile:caches',
+    'types',
+    'check:unused',
+    'tests',
+    'check:links',
+  ] as const)
     assert.ok(steps.includes(step), step);
   // A fixture image is read by the tests: it is not documentation.
   assert.ok(changedSteps(['tests/fixtures/a.png'], [], 1).includes('tests'));

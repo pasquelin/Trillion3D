@@ -2,10 +2,8 @@
 import test from 'node:test';
 import { SHADE_SHADER } from '../../../packages/sdk-browser/src/visibility/shader/shadeWgsl.ts';
 import assert from 'node:assert/strict';
-import {
-  GGX_REFLECTION_SAMPLE_WGSL,
-  stochasticReflectionShader,
-} from '../../../packages/sdk-browser/src/reflections/sampleWgsl.ts';
+import { stochasticReflectionShader } from '../../../packages/sdk-browser/src/reflections/sampleWgsl.ts';
+import { GGX_REFLECTION_SAMPLE_WGSL } from '../../../packages/sdk-browser/src/reflections/ggxSampleWgsl.ts';
 import { REFLECTION_RESOLVE_WGSL } from '../../../packages/sdk-browser/src/reflections/resolveWgsl.ts';
 import { HASH_UNIT_WGSL } from '../../../packages/sdk-browser/src/math/hashUnitWgsl.ts';
 import { contractLightingShader } from '../../../packages/sdk-browser/src/lighting/deferred/shaders.ts';
@@ -97,10 +95,10 @@ if (import.meta.main)
       for (const narrow of [false, true]) {
         const shader = contractLightingShader(bounce, narrow);
         renders.push({
-          code: stochasticReflectionShader(shader, !bounce),
+          code: stochasticReflectionShader(shader),
           entry: 'traceRoughReflection',
         });
-        renders.push({ code: withScreenReflections(shader, !bounce, true), entry: 'lightSurface' });
+        renders.push({ code: withScreenReflections(shader, true), entry: 'lightSurface' });
       }
     const result = await dansPageWebgpu(
       diagnose,

@@ -5,18 +5,18 @@ import assert from 'node:assert/strict';
 import {
   LAMP_FACE_ENTRIES,
   LAMP_MIPS,
-  SUN_ENTRIES,
   SUN_LEVELS,
   SUN_WINDOW,
   lampPagesAt,
-  priorPoolPages,
   shadowPoolSize,
   shadowPoolShape,
   tableEntriesOf,
 } from './virtual.ts';
 import { finestSunLevel, lampEntry, sunEntry } from './pageModel.ts';
-import { decodeLampEntry } from './entryPages.ts';
 import { LIGHT_KIND } from '../light/contracts.ts';
+import { priorPoolPages } from './sunEntries.ts';
+import { decodeLampEntry } from './lampEntry.ts';
+import { SUN_ENTRIES } from './lightShadow.fixture.ts';
 
 test('a lamp entry decodes to the face, mip and page it was built from, every entry once', () => {
   const out = new Int32Array(4),

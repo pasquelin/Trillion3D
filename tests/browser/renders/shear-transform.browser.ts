@@ -10,14 +10,12 @@
 import assert from 'node:assert/strict';
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { OPEN_CONE } from '../../../packages/sdk-browser/src/page/cone/cone.ts';
-import {
-  packDagSelection,
-  packedWorldsToRenderOrigin,
-} from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
+import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import type { DagRoot } from '../../../packages/sdk-browser/src/gpu/dag/types.ts';
 import { selectionGpu } from '../probes/selectionKernelGpu.ts';
+import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts';
 
 const VIEWPORT: [number, number] = [1000, 1000];
 // Unit local box: sheared, it covers x ∈ [-4, 4]; recomposed as TRS, x ∈ [-2.364, 2.364].

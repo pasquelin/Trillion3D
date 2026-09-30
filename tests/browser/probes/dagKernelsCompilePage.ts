@@ -1,10 +1,10 @@
 /**
  * Page side of `dag-kernels-compile-gpu.ts`: the engine's own build of the DAG selection kernel
- * (`createDagStages`, `pipeline.ts`) on a real WebGPU device, for each text and each `SPLIT`
+ * (`createDagStages`, `stages.ts`) on a real WebGPU device, for each text and each `SPLIT`
  * choice. Bundled by esbuild then run in Chromium, like `cutDispatchesPage.ts`: the stages the
  * probe validates are the ones the engine builds, never a hand copy.
  */
-import { createDagStages } from '../../../packages/sdk-browser/src/gpu/dag/pipeline.ts';
+import { createDagStages } from '../../../packages/sdk-browser/src/gpu/dag/stages.ts';
 import { dagBindEntries } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts';
 import { shaderErrors } from '../../../packages/sdk-browser/src/gpu/core/shaderModule.ts';
 import { validationScope } from '../../../packages/sdk-browser/src/gpu/core/errorScope.ts';
@@ -28,9 +28,10 @@ export async function compileKernels(texts: KernelText[]) {
     );
     const compiled = (await shaderErrors(module)).map((message) => `module: ${message.message}`);
     for (const split of [false, true]) {
+      // A stage compiled off the thread is refused by its promise, not in the scope.
       const { error } = await validationScope(device, () =>
         createDagStages(device, layout, module, split),
-      );
+      ).catch((refused: Error) => ({ error: refused }));
       const errors = error ? [...compiled, `stages: ${error.message}`] : compiled;
       verdicts.push({ name, split, errors });
     }

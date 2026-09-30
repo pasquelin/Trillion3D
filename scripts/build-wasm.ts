@@ -50,18 +50,23 @@ export function verifieJeuInstructions(chemin: string): void {
     throw new Error(`${chemin}: simd128 missing from the produced module.`);
 }
 
-/**
- * Apple's `ar` cannot archive WebAssembly objects: it produces an empty archive and the link then
- * fails on missing symbols. `llvm-ar` from `llvm-tools` archives them properly.
- */
-function archiveur(): string {
-  const hote = rustc('-vV')
+/** The host's Rust target, as `rustc -vV` names it. */
+export const rustHost = (): string =>
+  rustc('-vV')
     .split('\n')
     .find((ligne) => ligne.startsWith('host: '))
-    ?.slice(6);
-  const chemin = join(rustc('--print', 'sysroot'), 'lib', 'rustlib', hote ?? '', 'bin', 'llvm-ar');
+    ?.slice(6) ?? '';
+
+/**
+ * A tool of the `llvm-tools` component for the host, refused by name when the component is
+ * missing. Apple's `ar` cannot archive WebAssembly objects: it produces an empty archive and the
+ * link then fails on missing symbols; `llvm-ar` archives them properly.
+ */
+export function rustTool(name: string): string {
+  const exe = `${name}${process.platform === 'win32' ? '.exe' : ''}`;
+  const chemin = join(rustc('--print', 'sysroot'), 'lib', 'rustlib', rustHost(), 'bin', exe);
   if (!existsSync(chemin))
-    throw new Error(`llvm-ar not found: ${chemin}\nInstall with: rustup component add llvm-tools`);
+    throw new Error(`${name} not found: ${chemin}\nInstall with: rustup component add llvm-tools`);
   return chemin;
 }
 
@@ -75,7 +80,7 @@ function main(): void {
     throw new Error(`Target ${CIBLE} missing.\nInstall with: rustup target add ${CIBLE}`);
 
   const DRAPEAUX = {
-    AR_wasm32_unknown_unknown: archiveur(),
+    AR_wasm32_unknown_unknown: rustTool('llvm-ar'),
     CFLAGS_wasm32_unknown_unknown: '-msimd128',
     RUSTFLAGS: '-C target-feature=+simd128,-relaxed-simd',
   };

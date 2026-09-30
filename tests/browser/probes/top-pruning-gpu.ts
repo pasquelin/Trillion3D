@@ -11,10 +11,7 @@
 import assert from 'node:assert/strict';
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
-import {
-  packDagSelection,
-  packedWorldsToRenderOrigin,
-} from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
+import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/gpu/dag/shader/shader.ts';
 import {
   scenePages,
@@ -22,6 +19,7 @@ import {
 } from '../../../packages/sdk-browser/src/gpu/dag/cutFrontierScene.fixture.ts';
 import { selectionGpu } from './selectionKernelGpu.ts';
 import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
+import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts';
 
 if (import.meta.main) {
   const VIEWPORT: [number, number] = [1280, 720];

@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { UV_GRADIENTS_WGSL } from './shadeDeclWgsl.ts';
 import { SHADE_SHADER } from './shadeWgsl.ts';
-import { uvDerivatives } from '../math.ts';
+import { uvDerivatives } from '../uvDerivatives.fixture.ts';
 
 test('the resolve reads the one gradient formula and keeps no copy', () => {
   assert.equal(SHADE_SHADER.split(UV_GRADIENTS_WGSL).length - 1, 1);

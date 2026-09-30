@@ -18,11 +18,7 @@ import {
 } from '../../../packages/sdk-browser/src/page/cone/cone.ts';
 import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.ts';
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
-import {
-  evaluateDagSelectionKernel,
-  packDagSelection,
-  packedWorldsToRenderOrigin,
-} from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
+import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import { selectionGpu } from './selectionKernelGpu.ts';
 import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import type { NormalCone } from '../../../packages/sdk-browser/src/page/cone/cone.ts';
@@ -31,6 +27,8 @@ import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 import { triggerCase } from './coneNonUniformScaleCase.ts';
 import { project } from './cameraRig.ts';
 import { signedArea } from '../../../packages/sdk-browser/src/visibility/projection.ts';
+import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts';
+import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts';
 
 if (import.meta.main) {
   const { positions, indices, cone, min, max, world, camera } = triggerCase();

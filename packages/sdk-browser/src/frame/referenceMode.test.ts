@@ -1,14 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  REFERENCE_APPROXIMATIONS,
-  REFERENCE_BOUNCE_BUDGET_MS,
-  referenceCapture,
-  referenceOptions,
-  referenceSunWindow,
-} from './referenceMode.ts';
-import { resolveSupersampled } from './referenceTiles.ts';
+import { referenceCapture, referenceOptions, referenceSunWindow } from './referenceMode.ts';
 import { BOUNCE_SETTINGS, LIGHT_SETTINGS } from '../../../sdk-core/src/index.ts';
+import { resolveSupersampled } from './referenceTilePlacement.ts';
+import { REFERENCE_APPROXIMATIONS, REFERENCE_BOUNCE_BUDGET_MS } from './referenceApproximations.ts';
 
 const BOSS = { manifestUrl: 'm.json', width: 1728, height: 1117, pixelRatio: 2 };
 

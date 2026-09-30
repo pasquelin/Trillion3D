@@ -2,19 +2,24 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
 import { compareImages } from '../../../sdk-core/src/index.ts';
-import { rasterPages } from '../page/raster.ts';
+import { rasterPages } from '../page/raster.fixture.ts';
 import {
   unpackVisibilityId,
   rasterVisibilityIds,
   shadeVisibility,
-  visibilityUvDerivatives,
-  VIS_INVALID,
   type VisPage,
 } from './buffer.ts';
-import { camera, quadPages, centerId, nearestQuadTexture } from './buffer.fixture.ts';
+import {
+  camera,
+  quadPages,
+  centerId,
+  nearestQuadTexture,
+  visibilityUvDerivatives,
+} from './buffer.fixture.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { surfaceOf } from '../page/surface.ts';
 import { identityRoots } from '../page/selection/placements.fixture.ts';
+import { VIS_INVALID } from './visWords.ts';
 
 test('the closer triangle wins the visibility id when two pages overlap', () => {
   const geometry = new G.Geometry();

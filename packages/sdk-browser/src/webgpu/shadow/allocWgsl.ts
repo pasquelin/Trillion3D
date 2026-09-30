@@ -9,11 +9,10 @@ import { SUN_ORIGIN_WGSL } from '../../lighting/direct/shadowFactorWgsl.ts';
 import { shadowRequestWgsl } from '../../lighting/direct/shadowRequestWgsl.ts';
 import { SHADOW_DATA_WGSL } from '../../lighting/direct/shadowWgsl.ts';
 import { POOL_FRAME_COUNTS, SHADOW_DRAW_LIST_WGSL, shadowPoolWgsl } from './poolWgsl.ts';
-
-/** Invocations of the one workgroup that allocates a frame's pages. */
-export const ALLOC_LANES = 256;
+import { ALLOC_LANES } from './allocLanes.ts';
 /** Words of the parameters before the host's asks: frame, pages, list cap, asks, where the
- *  candidates' keys start, then each slice's generation. */
+ *  candidates' keys start, the first frame whose asks no need evicts, then each slice's
+ *  generation. */
 export const ALLOC_PARAM_WORDS = 8 + MAX_SHADOW_SLICES;
 
 /**
@@ -33,10 +32,13 @@ export const ALLOC_PARAM_WORDS = 8 + MAX_SHADOW_SLICES;
  * 3. `touchRequests` — an entry mapped becomes asked this frame, listed to draw while no draw
  *    for it landed (`listDraw`); one unmapped is a need, keyed coarsest first, then by entry.
  * 4. `listCandidates` — the pages a need may take: the free ones, by page, then every page not
- *    asked this frame, least recently asked first, the finest first, then by page — the keys the
- *    host sorts by too (`shadowNeedKey`, `shadowEvictionKey`). The host's still cycle (#26,
- *    `poolOrder.ts`) is not needed here: a page evicted is one this frame does not read, and one
- *    a later frame reads again is mapped and drawn in that frame.
+ *    asked since frame `keepFrom`, least recently asked first, the finest first, then by page —
+ *    the keys the host sorts by too (`shadowNeedKey`, `shadowEvictionKey`). `keepFrom` is this
+ *    frame: a page evicted is one it does not read, and one a later frame reads again is mapped
+ *    and drawn in that frame. A pool at its ceiling under a still view keeps what the view asked
+ *    since it rested (`shadowKeptFrom`, the host's still cycle of #26): the jitter phases no
+ *    longer take each other's pages frame after frame, a need past them is refused and reads the
+ *    coarser page, and the image rests (#1345).
  * 5. Both lists sorted (`sortStep`, bitonic), then `assignPages`: need `i` takes candidate `i` —
  *    evicting what it mapped, whose word is zeroed —, its word written mapped and not readable,
  *    the page listed to draw, what it names decoded by the page model (`shadowEntryPage`). A need
@@ -51,7 +53,7 @@ ${SHADOW_DATA_WGSL}
 ${shadowRequestWgsl(1, pages)}
 @group(0) @binding(2) var<storage,read_write> shadowPool:ShadowPool;
 @group(0) @binding(3) var<storage,read_write> keys:array<u32>;
-struct ShadowAllocParams{frame:i32,pages:u32,listCap:u32,asks:u32,candidateBase:u32,pad0:u32,pad1:u32,pad2:u32,generation:array<u32,${MAX_SHADOW_SLICES}>,entries:array<u32>,}
+struct ShadowAllocParams{frame:i32,pages:u32,listCap:u32,asks:u32,candidateBase:u32,keepFrom:i32,pad1:u32,pad2:u32,generation:array<u32,${MAX_SHADOW_SLICES}>,entries:array<u32>,}
 @group(0) @binding(4) var<storage,read> params:ShadowAllocParams;
 @group(0) @binding(5) var<storage,read_write> drawList:array<u32>;
 ${pageModelWgsl(pages)}
@@ -124,8 +126,9 @@ fn listCandidates(lane:u32){
  for(var p=lane;p<params.pages;p+=ALLOC_LANES){
   let e=shadowPool.pages[poolAt(POOL_OWNER,p)];var key=p;
   if(e>=0){
-   let age=params.frame-shadowPool.pages[poolAt(POOL_REQUESTED,p)];
-   if(age<=0){continue;}
+   let asked=shadowPool.pages[poolAt(POOL_REQUESTED,p)];
+   if(asked>=params.keepFrom){continue;}
+   let age=params.frame-asked;
    key=u32(shadowEvictionKey(age,shadowPool.pages[poolAt(POOL_RANK,p)],i32(p)));
   }
   keys[params.candidateBase+countNext(COUNT_CANDIDATES)]=key;
@@ -178,9 +181,3 @@ var<workgroup> candidateCount:u32;
  for(var k=2u;k<=candidateSpan;k=k<<1u){for(var j=k>>1u;j>0u;j=j>>1u){sortStep(lane,params.candidateBase,candidateSpan,k,j);storageBarrier();}}
  assignPages(lane,needs,candidates);
 }`;
-/** The GPU allocation of the ordinary window: what a pass compiled without a session reads. */
-export const ALLOCATION_WGSL = allocationWgsl();
-
-/** The phases the allocation runs one after the other, a barrier between, once the floors are
- *  claimed (`beginAllocation`): what a test runs in order. */
-export const ALLOC_PHASES = ['followPages', 'touchRequests', 'listCandidates'];

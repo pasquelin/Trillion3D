@@ -280,10 +280,13 @@ unsupported).
 `world.renderScale` (`createWorld(target, { renderScale })`, `'auto'` by default) is the per-axis
 fraction of the display drawn before temporal antialiasing rebuilds the image: `'auto'` lets the
 frame budget (the display's refresh interval) choose between 0.5 and 1, `{ min, max }` bounds it, a
-number fixes it; a still image is drawn at the maximum. A write applies next frame, no target remade
-by the controller; a read is the last image's scale. WebGL2, without history, resamples to the
-display (Lanczos-2): its `'auto'` holds 1, and only a `{ min }` below 1 or a fixed scale draws below the
-display (`temporal upscaling` unsupported).
+number fixes it. A still image over budget is drawn below the display too, its jitter phases
+rebuilding the display's detail; the controller learns from the whole-frame GPU time, or from the
+frame interval without GPU timestamps. The render targets follow the drawn size on a ladder of
+eighths of the display, the temporal history kept across a step. A write applies next frame; a read
+is the last image's scale. WebGL2, without history, resamples to the display (Lanczos-2): its
+`'auto'` holds 1, and only a `{ min }` below 1 or a fixed scale draws below the display
+(`temporal upscaling` unsupported).
 
 `world.effects` is the ordered chain of passes after temporal antialiasing, before the canvas, on
 both renderers. `effect.bloom({ intensity, radius })` is a physically based, energy-conserving glow
@@ -537,8 +540,13 @@ marks.remove();
 
 ## Installation and environment API
 
-The package is private, installed from this repository or a local tarball, not published to npm;
-its export conditions are in [Entry points](#entry-points).
+The package is not on npm yet. From its first release, an application installs it with
+`npm install trillion3d`, which takes only its machine's compiler package
+([COMPILER.md](COMPILER.md#platform-packages)); the portal's
+[Install page](https://www.trillion3d.com/#/en/learn/install) goes from the install to a drawn
+model. Its export conditions are in [Entry points](#entry-points). The licence is PolyForm
+Noncommercial 1.0.0 ([LICENSE](../LICENSE)): free for noncommercial use; a commercial use needs a
+licence from the owner.
 
 | Task | Examples |
 | --- | --- |
@@ -573,6 +581,9 @@ beside every emitted chunk that keeps its relative URL, and serve that output di
 with the compiled scene cache. `pnpm run proof:package -- --browser` is the repository's executable
 esbuild configuration and verifies both worker tasks and WASM selection; `-- --bundle` emits and
 checks the same output, each module beside the chunk that fetches it, without a browser.
+`node scripts/prove-install-page.ts` walks the portal's Install page through in a clean folder: its
+commands, the packed archive standing in for the registry, compile the example's morphing cube and
+its page draws it in Chrome, served with the page's two headers.
 
 ### Install requirements: the package alone, the witnesses beside the bench
 
@@ -588,10 +599,14 @@ alone (#275).
 
 `prepare(input, output, scope, budget, options)`, `prepareMany(jobs, options)` and the
 `trillion3d-compile` CLI relay to the native executable. Arguments, events, the pointer, batch mode,
-cancellation, exit codes and the executable's selection (`options.executable`, then
-`TRILLION3D_COMPILER_BIN`, then the development build) are in
-[COMPILER.md](COMPILER.md#using-it-from-node). An installed tarball ships neither the executable nor
-the Rust sources, so it needs one of the first two.
+cancellation, exit codes and the executable's selection (`options.executable`, then the installed
+platform package, then `TRILLION3D_COMPILER_BIN`, then the development build) are in
+[COMPILER.md](COMPILER.md#using-it-from-node). An installed `trillion3d` takes the compiler from its
+platform package ([COMPILER.md](COMPILER.md#platform-packages)); elsewhere it needs
+`options.executable` or `TRILLION3D_COMPILER_BIN`, and fails without them with
+`COMPILER_EXECUTABLE_MISSING`, or `COMPILER_PLATFORM_UNSUPPORTED` on a machine the compiler is not
+built for. Every error carries its public code and a link to its page
+([COMPILER_ERRORS.md](COMPILER_ERRORS.md)).
 
 ## Scene hierarchy foundation
 

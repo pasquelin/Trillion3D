@@ -1,0 +1,146 @@
+name: Compiler
+
+# The distributed compiler on its five platforms (#1352): each built on its own runner, trained on
+# the reference scenes (profile-guided), and its caches of those scenes fingerprinted
+# (`scripts/compiler-dist.ts`); every fingerprint must equal Linux x64's, and on a pull request
+# `develop`'s (`scripts/compiler-hashes.ts`), and each binary's size is printed. The Jolt collider
+# shapes alone may differ from a base whose Jolt cook still fuses multiply-adds: they change once to
+# the unfused bytes (#1352), and the comparison is whole again once that base is merged. It runs on a pull
+# request that touches what the compiler is built from, and on every release.
+on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - packages/asset-compiler-rust/**
+      - packages/page-codec-wasm/**
+      - packages/physics-jolt-wasm/cook/**
+      - packages/physics-jolt-wasm/src/**
+      - packages/physics-jolt-wasm/CMakeLists.txt
+      - packages/physics-jolt-wasm/JoltPhysics
+      - packages/compiler/**
+      - .cargo/**
+      - scripts/compiler-*.ts
+      # What the scripts above run and read: the compile, the scenes, the platform names.
+      - scripts/native-compiler.ts
+      - scripts/build-wasm.ts
+      - scripts/site-caches.ts
+      - packages/sdk-node/src/compiler/platform.mts
+      - tests/fixtures/scenes/mountain-terrain/**
+      - tests/fixtures/scenes/kinetic-garden/**
+      - .github/workflows/compiler.yml
+  release:
+    types: [published]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { platform: darwin-arm64, runner: macos-14 }
+          - { platform: darwin-x64, runner: macos-15-intel }
+          - { platform: linux-arm64, runner: ubuntu-24.04-arm }
+          - { platform: linux-x64, runner: ubuntu-24.04 }
+          - { platform: win32-x64, runner: windows-2025 }
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+      - uses: ./.github/actions/node
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/asset-compiler-rust
+          key: dist-${{ matrix.platform }}
+      - run: node scripts/compiler-dist.ts ${{ matrix.platform }}.json
+        shell: bash
+      - uses: actions/upload-artifact@v4
+        with:
+          name: compiler-${{ matrix.platform }}
+          path: |
+            ${{ matrix.platform }}.json
+            packages/compiler/${{ matrix.platform }}/bin/
+          if-no-files-found: error
+
+  # `develop`'s compiler (the pull request's base), built plainly — profile guidance changes no
+  # byte — and fingerprinted on the same scenes with this branch's script.
+  base:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    outputs:
+      fused: ${{ steps.jolt.outputs.fused }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.base_ref }}
+          path: base
+          submodules: true
+      - uses: ./.github/actions/node
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: base/packages/asset-compiler-rust
+          key: dist-base
+      # Cargo reads `.cargo/config.toml` from the folder it runs in, not the manifest's, and from
+      # every folder above it, merged: run in `base`, and remove this branch's one above it, so that
+      # develop's compiler is built with develop's C and C++ flags alone.
+      - run: rm -r .cargo
+        shell: bash
+      - run: cargo build --release --locked --bin trillion3d-compiler --manifest-path packages/asset-compiler-rust/Cargo.toml
+        working-directory: base
+      - run: node scripts/compiler-hashes.ts base/packages/asset-compiler-rust/target/release/trillion3d-compiler base.json "${{ github.base_ref }}"
+      # Whether the base cooks Jolt without its cross-platform mode, so with fused multiply-adds.
+      - id: jolt
+        run: |
+          if grep -q CROSS_PLATFORM_DETERMINISTIC=ON base/packages/asset-compiler-rust/build.rs; then
+            echo fused=false >> "$GITHUB_OUTPUT"
+          else
+            echo fused=true >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: compiler-base
+          path: base.json
+
+  # Every fingerprint against Linux x64's, `develop`'s included; the sizes are printed beside them.
+  compare:
+    needs: [build, base]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/node
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: compiler-*
+          merge-multiple: true
+      - name: Five builds green, every fingerprint equal to Linux x64's and to develop's (its Jolt colliders excepted while develop fuses)
+        env:
+          BUILD: ${{ needs.build.result }}
+          BASE: ${{ needs.base.result }}
+          FUSED: ${{ needs.base.outputs.fused }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          test "$BUILD" = success
+          node scripts/compiler-hashes.ts --compare linux-x64.json darwin-arm64.json darwin-x64.json linux-arm64.json win32-x64.json
+          if [ "$EVENT" = pull_request ]; then
+            test "$BASE" = success
+            allow=""
+            if [ "$FUSED" = true ]; then allow=--colliders-may-differ; fi
+            node scripts/compiler-hashes.ts --compare $allow linux-x64.json base.json
+          fi
