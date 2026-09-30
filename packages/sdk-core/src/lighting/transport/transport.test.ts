@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createTransport, solveTransportOracle, LightingTransportError } from './transport.ts';
+import { createTransport, LightingTransportError } from './transport.ts';
+import { solveTransportOracle } from './oracle.ts';
 import { sceneWithBlocker } from '../../../../../tests/fixtures/lightingTransportScene.ts';
 test('cached static intersections preserve the complete operator through blocker moves and relighting', () => {
   const firstScene = sceneWithBlocker(false, 1);

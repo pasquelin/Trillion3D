@@ -94,11 +94,14 @@ export function leastDrawn(id: string, gpu: boolean): number {
 /** A capture of the render alone: the example kit's panels and the credit line hidden. */
 export const RENDER_ONLY = '[data-example-overlay], body > p { display: none }';
 
-/** The share of the page's canvas capture that differs from its top-left pixel: 0 while blank. */
-async function drawnShare(page: Page): Promise<number> {
-  const png = await page.locator('canvas#view').screenshot({ style: RENDER_ONLY });
+/**
+ * The share of the page's canvas capture that differs from its top-left pixel: 0 while blank. A
+ * pixel differs when its summed channel distance exceeds `tolerance`.
+ */
+export async function drawnShare(page: Page, canvas = 'canvas#view', tolerance = 0) {
+  const png = await page.locator(canvas).screenshot({ style: RENDER_ONLY });
   return page.evaluate(
-    async (dataUrl: string) => {
+    async ([dataUrl, tolerance]: [string, number]) => {
       const bitmap = await createImageBitmap(await (await fetch(dataUrl)).blob());
       const canvas = new OffscreenCanvas(bitmap.width, bitmap.height),
         context = canvas.getContext('2d');
@@ -106,11 +109,16 @@ async function drawnShare(page: Page): Promise<number> {
       context.drawImage(bitmap, 0, 0);
       const { data } = context.getImageData(0, 0, bitmap.width, bitmap.height);
       let drawn = 0;
-      for (let at = 0; at < data.length; at += 4)
-        if (data[at] !== data[0] || data[at + 1] !== data[1] || data[at + 2] !== data[2]) drawn++;
+      for (let at = 0; at < data.length; at += 4) {
+        const distance =
+          Math.abs(data[at] - data[0]) +
+          Math.abs(data[at + 1] - data[1]) +
+          Math.abs(data[at + 2] - data[2]);
+        if (distance > tolerance) drawn++;
+      }
       return drawn / (data.length / 4);
     },
-    `data:image/png;base64,${png.toString('base64')}`,
+    [`data:image/png;base64,${png.toString('base64')}`, tolerance] as [string, number],
   );
 }
 

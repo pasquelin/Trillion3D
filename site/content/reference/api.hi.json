@@ -3355,6 +3355,7 @@
       "counts": "पिछली योजना ने क्या किया, पृष्ठों में।",
       "spent": "पिछली योजना ने अनुरोध रिपोर्ट पढ़ने और पृष्ठ स्वीकार करने में जितने CPU मिलीसेकंड लगाए।",
       "worldChanged": "एक नोड हिला: उसका बॉक्स अगली योजना में ढके पृष्ठों को बासी करता है।",
+      "changeRoom": "ओवरफ़्लो से पहले सूची अभी कितने बॉक्स अलग रख सकती है।",
       "representationChanged": "वही संसार किसी और परिशुद्धता पर: उसका बॉक्स कैमरे के रुकने की प्रतीक्षा करता है।",
       "resting": "पिछले प्लान पर कैमरा स्थिर था: उसका दृश्य उससे पहले के प्लान जैसा ही था।",
       "deferredChanges": "सत्य, जब तक कोई निरूपण परिवर्तन कैमरे के रुकने की प्रतीक्षा करता है।",
@@ -3778,7 +3779,8 @@
       "total": "कुल मिलाकर कितने काम।",
       "stream": "कहाँ लिखना है।",
       "width": "बार की चौड़ाई।",
-      "interval": "दोबारा बनाने के बीच कम से कम मिलीसेकंड।"
+      "interval": "दोबारा बनाने के बीच कम से कम मिलीसेकंड।",
+      "verbose": "कार्य के अंत के सारांश में सूचना कोड और हर घटना भी बताता है।"
     }
   },
   "Texture": {
@@ -5015,13 +5017,14 @@
   "createTerminalProgress": {
     "summary": "टर्मिनल में एक प्रगति पट्टी जो कंपाइलर की घटनाओं का अनुसरण करती है।",
     "parameters": {
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}": "टर्मिनल प्रगति प्रदर्शन कैसा दिखता है।",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.label": "job का नाम।",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.index": "job का नंबर।",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.total": "कुल कितनी jobs।",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.stream": "कहाँ लिखना है।",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.width": "पट्टी की चौड़ाई।",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.interval": "पुनः-आरेखणों के बीच न्यूनतम मिलीसेकंड।"
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}": "टर्मिनल प्रगति प्रदर्शन कैसा दिखता है।",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.label": "job का नाम।",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.index": "job का नंबर।",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.total": "कुल कितनी jobs।",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.stream": "कहाँ लिखना है।",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.width": "पट्टी की चौड़ाई।",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.interval": "पुनः-आरेखणों के बीच न्यूनतम मिलीसेकंड।",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.verbose": "कार्य के अंत के सारांश में सूचना कोड और हर घटना भी बताता है।"
     }
   },
   "createTransformTree": {
@@ -6855,7 +6858,7 @@
     "summary": "`node` को `parent` (`-1`: root) से जोड़ता है, संदर्भ `add` की तरह: मैट्रिक्स अगले अपडेट तक नहीं हिलते।"
   },
   "resolveCompilerExecutable": {
-    "summary": "नेटिव कंपाइलर प्रोग्राम ढूँढता है: जिसे माँगा गया, नहीं तो जो इस checkout में बनाया गया।"
+    "summary": "नेटिव कंपाइलर प्रोग्राम ढूँढता है: जिसे माँगा गया, नहीं तो इंस्टॉल किए गए प्लेटफ़ॉर्म पैकेज वाला, नहीं तो जिसे `TRILLION3D_COMPILER_BIN` बताता है, नहीं तो जो इस checkout में बनाया गया।"
   },
   "reviewCutouts": {
     "summary": "मॉडल दर मॉडल पूछता है कि क्या हर cut-out सतह सही दिखती है, और जवाबों को रिकॉर्ड करता है।",
@@ -8135,7 +8138,7 @@
     }
   },
   "IMPOSTOR_PI": {
-    "summary": "π, इस ओरेकल और WGSL प्रतिबिंब के लिए एक ही लिटरल, ताकि दोनों एक ही संख्या को गोल करें।"
+    "summary": "π, एक ही लिटरल, ताकि स्विच का हर पाठक एक ही संख्या को राउंड करे।"
   },
   "IMPOSTOR_VERSION": {
     "summary": "रनटाइम जो `impostors` अनुभाग पढ़ता है उसका प्रारूप (#817 भाग 1, कंपाइलर द्वारा बेक)।"

@@ -1,5 +1,10 @@
 import { SHADOW_DATA_WGSL } from '../../lighting/direct/shadowWgsl.ts';
-import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import {
+  PAGE_VALID,
+  PAGE_WITHDRAWN,
+  SUN_WINDOW,
+} from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import type { ShadowTable } from '../../../../sdk-core/src/scene/light-shadow/table.ts';
 import { SHADOW_DRAW_LIST_WGSL, shadowPoolWgsl } from './poolWgsl.ts';
 
 /** Invocations of a workgroup of the table words pass. */
@@ -7,6 +12,13 @@ export const WORDS_GROUP = 64;
 /** Words of the header of the words the host sends: their count, the pool's pages, the frame, one
  *  free. */
 export const WORDS_HEADER = 4;
+
+/** The word the host sends for `entry`: its table's, marked `PAGE_WITHDRAWN` when the plan
+ *  withdrew it whoever drew it (`table.withdraw`) and no host draw has landed since. */
+export const sentShadowWord = (table: ShadowTable, entry: number) => {
+  const word = table.words[entry];
+  return word & PAGE_VALID || !table.withdrawn(entry) ? word : (word | PAGE_WITHDRAWN) >>> 0;
+};
 
 /**
  * THE HOST'S TABLE WORDS, WHEN THE GPU ALLOCATES (#1275): the words a frame's plan changed — a
@@ -17,7 +29,10 @@ export const WORDS_HEADER = 4;
  * page's depth for the wrong entry: the owner's word loses `PAGE_VALID`. A word that unmaps is not
  * sent: only the GPU unmaps. A word readable says a host draw landed (`DRAWN_HOST`); one mapped
  * and not readable, for a page the GPU drew itself (`DRAWN_GPU`), is the host adopting what it has
- * not drawn yet: the GPU's draw stands.
+ * not drawn yet: the GPU's draw stands — unless the word says `PAGE_WITHDRAWN` (#1345): what the
+ * page holds moved in the world, and the GPU's draw loses its depth as a host one does. The mark
+ * never enters the table: the word kept is the one without it, and no reader of the table
+ * (`shadowPageWgsl.ts`, `allocWgsl.ts`, `freshWgsl.ts`) ever sees it.
  *
  * A page that loses its depth here — withdrawn by the host, or overwritten for another entry —
  * while this frame asks for it (`POOL_REQUESTED`) joins the frame's draw list (`listDraw`): the GPU
@@ -32,6 +47,7 @@ struct ShadowWords{count:u32,pages:u32,frame:i32,pad0:u32,words:array<vec2u>,}
 @group(0) @binding(2) var<storage,read> shadowWords:ShadowWords;
 @group(0) @binding(3) var<storage,read_write> drawList:array<u32>;
 ${shadowPoolWgsl(pages)}
+const PAGE_WITHDRAWN:u32=${PAGE_WITHDRAWN}u;
 fn shadowPoolPages()->u32{return shadowWords.pages;}
 ${SHADOW_DRAW_LIST_WGSL}
 /** Page \`p\`'s depth is no longer its owner's: drawn again in this frame when the frame asks for
@@ -49,10 +65,11 @@ fn applyShadowWord(i:u32){
  let owner=shadowPool.pages[poolAt(POOL_OWNER,p)];
  let by=poolAt(POOL_DRAWNBY,p);
  if(owner==i32(e)){
+  let withdrawn=(word&(PAGE_VALID|PAGE_WITHDRAWN))==PAGE_WITHDRAWN;
   if((word&PAGE_VALID)!=0u){shadowPool.pages[by]=DRAWN_HOST;}
-  else if(shadowPool.pages[by]==DRAWN_GPU){return;}
+  else if(shadowPool.pages[by]==DRAWN_GPU&&!withdrawn){return;}
   else{loseDepth(p);}
-  shadows.table[e]=word;return;
+  shadows.table[e]=select(word,word^PAGE_WITHDRAWN,withdrawn);return;
  }
  if(owner<0||(word&PAGE_VALID)==0u){return;}
  shadows.table[u32(owner)]=shadows.table[u32(owner)]&(0xffffffffu^PAGE_VALID);
@@ -61,5 +78,3 @@ fn applyShadowWord(i:u32){
 @compute @workgroup_size(${WORDS_GROUP}) fn applyShadowWords(@builtin(global_invocation_id) id:vec3u){
  if(id.x<shadowWords.count){applyShadowWord(id.x);}
 }`;
-/** The host's table words of the ordinary window: what a pass compiled without a session reads. */
-export const SHADOW_WORDS_WGSL = shadowWordsWgsl();

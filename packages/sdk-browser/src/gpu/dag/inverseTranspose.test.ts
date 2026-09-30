@@ -11,10 +11,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DAG_SELECTION_SHADER } from './shader/shader.ts';
 import { SINGULAR_DETERMINANT_WGSL } from '../../../../sdk-core/src/index.ts';
-import {
-  INVERSE_TRANSPOSE_BEFORE_WGSL,
-  INVERSE_TRANSPOSE_WGSL,
-} from '../../math/inverseTransposeWgsl.ts';
+import { INVERSE_TRANSPOSE_WGSL } from '../../math/inverseTransposeWgsl.ts';
+import { INVERSE_TRANSPOSE_BEFORE_WGSL } from '../../math/inverseTransposeBefore.fixture.ts';
 import {
   angleEntre,
   apresLeLot,

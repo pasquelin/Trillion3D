@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createWebglSurface, WEBGL_CONTEXT_ATTRIBUTES } from './surface.ts';
+import { createWebglSurface } from './surface.ts';
+import { WEBGL_CONTEXT_ATTRIBUTES } from './contextAttributes.ts';
 
 function fixture() {
   const listeners = new Map<string, EventListener>();

@@ -4,16 +4,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SUN } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { shadowPoolSize } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { SHADOW_ATLAS_BYTES, SHADOW_GRANT_BYTES } from '../../residency/memoryBudget.ts';
 import { SHADOW_BUFFER_BYTES, shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
 import { shadowTransmittanceBytes } from '../../gpu/shadow/transmittance.ts';
 import { SHADOW_LAYER_PASS } from '../../gpu/shadow/staticLayer.ts';
 import { shadowRequestBytes } from './pageRequests.ts';
 import { admitShadowBytes, createShadowMemory } from './memoryGrant.ts';
-import { shadowPoolFor, staticLayerGranted } from './poolSize.ts';
+import { staticLayerGranted } from './poolSize.ts';
 import { createWebgpuLightState } from '../pages/state/lights.ts';
 import { along, camera } from '../pages/testScenes.fixture.ts';
 import { floorCasterBackend } from './floorCaster.fixture.ts';
+import { shadowPoolFor } from './poolFor.ts';
+import { SHADOW_ATLAS_BYTES, SHADOW_GRANT_BYTES } from '../../residency/shadowBudgetBytes.ts';
 
 test('the grant holds the largest pool with its static and transmittance layers, not a byte more', () => {
   const pool = shadowPoolFor(shadowPoolSize(16384, 16384), 64)(SHADOW_ATLAS_BYTES),
@@ -41,6 +42,17 @@ test('a static layer past the grant is never made, and said by name', () => {
   assert.deepEqual(lights.memory.events, ['static-layer-over-grant']);
   assert.deepEqual(said, ['shadow-memory:static-layer-over-grant']);
   assert.equal(lights.memory.bias, 0, 'a layer not made costs no resolution');
+});
+
+test('a static layer asks too for the pair rows its occlusion list follows the cull to', () => {
+  // #1363: the cull's kept list grown for the GPU pages' pairs; the occlusion test the layer
+  // brings grows its list to the cull's rows (`followOcclusion`), counted in the grant.
+  const lights = createWebgpuLightState(8),
+    say = () => {};
+  const layer = shadowAtlasBytes(8) + shadowTransmittanceBytes(8);
+  lights.memory.pairBytes = 1024;
+  assert.equal(staticLayerGranted(lights, say, layer + 2048), true, 'held and asked: twice');
+  assert.equal(staticLayerGranted(lights, say, layer + 2047), false, 'its list is asked for');
 });
 
 /** The floor and its caster, the caster moved each frame; `refuse` has the device refuse the

@@ -1,7 +1,8 @@
 import { SUBSURFACE_FLAG } from '../../scene/subsurface.ts';
 import { AS_IS_FLAG, FOG_FREE_SURFACE_FLAG, SURFACE_MODEL_MASK } from '../../scene/surfaceModel.ts';
+import { PIXEL_FOOTPRINT_WGSL } from './footprintWgsl.ts';
 
-export const contractSurfaceBody = (bounce: string, diagnostic = '') => `
+export const contractSurfaceBody = (bounce: string, diagnostic = '') => `${PIXEL_FOOTPRINT_WGSL}
 @fragment fn lightSurface(@builtin(position) pixel:vec4f)->@location(0) vec4f{
  let coord=vec2i(pixel.xy);let surfaceFlag=textureLoad(flags,coord,0).r;let flag=surfaceFlag&${SURFACE_MODEL_MASK}u;
  if(flag==0u){return vec4f(0.0);}
@@ -11,8 +12,10 @@ export const contractSurfaceBody = (bounce: string, diagnostic = '') => `
  let P=worldAt(pixel.xy,z);
  if(flag==1u){var rgb=base.rgb;if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){rgb=fogged(rgb,P,view.display.yzw);}return vec4f(rgb,1.0);}
  let normal=textureLoad(normalRough,coord,0);let emissive=textureLoad(emissiveAo,coord,0);
- // Its footprint at its depth, the unit of its shadow level; a lane in the target asks per subgroup.
- shadowFootprint=length(worldAt(pixel.xy+vec2f(1.0,0.0),z)-P);shadowRequesting=all(vec2u(pixel.xy)<textureDimensions(depth));
+ // Its footprint and point unjittered, whence its shadow level, and the turn of the shadow filters'
+ // taps this jitter phase (#1363); a lane in the target asks per subgroup.
+ let level=pixelLevel(coord,pixel.xy,z,P);shadowFootprint=level.footprint;shadowUnjitter=level.unjitter;
+ shadowRotation=view.jitter.zw;shadowRequesting=all(vec2u(pixel.xy)<textureDimensions(depth));
  let V=normalize(view.camera.xyz-P*view.camera.w);let N=normalize(normal.xyz);
  surfaceModel=flag;
  thinSubsurface=vec3f(0.0);

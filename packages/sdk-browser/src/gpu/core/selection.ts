@@ -13,9 +13,7 @@ import { aheadViewOf, copyAheadView, holdAheadView, type AheadView } from './ahe
 
 const NONE = 0xffffffff,
   WORKGROUP = 64;
-/** Words of the shared cold record (cone, box, owner, triangles): `COLD_WORDS`'s public mirror. */
-export const PAGE_CONE_FLOATS = 13,
-  SELECTION_NONE = NONE,
+export const SELECTION_NONE = NONE,
   SELECTION_WORKGROUP = WORKGROUP;
 
 /**

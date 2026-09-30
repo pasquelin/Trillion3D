@@ -7,12 +7,15 @@ import { SHADOW_FRESH_CULL_WGSL } from './freshCullWgsl.ts';
 import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { SHADOW_DEMAND_PASS, encodeShadowDemand } from './demandPass.ts';
+import { shadowKeptFrom } from './poolResize.ts';
 
 /** Labels of the allocation and of the host's table words, as a frame's passes are timed. */
 const SHADOW_ALLOC_PASS = 'Trillion3D shadow allocation v1';
 const SHADOW_FLOORS_PASS = 'Trillion3D shadow floors v1';
 const SHADOW_WORDS_PASS = 'Trillion3D shadow table words v1';
 const SHADOW_FRESH_PASS = 'Trillion3D shadow GPU pages v1';
+const SHADOW_FRESH_COUNT_PASS = 'Trillion3D shadow GPU page count v1';
+const SHADOW_FRESH_ADMIT_PASS = 'Trillion3D shadow GPU page admission v1';
 const SHADOW_FRESH_CULL_PASS = 'Trillion3D shadow GPU page cull v1';
 const SHADOW_FRESH_SEAL_PASS = 'Trillion3D shadow GPU page seal v1';
 /** The GPU's page passes, the floors first: timed under the Shadows stage (`stage/mapping.ts`). */
@@ -22,6 +25,8 @@ export const SHADOW_PAGE_PASSES = [
   SHADOW_ALLOC_PASS,
   SHADOW_WORDS_PASS,
   SHADOW_FRESH_PASS,
+  SHADOW_FRESH_COUNT_PASS,
+  SHADOW_FRESH_ADMIT_PASS,
   SHADOW_FRESH_CULL_PASS,
   SHADOW_FRESH_SEAL_PASS,
 ] as const;
@@ -31,7 +36,8 @@ const READ: GPUBufferBindingType = 'read-only-storage';
 /**
  * The GPU allocation of shadow pages (`allocWgsl.ts`), the pass that writes the host's table words
  * under it (`wordsWgsl.ts`) and those of the pages the GPU draws itself — composed and sealed
- * (`freshWgsl.ts`), their casters culled (`freshCullWgsl.ts`): their pipelines, compiled at
+ * (`freshWgsl.ts`), their casters counted, admitted and culled (`freshCullWgsl.ts`): their
+ * pipelines, compiled at
  * prepare for the session's window. They own no buffer: the pool's are made with its request
  * buffer (`allocBuffers.ts`).
  */
@@ -43,7 +49,10 @@ export async function createShadowAllocation(device: GPUDevice, pages = SUN_WIND
   fresh.push('storage', READ, 'storage');
   const allocated: GPUBufferBindingType[] = ['storage', 'storage', 'storage', 'storage', READ];
   allocated.push('storage');
-  const [floors, allocate, words, compose, seal, cull] = await Promise.all([
+  const culled: GPUBufferBindingType[] = [READ, READ, READ, 'storage', 'storage', READ];
+  const pairs = (label: string, entry: string) =>
+    computePass(device, SHADOW_FRESH_CULL_WGSL, label, entry, culled);
+  const [floors, allocate, words, compose, seal, count, admit, cull] = await Promise.all([
     computePass(device, allocation, SHADOW_FLOORS_PASS, 'claimShadowFloors', allocated),
     computePass(device, allocation, SHADOW_ALLOC_PASS, 'allocateShadowPages', allocated),
     computePass(device, wordsWgsl, SHADOW_WORDS_PASS, 'applyShadowWords', [
@@ -54,16 +63,11 @@ export async function createShadowAllocation(device: GPUDevice, pages = SUN_WIND
     ]),
     computePass(device, freshWgsl, SHADOW_FRESH_PASS, 'composeShadowPages', fresh),
     computePass(device, freshWgsl, SHADOW_FRESH_SEAL_PASS, 'sealShadowPages', fresh),
-    computePass(device, SHADOW_FRESH_CULL_WGSL, SHADOW_FRESH_CULL_PASS, 'shadowCullPairs', [
-      READ,
-      READ,
-      READ,
-      'storage',
-      'storage',
-      READ,
-    ]),
+    pairs(SHADOW_FRESH_COUNT_PASS, 'shadowCountPairs'),
+    pairs(SHADOW_FRESH_ADMIT_PASS, 'admitShadowPairs'),
+    pairs(SHADOW_FRESH_CULL_PASS, 'shadowCullPairs'),
   ]);
-  return { floors, allocate, words, compose, cull, seal };
+  return { floors, allocate, words, compose, count, admit, cull, seal };
 }
 
 export type ShadowAllocation = Awaited<ReturnType<typeof createShadowAllocation>>;
@@ -101,7 +105,12 @@ function encodeShadowFloors(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) 
   }
   // The records it decodes entries with are this frame's, as every write lands before the pass.
   shadows.flushRecords();
-  buffers.writeParams(run.frame, plan.records.generation, plan.gpu.asks);
+  buffers.writeParams(
+    run.frame,
+    plan.records.generation,
+    plan.gpu.asks,
+    shadowKeptFrom(lights, run.frame),
+  );
   const bound = allocationBound(rt);
   if (bound) allocation.floors(encoder, bound, 1);
   return bound;

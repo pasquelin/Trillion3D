@@ -3,11 +3,10 @@ import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import * as G from '../../host/graph/graph.fixture.ts';
 import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts';
-
-import { pageCopies } from './poolApi.ts';
 import { createHeldFloor } from './heldFloor.ts';
 import { createPageDraws } from './pageDraws.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
+import { pageCopies } from './pageCopies.ts';
 
 /** A page geometry of `floats` position floats and three indices: `floats * 4 + 12` bytes. */
 function pageGeometry(floats: number) {

@@ -1,6 +1,6 @@
 import { invertMatrix4 } from '../../../../../sdk-core/src/index.ts';
 import { updateScreenReflection } from '../../../reflections/frame.ts';
-import { drawParticles } from '../../../particles/webgpuParticles.ts';
+import { drawParticles } from '../../../particles/webgpuParticleFrame.ts';
 import { clearValueOf } from '../../../../../sdk-core/src/world/math/packedColour.ts';
 import { directTiles, encodeDirectLights } from './encodeLights.ts';
 import { encodeShadowReadback } from './encodeShadows.ts';
@@ -50,6 +50,9 @@ export function encodeSurfaceLighting(
     (error) => rt.diag.diagnosticFailure('direct-lighting-program-failed', error),
   );
   for (let i = 0; i < 4; i++) cameraWorldArray[i] = cam.viewPoint[i];
+  // The jitter the raster drew this image with: the shadow level and filters read it (#1363).
+  const taa = gpu.temporal?.frame;
+  gpu.deferred.setJitter(taa?.active ? taa.jitter : null);
   gpu.deferred.update(
     inverseViewProj,
     cameraWorldArray,

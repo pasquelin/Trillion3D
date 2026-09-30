@@ -3355,6 +3355,7 @@
       "counts": "Apa yang dilakukan rencana terakhir, dalam halaman.",
       "spent": "Milidetik CPU yang dihabiskan rencana terakhir untuk membaca laporan permintaan dan menerima halaman.",
       "worldChanged": "Sebuah node bergerak: kotaknya membuat usang halaman yang ditutupinya pada rencana berikutnya.",
+      "changeRoom": "Kotak yang masih dapat disimpan terpisah oleh daftar sebelum meluap.",
       "representationChanged": "Dunia yang sama dengan presisi lain: kotaknya menunggu kamera diam.",
       "resting": "Kamera diam pada rencana terakhir: tampilannya sama dengan rencana sebelumnya.",
       "deferredChanges": "Benar selama perubahan representasi menunggu kamera diam.",
@@ -3778,7 +3779,8 @@
       "total": "Berapa banyak pekerjaan secara keseluruhan.",
       "stream": "Tempat menulis.",
       "width": "Lebar bilah.",
-      "interval": "Milidetik minimum antara gambar ulang."
+      "interval": "Milidetik minimum antara gambar ulang.",
+      "verbose": "Juga menyebutkan kode info dan setiap kemunculan dalam ringkasan akhir tugas."
     }
   },
   "Texture": {
@@ -5015,13 +5017,14 @@
   "createTerminalProgress": {
     "summary": "Sebuah bar kemajuan di terminal yang mengikuti peristiwa kompiler.",
     "parameters": {
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}": "Bagaimana tampilan kemajuan terminal terlihat.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.label": "Nama pekerjaannya.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.index": "Nomor pekerjaannya.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.total": "Berapa banyak pekerjaan semuanya.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.stream": "Ke mana menulis.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.width": "Lebar bar.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.interval": "Milidetik minimum antar-gambar ulang."
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}": "Bagaimana tampilan kemajuan terminal terlihat.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.label": "Nama pekerjaannya.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.index": "Nomor pekerjaannya.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.total": "Berapa banyak pekerjaan semuanya.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.stream": "Ke mana menulis.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.width": "Lebar bar.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.interval": "Milidetik minimum antar-gambar ulang.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.verbose": "Juga menyebutkan kode info dan setiap kemunculan dalam ringkasan akhir tugas."
     }
   },
   "createTransformTree": {
@@ -6855,7 +6858,7 @@
     "summary": "Melekatkan `node` ke `parent` (`-1`: root), seperti `add` acuan: matriks tidak berpindah sampai update berikutnya."
   },
   "resolveCompilerExecutable": {
-    "summary": "Menemukan program kompiler native: yang diminta, jika tidak, yang dibangun dalam checkout ini."
+    "summary": "Menemukan program kompiler native: yang diminta, jika tidak, yang ada di paket platform terpasang, jika tidak, yang ditunjuk `TRILLION3D_COMPILER_BIN`, jika tidak, yang dibangun dalam checkout ini."
   },
   "reviewCutouts": {
     "summary": "Menanyakan, model demi model, apakah setiap permukaan cut-out terlihat benar, dan mencatat jawabannya.",
@@ -8135,7 +8138,7 @@
     }
   },
   "IMPOSTOR_PI": {
-    "summary": "π, satu literal untuk oracle ini dan cermin WGSL, agar keduanya membulatkan bilangan yang sama."
+    "summary": "π, satu literal, agar setiap pembaca peralihan membulatkan angka yang sama."
   },
   "IMPOSTOR_VERSION": {
     "summary": "Format bagian `impostors` yang dibaca runtime (#817 bagian 1, dipanggang oleh kompilator)."

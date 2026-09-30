@@ -7,13 +7,13 @@ import {
   frustumExcludesBox,
 } from '../../../../sdk-core/src/index.ts';
 import { multiplyMatrix4Typed } from '../../../../sdk-core/src/math/matrix/matrix4Typed.ts';
-import { placementsSphere } from './meshDepth.ts';
 import { readHostBox } from '../../host/boxBounds.ts';
 import { isTransmissive, visMaterial } from '../../visibility/shader/material.ts';
 import { neverCulled } from '../../visibility/shader/spriteWgsl.ts';
 import { firstMaterial } from '../../scene/materialSide.ts';
 import type { HostDrawCamera } from '../../camera/world.ts';
 import type { WholeMesh } from '../../cluster/batchMesh.ts';
+import { placementsSphere } from './placementSpheres.ts';
 
 type Centre = { x: number; y: number; z: number };
 /** What the cull reads of a scene copy: its declared culling, its surface, its local bounds,

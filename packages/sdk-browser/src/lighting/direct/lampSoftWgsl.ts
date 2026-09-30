@@ -19,9 +19,22 @@ fn lampSoftDisk(index:u32,light:DirectLight,P:vec3f)->LampDisk{
  * https://developer.download.nvidia.com/whitepapers/2008/PCSS_Integration.pdf
  * Each tap projects its own cube face and requests its virtual page. Receiver-plane
  * intersection, instead of a kernel-wide bias, keeps sloping surfaces from shadowing
- * themselves. This changes only point lights with a positive declared radius. */
+ * themselves. This changes only point lights with a positive declared radius.
+ * A filter tap is a bilinear comparison (`lampSoftCompare`), not one texel's: each tap's share
+ * fades over a texel as the edge crosses it, and the penumbra is a ramp, never sixteen steps. The
+ * disk turns each jitter phase (`shadowRotated`) and the TAA's history averages the turns, as
+ * the reference engine's SMRT leaves its rays to the temporal filter (#1363). */
 export const LAMP_SOFT_WGSL = `${LAMP_SOFT_DISK_WGSL}
 struct LampSample{distance:f32,blocked:bool,through:vec3f,}
+/** \`shadowCompare\` at texel \`t\` of page \`home\` (\`word\`, at \`offset\` from \`first\`), its bilinear
+ *  footprint split along the one or two seams it crosses as \`shadowPcf\` splits a tap
+ *  (\`shadowSplitTap\`): a neighbour not readable read at the home page's nearest texel. */
+fn lampSoftCompare(m:ShadowMap,t:vec2f,home:vec2i,word:u32,offset:vec3f,first:vec2f,reference:f32)->f32{
+ let step=vec2i(shadowPcfStep(t.x,first.x),shadowPcfStep(t.y,first.y));let up=step>vec2i(0);
+ let seam=first+select(vec2f(0.0),vec2f(SHADOW_PAGE),up);
+ let edge=saturate(0.5+(seam-t)*vec2f(step))<vec2f(1.0);
+ return shadowSplitTap(offset,shadowNeighbours(m,home,step,edge,offset,word,t),edge,up,first,t,reference);
+}
 fn lampDiskSample(index:u32,light:DirectLight,P:vec3f,N:vec3f,delta:vec3f,mip0:u32,filtering:bool)->LampSample{
  let info=shadows.records[index].info;
  let ray=normalize(P-light.positionRange.xyz+delta);
@@ -37,17 +50,17 @@ fn lampDiskSample(index:u32,light:DirectLight,P:vec3f,N:vec3f,delta:vec3f,mip0:u
   let map=r.at.map;let home=r.at.home;
   let t=clamp(r.at.t,vec2f(0.5),vec2f(r.side-0.5));let word=shadowPageWord(map,home,t);
   if(word==0u){continue;}
-  let offset=shadowOffset(word,home);
+  let offset=shadowOffset(word,home);let first=vec2f(home)*SHADOW_PAGE;
+  if(filtering){
+   let lit=lampSoftCompare(map,t,home,word,offset,first,reference);
+   var through=vec3f(lit);
+   if(lit>0.0&&textureDimensions(shadowTransmittance).x>1u){through*=shadowThrough(offset+vec3f(first,0.0),t-first,reference);}
+   return LampSample(0.0,lit<1.0,through);
+  }
   let z=textureLoad(shadowAtlas,vec2i(floor(offset.xy+t)),i32(offset.z),0);
-  let blocked=z>reference;
   // Reverse perspective depth: z=k/w-near/(far-near); convert axial w to ray distance.
   let axial=near*far/(near+z*(far-near));
-  var through=vec3f(select(1.0,0.0,blocked));
-  if(filtering&&!blocked&&textureDimensions(shadowTransmittance).x>1u){
-   let first=vec2f(home)*SHADOW_PAGE;
-   through*=shadowThrough(offset+vec3f(first,0.0),t-first,reference);
-  }
-  return LampSample(axial*distance/clip.w,blocked,through);
+  return LampSample(axial*distance/clip.w,z>reference,vec3f(1.0));
  }
  return LampSample(0.0,false,vec3f(1.0));
 }
@@ -55,7 +68,7 @@ fn pointSoftShadow(index:u32,light:DirectLight,P:vec3f,N:vec3f,mip:u32)->f32{
  let d=lampSoftDisk(index,light,P);
  var blockers=0u;var total=0.0;
  for(var tap=0u;tap<PCF_TAPS;tap++){
-  let disk=POISSON[tap];let delta=(d.T*disk.x+d.B*disk.y)*d.search;
+  let disk=shadowRotated(POISSON[tap]);let delta=(d.T*disk.x+d.B*disk.y)*d.search;
   let found=lampDiskSample(index,light,P,N,delta,mip,false);
   if(found.blocked){total+=found.distance;blockers++;}
  }
@@ -66,7 +79,7 @@ fn pointSoftShadow(index:u32,light:DirectLight,P:vec3f,N:vec3f,mip:u32)->f32{
  let penumbra=light.shape.x*max(d.distance-blocker,0.0)/max(blocker,d.closest);
  var through=vec3f(0.0);
  for(var tap=0u;tap<PCF_TAPS;tap++){
-  let disk=POISSON[tap];let delta=(d.T*disk.x+d.B*disk.y)*penumbra;
+  let disk=shadowRotated(POISSON[tap]);let delta=(d.T*disk.x+d.B*disk.y)*penumbra;
   through+=lampDiskSample(index,light,P,N,delta,mip,true).through;
  }
  shadowTransmission=through/f32(PCF_TAPS);

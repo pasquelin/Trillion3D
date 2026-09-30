@@ -4,18 +4,17 @@
 // on subgroups of 4 to 64 lanes against the per-lane path.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  LANE_REQUEST_WGSL,
-  SUBGROUP_REQUEST_WGSL,
-  shadowRequestWgsl,
-  withSubgroupShadowRequests,
-} from './shadowRequestWgsl.ts';
-import { DIRECT_LIGHTING_SHADER } from '../deferred/shaders.ts';
+import { shadowRequestWgsl, withSubgroupShadowRequests } from './shadowRequestWgsl.ts';
 import { createDeferredLighting } from '../deferred/deferred.ts';
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { seeded } from '../../../../../site/examples/kit/random.ts';
 import { SHADOW_TABLE_ENTRIES } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import {
+  DIRECT_LIGHTING_SHADER,
+  LANE_REQUEST_WGSL,
+  SUBGROUP_REQUEST_WGSL,
+} from '../../gpu/core/shaderTexts.fixture.ts';
 
 const SUBGROUP_SHADER = withSubgroupShadowRequests(DIRECT_LIGHTING_SHADER);
 

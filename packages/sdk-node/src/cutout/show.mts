@@ -6,6 +6,7 @@ import type { PendingCutout } from './sheet.mts';
 import { alphaOf, embeddedImages, type EmbeddedImages, type Thumbnail } from './thumb.mts';
 import { drawFile, drawThumbnail, link, type ImageKind } from './draw.mts';
 import { encodePng } from './png.mts';
+import { type Answer, answerOf } from './answer.mts';
 
 /**
  * What the two words mean, recalled before the first question and on demand.
@@ -106,14 +107,6 @@ export async function show(
   );
 }
 
-/**
- * The keys that answer one cutout question, read one press at a time.
- *
- * Enter takes the compiler's proposal, which is what makes a long list short: a pass over sixteen
- * textures is sixteen presses when the measure has them right, and a detour only where it does not.
- */
-export type Answer = 'cutout' | 'blend' | 'rest' | 'help' | 'quit';
-
 /** One key, without an Enter to validate it, with the terminal left exactly as it was found. */
 async function keypress(input: NodeJS.ReadStream = process.stdin): Promise<string> {
   const wasRaw = input.isRaw;
@@ -131,18 +124,6 @@ async function keypress(input: NodeJS.ReadStream = process.stdin): Promise<strin
     input.setRawMode?.(wasRaw ?? false);
     input.pause();
   }
-}
-
-/** What a key means. An unknown key means nothing, and the caller asks again. */
-export function answerOf(key: string, proposal: boolean): Answer | null {
-  if (key === '\r' || key === '\n' || key === ' ') return proposal ? 'cutout' : 'blend';
-  if (key === 'd' || key === 'D') return 'cutout';
-  if (key === 'v' || key === 'V') return 'blend';
-  if (key === 't' || key === 'T') return 'rest';
-  if (key === '?' || key === 'h' || key === 'H') return 'help';
-  // Ctrl-C and Escape stop the pass; what was already answered is kept.
-  if (key === 'q' || key === 'Q' || key === '' || key === '') return 'quit';
-  return null;
 }
 
 /** Asks until a key means something. */

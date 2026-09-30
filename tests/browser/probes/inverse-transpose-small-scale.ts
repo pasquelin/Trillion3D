@@ -21,10 +21,8 @@
 import assert from 'node:assert/strict';
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/gpu/dag/shader/shader.ts';
-import {
-  INVERSE_TRANSPOSE_BEFORE_WGSL,
-  INVERSE_TRANSPOSE_WGSL,
-} from '../../../packages/sdk-browser/src/math/inverseTransposeWgsl.ts';
+import { INVERSE_TRANSPOSE_WGSL } from '../../../packages/sdk-browser/src/math/inverseTransposeWgsl.ts';
+import { INVERSE_TRANSPOSE_BEFORE_WGSL } from '../../../packages/sdk-browser/src/math/inverseTransposeBefore.fixture.ts';
 import {
   vue,
   VIEWPORT,
@@ -40,14 +38,15 @@ import { substitueFormeAvant } from './substitutionBefore.ts';
 import type { Resultat } from './selectionKernelGpuPack.ts';
 if (import.meta.main) {
   // --- Pre-batch text, put back into the shipped shader -------------------------------------------
-  // Both texts come from `inverseTransposeWgsl.ts`: the bench rewrites neither the corrected
+  // Both texts come from the engine (`inverseTransposeWgsl.ts`, `inverseTransposeBefore.fixture.ts`,
+  // one kernel `inverseTransposeKernel.ts`): the bench rewrites neither the corrected
   // threshold nor the old one, or it would replay its own variant of the defect, not the defect.
   const SHADER_AVANT = substitueFormeAvant({
     texte: DAG_SELECTION_SHADER,
     livre: INVERSE_TRANSPOSE_WGSL,
     before: INVERSE_TRANSPOSE_BEFORE_WGSL,
     name: 'DAG_SELECTION_SHADER (packages/sdk-browser/src/gpu/dag/shader/shader.ts)',
-    origine: 'packages/sdk-browser/src/math/inverseTransposeWgsl.ts',
+    origine: 'packages/sdk-browser/src/math/inverseTransposeBefore.fixture.ts',
     marqueur: 'abs(det)<1e-20',
   });
   // --- CPU, raw truth and engine oracle ------------------------------------------------------------

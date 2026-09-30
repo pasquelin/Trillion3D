@@ -2,6 +2,7 @@
 // `WebgpuPagesRuntime` reduced to what `setWebgpuTransform` reads and writes, a selection root, and
 // two small comparison helpers. Extracted from `transformShear.test.ts` so
 // `transformFiniteTransform.test.ts` reuses them without copying.
+import { SHADOW_CHANGE_BOXES } from '../../../../sdk-core/src/scene/light-shadow/changes.ts';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { BOX_VALUES, boxTransform } from '../../../../sdk-core/src/index.ts';
@@ -80,6 +81,7 @@ export function runtime(
       plan: {
         worldChanged: (min: number[], max: number[], movingOnly: boolean) =>
           motions.push({ min: [...min], max: [...max], movingOnly }),
+        changeRoom: () => SHADOW_CHANGE_BOXES,
       },
       mobility: createShadowMobility(),
     },

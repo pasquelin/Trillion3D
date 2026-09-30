@@ -8,13 +8,12 @@ import {
 import { convergeStillPhase, dropTaaHistory, taaPhaseCount } from '../../taa/frame.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { shadowsUnsettled } from '../pages/state/lights.ts';
-
-/** Convergence turns at most: beyond that, what is missing is published, never waited for forever. */
-const CONVERGE_LIMIT = 64;
-/** Images a convergence draws at most over the still image's `phases`: the turns, then room for
- *  a whole quiet round closing on the replayed phase (`texturesConverged`) after the last tile
- *  served — at a low render scale a round outnumbers the turns. */
-export const convergeBound = (phases: number) => CONVERGE_LIMIT + 2 * phases;
+import {
+  convergeBound,
+  mustRestartTaaAfterSettle,
+  texturesConverged,
+  drainsAgain,
+} from './convergeRules.ts';
 /** Images a barrier grants at most to the shadow pages' round trips: a report read, casters
  *  loaded, pages staled by their arrival. A still camera takes a few; a moving camera voids pages
  *  every image and never converges: the bound is there for it. */
@@ -22,24 +21,6 @@ const SHADOW_DRAIN_LIMIT = 64;
 /** Texture → shadow round-trips at most: each turn that redraws a sun page can move what the shadow
  *  asks of textures, and each arrived tile voids the shadows. */
 const POSE_ROUNDS = 4;
-
-/** True when the barrier changed the raster: TAA must restart its still average (#25). */
-export const mustRestartTaaAfterSettle = (tilesServed: number, shadowFrames: number) =>
-  tilesServed > 0 || shadowFrames > 0;
-
-/**
- * True once a convergence may stop: a whole round of the still image's `phases` jitter phases in a
- * row asked for nothing new (one image without temporal accumulation, or at a barrier that takes
- * no picture), ending on the replayed phase — image `image + 1` is a multiple of `phases`, so the
- * last image drawn is the one the next image follows —, and nothing is waited for that will come.
- */
-export const texturesConverged = (
-  quiet: number,
-  phases: number,
-  image: number,
-  pending: number,
-  reading: boolean,
-) => quiet >= phases && (image + 1) % phases === 0 && (!pending || !reading);
 
 /**
  * Converges the textures of a pose: the image is rendered with all its pixels on feedback, each
@@ -91,17 +72,6 @@ async function convergeTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, pi
   }
   return total;
 }
-
-/** True while the drain draws one more image: a report taken, whose casters may still load; a
- *  page made or unmade resident after the last image (`seen`, `now`: the pool's residency
- *  revision), which no plan saw yet — the pages it stales, those a light cut drew coarser among
- *  them, are drawn again before the still average, not during it (#1016); or pages unsettled. */
-export const drainsAgain = (
-  offered: boolean,
-  seen: unknown,
-  now: unknown,
-  unsettled: () => boolean,
-) => offered || seen !== now || unsettled();
 
 /**
  * Drains shadow maps: images are rendered until the pages the image reads are all mapped and

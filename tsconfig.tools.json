@@ -28,6 +28,7 @@
     "packages/page-codec/**/*.ts",
     "packages/sdk-node/**/*.ts",
     "knip.config.ts",
+    "knip.production.config.ts",
     "eslint.config.ts",
     "site/app/migration/sources.d.ts"
   ],

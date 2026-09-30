@@ -87,8 +87,8 @@ pub(super) fn pack_world(
         .unwrap_or(bundles.len());
     let (mut payload, mut records, mut pages, mut top) =
         (Vec::new(), Vec::new(), Vec::new(), Vec::new());
-    // Where each super-root's page lies in the binary, by world rank: what the runtime's
-    // `clusters` key names to build its `DagRoot` pages (`worldSuperRoots.ts`, #1238).
+    // Where each super-root's page lies in the binary, by world rank: what the `clusters` key
+    // names for a runtime that builds its `DagRoot` pages (#1238).
     let mut located: Vec<Option<(usize, usize)>> = vec![None; dag.len()];
     for (index, members) in bundles.iter().enumerate().take(written) {
         let start = payload.len();

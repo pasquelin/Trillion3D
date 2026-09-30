@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { owed, upscaleRun, type UpscaleFrame } from './upscaleRun.fixture.ts';
-import { taaWeights, TAA_WEIGHTS } from './weights.ts';
+import { TAA_WEIGHTS, taaWeights } from './filterWeights.ts';
 
 /** Within the uniform's 32-bit weights, whose sum is 1 to 1e-9. */
 const near = (a: number[], b: number[], what: string) =>

@@ -1,16 +1,16 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  EXPLORER_OPTIONS_SCHEMA,
-  COMPILER_OPTIONS_SCHEMA,
-  TRILLION3D_RUNTIME_TOOLS,
-  getTrillion3dTools,
-  getTrillion3dLlmPrompt,
-  toOpenAiTool,
   toAnthropicTool,
   toGeminiTool,
   toMcpTool,
-} from '../index.ts';
+  toOpenAiTool,
+  getTrillion3dTools,
+} from './toolDefinitions.ts';
+import { EXPLORER_OPTIONS_SCHEMA } from './explorerOptionsSchema.ts';
+import { COMPILER_OPTIONS_SCHEMA } from './compilerOptionsSchema.ts';
+import { TRILLION3D_RUNTIME_TOOLS } from './runtimeToolsSchema.ts';
+import { getTrillion3dLlmPrompt } from './systemPrompt.ts';
 
 describe('Trillion3D LLM Module', () => {
   it('exposes a valid JSON Schema for MeasuredWorldOptions', () => {

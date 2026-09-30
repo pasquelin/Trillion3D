@@ -4,7 +4,7 @@ import { writeSha } from './manifestBinaryEncodeChecks.ts';
 import {
   checkEntryHeader,
   levelLengths,
-} from '../../packages/sdk-core/src/manifest/binaryPreview.ts';
+} from '../../packages/sdk-core/src/manifest/binaryPreviewEntry.ts';
 import { previewGeometry } from '../../packages/sdk-core/src/texture/previewLevels.ts';
 
 type ColumnView = <T>(

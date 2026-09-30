@@ -3271,6 +3271,7 @@
       "counts": "마지막 계획이 한 일, 페이지 단위.",
       "spent": "마지막 계획이 요청 보고서를 읽고 페이지를 받아들이는 데 쓴 CPU 밀리초.",
       "worldChanged": "노드가 움직였습니다: 그 박스는 다음 계획에서 덮는 페이지를 낡게 만듭니다.",
+      "changeRoom": "넘치기 전에 목록이 아직 따로 담을 수 있는 상자 수.",
       "representationChanged": "다른 정밀도의 같은 월드: 그 박스는 카메라가 멈출 때까지 기다립니다.",
       "resting": "마지막 계획에서 카메라가 정지해 있었음: 그 뷰가 이전 계획의 뷰와 같았습니다.",
       "deferredChanges": "표현 변경이 카메라가 멈추기를 기다리는 동안 참.",
@@ -3694,7 +3695,8 @@
       "total": "전체 작업 수.",
       "stream": "어디에 쓸지.",
       "width": "막대 너비.",
-      "interval": "다시 그리기 사이의 최소 밀리초."
+      "interval": "다시 그리기 사이의 최소 밀리초.",
+      "verbose": "작업 종료 요약에 정보 코드와 모든 발생 위치도 표시합니다."
     }
   },
   "Texture-common": {
@@ -5045,13 +5047,14 @@
   "createTerminalProgress": {
     "summary": "컴파일러의 이벤트를 따라가는, 터미널 안의 진행 표시줄.",
     "parameters": {
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}": "터미널 진행률 표시가 어떻게 보이는가.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.label": "작업의 이름.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.index": "작업의 번호.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.total": "전체 작업 수.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.stream": "어디에 쓸지.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.width": "막대 너비.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.interval": "다시 그리기 사이의 최소 밀리초."
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}": "터미널 진행률 표시가 어떻게 보이는가.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.label": "작업의 이름.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.index": "작업의 번호.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.total": "전체 작업 수.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.stream": "어디에 쓸지.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.width": "막대 너비.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.interval": "다시 그리기 사이의 최소 밀리초.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.verbose": "작업 종료 요약에 정보 코드와 모든 발생 위치도 표시합니다."
     }
   },
   "createTransformTree": {
@@ -6881,7 +6884,7 @@
     "summary": "`node`를 `parent`(`-1`: 루트)에 붙인다, 참조 구현의 `add`처럼: 행렬은 다음 업데이트까지 움직이지 않는다."
   },
   "resolveCompilerExecutable": {
-    "summary": "네이티브 컴파일러 프로그램을 찾는다: 요청된 것, 없으면 이 체크아웃에서 빌드된 것."
+    "summary": "네이티브 컴파일러 프로그램을 찾는다: 요청된 것, 없으면 설치된 플랫폼 패키지의 것, 없으면 `TRILLION3D_COMPILER_BIN`이 가리키는 것, 없으면 이 체크아웃에서 빌드된 것."
   },
   "reviewCutouts": {
     "summary": "모델별로, 각 컷아웃 표면이 올바르게 보이는지 묻고 그 답을 기록한다.",
@@ -8134,7 +8137,7 @@
     }
   },
   "IMPOSTOR_PI": {
-    "summary": "π, 이 오라클과 WGSL 미러를 위한 하나의 리터럴로, 둘 다 같은 수를 반올림한다."
+    "summary": "π, 하나의 리터럴로, 전환을 읽는 모든 쪽이 같은 수로 반올림합니다."
   },
   "IMPOSTOR_VERSION": {
     "summary": "런타임이 읽는 `impostors` 섹션의 형식(#817 파트 1, 컴파일러가 베이크)."

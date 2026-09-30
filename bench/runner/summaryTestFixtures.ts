@@ -74,3 +74,18 @@ export const baseSide: Partial<Row> = {
   geometryBytes: null,
   load: { start: [], end: [] },
 };
+
+/** The first data row of the table under `## ${section}` in a `resume()` text, keyed by header. */
+export function tableRow(text: string, section: string): Record<string, string> {
+  const lines = text.split('\n');
+  const from = lines.indexOf(`## ${section}`);
+  if (from < 0) throw new Error(`no section ${section}`);
+  const rows = lines.slice(from).filter((line) => line.startsWith('|'));
+  const cells = (line: string) =>
+    line
+      .slice(1, -1)
+      .split('|')
+      .map((cell) => cell.trim());
+  const values = cells(rows[2]);
+  return Object.fromEntries(cells(rows[0]).map((header, i) => [header, values[i]]));
+}
