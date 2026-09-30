@@ -41,5 +41,8 @@ test('a moving caster stales its own pages only at the levels where it covers te
   };
   const expected = levels.filter(covers).map(pageOf);
   assert.ok(expected.length >= 6 && expected.length < levels.length - 4, `${expected.length}`);
-  assert.deepEqual(staleEntries(plan), expected.sort((a, b) => a - b));
+  assert.deepEqual(
+    staleEntries(plan),
+    expected.sort((a, b) => a - b),
+  );
 });
