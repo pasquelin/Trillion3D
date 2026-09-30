@@ -1,4 +1,4 @@
-import { createScaleController, nextScale } from './scaleController.ts';
+import { createScaleController, nextScale, rescale } from './scaleController.ts';
 import { createRefreshClock } from './refreshClock.ts';
 import { createCadenceProbe } from './cadenceProbe.ts';
 import { renderScaleBounds, type RenderScale } from './renderScaleOption.ts';
@@ -119,12 +119,8 @@ export function createScaleControl(option: RenderScale | undefined, floor?: numb
         gap = refresh.tick(now);
       if (!(gap > 0)) return;
       const rise = refresh.interval / before;
-      if (rise >= RISE) {
-        const s = Math.min(controller.max, controller.s * Math.sqrt(rise));
-        controller.ema *= (s / controller.s) ** 2;
-        controller.s = s;
-        controller.since = 0;
-      }
+      if (rise >= RISE)
+        rescale(controller, Math.min(controller.max, controller.s * Math.sqrt(rise)));
       controller.budget = refresh.interval;
       if (!timed && fresh && control.steered && refresh.settled && gap < INTERVAL_PAUSE_MS)
         step(intervalCost(gap, controller.budget), control.drawn, control.still);
