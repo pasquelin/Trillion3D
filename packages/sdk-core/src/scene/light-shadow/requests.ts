@@ -1,4 +1,5 @@
 import type { ShadowViewpoint } from '../light/contracts.ts';
+import type { ShadowCellReport } from './demandFootprint.ts';
 import { createShadowNeeds } from './needs.ts';
 import { createEntryPages } from './entryPages.ts';
 import type { ShadowPoolSnapshot } from './mirror.ts';
@@ -6,7 +7,7 @@ import type { ShadowPool } from './pool.ts';
 import type { ShadowRecords } from './records.ts';
 import type { ShadowTable } from './table.ts';
 import type { SunLevels } from './sunLevels.ts';
-import { SHADOW_REQUEST_ENTRY_MASK, SHADOW_REQUEST_MISS } from './footprint.ts';
+import { SHADOW_REQUEST_MISS } from './footprint.ts';
 import {
   LAMP_FLOOR_MIP,
   PAGE_INDEX_MASK,
@@ -18,7 +19,7 @@ import {
 import { lampEntry, sunEntry } from './pageModel.ts';
 
 /** What the shading read in one frame: the table entries it asked for, in no order. */
-export interface ShadowRequestReport {
+export interface ShadowRequestReport extends ShadowCellReport {
   /** Frame whose shading wrote the report. */
   frame: number;
   /** Table layout that frame read with (`ShadowTable.layoutEpoch`). */
@@ -65,8 +66,7 @@ export function createShadowRequests(
     needs = createShadowNeeds(table, pool, 2 * cap), // each entry named, and its floor
     entries = createEntryPages(table, records, sun),
     scratch = new Int32Array(4),
-    /** What the entry being read names: its view, then its page. */
-    at = new Int32Array(3);
+    at = new Int32Array(3); // What the entry being read names: its view, then its page.
   let reportFrame = -1,
     asking: ShadowAsks | undefined,
     heldCycle = -1; // The still cycle the request belongs to (`plan.ts`, #26)
@@ -133,9 +133,8 @@ export function createShadowRequests(
       if (report.pool) return;
       needs.clear();
       for (let i = 0; i < counts.requested; i++) {
-        if (report.entries[i] >= SHADOW_REQUEST_MISS) continue; // a miss grows its page: `demandFootprint.ts`
-        // The receiver's cell rides above the entry (`footprint.ts`): only the entry indexes.
-        const entry = report.entries[i] & SHADOW_REQUEST_ENTRY_MASK;
+        const entry = report.entries[i];
+        if (entry >= SHADOW_REQUEST_MISS) continue; // a miss grows its page: `demandFootprint.ts`
         const word = table.words[entry];
         let slice: number;
         if (word & PAGE_MAPPED) {
