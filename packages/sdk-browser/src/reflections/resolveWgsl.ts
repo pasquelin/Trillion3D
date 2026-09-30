@@ -86,14 +86,16 @@ fn roughSamples(at:vec2i,id:u32,nr:vec4f,z:f32)->vec4f{
  let phase=reflectionPhase(u32(view.params.w));
  let base=vec2i(max(at-vec2i(3),vec2i(0))/2);
  let P=pointAt(vec2f(at)+vec2f(0.5),z);
- let radius=REFLECTION_FILTER_RADIUS*(1.0+nr.a);
+ let radius=REFLECTION_FILTER_RADIUS*(1.0+nr.a);let reach=radius*radius;
+ let plane=REFLECTION_FILTER_PLANE*REFLECTION_FILTER_PLANE;
  var sum=vec4f(0.0);
  for(var k=0;k<16;k++){
   let q=base+vec2i(k&3,k>>2u);
   if(any(q>=half)){continue;}
   let owner=min(q*2+phase,drawn-vec2i(1));
-  let tent=max(0.0,1.0-length(vec2f(owner-at))/radius);
-  if(tent<=0.0){continue;}
+  let apart=vec2f(owner-at);let far=dot(apart,apart);
+  if(far>=reach){continue;}
+  let tent=1.0-sqrt(far)/radius;
   let traced=textureLoad(sampleColor,q,0);
   if(traced.a<=0.0){continue;}
   if(any(owner!=at)){
@@ -101,7 +103,8 @@ fn roughSamples(at:vec2i,id:u32,nr:vec4f,z:f32)->vec4f{
    let other=textureLoad(normalRough,owner,0);
    if(dot(other.xyz,nr.xyz)<0.99||abs(other.a-nr.a)>0.001){continue;}
    let offset=pointAt(vec2f(owner)+vec2f(0.5),textureLoad(depth,owner,0))-P;
-   if(abs(dot(offset,nr.xyz))>REFLECTION_FILTER_PLANE*length(offset)){continue;}
+   let off=dot(offset,nr.xyz);
+   if(off*off>plane*dot(offset,offset)){continue;}
   }
   sum+=vec4f(traced.rgb*traced.a,traced.a)*tent;
  }
