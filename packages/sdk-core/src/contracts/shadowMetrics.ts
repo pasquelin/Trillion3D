@@ -1,6 +1,5 @@
 /** Why a shadow page turned stale (`ShadowFrameMetrics.shadowPagesStaledBy`). */
-export type ShadowStaleReason =
-  'light' | 'caster' | 'moving' | 'detail' | 'threshold' | 'range' | 'footprint';
+export type ShadowStaleReason = 'light' | 'caster' | 'moving' | 'detail' | 'threshold' | 'range';
 
 /**
  * Lighting and shadow counters of a frame, split from `FrameMetrics` by responsibility.
@@ -62,8 +61,8 @@ export interface ShadowFrameMetrics {
   /** Casters the per-page cull kept, all drawn pages together, on the frame the device last
    *  sampled — one in fifteen; `null` until a sample has returned. */
   shadowCastersKept?: number | null;
-  /** Casters the per-page cull tested and did not keep — outside the part of the page its
-   *  receivers read —, on the same sampled frame; `null` until a sample has returned. */
+  /** Casters the per-page cull tested and did not keep — outside the volume of the page they
+   *  were tested for —, on the same sampled frame; `null` until a sample has returned. */
   shadowCastersRejected?: number | null;
   /** Moving casters the occlusion test found hidden behind the static layer of their page, on
    *  the frame the device last sampled; `null` until a sample has returned. */
@@ -95,7 +94,7 @@ export interface ShadowFrameMetrics {
   /** Of `shadowCastersKept`, the clusters kept to draw moving casters alone. */
   shadowMovingCastersKept?: number | null;
   /** Pages the frame staled, by reason: light, still caster, moving casters, detail, cut threshold,
-   *  a sun's depth range, or a footprint its receivers grew. */
+   *  or a sun's depth range. */
   shadowPagesStaledBy?: Readonly<Record<ShadowStaleReason, number>> | null;
   /** How many milliseconds the oldest out-of-date page the image reads has waited to be redrawn.
    *  Only the time the image reads it counts; 0 once it is redrawn. */

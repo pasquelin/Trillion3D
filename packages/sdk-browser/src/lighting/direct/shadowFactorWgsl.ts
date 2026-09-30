@@ -91,11 +91,10 @@ fn sunRangeReference(index:u32,drawn:u32,z:f32)->f32{
  let range=select(pair.xy,pair.zw,(drawn&1u)!=0u);
  return max(1.0-(z-range.x)*(1.0/max(range.y-range.x,1e-6))+SHADOW_DEPTH_ROUNDING,SHADOW_PAST_FAR);
 }
-/** Offset of the neighbour page \`p\` and 1 when it is readable at map texel \`t\` in the depth
- *  range of the home page (\`homeWord\`, \`sunDepth.ts\`); else the home page's and 0: one
- *  reference for every tap. */
-fn shadowNeighbour(m:ShadowMap,p:vec2i,home:vec3f,homeWord:u32,t:vec2f)->vec4f{
- let word=shadowPageWord(m,p,t);
+/** Offset of the neighbour page \`p\` and 1 when it is readable in the depth range of the home
+ *  page (\`homeWord\`, \`sunDepth.ts\`); else the home page's and 0: one reference for every tap. */
+fn shadowNeighbour(m:ShadowMap,p:vec2i,home:vec3f,homeWord:u32)->vec4f{
+ let word=shadowPageWord(m,p);
  if(word==0u||((word^homeWord)>>PAGE_RANGE_SHIFT)!=0u){return vec4f(home,0.0);}
  return vec4f(shadowOffset(word,p),1.0);
 }
@@ -103,11 +102,11 @@ fn shadowNeighbour(m:ShadowMap,p:vec2i,home:vec3f,homeWord:u32,t:vec2f)->vec4f{
  *  along y and across the corner (\`shadowNeighbour\`). Shared by \`shadowPcf\` and the PCSS filter
  *  (\`lampSoftCompare\`). */
 struct ShadowNeighbours{x:vec4f,y:vec4f,d:vec4f,}
-fn shadowNeighbours(m:ShadowMap,home:vec2i,step:vec2i,edge:vec2<bool>,offset:vec3f,word:u32,t:vec2f)->ShadowNeighbours{
+fn shadowNeighbours(m:ShadowMap,home:vec2i,step:vec2i,edge:vec2<bool>,offset:vec3f,word:u32)->ShadowNeighbours{
  var nx=vec4f(offset,0.0);var ny=nx;var nd=nx;
- if(edge.x){nx=shadowNeighbour(m,home+vec2i(step.x,0),offset,word,t);}
- if(edge.y){ny=shadowNeighbour(m,home+vec2i(0,step.y),offset,word,t);}
- if(all(edge)){nd=shadowNeighbour(m,home+step,offset,word,t);}
+ if(edge.x){nx=shadowNeighbour(m,home+vec2i(step.x,0),offset,word);}
+ if(edge.y){ny=shadowNeighbour(m,home+vec2i(0,step.y),offset,word);}
+ if(all(edge)){nd=shadowNeighbour(m,home+step,offset,word);}
  return ShadowNeighbours(nx,ny,nd);
 }
 fn sunShadowFactor(index:u32,P:vec3f,N:vec3f,taps:bool)->f32{
@@ -124,7 +123,7 @@ fn sunShadowFactor(index:u32,P:vec3f,N:vec3f,taps:bool)->f32{
  let offset=shadowNormalTexels(cosine);
  for(var level=shadowSunReadLevel(shadowFootprint,finest);level<last;level++){
   let at=sunReadAt(index,P,N,offset,level);
-  let word=shadowPageWord(at.map,at.home,at.t);
+  let word=shadowPageWord(at.map,at.home);
   if(word==0u){continue;}
   let reference=1.0-(dot(at.Q,axis)-zNear-shadowDepthMargin(at.texel,slope,1.0))*invDepth+SHADOW_DEPTH_ROUNDING;
   // A page drawn in the current range reads at \`reference\` alone, as one range always did: a
@@ -152,7 +151,7 @@ fn lampShadowFactor(index:u32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f,taps:boo
  for(var mip=u32(wanted);mip<LAMP_MIP_COUNT;mip++){
   let r=lampReadAt(index,light.positionRange.xyz,P,N,offset,texel0,mip);
   if(!r.inside){return 1.0;}
-  let word=shadowPageWord(r.at.map,r.at.home,r.at.t);
+  let word=shadowPageWord(r.at.map,r.at.home);
   if(word==0u){continue;}
   // The receiver's axial depth w, clip.w, changes across the face by sin(N, axis)·cos²(ray, axis)
   // over the incidence cosine — tan(incidence) on the axis —, cos²(ray, axis) being w²/|d|². The

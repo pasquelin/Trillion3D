@@ -1,4 +1,5 @@
-import { LIGHT_KIND, writeFace } from '../../../../sdk-core/src/index.ts';
+import { LIGHT_KIND, SHADOW_CULL_FLOATS, writeFace } from '../../../../sdk-core/src/index.ts';
+import { writeLampPage } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
 import { writeSunSquare } from '../../../../sdk-core/src/scene/light-shadow/sunFaces.ts';
 import {
   SHADOW_PAGE,
@@ -7,7 +8,6 @@ import {
   lampPagesAt,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { MAX_SHADOW_PAGES } from '../../gpu/shadow/atlas.ts';
-import { composePage } from './pageCompose.ts';
 import type { WebgpuLightState } from '../pages/state/lights.ts';
 
 /** Six lamp faces, composed the time to write a record or close a run. */
@@ -51,6 +51,42 @@ export function writeShadowRecords(lights: WebgpuLightState) {
 export const pageModes = new Uint8Array(MAX_SHADOW_PAGES);
 /** The run — the light cut's view — each page of the batch is drawn in, in admission order. */
 export const pageViews = new Uint8Array(MAX_SHADOW_PAGES);
+
+/** Composes page `page`'s projection and cull volume into region `region`'s slots: its casters are
+ *  those whose bounds reach its square (#1211). A filter tap past its edge reads the neighbour page
+ *  (`shadowPcf`), which the demand asks for and which culls its own casters. */
+function composePage(lights: WebgpuLightState, slots: Int32Array, page: number, region: number) {
+  const { plan, cull, store, faceMatrices } = lights,
+    { pool } = plan;
+  const slice = pool.slice[page],
+    key = pool.view[page],
+    light = store.light(store.ids[slots[slice]])!;
+  const planes =
+    light.kind === 'directional'
+      ? writeSunSquare(
+          faceMatrices,
+          region * 16,
+          cull!.volumes,
+          region * SHADOW_CULL_FLOATS,
+          plan.sun,
+          slice,
+          key,
+          pool.x[page],
+          pool.y[page],
+        )
+      : writeLampPage(
+          faceMatrices,
+          region * 16,
+          cull!.volumes,
+          region * SHADOW_CULL_FLOATS,
+          light,
+          key >> 4,
+          key & 15,
+          pool.x[page],
+          pool.y[page],
+        );
+  return { light, near: light.kind === 'directional' ? 0 : planes.near };
+}
 
 /**
  * Pages `[from, to)` of the frame's list — one batch (`admit.ts`, `batchEnd`) —, as the depth pass
