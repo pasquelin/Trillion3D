@@ -18,10 +18,12 @@ export const POISSON_16 = [
   [0.14383161, -0.1410079],
 ];
 
-/** Radius of the taps' disk, in texels: the farthest tap from the read point, turned any way. */
-const POISSON_RADIUS = Math.max(...POISSON_16.map(([x, y]) => Math.hypot(x, y)));
+/** Farthest texel centre any tap weighs, in texels from the read point: the tap's offset plus
+ *  the bilinear footprint's texel on each axis. The depth margin covers the receiver over it. */
+export const PCF_REACH = Math.max(
+  ...POISSON_16.map(([x, y]) => Math.hypot(Math.abs(x) + 1, Math.abs(y) + 1)),
+);
 
-/** Farthest texel centre any tap weighs, in texels from the read point, the taps turned any way
- *  (`shadowRotated`): the disk's radius, then the bilinear footprint's texel on each axis, at
- *  most `√2` beyond it. The depth margin covers the receiver over it. */
-export const PCF_REACH = POISSON_RADIUS + Math.SQRT2;
+/** Radius of the taps' disk, in texels: the farthest tap from the read point. A PCSS disk whose
+ *  scale is at most a texel of the mip it reads keeps its taps within the PCF's own pages. */
+export const POISSON_RADIUS = Math.max(...POISSON_16.map(([x, y]) => Math.hypot(x, y)));
