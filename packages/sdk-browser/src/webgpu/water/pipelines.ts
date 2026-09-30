@@ -73,8 +73,11 @@ export async function createWaterCompositePipeline(
   layout: GPUBindGroupLayout,
   sunWindow?: number,
 ) {
-  const code = waterCompositeShader(sunWindow);
-  const module = await createCheckedShaderModule(device, code, 'WATER_COMPOSITE');
+  const module = await createCheckedShaderModule(
+    device,
+    waterCompositeShader(sunWindow),
+    'WATER_COMPOSITE',
+  );
   return makeFullscreenPipeline(
     device,
     module,
@@ -133,8 +136,10 @@ function createWaterRoutedPipeline(
   share: boolean,
   sunWindow?: number,
 ) {
-  const code = waterRoutedShader(sunWindow);
-  const module = device.createShaderModule({ label: 'WATER_ROUTED', code });
+  const module = device.createShaderModule({
+    label: 'WATER_ROUTED',
+    code: waterRoutedShader(sunWindow),
+  });
   const bindGroupLayouts = [layout, reflectionLayout(device), displayMaskLayout(device)];
   return device.createRenderPipeline({
     layout: device.createPipelineLayout({ bindGroupLayouts }),
