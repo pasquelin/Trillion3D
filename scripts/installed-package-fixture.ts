@@ -58,6 +58,15 @@ export interface InstalledFixture {
   installedVersion(name: string): string;
 }
 
+/**
+ * The program Windows runs for `command` (#1354): a package's binary there is a `.cmd` shim beside
+ * the shell script `node_modules/.bin` names, and Node starts a `.cmd` only through the shell.
+ */
+export function windowsShim(command: string, platform = process.platform): string {
+  if (platform !== 'win32') return command;
+  return /[\\/]node_modules[\\/]\.bin[\\/][^\\/.]+$/.test(command) ? `${command}.cmd` : command;
+}
+
 /** The temporary root, logs and `run`/`write`/`bundle` helpers shared by every stage of the
  * installed-package proof: one fixture directory, one `pnpm pack` archive installed into it. */
 export function createInstalledFixture(root: string): InstalledFixture {
@@ -65,7 +74,13 @@ export function createInstalledFixture(root: string): InstalledFixture {
   const logs: LogEntry[] = [];
 
   const run: Run = (command, args, cwd = root, environment = process.env) => {
-    const result = spawnSync(command, args, { cwd, encoding: 'utf8', env: environment });
+    const program = windowsShim(command);
+    const result = spawnSync(program, args, {
+      cwd,
+      encoding: 'utf8',
+      env: environment,
+      shell: program.endsWith('.cmd'),
+    });
     logs.push({ command: [command, ...args], cwd, stdout: result.stdout, stderr: result.stderr });
     if (result.error) throw result.error;
     if (result.status !== 0)
