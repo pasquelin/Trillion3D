@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { createWebgpuVisibilityShaders } from '../visibility/shaders.ts';
-import { createWebgpuShadePipelines } from '../visibility/pipelines.ts';
+import { createWebgpuShadePipelines } from '../visibility/shadePipelines.ts';
 import { createWebgpuBlendPipelines } from '../blend/pipelines.ts';
 import { ensureWebgpuVisibilityBindings } from '../visibility/bindings.ts';
 import { ensureWebgpuShadeBindings } from './shadeBindings.ts';
