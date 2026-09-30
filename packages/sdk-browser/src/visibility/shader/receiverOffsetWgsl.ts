@@ -6,12 +6,7 @@ import {
   SHADE_UNI_WGSL,
   VERTEX_NORMALS_WGSL,
 } from './pixelTriangleWgsl.ts';
-import {
-  BARY_WEIGHTS_WGSL,
-  EDGE_WGSL,
-  PAGE_INFO_STRUCT_WGSL,
-  VERT_NORMAL_WGSL,
-} from './pageWgsl.ts';
+import { BARY_WEIGHTS_WGSL, EDGE_WGSL, PAGE_INFO_STRUCT_WGSL, vertNormalWgsl } from './pageWgsl.ts';
 import { PAGE_NORMAL_WGSL, PAGE_POINTS_WGSL } from './pageGeometryWgsl.ts';
 import { INVERSE_TRANSPOSE_WGSL } from '../../math/inverseTransposeWgsl.ts';
 
@@ -52,16 +47,10 @@ const RECEIVER_OFFSET_FN_WGSL = `fn receiverOffset(pixel:vec2f)->vec3f{
 }`;
 
 /** What the receiver offset binds, in binding order from the pass's first number: never the
- *  texture coordinates, which it does not read — four storage buffers, which the lighting and the
- *  demand hold within their eight (`bindBudget.test.ts`). */
-export const RECEIVER_BINDINGS = [
-  'vis',
-  'uniform',
-  'pages',
-  'indices',
-  'positions',
-  'normals',
-] as const;
+ *  texture coordinates, which it does not read, and the float pool once — its position buffer,
+ *  which holds the normals after the positions (`geometryPoolLayout.ts`) —: three storage
+ *  buffers, which the lighting and the demand hold within their eight (`bindBudget.test.ts`). */
+export const RECEIVER_BINDINGS = ['vis', 'uniform', 'pages', 'indices', 'geometry'] as const;
 
 /** The receiver offset with its bindings from `first` on (`RECEIVER_BINDINGS`) and the page
  *  geometry it decodes with: the one text the lighting and the shadow demand insert. */
@@ -74,10 +63,9 @@ ${at('vis')} var vis:texture_2d<u32>;
 ${at('uniform')} var<uniform> uni:ShadeUni;
 ${at('pages')} var<storage,read> pages:array<PageInfo>;
 ${at('indices')} var<storage,read> indices:array<u32>;
-${at('positions')} var<storage,read> positions:array<f32>;
-${at('normals')} var<storage,read> normals:array<f32>;
+${at('geometry')} var<storage,read> positions:array<f32>;
 ${PAGE_POINTS_WGSL}
-${VERT_NORMAL_WGSL}
+${vertNormalWgsl('positions', 'uni.normalBase+')}
 ${PAGE_NORMAL_WGSL}
 ${EDGE_WGSL}
 ${BARY_WEIGHTS_WGSL}

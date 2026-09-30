@@ -86,7 +86,8 @@ export interface WebgpuVisState {
   shadeIdentity: WebgpuBindIdentity;
   concatPos: GPUBuffer | undefined;
   concatUv: GPUBuffer | undefined;
-  concatNrm: GPUBuffer | undefined;
+  /** The normals' range of `concatPos` (`../../core/geometryPoolLayout.ts`, #1410). */
+  concatNrm: GPUBufferBinding | undefined;
   /** The pool those three buffers are (`../../core/geometryPool.ts`). */
   vertexPool: VertexPool | undefined;
   pageTable: GPUBuffer | undefined;

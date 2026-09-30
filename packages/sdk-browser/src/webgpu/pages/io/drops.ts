@@ -125,7 +125,6 @@ export function dropVis(rt: WebgpuPagesRuntime) {
   dropGpuHiz(rt);
   vis.concatPos?.destroy();
   vis.concatUv?.destroy();
-  vis.concatNrm?.destroy();
   vis.pageTable?.destroy();
   vis.shadeUniform?.destroy();
   vis.visUniform?.destroy();
