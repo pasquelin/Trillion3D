@@ -6,7 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
-import { clusterBinsWgsl, CLUSTER_SLICES } from './clusterWgsl.ts';
+import { clusterPassWgsl, CLUSTER_SLICES } from './clusterWgsl.ts';
 import { sliceMap, type SliceMap } from './clusterSlices.fixture.ts';
 
 test('the shipped slice mapping is bounded, monotone and log-spaced on the tile range', () => {
@@ -79,17 +79,13 @@ test('every light that reaches a pixel is in its cluster, in increasing rank ord
   }
 });
 
-test('each tile bins into its own pool room, names a full pool, and reads the list after it lands', () => {
-  assert.ok(CLUSTER_SLICES >= 2 && CLUSTER_SLICES <= 64, 'a usable slice count');
-  // The descriptors start at the room the tile's atomic add returned, never at the pool's start
-  // for every tile, which would write all tiles' bins over one another.
-  assert.match(clusterBinsWgsl, /clusterFirst=pool\.start\+at;/);
-  assert.match(clusterBinsWgsl, /TILE_CLUSTER_BASE\+2u\*s\]=clusterFirst\+sliceStart\[s\]/);
-  // A pool too small for the bins raises the overflow, so the next frame grows it.
-  assert.match(clusterBinsWgsl, /else\{atomicStore\(&pool\.overflow,1u\);\}/);
-  // The compaction's storage writes are visible before any lane reads the list back.
-  assert.match(
-    clusterBinsWgsl,
-    /workgroupUniformLoad\(&counted\)\.x;\s*(\/\/[^\n]*\n\s*)*storageBarrier\(\);/,
+test('the grid is settled in the record by the pass lanes, with no atomic, pool room or copy', () => {
+  assert.ok(
+    [4, 8, 16, 32, 64].includes(CLUSTER_SLICES),
+    'a power of two the 256 lanes split evenly',
   );
+  // The masks live in the tile record: the pass reserves nothing in the pool and adds no atomic.
+  assert.doesNotMatch(clusterPassWgsl, /atomicAdd|atomicOr|atomicStore|pool\./);
+  // The list and pool writes land before the lanes read the walked slice back.
+  assert.match(clusterPassWgsl, /fn clusterMasks\(base:u32,lane:u32,count:u32\)\{\s*(\/\/[^\n]*\n\s*)*storageBarrier\(\);/);
 });
