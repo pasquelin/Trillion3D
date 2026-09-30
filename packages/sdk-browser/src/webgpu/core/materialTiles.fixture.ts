@@ -1,4 +1,11 @@
-import { MATERIAL_TILE_SIZE, materialTilesOn } from '../../visibility/shader/materialTilesWgsl.ts';
+import {
+  MATERIAL_TILES_SHADER,
+  materialTilesOn,
+} from '../../visibility/shader/materialTilesWgsl.ts';
+import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
+
+/** The tile's side the pass compiles. */
+const { MATERIAL_TILE_SIZE } = wgslConstants(MATERIAL_TILES_SHADER);
 
 /**
  * The classification's lists as the pass leaves them, on the CPU: for each slot, the tiles of a
