@@ -3189,6 +3189,13 @@
   "ScreenErrorVariant": {
     "summary": "Bir cluster'ın ekran hatasının nasıl ölçüldüğü: kanıtlanmış sınır, ya da referans formülü."
   },
+  "ShadowAsks": {
+    "summary": "Ana makinenin GPU ayırıcısından istediği girdiler, piksellerin istediğinin (`floors`) yanında.",
+    "members": {
+      "entries": "İstenen girdiler, en fazla ilk `count` tanesi.",
+      "count": "`entries` öğelerinden kaçının dolu olduğu."
+    }
+  },
   "ShadowAtlasDigest": {
     "summary": "Bir gölge atlası okumasının yayımladığı şey: boyutu, orada yazılı olan, parmak izi.",
     "members": {
@@ -7630,6 +7637,17 @@
   },
   "SHADOW_RECORD_FLOATS": {
     "summary": "Bir gölge kaydının float’ları, bir ışığın gölgelendirmesinin okuduğu: altı lamba yüzü matrisi — orada bir güneşin derinlik aralıkları, her biri `zNear, zFar` (`recordPack.ts`) —, sonra güneşin ışık düzlemi çerçevesi — `right, zNear`, `up, zFar`, `axis`, sonra geçerli aralığın yuvası —, sonra her clipmap yuvasının pencere başlangıcı iki tamsayı olarak, sonra bir `vec4f` başlığı: yüzler (lamba) ya da seviyeler (güneş), lambanın teğet yarı açısı ya da güneşin en ince seviyesi, lambanın yakın düzlemi ve kaydın sayfa tablosundaki ilk girdisi."
+  },
+  "ShadowPoolSnapshot": {
+    "summary": "Bir karenin ayrılmasından sonra GPU ayırıcısının havuzu (`webgpu/shadow/allocWgsl.ts`).",
+    "members": {
+      "owner": "Her fiziksel sayfanın eşlediği girdi, boş bir sayfa için −1.",
+      "requested": "Her sayfanın en son istendiği kare.",
+      "allocated": "O karenin eşlediği sayfalar ve sayfası olmayan girdiler.",
+      "refused": "O karede sayfası olmayan girdiler.",
+      "drawn": "O karenin GPU'nun çizmesi için listelediği sayfalar (`listDraw`).",
+      "listings": "Havuzun başlangıcından beri her karenin listelediği sayfalar: herhangi bir karenin listesiyle birlikte değişir, kendi anlık görüntüsü kaybolsa da kaybolmasa da."
+    }
   },
   "ShadowRequestReport": {
     "summary": "Gölgelendirmenin bir karede okuduğu: istediği tablo girdileri, sırasız.",
