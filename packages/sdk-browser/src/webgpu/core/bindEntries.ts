@@ -44,13 +44,14 @@ export type BlendLighting = {
   shadowTransmittance: GPUTextureView;
   shadowTranslucentDepth: GPUTextureView;
   bounceGrid: GPUBuffer;
-  probes: GPUBuffer;
+  /** The probes' atlas (`../../bounce/atlas.ts`). */
+  probes: GPUTextureView;
   /** Per-tile lamp lists: the blend pass reads the slice that concerns it. */
   tileLights: GPUBuffer;
   /** The resident proxy: the same far-shadow ray as the opaque resolve, not another. */
   proxy: GPUBuffer;
   /** The bounce surface cache transparent and water reflections read (`../../bounce/reflectWgsl.ts`). */
-  surfaceCache: GPUBuffer;
+  surfaceCache: GPUTextureView;
 };
 
 /** Resources of a transparent-mesh group: the mesh itself and the scene. */
@@ -166,10 +167,10 @@ export function blendBindEntries(r: BlendBindResources): GPUBindGroupEntry[] {
     resourceEntry(b.shadowTransmittance, () => r.shadowTransmittance),
     resourceEntry(b.shadowTranslucentDepth, () => r.shadowTranslucentDepth),
     bufferEntry(b.bounceGrid, () => r.bounceGrid),
-    bufferEntry(b.probes, () => r.probes),
+    resourceEntry(b.probes, () => r.probes),
     bufferEntry(b.tileLights, () => r.tileLights),
     bufferEntry(b.proxy, () => r.proxy),
-    bufferEntry(b.surfaceCache, () => r.surfaceCache),
+    resourceEntry(b.surfaceCache, () => r.surfaceCache),
   ];
 }
 

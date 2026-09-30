@@ -39,6 +39,8 @@ async function passLayouts() {
     'shadow demand': await firstLayout((d) => createShadowDemand(d)),
     // The lit resolve recomputes it too, reading the float pool through one binding (#1410).
     'deferred lighting': createDeferredLightingLayout(device, true),
+    // With bounce: its probes and surface cache are atlases, no storage buffer (#1410).
+    'deferred lighting with bounce': createDeferredLightingLayout(device, true, true),
   } as Record<string, unknown>;
 }
 
