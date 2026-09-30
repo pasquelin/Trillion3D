@@ -76,11 +76,10 @@ async function executer({
   nombre,
   groupe,
 }: ExecutionEntree): Promise<ExecutionResultat> {
-  const appareil = await globalThis.openGpuDevice();
-  if (!appareil) return { indisponible: 'no WebGPU adapter' };
+  const opened = await globalThis.openGpuModule(shader);
+  if (!('module' in opened)) return opened;
+  const { appareil, module } = opened;
   const { device, erreurs } = appareil;
-  const { module, compilation } = await appareil.compile(shader);
-  if (compilation.length) return { compilation, erreurs };
   const layout = device.createBindGroupLayout({
     entries: (['read-only-storage', 'storage'] as const).map((type, binding) => ({
       binding,
