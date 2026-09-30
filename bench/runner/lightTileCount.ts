@@ -14,14 +14,9 @@ import type { Light } from './lightTileCity.ts';
 
 const SIZE = LIGHT_SETTINGS.tileSize;
 
-/**
- * One tile's opaque list, the sun included (it is in every list): `before` the box alone — the
- * test develop ran before #924 —, `after` the box and the six planes of the tile's frustum,
- * `reach` the lights whose range sphere holds at least one covered pixel, the only lights whose
- * term is not an exact zero there. `missed` counts lights in `reach` but not in `after`: 0 when
- * the lists stay image-exact. `null` for a tile with no covered pixel, which the resolve skips.
- */
-function countTile(view: TileView, tile: [number, number], depths: Float32Array, lights: Light[]) {
+/** The covered pixels of `tile` (`[x, y, depth]`) and the bounds the tile pass fits to their
+ *  depths; `null` for a tile with none, which the resolve skips. */
+export function coveredTile(view: TileView, tile: [number, number], depths: Float32Array) {
   const pixels: [number, number, number][] = [];
   for (let y = tile[1] * SIZE; y < Math.min((tile[1] + 1) * SIZE, view.height); y++)
     for (let x = tile[0] * SIZE; x < Math.min((tile[0] + 1) * SIZE, view.width); x++) {
@@ -30,7 +25,20 @@ function countTile(view: TileView, tile: [number, number], depths: Float32Array,
     }
   if (!pixels.length) return null;
   const seen = pixels.map((p) => p[2]);
-  const bounds = tileBounds(view, tile, Math.max(...seen), Math.min(...seen));
+  return { pixels, bounds: tileBounds(view, tile, Math.max(...seen), Math.min(...seen)) };
+}
+
+/**
+ * One tile's opaque list, the sun included (it is in every list): `before` the box alone — the
+ * test develop ran before #924 —, `after` the box and the six planes of the tile's frustum,
+ * `reach` the lights whose range sphere holds at least one covered pixel, the only lights whose
+ * term is not an exact zero there. `missed` counts lights in `reach` but not in `after`: 0 when
+ * the lists stay image-exact. `null` for a tile with no covered pixel, which the resolve skips.
+ */
+function countTile(view: TileView, tile: [number, number], depths: Float32Array, lights: Light[]) {
+  const covered = coveredTile(view, tile, depths);
+  if (!covered) return null;
+  const { pixels, bounds } = covered;
   const { lo, hi } = bounds.opaqueBox,
     origin = view.origin;
   let points: number[][] | undefined;
