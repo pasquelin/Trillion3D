@@ -44,7 +44,8 @@ export function createWebgpuTileAtlas(
   };
   let evictions = 0,
     refused = 0,
-    victimsFrame = -1;
+    victimsFrame = -1,
+    fillPinned = false;
   // Eviction victims, queued once per image and per lane, taken in order.
   const victimsOf = (lane: Lane, frame: number) => {
     if (victimsFrame !== frame) {
@@ -59,6 +60,40 @@ export function createWebgpuTileAtlas(
     evictTile(lane.pool, index, { pages, resident: lane.resident }, options.onEvicted);
     evictions++;
     return index;
+  };
+  const pinTails: WebgpuTileAtlas['pinTails'] = (
+    queue,
+    fromHost,
+    from = 0,
+    to = textures.length,
+  ) => {
+    for (let slot = from; slot < to; slot++) {
+      const { layout, source, lane, retired } = textures[slot];
+      if (retired) continue;
+      // The white fill of an atlas with no map takes no layer: it reads the white stand-in, until
+      // a map opens its lane (`resize`).
+      if (slot === 0 && !lanes.lanes.has(lane)) {
+        pages.setTail(0, { x: 0, y: 0, layer: 0 }, encoding.tapOf(lane));
+        continue;
+      }
+      fillPinned ||= slot === 0;
+      const pool = lanes.of(slot).pool;
+      // The floor holds every tail (`texturePoolFor`): a pool drawn under it refuses by name.
+      const index = pool.acquire(tailId(slot), 0, true);
+      if (index === undefined) throw new Error('TEXTURE_POOL_UNDER_FLOOR');
+      const place = pool.placeOf(index);
+      if (source.kind === 'host') fromHost(slot, place);
+      else
+        (lane === 'lossless' ? writeTailFromBytes : writeTailFromBlocks)(
+          queue,
+          pool.texture,
+          place,
+          [layout.width, layout.height],
+          layout.tail,
+          encoding.tailOf(source.tail, lane),
+        );
+      pages.setTail(slot, place, encoding.tapOf(lane));
+    }
   };
   return {
     kind,
@@ -79,28 +114,8 @@ export function createWebgpuTileAtlas(
       return refused;
     },
     poolOf: (slot) => lanes.of(slot).pool,
-    pinTails(queue, fromHost, from = 0, to = textures.length) {
-      for (let slot = from; slot < to; slot++) {
-        const { layout, source, lane, retired } = textures[slot];
-        if (retired) continue;
-        const pool = lanes.of(slot).pool;
-        // The floor holds every tail (`texturePoolFor`): a pool drawn under it refuses by name.
-        const index = pool.acquire(tailId(slot), 0, true);
-        if (index === undefined) throw new Error('TEXTURE_POOL_UNDER_FLOOR');
-        const place = pool.placeOf(index);
-        if (source.kind === 'host') fromHost(slot, place);
-        else
-          (lane === 'lossless' ? writeTailFromBytes : writeTailFromBlocks)(
-            queue,
-            pool.texture,
-            place,
-            [layout.width, layout.height],
-            layout.tail,
-            encoding.tailOf(source.tail, lane),
-          );
-        pages.setTail(slot, place, encoding.tapOf(lane));
-      }
-    },
+    residentIn: (lane) => lanes.lanes.get(lane)?.pool.resident ?? 0,
+    pinTails,
     append(texture) {
       const slot = vacant.values().next().value ?? textures.length;
       const previous = textures[slot];
@@ -165,6 +180,8 @@ export function createWebgpuTileAtlas(
     flush: (target) => pages.flush(target),
     resize(target, layers) {
       const result = lanes.resize(target, layers, pages);
+      // The fill's lane opened by a map appended after open: the fill takes its place in it.
+      if (!fillPinned && lanes.lanes.has(textures[0].lane)) pinTails(target.queue, () => {}, 0, 1);
       if (result.replaced) {
         views = lanes.views();
         pools = lanes.pools();
