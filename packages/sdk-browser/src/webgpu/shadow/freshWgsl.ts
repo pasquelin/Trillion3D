@@ -31,10 +31,12 @@ const MAX_FRESH_REGIONS = 65535;
  *
  * A page is claimed once (`DRAWN_GPU`) and composed by the page view model, as the host composes
  * it (`pageViewModel.ts`): a lamp page is its face's clip cropped to it, its cone the lamp's; a sun
- * page is its view cropped by the orthography, its box the square by the range's depth. No more
- * pages are picked than the pair list holds all the casters of (\`pickPages\`): the seal makes
- * each one readable, never short of a caster; one not picked waits, listed again, for the next
- * frame or the host. The window is the session's (`referenceMode.ts`), the ordinary constant by
+ * page is its view cropped by the orthography, its box the square by the range's depth. Every
+ * listed page is picked (\`pickPages\`), as Unreal's virtual shadow maps draw every page a frame
+ * marks in that frame (#1363): a receiver reads the level it asked for, never the coarser one. The
+ * pair list is the one limit: a region a pair of which found it full is left short
+ * (\`FRESH_REGION_SHORT\`), and the seal makes readable the others alone — never a page short of a
+ * caster —; a short one waits, listed again, for the next frame or the host. The window is the session's (`referenceMode.ts`), the ordinary constant by
  * default.
  */
 export const shadowFreshWgsl = (pages = SUN_WINDOW) => `
@@ -68,15 +70,13 @@ fn volumeF(i:u32,v:f32){volumes[i]=bitcast<u32>(v);}
 fn faceVec(i:u32,v:vec4f){faceF(i,v.x);faceF(i+1u,v.y);faceF(i+2u,v.z);faceF(i+3u,v.w);}
 fn volumeVec(i:u32,v:vec4f){volumeF(i,v.x);volumeF(i+1u,v.y);volumeF(i+2u,v.z);volumeF(i+3u,v.w);}
 /** Lane 0: the listed pages still waiting for a draw, each claimed once, then laid out as regions
- *  layer after layer (\`FRESH_LAYER_STARTS\`, \`FRESH_REGION_PAGES\`). A region keeps at most one
- *  pair per caster row: no more are picked than the pair list holds every row of — the rest wait,
- *  unread, listed again, and the reader falls to their floor meanwhile. */
+ *  layer after layer (\`FRESH_LAYER_STARTS\`, \`FRESH_REGION_PAGES\`): every one of them, as many as
+ *  the cull's dispatch holds — the pairs they keep, not a pair of every row each, are the limit. */
 fn pickPages(){
  for(var l=0u;l<params.layers;l++){layerCount[l]=0u;}
  let listed=min(countRead(COUNT_DRAWN),params.pages);
- let rows=params.rows+params.blendEnd-params.blendFirst;
  var picked=0u;
- for(var i=0u;i<listed&&picked<MAX_REGIONS&&(picked+1u)*rows<=params.capacity;i++){
+ for(var i=0u;i<listed&&picked<MAX_REGIONS;i++){
   let p=drawList[i];let e=shadowPool.pages[poolAt(POOL_OWNER,p)];
   if(e<0){continue;}
   let word=shadows.table[u32(e)];let by=poolAt(POOL_DRAWNBY,p);
@@ -167,19 +167,22 @@ fn composeRegion(k:u32){
   args[FRESH_REGIONS]=regions;args[FRESH_CAPACITY]=params.capacity;args[FRESH_PAIRS]=0u;args[FRESH_CORNERS]=0u;
  }
 }
-/** After the pair cull, which kept every pair (\`pickPages\`): each region is readable — full
- *  footprint, the sun's current range —; each layer draws the pairs kept. */
+/** After the pair cull: each region that kept every pair is readable — full footprint, the sun's
+ *  current range —; one left short (\`FRESH_REGION_SHORT\`) is not, and waits unclaimed for the
+ *  next frame's pick. Each layer draws the pairs the list holds. */
 @compute @workgroup_size(${FRESH_LANES}) fn sealShadowPages(@builtin(local_invocation_index) lane:u32){
  let regions=args[FRESH_REGIONS];
  for(var k=lane;k<regions;k+=FRESH_LANES){
-  let p=args[FRESH_REGION_PAGES+k];let e=u32(shadowPool.pages[poolAt(POOL_OWNER,p)]);let slice=e/SHADOW_TABLE_STRIDE;
+  let region=args[FRESH_REGION_PAGES+k];let p=region&~FRESH_REGION_SHORT;
+  if(region!=p){args[FRESH_REGION_PAGES+k]=p;shadowPool.pages[poolAt(POOL_DRAWNBY,p)]=DRAWN_NONE;continue;}
+  let e=u32(shadowPool.pages[poolAt(POOL_OWNER,p)]);let slice=e/SHADOW_TABLE_STRIDE;
   var range=0u;
   if(u32(shadows.records[slice].info.x)==u32(SUN_LEVEL_COUNT)){range=u32(shadows.records[slice].frame[2].w);}
   shadows.table[e]=shadowReadableWord(p,range,0u);
  }
  if(lane<params.layers){
   let casters=freshDraw(lane,${FRESH_CASTERS}u);
-  args[casters]=args[FRESH_CORNERS];args[casters+1u]=args[FRESH_PAIRS];
+  args[casters]=args[FRESH_CORNERS];args[casters+1u]=min(args[FRESH_PAIRS],args[FRESH_CAPACITY]);
  }
 }`;
 /** The GPU pages of the ordinary window: what a pass compiled without a session window reads. */
