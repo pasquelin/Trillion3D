@@ -5674,7 +5674,7 @@
       "admission": "Las páginas de este fotograma, vista de luz por vista de luz.",
       "stamp": "Lo que el sombreado, las luces y la vista entregan a la siguiente imagen: un informe sellado con él que no nombra nada nuevo prueba que la imagen solo lee lo dibujado.",
       "settled": "Verdadero cuando un informe prueba que el estado actual no pide nada: la imagen puede mantenerse.",
-      "receive": "Volvió un informe de peticiones: la lista de páginas de la GPU cuenta al instante (`gpu.hear`), el resto lo lee el siguiente plan. Uno más reciente sustituye a uno no leído.",
+      "receive": "Volvió un informe de peticiones: la lista de páginas de la GPU cuenta al instante (`gpu.hear`), el resto lo lee el siguiente plan.",
       "commit": "Las páginas `[from, to)` de la lista del fotograma se codificaron, la página `from + i` en `modes[i]`: sus dibujos llegan antes de que nadie las lea. El último lote cierra la lista.",
       "resize": "El pool con otro tamaño, sus páginas conservadas y sus arreglos nuevos: devuelve adónde fue cada página.",
       "sunWindow": "Páginas por lado del clipmap de un sol con el que corre una sesión (`referenceMode.ts`).",
