@@ -26,6 +26,8 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 const SOURCE_FILE = 'source.gltf';
 
 type Inputs = {
+  maxTextureDimension2D?: number;
+  features?: { has(name: GPUFeatureName): boolean };
   tables: PreparedSceneTables;
   metadata: ClusterManifest;
   /** The published document the session draws: `source.gltf`, or the autonomous scene. */
@@ -64,7 +66,17 @@ export async function buildPreparedScene(inputs: Inputs) {
     return track(bufferUrl, read);
   });
   const skipped = skipBaked ? bakedImages(metadata, document.images.length) : new Set<number>();
-  const images = preparedImages({ document, documentUrl, binary, skipped, signal, track, meter });
+  const images = preparedImages({
+    document,
+    documentUrl,
+    binary,
+    skipped,
+    signal,
+    track,
+    meter,
+    features: inputs.features,
+    maxTextureDimension2D: inputs.maxTextureDimension2D,
+  });
   const ranks: TextureRanks = new Map();
   const slot = preparedTextures(tables, document, images, ranks);
   const {

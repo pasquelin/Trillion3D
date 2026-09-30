@@ -40,6 +40,7 @@ pub(super) struct Surface {
     pub(super) width: u32,
     pub(super) height: u32,
     pub(super) data: usize,
+    pub(super) levels: u32,
     /// Transfer function the file declares. Only the DX10 header names it, through the `_SRGB`
     /// or `_UNORM` variant of its `dxgiFormat`; a legacy DDS stays silent, and convention lends
     /// it sRGB — Direct3D 9 had no sRGB format, and its colour textures carry the curve.
@@ -107,6 +108,7 @@ pub(super) fn parse(bytes: &[u8]) -> std::result::Result<Surface, &'static str> 
         width,
         height,
         data,
+        levels,
         transfer,
     })
 }

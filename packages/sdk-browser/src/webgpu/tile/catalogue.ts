@@ -1,3 +1,4 @@
+import { compressedImage } from '../../../../sdk-core/src/texture/compressed.ts';
 import type { Texture } from '../../../../sdk-core/src/index.ts';
 import { previewIsWhole, type TexturePreview } from '../../../../sdk-core/src/index.ts';
 import { previewAtlasOf } from '../../../../sdk-core/src/texture/previewFormat.ts';
@@ -47,7 +48,10 @@ export function tileCatalogue(
   const textures = maps.map((map, index): TileTexture => {
     const preview = previewFor(index);
     const chain =
-      preview && previewIsWhole(preview) && (preview.bakedLevels === 0 || readLevel)
+      !compressedImage(map.image) &&
+      preview &&
+      previewIsWhole(preview) &&
+      (preview.bakedLevels === 0 || readLevel)
         ? preview
         : undefined;
     if (chain) {

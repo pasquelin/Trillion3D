@@ -8,9 +8,8 @@
 //! back under a single name — codec outside the transcoder's list, video with state from one
 //! frame to the next, corrupt stream.
 //!
-//! The target is RGBA8 and nothing else. Keeping compressed blocks through to the GPU is
-//! another job, which will need one more variant on the `DecodedImage` contract; it does not
-//! start here.
+//! This function is the explicit RGBA fallback. `gpu.rs` uses the same transcoder with a
+//! native compressed target when the renderer can sample it, without this RGBA expansion.
 use super::header::Surface;
 use super::{DATA_TRUNCATED, TOO_LARGE, TRANSCODE_FAILED};
 use crate::plugins::image::blocks as shared;

@@ -1,7 +1,9 @@
 use super::*;
+mod blocks;
 
 pub(super) struct SourceSceneInputs<'a> {
     pub g: &'a Value,
+    pub images: (&'a [u8], &'a Path, usize),
     pub o: &'a Options,
     pub meshes: &'a BTreeSet<usize>,
     pub chosen: &'a BTreeSet<usize>,
@@ -14,9 +16,10 @@ pub(super) struct SourceSceneInputs<'a> {
     pub offset: usize,
 }
 
-pub(super) fn write_source_scene(inputs: SourceSceneInputs<'_>) -> Result<(Value, Product)> {
+pub(super) fn write_source_scene(inputs: SourceSceneInputs<'_>) -> Result<(Value, Vec<Product>)> {
     let SourceSceneInputs {
         g,
+        images: (bin, image_root, reserved_bytes),
         o,
         meshes,
         chosen,
@@ -150,6 +153,19 @@ pub(super) fn write_source_scene(inputs: SourceSceneInputs<'_>) -> Result<(Value
     source["bufferViews"] = json!(output_views);
     source["buffers"] = json!([{"uri":"source.bin","byteLength":offset}]);
     rewrite_images(&mut source, &o.resource_base, view_map)?;
-    let written = product(directory, "source.gltf", &serde_json::to_vec(&source)?)?;
+    let mut written = blocks::publish(
+        g,
+        bin,
+        image_root,
+        directory,
+        &mut source,
+        o,
+        reserved_bytes,
+    )?;
+    written.push(product(
+        directory,
+        "source.gltf",
+        &serde_json::to_vec(&source)?,
+    )?);
     Ok((source, written))
 }

@@ -86,10 +86,11 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     1,
     `Chargement de ${metadata.selectedTriangles.toLocaleString()} triangles (${scope})`,
   );
+  const sceneDevice = choice.renderer === 'webgpu-page-raster' ? gpuDevice : undefined;
   const loadedScene =
     inputs.scene ??
     (await loadPreparedScene(
-      { ...options, textureSource },
+      { ...options, textureSource, gpuDevice: sceneDevice },
       metadata,
       sceneFile,
       base,

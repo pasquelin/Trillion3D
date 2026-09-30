@@ -1,3 +1,4 @@
+import { compressedImage } from '../../../../sdk-core/src/texture/compressed.ts';
 import type { WebgpuTileAtlas } from './atlas.ts';
 import { createTileScratch, type TileScratch } from './scratch.ts';
 import { generateMaterialMips } from '../../texture/mipBatch.ts';
@@ -24,7 +25,9 @@ export function buildHostScratch(
     coverage: source.coverage,
   });
   counters.scratches++;
-  counters.uploadedBytes += layout.width * layout.height * 4;
+  counters.uploadedBytes +=
+    compressedImage(source.map.image)?.mipmaps[0]?.data.byteLength ??
+    layout.width * layout.height * 4;
   return scratch;
 }
 

@@ -41,7 +41,7 @@ pub(super) fn decode(
 /// the file's, borrowed as-is; in Zstandard, the index announces the expected length, which
 /// bounds both the allocation and the read — a longer stream is truncated at that bound, hence
 /// returned too short, hence refused just after.
-fn plain<'a>(
+pub(super) fn plain<'a>(
     surface: &Surface,
     bytes: &'a [u8],
     needed: u64,

@@ -9,6 +9,7 @@
 use super::super::image as registry;
 
 mod bytes;
+mod gpu;
 mod refusal;
 mod transfer;
 mod uncompressed;

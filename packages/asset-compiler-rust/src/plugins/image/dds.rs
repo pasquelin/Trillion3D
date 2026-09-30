@@ -8,28 +8,19 @@
 //! the driver only does the integer interpolation the specification defines, block by block,
 //! with no filter, no extra rounding, no re-encoding. The source file is never modified.
 //!
-//! **Decoding is a fallback, not the destination.** The repository rule is that a texture
-//! received already compressed for the GPU keeps its compressed blocks on the GPU when the
-//! machine accepts them. This batch does not build that chain — transport, atlas and GPU are
-//! another job. `DecodedImage` currently has two variants, `Rgba8` and `RgbaF32`
-//! (`image-plugin-2`), and this driver only returns the first. What will need adding, exactly:
-//! a third variant `DecodedImage::Blocks { codec, width, height, data }`, a `match` at the
-//! consumer (`src/texture_preview.rs:134`, today `Rgba8` read and `RgbaF32` refused by
-//! `image-float-unsupported`) that asks for it explicitly, and a driver that returns it. The
-//! driver is already split for that: `codec` names the codec and its block geometry, `header`
-//! returns the surface and the offset of its raw bytes, `blocks` is only the reconstruction —
-//! the only part that will become the fallback. BC6H (float HDR) therefore no longer waits on
-//! the contract, which already has its float output: it waits on this `Blocks` variant, like
-//! the other raw codecs.
+//! **GPU upload keeps the source blocks.** `compressed` returns native mip levels when the
+//! requested formats accept them; the published scene carries these bytes to WebGPU. `decode`
+//! remains the explicit pixel path for cooked fallback chains and pixel-dependent analysis.
 //!
 //! Codecs declared one by one: BC1, BC2, BC3, BC4, BC5, BC7, and the uncompressed surfaces
 //! RGBA8, BGRA8 and BGRX8. Everything else — float BC6H, signed variants, premultiplied-alpha
 //! `DXT2`/`DXT4`, 16-bit formats, YUV, cubes, volumes, arrays — is a named refusal, never a
 //! panic: an unreadable texture lets the engine fall back to white.
-use super::{ImageDecoded, ImageDecoder, Plugin};
+use super::{BlockResult, ImageDecoded, ImageDecoder, Plugin};
 
 mod blocks;
 mod codec;
+mod gpu;
 mod header;
 
 pub(super) static DDS: Dds = Dds;
@@ -67,6 +58,9 @@ impl Plugin for Dds {
 }
 
 impl ImageDecoder for Dds {
+    fn compressed(&self, bytes: &[u8], max_alloc: u64, supported: &[&str]) -> BlockResult {
+        gpu::read(bytes, max_alloc, supported)
+    }
     fn mime(&self) -> &'static str {
         "image/vnd.ms-dds"
     }

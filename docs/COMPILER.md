@@ -719,8 +719,9 @@ A failed decode returns a report reason (a stable string like `image-decode-fail
 compilation error: the engine falls back to its default white. A decoder never returns an empty
 image and never panics.
 
-`DecodedImage` has two variants since `image-plugin-2`: `Rgba8`, and `RgbaF32` for high dynamic
-range. **A driver never converts one to the other**: float to 8-bit needs tone mapping, a loss the
+`DecodedImage` carries `Rgba8`, `RgbaF32` for high dynamic range, or (since `image-plugin-4`)
+`Blocks` for native GPU mip payloads. `decode_for_gpu` selects the optional `compressed` driver
+path for a supported codec; `decode` remains the explicit pixel path for previews and analysis. **A driver never converts one to the other**: float to 8-bit needs tone mapping, a loss the
 source lacked. The consumer decides by `match` and a named reason (`image-float-unsupported` for the
 RGBA8 sRGB previews). A float driver checks the ceiling at **sixteen bytes per pixel** before
 allocating (`float_budget`), the rejection naming its format.
