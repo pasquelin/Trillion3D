@@ -34,7 +34,7 @@ export function pageVisible(cas: Cas) {
 }
 
 /** The root the page of `pageVisible` ranks: the case's world. */
-export const rootsOf = (cas: Cas) => [{ world: cas.world }];
+const rootsOf = (cas: Cas) => [{ world: cas.world }];
 /** The case's one page placed by its one root (#1235): the consumers read locations, not roots. */
 export const locationsOf = (cas: Cas) => ({
   roots: rootsOf(cas),
