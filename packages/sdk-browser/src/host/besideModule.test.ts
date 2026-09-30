@@ -37,3 +37,17 @@ test('a worker served from a CDN starts on a same-origin module that imports it 
   const source = await resolveObjectURL(started[0].url)?.text();
   assert.equal(source, `import ${JSON.stringify(cdn)};`);
 });
+
+test('without a page (Node) the worker starts on the very URL given, as a DOM Worker shim reads it', () => {
+  const given: unknown[] = [];
+  const scope = globalThis as unknown as Record<string, unknown>;
+  scope.location = undefined;
+  scope.Worker = class {
+    constructor(url: unknown) {
+      given.push(url);
+    }
+  };
+  const module = new URL('file:///engine/dist/pageDecodeWorker.js');
+  startModuleWorker(module);
+  assert.equal(given[0], module);
+});
