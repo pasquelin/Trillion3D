@@ -18,9 +18,9 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
  *
  * Then, given a cause, the loss is announced once under `gpu-device-lost` with
  * `code: 'WEBGPU_LOST'`, and on the console, since a canvas gone blank says nothing by itself: a
- * host that reacts to it by drawing already finds nothing stale. A dispose gives no cause: it
- * withdraws the same things and announces nothing. Returns true the first time only; the later
- * causes change nothing.
+ * host that reacts to it by drawing already finds nothing stale. The cause stays in every frame's
+ * metrics (`gpuDeviceLost`). A dispose gives no cause: it withdraws the same things and announces
+ * nothing. Returns true the first time only; the later causes change nothing.
  */
 export function markWebgpuLost(
   rt: Pick<WebgpuPagesRuntime, 'run' | 'gpu' | 'diag'>,
@@ -33,6 +33,7 @@ export function markWebgpuLost(
   gpu.presenter?.dispose();
   gpu.presenter = undefined;
   if (!cause) return true;
+  run.lostCause = `${cause.reason}: ${cause.message}`;
   console.error(`[trillion3d] WebGPU device lost (${cause.reason}): ${cause.message}`);
   diag.engineDiagnostic('gpu-device-lost', 'WebGPU device lost', { code: 'WEBGPU_LOST', ...cause });
   return true;
@@ -55,8 +56,24 @@ export function claimWebgpuDevice(
         kind: 'warning',
         message,
       }),
-    lost: (info) => markWebgpuLost(rt, info),
+    lost: (info) => markWebgpuLost(rt, info) || deviceCauseAfter(rt, info),
   });
+}
+
+/**
+ * The device's own loss, heard after an error of its own already abandoned it: the error names
+ * what failed first — a canvas texture the browser made invalid, say —, the device why it is gone
+ * — the browser dropped its GPU instance. Both are kept in the metrics and the second is said on
+ * the console, never dropped. A device destroyed after a dispose, or on purpose, adds nothing.
+ */
+function deviceCauseAfter(
+  rt: Pick<WebgpuPagesRuntime, 'run'>,
+  { reason, message }: { reason: string; message: string },
+) {
+  const { run } = rt;
+  if (!run.lostCause || reason === 'destroyed') return;
+  run.lostCause += `; then the device, ${reason}: ${message}`;
+  console.error(`[trillion3d] WebGPU device lost after the error (${reason}): ${message}`);
 }
 
 /** A preparation stops once the backend is closed (`AbortError`: cancelled) or its device lost. */

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { markWebgpuLost } from './lost.ts';
+import { claimWebgpuDevice, markWebgpuLost } from './lost.ts';
+import { asWebgpuDevice } from '../../../../../../tests/kit/gpu/webgpuDevice.ts';
 
 function runtime() {
   const announced: Array<{ phase: string; details: Record<string, unknown> }> = [];
@@ -56,4 +57,26 @@ test('a dispose withdraws the same things without announcing a loss', (t) => {
   assert.equal(presenter.disposed, 1);
   assert.deepEqual(announced, []);
   assert.equal(logged.mock.callCount(), 0);
+});
+
+// #1364: Playwright's headless shell hands an invalid canvas texture, then drops the device; the
+// error abandons it first, and the device's own cause, heard after, was dropped.
+test('the device lost after an error of its own keeps both causes, said on the console', async (t) => {
+  const logged = t.mock.method(console, 'error', () => {});
+  const { rt, announced } = runtime();
+  const gpu = asWebgpuDevice({});
+  claimWebgpuDevice(rt as never, gpu.device);
+  gpu.raise('[Invalid Texture] is invalid due to a previous error.');
+  gpu.lose('unknown');
+  await gpu.device.lost;
+  await Promise.resolve();
+  const lostCause = (rt.run as { lostCause?: string }).lostCause;
+  assert.equal(
+    lostCause,
+    'uncaptured-error: [Invalid Texture] is invalid due to a previous error.; ' +
+      'then the device, unknown: unknown',
+  );
+  assert.equal(announced.length, 1, 'the loss is announced once');
+  assert.equal(logged.mock.callCount(), 2);
+  assert.match(String(logged.mock.calls[1].arguments[0]), /lost after the error \(unknown\)/);
 });

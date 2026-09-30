@@ -14,6 +14,9 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   /** The clear colour every pass reads, `0xrrggbb`; set in place by `io/clearColor.ts`. */
   clearColor: number;
   lost: boolean;
+  /** Why the device was lost, `reason: message`, the device's own cause added when it came after
+   *  (`io/lost.ts`); absent while it holds and after a dispose, which gives no cause. */
+  lostCause?: string;
   overBudget: boolean;
   visible: number;
   selectedTriangles: number;
