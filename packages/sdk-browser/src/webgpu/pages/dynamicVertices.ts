@@ -1,6 +1,6 @@
 import type { HostAttributes } from '../../host/resources.ts';
 import type { VertexRange } from '../../placement/backendSceneUpdates.ts';
-import { noteRewritten } from './render/movedBatch.ts';
+import { noteRewritten } from './render/movedGeometry.ts';
 import type { WebgpuPagesRuntime } from './runtime.ts';
 
 /**

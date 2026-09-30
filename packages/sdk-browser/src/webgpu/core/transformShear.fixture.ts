@@ -80,6 +80,7 @@ export function runtime(
       plan: {
         worldChanged: (min: number[], max: number[], movingOnly: boolean) =>
           motions.push({ min: [...min], max: [...max], movingOnly }),
+        changeRoom: () => 4096,
       },
       mobility: createShadowMobility(),
     },
