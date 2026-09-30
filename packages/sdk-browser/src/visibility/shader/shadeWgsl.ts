@@ -30,7 +30,6 @@ ${NORMAL_VIEW_COLOR_WGSL}
  if(pageIndex>=uni.pageCount){discard;}
  // Storage writes are not attachments: reject other classes before their side effects.
  if(!SINGLE_CLASS&&pages[pageIndex].materialClass!=CLASS_KEY){discard;}
- storeShadingOffset(pos.xy,vec3f(0.0));
  storeSubsurface(pos.xy,vec3f(0.0));
  let tri=id&0xffu;
  let page=pages[pageIndex];
@@ -48,14 +47,8 @@ ${NORMAL_VIEW_COLOR_WGSL}
  let p=vec2f(pos.x,pos.y);
  let area=edge(s1.xy,s2.xy,s0.xy);
  var rgb=page.baseColor.xyz;
- var bary=vec3f(0.333,0.333,0.334);
+ let bary=pixelBary(s0,s1,s2,c0,c1,c2,p,area);
  var uv=vec2f(0.0);
- if(area!=0.0){
-  let bw=baryWeights(s0.xy,s1.xy,s2.xy,p,area);let a0=bw.x;let a1=bw.y;let a2=bw.z;
-  let iw0=1.0/c0.w;let iw1=1.0/c1.w;let iw2=1.0/c2.w;
-  let p0w=a0*iw0;let p1w=a1*iw1;let p2w=a2*iw2;let sum=p0w+p1w+p2w;
-  bary=select(vec3f(a0,a1,a2),vec3f(p0w,p1w,p2w)/sum,sum!=0.0);
- }
  let absArea=abs(area);
  let width=select(vec3f(0.005),vec3f(abs(s1.y-s2.y)+abs(s2.x-s1.x),abs(s2.y-s0.y)+abs(s0.x-s2.x),abs(s0.y-s1.y)+abs(s1.x-s0.x))/absArea,absArea>0.0);
  var ddx=vec2f(0.0);var ddy=vec2f(0.0);
@@ -116,24 +109,10 @@ ${NORMAL_VIEW_COLOR_WGSL}
   // exactly that at a zero determinant — face y is screenFace — like matrixWindingCw on the CPU.
   let face=screenFace*select(-1.0,1.0,determinant(world3)>=0.0);
   let side=select(1.0,-1.0,(page.flags&256u)!=0u);
-  // The three triangle normals undergo the SAME matrix: normalisation, determinant and
-  // adjugate are computed once for the pixel, and each normal only keeps the 3×3 product.
-  // xformNormal did this prologue three times; the operand and per-normal order do not move.
-  // uniteOuZero returns normalize on any non-zero vector, hence the same bits as before on a
-  // regular pose; it only differs where normalize would yield NaN — collapsed face, degenerate triangle.
-  // On a rank-2 pose, invTranspose3Apply returns the transformed FACE normal: the three
-  // vertex normals fall on the same direction, and interpolation keeps it.
-  let invT=invTranspose3Prep(world3);
-  var n0=uniteOuZero(invTranspose3Apply(invT,pageNormal(page,h,i0)))*side;
-  var n1=uniteOuZero(invTranspose3Apply(invT,pageNormal(page,h,i1)))*side;
-  var n2=uniteOuZero(invTranspose3Apply(invT,pageNormal(page,h,i2)))*side;
+  // The three vertex normals the receiver offset reads too (\`pixelTriangleWgsl.ts\`).
+  let n=vertexNormals(page,h,corners,world3,side);let n0=n[0];let n1=n[1];let n2=n[2];
   var N=uniteOuZero(cross((w1-w0).xyz,(w2-w0).xyz))*screenFace;
   if(HAS_VERTEX_NORMAL){
-   let P=(w0*bary.x+w1*bary.y+w2*bary.z).xyz;
-   // The side the shading lights: a two-sided surface seen from behind lights its back (#1344).
-   let lit=select(1.0,face,DOUBLE_SIDED);
-   let offset=shadingPointOffset(P,bary,w0.xyz,w1.xyz,w2.xyz,n0*lit,n1*lit,n2*lit);
-   if(page.sprite.y==0.0&&page.lineWidth==0.0){storeShadingOffset(pos.xy,offset);}
    N=uniteOuZero(n0*bary.x+n1*bary.y+n2*bary.z);
    if(DOUBLE_SIDED){N*=face;}
   }

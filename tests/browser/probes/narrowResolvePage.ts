@@ -27,11 +27,15 @@ import {
   narrowResolveHarness,
 } from './narrowResolveHarness.ts';
 import { openGpuDevice } from './webgpuDevice.ts';
-import { SHADING_OFFSET_BINDING } from '../../../packages/sdk-browser/src/visibility/shader/shadingPoint.ts';
+import { LIGHTING_RECEIVER_BINDING } from '../../../packages/sdk-browser/src/lighting/deferred/surfaceWgsl.ts';
+import { RECEIVER_BINDINGS } from '../../../packages/sdk-browser/src/visibility/shader/receiverOffsetWgsl.ts';
 import { SUBSURFACE_BINDING } from '../../../packages/sdk-browser/src/scene/subsurface.ts';
 
-/** The resolve's bindings the harness never reads: the shading offsets and the subsurface. */
-const UNREAD = [SHADING_OFFSET_BINDING, SUBSURFACE_BINDING];
+/** The resolve's bindings the harness never reads: the receiver offset's and the subsurface. */
+const UNREAD = [
+  ...RECEIVER_BINDINGS.map((_, i) => LIGHTING_RECEIVER_BINDING + i),
+  SUBSURFACE_BINDING,
+];
 
 /** A tile record — its two counts, its lists, the pool after them — and the resolve reading it:
  *  \`contractLighting\`, or with \`drawn\` \`sampledTileLighting\` alone. */

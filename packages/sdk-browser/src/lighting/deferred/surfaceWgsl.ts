@@ -1,6 +1,10 @@
 import { SUBSURFACE_FLAG } from '../../scene/subsurface.ts';
 import { AS_IS_FLAG, FOG_FREE_SURFACE_FLAG, SURFACE_MODEL_MASK } from '../../scene/surfaceModel.ts';
 import { PIXEL_FOOTPRINT_WGSL } from './footprintWgsl.ts';
+import { receiverOffsetWgsl } from '../../visibility/shader/receiverOffsetWgsl.ts';
+
+/** First binding of what the resolve's receiver offset reads (`RECEIVER_BINDINGS`). */
+export const LIGHTING_RECEIVER_BINDING = 23;
 
 /** The lighting's entry, its camera fog and its mirror term: the texts the reflection source
  *  output finds in it (`reflections/sourceOutputWgsl.ts`). */
@@ -15,17 +19,18 @@ export const MIRROR_TERM_WGSL = '+mirrorLighting(base.rgb,base.a,normal.a,N,V,P)
  * with no shadow code, loads none of its eight neighbour depths nor its receiver offset: its footprint
  * and point unjittered, whence its shadow level (#1363); the turn of the shadow filters' taps this
  * jitter phase, and the taps a moving image takes (`shadowTapsOf`); a lane in the target asks per
- * subgroup; its receiver, moved by its shading-point offset.
+ * subgroup; its receiver, moved by its shading-point offset (`receiverOffset`, recomputed from the
+ * visibility buffer, #1410).
  */
 const SHADOW_SETUP_WGSL = `fn shadowSetup(coord:vec2i,pixel:vec4f,z:f32,P:vec3f){
  let level=pixelLevel(coord,pixel.xy,z,P);shadowFootprint=level.footprint;shadowUnjitter=level.unjitter;
  shadowRotation=view.jitter.zw;shadowRequesting=all(vec2u(pixel.xy)<textureDimensions(depth));
  shadowTaps=shadowTapsOf(u32(view.viewport.w));
- let receiverAt=(u32(pixel.y)*u32(view.viewport.x)+u32(pixel.x))*3u;
- shadowReceiverOffset=vec3f(shadingOffset[receiverAt],shadingOffset[receiverAt+1u],shadingOffset[receiverAt+2u]);
+ shadowReceiverOffset=receiverOffset(pixel.xy);
 }`;
 
 export const contractSurfaceBody = (bounce: string, diagnostic = '') => `${PIXEL_FOOTPRINT_WGSL}
+${receiverOffsetWgsl(LIGHTING_RECEIVER_BINDING)}
 ${SHADOW_SETUP_WGSL}
 ${LIGHT_SURFACE_ENTRY}
  let coord=vec2i(pixel.xy);let surfaceFlag=textureLoad(flags,coord,0).r;let flag=surfaceFlag&${SURFACE_MODEL_MASK}u;

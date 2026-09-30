@@ -16,6 +16,7 @@ import type { WaterPass } from '../water/waterPass.ts';
 import { BLEND_VIEW_SIZE } from './uniforms.ts';
 import { createBlendHierarchy } from './hierarchy.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
+import type { FloatAtlas } from '../core/floatAtlas.ts';
 
 export type BlendGpuItem = {
   /** Whole-copy static inputs and computed outputs in the existing float pool. */
@@ -30,7 +31,8 @@ export type BlendGpuItem = {
   /** Own index buffer of an unpaged primitive; a paged one reads the page cache instead. */
   index?: GPUBuffer;
   uv?: GPUBuffer;
-  normal?: GPUBuffer;
+  /** Its normal atlas, or the float pool's (`../core/floatAtlas.ts`, #1410). */
+  normal?: FloatAtlas;
   surface: PageSurface;
   count: number;
   matrix: MatrixElements;

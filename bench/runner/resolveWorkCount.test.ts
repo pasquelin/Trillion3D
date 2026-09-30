@@ -24,7 +24,7 @@ test('the moving resolve walks two weights for three and gathers a quarter of th
   assert.equal(after.gathers * 4, before.gathers);
   assert.equal(after.shaded, before.shaded);
   assert.equal(after.shadows, before.shadows);
-  assert.ok(after.setup < before.setup, `${after.setup} setup fetches for ${before.setup}`);
+  assert.ok(after.setup < before.setup, `${after.setup} pixels set up for ${before.setup}`);
 });
 
 test('with no shadow slot no pixel sets up a shadow read', () => {
@@ -34,7 +34,7 @@ test('with no shadow slot no pixel sets up a shadow read', () => {
     lights,
     lights.map(() => false),
   );
-  assert.equal(before.setup, 11 * covered);
+  assert.equal(before.setup, covered);
   assert.equal(after.setup, 0);
   assert.equal(after.gathers + after.weights, 0);
 });
