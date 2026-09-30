@@ -57,8 +57,8 @@ export function createPageDraws(roots: readonly ClusterRoot<PageRec>[] = []) {
   /** The state of `rec`, checked against the packed order: a rank another engine wrote yields
    *  nothing. A reader that can do without one uses this; a writer uses `drawing`. */
   const find = (rec: PageRec): PageDraw | undefined => {
-    const packed = rec.packedIndex;
-    return packed !== undefined && pages[packed] === rec ? draws[packed] : undefined;
+    const packed = catalogue.indexOf(rec);
+    return packed === undefined ? undefined : draws[packed];
   };
   /** The state of `rec`, which must be laid out: the one accessor every writer goes through. */
   const drawing = (rec: PageRec): PageDraw => {
@@ -69,9 +69,6 @@ export function createPageDraws(roots: readonly ClusterRoot<PageRec>[] = []) {
   return {
     get pages(): readonly PageRec[] {
       return pages;
-    },
-    get catalogue(): PageCatalogue {
-      return catalogue;
     },
     layOut,
     find,
