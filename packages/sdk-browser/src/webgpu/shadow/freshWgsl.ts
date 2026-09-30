@@ -173,12 +173,14 @@ fn composeRegion(k:u32){
 @compute @workgroup_size(${FRESH_LANES}) fn sealShadowPages(@builtin(local_invocation_index) lane:u32){
  let regions=args[FRESH_REGIONS];
  for(var k=lane;k<regions;k+=FRESH_LANES){
-  let region=args[FRESH_REGION_PAGES+k];let p=region&~FRESH_REGION_SHORT;
-  if(region!=p){args[FRESH_REGION_PAGES+k]=p;shadowPool.pages[poolAt(POOL_DRAWNBY,p)]=DRAWN_NONE;continue;}
-  let e=u32(shadowPool.pages[poolAt(POOL_OWNER,p)]);let slice=e/SHADOW_TABLE_STRIDE;
-  var range=0u;
-  if(u32(shadows.records[slice].info.x)==u32(SUN_LEVEL_COUNT)){range=u32(shadows.records[slice].frame[2].w);}
-  shadows.table[e]=shadowReadableWord(p,range,0u);
+  let region=args[FRESH_REGION_PAGES+k];let p=region&PAGE_INDEX_MASK;
+  if(region!=p){args[FRESH_REGION_PAGES+k]=p;shadowPool.pages[poolAt(POOL_DRAWNBY,p)]=DRAWN_NONE;}
+  else{
+   let e=u32(shadowPool.pages[poolAt(POOL_OWNER,p)]);let slice=e/SHADOW_TABLE_STRIDE;
+   var range=0u;
+   if(u32(shadows.records[slice].info.x)==u32(SUN_LEVEL_COUNT)){range=u32(shadows.records[slice].frame[2].w);}
+   shadows.table[e]=shadowReadableWord(p,range,0u);
+  }
  }
  if(lane<params.layers){
   let casters=freshDraw(lane,${FRESH_CASTERS}u);
