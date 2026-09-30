@@ -1,4 +1,5 @@
 import type { DirectLightResources } from '../../../lighting/deferred/program.ts';
+import type { LitPrograms } from '../../../lighting/deferred/deferred.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /**
@@ -19,11 +20,22 @@ export function wantsContractLighting(rt: WebgpuPagesRuntime) {
 export const readsAsIs = ({ vis, run }: WebgpuPagesRuntime) =>
   vis.asIsShown || run.diagnostic !== 'beauty';
 
-/** The deferred lighting while the image wants the contract but still resolves unlit — its
- *  program compiles, and its arrival changes the image —, else nothing. */
-export function compilingContract(rt: WebgpuPagesRuntime) {
+/** The lit programs prepare compiles beside the others when the image wants the contract (#1362),
+ *  with bounce too when the session wants it; a failed one is said, then or later. */
+export const litPrograms = (rt: WebgpuPagesRuntime): LitPrograms => ({
+  precompile: wantsContractLighting(rt),
+  bounce: rt.bounce.wanted,
+  onFailure: (error) => rt.diag.diagnosticFailure('direct-lighting-program-failed', error),
+});
+
+/** The lit program the frame waits for (#1362): while the image wants the contract and no compiled
+ *  program can light it, its compile — never the unlit stand-in meanwhile —, else nothing. */
+export function litProgramPending(rt: WebgpuPagesRuntime) {
   const { deferred } = rt.gpu;
-  return deferred && wantsContractLighting(rt) && !deferred.usesContract ? deferred : undefined;
+  // A lit image already has its program: nothing to read (`deviceAnswering` asks every frame).
+  return deferred && !deferred.usesContract && wantsContractLighting(rt)
+    ? deferred.awaited(directLightResources(rt))
+    : undefined;
 }
 
 const contractResources: DirectLightResources = {};
