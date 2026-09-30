@@ -10,6 +10,8 @@ use trillion3d_page_codec::bits::{bits_for, dequant, oct_decode, pow2, Quant, MA
 #[cfg(test)]
 mod screen;
 pub mod tile;
+#[cfg(test)]
+mod wide_tests;
 
 /// The grid of a primitive from its positions and the errors its DAG published; a zero error is
 /// a root's, not a rule. A `blended` primitive takes the finest grid its pages hold: a coarser
@@ -57,8 +59,17 @@ pub const COLOR_EXPONENT: i32 = -8;
 /// the caller fixed for the whole primitive and is never widened here — a page whose range needs
 /// more than `MAX_BITS` on that grid is refused as `PAGE_ATTRIBUTE_RANGE`, since a page on a
 /// grid of its own would no longer share its border vertices' cells with its neighbours.
-/// Returns the record and, per vertex, the `N` grid offsets from the page minimum.
+/// Returns the record and, per vertex, the `N` grid offsets from the page minimum. A loop over
+/// every vertex of every page: AVX2 where the processor has it (`shared_math::wide`).
 pub fn quantize<const N: usize>(
+    values: &[f32],
+    exponent: i32,
+) -> Result<(Quant<N>, Vec<[u32; N]>)> {
+    crate::shared_math::wide::wide(|| quantize_cells::<N>(values, exponent))
+}
+
+#[inline(always)]
+fn quantize_cells<const N: usize>(
     values: &[f32],
     exponent: i32,
 ) -> Result<(Quant<N>, Vec<[u32; N]>)> {
@@ -107,8 +118,13 @@ pub fn quantize<const N: usize>(
 
 /// Largest distance between a source vector and its decoded value, over the page, in the units
 /// of the attribute: measured with the reader's own arithmetic, as the `f32` the header carries,
-/// rounded up so that no displacement exceeds it.
+/// rounded up so that no displacement exceeds it. AVX2 where the processor has it, as `quantize`.
 pub fn max_error<const N: usize>(values: &[f32], record: &Quant<N>, offsets: &[[u32; N]]) -> f32 {
+    crate::shared_math::wide::wide(|| worst_error::<N>(values, record, offsets))
+}
+
+#[inline(always)]
+fn worst_error<const N: usize>(values: &[f32], record: &Quant<N>, offsets: &[[u32; N]]) -> f32 {
     let step = record.step();
     let worst = offsets
         .iter()

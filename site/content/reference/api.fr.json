@@ -5258,7 +5258,7 @@
     }
   },
   "resolveCompilerExecutable": {
-    "summary": "Trouve le programme du compilateur natif : celui demandé, sinon celui construit dans ce dépôt."
+    "summary": "Trouve le programme du compilateur natif : celui demandé, sinon celui du paquet de plateforme installé, sinon celui que nomme `TRILLION3D_COMPILER_BIN`, sinon celui construit dans ce dépôt."
   },
   "ReusedFolder": {
     "summary": "Ce qu’une tâche a prouvé avant de garder un dossier existant au lieu de l’écrire (`null` quand elle a compilé ; `clusterHierarchyPagesMs` est alors `null` aussi).",
@@ -5666,6 +5666,7 @@
       "counts": "Nombres pour le diagnostic.",
       "spent": "Millisecondes CPU que le dernier plan a passées à lire le rapport de requêtes et à admettre les pages.",
       "worldChanged": "Un nœud a bougé : sa boîte entre dans la liste que le planificateur traitera à la prochaine image.",
+      "changeRoom": "Boîtes que la liste garde encore à part avant le débordement.",
       "representationChanged": "Le même monde à une autre précision — niveau de détail, résidence, tuile de couleur — : sa boîte attend que la caméra s’arrête, puis entre dans la liste (`changes.ts`).",
       "resting": "La caméra était au repos au dernier plan : sa vue était celle du plan précédent.",
       "deferredChanges": "Vrai tant qu’un changement de représentation attend que la caméra s’arrête : l’image ne doit pas être gardée avant qu’un plan le consomme.",

@@ -5250,7 +5250,7 @@
     }
   },
   "resolveCompilerExecutable": {
-    "summary": "Trova il programma del compilatore nativo: quello richiesto, altrimenti quello costruito in questo repository."
+    "summary": "Trova il programma del compilatore nativo: quello richiesto, altrimenti quello del pacchetto di piattaforma installato, altrimenti quello indicato da `TRILLION3D_COMPILER_BIN`, altrimenti quello costruito in questo repository."
   },
   "ReusedFolder": {
     "summary": "Ciò che un'attività ha dimostrato prima di mantenere una cartella esistente invece di scriverla (`null` quando ha compilato; `clusterHierarchyPagesMs` è allora anche `null`).",
@@ -5658,6 +5658,7 @@
       "counts": "Ciò che ha fatto l’ultimo piano, in pagine.",
       "spent": "Millisecondi CPU che l’ultimo piano ha speso a leggere il rapporto delle richieste e ad ammettere le pagine.",
       "worldChanged": "Un nodo si è mosso: il suo box invalida le pagine che copre al piano successivo.",
+      "changeRoom": "Riquadri che la lista tiene ancora separati prima del traboccamento.",
       "representationChanged": "Lo stesso mondo a un’altra precisione: il suo box attende che la camera si fermi.",
       "resting": "La camera era ferma all'ultimo piano: la sua vista era quella del piano precedente.",
       "deferredChanges": "Vero finché un cambio di rappresentazione attende che la camera si fermi.",

@@ -3355,6 +3355,7 @@
       "counts": "Apa yang dilakukan rencana terakhir, dalam halaman.",
       "spent": "Milidetik CPU yang dihabiskan rencana terakhir untuk membaca laporan permintaan dan menerima halaman.",
       "worldChanged": "Sebuah node bergerak: kotaknya membuat usang halaman yang ditutupinya pada rencana berikutnya.",
+      "changeRoom": "Kotak yang masih dapat disimpan terpisah oleh daftar sebelum meluap.",
       "representationChanged": "Dunia yang sama dengan presisi lain: kotaknya menunggu kamera diam.",
       "resting": "Kamera diam pada rencana terakhir: tampilannya sama dengan rencana sebelumnya.",
       "deferredChanges": "Benar selama perubahan representasi menunggu kamera diam.",
@@ -6857,7 +6858,7 @@
     "summary": "Melekatkan `node` ke `parent` (`-1`: root), seperti `add` acuan: matriks tidak berpindah sampai update berikutnya."
   },
   "resolveCompilerExecutable": {
-    "summary": "Menemukan program kompiler native: yang diminta, jika tidak, yang dibangun dalam checkout ini."
+    "summary": "Menemukan program kompiler native: yang diminta, jika tidak, yang ada di paket platform terpasang, jika tidak, yang ditunjuk `TRILLION3D_COMPILER_BIN`, jika tidak, yang dibangun dalam checkout ini."
   },
   "reviewCutouts": {
     "summary": "Menanyakan, model demi model, apakah setiap permukaan cut-out terlihat benar, dan mencatat jawabannya.",
