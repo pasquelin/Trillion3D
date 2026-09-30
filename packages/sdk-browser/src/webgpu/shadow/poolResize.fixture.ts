@@ -122,6 +122,11 @@ export async function session(transmittance = false) {
   } as unknown as WebgpuPagesRuntime;
   sizeShadowPool(rt);
   await lights.shadowGrant?.done;
+  /** The pool follows the latest report read, the resize it asks answered. */
+  const follow = async () => {
+    followShadowDemand(rt);
+    await lights.shadowGrant?.done;
+  };
   let at = 0;
   /** Two frames: the first reports `count` pages of the sun, the second's plan reads the report.
    *  Then the pool follows the demand, the resize it asks answered. */
@@ -134,11 +139,6 @@ export async function session(transmittance = false) {
     plan.commit();
     at++;
     await follow();
-  };
-  /** The pool follows the latest report read, the resize it asks answered. */
-  const follow = async () => {
-    followShadowDemand(rt);
-    await lights.shadowGrant?.done;
   };
   return { rt, lights, gpu, limit, said, ask, follow, texture: () => texture };
 }
