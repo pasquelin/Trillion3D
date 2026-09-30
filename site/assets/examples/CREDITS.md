@@ -11,11 +11,11 @@ are scaled to metres and moved into place (`scripts/docs/examples/obj.ts`, `plac
 original setting written as boxes; a glTF model enters as-is, the setting appended to a copy of
 its scene file as one more node (`scripts/docs/examples/gltf.ts`, `appendSurfacesGltf`).
 
-| Model          | Folder                | Author        | Source and licence                                                            | Used by                             |
-| -------------- | --------------------- | ------------- | ----------------------------------------------------------------------------- | ----------------------------------- |
-| Marble Bust 01 | `models/marble-bust/` | Rico Cilliers | [Poly Haven](https://polyhaven.com/a/marble_bust_01), CC0, 1k textures        | `bust`                              |
-| Street lamp    | `models/lantern/`     | W. Sitters    | [Elements-3D](https://github.com/pasquelin/Elements-3D), CC BY 3.0 or GPL v2+ | `street-corner` (scale 0.033)       |
-| Crate          | `models/crate/`       | W. Sitters    | [Elements-3D](https://github.com/pasquelin/Elements-3D), CC BY 3.0 or GPL v2+ | `crates` (scale 0.01, three copies) |
+| Model | Folder | Author | Source and licence | Used by |
+| --- | --- | --- | --- | --- |
+| Marble Bust 01 | `models/marble-bust/` | Rico Cilliers | [Poly Haven](https://polyhaven.com/a/marble_bust_01), CC0, 1k textures | `bust` |
+| Street lamp | `models/lantern/` | W. Sitters | [Elements-3D](https://github.com/pasquelin/Elements-3D), CC BY 3.0 or GPL v2+ | `street-corner` (scale 0.033) |
+| Crate | `models/crate/` | W. Sitters | [Elements-3D](https://github.com/pasquelin/Elements-3D), CC BY 3.0 or GPL v2+ | `crates` (scale 0.01, three copies) |
 
 Poly Haven publishes its models under [CC0](https://creativecommons.org/publicdomain/zero/1.0/):
 no attribution is required, and the example pages credit the author anyway. W. Sitters' models
@@ -39,17 +39,17 @@ bytes on every machine, and is rebuilt, source and cache, by
 `node scripts/docs-examples-assets.ts <folder>` with the same compiler arguments as the model
 scenes above (`full`, 2 threads, 256 MB, `qem-endpoints`, the default `bc7` texture family).
 
-| Folder                   | Writer             | Source                                                                                                                  |
-| ------------------------ | ------------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| `a-model-from-obj/`      | `chess-obj.ts`     | `chess.obj` and `chess.mtl`: the same board and turned pieces in metres, each piece written where it stands, on a table |
-| `a-model-from-usdz/`     | `chess-set.ts`     | `chess-set.usdz`: one USD text layer in centimetres, six turned shapes instanced thirty-two times                       |
-| `compressed-textures/`   | `courtyard.ts`     | `courtyard.gltf` and its five drawn images: glazed tiles, brick, marble, the tiles' and brick's relief                  |
-| `detail-by-pixel-error/` | `avenue.ts`        | `avenue.gltf`: an avenue of fluted urns and a bronze knot at a tenth of life size                                       |
-| `ten-thousand-objects/`  | `ring.ts`          | `ring.gltf`: a planet and ten thousand moonlets, four rock shapes in three stones placed ten thousand times             |
-| `terrain/`               | `terrain.ts`       | `terrain.gltf`: a valley on a regular two-metre grid and three boulders                                                 |
-| `terrain-tiles/`         | `terrain-tiles.ts` | `terrain-tiles.gltf` and `ground.png`: a textured terrain of three by three tiles, each a mesh and a node of its own    |
-| `flag/`                  | `flag.ts`          | `flag.gltf`: a flag on a pole over a lawn, its node declaring a cloth pinned along the pole                             |
-| `chalet/`                | `chalet.ts`        | `chalet.gltf`: a chalet of thin closed shapes, a whitewash ground floor, walls of logs, balcony boards, a shingle roof  |
+| Folder | Writer | Source |
+| --- | --- | --- |
+| `a-model-from-obj/` | `chess-obj.ts` | `chess.obj` and `chess.mtl`: the same board and turned pieces in metres, each piece written where it stands, on a table |
+| `a-model-from-usdz/` | `chess-set.ts` | `chess-set.usdz`: one USD text layer in centimetres, six turned shapes instanced thirty-two times |
+| `compressed-textures/` | `courtyard.ts` | `courtyard.gltf` and its five drawn images: glazed tiles, brick, marble, the tiles' and brick's relief |
+| `detail-by-pixel-error/` | `avenue.ts` | `avenue.gltf`: an avenue of fluted urns and a bronze knot at a tenth of life size |
+| `ten-thousand-objects/` | `ring.ts` | `ring.gltf`: a planet and ten thousand moonlets, four rock shapes in three stones placed ten thousand times |
+| `terrain/` | `terrain.ts` | `terrain.gltf`: a valley on a regular two-metre grid and three boulders |
+| `terrain-tiles/` | `terrain-tiles.ts` | `terrain-tiles.gltf` and `ground.png`: a textured terrain of three by three tiles, each a mesh and a node of its own |
+| `flag/` | `flag.ts` | `flag.gltf`: a flag on a pole over a lawn, its node declaring a cloth pinned along the pole |
+| `chalet/` | `chalet.ts` | `chalet.gltf`: a chalet of thin closed shapes, a whitewash ground floor, walls of logs, balcony boards, a shingle roof |
 
 ## Public animation samples
 
