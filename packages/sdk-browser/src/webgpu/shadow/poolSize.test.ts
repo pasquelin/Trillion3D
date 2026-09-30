@@ -4,6 +4,7 @@ import {
   shadowPoolSide,
   shadowPoolSize as pages,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { SEED_POOL_SIDE } from '../../../../sdk-core/src/scene/light-shadow/poolDemand.ts';
 import { createWebgpuLightState } from '../pages/state/lights.ts';
 import { shadowPoolFor, sizeShadowPool } from './poolSize.ts';
 import { SHADOW_ATLAS_BYTES } from '../../residency/memoryBudget.ts';
@@ -76,9 +77,9 @@ function session(viewport: [number, number], limit = Infinity, textureSide = 819
   };
 }
 
-// A world prepares on a canvas that is not laid out yet — 300 × 150, the HTML default — and takes
-// its real drawing buffer at its first frame: the pool follows that frame, once.
-test('the shadow pool is sized by the first frame on the canvas, not by the canvas at creation', async () => {
+// A world prepares before any report says what it reads: the first frame that casts grants the
+// seed, whatever the canvas, once; the reports size it then (`poolResize.ts`).
+test('the shadow pool is seeded by the first frame that casts, whatever the canvas', async () => {
   const viewport: [number, number] = [1280, 720];
   const s = session(viewport);
   s.capture.capturing = true;
@@ -90,19 +91,19 @@ test('the shadow pool is sized by the first frame on the canvas, not by the canv
   assert.deepEqual(s.sized, [], 'no light casts a shadow: no pool');
   s.lights.store.add({ ...SUN, id: 'shadow sun' });
   await s.size();
-  assert.deepEqual(s.sized, [51]);
-  assert.equal(s.lights.plan.pool.side, 51, 'the plan follows the atlas');
+  assert.deepEqual(s.sized, [SEED_POOL_SIDE]);
+  assert.equal(s.lights.plan.pool.side, SEED_POOL_SIDE, 'the plan follows the atlas');
   assert.equal(s.lights.plan.pageInvalidation, false, "the host's setting is kept");
   assert.equal(s.changed, 1, 'the granted pool is a new resource: the next frame is drawn');
   viewport[0] = 3840;
   viewport[1] = 2160;
   await s.size();
-  assert.deepEqual(s.sized, [51], 'sized once: a later size is followed apart (poolResize.ts)');
+  assert.deepEqual(s.sized, [SEED_POOL_SIDE], 'seeded once: the demand is followed apart');
 });
 
 test('a shadow pool the device refuses is drawn smaller, said, and never taken for a lost device', async () => {
-  const wanted = shadowPoolSide(1280, 720);
-  // Room for a quarter of the pool's bytes: 51² pages refused, then half, then half again.
+  const wanted = SEED_POOL_SIDE;
+  // Room for a quarter of the pool's bytes: the seed refused, then half, then half again.
   const s = session([1280, 720], shadowAtlasBytes(wanted) / 4);
   s.lights.store.add({ ...SUN, id: 'shadow sun' });
   await s.size();
@@ -160,15 +161,6 @@ test('the shadow pool rule never draws above the screen nor below the smallest o
   assert.equal(floor.clamp, 'minimum');
 });
 
-test('at 3 456 × 2 234, one sun sizes two layers of 51 pages a side: 5 202 pages', async () => {
-  const s = session([3456, 2234]);
-  s.lights.store.add({ ...SUN, id: 'shadow sun' });
-  await s.size();
-  assert.deepEqual([s.lights.plan.pool.side, s.lights.plan.pool.layers], [51, 2]);
-  const [, context] = s.said.find(([phase]) => phase === 'shadow-pool')!;
-  assert.deepEqual([context.layers, context.pages], [2, 5202]);
-});
-
 test('the side follows the pages the pool holds; the device side is only the cap', () => {
   // A pool of 2 160 pages is the one square that holds them, and its bytes.
   const held = shadowPoolFor(2160, 128)(Infinity);
@@ -180,18 +172,4 @@ test('the side follows the pages the pool holds; the device side is only the cap
     sides.map(({ side, layers }) => side ** 2 * layers),
     [5041, 5476],
   );
-});
-
-test('a pool the memory budget holds short of what the screen asks is said held by the budget', async () => {
-  // Two suns over 3 456 × 2 234 ask more pages than the budget's atlas bytes hold; a device
-  // 16 384 texels wide grants all it is asked: the budget, not the device, cut the pool.
-  const s = session([3456, 2234], Infinity, 16384);
-  s.lights.store.add({ ...SUN, id: 'first sun' });
-  s.lights.store.add({ ...SUN, id: 'second sun' });
-  await s.size();
-  const [, context] = s.said.find(([phase]) => phase === 'shadow-pool')!;
-  assert.ok((context.pages as number) < pages(3456, 2234, 2));
-  assert.equal(context.bytes, shadowAtlasBytes(74));
-  assert.equal(context.clamp, 'ceiling');
-  assert.equal(s.said.filter(([phase]) => phase === 'gpu-out-of-memory').length, 0);
 });
