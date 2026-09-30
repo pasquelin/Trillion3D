@@ -86,7 +86,7 @@ export function createShadowRecords(table: ShadowTable, pool: ShadowPool, sun: S
       dropPages(slice);
       kind[slice] = rank;
       last[slice] = null;
-      table.claim(slice, tableEntriesOf(rank, sun.window));
+      table.claim(slice, tableEntriesOf(rank, sun.windowPages));
     },
     /** True when the light is new, or moved or changed shape since its last plan (`sameShadowShape`):
      *  an intensity or a colour is no move. Notes it. */
