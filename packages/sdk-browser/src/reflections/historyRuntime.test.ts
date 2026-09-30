@@ -115,7 +115,7 @@ test('first frame rejects history, replay consumes nothing, and a changed source
   assert.equal(gpu.destroyed.length, 5, 'four owned resources, each destroyed once, plus input');
 });
 
-test('resolve uniform refusal releases the complete 32-byte history', () => {
+test('resolve uniform refusal releases the complete 24-byte history', () => {
   const gpu = fakeDevice({
     refuse: (descriptor) =>
       descriptor.label === 'Trillion3D reflection resolve view' ? 'throw' : undefined,
