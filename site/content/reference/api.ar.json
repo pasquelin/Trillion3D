@@ -1156,6 +1156,7 @@
       "gpuPassMs": "أحدث عيّنة مرحلة بطاقة رسوميات لهذه الخلفيّة؛ null عندما لا يعرض الجهاز استعلامات طابع زمني.",
       "gpuFrameMs": "مدة بطاقة الرسوميات للصورة التي تصفها `gpuPassMs.frame`. لا تُضاف أبدًا إلى حقل `cpu*`. يُقاس الجهاز كل بضع صور، فقد يعود الرقم إلى صور قليلة سابقة. تساوي null قبل أول قياس، من صورة مثبّتة إلى القياس التالي للجهاز، وعلى جهاز بلا `timestamp-query`، وعلى WebGL2 بلا `EXT_disjoint_timer_query_webgl2`.",
       "gpuHostGapMs": "وقت المعالج الذي قضته الصورة نفسها بين إرسالين من إرسالاتها الخاصة، وصفر عندما ترسل مرة واحدة. هذا وقت المضيف، لا وقت بطاقة الرسوميات، ولهذا تستثنيه `gpuFrameMs`. Null عندما لا يكون مقيسًا.",
+      "gpuDeviceLost": "سبب فقدان جهاز GPU؛ null ما دام قائمًا.",
       "uncoveredTriangles": "مثلثات العناقيد التي تسمّيها القَطعة المنشورة لكن لا يستطيع الإطار رسمها — لا صفحة مقيمة ولا سلف يغطّيها. ثغرة حقيقية في الصورة: الصفر هو القيمة السليمة الوحيدة. Null عندما لا تستطيع خلفيّة معرفة ذلك (فهي ترسم القَطعة التي اختارتها، فلا تواجه هذه الحالة أبدًا).",
       "drawnTriangles": "المثلثات التي يسلّمها الإطار الحالي للرسم: قَطعة عناقيده، المعتمة والشفافة من التسلسل الهرمي مجتمعتين. الشبكات الشفافة خارج التسلسل الهرمي ليست فيها (`transparentSubmittedTriangles`)، ولا يُطرَح رفض الحجب (`hizRejectedTriangles`). تُحصى عند اعتماد القَطعة: لا يُنتظَر أي قراءة استرجاعية غير متزامنة من بطاقة الرسوميات، فلا تكون أبدًا `null` لنقص الوقت، خلافًا لـ `submittedTriangles`.",
       "cpuSelectMs": "وقت المعالج لقَطعة عناقيد هذا الإطار، مقيسًا حول الاختيار وحده. Null على محرك لا يختار قطعته على المعالج.",
@@ -3777,7 +3778,8 @@
       "total": "كم عملًا إجمالًا.",
       "stream": "أين يُكتب.",
       "width": "عرض الشريط.",
-      "interval": "أقل عدد من الميلي ثواني بين عمليات إعادة الرسم."
+      "interval": "أقل عدد من الميلي ثواني بين عمليات إعادة الرسم.",
+      "verbose": "يذكر أيضًا رموز المعلومات وكل تكرار في ملخص نهاية المهمة."
     }
   },
   "Texture": {
@@ -4279,6 +4281,7 @@
       "gpuPassMs": "أحدث عيّنة مرحلة بطاقة رسوميات لهذه الخلفيّة؛ null عندما لا يعرض الجهاز استعلامات طابع زمني.",
       "gpuFrameMs": "مدة بطاقة الرسوميات للصورة التي تصفها `gpuPassMs.frame`. لا تُضاف أبدًا إلى حقل `cpu*`. يُقاس الجهاز كل بضع صور، فقد يعود الرقم إلى صور قليلة سابقة. تساوي null قبل أول قياس، من صورة مثبّتة إلى القياس التالي للجهاز، وعلى جهاز بلا `timestamp-query`، وعلى WebGL2 بلا `EXT_disjoint_timer_query_webgl2`.",
       "gpuHostGapMs": "وقت المعالج الذي قضته الصورة نفسها بين إرسالين من إرسالاتها الخاصة، وصفر عندما ترسل مرة واحدة. هذا وقت المضيف، لا وقت بطاقة الرسوميات، ولهذا تستثنيه `gpuFrameMs`. Null عندما لا يكون مقيسًا.",
+      "gpuDeviceLost": "سبب فقدان جهاز GPU؛ null ما دام قائمًا.",
       "uncoveredTriangles": "مثلثات العناقيد التي تسمّيها القَطعة المنشورة لكن لا يستطيع الإطار رسمها — لا صفحة مقيمة ولا سلف يغطّيها. ثغرة حقيقية في الصورة: الصفر هو القيمة السليمة الوحيدة. Null عندما لا تستطيع خلفيّة معرفة ذلك (فهي ترسم القَطعة التي اختارتها، فلا تواجه هذه الحالة أبدًا).",
       "drawnTriangles": "المثلثات التي يسلّمها الإطار الحالي للرسم: قَطعة عناقيده، المعتمة والشفافة من التسلسل الهرمي مجتمعتين. الشبكات الشفافة خارج التسلسل الهرمي ليست فيها (`transparentSubmittedTriangles`)، ولا يُطرَح رفض الحجب (`hizRejectedTriangles`). تُحصى عند اعتماد القَطعة: لا يُنتظَر أي قراءة استرجاعية غير متزامنة من بطاقة الرسوميات، فلا تكون أبدًا `null` لنقص الوقت، خلافًا لـ `submittedTriangles`.",
       "cpuSelectMs": "وقت المعالج لقَطعة عناقيد هذا الإطار، مقيسًا حول الاختيار وحده. Null على محرك لا يختار قطعته على المعالج.",
@@ -5013,13 +5016,14 @@
   "createTerminalProgress": {
     "summary": "شريط تقدم في الطرفية يتتبّع أحداث المُصرِّف.",
     "parameters": {
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}": "كيف يبدو عرض تقدم الطرفية.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.label": "اسم المهمة.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.index": "رقم المهمة.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.total": "عدد المهام إجمالًا.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.stream": "أين تكتب.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.width": "عرض الشريط.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.interval": "أقل ملي ثانية بين عمليات إعادة الرسم."
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}": "كيف يبدو عرض تقدم الطرفية.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.label": "اسم المهمة.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.index": "رقم المهمة.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.total": "عدد المهام إجمالًا.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.stream": "أين تكتب.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.width": "عرض الشريط.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.interval": "أقل ملي ثانية بين عمليات إعادة الرسم.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.verbose": "يذكر أيضًا رموز المعلومات وكل تكرار في ملخص نهاية المهمة."
     }
   },
   "createTransformTree": {
