@@ -19,7 +19,7 @@ fn reflectionPhase(seed:u32)->vec2i{return vec2i(i32(((seed+1u)>>1u)&1u),i32(see
  */
 const HIZ_WALK_WGSL = `
 fn reflectionHiZWalk(start:vec2f,delta:vec2f,za:f32,zb:f32,size:vec2f)->vec4f{
- let top=reflectionTopLevel();let ox=i32(floor(start.x));let oy=i32(floor(start.y));
+ let top=i32(textureNumLevels(reflectionBounds));let ox=i32(floor(start.x));let oy=i32(floor(start.y));
  var level=0;var t=0.0;
  for(var i=0;i<${REFLECTION_TRACE_STEPS};i++){
   let x=start.x+delta.x*t+sign(delta.x)*0.001;let y=start.y+delta.y*t+sign(delta.y)*0.001;
@@ -48,6 +48,5 @@ fn reflectionHiZWalk(start:vec2f,delta:vec2f,za:f32,zb:f32,size:vec2f)->vec4f{
  *  pyramid within `REFLECTION_TRACE_STEPS`. A hit reads the reprojected source, whose alpha tells
  *  a pixel the last image did not see: a miss. */
 export const HIZ_TRACE_WGSL = `${HIZ_WALK_WGSL}
-fn reflectionTopLevel()->i32{return i32(textureNumLevels(reflectionBounds));}
 fn screenReflectionHiZ(P:vec3f,R:vec3f)->vec4f{${REFLECTION_SEGMENT} return reflectionHiZWalk(start,delta,a.z,b.z,size);
 }`;
