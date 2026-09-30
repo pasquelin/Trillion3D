@@ -87,7 +87,7 @@ const NAME: &str = "blend";
 const MAX_LIST: usize = 1 << 20;
 
 /// A named refusal of the driver. Everything this reader cannot read comes out here, with a
-/// stable code that `docs/COMPILER.md` describes — never by a panic.
+/// stable code that `docs/COMPILER_ERRORS.md` describes — never by a panic.
 fn refused(code: &'static str, message: impl Into<String>) -> CompilerError {
     CompilerError::new(code, message)
 }

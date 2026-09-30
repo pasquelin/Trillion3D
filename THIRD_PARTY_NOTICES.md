@@ -29,3 +29,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - Shipped in: the native asset compiler, for `KHR_draco_mesh_compression` decoding.
 - Licence: Apache-2.0; see https://www.apache.org/licenses/LICENSE-2.0.
 - Only mesh decoding and EdgeBreaker valence decoding are enabled; no encoder or point-cloud decoder is linked.
+
+## Image and texture readers of the native compiler
+
+Shipped in the native asset compiler, versions pinned in
+`packages/asset-compiler-rust/Cargo.toml` and `Cargo.lock`; each crate's notices are kept with the
+dependency. The fixtures that prove them are described in
+[`tests/fixtures/formats/README.md`](tests/fixtures/formats/README.md).
+
+| crate | version | licence | source | used for |
+| --- | --- | --- | --- | --- |
+| `exr` | 1.74.2 | BSD-3-Clause | https://github.com/johannesvollmer/exrs | OpenEXR reads; pure Rust, without `unsafe` |
+| `texture2ddecoder` | 0.1.2 | MIT or Apache-2.0 | https://github.com/UniversalGameExtraction/texture2ddecoder | GPU block reconstruction (BCn, ETC2, EAC, ASTC) for the `dds` and `ktx2` drivers, through the `image::blocks` foundation; pure Rust |
+| `basisu` | 0.1.0 | Apache-2.0 | https://github.com/marcogomez/basisu | Basis Universal payloads in KTX 2.0; pure Rust, a port of Binomial's reference transcoder verified byte for byte against it |
+| `ruzstd` | 0.7.3 | MIT | https://github.com/KillingSpark/zstd-rs | Zstandard supercompression in KTX 2.0; pure Rust, decompression only |
