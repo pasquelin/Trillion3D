@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { acquireHeavyLock, heavyLockPath, heavyStep } from './heavy-lock.ts';
+import { acquireHeavyLock, heavyLockPath, heavyStep, takeOver } from './heavy-lock.ts';
 
 const lockModule = join(import.meta.dirname, 'heavy-lock.ts');
 
@@ -70,18 +70,71 @@ test('two heavy steps started from two worktrees run one after the other, at low
   }
 });
 
+/** The pid of a process that has exited. */
+const deadPid = (): number =>
+  Number(
+    spawnSync(process.execPath, ['-e', 'console.log(process.pid)'], { encoding: 'utf8' }).stdout,
+  );
+
 test('a lock whose process is dead is taken over', () => {
   const root = mkdtempSync(join(tmpdir(), 'heavy-lock-'));
   try {
-    const dead = spawnSync(process.execPath, ['-e', 'console.log(process.pid)'], {
-      encoding: 'utf8',
-    });
     const path = join(root, 'heavy-step.lock');
-    writeFileSync(path, JSON.stringify({ pid: Number(dead.stdout), step: 'build', cwd: root }));
+    writeFileSync(path, JSON.stringify({ pid: deadPid(), step: 'build', cwd: root }));
     const release = acquireHeavyLock(path, 'test', 10);
     assert.ok(existsSync(path));
     release();
     assert.equal(existsSync(path), false);
+  } finally {
+    rmSync(root, { recursive: true });
+  }
+});
+
+test("a takeover removes only the dead holder's lock, and puts back a lock taken meanwhile", () => {
+  const root = mkdtempSync(join(tmpdir(), 'heavy-lock-'));
+  try {
+    const path = join(root, 'heavy-step.lock');
+    const live = JSON.stringify({ pid: process.pid, step: 'build', cwd: root });
+    writeFileSync(path, live);
+    takeOver(path, deadPid());
+    assert.equal(readFileSync(path, 'utf8'), live, 'another waiter was granted it first');
+    const dead = deadPid();
+    writeFileSync(path, JSON.stringify({ pid: dead, step: 'build', cwd: root }));
+    takeOver(path, dead);
+    assert.equal(existsSync(path), false);
+    takeOver(path, dead);
+  } finally {
+    rmSync(root, { recursive: true });
+  }
+});
+
+test('waiters that take a dead lock over together still run one after the other', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'heavy-lock-'));
+  try {
+    const path = join(root, 'heavy-step.lock');
+    writeFileSync(path, JSON.stringify({ pid: deadPid(), step: 'build', cwd: root }));
+    const code = `import { acquireHeavyLock } from ${JSON.stringify(lockModule)};
+const release = acquireHeavyLock(${JSON.stringify(path)}, 'test', 1);
+const start = Date.now();
+Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 150);
+console.log(JSON.stringify({ start, end: Date.now() }));
+release();`;
+    const waiter = (): Promise<{ start: number; end: number }> =>
+      new Promise((done, fail) => {
+        const child = spawn(process.execPath, ['--input-type=module', '-e', code]);
+        let out = '';
+        child.stdout.on('data', (chunk) => (out += chunk));
+        child.on('close', (status) =>
+          status
+            ? fail(new Error(`exit ${status}`))
+            : done(JSON.parse(out.trim().split('\n').at(-1)!)),
+        );
+      });
+    const runs = (await Promise.all([waiter(), waiter(), waiter()])).sort(
+      (a, b) => a.start - b.start,
+    );
+    for (let i = 1; i < runs.length; i++)
+      assert.ok(runs[i].start >= runs[i - 1].end, `${JSON.stringify(runs)} overlap`);
   } finally {
     rmSync(root, { recursive: true });
   }
