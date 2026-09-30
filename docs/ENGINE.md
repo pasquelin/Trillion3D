@@ -307,20 +307,20 @@ range, at most 512 cells a lamp), plus the lights that reach every fragment. The
 the CPU into one integer texture only when a lamp's position or range changes; a camera-only move
 sends only the view-to-grid matrix (`webgl/cluster/lightLists.ts`, #835).
 
-**One light costs what it lights.** The resolve's one light loop (`sliceLightingWgsl`,
-`lighting/direct/lightLoopWgsl.ts`, #1249) first rejects a light on its sphere alone, before its
-record is read in full, where the point lies past its range by a ten-thousandth of its squared
-range — exactly where `declaredLight` would have given zero before any shading, shadow or page
-read. And a frame no light of which holds a shadow slot is resolved by a program built without the
-shadow code (`declaredLightWgsl`; chosen per frame, `contractVariants.ts`, its twin with shadow code
-compiled beside it): an unshadowed light never runs that code, yet the registers it holds cost the
-light 40 % of its evaluation. The sums are the same, bit for bit
-(`tests/browser/probes/narrow-resolve-gpu.ts`). Timed on the resolve (64 lamps, a million pixels,
-M2 Max), per light and pixel against develop: in range 42.3 → 27.8 ps, out of range 28.1 → 10.6
-ps; a scene with shadows 47.9 and 20.1 ps. A light grid over the tiles (16 log-Z slices, a 64-bit
-mask each) was built and timed: at 3456 × 2234 it added 1.0 ms to the tile pass and removed 3 % of
-the lights walked on a sponza-sized atrium — once lights past their range are rejected on their
-sphere, a grid can only save that reject, never a light's shading.
+**One light costs what it lights.** A frame no light of which holds a shadow slot is resolved by a
+program built without the shadow code (`declaredLightWgsl`, `lighting/direct/lightLoopWgsl.ts`,
+#1249; chosen per frame, `contractVariants.ts`, its twin with shadow code compiled beside it): an
+unshadowed light never runs that code, yet the registers it holds cost the light 40 % of its
+evaluation. That program's one light loop (`sliceLightingWgsl`) also rejects a light on its sphere
+alone, before its record is read in full, where the point lies past its range by a ten-thousandth
+of its squared range — exactly where `declaredLight` would have given zero before any shading. The
+sums are the same, bit for bit (`tests/browser/probes/narrow-resolve-gpu.ts`). The program with
+shadow code keeps develop's loop: there the reject's test cost a light in range 13 % it never
+repaid. Timed on the resolve (64 lamps, a million pixels, M2 Max), per light and pixel against
+develop, no shadow slot: in range 42.3 → 27.8 ps, out of range 28.1 → 10.6 ps. A light grid over
+the tiles (16 log-Z slices, a 64-bit mask each) was built and timed: at 3456 × 2234 it added 1.0 ms
+to the tile pass and removed 3 % of the lights walked on a sponza-sized atrium — once lights past
+their range are rejected on their sphere, a grid can only save that reject, never a light's shading.
 
 **A moving image samples its shadowed lights.** It weighs every light of its tile without its
 shadow (the cheap part) and shades four in full, shadow included. A light worth a sample's share of

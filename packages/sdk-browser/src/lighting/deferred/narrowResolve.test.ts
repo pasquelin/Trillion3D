@@ -20,7 +20,7 @@ test('the narrow resolve bounds its light array and walks its list with no pool 
     assert.match(narrow, new RegExp(`items:array<DirectLight,${LIGHT_SETTINGS.tileLights}>`));
     assert.match(wide, /items:array<DirectLight>/);
     const loop = functionText(narrow, 'sliceLighting');
-    // The range reject is the wide loop's (#1249); no pool, no scene walk.
+    // No pool, no scene walk; the range reject is the unshadowed program's (#1249).
     assert.doesNotMatch(loop, /TILE_NO_SLICE/, 'no pool or whole-scene branch');
     assert.match(loop, /let light=tileLights\[slice\.x\+index\];/);
     assert.doesNotMatch(functionText(narrow, 'tileSlice'), /TILE_NO_SLICE|if\(/);
