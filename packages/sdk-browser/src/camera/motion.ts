@@ -1,5 +1,6 @@
 import type { EngineCamera } from './engineCamera.ts';
 import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts';
+import { AHEAD_SMOOTHING_MS } from './motionSmoothing.ts';
 
 /** Last eye position and way back, kept from frame to frame to derive the eye's velocity (world
  *  units per second) and the rate it turns at (radians per second). `ahead` is the velocity the
@@ -21,13 +22,6 @@ export type CameraMotion = {
    *  horizon (`prefetchHorizonMs`), set by the cut each frame; absent, the published horizon. */
   horizonMs?: number;
 };
-
-/**
- * Time constant, in milliseconds, of the exponential filter the view ahead reads the velocity
- * through: about six frames at 60 Hz, so one frame's jitter moves the pages asked for ahead by a
- * sixth of it, and a bend of the path is followed within a tenth of a second.
- */
-export const AHEAD_SMOOTHING_MS = 100;
 
 /** True for a velocity that moves, at a finite speed: the only kind the filter averages. */
 const movesFinitely = (v: Float64Array) =>
@@ -130,14 +124,4 @@ export function readCameraMotion(cam: EngineCamera, motion: CameraMotion, now: n
   back[2] = view[10];
   motion.lastMs = now;
   return hypot3(velocity[0], velocity[1], velocity[2]);
-}
-
-/**
- * Forgets the last read: the next one starts from rest. Its arrays are let go, never written, so a
- * copy of `motion` taken before — a capture's saved view — keeps the pose it held.
- */
-export function restartCameraMotion(motion: CameraMotion) {
-  motion.last = motion.lastBack = motion.velocity = motion.ahead = motion.axis = undefined;
-  motion.lastMs = motion.steadyMs = motion.turnSteadyMs = undefined;
-  motion.turn = 0;
 }

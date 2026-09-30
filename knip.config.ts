@@ -14,9 +14,15 @@ const config: KnipConfig = {
         'packages/sdk-browser/src/page/decode/pageDecodeWorker.ts',
         'packages/sdk-browser/src/page/integration/pageIntegrationWorker.ts',
         'packages/sdk-browser/src/physics/physicsWorker.ts',
+        // The public API's source (`scripts/sdk-api-model.ts`, `ENTRIES`): the facade below is
+        // generated from these three entries, so every name they export is public.
+        'packages/sdk-core/src/index.ts',
+        'packages/sdk-browser/src/index.ts',
         'packages/sdk-node/src/index.mts',
         'packages/sdk/{index,browser,node}.{ts,mts}',
         'packages/page-codec/geometryPage.ts',
+        // The second pass of `check:unused` (`scripts/check-unused.ts`), read by knip itself.
+        'knip.production.config.ts',
         'packages/**/*.test.ts',
         // The scripts `package.json` and the workflows run are found by knip itself; the tests and
         // the browser proofs, run by `node --test`, are entries by rule. Any other script is dead.

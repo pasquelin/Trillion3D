@@ -4,13 +4,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   BLOOM_DOWN_TAPS,
-  BLOOM_LEVELS,
   BLOOM_UP_TAPS,
   bloomBlend,
   bloomLevelBytes,
   bloomLevelSizes,
 } from './bloomFilter.ts';
 import { cpuBloom, publishedDownTaps, publishedUpTaps, tapWords } from './bloom.fixture.ts';
+import { BLOOM_LEVELS } from './bloomLevels.ts';
 
 test('the down and up taps are the published 13-tap filter and 3×3 tent, each of weight 1', () => {
   assert.deepEqual(tapWords(BLOOM_DOWN_TAPS), tapWords(publishedDownTaps()));

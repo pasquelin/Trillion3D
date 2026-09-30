@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { HIZ_KERNEL_TEXELS } from '../../hiz/counts.ts';
 import { HIZ_TEST_VALUES, hizTestRect } from '../../hiz/occlusion.ts';
-import { packHizPyramid, type PackedHiz } from './oracle.ts';
 import { lcg } from './buildTranscripts.fixture.ts';
+import { packHizPyramid } from './oracle.fixture.ts';
+import type { PackedHiz } from './oracle.fixture.ts';
 
 // The Hi-Z rectangle test reads a coarse mip first and stops at the first texel that does not
 // hide (`pyramidHides`), where it used to take the minimum of the whole footprint

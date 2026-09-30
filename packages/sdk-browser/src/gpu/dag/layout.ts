@@ -1,6 +1,6 @@
 /**
  * Compact cut layout, written once by packing and reread by two readers: the shader
- * (`shader/shader.ts`, `shader/recordWgsl.ts`) and the oracle (`records.ts`). Both
+ * (`shader/shader.ts`, `shader/recordWgsl.ts`) and the oracle (`records.fixture.ts`). Both
  * go through this module alone, so no field rank is written twice — that is what
  * guarantees the oracle returns the same verdict as the GPU, to the bit.
  *
@@ -22,18 +22,15 @@
  * read it no longer walk a forty-eight-byte record for a single flag, and the host only
  * rewrites the words its changes touch. The cold records come last.
  */
+import { CLUSTER_LEVEL_SHIFT, CLUSTER_NEVER, CLUSTER_TRANSPARENT } from './clusterFlags.ts';
+import { stagedRequestsWord } from './readoutWords.ts';
+export { SELECTION_HEADER_WORDS, evictionWord, EVICTION_BURST } from './readoutWords.ts';
 
 /** Words of the hot record: `struct Cluster` of the shader holds eleven, and WGSL rounds its
  *  stride to sixteen bytes — the twelfth word is that padding. */
 export const CLUSTER_WORDS = 12;
 /** Words of the cold record; `PAGE_CONE_FLOATS` in `../core/selection.ts` is the public mirror. */
 export const COLD_WORDS = 13;
-/** Bit 0 is free: it said the cluster had no parent, which only the pinned-root fallback read. */
-export const CLUSTER_NEVER = 2,
-  /** The cluster is blended: its triangle share is counted apart, as on the CPU. */
-  CLUSTER_TRANSPARENT = 4;
-/** Detail level travels in the flags' high bits: a single pass reads it, at emit. */
-export const CLUSTER_LEVEL_SHIFT = 8;
 const CLUSTER_LEVEL_MAX = 0xffffff;
 
 export function packClusterFlags(never: boolean, level: number, transparent = false) {
@@ -45,7 +42,6 @@ export function packClusterFlags(never: boolean, level: number, transparent = fa
     0
   );
 }
-export const clusterLevel = (flags: number) => flags >>> CLUSTER_LEVEL_SHIFT;
 
 /**
  * Readout CAP, in ranks, for each of its two halves.
@@ -68,33 +64,11 @@ export const SELECTION_LIST_CAP = 262144;
 /** Cap of a scene: never more than its catalogue, which no cut can exceed. */
 export const selectionListCap = (pageCount: number) =>
   Math.min(Math.max(0, pageCount), SELECTION_LIST_CAP);
-
-/**
- * Readout header, in words, in front of each of its two halves.
- *
- * The first four are the usual — count, trunk reject, reached level, flags. The next
- * two carry the TRIANGLE TOTALS, which only the GPU sums where the verdict is spoken, in
- * `dagMask`: what the cut rule draws, and its blended share. The last two count the requests ahead of
- * the camera: those asked for, and those the snapshot holds.
- *
- * That is the condition for the readout to one day stop carrying LISTS: a total
- * held by the GPU survives the disappearance of the list it was the sum of.
- */
-export const SELECTION_HEADER_WORDS = 8;
-/** Word of `out` where the eviction queue's header starts, behind the drawn list. */
-export const evictionWord = (listCap: number) => 2 * (SELECTION_HEADER_WORDS + listCap);
-/** Victims one readback hands the cache, a chosen margin over what one frame's 1 ms admission share
- *  (`STREAMING_FRAME_MS`) commits; the next readback brings the next burst, whatever the pool. */
-export const EVICTION_BURST = 1024;
-/** Word of `out` where the camera's requests wait for their sort, behind the eviction queue's
- *  burst, outside what the frame copies (`stagedAt` of `shader/snapshotWgsl.ts`). */
-export const stagedRequestsWord = (listCap: number) =>
-  evictionWord(listCap) + SELECTION_HEADER_WORDS + EVICTION_BURST;
 /** Bytes a resident cut's frame copies: everything before the staged requests. */
 export const residentReadbackBytes = (listCap: number) => stagedRequestsWord(listCap) * 4;
 /** Requests ahead of the camera one sample stages: half its cap. They wait behind the camera's own
- *  staged requests, on their own counter (`OUT_AHEAD`), so they never take a place the camera's
- *  requests would have used (`shader/snapshotWgsl.ts`). */
+ *  staged requests, on their own counter (header word 6, before `OUT_AHEAD_PLACED`), so they never
+ *  take a place the camera's requests would have used (`shader/snapshotWgsl.ts`). */
 const aheadRequestCap = (listCap: number) => listCap >>> 1;
 /** Bytes of `out` with the staged requests behind, the camera's then those ahead: what the kernels
  *  write, more than the frame copies. */
@@ -114,27 +88,8 @@ export const OUT_COUNT = 0,
   OUT_FLAGS = 3,
   OUT_SELECTED_TRIANGLES = 4,
   OUT_TRANSPARENT_TRIANGLES = 5,
-  /** The counter of the requests ahead of the camera, past their cap included. */
-  OUT_AHEAD = 6,
   /** How many requests ahead the snapshot holds, behind every one of the camera's (`dagSortRequests`). */
   OUT_AHEAD_PLACED = 7;
-
-/**
- * The two triangle totals placed in the header, in the order THIS file fixes. `dagMask`
- * writes them on the GPU (`shader/totalsWgsl.ts`); anything that stands in for the GPU
- * must write them the same way, or else adoption — which reads the GPU first — would
- * take an empty header for a frame without triangles.
- */
-export function writeTriangleTotals(
-  ints: Uint32Array,
-  totaux: {
-    selectedTriangles?: number;
-    transparentTriangles?: number;
-  },
-) {
-  ints[OUT_SELECTED_TRIANGLES] = totaux.selectedTriangles ?? 0;
-  ints[OUT_TRANSPARENT_TRIANGLES] = totaux.transparentTriangles ?? 0;
-}
 
 /** First residency word, behind the working table's word per page: the cut rule's `resident(c)`
  *  (`../../page/cut/readiness.ts`, `ready`). */
@@ -149,8 +104,6 @@ export const poolBase = (pageCount: number) => childBase(pageCount) + residentWo
 export const keyBase = (pageCount: number) => poolBase(pageCount) + 1 + selectionListCap(pageCount);
 /** First cold record, behind the bit sets, the pool's list and the key column. */
 export const coldBase = (pageCount: number) => keyBase(pageCount) + Math.max(0, pageCount);
-const residentBit = (bits: Uint32Array, base: number, page: number) =>
-  (bits[base + (page >>> 5)] & (1 << (page & 31))) !== 0;
 
 /** Hot field ranks, in the order `struct Cluster` of the shader declares them. */
 export const HOT_SPHERE = 0,
@@ -167,17 +120,3 @@ export const COLD_CONE = 0,
   COLD_OWNER = 11,
   /** Cluster triangles, read as an INTEGER word: those are what the totals accumulate. */
   COLD_TRIANGLES = 12;
-
-/**
- * One of the two residency columns returned to the oracle, one word per cluster: what the buffer
- * doubles read in the same cold buffer as the shader, instead of a rank copied on their side.
- */
-export function residentFlags(
-  bits: Uint32Array,
-  pageCount: number,
-  base = residentBase(pageCount),
-) {
-  return Uint32Array.from({ length: pageCount }, (_, page) =>
-    residentBit(bits, base, page) ? 1 : 0,
-  );
-}

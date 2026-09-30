@@ -7,8 +7,9 @@ import { createShadowTable } from './table.ts';
 import { createShadowPlan } from './plan.ts';
 import { createSceneLightStore } from '../light/store.ts';
 import { PAGE_MAPPED, PAGE_RANGE_SHIFT, PAGE_VALID } from './virtual.ts';
-import { PAGE_FOOTPRINT_SHIFT, pageFootprint } from './footprint.ts';
+import { PAGE_FOOTPRINT_SHIFT } from './footprint.ts';
 import { SUN, VIEW, lampPages, planFrame, report, sunPages } from './lightShadow.fixture.ts';
+import { pageFootprint } from './footprint.fixture.ts';
 
 function mapped() {
   const table = createShadowTable(1024),

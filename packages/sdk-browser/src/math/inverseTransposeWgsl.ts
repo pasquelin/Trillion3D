@@ -1,4 +1,5 @@
 import { SINGULAR_DETERMINANT_WGSL } from '../../../sdk-core/src/index.ts';
+import { inverseTransposeKernel } from './inverseTransposeKernel.ts';
 
 /**
  * 3×3 inverse-transpose in WGSL, written once for the whole engine: the DAG selection kernel
@@ -50,18 +51,6 @@ import { SINGULAR_DETERMINANT_WGSL } from '../../../sdk-core/src/index.ts';
  * before — so the regular case stays the previous one, to the bit. `inverseTranspose3` remains
  * the public writing for an isolated vector.
  */
-const KERNEL = (prep: string, fallback: string) => `
-struct InvT3{adj:mat3x3f,scale:f32,regular:bool,}
-fn invTranspose3Prep(m:mat3x3f)->InvT3{
-${prep}
-}
-fn invTranspose3Apply(p:InvT3,v:vec3f)->vec3f{
- let carried=p.adj*v;
- return select(${fallback},p.scale*carried,p.regular);
-}
-fn inverseTranspose3(m:mat3x3f,v:vec3f)->vec3f{return invTranspose3Apply(invTranspose3Prep(m),v);}
-fn uniteOuZero(v:vec3f)->vec3f{return select(vec3f(0.0),normalize(v),dot(v,v)>0.0);}`;
-
 /**
  * Shipped prepare: the normalised 3×3, then the determinant and adjoint of the normalised.
  * The adjoint is cleared when the sum of absolute values is neither finite nor strictly
@@ -73,34 +62,5 @@ const PREP_SHIPPED = ` let w=abs(m[0])+abs(m[1])+abs(m[2]);let t=w.x+w.y+w.z;
  let det=dot(a,cross(b,c));let z=vec3f(0.0);
  return InvT3(mat3x3f(select(z,cross(b,c),finite),select(z,cross(c,a),finite),select(z,cross(a,b),finite)),1.0/(det*t),finite&&abs(det)>${SINGULAR_DETERMINANT_WGSL});`;
 
-/**
- * Prepare from BEFORE defect 6: absolute threshold `abs(det)<1e-20` on the RAW 3×3, and factor
- * `1/det` instead of `1/(det·t)`. `regular` is the exact negation of the old guard, the one
- * that returned the vector as-is — hence the same decision, case for case, NaN included. Its
- * number is written by hand and stays: it is a DEAD RULE, on the raw determinant, which the
- * shared constant must not follow if it moves — otherwise the reproduction would stop reproducing.
- */
-const PREP_BEFORE_DEFECT_6 = ` let a=m[0];let b=m[1];let c=m[2];
- let det=dot(a,cross(b,c));
- return InvT3(mat3x3f(cross(b,c),cross(c,a),cross(a,b)),1.0/det,!(abs(det)<1e-20));`;
-
 /** Shipped kernel: this is the one, and only this one, that production shaders insert. */
-export const INVERSE_TRANSPOSE_WGSL = KERNEL(PREP_SHIPPED, 'carried');
-
-/**
- * The same kernel with the prepare from before defect 6, TO REPLAY THE DEFECT ONLY: no
- * production shader inserts it. Its fallback remains the LOCAL vector `v` — that was the
- * defect, and a reproduction that adopted the shipped convention would reproduce nothing. It
- * lives here, against the shipped text, rather than copied into a bench: two neighbouring
- * forms in one file move together, while a copy pasted elsewhere stops matching the first
- * kernel change — without anyone seeing it. The whole block substitutes for the shipped
- * block, structure included, and `tests/browser/probes/substitutionBefore.ts` establishes the
- * substitution instead of hoping for it. A reproduction is only worth as long as it
- * reproduces: GPU actually executed, and measured against what the engine DRAWS (real
- * rasterisation, face state included), this form drops 656 drawn clusters over 6 916 cases
- * where the shipped form drops none (`tests/browser/probes/inverse-transpose-small-scale.ts`).
- * The "560 before, 54 after" of an earlier sample read raw geometric orientation, which
- * ignores face swap under reflection: it counted 119 legitimate rejects as defects and missed
- * 215.
- */
-export const INVERSE_TRANSPOSE_BEFORE_WGSL = KERNEL(PREP_BEFORE_DEFECT_6, 'v');
+export const INVERSE_TRANSPOSE_WGSL = inverseTransposeKernel(PREP_SHIPPED, 'carried');

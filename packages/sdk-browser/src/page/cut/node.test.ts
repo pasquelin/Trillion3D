@@ -4,7 +4,6 @@
 // test proves that. Oracle: `nodeDecision` from before the lot, in `../../../../../bench/oracles/browser/cut-budget.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { nodeDecision, nodeDecisionAtZero } from './node.ts';
 import {
   BOUND_STRIDE,
   OWN_CEIL,
@@ -18,6 +17,7 @@ import type { PageRecord, SelectionState } from './state.ts';
 import { referenceNodeDecision } from '../../../../../bench/oracles/browser/cut-budget.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 import { obliqueCamera } from '../selection/dag.fixture.ts';
+import { nodeDecision, nodeDecisionAtZero } from './nodeDecision.ts';
 
 const camera = obliqueCamera();
 const view = camera.matrixWorldInverse.elements;

@@ -8,14 +8,10 @@ import {
   SHADOW_TABLE_ENTRIES,
   shadowEntrySpan,
 } from './virtual.ts';
-
-/** Ranks a key spans: every coarseness of either kind lies below it (`shadowSunCoarseness`).
- *  Every key is a non-negative `i32` (`shadowPageModel.test.ts`). */
-export const RANK_SPAN = 128;
+import { RANK_SPAN } from './rankSpan.ts';
+import { AGE_CAP } from './ageCap.ts';
 /** Pages a key spans: every page a table word names. */
 export const PAGE_KEY_SPAN = PAGE_INDEX_MASK + 1;
-/** A page asked more than this many frames ago is as old as any older one. */
-export const AGE_CAP = 255;
 /**
  * THE ORDERS OF THE POOL AND THE WORD OF A PAGE DRAWN (#1275), written once over `PageOps` like
  * the rest of the page model (`pageModel.ts`): the host's pool (`needs.ts`, `poolOrder.ts`, `pool.ts`)

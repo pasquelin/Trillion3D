@@ -6,8 +6,7 @@ import assert from 'node:assert/strict';
 import { MAX_SHADOW_SLICES } from '../light/contracts.ts';
 import { createSceneLightStore } from '../light/store.ts';
 import { createShadowPlan } from './plan.ts';
-import { SUN_ENTRIES } from './virtual.ts';
-import { SUN, planFrame } from './lightShadow.fixture.ts';
+import { SUN, planFrame, SUN_ENTRIES } from './lightShadow.fixture.ts';
 
 test('every shadow-casting light up to MAX_SHADOW_SLICES holds a slice and a table range, suns included', () => {
   const store = createSceneLightStore();

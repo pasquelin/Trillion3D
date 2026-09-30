@@ -1,8 +1,6 @@
 import type { ScreenReflection } from './gpu.ts';
 import type { DeferredProgram } from '../lighting/deferred/program.ts';
-
-/** The unfogged image consumed by opaque and forward screen reflections. */
-export const REFLECTION_SOURCE_PASS = 'Trillion3D reflection source';
+import { REFLECTION_SOURCE_PASS } from './sourcePass.ts';
 
 /** Encode source then stochastic trace/resolve, borrowing the existing HDR target. */
 export function encodeReflectionSource(

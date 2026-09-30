@@ -1,11 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TAA_REPROJECT_WGSL, TAA_SHADER, YCOCG_WGSL, taaShader } from './shaderWgsl.ts';
+import { taaReprojectWgsl, taaShader } from './shaderWgsl.ts';
+import { TAA_SHADER } from '../gpu/core/shaderTexts.fixture.ts';
 import { TAA_BINDINGS, TAA_VIEW_BYTES } from './bindingsWgsl.ts';
 import { TAA_DEFORM_WGSL } from './deformWgsl.ts';
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts';
-import { ROW_PLACEMENT_WORD } from '../webgpu/row/pageRow.ts';
-import { TAA_WEIGHTS } from './weights.ts';
+import { TAA_WEIGHTS } from './filterWeights.ts';
+import { YCOCG_WGSL } from './ycocgWgsl.ts';
+import { ROW_PLACEMENT_WORD } from '../webgpu/row/rowPlacement.ts';
+
+const TAA_REPROJECT_WGSL = taaReprojectWgsl();
 
 const occurrences = (text: string, fragment: string) => text.split(fragment).length - 1;
 

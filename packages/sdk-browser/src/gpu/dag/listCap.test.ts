@@ -4,7 +4,7 @@
 // here, as the kernels would; that the kernels write them so is the GPU's to prove.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { deviceListCap, grownListCap, initialListCap } from './listCap.ts';
+import { grownListCap, initialListCap } from './listCap.ts';
 import { SELECTION_HEADER_WORDS as HEAD, SELECTION_LIST_CAP, stagedOutputBytes } from './layout.ts';
 import { createDagResources } from './resources.ts';
 import { createDagRuntime } from './runtime.ts';
@@ -15,6 +15,7 @@ import { createSelectionUniforms } from '../core/selection.ts';
 import { dagFixture } from '../../page/selection/dag.fixture.ts';
 import { packed } from './selectionHelpers.fixture.ts';
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts';
+import { deviceListCap } from './deviceListCap.ts';
 
 test('the list a device holds is the largest whose readout one binding holds', () => {
   const limits = { maxStorageBufferBindingSize: 128 << 20 };

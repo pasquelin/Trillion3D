@@ -1,10 +1,10 @@
 import type { Bloom } from '../../../sdk-core/src/world/effect/bloom.ts';
-import type { FusedBlend, WebgpuEffectKind } from './webgpuEffects.ts';
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
 import { makeFullscreenPipeline } from '../lighting/deferred/fullscreen.ts';
 import { bloomBlend, bloomLevelBytes, bloomLevelSizes } from './bloomFilter.ts';
 import { BLOOM_WGSL } from './bloomWgsl.ts';
 import { BLOOM_UNIFORM_BYTES, BLOOM_UNIFORM_STRIDE, bloomLevelLayout } from './bloomLevel.ts';
+import { type FusedBlend, type WebgpuEffectKind } from './webgpuKinds.ts';
 
 /** Label of every bloom pass: where it shows in a GPU capture. */
 const BLOOM_PASS = 'Trillion3D bloom';

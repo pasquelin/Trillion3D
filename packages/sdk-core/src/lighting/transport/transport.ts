@@ -12,7 +12,6 @@ import { updateTransportVisibility } from './visibility.ts';
 import { solveTransport } from './solve.ts';
 import { fail, checkpoint, validateScene } from './validation.ts';
 export * from './contracts.ts';
-export { solveTransportOracle } from './oracle.ts';
 const UNSUPPORTED = [
   'hierarchical transport',
   'adjoint scheduling',

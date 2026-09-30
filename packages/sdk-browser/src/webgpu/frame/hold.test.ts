@@ -36,7 +36,7 @@ test('the TAA hold cannot freeze an unfinished reflection window', () => {
 test('GEO-02: the contract program that finishes compiling breaks the held frame', async () => {
   const h = deferredLightingHarness();
   const rt = settledRt();
-  // The wiring of `../pages/prepare/prepare.ts`, word for word.
+  // The wiring of `../pages/prepare/preparePages.ts`, word for word.
   const lighting = await createDeferredLighting(h.device, () => rt.run.gate.resourcesChanged());
   rt.gpu.deferred = lighting;
   rt.gpu.reflection = { active: true, history: { settled: false } } as NonNullable<

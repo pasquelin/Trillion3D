@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { imageKind } from './draw.mts';
 import { encodePng } from './png.mts';
-import { answerOf } from './show.mts';
+import { answerOf } from './answer.mts';
 
 // Behaviour: each terminal gets what it knows how to display, and nothing is guessed — capability
 // is read from the environment, with the block mosaic as a universal fallback.

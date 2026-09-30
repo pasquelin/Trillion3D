@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
-import { HIZ_BOUNDS_VALUES } from './hiz.ts';
+import { HIZ_BOUNDS_VALUES } from './corners.ts';
 import { projectCornersInto } from './corners.ts';
 
 /**

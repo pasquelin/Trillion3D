@@ -1,14 +1,7 @@
+import { PRESENT_AT_SHADER } from './presentWgsl.ts';
+
 /** A rectangle of the canvas, in canvas pixels from the top left. */
 export type PresentRect = { x: number; y: number; width: number; height: number };
-
-/** The image copied at a rectangle of the canvas: its origin rides in the draw's first instance,
- *  `x + y · 65536`, so no uniform is written and no buffer is held per view. */
-export const PRESENT_AT_SHADER = `@group(0) @binding(0) var image:texture_2d<f32>;
-struct Placed{@builtin(position) position:vec4f,@location(0) @interpolate(flat) origin:vec2i};
-@vertex fn fullscreenAt(@builtin(vertex_index) i:u32,@builtin(instance_index) at:u32)->Placed{
-return Placed(vec4f(f32(i32(i&1u)*4-1),f32(i32(i>>1u)*4-1),0.0,1.0),vec2i(i32(at&0xffffu),i32(at>>16u)));}
-@fragment fn presentAt(placed:Placed)->@location(0) vec4f{
-return textureLoad(image,vec2i(placed.position.xy)-placed.origin,0);}`;
 
 /**
  * Presents a persistent view's image at its rectangle of the canvas: the canvas keeps its size,

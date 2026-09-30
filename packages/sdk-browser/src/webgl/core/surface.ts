@@ -1,10 +1,5 @@
 import { DEFAULT_PIXEL_RATIO, devicePixels } from '../../backend/common.ts';
-
-export const WEBGL_CONTEXT_ATTRIBUTES: WebGLContextAttributes = {
-  antialias: false,
-  alpha: false,
-  preserveDrawingBuffer: false,
-};
+import { WEBGL_CONTEXT_ATTRIBUTES } from './contextAttributes.ts';
 
 export type WebglSurface = ReturnType<typeof createWebglSurface>;
 

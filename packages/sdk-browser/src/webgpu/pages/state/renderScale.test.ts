@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import {
   drawFrameAt,
   frameSizeOf,
-  renderExtent,
   renderMipBias,
   renderPixelRatio,
   type FrameSize,
 } from './renderScale.ts';
+import { renderExtent } from '../../../frame/renderScaleOption.ts';
 import { createScaleControl } from '../../../frame/scaleControl.ts';
 import type { RenderScale } from '../../../frame/renderScaleOption.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';

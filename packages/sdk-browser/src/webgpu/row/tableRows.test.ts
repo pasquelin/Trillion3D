@@ -3,8 +3,9 @@
 // rows are bounded by the device, shared between the two sides as asked (#974).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { boundTableRows, grownTableRows, pageTableRows } from './tableRows.ts';
+import { boundTableRows, grownTableRows } from './tableRows.ts';
 import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts';
+import { pageTableRows } from './pageTableRows.ts';
 
 const MIB = 1 << 20;
 const defaults = { maxStorageBufferBindingSize: 128 * MIB, maxBufferSize: 256 * MIB };

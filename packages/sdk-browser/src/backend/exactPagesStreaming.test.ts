@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { exactPagesBackend } from '../../../../bench/witnesses/measurement.ts';
 import { frontCamera, quadRootsContext } from './pagesBackendScenes.fixture.ts';
-import { submittedDraws } from '../cluster/batchMesh.ts';
+import { submittedDraws } from '../cluster/submissions.fixture.ts';
 
 test('exact pages attach accepted pages in the same frame without a second frustum walk', () => {
   const { geometry, material, context } = quadRootsContext(false, { maxResidentPages: 2 });

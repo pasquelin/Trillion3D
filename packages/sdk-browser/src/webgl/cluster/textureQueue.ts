@@ -6,9 +6,7 @@ import { followHostTexture, hostTextureWrites } from '../../host/textureImport.t
 import type { WebglClusterTextures } from './textures.ts';
 import { eachMap, type Material } from './materialMaps.ts';
 import { textureTransferBytesFor, textureUploadMsFor } from '../../residency/transferBudgets.ts';
-
-/** Bytes a map's picture sends: RGBA, one byte a channel; its mip chain is reduced on the GPU. */
-export const sentBytes = (width: number, height: number) => width * height * 4;
+import { sentBytes } from './sentBytes.ts';
 /** Bytes a map holds on the context: its picture, and a third more for its mip chain. */
 const heldBytes = (width: number, height: number) => Math.ceil((sentBytes(width, height) * 4) / 3);
 
