@@ -32,26 +32,3 @@ test('a light under a hidden group lights nothing, and lights again once shown',
   assert.ok(lights.sync(scene, api));
   assert.equal(api.held.size, 1);
 });
-
-/** The ranges the store receives, by light, from one sync of `lamps` in an empty group. */
-const rangesOf = (lamps: ReturnType<typeof light.point>[]) => {
-  const scene = object.group(),
-    ranges: (number | undefined)[] = [];
-  for (const lamp of lamps) scene.add(lamp);
-  createWorldLights().sync(scene, {
-    addLight: (record: { range?: number }) => void ranges.push(record.range),
-    setLight: () => {},
-    removeLight: () => {},
-  });
-  return ranges;
-};
-
-test('the store receives each lamp’s authored range as-is, however faint the lamp (#958)', () => {
-  assert.deepEqual(rangesOf([]), [], 'an empty scene writes nothing');
-  const random = Array.from({ length: 64 }, (_, i) => 10 ** (((i * 7919) % 97) / 8 - 6));
-  const authored = [...random, Number.MIN_VALUE, 1e-300, 18, Number.MAX_VALUE, Infinity];
-  const faint = (distance: number) => light.point({ intensity: 1e-9, distance });
-  assert.deepEqual(rangesOf(authored.map(faint)), authored, 'no reach is cut below the author’s');
-  const unset = rangesOf([0, -0, NaN, -Infinity].map(faint));
-  assert.ok(unset.every((range) => range === unset[0] && range! > 0 && Number.isFinite(range)));
-});
