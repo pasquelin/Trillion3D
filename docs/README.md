@@ -8,19 +8,24 @@ maintained is [LEARNING_PORTAL.md](LEARNING_PORTAL.md).
 Start with [Create a world](SDK.md#create-a-world): `createWorld(canvasOrId)` owns the scene, the
 camera, the renderer and the loop.
 
-| Document                                               | Role                                                                                                                                                              |
-| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [SDK guide](SDK.md)                                    | The public API: principles, entry points, a world, its families, the loop, the renderer option, the maths reference, lights, scene fog, budgets, integration, current limits |
-| [API reference](API.md)                                | Compact list of public world material methods and their results                                                                                                   |
-| [Engine internals](ENGINE.md)                          | How a world draws: backend choice, page raster, surfaces, TAA, lighting, bounce, memory, diagnostics, and the lighting target and its stages                      |
-| [Native compiler](COMPILER.md)                         | `trillion3d-compiler`: arguments, events, pointer, batch mode, cancellation, imports, input formats, adding a format, error codes                                 |
-| [Cache format](FORMAT.md)                              | Pointer, `clusters.json` and its pages, cluster DAG, pages, textures, prepared scene tables                                                                       |
-| [Package architecture](../packages/README.md)          | What each package owns, the native library, release work still required                                                                                           |
-| [Tests and benchmarks](TESTS.md)                       | Test layout, GPU proofs, performance benchmarks, quality gates                                                                                                    |
-| [Format fixtures](../tests/fixtures/formats/README.md) | The compiler's test inputs, one section per format: content, provenance, licence                                                                                  |
-| [Measurement harness](../bench/runner/README.md)       | The bench, its options, the witnesses, the published reports                                                                                                      |
-| [The reference in numbers](REFERENCE.md)               | The reference's published constants, bytes per triangle and profile, against ours                                                                                 |
-| [Contributing](../CONTRIBUTING.md)                     | Engineering rules, measurement rules, the contribution workflow                                                                                                   |
+| Document | Role |
+| --- | --- |
+| [SDK guide](SDK.md) | The public API: principles, entry points, a world, its families, the loop, the renderer option, lights, scene fog, budgets, integration, current limits |
+| [API reference](API.md) | Index of the public API: each entry and the section that documents it |
+| [Maths](MATHS.md) | Batch and unit maths for hosts: conventions, layouts, the batch functions and their witness ratios |
+| [Physics](PHYSICS.md) | Jolt in the world: bodies, joints, vehicles, soft bodies, budgets, compiled colliders, exact raycast |
+| [Engine internals](ENGINE.md) | How a world draws: backend choice, page raster, surfaces, TAA, lighting, bounce, memory, diagnostics, and the lighting target and its stages |
+| [Residency](RESIDENCY.md) | What stays in memory: the cut rule, the geometry pool, out-of-memory answers, coverage counters, virtual textures |
+| [Shadows](SHADOWS.md) | Virtual shadow pages: the pool, its memory, clipmaps, invalidation, the static and transmittance layers, metrics |
+| [Native compiler](COMPILER.md) | `trillion3d-compiler`: arguments, events, pointer, batch mode, cancellation, imports, input formats, adding a format |
+| [Compiler error codes](COMPILER_ERRORS.md) | Every code the compiler reports, global and per driver |
+| [Cache format](FORMAT.md) | Pointer, `clusters.json` and its pages, cluster DAG, pages, textures, prepared scene tables |
+| [Package architecture](../packages/README.md) | What each package owns, the native library, release work still required |
+| [Tests and benchmarks](TESTS.md) | Test layout, GPU proofs, performance benchmarks, quality gates |
+| [Format fixtures](../tests/fixtures/formats/README.md) | The compiler's test inputs, one section per format: content, provenance, licence |
+| [Measurement harness](../bench/runner/README.md) | The bench, its options, the witnesses, the published reports |
+| [The reference in numbers](REFERENCE.md) | The reference's published constants, bytes per triangle and profile, against ours |
+| [Contributing](../CONTRIBUTING.md) | Engineering rules, measurement rules, the contribution workflow |
 
 Anything not described here is not part of the release. Open tasks are the
 [GitHub issues](https://github.com/pasquelin/Trillion3D/issues).
