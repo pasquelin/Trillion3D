@@ -5,11 +5,12 @@ import type { WebgpuPagesRuntime } from './runtime.ts';
 
 /**
  * A dynamic geometry's rewrites on WebGPU (#573). `updateVertices` writes its rewritten lists in
- * place — its block of the float vertex pool (`../core/geometryPrepare.ts`), placed in the pool's
+ * place — its block of the float vertex pool (`../core/geometryPool.ts`), placed in the pool's
  * room when a record took it since the open, the fallback draw's positions —, then stales its
- * shadow pages: no buffer allocated, no table rebuilt; false when the pool has no room left, and
- * the owner opens the session again. `vertexBytes` weighs what that sends: each list in the pool,
- * a normal with its tangent, and the positions again for the fallback draw.
+ * shadow pages: no buffer allocated, no table rebuilt; false when the device bounds the pool, and
+ * the owner opens the session again. A mount past the room the open left grows the pool in place
+ * (#1293), so it never opens the session for it. `vertexBytes` weighs what that sends: each list
+ * in the pool, a normal with its tangent, and the positions again for the fallback draw.
  */
 export const webgpuVertexApi = (rt: WebgpuPagesRuntime) => ({
   updateVertices(attributes: HostAttributes, ranges: readonly VertexRange[], box: Float64Array) {

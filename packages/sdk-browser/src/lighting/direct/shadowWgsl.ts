@@ -6,8 +6,9 @@ import {
   PAGE_VALID,
   SHADOW_PAGE,
   SUN_LEVELS,
+  SUN_WINDOW,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { PAGE_MODEL_WGSL } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
+import { pageModelWgsl } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
 import { SHADOW_FACTOR_WGSL } from './shadowFactorWgsl.ts';
 import { LAMP_SOFT_WGSL } from './lampSoftWgsl.ts';
 import { shadowRequestWgsl } from './shadowRequestWgsl.ts';
@@ -64,7 +65,8 @@ struct ShadowData{records:array<ShadowRecord,${MAX_SHADOW_SLICES}>,table:array<u
  * (`../../webgpu/shadow/demandWgsl.ts`) —: the table's constants, the page model, the page word
  * read, and the offset along the normal a receiver is read at.
  */
-export const SHADOW_PAGE_READ_WGSL = `
+export function shadowPageReadWgsl(window = SUN_WINDOW) {
+  return `
 const SHADOW_NORMAL_TEXELS:f32=${LIGHT_SETTINGS.shadowNormalOffsetTexels};
 const SHADOW_PCF_REACH:f32=${PCF_REACH};
 const SHADOW_PAGE:f32=${SHADOW_PAGE}.0;
@@ -72,13 +74,16 @@ const PAGE_VALID:u32=${PAGE_VALID}u;
 const PAGE_INDEX_MASK:u32=${PAGE_INDEX_MASK}u;
 const PAGE_RANGE_SHIFT:u32=${PAGE_RANGE_SHIFT}u;
 const PAGE_RANGE_MASK:u32=${PAGE_RANGE_MASK}u;
-${PAGE_MODEL_WGSL}
+${pageModelWgsl(window)}
 ${SHADOW_PAGE_WORD_WGSL}
 /** Offset along the normal, in texels of the level read, of a receiver at incidence \`cosine\`:
  *  half a texel, plus, past 45°, the part of its plane's slope the depth margin leaves. */
 fn shadowNormalTexels(cosine:f32)->f32{
  return SHADOW_NORMAL_TEXELS+SHADOW_PCF_REACH*max(sqrt(1.0-cosine*cosine)-cosine,0.0);
 }`;
+}
+/** The page model of the ordinary window: what a pass compiled without a session window reads. */
+export const SHADOW_PAGE_READ_WGSL = shadowPageReadWgsl();
 
 /**
  * The virtual shadow read, shared by every pass that lights a surface: records and page table,
@@ -97,10 +102,11 @@ export const directShadowWgsl = (
   dataBinding: number,
   requestBinding: number | null,
   transmittanceBinding: number,
+  pages = SUN_WINDOW,
 ) => `
 ${SHADOW_DATA_WGSL}
 @group(0) @binding(${dataBinding}) var<storage,read> shadows:ShadowData;
-${shadowRequestWgsl(requestBinding)}
+${shadowRequestWgsl(requestBinding, pages)}
 ${PCF_TAPS_WGSL}
 const SHADOW_SUBTEXELS:f32=${SHADOW_SUBTEXELS}.0;
 /** One step: a multiply by it is exact, where WGSL lets a division err by 2.5 ulp. */
@@ -113,7 +119,7 @@ var<private> shadowReceiverOffset:vec3f=vec3f(0.0);
  *  unit across the map: its plane over the PCF's reach, up to \`cap\`, a slope of 1 in the
  *  caller's units. ADDED to the reference: shadow depth is reversed. */
 fn shadowDepthMargin(texel:f32,slope:f32,cap:f32)->f32{return texel*SHADOW_PCF_REACH*min(slope,cap);}
-${SHADOW_PAGE_READ_WGSL}
+${shadowPageReadWgsl(pages)}
 ${SHADOW_SAMPLE_WGSL}
 ${shadowThroughWgsl(transmittanceBinding)}
 /**

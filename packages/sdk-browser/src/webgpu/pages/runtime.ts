@@ -1,5 +1,5 @@
 import { BOUNCE_SETTINGS, type Texture } from '../../../../sdk-core/src/index.ts';
-import { shadowPoolSide } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { SUN_WINDOW, shadowPoolSide } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { TAA_CAPABILITIES } from '../../taa/capability.ts';
 import { BOUNCE_CAPABILITY } from './prepare/bounce.ts';
 import type { BackendCapabilities, BackendContext, RenderBackend } from '../../backend/types.ts';
@@ -120,7 +120,15 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
   const blendState = createWebgpuBlendState();
   // The shadow pool's side, from the screen the world opens on: the first frame on the canvas
   // confirms or replaces it, before any page exists (`../shadow/poolSize.ts`).
-  const lights = createWebgpuLightState(shadowPoolSide(...setup.viewport), context.sceneLights);
+  // The sun clipmap window: the ordinary constant, raised for a reference session so every pixel
+  // reads the finest level (`referenceMode.ts`); the plan, the table, the atlas and the shadow
+  // shader all follow it.
+  const sunWindow = context.sunWindow ?? SUN_WINDOW;
+  const lights = createWebgpuLightState(
+    shadowPoolSide(...setup.viewport),
+    context.sceneLights,
+    sunWindow,
+  );
   const capabilities: BackendCapabilities = {
     renderer: 'WebGPU page raster',
     materials: UNTEXTURED_MATERIALS,
