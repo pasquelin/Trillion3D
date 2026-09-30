@@ -40,6 +40,11 @@ test('the installed platform package is the compiler, without TRILLION3D_COMPILE
       currentCompilerExecutable(undefined, {}, join(fixture, 'no-crate'), found),
       binary,
     );
+    assert.throws(
+      () => currentCompilerExecutable(undefined, {}, join(fixture, 'no-crate'), null),
+      /^Error: COMPILER_(EXECUTABLE_MISSING: @trillion3d\/compiler-|PLATFORM_UNSUPPORTED: )/,
+      'no package, no checkout: the package to install is named',
+    );
     const named = { TRILLION3D_COMPILER_BIN: '/operator/compiler' };
     assert.equal(resolveCompilerExecutable(undefined, named, 'linux', null), '/operator/compiler');
   } finally {
