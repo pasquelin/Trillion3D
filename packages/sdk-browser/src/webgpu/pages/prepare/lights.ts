@@ -124,9 +124,10 @@ export async function prepareShadowPipelines(rt: WebgpuPagesRuntime, device: GPU
   // The pages the GPU draws itself (#1275): its pool's draws, and its layer's with the host's.
   if (rt.lights.allocation) work.push(shadows.freshDraws.prepare);
   if (rt.vis.gpuDraw) work.push(() => lightRowMapPipeline(device).pipeline.prepare());
-  if (sceneCastsBlended(rt))
+  if (sceneCastsBlended(rt)) {
     work.push(shadows.prepareTransmittance, pageQuads.prepareTransmittance);
-  if (sceneCastsBlended(rt) && rt.lights.movingGroups) work.push(shadows.groupDraws.prepareBlend);
+    if (rt.lights.movingGroups) work.push(shadows.groupDraws.prepareBlend);
+  }
   // One that fails is compiled again, and said, where it is first used.
   await Promise.allSettled(work.map(async (make) => make()));
 }

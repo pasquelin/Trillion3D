@@ -18,7 +18,11 @@ import {
 } from '../../gpu/shadow/transmittance.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import type { WebgpuLightState } from '../pages/state/lights.ts';
-import { SHADOW_ATLAS_BYTES, SHADOW_GRANT_BYTES } from '../../residency/shadowBudgetBytes.ts';
+import {
+  SHADOW_ATLAS_BYTES,
+  SHADOW_GRANT_BYTES,
+  SHADOW_POOL_PAGES,
+} from '../../residency/shadowBudgetBytes.ts';
 
 /** Whether the shadows' grant holds the static layer beside what the pool holds and the
  *  transmittance layer still to come; past it, said and recorded (`memoryGrant.ts`). The layer
@@ -43,7 +47,7 @@ export function staticLayerGranted(
 }
 
 /** What the shadow pool asks of the device for `wanted` pages — the budget's, then what the scene
- *  reads (`demandPoolPages`) —, granted at most the memory budget's atlas bytes (`SHADOW_ATLAS_BYTES`);
+ *  reads (`followDemand`) —, granted at most the memory budget's atlas bytes (`SHADOW_ATLAS_BYTES`);
  *  nothing without a caster, or during a capture. `grant` asks it (`grantedShadowPool`). */
 export function askShadowPool(
   rt: WebgpuPagesRuntime,
@@ -121,9 +125,6 @@ export function sayShadowCeiling(rt: WebgpuPagesRuntime, wanted: number) {
   );
 }
 
-/** The pages of the budget's whole pool (`SHADOW_ATLAS_BYTES`): what the first frame is granted. */
-const BUDGET_POOL_PAGES = Math.floor(SHADOW_ATLAS_BYTES / shadowAtlasBytes(1));
-
 /**
  * Seeds the shadow pool at the first frame that draws a light casting a shadow (`askShadowPool`),
  * before any report says what the scene reads: the budget's whole pool, as the reference engine allocates its
@@ -149,7 +150,7 @@ export function sizeShadowPool(rt: WebgpuPagesRuntime) {
     atlas = lights.shadows,
     device = rt.gpu.device;
   if (!atlas || !device || atlas.texture || lights.shadowGrant) return;
-  const ask = askShadowPool(rt, atlas, device, BUDGET_POOL_PAGES);
+  const ask = askShadowPool(rt, atlas, device, SHADOW_POOL_PAGES);
   if (!ask) return;
   const done = ask.grant().then(
     async (granted) => {
