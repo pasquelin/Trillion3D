@@ -3,7 +3,6 @@ import { deviceMade } from '../../gpu/core/errorScope.ts';
 import { pendingAll } from '../../gpu/core/tableGrowth.ts';
 import { shadowTransmittanceBytes } from '../../gpu/shadow/transmittance.ts';
 import { SHADOW_GRANT_BYTES } from '../../residency/shadowBudgetBytes.ts';
-import { storageBufferCap } from '../../residency/pools.ts';
 import {
   admitShadowBytes,
   grantsShadowLayer,
@@ -12,26 +11,13 @@ import {
 } from './memoryGrant.ts';
 import { transmittanceSettled } from './transmittanceGrant.ts';
 import { queueTableGrowth } from '../pages/prepare/growthQueue.ts';
+import { keptRows } from './pairRows.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
-/** Bytes of a kept pair: its region, its row. */
-const PAIR_BYTES = 8;
-/** Rows asked at once: a need growing pair by pair asks the device rarely. */
-const ROW_STEP = 64;
-const PAST_GRANT = 'The shadow pair list is past the grant';
 /** The rows each region cull asked and the device has not answered yet: asked once, not each
  *  frame until it is in place. */
 const asking = new WeakMap<object, number>();
-
-/** Pairs a kept list of `rows` rows a region holds. */
-export const keptPairs = (rows: number) => Math.floor((rows * ROW_BYTES) / PAIR_BYTES);
-
-/** The rows a region of the kept list holds: the table's `casterSlots`, or more for the GPU pages'
- *  `need` pairs — by `ROW_STEP` —, never past what one storage binding holds. */
-export function keptRows(casterSlots: number, need: number, limits?: GPUSupportedLimits) {
-  const asked = ROW_STEP * Math.ceil((need * PAIR_BYTES) / (ROW_BYTES * ROW_STEP));
-  return Math.max(casterSlots, Math.min(asked, Math.floor(storageBufferCap(limits) / ROW_BYTES)));
-}
+const PAST_GRANT = 'The shadow pair list is past the grant';
 
 /** Bytes of `rows` rows of the kept lists: the cull's, and the occlusion test's that follows it. */
 const listBytes = (rows: number, occlusion: boolean) => rows * ROW_BYTES * (occlusion ? 2 : 1);
