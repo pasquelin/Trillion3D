@@ -16,7 +16,7 @@ const retryAfter = (response: Response) => {
   return ms > 0 ? Math.min(ms, RETRY_AFTER_CAP_MS) : 0;
 };
 /** Waits `ms`, or rejects with the reason of `signal` once it aborts. */
-const pause = (ms: number, signal?: AbortSignal) =>
+export const pause = (ms: number, signal?: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
     const stop = () => (clearTimeout(timer), reject(signal?.reason));
     if (signal?.aborted) return reject(signal.reason);
@@ -41,6 +41,9 @@ const ABSENT = new Set([403, 404]);
 /** The attempts of a caller that retries on its own terms — the page streamer, the GPU page
  *  cache, the physics tiles: one request. */
 export const ONE_REQUEST = 1;
+/** The requests `checked` makes by default: the first, and one more when it may pass. The
+ *  families' on-demand loader tries each import as many times (`../host/onDemand.ts`). */
+export const HTTP_ATTEMPTS = 2;
 
 /**
  * Reads `url`, asking once more (`attempts`, the most requests it makes) when the first request
@@ -53,7 +56,7 @@ export const ONE_REQUEST = 1;
 export async function checked(
   url: string,
   signal?: AbortSignal,
-  attempts = 2,
+  attempts = HTTP_ATTEMPTS,
   headers?: HeadersInit,
 ) {
   let response: Response | undefined, cause: unknown;
