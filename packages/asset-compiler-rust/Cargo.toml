@@ -69,6 +69,10 @@ trillion3d-page-codec = { path = "../page-codec-wasm" }
 # Draco glTF mesh decoding only (Apache-2.0, Filyus/draco-rust). Pinned for cache
 # identity and decoded geometry reproducibility; no encoder or point-cloud codec.
 draco-core = { version = "=2.1.0", default-features = false, features = ["decoder", "edgebreaker_valence_decode"] }
+# The binary's allocator (MIT, microsoft/mimalloc through purpleprotocol/mimalloc_rust): per-thread
+# heaps, so the Rayon workers allocating pages and clusters at once do not queue on the system
+# allocator's locks. It places memory, never computes: the cooked bytes are the same.
+mimalloc = { version = "0.1", default-features = false }
 
 [build-dependencies]
 sha2 = "0.10"
@@ -87,3 +91,15 @@ incremental = false
 [profile.release]
 lto = "thin"
 codegen-units = 1
+
+# The distributed build, tuned for speed (#1352): the release build, then the whole program
+# optimised as one unit (fat LTO), a panic ends the process at once — a scoped worker's panic
+# already ended it, now without the unwinding tables —, and the symbols stripped. None of them
+# changes an arithmetic operation: the cooked bytes stay the same. Its own profile, so that the
+# checkout's builds and the tests keep the quicker release one. Profile-guided optimisation is
+# added by `scripts/compiler-dist.ts`, which trains this build on the reference scenes.
+[profile.dist]
+inherits = "release"
+lto = "fat"
+panic = "abort"
+strip = "symbols"
