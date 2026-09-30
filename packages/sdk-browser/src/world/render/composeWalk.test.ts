@@ -18,9 +18,9 @@ const FRAMES = 5;
 function counted(chain: EffectChain) {
   const scene = new Scene(),
     group = new Group();
-  group.add(G.triangleMesh(new GraphSurface('standard')));
+  group.add(G.triangleMesh(new GraphSurface('standard', { roughness: 0.2 })));
   group.add(G.triangleMesh(new GraphSurface('standard', { transparent: true, opacity: 0.5 })));
-  scene.add(group, G.triangleMesh(new GraphSurface('standard')));
+  scene.add(group, G.triangleMesh(new GraphSurface('standard', { roughness: 0.2 })));
   let visits = 0;
   scene.traverse((node) => {
     const children = node.children;
@@ -64,7 +64,7 @@ test('a held frame walks nothing, with or without a chain', () => {
 });
 
 test('a surface the engine writes after its render is read by the refusal and the draw', () => {
-  const scene = new Scene().add(G.triangleMesh(new GraphSurface('standard')));
+  const scene = new Scene().add(G.triangleMesh(new GraphSurface('standard', { roughness: 0.2 })));
   const view = session(scene, new EffectChain().add(effect.bloom()));
   const glass = G.triangleMesh(
     new GraphSurface('standard', {
