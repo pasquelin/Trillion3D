@@ -111,6 +111,9 @@ export class WebglTextureQueue {
         (unit, _map, texture, srgb, fallback, reader) => {
           if (!texture || counted.has(texture)) return;
           counted.add(texture);
+          // Brought up to its host first: a picture written before the census, not followed yet,
+          // would otherwise wait in `pending` for a later write that may never come.
+          followHostTexture(texture);
           const bind: Bind = [unit, texture, srgb, fallback, reader],
             size = pictureOf(texture);
           // No picture yet: held until it arrives (`promote`). Past the pool: left to its first draw.
