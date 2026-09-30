@@ -70,7 +70,7 @@ const run: Run = shaderRun<Run>(
     shadowFootprint: 0.004,
     shadowUnjitter: [0, 0, 0],
     shadowRotation: TURN,
-    shadowCompare: () => 0.5,
+    shadowSplitTap: () => 0.5,
     shadowTransmission: [1, 1, 1],
     shadowAtlas: null,
     shadowTransmittance: null,
