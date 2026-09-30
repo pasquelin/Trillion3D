@@ -64,7 +64,7 @@ export { dagWarningsDiagnostic } from './contracts/dagWarnings.ts';
 export { LOD_QUALITY, lodQuality, adaptivePixelError } from './lod/policy.ts';
 export type { LodQualityId } from './lod/policy.ts';
 export * from './runtime/paths.ts';
-export * from './runtime/stats.ts';
+export { frameStatistics, summarize } from './runtime/stats.ts';
 export * from './runtime/stageProfile.ts';
 export * from './page/decodeContracts.ts';
 export {

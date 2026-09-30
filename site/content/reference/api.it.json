@@ -5290,8 +5290,8 @@
       "disableRatio": "Rapporto di costo che la spegne.",
       "enableRatio": "Rapporto di costo che la riaccende.",
       "consecutiveViolations": "Misurazioni negative consecutive prima di spegnere.",
-      "memoryBudgetBytes": "Limite di memoria.",
-      "maxEvictionsPerSecond": "Limite di sfratti al secondo.",
+      "memoryBudgetBytes": "Limite di memoria, finito e almeno 0.",
+      "maxEvictionsPerSecond": "Limite di sfratti al secondo, finito e almeno 0.",
       "requireGpuTiming": "Se il tempo GPU deve essere misurato."
     }
   },
