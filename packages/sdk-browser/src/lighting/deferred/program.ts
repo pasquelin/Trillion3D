@@ -30,8 +30,7 @@ export interface DirectLightResources {
   surfaceCache?: GPUBuffer;
   /** Resident proxy with the far-shadow settings and counters; absent, a zero substitute. */
   proxy?: GPUBuffer;
-  /** True when the narrow tile pass wrote the lists (at most `TILE_LIGHTS` lights): the
-   *  narrow resolve reads them (`contractVariants.ts`, #849). */
+  /** True when the narrow tile pass wrote the lists (`contractVariants.ts`, #849). */
   narrow?: boolean;
 }
 export interface DeferredSources {
@@ -46,8 +45,7 @@ export interface DeferredSources {
 /** What composition reads: a colour and its accumulated share, else the lit image's flags, and
  *  the chain's last blend when it left it to the composition (#963). */
 export type ComposedImage = { color: GPUTextureView; share?: GPUTextureView; bloom?: FusedBlend };
-/** What the temporal pass resolves: the colour, each pixel's as-is share beside it, and the
- *  display layers of an image whose blends filter (`../../webgpu/blend/displayFilter.ts`). */
+/** What the temporal pass resolves: the colour, its pixels' as-is share, the filtering layers. */
 export type AccumulatedImage = Required<Omit<ComposedImage, 'bloom'>> & {
   filter?: readonly [GPUTextureView, GPUTextureView];
 };
@@ -66,11 +64,8 @@ export interface DeferredBindings {
 
 export type DeferredProgram = Awaited<ReturnType<typeof createDeferredProgram>>;
 
-/**
- * A deferred-pass program: its two modules, its three pipelines, and the bind groups it keeps as
- * long as its resources do not change. The engine holds two, the unlit view and the contract
- * one, and compiles the second only when a light asks for it.
- */
+/** A deferred-pass program: its modules, pipelines, and the bind groups it keeps while its
+ *  resources do not change. The engine holds the unlit view, compiling the contract one lazily. */
 export async function createDeferredProgram(
   device: GPUDevice,
   sources: DeferredSources,

@@ -68,18 +68,20 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
   }
   // Without the per-pixel demand the resolve's own requests still name every page it reads.
   if (lights.shadows)
-    lights.demand = await createShadowDemand(device).catch((error) => {
+    lights.demand = await createShadowDemand(device, lights.plan.sunWindow).catch((error) => {
       if (isCancelled(rt.signal)) throw error;
       diag.diagnosticFailure('shadow-demand-unavailable', error);
       return undefined;
     });
   // The GPU maps what the demand marks; without either, the reports map the pages on the host.
   if (lights.demand)
-    lights.allocation = await createShadowAllocation(device).catch((error) => {
-      if (isCancelled(rt.signal)) throw error;
-      diag.diagnosticFailure('shadow-allocation-unavailable', error);
-      return undefined;
-    });
+    lights.allocation = await createShadowAllocation(device, lights.plan.sunWindow).catch(
+      (error) => {
+        if (isCancelled(rt.signal)) throw error;
+        diag.diagnosticFailure('shadow-allocation-unavailable', error);
+        return undefined;
+      },
+    );
   if (lights.tiles && lights.shadows) grantCapability(capabilities, DIRECT_LIGHT_CAPABILITY);
   diag.engineDiagnostic('direct-lighting', 'Direct lighting of the contract, fitted', {
     version: 1,

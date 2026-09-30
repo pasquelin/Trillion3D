@@ -44,7 +44,7 @@ export function createShadowPageRequests(device: GPUDevice, pages: number, sunWi
     allocation = createShadowAllocationBuffers(device, pages);
   const requestBuffer = device.createBuffer({
     label: 'Trillion3D shadow requests v1',
-    size: shadowRequestBytes(pages, sunWindow),
+    size: requestBytes(pages, sunWindow),
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
   });
   const slots: Slot[] = [];

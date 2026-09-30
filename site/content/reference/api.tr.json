@@ -433,7 +433,8 @@
       "near": "Çizilen en yakın mesafe.",
       "far": "Çizilen en uzak mesafe.",
       "zoom": "Büyütme.",
-      "orthographic": "Ortografik bir kameranın görüş kutusu."
+      "orthographic": "Ortografik bir kameranın görüş kutusu.",
+      "viewTile": "Bu kameranın çizdiği daha geniş bir görünümün döşemesi. Yoksa görünüm tümüyle çizilir."
     }
   },
   "CameraParameters": {
@@ -3278,6 +3279,7 @@
       "receive": "Bir istek raporu döndü; sonraki plan onu okur. Daha yenisi okunmamış olanın yerini alır.",
       "commit": "Karenin listesindeki `[from, to)` sayfaları kodlandı, `from + i` sayfası `modes[i]` içinde: çizimleri kimse okumadan önce tamamlanır. Son parti listeyi kapatır.",
       "resize": "Başka boyutta havuz; sayfaları korunur, dizileri yeniden oluşturulur: her sayfanın nereye gittiğini döndürür.",
+      "sunWindow": "Bir oturumun çalıştığı güneş clipmap’inin bir kenarındaki sayfa sayısı (`referenceMode.ts`).",
       "gpu": "GPU’nun ayırması (`mirror.ts`): sayfaları GPU’nun eşleyip eşlemediği ve ana makinenin ondan istedikleri."
     }
   },

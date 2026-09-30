@@ -728,7 +728,8 @@
       "near": "Distance dessinée la plus proche.",
       "far": "Distance dessinée la plus lointaine.",
       "zoom": "Grossissement.",
-      "orthographic": "La boîte de vue d’une caméra orthographique."
+      "orthographic": "La boîte de vue d’une caméra orthographique.",
+      "viewTile": "Une tuile d’une vue plus large que dessine cette caméra. Absente, la vue est dessinée entière."
     }
   },
   "CameraParameters": {
@@ -5672,6 +5673,7 @@
       "receive": "Un rapport de demandes est revenu ; le prochain plan le lit. Un plus récent remplace un rapport non lu.",
       "commit": "Les pages `[from, to)` de la liste de l’image ont été encodées, la page `from + i` dans `modes[i]` : leurs dessins arrivent avant que quiconque les lise. Le dernier lot ferme la liste.",
       "resize": "Le pool à une autre taille, ses pages gardées, ses tableaux refaits : renvoie où chaque page est allée.",
+      "sunWindow": "Pages par côté du clipmap d’un soleil avec lequel tourne une session (`referenceMode.ts`).",
       "gpu": "L’allocation du GPU (`mirror.ts`) : s’il place les pages, ce que l’hôte lui demande."
     }
   },
