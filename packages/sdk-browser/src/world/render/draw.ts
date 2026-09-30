@@ -2,7 +2,7 @@ import { EngineError, type GpuPassTimings } from '../../../../sdk-core/src/index
 import { PAGE_REQUEST_BATCH, PREFETCH_BATCH, PREFETCH_INTERVAL_MS } from '../../backend/common.ts';
 import { PRIORITY_PREFETCH } from '../../streaming/priority.ts';
 import { fenceAllocations, settleAllocations } from '../../webgl/core/allocation.ts';
-import { createWebglFrameTimer } from '../../webgl/core/frameTimer.ts';
+import { createWebglFrameTimer, webglPassSample } from '../../webgl/core/frameTimer.ts';
 import type { RenderBackend } from '../../backend/types.ts';
 import type { HostCpuProfile } from '../../host/cpuProfile.ts';
 import type { createFrameComposer } from './compose.ts';
@@ -54,22 +54,15 @@ export function empileEnAttente(attente: Set<string>, urls: readonly string[]) {
   for (const url of urls) attente.add(url);
 }
 
-/** The sample of an image WebGL2 timed, named by its frame: no pass listed — only the whole image
- *  is timeable, so its pass blocks read `null`, never `0`. Its duration is `gpuFrameMs`. */
-const webglImageSample = (frame: number): GpuPassTimings => ({
-  frame,
-  totalMs: null,
-  passes: [],
-  truncated: true,
-  error: 'WebGL2 times the whole image, never a pass',
-});
-
+/** The sample of an image WebGL2 timed, named by its frame: the passes the draw path named under
+ *  `gpuPassMs`, and the whole image's duration under `gpuFrameMs`. */
 export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
   const { scope, emit, diagnose } = session;
   const { camera, geometryUrls, streamer, streaming, baseline, state, compose } = inputs;
   const { directGpu, webglSurface } = inputs;
-  // WebGL2 cannot timestamp a pass: the timer wraps the whole-frame submit whenever the context
-  // grants the extension, read by the frame metrics, the step profile and `renderScaleControl`.
+  // WebGL2 cannot timestamp a pass: the timer wraps each contiguous pass the draw path names, in
+  // order, whenever the context grants the extension; the frame metrics and the step profile read
+  // them (`frameTimer.ts`).
   const profiled = session.options.stageProfile === true;
   const gpuTimer = webglSurface && !directGpu ? createWebglFrameTimer(webglSurface.context) : null;
   const gpu = { frameMs: null as number | null, passes: null as GpuPassTimings | null };
@@ -173,7 +166,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     }
     // A held image put back times the copy, not a drawing: no metric names it (`gpuFrameMs`).
     gpuTimer?.begin(backend.frameHeld === true ? null : state.hostFrame);
-    compose(backend, target);
+    compose(backend, target, true, true, gpuTimer?.pass);
     // A held image put back, or one drawn into a target at the display's size, measures no
     // drawing at the scale (and leaves `steered` as the last surface image set it): it never
     // steps the controller.
@@ -186,14 +179,15 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       const read = gpuTimer.poll();
       if (profiled) steps.gpuImageMs?.(read.ms, gpuTimer.supported, read.reason ?? gpuTimer.reason);
       scale?.observe(read.ms, read.tag?.scale, read.tag?.steered ?? false);
-      // A held image's read clears the sample: `gpuFrameMs` is null from it to the next drawing.
-      if (read.ms !== null) {
+      // A ready read publishes its pass list, even truncated (its total then stays null); a not
+      // ready, disjoint or unreadable one is dropped, leaving the previous sample in place.
+      if (read.reason === null) {
         gpu.frameMs = read.frame === null ? null : read.ms;
-        gpu.passes = read.frame === null ? null : webglImageSample(read.frame);
+        gpu.passes = read.frame === null ? null : webglPassSample(read.frame, read);
       }
     }
     steps.cpuFrameEnd?.();
   };
-  /** The last image the timer read, as the frame metrics carry it (`webglImageSample`). */
+  /** The last image the timer read, as the frame metrics carry it (`webglPassSample`). */
   return Object.assign(drawBackend, { gpu: gpu as Readonly<typeof gpu> });
 }

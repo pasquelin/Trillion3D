@@ -868,7 +868,8 @@
       "worstStalls": "La tabella dei blocchi del compilatore: al massimo dieci primitive con un gruppo bloccato che ha tenuto radici al livello 0, la peggiore per prima. Assente da una cache compilata prima di essa.",
       "texturePreviews": "Una voce per coppia (texture, atlante) decodificata, disposta per texture poi per atlante; vuota senza immagine decodificabile.",
       "textures": "Modello dei livelli cotti, relativo al manifesto: {sha} l'impronta dell'immagine sorgente, {kind} il nome dell'atlante (PREVIEW_ATLAS_NAMES), {level} il rango del livello. Assente in una cache compilata prima dei livelli cotti, che questo lettore rifiuta in base alla versione del file separato. `version` è quella dei livelli (`TEXTURE_PREVIEW_VERSION`): un lettore non legge alcun livello di un’altra.",
-      "proxy": "Dove leggere il proxy di scena residente e il suo BVH: la geometria toccata dai raggi. Assente in una cache compilata prima del rimbalzo, che resta leggibile così com'è."
+      "proxy": "Dove leggere il proxy di scena residente e il suo BVH: la geometria toccata dai raggi. Assente in una cache compilata prima del rimbalzo, che resta leggibile così com'è.",
+      "impostors": "Atlanti impostor cotti dal compilatore per mesh (#817); assenti da una cache precedente agli impostori."
     }
   },
   "clusterSphereValid": {
@@ -1862,6 +1863,9 @@
       "gpuDeformationMs": "Durata GPU della deformazione per il frame di `gpuPassMs`; null prima della misura o senza supporto."
     }
   },
+  "FramePass": {
+    "summary": "Nomina le pass del fotogramma in disegno; ogni chiamata chiude la precedente e apre la successiva."
+  },
   "frameStatistics": {
     "summary": "Frequenza e regolarità dei fotogrammi a partire dai tempi tra di essi."
   },
@@ -2529,7 +2533,8 @@
       "width": "Larghezza in pixel.",
       "height": "Altezza in pixel.",
       "displayWidth": "La larghezza a cui l’immagine è mostrata quando è disegnata al di sotto (`world.renderScale`): livelli di texture e larghezze delle linee seguono il rapporto. `width` se assente.",
-      "linear": "Radianza lineare, né passata dalla curva né codificata, su nero trasparente: l’ingresso della catena di effetti, il cui alfa è la copertura."
+      "linear": "Radianza lineare, né passata dalla curva né codificata, su nero trasparente: l’ingresso della catena di effetti, il cui alfa è la copertura.",
+      "pass": "Nomina i pass GPU di questo disegno per il timer del frame, in ordine, quando qualcuno legge (`../core/frameTimer.ts`); assente su un disegno che nulla misura."
     }
   },
   "HostMaterial": {
@@ -5571,6 +5576,13 @@
   "SHADOW_PAGE": {
     "summary": "Lato di una pagina d’ombra, in texel: l’unità del pool, delle mappe virtuali e dell’invalidazione."
   },
+  "ShadowAsks": {
+    "summary": "Voci che l’host chiede all’allocatore GPU, accanto a ciò che chiedono i pixel (`floors`).",
+    "members": {
+      "entries": "Le voci richieste, al massimo le prime `count`.",
+      "count": "Quante di `entries` sono riempite."
+    }
+  },
   "ShadowAtlasDigest": {
     "summary": "Ciò che pubblica una lettura dell'atlante delle ombre: la sua dimensione, ciò che vi è scritto, la sua impronta.",
     "members": {
@@ -5757,6 +5769,7 @@
       "texturePreviews": "Una voce per coppia (texture, atlante) decodificata, disposta per texture poi per atlante; vuota senza immagine decodificabile.",
       "textures": "Modello dei livelli cotti, relativo al manifesto: {sha} l'impronta dell'immagine sorgente, {kind} il nome dell'atlante (PREVIEW_ATLAS_NAMES), {level} il rango del livello. Assente in una cache compilata prima dei livelli cotti, che questo lettore rifiuta in base alla versione del file separato. `version` è quella dei livelli (`TEXTURE_PREVIEW_VERSION`): un lettore non legge alcun livello di un’altra.",
       "proxy": "Dove leggere il proxy di scena residente e il suo BVH: la geometria toccata dai raggi. Assente in una cache compilata prima del rimbalzo, che resta leggibile così com'è.",
+      "impostors": "Atlanti impostor cotti dal compilatore per mesh (#817); assenti da una cache precedente agli impostori.",
       "binary": "Il file binario.",
       "primitives": "Le sue primitive.",
       "worstStalls": "La tabella dei blocchi del compilatore: al massimo dieci primitive con un gruppo bloccato che ha tenuto radici al livello 0, la peggiore per prima. Assente da una cache compilata prima di essa."
@@ -6310,6 +6323,7 @@
       "atlas": "Quale atlante.",
       "level": "Quale livello.",
       "format": "Quale formato.",
+      "url": "L'indirizzo proprio del livello, quando la cache ne elenca uno — un livello di atlante impostor (`maps.<name>.levels[k].url`, #1239). Letto da questo stesso lettore, risolto rispetto a `base`, al posto del modello `textures.url`: un caricatore, un budget.",
       "range": "I byte di un livello a blocchi da leggere da soli — il record di una tile (`tileRecords.ts`) —, con una richiesta HTTP Range; un server che la ignora risponde con il file intero."
     }
   },
@@ -7627,6 +7641,17 @@
   "SHADOW_RECORD_FLOATS": {
     "summary": "Float di un record d’ombra, quello che legge l’ombreggiatura di una luce: sei matrici di facce di lampada — lì, gli intervalli di profondità di un sole, `zNear, zFar` ciascuno (`recordPack.ts`) —, poi il riferimento del piano di luce del sole — `right, zNear`, `up, zFar`, `axis`, poi lo slot dell’intervallo corrente —, poi l’origine della finestra di ogni slot della clipmap in due interi, poi un’intestazione `vec4f`: facce (lampada) o livelli (sole), il semicampo tangente della lampada o il livello più fine del sole, il piano vicino della lampada e la prima voce del record nella tabella delle pagine."
   },
+  "ShadowPoolSnapshot": {
+    "summary": "Il pool dell’allocatore GPU dopo l’allocazione di un frame (`webgpu/shadow/allocWgsl.ts`).",
+    "members": {
+      "owner": "La voce mappata da ogni pagina fisica, −1 per una pagina libera.",
+      "requested": "Il frame in cui ogni pagina è stata richiesta l’ultima volta.",
+      "allocated": "Pagine mappate da quel frame, e voci per cui non aveva una pagina.",
+      "refused": "Voci per cui quel frame non aveva una pagina.",
+      "drawn": "Pagine che quel frame ha elencato per la GPU da disegnare (`listDraw`).",
+      "listings": "Pagine elencate da ogni frame dall’inizio del pool: si muove con la lista di qualsiasi frame, persa o no la sua istantanea."
+    }
+  },
   "ShadowRequestReport": {
     "summary": "Ciò che l’ombreggiatura ha letto in un fotogramma: le voci della tabella richieste, senza ordine.",
     "members": {
@@ -8103,5 +8128,162 @@
       "nodeName": "Il `name` del nodo da muovere.",
       "matrix": "La sua posa mondo, sedici float in ordine per colonne."
     }
+  },
+  "IMPOSTOR_PI": {
+    "summary": "π, un unico letterale per questo oracolo e lo specchio WGSL, così entrambi arrotondano lo stesso numero."
+  },
+  "IMPOSTOR_VERSION": {
+    "summary": "Formato della sezione `impostors` che un runtime legge (#817 parte 1, cotta dal compilatore)."
+  },
+  "ImpostorCard": {
+    "summary": "Una scheda rivolta verso la camera che il runtime disegna al posto dei cluster di una radice commutata.",
+    "members": {
+      "root": "Rango della radice che sostituisce nei `roots` del piano.",
+      "mesh": "Il suo numero di mesh compilato.",
+      "world": "La matrice nel mondo della radice, così com'è data.",
+      "centre": "Perno nello spazio mondo, il centro della sfera di contenimento sotto il mondo della radice.",
+      "radius": "Raggio nello spazio mondo `R = objectRadius × la scala nel mondo della radice`.",
+      "frames": "Fotogrammi per lato.",
+      "hemi": "Se i fotogrammi sono emi-ottaedrici superiori.",
+      "maps": "Le tre mappe che la scheda campiona: colore+copertura, normale+profondità, ORM impacchettato."
+    }
+  },
+  "ImpostorLevel": {
+    "summary": "Un livello memorizzato di una mappa dell'atlante: un oggetto PNG senza perdita, uno per indirizzo di contenuto.",
+    "members": {
+      "url": "Da dove vengono letti i byte del livello.",
+      "sha256": "Impronta dei suoi byte.",
+      "bytes": "La sua dimensione.",
+      "width": "La sua larghezza in texel.",
+      "height": "La sua altezza in texel."
+    }
+  },
+  "ImpostorMap": {
+    "summary": "Una mappa dell'atlante e la sua catena di mipmap, il livello 0 per primo.",
+    "members": {
+      "kind": "`coverage` per la catena del colore, `data` per le altre.",
+      "levels": "Ogni livello che la cottura ha conservato."
+    }
+  },
+  "ImpostorMaps": {
+    "summary": "Le tre mappe che una scheda campiona: colore e copertura, normale e profondità, ORM impacchettato.",
+    "members": {
+      "colourCoverage": "Colore di base (sRGB) e copertura nell'alfa.",
+      "normalDepth": "Normale dell'oggetto come `n·½+½` e profondità `D` nell'alfa.",
+      "orm": "Occlusione, rugosità e metallicità."
+    }
+  },
+  "ImpostorMesh": {
+    "summary": "Il verdetto del compilatore su una mesh disegnata: cotta, con il suo atlante, o rifiutata, con il suo motivo.",
+    "members": {
+      "mesh": "Il suo numero di mesh compilato.",
+      "sourceMesh": "Il suo numero di mesh di origine.",
+      "name": "Il suo nome.",
+      "placements": "Quanti nodi lo posizionano.",
+      "masked": "Se un materiale della mesh taglia la sua copertura a maschera.",
+      "rootTriangles": "I triangoli della radice del DAG, sommati sulle primitive della mesh.",
+      "radius": "Il suo raggio di contenimento in unità del mondo (raggio dell'oggetto per la scala di posizionamento maggiore).",
+      "status": "`baked` o `refused`.",
+      "coverage": "Copertura media dei fotogrammi, su una voce `baked`: `c` della commutazione.",
+      "hemi": "Se i fotogrammi sono emi-ottaedrici superiori.",
+      "frames": "Fotogrammi per lato.",
+      "frameSide": "Lato del fotogramma in texel: `r_f` della commutazione.",
+      "atlasSide": "Lato dell'atlante in texel (`frames · frameSide`).",
+      "centre": "Perno nello spazio oggetto, il centro della sfera di contenimento.",
+      "objectRadius": "Raggio di contenimento nello spazio oggetto, prima della scala di posizionamento.",
+      "bytes": "Byte di ogni livello memorizzato.",
+      "maps": "Le tre mappe, su una voce `baked`.",
+      "switchDepth": "Le distanze di riferimento cotte.",
+      "reason": "Perché una mesh è stata rifiutata: il suo codice.",
+      "detail": "Una frase che dà i numeri che hanno deciso un rifiuto."
+    }
+  },
+  "ImpostorPlan": {
+    "summary": "Il verdetto della commutazione: le schede da disegnare e le radici di cui sopprime i cluster.",
+    "members": {
+      "cards": "Una scheda per radice commutata, in ordine di radice.",
+      "switched": "I ranghi di radice che la commutazione sopprime: 1 su una radice commutata, 0 altrove."
+    }
+  },
+  "ImpostorRoot": {
+    "summary": "Ciò che il piano richiede a una radice: il suo numero di mesh compilato e la matrice nel mondo che la posiziona.",
+    "members": {
+      "mesh": "Numero di mesh compilato (`Primitive.mesh`); assente su una radice che nessun impostore può sostituire.",
+      "world": "Matrice nel mondo del posizionamento, per colonne (`MatrixElements`)."
+    }
+  },
+  "ImpostorSection": {
+    "summary": "La sezione `impostors` del manifesto: il verdetto del compilatore su ogni mesh disegnata.",
+    "members": {
+      "version": "Versione del formato.",
+      "frames": "Fotogrammi per lato con cui è stato cotto ogni atlante della sezione.",
+      "focalPixels": "La lunghezza focale in pixel con cui la cottura ha giudicato le distanze.",
+      "textureLimit": "Lato dell'atlante più grande che una scheda detiene.",
+      "baked": "Quante mesh sono state cotte.",
+      "refused": "Quante sono state rifiutate.",
+      "meshes": "Il verdetto di ogni mesh, in ordine di origine."
+    }
+  },
+  "ImpostorSwitchDepth": {
+    "summary": "Le due distanze di riferimento cotte, in metri ai `focalPixels` del manifesto (#817).",
+    "members": {
+      "texel": "`z_tex`: da qui il fotogramma è al massimo un texel per pixel.",
+      "triangles": "`z_tri`: da qui la radice supera in numero i pixel che copre."
+    }
+  },
+  "ImpostorSwitchInput": {
+    "summary": "I quattro numeri cotti che la commutazione legge, più la scala di posizionamento.",
+    "members": {
+      "objectRadius": "Raggio di contenimento nello spazio oggetto `objectRadius`.",
+      "rootTriangles": "I triangoli della radice del DAG `T`.",
+      "coverage": "La copertura media cotta `c`.",
+      "frameSide": "Il lato del fotogramma in texel `r_f`.",
+      "maxWorldScale": "La scala nel mondo maggiore dei posizionamenti della mesh; uno quando è ignota."
+    }
+  },
+  "assertImpostorSection": {
+    "summary": "Lancia il rifiuto di cache con nome che la sezione porta, o la restituisce invariata."
+  },
+  "cellWeights": {
+    "summary": "I tre fotogrammi che una vista alla posizione di griglia `g` fonde, e i loro pesi baricentrici."
+  },
+  "drawsImpostor": {
+    "summary": "Se l'impostore disegna a `viewDepth`, la profondità di vista del perno in metri."
+  },
+  "impostorBakedByMesh": {
+    "summary": "Le mesh cotte della sezione, indicizzate per il loro numero di mesh compilato; le voci rifiutate restano fuori."
+  },
+  "impostorMeshBaked": {
+    "summary": "Se una voce di mesh porta un atlante disegnabile: `baked` con le sue tre mappe e un lato del fotogramma."
+  },
+  "impostorRadius": {
+    "summary": "`R`: il raggio nello spazio oggetto alla scala nel mondo maggiore che un posizionamento della mesh gli dà."
+  },
+  "impostorSwitchDepth": {
+    "summary": "`z_s = max(z_tex, z_tri)` in metri per la lunghezza focale `focalPixels` del runtime."
+  },
+  "impostorSwitchOf": {
+    "summary": "L'ingresso di commutazione che una voce di manifesto cotta porta, o `undefined` quando la voce è rifiutata o perde uno dei quattro numeri.",
+    "description": "Un oggetto è idoneo solo quando la sua mesh ha una voce `baked`."
+  },
+  "impostorTexelDepth": {
+    "summary": "`z_tex`: la profondità da cui un fotogramma di `frameSide` texel è al massimo un texel per pixel."
+  },
+  "impostorTriangleDepth": {
+    "summary": "`z_tri`: la profondità da cui i `rootTriangles` della radice superano i pixel che copre."
+  },
+  "octDecode": {
+    "summary": "Coordinate di griglia `f ∈ [0, 1]²` di ritorno a una direzione unitaria, l'inversa di `octEncode`."
+  },
+  "octEncode": {
+    "summary": "Direzione `d` verso il piano `[-1, 1]²`: l'ottaedro completo, o l'emi-ottaedro superiore."
+  },
+  "planImpostors": {
+    "summary": "Pianifica lo strato di impostori per una vista: ogni radice la cui mesh ha una voce cotta e la cui commutazione tiene produce una scheda ed è contrassegnata come soppressa.",
+    "description": "`view` porta il mondo nello spazio di vista (per colonne) e `focalPixels` è l'unica lunghezza focale del motore in pixel al viewport dell'immagine."
+  },
+  "validateImpostorSection": {
+    "summary": "Un motivo breve per cui la sezione non può essere usata, o `null`.",
+    "description": "Una sezione assente non è un errore: una cache precedente disegna ogni mesh per intero, come prima. Una presente è rifiutata in blocco quando la sua versione è ignota o una voce `baked` manca dei numeri che servono alla sua commutazione e alla sua scheda."
   }
 }
