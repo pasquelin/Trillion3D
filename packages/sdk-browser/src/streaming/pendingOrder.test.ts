@@ -5,8 +5,19 @@ import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
 import { orderPendingUrls, pixelScaleOf, type PriorityRecord } from './priority.ts';
 import { begin, createPendingScratch, note, sortInto } from './pendingOrder.ts';
+import type { PageLocations } from '../page/selection/placements.ts';
 import { createEngineCamera, readCameraWorld } from '../camera/world.ts';
 import { random } from '../page/cut/cutRuleChecks.fixture.ts';
+
+/** The records' placement, by their `placementIndex`, over `roots` (#1235). */
+const located = (
+  records: readonly PriorityRecord[],
+  roots: readonly { world: unknown }[],
+): PageLocations => ({
+  roots: roots as PageLocations['roots'],
+  packed: records.map((rec) => (rec as { placementIndex?: number }).placementIndex ?? 0),
+  rootOfPacked: Int32Array.from({ length: roots.length }, (_, i) => i),
+});
 
 const HOSTILE = [NaN, 0, -0, Infinity, -Infinity, 1, 2];
 
@@ -48,9 +59,16 @@ test('frames through the kept storage order as through storage made for each', (
   for (const count of [0, 1, 40, 900, 900, 12, 3, 0, 300, 700, 5, 64]) {
     const records = frame(draw, count, matrices.length);
     matrices[Math.floor(draw() * matrices.length)].makeRotationY(draw() * 6);
-    const kept = orderPendingUrls(records, roots, engine, scale, into);
+    const kept = orderPendingUrls(records, located(records, roots), engine, scale, into);
     assert.equal(kept, into);
-    const fresh = orderPendingUrls(records, roots, engine, scale, [], createPendingScratch());
+    const fresh = orderPendingUrls(
+      records,
+      located(records, roots),
+      engine,
+      scale,
+      [],
+      createPendingScratch(),
+    );
     assert.deepEqual(kept, fresh, `a frame of ${count}`);
   }
 });
@@ -90,18 +108,13 @@ test('a frame no larger than an earlier one writes into the arrays already there
     roots = [new G.Matrix4(), new G.Matrix4().makeTranslation(1, 0, 0)].map((world) => ({ world }));
   const scratch = createPendingScratch(),
     into: string[] = [];
-  orderPendingUrls(frame(draw, 400, roots.length), roots, engine, scale, into, scratch);
+  const big = frame(draw, 400, roots.length);
+  orderPendingUrls(big, located(big, roots), engine, scale, into, scratch);
   const { errors, distances, order, merge, views, stretches } = scratch;
   const view = views[0];
   for (const count of [400, 120, 1]) {
-    const result = orderPendingUrls(
-      frame(draw, count, roots.length),
-      roots,
-      engine,
-      scale,
-      into,
-      scratch,
-    );
+    const records = frame(draw, count, roots.length),
+      result = orderPendingUrls(records, located(records, roots), engine, scale, into, scratch);
     assert.equal(result, into);
     for (const [held, now] of [
       [errors, scratch.errors],

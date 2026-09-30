@@ -4,7 +4,7 @@ import type { VisPage } from '../../packages/sdk-browser/src/visibility/buffer.t
 import { cameraMoteur } from '../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import type { EngineCamera } from '../../packages/sdk-browser/src/camera/world.ts';
 import { rasterVisibilityIds } from '../../packages/sdk-browser/src/visibility/buffer.ts';
-import { identityRoots } from '../../packages/sdk-browser/src/page/selection/placements.fixture.ts';
+import { identityLocations } from '../../packages/sdk-browser/src/page/selection/placements.fixture.ts';
 import {
   buildHizPyramid,
   visibilityDepth,
@@ -42,7 +42,6 @@ export function quad(
   const page = {
     array: new Uint32Array([0, 1, 2, 0, 2, 3]),
     attributes: geometry.attributes,
-    placementIndex: 0,
     matrix: new G.Matrix4(),
     material: surfaceOf(material),
     clusterId,
@@ -67,8 +66,8 @@ export function projectBoxToScreen(
   viewport: [number, number],
 ): HizBounds {
   projectBoxesFlat(
-    [{ min, max, placementIndex: 0 }],
-    [{ world: matrix }],
+    [{ min, max }],
+    { roots: [{ world: matrix }], packed: [0], rootOfPacked: Int32Array.from([0]) },
     1,
     cameraMoteur(camera),
     viewport,
@@ -86,7 +85,7 @@ export function projectBoxToScreen(
 
 /** The Hi-Z pyramid of the depth `occluders`, placed at the identity, leave as `cam` sees them. */
 export function occluderPyramid(occluders: VisPage[], cam: EngineCamera, size: [number, number]) {
-  const roots = identityRoots();
-  const ids = rasterVisibilityIds(occluders, roots, cam, size);
-  return buildHizPyramid(visibilityDepth(ids, occluders, roots, cam, size), ...size);
+  const locations = identityLocations(occluders.length);
+  const ids = rasterVisibilityIds(occluders, locations, cam, size);
+  return buildHizPyramid(visibilityDepth(ids, occluders, locations, cam, size), ...size);
 }

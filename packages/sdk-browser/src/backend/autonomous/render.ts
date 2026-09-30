@@ -6,7 +6,7 @@ import type { HostCamera } from '../../camera/world.ts';
 import type { HostWorldPlacements } from '../../host/world/placements.ts';
 import type { BlendCopy } from '../../cluster/blendCopyContract.ts';
 import { showBlendCopy } from '../../cluster/blendCopyMesh.ts';
-import { attachedPages } from '../../placement/autonomousPlacements.ts';
+import { attachedPages, drawnInstancedAt } from '../../placement/autonomousPlacements.ts';
 import { followHostVisibility } from '../../placement/hidden.ts';
 import type { createGeometryBudget } from './pool.ts';
 import { createImageCut } from './imageCut.ts';
@@ -157,7 +157,10 @@ export function createAutonomousRender(options: {
     state.frustumRejected = selected.frustumRejected;
     state.lodLevel = selected.lodLevel;
     // Drawn pages past the display graph's page ceiling are reported, never replaced.
-    state.overBudget = attachedPages(view.shown, roots) > ceiling();
+    state.overBudget =
+      attachedPages(view.shown, (rec) =>
+        drawnInstancedAt(roots, options.draws.rootRankOf(rec), rec),
+      ) > ceiling();
     geometry.sync();
     follow();
     gate.keep(

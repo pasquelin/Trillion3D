@@ -30,6 +30,9 @@ export type CutDelta = {
   readonly changed: boolean;
   /** True when the id belongs to the held shown list. */
   has(id: number): boolean;
+  /** The held id sequence, in the order `pages` was written (#1235): the packed ranks a reader
+   *  of a record list needs to name its instances' placements. */
+  readonly ids: ArrayLike<number>;
   /** Reports no difference: the cut is the one already held, records included. */
   hold(): void;
   /** Difference between `ids` and the cut held, and `pages` rewritten in the order of `ids`. The
@@ -38,10 +41,10 @@ export type CutDelta = {
   apply(ids: ArrayLike<number>, count?: number): void;
   /**
    * The same difference, published by a cut that names its records instead of their ranks — the
-   * CPU cut. The catalogue has the last word, as everywhere. Nothing is allocated past the first
-   * cut.
+   * CPU cut. `rankOf` resolves each record's first packed rank; a record it does not hold yields
+   * nothing. Nothing is allocated past the first cut.
    */
-  adoptRecords(records: readonly PageRec[]): void;
+  adoptRecords(records: readonly PageRec[], rankOf: (rec: PageRec) => number): void;
 };
 
 /** What a reader of a difference walks: the ids that entered and left, and membership. */
@@ -68,7 +71,7 @@ export type IdDelta = Pick<CutDelta, 'entered' | 'exited' | 'enteredCount' | 'ex
  */
 export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[]): CutDelta {
   /** A packed rank back to its record: the one catalogue accessor (`../pages/prepare/catalogue.ts`). */
-  const { recordOf, indexOf } = createPageCatalogue(packedPages);
+  const { recordOf } = createPageCatalogue(packedPages);
   /** Epoch of the shown list where the id was last held; an id held by neither list has none. */
   const mark = createSparseInts();
   /** Ids held by the previous shown list and by the current one: two swapped buffers, grown and
@@ -156,6 +159,9 @@ export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[
     count: 0,
     changed: true,
     has: (id: number) => mark.get(id) === epoch,
+    get ids() {
+      return kept;
+    },
     /** Bytes of the marks and the lists, all sized by the longest cut seen. */
     get hostBytes() {
       return (
@@ -169,11 +175,11 @@ export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[
     },
     hold,
     apply,
-    adoptRecords(records: readonly PageRec[]) {
+    adoptRecords(records: readonly PageRec[], rankOf: (rec: PageRec) => number) {
       recordIds.length = 0;
       for (let i = 0; i < records.length; i++) {
-        const id = indexOf(records[i]);
-        if (id !== undefined) recordIds.push(id);
+        const id = rankOf(records[i]);
+        if (id >= 0) recordIds.push(id);
       }
       apply(recordIds);
     },

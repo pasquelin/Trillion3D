@@ -2,7 +2,7 @@ import type { DepthCamera } from '../camera/depthConvention.ts';
 import { triangleAt } from './math.ts';
 import { unpackVisibilityId, type VisPage } from './types.ts';
 import { DEFAULT_PIXEL_RATIO } from '../backend/common.ts';
-import { rootOf, type Placements } from '../page/selection/placements.ts';
+import { locationOf, type PageLocations } from '../page/selection/placements.ts';
 
 export type VisTriangle = NonNullable<ReturnType<typeof triangleAt>>;
 
@@ -19,7 +19,7 @@ export type VisTriangle = NonNullable<ReturnType<typeof triangleAt>>;
  */
 export function createVisibilityFrame(
   pages: VisPage[],
-  roots: Placements,
+  locations: PageLocations,
   cam: DepthCamera,
   width: number,
   height: number,
@@ -41,7 +41,7 @@ export function createVisibilityFrame(
         page && unpacked
           ? triangleAt(
               page,
-              rootOf(roots, page).world,
+              locationOf(locations, unpacked.pageIndex).world,
               unpacked.triangleIndex,
               cam,
               width,

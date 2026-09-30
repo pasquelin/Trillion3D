@@ -4,7 +4,7 @@ import { countUnoccluded } from '../../../packages/sdk-browser/src/hiz/unocclude
 import { splitOccludersInto } from '../../../packages/sdk-browser/src/hiz/split.ts';
 import { buildHizPyramid } from '../../../packages/sdk-browser/src/hiz/depth.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
-import { boites, camera, roots } from './support/scenes.ts';
+import { boites, camera, located } from './support/scenes.ts';
 import {
   referenceCountUnoccluded,
   referenceSplitOccluders,
@@ -38,7 +38,7 @@ const resSplit = await mesure({
   fichier: 'packages/sdk-browser/src/hiz/split.ts',
   cas: jeux,
   calcul: (pages) => {
-    splitOccludersInto(pages, roots, cameraMoteur(cam), viewport, occluders, rest);
+    splitOccludersInto(pages, located(pages.length), cameraMoteur(cam), viewport, occluders, rest);
     return { occluders: urls(occluders), rest: urls(rest) };
   },
   attendu: (pages) => {
@@ -55,7 +55,16 @@ const resCount = await mesure({
   calcul: (pages) => {
     const counts = createHizCounts();
     return {
-      kept: urls(countUnoccluded(pages, roots, pyramide, cameraMoteur(cam), viewport, counts)),
+      kept: urls(
+        countUnoccluded(
+          pages,
+          located(pages.length),
+          pyramide,
+          cameraMoteur(cam),
+          viewport,
+          counts,
+        ),
+      ),
       counts,
     };
   },
@@ -71,7 +80,8 @@ const resCount = await mesure({
 
 await stress({
   name: 'splitOccludersInto extremes',
-  calcul: (p: SceneBox[]) => splitOccludersInto(p, roots, cameraMoteur(cam), viewport, [], []),
+  calcul: (p: SceneBox[]) =>
+    splitOccludersInto(p, located(p.length), cameraMoteur(cam), viewport, [], []),
   extremes: [{ name: 'empty', input: [] }],
 });
 

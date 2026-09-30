@@ -10,6 +10,7 @@ import {
 } from './priority.ts';
 import { referenceOrder } from '../../../../bench/oracles/browser/core-math-priority.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
+import { locatedBy } from '../page/selection/placements.fixture.ts';
 import { identityRoots } from '../page/selection/placements.fixture.ts';
 
 function camera() {
@@ -123,7 +124,7 @@ test('orderPendingUrls: matrices hostile to signed zeros (aligned axes, ±0) —
     // Each record ranks the root that carries its world.
     const placed = records.map((record, placementIndex) => ({ ...record, placementIndex })),
       roots = records.map(({ matrix }) => ({ world: matrix }));
-    const recu = orderPendingUrls(placed, roots, cameraMoteur(cam), pixelScale, []);
+    const recu = orderPendingUrls(placed, locatedBy(roots), cameraMoteur(cam), pixelScale, []);
     const attendu = referenceOrder(records, cam, pixelScale);
     assert.deepEqual(recu, attendu, `records ${records.map((r) => r.url)}`);
   }

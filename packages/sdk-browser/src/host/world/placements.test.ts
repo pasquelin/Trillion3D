@@ -99,8 +99,9 @@ test("page records and cluster roots carry the engine's matrix, not the host's",
   );
   const monde = worlds.of(fixture.mesh);
   assert.equal(roots[0].world, monde, 'the root carries the engine matrix');
-  for (const page of allPages)
-    assert.equal(rootOf(roots, page).world, monde, 'the record reads it');
+  assert.ok(allPages.length > 0, 'the collection read pages');
+  for (let rank = 0; rank < roots.length; rank++)
+    assert.equal(rootOf(roots, rank).world, monde, 'every placement reads it');
   assert.notEqual(monde, fixture.mesh.matrixWorld, "it is not the host's live matrix");
   // The witness runs after: collection never asked the host to compose anything.
   parent.updateMatrixWorld(true);

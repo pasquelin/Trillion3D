@@ -26,13 +26,17 @@ function environnement(
   scene: ReturnType<typeof fakeScene>['scene'],
   allPages: PageRec[],
   shown: PageRec[],
+  shownPacked: number[] = [],
 ): Parameters<typeof createAutonomousGeometry>[0] {
-  const roots = recRoots(undefined, allPages);
+  const roots = recRoots(undefined, allPages),
+    draws = createPageDraws(roots);
+  shownPacked.length = shown.length;
+  for (let i = 0; i < shown.length; i++) shownPacked[i] = draws.firstPacked(shown[i]);
   return {
     ...{ scene, roots, allPages, bootstrap: [] },
-    ...{ views: { live: { shown }, lists: () => [shown] } },
+    ...{ views: { live: { shown, shownPacked }, lists: () => [shown] } },
     ...{ byUrl: new Map(), descriptors: new Map() },
-    ...{ draws: createPageDraws(roots), colorMaterials: new Map(), modifiedPages: new Set() },
+    ...{ draws, colorMaterials: new Map(), modifiedPages: new Set() },
   };
 }
 
@@ -54,16 +58,19 @@ function scenario(count: number) {
   const sceneA = fakeScene(),
     sceneB = fakeScene();
   const shownA: PageRec[] = [],
+    shownPackedA: number[] = [],
     shownB: typeof recsB = [];
-  const impl = createAutonomousGeometry(environnement(sceneA.scene, recsA, shownA));
+  const impl = createAutonomousGeometry(environnement(sceneA.scene, recsA, shownA, shownPackedA));
   for (const rec of recsA) impl.draws.drawing(rec).geometry = geometry;
   const oracle = referenceAutonomousSync({ scene: sceneB.scene, allPages: recsB, shown: shownB });
   return {
     pilote(indices: number[]) {
       shownA.length = 0;
+      shownPackedA.length = 0;
       shownB.length = 0;
       for (const i of indices) {
         shownA.push(recsA[i]);
+        shownPackedA.push(impl.draws.firstPacked(recsA[i]));
         shownB.push(recsB[i]);
       }
       impl.sync();

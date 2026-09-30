@@ -9,14 +9,14 @@ import { colouredTwin, hostPageBytes, hostPageGeometry } from '../../host/pageOb
 import type { HostMaterial } from '../../host/resources.ts';
 import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
 import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts';
-import { rowPlaced } from '../../placement/autonomousPlacements.ts';
+import { rowPlacedAt } from '../../placement/autonomousPlacements.ts';
 import { wearDeclaration } from '../../page/surface.ts';
 import { assertWithinBox, itemSize, pageOf } from './pageData.ts';
 import { dynamicSource, sourcedPageGeometry } from './sourcedPages.ts';
 import type { PageDraws } from './pageDraws.ts';
 
 type PageStoreEnvironment = {
-  /** The roots a record's `placementIndex` ranks: whether a row places it is its root's. */
+  /** The engine's roots: whether a row places a page is its root's (#1235). */
   roots: readonly ClusterRoot<PageRec>[];
   byUrl: Map<string, PageRec[]>;
   descriptors: Map<string, GeometryPageDescriptor>;
@@ -57,7 +57,7 @@ export function createPageStore(env: PageStoreEnvironment) {
       return geometries.has(mine);
     };
     for (const rec of recs) {
-      const placed = rowPlaced(env.roots, rec);
+      const placed = rowPlacedAt(env.roots, env.draws.rootRankOf(rec));
       release(rec, placed && drawnByOthers(rec));
       const data = host ? read! : (replaced.get(rec.url) ?? pageOf(rec, read)),
         shared = placed ? rowed.get(data) : undefined,
@@ -85,7 +85,8 @@ export function createPageStore(env: PageStoreEnvironment) {
       wearDeclaration(rec, geometry.attributes.color ? paint() : base);
       setArray(rec, data.indices);
       rec.attributes = geometry.attributes;
-      draws.drawing(rec).geometry = geometry;
+      // Every instance of the record draws it: rows placing it on their own share the geometry.
+      draws.forEachDraw(rec, (draw) => (draw.geometry = geometry));
       // Each geometry uploads its own buffers: counted as `release` gives them back.
       if (!shared) state.allocationBytes += hostPageBytes(geometry);
     }
