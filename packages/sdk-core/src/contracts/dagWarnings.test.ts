@@ -48,3 +48,27 @@ test('DAG warnings from cache surface as a diagnostic on open', () => {
     null,
   );
 });
+
+test('warnings and stalls each raise the diagnostic alone, the manifest left as it was', () => {
+  const warning = { code: 'MULTIPLE_ROOTS', index: 99, mesh: 99, primitive: 99 };
+  const stalled = [{ mesh: 4, primitive: 2 }];
+  const primitives = [
+    { mesh: 3, primitive: 7, dag: { warnings: [warning] } },
+    { mesh: 5, primitive: 8 },
+    { mesh: 9, primitive: 11, dag: { warnings: [] } },
+  ] as unknown as Primitive[];
+  const diagnostic = dagWarningsDiagnostic({ primitives, worstStalls: stalled as never })!;
+  assert.equal(diagnostic.phase, 'dag-warnings');
+  // Its words count both tables for a person.
+  assert.ok(diagnostic.message.includes('1 primitive(s)'), diagnostic.message);
+  assert.ok(diagnostic.message.includes('1 in the compiler'), diagnostic.message);
+  assert.deepEqual(diagnostic.context, {
+    count: 1,
+    primitives: [{ code: 'MULTIPLE_ROOTS', index: 0, mesh: 3, primitive: 7 }],
+    stalled,
+  });
+  assert.equal(warning.index, 99);
+  assert.ok(dagWarningsDiagnostic({ primitives: [], worstStalls: stalled as never }));
+  assert.ok(dagWarningsDiagnostic({ primitives }));
+  assert.equal(dagWarningsDiagnostic({ primitives: [] }), null);
+});
