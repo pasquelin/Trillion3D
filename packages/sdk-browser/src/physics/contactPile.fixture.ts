@@ -3,7 +3,7 @@
  * cross-origin isolated page (`tests/browser/renders/physics-threaded-contacts.browser.ts`): free of
  * Node, it takes any started module. Its merged records come in the engine's canonical pair-key
  * order (`contacts.cpp`, route (b), the boss's yes of 29 Sept.), not Jolt's callback order; a
- * cloth's leaves and a removed body's are appended outside that merge.
+ * removed body's leaves come before that merge and a cloth's after it.
  */
 import {
   CommandWriter,

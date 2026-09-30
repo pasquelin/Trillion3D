@@ -4,7 +4,7 @@
 // events, in the same order. The contact callbacks run on Jolt's threads; each keeps its record in
 // its own thread's list and the step merges them after `Update` in the engine's canonical pair-key
 // order, which no thread decides (`contacts.cpp`, route (b), the boss's yes of 29 Sept.), not
-// Jolt's callback order; a cloth's leaves and a removed body's are appended outside that merge.
+// Jolt's callback order; a removed body's leaves come before that merge and a cloth's after it.
 // Nothing is timed.
 //
 //   node tests/browser/renders/physics-threaded-contacts.browser.ts
