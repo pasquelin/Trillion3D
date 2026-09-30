@@ -4,8 +4,8 @@ import { RECT_LIGHT_WGSL } from './rectLightWgsl.ts';
 import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts';
 
 /** Words of a tile record: the two counts, the two lists of `tileLights` each, then one word
- *  saying whether the opaque list holds a shadowed light — the per-tile fact the moving resolve
- *  reads once instead of walking the list a pixel at a time (#1249). */
+ *  saying whether a moving image draws the opaque list — the per-tile choice the moving resolve
+ *  reads once instead of walking the list a pixel at a time (#1249, #1369). */
 export const TILE_STRIDE_WORDS = LIGHT_SETTINGS.tileLights * 2 + 3;
 
 /**
@@ -26,9 +26,15 @@ const TILE_LIGHTS:u32=${LIGHT_SETTINGS.tileLights}u;
 const TILE_STRIDE:u32=${TILE_STRIDE_WORDS}u;
 const TILE_OPAQUE_BASE:u32=2u;
 const TILE_BLEND_BASE:u32=${LIGHT_SETTINGS.tileLights + 2}u;
-/** The record's last word: one when the opaque list holds a light with a shadow slot, zero
- *  otherwise. The tile pass writes it; the moving resolve reads it once (#1249). */
+/** The record's last word: one when a moving image draws the opaque list, zero otherwise. The
+ *  tile pass writes it from the list before its depth mask; the moving resolve reads it once
+ *  (#1249, #1369). */
 const TILE_SHADOW_BASE:u32=${TILE_STRIDE_WORDS - 1}u;
+/** Lights a moving pixel shades in full at most (\`lightSamplingWgsl.ts\`). */
+const LIGHT_SAMPLES:u32=${LIGHT_SETTINGS.samplesPerPixel}u;
+/** Whether a list of \`kept\` opaque lights holding a shadowed one is drawn, not summed in full:
+ *  more than \`LIGHT_SAMPLES\` and within \`TILE_LIGHTS\` — the tile pass's one bound. */
+fn sampledList(kept:u32)->bool{return kept>LIGHT_SAMPLES&&kept<=TILE_LIGHTS;}
 const TILE_NO_SLICE:u32=0xffffffffu;
 const POINT_FACES:u32=${POINT_FACES}u;
 const SPOT_EDGE:f32=${LIGHT_SETTINGS.spotEdgeSoftness};
