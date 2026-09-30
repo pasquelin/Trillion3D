@@ -7,14 +7,17 @@ type Variant = { program?: DeferredProgram; pending?: Promise<unknown>; asked?: 
 
 /**
  * The contract programs, each compiled the first time a frame asks for it: with or without bounce,
- * wide or narrow (#849). A narrow program reads at most `TILE_LIGHTS` lights, so it stands in for
- * no wide one; a wide one serves any scene. While the asked one compiles, the frame is lit by the
- * best one ready — the same width without bounce, then a wide one —, else by none.
+ * wide or narrow (#849), with or without shadow code (#1249). A narrow program reads at most
+ * `TILE_LIGHTS` lights, so it stands in for no wide one; an unshadowed one reads no shadow, so it
+ * stands in for no scene that holds one; a wide program with shadow code serves any scene. While
+ * the asked one compiles, the frame is lit by the best one ready — the same width and shadows
+ * without bounce, then with shadow code, then a wide one —, else by none.
  *
- * A narrow program's wide twin compiles beside it, from the same frame: a scene that passes
- * `TILE_LIGHTS` lights finds its program ready as soon as a single program would have been, and
- * never falls back to the unlit view where one program would not. No frame waits for that twin
- * (`settle`) nor is redrawn at its arrival (`onReady`) until one asks for it.
+ * A narrow or unshadowed program's twin — wide, with shadow code — compiles beside it, from the
+ * same frame: a scene that passes `TILE_LIGHTS` lights, or whose light takes a shadow, finds its
+ * program ready as soon as a single program would have been, and never falls back to the unlit
+ * view where one program would not. No frame waits for that twin (`settle`) nor is redrawn at its
+ * arrival (`onReady`) until one asks for it.
  */
 export function createContractVariants(
   device: GPUDevice,
@@ -22,20 +25,23 @@ export function createContractVariants(
   pages = SUN_WINDOW,
   onReady?: () => void,
 ) {
-  /** `variants[+narrow][+bounce]`. */
-  const variants: Variant[][] = [
-    [{}, {}],
-    [{}, {}],
-  ];
-  const compile = (bounce: boolean, narrow: boolean, onFailure?: (error: unknown) => void) => {
-    const variant = variants[+narrow][+bounce];
+  /** `variants[+narrow + 2 * unshadowed][+bounce]`. */
+  const variants: Variant[][] = [0, 1, 2, 3].map(() => [{}, {}]);
+  const at = (narrow: boolean, unshadowed: boolean) => +narrow + 2 * +unshadowed;
+  const compile = (
+    bounce: boolean,
+    narrow: boolean,
+    unshadowed: boolean,
+    onFailure?: (error: unknown) => void,
+  ) => {
+    const variant = variants[at(narrow, unshadowed)][+bounce];
     if (variant.program || variant.pending) return;
     variant.pending = createDeferredProgram(
       device,
       {
-        lighting: contractLightingShader(bounce, narrow, pages),
+        lighting: contractLightingShader(bounce, narrow, pages, !unshadowed),
         compose: CONTRACT_COMPOSITIONS,
-        label: `${bounce ? 'BOUNCE' : 'DIRECT'}${narrow ? '_NARROW' : ''}`,
+        label: `${bounce ? 'BOUNCE' : 'DIRECT'}${narrow ? '_NARROW' : ''}${unshadowed ? '_UNSHADOWED' : ''}`,
         direct: true,
         bounce,
         pages,
@@ -49,16 +55,25 @@ export function createContractVariants(
       },
       (error) => onFailure?.(error),
     );
-    if (narrow) compile(bounce, false, onFailure);
+    if (narrow || unshadowed) compile(bounce, false, false, onFailure);
   };
   return {
     /** The program to light this frame with, compiling the asked one; `undefined` if none is ready. */
-    pick(bounce: boolean, narrow: boolean, onFailure?: (error: unknown) => void) {
-      variants[+narrow][+bounce].asked = true;
-      compile(bounce, narrow, onFailure);
+    pick(
+      bounce: boolean,
+      narrow: boolean,
+      unshadowed: boolean,
+      onFailure?: (error: unknown) => void,
+    ) {
+      const asked = variants[at(narrow, unshadowed)];
+      asked[+bounce].asked = true;
+      compile(bounce, narrow, unshadowed, onFailure);
+      const shadowed = variants[at(narrow, false)];
       return (
-        variants[+narrow][+bounce].program ??
-        variants[+narrow][0].program ??
+        asked[+bounce].program ??
+        asked[0].program ??
+        shadowed[+bounce].program ??
+        shadowed[0].program ??
         variants[0][+bounce].program ??
         variants[0][0].program
       );
