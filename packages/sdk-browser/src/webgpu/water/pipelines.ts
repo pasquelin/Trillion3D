@@ -1,5 +1,5 @@
 import { reflectionLayout } from '../../reflections/layout.ts';
-import { DISPLAY_FORMAT, FEEDBACK_FORMAT, SURFACE_FORMATS } from '../../scene/surfaceBuffer.ts';
+import { waterSurfaceTargets } from './surfaceTargets.ts';
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import { deferredLayoutEntries } from '../../lighting/deferred/setup.ts';
 import { makeFullscreenPipeline } from '../../lighting/deferred/fullscreen.ts';
@@ -8,16 +8,6 @@ import { ALPHA_BLEND, blendStagePipelines } from '../blend/stagePipelines.ts';
 import { WATER_BINDINGS, waterCompositeShader, waterRoutedShader } from './compositeWgsl.ts';
 import { displayMaskLayout, displayTargets } from '../blend/displayFilter.ts';
 import { REACTIVE_TARGET } from '../../lighting/deferred/asIsShare.ts';
-
-/** The five targets of the surface stage: the three material surfaces, the water word in the
- *  display colour it borrows, then the virtual-texture feedback. */
-const SURFACE_TARGETS: GPUColorTargetState[] = [
-  ...SURFACE_FORMATS.slice(0, 3).map((format) => ({ format })),
-  { format: DISPLAY_FORMAT },
-  { format: FEEDBACK_FORMAT },
-];
-export const waterSurfaceTargets = (feedback: boolean) =>
-  feedback ? SURFACE_TARGETS : SURFACE_TARGETS.slice(0, 4);
 
 /**
  * Surface stage: the blend module's vertex stage and `fsWater`, on the blend bind group layout —

@@ -21,7 +21,7 @@ import {
   FLAG_SAMPLED,
 } from '../../visibility/types.ts';
 import { BLEND_TRANSMITTANCE_WGSL } from './transmittanceWgsl.ts';
-import { FRESH_LAYOUT_WGSL } from '../../webgpu/shadow/freshLayout.ts';
+import { FRESH_LAYOUT_WGSL } from '../../webgpu/shadow/freshLayoutWgsl.ts';
 import { SHADOW_FRESH_DRAWS_WGSL } from '../../webgpu/shadow/freshDrawsWgsl.ts';
 
 /** Subtexel steps the rasterizer snaps a corner to, per texel (#26 step C, #1016). */

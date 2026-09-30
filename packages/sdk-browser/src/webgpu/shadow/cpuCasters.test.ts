@@ -1,6 +1,5 @@
-// Under the CPU cut the casters are selected from the light as well: the same face, read as a
-// camera by the CPU cut, keeps what the GPU light cut keeps — the same clusters, at the same
-// texel error, over the same redrawn pages.
+// Under the CPU cut the casters are selected from the light as well: a blended caster is listed at
+// its shadow-only row.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { writeCpuCasters } from './cpuCasterRows.ts';

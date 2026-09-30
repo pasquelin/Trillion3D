@@ -7,14 +7,13 @@ import { REFLECTION_RESOLVE_WGSL } from '../../reflections/resolveWgsl.ts';
  * (`rasterSource`, `drawShader`, `transparentOcclusionShader`) is taken at one size: the size
  * changes a constant, never a name.
  */
-import { DEFORMATION_COMPUTE_WGSL } from '../../deformation/compute.ts';
-import { PRESENT_SHADER } from './presentation.ts';
-import { PRESENT_AT_SHADER } from './presentAt.ts';
+import { DEFORMATION_COMPUTE_WGSL } from '../../deformation/computeWgsl.ts';
+import { PRESENT_AT_SHADER, PRESENT_SHADER } from './presentWgsl.ts';
 import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts';
 import { DAG_SELECTION_SHADER } from '../dag/shader/shader.ts';
 import { withScreenErrorVariant } from '../dag/shader/error.ts';
 import { drawShader } from '../draw/shader.ts';
-import { ROW_MAP_SHADER } from '../draw/lightRows.ts';
+import { ROW_MAP_SHADER } from '../draw/lightRowsWgsl.ts';
 import { HIZ_SHADER } from '../hiz/shader.ts';
 import { PARTITION_SHADER } from '../partition/shader.ts';
 import { RESOLVE, rasterSource } from '../raster/shader.ts';
@@ -22,12 +21,11 @@ import { REST_COMPACT_SHADER } from '../raster/restCompactWgsl.ts';
 import { SHADOW_CULL_SHADER, SHADOW_LIGHT_CULL_SHADER } from '../shadow/cullShader.ts';
 import { SHADOW_OCCLUSION_SHADER } from '../shadow/occlusionShader.ts';
 import { SHADOW_DEPTH_SHADER } from '../shadow/shader.ts';
-import { PAGE_QUAD_SHADER } from '../shadow/pageQuads.ts';
-import { PAGE_MOVE_SHADER } from '../shadow/pageMoves.ts';
+import { PAGE_MOVE_SHADER, PAGE_QUAD_SHADER } from '../shadow/pageWgsl.ts';
 import { SHADOW_FRESH_CULL_WGSL } from '../../webgpu/shadow/freshCullWgsl.ts';
 import { BOUNCE_PROBE_SHADER } from '../../bounce/probeWgsl.ts';
 import { BOUNCE_SURFACE_SHADER } from '../../bounce/surfaceWgsl.ts';
-import { AS_IS_SHARE_SHADER } from '../../lighting/deferred/asIsShare.ts';
+import { AS_IS_SHARE_SHADER } from '../../lighting/deferred/asIsShareWgsl.ts';
 import { DIAGNOSTIC_SHADE_WGSL, DIAGNOSTIC_VIS_WGSL } from '../../diagnostic/gpuGeometry.ts';
 import { DIAGNOSTIC_BLEND_WGSL } from '../../diagnostic/gpuVariant.ts';
 import { BLOOM_WGSL } from '../../effects/bloomWgsl.ts';
@@ -43,18 +41,20 @@ import { withSubgroupShadowRequests } from '../../lighting/direct/shadowRequestW
 import { LIGHT_TILES_SHADERS } from '../../lighting/tiles/shader.ts';
 import { taaShader } from '../../taa/shaderWgsl.ts';
 import { taaUpscaleShader } from '../../taa/upscaleWgsl.ts';
-import { MIP_SHADER, mipShader } from '../../texture/mips.ts';
-import { COVERAGE_WGSL } from '../../texture/coverageMips.ts';
+import { COVERAGE_WGSL, mipShader } from '../../texture/mipsWgsl.ts';
 import { SHADE_SHADER, VIS_SHADER } from '../../visibility/buffer.ts';
 import { BLEND_EXPAND_SHADER } from '../../webgpu/blend/expandWgsl.ts';
-import { DISPLAY_FILTER_SHADER } from '../../webgpu/blend/displayFilterProgram.ts';
+import { DISPLAY_FILTER_SHADER } from '../../webgpu/blend/displayFilterWgsl.ts';
 import { SHADER as PREPARE_SHADER } from '../../webgpu/pages/prepare/shaders.ts';
-import { REDUCE_WGSL } from '../../webgpu/tile/reduce.ts';
+import { REDUCE_WGSL } from '../../webgpu/tile/reduceWgsl.ts';
 import { TRANSPARENT_COMPACT_SHADER } from '../../webgpu/transparent/shader.ts';
 import { waterCompositeShader, waterRoutedShader } from '../../webgpu/water/compositeWgsl.ts';
 import { WATER_SURFACE_WGSL } from '../../webgpu/water/surfaceWgsl.ts';
-import { PARTICLES_WGSL } from '../../particles/webgpuParticles.ts';
-import { PARTICLE_DRAW_WGSL, PARTICLE_ROUTED_WGSL } from '../../particles/webgpuParticleDraw.ts';
+import {
+  PARTICLES_WGSL,
+  PARTICLE_DRAW_WGSL,
+  PARTICLE_ROUTED_WGSL,
+} from '../../particles/particlesWgsl.ts';
 import { allocationWgsl } from '../../webgpu/shadow/allocWgsl.ts';
 import { shadowWordsWgsl } from '../../webgpu/shadow/wordsWgsl.ts';
 import { shadowFreshWgsl } from '../../webgpu/shadow/freshWgsl.ts';
@@ -174,7 +174,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   TAA_UPSCALE_FILTERED: taaUpscaleShader(true, false, true),
   TAA_UPSCALE_FILTERED_FLAGLESS: taaUpscaleShader(false, false, true),
   TAA_UPSCALE_FILTERED_BLENDED: taaUpscaleShader(true, true, true),
-  MIP_SHADER,
+  MIP_SHADER: mipShader(false),
   COVERAGE_WGSL,
   VIS_SHADER,
   VIS_DIAGNOSTIC: VIS_SHADER + DIAGNOSTIC_VIS_WGSL,

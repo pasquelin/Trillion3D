@@ -1,6 +1,5 @@
-// #1208: the shadow pool follows a canvas resize at runtime — by the first frame's rule and grant,
-// every capacity after it, every page it keeps moved texel for texel, and a refusal keeping the
-// pool in place, said by name.
+// #1208: the shadow pool follows a canvas resize at runtime; a resize the grant or the device
+// refuses keeps the pool in place, said by name.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { session } from './poolResize.fixture.ts';

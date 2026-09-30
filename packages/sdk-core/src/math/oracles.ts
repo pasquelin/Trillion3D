@@ -1,12 +1,12 @@
 export { maxStretch, coneRejects } from './projectionOracles.ts';
-export { clusterErrorPixels, screenErrorBound } from '../lod/screenErrorBound.ts';
+export { clusterErrorPixels } from '../lod/screenErrorBound.ts';
 export {
   screenErrorVariant,
   setScreenErrorVariant,
   type ScreenErrorVariant,
 } from '../lod/screenErrorVariant.ts';
 export { matrixWindingCw } from './matrix/orientation.ts';
-export { hizReduceCeil, hizBuildPyramid, hizFootprintFar, hizOccluded } from '../hiz/oracles.ts';
+export { hizBuildPyramid, hizFootprintFar, hizOccluded } from '../hiz/oracles.ts';
 export { hizBuildFlat, hizFootprintFarFlat, type HizFlat } from '../hiz/pyramidFlat.ts';
 
 /** Exclusive prefix scan. */

@@ -1,8 +1,4 @@
-import {
-  PARTICLE_FLOATS,
-  type ParticlePool,
-  type ParticleStep,
-} from '../../../sdk-core/src/fluids/particles.ts';
+import { PARTICLE_FLOATS, type ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
 import { bounceGroup, bounceLayout } from '../bounce/bindings.ts';
@@ -11,51 +7,11 @@ import { createWebgpuParticleDraw, type DrawState } from './webgpuParticleDraw.t
 import { DRAW_FLOATS } from './drawWords.ts';
 import { viewProj } from '../webgpu/pages/helpers.ts';
 import { routedFilter } from '../webgpu/blend/displayFilter.ts';
+import { PARTICLES_WGSL, PARTICLE_WORKGROUP } from './particlesWgsl.ts';
+import { createStepWords } from './stepWords.ts';
 
 /** The pass label the GPU timings name the particle step by (`passesGpu`). */
 export const PARTICLES_PASS = 'Trillion3D particles';
-/** Slots one workgroup steps. */
-export const PARTICLE_WORKGROUP = 64;
-
-/** One invocation per slot: the ring's record this image replaces it, then a live particle moves
- *  (position from the pool's origin); a dead one nobody emitted into is left as it is. */
-export const PARTICLES_WGSL = /* wgsl */ `
-struct Particle { position: vec4f, velocity: vec4f }
-struct Step { acceleration: vec3f, dt: f32, first: u32, count: u32, capacity: u32, pad: u32 }
-@group(0) @binding(0) var<uniform> step: Step;
-@group(0) @binding(1) var<storage, read> staged: array<Particle>;
-@group(0) @binding(2) var<storage, read_write> particles: array<Particle>;
-@compute @workgroup_size(${PARTICLE_WORKGROUP})
-fn main(@builtin(global_invocation_id) id: vec3u) {
-  let i = id.x;
-  if (i >= step.capacity) { return; }
-  let k = (i + step.capacity - step.first) % step.capacity;
-  var p = particles[i];
-  if (k < step.count) { p = staged[k]; } else if (p.position.w >= p.velocity.w) { return; }
-  if (p.position.w < p.velocity.w) {
-    let velocity = p.velocity.xyz + step.acceleration * step.dt;
-    p.velocity = vec4f(velocity, p.velocity.w);
-    p.position = vec4f(p.position.xyz + velocity * step.dt, p.position.w + step.dt);
-  }
-  particles[i] = p;
-}`;
-
-/** The step uniform, the WGSL `Step`: acceleration and `dt`, then the ring's first slot, count
- *  and capacity. Made once; `write` rewrites it for one pool's step. */
-export function createStepWords() {
-  const buffer = new ArrayBuffer(32),
-    floats = new Float32Array(buffer),
-    uints = new Uint32Array(buffer);
-  const write = (pool: ParticlePool, { first, count, dt }: Readonly<ParticleStep>) => {
-    floats.set(pool.acceleration);
-    floats[3] = dt;
-    uints[4] = first;
-    uints[5] = count;
-    uints[6] = pool.capacity;
-  };
-  return { buffer, uints, write };
-}
-
 type PoolState = DrawState & { step: GPUBuffer; staged: GPUBuffer; group: GPUBindGroup };
 
 /**

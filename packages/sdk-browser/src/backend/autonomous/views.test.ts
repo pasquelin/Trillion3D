@@ -1,6 +1,5 @@
-// The WebGL2 path's views (`views.ts`, #1096): one record per view for what a camera owns, one
-// switch that trades references, and the pool admitting the union of the views' requests under
-// its one budget (`poolUnion.ts`), the residency pinning that union (`residency.ts`).
+// The WebGL2 path's views (`views.ts`, #1096): the pool admits the union of the views' requests
+// under its one budget (`poolUnion.ts`), and the residency pins that union (`residency.ts`).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PAGE } from './pool.fixture.ts';

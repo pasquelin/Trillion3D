@@ -9,7 +9,7 @@ import { COVERAGE_SCALE_GLSL } from '../../texture/coverageRule.ts';
 import { BLEND_STATE, WebglCoverageCounts } from './coverageMips.ts';
 import { allocated } from '../core/allocation.ts';
 
-/** The GLSL twin of the WebGPU reduction (`MIP_SHADER`, `../../texture/mips.ts`) under `weighted`;
+/** The GLSL twin of the WebGPU reduction (`MIP_SHADER`, `../../texture/mipsWgsl.ts`) under `weighted`;
  *  `source` is a copy of the level above, `extent` its size; with a `cutoff`, the row under it
  *  holds the level's `t` (`coverageMips.ts`). */
 const MIP_FRAGMENT_GLSL = `#version 300 es

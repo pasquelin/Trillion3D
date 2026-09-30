@@ -1,5 +1,5 @@
-// The guide program: the depth rule of the WebGPU pass (its TypeScript twin, and the shader that
-// copies it), and the corners both programs place with the engine's line corner.
+// The guide program: the WebGPU pass's shader applies the depth rule of its TypeScript twin,
+// `jitterDepthSlack`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GUIDE_WGSL } from './guideShaders.ts';

@@ -16,14 +16,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DAG_SELECTION_SHADER } from '../gpu/dag/shader/shader.ts';
-import {
-  INVERSE_TRANSPOSE_BEFORE_WGSL,
-  INVERSE_TRANSPOSE_WGSL,
-} from '../math/inverseTransposeWgsl.ts';
+import { INVERSE_TRANSPOSE_WGSL } from '../math/inverseTransposeWgsl.ts';
+import { INVERSE_TRANSPOSE_BEFORE_WGSL } from '../math/inverseTransposeBefore.fixture.ts';
 import { NORMAL_TRANSFORM_WGSL } from '../lighting/standardLighting.ts';
 import { substitueFormeAvant } from '../../../../tests/browser/probes/substitutionBefore.ts';
 
-const ORIGINE = 'packages/sdk-browser/src/math/inverseTransposeWgsl.ts';
+const ORIGINE = 'packages/sdk-browser/src/math/inverseTransposeBefore.fixture.ts';
 const SEUIL_ABSOLU = 'abs(det)<1e-20';
 const reel = (texte: string, name: string) => ({
   texte,

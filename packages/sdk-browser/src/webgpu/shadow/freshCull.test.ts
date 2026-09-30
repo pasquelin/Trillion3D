@@ -1,7 +1,6 @@
-// #1275: the cull of the pages the GPU draws itself (`freshCullWgsl.ts`) and their seal
-// (`sealShadowPages`), run from their shipped WGSL: a region keeps every caster row its volume
-// touches — the page table's and the blended casters' —, one pair each; no more pages are picked
-// than the pair list holds every row of, and the others wait, unread, for the next frame.
+// #1275: the cull of the pages the GPU draws itself (`freshCullWgsl.ts`), run from its shipped
+// WGSL: a region keeps every caster row its volume touches — the page table's and the blended
+// casters' —, one pair each.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';

@@ -1,5 +1,5 @@
 // #834: WebGL2 resamples with the temporal upscale's own kernel, Lanczos-2, its GLSL derived from
-// the WGSL text: the two evaluate alike, and the resample reads the kernel and its 2×2 deringing.
+// the WGSL text: the resample weighs by the kernel and clamps to its 2×2 deringing.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LANCZOS2_GLSL } from '../../taa/upscaleWgsl.ts';

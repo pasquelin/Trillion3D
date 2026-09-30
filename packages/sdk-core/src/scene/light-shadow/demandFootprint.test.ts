@@ -1,7 +1,7 @@
 // #1211: a page's shadow casters are culled to the footprint its receivers read, grown as more
 // name it — never less while it is mapped, so what a reader took stays covered. A reader whose
 // texel the footprint misses says so in the readback (`SHADOW_REQUEST_MISS`), and its page is
-// drawn whole; a page drawn for a part of a page is stale, never current.
+// drawn whole.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {

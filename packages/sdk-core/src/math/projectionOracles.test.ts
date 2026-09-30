@@ -5,8 +5,8 @@
 // real perspective projection, and `clusterErrorAtDepth` against `clusterErrorPixels`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { clusterErrorPixels, screenErrorBound } from '../index.ts';
-import { clusterErrorAtDepth } from '../lod/screenErrorBound.ts';
+import { clusterErrorPixels } from '../index.ts';
+import { clusterErrorAtDepth, screenErrorBound } from '../lod/screenErrorBound.ts';
 
 const FOCALE = 640,
   PROCHE = 0.25;

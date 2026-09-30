@@ -1,7 +1,7 @@
 // The sun clipmap window is the session's (#1281): an ordinary session keeps the constant, a
 // reference one raises it so every pixel of a wide view reads the finest level — no outer pixel
-// falls to the next, coarser clipmap level. The sizes a window implies scale with it, and a page
-// past the ordinary half-window is held only in the reference one.
+// falls to the next, coarser clipmap level: a page past the ordinary half-window is held only in
+// the reference one.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SUN_WINDOW } from './virtual.ts';

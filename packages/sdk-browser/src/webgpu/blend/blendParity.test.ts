@@ -1,9 +1,6 @@
-// #558, measure ko: on WebGPU a multiplied surface over an opaque one let the background show
-// through, `#20222a × (1 − alpha)`, where the witness (three@0.174) shows `d·s` alone. The lit
-// target's alpha is the coverage the composition lays the background under; the witness draws
-// over a canvas that already holds it. This follows one pixel through the transparent pass's own
-// blend state (`blendTargets`) and the composition's weighting. Multiply and subtractive colours
-// are the witness's in display space, after the tone curve (`displayFilter.ts`).
+// #558: multiply and subtractive colours are the witness's (three@0.174) in display space, after the
+// tone curve (`displayFilter.ts`). The display layers that carry them take the colour the
+// composition shows through its curve, route by their pipeline, and are sampled to the display.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { close, display, srgb } from './blendModel.fixture.ts';

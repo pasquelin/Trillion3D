@@ -8,7 +8,7 @@ import {
 } from '../../../../sdk-core/src/index.ts';
 import { localTurnQuaternion } from '../../../../sdk-core/src/math/matrix/quaternion.ts';
 import type { TileView } from '../../../../../bench/oracles/browser/gpuLightTileColumnOracle.ts';
-import { tileViewInverse } from './tiles.ts';
+import { tileViewInverse } from './tileFrame.ts';
 
 // The views and world points the tile-bounds tests draw lights around, in f64.
 

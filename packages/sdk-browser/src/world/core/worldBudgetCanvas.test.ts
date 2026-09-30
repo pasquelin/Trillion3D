@@ -1,5 +1,5 @@
-// #349: the budget declares its largest canvas; the effect chain's targets are reserved at its
-// size, and a canvas drawn past it renders whole while the diagnostics say the byte excess.
+// #349: the budget declares its largest canvas: under a GPU total set, a larger one redraws the
+// pools, and a bad one changes nothing.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { worldBudget, worldPools } from './worldBudget.ts';

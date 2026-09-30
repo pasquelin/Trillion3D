@@ -1,7 +1,7 @@
 // Common-formulas lot: each WGSL fragment factored out of `pageWgsl.ts` must stay the
 // unique write of its identifier, and each shader that assembles it must carry it only once —
 // two copies in the same text would be two chances of seeing it drift, as before this lot.
-import { importWrapMode } from '../../host/textureImport.ts';
+import { importWrapMode } from '../../host/wrapImport.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
