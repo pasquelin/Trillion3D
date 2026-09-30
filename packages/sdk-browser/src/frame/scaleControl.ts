@@ -1,7 +1,7 @@
 import { createRefreshClock, createScaleController, nextScale } from './scaleController.ts';
 import { renderScaleBounds, type RenderScale } from './renderScaleOption.ts';
 
-/** The budget before the display's refresh is measured, and the longest it can be: 60 Hz. */
+/** The budget before the display's refresh is measured. */
 const FALLBACK_REFRESH_MS = 1000 / 60;
 /** The targets are made on a ladder of eighths of the display, so a small step of the scale
  *  remakes nothing. */
