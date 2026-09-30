@@ -1,4 +1,4 @@
-import { contractSurfaceBody } from './surfaceWgsl.ts';
+import { contractSurfaceBody, LIGHT_SURFACE_ENTRY, MIRROR_TERM_WGSL } from './surfaceWgsl.ts';
 import { SUBSURFACE_BINDING } from '../../scene/subsurface.ts';
 import { SHADING_OFFSET_BINDING } from '../../visibility/shader/shadingPoint.ts';
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts';
@@ -53,7 +53,7 @@ export const UNLIT_LIGHTING_SHADER = `
 ${VIEW_WGSL}
 ${surfaceBindingsWgsl()}
 ${FULLSCREEN_VERTEX}
-@fragment fn lightSurface(@builtin(position) pixel:vec4f)->@location(0) vec4f{
+${LIGHT_SURFACE_ENTRY}
  let coord=vec2i(pixel.xy);let flag=textureLoad(flags,coord,0).r;
  if(flag==0u){return vec4f(0.0);}
  return vec4f(textureLoad(baseMetal,coord,0).rgb+textureLoad(emissiveAo,coord,0).rgb,1.0);
@@ -79,12 +79,12 @@ fn thinBounce(N:vec3f,P:vec3f,ao:f32)->vec3f{
  return bounceLighting(thinSubsurface,0.0,-N,P,ao);
 }
 ${contractSurface(
-  '+bounceLighting(base.rgb,base.a,N,P,emissive.a)+thinBounce(N,P,emissive.a)+mirrorLighting(base.rgb,base.a,normal.a,N,V,P)',
+  `+bounceLighting(base.rgb,base.a,N,P,emissive.a)+thinBounce(N,P,emissive.a)${MIRROR_TERM_WGSL}`,
   'if(bounceOnly()){return vec4f(bounceIrradiance(N,P,view.lightParams.w),1.0);}',
 )}`;
 /** The direct program's surface: what a specular lobe reflects of the environment (#1341). */
 const DIRECT_SURFACE_WGSL = `${DIRECT_REFLECTION_WGSL}
-${contractSurface('+mirrorLighting(base.rgb,base.a,normal.a,N,V,P)')}`;
+${contractSurface(MIRROR_TERM_WGSL)}`;
 /** Contract program: deferred resolve lit by the declared lights only, with their shadows, seen
  * through the scene's fog. No ambient term, no constant sky, no light written in the scene is
  * added (P6). An unlit material shows its colour with no response to light, still seen through

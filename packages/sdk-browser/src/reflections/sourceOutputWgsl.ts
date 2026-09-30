@@ -1,8 +1,9 @@
-import { FOG_FREE_SURFACE_FLAG } from '../scene/surfaceModel.ts';
+import {
+  CAMERA_FOG_WGSL,
+  LIGHT_SURFACE_ENTRY,
+  MIRROR_TERM_WGSL,
+} from '../lighting/deferred/surfaceWgsl.ts';
 
-const ENTRY = '@fragment fn lightSurface(@builtin(position) pixel:vec4f)->@location(0) vec4f{';
-const MIRROR = '+mirrorLighting(base.rgb,base.a,normal.a,N,V,P)';
-const CAMERA_FOG = `if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){rgb=fogged(rgb,P,view.display.yzw);}`;
 const HELD = 'reflectionSourceRgb=rgb;reflectionSourceHeld=true;';
 
 /**
@@ -13,19 +14,19 @@ const HELD = 'reflectionSourceRgb=rgb;reflectionSourceHeld=true;';
  * drawn after the lighting (transparents, water, particles) reaches it.
  */
 export function withReflectionSourceOutput(shader: string) {
-  if (!shader.includes(ENTRY) || !shader.includes(CAMERA_FOG + '\n'))
+  if (!shader.includes(LIGHT_SURFACE_ENTRY) || !shader.includes(CAMERA_FOG_WGSL + '\n'))
     throw new Error('REFLECTION_SOURCE_OUTPUT_UNMATCHED');
   const lit = shader
-    .replace(ENTRY, 'fn litSurface(pixel:vec4f)->vec4f{')
-    .replaceAll(CAMERA_FOG, HELD + CAMERA_FOG)
-    .replaceAll(`${MIRROR};${HELD}`, `;${HELD}rgb+=${MIRROR.slice(1)};`);
+    .replace(LIGHT_SURFACE_ENTRY, 'fn litSurface(pixel:vec4f)->vec4f{')
+    .replaceAll(CAMERA_FOG_WGSL, HELD + CAMERA_FOG_WGSL)
+    .replaceAll(`${MIRROR_TERM_WGSL};${HELD}`, `;${HELD}rgb+=${MIRROR_TERM_WGSL.slice(1)};`);
   // A mirror term left in the held sum would reflect itself: its text moved, the output refuses.
-  if (lit.includes(`${MIRROR};`)) throw new Error('REFLECTION_SOURCE_OUTPUT_UNMATCHED');
+  if (lit.includes(`${MIRROR_TERM_WGSL};`)) throw new Error('REFLECTION_SOURCE_OUTPUT_UNMATCHED');
   return `${lit}
 var<private> reflectionSourceRgb:vec3f;
 var<private> reflectionSourceHeld:bool;
 struct LitSurface{@location(0) lit:vec4f,@location(1) source:vec4f,}
-${ENTRY.replace('->@location(0) vec4f{', '->LitSurface{')}
+${LIGHT_SURFACE_ENTRY.replace('->@location(0) vec4f{', '->LitSurface{')}
  reflectionSourceHeld=false;
  let color=litSurface(pixel);
  return LitSurface(color,select(color,vec4f(reflectionSourceRgb,1.0),reflectionSourceHeld));
