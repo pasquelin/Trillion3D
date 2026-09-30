@@ -999,6 +999,7 @@
       "selectedNodes": "Nœuds gardés.",
       "primitives": "Primitives gardées.",
       "metrics": "Temps et taille.",
+      "reusedPages": "Pages que l’exécution a trouvées déjà construites (`null` pour un dossier gardé).",
       "reused": "Ce qui a été réutilisé."
     }
   },

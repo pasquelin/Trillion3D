@@ -87,24 +87,16 @@ export async function prepare(
   const manifest = (await readPagedManifest(root, read)) as unknown as CompilationResult;
   return {
     ...manifest,
-    metrics: withFinalMetrics(manifest, pointer),
+    // What the run measured of itself is on the pointer alone: the manifest on disk describes the
+    // product, the same bytes whatever the cache held (#1370), and an older head's report is not
+    // this run's.
+    metrics: pointer.metrics,
+    reusedPages: pointer.reusedPages ?? null,
     url: pointer.url,
     pointer: pointer.pointer,
     cache: pointer.cache,
     reused: pointer.reused ?? null,
   };
-}
-/**
- * The manifest is serialized before the cache is pruned, so it cannot hold what comes after it —
- * the purge and the job's own duration. Those live on the pointer alone, and a caller that only
- * reads the returned result would otherwise never see them. The manifest stays authoritative for
- * every measurement it does carry: it is spread last, so it wins over the pointer, which
- * only fills in the keys it leaves out. A reused folder is another run: its manifest describes
- * the compile that wrote it, so only the pointer's numbers — this run's — are returned.
- */
-function withFinalMetrics(manifest: CompilationResult, pointer: CompilationPointer) {
-  if (pointer.reused) return { ...pointer.metrics };
-  return { ...pointer.metrics, ...(manifest.metrics as Record<string, unknown> | undefined) };
 }
 /**
  * Compiles many models in one compiler process. The compiler runs `workers` jobs at a time and

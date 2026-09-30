@@ -36,8 +36,7 @@ fn exact_measurements_round_trip_without_display_rounding_or_changed_answers() {
     let bytes = serde_json::to_vec(&sheet).unwrap();
     let parsed = parse_sheet(Path::new("decoupes.json"), &bytes).unwrap();
     let decisions = Decisions {
-        path: PathBuf::from("decoupes.json"),
-        found: true,
+        sheet: PathBuf::from("decoupes.json"),
         by_image: read_answers(Path::new("decoupes.json"), &parsed).unwrap(),
         measurements: MeasureCache::read(&parsed),
     };
@@ -152,8 +151,7 @@ fn freshly_measured_rows_publish_reusable_values_without_answering_for_the_user(
     let image = image();
     let shape = measure(&image);
     let decisions = Decisions {
-        path: PathBuf::from("decoupes.json"),
-        found: false,
+        sheet: PathBuf::from("decoupes.json"),
         by_image: BTreeMap::new(),
         measurements: MeasureCache::default(),
     };

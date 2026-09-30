@@ -999,6 +999,7 @@
       "selectedNodes": "Behaltene Knoten.",
       "primitives": "Behaltene Primitive.",
       "metrics": "Zeit und Größe.",
+      "reusedPages": "Seiten, die der Lauf bereits gebaut vorfand (`null` bei einem behaltenen Ordner).",
       "reused": "Was wiederverwendet wurde."
     }
   },

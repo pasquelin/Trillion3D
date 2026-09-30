@@ -85,8 +85,7 @@ test('prepare() reports the folder reused by a second identical run', async (t) 
     assert.equal(typeof second.reused.validateMs, 'number');
     const metrics = second.metrics as ReusedPrepareMetrics;
     assert.equal(typeof metrics.wallMs, 'number');
-    // The manifest on disk still says how long the first run clustered; this run did not, and
-    // none of that compile's durations is passed off as this run's.
+    // This run clustered nothing, and no compile's durations are passed off as this run's.
     assert.equal(metrics.clusterHierarchyPagesMs, null);
     assert.equal(metrics.compileMs, undefined);
     assert.equal(metrics.phaseElapsedMs, undefined);
@@ -102,14 +101,15 @@ interface FauxPointer {
   pointer: string;
   cache: string;
   metrics: { importMs: number; wallMs: number; pruneMs: number };
+  reusedPages: number;
 }
 
 /**
- * A stub compiler: the manifest of `metrics` is paged in beforehand, then the stub announces the
- * pointer. It pins both readings, which the real binary cannot, and makes the merge rule observable.
+ * A stub compiler: the manifest `head` is paged in beforehand, then the stub announces the
+ * pointer. It pins both readings, which the real binary cannot.
  */
-async function faux(root: string, metrics: object, pointeur: FauxPointer): Promise<string> {
-  const paged = { ...fixture(), primitives: [], metrics };
+async function faux(root: string, head: object, pointeur: FauxPointer): Promise<string> {
+  const paged = { ...fixture(), primitives: [], ...head };
   await writePagedManifest(join(root, 'cache', 'native', pointeur.scope), paged, pointeur.url);
   const chemin = join(root, 'faux-compilateur.ts');
   await writeFile(
@@ -122,7 +122,9 @@ process.stdout.write(${JSON.stringify(JSON.stringify(pointeur))});
   return chemin;
 }
 
-test('the manifest keeps priority, the pointer fills in the final measurements', async () => {
+// #1370: a head written before the run's report left the manifest still carries one — another
+// run's times and reused pages. The result gives this run's, from its pointer, never the head's.
+test('prepare() returns the run’s report from the pointer, never from an older head', async () => {
   const root = await mkdtemp(join(tmpdir(), 'trillion3d-fusion-'));
   try {
     const pointeur = {
@@ -132,12 +134,15 @@ test('the manifest keeps priority, the pointer fills in the final measurements',
       pointer: 'quad',
       cache: 'c',
       metrics: { importMs: 999, wallMs: 40, pruneMs: 5 },
+      reusedPages: 7,
     };
+    const olderHead = { metrics: { importMs: 1, compileMs: 2 }, reusedPages: [3] };
     const result = await prepare(await quad(root), join(root, 'cache'), 'full', 150000, {
-      executable: await faux(root, { importMs: 1, compileMs: 2 }, pointeur),
+      executable: await faux(root, olderHead, pointeur),
       resourceBaseUrl: '/assets/',
     });
-    assert.deepEqual(result.metrics, { importMs: 1, compileMs: 2, wallMs: 40, pruneMs: 5 });
+    assert.deepEqual(result.metrics, { importMs: 999, wallMs: 40, pruneMs: 5 });
+    assert.equal(result.reusedPages, 7);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
