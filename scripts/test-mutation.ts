@@ -45,7 +45,10 @@ const mutationRun = (files: string[], full: boolean) =>
     mutate: values.mutate ?? [`${PACKAGE}**/*.ts`, '!**/*.test.ts', '!**/*.fixture.ts'],
     coverageAnalysis: 'perTest',
     disableBail: full,
-    concurrency: Number(process.env.TRILLION3D_MUTATION_CONCURRENCY) || availableParallelism() >> 2,
+    // At least one runner: Stryker starts none at 0 and waits forever (under four cores).
+    concurrency:
+      Number(process.env.TRILLION3D_MUTATION_CONCURRENCY) ||
+      Math.max(1, availableParallelism() >> 2),
     reporters: full ? ['progress'] : ['json', 'html', 'progress'],
     jsonReporter: { fileName: join(out, 'mutation.json') },
     htmlReporter: { fileName: join(out, 'mutation.html') },
