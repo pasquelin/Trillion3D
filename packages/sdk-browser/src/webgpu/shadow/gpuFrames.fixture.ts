@@ -140,8 +140,9 @@ export function gpuFrames(
           bytes(allocation.drawList),
         );
       regions.length = 0;
-      const wanted = gpuDraws === 'wanted' && freshWanted(plan, store.epoch, allocation.lost);
-      if (gpuDraws === true || wanted) {
+      const draws =
+        gpuDraws === 'wanted' ? freshWanted(plan, store.epoch, allocation.lost) : gpuDraws;
+      if (draws) {
         // No caster row: the cull keeps no pair, and every region is sealed readable.
         allocation.writeFresh(poolSide, 1, 0, [0, 0], 0, freshSlices(store));
         const fresh = [data, state, allocation.drawList, allocation.freshFaces];
