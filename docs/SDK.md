@@ -62,7 +62,12 @@ package consumer. `bench/witnesses/measurement.ts` adds the witness factories (b
 `site/data/api-inventory.json` is generated with the TypeScript checker: it follows aliases and
 transitive star exports, records binding identity, and lists every entry point and the documented
 source-path imports the facade newly exposes; experimental comparison and oracle bindings stay
-classified as experimental. `dotVector3` is the one dot product, on three components.
+classified as experimental. Removed exports and what to write instead: the N-dimensional `dot` →
+`dotVector3`, the one dot product, on three components; `GraphNode` and `GraphNodeKind` → `Light`
+and its `kind`; `HostNode`, `HostTraversable`, `HostGraphNode` → `Object3D`; `GraphGeometry` →
+`Geometry`; `GraphAttribute`, `GraphInterleavedBuffer`, `GraphInterleavedAttribute`,
+`GraphElements`, `GraphArray` → `BufferAttribute`, `InterleavedBuffer`,
+`InterleavedBufferAttribute`, `VertexAttribute`, `BufferTypedArray`.
 
 Measured with esbuild 0.25.12 (ESM, browser platform, minification and tree shaking), a consumer
 importing only `hierarchyUpdateBatch` weighs 1,780 bytes from the common facade and 3,289 bytes from
@@ -175,7 +180,7 @@ Thirteen families describe the scene:
 | `math` | vectors, quaternions, boxes, paths | `math.vector3(0, 1, 0)`, `math.quaternion().setFromAxisAngle(axis, Math.PI / 4)`, `math.box3().setFromObject(set)` |
 | `texture`, `loader` | pictures | `const albedo = await loader.texture('wood.jpg')`, `albedo.wrap = wrap.repeat`, `albedo.repeat.set(4, 4)` |
 | `helper` | the marks you work with | `helper.grid(20, 20)`, `helper.axes(2)` |
-| `controls` | handles that move an object with the mouse | `controls.transform(world).attach(ball)`, then `gizmo.addEventListener('dragEnd', () => history.push(ball.position.clone()))` |
+| `controls` | handles that move an object with the mouse | `const gizmo = controls.transform(world).attach(ball)`, then `gizmo.addEventListener('dragEnd', () => history.push(ball.position.clone()))` |
 | `animation` | clips and mixers | `animation.createMixer(set)`, `animation.clip('bob', 2, [animation.vectorTrack('.position', [0, 1, 2], [0, 1, 0, 0, 2, 0, 0, 1, 0])])`, `mixer.play(bob)`; `mixer.clipAction(bob).seek(0.5)` poses the clip at 0.5 s now, playing or not (a stopped action keeps it until a playing one writes over it) |
 | `buffer` | a geometry built by hand | `geometry.createBuffer({ position: buffer.float32(vertices, 3), index: buffer.uint32(indices) })` |
 | `effect` | post-processing | [Canvas, camera and teardown](#canvas-camera-and-teardown) |
@@ -192,7 +197,7 @@ according to what the frame reads:
 | `diagnostic` | `createChannel`, `presentationColor`, `partitionAudit`, `transparentOcclusion`, `shadowAtlas` | watching the engine work | `world.diagnostic.mode = 'clusters'` (or `'wireframe'`, `'triangles'`, `'beauty'`) |
 | `capability` | `detect`, `lighting` | what the machine grants, before an image is promised | `(await capability.detect()).webgpu` |
 | `capture` | `surface`, `buffer` | an image aside, at another resolution, without touching the view | `capture.surface(world, { width: 3840, height: 2160 })` |
-| `pose` | `fromBounds`, `runPath`, `pointOfInterest` | named poses, automatic framing, replaying a path | `world.camera.set(pose.fromBounds(box))` |
+| `pose` | `fromBounds`, `runPath`, `pointOfInterest` | named poses, automatic framing, replaying a path | `world.camera.set(pose.fromBounds(math.box3().setFromObject(set)))` |
 | `batch` | `transformPoints`, `composeMatrix4`, `frustumKeepsBox` | a thousand matrices at once instead of a loop | `batch.composeMatrix4(outputs, positions, quaternions, scales, 1000)` |
 
 The world is not a family: it is the object `createWorld` returns, carrying `scene`, `camera`,
@@ -682,8 +687,8 @@ model's materials through its `world`:
 | `world.materialMapBytes()` | runtime map bytes held and pending, under the fixed 64 MiB ceiling |
 | `world.assignMaterial('mesh/primitive', id)` | a created material on a compiled primitive — `world.assignMaterial('mesh/primitive', created.id)`, numbers from `metadata.primitives`; unknown: `UNKNOWN_SCENE_NODE` |
 
-A patch sets `baseColor` (three linear channels, 0 to 1), `opacity`, `metalness`, `roughness`,
-`alphaCutoff` (0 to 1), nonnegative linear `emissive`, `alphaMode` (`'opaque'`, `'mask'`, `'blend'`)
+A patch sets `baseColor` (three linear channels, 0 to 1), `opacity`, `metalness`, `roughness` and
+`alphaCutoff` (each 0 to 1), nonnegative linear `emissive`, `alphaMode` (`'opaque'`, `'mask'`, `'blend'`)
 or nonzero finite `tiling`, which needs a map only that material uses (`MATERIAL_TEXTURE_SHARED`).
 An invalid field or value raises `INVALID_MATERIAL` before any write. Changing between opaque,
 masked and blended moves the drawables' draw class; a renderer unable to in place raises

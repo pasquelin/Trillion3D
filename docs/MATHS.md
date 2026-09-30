@@ -85,7 +85,9 @@ written only where a loop's measured share of the engine's frame passes 0.1 ms; 
 so no other batch has one and none replaces an engine loop yet (#80): batches are for hosts until a
 measured share says otherwise.
 
-**Measured against the witness library.** Each row names its witness call and proof:
+### Measured against the witness library
+
+Each row names its witness call and proof:
 `pnpm run perf:core` (`bench/perf/core/three-vs-core-*.perf.ts`; how a line reads:
 [TESTS.md](TESTS.md#performance-benchmarks)) runs Three.js and the engine on the same seeded inputs,
 compares bit for bit and refuses an engine slower than the witness. Ratios are the engine's speed-up
