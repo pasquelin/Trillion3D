@@ -3,7 +3,6 @@ import { DEPTH_CLEAR, DEPTH_NEAR } from '../../camera/depthConvention.ts';
 import { directLightWgsl } from '../direct/lightWgsl.ts';
 import { TILE_BOUNDS_WGSL, tileDepthBoundsWgsl } from './boundsWgsl.ts';
 import { tileCompactResetWgsl, tileCompactStatementsWgsl, tileCompactWgsl } from './compactWgsl.ts';
-import { clusterPassWgsl } from './clusterWgsl.ts';
 
 /**
  * Light lists per 16 × 16 pixel screen tile. One workgroup per tile: the 256 threads reduce the
@@ -93,7 +92,6 @@ fn sphereTouchesBox(box:Box,centre:vec3f,radius:f32)->bool{
  return dot(clamped,clamped)<=radius*radius;
 }
 ${TILE_BOUNDS_WGSL}
-${clusterPassWgsl}
 ${tileCompactWgsl(words, !narrow)}
 @compute @workgroup_size(${LIGHT_SETTINGS.tileSize},${LIGHT_SETTINGS.tileSize},1)
 fn lightTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_index) lane:u32){
@@ -129,7 +127,6 @@ ${tileDepthBoundsWgsl(subgroups)}
  let hasOpaque=atomicLoad(&covered)==1u;
  let seesSky=atomicLoad(&skyward)==1u;
 ${tileCompactStatementsWgsl(words, !narrow)}
- clusterMasks(base,lane,count);
 }`;
 };
 

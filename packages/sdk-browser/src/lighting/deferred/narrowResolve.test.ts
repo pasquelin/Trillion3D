@@ -1,6 +1,6 @@
 // The narrow resolve (#849): a scene of at most `TILE_LIGHTS` lights is lit by a program whose light
 // array is that long and whose slice loop has no pool or whole-scene branch, and never a wider
-// scene by it.
+// scene by it; a scene with no shadow slot by the program with no shadow code (#1249).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
@@ -20,7 +20,7 @@ test('the narrow resolve bounds its light array and walks its list with no pool 
     assert.match(narrow, new RegExp(`items:array<DirectLight,${LIGHT_SETTINGS.tileLights}>`));
     assert.match(wide, /items:array<DirectLight>/);
     const loop = functionText(narrow, 'sliceLighting');
-    // The grid's mask and the range reject are the wide loop's (#1249); no pool, no scene walk.
+    // The range reject is the wide loop's (#1249); no pool, no scene walk.
     assert.doesNotMatch(loop, /TILE_NO_SLICE/, 'no pool or whole-scene branch');
     assert.match(loop, /let light=tileLights\[slice\.x\+index\];/);
     assert.doesNotMatch(functionText(narrow, 'tileSlice'), /TILE_NO_SLICE|if\(/);

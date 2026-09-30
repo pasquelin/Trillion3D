@@ -32,12 +32,12 @@ scene is read, from what the machine offers. The `backend-choice` diagnostic rep
 reads the cache's prepared scene rather than `source.gltf`), the `reason` and the `textureSource`
 settled on.
 
-| Machine                             | Backend that renders                                                         | Scene file read            |
-| ----------------------------------- | ---------------------------------------------------------------------------- | -------------------------- |
-| A WebGPU device was granted         | `webgpu-page-raster`                                                         | `source.gltf`              |
-| WebGL2, cache with a prepared scene | `autonomous-pages-webgl`                                                     | `metadata.autonomousScene` |
-| WebGL2, cache without one           | `autonomous-pages-webgl`                                                     | `source.gltf`              |
-| Neither WebGPU nor WebGL2           | none — `NO_ENGINE_BACKEND` (`NO_WEBGL2` from the capability probe before it) | —                          |
+| Machine | Backend that renders | Scene file read |
+| --- | --- | --- |
+| A WebGPU device was granted | `webgpu-page-raster` | `source.gltf` |
+| WebGL2, cache with a prepared scene | `autonomous-pages-webgl` | `metadata.autonomousScene` |
+| WebGL2, cache without one | `autonomous-pages-webgl` | `source.gltf` |
+| Neither WebGPU nor WebGL2 | none — `NO_ENGINE_BACKEND` (`NO_WEBGL2` from the capability probe before it) | — |
 
 `autonomous-pages-webgl` decodes the cache's geometry pages itself, draws every page the cut selects
 — `submittedTriangles` equals `selectedTriangles` — and lights the scene from the cache's light
@@ -296,8 +296,8 @@ tile the pool has no room for walks every light, exactly, and the overflow is na
 lights or fewer) writes the pool from the masks its tiles still hold, never testing a light twice.
 A scene of 64 lights or fewer runs a narrow tile pass (64-bit masks, a 64-light array, one batch
 written straight at its ranks), holds no pool, and resolves with the narrow program too (each listed
-light read at its rank, no pool branch), compiled on first use, its wide twin beside it. A shadow
-caster past the 64 shadow slices lights without a shadow and is counted (`shadowCastersUnsliced`, #818).
+light read with no branch), compiled on first use, its wide twin beside it. A shadow caster past the
+64 shadow slices lights without a shadow and is counted (`shadowCastersUnsliced`, #818).
 
 WebGL2 holds every light in a float texture grown with the count. A fragment evaluates only the
 lights whose range reaches its cell of a world grid laid over the lamps (a cell is their median
@@ -305,33 +305,20 @@ range, at most 512 cells a lamp), plus the lights that reach every fragment. The
 the CPU into one integer texture only when a lamp's position or range changes; a camera-only move
 sends only the view-to-grid matrix (`webgl/cluster/lightLists.ts`, #835).
 
-**A pixel pays only for the lights that reach it.** The tile pass lays a light grid over each
-tile, Unreal's froxels on the existing tiles: its opaque depth range is cut into `clusterSlices`
-(16) logarithmically spaced slices along the view axis, and the record carries the tile's nearest
-and farthest depth and one 64-bit mask per slice (`clusterMasks`, `lighting/tiles/clusterWgsl.ts`,
-#1249). Bit `b` names the `b`-th run of `2^k` lights of the slice the resolve walks — one light
-while the slice fits 64, the list, its pool room past 64 lights, or every light —, so a tile of
-any light count is covered, with no atomic, no pool room and no copy of the list: the tile pass's
-256 lanes settle the bits, each testing a light's view-axis span once. The resolve takes its
-pixel's slice from its own depth and walks, in increasing rank, only the lights its mask names;
-each is first rejected on its sphere alone, past its range, before its record is read in full —
-exactly where `declaredLight` would have returned zero before any shading, shadow or page read. The
-walk is a subsequence of the tile list and every term it drops is an exact zero, so the sum is the
-full one, term for term. A light is assigned to every slice its view-axis span touches — the span
-is at most its radius, the axis being a projection —, padded by a thousandth of its distance, so
-no light that lights a pixel is ever dropped (`clusterResolve.test.ts`; on a device,
-`tests/browser/probes/light-tiles-plain-gpu.ts` decodes the pass's own grid: no light reaching a
-pixel missing, two thirds of the list walked). A tile whose pixels see the background writes full
-masks and walks its whole list, as before.
-
-**A scene with no shadow slot resolves with no shadow code.** An unshadowed light never runs the
-shadow code, yet timed on the resolve (64 lamps, a million pixels) that code costs it 40 % of its
-evaluation — the registers it holds lower the pixels in flight. A frame no light of which holds a
-shadow slot is resolved by a program built without it (`declaredLightWgsl`,
-`lighting/direct/lightLoopWgsl.ts`; `contractVariants.ts`), the same sums bit for bit
-(`tests/browser/probes/narrow-resolve-gpu.ts`); its twin with shadow code compiles beside it. Per
-light and pixel, against develop: in range 42.5 → 27.9 ps, out of range 28.1 → 10.2 ps; a scene with
-shadows 47.1 and 19.9 ps.
+**One light costs what it lights.** The resolve's one light loop (`sliceLightingWgsl`,
+`lighting/direct/lightLoopWgsl.ts`, #1249) first rejects a light on its sphere alone, before its
+record is read in full, where the point lies past its range by a ten-thousandth of its squared
+range — exactly where `declaredLight` would have given zero before any shading, shadow or page
+read. And a frame no light of which holds a shadow slot is resolved by a program built without the
+shadow code (`declaredLightWgsl`; chosen per frame, `contractVariants.ts`, its twin with shadow code
+compiled beside it): an unshadowed light never runs that code, yet the registers it holds cost the
+light 40 % of its evaluation. The sums are the same, bit for bit
+(`tests/browser/probes/narrow-resolve-gpu.ts`). Timed on the resolve (64 lamps, a million pixels,
+M2 Max), per light and pixel against develop: in range 42.3 → 27.8 ps, out of range 28.1 → 10.6
+ps; a scene with shadows 47.9 and 20.1 ps. A light grid over the tiles (16 log-Z slices, a 64-bit
+mask each) was built and timed: at 3456 × 2234 it added 1.0 ms to the tile pass and removed 3 % of
+the lights walked on a sponza-sized atrium — once lights past their range are rejected on their
+sphere, a grid can only save that reject, never a light's shading.
 
 **A moving image samples its shadowed lights.** It weighs every light of its tile without its
 shadow (the cheap part) and shades four in full, shadow included. A light worth a sample's share of
@@ -340,14 +327,15 @@ cumulative weight from a per-pixel offset that advances by the golden ratio ever
 divided by its probability. The estimate is unbiased, so the history averages it toward the full
 sum; a still image — the quiet ones, a capture, a diagnostic view — shades every light of the tile.
 The tile pass records once per tile whether its opaque list holds a shadowed light
-(`TILE_SHADOW_BASE`, `lighting/tiles/compactWgsl.ts`); the moving resolve reads that word beside the
-list's count and samples only a list of 5 to 64 lights that holds one; a list with none is never
-sampled — with no shadow to save, the three weight walks would cost three times the full sum — but summed in full as
+(`TILE_SHADOW_BASE`, `lighting/tiles/compactWgsl.ts`), read beside the list's count: only a list of 5
+to 64 lights that holds one is sampled, as the per-pixel list walk it replaces decided; a list with
+none is never sampled — with no
+shadow to save, the three weight walks would cost three times the full sum — but summed in full as
 the still one is, bit for bit, the resolve never walking the list a pixel at a time
 (`tileShadowed`, `tests/browser/probes/sampled-resolve-gpu.ts`, #1249). 200 unshadowed lamps of
-range 4 m in a sponza-sized atrium drop from 25.5 light evaluations per covered pixel to 7.6 at
-3456 × 2234 — the tile list averages 7.8, the slice the pixel walks 7.6, of which 6.9 reach it
-(`bench/runner/lightTileSampledCount.ts`). `metric.frame(world).lightsSampled` says the image ran at a sampled rank. Declared cost: a faint grain on lit surfaces where lights of different
+range 4 m in a sponza-sized atrium drop from 23.8 light evaluations per covered pixel to 7.4 at
+3456 × 2234 (`bench/runner/lightTileSampledCount.ts`). `metric.frame(world).lightsSampled` says the
+image ran at a sampled rank. Declared cost: a faint grain on lit surfaces where lights of different
 colours overlap, while the camera moves (`tests/browser/renders/sampled-lighting.browser.ts`). What
 remains: a spatial denoise before the history.
 
@@ -730,16 +718,16 @@ next is started, and a stage out of order is not out of scope. Nothing here is c
 engine: it comes from public material — SIGGRAPH talks of 2021 and 2022, published documentation —
 and from what this engine already has.
 
-| Reference piece                                   | Role                                                                                                  | What we have today                                                                                                                                                                                                        | What is missing        |
-| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
-| Temporal antialiasing                             | denoises everything stochastic                                                                        | shipped, exact at rest ([Temporal antialiasing](#temporal-antialiasing))                                                                                                                                                  | —                      |
-| Screen traces                                     | first shot of every ray: image depth and normal, almost free                                          | a projected pixel-grid traversal for mirror and rough reflections, WebGPU and WebGL2 ([Light that bounces](#light-that-bounces)); no screen-traced bounce                                                                 | L1 (short bounce)      |
-| Distance fields (per mesh, then global)           | off-screen rays without hardware ray tracing                                                          | certified-error resident proxy, walked triangle by triangle                                                                                                                                                               | L4                     |
-| Surface cache                                     | radiance of off-screen surfaces, updated under budget                                                 | one radiance per triangle and proxy face, swept under budget                                                                                                                                                              | L4                     |
-| Screen probes (16 px grid) + world radiance cache | final gather, temporally filtered                                                                     | cascaded SH2 world probes; no screen probe                                                                                                                                                                                | L5                     |
-| Reflections                                       | screen traces, then distance fields reading the cache                                                 | screen traces first; on a miss, with bounce on, the resident-proxy ray read in the surface cache and the probes; GGX rough lobe, accumulated on opaque WebGPU receivers, cone-filtered on transparent ones                | L4 (off-screen detail) |
-| Virtual shadow maps                               | virtual: 16 384² texels a map (128² pages); physical: a page pool of a set count; static pages cached | virtual: 8 192² texels a sun level (64² pages), 4 096² a lamp face; physical: a screen-sized pool (2 601 pages at 720p, 5 618 at most), per-pixel level, receiver-marked pages, a static layer ([SHADOWS.md](SHADOWS.md)) | —                      |
-| Stochastic direct lighting                        | few samples per pixel, denoised                                                                       | tiled culling; four draws per moving pixel, exact at rest                                                                                                                                                                 | L2 (denoise)           |
+| Reference piece | Role | What we have today | What is missing |
+| --- | --- | --- | --- |
+| Temporal antialiasing | denoises everything stochastic | shipped, exact at rest ([Temporal antialiasing](#temporal-antialiasing)) | — |
+| Screen traces | first shot of every ray: image depth and normal, almost free | a projected pixel-grid traversal for mirror and rough reflections, WebGPU and WebGL2 ([Light that bounces](#light-that-bounces)); no screen-traced bounce | L1 (short bounce) |
+| Distance fields (per mesh, then global) | off-screen rays without hardware ray tracing | certified-error resident proxy, walked triangle by triangle | L4 |
+| Surface cache | radiance of off-screen surfaces, updated under budget | one radiance per triangle and proxy face, swept under budget | L4 |
+| Screen probes (16 px grid) + world radiance cache | final gather, temporally filtered | cascaded SH2 world probes; no screen probe | L5 |
+| Reflections | screen traces, then distance fields reading the cache | screen traces first; on a miss, with bounce on, the resident-proxy ray read in the surface cache and the probes; GGX rough lobe, accumulated on opaque WebGPU receivers, cone-filtered on transparent ones | L4 (off-screen detail) |
+| Virtual shadow maps | virtual: 16 384² texels a map (128² pages); physical: a page pool of a set count; static pages cached | virtual: 8 192² texels a sun level (64² pages), 4 096² a lamp face; physical: a screen-sized pool (2 601 pages at 720p, 5 618 at most), per-pixel level, receiver-marked pages, a static layer ([SHADOWS.md](SHADOWS.md)) | — |
+| Stochastic direct lighting | few samples per pixel, denoised | tiled culling; four draws per moving pixel, exact at rest | L2 (denoise) |
 
 What the web imposes, and the answer:
 

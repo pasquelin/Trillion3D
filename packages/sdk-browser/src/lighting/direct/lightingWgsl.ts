@@ -7,7 +7,6 @@ import { irradianceShader } from '../../../../sdk-core/src/scene/core/irradiance
 import { SURFACE_MODEL_LIGHT_WGSL } from '../../scene/surfaceModel.ts';
 import { declaredLightWgsl, sliceLightingWgsl } from './lightLoopWgsl.ts';
 import { DIRECT_LIGHT_SAMPLING_WGSL } from './lightSamplingWgsl.ts';
-import { clusterResolveWgsl } from '../tiles/clusterWgsl.ts';
 import { directShadowWgsl } from './shadowWgsl.ts';
 import { sunFarShadowWgsl, SUN_FAR_PROXY_BINDING } from '../../gpu/shadow/sunFarShadowWgsl.ts';
 import { INVERSE_PI } from '../shaderConstants.ts';
@@ -86,10 +85,8 @@ fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{
 }
 fn pixelTile(pixel:vec2f)->vec2u{return vec2u(u32(pixel.x)/TILE_SIZE,u32(pixel.y)/TILE_SIZE);}
 ${narrow ? NARROW_SLICE_WGSL : WIDE_SLICE_WGSL}
-/** Every light of a slice: the mask whole. */
-const FULL_MASK:vec2u=vec2u(0xffffffffu,0xffffffffu);
 fn tileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,tile:vec2u,tilesX:u32,countSlot:u32,firstSlot:u32)->vec3f{
- return sliceLighting(rgb,metal,rough,N,V,P,ao,tileSlice((tile.y*tilesX+tile.x)*TILE_STRIDE,countSlot,firstSlot),FULL_MASK);
+ return sliceLighting(rgb,metal,rough,N,V,P,ao,tileSlice((tile.y*tilesX+tile.x)*TILE_STRIDE,countSlot,firstSlot));
 }`;
 
 /**
@@ -109,16 +106,14 @@ fn tileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,til
  * list holds no shadowed light (`tileShadowed`, #1249), a flag the tile pass writes once.
  *
  * `narrow` is the resolve of a scene of at most `TILE_LIGHTS` lights (#849): its light array is
- * that long and its slice loop has no branch (`NARROW_SLICE_WGSL`), as the narrow tile pass
+ * that long and its slice loop no pool branch (`NARROW_SLICE_WGSL`), as the narrow tile pass
  * writes (`../tiles/shader.ts`). Without `shadowed`, the resolve of a scene no light of which
  * holds a shadow slot: the same sums with no shadow code compiled in (`declaredLightWgsl`, #1249).
  */
 export const directLightingWgsl = (narrow = false, pages = SUN_WINDOW, shadowed = true) => `
 ${lightingBase(SUN_FAR_PROXY_BINDING, CONTRACT_SHADOW_BINDINGS.data, CONTRACT_SHADOW_BINDINGS.requests, CONTRACT_SHADOW_BINDINGS.transmittance, pages, narrow, shadowed)}
 ${DIRECT_LIGHT_SAMPLING_WGSL}
-${clusterResolveWgsl}
-/** Contribution of the contract lights to the pixel: its cluster (#1249), or on a moving image
- *  whose tile holds a shadowed light, the sampled path. */
+/** Contribution of the contract lights to the pixel, tile by tile and light by light. */
 fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f)->vec3f{
  if(u32(view.lightParams.x)==0u){return vec3f(0.0);}
  let tile=pixelTile(pixel);
@@ -126,7 +121,7 @@ fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
  let tilesY=u32(view.lightParams.z);
  if(tile.x>=tilesX||tile.y>=tilesY){return vec3f(0.0);}
  let rank=u32(view.viewport.w);
- if(rank==0u||!tileShadowed(tile,tilesX)){return clusterLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,pixel);}
+ if(rank==0u||!tileShadowed(tile,tilesX)){return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE);}
  return sampledTileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,rank,pixel);
 }`;
 export const DIRECT_LIGHTING_WGSL = directLightingWgsl();
@@ -159,7 +154,7 @@ fn declaredLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
  let tilesY=u32(uni.lightTiles.y);
  let tile=pixelTile(pixel);
  if(tilesX==0u||tilesY==0u||tile.x>=tilesX||tile.y>=tilesY){
-  return sliceLighting(rgb,metal,rough,N,V,P,ao,vec2u(TILE_NO_SLICE,directLights.count),FULL_MASK);
+  return sliceLighting(rgb,metal,rough,N,V,P,ao,vec2u(TILE_NO_SLICE,directLights.count));
  }
  return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,1u,TILE_BLEND_BASE);
 }`;
