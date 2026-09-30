@@ -78,20 +78,22 @@ fn physics_cook(output: &Path) -> String {
         "joltCook",
         "--parallel",
     ]));
+    // Windows' multi-configuration generator writes each archive in its configuration's folder.
+    let msvc = env::var("CARGO_CFG_TARGET_ENV").as_deref() == Ok("msvc");
     for directory in [build.clone(), build.join("Jolt")] {
-        println!("cargo:rustc-link-search=native={}", directory.display());
-        let configuration = directory.join("Distribution");
-        println!("cargo:rustc-link-search=native={}", configuration.display());
+        let archives = if msvc {
+            directory.join("Distribution")
+        } else {
+            directory
+        };
+        println!("cargo:rustc-link-search=native={}", archives.display());
     }
     println!("cargo:rustc-link-lib=static=joltCook");
     println!("cargo:rustc-link-lib=static=Jolt");
     // The target's C++ library, not the host's: MSVC links its own from the objects.
-    match (
-        env::var("CARGO_CFG_TARGET_OS").as_deref(),
-        env::var("CARGO_CFG_TARGET_ENV").as_deref(),
-    ) {
-        (_, Ok("msvc")) => {}
-        (Ok("macos"), _) => println!("cargo:rustc-link-lib=c++"),
+    match (msvc, env::var("CARGO_CFG_TARGET_OS").as_deref()) {
+        (true, _) => {}
+        (_, Ok("macos")) => println!("cargo:rustc-link-lib=c++"),
         _ => println!("cargo:rustc-link-lib=stdc++"),
     }
     commit
