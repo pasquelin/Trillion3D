@@ -1,6 +1,5 @@
 import {
   composeMatrix4,
-  dotVector3,
   invertMatrix4,
   multiplyMatrix4,
   perspectiveProjection,
@@ -61,11 +60,3 @@ export const rayParameter = (distance: number) => (distance - NEAR) / (FAR_CAST 
 
 /** The depth the buffer holds at parameter `s` of a `pixelRay`. */
 export const rayDepth = (s: number) => NEAR / (NEAR + s * (FAR_CAST - NEAR));
-
-/** Distance from `c` to the segment `a`–`b`. */
-export function segmentDistance(a: Vec3, b: Vec3, c: Vec3) {
-  const ab = [0, 1, 2].map((i) => b[i] - a[i]),
-    ac = [0, 1, 2].map((i) => c[i] - a[i]);
-  const t = Math.min(1, Math.max(0, dotVector3(ab, ac) / dotVector3(ab, ab) || 0));
-  return Math.hypot(...ab.map((v, i) => v * t - ac[i]));
-}
