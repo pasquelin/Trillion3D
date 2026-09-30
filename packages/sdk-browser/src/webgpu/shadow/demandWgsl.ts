@@ -1,5 +1,6 @@
 import { POINT_FACES } from '../../../../sdk-core/src/index.ts';
 import { VIEW_WGSL, WORLD_AT_WGSL } from '../../lighting/deferred/shaders.ts';
+import { PIXEL_FOOTPRINT_WGSL } from '../../lighting/deferred/footprintWgsl.ts';
 import { LAMP_SOFT_DISK_WGSL } from '../../lighting/direct/lampSoftWgsl.ts';
 import { DIRECT_LIGHT_WGSL } from '../../lighting/direct/lightWgsl.ts';
 import { TILE_SLICE_WGSL } from '../../lighting/direct/lightingWgsl.ts';
@@ -28,8 +29,8 @@ export const SHADOW_DEMAND_GROUP = 8;
  * Every step is the shading's own: the view and the world point its resolve reconstructs
  * (`WORLD_AT_WGSL`, the deferred pass's view uniform), moved by the pixel's shading-point offset
  * (`shadowReceiverOffset`), its normal turned from a light behind a thin subsurface surface
- * (`declaredLight`), its tile slice, its light gate, and the page
- * model (`pageModel.ts`) its read takes the level, the map texel, the entry and the PCF's pages
+ * (`declaredLight`), its tile slice, its light gate, its footprint and point unjittered
+ * (`pixelLevel`), the turn of its taps (`shadowRotated`), and the page model (`pageModel.ts`) its read takes the level, the map texel, the entry and the PCF's pages
  * from. Unlike the read, the demand never falls back: a page not drawn yet is the one it wants.
  * The layout it marks is the session's window (`referenceMode.ts`), the ordinary constant by
  * default.
@@ -53,6 +54,7 @@ ${SHADOW_READ_AT_WGSL}
 ${PCF_TAPS_WGSL}
 ${LAMP_SOFT_DISK_WGSL}
 ${WORLD_AT_WGSL}
+${PIXEL_FOOTPRINT_WGSL}
 /** Marks page \`p\` of the map: nothing outside a ring's window. */
 fn demandPage(m:ShadowMap,p:vec2i){let e=shadowPageEntry(m,p);if(e>=0){requestShadowPage(u32(e));}}
 /** Marks the home page of map texel \`t\` and the neighbours the PCF reads around it
@@ -111,7 +113,7 @@ fn demandSoftLamp(index:u32,light:DirectLight,centre:LampAt,N:vec3f,mip:u32){
  let d=lampSoftDisk(index,light,P);
  let lamp=light.positionRange.xyz;
  for(var tap=0u;tap<PCF_TAPS;tap++){
-  let disk=POISSON[tap];let v=(d.T*disk.x+d.B*disk.y)*d.search;
+  let disk=shadowRotated(POISSON[tap]);let v=(d.T*disk.x+d.B*disk.y)*d.search;
   // \`P\` reads \`centre\`, the lookup whose pages \`demandLamp\` marked: the walk starts at its exit.
   var s=softPageExit(index,P,v,centre,0.0)+1e-5;
   // A segment spans under 60° (\`search\` < \`distance\`, a tap within 1.3 of the disk's centre):
@@ -127,7 +129,7 @@ fn demandSoftLamp(index:u32,light:DirectLight,centre:LampAt,N:vec3f,mip:u32){
  *  (\`lampShadowFactor\`, the same \`lampReadAt\`), and its soft shadow's; none past the face's
  *  depth or outside a spot's cone. */
 fn demandLamp(index:u32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f,footprint:f32){
- let texel0=shadowLampFinestTexel(shadows.records[index].info.y,length(light.positionRange.xyz-P));
+ let texel0=shadowLampFinestTexel(shadows.records[index].info.y,length(light.positionRange.xyz-(P+shadowUnjitter)));
  let mip=u32(shadowLampReadMip(footprint,texel0));
  let r=lampReadAt(index,light.positionRange.xyz,P,N,shadowNormalTexels(clamp(dot(N,L),1e-3,1.0)),texel0,mip);
  if(!r.inside){return;}
@@ -154,10 +156,10 @@ fn demandLight(light:DirectLight,at:vec3f,receiver:vec3f,N:vec3f,thin:bool,footp
  if(flag<=1u||flag==${AS_IS_FLAG}u){return;}
  let tile=id.xy/TILE_SIZE;let tilesX=u32(view.lightParams.y);
  if(tile.x>=tilesX||tile.y>=u32(view.lightParams.z)){return;}
- // The resolve's point and footprint, at the pixel's centre.
+ // The resolve's point, footprint and taps' turn, at the pixel's centre (\`surfaceWgsl.ts\`).
  let z=textureLoad(depth,coord,0);let pixel=vec2f(id.xy)+0.5;
  let at=worldAt(pixel,z);
- let footprint=length(worldAt(pixel+vec2f(1.0,0.0),z)-at);
+ let level=pixelLevel(coord,pixel,z,at);shadowUnjitter=level.unjitter;shadowRotation=view.jitter.zw;
  // The point the shading reads the maps at (\`shadowReceiverOffset\`, \`surfaceWgsl.ts\`).
  let receiverAt=(id.y*u32(view.viewport.x)+id.x)*3u;
  let P=at+vec3f(shadingOffset[receiverAt],shadingOffset[receiverAt+1u],shadingOffset[receiverAt+2u]);
@@ -167,7 +169,7 @@ fn demandLight(light:DirectLight,at:vec3f,receiver:vec3f,N:vec3f,thin:bool,footp
  for(var index=0u;index<slice.y;index++){
   var light=index;
   if(slice.x!=TILE_NO_SLICE){light=tileLights[slice.x+index];}
-  demandLight(directLights.items[light],at,P,N,thin,footprint);
+  demandLight(directLights.items[light],at,P,N,thin,level.footprint);
  }
 }`;
 /** The demand of the ordinary window: what a pass compiled without a session window marks. */

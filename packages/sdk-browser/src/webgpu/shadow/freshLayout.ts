@@ -37,6 +37,10 @@ export const freshDrawWord = (layer: number, kind: number) =>
   DRAWS + (layer * 2 + kind) * DRAW_WORDS;
 export const FRESH_LAYER_STARTS = DRAWS + MAX_POOL_LAYERS * 2 * DRAW_WORDS;
 export const FRESH_REGION_PAGES = FRESH_LAYER_STARTS + MAX_POOL_LAYERS;
+/** The bit of a region's page word the pair cull sets when the pair list is full before it kept
+ *  every pair of that region: the seal leaves it unreadable (`sealShadowPages`). A page index is
+ *  under 2¹⁶ (`PAGE_INDEX_MASK`). */
+export const FRESH_REGION_SHORT = 2 ** 31;
 /** Words of the arguments of a pool of `pages`: its regions' pages. */
 export const freshArgWords = (pages: number) => FRESH_REGION_PAGES + pages;
 
@@ -49,6 +53,7 @@ const FRESH_CORNERS:u32=${FRESH_ARG.corners}u;
 const FRESH_DRAWS:u32=${DRAWS}u;
 const FRESH_LAYER_STARTS:u32=${FRESH_LAYER_STARTS}u;
 const FRESH_REGION_PAGES:u32=${FRESH_REGION_PAGES}u;
+const FRESH_REGION_SHORT:u32=${FRESH_REGION_SHORT}u;
 const FRESH_LAYER_SHIFT:u32=${FRESH_LAYER_SHIFT}u;
 const FRESH_CORNER_MASK:u32=${2 ** FRESH_LAYER_SHIFT - 1}u;
 fn freshDraw(layer:u32,kind:u32)->u32{return FRESH_DRAWS+(layer*2u+kind)*${DRAW_WORDS}u;}`;

@@ -53,12 +53,15 @@ export const SHADOW_DEPTH_ROUNDING = 2 * 2 ** -23;
  * Which page a lit point reads, and the fraction of light that reaches it.
  *
  * **The level is chosen per pixel from its footprint** — the world distance between two
- * adjacent pixels at its depth, `shadowFootprint`: a sun reads the clipmap level whose texel,
- * `2^L` metres, is at most that footprint; a lamp reads the mip whose texel at the point's
- * distance is. A texel is thus never larger than a pixel where the map can offer it, near or
- * far, and a caster's error counted in texels is counted in pixels. A page not readable — not
- * drawn yet, or withdrawn while its depth is wrong — hands the point to the next coarser level,
- * as the texture streamer falls back to a coarser tile. The scheduler keeps the last level under
+ * adjacent pixels at the depth its centre holds without the TAA jitter, `shadowFootprint`
+ * (`pixelLevel`): the same every jitter phase, and the one the demand asks for (#1363). A sun
+ * reads the clipmap level whose texel, `2^L` metres, is at most that footprint; a lamp reads the
+ * mip whose texel at the point's distance is. A texel is thus never larger than a pixel where the
+ * map can offer it, near or far, and a caster's error counted in texels is counted in pixels. The
+ * GPU draws every page the frame asks for in that frame (`freshWgsl.ts`); a page not readable all
+ * the same — refused at the pool's ceiling, left short by the pair list, or read by a pass that
+ * asks for none — hands the point to the next coarser level, as Unreal's virtual shadow maps fall
+ * back past a page their pool could not map. The scheduler keeps the last level under
  * every page a receiver reads mapped and drawn in the frame (`admit.ts`), so the far-shadow ray
  * of a sun and the unshadowed answer of a lamp past their last level only answer before a light's
  * first request report — and, for a sun, past the scene's box, where no caster lies and the floor
@@ -129,7 +132,8 @@ fn sunShadowFactor(index:u32,P:vec3f,N:vec3f,taps:bool)->f32{
 fn lampShadowFactor(index:u32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f,taps:bool)->f32{
  let info=shadows.records[index].info;
  let cosine=clamp(dot(N,L),1e-3,1.0);
- let radius=length(light.positionRange.xyz-P);
+ // The distance of the point the pixel's unjittered centre holds: its mip, the demand's (#1363).
+ let radius=length(light.positionRange.xyz-(P+shadowUnjitter));
  // World texel of the finest mip at this distance, and the mip whose texel the pixel covers.
  let texel0=shadowLampFinestTexel(info.y,radius);
  let wanted=shadowLampReadMip(shadowFootprint,texel0);
