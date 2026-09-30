@@ -1,5 +1,4 @@
 import type { JsonSchemaObject } from './types.ts';
-import { BOUNCE_SETTINGS } from '../bounce/contracts.ts';
 import { SCREEN_ERROR_VARIANTS } from '../lod/screenErrorVariants.ts';
 
 /**
@@ -86,7 +85,7 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
     },
     bounceBudgetMs: {
       type: 'number',
-      default: BOUNCE_SETTINGS.budgetMs,
+      default: 0.8,
       minimum: 0.1,
       maximum: 8.0,
       description:
