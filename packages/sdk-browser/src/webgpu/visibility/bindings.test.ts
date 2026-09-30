@@ -45,7 +45,7 @@ function mount() {
     visIdentity: createWebgpuBindIdentity(),
     shadeIdentity: createWebgpuBindIdentity(),
   };
-  const gpu = { cache: { buffer: {} }, surfaces: { shadingOffset: {}, subsurfaceView: {} } };
+  const gpu = { cache: { buffer: {} }, surfaces: { subsurfaceView: {} } };
   const rt = { vis, gpu, run: {} } as unknown as WebgpuPagesRuntime;
   const ensure = () => {
     ensureWebgpuVisibilityBindings(rt, device);

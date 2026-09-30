@@ -1,5 +1,6 @@
 import { SUBSURFACE_BINDING } from '../../scene/subsurface.ts';
-import { SHADING_OFFSET_BINDING } from '../../visibility/shader/shadingPoint.ts';
+import { LIGHTING_RECEIVER_BINDING } from './surfaceWgsl.ts';
+import { receiverLayoutEntries, receiverPlaceholders } from '../../webgpu/visibility/receiver.ts';
 import { SHADOW_ARRAY, arrayView } from '../../gpu/shadow/layers.ts';
 import {
   MAX_SHADOW_SLICES,
@@ -17,11 +18,11 @@ import { SHADOW_TRANSMITTANCE_FORMAT } from '../../gpu/shadow/transmittance.ts';
 /** Empty proxy header: no distant-shadow ray without resident nodes. */
 const PLACEHOLDER_PROXY_BYTES = PROXY_HEADER_BYTES + 16;
 /**
- * Bindings of the deferred pass. The unlit view stops at the surfaces and the uniform;
- * the contract program adds the declared lights, their per-tile lists, their shadow slices
- * and the atlas; the bounce one adds the probe grid. None of the three reads a light written
- * in the scene: there is none left. The water composite extends the full list with its own
- * bindings, so a surface lit there is read on the same numbers.
+ * Bindings of the deferred pass. The unlit view stops at the surfaces and the uniform; the contract
+ * program adds the declared lights, their per-tile lists, their shadow slices and the atlas; the
+ * bounce one adds the probe grid. None of the three reads a light written in the scene: there is
+ * none left. The water composite extends the full list with its own bindings, so a surface lit
+ * there is read on the same numbers.
  */
 export function deferredLayoutEntries(
   direct: boolean,
@@ -60,15 +61,10 @@ export function deferredLayoutEntries(
         texture: SHADOW_ARRAY,
       },
     );
-  // Shading offsets, subsurface, and the shadow pages the resolve reads, recorded for the
-  // scheduler: only the opaque resolve asks.
+  // The receiver offset's reads, subsurface, the shadow pages recorded: only the opaque resolve.
   if (direct && marks)
     entries.push(
-      {
-        binding: SHADING_OFFSET_BINDING,
-        visibility: GPUShaderStage.FRAGMENT,
-        buffer: { type: 'read-only-storage' },
-      },
+      ...receiverLayoutEntries(LIGHTING_RECEIVER_BINDING, GPUShaderStage.FRAGMENT),
       {
         binding: SUBSURFACE_BINDING,
         visibility: GPUShaderStage.FRAGMENT,
@@ -106,6 +102,7 @@ export const createDeferredLightingLayout = (device: GPUDevice, direct: boolean,
  * the real atlas keeps valid bindings, the light simply unshadowed; a frame without bounce reads
  * zero probes, hence zero indirect light. The blend pass borrows the same substitutes.
  */
+export type DeferredPlaceholders = ReturnType<typeof createDeferredPlaceholders>;
 export function createDeferredPlaceholders(device: GPUDevice) {
   const tiles = device.createBuffer({
     label: 'Trillion3D empty light tiles',
@@ -173,6 +170,7 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     size: PLACEHOLDER_PROXY_BYTES,
     usage: GPUBufferUsage.STORAGE,
   });
+  const receiver = receiverPlaceholders(device);
   return {
     tiles,
     slices,
@@ -184,7 +182,9 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     probes,
     surfaceCache,
     proxy,
+    receiver: receiver.resources,
     dispose() {
+      receiver.dispose();
       tiles.destroy();
       slices.destroy();
       requests.destroy();

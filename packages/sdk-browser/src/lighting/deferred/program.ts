@@ -1,8 +1,9 @@
 import { SUBSURFACE_BINDING } from '../../scene/subsurface.ts';
-import { SHADING_OFFSET_BINDING } from '../../visibility/shader/shadingPoint.ts';
+import { LIGHTING_RECEIVER_BINDING } from './surfaceWgsl.ts';
+import { receiverEntries, type ReceiverResources } from '../../webgpu/visibility/receiver.ts';
 import { reflectionPipelines } from '../../reflections/pipelines.ts';
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts';
-import { createDeferredLightingLayout } from './setup.ts';
+import { createDeferredLightingLayout, type DeferredPlaceholders } from './setup.ts';
 import { SUN_FAR_PROXY_BINDING } from '../../gpu/shadow/sunFarShadowWgsl.ts';
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import { CONTRACT_SHADOW_BINDINGS } from '../direct/lightingWgsl.ts';
@@ -33,6 +34,7 @@ export interface DirectLightResources {
   /** True when the narrow tile pass wrote the lists (`contractVariants.ts`, #849). */
   narrow?: boolean;
   unshadowed?: boolean; // no light holds a shadow slot: no shadow code (#1249)
+  receiver?: ReceiverResources; // what the receiver offset reads (#1410)
 }
 export interface DeferredSources {
   lighting: string;
@@ -53,15 +55,7 @@ export type AccumulatedImage = Required<Omit<ComposedImage, 'bloom'>> & {
 };
 export interface DeferredBindings {
   uniform: GPUBuffer;
-  placeholders: {
-    tiles: GPUBuffer;
-    slices: GPUBuffer;
-    requests: GPUBuffer;
-    atlasView: GPUTextureView;
-    transmittanceView: GPUTextureView;
-    sampler: GPUSampler;
-    proxy: GPUBuffer;
-  };
+  placeholders: DeferredPlaceholders;
 }
 
 export type DeferredProgram = Awaited<ReturnType<typeof createDeferredProgram>>;
@@ -147,7 +141,8 @@ export async function createDeferredProgram(
         translucentDepth = direct.transmittance?.depthView ?? placeholders.atlasView,
         requests = direct.requests ?? placeholders.requests,
         probes = direct.probes,
-        proxy = direct.proxy ?? placeholders.proxy;
+        proxy = direct.proxy ?? placeholders.proxy,
+        receiver = direct.receiver ?? placeholders.receiver;
       boundHdr = hdr;
       const { next } = identity;
       next[0] = surface;
@@ -158,6 +153,7 @@ export async function createDeferredProgram(
       next[5] = requests;
       next[6] = probes;
       next[7] = proxy;
+      for (let i = 0; i < receiver.length; i++) next[8 + i] = receiver[i];
       if (!identity.moved()) return;
       boundSurface = surface;
       boundFlags = surface.views()[3];
@@ -169,7 +165,7 @@ export async function createDeferredProgram(
       if (sources.direct) {
         if (!lights) throw new Error('the contract program binds no declared-light buffer');
         entries.push(
-          { binding: SHADING_OFFSET_BINDING, resource: { buffer: surface.shadingOffset } },
+          ...receiverEntries(LIGHTING_RECEIVER_BINDING, receiver),
           { binding: SUBSURFACE_BINDING, resource: surface.subsurfaceView },
           { binding: 6, resource: { buffer: lights } },
           { binding: 7, resource: { buffer: tiles } },

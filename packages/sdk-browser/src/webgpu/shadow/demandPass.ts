@@ -2,13 +2,19 @@ import { computePass, type ComputeBinding } from './computePass.ts';
 import { SHADOW_DEMAND_GROUP, shadowDemandWgsl } from './demandWgsl.ts';
 import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import {
+  RECEIVER_BINDING_TYPES,
+  receiverResources,
+  type ReceiverResources,
+} from '../visibility/receiver.ts';
 
 /** Label of the demand pass, as a frame's passes are timed. */
 export const SHADOW_DEMAND_PASS = 'Trillion3D shadow demand v1';
 
 /** What the demand pass reads and writes, in binding order: the visibility buffer's depth, normals
  *  and surface flags, the deferred view uniform, the lights and their tile lists, the shadow
- *  records and page table, the request buffer it marks, and the pixels' shading-point offsets. */
+ *  records and page table, the request buffer it marks, and what the pixels' shading-point offsets
+ *  are recomputed from (`DEMAND_RECEIVER_BINDING`). */
 type ShadowDemandInputs = readonly [
   depth: GPUTextureView,
   normalRough: GPUTextureView,
@@ -18,7 +24,7 @@ type ShadowDemandInputs = readonly [
   tiles: GPUBuffer,
   shadows: GPUBuffer,
   requests: GPUBuffer,
-  shadingOffset: GPUBuffer,
+  ...receiver: ReceiverResources,
 ];
 
 const BINDINGS: ComputeBinding[] = [
@@ -30,7 +36,7 @@ const BINDINGS: ComputeBinding[] = [
   'read-only-storage',
   'read-only-storage',
   'storage',
-  'read-only-storage',
+  ...RECEIVER_BINDING_TYPES,
 ];
 
 /**
@@ -54,6 +60,9 @@ export function encodeShadowDemand(rt: WebgpuPagesRuntime, encoder: GPUCommandEn
     { demand, pageRequests, shadows, tiles } = lights;
   if (!demand || !pageRequests || !shadows?.texture || !tiles?.buffer || !lights.buffer) return;
   if (!gpu.deferred || !gpu.surfaces || !gpu.depthView) return;
+  // No visibility buffer resolved: no lit pixel asks anything.
+  const receiver = receiverResources(rt);
+  if (!receiver) return;
   const [, normalRough, , flags] = gpu.surfaces.views(),
     [width, height] = gpu.targetSize;
   const inputs: ShadowDemandInputs = [
@@ -65,7 +74,7 @@ export function encodeShadowDemand(rt: WebgpuPagesRuntime, encoder: GPUCommandEn
     tiles.buffer,
     shadows.dataBuffer,
     pageRequests.buffer,
-    gpu.surfaces.shadingOffset,
+    ...receiver,
   ];
   demand(encoder, inputs, [
     Math.ceil(width / SHADOW_DEMAND_GROUP),
