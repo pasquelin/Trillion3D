@@ -2,12 +2,14 @@
 // `pnpm run check:bundle-size`: the gzip size of the CDN core against its budget, after `build`.
 // The core is what a page downloads before its first frame: `dist/trillion3d.module.js` and every
 // chunk it imports statically. A chunk it imports dynamically — an optional family — is fetched on
-// first use and is not counted; neither are the workers and the WebAssembly modules.
+// first use and is not counted; neither are the workers and the WebAssembly modules. Every family
+// module (`bundle-fold.ts`) must be such a chunk: one the core holds fails the gate, by name.
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import { BUNDLE_ENTRY } from './build-bundle.ts';
+import { FAMILY_MODULES, familyChunks, type Family } from './bundle-fold.ts';
 
 /** The budget of the gzip core, in bytes: the core of #1353 (744 KB) and room for a few features.
  *  A declared value, not a derived one; a pull request that crosses it says why, and raises it. */
@@ -27,18 +29,32 @@ export function coreFiles(dist: string, entry = BUNDLE_ENTRY): string[] {
   return found;
 }
 
+/** The family modules the core holds instead of fetching them on first use: those the build
+ *  made no chunk of, and those whose chunk the core imports statically. */
+export function familiesInCore(dist: string, files = coreFiles(dist)) {
+  return (Object.keys(FAMILY_MODULES) as Family[]).flatMap((family) =>
+    familyChunks(dist, family)
+      .filter(({ chunk }) => !chunk || files.includes(chunk))
+      .map(({ module }) => `${family} (${module})`),
+  );
+}
+
 /** The core's gzip size, and the line the CI prints. */
 export function coreSize(dist: string, budget = CORE_BUDGET_BYTES) {
-  const files = coreFiles(dist);
+  const files = coreFiles(dist),
+    held = familiesInCore(dist, files);
   const bytes = files.reduce(
     (sum, name) => sum + gzipSync(readFileSync(join(dist, name)), { level: 9 }).length,
     0,
   );
   const verdict = bytes <= budget ? 'within' : 'OVER';
+  const families = held.length
+    ? `, and holds ${held.join(', ')}, to be loaded on first use`
+    : `; ${Object.keys(FAMILY_MODULES).join(' and ')} load on first use`;
   return {
     bytes,
-    fits: bytes <= budget,
-    line: `CDN core: ${bytes} bytes gzip in ${files.length} files, ${verdict} its budget of ${budget}`,
+    fits: bytes <= budget && !held.length,
+    line: `CDN core: ${bytes} bytes gzip in ${files.length} files, ${verdict} its budget of ${budget}${families}`,
   };
 }
 
