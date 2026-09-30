@@ -6,7 +6,7 @@ import { effect } from '../../../../sdk-core/src/world/effect/index.ts';
 import { createGuideSet } from '../../guides/guideSet.ts';
 import { families } from '../../host/families.ts';
 import { frameQueue } from '../render/frameQueue.fixture.ts';
-import { frameFamilies, frameWaits, sessionFamilies } from './familyUse.ts';
+import { drawnOnArrival, frameFamilies, frameWaits, sessionFamilies } from './familyUse.ts';
 import { startInteractiveExplorer } from './interactive.ts';
 
 const turn = () => new Promise((wake) => setImmediate(wake));
@@ -80,4 +80,32 @@ test("a session opens with its first frame's families, and the provenance only w
   assert.equal(families.measurement.arrived, false, 'nothing fetched it');
   await sessionFamilies({ manifestUrl: '' }, true);
   assert.equal(families.measurement.get()?.SDK_BUILD_PROVENANCE.version, 1);
+});
+
+test('a session without its own loop draws a frame that waited once, on arrival (#1353)', async () => {
+  let arrive = () => {};
+  let pending: Promise<void> | undefined = new Promise<void>((wake) => (arrive = wake));
+  let drawn = 0,
+    closed = false;
+  const invalidate = drawnOnArrival(
+    () => pending,
+    () => drawn++,
+    () => closed,
+  );
+  invalidate();
+  invalidate();
+  assert.equal(drawn, 0, 'nothing drawn without the family');
+  pending = undefined;
+  arrive();
+  await turn();
+  assert.equal(drawn, 1, 'drawn once on arrival, however many invalidations it heard');
+  invalidate();
+  assert.equal(drawn, 2, 'then drawn at once, as develop does');
+  pending = new Promise<void>((wake) => (arrive = wake));
+  invalidate();
+  closed = true;
+  pending = undefined;
+  arrive();
+  await turn();
+  assert.equal(drawn, 2, 'a session closed meanwhile draws nothing');
 });

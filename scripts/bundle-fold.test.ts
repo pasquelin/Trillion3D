@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { foldDynamicImports } from './bundle-fold.ts';
+import { readFileSync } from 'node:fs';
+import { FAMILY_MODULES, foldDynamicImports } from './bundle-fold.ts';
 
 test('an engine dynamic import folds into its module, a family one stays a chunk', () => {
   const source = [
@@ -24,4 +25,13 @@ test('a module without a dynamic import is left as it is', () => {
     foldDynamicImports(source, () => false),
     source,
   );
+});
+
+test("the bundle keeps as chunks exactly the engine's families, physics beside them", () => {
+  const registry = readFileSync('packages/sdk-browser/src/host/families.ts', 'utf8');
+  const loaded = [...registry.matchAll(/import\('\.\.\/([^']+)\.ts'\)/g)].map(
+    ([, path]) => `sdk-browser/src/${path}.js`,
+  );
+  const kept = Object.entries(FAMILY_MODULES).filter(([family]) => family !== 'physics');
+  assert.deepEqual(kept.flatMap(([, modules]) => modules).sort(), loaded.sort());
 });
