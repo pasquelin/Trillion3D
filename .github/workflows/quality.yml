@@ -51,7 +51,8 @@ jobs:
           cat "$GITHUB_OUTPUT"
 
   # The gates that read the sources alone, and nothing this workflow builds. They answer in under a
-  # minute, which is when a formatting or a lint mistake should be reported.
+  # minute, which is when a formatting or a lint mistake should be reported. They include the unit
+  # tests that read documentation (`test:docs`): a documentation-only pull request still runs them.
   quick:
     runs-on: ubuntu-24.04
     timeout-minutes: 10

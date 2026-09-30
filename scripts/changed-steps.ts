@@ -1,19 +1,23 @@
 import { TREE_GATES } from './validate-steps.ts';
 
 // What `check:changed` runs for a change (`scripts/check-changed.ts`). A change that touches only
-// documentation, site images or translations runs the gates that read those files, and no API
-// generation, scene cache, type check or unit test: nothing it changed can reach them (#1348).
+// documentation, site images or translations runs the gates and the unit tests that read those
+// files (`scripts/docs-tests.ts`), and no API generation, scene cache or type check (#1348).
 
 export const sourcePattern = /\.(?:[cm]?ts|tsx)$/;
 export const formatPattern = /\.(?:[cm]?ts|tsx|json)$/;
 
 const markdown = /\.md$/;
+// The notices ship in the package (`package.json` `files`): code, not documentation.
+const packaged = /^THIRD_PARTY_NOTICES\.md$/;
 const translation = /^site\/(?:content\/|examples\/)?i18n\/[^/]+\.json$/;
 // Images outside the trees whose tests and fixtures read them.
 const siteImage = /^(?!tests\/|bench\/|packages\/).*\.(?:png|jpe?g|gif|webp|avif|svg)$/i;
 
-/** Whether `file` is documentation, a site image or a translation, which no unit test reads. */
+/** Whether `file` is documentation, a site image or a translation, which only the tests of
+ *  `scripts/docs-tests.ts` read. */
 export function isDocumentation(file: string): boolean {
+  if (packaged.test(file)) return false;
   return markdown.test(file) || translation.test(file) || siteImage.test(file);
 }
 
@@ -40,7 +44,8 @@ export type ChangedStep =
 
 /**
  * The steps of `check:changed`, in order, for the `changed` paths (deleted ones included), of which
- * `existing` still exist; `tests` is the number of unit tests the change selects.
+ * `existing` still exist; `tests` is the number of unit tests the change selects, those that read
+ * documentation included.
  */
 export function changedSteps(
   changed: readonly string[],
@@ -58,6 +63,6 @@ export function changedSteps(
   if (existing.some((file) => translation.test(file))) steps.push('check:i18n');
   steps.push(...TREE_GATES);
   if (existing.some((file) => file.endsWith('.rs'))) steps.push('rust');
-  if (code && tests) steps.push('tests');
+  if (tests) steps.push('tests');
   return steps;
 }

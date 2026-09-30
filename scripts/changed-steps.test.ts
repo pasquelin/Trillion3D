@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { changedSteps } from './changed-steps.ts';
+import { changedSteps, isDocumentation } from './changed-steps.ts';
 
-test('a documentation, image or translation change runs no unit test, build or cache compilation', () => {
+test('a documentation, image or translation change runs no build or cache compilation, and only the tests that read it', () => {
   const changed = ['README.md', 'site/i18n/fr.json', 'site/assets/logo.png'];
   assert.deepEqual(changedSteps(changed, changed, 12), [
     'format',
@@ -10,7 +10,11 @@ test('a documentation, image or translation change runs no unit test, build or c
     'check:i18n',
     'check:translations',
     'check:english',
+    'tests',
   ]);
+  assert.ok(!changedSteps(changed, changed, 0).includes('tests'));
+  // The notices ship in the package: code, not documentation.
+  assert.equal(isDocumentation('THIRD_PARTY_NOTICES.md'), false);
 });
 
 test('a source change runs the gates, the type check and the tests it selects', () => {

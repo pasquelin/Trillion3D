@@ -133,7 +133,8 @@ The rules of #483, binding on every change to geometry, streaming, memory, shado
 - **This repository uses pnpm.** `pnpm run check:changed` is the one local gate: changed-file
   format, lint, types, lines and duplicates, and the unit tests the change can affect — its domain
   folder's and those that really use it (`scripts/affected-tests.ts`); a documentation, site image or
-  translation change runs only the gates that read those files. Its test run is capped to two
+  translation change runs only the gates and the unit tests that read those files
+  (`scripts/docs-tests.ts`). Its test run is capped to two
   processes (`TRILLION3D_TEST_CONCURRENCY`), and every heavy local step (a test run, `build`,
   `build:docs`, `build:native`, `compile:caches`) waits for the other worktrees' and runs at low
   priority (`scripts/heavy-lock.ts`). Also inspect dependants after deletions, public-export or
@@ -141,7 +142,7 @@ The rules of #483, binding on every change to geometry, streaming, memory, shado
 - Before merge, the CI runs the whole `pnpm run validate` (format, JS/TS lint + Clippy, unused
   code/files/dependencies, TS/native builds, structure, declarations, links, JS/TS/Rust tests),
   sharded; it is the CI's, not a local gate. A documentation-only pull request skips its code
-  jobs and still reports `validate`.
+  jobs, runs the tests that read documentation in `quick`, and still reports `validate`.
 - **All wording in the repository must be in English.** Comments, docstrings, documentation,
   commit messages and test descriptions are strictly written in English.
 - Every maintained JS/TS/Rust source file, including variants, must fit 200 physical lines; no legacy
