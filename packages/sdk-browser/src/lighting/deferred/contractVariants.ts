@@ -63,6 +63,8 @@ export function createContractVariants(
       (error) => {
         variant.pending = undefined;
         variant.failed = true;
+        // Its twin now lights the frames that asked for it: its arrival redraws them.
+        if (variant.asked && (narrow || unshadowed)) variants[0][+bounce].asked = true;
         onFailure?.(error);
       },
     );
@@ -81,17 +83,20 @@ export function createContractVariants(
       variants[0][0].program
     );
   };
-  /** A frame asks for this program: it compiles, and its arrival redraws (`onReady`). */
+  /** A frame asks for this program: it compiles, and its arrival redraws (`onReady`). A failed one
+   *  asks for its twin in its place, which the frame then waits for. */
   const ask = (
     bounce: boolean,
     narrow: boolean,
     unshadowed: boolean,
     onFailure?: (error: unknown) => void,
-  ) => {
+  ): Variant => {
     const variant = variants[at(narrow, unshadowed)][+bounce];
     variant.asked = true;
     compile(bounce, narrow, unshadowed, onFailure);
-    return variant;
+    return variant.failed && (narrow || unshadowed)
+      ? ask(bounce, false, false, onFailure)
+      : variant;
   };
   return {
     /** The program to light this frame with, compiling the asked one; `undefined` if none is ready. */
@@ -113,7 +118,7 @@ export function createContractVariants(
       return Promise.all(started).then(() => {});
     },
     /** The compile a frame asking for this program must wait for: none while a ready program
-     *  lends itself, nor once it failed (the frame then falls back to the unlit view). */
+     *  lends itself; once it failed, its twin's; once both failed, none (the unlit view). */
     awaited(bounce: boolean, narrow: boolean, unshadowed: boolean) {
       return lending(bounce, narrow, unshadowed)
         ? undefined

@@ -50,6 +50,34 @@ test('the lit program starts compiling with prepare, before the first frame asks
   assert.equal(lighting.usesContract, true, 'the first frame is lit');
 });
 
+test('an unshadowed program that fails holds the frame on its shadowed twin, never unlit', async () => {
+  const { device } = fakeDevice();
+  let release!: () => void;
+  const gate = new Promise<void>((done) => (release = done));
+  const compile = device.createRenderPipelineAsync.bind(device);
+  device.createRenderPipelineAsync = async (descriptor) => {
+    const label = descriptor.fragment?.module.label ?? '';
+    if (label.includes('_UNSHADOWED')) throw new Error('refused');
+    if (label.startsWith('DIRECT')) await gate;
+    return compile(descriptor);
+  };
+  let redrawn = 0;
+  const lighting = await createDeferredLighting(device, () => redrawn++);
+  const direct = { lights: {} as GPUBuffer, unshadowed: true };
+  const asked = lighting.awaited(direct);
+  assert.ok(asked, 'the frame waits for its program');
+  await asked.catch(() => undefined);
+  await new Promise((done) => setImmediate(done));
+  const twin = lighting.awaited(direct);
+  assert.ok(twin, 'the failed program hands the frame to its twin');
+  release();
+  await twin;
+  assert.equal(redrawn, 1, 'the twin landing redraws the frame');
+  assert.equal(lighting.awaited(direct), undefined);
+  lighting.bind(surface, view(), view(), true, direct, () => {});
+  assert.equal(lighting.usesContract, true, 'the frame is lit');
+});
+
 test('prepare precompiles the lit program only for a lit view, and says a failure either way', () => {
   const rt = Object.assign(settledRt(), { diag: { diagnosticFailure: () => {} } });
   Object.assign(rt.bounce, { wanted: true });
