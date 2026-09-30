@@ -25,10 +25,11 @@ test('the Install page installs, compiles, draws and names its two headers', () 
 });
 
 test('every language gives English its commands and its links', async () => {
+  const [blocks, links] = [codeBlocks(english), repositoryLinks(english)];
   for (const { code } of LANGUAGES) {
     const html = await installPageHtml(code);
-    assert.deepEqual(codeBlocks(html), codeBlocks(english), `${code}: its code blocks`);
-    assert.deepEqual(repositoryLinks(html), repositoryLinks(english), `${code}: its links`);
+    assert.deepEqual(codeBlocks(html), blocks, `${code}: its code blocks`);
+    assert.deepEqual(repositoryLinks(html), links, `${code}: its links`);
   }
 });
 
@@ -39,20 +40,13 @@ test('the page links the message codes, and every code page is reachable from th
   assert.ok(links.includes('LICENSE'));
   const platform = readFileSync(new URL('docs/messages/T3D-E079.md', root), 'utf8');
   assert.match(platform, /COMPILER_PLATFORM_UNSUPPORTED/);
-  // Page -> docs/COMPILER_ERRORS.md -> docs/messages/<code>.md: the list links every code page,
-  // each link resolves to a file, and each page is named after the one T3D code it explains.
+  // Page -> docs/COMPILER_ERRORS.md -> docs/messages/<code>.md: the list links every code page and
+  // nothing else; the pages' own text is held to the catalogue by `message-catalogue.test.ts`.
   const list = readFileSync(new URL('docs/COMPILER_ERRORS.md', root), 'utf8');
   const listed = [...list.matchAll(/\]\(messages\/([^)#]+)\)/g)].map(([, page]) => page);
   const pages = readdirSync(new URL('docs/messages/', root));
   assert.ok(pages.some((page) => page.startsWith('T3D-W')));
   assert.deepEqual([...new Set(listed)].sort(), [...pages].sort(), 'every code page is listed');
-  for (const page of pages) {
-    const code = /^(T3D-[EWI]\d{3})\.md$/.exec(page)?.[1];
-    assert.ok(code, `${page} is named after a T3D code`);
-    const text = readFileSync(new URL(`docs/messages/${page}`, root), 'utf8');
-    assert.ok(text.startsWith(`# ${code} `), `${page} explains ${code}`);
-    assert.match(text, /\]\(\.\.\/COMPILER_ERRORS\.md#/, `${page} links back to the list`);
-  }
 });
 
 test('a page without a step is refused by name', () => {
