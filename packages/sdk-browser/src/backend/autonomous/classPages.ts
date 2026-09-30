@@ -26,11 +26,14 @@ import { packDrawn } from '../../world/page/runtimeCut.ts';
 import type { BackendContext } from '../types.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
 import { readPages } from './manifest.ts';
+import type { PageDraws } from './pageDraws.ts';
 
 type ClassPagesEnvironment = {
   context: BackendContext;
   /** The roots a record's `placementIndex` ranks: its world is its root's. */
   roots: readonly ClusterRoot<PageRec>[];
+  /** The per-instance draw state: the last class change an instance followed is `turn` there. */
+  draws: PageDraws;
   geometryStore: ReturnType<typeof createAutonomousGeometry>;
   /** Whether `alpha` moves the surface a record wears (`collect.ts`). */
   wears: (rec: PageRec, alpha: AlphaChange) => boolean;
@@ -66,7 +69,7 @@ const largestScale = (
   }, 0);
 
 export function createClassPages(env: ClassPagesEnvironment) {
-  const { context, geometryStore } = env;
+  const { context, draws, geometryStore } = env;
   const primitiveOf = primitiveFinder(context.metadata.primitives);
   /** The compiled primitive a record draws a page of: none for a resource mounted later, which
    *  the open's manifest does not list. */
@@ -77,8 +80,6 @@ export function createClassPages(env: ClassPagesEnvironment) {
   /** The records whose class `alpha` moves into or out of blended, whatever family draws them. */
   const moved = (alpha: AlphaChange, records: readonly PageRec[]) =>
     blendMoves(alpha) ? records.filter((rec) => env.wears(rec, alpha)) : [];
-  /** The last change each record followed: an earlier cut landing late writes nothing. */
-  const turns = new WeakMap<PageRec, number>();
   let turn = 0,
     pending: Promise<unknown> = Promise.resolve();
 
@@ -129,7 +130,7 @@ export function createClassPages(env: ClassPagesEnvironment) {
     pages: Map<number, Uint8Array> | null,
     mine: number,
   ) {
-    const current = () => records.filter((rec) => turns.get(rec) === mine);
+    const current = () => records.filter((rec) => draws.find(rec)?.turn === mine);
     // Written before the pages are read: a record that turns resident meanwhile draws its class's.
     for (const rec of current()) rec.recut = pages?.get(rec.id);
     const urls = pages
@@ -176,7 +177,10 @@ export function createClassPages(env: ClassPagesEnvironment) {
         const records = placed.filter((rec) => movedRecords.has(rec));
         if (records.length === 0) continue;
         const mine = ++turn;
-        for (const rec of records) turns.set(rec, mine);
+        for (const rec of records) {
+          const draw = draws.find(rec);
+          if (draw) draw.turn = mine;
+        }
         const landed = pagesFor(primitive, alpha.to === 'blend', records, placed)
           .then((pages) => swap(records, pages, mine))
           .catch((error: unknown) =>

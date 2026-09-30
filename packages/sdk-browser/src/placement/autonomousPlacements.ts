@@ -7,7 +7,7 @@ import {
   type ClusterRoot,
 } from '../page/selection/selection.ts';
 import type { WebglFrameGate } from '../webgl/core/frameGate.ts';
-import { postPlacements, rootOf } from '../page/selection/placements.ts';
+import { rootOf } from '../page/selection/placements.ts';
 import { followPlacementRows, forgetRowRoots } from './update.ts';
 import type { PlacementOf, PlacementRows } from './rows.ts';
 import { growRowRoots } from './growth.ts';
@@ -18,9 +18,9 @@ import {
   prepareAutonomousManifest,
   readPages,
 } from '../backend/autonomous/manifest.ts';
-import type { HostMaterials } from '../host/resources.ts';
 import type { BackendContext } from '../backend/types.ts';
 import type { createAutonomousGeometry } from '../backend/autonomous/geometry.ts';
+import type { PageDraws } from '../backend/autonomous/pageDraws.ts';
 import type { PlacementMount } from './backendSceneUpdates.ts';
 import { rootChildren } from '../residency/minimumCapacity.ts';
 import { poseNamed } from '../host/world/moveByName.ts';
@@ -33,19 +33,15 @@ type Roots = readonly ClusterRoot<PageRec>[];
 /** True when the root that places a record, in `roots`, reads its world from a row. */
 export const rowPlaced = (roots: Roots, rec: PageRec) => !!rootOf(roots, rec).placement;
 
-/**
- * True when a record is drawn instanced with the other rows of its page (`webglPageBatches.ts`).
- * A transparent record placed by a row is drawn on its own, like a blended copy: the host orders
- * blended meshes by depth, never the instances of one draw. `transparent`, the flag it would take.
- */
+/** True when a record is drawn instanced with the other rows of its page (`webglPageBatches.ts`).
+ *  A transparent record placed by a row is drawn on its own, like a blended copy: the host orders
+ *  blended by depth, never the instances of one draw. `transparent`, the flag it would take. */
 export const drawnInstanced = (roots: Roots, rec: PageRec, transparent = rec.transparent) =>
   rowPlaced(roots, rec) && !transparent && !rec.deformRecord;
 
-/**
- * The host meshes `recs` hang on the WebGL2 path's display graph, which its page ceiling bounds:
- * one per record drawn on its own, one per PAGE for the records drawn instanced — ten thousand
- * opaque placements of a page are one mesh.
- */
+/** The host meshes `recs` hang on the WebGL2 path's display graph, which its page ceiling bounds:
+ *  one per record drawn on its own, one per PAGE for records drawn instanced — ten thousand opaque
+ *  placements of a page are one mesh. */
 export function attachedPages(
   recs: readonly PageRec[],
   roots: Roots,
@@ -67,7 +63,8 @@ type Placements = {
   bootstrapUrls: Set<string>;
   byUrl: Map<string, PageRec[]>;
   descriptors: Map<string, GeometryPageDescriptor>;
-  baseMaterials: Map<PageRec, HostMaterials>;
+  /** The per-instance draw state, keyed by packed index (`pageDraws.ts`): the record carries none. */
+  draws: PageDraws;
   /** The host copies of blended and transmissive surfaces, and the graph that shows them. */
   blendCopies: BlendCopy[];
   scene: Scene;
@@ -79,7 +76,7 @@ type Placements = {
 
 /** The instance-buffer updates of the WebGL2 path, its mounts in place included (#572). */
 export function autonomousPlacements(env: Placements) {
-  const { roots, allPages, bootstrap, byUrl, baseMaterials, blendCopies, scene, gate } = env;
+  const { roots, allPages, bootstrap, byUrl, draws, blendCopies, scene, gate } = env;
   const { context, descriptors, bootstrapUrls, geometryStore, coverChanged } = env,
     { rowsWritten } = geometryStore;
   /** The pages a mount in flight admitted and still reads: an unmount keeps them catalogued. */
@@ -91,10 +88,9 @@ export function autonomousPlacements(env: Placements) {
       else reading.delete(url);
     }
   };
-  /** The roots changed: their ranks posted, their rows' index built again, the cover counted, the
-   *  frame drawn. */
+  /** The roots changed: ranks posted, rows' index built again, cover counted, frame drawn. */
   const changed = () => {
-    postPlacements(roots);
+    draws.layOut(roots);
     rowsWritten();
     forgetRowRoots(roots);
     coverChanged();
@@ -118,17 +114,21 @@ export function autonomousPlacements(env: Placements) {
     /** The growth contract (`growth.ts`): every table of this path is a list, so the
      *  new rows' roots and pages are appended to them, indexed like the ones collected. */
     growPlacements(from: PlacementRows, to: PlacementRows) {
+      const grown: Array<{ rec: PageRec; template: PageRec }> = [];
       for (const { item: root, template } of growRowRoots(roots, from, to)) {
         roots.push(root);
         root.pages.forEach((rec, rank) => {
           allPages.push(rec);
-          baseMaterials.set(rec, baseMaterials.get(template.pages[rank])!);
+          grown.push({ rec, template: template.pages[rank] });
           byUrl.get(rec.url)!.push(rec);
         });
         bootstrap.push(...autonomousBootstrap([root]));
       }
       growBlendCopies(blendCopies, from, to, (copy) => scene.add(copy));
       changed();
+      // The grown instances take the material of the pages they copy, now that they are laid out.
+      for (const { rec, template } of grown)
+        draws.drawing(rec).material = draws.materialOf(template);
     },
     /** A resource is collected as the open collects one, its root cover read and decoded, and only
      *  then appended to the open's tables: never drawn before its cover is resident. */
@@ -151,12 +151,11 @@ export function autonomousPlacements(env: Placements) {
       for (const [url, descriptor] of read.descriptors) descriptors.set(url, descriptor);
       // One by one: a spread of a large resource's records overflows the stack. Ranked at once:
       // storing its pages reads their roots.
-      const first = roots.length;
       for (const root of collected.roots) roots.push(root);
-      postPlacements(roots, first);
+      draws.layOut(roots); // before the store writes its pages' geometry onto them
       for (const rec of collected.allPages) {
         allPages.push(rec);
-        baseMaterials.set(rec, rec.declaration);
+        draws.drawing(rec).material = rec.declaration;
         (byUrl.get(rec.url) ?? byUrl.set(rec.url, []).get(rec.url)!).push(rec);
       }
       for (const rec of cover) bootstrap.push(rec);
