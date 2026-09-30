@@ -2,7 +2,7 @@ import { HIZ_BOUNDS_VALUES } from './corners.ts';
 import { boundsFor, projectBoxesFlat } from './projection.ts';
 import type { HizPage } from './types.ts';
 import type { EngineCamera } from '../camera/world.ts';
-import type { Placements } from '../page/selection/placements.ts';
+import type { PageLocations } from '../page/selection/placements.ts';
 
 let splitLow = new Uint32Array(0),
   splitHigh = new Uint32Array(0),
@@ -134,25 +134,40 @@ export function splitOccludersFlat(count: number, bounds: Float64Array, rest: Ui
  */
 export function splitOccludersInto<T extends HizPage>(
   pages: T[],
-  roots: Placements,
+  locations: PageLocations,
   cam: EngineCamera,
   viewport: [number, number],
   occluders: T[],
   rest: T[],
+  occludersPacked: number[] = [],
+  restPacked: number[] = [],
 ) {
-  occluders.length = 0;
-  rest.length = 0;
+  occluders.length = rest.length = occludersPacked.length = restPacked.length = 0;
   const count = pages.length,
+    packed = locations.packed,
     bounds = boundsFor(count);
-  projectBoxesFlat(pages, roots, count, cam, viewport, bounds);
+  projectBoxesFlat(pages, locations, count, cam, viewport, bounds);
   const inFront = rangParProfondeur(count, bounds);
   if (!inFront) {
-    for (let i = 0; i < count; i++) rest.push(pages[i]);
+    for (let i = 0; i < count; i++) {
+      rest.push(pages[i]);
+      restPacked.push(packed[i]);
+    }
     return 0;
   }
   const mid = Math.max(1, Math.floor(inFront / 2));
-  for (let i = 0; i < mid; i++) occluders.push(pages[splitOrder[i]]);
-  for (let i = mid; i < inFront; i++) rest.push(pages[splitOrder[i]]);
-  for (let i = 0; i < count; i++) if (bounds[i * HIZ_BOUNDS_VALUES + 5] !== 0) rest.push(pages[i]);
+  for (let i = 0; i < mid; i++) {
+    occluders.push(pages[splitOrder[i]]);
+    occludersPacked.push(packed[splitOrder[i]]);
+  }
+  for (let i = mid; i < inFront; i++) {
+    rest.push(pages[splitOrder[i]]);
+    restPacked.push(packed[splitOrder[i]]);
+  }
+  for (let i = 0; i < count; i++)
+    if (bounds[i * HIZ_BOUNDS_VALUES + 5] !== 0) {
+      rest.push(pages[i]);
+      restPacked.push(packed[i]);
+    }
   return mid;
 }

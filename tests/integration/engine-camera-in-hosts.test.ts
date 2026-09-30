@@ -62,7 +62,7 @@ test('culled-face-reflection.browser.ts calls rasterVisibility(..., vue, ...), n
   );
   assert.match(
     texte,
-    /rasterVisibility\(\[pageVisible\(tousLesCas\[i\]\)\],\s*rootsOf\(tousLesCas\[i\]\),\s*vue,/,
+    /rasterVisibility\(\s*\[pageVisible\(tousLesCas\[i\]\)\],\s*locationsOf\(tousLesCas\[i\]\),\s*vue,/,
   );
   assert.doesNotMatch(
     texte,

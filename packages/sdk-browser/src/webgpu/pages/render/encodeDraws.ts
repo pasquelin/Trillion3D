@@ -17,6 +17,7 @@ import {
   submitColorCopy,
 } from './encoder.ts';
 import { encodeBlend } from './encodeBlend.ts';
+import { ensurePageTable } from './pageTable.ts';
 import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts';
 import { encodeVis } from './encodeVis.ts';
 import { dropVis } from '../io/drops.ts';
@@ -29,28 +30,7 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { displayApart } from '../state/renderScale.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
 
-/** The row table spans every row a page can claim — the visibility rows, then the blended
- *  casters' (`../../row/blendCasters.ts`) —, so it is allocated once, and replaced only when the
- *  table grows (`../prepare/growTables.ts`); the layout bounds those rows to one binding of the
- *  device (`../../row/tableRows.ts`). */
-export function ensurePageTable(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  const { vis } = rt,
-    { rows } = rt.layout;
-  if (rows.pageTableFloats) return;
-  const bytes = Math.max(PAGE_INFO_STRIDE, rows.casterSlots * PAGE_INFO_STRIDE);
-  rows.pageTableFloats = new Float32Array(bytes / 4);
-  rows.pageTableInts = new Uint32Array(rows.pageTableFloats.buffer);
-  vis.pageTable?.destroy();
-  vis.pageTable = pageTableBuffer(device, bytes);
-}
-
-/** The GPU page table of `bytes` bytes: the rows every pass binds whole. */
-export const pageTableBuffer = (device: GPUDevice, bytes: number) =>
-  device.createBuffer({
-    label: 'Trillion3D page table',
-    size: bytes,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  });
+export { ensurePageTable, pageTableBuffer } from './pageTable.ts';
 
 /**
  * Brings every reader of the row table's dirty marks up to date, then uploads the rows and clears
@@ -119,7 +99,7 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
     // The CPU cut selects its shadow casters from the lights before it writes its rows: those the
     // camera does not draw take rows behind the camera's.
     const shadows = visReady(rt) && vis.gpuDraw ? selectCpuCasters(rt, device, cam) : undefined;
-    run.cameraRows = rt.services.syncRowsFromCut(shadows);
+    run.cameraRows = rt.services.syncRowsFromCut(shadows, rt.lights.cpuCasters?.castersPacked);
     if (shadows) writeCpuCasters(rt, device);
   } else if (run.rowsSyncedFrame !== run.frame) {
     rt.services.syncRows(!run.textureConverging);
@@ -136,7 +116,15 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
       const rec = rows.packedRecs[row];
       if (!rec) continue;
       rows.pageTableFloats[row * rowWords + 56] = screenErrorRatio(
-        projectedPageError(rec, rootOf(rt.layout.selectionRoots, rec).world, cam, viewport),
+        projectedPageError(
+          rec,
+          rootOf(
+            rt.layout.selectionRoots,
+            rt.layout.placement.rootOfPacked[rows.packedPageIndex[row]],
+          ).world,
+          cam,
+          viewport,
+        ),
         run.diagnosticPixelError,
       );
       rows.markRowWords(row);

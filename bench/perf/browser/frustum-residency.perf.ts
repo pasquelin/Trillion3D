@@ -94,7 +94,7 @@ function hote(nombre: number) {
       roots: [],
       allPages: [],
       bootstrap: [],
-      views: { live: { shown: [] }, lists: () => [] },
+      views: { live: { shown: [], shownPacked: [] }, lists: () => [] },
       byUrl: new Map(),
       descriptors: new Map(),
       draws: createPageDraws(),

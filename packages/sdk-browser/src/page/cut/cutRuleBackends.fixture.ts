@@ -146,15 +146,17 @@ export function placements(dag: RuleDag, copies: number, spacing = 0) {
   return Array.from({ length: copies }, (_, r) => {
     const elements = Float64Array.from(dag.world.elements);
     elements[12] -= spacing * r;
-    const pages = dag.pages.map((page, p) => ({
-      ...page,
-      url: `r${r}/${page.url}`,
-      placementIndex: r,
-      packedIndex: r * n + p,
-    }));
+    const pages = dag.pages.map((page) => ({ ...page, url: `r${r}/${page.url}` }));
     const x = elements[12],
       worldBox = spacing && r ? Float64Array.of(x, -2, -2, x + dag.leaves, 2, 2) : undefined;
-    return { world: { elements }, pages, culling: dag.culling, structure: dag.structure, worldBox };
+    return {
+      world: { elements },
+      pages,
+      culling: dag.culling,
+      structure: dag.structure,
+      worldBox,
+      packedBase: r * n,
+    };
   }) as unknown as ClusterRoot<PageRec>[];
 }
 

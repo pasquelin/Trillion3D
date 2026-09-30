@@ -35,7 +35,7 @@ export function createAutonomousRequests(
   const seen = new Set<string>();
   const layOut = () => {
     draws.layOut(roots);
-    closure = createGroupClosure(roots);
+    closure = createGroupClosure(roots, draws.placement, draws.pages as PageRec[]);
     held?.track(roots);
     laidOut = revision();
     placements = roots.length;
@@ -57,13 +57,14 @@ export function createAutonomousRequests(
       return closure?.hostBytes ?? 0;
     },
     follow,
-    /** Writes the pages `wanted` closes over into `into`, one per URL, in `floorFirst` order. */
-    of(wanted: readonly PageRec[], into: PageRec[]) {
+    /** Writes the pages the wanted instances (`wantedIds` packed) close over into `into`, one per
+     *  URL, in `floorFirst` order. */
+    of(wantedIds: ArrayLike<number>, into: PageRec[]) {
       follow();
       requested = into;
       requested.length = 0;
       seen.clear();
-      closure!.closeOverRecords(wanted, visit);
+      closure!.closeOver(wantedIds, visit);
       return requested.sort(floorFirst);
     },
   };
