@@ -1,4 +1,5 @@
 import { TRANSPARENT_COMPACT_SHADER } from './shader.ts';
+import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts';
 import { TRANSPARENT_GROUP, type TransparentTable } from './table.ts';
 
 const UNIFORM_WORDS = 8;
@@ -34,13 +35,13 @@ async function compactPasses(
     if (info.messages.some((message) => message.type === 'error')) return undefined;
   }
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
-  const pipelineOf = (entryPoint: string) =>
-    device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } });
-  const pipelines = [
+  const entryPoints = [
     'countTransparentGroups',
     'prefixTransparentItems',
     'scatterTransparentGroups',
-  ].map(pipelineOf);
+  ] as const;
+  const stages = await buildComputeStages(device, pipelineLayout, module, entryPoints);
+  const pipelines = entryPoints.map((entry) => stages[entry]);
   const bindTo = (mask: GPUBuffer) =>
     device.createBindGroup({
       layout,
