@@ -1,13 +1,10 @@
 import { wantsSubsurface, subsurfaceBytes, SUBSURFACE_BYTES } from '../../../scene/subsurface.ts';
-import {
-  wantsReflections,
-  wantsRoughReflectionHistory,
-  wantsReflectionCone,
-  REFLECTION_VIEW_BYTES,
-} from '../../../reflections/gpu.ts';
+import { reflectionPlan, REFLECTION_VIEW_BYTES } from '../../../reflections/gpu.ts';
 import { reflectionConeAllocation } from '../../../reflections/conePyramid.ts';
 import { REFLECTION_HISTORY_BYTES_PER_PIXEL } from '../../../reflections/historyTargets.ts';
 import { REFLECTION_RESOLVE_VIEW_BYTES } from '../../../reflections/resolveWgsl.ts';
+import { REFLECTION_SOURCE_BYTES_PER_PIXEL } from '../../../reflections/source.ts';
+import { REFLECTION_SOURCE_VIEW_BYTES } from '../../../reflections/sourceWgsl.ts';
 import { checkSurfaceSize, frameTargetBytes } from '../../../scene/surfaceBuffer.ts';
 import { AS_IS_SHARE_BYTES } from '../../../lighting/deferred/asIsShare.ts';
 import { wantsAsIsShare } from './asIsShareTarget.ts';
@@ -26,6 +23,7 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
     { renderWidth: width, renderHeight: height } = size,
     display = size.apart ? size.width * size.height : 0;
   if (!gpuDevice) throw new Error('WEBGPU_UNAVAILABLE');
+  const plan = reflectionPlan(rt);
   checkSurfaceSize(gpuDevice, size.width, size.height, 1);
   return (
     frameTargetBytes(width, height, reserveHiz) -
@@ -35,11 +33,14 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
     // frameTargetBytes already counts the 1×1 placeholder.
     subsurfaceBytes(width, height, wantsSubsurface(rt)) -
     SUBSURFACE_BYTES +
-    (wantsReflectionCone(rt)
-      ? reflectionConeAllocation(width, height, gpuDevice.limits).bytes
+    (plan.pyramid
+      ? reflectionConeAllocation(width, height, gpuDevice.limits, plan.cone).bytes
       : 0) +
-    (wantsReflections(rt) ? width * height * 8 : 8) +
-    (wantsRoughReflectionHistory(rt)
+    // The reprojected source (8 bytes a pixel) and what it is reprojected from (`source.ts`).
+    (plan.active
+      ? width * height * (8 + REFLECTION_SOURCE_BYTES_PER_PIXEL) + REFLECTION_SOURCE_VIEW_BYTES
+      : 8) +
+    (plan.rough
       ? width * height * REFLECTION_HISTORY_BYTES_PER_PIXEL + REFLECTION_RESOLVE_VIEW_BYTES
       : 0) +
     display * DISPLAY_BYTES +

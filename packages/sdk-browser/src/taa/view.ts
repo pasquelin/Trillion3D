@@ -11,11 +11,29 @@ const anchored = new Float64Array(16),
   weights = taaWeightTable();
 
 /** Writes `(width, height, 1/width, 1/height)` at `at`. */
-function writeGrid(at: number, [width, height]: readonly number[]) {
-  packed[at] = width;
-  packed[at + 1] = height;
-  packed[at + 2] = 1 / width;
-  packed[at + 3] = 1 / height;
+function writeGrid(into: Float32Array, at: number, [width, height]: readonly number[]) {
+  into[at] = width;
+  into[at + 1] = height;
+  into[at + 2] = 1 / width;
+  into[at + 3] = 1 / height;
+}
+
+/**
+ * The header `taaReprojectWgsl` reads (`prevViewProj`, `invViewProj`, `viewport`), floats 0 to 35
+ * of `into`: `previous` and the inverse of `current`, both anchored at `eye`, then `grid`. The
+ * temporal pass's uniform and the reflections' (`historyRuntime.ts`, `source.ts`) start with it.
+ */
+export function writeReprojection(
+  into: Float32Array,
+  previous: ArrayLike<number>,
+  current: ArrayLike<number>,
+  eye: ArrayLike<number>,
+  grid: readonly number[],
+) {
+  matrixAtRenderOrigin(into, previous, eye, 0);
+  matrixAtRenderOrigin(anchored, current, eye);
+  into.set(invertMatrix4(anchored, anchored), 16);
+  writeGrid(into, 32, grid);
 }
 
 /**
@@ -36,21 +54,18 @@ export function writeTaaView(
   layers = false,
   deformed = false,
 ) {
-  matrixAtRenderOrigin(packed, state.previousViewProjection, cam.eye, 0);
   // Inverse of the view-projection WITHOUT jitter: the reprojected pixel is its unshifted centre,
   // with the depth read at the shifted sample. At a fixed camera, history is thus re-read exactly
   // on its texel — re-read to the jitter, it would be resampled bilinearly every image and would
   // soften without end.
-  matrixAtRenderOrigin(anchored, cam.viewProjection, cam.eye);
-  packed.set(invertMatrix4(anchored, anchored), 16);
-  writeGrid(32, display);
+  writeReprojection(packed, state.previousViewProjection, cam.viewProjection, cam.eye, display);
   // Share of the current image: 1/k at the k-th quiet image, one eighth in motion.
   packed[36] = state.stillFrames > 0 ? 1 / state.stillFrames : 1 / TAA_SAMPLES;
   packed[37] = state.hasHistory ? 1 : 0;
   packed[38] = moved ? 1 : 0;
   packed[39] = layers ? 1 : 0;
   packed.set(weights[state.sample % TAA_SAMPLES], 40);
-  writeGrid(52, render);
+  writeGrid(packed, 52, render);
   packed[56] = state.jitter[0];
   packed[57] = state.jitter[1];
   packed[58] = state.stillFrames > 0 ? 0 : 1;

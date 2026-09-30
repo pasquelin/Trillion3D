@@ -1,14 +1,17 @@
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
 import { makeFullscreenPipeline } from '../lighting/deferred/fullscreen.ts';
 import { reflectionLayout } from './layout.ts';
-import { reflectionSource, withScreenReflections } from './screenWgsl.ts';
+import { withScreenReflections } from './screenWgsl.ts';
+import { withReflectionSourceOutput } from './sourceOutputWgsl.ts';
+import { REFLECTION_SOURCE_WGSL, reflectionSourceLayout } from './sourceWgsl.ts';
 import { stochasticReflectionShader } from './sampleWgsl.ts';
 import { REFLECTION_RESOLVE_WGSL, reflectionResolveLayout } from './resolveWgsl.ts';
 
-/** Frozen source and final resolve are separate programs: no uniform can change between
- * two encoded passes through queue.writeBuffer before their shared submission. The four compile
- * together, off the thread (#1362): the lit program the first image waits for is its slowest one,
- * never their sum. */
+/** The source reprojects the last image's unfogged colour, which the final pass writes as its
+ * second target (`sourceOutputWgsl.ts`): no pass here lights a surface but the final one. Source
+ * and final resolve are separate programs: no uniform can change between two encoded passes
+ * through queue.writeBuffer before their shared submission. The four compile together, off the
+ * thread (#1362): the lit program the first image waits for is its slowest one, never their sum. */
 export async function reflectionPipelines(
   device: GPUDevice,
   shader: string,
@@ -23,7 +26,8 @@ export async function reflectionPipelines(
     module: Promise<GPUShaderModule>,
     bind: GPUBindGroupLayout | readonly GPUBindGroupLayout[],
     entryPoint: string,
-  ) => makeFullscreenPipeline(device, await module, bind, entryPoint, targets);
+    into = targets,
+  ) => makeFullscreenPipeline(device, await module, bind, entryPoint, into);
   const [trace, resolve, source, final] = await Promise.all([
     program(
       createCheckedShaderModule(
@@ -40,14 +44,19 @@ export async function reflectionPipelines(
       'resolveRoughReflection',
     ),
     program(
-      createCheckedShaderModule(device, reflectionSource(shader), 'REFLECTION_SOURCE'),
-      layout,
-      'lightSurface',
+      createCheckedShaderModule(device, REFLECTION_SOURCE_WGSL, 'REFLECTION_SOURCE'),
+      reflectionSourceLayout(device),
+      'reprojectReflectionSource',
     ),
     program(
-      createCheckedShaderModule(device, withScreenReflections(shader, true), 'REFLECTION_RESOLVE'),
+      createCheckedShaderModule(
+        device,
+        withReflectionSourceOutput(withScreenReflections(shader, true)),
+        'REFLECTION_RESOLVE',
+      ),
       [layout, reflectionLayout(device)],
       'lightSurface',
+      [...targets, ...targets],
     ),
   ]);
   return { trace, resolve, resolveLayout, source, final };

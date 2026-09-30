@@ -1,7 +1,8 @@
 /** Dedicated rough-reflection history. The RGB mean and bounded confidence have
  * the HDR image's precision; previous receiver metadata preserves its input formats.
- * Metadata has one copy, updated only after the resolve finishes reading it. */
-export const REFLECTION_HISTORY_BYTES_PER_PIXEL = 32;
+ * Metadata has one copy, updated only after the resolve finishes reading it: the normal here, the
+ * depth and identifiers the reflection source keeps for its own reprojection (`source.ts`). */
+export const REFLECTION_HISTORY_BYTES_PER_PIXEL = 24;
 
 export type ReflectionMetadata = {
   depth: GPUTexture;
@@ -9,25 +10,40 @@ export type ReflectionMetadata = {
   ids: GPUTexture;
 };
 
-export function createReflectionHistoryTargets(device: GPUDevice, width: number, height: number) {
+/** The last image's depth and identifiers, the reflection source's copies (`source.ts`). */
+export type ReflectionPrevious = { depth: GPUTextureView; ids: GPUTextureView };
+
+/** Targets of `width × height` a reflection pass draws into, or copies into (`copies`), each
+ *  held in `textures` for one destruction; the history's and the source's (`source.ts`). */
+export function reflectionTargets(device: GPUDevice, width: number, height: number) {
   const textures: GPUTexture[] = [];
-  const target = (label: string, format: GPUTextureFormat, copies = false) => {
-    const texture = device.createTexture({
-      label: `Trillion3D reflection ${label}`,
-      size: { width, height },
-      format,
-      usage:
-        GPUTextureUsage.TEXTURE_BINDING |
-        (copies ? GPUTextureUsage.COPY_DST : GPUTextureUsage.RENDER_ATTACHMENT),
-    });
-    textures.push(texture);
-    return { texture, view: texture.createView() };
+  return {
+    textures,
+    target: (label: string, format: GPUTextureFormat, copies = false) => {
+      const texture = device.createTexture({
+        label: `Trillion3D reflection ${label}`,
+        size: { width, height },
+        format,
+        usage:
+          GPUTextureUsage.TEXTURE_BINDING |
+          (copies ? GPUTextureUsage.COPY_DST : GPUTextureUsage.RENDER_ATTACHMENT),
+      });
+      textures.push(texture);
+      return { texture, view: texture.createView() };
+    },
   };
+}
+
+export function createReflectionHistoryTargets(
+  device: GPUDevice,
+  width: number,
+  height: number,
+  kept: ReflectionPrevious,
+) {
+  const { textures, target } = reflectionTargets(device, width, height);
   try {
     const images = [target('history A', 'rgba16float'), target('history B', 'rgba16float')];
-    const depth = target('previous depth', 'depth32float', true);
     const normal = target('previous normal and roughness', 'rgba16float', true);
-    const ids = target('previous visibility', 'r32uint', true);
     let read = 0;
     let disposed = false;
     const live = () => {
@@ -35,14 +51,14 @@ export function createReflectionHistoryTargets(device: GPUDevice, width: number,
     };
     return {
       bytes: width * height * REFLECTION_HISTORY_BYTES_PER_PIXEL,
-      previous: { depth: depth.view, normal: normal.view, ids: ids.view },
+      previous: { depth: kept.depth, normal: normal.view, ids: kept.ids },
       get image() {
         live();
         return images[read].view;
       },
-      /** The callback encodes all consumers of the previous metadata. Copies follow
+      /** The callback encodes all consumers of the previous normal. Its copy follows
        * it in the same encoder; neither later queue writes nor another pass can move
-       * them ahead of those reads. The opaque depth remains depth32float throughout. */
+       * it ahead of those reads. */
       resolve(
         encoder: GPUCommandEncoder,
         current: ReflectionMetadata,
@@ -53,16 +69,10 @@ export function createReflectionHistoryTargets(device: GPUDevice, width: number,
         draw(images[read].view, images[write].view);
         const size = { width, height, depthOrArrayLayers: 1 };
         encoder.copyTextureToTexture(
-          { texture: current.depth, aspect: 'depth-only' },
-          { texture: depth.texture, aspect: 'depth-only' },
-          size,
-        );
-        encoder.copyTextureToTexture(
           { texture: current.normal },
           { texture: normal.texture },
           size,
         );
-        encoder.copyTextureToTexture({ texture: current.ids }, { texture: ids.texture }, size);
         read = write;
         return images[read].view;
       },
