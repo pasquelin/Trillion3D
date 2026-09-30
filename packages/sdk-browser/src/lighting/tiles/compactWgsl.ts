@@ -3,7 +3,7 @@ import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 /** Lanes of a column's workgroup: a batch of lights, one each. */
 export const GRID_LANES = 64;
 /** Runs a column keeps between its two walks: a column of more kept lights tests the rest again. */
-export const GRID_CACHE = 512;
+const GRID_CACHE = 512;
 const SLICES = LIGHT_SETTINGS.gridSlices;
 
 /**

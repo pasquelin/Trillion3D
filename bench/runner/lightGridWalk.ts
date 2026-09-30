@@ -20,7 +20,7 @@ import type { Light } from './lightTileCity.ts';
 
 /** The pass's work: its columns and cells, a light against a column's planes, the runs solved
  *  (each at most eight section evaluations, `NEWTON_STEPS` an end), the slices marked — each a list entry. */
-export type GridWork = {
+type GridWork = {
   columns: number;
   cells: number;
   columnTests: number;
