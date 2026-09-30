@@ -72,9 +72,9 @@ fn directIncidence(light:DirectLight,P:vec3f)->vec4f{
  }
  return vec4f(L,attenuation);
 }
-/** The resolve's range reject (#1249, \`sliceLightingWgsl\`): a light is skipped past this many
- *  times its squared range, far above the f32 roundings of \`length\`, so \`directIncidence\` and
- *  \`rectView\` would have given it zero there. */
+/** The unshadowed resolve's range reject (#1249, \`sliceLightingWgsl\`): a light is skipped past
+ *  this many times its squared range, far above the f32 roundings of \`length\`, so
+ *  \`directIncidence\` and \`rectView\` would have given it zero there. */
 const RANGE_REJECT:f32=1.0001;
 /** Major axis of the light-to-point direction, in POINT_FACE_AXES order. */
 fn pointFaceOf(direction:vec3f)->u32{

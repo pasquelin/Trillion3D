@@ -1,21 +1,23 @@
-// #1249: the resolve's one light loop rejects a light on its sphere alone, before its record is
-// read in full, only where `declaredLight` would have given an exact zero. The shipped
-// `sliceLighting` runs here as JavaScript on a line (a light's centre and the point are distances
-// along it), the light's own term a stand-in of `directIncidence`: zero at or past its range.
+// #1249: the resolve's one light loop, in the program with no shadow code, rejects a light on its
+// sphere alone, before its record is read in full, only where `declaredLight` would have given an
+// exact zero; the program with shadow code keeps develop's loop. The shipped `sliceLighting` runs
+// here as JavaScript on a line (a light's centre and the point are distances along it), the light's
+// own term a stand-in of `directIncidence`: zero at or past its range.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DIRECT_LIGHTING_WGSL } from './lightingWgsl.ts';
+import { directLightingWgsl } from './lightingWgsl.ts';
 import { shaderFunctions, wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
 
-const K = wgslConstants(DIRECT_LIGHTING_WGSL);
+const UNSHADOWED = directLightingWgsl(false, undefined, false);
+const K = wgslConstants(UNSHADOWED);
 type Lamp = { positionRange: { xyz: number; w: number }; params: { x: number }; weight: number };
 
 /** The loop over `lamps` at point `P`: its sum and the lamps it shaded in full. */
 function walk(lamps: Lamp[], P: number) {
   const shaded: Lamp[] = [];
   const { sliceLighting } = shaderFunctions<{ sliceLighting: (...args: unknown[]) => number }>(
-    DIRECT_LIGHTING_WGSL,
+    UNSHADOWED,
     ['sliceLighting', 'isSunKind'],
     {
       ...K,
@@ -72,3 +74,20 @@ test('the reject margin keeps a lamp at its very range: the shading gives its ze
   assert.deepEqual([edge.shaded.length, edge.sum], [2, 0], 'within the margin: shaded, and zero');
   assert.equal(walk([lamp(2.02)], 10).shaded.length, 0, 'past it: skipped');
 });
+
+test('the program with shadow code pays no range test: its loop reads a light once (#1249)', () => {
+  const loop = (code: string) =>
+    code.slice(code.indexOf('fn sliceLighting(')).split(/\n(?:fn |\/\*\*)/)[0];
+  for (const narrow of [false, true]) {
+    const shadowed = loop(directLightingWgsl(narrow)),
+      unshadowed = loop(directLightingWgsl(narrow, undefined, false));
+    // The reject's per-light test costs a lit light 13 % (42.3 -> 47.9 ps) that a shadowed
+    // scene never repays: that loop reads the record only where it shades the light, as develop.
+    assert.doesNotMatch(shadowed, /RANGE_REJECT|isSunKind|continue/);
+    assert.equal(shadowed.match(/directLights\.items\[/g)?.length, 1);
+    assert.match(unshadowed, /RANGE_REJECT\)\{continue;\}/);
+    assert.equal(unshadowed.replace(RANGE_TEST, ''), shadowed, 'the same loop otherwise');
+  }
+});
+
+const RANGE_TEST = /\n {2}let sphere=[^]*?\{continue;\}/;

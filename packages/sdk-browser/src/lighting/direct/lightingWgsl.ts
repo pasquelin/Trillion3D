@@ -33,16 +33,17 @@ fn tileSlice(base:u32,countSlot:u32,firstSlot:u32)->vec2u{
  let first=tileLights[base+firstSlot];
  return vec2u(first,select(kept,directLights.count,first==TILE_NO_SLICE));
 }`;
-/** The wide resolve's slices (`TILE_SLICE_WGSL`) and their lighting. */
-const WIDE_SLICE_WGSL = `${TILE_SLICE_WGSL}${sliceLightingWgsl(false)}`;
+/** The wide resolve's slices (`TILE_SLICE_WGSL`) and their lighting, the range reject without
+ *  shadow code (`sliceLightingWgsl`). */
+const wideSliceWgsl = (reject: boolean) => `${TILE_SLICE_WGSL}${sliceLightingWgsl(false, reject)}`;
 /**
  * The narrow resolve's slices (#849): a scene of at most `TILE_LIGHTS` lights runs the narrow
  * tile pass, so no tile passes its list and none walks the pool or the whole scene. The slice is
  * the list itself — the same lights in the same order as the wide loop, so the same sum, bit for
  * bit — run on a device against the wide loop by `tests/browser/probes/narrow-resolve-gpu.ts`.
  */
-const NARROW_SLICE_WGSL = `
-fn tileSlice(base:u32,countSlot:u32,firstSlot:u32)->vec2u{return vec2u(base+firstSlot,tileLights[base+countSlot]);}${sliceLightingWgsl(true)}`;
+const narrowSliceWgsl = (reject: boolean) => `
+fn tileSlice(base:u32,countSlot:u32,firstSlot:u32)->vec2u{return vec2u(base+firstSlot,tileLights[base+countSlot]);}${sliceLightingWgsl(true, reject)}`;
 /**
  * Base of the two lighting passes: contract types, shadow reads, and the contribution of a
  * single declared light at the point, its shadow included — the engine's only lighting
@@ -84,7 +85,7 @@ fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{
  return rgb*(1.0-metal)*max(E,vec3f(0.0))*ao*${INVERSE_PI};
 }
 fn pixelTile(pixel:vec2f)->vec2u{return vec2u(u32(pixel.x)/TILE_SIZE,u32(pixel.y)/TILE_SIZE);}
-${narrow ? NARROW_SLICE_WGSL : WIDE_SLICE_WGSL}
+${narrow ? narrowSliceWgsl(!shadowed) : wideSliceWgsl(!shadowed)}
 fn tileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,tile:vec2u,tilesX:u32,countSlot:u32,firstSlot:u32)->vec3f{
  return sliceLighting(rgb,metal,rough,N,V,P,ao,tileSlice((tile.y*tilesX+tile.x)*TILE_STRIDE,countSlot,firstSlot));
 }`;
@@ -106,9 +107,10 @@ fn tileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,til
  * list holds no shadowed light (`tileShadowed`, #1249), a flag the tile pass writes once.
  *
  * `narrow` is the resolve of a scene of at most `TILE_LIGHTS` lights (#849): its light array is
- * that long and its slice loop no pool branch (`NARROW_SLICE_WGSL`), as the narrow tile pass
+ * that long and its slice loop no pool branch (`narrowSliceWgsl`), as the narrow tile pass
  * writes (`../tiles/shader.ts`). Without `shadowed`, the resolve of a scene no light of which
- * holds a shadow slot: the same sums with no shadow code compiled in (`declaredLightWgsl`, #1249).
+ * holds a shadow slot: the same sums with no shadow code compiled in (`declaredLightWgsl`, #1249)
+ * and the range reject in its loop (`sliceLightingWgsl`).
  */
 export const directLightingWgsl = (narrow = false, pages = SUN_WINDOW, shadowed = true) => `
 ${lightingBase(SUN_FAR_PROXY_BINDING, CONTRACT_SHADOW_BINDINGS.data, CONTRACT_SHADOW_BINDINGS.requests, CONTRACT_SHADOW_BINDINGS.transmittance, pages, narrow, shadowed)}
