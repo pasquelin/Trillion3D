@@ -11,6 +11,9 @@ const markdown = /\.md$/;
 // The notices ship in the package (`package.json` `files`): code, not documentation.
 const packaged = /^THIRD_PARTY_NOTICES\.md$/;
 const translation = /^site\/(?:content\/|examples\/)?i18n\/[^/]+\.json$/;
+// English is the reference the site's code types its dictionaries from (`typeof english`,
+// `site/content/i18n/dictionary.ts`): a change of it is type-checked, so it is code.
+const english = /^site\/(?:content\/|examples\/)?i18n\/en\.json$/;
 // Images outside the trees whose tests and fixtures read them, and outside the scene sources and
 // models the compiler cooks (`site/assets/examples/<scene>/source/`, `…/models/`), which the Rust
 // tests and the scene caches read.
@@ -20,7 +23,7 @@ const siteImage =
 /** Whether `file` is documentation, a site image or a translation, which only the tests of
  *  `scripts/docs-tests.ts` read. */
 export function isDocumentation(file: string): boolean {
-  if (packaged.test(file)) return false;
+  if (packaged.test(file) || english.test(file)) return false;
   return markdown.test(file) || translation.test(file) || siteImage.test(file);
 }
 
