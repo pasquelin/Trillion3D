@@ -8,12 +8,12 @@ import {
   DAG_ERROR_MODEL,
   EngineError,
   FORMAT_VERSION,
-  MANIFEST_BINARY_VERSION,
   pageCarriesClusterError,
   primitiveIsDrawable,
   primitiveUsesClusterErrors,
   UNSPLIT_PASS,
 } from '../index.ts';
+import { MANIFEST_BINARY_VERSION } from '../manifest/binaryFormat.ts';
 test('a cache whose pages carry their own cluster errors requires the DAG error model', () => {
   const page = (
     id: number,

@@ -10,7 +10,6 @@ import {
   OP,
   ObjectPhysics,
   SOFT_VERTEX_WORDS,
-  SOFT_WORDS,
   type PhysicsHost,
   type SoftBodyOptions,
 } from '../../../sdk-core/src/physics/index.ts';
@@ -23,6 +22,7 @@ import { createSessionHost } from './sessionHost.ts';
 import { createPhysicsPoses } from './poses.ts';
 import { receiveSoft } from './softBodies.ts';
 import { createSoftTick } from './recordTick.ts';
+import { SOFT_WORDS } from '../../../sdk-core/src/physics/wire.fixture.ts';
 
 /** A scene whose bodies are written to `writer`, `softVertices` soft vertices allowed. */
 function sceneOf(softVertices: number, host = {} as PhysicsHost) {

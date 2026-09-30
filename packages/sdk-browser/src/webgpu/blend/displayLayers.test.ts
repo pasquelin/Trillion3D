@@ -7,13 +7,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { blend, close, display, written, type Rgba } from './blendModel.fixture.ts';
-import { blendTargets } from './pipelines.ts';
 import { ADD_EQUATIONS, TINT_EQUATIONS } from './equations.ts';
 import { ACES, displayRoute } from './displayRun.fixture.ts';
 import { ALPHA_BLEND } from './stagePipelines.ts';
 import { BLENDS } from '../../particles/drawWords.ts';
-import { particleTargets } from '../../particles/webgpuParticleDraw.ts';
-import { WATER_ROUTED_TARGETS } from '../water/pipelines.ts';
+import { waterCompositeTargets } from '../water/compositeTargets.ts';
+import { blendTargets } from './blendTargets.ts';
+import { particleTargets } from '../../particles/particleTargets.ts';
 
 type Pixel = { lit: Rgba; tint: Rgba; add: Rgba };
 type Layer = {
@@ -137,7 +137,7 @@ test('particles and water over a multiply surface show the witness', () => {
   assertWitness('fire over multiply', paper, [filter, particle(fire, 'additive')]);
   assertWitness('water over multiply', paper, [
     filter,
-    layer(water, WATER_ROUTED_TARGETS, ALPHA_BLEND),
+    layer(water, waterCompositeTargets(false, true), ALPHA_BLEND),
   ]);
 });
 

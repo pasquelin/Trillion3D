@@ -1,5 +1,6 @@
 import { EngineError } from '../contracts/cache.ts';
 import type { PhysicsOption } from './options.ts';
+import { JOLT_COMMIT } from './joltCommit.ts';
 
 /**
  * `physics.json`, the physics a compiled model carries (stage `physics-cook` of the native
@@ -8,10 +9,6 @@ import type { PhysicsOption } from './options.ts';
  * commit, and a reader refuses another. Formats 2 and 3 are read; 3's pieces wait unused.
  */
 const PHYSICS_FORMAT_VERSIONS: readonly unknown[] = [2, 3];
-/** The Jolt commit the engine's physics module is built from: the pin of the submodule
- *  `packages/physics-jolt-wasm/JoltPhysics`, which the compiler's cook reads (`build.rs`). A test
- *  fails while the two differ (`physics.test.ts`). */
-export const JOLT_COMMIT = 'e77f175595e64cb44218cc9d9d56fc365ad0e36a';
 
 /** One cooked shape: a SHA-addressed object beside the manifest. */
 export interface CookedTile {

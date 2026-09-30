@@ -1,0 +1,19 @@
+{
+  "name": "@trillion3d/compiler-linux-x64",
+  "version": "0.2.0",
+  "description": "The Trillion3D compiler built for Linux on x86-64 (glibc); installed by trillion3d, which picks it by platform.",
+  "private": true,
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "libc": [
+    "glibc"
+  ],
+  "files": [
+    "bin"
+  ]
+}

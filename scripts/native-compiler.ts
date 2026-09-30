@@ -6,7 +6,7 @@
  */
 import { spawnSync, type StdioOptions } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { currentCompilerExecutable } from '../packages/sdk-node/src/compiler/process.mts';
+import { currentCompilerExecutable } from '../packages/sdk-node/src/compiler/executable.mts';
 
 /** The triangle budget of a `full` cache, the one every published and measured scene uses. */
 export const TRIANGLE_BUDGET = '150000';
@@ -34,6 +34,8 @@ export interface FullCompile {
   ramMb?: number;
   simplification?: 'none' | 'qem-endpoints';
   stdio?: StdioOptions;
+  /** The compiler to run: this checkout's by default (`nativeCompiler`). */
+  executable?: string;
 }
 
 /** Compiles one full cache with the native compiler; throws when it cannot start or fails. */
@@ -46,9 +48,10 @@ export function compileFullCache({
   ramMb = 256,
   simplification = 'none',
   stdio = 'inherit',
+  executable = nativeCompiler(),
 }: FullCompile) {
   const result = spawnSync(
-    nativeCompiler(),
+    executable,
     [
       source,
       cache,
@@ -63,5 +66,7 @@ export function compileFullCache({
   );
   if (result.error) throw result.error;
   if (result.status !== 0)
-    throw new Error(`The native compiler failed on ${source} (status ${result.status}).`);
+    throw new Error(
+      `The native compiler failed on ${source} (status ${result.status}, signal ${result.signal}).`,
+    );
 }

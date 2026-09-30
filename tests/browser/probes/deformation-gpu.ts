@@ -7,7 +7,7 @@ import { encodeGeometryPage } from '../../../packages/page-codec/geometryPage.ts
 import {
   DEFORMATION_COMPUTE_WGSL,
   deformationBindings,
-} from '../../../packages/sdk-browser/src/deformation/compute.ts';
+} from '../../../packages/sdk-browser/src/deformation/computeWgsl.ts';
 import {
   recordLayout,
   KIND_MORPH,

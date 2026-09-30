@@ -2,7 +2,7 @@ import { createCutReadiness } from '../../page/cut/readiness.ts';
 import type { ResidencyChanges } from '../core/selection.ts';
 import type { PackedDag } from './types.ts';
 import { DAG_NODE_FLOATS } from './types.ts';
-import { NODE_OPEN } from './packNodes.ts';
+import { NODE_OPEN } from './nodeLayout.ts';
 
 /**
  * The cut rule's residency over a whole packing: one `createCutReadiness` per placement, read at

@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { withScreenReflections } from './screenWgsl.ts';
 import { REFLECTION_SOURCE_WGSL } from './source.ts';
 import { ENVIRONMENT, FILTERED, RAY, resolvedDisplay } from './receivers.fixture.ts';
-import { DIRECT_LIGHTING_SHADER } from '../lighting/deferred/shaders.ts';
 import { functionText } from '../bounce/wgslBody.fixture.ts';
+import { DIRECT_LIGHTING_SHADER } from '../gpu/core/shaderTexts.fixture.ts';
 
 test('a screen hit replaces the fallback; a miss or a disabled pass reads it, once', () => {
   const read = (options: Parameters<typeof resolvedDisplay>[0], rough: number) => {

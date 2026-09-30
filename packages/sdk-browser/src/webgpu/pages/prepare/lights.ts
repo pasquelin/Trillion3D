@@ -2,6 +2,7 @@ import { LIGHT_SETTINGS } from '../../../../../sdk-core/src/index.ts';
 import { createGpuLightTiles } from '../../../lighting/tiles/tiles.ts';
 import { createGpuShadowAtlas } from '../../../gpu/shadow/atlas.ts';
 import { createGpuShadowCull } from '../../../gpu/shadow/cull.ts';
+import { createShadowMovingGroups } from '../../shadow/movingGroups.ts';
 import { createShadowPageQuads } from '../../../gpu/shadow/pageQuads.ts';
 import { grantCapability } from '../io/drops.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
@@ -20,7 +21,7 @@ const SHADOW_APPROXIMATIONS = [
   'a blended cluster casts from a shadow-only row into the transmittance layer, at half the pool resolution and filtered by the same PCF: one 8-bit product of (1 − coverage) and one nearest 32-bit depth per texel, so a receiver between two stacked panes takes both; additive and transmissive surfaces cast nothing until tinted transmission shadows (#33), and an unpaged blended mesh casts nothing',
   'shadow cluster rejection uses the world sphere of a cluster, never its exact hull',
   'shadow pages are asked for by the opaque surfaces alone, per pixel before any page is drawn and again by the resolve: a transparent or water surface reads the pages the opaque pixels asked for, and falls back to a coarser level where none did',
-  'a shadow page asked for is mapped and drawn on the GPU in the frame that asks for it, with every resident caster row its own light-space volume touches, blended casters into the transmittance layer too; the host draws it again with its light cut and static layer once its request report comes back, a frame or two later; a frame draws no more of them than its pair list holds every caster row of, the rest wait for the next frame, the pixel reading the next coarser level meanwhile',
+  'a shadow page asked for is mapped and drawn on the GPU in the frame that asks for it, with every resident caster row its own light-space volume touches, blended casters into the transmittance layer too; the host draws it again with its light cut and static layer once its request report comes back, a frame or two later; a page whose casters the pair list of its frame cannot all hold waits for the next frame, the pixel reading the next coarser level meanwhile',
 ];
 
 /**
@@ -66,6 +67,13 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
     lights.shadowReason = `shadow atlas unavailable: ${String(error)}`;
     diag.diagnosticFailure('shadow-atlas-unavailable', error);
   }
+  // Without the moving groups, every restored page draws its moving casters alone.
+  if (lights.cull)
+    lights.movingGroups = await createShadowMovingGroups(device).catch((error) => {
+      if (isCancelled(rt.signal)) throw error;
+      diag.diagnosticFailure('shadow-moving-groups-unavailable', error);
+      return undefined;
+    });
   // Without the per-pixel demand the resolve's own requests still name every page it reads.
   if (lights.shadows)
     lights.demand = await createShadowDemand(device, lights.plan.sunWindow).catch((error) => {
@@ -111,9 +119,10 @@ export async function prepareShadowPipelines(rt: WebgpuPagesRuntime, device: GPU
   // pipeline made meanwhile would lay its error there. The rest opens no scope: compiled together.
   await createHizPipelines(device).catch(() => undefined);
   const work: Array<() => unknown> = [shadows.prepareDepth, () => shadowOcclusionPipeline(device)];
+  if (rt.lights.movingGroups) work.push(shadows.groupDraws.prepare);
   // The pages the GPU draws itself (#1275): its pool's draws, and its layer's with the host's.
   if (rt.lights.allocation) work.push(shadows.freshDraws.prepare);
-  if (rt.vis.gpuDraw) work.push(() => lightRowMapPipeline(device));
+  if (rt.vis.gpuDraw) work.push(() => lightRowMapPipeline(device).pipeline.prepare());
   if (sceneCastsBlended(rt))
     work.push(shadows.prepareTransmittance, pageQuads.prepareTransmittance);
   // One that fails is compiled again, and said, where it is first used.

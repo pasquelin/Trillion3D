@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import { shaderFunctions } from '../texture/shaderRule.fixture.ts';
 import { Mat } from '../texture/shaderRun.fixture.ts';
 import { mulberry32 } from '../../../../site/examples/kit/random.ts';
-import { LANCZOS2_WGSL, taaUpscaleShader } from './upscaleWgsl.ts';
-import { TAA_SHADER } from './shaderWgsl.ts';
+import { taaUpscaleShader } from './upscaleWgsl.ts';
+import { TAA_SHADER } from '../gpu/core/shaderTexts.fixture.ts';
 import { taaHistoryBlend } from './historyWgsl.ts';
 import { kernel, owed, upscaleRun, type UpscaleFrame } from './upscaleRun.fixture.ts';
+import { LANCZOS2_WGSL } from './lanczos2Wgsl.ts';
 
 type Kernel = { lanczos2: (x: number) => number };
 const near = (a: number[], b: number[], what: string) =>

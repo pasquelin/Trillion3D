@@ -8,16 +8,13 @@ import { MAX_SHADOW_BATCHES } from '../../../gpu/shadow/batchBudget.ts';
 import { SUN, VIEW } from '../../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { createWebgpuLightState } from '../state/lights.ts';
 import { createWebgpuTimingState } from '../state/timing.ts';
-import {
-  encodeShadowBatches,
-  forEachShadowBatch,
-  frameBatchCapacity,
-} from './encodeShadowBatches.ts';
+import { encodeShadowBatches, forEachShadowBatch } from './encodeShadowBatches.ts';
 import { writeShadowPages, writeShadowRecords } from '../../shadow/pages.ts';
 import { SHADOW_CULL_FLOATS } from '../../../../../sdk-core/src/index.ts';
 import { MAX_SHADOW_REGIONS } from '../../../gpu/shadow/recordPack.ts';
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { frameBatchCapacity } from './frameBatchCapacity.ts';
 
 /** A frame on the CPU cut whose plan lists the floor pages of `suns` new suns. */
 function frame(suns: number) {

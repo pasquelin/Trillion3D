@@ -10,8 +10,8 @@ import {
   tileCorner,
   type TileView,
 } from '../../../../../bench/oracles/browser/gpuLightTileColumnOracle.ts';
-import { LIGHT_TILES_SHADER } from './shader.ts';
 import { NEAR, camera } from './tileCamera.fixture.ts';
+import { LIGHT_TILES_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
 
 // #924 (OMB-24): sixteen threads de-project the tile's corners, one each, where thread zero
 // de-projected them one after the other. The planes and boxes read the table: they must be those

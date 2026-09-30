@@ -2,11 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { collectClusterPages, rootCoverage, selectVisiblePages } from './selection.ts';
-import { evaluateDagSelectionKernel, packDagSelection } from '../../gpu/dag/selection.ts';
+import { packDagSelection } from '../../gpu/dag/selection.ts';
 import { kernelUniforms } from '../../gpu/dag/selectionHelpers.fixture.ts';
 import { blendFixture, camera } from './blend.fixture.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 import { createHeldResidency } from '../cut/held.ts';
+import { evaluateDagSelectionKernel } from '../../gpu/dag/oracle/oracle.fixture.ts';
 
 test('clustered blend pages retain their source and only select the intersecting part of a mesh', () => {
   const fixture = blendFixture();

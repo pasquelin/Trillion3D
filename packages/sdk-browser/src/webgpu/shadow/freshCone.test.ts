@@ -7,7 +7,7 @@ import { CONE } from '../../../../sdk-core/src/scene/light-shadow/coneModel.ts';
 import { CONE_MODEL_WGSL } from '../../../../sdk-core/src/scene/light-shadow/coneModelWgsl.ts';
 import { mulberry32 } from '../../../../../site/examples/kit/random.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
-import { SHADOW_FRESH_WGSL } from './freshWgsl.ts';
+import { SHADOW_FRESH_WGSL } from '../../gpu/core/shaderTexts.fixture.ts';
 
 type Cone = (...args: unknown[]) => number & number[];
 const r = mulberry32(1275);

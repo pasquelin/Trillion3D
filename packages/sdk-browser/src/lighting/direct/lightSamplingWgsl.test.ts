@@ -3,14 +3,17 @@ import assert from 'node:assert/strict';
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { DIRECT_LIGHT_SAMPLING_WGSL, SAMPLED_RANKS } from './lightSamplingWgsl.ts';
 import { DIRECT_LIGHTING_WGSL, declaredLightingWgsl } from './lightingWgsl.ts';
-import { BOUNCE_LIGHTING_SHADER, DIRECT_LIGHTING_SHADER } from '../deferred/shaders.ts';
 import { HASH_UNIT_WGSL } from '../../math/hashUnitWgsl.ts';
 import { shaderFunctions, wgslConstants } from '../../texture/shaderRule.fixture.ts';
-import { LIGHT_TILES_SHADER } from '../tiles/shader.ts';
 import {
   compactTile,
   tileLayout,
 } from '../../../../../bench/oracles/browser/gpuLightTilesRankOracle.ts';
+import {
+  BOUNCE_LIGHTING_SHADER,
+  DIRECT_LIGHTING_SHADER,
+  LIGHT_TILES_SHADER,
+} from '../../gpu/core/shaderTexts.fixture.ts';
 
 const occurrences = (text: string, fragment: string) => text.split(fragment).length - 1;
 
