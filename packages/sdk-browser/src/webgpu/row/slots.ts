@@ -2,14 +2,13 @@ import { sortPages } from '../../../../sdk-core/src/index.ts';
 import { createWebgpuRowWriters } from './writers.ts';
 import { createWebgpuRowClaims, serveClaims } from './claims.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
+import { createPageCatalogue } from '../pages/prepare/catalogue.ts';
 import { rowHasGeometry, type createPageRowWriter } from './pageRow.ts';
 import { awaitsPageBytes } from './pageSlots.ts';
 import type { createWebgpuRowState } from './state.ts';
 import type { FrameClock } from '../../page/integration/frameBudget.ts';
-
 type Rows = ReturnType<typeof createWebgpuRowState>;
 type Writer = ReturnType<typeof createPageRowWriter>;
-
 /**
  * Ranks of the row table, held page by page.
  *
@@ -38,6 +37,8 @@ export function createWebgpuRowSlots(
   writePageRow: Writer,
   onResidenceChange: (rec: PageRec) => void,
 ) {
+  /** A packed rank back to its record: the one catalogue accessor (`../pages/prepare/catalogue.ts`). */
+  const { recordOf } = createPageCatalogue(packedPages);
   /** Ranks this pass gave back, waiting for a taker or a fill: never more than the table holds. */
   const free = { rows: new Int32Array(Math.max(1, rows.blendFirst)), count: 0 };
   /** Pages that claim a record and wait their turn, from one image to the next. */
@@ -52,7 +53,6 @@ export function createWebgpuRowSlots(
     denied = 0,
     epoch = -1,
     revision = -1;
-
   /** True when a page's rank really carries its current place in the cache. */
   const rowWritten = (page: number) => {
     const row = rows.rowOfPage[page];
@@ -73,7 +73,7 @@ export function createWebgpuRowSlots(
   const setResident = (page: number, resident: boolean) => {
     const value = resident ? 1 : 0;
     if (rows.residentFlags[page] === value) return;
-    const rec = packedPages[page];
+    const rec = recordOf(page)!;
     rows.residentFlags[page] = value;
     rows.noteResidencyChange(page);
     onResidenceChange(rec);
@@ -86,7 +86,7 @@ export function createWebgpuRowSlots(
    * does not yet describe its place.
    */
   const release = (page: number) => {
-    const rec = packedPages[page],
+    const rec = recordOf(page)!,
       offsetWords = rows.residentOffsetWords[page];
     const resident = offsetWords >= 0 && !awaitsPageBytes(rec);
     const wantsRow = resident && !rec.transparent && rowHasGeometry(rec, rows.pagePositions[page]);
