@@ -41,8 +41,7 @@ fn resolvedReflectionRay(P:vec3f,N:vec3f,R:vec3f)->vec3f{
 }
 fn filteredResolvedReflection(P:vec3f,R:vec3f,rough:f32)->vec4f{
  var hit:vec4f=screenReflectionCone(P,R,rough);
- if(hit.a>=1.0){return vec4f(hit.rgb,0.0);}
- return vec4f(hit.rgb,1.0-hit.a);
+ return vec4f(hit.rgb,max(1.0-hit.a,0.0));
 }
 fn ${name}(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{
  ${head}

@@ -34,31 +34,33 @@ export const ENVIRONMENT = [3, 3, 3],
   RAY = [7, 7, 7],
   FILTERED = [5, 5, 5];
 
-/** The shipped `resolvedRadiance`, its trace answering `RAY` for the mirror ray and `FILTERED` for
- *  the cone on a hit and nothing on a miss, its fallback `ENVIRONMENT`; each call counted. */
+/** A shipped screen resolve (by default WebGPU's `resolvedRadiance`), its trace answering `RAY` for
+ *  the mirror ray and `FILTERED` for the cone on a hit and nothing on a miss, its `fallback`
+ *  `ENVIRONMENT`; each call counted. `shader`, `entry`, `fallback` and `globals` give another
+ *  program's spelling (the WebGL2 one, `screenGlsl.test.ts`). */
 export function resolvedDisplay({
   enabled = 1,
   hit = true,
   weight = (rough: number) => +(rough <= Number(ROUGHNESS_FLOOR)),
+  shader = SCREEN_REFLECTION_WGSL,
+  entry = 'resolvedRadiance',
+  fallback = 'reflectedRadiance',
+  globals = {} as Record<string, unknown>,
 } = {}) {
   const calls = { traced: 0, fallback: 0 };
-  const { resolvedRadiance } = shaderRun<{
-    resolvedRadiance: (P: number[], N: number[], R: number[], rough: number) => number[];
-  }>(
-    SCREEN_REFLECTION_WGSL,
-    [
-      'resolvedReflectionRay',
-      'filteredResolvedReflection',
-      'screenReflectionFade',
-      'resolvedRadiance',
-    ],
+  const program = shaderRun<
+    Record<string, (P: number[], N: number[], R: number[], rough: number) => number[]>
+  >(
+    shader,
+    ['resolvedReflectionRay', 'filteredResolvedReflection', 'screenReflectionFade', entry],
     {
       reflectionView: { enabled: [enabled, 0, 0, 0] },
       mirrorWeight: weight,
       screenReflection: () => (calls.traced++, hit ? [...RAY, 1] : [0, 0, 0, 0]),
       screenReflectionCone: () => (calls.traced++, hit ? [...FILTERED, 1] : [0, 0, 0, 0]),
-      reflectedRadiance: () => (calls.fallback++, ENVIRONMENT),
+      [fallback]: () => (calls.fallback++, ENVIRONMENT),
+      ...globals,
     },
   );
-  return { calls, at: (rough: number) => resolvedRadiance([0, 0, 0], [0, 1, 0], [0, 1, 0], rough) };
+  return { calls, at: (rough: number) => program[entry]!([0, 0, 0], [0, 1, 0], [0, 1, 0], rough) };
 }
