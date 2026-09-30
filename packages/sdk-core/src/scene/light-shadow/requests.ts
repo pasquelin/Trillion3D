@@ -6,7 +6,7 @@ import type { ShadowPool } from './pool.ts';
 import type { ShadowRecords } from './records.ts';
 import type { ShadowTable } from './table.ts';
 import type { SunLevels } from './sunLevels.ts';
-import { SHADOW_REQUEST_MISS } from './footprint.ts';
+import { SHADOW_REQUEST_ENTRY_MASK, SHADOW_REQUEST_MISS } from './footprint.ts';
 import {
   LAMP_FLOOR_MIP,
   PAGE_INDEX_MASK,
@@ -131,8 +131,9 @@ export function createShadowRequests(
       if (report.pool) return;
       needs.clear();
       for (let i = 0; i < counts.requested; i++) {
-        const entry = report.entries[i];
-        if (entry >= SHADOW_REQUEST_MISS) continue; // a miss grows its page: `demandFootprint.ts`
+        if (report.entries[i] >= SHADOW_REQUEST_MISS) continue; // a miss grows its page: `demandFootprint.ts`
+        // The receiver's cell rides above the entry (`footprint.ts`): only the entry indexes.
+        const entry = report.entries[i] & SHADOW_REQUEST_ENTRY_MASK;
         const word = table.words[entry];
         let slice: number;
         if (word & PAGE_MAPPED) {
