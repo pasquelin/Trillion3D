@@ -4,6 +4,7 @@ import { TRANSMISSION_GLSL } from './transmissionGlsl.ts';
 import { OUTPUT_TRANSFER_GLSL } from '../core/outputGlsl.ts';
 import { RECT_LIGHT_GLSL, WEBGL_RECT_KIND } from './rectGlsl.ts';
 import { PROBE_IRRADIANCE_GLSL } from './probe.ts';
+import { SUBSURFACE_UNIT } from './materialMaps.ts';
 import { LIGHT_TEXTURE_GLSL } from './lightTexture.ts';
 import { LIGHT_GRID_GLSL, LIGHT_LOOP_GLSL } from './lightGrid.ts';
 import { INVERSE_PI, PI, ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
@@ -136,7 +137,7 @@ if(hasNormalMap){vec2 st=sourceUv(mapChannels.w);vec3 n=texture(normalMap,mapUv(
 CotangentFrame frame=cotangentFrame(N,dFdx(viewPosition),dFdy(viewPosition),dFdx(st),dFdy(st));vec3 T=frame.T,B=frame.B;if(faceSides==2&&!flatShaded){T*=facing;B*=facing;}N=normalize(mat3(T,B,N)*n);}
 physicalFrame(N);
 thinSubsurface=clamp(subsurfaceFactor,0.0,1.0);
-if((mapMask&16384)!=0)thinSubsurface*=texture(subsurfaceMap,mapUv(subsurfaceUv,sourceUv(subsurfaceChannel)),mipBias).rgb;
+if((mapMask&${1 << SUBSURFACE_UNIT})!=0)thinSubsurface*=texture(subsurfaceMap,mapUv(subsurfaceUv,sourceUv(subsurfaceChannel)),mipBias).rgb;
 float p=-projectionMatrix[2][3];vec3 V=normalize(vec3(0.0,0.0,1.0-p)-viewPosition*p);float ao=1.0;if((mapMask&16)!=0)ao=(texture(aoMap,mapUv(aoUv,sourceUv(extraChannels.x)),mipBias).r-1.0)*aoStrength+1.0;
 vec3 rgb=lit?shade(N,V,base.rgb,metal,rough,ao):base.rgb*ao;
 if((mapMask&32)!=0)rgb+=emissiveFactor*texture(emissiveMap,mapUv(emissiveUv,sourceUv(extraChannels.y)),mipBias).rgb;else rgb+=emissiveFactor;
