@@ -111,7 +111,7 @@ export const tierEnsurer = (
   cache: unknown,
   casterPages: () => readonly PageRec[],
   aheadPages: () => readonly PageRec[] = () => [],
-  still: () => boolean = () => true,
+  still?: () => boolean,
 ) =>
   createWebgpuResidentEnsurer({
     ...ensurerOptions(tracking, cache),

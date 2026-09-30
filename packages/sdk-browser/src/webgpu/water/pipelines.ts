@@ -1,4 +1,4 @@
-import { reflectionLayout } from '../../reflections/gpu.ts';
+import { reflectionLayout } from '../../reflections/layout.ts';
 import { DISPLAY_FORMAT, FEEDBACK_FORMAT, SURFACE_FORMATS } from '../../scene/surfaceBuffer.ts';
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import { deferredLayoutEntries } from '../../lighting/deferred/setup.ts';
@@ -63,12 +63,36 @@ export function createWaterCompositeLayout(device: GPUDevice) {
   });
 }
 
+/** The composite's targets: the HDR target, then, `routed`, a normal layer's display layers, then,
+ *  when the frame has a share (`asIsShare.ts`), the reactive value's — green alone, as a
+ *  particle's. */
+export const waterCompositeTargets = (share: boolean, routed = false): GPUColorTargetState[] => [
+  { format: 'rgba16float', blend: ALPHA_BLEND },
+  ...(routed ? displayTargets('normal') : []),
+  ...(share ? [REACTIVE_TARGET] : []),
+];
+
+/** An image with no share keeps the composite it had before #833: no reactive target. */
+export const WATER_ROUTED_TARGETS: GPUColorTargetState[] = waterCompositeTargets(false, true);
+
+/** Each composite's entry point, indexed as `createWaterComposites` caches them. */
+const COMPOSE_ENTRIES = [
+  'composeWater',
+  'composeWaterRouted',
+  'composeWaterReactive',
+  'composeWaterRoutedReactive',
+];
+
 /**
- * Composite pipeline: a fullscreen triangle into the HDR target, blended exactly as the forward
- * transmission pass was — source alpha over what the frame already holds, which at a water pixel is
- * the frozen backdrop itself. A pixel with no water discards, and the target keeps its value.
+ * The composite pipelines of one pass: a fullscreen triangle into the HDR target, blended exactly
+ * as the forward transmission pass was — source alpha over what the frame already holds, which at a
+ * water pixel is the frozen backdrop itself; a pixel with no water discards, and the target keeps
+ * its value. The plain composite is compiled here; compiled on the first image that asks, the one
+ * routed through the display layers (`waterRoutedShader`: the tint and the added value of a
+ * normal layer) and the ones carrying the reactive value (`asIsShare.ts`) as a last output. A scene
+ * with no share and no display layers keeps the plain one alone — no extra target, no extra pipeline.
  */
-export async function createWaterCompositePipeline(
+export async function createWaterComposites(
   device: GPUDevice,
   layout: GPUBindGroupLayout,
   sunWindow?: number,
@@ -78,99 +102,40 @@ export async function createWaterCompositePipeline(
     waterCompositeShader(sunWindow),
     'WATER_COMPOSITE',
   );
-  return makeFullscreenPipeline(
+  const layouts = [layout, reflectionLayout(device)];
+  const base = await makeFullscreenPipeline(
     device,
     module,
-    [layout, reflectionLayout(device)],
-    'composeWater',
+    layouts,
+    COMPOSE_ENTRIES[0],
     waterCompositeTargets(false),
   );
-}
-
-/** The composite's targets: the HDR target, then, when the frame has a share (`asIsShare.ts`), the
- *  reactive value's — green alone, as a particle's. */
-export const waterCompositeTargets = (share: boolean): GPUColorTargetState[] => [
-  { format: 'rgba16float', blend: ALPHA_BLEND },
-  ...(share ? [REACTIVE_TARGET] : []),
-];
-
-/** The routed composite's targets: the HDR target as above, then a normal layer's display layers,
- *  then the share. */
-export const waterRoutedTargets = (share: boolean): GPUColorTargetState[] => [
-  { format: 'rgba16float', blend: ALPHA_BLEND },
-  ...displayTargets('normal'),
-  ...(share ? [REACTIVE_TARGET] : []),
-];
-
-/** An image with no share keeps the composite it had before #833: no reactive target. */
-export const WATER_ROUTED_TARGETS: GPUColorTargetState[] = waterRoutedTargets(false);
-
-/**
- * The composite of an image with a share (`asIsShare.ts`), made by the first frame that has one:
- * today's composite plus, as an extra output, the coverage the blend pass and the particles also
- * write — green 1 over what the pixel holds.
- */
-function createWaterSharePipeline(
-  device: GPUDevice,
-  layout: GPUBindGroupLayout,
-  sunWindow?: number,
-) {
-  const module = device.createShaderModule({
-    label: 'WATER_COMPOSITE',
-    code: waterCompositeShader(sunWindow),
-  });
-  return device.createRenderPipeline({
-    layout: device.createPipelineLayout({ bindGroupLayouts: [layout, reflectionLayout(device)] }),
-    vertex: { module, entryPoint: 'fullscreen' },
-    fragment: { module, entryPoint: 'composeWaterReactive', targets: waterCompositeTargets(true) },
-    primitive: { topology: 'triangle-list' },
-  });
-}
-
-/** The composite of an image with display layers (`waterRoutedShader`), made by the first one:
- *  the HDR target blended as above, then the tint and the added value of a normal layer; with a
- *  share, the reactive value last. */
-function createWaterRoutedPipeline(
-  device: GPUDevice,
-  layout: GPUBindGroupLayout,
-  share: boolean,
-  sunWindow?: number,
-) {
-  const module = device.createShaderModule({
-    label: 'WATER_ROUTED',
-    code: waterRoutedShader(sunWindow),
-  });
-  const bindGroupLayouts = [layout, reflectionLayout(device), displayMaskLayout(device)];
-  return device.createRenderPipeline({
-    layout: device.createPipelineLayout({ bindGroupLayouts }),
-    vertex: { module, entryPoint: 'fullscreen' },
-    fragment: {
-      module,
-      entryPoint: share ? 'composeWaterRoutedReactive' : 'composeWaterRouted',
-      constants: { DISPLAY_ROUTE: 1 },
-      targets: waterRoutedTargets(share),
-    },
-    primitive: { topology: 'triangle-list' },
-  });
-}
-
-/**
- * The composite pipelines of one pass, `base` the one made for an image with no share: the plain
- * composite, and, compiled on the first image that asks, the one carrying the reactive value
- * (`asIsShare.ts`), routed through the display layers or not. A scene with no share keeps `base`
- * alone — no extra target, no extra pipeline.
- */
-export function createWaterComposites(
-  device: GPUDevice,
-  layout: GPUBindGroupLayout,
-  base: GPURenderPipeline,
-  sunWindow?: number,
-) {
-  const made = [base, undefined, undefined, undefined] as (GPURenderPipeline | undefined)[];
+  let routedModule: GPUShaderModule | undefined;
+  const made: (GPURenderPipeline | undefined)[] = [base, undefined, undefined, undefined];
+  const build = (filtered: boolean, share: boolean, entryPoint: string) => {
+    const code = filtered
+      ? (routedModule ??= device.createShaderModule({
+          label: 'WATER_ROUTED',
+          code: waterRoutedShader(sunWindow),
+        }))
+      : module;
+    const bindGroupLayouts = filtered ? [...layouts, displayMaskLayout(device)] : layouts;
+    return device.createRenderPipeline({
+      layout: device.createPipelineLayout({ bindGroupLayouts }),
+      vertex: { module: code, entryPoint: 'fullscreen' },
+      fragment: {
+        module: code,
+        entryPoint,
+        ...(filtered && { constants: { DISPLAY_ROUTE: 1 } }),
+        targets: waterCompositeTargets(share, filtered),
+      },
+      primitive: { topology: 'triangle-list' },
+    });
+  };
   // The display route is the low bit, the share the one above: 0 base, 1 routed, 2 share, 3 both.
-  const at = (filtered: boolean, share: boolean) =>
-    (made[+filtered + 2 * +share] ??= filtered
-      ? createWaterRoutedPipeline(device, layout, share, sunWindow)
-      : createWaterSharePipeline(device, layout, sunWindow));
+  const at = (filtered: boolean, share: boolean) => {
+    const slot = +filtered + 2 * +share;
+    return (made[slot] ??= build(filtered, share, COMPOSE_ENTRIES[slot]));
+  };
   return { at };
 }

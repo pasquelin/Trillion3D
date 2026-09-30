@@ -52,7 +52,7 @@ export function createReflectionHistory(device: GPUDevice, width: number, height
     { identity: WebgpuBindIdentity; group?: GPUBindGroup }
   >();
   return {
-    ...targets,
+    bytes: targets.bytes,
     get image() {
       return targets.image;
     },
@@ -97,9 +97,12 @@ export function createReflectionHistory(device: GPUDevice, width: number, height
       packed.set(written ? previous : projection, 0);
       invertMatrix4(inverse, projection);
       packed.set(inverse, 16);
-      packed.set([drawnWidth, drawnHeight, 1 / drawnWidth, 1 / drawnHeight], 32);
+      packed[32] = drawnWidth;
+      packed[33] = drawnHeight;
+      packed[34] = 1 / drawnWidth;
+      packed[35] = 1 / drawnHeight;
       // params.z = 0: scene/motion changes invalidate the entire reflected source.
-      packed.set([written ? 1 : 0, 0, 0, 0], 36);
+      packed[36] = written ? 1 : 0;
       device.queue.writeBuffer(uniform, 0, packed);
     },
     encode(

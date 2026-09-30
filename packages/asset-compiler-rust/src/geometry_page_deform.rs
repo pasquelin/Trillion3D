@@ -5,10 +5,9 @@
 use crate::geometry_page_cells::Cell;
 use crate::{CompilerError, Result};
 use std::collections::HashMap;
-use trillion3d_page_codec::bits::Quant;
-use trillion3d_page_codec::deform::{Morph, Skin, MAX_MORPH_TARGETS, WEIGHT_BITS};
+use trillion3d_page_codec::deform::{Morph, Skin, MAX_MORPH_TARGETS, RAW_F32, WEIGHT_BITS};
 use trillion3d_page_codec::writer::BitWriter;
-use trillion3d_page_codec::{FLAG_MORPH, FLAG_SKIN};
+use trillion3d_page_codec::{FLAG_MORPH, FLAG_SKIN, FLAG_SOFT_SOURCE};
 /// One morph target of a primitive: its position displacement per vertex, three floats each, and
 /// its normal displacement when it declares one.
 pub struct MorphTarget {
@@ -49,18 +48,17 @@ impl PageDeformation {
     /// The presence bits it adds to the page's flags.
     pub fn flags(&self) -> u32 {
         let skin = if self.skin.is_some() { FLAG_SKIN } else { 0 };
+        let morph = if self.morphs.is_empty() {
+            0
+        } else {
+            FLAG_MORPH
+        };
         let source = if self.soft_source {
-            trillion3d_page_codec::FLAG_SOFT_SOURCE
+            FLAG_SOFT_SOURCE
         } else {
             0
         };
-        source
-            | skin
-            | if self.morphs.is_empty() {
-                0
-            } else {
-                FLAG_MORPH
-            }
+        source | skin | morph
     }
 }
 
@@ -88,7 +86,6 @@ pub fn page_deformation(
     deformation: &Deformation,
     original: &[u32],
     origin: &[u32],
-    _position_exponent: i32,
 ) -> Result<PageDeformation> {
     let source = deformation.vertices();
     let original: Vec<u32> = (original.iter())
@@ -124,12 +121,6 @@ pub fn page_deformation(
                 .flat_map(|&v| at(v).iter().copied())
                 .collect()
         };
-        let position = Quant {
-            min: [0.0; 3],
-            exponent: 0,
-            bits: [32; 3],
-        };
-        let normal = position;
         let moved = gather(&target.position);
         let bent = target.normal.as_ref().map(|values| gather(values));
         for (v, vertex) in fields.iter_mut().enumerate() {
@@ -138,8 +129,8 @@ pub fn page_deformation(
         }
         morphs.push(Morph {
             start: 0,
-            position,
-            normal,
+            position: RAW_F32,
+            normal: RAW_F32,
         });
     }
     Ok(PageDeformation {

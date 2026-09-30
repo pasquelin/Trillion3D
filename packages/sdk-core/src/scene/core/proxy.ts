@@ -19,7 +19,6 @@ import {
 } from './proxyShapes.ts';
 import { decodeProxyOwnership } from './proxyOwnership.ts';
 import { EngineError } from '../../contracts/index.ts';
-
 import { invalidProxy as bad } from './proxyError.ts';
 
 /**
@@ -114,12 +113,12 @@ export function decodeSceneProxy(
       triangles: words[2],
       nodes: words[3],
     });
-  const [, , triangles, nodes, , , , , shapeCount, shapeTriangles, instances] = words;
+  const [, , triangles, nodes, , , , , shapeCount, shapeTriangles, placements] = words;
   const tables =
     header +
     (shapeCount +
       shapeTriangles * (PROXY_TRIANGLE_FLOATS + 1) +
-      instances * (1 + PROXY_TRANSFORM_FLOATS)) *
+      placements * (1 + PROXY_TRANSFORM_FLOATS)) *
       4;
   if (buffer.byteLength < tables) throw wrongLength(tables);
   let at = header;
@@ -129,8 +128,8 @@ export function decodeSceneProxy(
     counts: integers(shapeCount),
     triangles: floats(shapeTriangles * PROXY_TRIANGLE_FLOATS),
     albedo: integers(shapeTriangles),
-    shapeOf: integers(instances),
-    maps: floats(instances * PROXY_TRANSFORM_FLOATS),
+    shapeOf: integers(placements),
+    maps: floats(placements * PROXY_TRANSFORM_FLOATS),
   };
   const placed = placedTriangles(shapes),
     loose = triangles - placed;
@@ -149,7 +148,7 @@ export function decodeSceneProxy(
   const positions = integers(placed);
   const flat = { triangles: floats(loose * PROXY_TRIANGLE_FLOATS), albedo: integers(loose) };
   const data: SceneProxyColumns = {
-    ...(instances === 0 ? flat : expandShapes(triangles, shapes, positions, flat)),
+    ...(placements === 0 ? flat : expandShapes(triangles, shapes, positions, flat)),
     nodeBounds: floats(nodes * PROXY_NODE_FLOATS),
     nodeChildren: integers(nodes * PROXY_NODE_WORDS),
     ...decodeProxyOwnership(descriptor, buffer, at),

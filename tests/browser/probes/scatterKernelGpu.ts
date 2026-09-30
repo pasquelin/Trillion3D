@@ -29,7 +29,7 @@ export interface EtalementArg {
 
 /** The kernel, launched in the page: four dispatches, then readout of the two outputs. */
 async function dansLaPage(arg: EtalementArg) {
-  const appareil = await globalThis.ouvrirAppareil();
+  const appareil = await globalThis.openGpuDevice();
   if (!appareil) return null;
   const { device } = appareil;
   const tampon = (data: number[] | Uint32Array, usage: GPUBufferUsageFlags) => {
