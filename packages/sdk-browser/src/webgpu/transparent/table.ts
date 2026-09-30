@@ -1,6 +1,7 @@
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { ClusterRoot } from '../../page/selection/types.ts';
 import type { BlendGpuItem } from '../blend/state.ts';
+import { createPageCatalogue } from '../pages/prepare/catalogue.ts';
 
 /** Entries one counting group of the compaction covers. Item ranges are aligned on it, so a group
  *  never spans two items and the per-item prefix is a walk over whole groups. */
@@ -65,6 +66,8 @@ export function createTransparentTable(
   packedPages: readonly PageRec[],
   items: readonly BlendGpuItem[],
 ) {
+  /** A packed rank back to its record: the one catalogue accessor (`../pages/prepare/catalogue.ts`). */
+  const { recordOf } = createPageCatalogue(packedPages);
   /** Where each root's pages start in the catalogue, and how the cut walks them, by the world of
    *  their root: a paged item and the root of its placement read the same one. */
   const rootOfPlacement = new Map<object, { base: number; root: ClusterRoot<PageRec> }>();
@@ -111,7 +114,7 @@ export function createTransparentTable(
     for (let i = 0; i < order.length; i++) {
       const pageIndex = order[i],
         entry = at + i,
-        words = packedPages[pageIndex].triangles * 3;
+        words = recordOf(pageIndex)!.triangles * 3;
       entries[entry] = pageIndex;
       pageOfEntry[entry] = pageIndex;
       entryOfPage[pageIndex] = entry;
