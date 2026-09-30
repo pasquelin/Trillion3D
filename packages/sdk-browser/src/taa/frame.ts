@@ -7,6 +7,7 @@ import type { AccumulatedImage } from '../lighting/deferred/program.ts';
 import type { TemporalAntialiasing } from './temporalAntialiasing.ts';
 import { writtenFilter } from '../webgpu/blend/displayFilter.ts';
 import { drawFrameAt } from '../webgpu/pages/state/renderScale.ts';
+import { shadowEpoch } from '../webgpu/pages/state/shadowEpoch.ts';
 
 /**
  * Image entry of the pass, called once per image, where the quiet of the image is known. A
@@ -148,6 +149,17 @@ export function restartTaaOnLanding(rt: WebgpuPagesRuntime, landed: number) {
   const temporal = rt.gpu.temporal;
   if (landed > 0 && temporal?.frame.active && temporal.frame.stillFrames > 0)
     forgetTaaHistory(temporal);
+}
+
+/** A shadow landed since the still average last looked: pages the host drew, or pages the GPU drew
+ *  itself, known a snapshot late (`shadowEpoch`) — else a shadow drawn at rest stays diluted in the
+ *  still average, faint (#1344). */
+export function restartTaaOnShadowLanding(rt: WebgpuPagesRuntime) {
+  const frame = rt.gpu.temporal?.frame;
+  if (!frame) return;
+  const epoch = shadowEpoch(rt.lights);
+  restartTaaOnLanding(rt, epoch === frame.shadowsSeen ? 0 : 1);
+  frame.shadowsSeen = epoch;
 }
 
 /** History is to be remade: targets reallocated, or size changed. */
