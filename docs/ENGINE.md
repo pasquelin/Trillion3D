@@ -352,10 +352,8 @@ light of its tile without its shadow (the cheap part) and shades four in full, s
 points lie evenly along the cumulative weight from a per-pixel offset that advances by the golden
 ratio every image: a light worth a sample's share of the pixel's weight holds one or more and is
 shaded exactly, once; any other is drawn once per point it holds, divided by its probability. Two
-walks of the weights, their total then the draw (three before #1369). Each shadow read of a moving
-image takes four of the PCF's sixteen taps, the subset turning with the image (`shadowTapsOf`): 29–36
-depth gathers per covered pixel become 7–9 with 64 of 200 lamps shadowed at 3456 × 2234, 15–23
-weights 10–15 (`bench/runner/resolveWorkCount.ts`). A pixel sets up its shadow read — its
+walks of the weights, their total then the draw (three before #1369): 15–23 weights per covered
+pixel become 10–15 with 64 of 200 lamps shadowed at 3456 × 2234 (`bench/runner/resolveWorkCount.ts`). A pixel sets up its shadow read — its
 unjittered footprint's eight neighbour depths, its receiver offset — only where its tile lists a
 shadowed light (`pixelShadowed`), never in the program with no shadow code. The estimate is unbiased, so the history averages it toward the full
 sum; a still image — the quiet ones, a capture, a diagnostic view — shades every light of the tile.

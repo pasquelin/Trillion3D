@@ -25,8 +25,3 @@ const POISSON_RADIUS = Math.max(...POISSON_16.map(([x, y]) => Math.hypot(x, y)))
  *  (`shadowRotated`): the disk's radius, then the bilinear footprint's texel on each axis, at
  *  most `√2` beyond it. The depth margin covers the receiver over it. */
 export const PCF_REACH = POISSON_RADIUS + Math.SQRT2;
-
-/** Taps of `POISSON_16` a shadow read takes on a MOVING image, which temporal antialiasing
- *  accumulates: one in four, the subset turning each image, so four images read every tap and the
- *  history averages them into the sixteen-tap filter a still image reads at once (#1369). */
-export const MOVING_PCF_TAPS = 4;
