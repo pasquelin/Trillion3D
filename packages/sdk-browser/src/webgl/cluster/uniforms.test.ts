@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Matrix3UniformCache, setClusterSamplers } from './uniforms.ts';
+import { SUBSURFACE_UNIT } from './materialMaps.ts';
+import { CLUSTER_FRAGMENT } from './shaders.ts';
 
 test('material constants cross the GL boundary only when their value changes', () => {
   const matrices: number[][] = [],
@@ -45,4 +47,11 @@ test('material constants cross the GL boundary only when their value changes', (
   // One program: two samplers on one unit fail every draw when their types differ.
   const units = samplers.map(([, unit]) => unit);
   assert.equal(new Set(units).size, units.length, 'each sampler has a unit of its own');
+});
+
+test('The fragment stage reads the subsurface map on the mask bit its unit sets', () => {
+  const bit = /\(mapMask&(\d+)\)!=0\)thinSubsurface\*=texture\(subsurfaceMap/.exec(
+    CLUSTER_FRAGMENT,
+  );
+  assert.equal(Number(bit?.[1]), 1 << SUBSURFACE_UNIT);
 });
