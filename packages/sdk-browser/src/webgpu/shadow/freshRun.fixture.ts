@@ -1,6 +1,7 @@
 // The pages the GPU draws itself (#1275), run from their shipped WGSL through `shaderRun`: the
 // compose and the seal over the bytes their bindings hold, lane after lane as their barriers order
-// them, and the pair cull over every row and region it dispatches — what the mock GPU dispatches
+// them, and the pair cull's count, admission and cull over every row and region they dispatch —
+// what the mock GPU dispatches
 // (`tests/kit/gpu/mockCompute.ts`) and the scheduling tests run.
 import { MAX_SHADOW_SLICES } from '../../../../sdk-core/src/index.ts';
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
@@ -12,11 +13,15 @@ import {
   shadowsOf,
 } from './allocRun.fixture.ts';
 import { SHADOW_FRESH_CULL_WGSL } from './freshCullWgsl.ts';
-import { FRESH_ARG, FRESH_PARAM_WORDS, FRESH_SLICE_FLOATS } from './freshLayout.ts';
+import { FRESH_ARG, FRESH_PARAM_WORDS, FRESH_SLICE_FLOATS, freshArgWords } from './freshLayout.ts';
 import { POOL_COUNTS } from './poolWgsl.ts';
 import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelSignatures.ts';
 import { FRESH_LANES } from './freshLanes.ts';
 import { SHADOW_FRESH_WGSL } from '../../gpu/core/shaderTexts.fixture.ts';
+
+/** Word of region `k`'s pairs in the arguments of a pool of `pages`: the last `pages` words
+ *  (`freshRegionPairs`, `freshLayoutWgsl.ts`). */
+export const freshRegionPairs = (pages: number, k: number) => freshArgWords(pages) - pages + k;
 
 const u32 = (b: Uint8Array) => new Uint32Array(b.buffer, b.byteOffset, b.byteLength >> 2);
 const f32 = (b: Uint8Array) => new Float32Array(b.buffer, b.byteOffset, b.byteLength >> 2);
@@ -51,6 +56,7 @@ const FUNCTIONS = [
   'composeLamp',
   'composeRegion',
   'freshDraw',
+  'freshRegionPairs',
   'poolAt',
   'shadowPoolPages',
   'poolLayer',
@@ -73,6 +79,7 @@ export function runShadowFresh(entry: string, ...bound: Uint8Array[]) {
     shadows: shadowsOf(data),
     shadowPool: { pages: new Int32Array(state.buffer, state.byteOffset + POOL_COUNTS.length * 4) },
     countRead: (i: number) => counts[i],
+    countSet: (i: number, v: number) => void (counts[i] = v),
     drawList: u32(drawList),
     faces: u32(faces),
     volumes: u32(volumes),
@@ -89,17 +96,27 @@ export function runShadowFresh(entry: string, ...bound: Uint8Array[]) {
   for (let lane = 0; lane < FRESH_LANES; lane++) lanes[entry](lane);
 }
 
+/** The pair cull's steps, in the order a frame runs them. */
+export const PAIR_STEPS = ['shadowCountPairs', 'admitShadowPairs', 'shadowCullPairs'] as const;
+
 /**
- * Runs `shadowCullPairs` over its bindings' bytes, in binding order — the spheres, the
- * parameters, the volumes, the pairs, the arguments and the rows' mobility —, every invocation of
- * the dispatch the arguments say.
+ * Runs the pair cull's `step` over its bindings' bytes, in binding order — the spheres, the
+ * parameters, the volumes, the pairs, the arguments and the rows' mobility —: the admission's
+ * workgroup lane after lane, every invocation of the dispatch the arguments say for the others.
  */
-export function runShadowPairs(...bound: Uint8Array[]) {
+export function runShadowPairStep(step: (typeof PAIR_STEPS)[number], ...bound: Uint8Array[]) {
   const [spheres, params, volumes, pairs, args, mobility] = bound,
     sphereFloats = f32(spheres),
     faceFloats = f32(volumes),
     faceWords = u32(volumes),
     words = u32(args);
+  // The lane scan's one barrier (`LANE_SCAN_WGSL`): the lanes run up to it — each giving its value —,
+  // the words go back as they were, then run again, each scan read from the values given.
+  const given = new Uint32Array(64),
+    laneSums = new Uint32Array(128);
+  let scanned: Uint32Array | undefined;
+  const laneScan = (lane: number, value: number) =>
+    scanned ? scanned[lane] : ((given[lane] = value), 0);
   const face = (k: number) => {
     const at = (i: number) => k * 20 + i,
       vec = (i: number) => [...faceFloats.subarray(at(i), at(i) + 3)];
@@ -109,9 +126,9 @@ export function runShadowPairs(...bound: Uint8Array[]) {
       casters: faceWords[at(16)],
     };
   };
-  const { shadowCullPairs } = shaderRun<Lanes>(
+  const kernels = shaderRun<Lanes>(
     SHADOW_FRESH_CULL_WGSL,
-    ['shadowCullPairs', 'freshRow', 'keepPair', 'sphereTouches'],
+    [...PAIR_STEPS, 'freshRow', 'freshKeeps', 'freshRegionPairs', 'sphereTouches', 'laneRun'],
     {
       ...wgslConstants(SHADOW_FRESH_CULL_WGSL),
       spheres: new Proxy([], {
@@ -125,13 +142,30 @@ export function runShadowPairs(...bound: Uint8Array[]) {
       pairs: u32(pairs),
       args: words,
       mobility: u32(mobility),
+      laneScan,
+      laneSums,
     },
   );
+  const kernel = kernels[step] as unknown as (id: number[] | number) => void;
+  if (step === 'admitShadowPairs') {
+    const held = words.slice();
+    for (let lane = 0; lane < 64; lane++) kernel(lane);
+    words.set(held);
+    let sum = 0;
+    scanned = given.map((value) => (sum = (sum + value) >>> 0));
+    laneSums[63] = sum;
+    for (let lane = 0; lane < 64; lane++) kernel(lane);
+    return;
+  }
   // Every invocation of the dispatch the compose wrote: a row, then the blended ones, by region.
   const { rows, blendFirst, blendEnd } = paramsOf(params);
   for (let k = 0; k < words[FRESH_ARG.regions]; k++)
-    for (let x = 0; x < rows + blendEnd - blendFirst; x++)
-      (shadowCullPairs as unknown as (id: number[]) => void)([x, k, 0]);
+    for (let x = 0; x < rows + blendEnd - blendFirst; x++) kernel([x, k, 0]);
+}
+
+/** The pair cull's three steps in turn (`runShadowPairStep`). */
+export function runShadowPairs(...bound: Uint8Array[]) {
+  for (const step of PAIR_STEPS) runShadowPairStep(step, ...bound);
 }
 
 /** The shadow passes run from their WGSL, by entry point, over their bindings' bytes in binding
@@ -147,7 +181,9 @@ export function runShadowPass(
     applyShadowWords: () => runShadowWords(...(bound() as Parameters<typeof runShadowWords>)),
     composeShadowPages: () => runShadowFresh('composeShadowPages', ...bound()),
     sealShadowPages: () => runShadowFresh('sealShadowPages', ...bound()),
-    shadowCullPairs: () => runShadowPairs(...bound()),
+    ...Object.fromEntries(
+      PAIR_STEPS.map((step) => [step, () => runShadowPairStep(step, ...bound())]),
+    ),
   }[entryPoint ?? ''];
   run?.();
   return !!run;

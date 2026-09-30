@@ -44,6 +44,7 @@ const demand = shaderRun<Demand>(
   {
     ...wgslConstants(SHADOW_DEMAND_WGSL),
     shadows: live,
+    shadowUnjitter: [0, 0, 0],
     requestShadowPage: (entry: number) => live.marked.add(entry),
     ShadowAt: (map: object, t: V, home: V, Q: V, texel: number) => ({ map, t, home, Q, texel }),
     LampAt: (at: object, clip: V, ndc: V, face: number, side: number, inside: boolean) => ({

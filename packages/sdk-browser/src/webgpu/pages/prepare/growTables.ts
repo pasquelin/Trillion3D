@@ -6,6 +6,7 @@ import { invalidateOccluderHistory } from '../io/drops.ts';
 import { deviceMade } from '../../../gpu/core/errorScope.ts';
 import { pendingAll } from '../../../gpu/core/tableGrowth.ts';
 import { gpuGrowth } from './growGpuTables.ts';
+import { queueTableGrowth } from './growthQueue.ts';
 import type { TableGrowthReport } from '../../../residency/pools.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
@@ -32,16 +33,8 @@ export function tableRowsFor(rt: WebgpuPagesRuntime, slots: number) {
  * budget holds. Growths wait for a running prepare and for each other, in their order; the report
  * says what the growth cost, or `null` when the tables already held what was asked.
  */
-export function growWebgpuTables(rt: WebgpuPagesRuntime, slots: number) {
-  // A running prepare makes the GPU tables at the size it read: the growth follows it.
-  const run = async () => {
-    await rt.setup.preparing;
-    return growTables(rt, slots);
-  };
-  const growing = (rt.layout.growing ?? Promise.resolve()).then(run, run);
-  rt.layout.growing = growing;
-  return growing;
-}
+export const growWebgpuTables = (rt: WebgpuPagesRuntime, slots: number) =>
+  queueTableGrowth(rt, () => growTables(rt, slots));
 
 async function growTables(
   rt: WebgpuPagesRuntime,
