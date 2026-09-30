@@ -4,16 +4,12 @@ import { getEventListeners } from 'node:events';
 import { createJob } from './jobs.ts';
 
 /** A job whose work aborts `controller` before returning `value`: cancellation wins the race. */
-const lateCancel = <T>(
-  value: T,
-  options: { disposeResult?: (result: T) => void } = {},
-  reason: unknown = 'late abort',
-) => {
+const lateCancel = <T>(value: T, options: { disposeResult?: (result: T) => void } = {}) => {
   const controller = new AbortController();
   return createJob(
     'late',
     async () => {
-      controller.abort(reason);
+      controller.abort('late abort');
       return value;
     },
     { signal: controller.signal, ...options },

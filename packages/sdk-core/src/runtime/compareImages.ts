@@ -14,7 +14,7 @@ export function compareImages(a: Uint8Array, b: Uint8Array) {
     const u32A = new Uint32Array(a.buffer, a.byteOffset, a.length >>> 2);
     const u32B = new Uint32Array(b.buffer, b.byteOffset, b.length >>> 2);
     const pixelCount = u32A.length;
-    // One past the end reads `undefined` on both sides, which compare equal: it adds no pixel.
+    // `p <= pixelCount` would read one past the end, `undefined` on both sides: equal, no pixel added.
     for (let p = 0; p < pixelCount; p++) {
       if (u32A[p] !== u32B[p]) {
         differentPixels++;
