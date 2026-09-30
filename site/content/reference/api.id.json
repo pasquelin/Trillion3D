@@ -3273,6 +3273,13 @@
   "ScreenErrorVariant": {
     "summary": "Bagaimana galat layar sebuah cluster diukur: batas yang terbukti, atau rumus acuan."
   },
+  "ShadowAsks": {
+    "summary": "Entri yang diminta host kepada pengalokasi GPU, di samping apa yang diminta piksel (`floors`).",
+    "members": {
+      "entries": "Entri yang diminta, paling banyak `count` yang pertama.",
+      "count": "Berapa banyak dari `entries` yang terisi."
+    }
+  },
   "ShadowAtlasDigest": {
     "summary": "Yang dipublikasikan sebuah pembacaan atlas-bayangan: ukurannya, apa yang tertulis di sana, sidik jarinya.",
     "members": {
@@ -7631,6 +7638,17 @@
   },
   "SHADOW_RECORD_FLOATS": {
     "summary": "Float dari rekaman bayangan, yang dibaca shading sebuah cahaya: enam matriks muka lampu — di sana rentang kedalaman matahari, masing-masing `zNear, zFar` (`recordPack.ts`) —, lalu kerangka bidang cahaya matahari — `right, zNear`, `up, zFar`, `axis`, lalu slot rentang saat ini —, lalu asal jendela tiap slot clipmap sebagai dua bilangan bulat, lalu header `vec4f`: muka (lampu) atau level (matahari), setengah bidang tangen lampu atau level terhalus matahari, bidang dekat lampu, dan entri pertama rekaman di tabel halaman."
+  },
+  "ShadowPoolSnapshot": {
+    "summary": "Kumpulan pengalokasi GPU setelah alokasi satu bingkai (`webgpu/shadow/allocWgsl.ts`).",
+    "members": {
+      "owner": "Entri yang dipetakan setiap halaman fisik, −1 untuk halaman bebas.",
+      "requested": "Bingkai tempat setiap halaman terakhir diminta.",
+      "allocated": "Halaman yang dipetakan bingkai itu, dan entri yang tidak mendapat halaman.",
+      "refused": "Entri yang tidak mendapat halaman pada bingkai itu.",
+      "drawn": "Halaman yang didaftar bingkai itu untuk digambar GPU (`listDraw`).",
+      "listings": "Halaman yang didaftar setiap bingkai sejak awal kumpulan: bergerak bersama daftar bingkai mana pun, hilang atau tidak cuplikannya sendiri."
+    }
   },
   "ShadowRequestReport": {
     "summary": "Yang dibaca shading dalam satu bingkai: entri tabel yang dimintanya, tanpa urutan.",
