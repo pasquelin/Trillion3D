@@ -36,7 +36,6 @@ const pageOf = (matrix: G.Matrix4): Cluster => ({
   material: surfaceOf([]),
   declaration: [],
   matrix,
-  placementIndex: 0,
   roots: [{ world: matrix }],
   renderOrder: 0,
 });
@@ -106,7 +105,7 @@ const resWinding = await mesure({
     { name: 'one cluster', input: seul, size: 1 },
     { name: 'no clusters', input: [], size: 0 },
   ],
-  calcul: imageDeSens((c) => windingCw(c.roots, c), true),
+  calcul: imageDeSens((c) => windingCw(c.roots, 0), true),
   attendu: imageDeSens(referenceWindingCw, false),
   options: { tours: 100, budgetMs: 1500 },
 });
@@ -125,7 +124,7 @@ const resSameView = await mesure({
 
 await stress({
   name: 'windingCw extremes',
-  calcul: (c: Cluster) => windingCw(c.roots, c),
+  calcul: (c: Cluster) => windingCw(c.roots, 0),
   extremes: [
     {
       name: 'zero matrix',

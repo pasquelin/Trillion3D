@@ -35,7 +35,6 @@ const catalogue = (): PageRec[] => {
       attributes: DUMMY_ATTRIBUTES,
       material: surfaceOf([]),
       declaration: [],
-      placementIndex: 0,
       renderOrder: 0,
     });
   return pages;
@@ -82,7 +81,7 @@ const mount = (fabriqueCommit: RowCommitFactory) => {
     rows,
     { sync: () => {}, dirty: true },
     pages,
-    { drawn: [] },
+    { drawn: [], drawnPacked: [] },
     () => true,
     commit,
   );

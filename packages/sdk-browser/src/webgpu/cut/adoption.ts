@@ -1,7 +1,7 @@
 import type { GpuCut, GpuSelection, SelectionUniforms } from '../../gpu/core/selection.ts';
 import { sameSelectionUniforms } from '../../gpu/core/selection.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
-import { copyPages } from '../pages/helpers.ts';
+import { copyPages, copyPacked } from '../pages/helpers.ts';
 import type { CutDelta } from './delta.ts';
 
 /**
@@ -15,8 +15,14 @@ import type { CutDelta } from './delta.ts';
 export function createWebgpuCutAdopter(options: {
   selection: () => GpuSelection | undefined;
   desired: PageRec[];
+  /** The packed rank of each desired page, rank by rank (#1235), parallel to `desired`. */
+  desiredPacked: number[];
   shown: PageRec[];
+  /** The packed rank of each shown page, rank by rank (#1235). */
+  shownPacked: number[];
   drawn: PageRec[];
+  /** The packed rank of each drawn page, rank by rank. */
+  drawnPacked: number[];
   uniforms: SelectionUniforms;
   delta: CutDelta;
   /** The drawable cut as a difference, kept apart because it is not the cut that was asked for. */
@@ -93,6 +99,9 @@ export function createWebgpuCutAdopter(options: {
       drawnDelta.apply(cut.result.drawablePageIds);
       lastCut = cut;
     }
+    // The packed ranks of the desired cut, rank by rank beside its records (#1235): held or applied,
+    // the difference names the instances it keeps.
+    copyPacked(options.desiredPacked, delta.ids, delta.count);
     if (offer) offerAhead(cut);
     if (drawnDelta.changed) drawnSeq++;
     // A difference is applied where it is computed. An image that adopts nothing — no readback has
@@ -117,6 +126,8 @@ export function createWebgpuCutAdopter(options: {
       // second time in the catalogue, at sparse ranks, would yield exactly the same array.
       copyPages(shown, options.drawnPages);
       copyPages(drawn, shown);
+      copyPacked(options.shownPacked, drawnDelta.ids, drawnDelta.count);
+      copyPacked(options.drawnPacked, drawnDelta.ids, drawnDelta.count);
       options.onDrawnMirrored();
       shownCut = cut;
       shownSeq = drawnSeq;

@@ -34,8 +34,8 @@ export function createWebglDeformation(
       },
     },
     deformedGeometries = new Set<Geometry>();
-  for (const root of roots)
-    for (const page of root.pages) page.deformRecord = session.wordOfWorld(root.world);
+  // Per placement, on the root: its pages are shared by every placement of the primitive (#1235).
+  for (const root of roots) root.deformRecord = session.wordOfWorld(root.world);
   for (const copy of copies) {
     const ids = copy.deformation?.softSourceIds;
     if (ids && !copy.geometry.attributes.skinIndex) {
@@ -66,8 +66,8 @@ export function createWebglDeformation(
     bytes: () => bytes,
     /** The records the program reads, none when no root deforms. */
     source: () => (session.any ? source : undefined),
-    /** What a page mesh of `rec` carries: its placement's record, zero for none. */
-    wordOf: (rec: PageRec) => session.wordOfWorld(rootOf(roots, rec).world),
+    /** What a page mesh of `rec` placed by root `rank` carries: its placement's record, zero. */
+    wordOf: (_rec: PageRec, rank: number) => session.wordOfWorld(rootOf(roots, rank).world),
     pending: () => session.any && frame.pending(),
     update(cam: EngineCamera, viewport: readonly number[] | undefined, pixelError: number) {
       if (!session.any) return;

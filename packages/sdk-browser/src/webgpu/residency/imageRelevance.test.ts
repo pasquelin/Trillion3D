@@ -10,7 +10,11 @@ function world() {
   const tier = createLowerTier({
     keyOf: w.tracking.keyOf,
     room: () => 64,
-    closeOver: createGroupClosure([], w.packed).closeOver,
+    closeOver: createGroupClosure(
+      [],
+      { baseOfRoot: new Int32Array(0), rootOfPacked: new Int32Array(0) },
+      w.packed,
+    ).closeOver,
   });
   const affectsImage = createImageRelevance({
     tracking: w.tracking,

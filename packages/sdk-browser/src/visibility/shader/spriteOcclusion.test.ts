@@ -38,7 +38,6 @@ test('the CPU Hi-Z test keeps a constant-size sprite whose box a nearer surface 
   const page = (sizeAttenuation: boolean): HizPage => ({
     min: [-0.05, -0.05, -3],
     max: [0.05, 0.05, -3],
-    placementIndex: 0,
     material: { sprite: sprite(sizeAttenuation) },
   });
   const [constant, attenuated] = [page(false), page(true)];
@@ -132,6 +131,7 @@ test('the transparent occlusion test rejects no entry a constant-size sprite hol
       packedPages: pages,
       recordOf: (packed: number) => pages[packed],
       selectionRoots: identityRoots(),
+      placement: { baseOfRoot: Int32Array.from([0]), rootOfPacked: identityRoots().rootOfPacked },
     },
   } as unknown as WebgpuPagesRuntime;
   refreshTransparentCorners(rt);

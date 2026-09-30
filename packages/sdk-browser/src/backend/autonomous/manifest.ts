@@ -43,6 +43,23 @@ export function prepareAutonomousManifest(input: ClusterManifest) {
   return { metadata, descriptors, sourced };
 }
 
+/** The root cover the open draws before any cut, each page with its packed rank (#1235): a spread
+ *  over the roots would overflow the stack. Writes `shown` and `shownPacked` in place. */
+export function showRootCover(
+  roots: readonly ClusterRoot<PageRec>[],
+  shown: PageRec[],
+  shownPacked: number[],
+) {
+  for (let rank = 0; rank < roots.length; rank++) {
+    const root = roots[rank];
+    for (let p = 0; p < root.pages.length; p++)
+      if (root.pages[p].parentError == null) {
+        shown.push(root.pages[p]);
+        shownPacked.push((root.packedBase ?? 0) + p);
+      }
+  }
+}
+
 export function autonomousBootstrap(roots: ClusterRoot<PageRec>[]): PageRec[] {
   // The clusters nothing replaces are the coarsest complete cover; the autonomous path pins them.
   const bootstrap: PageRec[] = [];
