@@ -1,7 +1,7 @@
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { MAX_SHADOW_REGIONS } from '../../gpu/shadow/atlas.ts';
 import { SHADOW_FACE_STRIDE, SHADOW_REGION_INDIRECT_BYTES } from '../../gpu/shadow/batchBudget.ts';
-import { GROUP_LAYER, GROUP_TESTED } from '../../gpu/shadow/groupWgsl.ts';
+import { GROUP_TESTED } from '../../gpu/shadow/groupWgsl.ts';
 import { DRAW_INDIRECT_STRIDE } from '../../gpu/draw/contract.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { shadowPageGroup } from './freshGroups.ts';
@@ -23,9 +23,7 @@ export type MovingGroupsHeld = {
 
 /**
  * THE DRAWS OF A BATCH'S MOVING GROUPS (#1345), into a pool pass and into the transmittance
- * layer's: each group in its block's viewport — its layer's for a lamp (`GROUP_LAYER`), each
- * caster clipped to its page by distances (`SHADOW_GROUP_LAMP_WGSL`) —, its group 2 made once per
- * list kind, and per pool layer for the blended casters, until what it binds changes (`forget`).
+ * layer's: each group in its block's viewport, its group 2 made once per list kind, and per pool layer for the blended casters, until what it binds changes (`forget`).
  */
 export function createMovingGroupDraws(device: GPUDevice, held: MovingGroupsHeld) {
   const { table, args, passOf, bitsOf } = held;
@@ -43,7 +41,7 @@ export function createMovingGroupDraws(device: GPUDevice, held: MovingGroupsHeld
     ].map((buffer, k) => ({ binding: 4 + k, resource: k ? { buffer } : { buffer, size: FACES } }));
   /**
    * Draws into `pass`, pool pass `k` of the batch, each of its groups — `drawList` sets its
-   * pipelines and draws —, in its block's viewport or its layer's, `scale` a texel of the pass (2
+   * pipelines and draws —, in its block's viewport, `scale` a texel of the pass (2
    * in the transmittance layer), its group 2 `groupOf` its list kind. Returns the draws.
    */
   const drawGroupsOf = (
@@ -58,12 +56,12 @@ export function createMovingGroupDraws(device: GPUDevice, held: MovingGroupsHeld
       pageGroup = shadowPageGroup(rt, device),
       groups = held.groups();
     if (!groups || !shadows || !rt.lights.cull || !held.pairs() || !pageGroup) return 0;
-    const texels = rt.lights.plan.pool.side * SHADOW_PAGE;
+    const texels = rt.lights.plan.pool.side * SHADOW_PAGE,
+      block = groupBlockSide(texels);
     let drawn = 0;
     for (let g = 0; g < groups; g++) {
       if (passOf[g] !== k) continue;
       const bits = bitsOf[g],
-        block = bits & GROUP_LAYER ? texels : groupBlockSide(texels),
         x = (bits & 1 ? texels - block : 0) / scale,
         y = (bits & 2 ? texels - block : 0) / scale;
       pass.setViewport(x, y, block / scale, block / scale, 0, 1);
@@ -95,7 +93,7 @@ export function createMovingGroupDraws(device: GPUDevice, held: MovingGroupsHeld
           entries: groupEntries(rt, lists),
         }));
       return drawGroupsOf(rt, pass, k, 1, groupOf, (g) => {
-        const draws = shadows.groupDraws.made(!!(bitsOf[g] & GROUP_LAYER));
+        const draws = shadows.groupDraws.made();
         pass.setPipeline(draws.opaque);
         pass.drawIndirect(args, g * SHADOW_REGION_INDIRECT_BYTES);
         if (!mobility.hasCutouts) return 1;
@@ -118,7 +116,7 @@ export function createMovingGroupDraws(device: GPUDevice, held: MovingGroupsHeld
           entries: [{ binding: 0, resource: shadows.targets[at] }, ...groupEntries(rt, lists)],
         }));
       return drawGroupsOf(rt, pass, k, 2, groupOf, (g) => {
-        const draws = shadows.groupDraws.blended(!!(bitsOf[g] & GROUP_LAYER));
+        const draws = shadows.groupDraws.blended();
         for (const pipeline of draws) {
           pass.setPipeline(pipeline);
           pass.drawIndirect(args, g * SHADOW_REGION_INDIRECT_BYTES);

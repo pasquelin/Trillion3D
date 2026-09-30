@@ -4,7 +4,7 @@ import {
   SHADOW_PAGE,
   SHADOW_TABLE_ENTRIES,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { clipsLampGroups, shadowDepthShader } from './depthModule.ts';
+import { SHADOW_DEPTH_SHADER } from './shader.ts';
 import { MAX_SHADOW_REGIONS, createShadowRecordPack } from './recordPack.ts';
 import { createShadowFaceBindings } from './faceBindings.ts';
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
@@ -40,7 +40,7 @@ export type GpuShadowAtlas = Awaited<ReturnType<typeof createGpuShadowAtlas>>;
  * opaque resolve records the pages it read in; and the uniform of each page a frame draws, read
  * by dynamic offset. The texture waits for `sizePool`: the first frame that casts grants the
  * budget's pool, then the pages the scene reads size it (`poolDemand.ts`), the shading reading the
- * placeholder until then. Lamp groups clip by distances where the device can (`depthModule.ts`).
+ * placeholder until then.
  */
 export async function createGpuShadowAtlas(
   device: GPUDevice,
@@ -75,8 +75,7 @@ export async function createGpuShadowAtlas(
     dataBuffer.destroy();
   };
   try {
-    const lamps = clipsLampGroups(device),
-      module = await createCheckedShaderModule(device, shadowDepthShader(device), 'SHADOW_DEPTH');
+    const module = await createCheckedShaderModule(device, SHADOW_DEPTH_SHADER, 'SHADOW_DEPTH');
     const layout = device.createPipelineLayout({ bindGroupLayouts: [pageLayout, faces.layout] });
     const depthDraws = shadowDepthDraws(device, module, layout);
     const transmittanceDraws = shadowTransmittanceDraws(device, module, [pageLayout, faces.layout]);
@@ -109,7 +108,7 @@ export async function createGpuShadowAtlas(
       depthDraws: depthDraws.made,
       /** The draws of the pages the GPU draws itself (`freshDraws.ts`), then the moving groups'. */
       freshDraws,
-      groupDraws: shadowGroupDraws(device, module, freshDraws.pageLayout, faces.layout, lamps),
+      groupDraws: shadowGroupDraws(device, module, freshDraws.pageLayout, faces.layout),
       /** True when region `index`'s face carries an emitter envelope: only a fragment discards it. */
       hasEnvelope: pack.hasEnvelope,
       /** Group 1 of a region's draws: its face, and what the cutouts ask (`faceBindings.ts`). */
