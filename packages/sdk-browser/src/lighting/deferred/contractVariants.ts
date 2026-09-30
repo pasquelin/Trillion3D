@@ -81,6 +81,18 @@ export function createContractVariants(
       variants[0][0].program
     );
   };
+  /** A frame asks for this program: it compiles, and its arrival redraws (`onReady`). */
+  const ask = (
+    bounce: boolean,
+    narrow: boolean,
+    unshadowed: boolean,
+    onFailure?: (error: unknown) => void,
+  ) => {
+    const variant = variants[at(narrow, unshadowed)][+bounce];
+    variant.asked = true;
+    compile(bounce, narrow, unshadowed, onFailure);
+    return variant;
+  };
   return {
     /** The program to light this frame with, compiling the asked one; `undefined` if none is ready. */
     pick(
@@ -89,8 +101,7 @@ export function createContractVariants(
       unshadowed: boolean,
       onFailure?: (error: unknown) => void,
     ) {
-      variants[at(narrow, unshadowed)][+bounce].asked = true;
-      compile(bounce, narrow, unshadowed, onFailure);
+      ask(bounce, narrow, unshadowed, onFailure);
       return lending(bounce, narrow, unshadowed);
     },
     /** Starts the narrow program and its wide twin, both with shadow code, before any frame asks
@@ -104,11 +115,9 @@ export function createContractVariants(
     /** The compile a frame asking for this program must wait for: none while a ready program
      *  lends itself, nor once it failed (the frame then falls back to the unlit view). */
     awaited(bounce: boolean, narrow: boolean, unshadowed: boolean) {
-      if (lending(bounce, narrow, unshadowed)) return undefined;
-      const variant = variants[at(narrow, unshadowed)][+bounce];
-      variant.asked = true;
-      compile(bounce, narrow, unshadowed);
-      return variant.pending;
+      return lending(bounce, narrow, unshadowed)
+        ? undefined
+        : ask(bounce, narrow, unshadowed).pending;
     },
     /** Waits for the programs a frame asked for, never a twin compiling beside them. */
     settle() {
