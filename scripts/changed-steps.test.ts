@@ -24,4 +24,12 @@ test('a source change runs the gates, the type check and the tests it selects', 
     assert.ok(steps.includes(step), step);
   // A fixture image is read by the tests: it is not documentation.
   assert.ok(changedSteps(['tests/fixtures/a.png'], [], 1).includes('tests'));
+  // A scene source or model texture is cooked into the caches the Rust tests read: code too.
+  for (const texture of [
+    'site/assets/examples/terrain-tiles/source/ground.png',
+    'site/assets/gallery/signature-architecture/source/a.png',
+    'site/assets/examples/models/crate/box1.png',
+  ])
+    assert.equal(isDocumentation(texture), false, texture);
+  assert.equal(isDocumentation('site/assets/examples/thumbnails/crates.webp'), true);
 });
