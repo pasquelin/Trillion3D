@@ -27,6 +27,67 @@ fn the_import_event_counts_the_import_warnings_by_code() {
     fs::remove_dir_all(root).ok();
 }
 
+// Behaviour: a folder reused on a warm run tells the same warnings as the compile that wrote it —
+// the import report, each flagged primitive and the lights left out — so a host counting them
+// (`trillion3d-compile --strict`) decides the same warm as cold.
+#[test]
+fn a_reused_folder_tells_its_warnings_again() {
+    let (root, obj, cache) = fixture("messages-reuse");
+    let text = fs::read_to_string(&obj).expect("obj");
+    fs::write(&obj, format!("mtllib absent.mtl\nusemtl Uni\n{text}")).expect("obj");
+    let told = |events: &[serde_json::Value]| {
+        let of = |phase: &str| {
+            events
+                .iter()
+                .filter(|event| event["phase"] == phase)
+                .map(|event| {
+                    let mut kept = event.clone();
+                    [
+                        "ratio",
+                        "peakRssBytes",
+                        "ms",
+                        "primitives",
+                        "nodes",
+                        "sharedMeshNodes",
+                    ]
+                    .iter()
+                    .for_each(|field| {
+                        kept.as_object_mut().map(|o| o.remove(*field));
+                    });
+                    kept
+                })
+                .collect::<Vec<_>>()
+        };
+        let primitives: Vec<_> = of("primitive")
+            .into_iter()
+            .filter(|event| event.get("warnings").is_some())
+            .map(|event| event["warnings"].clone())
+            .collect();
+        let import: Vec<_> = of("import")
+            .into_iter()
+            .map(|e| e["unsupported"].clone())
+            .collect();
+        let lights: Vec<_> = of("lights")
+            .into_iter()
+            .map(|e| (e["rejected"].clone(), e["counts"].clone()))
+            .collect();
+        (import, primitives, lights)
+    };
+    let cold = run_ok(&mut compiler(&obj, &cache));
+    let warm = run_ok(&mut compiler(&obj, &cache));
+    let cold = lines(&String::from_utf8_lossy(&cold.stderr));
+    let warm = lines(&String::from_utf8_lossy(&warm.stderr));
+    assert!(
+        warm.iter()
+            .any(|e| e["phase"] == "reuse" && e["completed"] == 1),
+        "the warm run reuses the folder"
+    );
+    let (import, primitives, lights) = told(&warm);
+    assert_eq!(import[0]["material-library-missing"], 1, "{warm:?}");
+    assert_eq!((import, primitives, lights), told(&cold));
+    fs::remove_dir_all(root).ok();
+}
+
 // Behaviour: a refused job's error event and stdout both carry the code's public id, its level,
 // the action and the documentation page, beside the symbolic code the host already read.
 #[test]

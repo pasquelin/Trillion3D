@@ -263,7 +263,7 @@ Progress phases, in order:
 | `cutouts` | `pending`, `sheet` | Cutout sheet written; `pending` textures still unanswered, `sheet` its path |
 | `proxy` | `triangles`, `nodes`, `errorMetres` | Resident proxy built |
 | `lights` | `lights`, `rejected`, `counts` | Scene lights written; `rejected` lamps left out, `counts` what was filled in or omitted on a lamp kept |
-| `reuse` | `completed` (1 reused, 0 refused), `files`, `fileBytes`, `objects`, `objectBytes`, `textureLevels`, `validateMs`, or `reason` | The key's folder was proven and kept — no `import`, `primitive`, `textures`, `proxy` or `lights` follow — or refused for the named reason and rebuilt ([Reusing a compiled folder](#reusing-a-compiled-folder)) |
+| `reuse` | `completed` (1 reused, 0 refused), `files`, `fileBytes`, `objects`, `objectBytes`, `textureLevels`, `validateMs`, or `reason` | The key's folder was proven and kept — no `textures` or `proxy` follow, and `import` (its `unsupported` report), `primitive` (only those with `warnings`) and `lights` only tell again the warnings the kept product carries — or refused for the named reason and rebuilt ([Reusing a compiled folder](#reusing-a-compiled-folder)) |
 | `prune` | `removedKeys`, `removedObjects`, `removedBytes`, `removedTextures`, `removedTextureBytes` | Stale keys, imports, orphan objects and texture levels removed (emitted only when something was) |
 | `complete` | `completed`, `total`, `pruned` | Pointer written; `pruned` summarises the prune |
 
@@ -1006,13 +1006,14 @@ const summary = await prepareMany(jobs, { workers: 4, ramBudgetMb: 32768, thread
 summary.jobs[0].pointer; // pointers only; nothing is read from disk
 ```
 
-`createTerminalProgress({label, index, total})` returns an object whose `event` method takes every
+`createTerminalProgress({label, index, total, verbose})` returns an object whose `event` method takes every
 compiler event and draws one live line (spinner, bar from `ratio`, phase, elapsed) on a TTY, one
 plain line per phase change elsewhere; `createBatchProgress()` does it per job for
 `prepareMany({onEvent})`; `progress.note(text)` shows a host-side step (a copy, a manifest check)
 before the compiler starts. The warnings of a job are counted while it compiles and told once when it
 ends, one line per code — its public code, count, worst case, action and documentation page — never
-one line per primitive; info codes stay silent. The `trillion3d-compile` CLI uses it on a TTY and
+one line per primitive; info codes stay silent unless `verbose`, which also lists every occurrence
+under its code. A reused folder tells the same warnings as the compile that wrote it. The `trillion3d-compile` CLI uses it on a TTY and
 prints raw JSON events on a pipe (`TRILLION3D_RAW_EVENTS=1` forces them), followed by the same
 summary as `{"event":"message", "id", "code", "level", "count", …}` events. `--verbose` adds the info
 codes and every occurrence; `--strict` exits 3 when the compile succeeded with a warning
