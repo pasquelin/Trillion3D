@@ -26,7 +26,7 @@ const world = createWorld('view', { controls: 'orbit' });
 const cube = object.mesh(geometry.box(1, 1, 1), material.meshStandard({ color: '#3c8ce0' }));
 cube.position.set(0, 0.5, 0);
 world.scene.add(cube);
-world.scene.add(light.directional({ intensity: 3, position: [3, 5, 4], castShadow: true }));
+world.scene.add(light.directional({ intensity: 3, position: [4, 5, -1], castShadow: true }));
 world.scene.add(light.hemisphere({ color: '#bcd4ff', groundColor: '#5a4a3c', intensity: 1 }));
 world.camera.position.set(2.2, 1.8, 3.2);
 world.camera.lookAt(0, 0.4, 0);`,
