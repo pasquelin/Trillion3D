@@ -1,19 +1,14 @@
 import type { Material } from '../../../../sdk-core/src/index.ts';
-import type { HostMaterial, HostMaterials } from '../../host/resources.ts';
-import {
-  copyHostGeometry,
-  hostPageBytes,
-  hostPageSurface,
-  releaseHostSurface,
-  setHostSurface,
-  colouredTwin,
-} from '../../host/pageObjects.ts';
-import { recordsBySurface, unpagedRefusal, wearDeclaration } from '../../page/surface.ts';
+import type { HostMaterial } from '../../host/resources.ts';
+import { copyHostGeometry, hostPageBytes, hostPageSurface } from '../../host/pageObjects.ts';
+import { recordsBySurface, unpagedRefusal } from '../../page/surface.ts';
 import type { PageRec, ClusterRoot } from '../../page/selection/selection.ts';
+import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
+import type { PageDraws } from './pageDraws.ts';
+import { createPaints } from './paints.ts';
 import { composedPose, deplaceInstance } from './instancePose.ts';
 import { attachedPages, drawnInstanced } from '../../placement/autonomousPlacements.ts';
-import { postPlacements } from '../../page/selection/placements.ts';
 import type { HeldFloor } from './heldFloor.ts';
 import { blendMoves, type AlphaChange } from '../../placement/backendSceneUpdates.ts';
 import type { SurfaceAssignment } from '../../placement/backendSceneUpdates.ts';
@@ -26,7 +21,8 @@ type InstanceEnvironment = {
   bootstrap: PageRec[];
   baseBootstrap: PageRec[];
   byUrl: Map<string, PageRec[]>;
-  baseMaterials: Map<PageRec, HostMaterials>;
+  /** The per-instance draw state, keyed by packed index (`pageDraws.ts`). */
+  draws: PageDraws;
   geometryStore: ReturnType<typeof createAutonomousGeometry>;
   /** The host's page ceiling, `Infinity` when it set none: the root cover an instance grows
    *  past it is refused by name. */
@@ -50,7 +46,7 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
     bootstrap,
     baseBootstrap,
     byUrl,
-    baseMaterials,
+    draws,
     geometryStore,
     hostCeiling,
     overCeiling,
@@ -63,27 +59,7 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
   // The model's records rows place, read off their roots once: a root may leave `roots` later.
   const rowed = new Set(baseRoots.flatMap((root) => (root.placement ? root.pages : [])));
   const { removeRecords, sync, colorMaterials } = geometryStore;
-  /** The material this engine built from the contract for a primitive, and therefore frees
-   *  itself: one entry per repainted primitive, replaced — not stacked — by the next paint. */
-  const owned = new Map<string, HostMaterial>();
-  /** Frees a paint and the twin the shared cache holds for it: repainting n times keeps one. */
-  const releasePaint = (painted: HostMaterial) => {
-    const twin = colorMaterials.get(painted);
-    if (twin) {
-      colorMaterials.delete(painted);
-      releaseHostSurface(twin);
-    }
-    releaseHostSurface(painted);
-  };
-  /** Records wear `painted`, or the vertex-coloured twin a page with a colour attribute draws
-   *  with, taken from the shared cache the decoded pages read (`painted` if it reads colours). */
-  const wear = (records: readonly PageRec[], painted: HostMaterial) => {
-    for (const rec of records) {
-      baseMaterials.set(rec, painted);
-      wearDeclaration(rec, rec.attributes.color ? colouredTwin(colorMaterials, painted) : painted);
-      if (rec.mesh) setHostSurface(rec.mesh, rec.declaration);
-    }
-  };
+  const paints = createPaints(colorMaterials, draws);
   return {
     /** Why a move into or out of blended takes the cover past the host ceiling, before any write
      *  (#846): rows are one instanced mesh while opaque, one mesh a row once blended. */
@@ -96,10 +72,7 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
     },
     /** Classic instances held: each holds its own copy of every page geometry. */
     instanceCount: () => instances.size,
-    disposeOwnedMaterials() {
-      for (const painted of owned.values()) releasePaint(painted);
-      owned.clear();
-    },
+    disposeOwnedMaterials: () => paints.dispose(),
     addInstance(id: string, transform: Float64Array) {
       sceneChanged();
       if (instances.has(id) || !id) throw new Error('AUTONOMOUS_INSTANCE_ID');
@@ -110,28 +83,26 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
         const ownMeshes = baseBootstrap.filter((rec) => !rowed.has(rec) || rec.transparent).length;
         if (overCeiling(ownMeshes)) throw new Error('AUTONOMOUS_ROOT_BUDGET');
       }
-      const mapped = new Map<PageRec, PageRec>();
+      const mapped = new Map<PageRec, PageRec>(),
+        copied: Array<{ base: PageRec; rec: PageRec; geometry: Geometry | undefined }> = [];
       for (const base of basePages) {
         // A record rows place shares the page's geometry, as the store gives it (`geometry.ts`):
         // only a geometry of the model's own is copied.
-        const geometry =
-          base.geometry && !rowed.has(base) ? copyHostGeometry(base.geometry) : base.geometry;
+        const source = draws.find(base)?.geometry,
+          geometry = source && !rowed.has(base) ? copyHostGeometry(source) : source;
         const rec: PageRec = {
           ...base,
           clusterId: `${id}/${base.clusterId}`,
-          geometry,
           attributes: geometry?.attributes ?? base.attributes,
-          mesh: undefined,
-          attached: false,
         };
-        if (geometry && geometry !== base.geometry)
+        if (geometry && geometry !== source)
           geometryStore.state.allocationBytes += hostPageBytes(geometry);
         mapped.set(base, rec);
         allPages.push(rec);
-        baseMaterials.set(rec, baseMaterials.get(base)!);
         let list = byUrl.get(rec.url);
         if (!list) byUrl.set(rec.url, (list = []));
         list.push(rec);
+        copied.push({ base, rec, geometry });
       }
       const addedRoots = baseRoots.map((root) => ({
         ...root,
@@ -139,9 +110,16 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
         pages: root.pages.map((page) => mapped.get(page)!),
       }));
       const addedBootstrap = baseBootstrap.map((page) => mapped.get(page)!);
+      // The material each copy inherits, read before the layout moves the base ranks.
+      const materials = copied.map(({ base }) => draws.find(base)?.material);
       // One by one: a spread of a large world's roots overflows the stack. Its pages rank them.
       for (const root of addedRoots) roots.push(root);
-      postPlacements(roots, roots.length - addedRoots.length);
+      draws.layOut(roots);
+      for (let i = 0; i < copied.length; i++) {
+        const draw = draws.drawing(copied[i].rec);
+        draw.geometry = copied[i].geometry;
+        draw.material = materials[i];
+      }
       for (const page of addedBootstrap) bootstrap.push(page);
       instances.set(id, {
         roots: addedRoots,
@@ -154,7 +132,7 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
       sceneChanged();
       const instance = instances.get(id);
       if (!instance) throw new Error('AUTONOMOUS_INSTANCE_MISSING');
-      deplaceInstance(instance, baseRoots, transform);
+      deplaceInstance(instance, baseRoots, transform, draws);
     },
     removeInstance(id: string) {
       sceneChanged();
@@ -164,7 +142,7 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
       // Its records leave while their roots still place them: a release reads their rows.
       removeRecords(instance.pages);
       for (let i = roots.length - 1; i >= 0; i--) if (removed.has(roots[i])) roots.splice(i, 1);
-      postPlacements(roots);
+      draws.layOut(roots);
       instances.delete(id);
       coverChanged();
       sync();
@@ -177,23 +155,22 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
       );
       if (!records.length) throw new Error('AUTONOMOUS_PRIMITIVE_MISSING');
       // Built once for the whole primitive; the paint this one replaces is freed below.
-      const previous = owned.get(primitive);
-      const painted = hostPageSurface(material, false);
-      owned.set(primitive, painted);
-      wear(records, painted);
-      if (previous) releasePaint(previous);
+      const painted = hostPageSurface(material, false),
+        previous = paints.repaint(primitive, painted);
+      paints.wear(records, painted);
+      if (previous) paints.release(previous);
     },
     /** Each assigned mesh's records wear its surface (`wearSurface`, #847); copies refused. A
      *  paint of this engine's that no record wears any more is freed, as a repaint frees it. */
     wearSurface({ meshes }: SurfaceAssignment) {
       sceneChanged();
       for (const [surface, records] of recordsBySurface(allPages, meshes))
-        wear(records, surface as HostMaterial);
-      // A page seldom repaints: `owned` is most often empty, and this walk runs for none.
-      for (const [primitive, painted] of owned)
-        if (!allPages.some((rec) => baseMaterials.get(rec) === painted)) {
-          owned.delete(primitive);
-          releasePaint(painted);
+        paints.wear(records, surface as HostMaterial);
+      // A page seldom repaints: `entries` is most often empty, and this walk runs for none.
+      for (const [primitive, painted] of paints.entries())
+        if (!allPages.some((rec) => draws.drawing(rec).material === painted)) {
+          paints.forget(primitive);
+          paints.release(painted);
         }
     },
   };

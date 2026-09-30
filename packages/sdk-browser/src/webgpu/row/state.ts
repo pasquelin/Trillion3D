@@ -1,9 +1,9 @@
 import { createWebgpuRowJournal } from './journal.ts';
-import { catalogueIndexOf, type PageRec } from '../../page/selection/selection.ts';
+import type { PageRec } from '../../page/selection/selection.ts';
+import { createPageCatalogue, type PageCatalogue } from '../pages/prepare/catalogue.ts';
 import { pageAddress } from './pageSlots.ts';
 import { createDirtyRows } from './dirty.ts';
 import { growRowState, widened } from './grow.ts';
-
 /**
  * Stable row and residency arrays shared by the cut, visibility pass, and cache journal.
  *
@@ -14,7 +14,13 @@ import { growRowState, widened } from './grow.ts';
  * (`addPages`), the per-row ones when the table grows (`grow`): they are read through this
  * object, never kept.
  */
-export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number, blendSlots = 0) {
+export function createWebgpuRowState(
+  packedPages: PageRec[],
+  drawSlots: number,
+  blendSlots = 0,
+  /** The catalogue the layout owns over `packedPages`; made here for a table built without one. */
+  catalogue: PageCatalogue = createPageCatalogue(packedPages),
+) {
   const casterSlots = drawSlots + blendSlots;
   // Packed ranks by pool ADDRESS: that is the key the cache names when a slot moves, and several
   // placements of one cluster share it.
@@ -30,8 +36,6 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number, 
     }
   };
   indexPages(0);
-  const pageIndexOf = (rec: PageRec) => catalogueIndexOf(packedPages, rec);
-
   /** Pages named by the cache and those whose residency flag just flipped. */
   const journal = createWebgpuRowJournal();
   const residentFlags = new Uint32Array(packedPages.length);
@@ -64,7 +68,6 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number, 
   let packedCount = 0,
     rowsChanged = true;
   let pageTableFloats: Float32Array | undefined, pageTableInts: Uint32Array | undefined;
-
   const state = {
     ...journal,
     /** First shadow-only row, and the end of the table: `[drawSlots, casterSlots)`. */
@@ -75,7 +78,7 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number, 
     blendRowOf,
     residentFlags,
     pageIndicesByUrl,
-    pageIndexOf,
+    pageIndexOf: (rec: PageRec) => catalogue.indexOf(rec),
     residentOffsetWords,
     rowPageIndex,
     rowOffsetWords,
@@ -184,7 +187,7 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number, 
       state.rowOfPage = widened(state.rowOfPage, new Int32Array(n), -1);
       state.blendRowOf = widened(state.blendRowOf, new Int32Array(n), -1);
       for (let page = first; page < n; page++) {
-        const sibling = pageIndicesByUrl.get(pageAddress(packedPages[page]))![0];
+        const sibling = pageIndicesByUrl.get(pageAddress(catalogue.recordOf(page)!))![0];
         state.residentOffsetWords[page] = state.residentOffsetWords[sibling];
         state.pagePositions[page] = state.pagePositions[sibling];
         state.touchPage(page);

@@ -26,6 +26,9 @@ function banc(options: { ready: boolean; resident: boolean }) {
     fixture.indices,
     fixture.associations,
   );
+  // The layout a WebGPU engine runs before any cut: every page ranks in the packed catalogue, and
+  // `recordOf` is how the CPU path reads a published rank back (`.worktrees`).
+  allPages.forEach((page, index) => (page.packedIndex = index));
   const residents = new Map(options.resident ? allPages.map((page) => [page.url, page]) : []);
   /** What `run.desired` carried before the image: the cut the previous image published. The bench
    *  camera only keeps `near`, so `far` alone says without ambiguity "nothing has moved". */
@@ -77,6 +80,7 @@ function banc(options: { ready: boolean; resident: boolean }) {
       texturePool: {},
       tracking: { traceSet: () => ({}), traceRecs: () => ({}) },
     },
+    layout: { recordOf: (packed: number) => allPages[packed] },
     gpu: {
       device: fakeDevice().device,
       cache: { get: (url: string) => residents.get(url) },
@@ -100,10 +104,14 @@ function banc(options: { ready: boolean; resident: boolean }) {
       heldResidency: createHeldResidency({ isResident: (rec: PageRec) => residents.has(rec.url) }),
       syncResidency: () => {},
       forgetReadback: () => journal.push('oubli'),
-      adoptCpuCut: (wanted: readonly PageRec[]) => {
+      adoptCpuCut: (
+        wanted: ArrayLike<number>,
+        _shown: ArrayLike<number>,
+        count = wanted.length,
+      ) => {
         journal.push('publication');
         run.desired.length = 0;
-        for (const page of wanted) run.desired.push(page);
+        for (let i = 0; i < count; i++) run.desired.push(allPages[wanted[i]]!);
       },
       residency: {
         queueCutResidency: () => {

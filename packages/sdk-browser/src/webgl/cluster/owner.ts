@@ -11,6 +11,7 @@ import type { BackendContext } from '../../backend/types.ts';
 import { DEFAULT_TEXTURE_POOL_BUDGET } from '../../residency/pools.ts';
 import { WebglTextureQueue } from './textureQueue.ts';
 import { readDegraded, type MaterialDegraded, type ReadDegraded } from './validation.ts';
+import type { FramePass } from '../core/frameTimer.ts';
 
 /** What the session grants the maps: the texture pool and a frame's upload budget. */
 export type TextureHosts = Pick<
@@ -116,6 +117,7 @@ export class WebglClusterOwner {
     diagnosticMeshes: readonly WholeMesh[] = [],
     copies: readonly SceneCopy[] = [],
     linear = false,
+    pass?: FramePass,
   ) {
     if (linear) this.linear ??= new WebglClusterRenderer(this.context, this.degraded, this.display);
     const renderer = (this.renderer = linear ? this.linear! : this.display);
@@ -133,6 +135,7 @@ export class WebglClusterOwner {
       srgbDestination,
       diagnosticMeshes,
       copies,
+      pass,
     );
     this.ahead.frameEnd(this.context);
     return submitted;

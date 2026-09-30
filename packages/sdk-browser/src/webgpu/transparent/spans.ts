@@ -8,13 +8,16 @@ export function updateTransparentSpan(rt: WebgpuPagesCore, page: number, offset:
   // A page past the table joined in place (`../../placement/webgpuGrowth.ts`): never a blended one.
   const entry = table.entryOfPage[page] ?? -1;
   if (entry < 0) return;
-  // The corners its geometry page declares, or those of the index page it still draws from.
-  const count = offset >= 0 ? rowIndexCount(rt.layout.packedPages[page]) : 0,
+  // The page back through the one catalogue accessor: its geometry page declares the corners, or
+  // the index page it still draws from does.
+  const rec = rt.layout.recordOf(page);
+  if (!rec) return;
+  const count = offset >= 0 ? rowIndexCount(rec) : 0,
     start = count ? offset : 0;
   if (table.spans[entry * 4] === start && table.spans[entry * 4 + 1] === count) return;
   table.spans[entry * 4] = start;
   table.spans[entry * 4 + 1] = count;
-  const output = rt.layout.packedPages[page].deformationOutput;
+  const output = rec.deformationOutput;
   table.spans[entry * 4 + 2] = count && output ? offset + output.from + 1 : 0;
   table.spans[entry * 4 + 3] = count && output ? output.count : 0;
   dirtySpans.add(entry);
