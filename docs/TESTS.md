@@ -70,7 +70,30 @@ cancels the run proving the merge with `develop`.
 
 ### Unit and Integration Tests
 
-Algorithms, package boundaries and public contracts; no graphics device, run anywhere.
+Algorithms, package boundaries and public contracts; no graphics device, run anywhere. A test
+checks a result — a value, a buffer, an image, an output read cell by cell — never the literal
+text of a generated shader or report: such a test breaks on a rewrite that keeps the same image
+and proves nothing about the image. What a shader computes is proved on a device
+(`tests/browser/`).
+
+### Mutation Measurement
+
+`pnpm run test:mutation` measures whether the unit tests of `packages/sdk-core/src` would catch a
+bug: Stryker (`scripts/test-mutation.ts`) makes small changes to its sources — a mutant, such as a
+`<` turned into `<=` or a branch emptied — and runs against each the test files of that package
+that `pnpm test` runs and that reach the changed code, every one of them (no stop at the first
+failure). A mutant a test fails on is killed; one every test passes on survives. It is a
+measurement, never a gate, and the CI does not run it: an hour or more at the lowest priority on a
+quarter of the cores (`TRILLION3D_MUTATION_CONCURRENCY` overriding), and a second run retests
+only what changed. `--out <dir>` (default `.mesure/out/mutation/`) receives the score and the
+lists in `summary.md`, the mutants each test file kills in `kills.tsv`, every surviving mutant by
+file in `survivors.md`, and Stryker's `mutation.html` and `mutation.json`; `--mutate <glob>`
+narrows the run to some sources.
+
+A test file that kills no mutant catches no bug of the package's sources: it is strengthened until
+it kills one, or deleted. A surviving mutant is a change no test notices: a test is added that
+fails on it, or the mutant is equivalent (the change keeps every result) and the reason is written
+beside the code.
 
 ### GPU Correctness Probes
 
