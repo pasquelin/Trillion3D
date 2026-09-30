@@ -14,22 +14,21 @@ import { createShadowRecords } from './records.ts';
 import { createShadowRequests, type ShadowRequestReport } from './requests.ts';
 import { createShadowMirror } from './mirror.ts';
 import { createShadowThresholds } from './thresholds.ts';
+import { SUN_WINDOW, shadowTableEntries } from './virtual.ts';
 
 /** The frame's shadow work: which virtual pages are drawn. */
 export type ShadowPlan = ReturnType<typeof createShadowPlan>;
 
 /**
- * The shadow scheduler of the virtual maps. The shading records the pages it reads; their
- * report, read back frames later, allocates what is missing from the fixed pool. What moved stales
- * the mapped pages it covers. A frame then draws every stale page the image reads, all of them in
- * that frame (`admit.ts`): what holds the cost is the cache — a page is drawn again only when what
- * it holds changed —, and the pool is the only limit. A still scene, whose shading runs no more,
- * asks for nothing and draws nothing. All arrays are allocated once; `plan()` allocates nothing.
+ * The shadow scheduler of the virtual maps. The shading records the pages it reads; their report, read back frames later, allocates what is
+ * missing from the fixed pool. What moved stales the mapped pages it covers. A frame then draws every stale page the image reads, all of them
+ * in that frame (`admit.ts`): what holds the cost is the cache — a page is drawn again only when what it holds changed —, and the pool is the
+ * only limit. A still scene, whose shading runs no more, asks for nothing and draws nothing. All arrays are allocated once; `plan()` allocates nothing.
  */
-export function createShadowPlan(poolSide: number, layers = 1) {
-  const pool = createShadowPool(poolSide, layers),
-    table = createShadowTable(pool.pages),
-    sun = createSunLevels(),
+export function createShadowPlan(poolSide: number, layers = 1, sunWindow = SUN_WINDOW) {
+  const pool = createShadowPool(poolSide, layers, shadowTableEntries(sunWindow)),
+    table = createShadowTable(pool.pages, sunWindow),
+    sun = createSunLevels(sunWindow),
     records = createShadowRecords(table, pool, sun),
     changes = createShadowChanges(pool.pages),
     counts = createShadowCounts(),
@@ -50,6 +49,8 @@ export function createShadowPlan(poolSide: number, layers = 1) {
     settledStamp = -1;
   const stampOf = (store: SceneLightStore) => table.version + views + store.epoch;
   const shadowPlan = {
+    /** Pages a side of a sun's clipmap a session runs with (`referenceMode.ts`). */
+    sunWindow,
     /** The page table: one word per virtual page, and the range each light holds in it. */
     table,
     /** The physical pages of the pool and the virtual page each one holds. */

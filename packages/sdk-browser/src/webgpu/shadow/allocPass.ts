@@ -1,9 +1,10 @@
 import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
 import { computePass } from './computePass.ts';
-import { ALLOCATION_WGSL } from './allocWgsl.ts';
-import { SHADOW_WORDS_WGSL, WORDS_GROUP } from './wordsWgsl.ts';
-import { SHADOW_FRESH_WGSL } from './freshWgsl.ts';
+import { allocationWgsl } from './allocWgsl.ts';
+import { WORDS_GROUP, shadowWordsWgsl } from './wordsWgsl.ts';
+import { shadowFreshWgsl } from './freshWgsl.ts';
 import { SHADOW_FRESH_CULL_WGSL } from './freshCullWgsl.ts';
+import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { SHADOW_DEMAND_PASS, encodeShadowDemand } from './demandPass.ts';
 
@@ -30,25 +31,29 @@ const READ: GPUBufferBindingType = 'read-only-storage';
 /**
  * The GPU allocation of shadow pages (`allocWgsl.ts`), the pass that writes the host's table words
  * under it (`wordsWgsl.ts`) and those of the pages the GPU draws itself — composed and sealed
- * (`freshWgsl.ts`), their casters culled (`freshCullWgsl.ts`): their pipelines, compiled at prepare. They own no buffer: the pool's are made
- * with its request buffer (`allocBuffers.ts`).
+ * (`freshWgsl.ts`), their casters culled (`freshCullWgsl.ts`): their pipelines, compiled at
+ * prepare for the session's window. They own no buffer: the pool's are made with its request
+ * buffer (`allocBuffers.ts`).
  */
-export async function createShadowAllocation(device: GPUDevice) {
+export async function createShadowAllocation(device: GPUDevice, pages = SUN_WINDOW) {
+  const allocation = allocationWgsl(pages),
+    wordsWgsl = shadowWordsWgsl(pages),
+    freshWgsl = shadowFreshWgsl(pages);
   const fresh: GPUBufferBindingType[] = ['storage', 'storage', 'storage', 'storage', 'storage'];
   fresh.push('storage', READ, 'storage');
   const allocated: GPUBufferBindingType[] = ['storage', 'storage', 'storage', 'storage', READ];
   allocated.push('storage');
   const [floors, allocate, words, compose, seal, cull] = await Promise.all([
-    computePass(device, ALLOCATION_WGSL, SHADOW_FLOORS_PASS, 'claimShadowFloors', allocated),
-    computePass(device, ALLOCATION_WGSL, SHADOW_ALLOC_PASS, 'allocateShadowPages', allocated),
-    computePass(device, SHADOW_WORDS_WGSL, SHADOW_WORDS_PASS, 'applyShadowWords', [
+    computePass(device, allocation, SHADOW_FLOORS_PASS, 'claimShadowFloors', allocated),
+    computePass(device, allocation, SHADOW_ALLOC_PASS, 'allocateShadowPages', allocated),
+    computePass(device, wordsWgsl, SHADOW_WORDS_PASS, 'applyShadowWords', [
       'storage',
       'storage',
       READ,
       'storage',
     ]),
-    computePass(device, SHADOW_FRESH_WGSL, SHADOW_FRESH_PASS, 'composeShadowPages', fresh),
-    computePass(device, SHADOW_FRESH_WGSL, SHADOW_FRESH_SEAL_PASS, 'sealShadowPages', fresh),
+    computePass(device, freshWgsl, SHADOW_FRESH_PASS, 'composeShadowPages', fresh),
+    computePass(device, freshWgsl, SHADOW_FRESH_SEAL_PASS, 'sealShadowPages', fresh),
     computePass(device, SHADOW_FRESH_CULL_WGSL, SHADOW_FRESH_CULL_PASS, 'shadowCullPairs', [
       READ,
       READ,
