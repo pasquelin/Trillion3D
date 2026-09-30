@@ -16,6 +16,10 @@ export const EXPLORER_SWITCHES = {
 /** The name of an explorer switch. */
 export type ExplorerSwitch = keyof typeof EXPLORER_SWITCHES;
 
+/** The default of switch `key`, as a call: a module that reads it through a call marked pure is
+ *  still dropped from a bundle that never uses it, where a property read would be kept. */
+export const explorerSwitchDefault = (key: ExplorerSwitch): boolean => EXPLORER_SWITCHES[key];
+
 /** The two switches off by default that the engine has always turned on for any truthy value (a
  *  JavaScript host passing `1`); the others off by default turn on only for `true`. */
 const TURNED_ON_BY_ANY_TRUTHY_VALUE: Partial<Record<ExplorerSwitch, true>> = {
