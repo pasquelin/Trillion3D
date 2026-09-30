@@ -96,18 +96,16 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
      *  frame that waits is not drawn (`familyUse.ts`). */
     familiesPending: () => frameWaits(options, state.diagnostic),
     async pendingFrame() {
-      // A frame that waited for a family is drawn once it has arrived.
+      // A frame that waited for a family on its way is drawn once it has arrived.
       const families = frameWaits(options, state.diagnostic);
-      if (families) return families.then(() => !state.disposed);
       const loading = streaming.promise;
-      await loading;
+      await Promise.all([families, loading]);
       if (state.disposed) return false;
       const pending = await state.active.pendingFrame?.();
       // Cells asked within reach are placed by the frames after their read, camera still or not.
       const cells = await followCells?.pending();
-      return (
-        !!loading || !!streaming.promise || streaming.arrivals.pending > 0 || !!pending || !!cells
-      );
+      const arriving = !!families || !!loading || !!streaming.promise;
+      return arriving || streaming.arrivals.pending > 0 || !!pending || !!cells;
     },
     /** The engine's camera pages made resident so far, when it counts them. */
     landings: () => state.active.landings?.(),

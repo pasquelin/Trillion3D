@@ -113,10 +113,13 @@ process adapter and compilation jobs; a browser bundler adds `createWorld` and i
 Without a bundler, a page imports the browser entry built as one module, `trillion3d/module`
 (`dist/trillion3d.module.js`), with its workers, WebAssembly modules and source map beside it. A
 CDN serving the package's files (jsDelivr, unpkg) needs one `importmap` line; the workers start
-across origins, and physics — its chunk, its worker and its WebAssembly — is fetched only when a
-world enables it; the fluids' chunk (water pass, particles) only when a scene has one. Physics
-threads need a cross-origin isolated page (COOP/COEP); without it the single-thread physics runs,
-silently. `pnpm run check:bundle-size` holds the gzip core to its budget.
+across origins. Each optional family is a chunk of its own, fetched with the scene that uses it and
+waited for as its other resources, so no frame is drawn without it: physics (its chunk, worker and
+WebAssembly, when a world enables it), particles, WebGPU transmission (glass and water), WebGPU
+deformation, the effect chain, guides, diagnostic views and the measurement's build provenance; a
+plain scene fetches none. Physics threads need a cross-origin isolated page (COOP/COEP); without it
+the single-thread physics runs, silently. `pnpm run check:bundle-size` holds the gzip core to its
+budget.
 
 ```html
 <script type="importmap">
