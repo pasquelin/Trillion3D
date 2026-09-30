@@ -36,8 +36,9 @@
       world.scene.add(floor);
 
       // A sun that casts shadows, and a sky that lights the sides the sun misses:
-      // without a light, everything stays black.
-      world.scene.add(light.directional({ intensity: 3, position: [3, 5, 4], castShadow: true }));
+      // without a light, everything stays black. The sun stands off to the side of the eye,
+      // so the cube's shadow falls on the floor where the eye can see it.
+      world.scene.add(light.directional({ intensity: 3, position: [4, 5, -1], castShadow: true }));
       world.scene.add(light.hemisphere({ color: '#bcd4ff', groundColor: '#5a4a3c', intensity: 1 }));
 
       // Where the eye stands, and what it looks at.
