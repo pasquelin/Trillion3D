@@ -15,15 +15,7 @@ import { shadowRequestWgsl } from './shadowRequestWgsl.ts';
 import { SHADOW_SAMPLE_WGSL, SHADOW_SUBTEXELS } from './shadowSampleWgsl.ts';
 import { shadowThroughWgsl } from '../../gpu/shadow/transmittance.ts';
 import { SHADOW_PAGE_WORD_WGSL } from './shadowPageWgsl.ts';
-import { POISSON_16 } from './pcfTaps.ts';
-
-/** Radius of the taps' disk, in texels: the farthest tap from the read point, turned any way. */
-const POISSON_RADIUS = Math.max(...POISSON_16.map(([x, y]) => Math.hypot(x, y)));
-
-/** Farthest texel centre any tap weighs, in texels from the read point, the taps turned any way
- *  (`shadowRotated`): the disk's radius, then the bilinear footprint's texel on each axis, at
- *  most `√2` beyond it. The depth margin covers the receiver over it. */
-export const PCF_REACH = POISSON_RADIUS + Math.SQRT2;
+import { PCF_REACH, POISSON_16 } from './pcfTaps.ts';
 
 /** The PCF's taps as WGSL, in `scale`ths of a texel: a power of two, so exact. */
 const poissonWgsl = (name: string, scale: number) =>
