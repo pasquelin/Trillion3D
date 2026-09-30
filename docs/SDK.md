@@ -1134,19 +1134,15 @@ resizes it by the same rule, every page it still holds kept as drawn (#1208); `m
 publishes its `shadowPoolBytes` and `shadowPoolLayers`, and its memory pressure by name
 (`shadowPeakBytes`, `shadowResolutionBias`, `shadowMemoryEvents`).
 
-### A lamp's range is authored, and the frame shortens it to its perceptible reach
+### A lamp's range is authored, and no frame shortens it
 
 `range` is the lamp's attenuation radius, in metres — the Unreal `AttenuationRadius`: the light's
 influence ends there through the smooth window `(1 − (d/range)⁴)²` the shaders apply, and a `point`
 or `spot` shadow map is built to it. It is a first-class control the page sets (`light.distance`);
-left unset, the world derives one from the scene's own extent. Before each frame the world shortens
-the **effective** range to the reach the audit's pre-exposure cut makes visible once the frame's
-exposure and display curve are known (CMP-16, #958): the irradiance floor is divided by the
-exposure and scaled by the curve's own steepness, never longer than the author set, and re-derived
-whenever the exposure or the light changes, so a rising exposure lengthens a reach without a pop.
-The cut accepts a **declared class-2 change** (CONTRIBUTING.md, "Image and fidelity"): the
-acceptance session holds it to the human eye — mean and p99.9 channel error and mean FLIP against
-the engine's reference image of the scene — and reverts the technique if the bound fails.
+left unset, the world derives one from the scene's own extent. Every path — the world, the lights a
+source file carries, `addLight` and `setLight` — writes it to the light store as-is: no exposure,
+curve or threshold shortens it (#958). A cut that pays moves lamp-pool edges visibly at night; one
+held under a display step pays under one per cent of the range.
 
 `capability.lighting(world)` reports what the **active** renderer applies — `{ sceneLights,
 lightingView, shadows, transforms, reason? }` — not what the contract accepts: a call the light
