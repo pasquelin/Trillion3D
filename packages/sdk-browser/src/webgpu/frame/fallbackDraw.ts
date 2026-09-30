@@ -33,15 +33,16 @@ export function drawWebgpuFallback(rt: WebgpuPagesRuntime, device: GPUDevice) {
     uniformPacked.byteOffset,
     uniformPacked.length,
   );
-  const fallbackWords = PAGE_INFO_STRIDE / 4;
+  const fallbackWords = PAGE_INFO_STRIDE / 4,
+    rootOfPacked = rt.layout.placement.rootOfPacked;
   for (let i = 0; i < rows.packedCount; i++) {
     const rec = rows.packedRecs[i]!,
       row = i,
       base = i * (UNIFORM_STRIDE / 4),
-      color = pageRgb(rt, rec);
+      color = pageRgb(rt, rec, rootOfPacked[rows.packedPageIndex[i]]);
     writeFallbackUniform(uniformPacked, packedInts, base, {
       projection: viewProj,
-      world: rootOf(rt.layout.selectionRoots, rec).world.elements,
+      world: rootOf(rt.layout.selectionRoots, rootOfPacked[rows.packedPageIndex[i]]).world.elements,
       color,
       opacity: 1,
       pageOffset: rows.pageTableInts![row * fallbackWords + 24],
@@ -93,7 +94,7 @@ export function drawWebgpuFallback(rt: WebgpuPagesRuntime, device: GPUDevice) {
     const position = rec.geometryPage ? gpu.zeroUv : rows.packedPositions[i];
     if (!position) continue;
     const group = bindGroupFor(rt, device, position),
-      pipeline = pipelineFor(rt, rec);
+      pipeline = pipelineFor(rt, rec, rootOfPacked[rows.packedPageIndex[i]]);
     if (!group || !pipeline) continue;
     const count = rows.pageTableInts![i * fallbackWords + ROW_INDEX_WORDS];
     pass.setPipeline(pipeline);

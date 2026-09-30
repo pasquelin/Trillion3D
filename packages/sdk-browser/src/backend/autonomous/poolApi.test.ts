@@ -17,8 +17,7 @@ function pageGeometry(floats: number) {
   return geometry as unknown as Geometry;
 }
 
-const rec = (url: string, extra: Partial<PageRec> = {}) =>
-  ({ url, placementIndex: 0, ...extra }) as PageRec;
+const rec = (url: string, extra: Partial<PageRec> = {}) => ({ url, ...extra }) as PageRec;
 /** Rank 0 placed at its node, rank 1 by a row. */
 const roots = [{}, { placement: {} }].map(
   (root) => ({ world: new G.Matrix4(), pages: [], ...root }) as ClusterRoot<PageRec>,
@@ -27,14 +26,20 @@ const world = { elements: new Float64Array(new G.Matrix4().toArray()) };
 
 test('page copies follow the records that own a geometry, and the classic instances', () => {
   let instances = 0;
-  const placed = { placementIndex: 1 };
   const byUrl = new Map([
     ['root', [rec('root')]],
     ['twice', [rec('twice'), rec('twice')]],
-    ['rows', [rec('rows', placed), rec('rows', placed), rec('rows', placed)]],
+    ['rows', [rec('rows'), rec('rows'), rec('rows')]],
   ]);
   // `twice` is replaced by the root's group: the floor holds it with the root (#1237).
-  const copies = pageCopies(byUrl, roots, new Set(['root']), () => instances, new Set(['twice']));
+  const copies = pageCopies(
+    byUrl,
+    // The rows' pages are laid out by rank 1, which reads its world from a row.
+    (record) => record.url === 'rows',
+    new Set(['root']),
+    () => instances,
+    new Set(['twice']),
+  );
   assert.deepEqual(
     [copies.of('root'), copies.of('twice'), copies.of('rows'), copies.root(), copies.scene()],
     [1, 2, 1, 1, 4],
@@ -57,7 +62,8 @@ test('the floor counts the root cover and the replaced pages, read again only on
     page = rec('page');
   const bootstrap = [first, second];
   const byUrl = new Map([['page', [page]]]);
-  const draws = createPageDraws([{ world, pages: [first, second, page] }]);
+  const root = { world, pages: [first, second, page] };
+  const draws = createPageDraws([root]);
   draws.drawing(first).geometry = shared;
   draws.drawing(second).geometry = shared;
   draws.drawing(page).geometry = replaced;
@@ -67,7 +73,9 @@ test('the floor counts the root cover and the replaced pages, read again only on
   // A pose or a material announces nothing: nothing is walked.
   const extra = rec('root');
   bootstrap.push(extra);
-  draws.layOut([{ world, pages: [...bootstrap, page] }]);
+  // The same root grown by a record: its instances carry their draw state (#1234, #1235).
+  root.pages = [...bootstrap, page];
+  draws.layOut([root]);
   draws.drawing(extra).geometry = pageGeometry(3);
   assert.equal(floor.bytes(), 9 * 4 + 12);
   floor.changed();

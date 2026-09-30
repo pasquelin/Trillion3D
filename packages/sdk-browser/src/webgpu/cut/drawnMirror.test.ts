@@ -13,7 +13,13 @@ import type { PageRec } from '../../page/selection/selection.ts';
 const page = (i: number) => ({ url: `p${i}`, triangles: i + 1 }) as unknown as PageRec;
 
 test('the copy happens only when the flag is down, and raises it', () => {
-  const run = { shown: [page(0), page(1)], drawn: [] as PageRec[], drawnMirrorsShown: false };
+  const run = {
+    shown: [page(0), page(1)],
+    shownPacked: [0, 1],
+    drawn: [] as PageRec[],
+    drawnPacked: [] as number[],
+    drawnMirrorsShown: false,
+  };
   assert.equal(mirrorDrawnFromShown(run), true, 'the first frame copies');
   assert.deepEqual(run.drawn, run.shown);
   assert.equal(run.drawnMirrorsShown, true);

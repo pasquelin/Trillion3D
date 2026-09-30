@@ -18,13 +18,7 @@ function runtime(n: number, drawLayerSlots: number) {
   const material = G.basicSurface();
   const packedRecs: PageRec[] = [];
   for (let i = 0; i < n; i++)
-    packedRecs.push(
-      pageRecFixture({
-        depthLayer: i % 3,
-        material: surfaceOf(material),
-        placementIndex: 0,
-      }),
-    );
+    packedRecs.push(pageRecFixture({ depthLayer: i % 3, material: surfaceOf(material) }));
   const dirty = createDirtyRows(Math.max(1, n));
   const layout = {
     rows: {
@@ -40,6 +34,11 @@ function runtime(n: number, drawLayerSlots: number) {
       },
     },
     selectionRoots: [{ world: new G.Matrix4() }],
+    // Every row draws a page of the one placement: its packed ranks all name root 0 (#1235).
+    placement: {
+      baseOfRoot: Int32Array.of(0),
+      rootOfPacked: Int32Array.from({ length: 1024 }, () => 0),
+    },
     drawItemWords: new Uint32Array(Math.max(1, n) * DRAW_ITEM_U32),
     itemWordsHold: createDrawItemWordsHold(n),
   };

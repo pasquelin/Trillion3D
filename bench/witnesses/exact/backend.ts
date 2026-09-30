@@ -37,22 +37,21 @@ export const exactPagesBackend: BackendFactory = (context) => {
     viewport,
     clearColor = DEFAULT_CLEAR_COLOR,
   } = context;
-  // The witness draws its transparent surfaces with the host renderer: its copies are host
-  // meshes, not the engine records the collection builds by default.
+  // The witness draws its transparent surfaces with its host library: its copies are host meshes.
   const collected = collectClusterPages(source, metadata, indices, associations, {
     blendCopy: createBlendCopy,
   });
   const { requestCount, prepared, worlds } = collected,
     roots = posedRoots(collected.roots),
     [allPages, bootstrap] = [collected.allPages, collected.bootstrap] as PageRec[][];
-  // The witness draws the contract's transparent copies with its host library, as its own meshes.
   const blendCopies = collected.blendCopies.flatMap((copy) => (isDrawnNode(copy) ? [copy] : []));
   const cap = maxResidentPages ?? context.residentPagesDefault ?? Math.max(1024, prepared),
     scene = numbered(new Scene());
   const sceneLights = installLighting(scene, clearColor, context.sceneLighting ?? source);
-  const [shown, desired, attached]: PageRec[][] = [[], [], []];
+  const [shown, desired, attached]: PageRec[][] = [[], [], []],
+    shownPacked: number[] = [],
+    desiredPacked: number[] = [];
   const requestData = createExactPagesRequestData(allPages, requestCount);
-  // One resident index buffer per primitive: the visible cut is now only a list of ranges.
   const { batches, refusal, drawHostGeometry } = createExactPagesClusterBatches(
     scene,
     allPages,
@@ -63,10 +62,7 @@ export const exactPagesBackend: BackendFactory = (context) => {
   let diagnostic: DiagnosticMode = 'beauty';
   const renderState = createExactPagesRenderState();
   const gate = createWebglFrameGate();
-  // Contract lights, translated into lights of the display graph, and the lighting half of the
-  // API they drive.
-  // As long as the host has neither declared a light nor asked for a view, the source graph
-  // lights alone and the image is the previous one, pixel for pixel.
+  // Contract lights; with none declared, the source graph lights alone, image pixel for pixel.
   const contract = contractLightingApi(scene, context.sceneLights, sceneLights, gate.sceneChanged);
   const motion: CameraMotion = {};
   const { profile: cpuProfile, methods: cpuMethods } = createExactPagesCpu(
@@ -107,7 +103,9 @@ export const exactPagesBackend: BackendFactory = (context) => {
     resourcesChanged: gate.resourcesChanged,
     bootstrap,
     desired,
+    desiredPacked,
     shown,
+    shownPacked,
     viewport,
     roots,
     batches,
@@ -152,7 +150,9 @@ export const exactPagesBackend: BackendFactory = (context) => {
     viewport,
     cap,
     desired,
+    desiredPacked,
     shown,
+    shownPacked,
     syncResident,
     cpuProfile,
     gate,

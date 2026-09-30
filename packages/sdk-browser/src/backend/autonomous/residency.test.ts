@@ -51,7 +51,6 @@ function fakePageRec(url = '', array?: Uint32Array): PageRec {
     attributes: {},
     material: surfaceOf([]),
     declaration: [],
-    placementIndex: 0,
     renderOrder: 0,
   };
 }

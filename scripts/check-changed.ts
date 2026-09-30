@@ -1,62 +1,27 @@
-import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
-import { posix } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import ts from 'typescript';
+import { relatedTests } from './affected-tests.ts';
+import {
+  changedSteps,
+  formatPattern,
+  isCodeChange,
+  isDocumentation,
+  sourcePattern,
+} from './changed-steps.ts';
+import { documentationTests } from './docs-tests.ts';
 import { generateApiFiles } from './generate-api-reference.ts';
 import { gitPaths } from './git-paths.ts';
+import { heavyStep } from './heavy-lock.ts';
 import { pnpmCommand } from './only-pnpm.ts';
 import { repositoryFiles } from './repository-files.ts';
+import { run } from './run.ts';
 import { compileSiteCaches } from './site-caches.ts';
 import { changedTypeErrors, tsProjects } from './ts-projects.ts';
-import { INVENTORY_TEST, isUnitTest, movesInventory } from './unit-tests.ts';
-import { TREE_GATES } from './validate-steps.ts';
+import { runUnitTests } from './unit-tests.ts';
 
-const sourcePattern = /\.(?:[cm]?ts|tsx)$/;
-const formatPattern = /\.(?:[cm]?ts|tsx|json)$/;
-
-function candidates(importer: string, specifier: string): string[] {
-  if (specifier === 'trillion3d')
-    return ['packages/sdk/index.ts', 'packages/sdk/browser.ts', 'packages/sdk/node.mts'];
-  if (!specifier.startsWith('.')) return [];
-  const target = posix.normalize(posix.join(posix.dirname(importer), specifier));
-  const stem = target.replace(/\.m?ts$/, '');
-  return [target, `${stem}.ts`, `${stem}.mts`, `${stem}/index.ts`];
-}
-
-/** Direct and transitive source imports select only the unit tests they can affect. */
-export function relatedTests(files: Map<string, string>, changed: Set<string>): string[] {
-  const edges = new Map<string, string[]>();
-  for (const [file, content] of files) {
-    if (!sourcePattern.test(file)) continue;
-    const imports = ts.preProcessFile(content, true, true).importedFiles;
-    edges.set(
-      file,
-      imports.flatMap(({ fileName }) =>
-        candidates(file, fileName).filter((path) => files.has(path) || changed.has(path)),
-      ),
-    );
-  }
-  const reachesChanged = (file: string, visited: Set<string> = new Set()): boolean => {
-    if (changed.has(file)) return true;
-    if (visited.has(file)) return false;
-    visited.add(file);
-    return (edges.get(file) ?? []).some((dependency) => reachesChanged(dependency, visited));
-  };
-  const inventory = files.has(INVENTORY_TEST) && [...changed].some(movesInventory);
-  return [...files.keys()]
-    .filter(
-      (file) =>
-        isUnitTest(file) && (reachesChanged(file) || (inventory && file === INVENTORY_TEST)),
-    )
-    .sort();
-}
-
-function run(command: string, args: string[]): void {
-  const result = spawnSync(command, args, { stdio: 'inherit' });
-  if (result.error) throw result.error;
-  if (result.status !== 0) process.exit(result.status ?? 1);
-}
+// `pnpm run check:changed`, the one local gate: the gates of `validate` on the changed files, and
+// the unit tests the change can affect (`scripts/affected-tests.ts`), capped and run one heavy step
+// at a time on the machine. The whole `validate` is the CI's.
 
 export function existingChangedFiles(changed: Iterable<string>, root = process.cwd()): string[] {
   const maintained = new Set(repositoryFiles(root));
@@ -65,78 +30,101 @@ export function existingChangedFiles(changed: Iterable<string>, root = process.c
 
 async function main(): Promise<void> {
   const base = process.env.TRILLION3D_BASE_REF ?? 'develop';
-  const changed = new Set([
-    ...(await gitPaths(['diff', '--name-only', '-z', base, '--'])),
-    ...(await gitPaths(['ls-files', '--others', '--exclude-standard', '-z'])),
+  const [diff, untracked, paths] = await Promise.all([
+    gitPaths(['diff', '--name-only', '--no-renames', '-z', base, '--']),
+    gitPaths(['ls-files', '--others', '--exclude-standard', '-z']),
+    gitPaths(['ls-files', '-z']),
   ]);
+  const changed = new Set([...diff, ...untracked]);
   const existing = existingChangedFiles(changed);
-  const paths = await gitPaths(['ls-files', '-z']);
+  const code = isCodeChange([...changed]);
   const files = new Map(
     [...new Set([...paths, ...existing])]
-      .filter((file) => sourcePattern.test(file) && existsSync(file))
+      .filter((file) => code && sourcePattern.test(file) && existsSync(file))
       .map((file): [string, string] => [file, readFileSync(file, 'utf8')]),
   );
-  const testFiles = relatedTests(files, changed);
+  // A documentation change also runs the tests that read documentation (`scripts/docs-tests.ts`).
+  const testFiles = [
+    ...new Set([
+      ...relatedTests(files, changed),
+      ...([...changed].some(isDocumentation) ? documentationTests(paths) : []),
+    ]),
+  ];
   console.log(`Changed files: ${existing.length}; related tests: ${testFiles.length}`);
-  // The lint and the tests read these untracked files; without a compiler, the caches only warn.
-  await generateApiFiles();
-  compileSiteCaches(false);
-  if (!process.argv.includes('--tests-only')) {
-    run('node', ['scripts/check-file-lines.ts', '--changed']);
-    const formatted = existing.filter((file) => formatPattern.test(file));
-    const linted = existing.filter((file) => sourcePattern.test(file));
-    const duplicateCandidates = existing.filter(
-      (file) => sourcePattern.test(file) || file.endsWith('.rs'),
-    );
-    if (formatted.length) run('node_modules/.bin/prettier', ['--check', ...formatted]);
-    if (linted.length) run('node_modules/.bin/eslint', linted);
-    // `tsc --noEmit` on every project that owns a changed file (#1071).
-    const typeErrors = changedTypeErrors(process.cwd(), tsProjects(paths), linted, () =>
-      run(...pnpmCommand('run', 'build')),
-    );
-    if (typeErrors.length) {
-      console.error(typeErrors.join('\n'));
-      process.exit(1);
+  const linted = existing.filter((file) => sourcePattern.test(file));
+  for (const step of changedSteps([...changed], existing, testFiles.length))
+    switch (step) {
+      // The lint and the tests read these untracked files; without a compiler, the caches only warn.
+      case 'generate:api':
+        await generateApiFiles();
+        break;
+      case 'compile:caches':
+        compileSiteCaches(false);
+        break;
+      case 'check:lines':
+        run('node', ['scripts/check-file-lines.ts', '--changed']);
+        break;
+      case 'format':
+        run('node_modules/.bin/prettier', [
+          '--check',
+          ...existing.filter((file) => formatPattern.test(file)),
+        ]);
+        break;
+      case 'lint':
+        run('node_modules/.bin/eslint', linted);
+        break;
+      case 'types': {
+        // `tsc --noEmit` on every project that owns a changed file (#1071).
+        const typeErrors = changedTypeErrors(process.cwd(), tsProjects(paths), linted, () =>
+          run(...pnpmCommand('run', 'build')),
+        );
+        if (typeErrors.length) {
+          console.error(typeErrors.join('\n'));
+          process.exit(1);
+        }
+        break;
+      }
+      case 'duplicates':
+        run('node_modules/.bin/jscpd', [
+          ...existing.filter((file) => sourcePattern.test(file) || file.endsWith('.rs')),
+          '--format',
+          'typescript,javascript,rust',
+          '--cross-formats',
+          'js-ts',
+          '--no-tips',
+        ]);
+        break;
+      case 'rust':
+        heavyStep('clippy', runRust);
+        break;
+      case 'tests':
+        runUnitTests(testFiles);
+        break;
+      // `check:x` is `node scripts/check-x.ts`, run directly: `pnpm run` would add a second to each.
+      default:
+        run('node', [`scripts/${step.replace(':', '-')}.ts`]);
     }
-    if (duplicateCandidates.length)
-      run('node_modules/.bin/jscpd', [
-        ...duplicateCandidates,
-        '--format',
-        'typescript,javascript,rust',
-        '--cross-formats',
-        'js-ts',
-        '--no-tips',
-      ]);
-    // The whole-tree gates of `validate --group quick`, under two seconds together; `check:x` is
-    // `node scripts/check-x.ts`, run directly: `pnpm run` would add a second to each.
-    for (const gate of TREE_GATES) run('node', [`scripts/${gate.replace(':', '-')}.ts`]);
-    if (existing.some((file) => file.endsWith('.rs'))) {
-      run('cargo', [
-        'fmt',
-        '--all',
-        '--manifest-path',
-        'packages/asset-compiler-rust/Cargo.toml',
-        '--',
-        '--check',
-      ]);
-      run('cargo', [
-        'clippy',
-        '--release',
-        '--locked',
-        '--manifest-path',
-        'packages/asset-compiler-rust/Cargo.toml',
-        '--all-targets',
-        '--all-features',
-        '--',
-        '-D',
-        'warnings',
-      ]);
-    }
-  }
-  if (testFiles.length) {
-    run('node', ['--experimental-strip-types', '--test', ...testFiles]);
-  } else
-    console.log('No directly related unit test; the final validation still runs the full suite.');
+  if (!code)
+    console.log(
+      'Documentation only: no API generation, scene cache or type check; its tests only.',
+    );
+  else if (!testFiles.length) console.log('No related unit test; the CI runs the whole suite.');
+}
+
+function runRust(): void {
+  const manifest = ['--manifest-path', 'packages/asset-compiler-rust/Cargo.toml'];
+  run('cargo', ['fmt', '--all', ...manifest, '--', '--check']);
+  run('cargo', [
+    'clippy',
+    '--release',
+    '--locked',
+    ...manifest,
+    '--all-targets',
+    '--all-features',
+    '--',
+    '-D',
+    'warnings',
+  ]);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main();
