@@ -29,7 +29,6 @@ import { rangedReader } from '../cluster/ranged.ts';
 import { corruptObject, fetchVerified } from '../cluster/pages.ts';
 import { verifyPageBytes } from '../page/decode/host.ts';
 import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts';
-import { worldRootDag } from './worldSuperRoots.ts';
 
 type Announced = { bytes: number; sha256: string };
 /** Where a cache keeps its world roots' table and the binary the cook writes beside it. */
@@ -108,10 +107,6 @@ export async function openWorldRoots(
   };
   return {
     table,
-    /** The world DAG the one cut draws in place of a far cell's object roots (#1238): its
-     *  clusters, group structure and culling hierarchy, the super-root pages named where the
-     *  binary holds them. */
-    dag: worldRootDag(table),
     /** The pinned top: its bundles, pages and bytes, for the scene's life. */
     pinned: { bundles: table.pinned, pages: top, bytes: table.pinnedTopBytes },
     /** `cell` is placed: the bundles its objects' roots need past the top are read and held,

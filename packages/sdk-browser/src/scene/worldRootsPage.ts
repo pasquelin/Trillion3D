@@ -29,6 +29,7 @@ import type { HostAttributes } from '../host/resources.ts';
 import { BufferAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts';
 import { hostPageGeometry } from '../host/pageObjects.ts';
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
+import { Box3 } from '../../../sdk-core/src/world/math/box3.ts';
 
 /** The world address of one page: its binary, its bundle and its byte offset inside that bundle. */
 export const worldRootsPageAddress = (payloadUrl: string, bundle: number, offset: number) =>
@@ -99,15 +100,22 @@ export function worldRootsPageSource(
     }
     return known;
   };
-  const at = (bundle: number, offset: number) =>
-    table.pages
-      .filter((entry) => entry.bundle === bundle)
-      .sort((a, b) => a.offset - b.offset)
-      .findIndex((entry) => entry.offset === offset);
+  // Each page's position inside its bundle, in binary order: the table lists every page's offset.
+  const rankInBundle = new Map<string, number>();
+  const byBundle = new Map<number, number[]>();
+  for (const entry of table.pages) {
+    const offsets = byBundle.get(entry.bundle) ?? [];
+    offsets.push(entry.offset);
+    byBundle.set(entry.bundle, offsets);
+  }
+  for (const [bundle, offsets] of byBundle)
+    offsets
+      .sort((a, b) => a - b)
+      .forEach((offset, index) => rankInBundle.set(`${bundle}:${offset}`, index));
   const page = async (address: string, signal?: AbortSignal) => {
     const { bundle, offset } = worldRootsPageLocation(address),
       pages = await bundlePages(bundle, signal),
-      index = at(bundle, offset);
+      index = rankInBundle.get(`${bundle}:${offset}`) ?? -1;
     if (index < 0 || index >= pages.length) throw new Error(`WORLD_PAGE_MISSING: ${address}`);
     return pages[index];
   };
@@ -142,16 +150,8 @@ export const worldRootsAttributes = (page: WorldRootsPage): HostAttributes => ({
 /** The world-space box a page spans: its positions are already world-space, so this box needs no
  *  pose and the identity matrix is the page's. */
 export function worldRootsBounds(page: WorldRootsPage) {
-  const positions = page.positions,
-    min = [Infinity, Infinity, Infinity],
-    max = [-Infinity, -Infinity, -Infinity];
-  for (let i = 0; i < positions.length; i += 3)
-    for (let c = 0; c < 3; c++) {
-      const value = positions[i + c];
-      if (value < min[c]) min[c] = value;
-      if (value > max[c]) max[c] = value;
-    }
-  return { min, max };
+  const box = new Box3().setFromArray(page.positions);
+  return { min: box.min.toArray(), max: box.max.toArray() };
 }
 
 /** The WebGL2 geometry a world page is drawn as: its decoded shape over the engine's own geometry
