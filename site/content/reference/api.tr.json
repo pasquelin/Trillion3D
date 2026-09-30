@@ -3051,6 +3051,7 @@
       "environmentPacked": "GPU'nun okuduğu şekliyle, ışıkların arkasındaki ortamın ışınımı (`../core/environment.ts`).",
       "revision": "Her değişiklikte, yuva başına artırılır.",
       "sliceOf": "Bir ışığın atlas kesiti tamponun kendisinde yaşar: iki kez tutulmaz.",
+      "kindOf": "Bir ışığın türü (`LIGHT_KIND`), dilimi gibi tampondan okunur.",
       "ids": "Her slotun ışık adı.",
       "count": "Kaç ışık.",
       "epoch": "Işık kümesi değiştiğinde artırılır.",

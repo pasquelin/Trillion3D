@@ -5421,6 +5421,7 @@
       "environmentPacked": "L’irradiance de l’environnement telle que la lit le GPU, derrière les lumières (`../core/environment.ts`).",
       "revision": "Augmenté à chaque changement, par place.",
       "sliceOf": "La tranche d’atlas d’une lumière vit dans le tampon lui-même : elle n’est pas gardée deux fois.",
+      "kindOf": "Le type d’une lumière (`LIGHT_KIND`), lu dans le tampon comme sa tranche.",
       "ids": "Le nom de la lumière de chaque place.",
       "count": "Combien de lumières.",
       "epoch": "Augmenté quand l’ensemble des lumières change.",

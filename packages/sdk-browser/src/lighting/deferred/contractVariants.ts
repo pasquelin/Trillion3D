@@ -18,14 +18,14 @@ type Variant = {
  * shades no rectangle, so it stands in for no scene that holds one; a wide program with shadow
  * and rectangle code serves any scene. While the asked one compiles, the frame is lit by the best
  * one ready — the same one without bounce, then with rectangle code, then with shadow code, then
- * a wide one —, else by none.
+ * with both, then a wide one —, else by none.
  *
  * A narrow, unshadowed or rectless program's twin — wide, with shadow and rectangle code —
  * compiles beside it, from the same frame: a scene that passes `TILE_LIGHTS` lights, or whose
  * light takes a shadow or is a rectangle, finds its program ready as soon as a single program
- * would have been, and never falls back to the unlit view where one program would not. No frame waits for that twin (`settle`) nor is redrawn at its
- * arrival (`onReady`) until one asks for it. A failed compile is said (`onFailure`) once, never
- * retried.
+ * would have been, and never falls back to the unlit view where one program would not. No frame
+ * waits for that twin (`settle`) nor is redrawn at its arrival (`onReady`) until one asks for it.
+ * A failed compile is said (`onFailure`) once, never retried.
  */
 export type ContractVariantOptions = {
   onFailure?: (error: unknown) => void;
@@ -51,7 +51,7 @@ export function createContractVariants(
     onFailure = reportFailure,
   ) => {
     const variant = variants[at(narrow, unshadowed, rectless)][+bounce];
-    const special = narrow || unshadowed || rectless;
+    const special = at(narrow, unshadowed, rectless) !== 0;
     if (variant.program || variant.pending || variant.failed) return;
     variant.pending = createDeferredProgram(
       device,
@@ -81,22 +81,17 @@ export function createContractVariants(
     );
     if (special) compile(bounce, false, false, false, onFailure);
   };
+  /** The program ready at this index, the asked bounce first, else without bounce. */
+  const ready = (index: number, bounce: boolean) =>
+    variants[index][+bounce].program ?? variants[index][0].program;
   /** The best program ready to light a frame that asks for this one, if any: each step serves
    *  more scenes than the one before. */
-  const lending = (bounce: boolean, narrow: boolean, unshadowed: boolean, rectless: boolean) => {
-    const steps = [
-      at(narrow, unshadowed, rectless),
-      at(narrow, unshadowed, false),
-      at(narrow, false, false),
-      0,
-    ];
-    for (const step of steps)
-      for (const withBounce of [bounce, false]) {
-        const program = variants[step][+withBounce].program;
-        if (program) return program;
-      }
-    return undefined;
-  };
+  const lending = (bounce: boolean, narrow: boolean, unshadowed: boolean, rectless: boolean) =>
+    ready(at(narrow, unshadowed, rectless), bounce) ??
+    ready(at(narrow, unshadowed, false), bounce) ??
+    ready(at(narrow, false, rectless), bounce) ??
+    ready(at(narrow, false, false), bounce) ??
+    ready(0, bounce);
   /** A frame asks for this program: it compiles, and its arrival redraws (`onReady`). A failed one
    *  asks for its twin in its place, which the frame then waits for. */
   const ask = (
@@ -109,7 +104,7 @@ export function createContractVariants(
     const variant = variants[at(narrow, unshadowed, rectless)][+bounce];
     variant.asked = true;
     compile(bounce, narrow, unshadowed, rectless, onFailure);
-    return variant.failed && (narrow || unshadowed || rectless)
+    return variant.failed && at(narrow, unshadowed, rectless) !== 0
       ? ask(bounce, false, false, false, onFailure)
       : variant;
   };

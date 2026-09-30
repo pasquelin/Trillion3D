@@ -3051,6 +3051,7 @@
       "environmentPacked": "A irradiância do ambiente como a GPU a lê, atrás das luzes (`../core/environment.ts`).",
       "revision": "Incrementado a cada mudança, por vaga.",
       "sliceOf": "O recorte de atlas de uma luz vive no próprio buffer: não é mantido duas vezes.",
+      "kindOf": "O tipo de uma luz (`LIGHT_KIND`), lido do buffer como a sua fatia.",
       "ids": "O nome da luz de cada slot.",
       "count": "Quantas luzes.",
       "epoch": "Incrementado quando o conjunto de luzes muda.",

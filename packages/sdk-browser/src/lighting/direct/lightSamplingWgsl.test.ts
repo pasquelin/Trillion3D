@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
-import { DIRECT_LIGHT_SAMPLING_WGSL, SAMPLED_RANKS } from './lightSamplingWgsl.ts';
+import { directLightSamplingWgsl, SAMPLED_RANKS } from './lightSamplingWgsl.ts';
+
+/** The sampled resolve of a program that shades rectangles, the default one. */
+const DIRECT_LIGHT_SAMPLING_WGSL = directLightSamplingWgsl();
 import { DIRECT_LIGHTING_WGSL, declaredLightingWgsl } from './lightingWgsl.ts';
 import { HASH_UNIT_WGSL } from '../../math/hashUnitWgsl.ts';
 import { shaderFunctions, wgslConstants } from '../../texture/shaderRule.fixture.ts';
