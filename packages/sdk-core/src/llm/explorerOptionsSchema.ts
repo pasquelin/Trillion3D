@@ -1,4 +1,6 @@
 import type { JsonSchemaObject } from './types.ts';
+import { BOUNCE_SETTINGS } from '../bounce/contracts.ts';
+import { SCREEN_ERROR_VARIANTS } from '../lod/screenErrorVariants.ts';
 
 /**
  * Comprehensive JSON Schema documenting all initialization options for the Trillion3D explorer (MeasuredWorldOptions).
@@ -84,7 +86,7 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
     },
     bounceBudgetMs: {
       type: 'number',
-      default: 0.8,
+      default: BOUNCE_SETTINGS.budgetMs,
       minimum: 0.1,
       maximum: 8.0,
       description:
@@ -105,7 +107,7 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
     },
     screenError: {
       type: 'string',
-      enum: ['certifiee', 'reference'],
+      enum: SCREEN_ERROR_VARIANTS,
       default: 'certifiee',
       description:
         "Screen-space error metric: 'certifiee' (rigorous bounded formula) or 'reference' (external projection formula).",
