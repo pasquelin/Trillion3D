@@ -7,18 +7,17 @@ test("a shader's comment lines leave the bundle, every line and all its code in 
     'const a=`fn f()->f32{',
     ' // the shader compiler never reads this',
     ' return 1.0;',
+    '/* a block\n // kept: it closes the block */',
     '  // kept: ${x} is code',
+    ' // kept: \\n may be a line break',
     '// kept: it ends at the backtick`;const b=`',
     '// @license kept',
     '`;',
     '//# sourceMappingURL=a.js.map',
     '',
   ].join('\n');
-  const stripped = stripShaderComments(source).split('\n');
-  assert.equal(stripped.length, source.split('\n').length);
-  assert.equal(stripped[1], '');
-  assert.deepEqual(
-    stripped.filter((_, i) => i !== 1),
-    source.split('\n').filter((_, i) => i !== 1),
+  assert.equal(
+    stripShaderComments(source),
+    source.replace(' // the shader compiler never reads this', ''),
   );
 });
