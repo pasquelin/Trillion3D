@@ -18,12 +18,14 @@ import { FOG_FREE_SURFACE_FLAG, SURFACE_MODEL_MASK } from './surfaceModel.ts';
 import { SUBSURFACE_FLAG } from './subsurface.ts';
 
 type Texel = number[];
+/** The half float the target stores a value as: round to nearest, ties to even. */
+const f16 = (Math as Math & { f16round: (x: number) => number }).f16round;
 const EDGES = [0, -0, 1e-9, 2 ** -24, 6e-5, 0.5, 1, 1 + 2 ** -12, 65504, 7e4, Infinity, -1, NaN];
 const AOS = [1, 1 - 2 ** -13, 1 + 2 ** -12, 0.999, 0.5, 0, -0, NaN, Infinity];
 
 /** The shipped pair, the target's texel given to the reader. */
 function roundTrip(emissive: number[], ao: number, flag: number) {
-  const texel: Texel = [...emissive, ao].map(Math.f16round);
+  const texel: Texel = [...emissive, ao].map(f16);
   const scope = { emissiveAo: texel, textureLoad: (t: Texel) => t };
   const { emissiveAoFlag } = shaderRun<{ emissiveAoFlag: (e: number[], a: number) => number }>(
     EMISSIVE_AO_FLAG_WGSL,

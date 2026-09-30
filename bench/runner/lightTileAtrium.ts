@@ -69,8 +69,14 @@ function hit(o: Vec3, d: Vec3, b: Box) {
 }
 
 /** The depth buffer of `view` over the atrium, row by row: NEAR / distance in f32, 0 on the sky.
- *  `shown`, when given, receives the index of the box each pixel shows, −1 on the sky. */
-export function atriumDepth(view: TileView, boxes = atriumBoxes(), shown?: Int32Array) {
+ *  `shown`, when given, receives the index of the box each pixel shows, −1 on the sky; `layers`,
+ *  the boxes its ray enters — the fragments a raster with no depth order draws there. */
+export function atriumDepth(
+  view: TileView,
+  boxes = atriumBoxes(),
+  shown?: Int32Array,
+  layers?: Uint16Array,
+) {
   const depths = new Float32Array(view.width * view.height);
   for (let py = 0; py < view.height; py++)
     for (let px = 0; px < view.width; px++) {
@@ -79,6 +85,7 @@ export function atriumDepth(view: TileView, boxes = atriumBoxes(), shown?: Int32
         nearest = -1;
       boxes.forEach((b, index) => {
         const at = hit(o, d, b);
+        if (layers && at < Infinity) layers[py * view.width + px]++;
         if (at < s) [s, nearest] = [at, index];
       });
       depths[py * view.width + px] = s === Infinity ? 0 : rayDepth(s);
