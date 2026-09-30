@@ -23,21 +23,6 @@ export const PAGE_FOOTPRINT_EMPTY = 2 ** (4 * PAGE_FOOTPRINT_EDGE_BITS) - 1;
 /** A request entry's flag (#1211): the reader found the page drawn, for a footprint that misses
  *  its texel — the one thing a readback says of a texel. Above every table entry. */
 export const SHADOW_REQUEST_MISS = 2 ** 31;
-/** The footprint of the cells of `mask` (#1211), bit `x + 4y` for the 4×4 grid cell `(x, y)` of
- *  `PAGE_FOOTPRINT_STEP` texels a receiver read: the least rectangle holding them all. An empty
- *  mask names no cell: `PAGE_FOOTPRINT_EMPTY`, the union's neutral. */
-export function cellsFootprint(mask: number) {
-  const cells = 2 ** PAGE_FOOTPRINT_EDGE_BITS,
-    step = PAGE_FOOTPRINT_STEP;
-  let footprint = PAGE_FOOTPRINT_EMPTY;
-  for (let cell = 0; cell < cells ** 2; cell++) {
-    if (!((mask >>> cell) & 1)) continue;
-    const x = (cell % cells) * step,
-      y = Math.floor(cell / cells) * step;
-    footprint = footprintUnion(footprint, pageFootprint(x, y, x + step - 1, y + step - 1));
-  }
-  return footprint;
-}
 
 /** The footprint of the texels `[x0, x1] × [y0, y1]` of a page, relative to its first texel —
  *  a rectangle not empty —, widened outward to whole steps and clamped to the page. */

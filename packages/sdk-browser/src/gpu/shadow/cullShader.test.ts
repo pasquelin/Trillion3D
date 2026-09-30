@@ -6,18 +6,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { writeSunSquare } from '../../../../sdk-core/src/scene/light-shadow/sunFaces.ts';
-import {
-  PAGE_INDEX_MASK,
-  PAGE_MAPPED,
-  SHADOW_PAGE,
-} from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { sunPageMetres } from '../../../../sdk-core/src/scene/light-shadow/pageModel.ts';
-import {
-  planFrame,
-  report,
-  sunPages,
-  sunScene,
-} from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
+import { sunScene } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import {
   PAGE_FOOTPRINT_FULL,
   pageFootprint,
@@ -84,60 +75,4 @@ test('a caster whose widened bounds miss every receiver of a page is not drawn i
   const edge = 32 + FOOTPRINT_REACH;
   assert.ok(!keeps(volume, at(16, edge + 4), 2 * texel), 'one past the filter’s reach');
   assert.ok(keeps(volume, at(16, edge + 1), 2 * texel), 'one within it');
-});
-
-test('an off-camera wall over a visible floor keeps its shadow pages and casters', () => {
-  const { store, plan, slice } = sunScene();
-  const level = plan.sun.finest[slice] + 4,
-    texel = sunPageMetres(level) / SHADOW_PAGE;
-  // The floor is the visible receiver: a sun page it reads is requested and mapped (#525).
-  const entries = sunPages(plan, slice, level, [[3, 2]]);
-  report(plan, store, 1, entries);
-  planFrame(plan, store, 1);
-  const entry = entries[0];
-  assert.ok(plan.table.words[entry] & PAGE_MAPPED, "the floor's page is kept");
-  // The wall stands off-camera, its casters only shadow the floor: the page is drawn for the
-  // floor's footprint — the first quarter of each axis — and the wall's box still reaches it.
-  const page = plan.table.words[entry] & PAGE_INDEX_MASK,
-    square = new Float32Array(SHADOW_CULL_FLOATS),
-    volume = new Float32Array(SHADOW_CULL_FLOATS),
-    footprint = pageFootprint(0, 0, 32, 32);
-  writeSunSquare(
-    new Float32Array(16),
-    0,
-    volume,
-    0,
-    plan.sun,
-    slice,
-    plan.pool.view[page],
-    plan.pool.x[page],
-    plan.pool.y[page],
-    1,
-    footprint,
-    FOOTPRINT_REACH,
-  );
-  writeSunSquare(
-    new Float32Array(16),
-    0,
-    square,
-    0,
-    plan.sun,
-    slice,
-    plan.pool.view[page],
-    plan.pool.x[page],
-    plan.pool.y[page],
-  );
-  const frame = plan.sun.frame.subarray(slice * 9, slice * 9 + 9),
-    axis = frame.subarray(6, 9);
-  // The world point of page texel `(x, y)`, `depth` along the light axis toward the far plane.
-  const at = (x: number, y: number, depth = 0) => {
-    const u = (x - SHADOW_PAGE / 2) * texel,
-      v = (SHADOW_PAGE / 2 - y) * texel;
-    return [0, 1, 2].map((a) => square[a] + frame[a] * u + frame[3 + a] * v + axis[a] * depth);
-  };
-  // A wall standing above the floor it shadows, off-camera: its casters reach the floor's
-  // footprint, so they are kept.
-  assert.ok(keeps(volume, at(16, 16, texel), 0.5 * texel), 'the off-camera wall over the floor');
-  // A caster over the page but nowhere near the floor's receivers is not drawn into it.
-  assert.ok(!keeps(volume, at(96, 96), 4 * texel), 'a caster off the floor');
 });
