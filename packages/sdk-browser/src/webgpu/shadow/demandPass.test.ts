@@ -39,6 +39,7 @@ const demand = shaderRun<Demand>(
     'demandPages',
     'demandPage',
     'shadowPageEntry',
+    'shadowPageLocal',
     'sunOrigin',
     'sunReadAt',
     'lampReadAt',

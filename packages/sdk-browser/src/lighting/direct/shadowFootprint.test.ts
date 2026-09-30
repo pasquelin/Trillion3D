@@ -26,6 +26,7 @@ const { shadowPageWord } = shaderRun<{ shadowPageWord: Read }>(
   [
     'shadowPageWord',
     'shadowPageEntry',
+    'shadowPageLocal',
     'shadowFootprintCovers',
     'shadowRequestCell',
     ...PAGE_MODEL_FUNCTIONS,
