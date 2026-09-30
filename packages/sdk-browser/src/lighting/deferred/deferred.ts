@@ -17,16 +17,33 @@ export { DIRECT_LIGHTING_SHADER, FULLSCREEN_VERTEX } from './shaders.ts';
 /** Label of the measured pass; `gpuLightingMs` is read under this name. */
 export const DEFERRED_LIGHTING_PASS = 'Trillion3D deferred lighting';
 
-/** Deferred and frozen-source lighting programs, compiled lazily for the active lighting mode. */
+/** The lit programs: when `precompile`, those a first frame asks for compile from the start beside
+ *  the unlit one (#1362), without bounce always, with it too when `bounce`; `onFailure` hears any
+ *  contract compile that fails, precompiled or asked later. */
+export type LitPrograms = {
+  precompile: boolean;
+  bounce: boolean;
+  onFailure?: (error: unknown) => void;
+};
+
+/** Deferred and frozen-source lighting programs: the lit ones from the start when `lit` says so,
+ *  else compiled lazily for the active lighting mode. */
 export async function createDeferredLighting(
   device: GPUDevice,
   onReady?: () => void,
   pages = SUN_WINDOW,
+  lit?: LitPrograms,
 ) {
   const view = createDeferredView(device);
   const uniform = view.buffer;
   const placeholders = createDeferredPlaceholders(device);
   const bindings = { uniform, placeholders };
+  // Programs, never a branch: the unlit view, and the contract ones (`contractVariants.ts`).
+  const variants = createContractVariants(device, bindings, pages, onReady, lit?.onFailure);
+  // A narrow program starts its wide twin: the first frame finds either width ready. Prepare waits
+  // for the one without bounce, which lights any first frame; the bounce pair lands meanwhile.
+  const litReady = lit?.precompile ? variants.precompile(false, true) : Promise.resolve();
+  if (lit?.precompile && lit.bounce) void variants.precompile(true, true);
   try {
     const unlit = await createDeferredProgram(
       device,
@@ -40,8 +57,6 @@ export async function createDeferredLighting(
       },
       bindings,
     );
-    // Programs, never a branch: the unlit view, and the contract ones (`contractVariants.ts`).
-    const variants = createContractVariants(device, bindings, pages, onReady);
     let active: DeferredProgram = unlit;
     // Diagnostic views output raw values: no ACES, no sRGB, no composed background. The
     // indirect-irradiance view is one, and lighting says so, not the caller.
@@ -56,6 +71,8 @@ export async function createDeferredLighting(
       setRawOutput(value: boolean) {
         rawOutput = value;
       },
+      /** Settled once the lit program prepare started has landed, or failed (`LitPrograms`). */
+      litReady,
       get usesContract() {
         return active !== unlit;
       },
@@ -100,6 +117,11 @@ export async function createDeferredLighting(
       },
       settle() {
         return variants.settle();
+      },
+      /** What a frame lit with these resources waits for: the lit program's compile while no ready
+       *  one can light it, else nothing (`contractVariants.ts`). */
+      awaited(direct: DirectLightResources) {
+        return variants.awaited(!!direct.bounceGrid && !!direct.probes, !!direct.narrow);
       },
       /** Draws the lighting, after the reflection source when the frame's program reflects; returns
        *  the passes drawn, which the frame counts (#1157). */
@@ -169,6 +191,7 @@ export async function createDeferredLighting(
   } catch (error) {
     view.dispose();
     placeholders.dispose();
+    variants.release();
     throw error;
   }
 }

@@ -8,6 +8,7 @@ import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts';
 import { TILE_STRIDE_WORDS } from '../direct/lightWgsl.ts';
 import { createTileLightPool } from './pool.ts';
+import { buildComputePipeline } from '../deferred/fullscreen.ts';
 import { storageBufferCap } from '../../residency/pools.ts';
 /** Label of the measured pass; `gpuLightListsMs` is read under this name, not by its rank. */
 export const LIGHT_TILES_PASS = 'Trillion3D light tiles v1';
@@ -71,11 +72,13 @@ export async function createGpuLightTiles(device: GPUDevice) {
   let pipelines: GPUComputePipeline[];
   try {
     const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
-    pipelines = modules.map((module) =>
-      device.createComputePipeline({
-        layout: pipelineLayout,
-        compute: { module, entryPoint: 'lightTiles' },
-      }),
+    pipelines = await Promise.all(
+      modules.map((module) =>
+        buildComputePipeline(device, {
+          layout: pipelineLayout,
+          compute: { module, entryPoint: 'lightTiles' },
+        }),
+      ),
     );
   } catch (error) {
     uniform.destroy();

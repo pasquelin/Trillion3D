@@ -16,6 +16,29 @@ export const buildComputePipeline = (
     ? device.createComputePipelineAsync(descriptor)
     : Promise.resolve(device.createComputePipeline(descriptor));
 
+/** The compute stages of one module on one layout, by entry point, compiled together off the thread
+ *  (#1362): prepare never builds its pipelines one after another. */
+export async function buildComputeStages<E extends string>(
+  device: GPUDevice,
+  layout: GPUPipelineLayout,
+  module: GPUShaderModule,
+  entryPoints: readonly E[],
+  constants?: Record<string, number>,
+) {
+  const built = await Promise.all(
+    entryPoints.map((entryPoint) =>
+      buildComputePipeline(device, {
+        layout,
+        compute: { module, entryPoint, ...(constants && { constants }) },
+      }),
+    ),
+  );
+  return Object.fromEntries(entryPoints.map((entry, at) => [entry, built[at]])) as Record<
+    E,
+    GPUComputePipeline
+  >;
+}
+
 /** A render pipeline compiled off the frame by `prepare`, or at once by `get` when nothing
  *  prepared it: a frame never compiles what prepare did. */
 export function preparedPipeline(device: GPUDevice, descriptor: GPURenderPipelineDescriptor) {

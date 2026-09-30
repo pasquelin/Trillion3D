@@ -1,4 +1,5 @@
 import { DRAW_ITEM_U32, UNIFORM_BYTES, WORKGROUP } from './contract.ts';
+import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts';
 import { createGpuDrawBuffers } from './buffers.ts';
 import type { GpuDraw } from './contract.ts';
 import { constructGpuResources, validated } from '../core/errorScope.ts';
@@ -37,13 +38,16 @@ export async function createGpuDraw(
       const module = device.createShaderModule({ code: drawShader(layerSlots) });
       if (await shaderFailed(module)) return undefined;
       const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
-      const stage = (entryPoint: string) =>
-        device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } });
+      const stages = await buildComputeStages(device, pipelineLayout, module, [
+        'countGroups',
+        'prefixGroups',
+        'scatterGroups',
+      ]);
       return {
         layout,
-        countPipeline: stage('countGroups'),
-        prefixPipeline: stage('prefixGroups'),
-        scatterPipeline: stage('scatterGroups'),
+        countPipeline: stages.countGroups,
+        prefixPipeline: stages.prefixGroups,
+        scatterPipeline: stages.scatterGroups,
       };
     });
     if (!made) {
