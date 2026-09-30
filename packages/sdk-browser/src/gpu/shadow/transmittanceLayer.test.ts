@@ -27,6 +27,8 @@ function created(poolSide: number) {
   installGpuGlobals();
   const device = recorder<GPUDevice>(),
     encoder = recorder<GPUCommandEncoder>();
+  // The draws read `device.features` (`casterPrimitive`); the recorder grants none.
+  (device.target as unknown as { features: Set<string> }).features = new Set();
   (encoder.target as unknown as { beginRenderPass: unknown }).beginRenderPass = (
     d: GPURenderPassDescriptor,
   ) => (encoder.calls.push(['beginRenderPass', [d]]), { end() {} });
@@ -112,6 +114,7 @@ test('the two transmittance draws clamp depth on a device with depth-clip-contro
 test('without the feature the transmittance draws keep the default, clipping', () => {
   const { device, renderPipelines } = fakeDevice();
   shadowTransmittanceDraws(device, {} as GPUShaderModule, []).made();
+  assert.equal(renderPipelines.length, 2, 'the depth-only and colour-only draws');
   for (const descriptor of renderPipelines)
     assert.equal(descriptor.primitive?.unclippedDepth, undefined);
 });
