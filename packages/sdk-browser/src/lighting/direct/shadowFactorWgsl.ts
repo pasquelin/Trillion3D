@@ -25,6 +25,13 @@ fn sunReadAt(index:u32,P:vec3f,N:vec3f,offset:f32,level:i32)->ShadowAt{
  let map=ShadowMap(u32(shadows.records[index].info.w)+u32(shadowSunLevelEntry(level)),1u,SUN_WINDOW_PAGES,origin.x,origin.y);
  return ShadowAt(map,t,vec2i(shadowPageOfTexel(t.x),shadowPageOfTexel(t.y)),Q,texel);
 }
+/** Where point \`Q\` projects on face \`face\` of lamp \`index\`, a map \`side\` texels wide: its clip
+ *  and normalised position, and its map texel. The lookup's, and the soft demand's in any face. */
+struct LampFacePoint{clip:vec4f,ndc:vec3f,t:vec2f,}
+fn lampFacePoint(index:u32,face:u32,Q:vec3f,side:f32)->LampFacePoint{
+ let clip=shadows.records[index].faces[face]*vec4f(Q,1.0);let ndc=clip.xyz/clip.w;
+ return LampFacePoint(clip,ndc,vec2f(shadowLampMapTexel(ndc.x,side),shadowLampMapTexel(-ndc.y,side)));
+}
 struct LampAt{at:ShadowAt,clip:vec4f,ndc:vec3f,face:u32,side:f32,inside:bool,}
 fn lampReadAt(index:u32,lamp:vec3f,P:vec3f,N:vec3f,offset:f32,texel0:f32,mip:u32)->LampAt{
  let info=shadows.records[index].info;
@@ -34,12 +41,10 @@ fn lampReadAt(index:u32,lamp:vec3f,P:vec3f,N:vec3f,offset:f32,texel0:f32,mip:u32
  let Q=P+N*(texel*offset);
  let isPoint=u32(info.x)==${POINT_FACES}u;
  let face=select(0u,pointFaceOf(Q-lamp),isPoint);
- let clip=shadows.records[index].faces[face]*vec4f(Q,1.0);
- let ndc=clip.xyz/clip.w;
+ let f=lampFacePoint(index,face,Q,side);let clip=f.clip;let ndc=f.ndc;let t=f.t;
  // A point's offset point lies in the face it picked: only rounding puts it past the border,
  // where the taps clamp to the face's edge. A spot's point off its face is outside its cone.
  let inside=clip.w>0.0&&!((!isPoint&&(abs(ndc.x)>1.0||abs(ndc.y)>1.0))||ndc.z<0.0||ndc.z>1.0);
- let t=vec2f(shadowLampMapTexel(ndc.x,side),shadowLampMapTexel(-ndc.y,side));
  let map=ShadowMap(u32(info.w)+u32(shadowLampMapEntry(i32(face),i32(mip))),0u,i32(pages),0,0);
  let home=clamp(vec2i(shadowPageOfTexel(t.x),shadowPageOfTexel(t.y)),vec2i(0),vec2i(i32(pages)-1));
  return LampAt(ShadowAt(map,t,home,Q,texel),clip,ndc,face,side,inside);
@@ -161,7 +166,7 @@ fn lampShadowFactor(index:u32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f,taps:boo
   let slope=sqrt(max(1.0-facing*facing,0.0))/(dot(d,d)*cosine);
   let reference=r.ndc.z+k*shadowDepthMargin(r.at.texel,slope,1.0/(r.clip.w*r.clip.w))+SHADOW_DEPTH_ROUNDING;
   if(u32(info.x)==${POINT_FACES}u&&light.shape.x>0.0&&taps){
-   let soft=pointSoftShadow(index,light,r.at.Q,N,mip);
+   let soft=pointSoftShadow(index,light,P,N,offset,texel0,mip);
    if(soft>=0.0){return soft;}
   }
   return shadowPcf(r.at.map,r.at.t,reference,r.at.home,word,r.side,taps);
