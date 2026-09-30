@@ -5,7 +5,6 @@ import { functionsOf } from './shaderRule.fixture.ts';
 import { builtins } from './shaderRunBuiltins.fixture.ts';
 
 export { Mat, type Vec } from './shaderRunBuiltins.fixture.ts';
-
 const SWIZZLE = /^(?:[xyzw]{1,4}|[rgba]{1,4})$/;
 /** A token, or what it skips: blanks and `//` comments. */
 const TOKEN =
@@ -94,6 +93,7 @@ class Translator {
       }
       return text;
     }
+    if (token === 'while') return (this.next(), `while(${this.expression()})${this.block()}`);
     if (token === 'for') {
       this.next();
       this.eat('(');

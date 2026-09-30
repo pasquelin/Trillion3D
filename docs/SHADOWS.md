@@ -115,7 +115,10 @@ cache (`splitMemoryBudget`). The batches' buffers (`gpu/shadow/batchBudget.ts`, 
   pixel alike, and the TAA's history averages the turns into a filter even around the point, as
   Unreal's SMRT leaves its per-frame rays to the temporal filter: no second history, no dither. A
   PCSS filter tap is a bilinear comparison, so a penumbra is a ramp, never sixteen steps. An image
-  the TAA does not accumulate turns nothing.
+  the TAA does not accumulate turns nothing. A moving image the deferred resolve lights reads four of
+  the PCF's sixteen taps, one in four, the subset turning with the image's rank, so four images read
+  them all and the history averages them (`shadowTapsOf`, `MOVING_PCF_TAPS`, #1369): UE5 MegaLights'
+  few visibility samples a pixel, left to the temporal filter. A still image reads the sixteen.
 
 ## Demand, mapping and drawing in one frame
 

@@ -90,13 +90,10 @@ test('the sample budget is the published setting, and a list within it is summed
     DIRECT_LIGHT_SAMPLING_WGSL,
     /if\(!sampledList\(kept\)\)\{return tileLighting\(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE\);\}/,
   );
-  // A light worth a sample's share is shaded exactly and leaves the pool; the drawn ones are
-  // divided by their probability, copies counted.
-  assert.match(DIRECT_LIGHT_SAMPLING_WGSL, /if\(weight\*f32\(LIGHT_SAMPLES\)>=total\)/);
-  assert.match(
-    DIRECT_LIGHT_SAMPLING_WGSL,
-    /factor=pool\/\(f32\(samples\)\*lightWeight\(light,N,P\)\);/,
-  );
+  // A light worth a sample's share is shaded exactly, once; the drawn ones are divided by their
+  // probability, copies counted (`sampledWeights.test.ts` runs the draw).
+  assert.match(DIRECT_LIGHT_SAMPLING_WGSL, /let exact=weight\*f32\(LIGHT_SAMPLES\)>=total;/);
+  assert.match(DIRECT_LIGHT_SAMPLING_WGSL, /factor=total\/\(f32\(LIGHT_SAMPLES\)\*weight\);/);
   // The offset depends on the pixel and the bounded rank only: a replayed image is the same image.
   assert.match(
     DIRECT_LIGHT_SAMPLING_WGSL,

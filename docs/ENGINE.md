@@ -340,23 +340,30 @@ lamps of range 4 m list 6.40–8.30 lights per covered pixel at 3456 × 2234 whe
 it pay only the range reject. The tile pass's bounds — five column planes, the slab, two boxes — are built by seven
 lanes at once, where thread zero built them one after the other, to the same bits.
 
-**A moving image samples its shadowed lights.** It weighs every light of its tile without its
-shadow (the cheap part) and shades four in full, shadow included. A light worth a sample's share of
-the pixel's weight is shaded exactly and leaves the pool; the other samples are drawn along the
-cumulative weight from a per-pixel offset that advances by the golden ratio every image, each
-divided by its probability. The estimate is unbiased, so the history averages it toward the full
+**A moving image samples its shadowed lights**, as UE5's MegaLights draws a fixed few samples a
+pixel from the light grid's cell and leaves their noise to the temporal history. It weighs every
+light of its tile without its shadow (the cheap part) and shades four in full, shadow included. Four
+points lie evenly along the cumulative weight from a per-pixel offset that advances by the golden
+ratio every image: a light worth a sample's share of the pixel's weight holds one or more and is
+shaded exactly, once; any other is drawn once per point it holds, divided by its probability. Two
+walks of the weights, their total then the draw (three before #1369). Each shadow read of a moving
+image takes four of the PCF's sixteen taps, the subset turning with the image (`shadowTapsOf`): 29–36
+depth gathers per covered pixel become 7–9 with 64 of 200 lamps shadowed at 3456 × 2234, 15–23
+weights 10–15 (`bench/runner/resolveWorkCount.ts`). A pixel sets up its shadow read — its
+unjittered footprint's eight neighbour depths, its receiver offset — only where its tile lists a
+shadowed light (`pixelShadowed`), never in the program with no shadow code. The estimate is unbiased, so the history averages it toward the full
 sum; a still image — the quiet ones, a capture, a diagnostic view — shades every light of the tile.
 The tile pass records once per tile whether its opaque list holds a shadowed light
 (`TILE_SHADOW_BASE`, `lighting/tiles/compactWgsl.ts`), read beside the list's count: only a list of 5
 to 64 lights that holds one is sampled, as the per-pixel list walk it replaces decided; a list with
 none is never sampled — with no
-shadow to save, the three weight walks would cost three times the full sum — but summed in full as
+shadow to save, the two weight walks would cost twice the full sum — but summed in full as
 the still one is, bit for bit, the resolve never walking the list a pixel at a time
 (`tileShadowed`, `tests/browser/probes/sampled-resolve-gpu.ts`, #1249). 200 unshadowed lamps of
 range 4 m in a sponza-sized atrium drop from 23.8 light evaluations per covered pixel to 7.4 at
 3456 × 2234 (`bench/runner/lightTileSampledCount.ts`). `metric.frame(world).lightsSampled` says the
 image ran at a sampled rank. Declared cost: a faint grain on lit surfaces where lights of different
-colours overlap, while the camera moves (`tests/browser/renders/sampled-lighting.browser.ts`). What
+colours overlap and in penumbrae, while the camera moves (`tests/browser/renders/sampled-lighting.browser.ts`). What
 remains: a spatial denoise before the history.
 
 **Shadows are virtual shadow maps** ([SHADOWS.md](SHADOWS.md)): 128-texel pages, a sun as a
