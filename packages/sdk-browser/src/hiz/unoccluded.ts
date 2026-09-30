@@ -16,7 +16,7 @@ export function filterUnoccluded<T extends HizPage>(
   pyramid: HizPyramid,
   cam: EngineCamera,
   viewport: [number, number],
-  keptPacked: number[] = [],
+  keptIndices?: number[],
   bias = 0,
 ) {
   resetHizCounts(discardedCounts);
@@ -27,7 +27,7 @@ export function filterUnoccluded<T extends HizPage>(
     cam,
     viewport,
     discardedCounts,
-    keptPacked,
+    keptIndices,
     bias,
   );
 }
@@ -36,6 +36,8 @@ export function filterUnoccluded<T extends HizPage>(
  * The pages the test keeps, and what it did: `counts` gains the clusters it was handed, the clusters
  * it eliminated and the clusters too wide for the level-0 kernel, each with the triangles those
  * clusters carry. This is the oracle the GPU counters are read against on a fixed image.
+ * `keptIndices`, when given, receives the rank in `pages` of every kept page: one record may stand
+ * for several placements (#1235), so a caller tells the instances apart by rank, never by record.
  */
 export function countUnoccluded<T extends HizPage & { array?: ArrayLike<number> }>(
   pages: T[],
@@ -44,13 +46,12 @@ export function countUnoccluded<T extends HizPage & { array?: ArrayLike<number> 
   cam: EngineCamera,
   viewport: [number, number],
   counts: HizCounts,
-  keptPacked: number[] = [],
+  keptIndices?: number[],
   bias = 0,
 ) {
   const kept: T[] = [],
-    packed = locations.packed,
     bounds = boundsFor(pages.length);
-  keptPacked.length = 0;
+  if (keptIndices) keptIndices.length = 0;
   projectBoxesFlat(pages, locations, pages.length, cam, viewport, bounds);
   for (let i = 0; i < pages.length; i++) {
     const page = pages[i],
@@ -69,7 +70,7 @@ export function countUnoccluded<T extends HizPage & { array?: ArrayLike<number> 
       continue;
     }
     kept.push(page);
-    keptPacked.push(packed[i]);
+    keptIndices?.push(i);
   }
   return kept;
 }

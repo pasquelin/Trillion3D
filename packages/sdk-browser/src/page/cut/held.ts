@@ -48,7 +48,7 @@ function baseOf(
  * its placement reads that page alone: a cut over placements in which nothing moved reads no page.
  *
  * A placement is read whole when it enters — first seen, or its DAG or hierarchy changed. A move
- * is routed by the `placementIndex` and contiguous `packedIndex` both layouts post on a record,
+ * is routed by the packed base both layouts post on each root (`postPackedBases`, #1235),
  * against the placements `track` last named; a layout that changes calls `track` again, and the
  * placements that stay keep their state. A placement whose moves cannot be routed is read whole
  * at every visit, and counted.

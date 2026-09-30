@@ -1,6 +1,6 @@
 import { frustumExcludesBox } from '../../../../sdk-core/src/index.ts';
-import { rootOf, type PageRec } from '../../page/selection/selection.ts';
-import type { Placements } from '../../page/selection/placements.ts';
+import type { PageRec } from '../../page/selection/selection.ts';
+import { locationOf, type PageLocations } from '../../page/selection/placements.ts';
 import { notDrawn } from '../../placement/hidden.ts';
 import type { createWebgpuBlendState } from './state.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
@@ -16,21 +16,15 @@ type BlendState = ReturnType<typeof createWebgpuBlendState>;
  */
 export function selectWebgpuBlend(
   blendState: BlendState,
-  cut?: {
-    drawn: readonly PageRec[];
-    /** The packed rank of each drawn page, rank by rank (#1235). */
-    packed: readonly number[];
-    roots: Placements;
-    rootOfPacked: Int32Array;
-  },
+  /** `packed` is the packed rank of each drawn page, rank by rank (#1235). */
+  cut?: PageLocations & { drawn: readonly PageRec[] },
 ) {
   const selected = blendState.cpuSelectedPlacements;
   selected.clear();
   blendState.visibleBlend.length = 0;
   if (cut)
     for (let i = 0; i < cut.drawn.length; i++)
-      if (cut.drawn[i].transparent)
-        selected.add(rootOf(cut.roots, cut.rootOfPacked[cut.packed[i]]).world);
+      if (cut.drawn[i].transparent) selected.add(locationOf(cut, i).world);
   let rejected = 0;
   for (const item of blendState.blendGpu) {
     if (notDrawn(item)) continue;
