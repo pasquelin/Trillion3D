@@ -4,9 +4,8 @@
 // events, in the same order. The contact callbacks run on Jolt's threads; each keeps its record in
 // its own thread's list and the step merges them after `Update` in the engine's canonical pair-key
 // order, which no thread decides (`contacts.cpp`, route (b), the boss's yes of 29 Sept.), not
-// Jolt's callback order; a cloth's leaves and a removed body's are written outside that merge, so
-// the canonical promise holds on the merged records, while the whole step's events are identical
-// whatever the pool. Nothing is timed.
+// Jolt's callback order; a cloth's leaves and a removed body's are appended outside that merge.
+// Nothing is timed.
 //
 //   node tests/browser/renders/physics-threaded-contacts.browser.ts
 import assert from 'node:assert/strict';
