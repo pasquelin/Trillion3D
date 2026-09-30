@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PAGES, sunPageMetres } from '../../../../sdk-core/src/scene/light-shadow/pageModel.ts';
 import { regionRect } from '../../../../sdk-core/src/scene/light-shadow/volume.ts';
-import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
+import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelSignatures.ts';
 import {
   LAMP_FACE_ENTRIES,
   LAMP_MIPS,

@@ -1,7 +1,7 @@
-import { coneCullsPage } from '../../../page/cone/cone.ts';
+import { coneCullsPage } from '../../../page/cone/cone.fixture.ts';
 import { SELECTION_NONE as NONE } from '../../core/selection.ts';
 import type { PackedDag } from '../types.ts';
-import { CLUSTER_NEVER } from '../layout.ts';
+import { CLUSTER_NEVER } from '../clusterFlags.ts';
 import {
   bandError,
   bandSphere,
@@ -12,13 +12,13 @@ import {
   hasBoxOf,
   ownerOf,
   worldOf,
-} from '../records.ts';
+} from '../records.fixture.ts';
 import { copyMatrix4, frustumExcludesBox } from '../../../../../sdk-core/src/index.ts';
 import {
   boxMissesLightPages,
   type LightPages,
 } from '../../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
-import { dagScratch, projectedError } from './math.ts';
+import { dagScratch, projectedError } from './math.fixture.ts';
 import { drawsCluster } from '../../../page/cut/rule.ts';
 import type { MatrixElements } from '../../../math/matrixElements.ts';
 

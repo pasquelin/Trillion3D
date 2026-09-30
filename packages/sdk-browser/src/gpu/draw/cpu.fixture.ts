@@ -1,6 +1,25 @@
 import { exclusiveScan, packDrawIndirect } from '../../../../sdk-core/src/index.ts';
 import { BASE_SLOTS, slotCount } from './contract.ts';
-import type { DrawItem, CompactResult } from './contract.ts';
+
+/** A row of the draw's page table as the CPU mirror and the tests write it (`struct DrawItem`,
+ *  `contract.ts`). */
+export type DrawItem = {
+  pageIndex: number;
+  bin: 0 | 1 | 2;
+  rest: 0 | 1;
+  selectionIndex?: number;
+  layer?: number;
+  triangles?: number;
+};
+/** What the CPU mirror of the compaction returns. */
+type CompactResult = {
+  instances: Uint32Array; // compacted pageIndex in input order
+  bins: Uint32Array; // compacted bin
+  rests: Uint32Array; // compacted rest flag
+  counts: number[]; // (bin + 3*rest + 6*layer)
+  indirect: Uint32Array; // one drawIndirect per slot, four u32 each
+  overflow: boolean;
+};
 
 /** A slot is a cull mode, an occluder/tested half and a coplanar layer, in that order.
  *  CPU mirror of `slotOf` (shader.ts): same product, same sum, same layer cap.

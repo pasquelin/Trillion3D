@@ -48,7 +48,8 @@ const POSE_LOCALE: Record<string, string> = {
   'camera/controls/pose.ts': 'the camera-controller boundary: a controller writes a local pose',
   'world/api/cameraApi.ts': 'host round-trip: `homePose` returns what `setCameraPose` rewrites',
   'world/render/hostState.ts': 'the host restores the local pose it had recorded',
-  'gpu/dag/oracle/predicates.ts': 'the oracle POSES a parentless camera from a world position',
+  'gpu/dag/oracle/predicates.fixture.ts':
+    'the oracle POSES a parentless camera from a world position',
   'page/selection/dag.fixture.ts': 'test scene builder: it poses the camera',
   'page/selection/blend.fixture.ts': 'test scene builder: it poses the camera',
   'visibility/buffer.fixture.ts': 'test scene builder: it poses the camera',

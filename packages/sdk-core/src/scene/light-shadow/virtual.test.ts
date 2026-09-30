@@ -1,5 +1,5 @@
-// The virtual layout both the scheduler and the shaders address pages by: a lamp entry names its
-// face, mip and page back, and a sun entry is the same word for every extent a page is seen in.
+// The virtual layout both the scheduler and the shaders address pages by: the pool's size against
+// the screen, and the finest sun level a view reads.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { shadowPoolSize, shadowPoolShape } from './virtual.ts';

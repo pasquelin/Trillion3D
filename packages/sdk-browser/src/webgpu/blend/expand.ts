@@ -4,7 +4,8 @@ import { namedBufferEntries } from '../../gpu/core/computeBindings.ts';
 import { shaderFailed } from '../../gpu/core/shaderModule.ts';
 import { validated } from '../../gpu/core/errorScope.ts';
 import { cleanupFailedHiz } from '../../gpu/hiz/pipelines.ts';
-import { blendExpandUniform, EXPAND_PASSES, RUN_WORDS, UNI_WORDS } from './runs.ts';
+import { blendExpandUniform, EXPAND_PASSES, RUN_WORDS } from './runs.ts';
+import { UNI_WORDS } from './expandUniform.ts';
 
 export type BlendExpand = ReturnType<typeof expandApi>;
 

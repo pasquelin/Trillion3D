@@ -1,12 +1,9 @@
 import { sharedGpuDevice } from './sessionHandle.ts';
-import { FULLSCREEN_VERTEX } from '../../lighting/deferred/deferred.ts';
+import { PRESENT_SHADER } from './presentWgsl.ts';
 import { createCanvasBlit } from '../../webgl/core/canvasBlit.ts';
 import { createPresentAt, type PresentRect } from './presentAt.ts';
 import { canvasImageKept, canvasImageReplaced, closeCanvasImage } from './canvasHandover.ts';
 
-export const PRESENT_SHADER = `@group(0) @binding(0) var image:texture_2d<f32>;
-${FULLSCREEN_VERTEX}
-@fragment fn present(@builtin(position) pixel:vec4f)->@location(0) vec4f{return textureLoad(image,vec2i(pixel.xy),0);}`;
 /** Source is already display encoded. No second tone map or color conversion. A canvas that keeps
  *  its image across sessions (`canvasHandover.ts`) is configured at the first present only. */
 export function createGpuPresenter(device: GPUDevice, canvas: HTMLCanvasElement) {

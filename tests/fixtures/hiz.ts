@@ -5,7 +5,7 @@ import { cameraMoteur } from '../../packages/sdk-browser/src/camera/camera.fixtu
 import type { EngineCamera } from '../../packages/sdk-browser/src/camera/world.ts';
 import { rasterVisibilityIds } from '../../packages/sdk-browser/src/visibility/buffer.ts';
 import { identityLocations } from '../../packages/sdk-browser/src/page/selection/placements.fixture.ts';
-import { type HizBounds, type HizPage } from '../../packages/sdk-browser/src/hiz/hiz.ts';
+import type { HizBounds, HizPage } from '../../packages/sdk-browser/src/hiz/types.ts';
 import { buildHizPyramid } from '../../packages/sdk-browser/src/hiz/depth.ts';
 import { visibilityDepth } from '../../packages/sdk-browser/src/hiz/depth.ts';
 import { HIZ_BOUNDS_VALUES } from '../../packages/sdk-browser/src/hiz/corners.ts';

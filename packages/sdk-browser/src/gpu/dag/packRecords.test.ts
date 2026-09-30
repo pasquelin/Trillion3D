@@ -10,7 +10,7 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import { packDagSelection } from './pack.ts';
 import { cameraSelectionUniforms } from '../core/selection.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
-import { bandError, dagRecords, flagsOf, ownerOf, trianglesOf } from './records.ts';
+import { bandError, dagRecords, flagsOf, ownerOf, trianglesOf } from './records.fixture.ts';
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts';
 import type { DagRoot } from './types.ts';
 import { ruleResidency } from './readiness.fixture.ts';

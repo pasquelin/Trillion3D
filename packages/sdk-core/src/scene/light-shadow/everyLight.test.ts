@@ -1,6 +1,5 @@
-// No shadow is dropped for want of page table: every shadow-casting light up to the slices
-// holds a slice and its own range, even when every one of them is a sun, the largest range; a
-// caster past them still lights, without a shadow, and the frame counts it (#822).
+// No shadow-casting light is dropped for want of page table: a caster past the slices still lights,
+// without a shadow, and the frame counts it (#822).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MAX_SHADOW_SLICES } from '../light/contracts.ts';

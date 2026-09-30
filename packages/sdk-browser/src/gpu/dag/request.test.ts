@@ -10,12 +10,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   packRequest,
-  quantizeRequestPriority,
   REQUEST_PAGE_MAX,
   REQUEST_PRIORITY_MAX,
   requestPage,
   requestPriority,
 } from './request.ts';
+import { quantizeRequestPriority } from './request.fixture.ts';
 import { requestScene } from './requestScene.fixture.ts';
 import {
   clusterErrorPixels,

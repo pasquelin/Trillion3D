@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { hizBuildPyramid, hizReduceCeil } from '../../../../sdk-core/src/index.ts';
+import { hizBuildPyramid } from '../../../../sdk-core/src/index.ts';
+import { hizReduceCeil } from '../../../../sdk-core/src/hiz/oracles.ts';
 import { DEPTH_CLEAR } from '../../camera/depthConvention.ts';
-import { hizRejects, type HizBounds } from '../../hiz/hiz.ts';
+import { hizRejects } from '../../hiz/occlusion.ts';
+import type { HizBounds } from '../../hiz/types.ts';
 import { buildHizPyramid } from '../../hiz/depth.ts';
 import { HIZ_SHADER } from './shader.ts';
 import { VERDICT_KEPT, VERDICT_REJECTED } from '../partition/contract.ts';

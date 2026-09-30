@@ -1,6 +1,6 @@
 /**
  * Compact cut layout, written once by packing and reread by two readers: the shader
- * (`shader/shader.ts`, `shader/recordWgsl.ts`) and the oracle (`records.ts`). Both
+ * (`shader/shader.ts`, `shader/recordWgsl.ts`) and the oracle (`records.fixture.ts`). Both
  * go through this module alone, so no field rank is written twice — that is what
  * guarantees the oracle returns the same verdict as the GPU, to the bit.
  *
@@ -22,18 +22,13 @@
  * read it no longer walk a forty-eight-byte record for a single flag, and the host only
  * rewrites the words its changes touch. The cold records come last.
  */
+import { CLUSTER_LEVEL_SHIFT, CLUSTER_NEVER, CLUSTER_TRANSPARENT } from './clusterFlags.ts';
 
 /** Words of the hot record: `struct Cluster` of the shader holds eleven, and WGSL rounds its
  *  stride to sixteen bytes — the twelfth word is that padding. */
 export const CLUSTER_WORDS = 12;
 /** Words of the cold record; `PAGE_CONE_FLOATS` in `../core/selection.ts` is the public mirror. */
 export const COLD_WORDS = 13;
-/** Bit 0 is free: it said the cluster had no parent, which only the pinned-root fallback read. */
-export const CLUSTER_NEVER = 2,
-  /** The cluster is blended: its triangle share is counted apart, as on the CPU. */
-  CLUSTER_TRANSPARENT = 4;
-/** Detail level travels in the flags' high bits: a single pass reads it, at emit. */
-export const CLUSTER_LEVEL_SHIFT = 8;
 const CLUSTER_LEVEL_MAX = 0xffffff;
 
 export function packClusterFlags(never: boolean, level: number, transparent = false) {
@@ -45,7 +40,6 @@ export function packClusterFlags(never: boolean, level: number, transparent = fa
     0
   );
 }
-export const clusterLevel = (flags: number) => flags >>> CLUSTER_LEVEL_SHIFT;
 
 /**
  * Readout CAP, in ranks, for each of its two halves.
@@ -88,7 +82,7 @@ export const evictionWord = (listCap: number) => 2 * (SELECTION_HEADER_WORDS + l
 export const EVICTION_BURST = 1024;
 /** Word of `out` where the camera's requests wait for their sort, behind the eviction queue's
  *  burst, outside what the frame copies (`stagedAt` of `shader/snapshotWgsl.ts`). */
-export const stagedRequestsWord = (listCap: number) =>
+const stagedRequestsWord = (listCap: number) =>
   evictionWord(listCap) + SELECTION_HEADER_WORDS + EVICTION_BURST;
 /** Bytes a resident cut's frame copies: everything before the staged requests. */
 export const residentReadbackBytes = (listCap: number) => stagedRequestsWord(listCap) * 4;

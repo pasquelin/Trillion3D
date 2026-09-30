@@ -7,10 +7,8 @@
 // counted map by map rather than deduced from reading the code.
 //   node --experimental-strip-types tests/browser/probes/addressing-cpu.ts [sortie.json]
 // Exit code 1 on the first mismatch. `sortie.json` receives the texels read, to compare two commits.
-import {
-  importHostTexture,
-  importWrapMode,
-} from '../../../packages/sdk-browser/src/host/textureImport.ts';
+import { importHostTexture } from '../../../packages/sdk-browser/src/host/textureImport.ts';
+import { importWrapMode } from '../../../packages/sdk-browser/src/host/wrapImport.ts';
 import { writeFileSync } from 'node:fs';
 import * as THREE from 'three';
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';

@@ -1,8 +1,9 @@
-import { hizReduceCeil, hizBuildPyramid } from '../../../../sdk-core/src/index.ts';
+import { hizBuildPyramid } from '../../../../sdk-core/src/index.ts';
+import { hizReduceCeil } from '../../../../sdk-core/src/hiz/oracles.ts';
 import { pyramidBytes } from './oracle.ts';
-import { hizRejects } from '../../hiz/hiz.ts';
+import { hizRejects } from '../../hiz/occlusion.ts';
 import { VERDICT_REJECTED, VERDICT_KEPT } from '../partition/contract.ts';
-import type { HizBounds, HizPyramid } from '../../hiz/hiz.ts';
+import type { HizBounds, HizPyramid } from '../../hiz/types.ts';
 
 /** One ceil-2×2 min reduction of a packed level: the farthest of each square, the engine's depth
  *  being reversed. */

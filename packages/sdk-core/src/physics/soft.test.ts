@@ -11,9 +11,9 @@ import {
   SOFT_FOOTPRINT,
   SOFT_LINEAR_DENSITY,
   softBodyOf,
-  softSettings,
   type SoftBodyOptions,
 } from './soft.ts';
+import { softSettings } from './softSettings.ts';
 import { writeSoft } from './softCommands.ts';
 import { SOFT_VERTEX_WORDS } from './softLayout.ts';
 

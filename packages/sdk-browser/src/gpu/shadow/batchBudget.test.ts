@@ -1,7 +1,6 @@
 // The memory a frame's shadow batches add (#489, #483 rule 5, #831): granted for one pool layer in
-// full batches, each in at most one view per page, and counted in the memory budget from that one
-// rule; a frame's own batches and staging follow the current pool, the views a batch runs and the
-// device's buffer limit, within the grant. Checked here against what the modules allocate.
+// full batches, each in at most one view per page; a frame's own batches and staging follow the
+// current pool, the views a batch runs and the device's buffer limit, within the grant.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LAYER_PAGES } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
