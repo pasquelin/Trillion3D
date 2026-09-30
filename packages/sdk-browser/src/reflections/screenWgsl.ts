@@ -2,7 +2,7 @@ import { REFLECTION_CONE_WGSL } from './coneWgsl.ts';
 import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts';
 import { screenTraceShader } from './traceShader.ts';
 import { MIRROR_LIGHTING_WGSL } from '../bounce/reflectWgsl.ts';
-import { mirrorWeightShader } from './modelShader.ts';
+import { SCREEN_REFLECTION_MAX_ROUGHNESS, mirrorWeightShader } from './modelShader.ts';
 import { FOG_FREE_SURFACE_FLAG } from '../scene/surfaceModel.ts';
 
 export const SCREEN_REFLECTION_WGSL = `
@@ -28,13 +28,35 @@ fn filteredResolvedReflection(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{
  if(hit.a>=1.0){return hit.rgb;}
  return hit.rgb+(1.0-hit.a)*reflectedRadiance(P,N,R,rough);
 }
-fn resolvedRadiance(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{
- if(reflectionView.enabled.x==0.0){return reflectedRadiance(P,N,R,rough);}
+// the reference engine's roughness fade: the whole trace up to half the cutoff, none from the cutoff on (#1341).
+fn screenReflectionFade(rough:f32)->f32{
+ return clamp(2.0-2.0*rough/${SCREEN_REFLECTION_MAX_ROUGHNESS},0.0,1.0);
+}
+fn tracedRadiance(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{
  let weight=mirrorWeight(rough);
  if(weight==1.0){return resolvedReflectionRay(P,N,R);}
  let filtered=filteredResolvedReflection(P,N,R,rough);
  if(weight==0.0){return filtered;}
  return mix(filtered,resolvedReflectionRay(P,N,R),weight);
+}
+fn resolvedRadiance(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{
+ let fade=screenReflectionFade(rough);
+ if(reflectionView.enabled.x==0.0||fade==0.0){return reflectedRadiance(P,N,R,rough);}
+ let traced=tracedRadiance(P,N,R,rough);
+ if(fade==1.0){return traced;}
+ return mix(reflectedRadiance(P,N,R,rough),traced,fade);
+}`;
+
+/** The rough history holds a ratio mean; a pixel that has only drawn below-horizon samples holds
+ *  no weight, and reads the environment reflection, never black (#1341). */
+export const HELD_REFLECTION_WGSL = `
+@group(1) @binding(3) var roughHistory:texture_2d<f32>;
+fn heldReflection(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{
+ let projected=reflectionProject(vec4f(P,1.0));
+ let at=vec2i((projected.xy/projected.w*0.5+vec2f(0.5))*reflectionSize());
+ let held=textureLoad(roughHistory,at,0);
+ if(held.a>0.0){return held.rgb;}
+ return reflectedRadiance(P,N,R,rough);
 }`;
 
 /** The direct-only program has the same mirror model; its off-screen fallback is empty. */
@@ -54,10 +76,8 @@ export function withScreenReflections(shader: string, direct = false, history = 
   const reflection = history
     ? SCREEN_REFLECTION_WGSL.replace(
         'let filtered=filteredResolvedReflection(P,N,R,rough);',
-        `let projected=reflectionProject(vec4f(P,1.0));
- let at=vec2i((projected.xy/projected.w*0.5+vec2f(0.5))*reflectionSize());
- let filtered=textureLoad(roughHistory,at,0).rgb;`,
-      ) + '\n@group(1) @binding(3) var roughHistory:texture_2d<f32>;\n'
+        'let filtered=heldReflection(P,N,R,rough);',
+      ) + HELD_REFLECTION_WGSL
     : SCREEN_REFLECTION_WGSL;
   return (
     source.replace(
