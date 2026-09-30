@@ -28,6 +28,9 @@ test("a pass's restored pages are grouped: sun pages by block, alone or not, a l
     [0, 20, 0, 20, 40, 1, 40, 50, 2, 50, 60, GROUP_LAYER],
   );
   assert.equal(grouping.words[GROUP_CAPACITY_WORD], CAPACITY);
+  // A device that cannot clip a caster to its page keeps the lamp page's own viewport.
+  assert.equal(grouping.plan(batch(false).rt, PAGES.length, false, CAPACITY), 3);
+  assert.deepEqual([...grouping.words.subarray(0, 6)], [1, 1, 2, 2, 3, 0]);
 });
 
 test('every kept caster of a grouped page is drawn once, in its group, by its own view', () => {
@@ -103,8 +106,12 @@ test('a grouped page is skipped by its own draws and drawn by its group, in the 
       freshDraws: { pageLayout: {} },
       targets: [{}],
       groupDraws: {
-        ...{ layout: {}, blendLayout: {}, blended: () => ['depth', 'colour'] },
-        made: () => ({ opaque: 'opaque', cutout: 'cutout' }),
+        ...{ layout: {}, blendLayout: {}, lamps: true },
+        blended: (lamp: boolean) => (lamp ? ['lamp depth', 'lamp colour'] : ['depth', 'colour']),
+        made: (lamp: boolean) => ({
+          opaque: `${lamp ? 'lamp ' : ''}opaque`,
+          cutout: `${lamp ? 'lamp ' : ''}cutout`,
+        }),
       },
     },
     mobility: { hasCutouts: true },
@@ -162,9 +169,9 @@ test('a grouped page is skipped by its own draws and drawn by its group, in the 
     drawn(),
     viewports(1).flatMap((viewport, g) => [
       viewport,
-      'setPipeline opaque',
+      `setPipeline ${g === 3 ? 'lamp ' : ''}opaque`,
       `drawIndirect ·,${32 * g}`,
-      'setPipeline cutout',
+      `setPipeline ${g === 3 ? 'lamp ' : ''}cutout`,
       `drawIndirect ·,${32 * g + 16}`,
     ]),
   );
@@ -175,9 +182,9 @@ test('a grouped page is skipped by its own draws and drawn by its group, in the 
     drawn(),
     viewports(2).flatMap((viewport, g) => [
       viewport,
-      'setPipeline depth',
+      `setPipeline ${g === 3 ? 'lamp ' : ''}depth`,
       `drawIndirect ·,${32 * g}`,
-      'setPipeline colour',
+      `setPipeline ${g === 3 ? 'lamp ' : ''}colour`,
       `drawIndirect ·,${32 * g}`,
     ]),
   );

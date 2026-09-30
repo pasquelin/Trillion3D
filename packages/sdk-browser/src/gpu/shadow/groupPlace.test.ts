@@ -11,7 +11,7 @@ import { shaderFunctions } from '../../texture/shaderRule.fixture.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { groupBlockSide } from '../../webgpu/shadow/movingGroupPlan.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
-import { GROUP_LAYER } from './groupWgsl.ts';
+import { GROUP_LAYER, SHADOW_GROUP_LAMP_WGSL } from './groupWgsl.ts';
 import { MAX_SHADOW_REGIONS } from './recordPack.ts';
 import { GROUP_CAPACITY_WORD } from './batchBudget.ts';
 
@@ -91,4 +91,31 @@ test("a lamp page's corner is carried onto its square of the layer, as the GPU's
       'the page quad corner (`page_quad_vs`), depth and w untouched',
     );
   }
+});
+
+test("a lamp group's caster is clipped to its page's square by its distances, as its viewport did", () => {
+  const rect = [-0.25, 0.5, 0.125, -0.125];
+  let position: number[] = [];
+  const { groupLampCaster } = shaderRun<{
+    groupLampCaster: (v: number, i: number, cutout: boolean, blend: boolean) => { clip: number[] };
+  }>(SHADOW_GROUP_LAMP_WGSL, ['groupLampCaster'], {
+    groupViews: [{ rect }],
+    groupCaster: () => ({ position, region: 0 }),
+    GroupOut: (...fields: unknown[]) => ({ clip: fields[5] }),
+  });
+  const kept = (x: number, y: number, w: number) => {
+    position = [x * w, y * w, 0.5, w];
+    return groupLampCaster(0, 0, false, false).clip.every((d) => d >= 0);
+  };
+  // The page's square of the layer: x in [−0.375, −0.125], y in [0.375, 0.625], a flipped side.
+  assert.equal(kept(-0.25, 0.5, 3), true, 'its centre');
+  assert.equal(kept(-0.375, 0.625, 2), true, 'its corner, on the edge');
+  for (const [x, y] of [
+    [-0.4, 0.5],
+    [-0.1, 0.5],
+    [-0.25, 0.37],
+    [-0.25, 0.63],
+  ])
+    assert.equal(kept(x, y, 3), false, `${x}, ${y}: past a side`);
+  assert.equal(kept(-0.25, 0.5, -3), false, 'behind the lamp');
 });
