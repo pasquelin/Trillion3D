@@ -21,12 +21,13 @@ let scratch = new Float32Array(0);
 /**
  * THE FLOAT VERTEX POOL of the WebGPU passes: the geometry they read as floats — the clusters no
  * quantized page covers, a cache that carries none, a world's dynamic geometry (#573). Its stores
- * — two storage buffers and a normal atlas (`geometryPoolStores.ts`) — hold a block per sourced geometry (`place`), a dynamic geometry's rewritten ranges written in
- * place (`write`), and, after them, the deformation block the callers re-place (`tailFloats`). A
- * record mounted after the open, or one whose held box asks more, grows the room in place
- * (`ensure`): the buffers are made wider, what they hold copied into them, and the owners told
- * (`grown`) — no reopen (#1293). Colours ride at the tail of the UV buffer
- * (`vertexColors.ts`), which carries none when no geometry has any.
+ * — two storage buffers and a normal atlas (`geometryPoolStores.ts`, #1410) — hold a block per
+ * sourced geometry (`place`), a dynamic geometry's rewritten ranges written in place (`write`),
+ * and, after the positions, the deformation block the callers re-place (`tailFloats`). A record
+ * mounted after the open, or one whose held box asks more, grows the room in place (`ensure`):
+ * the stores are made wider, the buffers' contents copied, the normals written again from their
+ * geometries, and the owners told (`grown`) — no reopen (#1293). Colours ride at the tail of the
+ * UV buffer (`vertexColors.ts`), which carries none when no geometry has any.
  */
 export function createVertexPool(
   device: GPUDevice,
@@ -86,6 +87,14 @@ export function createVertexPool(
     stores = made;
     size = next;
     floats = wider;
+    // The atlas's rows follow its size: every block's normals are written again, as placed.
+    for (const [attributes, block] of blocks)
+      if (holds(attributes, 'normal'))
+        upload(
+          'normal',
+          offsetOf('normal', next, block.vertexBase),
+          fill(attributes, 'normal', 0, block.count),
+        );
     grown?.(next);
     return true;
   };
@@ -128,7 +137,10 @@ export function createVertexPool(
      *  open's one packing. */
     pack(sourced: ReadonlyMap<HostAttributes, boolean>) {
       const arrays = Object.fromEntries(
-        [...BUFFERS, 'concatNrm'].map((key) => [key, new Float32Array(floats[key as BufferKey])]),
+        (Object.keys(floats) as (keyof typeof floats)[]).map((key) => [
+          key,
+          new Float32Array(floats[key]),
+        ]),
       ) as Stores<Float32Array<ArrayBuffer>>;
       for (const [attributes, dynamic] of sourced) {
         const block = claim(attributes, dynamic);
