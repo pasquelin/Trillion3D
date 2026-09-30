@@ -43,7 +43,8 @@ const SHADE_WGSL = `
  * ten-thousandth of its squared range (`RANGE_REJECT`): there `directIncidence` would have returned
  * zero before any shading, shadow or page read, so the sum loses an exact zero only (#1249). Timed
  * on the resolve (64 lamps, a million pixels), it takes 30 % off a light out of range for 13 % on
- * one in range. The narrow resolve's slice is the list itself (#849), read at its listed rank.
+ * one in range. The kind is read alone (`isSunKind`), not through `isSun`, which takes the whole record. The
+ * narrow resolve's slice is the list itself (#849), read at its listed rank.
  */
 export const sliceLightingWgsl = (narrow: boolean) => `
 fn sliceLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,slice:vec2u)->vec3f{
@@ -52,7 +53,7 @@ fn sliceLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,sl
   ${narrow ? 'let light=tileLights[slice.x+index];' : 'var light=index;if(slice.x!=TILE_NO_SLICE){light=tileLights[slice.x+index];}'}
   let sphere=directLights.items[light].positionRange;
   let offset=sphere.xyz-P;
-  if(abs(directLights.items[light].params.x-KIND_SUN)>=0.5&&dot(offset,offset)>sphere.w*sphere.w*RANGE_REJECT){continue;}
+  if(!isSunKind(directLights.items[light].params.x)&&dot(offset,offset)>sphere.w*sphere.w*RANGE_REJECT){continue;}
   result+=declaredLight(directLights.items[light],rgb,metal,rough,N,V,P,ao);
  }
  return result;
