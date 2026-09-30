@@ -36,8 +36,6 @@ export interface WebgpuLightState {
   shadows: GpuShadowAtlas | undefined;
   /** The shadow pool's grant, once asked: `settled` once the device granted or refused it. */
   shadowGrant: DeviceGrant | undefined;
-  /** The drawing buffer the pool was last sized for; another one resizes it (`poolResize.ts`). */
-  poolView: readonly [number, number] | undefined;
   /** The return path of the pages the resolve reads; absent while the pool does not exist. */
   pageRequests: ShadowPageRequests | undefined;
   /** The passes that mark, per pixel, the pages the resolve reads and map them on the GPU
@@ -129,7 +127,6 @@ export function createWebgpuLightState(
     tiles: undefined,
     shadows: undefined,
     shadowGrant: undefined,
-    poolView: undefined,
     pageRequests: undefined,
     demand: undefined,
     allocation: undefined,
