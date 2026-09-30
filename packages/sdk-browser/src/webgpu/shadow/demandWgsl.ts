@@ -59,9 +59,7 @@ ${WORLD_AT_WGSL}
 fn demandPage(m:ShadowMap,p:vec2i,t:vec2f){
  let e=shadowPageEntry(m,p);
  if(e<0){return;}
- let q=clamp(p,vec2i(0),vec2i(m.pages-1));
- let local=clamp(t-vec2f(q)*SHADOW_PAGE,vec2f(0.0),vec2f(SHADOW_PAGE));
- requestShadowPageAt(u32(e),shadowRequestCell(local));
+ requestShadowPageAt(u32(e),shadowRequestCell(shadowPageLocal(m,p,t)));
 }
 /** Marks the home page of map texel \`t\` and the neighbours the PCF reads around it
  *  (\`shadowPcf\`): across the one or two edges it comes near. */

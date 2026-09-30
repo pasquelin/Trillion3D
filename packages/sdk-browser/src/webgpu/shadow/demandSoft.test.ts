@@ -55,7 +55,7 @@ const run: Run = shaderRun<Run>(
   [
     ...['demandLamp', 'demandPages', 'demandPage', 'demandSoftLamp', 'softPageExit'],
     ...['lampShadowFactor', 'pointSoftShadow', 'lampDiskSample', 'lampSoftDisk'],
-    ...['shadowPageEntry', 'lampReadAt', 'shadowNormalTexels', 'pointFaceOf'],
+    ...['shadowPageEntry', 'shadowPageLocal', 'lampReadAt', 'shadowNormalTexels', 'pointFaceOf'],
     'shadowRequestCell',
     ...PAGE_MODEL_FUNCTIONS,
   ],

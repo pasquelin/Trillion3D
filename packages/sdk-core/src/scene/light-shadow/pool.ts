@@ -85,14 +85,14 @@ export function createShadowPool(side: number, layers = 1, tableEntries = SHADOW
      *  receivers' union is kept as it is (`PAGE_FOOTPRINT_EMPTY` until one names it): the page a
      *  receiver names after this draw still narrows it (`demandFootprint.ts`). */
     drew(table: ShadowTable, page: number, mode: number, drawn: number, footprint?: number) {
-      const union = footprint ?? pool.footprint[page];
+      if (footprint !== undefined) pool.footprint[page] = footprint;
       pool.dirty[page] = 0;
       pool.valid[page] = 1;
       pool.layered[page] =
         mode === DRAW_FULL || (mode === DRAW_DYNAMIC && pool.layered[page]) ? 1 : 0;
       pool.range[page] = drawn;
-      pool.footprint[page] = union;
-      table.write(pool.owner[page], PAGES.shadowReadableWord(page, drawn, footprintDrawn(union)));
+      const readable = footprintDrawn(pool.footprint[page]);
+      table.write(pool.owner[page], PAGES.shadowReadableWord(page, drawn, readable));
     },
     /** THE ONE WAY A PAGE IS READ NO MORE: it keeps its place and its requests, but its depth is
      *  wrong — not only coarser than the view wants — until it is drawn again, and a reader falls
