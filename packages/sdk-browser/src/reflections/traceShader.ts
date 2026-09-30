@@ -1,7 +1,8 @@
 import { shaderLanguage } from '../math/shaderLanguage.ts';
 /** The ray from `P` along `R`, clipped to the view (`reflectionExit`) and projected: `start` and
  *  `delta` in pixels, depth `a.z` to `b.z`, `size` the drawn one; clipped away, a miss. The
- *  mirror's walk and the rough one's (`hizTraceWgsl.ts`) both begin with it. */
+ *  mirror's walk, the rough one's (`hizTraceWgsl.ts`) and the cone's (`coneShader.ts`) begin with
+ *  it and read its names. */
 export const REFLECTION_SEGMENT = `
  var c:vec4f=reflectionProject(vec4f(P,1.0));
  var d:vec4f=reflectionProject(vec4f(R,0.0));
