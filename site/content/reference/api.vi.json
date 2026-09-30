@@ -3372,7 +3372,7 @@
       "admission": "Các trang của khung hình này, theo từng góc nhìn ánh sáng.",
       "stamp": "Những gì phép tô bóng, các đèn và góc nhìn trao cho ảnh kế tiếp: một báo cáo đóng dấu bằng nó mà không nêu gì mới chứng minh ảnh chỉ đọc những gì đã vẽ.",
       "settled": "Đúng khi một báo cáo chứng minh trạng thái hiện tại không yêu cầu gì: ảnh có thể được giữ.",
-      "receive": "Một báo cáo yêu cầu đã trả về; kế hoạch tiếp theo đọc nó. Báo cáo mới hơn thay báo cáo chưa đọc.",
+      "receive": "Một báo cáo yêu cầu đã trả về: danh sách trang của GPU được tính ngay (`gpu.hear`), phần còn lại do kế hoạch tiếp theo đọc.",
       "commit": "Các trang `[from, to)` trong danh sách của khung hình đã được mã hóa, trang `from + i` trong `modes[i]`: bản vẽ của chúng xong trước khi có ai đọc. Lô cuối đóng danh sách.",
       "resize": "Pool ở kích thước khác, các trang được giữ, các mảng được tạo lại: trả về nơi mỗi trang đã chuyển đến.",
       "sunWindow": "Số trang mỗi cạnh của clipmap mặt trời mà một phiên chạy với (`referenceMode.ts`).",
