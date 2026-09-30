@@ -63,8 +63,8 @@ export type MaterialTileInputs = { vis: GPUTextureView; pages: GPUBuffer; unifor
  * The material tiles of the image (`materialTilesWgsl.ts`): the slot table, rewritten when the
  * classes the image holds change; the tile lists, sized for the largest image yet; one indirect
  * draw per slot, cleared then counted by the classification each image. Without a classification
- * — a device that refused its pipeline — every class takes no slot and draws every tile: the
- * full-screen triangle's pixels, as before.
+ * — a device that refused its pipeline — every class takes no slot and draws the full-screen
+ * triangle, as before.
  */
 export async function createMaterialTiles(device: GPUDevice, drawLayout: GPUBindGroupLayout) {
   const classify = await classifier(device);
@@ -86,14 +86,8 @@ export async function createMaterialTiles(device: GPUDevice, drawLayout: GPUBind
     capacity = 0,
     classifyGroup: GPUBindGroup | undefined,
     drawGroup: GPUBindGroup | undefined,
-    held: readonly number[] = [],
-    tilesX = 0,
-    tilesY = 0;
+    held: readonly number[] = [];
   return {
-    /** Tiles of the last image classified. */
-    get tileCount() {
-      return tilesX * tilesY;
-    },
     /** Gives each class key of `keys` its slot, in order, `MATERIAL_TILE_SLOTS` past the last
      *  list; rewrites the table when they changed. */
     assign(keys: readonly number[]) {
@@ -105,8 +99,8 @@ export async function createMaterialTiles(device: GPUDevice, drawLayout: GPUBind
     },
     /** Classifies the `width` × `height` image; returns the class draws' group 1. */
     encode(encoder: GPUCommandEncoder, width: number, height: number, inputs: MaterialTileInputs) {
-      tilesX = materialTilesOn(width);
-      tilesY = materialTilesOn(height);
+      const tilesX = materialTilesOn(width),
+        tilesY = materialTilesOn(height);
       if (tilesX * tilesY > capacity) {
         tiles?.destroy();
         capacity = tilesX * tilesY;
@@ -148,10 +142,11 @@ export async function createMaterialTiles(device: GPUDevice, drawLayout: GPUBind
       pass.end();
       return drawGroup!;
     },
-    /** Draws class `at` of the keys assigned: its tiles, or every tile past the lists. */
+    /** Draws class `at` of the keys assigned: its tiles, or the full-screen triangle past the
+     *  lists. */
     draw(pass: GPURenderPassEncoder, at: number) {
       if (at < listed) pass.drawIndirect(draws, at * DRAW_BYTES);
-      else pass.draw(6, tilesX * tilesY);
+      else pass.draw(3);
     },
     dispose() {
       tiles?.destroy();

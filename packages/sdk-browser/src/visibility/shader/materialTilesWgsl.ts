@@ -13,8 +13,8 @@ import { SHADE_UNI_WGSL } from './pixelTriangleWgsl.ts';
  * tiles a class has none of are no longer rasterised for it.
  *
  * A class with no list — past the first `MATERIAL_TILE_SLOTS` held, or not held at all — has
- * the slot `MATERIAL_TILE_SLOTS`: no pixel marks it, and drawn it covers every tile, as the
- * full-screen triangle did.
+ * the slot `MATERIAL_TILE_SLOTS`: no pixel marks it, and it draws the full-screen triangle, as
+ * before (`classTriangle`, `shadeDeclWgsl.ts`).
  */
 export const MATERIAL_TILE_SIZE = 32;
 export const MATERIAL_TILE_SLOTS = 64;
@@ -30,9 +30,9 @@ fn tileListStart(slot:u32)->u32{return slot*(arrayLength(&classTiles)/MATERIAL_T
 
 /**
  * The class draws' vertex stage, in the resolve's module: quad corner `i` of tile `n` of the
- * class's list — or of the image, for a class with no list —, at the class depth. The corners are
- * whole pixels, shared by the neighbour tiles: no pixel centre lies on an edge, none is covered
- * twice.
+ * class's list at the class depth — for a class with no list, corner `i` of the full-screen
+ * triangle. The corners are whole pixels, shared by the neighbour tiles: no pixel centre lies on an
+ * edge, none is covered twice.
  */
 export const MATERIAL_TILE_DRAW_WGSL = `${CONSTANTS_WGSL}
 @group(1) @binding(0) var<storage,read> classSlots:array<u32>;
@@ -45,9 +45,8 @@ fn materialTileCorner(tile:u32,i:u32,tilesX:u32)->vec2u{
 }
 @vertex fn shade_tile_vs(@builtin(vertex_index) i:u32,@builtin(instance_index) n:u32)->@builtin(position) vec4f{
  let slot=classSlots[CLASS_KEY];
- var tile=n;
- if(slot<MATERIAL_TILE_SLOTS){tile=classTiles[tileListStart(slot)+n];}
- let pixel=vec2f(materialTileCorner(tile,i,materialTilesX(vec2u(uni.viewport))));
+ if(slot>=MATERIAL_TILE_SLOTS){return classTriangle(i);}
+ let pixel=vec2f(materialTileCorner(classTiles[tileListStart(slot)+n],i,materialTilesX(vec2u(uni.viewport))));
  return vec4f(pixel.x/uni.viewport.x*2.0-1.0,1.0-pixel.y/uni.viewport.y*2.0,CLASS_DEPTH,1.0);
 }`;
 
