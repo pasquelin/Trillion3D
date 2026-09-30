@@ -1,4 +1,5 @@
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts';
+import { casterPrimitive } from '../../gpu/shadow/casterPrimitive.ts';
 import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts';
 import { VIS_BINDINGS } from '../core/bindLayout.ts';
 import { visLayoutEntries } from '../visibility/shaders.ts';
@@ -55,6 +56,12 @@ export function shadowFreshDraws(
     device.createPipelineLayout({ bindGroupLayouts: [pageLayout, faceLayout, group] });
   const pool = layoutOf(poolLayout),
     tint = layoutOf(tintLayout);
+  // The clear draws place page squares in NDC; the caster draws place sun corners through
+  // `shadowVertexIn` -> `sunSnap` (`freshDrawsWgsl.ts`), which the hardware clipper can cut into
+  // unsnapped corners (#26). `casterPrimitive` disables that clip where the device allows it; the
+  // clears keep the default.
+  const base: GPUPrimitiveState = { topology: 'triangle-list', cullMode: 'none' };
+  const caster = casterPrimitive(device, base);
   const pipeline = (
     label: string,
     layout: GPUPipelineLayout,
@@ -63,6 +70,7 @@ export function shadowFreshDraws(
     depthWriteEnabled: boolean,
     depthCompare: GPUCompareFunction,
     format: GPUTextureFormat,
+    primitive: GPUPrimitiveState,
   ) =>
     preparedPipeline(device, {
       label: `Trillion3D shadow GPU page ${label} v1`,
@@ -71,7 +79,7 @@ export function shadowFreshDraws(
       ...(fragment && {
         fragment: { module, entryPoint: fragment, targets: target ? [target] : [] },
       }),
-      primitive: { topology: 'triangle-list', cullMode: 'none' },
+      primitive,
       depthStencil: { format, depthWriteEnabled, depthCompare },
     });
   const colour = SHADOW_TRANSMITTANCE_FORMAT,
@@ -85,6 +93,7 @@ export function shadowFreshDraws(
       true,
       'always',
       'depth32float',
+      base,
     ),
     casters: pipeline(
       'casters',
@@ -94,6 +103,7 @@ export function shadowFreshDraws(
       true,
       DEPTH_COMPARE,
       'depth32float',
+      caster,
     ),
     tintClear: pipeline(
       'tint clear',
@@ -103,6 +113,7 @@ export function shadowFreshDraws(
       true,
       'always',
       tinted,
+      base,
     ),
     tintDepth: pipeline(
       'tint depth',
@@ -112,6 +123,7 @@ export function shadowFreshDraws(
       true,
       DEPTH_COMPARE,
       tinted,
+      caster,
     ),
     tintColour: pipeline(
       'tint colour',
@@ -121,6 +133,7 @@ export function shadowFreshDraws(
       false,
       'always',
       tinted,
+      caster,
     ),
   };
   type Made = { [K in keyof typeof draws]: GPURenderPipeline };
