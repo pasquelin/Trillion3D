@@ -119,3 +119,20 @@ test('no gate asks for an example thumbnail: the recette captures them after the
   // `VALIDATE_STEPS` holds every group, `TREE_GATES` (what `check:changed` runs) among them.
   assert.ok(!(VALIDATE_STEPS as readonly string[]).includes('check:thumbnails'));
 });
+
+test('a documentation-only pull request skips the code jobs and still reports validate', () => {
+  for (const job of ['typescript', 'native', 'unit'])
+    assert.match(
+      workflow,
+      new RegExp(
+        `^ {2}${job}:\\n {4}needs: changes\\n {4}if: needs\\.changes\\.outputs\\.code == 'true'$`,
+        'm',
+      ),
+      job,
+    );
+  assert.match(workflow, /node scripts\/code-change\.ts >> "\$GITHUB_OUTPUT"/);
+  assert.match(
+    workflow,
+    /\.result == "success" or \(\$code == "false" and \.result == "skipped"\)/,
+  );
+});
