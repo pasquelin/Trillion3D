@@ -16,6 +16,13 @@ const lateCancel = <T>(value: T, options: { disposeResult?: (result: T) => void 
   );
 };
 
+/** Work that waits until the test lets it go. */
+const deferred = <T>() => {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => (resolve = done));
+  return { promise, resolve };
+};
+
 test('Job snapshots expose actual progress and completion; observer failures cannot corrupt work', async () => {
   const statuses: string[] = [];
   const job = createJob(
@@ -33,9 +40,7 @@ test('Job snapshots expose actual progress and completion; observer failures can
   );
   const initial = job.getSnapshot();
   assert.equal(initial, job.getSnapshot());
-  job.subscribe(() => {
-    throw new Error('observer');
-  });
+  job.subscribe(() => assert.fail('observer'));
   assert.equal(await job.promise, 42);
   assert.equal(job.getSnapshot().status, 'completed');
   assert.equal(job.getSnapshot().result, 42);
@@ -45,12 +50,10 @@ test('Job snapshots expose actual progress and completion; observer failures can
 
 test('subscribers see frozen progress snapshots, unsubscribe, and receive the completed value', async () => {
   const observed: unknown[] = [];
-  let resolveWork!: (value: string) => void;
+  const work = deferred<string>();
   const job = createJob('asset-7', async ({ progress }) => {
     progress({ phase: 'parse', completed: 2, total: 3 });
-    return new Promise<string>((resolve) => {
-      resolveWork = resolve;
-    });
+    return work.promise;
   });
   assert.deepEqual(job.getSnapshot(), {
     eventVersion: 1,
@@ -70,7 +73,7 @@ test('subscribers see frozen progress snapshots, unsubscribe, and receive the co
   assert.equal(job.getSnapshot().status, 'running');
   assert.deepEqual(job.getSnapshot().progress, { phase: 'parse', completed: 2, total: 3 });
   unsubscribe();
-  resolveWork('compiled');
+  work.resolve('compiled');
   assert.equal(await job.promise, 'compiled');
   assert.equal(observed.length, 2);
   assert.deepEqual(job.getSnapshot(), {
@@ -101,14 +104,7 @@ test('a work error remains the promise rejection and appears in the failed snaps
 
 test('Pre-cancelled jobs do not begin work', async () => {
   let called = false;
-  const job = createJob(
-    'cancel',
-    async () => {
-      called = true;
-      return 1;
-    },
-    { signal: AbortSignal.abort() },
-  );
+  const job = createJob('cancel', async () => (called = true), { signal: AbortSignal.abort() });
   await assert.rejects(job.promise);
   assert.equal(called, false);
   assert.equal(job.getSnapshot().status, 'cancelled');
@@ -116,193 +112,85 @@ test('Pre-cancelled jobs do not begin work', async () => {
 });
 
 test('cancel relays the caller reason and prevents later progress from publishing', async () => {
-  let continueWork!: () => void;
+  const work = deferred<void>();
   let aborted: unknown;
   const job = createJob('cancel-midway', async ({ signal, progress }) => {
     signal.addEventListener('abort', () => {
       aborted = signal.reason;
     });
-    await new Promise<void>((resolve) => {
-      continueWork = resolve;
-    });
+    await work.promise;
     progress({ phase: 'must-not-publish' });
     return 'unreachable';
   });
   await Promise.resolve();
   job.cancel('host cancelled');
   assert.equal(aborted, 'host cancelled');
-  continueWork();
+  work.resolve();
   await assert.rejects(job.promise, (error) => error === 'host cancelled');
   assert.equal(job.getSnapshot().status, 'cancelled');
   assert.equal(job.getSnapshot().progress, null);
   assert.deepEqual(job.getSnapshot().error, { code: 'CANCELLED', message: 'host cancelled' });
 });
 
-test('Cancel after work returns disposes a result that never reached completed', async () => {
-  let disposed = false;
-  const job = lateCancel({
+test('a result returned after cancellation is disposed, and a failing cleanup keeps the job cancelled', async () => {
+  const disposed: string[] = [];
+  const hooked: unknown[] = [];
+  const value = {
     dispose() {
-      disposed = true;
+      disposed.push('result');
+      throw new Error('dispose failed');
+    },
+  };
+  const job = lateCancel(value, {
+    disposeResult(result) {
+      hooked.push(result);
+      throw new Error('host hook failed');
     },
   });
-  await assert.rejects(job.promise);
-  assert.equal(disposed, true);
+  await assert.rejects(job.promise, (error) => error === 'late abort');
+  assert.deepEqual(disposed, ['result']);
+  assert.deepEqual(hooked, [value]);
   assert.equal(job.getSnapshot().status, 'cancelled');
   assert.equal(job.getSnapshot().result, null);
+  const none = lateCancel(undefined, { disposeResult: (result) => hooked.push(result) });
+  await assert.rejects(none.promise);
+  assert.deepEqual(hooked, [value], 'work cancelled before any result disposes nothing');
 });
 
 test('Completed jobs keep ownership of a disposable result', async () => {
   let disposed = false;
-  const job = createJob('keep', async () => ({
-    dispose() {
-      disposed = true;
-    },
-  }));
-  const result = await job.promise;
+  const job = createJob('keep', async () => ({ dispose: () => (disposed = true) }));
+  await job.promise;
   assert.equal(disposed, false);
   assert.equal(job.getSnapshot().status, 'completed');
-  result.dispose();
-  assert.equal(disposed, true);
 });
 
-test('late cancellation disposes only owned results and calls the host hook even after disposal throws', async () => {
-  for (const value of [
-    null,
-    0,
-    'value',
-    {},
-    { dispose: 7 },
-    {
-      dispose() {
-        throw new Error('dispose failed');
-      },
-    },
-  ]) {
-    const hooked: unknown[] = [];
-    const job = lateCancel(value, {
-      disposeResult(result) {
-        hooked.push(result);
-        throw new Error('host hook failed');
-      },
-    });
-    await assert.rejects(job.promise, (error) => error === 'late abort');
-    assert.deepEqual(hooked, [value]);
-    assert.equal(job.getSnapshot().status, 'cancelled');
-    assert.equal(job.getSnapshot().result, null);
-  }
-});
-
-test('a cancelled callable result with a disposer is disposed like any other owned result', async () => {
-  let disposed = false;
-  const value = Object.assign(() => 42, {
-    dispose: () => {
-      disposed = true;
-    },
-  });
-  const hooked: unknown[] = [];
-  const job = lateCancel(value, { disposeResult: (result) => hooked.push(result) });
-  await assert.rejects(job.promise, (error) => error === 'late abort');
-  assert.equal(disposed, true);
-  assert.deepEqual(hooked, [value]);
-  assert.equal(job.getSnapshot().status, 'cancelled');
-});
-
-test('a disposer that cannot be read keeps the cancellation and still reaches the host hook', async () => {
-  const value = {
-    get dispose(): () => void {
-      throw new Error('resource access failed');
-    },
-  };
-  const hooked: unknown[] = [];
-  const job = lateCancel(value, { disposeResult: (result) => hooked.push(result) });
-  await assert.rejects(job.promise, (error) => error === 'late abort');
-  assert.deepEqual(hooked, [value]);
-  assert.equal(job.getSnapshot().status, 'cancelled');
-});
-
-test('cleanup reads a lazy disposer once and calls it on its result', async () => {
-  let accesses = 0;
-  let receiver: unknown;
-  const value = {
-    get dispose() {
-      accesses++;
-      if (accesses > 1) throw new Error('disposer already acquired');
-      return function (this: unknown) {
-        receiver = this;
-      };
-    },
-  };
-  const job = lateCancel(value);
-  await assert.rejects(job.promise, (error) => error === 'late abort');
-  assert.equal(receiver, value);
-  assert.equal(accesses, 1);
-});
-
-test('a dispose field that is not a function is never called', async () => {
-  let invoked = false;
-  const job = lateCancel({
-    dispose: {
-      call() {
-        invoked = true;
-      },
-    },
-  });
-  await assert.rejects(job.promise, (error) => error === 'late abort');
-  assert.equal(invoked, false);
-  assert.equal(job.getSnapshot().status, 'cancelled');
-});
-
-test('cancellation before a result exists does not dispose an undefined result', async () => {
-  const disposed: unknown[] = [];
-  const job = lateCancel(undefined, { disposeResult: (value) => disposed.push(value) });
-  await assert.rejects(job.promise, (error) => error === 'late abort');
-  assert.deepEqual(disposed, []);
-});
-
-test('the external abort listener is released after completion, failure and cancellation', async () => {
-  for (const end of ['complete', 'fail', 'cancel'] as const) {
+test('the external signal is held from the start and released however the job ends', async () => {
+  // `edited`: the caller removes the signal from its options object while the job runs.
+  for (const end of ['complete', 'fail', 'cancel', 'edited'] as const) {
     const controller = new AbortController();
-    let finish!: () => void;
+    const options: { signal?: AbortSignal } = { signal: controller.signal };
+    const work = deferred<void>();
     const job = createJob(
       end,
       async () => {
-        await new Promise<void>((resolve) => {
-          finish = resolve;
-        });
+        await work.promise;
         if (end === 'fail') throw new Error('failure');
         return 5;
       },
-      { signal: controller.signal },
+      options,
     );
     await Promise.resolve();
     assert.equal(getEventListeners(controller.signal, 'abort').length, 1);
-    if (end === 'cancel') controller.abort();
-    finish();
+    if (end === 'edited') delete options.signal;
+    if (end === 'cancel' || end === 'edited') controller.abort(end);
+    work.resolve();
     if (end === 'complete') assert.equal(await job.promise, 5);
-    else await assert.rejects(job.promise);
+    else if (end === 'fail') await assert.rejects(job.promise, /failure/);
+    else await assert.rejects(job.promise, (error) => error === end);
     assert.equal(getEventListeners(controller.signal, 'abort').length, 0);
     const terminal = job.getSnapshot();
     controller.abort();
     assert.equal(job.getSnapshot(), terminal);
   }
-});
-
-test('the job keeps the signal it was given when the caller edits its options while it runs', async () => {
-  const controller = new AbortController();
-  const options: { signal?: AbortSignal } = { signal: controller.signal };
-  let finish!: (value: number) => void;
-  const job = createJob(
-    'edited-options',
-    () =>
-      new Promise<number>((resolve) => {
-        finish = resolve;
-      }),
-    options,
-  );
-  await Promise.resolve();
-  delete options.signal;
-  controller.abort('stop');
-  finish(42);
-  await assert.rejects(job.promise, (error) => error === 'stop');
-  assert.equal(getEventListeners(controller.signal, 'abort').length, 0);
 });

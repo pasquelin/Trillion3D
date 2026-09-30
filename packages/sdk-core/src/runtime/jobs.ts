@@ -1,3 +1,6 @@
+import { disposeOwned } from './jobDisposal.ts';
+
+const noop = () => {};
 /** Where a job stands: waiting, running, done, cancelled or failed. */
 export type JobStatus = 'queued' | 'running' | 'completed' | 'cancelled' | 'failed';
 /** How far a job has got. */
@@ -26,22 +29,6 @@ export interface JobSnapshot<T> {
   result: T | null;
   /** What went wrong. */
   error: { code: string; message: string } | null;
-}
-const noop = () => {};
-function disposeOwned<T>(value: T, hook: (result: T) => void) {
-  try {
-    // Read once: a getter may hand out the disposer a single time, and may throw. `Object` gives
-    // `null` and the primitives a disposer-less object.
-    const dispose = (Object(value) as { dispose?: unknown }).dispose;
-    if (typeof dispose === 'function') dispose.call(value);
-  } catch {
-    /* Disposal cannot change job status, including a disposer that cannot be read. */
-  }
-  try {
-    hook(value);
-  } catch {
-    /* Host disposal hooks cannot change job status. */
-  }
 }
 /** No timers, DOM, filesystem or UI. Hosts inject work, cancellation and telemetry. */
 export function createJob<T>(
