@@ -88,14 +88,18 @@ sha2 = "0.10"
 debug = "line-tables-only"
 incremental = false
 
-# The distributed build, tuned for speed (#1352): the whole program optimised as one unit (fat LTO),
-# a panic ends the process at once — a scoped worker's panic already ended it, now without the
-# unwinding tables —, and the symbols stripped. None of them changes an arithmetic operation: the
-# cooked bytes stay the same. Profile-guided optimisation is added by `scripts/compiler-dist.ts`,
-# which trains the build on the reference scenes; `cargo test` keeps unwinding (Cargo ignores
-# `panic` for tests).
 [profile.release]
-lto = "fat"
+lto = "thin"
 codegen-units = 1
+
+# The distributed build, tuned for speed (#1352): the release build, then the whole program
+# optimised as one unit (fat LTO), a panic ends the process at once — a scoped worker's panic
+# already ended it, now without the unwinding tables —, and the symbols stripped. None of them
+# changes an arithmetic operation: the cooked bytes stay the same. Its own profile, so that the
+# checkout's builds and the tests keep the quicker release one. Profile-guided optimisation is
+# added by `scripts/compiler-dist.ts`, which trains this build on the reference scenes.
+[profile.dist]
+inherits = "release"
+lto = "fat"
 panic = "abort"
 strip = "symbols"

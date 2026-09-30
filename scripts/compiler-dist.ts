@@ -1,10 +1,11 @@
 /**
  * The distributed compiler of this machine's platform (#1352), as the `Compiler` workflow builds
- * it on each of the five: the release build (`Cargo.toml`, fat LTO), then profile-guided — a first
- * build instrumented, trained on the reference scenes (`compiler-hashes.ts`), and the build again
- * from what it measured —, fingerprinted on the same scenes, and copied into its platform package
- * (`packages/compiler/<os>-<arch>/bin`). Profile-guided optimisation lays the code out and inlines
- * where the scenes spend their time; it changes no arithmetic, so no cooked byte.
+ * it on each of the five: the `dist` profile (`Cargo.toml`: fat LTO, abort, stripped), then
+ * profile-guided — a first build instrumented, trained on the reference scenes
+ * (`compiler-hashes.ts`), and the build again from what it measured —, fingerprinted on the same
+ * scenes, and copied into its platform package (`packages/compiler/<os>-<arch>/bin`).
+ * Profile-guided optimisation lays the code out and inlines where the scenes spend their time; it
+ * changes no arithmetic, so no cooked byte.
  *
  *   node scripts/compiler-dist.ts <record.json>
  */
@@ -32,14 +33,14 @@ function build(folder: string, flags: string[]): string {
   execFileSync(
     'cargo',
     [
-      ...['build', '--release', '--locked', '--bin', 'trillion3d-compiler'],
+      ...['build', '--profile', 'dist', '--locked', '--bin', 'trillion3d-compiler'],
       ...['--target', TARGET, '--target-dir', directory],
       ...['--manifest-path', join(CRATE, 'Cargo.toml')],
       ...['--config', `target.${TARGET}.rustflags=${JSON.stringify(flags)}`],
     ],
     { stdio: 'inherit' },
   );
-  return join(directory, TARGET, 'release', compilerFileName(process.platform));
+  return join(directory, TARGET, 'dist', compilerFileName(process.platform));
 }
 
 const [output] = process.argv.slice(2);
