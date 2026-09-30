@@ -26,8 +26,8 @@ test('clearcoat draws silently on WebGL2 and adding unsupported sheen reports it
 
 test('a surface with no feature WebGL2 lacks says nothing', async () => {
   const scene = new Scene().add(
-    G.triangleMesh(new GraphSurface('physical')),
-    G.triangleMesh(new GraphSurface('standard')),
+    G.triangleMesh(new GraphSurface('physical', { roughness: 0.2 })),
+    G.triangleMesh(new GraphSurface('standard', { roughness: 0.2 })),
   );
   const view = session(scene, new EffectChain());
   const said = await heard(view, () => {
@@ -53,7 +53,7 @@ test('a clearcoat set without needsUpdate remains supported', async () => {
 test('a refused surface is left out alone, said once, the loop never stopped', async () => {
   const refused = new GraphSurface('standard', { alphaHash: true });
   const scene = new Scene().add(
-    G.triangleMesh(new GraphSurface('standard')),
+    G.triangleMesh(new GraphSurface('standard', { roughness: 0.2 })),
     G.triangleMesh(refused),
     G.triangleMesh(new GraphSurface('basic')),
   );

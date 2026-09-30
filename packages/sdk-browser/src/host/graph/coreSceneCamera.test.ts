@@ -93,7 +93,9 @@ test('a core scene is hooked: a draw calls its hooks around the scene it draws',
   geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3));
   geometry.setAttribute('normal', new BufferAttribute(new Float32Array(9), 3));
   scene.add(
-    Object.assign(new Mesh(geometry, new GraphSurface('standard')), { frustumCulled: false }),
+    Object.assign(new Mesh(geometry, new GraphSurface('standard', { roughness: 0.2 })), {
+      frustumCulled: false,
+    }),
   );
   const heard: string[] = [];
   scene.onBeforeRender = () => heard.push('before');

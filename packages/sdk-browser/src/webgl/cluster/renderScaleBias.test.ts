@@ -41,7 +41,8 @@ function drawn(outputs: HostDrawOutput[], model: 'lambert' | 'standard' = 'lambe
     geometry = new Geometry().setIndex(new BufferAttribute(new Uint32Array(3), 1));
   geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3));
   geometry.setAttribute('normal', new BufferAttribute(new Float32Array(9), 3));
-  const mesh = new Mesh(geometry, new GraphSurface(model));
+  // A polished physical surface, under the screen-reflection cutoff: it runs a source pass (#1341).
+  const mesh = new Mesh(geometry, new GraphSurface(model, { roughness: 0.2 }));
   mesh.frustumCulled = false;
   scene.add(mesh);
   const draw = createSceneDraw(context.gl, scene, [], { pixelRatio: () => 2 });

@@ -22,7 +22,7 @@ export interface TaaFrameState {
   shadowsSeen: number;
   /** True when the current image accumulates: rendered with jitter, resolved by the pass. */
   active: boolean;
-  /** Scale the last ordinary image was drawn at (`imageScale`), which a convergence image keeps. */
+  /** Scale the last ordinary image was drawn at (`ScaleControl.wanted`), which a convergence image keeps. */
   scale: number;
   /** Rank of a MOVING image, whose lighting is drawn per pixel (`../lighting/direct/lightSamplingWgsl.ts`):
    *  bounded, different from one to the next, replayed with the image. Zero when still. */
