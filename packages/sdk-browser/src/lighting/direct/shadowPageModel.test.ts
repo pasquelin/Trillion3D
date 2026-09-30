@@ -87,7 +87,6 @@ const INPUTS: Record<string, () => number> = {
   age: () => int(1, 600),
   page: () => int(0, PAGE_INDEX_MASK),
   range: () => int(0, PAGE_RANGE_MASK),
-  footprintBits: () => int(0, 255),
 };
 /** Texels on and about the edges the PCF and the page of a texel turn on, from a page's first. */
 const EDGES = [-1.5, -1.5 - 2 ** -20, 0, 1.5, 1.5 - 2 ** -20, 64, 64 - 2 ** -20, 126.5, 128];

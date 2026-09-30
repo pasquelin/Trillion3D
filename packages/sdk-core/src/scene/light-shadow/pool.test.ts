@@ -6,10 +6,19 @@ import { createShadowPool, DRAW_ALL, DRAW_DYNAMIC, DRAW_FULL, STALE_DYNAMIC } fr
 import { createShadowTable } from './table.ts';
 import { createShadowPlan } from './plan.ts';
 import { createSceneLightStore } from '../light/store.ts';
-import { PAGE_MAPPED, PAGE_RANGE_SHIFT, PAGE_VALID } from './virtual.ts';
-import { PAGE_FOOTPRINT_SHIFT } from './footprint.ts';
-import { SUN, VIEW, lampPages, planFrame, report, sunPages } from './lightShadow.fixture.ts';
-import { pageFootprint } from './footprint.fixture.ts';
+import { PAGE_INDEX_MASK, PAGE_MAPPED, PAGE_RANGE_SHIFT } from './virtual.ts';
+import { SHADOW_CULL_FLOATS } from './faces.ts';
+import { writeSunSquare } from './sunFaces.ts';
+import { sunPageMetres } from './pageModel.ts';
+import {
+  SUN,
+  VIEW,
+  lampPages,
+  planFrame,
+  report,
+  sunPages,
+  sunScene,
+} from './lightShadow.fixture.ts';
 
 function mapped() {
   const table = createShadowTable(1024),
@@ -53,19 +62,6 @@ test('a layer drawn in another depth range is drawn again with the page, never r
   assert.equal(pool.drawMode(page, true, 4), DRAW_FULL, "another range: the layer's is not it");
 });
 
-test('a page carries the footprint it was drawn for; drawn whole, its word is what it was', () => {
-  const { table, pool, page } = mapped();
-  pool.drew(table, page, DRAW_ALL, 3);
-  assert.equal(pool.footprint[page], 0);
-  assert.equal(table.words[7], page | PAGE_MAPPED | PAGE_VALID | (3 << PAGE_RANGE_SHIFT));
-  const part = pageFootprint(0, 0, 32, 64),
-    whole = table.words[7];
-  pool.drew(table, page, DRAW_ALL, 3, part);
-  assert.equal(pool.footprint[page], part);
-  assert.equal(table.words[7] >>> PAGE_FOOTPRINT_SHIFT, part, 'in its word, top bit included');
-  assert.equal(table.words[7] % 2 ** PAGE_FOOTPRINT_SHIFT, whole, 'below it, the word drawn whole');
-});
-
 test('an entry mapped again after the pool evicted it counts as refetched, once', () => {
   const table = createShadowTable(1),
     pool = createShadowPool(1);
@@ -105,4 +101,41 @@ test('a lamp mip and a sun level are ranked within their own light before they c
     'the pages go to the coarser of the two',
   );
   assert.equal(plan.table.words[sunPage] & PAGE_MAPPED, 0);
+});
+
+test('a page a mover covers in part is never reported valid-cached until its moving casters are redrawn', () => {
+  const { store, plan, slice } = sunScene();
+  const level = plan.sun.finest[slice] + 4,
+    pages = sunPages(plan, slice, level, [[3, 2]]),
+    { pool, admission } = plan;
+  const listed = () => [...admission.list.subarray(0, admission.count)];
+  // The engine's loop with a static layer: each page drawn as `drawMode` says.
+  const drawn = () =>
+    plan.commit(listed().map((page) => pool.drawMode(page, true, plan.records.rangeOf(page))));
+  for (let frame = 1; frame < 4; frame++) {
+    planFrame(plan, store, frame);
+    drawn();
+    report(plan, store, frame, pages);
+  }
+  const page = plan.table.words[pages[0]] & PAGE_INDEX_MASK,
+    cached = plan.counts.cachedPages;
+  assert.equal(pool.layered[page], 1, 'its static casters are in the layer');
+  // A moving caster a tenth of the page wide, over the page's centre: it covers a part of it.
+  const volume = new Float32Array(SHADOW_CULL_FLOATS),
+    half = sunPageMetres(level) / 20;
+  writeSunSquare(new Float32Array(16), 0, volume, 0, plan.sun, slice, level, 3, 2);
+  const centre = [0, 1, 2].map((a) => volume[a]);
+  plan.worldChanged(
+    centre.map((c) => c - half),
+    centre.map((c) => c + half),
+    true,
+  );
+  planFrame(plan, store, 4);
+  assert.equal(pool.dirty[page], STALE_DYNAMIC, 'its moving casters are stale');
+  assert.ok(plan.counts.cachedPages < cached, 'not counted straight from the cache');
+  assert.equal(pool.drawMode(page, true, plan.records.rangeOf(page)), DRAW_DYNAMIC);
+  assert.ok(listed().includes(page), 'drawn this frame');
+  drawn();
+  assert.equal(pool.dirty[page], 0, 'current once its moving casters are redrawn');
+  assert.equal(pool.layered[page], 1, 'over its static layer, kept');
 });

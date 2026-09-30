@@ -5,7 +5,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { referenceSunWindow } from '../../frame/referenceMode.ts';
-import { SHADOW_REQUEST_MISS } from '../../../../sdk-core/src/scene/light-shadow/footprint.ts';
 import {
   SUN_WINDOW,
   shadowTableEntries,
@@ -82,11 +81,10 @@ test('the GPU shadow passes compile the session window, the ordinary constant by
   assert.notEqual(reference.demand, ordinary.demand);
 });
 
-test('the entry mask clears the miss flag and keeps every entry, whatever the window', () => {
+test('the entry mask keeps every entry, whatever the window', () => {
   for (const pages of [SUN_WINDOW, REFERENCE_SUN_WINDOW]) {
     const mask = shadowEntryMask(pages),
       last = shadowTableEntries(pages) - 1;
-    assert.equal(mask & SHADOW_REQUEST_MISS, 0, `${pages}: the flag is outside the mask`);
     for (const entry of [0, 1, 2 ** 14, 2 ** 22, last]) {
       if (entry > last) continue;
       assert.equal(entry & mask, entry, `${pages}: entry ${entry} survives the mask`);

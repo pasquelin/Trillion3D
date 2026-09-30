@@ -138,7 +138,7 @@ fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32,
  let offset=shadowOffset(homeWord,home);
  let step=vec2i(shadowPcfStep(t.x,first.x),shadowPcfStep(t.y,first.y));
  let up=step>vec2i(0);
- let n=shadowNeighbours(m,home,step,edge,offset,homeWord,t);
+ let n=shadowNeighbours(m,home,step,edge,offset,homeWord);
  if(!taps){return 0.0;}
  var lit=0.0;
  if(!any(edge)){

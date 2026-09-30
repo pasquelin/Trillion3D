@@ -5618,7 +5618,7 @@
       "shadowStaticDrawCalls": "Draw-Calls statischer Schattenwerfer: in die statische Ebene oder für eine ohne sie ganz gezeichnete Seite.",
       "shadowMovingDrawCalls": "Draw-Calls nur der bewegten Schattenwerfer, über Seiten, die aus der statischen Ebene wiederhergestellt wurden.",
       "shadowMovingCastersKept": "Von `shadowCastersKept` die Cluster, die behalten wurden, um nur bewegte Schattenwerfer zu zeichnen.",
-      "shadowPagesStaledBy": "Seiten, die das Bild veralten ließ, nach Grund: Licht, ruhender Schattenwerfer, bewegte Schattenwerfer, Detail, Schnittschwelle, Tiefenbereich einer Sonne oder ein Fußabdruck, den ihre Empfänger vergrößert haben.",
+      "shadowPagesStaledBy": "Seiten, die das Bild veralten ließ, nach Grund: Licht, ruhender Schattenwerfer, bewegte Schattenwerfer, Detail, Schnittschwelle oder Tiefenbereich einer Sonne.",
       "shadowWaitMs": "Wie viele Millisekunden die älteste veraltete Seite, die das Bild liest, auf ihr Neuzeichnen gewartet hat. Nur die Zeit, in der das Bild sie liest, zählt; 0, sobald sie neu gezeichnet ist.",
       "shadowCutDrops": "Light-Cut-Batches, die Arbeit verworfen haben — ihre Ansichten behielten mehr Cluster, als die Listen fassen —, seit dem Öffnen des Explorers: Jeder schickt seine Seiten zurück, entzogen bis zum Neuzeichnen (#525). Null auf einer Engine ohne GPU-Light-Cut, ebenso die drei folgenden.",
       "shadowCutWithdrawnPages": "Seiten, die neu gezeichnet werden, weil ein Light-Cut sie falsch gezeichnet hat, seit dem Öffnen des Explorers: Sein Batch hat Arbeit verworfen, oder sein Flag wurde nie gelesen. Sie sind bis zum Neuzeichnen entzogen.",
@@ -5650,7 +5650,7 @@
       "shadowMemoryEvents": "Die Speicherdruck-Ereignisse der Schatten seit dem Öffnen der Welt, nach Namen, der Reihe nach; normalerweise leer.",
       "shadowPagesRefetched": "Virtuelle Seiten, die erneut abgebildet wurden, nachdem der Pool sie für Platz verdrängt hatte, seit dem Öffnen des Explorers: die Neuzeichnungen, die ein für die gelesenen Bilder zu kleiner Pool kostet.",
       "shadowCastersKept": "Schattenwerfer, die das Culling pro Seite behalten hat, alle gezeichneten Seiten zusammen, im zuletzt vom Gerät abgetasteten Bild — eines von fünfzehn; `null`, bis eine Probe zurückkam.",
-      "shadowCastersRejected": "Schattenwerfer, die das Culling pro Seite getestet und nicht behalten hat — außerhalb des Teils der Seite, den ihre Empfänger lesen —, im selben abgetasteten Bild; `null`, bis eine Probe zurückkam.",
+      "shadowCastersRejected": "Schattenwerfer, die das Culling pro Seite getestet und nicht behalten hat — außerhalb des Volumens der Seite, für die sie getestet wurden —, im selben abgetasteten Bild; `null`, bis eine Probe zurückkam.",
       "shadowCastersHidden": "Bewegte Schattenwerfer, die der Verdeckungstest hinter der statischen Ebene ihrer Seite verborgen fand, im zuletzt abgetasteten Bild; `null`, bis eine Probe zurückkam."
     }
   },
@@ -6987,7 +6987,7 @@
       "shadowStaticDrawCalls": "Draw-Calls statischer Schattenwerfer: in die statische Ebene oder für eine ohne sie ganz gezeichnete Seite.",
       "shadowMovingDrawCalls": "Draw-Calls nur der bewegten Schattenwerfer, über Seiten, die aus der statischen Ebene wiederhergestellt wurden.",
       "shadowMovingCastersKept": "Von `shadowCastersKept` die Cluster, die behalten wurden, um nur bewegte Schattenwerfer zu zeichnen.",
-      "shadowPagesStaledBy": "Seiten, die das Bild veralten ließ, nach Grund: Licht, ruhender Schattenwerfer, bewegte Schattenwerfer, Detail, Schnittschwelle, Tiefenbereich einer Sonne oder ein Fußabdruck, den ihre Empfänger vergrößert haben.",
+      "shadowPagesStaledBy": "Seiten, die das Bild veralten ließ, nach Grund: Licht, ruhender Schattenwerfer, bewegte Schattenwerfer, Detail, Schnittschwelle oder Tiefenbereich einer Sonne.",
       "shadowWaitMs": "Wie viele Millisekunden die älteste veraltete Seite, die das Bild liest, auf ihr Neuzeichnen gewartet hat. Nur die Zeit, in der das Bild sie liest, zählt; 0, sobald sie neu gezeichnet ist.",
       "shadowCutDrops": "Light-Cut-Batches, die Arbeit verworfen haben — ihre Ansichten behielten mehr Cluster, als die Listen fassen —, seit dem Öffnen des Explorers: Jeder schickt seine Seiten zurück, entzogen bis zum Neuzeichnen (#525). Null auf einer Engine ohne GPU-Light-Cut, ebenso die drei folgenden.",
       "shadowCutWithdrawnPages": "Seiten, die neu gezeichnet werden, weil ein Light-Cut sie falsch gezeichnet hat, seit dem Öffnen des Explorers: Sein Batch hat Arbeit verworfen, oder sein Flag wurde nie gelesen. Sie sind bis zum Neuzeichnen entzogen.",
@@ -7058,7 +7058,7 @@
       "shadowMemoryEvents": "Die Speicherdruck-Ereignisse der Schatten seit dem Öffnen der Welt, nach Namen, der Reihe nach; normalerweise leer.",
       "shadowPagesRefetched": "Virtuelle Seiten, die erneut abgebildet wurden, nachdem der Pool sie für Platz verdrängt hatte, seit dem Öffnen des Explorers: die Neuzeichnungen, die ein für die gelesenen Bilder zu kleiner Pool kostet.",
       "shadowCastersKept": "Schattenwerfer, die das Culling pro Seite behalten hat, alle gezeichneten Seiten zusammen, im zuletzt vom Gerät abgetasteten Bild — eines von fünfzehn; `null`, bis eine Probe zurückkam.",
-      "shadowCastersRejected": "Schattenwerfer, die das Culling pro Seite getestet und nicht behalten hat — außerhalb des Teils der Seite, den ihre Empfänger lesen —, im selben abgetasteten Bild; `null`, bis eine Probe zurückkam.",
+      "shadowCastersRejected": "Schattenwerfer, die das Culling pro Seite getestet und nicht behalten hat — außerhalb des Volumens der Seite, für die sie getestet wurden —, im selben abgetasteten Bild; `null`, bis eine Probe zurückkam.",
       "shadowCastersHidden": "Bewegte Schattenwerfer, die der Verdeckungstest hinter der statischen Ebene ihrer Seite verborgen fand, im zuletzt abgetasteten Bild; `null`, bis eine Probe zurückkam.",
       "dynamicUploadBytes": "Vertex-Bytes dynamischer Geometrie, die in diesem Bild an Ort und Stelle hochgeladen wurden (#573), innerhalb des Budgets der Welt pro Bild (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Fehlt, wo keine Welt zeichnet.",
       "gpuDeformationMs": "GPU-Verformungsdauer für den Frame von `gpuPassMs`; null vor der Messung oder ohne Unterstützung."

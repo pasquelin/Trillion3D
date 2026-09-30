@@ -121,7 +121,7 @@ async function runScene(device: GPUDevice, scene: DemandScene) {
       const slice = Math.floor(entry / SHADOW_TABLE_STRIDE),
         sun = plan.records.kind[slice] === LIGHT_KIND.directional,
         range = sun ? plan.sun.ranges.current[slice] : 0;
-      table[entry] = PAGES.shadowReadableWord(i % (ATLAS * ATLAS), range, 0);
+      table[entry] = PAGES.shadowReadableWord(i % (ATLAS * ATLAS), range);
     });
     device.queue.writeBuffer(data, SHADOW_TABLE_OFFSET, table);
     const textures: [number, Entry][] = [
