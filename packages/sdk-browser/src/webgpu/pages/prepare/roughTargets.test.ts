@@ -7,7 +7,7 @@ import { frameTargetAllocation } from './targetAllocation.ts';
 import { standardSurface } from '../../../host/graph/graph.fixture.ts';
 import { surfaceOf } from '../../../page/surface.ts';
 import { frameTargetBytes } from '../../../scene/surfaceBuffer.ts';
-import { REFLECTION_SOURCE_VIEW_BYTES } from '../../../reflections/source.ts';
+import { REFLECTION_SOURCE_VIEW_BYTES } from '../../../reflections/sourceWgsl.ts';
 
 const native = (width: number, height: number) => ({
   width,
@@ -33,14 +33,14 @@ test('rough opaque receivers allocate their own history, while a resize releases
   const bytes = frameTargetAllocation(rt, size);
   // The rough trace walks the depth bounds alone: 32×16 to 1×1 of rg32float, six extents.
   const bounds = (512 + 128 + 32 + 8 + 2 + 1) * 8 + 6 * 256;
-  const expected = frameTargetBytes(64, 32, true) + 64 * 32 * 40 + REFLECTION_SOURCE_VIEW_BYTES;
+  const expected = frameTargetBytes(64, 32, true) + 64 * 32 * 48 + REFLECTION_SOURCE_VIEW_BYTES;
   assert.equal(bytes, expected + bounds + 80 + 160);
   makeTargets(rt, rt.gpu.device!, size, bytes);
   const old = rt.gpu.reflection!.history!;
-  assert.equal(old.bytes, 64 * 32 * 32);
+  assert.equal(old.bytes, 64 * 32 * 24);
   makeTargets(rt, rt.gpu.device!, native(32, 16), frameTargetAllocation(rt, native(32, 16)));
   assert.throws(() => old.image, /DISPOSED/);
-  assert.equal(rt.gpu.reflection!.history!.bytes, 32 * 16 * 32);
+  assert.equal(rt.gpu.reflection!.history!.bytes, 32 * 16 * 24);
 });
 
 // The defect this test catches: the targets made a depth pyramid for the rough trace, while their

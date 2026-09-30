@@ -1,4 +1,5 @@
-import { REFLECTION_SOURCE_VIEW_BYTES } from './source.ts';
+import { REFLECTION_SOURCE_BYTES_PER_PIXEL } from './source.ts';
+import { REFLECTION_SOURCE_VIEW_BYTES } from './sourceWgsl.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
@@ -39,7 +40,10 @@ test('forward cone admission equals live descriptors at 4K and odd sizes without
       gpu.textures.reduce((sum, texture) => sum + textureBytesOf(texture)!, 0) +
       gpu.buffers.reduce((sum, buffer) => sum + buffer.size, 0);
     assert.equal(
-      bytes - width * height * 8 - 80 - REFLECTION_SOURCE_VIEW_BYTES,
+      bytes -
+        width * height * (8 + REFLECTION_SOURCE_BYTES_PER_PIXEL) -
+        80 -
+        REFLECTION_SOURCE_VIEW_BYTES,
       extraBytes(width, height),
     );
     assert.equal(

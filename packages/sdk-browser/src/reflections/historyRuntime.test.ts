@@ -5,9 +5,12 @@ import { IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts';
 import { createReflectionHistory, type ReflectionHistoryFrame } from './historyRuntime.ts';
 import { REFLECTION_HISTORY_WEIGHT, REFLECTION_MOVING_WEIGHT } from './resolveWgsl.ts';
 
+// The last depth and identifiers are the reflection source's (`source.ts`).
+const kept = { depth: {} as GPUTextureView, ids: {} as GPUTextureView };
+
 test('first frame rejects history, replay consumes nothing, and a changed source resets the sequence', () => {
   const gpu = fakeDevice();
-  const history = createReflectionHistory(gpu.device, 8, 8);
+  const history = createReflectionHistory(gpu.device, 8, 8, kept);
   const current = gpu.device.createTexture({ size: [8, 8], format: 'rgba16float', usage: 1 });
   // No live motion: the motion bound is the page table (`liveMotion`).
   const pages = {} as GPUBuffer;
@@ -17,6 +20,7 @@ test('first frame rejects history, replay consumes nothing, and a changed source
     motion: pages,
     eye: [0, 0, 0],
     epoch: 'initial',
+    lighting: 'initial',
     seed: 1,
     frame: 10,
     camera: IDENTITY_MATRIX4,
@@ -48,12 +52,12 @@ test('first frame rejects history, replay consumes nothing, and a changed source
     assert.equal(valid(), 0);
     const first = encode();
     assert.equal(draws, 1);
-    assert.equal(gpu.textureCopies.length, 3);
+    assert.equal(gpu.textureCopies.length, 1);
     history.prepare(frame, IDENTITY_MATRIX4);
     assert.equal(history.reuse, true);
     assert.equal(encode(), first);
     assert.equal(draws, 1);
-    assert.equal(gpu.textureCopies.length, 3);
+    assert.equal(gpu.textureCopies.length, 1);
     frame.frame++;
     history.prepare(frame, IDENTITY_MATRIX4);
     assert.equal(valid(), 1);
@@ -97,7 +101,7 @@ test('first frame rejects history, replay consumes nothing, and a changed source
       assert.deepEqual(viewport, [0, 0, ...extent, 0, 1]);
     }
     const beforeLight = draws;
-    frame.epoch = 'light-changed';
+    frame.lighting = 'light-changed';
     history.prepare(frame, IDENTITY_MATRIX4);
     assert.equal(history.settled, false);
     assert.equal(valid(), 0);
@@ -108,7 +112,7 @@ test('first frame rejects history, replay consumes nothing, and a changed source
     history.dispose();
     current.destroy();
   }
-  assert.equal(gpu.destroyed.length, 7, 'six owned resources, each destroyed once, plus input');
+  assert.equal(gpu.destroyed.length, 5, 'four owned resources, each destroyed once, plus input');
 });
 
 test('resolve uniform refusal releases the complete 32-byte history', () => {
@@ -116,13 +120,13 @@ test('resolve uniform refusal releases the complete 32-byte history', () => {
     refuse: (descriptor) =>
       descriptor.label === 'Trillion3D reflection resolve view' ? 'throw' : undefined,
   });
-  assert.throws(() => createReflectionHistory(gpu.device, 8, 8), /NO_MEMORY/);
-  assert.equal(gpu.destroyed.length, 5);
+  assert.throws(() => createReflectionHistory(gpu.device, 8, 8, kept), /NO_MEMORY/);
+  assert.equal(gpu.destroyed.length, 3);
 });
 
 test('with live motion a camera move and a moved source keep the history, reprojected', () => {
   const gpu = fakeDevice();
-  const history = createReflectionHistory(gpu.device, 8, 8);
+  const history = createReflectionHistory(gpu.device, 8, 8, kept);
   const current = gpu.device.createTexture({ size: [8, 8], format: 'rgba16float', usage: 1 });
   const frame: ReflectionHistoryFrame = {
     metadata: { depth: current, normal: current, ids: current },
@@ -130,6 +134,7 @@ test('with live motion a camera move and a moved source keep the history, reproj
     motion: {} as GPUBuffer,
     eye: [0, 0, 0],
     epoch: 'still',
+    lighting: 'lit',
     seed: 0,
     frame: 0,
     camera: IDENTITY_MATRIX4,
@@ -164,6 +169,11 @@ test('with live motion a camera move and a moved source keep the history, reproj
   step(() => (frame.epoch = 'gear-turned'));
   assert.deepEqual(params(), [1, REFLECTION_MOVING_WEIGHT, 1], 'a moved source keeps it');
   assert.equal(history.reuse, false);
+  // #1342: a relit source kept its old reflections; no motion brings old lighting to the new one.
+  step(() => (frame.lighting = 'lamp-dimmed'));
+  assert.equal(params()[0], 0, 'a lighting change resets it, live motion or not');
+  assert.equal(history.rank, 0);
+  step(() => {});
   frame.motion = frame.pages;
   step(() => (frame.epoch = 'gear-turned-again'));
   assert.equal(params()[0], 0, 'without motion to follow, a moved source resets it');
