@@ -6879,7 +6879,7 @@
     "summary": "Anexa `node` a `parent` (`-1`: raiz), como o `add` da referência: as matrizes não se movem até a próxima atualização."
   },
   "resolveCompilerExecutable": {
-    "summary": "Encontra o programa compilador nativo: o pedido, senão o construído neste checkout."
+    "summary": "Encontra o programa compilador nativo: o pedido, senão o do pacote de plataforma instalado, senão o que `TRILLION3D_COMPILER_BIN` indica, senão o construído neste checkout."
   },
   "reviewCutouts": {
     "summary": "Pergunta, modelo por modelo, se cada superfície recortada parece certa, e registra as respostas.",
