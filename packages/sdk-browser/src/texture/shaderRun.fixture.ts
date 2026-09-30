@@ -140,12 +140,10 @@ class Translator {
     const token = this.peek();
     if (token === '-') return (this.next(), `$b("-",0,${this.unary()})`);
     if (token === '!') return (this.next(), `(!${this.unary()})`);
-    // A bitwise not, of a `u32`: its 32 bits flipped, read unsigned.
+    // `~` flips a `u32`'s bits; `&` hands an atomic its pointer, through `$ref`.
     if (token === '~') return (this.next(), `$b("^",${this.unary()},0xffffffff)`);
-    // A pointer, what an atomic takes: read and written through `$ref`.
     if (token === '&') {
-      this.next();
-      const target = this.postfix(this.primary());
+      const target = (this.next(), this.postfix(this.primary()));
       return `$ref(()=>${target},(v)=>{${target}=v;})`;
     }
     return this.postfix(this.primary());
