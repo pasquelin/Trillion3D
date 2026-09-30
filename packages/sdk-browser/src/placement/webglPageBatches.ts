@@ -7,6 +7,7 @@ import {
 } from '../host/pageObjects.ts';
 import type { HostInstancedMesh, HostMaterials } from '../host/resources.ts';
 import type { PageRec } from '../page/selection/types.ts';
+import type { PageDraws } from '../backend/autonomous/pageDraws.ts';
 import { rootOf, type Placements } from '../page/selection/placements.ts';
 import { grownCapacity } from './rows.ts';
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
@@ -27,8 +28,9 @@ type Group = {
  * page no placement shows leaves the graph. A frame that shows the same records, on rows nobody
  * wrote since, writes nothing.
  */
-export function createWebglPageBatches(scene: Scene, roots: Placements) {
+export function createWebglPageBatches(scene: Scene, roots: Placements, draws: PageDraws) {
   const groups = new Map<Geometry, Map<HostMaterials, Group>>();
+  const geometryOf = (rec: PageRec) => draws.drawing(rec).geometry;
   const drop = (group: Group) => {
     if (!group.mesh) return;
     scene.remove(group.mesh);
@@ -36,8 +38,9 @@ export function createWebglPageBatches(scene: Scene, roots: Placements) {
     group.mesh = null;
   };
   const groupOf = (rec: PageRec) => {
-    let bySurface = groups.get(rec.geometry!);
-    if (!bySurface) groups.set(rec.geometry!, (bySurface = new Map()));
+    const geometry = geometryOf(rec)!;
+    let bySurface = groups.get(geometry);
+    if (!bySurface) groups.set(geometry, (bySurface = new Map()));
     let group = bySurface.get(rec.declaration);
     if (!group)
       bySurface.set(rec.declaration, (group = { mesh: null, capacity: 0, count: 0, first: rec }));
@@ -55,7 +58,7 @@ export function createWebglPageBatches(scene: Scene, roots: Placements) {
       const rec = shown[i];
       if (
         rec !== drawn[i] ||
-        rec.geometry !== drawnGeometry[i] ||
+        geometryOf(rec) !== drawnGeometry[i] ||
         rec.declaration !== drawnSurface[i]
       )
         return false;
@@ -67,7 +70,7 @@ export function createWebglPageBatches(scene: Scene, roots: Placements) {
     drawn.length = drawnGeometry.length = drawnSurface.length = shown.length;
     for (let i = 0; i < shown.length; i++) {
       drawn[i] = shown[i];
-      drawnGeometry[i] = shown[i].geometry;
+      drawnGeometry[i] = geometryOf(shown[i]);
       drawnSurface[i] = shown[i].declaration;
     }
   };

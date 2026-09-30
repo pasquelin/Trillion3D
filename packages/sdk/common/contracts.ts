@@ -20,6 +20,20 @@ export type {
   Material,
   Side,
 } from '../../sdk-core/src/contracts/material.ts';
+export {
+  assertImpostorSection,
+  IMPOSTOR_VERSION,
+  impostorMeshBaked,
+  validateImpostorSection,
+} from '../../sdk-core/src/contracts/impostor.ts';
+export type {
+  ImpostorLevel,
+  ImpostorMap,
+  ImpostorMaps,
+  ImpostorMesh,
+  ImpostorSection,
+  ImpostorSwitchDepth,
+} from '../../sdk-core/src/contracts/impostor.ts';
 export { assertSceneProxy, decodeSceneProxy } from '../../sdk-core/src/scene/core/proxy.ts';
 export {
   biasedDepthBits,
@@ -27,6 +41,7 @@ export {
   depthLayerUnits,
   MAX_DEPTH_LAYER,
 } from '../../sdk-core/src/lod/depthLayer.ts';
+export { cellWeights, octDecode, octEncode } from '../../sdk-core/src/impostor/octahedron.ts';
 export {
   clusterErrorAtDepth,
   clusterErrorPixels,
@@ -43,12 +58,24 @@ export type {
   PrimitiveDagWarning,
 } from '../../sdk-core/src/contracts/dag.ts';
 export { dagWarningsDiagnostic } from '../../sdk-core/src/contracts/dagWarnings.ts';
+export {
+  drawsImpostor,
+  IMPOSTOR_PI,
+  impostorRadius,
+  impostorSwitchDepth,
+  impostorSwitchOf,
+  impostorTexelDepth,
+  impostorTriangleDepth,
+} from '../../sdk-core/src/impostor/switch.ts';
+export type { ImpostorSwitchInput } from '../../sdk-core/src/impostor/switch.ts';
 export type {
   GeometryPageDescriptor,
   GeometryPageFormat,
   PrimitiveQuantization,
 } from '../../sdk-core/src/page/contracts.ts';
 export type { GpuMemoryFrameMetrics } from '../../sdk-core/src/contracts/gpuMemory.ts';
+export { impostorBakedByMesh, planImpostors } from '../../sdk-core/src/impostor/plan.ts';
+export type { ImpostorCard, ImpostorPlan, ImpostorRoot } from '../../sdk-core/src/impostor/plan.ts';
 export type { OcclusionFrameMetrics } from '../../sdk-core/src/contracts/occlusionMetrics.ts';
 export {
   referenceScreenError,

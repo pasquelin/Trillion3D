@@ -7,6 +7,7 @@ import { clipPlanesFromMatrix, frustumClipBox } from '../../../packages/sdk-core
 import { collectPendingUrls } from '../../../packages/sdk-browser/src/page/selection/requests.ts';
 import { createAutonomousResidency } from '../../../packages/sdk-browser/src/backend/autonomous/residency.ts';
 import { createAutonomousGeometry } from '../../../packages/sdk-browser/src/backend/autonomous/geometry.ts';
+import { createPageDraws } from '../../../packages/sdk-browser/src/backend/autonomous/pageDraws.ts';
 import { mesure, rapport, stress } from '../../core/index.ts';
 import { boites, camera, type SceneBox } from './support/scenes.ts';
 import { pageRecFixture } from './support/pageRecFixture.ts';
@@ -96,7 +97,7 @@ function hote(nombre: number) {
       views: { live: { shown: [] }, lists: () => [] },
       byUrl: new Map(),
       descriptors: new Map(),
-      baseMaterials: new Map(),
+      draws: createPageDraws(),
       colorMaterials: new Map(),
       modifiedPages: new Set(),
     }),
