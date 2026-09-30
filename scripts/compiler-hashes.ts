@@ -6,10 +6,14 @@
  * as `compiler_manifest_pages` names it) and the folder it was written to. A name made of a
  * SHA-256 — the cache key, which hashes the compiler's own sources, and each content-addressed
  * file — reads `<sha>`: such files are still compared by content, the hashes of the files one
- * pattern names listed together.
+ * pattern names listed together. The Jolt collider shapes a scene's `physics.json` names are
+ * listed apart, `(Jolt collider)`: against a base whose Jolt cook still fuses multiply-adds
+ * (`--colliders-may-differ`, which the `Compiler` workflow passes only while the base's `build.rs`
+ * lacks Jolt's cross-platform mode), every other file is compared, the colliders changing once to
+ * the unfused bytes (#1352).
  *
  *   node scripts/compiler-hashes.ts <compiler> <record.json> [<name>]
- *   node scripts/compiler-hashes.ts --compare <reference.json> <record.json>...
+ *   node scripts/compiler-hashes.ts --compare [--colliders-may-differ] <reference> <record>...
  */
 import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -32,6 +36,9 @@ export interface HashRecord {
 const ROOT = resolve(import.meta.dirname, '..');
 
 const SHA = /[0-9a-f]{64}/g;
+/** An object of the cache, content-addressed; `physics.json` names its colliders' tiles so. */
+const OBJECT = /objects[\\/]([0-9a-f]{64})\.bin$/;
+const COLLIDER = ' (Jolt collider)';
 /** What a run reports rather than builds: its times, its memory peak, the pages it found built. */
 const MEASURE = /Ms$|^peakRssBytes$|^reusedPages$/;
 
@@ -50,12 +57,19 @@ function comparable(bytes: Buffer, file: string, cache: string): Buffer | string
  *  names and contents with `<sha>` for a SHA-256. The lock of a finished cook is skipped. */
 export function cacheFingerprint(cache: string, prefix: string): Record<string, string> {
   const hashes = new Map<string, string[]>();
-  for (const file of readdirSync(cache, { recursive: true }).map(String)) {
+  const files = readdirSync(cache, { recursive: true }).map(String);
+  const colliders = new Set(
+    files
+      .filter((file) => file.endsWith('physics.json'))
+      .flatMap((file) => readFileSync(join(cache, file), 'utf8').match(SHA) ?? []),
+  );
+  for (const file of files) {
     const path = join(cache, file);
     if (file.endsWith('.lock') || !statSync(path).isFile()) continue;
     const content = comparable(readFileSync(path), file, cache);
     const text = typeof content === 'string' ? content.replaceAll(SHA, '<sha>') : content;
-    const name = `${prefix}/${file.replaceAll('\\', '/').replaceAll(SHA, '<sha>')}`;
+    const collider = colliders.has(OBJECT.exec(file)?.[1] ?? '') ? COLLIDER : '';
+    const name = `${prefix}/${file.replaceAll('\\', '/').replaceAll(SHA, '<sha>')}${collider}`;
     hashes.set(name, [...(hashes.get(name) ?? []), sha256(text)]);
   }
   return Object.fromEntries(
@@ -98,23 +112,30 @@ export function referenceHashes(executable: string): Record<string, string> {
   return files;
 }
 
-/** The files whose hash differs between two fingerprints, one missing on either side included. */
-export function differences(reference: HashRecord, other: HashRecord): string[] {
+/** The files whose hash differs between two fingerprints, one missing on either side included;
+ *  the Jolt colliders left out when they `mayDiffer`. */
+export function differences(reference: HashRecord, other: HashRecord, mayDiffer = false): string[] {
   const names = new Set([...Object.keys(reference.files), ...Object.keys(other.files)]);
-  return [...names].filter((name) => reference.files[name] !== other.files[name]).sort();
+  return [...names]
+    .filter((name) => reference.files[name] !== other.files[name])
+    .filter((name) => !(mayDiffer && name.endsWith(COLLIDER)))
+    .sort();
 }
 
 /** One line per record: its digest over every file, its size, and what differs from the first. */
-function compare(paths: string[]): boolean {
+function compare(paths: string[], collidersMayDiffer: boolean): boolean {
   const records = paths.map((path) => JSON.parse(readFileSync(path, 'utf8')) as HashRecord);
   let equal = true;
   for (const record of records) {
-    const differing = differences(records[0], record);
+    const differing = differences(records[0], record, collidersMayDiffer);
     const size = record.bytes === undefined ? '' : `, ${(record.bytes / 2 ** 20).toFixed(1)} MiB`;
     const digest = sha256(JSON.stringify(record.files));
     const files = Object.values(record.files).join(' ').split(' ').length;
     console.log(`${record.compiler}: ${files} files, ${digest}${size}`);
     for (const file of differing) console.log(`  differs from ${records[0].compiler}: ${file}`);
+    const changed = differences(records[0], record).length - differing.length;
+    if (changed)
+      console.log(`  its Jolt colliders differ in ${changed} scenes: allowed, the base fuses`);
     equal &&= differing.length === 0;
   }
   return equal;
@@ -123,7 +144,8 @@ function compare(paths: string[]): boolean {
 if (import.meta.filename === process.argv[1]) {
   const [first, ...rest] = process.argv.slice(2);
   if (first === '--compare') {
-    if (!compare(rest)) process.exit(1);
+    const mayDiffer = rest[0] === '--colliders-may-differ';
+    if (!compare(rest.slice(mayDiffer ? 1 : 0), mayDiffer)) process.exit(1);
   } else {
     const record: HashRecord = {
       compiler: rest[1] ?? first,
