@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
-import { planCull, planPipeline, planVertexCull } from './plan.ts';
+import { planPipeline, planVertexCull } from './plan.ts';
 import { blendSceneOf } from './plan.fixture.ts';
 import { hostBlending } from '../../scene/materialBlending.ts';
 import type { BlendGpuItem } from './state.ts';
 import { surfaceOf } from '../../page/surface.ts';
+import { planCull } from './planCull.ts';
 
 /** The blend plan of a lone item, everything but its material left at its simplest. */
 function plan(

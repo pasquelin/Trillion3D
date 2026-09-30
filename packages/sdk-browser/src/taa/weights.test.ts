@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TAA_WEIGHTS, taaWeights } from './weights.ts';
+import { TAA_WEIGHTS, taaWeights } from './filterWeights.ts';
 
 test('filter weights sum to one, weigh the centre without jitter and lean toward the sample', () => {
   const out = new Float32Array(TAA_WEIGHTS);

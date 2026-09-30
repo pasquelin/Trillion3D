@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createLightingScene, LIGHTING_CAMERA_POSES, type Vec3 } from './experimentScene.ts';
+import { createLightingScene, type Vec3 } from './experimentScene.ts';
+import { LIGHTING_CAMERA_POSES } from './controls.ts';
 import {
   sub,
   dot,

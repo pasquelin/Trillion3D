@@ -3,12 +3,9 @@
 // the same result. `screenErrorVariant.ts` carries the formula and its public source.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  referenceScreenError,
-  screenErrorBound,
-  screenErrorVariant,
-  setScreenErrorVariant,
-} from '../index.ts';
+import { screenErrorVariant, setScreenErrorVariant } from '../index.ts';
+import { screenErrorBound } from './screenErrorBound.ts';
+import { referenceScreenError } from './screenErrorVariant.ts';
 
 const CAS = [
   [0.05, 1, 0, 10, 1, 600, 0.1],

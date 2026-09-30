@@ -1,12 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { evaluateDagSelectionKernel } from './selection.ts';
-import { PAGE_CONE_FLOATS } from '../core/selection.ts';
-import { coldBase } from './layout.ts';
+import { COLD_WORDS as PAGE_CONE_FLOATS, coldBase } from './layout.ts';
 import { dagFixture, wideCamera } from '../../page/selection/dag.fixture.ts';
 import { kernelUniforms, packed } from './selectionHelpers.fixture.ts';
 import { ruleResidency } from './readiness.fixture.ts';
-import type { DagCutResidency } from './oracle/oracle.ts';
+import type { DagCutResidency } from './oracle/oracle.fixture.ts';
+import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts';
 
 // D5: shader/shader.ts now computes coneRejects once per visible page (dagWanted) and
 // rereads it in dagMask instead of recomputing. evaluateDagSelectionKernel

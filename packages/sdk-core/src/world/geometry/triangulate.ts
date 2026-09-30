@@ -12,6 +12,8 @@ const same = (a: P, b: P) => a[0] === b[0] && a[1] === b[1];
 
 /** True when segments `ab` and `cd` cross at a point inside both. */
 function crosses(a: P, b: P, c: P, d: P) {
+  // A shared end makes one product below zero, never negative: the guard only saves the work.
+  // Stryker disable next-line ConditionalExpression,LogicalOperator: see above
   if (same(a, c) || same(a, d) || same(b, c) || same(b, d)) return false;
   const d1 = orient(a, b, c),
     d2 = orient(a, b, d),
@@ -30,11 +32,13 @@ function crosses(a: P, b: P, c: P, d: P) {
 export function triangulate(outline: readonly P[], holes: readonly (readonly P[])[] = []) {
   const ring = [...outline];
   if (signedArea(ring) < 0) ring.reverse();
-  const rings = holes
-    .filter((h) => h.length >= 3)
-    .map((h) => (signedArea(h) > 0 ? [...h].reverse() : [...h]))
-    .sort((a, b) => Math.max(...b.map((p) => p[0])) - Math.max(...a.map((p) => p[0])));
+  // Stryker disable next-line EqualityOperator: a flat hole takes nothing, either way round
+  const clockwise = (h: readonly P[]) => (signedArea(h) > 0 ? [...h].reverse() : [...h]);
+  const rings = holes.filter((h) => h.length >= 3).map(clockwise);
+  // Stryker disable next-line all: any order bridges validly, every ring's edges being checked
+  rings.sort((a, b) => Math.max(...b.map((p) => p[0])) - Math.max(...a.map((p) => p[0])));
   for (const hole of rings) {
+    // Stryker disable next-line EqualityOperator: of two rightmost vertices, either bridges
     const m = hole.reduce((best, p, i) => (p[0] > hole[best][0] ? i : best), 0);
     const from = hole[m];
     const edges = [ring, ...rings].flatMap((r) =>
@@ -53,9 +57,13 @@ export function triangulate(outline: readonly P[], holes: readonly (readonly P[]
   }
   const triangles: number[] = [];
   const left = ring.map((_, i) => i);
+  // The guard never binds (a pass without an ear breaks out), and a pass reporting a cut it did not
+  // make runs again to the same fan: a safety, not a result.
+  // Stryker disable all: see above
   let guard = left.length * left.length;
   while (left.length > 3 && guard-- > 0) {
     let cut = false;
+    // Stryker restore all
     for (let k = 0; k < left.length; k++) {
       const [i, j, l] = [
         left[(k + left.length - 1) % left.length],
@@ -64,9 +72,11 @@ export function triangulate(outline: readonly P[], holes: readonly (readonly P[]
       ];
       const [a, b, c] = [ring[i], ring[j], ring[l]];
       if (orient(a, b, c) <= 0) continue;
+      // On a simple outline no other vertex lies on the ear's own edges `ab` and `bc`.
       const blocked = left.some((v) => {
         const p = ring[v];
         if (same(p, a) || same(p, b) || same(p, c)) return false;
+        // Stryker disable next-line EqualityOperator: see above; `ca` is checked
         return orient(a, b, p) >= 0 && orient(b, c, p) >= 0 && orient(c, a, p) >= 0;
       });
       if (blocked) continue;
@@ -76,6 +86,7 @@ export function triangulate(outline: readonly P[], holes: readonly (readonly P[]
       break;
     }
     // A polygon left with no ear is degenerate: its rest is fanned rather than dropped.
+    // Stryker disable next-line ConditionalExpression: see the guard
     if (!cut) break;
   }
   for (let k = 1; k + 1 < left.length; k++) triangles.push(left[0], left[k], left[k + 1]);

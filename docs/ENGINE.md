@@ -534,7 +534,7 @@ nothing.
   is one `writeBuffer` per list (a normal with its tangent) into its block, plus the fallback draw's
   positions; a record mounted later takes a block of that room (`place`), and past it the session
   opens again. Each root drawing the geometry turns moving for the shadow pool, and the world box of
-  the moved vertices stales the pages it covers (`movedBatch.ts`, #489). Its rows carry
+  the moved vertices stales the pages it covers (`movedGeometry.ts`, #489). Its rows carry
   `FLAG_DYNAMIC`: the temporal pass takes those pixels as reactive, another shape's history dropped.
 - **WebGL2.** The manifest keeps a dynamic primitive's index pages (`sourcedPages.ts`), drawn over
   the host geometry's own lists, uploaded once per rewrite by their written ranges

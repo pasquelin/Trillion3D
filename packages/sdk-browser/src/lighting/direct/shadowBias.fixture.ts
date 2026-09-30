@@ -5,8 +5,9 @@ import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { dotVector3 } from '../../../../sdk-core/src/math/primitives/vector.ts';
 import { clampNumber as clamp } from '../../../../sdk-core/src/world/math/spherical.ts';
 import { DIRECT_LIGHT_WGSL } from './lightWgsl.ts';
-import { SHADOW_DEPTH_ROUNDING } from './shadowFactorWgsl.ts';
-import { PCF_REACH, POISSON_16, directShadowWgsl } from './shadowWgsl.ts';
+import { PCF_REACH, directShadowWgsl } from './shadowWgsl.ts';
+import { POISSON_16 } from './pcfTaps.ts';
+import { SHADOW_DEPTH_ROUNDING } from './shadowDepthRounding.ts';
 
 export type Vec = readonly number[];
 /** The depth map: the distance along the light stored at a texel centre. */
@@ -25,7 +26,8 @@ export const RESTATED = [
   ' let Q=P+N*(texel*offset);\n let t=vec2f(shadowSunMapTexel(',
   '  let reference=1.0-(dot(at.Q,axis)-zNear-shadowDepthMargin(at.texel,slope,1.0))*invDepth+SHADOW_DEPTH_ROUNDING;',
   ' let cosine=clamp(dot(N,L),1e-3,1.0);',
-  ' let radius=length(light.positionRange.xyz-P);',
+  // The shading's point less the unjittered one (`shadowUnjitter`): zero in the frames restated.
+  ' let radius=length(light.positionRange.xyz-(P+shadowUnjitter));',
   ' let texel0=shadowLampFinestTexel(info.y,radius);',
   ' let k=near*far/(far-near);',
   ' let pages=LAMP_PAGE_COUNT>>mip;',

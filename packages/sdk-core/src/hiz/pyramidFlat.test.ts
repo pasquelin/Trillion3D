@@ -10,10 +10,10 @@ import {
   hizBuildPyramid,
   hizFootprintFar,
   hizBuildFlat,
-  hizFlatLayout,
   hizFootprintFarFlat,
   type HizFlat,
 } from '../index.ts';
+import { hizFlatLayout } from './pyramidFlat.ts';
 
 /** Expected nested levels, compared value by value with the flat buffer. */
 function assertSamePyramid(flat: HizFlat, nested: number[][][], message: string) {

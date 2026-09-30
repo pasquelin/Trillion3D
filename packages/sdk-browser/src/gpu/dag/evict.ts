@@ -1,12 +1,10 @@
 import { pageAddress } from '../../webgpu/row/pageSlots.ts';
 import {
-  REQUEST_AHEAD,
   REQUEST_PAGE_BITS as KEY_PAGE_BITS,
   REQUEST_PRIORITY_MAX as LEVEL_MAX,
   packRequest,
   requestPage,
   requestPriority,
-  sortRequestWords,
 } from './request.ts';
 import type { DagRoot } from './types.ts';
 
@@ -45,30 +43,3 @@ export function writeKeyColumn(roots: readonly DagRoot[], words: Uint32Array, at
 
 /** The page a key word names: where the key's last use is stamped. */
 export const canonicalPage = requestPage;
-
-/** Rank of a key in the queue, highest evicted first: finer level, then older use. Integer only,
- *  as the kernel's: the age step is the bit length of the age, one step per doubling. */
-function evictionRank(keyWord: number, age: number) {
-  const level = Math.min(EVICT_LEVELS - 1, requestPriority(keyWord)),
-    step = Math.min(EVICT_AGES - 1, 32 - Math.clz32(age >>> 0));
-  return ((EVICT_LEVELS - 1 - level) * EVICT_AGES) | step;
-}
-
-/** CPU mirror of `dagListEvictions`: the pool's listed pages (`poolList.ts`) not stamped `now`, by
- *  `evictionRank` through `sortRequestWords`, the first `cap`; within a rank, page order. */
-export function listEvictions(options: {
-  pool: Iterable<number>;
-  keys: Uint32Array;
-  stampOf: (page: number) => number;
-  now: number;
-  cap: number;
-}) {
-  const { pool, keys, stampOf, now, cap } = options;
-  const words: number[] = [];
-  for (const page of pool) {
-    const used = stampOf(page);
-    if (used !== now)
-      words.push(packRequest(page, evictionRank(keys[page], now - used) ^ REQUEST_AHEAD));
-  }
-  return Array.from(sortRequestWords(words).subarray(0, Math.max(0, cap)), requestPage);
-}

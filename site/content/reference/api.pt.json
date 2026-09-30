@@ -3271,6 +3271,7 @@
       "counts": "O que o último plano fez, em páginas.",
       "spent": "Milissegundos de CPU que o último plano gastou lendo o relatório de pedidos e admitindo páginas.",
       "worldChanged": "Um nó moveu-se: a sua caixa invalida as páginas que cobre no plano seguinte.",
+      "changeRoom": "Caixas que a lista ainda guarda separadas antes de transbordar.",
       "representationChanged": "O mesmo mundo com outra precisão: a sua caixa espera que a câmera pare.",
       "resting": "A câmera estava em repouso no último plano: sua vista era a do plano anterior.",
       "deferredChanges": "Verdadeiro enquanto uma mudança de representação espera que a câmera pare.",
@@ -3694,7 +3695,8 @@
       "total": "Quantos jobs ao todo.",
       "stream": "Onde escrever.",
       "width": "Largura da barra.",
-      "interval": "Mínimo de milissegundos entre redesenhos."
+      "interval": "Mínimo de milissegundos entre redesenhos.",
+      "verbose": "Indica também os códigos de informação e cada ocorrência no resumo de fim de tarefa."
     }
   },
   "Texture-common": {
@@ -5045,13 +5047,14 @@
   "createTerminalProgress": {
     "summary": "Uma barra de progresso no terminal que segue os eventos do compilador.",
     "parameters": {
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}": "Como uma exibição de progresso no terminal se parece.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.label": "O nome do job.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.index": "O número do job.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.total": "Quantos jobs ao todo.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.stream": "Onde escrever.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.width": "Largura da barra.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.interval": "Mínimo de milissegundos entre redesenhos."
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}": "Como uma exibição de progresso no terminal se parece.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.label": "O nome do job.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.index": "O número do job.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.total": "Quantos jobs ao todo.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.stream": "Onde escrever.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.width": "Largura da barra.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.interval": "Mínimo de milissegundos entre redesenhos.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.verbose": "Indica também os códigos de informação e cada ocorrência no resumo de fim de tarefa."
     }
   },
   "createTransformTree": {
@@ -6881,7 +6884,7 @@
     "summary": "Anexa `node` a `parent` (`-1`: raiz), como o `add` da referência: as matrizes não se movem até a próxima atualização."
   },
   "resolveCompilerExecutable": {
-    "summary": "Encontra o programa compilador nativo: o pedido, senão o construído neste checkout."
+    "summary": "Encontra o programa compilador nativo: o pedido, senão o do pacote de plataforma instalado, senão o que `TRILLION3D_COMPILER_BIN` indica, senão o construído neste checkout."
   },
   "reviewCutouts": {
     "summary": "Pergunta, modelo por modelo, se cada superfície recortada parece certa, e registra as respostas.",
@@ -8134,7 +8137,7 @@
     }
   },
   "IMPOSTOR_PI": {
-    "summary": "π, um único literal para este oráculo e o espelho WGSL, para que ambos arredondem o mesmo número."
+    "summary": "π, um único literal, para que cada leitor da troca arredonde o mesmo número."
   },
   "IMPOSTOR_VERSION": {
     "summary": "Formato da seção `impostors` que um runtime lê (#817 parte 1, pré-processada pelo compilador)."

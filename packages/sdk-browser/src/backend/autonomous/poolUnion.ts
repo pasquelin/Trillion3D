@@ -1,4 +1,4 @@
-import type { WebglViewState } from './views.ts';
+import { type WebglViewState } from './viewKeys.ts';
 
 /** A page as the pool charges it: its URL, and its DAG level, which ranks a union of views. */
 export type Ranked = { readonly url: string; readonly level?: number };

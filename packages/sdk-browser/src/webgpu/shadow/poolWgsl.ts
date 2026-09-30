@@ -3,16 +3,10 @@ import {
   PAGE_MAPPED,
   PAGE_VALID,
   SUN_WINDOW,
-  shadowEntrySpan,
-  shadowTableEntries,
   shadowTableStride,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-
-/** Mask of a listed request entry: every bit below the miss flag (`shadowRequestWgsl.ts`, bit 31),
- *  which lies above the most a `pages`-window table addresses. The ordinary window's table is a
- *  power of two, so this is its `entries - 1`, the mask it always was; a raised one is not, and the
- *  next power is the mask that keeps every entry and still clears the flag. */
-export const shadowEntryMask = (pages: number) => shadowEntrySpan(shadowTableEntries(pages)) - 1;
+import { DRAWN_GPU, DRAWN_HOST, DRAWN_NONE } from './poolDrawn.ts';
+import { shadowEntryMask } from './entryMask.ts';
 
 /** A page's fields in the GPU pool, one array of `pages` words each after the counts: the entry
  *  it maps (−1 free) and the frame it was last asked in first, the words a snapshot reads back;
@@ -27,14 +21,11 @@ export const POOL_FIELDS = [
   'generation',
   'drawnBy',
 ] as const;
-/** Whose draw a page holds for its entry: the host's (`pool.drew`), none yet — mapped by the GPU
- *  —, or the GPU's own (`freshWgsl.ts`), which the host has not seen. */
-export const DRAWN_HOST = 0,
-  DRAWN_NONE = 1,
-  DRAWN_GPU = 2;
 /** The counts the allocation keeps, before the fields: what a snapshot reads back with them. Each
  *  frame's allocation clears those before `listings`, the pages every frame since the pool's seed
- *  listed (`listDraw`): a snapshot read after a lost one still shows that the GPU drew. */
+ *  listed (`listDraw`): a snapshot read after a lost one still shows that the GPU drew. Last, the
+ *  pairs the latest GPU page draws counted (`sealShadowPages`), which grow their list
+ *  (`pairGrowth.ts`). */
 export const POOL_COUNTS = [
   'needs',
   'candidates',
@@ -42,6 +33,7 @@ export const POOL_COUNTS = [
   'refused',
   'drawn',
   'listings',
+  'pairs',
 ] as const;
 /** The counts each frame's allocation starts from zero (`allocWgsl.ts`): all but `listings`. */
 export const POOL_FRAME_COUNTS = POOL_COUNTS.indexOf('listings');
@@ -61,6 +53,7 @@ fn countOne(i:u32){atomicAdd(&shadowPool.counts[i],1u);}
 fn countNext(i:u32)->u32{return atomicAdd(&shadowPool.counts[i],1u);}
 fn countRead(i:u32)->u32{return atomicLoad(&shadowPool.counts[i]);}
 fn countClear(i:u32){atomicStore(&shadowPool.counts[i],0u);}
+fn countSet(i:u32,v:u32){atomicStore(&shadowPool.counts[i],v);}
 const PAGE_MAPPED:u32=${PAGE_MAPPED}u;
 const PAGE_VALID:u32=${PAGE_VALID}u;
 const DRAWN_HOST:i32=${DRAWN_HOST};

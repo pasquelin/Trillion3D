@@ -23,9 +23,9 @@ fn linearToSrgb(c:vec3f)->vec3f{return select(1.055*pow(max(c,vec3f(0.0)),vec3f(
  *  size, the raw-output flag of diagnostic views and the rank of a sampled image
  *  (`../direct/lightSamplingWgsl.ts`); `lightParams` the contract light count, tiles in X and Y, and
  *  exposure, applied before the display curve (P4); `display.x` the rank of that curve
- *  (`../toneMappingWgsl.ts`), `display.yzw` the eye the fog is measured from. The environment's
- *  irradiance and fog travel with the lights. */
-export const VIEW_WGSL = `struct View{inverseViewProjection:mat4x4f,camera:vec4f,viewport:vec4f,background:vec4f,lightParams:vec4f,display:vec4f,}`;
+ *  (`../toneMappingWgsl.ts`), `display.yzw` the eye the fog is measured from; `jitter` the TAA's
+ *  (`shadowJitterWords`, `jitterWords.ts`). The environment's irradiance and fog travel with the lights. */
+export const VIEW_WGSL = `struct View{inverseViewProjection:mat4x4f,camera:vec4f,viewport:vec4f,background:vec4f,lightParams:vec4f,display:vec4f,jitter:vec4f,}`;
 /** World position of a pixel at a depth, reconstructed through that view: the one reading of
  *  the depth buffer every fullscreen pass shares. */
 export const WORLD_AT_WGSL = `
@@ -44,10 +44,10 @@ export const surfaceBindingsWgsl = (third = 'flags:texture_2d<u32>') => `
 @group(0) @binding(4) var depth:texture_depth_2d;
 @group(0) @binding(5) var<uniform> view:View;`;
 /**
- * Unlit view: material albedo as-is, with no light, no ambient and no emission. This is not
- * a light, it is a diagnostic view — the one geometry benches that compare images pixel for
- * pixel ask for, and the one the engine renders by default as long as no light is declared,
- * because a scene with no source has nothing to light (P6).
+ * Unlit view: material albedo as-is, with no light and no ambient; what a surface emits is kept, as
+ * in the lit image (#1362). This is not a light, it is a diagnostic view — the one geometry benches
+ * that compare images pixel for pixel ask for, and the one the engine renders by default as long as
+ * no light is declared, because a scene with no source has nothing to light (P6).
  */
 export const UNLIT_LIGHTING_SHADER = `
 ${VIEW_WGSL}
@@ -56,7 +56,7 @@ ${FULLSCREEN_VERTEX}
 @fragment fn lightSurface(@builtin(position) pixel:vec4f)->@location(0) vec4f{
  let coord=vec2i(pixel.xy);let flag=textureLoad(flags,coord,0).r;
  if(flag==0u){return vec4f(0.0);}
- return vec4f(textureLoad(baseMetal,coord,0).rgb,1.0);
+ return vec4f(textureLoad(baseMetal,coord,0).rgb+textureLoad(emissiveAo,coord,0).rgb,1.0);
 }`;
 /** Contract bindings: declared lights, their per-tile lists and their shadow pool. The shadow
  *  records and page table, binding 8, are declared with the shadow read (`directShadowWgsl`). */
@@ -110,8 +110,6 @@ ${CONTRACT_BINDINGS_WGSL}
 ${STANDARD_LIGHTING_WGSL}
 ${directLightingWgsl(narrow, pages, shadowed)}
 ${bounce ? BOUNCE_SURFACE_WGSL : DIRECT_SURFACE_WGSL}`;
-export const DIRECT_LIGHTING_SHADER = contractLightingShader(false, false);
-export const BOUNCE_LIGHTING_SHADER = contractLightingShader(true, false);
 /**
  * How the composition reads a pixel's as-is share — 1 on a debug view (a normal or depth surface,
  * `AS_IS_FLAG`), 0 elsewhere —, binding 2, one read per pixel. A still image reads its surface

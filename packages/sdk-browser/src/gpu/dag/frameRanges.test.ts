@@ -3,7 +3,7 @@
 // whole table is the GPU's to prove (`tests/browser/probes/frame-ranges-gpu.ts`).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cameraFrameRanges, framesBytes } from './frameRanges.ts';
+import { framesBytes } from './frameRanges.ts';
 import { storageBufferCap } from '../../residency/pools.ts';
 import { createDagResources } from './resources.ts';
 import { packDagSelection } from './selection.ts';
@@ -14,6 +14,7 @@ import { dagFixture } from '../../page/selection/dag.fixture.ts';
 import { packed } from './selectionHelpers.fixture.ts';
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { DAG_BINDING } from './shader/bindings.ts';
+import { cameraFrameRanges } from './cameraRanges.ts';
 
 test('the ranges cover every primitive once, each within one binding', () => {
   const limits = { maxBufferSize: 64 << 20, maxStorageBufferBindingSize: 128 << 20 };

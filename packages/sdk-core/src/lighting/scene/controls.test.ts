@@ -1,10 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  createLightingScene,
-  createDefaultLightingSceneLights,
-  type Scene,
-} from './experimentScene.ts';
+import { createLightingScene, type Scene } from './experimentScene.ts';
+import { createDefaultLightingSceneLights } from './controls.ts';
 import { close } from '../../../../../tests/fixtures/lightingSceneTestHelpers.ts';
 
 test('lighting scene rejects nonfinite parameters and an excessive patch allocation', () => {

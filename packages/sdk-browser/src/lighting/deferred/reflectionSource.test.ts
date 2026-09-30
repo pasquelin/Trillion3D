@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DEFERRED_LIGHTING_PASS } from './deferred.ts';
-import { REFLECTION_SOURCE_PASS } from '../../reflections/encode.ts';
+import { REFLECTION_SOURCE_PASS } from '../../reflections/sourcePass.ts';
 import type { ScreenReflection } from '../../reflections/gpu.ts';
 import { contractLighting } from './contractLighting.fixture.ts';
 

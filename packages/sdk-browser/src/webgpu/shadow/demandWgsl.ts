@@ -1,5 +1,6 @@
 import { POINT_FACES } from '../../../../sdk-core/src/index.ts';
 import { VIEW_WGSL, WORLD_AT_WGSL } from '../../lighting/deferred/shaders.ts';
+import { PIXEL_FOOTPRINT_WGSL } from '../../lighting/deferred/footprintWgsl.ts';
 import { LAMP_SOFT_DISK_WGSL } from '../../lighting/direct/lampSoftWgsl.ts';
 import { DIRECT_LIGHT_WGSL } from '../../lighting/direct/lightWgsl.ts';
 import { TILE_SLICE_WGSL } from '../../lighting/direct/lightingWgsl.ts';
@@ -28,8 +29,9 @@ export const SHADOW_DEMAND_GROUP = 8;
  * Every step is the shading's own: the view and the world point its resolve reconstructs
  * (`WORLD_AT_WGSL`, the deferred pass's view uniform), moved by the pixel's shading-point offset
  * (`shadowReceiverOffset`), its normal turned from a light behind a thin subsurface surface
- * (`declaredLight`), its tile slice, its light gate, and the page
- * model (`pageModel.ts`) its read takes the level, the map texel, the entry and the PCF's pages
+ * (`declaredLight`), its tile slice, its light gate, its footprint and point unjittered
+ * (`pixelLevel`), the turn of its taps (`shadowRotated`), and the page model (`pageModel.ts`) its
+ * read takes the level, the map texel, the entry and the PCF's pages
  * from. Unlike the read, the demand never falls back: a page not drawn yet is the one it wants.
  * The layout it marks is the session's window (`referenceMode.ts`), the ordinary constant by
  * default.
@@ -53,6 +55,7 @@ ${SHADOW_READ_AT_WGSL}
 ${PCF_TAPS_WGSL}
 ${LAMP_SOFT_DISK_WGSL}
 ${WORLD_AT_WGSL}
+${PIXEL_FOOTPRINT_WGSL}
 /** Marks page \`p\` of the map: nothing outside a ring's window. */
 fn demandPage(m:ShadowMap,p:vec2i){let e=shadowPageEntry(m,p);if(e>=0){requestShadowPage(u32(e));}}
 /** Marks the home page of map texel \`t\` and the neighbours the PCF reads around it
@@ -100,26 +103,37 @@ fn softPageExit(index:u32,P:vec3f,v:vec3f,r:LampAt,s:f32)->f32{
  }
  return exit;
 }
+/** The pages a soft shadow's filter tap at \`Q\` reads, its bilinear footprint split along the seams
+ *  it comes near (\`lampSoftCompare\`): its lookup's home page and the neighbours \`demandPages\` marks. */
+fn demandSoftAt(index:u32,lamp:vec3f,Q:vec3f,N:vec3f,mip:u32){
+ let r=lampReadAt(index,lamp,Q,N,0.0,1.0,mip);demandPages(r.at.map,r.at.t,r.at.home);
+}
 /** Every page of \`mip\` a point lamp's soft shadow reads (\`pointSoftShadow\`) at \`P\`, the
  *  offset point of \`centre\`: a tap of its blocker search lies at \`P + v\`, one of its filter at
  *  \`P + v·s\`, \`s\` the penumbra over the search, at most 1 — each tap on the segment from \`P\`
- *  to its search tap. Each segment is walked
+ *  to its search tap, its disk turned this jitter phase (\`shadowRotated\`). Each segment is walked
  *  page by page through the tap's own lookup (\`lampReadAt\`, as \`lampDiskSample\`), across the
- *  cube's faces: every page its taps can read is marked, whatever the blockers found. */
+ *  cube's faces: every page its taps can read is marked, whatever the blockers found. A segment's
+ *  image in a face is straight, so its distance to a page's edge is least at an end of its part in
+ *  that page: the neighbours a filter tap's footprint reaches are those of the ends' reads. */
 fn demandSoftLamp(index:u32,light:DirectLight,centre:LampAt,N:vec3f,mip:u32){
  let P=centre.at.Q;
  let d=lampSoftDisk(index,light,P);
  let lamp=light.positionRange.xyz;
  for(var tap=0u;tap<PCF_TAPS;tap++){
-  let disk=POISSON[tap];let v=(d.T*disk.x+d.B*disk.y)*d.search;
-  // \`P\` reads \`centre\`, the lookup whose pages \`demandLamp\` marked: the walk starts at its exit.
-  var s=softPageExit(index,P,v,centre,0.0)+1e-5;
+  let disk=shadowRotated(POISSON[tap]);let v=(d.T*disk.x+d.B*disk.y)*d.search;
+  // \`P\` reads \`centre\`, the lookup whose pages \`demandLamp\` marked: the walk starts at its exit —
+  // at once when \`P\` lies on the edge the segment leaves by, a crossing at \`s = 0\` (#1363).
+  var r=centre;var s=-1e-5;
   // A segment spans under 60° (\`search\` < \`distance\`, a tap within 1.3 of the disk's centre):
   // at most three faces, and two pages a row of each crossed.
-  for(var k=0u;k<6u*LAMP_PAGE_COUNT&&s<=1.0;k++){
-   let r=lampReadAt(index,lamp,P+v*s,N,0.0,1.0,mip);
-   demandPage(r.at.map,r.at.home);
-   s=softPageExit(index,P,v,r,s)+1e-5;
+  for(var k=0u;k<=6u*LAMP_PAGE_COUNT;k++){
+   let exit=softPageExit(index,P,v,r,s);
+   demandSoftAt(index,lamp,P+v*(min(exit,1.0)-1e-5),N,mip);
+   s=exit+1e-5;
+   if(s>1.0||k==6u*LAMP_PAGE_COUNT){break;}
+   r=lampReadAt(index,lamp,P+v*s,N,0.0,1.0,mip);
+   demandPages(r.at.map,r.at.t,r.at.home);
   }
  }
 }
@@ -127,7 +141,7 @@ fn demandSoftLamp(index:u32,light:DirectLight,centre:LampAt,N:vec3f,mip:u32){
  *  (\`lampShadowFactor\`, the same \`lampReadAt\`), and its soft shadow's; none past the face's
  *  depth or outside a spot's cone. */
 fn demandLamp(index:u32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f,footprint:f32){
- let texel0=shadowLampFinestTexel(shadows.records[index].info.y,length(light.positionRange.xyz-P));
+ let texel0=shadowLampFinestTexel(shadows.records[index].info.y,length(light.positionRange.xyz-(P+shadowUnjitter)));
  let mip=u32(shadowLampReadMip(footprint,texel0));
  let r=lampReadAt(index,light.positionRange.xyz,P,N,shadowNormalTexels(clamp(dot(N,L),1e-3,1.0)),texel0,mip);
  if(!r.inside){return;}
@@ -154,21 +168,21 @@ fn demandLight(light:DirectLight,at:vec3f,receiver:vec3f,N:vec3f,thin:bool,footp
  if(flag<=1u||flag==${AS_IS_FLAG}u){return;}
  let tile=id.xy/TILE_SIZE;let tilesX=u32(view.lightParams.y);
  if(tile.x>=tilesX||tile.y>=u32(view.lightParams.z)){return;}
- // The resolve's point and footprint, at the pixel's centre.
+ // A tile without a light asks nothing: its pixels load no depth.
+ let slice=tileSlice((tile.y*tilesX+tile.x)*TILE_STRIDE,0u,TILE_OPAQUE_BASE);
+ if(slice.y==0u){return;}
+ // The resolve's point, footprint and taps' turn, at the pixel's centre (\`surfaceWgsl.ts\`).
  let z=textureLoad(depth,coord,0);let pixel=vec2f(id.xy)+0.5;
  let at=worldAt(pixel,z);
- let footprint=length(worldAt(pixel+vec2f(1.0,0.0),z)-at);
+ let level=pixelLevel(coord,pixel,z,at);shadowUnjitter=level.unjitter;shadowRotation=view.jitter.zw;
  // The point the shading reads the maps at (\`shadowReceiverOffset\`, \`surfaceWgsl.ts\`).
  let receiverAt=(id.y*u32(view.viewport.x)+id.x)*3u;
  let P=at+vec3f(shadingOffset[receiverAt],shadingOffset[receiverAt+1u],shadingOffset[receiverAt+2u]);
  let N=normalize(textureLoad(normalRough,coord,0).xyz);
  let thin=(textureLoad(flags,coord,0).r&${SUBSURFACE_FLAG}u)!=0u;
- let slice=tileSlice((tile.y*tilesX+tile.x)*TILE_STRIDE,0u,TILE_OPAQUE_BASE);
  for(var index=0u;index<slice.y;index++){
   var light=index;
   if(slice.x!=TILE_NO_SLICE){light=tileLights[slice.x+index];}
-  demandLight(directLights.items[light],at,P,N,thin,footprint);
+  demandLight(directLights.items[light],at,P,N,thin,level.footprint);
  }
 }`;
-/** The demand of the ordinary window: what a pass compiled without a session window marks. */
-export const SHADOW_DEMAND_WGSL = shadowDemandWgsl();

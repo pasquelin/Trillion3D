@@ -11,9 +11,9 @@ import {
   type Page,
 } from '../../../../sdk-core/src/index.ts';
 import { WebglClusterGeometry } from '../../webgl/cluster/geometry.ts';
-import { markRewritten } from '../../world/core/worldDynamicRanges.ts';
 import { prepareAutonomousManifest } from './manifest.ts';
 import { sourcedPageGeometry } from './sourcedPages.ts';
+import { markRewritten } from '../../world/core/rewrittenRanges.ts';
 
 /** A context that keeps the vertex-list uploads, `[kind, byte offset, bytes]`, and nothing else. */
 function listContext() {

@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { plane } from '../world/geometry/basic.ts';
 import { fromArrays } from '../world/geometry/builder.ts';
-import { softBodyOf, softSettings, type SoftBodyOptions } from './soft.ts';
+import { softBodyOf, type SoftBodyOptions } from './soft.ts';
+import { softSettings } from './softSettings.ts';
 
 /**
  * The records the compiler's cook writes (`physics_cook/soft_tests.rs`, which mirrors

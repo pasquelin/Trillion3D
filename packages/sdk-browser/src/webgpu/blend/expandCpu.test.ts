@@ -3,14 +3,15 @@ import assert from 'node:assert/strict';
 import {
   blendChunkWords,
   blendVertexShift,
-  buildBlendRuns,
   instanceItem,
   RUN_SHARED,
   RUN_WORDS,
   runOwner,
 } from './runs.ts';
+import { buildBlendRuns } from './runSlicing.ts';
 import { expandBlendPlan, itemKept } from './expandCpu.ts';
-import { DRAW_UNPAGED, planEntry } from './plan.ts';
+import { DRAW_UNPAGED } from './plan.ts';
+import { planEntry } from './planEntry.ts';
 
 /** A plan entry: item rank, share bit, pipeline. */
 const entree = (item: number, shared: boolean, pipeline = 1) => planEntry(item, pipeline, shared);

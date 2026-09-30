@@ -15,15 +15,13 @@ import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/c
 import { projectedClusterError } from '../../../packages/sdk-browser/src/page/selection/math.ts';
 import { cullingBounds } from '../../../packages/sdk-browser/src/page/cut/bounds.ts';
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
-import {
-  evaluateDagSelectionKernel,
-  packDagSelection,
-  packedWorldsToRenderOrigin,
-} from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
+import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import { selectionGpu } from './selectionKernelGpu.ts';
 import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 import { project } from './cameraRig.ts';
+import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts';
+import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts';
 
 if (import.meta.main) {
   const SEUIL = 0.4;

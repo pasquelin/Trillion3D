@@ -1,7 +1,7 @@
 /**
  * Screen error of the DAG selection kernel, in WGSL: sdk-core's `screenErrorBound` (proof at the
  * formula site, `screenErrorBound.ts`), same operands and same order, in f32. CPU mirror:
- * `projectedError` from `../oracle/math.ts`. WGSL module declarations are read in any order:
+ * `projectedError` from `../oracle/math.fixture.ts`. WGSL module declarations are read in any order:
  * this fragment is added to the text of `shader.ts`.
  *
  * `REFERENCE_ERROR` is the EXPERIMENT switch described in `screenErrorVariant.ts`: a module
@@ -9,11 +9,9 @@
  * being eliminated at compile time. `withScreenErrorVariant` sets it true for the campaign that
  * measures the external-reference metric, exact mirror of `referenceScreenError`.
  */
-import { CLUSTER_LEVEL_SHIFT } from '../layout.ts';
+import { CLUSTER_LEVEL_SHIFT } from '../clusterFlags.ts';
 import type { ScreenErrorVariant } from '../../../../../sdk-core/src/index.ts';
-
-/** Declaration `withScreenErrorVariant` returns, written once for both. */
-export const REFERENCE_ERROR_DECL = 'const REFERENCE_ERROR:bool=false;';
+import { REFERENCE_ERROR_DECL } from './referenceErrorDecl.ts';
 
 export const DAG_ERROR_WGSL = `
 ${REFERENCE_ERROR_DECL}

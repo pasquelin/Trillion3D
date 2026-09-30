@@ -1,4 +1,5 @@
 import { CORNER_VALUES, PARTITION_WORKGROUP } from '../partition/contract.ts';
+import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts';
 import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts';
 import { shaderFailed } from './shaderModule.ts';
 import { bounceGroup, bounceLayout } from '../../bounce/bindings.ts';
@@ -59,7 +60,7 @@ export async function createTransparentOcclusion(
       destroy();
       return undefined;
     }
-    const pipeline = device.createComputePipeline({
+    const pipeline = await buildComputePipeline(device, {
       layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
       compute: { module, entryPoint: 'testTransparentClusters' },
     });

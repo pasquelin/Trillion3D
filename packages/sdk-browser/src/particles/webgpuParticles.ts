@@ -1,60 +1,12 @@
-import {
-  PARTICLE_FLOATS,
-  type ParticlePool,
-  type ParticleStep,
-} from '../../../sdk-core/src/fluids/particles.ts';
-import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
+import { PARTICLE_FLOATS, type ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
 import { bounceGroup, bounceLayout } from '../bounce/bindings.ts';
-import { anyMoving, createPoolStates, refuseAll, usedSlots } from './poolStates.ts';
+import { createPoolStates, usedSlots } from './poolStates.ts';
 import { createWebgpuParticleDraw, type DrawState } from './webgpuParticleDraw.ts';
 import { DRAW_FLOATS } from './drawWords.ts';
-import { viewProj } from '../webgpu/pages/helpers.ts';
-import { routedFilter } from '../webgpu/blend/displayFilter.ts';
-
-/** The pass label the GPU timings name the particle step by (`passesGpu`). */
-export const PARTICLES_PASS = 'Trillion3D particles';
-/** Slots one workgroup steps. */
-export const PARTICLE_WORKGROUP = 64;
-
-/** One invocation per slot: the ring's record this image replaces it, then a live particle moves
- *  (position from the pool's origin); a dead one nobody emitted into is left as it is. */
-export const PARTICLES_WGSL = /* wgsl */ `
-struct Particle { position: vec4f, velocity: vec4f }
-struct Step { acceleration: vec3f, dt: f32, first: u32, count: u32, capacity: u32, pad: u32 }
-@group(0) @binding(0) var<uniform> step: Step;
-@group(0) @binding(1) var<storage, read> staged: array<Particle>;
-@group(0) @binding(2) var<storage, read_write> particles: array<Particle>;
-@compute @workgroup_size(${PARTICLE_WORKGROUP})
-fn main(@builtin(global_invocation_id) id: vec3u) {
-  let i = id.x;
-  if (i >= step.capacity) { return; }
-  let k = (i + step.capacity - step.first) % step.capacity;
-  var p = particles[i];
-  if (k < step.count) { p = staged[k]; } else if (p.position.w >= p.velocity.w) { return; }
-  if (p.position.w < p.velocity.w) {
-    let velocity = p.velocity.xyz + step.acceleration * step.dt;
-    p.velocity = vec4f(velocity, p.velocity.w);
-    p.position = vec4f(p.position.xyz + velocity * step.dt, p.position.w + step.dt);
-  }
-  particles[i] = p;
-}`;
-
-/** The step uniform, the WGSL `Step`: acceleration and `dt`, then the ring's first slot, count
- *  and capacity. Made once; `write` rewrites it for one pool's step. */
-export function createStepWords() {
-  const buffer = new ArrayBuffer(32),
-    floats = new Float32Array(buffer),
-    uints = new Uint32Array(buffer);
-  const write = (pool: ParticlePool, { first, count, dt }: Readonly<ParticleStep>) => {
-    floats.set(pool.acceleration);
-    floats[3] = dt;
-    uints[4] = first;
-    uints[5] = count;
-    uints[6] = pool.capacity;
-  };
-  return { buffer, uints, write };
-}
+import { PARTICLES_WGSL, PARTICLE_WORKGROUP } from './particlesWgsl.ts';
+import { createStepWords } from './stepWords.ts';
+import { PARTICLES_PASS } from './webgpuParticleFrame.ts';
 
 type PoolState = DrawState & { step: GPUBuffer; staged: GPUBuffer; group: GPUBindGroup };
 
@@ -129,72 +81,3 @@ export function createWebgpuParticles(device: GPUDevice, fail: (error: unknown) 
 }
 
 export type WebgpuParticles = ReturnType<typeof createWebgpuParticles>;
-
-/** True while one of the world's pools moves: the image changes, and is not held. */
-export const particlesMoved = (rt: WebgpuPagesRuntime) => anyMoving(rt.context.particles);
-
-/** The world's pools on this image, stepped in the image's command buffer ahead of its
- *  transparent stage, which draws them (#755), once a frame whatever the views drawn. */
-export function encodeParticles(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  encoder: GPUCommandEncoder,
-) {
-  const pools = rt.context.particles;
-  // Once made, the step runs with no pool left too: it gives a released pool's buffers back.
-  if (!pools || (!pools.length && !rt.gpu.particles)) return;
-  if (!rt.vis.visEnabled) {
-    // A capability refusal, told once like WebGL2's (`particlesRefused`); the session goes on.
-    if (refuseAll(pools))
-      rt.context.particlesRefused?.(
-        'PARTICLES_UNSUPPORTED: particles draw on the visibility buffer',
-      );
-    // A visibility buffer dropped mid-session: the step made before it gives its buffers back.
-    rt.gpu.particles?.dispose();
-    rt.gpu.particles = undefined;
-    return;
-  }
-  // One step a frame, the main view's: a view drawn beside it draws the pools as they stand.
-  if (rt.views.active !== rt.views.main) return;
-  rt.gpu.particles ??= createWebgpuParticles(device, (error) =>
-    rt.diag.diagnosticFailure('particles-unavailable', error),
-  );
-  rt.run.gpuComputeDispatches += rt.gpu.particles.run(pools, encoder);
-}
-
-/** Whether this image draws the world's pools: it has some, and shows beauty. */
-export const drawsParticles = (rt: Pick<WebgpuPagesRuntime, 'context' | 'run'>) =>
-  !!rt.context.particles && rt.run.diagnostic === 'beauty';
-
-/** What this image draws the pools with, once a camera and the targets are; else `undefined`. */
-function particleDrawOf(rt: WebgpuPagesRuntime) {
-  const { hdrView, depthView, asIsShare, particles } = rt.gpu;
-  const pools = rt.context.particles;
-  if (!pools || !particles || !hdrView || !depthView || !asIsShare || !rt.run.lastCamera) return;
-  if (drawsParticles(rt)) return { pools, particles, hdrView, depthView, reactive: asIsShare.view };
-}
-
-/** The stepped pools over the lit image and its transparents, in beauty, their coverage the reactive
- *  value (`asIsShare.ts`); `tone`, the exposure and curve (`directTiles`), shows a routed disc. */
-export function drawParticles(
-  rt: WebgpuPagesRuntime,
-  encoder: GPUCommandEncoder,
-  tone: ArrayLike<number>,
-) {
-  const drawn = particleDrawOf(rt),
-    { run } = rt;
-  if (!drawn) return;
-  run.gpuDrawCalls += drawn.particles.draw(
-    drawn.pools,
-    encoder,
-    drawn.hdrView,
-    drawn.reactive,
-    drawn.depthView,
-    rt.gpu.targetSize,
-    viewProj,
-    run.gate.cam.eye,
-    routedFilter(rt.gpu.displayFilter),
-    tone,
-    rt.lights.store.unlit,
-  );
-}

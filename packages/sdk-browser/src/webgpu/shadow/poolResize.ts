@@ -3,11 +3,16 @@ import { layerViews } from '../../gpu/shadow/layers.ts';
 import { createShadowPageMover } from '../../gpu/shadow/pageMoves.ts';
 import { shadowTransmittanceBytes } from '../../gpu/shadow/transmittance.ts';
 import { shadowBufferBytes, type GpuShadowAtlas } from '../../gpu/shadow/atlas.ts';
-import { SHADOW_GRANT_BYTES } from '../../residency/memoryBudget.ts';
 import { admitShadowBytes, noteShadowPressure, shadowPoolHeld } from './memoryGrant.ts';
 import { disposeStaticLayer, type WebgpuLightState } from '../pages/state/lights.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { adoptShadowPool, askShadowPool } from './poolSize.ts';
+import {
+  createPoolDemand,
+  followDemand,
+  type PoolDemand,
+} from '../../../../sdk-core/src/scene/light-shadow/poolDemand.ts';
+import { SHADOW_GRANT_BYTES } from '../../residency/shadowBudgetBytes.ts';
 
 /** The static layer let go, with its pyramids: no page keeps casters in it any more, and the next
  *  move of an object builds one for the pool in place (`encodeShadows.ts`). One still being made
@@ -19,11 +24,38 @@ export function releaseStaticLayer(lights: WebgpuLightState) {
   lights.staticLayerPending = false;
 }
 
+/** What each light state's pool follows between reports (`followDemand`), the pages it last
+ *  asked the device for — a refused size is not asked again until the demand asks another —,
+ *  whether it is held at its ceiling, and the frame the view came to rest, −1 while it moves. */
+type HeldDemand = PoolDemand & { asked: number; ceiling: boolean; restFrom: number };
+const demands = new WeakMap<WebgpuLightState, HeldDemand>();
+const demandOf = (lights: WebgpuLightState) => {
+  let demand = demands.get(lights);
+  if (!demand) {
+    demand = { ...createPoolDemand(), asked: 0, ceiling: false, restFrom: -1 };
+    demands.set(lights, demand);
+  }
+  return demand;
+};
+
 /**
- * THE SHADOW POOL FOLLOWS THE CANVAS. A frame whose drawing buffer is not the one the pool was
- * last sized for asks a pool for it by the first frame's rule, from the same grant
- * (`askShadowPool`): a larger screen gets the pages it reads, a smaller one gives its memory back.
- * The frame is held while the device answers (`deviceAnswering`): the previous image stays.
+ * The first frame whose asks no page need of frame `frame` evicts (`allocWgsl.ts`): this one, or,
+ * while the pool is held at its ceiling — the scene asks more than it can grow to — and the view
+ * rests, the frame it came to rest. The jitter phases of a still view then never take each
+ * other's pages: what they ask past the pool is refused and reads the coarser page, and the image
+ * rests instead of drawing pages again every frame (#1345, PR #1359's first risk).
+ */
+export function shadowKeptFrom(lights: WebgpuLightState, frame: number) {
+  const demand = demandOf(lights);
+  demand.restFrom = lights.plan.resting ? (demand.restFrom < 0 ? frame : demand.restFrom) : -1;
+  return demand.ceiling && demand.restFrom >= 0 ? demand.restFrom : frame;
+}
+
+/**
+ * THE SHADOW POOL FOLLOWS THE SCENE'S DEMAND. After each report, the pages it read at the drawn
+ * size (`followDemand`): a demand past what the pool holds grows it, one that stays well under
+ * shrinks it — from the same grant (`askShadowPool`), never from the screen's size. The frame is
+ * held while the device answers (`deviceAnswering`): the previous image stays.
  *
  * Granted, the plan keeps every page the new pool holds (`resizeShadowPool`) and the GPU copies
  * each one, texel for texel, to its new place — its transmittance too when that layer is held,
@@ -34,23 +66,30 @@ export function releaseStaticLayer(lights: WebgpuLightState) {
  *
  * Refused — the pool at its floor, or the transmittance layer the new pool needs —, the pool in
  * place stays with every page it holds, said under `gpu-out-of-memory` (`grantedShadowPool`, and
- * here for the layer): shadows never go off for a resize. It is asked again at the next size. A
- * capture's temporary size resizes nothing.
+ * here for the layer): shadows never go off for a resize. It is asked again at the next size the
+ * demand asks. A capture resizes nothing.
  */
-export function followShadowView(rt: WebgpuPagesRuntime) {
+export function followShadowDemand(rt: WebgpuPagesRuntime) {
   const { lights, run, diag } = rt,
     atlas = lights.shadows,
-    device = rt.gpu.device,
-    [width, height] = rt.setup.viewport;
-  if (!atlas?.texture || !device || !lights.poolView || grantPending(lights.shadowGrant)) return;
-  if (rt.capture.capturing || (lights.poolView[0] === width && lights.poolView[1] === height))
+    device = rt.gpu.device;
+  if (!atlas?.texture || !device || grantPending(lights.shadowGrant) || rt.capture.capturing)
     return;
-  const ask = askShadowPool(rt, atlas, device),
+  const demand = demandOf(lights),
+    wanted = followDemand(lights.plan, demand);
+  if (!demand.over) demand.ceiling = false;
+  if (wanted === undefined) return;
+  const ask = askShadowPool(rt, atlas, device, wanted),
     { pool } = lights.plan;
-  // No light casts: nothing asked, and the view is compared again once one does.
+  // No light casts: nothing asked, and the next report is weighed once one does.
   if (!ask) return;
-  lights.poolView = [width, height];
-  if (ask.target.side === pool.side && ask.target.layers === pool.layers) return;
+  const { side, layers } = ask.target,
+    pages = side ** 2 * layers,
+    held = pages === demand.asked || (side === pool.side && layers === pool.layers);
+  // What the demand asks past the pool, it can no longer grow to: held at its ceiling.
+  demand.ceiling = demand.over && held;
+  if (held) return;
+  demand.asked = pages;
   releaseStaticLayer(lights);
   const done = resizeTo(rt, atlas, device, ask).catch((error: unknown) => {
     if (!run.lost) diag.diagnosticFailure('shadow-pool-unavailable', error);
@@ -89,7 +128,7 @@ async function resizeTo(
     return;
   }
   const from = lights.plan.pool.side,
-    { moved, held } = adoptShadowPool(rt, atlas, device, granted, ask.viewport, layer);
+    { moved, held } = adoptShadowPool(rt, atlas, device, granted, ask.wanted, layer);
   const before = held!,
     old = before.transmittance;
   mover.move(moved, [from, side], [before.texture, granted.made], layer && old && [old, layer]);

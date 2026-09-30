@@ -19,6 +19,7 @@ const WIDEST_CONE = Math.PI / 2 - 1e-9;
 const eye = new Vector3(),
   aim = new Vector3(),
   right = new Vector3();
+// Stryker disable next-line ArrayDeclaration: written by index before any read
 const tint = [0, 0, 0];
 /** `colour` times `scale`, in one reused triple: the WebGL2 probe adds every frame, allocating
  *  nothing. */
@@ -56,9 +57,11 @@ export function lampRecord(light: Light, id: string, reach: number): SceneLight 
     const m = light.matrixWorld.elements;
     record.right = right.set(m[0], m[1], m[2]).normalize().toArray();
     record.size = [light.width, light.height];
-  } else if (kind !== 'point') light.target.getWorldPosition(aim).sub(eye);
-  if (kind !== 'point')
+  }
+  if (kind !== 'point') {
+    if (!rectangle) light.target.getWorldPosition(aim).sub(eye);
     record.direction = (aim.lengthSq() > 0 ? aim.normalize() : aim.set(0, -1, 0)).toArray();
+  }
   if (kind === 'directional') return record;
   record.position = eye.toArray();
   record.range = light.distance > 0 ? light.distance : reach;

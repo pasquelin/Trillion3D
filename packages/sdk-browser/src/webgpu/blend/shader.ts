@@ -22,7 +22,7 @@ import { PAGE_GEOMETRY_WGSL, PAGE_NORMAL_WGSL } from '../../visibility/shader/pa
 import { BLEND_SURFACE_WGSL } from './shaderSurface.ts';
 import { LINE_CLIP_WGSL } from '../../visibility/shader/lineWgsl.ts';
 import { SPRITE_WGSL } from '../../visibility/shader/spriteWgsl.ts';
-import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from '../water/surfaceWgsl.ts';
+import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from '../water/rank.ts';
 import { INSTANCE_CULL_SHIFT, INSTANCE_ITEM_MASK } from './runs.ts';
 import { FACING_DROP, FACING_SHIFT, FACING_WGSL } from './facing.ts';
 import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from './displayFilter.ts';
@@ -171,8 +171,8 @@ fn blendFragment(in:VSOut,front:bool,masked:f32)->BlendOut{
   return BlendOut(vec4f(color,1.0),s.request,vec4f(0.0,1.0,0.0,1.0),vec4f(1.0),vec4f(0.0));
  }
  var rgb=s.rgb;
- // No declared lamp, or an unlit view requested: the raw albedo, exactly like the opaque
- // resolve. Neither ambient, nor sky, nor a default sun (P6).
+ // No declared lamp, or an unlit view requested: the raw albedo and its emission, exactly like
+ // the opaque resolve. Neither ambient, nor sky, nor a default sun (P6).
  let unlit=(flags&${FLAG_UNLIT_VIEW}u)!=0u;
  let V=normalize(uni.camPos.xyz-in.view*uni.camPos.w);
  let clamped=clamp(s.rough,${ROUGHNESS_FLOOR},1.0);
@@ -187,9 +187,9 @@ fn blendFragment(in:VSOut,front:bool,masked:f32)->BlendOut{
    if(any(thinSubsurface>vec3f(0.0))){rgb+=bounceLighting(thinSubsurface,0.0,-s.N,in.view,s.ao)+environmentLighting(thinSubsurface,0.0,-s.N,s.ao);}
    rgb+=mirrorLighting(s.rgb,m,clamped,s.N,V,in.view);
   }
-  // Lit or unlit, the surface is seen through the fog.
+  // Lit, the surface is seen through the fog; unlit, it keeps what it emits (#1362).
   if((flags&${surfaceModel.FOG_FREE_MODEL_BIT << surfaceModel.MODEL_SHIFT}u)==0u){rgb=fogged(rgb,in.view,uni.eye.xyz);}
- }
+ }else{rgb+=s.emissive;}
  let r=displayRoute(rgb,uni.exposure,uni.toneCurve,unlit,s.alpha,masked);
  return BlendOut(vec4f(rgb,s.alpha*r.keep),s.request,vec4f(0.0,1.0,0.0,s.alpha*r.keep),r.tint,r.add);
 }
@@ -197,4 +197,3 @@ fn blendFragment(in:VSOut,front:bool,masked:f32)->BlendOut{
 @fragment fn fs(in:VSOut,@builtin(front_facing) front:bool)->BlendOut{return blendFragment(in,front,0.0);}
 @fragment fn fsFiltered(in:VSOut,@builtin(front_facing) front:bool)->BlendOut{return blendFragment(in,front,maskAt(in.position));}
 `;
-export const BLEND_SHADER = blendShader();

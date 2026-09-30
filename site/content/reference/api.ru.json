@@ -3271,6 +3271,7 @@
       "counts": "Что сделал последний план, в страницах.",
       "spent": "Миллисекунды CPU, которые последний план потратил на чтение отчёта о запросах и допуск страниц.",
       "worldChanged": "Узел сдвинулся: его бокс делает устаревшими покрытые им страницы в следующем плане.",
+      "changeRoom": "Сколько коробок список ещё держит раздельно до переполнения.",
       "representationChanged": "Тот же мир с другой точностью: его бокс ждёт, пока камера остановится.",
       "resting": "Камера покоилась при последнем плане: её вид совпадал с видом предыдущего плана.",
       "deferredChanges": "Истина, пока смена представления ждёт остановки камеры.",
@@ -3694,7 +3695,8 @@
       "total": "Сколько задач всего.",
       "stream": "Куда писать.",
       "width": "Ширина полосы.",
-      "interval": "Минимум миллисекунд между перерисовками."
+      "interval": "Минимум миллисекунд между перерисовками.",
+      "verbose": "Также выводит информационные коды и каждое появление в итоговой сводке задачи."
     }
   },
   "Texture-common": {
@@ -5045,13 +5047,14 @@
   "createTerminalProgress": {
     "summary": "Полоса прогресса в терминале, следующая за событиями компилятора.",
     "parameters": {
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}": "Как выглядит отображение прогресса в терминале.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.label": "Имя задачи.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.index": "Номер задачи.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.total": "Сколько задач всего.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.stream": "Куда писать.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.width": "Ширина полосы.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.interval": "Минимум миллисекунд между перерисовками."
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}": "Как выглядит отображение прогресса в терминале.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.label": "Имя задачи.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.index": "Номер задачи.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.total": "Сколько задач всего.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.stream": "Куда писать.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.width": "Ширина полосы.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.interval": "Минимум миллисекунд между перерисовками.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.verbose": "Также выводит информационные коды и каждое появление в итоговой сводке задачи."
     }
   },
   "createTransformTree": {
@@ -6881,7 +6884,7 @@
     "summary": "Присоединяет `node` к `parent` (`-1`: корень), как эталонный `add`: матрицы не двигаются до следующего обновления."
   },
   "resolveCompilerExecutable": {
-    "summary": "Находит программу нативного компилятора: запрошенную, иначе собранную в этой рабочей копии."
+    "summary": "Находит программу нативного компилятора: запрошенную, иначе из установленного пакета платформы, иначе указанную в `TRILLION3D_COMPILER_BIN`, иначе собранную в этой рабочей копии."
   },
   "reviewCutouts": {
     "summary": "Спрашивает, модель за моделью, выглядит ли правильно каждая вырезанная поверхность, и записывает ответы.",
@@ -8134,7 +8137,7 @@
     }
   },
   "IMPOSTOR_PI": {
-    "summary": "π, один литерал для этого оракула и зеркала на WGSL, чтобы оба округляли одно и то же число."
+    "summary": "π, один литерал, чтобы каждый читатель переключения округлял одно и то же число."
   },
   "IMPOSTOR_VERSION": {
     "summary": "Формат раздела `impostors`, который читает среда выполнения (#817 часть 1, запекается компилятором)."

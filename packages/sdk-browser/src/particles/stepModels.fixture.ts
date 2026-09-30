@@ -6,8 +6,9 @@
 import { PARTICLE_FLOATS, type ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
 import { written, type FakeWrite } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { createTestContext } from '../webgl/core/testContext.fixture.ts';
-import { PARTICLE_WORKGROUP } from './webgpuParticles.ts';
-import { PARTICLE_ROW, createWebglParticles } from './webglParticles.ts';
+import { PARTICLE_WORKGROUP } from './particlesWgsl.ts';
+import { PARTICLE_ROW } from './particleRow.ts';
+import { createWebglParticles } from './webglParticles.ts';
 
 const f = Math.fround;
 

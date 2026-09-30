@@ -3271,6 +3271,7 @@
       "counts": "Son planın yaptığı, sayfa olarak.",
       "spent": "Son planın istek raporunu okumak ve sayfaları kabul etmek için harcadığı CPU milisaniyeleri.",
       "worldChanged": "Bir düğüm hareket etti: kutusu bir sonraki planda kapladığı sayfaları eskitir.",
+      "changeRoom": "Liste taşmadan önce hâlâ ayrı tutabildiği kutu sayısı.",
       "representationChanged": "Aynı dünya başka bir hassasiyette: kutusu kameranın durmasını bekler.",
       "resting": "Kamera son planda duruyordu: görünümü bir önceki planınkiyle aynıydı.",
       "deferredChanges": "Bir gösterim değişikliği kameranın durmasını beklerken doğru.",
@@ -3694,7 +3695,8 @@
       "total": "Toplam kaç görev.",
       "stream": "Nereye yazılacağı.",
       "width": "Çubuk genişliği.",
-      "interval": "Yeniden çizimler arasındaki en az milisaniye."
+      "interval": "Yeniden çizimler arasındaki en az milisaniye.",
+      "verbose": "Görev sonu özetinde bilgi kodlarını ve her oluşumu da gösterir."
     }
   },
   "Texture-common": {
@@ -5045,13 +5047,14 @@
   "createTerminalProgress": {
     "summary": "Derleyicinin olaylarını takip eden, terminalde bir ilerleme çubuğu.",
     "parameters": {
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}": "Bir terminal ilerleme görüntüsünün neye benzediği.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.label": "Görevin adı.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.index": "Görevin numarası.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.total": "Toplam kaç görev.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.stream": "Nereye yazılacağı.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.width": "Çubuk genişliği.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.interval": "Yeniden çizimler arasındaki en az milisaniye."
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}": "Bir terminal ilerleme görüntüsünün neye benzediği.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.label": "Görevin adı.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.index": "Görevin numarası.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.total": "Toplam kaç görev.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.stream": "Nereye yazılacağı.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.width": "Çubuk genişliği.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.interval": "Yeniden çizimler arasındaki en az milisaniye.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.verbose": "Görev sonu özetinde bilgi kodlarını ve her oluşumu da gösterir."
     }
   },
   "createTransformTree": {
@@ -6881,7 +6884,7 @@
     "summary": "`node`'u `parent`'a (`-1`: kök) ekler, referansın `add`'i gibi: matrisler bir sonraki güncellemeye kadar hareket etmez."
   },
   "resolveCompilerExecutable": {
-    "summary": "Yerel derleyici programını bulur: istenen, yoksa bu checkout'ta derlenen."
+    "summary": "Yerel derleyici programını bulur: istenen, yoksa kurulu platform paketindeki, yoksa `TRILLION3D_COMPILER_BIN` ile belirtilen, yoksa bu checkout'ta derlenen."
   },
   "reviewCutouts": {
     "summary": "Model model, her kesilmiş yüzeyin doğru görünüp görünmediğini sorar, ve yanıtları kaydeder.",
@@ -8134,7 +8137,7 @@
     }
   },
   "IMPOSTOR_PI": {
-    "summary": "π, bu oracle ve WGSL aynası için tek bir literal; böylece ikisi de aynı sayıyı yuvarlar."
+    "summary": "π, tek bir değişmez; geçişi okuyan her taraf aynı sayıyı yuvarlasın diye."
   },
   "IMPOSTOR_VERSION": {
     "summary": "Çalışma zamanının okuduğu `impostors` bölümünün biçimi (#817 bölüm 1, derleyici tarafından pişirilir)."

@@ -1,4 +1,11 @@
 import { moveRootRows } from '../webgpu/pages/render/movedRoot.ts';
+import {
+  declareOwnMove,
+  forgetOwnMoves,
+  noteOwnMove,
+  ownsMove,
+} from '../webgpu/pages/render/movedClusters.ts';
+import { sameElements } from '../math/matrixElements.ts';
 import { staleTemporalBox } from '../hiz/staleRegions.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import { followPlacementRows } from './update.ts';
@@ -27,22 +34,31 @@ export function updateWebgpuPlacements(
   from: number,
   to: number,
 ) {
-  const { run, layout, lights } = rt;
+  const { run, layout, lights } = rt,
+    { mobility } = lights;
   // Each moved root stales its own pages, its moving casters only once it was moving already
-  // (`../webgpu/shadow/mobility.ts`): the plan keeps the boxes apart (`changes.ts`).
+  // (`../webgpu/shadow/mobility.ts`): the plan keeps the boxes apart (`changes.ts`). A root that
+  // only moved declares its clusters at its last pose and its new one (`movedClusters.ts`); the
+  // Hi-Z takes its box where it was and is.
   const moved = followPlacementRows(
     layout.selectionRoots,
     rows,
     from,
     to,
     flipWorld(rt),
-    lights.mobility.move,
+    (rank, world, forced) => {
+      const pose = mobility.poseOf(rank);
+      if (!forced && pose && !sameElements(pose, world)) noteOwnMove(rt, rank);
+      return mobility.move(rank, world, forced);
+    },
     (rank) => moveRootRows(rt, layout.selectionRoots[rank]),
-    (min, max, movingOnly) => {
-      lights.plan.worldChanged(min, max, movingOnly);
+    (min, max, movingOnly, rank, moveOnly) => {
+      if (moveOnly && ownsMove(rank)) declareOwnMove(rt, rank, !movingOnly);
+      else lights.plan.worldChanged(min, max, movingOnly);
       staleTemporalBox(run.temporalHizState, min, max);
     },
   );
+  forgetOwnMoves();
   // Blend items posed by these rows read them in place: the frame only has to be drawn again,
   // and their boxes follow at its world refresh (`refreshBlendWorlds`).
   if (!moved && !placedBy(rt.blendState.blendGpu, rows)) return;

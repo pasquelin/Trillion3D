@@ -2,15 +2,18 @@
 // comparison and sample of a pixel takes the one `reference` it was handed; a neighbour page
 // readable in the home page's range is read across the seam, one that is not at the home page's
 // nearest texel — beside each edge and at the corner —, and without `taps` nothing is compared.
+// Its taps turned by a jitter phase's angle (#1363), every tap still keeps to the pages the edge test
+// names (`PCF_EDGE_TEXELS`), and unturned it is what it was.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { clampNumber as clamp } from '../../../../sdk-core/src/world/math/spherical.ts';
+import { PCF_EDGE_TEXELS } from '../../../../sdk-core/src/scene/light-shadow/pcfEdge.ts';
 import { mulberry32 } from '../../../../../site/examples/kit/random.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { hash } from './shadowPages.fixture.ts';
 import { SHADOW_SUBTEXELS } from './shadowSampleWgsl.ts';
 import { CONSTANTS, SHADOW_WGSL } from './sunRangeRead.fixture.ts';
-import { POISSON_16 } from './shadowWgsl.ts';
+import { POISSON_16 } from './pcfTaps.ts';
 
 type V = number[];
 type Pcf = (...args: [object, V, number, V, number, number, boolean]) => number;
@@ -33,12 +36,24 @@ const spy = (): Calls => ({ neighbour: [], compare: [], sample: [], through: [] 
 /** What a run reads and records: `readable(p)` tells whether neighbour `p` is readable in the
  *  home page's range. Swapped per pixel; the shader text compiles once. */
 const live = { readable: (_: V) => false, calls: spy() };
+/** The taps' turn, cosine and sine (\`shadowRotation\`): set in place per pixel. */
+const TURN = [1, 0];
+const turned = ([x, y]: V) => [x * TURN[0] - y * TURN[1], x * TURN[1] + y * TURN[0]];
 /** The shipped `shadowPcf`, its page reads spied. */
 const { shadowPcf } = shaderRun<{ shadowPcf: Pcf }>(
   SHADOW_WGSL,
-  ['shadowPcf', 'shadowPcfEdge', 'shadowPcfStep'],
+  [
+    'shadowPcf',
+    'shadowSplitTap',
+    'shadowNeighbours',
+    'shadowPcfEdge',
+    'shadowPcfStep',
+    'shadowRotated',
+  ],
   {
     ...CONSTANTS,
+    shadowRotation: TURN,
+    ShadowNeighbours: (x: number[], y: number[], d: number[]) => ({ x, y, d }),
     POISSON: POISSON_16,
     POISSON_STEPS: POISSON_16.map((tap) => tap.map((x) => x * SHADOW_SUBTEXELS)),
     shadowOffset: (_: number, p: V) => placed(p),
@@ -70,7 +85,7 @@ function coordinate(r: () => number, page: number) {
         : pick < 0.7
           ? PAGE - r() * 2
           : pick < 0.8
-            ? [0, 1.5, 64, 126.5][Math.floor(r() * 4)]
+            ? [0, PCF_EDGE_TEXELS, 64, PAGE - PCF_EDGE_TEXELS][Math.floor(r() * 4)]
             : r() * PAGE;
   return page * PAGE + within;
 }
@@ -78,7 +93,9 @@ function coordinate(r: () => number, page: number) {
 /** What `shadowPcf` compares and returns at `t`, `readable` its neighbours' flags. */
 function expected(t: V, home: V, side: number, reference: number, readable: (p: V) => boolean) {
   const first = home.map((p) => p * PAGE),
-    edge = [0, 1].map((a) => t[a] - 1.5 < first[a] || t[a] + 1.5 >= first[a] + PAGE),
+    edge = [0, 1].map(
+      (a) => t[a] - PCF_EDGE_TEXELS < first[a] || t[a] + PCF_EDGE_TEXELS >= first[a] + PAGE,
+    ),
     up = [0, 1].map((a) => t[a] - first[a] >= 0.5 * PAGE),
     step = up.map((u) => (u ? 1 : -1)),
     offset = placed(home);
@@ -92,8 +109,11 @@ function expected(t: V, home: V, side: number, reference: number, readable: (p: 
   const compare: unknown[][] = [],
     sample: unknown[][] = [];
   let total = 0;
-  for (const tap of POISSON_16.slice(0, PCF_TAPS)) {
+  for (const tap of POISSON_16.slice(0, PCF_TAPS).map(turned)) {
     if (!edge[0] && !edge[1]) {
+      // Away from every edge a tap's bilinear footprint, turned any way, keeps to the home page.
+      for (const a of [0, 1])
+        assert.ok(t[a] + tap[a] - 0.5 >= first[a] && t[a] + tap[a] + 0.5 <= first[a] + PAGE);
       const at = [0, 1].map(
         (a) =>
           offset[a] +
@@ -141,7 +161,9 @@ test('shadowPcf compares every tap at its one reference, a neighbour across the 
       side = lamp ? pages * PAGE : 0,
       reference = r() * 1.2 - 0.1,
       seed = Math.floor(r() * 2 ** 31),
-      readable = (p: V) => hash(seed ^ Math.imul(p[0], 7919) ^ Math.imul(p[1], 104729)) < 0.5;
+      readable = (p: V) => hash(seed ^ Math.imul(p[0], 7919) ^ Math.imul(p[1], 104729)) < 0.5,
+      angle = i % 4 < 2 ? 0 : r() * 2 * Math.PI;
+    TURN.splice(0, 2, Math.cos(angle), Math.sin(angle));
     const want = expected(t, home, side, reference, readable),
       { answer, calls } = pcfRun(readable, {}, t, reference, home, 0x80000000, side, true);
     // Every argument, the one `reference` of each comparison and sample among them.

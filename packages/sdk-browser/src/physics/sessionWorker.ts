@@ -1,12 +1,12 @@
 import type { PhysicsBudget } from '../../../sdk-core/src/physics/index.ts';
-import { besideModule } from '../host/besideModule.ts';
+import { besideModule, startModuleWorker } from '../host/besideModule.ts';
 import { stepThreads } from './joltThreads.ts';
 import { PHYSICS_PROTOCOL, resultWords } from './protocol.ts';
 
 /** The physics worker, started on the module that fits the page (threaded when it can share
  *  memory) with the budget and its two result buffers. */
 export function startPhysicsWorker(budget: PhysicsBudget) {
-  const worker = new Worker(besideModule('physicsWorker', import.meta.url), { type: 'module' });
+  const worker = startModuleWorker(besideModule('physicsWorker', import.meta.url));
   const threads = stepThreads(budget.threads);
   const bytes = resultWords(budget) * 4;
   const buffers = [new ArrayBuffer(bytes), new ArrayBuffer(bytes)];

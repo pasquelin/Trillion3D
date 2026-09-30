@@ -6,17 +6,9 @@ import { CASTERS_ALL, SHADOW_CULL_GROUP } from '../../gpu/shadow/cullShader.ts';
 import { SHADOW_PLACE_WGSL } from '../../lighting/direct/shadowSampleWgsl.ts';
 import { SHADOW_DATA_WGSL } from '../../lighting/direct/shadowWgsl.ts';
 import { shadowPoolWgsl } from './poolWgsl.ts';
-import {
-  FRESH_CASTERS,
-  FRESH_CLEAR,
-  FRESH_FACE_WORDS,
-  FRESH_LAYOUT_WGSL,
-  FRESH_PARAMS_WGSL,
-  MAX_POOL_LAYERS,
-} from './freshLayout.ts';
-
-/** Invocations of the one workgroup that composes, then seals, a frame's GPU-drawn pages. */
-export const FRESH_LANES = 64;
+import { FRESH_CASTERS, FRESH_CLEAR, FRESH_FACE_WORDS, MAX_POOL_LAYERS } from './freshLayout.ts';
+import { FRESH_LAYOUT_WGSL, FRESH_PARAMS_WGSL } from './freshLayoutWgsl.ts';
+import { FRESH_LANES } from './freshLanes.ts';
 /** Regions a frame's pair cull dispatches at most: a dispatch's second dimension. */
 const MAX_FRESH_REGIONS = 65535;
 
@@ -29,13 +21,16 @@ const MAX_FRESH_REGIONS = 65535;
  * arguments of what follows (`freshLayout.ts`): the pair cull over every caster row
  * (`freshCullWgsl.ts`), then `sealShadowPages`, then each layer's clear and caster draws.
  *
- * A page is claimed once (`DRAWN_GPU`) and composed by the page view model, as the host composes
- * it (`pageViewModel.ts`): a lamp page is its face's clip cropped to it, its cone the lamp's; a sun
- * page is its view cropped by the orthography, its box the square by the range's depth. No more
- * pages are picked than the pair list holds all the casters of (\`pickPages\`): the seal makes
- * each one readable, never short of a caster; one not picked waits, listed again, for the next
- * frame or the host. The window is the session's (`referenceMode.ts`), the ordinary constant by
- * default.
+ * A page is claimed once (`DRAWN_GPU`) and composed by the page view model, as the host composes it
+ * (`pageViewModel.ts`): a lamp page is its face's clip cropped to it, its cone the lamp's; a sun
+ * page is its view cropped by the orthography, its box the square by the range's depth. Every
+ * listed page is picked (`pickPages`), as Unreal's virtual shadow maps draw every page a frame
+ * marks in that frame (#1363): a receiver reads the level it asked for, never the coarser one. The
+ * pair list grows to the pairs the frames count (`pairGrowth.ts`); a region past the longest prefix
+ * it holds whole is left short (`FRESH_SHORT`, `admitShadowPairs`) and the seal makes readable the
+ * others alone — never a page short of a caster —; a short one waits, listed again, for the next
+ * frame, by which the list has grown to the need the seal hands the host, or for the host. The
+ * window is the session's (`referenceMode.ts`), the ordinary constant by default.
  */
 export const shadowFreshWgsl = (pages = SUN_WINDOW) => `
 ${SHADOW_DATA_WGSL}
@@ -68,15 +63,13 @@ fn volumeF(i:u32,v:f32){volumes[i]=bitcast<u32>(v);}
 fn faceVec(i:u32,v:vec4f){faceF(i,v.x);faceF(i+1u,v.y);faceF(i+2u,v.z);faceF(i+3u,v.w);}
 fn volumeVec(i:u32,v:vec4f){volumeF(i,v.x);volumeF(i+1u,v.y);volumeF(i+2u,v.z);volumeF(i+3u,v.w);}
 /** Lane 0: the listed pages still waiting for a draw, each claimed once, then laid out as regions
- *  layer after layer (\`FRESH_LAYER_STARTS\`, \`FRESH_REGION_PAGES\`). A region keeps at most one
- *  pair per caster row: no more are picked than the pair list holds every row of — the rest wait,
- *  unread, listed again, and the reader falls to their floor meanwhile. */
+ *  layer after layer (\`FRESH_LAYER_STARTS\`, \`FRESH_REGION_PAGES\`): every one of them, as many as
+ *  the cull's dispatch holds. */
 fn pickPages(){
  for(var l=0u;l<params.layers;l++){layerCount[l]=0u;}
  let listed=min(countRead(COUNT_DRAWN),params.pages);
- let rows=params.rows+params.blendEnd-params.blendFirst;
  var picked=0u;
- for(var i=0u;i<listed&&picked<MAX_REGIONS&&(picked+1u)*rows<=params.capacity;i++){
+ for(var i=0u;i<listed&&picked<MAX_REGIONS;i++){
   let p=drawList[i];let e=shadowPool.pages[poolAt(POOL_OWNER,p)];
   if(e<0){continue;}
   let word=shadows.table[u32(e)];let by=poolAt(POOL_DRAWNBY,p);
@@ -137,8 +130,10 @@ fn composeLamp(k:u32,slice:u32,view:i32,x:f32,y:f32){
  volumeVec(w,vec4f(s.emitter.xyz,s.far.x));volumeVec(w+4u,vec4f(axis,shadowConeSpread(f,r,u,t,halfFov,axis,u0,u1,v0,v1)));
  volumeVec(w+8u,vec4f(0.0));volumeVec(w+12u,vec4f(0.0));
 }
-/** Region \`k\`: its page's view and volume, every caster of it kept (\`CASTERS_ALL\`). */
+/** Region \`k\`: its page's view and volume, every caster of it kept (\`CASTERS_ALL\`), no pair
+ *  counted yet. */
 fn composeRegion(k:u32){
+ args[freshRegionPairs(params.pages,k)]=0u;
  let p=args[FRESH_REGION_PAGES+k];let e=u32(shadowPool.pages[poolAt(POOL_OWNER,p)]);let slice=e/SHADOW_TABLE_STRIDE;
  let place=shadowPoolPlace(f32(p),f32(params.side))*PAGE_TEXELS;let size=f32(params.side)*PAGE_TEXELS;
  let at=k*FACE_WORDS;
@@ -164,23 +159,28 @@ fn composeRegion(k:u32){
  if(lane==0u){
   let rows=params.rows+params.blendEnd-params.blendFirst;
   dispatch[0]=select((rows+CULL_GROUP-1u)/CULL_GROUP,0u,regions==0u);dispatch[1]=regions;dispatch[2]=1u;
-  args[FRESH_REGIONS]=regions;args[FRESH_CAPACITY]=params.capacity;args[FRESH_PAIRS]=0u;args[FRESH_CORNERS]=0u;
+  args[FRESH_REGIONS]=regions;args[FRESH_CORNERS]=0u;
  }
 }
-/** After the pair cull, which kept every pair (\`pickPages\`): each region is readable — full
- *  footprint, the sun's current range —; each layer draws the pairs kept. */
+/** After the pair cull: each region admitted whole is readable — full footprint, the sun's current
+ *  range —; one left short (\`FRESH_SHORT\`) is not, and waits unclaimed for the next
+ *  frame's pick. Each layer draws the pairs kept; the pairs every region counted go to the pool's
+ *  counts, which the host reads back to grow the list by (\`pairGrowth.ts\`). */
 @compute @workgroup_size(${FRESH_LANES}) fn sealShadowPages(@builtin(local_invocation_index) lane:u32){
  let regions=args[FRESH_REGIONS];
  for(var k=lane;k<regions;k+=FRESH_LANES){
-  let p=args[FRESH_REGION_PAGES+k];let e=u32(shadowPool.pages[poolAt(POOL_OWNER,p)]);let slice=e/SHADOW_TABLE_STRIDE;
-  var range=0u;
-  if(u32(shadows.records[slice].info.x)==u32(SUN_LEVEL_COUNT)){range=u32(shadows.records[slice].frame[2].w);}
-  shadows.table[e]=shadowReadableWord(p,range,0u);
+  let p=args[FRESH_REGION_PAGES+k];
+  if(args[freshRegionPairs(params.pages,k)]==FRESH_SHORT){shadowPool.pages[poolAt(POOL_DRAWNBY,p)]=DRAWN_NONE;}
+  else{
+   let e=u32(shadowPool.pages[poolAt(POOL_OWNER,p)]);let slice=e/SHADOW_TABLE_STRIDE;
+   var range=0u;
+   if(u32(shadows.records[slice].info.x)==u32(SUN_LEVEL_COUNT)){range=u32(shadows.records[slice].frame[2].w);}
+   shadows.table[e]=shadowReadableWord(p,range,0u);
+  }
  }
  if(lane<params.layers){
   let casters=freshDraw(lane,${FRESH_CASTERS}u);
   args[casters]=args[FRESH_CORNERS];args[casters+1u]=args[FRESH_PAIRS];
  }
+ if(lane==0u){countSet(COUNT_PAIRS,args[FRESH_NEED]);}
 }`;
-/** The GPU pages of the ordinary window: what a pass compiled without a session window reads. */
-export const SHADOW_FRESH_WGSL = shadowFreshWgsl();
