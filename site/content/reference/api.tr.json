@@ -1148,6 +1148,7 @@
       "gpuPassMs": "Bu backend'in en son GPU geçiş örneği; cihaz zaman damgası sorgusu sunmadığında null.",
       "gpuFrameMs": "`gpuPassMs.frame`'in betimlediği görselin GPU süresi. Asla bir `cpu*` alanına eklenmez. Cihaz birkaç görselde bir örneklenir, bu yüzden bir sayı birkaç görsel öncesine ait olabilir. İlk örnekten önce, tutulan bir görselden cihazın bir sonraki örneğine kadar, `timestamp-query` olmayan bir cihazda ve `EXT_disjoint_timer_query_webgl2` olmadan WebGL2’de null’dır.",
       "gpuHostGapMs": "Aynı görselin kendi iki gönderimi arasında geçirdiği CPU süresi, ve bir kez gönderdiğinde sıfır. Bu, GPU süresi değil host süresidir, bu yüzden `gpuFrameMs` onu hariç tutar. Ölçülmediğinde null.",
+      "gpuDeviceLost": "GPU aygıtının neden kaybedildiği; aygıt ayakta kaldıkça null.",
       "uncoveredTriangles": "Yayımlanan kesitin adlandırdığı ama karenin çizemediği cluster'ların üçgenleri — yerleşik sayfa yok ve kapsayan ata yok. Görseldeki gerçek bir boşluk: sıfır tek sağlıklı değerdir. Bir backend söyleyemediğinde null (seçtiği kesiti çizer, bu yüzden asla bir tanesi olmaz).",
       "drawnTriangles": "MEVCUT KARE'nin çizime verdiği üçgenler: hiyerarşinin opak ve şeffaf birleşik cluster kesiti. Hiyerarşi dışındaki şeffaf meshler bunun içinde değildir (`transparentSubmittedTriangles`), ve gizlenme reddi çıkarılmaz (`hizRejectedTriangles`). Kesit kabulünde sayılır: hiçbir asenkron GPU geri okuması beklenmez, bu yüzden `submittedTriangles`'ın aksine, zaman yokluğundan dolayı asla `null` değildir.",
       "cpuSelectMs": "Sadece seçim etrafında ölçülen, bu karenin cluster kesitinin CPU süresi. Kesitini CPU'da seçmeyen bir motorda null.",
@@ -3694,7 +3695,8 @@
       "total": "Toplam kaç görev.",
       "stream": "Nereye yazılacağı.",
       "width": "Çubuk genişliği.",
-      "interval": "Yeniden çizimler arasındaki en az milisaniye."
+      "interval": "Yeniden çizimler arasındaki en az milisaniye.",
+      "verbose": "Görev sonu özetinde bilgi kodlarını ve her oluşumu da gösterir."
     }
   },
   "Texture-common": {
@@ -4324,6 +4326,7 @@
       "gpuPassMs": "Bu backend'in en son GPU geçiş örneği; cihaz zaman damgası sorgusu sunmadığında null.",
       "gpuFrameMs": "`gpuPassMs.frame`'in betimlediği görselin GPU süresi. Asla bir `cpu*` alanına eklenmez. Cihaz birkaç görselde bir örneklenir, bu yüzden bir sayı birkaç görsel öncesine ait olabilir. İlk örnekten önce, tutulan bir görselden cihazın bir sonraki örneğine kadar, `timestamp-query` olmayan bir cihazda ve `EXT_disjoint_timer_query_webgl2` olmadan WebGL2’de null’dır.",
       "gpuHostGapMs": "Aynı görselin kendi iki gönderimi arasında geçirdiği CPU süresi, ve bir kez gönderdiğinde sıfır. Bu, GPU süresi değil host süresidir, bu yüzden `gpuFrameMs` onu hariç tutar. Ölçülmediğinde null.",
+      "gpuDeviceLost": "GPU aygıtının neden kaybedildiği; aygıt ayakta kaldıkça null.",
       "uncoveredTriangles": "Yayımlanan kesitin adlandırdığı ama karenin çizemediği cluster'ların üçgenleri — yerleşik sayfa yok ve kapsayan ata yok. Görseldeki gerçek bir boşluk: sıfır tek sağlıklı değerdir. Bir backend söyleyemediğinde null (seçtiği kesiti çizer, bu yüzden asla bir tanesi olmaz).",
       "drawnTriangles": "MEVCUT KARE'nin çizime verdiği üçgenler: hiyerarşinin opak ve şeffaf birleşik cluster kesiti. Hiyerarşi dışındaki şeffaf meshler bunun içinde değildir (`transparentSubmittedTriangles`), ve gizlenme reddi çıkarılmaz (`hizRejectedTriangles`). Kesit kabulünde sayılır: hiçbir asenkron GPU geri okuması beklenmez, bu yüzden `submittedTriangles`'ın aksine, zaman yokluğundan dolayı asla `null` değildir.",
       "cpuSelectMs": "Sadece seçim etrafında ölçülen, bu karenin cluster kesitinin CPU süresi. Kesitini CPU'da seçmeyen bir motorda null.",
@@ -5044,13 +5047,14 @@
   "createTerminalProgress": {
     "summary": "Derleyicinin olaylarını takip eden, terminalde bir ilerleme çubuğu.",
     "parameters": {
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}": "Bir terminal ilerleme görüntüsünün neye benzediği.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.label": "Görevin adı.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.index": "Görevin numarası.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.total": "Toplam kaç görev.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.stream": "Nereye yazılacağı.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.width": "Çubuk genişliği.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.interval": "Yeniden çizimler arasındaki en az milisaniye."
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}": "Bir terminal ilerleme görüntüsünün neye benzediği.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.label": "Görevin adı.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.index": "Görevin numarası.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.total": "Toplam kaç görev.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.stream": "Nereye yazılacağı.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.width": "Çubuk genişliği.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.interval": "Yeniden çizimler arasındaki en az milisaniye.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.verbose": "Görev sonu özetinde bilgi kodlarını ve her oluşumu da gösterir."
     }
   },
   "createTransformTree": {

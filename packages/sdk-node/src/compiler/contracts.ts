@@ -56,6 +56,7 @@ export interface CompilerEvent {
   /** Where to write. */ stream?: ProgressStream;
   /** Bar width. */ width?: number;
   /** Least milliseconds between redraws. */ interval?: number;
+  /** Also tell the info codes and every occurrence in the end-of-job summary. */ verbose?: boolean;
 }
 
 /** How `prepare` compiles a model. */ export interface PrepareOptions {

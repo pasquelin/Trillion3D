@@ -1148,6 +1148,7 @@
       "gpuPassMs": "Última amostra de passo de GPU deste backend; nulo quando o dispositivo não expõe consultas de timestamp.",
       "gpuFrameMs": "Duração de GPU da imagem que `gpuPassMs.frame` descreve. Nunca somado a um campo `cpu*`. O dispositivo é amostrado a cada poucas imagens, por isso um número pode datar de algumas imagens atrás. Null antes da primeira amostra, desde uma imagem retida até a próxima amostra do dispositivo, num dispositivo sem `timestamp-query` e no WebGL2 sem `EXT_disjoint_timer_query_webgl2`.",
       "gpuHostGapMs": "Tempo de CPU que a mesma imagem passou entre dois de seus próprios envios, e zero quando envia uma vez. É tempo de host, não tempo de GPU, por isso `gpuFrameMs` o exclui. Nulo quando não medido.",
+      "gpuDeviceLost": "Por que o dispositivo GPU foi perdido; null enquanto ele se mantém.",
       "uncoveredTriangles": "Triângulos de clusters que o corte publicado nomeia, mas que o quadro não consegue desenhar — sem página residente e sem ancestral que os cubra. Um buraco real na imagem: zero é o único valor saudável. Nulo quando um backend não consegue dizer (ele desenha o corte que selecionou, então nunca tem um).",
       "drawnTriangles": "Triângulos que o QUADRO ATUAL entrega ao desenho: seu corte de clusters, opacos e transparentes da hierarquia combinados. Meshes transparentes fora da hierarquia não estão nele (`transparentSubmittedTriangles`), e a rejeição por oclusão não é subtraída (`hizRejectedTriangles`). Contado na adoção do corte: nenhuma leitura assíncrona de GPU é esperada, então nunca é `null` por falta de tempo, ao contrário de `submittedTriangles`.",
       "cpuSelectMs": "Tempo de CPU do corte de clusters deste quadro, medido apenas ao redor da seleção. Nulo em um motor que não escolhe seu corte na CPU.",
@@ -3694,7 +3695,8 @@
       "total": "Quantos jobs ao todo.",
       "stream": "Onde escrever.",
       "width": "Largura da barra.",
-      "interval": "Mínimo de milissegundos entre redesenhos."
+      "interval": "Mínimo de milissegundos entre redesenhos.",
+      "verbose": "Indica também os códigos de informação e cada ocorrência no resumo de fim de tarefa."
     }
   },
   "Texture-common": {
@@ -4324,6 +4326,7 @@
       "gpuPassMs": "Última amostra de passo de GPU deste backend; nulo quando o dispositivo não expõe consultas de timestamp.",
       "gpuFrameMs": "Duração de GPU da imagem que `gpuPassMs.frame` descreve. Nunca somado a um campo `cpu*`. O dispositivo é amostrado a cada poucas imagens, por isso um número pode datar de algumas imagens atrás. Null antes da primeira amostra, desde uma imagem retida até a próxima amostra do dispositivo, num dispositivo sem `timestamp-query` e no WebGL2 sem `EXT_disjoint_timer_query_webgl2`.",
       "gpuHostGapMs": "Tempo de CPU que a mesma imagem passou entre dois de seus próprios envios, e zero quando envia uma vez. É tempo de host, não tempo de GPU, por isso `gpuFrameMs` o exclui. Nulo quando não medido.",
+      "gpuDeviceLost": "Por que o dispositivo GPU foi perdido; null enquanto ele se mantém.",
       "uncoveredTriangles": "Triângulos de clusters que o corte publicado nomeia, mas que o quadro não consegue desenhar — sem página residente e sem ancestral que os cubra. Um buraco real na imagem: zero é o único valor saudável. Nulo quando um backend não consegue dizer (ele desenha o corte que selecionou, então nunca tem um).",
       "drawnTriangles": "Triângulos que o QUADRO ATUAL entrega ao desenho: seu corte de clusters, opacos e transparentes da hierarquia combinados. Meshes transparentes fora da hierarquia não estão nele (`transparentSubmittedTriangles`), e a rejeição por oclusão não é subtraída (`hizRejectedTriangles`). Contado na adoção do corte: nenhuma leitura assíncrona de GPU é esperada, então nunca é `null` por falta de tempo, ao contrário de `submittedTriangles`.",
       "cpuSelectMs": "Tempo de CPU do corte de clusters deste quadro, medido apenas ao redor da seleção. Nulo em um motor que não escolhe seu corte na CPU.",
@@ -5044,13 +5047,14 @@
   "createTerminalProgress": {
     "summary": "Uma barra de progresso no terminal que segue os eventos do compilador.",
     "parameters": {
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}": "Como uma exibição de progresso no terminal se parece.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.label": "O nome do job.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.index": "O número do job.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.total": "Quantos jobs ao todo.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.stream": "Onde escrever.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.width": "Largura da barra.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.interval": "Mínimo de milissegundos entre redesenhos."
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}": "Como uma exibição de progresso no terminal se parece.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.label": "O nome do job.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.index": "O número do job.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.total": "Quantos jobs ao todo.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.stream": "Onde escrever.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.width": "Largura da barra.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.interval": "Mínimo de milissegundos entre redesenhos.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.verbose": "Indica também os códigos de informação e cada ocorrência no resumo de fim de tarefa."
     }
   },
   "createTransformTree": {
