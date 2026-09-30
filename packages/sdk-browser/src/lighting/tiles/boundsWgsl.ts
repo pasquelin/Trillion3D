@@ -79,9 +79,9 @@ fn tileCornerOfLane(tile:vec2u,lane:u32){
 fn columnCorner(row:u32,i:u32)->vec3f{
  return corners[row*4u+(i^(i>>1u))];
 }
-/** The opaque slice's depth planes, after \`tileColumn\`. A plane of one depth is parallel to
- *  the near plane — one depth is one distance along the view axis —, so both take its normal,
- *  \`away\` from the eye, through a corner at their depth. */
+/** The opaque slice's depth planes, after the column's near plane (\`columnPlane(4u)\`). A plane
+ *  of one depth is parallel to the near plane — one depth is one distance along the view axis —,
+ *  so both take its normal, \`away\` from the eye, through a corner at their depth. */
 fn tileSlab(){
  let away=column[4].xyz;
  slab[0]=vec4f(away,-dot(away,corners[FRONT_ROW*4u]));
