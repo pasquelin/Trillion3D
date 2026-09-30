@@ -53,10 +53,14 @@ export function encodeShadowAtlas(
   const { order, layer, first, clears, restores, layerPasses } = pagePlan;
   quads.begin(count, order);
   const depthDraws = shadows.depthDraws();
-  let grouped: Uint32Array | undefined;
   // Each pass of the static layer's (`inLayer`) or the pool's: its clears and restores, two
-  // instanced draws, then each region's casters in its page's viewport.
-  const draw = (passes: GPURenderPassDescriptor[], inLayer: boolean, tested: boolean) => {
+  // instanced draws, then each region's casters in its page's viewport, or by group (`grouped`).
+  const draw = (
+    passes: GPURenderPassDescriptor[],
+    inLayer: boolean,
+    tested: boolean,
+    grouped?: Uint32Array,
+  ) => {
     const end = inLayer ? layerPasses : pagePlan.passes;
     for (let k = inLayer ? 0 : layerPasses; k < end; k++) {
       const at = layer[k],
@@ -84,8 +88,7 @@ export function encodeShadowAtlas(
   const tested = encodeOcclusion(rt, encoder, count);
   // The restored sun pages' moving casters, by group (`movingGroups.ts`): after the lists they read.
   const groups = lights.movingGroups?.encode(rt, encoder, count, tested) ?? 0;
-  grouped = groups ? lights.movingGroups!.grouped : undefined;
-  draw(shadows.passes, false, tested);
+  draw(shadows.passes, false, tested, groups ? lights.movingGroups!.grouped : undefined);
   const casters = rt.services.blendCasters.used > 0;
   const transmittance = casters ? frameTransmittance(rt, encoder) : shadows.transmittance;
   if (transmittance) encodeTransmittance(rt, device, encoder, quads, transmittance, tested);
