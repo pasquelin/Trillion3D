@@ -7,7 +7,8 @@ import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts';
  *  whether the opaque list holds a shadowed light — the per-tile fact the moving resolve reads
  *  once instead of walking the list a pixel at a time (#1249) —, then the tile's light grid
  *  (#1249): its nearest and farthest depth, and one 64-bit mask per log-Z slice. */
-export const TILE_STRIDE_WORDS = LIGHT_SETTINGS.tileLights * 2 + 5 + LIGHT_SETTINGS.clusterSlices * 2;
+export const TILE_STRIDE_WORDS =
+  LIGHT_SETTINGS.tileLights * 2 + 5 + LIGHT_SETTINGS.clusterSlices * 2;
 
 /**
  * Structures shared by the light-list pass and deferred resolve: a single GPU-side
@@ -32,7 +33,7 @@ const TILE_BLEND_BASE:u32=${LIGHT_SETTINGS.tileLights + 2}u;
 const TILE_SHADOW_BASE:u32=${LIGHT_SETTINGS.tileLights * 2 + 2}u;
 /** The light grid (#1249): the tile's nearest and farthest depth as their f32 bits, then per
  *  log-Z slice two mask words — bit \`b\` set when a light of the \`b\`th group of the walked slice
- *  can reach the slice (\`clusterGroup\`). The tile pass writes them; the resolve reads its pixel's
+ *  can reach the slice (\`clusterShift\`). The tile pass writes them; the resolve reads its pixel's
  *  slice. The depths are normalized: the slice index is a ratio of them, the near plane cancels. */
 const TILE_DEPTH_BASE:u32=${LIGHT_SETTINGS.tileLights * 2 + 3}u;
 const TILE_CLUSTER_BASE:u32=${LIGHT_SETTINGS.tileLights * 2 + 5}u;
@@ -79,16 +80,13 @@ fn directIncidence(light:DirectLight,P:vec3f)->vec4f{
  }
  return vec4f(L,attenuation);
 }
-/** The resolve's cheap reject (#1249): true exactly where \`declaredLight\` returns zero before any
- *  shading, shadow or page read — a light with a range, rectangle included (\`rectView\`), whose
- *  centre lies at or past it, the same \`length\` \`directIncidence\` tests. It reads a light's
- *  first and fourth words only, never the whole record. */
-fn beyondRange(sphere:vec4f,kind:f32,P:vec3f)->bool{
- return abs(kind-KIND_SUN)>=0.5&&length(sphere.xyz-P)>=sphere.w;
-}
-/** Lights a slice-mask bit stands for (#1249): one while the walked slice fits the mask's 64
- *  bits, consecutive runs of that many past it — a list in the pool, or every light. */
-fn clusterGroup(count:u32)->u32{return max((count+63u)>>6u,1u);} // a 64th, rounded up
+/** The resolve's range reject (#1249, \`sliceLightingWgsl\`): a light is skipped past this many
+ *  times its squared range, far above the f32 roundings of \`length\`, so \`directIncidence\` and
+ *  \`rectView\` would have given it zero there. */
+const RANGE_REJECT:f32=1.0001;
+/** Mask bits of a slice of \`count\` lights (#1249): bit \`b\` stands for lights \`b << shift\` to
+ *  \`(b + 1) << shift\`, one each while the slice fits the 64 bits, runs of a power of two past. */
+fn clusterShift(count:u32)->u32{return select(0u,32u-countLeadingZeros(count-1u)-6u,count>64u);}
 /** Major axis of the light-to-point direction, in POINT_FACE_AXES order. */
 fn pointFaceOf(direction:vec3f)->u32{
  let a=abs(direction);
