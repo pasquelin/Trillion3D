@@ -1,5 +1,5 @@
 import {
-  PAGE_FOOTPRINT_CELLS,
+  PAGE_FOOTPRINT_EDGE_BITS,
   PAGE_FOOTPRINT_STEP,
   SHADOW_REQUEST_CELL_SHIFT,
   SHADOW_REQUEST_MISS,
@@ -22,8 +22,10 @@ export const SHADOW_REQUEST_BITS = shadowRequestBits();
  * texel cells the texel lies in, one-based — zero is a claim that named no texel. Every reader that
  * marks a page carries it, so the page's footprint narrows to what its receivers read.
  */
+/** Cells a side of a page, `PAGE_FOOTPRINT_STEP` texels each (`cellFootprint`). */
+const CELLS = 2 ** PAGE_FOOTPRINT_EDGE_BITS;
 const SHADOW_REQUEST_CELL_WGSL = `fn shadowRequestCell(l:vec2f)->u32{
- return 1u+min(u32(l.x/${PAGE_FOOTPRINT_STEP}.0),${PAGE_FOOTPRINT_CELLS - 1}u)+${PAGE_FOOTPRINT_CELLS}u*min(u32(l.y/${PAGE_FOOTPRINT_STEP}.0),${PAGE_FOOTPRINT_CELLS - 1}u);
+ return 1u+min(u32(l.x/${PAGE_FOOTPRINT_STEP}.0),${CELLS - 1}u)+${CELLS}u*min(u32(l.y/${PAGE_FOOTPRINT_STEP}.0),${CELLS - 1}u);
 }`;
 
 /** The claim of page `e` by one lane: its bit tested before the atomic, then set, and the page
