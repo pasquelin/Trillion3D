@@ -2,7 +2,8 @@
  * The npm release's two steps (#1354), as the `Release` workflow runs them:
  *
  *   node scripts/release.ts pack <out> [--publishable]   the six archives, at one version
- *   node scripts/release.ts publish <out> [--publish]    dry-run, then published only if asked
+ *   node scripts/release.ts publish <out> [--publish]    dry-run, then published only if asked;
+ *                                                        a package already on npm is skipped
  *
  * Nothing is published without `--publish`, which the workflow passes only on `main` with the
  * repository variable `NPM_PUBLISH` set to `true`; no command here reads or prints a token.
@@ -47,5 +48,7 @@ if (step === 'pack') {
 } else {
   const publish = process.argv.includes('--publish');
   const release = publishRelease({ out, run: run(true), publish });
+  for (const name of release.skipped)
+    console.log(`${name}@${release.version}: already on npm, skipped`);
   console.log(`${release.version}: ${publish ? 'published' : 'dry run, nothing published'}`);
 }
