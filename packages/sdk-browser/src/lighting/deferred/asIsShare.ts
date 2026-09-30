@@ -29,7 +29,7 @@ export const AS_IS_SHARE_SHADER = `${FULLSCREEN_VERTEX}
  * The current image's debug-view share, seeded from opaque flags before transparents blend it, and
  * beside it the reactive value, seeded 0: each blend, particle and the water composite writes 1 at
  * its coverage over it (`../../webgpu/water/compositeWgsl.ts`), so a pixel behind transparents holds
- * their accumulated opacity. The temporal pass shortens a pixel's history by it, moving or at rest
+ * their accumulated opacity. The temporal pass shortens a moving pixel's history by it
  * (`../../taa/historyWgsl.ts`).
  */
 export function createAsIsShare(

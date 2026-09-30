@@ -34,8 +34,6 @@ export function createReflectionHistoryTargets(device: GPUDevice, width: number,
       if (disposed) throw new Error('REFLECTION_HISTORY_DISPOSED');
     };
     return {
-      width,
-      height,
       bytes: width * height * REFLECTION_HISTORY_BYTES_PER_PIXEL,
       previous: { depth: depth.view, normal: normal.view, ids: ids.view },
       get image() {

@@ -82,7 +82,7 @@ async function executer({
   slot: number;
   row: number[];
 }) {
-  const appareil = await globalThis.ouvrirAppareil();
+  const appareil = await globalThis.openGpuDevice();
   if (!appareil) return { indisponible: 'no WebGPU adapter' };
   const { device, erreurs } = appareil;
   const { module, compilation } = await appareil.compile(shader);

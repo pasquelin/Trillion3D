@@ -19,6 +19,12 @@ pub const MAX_MORPH_TARGETS: usize = 255;
 pub const MORPH_WORDS: usize = 9;
 /// Bits of every source weight, stored without quantization.
 pub const WEIGHT_BITS: u32 = 32;
+/// The one record a morph displacement takes: exact float32 bits, no grid.
+pub const RAW_F32: Quant<3> = Quant {
+    min: [0.0; 3],
+    exponent: 0,
+    bits: [32; 3],
+};
 
 /// The skin record: the page's smallest joint and the width of each joint's distance to it.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -52,21 +58,16 @@ impl Morph {
     }
 
     pub fn unpack(w: &[u32]) -> Option<Self> {
-        let raw = Quant {
-            min: [0.0; 3],
-            exponent: 0,
-            bits: [32; 3],
-        };
-        if w[1] != raw.packed()
-            || w[5] != raw.packed()
+        if w[1] != RAW_F32.packed()
+            || w[5] != RAW_F32.packed()
             || [w[2], w[3], w[4], w[6], w[7], w[8]] != [0; 6]
         {
             return None;
         }
         Some(Self {
             start: w[0] as usize,
-            position: raw,
-            normal: raw,
+            position: RAW_F32,
+            normal: RAW_F32,
         })
     }
 

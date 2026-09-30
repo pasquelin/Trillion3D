@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
-import { textureBytesOf } from '../gpu/core/deviceLedger.ts';
+import { textureBytesOf } from '../gpu/core/textureBytes.ts';
 import { createScreenReflection } from './gpu.ts';
 import { reflectionConeAllocation } from './conePyramid.ts';
 
