@@ -12,15 +12,17 @@ export const rec = (url: string, level: number) => ({ url, level }) as unknown a
  *  a difference through the group closure, as the publication does; `budget` is the CPU cut's
  *  admission at `room`, true past it. */
 export function world(packed: PageRec[], cover: readonly PageRec[] = []) {
-  // The page's rank travels on the page, as the engine catalogue posts it.
-  packed.forEach((page, index) => (page.packedIndex = index));
   const tracking = createWebgpuPageTracking([...packed, ...cover]);
   const bootstrapKey = new Uint8Array(tracking.keyCount);
   for (const page of cover) bootstrapKey[tracking.keyOf(page)] = 1;
   const sets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages: packed });
   const pages: PageRec[] = [];
   const delta = createCutDelta(packed, pages);
-  const closure = createGroupClosure([], packed),
+  const closure = createGroupClosure(
+      [],
+      { baseOfRoot: new Int32Array(0), rootOfPacked: new Int32Array(0) },
+      packed,
+    ),
     admission = createRequestAdmission(sets, tracking, closure);
   const cut = (difference: CutDelta = delta) => {
     closure.apply(difference);

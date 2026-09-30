@@ -21,7 +21,6 @@ export function pageRecFixture(fields: Partial<PageRec> = {}): PageRec {
     attributes: DUMMY_ATTRIBUTES,
     material: surfaceOf([]),
     declaration: [],
-    placementIndex: 0,
     renderOrder: 0,
     ...fields,
   };
