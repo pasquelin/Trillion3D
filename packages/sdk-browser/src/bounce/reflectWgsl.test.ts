@@ -12,10 +12,11 @@ import { BOUNCE_PROBE_SHADER } from './probeWgsl.ts';
 import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts';
 import { BOUNCE_SURFACE_BINDING, SURFACE_RAY_WGSL } from './reflectWgsl.ts';
 import { functionText as body } from './wgslBody.fixture.ts';
-import { waterCompositeShader } from '../webgpu/water/compositeWgsl.ts';
-import { BOUNCE_LIGHTING_SHADER, DIRECT_LIGHTING_SHADER } from '../gpu/core/shaderTexts.fixture.ts';
-
-const WATER_COMPOSITE_SHADER = waterCompositeShader();
+import {
+  BOUNCE_LIGHTING_SHADER,
+  DIRECT_LIGHTING_SHADER,
+  WATER_COMPOSITE_SHADER,
+} from '../gpu/core/shaderTexts.fixture.ts';
 
 test('with bounce, a smooth surface adds what its mirror direction meets in the proxy', () => {
   // The term is part of the lit sum, fed the pixel's own roughness.

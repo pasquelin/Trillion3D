@@ -6858,7 +6858,7 @@
     "summary": "Gắn `node` vào `parent` (`-1`: gốc), giống như `add` tham chiếu: các ma trận không di chuyển cho đến lần cập nhật tiếp theo."
   },
   "resolveCompilerExecutable": {
-    "summary": "Tìm chương trình trình biên dịch gốc: cái được yêu cầu, nếu không thì cái được xây dựng trong lần lấy mã (checkout) này."
+    "summary": "Tìm chương trình trình biên dịch gốc: cái được yêu cầu, nếu không thì cái trong gói nền tảng đã cài, nếu không thì cái do `TRILLION3D_COMPILER_BIN` chỉ định, nếu không thì cái được xây dựng trong lần lấy mã (checkout) này."
   },
   "reviewCutouts": {
     "summary": "Hỏi, từng mô hình một, liệu mỗi bề mặt cắt hình có đúng không, và ghi lại các câu trả lời.",

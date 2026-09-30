@@ -29,7 +29,6 @@ import {
   contractLightingShader,
   UNLIT_COMPOSITIONS,
   UNLIT_LIGHTING_SHADER,
-  FULLSCREEN_VERTEX,
 } from '../../lighting/deferred/shaders.ts';
 import { reflectionSource, withScreenReflections } from '../../reflections/screenWgsl.ts';
 import { withSubgroupShadowRequests } from '../../lighting/direct/shadowRequestWgsl.ts';
@@ -50,7 +49,7 @@ import {
   PARTICLE_DRAW_WGSL,
   PARTICLE_ROUTED_WGSL,
 } from '../../particles/particlesWgsl.ts';
-import { depthRestoreWgsl } from './depthRestoreWgsl.ts';
+import { WATER_DEPTH_RESTORE_SHADER } from '../../webgpu/water/depthRestoreShader.ts';
 import {
   BLEND_SHADER,
   BOUNCE_LIGHTING_SHADER,
@@ -71,8 +70,6 @@ import {
  * (`rasterSource`, `drawShader`, `transparentOcclusionShader`) is taken at one size: the size
  * changes a constant, never a name.
  */
-
-const WATER_DEPTH_RESTORE_SHADER = FULLSCREEN_VERTEX + depthRestoreWgsl(0);
 
 const compositions = (label: string, sources: Record<string, string>) =>
   Object.fromEntries(Object.entries(sources).map(([input, code]) => [`${label}_${input}`, code]));

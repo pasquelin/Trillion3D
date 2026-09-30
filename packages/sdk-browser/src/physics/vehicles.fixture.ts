@@ -1,11 +1,13 @@
-import { vehicle } from '../../../sdk-core/src/physics/vehicle.ts';
-import { type VehicleInput } from '../../../sdk-core/src/physics/vehicle.ts';
-import { type VehicleKind } from '../../../sdk-core/src/physics/vehicle.ts';
-import { type VehicleOptions } from '../../../sdk-core/src/physics/vehicle.ts';
 import { box, cylinder } from '../../../sdk-core/src/world/geometry/basic.ts';
 import { Material } from '../../../sdk-core/src/world/material/material.ts';
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import { jointRig, type Rig } from './joints.fixture.ts';
+import {
+  vehicle,
+  type VehicleInput,
+  type VehicleKind,
+  type VehicleOptions,
+} from '../../../sdk-core/src/physics/vehicle.ts';
 
 /** Each kind's body — size, mass, wheels `[x, y, z]` from its centre, wheel radius and width —
  *  drawn from the machines of `VEHICLE_SPECS`. */

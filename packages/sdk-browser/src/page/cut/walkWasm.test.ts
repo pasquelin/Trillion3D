@@ -17,11 +17,10 @@ import { BOUND_STRIDE, cullingBounds } from './bounds.ts';
 import { ruleDag } from './cutRule.fixture.ts';
 import { selectVisiblePages } from './cut.ts';
 import { CUT_WALK } from './walkWasm.ts';
+import { cutWalkRuns } from './walkRuns.ts';
 import type { ClusterRoot } from '../selection/types.ts';
 import type { PageRecord } from './state.ts';
 import { createHeldResidency } from './held.ts';
-
-const cutWalkRuns = { walked: 0, bailed: 0 };
 
 await prepareSdkWasm(readFileSync(join(import.meta.dirname, '../decode/pageCodec.wasm')));
 
