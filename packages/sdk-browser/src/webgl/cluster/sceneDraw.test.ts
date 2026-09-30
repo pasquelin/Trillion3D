@@ -17,7 +17,12 @@ import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 const FLOATS = { getExtension: (name: string) => (name === 'EXT_color_buffer_float' ? {} : null) };
 const OUTPUT = { toneMapped: false, framebuffer: null, width: 8, height: 4 };
 
-function mesh(corners: number, renderOrder: number, surface = new GraphSurface('standard')) {
+// Polished, under the screen-reflection cutoff: the view runs its source pass too (#1341).
+function mesh(
+  corners: number,
+  renderOrder: number,
+  surface = new GraphSurface('standard', { roughness: 0.2 }),
+) {
   const geometry = new Geometry().setIndex(new BufferAttribute(new Uint32Array(corners), 1));
   geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3));
   geometry.setAttribute('normal', new BufferAttribute(new Float32Array(9), 3));

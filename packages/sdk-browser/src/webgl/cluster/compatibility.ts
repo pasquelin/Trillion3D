@@ -1,4 +1,4 @@
-import { screenReflects } from '../../reflections/eligible.ts';
+import { coatedScreenReflects } from '../../reflections/eligible.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import type { BatchPage } from '../../cluster/batchRange.ts';
 import { clusterMaterialReason } from '../../host/surfaceGate.ts';
@@ -28,8 +28,8 @@ export function clusterWebglCompatibility(
   const transmits = copies.some((copy) => isTransmissive(copy.material));
   // Only a screen-traced receiver needs the half-float capture; a matte one reads the environment.
   const mirrors =
-    copies.some((copy) => screenReflects(surfaceOf(copy.material))) ||
-    pages.some((page) => screenReflects(surfaceOf(page.declaration)));
+    copies.some((copy) => coatedScreenReflects(surfaceOf(copy.material))) ||
+    pages.some((page) => coatedScreenReflects(surfaceOf(page.declaration)));
   const formatReason =
     transmits || mirrors
       ? backdropFormatReason(gl, mirrors ? 'reflections' : 'transmission')

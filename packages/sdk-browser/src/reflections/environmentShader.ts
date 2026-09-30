@@ -53,15 +53,13 @@ export function environmentReflectionShader(
   language: 'wgsl' | 'glsl',
   { prelude, direction, coefficient }: EnvironmentSource,
 ) {
-  const empty = Array.from({ length: 9 }, (_, k) => `${coefficient(k)}==vec3f(0.0)`);
-  const allZero =
-    language === 'wgsl' ? empty.map((test) => `all(${test})`).join('&&') : empty.join('&&');
+  const magnitude = Array.from({ length: 9 }, (_, k) => `abs(${coefficient(k)})`).join('+');
   return `${reflectionBandsShader(language)}
 ${shaderLanguage(
   `
 fn environmentReflection(R:vec3f,rough:f32)->vec3f{
  ${prelude}
- if(${allZero}){return vec3f(0.0);}
+ if(dot(${magnitude},vec3f(1.0))==0.0){return vec3f(0.0);}
  var bands:vec3f=reflectionProbeBands(rough);
  return max(vec3f(0.0),${filteredRadianceShader(coefficient, direction, 'bands')});
 }`,

@@ -1,7 +1,7 @@
 import { WebglReflectionPyramid } from './pyramidGl.ts';
 import { LTC_UNIT } from '../webgl/cluster/rectGlsl.ts';
 import { surfaceOf } from '../page/surface.ts';
-import { mirrorRange, screenReflects } from './eligible.ts';
+import { mirrorRange, coatedScreenReflects } from './eligible.ts';
 import type { HostMaterials } from '../host/resources.ts';
 import type { ClusterDraw } from '../cluster/batchMesh.ts';
 import { WebglClusterBackdrop } from '../webgl/cluster/backdrop.ts';
@@ -28,7 +28,8 @@ export function capture(
 export const target = (gl: WebGL2RenderingContext) =>
   new WebglClusterBackdrop(gl, [LTC_UNIT + 1, LTC_UNIT + 2], new WebglReflectionPyramid(gl));
 /** A screen-traced receiver: a matte-only view allocates no capture and runs no pass (#1341). */
-const reflecting = (mesh: { material: HostMaterials }) => screenReflects(surfaceOf(mesh.material));
+const reflecting = (mesh: { material: HostMaterials }) =>
+  coatedScreenReflects(surfaceOf(mesh.material));
 /** A mirror-range mesh: what the reduced resolve pass redraws, the rough-only ones staying out. */
 const atMirrorRange = (mesh: { material: HostMaterials }) => mirrorRange(surfaceOf(mesh.material));
 export const receivers = (lists: readonly (readonly { material: HostMaterials }[])[]) =>
