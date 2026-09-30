@@ -10,7 +10,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import type { Page } from 'playwright';
-import { onFreshPage as freshPage } from './chrome.ts';
+import { onFreshPage } from './chrome.ts';
 import * as options from './options.ts';
 import { startServer, type Capture } from '../../tests/kit/server/staticServer.ts';
 import { readStreet } from './street.ts';
@@ -99,8 +99,8 @@ async function main() {
   // scene fills is freed between series, or the 3rd one fails ("WebGL2 unavailable").
   const { width, height, dpr } = settings;
   const target = { url: `http://127.0.0.1:${port}/`, width, height, dpr };
-  const onFreshPage = <T>(run: (page: Page) => Promise<T>): Promise<T> =>
-    freshPage({ headless: !settings.visible, args: FLAGS }, target, run, (tab, browser) => {
+  const onPage = <T>(run: (page: Page) => Promise<T>): Promise<T> =>
+    onFreshPage({ headless: !settings.visible, args: FLAGS }, target, run, (tab, browser) => {
       report.provenance.browser = browser.version();
       tab.on('pageerror', (e) =>
         report.errors.push({ kind: 'pageerror', message: String(e.message) }),
@@ -115,9 +115,9 @@ async function main() {
       });
     });
   try {
-    report.limits = await onFreshPage((page) => readLimits(page, options.sdkEntryUrl(sides[0])));
+    report.limits = await onPage((page) => readLimits(page, options.sdkEntryUrl(sides[0])));
     if (!readsCache(scene)) {
-      report.fluids = await runFluids(sides, onFreshPage, settings, OUT, captures);
+      report.fluids = await runFluids(sides, onPage, settings, OUT, captures);
       return await publish(report, sides, captures, OUT);
     }
     const urls = {
@@ -126,12 +126,12 @@ async function main() {
     };
     // The box, then the camera's street read off the model's own geometry, on one page: the poses
     // walk it (`poses.ts`).
-    const bounds = (report.bounds = await onFreshPage(async (page) => readStreet(page, urls)));
+    const bounds = (report.bounds = await onPage(async (page) => readStreet(page, urls)));
     // Lights once bounds are known: geometric rule, no named scene.
     CTX.lights = benchLights(bounds, settings);
     report.lights = CTX.lights ? CTX.lights.resume : null;
     if (settings.gazeNetwork) {
-      report.gazeNetwork = await runGazeSeries(CTX, sides, views, bounds, onFreshPage);
+      report.gazeNetwork = await runGazeSeries(CTX, sides, views, bounds, onPage);
       return await publish(report, sides, captures, OUT);
     }
     for (const pixelError of settings.pixelErrors)
@@ -153,14 +153,14 @@ async function main() {
         report.series.push(serie);
         const files: Record<string, string> = {};
         for (const side of sides) {
-          const { row, captureFile } = await onFreshPage((page) =>
+          const { row, captureFile } = await onPage((page) =>
             runSerie(CTX, page, side, view, pixelError, pose, captures),
           );
           serie.sides[side.name] = row;
           files[side.name] = captureFile;
         }
         // A/A witness: same side run twice, compared with itself. Shows what zero is.
-        const witness = await onFreshPage((page) =>
+        const witness = await onPage((page) =>
           runSerie(CTX, page, sides[0], view, pixelError, pose, captures, '-aa'),
         );
         serie.sides[`${sides[0].name}-aa`] = witness.row;

@@ -1,4 +1,4 @@
-import { skinStreams } from './skin.ts';
+import { isSkinIndex, skinStreams } from './skin.ts';
 import type { Geometry } from './geometry.ts';
 import type { DrawnTriangles } from './drawn.ts';
 import { readComponent } from './bounds.ts';
@@ -15,7 +15,7 @@ export type DrawnDeformation = {
  *  vertex it came from (`DrawnTriangles.sourceVertices`). */
 export const deforms = (g: Geometry) =>
   !!g.morphAttributes.position?.length ||
-  Object.keys(g.attributes).some((name) => /^skinIndex\d*$/.test(name));
+  Object.keys(g.attributes).some(isSkinIndex);
 
 /** Setup-time extraction only: animation uploads palettes and weights, never these vertices. */
 export function drawnDeformation(g: Geometry, drawn: DrawnTriangles | null) {

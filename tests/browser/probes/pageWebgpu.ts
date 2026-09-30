@@ -9,20 +9,22 @@ import * as esbuild from 'esbuild';
 import type { Format } from 'esbuild';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
 import { blankPageServer } from '../../kit/server/blankPage.ts';
-import { openGpuDevice } from './webgpuDevice.ts';
+import { openGpuDevice, openGpuModule } from './webgpuDevice.ts';
 import { namedBufferEntries } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts';
 
 declare global {
   var computeReadback: typeof import('./computeReadback.ts').computeReadback;
   var openGpuDevice: typeof import('./webgpuDevice.ts').openGpuDevice;
+  var openGpuModule: typeof import('./webgpuDevice.ts').openGpuModule;
   var namedBufferEntries: typeof import('../../../packages/sdk-browser/src/gpu/core/computeBindings.ts').namedBufferEntries;
 }
 
 /**
- * What the page holds before any probe runs: the device opener, and the engine's own bind-group
+ * What the page holds before any probe runs: the device and module openers, and the engine's own bind-group
  * builder, so a probe lays its buffers out under their shader names, never by position.
  */
 export const PAGE_INIT_SCRIPT = `globalThis.openGpuDevice = ${openGpuDevice};
+globalThis.openGpuModule = ${openGpuModule};
 globalThis.namedBufferEntries = ${namedBufferEntries};
 globalThis.computeReadback = ${computeReadback};`;
 

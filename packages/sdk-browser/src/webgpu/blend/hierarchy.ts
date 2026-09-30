@@ -121,7 +121,7 @@ function refitNodes(blendState: BlendState) {
  */
 export function refreshBlendBoxes(blendState: BlendState) {
   refreshBlendWorlds(blendState.blendGpu);
-  if (blendState.hierarchy.count === blendState.blendGpu.length) refitNodes(blendState);
+  refitBlendHierarchy(blendState);
 }
 
 /** The tree refit to item boxes rewritten outside a matrix move (a deformed item's reach). */
