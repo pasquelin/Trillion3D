@@ -35,9 +35,8 @@ function baseOf(
   root: Root,
   placement: PlacementIndex | undefined,
 ) {
-  const rank = rankOfRoot.get(root),
-    base = rank === undefined || !placement ? -1 : (placement.baseOfRoot[rank] ?? -1);
-  return base >= 0 ? base : -1;
+  const rank = rankOfRoot.get(root);
+  return rank === undefined || !placement ? -1 : (placement.baseOfRoot[rank] ?? -1);
 }
 
 /**

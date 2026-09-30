@@ -46,10 +46,11 @@ export function deplaceInstance(
 ) {
   const { roots } = instance;
   for (let i = 0; i < roots.length; i++) {
-    const { world, pages } = roots[i];
+    const { world, pages, packedBase = -1 } = roots[i];
     placeInto(world, transform, baseRoots[i].world);
-    for (const rec of pages) {
-      const mesh = draws.find(rec)?.mesh;
+    // This root's own instances, by packed rank: its pages' records serve every row (#1235).
+    for (let p = 0; packedBase >= 0 && p < pages.length; p++) {
+      const mesh = draws.at(packedBase + p)?.mesh;
       if (mesh) setHostPose(mesh, world);
     }
   }

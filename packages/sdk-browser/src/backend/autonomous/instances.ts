@@ -117,9 +117,10 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
       for (const root of addedRoots) roots.push(root);
       draws.layOut(roots);
       for (let i = 0; i < copied.length; i++) {
-        const draw = draws.drawing(copied[i].rec);
-        draw.geometry = copied[i].geometry;
-        draw.material = materials[i];
+        draws.forEachDraw(copied[i].rec, (draw) => {
+          draw.geometry = copied[i].geometry;
+          draw.material = materials[i];
+        });
       }
       for (const page of addedBootstrap) bootstrap.push(page);
       instances.set(id, {
