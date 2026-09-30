@@ -39,13 +39,20 @@ fn one_and_four_threads_write_the_same_bytes() {
     }
 }
 
-// Behaviour: under a small RAM budget the two primitives compile one wave each, under a large one
-// together, and both write the same files, byte for byte; each result reports its budget and waves.
+// Behaviour: under a small RAM budget the two primitives, whose kept page records leave no room for
+// both, compile one wave each instead of being refused (#50), under a large one together, and both
+// write the same files, byte for byte; each result reports its budget and waves.
 #[test]
 fn a_small_and_a_large_ram_budget_write_the_same_bytes() {
     let (root, options) = two_grids();
     let [(small, tight), (large, roomy)] =
         compiled_under(&options, [(options.threads, 64), (options.threads, 1024)]);
+    assert_eq!(tight["status"], "ready");
+    assert!(
+        tight["metrics"]["admissionEstimatedBytes"].as_u64() > Some(64 << 20),
+        "{}",
+        tight["metrics"]
+    );
     assert_eq!(tight["metrics"]["compileWaves"], 2, "{}", tight["metrics"]);
     assert_eq!(roomy["metrics"]["compileWaves"], 1, "{}", roomy["metrics"]);
     assert_eq!(tight["metrics"]["ramBudgetMb"], 64);

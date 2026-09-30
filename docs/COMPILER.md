@@ -390,7 +390,7 @@ pool's threads and read by nobody else, so two jobs of one batch never describe 
 | `reusedPages` | result (per primitive), pointer and `prepare()` (total, `null` on a kept folder) | Page objects the run found already built |
 | `metrics.wallMs` | pointer and `complete` event | Wall time of the whole job, after the manifest is written and the cache pruned |
 | `metrics.threads`, `metrics.ramBudgetMb` | result, pointer and `prepare()` | The run's settings |
-| `metrics.admissionEstimatedBytes`, `metrics.compileWaves` | result, pointer and `prepare()` | The working set the run admitted and the waves it cut from its budget |
+| `metrics.admissionEstimatedBytes`, `metrics.compileWaves` | result, pointer and `prepare()` (absent on a kept folder) | The working set the run admitted and the waves it cut from its budget |
 
 What a run measures of itself — every `…Ms`, `peakRssBytes`, `reusedPages` — and its settings —
 `threads`, `ramBudgetMb`, `admissionEstimatedBytes`, `compileWaves` — are its report, never its
