@@ -87,7 +87,7 @@ export async function createDeferredProgram(
     { format: 'rgba16float' },
   ]);
   const reflection = sources.direct
-    ? await reflectionPipelines(device, text, lightingLayout, !!sources.bounce)
+    ? await reflectionPipelines(device, text, lightingLayout)
     : undefined;
   const compositions = await createCompositions(device, sources.compose, sources.label);
   /** What the light group names: rebuilt when one of them is replaced (`bindIdentity.ts`). */

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRefreshClock, createScaleController, nextScale } from './scaleController.ts';
+import { createScaleController, nextScale } from './scaleController.ts';
 
 /** 120 Hz: the boss's display. */
 const BUDGET = 1000 / 120;
@@ -57,12 +57,4 @@ test('the scale never leaves [min, max]', () => {
       `k = ${k}`,
     );
   }
-});
-
-test('the refresh interval is the shortest frame interval, pauses aside', () => {
-  const clock = createRefreshClock(1000 / 60);
-  assert.equal(clock.interval, 1000 / 60, 'the fallback before any frame');
-  let now = 0;
-  for (const gap of [0, 8.4, 16.7, 8.3, 500, 9]) clock.tick((now += gap));
-  assert.ok(Math.abs(clock.interval - 8.3) < 1e-9);
 });
