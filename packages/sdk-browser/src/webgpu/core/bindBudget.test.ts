@@ -10,6 +10,7 @@ import { wgslStageBindings } from '../../gpu/core/wgslBindings.fixture.ts';
 import { VIS_BINDINGS } from './bindLayout.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
+import { createShadowDemand } from '../shadow/demandPass.ts';
 
 // Defect this test catches: a layout gains one more storage buffer than WebGPU's guaranteed
 // minimum, and the device refuses to create it — “The number of storage buffers (9) in the
@@ -33,6 +34,8 @@ async function passLayouts() {
     transparents: blendBindGroupLayout,
     'small triangles': await firstLayout((d) => createGpuRaster(d, 4, 4, 8)),
     'temporal antialiasing': await firstLayout((d) => createTemporalAntialiasing(d, [])),
+    // The demand recomputes the receiver offset from the page geometry (#1410).
+    'shadow demand': await firstLayout((d) => createShadowDemand(d)),
   } as Record<string, unknown>;
 }
 
