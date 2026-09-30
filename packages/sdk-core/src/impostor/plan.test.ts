@@ -127,3 +127,32 @@ test('a refused entry, an unknown mesh and an absent section yield no card', () 
   assert.equal(impostorBakedByMesh(section).size, 2, 'refused entries stay out of the lookup');
   assert.deepEqual(planImpostors([], undefined, IDENTITY_VIEW, FOCAL).cards, []);
 });
+
+test('a far hemi card retains its projection kind, and incomplete switch data stays in geometry', () => {
+  const roots = [{ mesh: 2, world: world(0, 0, -1000) }];
+  const plan = planImpostors(roots, section, IDENTITY_VIEW, FOCAL);
+  assert.equal(plan.cards[0].hemi, true);
+  assert.deepEqual([...plan.switched], [1]);
+  const incomplete = { ...section, meshes: [{ ...section.meshes[1], coverage: 0 }] };
+  assert.deepEqual(planImpostors(roots, incomplete, IDENTITY_VIEW, FOCAL), {
+    cards: [],
+    switched: new Uint8Array([0]),
+  });
+  assert.equal(impostorBakedByMesh(undefined).size, 0);
+});
+
+test('the baked lookup reads a section once and reuses it for subsequent views', () => {
+  let reads = 0;
+  const cached = {
+    ...section,
+    get meshes() {
+      reads++;
+      return section.meshes;
+    },
+  };
+  const roots = [{ mesh: 1, world: world(0, 0, -1000) }];
+  const first = planImpostors(roots, cached, IDENTITY_VIEW, FOCAL);
+  const second = planImpostors(roots, cached, IDENTITY_VIEW, FOCAL);
+  assert.deepEqual(first, second);
+  assert.equal(reads, 1);
+});
