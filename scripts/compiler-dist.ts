@@ -12,7 +12,7 @@ import { execFileSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { compilerFileName, compilerPackage } from '../packages/sdk-node/src/compiler/platform.mts';
-import { referenceHashes, type HashRecord } from './compiler-hashes.ts';
+import { compileReferenceScenes, referenceHashes, type HashRecord } from './compiler-hashes.ts';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const CRATE = join(ROOT, 'packages/asset-compiler-rust');
@@ -24,19 +24,22 @@ const slashed = (path: string) => path.replaceAll('\\', '/');
 
 /**
  * Builds the compiler with `flags` added to this target's own (`.cargo/config.toml`: Cargo joins
- * the two lists) and returns it. The target's folder keeps it apart from `pnpm run build:native`.
+ * the two lists) into `target/<folder>` and returns it: a folder per pass, so that each keeps its
+ * dependencies built with its own flags, and apart from `pnpm run build:native`.
  */
-function build(flags: string[]): string {
+function build(folder: string, flags: string[]): string {
+  const directory = join(CRATE, 'target', folder);
   execFileSync(
     'cargo',
     [
       ...['build', '--release', '--locked', '--bin', 'trillion3d-compiler'],
-      ...['--target', TARGET, '--manifest-path', join(CRATE, 'Cargo.toml')],
+      ...['--target', TARGET, '--target-dir', directory],
+      ...['--manifest-path', join(CRATE, 'Cargo.toml')],
       ...['--config', `target.${TARGET}.rustflags=${JSON.stringify(flags)}`],
     ],
     { stdio: 'inherit' },
   );
-  return join(CRATE, 'target', TARGET, 'release', compilerFileName(process.platform));
+  return join(directory, TARGET, 'release', compilerFileName(process.platform));
 }
 
 const [output] = process.argv.slice(2);
@@ -46,12 +49,12 @@ if (!output || !compilerPackage(process.platform, process.arch))
 const profiles = join(CRATE, 'target', 'pgo', TARGET);
 rmSync(profiles, { recursive: true, force: true });
 mkdirSync(profiles, { recursive: true });
-referenceHashes(build([`-Cprofile-generate=${slashed(profiles)}`]));
+compileReferenceScenes(build('pgo-generate', [`-Cprofile-generate=${slashed(profiles)}`]));
 const merged = join(profiles, 'merged.profdata');
 const tools = join(rust(['--print', 'sysroot']), 'lib/rustlib', TARGET, 'bin');
 const profdata = join(tools, `llvm-profdata${process.platform === 'win32' ? '.exe' : ''}`);
 execFileSync(profdata, ['merge', '-o', merged, profiles], { stdio: 'inherit' });
-const compiler = build([`-Cprofile-use=${slashed(merged)}`]);
+const compiler = build('dist', [`-Cprofile-use=${slashed(merged)}`]);
 const record: HashRecord = {
   compiler: platform,
   bytes: statSync(compiler).size,
