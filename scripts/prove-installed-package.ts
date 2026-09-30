@@ -36,16 +36,19 @@ const archivesAt = process.argv.indexOf('--archives');
 const release = archivesAt >= 0 ? readRelease(resolve(process.argv[archivesAt + 1])) : null;
 
 try {
-  if (!release) run(pnpm, ['run', 'build']);
   const proveBrowser = process.argv.includes('--browser');
   // `--bundle`: the browser bundle emitted and checked, no browser launched (#568).
   const proveBundle = process.argv.includes('--bundle') && !proveBrowser;
   const proveNative =
     release !== null || process.argv.includes('--native') || proveBrowser || proveBundle;
-  if (proveNative && !release) run(pnpm, ['run', 'build:native']);
   // The compiler reaches the application in this machine's platform package (#1352): the
-  // checkout's build just made, refused if older than its sources.
-  const built = proveNative && !release ? currentCompilerExecutable(undefined, {}) : null;
+  // checkout's build just made, refused if older than its sources; a release builds nothing.
+  let built: string | null = null;
+  if (!release) run(pnpm, ['run', 'build']);
+  if (!release && proveNative) {
+    run(pnpm, ['run', 'build:native']);
+    built = currentCompilerExecutable(undefined, {});
+  }
   const packed = release?.archives.at(-1) ?? packArchive(run, pnpm, root, fixture);
   const { filename: archive } = packed;
   const source = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as PackageJson;
