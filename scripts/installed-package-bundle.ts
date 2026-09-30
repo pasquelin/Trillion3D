@@ -8,6 +8,7 @@ import {
 import type { InstalledBrowserProof } from './installed-package-browser-result.ts';
 import type { Run } from './installed-package-contracts.ts';
 import { missingBeside } from './installed-package-beside.ts';
+import { proveCdnBrowser, unpackCdn } from './installed-package-cdn.ts';
 
 const sceneCaches = ['native-cache-primer', 'native-cache-replay'];
 
@@ -113,6 +114,8 @@ export function emitInstalledBrowserBundle({
     assets.map(({ path }) => path),
   );
   if (missing.length) throw new Error(`browser bundle: ${missing.join('; ')}`);
+  // The package's own CDN bundle, as the archive ships it (#1353).
+  unpackCdn(fixture, run);
   return {
     outputRoot,
     assets,
@@ -135,6 +138,7 @@ async function proveBundledInstalledOutput(
 export interface InstalledBrowserModesProof {
   direct: InstalledBrowserProof;
   bundled: { bundle: EmittedBrowserBundle; proof: InstalledBrowserProof };
+  cdn: InstalledBrowserProof & { physicsRequests: string[] };
 }
 
 export async function proveInstalledBrowserModes(
@@ -154,7 +158,13 @@ export async function proveInstalledBrowserModes(
   if (direct.capture.sha256 !== bundled.proof.capture.sha256)
     throw new Error('direct and bundled installed browser captures differ');
   bundled.proof.capture.differentPixelsFromDirect = 0;
-  return { direct, bundled };
+  // The CDN bundle draws what the unbundled entry draws, byte for byte (class 1, #1353).
+  const { fixture, packageName, run } = options;
+  const cdn = await proveCdnBrowser({ fixture, packageName, run, ...urls });
+  if (direct.capture.sha256 !== cdn.capture.sha256)
+    throw new Error('direct and CDN installed browser captures differ');
+  cdn.capture.differentPixelsFromDirect = 0;
+  return { direct, bundled, cdn };
 }
 
 export function browserEvidence(run: InstalledBrowserModesProof | null) {
@@ -162,5 +172,6 @@ export function browserEvidence(run: InstalledBrowserModesProof | null) {
   return {
     modules: run.direct,
     bundle: { ...run.bundled.proof, assets: run.bundled.bundle.assets },
+    cdn: run.cdn,
   };
 }

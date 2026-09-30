@@ -8,9 +8,10 @@ export interface RequestRecord {
   status: number;
 }
 
+/** `html` is the page, or what writes it once the server listens (a page naming its own port). */
 export function installedServer(
   root: string,
-  html: string,
+  html: string | (() => string),
   requests: RequestRecord[],
   allowNodeModules: boolean,
 ): Server {
@@ -19,7 +20,8 @@ export function installedServer(
     headers: { 'access-control-allow-origin': '*' },
     refuse: (file) => !allowNodeModules && relative(root, file).includes('node_modules'),
     answer: (_request, response, { pathname }) => {
-      if (pathname === '/') return reply(response, 200, contentType('.html'), html);
+      if (pathname === '/')
+        return reply(response, 200, contentType('.html'), typeof html === 'string' ? html : html());
       if (pathname === '/favicon.ico') return reply(response, 204);
       // `close`, not `finish`: a response cut short never finishes, and must still be evidence.
       response.once('close', () => requests.push({ path: pathname, status: response.statusCode }));
