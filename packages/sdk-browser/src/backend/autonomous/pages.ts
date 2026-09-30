@@ -1,6 +1,10 @@
 import { colouredHostSurface, hostPageScene, releaseHostSurface } from '../../host/pageObjects.ts';
 import { pageDiagnostics } from '../../host/pageDiagnostics.ts';
-import { attachedPages, autonomousPlacements } from '../../placement/autonomousPlacements.ts';
+import {
+  attachedPages,
+  autonomousPlacements,
+  drawnInstancedAt,
+} from '../../placement/autonomousPlacements.ts';
 import { collectClusterPages, indexPagesByUrl } from '../../page/selection/selection.ts';
 import { createAutonomousRender, createAutonomousRenderState } from './render.ts';
 import { autonomousCapabilities, publishAutonomousCapabilities } from './capabilities.ts';
@@ -129,7 +133,16 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       pages.forEach((data, i) => acceptGeometryPage(urls[i], data));
       heldFloor.changed();
       ready = true;
-      for (const page of bootstrap) views.live.shown.push(page); // a spread overflows the stack
+      // The root cover the open draws before any cut, each page with its packed rank (#1235):
+      // a spread overflows the stack.
+      for (let rank = 0; rank < roots.length; rank++) {
+        const root = roots[rank];
+        for (let p = 0; p < root.pages.length; p++)
+          if (root.pages[p].parentError == null) {
+            views.live.shown.push(root.pages[p]);
+            views.live.shownPacked.push((root.packedBase ?? 0) + p);
+          }
+      }
       sync();
       residency.keptChanged();
       publishAutonomousCapabilities(context.onDiagnostic);
@@ -181,7 +194,9 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
         lodLevel: state.lodLevel,
         submittedTriangles: geometryStore.state.submittedTriangles,
         totalSubmittedTriangles: hostDraw.counters()?.triangles ?? null,
-        drawCalls: attachedPages(views.live.shown, roots),
+        drawCalls: attachedPages(views.live.shown, (rec) =>
+          drawnInstancedAt(roots, draws.rootRankOf(rec), rec),
+        ),
         coverageReady: ready,
         coverageBudgetLimited: state.overBudget || pool.budget.coverageBudgetLimited,
         frameHeld: state.frameHeld,

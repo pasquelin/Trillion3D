@@ -37,7 +37,7 @@ test('the CPU cut goes through the same delta, and the GPU resumes against it', 
   frame(world, [0, 1, 2, 3, 16], 64);
   // It names its records and not ranks; the delta draws the same ranks from them, and the sets move
   // by what moved — neither emptied nor rebuilt.
-  delta.adoptRecords([packed[10], packed[11], packed[19]]);
+  delta.adoptRecords([packed[10], packed[11], packed[19]], (rec) => packed.indexOf(rec));
   world.cut();
   world.budget(64);
   assert.deepEqual(

@@ -60,7 +60,14 @@ function banc() {
       recordOf: (packed: number) => packedPages[packed],
       gpuWanted: [packedPages[0]],
       selectionRoots: [root],
-      rows: { watchTouched: (subscriber: typeof watcher) => void (watcher = subscriber) },
+      placement: {
+        baseOfRoot: Int32Array.from([0]),
+        rootOfPacked: Int32Array.from(packedPages, () => 0),
+      },
+      rows: {
+        watchTouched: (subscriber: typeof watcher) => void (watcher = subscriber),
+        pageIndicesByUrl: new Map<string, number[]>(),
+      },
     },
   } as unknown as WebgpuPagesCore;
   /** The two lower tiers, and every list handed to the tier ahead. */
@@ -75,7 +82,11 @@ function banc() {
   const publication = createWebgpuCutPublication(
     rt,
     residencySets,
-    createGroupClosure([], packedPages),
+    createGroupClosure(
+      [],
+      { baseOfRoot: new Int32Array(0), rootOfPacked: new Int32Array(0) },
+      packedPages,
+    ),
     { all: [tiers.shadow, tiers.ahead], ahead: tiers.ahead },
     (rec) => holds.has(rec),
   );

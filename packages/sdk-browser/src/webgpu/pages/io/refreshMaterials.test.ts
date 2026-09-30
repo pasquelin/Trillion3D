@@ -111,8 +111,13 @@ test('an alpha move is taken in place under a casting light, the shadow over its
         casterSlots: 1,
         pageTableInts: new Uint32Array(PAGE_INFO_STRIDE / 4),
         packedRecs: [cutout],
+        packedPageIndex: new Int32Array([0]),
       },
       selectionRoots: [{ world: new G.Matrix4() }],
+      placement: {
+        baseOfRoot: Int32Array.from([0]),
+        rootOfPacked: Int32Array.from([0]),
+      },
     },
     run: { gate: { sceneMoved() {} } },
     vis: {},

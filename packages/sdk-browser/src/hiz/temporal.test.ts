@@ -19,10 +19,7 @@ import { splitOccludersFlat, splitOccludersInto } from './split.ts';
 import { projectCornersInto } from './corners.ts';
 import { cameraAt, projectBoxToScreen, quad } from '../../../../tests/fixtures/hiz.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
-import { identityRoots } from '../page/selection/placements.fixture.ts';
-
-/** The unit root, the identity, that places every page of the first two tests. */
-const units = identityRoots();
+import { locatedBy, identityLocations } from '../page/selection/placements.fixture.ts';
 
 test('Hi-Z remaining pages are a subset of the selected cut and never punch a beauty hole', () => {
   const frontMat = G.basicSurface({ color: 0xff0000 });
@@ -33,8 +30,19 @@ test('Hi-Z remaining pages are a subset of the selected cut and never punch a be
     size: [number, number] = [32, 32];
   const selected = [front.page, back.page];
   const occluders: (VisPage & HizPage)[] = [],
-    rest: (VisPage & HizPage)[] = [];
-  splitOccludersInto(selected, units, cameraMoteur(cam), size, occluders, rest);
+    rest: (VisPage & HizPage)[] = [],
+    occludersPacked: number[] = [],
+    restPacked: number[] = [];
+  splitOccludersInto(
+    selected,
+    identityLocations(selected.length),
+    cameraMoteur(cam),
+    size,
+    occluders,
+    rest,
+    occludersPacked,
+    restPacked,
+  );
   assert.deepEqual(
     occluders.map((page) => page.url),
     ['front'],
@@ -43,26 +51,36 @@ test('Hi-Z remaining pages are a subset of the selected cut and never punch a be
     rest.map((page) => page.url),
     ['back'],
   );
-  const ids = rasterVisibilityIds(occluders, units, cameraMoteur(cam), size);
-  const remaining = filterUnoccluded(
-    selected,
-    units,
-    buildHizPyramid(visibilityDepth(ids, occluders, units, cameraMoteur(cam), size), 32, 32),
+  const ids = rasterVisibilityIds(
+    occluders,
+    identityLocations(occluders.length),
     cameraMoteur(cam),
     size,
   );
+  const remaining = filterUnoccluded(
+    selected,
+    identityLocations(selected.length),
+    buildHizPyramid(
+      visibilityDepth(ids, occluders, identityLocations(occluders.length), cameraMoteur(cam), size),
+      32,
+      32,
+    ),
+    cameraMoteur(cam),
+    size,
+    [],
+  );
   assert.ok(remaining.every((page) => selected.includes(page)));
   const full = shadeVisibility(
-    rasterVisibilityIds(selected, units, cameraMoteur(cam), size),
+    rasterVisibilityIds(selected, identityLocations(selected.length), cameraMoteur(cam), size),
     selected,
-    units,
+    identityLocations(selected.length),
     cameraMoteur(cam),
     size,
   );
   const filtered = shadeVisibility(
-    rasterVisibilityIds(remaining, units, cameraMoteur(cam), size),
+    rasterVisibilityIds(remaining, identityLocations(remaining.length), cameraMoteur(cam), size),
     remaining,
-    units,
+    identityLocations(remaining.length),
     cameraMoteur(cam),
     size,
   );
@@ -83,7 +101,13 @@ test('temporal Hi-Z reprojects previous depth pyramid and handles disocclusion s
 
   // Frame 0: Front directly occludes back. History is populated.
   const cam0 = cameraAt(5);
-  const res0 = applyTemporalHiz([front.page, back.page], units, cameraMoteur(cam0), size, history);
+  const res0 = applyTemporalHiz(
+    [front.page, back.page],
+    identityLocations(2),
+    cameraMoteur(cam0),
+    size,
+    history,
+  );
   assert.deepEqual(
     res0.shown.map((p) => p.url),
     ['front'],
@@ -93,7 +117,13 @@ test('temporal Hi-Z reprojects previous depth pyramid and handles disocclusion s
   assert.ok(history.camera);
 
   // Frame 1: Same camera pose. Front remains occluder, back remains rejected.
-  const res1 = applyTemporalHiz([front.page, back.page], units, cameraMoteur(cam0), size, history);
+  const res1 = applyTemporalHiz(
+    [front.page, back.page],
+    identityLocations(2),
+    cameraMoteur(cam0),
+    size,
+    history,
+  );
   assert.deepEqual(
     res1.shown.map((p) => p.url),
     ['front'],
@@ -105,7 +135,13 @@ test('temporal Hi-Z reprojects previous depth pyramid and handles disocclusion s
   cam2.position.set(5, 0, 2);
   cam2.lookAt(0, 0, -1);
   cam2.updateMatrixWorld();
-  const res2 = applyTemporalHiz([front.page, back.page], units, cameraMoteur(cam2), size, history);
+  const res2 = applyTemporalHiz(
+    [front.page, back.page],
+    identityLocations(2),
+    cameraMoteur(cam2),
+    size,
+    history,
+  );
   // Both front and back should be shown now (disoccluded!)
   assert.ok(res2.shown.some((p) => p.url === 'back'));
   assert.ok(res2.shown.some((p) => p.url === 'front'));
@@ -146,8 +182,9 @@ test('flat projection and split reproduce the object forms to the bit, including
   camera.updateProjectionMatrix();
   camera.updateMatrixWorld();
   const viewport: [number, number] = [1280, 720];
-  const flat = new Float64Array(pages.length * HIZ_BOUNDS_VALUES);
-  projectBoxesFlat(pages, roots, pages.length, cameraMoteur(camera), viewport, flat);
+  const flat = new Float64Array(pages.length * HIZ_BOUNDS_VALUES),
+    locations = locatedBy(roots);
+  projectBoxesFlat(pages, locations, pages.length, cameraMoteur(camera), viewport, flat);
   for (let i = 0; i < pages.length; i++) {
     const reference = projectBoxToScreen(
         pages[i].min,
@@ -182,11 +219,13 @@ test('flat projection and split reproduce the object forms to the bit, including
     referenceRest: (HizPage & { tag: number })[] = [];
   splitOccludersInto(
     tagged,
-    roots,
+    locations,
     cameraMoteur(camera),
     viewport,
     referenceOccluders,
     referenceRest,
+    [],
+    [],
   );
   assert.equal(occluders, referenceOccluders.length);
   assert.equal(referenceOccluders.length + referenceRest.length, tagged.length);

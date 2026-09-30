@@ -5,21 +5,31 @@ import { createHizCounts, hizOversizedFlat, resetHizCounts, type HizCounts } fro
 import type { HizPage, HizPyramid } from './types.ts';
 import { neverCulled } from '../visibility/shader/spriteWgsl.ts';
 import type { EngineCamera } from '../camera/world.ts';
-import type { Placements } from '../page/selection/placements.ts';
+import type { PageLocations } from '../page/selection/placements.ts';
 
 /** Counts nobody reads: what `filterUnoccluded` hands `countUnoccluded` when only the cut matters. */
 const discardedCounts = createHizCounts();
 
 export function filterUnoccluded<T extends HizPage>(
   pages: T[],
-  roots: Placements,
+  locations: PageLocations,
   pyramid: HizPyramid,
   cam: EngineCamera,
   viewport: [number, number],
+  keptPacked: number[] = [],
   bias = 0,
 ) {
   resetHizCounts(discardedCounts);
-  return countUnoccluded(pages, roots, pyramid, cam, viewport, discardedCounts, bias);
+  return countUnoccluded(
+    pages,
+    locations,
+    pyramid,
+    cam,
+    viewport,
+    discardedCounts,
+    keptPacked,
+    bias,
+  );
 }
 
 /**
@@ -29,16 +39,19 @@ export function filterUnoccluded<T extends HizPage>(
  */
 export function countUnoccluded<T extends HizPage & { array?: ArrayLike<number> }>(
   pages: T[],
-  roots: Placements,
+  locations: PageLocations,
   pyramid: HizPyramid,
   cam: EngineCamera,
   viewport: [number, number],
   counts: HizCounts,
+  keptPacked: number[] = [],
   bias = 0,
 ) {
   const kept: T[] = [],
+    packed = locations.packed,
     bounds = boundsFor(pages.length);
-  projectBoxesFlat(pages, roots, pages.length, cam, viewport, bounds);
+  keptPacked.length = 0;
+  projectBoxesFlat(pages, locations, pages.length, cam, viewport, bounds);
   for (let i = 0; i < pages.length; i++) {
     const page = pages[i],
       base = i * HIZ_BOUNDS_VALUES;
@@ -56,6 +69,7 @@ export function countUnoccluded<T extends HizPage & { array?: ArrayLike<number> 
       continue;
     }
     kept.push(page);
+    keptPacked.push(packed[i]);
   }
   return kept;
 }

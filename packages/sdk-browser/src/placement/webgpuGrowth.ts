@@ -13,10 +13,10 @@
  */
 import { countCopies } from '../webgpu/pages/prepare/layout.ts';
 import { growWebgpuTables, tableRowsFor } from '../webgpu/pages/prepare/growTables.ts';
+import { postPackedBases } from '../page/selection/placements.ts';
 import { reserveRootBoxes } from '../math/batchBoxes.ts';
 import { mainViewGpu, viewGpu } from '../webgpu/pages/state/view.ts';
 import { forgetRootsByMesh } from '../webgpu/pages/render/movedNode.ts';
-import { pageRequestUrl } from '../page/selection/requests.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import { growRowRoots } from './growth.ts';
 import { placedBy, type PlacementRows } from './rows.ts';
@@ -49,17 +49,15 @@ export function growWebgpuPlacements(
     { selectionRoots, packedPages, rows } = layout;
   const first = packedPages.length;
   for (const { item: root } of growRowRoots(selectionRoots, from, to)) {
-    for (const page of root.pages) {
-      page.placementIndex = selectionRoots.length;
-      packedPages.push(page);
-      setup.allPages.push(page);
-      setup.byUrl.get(pageRequestUrl(page))?.push(page);
-    }
+    // The new row reads the primitive's own shared records (#1235): each becomes one more packed
+    // instance, and the placement tables below say which root it belongs to.
+    for (const page of root.pages) packedPages.push(page);
     countCopies(layout.copies, root.pages);
     selectionRoots.push(root);
     setup.roots.push(root);
   }
   if (packedPages.length === first) return;
+  layout.placement = postPackedBases(selectionRoots);
   layout.opaquePageCount += packedPages.length - first;
   rows.addPages(first);
   const worlds = new Float32Array(selectionRoots.length * 16);

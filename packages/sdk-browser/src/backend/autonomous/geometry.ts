@@ -4,7 +4,7 @@ import { forgetHostPose, setHostPose } from '../../host/pagePose.ts';
 import { EngineError, type GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
 import type { HostMaterial } from '../../host/resources.ts';
 import { createWebglPageBatches } from '../../placement/webglPageBatches.ts';
-import { drawnInstanced, rowPlaced } from '../../placement/autonomousPlacements.ts';
+import { drawnInstancedAt, rowPlacedAt } from '../../placement/autonomousPlacements.ts';
 import { rootOf, type ClusterRoot, type PageRec } from '../../page/selection/selection.ts';
 import { createHeldResidency } from '../../page/cut/held.ts';
 import { createPageStore } from './pageStore.ts';
@@ -18,7 +18,10 @@ type GeometryEnvironment = {
   allPages: PageRec[];
   bootstrap: PageRec[];
   /** The drawn view's cut, which the scene holds, and every view's lists (`views.ts`). */
-  views: { readonly live: { readonly shown: readonly PageRec[] }; lists(): PageRec[][] };
+  views: {
+    readonly live: { readonly shown: readonly PageRec[]; readonly shownPacked: number[] };
+    lists(): PageRec[][];
+  };
   byUrl: Map<string, PageRec[]>;
   descriptors: Map<string, GeometryPageDescriptor>;
   /** The per-instance draw state, keyed by packed index (`pageDraws.ts`): the record carries none. */
@@ -26,7 +29,7 @@ type GeometryEnvironment = {
   colorMaterials: Map<HostMaterial, HostMaterial>;
   modifiedPages: Set<string>;
   /** The deformation record a page mesh of `rec` names (#357), zero for none. */
-  deformWord?: (rec: PageRec) => number;
+  deformWord?: (rec: PageRec, rank: number) => number;
 };
 
 const released = new WeakSet<object>();
@@ -34,12 +37,23 @@ const released = new WeakSet<object>();
 export function createAutonomousGeometry(env: GeometryEnvironment) {
   const { scene, roots, allPages, byUrl, draws, colorMaterials } = env;
   const state = { allocationBytes: 0, submittedTriangles: 0, residentPages: 0 };
-  const held = createHeldResidency();
-  /** The one writer of a record's residency, its index array: the cut's readiness follows it. */
+  const held = createHeldResidency(
+    {},
+    {
+      get baseOfRoot() {
+        return draws.placement.baseOfRoot;
+      },
+      get rootOfPacked() {
+        return draws.placement.rootOfPacked;
+      },
+    },
+  );
+  /** The one writer of a record's residency, its index array: the cut's readiness follows it. Every
+   *  instance of the record hears of the flip — one record serves all its primitive's placements. */
   const setArray = (rec: PageRec, array: Uint32Array | undefined) => {
     const moved = !rec.array !== !array;
     rec.array = array;
-    if (moved) held.moved(rec);
+    if (moved) draws.forEachRank(rec, (packed) => held.moved(packed, rec));
   };
   // Displayed instances, reused from frame to frame; the draw state is the per-packed object.
   const affichees = new Set<PageDraw>();
@@ -54,15 +68,15 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
       attachees.delete(draw);
     }
   };
-  const attach = (rec: PageRec, draw: PageDraw) => {
+  const attach = (rec: PageRec, draw: PageDraw, rank: number) => {
     if (!draw.geometry) return;
     // The declaration, not the engine's surface record: the record has no `visible` flag, and
     // the program submits nothing for a surface that is not visible.
     if (!draw.mesh) {
       draw.mesh = hostPageMesh(draw.geometry, rec.declaration, rec.renderOrder);
-      (draw.mesh as DeformedDraw).deformRecord = env.deformWord?.(rec) ?? 0;
+      (draw.mesh as DeformedDraw).deformRecord = env.deformWord?.(rec, rank) ?? 0;
     }
-    setHostPose(draw.mesh, rootOf(roots, rec).world);
+    setHostPose(draw.mesh, rootOf(roots, rank).world);
     if (!draw.attached) {
       scene.add(draw.mesh);
       draw.attached = true;
@@ -71,30 +85,38 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
   };
   // Opaque records placed by rows are drawn instanced, one host mesh per page and surface.
   const batches = createWebglPageBatches(scene, roots, draws),
-    rowed: PageRec[] = [];
+    rowed: PageRec[] = [],
+    rowedPacked: number[] = [];
   const sync = () => {
-    const display = env.views.live.shown;
+    const display = env.views.live.shown,
+      packed = env.views.live.shownPacked,
+      { rootOfPacked } = draws.placement;
     affichees.clear();
-    rowed.length = 0;
-    for (const rec of display) {
-      const draw = draws.drawing(rec);
-      if (drawnInstanced(roots, rec)) rowed.push(rec);
-      else affichees.add(draw);
+    rowed.length = rowedPacked.length = 0;
+    for (let i = 0; i < display.length; i++) {
+      const rec = display[i],
+        draw = draws.at(packed[i])!;
+      if (drawnInstancedAt(roots, rootOfPacked[packed[i]], rec)) {
+        rowed.push(rec);
+        rowedPacked.push(packed[i]);
+      } else affichees.add(draw);
     }
     // Removing the current element of a `Set` while iterating it is defined: it will not be revisited.
     for (const draw of attachees) if (!affichees.has(draw)) detach(draw);
     state.submittedTriangles = 0;
-    for (const rec of display) {
+    for (let i = 0; i < display.length; i++) {
+      const rec = display[i];
       if (!rec.array)
         throw new EngineError(
           'AUTONOMOUS_COVERAGE_MISSING',
           'The prepared autonomous scene does not cover every page the cut requires',
           { page: rec.url },
         );
-      if (!drawnInstanced(roots, rec)) attach(rec, draws.drawing(rec));
+      if (!drawnInstancedAt(roots, rootOfPacked[packed[i]], rec))
+        attach(rec, draws.at(packed[i])!, rootOfPacked[packed[i]]);
       state.submittedTriangles += rec.triangles;
     }
-    batches.draw(rowed);
+    batches.draw(rowed, rowedPacked);
   };
   /** Detaches a record, frees its geometry once unless `keep` (an instance's rowed record). */
   const release = (rec: PageRec, keep = false) => {
@@ -124,7 +146,8 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
       const geometry = draws.find(rec)?.geometry;
       release(
         rec,
-        rowPlaced(roots, rec) && list.some((other) => draws.find(other)?.geometry === geometry),
+        rowPlacedAt(roots, draws.rootRankOf(rec)) &&
+          list.some((other) => draws.find(other)?.geometry === geometry),
       );
       draws.forget(rec);
     }

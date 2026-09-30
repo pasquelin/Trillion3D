@@ -16,6 +16,7 @@ import { createWebglViews } from './views.ts';
 import { createEngineCamera } from '../../camera/world.ts';
 import { createHeldResidency } from '../../page/cut/held.ts';
 import { createPageParents } from '../../residency/pageParents.ts';
+import { postPackedBases } from '../../page/selection/placements.ts';
 import { rootChildren } from '../../residency/minimumCapacity.ts';
 import type { HostCamera } from '../../camera/world.ts';
 import type { ClusterRoot, ClusterStructureIndex, PageRec } from '../../page/selection/types.ts';
@@ -54,22 +55,29 @@ export function mount(
   for (const page of rootPages) page.array ??= new Uint32Array(3);
   const byUrl = new Map(all.map((page) => [page.url, page]));
   const state = { allocationBytes: 0 },
-    // The pool's loads and drops below move the cut's readiness, as the page store's do.
-    held = createHeldResidency(),
     diagnostics: BackendDiagnostic[] = [];
   for (const page of byUrl.values()) if (page.array) state.allocationBytes += bytes(page.url);
   const roots = primitives.map((pages, i) => ({
     ...racine(pages),
     structure: structures[i],
   })) as unknown as ClusterRoot<PageRec>[];
+  // The per-placement tables and the packed rank of each page, as the layout posts them (#1235):
+  // the cut's readiness and the pool's dependencies resolve a page through them.
+  const placement = postPackedBases(roots),
+    rankOf = new Map<PageRec, number>();
+  for (let r = 0; r < roots.length; r++)
+    for (let p = 0; p < roots[r].pages.length; p++)
+      rankOf.set(roots[r].pages[p], placement.baseOfRoot[r] + p);
+  // The pool's loads and drops below move the cut's readiness, as the page store's do.
+  const held = createHeldResidency({}, placement);
   // The pool's floor holds the pages the roots' groups replace (`minimumCapacity.ts`).
   const floorPages = rootChildren(roots);
   /** A page leaves: its geometry and bytes go, and the cut's readiness hears of it. */
   const drop = (url: string) => {
-    const page = byUrl.get(url)!;
+    const page = byUrl.get(url)! as PageRec;
     if (!page.array) return;
     page.array = undefined;
-    held.moved(page as PageRec);
+    held.moved(rankOf.get(page) ?? -1, page);
     state.allocationBytes -= bytes(url);
   };
   const rootBytes = rootPages.reduce((sum, page) => sum + bytes(page.url), 0);
@@ -96,7 +104,7 @@ export function mount(
     coverRevision: () => 0,
     state,
     floorBytes: () => rootBytes,
-    parentsOf: createPageParents(roots),
+    parentsOf: createPageParents(roots, placement, (rec) => rankOf.get(rec) ?? -1),
     drop,
     others: views.others,
     captureDrawn: views.captureDrawn,
@@ -135,7 +143,7 @@ export function mount(
     for (const page of requested)
       if (!page.array && left-- > 0) {
         page.array = new Uint32Array(3);
-        held.moved(page as PageRec);
+        held.moved(rankOf.get(page as PageRec) ?? -1, page as PageRec);
         state.allocationBytes += bytes(page.url);
         pool.arrived(page.url);
         most = Math.max(most, state.allocationBytes);

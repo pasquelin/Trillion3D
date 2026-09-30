@@ -1,4 +1,5 @@
 import type { PageRec } from '../../page/selection/selection.ts';
+import { pageAddress } from '../row/pageSlots.ts';
 import { createCutDelta, type CutDelta } from './delta.ts';
 import { createCutPending } from './pending.ts';
 import { coverageWatcher } from './coverage.ts';
@@ -47,15 +48,25 @@ export function createWebgpuCutPublication(
   const drawnDelta = createCutDelta(packedPages, drawnPages);
   // What the cache is asked for is the cut closed over its groups (`../../page/cut/groupClosure.ts`); what the
   // image waits for is the part of it the pool accepted.
+  const rankOf = (rec: PageRec) => rows.pageIndicesByUrl.get(pageAddress(rec))?.[0] ?? -1;
   const cutPending = createCutPending(
     packedPages,
     closure.delta,
     residencySets.accepts,
     () => residencySets.acceptedRevision,
+    rankOf,
   );
   // The CPU cut's residency: the pool's slots, their readiness moved by the rank journal. The
-  // layout's placements never move.
-  const held = createHeldResidency({ isResident: poolHolds });
+  // layout's placements never move, but the tables are rebuilt when it grows (`webgpuGrowth.ts`).
+  const placement = {
+    get baseOfRoot() {
+      return rt.layout.placement.baseOfRoot;
+    },
+    get rootOfPacked() {
+      return rt.layout.placement.rootOfPacked;
+    },
+  };
+  const held = createHeldResidency({ isResident: poolHolds }, placement);
   held.track(rt.layout.selectionRoots);
   // The three ways a cluster's coverage flips — bytes received, bytes released, a cache slot taken
   // or given back — all go through the rank journal, which names them one by one.
@@ -99,7 +110,9 @@ export function createWebgpuCutPublication(
     selection: () => run.gpuSelection,
     desired: run.desired,
     shown: run.shown,
+    shownPacked: run.shownPacked,
     drawn: run.drawn,
+    drawnPacked: run.drawnPacked,
     uniforms: run.selectionUniforms,
     delta: cutDelta,
     drawnDelta,
@@ -116,7 +129,7 @@ export function createWebgpuCutPublication(
   // Before the first readback the image asks the cache for the pinned cover and nothing else.
   // Read here and not retained: this publication's lifetime is that of the engine, and a list that
   // only serves bootstrap has no reason to stay hooked on it.
-  cutDelta.adoptRecords(rt.layout.gpuWanted);
+  cutDelta.adoptRecords(rt.layout.gpuWanted, rankOf);
   publishCut(cutDelta);
   /** Adopts the readback and says whether the IMAGE changed: whether the displayed lists were
    *  rewritten. A fresh readback republishing the same identifiers in the same order rewrites none. */
@@ -185,14 +198,15 @@ export function createWebgpuCutPublication(
       // budget, as when it replaced the main view's, so it keeps the detail pages it kept then
       // (#268). A persistent view and the main one rank the union, the same queue whichever is
       // drawn, so views drawn every frame never trade slots.
-      residencySets.drawnFirst = captureDrawn(views, capture) ? run.desired : null;
+      residencySets.drawnFirst = captureDrawn(views, capture) ? activeCut().asked.ids : null;
     },
     /** `view`, not the main one, is released: its cut leaves the union, whatever it held. */
     releaseView(view: WebgpuView) {
-      if (view === views.main || !view.cut) return;
-      adopt(view.cut, NO_IDS, NO_IDS);
+      const cut = view.cut;
+      if (view === views.main || !cut) return;
+      adopt(cut, NO_IDS, NO_IDS);
       view.cut = undefined;
-      if (residencySets.drawnFirst === view.run.desired) residencySets.drawnFirst = null;
+      if (residencySets.drawnFirst === cut.asked.ids) residencySets.drawnFirst = null;
     },
     /** The held readback no longer describes the image's lists: the next one will re-read it whole. */
     forgetReadback: () => (run.cutEpoch++, cutAdopter.forgetReadback()),
