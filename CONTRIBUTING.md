@@ -210,4 +210,9 @@ A release `develop` → `main`: its own issue and pull request, head `develop` (
 the same template and `Closes #<issue>` first (it delivers its whole issue), the reviewed pull
 requests named under local review, then validation and maintainer approval. Nothing built is
 committed: `.github/workflows/pages.yml` builds the site from `main` (`site/` sources, `dist/site/`
-output) and deploys it, so a change is published only after its release merges.
+output) and deploys it, so a change is published only after its release merges. The same merge runs
+`.github/workflows/release.yml`: the five compilers built, `trillion3d` and its compiler packages
+packed at one version, those archives proved installed on macOS, Linux and Windows, then the six
+publications dry-run. The real npm publication, through Trusted Publishing and no token, waits for
+the maintainer's switch, the repository variable `NPM_PUBLISH` set to `true`; `private` stays `true`
+in the repository.

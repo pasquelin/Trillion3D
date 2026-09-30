@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import { readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { basename, join, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { Metafile } from 'esbuild';
 import { evidenceSummary, installedEvidence } from './installed-package-evidence.ts';
 import {
@@ -10,8 +10,10 @@ import {
   proveInstalledBrowserModes,
 } from './installed-package-bundle.ts';
 import { compileInstalledScene, type CompiledScene } from './installed-package-scene.ts';
-import { packPlatformPackages } from './installed-package-platforms.ts';
+import { packPlatformPackages, platformOverrides } from './installed-package-platforms.ts';
 import { currentCompilerExecutable } from '../packages/sdk-node/src/compiler/executable.mts';
+import { installedCompiler } from '../packages/sdk-node/src/compiler/platform.mts';
+import { readRelease } from './release-packages.ts';
 import { proveInstalledRuntime } from './installed-package-runtime.ts';
 import { proveInstalledTypes } from './installed-package-types.ts';
 import {
@@ -28,19 +30,28 @@ const installedThree = (fixture: string) =>
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 const { fixture, logs, run, write, bundle, installedVersion } = createInstalledFixture(root);
+// `--archives <folder>`: the six archives of a release (`scripts/release.ts pack`, #1354) installed
+// as the registry would serve them, nothing built here; the compiler proved is the one they carry.
+const archivesAt = process.argv.indexOf('--archives');
+const release = archivesAt >= 0 ? readRelease(resolve(process.argv[archivesAt + 1])) : null;
 
 try {
-  run(pnpm, ['run', 'build']);
   const proveBrowser = process.argv.includes('--browser');
   // `--bundle`: the browser bundle emitted and checked, no browser launched (#568).
   const proveBundle = process.argv.includes('--bundle') && !proveBrowser;
-  const proveNative = process.argv.includes('--native') || proveBrowser || proveBundle;
-  if (proveNative) run(pnpm, ['run', 'build:native']);
+  const proveNative =
+    release !== null || process.argv.includes('--native') || proveBrowser || proveBundle;
   // The compiler reaches the application in this machine's platform package (#1352): the
-  // checkout's build just made, refused if older than its sources.
-  const executable = proveNative ? currentCompilerExecutable(undefined, {}) : null;
-  const packed = packArchive(run, pnpm, root, fixture);
-  const { filename: archive } = packed;
+  // checkout's build just made, refused if older than its sources; a release builds nothing.
+  let built: string | null = null;
+  if (!release) run(pnpm, ['run', 'build']);
+  if (!release && proveNative) {
+    run(pnpm, ['run', 'build:native']);
+    built = currentCompilerExecutable(undefined, {});
+  }
+  const packed = release?.archives.at(-1) ?? packArchive(run, pnpm, root, fixture);
+  const archive = join(fixture, basename(packed.filename)); // where the CDN proof unpacks it
+  if (release) writeFileSync(archive, readFileSync(packed.filename));
   const source = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as PackageJson;
   // The consumer installs the package alone: since #275 it neither declares nor needs the host
   // library, and the proof reads the installed tree to say so.
@@ -68,9 +79,18 @@ try {
   );
   write(
     'pnpm-workspace.yaml',
-    packPlatformPackages({ root, fixture, run, pnpm, binary: executable }),
+    release
+      ? platformOverrides(release.archives.slice(0, -1))
+      : packPlatformPackages({ root, fixture, run, pnpm, binary: built }),
   );
   run(pnpm, ['install', '--frozen-lockfile=false'], fixture);
+  // A release's compiler, found from the installed package as its CLI finds it: absent, or not
+  // executable, the proof stops here.
+  const installed = join(fixture, 'node_modules', source.name, 'package.json');
+  const executable = release
+    ? installedCompiler(process.platform, process.arch, pathToFileURL(realpathSync(installed)))
+    : built;
+  if (proveNative && !executable) throw new Error('the installed package carries no compiler');
   if (installedThree(fixture)) throw new Error('a clean install of the package pulls three');
   const packageName = source.name;
   write(
