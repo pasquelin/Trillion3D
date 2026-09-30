@@ -1,4 +1,4 @@
-import { PROBE_REFLECTION_FILTER_WGSL } from '../../../packages/sdk-browser/src/reflections/probeFilterWgsl.ts';
+import { reflectionBandsShader } from '../../../packages/sdk-browser/src/reflections/environmentShader.ts';
 import { screenTraceShader } from '../../../packages/sdk-browser/src/reflections/traceShader.ts';
 import { reflectionConeShader } from '../../../packages/sdk-browser/src/reflections/coneShader.ts';
 import { reflectionConeFilterShader } from '../../../packages/sdk-browser/src/reflections/coneFilterShader.ts';
@@ -18,7 +18,7 @@ fn reflectionMipColorAt(p:vec2i,level:i32)->vec4f{
 ${screenTraceShader('wgsl')}
 ${reflectionConeFilterShader('wgsl')}
 ${reflectionConeShader('wgsl')}
-${PROBE_REFLECTION_FILTER_WGSL.split('fn filteredProbeReflection')[0]}
+${reflectionBandsShader('wgsl')}
 @group(0) @binding(0) var<storage,read_write> output:array<vec4f>;
 @group(0) @binding(1) var<storage,read> inputs:array<vec4f>;
 @group(0) @binding(2) var<storage,read_write> control:array<vec4u>;

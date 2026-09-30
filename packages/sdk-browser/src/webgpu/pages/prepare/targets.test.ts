@@ -72,7 +72,8 @@ test('a blended scene costs the share only when a debug view or the temporal pas
   // Extra levels: 32×16, 16×8, 8×4, 4×2, 2×1, 1×1 for color and depth bounds.
   const cone = (512 + 128 + 32 + 8 + 2 + 1) * 16 + 12 * 256;
   const base = frameTargetAllocation(rt, native(64, 32)) + 64 * 32 * 8 - 8 + cone;
-  const glass = { surface: surfaceOf(standardSurface({ roughness: 1 })) };
+  // Under the screen-reflection cutoff (#1341), above the mirror range: the cone's lobe.
+  const glass = { surface: surfaceOf(standardSurface({ roughness: 0.5 })) };
   Object.assign(rt, { blendState: { blendGpu: [glass] }, vis: { asIsShown: false } });
   assert.equal(
     frameTargetAllocation(rt, native(64, 32)),
