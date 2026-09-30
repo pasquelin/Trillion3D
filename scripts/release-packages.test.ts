@@ -141,7 +141,11 @@ test('the publication dry-runs the six, then publishes them only when asked', ()
 // stopped halfway publishes the rest in order; an archive missing stops it before any npm command.
 test('the publication skips a version already published and refuses a missing archive', () => {
   const release = packed(true);
-  const done = new Set(releaseNames().slice(0, 2).map((name) => `${name}@1.0.0`));
+  const done = new Set(
+    releaseNames()
+      .slice(0, 2)
+      .map((name) => `${name}@1.0.0`),
+  );
   const result = publishRelease({
     out: release.out,
     run: release.run,
