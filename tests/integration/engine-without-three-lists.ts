@@ -72,7 +72,7 @@ export const AUTORISES: Record<string, string> = {
 export const DECLARATION: Record<string, string> = {
   'cluster/batchRange': 'contract: it declares the field on a batch page',
   'page/selection/types': 'contract: it declares the field on a page record',
-  'page/selection/collect': 'the collection sets it, once, beside the record it built',
+  'page/selection/collectRecords': 'the collection sets it, once, beside the record it built',
   'backend/autonomous/geometry': 'WebGL2 page path: it repaints its pages with host materials',
   'backend/autonomous/paints': 'WebGL2 page path: it repaints its instances with host materials',
   'backend/autonomous/pages': 'WebGL2 page path: it keeps the base paint of each page',

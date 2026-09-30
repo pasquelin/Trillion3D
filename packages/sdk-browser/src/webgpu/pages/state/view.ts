@@ -23,6 +23,10 @@ export const VIEW_RUN_KEYS = [
   'desired',
   'shown',
   'drawn',
+  // The packed rank of each page of the three lists above, parallel to them (#1235).
+  'desiredPacked',
+  'shownPacked',
+  'drawnPacked',
   'drawnMirrorsShown',
   'selectResult',
   'noOccluderHistory',

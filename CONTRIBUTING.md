@@ -105,11 +105,18 @@ The rules of #483, binding on every change to geometry, streaming, memory, shado
 - Code first; one final test pass, one test per changed behaviour. No dead or deprecated code,
   abandoned-format compatibility or claim of an unimplemented feature. A differential test against a
   frozen oracle proves only what the sides do differently; shared code is proved directly.
-- **pnpm.** `pnpm run check:changed` checks changed files (format, lint, types, lines, duplicates,
-  import-related unit tests); `pnpm run test:changed` runs only those tests; inspect dependants
-  after deletions, public-export or configuration changes. Before merge `pnpm run validate`: format,
-  JS/TS lint + Clippy, unused code/files/dependencies, TS/native builds, structure, declarations,
-  links, JS/TS/Rust tests.
+- **pnpm.** `pnpm run check:changed` is the one local gate: changed-file format, lint, types, lines
+  and duplicates, and the unit tests the change can affect — its domain folder's and those that
+  really use it (`scripts/affected-tests.ts`); a documentation, site image or translation change runs
+  only the gates and the unit tests that read those files (`scripts/docs-tests.ts`). Its test run is
+  capped to two processes (`TRILLION3D_TEST_CONCURRENCY`), and every heavy local step (a test run,
+  `build`, `build:docs`, `build:native`, `compile:caches`) waits for the other worktrees' and runs at
+  low priority (`scripts/heavy-lock.ts`). Inspect dependants after deletions, public-export or
+  configuration changes.
+- Before merge the CI runs the whole `pnpm run validate` (format, JS/TS lint + Clippy, unused
+  code/files/dependencies, TS/native builds, structure, declarations, links, JS/TS/Rust tests),
+  sharded; it is the CI's, not a local gate. A documentation-only pull request skips its code jobs,
+  runs the tests that read documentation in `quick`, and still reports `validate`.
 - **Everything in English**: comments, docstrings, documentation, commit messages, test names.
 - Every maintained JS/TS/Rust source file, variants included, fits 200 physical lines, no legacy
   exception; split by responsibility, keep public contracts (`pnpm run check:lines`).
@@ -178,8 +185,8 @@ The rules are AGENTS.md's; this is the procedure.
 2. Implement it and record its proof, nothing beyond the batch.
 3. Review the diff twice: simplify (with Claude Code, `/simplify`; otherwise read the whole diff for
    what is duplicated, needless or at the wrong depth), then correctness against these rules. Fix;
-   then `pnpm run check:changed`, `pnpm run test:changed` and the touched `validate` group run once
-   on the final head (the reviewer, `skills/agents/reviewer.md`); the CI runs all of `validate`.
+   then `pnpm run check:changed`, the one local gate, runs once on the final head (the reviewer,
+   `skills/agents/reviewer.md`); the CI runs all of `validate`.
 4. Commit in English, push. The required `pr-body` check (`scripts/check-commit-identity.ts`)
    refuses, naming each hash, a tool identity (author or committer), a `Co-authored-by:` or
    `Generated` trailer, a "Generated with …" footer or a tool session link (AGENTS.md rule 9). Write

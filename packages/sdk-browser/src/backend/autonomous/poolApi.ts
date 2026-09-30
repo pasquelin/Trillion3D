@@ -12,7 +12,8 @@ import { createPageParents } from '../../residency/pageParents.ts';
 import { floorDiagnostic, rootChildren } from '../../residency/minimumCapacity.ts';
 import { checkTexturePoolBudget } from '../../residency/pools.ts';
 import { sendEngineDiagnostic } from '../../diagnostic/engineDiagnostic.ts';
-import { rowPlaced } from '../../placement/autonomousPlacements.ts';
+import { rowPlacedAt } from '../../placement/autonomousPlacements.ts';
+import type { PageDraws } from './pageDraws.ts';
 
 /**
  * The copies each page holds once resident (`PageCopies`), from the records collected when the
@@ -22,7 +23,8 @@ import { rowPlaced } from '../../placement/autonomousPlacements.ts';
  */
 export function pageCopies(
   byUrl: ReadonlyMap<string, readonly PageRec[]>,
-  roots: readonly ClusterRoot<PageRec>[],
+  /** Whether a record is placed by rows, read through its first instance (a per-page property). */
+  placedByRow: (rec: PageRec) => boolean,
   rootUrls: ReadonlySet<string>,
   instanceCount: () => number,
   /** The pages the roots' groups replace, which the floor holds with them (`rootChildren`). */
@@ -36,7 +38,7 @@ export function pageCopies(
   for (const [url, recs] of byUrl) {
     let own = 0;
     for (const rec of recs)
-      if (rowPlaced(roots, rec)) shared.add(url);
+      if (placedByRow(rec)) shared.add(url);
       else own++;
     owned.set(url, own);
     sceneOwned += own;
@@ -70,6 +72,8 @@ export function createAutonomousPool(env: {
   byUrl: ReadonlyMap<string, readonly PageRec[]>;
   /** The selection roots, whose group links say which pages each page depends on. */
   roots: readonly ClusterRoot<PageRec>[];
+  /** The per-instance draw state, which posts the packed ranks and their roots (#1235). */
+  draws: PageDraws;
   cap: number;
   gate: WebglFrameGate;
   geometryStore: ReturnType<typeof createAutonomousGeometry>;
@@ -93,7 +97,13 @@ export function createAutonomousPool(env: {
     };
   // The minimum capacity: the floor holds the pages the roots' groups replace with the roots.
   const childUrls = new Set(rootChildren(env.roots).map((rec) => rec.url)),
-    copies = pageCopies(byUrl, env.roots, env.bootstrapUrls, env.instanceCount, childUrls);
+    copies = pageCopies(
+      byUrl,
+      (rec) => rowPlacedAt(env.roots, env.draws.rootRankOf(rec)),
+      env.bootstrapUrls,
+      env.instanceCount,
+      childUrls,
+    );
   const budget = createGeometryBudget({
     budgetBytes: context.geometryPoolBytes,
     fixedBytes,
@@ -105,7 +115,7 @@ export function createAutonomousPool(env: {
     coverRevision: () => heldFloor.revision,
     state,
     floorBytes: () => heldFloor.bytes() + fixedBytes(),
-    parentsOf: createPageParents(env.roots),
+    parentsOf: createPageParents(env.roots, env.draws.livePlacement, env.draws.firstPacked),
     drop: residency.dropPage,
     others: env.views.others,
     captureDrawn: env.views.captureDrawn,

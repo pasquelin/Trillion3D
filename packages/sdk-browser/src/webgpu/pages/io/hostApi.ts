@@ -1,17 +1,12 @@
 import { createSynchronousCanvasCapture } from '../../../gpu/core/presentation.ts';
-import { collectPendingUrls, type PageRec } from '../../../page/selection/selection.ts';
-import { awaitedPages } from '../../row/pageSlots.ts';
-import { withClosure } from '../../../page/selection/bundleDependencies.ts';
 import { rasterVisibilityIds, shadeVisibility } from '../../../visibility/buffer.ts';
+import type { VisPage } from '../../../visibility/types.ts';
 import { renderWebgpuPages } from '../render/render.ts';
 import { frameTargetsAwaited } from '../prepare/targetGrant.ts';
 import { defaultEngineCamera } from '../../../camera/world.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
-/** The cut the host keeps: the requested one, or past the page budget the part the pool accepted —
- *  the rest is drawn by its nearest resident ancestor and never fetched. */
-const retainedCut = (rt: WebgpuPagesRuntime): readonly PageRec[] =>
-  rt.run.coverageBudgetLimited ? rt.services.residencySets.wantedPages : rt.run.desired;
+export { pageUrls, pendingUrls, retainedRanks } from './hostLists.ts';
 
 /**
  * The contract's light store has changed. Nothing is recomputed here: the next image rereads the
@@ -77,11 +72,19 @@ export function captureImage(rt: WebgpuPagesRuntime) {
   return capture.capturedPixels;
 }
 
-/** The drawn opaque pages with their bytes, as the CPU raster oracle reads them. */
+/** The drawn opaque pages with their bytes, as the CPU raster oracle reads them, and the packed
+ *  rank of each — one record serves many placements (#1235). */
 function drawnOpaquePages(rt: WebgpuPagesRuntime) {
-  return rt.run.drawn
-    .filter((rec) => rec.array && !rec.transparent)
-    .map((rec) => ({ ...rec, array: rec.array! }));
+  const pages: VisPage[] = [],
+    packed: number[] = [];
+  for (let i = 0; i < rt.run.drawn.length; i++) {
+    const rec = rt.run.drawn[i];
+    if (rec.array && !rec.transparent) {
+      pages.push({ ...rec, array: rec.array });
+      packed.push(rt.run.drawnPacked[i]);
+    }
+  }
+  return { pages, packed };
 }
 
 /** Camera the oracles read: the last image's, or a fresh host camera's while no image has been
@@ -90,111 +93,29 @@ function engineCameraOf(rt: WebgpuPagesRuntime) {
   return rt.run.lastCamera ? rt.run.gate.cam : defaultEngineCamera();
 }
 
-/** What the CPU raster reads of the last image: its drawn pages, their roots, camera and size. */
-const rasterView = (rt: WebgpuPagesRuntime) => ({
-  pages: drawnOpaquePages(rt),
-  roots: rt.layout.selectionRoots,
-  cam: engineCameraOf(rt),
-  size: rt.setup.viewport ?? rt.gpu.targetSize,
-  pixelRatio: rt.setup.pixelRatio(),
-});
+/** What the CPU raster reads of the last image: its drawn pages, their locations, camera and size. */
+const rasterView = (rt: WebgpuPagesRuntime) => {
+  const { pages, packed } = drawnOpaquePages(rt);
+  return {
+    pages,
+    locations: {
+      roots: rt.layout.selectionRoots,
+      packed,
+      rootOfPacked: rt.layout.placement.rootOfPacked,
+    },
+    cam: engineCameraOf(rt),
+    size: rt.setup.viewport ?? rt.gpu.targetSize,
+    pixelRatio: rt.setup.pixelRatio(),
+  };
+};
 
 export function visibilityIds(rt: WebgpuPagesRuntime) {
-  const { pages, roots, cam, size, pixelRatio } = rasterView(rt);
-  return rasterVisibilityIds(pages, roots, cam, size, pixelRatio);
+  const { pages, locations, cam, size, pixelRatio } = rasterView(rt);
+  return rasterVisibilityIds(pages, locations, cam, size, pixelRatio);
 }
 
 export function rasterRgba(rt: WebgpuPagesRuntime) {
-  const { pages, roots, cam, size, pixelRatio } = rasterView(rt);
-  const ids = rasterVisibilityIds(pages, roots, cam, size, pixelRatio);
-  return shadeVisibility(ids, pages, roots, cam, size, rt.run.clearColor, pixelRatio);
-}
-
-/**
- * Addresses the image still waits for. They are a function of the requested cut, the budget flag,
- * bootstrap coverage and the bytes the pages hold — and of nothing else. An image that reread the
- * sample it already held, with no page receiving or losing its bytes, therefore returns exactly the
- * list already yielded.
- */
-export function pendingUrls(rt: WebgpuPagesRuntime) {
-  const { run } = rt,
-    ready = rt.services.bootstrapState.ready,
-    held = run.pendingHeld;
-  if (
-    run.cutHeld &&
-    held.cut === run.cutEpoch &&
-    held.epoch === run.pageArrayEpoch &&
-    held.limited === run.coverageBudgetLimited &&
-    held.ready === ready
-  )
-    return run.hostPendingScratch;
-  held.cut = run.cutEpoch;
-  held.epoch = run.pageArrayEpoch;
-  held.limited = run.coverageBudgetLimited;
-  held.ready = ready;
-  // Until pinned coverage is there, that is what we wait for. Then the cut itself holds the list of
-  // its rows without bytes that the pool accepted: those are the only ones to walk, and a fully
-  // arrived cut — the ordinary case — walks none.
-  const waiting = !ready
-    ? awaitedPages(rt.setup.bootstrap, run.awaitedScratch)
-    : rt.services.cutPending.records;
-  return collectPendingUrls(waiting, run.hostPendingScratch, rt.setup.requestStamps);
-}
-
-/**
- * Addresses the host pins after the render: bootstrap coverage, what the image draws and what the
- * cut asks. The request-key rank is posted once and for all by the catalogue: two pages that share
- * a request share their rank, and dedup splits them by a stamp instead of hashing a hundred thousand
- * strings per image. Same addresses, same order, same length as a string set. And an image that
- * reread the sample already held reads three unchanged lists: it returns the one it yielded rather
- * than remaking it.
- */
-export function pageUrls(rt: WebgpuPagesRuntime) {
-  const { run } = rt,
-    { urlScratch } = run,
-    stamps = rt.setup.requestStamps,
-    held = run.urlsHeld;
-  if (
-    run.cutHeld &&
-    held.cut === run.cutEpoch &&
-    held.epoch === run.pageArrayEpoch &&
-    held.limited === run.coverageBudgetLimited
-  )
-    return urlScratch;
-  held.cut = run.cutEpoch;
-  held.epoch = run.pageArrayEpoch;
-  held.limited = run.coverageBudgetLimited;
-  urlScratch.length = 0;
-  stamps.begin();
-  stamps.mark(rt.setup.bootstrap, urlScratch);
-  stamps.mark(run.shown, urlScratch);
-  withClosure(retainedCut(rt), (list) => stamps.mark(list, urlScratch));
-  return urlScratch;
-}
-
-/**
- * The same pins as `pageUrls`, stated as a rank delta: what entered and what left since the previous
- * image. No string, no key set, no allocation — three lists walked as integers, and the cache then
- * touches only what moved. An image that reread the sample already held does not even walk these
- * lists: it returns the empty delta.
- */
-export function retainedRanks(rt: WebgpuPagesRuntime) {
-  const { run } = rt,
-    ranks = rt.setup.hostRanks,
-    held = run.ranksHeld;
-  if (
-    run.cutHeld &&
-    held.cut === run.cutEpoch &&
-    held.epoch === run.pageArrayEpoch &&
-    held.limited === run.coverageBudgetLimited
-  )
-    return ranks.hold();
-  held.cut = run.cutEpoch;
-  held.epoch = run.pageArrayEpoch;
-  held.limited = run.coverageBudgetLimited;
-  ranks.begin();
-  ranks.mark(rt.setup.bootstrap);
-  ranks.mark(run.shown);
-  withClosure(retainedCut(rt), ranks.mark);
-  return ranks.finish();
+  const { pages, locations, cam, size, pixelRatio } = rasterView(rt);
+  const ids = rasterVisibilityIds(pages, locations, cam, size, pixelRatio);
+  return shadeVisibility(ids, pages, locations, cam, size, rt.run.clearColor, pixelRatio);
 }
