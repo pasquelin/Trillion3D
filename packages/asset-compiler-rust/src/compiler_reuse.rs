@@ -55,11 +55,14 @@ pub(super) fn reuse(
 /// Ends a job on a proven folder: pointer, prune, and this job's own numbers —
 /// nothing of the compile that wrote the folder is passed off as this run's work.
 /// `importMs` runs to the decision: routing, loading, the key and the proof.
+/// The warnings of the product are told again (`tell_warnings`): a kept folder is
+/// the same product as a written one, so a host counting them decides the same way.
 pub(super) fn finish(
     o: &Options,
     key: &str,
     reused: Reused,
     started: Instant,
+    unsupported: &Value,
     progress: &(impl Fn(Value) + Sync),
 ) -> Result<Value> {
     let import_ms = shared_math::elapsed_ms(started);
@@ -75,6 +78,31 @@ pub(super) fn finish(
     let output_bytes = manifest["metrics"]["outputGeometryBytes"].take();
     manifest["metrics"] = json!({"importMs":import_ms,"clusterHierarchyPagesMs":null,"pruneMs":shared_math::elapsed_ms(prune_start),"wallMs":shared_math::elapsed_ms(started),"outputGeometryBytes":output_bytes,"threads":o.threads,"ramBudgetMb":o.ram_budget_mb});
     manifest["reused"] = report;
+    tell_warnings(&manifest, &o.key_directory(key), unsupported, progress);
     progress(json!({"phase":"complete","completed":1,"total":1,"pruned":pruned}));
     Ok(manifest)
+}
+
+/// The events a compile tells its warnings on, rebuilt from what the folder keeps: the import
+/// report, each flagged primitive's DAG warnings, and the lights left out. A reused job would
+/// otherwise say nothing of them, and `trillion3d-compile --strict` would pass a warm cache it
+/// refuses cold.
+fn tell_warnings(
+    manifest: &Value,
+    directory: &Path,
+    unsupported: &Value,
+    progress: &(impl Fn(Value) + Sync),
+) {
+    progress(json!({"phase":"import","completed":1,"total":1,"unsupported":unsupported}));
+    for primitive in manifest["primitives"].as_array().into_iter().flatten() {
+        let warnings = &primitive["dag"]["warnings"];
+        if warnings.as_array().is_some_and(|w| !w.is_empty()) {
+            progress(
+                json!({"phase":"primitive","mesh":primitive["mesh"],"primitive":primitive["primitive"],"warnings":warnings}),
+            );
+        }
+    }
+    if let Some(event) = compiler_lights::stored_lights_event(directory) {
+        progress(event);
+    }
 }

@@ -11,6 +11,7 @@ import {
   catalogueMessages,
   type CatalogueMessage,
 } from '../packages/sdk-node/src/messages/catalogue.mts';
+import { slug } from './check-links.ts';
 
 const MESSAGES_DIRECTORY = 'docs/messages';
 const MESSAGES_INDEX = 'docs/COMPILER_ERRORS.md';
@@ -20,11 +21,6 @@ const GENERATED =
 /** A cause written for `docs/` keeps its relative links working one folder down. */
 const fromSubfolder = (text: string) => text.replace(/\]\((?!https?:|#)/g, '](../');
 const cell = (text: string) => text.replaceAll('|', '\\|');
-const anchor = (group: string) =>
-  group
-    .toLowerCase()
-    .replace(/[^a-z0-9 -]/g, '')
-    .replaceAll(' ', '-');
 
 function page(entry: CatalogueMessage) {
   return [
@@ -32,7 +28,7 @@ function page(entry: CatalogueMessage) {
     '',
     GENERATED,
     '',
-    `Level: **${LEVEL[entry.level]}**. Group: [${entry.group}](../COMPILER_ERRORS.md#${anchor(entry.group)}).`,
+    `Level: **${LEVEL[entry.level]}**. Group: [${entry.group}](../COMPILER_ERRORS.md#${slug(entry.group)}).`,
     '',
     entry.message,
     '',

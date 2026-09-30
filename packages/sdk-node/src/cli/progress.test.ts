@@ -162,3 +162,29 @@ test('many flagged primitives are summarised in one line per code when the job c
   assert.doesNotMatch(out.text(), /node-hidden/);
   assert.match(out.text(), /\n✔ 1\/1 village/);
 });
+// Behaviour: `verbose` tells each code once, then every occurrence under it, info codes included —
+// the head of a code is never printed twice.
+test('verbose adds the info codes and every occurrence under a single line per code', () => {
+  const out = capture();
+  const progress = createTerminalProgress({ label: 'yard', stream: out.stream, verbose: true });
+  progress.event({
+    event: 'progress',
+    job: 'job',
+    phase: 'import',
+    unsupported: { 'texture-missing': 2, 'node-hidden': 1 },
+  });
+  for (const mesh of [3, 4])
+    progress.event({
+      event: 'progress',
+      job: 'job',
+      phase: 'primitive',
+      mesh,
+      primitive: 0,
+      warnings: [{ code: 'DAG_FLAT', roots: mesh, pages: 9, groups: {}, rootTriangles: 0 }],
+    });
+  progress.event({ event: 'complete', job: 'job', ratio: 1, pointer: { primitives: 2 } });
+  const text = out.text();
+  assert.equal(text.match(/ DAG_FLAT ×/g)?.length, 1, text);
+  assert.match(text, /\n {4}DAG_FLAT mesh 3\/0: 3 roots of 9 pages\n {4}DAG_FLAT mesh 4\/0: /);
+  assert.match(text, /ℹ yard T3D-I\d{3} node-hidden ×1: /);
+});
