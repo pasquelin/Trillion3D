@@ -3548,7 +3548,6 @@
       "flags": "0 arka plan, 1 aydınlatılmamış (sisli), 2 okunur, 3 olduğu gibi gösterilir: bir tanılama, bir normal ya da derinlik görünümü. 4 ve 5, yayınık ve toon modelleridir (`./surfaceModel.ts`).",
       "views": "GPU doku görünümleri.",
       "dispose": "Serbest bırakır.",
-      "shadingOffset": "G-buffer ile birlikte yazılan, tam hassasiyetli gölge alıcı yüzey ofseti.",
       "subsurface": "İnce yüzeylerin bağımsız ışık geçirgenlik rengi; devre dışıyken sıfır değerli 1×1 doku.",
       "subsurfaceView": "İnce yüzeylerin ışık iletimi dokusunun görünümü.",
       "hasSubsurface": "İnce yüzeylerin ışık iletimi için tam boyutlu bir hedef bulunup bulunmadığı."

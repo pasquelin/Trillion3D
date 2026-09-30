@@ -1,6 +1,7 @@
 import type { HostAttribute, HostAttributes } from '../../host/resources.ts';
 import type { WebgpuGpuState } from '../pages/state/gpu.ts';
 import { uvBufferFloats, writeVertexColors } from '../core/vertexColors.ts';
+import { createFloatAtlas, writeFloatAtlas, type FloatAtlas } from '../core/floatAtlas.ts';
 
 /**
  * Vertex buffers of a transparent primitive, held by the source geometry and not by the mesh that
@@ -58,8 +59,10 @@ export function ensureBlendUvBuffer(
   return buffer;
 }
 
-/** Normal and tangent of a transparent geometry, in the same buffer and the same order as before. */
-export function ensureBlendNormalBuffer(
+/** Normal and tangent of a transparent geometry, seven floats a vertex in the same order as
+ *  before, in a float atlas of their bytes (`../core/floatAtlas.ts`, #1410): the pass reads every
+ *  normal from an atlas, the float pool's or this one. */
+export function ensureBlendNormalAtlas(
   device: GPUDevice,
   attributes: HostAttributes,
   gpu: WebgpuGpuState,
@@ -67,7 +70,7 @@ export function ensureBlendNormalBuffer(
   if (gpu.blendNormalBuffers.has(attributes)) return gpu.blendNormalBuffers.get(attributes);
   const normal = attributes.normal,
     tangent = attributes.tangent;
-  let buffer: GPUBuffer | undefined;
+  let atlas: FloatAtlas | undefined;
   if (normal) {
     const data = new Float32Array(normal.count * 7);
     for (let i = 0; i < normal.count; i++) {
@@ -81,17 +84,19 @@ export function ensureBlendNormalBuffer(
         data[i * 7 + 6] = tangent.getW(i);
       }
     }
-    buffer = upload(device, data, 12, gpu);
+    atlas = createFloatAtlas(device, 'Trillion3D transparent normals', data.length);
+    writeFloatAtlas(device.queue, atlas, 0, data, 0, data.length);
+    gpu.vertexBytes += atlas.bytes;
   }
-  gpu.blendNormalBuffers.set(attributes, buffer);
-  return buffer;
+  gpu.blendNormalBuffers.set(attributes, atlas);
+  return atlas;
 }
 
 /** Returns the transparents' shared buffers to the driver; items own none of them. */
 export function dropBlendBuffers(gpu: WebgpuGpuState) {
   for (const buffer of gpu.blendIndexBuffers.values()) buffer.destroy();
   for (const buffer of gpu.blendUvBuffers.values()) buffer?.destroy();
-  for (const buffer of gpu.blendNormalBuffers.values()) buffer?.destroy();
+  for (const atlas of gpu.blendNormalBuffers.values()) atlas?.texture.destroy();
   gpu.blendIndexBuffers.clear();
   gpu.blendUvBuffers.clear();
   gpu.blendNormalBuffers.clear();

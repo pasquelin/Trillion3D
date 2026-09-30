@@ -16,7 +16,7 @@ import { BOUNCE_GRID_WGSL, INVERSE_PI_WGSL } from './gridWgsl.ts';
 export function bounceApplyWgsl(grid: number, probes: number): string {
   return `
 @group(0) @binding(${grid}) var<uniform> bounce:BounceGrid;
-@group(0) @binding(${probes}) var<storage,read> probes:array<vec4f>;
+@group(0) @binding(${probes}) var probes:texture_2d_array<f32>;
 ${BOUNCE_GRID_WGSL}
 ${INVERSE_PI_WGSL}
 /** Diffuse radiance a pixel returns from light that bounced before reaching it. */
