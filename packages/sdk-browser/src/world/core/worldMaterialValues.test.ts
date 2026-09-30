@@ -7,6 +7,7 @@ import { test } from 'node:test';
 import { object } from '../../../../sdk-core/src/world/object/index.ts';
 import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts';
 import { material } from '../../../../sdk-core/src/world/material/index.ts';
+import { Color } from '../../../../sdk-core/src/world/math/color.ts';
 import type { AlphaChange } from '../../placement/backendSceneUpdates.ts';
 import { createWorldMaterials } from './worldMaterials.ts';
 import { hostSurface, repaintHostSurface } from './worldSurface.ts';
@@ -52,7 +53,9 @@ test('a physical extension, a shininess, an opacity or a cutoff repaints its ent
   shine.specular = 0x222222;
   assert.equal(table.entryOf(shine), phong, 'a colour it did not hold is a value');
   assert.notEqual(phong.material.specular, shine.specular, 'copied, not shared');
-  assert.deepEqual(phong.material.specular, shine.specular);
+  assert.ok(phong.material.specular instanceof Color);
+  assert.ok(shine.specular instanceof Color);
+  assert.deepEqual(phong.material.specular.toArray(), shine.specular.toArray());
   paint.transmission = 1;
   assert.notEqual(table.entryOf(paint), entry, 'a transmission moves the pass: a new entry');
 });

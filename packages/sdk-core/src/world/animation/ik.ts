@@ -124,21 +124,53 @@ export function solveTwoBoneIK(
     knee0 = angle(subVector3(ba, a, b), cb),
     bend1 = clampedAcos((lcb * lcb - lab * lab - lat * lat) / (-2 * lab * lat)),
     knee1 = clampedAcos((lat * lat - lab * lab - lcb * lcb) / (-2 * lab * lcb));
+  // A fully folded chain has no root-to-end direction; its first bone still defines one.
+  const direction = length(ac) ? ac : ab;
   // A straight chain has no bend of its own: it bends toward the target, or across it.
   if (pole) {
     toPole[0] = pole.x - a[0];
     toPole[1] = pole.y - a[1];
     toPole[2] = pole.z - a[2];
-    crossVector3(plane, ac, toPole);
-  } else crossVector3(plane, ac, ab);
-  if (!(length(plane) > 1e-9 * lab * lcb)) crossVector3(plane, ac, at);
-  if (!(length(plane) > 1e-9 * lab * lcb)) crossVector3(plane, ac, Math.abs(ac[0]) < 0.9 ? X : Y);
+    crossVector3(plane, direction, toPole);
+  } else crossVector3(plane, direction, ab);
+  if (!(length(plane) > 1e-9 * lab * lcb)) crossVector3(plane, direction, at);
+  if (!(length(plane) > 1e-9 * lab * lcb))
+    crossVector3(plane, direction, Math.abs(direction[0]) < 0.9 * length(direction) ? X : Y);
+  // Bring an existing bend into the pole's plane before changing its angle.
+  if (pole && length(ac) && length(crossVector3(ba, ac, ab)) > 1e-9 * lab * lcb) {
+    const roll = Math.atan2(
+      dotVector3(ac, crossVector3(toPole, ba, plane)) / length(ac),
+      dotVector3(ba, plane),
+    );
+    turnInWorld(root, ac, roll);
+  }
   turnInWorld(root, plane, bend1 - bend0);
   turnInWorld(mid, plane, knee1 - knee0);
   worldPoint(end, c);
   subVector3(ac, c, a);
   // A partial solve settles the subtree once, after the blend back.
-  turnInWorld(root, crossVector3(plane, ac, at), angle(ac, at), !partial);
+  crossVector3(plane, ac, at);
+  // Opposite collinear directions need a half-turn around any perpendicular axis.
+  if (!length(plane) && dotVector3(ac, at) < 0)
+    crossVector3(plane, ac, Math.abs(ac[0]) < 0.9 * length(ac) ? X : Y);
+  turnInWorld(root, plane, angle(ac, at), !partial);
+  // Align the solved elbow with the pole around the target axis, preserving the endpoint.
+  if (pole && length(at)) {
+    worldPoint(mid, b);
+    subVector3(ab, b, a);
+    toPole[0] = pole.x - a[0];
+    toPole[1] = pole.y - a[1];
+    toPole[2] = pole.z - a[2];
+    crossVector3(ba, at, ab);
+    crossVector3(plane, at, toPole);
+    if (length(ba) && length(plane)) {
+      const roll = Math.atan2(
+        dotVector3(at, crossVector3(toPole, ba, plane)) / length(at),
+        dotVector3(ba, plane),
+      );
+      turnInWorld(root, at, roll, !partial);
+    }
+  }
   if (!partial) return;
   root.quaternion.slerp(scratch.keptRoot, 1 - Math.max(0, weight));
   mid.quaternion.slerp(scratch.keptMid, 1 - Math.max(0, weight));
