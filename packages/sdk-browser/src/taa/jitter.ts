@@ -16,21 +16,28 @@ export const TAA_SAMPLES = 8;
 /**
  * Jitter phases of a frame drawn `render` pixels wide and shown `display` wide (FSR 2's phase
  * count, `8 · (display / render)²`): eight at native size, 32 at half, so every display pixel
- * receives samples of its own. A still frame is held after two full cycles (`taaStillFrames`).
+ * receives samples of its own. A still frame is held after at most 16 of them (`taaStillFrames`).
  */
 export const upscalePhases = (render: number, display: number) =>
   Math.floor(TAA_SAMPLES * (display / render) ** 2);
 
+/** The most still frames a held frame averages, at any render scale: the reference upscaler's
+ *  (TSR's) history keeps about 16 samples a display pixel, whatever its jitter phases. */
+const TAA_STILL_CAP = 2 * TAA_SAMPLES;
+
 /**
- * Still frames accumulated before a frame can be held, at `phases` jitter phases: two cycles. On
- * the first still frame history restarts at phase zero and the k-th weighs 1/k, so the held frame
- * is the UNIFORM AVERAGE of those frames, which depend only on the final state — the same to the
- * bit from one run to the next, which exponential accumulation does not give: it would keep 12% of
- * what the image was while pages and textures arrived, in an order that is never twice the same.
- * The cost, declared: on stop, edges stiffen for a frame or two before reconverging — where the
- * reference renders without end.
+ * Still frames accumulated before a frame can be held, at `phases` jitter phases: two cycles, or
+ * one when two pass `TAA_STILL_CAP`, or the cycle's first `TAA_STILL_CAP` phases when one does —
+ * a frame drawn at half the display (32 phases) rests after 16 frames, not 64 (#1346, a declared
+ * class 2 below native size). On the first still frame history restarts at phase zero and the k-th
+ * weighs 1/k, so the held frame is the UNIFORM AVERAGE of those frames, which depend only on the
+ * final state — the same to the bit from one run to the next, which exponential accumulation does
+ * not give: it would keep 12% of what the image was while pages and textures arrived, in an order
+ * that is never twice the same. The cost, declared: on stop, edges stiffen for a frame or two
+ * before reconverging — where the reference renders without end.
  */
-export const taaStillFrames = (phases: number) => 2 * phases;
+export const taaStillFrames = (phases: number) =>
+  phases <= TAA_SAMPLES ? 2 * phases : Math.min(phases, TAA_STILL_CAP);
 
 /**
  * Texture level offset of a frame drawn at `render` pixels per display row of `display`: the
