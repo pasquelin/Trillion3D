@@ -124,17 +124,16 @@ fn demandSoftLamp(index:u32,light:DirectLight,centre:LampAt,N:vec3f,mip:u32){
   let disk=shadowRotated(POISSON[tap]);let v=(d.T*disk.x+d.B*disk.y)*d.search;
   // \`P\` reads \`centre\`, the lookup whose pages \`demandLamp\` marked: the walk starts at its exit —
   // at once when \`P\` lies on the edge the segment leaves by, a crossing at \`s = 0\` (#1363).
-  var exit=softPageExit(index,P,v,centre,-1e-5);
-  demandSoftAt(index,lamp,P+v*(min(exit,1.0)-1e-5),N,mip);
-  var s=exit+1e-5;
+  var r=centre;var s=-1e-5;
   // A segment spans under 60° (\`search\` < \`distance\`, a tap within 1.3 of the disk's centre):
   // at most three faces, and two pages a row of each crossed.
-  for(var k=0u;k<6u*LAMP_PAGE_COUNT&&s<=1.0;k++){
-   let r=lampReadAt(index,lamp,P+v*s,N,0.0,1.0,mip);
-   demandPages(r.at.map,r.at.t,r.at.home);
-   exit=softPageExit(index,P,v,r,s);
+  for(var k=0u;k<=6u*LAMP_PAGE_COUNT;k++){
+   let exit=softPageExit(index,P,v,r,s);
    demandSoftAt(index,lamp,P+v*(min(exit,1.0)-1e-5),N,mip);
    s=exit+1e-5;
+   if(s>1.0||k==6u*LAMP_PAGE_COUNT){break;}
+   r=lampReadAt(index,lamp,P+v*s,N,0.0,1.0,mip);
+   demandPages(r.at.map,r.at.t,r.at.home);
   }
  }
 }

@@ -73,6 +73,7 @@ function walk(xs: number[], rotation: V) {
     [
       ...NAMES,
       'lampSoftCompare',
+      'shadowSplitTap',
       'shadowNeighbour',
       'shadowCompare',
       'shadowSample',

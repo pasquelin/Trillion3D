@@ -37,7 +37,7 @@ export const POISSON_16 = [
 ];
 
 /** Radius of the taps' disk, in texels: the farthest tap from the read point, turned any way. */
-export const POISSON_RADIUS = Math.max(...POISSON_16.map(([x, y]) => Math.hypot(x, y)));
+const POISSON_RADIUS = Math.max(...POISSON_16.map(([x, y]) => Math.hypot(x, y)));
 
 /** Farthest texel centre any tap weighs, in texels from the read point, the taps turned any way
  *  (`shadowRotated`): the disk's radius, then the bilinear footprint's texel on each axis, at
@@ -174,21 +174,27 @@ fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32,
   }
   return shadowThroughLit(offset,first,t,reference,lit/f32(PCF_TAPS));
  }
- let toward=select(vec2f(-1.0),vec2f(1.0),up);
- let seam=first+select(vec2f(0.0),vec2f(SHADOW_PAGE),up);
  for(var tap=0u;tap<PCF_TAPS;tap++){
   var at=t+shadowRotated(POISSON[tap]);
   if(side>0.0){at=clamp(at,vec2f(0.5),vec2f(side-0.5));}
-  let h=clamp(at,first+0.5,first+SHADOW_PAGE-0.5);
-  let n=select(min(at,seam-0.5),max(at,seam+0.5),up);
-  let w=saturate(0.5+(seam-at)*toward);
-  var sum=w.x*w.y*shadowCompare(offset,h,reference);
-  if(edge.x){sum+=(1.0-w.x)*w.y*shadowCompare(nx.xyz,vec2f(select(h.x,n.x,nx.w>0.0),h.y),reference);}
-  if(edge.y){sum+=w.x*(1.0-w.y)*shadowCompare(ny.xyz,vec2f(h.x,select(h.y,n.y,ny.w>0.0)),reference);}
-  if(all(edge)){sum+=(1.0-w.x)*(1.0-w.y)*shadowCompare(nd.xyz,select(h,n,nd.w>0.0),reference);}
-  lit+=sum;
+  lit+=shadowSplitTap(offset,nx,ny,nd,edge,up,first,at,reference);
  }
  return shadowThroughLit(offset,first,t,reference,lit/f32(PCF_TAPS));
+}
+/** \`shadowCompare\` at \`at\` split along the home page's seams (\`up\`): each page's share of the
+ *  footprint, \`saturate(0.5 + distance to the seam)\`, read in that page, the neighbours \`nx\`, \`ny\`,
+ *  \`nd\` on the \`edge\` axes. Shared by \`shadowPcf\` and the PCSS filter (\`lampSoftCompare\`). */
+fn shadowSplitTap(offset:vec3f,nx:vec4f,ny:vec4f,nd:vec4f,edge:vec2<bool>,up:vec2<bool>,first:vec2f,at:vec2f,reference:f32)->f32{
+ let toward=select(vec2f(-1.0),vec2f(1.0),up);
+ let seam=first+select(vec2f(0.0),vec2f(SHADOW_PAGE),up);
+ let h=clamp(at,first+0.5,first+SHADOW_PAGE-0.5);
+ let n=select(min(at,seam-0.5),max(at,seam+0.5),up);
+ let w=saturate(0.5+(seam-at)*toward);
+ var sum=w.x*w.y*shadowCompare(offset,h,reference);
+ if(edge.x){sum+=(1.0-w.x)*w.y*shadowCompare(nx.xyz,vec2f(select(h.x,n.x,nx.w>0.0),h.y),reference);}
+ if(edge.y){sum+=w.x*(1.0-w.y)*shadowCompare(ny.xyz,vec2f(h.x,select(h.y,n.y,ny.w>0.0)),reference);}
+ if(all(edge)){sum+=(1.0-w.x)*(1.0-w.y)*shadowCompare(nd.xyz,select(h,n,nd.w>0.0),reference);}
+ return sum;
 }
 ${SHADOW_FACTOR_WGSL}
 ${LAMP_SOFT_WGSL}`;
