@@ -588,10 +588,11 @@ alone (#275).
 
 `prepare(input, output, scope, budget, options)`, `prepareMany(jobs, options)` and the
 `trillion3d-compile` CLI relay to the native executable. Arguments, events, the pointer, batch mode,
-cancellation, exit codes and the executable's selection (`options.executable`, then
-`TRILLION3D_COMPILER_BIN`, then the development build) are in
-[COMPILER.md](COMPILER.md#using-it-from-node). An installed tarball ships neither the executable nor
-the Rust sources, so it needs one of the first two.
+cancellation, exit codes and the executable's selection (`options.executable`, then the installed
+platform package, then `TRILLION3D_COMPILER_BIN`, then the development build) are in
+[COMPILER.md](COMPILER.md#using-it-from-node). An installed `trillion3d` takes the compiler from its
+platform package ([COMPILER.md](COMPILER.md#platform-packages)); elsewhere it needs
+`options.executable` or `TRILLION3D_COMPILER_BIN`.
 
 ## Scene hierarchy foundation
 

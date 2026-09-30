@@ -1,44 +1,55 @@
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { CompilerEvent } from './contracts.ts';
 import { sourceNewerThan } from './freshness.mts';
+import { COMPILER_LINE_LIMIT, lineReader } from './lines.mts';
+import { compilerFileName, installedCompiler, requireSupportedPlatform } from './platform.mts';
 
-/** Longest accepted single line on either stream; the compiler emits small JSON lines only. */
-export const COMPILER_LINE_LIMIT = 4 * 1024 * 1024;
+export { COMPILER_LINE_LIMIT };
 /** Grace period between a cooperative cancel request on stdin and a hard kill. */
 export const CANCEL_GRACE_MS = 5000;
 /** The crate this checkout builds the compiler from; absent from an installed package. */
 const CRATE = fileURLToPath(new URL('../../../../packages/asset-compiler-rust/', import.meta.url));
 const built = (crate: string, platform: NodeJS.Platform) =>
-  join(crate, `target/release/trillion3d-compiler${platform === 'win32' ? '.exe' : ''}`);
-/** Finds the native compiler program: the one asked for, else the one built in this checkout. */
+  join(crate, 'target/release', compilerFileName(platform));
+/**
+ * Finds the native compiler program: the one asked for, else the installed platform package's
+ * (`platform.mts`), else `TRILLION3D_COMPILER_BIN`'s, else the one built in this checkout.
+ */
 export function resolveCompilerExecutable(
   explicit?: string,
   environment: NodeJS.ProcessEnv = process.env,
   platform = process.platform,
+  installed = installedCompiler(platform),
 ) {
-  return explicit || environment.TRILLION3D_COMPILER_BIN || built(CRATE, platform);
+  return explicit || installed || environment.TRILLION3D_COMPILER_BIN || built(CRATE, platform);
 }
 const announced = new Set<string>();
 /**
- * The program a compile launches. A binary named by the caller or by `TRILLION3D_COMPILER_BIN` is
- * trusted — the variable's one is announced once on stderr; the checkout's own build is refused
- * while a crate source is newer than it, since its products would carry the previous build's key.
+ * The program a compile launches. A binary named by the caller, installed with the platform
+ * package or named by `TRILLION3D_COMPILER_BIN` is trusted — the variable's one is announced once
+ * on stderr; the checkout's own build is refused while a crate source is newer than it, since its
+ * products would carry the previous build's key. Outside a checkout, with none of them, a platform
+ * no compiler is built for is refused by name.
  */
 export function currentCompilerExecutable(
   explicit?: string,
   environment = process.env,
   crate = CRATE,
+  installed = installedCompiler(),
 ) {
-  const named = resolveCompilerExecutable(explicit, environment);
-  if (explicit) return named;
-  if (environment.TRILLION3D_COMPILER_BIN) {
+  if (explicit) return explicit;
+  if (installed) return installed;
+  const named = environment.TRILLION3D_COMPILER_BIN;
+  if (named) {
     if (!announced.has(named))
       process.stderr.write(`compiler: ${named} (TRILLION3D_COMPILER_BIN)\n`);
     announced.add(named);
     return named;
   }
+  if (!existsSync(join(crate, 'Cargo.toml'))) requireSupportedPlatform();
   const executable = built(crate, process.platform);
   const newer = sourceNewerThan(executable, crate);
   if (newer)
@@ -46,22 +57,6 @@ export function currentCompilerExecutable(
       `COMPILER_STALE: ${executable} is older than ${newer} — run \`pnpm run build:native\``,
     );
   return executable;
-}
-/** Line-oriented JSON reader shared by both streams; a line that never ends is a protocol violation. */
-function lineReader(onLine: (line: string) => void, onOverflow: () => void) {
-  let pending = '';
-  return (chunk: string) => {
-    pending += chunk;
-    if (pending.length > COMPILER_LINE_LIMIT) {
-      onOverflow();
-      return;
-    }
-    const lines = pending.split('\n');
-    pending = lines.pop() ?? '';
-    for (const line of lines) {
-      if (line.trim()) onLine(line);
-    }
-  };
 }
 /**
  * A batch prints its summary whatever happened to its jobs: exit code 2 only says "not every job is
