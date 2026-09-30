@@ -7,11 +7,11 @@ import { REFLECTION_SOURCE_WGSL, reflectionSourceLayout } from './sourceWgsl.ts'
 import { stochasticReflectionShader } from './sampleWgsl.ts';
 import { REFLECTION_RESOLVE_WGSL, reflectionResolveLayout } from './resolveWgsl.ts';
 
-/** The source reprojects the last image's unfogged colour, which the final pass writes as its second
- * target (`sourceOutputWgsl.ts`): no pass here lights a surface but the final one. Source and final resolve are separate programs: no uniform can change between
- * two encoded passes through queue.writeBuffer before their shared submission. The four compile
- * together, off the thread (#1362): the lit program the first image waits for is its slowest one,
- * never their sum. */
+/** The source reprojects the last image's unfogged colour, which the final pass writes as its
+ * second target (`sourceOutputWgsl.ts`): no pass here lights a surface but the final one. Source
+ * and final resolve are separate programs: no uniform can change between two encoded passes
+ * through queue.writeBuffer before their shared submission. The four compile together, off the
+ * thread (#1362): the lit program the first image waits for is its slowest one, never their sum. */
 export async function reflectionPipelines(
   device: GPUDevice,
   shader: string,
