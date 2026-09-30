@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { compilerError } from '../messages/catalogue.mts';
 import { sourceNewerThan } from './freshness.mts';
 
-/** The machines the compiler is built for, as `process.platform`-`process.arch`. */
+/** The machines the compiler release targets, as `process.platform`-`process.arch`. */
 export const SUPPORTED_PLATFORMS = [
   'darwin-arm64',
   'darwin-x64',
@@ -25,7 +25,7 @@ export function resolveCompilerExecutable(
   return explicit || environment.TRILLION3D_COMPILER_BIN || built(CRATE, platform);
 }
 /** Where the program is looked for: the crate of a checkout, and the machine. */
-export interface CompilerHost {
+interface CompilerHost {
   /** The crate folder; without its `Cargo.toml`, this is an installed package. */ crate: string;
   /** `process.platform`. */ platform: string;
   /** `process.arch`. */ arch: string;

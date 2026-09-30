@@ -591,7 +591,10 @@ alone (#275).
 cancellation, exit codes and the executable's selection (`options.executable`, then
 `TRILLION3D_COMPILER_BIN`, then the development build) are in
 [COMPILER.md](COMPILER.md#using-it-from-node). An installed tarball ships neither the executable nor
-the Rust sources, so it needs one of the first two.
+the Rust sources, so it needs one of the first two; without them it fails with
+`COMPILER_EXECUTABLE_MISSING`, or `COMPILER_PLATFORM_UNSUPPORTED` on a machine the compiler is not
+built for. Every error carries its public code and a link to its page
+([COMPILER_ERRORS.md](COMPILER_ERRORS.md)).
 
 ## Scene hierarchy foundation
 

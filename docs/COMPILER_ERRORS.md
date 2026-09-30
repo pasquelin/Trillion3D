@@ -1,6 +1,6 @@
 # Compiler message codes
 
-<!-- Generated from packages/asset-compiler-rust/messages.json by scripts/message-pages.ts: edit the catalogue, then run `pnpm run generate:messages`. -->
+<!-- Generated from packages/sdk-node/src/messages/messages.json by scripts/message-pages.ts: edit the catalogue, then run `pnpm run generate:messages`. -->
 
 Every message of the compiler and of its Node adapter has a stable public code, one sentence,
 its cause and the action to take, each on its own page. `T3D-Exxx` is an error: the job
