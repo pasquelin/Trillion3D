@@ -24,18 +24,15 @@ test('transparent mirrors use the opaque reflection model and bind its surface r
       functionText(withScreenReflections(BOUNCE_LIGHTING_SHADER), name),
     );
   assert.match(BLEND_SHADER, /rgb\+=mirrorLighting\(s.rgb,m,clamped,s.N,V,in.view\)/);
-  const surfaceCache = {} as GPUBuffer;
+  const surfaceCache = {} as GPUTextureView;
   const atlas = { views: [], pages: { buffer: {} } };
   const entries = blendBindEntries({
     surfaceCache,
     textures: { color: atlas, data: atlas },
   } as unknown as BlendBindResources);
-  const binding = entries.find((entry) => entry.binding === BLEND_BINDINGS.surfaceCache)
-    ?.resource as GPUBufferBinding;
-  assert.equal(binding.buffer, surfaceCache);
-  // The whole cache is bound: no range narrows it.
-  assert.equal(binding.offset, undefined);
-  assert.equal(binding.size, undefined);
+  const binding = entries.find((entry) => entry.binding === BLEND_BINDINGS.surfaceCache);
+  // The whole cache atlas is bound, its view as-is (#1410).
+  assert.equal(binding?.resource, surfaceCache);
 });
 
 test('a replaced surface cache invalidates both blend groups, unchanged radiance storage does not', () => {
@@ -51,7 +48,7 @@ test('a replaced surface cache invalidates both blend groups, unchanged radiance
   voidStaleBlendGroups(rt, lighting);
   assert.equal(blendState.pagedGroup, group);
   assert.equal(item.group, group);
-  lighting.surfaceCache = {} as GPUBuffer;
+  lighting.surfaceCache = {} as GPUTextureView;
   voidStaleBlendGroups(rt, lighting);
   assert.equal(blendState.pagedGroup, undefined);
   assert.equal(item.group, undefined);

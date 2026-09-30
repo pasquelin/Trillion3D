@@ -7,7 +7,7 @@ import { createPrimitiveTemplates } from '../page/selection/template.ts';
 import {
   dropBlendBuffers,
   ensureBlendIndexBuffer,
-  ensureBlendNormalBuffer,
+  ensureBlendNormalAtlas,
   ensureBlendUvBuffer,
 } from '../webgpu/blend/buffers.ts';
 import { createWebgpuGpuState } from '../webgpu/pages/state/gpu.ts';
@@ -27,7 +27,7 @@ function blendGeometry(withUv: boolean) {
 // of the same geometry share them, each is written only once and counted only once in
 // `vertexBytes`.
 test('two placements of the same transparent geometry share indices, UVs and normals', () => {
-  const { device, buffers: created, writes, destroyed } = fakeDevice();
+  const { device, buffers: created, textures, writes, texelWrites, destroyed } = fakeDevice();
   const gpu = createWebgpuGpuState([1, 1]);
   const shared = blendGeometry(true),
     other = blendGeometry(true);
@@ -35,32 +35,38 @@ test('two placements of the same transparent geometry share indices, UVs and nor
   const first = {
     index: ensureBlendIndexBuffer(device, index, gpu),
     uv: ensureBlendUvBuffer(device, shared.attributes, gpu),
-    normal: ensureBlendNormalBuffer(device, shared.attributes, gpu),
+    normal: ensureBlendNormalAtlas(device, shared.attributes, gpu),
   };
   const second = {
     index: ensureBlendIndexBuffer(device, index, gpu),
     uv: ensureBlendUvBuffer(device, shared.attributes, gpu),
-    normal: ensureBlendNormalBuffer(device, shared.attributes, gpu),
+    normal: ensureBlendNormalAtlas(device, shared.attributes, gpu),
   };
   assert.equal(second.index, first.index);
   assert.equal(second.uv, first.uv);
   assert.equal(second.normal, first.normal);
-  assert.equal(created.length, 3);
+  // Indices and UVs in two buffers, the normals in a float atlas (#1410), each written once.
+  assert.deepEqual([created.length, textures.length], [2, 1]);
   for (const entry of created)
     assert.equal(writes.filter((write) => write.buffer === (entry as object)).length, 1);
+  assert.equal(
+    texelWrites.filter((write) => (write.destination.texture as object) === textures[0]).length,
+    1,
+  );
   const bytesOnce = gpu.vertexBytes;
   assert.equal(
     bytesOnce,
-    created.reduce((total, entry) => total + entry.size, 0),
+    created.reduce((total, entry) => total + entry.size, 0) + first.normal!.bytes,
   );
+  assert.equal(first.normal!.bytes, 3 * 7 * 4, 'the atlas weighs its floats, no padding');
   // Another geometry keeps its own.
   ensureBlendIndexBuffer(device, other.getIndex()!, gpu);
   ensureBlendUvBuffer(device, other.attributes, gpu);
-  ensureBlendNormalBuffer(device, other.attributes, gpu);
-  assert.equal(created.length, 6);
+  ensureBlendNormalAtlas(device, other.attributes, gpu);
+  assert.deepEqual([created.length, textures.length], [4, 2]);
   assert.ok(gpu.vertexBytes > bytesOnce);
   dropBlendBuffers(gpu);
-  for (const entry of created)
+  for (const entry of [...created, ...textures])
     assert.equal(destroyed.filter((resource) => resource === entry).length, 1);
   assert.equal(gpu.blendIndexBuffers.size, 0);
   assert.equal(gpu.blendUvBuffers.size, 0);

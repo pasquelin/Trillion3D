@@ -6,7 +6,6 @@ export function shadeLayout(device: GPUDevice) {
   const fragment = GPUShaderStage.FRAGMENT;
   return device.createBindGroupLayout({
     entries: [
-      { binding: b.shadingOffset, visibility: fragment, buffer: { type: 'storage' } },
       {
         binding: b.subsurface,
         visibility: fragment,
@@ -16,7 +15,12 @@ export function shadeLayout(device: GPUDevice) {
       { binding: b.cache, visibility: fragment, buffer: readOnly },
       { binding: b.position, visibility: fragment, buffer: readOnly },
       { binding: b.uv, visibility: fragment, buffer: readOnly },
-      { binding: b.normal, visibility: fragment, buffer: readOnly },
+      // The float pool's normal atlas (`../core/floatAtlas.ts`, #1410).
+      {
+        binding: b.normal,
+        visibility: fragment,
+        texture: { sampleType: 'unfilterable-float', viewDimension: '2d-array' },
+      },
       { binding: b.pageTable, visibility: fragment, buffer: readOnly },
       ...atlasLayoutEntries(b.color),
       { binding: b.sampler, visibility: fragment, sampler: { type: 'filtering' } },
