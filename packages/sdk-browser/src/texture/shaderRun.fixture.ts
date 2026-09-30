@@ -186,10 +186,10 @@ class Translator {
 /**
  * The functions `names` of a shipped WGSL text, run in JavaScript: vectors as arrays, matrices as
  * `Mat`, arithmetic component-wise with scalars broadcast, every WGSL built-in the functions call
- * provided by `shaderRunBuiltins.fixture.ts`, the module's bindings (textures, uniforms, structures) by `scope`.
+ * (`bitcast<T>` as `bitcast_T`) by `shaderRunBuiltins.fixture.ts`, the module's bindings by `scope`.
  */
 export function shaderRun<T>(source: string, names: string[], scope: object): T {
-  const text = functionsOf(source, names);
+  const text = functionsOf(source, names).replace(/bitcast<(\w+)>/g, 'bitcast_$1');
   const js = [...text.matchAll(/(?:@\w+(?:\([^)]*\))?\s*)*fn \w+\(/g)]
     .map((header, i, all) =>
       new Translator(tokens(text.slice(header.index, all[i + 1]?.index))).functionText(),

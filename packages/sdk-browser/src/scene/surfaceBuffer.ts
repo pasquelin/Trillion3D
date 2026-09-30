@@ -1,8 +1,9 @@
 import { SUBSURFACE_BYTES, subsurfaceBytes } from './subsurface.ts';
 
 /** Version 1: opaque/masked material properties in linear space, before lighting.
- * No velocity or GI representation is claimed by this contract. The flags hold a value of 0 to 5
- * (`SurfaceBuffer.flags`), written by the opaque resolve alone: eight bits keep every one. */
+ * No velocity or GI representation is claimed by this contract. The flags hold a model of 0 to 5
+ * and three marks (`SurfaceBuffer.flags`), written by the opaque resolve alone: eight bits keep
+ * every one. */
 export const SURFACE_FORMATS: GPUTextureFormat[] = [
   'rgba16float',
   'rgba16float',
@@ -53,8 +54,10 @@ export interface SurfaceBuffer {
   readonly normalRough: GPUTexture;
   /** RGB emission, A ambient occlusion. */
   readonly emissiveAo: GPUTexture;
-  /** 0 background, 1 unlit (fogged), 2 reads, 3 shown as-is: a diagnostic, a normal or depth view;
-   *  4 and 5 the diffuse and toon models (`./surfaceModel.ts`). */
+  /** Low three bits: 0 background, 1 unlit (fogged), 2 reads, 3 shown as-is: a diagnostic, a normal
+   *  or depth view; 4 and 5 the diffuse and toon models (`./surfaceModel.ts`). Above them, marks: 16
+   *  an emission-and-occlusion texel other than (0, 0, 0, 1) (`./surfaceEmission.ts`), 32 a thin
+   *  transmission, 128 no fog. */
   readonly flags: GPUTexture;
   /** Independent thin-surface transmission color; a 1×1 zero texture when disabled. */
   readonly subsurface: GPUTexture;

@@ -1,6 +1,7 @@
 import { SUBSURFACE_FLAG } from '../../scene/subsurface.ts';
 import { AS_IS_FLAG, FOG_FREE_SURFACE_FLAG, SURFACE_MODEL_MASK } from '../../scene/surfaceModel.ts';
 import { PIXEL_FOOTPRINT_WGSL } from './footprintWgsl.ts';
+import { SURFACE_EMISSIVE_AO_WGSL } from '../../scene/surfaceEmission.ts';
 import { receiverOffsetWgsl } from '../../visibility/shader/receiverOffsetWgsl.ts';
 
 /** First binding of what the resolve's receiver offset reads (`RECEIVER_BINDINGS`). */
@@ -27,6 +28,7 @@ const SHADOW_SETUP_WGSL = `fn shadowSetup(coord:vec2i,pixel:vec4f,z:f32,P:vec3f)
 }`;
 
 export const contractSurfaceBody = (bounce: string, diagnostic = '') => `${PIXEL_FOOTPRINT_WGSL}
+${SURFACE_EMISSIVE_AO_WGSL}
 ${receiverOffsetWgsl(LIGHTING_RECEIVER_BINDING)}
 ${SHADOW_SETUP_WGSL}
 ${LIGHT_SURFACE_ENTRY}
@@ -37,7 +39,8 @@ ${LIGHT_SURFACE_ENTRY}
  let z=textureLoad(depth,coord,0);
  let P=worldAt(pixel.xy,z);
  if(flag==1u){var rgb=base.rgb;${CAMERA_FOG_WGSL}return vec4f(rgb,1.0);}
- let normal=textureLoad(normalRough,coord,0);let emissive=textureLoad(emissiveAo,coord,0);
+ // The emission-and-occlusion texel only where its bit says it holds something (#1369).
+ let normal=textureLoad(normalRough,coord,0);let emissive=surfaceEmissiveAo(coord,surfaceFlag);
  // The pixel's cell of the light grid, read once: its shadow flag, then its list (#1369).
  let cell=pixelCell(pixel.xy,z);let shadowed=cellShadowed(cell);
  if(shadowed){shadowSetup(coord,pixel,z,P);}
