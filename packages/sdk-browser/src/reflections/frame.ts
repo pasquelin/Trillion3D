@@ -1,4 +1,5 @@
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
+import { shadowEpoch } from '../webgpu/pages/state/lights.ts';
 import type { ReflectionHistoryFrame } from './historyRuntime.ts';
 
 const frames = new WeakMap<object, ReflectionHistoryFrame>();
@@ -28,9 +29,7 @@ export function reflectionFrame(rt: WebgpuPagesRuntime): ReflectionHistoryFrame 
   const lightEpoch = lights.store.transportEpoch;
   const proxyEpoch = bounce.probes?.proxy.revision ?? 0;
   const radianceEpoch = bounce.probes?.encodedFrames ?? 0;
-  // The pages the host drew, and those the GPU listed to draw itself (`listDraw`): a change of
-  // either is another shadow.
-  const shadowEpoch = lights.shadowPagesTotal + lights.plan.gpu.drawn;
+  const shadowVersion = shadowEpoch(lights);
   const deformationEpoch = vis.deformation?.frame.revision ?? 0;
   let frame = frames.get(gpu.reflection);
   if (!frame) {
@@ -52,7 +51,7 @@ export function reflectionFrame(rt: WebgpuPagesRuntime): ReflectionHistoryFrame 
   // The shared helper's motion branch is disabled: every source pose change invalidates.
   // No second placement table is created when the host has disabled TAA.
   frame.motion = gpu.temporal?.motion.buffer ?? vis.pageTable;
-  frame.epoch = `${scene}/${resources}/${rowEpoch}/${lightEpoch}/${proxyEpoch}/${radianceEpoch}/${shadowEpoch}/${deformationEpoch}`;
+  frame.epoch = `${scene}/${resources}/${rowEpoch}/${lightEpoch}/${proxyEpoch}/${radianceEpoch}/${shadowVersion}/${deformationEpoch}`;
   frame.seed =
     (Math.imul(scene, 747796405) ^
       resources ^
@@ -60,7 +59,7 @@ export function reflectionFrame(rt: WebgpuPagesRuntime): ReflectionHistoryFrame 
       lightEpoch ^
       proxyEpoch ^
       radianceEpoch ^
-      shadowEpoch ^
+      shadowVersion ^
       deformationEpoch) >>>
     0;
   frame.frame = run.frame;
