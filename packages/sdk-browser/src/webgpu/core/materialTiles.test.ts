@@ -170,3 +170,12 @@ test('a classification that does not compile fails by name, never silently whole
     /MATERIAL_TILES: x/,
   );
 });
+
+test('the classification reaches its barrier in uniform control flow: no lane leaves its loops early', () => {
+  // A `continue` or `break` taken per lane makes the loop, then the barrier after it, non-uniform:
+  // WGSL refuses the module, and every image of more than one class would fail to prepare.
+  const body = MATERIAL_TILES_SHADER.slice(MATERIAL_TILES_SHADER.indexOf('fn classify'));
+  const beforeBarrier = body.slice(0, body.indexOf('workgroupBarrier()'));
+  assert.ok(beforeBarrier.length > 0);
+  assert.doesNotMatch(beforeBarrier, /\b(continue|break|return)\b/);
+});
