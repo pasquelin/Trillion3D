@@ -36,8 +36,8 @@ export function createShadowPlan(poolSide: number, layers = 1, sunWindow = SUN_W
     thresholds = createShadowThresholds(pool),
     posed = new Int32Array(records.taken.length),
     spent = { requestsMs: NaN, admissionMs: NaN },
-    lightsState = { records, counts, sun, posed, invalidate };
-  const footprints = createDemandFootprints(table, pool);
+    lightsState = { records, counts, sun, posed, invalidate },
+    footprints = createDemandFootprints(table, pool);
   let requests = createShadowRequests(table, pool, records, sun),
     gpu = createShadowMirror(table, pool, records, sun),
     admission = createShadowAdmission(pool.pages),
@@ -98,9 +98,9 @@ export function createShadowPlan(poolSide: number, layers = 1, sunWindow = SUN_W
     stamp: stampOf,
     /** True once a report proves the current state asks for nothing: the image may hold. */
     settled: (store: SceneLightStore) => settledStamp === stampOf(store),
-    /** A request report came back; the next plan reads it. A newer one replaces an unread one. */
+    /** A report came back, the GPU's listing heard now (`gpu.hear`), the rest at the next plan. */
     receive(next: ShadowRequestReport) {
-      if (!report || next.frame > report.frame) report = next;
+      if (!report || next.frame > report.frame) gpu.hear((report = next));
     },
     /** Plans a frame: stales what moved, reads the last report, admits every page to draw. */
     plan(
