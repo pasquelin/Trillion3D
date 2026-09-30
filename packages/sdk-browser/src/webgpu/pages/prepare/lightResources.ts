@@ -7,6 +7,7 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { WebgpuLightState } from '../state/lights.ts';
 import { boxEmpty, boxIsEmpty } from '../../../../../sdk-core/src/index.ts';
 import { changeBoxes, growClusterBox, recordMoves } from '../../shadow/bounds.ts';
+import { followPairBytes } from '../../shadow/pairGrowth.ts';
 
 const EVERYWHERE_MIN = [-1e30, -1e30, -1e30],
   EVERYWHERE_MAX = [1e30, 1e30, 1e30];
@@ -149,9 +150,11 @@ export {
   wantsContractLighting,
 } from './contractLight.ts';
 
-/** An occlusion test made while a growth was granted holds the cull's old lists: it follows. */
+/** An occlusion test made while a growth was granted holds the cull's old lists: it follows, to
+ *  the rows the cull's hold — the pairs' share of both counted again (`followPairBytes`). */
 export function followOcclusion(rt: WebgpuPagesRuntime) {
   const { cull, occlusion } = rt.lights;
   if (cull && occlusion && occlusion.visible.size !== cull.kept.size)
-    occlusion.grow(rt.layout.rows.casterSlots).commit();
+    occlusion.grow(cull.capacity).commit();
+  followPairBytes(rt);
 }

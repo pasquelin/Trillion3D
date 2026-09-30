@@ -82,9 +82,9 @@ test('without taps the filter asks for the same pages, then reads none (#685)', 
   assert.ok(guard > 0);
   assert.equal(pcf.split('taps').length - 1, 2, 'the parameter and its one guard');
   // Every neighbour word — read and asked for — comes before it, every comparison after it.
-  assert.equal(pcf.split('shadowNeighbour(').length - 1, 3);
-  assert.ok(pcf.lastIndexOf('shadowNeighbour(') < guard);
-  for (const read of ['shadowSample(', 'shadowCompare(', 'shadowThroughLit('])
+  assert.equal(pcf.split('shadowNeighbours(').length - 1, 1);
+  assert.ok(pcf.indexOf('shadowNeighbours(') < guard);
+  for (const read of ['shadowSample(', 'shadowSplitTap(', 'shadowThroughLit('])
     assert.ok(pcf.indexOf(read) > guard, read);
   // The walk of the levels and the far ray never look at it: each function takes it last and only
   // hands it on, as the last argument of its calls.

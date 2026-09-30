@@ -1,5 +1,6 @@
 // #1275: what a frame encodes for the pages the GPU draws itself (`freshPass.ts`): one compose,
-// one pair cull dispatched by the arguments it wrote, one seal, then per pool layer one pass that
+// the pair cull's count, admission and cull (#1363) into the region cull's kept list, the count and
+// cull dispatched by the arguments the compose wrote, one seal, then per pool layer one pass that
 // clears the layer's pages and draws every kept pair — two indirect draws whatever the pages —,
 // and the tinted layer's pass beside it while one is read; nothing in a frame with nothing new to
 // draw, or while the GPU does not allocate.
@@ -10,6 +11,7 @@ import { LAMP } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fi
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { encodeFreshPages } from './freshPass.ts';
 import { FRESH_CASTERS, FRESH_CLEAR, freshDrawWord } from './freshLayout.ts';
+import { keptPairs } from './pairRows.ts';
 
 const LAYERS = 2;
 
@@ -30,13 +32,16 @@ function frame(calls: unknown[][]) {
       gpu: { on: true, listed: 0, moved: true },
       pool: { side: 4, layers: LAYERS },
     },
-    allocation: { compose: pass('compose'), cull: pass('cull'), seal: pass('seal') },
+    allocation: Object.fromEntries(
+      ['compose', 'count', 'admit', 'cull', 'seal'].map((name) => [name, pass(name)]),
+    ),
     pageRequests: {
       allocation: {
         seeded: true,
         lost: 0,
         ...Object.fromEntries(buffers.map((k) => [k, named(k)])),
         writeFresh: (...args: unknown[]) => calls.push(['params', ...args.slice(0, 5)]),
+        pairNeed: 0,
       },
     },
     shadows: {
@@ -56,7 +61,7 @@ function frame(calls: unknown[][]) {
       },
       faceGroup: 'face group',
     },
-    cull: { kept, drawUniform: named('draw slots'), offsets: named('offsets') },
+    cull: { kept, capacity: 11, drawUniform: named('draw slots'), offsets: named('offsets') },
     spheres: { buffer: named('spheres') },
     mobilityRows: named('mobility'),
     shadowRenderPasses: 0,
@@ -92,25 +97,20 @@ function frame(calls: unknown[][]) {
   return { lights, encode };
 }
 
-test('the GPU composes, culls and seals its pages, then draws each layer in two indirect draws', () => {
+test('the GPU composes, counts, admits, culls and seals its pages, then draws each layer in two indirect draws', () => {
   const calls: unknown[][] = [],
     { lights, encode } = frame(calls);
   encode();
   const composed = ['data', 'state', 'drawList', 'freshFaces', 'freshVolumes', 'freshArgs'];
-  assert.deepEqual(calls.slice(0, 4), [
+  const culled = ['spheres', 'freshParams', 'freshVolumes', 'vis 5', 'freshArgs', 'mobility'],
+    dispatch = [(lights.pageRequests.allocation as Record<string, unknown>).freshDispatch, 0];
+  assert.deepEqual(calls.slice(0, 6), [
     // The rows the cull tests — the table's, then the blended casters' —, the pairs it may keep.
-    ['params', 4, LAYERS, 7, [9, 11], 100],
+    ['params', 4, LAYERS, 7, [9, 11], keptPairs(11)],
     ['compose', ...composed, 'freshParams', 'freshDispatch', 1],
-    [
-      'cull',
-      'spheres',
-      'freshParams',
-      'freshVolumes',
-      'vis 5',
-      'freshArgs',
-      'mobility',
-      [(lights.pageRequests.allocation as Record<string, unknown>).freshDispatch, 0],
-    ],
+    ['count', ...culled, dispatch],
+    ['admit', ...culled, 1],
+    ['cull', ...culled, dispatch],
     ['seal', ...composed, 'freshParams', 'freshDispatch', 1],
   ]);
   for (let layer = 0; layer < LAYERS; layer++) {

@@ -67,7 +67,7 @@ test('a caster the camera does not select keeps its shadow in the pages the GPU 
   const drawn = seals.filter(({ args }) => args[FRESH_ARG.regions] > 0);
   assert.ok(drawn.length > 0, 'the GPU draws the pages it mapped');
   const casterPages = drawn.flatMap(({ args, pairs, table, owner }) => {
-    const kept = Math.min(args[FRESH_ARG.pairs], args[FRESH_ARG.capacity]),
+    const kept = args[FRESH_ARG.pairs],
       pages: number[] = [];
     // The rows the engine's cull kept: the caster's is the one twenty metres aside.
     for (let i = 0; i < kept; i++) {

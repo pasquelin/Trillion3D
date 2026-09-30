@@ -25,7 +25,9 @@ import type { WebgpuLightState } from '../pages/state/lights.ts';
 import { SHADOW_ATLAS_BYTES, SHADOW_GRANT_BYTES } from '../../residency/shadowBudgetBytes.ts';
 
 /** Whether the shadows' grant holds the static layer beside what the pool holds and the
- *  transmittance layer still to come; past it, said and recorded (`memoryGrant.ts`). */
+ *  transmittance layer still to come; past it, said and recorded (`memoryGrant.ts`). The layer
+ *  brings the occlusion test, whose list follows the cull's (`followOcclusion`): the rows the GPU
+ *  pages' pairs grew the cull's by (`pairBytes`, `pairGrowth.ts`) are asked for it too. */
 export function staticLayerGranted(
   lights: WebgpuLightState,
   diagnose: WebgpuPagesRuntime['diag']['engineDiagnostic'],
@@ -38,7 +40,7 @@ export function staticLayerGranted(
     diagnose,
     'static-layer-over-grant',
     'The shadow static layer is past the shadow grant',
-    shadowAtlasBytes(side, layers),
+    shadowAtlasBytes(side, layers) + (lights.occlusion ? 0 : lights.memory.pairBytes),
     grantBytes,
     transmittance,
   );
