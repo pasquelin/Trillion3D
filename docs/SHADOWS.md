@@ -7,34 +7,37 @@ options a page sets (`castShadow`, `transparentShadow`) are [SDK.md](SDK.md#ligh
 ## Pages and the pool
 
 Every shadow light has a virtual map cut into pages of 128 texels, one page-table word per virtual
-page. Pages are drawn in a pool sized from the screen (`shadowPoolSide`), allocated only once a
-light casts: a world without one pays neither its bytes nor its per-frame work.
+page. Pages are drawn in a pool sized from what the scene reads (`poolDemand.ts`), allocated only
+once a light casts: a world without one pays neither its bytes nor its per-frame work.
 
 A pixel reads the level whose texel is at most its footprint and more than half of it, so a
 `64 × 64`-pixel tile on one surface reads at most the 2 × 2 pages it straddles, plus a third while
 coarser levels stand in for pages not drawn yet: a frame asks for at most
-`⁴⁄₃ · 4 · ⌈2W / 128⌉ · ⌈2H / 128⌉` pages. The pool holds twice that — the report being read and
-the next, which a camera turn may renew in full — while it fits one 8 192-texel layer (4 096
-pages); past it, twice the smooth read of every casting light, a quarter of that bound each
-(`shadowPoolSize`), in the fewest square layers the device's texture side holds (`shadowPoolShape`,
-`webgpu/shadow/poolSize.ts`). A lamp face's finest mip is 32 × 32 pages (`lampFaceSize`).
+`⁴⁄₃ · 4 · ⌈2W / 128⌉ · ⌈2H / 128⌉` pages (`shadowPoolSize`): a bound the memory budget reserves at
+3840 × 2160, never what the pool holds. A real frame reads far less — a one-cube scene a few
+hundred pages at 3456 × 2234 —, so the pool holds what the latest report asked, twice — the report
+being read and the next — and a quarter more (`demandPoolPages`), in the fewest square layers the
+device's texture side holds (`shadowPoolShape`, `webgpu/shadow/poolSize.ts`). A lamp face's finest
+mip is 32 × 32 pages (`lampFaceSize`).
 
-| Case | Pages | Pool |
-| --- | --- | --- |
-| 1280 × 720 | 1 280 pages a frame, 2 560 held | 51 × 51 = 2 601 pages, a 6 528² depth texture of 163 MiB; as much again for the static layer once something moves; half as much (81 MiB) for the transmittance layer once a blended surface casts |
-| 1728 × 1117 CSS, DPR 2, one sun | 5 040 pages asked | one layer of 71² on a device 16 384 texels wide; two of 51² (5 202 pages, 325 MiB) on one of 8 192 |
-| 3840 × 2160, one sun: the cap, the grant's atlas share (`SHADOW_ATLAS_BYTES`) | — | two layers of 53², 5 618 pages, 351 MiB |
-| two lights at the case above | — | 5 476 pages on a 16 384 device |
+| Case                                                                            | Pages                        | Pool                                                                                                                                                        |
+| ------------------------------------------------------------------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| first frame, before any report                                                  | the seed (`SEED_POOL_PAGES`) | 16 × 16 = 256 pages, a 2 048² depth texture of 16 MiB                                                                                                       |
+| a frame that asks 300 pages                                                     | 750 held                     | 28 × 28 = 784 pages, 49 MiB; as much again for the static layer once something moves; half as much for the transmittance layer once a blended surface casts |
+| a frame that asks 2 000 pages                                                   | 5 000 held                   | two layers of 51² (5 202 pages, 325 MiB) on a device 8 192 texels wide                                                                                      |
+| the cap, the grant's atlas share (`SHADOW_ATLAS_BYTES`, one sun at 3840 × 2160) | —                            | two layers of 53², 5 618 pages, 351 MiB                                                                                                                     |
 
-The pool is sized at the first frame a light casts, from its drawing buffer and casting lights; a
-pause or a new light keeps it. A later drawing buffer resizes it by the same rule and grant
-(`webgpu/shadow/poolResize.ts`, #1208), the frame held while the device answers: every page that
+The first frame a light casts grants the seed. After each report the pool follows the demand
+(`webgpu/shadow/poolResize.ts`, #1208, #1345): a report that asks more than half the pool — the
+two reports it holds would not fit — grows it; one that asks for a pool at most half as large,
+sixty reports in a row (`SHRINK_REPORTS`), shrinks it to the most they asked. A resize is by the
+same rule and grant, the frame held while the device answers: every page that
 fits keeps its entry, state and depth, copied texel for texel with its transmittance
 (`gpu/shadow/pageMoves.ts`), since reads are texel-exact (#831), so nothing is drawn again; a
 smaller pool keeps the pages it would evict last, every floor first. The batch capacity and request
 list follow the pool; the static layer is rebuilt at the new size by the next move. A refused
-resize keeps the pool, said under `gpu-out-of-memory`. A screen or light count past the cap is held
-there, said `ceiling` in the `shadow-pool` diagnostic. What the pool cannot hold is refused at
+resize keeps the pool, said under `gpu-out-of-memory`, and is not asked again until the demand asks
+another size. A demand past the cap is held there, said `ceiling` in the `shadow-pool` diagnostic. What the pool cannot hold is refused at
 allocation, published as memory (`shadowPagesOverflow`, #542) and read at the coarser level; pages
 are evicted least recently read first.
 
@@ -55,12 +58,12 @@ every mapped page again with it: no frame is drawn without the layer.
 Memory pressure never passes for performance: it lowers no page to meet a frame time, and each
 pressure is a named event in `shadowMemoryEvents`; `shadowPeakBytes` is the most the grant held.
 
-| Event | Outcome |
-| --- | --- |
-| `pool-shrunk` | a refused pool is drawn smaller, its halvings in `shadowResolutionBias` (0 normally) |
-| `pool-refused` | no pool: the `shadows-off` error |
-| `static-layer-over-grant`, `static-layer-refused` (`gpu-out-of-memory`) | no static layer; every page is drawn whole, every caster at once: no shadow is lost |
-| `transmittance-over-grant`, `transmittance-refused` | no transmittance layer, never asked again: opaque shadows whole, blended casters cast nothing, by name |
+| Event                                                                   | Outcome                                                                                                |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `pool-shrunk`                                                           | a refused pool is drawn smaller, its halvings in `shadowResolutionBias` (0 normally)                   |
+| `pool-refused`                                                          | no pool: the `shadows-off` error                                                                       |
+| `static-layer-over-grant`, `static-layer-refused` (`gpu-out-of-memory`) | no static layer; every page is drawn whole, every caster at once: no shadow is lost                    |
+| `transmittance-over-grant`, `transmittance-refused`                     | no transmittance layer, never asked again: opaque shadows whole, blended casters cast nothing, by name |
 
 The host mirror — the words, a change flag per word, the pool's page records and eviction bitset,
 the frame's page list (`admit.ts`) at the largest pool, and the batches' host lists
@@ -69,13 +72,13 @@ the frame's page list (`admit.ts`) at the largest pool, and the batches' host li
 checked by tests against real allocations), the CPU total's first share, before the decoded-page
 cache (`splitMemoryBudget`). The batches' buffers (`gpu/shadow/batchBudget.ts`, `batchWrites.ts`):
 
-| Buffer | Size |
-| --- | --- |
-| staging of every batch but the first, made at the first staged write at its frame's reserved capacity, remade once at most by a frame reserving more | at most 170 × 28 284 bytes, 4.59 MiB |
-| light cut's flag words, one per batch for 8 frames in flight (`SHADOW_FLAG_FRAMES`) | 5 472 bytes |
-| CPU cut's commands for 4 104 faces | 65 664 bytes |
-| region commands a sampled frame copies (the cull's two lists, the occlusion count) | 3 × 131 328 bytes |
-| **total** | 5.03 MiB GPU in `SHADOW_POOL_BYTES`; 4.87 MiB host in `SHADOW_HOST_BYTES` (staging mirror included) |
+| Buffer                                                                                                                                               | Size                                                                                                |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| staging of every batch but the first, made at the first staged write at its frame's reserved capacity, remade once at most by a frame reserving more | at most 170 × 28 284 bytes, 4.59 MiB                                                                |
+| light cut's flag words, one per batch for 8 frames in flight (`SHADOW_FLAG_FRAMES`)                                                                  | 5 472 bytes                                                                                         |
+| CPU cut's commands for 4 104 faces                                                                                                                   | 65 664 bytes                                                                                        |
+| region commands a sampled frame copies (the cull's two lists, the occlusion count)                                                                   | 3 × 131 328 bytes                                                                                   |
+| **total**                                                                                                                                            | 5.03 MiB GPU in `SHADOW_POOL_BYTES`; 4.87 MiB host in `SHADOW_HOST_BYTES` (staging mirror included) |
 
 ## Sun clipmaps and lamp mips
 
@@ -152,19 +155,22 @@ The table word's valid bit says whether a page is read. A page whose depth is wr
 drawn is not read. A page holds two validities: its static depth, in the static layer, and its
 moving depth, the moving casters drawn over it.
 
-| Cause | Pages staled | Read until redrawn? |
-| --- | --- | --- |
-| A light moves — kind, position, direction, range, cone, a rect's frame and size, emitter radius, whether it casts —, or a sun's clipmap moves its projection | every page it maps, floor included, redrawn whole at the new pose, shaded with the light's current matrices | no: their depth is the old projection's |
-| Intensity, colour or penumbra | none | — |
-| A still caster moves, is added, removed, hidden or shown, or its material, cutout texture or residency changes | the mapped pages its projected box, where it was and where it is, covers; redrawn whole, static casters into the layer | no: their static layer is wrong |
-| An object already moving moves | the same box's pages; restored from the layer, moving casters drawn over | yes: a static shadow never vanishes while something near it moves |
-| A mover at rest; a camera move (the clipmap scrolls, only entering pages drawn) | none | — |
-| A representation change: hidden or shown, casting toggled, alpha mode, cutout texture or pages' residency, a blended caster's coverage | its pages once the camera rests — a still object's redrawn whole, a moving object's moving casters alone (the layer never held them), the two in separate unions | yes |
-| A cut-threshold change | once the camera rests, the pages drawn at another threshold | yes |
-| A stale page no report names | — | no, since blend and water read without asking |
+| Cause                                                                                                                                                        | Pages staled                                                                                                                                                                                                           | Read until redrawn?                                               |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| A light moves — kind, position, direction, range, cone, a rect's frame and size, emitter radius, whether it casts —, or a sun's clipmap moves its projection | every page it maps, floor included, redrawn whole at the new pose, shaded with the light's current matrices                                                                                                            | no: their depth is the old projection's                           |
+| Intensity, colour or penumbra                                                                                                                                | none                                                                                                                                                                                                                   | —                                                                 |
+| A still caster moves, is added, removed, hidden or shown, or its material, cutout texture or residency changes                                               | the mapped pages its projected boxes, where it was and where it lands — each apart, never the pages between —, cover, at the levels where the box holds a texel's sample; redrawn whole, static casters into the layer | no: their static layer is wrong                                   |
+| An object already moving moves                                                                                                                               | the same boxes' pages; restored from the layer, moving casters drawn over                                                                                                                                              | yes: a static shadow never vanishes while something near it moves |
+| A mover at rest; a camera move (the clipmap scrolls, only entering pages drawn)                                                                              | none                                                                                                                                                                                                                   | —                                                                 |
+| A representation change: hidden or shown, casting toggled, alpha mode, cutout texture or pages' residency, a blended caster's coverage                       | its pages once the camera rests — a still object's redrawn whole, a moving object's moving casters alone (the layer never held them), the two in separate unions                                                       | yes                                                               |
+| A cut-threshold change                                                                                                                                       | once the camera rests, the pages drawn at another threshold                                                                                                                                                            | yes                                                               |
+| A stale page no report names                                                                                                                                 | —                                                                                                                                                                                                                      | no, since blend and water read without asking                     |
 
 So no shadow stitches past poses or outlives its caster (`staticSurvives.test.ts`,
-`moverPages.test.ts`). A residency flag that drops and rises within a frame (rows follow the table
+`moverPages.test.ts`). A box that holds no sample of a level's texels — a small caster under a
+coarse level, lying between the depth texels' centres and the transmittance layer's, a sixteenth of
+a texel of slack aside — writes no texel there before or after it moves: that level's pages keep
+(`pageRects.ts`, `moverTexels.test.ts`, #1345). A residency flag that drops and rises within a frame (rows follow the table
 epoch when a pose moves) is no change: only a flag differing from the last plan's restales its
 cluster's pages (`webgpu/shadow/residence.ts`).
 
@@ -229,12 +235,12 @@ row is a batch's cost. Posted 28 Sept. 20:02 UTC as `measure ok` on #989 and #99
 five interleaved pairs, load 15–75, batch `884cde8b5` → `e36d93ea1` (capacity change #1045,
 static-survival change #1064):
 
-| Example (GPU p50 ms) | before | after | paired difference |
-| --- | --- | --- | --- |
-| falling-boxes | 28.1 | 25.4 | −1.0 to −3.2 (5/5 faster) |
-| spin-an-astrolabe | 30.7 | 28.3 | −1.4 to −4.2 (5/5 faster) |
-| drive-a-car | 25.8 | 26.4 | −1.0 to +1.7 |
-| a-walker-among-balls | 59.2 | 60.2 | −0.8 to +2.4 (one +44 spike) |
+| Example (GPU p50 ms) | before | after | paired difference            |
+| -------------------- | ------ | ----- | ---------------------------- |
+| falling-boxes        | 28.1   | 25.4  | −1.0 to −3.2 (5/5 faster)    |
+| spin-an-astrolabe    | 30.7   | 28.3  | −1.4 to −4.2 (5/5 faster)    |
+| drive-a-car          | 25.8   | 26.4  | −1.0 to +1.7                 |
+| a-walker-among-balls | 59.2   | 60.2  | −0.8 to +2.4 (one +44 spike) |
 
 CPU frame 1.4–2.3 ms both sides; every scene under 60 fps on the GPU (25–60 ms), so on 28 Sept. the
 120 fps target (#525) was not met. The no-demotion decision (#993, #1146): batch `3e58f044f` →
@@ -348,16 +354,16 @@ nothing.
 
 ## Metrics
 
-| Metric | Meaning |
-| --- | --- |
-| `shadowPagesRequested`, `shadowPagesCached`, `shadowPoolPages`, `shadowPagesDrawn`, `shadowPagesPending` | the frame's page work |
-| `shadowWaitMs`, `shadowWaitFrames` (direct-lighting diagnostic only) | wait of the oldest stale page the image reads, while a report names it (#489) |
-| `shadowPagesRestored` / `shadowPagesRasterized`, `shadowRestoreCopies` | pages restored from the static layer, moving casters alone rasterised / pages whose static casters were redrawn (#991, counted on the host, never in a shader) |
-| `shadowStaticDrawCalls` / `shadowMovingDrawCalls`, `shadowMovingCastersKept` | draw calls by caster kind; sampled clusters' moving casters kept |
-| `shadowBatches`, `shadowLayersDrawn` | batches and pool layers drawn |
-| `shadowPagesStaledBy` | pages staled by reason: light, still caster, moving casters, detail, cut threshold, depth range |
-| `shadowPoolBytes`, `shadowPeakBytes` | allocated and peak bytes |
-| `diagnostic.shadowAtlas(world)` | the pool's raw depth hash |
+| Metric                                                                                                   | Meaning                                                                                                                                                        |
+| -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `shadowPagesRequested`, `shadowPagesCached`, `shadowPoolPages`, `shadowPagesDrawn`, `shadowPagesPending` | the frame's page work                                                                                                                                          |
+| `shadowWaitMs`, `shadowWaitFrames` (direct-lighting diagnostic only)                                     | wait of the oldest stale page the image reads, while a report names it (#489)                                                                                  |
+| `shadowPagesRestored` / `shadowPagesRasterized`, `shadowRestoreCopies`                                   | pages restored from the static layer, moving casters alone rasterised / pages whose static casters were redrawn (#991, counted on the host, never in a shader) |
+| `shadowStaticDrawCalls` / `shadowMovingDrawCalls`, `shadowMovingCastersKept`                             | draw calls by caster kind; sampled clusters' moving casters kept                                                                                               |
+| `shadowBatches`, `shadowLayersDrawn`                                                                     | batches and pool layers drawn                                                                                                                                  |
+| `shadowPagesStaledBy`                                                                                    | pages staled by reason: light, still caster, moving casters, detail, cut threshold, depth range                                                                |
+| `shadowPoolBytes`, `shadowPeakBytes`                                                                     | allocated and peak bytes                                                                                                                                       |
+| `diagnostic.shadowAtlas(world)`                                                                          | the pool's raw depth hash                                                                                                                                      |
 
 ## WebGL2 has none
 
