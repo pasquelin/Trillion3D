@@ -101,9 +101,10 @@ cache (`splitMemoryBudget`). The batches' buffers (`gpu/shadow/batchBudget.ts`, 
   `lighting/deferred/footprintWgsl.ts`, #1363): a sun reads the level whose texel is at most that
   footprint, a lamp the mip whose texel at the distance of the point that centre holds is. The
   depth a jittered pixel holds is moved back along its receiver's plane, whose projected depth is
-  affine across the screen, so the level of a pixel is the same every jitter phase, and the resolve
-  and the demand pick the same one. A texel is never larger than a pixel where the map offers one, so a caster's error in texels
-  is one in pixels. A page not readable — refused at the pool's ceiling, or left short by the pair
+  affine across the screen, its slope read on a side whose two pixels continue the surface — none
+  across a part one pixel wide, a wire or a bar on background —, so the level of a pixel is the
+  same every jitter phase, and the resolve and the demand pick the same one. A texel is never
+  larger than a pixel where the map offers one, so a caster's error in texels is one in pixels. A page not readable — refused at the pool's ceiling, or left short by the pair
   list — hands the point to the next coarser level; beyond a sun's last level, the far-shadow ray
   against the resident proxy (`proxy.bin`) answers, deterministic and unaccumulated
   (`sun-far-shadow` publishes its bounds). The PCF taps each find their own page: a tap within a

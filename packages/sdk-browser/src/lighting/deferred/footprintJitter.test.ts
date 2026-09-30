@@ -2,7 +2,8 @@
 // over a floor the camera looks down at, rasterized at each phase of the TAA's jitter cycle: the
 // sun level and the lamp mip of every floor pixel are the same at every phase — where develop's
 // footprint, taken at the jittered sample, moves some of them —, and with no jitter the footprint
-// and the point are develop's, to the bit.
+// and the point are develop's, to the bit. So on a strip of that floor one pixel wide, background on
+// both sides, as a wire, a bar or a far thin part: its levels hold every phase too.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { invertMatrix4, multiplyMatrix4 } from '../../../../sdk-core/src/index.ts';
@@ -28,12 +29,16 @@ const live = {
 const run = shaderRun<{
   pixelLevel: (coord: V, pixel: V, z: number, P: V) => Level;
   worldAt: (pixel: V, z: number) => V;
-}>(WORLD_AT_WGSL + PIXEL_FOOTPRINT_WGSL, ['pixelLevel', 'unjitteredDepth', 'worldAt'], {
-  view: live.view,
-  depth: null,
-  textureLoad: (_: unknown, [x, y]: V) => live.depth[y * W + x],
-  PixelLevel: (footprint: number, unjitter: V) => ({ footprint, unjitter }),
-});
+}>(
+  WORLD_AT_WGSL + PIXEL_FOOTPRINT_WGSL,
+  ['pixelLevel', 'unjitteredDepth', 'surfaceSlope', 'footprintDepth', 'worldAt'],
+  {
+    view: live.view,
+    depth: null,
+    textureLoad: (_: unknown, [x, y]: V) => live.depth[y * W + x],
+    PixelLevel: (footprint: number, unjitter: V) => ({ footprint, unjitter }),
+  },
+);
 
 /** A camera two metres up, pitched 25° down, a 60° field: its view-projection. */
 function cameraViewProjection() {
@@ -47,9 +52,23 @@ function cameraViewProjection() {
 }
 const VIEW_PROJECTION = cameraViewProjection();
 
-/** The image of phase `sample`: its view, and the depth of the floor `y = 0` at each pixel's
- *  jittered sample, 0 — the far clear — where the ray misses it. */
-function phase(sample: number) {
+/** Whether the floor holds the point `hit`: all of it, or on `thin`, the strip of it the unjittered
+ *  view shows in the image's column 32 alone — a wedge on the floor, background on both sides. */
+const onFloor = (hit: V, thin: boolean) => {
+  if (!thin) return true;
+  const clip = [0, 3].map((r) =>
+    [0, 1, 2].reduce(
+      (sum, i) => sum + VIEW_PROJECTION[i * 4 + r] * hit[i],
+      VIEW_PROJECTION[12 + r],
+    ),
+  );
+  const column = ((clip[0] / clip[1] + 1) / 2) * W;
+  return column >= 32 && column < 33;
+};
+
+/** The image of phase `sample`: its view, and the depth of the floor `y = 0` — or of its `thin`
+ *  strip — at each pixel's jittered sample, 0 — the far clear — where the ray misses it. */
+function phase(sample: number, thin = false) {
   const jitter = taaJitter(sample, new Float64Array(2));
   const vp = jitterViewProjection(
     new Float64Array(16),
@@ -70,7 +89,7 @@ function phase(sample: number) {
       const clip = [0, 1, 2, 3].map((r) =>
         [0, 1, 2].reduce((sum, i) => sum + vp[i * 4 + r] * hit[i], vp[12 + r]),
       );
-      live.depth[y * W + x] = t > 0 ? clip[2] / clip[3] : 0;
+      live.depth[y * W + x] = t > 0 && onFloor(hit, thin) ? clip[2] / clip[3] : 0;
     }
 }
 
@@ -83,23 +102,21 @@ const levels = (footprint: number, at: V) => {
   ];
 };
 
-/** Every floor pixel whose four neighbours are floor too, at every phase: its levels, the shipped
- *  read's and develop's, one row per phase. */
-function levelsAcrossPhases() {
+/** Every floor pixel whose two neighbours above and below are floor too — and on the whole floor,
+ *  its two on each side —, at every phase: its levels, the shipped read's and develop's, one row
+ *  per phase. */
+function levelsAcrossPhases(thin = false) {
   const shipped = new Map<number, string[]>(),
     developed = new Map<number, string[]>(),
     floor = new Set<number>();
   for (let sample = 0; sample < TAA_SAMPLES; sample++) {
-    phase(sample);
-    for (let y = 1; y < H - 1; y++)
-      for (let x = 1; x < W - 1; x++) {
+    phase(sample, thin);
+    for (let y = 2; y < H - 2; y++)
+      for (let x = 2; x < W - 2; x++) {
         const i = y * W + x,
-          z = live.depth[i];
-        if (
-          [z, live.depth[i - 1], live.depth[i + 1], live.depth[i - W], live.depth[i + W]].some(
-            (d) => d <= 0,
-          )
-        ) {
+          around = thin ? [-2 * W, -W, W, 2 * W] : [-2, -1, 1, 2, -2 * W, -W, W, 2 * W];
+        const z = live.depth[i];
+        if ([z, ...around.map((d) => live.depth[i + d])].some((d) => d <= 0)) {
           floor.delete(i);
           continue;
         }
@@ -129,6 +146,18 @@ test('the shadow level of a pixel is the same at every phase of the TAA jitter',
   // The floor crosses several sun levels and lamp mips: develop's read moves pixels along them.
   assert.ok(new Set(floor.map((i) => shipped.get(i)![0])).size >= 4, 'several levels on the floor');
   assert.ok(moved(developed).length > 0, 'develop moves pixels along the level boundaries');
+});
+
+test('on a strip one pixel wide, background on both sides, the level is the same at every phase', () => {
+  const { floor, shipped } = levelsAcrossPhases(true);
+  assert.ok(floor.length > H / 2, 'the strip runs down the image');
+  assert.ok(
+    floor.every((i) => i % W === 32),
+    'the strip is one pixel wide',
+  );
+  const moved = floor.filter((i) => new Set(shipped.get(i)).size > 1);
+  assert.deepEqual(moved, [], 'no strip pixel changes its sun level or lamp mip');
+  assert.ok(new Set(floor.map((i) => shipped.get(i)![0])).size >= 3, 'several levels on the strip');
 });
 
 test('with no jitter, the footprint and the point are develop’s, to the bit', () => {
