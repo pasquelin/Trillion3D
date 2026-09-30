@@ -37,8 +37,8 @@ process.once('SIGINT', () => controller.abort());
 // A terminal gets a live bar and a short summary; a pipe (CI, another program) gets the raw JSON
 // events, then the same summary as JSON events.
 const raw = !process.stderr.isTTY || Boolean(process.env.TRILLION3D_RAW_EVENTS);
-const progress = raw ? null : createTerminalProgress({ label: input });
-const messages = messageTally();
+const progress = raw ? null : createTerminalProgress({ label: input, verbose });
+const messages = messageTally(verbose);
 const write = (value: unknown) => process.stderr.write(`${JSON.stringify(value)}\n`);
 const result = await prepare(input, output, scope, triangleBudget, {
   executable: process.env.TRILLION3D_COMPILER_BIN,
@@ -56,10 +56,8 @@ const result = await prepare(input, output, scope, triangleBudget, {
   progress?.fail(error instanceof Error ? error.message : String(error));
   throw error;
 });
-// The terminal already told each warning code once; `--verbose` adds the info codes and every
-// occurrence. A pipe gets the summary as events, info codes included on request.
-if (raw) messages.events('job', verbose).forEach(write);
-else if (verbose) for (const line of messages.lines(input, true)) process.stderr.write(`${line}\n`);
+// The terminal progress told its summary when the job completed; a pipe gets it as events.
+if (raw) messages.events('job').forEach(write);
 const {
   status,
   key,
@@ -75,8 +73,8 @@ const {
 process.stdout.write(
   `${JSON.stringify({ status, key, scope: resultScope, url, pointer, cache, selectedTriangles, sourceTriangles, metrics, unsupported })}\n`,
 );
-if (strict && messages.warnings > 0) {
-  const count = messages.warnings;
+const count = messages.warnings;
+if (strict && count > 0) {
   if (raw) write({ event: 'error', job: 'job', ...messageOf('STRICT_WARNINGS'), count });
   else process.stderr.write(`✖ ${describeMessage('STRICT_WARNINGS', `${count} warning(s)`)}\n`);
   process.exitCode = STRICT_EXIT;
