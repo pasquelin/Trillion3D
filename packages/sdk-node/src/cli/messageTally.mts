@@ -59,7 +59,8 @@ export function messageTally(verbose = false) {
         const row = add(
           warning.code,
           1,
-          () => `${warning.code} ${where}: ${warning.roots} roots of ${warning.pages} pages${cause}`,
+          () =>
+            `${warning.code} ${where}: ${warning.roots} roots of ${warning.pages} pages${cause}`,
         );
         if (row && (!row.worst || warning.roots > row.worst.roots))
           row.worst = { where, roots: warning.roots, pages: warning.pages };
