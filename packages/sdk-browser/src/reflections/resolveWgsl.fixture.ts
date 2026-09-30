@@ -1,6 +1,6 @@
 import { shaderRun, Mat } from '../texture/shaderRun.fixture.ts';
 import { wgslConstants } from '../texture/shaderRule.fixture.ts';
-import { REFLECTION_HISTORY_WEIGHT, REFLECTION_RESOLVE_WGSL } from './resolveWgsl.ts';
+import { REFLECTION_RESOLVE_WGSL, REFLECTION_STILL_FRAMES } from './resolveWgsl.ts';
 
 /** The shipped rough resolve run on the CPU at pixel (4, 4) of an 8 × 8 image: its inputs are
  *  `samples` (a function reads the pixel), `view`, `uv` and `motion`; `traced` lists the
@@ -21,7 +21,7 @@ export function fixture() {
     prevViewProj: identity,
     invViewProj: identity,
     viewport: [8, 8, 1 / 8, 1 / 8],
-    params: [1, REFLECTION_HISTORY_WEIGHT, 0, 0],
+    params: [1, REFLECTION_STILL_FRAMES, 0, 0],
   };
   const motion = [identity];
   const uv = [0.5, 0.5, 1];
