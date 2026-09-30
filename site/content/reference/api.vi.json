@@ -2990,8 +2990,8 @@
       "disableRatio": "Tỉ lệ chi phí khiến nó tắt.",
       "enableRatio": "Tỉ lệ chi phí khiến nó bật lại.",
       "consecutiveViolations": "Số mẫu tệ liên tiếp trước khi tắt.",
-      "memoryBudgetBytes": "Trần bộ nhớ.",
-      "maxEvictionsPerSecond": "Trần số lượt loại bỏ mỗi giây.",
+      "memoryBudgetBytes": "Trần bộ nhớ, hữu hạn và ít nhất là 0.",
+      "maxEvictionsPerSecond": "Trần số lượt loại bỏ mỗi giây, hữu hạn và ít nhất là 0.",
       "requireGpuTiming": "Thời gian GPU có bắt buộc phải được đo hay không."
     }
   },

@@ -1,4 +1,5 @@
 import { SHADE_DECL_WGSL } from './shadeDeclWgsl.ts';
+import { SHADE_MODE } from './shadeMode.ts';
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
 import { lecture, lectureDonnee, siCarte } from './maps.ts';
 import {
@@ -89,16 +90,16 @@ ${NORMAL_VIEW_COLOR_WGSL}
  )}
  // The vertex colour, perspective-correct like the texture coordinate, as the forward path reads it.
  if(HAS_VERTEX_COLOR){rgb*=(pageColor(page,h,i0)*bary.x+pageColor(page,h,i1)*bary.y+pageColor(page,h,i2)*bary.z).xyz;}
- if(uni.mode==1u){
+ if(uni.mode==${SHADE_MODE.wireframe}u){
   let edgeW=1.0-min(min(smoothstep(0.0,width.x*1.2,bary.x),smoothstep(0.0,width.y*1.2,bary.y)),smoothstep(0.0,width.z*1.2,bary.z));
   return diagnosticSurface(mix(hashColor(stableTriangleId(page.clusterHash,tri)),vec3f(0.04,0.05,0.07),edgeW),request);
  }
- if(uni.mode==2u){return diagnosticSurface(hashColor(page.clusterHash),request);}
- if(uni.mode==3u){return diagnosticSurface(vec3f(0.204,0.827,0.6),request);}
- if(uni.mode==4u){return diagnosticSurface(select(vec3f(0.04,0.51,0.94),vec3f(0.95,0.42,0.05),page.pad1>0.5),request);}
- if(uni.mode==5u){return diagnosticSurface(vec3f(0.204,0.827,0.6),request);}
- if(uni.mode==6u){let ratio=clamp(page.screenError,0.0,1.0);return diagnosticSurface(vec3f(ratio,1.0-ratio,0.12),request);}
- if(uni.mode==7u){return diagnosticSurface(hashColor(CLASS_KEY),request);}
+ if(uni.mode==${SHADE_MODE.clusters}u){return diagnosticSurface(hashColor(page.clusterHash),request);}
+ if(uni.mode==${SHADE_MODE.pages}u){return diagnosticSurface(vec3f(0.204,0.827,0.6),request);}
+ if(uni.mode==${SHADE_MODE.lod}u){return diagnosticSurface(select(vec3f(0.04,0.51,0.94),vec3f(0.95,0.42,0.05),page.pad1>0.5),request);}
+ if(uni.mode==${SHADE_MODE.visibility}u){return diagnosticSurface(vec3f(0.204,0.827,0.6),request);}
+ if(uni.mode==${SHADE_MODE['screen-error']}u){let ratio=clamp(page.screenError,0.0,1.0);return diagnosticSurface(vec3f(ratio,1.0-ratio,0.12),request);}
+ if(uni.mode==${SHADE_MODE.materials}u){return diagnosticSurface(hashColor(CLASS_KEY),request);}
  var metal=clamp(page.metalness*metalSample.z,0.0,1.0);var rough=clamp(page.roughness*roughSample.y,${ROUGHNESS_FLOOR},1.0);
  // Original vertices may straddle the near plane; recover the clipped winding.
   let screenFace=select(-1.0,1.0,area*c0.w*c1.w*c2.w<0.0);
