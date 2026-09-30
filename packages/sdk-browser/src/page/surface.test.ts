@@ -94,10 +94,10 @@ test('the face bin of a draw follows a side switched in place, so no face is cul
   const material = G.basicSurface({ side: G.FRONT_SIDE });
   const rec = { material: surfaceOf(material), placementIndex: 0 } as unknown as PageRec,
     roots = identityRoots();
-  assert.equal(visBin(rec, roots), BIN_BACK, 'front-only: the back faces are culled');
+  assert.equal(visBin(rec, 0, roots), BIN_BACK, 'front-only: the back faces are culled');
   material.side = G.DOUBLE_SIDE;
   assert.equal(
-    visBin(rec, roots),
+    visBin(rec, 0, roots),
     BIN_NONE,
     'double-sided: nothing is culled, both faces reach the image',
   );

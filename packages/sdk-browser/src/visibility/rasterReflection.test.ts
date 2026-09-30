@@ -15,6 +15,7 @@ import { unpackVisibilityId, type VisPage } from './types.ts';
 import { matrixWindingCw } from '../../../sdk-core/src/index.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { surfaceOf } from '../page/surface.ts';
+import { locatedBy } from '../page/selection/placements.fixture.ts';
 
 const VUE: [number, number] = [96, 96];
 // Left: front winding. Right: reverse winding. Same area, same height, no overlap.
@@ -41,7 +42,12 @@ function camera() {
 
 /** Triangles actually written into the buffer, and how many pixels each covers. */
 function trianglesDessines(matrix: G.Matrix4, side: number) {
-  const { ids } = rasterVisibility([page(side)], [{ world: matrix }], cameraMoteur(camera()), VUE);
+  const { ids } = rasterVisibility(
+    [page(side)],
+    locatedBy([{ world: matrix }]),
+    cameraMoteur(camera()),
+    VUE,
+  );
   const pixels = new Map<number, number>();
   for (const identifiant of ids) {
     const lu = unpackVisibilityId(identifiant);

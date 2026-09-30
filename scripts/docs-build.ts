@@ -8,9 +8,12 @@
  * deployment builds it from main (docs/LEARNING_PORTAL.md).
  */
 import { buildSite, trackedOutput } from './docs/site.ts';
+import { heavyStep } from './heavy-lock.ts';
 
 if (!process.argv.includes('--untracked'))
-  await buildSite(undefined, undefined, process.argv.includes('--published'));
+  await heavyStep('build:docs', () =>
+    buildSite(undefined, undefined, process.argv.includes('--published')),
+  );
 else {
   const tracked = trackedOutput();
   if (tracked.length) {

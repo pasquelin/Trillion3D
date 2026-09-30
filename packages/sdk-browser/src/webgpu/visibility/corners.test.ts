@@ -30,14 +30,24 @@ function scatteredScene() {
         max: [1, 1, 1],
       }) as unknown as PageRec,
   );
-  // One world for every row, the model's root's: its rows are those it moves.
-  const model = { world, pages: MODEL_ROWS.map((row) => pages[row]), windingEpoch: 1 };
+  // One world for every row, the model's root's: its rows are those it moves. The model's pages
+  // are packed 0..5 (#1235) and their rows are the scattered MODEL_ROWS.
+  const model = {
+    world,
+    pages: MODEL_ROWS.map((row) => pages[row]),
+    windingEpoch: 1,
+    packedBase: 0,
+  };
   const rows = createWebgpuRowState(pages, ROWS);
   rows.pageTableFloats = new Float32Array((ROWS * PAGE_INFO_STRIDE) / 4);
   for (let row = 0; row < ROWS; row++) {
     rows.rowOfPage[row] = row;
     rows.packedPageIndex[row] = row;
   }
+  MODEL_ROWS.forEach((row, packed) => {
+    rows.rowOfPage[packed] = row;
+    rows.packedPageIndex[row] = packed;
+  });
   rows.packedCount = ROWS;
   const cornerHold = createCornerUploadHold();
   cornerHold.epoch = rows.tableEpoch;
@@ -60,6 +70,11 @@ function scatteredScene() {
       cornerPacked: new Float32Array(ROWS * CORNER_VALUES),
       cornerHold,
       selectionRoots: [model],
+      // Every packed rank names the one placement (#1235).
+      placement: {
+        baseOfRoot: Int32Array.of(0),
+        rootOfPacked: Int32Array.from({ length: ROWS }, () => 0),
+      },
     },
     run: { noOccluderHistory: false, temporalHizState: {} },
     blendState: { occlusionEpoch: 1 },

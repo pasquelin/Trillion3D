@@ -65,7 +65,8 @@ function uploadRun(rt: WebgpuPagesRuntime, from: number, to: number) {
       cornerPacked.fill(0, base, base + CORNER_VALUES);
       continue;
     }
-    packPageCorners(cornerPacked, base, rec, rootOf(rt.layout.selectionRoots, rec).world);
+    const rank = rt.layout.placement.rootOfPacked[rows.packedPageIndex[row]] ?? -1;
+    packPageCorners(cornerPacked, base, rec, rootOf(rt.layout.selectionRoots, rank).world);
   }
   rt.vis.gpuPartition!.uploadCorners(cornerPacked, from, to);
 }

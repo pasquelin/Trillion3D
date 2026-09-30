@@ -5,7 +5,9 @@
 //
 // The groups follow what each gate needs, not what it looks at:
 //   quick      the sources alone — it answers in well under a minute, which is when a formatting
-//              or a lint mistake should be reported, not after the Rust suite;
+//              or a lint mistake should be reported, not after the Rust suite — and the unit
+//              tests that read documentation (`test:docs`), which a documentation-only pull
+//              request, whose code jobs are skipped, still runs;
 //   typescript the `tsc` build, the site build (`build:docs`) and the gates that read their
 //              products;
 //   native     Clippy and the Rust tests, which read the scene caches the compiled compiler cooks
@@ -41,6 +43,7 @@ export const VALIDATE_GROUPS = {
     'check:sdk-facade',
     'check:i18n',
     ...TREE_GATES,
+    'test:docs',
   ],
   typescript: [
     'generate:api',
