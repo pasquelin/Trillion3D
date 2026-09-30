@@ -4,8 +4,7 @@ import { encodeWaterPass } from './pass.ts';
 import { createWaterPass } from './waterPass.ts';
 import { prepared, replay, targets } from './pass.fixture.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
-import { WATER_DEPTH_RESTORE } from './depthRestorePass.ts';
-import { WATER_COMPOSITE_PASS, WATER_SURFACE_PASS } from './passLabels.ts';
+import { WATER_COMPOSITE_PASS, WATER_DEPTH_RESTORE, WATER_SURFACE_PASS } from './passLabels.ts';
 
 test('cropped color origins, depth restore and scissors survive the next full frame', async () => {
   const { blendState, gpu } = prepared();

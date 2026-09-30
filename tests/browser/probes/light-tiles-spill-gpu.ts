@@ -17,12 +17,10 @@ import { seeded } from '../../../site/examples/kit/random.ts';
 import { dansPageWebgpu, bundlePage } from './pageWebgpu.ts';
 import { spillHarness, type SpillCase } from './lightTilesSpillHarness.ts';
 import type { run } from './lightTilesSpillPage.ts';
-import { LIGHT_TILES_SHADERS } from '../../../packages/sdk-browser/src/lighting/tiles/shader.ts';
-
-/** The light-tile shader texts the engine compiles, by name. */
-const LIGHT_TILES_SHADER_TEXTS = new Map<string, string>(LIGHT_TILES_SHADERS);
-const LIGHT_TILES_NARROW_SHADER = LIGHT_TILES_SHADER_TEXTS.get('LIGHT_TILES_NARROW_SHADER')!;
-const LIGHT_TILES_SHADER = LIGHT_TILES_SHADER_TEXTS.get('LIGHT_TILES_SHADER')!;
+import {
+  LIGHT_TILES_NARROW_SHADER,
+  LIGHT_TILES_SHADER,
+} from '../../../packages/sdk-browser/src/gpu/core/shaderTexts.fixture.ts';
 
 declare global {
   var lightTilesSpill: { run: typeof run };

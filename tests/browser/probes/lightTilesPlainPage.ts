@@ -21,11 +21,7 @@ import {
 } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
 import { tileLayout, tileLists } from '../../../bench/oracles/browser/gpuLightTilesRankOracle.ts';
 import { openGpuDevice } from './webgpuDevice.ts';
-import { LIGHT_TILES_SHADERS } from '../../../packages/sdk-browser/src/lighting/tiles/shader.ts';
-
-/** The light-tile shader texts the engine compiles, by name. */
-const LIGHT_TILES_SHADER_TEXTS = new Map<string, string>(LIGHT_TILES_SHADERS);
-const LIGHT_TILES_SHADER = LIGHT_TILES_SHADER_TEXTS.get('LIGHT_TILES_SHADER')!;
+import { LIGHT_TILES_SHADER } from '../../../packages/sdk-browser/src/gpu/core/shaderTexts.fixture.ts';
 
 const [WIDTH, HEIGHT] = [333, 207]; // cut tiles on both axes
 const view = camera([3, 40, -5], 0.8, -0.6, 70, WIDTH, HEIGHT);
