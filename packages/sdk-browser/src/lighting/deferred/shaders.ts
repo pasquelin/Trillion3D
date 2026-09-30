@@ -1,5 +1,6 @@
 import { contractSurfaceBody, LIGHT_SURFACE_ENTRY, MIRROR_TERM_WGSL } from './surfaceWgsl.ts';
 import { SUBSURFACE_BINDING } from '../../scene/subsurface.ts';
+import { SURFACE_EMISSIVE_AO_WGSL } from '../../scene/surfaceEmission.ts';
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts';
 import { directLightingWgsl } from '../direct/lightingWgsl.ts';
 import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
@@ -51,11 +52,12 @@ export const surfaceBindingsWgsl = (third = 'flags:texture_2d<u32>') => `
 export const UNLIT_LIGHTING_SHADER = `
 ${VIEW_WGSL}
 ${surfaceBindingsWgsl()}
+${SURFACE_EMISSIVE_AO_WGSL}
 ${FULLSCREEN_VERTEX}
 ${LIGHT_SURFACE_ENTRY}
  let coord=vec2i(pixel.xy);let flag=textureLoad(flags,coord,0).r;
  if(flag==0u){return vec4f(0.0);}
- return vec4f(textureLoad(baseMetal,coord,0).rgb+textureLoad(emissiveAo,coord,0).rgb,1.0);
+ return vec4f(textureLoad(baseMetal,coord,0).rgb+surfaceEmissiveAo(coord,flag).rgb,1.0);
 }`;
 /** Contract bindings: declared lights, their per-tile lists and their shadow pool. The shadow
  *  records and page table, binding 8, are declared with the shadow read (`directShadowWgsl`). */
