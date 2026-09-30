@@ -17,7 +17,7 @@ import { displayTargets } from './displayFilter.ts';
 import { SHARE_TARGET } from '../../lighting/deferred/asIsShare.ts';
 import { createRoutedPipelines } from './routedPipelines.ts';
 import type { WaterPass } from '../water/waterPass.ts';
-import { fluidCode } from '../../fluids/particleCode.ts';
+import { families } from '../../host/families.ts';
 import {
   blendVariantPipeline,
   DIAGNOSTIC_BLEND_WGSL,
@@ -126,13 +126,12 @@ export async function createWebgpuBlendPipelines(
   // The water pass exists for a scene that transmits, outside any diagnostic variant: under one,
   // the transmission slice draws as one more blend, the same fragment stage measured on all.
   const wantsWater = !variant && items.some((item) => item.transmissive);
-  // Its code, the fluids', is imported by the first scene that does, as a texture loads: the
-  // prepare awaits it, no frame does (#1353). A refused import, as a refused pass, keeps the
-  // blends and says why.
-  const waterCode = wantsWater
-    ? (fluidCode.get() ?? (await fluidCode.settled(), fluidCode.get()))
-    : undefined;
-  let waterRefused = wantsWater ? fluidCode.failed : undefined;
+  // Its code, transmission's, is imported by the first scene that transmits, glass or water, and
+  // awaited here as the scene's other resources are, before any frame (#1353). A refused import,
+  // as a refused pass, keeps the blends and says why.
+  const transmission = families.transmission;
+  const waterCode = wantsWater ? await transmission.load().catch(() => undefined) : undefined;
+  let waterRefused = wantsWater ? transmission.failed : undefined;
   let code =
     blendShader(sunWindow) +
     (waterCode?.WATER_SURFACE_WGSL ?? '') +

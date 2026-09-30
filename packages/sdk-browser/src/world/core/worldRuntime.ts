@@ -175,8 +175,11 @@ export function createWorldRuntime(inputs: Inputs) {
     async settled() {
       while (resolving || reopens.running) await (resolving ?? reopens.running);
     },
-    render() {
-      if (!explorer) return null;
+    /** Draws a frame, `ahead` stepping what moves first; a frame that waits for an optional
+     *  family on its way (`../session/familyUse.ts`) is neither stepped nor drawn. */
+    render(ahead?: () => void) {
+      if (!explorer || explorer.familiesPending()) return null;
+      ahead?.();
       beforeFrame(); // what it applies may close the session: that frame has no image
       if (!explorer) return null;
       const metrics = explorer.render();

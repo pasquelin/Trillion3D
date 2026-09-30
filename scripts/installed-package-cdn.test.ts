@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { fluidFiles, physicsFiles } from './installed-package-cdn.ts';
+import { familyFiles, physicsFiles } from './installed-package-cdn.ts';
 
 test('the physics of the CDN bundle is its worker, its modules and the chunk that starts them', () => {
   const chunks = [
@@ -22,14 +22,19 @@ test('the physics of the CDN bundle is its worker, its modules and the chunk tha
   ]);
 });
 
-test('the fluids of the CDN bundle are the chunk of their code, never a chunk it shares', () => {
+test('each other family of the CDN bundle is the chunk of its code, never a chunk it shares', () => {
   const dist = mkdtempSync(join(tmpdir(), 'trillion3d-cdn-'));
   try {
-    // The core names the module in its build provenance, and fetches nothing.
+    // The core names a module in its build provenance, and fetches nothing.
     const names = ['trillion3d.module.js', 'trillion3d-chunk-A.js', 'trillion3d-session-B.js'];
-    for (const name of [...names, 'trillion3d-fluidCode-C.js', 'trillion3d-fluidCode-C.js.map'])
-      writeFileSync(join(dist, name), '"sdk-browser/src/fluids/fluidCode.js"');
-    assert.deepEqual(fluidFiles(dist), ['trillion3d-fluidCode-C.js']);
+    const chunks = ['trillion3d-particleCode-C.js', 'trillion3d-guideCode-D.js'];
+    for (const name of [...names, ...chunks, 'trillion3d-guideCode-D.js.map'])
+      writeFileSync(join(dist, name), '"sdk-browser/src/guides/guideCode.js"');
+    const found = familyFiles(dist).filter(({ files }) => files.length);
+    assert.deepEqual(found, [
+      { family: 'particles', files: ['trillion3d-particleCode-C.js'] },
+      { family: 'guides', files: ['trillion3d-guideCode-D.js'] },
+    ]);
   } finally {
     rmSync(dist, { recursive: true, force: true });
   }
