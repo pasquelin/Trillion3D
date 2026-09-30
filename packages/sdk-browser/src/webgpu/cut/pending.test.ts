@@ -16,6 +16,9 @@ function world() {
   return packed as unknown as PageRec[];
 }
 
+/** The first packed rank of a record (#1235): each of these records is its own single instance. */
+const rankOf = (rec: PageRec) => (rec as { packedIndex?: number }).packedIndex ?? -1;
+
 test('the awaited list is rebuilt only when something it reads moved', () => {
   const packed = world(),
     delta = createCutDelta(packed);
@@ -27,6 +30,7 @@ test('the awaited list is rebuilt only when something it reads moved', () => {
     delta,
     (rec) => (asked++, !refused.has(rec)),
     () => revision,
+    rankOf,
   );
   delta.apply([0, 1, 2, 3]);
   pending.apply();
@@ -43,7 +47,7 @@ test('the awaited list is rebuilt only when something it reads moved', () => {
 test('a dependency named only by a cut record moves it; one outside the cut moves nothing', () => {
   const packed = world(),
     delta = createCutDelta(packed);
-  const pending = createCutPending(packed, delta);
+  const pending = createCutPending(packed, delta, undefined, undefined, rankOf);
   delta.apply([1]);
   pending.apply();
   assert.deepEqual(pending.records, [packed[1]]);
@@ -67,7 +71,13 @@ test('its tables follow the cut: the same cut in a larger catalogue weighs the s
   const bytes = (records: number) => {
     const packed = Array.from({ length: records }, (_, id) => ({ url: `p${id}`, packedIndex: id }));
     const delta = createCutDelta(packed as unknown as PageRec[]),
-      pending = createCutPending(packed as unknown as PageRec[], delta);
+      pending = createCutPending(
+        packed as unknown as PageRec[],
+        delta,
+        undefined,
+        undefined,
+        rankOf,
+      );
     delta.apply([0, 1, 2, 3]);
     pending.apply();
     return delta.hostBytes + pending.hostBytes;

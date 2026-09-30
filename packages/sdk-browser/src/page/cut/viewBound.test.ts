@@ -17,23 +17,33 @@ import { createCutPending } from '../../webgpu/cut/pending.ts';
 import { createWebgpuPageTracking } from '../../webgpu/row/pageTracking.ts';
 import { createWebgpuResidencySets } from '../../webgpu/residency/sets.ts';
 import { createRequestAdmission } from '../../webgpu/residency/requestAdmission.ts';
+import { postPackedBases } from '../selection/placements.ts';
 import type { ClusterRoot, PageRec } from '../selection/types.ts';
 
 const dag = ruleDag(64);
 
 /** `copies` placements of the DAG along -x, each a strip of its own pages; the first is in view. */
 function world(copies: number) {
-  const roots = placements(dag, copies, 1e5);
-  const packed = roots.flatMap((root) => root.pages);
-  const inView = (page: PageRec) => page.placementIndex === 0;
-  return { roots, packed, inView };
+  const roots = placements(dag, copies, 1e5),
+    placement = postPackedBases(roots),
+    packed = roots.flatMap((root) => root.pages),
+    rank = new Map<PageRec, number>();
+  for (let r = 0; r < roots.length; r++)
+    for (let p = 0; p < roots[r].pages.length; p++)
+      rank.set(roots[r].pages[p], placement.baseOfRoot[r] + p);
+  return {
+    roots,
+    placement,
+    packed,
+    rank,
+    inView: (page: PageRec) => rank.get(page)! < dag.pages.length,
+  };
 }
 
 /** The host tables of every backend, after the same frame of the same view. */
 function tables(copies: number) {
-  const { roots, packed, inView } = world(copies);
-  const ids = (list: readonly PageRec[]) => list.map((page) => page.packedIndex!);
-  const held = createHeldResidency({ isResident: inView });
+  const { roots, placement, packed, rank, inView } = world(copies);
+  const held = createHeldResidency({ isResident: inView }, placement);
   held.track(roots);
   // The CPU cut — the WebGPU CPU path and the WebGL2 image — with the pool holding the view.
   const cut = selectVisiblePages(roots, stripCamera(dag), {
@@ -52,9 +62,9 @@ function tables(copies: number) {
   // WebGPU: the cut's differences, its closure, the residency sets and the pending set.
   const cutDelta = createCutDelta(packed),
     drawnDelta = createCutDelta(packed);
-  cutDelta.apply(ids(cut.wanted));
-  drawnDelta.apply(ids(cut.shown));
-  const closure = createGroupClosure(roots, packed);
+  cutDelta.apply(cut.wantedPacked, cut.wanted.length);
+  drawnDelta.apply(cut.shownPacked, cut.shown.length);
+  const closure = createGroupClosure(roots, placement, packed);
   closure.apply(cutDelta);
   const tracking = createWebgpuPageTracking(packed);
   const sets = createWebgpuResidencySets({
@@ -65,12 +75,18 @@ function tables(copies: number) {
   sets.applyCut(closure.delta);
   sets.applyDrawn(drawnDelta);
   createRequestAdmission(sets, tracking, closure).held(1 << 20);
-  const pending = createCutPending(packed, closure.delta);
+  const pending = createCutPending(
+    packed,
+    closure.delta,
+    () => true,
+    () => 0,
+    (rec) => rank.get(rec) ?? -1,
+  );
   pending.apply();
   assert.ok(pending.count > 0, 'the view awaits its pages');
   // WebGL2: the requests closed over their groups.
   const requests = createAutonomousRequests(roots, () => 0);
-  requests.of(cut.wanted, []);
+  requests.of(cut.wantedPacked, []);
   return {
     'CPU cut readiness (page/cut/held.ts)': cpuReadiness,
     'GPU readiness and upload (gpu/dag/readiness.ts)': gpuReadiness,
