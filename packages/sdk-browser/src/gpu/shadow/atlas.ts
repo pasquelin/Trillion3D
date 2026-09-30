@@ -24,10 +24,10 @@ export const SHADOW_PASS = 'Trillion3D shadow atlas v1';
 export const SHADOW_TABLE_OFFSET = MAX_SHADOW_SLICES * SHADOW_RECORD_FLOATS * 4;
 /** Bytes of the records then the page table, one buffer; the table sized to the session's window. */
 const dataBytesOf = (tableEntries: number) => SHADOW_TABLE_OFFSET + tableEntries * 4;
-/** Bytes of the buffers beside the pool — faces, records, page table —, fixed by the light
- *  contract; the ordinary window, a reference session raising it (`referenceMode.ts`). */
-export const SHADOW_BUFFER_BYTES =
-  MAX_SHADOW_REGIONS * (FACE_STRIDE + 4) + dataBytesOf(SHADOW_TABLE_ENTRIES);
+/** Bytes of the buffers beside the pool — faces, records, a table of `tableEntries` (`plan.ts`). */
+export const shadowBufferBytes = (tableEntries: number) =>
+  MAX_SHADOW_REGIONS * (FACE_STRIDE + 4) + dataBytesOf(tableEntries);
+export const SHADOW_BUFFER_BYTES = shadowBufferBytes(SHADOW_TABLE_ENTRIES);
 /** Bytes of a pool of `layers` of `poolSide` pages a side: one 32-bit depth texel each. */
 export const shadowAtlasBytes = (poolSide: number, layers = 1) =>
   (poolSide * SHADOW_PAGE) ** 2 * 4 * layers;
@@ -48,7 +48,7 @@ export async function createGpuShadowAtlas(
   tableEntries = SHADOW_TABLE_ENTRIES,
 ) {
   const dataBytes = dataBytesOf(tableEntries),
-    fixedBytes = MAX_SHADOW_REGIONS * (FACE_STRIDE + 4) + dataBytes;
+    fixedBytes = shadowBufferBytes(tableEntries);
   let texture: GPUTexture | undefined,
     transmittance: ShadowTransmittance | undefined,
     cleared = false;

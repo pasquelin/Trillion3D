@@ -3,12 +3,11 @@ import assert from 'node:assert/strict';
 import {
   REFERENCE_APPROXIMATIONS,
   REFERENCE_BOUNCE_BUDGET_MS,
-  REFERENCE_SUN_WINDOW,
   referenceCapture,
   referenceOptions,
   referenceSunWindow,
-  resolveSupersampled,
 } from './referenceMode.ts';
+import { resolveSupersampled } from './referenceTiles.ts';
 import { BOUNCE_SETTINGS, LIGHT_SETTINGS } from '../../../sdk-core/src/index.ts';
 
 const BOSS = { manifestUrl: 'm.json', width: 1728, height: 1117, pixelRatio: 2 };
@@ -59,14 +58,15 @@ test('the resolved image is the linear-light mean of each block, the same bytes 
 test('the reference raises the sun window so every pixel reads the finest clipmap level', () => {
   // The boss's case: 2234 device pixels at 55° reach 4291, and `pages · shadowPage / 2` must
   // hold that — 68 pages, even so `sunLevels` centres them, past the ordinary 64.
-  assert.equal(referenceSunWindow(), 68);
-  assert.ok(referenceSunWindow() > LIGHT_SETTINGS.sunLevelPages);
-  assert.ok(
-    (REFERENCE_SUN_WINDOW * LIGHT_SETTINGS.shadowPage) / 2 >= 4291,
-    'the window reaches the whole view',
-  );
-  // A taller view needs a wider window; the ordinary one is never lowered.
-  assert.ok(referenceSunWindow(4470) > REFERENCE_SUN_WINDOW);
+  const boss = referenceSunWindow(1117 * 2, 55);
+  assert.equal(boss, 68);
+  assert.ok(boss > LIGHT_SETTINGS.sunLevelPages);
+  assert.ok((boss * LIGHT_SETTINGS.shadowPage) / 2 >= 4291, 'the window reaches the whole view');
+  // The session's own canvas and field, not one case: a taller view or a narrower field needs a
+  // wider window; the field defaults to the camera's; the ordinary one is never lowered.
+  assert.ok(referenceSunWindow(4470, 55) > boss);
+  assert.ok(referenceSunWindow(1117 * 2, 40) > boss);
+  assert.equal(referenceSunWindow(1117 * 2), boss);
   assert.equal(referenceSunWindow(1), LIGHT_SETTINGS.sunLevelPages);
 });
 

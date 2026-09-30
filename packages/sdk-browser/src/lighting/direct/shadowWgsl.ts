@@ -171,7 +171,7 @@ fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32,
   if(all(edge)){sum+=(1.0-w.x)*(1.0-w.y)*shadowCompare(nd.xyz,select(h,n,nd.w>0.0),reference);}
   lit+=sum;
  }
-  return shadowThroughLit(offset,first,t,reference,lit/f32(PCF_TAPS));
+ return shadowThroughLit(offset,first,t,reference,lit/f32(PCF_TAPS));
 }
 ${SHADOW_FACTOR_WGSL}
 ${LAMP_SOFT_WGSL}`;
