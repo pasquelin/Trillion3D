@@ -3,12 +3,10 @@ import { ENVIRONMENT_COEFFICIENTS } from '../../../../sdk-core/src/scene/core/en
 import { RECT_LIGHT_WGSL } from './rectLightWgsl.ts';
 import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts';
 
-/** Words of a tile record: the two counts, the two lists of `tileLights` each, one word saying
- *  whether the opaque list holds a shadowed light — the per-tile fact the moving resolve reads
- *  once instead of walking the list a pixel at a time (#1249) —, then the tile's light grid
- *  (#1249): its nearest and farthest depth, and one 64-bit mask per log-Z slice. */
-export const TILE_STRIDE_WORDS =
-  LIGHT_SETTINGS.tileLights * 2 + 5 + LIGHT_SETTINGS.clusterSlices * 2;
+/** Words of a tile record: the two counts, the two lists of `tileLights` each, then one word
+ *  saying whether the opaque list holds a shadowed light — the per-tile fact the moving resolve
+ *  reads once instead of walking the list a pixel at a time (#1249). */
+export const TILE_STRIDE_WORDS = LIGHT_SETTINGS.tileLights * 2 + 3;
 
 /**
  * Structures shared by the light-list pass and deferred resolve: a single GPU-side
@@ -28,16 +26,9 @@ const TILE_LIGHTS:u32=${LIGHT_SETTINGS.tileLights}u;
 const TILE_STRIDE:u32=${TILE_STRIDE_WORDS}u;
 const TILE_OPAQUE_BASE:u32=2u;
 const TILE_BLEND_BASE:u32=${LIGHT_SETTINGS.tileLights + 2}u;
-/** The record's shadow flag: one when the opaque list holds a light with a shadow slot, zero
+/** The record's last word: one when the opaque list holds a light with a shadow slot, zero
  *  otherwise. The tile pass writes it; the moving resolve reads it once (#1249). */
-const TILE_SHADOW_BASE:u32=${LIGHT_SETTINGS.tileLights * 2 + 2}u;
-/** The light grid (#1249): the tile's nearest and farthest depth as their f32 bits, then per
- *  log-Z slice two mask words — bit \`b\` set when a light of the \`b\`th group of the walked slice
- *  can reach the slice (\`clusterShift\`). The tile pass writes them; the resolve reads its pixel's
- *  slice. The depths are normalized: the slice index is a ratio of them, the near plane cancels. */
-const TILE_DEPTH_BASE:u32=${LIGHT_SETTINGS.tileLights * 2 + 3}u;
-const TILE_CLUSTER_BASE:u32=${LIGHT_SETTINGS.tileLights * 2 + 5}u;
-const CLUSTER_SLICES:u32=${LIGHT_SETTINGS.clusterSlices}u;
+const TILE_SHADOW_BASE:u32=${TILE_STRIDE_WORDS - 1}u;
 const TILE_NO_SLICE:u32=0xffffffffu;
 const POINT_FACES:u32=${POINT_FACES}u;
 const SPOT_EDGE:f32=${LIGHT_SETTINGS.spotEdgeSoftness};
@@ -84,9 +75,6 @@ fn directIncidence(light:DirectLight,P:vec3f)->vec4f{
  *  times its squared range, far above the f32 roundings of \`length\`, so \`directIncidence\` and
  *  \`rectView\` would have given it zero there. */
 const RANGE_REJECT:f32=1.0001;
-/** Mask bits of a slice of \`count\` lights (#1249): bit \`b\` stands for lights \`b << shift\` to
- *  \`(b + 1) << shift\`, one each while the slice fits the 64 bits, runs of a power of two past. */
-fn clusterShift(count:u32)->u32{return select(0u,32u-countLeadingZeros(count-1u)-6u,count>64u);}
 /** Major axis of the light-to-point direction, in POINT_FACE_AXES order. */
 fn pointFaceOf(direction:vec3f)->u32{
  let a=abs(direction);

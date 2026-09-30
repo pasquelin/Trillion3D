@@ -1,8 +1,7 @@
 // The plain light-tile pass — what a device without `subgroups` runs — builds on a real GPU the
 // lists the subgroup pass builds (#924): two devices of one adapter, one granted `subgroups` and
 // one not, the engine's pass on each, the same depth, lights and view, the narrow pass and the
-// wide one with its pool (`lightTilesPlainPage.ts`); and the light grid each pass writes names
-// every light that reaches a pixel of its slice (#1249).
+// wide one with its pool (`lightTilesPlainPage.ts`).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { dirname, resolve } from 'node:path';
@@ -41,12 +40,6 @@ if (import.meta.main) {
       );
       if (wide) assert.ok(Math.max(...kept) > LIGHT_SETTINGS.tileLights, 'a slice in the pool');
       assert.deepEqual(plain.lists, subgroup.lists, `the same lists, ${count} lights`);
-      // The pass's light grid (#1249): no light that reaches a pixel is left out of its slice, and
-      // the slices walk fewer lights than the lists.
-      for (const { grid } of [subgroup, plain]) {
-        assert.equal(grid.missed, 0, `${count} lights: a reaching light left out of its slice`);
-        assert.ok(grid.walked < grid.listed, `${count} lights: ${grid.walked} of ${grid.listed}`);
-      }
     }
   });
 }
