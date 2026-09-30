@@ -1498,13 +1498,12 @@ gravityScale, sensor, ccd, decorative, friction, restitution, damping }`. The sh
 - **Motion and events.** `mesh.physics.velocity` (read as the last step left it, written to launch
   the body), `applyImpulse(x, y, z)`, `wake()`, `asleep`, and `on('contact' | 'enter' | 'leave')`:
   the other object, an impulse estimate (approach speed times the pair's reduced mass) and the
-  point. The contact records the pool's threads leave are merged after `Update` in a canonical order
-  no thread decides: ordered by the body pair's key (the lower engine index first), each pair's own
-  events in the order Jolt ran them, so a pool of any size gives those merged events in the same
-  order. It is the engine's canonical order, not Jolt's internal callback order. The leaves written
-  outside that merge — a removed body's pairs, before it, and a soft body's, after it — are
-  appended on their own and carry no pair-key promise; a pool of any size still gives the whole
-  step's events in the same order (`contactThreads.test.ts`).
+  point. After `Update` the pool's contact records are merged in a canonical order no thread
+  decides: by the body pair's key (the lower engine index first), each pair's own events in the
+  order Jolt ran them. It is the engine's order, not Jolt's internal callback order. A removed
+  body's `leave` events come before this merge and a soft body's after it, outside the pair-key
+  order. A pool of any size gives the whole step's events in the single thread's order
+  (`contactThreads.test.ts`).
 - **Joints.** `joint.fixed | point | hinge | slider | distance | cone(a, b, options)` connects two
   bodies, or a body and the world (`b` is `null`), with Jolt's own constraints; `world.physics.add(j)`
   puts it in the simulation and `remove(j)` takes it out. It is made once both bodies are simulated,
