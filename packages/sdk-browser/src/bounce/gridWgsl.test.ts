@@ -28,7 +28,7 @@ test('every probe shader projects and evaluates the one order-2 basis', () => {
   // The bounce probes store their nine coefficients in the environment's band order: the pass
   // that fills them and the lookup that reads them compile the shared text, as do the scene
   // environment on WebGPU and the host light probe on WebGL2.
-  const probeEvaluation = irradianceShader((k) => `probes[slot+${k}u].xyz`, 'n');
+  const probeEvaluation = irradianceShader((k) => `probeAt(slot+${k}u).xyz`, 'n');
   assert.ok(BOUNCE_APPLY_WGSL.includes(probeEvaluation));
   assert.ok(BOUNCE_SURFACE_SHADER.includes(probeEvaluation));
   assert.ok(
@@ -70,7 +70,7 @@ test('a bounce probe is read in the band order the environment and the light pro
   };
   const bounce = channel(
     between(BOUNCE_GRID_WGSL, 'fn shIrradiance(slot:u32,n:vec3f)->vec3f{', '\n}'),
-    /probes\[slot(?:\+(\d)u)?\]\.xyz/g,
+    /probeAt\(slot(?:\+(\d)u)?\)\.xyz/g,
     'n',
   );
   const environment = channel(

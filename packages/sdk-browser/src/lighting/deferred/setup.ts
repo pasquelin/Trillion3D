@@ -1,11 +1,9 @@
 import { SUBSURFACE_BINDING } from '../../scene/subsurface.ts';
-import { SHADING_OFFSET_BINDING } from '../../visibility/shader/shadingPoint.ts';
+import { LIGHTING_RECEIVER_BINDING } from './surfaceWgsl.ts';
+import { receiverLayoutEntries, receiverPlaceholders } from '../../webgpu/visibility/receiver.ts';
 import { SHADOW_ARRAY, arrayView } from '../../gpu/shadow/layers.ts';
-import {
-  MAX_SHADOW_SLICES,
-  PROBE_FLOATS,
-  SHADOW_RECORD_FLOATS,
-} from '../../../../sdk-core/src/index.ts';
+import { MAX_SHADOW_SLICES, SHADOW_RECORD_FLOATS } from '../../../../sdk-core/src/index.ts';
+import { PROBE_TEXELS, emptyAtlas } from '../../bounce/atlas.ts';
 import { CONTRACT_SHADOW_BINDINGS } from '../direct/lightingWgsl.ts';
 import { BOUNCE_GRID_BYTES } from '../../bounce/uniform.ts';
 import { PROXY_HEADER_BYTES } from '../../bounce/nodeWgsl.ts';
@@ -17,11 +15,11 @@ import { SHADOW_TRANSMITTANCE_FORMAT } from '../../gpu/shadow/transmittance.ts';
 /** Empty proxy header: no distant-shadow ray without resident nodes. */
 const PLACEHOLDER_PROXY_BYTES = PROXY_HEADER_BYTES + 16;
 /**
- * Bindings of the deferred pass. The unlit view stops at the surfaces and the uniform;
- * the contract program adds the declared lights, their per-tile lists, their shadow slices
- * and the atlas; the bounce one adds the probe grid. None of the three reads a light written
- * in the scene: there is none left. The water composite extends the full list with its own
- * bindings, so a surface lit there is read on the same numbers.
+ * Bindings of the deferred pass. The unlit view stops at the surfaces and the uniform; the contract
+ * program adds the declared lights, their per-tile lists, their shadow slices and the atlas; the
+ * bounce one adds the probe grid. None of the three reads a light written in the scene: there is
+ * none left. The water composite extends the full list with its own bindings, so a surface lit
+ * there is read on the same numbers.
  */
 export function deferredLayoutEntries(
   direct: boolean,
@@ -60,15 +58,10 @@ export function deferredLayoutEntries(
         texture: SHADOW_ARRAY,
       },
     );
-  // Shading offsets, subsurface, and the shadow pages the resolve reads, recorded for the
-  // scheduler: only the opaque resolve asks.
+  // The receiver offset's reads, subsurface, the shadow pages recorded: only the opaque resolve.
   if (direct && marks)
     entries.push(
-      {
-        binding: SHADING_OFFSET_BINDING,
-        visibility: GPUShaderStage.FRAGMENT,
-        buffer: { type: 'read-only-storage' },
-      },
+      ...receiverLayoutEntries(LIGHTING_RECEIVER_BINDING, GPUShaderStage.FRAGMENT),
       {
         binding: SUBSURFACE_BINDING,
         visibility: GPUShaderStage.FRAGMENT,
@@ -81,15 +74,20 @@ export function deferredLayoutEntries(
       },
     );
   // Probe grid, their coefficients and the surface cache a reflection reads: bound only by the
-  // bounce program, so a session without bounce keeps exactly the previous layout.
+  // bounce program, so a session without bounce keeps exactly the previous layout. The two last
+  // are atlases (`atlas.ts`, #1410): no storage buffer of the eight.
   if (bounce)
     entries.push(
       { binding: 11, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
-      { binding: 12, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
+      {
+        binding: 12,
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: { sampleType: 'unfilterable-float', viewDimension: '2d-array' },
+      },
       {
         binding: BOUNCE_SURFACE_BINDING,
         visibility: GPUShaderStage.FRAGMENT,
-        buffer: { type: 'read-only-storage' },
+        texture: { sampleType: 'unfilterable-float' },
       },
     );
   return entries;
@@ -106,6 +104,7 @@ export const createDeferredLightingLayout = (device: GPUDevice, direct: boolean,
  * the real atlas keeps valid bindings, the light simply unshadowed; a frame without bounce reads
  * zero probes, hence zero indirect light. The blend pass borrows the same substitutes.
  */
+export type DeferredPlaceholders = ReturnType<typeof createDeferredPlaceholders>;
 export function createDeferredPlaceholders(device: GPUDevice) {
   const tiles = device.createBuffer({
     label: 'Trillion3D empty light tiles',
@@ -148,23 +147,15 @@ export function createDeferredPlaceholders(device: GPUDevice) {
   // The substitute carries the size of `BounceGrid`, read where the struct is written: a binding
   // smaller than what the shader declares is refused by validation, and the device is lost.
   // At zero, the probe count is too and `sampleBounce` returns without reading a coefficient;
-  // the probe buffer holds a whole probe, so its size also follows the struct.
+  // the probe atlas holds a whole probe, so its size also follows the struct.
   const bounceGrid = device.createBuffer({
     label: 'Trillion3D empty bounce grid',
     size: BOUNCE_GRID_BYTES,
     usage: GPUBufferUsage.UNIFORM,
   });
-  const probes = device.createBuffer({
-    label: 'Trillion3D empty bounce probes',
-    size: PROBE_FLOATS * 4,
-    usage: GPUBufferUsage.STORAGE,
-  });
+  const probes = emptyAtlas(device, 'Trillion3D empty bounce probes', PROBE_TEXELS);
   // One texel of zero: the water composite binds it while bounce is off, and reads none.
-  const surfaceCache = device.createBuffer({
-    label: 'Trillion3D empty bounce surface cache',
-    size: 16,
-    usage: GPUBufferUsage.STORAGE,
-  });
+  const surfaceCache = emptyAtlas(device, 'Trillion3D empty bounce surface cache');
   // The absent proxy: a header of zeros, which the shader reads as a tree with no node and as
   // an absent distant shadow. Both lighting passes bind the same one, so a session without
   // proxy renders exactly the same image on opaque and on blend.
@@ -173,6 +164,7 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     size: PLACEHOLDER_PROXY_BYTES,
     usage: GPUBufferUsage.STORAGE,
   });
+  const receiver = receiverPlaceholders(device);
   return {
     tiles,
     slices,
@@ -181,10 +173,14 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     transmittanceView: arrayView(transmittance),
     sampler,
     bounceGrid,
-    probes,
-    surfaceCache,
+    probes: probes.createView({ dimension: '2d-array' }),
+    surfaceCache: surfaceCache.createView(),
     proxy,
+    receiver: receiver.resources,
+    /** The empty normal atlas: what a transparent item without normals reads (zeros). */
+    emptyNormals: receiver.normals,
     dispose() {
+      receiver.dispose();
       tiles.destroy();
       slices.destroy();
       requests.destroy();

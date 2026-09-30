@@ -1,5 +1,8 @@
 import { PAGE_GEOMETRY_WGSL } from '../visibility/shader/pageGeometryWgsl.ts';
-import { PAGE_INFO_STRUCT_WGSL, VERT_NORMAL_WGSL } from '../visibility/shader/pageWgsl.ts';
+import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from '../visibility/shader/pageWgsl.ts';
+
+/** The binding of the float pool's normal atlas (`../webgpu/core/floatAtlas.ts`, #1410). */
+export const DEFORMATION_NORMALS = 2;
 import { FLAG_CLUSTER_PAGE, FLAG_DYNAMIC } from '../visibility/types.ts';
 import { DEFORM_WGSL } from './deformWgsl.ts';
 import { DEFAULT_GROUP_WIDTH } from '../gpu/dag/shader/gridWgsl.ts';
@@ -8,12 +11,11 @@ import { DEFAULT_GROUP_WIDTH } from '../gpu/dag/shader/gridWgsl.ts';
 export const DEFORMATION_COMPUTE_WGSL = `${PAGE_INFO_STRUCT_WGSL}
 @group(0) @binding(0) var<storage,read_write> indices:array<u32>;
 @group(0) @binding(1) var<storage,read_write> positions:array<f32>;
-@group(0) @binding(2) var<storage,read> normals:array<f32>;
+${normalAtlasWgsl(DEFORMATION_NORMALS)}
 @group(0) @binding(3) var<storage,read> pages:array<PageInfo>;
 @group(0) @binding(4) var<storage,read> uvs:array<f32>;
 @group(0) @binding(5) var<uniform> image:vec4u;
 ${PAGE_GEOMETRY_WGSL}
-${VERT_NORMAL_WGSL}
 ${DEFORM_WGSL}
 fn storeDeformed(at:u32,v:vec3f,whole:bool){
  if(whole){positions[at]=v.x;positions[at+1u]=v.y;positions[at+2u]=v.z;return;}
@@ -45,10 +47,16 @@ fn deform(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) la
  }
 }`;
 
-/** The stage's binding contract, reused by GPU probes. */
+/** The stage's binding contract, reused by GPU probes: buffers, the normal atlas at its rank. */
 export const deformationBindings = (): GPUBindGroupLayoutEntry[] =>
   Array.from({ length: 6 }, (_, binding) => ({
     binding,
     visibility: GPUShaderStage.COMPUTE,
-    buffer: { type: binding === 5 ? 'uniform' : binding <= 1 ? 'storage' : 'read-only-storage' },
+    ...(binding === DEFORMATION_NORMALS
+      ? { texture: { sampleType: 'unfilterable-float', viewDimension: '2d-array' } as const }
+      : {
+          buffer: {
+            type: binding === 5 ? 'uniform' : binding <= 1 ? 'storage' : 'read-only-storage',
+          } as const,
+        }),
   }));

@@ -1,5 +1,6 @@
 import { FLAG_HAS_COLOR, FLAG_SAMPLED } from '../types.ts';
 import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts';
+import { floatAtlasWgsl } from '../../webgpu/core/floatAtlas.ts';
 
 /**
  * Geometry of a page as the GPU reads it: the description of a cluster, the uniform of its draw
@@ -50,9 +51,14 @@ export const PAGE_VERTEX_WGSL = `fn vertPos(base:u32,idx:u32)->vec3f{let i=(base
 export const PAGE_UV_WGSL = `fn vertUv(base:u32,idx:u32)->vec2f{let i=(base+idx)*2u;return vec2f(uvs[i],uvs[i+1u]);}`;
 
 /** Normal and signed tangent of a vertex read as floats: seven per vertex, the normal then the
- *  tangent and its sign (`../../webgpu/core/geometryPrepare.ts`). */
-export const VERT_NORMAL_WGSL = `fn vertN(base:u32,idx:u32)->vec3f{let i=(base+idx)*7u;return vec3f(normals[i],normals[i+1u],normals[i+2u]);}
-fn vertT(base:u32,idx:u32)->vec4f{let i=(base+idx)*7u+3u;return vec4f(normals[i],normals[i+1u],normals[i+2u],normals[i+3u]);}`;
+ *  tangent and its sign (`../../webgpu/core/geometryPrepare.ts`), from the float pool's atlas
+ *  `normals` (`../../webgpu/core/floatAtlas.ts`, #1410), no storage buffer. */
+const VERT_NORMAL_WGSL = `${floatAtlasWgsl('normals', 'normalAt')}
+fn vertN(base:u32,idx:u32)->vec3f{let i=(base+idx)*7u;return vec3f(normalAt(i),normalAt(i+1u),normalAt(i+2u));}
+fn vertT(base:u32,idx:u32)->vec4f{let i=(base+idx)*7u+3u;return vec4f(normalAt(i),normalAt(i+1u),normalAt(i+2u),normalAt(i+3u));}`;
+/** The normal atlas bound at `binding`, and the reads of `VERT_NORMAL_WGSL`: what a pass inserts. */
+export const normalAtlasWgsl = (binding: number) =>
+  `@group(0) @binding(${binding}) var normals:texture_2d_array<f32>;\n${VERT_NORMAL_WGSL}`;
 
 /** Signed area of the triangle `(a,b,p)` in screen coordinates; the raster takes its barycentrics from it. */
 export const EDGE_WGSL = `fn edge(a:vec2f,b:vec2f,p:vec2f)->f32{return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);}`;
