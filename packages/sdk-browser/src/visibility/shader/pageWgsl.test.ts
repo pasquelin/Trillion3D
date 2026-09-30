@@ -20,10 +20,8 @@ import { rasterSource } from '../../gpu/raster/shader.ts';
 import { SHADE_SHADER } from './shadeWgsl.ts';
 import { VIS_SHADER } from './visWgsl.ts';
 import { SHADOW_DEPTH_SHADER } from '../../gpu/shadow/shader.ts';
-import { taaShader } from '../../taa/shaderWgsl.ts';
 import { wrapLinear } from '../wrapModes.fixture.ts';
-
-const TAA_SHADER = taaShader(true);
+import { TAA_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
 
 const SMALL_SHADER = rasterSource(4, 16);
 

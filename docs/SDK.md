@@ -280,10 +280,13 @@ unsupported).
 `world.renderScale` (`createWorld(target, { renderScale })`, `'auto'` by default) is the per-axis
 fraction of the display drawn before temporal antialiasing rebuilds the image: `'auto'` lets the
 frame budget (the display's refresh interval) choose between 0.5 and 1, `{ min, max }` bounds it, a
-number fixes it; a still image is drawn at the maximum. A write applies next frame, no target remade
-by the controller; a read is the last image's scale. WebGL2, without history, resamples to the
-display (Lanczos-2): its `'auto'` holds 1, and only a `{ min }` below 1 or a fixed scale draws below the
-display (`temporal upscaling` unsupported).
+number fixes it. A still image over budget is drawn below the display too, its jitter phases
+rebuilding the display's detail; the controller learns from the whole-frame GPU time, or from the
+frame interval without GPU timestamps. The render targets follow the drawn size on a ladder of
+eighths of the display, the temporal history kept across a step. A write applies next frame; a read
+is the last image's scale. WebGL2, without history, resamples to the display (Lanczos-2): its
+`'auto'` holds 1, and only a `{ min }` below 1 or a fixed scale draws below the display
+(`temporal upscaling` unsupported).
 
 `world.effects` is the ordered chain of passes after temporal antialiasing, before the canvas, on
 both renderers. `effect.bloom({ intensity, radius })` is a physically based, energy-conserving glow
@@ -591,7 +594,10 @@ alone (#275).
 cancellation, exit codes and the executable's selection (`options.executable`, then
 `TRILLION3D_COMPILER_BIN`, then the development build) are in
 [COMPILER.md](COMPILER.md#using-it-from-node). An installed tarball ships neither the executable nor
-the Rust sources, so it needs one of the first two.
+the Rust sources, so it needs one of the first two; without them it fails with
+`COMPILER_EXECUTABLE_MISSING`, or `COMPILER_PLATFORM_UNSUPPORTED` on a machine the compiler is not
+built for. Every error carries its public code and a link to its page
+([COMPILER_ERRORS.md](COMPILER_ERRORS.md)).
 
 ## Scene hierarchy foundation
 

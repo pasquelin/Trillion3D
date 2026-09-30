@@ -1156,6 +1156,7 @@
       "gpuPassMs": "Sampel tahap GPU terbaru backend ini; null saat perangkat tidak menyediakan kueri stempel waktu.",
       "gpuFrameMs": "Durasi GPU gambar yang dijelaskan `gpuPassMs.frame`. Tidak pernah ditambahkan ke bidang `cpu*`. Perangkat diambil sampelnya setiap beberapa gambar, jadi sebuah angka bisa berasal dari beberapa gambar sebelumnya. Null sebelum sampel pertama, dari gambar yang ditahan hingga sampel perangkat berikutnya, pada perangkat tanpa `timestamp-query`, dan pada WebGL2 tanpa `EXT_disjoint_timer_query_webgl2`.",
       "gpuHostGapMs": "Waktu CPU yang dihabiskan gambar yang sama antara dua pengirimannya sendiri, dan nol saat ia mengirim sekali. Ini waktu host, bukan waktu GPU, itulah kenapa `gpuFrameMs` mengecualikannya. Null saat tidak terukur.",
+      "gpuDeviceLost": "Mengapa perangkat GPU hilang; null selama perangkat itu bertahan.",
       "uncoveredTriangles": "Segitiga cluster yang disebut potongan yang diterbitkan tapi tidak bisa digambar bingkai itu — tidak ada halaman yang tersimpan dan tidak ada leluhur penutup. Sebuah lubang sungguhan pada gambar: nol adalah satu-satunya nilai sehat. Null saat sebuah backend tidak bisa mengetahuinya (ia menggambar potongan yang dipilihnya, jadi tidak pernah punya satu pun).",
       "drawnTriangles": "Segitiga yang diserahkan BINGKAI SAAT INI ke gambar: potongan clusternya, opaque dan transparan hierarki digabung. Mesh transparan di luar hierarki tidak termasuk (`transparentSubmittedTriangles`), dan penolakan oklusi tidak dikurangi (`hizRejectedTriangles`). Dihitung saat potongan diadopsi: tidak ada pembacaan balik GPU asinkron yang ditunggu, jadi tidak pernah `null` karena kekurangan waktu, tidak seperti `submittedTriangles`.",
       "cpuSelectMs": "Waktu CPU potongan cluster bingkai ini, diukur di sekitar pemilihan saja. Null pada mesin yang tidak memilih potongannya di CPU.",
@@ -3354,6 +3355,7 @@
       "counts": "Apa yang dilakukan rencana terakhir, dalam halaman.",
       "spent": "Milidetik CPU yang dihabiskan rencana terakhir untuk membaca laporan permintaan dan menerima halaman.",
       "worldChanged": "Sebuah node bergerak: kotaknya membuat usang halaman yang ditutupinya pada rencana berikutnya.",
+      "changeRoom": "Kotak yang masih dapat disimpan terpisah oleh daftar sebelum meluap.",
       "representationChanged": "Dunia yang sama dengan presisi lain: kotaknya menunggu kamera diam.",
       "resting": "Kamera diam pada rencana terakhir: tampilannya sama dengan rencana sebelumnya.",
       "deferredChanges": "Benar selama perubahan representasi menunggu kamera diam.",
@@ -3777,7 +3779,8 @@
       "total": "Berapa banyak pekerjaan secara keseluruhan.",
       "stream": "Tempat menulis.",
       "width": "Lebar bilah.",
-      "interval": "Milidetik minimum antara gambar ulang."
+      "interval": "Milidetik minimum antara gambar ulang.",
+      "verbose": "Juga menyebutkan kode info dan setiap kemunculan dalam ringkasan akhir tugas."
     }
   },
   "Texture": {
@@ -4279,6 +4282,7 @@
       "gpuPassMs": "Sampel tahap GPU terbaru backend ini; null saat perangkat tidak menyediakan kueri stempel waktu.",
       "gpuFrameMs": "Durasi GPU gambar yang dijelaskan `gpuPassMs.frame`. Tidak pernah ditambahkan ke bidang `cpu*`. Perangkat diambil sampelnya setiap beberapa gambar, jadi sebuah angka bisa berasal dari beberapa gambar sebelumnya. Null sebelum sampel pertama, dari gambar yang ditahan hingga sampel perangkat berikutnya, pada perangkat tanpa `timestamp-query`, dan pada WebGL2 tanpa `EXT_disjoint_timer_query_webgl2`.",
       "gpuHostGapMs": "Waktu CPU yang dihabiskan gambar yang sama antara dua pengirimannya sendiri, dan nol saat ia mengirim sekali. Ini waktu host, bukan waktu GPU, itulah kenapa `gpuFrameMs` mengecualikannya. Null saat tidak terukur.",
+      "gpuDeviceLost": "Mengapa perangkat GPU hilang; null selama perangkat itu bertahan.",
       "uncoveredTriangles": "Segitiga cluster yang disebut potongan yang diterbitkan tapi tidak bisa digambar bingkai itu — tidak ada halaman yang tersimpan dan tidak ada leluhur penutup. Sebuah lubang sungguhan pada gambar: nol adalah satu-satunya nilai sehat. Null saat sebuah backend tidak bisa mengetahuinya (ia menggambar potongan yang dipilihnya, jadi tidak pernah punya satu pun).",
       "drawnTriangles": "Segitiga yang diserahkan BINGKAI SAAT INI ke gambar: potongan clusternya, opaque dan transparan hierarki digabung. Mesh transparan di luar hierarki tidak termasuk (`transparentSubmittedTriangles`), dan penolakan oklusi tidak dikurangi (`hizRejectedTriangles`). Dihitung saat potongan diadopsi: tidak ada pembacaan balik GPU asinkron yang ditunggu, jadi tidak pernah `null` karena kekurangan waktu, tidak seperti `submittedTriangles`.",
       "cpuSelectMs": "Waktu CPU potongan cluster bingkai ini, diukur di sekitar pemilihan saja. Null pada mesin yang tidak memilih potongannya di CPU.",
@@ -4394,7 +4398,7 @@
       "signal": "Menghentikan pemuatan dunia saat sinyal dibatalkan.",
       "physics": "Menyalakan fisika (`world.physics`): `true`, atau gravitasi dan anggaran. Jolt baru dimuat saat itu.",
       "temporalAntialiasing": "Antialiasing temporal, hanya WebGPU: pergeseran subpiksel yang diakumulasi antarbingkai. `false` menggambar setiap piksel di pusatnya, tanpa riwayat, yang diminta tangkapan tepat per piksel; diubah kemudian lewat `world.temporalAntialiasing`.",
-      "renderScale": "Pecahan layar per sumbu tempat gambar digambar, sebelum antialiasing temporal membangunnya kembali ke ukuran layar: `'auto'` membiarkan anggaran bingkai memilihnya antara `min` dan `max` (`{ min, max }`, bawaan 0,5 dan 1; di WebGL2, yang hanya melakukan resampling, `min` bawaannya 1), sebuah angka menetapkannya; gambar diam digambar pada nilai maksimum. Diubah kemudian lewat `world.renderScale`."
+      "renderScale": "Pecahan layar per sumbu tempat gambar digambar, sebelum antialiasing temporal membangunnya kembali ke ukuran layar: `'auto'` membiarkan anggaran bingkai memilihnya antara `min` dan `max` (`{ min, max }`, bawaan 0,5 dan 1; di WebGL2, yang hanya melakukan resampling, `min` bawaannya 1), sebuah angka menetapkannya. Di WebGPU gambar diam juga digambar pada skala itu dan dibangun ulang dari fase jitter-nya; di WebGL2 gambar itu digambar pada nilai maksimum. Diubah kemudian lewat `world.renderScale`."
     }
   },
   "RenderScale": {
@@ -5013,13 +5017,14 @@
   "createTerminalProgress": {
     "summary": "Sebuah bar kemajuan di terminal yang mengikuti peristiwa kompiler.",
     "parameters": {
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}": "Bagaimana tampilan kemajuan terminal terlihat.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.label": "Nama pekerjaannya.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.index": "Nomor pekerjaannya.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.total": "Berapa banyak pekerjaan semuanya.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.stream": "Ke mana menulis.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.width": "Lebar bar.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.interval": "Milidetik minimum antar-gambar ulang."
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}": "Bagaimana tampilan kemajuan terminal terlihat.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.label": "Nama pekerjaannya.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.index": "Nomor pekerjaannya.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.total": "Berapa banyak pekerjaan semuanya.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.stream": "Ke mana menulis.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.width": "Lebar bar.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.interval": "Milidetik minimum antar-gambar ulang.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.verbose": "Juga menyebutkan kode info dan setiap kemunculan dalam ringkasan akhir tugas."
     }
   },
   "createTransformTree": {
@@ -5052,7 +5057,7 @@
       "options.signal": "Menghentikan pemuatan dunia saat sinyal dibatalkan.",
       "options.physics": "Menyalakan fisika (`world.physics`): `true`, atau gravitasi dan anggaran. Jolt baru dimuat saat itu.",
       "options.temporalAntialiasing": "Antialiasing temporal, hanya WebGPU: pergeseran subpiksel yang diakumulasi antarbingkai. `false` menggambar setiap piksel di pusatnya, tanpa riwayat, yang diminta tangkapan tepat per piksel; diubah kemudian lewat `world.temporalAntialiasing`.",
-      "options.renderScale": "Pecahan layar per sumbu tempat gambar digambar, sebelum antialiasing temporal membangunnya kembali ke ukuran layar: `'auto'` membiarkan anggaran bingkai memilihnya antara `min` dan `max` (`{ min, max }`, bawaan 0,5 dan 1; di WebGL2, yang hanya melakukan resampling, `min` bawaannya 1), sebuah angka menetapkannya; gambar diam digambar pada nilai maksimum. Diubah kemudian lewat `world.renderScale`."
+      "options.renderScale": "Pecahan layar per sumbu tempat gambar digambar, sebelum antialiasing temporal membangunnya kembali ke ukuran layar: `'auto'` membiarkan anggaran bingkai memilihnya antara `min` dan `max` (`{ min, max }`, bawaan 0,5 dan 1; di WebGL2, yang hanya melakukan resampling, `min` bawaannya 1), sebuah angka menetapkannya. Di WebGPU gambar diam juga digambar pada skala itu dan dibangun ulang dari fase jitter-nya; di WebGL2 gambar itu digambar pada nilai maksimum. Diubah kemudian lewat `world.renderScale`."
     }
   },
   "crossVector3": {

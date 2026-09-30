@@ -23,6 +23,7 @@ import type { ShadowStaticLayer } from '../../../gpu/shadow/staticLayer.ts';
 import type { ShadowPageHiz } from '../../../gpu/shadow/pageHiz.ts';
 import type { ShadowOcclusion } from '../../../gpu/shadow/occlusion.ts';
 import type { ShadowPageQuads } from '../../../gpu/shadow/pageQuads.ts';
+import type { ShadowMovingGroups } from '../../shadow/movingGroups.ts';
 import { createShadowMemory, type ShadowMemory } from '../../shadow/memoryGrant.ts';
 import { createShadowWork, type ShadowWork } from '../../shadow/work.ts';
 
@@ -36,12 +37,9 @@ export interface WebgpuLightState {
   shadows: GpuShadowAtlas | undefined;
   /** The shadow pool's grant, once asked: `settled` once the device granted or refused it. */
   shadowGrant: DeviceGrant | undefined;
-  /** The drawing buffer the pool was last sized for; another one resizes it (`poolResize.ts`). */
-  poolView: readonly [number, number] | undefined;
   /** The return path of the pages the resolve reads; absent while the pool does not exist. */
   pageRequests: ShadowPageRequests | undefined;
-  /** The passes that mark, per pixel, the pages the resolve reads and map them on the GPU
-   *  (`../../shadow/demandPass.ts`, `allocPass.ts`). */
+  /** Per pixel, the pages the resolve reads, mapped on the GPU (`demandPass.ts`, `allocPass.ts`). */
   demand: ShadowDemand | undefined;
   allocation: ShadowAllocation | undefined;
   /** Residency flips, compared plan to plan (`../../shadow/residence.ts`). */
@@ -60,6 +58,8 @@ export interface WebgpuLightState {
   sceneBox: ReturnType<typeof createShadowSceneBox>;
   /** Per-page cull and the world spheres it reads; absent while the pool does not exist. */
   cull: GpuShadowCull | undefined;
+  /** The restored sun pages' moving casters, drawn by group (`../../shadow/movingGroups.ts`). */
+  movingGroups: ShadowMovingGroups | undefined;
   /** Each pass's clears and restores, two instanced draws; made with the atlas. */
   pageQuads: ShadowPageQuads | undefined;
   spheres: { buffer: GPUBuffer; packed: Float32Array<ArrayBuffer>; rows: number } | undefined;
@@ -129,7 +129,6 @@ export function createWebgpuLightState(
     tiles: undefined,
     shadows: undefined,
     shadowGrant: undefined,
-    poolView: undefined,
     pageRequests: undefined,
     demand: undefined,
     allocation: undefined,
@@ -142,6 +141,7 @@ export function createWebgpuLightState(
     pageHiz: undefined,
     occlusion: undefined,
     cull: undefined,
+    movingGroups: undefined,
     pageQuads: undefined,
     spheres: undefined,
     shadowGroups: new Array(2 * MAX_SHADOW_REGIONS).fill(undefined),

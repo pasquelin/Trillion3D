@@ -8,9 +8,8 @@ import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { surfaceOf } from '../page/surface.ts';
 import { identityRoots } from '../page/selection/placements.fixture.ts';
 import { visMaterial } from './shader/material.ts';
-import { contractLightingShader } from '../lighting/deferred/shaders.ts';
+import { DIRECT_LIGHTING_SHADER } from '../gpu/core/shaderTexts.fixture.ts';
 
-const DIRECT_LIGHTING_SHADER = contractLightingShader(false, false);
 const VIS_INVALID = 0;
 
 test('Repeat wrap samples the same texel at UV 0.25 and 1.25', () => {

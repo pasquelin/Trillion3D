@@ -15,11 +15,7 @@ import {
 import { BLEND_BINDINGS } from '../core/bindLayout.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { functionText } from '../../bounce/wgslBody.fixture.ts';
-import { blendShader } from './shader.ts';
-import { contractLightingShader } from '../../lighting/deferred/shaders.ts';
-
-const BLEND_SHADER = blendShader();
-const BOUNCE_LIGHTING_SHADER = contractLightingShader(true, false);
+import { BLEND_SHADER, BOUNCE_LIGHTING_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
 
 test('transparent mirrors use the opaque reflection model and bind its surface radiance', () => {
   for (const name of ['mirrorLighting', 'reflectedRadiance', 'rayRadiance'])

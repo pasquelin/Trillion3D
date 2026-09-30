@@ -49,11 +49,14 @@ test('the lost promise unpublishes the composed canvas and names WEBGPU_LOST', a
     await backend.prepare();
     backend.render(camera());
     assert.equal(backend.presentedSurface, canvas, 'the composed canvas is published');
+    assert.equal(backend.metrics().gpuDeviceLost, null, 'a device that holds names no loss');
     lose('destroyed');
     await Promise.resolve();
     assert.equal(backend.presentedSurface, undefined, 'a lost device publishes no canvas');
     assert.equal(unconfigured, true, 'the drawing buffer is blanked');
     assert.equal(backend.metrics().frameHeld, false);
+    // #1364: the frame metrics name the loss with its cause, never silent.
+    assert.equal(backend.metrics().gpuDeviceLost, 'destroyed: destroyed');
     const lost = events.find((e) => e.phase === 'gpu-device-lost');
     assert.equal(lost?.context.code, 'WEBGPU_LOST');
     assert.equal(lost?.context.reason, 'destroyed');

@@ -1148,6 +1148,7 @@
       "gpuPassMs": "该后端最近一次的 GPU 通道采样;当设备不支持时间戳查询时为 null。",
       "gpuFrameMs": "`gpuPassMs.frame` 所描述图像的 GPU 时长。绝不会被加到任何 `cpu*` 字段中。设备每隔几帧采样一次,因此数值可能来自几帧之前。在首次采样之前、从保持的图像到设备的下一次采样、在没有 `timestamp-query` 的设备上以及在没有 `EXT_disjoint_timer_query_webgl2` 的 WebGL2 上为 null。",
       "gpuHostGapMs": "同一张图像在自己两次提交之间所耗费的 CPU 时间;只提交一次时为零。这是宿主时间而非 GPU 时间,这正是 `gpuFrameMs` 不包含它的原因。未测量时为 null。",
+      "gpuDeviceLost": "GPU 设备丢失的原因；设备保持期间为 null。",
       "uncoveredTriangles": "已发布的裁切集合中提到、但本帧无法绘制的簇所对应的三角形——既没有常驻页面,也没有可覆盖的祖先。这是画面中真实存在的空洞:唯一健康的值是零。当某个后端无法判断时为 null(它只绘制自己选中的裁切,因此永远不会出现这种情况)。",
       "drawnTriangles": "**当前帧**交给绘制的三角形数:即层级结构中不透明与透明部分合并后的簇裁切集合。层级结构之外的透明网格不包含在内(见 `transparentSubmittedTriangles`),遮挡剔除的部分也不会从中扣除(见 `hizRejectedTriangles`)。它在裁切确定时计算得出:不需要等待任何异步的 GPU 回读,因此不会像 `submittedTriangles` 那样因为时间不够而变成 `null`。",
       "cpuSelectMs": "本帧簇裁切的 CPU 耗时,仅围绕选择过程本身测量。在不通过 CPU 选择裁切的引擎上为 null。",
@@ -3270,6 +3271,7 @@
       "counts": "上一个计划做了什么，以页计。",
       "spent": "上一次计划用于读取请求报告和接纳页面的 CPU 毫秒数。",
       "worldChanged": "某个节点移动了：其包围盒在下一个计划中使其覆盖的页失效。",
+      "changeRoom": "列表溢出前仍可分开保存的包围盒数量。",
       "representationChanged": "同一世界的另一精度：其包围盒等待相机停下。",
       "resting": "上一次规划时相机静止：其视图与再前一次规划相同。",
       "deferredChanges": "当表示变化在等待相机停下时为真。",
@@ -3693,7 +3695,8 @@
       "total": "任务总数。",
       "stream": "写到哪里。",
       "width": "进度条宽度。",
-      "interval": "两次重绘之间的最短毫秒数。"
+      "interval": "两次重绘之间的最短毫秒数。",
+      "verbose": "在任务结束的摘要中也列出信息代码和每一次出现。"
     }
   },
   "Texture-common": {
@@ -4323,6 +4326,7 @@
       "gpuPassMs": "该后端最近一次的 GPU 通道采样;当设备不支持时间戳查询时为 null。",
       "gpuFrameMs": "`gpuPassMs.frame` 所描述图像的 GPU 时长。绝不会被加到任何 `cpu*` 字段中。设备每隔几帧采样一次,因此数值可能来自几帧之前。在首次采样之前、从保持的图像到设备的下一次采样、在没有 `timestamp-query` 的设备上以及在没有 `EXT_disjoint_timer_query_webgl2` 的 WebGL2 上为 null。",
       "gpuHostGapMs": "同一张图像在自己两次提交之间所耗费的 CPU 时间;只提交一次时为零。这是宿主时间而非 GPU 时间,这正是 `gpuFrameMs` 不包含它的原因。未测量时为 null。",
+      "gpuDeviceLost": "GPU 设备丢失的原因；设备保持期间为 null。",
       "uncoveredTriangles": "已发布的裁切集合中提到、但本帧无法绘制的簇所对应的三角形——既没有常驻页面,也没有可覆盖的祖先。这是画面中真实存在的空洞:唯一健康的值是零。当某个后端无法判断时为 null(它只绘制自己选中的裁切,因此永远不会出现这种情况)。",
       "drawnTriangles": "**当前帧**交给绘制的三角形数:即层级结构中不透明与透明部分合并后的簇裁切集合。层级结构之外的透明网格不包含在内(见 `transparentSubmittedTriangles`),遮挡剔除的部分也不会从中扣除(见 `hizRejectedTriangles`)。它在裁切确定时计算得出:不需要等待任何异步的 GPU 回读,因此不会像 `submittedTriangles` 那样因为时间不够而变成 `null`。",
       "cpuSelectMs": "本帧簇裁切的 CPU 耗时,仅围绕选择过程本身测量。在不通过 CPU 选择裁切的引擎上为 null。",
@@ -4438,7 +4442,7 @@
       "signal": "当该信号被中止时停止世界的加载操作。",
       "physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。",
       "temporalAntialiasing": "时间性抗锯齿，仅限 WebGPU：跨帧累积的亚像素抖动。`false` 在每个像素中心绘制，没有历史，这是逐像素精确截图所需；之后通过 `world.temporalAntialiasing` 切换。",
-      "renderScale": "图像按每个轴绘制的显示比例，在时间抗锯齿把它重建到显示尺寸之前：`'auto'` 让帧预算在 `min` 和 `max` 之间选择（`{ min, max }`，默认 0.5 和 1；在只做重采样的 WebGL2 上，`min` 默认为 1），数字则将其固定；静止的图像按最大值绘制。之后通过 `world.renderScale` 修改。"
+      "renderScale": "图像按每个轴绘制的显示比例，在时间抗锯齿把它重建到显示尺寸之前：`'auto'` 让帧预算在 `min` 和 `max` 之间选择（`{ min, max }`，默认 0.5 和 1；在只做重采样的 WebGL2 上，`min` 默认为 1），数字则将其固定。在 WebGPU 上，静止的图像同样按该比例绘制，并由其抖动相位重建；在 WebGL2 上按最大值绘制。之后通过 `world.renderScale` 修改。"
     }
   },
   "RenderScale": {
@@ -5043,13 +5047,14 @@
   "createTerminalProgress": {
     "summary": "一个跟随编译器事件更新的终端进度条。",
     "parameters": {
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}": "终端进度显示的外观。",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.label": "该任务的名称。",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.index": "该任务的编号。",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.total": "任务总数。",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.stream": "写到哪里。",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.width": "进度条宽度。",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.interval": "两次重绘之间的最短毫秒数。"
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}": "终端进度显示的外观。",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.label": "该任务的名称。",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.index": "该任务的编号。",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.total": "任务总数。",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.stream": "写到哪里。",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.width": "进度条宽度。",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.interval": "两次重绘之间的最短毫秒数。",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.verbose": "在任务结束的摘要中也列出信息代码和每一次出现。"
     }
   },
   "createTransformTree": {
@@ -5082,7 +5087,7 @@
       "options.signal": "当该信号被中止时停止世界的加载操作。",
       "options.physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。",
       "options.temporalAntialiasing": "时间性抗锯齿，仅限 WebGPU：跨帧累积的亚像素抖动。`false` 在每个像素中心绘制，没有历史，这是逐像素精确截图所需；之后通过 `world.temporalAntialiasing` 切换。",
-      "options.renderScale": "图像按每个轴绘制的显示比例，在时间抗锯齿把它重建到显示尺寸之前：`'auto'` 让帧预算在 `min` 和 `max` 之间选择（`{ min, max }`，默认 0.5 和 1；在只做重采样的 WebGL2 上，`min` 默认为 1），数字则将其固定；静止的图像按最大值绘制。之后通过 `world.renderScale` 修改。"
+      "options.renderScale": "图像按每个轴绘制的显示比例，在时间抗锯齿把它重建到显示尺寸之前：`'auto'` 让帧预算在 `min` 和 `max` 之间选择（`{ min, max }`，默认 0.5 和 1；在只做重采样的 WebGL2 上，`min` 默认为 1），数字则将其固定。在 WebGPU 上，静止的图像同样按该比例绘制，并由其抖动相位重建；在 WebGL2 上按最大值绘制。之后通过 `world.renderScale` 修改。"
     }
   },
   "crossVector3": {

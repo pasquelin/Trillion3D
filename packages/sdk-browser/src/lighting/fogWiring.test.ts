@@ -11,13 +11,13 @@ import { BLEND_VIEW_SIZE } from '../webgpu/blend/uniforms.ts';
 import { CLUSTER_FRAGMENT } from '../webgl/cluster/shaders.ts';
 import { SURFACE_MODEL } from '../scene/surfaceModel.ts';
 import { SHADE_SHADER as SURFACE_SHADE } from '../visibility/shader/shadeWgsl.ts';
-import { contractLightingShader } from './deferred/shaders.ts';
-import { blendShader } from '../webgpu/blend/shader.ts';
 import { waterCompositeShader } from '../webgpu/water/compositeWgsl.ts';
+import {
+  BLEND_SHADER,
+  BOUNCE_LIGHTING_SHADER,
+  DIRECT_LIGHTING_SHADER,
+} from '../gpu/core/shaderTexts.fixture.ts';
 
-const BOUNCE_LIGHTING_SHADER = contractLightingShader(true, false);
-const DIRECT_LIGHTING_SHADER = contractLightingShader(false, false);
-const BLEND_SHADER = blendShader();
 const WATER_COMPOSITE_SHADER = waterCompositeShader();
 
 test('the opaque resolve fogs its lit sum at the pixel, from the eye in display.yzw', () => {

@@ -111,4 +111,4 @@ ${TAA_REPROJECT_WGSL}
 ${CATMULL_ROM_WGSL}
 ${PLACEMENT_TAG_WGSL}
 ${CURRENT_SHARE_WGSL}
-struct TaaOut{@location(0) color:vec4f,@location(1) share:vec2f,${filtered ? '@location(2) tint:vec4f,@location(3) add:vec4f,' : ''}}`;
+struct TaaOut{@location(0) color:vec4f,@location(1) share:vec4f,${filtered ? '@location(2) tint:vec4f,@location(3) add:vec4f,' : ''}}`;

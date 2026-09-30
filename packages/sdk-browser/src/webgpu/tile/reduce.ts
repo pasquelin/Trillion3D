@@ -11,6 +11,7 @@
  */
 import { FEEDBACK_EVERY, FEEDBACK_STRIDE } from './feedback.ts';
 import { REDUCE_WGSL, REDUCE_WORKGROUP } from './reduceWgsl.ts';
+import { preparedComputePipeline, started } from '../../lighting/deferred/fullscreen.ts';
 
 export type WebgpuTileReduce = {
   /** Encodes reduction of the target into the counters, for the image's phase. */
@@ -35,11 +36,13 @@ export function createWebgpuTileReduce(device: GPUDevice): WebgpuTileReduce | un
       { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
     ],
   });
-  const pipeline = device.createComputePipeline({
-    label: 'Trillion3D texture feedback reduce',
-    layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-    compute: { module: device.createShaderModule({ code: REDUCE_WGSL }), entryPoint: 'reduce' },
-  });
+  const pipeline = started(
+    preparedComputePipeline(device, {
+      label: 'Trillion3D texture feedback reduce',
+      layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
+      compute: { module: device.createShaderModule({ code: REDUCE_WGSL }), entryPoint: 'reduce' },
+    }),
+  );
   const uniform = device.createBuffer({
     label: 'Trillion3D texture feedback reduce uniform',
     size: 16,
@@ -69,7 +72,7 @@ export function createWebgpuTileReduce(device: GPUDevice): WebgpuTileReduce | un
       const cols = every ? size[0] : Math.ceil(size[0] / FEEDBACK_STRIDE),
         rows = every ? size[1] : Math.ceil(size[1] / FEEDBACK_STRIDE);
       const pass = encoder.beginComputePass({ label: 'Trillion3D texture feedback reduce' });
-      pass.setPipeline(pipeline);
+      pass.setPipeline(pipeline.get());
       pass.setBindGroup(0, group!);
       pass.dispatchWorkgroups(
         Math.ceil(cols / REDUCE_WORKGROUP),

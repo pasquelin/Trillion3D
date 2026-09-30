@@ -23,7 +23,7 @@ test("a GPU-drawn page's casters land on its square of the layer, its fragments 
   const { freshPlace, freshInPage } = shaderRun<{
     freshPlace: (view: object, p: number[]) => number[];
     freshInPage: (view: object, at: number[]) => boolean;
-  }>(SHADOW_DEPTH_SHADER, ['freshPlace', 'freshInPage'], {});
+  }>(SHADOW_DEPTH_SHADER, ['freshPlace', 'freshInPage', 'pageHolds', 'pageFirst'], {});
   for (const page of [0, 5, 17, SIDE * SIDE - 1]) {
     pack.writePage(0, new Float32Array(16), 0, page, undefined, 0);
     const words = pack.facePacked,

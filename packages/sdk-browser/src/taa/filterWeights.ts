@@ -6,15 +6,33 @@
  * table is computed once, and never per frame nor per pixel.
  */
 import { hypot2 } from '../../../sdk-core/src/math/primitives/hypot.ts';
+import { PI, shaderFloat } from '../lighting/shaderConstants.ts';
 
 /** Nine weights, stored neighbour by neighbour (dy then dx, from −1 to 1), three `vec4f` in the uniform. */
 export const TAA_WEIGHTS = 12;
 
+/** The four-term Blackman-Harris coefficients, the TypeScript and the WGSL window's alike. */
+const BLACKMAN_HARRIS = [0.35875, 0.48829, 0.14128, 0.01168] as const;
+
 /** The window on `[0, 1]` of the radius, zero beyond. */
 function blackmanHarris(distance: number) {
-  const x = Math.min(1, Math.max(0, distance)) * Math.PI + Math.PI;
-  return 0.35875 - 0.48829 * Math.cos(x) + 0.14128 * Math.cos(2 * x) - 0.01168 * Math.cos(3 * x);
+  const x = Math.min(1, Math.max(0, distance)) * Math.PI + Math.PI,
+    [a0, a1, a2, a3] = BLACKMAN_HARRIS;
+  return a0 - a1 * Math.cos(x) + a2 * Math.cos(2 * x) - a3 * Math.cos(3 * x);
 }
+
+/** The same window in WGSL, for the still image drawn below the display (`upscaleWgsl.ts`), and
+ *  zero from the radius on, where the window keeps six hundred-thousandths. One cosine: with
+ *  `c = cos(πd)`, `cos(πd+π) = −c`, `cos 2x = 2c²−1` and `cos 3x = −(4c³−3c)`. */
+export const BLACKMAN_HARRIS_WGSL = (() => {
+  const [a0, a1, a2, a3] = BLACKMAN_HARRIS.map(shaderFloat);
+  return `
+fn blackmanHarris(d:f32)->f32{
+ if(d>=1.0){return 0.0;}
+ let c=cos(d*${PI});
+ return ${a0}+${a1}*c+${a2}*(2.0*c*c-1.0)+${a3}*c*(4.0*c*c-3.0);
+}`;
+})();
 
 /**
  * Write the nine normalised weights at `out[at..]`, from jitter `(jx, jy)` in pixels. A

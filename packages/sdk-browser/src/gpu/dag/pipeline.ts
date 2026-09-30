@@ -28,7 +28,7 @@ export function createDagPipeline(
       code: withScreenErrorVariant(dagSelectionShader(split), screenErrorVariant()),
     });
     if (await shaderFailed(module)) return undefined;
-    const stages = createDagStages(device, layout, module, frames.ranges.length > 1);
+    const stages = await createDagStages(device, layout, module, frames.ranges.length > 1);
     const ranges = frames.bindGroups(layout, buffers);
     return {
       /** Bind layout, returned with the stages: the dispatch bench mounts the previous cut on

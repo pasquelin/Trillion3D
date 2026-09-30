@@ -9,8 +9,9 @@ import {
 import { ALLOC_PARAM_WORDS } from './allocWgsl.ts';
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { FRESH_FACE_WORDS, FRESH_PARAM_WORDS, FRESH_PARAMS, freshArgWords } from './freshLayout.ts';
-import { DRAWN_HOST, POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
-import { WORDS_HEADER } from './wordsWgsl.ts';
+import { POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
+import { DRAWN_HOST } from './poolDrawn.ts';
+import { WORDS_HEADER, sentShadowWord } from './wordsWgsl.ts';
 
 /** The power of two at least `n`: what a bitonic sort of `n` keys spans. */
 const spanOf = (n: number) => 2 ** Math.ceil(Math.log2(Math.max(2, n)));
@@ -113,14 +114,16 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
       freshFloats.set(slices, FRESH_PARAM_WORDS);
       device.queue.writeBuffer(freshParams, 0, fresh);
     },
-    /** The frame's parameters: its frame, each slice's generation, the host's asks. */
-    writeParams(frame: number, generation: Uint32Array, asks: ShadowAsks) {
+    /** The frame's parameters: its frame, each slice's generation, the host's asks, and the
+     *  first frame whose asks no need evicts (`allocWgsl.ts`), this one by default. */
+    writeParams(frame: number, generation: Uint32Array, asks: ShadowAsks, keepFrom = frame) {
       const count = Math.min(asks.count, cap);
       params[0] = frame;
       params[1] = pages;
       params[2] = cap;
       params[3] = count;
       params[4] = needSpan;
+      params[5] = keepFrom;
       params.set(generation, 8);
       params.set(asks.entries.subarray(0, count), ALLOC_PARAM_WORDS);
       device.queue.writeBuffer(paramBuffer, 0, params, 0, ALLOC_PARAM_WORDS + count);
@@ -136,7 +139,7 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
       let count = 0;
       allocation.lost = 0;
       const send = (entry: number) => {
-        const word = table.words[entry];
+        const word = sentShadowWord(table, entry);
         if (!(word & PAGE_MAPPED)) return;
         if (!(word & PAGE_VALID)) allocation.lost++;
         words[WORDS_HEADER + 2 * count] = entry;

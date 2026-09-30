@@ -199,11 +199,13 @@ display pixel, the 3×3 render texels around it, depth-dilated, Lanczos-2 resamp
 jittered sample, deringed and clamped to the YCoCg box, blended into the display-size history
 (`taa/upscaleWgsl.ts`). The jitter runs `floor(8 · (W / w)²)` phases and texture reads add
 `log2(w / W)` to their level, so detail stays the display's. The controller follows the reference's
-dynamic resolution (`frame/scaleController.ts`): budget = the display's measured refresh interval,
-target 90 % of it, `s' = s · √(target / t)` on the whole-frame GPU time `t` (timestamp queries, one
+dynamic resolution (`frame/scaleController.ts`): budget = the display's refresh interval, measured
+on the rAF timestamps' vsync grid over the last second, from a period several intervals share,
+a millisecond-rounded timer included (`frame/refreshClock.ts`), a steady cadence under 120 Hz
+probed once for a faster display (`frame/cadenceProbe.ts`), target 90 % of it, `s' = s · √(target / t)` on the whole-frame GPU time `t` (timestamp queries, one
 sample per image under `'auto'`), a step only past 5 % and 30 samples after the last, up only below
 80 % of the target, at once on a frame over 1.25 budgets; samples of an image drawn at another scale
-are discarded; without timestamp queries it holds the maximum. The render targets are made once at
+are discarded; without timestamp queries the frame interval is the cost. The render targets are made once at
 the bounds' maximum and each image draws in their top-left `w × h` (viewports, the Hi-Z pyramid's
 extent, the deferred and water passes, screen reflections, particles and guides read that size), so
 a scale change reallocates nothing and keeps the history. A quiet image draws at the maximum — 1
@@ -305,6 +307,21 @@ range, at most 512 cells a lamp), plus the lights that reach every fragment. The
 the CPU into one integer texture only when a lamp's position or range changes; a camera-only move
 sends only the view-to-grid matrix (`webgl/cluster/lightLists.ts`, #835).
 
+**One light costs what it lights.** A frame no light of which holds a shadow slot is resolved by a
+program built without the shadow code (`declaredLightWgsl`, `lighting/direct/lightLoopWgsl.ts`,
+#1249; chosen per frame, `contractVariants.ts`, its twin with shadow code compiled beside it): an
+unshadowed light never runs that code, yet the registers it holds cost the light 40 % of its
+evaluation. That program's one light loop (`sliceLightingWgsl`) also rejects a light on its sphere
+alone, before its record is read in full, where the point lies past its range by a ten-thousandth
+of its squared range — exactly where `declaredLight` would have given zero before any shading. The
+sums are the same, bit for bit (`tests/browser/probes/narrow-resolve-gpu.ts`). The program with
+shadow code keeps develop's loop: there the reject's test cost a light in range 13 % it never
+repaid. Timed on the resolve (64 lamps, a million pixels, M2 Max), per light and pixel against
+develop, no shadow slot: in range 42.3 → 27.8 ps, out of range 28.1 → 10.6 ps. A light grid over
+the tiles (16 log-Z slices, a 64-bit mask each) was built and timed: at 3456 × 2234 it added 1.0 ms
+to the tile pass and removed 3 % of the lights walked on a sponza-sized atrium — once lights past
+their range are rejected on their sphere, a grid can only save that reject, never a light's shading.
+
 **A moving image samples its shadowed lights.** It weighs every light of its tile without its
 shadow (the cheap part) and shades four in full, shadow included. A light worth a sample's share of
 the pixel's weight is shaded exactly and leaves the pool; the other samples are drawn along the
@@ -312,7 +329,9 @@ cumulative weight from a per-pixel offset that advances by the golden ratio ever
 divided by its probability. The estimate is unbiased, so the history averages it toward the full
 sum; a still image — the quiet ones, a capture, a diagnostic view — shades every light of the tile.
 The tile pass records once per tile whether its opaque list holds a shadowed light
-(`TILE_SHADOW_BASE`, `lighting/tiles/compactWgsl.ts`); a list with none is never sampled — with no
+(`TILE_SHADOW_BASE`, `lighting/tiles/compactWgsl.ts`), read beside the list's count: only a list of 5
+to 64 lights that holds one is sampled, as the per-pixel list walk it replaces decided; a list with
+none is never sampled — with no
 shadow to save, the three weight walks would cost three times the full sum — but summed in full as
 the still one is, bit for bit, the resolve never walking the list a pixel at a time
 (`tileShadowed`, `tests/browser/probes/sampled-resolve-gpu.ts`, #1249). 200 unshadowed lamps of
@@ -471,8 +490,11 @@ is created. A mixed session (measurement only) composes on a WebGL2 surface: the
 into a canvas of its own, publishes it as `presentedSurface`, and the host copies it with the
 engine's own full-screen program (`createBackendPresenter`). `presentedSurface` is withdrawn, and
 the canvas blanked, as soon as the device is lost; the loss is announced once by `gpu-device-lost`
-(`reason`: the device's own, `uncaptured-error`, `out-of-memory` or `residency`). Neither path
-reads the image back for presentation.
+(`reason`: the device's own, `uncaptured-error`, `out-of-memory` or `residency`). Every frame's
+metrics name it too (`gpuDeviceLost`, `reason: message`), with the device's own cause added, and
+said on the console, when it comes after the error that abandoned the device. Neither path reads
+the image back for presentation. Playwright's own headless shell loses the device of every
+WebGPU canvas after its first frame: `launchChrome` always opens the system Chrome (#1364).
 
 A world keeps its device across sessions, and each session creates through its own handle on it
 (`gpu/core/sessionHandle.ts`, `gpu/core/deviceOwners.ts`), which tags every label. `dispose`
@@ -512,7 +534,7 @@ nothing.
   is one `writeBuffer` per list (a normal with its tangent) into its block, plus the fallback draw's
   positions; a record mounted later takes a block of that room (`place`), and past it the session
   opens again. Each root drawing the geometry turns moving for the shadow pool, and the world box of
-  the moved vertices stales the pages it covers (`movedBatch.ts`, #489). Its rows carry
+  the moved vertices stales the pages it covers (`movedGeometry.ts`, #489). Its rows carry
   `FLAG_DYNAMIC`: the temporal pass takes those pixels as reactive, another shape's history dropped.
 - **WebGL2.** The manifest keeps a dynamic primitive's index pages (`sourcedPages.ts`), drawn over
   the host geometry's own lists, uploaded once per rewrite by their written ranges

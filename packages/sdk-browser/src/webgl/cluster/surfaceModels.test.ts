@@ -19,9 +19,8 @@ import {
   perspectiveProjection,
   updateCameraFrame,
 } from '../../../../sdk-core/src/math/primitives/camera.ts';
-import { contractLightingShader } from '../../lighting/deferred/shaders.ts';
+import { DIRECT_LIGHTING_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
 
-const DIRECT_LIGHTING_SHADER = contractLightingShader(false, false);
 const NORMAL_VIEW_COLOR = 'N*0.5+0.5';
 
 type Vector = number[];

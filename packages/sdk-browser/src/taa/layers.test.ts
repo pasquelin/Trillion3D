@@ -88,6 +88,10 @@ test('the upscaling resolve clamps the layers to their box and mixes their writt
     jitter: JITTER,
     color: () => flat,
     layer: checker,
+    // Moving, since a still image below the display averages by its own weights (#1343); a
+    // reactive value of 0.25 holds the current share at 0.25 whatever each pixel's reach.
+    moving: true,
+    reactive: () => 0.25,
   };
   assertLayers(frame, false, (x, y) => owed({ ...frame, color: checker }, x, y, 'box'));
 });

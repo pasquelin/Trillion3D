@@ -1,4 +1,5 @@
 import type { DirectLightResources } from '../../../lighting/deferred/program.ts';
+import type { LitPrograms } from '../../../lighting/deferred/deferred.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /**
@@ -19,14 +20,31 @@ export function wantsContractLighting(rt: WebgpuPagesRuntime) {
 export const readsAsIs = ({ vis, run }: WebgpuPagesRuntime) =>
   vis.asIsShown || run.diagnostic !== 'beauty';
 
-/** The deferred lighting while the image wants the contract but still resolves unlit — its
- *  program compiles, and its arrival changes the image —, else nothing. */
-export function compilingContract(rt: WebgpuPagesRuntime) {
+/** The lit programs prepare compiles beside the others when the image wants the contract (#1362),
+ *  with bounce too when the session wants it; a failed one is said, then or later. */
+export const litPrograms = (rt: WebgpuPagesRuntime): LitPrograms => ({
+  precompile: wantsContractLighting(rt),
+  bounce: rt.bounce.wanted,
+  onFailure: (error) => rt.diag.diagnosticFailure('direct-lighting-program-failed', error),
+});
+
+/** The lit program the frame waits for (#1362): while the image wants the contract and no compiled
+ *  program can light it, its compile — never the unlit stand-in meanwhile —, else nothing. */
+export function litProgramPending(rt: WebgpuPagesRuntime) {
   const { deferred } = rt.gpu;
-  return deferred && wantsContractLighting(rt) && !deferred.usesContract ? deferred : undefined;
+  // A lit image already has its program: nothing to read (`deviceAnswering` asks every frame).
+  return deferred && !deferred.usesContract && wantsContractLighting(rt)
+    ? deferred.awaited(directLightResources(rt))
+    : undefined;
 }
 
 const contractResources: DirectLightResources = {};
+
+/** Whether a light of the store holds a shadow slot, as the shaders read it (`params.y > -1`). */
+function sliced(store: WebgpuPagesRuntime['lights']['store']) {
+  for (let slot = 0; slot < store.count; slot++) if (store.sliceOf(slot) > -1) return true;
+  return false;
+}
 
 /**
  * Contract resources the deferred pass binds, or nothing when they do not exist. Each is returned as
@@ -41,6 +59,8 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
   contractResources.tiles = active ? lights.tiles?.buffer : undefined;
   // The narrow resolve reads the narrow pass's lists: no tile past its list, no pool (#849).
   contractResources.narrow = active && !!lights.tiles && !lights.tiles.wide;
+  // No light holds a shadow slot this frame: the resolve with no shadow code (#1249).
+  contractResources.unshadowed = active && !sliced(lights.store);
   contractResources.slices = active ? lights.shadows?.dataBuffer : undefined;
   contractResources.requests = active ? lights.pageRequests?.buffer : undefined;
   contractResources.atlas = active ? lights.shadows?.view : undefined;
