@@ -1,4 +1,4 @@
-import { createWebgpuEffects } from '../../../effects/webgpuEffects.ts';
+import { families } from '../../../host/families.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { AccumulatedImage, ComposedImage } from '../../../lighting/deferred/program.ts';
 
@@ -31,9 +31,13 @@ export function encodeEffects(
   if (passes.length && (run.diagnostic !== 'beauty' || rt.capture.capturing)) return accumulated;
   const input = accumulated?.color ?? gpu.hdrView;
   if ((!passes.length && !gpu.effects) || !input) return accumulated;
-  gpu.effects ??= createWebgpuEffects(device, (error) =>
-    rt.diag.diagnosticFailure('effects-unavailable', error),
-  );
+  // Its code, which the frame waited for (`../../../host/families.ts`); refused, no chain drawn.
+  gpu.effects ??= families.effects
+    .get()
+    ?.createWebgpuEffects(device, (error) =>
+      rt.diag.diagnosticFailure('effects-unavailable', error),
+    );
+  if (!gpu.effects) return accumulated;
   // After the resolve: at the display's size.
   const [width, height] = gpu.displaySize;
   // The composition blends the last bloom in once its programs are compiled (#963): same image.

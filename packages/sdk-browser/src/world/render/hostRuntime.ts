@@ -4,6 +4,7 @@ import { createExplorerCaptureView } from '../capture/view.ts';
 import { createExplorerHostState } from './hostState.ts';
 import { createExplorerHostFrame } from './hostFrame.ts';
 import { createExplorerLifecycle } from '../session/lifecycle.ts';
+import { frameWaits } from '../session/familyUse.ts';
 import type { ExplorerResources, prepareExplorer } from '../session/prepare.ts';
 import type { ExplorerSession } from '../session/session.ts';
 
@@ -43,6 +44,8 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     check,
     setPose,
   } = host;
+  /** The frame composes two engines in a layout (`render.ts`): the measurement's compositor. */
+  const comparing = () => state.comparisonLayout !== 'single' && !state.measuring;
   const { render, profiler, streaming, followCells } = createExplorerHostFrame(session, {
     prepared,
     host,
@@ -91,16 +94,20 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     backends,
     canvas,
     render,
+    /** The families the next frame draws with still on their way, `undefined` once none is: a
+     *  frame that waits is not drawn (`familyUse.ts`). */
+    familiesPending: () => frameWaits(options, state.diagnostic, comparing()),
     async pendingFrame() {
+      // A frame that waited for a family on its way is drawn once it has arrived.
+      const families = frameWaits(options, state.diagnostic, comparing());
       const loading = streaming.promise;
-      await loading;
+      await Promise.all([families, loading]);
       if (state.disposed) return false;
       const pending = await state.active.pendingFrame?.();
       // Cells asked within reach are placed by the frames after their read, camera still or not.
       const cells = await followCells?.pending();
-      return (
-        !!loading || !!streaming.promise || streaming.arrivals.pending > 0 || !!pending || !!cells
-      );
+      const arriving = !!families || !!loading || !!streaming.promise;
+      return arriving || streaming.arrivals.pending > 0 || !!pending || !!cells;
     },
     /** The engine's camera pages made resident so far, when it counts them. */
     landings: () => state.active.landings?.(),

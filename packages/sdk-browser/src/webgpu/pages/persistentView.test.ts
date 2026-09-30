@@ -13,6 +13,10 @@ import { flushWebgpuPages } from './render/flush.ts';
 import { renderWebgpuPages } from './render/render.ts';
 import { addWebgpuView, removeWebgpuView, renderWebgpuView } from './state/persistentView.ts';
 import type { WebgpuPagesBackend } from './runtime.ts';
+import { families } from '../../host/families.ts';
+
+// The effects' code, which a frame that draws them waits for (`familyUse.ts`), arrived.
+await families.effects.load();
 
 const RECT = { x: 4, y: 4, width: 16, height: 8 };
 

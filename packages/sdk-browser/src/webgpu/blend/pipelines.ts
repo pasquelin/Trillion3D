@@ -4,7 +4,6 @@ import { FEEDBACK_FORMAT } from '../../scene/surfaceBuffer.ts';
 import { BLEND_VIEW_SIZE } from './uniforms.ts';
 import type { BlendGpuItem } from './state.ts';
 import { BLEND_BINDINGS, atlasLayoutEntries, readOnly } from '../core/bindLayout.ts';
-import { WATER_SURFACE_WGSL } from '../water/surfaceWgsl.ts';
 import {
   declaredBlendModes,
   pipelinesByMode,
@@ -17,7 +16,8 @@ import { COVERAGE_EQUATIONS, filtersDisplay } from './equations.ts';
 import { displayTargets } from './displayFilter.ts';
 import { SHARE_TARGET } from '../../lighting/deferred/asIsShare.ts';
 import { createRoutedPipelines } from './routedPipelines.ts';
-import { createWaterPass, type WaterPass } from '../water/pass.ts';
+import type { WaterPass } from '../water/waterPass.ts';
+import { families } from '../../host/families.ts';
 import {
   blendVariantPipeline,
   DIAGNOSTIC_BLEND_WGSL,
@@ -126,27 +126,20 @@ export async function createWebgpuBlendPipelines(
   // The water pass exists for a scene that transmits, outside any diagnostic variant: under one,
   // the transmission slice draws as one more blend, the same fragment stage measured on all.
   const wantsWater = !variant && items.some((item) => item.transmissive);
+  // Its code, transmission's, is imported by the first scene that transmits, glass or water, and
+  // awaited here as the scene's other resources are, before any frame (#1353). A refused import,
+  // as a refused pass, keeps the blends and says why.
+  const transmission = families.transmission;
+  const waterCode = wantsWater ? await transmission.load().catch(() => undefined) : undefined;
+  let waterRefused = wantsWater ? transmission.failed : undefined;
   let code =
     blendShader(sunWindow) +
-    (wantsWater ? WATER_SURFACE_WGSL : '') +
+    (waterCode?.WATER_SURFACE_WGSL ?? '') +
     (variant ? DIAGNOSTIC_BLEND_WGSL : '');
   if (!feedback) {
     for (const entry of ['fs', 'fsFiltered'])
       code = feedbackFreeEntry(code, entry, 'BlendOut', BLEND_OUT, ...FRAGMENT_IN);
-    if (wantsWater)
-      code = feedbackFreeEntry(
-        code,
-        'fsWater',
-        'WaterOut',
-        [
-          ['baseMetal', 'vec4f'],
-          ['normalRough', 'vec4f'],
-          ['emissiveAo', 'vec4f'],
-          ['word', 'vec4f'],
-        ],
-        'in:VSOut,@builtin(front_facing) front:bool',
-        'in,front',
-      );
+    if (waterCode) code = waterCode.waterWithoutFeedback(code);
   }
   const blendModule = device.createShaderModule({ code: code });
   // Two lazy sets (#365): with no reader of the share its slot stays empty, no target is bound.
@@ -188,12 +181,11 @@ export async function createWebgpuBlendPipelines(
     },
   };
   // A device that refuses the pass keeps the blends, and `waterRefused` names why to the caller.
-  let water: WaterPass | undefined, waterRefused: Error | undefined;
-  if (wantsWater)
-    try {
-      water = await createWaterPass(device, blendModule, blendBindGroupLayout, feedback, sunWindow);
-    } catch (error) {
+  const water: WaterPass | undefined = await waterCode
+    ?.createWaterPass(device, blendModule, blendBindGroupLayout, feedback, sunWindow)
+    .catch((error: unknown) => {
       waterRefused = error instanceof Error ? error : new Error(String(error));
-    }
+      return undefined;
+    });
   return { blendBindGroupLayout, blendPipelines, water, waterRefused };
 }

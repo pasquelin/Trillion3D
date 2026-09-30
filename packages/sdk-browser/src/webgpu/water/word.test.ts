@@ -4,12 +4,8 @@
 // returned — through the GPU's float-to-unorm8 store and its unorm8-to-float load.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  WATER_MAX_ITEMS,
-  WATER_RANK_SHIFT,
-  WATER_SURFACE_WGSL,
-  WATER_UNPACK_WGSL,
-} from './surfaceWgsl.ts';
+import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from './rank.ts';
+import { WATER_SURFACE_WGSL, WATER_UNPACK_WGSL } from './surfaceWgsl.ts';
 import { WATER_COMPOSITE_SHADER } from './compositeWgsl.ts';
 import { shaderFunctions } from '../../texture/shaderRule.fixture.ts';
 
