@@ -1,4 +1,5 @@
 import { crc32, deflateSync, inflateSync } from 'node:zlib';
+import { compilerError } from '../messages/catalogue.mts';
 
 /** One PNG chunk: length, type, payload, and the CRC that `node:zlib` already knows how to compute. */
 function chunk(kind: string, body: Uint8Array): Buffer {
@@ -61,17 +62,18 @@ export function decodePng(png: Uint8Array, flipY = false) {
     if (kind === 'IHDR') {
       [width, height] = [body.readUInt32BE(0), body.readUInt32BE(4)];
       if (body[8] !== 8 || body[9] !== 6 || body[12] !== 0)
-        throw new Error('decodePng reads 8-bit RGBA without interlacing only');
+        throw compilerError('CUTOUT_PREVIEW_UNSUPPORTED', 'not 8-bit RGBA, or interlaced');
     } else if (kind === 'IDAT') data.push(body);
     at += length + 12;
   }
   const [raw, stride] = [inflateSync(Buffer.concat(data)), width * 4];
   if (bytes.readBigUInt64BE(0) !== 0x89504e470d0a1a0an || raw.length !== height * (stride + 1))
-    throw new Error('decodePng reads a whole PNG only: its signature, IHDR and every row');
+    throw compilerError('CUTOUT_PREVIEW_UNSUPPORTED', 'signature, IHDR or rows missing');
   const rgba = new Uint8Array(height * stride);
   for (let y = 0; y < height; y++) {
     const [filter, from, row] = [raw[y * (stride + 1)] ?? 0, y * (stride + 1) + 1, y * stride];
-    if (filter > 4) throw new Error(`PNG filter ${filter} does not exist`);
+    if (filter > 4)
+      throw compilerError('CUTOUT_PREVIEW_UNSUPPORTED', `unknown row filter ${filter}`);
     for (let x = 0; x < stride; x++) {
       const left = x >= 4 ? (rgba[row + x - 4] ?? 0) : 0;
       const up = y > 0 ? (rgba[row - stride + x] ?? 0) : 0;

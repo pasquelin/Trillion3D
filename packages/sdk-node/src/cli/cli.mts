@@ -1,5 +1,13 @@
 #!/usr/bin/env node
 import { prepare, createTerminalProgress } from '../index.mts';
+import { compilerError, describeMessage, messageOf } from '../messages/catalogue.mts';
+import { messageTally } from './messageTally.mts';
+
+/** Exit code of `--strict` when the compile succeeded with warnings; failures exit 1. */
+const STRICT_EXIT = 3;
+const FLAGS = new Set(['--strict', '--verbose']);
+const argv = process.argv.slice(2);
+const flags = new Set(argv.filter((arg) => arg.startsWith('--')));
 const [
   input,
   output,
@@ -9,24 +17,29 @@ const [
   threads = '2',
   ramBudgetMb = '256',
   simplification = 'none',
-] = process.argv.slice(2);
+] = argv.filter((arg) => !arg.startsWith('--'));
 const triangleBudget = Number(budget);
-if (!input || !output || !resourceBaseUrl)
-  throw new Error(
-    'Usage: trillion3d-compile SOURCE CACHE [slice|full] [triangle-budget] RESOURCE_BASE_URL [threads] [RAM_MB] [none|qem-endpoints]',
+const unknown = [...flags].filter((flag) => !FLAGS.has(flag));
+if (!input || !output || !resourceBaseUrl || unknown.length)
+  throw compilerError(
+    'INVALID_ARGS',
+    'usage: trillion3d-compile [--strict] [--verbose] SOURCE CACHE [slice|full] [triangle-budget] RESOURCE_BASE_URL [threads] [RAM_MB] [none|qem-endpoints]',
   );
-if (scope !== 'slice' && scope !== 'full') throw new Error('scope must be slice or full');
+if (scope !== 'slice' && scope !== 'full')
+  throw compilerError('INVALID_OPTIONS', 'scope must be slice or full');
 if (!Number.isSafeInteger(triangleBudget) || triangleBudget < 1)
-  throw new Error('triangle-budget must be a positive integer');
+  throw compilerError('INVALID_OPTIONS', 'triangle-budget must be a positive integer');
 if (simplification !== 'none' && simplification !== 'qem-endpoints')
-  throw new Error('simplification must be none or qem-endpoints');
+  throw compilerError('INVALID_OPTIONS', 'simplification must be none or qem-endpoints');
+const [strict, verbose] = [flags.has('--strict'), flags.has('--verbose')];
 const controller = new AbortController();
 process.once('SIGINT', () => controller.abort());
-// A terminal gets a live bar; a pipe (CI, another program) gets the raw JSON events.
-const progress =
-  process.stderr.isTTY && !process.env.TRILLION3D_RAW_EVENTS
-    ? createTerminalProgress({ label: input })
-    : null;
+// A terminal gets a live bar and a short summary; a pipe (CI, another program) gets the raw JSON
+// events, then the same summary as JSON events.
+const raw = !process.stderr.isTTY || Boolean(process.env.TRILLION3D_RAW_EVENTS);
+const progress = raw ? null : createTerminalProgress({ label: input });
+const messages = messageTally();
+const write = (value: unknown) => process.stderr.write(`${JSON.stringify(value)}\n`);
 const result = await prepare(input, output, scope, triangleBudget, {
   executable: process.env.TRILLION3D_COMPILER_BIN,
   resourceBaseUrl,
@@ -34,12 +47,19 @@ const result = await prepare(input, output, scope, triangleBudget, {
   ramBudgetMb: Number(ramBudgetMb),
   simplification,
   signal: controller.signal,
-  onProgress: (event) =>
-    progress ? progress.event(event) : process.stderr.write(`${JSON.stringify(event)}\n`),
+  onProgress: (event) => {
+    messages.record(event);
+    if (progress) progress.event(event);
+    else write(event);
+  },
 }).catch((error: unknown) => {
   progress?.fail(error instanceof Error ? error.message : String(error));
   throw error;
 });
+// The terminal already told each warning code once; `--verbose` adds the info codes and every
+// occurrence. A pipe gets the summary as events, info codes included on request.
+if (raw) messages.events('job', verbose).forEach(write);
+else if (verbose) for (const line of messages.lines(input, true)) process.stderr.write(`${line}\n`);
 const {
   status,
   key,
@@ -55,3 +75,9 @@ const {
 process.stdout.write(
   `${JSON.stringify({ status, key, scope: resultScope, url, pointer, cache, selectedTriangles, sourceTriangles, metrics, unsupported })}\n`,
 );
+if (strict && messages.warnings > 0) {
+  const count = messages.warnings;
+  if (raw) write({ event: 'error', job: 'job', ...messageOf('STRICT_WARNINGS'), count });
+  else process.stderr.write(`✖ ${describeMessage('STRICT_WARNINGS', `${count} warning(s)`)}\n`);
+  process.exitCode = STRICT_EXIT;
+}

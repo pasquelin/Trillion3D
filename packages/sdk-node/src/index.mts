@@ -2,11 +2,8 @@ import { readFile, writeFile, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { runCompiler } from './compiler/process.mts';
-export {
-  COMPILER_LINE_LIMIT,
-  CANCEL_GRACE_MS,
-  resolveCompilerExecutable,
-} from './compiler/process.mts';
+export { COMPILER_LINE_LIMIT, CANCEL_GRACE_MS } from './compiler/process.mts';
+export { resolveCompilerExecutable } from './compiler/executable.mts';
 export { getSdkProvenance } from './compiler/provenance.mts';
 import { DEFAULT_SCOPE, readPagedManifest } from '../../sdk-core/src/index.ts';
 import type { AssetScope } from '../../sdk-core/src/index.ts';
@@ -20,6 +17,9 @@ import type {
   CompilationResult,
   PrepareOptions,
 } from './compiler/contracts.ts';
+import { compilerError } from './messages/catalogue.mts';
+/** What the compiler prints on stdout when it refuses a job or a batch. */
+type CompilerRefusal = { status: 'error'; code?: string; message?: string };
 export { DEFAULT_SCOPE };
 export type {
   BatchJob,
@@ -62,7 +62,7 @@ export async function prepare(
   options?: PrepareOptions,
 ): Promise<CompilationResult> {
   if (typeof options?.resourceBaseUrl !== 'string' || !options.resourceBaseUrl)
-    throw new Error('resourceBaseUrl is required');
+    throw compilerError('INVALID_OPTIONS', 'resourceBaseUrl is required');
   const args = [
     input,
     output,
@@ -73,12 +73,13 @@ export async function prepare(
     options.resourceBaseUrl,
     options.simplification ?? 'none',
   ];
-  const pointer = await runCompiler<CompilationPointer | { status: 'error'; code?: string }>(
+  const pointer = await runCompiler<CompilationPointer | CompilerRefusal>(
     args,
     options,
     options.onProgress,
   );
-  if (pointer.status !== 'ready') throw new Error(pointer.code ?? 'COMPILER_NOT_READY');
+  if (pointer.status !== 'ready')
+    throw compilerError(pointer.code ?? 'COMPILER_NOT_READY', pointer.message);
   const path = join(output, 'native', pointer.scope, pointer.url);
   const root = JSON.parse(await readFile(path, 'utf8')) as Record<string, unknown>;
   const read = (page: { url: string }) => readFile(join(dirname(path), page.url));
@@ -115,10 +116,11 @@ export async function prepareMany(
   jobs: BatchJob[],
   options: BatchOptions = {},
 ): Promise<BatchSummary> {
-  if (!Array.isArray(jobs) || jobs.length === 0) throw new Error('jobs must be a non-empty array');
+  if (!Array.isArray(jobs) || jobs.length === 0)
+    throw compilerError('INVALID_BATCH', 'jobs must be a non-empty array');
   for (const job of jobs) {
     if (typeof job.resourceBaseUrl !== 'string' || !job.resourceBaseUrl)
-      throw new Error(`job ${job.id ?? '?'}: resourceBaseUrl is required`);
+      throw compilerError('INVALID_OPTIONS', `job ${job.id ?? '?'}: resourceBaseUrl is required`);
   }
   const directory = await mkdtemp(join(tmpdir(), 'trillion3d-batch-'));
   try {
@@ -132,12 +134,13 @@ export async function prepareMany(
         jobs,
       }),
     );
-    const summary = await runCompiler<BatchSummary | { status: 'error'; code?: string }>(
+    const summary = await runCompiler<BatchSummary | CompilerRefusal>(
       ['--jobs', file],
       options,
       options.onEvent,
     );
-    if (summary.status === 'error') throw new Error(summary.code ?? 'INVALID_BATCH');
+    if (summary.status === 'error')
+      throw compilerError(summary.code ?? 'INVALID_BATCH', summary.message);
     return summary;
   } finally {
     await rm(directory, { recursive: true, force: true });
