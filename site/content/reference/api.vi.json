@@ -3777,7 +3777,8 @@
       "total": "Tổng số công việc.",
       "stream": "Nơi để ghi.",
       "width": "Độ rộng thanh.",
-      "interval": "Số mili giây tối thiểu giữa các lần vẽ lại."
+      "interval": "Số mili giây tối thiểu giữa các lần vẽ lại.",
+      "verbose": "Cũng nêu các mã thông tin và từng lần xuất hiện trong bản tóm tắt cuối tác vụ."
     }
   },
   "Texture": {
@@ -5013,13 +5014,14 @@
   "createTerminalProgress": {
     "summary": "Một thanh tiến trình trong terminal theo dõi các sự kiện của trình biên dịch.",
     "parameters": {
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}": "Hiển thị tiến trình terminal trông như thế nào.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.label": "Tên của công việc.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.index": "Số thứ tự của công việc.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.total": "Tổng cộng có bao nhiêu công việc.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.stream": "Ghi vào đâu.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.width": "Chiều rộng thanh.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.interval": "Số mili giây tối thiểu giữa các lần vẽ lại."
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}": "Hiển thị tiến trình terminal trông như thế nào.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.label": "Tên của công việc.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.index": "Số thứ tự của công việc.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.total": "Tổng cộng có bao nhiêu công việc.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.stream": "Ghi vào đâu.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.width": "Chiều rộng thanh.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.interval": "Số mili giây tối thiểu giữa các lần vẽ lại.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.verbose": "Cũng nêu các mã thông tin và từng lần xuất hiện trong bản tóm tắt cuối tác vụ."
     }
   },
   "createTransformTree": {
