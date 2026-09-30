@@ -3,9 +3,10 @@ import { meshSurface } from '../surface.ts';
 import { spriteMark, withShadowless } from '../../visibility/shader/spriteWgsl.ts';
 import type { BlendCopy } from '../../cluster/blendCopyContract.ts';
 import { createBlendCopyRecord } from '../../cluster/blendCopyRecord.ts';
-import { objects, quantizationErrorOf } from './helpers.ts';
+import { objects } from './helpers.ts';
 import { primitiveFinder } from '../../scene/primitiveLookup.ts';
 import { createPrimitiveTemplates } from './template.ts';
+import { createPageRecords } from './collectRecords.ts';
 import { indexPageRequests } from './requests.ts';
 import { linkBundleDependencies } from './bundleDependencies.ts';
 import { hostWorldPlacements } from '../../host/world/placements.ts';
@@ -75,62 +76,14 @@ export function collectClusterPages(
     const template = templates.pagesOf(primitive);
     collected.add(mesh);
     const transparent = pagesBlend(primitive, surface);
-    // The grid moved each position by at most this much: its clusters' boxes grow by it, so
-    // culling still encloses the surface an engine draws from the pages.
-    const slack = quantizationErrorOf(primitive);
-    const widen = (bounds: number[], sign: number) =>
-      slack > 0 ? bounds.map((value) => value + sign * slack) : bounds;
-    // The widened boxes depend on no placement: every placement's records share them.
-    const mins = primitive.pages.map((page) => widen(page.min, -1)),
-      maxs = primitive.pages.map((page) => widen(page.max, 1));
     const shape = templates.shapeOf(primitive, template);
     const { structure, culling } = shape;
-    // ONE record per primitive page (#1235), shared by every placement of the object: its world,
-    // its row and its packed rank are the layout's, never a field here.
-    const pages = primitive.pages.map((page, pageIndex) => {
-      const entry = template.pages[pageIndex],
-        cut = entry.cut,
-        streamed = entry.placed;
-      const rec: PageRec = {
-        id: page.id,
-        url: page.url,
-        clusterId: entry.clusterId,
-        array: entry.array,
-        triangles: page.count / 3,
-        indexBytes: entry.array?.byteLength ?? page.bytes,
-        // Transparent, it draws from its geometry page as opaque does (`webgpu/blend/shader.ts`).
-        geometryPage: page.geometry,
-        min: mins[pageIndex],
-        max: maxs[pageIndex],
-        role: page.role,
-        level: cut.level,
-        lodError: cut.lodError,
-        sphere: cut.sphere,
-        parentError: cut.parentError,
-        parentSphere: cut.parentSphere,
-        group: cut.group,
-        source: cut.source,
-        streamUrl: streamed?.url,
-        streamOffset: streamed?.offset,
-        depthLayer: page.depthLayer ?? 0,
-        attributes: mesh.geometry.attributes,
-        material: surface,
-        declaration: mesh.material,
-        transparent,
-        sourceMesh: mesh,
-        // A flat cut has no tree: transparent pages recover their draw order from the source
-        // rank, recorded for every class, since a page may turn blended in the session (#846).
-        sourceOrder: template.sourceOrder[pageIndex],
-        renderOrder: order,
-        cone: page.cone,
-      };
-      allPages.push(rec);
-      return rec;
-    });
-    // One dependency list per primitive: every placement's records share it, and every placement
-    // of the object is installed after the same bundles.
+    // ONE record per primitive page (#1235), shared by every placement of this source object: its
+    // world, its row and its packed rank are the layout's, never a field here.
+    const pages = createPageRecords(primitive, template, mesh, surface, transparent, order);
+    for (const rec of pages) allPages.push(rec);
+    // One dependency list per object: every placement is installed after the same bundles.
     linkBundleDependencies(primitive, pages);
-    const sharedCulling = culling && { ...culling, bounds: shape.bounds!, links: shape.links };
     // Nothing replaces these: the coarsest complete cover, resident, the cut's fallback.
     if (structure)
       for (const root of structure.roots) {
@@ -140,6 +93,7 @@ export function collectClusterPages(
           bootstrap.push(cover);
         }
       }
+    const sharedCulling = culling && { ...culling, bounds: shape.bounds!, links: shape.links };
     for (const { world, parked, placement } of placed) {
       const worldBox = new Float64Array(BOX_VALUES);
       boxTransform(worldBox, 0, shape.local, 0, world.elements);

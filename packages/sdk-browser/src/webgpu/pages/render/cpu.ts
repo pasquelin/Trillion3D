@@ -44,8 +44,6 @@ function selectCpuCut(rt: WebgpuPagesRuntime, cam: EngineCamera, pixelError: num
   // every placement of its primitive (#1235).
   run.shownPacked.length = run.shown.length;
   for (let i = 0; i < run.shown.length; i++) run.shownPacked[i] = selected.shownPacked[i];
-  run.desiredPacked.length = run.desired.length;
-  for (let i = 0; i < run.desired.length; i++) run.desiredPacked[i] = selected.wantedPacked[i];
   return selected;
 }
 

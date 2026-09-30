@@ -117,9 +117,11 @@ export function selectCpuCasters(rt: WebgpuPagesRuntime, device: GPUDevice, cam:
     recordOf = layout.recordOf;
   casters.length = castersPacked.length = 0;
   const stamp = run.frame >>> 0 || 1;
-  for (const rec of run.drawn) {
-    const page = rows.pageIndexOf(rec);
-    if (page !== undefined) marks[page] = stamp;
+  // The drawn instances as the packed ranks the camera's cut published (#1235): one record serves
+  // every placement of its primitive, so the address's first rank no longer names the drawn one.
+  for (let i = 0; i < run.drawn.length; i++) {
+    const page = run.drawnPacked[i];
+    if (page >= 0) marks[page] = stamp;
   }
   lists.runs = 0;
   // Nothing loads or leaves while the faces select — what they want is offered after the last —:

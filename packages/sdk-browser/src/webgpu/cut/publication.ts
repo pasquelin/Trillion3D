@@ -6,7 +6,7 @@ import { coverageWatcher } from './coverage.ts';
 import { createWebgpuCutAdopter } from './adoption.ts';
 import type { GroupClosure } from '../../page/cut/groupClosure.ts';
 import { createHeldResidency } from '../../page/cut/held.ts';
-import { markDrawnMirrored } from '../pages/helpers.ts';
+import { copyPacked, markDrawnMirrored } from '../pages/helpers.ts';
 import type { WebgpuResidencySets } from '../residency/sets.ts';
 import type { WebgpuPagesCore } from '../pages/runtime.ts';
 import { createEvictionFeed } from '../residency/evictionFeed.ts';
@@ -100,6 +100,9 @@ export function createWebgpuCutPublication(
     shownCount = shown.length,
   ) => {
     own.asked.apply(wanted, wantedCount);
+    // The packed ranks of the wanted cut, rank by rank beside `run.desired` (#1235): the difference
+    // names the instances it keeps, so a reader of the records finds each one's placement.
+    copyPacked(run.desiredPacked, own.asked.ids, own.asked.count);
     publishCut(own.asked);
     own.drawn.apply(shown, shownCount);
     residencySets.applyDrawn(own.drawn);
@@ -109,6 +112,7 @@ export function createWebgpuCutPublication(
   const cutAdopter = createWebgpuCutAdopter({
     selection: () => run.gpuSelection,
     desired: run.desired,
+    desiredPacked: run.desiredPacked,
     shown: run.shown,
     shownPacked: run.shownPacked,
     drawn: run.drawn,

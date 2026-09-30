@@ -20,7 +20,6 @@ function banc() {
   }
   // One placement of the four clusters, laid out as `../pages/prepare/layout.ts` lays it; the pool
   // holds what `holds` names, and the rank journal's watcher is the one publication subscribes.
-  for (const page of packedPages) page.placementIndex = 0;
   const root = { pages: packedPages, world: new Matrix4() } as unknown as ClusterRoot<PageRec>,
     holds = new Set<PageRec>();
   let watcher: (page: number) => void = () => {};
@@ -28,8 +27,11 @@ function banc() {
   let resourceChanges = 0;
   const run = {
     desired: [] as unknown[],
+    desiredPacked: [] as number[],
     shown: [] as unknown[],
+    shownPacked: [] as number[],
     drawn: [] as unknown[],
+    drawnPacked: [] as number[],
     selectionUniforms: fixtureUniforms(),
     gpuSelection: undefined,
     cutEpoch: 0,
