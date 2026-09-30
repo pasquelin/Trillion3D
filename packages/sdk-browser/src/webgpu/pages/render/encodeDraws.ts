@@ -119,7 +119,7 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
     // The CPU cut selects its shadow casters from the lights before it writes its rows: those the
     // camera does not draw take rows behind the camera's.
     const shadows = visReady(rt) && vis.gpuDraw ? selectCpuCasters(rt, device, cam) : undefined;
-    run.cameraRows = rt.services.syncRowsFromCut(shadows);
+    run.cameraRows = rt.services.syncRowsFromCut(shadows, rt.lights.cpuCasters?.castersPacked);
     if (shadows) writeCpuCasters(rt, device);
   } else if (run.rowsSyncedFrame !== run.frame) {
     rt.services.syncRows(!run.textureConverging);

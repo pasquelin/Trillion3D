@@ -35,8 +35,14 @@ function digest({ rt }: Session) {
     for (const word of [38, 39, 40, 41, 44, 45, 52, 53, 58, 59]) table[row + word] = 0;
   for (const words of [table, rows.packedPageIndex, drawItemWords, cornerPacked])
     hash.update(new Uint8Array(words.buffer, words.byteOffset, words.byteLength));
-  const ranks = (list: readonly { packedIndex?: number }[]) => list.map((rec) => rec.packedIndex);
-  hash.update(JSON.stringify([rows.packedCount, ranks(rt.run.shown), ranks(rt.run.desired)]));
+  // The instances as packed ranks, rank by rank (#1235): a record serves every placement.
+  hash.update(
+    JSON.stringify([
+      rows.packedCount,
+      rt.run.shownPacked.slice(0, rt.run.shown.length),
+      rt.run.desiredPacked.slice(0, rt.run.desired.length),
+    ]),
+  );
   return hash.digest('hex').slice(0, 16);
 }
 
@@ -58,20 +64,24 @@ function casterDigest({ rt }: Session) {
     url = (packed: number) => rt.layout.recordOf(packed)?.url ?? '?';
   // The placement a packed rank names lives in its root (#1226): its world is hashed too, so a
   // moved or grown placement shows through the same cut.
-  const world = (rec: PageRec) =>
+  const world = (packed: number) =>
     [12, 13, 14]
-      .map((i) => (rootOf(rt.layout.selectionRoots, rec).world.elements[i] ?? 0).toFixed(3))
+      .map((i) =>
+        (
+          rootOf(rt.layout.selectionRoots, rt.layout.placement.rootOfPacked[packed]).world.elements[
+            i
+          ] ?? 0
+        ).toFixed(3),
+      )
       .join(',');
   for (let r = 0; r < lists.runs; r++) {
     hash.update(`f${r}{`);
-    for (const packed of lists.shownPacked[r]) {
-      const rec = rt.layout.recordOf(packed);
-      hash.update(`${packed}:${url(packed)}:${rec ? world(rec) : '?'};`);
-    }
+    for (const packed of lists.shownPacked[r])
+      hash.update(`${packed}:${url(packed)}:${rt.layout.recordOf(packed) ? world(packed) : '?'};`);
     hash.update('}');
   }
   hash.update('|c');
-  for (const rec of lists.casters) hash.update(`${rec.packedIndex}:${url(rec.packedIndex!)};`);
+  for (const packed of lists.castersPacked) hash.update(`${packed}:${url(packed)};`);
   const written = Array.from({ length: lists.runs }, (_, r) => lists.lengths[r]).reduce(
     (a, b) => a + b,
     0,
@@ -115,12 +125,41 @@ async function steps() {
 }
 const noBudget = { admits: () => true, spend() {} };
 
-test('a page record carries no world, row or winding: its root does', async () => {
-  const { pages } = await steps();
-  assert.ok(pages.length > 3, 'repeated placements, grown ones included');
-  for (const page of pages)
-    for (const field of ['matrix', 'placement', 'windingCw', 'windingEpoch'])
-      assert.ok(!(field in page), `${page.url} carries no ${field}`);
+test('a page record carries no world, row, winding, placement or packed rank: its root does', async () => {
+  const session = await placedSession(5);
+  try {
+    const { allPages, collectedRoots, metadata } = session;
+    // #1235: ONE record per primitive page. `develop` built one per (placement, page); here the
+    // open's records equal the primitives' pages (3 at the fixture's 3 one-page primitives),
+    // whatever the rows later grow to.
+    const primitivePages = metadata.primitives.reduce(
+      (n, primitive) => n + primitive.pages.length,
+      0,
+    );
+    assert.equal(
+      allPages.length,
+      primitivePages,
+      'one record per primitive page, not per placement',
+    );
+    // Every placement of a primitive shares its one `pages` array: one distinct array per primitive.
+    assert.equal(
+      new Set(collectedRoots.map((root) => root.pages)).size,
+      metadata.primitives.length,
+      'the placements of a primitive share their pages array',
+    );
+    for (const page of allPages)
+      for (const field of [
+        'matrix',
+        'placement',
+        'windingCw',
+        'windingEpoch',
+        'placementIndex',
+        'packedIndex',
+      ])
+        assert.ok(!(field in page), `${page.url} carries no ${field}`);
+  } finally {
+    session.dispose();
+  }
 });
 
 test('rows, draw items and cut of repeated and moved placements are those of develop', async () => {
@@ -141,11 +180,11 @@ test('each light face keeps its whole cut, and only the deduped casters leave it
     const lists = rt.lights.cpuCasters!,
       face0 = new Set(lists.shownPacked[0]),
       face1 = new Set(lists.shownPacked[1]),
-      drawn = new Set(rt.run.drawn.map((rec) => rec.packedIndex ?? -1));
+      drawn = new Set(rt.run.drawnPacked.slice(0, rt.run.drawn.length));
     assert.ok(face0.size > 0 && face1.size > 0, 'both faces select from the light');
     const shared = [...face0].filter((page) => face1.has(page) && drawn.has(page));
     assert.ok(shared.length > 0, 'a camera-visible caster is shared by the two faces');
-    const casters = new Set(lists.casters.map((rec) => rec.packedIndex));
+    const casters = new Set(lists.castersPacked);
     for (const page of shared)
       assert.ok(!casters.has(page), 'a shared caster stays out of casters');
   } finally {
