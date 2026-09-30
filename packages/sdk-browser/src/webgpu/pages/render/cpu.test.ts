@@ -104,10 +104,14 @@ function banc(options: { ready: boolean; resident: boolean }) {
       heldResidency: createHeldResidency({ isResident: (rec: PageRec) => residents.has(rec.url) }),
       syncResidency: () => {},
       forgetReadback: () => journal.push('oubli'),
-      adoptCpuCut: (wanted: readonly number[]) => {
+      adoptCpuCut: (
+        wanted: ArrayLike<number>,
+        _shown: ArrayLike<number>,
+        count = wanted.length,
+      ) => {
         journal.push('publication');
         run.desired.length = 0;
-        for (const packed of wanted) run.desired.push(allPages[packed]!);
+        for (let i = 0; i < count; i++) run.desired.push(allPages[wanted[i]]!);
       },
       residency: {
         queueCutResidency: () => {

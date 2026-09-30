@@ -57,6 +57,7 @@ function banc() {
     },
     layout: {
       packedPages,
+      recordOf: (packed: number) => packedPages[packed],
       gpuWanted: [packedPages[0]],
       selectionRoots: [root],
       rows: { watchTouched: (subscriber: typeof watcher) => void (watcher = subscriber) },

@@ -145,10 +145,12 @@ export function selectCpuCasters(rt: WebgpuPagesRuntime, device: GPUDevice, cam:
       // The face keeps its WHOLE cut by rank (`kept`, parallel to `shown[at]`): the caster buffer
       // `writeCpuCasters` fills draws every one of them. `casters` holds only the pages no row
       // already draws — the extras `syncRowsFromCut` gives shadow-only rows to.
+      // The packed buffer is the whole capacity: its live ranks are those of the face's record
+      // lists, rank by rank (`shown`/`wanted`), never the stale tail behind them.
       const ids = selected.shownPacked,
         kept = shownPacked[at];
       kept.length = 0;
-      for (let k = 0; k < ids.length; k++) {
+      for (let k = 0; k < selected.shown.length; k++) {
         const page = ids[k];
         if (page < 0) continue;
         kept.push(page);
@@ -160,7 +162,7 @@ export function selectCpuCasters(rt: WebgpuPagesRuntime, device: GPUDevice, cam:
       const asked = selected.wantedPacked,
         wantedIds = wantedPacked[at];
       wantedIds.length = 0;
-      for (let k = 0; k < asked.length; k++) wantedIds.push(asked[k]);
+      for (let k = 0; k < selected.wanted.length; k++) wantedIds.push(asked[k]);
     }
     return true;
   });

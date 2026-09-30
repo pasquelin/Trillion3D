@@ -7,11 +7,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { PAGE_INFO_STRIDE } from '../visibility/buffer.ts';
+import { DRAW_INDIRECT_WORDS } from '../gpu/draw/contract.ts';
 import { placedSession, scaleDown } from './webgpuGrowth.fixture.ts';
-import { selectVisiblePages } from '../page/selection/selection.ts';
+import { armCasters } from './casters.fixture.ts';
 import { createEngineCamera } from '../camera/world.ts';
-import { faceEngineCamera } from '../webgpu/shadow/cpuCasters.ts';
-import { sunRun } from '../webgpu/shadow/runs.fixture.ts';
+import { rootOf } from '../page/selection/placements.ts';
+import { selectCpuCasters, writeCpuCasters } from '../webgpu/shadow/cpuCasters.ts';
+import type { PageRec } from '../page/selection/selection.ts';
 
 type Session = Awaited<ReturnType<typeof placedSession>>;
 
@@ -39,26 +41,51 @@ function digest({ rt }: Session) {
 }
 
 /**
- * The shadow casters of the scene, as the light cut selects them: the CPU cut reads a face as a
- * camera and its pages as the light's extent (`../webgpu/shadow/cpuCasters.ts`). The casters ARE
- * that cut's shown list, published as packed ranks; this resolves them through the catalogue.
+ * The shadow casters of the scene, as the REAL CPU caster pipeline produces them: for each light
+ * face, `selectCpuCasters` runs the cut from the light over the packed catalogue, keeping the
+ * face's WHOLE cut in `shownPacked` and only the pages no row already draws in `casters`; then
+ * `writeCpuCasters` turns those packed ranks into the row words and commands the shadow pass binds.
+ * Everything is resolved through `recordOf`: the face ranks by URL, the casters by URL, the words
+ * as written, and the bases, lengths and commands as they stand.
  */
 function casterDigest({ rt }: Session) {
-  const run = sunRun(1024),
-    viewport: [number, number] = [64, 64],
-    cam = faceEngineCamera(run, createEngineCamera(), viewport);
-  const selected = selectVisiblePages(rt.setup.roots, cam, {
-    pixelError: run.uniforms.pixelError,
-    viewport,
-    held: rt.services.heldResidency,
-    light: run.pages,
-  });
-  const hash = createHash('sha256'),
+  const disarm = armCasters(rt);
+  const device = rt.gpu.device!;
+  selectCpuCasters(rt, device, createEngineCamera());
+  writeCpuCasters(rt, device);
+  const lists = rt.lights.cpuCasters!,
+    hash = createHash('sha256'),
     url = (packed: number) => rt.layout.recordOf(packed)?.url ?? '?';
-  for (const packed of selected.shownPacked) hash.update(`s${packed}:${url(packed)};`);
-  hash.update('|');
-  for (const packed of selected.wantedPacked) hash.update(`w${packed}:${url(packed)};`);
-  return hash.digest('hex').slice(0, 16);
+  // The placement a packed rank names lives in its root (#1226): its world is hashed too, so a
+  // moved or grown placement shows through the same cut.
+  const world = (rec: PageRec) =>
+    [12, 13, 14]
+      .map((i) => (rootOf(rt.layout.selectionRoots, rec).world.elements[i] ?? 0).toFixed(3))
+      .join(',');
+  for (let r = 0; r < lists.runs; r++) {
+    hash.update(`f${r}{`);
+    for (const packed of lists.shownPacked[r]) {
+      const rec = rt.layout.recordOf(packed);
+      hash.update(`${packed}:${url(packed)}:${rec ? world(rec) : '?'};`);
+    }
+    hash.update('}');
+  }
+  hash.update('|c');
+  for (const rec of lists.casters) hash.update(`${rec.packedIndex}:${url(rec.packedIndex!)};`);
+  const written = Array.from({ length: lists.runs }, (_, r) => lists.lengths[r]).reduce(
+    (a, b) => a + b,
+    0,
+  );
+  hash.update(`|w${written}:`);
+  for (let i = 0; i < written; i++) hash.update(`${lists.words[i]};`);
+  hash.update(`|b${Array.from(lists.bases.subarray(0, lists.runs)).join(',')}`);
+  hash.update(`|l${Array.from(lists.lengths.subarray(0, lists.runs)).join(',')}`);
+  hash.update(
+    `|k${Array.from(lists.commands.subarray(0, lists.runs * DRAW_INDIRECT_WORDS)).join(',')}`,
+  );
+  const digest = hash.digest('hex').slice(0, 16);
+  disarm();
+  return digest;
 }
 
 /** The session at open, once its core node moved every placement under it, once grown. */
@@ -105,11 +132,35 @@ test('rows, draw items and cut of repeated and moved placements are those of dev
   ]);
 });
 
+test('each light face keeps its whole cut, and only the deduped casters leave it', async () => {
+  const session = await placedSession(5),
+    { rt } = session;
+  const disarm = armCasters(rt);
+  try {
+    selectCpuCasters(rt, rt.gpu.device!, createEngineCamera());
+    const lists = rt.lights.cpuCasters!,
+      face0 = new Set(lists.shownPacked[0]),
+      face1 = new Set(lists.shownPacked[1]),
+      drawn = new Set(rt.run.drawn.map((rec) => rec.packedIndex ?? -1));
+    assert.ok(face0.size > 0 && face1.size > 0, 'both faces select from the light');
+    const shared = [...face0].filter((page) => face1.has(page) && drawn.has(page));
+    assert.ok(shared.length > 0, 'a camera-visible caster is shared by the two faces');
+    const casters = new Set(lists.casters.map((rec) => rec.packedIndex));
+    for (const page of shared)
+      assert.ok(!casters.has(page), 'a shared caster stays out of casters');
+  } finally {
+    disarm();
+    session.dispose();
+  }
+});
+
 test('the shadow casters of repeated and moved placements are those of develop', async () => {
-  // The light cut runs over the same placements, from a sun's face; its casters are packed ranks.
+  // Recorded on develop at 9dc777745 with the same two sun faces and the same digest: the real
+  // `selectCpuCasters` + `writeCpuCasters` run over the packed catalogue, and the values are the
+  // ones develop produced when its cut published records instead of packed ranks.
   assert.deepEqual((await steps()).casters, [
-    '525271fd6218f01a',
-    '525271fd6218f01a',
-    '525271fd6218f01a',
+    'c1cf4fb83cc9597f',
+    '2ac3fab00ccd05c7',
+    'db14422dda586392',
   ]);
 });
