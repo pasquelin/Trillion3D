@@ -14,6 +14,8 @@ const RESSOURCES: [string, string][] = [
   ['sdk-browser/src/physics', 'joltPhysics.wasm'],
   ['sdk-browser/src/physics', 'joltPhysicsThreads.wasm'],
   ['sdk', 'package.json'],
+  // The message catalogue the compiler embeds, read at run time by the Node adapter.
+  ['asset-compiler-rust', 'messages.json'],
 ];
 
 let copies = 0;
