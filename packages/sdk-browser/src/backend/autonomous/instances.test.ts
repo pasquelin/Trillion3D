@@ -1,25 +1,26 @@
-// Batch F, F12: `deplaceInstance` (instancePose.ts) places each root from its base root, and
-// the meshes of its pages follow it (#1226: a page carries no pose), instead of rebuilding a
-// page → base-page hash table on every move. The oracle is the reconstruction from before
-// batch F, copied as-is into `oracles/cadre-vue.ts`, whose pages carry their root's world.
+// Batch F, F12: `deplaceInstance` (instancePose.ts) places each root from its base root, and the
+// meshes of its pages follow it (#1226: a page carries no pose; #1234: its draw state is a packed
+// table), instead of rebuilding a page → base-page hash table on every move. The oracle is the
+// reconstruction from before batch F, copied as-is into `oracles/cadre-vue.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { createAutonomousInstances } from './instances.ts';
 import { deplaceInstance } from './instancePose.ts';
-import { asHostLibrary, type HostMaterial } from '../../host/resources.ts';
+import { createPageDraws } from './pageDraws.ts';
+import { asHostLibrary, type HostMaterial, type HostMesh } from '../../host/resources.ts';
 import type { MatrixElements } from '../../math/matrixElements.ts';
 import type { Material } from '../../../../sdk-core/src/index.ts';
 import type { GraphSurface } from '../../host/graph/surface.ts';
+import type { PageRec, ClusterRoot } from '../../page/selection/selection.ts';
 
 /** The records carry the contract pose; the oracle and the assertions read a host matrix. */
 const pose = (matrix: MatrixElements) => asHostLibrary<G.Matrix4>(matrix);
 import { referenceUpdateInstance } from '../../../../../bench/oracles/browser/view-frame.ts';
-import type { PageRec, ClusterRoot } from '../../page/selection/selection.ts';
 
 /** A page, with the world the oracle reads on it: its root's. */
 function page(matrice: G.Matrix4) {
-  return { matrix: matrice, mesh: undefined } as unknown as PageRec & { matrix: G.Matrix4 };
+  return { matrix: matrice } as unknown as PageRec & { matrix: G.Matrix4 };
 }
 function root(matrice: G.Matrix4): ClusterRoot<PageRec> {
   return { world: matrice, pages: [] } as unknown as ClusterRoot<PageRec>;
@@ -45,13 +46,14 @@ function instanceEtBase(n: number, roots: number) {
 function memeResultat(transform: G.Matrix4, n: number, rootsCount: number, avecMesh = false) {
   const a = instanceEtBase(n, rootsCount);
   const b = instanceEtBase(n, rootsCount);
+  const draws = createPageDraws(a.instRoots);
   if (avecMesh)
     for (let i = 0; i < n; i++) {
-      a.pages[i].mesh = { matrix: new G.Matrix4() } as unknown as PageRec['mesh'];
-      b.pages[i].mesh = { matrix: new G.Matrix4() } as unknown as PageRec['mesh'];
+      draws.drawing(a.pages[i]).mesh = { matrix: new G.Matrix4() } as unknown as HostMesh;
+      (b.pages[i] as { mesh?: { matrix: G.Matrix4 } }).mesh = { matrix: new G.Matrix4() };
     }
   // The contract carries sixteen floats; the frozen oracle keeps the host matrix it was written with.
-  deplaceInstance({ roots: a.instRoots }, a.baseRoots, transform.elements.slice());
+  deplaceInstance({ roots: a.instRoots }, a.baseRoots, transform.elements.slice(), draws);
   referenceUpdateInstance(
     asHostLibrary<Parameters<typeof referenceUpdateInstance>[0]>({
       pages: b.pages,
@@ -69,8 +71,8 @@ function memeResultat(transform: G.Matrix4, n: number, rootsCount: number, avecM
     );
     if (avecMesh)
       assert.deepEqual(
-        (a.pages[i].mesh as unknown as { matrix: G.Matrix4 }).matrix.toArray(),
-        (b.pages[i].mesh as unknown as { matrix: G.Matrix4 }).matrix.toArray(),
+        (draws.find(a.pages[i])!.mesh as unknown as { matrix: G.Matrix4 }).matrix.toArray(),
+        (b.pages[i] as { mesh?: { matrix: G.Matrix4 } }).mesh!.matrix.toArray(),
         `mesh ${i}`,
       );
   }
@@ -103,8 +105,7 @@ test('a mesh attached to the page also receives the same matrix as the reference
 });
 
 test('a degenerate transform (zero scale) yields the same matrix on both sides', () => {
-  const transform = new G.Matrix4().makeScale(0, 0, 0);
-  memeResultat(transform, 3, 2);
+  memeResultat(new G.Matrix4().makeScale(0, 0, 0), 3, 2);
 });
 
 // Repainting a primitive replaces the pair the engine owns instead of stacking it: the host may
@@ -121,9 +122,16 @@ const CONTRACT_MATERIAL: Material = {
 };
 
 function primitivePeinte() {
-  const plain = { clusterId: 'prim/0', attributes: {} } as unknown as PageRec;
-  const coloured = { clusterId: 'prim/1', attributes: { color: {} } } as unknown as PageRec;
+  const plain = { url: 'p', clusterId: 'prim/0', attributes: {} } as unknown as PageRec;
+  const coloured = {
+    url: 'c',
+    clusterId: 'prim/1',
+    attributes: { color: {} },
+  } as unknown as PageRec;
   const colorMaterials = new Map<HostMaterial, HostMaterial>();
+  const draws = createPageDraws([
+    { world: { elements: new Float64Array(new G.Matrix4().toArray()) }, pages: [plain, coloured] },
+  ]);
   const instances = createAutonomousInstances({
     roots: [],
     baseRoots: [],
@@ -132,7 +140,7 @@ function primitivePeinte() {
     bootstrap: [],
     baseBootstrap: [],
     byUrl: new Map(),
-    baseMaterials: new Map(),
+    draws,
     geometryStore: {
       colorMaterials,
     } as Parameters<typeof createAutonomousInstances>[0]['geometryStore'],
