@@ -130,8 +130,8 @@ fn deformNormal(page:PageInfo,h:ClusterHeader,vertex:u32,rest:vec3f)->vec3f{
  if((a.kinds&${KIND_SKIN}u)!=0u&&(h.flags&${FLAG_SKIN}u)!=0u){n=deformSkin(h,page,vertex,a.palette,a.joints,vec4f(n,0.0));}
  if((a.kinds&${KIND_WAVE}u)!=0u){
   let rest=pageRestPosition(page,h,vertex);
-  let world=(deformMatrix(a.world)*vec4f(rest,1.0)).xyz;
   let m=deformMatrix(a.world);
+  let world=(m*vec4f(rest,1.0)).xyz;
   n=transpose(mat3x3f(m[0].xyz,m[1].xyz,m[2].xyz))*deformWaves(a.wave,a.waves,world,false,true);
  }
  return normalize(n);

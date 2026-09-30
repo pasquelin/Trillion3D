@@ -76,7 +76,7 @@ struct Sortie{@location(0) moteur:vec4f,@location(1) three:vec4f,}
  * the sampler set to the map's mode, as Three sets it.
  */
 async function executer({ shader, textures, lots }: ExecuterArgument): Promise<ExecuterResultat> {
-  const appareil = await globalThis.ouvrirAppareil();
+  const appareil = await globalThis.openGpuDevice();
   if (!appareil) return { indisponible: 'aucun adaptateur WebGPU' };
   const { device, erreurs } = appareil;
   const { module, compilation } = await appareil.compile(shader);

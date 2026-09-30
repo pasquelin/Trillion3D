@@ -26,8 +26,11 @@ import { surfaceOpacity } from '../../page/surface.ts';
 import { shownAsIs } from '../../scene/surfaceModel.ts';
 import { neverCulled, writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts';
 import type { SessionDeformation } from '../../deformation/session.ts';
+import { deformOutputWord } from '../../deformation/slotLayout.ts';
 
-export const ROW_ID_BASE_WORD = 27,
+/** Row word of the geometry's first vertex in the shared pools (`PageInfo.vertexBase`). */
+export const ROW_VERTEX_BASE_WORD = 26,
+  ROW_ID_BASE_WORD = 27,
   ROW_HIZ_SLOT_WORD = 31;
 /** The Hi-Z slot of a row never culled (`neverCulled`): none, which every reader of the verdict
  *  draws unjudged (`HIZ_REJECTED_WGSL`, `rowVerdict`). */
@@ -129,7 +132,7 @@ export function createPageRowWriter(
     floats[base + ROW_BLEND_COVERAGE_WORD] = surfaceOpacity(mat);
     ints[base + 24] = offsetWords;
     ints[base + ROW_INDEX_WORDS] = indexCount;
-    ints[base + 26] = geo?.vertexBase ?? 0;
+    ints[base + ROW_VERTEX_BASE_WORD] = geo?.vertexBase ?? 0;
     ints[base + ROW_ID_BASE_WORD] = packedRowBase(row);
     // A dashed line's dash and gap (`PageInfo.dash`), zero on every other row.
     floats[base + ROW_DASH_WORD] = mat.dashSize ?? 0;
@@ -141,9 +144,7 @@ export function createPageRowWriter(
     const deform = resources.deformation?.rowWord(rec.placementIndex) ?? 0;
     ints[base + PAGE_DEFORM_WORD] = deform;
     ints[base + PAGE_DEFORM_COUNT_WORD] = rec.deformationOutput?.count ?? 0;
-    ints[base + PAGE_DEFORM_OUTPUT_WORD] = rec.deformationOutput
-      ? offsetWords + rec.deformationOutput.from + 1
-      : 0;
+    ints[base + PAGE_DEFORM_OUTPUT_WORD] = deformOutputWord(rec.deformationOutput, offsetWords);
     ints[base + ROW_HIZ_SLOT_WORD] = neverCulled(mat) || deform ? NO_HIZ_SLOT : row;
     ints[base + 32] = maps.rough;
     ints[base + 33] = maps.metal;

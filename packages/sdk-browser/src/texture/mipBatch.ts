@@ -150,7 +150,6 @@ function createImageMipChain(
     });
     device.queue.writeBuffer(uniforms, 0, packed);
     return {
-      bytes: uniforms.size,
       encode(encoder: GPUCommandEncoder) {
         for (let index = 0; index < groups.length; index++)
           encodeMipPass(

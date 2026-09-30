@@ -28,7 +28,7 @@ const TILE_OPAQUE_BASE:u32=2u;
 const TILE_BLEND_BASE:u32=${LIGHT_SETTINGS.tileLights + 2}u;
 /** The record's last word: one when the opaque list holds a light with a shadow slot, zero
  *  otherwise. The tile pass writes it; the moving resolve reads it once (#1249). */
-const TILE_SHADOW_BASE:u32=${LIGHT_SETTINGS.tileLights * 2 + 2}u;
+const TILE_SHADOW_BASE:u32=${TILE_STRIDE_WORDS - 1}u;
 const TILE_NO_SLICE:u32=0xffffffffu;
 const POINT_FACES:u32=${POINT_FACES}u;
 const SPOT_EDGE:f32=${LIGHT_SETTINGS.spotEdgeSoftness};

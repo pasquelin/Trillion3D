@@ -1,5 +1,5 @@
 import { PI } from '../lighting/shaderConstants.ts';
-import { shaderLanguage } from '../reflections/traceShader.ts';
+import { shaderLanguage } from '../math/shaderLanguage.ts';
 import { taaPrelude, taaShareTap } from './shaderWgsl.ts';
 import { shareText, taaHistoryBlend } from './historyWgsl.ts';
 import { layerWgsl, taaOut } from './layers.ts';
