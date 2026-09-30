@@ -1,6 +1,6 @@
 /** What the engine does with an explorer on/off option (`MeasuredWorldOptions`) the host leaves
  *  out; the LLM schema of the options advertises the same values. */
-export const EXPLORER_SWITCHES = {
+const EXPLORER_SWITCHES = {
   interactive: false,
   temporalAntialiasing: true,
   lodAdaptive: false,
