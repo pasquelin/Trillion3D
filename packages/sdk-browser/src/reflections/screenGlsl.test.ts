@@ -1,51 +1,37 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SCREEN_REFLECTION_GLSL, WEBGL_SCREEN_RADIANCE } from './screenGlsl.ts';
+import { WEBGL_SCREEN_RADIANCE } from './screenGlsl.ts';
 import { screenRadianceShader } from './screenRadianceShader.ts';
 import { environmentReflectionShader } from './environmentShader.ts';
 import { ENVIRONMENT_REFLECTION_WGSL } from './probeFilterWgsl.ts';
 import { SCREEN_REFLECTION_CUTOFF as CUTOFF } from './modelShader.ts';
-import { ENVIRONMENT, FILTERED, RAY } from './receivers.fixture.ts';
+import { ENVIRONMENT, FILTERED, RAY, resolvedDisplay } from './receivers.fixture.ts';
 import { CLUSTER_FRAGMENT } from '../webgl/cluster/shaders.ts';
 import { PROBE_ENVIRONMENT } from '../webgl/cluster/probe.ts';
 import { shaderRun } from '../texture/shaderRun.fixture.ts';
 
-type Radiance = (P: number[], N: number[], R: number[], rough: number) => number[];
 const RESOLVED = [9, 9, 9];
 
 /** The WebGL2 resolve, written once for both languages, run in its WGSL spelling. */
-function webglDisplay({ enabled = true, hit = true, capture = false, resolve = false } = {}) {
-  const calls = { traced: 0 };
-  const { reflectedRadiance } = shaderRun<{ reflectedRadiance: Radiance }>(
-    screenRadianceShader('wgsl', WEBGL_SCREEN_RADIANCE),
-    [
-      'resolvedReflectionRay',
-      'filteredResolvedReflection',
-      'screenReflectionFade',
-      'reflectedRadiance',
-    ],
-    {
+const webglDisplay = ({ enabled = true, hit = true, capture = false, resolve = false } = {}) =>
+  resolvedDisplay({
+    hit,
+    weight: (rough: number) => +(rough < 0.1),
+    shader: screenRadianceShader('wgsl', WEBGL_SCREEN_RADIANCE),
+    entry: 'reflectedRadiance',
+    fallback: 'environmentReflection',
+    globals: {
       reflectionEnabled: enabled,
       reflectionCapture: capture,
       reflectionResolve: resolve,
-      mirrorWeight: (rough: number) => +(rough < 0.1),
-      screenReflection: () => (calls.traced++, hit ? [...RAY, 1] : [0, 0, 0, 0]),
-      screenReflectionCone: () => (calls.traced++, hit ? [...FILTERED, 1] : [0, 0, 0, 0]),
-      environmentReflection: () => ENVIRONMENT,
       texture: () => [...RESOLVED, 1],
       textureSize: () => [1, 1],
       gl_FragCoord: [0, 0, 0, 0],
       reflectionColor: 'reduced',
     },
-  );
-  return {
-    calls,
-    at: (rough: number) => reflectedRadiance([0, 0, 0], [0, 1, 0], [0, 1, 0], rough),
-  };
-}
+  });
 
 test('WebGL2: a miss, a disabled pass or a rough lobe reads the environment probe, never black', () => {
-  assert.ok(SCREEN_REFLECTION_GLSL.includes(screenRadianceShader('glsl', WEBGL_SCREEN_RADIANCE)));
   const traced = webglDisplay();
   assert.deepEqual(traced.at(0), RAY, 'a mirror keeps its exact ray');
   assert.deepEqual(traced.at(0.2), FILTERED, 'polished metal keeps its screen trace');

@@ -1,11 +1,11 @@
 import { REFLECTION_CONE_WGSL } from './coneWgsl.ts';
 import { screenTraceShader } from './traceShader.ts';
-import { screenRadianceShader } from './screenRadianceShader.ts';
+import { type ScreenRadiance, screenRadianceShader } from './screenRadianceShader.ts';
 import { FOG_FREE_SURFACE_FLAG } from '../scene/surfaceModel.ts';
 
 /** The WebGPU resolve: its fallback is the program's own reflection model, the probes with bounce
  *  and the environment without. */
-const SCREEN_RADIANCE = {
+const SCREEN_RADIANCE: ScreenRadiance = {
   name: 'resolvedRadiance',
   disabled: 'reflectionView.enabled.x==0.0',
   fallback: (rough: string) => `reflectedRadiance(P,N,R,${rough})`,
