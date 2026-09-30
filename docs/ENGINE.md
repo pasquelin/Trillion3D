@@ -321,6 +321,13 @@ develop, no shadow slot: in range 42.3 → 27.8 ps, out of range 28.1 → 10.6 p
 the tiles (16 log-Z slices, a 64-bit mask each) was built and timed: at 3456 × 2234 it added 1.0 ms
 to the tile pass and removed 3 % of the lights walked on a sponza-sized atrium — once lights past
 their range are rejected on their sphere, a grid can only save that reject, never a light's shading.
+A frame no light of which is a rectangle is resolved the same way by a program without the
+rectangle's term and sampling weight (#1369), the largest code of the loop — its clipped polygon and
+fitted lobe —, whose registers every punctual light paid for; its twin with rectangle code compiles
+beside it. A depth mask of the opaque slice (32 bins, the 2.5D culling) was built and counted: it
+removed 3 % of the lights listed on that atrium at 1728 × 1117 for a per-pixel test in every tile,
+and left. The tile pass's bounds — five column planes, the slab, two boxes — are built by seven
+lanes at once, where thread zero built them one after the other, to the same bits.
 
 **A moving image samples its shadowed lights.** It weighs every light of its tile without its
 shadow (the cheap part) and shades four in full, shadow included. A light worth a sample's share of

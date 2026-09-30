@@ -6,7 +6,7 @@ import { RECT_SHADING_WGSL } from './rectLightWgsl.ts';
 import { irradianceShader } from '../../../../sdk-core/src/scene/core/irradianceBasis.ts';
 import { SURFACE_MODEL_LIGHT_WGSL } from '../../scene/surfaceModel.ts';
 import { declaredLightWgsl, sliceLightingWgsl } from './lightLoopWgsl.ts';
-import { DIRECT_LIGHT_SAMPLING_WGSL } from './lightSamplingWgsl.ts';
+import { directLightSamplingWgsl } from './lightSamplingWgsl.ts';
 import { directShadowWgsl } from './shadowWgsl.ts';
 import { sunFarShadowWgsl, SUN_FAR_PROXY_BINDING } from '../../gpu/shadow/sunFarShadowWgsl.ts';
 import { INVERSE_PI } from '../shaderConstants.ts';
@@ -64,6 +64,7 @@ const lightingBase = (
   pages: number,
   narrow = false,
   shadowed = true,
+  rects = true,
 ) => `
 ${directLightWgsl(narrow ? LIGHT_SETTINGS.tileLights : undefined)}
 ${residentProxyWgsl(proxyBinding, requestBinding !== null)}
@@ -76,7 +77,7 @@ var<private> thinSubsurface:vec3f=vec3f(0.0);
 /** Thin two-sided diffuse transmission: projected back irradiance, normalized over a hemisphere.
  * Material contract: Epic public Two Sided Foliage; this is our Lambert implementation. */
 fn thinTransmission(cosine:f32,energy:f32)->f32{return max(-cosine,0.0)*energy*${INVERSE_PI};}
-${declaredLightWgsl(shadowed)}
+${declaredLightWgsl(shadowed, rects)}
 /** The environment's irradiance at the normal N (\`packages/sdk-core/src/scene/core/environment.ts\`), on the diffuse lobe:
  *  what an ambient, a sky over a ground or a probe gives a surface, never shadowed. */
 fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{
@@ -110,11 +111,18 @@ fn tileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,til
  * that long and its slice loop no pool branch (`narrowSliceWgsl`), as the narrow tile pass
  * writes (`../tiles/shader.ts`). Without `shadowed`, the resolve of a scene no light of which
  * holds a shadow slot: the same sums with no shadow code compiled in (`declaredLightWgsl`, #1249)
- * and the range reject in its loop (`sliceLightingWgsl`).
+ * and the range reject in its loop (`sliceLightingWgsl`). Without `rects`, the resolve of a scene
+ * that holds no rectangle light: the same sums with no rectangle code in the light loop
+ * (`declaredLightWgsl`, #1369).
  */
-export const directLightingWgsl = (narrow = false, pages = SUN_WINDOW, shadowed = true) => `
-${lightingBase(SUN_FAR_PROXY_BINDING, CONTRACT_SHADOW_BINDINGS.data, CONTRACT_SHADOW_BINDINGS.requests, CONTRACT_SHADOW_BINDINGS.transmittance, pages, narrow, shadowed)}
-${DIRECT_LIGHT_SAMPLING_WGSL}
+export const directLightingWgsl = (
+  narrow = false,
+  pages = SUN_WINDOW,
+  shadowed = true,
+  rects = true,
+) => `
+${lightingBase(SUN_FAR_PROXY_BINDING, CONTRACT_SHADOW_BINDINGS.data, CONTRACT_SHADOW_BINDINGS.requests, CONTRACT_SHADOW_BINDINGS.transmittance, pages, narrow, shadowed, rects)}
+${directLightSamplingWgsl(rects)}
 /** Contribution of the contract lights to the pixel, tile by tile and light by light. */
 fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f)->vec3f{
  if(u32(view.lightParams.x)==0u){return vec3f(0.0);}

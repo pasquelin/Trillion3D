@@ -20,12 +20,12 @@ export const SUMS_BINDING = 31;
 /** The pixel every sample is shaded at: inside the view's one tile. */
 const SAMPLE_PIXEL = [1.5, 2.5];
 
-export const narrowResolveHarness = (narrow: boolean, shadowed = true) => `
+export const narrowResolveHarness = (narrow: boolean, shadowed = true, rects = true) => `
 ${VIEW_WGSL}
 @group(0) @binding(5) var<uniform> view:View;
 ${CONTRACT_BINDINGS_WGSL}
 ${STANDARD_LIGHTING_WGSL}
-${directLightingWgsl(narrow, undefined, shadowed)}
+${directLightingWgsl(narrow, undefined, shadowed, rects)}
 struct Sample{albedoMetal:vec4f,normalRough:vec4f,pointAo:vec4f,eyeFlag:vec4f,}
 @group(0) @binding(${SAMPLES_BINDING}) var<storage,read> samples:array<Sample>;
 @group(0) @binding(${SUMS_BINDING}) var<storage,read_write> sums:array<vec4u>;

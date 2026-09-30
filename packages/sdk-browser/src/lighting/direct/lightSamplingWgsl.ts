@@ -28,7 +28,11 @@ export const SAMPLED_RANKS = 1024;
  * the three weight walks would cost three times the full sum they estimate. The tile pass settles
  * that per-tile fact once, in its record; the resolve reads the flag, never the list.
  */
-export const DIRECT_LIGHT_SAMPLING_WGSL = `
+/** A rectangle's weight, before any punctual light's (`lightWeight`): only in the program of a
+ *  scene that holds a rectangle (`declaredLightWgsl`, #1369). */
+const RECT_WEIGHT_WGSL = `
+ if(isRect(light)){return light.colorIntensity.w*rectIrradiance(light,P,N).w*dot(light.colorIntensity.rgb,LUMINANCE);}`;
+export const directLightSamplingWgsl = (rects = true) => `
 const LIGHT_SAMPLES:u32=${LIGHT_SETTINGS.samplesPerPixel}u;
 const LUMINANCE:vec3f=vec3f(0.2126,0.7152,0.0722);
 const GOLDEN_RATIO:f32=0.61803399;
@@ -36,8 +40,7 @@ ${HASH_UNIT_WGSL}
 /** Unshadowed weight of a light at the point: its share of the pixel's drawing. Zero exactly
  *  when the unshadowed contribution is — out of range, or behind the surface —, so no light
  *  that could contribute is ever left undrawable. */
-fn lightWeight(light:DirectLight,N:vec3f,P:vec3f)->f32{
- if(isRect(light)){return light.colorIntensity.w*rectIrradiance(light,P,N).w*dot(light.colorIntensity.rgb,LUMINANCE);}
+fn lightWeight(light:DirectLight,N:vec3f,P:vec3f)->f32{${rects ? RECT_WEIGHT_WGSL : ''}
  let incidence=directIncidence(light,P);
  return light.colorIntensity.w*incidence.w*max(dot(N,incidence.xyz),0.0)*dot(light.colorIntensity.rgb,LUMINANCE);
 }
@@ -111,3 +114,5 @@ fn sampledTileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:
  }
  return result;
 }`;
+/** The sampled resolve of a program that shades rectangles (\`directLightSamplingWgsl\`). */
+export const DIRECT_LIGHT_SAMPLING_WGSL = directLightSamplingWgsl();

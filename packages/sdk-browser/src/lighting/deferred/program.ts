@@ -33,6 +33,7 @@ export interface DirectLightResources {
   /** True when the narrow tile pass wrote the lists (`contractVariants.ts`, #849). */
   narrow?: boolean;
   unshadowed?: boolean; // no light holds a shadow slot: no shadow code (#1249)
+  rectless?: boolean; // no light is a rectangle: no rectangle code (#1369)
 }
 export interface DeferredSources {
   lighting: string;
