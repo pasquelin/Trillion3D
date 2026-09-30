@@ -1,8 +1,9 @@
 /**
  * The contact scene the threaded module is proved on, in Node (`contactThreads.test.ts`) and in a
  * cross-origin isolated page (`tests/browser/renders/physics-threaded-contacts.browser.ts`): free of
- * Node, it takes any started module. Its events come in the engine's canonical pair-key order
- * (`contacts.cpp`, route (b), the boss's yes of 29 Sept.), not Jolt's callback order.
+ * Node, it takes any started module. Its merged records come in the engine's canonical pair-key
+ * order (`contacts.cpp`, route (b), the boss's yes of 29 Sept.), not Jolt's callback order; a
+ * removed body's leaves come before that merge and a cloth's after it.
  */
 import {
   CommandWriter,
@@ -22,8 +23,7 @@ import { body, FLAT, id } from './records.fixture.ts';
 export const PILE_BUDGET = { bodies: 64, contactEvents: 256, memoryBytes: 64 << 20 };
 
 /** One step of the pile: the enters dropped, the poses sorted (a pool's threads list the active
- *  bodies in the order they ran), the events, their records merged after `Update` in the engine's
- *  canonical pair-key order (`contacts.cpp`, route (b), the boss's yes of 29 Sept.); words joined. */
+ *  bodies in the order they ran), the events, in the order above; words joined. */
 export interface PileStep {
   dropped: number;
   poses: string[];
