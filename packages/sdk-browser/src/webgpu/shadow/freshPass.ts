@@ -84,4 +84,5 @@ export function encodeFreshPages(
       lights.shadowDrawCalls += kinds.length;
       run.gpuDrawCalls += kinds.length;
     }
+  plan.gpu.drew(run.frame);
 }
