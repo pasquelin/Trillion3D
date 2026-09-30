@@ -9,7 +9,7 @@ export const CHUNK_PREFIX = 'trillion3d-';
 /** The modules that stay chunks of their own in the CDN bundle, fetched on first use: the optional
  *  families, each one module (`sdk-browser/src/host/families.ts`) — a family of several would
  *  share code with the core in as many more chunks. Physics, whose session starts its worker and
- *  its WebAssembly (`worldPhysics.ts`); particles; WebGPU transmission, glass and water; WebGPU
+ *  its WebAssembly; particles; WebGPU transmission, glass and water; WebGPU
  *  deformation; the effect chain; the guides; the diagnostic views; the measurement's build
  *  provenance and comparison compositor. A scene that uses none of them fetches none. */
 export const FAMILY_MODULES = {
