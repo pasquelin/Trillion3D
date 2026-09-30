@@ -124,27 +124,25 @@ function validLevel(level: unknown): boolean {
     return Number.isSafeInteger(value[field]) && (value[field] as number) >= 0;
   });
 }
+/** A finite number above zero: the switch's `R`, `T` and `c` are positive by construction. */
+const positive = (value: unknown): boolean => Number.isFinite(value) && (value as number) > 0;
 function validMap(map: unknown): boolean {
   if (!map || typeof map !== 'object' || Array.isArray(map)) return false;
   const value = map as Record<string, unknown>;
   return (
-    typeof value.kind === 'string' &&
-    Array.isArray(value.levels) &&
-    value.levels.every(validLevel)
+    typeof value.kind === 'string' && Array.isArray(value.levels) && value.levels.every(validLevel)
   );
 }
 function validMaps(maps: unknown): boolean {
   if (!maps || typeof maps !== 'object' || Array.isArray(maps)) return false;
   const value = maps as Record<string, unknown>;
-  return (
-    validMap(value.colourCoverage) && validMap(value.normalDepth) && validMap(value.orm)
-  );
+  return validMap(value.colourCoverage) && validMap(value.normalDepth) && validMap(value.orm);
 }
 
 /**
  * A short reason the section cannot be used, or `null`. An absent section is not an error: a cache
  * that predates it draws every mesh in full, as before. A present one is refused as a whole when
- * its version is unknown or a `baked` entry misses the numbers its card needs.
+ * its version is unknown or a `baked` entry misses the numbers its switch and its card need.
  */
 export function validateImpostorSection(section: unknown): string | null {
   if (section === undefined || section === null) return null;
@@ -163,6 +161,10 @@ export function validateImpostorSection(section: unknown): string | null {
       return `mesh ${entry.mesh} baked without a frame count`;
     if (!Number.isInteger(entry.frameSide) || (entry.frameSide as number) <= 0)
       return `mesh ${entry.mesh} baked without a frame side`;
+    if (!positive(entry.objectRadius)) return `mesh ${entry.mesh} baked without its object radius`;
+    if (!positive(entry.rootTriangles))
+      return `mesh ${entry.mesh} baked without a root triangle count`;
+    if (!positive(entry.coverage)) return `mesh ${entry.mesh} baked without its coverage`;
   }
   return null;
 }

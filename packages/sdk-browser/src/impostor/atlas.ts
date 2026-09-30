@@ -39,20 +39,22 @@ export async function loadImpostorMap(
   map: ImpostorMap,
   reader: TextureLevelReader,
 ): Promise<TextureLevel[]> {
-  const levels: TextureLevel[] = [];
-  for (const request of impostorMapRequests(map)) {
-    const level = await reader(request);
-    reader.store?.take(impostorLevelId(request.sha256), level, reader.key);
-    levels.push(level);
-  }
-  return levels;
+  // The levels are independent: read them together, in order, instead of one after the other.
+  return Promise.all(
+    impostorMapRequests(map).map(async (request) => {
+      const level = await reader(request);
+      reader.store?.take(impostorLevelId(request.sha256), level, reader.key);
+      return level;
+    }),
+  );
 }
 
 /** The three maps of one card, level 0 first, through the same reader and the same store. */
 export async function loadImpostorAtlas(maps: ImpostorMaps, reader: TextureLevelReader) {
-  return {
-    colourCoverage: await loadImpostorMap(maps.colourCoverage, reader),
-    normalDepth: await loadImpostorMap(maps.normalDepth, reader),
-    orm: await loadImpostorMap(maps.orm, reader),
-  };
+  const [colourCoverage, normalDepth, orm] = await Promise.all([
+    loadImpostorMap(maps.colourCoverage, reader),
+    loadImpostorMap(maps.normalDepth, reader),
+    loadImpostorMap(maps.orm, reader),
+  ]);
+  return { colourCoverage, normalDepth, orm };
 }

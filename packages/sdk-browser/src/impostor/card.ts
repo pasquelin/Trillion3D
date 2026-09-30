@@ -9,6 +9,12 @@ import { spriteAt } from '../visibility/shader/spriteWgsl.ts';
 import type { VisMaterial } from '../visibility/types.ts';
 
 const CARD_SPRITE: NonNullable<VisMaterial['sprite']> = { rotation: 0, sizeAttenuation: true };
+/** The corner signs in call order, scaled by `radius`: `(-R,-R)`, `(+R,-R)`, `(+R,+R)`, `(-R,+R)`. */
+const CARD_SIDES = [-1, -1, 1, -1, 1, 1, -1, 1];
+// The card is drawn per frame: the placement and the corner it reads stay, no allocation per call.
+const cardPlace = new Float64Array(16);
+cardPlace[0] = cardPlace[5] = cardPlace[10] = cardPlace[15] = 1;
+const cardCorner = new Float64Array(4);
 
 /**
  * The four corners of the impostor card, as points in the space `toClip` projects from, into `out`
@@ -21,18 +27,21 @@ export function impostorCardCorners(
   pivot: ArrayLike<number>,
   radius: number,
 ) {
-  const place = new Float64Array(16);
-  place[0] = place[5] = place[10] = place[15] = 1;
-  place[12] = pivot[0];
-  place[13] = pivot[1];
-  place[14] = pivot[2];
-  const corner = new Float64Array(4),
-    sides = [-radius, -radius, radius, -radius, radius, radius, -radius, radius];
+  cardPlace[12] = pivot[0];
+  cardPlace[13] = pivot[1];
+  cardPlace[14] = pivot[2];
   for (let i = 0; i < 4; i++) {
-    spriteAt(corner, toClip, place, sides[2 * i], sides[2 * i + 1], CARD_SPRITE);
-    out[i * 3] = corner[0];
-    out[i * 3 + 1] = corner[1];
-    out[i * 3 + 2] = corner[2];
+    spriteAt(
+      cardCorner,
+      toClip,
+      cardPlace,
+      CARD_SIDES[2 * i] * radius,
+      CARD_SIDES[2 * i + 1] * radius,
+      CARD_SPRITE,
+    );
+    out[i * 3] = cardCorner[0];
+    out[i * 3 + 1] = cardCorner[1];
+    out[i * 3 + 2] = cardCorner[2];
   }
   return out;
 }

@@ -58,7 +58,7 @@ test('a version this build does not read is refused whole', () => {
   assert.match(validateImpostorSection(section({ version: 2 })) ?? '', /version/);
 });
 
-test('a baked entry without its maps, frame count or frame side is refused', () => {
+test('a baked entry without the numbers its switch and card need is refused', () => {
   const meshesWith = (over: Partial<ImpostorMesh>) =>
     section().meshes.map((mesh) => ({ ...mesh, ...over }));
   const problem = (over: Partial<ImpostorMesh>) =>
@@ -66,6 +66,9 @@ test('a baked entry without its maps, frame count or frame side is refused', () 
   assert.match(problem({ maps: undefined }), /three maps/);
   assert.match(problem({ frames: undefined }), /frame count/);
   assert.match(problem({ frameSide: undefined }), /frame side/);
+  assert.match(problem({ objectRadius: undefined }), /object radius/);
+  assert.match(problem({ rootTriangles: undefined }), /root triangle/);
+  assert.match(problem({ coverage: undefined }), /coverage/);
 });
 
 test('impostorMeshBaked is true only for a baked entry with its drawable atlas', () => {
