@@ -3135,6 +3135,7 @@
       "environmentPacked": "Độ rọi của môi trường đúng như GPU đọc nó, đứng sau các nguồn sáng (`../core/environment.ts`).",
       "revision": "Được tăng mỗi khi thay đổi, theo từng ô.",
       "sliceOf": "Lát atlas của một nguồn sáng sống ngay trong bộ đệm đó: nó không được giữ hai lần.",
+      "kindOf": "Loại của một đèn (`LIGHT_KIND`), đọc từ bộ đệm như lát của nó.",
       "ids": "Tên nguồn sáng của mỗi khe.",
       "count": "Có bao nhiêu nguồn sáng.",
       "epoch": "Tăng lên khi tập hợp các nguồn sáng thay đổi.",
