@@ -2,6 +2,7 @@ import type { Texture } from '../../../../sdk-core/src/index.ts';
 import { pictureSize } from '../../texture/pictureSize.ts';
 import { textureRgba } from '../../visibility/types.ts';
 import type { HostMaterials } from '../../host/resources.ts';
+import { followHostTexture } from '../../host/textureImport.ts';
 import type { WebglClusterTextures } from './textures.ts';
 import { eachMap, type Material } from './materialMaps.ts';
 import { textureTransferBytesFor, textureUploadMsFor } from '../../residency/transferBudgets.ts';
@@ -10,6 +11,12 @@ import { textureTransferBytesFor, textureUploadMsFor } from '../../residency/tra
 export const sentBytes = (width: number, height: number) => width * height * 4;
 /** Bytes a map holds on the context: its picture, and a third more for its mip chain. */
 const heldBytes = (width: number, height: number) => Math.ceil((sentBytes(width, height) * 4) / 3);
+
+/** A map's picture in pixels — its raw texels first —, or undefined while it has none to send. */
+const pictureOf = (texture: Texture): [number, number] | undefined => {
+  const rgba = textureRgba(texture);
+  return rgba ? [rgba.width, rgba.height] : texture.image ? pictureSize(texture.image) : undefined;
+};
 
 /**
  * WHAT A FRAME MAY UPLOAD OF THE MAPS (#840), WebGPU's tile budget on WebGL2: the bytes and the CPU
@@ -56,6 +63,9 @@ type Ahead = [
   sent: number,
 ];
 
+/** A declared map whose picture has not arrived yet: what its bind is called with, no bytes yet. */
+type Waiting = [number, Texture, boolean, readonly number[] | undefined, boolean];
+
 /**
  * THE MAPS UPLOADED AHEAD OF THE DRAWS (#840). A picture sent to WebGL2 is copied through the
  * context's transfer memory; a map uploaded at the first draw that shows it held that frame
@@ -63,20 +73,29 @@ type Ahead = [
  * draw's own walk: same textures, same keys), attached or not, until the maps it counts reach the
  * texture pool — the bytes the session grants; each frame then uploads the next ones, before its
  * draws, while they fit its budget (`WebglUploadBudget`) and only once the GPU passed the frame
- * before (`drain`). A map with no picture yet is left to its first draw, as is anything past the
- * pool; a refused one is sent again at its next bind (`chainAllocated`, `mips.ts`).
+ * before (`drain`). A map whose picture was not there yet at the census waits for it (`promote`):
+ * the first drain that finds it sends it ahead of the draw that would have bound it, as that bind
+ * is the hitch. Anything past the pool is left to its first draw; a refused one is sent again at
+ * its next bind (`chainAllocated`, `mips.ts`).
  */
 export class WebglTextureQueue {
   /** What a frame may upload of the queue, opened at each drain. */
   readonly budget = new WebglUploadBudget();
   private queue: Ahead[] = [];
   private next = 0;
+  /** The declared maps still without a picture, until it arrives (`promote`). */
+  private pending: Waiting[] = [];
+  /** The census' pool and the bytes it holds; a map promoted later obeys the same pool. */
+  private poolBytes = 0;
+  private held = 0;
   /** Orders the maps of `declared` within `poolBytes`. */
   order(declared: Iterable<HostMaterials>, poolBytes: number) {
     const materials = new Set<Material>(),
       counted = new Set<Texture>();
     this.queue.length = this.next = 0;
-    let bytes = 0;
+    this.pending.length = 0;
+    this.poolBytes = poolBytes;
+    this.held = 0;
     for (const material of declared)
       for (const one of Array.isArray(material) ? material : [material])
         materials.add(one as Material);
@@ -84,12 +103,18 @@ export class WebglTextureQueue {
       eachMap(
         material,
         (unit, _map, texture, srgb, fallback, reader) => {
-          if (!texture || bytes >= poolBytes || counted.has(texture)) return;
-          const rgba = textureRgba(texture);
-          if (!rgba && !texture.image) return;
+          if (!texture || counted.has(texture)) return;
           counted.add(texture);
-          const [width, height] = rgba ? [rgba.width, rgba.height] : pictureSize(texture.image);
-          bytes += heldBytes(width, height);
+          const size = pictureOf(texture);
+          // No picture yet: held until it arrives (`promote`). Past the pool: left to its first
+          // draw, at the census as when a later picture would not fit the room it has left.
+          if (!size) {
+            if (this.held < poolBytes) this.pending.push([unit, texture, srgb, fallback, reader]);
+            return;
+          }
+          if (this.held >= poolBytes) return;
+          const [width, height] = size;
+          this.held += heldBytes(width, height);
           this.queue.push([unit, texture, srgb, fallback, reader, sentBytes(width, height)]);
         },
         true,
@@ -98,13 +123,38 @@ export class WebglTextureQueue {
   /** The end of the last frame's commands: the queue uploads again once the GPU passed it. */
   private fence: WebGLSync | null = null;
   /**
-   * Before a frame's commands: uploads the next maps while they fit its budget, once the GPU ran every
-   * command of the last frame. An upload sent while the GPU process is behind waits for it: sponza
-   * `rue` held frames 90–120 ms on one map sent after the frame's draws; sent before them, the GPU
-   * idle, the same map took a millisecond.
+   * Moves the declared maps whose picture has arrived since the census into the queue, ahead of the
+   * draws. Each drain does it before its uploads, so a map that arrived late is sent before the
+   * draw that would have bound it — the bind this queue exists to keep off the frame. A map past
+   * the pool is left to its first draw, as at the census.
+   */
+  private promote() {
+    if (!this.pending.length) return;
+    const ready: Ahead[] = [],
+      still: Waiting[] = [];
+    for (const [unit, texture, srgb, fallback, reader] of this.pending) {
+      followHostTexture(texture);
+      const size = pictureOf(texture);
+      if (!size) still.push([unit, texture, srgb, fallback, reader]);
+      else if (this.held < this.poolBytes) {
+        const [width, height] = size;
+        this.held += heldBytes(width, height);
+        ready.push([unit, texture, srgb, fallback, reader, sentBytes(width, height)]);
+      }
+    }
+    this.pending = still;
+    if (ready.length) this.queue.splice(this.next, 0, ...ready);
+  }
+  /**
+   * Before a frame's commands: moves in the maps whose picture arrived (`promote`), then uploads
+   * the next ones while they fit its budget, once the GPU ran every command of the last frame. An
+   * upload sent while the GPU process is behind waits for it: sponza `rue` held frames 90–120 ms
+   * on one map sent after the frame's draws; sent before them, the GPU idle, the same map took a
+   * millisecond.
    */
   drain(gl: WebGL2RenderingContext, textures: Pick<WebglClusterTextures, 'bind'>) {
     if (this.fence && gl.getSyncParameter(this.fence, gl.SYNC_STATUS) !== gl.SIGNALED) return;
+    this.promote();
     const budget = this.budget;
     budget.beginFrame();
     while (this.next < this.queue.length && budget.fits(this.queue[this.next][5])) {
