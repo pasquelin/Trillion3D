@@ -1,3 +1,5 @@
+import { PORTABLE_TEXTURE_SIDE } from '../../frame/referenceTilePlacement.ts';
+
 /**
  * THE FLOAT ATLAS (#1410): a list of floats the passes read by index, kept in an `r32float`
  * texture instead of a storage buffer — the float pool's normals and tangents. A texture is no
@@ -9,8 +11,8 @@
  * `FLOAT_ATLAS_WIDTH` allows it, so it weighs the very bytes the buffer did: the memory budgets
  * the engine funds from them see no change.
  */
-export const FLOAT_ATLAS_WIDTH = 8192;
-export const FLOAT_ATLAS_ROWS = 8192;
+export const FLOAT_ATLAS_WIDTH = PORTABLE_TEXTURE_SIDE;
+export const FLOAT_ATLAS_ROWS = PORTABLE_TEXTURE_SIDE;
 /** Layers every WebGPU device holds (`maxTextureArrayLayers`). */
 const FLOAT_ATLAS_LAYERS = 256;
 
@@ -39,7 +41,7 @@ export function floatAtlasFits(
   limits?: { maxTextureDimension2D?: number; maxTextureArrayLayers?: number },
 ) {
   const [width, rows, layers] = floatAtlasExtent(floats);
-  const side = limits?.maxTextureDimension2D ?? 8192;
+  const side = limits?.maxTextureDimension2D ?? PORTABLE_TEXTURE_SIDE;
   const most = limits?.maxTextureArrayLayers ?? FLOAT_ATLAS_LAYERS;
   return width <= side && rows <= side && layers <= most;
 }
