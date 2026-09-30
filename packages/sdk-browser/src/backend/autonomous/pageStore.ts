@@ -4,21 +4,24 @@
  * its descriptor and its records' boxes before a record draws it.
  */
 import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
+import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 import { colouredTwin, hostPageBytes, hostPageGeometry } from '../../host/pageObjects.ts';
-import type { HostMaterial, HostMaterials } from '../../host/resources.ts';
+import type { HostMaterial } from '../../host/resources.ts';
 import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
 import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts';
 import { rowPlaced } from '../../placement/autonomousPlacements.ts';
 import { wearDeclaration } from '../../page/surface.ts';
 import { assertWithinBox, itemSize, pageOf } from './pageData.ts';
 import { dynamicSource, sourcedPageGeometry } from './sourcedPages.ts';
+import type { PageDraws } from './pageDraws.ts';
 
 type PageStoreEnvironment = {
   /** The roots a record's `placementIndex` ranks: whether a row places it is its root's. */
   roots: readonly ClusterRoot<PageRec>[];
   byUrl: Map<string, PageRec[]>;
   descriptors: Map<string, GeometryPageDescriptor>;
-  baseMaterials: Map<PageRec, HostMaterials>;
+  /** The per-instance draw state, keyed by packed index (`pageDraws.ts`). */
+  draws: PageDraws;
   colorMaterials: Map<HostMaterial, HostMaterial>;
   modifiedPages: Set<string>;
   state: { allocationBytes: number; residentPages: number };
@@ -29,7 +32,7 @@ type PageStoreEnvironment = {
 };
 
 export function createPageStore(env: PageStoreEnvironment) {
-  const { byUrl, descriptors, baseMaterials, colorMaterials, modifiedPages, state } = env;
+  const { byUrl, descriptors, draws, colorMaterials, modifiedPages, state } = env;
   const { release, setArray } = env;
   /** The pages the host replaced, as it wrote them: a record that joins one later — a mount —
    *  draws the host's page, never the cache's, and neither do the others then (#837). */
@@ -40,17 +43,18 @@ export function createPageStore(env: PageStoreEnvironment) {
     const rowed = new Map<DecodedGeometryPage, ReturnType<typeof hostPageGeometry>>(),
       storing = new Set(recs);
     // A rowed geometry held outside this restore stays; index each URL once, not once per row.
-    const retained = new Map<string, Set<PageRec['geometry']>>();
+    const retained = new Map<string, Set<Geometry | undefined>>();
     const drawnByOthers = (rec: PageRec) => {
-      if (!rec.geometry) return false;
+      const mine = draws.find(rec)?.geometry;
+      if (!mine) return false;
       let geometries = retained.get(rec.url);
       if (!geometries) {
         geometries = new Set();
         for (const other of byUrl.get(rec.url) ?? [])
-          if (!storing.has(other)) geometries.add(other.geometry);
+          if (!storing.has(other)) geometries.add(draws.find(other)?.geometry);
         retained.set(rec.url, geometries);
       }
-      return geometries.has(rec.geometry);
+      return geometries.has(mine);
     };
     for (const rec of recs) {
       const placed = rowPlaced(env.roots, rec);
@@ -74,14 +78,14 @@ export function createPageStore(env: PageStoreEnvironment) {
               rec.max,
             ));
       if (placed) rowed.set(data, geometry);
-      const base = baseMaterials.get(rec)!;
+      const base = draws.drawing(rec).material!;
       // Lazily: a page without a colour attribute must not make a vertex-coloured twin.
       const twin = (one: HostMaterial) => colouredTwin(colorMaterials, one);
       const paint = () => (Array.isArray(base) ? base.map(twin) : twin(base));
       wearDeclaration(rec, geometry.attributes.color ? paint() : base);
       setArray(rec, data.indices);
       rec.attributes = geometry.attributes;
-      rec.geometry = geometry;
+      draws.drawing(rec).geometry = geometry;
       // Each geometry uploads its own buffers: counted as `release` gives them back.
       if (!shared) state.allocationBytes += hostPageBytes(geometry);
     }
