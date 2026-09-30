@@ -1,4 +1,5 @@
 import {
+  PAGE_FOOTPRINT_CELLS,
   PAGE_FOOTPRINT_STEP,
   SHADOW_REQUEST_CELL_SHIFT,
   SHADOW_REQUEST_MISS,
@@ -21,15 +22,9 @@ export const SHADOW_REQUEST_BITS = shadowRequestBits();
  * texel cells the texel lies in, one-based — zero is a claim that named no texel. Every reader that
  * marks a page carries it, so the page's footprint narrows to what its receivers read.
  */
-export const SHADOW_REQUEST_CELL_WGSL = `fn shadowRequestCell(l:vec2f)->u32{
- return 1u+min(u32(l.x/${PAGE_FOOTPRINT_STEP}.0),3u)+4u*min(u32(l.y/${PAGE_FOOTPRINT_STEP}.0),3u);
+const SHADOW_REQUEST_CELL_WGSL = `fn shadowRequestCell(l:vec2f)->u32{
+ return 1u+min(u32(l.x/${PAGE_FOOTPRINT_STEP}.0),${PAGE_FOOTPRINT_CELLS - 1}u)+${PAGE_FOOTPRINT_CELLS}u*min(u32(l.y/${PAGE_FOOTPRINT_STEP}.0),${PAGE_FOOTPRINT_CELLS - 1}u);
 }`;
-
-/** The cell of a claim above its entry, in the list word `footprint.ts` reads back. */
-const storeClaim = (miss = false) =>
-  `atomicStore(&shadowRequests[1u+at], e | (cell<<${SHADOW_REQUEST_CELL_SHIFT}u)${
-    miss ? ` | ${SHADOW_REQUEST_MISS}u` : ''
-  });`;
 
 /** The claim of page `e` by one lane: its bit tested before the atomic, then set, and the page
  *  listed by whoever set it first — so a page thousands of pixels read costs one list slot. A
@@ -44,7 +39,7 @@ const claimWgsl = (
  if((atomicLoad(&shadowRequests[word])&bit)!=0u){return;}
  if((atomicOr(&shadowRequests[word],bit)&bit)!=0u){return;}
  let at=atomicAdd(&shadowRequests[0],1u);
- if(at<cap){${cell ? storeClaim(miss) : `atomicStore(&shadowRequests[1u+at],e${miss ? `|${SHADOW_REQUEST_MISS}u` : ''});`}}
+ if(at<cap){atomicStore(&shadowRequests[1u+at],e${cell ? `|(cell<<${SHADOW_REQUEST_CELL_SHIFT}u)` : ''}${miss ? `|${SHADOW_REQUEST_MISS}u` : ''});}
 }`;
 
 /** The per-lane request, every device's: each lane claims its own page. The fallback of

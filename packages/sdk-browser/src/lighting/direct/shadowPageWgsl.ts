@@ -49,17 +49,22 @@ fn shadowPageEntry(m:ShadowMap,p:vec2i)->i32{
  let q=clamp(p,vec2i(0),vec2i(m.pages-1));
  return i32(m.base)+shadowFacePageEntry(m.pages,q.x,q.y);
 }
+/** Map texel \`t\` in page \`p\` of the map, relative to the page's first texel and clamped to it:
+ *  what a footprint covers and what a receiver's cell names. Inside a ring's window \`p\` is its
+ *  own clamp. */
+fn shadowPageLocal(m:ShadowMap,p:vec2i,t:vec2f)->vec2f{
+ let q=clamp(p,vec2i(0),vec2i(m.pages-1));
+ return clamp(t-vec2f(q)*SHADOW_PAGE,vec2f(0.0),vec2f(SHADOW_PAGE));
+}
 /** Word of page \`p\` of the map — asked for —, or zero when it holds nothing readable at map
  *  texel \`t\`: unmapped, not drawn yet, withdrawn while its depth is wrong, or drawn for a
  *  footprint that misses the page's texel nearest \`t\` — asked for again, never read. */
 fn shadowPageWord(m:ShadowMap,p:vec2i,t:vec2f)->u32{
  let e=shadowPageEntry(m,p);
  if(e<0){return 0u;}
- // Inside a ring's window \`p\` is its own clamp.
- let q=clamp(p,vec2i(0),vec2i(m.pages-1));
  requestShadowPage(u32(e));
  let word=shadows.table[u32(e)];
- let local=clamp(t-vec2f(q)*SHADOW_PAGE,vec2f(0.0),vec2f(SHADOW_PAGE));
+ let local=shadowPageLocal(m,p,t);
  let covered=shadowFootprintCovers(word,local);
  if(!covered){requestShadowMiss(u32(e),shadowRequestCell(local));}
  return select(0u,word&PAGE_DRAWN_BITS,(word&PAGE_VALID)!=0u&&covered);
