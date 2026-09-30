@@ -18,6 +18,9 @@ use crate::dag::DagStrategy;
 mod cover;
 mod merge;
 mod pack;
+mod table;
+#[cfg(test)]
+mod table_tests;
 #[cfg(test)]
 mod tests;
 pub(crate) use cover::RootCover;

@@ -3,6 +3,7 @@
 //! The object roots of level 0 are packed too, last, only to take their dependency lists: their
 //! pages are the objects' own, never written twice.
 use super::merge::WorldDag;
+use super::table::{clusters, group_list};
 use super::*;
 use crate::dag::{build_culling_bvh, DagCluster};
 use crate::geometry_page::localise;
@@ -86,6 +87,9 @@ pub(super) fn pack_world(
         .unwrap_or(bundles.len());
     let (mut payload, mut records, mut pages, mut top) =
         (Vec::new(), Vec::new(), Vec::new(), Vec::new());
+    // Where each super-root's page lies in the binary, by world rank: what the runtime's
+    // `clusters` key names to build its `DagRoot` pages (`worldSuperRoots.ts`, #1238).
+    let mut located: Vec<Option<(usize, usize)>> = vec![None; dag.len()];
     for (index, members) in bundles.iter().enumerate().take(written) {
         let start = payload.len();
         for &rank in members {
@@ -95,6 +99,7 @@ pub(super) fn pack_world(
             if index < pinned {
                 top.push((slot, payload.len() - offset));
             }
+            located[slot] = Some((index, offset - start));
             let parent = cluster
                 .parent_error
                 .is_finite()
@@ -115,7 +120,8 @@ pub(super) fn pack_world(
     refuse_over_budget(world, &top, (pinned_bytes, budget))?;
     let objects = object_dependencies(world, instances, &bundle_of, &closed, (pinned, cells))?;
     let table = json!({"version":WORLD_ROOTS_VERSION,"budgetBytes":budget,"pinned":pinned,
-        "pinnedTopBytes":pinned_bytes,"bundles":records,"pages":pages,"cells":objects});
+        "pinnedTopBytes":pinned_bytes,"bundles":records,"pages":pages,"cells":objects,
+        "clusters":clusters(dag, world, &located),"groups":group_list(&world.groups)});
     let report = json!({"version":WORLD_ROOTS_VERSION,"file":WORLD_ROOTS_FILE,"cells":cells,
         "superRoots":pages.len(),"topPages":top.len(),"pinnedBundles":pinned,
         "pinnedTopBytes":pinned_bytes,"budgetBytes":budget,"dependencyBound":bound});
