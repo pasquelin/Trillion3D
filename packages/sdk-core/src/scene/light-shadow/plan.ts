@@ -131,10 +131,10 @@ export function createShadowPlan(poolSide: number, layers = 1, sunWindow = SUN_W
         const before = stampOf(store),
           read = report;
         report = null;
-        // The pool follows the GPU's snapshot first; a miss redraws its page (`demandFootprint.ts`).
+        // The pool follows the GPU's snapshot first; a mark or a miss narrows a page.
         if (!gpu.on || gpu.follow(read, nowMs, frame)) {
           footprints.widened = 0;
-          footprints.missed(read, nowMs, frame);
+          footprints.read(read, nowMs, frame);
           requests.consume(read, nowMs, frame, held ?? frame);
           counts.staled(STALE_BY.footprint, footprints.widened);
           const settled = read.stamp === before && requests.complete && !footprints.widened;
