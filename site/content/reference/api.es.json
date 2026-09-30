@@ -5250,7 +5250,7 @@
     }
   },
   "resolveCompilerExecutable": {
-    "summary": "Encuentra el programa del compilador nativo: el solicitado, si no el construido en este repositorio."
+    "summary": "Encuentra el programa del compilador nativo: el solicitado, si no el del paquete de plataforma instalado, si no el que nombra `TRILLION3D_COMPILER_BIN`, si no el construido en este repositorio."
   },
   "ReusedFolder": {
     "summary": "Lo que una tarea probó antes de conservar una carpeta existente en lugar de escribirla (`null` cuando compiló; `clusterHierarchyPagesMs` es entonces también `null`).",
