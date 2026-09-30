@@ -17,11 +17,20 @@ const JITTER_WORD = 36;
  * down — what `pixelLevel` takes back out —, then the cosine and sine of the angle the shadow
  * filters' taps turn by (`shadowRotated`). The angle is the jitter's own Halton phase, `2π (jx + ½)`:
  * each phase of the cycle turns them apart, and the history the TAA keeps averages them (#1363).
+ * Written `into` at word `at`: the view's own words, a frame allocates nothing.
  */
-export function shadowJitterWords(jitter: ArrayLike<number> | null) {
-  if (!jitter) return [0, 0, 1, 0];
-  const angle = 2 * Math.PI * (jitter[0] + 0.5);
-  return [jitter[0], -jitter[1], Math.cos(angle), Math.sin(angle)];
+export function shadowJitterWords<T extends { [word: number]: number } = number[]>(
+  jitter: ArrayLike<number> | null,
+  into: T = [0, 0, 0, 0] as unknown as T,
+  at = 0,
+): T {
+  const x = jitter ? jitter[0] : 0,
+    angle = jitter ? 2 * Math.PI * (x + 0.5) : 0;
+  into[at] = x;
+  into[at + 1] = jitter ? -jitter[1] : 0;
+  into[at + 2] = Math.cos(angle);
+  into[at + 3] = Math.sin(angle);
+  return into;
 }
 
 /** With no declared light: zero lights, zero tiles, exposure 1, the ACES curve, the eye unread. */
@@ -35,7 +44,7 @@ export function createDeferredView(device: GPUDevice) {
   });
   const packed = new Float32Array(DEFERRED_VIEW_BYTES / 4);
   const setJitter = (jitter: ArrayLike<number> | null) =>
-    packed.set(shadowJitterWords(jitter), JITTER_WORD);
+    void shadowJitterWords(jitter, packed, JITTER_WORD);
   setJitter(null);
   return {
     buffer,
