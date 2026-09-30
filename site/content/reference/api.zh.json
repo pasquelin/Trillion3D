@@ -4440,7 +4440,7 @@
       "signal": "当该信号被中止时停止世界的加载操作。",
       "physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。",
       "temporalAntialiasing": "时间性抗锯齿，仅限 WebGPU：跨帧累积的亚像素抖动。`false` 在每个像素中心绘制，没有历史，这是逐像素精确截图所需；之后通过 `world.temporalAntialiasing` 切换。",
-      "renderScale": "图像按每个轴绘制的显示比例，在时间抗锯齿把它重建到显示尺寸之前：`'auto'` 让帧预算在 `min` 和 `max` 之间选择（`{ min, max }`，默认 0.5 和 1；在只做重采样的 WebGL2 上，`min` 默认为 1），数字则将其固定；静止的图像按最大值绘制。之后通过 `world.renderScale` 修改。"
+      "renderScale": "图像按每个轴绘制的显示比例，在时间抗锯齿把它重建到显示尺寸之前：`'auto'` 让帧预算在 `min` 和 `max` 之间选择（`{ min, max }`，默认 0.5 和 1；在只做重采样的 WebGL2 上，`min` 默认为 1），数字则将其固定。在 WebGPU 上，静止的图像同样按该比例绘制，并由其抖动相位重建；在 WebGL2 上按最大值绘制。之后通过 `world.renderScale` 修改。"
     }
   },
   "RenderScale": {
@@ -5084,7 +5084,7 @@
       "options.signal": "当该信号被中止时停止世界的加载操作。",
       "options.physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。",
       "options.temporalAntialiasing": "时间性抗锯齿，仅限 WebGPU：跨帧累积的亚像素抖动。`false` 在每个像素中心绘制，没有历史，这是逐像素精确截图所需；之后通过 `world.temporalAntialiasing` 切换。",
-      "options.renderScale": "图像按每个轴绘制的显示比例，在时间抗锯齿把它重建到显示尺寸之前：`'auto'` 让帧预算在 `min` 和 `max` 之间选择（`{ min, max }`，默认 0.5 和 1；在只做重采样的 WebGL2 上，`min` 默认为 1），数字则将其固定；静止的图像按最大值绘制。之后通过 `world.renderScale` 修改。"
+      "options.renderScale": "图像按每个轴绘制的显示比例，在时间抗锯齿把它重建到显示尺寸之前：`'auto'` 让帧预算在 `min` 和 `max` 之间选择（`{ min, max }`，默认 0.5 和 1；在只做重采样的 WebGL2 上，`min` 默认为 1），数字则将其固定。在 WebGPU 上，静止的图像同样按该比例绘制，并由其抖动相位重建；在 WebGL2 上按最大值绘制。之后通过 `world.renderScale` 修改。"
     }
   },
   "crossVector3": {

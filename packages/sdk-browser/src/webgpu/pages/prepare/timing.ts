@@ -23,7 +23,12 @@ export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
         ...(sample.error ? { error: sample.error } : {}),
       };
       timing.lastGpuFrameMs = sample.submittedMs;
-      rt.scale.observe(sample.frameMs, sample.renderScale, sample.scaleSteered !== false);
+      rt.scale.observe(
+        sample.frameMs,
+        sample.renderScale,
+        sample.scaleSteered !== false,
+        sample.scaleStill === true,
+      );
       // The bounce budget is a duration: it reads here the timer of its own stage, the per-pass
       // profile's, and corrects the next image's batch. Never an estimate.
       rt.bounce.probes?.observeGpuMs(bounceGpuMs(timing.lastGpuPassMs));

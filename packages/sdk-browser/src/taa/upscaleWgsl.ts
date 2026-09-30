@@ -2,6 +2,7 @@ import { PI } from '../lighting/shaderConstants.ts';
 import { shaderLanguage } from '../math/shaderLanguage.ts';
 import { taaPrelude, taaShareTap } from './shaderWgsl.ts';
 import { shareText, taaHistoryBlend } from './historyWgsl.ts';
+import { BLACKMAN_HARRIS_WGSL } from './weights.ts';
 import { layerWgsl, taaOut } from './layers.ts';
 
 /** Lanczos-2, `sinc(x)·sinc(x/2)` on `|x| < 2`: the kernel the current image is resampled with. */
@@ -31,12 +32,16 @@ export const LANCZOS2_GLSL = shaderLanguage(LANCZOS2_WGSL, 'glsl');
  * Reprojection starts from the unjittered display-pixel centre at the dilated depth; the history
  * blend is the native resolve's (`taaHistoryBlend`), its `reach` the Lanczos-2 weight of the
  * nearest sample, its distance in display pixels (#833), and the tag written the dilated texel's.
- * The as-is share and the display layers (`layers.ts`) follow the colour's weights.
+ * The as-is share and the display layers (`layers.ts`) follow the colour's weights. A still image
+ * weighs each sample by the Blackman-Harris window of one DISPLAY pixel instead, and averages its
+ * images by those weights (`STILL_AVERAGE_WGSL`): the phases then rebuild the display size's
+ * detail, where a render-pixel kernel would soften it (#1343).
  */
 export const taaUpscaleShader = (asIs: boolean, blended = false, filtered = false) => {
   const share = shareText(asIs);
   return `${taaPrelude(asIs, blended, filtered)}
 ${LANCZOS2_WGSL}
+${BLACKMAN_HARRIS_WGSL}
 @fragment fn resolve(@builtin(position) pixel:vec4f)->TaaOut{
  let coord=vec2i(pixel.xy);
  let r=pixel.xy*view.viewport.zw*view.render.xy-0.5;
@@ -48,6 +53,8 @@ ${LANCZOS2_WGSL}
  var nearDepth=-1.0;
  var sum=vec4f(0.0);var total=0.0;var closest=2.0;
  var lo=vec4f(1e9);var hi=vec4f(-1e9);var ringLo=vec4f(1e9);var ringHi=vec4f(-1e9);
+ let resting=view.jitter.z==0.0;let toDisplay=view.viewport.x*view.render.z;
+ var still=vec4f(0.0);var stillTotal=0.0;
 ${share(' var share=0.0;var shareLo=1.0;var shareHi=0.0;\n')}${layerWgsl(filtered, 'vars')} for(var dy=-1;dy<=1;dy++){for(var dx=-1;dx<=1;dx++){
   let tap=base+vec2i(dx,dy);
   let at=clamp(tap,vec2i(0),last);
@@ -56,18 +63,21 @@ ${share(' var share=0.0;var shareLo=1.0;var shareHi=0.0;\n')}${layerWgsl(filtere
   let sample=textureLoad(current,at,0);
   let gap=length(vec2f(at)+sampled);
   let weight=lanczos2(gap);closest=min(closest,gap);
+  if(resting){let hit=blackmanHarris(gap*toDisplay);still+=sample*hit;stillTotal+=hit;}
   sum+=sample*weight;total+=weight;
   let y=vec4f(toYcocg(sample.rgb),sample.a);
   lo=min(lo,y);hi=max(hi,y);
   let ring=tap-low;
   if(all(ring>=vec2i(0))&&all(ring<=vec2i(1))){ringLo=min(ringLo,sample);ringHi=max(ringHi,sample);}
 ${taaShareTap(asIs, blended)}${layerWgsl(filtered, 'tap')} }}
- let filtered=clamp(sum/max(total,1e-4),ringLo,ringHi);
+ var filtered=clamp(sum/max(total,1e-4),ringLo,ringHi);
+ if(stillTotal>0.0){filtered=still/stillTotal;}
+ var count=stillTotal;
 ${share(' share=clamp(share/max(total,1e-4),shareLo,shareHi);\n')}${layerWgsl(filtered, 'scaled')} let centre=clamp(base,vec2i(0),last);
- let reach=saturate(lanczos2(closest*view.viewport.x*view.render.z));
+ let reach=saturate(lanczos2(closest*toDisplay));
  let tag=f32(placementTag(near))/255.0;
- if(view.params.y==0.0){return ${taaOut(asIs, filtered)};}
+ if(view.params.y==0.0){return ${taaOut(asIs, filtered, false, true)};}
  let previous=previousUv(coord,nearDepth,near);
-${taaHistoryBlend(asIs, filtered)}
+${taaHistoryBlend(asIs, filtered, true)}
 }`;
 };
