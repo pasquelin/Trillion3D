@@ -20,13 +20,13 @@ const READ: GPUBufferBindingType = 'read-only-storage',
  * THE MOVING CASTERS OF A BATCH'S RESTORED PAGES, GROUPED IN INSTANCED DRAWS (#1345). A moving
  * caster restores and redraws each page it lands in; one draw a page cost a draw call and its state
  * per page, 250 a frame for 35 turning antennas. The restored pages of one pass with lists of one
- * kind — the cull's, or all the occlusion test's —, in one block of its layer for a sun, anywhere
- * in it for a lamp, are one group (`groupWgsl.ts`): after the cull and the occlusion test, one
- * workgroup per region files its kept places into its group's pairs and counts them into its
- * group's two commands; each pass then draws a group's opaque casters, and its cutout ones, in one
- * indirect draw each, and the transmittance layer's pass its blended ones (`drawBlend`), instead of
- * one each a page. A sun page draws the texels its own viewport drew, to the bit. Only a batch
- * with no group, or without what a group binds, keeps a draw a page (`drawRegionCasters`).
+ * kind — the cull's, or all the occlusion test's —, in one block of its layer, are one group
+ * (`groupWgsl.ts`; sun pages alone, a lamp page draws in its own viewport): after the cull and the
+ * occlusion test, one workgroup per region files its kept places into its group's pairs and counts
+ * them into its group's two commands; each pass then draws a group's opaque casters, and its cutout
+ * ones, in one indirect draw each, and the transmittance layer's pass its blended ones
+ * (`drawBlend`), instead of one each a page. A sun page draws the texels its own viewport drew, to the bit. A lamp page, and
+ * a batch with no group or without what a group binds, keeps a draw a page (`drawRegionCasters`).
  */
 export async function createShadowMovingGroups(device: GPUDevice) {
   const module = await createCheckedShaderModule(
