@@ -102,26 +102,38 @@ fn softPageExit(index:u32,P:vec3f,v:vec3f,r:LampAt,s:f32)->f32{
  }
  return exit;
 }
+/** The pages a soft shadow's filter tap at \`Q\` reads, its bilinear footprint split along the seams
+ *  it comes near (\`lampSoftCompare\`): its lookup's home page and the neighbours \`demandPages\` marks. */
+fn demandSoftAt(index:u32,lamp:vec3f,Q:vec3f,N:vec3f,mip:u32){
+ let r=lampReadAt(index,lamp,Q,N,0.0,1.0,mip);demandPages(r.at.map,r.at.t,r.at.home);
+}
 /** Every page of \`mip\` a point lamp's soft shadow reads (\`pointSoftShadow\`) at \`P\`, the
  *  offset point of \`centre\`: a tap of its blocker search lies at \`P + v\`, one of its filter at
  *  \`P + v·s\`, \`s\` the penumbra over the search, at most 1 — each tap on the segment from \`P\`
- *  to its search tap. Each segment is walked
+ *  to its search tap, its disk turned this jitter phase (\`shadowRotated\`). Each segment is walked
  *  page by page through the tap's own lookup (\`lampReadAt\`, as \`lampDiskSample\`), across the
- *  cube's faces: every page its taps can read is marked, whatever the blockers found. */
+ *  cube's faces: every page its taps can read is marked, whatever the blockers found. A segment's
+ *  image in a face is straight, so its distance to a page's edge is least at an end of its part in
+ *  that page: the neighbours a filter tap's footprint reaches are those of the ends' reads. */
 fn demandSoftLamp(index:u32,light:DirectLight,centre:LampAt,N:vec3f,mip:u32){
  let P=centre.at.Q;
  let d=lampSoftDisk(index,light,P);
  let lamp=light.positionRange.xyz;
  for(var tap=0u;tap<PCF_TAPS;tap++){
   let disk=shadowRotated(POISSON[tap]);let v=(d.T*disk.x+d.B*disk.y)*d.search;
-  // \`P\` reads \`centre\`, the lookup whose pages \`demandLamp\` marked: the walk starts at its exit.
-  var s=softPageExit(index,P,v,centre,0.0)+1e-5;
+  // \`P\` reads \`centre\`, the lookup whose pages \`demandLamp\` marked: the walk starts at its exit —
+  // at once when \`P\` lies on the edge the segment leaves by, a crossing at \`s = 0\` (#1363).
+  var exit=softPageExit(index,P,v,centre,-1e-5);
+  demandSoftAt(index,lamp,P+v*(min(exit,1.0)-1e-5),N,mip);
+  var s=exit+1e-5;
   // A segment spans under 60° (\`search\` < \`distance\`, a tap within 1.3 of the disk's centre):
   // at most three faces, and two pages a row of each crossed.
   for(var k=0u;k<6u*LAMP_PAGE_COUNT&&s<=1.0;k++){
    let r=lampReadAt(index,lamp,P+v*s,N,0.0,1.0,mip);
-   demandPage(r.at.map,r.at.home);
-   s=softPageExit(index,P,v,r,s)+1e-5;
+   demandPages(r.at.map,r.at.t,r.at.home);
+   exit=softPageExit(index,P,v,r,s);
+   demandSoftAt(index,lamp,P+v*(min(exit,1.0)-1e-5),N,mip);
+   s=exit+1e-5;
   }
  }
 }

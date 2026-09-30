@@ -2,16 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { LAMP_SOFT_WGSL } from './lampSoftWgsl.ts';
-import { POISSON_16 } from './shadowWgsl.ts';
+import { PCF_TAPS_WGSL, POISSON_16 } from './shadowWgsl.ts';
 
 type V = number[];
 function sample(radius: number, receiver: number, blocker: number | null) {
   const search: V[] = [],
     filter: V[] = [];
   const { pointSoftShadow } = shaderRun<{ pointSoftShadow: (...args: unknown[]) => number }>(
-    LAMP_SOFT_WGSL,
-    ['pointSoftShadow', 'lampSoftDisk'],
+    LAMP_SOFT_WGSL + PCF_TAPS_WGSL,
+    ['pointSoftShadow', 'lampSoftDisk', 'shadowRotated'],
     {
+      shadowRotation: [1, 0],
       shadows: { records: [{ info: [6, 1, 0.1, 0] }] },
       PCF_TAPS: POISSON_16.length,
       POISSON: POISSON_16,
