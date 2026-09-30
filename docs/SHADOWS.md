@@ -39,7 +39,10 @@ list follow the pool; the static layer is rebuilt at the new size by the next mo
 resize keeps the pool, said under `gpu-out-of-memory`, and is not asked again until the demand asks
 another size. A demand past the cap is held there, said `ceiling` in the `shadow-pool` diagnostic. What the pool cannot hold is refused at
 allocation, published as memory (`shadowPagesOverflow`, #542) and read at the coarser level; pages
-are evicted least recently read first.
+are evicted least recently read first. Held at the ceiling under a still view, the GPU evicts none
+the view asked since it rested (`shadowKeptFrom`, the host's still cycle of #26): the jitter phases
+no longer map each other's pages out every frame, what they ask past the pool is refused, and the
+image rests (`ceilingHold.test.ts`).
 
 ## Memory
 
@@ -136,7 +139,9 @@ cache (`splitMemoryBudget`). The batches' buffers (`gpu/shadow/batchBudget.ts`, 
   page in the vertex stage and kept to it by the fragment, no viewport set (`freshPass.ts`,
   `freshDrawsWgsl.ts`); a tinted transmittance layer's pass does the same for blended casters. The
   host redraws a page with its light cut and static layer once a report names it, the GPU's draw
-  readable meanwhile (`DRAWN_GPU`). So a page read first in a frame is drawn before anything samples
+  readable meanwhile (`DRAWN_GPU`) — unless what it holds moves in the world: the host then sends
+  its word marked withdrawn (`PAGE_WITHDRAWN`, `table.withdraw`), and the GPU's draw loses its depth
+  as a host one does; the mark never enters the table. So a page read first in a frame is drawn before anything samples
   it: no one-frame hole, whatever moves. A frame whose view, world and lights hold, whose host took
   no page's depth, after a snapshot that listed none, runs none of it: at rest it asks for the pages
   the frame before drew (`freshWanted`, `gpu.moved`).
@@ -170,7 +175,12 @@ So no shadow stitches past poses or outlives its caster (`staticSurvives.test.ts
 `moverPages.test.ts`). A box that holds no sample of a level's texels — a small caster under a
 coarse level, lying between the depth texels' centres and the transmittance layer's, a sixteenth of
 a texel of slack aside — writes no texel there before or after it moves: that level's pages keep
-(`pageRects.ts`, `moverTexels.test.ts`, #1345). A residency flag that drops and rises within a frame (rows follow the table
+(`pageRects.ts`, `moverTexels.test.ts`, #1345). A moved root whose clusters are all it draws —
+every page a leaf, as a run-time primitive's — declares each cluster's box at both poses rather
+than its own box, which holds what lies between them: a ring turning in its plane stales the pages
+along it and keeps its hollow's, a gear the pages under its disc and teeth
+(`webgpu/pages/render/movedClusters.ts`, `movedClusters.test.ts`). A primitive with coarser levels
+declares its own box at each pose. A residency flag that drops and rises within a frame (rows follow the table
 epoch when a pose moves) is no change: only a flag differing from the last plan's restales its
 cluster's pages (`webgpu/shadow/residence.ts`).
 
