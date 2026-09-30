@@ -142,3 +142,24 @@ export function worldBundlePages(bytes: Uint8Array, count: number, bundle: numbe
   if (at !== bytes.byteLength) refuse(`bundle ${bundle} holds more than its ${count} pages`);
   return pages;
 }
+
+/** One world cluster as the cook's `clusters` key publishes it (FORMAT.md, World super-roots; #1238),
+ *  in rank order (`cluster` is its index, which the groups name): the fields the runtime cut
+ *  projects, and where its page lives — a super-root its `bundle` and `offset` in the binary, an
+ *  object root its `origin` (the placed instance). Kept out of the exported `WorldRoots`, whose
+ *  shape the API reference translates. */
+export type WorldRootsCluster = {
+  cluster: number;
+  level: number;
+  lodError: number;
+  sphere: number[];
+  parentError: number | null;
+  parentSphere: number[] | null;
+  min: number[];
+  max: number[];
+  triangles: number;
+  material: number | null;
+  bundle: number | null;
+  offset: number | null;
+  origin: number | null;
+};

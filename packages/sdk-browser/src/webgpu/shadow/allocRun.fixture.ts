@@ -14,7 +14,7 @@ import {
 } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
 import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
 import { SUN_LEVELS } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { SHADOW_REQUEST_BITS } from '../../lighting/direct/shadowRequestWgsl.ts';
+import { shadowRequestBits } from '../../lighting/direct/shadowRequestWgsl.ts';
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
@@ -54,7 +54,7 @@ export function shadowsOf(data: Uint8Array) {
  *  listed by whoever set it. */
 export function claimShadowRequest(requests: Uint8Array, e: number) {
   const list = u32(requests),
-    cap = list.length - 1 - SHADOW_REQUEST_BITS,
+    cap = (list.length - 2 - shadowRequestBits()) / 5, // `shadowRequestWords`
     word = 1 + cap + (e >>> 5),
     bit = 1 << (e & 31);
   if (list[word] & bit) return;

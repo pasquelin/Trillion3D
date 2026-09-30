@@ -36,12 +36,12 @@ fn cover((positions, indices): (Vec<f32>, Vec<u32>)) -> RootCover {
     RootCover::of(strategy, &dag, &positions, &pages, &page_of)
 }
 
-fn covers() -> [RootCover; 2] {
+pub(super) fn covers() -> [RootCover; 2] {
     [cover(plate(16, 12.0, false)), cover(plate(8, 4.0, true))]
 }
 
 /// A world of `tiles` × `tiles` tiles, one cell each: every object places both covers.
-fn world(covers: &[RootCover; 2], tiles: usize) -> Vec<Instance<'_>> {
+pub(super) fn world(covers: &[RootCover; 2], tiles: usize) -> Vec<Instance<'_>> {
     let mut instances = Vec::new();
     for cell in 0..tiles * tiles {
         let corner = [(cell % tiles) as f64 * TILE, (cell / tiles) as f64 * TILE];
@@ -66,7 +66,7 @@ fn world(covers: &[RootCover; 2], tiles: usize) -> Vec<Instance<'_>> {
     instances
 }
 
-fn cooked(instances: &[Instance], cells: usize, budget: usize) -> Result<Cooked> {
+pub(super) fn cooked(instances: &[Instance], cells: usize, budget: usize) -> Result<Cooked> {
     cook(instances, cells, budget, &|| Ok(()))
 }
 
