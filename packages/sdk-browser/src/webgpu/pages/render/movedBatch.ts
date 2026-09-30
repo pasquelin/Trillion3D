@@ -4,9 +4,9 @@ import {
   boxEmpty,
   boxIsEmpty,
   boxTransform,
-  boxEquals,
   boxUnionBatch,
 } from '../../../../../sdk-core/src/index.ts';
+import { boxEquals } from '../../../../../sdk-core/src/math/primitives/box.ts';
 import { moveRootRows } from './movedRoot.ts';
 import { declareOwnMove, forgetOwnMoves, noteOwnMove, ownsMove } from './movedClusters.ts';
 import { staleTemporalBox } from '../../../hiz/staleRegions.ts';
