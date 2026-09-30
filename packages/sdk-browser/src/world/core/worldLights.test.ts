@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { light } from '../../../../sdk-core/src/world/light/light.ts';
 import { object } from '../../../../sdk-core/src/world/object/index.ts';
-import type { SceneLight } from '../../../../sdk-core/src/scene/light/contracts.ts';
 import { createWorldLights } from './worldLights.ts';
 
 /** A light store recording what is written into it. */
@@ -12,18 +11,6 @@ const store = () => {
     held,
     addLight: (record: { id: string }) => void held.add(record.id),
     setLight: () => {},
-    removeLight: (id: string) => void held.delete(id),
-  };
-};
-
-/** A light store keeping the whole record written under each id. */
-const records = () => {
-  const held = new Map<string, SceneLight>();
-  return {
-    held,
-    addLight: (record: SceneLight) => void held.set(record.id, record),
-    setLight: (id: string, patch: Partial<Omit<SceneLight, 'id'>>) =>
-      void held.set(id, { ...held.get(id), ...patch } as SceneLight),
     removeLight: (id: string) => void held.delete(id),
   };
 };
@@ -46,27 +33,25 @@ test('a light under a hidden group lights nothing, and lights again once shown',
   assert.equal(api.held.size, 1);
 });
 
-test('the authored range is the cap, and the frame’s perceptibility only shortens it', () => {
-  const scene = object.group();
-  scene.add(light.point({ intensity: 0.01, distance: 500 }));
-  const bare = createWorldLights(),
-    kept = records();
-  bare.sync(scene, kept);
-  assert.equal(kept.held.get('world-light-1')!.range, 500, 'no display: the authored range stands');
+/** The ranges the store receives, by light, from one sync of `lamps` in an empty group. */
+const rangesOf = (lamps: ReturnType<typeof light.point>[]) => {
+  const scene = object.group(),
+    ranges: (number | undefined)[] = [];
+  for (const lamp of lamps) scene.add(lamp);
+  createWorldLights().sync(scene, {
+    addLight: (record: { range?: number }) => void ranges.push(record.range),
+    setLight: () => {},
+    removeLight: () => {},
+  });
+  return ranges;
+};
 
-  const day = createWorldLights(),
-    lit = records();
-  day.sync(scene, lit, { exposure: 1, toneMapping: 'aces' });
-  const shrunk = lit.held.get('world-light-1')!.range!;
-  assert.ok(shrunk < 500, 'a weak lamp authored far past the frame is shortened');
-  assert.ok(shrunk > 0);
-
-  const night = createWorldLights(),
-    raised = records();
-  night.sync(scene, raised, { exposure: 8, toneMapping: 'aces' });
-  assert.ok(
-    raised.held.get('world-light-1')!.range! > shrunk,
-    'a raised exposure re-derives a longer reach, never past the author',
-  );
-  assert.ok(raised.held.get('world-light-1')!.range! <= 500);
+test('the store receives each lamp’s authored range as-is, however faint the lamp (#958)', () => {
+  assert.deepEqual(rangesOf([]), [], 'an empty scene writes nothing');
+  const random = Array.from({ length: 64 }, (_, i) => 10 ** (((i * 7919) % 97) / 8 - 6));
+  const authored = [...random, Number.MIN_VALUE, 1e-300, 18, Number.MAX_VALUE, Infinity];
+  const faint = (distance: number) => light.point({ intensity: 1e-9, distance });
+  assert.deepEqual(rangesOf(authored.map(faint)), authored, 'no reach is cut below the author’s');
+  const unset = rangesOf([0, -0, NaN, -Infinity].map(faint));
+  assert.ok(unset.every((range) => range === unset[0] && range! > 0 && Number.isFinite(range)));
 });
