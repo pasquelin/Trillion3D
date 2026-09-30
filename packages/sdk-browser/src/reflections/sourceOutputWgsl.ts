@@ -18,7 +18,9 @@ export function withReflectionSourceOutput(shader: string) {
   const lit = shader
     .replace(ENTRY, 'fn litSurface(pixel:vec4f)->vec4f{')
     .replaceAll(CAMERA_FOG, HELD + CAMERA_FOG)
-    .replace(`${MIRROR};${HELD}`, `;${HELD}rgb+=${MIRROR.slice(1)};`);
+    .replaceAll(`${MIRROR};${HELD}`, `;${HELD}rgb+=${MIRROR.slice(1)};`);
+  // A mirror term left in the held sum would reflect itself: its text moved, the output refuses.
+  if (lit.includes(`${MIRROR};`)) throw new Error('REFLECTION_SOURCE_OUTPUT_UNMATCHED');
   return `${lit}
 var<private> reflectionSourceRgb:vec3f;
 var<private> reflectionSourceHeld:bool;
