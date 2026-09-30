@@ -999,6 +999,7 @@
       "selectedNodes": "Nodi mantenuti.",
       "primitives": "Primitive mantenute.",
       "metrics": "Tempo e dimensione.",
+      "reusedPages": "Pagine che l’esecuzione ha trovato già costruite (`null` per una cartella mantenuta).",
       "reused": "Ciò che è stato riutilizzato."
     }
   },

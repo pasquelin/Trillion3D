@@ -103,12 +103,14 @@ export interface CompilationPointer extends CompilationSummary {
   /** Time and size. */ metrics: {
     importMs: number;
     clusterHierarchyPagesMs: number | null;
+    [measure: string]: unknown; // compileMs, phaseElapsedMs, peakRssBytes… on a compiled folder
     wallMs: number;
     pruneMs: number;
     outputGeometryBytes: number;
     threads: number;
     ramBudgetMb: number;
   };
+  /** Pages the run found already built (`null` on a kept folder). */ reusedPages: number | null;
   /** What was reused. */ reused: ReusedFolder | null;
 }
 
@@ -183,8 +185,7 @@ export interface CutoutModel {
 /** How the cut-out review asks. */ export interface CutoutReviewOptions {
   /** Where to write. */ stream?: ProgressStream;
   /** Where answers come from. */ input?: NodeJS.ReadStream;
-  /** Defaults to whether the stream is a terminal. */
-  interactive?: boolean;
+  /** Defaults to whether the stream is a terminal. */ interactive?: boolean;
 }
 
 /**

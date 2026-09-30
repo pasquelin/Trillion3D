@@ -51,9 +51,9 @@ column-file descriptor; a mesh page, `{ version: 10, primitives, binary }`, slim
 their columns' descriptor; an index page, `{ version: 10, pages }`, at most eight slots. Mesh pages
 are cut by the same pager from the primitives in order, halved: a region page is one primitive, or
 the primitives whose page fits 128 KiB (`PAGE_BYTES`), each with its own column file, written before
-the scene tables whose region pages name them (#792). `reusedPages` (a run's report, not its
-product) stays out of the mesh pages, one per primitive in the head, so a rebuild writes the same
-mesh pages and tables. A reader checks the root (`assertCacheRoot`), reads the pages in parallel,
+the scene tables whose region pages name them (#792). What a run reports of itself
+(`reusedPages`, every `…Ms` metric, `peakRssBytes`) is in no page, so a rebuild writes the same bytes
+(#1370); an older head carrying `reusedPages` still reads, the field ignored. A reader checks the root (`assertCacheRoot`), reads the pages in parallel,
 each against its slot and column-file descriptor, and merges them (`readPagedManifest`). Rewriting a
 key folder removes, once the new root is written, every manifest page and column file it no longer
 names.

@@ -56,7 +56,7 @@ fn columned(
 
 /// Writes the manifest `result` as pages in `directory` — `extra` among its fields, the texture
 /// previews in the head's sidecar, its primitives in `mesh`, already written — then its root, and
-/// removes the pages an older root named.
+/// removes the pages an older root named. The run's report stays out: one scene, one output.
 pub(crate) fn write_manifest(
     result: &Value,
     extra: Value,
@@ -65,9 +65,9 @@ pub(crate) fn write_manifest(
     directory: &Path,
 ) -> Result<()> {
     let mut top = result.as_object().expect("a manifest").clone();
-    if let Some(Value::Array(primitives)) = top.remove(MANIFEST_PAGES.records) {
-        let report = primitives.iter().map(|p| p[RUN_REPORT].clone());
-        top.insert(RUN_REPORT.into(), report.collect());
+    top.remove(MANIFEST_PAGES.records);
+    if let Some(Value::Object(metrics)) = top.get_mut("metrics") {
+        metrics.retain(|name, _| !is_run_measure(name));
     }
     if let Value::Object(extra) = extra {
         top.extend(extra);
