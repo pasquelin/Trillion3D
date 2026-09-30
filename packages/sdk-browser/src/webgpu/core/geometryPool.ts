@@ -94,6 +94,7 @@ export function createVertexPool(
           offsetOf('normal', next, block.vertexBase),
           fill(attributes, 'normal', 0, block.count),
         );
+    scratch = new Float32Array(0); // a growth's largest list is not kept, as the open's
     grown?.(next);
     return true;
   };

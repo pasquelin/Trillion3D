@@ -1,4 +1,5 @@
 import { PROBE_FLOATS } from '../../../sdk-core/src/index.ts';
+import { PORTABLE_TEXTURE_SIDE } from '../frame/referenceTilePlacement.ts';
 
 /**
  * THE BOUNCE ATLASES (#1410): the probe cascades and the surface cache are float textures read
@@ -11,7 +12,7 @@ import { PROBE_FLOATS } from '../../../sdk-core/src/index.ts';
 export const BOUNCE_ATLAS_FORMAT: GPUTextureFormat = 'rgba32float';
 
 /** The widest and tallest 2D texture every WebGPU device holds (`maxTextureDimension2D`). */
-export const ATLAS_DIMENSION = 8192;
+export const ATLAS_DIMENSION = PORTABLE_TEXTURE_SIDE;
 
 /** Vectors of a probe: its texels in the atlas. */
 export const PROBE_TEXELS = PROBE_FLOATS / 4;
