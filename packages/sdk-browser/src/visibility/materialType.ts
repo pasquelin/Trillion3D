@@ -1,5 +1,13 @@
 import type { Texture } from '../../../sdk-core/src/index.ts';
 
+/** The anisotropy and clear-coat maps, in the order both backends bind them. */
+export const PHYSICAL_MAP_FIELDS = [
+  'anisotropyMap',
+  'clearcoatMap',
+  'clearcoatRoughnessMap',
+  'clearcoatNormalMap',
+] as const;
+
 export type VisMaterial = {
   baseColor: [number, number, number];
   metalness: number;

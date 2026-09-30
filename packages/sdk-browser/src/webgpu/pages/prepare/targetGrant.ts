@@ -6,7 +6,8 @@ import {
   createWebgpuCoplanarLayerPipelines,
   createWebgpuVisibilityRasterPipelines,
 } from '../../visibility/pipelines.ts';
-import { frameTargetAllocation, makeTargets, releaseTargets, targetsFit } from './targets.ts';
+import { makeTargets, releaseTargets, targetsFit } from './targets.ts';
+import { frameTargetAllocation } from './targetAllocation.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { drawnViewChanged, viewGpu, type WebgpuView } from '../state/view.ts';
 import { onView } from '../state/viewSwitch.ts';

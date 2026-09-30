@@ -1,3 +1,6 @@
+import type { Texture } from '../../../sdk-core/src/index.ts';
+import { textureRgba } from '../visibility/types.ts';
+
 /**
  * The size of a texture's picture in pixels, as the GPU copies it: a video's frame size
  * (`videoWidth`), not the box its element is laid out in (`width`, zero unless set), and a
@@ -16,4 +19,10 @@ export function pictureSize(image: unknown): [number, number] {
   const width = picture?.videoWidth ?? picture?.displayWidth ?? picture?.width ?? 1,
     height = picture?.videoHeight ?? picture?.displayHeight ?? picture?.height ?? 1;
   return [Math.max(1, width), Math.max(1, height)];
+}
+
+/** The size of a texture's texels: its bytes in memory, else its picture's. */
+export function sourceSize(map: Texture): [number, number] {
+  const rgba = textureRgba(map);
+  return rgba ? [rgba.width, rgba.height] : pictureSize(map.image);
 }

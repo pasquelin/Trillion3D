@@ -29,8 +29,7 @@ import { type WebgpuPagesRuntime } from '../runtime.ts';
 
 /** Prepares the timer, resources, then root world boxes on the session handle. */
 export async function prepareWebgpuBackend(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  // A first claim hears of a device already lost a microtask later (`claimGpuDevice` has already
-  // listened to `device.lost`): one tick, no listener of its own, and nothing is built.
+  // A first claim hears of a device already lost a microtask later: one tick, nothing is built.
   await undefined;
   throwIfStopped(rt);
   prepareGpuTiming(rt, device);
@@ -42,8 +41,7 @@ export async function prepareWebgpuBackend(rt: WebgpuPagesRuntime, device: GPUDe
 }
 
 /** Builds every GPU resource an image needs, once; `gpuDevice` is then kept as `gpu.device`. A
- *  backend closed, or a device lost, meanwhile starts no further step: what a step has returned is
- *  kept on the runtime, and the teardown releases it. */
+ *  backend closed or a device lost starts no further step; the teardown releases what steps built. */
 export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { gpu, vis, run, context, diag, capabilities, blendState, services } = rt,
     { allPages, blendCopies, scene, cap } = rt.setup,
@@ -55,8 +53,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   };
   const lightBuffer = createSceneLightContractBuffer((gpu.device = gpuDevice), rt.lights.store);
   rt.lights.buffer = lightBuffer;
-  // No more light written into the scene, on either side: opaques and transparents read the same
-  // declared-light buffer, with the same shadows and the same exposure (P6).
+  // No more light written into the scene: opaques and transparents read the same declared-light buffer.
   diag.engineDiagnostic('scene-lighting', 'Scene lights active', {
     version: 1,
     contractLights: rt.lights.store.count,
@@ -66,11 +63,14 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     globalIllumination: false,
   });
   // The contract program finishes compiling between two images: its arrival is a new resource, or
-  // the held image would keep presenting raw albedo. The two programs compile side by side.
-  // Both are awaited, and each kept as it is built, before a failure of either goes up.
+  // the held image would keep presenting raw albedo. Both programs are awaited, each kept as built.
   const programs = await step('lighting and antialiasing programs', () =>
     Promise.allSettled([
-      createDeferredLighting(gpuDevice, () => run.gate.resourcesChanged()),
+      createDeferredLighting(
+        gpuDevice,
+        () => run.gate.resourcesChanged(),
+        rt.lights.plan.sunWindow,
+      ),
       prepareTemporalAntialiasing(rt, gpuDevice),
     ]),
   );

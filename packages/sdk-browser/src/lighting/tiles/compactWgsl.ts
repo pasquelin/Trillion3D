@@ -122,6 +122,9 @@ const WALK_RESET_WGSL = ` if(lane==0u){
  }
 `;
 
+/** Thread zero's flag word of the record: `shadowed` is only ever zero or one. */
+const SHADOW_FLAG_WGSL = 'tiles[base+TILE_SHADOW_BASE]=atomicLoad(&shadowed);';
+
 /**
  * The compaction of the tile's `count` lights into its record at `base`, in uniform control flow:
  * the walk, the two true counts, and with `pool` the slices past their list (#849).
@@ -132,10 +135,10 @@ export const tileCompactStatementsWgsl = (words: number, pool: boolean) =>
  let live=(count-(max(count,1u)-1u)/${words * 32}u*${words * 32}u+31u)/32u; // the last batch's words
  if(lane==0u){
   let total=kept+vec2u(maskTotal(OPAQUE_MASK,live),maskTotal(BLEND_MASK,live));
-  tiles[base]=total.x;tiles[base+1u]=total.y;tiles[base+TILE_SHADOW_BASE]=select(0u,1u,atomicLoad(&shadowed)!=0u);counted=total;
+  tiles[base]=total.x;tiles[base+1u]=total.y;${SHADOW_FLAG_WGSL}counted=total;
  }${spillWgsl(words)}`
     : ` walkLights(lane,count,hasOpaque,seesSky,base);
- if(lane==0u){tiles[base]=maskTotal(OPAQUE_MASK,${words}u);tiles[base+1u]=maskTotal(BLEND_MASK,${words}u);tiles[base+TILE_SHADOW_BASE]=select(0u,1u,atomicLoad(&shadowed)!=0u);}`;
+ if(lane==0u){tiles[base]=maskTotal(OPAQUE_MASK,${words}u);tiles[base+1u]=maskTotal(BLEND_MASK,${words}u);${SHADOW_FLAG_WGSL}}`;
 
 /** The pool's walk of a tile a slice of which passed its list; nothing for any other tile. A
  *  scene of one batch keeps its masks whole: its kept lights are written again from them, never

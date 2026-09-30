@@ -77,10 +77,7 @@ export async function probe(args: Args) {
         bits = new Uint32Array(wave.buffer);
       bits.set([4, 4, 0, 0, 1, 0, 0, 0]);
       const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
-      wave.set(identity, 8);
-      wave.set(identity, 24);
-      wave.set(identity, 40);
-      wave.set(identity, 56);
+      for (const at of [8, 24, 40, 56]) wave.set(identity, at);
       wave.set(args.wave, 72);
       wave.set(args.wave, 80);
       device.queue.writeBuffer(buffers[1], 0, wave);

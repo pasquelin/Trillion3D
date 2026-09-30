@@ -24,18 +24,18 @@ function saturatedLamp() {
 test('a saturated still pool keeps its cycle: a jittering report refetches nothing', () => {
   const { store, plan, even, odd } = saturatedLamp();
   let frame = 1;
-  for (; frame <= 8; frame++) {
-    report(plan, store, frame - 1, frame % 2 ? even : odd);
-    planFrame(plan, store, frame);
-    plan.commit();
-  }
+  /** Still frames up to `last`, each report naming the other half of the fine pages. */
+  const runTo = (last: number) => {
+    for (; frame <= last; frame++) {
+      report(plan, store, frame - 1, frame % 2 ? even : odd);
+      planFrame(plan, store, frame);
+      plan.commit();
+    }
+  };
+  runTo(8);
   const refetched = plan.pool.refetched,
     used = plan.pool.used();
-  for (; frame <= 16; frame++) {
-    report(plan, store, frame - 1, frame % 2 ? even : odd);
-    planFrame(plan, store, frame);
-    plan.commit();
-  }
+  runTo(16);
   assert.equal(plan.pool.used(), used, 'the resident set stops changing');
   assert.equal(plan.pool.refetched, refetched, 'no page is fetched again once the cycle holds');
 });
