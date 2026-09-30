@@ -72,12 +72,12 @@ export function admitShadowBytes(
   return true;
 }
 
-/** `admitShadowBytes` for a late layer: past the grant, its pressure is recorded and said under
+/** `admitShadowBytes` for a late layer or the grown pair list: past the grant, its pressure is recorded and said under
  *  `shadow-memory` with the bytes asked, held and granted. */
 export function grantsShadowLayer(
   lights: WebgpuLightState,
   diagnose: WebgpuPagesRuntime['diag']['engineDiagnostic'],
-  pressure: 'static-layer-over-grant' | 'transmittance-over-grant',
+  pressure: 'static-layer-over-grant' | 'transmittance-over-grant' | 'pairs-over-grant',
   message: string,
   bytes: number,
   grantBytes = SHADOW_GRANT_BYTES,

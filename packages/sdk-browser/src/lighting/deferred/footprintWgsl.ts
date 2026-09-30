@@ -36,14 +36,14 @@ fn surfaceSlope(coord:vec2i,axis:vec2i,z:f32)->f32{
  return select(0.0,into.y,continues.y);
 }
 fn unjitteredDepth(coord:vec2i,z:f32)->f32{
- // An image the TAA does not jitter holds its centre: no neighbour is read.
- if(all(view.jitter.xy==vec2f(0.0))){return z;}
  let slope=vec2f(surfaceSlope(coord,vec2i(1,0),z),surfaceSlope(coord,vec2i(0,1),z));
  return z+dot(view.jitter.xy,slope);
 }
 /** The footprint of pixel \`pixel\` (at \`coord\`, depth \`z\`, world point \`P\`) at its unjittered
- *  centre, and that centre's world point less \`P\`: \`shadowFootprint\`, \`shadowUnjitter\`. */
+ *  centre, and that centre's world point less \`P\`: \`shadowFootprint\`, \`shadowUnjitter\`. An
+ *  image the TAA does not jitter holds its centre: no neighbour is read, and \`P\` is the point. */
 fn pixelLevel(coord:vec2i,pixel:vec2f,z:f32,P:vec3f)->PixelLevel{
+ if(all(view.jitter.xy==vec2f(0.0))){return PixelLevel(length(worldAt(pixel+vec2f(1.0,0.0),z)-P),vec3f(0.0));}
  let centre=pixel+view.jitter.xy;let held=unjitteredDepth(coord,z);
  let at=worldAt(centre,held);
  return PixelLevel(length(worldAt(centre+vec2f(1.0,0.0),held)-at),at-P);
