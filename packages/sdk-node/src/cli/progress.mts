@@ -66,6 +66,7 @@ export function createTerminalProgress({
   stream = process.stderr,
   width = 24,
   interval = 100,
+  verbose = false,
 }: TerminalProgressOptions = {}): TerminalProgress {
   const tty = Boolean(stream.isTTY);
   const started = performance.now();
@@ -118,7 +119,7 @@ export function createTerminalProgress({
   };
   // A line that stays: the bar is erased first on a terminal, written as-is elsewhere.
   const persist = (text: string) => stream.write(`${tty ? '\r\x1b[K' : ''}${text}\n`);
-  const messages = messageTally();
+  const messages = messageTally(verbose);
   const finish = (mark: string, summary: string) => {
     if (state.finished) return;
     stop();
@@ -147,7 +148,6 @@ export function createTerminalProgress({
       if (event.phase === 'import' && typeof event.primitives === 'number')
         state.primitivesTotal = event.primitives;
       if (event.phase === 'primitive') state.primitives += 1;
-      // Warnings are counted by `messages` and told once, one line per code, when the job ends.
       state.phase = event.phase ?? event.event ?? '';
       const describe = PHASES[state.phase];
       if (describe) state.text = describe(event, state);
