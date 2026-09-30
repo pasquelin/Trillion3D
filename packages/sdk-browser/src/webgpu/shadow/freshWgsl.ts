@@ -162,7 +162,7 @@ fn composeRegion(k:u32){
   args[FRESH_REGIONS]=regions;args[FRESH_CORNERS]=0u;
  }
 }
-/** After the pair cull: each region admitted whole is readable — full footprint, the sun's current
+/** After the pair cull: each region admitted whole is readable — in the sun's current
  *  range —; one left short (\`FRESH_SHORT\`) is not, and waits unclaimed for the next
  *  frame's pick. Each layer draws the pairs kept; the pairs every region counted go to the pool's
  *  counts, which the host reads back to grow the list by (\`pairGrowth.ts\`). */

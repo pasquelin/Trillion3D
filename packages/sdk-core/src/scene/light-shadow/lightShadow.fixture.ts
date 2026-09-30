@@ -7,6 +7,8 @@ import { createShadowPlan, type ShadowPlan } from './plan.ts';
 import { LAMP_MIPS, SUN_LEVELS, SUN_WINDOW, shadowTableStride } from './virtual.ts';
 import { sunEntries } from './sunEntries.ts';
 import { lampEntry, sunEntry } from './pageModel.ts';
+import { SHADOW_CULL_FLOATS } from './faces.ts';
+import { writeSunSquare } from './sunFaces.ts';
 
 /** The table entries of every sun level at the default window. */
 export const SUN_ENTRIES = sunEntries(SUN_WINDOW);
@@ -81,6 +83,20 @@ export function report(plan: ShadowPlan, store: SceneLightStore, frame: number, 
 export const sunPages = (plan: ShadowPlan, slice: number, level: number, pages: number[][]) =>
   pages.map(([ax, ay]) => plan.table.baseOf(slice) + sunEntry(level, ax, ay));
 
+/** The cull volume of sun page `(ax, ay)` at `level`, for the light in `slice`: what the frame's
+ *  draw of it culls with (`writeSunSquare`); its first three floats are the page box's centre. */
+export function sunPageVolume(
+  plan: ShadowPlan,
+  slice: number,
+  level: number,
+  ax: number,
+  ay: number,
+) {
+  const volume = new Float32Array(SHADOW_CULL_FLOATS);
+  writeSunSquare(new Float32Array(16), 0, volume, 0, plan.sun, slice, level, ax, ay);
+  return volume;
+}
+
 /** Table entry of the sun's floor page over the camera of the fixture: the one page of its last
  *  level every fixture page lies under. Counted here, not read from the scheduler it tests. */
 export const sunFloor = (plan: ShadowPlan, slice: number) =>
@@ -141,11 +157,11 @@ export function staleEntries(plan: ShadowPlan) {
 
 /** The sun, planned once so its slice and clipmap exist, its floor drawn: its store, its plan and
  *  its slice. */
-export function sunScene() {
+export function sunScene(min: ArrayLike<number> = SCENE_MIN, max: ArrayLike<number> = SCENE_MAX) {
   const store = createSceneLightStore();
   const plan = createShadowPlan(32);
   store.add(SUN);
-  planFrame(plan, store, 0);
+  planFrame(plan, store, 0, VIEW, min, max);
   plan.commit();
   return { store, plan, slice: store.sliceOf(0) };
 }
