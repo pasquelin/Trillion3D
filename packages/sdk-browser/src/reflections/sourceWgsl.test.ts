@@ -24,19 +24,23 @@ function fixture() {
   const uv = [0.5, 0.5, 1];
   const { reprojectReflectionSource } = shaderRun<{
     reprojectReflectionSource: (pixel: number[]) => number[];
-  }>(REFLECTION_SOURCE_WGSL, ['reprojectReflectionSource', 'previousDepthOf', 'placementOf'], {
-    ...Object.fromEntries(Object.keys(samples).map((key) => [key, key])),
-    lastImage: 'lastImage',
-    lastSampler: 'lastSampler',
-    view,
-    motion: [identity],
-    pages: [{ placement: 0 }],
-    previousUv: () => uv,
-    dpdx: () => 0,
-    dpdy: () => 0,
-    textureLoad: (name: string) => samples[name],
-    textureSampleLevel: () => LIT,
-  });
+  }>(
+    REFLECTION_SOURCE_WGSL,
+    ['reprojectReflectionSource', 'previousDepthOf', 'clipAt', 'placementOf'],
+    {
+      ...Object.fromEntries(Object.keys(samples).map((key) => [key, key])),
+      lastImage: 'lastImage',
+      lastSampler: 'lastSampler',
+      view,
+      motion: [identity],
+      pages: [{ placement: 0 }],
+      previousUv: () => uv,
+      dpdx: () => 0,
+      dpdy: () => 0,
+      textureLoad: (name: string) => samples[name],
+      textureSampleLevel: () => LIT,
+    },
+  );
   return { samples, view, uv, source: () => reprojectReflectionSource([4.5, 4.5, 0, 1]) };
 }
 

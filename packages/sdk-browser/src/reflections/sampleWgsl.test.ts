@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { stochasticReflectionShader } from './sampleWgsl.ts';
 import { contractLightingShader } from '../lighting/deferred/shaders.ts';
-import { functionsOf } from '../texture/shaderRule.fixture.ts';
+import { callsFrom, functionsOf } from '../texture/shaderRule.fixture.ts';
 import { MIRROR_TRANSITION_END } from './modelShader.ts';
 import { withSubgroupShadowRequests } from '../lighting/direct/shadowRequestWgsl.ts';
 
@@ -50,21 +50,6 @@ test('the filtered reflection is the rough branch of the full one, without its p
   }
 });
 
-/** The functions `entry` reaches in `source`, itself included. */
-function reached(source: string, entry: string) {
-  const declared = new Set([...source.matchAll(/fn (\w+)\(/g)].map((match) => match[1]));
-  const seen = new Set<string>();
-  for (const stack = [entry]; stack.length;) {
-    const name = stack.pop()!;
-    if (seen.has(name)) continue;
-    seen.add(name);
-    const body = functionsOf(source, [name]).replace(/^[^{]*\{/, '');
-    for (const [, called] of body.matchAll(/(\w+)\(/g))
-      if (declared.has(called)) stack.push(called);
-  }
-  return seen;
-}
-
 test('#1346: the rough trace asks no shadow page, so none of its own lands to restart the TAA history', () => {
   for (const bounce of [false, true])
     for (const unbounded of [false, true])
@@ -74,7 +59,7 @@ test('#1346: the rough trace asks no shadow page, so none of its own lands to re
           subgroup ? withSubgroupShadowRequests(lighting) : lighting,
           unbounded,
         );
-        const calls = reached(shader, 'traceRoughReflection');
+        const calls = callsFrom(shader, 'traceRoughReflection');
         assert.ok(calls.has('stochasticReflection'), 'the closure follows the calls');
         for (const asks of ['requestShadowPage', 'shadowClaimPage'])
           assert.ok(

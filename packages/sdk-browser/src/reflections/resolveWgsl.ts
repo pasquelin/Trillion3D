@@ -3,20 +3,21 @@ import { taaReprojectWgsl } from '../taa/shaderWgsl.ts';
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts';
 import { REFLECTION_PHASE_WGSL } from './hizTraceWgsl.ts';
 
-/** A bounded effective weight, not an unbounded Monte Carlo counter. At this
- * scale binary16 has 1/32 weight spacing; RGB arithmetic remains binary32. */
+/** The weight cap a history stores: a bounded effective weight, not an unbounded Monte Carlo
+ * counter, never the still window (`REFLECTION_STILL_FRAMES`). At this scale binary16 has 1/32
+ * weight spacing; RGB arithmetic remains binary32. */
 export const REFLECTION_HISTORY_WEIGHT = 64;
 /** Frames a still history accumulates before the image may rest (#1346): the reference's rough
- *  reflections average about this many reprojected frames behind a spatial filter, never 64 still
- *  frames. A declared class 2 on reflective pixels, bounded against the 64-frame image. */
+ *  reflections average about this many reprojected frames behind a spatial filter. A declared
+ *  class 2 on reflective pixels, bounded against `develop`'s converged still image. */
 export const REFLECTION_STILL_FRAMES = 12;
 /** The spatial filter's reach in pixels at roughness 0, twice it at roughness 1: a tent over the
  *  half-resolution texels traced around a pixel, kept on its receiver, lobe and plane. */
-export const REFLECTION_FILTER_RADIUS = 2;
+const REFLECTION_FILTER_RADIUS = 2;
 /** A neighbour off the pixel's plane by more than this share of its distance is another surface. */
-export const REFLECTION_FILTER_PLANE = 0.1;
+const REFLECTION_FILTER_PLANE = 0.1;
 /** The weight a history keeps while its sources or camera move: a reflection lags them by about
- *  this many samples, a few a frame (`roughSamples`), never the still window's sixty-four. */
+ *  this many samples, a few a frame (`roughSamples`), never the full cap (`REFLECTION_HISTORY_WEIGHT`). */
 export const REFLECTION_MOVING_WEIGHT = 16;
 /** The confidence a history keeps across a placement change it cannot follow (#33): without live
  *  motion, a moved or newly resident source leaves its stale share at 4/(4+W) per frame, W the
@@ -36,9 +37,12 @@ export const REFLECTION_RESOLVE_VIEW_BYTES = 160;
  *  derivative. A stored depth off it is another surface, the point was hidden (disocclusion): the
  *  history resolve and the reflection source (`sourceWgsl.ts`) reject by it. */
 export const PREVIOUS_DEPTH_WGSL = `
-fn previousDepthOf(pixel:vec2f,z:f32,id:u32)->vec2f{
+fn clipAt(pixel:vec2f,z:f32)->vec4f{
  let ndc=vec2f(pixel.x*view.viewport.z*2.0-1.0,1.0-pixel.y*view.viewport.w*2.0);
- var position=view.invViewProj*vec4f(ndc,z,1.0);
+ return view.invViewProj*vec4f(ndc,z,1.0);
+}
+fn previousDepthOf(pixel:vec2f,z:f32,id:u32)->vec2f{
+ var position=clipAt(pixel,z);
  if(view.params.z!=0.0&&id!=0u){position=motion[placementOf(id)]*position;}
  let projected=view.prevViewProj*position;
  let expected=projected.z/projected.w;
@@ -52,7 +56,7 @@ fn previousDepthOf(pixel:vec2f,z:f32,id:u32)->vec2f{
  * receiver, lobe and plane, each by a tent of its distance (`REFLECTION_FILTER_RADIUS`): the
  * reference's ray reuse and its bilateral spatial filter in one gather. History follows the
  * placement motion (`params.z`) and is dropped only where its receiver, normal
- * or depth disagree; `params.y` caps its weight (the full window, the moving cap, or
+ * or depth disagree; `params.y` caps its weight (the full cap, the moving cap, or
  * `REFLECTION_CHANGE_WEIGHT` after a change it cannot follow), `params.w` the trace seed's low bits. */
 export const REFLECTION_RESOLVE_WGSL = `
 ${FULLSCREEN_VERTEX}
@@ -72,32 +76,30 @@ struct ReflectionResolveView{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:v
 ${taaReprojectWgsl(false)}
 ${PREVIOUS_DEPTH_WGSL}
 ${REFLECTION_PHASE_WGSL}
-fn pointAt(pixel:vec2f,z:f32)->vec3f{
- let ndc=vec2f(pixel.x*view.viewport.z*2.0-1.0,1.0-pixel.y*view.viewport.w*2.0);
- let position=view.invViewProj*vec4f(ndc,z,1.0);
- return position.xyz/position.w;
-}
+const REFLECTION_FILTER_RADIUS:f32=${REFLECTION_FILTER_RADIUS}.0;
+const REFLECTION_FILTER_PLANE:f32=${REFLECTION_FILTER_PLANE};
+fn pointAt(pixel:vec2f,z:f32)->vec3f{let position=clipAt(pixel,z);return position.xyz/position.w;}
 fn roughSamples(at:vec2i,id:u32,nr:vec4f,z:f32)->vec4f{
  let drawn=vec2i(view.viewport.xy);let half=vec2i((drawn+vec2i(1))/2);
  let phase=reflectionPhase(u32(view.params.w));
  let base=vec2i(max(at-vec2i(3),vec2i(0))/2);
  let P=pointAt(vec2f(at)+vec2f(0.5),z);
- let radius=${REFLECTION_FILTER_RADIUS}.0*(1.0+nr.a);
+ let radius=REFLECTION_FILTER_RADIUS*(1.0+nr.a);
  var sum=vec4f(0.0);
  for(var k=0;k<16;k++){
   let q=base+vec2i(k&3,k>>2u);
   if(any(q>=half)){continue;}
-  let traced=textureLoad(sampleColor,q,0);
-  if(traced.a<=0.0){continue;}
   let owner=min(q*2+phase,drawn-vec2i(1));
   let tent=max(0.0,1.0-length(vec2f(owner-at))/radius);
   if(tent<=0.0){continue;}
+  let traced=textureLoad(sampleColor,q,0);
+  if(traced.a<=0.0){continue;}
   if(any(owner!=at)){
    if(textureLoad(ids,owner,0).r!=id){continue;}
    let other=textureLoad(normalRough,owner,0);
    if(dot(other.xyz,nr.xyz)<0.99||abs(other.a-nr.a)>0.001){continue;}
    let offset=pointAt(vec2f(owner)+vec2f(0.5),textureLoad(depth,owner,0))-P;
-   if(abs(dot(offset,nr.xyz))>${REFLECTION_FILTER_PLANE}*length(offset)){continue;}
+   if(abs(dot(offset,nr.xyz))>REFLECTION_FILTER_PLANE*length(offset)){continue;}
   }
   sum+=vec4f(traced.rgb*traced.a,traced.a)*tent;
  }
