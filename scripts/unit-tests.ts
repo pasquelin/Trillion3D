@@ -20,7 +20,7 @@ export function shardFlags(env: NodeJS.ProcessEnv): string[] {
 
 /** The test processes a local run starts at once, `TRILLION3D_TEST_CONCURRENCY` overriding: `node`
  *  would start one per core but one, and several agents checking at once would stall the machine. */
-export const LOCAL_TEST_CONCURRENCY = 2;
+const LOCAL_TEST_CONCURRENCY = 2;
 
 /** The `node --test` flags of a run under `env`: its shard, and the concurrency cap of a local run.
  *  A CI run, or any sharded one, keeps `node`'s full parallelism. */
