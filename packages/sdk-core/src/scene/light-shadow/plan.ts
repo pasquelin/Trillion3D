@@ -118,8 +118,8 @@ export function createShadowPlan(poolSide: number, layers = 1, sunWindow = SUN_W
       resting = still;
       restFrame = quiet ? (restFrame < 0 ? frame : restFrame) : -1;
       if (!still) views++;
-      // A full pool keeps the pages its cycle named: the rest's first frame, else this one.
-      const cycle = quiet ? restFrame : frame;
+      // At rest a full pool keeps its first frame's pages; moving, the latest report's (#26).
+      const held = quiet ? restFrame : undefined;
       planLights(lightsState, store, view, sceneMin, sceneMax, frame, nowMs, byPage);
       gpu.noteFrame(frame, !quiet);
       changes.settled();
@@ -135,7 +135,7 @@ export function createShadowPlan(poolSide: number, layers = 1, sunWindow = SUN_W
         if (!gpu.on || gpu.follow(read, nowMs, frame)) {
           footprints.widened = 0;
           footprints.missed(read, nowMs, frame);
-          requests.consume(read, nowMs, frame, cycle);
+          requests.consume(read, nowMs, frame, held ?? frame);
           counts.staled(STALE_BY.footprint, footprints.widened);
           const settled = read.stamp === before && requests.complete && !footprints.widened;
           if (settled) settledStamp = stampOf(store);
@@ -144,7 +144,6 @@ export function createShadowPlan(poolSide: number, layers = 1, sunWindow = SUN_W
       const admitStart = performance.now();
       spent.requestsMs = admitStart - readStart;
       gpu.asks.count = 0;
-      const held = quiet ? restFrame : undefined; // moving: the latest report's cycle (#26)
       requests.floors(posed, view, nowMs, frame, held, gpu.on ? gpu.asks : undefined);
       const count = admission.run(pool, table, requests.latest, frame, records.isFloor);
       for (let i = 0; i < count; i++) {
