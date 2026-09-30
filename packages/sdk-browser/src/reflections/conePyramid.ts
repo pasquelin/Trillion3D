@@ -4,34 +4,37 @@ import { uniformStride } from '../residency/pools.ts';
 import { levelSize, mipLevelCountFor } from '../texture/tiles.ts';
 
 /** A cone's source hierarchy: existing radiance plus explicit nearest/farthest depth.
- * The occlusion Hi-Z stores only farthest depth and cannot replace these intervals. */
+ * The occlusion Hi-Z stores only farthest depth and cannot replace these intervals: nor can it
+ * bound a first hit, so the rough trace walks these bounds too (`hizTraceWgsl.ts`), without the
+ * radiance levels where no cone reads them (`radiance` false). */
 export function createReflectionConePyramid(
   device: GPUDevice,
   color: GPUTexture,
   depth: GPUTextureView,
+  radiance = true,
 ) {
   const { width, height } = color;
   const { descriptor } = reflectionConeAllocation(width, height, device.limits);
   const bounds = device.createTexture(descriptor);
-  let radiance: ReturnType<typeof createRadianceMipChain> | undefined;
+  let mips: ReturnType<typeof createRadianceMipChain> | undefined;
   let ranges: ReturnType<typeof createDepthBoundsMipChain> | undefined;
   try {
-    radiance = createRadianceMipChain(device, color);
+    if (radiance) mips = createRadianceMipChain(device, color);
     ranges = createDepthBoundsMipChain(device, bounds, { view: depth, width, height });
     return {
       view: bounds.createView(),
       encode(encoder: GPUCommandEncoder) {
-        radiance!.encode(encoder);
+        mips?.encode(encoder);
         ranges!.encode(encoder);
       },
       dispose() {
-        radiance!.dispose();
+        mips?.dispose();
         ranges!.dispose();
         bounds.destroy();
       },
     };
   } catch (error) {
-    radiance?.dispose();
+    mips?.dispose();
     ranges?.dispose();
     bounds.destroy();
     throw error;
@@ -43,6 +46,7 @@ export function reflectionConeAllocation(
   width: number,
   height: number,
   limits: GPUSupportedLimits,
+  radiance = true,
 ) {
   const [halfWidth, halfHeight] = levelSize(width, height, 1);
   const levels = mipLevelCountFor(width, height);
@@ -54,10 +58,12 @@ export function reflectionConeAllocation(
     mipLevelCount: boundsLevels,
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
   };
-  const uniforms = (Math.max(1, levels - 1) + boundsLevels) * uniformStride(limits);
+  const radianceBytes = radiance
+    ? mipTailBytes(width, height, 'rgba16float', levels) +
+      Math.max(1, levels - 1) * uniformStride(limits)
+    : 0;
   return {
     descriptor,
-    bytes:
-      mipTailBytes(width, height, 'rgba16float', levels) + textureBytesOf(descriptor)! + uniforms,
+    bytes: radianceBytes + textureBytesOf(descriptor)! + boundsLevels * uniformStride(limits),
   };
 }

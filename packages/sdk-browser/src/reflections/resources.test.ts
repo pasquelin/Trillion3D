@@ -8,7 +8,8 @@ import { createWebgpuView } from '../webgpu/pages/state/view.ts';
 import { useWebgpuView } from '../webgpu/pages/state/viewSwitch.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 
-// The reflection owns only linear colour and its matrix; every receiver reads opaque depth.
+// The reflection owns only linear colour, its matrix and its reprojection's view; every receiver
+// reads opaque depth.
 test('reflection resources have bounded active/inactive size, use shared depth and release both allocations', () => {
   for (const active of [false, true]) {
     const gpu = fakeDevice(),
@@ -22,7 +23,7 @@ test('reflection resources have bounded active/inactive size, use shared depth a
     assert.equal(Array.from(gpu.bindGroups[0].entries)[1].resource, depth);
     reflection.update(new Float32Array(16), true, [64, 32]);
     reflection.dispose();
-    assert.equal(gpu.destroyed.length, 2);
+    assert.equal(gpu.destroyed.length, active ? 3 : 2);
   }
 });
 
@@ -38,9 +39,10 @@ test('opaque rough history follows reflection ownership while mirrors allocate n
       rough,
     );
     assert.equal(reflection.history?.bytes ?? 0, rough ? 64 * 32 * 32 : 0);
-    assert.equal(gpu.textures.length, rough ? 6 : 1);
+    // The rough trace walks a depth-bounds pyramid of its own texture and extents.
+    assert.equal(gpu.textures.length, rough ? 7 : 1);
     reflection.dispose();
-    assert.equal(gpu.destroyed.length, rough ? 8 : 2);
+    assert.equal(gpu.destroyed.length, rough ? 11 : 3);
   }
 });
 
@@ -96,9 +98,9 @@ test('capture release waits for a late grant, including rejection, before restor
     else await cleanup;
     assert.equal(rt.gpu.reflection, original);
     assert.equal(rt.gpu.depthView, mainDepth);
-    assert.equal(gpu.destroyed.length, 2);
+    assert.equal(gpu.destroyed.length, 3);
     original.dispose();
-    assert.equal(gpu.destroyed.length, 4);
+    assert.equal(gpu.destroyed.length, 6);
   }
 });
 
