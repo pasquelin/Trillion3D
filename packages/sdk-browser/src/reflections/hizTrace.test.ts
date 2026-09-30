@@ -17,7 +17,7 @@ const walk = new Function(`
  const min=Math.min,max=Math.max,mix=(a,b,t)=>a+(b-a)*t;
  const vec2i=(x,y)=>({x,y}),vec4f=()=>null;
  return (start,delta,za,zb,size,levels,bounds)=>{
-  const reflectionTopLevel=()=>levels;
+  const reflectionBounds=null,textureNumLevels=()=>levels;
   const reflectionBoundsAt=(p,level)=>bounds(p.x,p.y,level);
   const reflectionHitAt=(p)=>[p.x,p.y];
   ${body}
