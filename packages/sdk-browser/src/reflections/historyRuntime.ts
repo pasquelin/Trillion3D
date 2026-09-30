@@ -75,8 +75,8 @@ export function createReflectionHistory(
       return complete();
     },
     /** Source epochs cover reflected movers too, not just receiver identity. With live motion a
-     *  moved source keeps the history, reprojected, its weight held to `REFLECTION_MOVING_WEIGHT`;
-     *  without, it keeps it at `REFLECTION_CHANGE_WEIGHT` for `REFLECTION_CHANGE_FRAMES`. A relit
+     *  moved source keeps the history, reprojected, its weight held to `REFLECTION_MOVING_KEPT`;
+     *  without, it keeps `REFLECTION_CHANGE_KEPT` for `REFLECTION_CHANGE_FRAMES`. A relit
      *  source (lights, materials) and a new drawn extent always reset it: no motion brings an old
      *  lighting to the new one. */
     prepare(
