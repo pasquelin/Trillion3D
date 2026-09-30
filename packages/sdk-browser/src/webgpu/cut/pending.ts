@@ -3,6 +3,7 @@ import type { IdDelta } from './delta.ts';
 import { createDenseKeySet } from './denseKeys.ts';
 import { createSparseInts } from '../../page/cut/sparseInts.ts';
 import { awaitsClosure, awaitsPageBytes } from '../row/pageSlots.ts';
+import { createPageCatalogue } from '../pages/prepare/catalogue.ts';
 
 /**
  * Pages of the requested cut that do not yet have their bytes, held from one image to the next.
@@ -27,6 +28,8 @@ export function createCutPending(
   /** Changes whenever `accepted` may answer differently: the awaited list is rebuilt then only. */
   acceptedRevision: () => number = () => 0,
 ) {
+  /** A packed rank back to its record: the one catalogue accessor (`../pages/prepare/catalogue.ts`). */
+  const { recordOf } = createPageCatalogue(packedPages);
   /** Records of the missing pages, held at their key rank by the set itself. */
   const records: PageRec[] = [];
   const missing = createDenseKeySet(records);
@@ -39,7 +42,7 @@ export function createCutPending(
   const dependents = createDenseKeySet(),
     named = createSparseInts();
   const name = (id: number, step: number) => {
-    const dependencies = packedPages[id].dependencies;
+    const dependencies = recordOf(id)?.dependencies;
     if (!dependencies?.length) return;
     if (step > 0) dependents.add(id);
     else dependents.remove(id);
@@ -56,8 +59,9 @@ export function createCutPending(
   const reconcile = () => {
     if (rescan)
       for (let i = 0; i < dependents.count; i++) {
-        const id = dependents.list[i];
-        if (awaitsClosure(packedPages[id]) && missing.add(id, packedPages[id])) stale = true;
+        const id = dependents.list[i],
+          rec = recordOf(id);
+        if (rec && awaitsClosure(rec) && missing.add(id, rec)) stale = true;
       }
     if (settle || rescan)
       for (let i = missing.count - 1; i >= 0; i--)
@@ -96,14 +100,15 @@ export function createCutPending(
       }
       for (let i = 0; i < delta.enteredCount; i++) {
         const id = entries[i];
-        const rec = packedPages[id];
+        const rec = recordOf(id);
         name(id, 1);
-        if (awaitsClosure(rec) && missing.add(id, rec)) stale = true;
+        if (rec && awaitsClosure(rec) && missing.add(id, rec)) stale = true;
       }
     },
     /** A page's bytes have just arrived or left. */
     touch(id: number) {
-      const rec = packedPages[id];
+      const rec = recordOf(id);
+      if (!rec) return;
       if (named.get(id) > 0) {
         if (awaitsPageBytes(rec)) rescan = true;
         else settle = true;
