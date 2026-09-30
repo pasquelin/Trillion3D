@@ -139,9 +139,11 @@ export function assertCacheIdentity(metadata: ClusterManifest) {
     formatVersion !== CLUSTERED_BLEND_FORMAT_VERSION &&
     metadata.primitives.some((primitive) => primitive.pass === 'clustered-blend')
   )
-    throw new EngineError('UNSUPPORTED_FORMAT', 'clustered-blend requires cache format 2', {
-      formatVersion,
-    });
+    throw new EngineError(
+      'UNSUPPORTED_FORMAT',
+      `clustered-blend requires cache format ${CLUSTERED_BLEND_FORMAT_VERSION}`,
+      { formatVersion },
+    );
   const missing = metadata.primitives.findIndex((primitive) => !primitiveIsDrawable(primitive));
   if (missing >= 0) {
     const primitive = metadata.primitives[missing];
