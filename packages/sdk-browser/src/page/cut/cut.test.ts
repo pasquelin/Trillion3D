@@ -104,8 +104,8 @@ test('the hierarchical cut reuses its result and arrays from one frame to the ne
   const result = {
     shown,
     wanted,
-    shownPacked: [] as number[],
-    wantedPacked: [] as number[],
+    shownPacked: new Int32Array(0),
+    wantedPacked: new Int32Array(0),
     visible: 0,
     selectedTriangles: 0,
     displayedTriangles: 0,

@@ -39,8 +39,8 @@ test('a cut frame reuses its flat table, result and arrays: it allocates nothing
   const result: SelectionResult<PageRec> = {
     shown,
     wanted,
-    shownPacked: [],
-    wantedPacked: [],
+    shownPacked: new Int32Array(0),
+    wantedPacked: new Int32Array(0),
     visible: 0,
     selectedTriangles: 0,
     displayedTriangles: 0,

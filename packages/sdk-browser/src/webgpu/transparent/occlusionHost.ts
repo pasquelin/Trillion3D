@@ -47,7 +47,7 @@ export function refreshTransparentCorners(rt: WebgpuPagesRuntime) {
   if (blendState.occlusionEpoch === epoch) return;
   blendState.occlusionEpoch = epoch;
   const packed = blendState.occlusionCorners,
-    { packedPages, selectionRoots } = layout,
+    { recordOf, selectionRoots } = layout,
     bits = occlusion.unculledBits;
   bits.fill(0);
   for (let entry = 0; entry < table.capacity; entry++) {
@@ -59,7 +59,8 @@ export function refreshTransparentCorners(rt: WebgpuPagesRuntime) {
       packed.fill(0, base, base + CORNER_VALUES);
       continue;
     }
-    const rec = packedPages[page];
+    const rec = recordOf(page);
+    if (!rec) continue;
     packPageCorners(packed, base, rec, rootOf(selectionRoots, rec).world);
     if (neverCulled(rec.material)) bits[entry >> 5] |= 1 << (entry & 31);
   }
