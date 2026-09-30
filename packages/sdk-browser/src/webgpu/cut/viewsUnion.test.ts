@@ -135,7 +135,10 @@ test('one view asks, keeps and ranks what it did before views existed', () => {
   const cuts = [[0, 1, 2, 3], [2, 3, 4, 5, 6], [], [1, 3, 5, 7], [7]];
   for (const ids of cuts) {
     draw(main, ids);
-    before.delta.adoptRecords(ids.map((id) => before.packed[id]));
+    before.delta.adoptRecords(
+      ids.map((id) => before.packed[id]),
+      (rec) => before.packed.indexOf(rec),
+    );
     before.cut();
     before.sets.applyDrawn(before.delta);
     for (const room of [2, 64]) {

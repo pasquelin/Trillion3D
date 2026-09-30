@@ -25,7 +25,7 @@ function clusters(nombre: number) {
     const max = [min[0] + alea() * 5, min[1] + alea() * 5, min[2] + alea() * 5];
     // Each record ranks a root of its own, which carries its world.
     roots.push({ world: new THREE.Matrix4().fromArray(elements) });
-    recs.push(i % 10 === 9 ? undefined : pageRecFixture({ placementIndex: i, min, max }));
+    recs.push(i % 10 === 9 ? undefined : pageRecFixture({ min, max }));
   }
   return { recs, roots, packed: new Float32Array(nombre * 4) };
 }
@@ -38,7 +38,9 @@ const mesSpheres = await mesure({
     { name: '1 cluster', input: clusters(1), size: 1 },
     { name: 'none', input: clusters(0), size: 0 },
   ],
-  calcul: ({ recs, roots, packed }) => packClusterSpheres(recs, roots, packed, 0, recs.length - 1),
+  calcul: ({ recs, roots, packed }) =>
+    // Each row ranks a root of its own: its packed rank is the row index (#1235).
+    packClusterSpheres(recs, roots, packed, 0, recs.length - 1, (row) => row),
   attendu: ({ recs, roots }) => {
     const output = new Float32Array(recs.length * 4);
     recs.forEach(
