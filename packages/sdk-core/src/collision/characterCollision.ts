@@ -61,13 +61,17 @@ export function triangleCollision(tree: TriangleTree): TriangleCollision {
       const { feet, radius, height } = capsule;
       centre.set(feet);
       centre[1] += radius;
+      // Preserve the exact feet + radius sum: rounding the centre must not turn a
+      // sphere resting on a translated floor into a positive-distance miss.
+      const added = centre[1] - feet[1],
+        centreError = feet[1] - (centre[1] - added) + (radius - added);
       // The column the sphere sweeps, up to the top of the body: a support higher than the
       // body is a ceiling, not a floor.
       for (let k = 0; k < 3; k += 2) [min[k], max[k]] = [feet[k] - radius, feet[k] + radius];
       [min[1], max[1]] = [feet[1] - depth, feet[1] + Math.max(height, 2 * radius)];
       let best = Infinity;
       forEachTriangleInBox(tree, min, max, (at) => {
-        const distance = dropSphere(centre, radius, tree.triangles, at, touch);
+        const distance = dropSphere(centre, radius, tree.triangles, at, touch) + centreError;
         if (distance < best && distance <= depth && touch.normal[1] > 0 && accepts(touch))
           best = distance;
       });

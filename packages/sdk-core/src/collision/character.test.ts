@@ -8,13 +8,7 @@ import { HUMAN_BODY, type CharacterInput, type CharacterSettings } from './chara
 import { createDrive } from './characterDrive.ts';
 import { MAX_CHARACTER_DELTA } from './characterDelta.ts';
 import { gripOf } from './grip.ts';
-
-/** An axis-aligned block from its two corners, as a mesh the collision world reads. */
-function block(x0: number, y0: number, z0: number, x1: number, y1: number, z1: number) {
-  const mesh = new Mesh(box(x1 - x0, y1 - y0, z1 - z0));
-  mesh.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
-  return mesh;
-}
+import { block } from './character.fixture.ts';
 
 /** A sole's push on the floor a body stands on without physics, m/s², and the legs' rate. */
 const push = gripOf(createDrive().floor) * HUMAN_BODY.gravity,
@@ -114,7 +108,8 @@ test("a key starts the jog at the floor's push, and is seen in the first frame",
   // Drawn at the present: at most one tick of the fixed step late, under one frame.
   assert.ok(first >= ran(frame - 1 / 120) - 1e-9 && first <= ran(frame) + 1e-9, `first ${first}`);
   let t = frame;
-  for (; made.velocity[0] < 0.95 * v; t += frame) made.advance(frame, EAST);
+  for (; made.velocity[0] < 0.95 * v && t < 2; t += frame) made.advance(frame, EAST);
+  assert.ok(made.velocity[0] >= 0.95 * v, 'the jog must reach its target within two seconds');
   // The push closes the gap down to push / rate, the legs' exponential the rest.
   const expected = (v - push / rate) / push + Math.log(push / rate / (0.05 * v)) / rate;
   assert.ok(Math.abs(t - expected) <= frame, `jog reached after ${t} s, expected ${expected}`);
@@ -176,13 +171,13 @@ test('a slope under maxSlope holds a standing body; a steeper one slides it down
   assert.equal(steep.onGround, false);
   assert.ok(steep.feet[0] < -1, `held at ${steep.feet[0]}`);
 });
-
 test('a jump is granted coyoteTime after an edge, and kept jumpBuffer before a landing', () => {
   // Off the edge of a block, then a press within the coyote time: the body still jumps.
   const late = body([block(-20, -1, -5, 0, 0, 5)], -1);
   let jumps = 0;
   const count = { onJump: () => jumps++ };
   for (let i = 0; i < 600 && late.onGround; i++) late.advance(1 / 240, EAST, count);
+  assert.equal(late.onGround, false, 'the body must leave the ledge before testing coyote time');
   late.advance(HUMAN_BODY.coyoteTime / 2, STILL, count);
   late.pressJump();
   late.advance(1 / 240, STILL, count);
@@ -193,7 +188,6 @@ test('a jump is granted coyoteTime after an edge, and kept jumpBuffer before a l
   live(early, 0.3, STILL);
   assert.ok(early.feet[1] > 0.2, `no buffered jump: ${early.feet[1]}`);
 });
-
 test('a body with no thickness still walks, in one part a tick', () => {
   const [x] = live(body([FLOOR()], 0, 0, 0, { capsuleRadius: 0 }), 1, EAST);
   assert.ok(x > 0 && Number.isFinite(x));

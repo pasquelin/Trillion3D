@@ -15,6 +15,7 @@ import type { CapsuleContact } from './capsule.ts';
  */
 
 const face = new Float64Array(3),
+  winding = new Float64Array(3),
   touch = new Float64Array(3);
 
 /**
@@ -37,6 +38,7 @@ export function dropSphere(
   };
   const area = Math.sqrt(triangleNormal(face, v, at));
   if (area === 0) return Infinity;
+  winding.set(face);
   const up = face[1] < 0 ? -1 : 1;
   for (let k = 0; k < 3; k++) face[k] *= up / area;
   if (face[1] > 0) {
@@ -48,7 +50,7 @@ export function dropSphere(
     const x = centre[0] - radius * face[0],
       y = centre[1] - distance - radius * face[1],
       z = centre[2] - radius * face[2];
-    if (insideTriangle(x, y, z, v, at, face)) keep(distance, x, y, z);
+    if (insideTriangle(x, y, z, v, at, winding)) keep(distance, x, y, z);
   }
   for (let e = 0; e < 3; e++)
     dropOnEdge(centre, radius, v, at + 3 * e, at + 3 * ((e + 1) % 3), keep);
@@ -99,7 +101,7 @@ function dropOnEdge(
     dy = rise * ey - 1,
     dz = rise * ez;
   const a = dx * dx + dy * dy + dz * dz;
-  if (a < 1e-12) return; // A vertical edge: the sphere slides along it, never onto it.
+  if ((ex === 0 && ez === 0) || a === 0) return; // Vertical, or its sweep coefficient underflowed.
   const b = -(ox * dx + oy * dy + oz * dz),
     c = ox * ox + oy * oy + oz * oz - radius * radius,
     discriminant = b * b - a * c;
