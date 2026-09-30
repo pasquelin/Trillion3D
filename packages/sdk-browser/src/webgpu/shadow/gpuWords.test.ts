@@ -8,12 +8,15 @@ import assert from 'node:assert/strict';
 import {
   PAGE_MAPPED,
   PAGE_VALID,
+  PAGE_WITHDRAWN,
   SHADOW_TABLE_ENTRIES,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { createShadowPool } from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
+import { createShadowTable } from '../../../../sdk-core/src/scene/light-shadow/table.ts';
 import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
 import { runShadowWords } from './allocRun.fixture.ts';
 import { DRAWN_GPU, DRAWN_HOST, DRAWN_NONE, POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
-import { WORDS_HEADER } from './wordsWgsl.ts';
+import { WORDS_HEADER, sentShadowWord } from './wordsWgsl.ts';
 
 test('a host word is kept for the page its entry owns on the GPU; a draw into another withdraws it', () => {
   const pages = 4,
@@ -106,4 +109,57 @@ test('a page that loses its depth while the frame asks for it is listed for the 
   // Withdrawn again, a page already waiting for its draw is not listed twice.
   send(30, 0 | PAGE_MAPPED);
   assert.equal(counts[POOL_COUNTS.indexOf('drawn')], 2);
+});
+
+test('a page the GPU drew itself loses its depth when what it holds moves in the world (#1345)', () => {
+  // The host maps entry 7 and never draws it: the GPU draws it itself.
+  const table = createShadowTable(4),
+    pool = createShadowPool(2);
+  pool.beginAllocation(0);
+  const page = pool.take(table, 7, 0, 0, 0),
+    sent: number[] = [];
+  const flush = () =>
+    table.flush((first, count) => {
+      for (let e = first; e < first + count; e++)
+        if (table.words[e] & PAGE_MAPPED) sent.push(e, sentShadowWord(table, e));
+    });
+  flush();
+  sent.length = 0;
+  // Staled for its own reasons, a page the host never drew sends nothing, as before.
+  pool.withdraw(table, page);
+  flush();
+  assert.deepEqual(sent, []);
+  // Its caster moved: the word goes out withdrawn, once.
+  pool.withdraw(table, page, true);
+  flush();
+  assert.deepEqual(sent, [7, page | PAGE_MAPPED | PAGE_WITHDRAWN]);
+  assert.equal(table.withdrawn(7), false);
+  const pages = pool.pages,
+    data = new Uint8Array(SHADOW_TABLE_OFFSET + SHADOW_TABLE_ENTRIES * 4),
+    state = new Uint8Array((POOL_COUNTS.length + POOL_FIELDS.length * pages) * 4),
+    drawList = new Uint8Array(4 * pages);
+  const gpuTable = new Uint32Array(data.buffer, SHADOW_TABLE_OFFSET),
+    fields = new Int32Array(state.buffer, POOL_COUNTS.length * 4),
+    field = (name: (typeof POOL_FIELDS)[number]) => POOL_FIELDS.indexOf(name) * pages + page;
+  const send = (word: number) => {
+    const words = Uint32Array.of(1, pages, 9, 0, 7, word);
+    runShadowWords(data, state, new Uint8Array(words.buffer), drawList);
+  };
+  const drawn = () => {
+    fields[field('owner')] = 7;
+    fields[field('requested')] = 9;
+    fields[field('drawnBy')] = DRAWN_GPU;
+    gpuTable[7] = page | PAGE_MAPPED | PAGE_VALID;
+  };
+  // Unmarked, the host adopting the page leaves the GPU's draw readable.
+  drawn();
+  send(page | PAGE_MAPPED);
+  assert.equal(gpuTable[7], page | PAGE_MAPPED | PAGE_VALID);
+  // Marked, it is read no more, drawn again in this frame that reads it, and the table never
+  // holds the mark: every reader of the table sees a word mapped and not drawn.
+  send(sent[1]);
+  assert.equal(gpuTable[7], page | PAGE_MAPPED);
+  assert.equal(fields[field('drawnBy')], DRAWN_NONE);
+  assert.equal(new Uint32Array(state.buffer)[POOL_COUNTS.indexOf('drawn')], 1);
+  assert.equal(new Uint32Array(drawList.buffer)[0], page);
 });

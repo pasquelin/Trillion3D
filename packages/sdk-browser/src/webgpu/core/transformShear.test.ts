@@ -91,11 +91,11 @@ test('the reprojected world box is the image of the local box by the sheared mat
   boxTransform(attendu, 0, Float64Array.from(local), 0, demandee);
   assert.deepEqual(Array.from(root.worldBox!), Array.from(attendu));
   assert.equal(root.worldBox![0], 2, 'shear extends the box, a TRS decompose does not');
-  assert.equal(motions.length, 1);
-  for (let axis = 0; axis < 3; axis++) {
-    assert.equal(motions[0].min[axis], Math.min(avant[axis], attendu[axis]));
-    assert.equal(motions[0].max[axis], Math.max(avant[axis + 3], attendu[axis + 3]));
-  }
+  // Where it was, then where it lands: each its own box (#1345).
+  assert.deepEqual(
+    motions.map(({ min, max }) => [...min, ...max]),
+    [avant, Array.from(attendu)],
+  );
 });
 
 test('a conformal translation-rotation-scale matrix stays exact, fields included', () => {

@@ -1,0 +1,16 @@
+{
+  "name": "@trillion3d/compiler-win32-x64",
+  "version": "0.2.0",
+  "description": "The Trillion3D compiler built for Windows on x86-64; installed by trillion3d, which picks it by platform.",
+  "private": true,
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin"
+  ]
+}

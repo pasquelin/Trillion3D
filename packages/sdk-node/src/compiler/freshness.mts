@@ -18,6 +18,8 @@ const BUILD_INPUTS = [
   '../physics-jolt-wasm/cook',
   '../physics-jolt-wasm/src/blob.h',
   '../physics-jolt-wasm/CMakeLists.txt',
+  // The C and C++ flags and the target CPU, hashed into the key by `build.rs` (#1352).
+  '../../.cargo/config.toml',
 ];
 
 function modified(path: string) {
