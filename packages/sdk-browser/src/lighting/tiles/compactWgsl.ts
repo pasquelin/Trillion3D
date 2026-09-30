@@ -35,7 +35,7 @@ var<workgroup> keptLanes:array<atomic<u32>,2>;
 var<workgroup> counts:array<u32,GRID_SLICES>;
 var<workgroup> cursor:array<u32,GRID_SLICES>;
 var<workgroup> cache:array<vec2u,CACHE>;
-/** The runs cached; the first light the cache does not hold; the column's room. */
+/** The runs cached; the first light the cache does not hold; whether the second walk writes. */
 var<workgroup> cached:u32;
 var<workgroup> resume:u32;
 var<workgroup> room:u32;
@@ -93,18 +93,23 @@ fn cacheEntry(lane:u32,entry:vec2u){
  let rank=select(countOneBits(kept.x&below),countOneBits(kept.x)+countOneBits(kept.y&below),lane>=32u);
  if((entry.y&0xffffu)<=(entry.y>>16u)){cache[cached+rank]=entry;}
 }
-/** Lane zero: the column's room in the pool, dealt out slice by slice. */
+/** Lane zero: the column's room in the pool, dealt out slice by slice. A column with no light
+ *  takes none; \`room\` says whether the second walk has lists to write. */
 fn takeRoom(){
  var total=0u;
  for(var slice=0u;slice<GRID_SLICES;slice++){total+=counts[slice]&~TILE_SHADOWED;}
- // The count of what was asked stops at half the word's range: it never wraps back into room.
- var at=0xffffffffu;
- if(total>0u&&atomicLoad(&pool.head)<0x80000000u){at=atomicAdd(&pool.head,total);}
- room=u32(total>0u&&at<pool.capacity&&total<=pool.capacity-at);
- if(total>0u&&room==0u){atomicStore(&pool.overflow,1u);}
+ var at=0u;var fits=true;
+ if(total>0u){
+  // The count of what was asked stops at half the word's range: it never wraps back into room.
+  at=0xffffffffu;
+  if(atomicLoad(&pool.head)<0x80000000u){at=atomicAdd(&pool.head,total);}
+  fits=at<pool.capacity&&total<=pool.capacity-at;
+  if(!fits){atomicStore(&pool.overflow,1u);}
+ }
+ room=u32(fits&&total>0u);
  var next=pool.start+at;
  for(var slice=0u;slice<GRID_SLICES;slice++){
-  cursor[slice]=select(TILE_NO_SLICE,next,room==1u);
+  cursor[slice]=select(TILE_NO_SLICE,next,fits);
   next+=counts[slice]&~TILE_SHADOWED;
  }
 }`;

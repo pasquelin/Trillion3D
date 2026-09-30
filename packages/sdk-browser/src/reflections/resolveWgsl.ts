@@ -120,7 +120,7 @@ fn roughSamples(at:vec2i,id:u32,nr:vec4f,z:f32)->vec4f{
  if(id==0u){return vec4f(0.0);}
  let current=roughSamples(at,id,nr,z);
  var history=vec4f(0.0);
- let uv=previousUv(at,z,at);
+ let uv=previousUv(at,z,id);
  if(view.params.x!=0.0&&uv.z!=0.0){
   let prior=vec2i(uv.xy*view.viewport.xy);
   let oldId=textureLoad(previousIds,prior,0).r;
