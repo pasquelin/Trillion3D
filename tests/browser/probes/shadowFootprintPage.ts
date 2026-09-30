@@ -7,7 +7,7 @@
 import { MAX_SHADOW_SLICES, SHADOW_RECORD_FLOATS } from '../../../packages/sdk-core/src/index.ts';
 import { DIRECT_LIGHT_WGSL } from '../../../packages/sdk-browser/src/lighting/direct/lightWgsl.ts';
 import { directShadowWgsl } from '../../../packages/sdk-browser/src/lighting/direct/shadowWgsl.ts';
-import { shadowRequestWords } from '../../../packages/sdk-browser/src/lighting/direct/shadowRequestWgsl.ts';
+import { SHADOW_REQUEST_BITS } from '../../../packages/sdk-browser/src/lighting/direct/shadowRequestWgsl.ts';
 import { footprintReads } from '../../../packages/sdk-browser/src/lighting/direct/shadowFootprint.fixture.ts';
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts';
 import { SHADOW_REQUEST_MISS } from '../../../packages/sdk-core/src/scene/light-shadow/footprint.ts';
@@ -52,7 +52,7 @@ export async function run() {
   const data = storage(device, RECORD_BYTES + words.byteLength),
     // Each read asks for its page, and may say it missed it.
     cap = 2 * reads.length,
-    requests = storage(device, shadowRequestWords(cap) * 4, GPUBufferUsage.COPY_SRC),
+    requests = storage(device, (1 + cap + SHADOW_REQUEST_BITS) * 4, GPUBufferUsage.COPY_SRC),
     input = storage(device, packed.byteLength),
     output = storage(device, reads.length * 4, GPUBufferUsage.COPY_SRC);
   device.queue.writeBuffer(data, RECORD_BYTES, words);
