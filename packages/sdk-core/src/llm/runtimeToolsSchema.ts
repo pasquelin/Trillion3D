@@ -1,6 +1,12 @@
 import type { Trillion3dTool } from './types.ts';
 import { EXPLORER_OPTIONS_SCHEMA } from './explorerOptionsSchema.ts';
 import { COMPILER_OPTIONS_SCHEMA } from './compilerOptionsSchema.ts';
+import { DIAGNOSTICS, type DiagnosticMode } from '../runtime/diagnostics.ts';
+
+/** The view modes this engine can show: the others `setDiagnostic` refuses. */
+const AVAILABLE_DIAGNOSTICS = (Object.keys(DIAGNOSTICS) as DiagnosticMode[]).filter(
+  (mode) => DIAGNOSTICS[mode].available,
+);
 
 /**
  * Complete catalog of tools and runtime functions available to control Trillion3D from an LLM.
@@ -114,7 +120,9 @@ export const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[] = [
         coneAngle: {
           type: 'number',
           minimum: 0.01,
-          maximum: 3.14,
+          // The engine refuses a half-angle of π/2 or more (`scene/light/validate.ts`); an inclusive
+          // bound below π/2 keeps to the subset every provider reads (no `exclusiveMaximum`).
+          maximum: 1.57,
           description: 'Half-angle beam spread in radians (spot).',
         },
         castsShadow: {
@@ -148,18 +156,7 @@ export const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[] = [
       properties: {
         mode: {
           type: 'string',
-          enum: [
-            'none',
-            'wireframe',
-            'cluster',
-            'lod',
-            'depth',
-            'normal',
-            'albedo',
-            'roughness',
-            'metalness',
-            'ao',
-          ],
+          enum: AVAILABLE_DIAGNOSTICS,
           description: 'Technical diagnostic mode to display.',
         },
       },
