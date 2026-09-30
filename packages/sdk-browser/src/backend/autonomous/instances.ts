@@ -88,7 +88,7 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
       for (const base of basePages) {
         // A record rows place shares the page's geometry, as the store gives it (`geometry.ts`):
         // only a geometry of the model's own is copied.
-        const source = draws.drawing(base).geometry,
+        const source = draws.find(base)?.geometry,
           geometry = source && !rowed.has(base) ? copyHostGeometry(source) : source;
         const rec: PageRec = {
           ...base,
@@ -111,7 +111,7 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
       }));
       const addedBootstrap = baseBootstrap.map((page) => mapped.get(page)!);
       // The material each copy inherits, read before the layout moves the base ranks.
-      const materials = copied.map(({ base }) => draws.drawing(base).material);
+      const materials = copied.map(({ base }) => draws.find(base)?.material);
       // One by one: a spread of a large world's roots overflows the stack. Its pages rank them.
       for (const root of addedRoots) roots.push(root);
       draws.layOut(roots);
