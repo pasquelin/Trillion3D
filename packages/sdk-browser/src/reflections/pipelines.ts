@@ -20,13 +20,13 @@ export async function reflectionPipelines(
   );
   const final = await createCheckedShaderModule(
     device,
-    withScreenReflections(shader, !bounce, true),
+    withScreenReflections(shader, true),
     'REFLECTION_RESOLVE',
   );
   const targets: GPUColorTargetState[] = [{ format: 'rgba16float' }];
   const trace = await createCheckedShaderModule(
     device,
-    stochasticReflectionShader(shader, !bounce),
+    stochasticReflectionShader(shader),
     'REFLECTION_TRACE',
   );
   const resolve = await createCheckedShaderModule(

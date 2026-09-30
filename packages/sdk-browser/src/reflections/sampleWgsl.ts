@@ -47,8 +47,8 @@ const STOCHASTIC_REFLECTION_WGSL = `${GGX_REFLECTION_SAMPLE_WGSL}
 }`;
 
 /** The trace borrows the same lighting/proxy bindings as the final resolve. */
-export function stochasticReflectionShader(shader: string, direct: boolean) {
-  const source = withScreenReflections(shader, direct);
+export function stochasticReflectionShader(shader: string) {
+  const source = withScreenReflections(shader);
   return (
     source + (source.includes('fn hashUnit(') ? '' : HASH_UNIT_WGSL) + STOCHASTIC_REFLECTION_WGSL
   );
