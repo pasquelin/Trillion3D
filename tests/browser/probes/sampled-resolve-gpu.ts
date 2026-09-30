@@ -106,6 +106,8 @@ if (import.meta.main) {
         records: [
           record(list, set.length, false, [shadowed]),
           record(list, set.length, true, [shadowed]),
+          // The program with no rectangle code, drawn too: the scene holds none (#1369).
+          { ...record(list, set.length, false, [shadowed]), rectless: true },
         ],
       },
     ];
@@ -135,10 +137,18 @@ if (import.meta.main) {
     assert.equal(runs.length, SCENES.length);
     let differed = 0;
     sets.forEach((set, s) => {
-      const [[moving, drawn], [still], [shadowMoving, shadowDrawn]] = runs.slice(3 * s, 3 * s + 3);
+      const [[moving, drawn], [still], [shadowMoving, shadowDrawn, rectless]] = runs.slice(
+        3 * s,
+        3 * s + 3,
+      );
       const name = `${set.length} lamps, ${lists[s].length} listed`;
       assert.deepEqual(moving, still, `${name}: no shadow, the still sum, bit for bit`);
       assert.deepEqual(shadowMoving, shadowDrawn, `${name}: a shadow, the drawn sum, bit for bit`);
+      assert.deepEqual(
+        rectless,
+        shadowMoving,
+        `${name}: no rectangle code, the same sum, bit for bit`,
+      );
       assert.ok(still.some(Boolean), `${name}: the samples are lit`);
       differed += +(JSON.stringify(drawn) !== JSON.stringify(still));
     });

@@ -41,6 +41,8 @@ export type ResolveRecord = {
   drawn?: boolean;
   /** Through the program with no shadow code (#1249). */
   unshadowed?: boolean;
+  /** Through the program with no rectangle code (#1369). */
+  rectless?: boolean;
 };
 /** A scene; \`rank\` the view's sampled rank (0, a still image, by default), \`slots\` the shadow
  *  slot of some lights by their index. */
@@ -87,19 +89,20 @@ export async function run(scenes: ResolveScene[]) {
   });
   const compilation: string[] = [];
   const pipelines = new Map<string, GPUComputePipeline>();
-  for (const [narrow, unshadowed] of [
-    [false, false],
-    [true, false],
-    [false, true],
+  for (const [narrow, unshadowed, rectless] of [
+    [false, false, false],
+    [true, false, false],
+    [false, true, false],
+    [false, false, true],
   ]) {
     const { module, compilation: errors } = await opened.compile(
-      narrowResolveHarness(narrow, !unshadowed),
+      narrowResolveHarness(narrow, !unshadowed, !rectless),
     );
     compilation.push(...errors.map((error) => `${narrow ? 'narrow' : 'wide'}: ${error}`));
     if (!errors.length)
       for (const entryPoint of ['main', 'drawn'])
         pipelines.set(
-          `${narrow}${unshadowed}${entryPoint}`,
+          `${narrow}${unshadowed}${rectless}${entryPoint}`,
           device.createComputePipeline({
             layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
             compute: { module, entryPoint },
@@ -125,7 +128,7 @@ export async function run(scenes: ResolveScene[]) {
     const sceneRuns: number[][] = [];
     for (const record of scene.records) {
       const pipeline = pipelines.get(
-        `${record.narrow}${!!record.unshadowed}${record.drawn ? 'drawn' : 'main'}`,
+        `${record.narrow}${!!record.unshadowed}${!!record.rectless}${record.drawn ? 'drawn' : 'main'}`,
       );
       if (!pipeline) continue;
       const tiles = storage(device, new Uint32Array(record.words));
