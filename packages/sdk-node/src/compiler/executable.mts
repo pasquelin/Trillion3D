@@ -32,8 +32,8 @@ function namedCompiler(
   return variable ? { path: variable, from: 'environment' } : null;
 }
 /**
- * Finds the native compiler program: the one asked for, else the installed platform package's
- * (`platform.mts`), else `TRILLION3D_COMPILER_BIN`'s, else the one built in this checkout.
+ * Finds the native compiler program: the one asked for, else the one of the installed platform
+ * package, else the one `TRILLION3D_COMPILER_BIN` names, else the one built in this checkout.
  */
 export function resolveCompilerExecutable(
   explicit?: string,

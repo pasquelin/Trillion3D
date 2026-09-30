@@ -6853,7 +6853,7 @@
     "summary": "Melekatkan `node` ke `parent` (`-1`: root), seperti `add` acuan: matriks tidak berpindah sampai update berikutnya."
   },
   "resolveCompilerExecutable": {
-    "summary": "Menemukan program kompiler native: yang diminta, jika tidak, yang dibangun dalam checkout ini."
+    "summary": "Menemukan program kompiler native: yang diminta, jika tidak, yang ada di paket platform terpasang, jika tidak, yang ditunjuk `TRILLION3D_COMPILER_BIN`, jika tidak, yang dibangun dalam checkout ini."
   },
   "reviewCutouts": {
     "summary": "Menanyakan, model demi model, apakah setiap permukaan cut-out terlihat benar, dan mencatat jawabannya.",

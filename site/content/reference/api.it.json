@@ -5248,7 +5248,7 @@
     }
   },
   "resolveCompilerExecutable": {
-    "summary": "Trova il programma del compilatore nativo: quello richiesto, altrimenti quello costruito in questo repository."
+    "summary": "Trova il programma del compilatore nativo: quello richiesto, altrimenti quello del pacchetto di piattaforma installato, altrimenti quello indicato da `TRILLION3D_COMPILER_BIN`, altrimenti quello costruito in questo repository."
   },
   "ReusedFolder": {
     "summary": "Ciò che un'attività ha dimostrato prima di mantenere una cartella esistente invece di scriverla (`null` quando ha compilato; `clusterHierarchyPagesMs` è allora anche `null`).",

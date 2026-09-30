@@ -1452,7 +1452,7 @@
     "reference:regionRect": "24aa2def 041214bd 415e6073 db2af65e c266db7e 7ebcb59a 89c55455 f4839fd3 fcbcf43f ab7694d2 a7978c20 892e43ca 07414dd6 16ecb723 d770fce6",
     "reference:removeTransformNode": "297352ca 111092e4 134d1a88 6975bb4c bde7ff58 775f1c00 7ccd4117 b5d1e1b0 b82269fa f0a96869 4ee2f6cb 291db586 178842e8 91eb6002 72bbb958",
     "reference:reparentTransformNode": "8fd94235 237482f1 c0a7785a 3a63afde 915a8a08 ae0c2072 f3db7161 236070a3 07e61f14 65222cff 6a672c5b 249f872a dcf3ac3f 4e8d4f10 31bc466d",
-    "reference:resolveCompilerExecutable": "1b61c8ff e3680674 5d4ce6c3 0f6fede9 b70bc7fd a3359fd9 ad662703 782bba78 20f4c401 ae23b566 67b287aa ecaf704f 9704fb99 9705d28d 1fa72771",
+    "reference:resolveCompilerExecutable": "e5a099dc 945b816d f34d3156 8ef55901 388067cf 20fca2cf 800b8030 950c8948 d60e171f 30a9f4ec bf86f0a6 323c8487 f7c45db8 9a3d93ac def6d781",
     "reference:reviewCutouts": "e9896fb3 bae17aee 94249405 9bc902e6 194de307 e650f44e b1206648 0c64342b 7ee0230f c847ae18 1a25179a aee3d486 b523fa6a abe74c11 9b5a46d8",
     "reference:rotateByQuaternion": "da90d024 b49d188a 1b2a1e28 ffe6a206 ee273dbf 10b42922 f5fe7195 8e54da8d 4d8cf0bc e190e866 5412c0df d0848f86 552dce91 1f92cd68 384814d3",
     "reference:scaleVector3": "02e3a2ec aa86b12e bdd63a12 1c9a6de6 b90d1004 826d7729 2f9bd361 5347e933 943089e1 235e8795 d6b378f2 a973a7b8 c22d3d33 fd84128e 01ee8956",
