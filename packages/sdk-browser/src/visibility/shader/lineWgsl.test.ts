@@ -14,9 +14,7 @@ import { rasterSource } from '../../gpu/raster/shader.ts';
 import { BLEND_ITEM_WGSL } from '../../webgpu/blend/items.ts';
 import { CLUSTER_VERTEX } from '../../webgl/cluster/shaders.ts';
 import { SHADER as FALLBACK_SHADER } from '../../webgpu/pages/prepare/shaders.ts';
-import { blendShader } from '../../webgpu/blend/shader.ts';
-
-const BLEND_SHADER = blendShader();
+import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
 
 const SOURCES = { wgsl: LINE_CLIP_WGSL, glsl: LINE_CLIP_GLSL };
 

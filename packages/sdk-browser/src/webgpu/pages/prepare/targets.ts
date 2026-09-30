@@ -40,8 +40,9 @@ export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
 }
 
 /** Releases the frame targets in place: none is drawn into or presented until the next are made.
- *  The view's temporal history goes with them: a capture draws in a view of its own. */
-export function releaseTargets(rt: WebgpuPagesRuntime) {
+ *  The view's temporal history goes with them — a capture draws in a view of its own —, unless
+ *  `keepHistory`: the display's size stays, only the render size changes (#1343). */
+export function releaseTargets(rt: WebgpuPagesRuntime, keepHistory = false) {
   const { gpu, vis, capture } = rt;
   const textures = [gpu.colorTexture, gpu.depthTexture, gpu.hdrTexture, gpu.feedbackTexture];
   if (gpu.displayTexture !== gpu.colorTexture) textures.push(gpu.displayTexture);
@@ -65,7 +66,7 @@ export function releaseTargets(rt: WebgpuPagesRuntime) {
   vis.gpuRaster = undefined;
   capture.capturedPixels = undefined;
   capture.capturedRevision = -1;
-  gpu.temporal?.release();
+  if (!keepHistory) gpu.temporal?.release();
 }
 
 /** The texture-feedback target; only the A/B diagnostic copies it out. */
@@ -91,8 +92,10 @@ export function makeFeedbackTarget(
  * Makes the frame targets of `size`, of `targetBytes` before the history: what `targetGrant.ts`
  * runs under the device's out-of-memory check, the targets in place released first. Every pass
  * up to the temporal resolve draws at the render size, the targets' or below it; the history and
- * the display colour are the display's. Returns what releases them again, and what they cost
- * (`frame-allocation`).
+ * the display colour are the display's. A new render size at the same display size, the render
+ * scale crossing an eighth (`ScaleControl.allocated`), keeps the temporal history, which is the
+ * display's: the image goes on accumulating rather than restarting. Returns what releases them
+ * again, and what they cost (`frame-allocation`).
  */
 export function makeTargets(
   rt: WebgpuPagesRuntime,
@@ -102,7 +105,10 @@ export function makeTargets(
 ) {
   const { gpu, vis, run, capture, blendState } = rt,
     { renderWidth: width, renderHeight: height } = size;
-  releaseTargets(rt);
+  releaseTargets(
+    rt,
+    !!gpu.colorTexture && gpu.displaySize[0] === size.width && gpu.displaySize[1] === size.height,
+  );
   const sampled = GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
     usage = sampled | GPUTextureUsage.COPY_SRC;
   const target = (

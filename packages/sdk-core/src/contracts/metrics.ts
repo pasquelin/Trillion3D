@@ -131,6 +131,7 @@ export type GpuFrameMs = number | null;
   /** CPU time the same image spent between two of its own submissions, and zero when it submits once.
    *  It is host time, not GPU time, which is why `gpuFrameMs` excludes it. Null when unmeasured. */
   gpuHostGapMs?: number | null;
+  /** Why the GPU device was lost; null while it holds. */ gpuDeviceLost?: string | null;
   /** Triangles of clusters the published cut names but the frame cannot draw — no resident page and no
    *  covering ancestor. A real hole in the image: zero is the only healthy value. Null when a backend
    *  cannot tell (it draws the cut it selected, so it never has one). */

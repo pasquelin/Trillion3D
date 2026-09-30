@@ -16,9 +16,7 @@ import { BLEND_ITEM_WGSL } from '../../webgpu/blend/items.ts';
 import { CLUSTER_VERTEX } from '../../webgl/cluster/shaders.ts';
 import { SHADER as FALLBACK_SHADER } from '../../webgpu/pages/prepare/shaders.ts';
 import { ROW_SPRITE_WORD } from '../../webgpu/row/pageRow.ts';
-import { blendShader } from '../../webgpu/blend/shader.ts';
-
-const BLEND_SHADER = blendShader();
+import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
 
 test('a surface writes its sprite words: its turn and its size rule, zeros when it is none', () => {
   const words = [9, 9, 9, 9];

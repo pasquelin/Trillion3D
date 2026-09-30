@@ -51,7 +51,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let pool = phases.pool(o.threads)?;
     // A folder already holding this product is proven, then kept as is (`compiler_reuse.rs`).
     if let Some(reused) = compiler_reuse::reuse(o, &key, &pool, &progress)? {
-        return compiler_reuse::finish(o, &key, reused, started, &progress);
+        return compiler_reuse::finish(o, &key, reused, started, &loaded.manifest, &progress);
     }
     let view_values = values(g, "bufferViews")?;
     let BufferPlan {
@@ -67,7 +67,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let offset = source_bin.bytes as usize;
     let import_ms = shared_math::elapsed_ms(started);
     progress(
-        json!({"phase":"import","completed":1,"total":1,"ms":import_ms,"primitives":jobs.len(),"nodes":chosen.len(),"sharedMeshNodes":shared_nodes}),
+        json!({"phase":"import","completed":1,"total":1,"ms":import_ms,"primitives":jobs.len(),"nodes":chosen.len(),"sharedMeshNodes":shared_nodes,"unsupported":loaded.manifest["unsupported"]}),
     );
     let cluster_start = Instant::now();
     // Compact per-page index storage is bounded independently from source size. Metadata is retained.

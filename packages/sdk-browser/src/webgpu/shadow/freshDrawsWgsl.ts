@@ -19,11 +19,15 @@ export const SHADOW_FRESH_DRAWS_WGSL = `
 struct FreshView{view:ShadowView,rect:vec4f,}
 /** Clip position \`p\` of \`page\`'s clip square, carried onto its square of the layer's. */
 fn freshPlace(page:FreshView,p:vec4f)->vec4f{return vec4f(p.xy*page.rect.zw+page.rect.xy*p.w,p.z,p.w);}
-/** Whether layer texel \`at\` lies in \`page\`. */
-fn freshInPage(page:FreshView,at:vec2f)->bool{
- let params=page.view.params;let first=round(params.xy*params.w/params.z);let q=at-first;
- return all(q>=vec2f(0.0))&&all(q<vec2f(params.w));
+/** The first layer texel of \`view\`'s page. */
+fn pageFirst(view:ShadowView)->vec2f{return round(view.params.xy*view.params.w/view.params.z);}
+/** Whether layer texel \`at\` lies in \`view\`'s page. */
+fn pageHolds(view:ShadowView,at:vec2f)->bool{
+ let q=at-pageFirst(view);
+ return all(q>=vec2f(0.0))&&all(q<vec2f(view.params.w));
 }
+/** Whether layer texel \`at\` lies in \`page\`. */
+fn freshInPage(page:FreshView,at:vec2f)->bool{return pageHolds(page.view,at);}
 /** The \`instance\`-th pair's caster at corner \`vertexIndex\`, if its region lies in the draw's layer. */
 fn freshCaster(vertexIndex:u32,instance:u32,blended:bool)->ShadowOut{
  let layer=vertexIndex>>FRESH_LAYER_SHIFT;let k=freshPairs[2u*instance];

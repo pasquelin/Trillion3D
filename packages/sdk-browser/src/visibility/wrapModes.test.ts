@@ -18,9 +18,7 @@ import {
 import { SHADE_SHADER } from './shader/shadeWgsl.ts';
 import { MASK_KEEP_WGSL } from './shader/pageWgsl.ts';
 import { CARTES, nibblesDuMelange } from '../../../../tests/browser/probes/addressingMaps.ts';
-import { blendShader } from '../webgpu/blend/shader.ts';
-
-const BLEND_SHADER = blendShader();
+import { BLEND_SHADER } from '../gpu/core/shaderTexts.fixture.ts';
 
 const carte = (wrapS: number, wrapT: number) =>
   ({ wrapS: importWrapMode(wrapS), wrapT: importWrapMode(wrapT) }) as Texture;

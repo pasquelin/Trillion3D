@@ -24,6 +24,7 @@ import { prepareWebgpuVisibility } from './visibility.ts';
 import { prepareDirectLights, prepareShadowPipelines } from './lights.ts';
 import { grantWebgpuPagesCache } from './cache.ts';
 import { prepareGpuTiming } from './timing.ts';
+import { litPrograms } from './contractLight.ts';
 import { reserveRootBoxes } from '../../../math/batchBoxes.ts';
 import { type WebgpuPagesRuntime } from '../runtime.ts';
 
@@ -62,14 +63,16 @@ async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) 
     shadows: false,
     globalIllumination: false,
   });
-  // The contract program finishes compiling between two images: its arrival is a new resource, or
-  // the held image would keep presenting raw albedo. Both programs are awaited, each kept as built.
+  // The lit program starts now, beside every other program, and prepare ends once it landed: the
+  // first image is lit, never the unlit stand-in (#1362). Its later arrival (a light turned on) is a
+  // new resource, or a held image would stay as it was. Both are awaited, each kept as built.
   const programs = await step('lighting and antialiasing programs', () =>
     Promise.allSettled([
       createDeferredLighting(
         gpuDevice,
         () => run.gate.resourcesChanged(),
         rt.lights.plan.sunWindow,
+        litPrograms(rt),
       ),
       prepareTemporalAntialiasing(rt, gpuDevice),
     ]),
@@ -87,13 +90,7 @@ async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) 
         : 'texture-only',
     imageReadbackDuringRender: false,
   });
-  ({
-    bindGroupLayout: gpu.bindGroupLayout,
-    pipelineBack: gpu.pipelineBack,
-    pipelineBackCw: gpu.pipelineBackCw,
-    pipelineNone: gpu.pipelineNone,
-    pipelineBlend: gpu.pipelineBlend,
-  } = createWebgpuPagesPipelines(gpuDevice, UNIFORM_STRIDE));
+  Object.assign(gpu, await createWebgpuPagesPipelines(gpuDevice, UNIFORM_STRIDE));
   // Only a cluster no quantized page covers still needs its primitive's float positions: what the
   // fallback draw reads for the others is the page in their pool slot.
   for (const rec of await loadUnpaged(allPages, blendCopies))
@@ -178,6 +175,8 @@ async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) 
   }
   capabilities.gpuDriven = !!run.gpuSelection;
   await step('coverage bootstrap', () => services.bootstrapState.ensure());
+  // Last, the lit program of the first step; one that failed is said, and lets the unlit view by.
+  await gpu.deferred?.litReady;
   diag.engineDiagnostic('render-capabilities', 'Render paths ready', {
     surfaceVersion: gpu.surfaces?.version ?? null,
     deferredLighting: !!gpu.deferred,

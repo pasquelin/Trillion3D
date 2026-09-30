@@ -15,9 +15,11 @@ const readMin = new Float64Array(3),
  * movers at both ends of the scene would stale every page between them, while nothing there
  * changed (#525).
  *
- * The list is a fixed budget in pages: it holds as many boxes as the pool holds pages
- * (`capacity`), the most distinct pages a frame can draw. Past it — the one overflow — the last
- * box absorbs every further one: their union stales a superset of their pages, never fewer.
+ * The list is a fixed budget (`capacity`): as many boxes as the pool holds pages, the most
+ * distinct pages a frame can draw, and at least `SHADOW_CHANGE_BOXES`, what a frame of movers
+ * declares cluster by cluster (`movedClusters.ts`, #1345). Past it — the one overflow — the last
+ * box absorbs every further one: their union stales a superset of their pages, never fewer. A
+ * caller that can declare one change as a few boxes or as many reads what is left (`room`).
  *
  * The scheduler consumes them every frame: it derives the stale pages of each view, which
  * then carry the state. The boxes therefore have nothing to retain from one frame to the next —
@@ -33,6 +35,11 @@ const readMin = new Float64Array(3),
  * cut, whatever the history (#159). A representation change of objects already moving is held
  * in a union of its own, released as a moving box: the static layer never held them (#993).
  */
+/** Boxes the list holds apart at least: each is projected in every light view it may reach at the
+ *  next plan, so the count bounds that work. Declared: a few hundred moving clusters a frame, and
+ *  room to spare. */
+export const SHADOW_CHANGE_BOXES = 4096;
+
 export function createShadowChanges(capacity: number) {
   const min = new Float64Array(capacity * 3),
     max = new Float64Array(capacity * 3),
@@ -83,6 +90,8 @@ export function createShadowChanges(capacity: number) {
   const changes = {
     /** Boxes in the list. */
     count: 0,
+    /** Boxes the list still holds apart before the overflow. */
+    room: () => capacity - changes.count,
     /** A representation change waits for the camera to rest: the hold must not close before. */
     deferred: () => !boxIsEmpty(held[0].box, 0) || !boxIsEmpty(held[1].box, 0),
     /**

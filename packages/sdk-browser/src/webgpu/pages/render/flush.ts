@@ -5,7 +5,6 @@ import { outputColorDiagnostic } from '../helpers.ts';
 import { fallbackToCpuCut } from '../io/drops.ts';
 import { directLightingState } from './encodeLights.ts';
 import { bounceState } from '../state/bounce.ts';
-import { compilingContract } from '../prepare/lightResources.ts';
 import { sunFarState } from '../prepare/sunFar.ts';
 import { renderWebgpuPages } from './render.ts';
 import { settlePose } from '../../tile/converge.ts';
@@ -121,17 +120,11 @@ export async function flushWebgpuPages(rt: WebgpuPagesRuntime, options: { image?
     if (run.lastCamera && !capture.capturing && !run.lost) renderWebgpuPages(rt, run.lastCamera);
   };
   // A frame held on a device answer (`holdWebgpuFrame`) drew nothing, no cut to adopt below: the
-  // answer is waited for and the pose drawn, as `pendingWebgpuFrame` does. A redraw may ask again
-  // (a view resized meanwhile); a refused grant stays settled, so the loop ends.
+  // answer is waited for and the pose drawn, as `pendingWebgpuFrame` does. The lit program is one
+  // (#1362): a drained pose is a lit pose. A redraw may ask again (a view resized meanwhile); a
+  // refused grant stays settled, a failed compile is no longer awaited, so the loop ends.
   for (let answer = deviceAnswer(rt); answer; answer = deviceAnswer(rt)) {
     await answer;
-    redraw();
-  }
-  // The lighting-contract program compiles outside the image. If a lamp was waiting for it, the
-  // pose is redrawn with it before any read: a drained pose is a lit pose.
-  const compiling = compilingContract(rt);
-  if (compiling) {
-    await compiling.settle();
     redraw();
   }
   // Texture tiles are part of preparing a pose, not of a per-image decoration: a surface read at
