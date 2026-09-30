@@ -1,0 +1,141 @@
+#!/usr/bin/env node
+/**
+ * The portal's Install page, walked through (#1355): its English commands run in a clean folder,
+ * as a newcomer copies them. Until `trillion3d` is on npm, the registry is the one stand-in:
+ * `npm install trillion3d` installs the archive this checkout packs, and the folder's `overrides`
+ * point the compiler's platform packages at theirs. The page's `npx trillion3d-compile` compiles
+ * the fixture model; the page it gives is saved as `public/index.html`, served with its two headers
+ * — the CDN of its `importmap` played by the installed package, from another origin — and opened in
+ * Chrome, where it must draw the model.
+ *
+ * `pnpm run proof:install-page [-- --model <file>]`: a Chrome proof, the recette's (AGENTS.md
+ * rule 2). The default model is the morphing cube of the examples, a 2-unit cube at the origin.
+ */
+import { copyFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { parseArgs } from 'node:util';
+import { launchChrome } from '../bench/runner/chrome.ts';
+import { currentCompilerExecutable } from '../packages/sdk-node/src/compiler/executable.mts';
+import { codeBlocks, installPageHtml, walkthrough } from './install-page.ts';
+import { createInstalledFixture, packArchive } from './installed-package-fixture.ts';
+import { packPlatformArchives } from './installed-package-platforms.ts';
+import { listen, staticServer } from './static-server.ts';
+
+/** The CDN the page's `importmap` names, and where the fixture server plays it. */
+const CDN = 'https://cdn.jsdelivr.net/npm/trillion3d/';
+const LOCAL_CDN = '/cdn/trillion3d/';
+/** The share of the canvas that must differ from its corner once the model is drawn. */
+const DRAWN = 0.01;
+
+const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
+const { values } = parseArgs({
+  options: {
+    model: {
+      type: 'string',
+      default: join(root, 'site/assets/examples/animated-morph-cube/source/AnimatedMorphCube.glb'),
+    },
+  },
+});
+const windows = process.platform === 'win32';
+const [pnpm, npm, npx] = ['pnpm', 'npm', 'npx'].map((name) => (windows ? `${name}.cmd` : name));
+const { fixture, logs, run } = createInstalledFixture(root);
+const { commands, page, headers } = walkthrough(codeBlocks(await installPageHtml('en')));
+// The compiler comes from the installed platform package, never from a variable of this shell.
+const { TRILLION3D_COMPILER_BIN: _named, ...environment } = process.env;
+
+/** The share of the canvas drawn, as the screen shows it: pixels far from its corner's colour. */
+function drawnShare(png: string) {
+  return new Promise<number>((settle, reject) => {
+    const image = new Image();
+    image.onerror = reject;
+    image.onload = () => {
+      const canvas = new OffscreenCanvas(image.width, image.height);
+      const context = canvas.getContext('2d')!;
+      context.drawImage(image, 0, 0);
+      const { data } = context.getImageData(0, 0, image.width, image.height);
+      let drawn = 0;
+      for (let at = 0; at < data.length; at += 4) {
+        const distance = [0, 1, 2].reduce((sum, c) => sum + Math.abs(data[at + c] - data[c]), 0);
+        if (distance > 24) drawn++;
+      }
+      settle(drawn / (data.length / 4));
+    };
+    image.src = `data:image/png;base64,${png}`;
+  });
+}
+
+async function draw(app: string) {
+  let port = 0;
+  const server = staticServer({
+    mounts: [
+      { prefix: LOCAL_CDN, dir: join(app, 'node_modules/trillion3d') },
+      { prefix: '/', dir: join(app, 'public') },
+    ],
+    headers: { ...headers, 'access-control-allow-origin': '*' },
+    // The page's CDN is served here, from `localhost`: another origin than the page's, as a CDN is.
+    transform: (file) =>
+      file.endsWith('index.html')
+        ? { type: 'text/html', text: page.replace(CDN, `http://localhost:${port}${LOCAL_CDN}`) }
+        : undefined,
+  });
+  port = await listen(server);
+  const browser = await launchChrome({ headless: true });
+  const errors: string[] = [];
+  try {
+    const tab = await browser.newPage({ viewport: { width: 640, height: 400 } });
+    tab.on('pageerror', (error) => errors.push(error.message));
+    await tab.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'networkidle' });
+    const isolated = await tab.evaluate(() => crossOriginIsolated);
+    let drawn = 0;
+    for (let tries = 0; tries < 60 && drawn < DRAWN && !errors.length; tries++) {
+      const png = (await tab.locator('canvas#viewer').screenshot()).toString('base64');
+      drawn = await tab.evaluate(drawnShare, png);
+      if (drawn < DRAWN) await tab.waitForTimeout(500);
+    }
+    if (errors.length) throw new Error(`the page failed: ${errors.join('; ')}`);
+    if (drawn < DRAWN) throw new Error(`the page drew ${(drawn * 100).toFixed(2)} % of its canvas`);
+    return { isolated, drawn: Number(drawn.toFixed(3)) };
+  } finally {
+    await browser.close();
+    await new Promise((settle) => server.close(settle));
+  }
+}
+
+try {
+  run(pnpm, ['run', 'build']);
+  run(pnpm, ['run', 'build:native']);
+  const binary = currentCompilerExecutable(undefined, {});
+  const { filename: archive } = packArchive(run, pnpm, root, fixture);
+  const platforms = packPlatformArchives({ root, fixture, run, pnpm, binary });
+  const app = join(fixture, 'app');
+  mkdirSync(join(app, 'public'), { recursive: true });
+  const overrides = Object.fromEntries(platforms.map(([name, file]) => [name, `file:${file}`]));
+  writeFileSync(join(app, 'package.json'), `${JSON.stringify({ private: true, overrides })}\n`);
+  const compiled: unknown[] = [];
+  for (const command of commands) {
+    const [tool, ...args] = command.split(' ');
+    if (tool === 'npm') {
+      run(
+        npm,
+        args.map((arg) => (arg === 'trillion3d' ? archive : arg)),
+        app,
+        environment,
+      );
+      continue;
+    }
+    // The model the page names is the fixture, copied where the page expects it.
+    copyFileSync(values.model, join(app, args[1]));
+    const result = JSON.parse(run(npx, args, app, environment)) as { status: string };
+    if (result.status !== 'ready') throw new Error(`${command}: ${result.status}`);
+    compiled.push(result);
+  }
+  writeFileSync(join(app, 'public/index.html'), page);
+  const drawn = await draw(app);
+  console.log(JSON.stringify({ commands, model: values.model, compiled, ...drawn }, null, 2));
+} catch (error) {
+  console.error(JSON.stringify({ error: String(error), fixture, logs }, null, 2));
+  process.exitCode = 1;
+} finally {
+  rmSync(fixture, { recursive: true, force: true });
+}

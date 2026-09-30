@@ -65,9 +65,12 @@ pnpm test                # unit and integration tests (node --test)
 pnpm run test:native     # cargo test
 ```
 
-The package is private and consumed locally; it is not published to npm. A host supplies its own
-scenes; the bench's are fetched and cooked off git into `.mesure/assets/` by
-`node bench/runner/assets.ts` ([Assets](bench/runner/README.md#assets)).
+This builds the repository. An application installs the package instead —
+`npm install trillion3d`, then `npx trillion3d-compile` for its models — as the portal's
+[Install page](https://www.trillion3d.com/#/en/learn/install) shows step by step, with the CDN
+`importmap`, the supported platforms and the server headers. A host supplies its own scenes; the
+bench's are fetched and cooked off git into `.mesure/assets/` by `node bench/runner/assets.ts`
+([Assets](bench/runner/README.md#assets)).
 
 ```js
 import { createWorld, object, geometry, material, light } from 'trillion3d';
