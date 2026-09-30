@@ -1,4 +1,5 @@
 import { CLUSTERED_BLEND_FORMAT_VERSION } from '../../packages/sdk-core/src/contracts/base.ts';
+import { GEOMETRY_PAGE_FORMAT_VERSION } from '../../packages/sdk-core/src/manifest/binaryFormat.ts';
 import type { ClusterManifest } from '../../packages/sdk-core/src/contracts/index.ts';
 import {
   levelBlockBytes,
@@ -126,7 +127,7 @@ export function manifest(): ClusterManifest {
     key: 'k',
     scope: 'full',
     errorModel: 'dag-group-qem-v3',
-    geometryPages: { formatVersion: 7 as const, codec: 'quantized' as const },
+    geometryPages: { formatVersion: GEOMETRY_PAGE_FORMAT_VERSION, codec: 'quantized' as const },
     simplification: true,
     sourceTriangles: 8,
     selectedTriangles: 8,

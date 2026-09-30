@@ -1,6 +1,7 @@
 import { encodeReflectionSource } from '../../reflections/encode.ts';
 import type { ScreenReflection } from '../../reflections/gpu.ts';
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts';
+import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { UNLIT_COMPOSITIONS, UNLIT_LIGHTING_SHADER } from './shaders.ts';
 import { createContractVariants } from './contractVariants.ts';
 import { createDeferredPlaceholders } from './setup.ts';
@@ -15,10 +16,13 @@ export { DIRECT_LIGHTING_SHADER, FULLSCREEN_VERTEX } from './shaders.ts';
 
 /** Label of the measured pass; `gpuLightingMs` is read under this name. */
 export const DEFERRED_LIGHTING_PASS = 'Trillion3D deferred lighting';
-export { REFLECTION_SOURCE_PASS } from '../../reflections/encode.ts';
 
 /** Deferred and frozen-source lighting programs, compiled lazily for the active lighting mode. */
-export async function createDeferredLighting(device: GPUDevice, onReady?: () => void) {
+export async function createDeferredLighting(
+  device: GPUDevice,
+  onReady?: () => void,
+  pages = SUN_WINDOW,
+) {
   const view = createDeferredView(device);
   const uniform = view.buffer;
   const placeholders = createDeferredPlaceholders(device);
@@ -37,7 +41,7 @@ export async function createDeferredLighting(device: GPUDevice, onReady?: () => 
       bindings,
     );
     // Programs, never a branch: the unlit view, and the contract ones (`contractVariants.ts`).
-    const variants = createContractVariants(device, bindings, onReady);
+    const variants = createContractVariants(device, bindings, pages, onReady);
     let active: DeferredProgram = unlit;
     // Diagnostic views output raw values: no ACES, no sRGB, no composed background. The
     // indirect-irradiance view is one, and lighting says so, not the caller.

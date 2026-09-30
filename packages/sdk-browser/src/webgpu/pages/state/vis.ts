@@ -13,7 +13,7 @@ import type { WebgpuTileStreamer } from '../../tile/streamer.ts';
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../../core/bindIdentity.ts';
 import { createPresentClasses, type PresentClasses } from '../../core/materialPasses.ts';
 import type { GeometryBlock } from '../../row/pageRowMaterial.ts';
-import type { VertexPool } from '../../core/geometryPrepare.ts';
+import type { VertexPool } from '../../core/geometryPool.ts';
 import type { BlendModePipelines } from '../../blend/stagePipelines.ts';
 
 /** GPU resources of the visibility-buffer path: raster and shade pipelines, their bind groups, the
@@ -83,7 +83,7 @@ export interface WebgpuVisState {
   concatPos: GPUBuffer | undefined;
   concatUv: GPUBuffer | undefined;
   concatNrm: GPUBuffer | undefined;
-  /** The pool those three buffers are (`../../core/geometryPrepare.ts`). */
+  /** The pool those three buffers are (`../../core/geometryPool.ts`). */
   vertexPool: VertexPool | undefined;
   pageTable: GPUBuffer | undefined;
   shadeUniform: GPUBuffer | undefined;

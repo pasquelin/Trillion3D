@@ -1,11 +1,11 @@
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { CONE_MODEL_WGSL } from '../../../../sdk-core/src/scene/light-shadow/coneModelWgsl.ts';
-import { PAGE_MODEL_WGSL } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
-import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { pageModelWgsl } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
+import { SHADOW_PAGE, SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { CASTERS_ALL, SHADOW_CULL_GROUP } from '../../gpu/shadow/cullShader.ts';
 import { SHADOW_PLACE_WGSL } from '../../lighting/direct/shadowSampleWgsl.ts';
 import { SHADOW_DATA_WGSL } from '../../lighting/direct/shadowWgsl.ts';
-import { SHADOW_POOL_WGSL } from './poolWgsl.ts';
+import { shadowPoolWgsl } from './poolWgsl.ts';
 import {
   FRESH_CASTERS,
   FRESH_CLEAR,
@@ -34,9 +34,10 @@ const MAX_FRESH_REGIONS = 65535;
  * page is its view cropped by the orthography, its box the square by the range's depth. No more
  * pages are picked than the pair list holds all the casters of (\`pickPages\`): the seal makes
  * each one readable, never short of a caster; one not picked waits, listed again, for the next
- * frame or the host.
+ * frame or the host. The window is the session's (`referenceMode.ts`), the ordinary constant by
+ * default.
  */
-export const SHADOW_FRESH_WGSL = `
+export const shadowFreshWgsl = (pages = SUN_WINDOW) => `
 ${SHADOW_DATA_WGSL}
 @group(0) @binding(0) var<storage,read_write> shadows:ShadowData;
 @group(0) @binding(1) var<storage,read_write> shadowPool:ShadowPool;
@@ -47,9 +48,9 @@ ${SHADOW_DATA_WGSL}
 ${FRESH_PARAMS_WGSL}
 @group(0) @binding(6) var<storage,read> params:ShadowFreshParams;
 @group(0) @binding(7) var<storage,read_write> dispatch:array<u32,3>;
-${PAGE_MODEL_WGSL}
+${pageModelWgsl(pages)}
 ${CONE_MODEL_WGSL}
-${SHADOW_POOL_WGSL}
+${shadowPoolWgsl(pages)}
 ${SHADOW_PLACE_WGSL}
 ${FRESH_LAYOUT_WGSL}
 const FRESH_LANES:u32=${FRESH_LANES}u;
@@ -181,3 +182,5 @@ fn composeRegion(k:u32){
   args[casters]=args[FRESH_CORNERS];args[casters+1u]=args[FRESH_PAIRS];
  }
 }`;
+/** The GPU pages of the ordinary window: what a pass compiled without a session window reads. */
+export const SHADOW_FRESH_WGSL = shadowFreshWgsl();

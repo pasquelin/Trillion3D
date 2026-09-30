@@ -4,6 +4,7 @@ import {
   type SceneLightStore,
   type ShadowPlan,
 } from '../../../../../sdk-core/src/index.ts';
+import { SUN_WINDOW } from '../../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { MAX_SHADOW_REGIONS, type GpuShadowAtlas } from '../../../gpu/shadow/atlas.ts';
 import type { GpuShadowCull } from '../../../gpu/shadow/cull.ts';
 import type { GpuLightTiles } from '../../../lighting/tiles/tiles.ts';
@@ -25,11 +26,8 @@ import type { ShadowPageQuads } from '../../../gpu/shadow/pageQuads.ts';
 import { createShadowMemory, type ShadowMemory } from '../../shadow/memoryGrant.ts';
 import { createShadowWork, type ShadowWork } from '../../shadow/work.ts';
 
-/**
- * Direct-lighting state of the contract: the light store (shared with the host), per-tile lists, the
- * shadow atlas and the scheduler. Face-matrix buffers are allocated once for a batch; an
- * image allocates nothing.
- */
+/** Direct-lighting state of the contract: the light store (shared with the host), per-tile lists,
+ *  the shadow atlas and the scheduler. Face-matrix buffers are allocated once for a batch. */
 export interface WebgpuLightState {
   store: SceneLightStore;
   plan: ShadowPlan;
@@ -122,10 +120,11 @@ export interface WebgpuLightState {
 export function createWebgpuLightState(
   poolSide: number,
   store?: SceneLightStore,
+  sunWindow = SUN_WINDOW,
 ): WebgpuLightState {
   return {
     store: store ?? createSceneLightStore(),
-    plan: createShadowPlan(poolSide),
+    plan: createShadowPlan(poolSide, 1, sunWindow),
     buffer: undefined,
     tiles: undefined,
     shadows: undefined,
