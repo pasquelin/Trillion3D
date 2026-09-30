@@ -25,7 +25,6 @@ use trillion3d_compiler::{
     compile, parse_compiler_args, plugins, shared_math::elapsed_ms, CompilerError, Options,
     COMPILER_VERSION, FORMAT_VERSION,
 };
-
 /// Per-thread heaps for the Rayon workers (`Cargo.toml`, `mimalloc`).
 #[global_allocator]
 static ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
