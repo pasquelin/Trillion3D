@@ -999,6 +999,7 @@
       "selectedNodes": "Nodos conservados.",
       "primitives": "Primitivas conservadas.",
       "metrics": "Tiempo y tamaño.",
+      "reusedPages": "Páginas que la ejecución encontró ya construidas (`null` en una carpeta conservada).",
       "reused": "Lo que se reutilizó."
     }
   },

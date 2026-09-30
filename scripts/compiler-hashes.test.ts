@@ -7,14 +7,16 @@ import { join } from 'node:path';
 import { cacheFingerprint, differences } from './compiler-hashes.ts';
 
 /** A cache as the compiler lays it out, under `key`, with one page of `page` bytes and a manifest
- *  that reports the run's time and names the folder it was written to. */
-function cache(key: string, page: string, compileMs: number): string {
+ *  that reports the run's time, whether it found a cutout sheet (a head before #1370) and names the
+ *  folder it was written to. */
+function cache(key: string, page: string, compileMs: number, found?: boolean): string {
   const root = mkdtempSync(join(tmpdir(), 'trillion3d-hashes-'));
   const manifest = {
     key,
     url: `${key}/c`,
     sheet: join(root, 'cutouts.json'),
     metrics: { compileMs },
+    cutouts: { changes: { decisions: { file: join(root, 'cutouts.json'), found, answers: 0 } } },
   };
   mkdirSync(join(root, 'native/full', key), { recursive: true });
   writeFileSync(join(root, 'native/.lock'), String(process.pid));
@@ -24,10 +26,10 @@ function cache(key: string, page: string, compileMs: number): string {
 }
 
 // Behaviour: two compilers that cook the same bytes have one fingerprint, whatever their key, their
-// run's times and their folder; one changed byte is named — the platforms against Linux x64, the
-// branch against develop (#1352).
+// run's times, the cutout sheet an older head says it found (#1370) and their folder; one changed
+// byte is named — the platforms against Linux x64, the branch against develop (#1352).
 test('the fingerprint compares the cooked bytes and names the file that differs', () => {
-  const develop = cache('a'.repeat(64), 'page', 1),
+  const develop = cache('a'.repeat(64), 'page', 1, false),
     branch = cache('b'.repeat(64), 'page', 2),
     changed = cache('c'.repeat(64), 'pagf', 1);
   try {

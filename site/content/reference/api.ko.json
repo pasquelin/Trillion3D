@@ -606,6 +606,7 @@
       "selectedNodes": "유지된 노드 수.",
       "primitives": "유지된 프리미티브 수.",
       "metrics": "시간과 크기.",
+      "reusedPages": "실행이 이미 만들어진 것으로 찾은 페이지 수(유지된 폴더에서는 `null`).",
       "reused": "재사용된 것."
     }
   },
