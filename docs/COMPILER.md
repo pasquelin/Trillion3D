@@ -387,12 +387,13 @@ pool's threads and read by nobody else, so two jobs of one batch never describe 
 | `metrics.compileMs` | result and pointer | Wall time until the manifest is serialized |
 | `metrics.pruneMs` | pointer | Wall time of the prune after publication |
 | `metrics.phaseElapsedMs` | result and pointer | Elapsed time per phase, summed over worker threads; the texture stage publishes `textureDecodeMs`, `textureBakeMs` (chains, block encodes and their gate read-back), `textureWriteMs` and `textureAlphaMs` — Emerald from an empty cache, 8 threads, `--textures-format=bc7`: 7,2 s, 72,0 s, 68,3 s and 0,6 s inside 26,1 s wall; without a family (develop's compiler, same machine, same evening) 6,7 s, 6,3 s, 64,2 s and 0,6 s inside 17,9 s — the write column is the PNG levels, paid once per image whichever family |
-| `reusedPages` | result (per primitive) and pointer (total, `null` on a kept folder) | Page objects the run found already built |
+| `reusedPages` | result (per primitive), pointer and `prepare()` (total, `null` on a kept folder) | Page objects the run found already built |
 | `metrics.wallMs` | pointer and `complete` event | Wall time of the whole job, after the manifest is written and the cache pruned |
 
 What a run measures of itself — every `…Ms`, `peakRssBytes`, `reusedPages` — is its report, never
-its product: the written manifest keeps none of it, so a cold and a warm compile of one scene write
-the same bytes (#1370); the pointer and `complete` carry them all, `wallMs` and `pruneMs` too, and
+its product: the written manifest keeps none of it, nor which cutout sheet the run read, only the
+answers it applied, so a cold and a warm compile of one scene write the same bytes (#1370);
+`prepare()` returns the pointer's; the pointer and `complete` carry them all, `wallMs` and `pruneMs` too, and
 `wallMs` ≥ `compileMs + pruneMs`; it bounds a
 single phase only when one thread did the work. The `phaseElapsedMs` phases **overlap** and are
 elapsed time on the `wallMs` clock, not CPU: a wait, disk write or descheduled thread lands in the

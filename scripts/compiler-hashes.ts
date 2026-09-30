@@ -3,7 +3,8 @@
  * by the SHA-256 of its bytes, so that two compilers that cook the same bytes have the same one —
  * the five platforms of one commit, and a branch against `develop`. What a cook writes beside its
  * bytes is not compared: the run's report (a key ending in `Ms`, `peakRssBytes`, `reusedPages`,
- * as `compiler_manifest_pages` names it) and the folder it was written to. A name made of a
+ * as `compiler_manifest_pages` names it, and `found`, whether an older head's run found a cutout
+ * sheet, #1370) and the folder it was written to. A name made of a
  * SHA-256 — the cache key, which hashes the compiler's own sources, and each content-addressed
  * file — reads `<sha>`: such files are still compared by content, the hashes of the files one
  * pattern names listed together. The Jolt collider shapes a scene's `physics.json` names are
@@ -39,8 +40,9 @@ const SHA = /[0-9a-f]{64}/g;
 /** An object of the cache, content-addressed; `physics.json` names its colliders' tiles so. */
 const OBJECT = /objects[\\/]([0-9a-f]{64})\.bin$/;
 const COLLIDER = ' (Jolt collider)';
-/** What a run reports rather than builds: its times, its memory peak, the pages it found built. */
-const MEASURE = /Ms$|^peakRssBytes$|^reusedPages$/;
+/** What a run reports rather than builds: its times, its memory peak, the pages it found built,
+ *  whether it found a cutout sheet (in `develop`'s heads until #1370). */
+const MEASURE = /Ms$|^peakRssBytes$|^reusedPages$|^found$/;
 
 /** A JSON file of `cache` without its run's measures, its folder read `<cache>`; other bytes as is. */
 function comparable(bytes: Buffer, file: string, cache: string): Buffer | string {

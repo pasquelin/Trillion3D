@@ -613,6 +613,7 @@
       "selectedNodes": "Số node được giữ lại.",
       "primitives": "Số nguyên thủy được giữ lại.",
       "metrics": "Thời gian và kích thước.",
+      "reusedPages": "Các trang mà lần chạy thấy đã được dựng sẵn (`null` với thư mục được giữ lại).",
       "reused": "Những gì đã được dùng lại."
     }
   },

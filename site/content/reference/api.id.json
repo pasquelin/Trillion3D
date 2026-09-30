@@ -613,6 +613,7 @@
       "selectedNodes": "Node yang disimpan.",
       "primitives": "Primitif yang disimpan.",
       "metrics": "Waktu dan ukuran.",
+      "reusedPages": "Halaman yang ditemukan proses ini sudah dibangun (`null` untuk folder yang dipertahankan).",
       "reused": "Apa yang dipakai ulang."
     }
   },
