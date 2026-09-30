@@ -6,12 +6,12 @@
 // are the witness's in display space, after the tone curve (`displayFilter.ts`).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { blendTargets } from './pipelines.ts';
 import { blend, close, display, shown, srgb, written, type Rgba } from './blendModel.fixture.ts';
 import { ACES, displayFilterRun, displayRoute } from './displayRun.fixture.ts';
 import { CONTRACT_COMPOSITIONS } from '../../lighting/deferred/shaders.ts';
 import { ADD_EQUATIONS, TINT_EQUATIONS } from './equations.ts';
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
+import { blendTargets } from './blendTargets.ts';
 
 /** What the pass writes for `src` over `dst` in `mode`: its target's own blend state. */
 const blended = (mode: Blending, src: Rgba, dst: Rgba) =>

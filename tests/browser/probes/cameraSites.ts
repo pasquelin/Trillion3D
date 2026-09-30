@@ -11,7 +11,6 @@ import { boundsFor, projectBoxesFlat } from '../../../packages/sdk-browser/src/h
 import { applyTemporalHiz, sameHizView } from '../../../packages/sdk-browser/src/hiz/temporal.ts';
 import type { TemporalHizState } from '../../../packages/sdk-browser/src/hiz/temporal.ts';
 import { visibilityDepth } from '../../../packages/sdk-browser/src/hiz/depth.ts';
-import { rasterPages } from '../../../packages/sdk-browser/src/page/raster.ts';
 import { rasterVisibility } from '../../../packages/sdk-browser/src/visibility/raster.ts';
 import { shadeVisibility } from '../../../packages/sdk-browser/src/visibility/shader/shade.ts';
 import type { VisPage } from '../../../packages/sdk-browser/src/visibility/types.ts';
@@ -122,14 +121,6 @@ const sitesPurs: Site[] = [
       const depth = visibilityDepth(ids, vis, identityRoots(), vue, RASTER);
       const rgba = shadeVisibility(ids, vis, identityRoots(), vue, RASTER);
       return { ids: liste(ids), depth: liste(depth), rgba: liste(rgba) };
-    },
-  },
-  {
-    name: 'rasterPages (oracle CPU)',
-    cree: pagesDag,
-    mesure: (state, camera: HostCamera) => {
-      const { vis } = state as ReturnType<typeof pagesDag>;
-      return liste(rasterPages(vis, identityRoots(), camera, RASTER));
     },
   },
   {

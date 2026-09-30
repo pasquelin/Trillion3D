@@ -1,4 +1,4 @@
-import { CLUSTER_TRANSPARENT } from '../layout.ts';
+import { CLUSTER_TRANSPARENT } from '../clusterFlags.ts';
 
 /**
  * Triangle totals of a frame, held BY THE GPU.

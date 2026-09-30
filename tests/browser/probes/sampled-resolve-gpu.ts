@@ -8,13 +8,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LIGHT_SETTINGS, type SceneLight } from '../../../packages/sdk-core/src/index.ts';
-import {
-  LIGHT_TILES_NARROW_SHADER,
-  LIGHT_TILES_SHADER,
-} from '../../../packages/sdk-browser/src/lighting/tiles/shader.ts';
 import { compactTile, tileLayout } from '../../../bench/oracles/browser/gpuLightTilesRankOracle.ts';
 import type { ResolveScene } from './narrowResolvePage.ts';
 import { resolveRandom, resolveSamples, runResolves } from './resolveProbe.ts';
+import {
+  LIGHT_TILES_NARROW_SHADER,
+  LIGHT_TILES_SHADER,
+} from '../../../packages/sdk-browser/src/gpu/core/shaderTexts.fixture.ts';
 
 if (import.meta.main) {
   const LIST = LIGHT_SETTINGS.tileLights;

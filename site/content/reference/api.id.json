@@ -8138,7 +8138,7 @@
     }
   },
   "IMPOSTOR_PI": {
-    "summary": "π, satu literal untuk oracle ini dan cermin WGSL, agar keduanya membulatkan bilangan yang sama."
+    "summary": "π, satu literal, agar setiap pembaca peralihan membulatkan angka yang sama."
   },
   "IMPOSTOR_VERSION": {
     "summary": "Format bagian `impostors` yang dibaca runtime (#817 bagian 1, dipanggang oleh kompilator)."

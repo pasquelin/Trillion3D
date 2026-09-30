@@ -6,13 +6,13 @@ import assert from 'node:assert/strict';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts';
 import { effect } from '../../../../sdk-core/src/world/effect/index.ts';
-import { TAA_STILL_FRAMES } from '../../taa/jitter.ts';
 import { camera, flushedGpuScene, quadScene } from './testScenes.fixture.ts';
 import { awayCamera, drawnQuad } from './drawnQuad.fixture.ts';
 import { flushWebgpuPages } from './render/flush.ts';
 import { renderWebgpuPages } from './render/render.ts';
 import { addWebgpuView, removeWebgpuView, renderWebgpuView } from './state/persistentView.ts';
 import type { WebgpuPagesBackend } from './runtime.ts';
+import { TAA_STILL_FRAMES } from '../../taa/stillFrames.fixture.ts';
 import { families } from '../../host/families.ts';
 
 // The effects' code, which a frame that draws them waits for (`familyUse.ts`), arrived.

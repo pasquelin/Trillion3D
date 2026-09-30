@@ -16,11 +16,11 @@ import assert from 'node:assert/strict';
 import { expandBlendPlan } from '../../../packages/sdk-browser/src/webgpu/blend/expandCpu.ts';
 import {
   blendExpandUniform,
-  buildBlendRuns,
   EXPAND_GROUP,
   RUN_WORDS,
-  UNI_WORDS,
 } from '../../../packages/sdk-browser/src/webgpu/blend/runs.ts';
+import { buildBlendRuns } from '../../../packages/sdk-browser/src/webgpu/blend/runSlicing.ts';
+import { UNI_WORDS } from '../../../packages/sdk-browser/src/webgpu/blend/expandUniform.ts';
 import {
   BLEND_EXPAND_ENTRIES,
   BLEND_EXPAND_SHADER,
@@ -30,7 +30,8 @@ import {
   blendExpandBindEntries,
   EXPAND_BINDING,
 } from '../../../packages/sdk-browser/src/webgpu/blend/expandBindings.ts';
-import { DRAW_UNPAGED, planEntry } from '../../../packages/sdk-browser/src/webgpu/blend/plan.ts';
+import { DRAW_UNPAGED } from '../../../packages/sdk-browser/src/webgpu/blend/plan.ts';
+import { planEntry } from '../../../packages/sdk-browser/src/webgpu/blend/planEntry.ts';
 import { etalementGpu } from './scatterKernelGpu.ts';
 import { graine } from '../../../bench/core/index.ts';
 

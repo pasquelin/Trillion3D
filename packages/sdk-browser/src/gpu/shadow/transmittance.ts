@@ -3,6 +3,7 @@ import type { PageSurface } from '../../page/surface.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { arrayView, layerPasses, layerViews } from './layers.ts';
 import type { ShadowTransmittanceDraws } from './transmittanceDraws.ts';
+import { TRANSMITTANCE_CLEAR } from './transmittanceClear.ts';
 
 /**
  * THE TRANSMITTANCE LAYER of the shadow pool: what the translucent casters let through, at half
@@ -36,8 +37,6 @@ export const SHADOW_TRANSLUCENT_DEPTH_FORMAT: GPUTextureFormat = 'depth32float';
  *  bytes of transmittance and 4 of depth each. */
 export const shadowTransmittanceBytes = (poolSide: number, layers = 1) =>
   ((poolSide * SHADOW_PAGE) / 2) ** 2 * 8 * layers;
-/** What a texel holds where no translucent caster is: all the light. Its depth is `DEPTH_CLEAR`. */
-export const TRANSMITTANCE_CLEAR = { r: 1, g: 1, b: 1, a: 1 };
 export const TRANSMITTANCE_CLEAR_WGSL = `vec4f(${Object.values(TRANSMITTANCE_CLEAR).join(',')})`;
 /** Two translucent casters on one texel: their transmittances multiply. */
 const MULTIPLY: GPUBlendComponent = { operation: 'add', srcFactor: 'zero', dstFactor: 'src' };

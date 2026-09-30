@@ -9,7 +9,7 @@ import {
   bindWebglTarget,
   createWebglRenderTarget,
 } from '../../../packages/sdk-browser/src/webgl/core/renderTarget.ts';
-import { WEBGL_CONTEXT_ATTRIBUTES } from '../../../packages/sdk-browser/src/webgl/core/surface.ts';
+import { WEBGL_CONTEXT_ATTRIBUTES } from '../../../packages/sdk-browser/src/webgl/core/contextAttributes.ts';
 import { pixel } from './webglClusterPixels.ts';
 
 const WIDTH = 64,

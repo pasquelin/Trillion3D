@@ -1,6 +1,6 @@
-import { SHADOW_GRANT_BYTES } from '../../residency/memoryBudget.ts';
 import type { WebgpuLightState } from '../pages/state/lights.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { SHADOW_GRANT_BYTES } from '../../residency/shadowBudgetBytes.ts';
 
 /** A memory-pressure event of the shadows, by name (see `ShadowMemory`). */
 export type ShadowPressure =

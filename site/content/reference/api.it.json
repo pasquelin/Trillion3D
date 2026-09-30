@@ -8137,7 +8137,7 @@
     }
   },
   "IMPOSTOR_PI": {
-    "summary": "π, un unico letterale per questo oracolo e lo specchio WGSL, così entrambi arrotondano lo stesso numero."
+    "summary": "π, un solo letterale, perché ogni lettore del passaggio arrotondi lo stesso numero."
   },
   "IMPOSTOR_VERSION": {
     "summary": "Formato della sezione `impostors` che un runtime legge (#817 parte 1, cotta dal compilatore)."

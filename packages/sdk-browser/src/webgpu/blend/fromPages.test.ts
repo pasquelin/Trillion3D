@@ -8,10 +8,10 @@ import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import { pagedQuad, FIRST, SECOND, type PagedQuad } from '../pages/pagedQuad.fixture.ts';
 import { createWebgpuPagesRuntime } from '../pages/runtime.ts';
-import { prepareWebgpuPages } from '../pages/prepare/prepare.ts';
 import { ensurePageTable } from '../pages/render/encodeDraws.ts';
 import { disposeWebgpuPages } from '../pages/io/metrics.ts';
 import { FLAG_CLUSTER_PAGE, FLAG_HAS_TANGENT } from '../../visibility/types.ts';
+import { prepareWebgpuPages } from '../pages/prepare/preparePages.ts';
 
 /** The quad of two quantized clusters, drawn as `pass` says under `surface`, prepared on the mock
  *  device with its page reader. */

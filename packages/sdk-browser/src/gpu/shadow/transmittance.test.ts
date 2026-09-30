@@ -6,16 +6,17 @@ import { BLEND_TRANSMITTANCE_WGSL } from './transmittanceWgsl.ts';
 import {
   SHADOW_TRANSLUCENT_DEPTH_FORMAT,
   TRANSMITTANCE_BLEND,
-  TRANSMITTANCE_CLEAR,
   castsBlendShadow,
 } from './transmittance.ts';
 import { SHADOW_DEPTH_SHADER } from './shader.ts';
-import { POISSON_16, directShadowWgsl } from '../../lighting/direct/shadowWgsl.ts';
+import { directShadowWgsl } from '../../lighting/direct/shadowWgsl.ts';
 import { throughAxis } from '../../lighting/direct/shadowPages.fixture.ts';
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { fromHalf, toHalf } from '../../../../sdk-core/src/lighting/ltcTable.ts';
 import { surfaceOpacity, type PageSurface } from '../../page/surface.ts';
+import { POISSON_16 } from '../../lighting/direct/pcfTaps.ts';
+import { TRANSMITTANCE_CLEAR } from './transmittanceClear.ts';
 
 /** A texel of the layer: its transmittance and its translucent depth (reversed: nearer is more). */
 type Texel = { t: number; d: number };

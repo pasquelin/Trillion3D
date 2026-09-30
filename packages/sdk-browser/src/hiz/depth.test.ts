@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
 import { DEPTH_CLEAR } from '../camera/depthConvention.ts';
 import { packVisibilityId, rasterVisibilityIds } from '../visibility/buffer.ts';
-import { visibilityDepth } from './hiz.ts';
+import { visibilityDepth } from './depth.ts';
 import { referenceVisibilityDepth } from '../../../../bench/oracles/browser/hiz.ts';
 import { cameraAt, quad } from '../../../../tests/fixtures/hiz.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';

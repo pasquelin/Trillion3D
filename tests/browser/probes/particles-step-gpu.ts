@@ -8,7 +8,8 @@
 import assert from 'node:assert/strict';
 import { dansPageWebgpu } from './pageWebgpu.ts';
 import { ParticlePool } from '../../../packages/sdk-core/src/fluids/particles.ts';
-import * as step from '../../../packages/sdk-browser/src/particles/webgpuParticles.ts';
+import * as step from '../../../packages/sdk-browser/src/particles/particlesWgsl.ts';
+import { createStepWords } from '../../../packages/sdk-browser/src/particles/stepWords.ts';
 
 if (import.meta.main) {
   type Args = {
@@ -65,9 +66,9 @@ if (import.meta.main) {
   pool.emit(far + 0.5, 2, far, 0.0576, 1, 0, 4); // drifts 0.4 mm along x in one step
   pool.emit(far, 3, far, 5, 5, 5, 0); // born dead: kept as staged, never moved
   pool.emit(far, 0, far, 0, 1, 0, 60); // a 60 s life
-  const words = step.createStepWords();
+  const words = createStepWords();
   const stepped = [0, 1].map(
-    () => (pool.advance(dt), words.write(pool, pool.flush()), [...words.uints]),
+    () => (pool.advance(dt), words.write(pool, pool.flush()), [...new Uint32Array(words.buffer)]),
   );
   const resultat = await dansPageWebgpu(executer, {
     shader: step.PARTICLES_WGSL,

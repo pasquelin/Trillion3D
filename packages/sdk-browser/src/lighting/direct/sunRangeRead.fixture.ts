@@ -13,15 +13,19 @@ import {
   PAGE_VALID,
   SUN_DEPTH_RANGES,
   SUN_LEVELS,
-  SUN_LEVEL_ENTRIES,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
+import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelSignatures.ts';
 import { createShadowRecordPack } from '../../gpu/shadow/recordPack.ts';
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { hash } from './shadowPages.fixture.ts';
 import { SHADOW_SUBTEXELS } from './shadowSampleWgsl.ts';
 import { directShadowWgsl } from './shadowWgsl.ts';
+import {
+  sunLevelEntries,
+  SUN_WINDOW,
+} from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+const SUN_LEVEL_ENTRIES = sunLevelEntries(SUN_WINDOW);
 
 /** The shipped shadow read: `shadowPcf`, its helpers, and `SHADOW_FACTOR_WGSL` after them. */
 export const SHADOW_WGSL = directShadowWgsl(0, null, 1);

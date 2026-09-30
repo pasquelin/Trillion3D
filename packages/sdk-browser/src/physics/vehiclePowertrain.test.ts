@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import type { VehicleOptions } from '../../../sdk-core/src/physics/index.ts';
+import type { VehicleOptions } from '../../../sdk-core/src/physics/vehicle.ts';
 import { VEHICLE_SPECS } from '../../../sdk-core/src/physics/vehicleSpec.ts';
 import { driveCar as drive, type VehicleRig as Rig } from './vehicles.fixture.ts';
 

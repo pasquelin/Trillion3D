@@ -4,7 +4,7 @@ import { INVERSE_TRANSPOSE_WGSL } from '../../../math/inverseTransposeWgsl.ts';
 import { DAG_COMPACT_WGSL } from './compactWgsl.ts';
 import { DAG_TOTALS_WGSL } from './totalsWgsl.ts';
 import { DAG_RELEVE_WGSL } from './snapshotWgsl.ts';
-import { DAG_REQUEST_WGSL } from '../request.ts';
+import { DAG_REQUEST_WGSL } from '../requestWgsl.ts';
 import { DAG_WANTED_WGSL } from './wantedWgsl.ts';
 import { DAG_LIVE_WGSL } from './liveWgsl.ts';
 import { DAG_LEVEL_WGSL } from './levelWgsl.ts';

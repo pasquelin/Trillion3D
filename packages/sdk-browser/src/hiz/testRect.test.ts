@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
-import { buildHizPyramid, countUnoccluded } from './hiz.ts';
+import { buildHizPyramid } from './depth.ts';
+import { countUnoccluded } from './unoccluded.ts';
 import { HIZ_TEST_VALUES, hizTestRect } from './occlusion.ts';
 import { createHizCounts, HIZ_KERNEL_TEXELS } from './counts.ts';
 import { cameraAt, occluderPyramid, quad } from '../../../../tests/fixtures/hiz.ts';

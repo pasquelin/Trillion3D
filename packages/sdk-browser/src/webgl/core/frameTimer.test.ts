@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createWebglFrameTimer, WHOLE_FRAME_PASS } from './frameTimer.ts';
+import { createWebglFrameTimer } from './frameTimer.ts';
+import { WHOLE_FRAME_PASS } from './wholeFramePass.ts';
 
 const TIME_ELAPSED_EXT = 0x88bf;
 const GPU_DISJOINT_EXT = 0x8fbb;
