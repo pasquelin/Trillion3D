@@ -1,3 +1,4 @@
+import { preparedComputePipeline } from '../../lighting/deferred/fullscreen.ts';
 import { COMPUTE } from '../core/computeBindings.ts';
 import { oncePerDevice } from '../core/oncePerDevice.ts';
 import { DRAW_ITEM_WGSL, WORKGROUP } from './contract.ts';
@@ -24,8 +25,8 @@ fn mapRows(@builtin(global_invocation_id) id:vec3u){
 }
 `;
 
-/** The map's kernel, compiled once a device: at prepare for a scene that casts shadows
- *  (`../../webgpu/pages/prepare/lights.ts`), never at the first light cut. */
+/** The map's kernel, once a device: compiled off the thread at prepare for a scene that casts
+ *  shadows (`../../webgpu/pages/prepare/lights.ts`), never at the first light cut. */
 export const lightRowMapPipeline = oncePerDevice((device) => {
   const module = device.createShaderModule({ code: ROW_MAP_SHADER });
   const kinds = [
@@ -36,7 +37,7 @@ export const lightRowMapPipeline = oncePerDevice((device) => {
   const bindLayout = device.createBindGroupLayout({
     entries: kinds.map((buffer, binding) => ({ binding, visibility: COMPUTE, buffer })),
   });
-  const pipeline = device.createComputePipeline({
+  const pipeline = preparedComputePipeline(device, {
     layout: device.createPipelineLayout({ bindGroupLayouts: [bindLayout] }),
     compute: { module, entryPoint: 'mapRows' },
   });
@@ -62,7 +63,7 @@ export function createLightRowMap(
   const rowOf = make(pages * 4, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
   const pinned = new Uint32Array(1);
   const uniforms = make(16, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
-  const { bindLayout, pipeline } = lightRowMapPipeline(device);
+  const { bindLayout, pipeline: mapRows } = lightRowMapPipeline(device);
   const bindGroup = device.createBindGroup({
     layout: bindLayout,
     entries: [itemsBuf, uniforms, rowOf].map((buffer, binding) => ({
@@ -102,7 +103,7 @@ export function createLightRowMap(
       range[0] = pendingFrom;
       range[1] = Math.min(pendingTo, rows - 1);
       device.queue.writeBuffer(uniforms, 0, range);
-      pass.setPipeline(pipeline);
+      pass.setPipeline(mapRows.get());
       pass.setBindGroup(0, bindGroup);
       pass.dispatchWorkgroups(Math.ceil((range[1] - range[0] + 1) / WORKGROUP));
       pendingFrom = Number.MAX_SAFE_INTEGER;
