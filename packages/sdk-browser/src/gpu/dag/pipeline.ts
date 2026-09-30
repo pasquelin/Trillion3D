@@ -5,6 +5,7 @@ import { LEVEL_QUEUES } from './shader/levelWgsl.ts';
 import { withScreenErrorVariant } from './shader/error.ts';
 import { screenErrorVariant } from '../../../../sdk-core/src/index.ts';
 import { validated } from '../core/errorScope.ts';
+import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts';
 import { shaderFailed } from '../core/shaderModule.ts';
 import type { CameraFrames } from './frameRanges.ts';
 import { DEFAULT_GROUP_WIDTH, groupWidth } from './shader/gridWgsl.ts';
@@ -12,8 +13,8 @@ import { DEFAULT_GROUP_WIDTH, groupWidth } from './shader/gridWgsl.ts';
 /** Every selection stage of `module` on `layout`; a split table's stages are its own (`SPLIT`,
  *  `shader/viewsWgsl.ts`), and a device whose dispatch width is not WebGPU's default sets its own
  *  (`GROUP_WIDTH`, `shader/gridWgsl.ts`). The real-GPU compile probe builds exactly these
- *  (`tests/browser/probes/dag-kernels-compile-gpu.ts`). */
-export function createDagStages(
+ *  (`tests/browser/probes/dag-kernels-compile-gpu.ts`). All compile together, off the thread. */
+export async function createDagStages(
   device: GPUDevice,
   layout: GPUBindGroupLayout,
   module: GPUShaderModule,
@@ -26,25 +27,40 @@ export function createDagStages(
   };
   const constants = Object.keys(set).length ? set : undefined;
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
-  const stage = (entryPoint: string) =>
-    device.createComputePipeline({
-      layout: pipelineLayout,
-      compute: { module, entryPoint, ...(constants && { constants }) },
-    });
-  const levelPipelines = Array.from({ length: LEVEL_QUEUES }, (_, q) => stage(`dagLevel${q}`));
+  const levels = Array.from({ length: LEVEL_QUEUES }, (_, q) => `dagLevel${q}`);
+  const stage = await buildComputeStages(
+    device,
+    pipelineLayout,
+    module,
+    [
+      ...levels,
+      ...(split ? ['dagRootLevel'] : []),
+      'dagPrepare',
+      'dagClearDrawn',
+      'dagWanted',
+      'dagMask',
+      'dagDrawPrefix',
+      'dagDrawScatter',
+      'dagViewOffsets',
+      'dagSortRequests',
+      'dagListEvictions',
+    ],
+    constants,
+  );
+  const levelPipelines = levels.map((level) => stage[level]);
   return {
-    preparePipeline: stage('dagPrepare'),
-    clearDrawnPipeline: stage('dagClearDrawn'),
+    preparePipeline: stage.dagPrepare,
+    clearDrawnPipeline: stage.dagClearDrawn,
     // One range: pass 0 reads the whole queue 0, `dagLevel0` itself.
-    rootLevelPipeline: split ? stage('dagRootLevel') : levelPipelines[0],
+    rootLevelPipeline: split ? stage.dagRootLevel : levelPipelines[0],
     levelPipelines,
-    wantedPipeline: stage('dagWanted'),
-    maskPipeline: stage('dagMask'),
-    drawPrefixPipeline: stage('dagDrawPrefix'),
-    drawScatterPipeline: stage('dagDrawScatter'),
-    viewOffsetsPipeline: stage('dagViewOffsets'),
-    requestSortPipeline: stage('dagSortRequests'),
-    evictPipeline: stage('dagListEvictions'),
+    wantedPipeline: stage.dagWanted,
+    maskPipeline: stage.dagMask,
+    drawPrefixPipeline: stage.dagDrawPrefix,
+    drawScatterPipeline: stage.dagDrawScatter,
+    viewOffsetsPipeline: stage.dagViewOffsets,
+    requestSortPipeline: stage.dagSortRequests,
+    evictPipeline: stage.dagListEvictions,
   };
 }
 
@@ -68,7 +84,7 @@ export function createDagPipeline(
       code: withScreenErrorVariant(dagSelectionShader(split), screenErrorVariant()),
     });
     if (await shaderFailed(module)) return undefined;
-    const stages = createDagStages(device, layout, module, frames.ranges.length > 1);
+    const stages = await createDagStages(device, layout, module, frames.ranges.length > 1);
     const ranges = frames.bindGroups(layout, buffers);
     return {
       /** Bind layout, returned with the stages: the dispatch bench mounts the previous cut on

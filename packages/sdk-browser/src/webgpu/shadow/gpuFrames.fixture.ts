@@ -98,8 +98,9 @@ export function gpuFrames(
     regions,
     /**
      * Frame `frame` seen from `view`, lit at `lits`: the plan reads the reports handed to it, the
-     * GPU maps what the shading reads — and the pixels ask `more` beside it —, the plan draws,
-     * and the frame's report goes to `sent`. Returns the entries the shading read.
+     * GPU maps what the shading reads — and the pixels ask `more` beside it —, keeping what was
+     * asked from frame `keepFrom` on (`allocWgsl.ts`), the plan draws, and the frame's report goes
+     * to `sent`. Returns the entries the shading read.
      */
     async frame(
       frame: number,
@@ -107,6 +108,7 @@ export function gpuFrames(
       lits: Lit[],
       sent: (report: ShadowRequestReport) => void,
       more: readonly number[] = [],
+      keepFrom = frame,
     ) {
       plan.plan(store, view, MIN, MAX, frame, frame * 16);
       writeShadowRecords({ store, plan, shadows } as never);
@@ -118,7 +120,7 @@ export function gpuFrames(
         allocation.seed(plan, data, SHADOW_TABLE_OFFSET);
         plan.gpu.set(true, frame);
       }
-      allocation.writeParams(frame, plan.records.generation, plan.gpu.asks);
+      allocation.writeParams(frame, plan.records.generation, plan.gpu.asks, keepFrom);
       const [state, keys, params] = [allocation.state, allocation.keys, allocation.params];
       const bound = [bytes(data), list, bytes(state), bytes(keys), bytes(params)];
       bound.push(bytes(allocation.drawList));
