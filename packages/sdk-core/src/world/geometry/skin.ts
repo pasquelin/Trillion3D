@@ -1,10 +1,13 @@
 import type { Geometry } from './geometry.ts';
 import { readComponent } from './bounds.ts';
 
+/** Whether attribute `name` is a skin joint stream (`skinIndex`, `skinIndex1`, …). */
+export const isSkinIndex = (name: string) => /^skinIndex\d*$/.test(name);
+
 /** All paired skin streams, in source set order; a runtime stream may itself be wider than four. */
 export function skinStreams(geometry: Geometry) {
   const names = Object.keys(geometry.attributes)
-    .filter((name) => /^skinIndex\d*$/.test(name))
+    .filter(isSkinIndex)
     .sort((a, b) => Number(a.slice(9)) - Number(b.slice(9)));
   const sets = names.map((name) => {
     const joints = geometry.attributes[name],

@@ -5,7 +5,7 @@ import { generateMaterialMips, type MipChain } from '../../texture/mipBatch.ts';
 import { mipLevelCountFor } from '../../texture/tiles.ts';
 import type { CoverageReaders } from '../../texture/coverage.ts';
 import { writeRgba } from './write.ts';
-import { textureBytesOf } from '../../gpu/core/deviceLedger.ts';
+import { textureBytesOf } from '../../gpu/core/textureBytes.ts';
 
 /**
  * Working texture of a host texture: the whole source, transferred once, and its mip chain built

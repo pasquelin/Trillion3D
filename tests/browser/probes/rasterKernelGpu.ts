@@ -44,7 +44,7 @@ async function executer({
   hauteur,
   slots,
 }: ChargeRaster): Promise<RasterResultat> {
-  const appareil = await globalThis.ouvrirAppareil();
+  const appareil = await globalThis.openGpuDevice();
   if (!appareil) return { indisponible: 'aucun adaptateur WebGPU' };
   const { device, erreurs } = appareil;
   const { module, compilation } = await appareil.compile(shader);

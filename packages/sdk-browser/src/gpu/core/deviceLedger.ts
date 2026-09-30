@@ -13,7 +13,6 @@
 const LABEL_NONE = 'unlabeled';
 
 import { textureBytesOf } from './textureBytes.ts';
-export { textureBytesOf } from './textureBytes.ts';
 
 interface GpuDeviceLedgerSnapshot {
   /** Live bytes, every allocation included. */

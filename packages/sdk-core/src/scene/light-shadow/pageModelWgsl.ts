@@ -83,18 +83,19 @@ const SIGNATURES: Record<keyof PageModel<string>, string[]> = {
 /** The WGSL names of the page model's functions: what a test running the shaders in Node lists. */
 export const PAGE_MODEL_FUNCTIONS = Object.keys(SIGNATURES) as Array<keyof PageModel<string>>;
 
-const printed = pageModel(PAGE_OPS_WGSL) as unknown as Record<
-  string,
-  (...names: string[]) => string
->;
-
 /**
  * The page model as the shaders compile it (`pageModel.ts`): the layout constants they index
- * with, then one function per formula, each the printed formula the scheduler evaluates.
+ * with — the sun extent a session runs with, the ordinary constant by default —, then one
+ * function per formula, each the printed formula the scheduler evaluates.
  */
-export const PAGE_MODEL_WGSL = `
+export const pageModelWgsl = (windowPages = SUN_WINDOW) => {
+  const printed = pageModel(PAGE_OPS_WGSL, windowPages) as unknown as Record<
+    string,
+    (...names: string[]) => string
+  >;
+  return `
 const SUN_LEVEL_COUNT:i32=${SUN_LEVELS};
-const SUN_WINDOW_PAGES:i32=${SUN_WINDOW};
+const SUN_WINDOW_PAGES:i32=${windowPages};
 const LAMP_PAGE_COUNT:u32=${LAMP_SIDE}u;
 const LAMP_MIP_COUNT:u32=${LAMP_MIPS}u;
 ${PAGE_MODEL_FUNCTIONS.map((name) => {
@@ -103,3 +104,7 @@ ${PAGE_MODEL_FUNCTIONS.map((name) => {
   const body = printed[name](...params.map((param) => param.split(':')[0]));
   return `fn ${name}(${params.join(',')})->${signature[signature.length - 1]}{return ${body};}`;
 }).join('\n')}`;
+};
+
+/** The page model of the ordinary extent: what a session without reference mode compiles. */
+export const PAGE_MODEL_WGSL = pageModelWgsl();

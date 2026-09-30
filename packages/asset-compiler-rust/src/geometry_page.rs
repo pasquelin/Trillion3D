@@ -118,7 +118,7 @@ pub fn encode_deformed(
     )?;
     // The deformation's fields join each vertex's cells: two vertices merge only when they
     // deform alike.
-    let mut deformed = page_deformation(deformation, &original, origin, position_exponent)?;
+    let mut deformed = page_deformation(deformation, &original, origin)?;
     let fields = std::mem::take(&mut deformed.fields);
     let (cells, table) = join(cells, &fields);
     flags |= deformed.flags();

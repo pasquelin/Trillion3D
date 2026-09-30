@@ -71,6 +71,10 @@ export const SHADOW_DEPTH_ROUNDING = 2 * 2 ** -23;
  * its shadow. The depth format's rounding is added to the reference (`SHADOW_DEPTH_ROUNDING`).
  * A point light reads the face its offset point lies in, so that point always projects inside
  * that face.
+ *
+ * The layout constants it reads — `SUN_WINDOW_PAGES`, the level words — are the session's: the
+ * composition prints the page model for the window it was given (`shadowWgsl.ts`,
+ * `pageModelWgsl.ts`), the ordinary constant by default (`referenceMode.ts`).
  */
 export const SHADOW_FACTOR_WGSL = `
 const SHADOW_DEPTH_ROUNDING:f32=${SHADOW_DEPTH_ROUNDING};

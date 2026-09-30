@@ -9,6 +9,7 @@ import { prepareExplorer, type ExplorerResources, type ExplorerSource } from './
 import { createExplorerHostRuntime } from '../render/hostRuntime.ts';
 import { createExplorerApi } from '../api/api.ts';
 import { referenceCapture, referenceOptions } from '../../frame/referenceMode.ts';
+import { referenceTilesCapture } from '../../frame/referenceTiles.ts';
 
 /** Opens a session on `target`. `source` hands in a scene the caller already holds — manifest and
  *  graph — in place of the one `manifestUrl` names: what a world built in code is drawn from. */
@@ -93,13 +94,21 @@ export async function openMeasuredWorld(
           explorer.render();
         };
     // Reference mode reads the resolved image; `renderViews` keeps the drawn one, at canvas size.
-    const capture = referenceCapture(
-      explorer.capture,
-      canvas,
-      reference,
-      () => runtime.state.active.metrics().shadowResolutionBias,
-    );
-    return Object.assign(explorer, { invalidate, capture, reference });
+    const shadowBias = () => runtime.state.active.metrics().shadowResolutionBias;
+    const capture = referenceCapture(explorer.capture, reference, shadowBias);
+    // The reference image itself: the camera's own renderer, captured tile by tile at a heavy
+    // supersampling (`referenceTiles.ts`), box-filtered and assembled in linear light.
+    const captureReference = reference
+      ? referenceTilesCapture(
+          (width, height) => explorer.captureView(width, height),
+          (tile) => {
+            (explorer.camera as { viewTile?: unknown }).viewTile = tile;
+          },
+          reference.tiles,
+          shadowBias,
+        )
+      : null;
+    return Object.assign(explorer, { invalidate, capture, reference, captureReference });
   } catch (error) {
     diagnose('error', 'MeasuredWorld preparation failed', {
       kind: 'error',
