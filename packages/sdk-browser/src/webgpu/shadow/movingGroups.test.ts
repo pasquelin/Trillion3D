@@ -13,7 +13,6 @@ import { SHADOW_DEPTH_SHADER } from '../../gpu/shadow/shader.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { drawRegionCasters } from '../pages/render/encodeRegionDraws.ts';
-import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { createMovingGroupPlan } from './movingGroupPlan.ts';
 import { createShadowMovingGroups } from './movingGroups.ts';
 import { batch, CAPACITY, KEPT, PAGES, SIDE } from './movingGroups.fixture.ts';
