@@ -33,9 +33,8 @@ added skipped tests. Full-repository validation is tracked separately from this
 mutation measurement.
 
 Release verification: all 84 lighting tests pass, with no failures or skipped
-tests. The shared branch's latest format, lint and TypeScript checks pass for
-these files; the remaining shared gate work concerns duplicate fixtures in the
-unfinished world/collision batches. The earlier full `pnpm test` run passed
+tests. The subsequent shared `check:changed` gate passes format, lint, types and
+2,904 tests, with no failures or skipped tests. The earlier full `pnpm test` run passed
 5,303 tests with none skipped; the 84-test lighting run also includes the later
 precision and input-type regressions.
 
