@@ -1,3 +1,4 @@
+import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts';
 import { createFirstPersonCameraControls } from '../../camera/controls/firstPersonControls.ts';
 import { createFlyCameraControls } from '../../camera/controls/flyControls.ts';
 import {
@@ -145,7 +146,7 @@ export function createExplorerCameraApi(inputs: Inputs) {
      */
     controls() {
       check();
-      if (options.interactive && orbit) return orbit;
+      if (explorerSwitch(options, 'interactive') && orbit) return orbit;
       const controls = pivot(createOrbitCameraControls(camera, canvas));
       const release = controls.dispose;
       controls.dispose = () => {
