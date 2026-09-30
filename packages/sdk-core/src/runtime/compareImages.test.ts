@@ -14,14 +14,12 @@ test('identical images have no pixel or channel error', () => {
 test('each RGBA channel contributes, including alpha and the last pixel', () => {
   const image = new Uint8Array(16).fill(10);
   const changed = new Uint8Array([10, 10, 10, 14, 10, 10, 14, 10, 10, 14, 10, 10, 14, 10, 10, 10]);
+  const [imageBefore, changedBefore] = [image.slice(), changed.slice()];
   const expected = { differentPixels: 4, maxChannelError: 4, rmse: 2 };
-  for (const [a, b] of [
-    [image, changed],
-    [changed, image],
-  ]) {
-    assert.deepEqual(compareImages(a, b), expected);
-    assert.deepEqual(a, a === image ? new Uint8Array(16).fill(10) : changed);
-  }
+  assert.deepEqual(compareImages(image, changed), expected);
+  assert.deepEqual(compareImages(changed, image), expected);
+  assert.deepEqual(image, imageBefore);
+  assert.deepEqual(changed, changedBefore);
 });
 
 test('a view compares only its own pixels for every alignment combination', () => {
@@ -47,13 +45,17 @@ test('a view compares only its own pixels for every alignment combination', () =
   }
 });
 
-test('the largest channel difference wins even when it is not in the first changed pixel', () => {
+test('the largest channel difference wins in whichever changed pixel it lies', () => {
   const a = new Uint8Array(8);
-  const b = new Uint8Array([0, 0, 0, 4, 0, 0, 0, 12]);
-  const result = compareImages(a, b);
-  assert.equal(result.differentPixels, 2);
-  assert.equal(result.maxChannelError, 12);
-  assert.ok(Math.abs(result.rmse - 4.47213595499958) < 1e-12);
+  for (const b of [
+    new Uint8Array([0, 0, 0, 4, 0, 0, 0, 12]),
+    new Uint8Array([12, 0, 0, 0, 0, 0, 0, 4]),
+  ]) {
+    const result = compareImages(a, b);
+    assert.equal(result.differentPixels, 2);
+    assert.equal(result.maxChannelError, 12);
+    assert.ok(Math.abs(result.rmse - Math.sqrt((12 * 12 + 4 * 4) / 8)) < 1e-12);
+  }
 });
 
 test('empty, unequal and incomplete RGBA buffers are refused', () => {
@@ -74,7 +76,4 @@ test('a single-channel error is measured on its own, at aligned and unaligned ad
       b[channel] = 8;
       assert.deepEqual(compareImages(a, b), { differentPixels: 1, maxChannelError: 8, rmse: 4 });
     }
-  const a = new Uint8Array(8);
-  const b = new Uint8Array([12, 0, 0, 0, 0, 0, 0, 4]);
-  assert.equal(compareImages(a, b).maxChannelError, 12);
 });
