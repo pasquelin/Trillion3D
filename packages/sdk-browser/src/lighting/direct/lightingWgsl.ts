@@ -91,6 +91,11 @@ fn tileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,til
  return sliceLighting(rgb,metal,rough,N,V,P,ao,tileSlice((tile.y*tilesX+tile.x)*TILE_STRIDE,countSlot,firstSlot));
 }`;
 
+const PIXEL_SHADOWED_WGSL = `
+ let tile=pixelTile(pixel);let tilesX=u32(view.lightParams.y);
+ if(u32(view.lightParams.x)==0u||tile.x>=tilesX||tile.y>=u32(view.lightParams.z)){return false;}
+ return tileLights[(tile.y*tilesX+tile.x)*TILE_STRIDE+TILE_SHADOW_BASE]!=0u;`;
+
 /**
  * Resolve of the direct-lighting contract in the visibility buffer. The pixel loop is bounded
  * by its tile list, never by the scene light count (X2); Lambert and GGX come from
@@ -123,6 +128,10 @@ export const directLightingWgsl = (
 ) => `
 ${lightingBase(SUN_FAR_PROXY_BINDING, CONTRACT_SHADOW_BINDINGS.data, CONTRACT_SHADOW_BINDINGS.requests, CONTRACT_SHADOW_BINDINGS.transmittance, pages, narrow, shadowed, rects)}
 ${directLightSamplingWgsl(rects)}
+/** Whether a shadow is read at the pixel: its tile's opaque list holds a light with a shadow slot
+ *  (the tile pass's flag, \`TILE_SHADOW_BASE\`). The surface sets up the pixel's shadow level and
+ *  receiver there alone (\`shadowSetup\`, #1369); the program with no shadow code, nowhere. */
+fn pixelShadowed(pixel:vec2f)->bool{${shadowed ? PIXEL_SHADOWED_WGSL : 'return false;'}}
 /** Contribution of the contract lights to the pixel, tile by tile and light by light. */
 fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f)->vec3f{
  if(u32(view.lightParams.x)==0u){return vec3f(0.0);}
