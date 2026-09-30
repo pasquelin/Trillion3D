@@ -29,7 +29,7 @@ function mount() {
     visView: {},
     concatPos: {},
     concatUv: {},
-    concatNrm: {},
+    concatNrm: { buffer: {} },
     pageTable: {},
     visUniform: {},
     shadeUniform: {},

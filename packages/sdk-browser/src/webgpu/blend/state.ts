@@ -30,7 +30,8 @@ export type BlendGpuItem = {
   /** Own index buffer of an unpaged primitive; a paged one reads the page cache instead. */
   index?: GPUBuffer;
   uv?: GPUBuffer;
-  normal?: GPUBuffer;
+  /** Its own normals, or the float pool's range of them (`geometryPoolLayout.ts`). */
+  normal?: GPUBuffer | GPUBufferBinding;
   surface: PageSurface;
   count: number;
   matrix: MatrixElements;

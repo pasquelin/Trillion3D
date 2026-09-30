@@ -58,8 +58,8 @@ function etat(pages: number, transparents: number, concats: boolean, depart: num
   prepareWebgpuBlend(appareil, copies, gpu, blendState, scene);
   const tamponDe = (size: number) => appareil.createBuffer({ size, usage: 0 });
   const vis = concats
-    ? { concatPos: tamponDe(0), concatUv: tamponDe(2 ** 31), concatNrm: tamponDe(4096) }
-    : { concatPos: undefined, concatUv: undefined, concatNrm: undefined };
+    ? { concatPos: tamponDe(4096), concatUv: tamponDe(2 ** 31) }
+    : { concatPos: undefined, concatUv: undefined };
   return { gpu, vis, blendState };
 }
 
@@ -84,7 +84,6 @@ await stress({
     vertexBytesOf(createWebgpuGpuState([1, 1]), {
       concatPos: undefined,
       concatUv: undefined,
-      concatNrm: undefined,
     }),
   extremes: [{ name: 'empty', input: null }],
 });
