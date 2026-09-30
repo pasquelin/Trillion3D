@@ -1161,6 +1161,9 @@
       "gpuDeformationMs": "`gpuPassMs` 所对应帧的 GPU 变形耗时；尚未测量或不支持时为 null。"
     }
   },
+  "FramePass": {
+    "summary": "为正在绘制的帧的各遍命名；每次调用都会关闭上一遍并开启下一遍。"
+  },
   "Frustum": {
     "summary": "六个平面,由核心模块(`math/frustum/frustum.ts`)从一个视图投影矩阵中读取而来。",
     "members": {
@@ -1481,7 +1484,8 @@
       "width": "宽度,单位像素。",
       "height": "高度,单位像素。",
       "displayWidth": "图像以低于该宽度绘制时（`world.renderScale`）所显示的宽度：纹理级别和线宽随该比例变化。缺省时为 `width`。",
-      "linear": "线性辐射亮度，不经曲线也不编码，叠在透明黑之上：效果链的输入，其 alpha 即覆盖率。"
+      "linear": "线性辐射亮度，不经曲线也不编码，叠在透明黑之上：效果链的输入，其 alpha 即覆盖率。",
+      "pass": "在有人读取时，按顺序为该绘制的 GPU 通道命名，交给帧计时器（`../core/frameTimer.ts`）；无人计时的绘制则没有此项。"
     }
   },
   "HostMaterial": {
