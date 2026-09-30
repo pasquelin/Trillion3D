@@ -1,4 +1,3 @@
-import { PAGE_FOOTPRINT_SHIFT } from './footprint.ts';
 import type { PageOps } from './pageOps.ts';
 import {
   PAGE_INDEX_MASK,
@@ -39,15 +38,11 @@ export function pageKeyModel<V>(o: PageOps<V>, entrySpan = shadowEntrySpan(SHADO
         ),
         page,
       ),
-    /** The table word of `page` drawn and readable: mapped, its depth range `range` (a sun's), the
-     *  footprint it was drawn for (`footprint.ts`, zero whole). */
-    shadowReadableWord: (page: V, range: V, footprintBits: V) =>
+    /** The table word of `page` drawn and readable: mapped, its depth range `range` (a sun's). */
+    shadowReadableWord: (page: V, range: V) =>
       o.add(
-        o.add(
-          o.add(page, o.int(PAGE_MAPPED | PAGE_VALID)),
-          o.mul(range, o.int(2 ** PAGE_RANGE_SHIFT)),
-        ),
-        o.mul(footprintBits, o.int(2 ** PAGE_FOOTPRINT_SHIFT)),
+        o.add(page, o.int(PAGE_MAPPED | PAGE_VALID)),
+        o.mul(range, o.int(2 ** PAGE_RANGE_SHIFT)),
       ),
   };
 }
