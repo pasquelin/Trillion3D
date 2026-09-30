@@ -55,6 +55,8 @@ fn materialTileCorner(tile:u32,i:u32,tilesX:u32)->vec2u{
  * The classification, one workgroup per tile: each lane marks the slots of its pixels in two
  * words, the group ors them, then lane `s` appends the tile to slot `s`'s list when the tile holds
  * it. The first append of a slot writes its draw's vertex count; the pass's clear left the rest 0.
+ * A pixel off the image is skipped by a branch, never by leaving the loop: a lane leaving it early
+ * would put the barrier in non-uniform control flow, which WGSL refuses to compile.
  */
 export const MATERIAL_TILES_SHADER = `${PAGE_INFO_STRUCT_WGSL}
 ${SHADE_UNI_WGSL}
@@ -79,9 +81,10 @@ fn pixelSlot(id:u32)->u32{
  var marks=vec2u(0u);
  for(var y=0u;y<MATERIAL_TILE_SIZE;y+=${LANES}u){for(var x=0u;x<MATERIAL_TILE_SIZE;x+=${LANES}u){
   let at=group.xy*MATERIAL_TILE_SIZE+lane.xy+vec2u(x,y);
-  if(any(at>=size)){continue;}
-  let slot=pixelSlot(textureLoad(vis,vec2i(at),0).r);
-  if(slot<MATERIAL_TILE_SLOTS){marks[slot>>5u]|=1u<<(slot&31u);}
+  if(all(at<size)){
+   let slot=pixelSlot(textureLoad(vis,vec2i(at),0).r);
+   if(slot<MATERIAL_TILE_SLOTS){marks[slot>>5u]|=1u<<(slot&31u);}
+  }
  }}
  if(marks.x!=0u){atomicOr(&held[0],marks.x);}
  if(marks.y!=0u){atomicOr(&held[1],marks.y);}
