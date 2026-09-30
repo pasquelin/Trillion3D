@@ -1,4 +1,5 @@
 import { CORNER_VALUES, PARTITION_WORKGROUP, ROW_DATA_U32, STATE_WORDS } from './contract.ts';
+import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts';
 import {
   createGpuPartitionBuffers,
   createGpuPartitionGroup,
@@ -40,14 +41,18 @@ export async function createGpuPartition(
       const projectLayout = createGpuPartitionLayout(device, 'projectRows'),
         classifyLayout = createGpuPartitionLayout(device, 'classifyRows');
       const pipelineFor = (layout: GPUBindGroupLayout, entryPoint: string) =>
-        device.createComputePipeline({
+        buildComputePipeline(device, {
           layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
           compute: { module, entryPoint },
         });
+      const [project, classify] = await Promise.all([
+        pipelineFor(projectLayout, 'projectRows'),
+        pipelineFor(classifyLayout, 'classifyRows'),
+      ]);
       return {
         projectLayout,
-        project: pipelineFor(projectLayout, 'projectRows'),
-        classify: pipelineFor(classifyLayout, 'classifyRows'),
+        project,
+        classify,
         classifyLayout,
         projectGroup: createGpuPartitionGroup(device, projectLayout, 'projectRows', buffers),
         classifyGroup: createGpuPartitionGroup(device, classifyLayout, 'classifyRows', buffers),

@@ -3,7 +3,7 @@ import { createCheckedShaderModule } from '../core/shaderModule.ts';
 import { MAX_SHADOW_REGIONS as R, SHADOW_FACE_READ_BYTES as RECT_OFFSET } from './recordPack.ts';
 import { SHADOW_FACE_STRIDE } from './batchBudget.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
-import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts';
+import { buildRenderPipeline, preparedPipeline } from '../../lighting/deferred/fullscreen.ts';
 import { staticLayerEntries } from './staticLayer.ts';
 import {
   SHADOW_TRANSLUCENT_DEPTH_FORMAT,
@@ -70,13 +70,15 @@ export async function createShadowPageQuads(device: GPUDevice, faces: GPUBuffer)
     depthStencil: { format: depth, depthWriteEnabled: true, depthCompare: 'always' },
   });
   const pipeline = (label: string, layout: GPUPipelineLayout, fragment?: string) =>
-    device.createRenderPipeline(descriptor(label, layout, fragment));
-  const clear = pipeline('clear', dataOnly),
-    restore = pipeline(
+    buildRenderPipeline(device, descriptor(label, layout, fragment));
+  const [clear, restore] = await Promise.all([
+    pipeline('clear', dataOnly),
+    pipeline(
       'restore',
       device.createPipelineLayout({ bindGroupLayouts: [dataLayout, layerLayout] }),
       'restore_fs',
-    );
+    ),
+  ]);
   // Compiled at prepare for a scene whose blended surfaces cast, else at the first transmittance
   // pass: a scene that blends nothing never compiles it.
   const clearTransmittance = preparedPipeline(

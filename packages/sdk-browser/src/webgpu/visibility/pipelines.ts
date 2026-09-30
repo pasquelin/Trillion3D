@@ -3,6 +3,7 @@ import { FEEDBACK_FORMAT, SURFACE_FORMATS } from '../../scene/surfaceBuffer.ts';
 import { depthLayerUnits } from '../../../../sdk-core/src/index.ts';
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts';
 import { validationScope } from '../../gpu/core/errorScope.ts';
+import { buildRenderPipeline } from '../../lighting/deferred/fullscreen.ts';
 import {
   shadeVariantFragment,
   variesShade,
@@ -25,7 +26,8 @@ const VIS_LAYER_CULLS = LAYER_CULLS.length;
 const VIS_LAYER_PIPELINES = VIS_LAYER_CULLS * 2;
 export const visLayerPipelineIndex = (layer: number, rest: boolean, cull: number) =>
   (layer - 1) * VIS_LAYER_PIPELINES + (rest ? VIS_LAYER_CULLS : 0) + cull;
-async function scoped<T>(device: GPUDevice, run: () => T): Promise<T> {
+/** `run` under a validation scope; its pipelines compile off the thread, together (#1362). */
+async function scoped<T>(device: GPUDevice, run: () => Promise<T>): Promise<T> {
   const { value, error } = await validationScope(device, run);
   if (error) throw error;
   return value;
@@ -52,24 +54,36 @@ export function createWebgpuVisibilityRasterPipelines(
     cullMode: GPUCullMode,
     frontFace: GPUFrontFace = 'ccw',
   ) =>
-    device.createRenderPipeline({
+    buildRenderPipeline(device, {
       layout,
       vertex: { module: visModule, entryPoint: vertex },
       fragment: { module: visModule, entryPoint: fragment, targets },
       primitive: { topology: 'triangle-list', cullMode, frontFace },
       depthStencil: depth,
     });
-  return scoped(device, () => {
+  return scoped(device, async () => {
     const fragment = visVariantFragment(hiz, variant);
+    const rest = (cullMode: GPUCullMode) =>
+      hiz ? make('vis_hiz_vs', fragment, cullMode) : Promise.resolve(undefined);
+    const [back, backCw, none, front, frontCw, restBack, restNone, restFront] = await Promise.all([
+      make('vis_vs', fragment, 'back'),
+      make('vis_vs', fragment, 'back', 'cw'),
+      make('vis_vs', fragment, 'none'),
+      make('vis_vs', fragment, 'front'),
+      make('vis_vs', fragment, 'front', 'cw'),
+      rest('back'),
+      rest('none'),
+      rest('front'),
+    ]);
     return {
-      visPipelineBack: make('vis_vs', fragment, 'back'),
-      visPipelineBackCw: make('vis_vs', fragment, 'back', 'cw'),
-      visPipelineNone: make('vis_vs', fragment, 'none'),
-      visPipelineFront: make('vis_vs', fragment, 'front'),
-      visPipelineFrontCw: make('vis_vs', fragment, 'front', 'cw'),
-      visHizRestBack: hiz ? make('vis_hiz_vs', fragment, 'back') : undefined,
-      visHizRestNone: hiz ? make('vis_hiz_vs', fragment, 'none') : undefined,
-      visHizRestFront: hiz ? make('vis_hiz_vs', fragment, 'front') : undefined,
+      visPipelineBack: back,
+      visPipelineBackCw: backCw,
+      visPipelineNone: none,
+      visPipelineFront: front,
+      visPipelineFrontCw: frontCw,
+      visHizRestBack: restBack,
+      visHizRestNone: restNone,
+      visHizRestFront: restFront,
     };
   });
 }
@@ -92,12 +106,12 @@ export function createWebgpuCoplanarLayerPipelines(
     : [{ format: 'r32uint' }];
   const fragment = visVariantFragment(hiz, variant);
   return scoped(device, () => {
-    const pipelines: GPURenderPipeline[] = [];
+    const pipelines: Promise<GPURenderPipeline>[] = [];
     for (let layer = 1; layer < layerSlots; layer++)
       for (const rest of [false, true])
         for (const [cullMode, frontFace] of LAYER_CULLS)
           pipelines.push(
-            device.createRenderPipeline({
+            buildRenderPipeline(device, {
               layout,
               vertex: { module: visModule, entryPoint: rest && hiz ? 'vis_hiz_vs' : 'vis_vs' },
               fragment: { module: visModule, entryPoint: fragment, targets },
@@ -111,7 +125,7 @@ export function createWebgpuCoplanarLayerPipelines(
               },
             }),
           );
-    return pipelines;
+    return Promise.all(pipelines);
   });
 }
 /** Builds the depth export and class-specialized material pipelines during preparation. */
@@ -133,11 +147,11 @@ export function createWebgpuShadePipelines(
   };
   const entryPoint = feedback ? shadeVariantFragment(variant) : 'shade_fsWithoutFeedback';
   /** Class features and depth derive from the key; a single class rejects background itself. */
-  const makeShadePipeline = (key: number, single: boolean) => {
+  const shadeDescriptor = (key: number, single: boolean): GPURenderPipelineDescriptor => {
     const constants: Record<string, number> = single
       ? { CLASS_KEY: key, SINGLE_CLASS: 1 }
       : { CLASS_KEY: key };
-    return device.createRenderPipeline({
+    return {
       layout,
       vertex: { module: shadeModule, entryPoint: 'shade_vs', constants },
       fragment: {
@@ -149,27 +163,31 @@ export function createWebgpuShadePipelines(
       },
       primitive,
       depthStencil: single ? undefined : classDepth,
-    });
+    };
   };
-  const shadePipelineFor = (key: number) => makeShadePipeline(key, false);
-  const singleShadePipelineFor = variesShade(variant)
-    ? undefined
-    : (key: number) => makeShadePipeline(key, true);
-  return scoped(device, () => {
-    const singleShadePipelines = new Map<number, GPURenderPipeline>();
-    if (classes.length === 1 && singleShadePipelineFor)
-      singleShadePipelines.set(classes[0], singleShadePipelineFor(classes[0]));
-    return {
-      shadeBindGroupLayout,
-      materialDepthPipeline: device.createRenderPipeline({
+  // A class a frame meets later compiles at once; those of the scene compile here, together.
+  const shadePipelineFor = (key: number) =>
+    device.createRenderPipeline(shadeDescriptor(key, false));
+  const single = classes.length === 1 && !variesShade(variant);
+  return scoped(device, async () => {
+    const [materialDepthPipeline, singlePipeline, ...shaded] = await Promise.all([
+      buildRenderPipeline(device, {
         layout,
         vertex: { module: shadeModule, entryPoint: 'shade_vs' },
         fragment: { module: shadeModule, entryPoint: 'material_depth_fs', targets: [] },
         primitive,
         depthStencil: { ...classDepth, depthWriteEnabled: true, depthCompare: 'always' },
       }),
+      single ? buildRenderPipeline(device, shadeDescriptor(classes[0], true)) : undefined,
+      ...classes.map((key) => buildRenderPipeline(device, shadeDescriptor(key, false))),
+    ]);
+    const singleShadePipelines = new Map<number, GPURenderPipeline>();
+    if (singlePipeline) singleShadePipelines.set(classes[0], singlePipeline);
+    return {
+      shadeBindGroupLayout,
+      materialDepthPipeline: materialDepthPipeline!,
       shadePipelineFor,
-      shadePipelines: new Map(classes.map((key) => [key, shadePipelineFor(key)])),
+      shadePipelines: new Map(classes.map((key, at) => [key, shaded[at]!])),
       singleShadePipelines,
     };
   });

@@ -168,8 +168,9 @@ export async function createWebgpuBlendPipelines(
       blendTargets(mode, writeMask, feedback, true, withShare),
     ),
   }));
-  // Normal always (the transmission slice draws on it under a diagnostic), every mode an item
-  // declares, filtered too when one filters, in the set drawn now; the rest compiles at `at`.
+  // Normal with any item (the transmission slice draws on it under a diagnostic), every mode an item
+  // declares, filtered too when one filters, in the set drawn now; the rest compiles at `at`. No
+  // item, no blend program (#1362).
   const declared = declaredBlendModes(items),
     { perMode, routed } = sets[+share];
   await Promise.all([
