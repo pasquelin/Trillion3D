@@ -25,9 +25,9 @@ function banc() {
     rec('e', 4, false),
     rec('f', 5, false),
   ];
-  packedPages.forEach((page, index) => (page.packedIndex = index));
-  const shown = [packedPages[0], packedPages[1]];
-  const desired: PageRec[] = [];
+  const rankOf = (rec: PageRec) => packedPages.indexOf(rec),
+    shown = [packedPages[0], packedPages[1]],
+    desired: PageRec[] = [];
   const delta = createCutDelta(packedPages, desired);
   // Past the page budget the pool accepts only 'c', already loaded: 'd' to 'f' are refused.
   const wantedPages = [packedPages[2]];
@@ -36,6 +36,7 @@ function banc() {
     delta,
     (page) => !run.coverageBudgetLimited || wantedPages.includes(page),
     () => (run.coverageBudgetLimited ? 1 : 0),
+    rankOf,
   );
   const run = {
     desired,

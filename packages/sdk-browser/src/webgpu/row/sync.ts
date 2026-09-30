@@ -18,13 +18,13 @@ export function createWebgpuRowSync(
   mirror: Mirror,
   packedPages: PageRec[],
   /** The drawn view's cut, read at each sync: a view switch replaces its `drawn`. */
-  cut: { readonly drawn: readonly PageRec[] },
+  cut: { readonly drawn: readonly PageRec[]; readonly drawnPacked: readonly number[] },
   cacheReady: () => boolean,
   { commitRows, sourceRowOf, writePageRow }: Commit,
   /** Called when a page enters residency or leaves it, before the row changes. */
-  onResidenceChange: (rec: PageRec) => void = () => {},
+  onResidenceChange: (rec: PageRec, page: number) => void = () => {},
   /** Called when a blended caster's row is written again with another coverage. */
-  onCoverageChange: (rec: PageRec) => void = () => {},
+  onCoverageChange: (rec: PageRec, page: number) => void = () => {},
   /** The frame's one integration budget the owed records spend from (`claims.ts`). */
   budget?: FrameClock,
 ) {
@@ -63,7 +63,10 @@ export function createWebgpuRowSync(
    * behind the camera's, which only the shadow pass reads. Returns the camera's row count. The
    * table's size is read here, at each sync: it grows in place (`grow.ts`).
    */
-  const syncRowsFromCut = (casters: readonly PageRec[] = []) => {
+  const syncRowsFromCut = (
+    casters: readonly PageRec[] = [],
+    castersPacked: readonly number[] = [],
+  ) => {
     if (!cacheReady() || !rows.pageTableFloats) return 0;
     const drawSlots = rows.blendFirst;
     mirror.sync();
@@ -73,10 +76,8 @@ export function createWebgpuRowSync(
     let count = 0,
       lastSource = -1,
       monotone = true;
-    const place = (rec: PageRec) => {
-      if (rec.transparent || count >= drawSlots) return;
-      const pageIndex = rows.pageIndexOf(rec);
-      if (pageIndex === undefined) return;
+    const place = (rec: PageRec, pageIndex: number) => {
+      if (rec.transparent || count >= drawSlots || pageIndex < 0) return;
       const offsetWords = rows.residentOffsetWords[pageIndex],
         position = rows.pagePositions[pageIndex];
       if (offsetWords < 0 || awaitsPageBytes(rec) || !rowHasGeometry(rec, position)) return;
@@ -92,10 +93,11 @@ export function createWebgpuRowSync(
       rows.packedPositions[row] = position;
       rows.packedPageIndex[row] = pageIndex;
     };
-    const { drawn } = cut;
-    for (let i = 0; i < drawn.length && count < drawSlots; i++) place(drawn[i]);
+    const { drawn, drawnPacked } = cut;
+    for (let i = 0; i < drawn.length && count < drawSlots; i++) place(drawn[i], drawnPacked[i]);
     const cameraRows = count;
-    for (let i = 0; i < casters.length && count < drawSlots; i++) place(casters[i]);
+    for (let i = 0; i < casters.length && count < drawSlots; i++)
+      place(casters[i], castersPacked[i]);
     commitRows(count, monotone);
     return cameraRows;
   };

@@ -7,7 +7,7 @@ import {
 import { clipWeight } from '../../../sdk-core/src/math/primitives/camera.ts';
 import { copyElements } from '../math/matrixElements.ts';
 import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts';
-import { rootOf, type Placements } from '../page/selection/placements.ts';
+import { locationOf, type PageLocations } from '../page/selection/placements.ts';
 import {
   begin,
   createPendingScratch,
@@ -91,7 +91,7 @@ const shared = createPendingScratch();
  */
 export function orderPendingUrls(
   records: readonly PriorityRecord[],
-  roots: Placements,
+  locations: PageLocations,
   cam: PriorityCamera,
   pixelScale: readonly number[],
   into: string[],
@@ -104,7 +104,7 @@ export function orderPendingUrls(
   for (let index = 0; index < records.length; index++) {
     const record = records[index];
     if (record.array) continue;
-    const world = rootOf(roots, record).world;
+    const world = locationOf(locations, index).world;
     let at = viewSlot(scratch, world);
     if (at < 0) {
       at = ~at;

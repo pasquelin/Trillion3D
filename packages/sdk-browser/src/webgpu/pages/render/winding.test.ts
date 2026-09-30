@@ -9,12 +9,12 @@ import { setWindingEpoch, windingCw } from './winding.ts';
 import { referenceWindingCw } from '../../../../../../bench/oracles/browser/pages-webgpu.ts';
 import type { ClusterRoot } from '../../../page/selection/types.ts';
 
-/** A page of rank 0, and the root that places it by `matrix`. */
+/** A page of root rank 0, and the root that places it by `matrix`. */
 function rec(matrix: G.Matrix4) {
   const roots: ClusterRoot<unknown>[] = [{ world: matrix, pages: [] }];
   return { matrix, roots, page: { placementIndex: 0 } };
 }
-const cw = ({ roots, page }: ReturnType<typeof rec>) => windingCw(roots, page);
+const cw = ({ roots }: ReturnType<typeof rec>) => windingCw(roots, 0);
 
 test('the identity matrix and a mirrored (negative-scale) matrix agree with the reference', () => {
   setWindingEpoch(1);

@@ -27,6 +27,8 @@ export function createCutPending(
   accepted: (rec: PageRec) => boolean = () => true,
   /** Changes whenever `accepted` may answer differently: the awaited list is rebuilt then only. */
   acceptedRevision: () => number = () => 0,
+  /** The first packed rank of a record: one record serves many placements (#1235). */
+  rankOf: (rec: PageRec) => number = () => -1,
 ) {
   /** A packed rank back to its record: the one catalogue accessor (`../pages/prepare/catalogue.ts`). */
   const { recordOf } = createPageCatalogue(packedPages);
@@ -46,8 +48,10 @@ export function createCutPending(
     if (!dependencies?.length) return;
     if (step > 0) dependents.add(id);
     else dependents.remove(id);
-    for (const dependency of dependencies)
-      if (dependency.packedIndex !== undefined) named.add(dependency.packedIndex, step);
+    for (const dependency of dependencies) {
+      const rank = rankOf(dependency);
+      if (rank >= 0) named.add(rank, step);
+    }
   };
   /** A dependency arrived (`settle`: drop the members now complete) or left (`rescan`: the cut's
    *  dependents are re-read). Both are done once, when the set is next read. */
@@ -109,7 +113,8 @@ export function createCutPending(
     touch(id: number) {
       const rec = recordOf(id);
       if (!rec) return;
-      if (named.get(id) > 0) {
+      const rank = rankOf(rec);
+      if (rank >= 0 && named.get(rank) > 0) {
         if (awaitsPageBytes(rec)) rescan = true;
         else settle = true;
       }
