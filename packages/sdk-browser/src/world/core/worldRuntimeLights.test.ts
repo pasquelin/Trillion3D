@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { light } from '../../../../sdk-core/src/world/light/light.ts';
+import { object } from '../../../../sdk-core/src/world/object/index.ts';
+import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts';
 import { worldModelLoader } from './worldLoader.ts';
 import { Scene } from './scene.ts';
 import { HOST, runtimeOf, sessionStandIn, type Open } from './worldRuntime.fixture.ts';
@@ -74,4 +76,31 @@ test('lights resolved while the session opens survive its first frame', async ()
   // The case's own precondition: the sessionless first frame seated the lights' resolution.
   assert.ok(lit.seatedFirst, 'the lights resolved before the opening drew its first frame');
   assertLit(lit);
+});
+
+test('every lamp the runtime writes keeps its authored range, however faint (#958)', async () => {
+  const ready = Promise.resolve();
+  const scene = new Scene(worldModelLoader(ready, undefined, () => 'webgpu'));
+  const { session, written } = sessionStandIn();
+  const failures: unknown[] = [];
+  const open = (async () => session) as unknown as Open;
+  // The stand-in frame is shown at ACES, exposure 1 (`runtimeOf`): a frame a reach cut reads.
+  const runtime = runtimeOf(scene, ready, (error) => failures.push(error), open);
+  const random = Array.from({ length: 64 }, (_, i) => 10 ** (((i * 7919) % 97) / 8 - 6));
+  const authored = [...random, Number.MIN_VALUE, 1e-300, 18, Number.MAX_VALUE, Infinity];
+  const faint = (distance: number, i: number) =>
+    (i % 2 ? light.spot : light.point)({ intensity: 1e-9, distance });
+  scene.add(object.mesh(geometry.box(1, 1, 1)), ...authored.map(faint));
+  // Unset, a range is derived from the scene's extent: one value for every such lamp.
+  const unset = [0, -0, NaN, -Infinity].map((distance) => faint(distance, 0));
+  scene.add(...unset);
+  await runtime.settled();
+  runtime.render();
+  runtime.dispose();
+  assert.deepEqual(failures, []);
+  const ranges = written.lights.map((record) => record.range);
+  assert.deepEqual(ranges.slice(0, authored.length), authored, 'no reach cut below the author’s');
+  const derived = ranges.slice(authored.length);
+  assert.equal(derived.length, unset.length);
+  assert.ok(derived.every((range) => range === derived[0] && range! > 0 && Number.isFinite(range)));
 });
