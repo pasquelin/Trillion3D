@@ -5,8 +5,10 @@ import { setImmediate as tick } from 'node:timers/promises';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { ParticlePool, type ParticlePoolSpec } from '../../../sdk-core/src/fluids/particles.ts';
 import { DRAW_FLOATS, writeDrawWords } from './drawWords.ts';
-import { PARTICLE_DRAW_PASS as P, createWebgpuParticleDraw } from './webgpuParticleDraw.ts';
-import { createWebgpuParticles, encodeParticles } from './webgpuParticles.ts';
+import { createWebgpuParticleDraw } from './webgpuParticleDraw.ts';
+import { createWebgpuParticles } from './webgpuParticles.ts';
+import { PARTICLE_DRAW_PASS as P, encodeParticles } from './webgpuParticleFrame.ts';
+import { families } from '../host/families.ts';
 
 const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 
@@ -118,4 +120,19 @@ test('WebGPU: the pools step once a frame, on the main view; another view draws 
   views.active = main;
   encode();
   assert.equal(steps, 1);
+});
+
+test("WebGPU: the step is made on the particles' code the frame waited for (#1353)", async () => {
+  const [smoke] = scene(),
+    main = {},
+    gpu: { particles?: object } = {},
+    rt = { context: { particles: [] }, vis: { visEnabled: true }, gpu, run: {}, views: { main } };
+  Object.assign(rt.views, { active: main });
+  const encode = () => encodeParticles(rt as never, fakeDevice().device, {} as GPUCommandEncoder);
+  encode();
+  assert.equal(gpu.particles, undefined, 'a world without pools makes no step');
+  rt.context.particles = [smoke] as never;
+  await families.particles.load(); // what the frame that draws a pool waits for (`familyUse.ts`)
+  encode();
+  assert.ok(gpu.particles, 'the step is made on the code that arrived');
 });

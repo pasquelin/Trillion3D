@@ -1,6 +1,7 @@
 import type { CameraPose, DiagnosticMode } from '../../../../sdk-core/src/index.ts';
 import type { MeasuredWorldOptions, RenderBackend } from '../../backend/types.ts';
-import { createComparisonCompositor, type ComparisonLayout } from '../../measurement/comparison.ts';
+import type { createComparisonCompositor, ComparisonLayout } from '../../measurement/comparison.ts';
+import { families } from '../../host/families.ts';
 import { createFrameComposer } from './compose.ts';
 import { pixelRatioOf } from '../../backend/common.ts';
 import type { createExplorerDiagnosticApi } from '../api/diagnosticApi.ts';
@@ -15,6 +16,18 @@ type DiagnosticInputs = Parameters<typeof createExplorerDiagnosticApi>[0];
 type Prepared = Awaited<ReturnType<typeof prepareExplorer>>;
 /** A composition target that outlives a context loss: `current()` is the live one. */
 export type BoundTarget = ReturnType<typeof boundToContext<WebglRenderTarget>>;
+
+type Compositor = ReturnType<typeof createComparisonCompositor>;
+/** The comparison compositor, the measurement's code (`../../host/families.ts`): made by the
+ *  first frame that composes two engines, which waited for it (`../session/familyUse.ts`). */
+function comparisonCompositor(gl: WebGL2RenderingContext) {
+  let made: Compositor | undefined;
+  return {
+    render: (...args: Parameters<Compositor['render']>) =>
+      (made ??= families.measurement.get()?.createComparisonCompositor(gl))?.render(...args),
+    dispose: () => made?.dispose(),
+  };
+}
 
 /** The mutable state of one explorer host; every service reads and writes this same object. */
 export type ExplorerHostState = {
@@ -97,7 +110,7 @@ export function createExplorerHostState(
           particles: options.particles,
           particlesRefused: options.particlesRefused,
         }),
-        compositor: createComparisonCompositor(gl),
+        compositor: comparisonCompositor(gl),
       }
     : {
         compose: Object.assign(

@@ -11,9 +11,7 @@ import {
   type DisplayFilter,
 } from '../webgpu/blend/displayFilter.ts';
 import { REACTIVE_TARGET } from '../lighting/deferred/asIsShare.ts';
-
-/** The pass label the GPU timings name the particle draw by (`passesGpu`). */
-export const PARTICLE_DRAW_PASS = 'Trillion3D particle draw';
+import { PARTICLE_DRAW_PASS } from './webgpuParticleFrame.ts';
 
 /** Per slot, a disc facing the eye, fading with age, at its edge and near the scene's depth; its
  *  coverage is the reactive value (#833), so the temporal pass keeps no trail of it. */
