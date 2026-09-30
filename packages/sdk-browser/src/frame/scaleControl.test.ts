@@ -71,14 +71,14 @@ test('without GPU times the frame interval drops the scale, a still frame includ
 });
 
 // #1343: a device that never met its cadence took its slow frames for the display's refresh.
-test('without GPU times a device that never meets its cadence is measured against 60 Hz', () => {
-  const control = createScaleControl('auto');
-  let now = 0;
+test('without GPU times a device that never meets its cadence is measured against its display', () => {
+  const control = createScaleControl('auto'),
+    vsync = 1000 / 120;
   for (let frame = 0; frame < 40; frame++) {
     control.drew(control.wanted(), true);
-    control.tick((now += 50));
+    control.tick(Math.ceil((frame * 1000) / 16 / vsync - 1e-9) * vsync);
   }
-  assert.equal(control.wanted(), 0.5, 'frames of 50 ms are over a 60 Hz budget');
+  assert.equal(control.wanted(), 0.5, 'frames at 16 fps are over a 120 Hz budget');
 });
 
 // #1343: the targets follow the drawn size, without remaking them at each step around an eighth.
