@@ -16,7 +16,7 @@ function walk(lamps: Lamp[], P: number) {
   const shaded: Lamp[] = [];
   const { sliceLighting } = shaderFunctions<{ sliceLighting: (...args: unknown[]) => number }>(
     DIRECT_LIGHTING_WGSL,
-    ['sliceLighting'],
+    ['sliceLighting', 'isSunKind'],
     {
       ...K,
       abs: Math.abs,
