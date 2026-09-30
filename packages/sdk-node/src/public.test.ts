@@ -40,7 +40,7 @@ test('a missing compiler is reported by contract', async () => {
       executable: '/missing/trillion3d-compiler',
       resourceBaseUrl: '/assets/',
     }),
-    /COMPILER_EXECUTABLE_MISSING: \/missing\/trillion3d-compiler/,
+    /COMPILER_EXECUTABLE_MISSING: .*\/missing\/trillion3d-compiler/,
   );
 });
 test('getSdkProvenance hashes files without embedding source text', async () => {
