@@ -1,4 +1,7 @@
 export * from './contracts/index.ts';
+export * from './impostor/switch.ts';
+export * from './impostor/octahedron.ts';
+export * from './impostor/plan.ts';
 export * from './bounce/contracts.ts';
 export * from './contracts/proxy.ts';
 export * from './bounce/cascades.ts';

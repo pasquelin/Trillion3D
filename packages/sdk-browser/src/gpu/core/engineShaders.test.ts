@@ -53,7 +53,7 @@ test('the list holds the text of every call that compiles a module', () => {
     for (const [, checked, plain] of read) {
       // The blend module appends checked feedback-free entries to listed source texts.
       if (file === 'webgpu/blend/pipelines.ts' && plain?.trim() === 'code') {
-        assert.match(text, /let code\s*=\s*BLEND_SHADER/);
+        assert.match(text, /let code\s*=\s*blendShader\(/);
         assert.match(text, /code = feedbackFreeEntry\(/);
         continue;
       }

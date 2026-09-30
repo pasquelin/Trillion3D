@@ -95,7 +95,9 @@ export function renderCpuCut(
   // The chosen cut, not yet published. Admission weighs it here, but the residency sets receive it
   // only once the pinned coverage is ready, below: publishing earlier would make the cache hold —
   // and forbid it from reclaiming — a cut the image never drew.
-  const wanted = selected.wanted;
+  const wanted = selected.wanted,
+    wantedIds = selected.wantedPacked,
+    recordOf = rt.layout.recordOf;
   run.overBudget = false;
   run.visible = selected.visible;
   run.selectedTriangles = selected.selectedTriangles;
@@ -105,7 +107,12 @@ export function renderCpuCut(
     requested = run.requestedScratch;
   requested.clear();
   for (const url of bootstrapUrls) requested.add(url);
-  for (let i = 0; i < wanted.length; i++) requested.add(pageAddress(wanted[i]));
+  // The cut publishes packed ranks, walked to the record list's length (the reused buffer is never
+  // truncated): a requested address is read back through the catalogue alone.
+  for (let i = 0; i < wanted.length; i++) {
+    const rec = recordOf(wantedIds[i]);
+    if (rec) requested.add(pageAddress(rec));
+  }
   const wasLimited = run.coverageBudgetLimited;
   run.coverageBudgetLimited = requested.size > slots;
   if (wasLimited !== run.coverageBudgetLimited)
@@ -138,7 +145,7 @@ export function renderCpuCut(
   // Here, and no earlier: the image has passed its guards and `shown` is final. The CPU cut then
   // publishes its own by the same delta as the GPU sample — once, and only once, for an image that
   // draws.
-  services.adoptCpuCut(wanted, run.shown);
+  services.adoptCpuCut(wantedIds, selected.shownPacked, wanted.length, selected.shown.length);
   services.residency.queueCutResidency();
   services.followEvictions(null);
   const queueEnd = performance.now();

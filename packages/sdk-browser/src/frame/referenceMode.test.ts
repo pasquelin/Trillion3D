@@ -5,10 +5,10 @@ import {
   REFERENCE_BOUNCE_BUDGET_MS,
   referenceCapture,
   referenceOptions,
-  referenceSupersampling,
-  resolveSupersampled,
+  referenceSunWindow,
 } from './referenceMode.ts';
-import { BOUNCE_SETTINGS } from '../../../sdk-core/src/index.ts';
+import { resolveSupersampled } from './referenceTiles.ts';
+import { BOUNCE_SETTINGS, LIGHT_SETTINGS } from '../../../sdk-core/src/index.ts';
 
 const BOSS = { manifestUrl: 'm.json', width: 1728, height: 1117, pixelRatio: 2 };
 
@@ -28,23 +28,17 @@ test('reference mode switches off every approximation it names, whatever the pag
   // probeBudget: far past the default target, so the probes run at their ceiling.
   assert.equal(options.bounceBudgetMs, REFERENCE_BOUNCE_BUDGET_MS);
   assert.ok(REFERENCE_BOUNCE_BUDGET_MS > 100 * BOUNCE_SETTINGS.budgetMs);
-  // supersampling: 2 per axis at the boss's case, 6912 × 4468 drawn for 3456 × 2234 shown.
-  assert.equal(reference?.supersampling, 2);
-  assert.equal(options.pixelRatio, 4);
+  // supersampling: tiles, not a canvas the portable side caps at 2 per axis.
+  assert.ok(reference?.factor && reference.factor > 2);
+  // The canvas keeps the display's pixels: the tiles are drawn aside.
+  assert.equal(options.pixelRatio, 2);
   // shadowResolution: a shrunk pool refuses the capture by name.
   const capture = referenceCapture(
     () => new Uint8Array(16),
-    { width: 2, height: 2 },
     reference,
     () => 1,
   );
   assert.throws(capture, { code: 'REFERENCE_SHADOWS_REDUCED' });
-});
-
-test('the supersampling is the most the portable texture side holds, 1 to 4 per axis', () => {
-  assert.equal(referenceSupersampling(640, 360, 1), 4);
-  assert.equal(referenceSupersampling(1728, 1117, 2), 2);
-  assert.equal(referenceSupersampling(4096, 2160, 2), 1);
 });
 
 test('the resolved image is the linear-light mean of each block, the same bytes on every run', () => {
@@ -59,13 +53,21 @@ test('the resolved image is the linear-light mean of each block, the same bytes 
   // Half the light of white, re-encoded: 188, not the 128 of a mean of the bytes.
   assert.deepEqual([...once], [188, 188, 188, 255, 128, 128, 128, 255]);
   assert.deepEqual(resolveSupersampled(rgba, 4, 2, 2), once);
-  const capture = referenceCapture(
-    () => rgba,
-    { width: 4, height: 2 },
-    referenceOptions({ ...BOSS, reference: true }).reference,
-    () => 0,
-  );
-  assert.deepEqual(capture(), once);
+});
+
+test('the reference raises the sun window so every pixel reads the finest clipmap level', () => {
+  // The boss's case: 2234 device pixels at 55° reach 4291, and `pages · shadowPage / 2` must
+  // hold that — 68 pages, even so `sunLevels` centres them, past the ordinary 64.
+  const boss = referenceSunWindow(1117 * 2, 55);
+  assert.equal(boss, 68);
+  assert.ok(boss > LIGHT_SETTINGS.sunLevelPages);
+  assert.ok((boss * LIGHT_SETTINGS.shadowPage) / 2 >= 4291, 'the window reaches the whole view');
+  // The session's own canvas and field, not one case: a taller view or a narrower field needs a
+  // wider window; the field defaults to the camera's; the ordinary one is never lowered.
+  assert.ok(referenceSunWindow(4470, 55) > boss);
+  assert.ok(referenceSunWindow(1117 * 2, 40) > boss);
+  assert.equal(referenceSunWindow(1117 * 2), boss);
+  assert.equal(referenceSunWindow(1), LIGHT_SETTINGS.sunLevelPages);
 });
 
 test('reference mode refuses an interactive session, whose resize would drop the supersampling', () => {

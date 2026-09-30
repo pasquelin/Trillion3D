@@ -14,7 +14,6 @@ import { placementsOf } from '../../placement/roots.ts';
 import { rowShadowless, type PlacementRows } from '../../placement/rows.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { blendMoves, isAssignment, type AlphaChange } from '../../placement/backendSceneUpdates.ts';
-
 /** Whether a primitive's pages are drawn blended at the open. A material moved between draw
  *  classes later puts them in the family of its new class alone (`reassignBlend`): its pages are
  *  cut again on that class's grid (`classPages.ts`), as a fresh session of it compiles them. */
@@ -121,11 +120,7 @@ export function collectClusterPages(
           // Its world and row are its root's, found by its rank (`rootOf`).
           placementIndex: roots.length,
           renderOrder: order,
-          attached: false,
           cone: page.cone,
-          geometry: undefined,
-          mesh: undefined,
-          resident: false,
         };
         allPages.push(rec);
         return rec;
@@ -135,6 +130,7 @@ export function collectClusterPages(
       boxTransform(worldBox, 0, shape.local, 0, world.elements);
       roots.push({
         world,
+        mesh: primitive.mesh,
         pages,
         // Nodes, their bounds and their links are the primitive's, shared by all its placements.
         culling: culling && { ...culling, bounds: shape.bounds!, links: shape.links },
