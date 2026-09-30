@@ -27,7 +27,7 @@ test('the TAA hold cannot freeze an unfinished reflection window', () => {
   rt.gpu.reflection = { active: true, history: { settled: false } } as unknown as NonNullable<
     typeof rt.gpu.reflection
   >;
-  rt.gpu.deferred = { usesContract: true, awaited: () => undefined } as typeof rt.gpu.deferred;
+  rt.gpu.deferred = { usesContract: true } as typeof rt.gpu.deferred;
   assert.equal(holdWebgpuFrame(rt, h.device), false);
   Object.assign(rt.gpu.reflection.history!, { settled: true });
   assert.equal(holdWebgpuFrame(rt, h.device), true);
@@ -110,7 +110,7 @@ test('reflection refinement keeps the still TAA scale and complete lighting whil
   rt.gpu.reflection = { active: true, history: { settled: false } } as NonNullable<
     typeof rt.gpu.reflection
   >;
-  rt.gpu.deferred = { usesContract: true, awaited: () => undefined } as typeof rt.gpu.deferred;
+  rt.gpu.deferred = { usesContract: true } as typeof rt.gpu.deferred;
   try {
     for (let i = 0; i < 2; i++) keepWebgpuFrame(rt);
     assert.equal(holdWebgpuFrame(rt, h.device), false);

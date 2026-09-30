@@ -44,9 +44,9 @@ export const surfaceBindingsWgsl = (third = 'flags:texture_2d<u32>') => `
 @group(0) @binding(5) var<uniform> view:View;`;
 /**
  * Unlit view: material albedo as-is, with no light and no ambient; what a surface emits is kept, as
- * in the lit image (#1362). This is not a light, it is a diagnostic view — the one geometry benches that compare images pixel for
- * pixel ask for, and the one the engine renders by default as long as no light is declared,
- * because a scene with no source has nothing to light (P6).
+ * in the lit image (#1362). This is not a light, it is a diagnostic view — the one geometry benches
+ * that compare images pixel for pixel ask for, and the one the engine renders by default as long as
+ * no light is declared, because a scene with no source has nothing to light (P6).
  */
 export const UNLIT_LIGHTING_SHADER = `
 ${VIEW_WGSL}
