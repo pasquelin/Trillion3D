@@ -21,9 +21,12 @@ test('#1281: a closed bounce series encodes and writes nothing: a redraw reads w
     dispatchWorkgroups: () => void work.push('dispatch'),
     end() {},
   };
+  // The probes are atlases (#1410): a texture copy snapshots them, a render pass clears a level.
   const encoder = {
     copyBufferToBuffer: () => void work.push('copy'),
+    copyTextureToTexture: () => void work.push('copy'),
     clearBuffer: () => void work.push('clear'),
+    beginRenderPass: () => (work.push('clear'), { end() {} }),
     beginComputePass: () => pass,
   } as unknown as GPUCommandEncoder;
   const eye = [4, 4, 2];

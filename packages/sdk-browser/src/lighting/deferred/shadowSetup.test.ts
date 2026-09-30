@@ -1,5 +1,6 @@
 // #1369: a pixel sets up what a shadow read needs — its unjittered footprint and point (eight
-// neighbour depths, three reconstructions), its receiver offset (three storage words), its taps —
+// neighbour depths, three reconstructions), its receiver offset (recomputed from the visibility
+// buffer, #1410), its taps —
 // only where its tile's opaque list holds a shadowed light, the one place a shadow is read; the
 // program with no shadow code never does. Nothing else reads them, so the sums are the same.
 import test from 'node:test';
@@ -19,9 +20,9 @@ test('the surface sets up its shadow read behind the tile flag, and nowhere else
     const shader = contractLightingShader(bounce, narrow, undefined, shadowed);
     const surface = surfaceOf(shader);
     assert.ok(surface.includes(SETUP));
-    assert.doesNotMatch(surface, /pixelLevel\(|shadingOffset\[|shadowFootprint=|shadowRotation=/);
+    assert.doesNotMatch(surface, /pixelLevel\(|receiverOffset\(|shadowFootprint=|shadowRotation=/);
     const setup = shader.slice(shader.indexOf('fn shadowSetup(')).split('\n}')[0];
-    for (const read of ['pixelLevel(', 'shadingOffset[', 'shadowTaps=shadowTapsOf('])
+    for (const read of ['pixelLevel(', 'receiverOffset(pixel', 'shadowTaps=shadowTapsOf('])
       assert.ok(setup.includes(read), read);
     const flag = shader.slice(shader.indexOf('fn pixelShadowed(')).split('\nfn ')[0];
     assert.equal(flag.includes('TILE_SHADOW_BASE'), shadowed, 'the flag, read with shadow code');

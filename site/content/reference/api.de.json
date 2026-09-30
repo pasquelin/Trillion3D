@@ -6012,7 +6012,6 @@
       "flags": "0 Hintergrund, 1 unbeleuchtet (im Nebel), 2 gelesen, 3 unverändert gezeigt: eine Diagnose, eine Normalen- oder Tiefenansicht. 4 und 5: diffuses und Toon-Modell (`./surfaceModel.ts`).",
       "views": "Ihre GPU-Textursichten.",
       "dispose": "Gibt sie frei.",
-      "shadingOffset": "Versatz des Schattenempfängers mit voller Genauigkeit, neben dem G-buffer geschrieben.",
       "subsurface": "Unabhängige Transmissionsfarbe dünner Oberflächen; bei Deaktivierung eine 1×1-Textur mit Nullwerten.",
       "subsurfaceView": "Ansicht der Transmissionstextur dünner Oberflächen.",
       "hasSubsurface": "Ob die Transmission dünner Oberflächen ein Ziel in voller Größe hat."

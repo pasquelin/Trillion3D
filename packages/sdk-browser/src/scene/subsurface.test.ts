@@ -52,7 +52,8 @@ test('enabled transmission allocates exactly eight bytes per pixel, without anot
   assert.equal(enabled.subsurface.height, 7);
   disabled.dispose();
   enabled.dispose();
-  assert.equal(gpu.destroyed.length, 12);
+  // Five textures each, the receiver-offset target gone (#1410).
+  assert.equal(gpu.destroyed.length, 10);
 });
 
 test('shipped thin diffuse transmission integrates to its color, dark front and shadow included', () => {

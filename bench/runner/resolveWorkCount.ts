@@ -3,9 +3,9 @@
 // against each listed light's range. COUNTED, never timed; upper bounds where a term depends on a
 // weight or a facing the atrium does not model.
 //
-// - `setup`: the shadow setup's fetches — eight neighbour depths for the unjittered footprint and
-//   three receiver-offset words (`shadowSetup`): develop at every lit pixel, now where the tile's
-//   list holds a shadowed light (`pixelShadowed`).
+// - `setup`: the pixels that set up a shadow read — eight neighbour depths for the unjittered
+//   footprint and the receiver offset recomputed from the visibility buffer (`shadowSetup`, #1410):
+//   develop at every lit pixel, now where the tile's list holds a shadowed light (`pixelShadowed`).
 // - `weights`: `lightWeight` evaluations of a drawn list (`sampledTileLighting`): three walks of
 //   its `L` lights on develop, two now.
 // - `shaded`: lights shaded in full (`declaredLight`): a full sum's `L`, a drawn list's at most
@@ -34,8 +34,6 @@ const SIZE = LIGHT_SETTINGS.tileSize,
   SAMPLES = LIGHT_SETTINGS.samplesPerPixel,
   LIST = LIGHT_SETTINGS.tileLights,
   TAPS = LIGHT_SETTINGS.pcfTaps;
-/** Fetches of the shadow setup: eight neighbour depths and three receiver-offset words. */
-const SETUP_FETCHES = 8 + 3;
 
 export type Work = {
   setup: number;
@@ -79,7 +77,7 @@ export function countResolveWork(
           [sums.before, 3, TAPS, true],
           [sums.after, 2, MOVING_PCF_TAPS, flagged],
         ] as const) {
-          side.setup += setup ? SETUP_FETCHES : 0;
+          side.setup += +setup;
           side.weights += drawn ? walks * L : 0;
           side.shaded += drawn ? SAMPLES : L;
           side.shadows += shadows;

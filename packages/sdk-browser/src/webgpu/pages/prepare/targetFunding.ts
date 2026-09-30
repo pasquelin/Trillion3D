@@ -44,7 +44,7 @@ export function fundFrameTargets(
       : 0;
   const shadowPool =
     shadowPoolHeld(lights) + (gpu.device ? shadowBatchWrites(gpu.device).bytes : 0);
-  const bounceProbes = bounce.probes ? 2 * bounce.probes.probes.size : 0;
+  const bounceProbes = bounce.probes ? 2 * bounce.probes.probeBytes : 0;
   const effectTargets = gpu.effects?.bytes ?? 0;
   const ledger = gpuDeviceLedgerOf(gpu.device)?.snapshot();
   if (ledger?.unknownFormats) throw new Error('GPU_BUDGET_UNKNOWN_FORMAT');

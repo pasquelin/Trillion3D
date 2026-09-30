@@ -1,5 +1,6 @@
 import { BOUNCE_SETTINGS, bounceBatchOf } from '../../../sdk-core/src/index.ts';
-import { bounceGroup, bounceLayout } from './bindings.ts';
+import { bounceGroup, bounceLayout, type BounceSlot } from './bindings.ts';
+import { BOUNCE_ATLAS_FORMAT, atlasExtent } from './atlas.ts';
 import {
   BOUNCE_SURFACE_PASS,
   BOUNCE_SURFACE_SHADER,
@@ -12,15 +13,15 @@ import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts';
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
 
 /** What the cache pass binds: the grid, the proxy and its albedo, lights, frozen probes, the
- *  cache. The proxy is writable because its header carries `atomic` counters; this pass writes
- *  nothing there. */
-const SURFACE_TYPES: (GPUBufferBindingType | null)[] = [
+ *  cache — the two atlases of `atlas.ts`. The proxy is writable because its header carries
+ *  `atomic` counters; this pass writes nothing there. */
+const SURFACE_TYPES: BounceSlot[] = [
   'uniform',
   'storage',
   'read-only-storage',
   'read-only-storage',
-  'read-only-storage',
-  'storage',
+  'atlas-array',
+  'atlas-out',
   'uniform',
 ];
 
@@ -37,22 +38,24 @@ export async function createGpuBounceSurface(
   device: GPUDevice,
   proxy: GpuBounceProxy,
   lights: () => GPUBuffer,
-  grid: { uniform: GPUBuffer; snapshot: GPUBuffer },
+  grid: { uniform: GPUBuffer; snapshot: GPUTextureView },
 ) {
   const texels = surfaceCacheTexels(proxy.triangleCount);
   const bytes = surfaceCacheBytes(proxy.triangleCount);
-  const buffer = device.createBuffer({
-    label: 'Trillion3D bounce surface cache v1',
-    size: bytes,
-    usage: GPUBufferUsage.STORAGE,
+  const texture = device.createTexture({
+    label: 'Trillion3D bounce surface cache v2',
+    size: atlasExtent(texels),
+    format: BOUNCE_ATLAS_FORMAT,
+    usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
   });
+  const view = texture.createView();
   const span = device.createBuffer({
     label: 'Trillion3D bounce surface span v1',
     size: 16,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   const release = () => {
-    buffer.destroy();
+    texture.destroy();
     span.destroy();
   };
   const module = await createCheckedShaderModule(
@@ -77,15 +80,12 @@ export async function createGpuBounceSurface(
   const groupOf = (current: GPUBuffer) => {
     bound.next[0] = current;
     if (bound.moved() || !group)
-      group = bounceGroup(device, layout, [
-        grid.uniform,
-        proxy.buffer,
-        proxy.albedo,
-        current,
-        grid.snapshot,
-        buffer,
-        span,
-      ]);
+      group = bounceGroup(
+        device,
+        layout,
+        [grid.uniform, proxy.buffer, proxy.albedo, current, grid.snapshot, view, span],
+        SURFACE_TYPES,
+      );
     return group;
   };
   const ceiling = Math.min(BOUNCE_SETTINGS.surfaceTexelsPerFrame, texels);
@@ -95,7 +95,8 @@ export async function createGpuBounceSurface(
     updated = 0,
     batch = ceiling;
   return {
-    buffer,
+    /** The cache's atlas, which the probe pass and the lit passes read. */
+    view,
     texels,
     /** What the cache occupies in GPU memory, published in the diagnostic. */
     bytes,
@@ -124,6 +125,7 @@ export async function createGpuBounceSurface(
       batch = bounceBatchOf(ceiling, load);
       words[0] = cursor;
       words[1] = batch;
+      words[2] = texels;
       device.queue.writeBuffer(span, 0, words);
       const pass = encoder.beginComputePass({ label: BOUNCE_SURFACE_PASS });
       pass.setPipeline(pipeline);
