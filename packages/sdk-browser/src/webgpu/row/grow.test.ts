@@ -15,7 +15,7 @@ test('caster rows follow blendFirst after a grow, and the visibility rows keep t
     rows,
     { sync: () => {}, dirty: true },
     pages,
-    { drawn: [] },
+    { drawn: [], drawnPacked: [] },
     () => true,
     createWebgpuRowCommit(rows, writer),
   );

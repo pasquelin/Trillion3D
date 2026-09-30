@@ -19,12 +19,12 @@ export function setWindingEpoch(valeur: number) {
   epoque = valeur;
 }
 
-/** The winding of the root `rec`'s `placementIndex` names in `roots`. */
+/** The winding of the root of rank `rank` in `roots`. */
 export function windingCw(
   roots: readonly Pick<ClusterRoot<unknown>, 'world' | 'windingCw' | 'windingEpoch'>[],
-  rec: { readonly placementIndex?: number },
+  rank: number,
 ) {
-  const root = rootOf(roots, rec);
+  const root = rootOf(roots, rank);
   if (root.windingEpoch === epoque && root.windingCw !== undefined) return root.windingCw;
   const cw = matrixWindingCw(root.world.elements);
   root.windingEpoch = epoque;

@@ -76,7 +76,8 @@ export async function readPartitionAudit(rt: WebgpuPagesRuntime): Promise<Partit
       corners,
       row * BOX_CORNER_VALUES,
       rec,
-      rootOf(rt.layout.selectionRoots, rec).world,
+      rootOf(rt.layout.selectionRoots, rt.layout.placement.rootOfPacked[table.packedPageIndex[row]])
+        .world,
     );
   }
   return {

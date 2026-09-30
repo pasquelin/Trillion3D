@@ -72,7 +72,7 @@ test('#198: a row changed under the fallback draw reaches the compaction', async
       assert.equal(held[2], rows.packedPageIndex[0], 'the compaction holds the row page index');
       assert.equal(
         held[1],
-        visBin(rows.packedRecs[0]!, selectionRoots),
+        visBin(rows.packedRecs[0]!, 0, selectionRoots),
         'the compaction holds the row pipeline bin',
       );
     },
@@ -98,7 +98,7 @@ test('#198: a row changed under the fallback draw reaches the partition corners'
     ({ layout: { rows, selectionRoots } }) => {
       const expected = new Float32Array(CORNER_VALUES);
       const rec = rows.packedRecs[0]!;
-      packPageCorners(expected, 0, rec, rootOf(selectionRoots, rec).world);
+      packPageCorners(expected, 0, rec, rootOf(selectionRoots, 0).world);
       assert.deepEqual(
         held.subarray(0, CORNER_VALUES),
         expected,

@@ -2,7 +2,14 @@ import type { EngineCamera } from '../../../camera/world.ts';
 import { selectVisiblePages, type PageRec } from '../../../page/selection/selection.ts';
 import { applyTemporalHiz, resetHizCounts } from '../../../hiz/hiz.ts';
 import { pageAddress } from '../../row/pageSlots.ts';
-import { appendAll, markDrawnDiverged, partitionByPass, triangleSum } from '../helpers.ts';
+import {
+  appendAll,
+  copyPacked,
+  markDrawnDiverged,
+  partitionByPass,
+  partitionPacked,
+  triangleSum,
+} from '../helpers.ts';
 import { publishCpuProfile } from './cpuSteps.ts';
 import { encodeDraws } from './encodeDraws.ts';
 import { traceCpuFrame, traceCpuFrameWaiting, traceCpuSelection } from './trace.ts';
@@ -22,7 +29,7 @@ import { drawnViewChanged } from '../state/view.ts';
 function selectCpuCut(rt: WebgpuPagesRuntime, cam: EngineCamera, pixelError: number) {
   const { run } = rt;
   rt.services.syncResidency();
-  return selectVisiblePages(
+  const selected = selectVisiblePages(
     rt.setup.roots,
     cam,
     {
@@ -34,6 +41,10 @@ function selectCpuCut(rt: WebgpuPagesRuntime, cam: EngineCamera, pixelError: num
     },
     run.shown,
   );
+  // The packed ranks the cut published, rank by rank, kept beside the records: one record serves
+  // every placement of its primitive (#1235).
+  copyPacked(run.shownPacked, selected.shownPacked, run.shown.length);
+  return selected;
 }
 
 /** Drops the occluded half of a complete CPU cut when the temporal pyramid can vouch for it. */
@@ -42,14 +53,21 @@ function cullWithTemporalHiz(rt: WebgpuPagesRuntime, cam: EngineCamera) {
     ready = run.readyScratch;
   ready.length = 0;
   appendAll(ready, run.shown);
-  if (!vis.visEnabled || vis.gpuHiz || ready.length < 2 || !ready.every((page) => page.array))
+  if (!vis.visEnabled || vis.gpuHiz || ready.length < 2 || !ready.every((page) => page.array)) {
+    copyPacked(run.drawnPacked, run.shownPacked);
     return ready;
+  }
+  const roots = rt.layout.selectionRoots,
+    rootOfPacked = rt.layout.placement.rootOfPacked,
+    viewport = rt.setup.viewport ?? rt.gpu.targetSize;
   try {
+    const opaque = partitionByPass(ready, false, run.opaqueScratch),
+      opaquePacked = partitionPacked(ready, run.shownPacked, false, run.opaquePackedScratch);
     const cut = applyTemporalHiz(
-      partitionByPass(ready, false, run.opaqueScratch) as Array<PageRec & { array: Uint32Array }>,
-      rt.layout.selectionRoots,
+      opaque as Array<PageRec & { array: Uint32Array }>,
+      { roots, packed: opaquePacked, rootOfPacked },
       cam,
-      rt.setup.viewport ?? rt.gpu.targetSize,
+      viewport,
       run.temporalHizState,
       run.cpuHizCounts,
       rt.setup.pixelRatio(),
@@ -57,11 +75,19 @@ function cullWithTemporalHiz(rt: WebgpuPagesRuntime, cam: EngineCamera) {
     run.cpuHizCounted = true;
     run.culledScratch.length = 0;
     appendAll(run.culledScratch, cut.shown, partitionByPass(ready, true, run.transparentScratch));
+    // Written in place: the GPU cut's adopter and the row sync hold this very array (#1235).
+    run.drawnPacked.length = 0;
+    appendAll(
+      run.drawnPacked,
+      cut.shownPacked,
+      partitionPacked(ready, run.shownPacked, true, run.transparentPackedScratch),
+    );
     return run.culledScratch;
   } catch (error) {
     resetHizCounts(run.cpuHizCounts);
     run.cpuHizCounted = false;
     diag.diagnosticFailure('hiz-frame-fallback', error); /* Keep the selected cut. */
+    copyPacked(run.drawnPacked, run.shownPacked);
     return ready;
   }
 }

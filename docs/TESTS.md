@@ -50,13 +50,15 @@ The compiler's own tests stay in its crate (`packages/asset-compiler-rust/src/te
 | `pnpm run perf:all` | every benchmark of `bench/perf/`, then the aggregated report |
 | `pnpm run validate` | full pre-merge validation gate |
 
-`pnpm run test:changed` and `pnpm run check:changed` run only what changed files touch; neither
-replaces `validate`. `check:changed` also type-checks (`tsc --noEmit`) every tracked
-`tsconfig*.json` project owning a changed TypeScript file, by listing it or by import
-(`scripts/ts-projects.ts`); a changed file no project reaches fails, unless a type-check-only
-(`noEmit`) project's `include` covers it and its `exclude` takes it back. A project reading
-`trillion3d` from `dist/` (the site, the tools) is checked after `pnpm run build`, against current
-declarations.
+`pnpm run check:changed`, the one local gate, runs only what changed files touch
+(`scripts/affected-tests.ts`); it does not replace `validate`, which the CI runs. A change of
+documentation, translations or example thumbnails also runs the tests that read them
+(`pnpm run test:docs`, `scripts/docs-tests.ts`), which the CI's `quick` job runs too. It also
+type-checks (`tsc --noEmit`) every tracked `tsconfig*.json` project owning a changed TypeScript
+file, by listing it or by import (`scripts/ts-projects.ts`); a changed file no project reaches
+fails, unless a type-check-only (`noEmit`) project's `include` covers it and its `exclude` takes it
+back. A project reading `trillion3d` from `dist/` (the site, the tools) is checked after
+`pnpm run build`, against current declarations.
 
 CI ([`quality.yml`](../.github/workflows/quality.yml)) runs `validate` as parallel jobs, one per
 group of `scripts/validate-steps.ts` — `quick`, `typescript`, `native` (Clippy and the Rust tests),
