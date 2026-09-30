@@ -5,7 +5,7 @@ import { REFLECTION_PHASE_WGSL } from './hizTraceWgsl.ts';
 
 /** The weight a history stores at most: a bound on binary16 storage, never the window it keeps
  *  (`params.y`). At this scale binary16 has 1/32 weight spacing; RGB arithmetic remains binary32. */
-export const REFLECTION_HISTORY_WEIGHT = 64;
+const REFLECTION_HISTORY_WEIGHT = 64;
 /** Frames a still history accumulates before the image may rest (#1346), and the frames of its own
  *  filtered weight it keeps at most: the reference's rough reflections average about this many
  *  reprojected frames behind a spatial filter. A declared class 2 on reflective pixels, bounded

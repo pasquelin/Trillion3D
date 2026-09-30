@@ -5,7 +5,6 @@ import { wgslConstants } from '../texture/shaderRule.fixture.ts';
 import {
   REFLECTION_CHANGE_FRAMES,
   REFLECTION_CHANGE_KEPT,
-  REFLECTION_HISTORY_WEIGHT,
   REFLECTION_MOVING_KEPT,
   REFLECTION_RESOLVE_WGSL,
   REFLECTION_STILL_FRAMES,
@@ -20,6 +19,8 @@ test('the shipped resolve combines weighted radiance and preserves zero-weight s
   assert.deepEqual(f.resolve(), [10, 20, 30, 3]);
   f.samples.historyColor = [0, 0, 0, 0];
   assert.deepEqual(f.resolve(), [0, 0, 0, 0]);
+  // A cap past the stored bound: the weight stays within binary16's 64.
+  f.view.params[1] = 64;
   f.samples.historyColor = [32000, 32000, 32000, 64];
   f.samples.sampleColor = [64000, 64000, 64000, 1];
   const value = f.resolve();
@@ -92,7 +93,7 @@ test('a moved receiver keeps its history through the placement motion, its weigh
   f.motion[0] = new Mat([0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
   f.view.params[2] = 1;
   assert.deepEqual(f.resolve(), [8, 16, 24, 4]);
-  f.samples.historyColor = [10, 20, 30, REFLECTION_HISTORY_WEIGHT];
+  f.samples.historyColor = [10, 20, 30, REFLECTION_STILL_FRAMES];
   f.view.params[1] = REFLECTION_MOVING_KEPT;
   const moving = f.resolve();
   assert.equal(moving[3], REFLECTION_MOVING_KEPT + 1, 'the kept weight is the moving cap');
@@ -100,7 +101,7 @@ test('a moved receiver keeps its history through the placement motion, its weigh
 
 test('a changed source keeps its history at the change cap, never restarts from one sample', () => {
   const f = fixture();
-  f.samples.historyColor = [10, 20, 30, REFLECTION_HISTORY_WEIGHT];
+  f.samples.historyColor = [10, 20, 30, REFLECTION_STILL_FRAMES];
   f.view.params[1] = REFLECTION_CHANGE_KEPT;
   const share = 1 / (REFLECTION_CHANGE_KEPT + 1);
   assert.deepEqual(f.resolve(), [
