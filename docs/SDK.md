@@ -249,9 +249,10 @@ createWorld('viewer', { renderer: 'webgpu' }); // forced; a machine without it i
 createWorld('viewer', { renderer: 'webgl2' });
 ```
 
-Being served the other renderer silently is the one outcome this must never produce. Unforced,
-WebGPU draws when the machine grants a device, the engine's WebGL2 page path otherwise, and neither
-raises `EngineError('NO_ENGINE_BACKEND')` ([ENGINE.md](ENGINE.md#which-backend-renders)).
+Forcing one and being served the other silently is the one outcome this must never produce.
+Unforced, WebGPU draws when the machine grants a device, the engine's WebGL2 page path otherwise;
+granting neither raises `EngineError('NO_ENGINE_BACKEND')` (`NO_WEBGL2` from the capability probe
+before it) ([ENGINE.md](ENGINE.md#which-backend-renders)).
 
 ## Canvas, camera and teardown
 
@@ -276,8 +277,8 @@ fraction of the display drawn before temporal antialiasing rebuilds the image: `
 frame budget (the display's refresh interval) choose between 0.5 and 1, `{ min, max }` bounds it, a
 number fixes it; a still image is drawn at the maximum. A write applies next frame, no target remade
 by the controller; a read is the last image's scale. WebGL2, without history, resamples to the
-display (Lanczos-2): its `'auto'` holds 1, only a `{ min }` below 1 or a fixed scale drawing below
-(`temporal upscaling` unsupported).
+display (Lanczos-2): its `'auto'` holds 1, and only a `{ min }` below 1 or a fixed scale draws below the
+display (`temporal upscaling` unsupported).
 
 `world.effects` is the ordered chain of passes after temporal antialiasing, before the canvas, on
 both renderers. `effect.bloom({ intensity, radius })` is a physically based, energy-conserving glow
@@ -753,7 +754,8 @@ overcast sky) only `direction`, the propagation direction, refused with a `posit
 No bound on the count: a 16×16 screen tile lists up to 64 lights reaching it, past that exactly
 those reaching it from a pool sized from the view (#849); WebGL2 lights each fragment by the lights
 reaching its light-grid cell (#835). 64 shadow slices, past which a caster lights without a shadow
-(`shadowCastersUnsliced`); at most 24 shadow regions redrawn per frame. The shadow pool is sized at
+(`shadowCastersUnsliced`); every stale page the image reads is drawn in its frame, with no
+page cap ([SHADOWS.md](SHADOWS.md#when-a-page-is-stale-withdrawn-and-drawn)). The shadow pool is sized at
 the first casting frame from its screen and shadowed lights — layers of 128² pages as wide as the
 device draws, within the shadow share — and resized with the canvas, held pages kept (#1208).
 `metric.frame(world)` publishes `shadowPoolBytes`, `shadowPoolLayers` and the pressure
@@ -833,8 +835,7 @@ cast). Every light is declared, however many (`imported-lights` counts them), re
 
 **Memory budgets are fixed reservoirs, never read from the machine**: free memory changes every
 second (another application, another tab), so a budget measured at start-up would be wrong minutes
-later. The pools' mechanics are [RESIDENCY.md](RESIDENCY.md) and [ENGINE.md](ENGINE.md#memory);
-this is what a host sets and reads.
+later. The pools' mechanics are [RESIDENCY.md](RESIDENCY.md); this is what a host sets and reads.
 
 | Setting | Default | What it is |
 | --- | --- | --- |

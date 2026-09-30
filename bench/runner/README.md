@@ -150,8 +150,8 @@ In `--out` (gitignored, un-linted): `measure.json`, `resume.md`, and per view, t
 `.png`, `.coupe.txt` and a metrics line — `rafIntervalMs`, `cpuFrameMs`, `cpuSelectMs` p50/p95,
 `gpuFrameMs` p50 (WebGPU), selected and unrendered triangles, Hi-Z counters, selection hash, page
 budget, system load — plus the A/A check (a side run twice) and before/after delta per channel. A
-capture whose every pixel is RGB 0 is refused by file name (`black-capture` in `errors`, exit code
-1) and its deltas read "black capture", never 0 px: two black frames prove nothing (`imageDiff.ts`,
+capture whose every pixel is RGB 0 is refused by file name (`black-capture` in `errors`, exit
+code 1) and its deltas read "black capture", never 0 px: two black frames prove nothing (`imageDiff.ts`,
 #1016). `null` = unmeasured, never inferred; every launched task exits cleanly.
 
 ### Triangle and Fallback Counters

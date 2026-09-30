@@ -17,7 +17,8 @@ camera, the renderer and the loop.
 | [Engine internals](ENGINE.md) | How a world draws: backend choice, page raster, surfaces, TAA, lighting, bounce, memory, diagnostics, and the lighting target and its stages |
 | [Residency](RESIDENCY.md) | What stays in memory: the cut rule, the geometry pool, out-of-memory answers, coverage counters, virtual textures |
 | [Shadows](SHADOWS.md) | Virtual shadow pages: the pool, its memory, clipmaps, invalidation, the static and transmittance layers, metrics |
-| [Native compiler](COMPILER.md) | `trillion3d-compiler`: arguments, events, pointer, batch mode, cancellation, imports, input formats, adding a format, error codes |
+| [Native compiler](COMPILER.md) | `trillion3d-compiler`: arguments, events, pointer, batch mode, cancellation, imports, input formats, adding a format |
+| [Compiler error codes](COMPILER_ERRORS.md) | Every code the compiler reports, global and per driver |
 | [Cache format](FORMAT.md) | Pointer, `clusters.json` and its pages, cluster DAG, pages, textures, prepared scene tables |
 | [Package architecture](../packages/README.md) | What each package owns, the native library, release work still required |
 | [Tests and benchmarks](TESTS.md) | Test layout, GPU proofs, performance benchmarks, quality gates |

@@ -534,9 +534,8 @@ coverage counters. The page's side is [SDK.md, "Memory budgets"](SDK.md#memory-b
 
 ## Virtual textures
 
-Material textures are cut into 128×128 tiles in two fixed pools (512 MiB by default), resident only
-where the image reads them, uploaded within 16 MiB and 1.0 ms a frame, read from the levels the
-compiler baked, in block-compressed lanes: [RESIDENCY.md](RESIDENCY.md#virtual-textures).
+Material textures are tiled, pooled and resident only where the image reads them:
+[RESIDENCY.md](RESIDENCY.md#virtual-textures).
 
 ## Physics
 
