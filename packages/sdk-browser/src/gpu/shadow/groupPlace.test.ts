@@ -1,13 +1,19 @@
 // #1345: a moving group draws the restored sun pages of a pass in one block of the layer's, not in
 // each page's own viewport. A snapped sun corner carried onto the block by the shipped `groupPlace`
 // lands, after the rasterizer's f32 viewport, on the very window position its page's viewport gave
-// it: the grouped draws write the texels the one-page draws wrote, to the bit.
+// it, at the pool's resolution and at the transmittance layer's half: the grouped draws write the
+// texels the one-page draws wrote, to the bit. A lamp's page is carried onto its square of the
+// layer as the GPU's own pages are (`freshPlace`).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SHADOW_DEPTH_SHADER } from './shader.ts';
 import { shaderFunctions } from '../../texture/shaderRule.fixture.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { groupBlockSide } from '../../webgpu/shadow/movingGroupPlan.ts';
+import { shaderRun } from '../../texture/shaderRun.fixture.ts';
+import { GROUP_LAYER } from './groupWgsl.ts';
+import { MAX_SHADOW_REGIONS } from './recordPack.ts';
+import { GROUP_CAPACITY_WORD } from './batchBudget.ts';
 
 type Vec = { x: number; y: number; z: number; w: number };
 const f = Math.fround;
@@ -49,8 +55,40 @@ test("a sun corner carried onto its group's block lands where its page's viewpor
       assert.equal(windowX(q.x, at.x, block / 2), windowX(p.x, first.x, half), `x at ${page}`);
       assert.equal(windowY(q.y, at.y, block / 2), windowY(p.y, first.y, half), `y at ${page}`);
       assert.deepEqual([q.z, q.w], [p.z, p.w], 'depth untouched');
+      // The transmittance layer's pass draws both at half: every term halves, exactly.
+      const halfX = [windowX(q.x, at.x / 2, block / 4), windowX(p.x, first.x / 2, half / 2)];
+      assert.equal(halfX[0], halfX[1], `x at half, at ${page}`);
+      assert.equal(windowY(q.y, at.y / 2, block / 4), windowY(p.y, first.y / 2, half / 2));
       checked++;
     }
   }
   assert.equal(checked, 20000);
+});
+
+test("a lamp page's corner is carried onto its square of the layer, as the GPU's pages are", () => {
+  // One group of lamp pages (`GROUP_LAYER`), its one pair, region 0's third row.
+  const table = new Uint32Array(MAX_SHADOW_REGIONS + 4 + GROUP_CAPACITY_WORD);
+  table.set([0, 1, GROUP_LAYER], MAX_SHADOW_REGIONS);
+  table[GROUP_CAPACITY_WORD] = 4;
+  const [x, y, sx, sy] = [-0.25, 0.5, 0.125, 0.125],
+    view = { params: [0, 0, 1, SHADOW_PAGE] },
+    groupViews = [{ view, rect: [x, y, sx, sy] }];
+  const { groupCaster } = shaderRun<{
+    groupCaster: (v: number, i: number, cutout: boolean, blend: boolean) => { position: number[] };
+  }>(SHADOW_DEPTH_SHADER, ['groupCaster', 'freshPlace'], {
+    ...{ groupTable: table, groupPairs: [2], groupViews, groupInstances: [0, 0, 9] },
+    FreshView: (v: object, rect: number[]) => ({ view: v, rect }),
+    // The clip square's corners, at a perspective w of 3.
+    shadowVertexIn: (_: object, corner: number) => ({
+      position: [corner & 1 ? 3 : -3, corner & 2 ? 3 : -3, 1.5, 3],
+    }),
+  });
+  for (let corner = 0; corner < 4; corner++) {
+    const [px, py, pz, pw] = groupCaster(corner, 0, false, false).position;
+    assert.deepEqual(
+      [px / pw, py / pw, pz, pw],
+      [(corner & 1 ? 1 : -1) * sx + x, (corner & 2 ? 1 : -1) * sy + y, 1.5, 3],
+      'the page quad corner (`page_quad_vs`), depth and w untouched',
+    );
+  }
 });
