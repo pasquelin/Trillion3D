@@ -14,7 +14,7 @@ import {
   type VisPage,
 } from './types.ts';
 import type { EngineCamera } from '../camera/world.ts';
-import { rootOf, type Placements } from '../page/selection/placements.ts';
+import { locationOf, type PageLocations } from '../page/selection/placements.ts';
 import type { HostAttributes } from '../host/resources.ts';
 import { DEFAULT_PIXEL_RATIO } from '../backend/common.ts';
 
@@ -121,7 +121,7 @@ function fillIds(
  *  widened at `pixelRatio` image pixels per CSS pixel, as the GPU rasters widen them. */
 export function rasterVisibility(
   pages: VisPage[],
-  roots: Placements,
+  locations: PageLocations,
   cam: EngineCamera,
   viewport: [number, number],
   pixelRatio = DEFAULT_PIXEL_RATIO,
@@ -143,7 +143,7 @@ export function rasterVisibility(
     // `visBin` does for WebGPU pipelines and Three for WebGL (`frontFaceCW`). Without this
     // flip, this rasterizer drew under reflection exactly the faces that cone rejection
     // drops — and its own shading (`visibilityLighting`) already flipped the sign.
-    const world = rootOf(roots, page).world,
+    const world = locationOf(locations, pageIndex).world,
       positif = (side === 'back') !== matrixWindingCw(world.elements);
     const transformed = !!mat.map && uvTransformed(mat.map.transform);
     // Vertex colours tint, and cut, only where the material asks, as the GPU rows do.
@@ -164,10 +164,10 @@ export function rasterVisibility(
 
 export function rasterVisibilityIds(
   pages: VisPage[],
-  roots: Placements,
+  locations: PageLocations,
   cam: EngineCamera,
   viewport: [number, number],
   pixelRatio = DEFAULT_PIXEL_RATIO,
 ) {
-  return rasterVisibility(pages, roots, cam, viewport, pixelRatio).ids;
+  return rasterVisibility(pages, locations, cam, viewport, pixelRatio).ids;
 }

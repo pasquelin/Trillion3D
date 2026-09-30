@@ -64,7 +64,7 @@ test('visSlotPipeline and visPipelineFor route a coplanar-layer slot to its own 
     depthLayer: 1,
   } as unknown as PageRec;
   assert.equal(
-    visPipelineFor(rt, rec),
+    visPipelineFor(rt, rec, 0),
     pipelines[0],
     'a layered cluster draws through its layer pipeline, not the base one',
   );

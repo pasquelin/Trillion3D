@@ -12,5 +12,5 @@ export const coverageWatcher =
   (page: number) => {
     pending.touch(page);
     const rec = recordOf(page);
-    if (rec) held.moved(rec);
+    if (rec) held.moved(page, rec);
   };
