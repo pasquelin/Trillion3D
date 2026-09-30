@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { EXPLORER_SWITCHES, explorerSwitch, type ExplorerSwitch } from './explorerSwitches.ts';
+import { explorerSwitch } from './explorerSwitches.ts';
+import { EXPLORER_SWITCH_NAMES } from './explorerSwitches.fixture.ts';
 
 test('a switch keeps its default when left out, and the boolean opposite to it moves it', () => {
-  for (const key of Object.keys(EXPLORER_SWITCHES) as ExplorerSwitch[]) {
+  for (const key of EXPLORER_SWITCH_NAMES) {
     const fallback = explorerSwitch({}, key);
     for (const same of [undefined, null, fallback])
       assert.equal(explorerSwitch({ [key]: same as never }, key), fallback, `${key}: ${same}`);
