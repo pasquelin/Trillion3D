@@ -11,8 +11,11 @@ const markdown = /\.md$/;
 // The notices ship in the package (`package.json` `files`): code, not documentation.
 const packaged = /^THIRD_PARTY_NOTICES\.md$/;
 const translation = /^site\/(?:content\/|examples\/)?i18n\/[^/]+\.json$/;
-// Images outside the trees whose tests and fixtures read them.
-const siteImage = /^(?!tests\/|bench\/|packages\/).*\.(?:png|jpe?g|gif|webp|avif|svg)$/i;
+// Images outside the trees whose tests and fixtures read them, and outside the scene sources and
+// models the compiler cooks (`site/assets/examples/<scene>/source/`, `…/models/`), which the Rust
+// tests and the scene caches read.
+const siteImage =
+  /^(?!tests\/|bench\/|packages\/|site\/assets\/.*\/(?:source|models)\/).*\.(?:png|jpe?g|gif|webp|avif|svg)$/i;
 
 /** Whether `file` is documentation, a site image or a translation, which only the tests of
  *  `scripts/docs-tests.ts` read. */

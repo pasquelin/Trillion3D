@@ -30,12 +30,13 @@ export function existingChangedFiles(changed: Iterable<string>, root = process.c
 
 async function main(): Promise<void> {
   const base = process.env.TRILLION3D_BASE_REF ?? 'develop';
-  const changed = new Set([
-    ...(await gitPaths(['diff', '--name-only', '-z', base, '--'])),
-    ...(await gitPaths(['ls-files', '--others', '--exclude-standard', '-z'])),
+  const [diff, untracked, paths] = await Promise.all([
+    gitPaths(['diff', '--name-only', '-z', base, '--']),
+    gitPaths(['ls-files', '--others', '--exclude-standard', '-z']),
+    gitPaths(['ls-files', '-z']),
   ]);
+  const changed = new Set([...diff, ...untracked]);
   const existing = existingChangedFiles(changed);
-  const paths = await gitPaths(['ls-files', '-z']);
   const code = isCodeChange([...changed]);
   const files = new Map(
     [...new Set([...paths, ...existing])]
