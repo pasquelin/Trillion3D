@@ -50,14 +50,14 @@ when no issue carries `to audit`, `to measure`, `audit ko` or `measure ko`: its 
 request as CONTRIBUTING.md says; label its issue `to measure`: the recette runs its full campaign;
 it may stay open past the hour.
 
-| Label                       | Means                                         |
-| --------------------------- | --------------------------------------------- |
-| `🔴 critical` … `🟢 low`    | priority                                      |
-| `in progress`               | claimed, with an assignee                     |
-| `in review`                 | branch pushed, reviewer at work               |
-| `to audit` / `to measure`   | merged, waiting for the recette               |
-| `measuring`                 | the recette is timing it                      |
-| `audited` / `audit ko`      | image proved / not (findings in a comment)    |
+| Label | Means |
+| --- | --- |
+| `🔴 critical` … `🟢 low` | priority |
+| `in progress` | claimed, with an assignee |
+| `in review` | branch pushed, reviewer at work |
+| `to audit` / `to measure` | merged, waiting for the recette |
+| `measuring` | the recette is timing it |
+| `audited` / `audit ko` | image proved / not (findings in a comment) |
 | `measure ok` / `measure ko` | timing passed / failed (numbers in a comment) |
 
 A ko comment starts with its cause: promise, tests, paperwork or design. A regression found after a
