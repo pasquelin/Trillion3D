@@ -1,7 +1,7 @@
 // Light evaluations per covered pixel of a MOVING image (#1249): the shipped `contractLighting`,
 // run as JavaScript on each pixel's cell list as the light grid's oracle builds it
 // (`lightGridWalk.ts`), its shadow flag the count's high bit the pass sets once, never a per-pixel
-// walk. COUNTED, never timed. A full sum walks its `L` lights once; `sampledTileLighting` walks a list of
+// walk. COUNTED, never timed. A full sum walks its `L` lights once; `sampledSliceLighting` walks a list of
 // `LIGHT_SAMPLES` to `TILE_LIGHTS` lights twice — its two `lightWeight` loops (#1369) — then
 // shades `LIGHT_SAMPLES` of them: `2·L + LIGHT_SAMPLES`.
 //

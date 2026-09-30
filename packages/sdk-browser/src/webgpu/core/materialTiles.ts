@@ -12,7 +12,7 @@ import { createWebgpuBindIdentity } from './bindIdentity.ts';
 /** Label of the classification pass (`materialTilesWgsl.ts`). */
 export const MATERIAL_TILES_PASS = 'Trillion3D material tiles';
 /** Tiles on one axis of `pixels`: `materialTilesX`'s count (`materialTilesWgsl.ts`). */
-const materialTilesOn = (pixels: number) => Math.ceil(pixels / MATERIAL_TILE_SIZE);
+export const materialTilesOn = (pixels: number) => Math.ceil(pixels / MATERIAL_TILE_SIZE);
 /** Bytes of one class's indirect draw: vertex count, instance count, first vertex, first instance. */
 const DRAW_BYTES = 16;
 

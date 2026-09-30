@@ -6,7 +6,7 @@ const atOrigin = new Float64Array(16);
  * the shader subtracts from a light's centre, and `out` the f64 inverse of `viewProjection ·
  * T(origin)` — the jittered render matrix, not the camera's `viewProjectionRelative`. `rows`, when
  * given, receives that matrix's depth row then its w row: what gives a point of the frame its depth
- * (`sliceSpan`, `./boundsWgsl.ts`).
+ * (`depthAt` and `lightRun`, `./boundsWgsl.ts`).
  */
 export function tileViewInverse(
   out: Float64Array,
