@@ -22,7 +22,6 @@ const SAMPLE_PIXEL = [1.5, 2.5];
 
 export const narrowResolveHarness = (narrow: boolean, shadowed = true) => `
 ${VIEW_WGSL}
-@group(0) @binding(4) var depth:texture_depth_2d;
 @group(0) @binding(5) var<uniform> view:View;
 ${CONTRACT_BINDINGS_WGSL}
 ${STANDARD_LIGHTING_WGSL}

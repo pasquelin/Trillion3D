@@ -18,15 +18,14 @@ test('the atrium is ray-cast with near and far surfaces, most of the view covere
   assert.ok(covered > 0.6 * depths.length && covered < depths.length, `${covered} covered`);
 });
 
-test('an unshadowed moving pixel walks its cluster, at most its tile list', () => {
+test('an unshadowed moving list costs its length, not three walks and four shades', () => {
   const s = countSampled(
     view,
     depths,
     lights,
     lights.map(() => -1),
   );
-  assert.ok(s.moving < s.list, 'the slice walks fewer lights than the tile list');
-  assert.ok(s.shaded < s.moving, 'and shades only those in range');
+  assert.equal(s.moving, s.list, 'L evaluations a pixel');
   assert.ok(s.develop > 2.5 * s.list, `develop drew: ${s.develop} for ${s.list}`);
 });
 
@@ -38,8 +37,7 @@ test('a list with a shadowed light is drawn as before, the others summed in full
     lights,
     lights.map(() => -0.5),
   );
-  // Every list shadowed: a list of 5 to 64 is drawn as before; the others walk their slice.
-  assert.ok(all.moving > all.list && all.moving <= all.develop, 'the drawn resolve, unchanged');
+  assert.equal(all.moving, all.develop, 'every list shadowed: the drawn resolve, unchanged');
   const one = countSampled(
     view,
     depths,

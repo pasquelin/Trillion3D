@@ -1,10 +1,8 @@
 /**
  * Page side of the narrow resolve probe (#849): each scene's lights go through the engine's light
  * store and buffer, its view through the deferred view uniform, its shadows through the deferred
- * pass's substitutes; each tile record is bound as the resolve's `tileLights`, its light grid off
- * (full slice masks, as the tile pass leaves a tile it keeps whole: the lists are what the probes
- * prove, the grid is `clusterResolve.test.ts`'s, #1249), and the sums the shipped resolve
- * (`narrowResolveHarness.ts`) writes are read back as bits.
+ * pass's substitutes; each tile record is bound as the resolve's `tileLights`, and the sums the
+ * shipped resolve (`narrowResolveHarness.ts`) writes are read back as bits.
  */
 import { createSceneLightStore, type SceneLight } from '../../../packages/sdk-core/src/index.ts';
 import {
@@ -29,19 +27,11 @@ import {
   narrowResolveHarness,
 } from './narrowResolveHarness.ts';
 import { openGpuDevice } from './webgpuDevice.ts';
-import { wgslConstants } from '../../../packages/sdk-browser/src/texture/shaderRule.fixture.ts';
 import { SHADING_OFFSET_BINDING } from '../../../packages/sdk-browser/src/visibility/shader/shadingPoint.ts';
 import { SUBSURFACE_BINDING } from '../../../packages/sdk-browser/src/scene/subsurface.ts';
 
 /** The resolve's bindings the harness never reads: the shading offsets and the subsurface. */
 const UNREAD = [SHADING_OFFSET_BINDING, SUBSURFACE_BINDING];
-const GRID = wgslConstants(narrowResolveHarness(false));
-/** The record with its grid off: every slice mask full. */
-const gridOff = (words: number[]) => {
-  const record = new Uint32Array(words);
-  record.fill(0xffffffff, GRID.TILE_CLUSTER_BASE, GRID.TILE_CLUSTER_BASE + 2 * GRID.CLUSTER_SLICES);
-  return record;
-};
 
 /** A tile record — its two counts, its lists, the pool after them — and the resolve reading it:
  *  \`contractLighting\`, or with \`drawn\` \`sampledTileLighting\` alone. */
@@ -81,17 +71,11 @@ export async function run(scenes: ResolveScene[]) {
   const { device } = opened;
   const placeholders = createDeferredPlaceholders(device);
   const view = createDeferredView(device);
-  // The pixel's depth the grid reads: any, its masks full.
-  const depth = device.createTexture({
-    size: [16, 16],
-    format: 'depth32float',
-    usage: GPUTextureUsage.TEXTURE_BINDING,
-  });
   // The resolve's own layout past the surfaces, seen by a compute stage, and the probe's two.
   const layout = device.createBindGroupLayout({
     entries: [
       ...deferredLayoutEntries(true)
-        .filter(({ binding }) => binding >= 4 && !UNREAD.includes(binding))
+        .filter(({ binding }) => binding >= 5 && !UNREAD.includes(binding))
         .map((entry) => ({ ...entry, visibility: GPUShaderStage.COMPUTE })),
       {
         binding: SAMPLES_BINDING,
@@ -144,10 +128,9 @@ export async function run(scenes: ResolveScene[]) {
         `${record.narrow}${!!record.unshadowed}${record.drawn ? 'drawn' : 'main'}`,
       );
       if (!pipeline) continue;
-      const tiles = storage(device, gridOff(record.words));
+      const tiles = storage(device, new Uint32Array(record.words));
       const sums = storage(device, new Uint32Array(count * 4), true);
       const entries: GPUBindGroupEntry[] = [
-        { binding: 4, resource: depth.createView() },
         { binding: 5, resource: { buffer: view.buffer } },
         { binding: 6, resource: { buffer: lights.buffer } },
         { binding: 7, resource: { buffer: tiles } },
@@ -182,7 +165,6 @@ export async function run(scenes: ResolveScene[]) {
   }
   placeholders.dispose();
   view.dispose();
-  depth.destroy();
   const adapter = (await opened.fermer()).court;
   return { adapter, errors: [...opened.erreurs, ...compilation], runs };
 }
