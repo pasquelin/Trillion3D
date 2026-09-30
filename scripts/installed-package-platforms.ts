@@ -36,7 +36,9 @@ export function packPlatformArchives(options: {
       copyFileSync(binary, join(copy, 'bin', compilerFileName(process.platform)));
     const archive = packArchive(run, pnpm, copy, fixture).filename;
     const [platform, arch] = target.split('-');
-    return [compilerPackage(platform, arch), archive];
+    const name = compilerPackage(platform, arch);
+    if (!name) throw new Error(`${target}: no compiler package`);
+    return [name, archive];
   });
 }
 
