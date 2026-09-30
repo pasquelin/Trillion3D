@@ -1,0 +1,102 @@
+name: Release
+
+# The npm release (#1354): a release pull request merged into `main` builds the five compilers
+# (`compiler.yml`), packs them with `trillion3d` at one version (`scripts/release.ts pack`), proves
+# those very archives installed on macOS, Linux and Windows (`scripts/prove-installed-package.ts
+# --archives`: the package installed, `trillion3d-compile` run from its platform package on the
+# fixture, the browser bundle emitted), then dry-runs the six publications, the compilers first and
+# `trillion3d` last. A missing compiler, a failed proof or a version already published stops the
+# run before any publication.
+#
+# Nothing is published until the maintainer's go: the real publication runs only on `main`, with the
+# repository variable `NPM_PUBLISH` set to `true`. It uses npm Trusted Publishing — GitHub's OIDC
+# token (`id-token: write`) with provenance — so no npm token exists in the repository, its secrets
+# or a log. A pull request runs this workflow only when it changes the release itself; the proof on
+# every other pull request stays Linux's, in `quality.yml`.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - .github/workflows/release.yml
+      - scripts/release*.ts
+  workflow_dispatch:
+
+concurrency:
+  group: npm-release-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  compilers:
+    uses: ./.github/workflows/compiler.yml
+
+  pack:
+    needs: compilers
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    outputs:
+      publish: ${{ steps.switch.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/node
+      # The switch, read once: only a push to `main` with `NPM_PUBLISH` on publishes.
+      - id: switch
+        env:
+          PUBLISH: >-
+            ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' &&
+            vars.NPM_PUBLISH == 'true' }}
+        run: echo "publish=$PUBLISH" >> "$GITHUB_OUTPUT"
+      # Each lands in `packages/compiler/<os>-<arch>/bin/`, without its execute bit, which the pack
+      # restores; a platform missing stops the pack.
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: compiler-*
+          merge-multiple: true
+      - run: pnpm run build
+      - run: node scripts/release.ts pack release ${{ steps.switch.outputs.publish == 'true' && '--publishable' || '' }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: release/
+          if-no-files-found: error
+          retention-days: 7
+
+  proof:
+    needs: pack
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-14, ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/node
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: release
+      - run: node scripts/prove-installed-package.ts --bundle --archives release
+        shell: bash
+
+  publish:
+    needs: [pack, proof]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/node
+      # Trusted Publishing needs npm 11.5.1 or newer; Node 22.18 ships npm 10.
+      - run: npm install --global npm@11
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: release
+      - run: node scripts/release.ts publish release ${{ needs.pack.outputs.publish == 'true' && '--publish' || '' }}
