@@ -20,12 +20,10 @@ import { SUN_WINDOW, shadowTableEntries } from './virtual.ts';
 export type ShadowPlan = ReturnType<typeof createShadowPlan>;
 
 /**
- * The shadow scheduler of the virtual maps. The shading records the pages it reads; their
- * report, read back frames later, allocates what is missing from the fixed pool. What moved stales
- * the mapped pages it covers. A frame then draws every stale page the image reads, all of them in
- * that frame (`admit.ts`): what holds the cost is the cache — a page is drawn again only when what
- * it holds changed —, and the pool is the only limit. A still scene, whose shading runs no more,
- * asks for nothing and draws nothing. All arrays are allocated once; `plan()` allocates nothing.
+ * The shadow scheduler of the virtual maps. The shading records the pages it reads; their report, read back frames later, allocates what is
+ * missing from the fixed pool. What moved stales the mapped pages it covers. A frame then draws every stale page the image reads, all of them
+ * in that frame (`admit.ts`): what holds the cost is the cache — a page is drawn again only when what it holds changed —, and the pool is the
+ * only limit. A still scene, whose shading runs no more, asks for nothing and draws nothing. All arrays are allocated once; `plan()` allocates nothing.
  */
 export function createShadowPlan(poolSide: number, layers = 1, sunWindow = SUN_WINDOW) {
   const pool = createShadowPool(poolSide, layers, shadowTableEntries(sunWindow)),
