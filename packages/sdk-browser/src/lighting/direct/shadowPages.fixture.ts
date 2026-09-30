@@ -22,13 +22,13 @@ export const SPLIT = [
   ' let step=vec2i(shadowPcfStep(t.x,first.x),shadowPcfStep(t.y,first.y));',
   ' let up=step>vec2i(0);',
   ' let h=clamp(at,first+0.5,first+SHADOW_PAGE-0.5);',
-  ' let n=select(min(at,seam-0.5),max(at,seam+0.5),up);',
+  ' let beyond=select(min(at,seam-0.5),max(at,seam+0.5),up);',
   ' let w=saturate(0.5+(seam-at)*toward);',
   ' var sum=w.x*w.y*shadowCompare(offset,h,reference);',
   ' if(word==0u||((word^homeWord)>>PAGE_RANGE_SHIFT)!=0u){return vec4f(home,0.0);}',
-  ' if(edge.x){sum+=(1.0-w.x)*w.y*shadowCompare(nx.xyz,vec2f(select(h.x,n.x,nx.w>0.0),h.y),reference);}',
-  ' if(edge.y){sum+=w.x*(1.0-w.y)*shadowCompare(ny.xyz,vec2f(h.x,select(h.y,n.y,ny.w>0.0)),reference);}',
-  ' if(all(edge)){sum+=(1.0-w.x)*(1.0-w.y)*shadowCompare(nd.xyz,select(h,n,nd.w>0.0),reference);}',
+  ' if(edge.x){sum+=(1.0-w.x)*w.y*shadowCompare(n.x.xyz,vec2f(select(h.x,beyond.x,n.x.w>0.0),h.y),reference);}',
+  ' if(edge.y){sum+=w.x*(1.0-w.y)*shadowCompare(n.y.xyz,vec2f(h.x,select(h.y,beyond.y,n.y.w>0.0)),reference);}',
+  ' if(all(edge)){sum+=(1.0-w.x)*(1.0-w.y)*shadowCompare(n.d.xyz,select(h,beyond,n.d.w>0.0),reference);}',
 ];
 
 /**
