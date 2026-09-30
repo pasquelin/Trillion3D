@@ -2883,12 +2883,12 @@
     },
     {
       "id": "T3D-E089",
-      "code": "CUTOUT_PREVIEW_UNSUPPORTED",
+      "code": "PNG_UNSUPPORTED",
       "level": "error",
       "group": "Node adapter and CLI",
-      "message": "A cutout preview image is not a whole 8-bit RGBA PNG.",
-      "cause": "The Node adapter's PNG reader reads 8-bit RGBA, non-interlaced PNG files only.",
-      "action": "Delete the cache folder's cutout previews and compile again."
+      "message": "A PNG image is not a whole 8-bit RGBA, non-interlaced file.",
+      "cause": "The Node adapter's PNG reader (cutout previews, reference images) reads 8-bit RGBA, non-interlaced PNG files only, every row present.",
+      "action": "Save the image again as 8-bit RGBA without interlacing; for a cutout preview, delete the cache folder's cutout previews and compile again."
     }
   ]
 }
