@@ -35,7 +35,7 @@ export function createWebgpuRowSlots(
   rows: Rows,
   packedPages: PageRec[],
   writePageRow: Writer,
-  onResidenceChange: (rec: PageRec) => void,
+  onResidenceChange: (rec: PageRec, page: number) => void,
 ) {
   /** A packed rank back to its record: the one catalogue accessor (`../pages/prepare/catalogue.ts`). */
   const { recordOf } = createPageCatalogue(packedPages);
@@ -76,7 +76,7 @@ export function createWebgpuRowSlots(
     const rec = recordOf(page)!;
     rows.residentFlags[page] = value;
     rows.noteResidencyChange(page);
-    onResidenceChange(rec);
+    onResidenceChange(rec, page);
     if (!rec.transparent) candidates += resident ? 1 : -1;
   };
 

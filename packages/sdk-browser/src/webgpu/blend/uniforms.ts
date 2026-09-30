@@ -122,6 +122,7 @@ export function writeBlendView(rt: WebgpuPagesRuntime, device: GPUDevice) {
     blendState,
     rt.layout.packedPages,
     rt.layout.selectionRoots,
+    rt.layout.placement.rootOfPacked,
     diagnostic,
     eye && run.gate.cam,
     viewport,
