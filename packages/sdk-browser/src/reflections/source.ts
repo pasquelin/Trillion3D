@@ -1,6 +1,7 @@
 import { writeReprojection } from '../taa/view.ts';
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts';
 import { REFLECTION_SOURCE_VIEW_BYTES, reflectionSourceLayout } from './sourceWgsl.ts';
+import { REFLECTION_PLACEMENT_VERSIONS, sameVersions } from './historyFrame.ts';
 
 /** The last unfogged image (8 bytes), and the last depth and identifiers (4 each) the history
  *  resolve reads too; the reprojected source itself (8) is `gpu.ts`'s. */
@@ -17,7 +18,7 @@ export interface ReflectionSourceInputs {
   motion: GPUBuffer;
   eye: ArrayLike<number>;
   metadata: { depth: GPUTexture; ids: GPUTexture };
-  placement: string;
+  placement: Float64Array;
 }
 
 /** The reprojection of the last lit image over targets of `width × height`: the unfogged image the
@@ -56,10 +57,11 @@ export function createReflectionSource(
     const sampler = device.createSampler({ magFilter: 'linear', minFilter: 'linear' });
     const packed = new Float32Array(REFLECTION_SOURCE_VIEW_BYTES / 4),
       last = new Float64Array(16),
-      lastDrawn = [0, 0];
+      lastDrawn = [0, 0],
+      placement = new Float64Array(REFLECTION_PLACEMENT_VERSIONS);
     const identity = createWebgpuBindIdentity();
     let kept = false,
-      placement: string | undefined,
+      placed = false,
       current: ReflectionSourceInputs | undefined,
       group: GPUBindGroup | undefined;
     return {
@@ -97,14 +99,15 @@ export function createReflectionSource(
           const live = inputs.motion !== inputs.pages;
           writeReprojection(packed, last, matrix, inputs.eye, drawn);
           packed[36] = kept ? 1 : 0;
-          packed[37] = !live && placement !== undefined && placement !== inputs.placement ? 1 : 0;
+          packed[37] = !live && placed && !sameVersions(placement, inputs.placement) ? 1 : 0;
           packed[38] = live ? 1 : 0;
           packed[40] = lastDrawn[0];
           packed[41] = lastDrawn[1];
           packed[42] = 1 / width;
           packed[43] = 1 / height;
           device.queue.writeBuffer(heldUniform, 0, packed);
-          placement = inputs.placement;
+          placement.set(inputs.placement);
+          placed = true;
           // Without inputs no source is drawn (`encode.ts`): nothing reads the uniform.
         } else group = undefined;
         last.set(matrix);

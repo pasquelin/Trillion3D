@@ -152,8 +152,7 @@ export interface BackendContext {
    *  always fits, the rest draws coarser when it does not fit, image targets follow resolution.
    *  The ceiling: the largest pool `setMemoryBudgets` may ask for; per-page tables start there. */
   geometryPoolBytes?: number;
-  /** Admit active allocations through the owning world's one global budget. */
-  admitGpuMemory?: AdmitGpuMemory;
+  admitGpuMemory?: AdmitGpuMemory; // active allocations through the world's one global budget
   geometryPoolCeilingBytes?: number;
   /** Virtual-texture pool bytes, shared by the colour and data atlases; 512 MiB by default. A view
    *  beyond it waits; `textureCompression`: the block family, `'auto'` what the device samples. */
@@ -165,6 +164,7 @@ export interface BackendContext {
   renderScale?: import('../frame/renderScaleOption.ts').RenderScale;
   /** A reference session's raised sun window, pages a side (`frame/referenceMode.ts`). */
   sunWindow?: number;
+  unboundedReflections?: boolean; // a reference session's rough trace (`reflectionTrace`, #33)
   /** The world's effect chain, drawn after temporal antialiasing; absent or empty, nothing is. */
   effects?: import('../../../sdk-core/src/world/effect/chain.ts').EffectChain;
   sceneLighting?: Object3D;

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts';
 import { createReflectionSource, type ReflectionSourceInputs } from './source.ts';
+import { REFLECTION_PLACEMENT_VERSIONS } from './historyFrame.ts';
 
 function inputsOf(motion = {} as GPUBuffer): ReflectionSourceInputs {
   return {
@@ -11,7 +12,7 @@ function inputsOf(motion = {} as GPUBuffer): ReflectionSourceInputs {
     motion,
     eye: [1, 2, 3],
     metadata: { depth: {} as GPUTexture, ids: {} as GPUTexture },
-    placement: 'still',
+    placement: new Float64Array(REFLECTION_PLACEMENT_VERSIONS),
   };
 }
 
@@ -66,11 +67,11 @@ test('a placement moved without live motion asks the triangle check; live motion
   source.update(IDENTITY_MATRIX4, [8, 8], still);
   source.update(IDENTITY_MATRIX4, [8, 8], still);
   assert.equal(check(), 0, 'nothing moved');
-  still.placement = 'turned';
+  still.placement[0]++;
   source.update(IDENTITY_MATRIX4, [8, 8], still);
   assert.equal(check(), 1);
   const live = inputsOf();
-  live.placement = 'turned-again';
+  live.placement[0] += 2;
   source.update(IDENTITY_MATRIX4, [8, 8], live);
   assert.equal(check(), 0, 'live motion brings the mover back itself');
   source.dispose();

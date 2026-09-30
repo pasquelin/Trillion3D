@@ -85,6 +85,7 @@ function reflectionVariants() {
         if (subgroup) shader = withSubgroupShadowRequests(shader);
         const key = `REFLECTION_${bounce ? 'BOUNCE' : 'DIRECT'}_${narrow ? 'NARROW' : 'WIDE'}_${subgroup ? 'SUBGROUP' : 'PLAIN'}`;
         variants[`${key}_TRACE`] = stochasticReflectionShader(shader);
+        variants[`${key}_TRACE_REFERENCE`] = stochasticReflectionShader(shader, true);
         variants[`${key}_HISTORY_COMPOSE`] = withReflectionSourceOutput(
           withScreenReflections(shader, true),
         );

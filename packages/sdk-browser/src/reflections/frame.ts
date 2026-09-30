@@ -1,7 +1,7 @@
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import { liveMotion, placementEpoch, reflectionFrame } from './reflectionFrame.ts';
 import type { ReflectionSourceInputs } from './source.ts';
-import type { ReflectionHistoryFrame } from './historyRuntime.ts';
+import type { ReflectionHistoryFrame } from './historyFrame.ts';
 
 const sources = new WeakMap<object, ReflectionSourceInputs>();
 
@@ -30,7 +30,7 @@ function reflectionSourceInputs(rt: WebgpuPagesRuntime, frame?: ReflectionHistor
   if (!vis.visView || !vis.visTexture || !vis.pageTable) return undefined;
   let inputs = sources.get(gpu.reflection);
   if (!inputs) {
-    inputs = { metadata: {} } as ReflectionSourceInputs;
+    inputs = { metadata: {}, placement: placementEpoch(rt) } as ReflectionSourceInputs;
     sources.set(gpu.reflection, inputs);
   }
   inputs.ids = vis.visView;
@@ -39,6 +39,6 @@ function reflectionSourceInputs(rt: WebgpuPagesRuntime, frame?: ReflectionHistor
   inputs.eye = run.gate.cam.eye;
   inputs.metadata.depth = gpu.depthTexture;
   inputs.metadata.ids = vis.visTexture;
-  inputs.placement = frame?.epoch ?? placementEpoch(rt);
+  inputs.placement = frame?.epoch ?? placementEpoch(rt, inputs.placement);
   return inputs;
 }

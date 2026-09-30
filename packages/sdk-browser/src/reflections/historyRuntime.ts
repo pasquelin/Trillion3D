@@ -1,34 +1,19 @@
 import { writeReprojection } from '../taa/view.ts';
+import { createReflectionHistoryTargets, type ReflectionPrevious } from './historyTargets.ts';
 import {
-  createReflectionHistoryTargets,
-  type ReflectionMetadata,
-  type ReflectionPrevious,
-} from './historyTargets.ts';
-import {
+  REFLECTION_CHANGE_FRAMES,
   REFLECTION_RESOLVE_VIEW_BYTES,
   REFLECTION_HISTORY_WEIGHT,
-  REFLECTION_MOVING_WEIGHT,
 } from './resolveWgsl.ts';
+import {
+  historyConfidence,
+  sameVersions,
+  REFLECTION_LIGHTING_VERSIONS,
+  REFLECTION_PLACEMENT_VERSIONS,
+  type ReflectionHistoryFrame,
+} from './historyFrame.ts';
 import { sameElements } from '../math/matrixElements.ts';
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts';
-
-export interface ReflectionHistoryFrame {
-  metadata: ReflectionMetadata;
-  pages: GPUBuffer;
-  /** The temporal pass's placement motion (`liveMotion`), live this image unless it is `pages`:
-   *  a moved source is then reprojected, never a reason to reset. */
-  motion: GPUBuffer;
-  /** The render origin the motion is written at, where both matrices are anchored. */
-  eye: ArrayLike<number>;
-  /** What placed the reflected points (`reflectionFrame.ts`): its change is followed. */
-  epoch: string;
-  /** What lit them, lights and materials: its change resets the history. */
-  lighting: string;
-  seed: number;
-  frame: number;
-  /** Unjittered camera; jitter must not reopen a completed filter window. */
-  camera: ArrayLike<number>;
-}
 
 /** Owns only the reflection mean and its metadata; placement data remains shared.
  * A repeated frame with unchanged sources reuses its resolved result, rather than
@@ -54,14 +39,18 @@ export function createReflectionHistory(
   const packed = new Float32Array(40);
   const previous = new Float64Array(16),
     camera = new Float64Array(16);
-  let epoch = '',
-    lighting = '',
-    frame = -1,
+  const epoch = new Float64Array(REFLECTION_PLACEMENT_VERSIONS).fill(NaN),
+    lighting = new Float64Array(REFLECTION_LIGHTING_VERSIONS).fill(NaN);
+  let frame = -1,
     written = false,
     rank = 0,
     reuse = false,
     disposed = false;
-  let stableFrames = 0;
+  let stableFrames = 0,
+    sinceChange = Infinity; // frames resolved since a source changed; none: Infinity
+  const complete = () =>
+    stableFrames >= REFLECTION_HISTORY_WEIGHT &&
+    sinceChange >= REFLECTION_CHANGE_FRAMES + REFLECTION_HISTORY_WEIGHT;
   let drawnWidth = width,
     drawnHeight = height;
   let current: ReflectionHistoryFrame | undefined;
@@ -81,25 +70,27 @@ export function createReflectionHistory(
     get reuse() {
       return reuse;
     },
-    /** The stationary filter window is complete; a new jitter still needs reprojection. */
+    /** The stationary filter window is complete, and no stale share of a changed source remains;
+     *  a new jitter still needs reprojection. */
     get settled() {
-      return stableFrames >= REFLECTION_HISTORY_WEIGHT;
+      return complete();
     },
     /** Source epochs cover reflected movers too, not just receiver identity. With live motion a
      *  moved source keeps the history, reprojected, its weight held to `REFLECTION_MOVING_WEIGHT`;
-     *  without, it resets it. A relit source (lights, materials) and a new drawn extent always do:
-     *  no motion brings an old lighting to the new one. */
+     *  without, it keeps it at `REFLECTION_CHANGE_WEIGHT` for `REFLECTION_CHANGE_FRAMES`. A relit
+     *  source (lights, materials) and a new drawn extent always reset it: no motion brings an old
+     *  lighting to the new one. */
     prepare(
       next: ReflectionHistoryFrame,
       projection: ArrayLike<number>,
       drawn: readonly number[] = [width, height],
     ) {
       const resized = drawnWidth !== drawn[0] || drawnHeight !== drawn[1];
-      const moved = next.epoch !== epoch;
-      const relit = next.lighting !== lighting;
+      const moved = !sameVersions(epoch, next.epoch);
+      const relit = !sameVersions(lighting, next.lighting);
       const reprojects = next.motion !== next.pages;
       const changed = resized || moved || relit;
-      const resets = resized || relit || (moved && !reprojects);
+      const resets = resized || relit;
       drawnWidth = drawn[0];
       drawnHeight = drawn[1];
       const cameraChanged = !sameElements(camera, next.camera);
@@ -108,22 +99,27 @@ export function createReflectionHistory(
         !cameraChanged &&
         written &&
         sameElements(previous, projection) &&
-        (stableFrames >= REFLECTION_HISTORY_WEIGHT || frame === next.frame);
+        (complete() || frame === next.frame);
       if (reuse) return;
       if (changed || cameraChanged) stableFrames = 0;
       if (resets) {
         written = false;
         rank = 0;
-      } else if (written) rank = (rank + 1) >>> 0;
+        sinceChange = Infinity;
+      } else if (written) {
+        rank = (rank + 1) >>> 0;
+        // A change the motion cannot follow keeps the history at the change weight (#33).
+        if (moved && !reprojects) sinceChange = 0;
+      }
       current = next;
       camera.set(next.camera);
       matrix = projection;
-      epoch = next.epoch;
-      lighting = next.lighting;
+      epoch.set(next.epoch);
+      lighting.set(next.lighting);
       frame = next.frame;
       writeReprojection(packed, written ? previous : projection, projection, next.eye, drawn);
       packed[36] = written ? 1 : 0;
-      packed[37] = moved || cameraChanged ? REFLECTION_MOVING_WEIGHT : REFLECTION_HISTORY_WEIGHT;
+      packed[37] = historyConfidence(reprojects, sinceChange, moved || cameraChanged);
       packed[38] = reprojects ? 1 : 0;
       // The low bits of the trace's seed, the rank's alone (`gpu.ts`): which pixel of each 2 × 2
       // block it traced; four successive ranks visit all four.
@@ -186,6 +182,7 @@ export function createReflectionHistory(
       previous.set(matrix);
       written = true;
       stableFrames++;
+      sinceChange++;
       return image;
     },
     dispose() {
