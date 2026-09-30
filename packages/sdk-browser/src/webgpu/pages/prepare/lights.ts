@@ -14,7 +14,6 @@ import { sceneCastsBlended } from '../../shadow/transmittanceGrant.ts';
 import { lightRowMapPipeline } from '../../../gpu/draw/lightRows.ts';
 import { createShadowDemand } from '../../shadow/demandPass.ts';
 import { createShadowAllocation } from '../../shadow/allocPass.ts';
-import { followShadowTable, preparedShadowTable } from '../../shadow/shadowTableGrowth.ts';
 
 /** What the capability declares when the direct-lighting contract is not fitted on this device. */
 const DIRECT_LIGHT_CAPABILITY = 'contract scene lights with shadow atlas';
@@ -54,10 +53,8 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
     lights.shadows = await createGpuShadowAtlas(
       device,
       vis.visBindGroupLayout,
-      preparedShadowTable(lights),
       lights.plan.table.entries,
     );
-    followShadowTable(lights, lights.shadows.tableEntries);
     lights.cull = await createGpuShadowCull(device, casterSlots);
     lights.pageQuads = await createShadowPageQuads(device, lights.shadows.faceUniform);
   } catch (error) {
@@ -113,8 +110,8 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
  * cold work said apart from every frame (#989): the pool's three caster draws (#965), the light
  * cut's row map, the page pyramids and the occlusion test the static layer needs from an object's
  * first move — the pyramids' kernels are the camera's Hi-Z's —, and, for a scene whose blended
- * surfaces cast, the transmittance layer's draws, the moving groups' too. A frame then compiles none. One that fails here
- * is compiled again, and said, where it is first used.
+ * surfaces cast, the transmittance layer's draws, the moving groups' too. A frame then compiles
+ * none. One that fails here is compiled again, and said, where it is first used.
  */
 export async function prepareShadowPipelines(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { shadows, pageQuads } = rt.lights;

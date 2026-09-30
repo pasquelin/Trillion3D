@@ -68,12 +68,10 @@ export function createShadowRecords(table: ShadowTable, pool: ShadowPool, sun: S
       const slice = pool.slice[page];
       return kind[slice] === LIGHT_KIND.directional ? sun.ranges.current[slice] : 0;
     },
-    /** The first free slice: there is one per light the store accepts (`MAX_SHADOW_SLICES`), once
-     *  the table holds its span (`fits`); −1 until then. */
+    /** The first free slice: there is one per light the store accepts (`MAX_SHADOW_SLICES`). */
     claim() {
       for (let slice = 0; slice < MAX_SHADOW_SLICES; slice++)
         if (!taken[slice]) {
-          if (!table.fits(slice)) return -1;
           taken[slice] = 1;
           kind[slice] = -1;
           last[slice] = null;
