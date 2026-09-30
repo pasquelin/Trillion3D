@@ -1,40 +1,72 @@
+import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
+import { HTTP_ATTEMPTS, pause } from '../cluster/checked.ts';
+import { RETRY_AFTER_CAP_MS } from '../cluster/retryCap.ts';
+
+/** The public code of a family that could not load (`docs/messages/T3D-E090.md`). */
+const FAMILY_LOAD_FAILED_ID = 'T3D-E090';
+
 /**
- * A module imported on its first use (#1353): the CDN bundle makes it a chunk of its own
- * (`scripts/bundle-fold.ts`), which a page without that family never downloads. `get` starts the
- * import and answers the module once it has arrived, `undefined` until then; `arrived` says the
- * import is over, the module in or refused; `failed` holds the refusal; `settled` waits for the
- * import in flight and `load` for the module itself, refused as the import was. A frame never
- * reads a module that has not arrived: what uses it waits for it first (`families.ts`).
+ * The engine's one on-demand loader (#1353, #1404): a module imported on its first use, which the
+ * CDN bundle makes a chunk of its own (`scripts/bundle-fold.ts`) that a page without that family
+ * never downloads. An import that fails is tried again as the HTTP loader asks a file again
+ * (`checked`, `HTTP_ATTEMPTS` in all: a failed import carries no status, which `checked` treats as
+ * the network's, worth a second try); what still fails is a `FAMILY_LOAD_FAILED` naming the
+ * family, told to `refused` once per round.
+ * A refusal is not kept for the session: the next ask starts a new round, once the longest wait
+ * of the HTTP loader (`RETRY_AFTER_CAP_MS`) has passed since it. `get` starts the import and
+ * answers the module once it has arrived, `undefined` until then; `arrived` says it has;
+ * `settled` waits for the round in flight and `load` for the module itself, refused as the round
+ * was. A frame never reads a module that has not arrived: what uses it waits for it first
+ * (`families.ts`).
+ * @param family - The family's name, which its refusal names.
  * @param load - The module's dynamic import, a relative specifier as the bundle folds it.
+ * @param refused - Told each final refusal, the page's error channel.
  */
-export function onDemand<M>(load: () => Promise<M>) {
+export function onDemand<M>(
+  family: string,
+  load: () => Promise<M>,
+  refused: (error: EngineError) => void,
+) {
   let module: M | undefined,
-    refusal: Error | undefined,
+    refusal: EngineError | undefined,
     loading: Promise<void> | undefined,
-    arrived = false;
-  const start = () =>
-    (loading ??= load().then(
-      (loaded) => void ((module = loaded), (arrived = true)),
-      (cause) =>
-        void ((refusal = cause instanceof Error ? cause : new Error(String(cause))),
-        (arrived = true)),
-    ));
+    refusedAt = -Infinity;
+  const round = async () => {
+    const wait = refusedAt + RETRY_AFTER_CAP_MS - Date.now();
+    if (wait > 0) await pause(wait);
+    let cause: unknown;
+    for (let tried = 0; tried < HTTP_ATTEMPTS; tried++) {
+      try {
+        module = await load();
+        refusal = undefined;
+        return;
+      } catch (error) {
+        cause = error;
+      }
+    }
+    refusedAt = Date.now();
+    refusal = new EngineError(
+      'FAMILY_LOAD_FAILED',
+      `${FAMILY_LOAD_FAILED_ID} FAMILY_LOAD_FAILED: the ${family} family did not load after ${HTTP_ATTEMPTS} attempts: ${String(cause)}`,
+      { id: FAMILY_LOAD_FAILED_ID, family, attempts: HTTP_ATTEMPTS, cause },
+    );
+    loading = undefined; // the next ask tries again
+    refused(refusal);
+  };
+  const start = () => (loading ??= round());
   return {
     get(): M | undefined {
-      start();
+      if (module === undefined) void start();
       return module;
     },
     get arrived() {
-      return arrived;
-    },
-    get failed() {
-      return refusal;
+      return module !== undefined;
     },
     settled: () => loading ?? Promise.resolve(),
     async load(): Promise<M> {
-      await start();
-      if (refusal) throw refusal;
-      return module!;
+      if (module === undefined) await start();
+      if (module === undefined) throw refusal;
+      return module;
     },
   };
 }
