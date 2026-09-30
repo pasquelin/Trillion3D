@@ -1,6 +1,5 @@
 import { contractSurfaceBody, LIGHT_SURFACE_ENTRY, MIRROR_TERM_WGSL } from './surfaceWgsl.ts';
 import { SUBSURFACE_BINDING } from '../../scene/subsurface.ts';
-import { SHADING_OFFSET_BINDING } from '../../visibility/shader/shadingPoint.ts';
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts';
 import { directLightingWgsl } from '../direct/lightingWgsl.ts';
 import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
@@ -107,7 +106,6 @@ export const contractLightingShader = (
 ${VIEW_WGSL}
 ${surfaceBindingsWgsl()}
 @group(0) @binding(${SUBSURFACE_BINDING}) var subsurfaceColor:texture_2d<f32>;
-@group(0) @binding(${SHADING_OFFSET_BINDING}) var<storage,read> shadingOffset:array<f32>;
 ${CONTRACT_BINDINGS_WGSL}
 ${STANDARD_LIGHTING_WGSL}
 ${directLightingWgsl(narrow, pages, shadowed, rects)}

@@ -3549,7 +3549,6 @@
       "flags": "0 背景，1 无光照（受雾影响），2 读取，3 原样显示：诊断、法线或深度视图。 4 和 5 分别为漫反射和卡通模型（`./surfaceModel.ts`）。",
       "views": "它的 GPU 纹理视图。",
       "dispose": "释放它。",
-      "shadingOffset": "全精度的阴影接收面偏移，与 G-buffer 一同写入。",
       "subsurface": "薄表面的独立透射颜色；禁用时使用数值为零的 1×1 纹理。",
       "subsurfaceView": "薄表面透射纹理的视图。",
       "hasSubsurface": "薄表面透射是否具有全尺寸目标。"

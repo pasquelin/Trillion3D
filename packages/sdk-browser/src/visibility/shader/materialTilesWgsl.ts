@@ -1,6 +1,6 @@
 import { PAGE_INFO_STRUCT_WGSL } from './pageWgsl.ts';
 import { MATERIAL_CLASS_WGSL } from './materialClass.ts';
-import { SHADE_UNI_WGSL } from './request.ts';
+import { SHADE_UNI_WGSL } from './pixelTriangleWgsl.ts';
 
 /**
  * Material tiles: cluster's material classification (#1369). Each class pass drew a full-screen

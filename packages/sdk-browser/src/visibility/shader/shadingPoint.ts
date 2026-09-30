@@ -15,7 +15,3 @@ fn shadingPointOffset(P:vec3f,bary:vec3f,p0:vec3f,p1:vec3f,p2:vec3f,n0:vec3f,n1:
  if(dot(offset,face)*dot(face,n0+n1+n2)<=0.0){return vec3f(0.0);}
  return offset;
 }`;
-/** Eighth storage binding of the bounce resolve. Three scalar f32 values per pixel,
- * not array<vec3f> (whose stride is 16), preserve the projection without padding. */
-export const SHADING_OFFSET_BINDING = 21;
-export const SHADING_OFFSET_BYTES = 12;
