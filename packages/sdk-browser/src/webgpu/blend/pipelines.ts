@@ -17,6 +17,7 @@ import { displayTargets } from './displayFilter.ts';
 import { SHARE_TARGET } from '../../lighting/deferred/asIsShare.ts';
 import { createRoutedPipelines } from './routedPipelines.ts';
 import type { WaterPass } from '../water/waterPass.ts';
+import { fluidCode } from '../../fluids/particleCode.ts';
 import {
   blendVariantPipeline,
   DIAGNOSTIC_BLEND_WGSL,
@@ -128,14 +129,10 @@ export async function createWebgpuBlendPipelines(
   // Its code, the fluids', is imported by the first scene that does, as a texture loads: the
   // prepare awaits it, no frame does (#1353). A refused import, as a refused pass, keeps the
   // blends and says why.
-  let waterRefused: Error | undefined;
-  const refuse = (error: unknown) => {
-    waterRefused = error instanceof Error ? error : new Error(String(error));
-    return undefined;
-  };
   const waterCode = wantsWater
-    ? await import('../../fluids/fluidCode.ts').catch(refuse)
+    ? (fluidCode.get() ?? (await fluidCode.settled(), fluidCode.get()))
     : undefined;
+  let waterRefused = wantsWater ? fluidCode.failed : undefined;
   let code =
     blendShader(sunWindow) +
     (waterCode?.WATER_SURFACE_WGSL ?? '') +
@@ -187,6 +184,9 @@ export async function createWebgpuBlendPipelines(
   // A device that refuses the pass keeps the blends, and `waterRefused` names why to the caller.
   const water: WaterPass | undefined = await waterCode
     ?.createWaterPass(device, blendModule, blendBindGroupLayout, feedback, sunWindow)
-    .catch(refuse);
+    .catch((error: unknown) => {
+      waterRefused = error instanceof Error ? error : new Error(String(error));
+      return undefined;
+    });
   return { blendBindGroupLayout, blendPipelines, water, waterRefused };
 }

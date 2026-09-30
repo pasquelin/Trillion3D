@@ -37,8 +37,12 @@ export async function runInstalledBrowser({
 }): Promise<InstalledBrowserProof> {
   const requests: RequestRecord[] = [];
   let port = 0;
-  const page = () => (typeof html === 'string' ? html : html(port));
-  const server = installedServer(root, page, requests, allowNodeModules);
+  const server = installedServer(
+    root,
+    () => (typeof html === 'string' ? html : html(port)),
+    requests,
+    allowNodeModules,
+  );
   port = await listen(server);
   let browser: Browser | undefined;
   const errors: string[] = [];
