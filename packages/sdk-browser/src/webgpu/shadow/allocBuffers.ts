@@ -99,7 +99,9 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
       fields.fill(DRAWN_HOST, at('drawnBy'), at('drawnBy') + pages);
       device.queue.writeBuffer(state, 0, new Uint32Array(POOL_COUNTS.length));
       device.queue.writeBuffer(state, POOL_COUNTS.length * 4, fields);
-      device.queue.writeBuffer(data, tableOffset, table.words);
+      // The table as far as `data` holds it: no slice reaches past (`shadowData.ts`).
+      const held = Math.min(table.entries, (data.size - tableOffset) / 4);
+      device.queue.writeBuffer(data, tableOffset, table.words, 0, held);
       allocation.seeded = true;
     },
     /** The GPU-drawn pages' parameters (`freshLayout.ts`): the pool's layer side and layers, the

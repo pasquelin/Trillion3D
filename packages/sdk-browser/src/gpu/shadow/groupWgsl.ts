@@ -129,4 +129,3 @@ var<workgroup> claimed:u32;
   workgroupBarrier();
  }
 }`;
-
