@@ -13,7 +13,7 @@ import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { TAA_SAMPLES, jitterViewProjection, taaJitter } from '../../taa/jitter.ts';
 import { PIXEL_FOOTPRINT_WGSL } from './footprintWgsl.ts';
 import { WORLD_AT_WGSL } from './shaders.ts';
-import { shadowJitterWords } from './view.ts';
+import { shadowJitterWords } from './jitterWords.ts';
 
 type V = number[];
 type Level = { footprint: number; unjitter: V };

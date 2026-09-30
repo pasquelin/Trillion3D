@@ -9,7 +9,8 @@ import { growKeptList, keptList } from '../../gpu/shadow/keptList.ts';
 import { shadowTransmittanceBytes } from '../../gpu/shadow/transmittance.ts';
 import { SHADOW_GRANT_BYTES } from '../../residency/shadowBudgetBytes.ts';
 import { createShadowMemory, shadowPoolHeld } from './memoryGrant.ts';
-import { growPairList, keptPairs } from './pairGrowth.ts';
+import { growPairList } from './pairGrowth.ts';
+import { keptPairs } from './pairRows.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 const ROW_BYTES = 4 * MAX_SHADOW_REGIONS;

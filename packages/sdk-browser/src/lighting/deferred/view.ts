@@ -6,32 +6,11 @@
  */
 import { clearValueOf } from '../../../../sdk-core/src/world/math/packedColour.ts';
 import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/scene/core/environment.ts';
+import { shadowJitterWords } from './jitterWords.ts';
 
 const DEFERRED_VIEW_BYTES = 160;
 /** First float of the view's `jitter` words (`VIEW_WGSL`). */
 const JITTER_WORD = 36;
-
-/**
- * The view's `jitter` words (`VIEW_WGSL`) of an image the TAA jitters by `jitter` pixels
- * (`taaJitter`), or of one it does not (`null`): where the jitter moved the image, in pixels, rows
- * down — what `pixelLevel` takes back out —, then the cosine and sine of the angle the shadow
- * filters' taps turn by (`shadowRotated`). The angle is the jitter's own Halton phase, `2π (jx + ½)`:
- * each phase of the cycle turns them apart, and the history the TAA keeps averages them (#1363).
- * Written `into` at word `at`: the view's own words, a frame allocates nothing.
- */
-export function shadowJitterWords<T extends { [word: number]: number } = number[]>(
-  jitter: ArrayLike<number> | null,
-  into: T = [0, 0, 0, 0] as unknown as T,
-  at = 0,
-): T {
-  const x = jitter ? jitter[0] : 0,
-    angle = jitter ? 2 * Math.PI * (x + 0.5) : 0;
-  into[at] = x;
-  into[at + 1] = jitter ? -jitter[1] : 0;
-  into[at + 2] = Math.cos(angle);
-  into[at + 3] = Math.sin(angle);
-  return into;
-}
 
 /** With no declared light: zero lights, zero tiles, exposure 1, the ACES curve, the eye unread. */
 export const ZERO_DIRECT = [0, 0, 0, 1, TONE_MAPPING_RANK.aces, 0, 0, 0] as const;
