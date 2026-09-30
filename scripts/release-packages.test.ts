@@ -32,15 +32,17 @@ function checkout(version = '1.0.0', skip = '') {
 /** `pnpm pack` as the release calls it: the archive written, the manifest it packed recorded. */
 function fakePack(extra: string[] = []) {
   const packed: Record<string, { private?: boolean }> = {};
-  const run: Run = (_command, args, cwd = '') => {
+  const packers: Record<string, string> = {};
+  const run: Run = (command, args, cwd = '') => {
     const manifest = JSON.parse(readFileSync(join(cwd, 'package.json'), 'utf8'));
+    packers[manifest.name] = command;
     const filename = join(args[args.length - 1], `${manifest.name.replace(/\W/g, '-')}.tgz`);
     writeFileSync(filename, '');
     packed[manifest.name] = manifest;
     const bin = cwd.includes('packages') ? ['bin/trillion3d-compiler'] : ['dist/sdk/index.js'];
     return JSON.stringify({ filename, files: [...bin, ...extra].map((path) => ({ path })) });
   };
-  return { run, packed };
+  return { run, packed, packers };
 }
 
 // Behaviour: the six packages go out at one version, or not at all (#1354).
@@ -67,18 +69,23 @@ test('the pack refuses a missing compiler and packs nothing', () => {
   rmSync(root, { recursive: true });
 });
 
-// Behaviour: the downloaded compilers are executable again, the archives recorded in publication
-// order, and `private` kept unless the release is packed publishable — the checkout keeps it.
+// Behaviour: the downloaded compilers are executable again and packed by npm, which keeps the
+// execute bit pnpm drops; the archives recorded in publication order, and `private` kept unless
+// the release is packed publishable — the checkout keeps it.
 test('the pack restores the execute bit and removes private only when asked', () => {
   for (const publishable of [false, true]) {
     const { root, out } = checkout();
-    const { run, packed } = fakePack();
+    const { run, packed, packers } = fakePack();
     const release = packRelease({ root, out, run, pnpm: 'pnpm', publishable });
     const binary = join(root, 'packages/compiler/linux-x64/bin/trillion3d-compiler');
     assert.equal(statSync(binary).mode & 0o111, 0o111);
     assert.deepEqual(
       release.archives.map((archive) => archive.name),
       releaseNames(),
+    );
+    assert.deepEqual(
+      releaseNames().map((name) => packers[name]),
+      [...Array(5).fill('npm'), 'pnpm'],
     );
     assert.equal(packed.trillion3d.private, publishable ? undefined : true);
     assert.equal(JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).private, true);
