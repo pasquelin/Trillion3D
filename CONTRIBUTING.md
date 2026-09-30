@@ -130,11 +130,19 @@ The rules of #483, binding on every change to geometry, streaming, memory, shado
   abandoned-format compatibility or claims of unimplemented features.
 - A differential test against a frozen oracle proves only what the two sides do differently. Where
   they share code, prove it directly.
-- **This repository uses pnpm.** `pnpm run check:changed` checks changed-file format, lint, types,
-  lines, duplicates and import-related unit tests; `pnpm run test:changed` runs only those tests. Also
-  inspect dependants after deletions, public-export or configuration changes.
-- Before merge: `pnpm run validate` (format, JS/TS lint + Clippy, unused code/files/dependencies,
-  TS/native builds, structure, declarations, links, JS/TS/Rust tests).
+- **This repository uses pnpm.** `pnpm run check:changed` is the one local gate: changed-file
+  format, lint, types, lines and duplicates, and the unit tests the change can affect — its domain
+  folder's and those that really use it (`scripts/affected-tests.ts`); a documentation, site image or
+  translation change runs only the gates and the unit tests that read those files
+  (`scripts/docs-tests.ts`). Its test run is capped to two
+  processes (`TRILLION3D_TEST_CONCURRENCY`), and every heavy local step (a test run, `build`,
+  `build:docs`, `build:native`, `compile:caches`) waits for the other worktrees' and runs at low
+  priority (`scripts/heavy-lock.ts`). Also inspect dependants after deletions, public-export or
+  configuration changes.
+- Before merge, the CI runs the whole `pnpm run validate` (format, JS/TS lint + Clippy, unused
+  code/files/dependencies, TS/native builds, structure, declarations, links, JS/TS/Rust tests),
+  sharded; it is the CI's, not a local gate. A documentation-only pull request skips its code
+  jobs, runs the tests that read documentation in `quick`, and still reports `validate`.
 - **All wording in the repository must be in English.** Comments, docstrings, documentation,
   commit messages and test descriptions are strictly written in English.
 - Every maintained JS/TS/Rust source file, including variants, must fit 200 physical lines; no legacy
@@ -218,9 +226,9 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
 3. Review the diff twice: first simplify duplicated or unnecessary work — in Claude Code
    `/simplify`, elsewhere a read of the whole diff for what is duplicated, needless or at the wrong
    depth —, then check correctness against the requirements above. Fix findings; then
-   `pnpm run check:changed`, `pnpm run test:changed` and the `validate` group the diff touches run
-   once, on the final head (by the reviewer, `skills/agents/reviewer.md`), and the CI runs the
-   whole `validate`; the image proof and the timing follow on `develop` after the merge.
+   `pnpm run check:changed`, the one local gate, runs once, on the final head (by the reviewer,
+   `skills/agents/reviewer.md`), and the CI runs the whole `validate`; the image proof and the
+   timing follow on `develop` after the merge.
 4. Commit with a descriptive English message and push the branch; the required `pr-body` check
    (`scripts/check-commit-identity.ts`) refuses a commit carrying a tool identity (author or
    committer) or a `Co-authored-by:` / `Generated` trailer, naming each offending hash, and refuses
