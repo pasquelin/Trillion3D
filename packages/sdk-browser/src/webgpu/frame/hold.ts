@@ -1,12 +1,7 @@
 import { sampleWebgpuFrame } from './signature.ts';
 import { CPU_STEP } from '../pages/render/cpuStepTable.ts';
 import { forgetShadowCpuSteps } from '../shadow/cpuSteps.ts';
-import {
-  beginTaaFrame,
-  gpuShadowPagesLanded,
-  restartTaaOnLanding,
-  taaSettled,
-} from '../../taa/frame.ts';
+import { beginTaaFrame, restartTaaOnShadowLanding, taaSettled } from '../../taa/frame.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { shadowsUnsettled } from '../pages/state/lights.ts';
 import { effectsMoved } from '../pages/render/encodeEffects.ts';
@@ -199,7 +194,7 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
 export function keepWebgpuFrame(rt: WebgpuPagesRuntime) {
   const { gate, textureConverging } = rt.run;
   if (textureConverging || rt.feedbackAB?.force) return;
-  restartTaaOnLanding(rt, rt.lights.shadowPages + gpuShadowPagesLanded(rt));
+  restartTaaOnShadowLanding(rt);
   sampleWebgpuFrame(rt, gate.hold.sample);
   gate.hold.keep(gate.revisions);
 }
