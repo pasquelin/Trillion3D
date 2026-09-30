@@ -25,7 +25,6 @@ export type VisBindResources = AtlasResources & {
 };
 /** Resources of the hardware-resolve group, identical for both of its constructors. */
 export type ShadeBindResources = AtlasResources & {
-  shadingOffset: GPUBuffer;
   subsurface: GPUTextureView;
   visView: GPUTextureView;
   cache: GPUBuffer;
@@ -126,7 +125,6 @@ export function shadeBindEntries(r: ShadeBindResources): GPUBindGroupEntry[] {
   const b = SHADE_BINDINGS;
   return [
     resourceEntry(b.visView, () => r.visView),
-    bufferEntry(b.shadingOffset, () => r.shadingOffset),
     resourceEntry(b.subsurface, () => r.subsurface),
     bufferEntry(b.cache, () => r.cache),
     bufferEntry(b.position, () => r.position),

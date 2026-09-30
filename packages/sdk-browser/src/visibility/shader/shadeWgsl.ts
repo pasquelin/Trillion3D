@@ -30,7 +30,6 @@ ${NORMAL_VIEW_COLOR_WGSL}
  if(pageIndex>=uni.pageCount){discard;}
  // Storage writes are not attachments: reject other classes before their side effects.
  if(!SINGLE_CLASS&&pages[pageIndex].materialClass!=CLASS_KEY){discard;}
- storeShadingOffset(pos.xy,vec3f(0.0));
  storeSubsurface(pos.xy,vec3f(0.0));
  let tri=id&0xffu;
  let page=pages[pageIndex];
@@ -129,11 +128,6 @@ ${NORMAL_VIEW_COLOR_WGSL}
   var n2=uniteOuZero(invTranspose3Apply(invT,pageNormal(page,h,i2)))*side;
   var N=uniteOuZero(cross((w1-w0).xyz,(w2-w0).xyz))*screenFace;
   if(HAS_VERTEX_NORMAL){
-   let P=(w0*bary.x+w1*bary.y+w2*bary.z).xyz;
-   // The side the shading lights: a two-sided surface seen from behind lights its back (#1344).
-   let lit=select(1.0,face,DOUBLE_SIDED);
-   let offset=shadingPointOffset(P,bary,w0.xyz,w1.xyz,w2.xyz,n0*lit,n1*lit,n2*lit);
-   if(page.sprite.y==0.0&&page.lineWidth==0.0){storeShadingOffset(pos.xy,offset);}
    N=uniteOuZero(n0*bary.x+n1*bary.y+n2*bary.z);
    if(DOUBLE_SIDED){N*=face;}
   }

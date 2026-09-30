@@ -1,4 +1,4 @@
-import { SHADING_POINT_WGSL } from './shadingPoint.ts';
+import { FRAMEBUFFER_WGSL, SHADE_UNI_WGSL } from './receiverOffsetWgsl.ts';
 import { COTANGENT_FRAME_WGSL } from '../../cluster/decodeWgsl.ts';
 import { INVERSE_TRANSPOSE_WGSL } from '../../math/inverseTransposeWgsl.ts';
 import { TRIANGLE_PALETTE_WGSL } from '../../diagnostic/trianglePalette.ts';
@@ -16,7 +16,7 @@ import {
   tileDeclarations,
 } from '../../webgpu/tile/wgsl.ts';
 import { TILE_REQUEST_WGSL } from '../../webgpu/tile/requestWgsl.ts';
-import { SHADE_REQUEST_WGSL, SHADE_SUN_WGSL } from './request.ts';
+import { SHADE_REQUEST_WGSL } from './request.ts';
 import { SHADE_BINDINGS } from '../../webgpu/core/bindLayout.ts';
 import { MATERIAL_CLASS_WGSL } from './materialClass.ts';
 import { SURFACE_MODEL_SHADE_WGSL } from '../../scene/surfaceModel.ts';
@@ -46,18 +46,11 @@ export const UV_GRADIENTS_WGSL = `fn uvGradients(s0:vec2f,s1:vec2f,s2:vec2f,p:ve
  * vertex at the class depth, and the material-depth export that writes each pixel's class.
  */
 export const SHADE_DECL_WGSL = `${PAGE_INFO_STRUCT_WGSL}
-${SHADING_POINT_WGSL}
 @group(0) @binding(${SHADE_BINDINGS.subsurface}) var subsurfaceOutput:texture_storage_2d<rgba16float,write>;
 fn storeSubsurface(pos:vec2f,color:vec3f){
  if(all(vec2u(pos)<textureDimensions(subsurfaceOutput))){textureStore(subsurfaceOutput,vec2i(pos),vec4f(color,1.0));}
 }
-@group(0) @binding(${SHADE_BINDINGS.shadingOffset}) var<storage,read_write> shadingOffset:array<f32>;
-fn storeShadingOffset(pos:vec2f,offset:vec3f){
- let at=(u32(pos.y)*u32(uni.viewport.x)+u32(pos.x))*3u;
- shadingOffset[at]=offset.x;shadingOffset[at+1u]=offset.y;shadingOffset[at+2u]=offset.z;
-}
-${SHADE_SUN_WGSL}
-struct ShadeUni{viewProj:mat4x4f,viewport:vec2f,pixelRatio:f32,mipBias:f32,pageCount:u32,mode:u32,feedback:u32,pixelScale:f32,depthRamp:vec4f,sun:ShadeSun,}
+${SHADE_UNI_WGSL}
 @group(0) @binding(${SHADE_BINDINGS.visView}) var vis:texture_2d<u32>;
 @group(0) @binding(${SHADE_BINDINGS.cache}) var<storage, read> indices:array<u32>;
 @group(0) @binding(${SHADE_BINDINGS.position}) var<storage, read> positions:array<f32>;
@@ -93,10 +86,7 @@ struct SurfaceOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@l
 fn emptySurface()->SurfaceOut{return SurfaceOut(vec4f(0.0),vec4f(0.0),vec4f(0.0),0u,0u);}
 /** A diagnostic keeps the request: its textures converge like those of the image. */
 fn diagnosticSurface(color:vec3f,request:u32)->SurfaceOut{return SurfaceOut(vec4f(color,0.0),vec4f(0.0),vec4f(0.0),3u,request);}
-fn framebuffer(clip:vec4f)->vec3f{
- let ndc=clip.xyz/clip.w;
- return vec3f((ndc.x*0.5+0.5)*uni.viewport.x,(-ndc.y*0.5+0.5)*uni.viewport.y,ndc.z);
-}
+${FRAMEBUFFER_WGSL}
 /** Full-screen triangle at the class depth: the depth test keeps the class's pixels only. */
 @vertex fn shade_vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{
  let x=f32(i32(i&1u)*4-1);let y=f32(i32(i>>1u)*4-1);return vec4f(x,y,CLASS_DEPTH,1.0);
