@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 
 /// Every file of `cache` by its path under it, with its SHA-256; the cache lock, which names no
 /// product, left out.
-fn fingerprints(cache: &Path) -> BTreeMap<PathBuf, String> {
+pub(super) fn fingerprints(cache: &Path) -> BTreeMap<PathBuf, String> {
     files(cache)
         .into_iter()
         .filter(|path| path.file_name() != Some(".lock".as_ref()))

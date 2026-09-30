@@ -16,10 +16,10 @@ const trace = new Function(`
  const vec2i=v=>typeof v==='number'?{x:v,y:v}:{...v},vec2f=vec2i;
  const floor=v=>({x:Math.floor(v.x),y:Math.floor(v.y)}),i32=Math.trunc,f32=Number;
  const min=Math.min,max=Math.max,mix=(a,b,t)=>a+(b-a)*t;
- const vec4f=(color,hit)=>hit?color:null;
+ const vec4f=()=>null;
  return (start,delta,a,b,size,depth)=>{
   const reflectionDepthAt=p=>depth(p.x,p.y),reflectionClearDepth=()=>0;
-  const reflectionColorAt=p=>[p.x,p.y];
+  const reflectionHitAt=p=>[p.x,p.y];
   ${loop}
  };`)() as (
   start: { x: number; y: number },

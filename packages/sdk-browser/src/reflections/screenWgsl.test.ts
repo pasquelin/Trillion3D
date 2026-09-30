@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { reflectionSource, withScreenReflections } from './screenWgsl.ts';
+import { withScreenReflections } from './screenWgsl.ts';
+import { REFLECTION_SOURCE_WGSL } from './sourceWgsl.ts';
 import { ENVIRONMENT, FILTERED, RAY, resolvedDisplay } from './receivers.fixture.ts';
 import { functionText } from '../bounce/wgslBody.fixture.ts';
-import { BOUNCE_LIGHTING_SHADER, DIRECT_LIGHTING_SHADER } from '../gpu/core/shaderTexts.fixture.ts';
+import { DIRECT_LIGHTING_SHADER } from '../gpu/core/shaderTexts.fixture.ts';
 
 test('a screen hit replaces the fallback; a miss or a disabled pass reads it, once', () => {
   const read = (options: Parameters<typeof resolvedDisplay>[0], rough: number) => {
@@ -21,10 +22,10 @@ test('a screen hit replaces the fallback; a miss or a disabled pass reads it, on
   assert.deepEqual(read({ hit: false }, 0.45), { value: ENVIRONMENT, fallback: 1 });
 });
 
-test('frozen source excludes mirror recursion and camera fog without dropping bounced diffuse light', () => {
-  const body = functionText(reflectionSource(BOUNCE_LIGHTING_SHADER), 'lightSurface');
-  assert.doesNotMatch(body, /mirrorLighting|fogged/);
-  assert.match(body, /bounceLighting/);
+test('the source reprojects the last lit image and lights nothing itself', () => {
+  const body = functionText(REFLECTION_SOURCE_WGSL, 'reprojectReflectionSource');
+  assert.match(body, /previousUv\(/);
+  assert.doesNotMatch(REFLECTION_SOURCE_WGSL, /lightSurface|mirrorLighting|bounceLighting|fogged/);
 });
 
 test('the final direct resolve adds screen reflections over the environment, with no proxy', () => {
