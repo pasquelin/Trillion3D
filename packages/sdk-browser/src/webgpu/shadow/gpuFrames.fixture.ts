@@ -11,7 +11,7 @@ import type { ShadowRequestReport } from '../../../../sdk-core/src/scene/light-s
 import { SHADOW_TABLE_ENTRIES } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
-import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/shadowData.fixture.ts';
+import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
 import { createShadowRecordPack } from '../../gpu/shadow/recordPack.ts';
 import {
   claimShadowRequest,
@@ -117,7 +117,7 @@ export function gpuFrames(
         list = bytes(requests.buffer);
       list.fill(0);
       if (!allocation.seeded) {
-        allocation.seed(plan, data);
+        allocation.seed(plan, data, SHADOW_TABLE_OFFSET);
         plan.gpu.set(true, frame);
       }
       allocation.writeParams(frame, plan.records.generation, plan.gpu.asks, keepFrom);

@@ -35,13 +35,7 @@ export function reportScene(poolSide: number, lights: SceneLight[], drawn: numbe
     state = createWebgpuLightState(poolSide),
     noop = () => {};
   for (const light of lights) state.store.add(light);
-  state.shadows = {
-    view: {},
-    writeLamp: noop,
-    writeSun: noop,
-    clearRecord: noop,
-    tableEntries: 0,
-  } as never;
+  state.shadows = { view: {}, writeLamp: noop, writeSun: noop, clearRecord: noop } as never;
   const worldBox = Float64Array.of(-50, 0, -50, 50, 10, 50);
   Object.assign(rt, {
     lights: state,

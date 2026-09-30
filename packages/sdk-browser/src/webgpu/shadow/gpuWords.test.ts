@@ -13,7 +13,7 @@ import {
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { createShadowPool } from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
 import { createShadowTable } from '../../../../sdk-core/src/scene/light-shadow/table.ts';
-import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/shadowData.fixture.ts';
+import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
 import { runShadowWords } from './allocRun.fixture.ts';
 import { POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
 import { DRAWN_GPU, DRAWN_HOST, DRAWN_NONE } from './poolDrawn.ts';

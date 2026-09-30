@@ -16,7 +16,7 @@ import { SUN_LEVELS } from '../../../../sdk-core/src/scene/light-shadow/virtual.
 import { shadowRequestBits } from '../../lighting/direct/shadowRequestWgsl.ts';
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts';
-import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/shadowData.fixture.ts';
+import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
 import { ALLOC_PARAM_WORDS } from './allocWgsl.ts';
 import { POOL_COUNTS } from './poolWgsl.ts';
 import { WORDS_HEADER } from './wordsWgsl.ts';

@@ -56,14 +56,10 @@ image rests (`ceilingHold.test.ts`).
 
 The table gives each of the 64 shadow slices (`MAX_SHADOW_SLICES`) a fixed window of the largest
 range a light needs, a whole sun's 16 × 64 × 64 words (`SHADOW_TABLE_STRIDE`): 2^22 words, 16 MiB
-(`SHADOW_TABLE_ENTRIES`) for the 64. The host and the GPU hold only the windows of the slices
-claimed and one ahead (#1345, `gpu/shadow/shadowData.ts`), as Unreal gives page-table entries only
-to the lights that have a virtual shadow map: a sun alone holds 512 KiB, not 16 MiB. The GPU's
-grows by doubling, by the tables' own path under the device's out-of-memory check
-(`webgpu/shadow/shadowTableGrowth.ts`), its words copied with the swap, the host's words after it;
-a light whose window is not held yet lights unshadowed, counted, until then. Never shrunk (a freed
-slice's pages may linger in the GPU pool until evicted).
-The GPU total's shadow share counts the whole table with the pool
+(`SHADOW_TABLE_ENTRIES`), allocated up front at the session's window, as Unreal allocates its page
+table and budgets only the physical page pool: a light added at any time finds its window held,
+its shadow in its first frame (`shadowTable.test.ts`). The GPU total's shadow share counts it with
+the pool
 (`SHADOW_POOL_BYTES`, 902 MiB); less the batches' 5.2 MiB reserve, that share is the shadows' one
 grant (`SHADOW_GRANT_BYTES`, 896 MiB: the largest pool, its static layer, its transmittance layer,
 the table and the page requests, `webgpu/shadow/memoryGrant.ts`). A late allocation — static or
@@ -291,10 +287,13 @@ snapped sun corner and the power-of-two block make the rasterizer's f32 window p
 page's own viewport gave, to the bit, at the pool's resolution and at half (`groupPlace.test.ts`).
 A lamp corner is carried onto its page's square of the layer in clip space by the GPU pages'
 `freshPlace` (`x·s + o·w`), each caster clipped to its page by four clip distances
-(`clip-distances`; a device without the feature draws lamp pages one by one): after the f32 divide
-by `w`, its window position lies within one ulp of the one its page's viewport gave (one texel edge
-at most, `groupPlace.test.ts`) — class 2, against `develop`'s lamp shadows. The fragment keeps its
-page's texels alone, off a lamp's emitter envelope.
+where the device has `clip-distances` — which only spares the overdraw: without them the fragment's
+`pageHolds` discards past the page all the same, and lamp pages are grouped on every device. After
+the f32 divide by `w`, its window position lies within one ulp of the one its page's viewport gave
+(one texel edge at most, `groupPlace.test.ts`) — class 2, against `develop`'s lamp shadows. The
+fragment keeps its page's texels alone, off a lamp's emitter envelope. Only a group whose pages keep
+a blended caster draws into the transmittance layer: the compute pass stretches the group's blended
+command over those pages' casters, and leaves it at no instance for a group of opaque casters alone.
 
 Every shadow pipeline — static layer, light-cut row map, page pyramids (the camera's Hi-Z kernels),
 occlusion test and, if blended surfaces cast, transmittance draws — is compiled at prepare, in its

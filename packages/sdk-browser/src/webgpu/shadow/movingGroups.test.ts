@@ -2,13 +2,18 @@
 // group and list instead of one per page. The shipped pairs kernel files every kept caster of every
 // grouped page once in its group's draw, and the shipped vertex stage draws each by its own page's
 // view; a lamp's pages and a page alone in its block are groups too, as Unreal draws all the pages
-// of a light in one pass: no restored page keeps a draw of its own, but a lamp's on a device that
-// cannot clip a caster to its page (`clip-distances`).
+// of a light in one pass: no restored page keeps a draw of its own, on every device — clip distances,
+// where the device has them, only spare a lamp group the overdraw its fragment discards. Only the
+// groups that keep a blended caster draw any into the transmittance layer.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { MAX_SHADOW_REGIONS } from '../../gpu/shadow/atlas.ts';
-import { GROUP_CAPACITY_WORD } from '../../gpu/shadow/batchBudget.ts';
+import {
+  GROUP_BLEND_COMMANDS,
+  GROUP_BLEND_FIRST_WORD,
+  GROUP_CAPACITY_WORD,
+} from '../../gpu/shadow/batchBudget.ts';
 import { GROUP_LAYER, SHADOW_GROUP_PAIRS_WGSL } from '../../gpu/shadow/groupWgsl.ts';
 import { SHADOW_DEPTH_SHADER } from '../../gpu/shadow/shader.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
@@ -29,34 +34,40 @@ test("a pass's restored pages are grouped: sun pages by block, alone or not, a l
     [0, 20, 0, 20, 40, 1, 40, 50, 2, 50, 60, GROUP_LAYER],
   );
   assert.equal(grouping.words[GROUP_CAPACITY_WORD], CAPACITY);
-  // A device that cannot clip a caster to its page keeps the lamp page's own viewport.
-  assert.equal(grouping.plan(batch(false).rt, PAGES.length, false, CAPACITY), 3);
-  assert.deepEqual([...grouping.words.subarray(0, 6)], [1, 1, 2, 2, 3, 0]);
 });
 
-test('every kept caster of a grouped page is drawn once, in its group, by its own view', () => {
+test('every kept caster of a grouped page is drawn once, in its group; a group of opaque casters draws no blended one', () => {
   const { rt } = batch(),
     grouping = createMovingGroupPlan();
   grouping.plan(rt, PAGES.length, false, CAPACITY);
+  grouping.words[GROUP_BLEND_FIRST_WORD] = 2000;
   const culled = new Uint32Array(MAX_SHADOW_REGIONS * 8);
   for (const [region, [opaque, cutout, corners, cutCorners]] of KEPT.entries())
     culled.set([corners, opaque, 0, 0, cutCorners, cutout, 0, 0], region * 8);
-  const args = new Array<number>(32).fill(0),
-    pairs = new Array<number>(60).fill(-1);
-  // One lane does the whole workgroup's copies: the kernel's stride of 64 lanes, one.
-  const kernel = shaderRun<{ shadowGroupPairs: (wg: number[], lane: number) => void }>(
-    SHADOW_GROUP_PAIRS_WGSL.replace('i+=64u', 'i+=1u'),
-    ['shadowGroupPairs', 'keptCount', 'keptCorners', 'keptAt'],
-    {
-      ...{ table: grouping.words, culled, visible: culled, args, pairs, claimed: 0 },
-      workgroupUniformLoad: (p: { get: () => number }) => p.get(),
-      workgroupBarrier: () => {},
-    },
-  );
-  for (let region = 0; region < PAGES.length; region++) kernel.shadowGroupPairs([region, 0, 0], 0);
+  const args = new Array<number>(GROUP_BLEND_COMMANDS + 16).fill(0),
+    pairs = new Array<number>(60).fill(-1),
+    // Rows at `1000 + place`, but region 1's second opaque caster: a blended one.
+    casters = Array.from({ length: 60 }, (_, place) => (place === 11 ? 2000 : 1000 + place));
+  // One lane does the whole workgroup's copies: the kernel's stride of 64 lanes, one. Each
+  // workgroup starts with its shared words at zero, as WGSL's.
+  for (let region = 0; region < PAGES.length; region++)
+    shaderRun<{ shadowGroupPairs: (wg: number[], lane: number) => void }>(
+      SHADOW_GROUP_PAIRS_WGSL.replace('i+=64u', 'i+=1u'),
+      ['shadowGroupPairs', 'keptCount', 'keptCorners', 'keptAt'],
+      {
+        ...{ table: grouping.words, culled, visible: culled, args, pairs, claimed: 0, blended: 0 },
+        ...{ keptRows: casters, visibleRows: casters },
+        workgroupUniformLoad: (p: { get: () => number }) => p.get(),
+        workgroupBarrier: () => {},
+      },
+    ).shadowGroupPairs([region, 0, 0], 0);
+  // Region 1's blended caster stretches its group's blended command over its pairs, 3 to 5; the
+  // others keep theirs at no instance: their opaque casters never reach the transmittance layer.
+  const blend = args.slice(GROUP_BLEND_COMMANDS, GROUP_BLEND_COMMANDS + 16);
+  assert.deepEqual(blend, [45, 5, 0, 0, ...new Array<number>(12).fill(0)]);
   // The lone page's and the lamp's groups keep none: their pages have no kept caster here.
   const none = (g: number) => [0, 0, g << 16, 0, 0, 0, g << 16, 0];
-  assert.deepEqual(args, [
+  assert.deepEqual(args.slice(0, 32), [
     ...[45, 5, 0, 0, 12, 1, 0, 0, 9, 1, 65536, 0, 20, 2, 65536, 0],
     ...none(2),
     ...none(3),
@@ -120,6 +131,7 @@ test('a grouped page is skipped by its own draws and drawn by its group, in the 
     shadowGroups: Array.from({ length: 2 * MAX_SHADOW_REGIONS }, (_, i) => `g${i}`),
   });
   Object.assign(rt, {
+    layout: { rows: { blendFirst: 2000 } },
     gpu: { cache: { buffer: key[0] } },
     vis: { visBindGroupLayout: {}, concatPos: key[1], concatUv: key[2], pageTable: key[3] },
   });
@@ -167,15 +179,19 @@ test('a grouped page is skipped by its own draws and drawn by its group, in the 
     ].map((v) => `setViewport ${v.map((n) => n / scale)},${v[2] / scale},0,1`);
   const drawn = () => calls.filter((c) => /^(setViewport|drawIndirect|setPipeline)/.test(c));
   // One side of every group, then the next: a pipeline set where it changes, the lamp's last.
-  const side = (scale: number, name: string, offset = 0) =>
+  const side = (scale: number, name: string, at: (g: number) => number) =>
     viewports(scale).flatMap((viewport, g) => [
       viewport,
       ...(g % 3 ? [] : [`setPipeline ${g === 3 ? 'lamp ' : ''}${name}`]),
-      `drawIndirect ·,${32 * g + offset}`,
+      `drawIndirect ·,${at(g)}`,
     ]);
-  assert.deepEqual(drawn(), [...side(1, 'opaque'), ...side(1, 'cutout', 16)]);
-  // The transmittance layer's pass: each group's blended casters, depth then colour, at half.
+  const own = (offset: number) => (g: number) => 32 * g + offset;
+  assert.deepEqual(drawn(), [...side(1, 'opaque', own(0)), ...side(1, 'cutout', own(16))]);
+  const lists = () => calls.filter((c) => c.startsWith('setBindGroup 2')).length;
+  assert.equal(lists(), 2, "group 2 set once a side: every group reads the cull's lists");
+  // The transmittance layer's pass: each group's blended command, depth then colour, at half.
   calls.length = 0;
   assert.equal(groups.drawBlend(rt, pass, 0, 0), 8);
-  assert.deepEqual(drawn(), [...side(2, 'depth'), ...side(2, 'colour')]);
+  const blend = (g: number) => GROUP_BLEND_COMMANDS * 4 + 16 * g;
+  assert.deepEqual(drawn(), [...side(2, 'depth', blend), ...side(2, 'colour', blend)]);
 });
