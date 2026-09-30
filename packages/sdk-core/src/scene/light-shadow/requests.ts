@@ -1,4 +1,5 @@
 import type { ShadowViewpoint } from '../light/contracts.ts';
+import type { ShadowCellReport } from './demandFootprint.ts';
 import { createShadowNeeds } from './needs.ts';
 import { createEntryPages } from './entryPages.ts';
 import type { ShadowPoolSnapshot } from './mirror.ts';
@@ -18,7 +19,7 @@ import {
 import { lampEntry, sunEntry } from './pageModel.ts';
 
 /** What the shading read in one frame: the table entries it asked for, in no order. */
-export interface ShadowRequestReport {
+export interface ShadowRequestReport extends ShadowCellReport {
   /** Frame whose shading wrote the report. */
   frame: number;
   /** Table layout that frame read with (`ShadowTable.layoutEpoch`). */
@@ -65,8 +66,7 @@ export function createShadowRequests(
     needs = createShadowNeeds(table, pool, 2 * cap), // each entry named, and its floor
     entries = createEntryPages(table, records, sun),
     scratch = new Int32Array(4),
-    /** What the entry being read names: its view, then its page. */
-    at = new Int32Array(3);
+    at = new Int32Array(3); // What the entry being read names: its view, then its page.
   let reportFrame = -1,
     asking: ShadowAsks | undefined,
     heldCycle = -1; // The still cycle the request belongs to (`plan.ts`, #26)
