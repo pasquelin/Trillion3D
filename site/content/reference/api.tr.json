@@ -6879,7 +6879,7 @@
     "summary": "`node`'u `parent`'a (`-1`: kök) ekler, referansın `add`'i gibi: matrisler bir sonraki güncellemeye kadar hareket etmez."
   },
   "resolveCompilerExecutable": {
-    "summary": "Yerel derleyici programını bulur: istenen, yoksa bu checkout'ta derlenen."
+    "summary": "Yerel derleyici programını bulur: istenen, yoksa kurulu platform paketindeki, yoksa `TRILLION3D_COMPILER_BIN` ile belirtilen, yoksa bu checkout'ta derlenen."
   },
   "reviewCutouts": {
     "summary": "Model model, her kesilmiş yüzeyin doğru görünüp görünmediğini sorar, ve yanıtları kaydeder.",
