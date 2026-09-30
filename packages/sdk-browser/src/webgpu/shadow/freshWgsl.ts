@@ -162,7 +162,7 @@ fn composeRegion(k:u32){
   args[FRESH_REGIONS]=regions;args[FRESH_CORNERS]=0u;
  }
 }
-/** After the pair cull: each region admitted whole is readable — full footprint, the sun's current
+/** After the pair cull: each region admitted whole is readable — in the sun's current
  *  range —; one left short (\`FRESH_SHORT\`) is not, and waits unclaimed for the next
  *  frame's pick. Each layer draws the pairs kept; the pairs every region counted go to the pool's
  *  counts, which the host reads back to grow the list by (\`pairGrowth.ts\`). */
@@ -175,7 +175,7 @@ fn composeRegion(k:u32){
    let e=u32(shadowPool.pages[poolAt(POOL_OWNER,p)]);let slice=e/SHADOW_TABLE_STRIDE;
    var range=0u;
    if(u32(shadows.records[slice].info.x)==u32(SUN_LEVEL_COUNT)){range=u32(shadows.records[slice].frame[2].w);}
-   shadows.table[e]=shadowReadableWord(p,range,0u);
+   shadows.table[e]=shadowReadableWord(p,range);
   }
  }
  if(lane<params.layers){

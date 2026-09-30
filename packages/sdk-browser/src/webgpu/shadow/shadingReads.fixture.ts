@@ -38,11 +38,6 @@ export const READ = [
 
 /** A lit point: where it lies, its normal. */
 export type Lit = { P: Vec; N: Vec };
-/** Hears each page a read takes and the texel of it the shader checks (`shadowPageWord`). */
-export type TexelSink = (entry: number, local: number[]) => void;
-/** Texel `t` of a map, relative to page `p`, clamped to it: what `shadowFootprintCovers` reads. */
-const localOf = (t: number[], p: number[]) =>
-  t.map((c, a) => Math.min(Math.max(c - p[a] * SHADOW_PAGE, 0), SHADOW_PAGE));
 const UP: Vec = [0, 1, 0];
 
 const matrices = new Float32Array(6 * 16),
@@ -51,14 +46,7 @@ const dot = (a: Vec, b: ArrayLike<number>, at = 0) =>
   a[0] * b[at] + a[1] * b[at + 1] + a[2] * b[at + 2];
 
 /** The pages the lamp in `slot` has its pixel at `lit` read, at the mip it wants. */
-function lampReads(
-  plan: ShadowPlan,
-  store: SceneLightStore,
-  slot: number,
-  lit: Lit,
-  f: number,
-  sink?: TexelSink,
-) {
+function lampReads(plan: ShadowPlan, store: SceneLightStore, slot: number, lit: Lit, f: number) {
   const light = store.light(store.ids[slot])!,
     faces = lampFacesOf(LIGHT_KIND[light.kind]),
     base = plan.table.baseOf(store.sliceOf(slot));
@@ -84,15 +72,11 @@ function lampReads(
   return pcfPages(
     t,
     t.map((c) => clamp(PAGES.shadowPageOfTexel(c))),
-  ).map(([x, y]) => {
-    const entry = base + lampEntry(face, mip, clamp(x), clamp(y));
-    sink?.(entry, localOf(t, [clamp(x), clamp(y)]));
-    return entry;
-  });
+  ).map(([x, y]) => base + lampEntry(face, mip, clamp(x), clamp(y)));
 }
 
 /** The pages the sun in `slice` has its pixel at `lit` read: its first level in the window. */
-function sunReads(plan: ShadowPlan, slice: number, lit: Lit, f: number, sink?: TexelSink) {
+function sunReads(plan: ShadowPlan, slice: number, lit: Lit, f: number) {
   const { sun } = plan,
     base = plan.table.baseOf(slice),
     finest = sun.finest[slice];
@@ -110,11 +94,7 @@ function sunReads(plan: ShadowPlan, slice: number, lit: Lit, f: number, sink?: T
     if (!inside(home)) continue;
     return pcfPages(t, home)
       .filter(inside)
-      .map(([x, y]) => {
-        const entry = base + sunEntry(level, x + origin[0], y + origin[1]);
-        sink?.(entry, localOf(t, [x, y]));
-        return entry;
-      });
+      .map(([x, y]) => base + sunEntry(level, x + origin[0], y + origin[1]));
   }
   return [];
 }
@@ -126,7 +106,6 @@ export function shadingReads(
   store: SceneLightStore,
   view: ShadowViewpoint,
   lits: Lit[],
-  sink?: TexelSink,
 ) {
   const read = new Set<number>();
   for (const lit of lits) {
@@ -136,8 +115,8 @@ export function shadingReads(
       if (slice < 0) continue;
       const pages =
         store.light(store.ids[slot])!.kind === 'directional'
-          ? sunReads(plan, slice, lit, f, sink)
-          : lampReads(plan, store, slot, lit, f, sink);
+          ? sunReads(plan, slice, lit, f)
+          : lampReads(plan, store, slot, lit, f);
       for (const entry of pages) read.add(entry);
     }
   }

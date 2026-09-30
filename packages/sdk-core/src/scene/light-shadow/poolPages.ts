@@ -20,9 +20,6 @@ export const shadowPageArrays = (pages: number) => ({
   layered: new Uint8Array(pages),
   /** The depth-range slot its depth and static layer were drawn in (`sunDepth.ts`). */
   range: new Uint8Array(pages),
-  /** The footprint it is drawn for (`footprint.ts`), the texels a reader may take: every
-   *  receiver's that named it since it was mapped, `PAGE_FOOTPRINT_EMPTY` before one did. */
-  footprint: new Uint8Array(pages),
   /** The frame it turned stale — its age in the list (`admit.ts`) —, and since when the image
    *  has read it stale, in ms and frames, NaN unread (`counts.ts`). */
   since: new Float64Array(pages),
