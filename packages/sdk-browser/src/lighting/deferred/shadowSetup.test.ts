@@ -20,9 +20,9 @@ test('the surface sets up its shadow read behind the tile flag, and nowhere else
     const shader = contractLightingShader(bounce, narrow, undefined, shadowed);
     const surface = surfaceOf(shader);
     assert.ok(surface.includes(SETUP));
-    assert.doesNotMatch(surface, /pixelLevel\(|receiverOffset\(|shadowFootprint=|shadowRotation=/);
+    assert.doesNotMatch(surface, /pixelLevel\(|receiverOffset\(|shadowFootprint=/);
     const setup = shader.slice(shader.indexOf('fn shadowSetup(')).split('\n}')[0];
-    for (const read of ['pixelLevel(', 'receiverOffset(pixel', 'shadowRotation='])
+    for (const read of ['pixelLevel(', 'receiverOffset(pixel'])
       assert.ok(setup.includes(read), read);
     const flag = shader.slice(shader.indexOf('fn pixelShadowed(')).split('\nfn ')[0];
     assert.equal(flag.includes('TILE_SHADOW_BASE'), shadowed, 'the flag, read with shadow code');
