@@ -66,12 +66,6 @@ jobs:
           key: dist-${{ matrix.platform }}
       - run: node scripts/compiler-dist.ts ${{ matrix.platform }}.json
         shell: bash
-        env:
-          CARGO_PROFILE_DIST_STRIP: none
-      - if: failure() && runner.os == 'macOS'
-        run: |
-          sw_vers; xcodebuild -version; ld -v 2>&1 | head -2; clang --version | head -1
-          for f in ~/Library/Logs/DiagnosticReports/trillion3d* /Library/Logs/DiagnosticReports/trillion3d*; do test -f "$f" && cat "$f"; done; true
       - uses: actions/upload-artifact@v4
         with:
           name: compiler-${{ matrix.platform }}
