@@ -3,7 +3,9 @@ name: Compiler
 # The distributed compiler on its five platforms (#1352): each built on its own runner, trained on
 # the reference scenes (profile-guided), and its caches of those scenes fingerprinted
 # (`scripts/compiler-dist.ts`); every fingerprint must equal Linux x64's, and on a pull request
-# `develop`'s (`scripts/compiler-hashes.ts`), and each binary's size is printed. It runs on a pull
+# `develop`'s (`scripts/compiler-hashes.ts`), and each binary's size is printed. The Jolt collider
+# shapes alone may differ from a base whose Jolt cook still fuses multiply-adds: they change once to
+# the unfused bytes (#1352), and the comparison is whole again once that base is merged. It runs on a pull
 # request that touches what the compiler is built from, and on every release.
 on:
   pull_request:
@@ -77,6 +79,8 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    outputs:
+      fused: ${{ steps.jolt.outputs.fused }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/checkout@v7
@@ -95,6 +99,14 @@ jobs:
       - run: cargo build --release --locked --bin trillion3d-compiler --manifest-path packages/asset-compiler-rust/Cargo.toml
         working-directory: base
       - run: node scripts/compiler-hashes.ts base/packages/asset-compiler-rust/target/release/trillion3d-compiler base.json "${{ github.base_ref }}"
+      # Whether the base cooks Jolt without its cross-platform mode, so with fused multiply-adds.
+      - id: jolt
+        run: |
+          if grep -q CROSS_PLATFORM_DETERMINISTIC=ON base/packages/asset-compiler-rust/build.rs; then
+            echo fused=false >> "$GITHUB_OUTPUT"
+          else
+            echo fused=true >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: compiler-base
@@ -113,16 +125,18 @@ jobs:
         with:
           pattern: compiler-*
           merge-multiple: true
-      - name: Five builds green, every fingerprint equal to Linux x64's and to develop's
+      - name: Five builds green, every fingerprint equal to Linux x64's and to develop's (its Jolt colliders excepted while develop fuses)
         env:
           BUILD: ${{ needs.build.result }}
           BASE: ${{ needs.base.result }}
+          FUSED: ${{ needs.base.outputs.fused }}
           EVENT: ${{ github.event_name }}
         run: |
           test "$BUILD" = success
-          records="linux-x64.json darwin-arm64.json darwin-x64.json linux-arm64.json win32-x64.json"
+          node scripts/compiler-hashes.ts --compare linux-x64.json darwin-arm64.json darwin-x64.json linux-arm64.json win32-x64.json
           if [ "$EVENT" = pull_request ]; then
             test "$BASE" = success
-            records="$records base.json"
+            allow=""
+            if [ "$FUSED" = true ]; then allow=--colliders-may-differ; fi
+            node scripts/compiler-hashes.ts --compare $allow linux-x64.json base.json
           fi
-          node scripts/compiler-hashes.ts --compare $records
