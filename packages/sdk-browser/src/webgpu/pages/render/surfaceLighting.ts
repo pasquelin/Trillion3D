@@ -64,8 +64,8 @@ export function encodeSurfaceLighting(
   run.gpuDrawCalls += gpu.deferred.light(encoder, gpu.hdrView, gpu.reflection);
   const blendShare = seedAsIsShare(rt, device, encoder);
   const filter = beginDisplayFilter(rt, device);
-  encodeBlend(rt, device, encoder, uniformBase, true);
   encodeShadowReadback(rt, encoder);
+  encodeBlend(rt, device, encoder, uniformBase, true);
   drawParticles(rt, encoder, directTiles());
   // Composition reads the temporal result, or the lit image without accumulation.
   const asIs = readsAsIs(rt);

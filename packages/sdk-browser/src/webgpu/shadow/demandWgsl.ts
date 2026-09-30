@@ -23,8 +23,7 @@ export const SHADOW_DEMAND_GROUP = 8;
  * every shadowed light of its tile's opaque list, the pages that light's read wants at it — the
  * sun level or the lamp mip of its footprint, its home page and the neighbours the PCF reaches
  * across a page edge, and, for a point lamp with a radius, every page its soft shadow's taps
- * read (`demandSoftLamp`) — in the request buffer the resolve records into, with the cell of the
- * page-local texel it reads there (`requestShadowPageAt`, #1211): the page's footprint.
+ * read (`demandSoftLamp`) — in the request buffer the resolve records into (`requestShadowPage`).
  *
  * Every step is the shading's own: the view and the world point its resolve reconstructs
  * (`WORLD_AT_WGSL`, the deferred pass's view uniform), moved by the pixel's shading-point offset
@@ -54,23 +53,18 @@ ${SHADOW_READ_AT_WGSL}
 ${PCF_TAPS_WGSL}
 ${LAMP_SOFT_DISK_WGSL}
 ${WORLD_AT_WGSL}
-/** Marks page \`p\` of the map for the cell of map texel \`t\` the receiver reads there: nothing
- *  outside a ring's window. The cell feeds the page's footprint (\`demandFootprint.ts\`). */
-fn demandPage(m:ShadowMap,p:vec2i,t:vec2f){
- let e=shadowPageEntry(m,p);
- if(e<0){return;}
- requestShadowPageAt(u32(e),shadowRequestCell(shadowPageLocal(m,p,t)));
-}
+/** Marks page \`p\` of the map: nothing outside a ring's window. */
+fn demandPage(m:ShadowMap,p:vec2i){let e=shadowPageEntry(m,p);if(e>=0){requestShadowPage(u32(e));}}
 /** Marks the home page of map texel \`t\` and the neighbours the PCF reads around it
  *  (\`shadowPcf\`): across the one or two edges it comes near. */
 fn demandPages(m:ShadowMap,t:vec2f,home:vec2i){
  let first=vec2f(home)*SHADOW_PAGE;
  let edge=vec2i(shadowPcfEdge(t.x,first.x),shadowPcfEdge(t.y,first.y))>vec2i(0);
  let step=vec2i(shadowPcfStep(t.x,first.x),shadowPcfStep(t.y,first.y));
- demandPage(m,home,t);
- if(edge.x){demandPage(m,home+vec2i(step.x,0),t);}
- if(edge.y){demandPage(m,home+vec2i(0,step.y),t);}
- if(all(edge)){demandPage(m,home+step,t);}
+ demandPage(m,home);
+ if(edge.x){demandPage(m,home+vec2i(step.x,0));}
+ if(edge.y){demandPage(m,home+vec2i(0,step.y));}
+ if(all(edge)){demandPage(m,home+step);}
 }
 /** The sun's pages at the point: its footprint's level, or the first coarser one whose window
  *  holds its home page (\`sunShadowFactor\`, the same \`sunReadAt\`). */
@@ -124,7 +118,7 @@ fn demandSoftLamp(index:u32,light:DirectLight,centre:LampAt,N:vec3f,mip:u32){
   // at most three faces, and two pages a row of each crossed.
   for(var k=0u;k<6u*LAMP_PAGE_COUNT&&s<=1.0;k++){
    let r=lampReadAt(index,lamp,P+v*s,N,0.0,1.0,mip);
-   demandPage(r.at.map,r.at.home,r.at.t);
+   demandPage(r.at.map,r.at.home);
    s=softPageExit(index,P,v,r,s)+1e-5;
   }
  }
