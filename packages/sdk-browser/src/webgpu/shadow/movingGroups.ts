@@ -11,7 +11,7 @@ import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { shadowPageGroup } from './freshGroups.ts';
 import { createMovingGroupPlan } from './movingGroupPlan.ts';
-import { createMovingGroupDraws } from './movingGroupDraws.ts';
+import { createMovingGroupDraws, type MovingGroupsHeld } from './movingGroupDraws.ts';
 
 const READ: GPUBufferBindingType = 'read-only-storage',
   WRITE: GPUBufferBindingType = 'storage';
@@ -20,13 +20,15 @@ const READ: GPUBufferBindingType = 'read-only-storage',
  * THE MOVING CASTERS OF A BATCH'S RESTORED PAGES, GROUPED IN INSTANCED DRAWS (#1345). A moving
  * caster restores and redraws each page it lands in; one draw a page cost a draw call and its state
  * per page, 250 a frame for 35 turning antennas. The restored pages of one pass with lists of one
- * kind — the cull's, or all the occlusion test's —, in one block of its layer, are one group
- * (`groupWgsl.ts`; sun pages alone, a lamp page draws in its own viewport): after the cull and the
+ * kind — the cull's, or all the occlusion test's —, in one block of its layer for a sun, in its layer
+ * for a lamp, are one group (`groupWgsl.ts`): after the cull and the
  * occlusion test, one workgroup per region files its kept places into its group's pairs and counts
  * them into its group's two commands; each pass then draws a group's opaque casters, and its cutout
  * ones, in one indirect draw each, and the transmittance layer's pass its blended ones
- * (`drawBlend`), instead of one each a page. A sun page draws the texels its own viewport drew, to the bit. A lamp page, and
- * a batch with no group or without what a group binds, keeps a draw a page (`drawRegionCasters`).
+ * (`drawBlend`), instead of one each a page. A sun page draws the texels its own viewport drew, to
+ * the bit; a lamp page within one ulp of them (`groupPlace.test.ts`). A lamp page on a device that
+ * cannot clip by distances, and a batch with no group or without what a group binds, keeps a draw a
+ * page (`drawRegionCasters`).
  */
 export async function createShadowMovingGroups(device: GPUDevice) {
   const module = await createCheckedShaderModule(
@@ -59,9 +61,9 @@ export async function createShadowMovingGroups(device: GPUDevice) {
   });
   const grouping = createMovingGroupPlan(),
     { words, passOf, bitsOf } = grouping;
-  let groups = 0,
-    pairs: GPUBuffer | undefined,
-    bound: {
+  // What the draws read, set here and read there as it stands (`movingGroupDraws.ts`).
+  const held: MovingGroupsHeld = { table, args, passOf, bitsOf, groups: 0, pairs: undefined };
+  let bound: {
       indirect?: GPUBuffer;
       visibleIndirect?: GPUBuffer;
       pairs?: GPUBuffer;
@@ -69,11 +71,7 @@ export async function createShadowMovingGroups(device: GPUDevice) {
       visible?: GPUBuffer;
     } = {},
     pairGroup: GPUBindGroup | undefined;
-  const draws = createMovingGroupDraws(device, {
-    ...{ table, args, passOf, bitsOf },
-    groups: () => groups,
-    pairs: () => pairs,
-  });
+  const draws = createMovingGroupDraws(device, held);
 
   return {
     /** Non-zero for a region of the batch its group draws: `drawRegionCasters` skips it. */
@@ -85,18 +83,19 @@ export async function createShadowMovingGroups(device: GPUDevice) {
     encode(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder, count: number, tested: boolean) {
       const { cull, occlusion } = rt.lights;
       // A region skipped by its own draws is drawn by its group: none without what the group binds.
-      if (!cull || !count || !shadowPageGroup(rt, device)) return (groups = 0);
-      const capacity = Math.floor(cull.kept.size / (MAX_SHADOW_REGIONS * 4));
-      groups = grouping.plan(rt, count, tested, capacity);
+      if (!cull || !count || !shadowPageGroup(rt, device)) return (held.groups = 0);
+      const capacity = Math.floor(cull.kept.size / (MAX_SHADOW_REGIONS * 4)),
+        groups = (held.groups = grouping.plan(rt, count, tested, capacity));
       if (!groups) return 0;
-      if (!pairs || pairs.size < cull.kept.size) {
-        pairs?.destroy();
-        pairs = device.createBuffer({
+      if (!held.pairs || held.pairs.size < cull.kept.size) {
+        held.pairs?.destroy();
+        held.pairs = device.createBuffer({
           label: 'Trillion3D shadow moving group pairs v1',
           size: cull.kept.size,
           usage: GPUBufferUsage.STORAGE,
         });
       }
+      const { pairs } = held;
       const visible = occlusion?.visibleIndirect ?? cull.indirect;
       if (
         bound.indirect !== cull.indirect ||
@@ -140,7 +139,7 @@ export async function createShadowMovingGroups(device: GPUDevice) {
     dispose() {
       table.destroy();
       args.destroy();
-      pairs?.destroy();
+      held.pairs?.destroy();
     },
   };
 }

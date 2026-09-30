@@ -25,9 +25,10 @@ export const KEPT = [
   [0, 0, 0, 0],
 ];
 
-/** The batch, its pages planned into their passes. */
-export function batch() {
+/** The batch, on a device that clips a caster to its page by distances (`lamps`) or not. */
+export function batch(lamps = true) {
   const lights = createWebgpuLightState(SIDE);
+  lights.shadows = { groupDraws: { lamps } } as unknown as typeof lights.shadows;
   lights.store.add(SUN);
   lights.store.add(LAMP);
   lights.plan.plan(lights.store, VIEW, [-10, 0, -10], [10, 5, 10], 0, 0);

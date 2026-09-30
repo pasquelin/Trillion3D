@@ -10,26 +10,29 @@ import {
 /** A group draw's first vertex carries its group this many bits up; its corner is below. */
 const GROUP_SHIFT = 16;
 /** A group's block word: bit 0, the block at the layer's right; bit 1, at its bottom; bit 2, its
- *  lists are the occlusion test's. */
-export const GROUP_TESTED = 4;
+ *  lists are the occlusion test's; bit 3, lamp pages, drawn over the whole layer (`GROUP_LAYER`). */
+export const GROUP_TESTED = 4,
+  GROUP_LAYER = 8;
 
 /**
- * THE MOVING CASTERS OF A PASS'S SUN PAGES, DRAWN BY GROUP (#1345), entries of the shadow depth
- * shader (`shader.ts`). A group is every restored sun page of one pass in one block of its layer —
- * a square of `B` texels, `B` the layer's largest power of two, at its left or right, top or bottom
- * edge: every page lies in one — whose lists are the cull's, or all the occlusion test's. Instance
- * `i` of the group's draw is its `i`-th pair: a place in the kept lists (`KEPT_LISTS_WGSL`), which
- * names the region (`place / capacity`) and, in `groupInstances`, the caster row. The group table
- * (`groupTable`) says where each group's pairs lie (`groupPairs`).
+ * THE MOVING CASTERS OF A PASS'S RESTORED PAGES, DRAWN BY GROUP (#1345), entries of the shadow
+ * depth shader (`shader.ts`). A group is every restored page of one pass whose lists are the cull's,
+ * or all the occlusion test's, and, for a sun, in one block of its layer — a square of `B` texels,
+ * `B` the layer's largest power of two, at its left or right, top or bottom edge: every page lies in
+ * one —; for a lamp, anywhere in its layer (`GROUP_LAYER`). Instance `i` of the group's draw is its
+ * `i`-th pair: a place in the kept lists (`KEPT_LISTS_WGSL`), which names the region (`place /
+ * capacity`) and, in `groupInstances`, the caster row. The group table (`groupTable`) says where
+ * each group's pairs lie (`groupPairs`).
  *
  * `groupPlace` carries a snapped sun corner from its page's viewport to the block's: the page's
  * `(p·half) + (first + half)` and the block's `(q·side) + (origin + side)`, which the rasterizer
  * computes, are the same f32 value, since `q·side` is exactly `p·half + (first − origin + half −
  * side)` — a power-of-two scale, and a sum exact on the snap's grid (`sunSnap`); at the
- * transmittance layer's half resolution, both halve exactly. The fragment keeps the page's texels
- * alone (`pageHolds`): the page draws what its own viewport drew, to the bit. A lamp's perspective
- * page cannot be carried so — the rasterizer divides the carried corner by `w` in f32, which moves
- * a texel's edge by an ulp (`groupPlace.test.ts`) — and draws in its own viewport.
+ * transmittance layer's half resolution, both halve exactly. A lamp's perspective corner is carried
+ * onto its page's square of the layer in clip space, `x' = x·s + o·w`, by the GPU's own pages'
+ * `freshPlace`: after the f32 divide by `w` it lands within one ulp of its page viewport's window
+ * position, one texel edge at most (`groupPlace.test.ts`, class 2). The fragment keeps the page's texels
+ * alone (`pageHolds`) and, for a lamp, what lies outside its emitter's envelope.
  */
 export const SHADOW_GROUP_DRAWS_WGSL = `
 struct GroupView{view:ShadowView,@size(${SHADOW_FACE_STRIDE - SHADOW_FACE_READ_BYTES}) rect:vec4f,}
@@ -56,10 +59,14 @@ fn groupCaster(vertexIndex:u32,instance:u32,cutout:bool,blended:bool)->ShadowOut
  let head=${MAX_SHADOW_REGIONS}u+(vertexIndex>>${GROUP_SHIFT}u)*${GROUP_WORDS}u;
  let at=select(groupTable[head]+instance,groupTable[head+1u]-1u-instance,cutout);
  let place=groupPairs[at];let region=place/groupTable[${GROUP_CAPACITY_WORD}u];
- let view=groupViews[region].view;
+ let view=groupViews[region].view;let bits=groupTable[head+2u];
  var out=shadowVertexIn(view,vertexIndex&${2 ** GROUP_SHIFT - 1}u,groupInstances[place],blended);
- let square=groupBlock(view,groupTable[head+2u]);
- out.position=groupPlace(out.position,pageFirst(view),view.params.w*0.5,square.xy,square.z);
+ if((bits&${GROUP_LAYER}u)!=0u){
+  out.position=freshPlace(FreshView(view,groupViews[region].rect),out.position);
+ }else{
+  let square=groupBlock(view,bits);
+  out.position=groupPlace(out.position,pageFirst(view),view.params.w*0.5,square.xy,square.z);
+ }
  out.region=region;
  return out;
 }
@@ -72,9 +79,10 @@ fn groupCaster(vertexIndex:u32,instance:u32,cutout:bool,blended:bool)->ShadowOut
 @vertex fn shadow_group_blend_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->ShadowOut{
  return groupCaster(vertexIndex,instanceIndex,false,true);
 }
-/** A texel of the region's page, no fragment test of its own. */
+/** A texel of the region's page off its emitter's envelope (a sun has none), as \`shadow_fs\`. */
 @fragment fn shadow_group_fs(in:ShadowOut){
- if(!pageHolds(groupViews[in.region].view,in.position.xy)){discard;}
+ let view=groupViews[in.region].view;let radius=view.emitter.w;
+ if(!pageHolds(view,in.position.xy)||(radius>0.0&&dot(in.fromEmitter,in.fromEmitter)<radius*radius)){discard;}
 }
 /** A cutout caster's texel of the region's page, as \`shadow_fs\` keeps it. */
 @fragment fn shadow_group_cutout_fs(in:ShadowOut){
@@ -128,4 +136,30 @@ var<workgroup> claimed:u32;
   }
   workgroupBarrier();
  }
+}`;
+
+/**
+ * THE LAMP GROUPS' VERTEX STAGE, on a device that clips by `clip-distances` (#1345): a lamp group
+ * draws over its whole layer, so each caster is clipped to its page's square of the layer — the
+ * page quad's (`page_quad_vs`), `x/w` within `rect.x ∓ rect.z` — by four clip distances, as its
+ * own viewport clipped it: no fragment is rasterized past the page, however far the caster reaches
+ * (a caster near a lamp spans many pages). The distances are homogeneous, so a corner behind the
+ * lamp (`w < 0`) is clipped too. A device without the feature draws lamp pages one by one.
+ */
+export const SHADOW_GROUP_LAMP_WGSL = `
+struct GroupOut{@invariant @builtin(position) position:vec4f,@location(0) @interpolate(flat) instance:u32,@location(1) uv:vec2f,@location(2) fromEmitter:vec3f,@location(3) @interpolate(flat) region:u32,@builtin(clip_distances) clip:array<f32,4>,}
+fn groupLampCaster(vertexIndex:u32,instance:u32,cutout:bool,blended:bool)->GroupOut{
+ let c=groupCaster(vertexIndex,instance,cutout,blended);let r=groupViews[c.region].rect;let p=c.position;
+ let lo=min(r.xy-r.zw,r.xy+r.zw)*p.w;let hi=max(r.xy-r.zw,r.xy+r.zw)*p.w;
+ var clip:array<f32,4>;clip[0]=p.x-lo.x;clip[1]=hi.x-p.x;clip[2]=p.y-lo.y;clip[3]=hi.y-p.y;
+ return GroupOut(p,c.instance,c.uv,c.fromEmitter,c.region,clip);
+}
+@vertex fn shadow_group_lamp_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->GroupOut{
+ return groupLampCaster(vertexIndex,instanceIndex,false,false);
+}
+@vertex fn shadow_group_lamp_cutout_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->GroupOut{
+ return groupLampCaster(vertexIndex,instanceIndex,true,false);
+}
+@vertex fn shadow_group_lamp_blend_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->GroupOut{
+ return groupLampCaster(vertexIndex,instanceIndex,false,true);
 }`;
