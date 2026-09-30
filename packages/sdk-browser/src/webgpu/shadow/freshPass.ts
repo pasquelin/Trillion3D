@@ -5,7 +5,7 @@ import type { ShadowPlan } from '../../../../sdk-core/src/scene/light-shadow/pla
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { FRESH_CASTERS, FRESH_CLEAR, FRESH_SLICE_FLOATS, freshDrawWord } from './freshLayout.ts';
 import { freshGroups } from './freshGroups.ts';
-import { PAIR_BYTES } from './freshPairs.ts';
+import { growPairList, keptPairs } from './pairGrowth.ts';
 
 /** Each slice's emitter and far plane, rewritten each frame: a frame allocates nothing. */
 const slices = new Float32Array(MAX_SHADOW_SLICES * FRESH_SLICE_FLOATS),
@@ -46,15 +46,14 @@ const epochs = new WeakMap<object, number>();
 /**
  * THE PAGES THE GPU MAPPED AND NO DRAW HAS FILLED, DRAWN IN THE FRAME THAT ASKS FOR THEM (#1275),
  * after the host's batches and table words, before the resolve reads any page — every one, a page
- * whose pairs the list could not hold the next frame, the list grown to them (#1363). One
+ * whose pairs the kept list could not hold the next frame, the list grown to them (#1363). One
  * workgroup composes them into regions (`freshWgsl.ts`); the pair cull counts, admits whole and
  * keeps, for each, every caster row its page's light-space volume touches (`freshCullWgsl.ts`) —
  * the table's rows are every resident page of every caster, the camera no part of it — in the
- * list sized to the frames' need (`freshPairs.ts`); the seal makes readable each page admitted;
- * then each pool layer's pass clears its
- * pages' squares and draws every kept pair, in two indirect draws (`freshDrawsWgsl.ts`), and,
- * while a tinted layer is read, that layer's pass the same with the blended casters: no indirect
- * draw sets a viewport. The host draws a page again, with its light cut and static layer, once a
+ * region cull's kept list, grown to the frames' need (`pairGrowth.ts`); the seal makes readable
+ * each page admitted; then each pool layer's pass clears its pages' squares and draws every kept
+ * pair, in two indirect draws (`freshDrawsWgsl.ts`), and, while a tinted layer is read, that
+ * layer's pass the same with the blended casters: no indirect draw sets a viewport. The host draws a page again, with its light cut and static layer, once a
  * report tells it the page (`mirror.ts`).
  *
  * Nothing without the GPU allocation, the cull's rows or the draws, and nothing in a frame that
@@ -71,7 +70,8 @@ export function encodeFreshPages(
   if (!allocation || !buffers?.seeded || !plan.gpu.on || !shadows?.texture) return;
   if (!cull || !spheres || !mobilityRows) return;
   if (!freshWanted(plan, lights.store.epoch, buffers.lost)) return;
-  const pairs = buffers.pairs.list(cull.kept),
+  growPairList(rt);
+  const pairs = cull.kept,
     groups = freshGroups(rt, device, pairs);
   if (!groups) return;
   const { side, layers } = plan.pool,
@@ -79,7 +79,7 @@ export function encodeFreshPages(
     tint = shadows.transmittance;
   blend[0] = rows.blendFirst;
   blend[1] = rows.casterSlots;
-  const capacity = Math.floor(pairs.size / PAIR_BYTES);
+  const capacity = keptPairs(cull.capacity);
   buffers.writeFresh(side, layers, rows.packedCount, blend, capacity, freshSlices(lights.store));
   const composed = [shadows.dataBuffer, buffers.state, buffers.drawList, buffers.freshFaces];
   composed.push(

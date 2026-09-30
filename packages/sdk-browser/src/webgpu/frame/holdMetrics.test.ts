@@ -103,7 +103,7 @@ function tenue() {
         requests: { counts: { requested: 0 } },
       },
       shadowWork: createShadowWork(),
-      memory: { peakBytes: 0, bias: 0, events: [] },
+      memory: { peakBytes: 0, bias: 0, events: [], pairBytes: 0 },
     },
     bounce: { probes: undefined },
     blendState: { visibleBlend: [] },
