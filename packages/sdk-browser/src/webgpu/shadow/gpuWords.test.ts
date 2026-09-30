@@ -1,8 +1,7 @@
 // #1275: while the GPU maps the pages, the host's table words — a page drawn, withdrawn or adopted
 // — are written by the GPU, run from their WGSL (`wordsWgsl.ts`), and kept only for the page the
 // GPU says the entry owns: a host frames behind the GPU never makes a page readable for an entry it
-// does not hold, its draw into a page given away withdraws the page's owner, and its adoption of a
-// page the GPU drew itself leaves that draw readable.
+// does not hold, and its draw into a page given away withdraws the page's owner.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {

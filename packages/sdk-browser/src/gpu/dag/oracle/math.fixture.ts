@@ -3,14 +3,14 @@ import {
   frustumExcludesBox,
   frustumPlanesToLocal,
   multiplyMatrix4,
-  screenErrorBound,
 } from '../../../../../sdk-core/src/index.ts';
+import { screenErrorBound } from '../../../../../sdk-core/src/lod/screenErrorBound.ts';
 import {
   boxMissesLightPages,
   type LightPages,
 } from '../../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
 import { errorFloorAt, viewDepthOf, viewLateralOf } from '../../../page/selection/projection.ts';
-import { OPEN_PLANES, openMark } from '../../../page/cut/select.ts';
+import { OPEN_PLANES, openMark } from '../../../page/cut/openRoot.ts';
 import { DAG_NODE_FLOATS } from '../types.ts';
 import {
   NODE_CEIL,
@@ -22,7 +22,7 @@ import {
   NODE_OPEN,
   NODE_SPHERE,
   NODE_WORLD,
-} from '../packNodes.ts';
+} from '../nodeLayout.ts';
 import type { DagViewUniforms, PackedDag } from '../types.ts';
 
 /** Column-major 4×4 buffers rewritten per world, never reallocated. */
@@ -64,7 +64,7 @@ export function projectedError(
 /**
  * What a frame sets per primitive before any descent: trunk planes brought into the
  * primitive's space, the view·world matrix, and object-view stretch. Two CPU descents
- * asked for it word for word — the oracle (`oracle.ts`) and frontier counting
+ * asked for it word for word — the oracle (`oracle.fixture.ts`) and frontier counting
  * (`../cutFrontier.fixture.ts`) — ; it is written only here, so neither can drift
  * from the kernel without the other doing so too.
  */

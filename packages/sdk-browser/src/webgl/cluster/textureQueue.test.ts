@@ -1,7 +1,7 @@
 // #840: a map uploaded at the first draw that shows it held that frame 100–140 ms on sponza `rue`
 // (the upload waited for a GPU process held by the compositor). The census orders the maps of every
-// declared surface, attached or not, within the texture pool's bytes; each frame uploads the next
-// ones before its draws, those that fit its upload budget — WebGPU's tile budget.
+// declared surface, attached or not, within the texture pool's bytes: what it leaves out uploads
+// at its first draw.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';

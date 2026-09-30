@@ -4,10 +4,8 @@
 //
 //   node --experimental-strip-types tests/browser/probes/coverage-count-gpu.ts
 import assert from 'node:assert/strict';
-import {
-  COVERAGE_WGSL,
-  LEVEL_BIN_BYTES,
-} from '../../../packages/sdk-browser/src/texture/coverageMips.ts';
+import { LEVEL_BIN_BYTES } from '../../../packages/sdk-browser/src/texture/coverageMips.ts';
+import { COVERAGE_WGSL } from '../../../packages/sdk-browser/src/texture/mipsWgsl.ts';
 import { levelSize } from '../../../packages/sdk-browser/src/texture/tiles.ts';
 import { random } from '../../../packages/sdk-browser/src/page/cut/cutRuleChecks.fixture.ts';
 import { dansPageWebgpu } from './pageWebgpu.ts';

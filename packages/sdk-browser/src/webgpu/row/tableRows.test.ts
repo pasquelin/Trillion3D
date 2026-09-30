@@ -1,6 +1,6 @@
 // The page table is one storage binding: a scene of many placements asked 209 MB of rows on
 // ten-thousand-objects, past a 128 MiB binding, and the table could be neither made nor bound. Its
-// rows are bounded by the device, shared between the two sides as asked (#974).
+// rows are bounded by the device: a table, grown or not, stays within one binding (#974).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { boundTableRows, grownTableRows } from './tableRows.ts';

@@ -1,4 +1,6 @@
-import { planItem, planPipeline, planShared } from './plan.ts';
+import { planItem, planShared } from './plan.ts';
+import { buildBlendRuns } from './runSlicing.ts';
+import { EXPAND_UNI } from './expandUniform.ts';
 
 /**
  * RUNS OF THE TRANSPARENT PASS: what replaces a draw per item.
@@ -72,32 +74,6 @@ export function blendChunkWords(shift: number, indexCount: number) {
 }
 
 /**
- * Writes the runs of the sorted plan and returns their count.
- *
- * `out` belongs to the scene and is `RUN_WORDS` words per plan entry — the worst case — so nothing
- * is allocated per frame. `runs` and `first` resume it at a run boundary (`resliceBlendRuns`).
- */
-export function buildBlendRuns(order: Uint32Array, out: Uint32Array, runs = 0, first = 0) {
-  while (first < order.length) {
-    const pipeline = planPipeline(order[first]);
-    const shared = planShared(order[first]);
-    // An entry extends the run when it sets the same pipeline AND carries the share bit: both are
-    // in its low bits, and the plan is walked without ever following a rank. Its cull mode may
-    // differ: the vertex stage reads it per instance.
-    let end = first + 1;
-    if (shared)
-      while (end < order.length && planShared(order[end]) && planPipeline(order[end]) === pipeline)
-        end++;
-    const base = runs * RUN_WORDS;
-    out[base] = first;
-    out[base + 1] = end - first;
-    runs++;
-    first = end;
-  }
-  return runs;
-}
-
-/**
  * The runs of `order` sliced again from entry `at`, the first that moved; `out` holds the `count`
  * runs it had before. A run reads only its entries and the one that stopped it: runs before the
  * one holding `at - 1` stand, and that one resumes the slicing, as it may now extend.
@@ -143,35 +119,8 @@ export function planRegions(maxEntries: number) {
   return regions;
 }
 
-/**
- * THE TWELVE UNIFORM WORDS OF THE EXPANSION KERNEL, written once.
- *
- * Three writes and one read share them: production encoding, the “GPU = model” proof, the test
- * double, and the struct the shader declares. Reordering a word in one of the four let the other
- * three compile and pass while reading the wrong fields — exactly the devices meant to catch the
- * drift. They all read here.
- */
-const UNI_FIELDS = [
-  'entryCount',
-  'groupCount',
-  'runCount',
-  'instanceBase',
-  'argsBase',
-  'maxVertexWords',
-  'vertexShift',
-  'orderBase',
-  'runsBase',
-] as const;
-export const UNI_WORDS = 12;
-export const EXPAND_UNI = Object.fromEntries(UNI_FIELDS.map((nom, rang) => [nom, rang])) as Record<
-  (typeof UNI_FIELDS)[number],
-  number
->;
-/** WGSL declaration of these words, in the same order, padding included. */
-export const expandUniformWgsl = () =>
-  `struct Uni{${UNI_FIELDS.map((nom) => `${nom}:u32,`).join('')}pad0:u32,pad1:u32,pad2:u32,}`;
-
-/** Writes them into `out`, at the rank each occupies. */
+/** Writes the expansion kernel's uniform words (`expandUniform.ts`) into `out`, at the rank each
+ *  occupies. */
 export function blendExpandUniform(
   out: Uint32Array,
   counts: { entries: number; runs: number; instanceBase: number },

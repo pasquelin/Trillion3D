@@ -1,6 +1,5 @@
-export type { HizPage, HizBounds, HizPyramid } from './types.ts';
+export type { HizPage } from './types.ts';
 export { BOX_CORNER_VALUES, pageCornersInto } from './corners.ts';
-export { hizRejects } from './occlusion.ts';
 export { createHizCounts, resetHizCounts } from './counts.ts';
 export type { HizCounts } from './counts.ts';
 export { sameHizView, applyTemporalHiz } from './temporal.ts';

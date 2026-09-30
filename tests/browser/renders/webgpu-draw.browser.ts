@@ -17,7 +17,7 @@ import {
   VIS_BINDINGS,
   VIS_UNIFORM_BYTES,
 } from '../../../packages/sdk-browser/src/webgpu/core/bindLayout.ts';
-import type { DrawItem } from '../../../packages/sdk-browser/src/gpu/draw/contract.ts';
+import type { DrawItem } from '../../../packages/sdk-browser/src/gpu/draw/cpu.fixture.ts';
 import { drawShader } from '../../../packages/sdk-browser/src/gpu/draw/shader.ts';
 
 const DRAW_SHADER = drawShader(1);

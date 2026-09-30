@@ -17,7 +17,7 @@ import {
 } from './batchBudget.ts';
 import { SHADOW_CULL_SHADER, SHADOW_LIGHT_CULL_SHADER } from './cullShader.ts';
 import { SHADOW_OCCLUSION_SHADER } from './occlusionShader.ts';
-import { PAGE_QUAD_SHADER } from './pageQuads.ts';
+import { PAGE_QUAD_SHADER } from './pageWgsl.ts';
 import { SHADOW_DEPTH_SHADER } from './shader.ts';
 import { createGpuShadowCull, type ShadowCullSource } from './cull.ts';
 import { DRAW_INDIRECT_WORDS } from '../draw/contract.ts';

@@ -3,7 +3,7 @@
 // them, and the pair cull over every row and region it dispatches — what the mock GPU dispatches
 // (`tests/kit/gpu/mockCompute.ts`) and the scheduling tests run.
 import { MAX_SHADOW_SLICES } from '../../../../sdk-core/src/index.ts';
-import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
+import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelSignatures.ts';
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import {

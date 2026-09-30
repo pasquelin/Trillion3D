@@ -4,7 +4,7 @@ import { primitiveWordAt } from '../../../packages/sdk-browser/src/gpu/dag/world
 import { DRAW_ITEM_U32 } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts';
 import { evaluateDrawCompact } from '../../../packages/sdk-browser/src/gpu/draw/cpu.fixture.ts';
 import { indirectForDraw } from '../../../packages/sdk-browser/src/gpu/draw/cpu.fixture.ts';
-import { type DrawItem } from '../../../packages/sdk-browser/src/gpu/draw/contract.ts';
+import type { DrawItem } from '../../../packages/sdk-browser/src/gpu/draw/cpu.fixture.ts';
 import { compactDrawnPages } from './globals.ts';
 import {
   simulateBlendExpansion,
@@ -14,8 +14,8 @@ import {
 import {
   SELECTION_HEADER_WORDS,
   childBase,
+  residentReadbackBytes,
   selectionListCap,
-  stagedRequestsWord,
 } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
 import { VIEW_LIGHT } from '../../../packages/sdk-browser/src/gpu/dag/shader/pagesWgsl.ts';
 import { mockEvictions, sortStagedRequests } from './mockEvict.ts';
@@ -186,7 +186,7 @@ export function simulateComputeDispatch(
   // The camera's requests wait, in the order `dagWanted` emits them, where `dagSortRequests` reads.
   const [list, at] = light
     ? [result.pageIds, SELECTION_HEADER_WORDS]
-    : [result.requestWords, stagedRequestsWord(selectionListCap(packed.pageCount))];
+    : [result.requestWords, residentReadbackBytes(selectionListCap(packed.pageCount)) / 4];
   ints[0] = list.length;
   ints.set(list, at);
 }

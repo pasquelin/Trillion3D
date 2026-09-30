@@ -6,10 +6,9 @@
 // 1, infinity at 0 — and `depthConvention.ts` publishes what follows: pipeline comparison,
 // the clear value, the sense of "nearer", conversion to distance.
 //
-// What this file proves: the host clip convention no longer enters any engine number; the
-// Hi-Z bound of a box and the depth of a visibility-raster vertex do come out in that
-// convention; and a very distant point keeps a depth distinct from its neighbour, where
-// the forward projection crushed them.
+// What this file proves: the host clip convention no longer enters any engine number, the
+// Hi-Z bound of a box included; and a very distant point keeps a depth distinct from its
+// neighbour, where the forward projection crushed them.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';

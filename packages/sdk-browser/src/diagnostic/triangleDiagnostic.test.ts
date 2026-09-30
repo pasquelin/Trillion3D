@@ -7,7 +7,7 @@ import { hostDiagnostics } from '../../../../bench/witnesses/three/sceneAdapter.
 import { asHostLibrary } from '../host/resources.ts';
 import { exactPagesBackend, referenceBackend } from '../../../../bench/witnesses/measurement.ts';
 import { quadScene, frontCamera, quadRootsContext } from '../backend/pagesBackendScenes.fixture.ts';
-import { submittedDraws } from '../cluster/batchMesh.ts';
+import { submittedDraws } from '../cluster/submissions.fixture.ts';
 
 test('triangle diagnostic expands indexed geometry and assigns a color per submitted triangle', () => {
   const { geometry } = quadScene();

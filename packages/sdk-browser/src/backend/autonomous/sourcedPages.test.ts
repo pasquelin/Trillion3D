@@ -1,5 +1,5 @@
-// #573: the WebGL2 path draws a dynamic geometry's index pages over its host lists, every page
-// sharing them, and uploads a rewrite once, by its written range alone (`bufferSubData`).
+// #573: the WebGL2 path pages a dynamic geometry by its index alone, drawn over its host lists; any
+// other page still needs its geometry page.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {

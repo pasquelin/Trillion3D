@@ -25,7 +25,7 @@ import { SURFACE_MODEL_SHADE_WGSL } from '../../scene/surfaceModel.ts';
  * Screen gradients (per pixel in x, then y) of the perspective-correct coordinate at `p` in the
  * screen triangle `(s0,s1,s2)`, of vertex coordinates `uva..uvc` and clip `1/w` `iw`: the
  * derivatives a fragment reads, exact at the pixel. Zero for a degenerate triangle. The formula
- * of the resolve (`shadeWgsl.ts`); `uvDerivatives` (`../math.ts`) is its CPU mirror.
+ * of the resolve (`shadeWgsl.ts`); `uvDerivatives` (`../uvDerivatives.fixture.ts`) is its CPU mirror.
  */
 export const UV_GRADIENTS_WGSL = `fn uvGradients(s0:vec2f,s1:vec2f,s2:vec2f,p:vec2f,uva:vec2f,uvb:vec2f,uvc:vec2f,iw:vec3f)->mat2x2f{
  let dxb=s1.x-s0.x;let dyb=s1.y-s0.y;let dxc=s2.x-s0.x;let dyc=s2.y-s0.y;let det=dxb*dyc-dxc*dyb;

@@ -1,8 +1,8 @@
 import { DAG_NODE_FLOATS } from '../types.ts';
-import { dagNodeFloor, dagNodeVerdict } from './math.ts';
-import { NODE_FIRST_CHILD } from '../packNodes.ts';
+import { dagNodeFloor, dagNodeVerdict } from './math.fixture.ts';
+import { NODE_FIRST_CHILD } from '../nodeLayout.ts';
 import { castsNoShadow } from '../../../page/cut/select.ts';
-import type { DagViewFrames } from './math.ts';
+import type { DagViewFrames } from './math.fixture.ts';
 
 /** A kept leaf reached only by the view ahead (`../shader/aheadWgsl.ts`): its pages are requested
  *  ahead and never drawn. */
@@ -27,7 +27,7 @@ function keeps(frames: DagViewFrames, nodes: Float32Array, nodeInts: Uint32Array
  * Top-down pruning drops a subtree whose error floor is above the threshold, unless the subtree
  * is open — it holds the nearest resident ancestor of something missing (`../shader/floorWgsl.ts`).
  *
- * Split from `oracle.ts`: it is a whole step, it has its own WGSL mirror.
+ * Split from `oracle.fixture.ts`: it is a whole step, it has its own WGSL mirror.
  */
 export function dagOracleDescent(
   packed: {

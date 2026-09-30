@@ -1,6 +1,6 @@
 // #274: with no `backends` option the engine's own path renders, and a Three witness is only ever
-// active because something said so. #297: a machine without WebGPU takes the engine's own
-// autonomous WebGL2 path, which draws; the temporary witness fallback of #298 is gone.
+// active because something said so. The temporary witness fallback of #298 is gone: a machine
+// that offers neither API fails by name.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';

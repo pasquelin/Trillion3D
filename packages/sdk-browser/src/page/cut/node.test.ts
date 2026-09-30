@@ -1,7 +1,7 @@
 // Lot 4c: at threshold zero, a node's decision is taken on the bounds alone, without projecting.
 // It matches the general path only under the invariant `cullingBounds` maintains — a finite
-// strictly positive bound always comes from a cluster that had its sphere — and the second
-// test proves that. Oracle: `nodeDecision` from before the lot, in `../../../../../bench/oracles/browser/cut-budget.ts`.
+// strictly positive bound always comes from a cluster that had its sphere —, which this test
+// proves.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
