@@ -2,7 +2,7 @@ import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import { anyMoving, refuseAll } from './poolStates.ts';
 import { viewProj } from '../webgpu/pages/helpers.ts';
 import { routedFilter } from '../webgpu/blend/displayFilter.ts';
-import { fluidCode } from '../fluids/particleCode.ts';
+import { fluidCodeFor } from '../fluids/particleCode.ts';
 
 /** The pass label the GPU timings name the particle step by (`passesGpu`). */
 export const PARTICLES_PASS = 'Trillion3D particles';
@@ -38,13 +38,10 @@ export function encodeParticles(
   if (!rt.gpu.particles) {
     // The step's code arrives on the first pool (`../fluids/particleCode.ts`); until then, what
     // the pools stage waits, as while its pipeline compiles. A refused import refuses them, once.
-    const code = fluidCode.get(),
-      refused = fluidCode.failed;
-    if (refused && refuseAll(pools)) rt.diag.diagnosticFailure('particles-unavailable', refused);
+    const fail = (error: unknown) => rt.diag.diagnosticFailure('particles-unavailable', error);
+    const code = fluidCodeFor(pools, fail);
     if (!code) return;
-    rt.gpu.particles = code.createWebgpuParticles(device, (error) =>
-      rt.diag.diagnosticFailure('particles-unavailable', error),
-    );
+    rt.gpu.particles = code.createWebgpuParticles(device, fail);
   }
   rt.run.gpuComputeDispatches += rt.gpu.particles.run(pools, encoder);
 }

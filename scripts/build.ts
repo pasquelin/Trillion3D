@@ -1,4 +1,4 @@
-import { existsSync, rmSync } from 'node:fs';
+import { rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { cleanBundle } from './build-bundle.ts';
 import { heavyStep } from './heavy-lock.ts';
@@ -19,6 +19,6 @@ const steps: string[][] = [
 heavyStep('build', () => {
   for (const pkg of ['sdk', 'sdk-core', 'sdk-browser', 'sdk-node', 'witnesses'])
     rmSync(`dist/${pkg}`, { recursive: true, force: true });
-  if (existsSync('dist')) cleanBundle('dist');
+  cleanBundle('dist');
   for (const args of steps) run(process.execPath, args);
 });

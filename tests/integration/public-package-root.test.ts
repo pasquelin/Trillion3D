@@ -28,21 +28,16 @@ test('package metadata exposes one environment-aware root', async () => {
   assert.equal(packageJson.private, true);
   assert.equal(packageJson.bin['trillion3d-compile'], './dist/sdk-node/src/cli/cli.mjs');
   assert.deepEqual(Object.keys(packageJson.exports), ['.', './module', './package.json']);
-  assert.deepEqual(Object.keys(packageJson.exports['.']), [
-    'browser',
-    'node',
-    'types',
-    'import',
-    'default',
-  ]);
+  const conditions = ['browser', 'node', 'types', 'import', 'default'];
+  assert.deepEqual(Object.keys(packageJson.exports['.']), conditions);
   assert.equal(packageJson.exports['.'].default, './dist/sdk/index.js');
   // Issue #1353: the CDN bundle, one module, beside the unbundled entries a bundler reads.
+  const bundle = './dist/trillion3d.module.js';
   assert.deepEqual(packageJson.exports['./module'], {
     types: './dist/sdk/browser.d.ts',
-    default: './dist/trillion3d.module.js',
+    default: bundle,
   });
-  assert.equal(packageJson.unpkg, './dist/trillion3d.module.js');
-  assert.equal(packageJson.jsdelivr, './dist/trillion3d.module.js');
+  for (const cdn of ['unpkg', 'jsdelivr']) assert.equal(packageJson[cdn], bundle);
   assert.equal(packageJson.sideEffects, false);
   // Issue #275: the host library is a development tool of the bench and its witnesses, never a
   // requirement of the package — neither declared for the consumer nor shipped to them.

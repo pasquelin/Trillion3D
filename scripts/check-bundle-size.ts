@@ -47,14 +47,14 @@ export function coreSize(dist: string, budget = CORE_BUDGET_BYTES) {
     (sum, name) => sum + gzipSync(readFileSync(join(dist, name)), { level: 9 }).length,
     0,
   );
-  const verdict = bytes <= budget ? 'within' : 'OVER';
+  const within = bytes <= budget;
   const families = held.length
     ? `, and holds ${held.join(', ')}, to be loaded on first use`
     : `; ${Object.keys(FAMILY_MODULES).join(' and ')} load on first use`;
   return {
     bytes,
-    fits: bytes <= budget && !held.length,
-    line: `CDN core: ${bytes} bytes gzip in ${files.length} files, ${verdict} its budget of ${budget}${families}`,
+    fits: within && !held.length,
+    line: `CDN core: ${bytes} bytes gzip in ${files.length} files, ${within ? 'within' : 'OVER'} its budget of ${budget}${families}`,
   };
 }
 
