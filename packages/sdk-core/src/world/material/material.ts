@@ -3,7 +3,7 @@ import type { MaterialParameters } from './materialParameters.ts';
 export type { MaterialParameters } from './materialParameters.ts';
 import { alphaModeOf, type Material as EngineMaterial } from '../../contracts/material.ts';
 import { Color, type ColorInput } from '../math/color.ts';
-import { listen } from '../math/observed.ts';
+import { listen, unlisten } from '../math/observed.ts';
 import type { Blending, Side } from '../constants/index.ts';
 
 /** The fields whose value is a colour: written through `Color`, whatever the page passes. */
@@ -99,10 +99,24 @@ export class Material {
     });
   }
   private assign(key: string, value: unknown) {
+    if (COLOURS.has(key) && value instanceof Color) {
+      const previous = this[key];
+      if (
+        previous instanceof Color &&
+        previous !== value &&
+        !Array.from(COLOURS).some((other) => other !== key && this[other] === previous)
+      )
+        unlisten(previous, this.heard);
+      listen(value, this.heard);
+    }
     if (COLOURS.has(key) && !(value instanceof Color)) {
       const current = this[key];
       if (current instanceof Color) current.set(value as ColorInput);
-      else this[key] = new Color(value as ColorInput);
+      else {
+        const color = new Color(value as ColorInput);
+        listen(color, this.heard);
+        this[key] = color;
+      }
     } else this[key] = value;
     // A texture this material samples is heard like the material itself.
     const sampled = value as { isTexture?: boolean; _listeners?: Set<() => void> } | null;
