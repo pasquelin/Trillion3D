@@ -14,8 +14,7 @@ import {
 import { LIGHT_CUT_PASS } from '../gpu/dag/encode.ts';
 import { SHADOW_PAGE_PASSES } from '../webgpu/shadow/allocPass.ts';
 import { MATERIAL_DEPTH_PASS, MATERIAL_SURFACES_PASS } from '../webgpu/core/materialPasses.ts';
-import { PARTICLES_PASS } from '../particles/webgpuParticles.ts';
-import { PARTICLE_DRAW_PASS } from '../particles/webgpuParticleDraw.ts';
+import { PARTICLE_DRAW_PASS, PARTICLES_PASS } from '../particles/webgpuParticleFrame.ts';
 import type { StageAdd } from './profiler.ts';
 
 /**
