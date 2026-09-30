@@ -2,7 +2,7 @@ import { dotVector3 } from '../../math/primitives/vector.ts';
 import { MAX_SHADOW_SLICES, type ShadowViewpoint } from '../light/contracts.ts';
 import { faceFrame, sunBoxRect } from './math.ts';
 import { createSunDepthRanges } from './sunDepth.ts';
-import { SUN_LEVELS, SUN_LEVEL_ENTRIES, SUN_WINDOW, sunFloorLevel } from './virtual.ts';
+import { SUN_LEVELS, SUN_WINDOW, sunFloorLevel, sunLevelEntries } from './virtual.ts';
 import { PAGES, finestSunLevel, ringOf, sunPageMetres } from './pageModel.ts';
 
 /** Frames of layout kept to read a request report back: deeper than any readback lag. */
@@ -23,10 +23,10 @@ const UNBOUNDED = [-Infinity, Infinity, -Infinity, Infinity];
  * level is the near-plane footprint's (`finestSunLevel`); each level's extent is centred on the
  * camera, by whole pages.
  *
- * The layout of the last `HISTORY` frames is kept: a request report comes back frames later,
- * and its words are read with the extents of the frame that wrote them.
+ * The layout of the last `HISTORY` frames is kept: a report comes back frames later, read with its extents.
  */
-export function createSunLevels() {
+export function createSunLevels(pages = SUN_WINDOW) {
+  const levelEntries = sunLevelEntries(pages);
   const frame = new Float64Array(MAX_SHADOW_SLICES * 9),
     depth = new Float64Array(MAX_SHADOW_SLICES * 2),
     /** The scene box's rectangle on the light plane, `u0, u1, v0, v1` in metres (`sunBoxRect`). */
@@ -42,6 +42,8 @@ export function createSunLevels() {
     up = new Float64Array(3),
     ranges = createSunDepthRanges();
   return {
+    /** Pages a side of a clipmap level's extent around the camera: the session's extent. */
+    windowPages: pages,
     frame,
     depth,
     finest,
@@ -106,8 +108,8 @@ export function createSunLevels() {
       for (let level = lowest; level < lowest + SUN_LEVELS; level++) {
         const page = sunPageMetres(level),
           at = slice * LEVEL_WORDS + ringOf(level, SUN_LEVELS) * 2;
-        const ox = Math.floor(u / page) - SUN_WINDOW / 2,
-          oy = Math.floor(-v / page) - SUN_WINDOW / 2;
+        const ox = Math.floor(u / page) - pages / 2,
+          oy = Math.floor(-v / page) - pages / 2;
         if (origins[at] !== ox || origins[at + 1] !== oy) slots |= 1 << ringOf(level, SUN_LEVELS);
         origins[at] = ox;
         origins[at + 1] = oy;
@@ -128,8 +130,8 @@ export function createSunLevels() {
         within = PAGES.shadowWindowHolds;
       return (
         (within(level, finest[slice], SUN_LEVELS) &&
-          within(ax, origins[at], SUN_WINDOW) &&
-          within(ay, origins[at + 1], SUN_WINDOW)) === 1
+          within(ax, origins[at], pages) &&
+          within(ay, origins[at + 1], pages)) === 1
       );
     },
     /**
@@ -153,7 +155,7 @@ export function createSunLevels() {
           e = slice * 4 + 2 * k;
         out[k] = Math.max(o, Math.floor(Math.max(c - view.far, boxRect[e] - page) / page));
         out[k + 2] = Math.min(
-          o + SUN_WINDOW - 1,
+          o + pages - 1,
           Math.floor(Math.min(c + view.far, boxRect[e + 1] + page) / page),
         );
       }
@@ -167,14 +169,14 @@ export function createSunLevels() {
     decode(slice: number, relative: number, frameIndex: number, out: Int32Array) {
       const past = slice * HISTORY + (frameIndex % HISTORY);
       if (pastFrame[past] !== frameIndex) return false;
-      const slot = Math.floor(relative / SUN_LEVEL_ENTRIES),
-        rest = relative - slot * SUN_LEVEL_ENTRIES,
+      const slot = Math.floor(relative / levelEntries),
+        rest = relative - slot * levelEntries,
         at = past * LEVEL_WORDS + slot * 2;
       const ox = pastOrigins[at],
         oy = pastOrigins[at + 1];
       out[0] = PAGES.shadowSunSlotLevel(slot, pastFinest[past]);
-      out[1] = PAGES.shadowRingPage(rest % SUN_WINDOW, ox, SUN_WINDOW);
-      out[2] = PAGES.shadowRingPage(Math.floor(rest / SUN_WINDOW), oy, SUN_WINDOW);
+      out[1] = PAGES.shadowRingPage(rest % pages, ox, pages);
+      out[2] = PAGES.shadowRingPage(Math.floor(rest / pages), oy, pages);
       return true;
     },
     release(slice: number) {

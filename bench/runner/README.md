@@ -216,8 +216,9 @@ drawn by the engine itself in its reference mode (`packages/sdk-browser/src/fram
 `openMeasuredWorld(canvas, { reference: true })`), never by a second renderer: render scale 1, no
 temporal reuse (no TAA jitter nor history), bounced light traced at its per-frame ceiling and
 converged before the capture, shadows at the pool's full size (a shrunk pool refuses the capture),
-and the frame supersampled — the most samples per display pixel and axis the portable 8192-texel
-side holds, 2 at the boss's case — then box-filtered back in linear light. One command draws them:
+and the frame supersampled as TILES — each tile drawn at 8 samples per output pixel and axis within
+the portable 8192-texel side, box-filtered and assembled in linear light — then recorded. One
+command draws them:
 
     pnpm run build && node bench/runner/reference.ts [--scene sponza,facade-7] [--references <dir>]
 
@@ -231,7 +232,7 @@ pose, the SHA-256 of its pixels and the frames it took to hold. `bench.ts --refe
 image that is absent or whose pixels are not the ones the record names: redraw it at that commit.
 `--references <dir>` writes the record and the images there (a second run, compared with the
 first). Build first: the dist drawn is the tree's own. The open world's aerial view joins them once
-it loads (#1226).
+its bench scene exists (#1274).
 
 ## Navigation image regression proof
 

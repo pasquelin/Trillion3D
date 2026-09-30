@@ -3,6 +3,7 @@ import type { CutDelta, IdDelta } from '../cut/delta.ts';
 import { createDenseKeySet } from '../cut/denseKeys.ts';
 import { createKeyUnion } from '../cut/keyUnion.ts';
 import { createHeldKeys } from '../cut/heldKeys.ts';
+import { createPageCatalogue } from '../pages/prepare/catalogue.ts';
 import type { createWebgpuPageTracking } from '../row/pageTracking.ts';
 
 type Tracking = ReturnType<typeof createWebgpuPageTracking>;
@@ -26,8 +27,10 @@ export function createWebgpuResidencySets(options: {
 }) {
   const { tracking, bootstrapKey, packedPages } = options;
   const { keyCount, keyOf, wanted, wantedPages } = tracking;
+  /** A packed rank back to its record: the one catalogue accessor (`../pages/prepare/catalogue.ts`). */
+  const { recordOf } = createPageCatalogue(packedPages);
   /** A packed page's cache key, cached on its record by the tracking (`PageRec.keyIndex`). */
-  const keyOfId = (id: number) => keyOf(packedPages[id]);
+  const keyOfId = (id: number) => keyOf(recordOf(id)!);
   /** What joined and left `keep` since the pin step last ran, each joining key beside the record
    *  it joined by (none for the pinned cover): the pin step reads its parents there. */
   const enteringPages: (PageRec | undefined)[] = [];
@@ -81,12 +84,12 @@ export function createWebgpuResidencySets(options: {
    *  never asked for, and the cache must not reclaim it while it is on screen. */
   const askedKeys = createHeldKeys({
     keyOf: keyOfId,
-    retain: (key, id) => requested.retain(key, packedPages[id]),
+    retain: (key, id) => requested.retain(key, recordOf(id)),
     release: (key) => requested.release(key),
   });
   const drawnKeys = createHeldKeys({
     keyOf: keyOfId,
-    retain: (key: number, id: number) => keep.retain(key, packedPages[id]),
+    retain: (key: number, id: number) => keep.retain(key, recordOf(id)),
     release: (key: number) => keep.release(key),
   });
   /** Makes the queue the first `count` of `keys`, beside their records, unless it already holds
