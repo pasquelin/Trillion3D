@@ -58,17 +58,6 @@ export type OrthographicBox = {
   fitAspect?: boolean;
 };
 const seen = new Float64Array(4);
-/** A sub-rectangle of a wider view drawn into a target of its own (#1281). */
-export type ViewTile = {
-  /** Scale of the projection's x and y axes (the full view's pixels over the tile's). */
-  scaleX: number;
-  /** Scale of the projection's y axis; equal to `scaleX`, a tile's pixels being square. */
-  scaleY: number;
-  /** NDC translation applied after the scale, so the tile's centre lands on the target's. */
-  offsetX: number;
-  /** NDC translation along y, applied after the scale like `offsetX` on the x axis. */
-  offsetY: number;
-};
 /** The optics a camera declares: what the projection is composed from. An `orthographic` box
  *  makes the projection orthographic; `fov` then still sizes what reads a field of view. */
 export type CameraOptics = {
@@ -84,22 +73,18 @@ export type CameraOptics = {
   zoom: number;
   /** The view box of an orthographic camera. */
   orthographic?: OrthographicBox | null;
-  /** A tile of a wider view this camera draws (`ViewTile`); absent draws the view whole. */
+  /** A tile of a wider view this camera draws. Absent draws the view whole. */
   viewTile?: {
-    /** Scale of the projection's x and y axes (the full view's pixels over the tile's). */
-    scaleX: number;
-    /** Scale of the projection's y axis; equal to `scaleX`, a tile's pixels being square. */
-    scaleY: number;
-    /** NDC translation applied after the scale, so the tile's centre lands on the target's. */
-    offsetX: number;
-    /** NDC translation along y, applied after the scale like `offsetX` on the x axis. */
-    offsetY: number;
+    /** Scale of the x axis: the full view's pixels over the tile's. */ scaleX: number;
+    /** Scale of the y axis, equal to `scaleX`: a tile's pixels are square. */ scaleY: number;
+    /** NDC shift after the scale, the tile's centre onto its target's. */ offsetX: number;
+    /** NDC shift along y, as `offsetX` along x. */ offsetY: number;
   } | null;
 };
-
+/** A sub-rectangle of a wider view drawn into a target of its own (#1281). */
+export type ViewTile = NonNullable<CameraOptics['viewTile']>;
 /** Optics of a camera nobody has set: the fallback of oracles called before the first frame. */
 const DEFAULT_OPTICS: CameraOptics = { fov: 50, aspect: 1, near: 0.1, far: 2000, zoom: 1 };
-
 /** A new engine camera at its default pose and optics. */
 export function createEngineCamera(): EngineCamera {
   return {
@@ -157,8 +142,7 @@ function applyViewTile(
   const { scaleX, scaleY, offsetX, offsetY } = tile;
   projection[0] *= scaleX;
   projection[5] *= scaleY;
-  // NDC' = scale · NDC − offset. A perspective column 2 is read at w = −z, so it takes +offset;
-  // an orthographic translation is read at w = 1, so it takes −offset.
+  // A perspective column 2 is read at w = −z, so takes +offset; an orthographic one at w = 1, −.
   if (orthographic) {
     projection[12] = projection[12] * scaleX - offsetX;
     projection[13] = projection[13] * scaleY - offsetY;
