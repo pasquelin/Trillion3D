@@ -50,8 +50,9 @@ export function createContractVariants(
     rectless: boolean,
     onFailure = reportFailure,
   ) => {
-    const variant = variants[at(narrow, unshadowed, rectless)][+bounce];
-    const special = at(narrow, unshadowed, rectless) !== 0;
+    const index = at(narrow, unshadowed, rectless),
+      variant = variants[index][+bounce],
+      special = index !== 0;
     if (variant.program || variant.pending || variant.failed) return;
     variant.pending = createDeferredProgram(
       device,
@@ -101,12 +102,11 @@ export function createContractVariants(
     rectless: boolean,
     onFailure?: (error: unknown) => void,
   ): Variant => {
-    const variant = variants[at(narrow, unshadowed, rectless)][+bounce];
+    const index = at(narrow, unshadowed, rectless),
+      variant = variants[index][+bounce];
     variant.asked = true;
     compile(bounce, narrow, unshadowed, rectless, onFailure);
-    return variant.failed && at(narrow, unshadowed, rectless) !== 0
-      ? ask(bounce, false, false, false, onFailure)
-      : variant;
+    return variant.failed && index !== 0 ? ask(bounce, false, false, false, onFailure) : variant;
   };
   return {
     /** The program to light this frame with, compiling the asked one; `undefined` if none is ready. */

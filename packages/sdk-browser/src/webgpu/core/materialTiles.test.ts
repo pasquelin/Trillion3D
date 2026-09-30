@@ -8,7 +8,6 @@ import {
   MATERIAL_TILE_DRAW_WGSL,
   MATERIAL_TILE_SLOTS,
   MATERIAL_TILES_SHADER,
-  NO_MATERIAL_SLOT,
 } from '../../visibility/shader/materialTilesWgsl.ts';
 import {
   MATERIAL_TILES_PASS,
@@ -22,7 +21,7 @@ type Fn = (...args: number[]) => number;
 type Corner = (tile: number, i: number, tilesX: number) => { x: number; y: number };
 
 test('a pixel is marked for the one class whose depth the material depth writes it', () => {
-  const classSlots = new Uint32Array(8192).fill(NO_MATERIAL_SLOT);
+  const classSlots = new Uint32Array(8192).fill(MATERIAL_TILE_SLOTS);
   classSlots[4] = 0;
   classSlots[8] = 1;
   const { pixelSlot, materialClassDepth } = shaderFunctions<Record<string, Fn>>(
@@ -44,7 +43,7 @@ test('a pixel is marked for the one class whose depth the material depth writes 
   for (const id of [0, (1 << 8) | 7, 2 << 8, 3 << 8, 4 << 8]) {
     const depth = materialClassDepth(id),
       slot = pixelSlot(id);
-    if (depth === 0) assert.equal(slot, NO_MATERIAL_SLOT, `id ${id}`);
+    if (depth === 0) assert.equal(slot, MATERIAL_TILE_SLOTS, `id ${id}`);
     else assert.equal(slot, classSlots[depth * CLASS_DEPTH_UNITS - 1], `id ${id}`);
   }
   assert.equal(pixelSlot(1 << 8), 0);
@@ -107,9 +106,9 @@ test('the slots follow the classes held; a list is drawn indirectly, a class pas
     return new Uint32Array(data.buffer, data.byteOffset, data.byteLength / 4);
   };
   tiles.assign([5, 9]);
-  assert.deepEqual([table()[5], table()[9], table()[2]], [0, 1, NO_MATERIAL_SLOT]);
+  assert.deepEqual([table()[5], table()[9], table()[2]], [0, 1, MATERIAL_TILE_SLOTS]);
   tiles.assign([9]);
-  assert.deepEqual([table()[5], table()[9]], [NO_MATERIAL_SLOT, 0]);
+  assert.deepEqual([table()[5], table()[9]], [MATERIAL_TILE_SLOTS, 0]);
   const many = Array.from({ length: MATERIAL_TILE_SLOTS + 1 }, (_, key) => key + 100);
   tiles.assign(many);
   assert.equal(table()[100 + MATERIAL_TILE_SLOTS], MATERIAL_TILE_SLOTS);
@@ -141,7 +140,12 @@ test('the slots follow the classes held; a list is drawn indirectly, a class pas
 
 test('a device that refuses the classification draws every class on every tile', async () => {
   installGpuGlobals();
-  const { device, computes } = mockGpu();
+  class GPUPipelineError extends Error {}
+  Object.assign(globalThis, { GPUPipelineError });
+  const { device, computes } = mockGpu({ compute: true });
+  device.createComputePipeline = (() => {
+    throw new GPUPipelineError('refused');
+  }) as typeof device.createComputePipeline;
   const tiles = await createMaterialTiles(device, materialTileDrawLayout(device));
   tiles.assign([5, 9]);
   tiles.encode(device.createCommandEncoder(), 64, 64, { vis: {}, pages: {}, uniform: {} } as never);

@@ -6,7 +6,6 @@ import { taaUpscaleShader } from './upscaleWgsl.ts';
 import { taaShader } from './shaderWgsl.ts';
 import { TAA_WEIGHTS, taaWeights } from './filterWeights.ts';
 import { IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts';
-export { blend, kernel, owed } from './upscaleOwed.fixture.ts';
 
 const IDENTITY = new Mat([...IDENTITY_MATRIX4]);
 
