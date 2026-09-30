@@ -54,7 +54,7 @@ if (import.meta.main) {
 
   const lu = await dansPageWebgpu(
     async ({ shaders, cases }) => {
-      const gpu = await globalThis.ouvrirAppareil();
+      const gpu = await globalThis.openGpuDevice();
       if (!gpu) return { indisponible: 'no WebGPU adapter' };
       const { device } = gpu;
       const buffer = (size: number, usage: number) => device.createBuffer({ size, usage });

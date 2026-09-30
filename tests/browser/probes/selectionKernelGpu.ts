@@ -30,11 +30,10 @@ async function executer({
   layoutEntries,
   bindings,
 }: ExecuterEntree): Promise<ExecutionResultat> {
-  const appareil = await globalThis.ouvrirAppareil();
-  if (!appareil) return { indisponible: 'no WebGPU adapter' };
-  const { device, erreurs } = appareil;
-  const { module, compilation } = await appareil.compile(shader);
-  if (compilation.length) return { compilation, erreurs };
+  const opened = await globalThis.openGpuModule(shader);
+  if (!opened.module) return opened;
+  const { gpu, module } = opened;
+  const { device, erreurs } = gpu;
   const layout = device.createBindGroupLayout({ entries: layoutEntries });
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
   const etape = (entryPoint: string) =>
@@ -164,7 +163,7 @@ async function executer({
     const tampons = Object.values(buffers).map((b) => b.buffer);
     for (const buffer of [...tampons, lecture, compteurs, drapeaux]) buffer.destroy();
   }
-  const info = await appareil.fermer();
+  const info = await gpu.fermer();
   return { adaptateur: info.court, resultats, erreurs };
 }
 

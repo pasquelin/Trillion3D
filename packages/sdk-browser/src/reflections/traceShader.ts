@@ -1,5 +1,4 @@
 import { shaderLanguage } from '../math/shaderLanguage.ts';
-export { shaderLanguage } from '../math/shaderLanguage.ts';
 /** Screen-space pixel DDA, following McGuire & Mara (JCGT 2014), implemented here from
  * the projected-segment equations: https://jcgt.org/published/0003/04/04/paper.pdf.
  * Clip the homogeneous ray to all six planes before division. Depth is linear along

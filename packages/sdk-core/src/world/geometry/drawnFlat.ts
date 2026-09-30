@@ -2,8 +2,9 @@ import { computeNormals } from './normals.ts';
 import { fromArrays, type GeometryBuilder } from './builder.ts';
 import type { DrawnTriangles } from './drawn.ts';
 
-/** Every triangle its own corners, each carrying the face's normal: flat shading. */
-export function flatten(d: Omit<DrawnTriangles, 'normals'>): DrawnTriangles {
+/** Every triangle its own corners, each carrying the face's normal: flat shading. `traced`, each
+ *  corner's source vertex kept for a deformation. */
+export function flatten(d: Omit<DrawnTriangles, 'normals'>, traced = false): DrawnTriangles {
   const pick = (from: Float32Array | null, width: number) => {
     if (!from) return null;
     const out = new Float32Array(d.indices.length * width);
@@ -13,7 +14,7 @@ export function flatten(d: Omit<DrawnTriangles, 'normals'>): DrawnTriangles {
   const positions = pick(d.positions, 3)!;
   const indices = new Uint32Array(d.indices.length).map((_, k) => k);
   return {
-    sourceVertices: d.indices.map((v) => d.sourceVertices?.[v] ?? v),
+    ...(traced && { sourceVertices: d.indices.map((v) => d.sourceVertices?.[v] ?? v) }),
     positions,
     normals: computeNormals(positions, null),
     uvs: pick(d.uvs, 2),

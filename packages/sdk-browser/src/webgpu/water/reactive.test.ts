@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { REACTIVE_TARGET } from '../../lighting/deferred/asIsShare.ts';
 import { WATER_COMPOSITE_SHADER, waterRoutedShader } from './compositeWgsl.ts';
-import { WATER_ROUTED_TARGETS, waterCompositeTargets, waterRoutedTargets } from './pipelines.ts';
+import { WATER_ROUTED_TARGETS, waterCompositeTargets } from './pipelines.ts';
 
 test('the water composite writes its coverage as the reactive value, green alone', () => {
   // The composite emits an extra output carrying 1 in green at its coverage `a`.
@@ -18,11 +18,15 @@ test('the water composite writes its coverage as the reactive value, green alone
   // No share, no target: an image with no temporal pass and no debug view keeps today's composite.
   assert.equal(waterCompositeTargets(false).length, 1);
   assert.equal(waterCompositeTargets(true).length, 2);
-  assert.equal(waterRoutedTargets(false).length, 3, 'the HDR target and the two display layers');
-  assert.equal(waterRoutedTargets(true).length, 4);
-  for (const targets of [waterCompositeTargets(true), waterRoutedTargets(true)])
+  assert.equal(
+    waterCompositeTargets(false, true).length,
+    3,
+    'the HDR target and the two display layers',
+  );
+  assert.equal(waterCompositeTargets(true, true).length, 4);
+  for (const targets of [waterCompositeTargets(true), waterCompositeTargets(true, true)])
     assert.equal(targets.at(-1), REACTIVE_TARGET, 'the reactive target last');
-  assert.deepEqual(waterRoutedTargets(false), WATER_ROUTED_TARGETS);
+  assert.deepEqual(waterCompositeTargets(false, true), WATER_ROUTED_TARGETS);
   // The routed composite carries the reactive value too, an extra entry after `composeWaterRouted`.
   assert.match(waterRoutedShader(), /@fragment fn composeWaterRoutedReactive/);
   assert.equal(waterRoutedShader().split(/vec4f\(0\.0,1\.0,0\.0,c\.a\)/).length - 1, 2);
