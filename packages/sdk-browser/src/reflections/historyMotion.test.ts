@@ -9,9 +9,9 @@ import {
   type ReflectionHistoryFrame,
 } from './historyFrame.ts';
 import {
-  REFLECTION_CHANGE_WEIGHT,
-  REFLECTION_HISTORY_WEIGHT,
-  REFLECTION_MOVING_WEIGHT,
+  REFLECTION_CHANGE_KEPT,
+  REFLECTION_MOVING_KEPT,
+  REFLECTION_STILL_FRAMES,
 } from './resolveWgsl.ts';
 
 // The last depth and identifiers are the reflection source's (`source.ts`).
@@ -57,11 +57,11 @@ test('with live motion a camera move and a moved source keep the history, reproj
   };
   step(() => {});
   step(() => {});
-  assert.deepEqual(params(), [1, REFLECTION_HISTORY_WEIGHT, 1], 'still: whole window, motion read');
+  assert.deepEqual(params(), [1, REFLECTION_STILL_FRAMES, 1], 'still: whole window, motion read');
   step(() => (frame.camera = [...IDENTITY_MATRIX4.slice(0, 12), 0.5, 0, 0, 1]));
-  assert.deepEqual(params(), [1, REFLECTION_MOVING_WEIGHT, 1], 'a camera move keeps it');
+  assert.deepEqual(params(), [1, REFLECTION_MOVING_KEPT, 1], 'a camera move keeps it');
   step(() => frame.epoch[0]++);
-  assert.deepEqual(params(), [1, REFLECTION_MOVING_WEIGHT, 1], 'a moved source keeps it');
+  assert.deepEqual(params(), [1, REFLECTION_MOVING_KEPT, 1], 'a moved source keeps it');
   assert.equal(history.reuse, false);
   // #1342: a relit source kept its old reflections; no motion brings old lighting to the new one.
   step(() => frame.lighting[0]++);
@@ -72,8 +72,8 @@ test('with live motion a camera move and a moved source keep the history, reproj
   step(() => frame.epoch[0]++);
   assert.deepEqual(
     params(),
-    [1, REFLECTION_CHANGE_WEIGHT, 0],
-    'without motion to follow, a moved source keeps it at the change weight (#33)',
+    [1, REFLECTION_CHANGE_KEPT, 0],
+    'without motion to follow, a moved source keeps it at the change cap (#33)',
   );
   history.dispose();
   current.destroy();

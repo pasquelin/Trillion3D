@@ -3,7 +3,7 @@ import { createReflectionHistoryTargets, type ReflectionPrevious } from './histo
 import {
   REFLECTION_CHANGE_FRAMES,
   REFLECTION_RESOLVE_VIEW_BYTES,
-  REFLECTION_HISTORY_WEIGHT,
+  REFLECTION_STILL_FRAMES,
 } from './resolveWgsl.ts';
 import {
   historyConfidence,
@@ -48,8 +48,8 @@ export function createReflectionHistory(
   let stableFrames = 0,
     sinceChange = Infinity; // frames resolved since a source changed; none: Infinity
   const complete = () =>
-    stableFrames >= REFLECTION_HISTORY_WEIGHT &&
-    sinceChange >= REFLECTION_CHANGE_FRAMES + REFLECTION_HISTORY_WEIGHT;
+    stableFrames >= REFLECTION_STILL_FRAMES &&
+    sinceChange >= REFLECTION_CHANGE_FRAMES + REFLECTION_STILL_FRAMES;
   let drawnWidth = width,
     drawnHeight = height;
   let current: ReflectionHistoryFrame | undefined;
@@ -69,14 +69,14 @@ export function createReflectionHistory(
     get reuse() {
       return reuse;
     },
-    /** The stationary filter window is complete, and no stale share of a changed source remains;
-     *  a new jitter still needs reprojection. */
+    /** The still window (`REFLECTION_STILL_FRAMES`) is complete, and no stale share of a changed
+     *  source remains; a new jitter still needs reprojection. */
     get settled() {
       return complete();
     },
     /** Source epochs cover reflected movers too, not just receiver identity. With live motion a
-     *  moved source keeps the history, reprojected, its weight held to `REFLECTION_MOVING_WEIGHT`;
-     *  without, it keeps it at `REFLECTION_CHANGE_WEIGHT` for `REFLECTION_CHANGE_FRAMES`. A relit
+     *  moved source keeps the history, reprojected, its weight held to `REFLECTION_MOVING_KEPT`;
+     *  without, it keeps `REFLECTION_CHANGE_KEPT` for `REFLECTION_CHANGE_FRAMES`. A relit
      *  source (lights, materials) and a new drawn extent always reset it: no motion brings an old
      *  lighting to the new one. */
     prepare(

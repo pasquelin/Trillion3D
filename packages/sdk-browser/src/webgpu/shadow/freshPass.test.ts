@@ -29,7 +29,16 @@ function frame(calls: unknown[][]) {
   const lights = {
     store: createSceneLightStore(),
     plan: {
-      gpu: { on: true, listed: 0, moved: true },
+      // The first frame whose page draws ran since a snapshot counted them (`mirror.ts`).
+      gpu: {
+        on: true,
+        listed: 0,
+        moved: true,
+        drewAt: Infinity,
+        drew(frame: number) {
+          this.drewAt = Math.min(this.drewAt, frame);
+        },
+      },
       pool: { side: 4, layers: LAYERS },
     },
     allocation: Object.fromEntries(
@@ -76,7 +85,7 @@ function frame(calls: unknown[][]) {
     vis,
     gpu: { cache: { buffer: cache } },
     layout: { rows: { packedCount: 7, blendFirst: 9, casterSlots: 11 } },
-    run: { gpuDrawCalls: 0 },
+    run: { gpuDrawCalls: 0, frame: 7 },
   } as unknown as WebgpuPagesRuntime;
   const device = {
     createBindGroup: ({ layout }: { layout: string }) => `${layout} group`,
@@ -154,6 +163,8 @@ test('a frame with nothing new to draw encodes none of it; a move, a listed or a
   lights.plan.gpu.moved = false;
   encode();
   assert.ok(calls.length > 0, 'the first frame the plan is seen runs');
+  assert.equal(lights.plan.gpu.drewAt, 7, 'a frame that draws says so: its listings count (#1346)');
+  lights.plan.gpu.drewAt = Infinity;
   const runs = (why: string) => {
     calls.length = 0;
     encode();
@@ -165,6 +176,7 @@ test('a frame with nothing new to draw encodes none of it; a move, a listed or a
   calls.length = 0;
   encode();
   assert.deepEqual(calls, [], 'nothing moved, nothing listed, nothing lost: nothing');
+  assert.equal(lights.plan.gpu.drewAt, Infinity, 'nor says it drew');
   lights.plan.gpu.listed = 3;
   runs('a snapshot listed pages');
   lights.plan.gpu.listed = 0;
