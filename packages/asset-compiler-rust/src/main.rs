@@ -1,7 +1,7 @@
 //! Command line front of the compiler. Hosts talk to it with three streams only:
 //! - arguments (one job) or `--jobs FILE|-` (a JSON batch) tell it what to prepare;
 //! - stderr carries one JSON event per line: queued, accepted, progress, stall, complete, error, done;
-//! - stdout carries the final pointer(s), a few hundred bytes, never the compiled manifest.
+//! - stdout carries the final pointer(s), about a kilobyte each, never the compiled manifest.
 //!
 //! A JSON line `{"cancel":"*"}` or `{"cancel":"<job>"}` on stdin cancels; killing the process is also safe
 //! because every output file is written atomically.

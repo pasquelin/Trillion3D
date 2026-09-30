@@ -5,21 +5,20 @@ use super::reuse::textured;
 use super::*;
 use std::collections::BTreeMap;
 
-/// Every file under `directory` by its path under `cache`, with its SHA-256; the cache lock,
-/// which names no product, left out.
-fn fingerprints(directory: &Path, cache: &Path, into: &mut BTreeMap<PathBuf, String>) {
-    for entry in fs::read_dir(directory).expect("folder") {
-        let path = entry.expect("entry").path();
-        if path.is_dir() {
-            fingerprints(&path, cache, into);
-        } else if path.file_name() != Some(".lock".as_ref()) {
+/// Every file of `cache` by its path under it, with its SHA-256; the cache lock, which names no
+/// product, left out.
+fn fingerprints(cache: &Path) -> BTreeMap<PathBuf, String> {
+    files(cache)
+        .into_iter()
+        .filter(|path| path.file_name() != Some(".lock".as_ref()))
+        .map(|path| {
             let name = path
                 .strip_prefix(cache)
                 .expect("under the cache")
                 .to_path_buf();
-            into.insert(name, hash(&fs::read(&path).expect("file")));
-        }
-    }
+            (name, hash(&fs::read(&path).expect("file")))
+        })
+        .collect()
 }
 
 /// The cache's files after a cold compile, then after a warm one — the key folder removed, so the
@@ -27,14 +26,12 @@ fn fingerprints(directory: &Path, cache: &Path, into: &mut BTreeMap<PathBuf, Str
 fn cold_then_warm() -> (PathBuf, [BTreeMap<PathBuf, String>; 2], [Value; 2]) {
     let (root, options) = textured();
     let cold = compile(&options, |_| {}).expect("cold compile");
-    let mut before = BTreeMap::new();
-    fingerprints(&options.cache, &options.cache, &mut before);
+    let before = fingerprints(&options.cache);
     let key = cold["key"].as_str().expect("key");
     fs::remove_dir_all(options.key_directory(key)).expect("key folder");
     let warm = compile(&options, |_| {}).expect("warm compile");
     assert!(warm["reused"].is_null(), "the folder is built again");
-    let mut after = BTreeMap::new();
-    fingerprints(&options.cache, &options.cache, &mut after);
+    let after = fingerprints(&options.cache);
     (root, [before, after], [cold, warm])
 }
 

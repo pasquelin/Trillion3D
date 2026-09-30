@@ -606,6 +606,7 @@
       "selectedNodes": "Tutulan düğümler.",
       "primitives": "Tutulan primitifler.",
       "metrics": "Süre ve boyut.",
+      "reusedPages": "Çalıştırmanın zaten oluşturulmuş bulduğu sayfalar (korunan klasörde `null`).",
       "reused": "Yeniden kullanılan şey."
     }
   },
