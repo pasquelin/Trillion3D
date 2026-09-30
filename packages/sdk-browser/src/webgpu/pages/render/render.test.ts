@@ -125,6 +125,10 @@ function scene(terrain: number, model: number, blendSlots = 0) {
   const ground = root('t', terrain),
     moving = root('m', model),
     glass = root('g', 2, true);
+  // The packed base of each placement (#1235): the rows of the layout name each page's instance.
+  ground.packedBase = 0;
+  moving.packedBase = terrain;
+  glass.packedBase = terrain + model;
   const pages = [...ground.pages, ...moving.pages, ...glass.pages];
   const rows = createWebgpuRowState(pages, terrain + model, blendSlots);
   rows.pageTableFloats = new Float32Array(rows.casterSlots * ROW_WORDS);

@@ -5,7 +5,7 @@ import { hizTestRect } from '../../../packages/sdk-browser/src/hiz/occlusion.ts'
 import { visibilityDepth } from '../../../packages/sdk-browser/src/hiz/depth.ts';
 import { rasterVisibility } from '../../../packages/sdk-browser/src/visibility/raster.ts';
 import { mesure, stress, rapport } from '../../core/index.ts';
-import { camera, coupe, roots, rectangles, type SceneRect } from './support/scenes.ts';
+import { camera, coupe, located, rectangles, type SceneRect } from './support/scenes.ts';
 import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import type { VisPage } from '../../../packages/sdk-browser/src/visibility/types.ts';
 
@@ -13,7 +13,7 @@ const image = (largeur: number, hauteur: number, pages: VisPage[]) => {
   const cam = camera(6, 0.1, largeur / hauteur),
     viewport: [number, number] = [largeur, hauteur];
   return {
-    ids: rasterVisibility(pages, roots, cameraMoteur(cam), viewport).ids,
+    ids: rasterVisibility(pages, located(pages.length), cameraMoteur(cam), viewport).ids,
     pages,
     cam,
     viewport,
@@ -31,7 +31,7 @@ const depthResult = await mesure({
     { name: '64×36 one page', input: image(64, 36, pages.slice(0, 1)), size: 64 * 36 },
   ],
   calcul: ({ ids, pages: p, cam, viewport }) =>
-    visibilityDepth(ids, p, roots, cameraMoteur(cam), viewport),
+    visibilityDepth(ids, p, located(p.length), cameraMoteur(cam), viewport),
   motif: 'time only — correctness in packages/sdk-browser/src/hiz/depth.test.ts',
   options: { tours: 200, budgetMs: 1000 },
 });
