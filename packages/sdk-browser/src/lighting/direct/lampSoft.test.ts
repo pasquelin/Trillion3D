@@ -17,7 +17,6 @@ function sample(radius: number, receiver: number, blocker: number | null, texel0
     {
       ...wgslConstants(LAMP_SOFT_WGSL),
       LAMP_MIP_COUNT: 6,
-      POISSON_RADIUS: 1,
       shadows: { records: [{ info: [6, 1, 0.1, 0] }] },
       PCF_TAPS: POISSON_16.length,
       POISSON: POISSON_16,

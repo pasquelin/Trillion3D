@@ -105,8 +105,8 @@ fn demandSoftDisk(index:u32,C:LampAt,T:vec3f,B:vec3f,reach:f32,mip:u32){
   let map=ShadowMap(u32(info.w)+u32(shadowLampMapEntry(i32(face),i32(mip))),0u,i32(pages),0,0);
   if(behind){if(mip+1u==LAMP_MIP_COUNT){demandPage(map,vec2i(0));}continue;}
   if(any(high<vec2f(-1.0))||any(low>vec2f(C.side+1.0))){continue;}
-  let first=clamp(vec2i(floor((low-1.0)/SHADOW_PAGE)),vec2i(0),vec2i(i32(pages)-1));
-  let last=min(clamp(vec2i(floor((high+1.0)/SHADOW_PAGE)),vec2i(0),vec2i(i32(pages)-1)),first+vec2i(1));
+  let first=clamp(vec2i(shadowPageOfTexel(low.x-1.0),shadowPageOfTexel(low.y-1.0)),vec2i(0),vec2i(i32(pages)-1));
+  let last=min(clamp(vec2i(shadowPageOfTexel(high.x+1.0),shadowPageOfTexel(high.y+1.0)),vec2i(0),vec2i(i32(pages)-1)),first+vec2i(1));
   for(var y=first.y;y<=last.y;y++){for(var x=first.x;x<=last.x;x++){demandPage(map,vec2i(x,y));}}
   if(k==0u&&all(low>=vec2f(0.0))&&all(high<=vec2f(C.side))){return;}
  }
