@@ -19,10 +19,11 @@ import { structureIndex } from '../page/selection/structure.ts';
 import { flatHierarchy } from '../gpu/dag/hierarchy.ts';
 import { cullingLinks } from '../page/cut/links.ts';
 import { IDENTITY_ELEMENTS } from '../math/matrixElements.ts';
+import { worldRootsPageAddress } from './worldRootsPage.ts';
 
 /** One world cluster — an object root or a super-root — with the fields the cut projects, named by
  *  its rank in the cook's world DAG (`cluster`), which the group relation uses. */
-export type WorldSuperRootCluster = {
+type WorldSuperRootCluster = {
   cluster: number;
   url: string;
   level: number;
@@ -37,7 +38,7 @@ export type WorldSuperRootCluster = {
 
 /** One group of the world DAG: the fine `children` its coarse `outputs` replace, its error and its
  *  sphere (`dag/levels.rs`, `merge.rs`). `children` and `outputs` name clusters by `cluster`. */
-export type WorldSuperRootGroup = {
+type WorldSuperRootGroup = {
   level: number;
   error: number;
   sphere: number[];
@@ -49,7 +50,7 @@ export type WorldSuperRootGroup = {
  *  fields above, plus where its page lives — a super-root's `bundle` and `offset` in the binary, an
  *  object root's `origin` (the placed instance whose own stream holds its page). Read with an
  *  internal type so the exported `WorldRoots` stays what the API reference translates. */
-export type WorldRootsCookedCluster = Omit<WorldSuperRootCluster, 'url'> & {
+type WorldRootsCookedCluster = Omit<WorldSuperRootCluster, 'url'> & {
   material: number | null;
   bundle: number | null;
   offset: number | null;
@@ -69,7 +70,7 @@ export type WorldRootsDagTable = {
  * The world top — the clusters nothing replaces — are the structure's roots, as a primitive's root
  * cover is, so the pinned top is the cut's fallback and the cell super-roots are its middle levels.
  */
-export function buildWorldSuperRootRoot(
+function buildWorldSuperRootRoot(
   clusters: readonly WorldSuperRootCluster[],
   groups: readonly WorldSuperRootGroup[],
 ): DagRoot {
@@ -122,11 +123,11 @@ export function worldRootDag(table: WorldRootsDagTable): DagRoot | undefined {
   const clusters = table.clusters,
     groups = table.groups;
   if (!clusters?.length || !groups?.length) return undefined;
-  const url = table.payload?.url ?? 'world-roots.bin';
+  const url = table.payload?.url ?? '';
   return buildWorldSuperRootRoot(
     clusters.map(({ bundle, offset, ...cluster }) => ({
       ...cluster,
-      url: bundle === null || offset === null ? '' : `${url}#${bundle}:${offset}`,
+      url: bundle === null || offset === null ? '' : worldRootsPageAddress(url, bundle, offset),
     })),
     groups,
   );

@@ -4,20 +4,16 @@
 // is uploaded and drawn by the WebGL2 cluster path unchanged.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { worldRootsFixture } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts';
+import { worldPage } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts';
+import type { WorldRoots } from '../../../sdk-core/src/manifest/worldRoots.ts';
 import { WebglClusterGeometry } from '../webgl/cluster/geometry.ts';
 import { submitRanges } from '../webgl/cluster/submit.ts';
+import { worldRootsPageFixtureSource } from './worldRootsPage.fixture.ts';
 import {
   worldRootsGeometry,
   worldRootsPageAddress,
   worldRootsPageSource,
 } from './worldRootsPage.ts';
-
-/** The cook's world binary, served as the runtime's ranged reader serves it. */
-function fixtureSource() {
-  const { table, bin } = worldRootsFixture();
-  return worldRootsPageSource(table, async (from, length) => bin.slice(from, from + length));
-}
 
 /** A WebGL2 context that records the buffer uploads and the draws, and no-ops the rest. */
 function recordingGl() {
@@ -47,7 +43,7 @@ function recordingGl() {
 }
 
 test('a world-roots page read at its address is world-space with widened indices (#1238)', async () => {
-  const source = fixtureSource(),
+  const source = worldRootsPageFixtureSource(),
     address = worldRootsPageAddress('world-roots.bin', 1, 0),
     page = await source.page(address);
   // Its own vertices, in world space, and its `u16` local triangles: the cook's bytes.
@@ -62,15 +58,18 @@ test('a world-roots page read at its address is world-space with widened indices
 });
 
 test('its WebGL2 geometry keeps the world box and uploads a 32-bit triangle (#1238)', async () => {
-  const page = await fixtureSource().page(worldRootsPageAddress('world-roots.bin', 2, 0)),
+  const page = await worldRootsPageFixtureSource().page(
+      worldRootsPageAddress('world-roots.bin', 2, 0),
+    ),
     geometry = worldRootsGeometry(page);
   assert.ok(geometry.index!.array instanceof Uint32Array, 'the draw reads UNSIGNED_INT');
   assert.deepEqual([...geometry.index!.array], [0, 1, 2]);
   assert.equal(geometry.attributes.position.count, 3);
   const box = geometry.boundingBox!;
-  assert.deepEqual([box.min.x, box.min.y, box.min.z, box.max.x, box.max.y, box.max.z], [
-    2, 0, 0, 3, 1, 0,
-  ]);
+  assert.deepEqual(
+    [box.min.x, box.min.y, box.min.z, box.max.x, box.max.y, box.max.z],
+    [2, 0, 0, 3, 1, 0],
+  );
   // The engine's own upload path: the widened index list and the world position list reach GL.
   const { gl, uploads, draws } = recordingGl(),
     cache = new WebglClusterGeometry(gl, {
@@ -94,4 +93,26 @@ test('its WebGL2 geometry keeps the world box and uploads a 32-bit triangle (#12
   );
   submitRanges(gl, null, Int32Array.of(0), Int32Array.of(3), 1);
   assert.deepEqual(draws, [[gl.TRIANGLES, 3, gl.UNSIGNED_INT, 0]], 'one triangle, 32-bit indexed');
+});
+
+test('a bundle of several pages resolves the one its offset names (#1238)', async () => {
+  // The fixture gives one page a bundle; a bundle of two proves the offset → page mapping, not the
+  // bundle count: the source picks the page whose `offset` the table lists, in binary order.
+  const low = worldPage(0),
+    high = worldPage(2),
+    bin = new Uint8Array(low.byteLength + high.byteLength);
+  bin.set(low, 0);
+  bin.set(high, low.byteLength);
+  const table = {
+      bundles: [{ offset: 0, bytes: bin.byteLength, sha256: '0', count: 2, dependencies: [] }],
+      pages: [
+        { bundle: 0, offset: 0, level: 1, lodError: 1 },
+        { bundle: 0, offset: low.byteLength, level: 0, lodError: 0 },
+      ],
+    } as unknown as WorldRoots,
+    source = worldRootsPageSource(table, async (from, length) => bin.slice(from, from + length));
+  const atLow = await source.page(worldRootsPageAddress('world-roots.bin', 0, 0)),
+    atHigh = await source.page(worldRootsPageAddress('world-roots.bin', 0, low.byteLength));
+  assert.deepEqual([...atLow.positions], [0, 0, 0, 1, 0, 0, 0, 1, 0]);
+  assert.deepEqual([...atHigh.positions], [2, 0, 0, 3, 0, 0, 2, 1, 0]);
 });
