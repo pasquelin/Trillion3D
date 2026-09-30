@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts';
 import { createReflectionHistory, type ReflectionHistoryFrame } from './historyRuntime.ts';
-import { REFLECTION_HISTORY_WEIGHT } from './resolveWgsl.ts';
+import { REFLECTION_CHANGE_WEIGHT, REFLECTION_HISTORY_WEIGHT } from './resolveWgsl.ts';
 
-test('first frame rejects history, replay consumes nothing, and a changed source resets the sequence', () => {
+test('first frame rejects history, replay consumes nothing, and a changed source lowers its confidence', () => {
   const gpu = fakeDevice();
   const history = createReflectionHistory(gpu.device, 8, 8);
   const current = gpu.device.createTexture({ size: [8, 8], format: 'rgba16float', usage: 1 });
@@ -13,7 +13,7 @@ test('first frame rejects history, replay consumes nothing, and a changed source
     metadata: { depth: current, normal: current, ids: current },
     pages: {} as GPUBuffer,
     motion: {} as GPUBuffer,
-    epoch: 'initial',
+    epoch: new Float64Array(8),
     seed: 1,
     frame: 10,
     camera: IDENTITY_MATRIX4,
@@ -40,6 +40,7 @@ test('first frame rejects history, replay consumes nothing, and a changed source
       {} as GPUBindGroupLayout,
     );
   const valid = () => gpu.writes.at(-1)!.data[36];
+  const confidence = () => gpu.writes.at(-1)!.data[37];
   try {
     history.prepare(frame, IDENTITY_MATRIX4);
     assert.equal(valid(), 0);
@@ -57,11 +58,14 @@ test('first frame rejects history, replay consumes nothing, and a changed source
     assert.equal(history.rank, 1);
     assert.notEqual(encode(), first);
     assert.equal(draws, 2);
-    // Same displayed frame, but a reflected object or residency changed: never reuse its old mean.
-    frame.epoch = 'reflected-object-moved';
+    assert.equal(confidence(), REFLECTION_HISTORY_WEIGHT);
+    // Same displayed frame, but a reflected object or residency changed: never reuse its old mean,
+    // never restart from one sample either — the history keeps the change weight.
+    frame.epoch[0]++;
     history.prepare(frame, IDENTITY_MATRIX4);
-    assert.equal(valid(), 0);
-    assert.equal(history.rank, 0);
+    assert.equal(valid(), 1);
+    assert.equal(confidence(), REFLECTION_CHANGE_WEIGHT);
+    assert.equal(history.rank, 2);
     assert.equal(history.reuse, false);
     encode();
     assert.equal(draws, 3);
@@ -94,10 +98,10 @@ test('first frame rejects history, replay consumes nothing, and a changed source
       assert.deepEqual(viewport, [0, 0, ...extent, 0, 1]);
     }
     const beforeLight = draws;
-    frame.epoch = 'light-changed';
+    frame.epoch[3]++;
     history.prepare(frame, IDENTITY_MATRIX4);
     assert.equal(history.settled, false);
-    assert.equal(valid(), 0);
+    assert.equal(confidence(), REFLECTION_CHANGE_WEIGHT);
     encode();
     assert.equal(draws, beforeLight + 1, 'light changes resume in the same frame');
   } finally {

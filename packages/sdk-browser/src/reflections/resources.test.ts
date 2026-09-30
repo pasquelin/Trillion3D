@@ -18,9 +18,12 @@ test('reflection resources have bounded active/inactive size, use shared depth a
       gpu.textures[0].size,
       active ? { width: 64, height: 32 } : { width: 1, height: 1 },
     );
-    assert.equal(gpu.buffers[0].size, 80);
+    assert.equal(gpu.buffers[0].size, 96);
     assert.equal(Array.from(gpu.bindGroups[0].entries)[1].resource, depth);
     reflection.update(new Float32Array(16), true, [64, 32]);
+    assert.equal(gpu.writes.at(-1)!.data[20], 0, 'rough samples keep their read budget');
+    reflection.update(new Float32Array(16), true, [64, 32], undefined, true);
+    assert.equal(gpu.writes.at(-1)!.data[20], 1, 'a reference session walks them unbounded');
     reflection.dispose();
     assert.equal(gpu.destroyed.length, 2);
   }
@@ -104,7 +107,7 @@ test('capture release waits for a late grant, including rejection, before restor
 
 test('a refused uniform releases the reflection colour allocated before it', () => {
   const gpu = fakeDevice({
-    refuse: (descriptor) => ('size' in descriptor && descriptor.size === 80 ? 'throw' : undefined),
+    refuse: (descriptor) => ('size' in descriptor && descriptor.size === 96 ? 'throw' : undefined),
   });
   assert.throws(
     () => createScreenReflection(gpu.device, 64, 32, {} as GPUTextureView, true),

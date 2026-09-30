@@ -37,7 +37,7 @@ test('targets follow resolution, history included: 4K is admitted and costed', (
     [3840, 2160],
   ]) {
     const base = frameTargetAllocation(rt, native(width, height));
-    assert.equal(base, frameTargetBytes(width, height, true) + 8 + 80);
+    assert.equal(base, frameTargetBytes(width, height, true) + 8 + 96);
     assert.equal(ensureTaaTargets(rt, width, height), width * height * TAA_HISTORY_BYTES_PER_PIXEL);
   }
   assert.ok(frameTargetBytes(3840, 2160, true) > 288 * 1024 * 1024, '4K exceeds the old ceiling');
@@ -62,7 +62,7 @@ test('an eligible receiver accounts for viewport reflection colour and its unifo
   const { rt } = runtime(true);
   assert.equal(
     frameTargetAllocation(rt, native(64, 32)),
-    frameTargetBytes(64, 32, true) + 64 * 32 * 8 + 80,
+    frameTargetBytes(64, 32, true) + 64 * 32 * 8 + 96,
   );
 });
 
@@ -95,7 +95,7 @@ test('rough opaque receivers allocate their own history, while a resize releases
   rt.gpu.device = gpu.device;
   const size = native(64, 32);
   const bytes = frameTargetAllocation(rt, size);
-  assert.equal(bytes, frameTargetBytes(64, 32, true) + 64 * 32 * 40 + 80 + 160);
+  assert.equal(bytes, frameTargetBytes(64, 32, true) + 64 * 32 * 40 + 96 + 160);
   makeTargets(rt, gpu.device, size, bytes);
   const old = rt.gpu.reflection!.history!;
   assert.equal(old.bytes, 64 * 32 * 32);
