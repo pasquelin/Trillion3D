@@ -68,15 +68,21 @@ function hit(o: Vec3, d: Vec3, b: Box) {
   return entry <= far ? entry : Infinity;
 }
 
-/** The depth buffer of `view` over the atrium, row by row: NEAR / distance in f32, 0 on the sky. */
-export function atriumDepth(view: TileView, boxes = atriumBoxes()) {
+/** The depth buffer of `view` over the atrium, row by row: NEAR / distance in f32, 0 on the sky.
+ *  `shown`, when given, receives the index of the box each pixel shows, −1 on the sky. */
+export function atriumDepth(view: TileView, boxes = atriumBoxes(), shown?: Int32Array) {
   const depths = new Float32Array(view.width * view.height);
   for (let py = 0; py < view.height; py++)
     for (let px = 0; px < view.width; px++) {
       const { o, d } = pixelRay(view, px, py);
-      let s = Infinity;
-      for (const b of boxes) s = Math.min(s, hit(o, d, b));
+      let s = Infinity,
+        nearest = -1;
+      boxes.forEach((b, index) => {
+        const at = hit(o, d, b);
+        if (at < s) [s, nearest] = [at, index];
+      });
       depths[py * view.width + px] = s === Infinity ? 0 : rayDepth(s);
+      if (shown) shown[py * view.width + px] = nearest;
     }
   return depths;
 }
