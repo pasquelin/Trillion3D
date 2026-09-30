@@ -11,9 +11,7 @@ import { createWebgpuResidencySets } from './sets.ts';
 import { createGroupClosure } from '../../page/cut/groupClosure.ts';
 import { createRequestAdmission } from './requestAdmission.ts';
 import { lruCache, pageOf, placement } from './residentEnsurer.fixture.ts';
-import { DAG_READBACK_SLOTS } from '../../gpu/dag/layout.ts';
-
-const W = DAG_READBACK_SLOTS + 1;
+import { LAST_USE_WINDOW as W } from './lastUseWindow.ts';
 
 const FULL = /ALL_PAGES_PINNED/;
 

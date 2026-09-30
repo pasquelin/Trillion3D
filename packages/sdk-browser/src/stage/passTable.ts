@@ -14,6 +14,7 @@ import { LIGHT_CUT_PASS } from '../gpu/dag/encode.ts';
 import { SHADOW_PAGE_PASSES } from '../webgpu/shadow/allocPass.ts';
 import { MATERIAL_DEPTH_PASS, MATERIAL_SURFACES_PASS } from '../webgpu/core/materialPasses.ts';
 import { PARTICLE_DRAW_PASS, PARTICLES_PASS } from '../particles/webgpuParticleFrame.ts';
+import { WATER_COMPOSITE_PASS, WATER_SURFACE_PASS } from '../webgpu/water/passLabels.ts';
 
 /**
  * The two blocks of a frame that can be set against a published profile, and nothing else.
@@ -67,8 +68,8 @@ export const PASSES: Readonly<Record<string, PassRow>> = Object.freeze({
   'Trillion3D opaque fallback': ['geometry', 'other'],
   'Trillion3D transparents': ['transparents', 'other'],
   'Trillion3D transmission': ['transparents', 'other'],
-  'Trillion3D water surfaces': ['transparents', 'other'],
-  'Trillion3D water composite': ['transparents', 'other'],
+  [WATER_SURFACE_PASS]: ['transparents', 'other'],
+  [WATER_COMPOSITE_PASS]: ['transparents', 'other'],
   'Trillion3D transparent compaction': ['transparents', 'other'],
   [PARTICLE_DRAW_PASS]: ['transparents', 'other'],
   [SHADOW_PASS]: ['shadows', 'other', 'raster'],

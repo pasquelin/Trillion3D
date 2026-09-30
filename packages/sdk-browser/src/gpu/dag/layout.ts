@@ -67,8 +67,8 @@ export const selectionListCap = (pageCount: number) =>
 /** Bytes a resident cut's frame copies: everything before the staged requests. */
 export const residentReadbackBytes = (listCap: number) => stagedRequestsWord(listCap) * 4;
 /** Requests ahead of the camera one sample stages: half its cap. They wait behind the camera's own
- *  staged requests, on their own counter (`OUT_AHEAD`), so they never take a place the camera's
- *  requests would have used (`shader/snapshotWgsl.ts`). */
+ *  staged requests, on their own counter (header word 6, before `OUT_AHEAD_PLACED`), so they never
+ *  take a place the camera's requests would have used (`shader/snapshotWgsl.ts`). */
 const aheadRequestCap = (listCap: number) => listCap >>> 1;
 /** Bytes of `out` with the staged requests behind, the camera's then those ahead: what the kernels
  *  write, more than the frame copies. */

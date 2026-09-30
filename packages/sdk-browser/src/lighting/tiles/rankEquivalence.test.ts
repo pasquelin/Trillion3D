@@ -6,12 +6,10 @@ import {
   tileLayout,
   tileLists,
 } from '../../../../../bench/oracles/browser/gpuLightTilesRankOracle.ts';
-import { LIGHT_TILES_SHADERS } from './shader.ts';
-
-/** The light-tile shader texts the engine compiles, by name. */
-const LIGHT_TILES_SHADER_TEXTS = new Map<string, string>(LIGHT_TILES_SHADERS);
-const LIGHT_TILES_NARROW_SHADER = LIGHT_TILES_SHADER_TEXTS.get('LIGHT_TILES_NARROW_SHADER')!;
-const LIGHT_TILES_SHADER = LIGHT_TILES_SHADER_TEXTS.get('LIGHT_TILES_SHADER')!;
+import {
+  LIGHT_TILES_NARROW_SHADER,
+  LIGHT_TILES_SHADER,
+} from '../../gpu/core/shaderTexts.fixture.ts';
 
 // D4, #28, #822 and #849: shader.ts compacts each kept light at its rank (countOneBits, one thread
 // per light, 256 lights a batch) into lists of `tileLights`, and a slice past its list into the

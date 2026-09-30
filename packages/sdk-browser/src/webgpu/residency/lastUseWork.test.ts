@@ -10,9 +10,7 @@ import { createWebgpuResidencySets } from './sets.ts';
 import { createGroupClosure } from '../../page/cut/groupClosure.ts';
 import { createRequestAdmission } from './requestAdmission.ts';
 import { lruCache, pageOf } from './residentEnsurer.fixture.ts';
-import { DAG_READBACK_SLOTS } from '../../gpu/dag/layout.ts';
-
-const W = DAG_READBACK_SLOTS + 1;
+import { LAST_USE_WINDOW as W } from './lastUseWindow.ts';
 
 /** A binary DAG of `leaves` leaves, heap-ordered: page `i` depends on page `(i - 1) >> 1`. All
  *  resident. Returns an image driver and the work counter every cache and DAG read feeds. */
