@@ -2,11 +2,8 @@ import { SUBSURFACE_BINDING } from '../../scene/subsurface.ts';
 import { LIGHTING_RECEIVER_BINDING } from './surfaceWgsl.ts';
 import { receiverLayoutEntries, receiverPlaceholders } from '../../webgpu/visibility/receiver.ts';
 import { SHADOW_ARRAY, arrayView } from '../../gpu/shadow/layers.ts';
-import {
-  MAX_SHADOW_SLICES,
-  PROBE_FLOATS,
-  SHADOW_RECORD_FLOATS,
-} from '../../../../sdk-core/src/index.ts';
+import { MAX_SHADOW_SLICES, SHADOW_RECORD_FLOATS } from '../../../../sdk-core/src/index.ts';
+import { PROBE_TEXELS, emptyAtlas } from '../../bounce/atlas.ts';
 import { CONTRACT_SHADOW_BINDINGS } from '../direct/lightingWgsl.ts';
 import { BOUNCE_GRID_BYTES } from '../../bounce/uniform.ts';
 import { PROXY_HEADER_BYTES } from '../../bounce/nodeWgsl.ts';
@@ -77,15 +74,20 @@ export function deferredLayoutEntries(
       },
     );
   // Probe grid, their coefficients and the surface cache a reflection reads: bound only by the
-  // bounce program, so a session without bounce keeps exactly the previous layout.
+  // bounce program, so a session without bounce keeps exactly the previous layout. The two last
+  // are atlases (`atlas.ts`, #1410): no storage buffer of the eight.
   if (bounce)
     entries.push(
       { binding: 11, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
-      { binding: 12, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
+      {
+        binding: 12,
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: { sampleType: 'unfilterable-float', viewDimension: '2d-array' },
+      },
       {
         binding: BOUNCE_SURFACE_BINDING,
         visibility: GPUShaderStage.FRAGMENT,
-        buffer: { type: 'read-only-storage' },
+        texture: { sampleType: 'unfilterable-float' },
       },
     );
   return entries;
@@ -145,23 +147,15 @@ export function createDeferredPlaceholders(device: GPUDevice) {
   // The substitute carries the size of `BounceGrid`, read where the struct is written: a binding
   // smaller than what the shader declares is refused by validation, and the device is lost.
   // At zero, the probe count is too and `sampleBounce` returns without reading a coefficient;
-  // the probe buffer holds a whole probe, so its size also follows the struct.
+  // the probe atlas holds a whole probe, so its size also follows the struct.
   const bounceGrid = device.createBuffer({
     label: 'Trillion3D empty bounce grid',
     size: BOUNCE_GRID_BYTES,
     usage: GPUBufferUsage.UNIFORM,
   });
-  const probes = device.createBuffer({
-    label: 'Trillion3D empty bounce probes',
-    size: PROBE_FLOATS * 4,
-    usage: GPUBufferUsage.STORAGE,
-  });
+  const probes = emptyAtlas(device, 'Trillion3D empty bounce probes', PROBE_TEXELS);
   // One texel of zero: the water composite binds it while bounce is off, and reads none.
-  const surfaceCache = device.createBuffer({
-    label: 'Trillion3D empty bounce surface cache',
-    size: 16,
-    usage: GPUBufferUsage.STORAGE,
-  });
+  const surfaceCache = emptyAtlas(device, 'Trillion3D empty bounce surface cache');
   // The absent proxy: a header of zeros, which the shader reads as a tree with no node and as
   // an absent distant shadow. Both lighting passes bind the same one, so a session without
   // proxy renders exactly the same image on opaque and on blend.
@@ -179,8 +173,8 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     transmittanceView: arrayView(transmittance),
     sampler,
     bounceGrid,
-    probes,
-    surfaceCache,
+    probes: probes.createView({ dimension: '2d-array' }),
+    surfaceCache: surfaceCache.createView(),
     proxy,
     receiver: receiver.resources,
     dispose() {
