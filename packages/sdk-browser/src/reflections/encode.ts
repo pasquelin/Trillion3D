@@ -27,7 +27,7 @@ export function encodeReflectionSource(
       },
     ],
   });
-  const reprojected = reflection.sourceGroup;
+  const reprojected = reflection.source?.group;
   // Without its inputs yet, the cleared source answers no ray: every one reads the fallback.
   if (reprojected) {
     source.setViewport(0, 0, drawn[0], drawn[1], 0, 1);
@@ -55,5 +55,5 @@ export function encodeReflectionSource(
     trace.end();
     history.encode(encoder, target, reflected.resolve, reflected.resolveLayout);
   }
-  reflection.keepSource(encoder);
+  reflection.source?.keep(encoder);
 }

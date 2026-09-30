@@ -1,49 +1,10 @@
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
-import { liveMotion, placementEpoch, reflectionFrame } from './reflectionFrame.ts';
-import type { ReflectionSourceInputs } from './source.ts';
-import { REFLECTION_PLACEMENT_VERSIONS, type ReflectionHistoryFrame } from './historyFrame.ts';
-
-const sources = new WeakMap<object, ReflectionSourceInputs>();
+import { reflectionFrame } from './reflectionFrame.ts';
 
 export function updateScreenReflection(
   rt: WebgpuPagesRuntime,
   matrix: ArrayLike<number>,
   enabled: boolean,
 ) {
-  const frame = reflectionFrame(rt);
-  rt.gpu.reflection?.update(
-    matrix,
-    enabled,
-    rt.gpu.targetSize,
-    frame,
-    reflectionSourceInputs(rt, frame),
-  );
-}
-
-/** What the last image is reprojected through: this image's identifiers and placement motion, and
- *  the depth and identifiers kept for the next one. The image itself is the unfogged one the
- *  lighting wrote beside the lit image (`source.ts`), never the HDR target. The history frame's
- *  motion and placement, when there is one, are this image's already. */
-function reflectionSourceInputs(rt: WebgpuPagesRuntime, frame?: ReflectionHistoryFrame) {
-  const { gpu, vis, run } = rt;
-  if (!gpu.reflection?.active || !gpu.depthTexture) return undefined;
-  if (!vis.visView || !vis.visTexture || !vis.pageTable) return undefined;
-  let inputs = sources.get(gpu.reflection);
-  if (!inputs) {
-    inputs = {
-      metadata: {},
-      placement: new Float64Array(REFLECTION_PLACEMENT_VERSIONS),
-    } as ReflectionSourceInputs;
-    sources.set(gpu.reflection, inputs);
-  }
-  inputs.ids = vis.visView;
-  inputs.pages = vis.pageTable;
-  inputs.motion = frame?.motion ?? liveMotion(rt, vis.pageTable);
-  inputs.eye = run.gate.cam.eye;
-  inputs.metadata.depth = gpu.depthTexture;
-  inputs.metadata.ids = vis.visTexture;
-  // Its own copy: the source compares it with what it held (`source.ts`).
-  if (frame) inputs.placement.set(frame.epoch);
-  else placementEpoch(rt, inputs.placement);
-  return inputs;
+  rt.gpu.reflection?.update(matrix, enabled, rt.gpu.targetSize, reflectionFrame(rt));
 }

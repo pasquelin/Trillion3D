@@ -8,11 +8,7 @@ import { surfacesOfRows } from '../page/rowSurfaces.ts';
 import { createReflectionHistory, type ReflectionHistory } from './historyRuntime.ts';
 import type { ReflectionHistoryFrame } from './historyFrame.ts';
 import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts';
-import {
-  createReflectionSource,
-  type ReflectionSource,
-  type ReflectionSourceInputs,
-} from './source.ts';
+import { createReflectionSource, type ReflectionSource } from './source.ts';
 
 const reflecting = (surface: PageSurface) => screenReflects(refreshSurface(surface));
 const roughReflecting = (surface: PageSurface) => {
@@ -125,36 +121,28 @@ export function createScreenReflection(
       },
       history,
       pyramid,
-      /** The reprojection's bind group (`source.ts`): none before an image gave its inputs. */
-      get sourceGroup() {
-        return reprojection?.group;
-      },
-      /** The lighting's second target, the next image's source (`sourceOutputWgsl.ts`). */
-      get sourceTarget() {
-        return reprojection?.target;
-      },
-      /** Keeps this image's depth and identifiers for the next one's source, after their readers. */
-      keepSource(encoder: GPUCommandEncoder) {
-        reprojection?.keep(encoder);
-      },
+      /** The reprojection of the last image (`source.ts`): its bind group, none before an image
+       *  gave its inputs; the lighting's second target, the next image's source
+       *  (`sourceOutputWgsl.ts`); `keep`, after their readers, of this image's depth and ids. */
+      source: reprojection,
       /** The view, whether it reflects, and the size the image draws in the source (`renderScale.ts`);
-       *  `source`, what the last image is reprojected through. */
+       *  `frame`, what the history and the source read (`reflectionFrame.ts`). */
       update(
         matrix: ArrayLike<number>,
         enabled: boolean,
         drawn: readonly number[],
         frame?: ReflectionHistoryFrame,
-        source?: ReflectionSourceInputs,
       ) {
         if (history && frame) history.prepare(frame, matrix, drawn);
-        reprojection?.update(matrix, drawn, source);
+        reprojection?.update(matrix, drawn, frame);
         packed.set(matrix);
         packed[16] = active && enabled ? 1 : 0;
         packed[17] = drawn[0];
         packed[18] = drawn[1];
         // The rank alone sets the two low bits, the 2 × 2 phase (`reflectionPhase`): a source
         // epoch that moves each image in step with the rank would otherwise hold one phase.
-        packedBits[19] = (((frame?.seed ?? 0) << 2) ^ (history?.rank ?? 0)) >>> 0;
+        // Only a rough trace reads it: without a history, none.
+        packedBits[19] = history ? (((frame?.seed ?? 0) << 2) ^ history.rank) >>> 0 : 0;
         device.queue.writeBuffer(heldUniform, 0, packed);
       },
       dispose() {
