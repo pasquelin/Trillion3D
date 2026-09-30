@@ -19,8 +19,9 @@ export const CONTRACT_SHADOW_BINDINGS = {
   translucentDepth: 19,
 };
 
-/** The wide resolve's slices: a list, a pool slice past `TILE_LIGHTS`, or every light. */
-const WIDE_SLICE_WGSL = `
+/** A tile's slice of lights: a list, a pool slice past `TILE_LIGHTS`, or every light — what the
+ *  wide resolve walks, and the shadow demand pass (`../../webgpu/shadow/demandWgsl.ts`). */
+export const TILE_SLICE_WGSL = `
 /** Where the lights of a slice of a tile's list start, and how many: its count at countSlot, its
  *  list from firstSlot — past \`TILE_LIGHTS\`, from the start the list's first word names in the
  *  pool (#849). \`TILE_NO_SLICE\` when the pool had no room: every declared light of the scene. */
@@ -29,7 +30,9 @@ fn tileSlice(base:u32,countSlot:u32,firstSlot:u32)->vec2u{
  if(kept<=TILE_LIGHTS){return vec2u(base+firstSlot,kept);}
  let first=tileLights[base+firstSlot];
  return vec2u(first,select(kept,directLights.count,first==TILE_NO_SLICE));
-}
+}`;
+/** The wide resolve's slices (`TILE_SLICE_WGSL`) and their lighting. */
+const WIDE_SLICE_WGSL = `${TILE_SLICE_WGSL}
 /** The lights of a slice (\`tileSlice\`), or from \`TILE_NO_SLICE\` every light of the scene in rank
  *  order: the one loop that shades a pixel's lights in full. A light that misses the point adds
  *  an exact zero. */

@@ -1,8 +1,8 @@
 import { copyMatrix4, multiplyMatrix4 } from '../../math/matrix/matrix4.ts';
-import { orthographicProjection } from '../../math/primitives/camera.ts';
 import { crossVector3, dotVector3 } from '../../math/primitives/vector.ts';
 import { LIGHT_SETTINGS } from '../light/contracts.ts';
 import { hypot3 } from '../../math/primitives/hypot.ts';
+import { PAGES } from './pageModel.ts';
 
 /**
  * COMPOSITION BUFFERS OF A FACE, in double precision and rounded BY HAND.
@@ -59,10 +59,12 @@ export function shadowProjection(fov: number, range: number) {
  * aperture to publish: both come out zero.
  */
 export function shadowOrthographic(halfExtent: number, far: number) {
-  orthographicProjection(faceProjection, -halfExtent, halfExtent, -halfExtent, halfExtent, 0, far);
-  faceProjection[0] = arrondi(faceProjection[0]);
-  faceProjection[5] = arrondi(faceProjection[5]);
-  faceProjection[10] = arrondi(faceProjection[10]);
+  // A centred box: `orthographicProjection`'s terms, on the page view model (`pageViewModel.ts`).
+  faceProjection.fill(0);
+  faceProjection[0] = faceProjection[5] = arrondi(PAGES.shadowOrthoScale(halfExtent));
+  faceProjection[10] = arrondi(PAGES.shadowOrthoDepthScale(far));
+  faceProjection[14] = PAGES.shadowOrthoDepthOffset(far);
+  faceProjection[15] = 1;
   planes.near = 0;
   planes.far = far;
   planes.halfFov = 0;

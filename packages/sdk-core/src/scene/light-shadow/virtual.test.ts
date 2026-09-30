@@ -8,16 +8,14 @@ import {
   SUN_ENTRIES,
   SUN_LEVELS,
   SUN_WINDOW,
-  decodeLampEntry,
-  finestSunLevel,
-  lampEntry,
   lampPagesAt,
   priorPoolPages,
   shadowPoolSize,
   shadowPoolShape,
-  sunEntry,
   tableEntriesOf,
 } from './virtual.ts';
+import { finestSunLevel, lampEntry, sunEntry } from './pageModel.ts';
+import { decodeLampEntry } from './entryPages.ts';
 import { LIGHT_KIND } from '../light/contracts.ts';
 
 test('a lamp entry decodes to the face, mip and page it was built from, every entry once', () => {
