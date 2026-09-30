@@ -13,6 +13,8 @@ const config: KnipConfig = {
     'packages/sdk-node/src/index.mts',
     'packages/sdk/{index,browser,node}.{ts,mts}',
     'packages/page-codec/geometryPage.ts',
+    // The second pass of `check:unused` (`scripts/check-unused.ts`), read by knip itself.
+    'knip.production.config.ts',
     'packages/**/*.test.ts',
     // The scripts `package.json` and the workflows run are found by knip itself; the tests and
     // the browser proofs, run by `node --test`, are entries by rule. Any other script is dead.

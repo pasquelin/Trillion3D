@@ -225,7 +225,7 @@ optimising](../CONTRIBUTING.md#measure-before-optimising).
 | `pnpm run check:translations` | No translation left behind when its English changes |
 | `pnpm run check:thumbnails` | Report, not a gate: the examples the recette still has to capture |
 | `pnpm run check:structure` | sdk-core typed without DOM; the boundary tests run in the unit suite |
-| `pnpm run check:unused` | Dead exports and files (`knip`) |
+| `pnpm run check:unused` | Dead exports and files, and those only tests reach (`knip`, two passes) |
 | `pnpm run check:no-js` | No JavaScript source under `site/`: the site is TypeScript |
 | `pnpm run check:docs-three` | Three.js named only in witness, benchmark, measurement or migration sections |
 | `pnpm run check:docs-bundles` | No build product of the site (`dist/site/`) is tracked by git |
