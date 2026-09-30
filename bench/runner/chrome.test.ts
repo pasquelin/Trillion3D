@@ -48,7 +48,9 @@ test('launchChrome from a unit test is refused before Playwright is reached', as
   }
 });
 
-test('a harness run from a scratch folder reaches Playwright, stubbed: nothing starts', () => {
+/** What a harness in a scratch folder prints: `launch` stands for Playwright's, `call` is its
+ *  call of `launchChrome`. */
+function scratchHarness(launch: string, call: string) {
   const logs = at('.worktrees/logs');
   mkdirSync(logs, { recursive: true });
   const scratch = mkdtempSync(join(logs, 'chrome-harness-'));
@@ -57,13 +59,27 @@ test('a harness run from a scratch folder reaches Playwright, stubbed: nothing s
     harness,
     `import { chromium } from '${import.meta.resolve('playwright')}';\n` +
       `import { launchChrome } from '${import.meta.resolve('./chrome.ts')}';\n` +
-      "chromium.launch = async () => 'stubbed';\n" +
-      'console.log(await launchChrome());\n',
+      `chromium.launch = ${launch};\n` +
+      `console.log(await ${call});\n`,
   );
   try {
     const { NODE_TEST_CONTEXT: _runner, ...env } = process.env;
-    assert.equal(execFileSync(process.execPath, [harness], { env, encoding: 'utf8' }), 'stubbed\n');
+    return execFileSync(process.execPath, [harness], { env, encoding: 'utf8' });
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
+}
+
+test('a harness run from a scratch folder reaches Playwright, stubbed: nothing starts', () => {
+  assert.equal(scratchHarness("async () => 'stubbed'", 'launchChrome()'), 'stubbed\n');
+});
+
+// #1364: Playwright's headless shell loses every WebGPU device right after the first frame, so a
+// harness asking for it, or for another browser path, still gets the system Chrome.
+test('a channel or a browser path given to launchChrome never opens another browser', () => {
+  const printed = scratchHarness(
+    'async (options) => JSON.stringify([options.channel, options.executablePath ?? null])',
+    "launchChrome({ headless: true, channel: 'chromium', executablePath: '/shell' } as never)",
+  );
+  assert.equal(printed, '["chrome",null]\n');
 });
