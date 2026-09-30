@@ -67,3 +67,17 @@ test('a demand past the memory budget is held at its ceiling, said once as a war
   assert.deepEqual([warned[0][1].clamp, warned[0][1].pages], ['ceiling', pool.pages]);
   assert.equal(s.said.filter(([phase]) => phase === 'gpu-out-of-memory').length, 0);
 });
+
+test('a scene at rest gives the memory back at once, not sixty reports later', async () => {
+  const s = await session();
+  await s.ask(1000, true);
+  assert.equal(s.lights.plan.pool.pages, 2601);
+  await s.ask(1000);
+  assert.equal(s.lights.plan.pool.pages, 2601, 'a resting view that asks as much keeps it');
+  await s.ask(50);
+  assert.equal(s.lights.plan.pool.pages, 2601, 'a count that changed: a world may still move');
+  await s.ask(50);
+  assert.equal(s.lights.plan.pool.pages, 256, 'the same count again: what the scene asks');
+  await s.ask(100, true);
+  assert.equal(s.lights.plan.pool.pages, 256, 'moving within it keeps it');
+});

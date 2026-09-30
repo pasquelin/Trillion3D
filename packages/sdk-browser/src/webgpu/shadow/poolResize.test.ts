@@ -57,25 +57,15 @@ test('a demand larger then smaller re-sizes the pool, and every capacity follows
   await s.ask(50, true);
   assert.deepEqual(shape(), [16, 1, 256], 'down to what the reports asked, the seed at least');
   follows(256);
-  const sized = s.said.filter(([phase]) => phase === 'shadow-pool').map(([, c]) => c.side);
-  assert.deepEqual(sized, [51, 51, 16]);
+  assert.deepEqual(
+    s.said.filter(([p]) => p === 'shadow-pool').map(([, c]) => c.side),
+    [51, 51, 16],
+  );
   await s.ask(100);
   assert.equal(s.lights.plan.pool.pages, 256, 'a demand the pool holds keeps it');
   s.rt.capture.capturing = true;
   await s.ask(2000);
   assert.equal(s.lights.plan.pool.pages, 256, 'a capture resizes nothing');
-});
-
-test('a view at rest gives the memory back at its first report, not sixty reports later', async () => {
-  const s = await session();
-  await s.ask(1000, true);
-  assert.equal(s.lights.plan.pool.pages, 2601);
-  await s.ask(1000);
-  assert.equal(s.lights.plan.pool.pages, 2601, 'a resting view that asks as much keeps it');
-  await s.ask(50);
-  assert.equal(s.lights.plan.pool.pages, 256, 'one report of a resting view: what it asks');
-  await s.ask(100, true);
-  assert.equal(s.lights.plan.pool.pages, 256, 'moving again within it keeps it: no resize');
 });
 
 test('pages requested before and after the resize keep their content: none is drawn again', async () => {
