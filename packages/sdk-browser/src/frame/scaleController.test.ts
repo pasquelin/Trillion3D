@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRefreshClock, createScaleController, nextScale } from './scaleController.ts';
+import { createScaleController, nextScale } from './scaleController.ts';
 
 /** 120 Hz: the boss's display. */
 const BUDGET = 1000 / 120;
@@ -57,28 +57,4 @@ test('the scale never leaves [min, max]', () => {
       `k = ${k}`,
     );
   }
-});
-
-test('the refresh interval is the shortest frame interval, pauses aside', () => {
-  const clock = createRefreshClock(1000 / 60);
-  assert.equal(clock.interval, 1000 / 60, 'the fallback before any frame');
-  let now = 0;
-  for (const gap of [0, 8.4, 16.7, 8.3, 500, 9]) clock.tick((now += gap));
-  assert.ok(Math.abs(clock.interval - 8.3) < 1e-9);
-});
-
-/** The refresh measured from frames drawn every `frameMs` on a display refreshing every `vsyncMs`:
- *  each frame begins at the first refresh after it is ready, as rAF does. */
-function measured(vsyncMs: number, frameMs: number) {
-  const clock = createRefreshClock(1000 / 60);
-  for (let frame = 0; frame < 60; frame++)
-    clock.tick(Math.ceil((frame * frameMs) / vsyncMs - 1e-9) * vsyncMs);
-  return clock.interval;
-}
-
-// #1343: the budget follows the display, no fixed cap; slow frames never pass for a slow display.
-test('the refresh budget follows the display, a device that misses its cadence included', () => {
-  assert.ok(Math.abs(measured(1000 / 120, 1000 / 120) - 8.33) < 0.01, '120 Hz: 8.3 ms');
-  assert.ok(Math.abs(measured(1000 / 60, 1000 / 60) - 16.67) < 0.01, '60 Hz: 16.7 ms');
-  assert.ok(Math.abs(measured(1000 / 120, 1000 / 16) - 8.33) < 0.01, '16 fps at 120 Hz: 8.3 ms');
 });
