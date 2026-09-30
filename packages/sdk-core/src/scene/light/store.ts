@@ -44,8 +44,9 @@ export function createSceneLightStore() {
     revision = grown(revision, Uint32Array, capacity);
   };
   grow();
-  /** A light's atlas slice lives in the buffer itself: it is not held twice. */
+  /** A light's atlas slice and kind (`LIGHT_KIND`) live in the buffer itself: not held twice. */
   const sliceOf = (slot: number) => packed[baseOf(slot) + LIGHT_FIELD.shadowSlice];
+  const kindOf = (slot: number) => packed[baseOf(slot) + LIGHT_FIELD.kind];
   const writeSlice = (slot: number, slice: number) => {
     packed[baseOf(slot) + LIGHT_FIELD.shadowSlice] = slice;
   };
@@ -68,6 +69,7 @@ export function createSceneLightStore() {
       return capacity;
     },
     sliceOf,
+    kindOf,
     /** Each slot's light name. */
     ids,
     /** How many lights. */

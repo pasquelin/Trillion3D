@@ -130,6 +130,15 @@ export const ENGINE_SHADERS: Record<string, string> = {
   REFLECTION_RESOLVE_BOUNCE: withScreenReflections(BOUNCE_LIGHTING_SHADER),
   DIRECT_NARROW_LIGHTING: contractLightingShader(false, true),
   BOUNCE_NARROW_LIGHTING: contractLightingShader(true, true),
+  // With neither shadow nor rectangle code (#1249, #1369): each branch they drop names nothing left.
+  DIRECT_UNSHADOWED_RECTLESS_LIGHTING: contractLightingShader(
+    false,
+    false,
+    undefined,
+    false,
+    false,
+  ),
+  BOUNCE_NARROW_RECTLESS_LIGHTING: contractLightingShader(true, true, undefined, true, false),
   REFLECTION_RESOLVE_DIRECT_NARROW: withScreenReflections(contractLightingShader(false, true)),
   REFLECTION_RESOLVE_BOUNCE_NARROW: withScreenReflections(contractLightingShader(true, true)),
   DIRECT_SUBGROUP_LIGHTING: withSubgroupShadowRequests(DIRECT_LIGHTING_SHADER),

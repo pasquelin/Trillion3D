@@ -12,16 +12,18 @@ type Variant = {
 
 /**
  * The contract programs, each compiled the first time a frame asks for it: with or without bounce,
- * wide or narrow (#849), with or without shadow code (#1249). A narrow program reads at most
- * `TILE_LIGHTS` lights, so it stands in for no wide one; an unshadowed one reads no shadow, so it
- * stands in for no scene that holds one; a wide program with shadow code serves any scene. While
- * the asked one compiles, the frame is lit by the best one ready — the same width and shadows
- * without bounce, then with shadow code, then a wide one —, else by none.
+ * wide or narrow (#849), with or without shadow code (#1249), with or without rectangle code
+ * (#1369). A narrow program reads at most `TILE_LIGHTS` lights, so it stands in for no wide one;
+ * an unshadowed one reads no shadow, so it stands in for no scene that holds one; a rectless one
+ * shades no rectangle, so it stands in for no scene that holds one; a wide program with shadow
+ * and rectangle code serves any scene. While the asked one compiles, the frame is lit by the best
+ * one ready — the same one without bounce, then with rectangle code, then with shadow code, then
+ * a wide one —, else by none.
  *
- * A narrow or unshadowed program's twin — wide, with shadow code — compiles beside it, from the
- * same frame: a scene that passes `TILE_LIGHTS` lights, or whose light takes a shadow, finds its
- * program ready as soon as a single program would have been, and never falls back to the unlit
- * view where one program would not. No frame waits for that twin (`settle`) nor is redrawn at its
+ * A narrow, unshadowed or rectless program's twin — wide, with shadow and rectangle code —
+ * compiles beside it, from the same frame: a scene that passes `TILE_LIGHTS` lights, or whose
+ * light takes a shadow or is a rectangle, finds its program ready as soon as a single program
+ * would have been, and never falls back to the unlit view where one program would not. No frame waits for that twin (`settle`) nor is redrawn at its
  * arrival (`onReady`) until one asks for it. A failed compile is said (`onFailure`) once, never
  * retried.
  */
@@ -37,23 +39,26 @@ export function createContractVariants(
   onReady?: () => void,
   { onFailure: reportFailure, unboundedReflections }: ContractVariantOptions = {},
 ) {
-  /** `variants[+narrow + 2 * unshadowed][+bounce]`. */
-  const variants: Variant[][] = [0, 1, 2, 3].map(() => [{}, {}]);
-  const at = (narrow: boolean, unshadowed: boolean) => +narrow + 2 * +unshadowed;
+  /** `variants[+narrow + 2 * unshadowed + 4 * rectless][+bounce]`. */
+  const variants: Variant[][] = [0, 1, 2, 3, 4, 5, 6, 7].map(() => [{}, {}]);
+  const at = (narrow: boolean, unshadowed: boolean, rectless: boolean) =>
+    +narrow + 2 * +unshadowed + 4 * +rectless;
   const compile = (
     bounce: boolean,
     narrow: boolean,
     unshadowed: boolean,
+    rectless: boolean,
     onFailure = reportFailure,
   ) => {
-    const variant = variants[at(narrow, unshadowed)][+bounce];
+    const variant = variants[at(narrow, unshadowed, rectless)][+bounce];
+    const special = narrow || unshadowed || rectless;
     if (variant.program || variant.pending || variant.failed) return;
     variant.pending = createDeferredProgram(
       device,
       {
-        lighting: contractLightingShader(bounce, narrow, pages, !unshadowed),
+        lighting: contractLightingShader(bounce, narrow, pages, !unshadowed, !rectless),
         compose: CONTRACT_COMPOSITIONS,
-        label: `${bounce ? 'BOUNCE' : 'DIRECT'}${narrow ? '_NARROW' : ''}${unshadowed ? '_UNSHADOWED' : ''}`,
+        label: `${bounce ? 'BOUNCE' : 'DIRECT'}${narrow ? '_NARROW' : ''}${unshadowed ? '_UNSHADOWED' : ''}${rectless ? '_RECTLESS' : ''}`,
         direct: true,
         bounce,
         pages,
@@ -70,24 +75,27 @@ export function createContractVariants(
         variant.pending = undefined;
         variant.failed = true;
         // Its twin now lights the frames that asked for it: its arrival redraws them.
-        if (variant.asked && (narrow || unshadowed)) variants[0][+bounce].asked = true;
+        if (variant.asked && special) variants[0][+bounce].asked = true;
         onFailure?.(error);
       },
     );
-    if (narrow || unshadowed) compile(bounce, false, false, onFailure);
+    if (special) compile(bounce, false, false, false, onFailure);
   };
-  /** The best program ready to light a frame that asks for this one, if any. */
-  const lending = (bounce: boolean, narrow: boolean, unshadowed: boolean) => {
-    const asked = variants[at(narrow, unshadowed)];
-    const shadowed = variants[at(narrow, false)];
-    return (
-      asked[+bounce].program ??
-      asked[0].program ??
-      shadowed[+bounce].program ??
-      shadowed[0].program ??
-      variants[0][+bounce].program ??
-      variants[0][0].program
-    );
+  /** The best program ready to light a frame that asks for this one, if any: each step serves
+   *  more scenes than the one before. */
+  const lending = (bounce: boolean, narrow: boolean, unshadowed: boolean, rectless: boolean) => {
+    const steps = [
+      at(narrow, unshadowed, rectless),
+      at(narrow, unshadowed, false),
+      at(narrow, false, false),
+      0,
+    ];
+    for (const step of steps)
+      for (const withBounce of [bounce, false]) {
+        const program = variants[step][+withBounce].program;
+        if (program) return program;
+      }
+    return undefined;
   };
   /** A frame asks for this program: it compiles, and its arrival redraws (`onReady`). A failed one
    *  asks for its twin in its place, which the frame then waits for. */
@@ -95,13 +103,14 @@ export function createContractVariants(
     bounce: boolean,
     narrow: boolean,
     unshadowed: boolean,
+    rectless: boolean,
     onFailure?: (error: unknown) => void,
   ): Variant => {
-    const variant = variants[at(narrow, unshadowed)][+bounce];
+    const variant = variants[at(narrow, unshadowed, rectless)][+bounce];
     variant.asked = true;
-    compile(bounce, narrow, unshadowed, onFailure);
-    return variant.failed && (narrow || unshadowed)
-      ? ask(bounce, false, false, onFailure)
+    compile(bounce, narrow, unshadowed, rectless, onFailure);
+    return variant.failed && (narrow || unshadowed || rectless)
+      ? ask(bounce, false, false, false, onFailure)
       : variant;
   };
   return {
@@ -110,25 +119,29 @@ export function createContractVariants(
       bounce: boolean,
       narrow: boolean,
       unshadowed: boolean,
+      rectless: boolean,
       onFailure?: (error: unknown) => void,
     ) {
-      ask(bounce, narrow, unshadowed, onFailure);
-      return lending(bounce, narrow, unshadowed);
+      ask(bounce, narrow, unshadowed, rectless, onFailure);
+      return lending(bounce, narrow, unshadowed, rectless);
     },
     /** Starts the narrow program and its wide twin, both with shadow code, before any frame asks
      *  for them, settled once both landed or failed: prepare compiles the lit program beside the
      *  others, and a shadowed program lights any first frame. */
     precompile(bounce: boolean) {
-      compile(bounce, true, false);
-      const started = [variants[at(true, false)][+bounce].pending, variants[0][+bounce].pending];
+      compile(bounce, true, false, false);
+      const started = [
+        variants[at(true, false, false)][+bounce].pending,
+        variants[0][+bounce].pending,
+      ];
       return Promise.all(started).then(() => {});
     },
     /** The compile a frame asking for this program must wait for: none while a ready program
      *  lends itself; once it failed, its twin's; once both failed, none (the unlit view). */
-    awaited(bounce: boolean, narrow: boolean, unshadowed: boolean) {
-      return lending(bounce, narrow, unshadowed)
+    awaited(bounce: boolean, narrow: boolean, unshadowed: boolean, rectless: boolean) {
+      return lending(bounce, narrow, unshadowed, rectless)
         ? undefined
-        : ask(bounce, narrow, unshadowed).pending;
+        : ask(bounce, narrow, unshadowed, rectless).pending;
     },
     /** Waits for the programs a frame asked for, never a twin compiling beside them. */
     settle() {
