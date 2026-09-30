@@ -5658,6 +5658,7 @@
       "counts": "Lo que hizo el último plan, en páginas.",
       "spent": "Milisegundos de CPU que el último plan dedicó a leer el informe de solicitudes y a admitir páginas.",
       "worldChanged": "Un nodo se movió: su caja invalida las páginas que cubre en el siguiente plan.",
+      "changeRoom": "Cajas que la lista aún mantiene separadas antes del desbordamiento.",
       "representationChanged": "El mismo mundo con otra precisión: su caja espera a que la cámara se detenga.",
       "resting": "La cámara estaba en reposo en el último plan: su vista era la del plan anterior.",
       "deferredChanges": "Verdadero mientras un cambio de representación espera a que la cámara se detenga.",

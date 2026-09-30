@@ -1,4 +1,5 @@
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
+import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts';
 import { SHADOW_LIGHT_CULL_SHADER } from './cullShader.ts';
 import type { DrawnLog } from '../dag/types.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
@@ -63,7 +64,7 @@ export async function createShadowLightCull(device: GPUDevice, targets: CullTarg
       buffer: { type },
     })),
   });
-  const pipeline = device.createComputePipeline({
+  const pipeline = await buildComputePipeline(device, {
     layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
     compute: { module, entryPoint: 'shadowCullLight' },
   });

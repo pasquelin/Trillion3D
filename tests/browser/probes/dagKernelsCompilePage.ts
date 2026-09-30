@@ -28,9 +28,10 @@ export async function compileKernels(texts: KernelText[]) {
     );
     const compiled = (await shaderErrors(module)).map((message) => `module: ${message.message}`);
     for (const split of [false, true]) {
+      // A stage compiled off the thread is refused by its promise, not in the scope.
       const { error } = await validationScope(device, () =>
         createDagStages(device, layout, module, split),
-      );
+      ).catch((refused: Error) => ({ error: refused }));
       const errors = error ? [...compiled, `stages: ${error.message}`] : compiled;
       verdicts.push({ name, split, errors });
     }
