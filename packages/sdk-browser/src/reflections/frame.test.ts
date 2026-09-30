@@ -91,6 +91,18 @@ test('#1346: while page draws run every frame, a snapshot read frames later stil
   assert.notDeepEqual(epochOf(rt), before, 'the pages drawn while moving land');
 });
 
+test('#1346: a draw after the frame a snapshot counts still lands once the view rests', () => {
+  const rt = reflectingRt();
+  const plan = (rt.lights.plan = createShadowPlan(4));
+  // Frames 0 and 1 draw; the view rests from frame 2 and nothing more is listed or drawn.
+  plan.gpu.drew(0);
+  plan.gpu.drew(1);
+  plan.gpu.hear(snapshot(0, 1, 1));
+  const first = epochOf(rt);
+  plan.gpu.hear(snapshot(1, 0, 2));
+  assert.notDeepEqual(epochOf(rt), first, "frame 1's draw lands with its snapshot");
+});
+
 test('#1346: a page the GPU lists and has not drawn wakes neither the reflection nor the TAA; its draw does', () => {
   const gpu = fakeDevice();
   const rt = reflectingRt();
