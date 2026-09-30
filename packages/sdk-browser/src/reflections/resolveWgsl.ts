@@ -1,14 +1,18 @@
 import { FULLSCREEN_VERTEX } from '../lighting/deferred/shaders.ts';
 import { taaReprojectWgsl } from '../taa/shaderWgsl.ts';
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts';
+import { REFLECTION_PHASE_WGSL } from './hizTraceWgsl.ts';
 
 /** A bounded effective weight, not an unbounded Monte Carlo counter. At this
  * scale binary16 has 1/32 weight spacing; RGB arithmetic remains binary32. */
 export const REFLECTION_HISTORY_WEIGHT = 64;
-/** The confidence a history keeps across a change of what it reflects (#33): a moved, relit or newly
- *  resident source leaves its stale share at 4/5 per frame, halved in three frames, while a moving
- *  view, which changes shadow pages and probes every frame, still averages five samples rather
- *  than restarting from one, which flickers. */
+/** The weight a history keeps while its sources or camera move: a reflection lags them by about
+ *  this many samples, four a frame (`roughSamples`), never the still window's sixty-four. */
+export const REFLECTION_MOVING_WEIGHT = 16;
+/** The confidence a history keeps across a placement change it cannot follow (#33): without live
+ *  motion, a moved or newly resident source leaves its stale share at 4/5 per frame, halved in three
+ *  frames, while a moving view, which changes shadow pages and probes every frame, still averages
+ *  five samples rather than restarting from one, which flickers. */
 export const REFLECTION_CHANGE_WEIGHT = 4;
 /** Frames a changed source keeps the change weight: its stale share falls to (4/5)^24 < 1/200,
  *  and the window's 64 samples after it dilute that below 1/2000, under a 1/255 step: a held
@@ -16,11 +20,29 @@ export const REFLECTION_CHANGE_WEIGHT = 4;
 export const REFLECTION_CHANGE_FRAMES = 24;
 export const REFLECTION_RESOLVE_VIEW_BYTES = 160;
 
+/** The depth the point drawn at `pixel` (depth `z`, identifier `id`) had on the last image, moved
+ *  back by its placement's motion while `params.z` says it is live, and the one-pixel slope a
+ *  stored depth may differ from it by. It is called before any non-uniform return: the slope is a
+ *  derivative. A stored depth off it is another surface, the point was hidden (disocclusion): the
+ *  history resolve and the reflection source (`sourceWgsl.ts`) reject by it. */
+export const PREVIOUS_DEPTH_WGSL = `
+fn previousDepthOf(pixel:vec2f,z:f32,id:u32)->vec2f{
+ let ndc=vec2f(pixel.x*view.viewport.z*2.0-1.0,1.0-pixel.y*view.viewport.w*2.0);
+ var position=view.invViewProj*vec4f(ndc,z,1.0);
+ if(view.params.z!=0.0&&id!=0u){position=motion[placementOf(id)]*position;}
+ let projected=view.prevViewProj*position;
+ let expected=projected.z/projected.w;
+ return vec2f(expected,max(abs(dpdx(expected))+abs(dpdy(expected)),1e-7));
+}`;
+
 /** Dedicated ratio-estimator resolve. It shares only reprojection mathematics
  * with TAA: no neighbourhood clamp, colour transform or TAA history is involved.
- * `params`: x whether a history exists, y the confidence it may keep — the full window, or
- * `REFLECTION_CHANGE_WEIGHT` once a scene/source change reached objects seen in a reflection,
- * which stands for placement motion: the caller disables that branch of the reprojection. */
+ * The trace ran at half resolution, each texel for one pixel of its 2 × 2 block
+ * (`reflectionPhase`): a pixel takes the four texels around it whose pixel is on
+ * its receiver with its lobe, the reference's ray reuse. History follows the
+ * placement motion (`params.z`) and is dropped only where its receiver, normal
+ * or depth disagree; `params.y` caps its weight (the full window, the moving cap, or
+ * `REFLECTION_CHANGE_WEIGHT` after a change it cannot follow), `params.w` the trace seed's low bits. */
 export const REFLECTION_RESOLVE_WGSL = `
 ${FULLSCREEN_VERTEX}
 ${PAGE_INFO_STRUCT_WGSL}
@@ -37,15 +59,37 @@ struct ReflectionResolveView{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:v
 @group(0) @binding(9) var<storage,read> pages:array<PageInfo>;
 @group(0) @binding(10) var<storage,read> motion:array<mat4x4f>;
 ${taaReprojectWgsl(false)}
+${PREVIOUS_DEPTH_WGSL}
+${REFLECTION_PHASE_WGSL}
+fn roughSamples(at:vec2i,id:u32,nr:vec4f)->vec4f{
+ let drawn=vec2i(view.viewport.xy);let half=vec2i((drawn+vec2i(1))/2);
+ let phase=reflectionPhase(u32(view.params.w));
+ let base=vec2i(max(at-vec2i(1),vec2i(0))/2);
+ var sum=vec4f(0.0);
+ for(var k=0;k<4;k++){
+  let q=base+vec2i(k&1,k>>1u);
+  if(any(q>=half)){continue;}
+  let traced=textureLoad(sampleColor,q,0);
+  if(traced.a<=0.0){continue;}
+  let owner=min(q*2+phase,drawn-vec2i(1));
+  if(any(owner!=at)){
+   if(textureLoad(ids,owner,0).r!=id){continue;}
+   let other=textureLoad(normalRough,owner,0);
+   if(dot(other.xyz,nr.xyz)<0.99||abs(other.a-nr.a)>0.001){continue;}
+  }
+  sum+=vec4f(traced.rgb*traced.a,traced.a);
+ }
+ if(sum.a<=0.0){return vec4f(0.0);}
+ return vec4f(sum.rgb/sum.a,sum.a);
+}
 @fragment fn resolveRoughReflection(@builtin(position) pixel:vec4f)->@location(0) vec4f{
  let at=vec2i(pixel.xy);let id=textureLoad(ids,at,0).r;
- let current=textureLoad(sampleColor,at,0);
  let z=textureLoad(depth,at,0);let nr=textureLoad(normalRough,at,0);
- let ndc=vec2f(pixel.x*view.viewport.z*2.0-1.0,1.0-pixel.y*view.viewport.w*2.0);
- let projected=view.prevViewProj*(view.invViewProj*vec4f(ndc,z,1.0));
- let expected=projected.z/projected.w;
- let tolerance=max(abs(dpdx(expected))+abs(dpdy(expected)),1e-7);
+ let expected=previousDepthOf(pixel.xy,z,id);
+ var normal=nr.xyz;
+ if(view.params.z!=0.0&&id!=0u){normal=(motion[placementOf(id)]*vec4f(normal,0.0)).xyz;}
  if(id==0u){return vec4f(0.0);}
+ let current=roughSamples(at,id,nr);
  var history=vec4f(0.0);
  let uv=previousUv(at,z,at);
  if(view.params.x!=0.0&&uv.z!=0.0){
@@ -53,9 +97,9 @@ ${taaReprojectWgsl(false)}
   let oldId=textureLoad(previousIds,prior,0).r;
   let oldNormal=textureLoad(previousNormal,prior,0);
   // Reject a different receiver, material lobe or shading normal before any mean is read.
-  if(oldId==id&&dot(oldNormal.xyz,nr.xyz)>0.999&&abs(oldNormal.a-nr.a)<=0.001){
+  if(oldId==id&&dot(oldNormal.xyz,normal)>0.999&&abs(oldNormal.a-nr.a)<=0.001){
    let oldDepth=textureLoad(previousDepth,prior,0);
-   if(abs(oldDepth-expected)<=tolerance){history=textureLoad(historyColor,prior,0);}
+   if(abs(oldDepth-expected.x)<=expected.y){history=textureLoad(historyColor,prior,0);}
   }
  }
  let kept=min(history.a,view.params.y);

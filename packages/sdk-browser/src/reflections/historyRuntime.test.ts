@@ -2,22 +2,35 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts';
-import { createReflectionHistory, type ReflectionHistoryFrame } from './historyRuntime.ts';
+import { createReflectionHistory } from './historyRuntime.ts';
+import {
+  REFLECTION_LIGHTING_VERSIONS,
+  REFLECTION_PLACEMENT_VERSIONS,
+  type ReflectionHistoryFrame,
+} from './historyFrame.ts';
 import {
   REFLECTION_CHANGE_FRAMES,
   REFLECTION_CHANGE_WEIGHT,
   REFLECTION_HISTORY_WEIGHT,
 } from './resolveWgsl.ts';
 
+// The last depth and identifiers are the reflection source's (`source.ts`).
+const kept = { depth: {} as GPUTextureView, ids: {} as GPUTextureView };
+
 test('first frame rejects history, replay consumes nothing, and a changed source lowers its confidence', () => {
   const gpu = fakeDevice();
-  const history = createReflectionHistory(gpu.device, 8, 8);
+  const history = createReflectionHistory(gpu.device, 8, 8, kept);
   const current = gpu.device.createTexture({ size: [8, 8], format: 'rgba16float', usage: 1 });
+  // No live motion: the motion bound is the page table (`reflectionFrame.ts`).
+  const pages = {} as GPUBuffer;
   const frame: ReflectionHistoryFrame = {
     metadata: { depth: current, normal: current, ids: current },
-    pages: {} as GPUBuffer,
-    motion: {} as GPUBuffer,
-    epoch: new Float64Array(8),
+    ids: {} as GPUTextureView,
+    pages,
+    motion: pages,
+    eye: [0, 0, 0],
+    epoch: new Float64Array(REFLECTION_PLACEMENT_VERSIONS),
+    lighting: new Float64Array(REFLECTION_LIGHTING_VERSIONS),
     seed: 1,
     frame: 10,
     camera: IDENTITY_MATRIX4,
@@ -50,12 +63,12 @@ test('first frame rejects history, replay consumes nothing, and a changed source
     assert.equal(valid(), 0);
     const first = encode();
     assert.equal(draws, 1);
-    assert.equal(gpu.textureCopies.length, 3);
+    assert.equal(gpu.textureCopies.length, 1);
     history.prepare(frame, IDENTITY_MATRIX4);
     assert.equal(history.reuse, true);
     assert.equal(encode(), first);
     assert.equal(draws, 1);
-    assert.equal(gpu.textureCopies.length, 3);
+    assert.equal(gpu.textureCopies.length, 1);
     frame.frame++;
     history.prepare(frame, IDENTITY_MATRIX4);
     assert.equal(valid(), 1);
@@ -109,10 +122,11 @@ test('first frame rejects history, replay consumes nothing, and a changed source
       assert.deepEqual(viewport, [0, 0, ...extent, 0, 1]);
     }
     const beforeLight = draws;
-    frame.epoch[3]++;
+    frame.lighting[0]++;
     history.prepare(frame, IDENTITY_MATRIX4);
     assert.equal(history.settled, false);
-    assert.equal(confidence(), REFLECTION_CHANGE_WEIGHT);
+    // #1342: no motion brings an old lighting to the new one: a relit source restarts it.
+    assert.equal(valid(), 0);
     encode();
     assert.equal(draws, beforeLight + 1, 'light changes resume in the same frame');
   } finally {
@@ -120,14 +134,14 @@ test('first frame rejects history, replay consumes nothing, and a changed source
     history.dispose();
     current.destroy();
   }
-  assert.equal(gpu.destroyed.length, 7, 'six owned resources, each destroyed once, plus input');
+  assert.equal(gpu.destroyed.length, 5, 'four owned resources, each destroyed once, plus input');
 });
 
-test('resolve uniform refusal releases the complete 32-byte history', () => {
+test('resolve uniform refusal releases the complete 24-byte history', () => {
   const gpu = fakeDevice({
     refuse: (descriptor) =>
       descriptor.label === 'Trillion3D reflection resolve view' ? 'throw' : undefined,
   });
-  assert.throws(() => createReflectionHistory(gpu.device, 8, 8), /NO_MEMORY/);
-  assert.equal(gpu.destroyed.length, 5);
+  assert.throws(() => createReflectionHistory(gpu.device, 8, 8, kept), /NO_MEMORY/);
+  assert.equal(gpu.destroyed.length, 3);
 });
