@@ -33,7 +33,7 @@ fn lampSoftCompare(m:ShadowMap,t:vec2f,home:vec2i,word:u32,offset:vec3f,first:ve
  let step=vec2i(shadowPcfStep(t.x,first.x),shadowPcfStep(t.y,first.y));let up=step>vec2i(0);
  let seam=first+select(vec2f(0.0),vec2f(SHADOW_PAGE),up);
  let edge=saturate(0.5+(seam-t)*vec2f(step))<vec2f(1.0);
- return shadowSplitTap(offset,shadowNeighbours(m,home,step,edge,offset,word,t),edge,up,first,t,reference);
+ return shadowSplitTap(offset,shadowNeighbours(m,home,step,edge,offset,word),edge,up,first,t,reference);
 }
 fn lampDiskSample(index:u32,light:DirectLight,P:vec3f,N:vec3f,delta:vec3f,mip0:u32,filtering:bool)->LampSample{
  let info=shadows.records[index].info;
@@ -48,7 +48,7 @@ fn lampDiskSample(index:u32,light:DirectLight,P:vec3f,N:vec3f,delta:vec3f,mip0:u
   let r=lampReadAt(index,light.positionRange.xyz,Q,N,0.0,1.0,mip);
   let clip=r.clip;let reference=r.ndc.z+SHADOW_DEPTH_ROUNDING;
   let map=r.at.map;let home=r.at.home;
-  let t=clamp(r.at.t,vec2f(0.5),vec2f(r.side-0.5));let word=shadowPageWord(map,home,t);
+  let t=clamp(r.at.t,vec2f(0.5),vec2f(r.side-0.5));let word=shadowPageWord(map,home);
   if(word==0u){continue;}
   let offset=shadowOffset(word,home);let first=vec2f(home)*SHADOW_PAGE;
   if(filtering){

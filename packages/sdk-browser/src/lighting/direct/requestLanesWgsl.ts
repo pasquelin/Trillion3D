@@ -1,4 +1,3 @@
-import { SHADOW_REQUEST_MISS } from '../../../../sdk-core/src/scene/light-shadow/footprint.ts';
 import {
   SUN_WINDOW,
   shadowTableEntries,
@@ -8,14 +7,13 @@ import {
 export const shadowEntryBits = (pages = SUN_WINDOW) => shadowTableEntries(pages) / 32;
 
 /** The claim of page `e` by one lane: its bit tested before the atomic, then set, and the page
- *  listed by whoever set it first — so a page thousands of pixels read costs one list slot. A
- *  miss claims its own bit and lists its entry flagged (`SHADOW_REQUEST_MISS`). */
-export const claimWgsl = (name: string, entryBits: number, miss = false) => `fn ${name}(e:u32){
- let cap=arrayLength(&shadowRequests)-${1 + 2 * entryBits}u;let word=1u+cap+${miss ? `${entryBits}u+` : ''}(e>>5u);let bit=1u<<(e&31u);
+ *  listed by whoever set it first — so a page thousands of pixels read costs one list slot. */
+const claimWgsl = (name: string, entryBits: number) => `fn ${name}(e:u32){
+ let cap=arrayLength(&shadowRequests)-${1 + entryBits}u;let word=1u+cap+(e>>5u);let bit=1u<<(e&31u);
  if((atomicLoad(&shadowRequests[word])&bit)!=0u){return;}
  if((atomicOr(&shadowRequests[word],bit)&bit)!=0u){return;}
  let at=atomicAdd(&shadowRequests[0],1u);
- if(at<cap){atomicStore(&shadowRequests[1u+at],e${miss ? `|${SHADOW_REQUEST_MISS}u` : ''});}
+ if(at<cap){atomicStore(&shadowRequests[1u+at],e);}
 }`;
 
 /** The per-lane request, every device's: each lane claims its own page. The fallback of
