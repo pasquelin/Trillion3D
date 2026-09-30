@@ -16,7 +16,7 @@ import type { Run } from './installed-package-contracts.ts';
 import { packArchive, type PackResult } from './installed-package-fixture.ts';
 
 /** One packed package: its name, its archive and the files `pnpm pack` put in it. */
-export interface ReleaseArchive {
+interface ReleaseArchive {
   name: string;
   filename: string;
   files: { path: string }[];
@@ -57,7 +57,7 @@ export const releaseNames = () => [...compilers('').map(({ name }) => name), 'tr
 const releaseFolders = (root: string) => [...compilers(root).map(({ folder }) => folder), root];
 
 /** The one version of the six packages; refuses a package at another. */
-export function releaseVersion(root: string): string {
+function releaseVersion(root: string): string {
   const manifests = releaseFolders(root).map(
     (folder) =>
       JSON.parse(readFileSync(join(folder, 'package.json'), 'utf8')) as {
@@ -79,7 +79,7 @@ export function releaseVersion(root: string): string {
  * Each platform's compiler as the `Compiler` workflow's artifacts laid it down, made executable
  * again: an Actions artifact does not keep the execute bit. Refuses a missing platform.
  */
-export function stageCompilers(root: string): void {
+function stageCompilers(root: string): void {
   const binaries = compilers(root).map(({ binary }) => binary);
   const missing = binaries.filter((binary) => !existsSync(binary));
   if (missing.length > 0) throw new Error(`compiler missing: ${missing.join(', ')}`);
@@ -149,7 +149,7 @@ export function readRelease(out: string): Release {
 }
 
 /** The registry's answer: a version printed is published; `E404`, never published. */
-export const npmPublished: Lookup = (spec) => {
+const npmPublished: Lookup = (spec) => {
   const result = spawnSync('npm', ['view', spec, 'version'], { encoding: 'utf8' });
   if (result.status === 0) return result.stdout.trim() !== '';
   if (/\bE404\b/.test(result.stderr)) return false;
