@@ -697,14 +697,21 @@ roots included, reaches the world top.
 Two products lie beside the tables. `world-roots.bin` holds the written bundles end to end; a page
 is `u32` vertex count, `u32` triangle count, its vertices as three `f32` in world space and its
 triangles as `u16` local indices, padded to four bytes. `world-roots.json` is `{ version: 1,
-budgetBytes, pinned, pinnedTopBytes, payload, bundles, pages, cells }`: `payload` the bin's `{ url,
-sha256, bytes }`; a bundle `{ offset, bytes, sha256, count, dependencies }`, its range in the bin; a
-page `{ bundle, offset, level, material, lodError, parentError, sphere, parentSphere }`, offset
-inside its bundle, `parentError` `null` on a root; `cells[n]`, the cell of `scene-cell-<n>.json` (an
-unpartitioned scene has one cell, no file), `{ objects }`, one `{ node, primitive, roots,
-dependencies }` per placement primitive — its published node, manifest primitive, the `streams`
-bundles holding its roots, and every world bundle those roots need, ascending, up to the top: the
-**cross-primitive dependencies** of its root bundles. Both files are in the manifest's `files`.
+budgetBytes, pinned, pinnedTopBytes, payload, bundles, pages, cells, clusters, groups }`: `payload`
+the bin's `{ url, sha256, bytes }`; a bundle `{ offset, bytes, sha256, count, dependencies }`, its
+range in the bin; a page `{ bundle, offset, level, material, lodError, parentError, sphere,
+parentSphere }`, offset inside its bundle, `parentError` `null` on a root; `cells[n]`, the cell of
+`scene-cell-<n>.json` (an unpartitioned scene has one cell, no file), `{ objects }`, one `{ node,
+primitive, roots, dependencies }` per placement primitive — its published node, manifest primitive,
+the `streams` bundles holding its roots, and every world bundle those roots need, ascending, up to
+the top: the **cross-primitive dependencies** of its root bundles. `clusters` names every world
+cluster, object roots included, by its world rank — the rank the group list uses — with the fields
+the runtime cut projects (`level`, `lodError`, `sphere`, `parentError`, `parentSphere`, `min`,
+`max`, `triangles`, `material`); a super-root adds `bundle` and `offset`, its page's place in the
+binary, and an object root adds `origin`, the placed instance whose own stream holds its page.
+`groups` is the group list, each `{ level, error, sphere, children, outputs }`, `children` and
+`outputs` naming clusters by world rank: the relation the runtime flattens into its cluster
+structure (#1238). Both files are in the manifest's `files`.
 
 The first `pinned` bundles are the **pinned top**, their bytes `pinnedTopBytes` in the cook report
 (`clusters.json`, `worldRoots`: `{ version, file, cells, superRoots, topPages, pinnedBundles,
