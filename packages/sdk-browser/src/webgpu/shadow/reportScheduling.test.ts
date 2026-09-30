@@ -7,11 +7,11 @@ import assert from 'node:assert/strict';
 import type { SceneLight } from '../../../../sdk-core/src/index.ts';
 import { LAMP_MIPS } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { lampEntry } from '../../../../sdk-core/src/scene/light-shadow/pageModel.ts';
-import { decodeLampEntry } from '../../../../sdk-core/src/scene/light-shadow/entryPages.ts';
 import { LAMP } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { SHADOW_WGSL } from '../../lighting/direct/shadowBias.fixture.ts';
 import { READ, floorTiles, tileGrid, type Lit } from './shadingReads.fixture.ts';
 import { cameraAt, readable, reportScene } from './reportScene.fixture.ts';
+import { decodeLampEntry } from '../../../../sdk-core/src/scene/light-shadow/lampEntry.ts';
 
 test('the shading read the scheduling is proved against is the WGSL one', () => {
   for (const line of READ) assert.ok(SHADOW_WGSL.includes(line), line);

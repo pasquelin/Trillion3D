@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { TEMPLATES, sha, manifest } from '../../../../tests/fixtures/manifestBinary.ts';
-import { decodeManifestBinary } from './binary.ts';
+import { decodeManifestBinary } from './binaryDecode.ts';
 import { encodeManifestBinary } from '../../../../tests/fixtures/manifestBinaryEncode.ts';
 import { EngineError } from '../contracts/index.ts';
 

@@ -148,6 +148,3 @@ fn scatterGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index
 }
 `;
 };
-
-/** The shader a scene with no stacked coplanar surface uses: the six slots of the single layer. */
-export const DRAW_SHADER = drawShader(1);

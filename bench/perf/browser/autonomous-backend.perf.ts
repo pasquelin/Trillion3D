@@ -10,10 +10,10 @@ import type {
 } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
 import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts';
 import type { HostMesh } from '../../../packages/sdk-browser/src/host/resources.ts';
-import type { WebglViewState } from '../../../packages/sdk-browser/src/backend/autonomous/views.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import { referenceAutonomousSync } from '../../oracles/browser/autonomous-backend.ts';
 import { HOSTILE_FLOATS } from '../../../tests/kit/assert/hostile.ts';
+import { type WebglViewState } from '../../../packages/sdk-browser/src/backend/autonomous/viewKeys.ts';
 
 const HOSTILES = [...HOSTILE_FLOATS, 1.7976931348623157e308];
 const geometrie = new G.Geometry();

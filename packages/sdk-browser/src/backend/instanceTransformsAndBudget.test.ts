@@ -14,7 +14,7 @@ import {
   coarseQuadContext,
   triangleGeometry,
 } from './pagesBackendScenes.fixture.ts';
-import { submittedDraws } from '../cluster/batchMesh.ts';
+import { submittedDraws } from '../cluster/submissions.fixture.ts';
 
 test('source instance transforms update all three WebGL backends without rebuilding pages', () => {
   for (const factory of [referenceBackend, exactPagesBackend, threeLodBackend]) {

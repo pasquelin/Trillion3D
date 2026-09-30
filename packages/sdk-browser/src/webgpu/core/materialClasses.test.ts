@@ -3,12 +3,13 @@ import assert from 'node:assert/strict';
 import { collectClusterPages } from '../../page/selection/selection.ts';
 import { createPageRowWriter, ROW_MATERIAL_CLASS_WORD } from '../row/pageRow.ts';
 import { FLAG_MASK, PAGE_INFO_STRIDE, isTransmissive } from '../../visibility/buffer.ts';
-import { CLASS_FEATURE } from '../../visibility/shader/materialClass.ts';
 import { sceneMaterialClasses } from '../row/pageRowMaterial.ts';
-import { createPresentClasses, markPresentClasses } from './materialPasses.ts';
+import { createPresentClasses } from './materialPasses.ts';
 import { SURFACE_MODEL } from '../../scene/surfaceModel.ts';
 import { createWebgpuRowState } from '../row/state.ts';
 import { scene } from './materialClasses.fixture.ts';
+import { CLASS_FEATURE } from '../../visibility/shader/classWords.ts';
+import { markPresentClasses } from './presentClasses.ts';
 
 test('the three material classes take the three paths the engine has for them', () => {
   const { source, meshes, metadata, indices, associations } = scene();

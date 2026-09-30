@@ -14,8 +14,9 @@ import {
   FORMAT_VERSION,
   TEXTURE_PREVIEW_VERSION,
 } from '../../packages/sdk-core/src/index.ts';
-import { JOLT_COMMIT, readCookedPhysics } from '../../packages/sdk-core/src/physics/cooked.ts';
+import { readCookedPhysics } from '../../packages/sdk-core/src/physics/cooked.ts';
 import { TILE_BORDER, TILE_SIZE } from '../../packages/sdk-browser/src/texture/tiles.ts';
+import { JOLT_COMMIT } from '../../packages/sdk-core/src/physics/joltCommit.ts';
 
 const source = (file: string) =>
   fileURLToPath(new URL(`../../packages/asset-compiler-rust/src/${file}`, import.meta.url));

@@ -3,7 +3,6 @@ import { layerViews } from '../../gpu/shadow/layers.ts';
 import { createShadowPageMover } from '../../gpu/shadow/pageMoves.ts';
 import { shadowTransmittanceBytes } from '../../gpu/shadow/transmittance.ts';
 import { shadowBufferBytes, type GpuShadowAtlas } from '../../gpu/shadow/atlas.ts';
-import { SHADOW_GRANT_BYTES } from '../../residency/memoryBudget.ts';
 import { admitShadowBytes, noteShadowPressure, shadowPoolHeld } from './memoryGrant.ts';
 import { disposeStaticLayer, type WebgpuLightState } from '../pages/state/lights.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
@@ -13,6 +12,7 @@ import {
   followDemand,
   type PoolDemand,
 } from '../../../../sdk-core/src/scene/light-shadow/poolDemand.ts';
+import { SHADOW_GRANT_BYTES } from '../../residency/shadowBudgetBytes.ts';
 
 /** The static layer let go, with its pyramids: no page keeps casters in it any more, and the next
  *  move of an object builds one for the pool in place (`encodeShadows.ts`). One still being made

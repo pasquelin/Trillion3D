@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createSafetyPolicy, type MeasuredCosts } from '../index.ts';
+import { createSafetyPolicy, type MeasuredCosts } from './safety.ts';
+
 const value = (cpuMs: number): MeasuredCosts => ({
   contextKey: 'same-scene-camera-materials-resolution',
   provenance: 'measured',
@@ -87,7 +88,7 @@ test('WebGL probing matches production attributes, loses the probe context, and 
   assert.equal(probeCalls, 2);
 });
 test('Recovered fallback has no user notice; only unrecoverable failure is actionable', async () => {
-  const { userNotice } = await import('../index.ts');
+  const { userNotice } = await import('./events.ts');
   assert.equal(
     userNotice({
       eventVersion: 1,

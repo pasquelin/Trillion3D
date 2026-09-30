@@ -8137,7 +8137,7 @@
     }
   },
   "IMPOSTOR_PI": {
-    "summary": "π, un único literal para este oráculo y el espejo WGSL, para que ambos redondeen el mismo número."
+    "summary": "π, un único literal, para que cada lector del cambio redondee el mismo número."
   },
   "IMPOSTOR_VERSION": {
     "summary": "Formato de la sección `impostors` que lee un runtime (#817 parte 1, horneada por el compilador)."

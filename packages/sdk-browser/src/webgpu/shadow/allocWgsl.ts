@@ -9,9 +9,7 @@ import { SUN_ORIGIN_WGSL } from '../../lighting/direct/shadowFactorWgsl.ts';
 import { shadowRequestWgsl } from '../../lighting/direct/shadowRequestWgsl.ts';
 import { SHADOW_DATA_WGSL } from '../../lighting/direct/shadowWgsl.ts';
 import { POOL_FRAME_COUNTS, SHADOW_DRAW_LIST_WGSL, shadowPoolWgsl } from './poolWgsl.ts';
-
-/** Invocations of the one workgroup that allocates a frame's pages. */
-export const ALLOC_LANES = 256;
+import { ALLOC_LANES } from './allocLanes.ts';
 /** Words of the parameters before the host's asks: frame, pages, list cap, asks, where the
  *  candidates' keys start, the first frame whose asks no need evicts, then each slice's
  *  generation. */
@@ -183,9 +181,3 @@ var<workgroup> candidateCount:u32;
  for(var k=2u;k<=candidateSpan;k=k<<1u){for(var j=k>>1u;j>0u;j=j>>1u){sortStep(lane,params.candidateBase,candidateSpan,k,j);storageBarrier();}}
  assignPages(lane,needs,candidates);
 }`;
-/** The GPU allocation of the ordinary window: what a pass compiled without a session reads. */
-export const ALLOCATION_WGSL = allocationWgsl();
-
-/** The phases the allocation runs one after the other, a barrier between, once the floors are
- *  claimed (`beginAllocation`): what a test runs in order. */
-export const ALLOC_PHASES = ['followPages', 'touchRequests', 'listCandidates'];

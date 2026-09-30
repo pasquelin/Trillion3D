@@ -37,22 +37,6 @@ export const restSlotCount = (layerSlots: number) => (BASE_SLOTS / 2) * layerSlo
  *  reallocating when a scene carries layers. */
 export const MAX_DRAW_SLOTS = slotCount(1 + MAX_DEPTH_LAYER);
 
-export type DrawItem = {
-  pageIndex: number;
-  bin: 0 | 1 | 2;
-  rest: 0 | 1;
-  selectionIndex?: number;
-  layer?: number;
-  triangles?: number;
-};
-export type CompactResult = {
-  instances: Uint32Array; // compacted pageIndex in input order
-  bins: Uint32Array; // compacted bin
-  rests: Uint32Array; // compacted rest flag
-  counts: number[]; // (bin + 3*rest + 6*layer)
-  indirect: Uint32Array; // one drawIndirect per slot, four u32 each
-  overflow: boolean;
-};
 export type GpuDraw = {
   /**
    * `items` holds packed rows of {pageIndex,bin,selectionIndex,layer,triangles}. Those five are

@@ -1,18 +1,9 @@
-import { PI } from '../lighting/shaderConstants.ts';
 import { shaderLanguage } from '../math/shaderLanguage.ts';
 import { taaPrelude, taaShareTap } from './shaderWgsl.ts';
 import { shareText, taaHistoryBlend } from './historyWgsl.ts';
-import { BLACKMAN_HARRIS_WGSL } from './weights.ts';
+import { BLACKMAN_HARRIS_WGSL } from './filterWeights.ts';
 import { layerWgsl, taaOut } from './layers.ts';
-
-/** Lanczos-2, `sinc(x)·sinc(x/2)` on `|x| < 2`: the kernel the current image is resampled with. */
-export const LANCZOS2_WGSL = `
-fn lanczos2(x:f32)->f32{
- if(x<1e-4){return 1.0;}
- if(x>=2.0){return 0.0;}
- var p:f32=${PI}*x;
- return 2.0*sin(p)*sin(0.5*p)/(p*p);
-}`;
+import { LANCZOS2_WGSL } from './lanczos2Wgsl.ts';
 
 /** The same kernel in GLSL, for WebGL2's spatial resample (`../webgl/core/resampleGlsl.ts`):
  *  `LANCZOS2_WGSL`'s own text through the shared translator (`shaderLanguage`). */

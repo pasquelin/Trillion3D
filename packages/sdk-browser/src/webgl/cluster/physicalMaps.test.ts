@@ -1,12 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { WebglPhysicalMaps, physicalMapLayout } from './physicalMaps.ts';
+import { WebglPhysicalMaps } from './physicalMaps.ts';
 import { createTestContext } from '../core/testContext.fixture.ts';
 import { Matrix3UniformCache } from './uniforms.ts';
 import { visMaterial } from '../../visibility/shader/material.ts';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { importHostTexture } from '../../host/textureImport.ts';
 import type { Texture } from '../../../../sdk-core/src/index.ts';
+import { physicalMapLayout } from './physicalMapLayout.ts';
 
 test('different native map dimensions reserve actual padded mip storage and refuse device limits', () => {
   const layout = physicalMapLayout(

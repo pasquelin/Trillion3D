@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { WEBGL_SCREEN_RADIANCE } from './screenGlsl.ts';
+import { WEBGL_SCREEN_RADIANCE } from './webglScreenRadiance.ts';
 import { screenRadianceShader } from './screenRadianceShader.ts';
 import { environmentReflectionShader } from './environmentShader.ts';
 import { ENVIRONMENT_REFLECTION_WGSL } from './probeFilterWgsl.ts';
 import { SCREEN_REFLECTION_CUTOFF as CUTOFF } from './modelShader.ts';
 import { ENVIRONMENT, FILTERED, RAY, resolvedDisplay } from './receivers.fixture.ts';
 import { CLUSTER_FRAGMENT } from '../webgl/cluster/shaders.ts';
-import { PROBE_ENVIRONMENT } from '../webgl/cluster/probe.ts';
+import { PROBE_ENVIRONMENT } from '../webgl/cluster/probeEnvironment.ts';
 import { shaderRun } from '../texture/shaderRun.fixture.ts';
 
 const RESOLVED = [9, 9, 9];

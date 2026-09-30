@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { depthOf, placementsCentre } from './meshDepth.ts';
+import { depthOf } from './meshDepth.ts';
 import { InstancedMesh } from '../../../../sdk-core/src/world/object/instancedMesh.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphSurface } from '../../host/graph/surface.ts';
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
+import { placementsCentre } from './placementSpheres.ts';
 
 // Issue #275: an instanced mesh is sorted by the union of its placements' spheres, grown as the
 // reference grows it, never by its geometry's sphere alone.
