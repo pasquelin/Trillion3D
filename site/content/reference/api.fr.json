@@ -6020,7 +6020,6 @@
       "flags": "0 fond, 1 non éclairé (dans le brouillard), 2 lu, 3 montré tel quel : un diagnostic, une vue des normales ou de la profondeur. 4 et 5 : modèles diffus et toon (`./surfaceModel.ts`).",
       "views": "Ses vues de texture GPU.",
       "dispose": "Le libère.",
-      "shadingOffset": "Décalage du récepteur d’ombre en pleine précision, écrit à côté du G-buffer.",
       "subsurface": "Couleur indépendante de transmission des surfaces fines ; texture nulle de 1×1 lorsque désactivée.",
       "subsurfaceView": "Vue de la texture de transmission des surfaces fines.",
       "hasSubsurface": "Indique si la transmission des surfaces fines dispose d’une cible de pleine taille."

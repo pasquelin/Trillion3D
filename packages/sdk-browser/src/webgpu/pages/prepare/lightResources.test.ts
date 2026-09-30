@@ -81,7 +81,8 @@ test('the image reads its as-is flags once a row shows one, or under a diagnosti
 
 test('a frame with no shadow slot asks for the resolve with no shadow code (#1249)', () => {
   const b = banc();
-  const rt = { ...b.rt, bounce: {}, sunFar: {} } as unknown as WebgpuPagesRuntime;
+  // No visibility buffer yet: no receiver offset to recompute (#1410).
+  const rt = { ...b.rt, bounce: {}, sunFar: {}, vis: {}, gpu: {} } as unknown as WebgpuPagesRuntime;
   b.store.add({ ...LAMP });
   b.store.add({ ...LAMP, id: 'l1' });
   assert.equal(directLightResources(rt).unshadowed, true, 'no light holds a slot');

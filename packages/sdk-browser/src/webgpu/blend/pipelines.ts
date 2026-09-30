@@ -48,7 +48,12 @@ function blendLayout(device: GPUDevice) {
       ...atlasLayoutEntries(b.color),
       { binding: b.sampler, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
       ...atlasLayoutEntries(b.data),
-      { binding: b.normals, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+      // Every normal a transparent reads is a float atlas (`../core/floatAtlas.ts`, #1410).
+      {
+        binding: b.normals,
+        visibility: GPUShaderStage.VERTEX,
+        texture: { sampleType: 'unfilterable-float', viewDimension: '2d-array' },
+      },
       { binding: b.directLights, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
       { binding: b.clusterDiagnostic, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
       { binding: b.planInstances, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
@@ -75,13 +80,21 @@ function blendLayout(device: GPUDevice) {
         texture: SHADOW_ARRAY,
       },
       { binding: b.bounceGrid, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
-      { binding: b.probes, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
+      {
+        binding: b.probes,
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: { sampleType: 'unfilterable-float', viewDimension: '2d-array' },
+      },
       { binding: b.tileLights, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
       // The far sun shadow's proxy, **read-only**: a binding the fragment stage could write would
-      // cost the pass its early depth reject (4232 hidden fragment draws). The surface cache takes
-      // the eighth and last storage binding the spec guarantees for this fragment stage.
+      // cost the pass its early depth reject (4232 hidden fragment draws). The probes and the
+      // surface cache are atlases (`../../bounce/atlas.ts`), no storage buffer.
       { binding: b.proxy, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
-      { binding: b.surfaceCache, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
+      {
+        binding: b.surfaceCache,
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: { sampleType: 'unfilterable-float' },
+      },
     ],
   });
 }
