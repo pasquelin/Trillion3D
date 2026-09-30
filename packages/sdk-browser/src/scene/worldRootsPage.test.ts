@@ -22,17 +22,15 @@ function recordingGl() {
     call = () => {};
   const gl = new Proxy(
     {
-      ...{
-        ARRAY_BUFFER: 34962,
-        ELEMENT_ARRAY_BUFFER: 34963,
-        FLOAT: 5126,
-        UNSIGNED_INT: 5125,
-        TRIANGLES: 4,
-      },
+      ARRAY_BUFFER: 34962,
+      ELEMENT_ARRAY_BUFFER: 34963,
+      FLOAT: 5126,
+      UNSIGNED_INT: 5125,
+      TRIANGLES: 4,
       createBuffer: () => ({}),
       createVertexArray: () => ({}),
       bufferData: (target: number, array: ArrayBufferView) =>
-        uploads.push(['data', target, array.byteLength]) as unknown as void,
+        void uploads.push(['data', target, array.byteLength]),
       bufferSubData: () => {},
       drawElements: (mode: number, count: number, type: number, offset: number) =>
         void draws.push([mode, count, type, offset]),

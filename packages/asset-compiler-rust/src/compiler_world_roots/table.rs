@@ -18,14 +18,11 @@ pub(super) fn clusters(
         .map(|slot| {
             let cluster = &dag[slot];
             let (min, max) = cluster_bounds(&world.positions, &cluster.indices);
-            let parent = cluster
-                .parent_error
-                .is_finite()
-                .then_some(cluster.parent_error);
-            let parent_sphere = cluster
-                .parent_error
-                .is_finite()
-                .then_some(cluster.parent_sphere);
+            let finite = cluster.parent_error.is_finite();
+            let (parent, parent_sphere) = (
+                finite.then_some(cluster.parent_error),
+                finite.then_some(cluster.parent_sphere),
+            );
             let (bundle, offset) = located[slot].map_or((None, None), |(b, o)| (Some(b), Some(o)));
             json!({"cluster":slot,"level":cluster.level,"lodError":cluster.lod_error,
                 "sphere":cluster.sphere,"parentError":parent,"parentSphere":parent_sphere,
