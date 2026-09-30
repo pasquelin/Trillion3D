@@ -42,10 +42,18 @@ const turned = ([x, y]: V) => [x * TURN[0] - y * TURN[1], x * TURN[1] + y * TURN
 /** The shipped `shadowPcf`, its page reads spied. */
 const { shadowPcf } = shaderRun<{ shadowPcf: Pcf }>(
   SHADOW_WGSL,
-  ['shadowPcf', 'shadowSplitTap', 'shadowPcfEdge', 'shadowPcfStep', 'shadowRotated'],
+  [
+    'shadowPcf',
+    'shadowSplitTap',
+    'shadowNeighbours',
+    'shadowPcfEdge',
+    'shadowPcfStep',
+    'shadowRotated',
+  ],
   {
     ...CONSTANTS,
     shadowRotation: TURN,
+    ShadowNeighbours: (x: number[], y: number[], d: number[]) => ({ x, y, d }),
     POISSON: POISSON_16,
     POISSON_STEPS: POISSON_16.map((tap) => tap.map((x) => x * SHADOW_SUBTEXELS)),
     shadowOffset: (_: number, p: V) => placed(p),
