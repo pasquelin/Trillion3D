@@ -16,6 +16,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { launchChrome } from '../bench/runner/chrome.ts';
+import { drawnShare } from './docs/examples/capture.ts';
 import { currentCompilerExecutable } from '../packages/sdk-node/src/compiler/executable.mts';
 import { codeBlocks, installPageHtml, walkthrough } from './install-page.ts';
 import { createInstalledFixture, packArchive } from './installed-package-fixture.ts';
@@ -27,6 +28,8 @@ const CDN = 'https://cdn.jsdelivr.net/npm/trillion3d/';
 const LOCAL_CDN = '/cdn/trillion3d/';
 /** The share of the canvas that must differ from its corner once the model is drawn. */
 const DRAWN = 0.01;
+/** The summed channel distance from the canvas's corner at which a pixel counts as drawn. */
+const DRAWN_DISTANCE = 24;
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const { values } = parseArgs({
@@ -43,27 +46,6 @@ const { fixture, logs, run } = createInstalledFixture(root);
 const { commands, page, headers } = walkthrough(codeBlocks(await installPageHtml('en')));
 // The compiler comes from the installed platform package, never from a variable of this shell.
 const { TRILLION3D_COMPILER_BIN: _named, ...environment } = process.env;
-
-/** The share of the canvas drawn, as the screen shows it: pixels far from its corner's colour. */
-function drawnShare(png: string) {
-  return new Promise<number>((settle, reject) => {
-    const image = new Image();
-    image.onerror = reject;
-    image.onload = () => {
-      const canvas = new OffscreenCanvas(image.width, image.height);
-      const context = canvas.getContext('2d')!;
-      context.drawImage(image, 0, 0);
-      const { data } = context.getImageData(0, 0, image.width, image.height);
-      let drawn = 0;
-      for (let at = 0; at < data.length; at += 4) {
-        const distance = [0, 1, 2].reduce((sum, c) => sum + Math.abs(data[at + c] - data[c]), 0);
-        if (distance > 24) drawn++;
-      }
-      settle(drawn / (data.length / 4));
-    };
-    image.src = `data:image/png;base64,${png}`;
-  });
-}
 
 async function draw(app: string) {
   let port = 0;
@@ -89,8 +71,7 @@ async function draw(app: string) {
     const isolated = await tab.evaluate(() => crossOriginIsolated);
     let drawn = 0;
     for (let tries = 0; tries < 60 && drawn < DRAWN && !errors.length; tries++) {
-      const png = (await tab.locator('canvas#viewer').screenshot()).toString('base64');
-      drawn = await tab.evaluate(drawnShare, png);
+      drawn = await drawnShare(tab, 'canvas#viewer', DRAWN_DISTANCE);
       if (drawn < DRAWN) await tab.waitForTimeout(500);
     }
     if (errors.length) throw new Error(`the page failed: ${errors.join('; ')}`);
