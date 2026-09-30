@@ -97,7 +97,7 @@ export function createShadowRequests(
       at[1] = Math.floor(at[1] / scale);
       at[2] = Math.floor(at[2] / scale);
       if (!sun.holds(slice, at[0], at[1], at[2])) return;
-      entry += sunEntry(at[0], at[1], at[2]);
+      entry += sunEntry(at[0], at[1], at[2], sun.windowPages);
     } else {
       if ((at[0] & 15) === LAMP_FLOOR_MIP) return;
       entry += lampEntry(at[0] >> 4, LAMP_FLOOR_MIP, 0, 0);
@@ -181,7 +181,7 @@ export function createShadowRequests(
               at[0] = level;
               at[1] = x;
               at[2] = y;
-              ask(table.baseOf(slice) + sunEntry(level, x, y), slice);
+              ask(table.baseOf(slice) + sunEntry(level, x, y, sun.windowPages), slice);
             }
         } else
           for (let face = 0; face < lampFacesOf(records.kind[slice]); face++) {
