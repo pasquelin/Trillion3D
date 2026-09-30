@@ -390,16 +390,12 @@
     {
       "id": "brushed-metal",
       "theme": "materials",
-      "file": "examples/brushed-metal.html",
-      "status": "waiting-engine",
-      "issue": 33
+      "file": "examples/brushed-metal.html"
     },
     {
       "id": "car-paint-under-clear-coat",
       "theme": "materials",
-      "file": "examples/car-paint-under-clear-coat.html",
-      "status": "waiting-engine",
-      "issue": 33
+      "file": "examples/car-paint-under-clear-coat.html"
     },
     {
       "id": "a-prism-that-disperses",
@@ -568,9 +564,7 @@
     {
       "id": "soft-shadows-from-a-wide-lamp",
       "theme": "lights",
-      "file": "examples/soft-shadows-from-a-wide-lamp.html",
-      "status": "waiting-engine",
-      "issue": 33
+      "file": "examples/soft-shadows-from-a-wide-lamp.html"
     },
     {
       "id": "contact-shadow-under-a-car",

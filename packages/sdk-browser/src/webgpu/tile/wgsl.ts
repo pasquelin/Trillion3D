@@ -14,7 +14,7 @@ import {
   PAGE_SLOT_WORDS,
   PAGE_TRANSFORM_WORD,
 } from './pageTable.ts';
-import { SAMPLE_WRAP_SHIFT } from './sampling.ts';
+import { SAMPLE_WRAP_SHIFT } from '../../texture/sampling.ts';
 import { SAMPLING_WGSL, samplingReadWgsl, atlasReadWgsl } from './samplingWgsl.ts';
 
 /**

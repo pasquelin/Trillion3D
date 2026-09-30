@@ -1,4 +1,5 @@
 import type { PhysicsBudget } from '../../../../sdk-core/src/physics/index.ts';
+import type { ActiveGpuMemory } from '../../residency/activeMemory.ts';
 import type { FrameMetrics } from '../../../../sdk-core/src/index.ts';
 import type { MeasuredWorld } from '../session/explorer.ts';
 import type { WorldRenderer } from '../capability/worldReady.ts';
@@ -29,6 +30,7 @@ export type Pools = {
   gpu?: number;
   cpu?: number;
   canvas?: BudgetCanvas;
+  activeGpu?: ActiveGpuMemory;
   readonly pageCache: PageCache;
 };
 
@@ -39,13 +41,26 @@ export const worldPools = (): Pools => ({ pageCache: createPageCache(DEFAULT_CAC
 const gpuOf = (pools: Pools) => pools.gpu ?? defaultGpuBudget(pools.canvas);
 /** The split of the totals as asked, the defaults for those not set. */
 const splitOf = (pools: Pools, gpu = gpuOf(pools), canvas = pools.canvas) =>
-  splitMemoryBudget(gpu, pools.cpu ?? DEFAULT_CPU_BUDGET, canvas);
+  splitMemoryBudget(gpu, pools.cpu ?? DEFAULT_CPU_BUDGET, canvas, pools.activeGpu);
 
 /** What a session opens with: the pools as asked, and the world's page cache. */
 export const sessionPools = (pools: Pools) => ({
   geometryPoolBytes: pools.geometryPool,
   texturePoolBytes: pools.texturePool,
   pageCache: pools.pageCache,
+  admitGpuMemory: Object.assign(
+    (active: ActiveGpuMemory) => {
+      const split = splitMemoryBudget(
+        gpuOf(pools),
+        pools.cpu ?? DEFAULT_CPU_BUDGET,
+        pools.canvas,
+        active,
+      );
+      pools.activeGpu = { ...active };
+      return { geometryPoolBytes: split.geometryPool, texturePoolBytes: split.texturePool };
+    },
+    { limit: () => gpuOf(pools) },
+  ),
 });
 
 /**
@@ -79,8 +94,8 @@ export function worldBudget(
   const split = () => splitOf(pools);
   /** What the GPU total leaves a pool beside the fixed shares and the other pool as asked. */
   const room = (other: 'geometryPool' | 'texturePool', ceiling: number) => {
-    const { shadowPool, bounceProbes, effectTargets, ...shares } = split();
-    const left = gpuOf(pools) - shadowPool - bounceProbes - effectTargets;
+    const { shadowPool, bounceProbes, effectTargets, frameTargets = 0, ...shares } = split();
+    const left = gpuOf(pools) - shadowPool - bounceProbes - effectTargets - frameTargets;
     return Math.max(1, Math.min(ceiling, left - (pools[other] ?? shares[other])));
   };
   /** Redraws both pools by the split of `gpu` on `canvas`; a refused total changes nothing. */

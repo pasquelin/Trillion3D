@@ -433,8 +433,7 @@
       "near": "أقرب مسافة تُرسم.",
       "far": "أبعد مسافة تُرسم.",
       "zoom": "التكبير.",
-      "orthographic": "صندوق عرض كاميرا متعامدة.",
-      "viewTile": "بلاطة من عرض أوسع ترسمه هذه الكاميرا. غيابه يرسم العرض كاملًا."
+      "orthographic": "صندوق عرض كاميرا متعامدة."
     }
   },
   "CameraParameters": {
@@ -1637,7 +1636,7 @@
   },
   "LIGHT_FIELD": {
     "summary": "حقل ضوء في المخزن المؤقت، بالأعداد العائمة من قاعدته.",
-    "description": "أربعة `vec4f` لكل ضوء.",
+    "description": "خمسة `vec4f` لكل ضوء.",
     "members": {
       "position": "أين يقف.",
       "range": "إلى أي مدى يصل.",
@@ -1650,7 +1649,8 @@
       "castsShadow": "ما إذا كان يلقي ظلالًا.",
       "cosInner": "المخروط الداخلي لضوء موجَّه (spot)، حيث تبدأ منطقة ظلّه الجزئي: حافّة المخروط نفسها حين لا تكون له واحدة.",
       "halfWidth": "محور نصف عرض مستطيل — `right` مضروبًا في نصف عرضه —، ثم نصف ارتفاعه.",
-      "halfHeight": "نصف ارتفاع مستطيل."
+      "halfHeight": "نصف ارتفاع مستطيل.",
+      "emitterRadius": "نصف قطر مصدر ضوء نقطي أو مركَّز؛ يشترك في مكونات الشكل المخصصة للمستطيلات."
     }
   },
   "LIGHT_KIND": {
@@ -1871,6 +1871,8 @@
       "parameters.ior": "مقدار انحناء الضوء عند الدخول: 1.5 للزجاج، 1.33 للماء.",
       "parameters.thickness": "مدى سماكة سطح شفاف.",
       "parameters.clearcoat": "طلاء شفاف فوقي: من 0 إلى 1.",
+      "parameters.anisotropy": "شدة التباين الاتجاهي المُعلنة، من 0 إلى 1؛ لا تُرسم بعد.",
+      "parameters.anisotropyRotation": "اتجاه التباين الاتجاهي المُعلن، بالراديان؛ لا يُرسم بعد.",
       "parameters.clearcoatRoughness": "مدى خشونة الطلاء.",
       "parameters.sheen": "توهّج ناعم عند الزوايا الحادّة، كالمخمل.",
       "parameters.iridescence": "ألوان قوس قزح تتغيّر مع الزاوية، كفقاعة الصابون.",
@@ -1890,7 +1892,9 @@
       "parameters.physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
       "parameters.density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
       "parameters.friction": "مدى تماسك الجسم، من 0 فما فوق.",
-      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1."
+      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1.",
+      "parameters.subsurfaceColor": "نفاذ منتشر للضوء عبر سطح رقيق ذي وجهين؛ يعطّله اللون الأسود.",
+      "parameters.subsurfaceMap": "لون خطي اختياري لنفاذ الضوء، يُضرب في subsurfaceColor."
     },
     "members": {
       "isMaterial": "دائمًا `true`: يميّز مادة عن أي شيء آخر.",
@@ -1917,7 +1921,8 @@
       "physics": "إعداد مادة فيزيائية مسبق للأجسام التي ترتديها.",
       "density": "كغ/م³، لكتلة الجسم.",
       "friction": "الاحتكاك الفيزيائي.",
-      "restitution": "الارتداد الفيزيائي."
+      "restitution": "الارتداد الفيزيائي.",
+      "subsurfaceColor": "نفاذ منتشر للضوء عبر سطح رقيق ذي وجهين؛ يعطّله اللون الأسود."
     }
   },
   "Material-common": {
@@ -1951,6 +1956,8 @@
       "ior": "مقدار انحناء الضوء عند الدخول: 1.5 للزجاج، 1.33 للماء.",
       "thickness": "مدى سماكة سطح شفاف.",
       "clearcoat": "طلاء شفاف فوقي: من 0 إلى 1.",
+      "anisotropy": "شدة التباين الاتجاهي المُعلنة، من 0 إلى 1؛ لا تُرسم بعد.",
+      "anisotropyRotation": "اتجاه التباين الاتجاهي المُعلن، بالراديان؛ لا يُرسم بعد.",
       "clearcoatRoughness": "مدى خشونة الطلاء.",
       "sheen": "توهّج ناعم عند الزوايا الحادّة، كالمخمل.",
       "iridescence": "ألوان قوس قزح تتغيّر مع الزاوية، كفقاعة الصابون.",
@@ -1970,7 +1977,9 @@
       "physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
       "density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
       "friction": "مدى تماسك الجسم، من 0 فما فوق.",
-      "restitution": "مدى ارتداد الجسم، من 0 إلى 1."
+      "restitution": "مدى ارتداد الجسم، من 0 إلى 1.",
+      "subsurfaceColor": "نفاذ منتشر للضوء عبر سطح رقيق ذي وجهين؛ يعطّله اللون الأسود.",
+      "subsurfaceMap": "لون خطي اختياري لنفاذ الضوء، يُضرب في subsurfaceColor."
     }
   },
   "MathPath": {
@@ -3103,7 +3112,7 @@
       "range": "النقطي والمركَّز والمستطيل: المدى بالأمتار، حيث تتلاشى الطاقة تمامًا.",
       "coneAngle": "فتحة ضوء مركَّز.",
       "penumbra": "المركَّز فقط: حصّة المخروط، من حافّته نحو الداخل، حيث يتلاشى الضوء في `[0, 1]`؛ من دونها تنعم الحافّة عبر `spotEdgeSoftness`.",
-      "emitterRadius": "النقطي والمركَّز فقط: نصف القطر، بالأمتار، للغلاف الذي يحوي المصدر. الضوء الحقيقي دائمًا محفوظ في شيء ما — زجاج فانوس، عاكس، ستار — وذلك الغلاف هندسة كأي هندسة أخرى: دون هذا الحقل، يدخل خريطة ظل ضوئه نفسه ويطفئه. عند إعلانه، يصبح المستوى القريب لتلك الخريطة، فلا يلقي ظلًّا هناك أي شيء يقع أقرب من نصف القطر هذا من المصدر. إنه خاصّية للضوء، لا اسم جسم ولا نوع مادة أبدًا: لا يعرف المحرك سوى الأسطح. موجب تمامًا وأصغر تمامًا من المدى؛ إن غاب، لا شيء يتغيّر.",
+      "emitterRadius": "النقطي والمركَّز فقط: نصف القطر، بالأمتار، للغلاف الذي يحوي المصدر. الضوء الحقيقي دائمًا محفوظ في شيء ما — زجاج فانوس، عاكس، ستار — وذلك الغلاف هندسة كأي هندسة أخرى: دون هذا الحقل، يدخل خريطة ظل ضوئه نفسه ويطفئه. لا تلقي الشظايا داخل هذه الكرة ظلالًا؛ ويظل المستوى القريب للخريطة معتمدًا على المدى. في الضوء النقطي، يحدد نصف القطر هذا أيضًا حجم المصدر لمرشح الظلال الذي يجعل الحواف أكثر حدة عند التلامس. إنه خاصّية للضوء، لا اسم جسم ولا نوع مادة أبدًا: لا يعرف المحرك سوى الأسطح. موجب تمامًا وأصغر تمامًا من المدى؛ إن غاب، لا شيء يتغيّر.",
       "right": "المستطيل فقط: المحور الوحدوي الذي يسري عليه عرضه، عموديًا على `direction`.",
       "size": "المستطيل فقط: عرضه وارتفاعه، بالأمتار.",
       "castsShadow": "ما إذا كان يلقي ظلالًا."
@@ -3353,7 +3362,7 @@
       "receive": "عاد تقرير طلبات؛ تقرؤه الخطة التالية. الأحدث يحل محل غير المقروء.",
       "commit": "رُمِّزت الصفحات `[from, to)` من قائمة الإطار، الصفحة `from + i` في `modes[i]`: يكتمل رسمها قبل أن يقرأها أحد. آخر دفعة تغلق القائمة.",
       "resize": "المجمع بحجم آخر، صفحاته محفوظة ومصفوفاته جديدة: يعيد إلى أين ذهبت كل صفحة.",
-      "sunWindow": "عدد الصفحات في كل جانب من clipmap شمس تعمل به جلسة (`referenceMode.ts`)."
+      "gpu": "تخصيص وحدة معالجة الرسوميات (`mirror.ts`): هل تعيّن الصفحات، وما يطلبه المضيف منها."
     }
   },
   "ShadowStaleReason": {
@@ -3601,9 +3610,13 @@
       "baseMetal": "لون RGB أساسي، A معدنية.",
       "normalRough": "اتجاه عمودي عالمي XYZ، A خشونة.",
       "emissiveAo": "انبعاث RGB، A حجب محيطي.",
-      "flags": "0 خلفية، 1 غير مُضاء (في الضباب)، 2 يُقرأ، 3 يُعرض كما هو: تشخيص، أو عرض للنواظم أو للعمق.",
+      "flags": "0 خلفية، 1 غير مُضاء (في الضباب)، 2 يُقرأ، 3 يُعرض كما هو: تشخيص، أو عرض للنواظم أو للعمق. 4 و5 للنموذجين المنتشر والكرتوني (`./surfaceModel.ts`).",
       "views": "عروض خامة بطاقة الرسوميات الخاصة به.",
-      "dispose": "يحرّره."
+      "dispose": "يحرّره.",
+      "shadingOffset": "إزاحة مستقبل الظل بدقة كاملة، تُكتب بجانب G-buffer.",
+      "subsurface": "لون مستقل لنفاذ الضوء عبر الأسطح الرقيقة؛ نسيج صفري بحجم 1×1 عند التعطيل.",
+      "subsurfaceView": "عرض نسيج نفاذ الضوء عبر الأسطح الرقيقة.",
+      "hasSubsurface": "ما إذا كان نفاذ الضوء عبر الأسطح الرقيقة يستخدم هدفًا بالحجم الكامل."
     }
   },
   "SurfaceCapture": {
@@ -5754,6 +5767,8 @@
       "parameters.ior": "كم ينحني الضوء عند الدخول: 1.5 للزجاج، 1.33 للماء.",
       "parameters.thickness": "مدى سمك سطح شفاف.",
       "parameters.clearcoat": "طلاء ورنيش شفاف في الأعلى: من 0 إلى 1.",
+      "parameters.anisotropy": "شدة التباين الاتجاهي المُعلنة، من 0 إلى 1؛ لا تُرسم بعد.",
+      "parameters.anisotropyRotation": "اتجاه التباين الاتجاهي المُعلن، بالراديان؛ لا يُرسم بعد.",
       "parameters.clearcoatRoughness": "مدى خشونة الورنيش.",
       "parameters.sheen": "توهج ناعم عند الزوايا الحادة، كالمخمل.",
       "parameters.iridescence": "ألوان قوس قزح تتغير مع الزاوية، كفقاعة الصابون.",
@@ -5773,7 +5788,9 @@
       "parameters.physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
       "parameters.density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
       "parameters.friction": "مدى تماسك الجسم، من 0 فما فوق.",
-      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1."
+      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1.",
+      "parameters.subsurfaceColor": "نفاذ منتشر للضوء عبر سطح رقيق ذي وجهين؛ يعطّله اللون الأسود.",
+      "parameters.subsurfaceMap": "لون خطي اختياري لنفاذ الضوء، يُضرب في subsurfaceColor."
     }
   },
   "material.lineDashed": {
@@ -5795,6 +5812,8 @@
       "parameters.ior": "كم ينحني الضوء عند الدخول: 1.5 للزجاج، 1.33 للماء.",
       "parameters.thickness": "مدى سمك سطح شفاف.",
       "parameters.clearcoat": "طلاء ورنيش شفاف في الأعلى: من 0 إلى 1.",
+      "parameters.anisotropy": "شدة التباين الاتجاهي المُعلنة، من 0 إلى 1؛ لا تُرسم بعد.",
+      "parameters.anisotropyRotation": "اتجاه التباين الاتجاهي المُعلن، بالراديان؛ لا يُرسم بعد.",
       "parameters.clearcoatRoughness": "مدى خشونة الورنيش.",
       "parameters.sheen": "توهج ناعم عند الزوايا الحادة، كالمخمل.",
       "parameters.iridescence": "ألوان قوس قزح تتغير مع الزاوية، كفقاعة الصابون.",
@@ -5814,7 +5833,9 @@
       "parameters.physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
       "parameters.density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
       "parameters.friction": "مدى تماسك الجسم، من 0 فما فوق.",
-      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1."
+      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1.",
+      "parameters.subsurfaceColor": "نفاذ منتشر للضوء عبر سطح رقيق ذي وجهين؛ يعطّله اللون الأسود.",
+      "parameters.subsurfaceMap": "لون خطي اختياري لنفاذ الضوء، يُضرب في subsurfaceColor."
     }
   },
   "material.meshBasic": {
@@ -5836,6 +5857,8 @@
       "parameters.ior": "كم ينحني الضوء عند الدخول: 1.5 للزجاج، 1.33 للماء.",
       "parameters.thickness": "مدى سمك سطح شفاف.",
       "parameters.clearcoat": "طلاء ورنيش شفاف في الأعلى: من 0 إلى 1.",
+      "parameters.anisotropy": "شدة التباين الاتجاهي المُعلنة، من 0 إلى 1؛ لا تُرسم بعد.",
+      "parameters.anisotropyRotation": "اتجاه التباين الاتجاهي المُعلن، بالراديان؛ لا يُرسم بعد.",
       "parameters.clearcoatRoughness": "مدى خشونة الورنيش.",
       "parameters.sheen": "توهج ناعم عند الزوايا الحادة، كالمخمل.",
       "parameters.iridescence": "ألوان قوس قزح تتغير مع الزاوية، كفقاعة الصابون.",
@@ -5855,7 +5878,9 @@
       "parameters.physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
       "parameters.density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
       "parameters.friction": "مدى تماسك الجسم، من 0 فما فوق.",
-      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1."
+      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1.",
+      "parameters.subsurfaceColor": "نفاذ منتشر للضوء عبر سطح رقيق ذي وجهين؛ يعطّله اللون الأسود.",
+      "parameters.subsurfaceMap": "لون خطي اختياري لنفاذ الضوء، يُضرب في subsurfaceColor."
     }
   },
   "material.meshDepth": {
@@ -5877,6 +5902,8 @@
       "parameters.ior": "كم ينحني الضوء عند الدخول: 1.5 للزجاج، 1.33 للماء.",
       "parameters.thickness": "مدى سمك سطح شفاف.",
       "parameters.clearcoat": "طلاء ورنيش شفاف في الأعلى: من 0 إلى 1.",
+      "parameters.anisotropy": "شدة التباين الاتجاهي المُعلنة، من 0 إلى 1؛ لا تُرسم بعد.",
+      "parameters.anisotropyRotation": "اتجاه التباين الاتجاهي المُعلن، بالراديان؛ لا يُرسم بعد.",
       "parameters.clearcoatRoughness": "مدى خشونة الورنيش.",
       "parameters.sheen": "توهج ناعم عند الزوايا الحادة، كالمخمل.",
       "parameters.iridescence": "ألوان قوس قزح تتغير مع الزاوية، كفقاعة الصابون.",
@@ -5896,7 +5923,9 @@
       "parameters.physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
       "parameters.density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
       "parameters.friction": "مدى تماسك الجسم، من 0 فما فوق.",
-      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1."
+      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1.",
+      "parameters.subsurfaceColor": "نفاذ منتشر للضوء عبر سطح رقيق ذي وجهين؛ يعطّله اللون الأسود.",
+      "parameters.subsurfaceMap": "لون خطي اختياري لنفاذ الضوء، يُضرب في subsurfaceColor."
     }
   },
   "material.meshLambert": {
@@ -5918,6 +5947,8 @@
       "parameters.ior": "كم ينحني الضوء عند الدخول: 1.5 للزجاج، 1.33 للماء.",
       "parameters.thickness": "مدى سمك سطح شفاف.",
       "parameters.clearcoat": "طلاء ورنيش شفاف في الأعلى: من 0 إلى 1.",
+      "parameters.anisotropy": "شدة التباين الاتجاهي المُعلنة، من 0 إلى 1؛ لا تُرسم بعد.",
+      "parameters.anisotropyRotation": "اتجاه التباين الاتجاهي المُعلن، بالراديان؛ لا يُرسم بعد.",
       "parameters.clearcoatRoughness": "مدى خشونة الورنيش.",
       "parameters.sheen": "توهج ناعم عند الزوايا الحادة، كالمخمل.",
       "parameters.iridescence": "ألوان قوس قزح تتغير مع الزاوية، كفقاعة الصابون.",
@@ -5937,7 +5968,9 @@
       "parameters.physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
       "parameters.density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
       "parameters.friction": "مدى تماسك الجسم، من 0 فما فوق.",
-      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1."
+      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1.",
+      "parameters.subsurfaceColor": "نفاذ منتشر للضوء عبر سطح رقيق ذي وجهين؛ يعطّله اللون الأسود.",
+      "parameters.subsurfaceMap": "لون خطي اختياري لنفاذ الضوء، يُضرب في subsurfaceColor."
     }
   },
   "material.meshMatcap": {
@@ -5959,6 +5992,8 @@
       "parameters.ior": "كم ينحني الضوء عند الدخول: 1.5 للزجاج، 1.33 للماء.",
       "parameters.thickness": "مدى سمك سطح شفاف.",
       "parameters.clearcoat": "طلاء ورنيش شفاف في الأعلى: من 0 إلى 1.",
+      "parameters.anisotropy": "شدة التباين الاتجاهي المُعلنة، من 0 إلى 1؛ لا تُرسم بعد.",
+      "parameters.anisotropyRotation": "اتجاه التباين الاتجاهي المُعلن، بالراديان؛ لا يُرسم بعد.",
       "parameters.clearcoatRoughness": "مدى خشونة الورنيش.",
       "parameters.sheen": "توهج ناعم عند الزوايا الحادة، كالمخمل.",
       "parameters.iridescence": "ألوان قوس قزح تتغير مع الزاوية، كفقاعة الصابون.",
@@ -5978,7 +6013,9 @@
       "parameters.physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
       "parameters.density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
       "parameters.friction": "مدى تماسك الجسم، من 0 فما فوق.",
-      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1."
+      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1.",
+      "parameters.subsurfaceColor": "نفاذ منتشر للضوء عبر سطح رقيق ذي وجهين؛ يعطّله اللون الأسود.",
+      "parameters.subsurfaceMap": "لون خطي اختياري لنفاذ الضوء، يُضرب في subsurfaceColor."
     }
   },
   "material.meshNormal": {
@@ -6000,6 +6037,8 @@
       "parameters.ior": "كم ينحني الضوء عند الدخول: 1.5 للزجاج، 1.33 للماء.",
       "parameters.thickness": "مدى سمك سطح شفاف.",
       "parameters.clearcoat": "طلاء ورنيش شفاف في الأعلى: من 0 إلى 1.",
+      "parameters.anisotropy": "شدة التباين الاتجاهي المُعلنة، من 0 إلى 1؛ لا تُرسم بعد.",
+      "parameters.anisotropyRotation": "اتجاه التباين الاتجاهي المُعلن، بالراديان؛ لا يُرسم بعد.",
       "parameters.clearcoatRoughness": "مدى خشونة الورنيش.",
       "parameters.sheen": "توهج ناعم عند الزوايا الحادة، كالمخمل.",
       "parameters.iridescence": "ألوان قوس قزح تتغير مع الزاوية، كفقاعة الصابون.",
@@ -6019,7 +6058,9 @@
       "parameters.physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
       "parameters.density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
       "parameters.friction": "مدى تماسك الجسم، من 0 فما فوق.",
-      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1."
+      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1.",
+      "parameters.subsurfaceColor": "نفاذ منتشر للضوء عبر سطح رقيق ذي وجهين؛ يعطّله اللون الأسود.",
+      "parameters.subsurfaceMap": "لون خطي اختياري لنفاذ الضوء، يُضرب في subsurfaceColor."
     }
   },
   "material.meshPhong": {
@@ -6041,6 +6082,8 @@
       "parameters.ior": "كم ينحني الضوء عند الدخول: 1.5 للزجاج، 1.33 للماء.",
       "parameters.thickness": "مدى سمك سطح شفاف.",
       "parameters.clearcoat": "طلاء ورنيش شفاف في الأعلى: من 0 إلى 1.",
+      "parameters.anisotropy": "شدة التباين الاتجاهي المُعلنة، من 0 إلى 1؛ لا تُرسم بعد.",
+      "parameters.anisotropyRotation": "اتجاه التباين الاتجاهي المُعلن، بالراديان؛ لا يُرسم بعد.",
       "parameters.clearcoatRoughness": "مدى خشونة الورنيش.",
       "parameters.sheen": "توهج ناعم عند الزوايا الحادة، كالمخمل.",
       "parameters.iridescence": "ألوان قوس قزح تتغير مع الزاوية، كفقاعة الصابون.",
@@ -6060,7 +6103,9 @@
       "parameters.physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
       "parameters.density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
       "parameters.friction": "مدى تماسك الجسم، من 0 فما فوق.",
-      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1."
+      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1.",
+      "parameters.subsurfaceColor": "نفاذ منتشر للضوء عبر سطح رقيق ذي وجهين؛ يعطّله اللون الأسود.",
+      "parameters.subsurfaceMap": "لون خطي اختياري لنفاذ الضوء، يُضرب في subsurfaceColor."
     }
   },
   "material.meshPhysical": {
@@ -6082,6 +6127,8 @@
       "parameters.ior": "كم ينحني الضوء عند الدخول: 1.5 للزجاج، 1.33 للماء.",
       "parameters.thickness": "مدى سمك سطح شفاف.",
       "parameters.clearcoat": "طلاء ورنيش شفاف في الأعلى: من 0 إلى 1.",
+      "parameters.anisotropy": "شدة التباين الاتجاهي المُعلنة، من 0 إلى 1؛ لا تُرسم بعد.",
+      "parameters.anisotropyRotation": "اتجاه التباين الاتجاهي المُعلن، بالراديان؛ لا يُرسم بعد.",
       "parameters.clearcoatRoughness": "مدى خشونة الورنيش.",
       "parameters.sheen": "توهج ناعم عند الزوايا الحادة، كالمخمل.",
       "parameters.iridescence": "ألوان قوس قزح تتغير مع الزاوية، كفقاعة الصابون.",
@@ -6101,7 +6148,9 @@
       "parameters.physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
       "parameters.density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
       "parameters.friction": "مدى تماسك الجسم، من 0 فما فوق.",
-      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1."
+      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1.",
+      "parameters.subsurfaceColor": "نفاذ منتشر للضوء عبر سطح رقيق ذي وجهين؛ يعطّله اللون الأسود.",
+      "parameters.subsurfaceMap": "لون خطي اختياري لنفاذ الضوء، يُضرب في subsurfaceColor."
     }
   },
   "material.meshStandard": {
@@ -6123,6 +6172,8 @@
       "parameters.ior": "كم ينحني الضوء عند الدخول: 1.5 للزجاج، 1.33 للماء.",
       "parameters.thickness": "مدى سمك سطح شفاف.",
       "parameters.clearcoat": "طلاء ورنيش شفاف في الأعلى: من 0 إلى 1.",
+      "parameters.anisotropy": "شدة التباين الاتجاهي المُعلنة، من 0 إلى 1؛ لا تُرسم بعد.",
+      "parameters.anisotropyRotation": "اتجاه التباين الاتجاهي المُعلن، بالراديان؛ لا يُرسم بعد.",
       "parameters.clearcoatRoughness": "مدى خشونة الورنيش.",
       "parameters.sheen": "توهج ناعم عند الزوايا الحادة، كالمخمل.",
       "parameters.iridescence": "ألوان قوس قزح تتغير مع الزاوية، كفقاعة الصابون.",
@@ -6142,7 +6193,9 @@
       "parameters.physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
       "parameters.density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
       "parameters.friction": "مدى تماسك الجسم، من 0 فما فوق.",
-      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1."
+      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1.",
+      "parameters.subsurfaceColor": "نفاذ منتشر للضوء عبر سطح رقيق ذي وجهين؛ يعطّله اللون الأسود.",
+      "parameters.subsurfaceMap": "لون خطي اختياري لنفاذ الضوء، يُضرب في subsurfaceColor."
     }
   },
   "material.meshToon": {
@@ -6164,6 +6217,8 @@
       "parameters.ior": "كم ينحني الضوء عند الدخول: 1.5 للزجاج، 1.33 للماء.",
       "parameters.thickness": "مدى سمك سطح شفاف.",
       "parameters.clearcoat": "طلاء ورنيش شفاف في الأعلى: من 0 إلى 1.",
+      "parameters.anisotropy": "شدة التباين الاتجاهي المُعلنة، من 0 إلى 1؛ لا تُرسم بعد.",
+      "parameters.anisotropyRotation": "اتجاه التباين الاتجاهي المُعلن، بالراديان؛ لا يُرسم بعد.",
       "parameters.clearcoatRoughness": "مدى خشونة الورنيش.",
       "parameters.sheen": "توهج ناعم عند الزوايا الحادة، كالمخمل.",
       "parameters.iridescence": "ألوان قوس قزح تتغير مع الزاوية، كفقاعة الصابون.",
@@ -6183,7 +6238,9 @@
       "parameters.physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
       "parameters.density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
       "parameters.friction": "مدى تماسك الجسم، من 0 فما فوق.",
-      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1."
+      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1.",
+      "parameters.subsurfaceColor": "نفاذ منتشر للضوء عبر سطح رقيق ذي وجهين؛ يعطّله اللون الأسود.",
+      "parameters.subsurfaceMap": "لون خطي اختياري لنفاذ الضوء، يُضرب في subsurfaceColor."
     }
   },
   "material.points": {
@@ -6205,6 +6262,8 @@
       "parameters.ior": "كم ينحني الضوء عند الدخول: 1.5 للزجاج، 1.33 للماء.",
       "parameters.thickness": "مدى سمك سطح شفاف.",
       "parameters.clearcoat": "طلاء ورنيش شفاف في الأعلى: من 0 إلى 1.",
+      "parameters.anisotropy": "شدة التباين الاتجاهي المُعلنة، من 0 إلى 1؛ لا تُرسم بعد.",
+      "parameters.anisotropyRotation": "اتجاه التباين الاتجاهي المُعلن، بالراديان؛ لا يُرسم بعد.",
       "parameters.clearcoatRoughness": "مدى خشونة الورنيش.",
       "parameters.sheen": "توهج ناعم عند الزوايا الحادة، كالمخمل.",
       "parameters.iridescence": "ألوان قوس قزح تتغير مع الزاوية، كفقاعة الصابون.",
@@ -6224,7 +6283,9 @@
       "parameters.physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
       "parameters.density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
       "parameters.friction": "مدى تماسك الجسم، من 0 فما فوق.",
-      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1."
+      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1.",
+      "parameters.subsurfaceColor": "نفاذ منتشر للضوء عبر سطح رقيق ذي وجهين؛ يعطّله اللون الأسود.",
+      "parameters.subsurfaceMap": "لون خطي اختياري لنفاذ الضوء، يُضرب في subsurfaceColor."
     }
   },
   "material.shadow": {
@@ -6246,6 +6307,8 @@
       "parameters.ior": "كم ينحني الضوء عند الدخول: 1.5 للزجاج، 1.33 للماء.",
       "parameters.thickness": "مدى سمك سطح شفاف.",
       "parameters.clearcoat": "طلاء ورنيش شفاف في الأعلى: من 0 إلى 1.",
+      "parameters.anisotropy": "شدة التباين الاتجاهي المُعلنة، من 0 إلى 1؛ لا تُرسم بعد.",
+      "parameters.anisotropyRotation": "اتجاه التباين الاتجاهي المُعلن، بالراديان؛ لا يُرسم بعد.",
       "parameters.clearcoatRoughness": "مدى خشونة الورنيش.",
       "parameters.sheen": "توهج ناعم عند الزوايا الحادة، كالمخمل.",
       "parameters.iridescence": "ألوان قوس قزح تتغير مع الزاوية، كفقاعة الصابون.",
@@ -6265,7 +6328,9 @@
       "parameters.physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
       "parameters.density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
       "parameters.friction": "مدى تماسك الجسم، من 0 فما فوق.",
-      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1."
+      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1.",
+      "parameters.subsurfaceColor": "نفاذ منتشر للضوء عبر سطح رقيق ذي وجهين؛ يعطّله اللون الأسود.",
+      "parameters.subsurfaceMap": "لون خطي اختياري لنفاذ الضوء، يُضرب في subsurfaceColor."
     }
   },
   "material.sprite": {
@@ -6287,6 +6352,8 @@
       "parameters.ior": "كم ينحني الضوء عند الدخول: 1.5 للزجاج، 1.33 للماء.",
       "parameters.thickness": "مدى سمك سطح شفاف.",
       "parameters.clearcoat": "طلاء ورنيش شفاف في الأعلى: من 0 إلى 1.",
+      "parameters.anisotropy": "شدة التباين الاتجاهي المُعلنة، من 0 إلى 1؛ لا تُرسم بعد.",
+      "parameters.anisotropyRotation": "اتجاه التباين الاتجاهي المُعلن، بالراديان؛ لا يُرسم بعد.",
       "parameters.clearcoatRoughness": "مدى خشونة الورنيش.",
       "parameters.sheen": "توهج ناعم عند الزوايا الحادة، كالمخمل.",
       "parameters.iridescence": "ألوان قوس قزح تتغير مع الزاوية، كفقاعة الصابون.",
@@ -6306,7 +6373,9 @@
       "parameters.physics": "مادة الجسم الذي يرتديها: الكثافة والاحتكاك والارتداد.",
       "parameters.density": "كغ/م³، تُضرب في الحجم لتعطي الكتلة.",
       "parameters.friction": "مدى تماسك الجسم، من 0 فما فوق.",
-      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1."
+      "parameters.restitution": "مدى ارتداد الجسم، من 0 إلى 1.",
+      "parameters.subsurfaceColor": "نفاذ منتشر للضوء عبر سطح رقيق ذي وجهين؛ يعطّله اللون الأسود.",
+      "parameters.subsurfaceMap": "لون خطي اختياري لنفاذ الضوء، يُضرب في subsurfaceColor."
     }
   },
   "materialSide": {
@@ -7566,7 +7635,8 @@
       "layoutEpoch": "تخطيط الجدول الذي قرأ به ذلك الإطار (`ShadowTable.layoutEpoch`).",
       "stamp": "ختم الخطة حين رُمّز ذلك الإطار (`ShadowPlan.stamp`).",
       "count": "المدخلات المطلوبة، وربما أكثر مما يسعه `entries`: البقية تطلب من جديد في الإطار التالي.",
-      "entries": "المدخلات المطلوبة، أول `count` منها على الأكثر."
+      "entries": "المدخلات المطلوبة، أول `count` منها على الأكثر.",
+      "pool": "مجمّع مخصِّص وحدة معالجة الرسوميات بعد تخصيص ذلك الإطار، حين تتولى الوحدة التخصيص."
     }
   },
   "VehicleDriver": {

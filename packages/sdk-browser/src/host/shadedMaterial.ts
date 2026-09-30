@@ -44,7 +44,18 @@ export type HostShadedMaterial = HostMaterial & {
   readonly emissive?: unknown;
   readonly emissiveIntensity?: number;
   readonly emissiveMap?: HostMap;
+  readonly subsurfaceColor?: unknown;
+  readonly subsurfaceMap?: HostMap;
   /** glTF transmission volume: the one physical extension the engine keeps. */
+  readonly anisotropy?: number;
+  readonly anisotropyRotation?: number;
+  readonly anisotropyMap?: HostMap;
+  readonly clearcoatMap?: HostMap;
+  readonly clearcoatRoughnessMap?: HostMap;
+  readonly clearcoatNormalMap?: HostMap;
+  readonly clearcoatNormalScale?: { readonly x: number; readonly y: number };
+  readonly clearcoat?: number;
+  readonly clearcoatRoughness?: number;
   readonly transmission?: number;
   readonly ior?: number;
   readonly thickness?: number;

@@ -1,5 +1,6 @@
-import { dotVector3 } from '../../math/primitives/vector.ts';
+import { CONE } from './coneModel.ts';
 import { faceBasis } from './math.ts';
+import { PAGES } from './pageModel.ts';
 
 /**
  * Rectangle of a region, in normalised face coordinates: `u0, u1, v0, v1`. The whole
@@ -8,29 +9,10 @@ import { faceBasis } from './math.ts';
  */
 export const FULL_FACE = new Float64Array([-1, 1, -1, 1]);
 
-const axis = new Float64Array(3),
-  corner = new Float64Array(3);
-
-/** World direction of point `(u, v)` of the projection plane, frame of the last composed face. */
-function direction(out: Float64Array, u: number, v: number, t: number) {
-  let length = 0;
-  for (let a = 0; a < 3; a++) {
-    out[a] = faceBasis[6 + a] + t * (u * faceBasis[a] + v * faceBasis[3 + a]);
-    length += out[a] * out[a];
-  }
-  length = Math.sqrt(length) || 1;
-  for (let a = 0; a < 3; a++) out[a] /= length;
-}
-
 /**
- * Cone that reject opposes to a region of a perspective face: the light as apex, the
- * direction of the region centre as axis, and the angle of the most offset of its four corners as
- * half-angle.
- *
- * This is exact, never a quality approximation: the projected image of a planar rectangle is
- * spherically convex, so the cap that contains its four corners contains the whole rectangle.
- * A discarded cluster could write nothing in the region, and the region comes out texel for texel as
- * if every cluster had been presented to it.
+ * Cone that reject opposes to a region of a perspective face, from the last composed face
+ * (`faceBasis`): the light at `position` as apex, out to `far`, and the page's cone
+ * (`coneModel.ts`, the GPU's pages' too).
  */
 export function writeConeVolume(
   cull: Float32Array,
@@ -40,30 +22,18 @@ export function writeConeVolume(
   halfFov: number,
   rect: Float64Array,
 ) {
-  cull[base] = position[0];
-  cull[base + 1] = position[1];
-  cull[base + 2] = position[2];
+  const [u0, u1, v0, v1] = rect,
+    r = [faceBasis[0], faceBasis[1], faceBasis[2]],
+    u = [faceBasis[3], faceBasis[4], faceBasis[5]],
+    f = [faceBasis[6], faceBasis[7], faceBasis[8]],
+    t = Math.tan(halfFov),
+    axis = CONE.shadowConeAxis(f, r, u, t, halfFov, u0, u1, v0, v1);
+  for (let a = 0; a < 3; a++) {
+    cull[base + a] = position[a];
+    cull[base + 4 + a] = axis[a];
+  }
   cull[base + 3] = far;
-  // A half-field beyond a quarter turn already covers all of space: the cone excludes nothing more.
-  if (halfFov >= Math.PI / 2) {
-    cull[base + 4] = faceBasis[6];
-    cull[base + 5] = faceBasis[7];
-    cull[base + 6] = faceBasis[8];
-    cull[base + 7] = Math.PI;
-    return;
-  }
-  const t = Math.tan(halfFov);
-  direction(axis, (rect[0] + rect[1]) / 2, (rect[2] + rect[3]) / 2, t);
-  let cosine = 1;
-  for (let index = 0; index < 4; index++) {
-    direction(corner, index & 1 ? rect[1] : rect[0], index & 2 ? rect[3] : rect[2], t);
-    const dot = dotVector3(axis, corner);
-    if (dot < cosine) cosine = dot;
-  }
-  cull[base + 4] = axis[0];
-  cull[base + 5] = axis[1];
-  cull[base + 6] = axis[2];
-  cull[base + 7] = Math.acos(Math.max(-1, Math.min(1, cosine)));
+  cull[base + 7] = CONE.shadowConeSpread(f, r, u, t, halfFov, axis, u0, u1, v0, v1);
 }
 
 /**
@@ -81,18 +51,22 @@ export function writeBoxVolume(
   halfDepth: number,
   rect: Float64Array,
 ) {
-  const u = ((rect[0] + rect[1]) / 2) * halfSide,
-    v = ((rect[2] + rect[3]) / 2) * halfSide;
+  const u = PAGES.shadowBoxMid(rect[0], rect[1], halfSide),
+    v = PAGES.shadowBoxMid(rect[2], rect[3], halfSide);
   for (let a = 0; a < 3; a++) {
-    cull[base + a] = boxCenter[a] + faceBasis[a] * u + faceBasis[3 + a] * v;
+    cull[base + a] = PAGES.shadowAlong(
+      PAGES.shadowAlong(boxCenter[a], faceBasis[a], u),
+      faceBasis[3 + a],
+      v,
+    );
     cull[base + 4 + a] = faceBasis[6 + a];
     cull[base + 8 + a] = faceBasis[a];
     cull[base + 12 + a] = faceBasis[3 + a];
   }
   cull[base + 3] = halfDepth;
   cull[base + 7] = -1;
-  cull[base + 11] = ((rect[1] - rect[0]) / 2) * halfSide;
-  cull[base + 15] = ((rect[3] - rect[2]) / 2) * halfSide;
+  cull[base + 11] = PAGES.shadowBoxHalf(rect[0], rect[1], halfSide);
+  cull[base + 15] = PAGES.shadowBoxHalf(rect[2], rect[3], halfSide);
 }
 
 /** Normalised rectangle of a page region in its face: `y` goes down in the draw frame. */
@@ -104,9 +78,9 @@ export function regionRect(
   y0: number,
   y1: number,
 ) {
-  out[0] = (2 * x0) / rows - 1;
-  out[1] = (2 * (x1 + 1)) / rows - 1;
-  out[2] = 1 - (2 * (y1 + 1)) / rows;
-  out[3] = 1 - (2 * y0) / rows;
+  out[0] = PAGES.shadowRegionLow(rows, x0);
+  out[1] = PAGES.shadowRegionHigh(rows, x1);
+  out[2] = -PAGES.shadowRegionHigh(rows, y1);
+  out[3] = -PAGES.shadowRegionLow(rows, y0);
   return out;
 }

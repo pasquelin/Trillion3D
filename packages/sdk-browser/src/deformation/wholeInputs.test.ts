@@ -1,3 +1,9 @@
+import {
+  PAGE_INFO_STRIDE,
+  PAGE_DEFORM_WORD,
+  PAGE_DEFORM_COUNT_WORD,
+  PAGE_DEFORM_OUTPUT_WORD,
+} from '../visibility/types.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
@@ -59,6 +65,15 @@ test('whole transmission keeps no pages and distinct placement outputs in the ex
   assert.equal(items[0].paged, false);
   const table = written(gpu.writes.find((write) => write.buffer === rows.table)!);
   assert.ok(table);
+  const words = new Uint32Array(table.buffer, table.byteOffset, table.byteLength / 4);
+  assert.equal(table.byteLength, items.length * PAGE_INFO_STRIDE);
+  for (let i = 0; i < items.length; i++) {
+    const at = i * (PAGE_INFO_STRIDE / 4);
+    assert.equal(words[at + PAGE_DEFORM_WORD], session.wordOfWorld(items[i].matrix));
+    assert.equal(words[at + PAGE_DEFORM_COUNT_WORD], 1);
+    assert.equal(words[at + PAGE_DEFORM_OUTPUT_WORD], items[i].deformOutput);
+    assert.equal(words[at + 38], 0, 'no overwrite of physical transmission');
+  }
 });
 
 test('whole soft-body mapping validates simulation IDs and preserves their explicit semantic', () => {

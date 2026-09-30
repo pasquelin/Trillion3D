@@ -40,7 +40,7 @@ const FAMILY: Record<string, GraphSurfaceFamily> = {
   meshDepth: 'depth',
 };
 /** Colours a family may carry, written in the linear working space both sides share. */
-const COLOURS = ['color', 'emissive', 'specular'];
+const COLOURS = ['color', 'emissive', 'specular', 'subsurfaceColor'];
 
 /** Writes the colours a surface has, its glow scaled by its intensity, and its shininess. */
 function writeColours(surface: GraphSurface, material: Material) {

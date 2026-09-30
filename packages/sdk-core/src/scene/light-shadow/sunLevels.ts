@@ -2,15 +2,8 @@ import { dotVector3 } from '../../math/primitives/vector.ts';
 import { MAX_SHADOW_SLICES, type ShadowViewpoint } from '../light/contracts.ts';
 import { faceFrame, sunBoxRect } from './math.ts';
 import { createSunDepthRanges } from './sunDepth.ts';
-import {
-  SUN_LEVELS,
-  SUN_WINDOW,
-  finestSunLevel,
-  ringOf,
-  sunFloorLevel,
-  sunLevelEntries,
-  sunPageMetres,
-} from './virtual.ts';
+import { SUN_LEVELS, SUN_WINDOW, sunFloorLevel, sunLevelEntries } from './virtual.ts';
+import { PAGES, finestSunLevel, ringOf, sunPageMetres } from './pageModel.ts';
 
 /** Frames of layout kept to read a request report back: deeper than any readback lag. */
 const HISTORY = 8;
@@ -48,8 +41,6 @@ export function createSunLevels(pages = SUN_WINDOW) {
   const right = new Float64Array(3),
     up = new Float64Array(3),
     ranges = createSunDepthRanges();
-  /** Level held in slot `slot` while the finest level is `low`. */
-  const levelIn = (low: number, slot: number) => low + ringOf(slot - low, SUN_LEVELS);
   return {
     /** Pages a side of a clipmap level's extent around the camera: the session's window. */
     window: pages,
@@ -135,14 +126,12 @@ export function createSunLevels(pages = SUN_WINDOW) {
     },
     /** True when page `(level, ax, ay)` lies in this frame's clipmap of `slice`. */
     holds(slice: number, level: number, ax: number, ay: number) {
-      const lowest = finest[slice];
-      if (level < lowest || level >= lowest + SUN_LEVELS) return false;
-      const at = slice * LEVEL_WORDS + ringOf(level, SUN_LEVELS) * 2;
+      const at = slice * LEVEL_WORDS + ringOf(level, SUN_LEVELS) * 2,
+        within = PAGES.shadowWindowHolds;
       return (
-        ax - origins[at] >= 0 &&
-        ax - origins[at] < pages &&
-        ay - origins[at + 1] >= 0 &&
-        ay - origins[at + 1] < pages
+        (within(level, finest[slice], SUN_LEVELS) &&
+          within(ax, origins[at], pages) &&
+          within(ay, origins[at + 1], pages)) === 1
       );
     },
     /**
@@ -185,9 +174,9 @@ export function createSunLevels(pages = SUN_WINDOW) {
         at = past * LEVEL_WORDS + slot * 2;
       const ox = pastOrigins[at],
         oy = pastOrigins[at + 1];
-      out[0] = levelIn(pastFinest[past], slot);
-      out[1] = ox + ringOf((rest % pages) - ox, pages);
-      out[2] = oy + ringOf(Math.floor(rest / pages) - oy, pages);
+      out[0] = PAGES.shadowSunSlotLevel(slot, pastFinest[past]);
+      out[1] = PAGES.shadowRingPage(rest % pages, ox, pages);
+      out[2] = PAGES.shadowRingPage(Math.floor(rest / pages), oy, pages);
       return true;
     },
     release(slice: number) {

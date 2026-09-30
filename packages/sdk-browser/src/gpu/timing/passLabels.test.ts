@@ -16,6 +16,7 @@ const LABEL_FIRST = String.raw`\s*\{\s*label\b`;
 const LAYER_CALLERS = new Set([
   'webgpu/pages/render/encodeShadowPass.ts',
   'webgpu/pages/render/encodeTransmittance.ts',
+  'webgpu/shadow/freshPass.ts',
 ]);
 const LAYERS_LABELLED = new RegExp(`PassDescriptor => \\(${LABEL_FIRST}`).test(
   readFileSync(new URL('gpu/shadow/layers.ts', source), 'utf8'),

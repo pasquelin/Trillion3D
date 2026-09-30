@@ -1,10 +1,11 @@
-import { PAGE_MAPPED, PAGE_RANGE_SHIFT, PAGE_VALID, SHADOW_TABLE_ENTRIES } from './virtual.ts';
+import { PAGE_MAPPED, SHADOW_TABLE_ENTRIES } from './virtual.ts';
+import { PAGES } from './pageModel.ts';
 import type { ShadowTable } from './table.ts';
 import { shadowPageArrays, shadowPageArraysBytes } from './poolPages.ts';
-import { PAGE_FOOTPRINT_EMPTY, PAGE_FOOTPRINT_SHIFT, footprintDrawn } from './footprint.ts';
+import { PAGE_FOOTPRINT_EMPTY, footprintDrawn } from './footprint.ts';
+import { createEvictionOrder } from './poolOrder.ts';
 
-/** Ranks an ordering key spans, centred on zero: a page's coarseness steps lie far inside it. */
-export const RANKS = 1024;
+export { RANKS } from './poolOrder.ts';
 
 /** How stale a page is: only its moving casters changed, or its static ones too. */
 export const STALE_DYNAMIC = 1,
@@ -30,35 +31,17 @@ export const shadowPoolHostBytes = (pages: number, tableEntries = SHADOW_TABLE_E
  */
 export function createShadowPool(side: number, layers = 1, tableEntries = SHADOW_TABLE_ENTRIES) {
   let free = new Int32Array(0),
-    /** Eviction keys: last request, then rank, then page, packed into one exact number. */
-    order = new Float64Array(0),
-    freeCount = 0,
-    orderCount = -1,
-    orderAt = 0,
-    /** The cycle evicts from: a page it or a later one named (`named`) is kept, so a still
-     *  scene's jittering reports stop evicting each other and the pool refuses (#26). */
-    evictBefore = -1;
+    freeCount = 0;
+  const order = createEvictionOrder();
   /** One bit per table entry: its page was evicted to make room, and it has not been drawn since. */
   const evicted = new Uint32Array(tableEntries / 32);
-  /** The evictable pages of cycle `evictBefore`, in eviction order: one sort, at need. */
-  const buildOrder = () => {
-    const { owner, requested, named, rank, pages } = pool;
-    orderCount = 0;
-    orderAt = 0;
-    for (let page = 0; page < pages; page++)
-      if (owner[page] >= 0 && named[page] < evictBefore)
-        order[orderCount++] =
-          ((requested[page] + 1) * RANKS + rank[page] + RANKS / 2) * pages + page;
-    order.subarray(0, orderCount).sort();
-  };
   const init = () => {
-    const { owner, requested, named, dirty, valid, layered, pages } = pool;
+    const { owner, requested, named, dirty, valid, layered } = pool;
     owner.fill(-1);
     requested.fill(-1);
     named.fill(-1);
     for (const flags of [dirty, valid, layered]) flags.fill(0);
-    for (let page = 0; page < pages; page++) free[page] = pages - 1 - page;
-    freeCount = pages;
+    pool.rebuildFree();
     evicted.fill(0);
     pool.refetched = 0;
   };
@@ -66,7 +49,7 @@ export function createShadowPool(side: number, layers = 1, tableEntries = SHADOW
   const allocate = (nextSide: number, nextLayers: number) => {
     const pages = nextSide * nextSide * nextLayers;
     free = new Int32Array(pages);
-    order = new Float64Array(pages);
+    order.resize(pages);
     return { side: nextSide, layers: nextLayers, pages, ...shadowPageArrays(pages) };
   };
   // Data fields only, never an accessor: V8 keeps an object literal that has one in dictionary
@@ -112,8 +95,7 @@ export function createShadowPool(side: number, layers = 1, tableEntries = SHADOW
         mode === DRAW_FULL || (mode === DRAW_DYNAMIC && pool.layered[page]) ? 1 : 0;
       pool.range[page] = drawn;
       pool.footprint[page] = footprint;
-      const flags = PAGE_MAPPED | PAGE_VALID | (drawn << PAGE_RANGE_SHIFT);
-      table.write(pool.owner[page], page | flags | (footprint << PAGE_FOOTPRINT_SHIFT));
+      table.write(pool.owner[page], PAGES.shadowReadableWord(page, drawn, footprint));
     },
     /** THE ONE WAY A PAGE IS READ NO MORE: it keeps its place and its requests, but its depth is
      *  wrong — not only coarser than the view wants — until it is drawn again, and a reader falls
@@ -131,53 +113,62 @@ export function createShadowPool(side: number, layers = 1, tableEntries = SHADOW
         if (pool.requested[page] < reportFrame) return false;
       return true;
     },
-    /** Unmaps the page: its entry reads nothing, and the page returns to the free list. */
-    release(table: ShadowTable, page: number) {
-      if (pool.owner[page] < 0) return;
-      table.write(pool.owner[page], 0);
+    /** Unmaps the page: its entry reads nothing, and the page returns to the free list. An evicted
+     *  entry mapped again counts as a refetch. */
+    release(table: ShadowTable, page: number, evict = false) {
+      const lost = pool.owner[page];
+      if (lost < 0) return;
+      if (evict) evicted[lost >> 5] |= 1 << (lost & 31);
+      table.write(lost, 0);
       pool.owner[page] = -1;
       pool.dirty[page] = pool.valid[page] = pool.layered[page] = 0;
       pool.requested[page] = -1;
       pool.named[page] = -1;
       free[freeCount++] = page;
     },
-    /** Pages that may be taken for a request of cycle `evict`: every mapped page it no longer
-     *  names, least recently requested first and, among those, the finest first. Built once per
-     *  request, by the first `take` the free list cannot serve. */
-    beginAllocation(evict: number) {
-      orderCount = -1;
-      evictBefore = evict;
-    },
-    /** A free page for `entry`, else the oldest evictable one, else −1; waits for its first draw. */
+    /** Pages that may be taken for a request of cycle `cycle`, read by the report of
+     *  `reportFrame`: every mapped page the cycle no longer names (`poolOrder.ts`, #26). */
+    beginAllocation: order.begin,
+    /** A page for `entry`, asked by the report of `reportFrame`: a free one — the lowest first —,
+     *  else the oldest evictable one, else −1. It waits for its first draw from `frame`. */
     take(table: ShadowTable, entry: number, reportFrame: number, nowMs: number, frame: number) {
-      const { owner, named } = pool;
-      let page = -1;
-      if (freeCount) page = free[--freeCount];
-      else {
-        if (orderCount < 0) buildOrder();
-        while (orderAt < orderCount && page < 0) {
-          const candidate = order[orderAt++] % pool.pages;
-          const lost = owner[candidate];
-          if (lost >= 0 && named[candidate] < evictBefore) {
-            evicted[lost >> 5] |= 1 << (lost & 31);
-            pool.release(table, candidate);
-            page = free[--freeCount];
-          }
-        }
+      let page = freeCount ? free[--freeCount] : -1;
+      const lost = page < 0 ? order.next(pool) : -1;
+      if (lost >= 0) {
+        pool.release(table, lost, true);
+        page = free[--freeCount];
       }
       if (page < 0) return -1;
+      pool.adopt(table, page, entry, reportFrame, nowMs, frame);
+      pool.named[page] = order.cycle();
+      return page;
+    },
+    /** Free `page` maps `entry` — out of the free list, which the caller rebuilds —, asked by the
+     *  report of `reportFrame`; it waits for its first draw from `frame`. */
+    adopt(
+      table: ShadowTable,
+      page: number,
+      entry: number,
+      reportFrame: number,
+      nowMs: number,
+      frame: number,
+    ) {
       if (evicted[entry >> 5] & (1 << (entry & 31))) {
         evicted[entry >> 5] &= ~(1 << (entry & 31));
         pool.refetched++;
       }
-      owner[page] = entry;
+      pool.owner[page] = entry;
       pool.valid[page] = pool.layered[page] = pool.dirty[page] = 0;
       pool.footprint[page] = PAGE_FOOTPRINT_EMPTY;
       pool.stale(page, nowMs, frame);
       pool.requested[page] = reportFrame;
-      named[page] = evictBefore;
       table.write(entry, page | PAGE_MAPPED);
-      return page;
+    },
+    /** The free list anew, the pages no entry maps, the lowest handed out first (`mirror.ts`). */
+    rebuildFree() {
+      freeCount = 0;
+      for (let page = pool.pages - 1; page >= 0; page--)
+        if (pool.owner[page] < 0) free[freeCount++] = page;
     },
     /** The pool of another size, empty — `poolResize.ts` carries what it held first —; its
      *  refetch count goes on. */
@@ -191,7 +182,7 @@ export function createShadowPool(side: number, layers = 1, tableEntries = SHADOW
     reset: init,
   };
   const hostBytesOf = () =>
-    shadowPageArraysBytes(pool) + free.byteLength + order.byteLength + evicted.byteLength;
+    shadowPageArraysBytes(pool) + free.byteLength + order.bytes() + evicted.byteLength;
   pool.hostBytes = hostBytesOf();
   init();
   return pool as Readonly<typeof pool>;
