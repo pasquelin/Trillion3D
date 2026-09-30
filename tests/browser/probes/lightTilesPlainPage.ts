@@ -3,7 +3,8 @@
  * built on two devices of one adapter — one that granted `subgroups`, which compiles the subgroup
  * variant, and one opened without it, which compiles the plain one every other device runs. Same
  * depth, same lights, same view: the tile lists read back from both, decoded tile by tile as the
- * resolve walks them (the pool's slices land where each run's atomics put them).
+ * resolve walks them (the pool's slices land where each run's atomics put them), and the light
+ * grid each pixel walks (`lightTilesGrid.ts`, #1249).
  */
 import { createSceneLightStore } from '../../../packages/sdk-core/src/index.ts';
 import { createGpuLightTiles } from '../../../packages/sdk-browser/src/lighting/tiles/tiles.ts';
@@ -22,6 +23,7 @@ import {
 } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
 import { tileLayout, tileLists } from '../../../bench/oracles/browser/gpuLightTilesRankOracle.ts';
 import { openGpuDevice } from './webgpuDevice.ts';
+import { gridWalks } from './lightTilesGrid.ts';
 
 const [WIDTH, HEIGHT] = [333, 207]; // cut tiles on both axes
 const view = camera([3, 40, -5], 0.8, -0.6, 70, WIDTH, HEIGHT);
@@ -97,6 +99,7 @@ function depthTexture(device: GPUDevice, depths: Float32Array<ArrayBuffer>) {
  *  tiles under it keep more lights than a list and the wide pass spills into its pool. */
 function sceneLights(r: () => number, depths: Float32Array, count: number) {
   const store = createSceneLightStore();
+  const placed: { position: [number, number, number]; range: number }[] = [];
   const pointOf = () => {
     let at = Math.floor(r() * depths.length);
     while (!depths[at]) at = Math.floor(r() * depths.length);
@@ -108,6 +111,7 @@ function sceneLights(r: () => number, depths: Float32Array, count: number) {
     const range = cluster ? 4 : Math.exp(Math.log(0.05) + r() * Math.log(600));
     const [centre, reach] = cluster ? [anchor, 1] : [pointOf(), 2 * range];
     const position = centre.map((v) => v + (r() * 2 - 1) * r() * reach) as typeof centre;
+    placed.push({ position, range });
     store.add({
       id: `l${k}`,
       kind: 'point',
@@ -118,7 +122,7 @@ function sceneLights(r: () => number, depths: Float32Array, count: number) {
       castsShadow: false,
     });
   }
-  return store;
+  return { store, placed };
 }
 
 const LAYOUT = tileLayout(LIGHT_TILES_SHADER);
@@ -139,7 +143,7 @@ async function tileListsOn(
   const r = seeded(924);
   const runs = [];
   for (const count of counts) {
-    const store = sceneLights(r, depths, count);
+    const { store, placed } = sceneLights(r, depths, count);
     const lights = {
       store,
       buffer: createSceneLightContractBuffer(device, store),
@@ -167,7 +171,8 @@ async function tileListsOn(
       lists.push(opaque, blend);
     }
     lights.buffer.destroy();
-    runs.push({ count, subgroups: tiles.subgroups, wide: tiles.wide, overflowed, lists });
+    const grid = gridWalks(words, tiles.tilesX, view, depths, placed);
+    runs.push({ count, subgroups: tiles.subgroups, wide: tiles.wide, overflowed, lists, grid });
   }
   tiles.dispose();
   const granted = device.features.has('subgroups');
