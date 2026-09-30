@@ -21,7 +21,10 @@ import { makeAsIsShare, wantsAsIsShare } from './asIsShareTarget.ts';
 
 /** True when the drawn view's frame targets in place are those of `size`, both sizes alike. */
 export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
-  const { gpu, vis } = rt;
+  const { gpu, vis } = rt,
+    rough = wantsRoughReflectionHistory(rt),
+    cone = wantsReflectionCone(rt),
+    pyramid = gpu.reflection?.pyramid;
   return (
     !!gpu.colorTexture &&
     gpu.allocatedSize[0] === size.renderWidth &&
@@ -33,8 +36,11 @@ export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
     gpu.surfaces.hasSubsurface === wantsSubsurface(rt) &&
     !!gpu.feedbackTexture === (rt.feedbackAB?.target !== false) &&
     gpu.reflection?.active === wantsReflections(rt) &&
-    !!gpu.reflection?.history === wantsRoughReflectionHistory(rt) &&
-    !!gpu.reflection?.pyramid === wantsReflectionCone(rt) &&
+    !!gpu.reflection?.history === rough &&
+    // The pyramid is made for either (`createScreenReflection`), its radiance for a cone alone:
+    // judged by that same rule, rough receivers alone find their targets in place.
+    !!pyramid === (rough || cone) &&
+    !!pyramid?.radiance === cone &&
     (!vis.visEnabled || !!vis.visTexture)
   );
 }
