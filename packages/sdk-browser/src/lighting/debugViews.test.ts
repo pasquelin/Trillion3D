@@ -116,7 +116,7 @@ test('A jittered edge: the accumulated share follows the colour, no flip between
   assert.match(TAA_SHADER, /share\+=asIs\*weight;/);
   const [wcOf, whOf, colorOf, shareOf] = capture(
     TAA_SHADER,
-    /let wc=(.*?);\n let wh=(.*?);\n return TaaOut\((.*?),vec2f\((\(share\*wc.*?\)),tag\)\);/,
+    /let wc=(.*?);\n let wh=(.*?);\n return TaaOut\((.*?),vec4f\((\(share\*wc.*?\)),tag,0\.0,0\.0\)\);/,
   ).map(js);
   const blend = new Function(
     'alpha',
