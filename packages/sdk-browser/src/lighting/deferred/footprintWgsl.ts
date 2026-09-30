@@ -10,19 +10,34 @@
  * The jitter moves the image by `view.jitter.xy` pixels (`shadowJitterWords`): the pixel's
  * unjittered centre lies there in this image. A receiver's plane has an NDC depth affine across
  * the screen — `1/w` is, and a projected depth is affine in `1/w` —, so its depth there is the
- * depth held, moved along the plane's slope. On each axis the slope is taken on the side of the
- * neighbour nearer in depth: across a silhouette, the pixel's own surface. With no jitter
+ * depth held, moved along the plane's slope. On each axis the slope is read on a side whose two
+ * pixels continue the surface (`surfaceSlope`): the step into the pixel differs from the step
+ * beyond it by less than that step — a plane makes them equal, where a silhouette makes the first
+ * a jump that the background beyond does not continue —; of two such sides, the straighter. On an
+ * axis neither side continues — a wire, a bar or a far part one pixel wide, background on both
+ * sides —, the slope is none: the depth held, never a jump across the background. With no jitter
  * (`view.jitter.xy` zero), the point is the one the pixel holds and the footprint develop's, to
  * the bit.
  */
 export const PIXEL_FOOTPRINT_WGSL = `
 struct PixelLevel{footprint:f32,unjitter:vec3f,}
+/** The depth held at \`coord + k·step\`, clamped to the image. */
+fn footprintDepth(coord:vec2i,step:vec2i,k:i32)->f32{
+ return textureLoad(depth,clamp(coord+step*k,vec2i(0),vec2i(view.viewport.xy)-vec2i(1)),0);
+}
+/** The slope of the surface at \`coord\` (depth \`z\`) along \`step\`, from a side whose two pixels
+ *  continue it, the straighter of two; none when neither does. */
+fn surfaceSlope(coord:vec2i,step:vec2i,z:f32)->f32{
+ let before=footprintDepth(coord,step,-1);let after=footprintDepth(coord,step,1);
+ let into=vec2f(z-before,after-z);
+ let beyond=vec2f(before-footprintDepth(coord,step,-2),footprintDepth(coord,step,2)-after);
+ let bend=abs(into-beyond);let continues=bend<abs(beyond);
+ if(continues.x&&(!continues.y||bend.x<=bend.y)){return into.x;}
+ return select(0.0,into.y,continues.y);
+}
 fn unjitteredDepth(coord:vec2i,z:f32)->f32{
- let last=vec2i(view.viewport.xy)-vec2i(1);
- let l=textureLoad(depth,max(coord-vec2i(1,0),vec2i(0)),0);let r=textureLoad(depth,min(coord+vec2i(1,0),last),0);
- let u=textureLoad(depth,max(coord-vec2i(0,1),vec2i(0)),0);let d=textureLoad(depth,min(coord+vec2i(0,1),last),0);
- let gx=select(r-z,z-l,abs(z-l)<abs(r-z));let gy=select(d-z,z-u,abs(z-u)<abs(d-z));
- return z+dot(view.jitter.xy,vec2f(gx,gy));
+ let slope=vec2f(surfaceSlope(coord,vec2i(1,0),z),surfaceSlope(coord,vec2i(0,1),z));
+ return z+dot(view.jitter.xy,slope);
 }
 /** The footprint of pixel \`pixel\` (at \`coord\`, depth \`z\`, world point \`P\`) at its unjittered
  *  centre, and that centre's world point less \`P\`: \`shadowFootprint\`, \`shadowUnjitter\`. */
