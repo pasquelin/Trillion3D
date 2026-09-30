@@ -9,11 +9,12 @@ test('first frame rejects history, replay consumes nothing, and a changed source
   const gpu = fakeDevice();
   const history = createReflectionHistory(gpu.device, 8, 8);
   const current = gpu.device.createTexture({ size: [8, 8], format: 'rgba16float', usage: 1 });
+  // No live motion: the motion bound is the page table (`liveMotion`).
+  const pages = {} as GPUBuffer;
   const frame: ReflectionHistoryFrame = {
     metadata: { depth: current, normal: current, ids: current },
-    pages: {} as GPUBuffer,
-    motion: {} as GPUBuffer,
-    reprojects: false,
+    pages,
+    motion: pages,
     eye: [0, 0, 0],
     epoch: 'initial',
     seed: 1,
@@ -127,7 +128,6 @@ test('with live motion a camera move and a moved source keep the history, reproj
     metadata: { depth: current, normal: current, ids: current },
     pages: {} as GPUBuffer,
     motion: {} as GPUBuffer,
-    reprojects: true,
     eye: [0, 0, 0],
     epoch: 'still',
     seed: 0,
@@ -164,7 +164,7 @@ test('with live motion a camera move and a moved source keep the history, reproj
   step(() => (frame.epoch = 'gear-turned'));
   assert.deepEqual(params(), [1, REFLECTION_MOVING_WEIGHT, 1], 'a moved source keeps it');
   assert.equal(history.reuse, false);
-  frame.reprojects = false;
+  frame.motion = frame.pages;
   step(() => (frame.epoch = 'gear-turned-again'));
   assert.equal(params()[0], 0, 'without motion to follow, a moved source resets it');
   history.dispose();

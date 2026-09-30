@@ -111,14 +111,12 @@ export async function flushedGpuScene(
   await backend.flush?.();
   return { ...gpu, packed, backend };
 }
-
-/** A device roomy enough for the shadow tests' light cuts and pools. */
+/** A device roomy enough for the shadow tests' light cuts and pools, at the spec's alignment. */
 export const SHADOW_LIMITS = {
   maxBufferSize: 1 << 28,
   maxStorageBufferBindingSize: 1 << 27,
   maxTextureDimension2D: 8192,
   maxComputeWorkgroupsPerDimension: 65535,
-  // The spec's default: the reflection's depth-bounds levels step their uniform by it.
   minUniformBufferOffsetAlignment: 256,
 };
 /** A pose `x` metres along the X axis. */

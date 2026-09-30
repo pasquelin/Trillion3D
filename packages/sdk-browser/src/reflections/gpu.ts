@@ -25,7 +25,7 @@ const roughReflecting = (surface: PageSurface) => {
 
 /** Only opaque receivers own this history. Forward transparents cannot borrow
  * the receiver behind them, and a perfect mirror retains its original resources. */
-export function wantsRoughReflectionHistory(rt: WebgpuPagesRuntime) {
+function wantsRoughReflectionHistory(rt: WebgpuPagesRuntime) {
   if (rt.run.diagnostic !== 'beauty') return false;
   return surfacesOfRows(rt.layout.rows).some(roughReflecting);
 }
@@ -44,11 +44,21 @@ export function wantsReflections(rt: WebgpuPagesRuntime) {
 }
 
 /** Forward receivers own their footprint; they never sample opaque history. */
-export function wantsReflectionCone(rt: WebgpuPagesRuntime) {
+function wantsReflectionCone(rt: WebgpuPagesRuntime) {
   return (
     rt.run.diagnostic === 'beauty' &&
     rt.blendState.blendGpu.some(({ surface }) => roughReflecting(surface))
   );
+}
+
+/** What the reflection targets hold for `rt`, the one rule the builder, the targets' fit and their
+ *  allocation read: a rough history and a cone only under an active reflection, the depth-bounds
+ *  pyramid for either, its radiance levels for a cone alone. */
+export function reflectionPlan(rt: WebgpuPagesRuntime) {
+  const active = wantsReflections(rt);
+  const rough = active && wantsRoughReflectionHistory(rt);
+  const cone = active && wantsReflectionCone(rt);
+  return { active, rough, cone, pyramid: rough || cone };
 }
 
 export function createScreenReflection(
@@ -132,7 +142,9 @@ export function createScreenReflection(
         packed[16] = active && enabled ? 1 : 0;
         packed[17] = drawn[0];
         packed[18] = drawn[1];
-        packedBits[19] = ((history?.rank ?? 0) ^ (frame?.seed ?? 0)) >>> 0;
+        // The rank alone sets the two low bits, the 2 × 2 phase (`reflectionPhase`): a source
+        // epoch that moves each image in step with the rank would otherwise hold one phase.
+        packedBits[19] = (((frame?.seed ?? 0) << 2) ^ (history?.rank ?? 0)) >>> 0;
         device.queue.writeBuffer(heldUniform, 0, packed);
       },
       dispose() {
