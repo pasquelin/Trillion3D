@@ -80,9 +80,13 @@ test('hysteresis treats enabling and disabling thresholds differently and respec
   assert.equal(policy.observe(reference, timed(12), 11), on);
   assert.equal(policy.observe(reference, timed(13), 12), on);
   const off = policy.observe(reference, timed(13), 20);
-  assert.equal(off.enabled, false);
-  assert.equal(off.changedAt, 20);
-  assert.equal(off.revision, 2);
+  assert.deepEqual(off, {
+    tier: 'baseline',
+    enabled: false,
+    reason: 'Measured cost exceeds reference',
+    changedAt: 20,
+    revision: 2,
+  });
 });
 
 test('neutral or invalid evidence resets consecutive samples rather than accumulating across interruptions', () => {
