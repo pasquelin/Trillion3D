@@ -11,6 +11,7 @@ import { VIS_BINDINGS } from './bindLayout.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
 import { createShadowDemand } from '../shadow/demandPass.ts';
+import { createDeferredLightingLayout } from '../../lighting/deferred/setup.ts';
 
 // Defect this test catches: a layout gains one more storage buffer than WebGPU's guaranteed
 // minimum, and the device refuses to create it — “The number of storage buffers (9) in the
@@ -36,6 +37,8 @@ async function passLayouts() {
     'temporal antialiasing': await firstLayout((d) => createTemporalAntialiasing(d, [])),
     // The demand recomputes the receiver offset from the page geometry (#1410).
     'shadow demand': await firstLayout((d) => createShadowDemand(d)),
+    // The lit resolve recomputes it too, reading the float pool through one binding (#1410).
+    'deferred lighting': createDeferredLightingLayout(device, true),
   } as Record<string, unknown>;
 }
 

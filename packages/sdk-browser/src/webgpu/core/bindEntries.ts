@@ -1,4 +1,4 @@
-import { bufferEntry, resourceEntry } from './liveEntries.ts';
+import { bufferEntry, rangeEntry, resourceEntry, type BufferRange } from './liveEntries.ts';
 import type { WebgpuTileStreamer } from '../tile/streamer.ts';
 import {
   BLEND_BINDINGS,
@@ -30,7 +30,7 @@ export type ShadeBindResources = AtlasResources & {
   cache: GPUBuffer;
   position: GPUBuffer;
   uv: GPUBuffer;
-  normal: GPUBuffer;
+  normal: BufferRange;
   pageTable: GPUBuffer;
   uniform: GPUBuffer;
 };
@@ -64,7 +64,7 @@ export type BlendBindResources = AtlasResources &
     uniformSize: number;
     /** Item records, indexed by the item's rank in the scene (`../blend/items.ts`). */
     items: GPUBuffer;
-    normals: GPUBuffer;
+    normals: BufferRange;
     /** Identity of a transparent cluster, one per draw-table entry. */
     clusterDiagnostic: GPUBuffer;
     /** Instance list expanded for the image, and each cluster's span in the cache. */
@@ -129,7 +129,7 @@ export function shadeBindEntries(r: ShadeBindResources): GPUBindGroupEntry[] {
     bufferEntry(b.cache, () => r.cache),
     bufferEntry(b.position, () => r.position),
     bufferEntry(b.uv, () => r.uv),
-    bufferEntry(b.normal, () => r.normal),
+    rangeEntry(b.normal, () => r.normal),
     bufferEntry(b.pageTable, () => r.pageTable),
     ...atlasEntries(b.color, () => r.textures?.color),
     resourceEntry(b.sampler, () => r.sampler),
@@ -155,7 +155,7 @@ export function blendBindEntries(r: BlendBindResources): GPUBindGroupEntry[] {
     ...atlasEntries(b.color, () => r.textures?.color),
     resourceEntry(b.sampler, () => r.sampler),
     ...atlasEntries(b.data, () => r.textures?.data),
-    bufferEntry(b.normals, () => r.normals),
+    rangeEntry(b.normals, () => r.normals),
     bufferEntry(b.directLights, () => r.directLights),
     bufferEntry(b.clusterDiagnostic, () => r.clusterDiagnostic),
     bufferEntry(b.planInstances, () => r.planInstances),

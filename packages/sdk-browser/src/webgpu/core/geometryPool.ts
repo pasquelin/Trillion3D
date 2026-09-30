@@ -1,24 +1,20 @@
 import { storageBufferCap } from '../../residency/pools.ts';
 import type { HostAttributes } from '../../host/resources.ts';
 import type { GeometryBlock } from '../row/pageRowMaterial.ts';
-import { COLOR_FLOATS, UV_FLOATS, colorFloatAt, uvBufferFloats } from './vertexColors.ts';
+import {
+  BUFFERS,
+  LAYOUT,
+  LISTS,
+  growthCopies,
+  poolRegions,
+  storageOffsetFloats,
+  type BufferKey,
+  type Buffers,
+  type PoolList,
+} from './geometryPoolLayout.ts';
+export type { PoolList } from './geometryPoolLayout.ts';
 type GeometryBlocks = Map<HostAttributes, GeometryBlock>;
 type List = HostAttributes[string];
-/** How each list a pool block carries is laid out: its buffer, its floats per vertex, and the
- *  host lists it is written from, each with its width and the value of a missing component — a
- *  normal and a tangent share seven floats a vertex, a colour rides at the tail of the UVs. */
-// prettier-ignore
-const LAYOUT = {
-  position: { buffer: 'concatPos', stride: 3, parts: [['position', 3, 0]] },
-  uv: { buffer: 'concatUv', stride: UV_FLOATS, parts: [['uv', UV_FLOATS, 0]] },
-  color: { buffer: 'concatUv', stride: COLOR_FLOATS, parts: [['color', COLOR_FLOATS, 1]] },
-  normal: { buffer: 'concatNrm', stride: 7, parts: [['normal', 3, 0], ['tangent', 4, 0]] },
-} as const;
-export type PoolList = keyof typeof LAYOUT;
-const LISTS = Object.keys(LAYOUT) as PoolList[],
-  BUFFERS = ['concatPos', 'concatUv', 'concatNrm'] as const;
-type BufferKey = (typeof BUFFERS)[number];
-type Buffers<T> = Record<BufferKey, T>;
 /** Floats, grown to the largest write and kept: a steady frame allocates nothing. */
 let scratch = new Float32Array(0);
 /**
@@ -41,17 +37,15 @@ export function createVertexPool(
 ) {
   let used = 0,
     size = Math.max(1, capacity);
-  const floatsOf = (count: number): Buffers<number> => ({
-    concatPos: count * 3 + tailFloats,
-    concatNrm: count * 7,
-    concatUv: uvBufferFloats(count, coloured),
-  });
+  const align = storageOffsetFloats(device.limits);
+  const regionsOf = (count: number) => poolRegions(count, tailFloats, coloured, align);
+  // The receiver offset binds the position buffer whole, normals included (#1410): it is bounded.
   const withinDevice = (next: Buffers<number>) =>
     BUFFERS.every((key) => next[key] * 4 <= storageBufferCap(device.limits));
   const label = (key: BufferKey) => `Trillion3D transparent geometry ${key}`;
   const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC;
-  let floats = floatsOf(size);
-  if (!withinDevice(floats)) throw new Error('GEOMETRY_POOL_DEVICE_LIMIT');
+  let regions = regionsOf(size);
+  if (!withinDevice(regions.floats)) throw new Error('GEOMETRY_POOL_DEVICE_LIMIT');
   const make = (sizes: Buffers<number>) =>
     Object.fromEntries(
       BUFFERS.map((key) => [
@@ -59,10 +53,14 @@ export function createVertexPool(
         device.createBuffer({ label: label(key), size: Math.max(4, sizes[key] * 4), usage }),
       ]),
     ) as Buffers<GPUBuffer>;
-  let buffers = make(floats);
-  /** The float of `name`'s buffer vertex `vertex` starts at: in the UVs' tail for a colour. */
-  const offsetOf = (name: PoolList, vertex: number) =>
-    name === 'color' ? colorFloatAt(size, vertex) : vertex * LAYOUT[name].stride;
+  let buffers = make(regions.floats);
+  /** The two ranges the passes that read them apart bind: the positions with the deformation
+   *  block, then the normals — distinct, so a pass may write the one and read the other. */
+  const rangesOf = () => ({
+    positions: { buffer: buffers.concatPos, offset: 0, size: regions.normalStart * 4 },
+    normals: { buffer: buffers.concatPos, offset: regions.normalStart * 4, size: size * 28 },
+  });
+  let bound = rangesOf();
   /** Fills the scratch with vertices `from` to `from + n - 1` of list `name` of `a`: its floats. */
   const fill = (a: HostAttributes, name: PoolList, from: number, n: number) => {
     const { stride, parts } = LAYOUT[name];
@@ -84,25 +82,6 @@ export function createVertexPool(
   /** The bytes `count` vertices of list `name` of `attributes` weigh in the pool, if it holds it. */
   const weigh = (attributes: HostAttributes, name: PoolList, count: number) =>
     holds(attributes, name) ? count * LAYOUT[name].stride * 4 : 0;
-  /** What a growth of `from` vertices to `to` copies, in floats: `[source, destination, count]`
-   *  per region — the vertices, the colour tail when the UVs carry one, and the deformation block. */
-  const copies = (key: BufferKey, from: number, to: number): [number, number, number][] => {
-    if (key === 'concatPos')
-      return tailFloats
-        ? [
-            [0, 0, from * 3],
-            [from * 3, to * 3, tailFloats],
-          ]
-        : [[0, 0, from * 3]];
-    if (key === 'concatUv')
-      return coloured
-        ? [
-            [0, 0, from * UV_FLOATS],
-            [from * UV_FLOATS, to * UV_FLOATS, from * COLOR_FLOATS],
-          ]
-        : [[0, 0, from * UV_FLOATS]];
-    return [[0, 0, from * 7]];
-  };
   /** Makes the room for `need` more vertices in place when the pool is short: the buffers are
    *  made wider, what they hold copied into them, the old ones freed, the owners told. False when
    *  the device refuses the size — the caller then opens the session, as it did before (#1293). */
@@ -110,12 +89,12 @@ export function createVertexPool(
     if (used + need <= size) return true;
     let next = size;
     while (next < used + need) next *= 2;
-    const wider = floatsOf(next);
-    if (!withinDevice(wider)) return false;
-    const made = make(wider),
+    const wider = regionsOf(next);
+    if (!withinDevice(wider.floats)) return false;
+    const made = make(wider.floats),
       encoder = device.createCommandEncoder();
     for (const key of BUFFERS)
-      for (const [source, destination, count] of copies(key, size, next))
+      for (const [source, destination, count] of growthCopies(key, regions, wider))
         if (count > 0)
           encoder.copyBufferToBuffer(
             buffers[key],
@@ -128,7 +107,8 @@ export function createVertexPool(
     for (const key of BUFFERS) buffers[key].destroy();
     buffers = made;
     size = next;
-    floats = wider;
+    regions = wider;
+    bound = rangesOf();
     grown?.(next);
     return true;
   };
@@ -146,19 +126,40 @@ export function createVertexPool(
     return block;
   };
   return {
-    ...buffers,
+    /** The positions, the deformation block, then the normals (`poolRegions`). */
+    get concatPos() {
+      return buffers.concatPos;
+    },
+    get concatUv() {
+      return buffers.concatUv;
+    },
+    /** The positions and the deformation block alone, in the position buffer. */
+    get positions(): GPUBufferBinding {
+      return bound.positions;
+    },
+    /** The normals and tangents, seven floats a vertex, in the position buffer. */
+    get concatNrm(): GPUBufferBinding {
+      return bound.normals;
+    },
+    /** The float of the position buffer the normals start at: what the receiver offset adds. */
+    get normalBase() {
+      return regions.normalStart;
+    },
     /** Places each geometry of `sourced`, dynamic or not, and uploads the buffers whole: the
      *  open's one packing. */
     pack(sourced: ReadonlyMap<HostAttributes, boolean>) {
       const arrays = Object.fromEntries(
-        BUFFERS.map((key) => [key, new Float32Array(floats[key])]),
+        BUFFERS.map((key) => [key, new Float32Array(regions.floats[key])]),
       ) as Buffers<Float32Array<ArrayBuffer>>;
       for (const [attributes, dynamic] of sourced) {
         const block = claim(attributes, dynamic);
         for (const name of LISTS) {
           if (!block || !holds(attributes, name)) continue;
           const n = fill(attributes, name, 0, block.count); // grows the scratch: read it after
-          arrays[LAYOUT[name].buffer].set(scratch.subarray(0, n), offsetOf(name, block.vertexBase));
+          arrays[LAYOUT[name].buffer].set(
+            scratch.subarray(0, n),
+            regions.offsetOf(name, block.vertexBase),
+          );
         }
       }
       for (const key of BUFFERS) device.queue.writeBuffer(buffers[key], 0, arrays[key]);
@@ -189,7 +190,7 @@ export function createVertexPool(
       const block = blocks.get(attributes);
       if (!block || !holds(attributes, name)) return 0;
       const written = fill(attributes, name, from, Math.min(count, block.count - from));
-      const at = offsetOf(name, block.vertexBase + from) * 4;
+      const at = regions.offsetOf(name, block.vertexBase + from) * 4;
       device.queue.writeBuffer(buffers[LAYOUT[name].buffer], at, scratch, 0, written);
       return written * 4;
     },

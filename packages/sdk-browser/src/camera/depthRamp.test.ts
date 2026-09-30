@@ -9,7 +9,11 @@ import { writeDepthRamp } from './depthConvention.ts';
 import { SURFACE_MODEL } from '../scene/surfaceModel.ts';
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts';
 import { SHADE_DECL_WGSL } from '../visibility/shader/shadeDeclWgsl.ts';
-import { DEPTH_RAMP_WORD, SHADE_UNIFORM_WORDS } from '../visibility/shader/request.ts';
+import {
+  DEPTH_RAMP_WORD,
+  NORMAL_BASE_WORD,
+  SHADE_UNIFORM_WORDS,
+} from '../visibility/shader/request.ts';
 import { CLUSTER_FRAGMENT } from '../webgl/cluster/shaders.ts';
 import {
   orthographicProjection,
@@ -107,9 +111,11 @@ test('The weights land at the offset they are given, nothing around them', () =>
 });
 
 test('The resolve uniform: the ramp is a vec4f right before the sun, 16-byte aligned', () => {
-  assert.match(SHADE_DECL_WGSL, /pixelScale:f32,depthRamp:vec4f,sun:ShadeSun,\}/);
+  assert.match(SHADE_DECL_WGSL, /pixelScale:f32,depthRamp:vec4f,sun:ShadeSun,normalBase:u32,\}/);
   // viewProj 16 words, viewport 4, four scalars: the ramp starts at word 24, the sun at 28.
   assert.equal(DEPTH_RAMP_WORD, 16 + 4 + 4);
   assert.equal(DEPTH_RAMP_WORD % 4, 0);
-  assert.equal(SHADE_UNIFORM_WORDS, DEPTH_RAMP_WORD + 4 + 16);
+  // After the sun, the start of the float pool's normals (#1410), padded to 16 bytes.
+  assert.equal(NORMAL_BASE_WORD, DEPTH_RAMP_WORD + 4 + 16);
+  assert.equal(SHADE_UNIFORM_WORDS, NORMAL_BASE_WORD + 4);
 });
