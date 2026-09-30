@@ -76,7 +76,12 @@ function frame(scene: Scene) {
 }
 
 test('the pages of one surface at one placement are one submission, in their order', () => {
-  const [stone, wood] = [new GraphSurface('standard'), new GraphSurface('standard')];
+  // Polished, under the screen-reflection cutoff: the view runs its source pass too (#1341).
+  const polished = { roughness: 0.2 };
+  const [stone, wood] = [
+    new GraphSurface('standard', polished),
+    new GraphSurface('standard', polished),
+  ];
   const pages = [page(1, stone), page(2, stone), page(1, wood), page(3, stone), page(1, stone, 5)];
   const scene = new Scene();
   scene.add(...pages);
@@ -126,7 +131,7 @@ test('the pages of one surface at one placement are one submission, in their ord
 });
 
 test('released ranges are written again only once the GPU ran the frames that drew them', () => {
-  const stone = new GraphSurface('standard'),
+  const stone = new GraphSurface('standard', { roughness: 0.2 }),
     scene = new Scene();
   const swap = (gone: ReturnType<typeof page>) => {
     gone.geometry.dispose();
