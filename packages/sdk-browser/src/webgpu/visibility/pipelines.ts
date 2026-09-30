@@ -1,5 +1,4 @@
 import { shadeLayout } from './shadeLayout.ts';
-import { FEEDBACK_FORMAT, SURFACE_FORMATS } from '../../scene/surfaceBuffer.ts';
 import { depthLayerUnits } from '../../../../sdk-core/src/index.ts';
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts';
 import { validationScope } from '../../gpu/core/errorScope.ts';
@@ -11,10 +10,8 @@ import {
 } from '../../diagnostic/gpuGeometry.ts';
 import { MATERIAL_DEPTH_FORMAT } from '../../visibility/shader/materialClass.ts';
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts';
-export const shadeTargetFormats = (feedback: boolean) => [
-  ...SURFACE_FORMATS,
-  ...(feedback ? [FEEDBACK_FORMAT] : []),
-];
+import { shadeTargetFormats } from './shadeTargets.ts';
+
 const LAYER_CULLS: Array<[GPUCullMode, GPUFrontFace]> = [
   ['back', 'ccw'],
   ['none', 'ccw'],

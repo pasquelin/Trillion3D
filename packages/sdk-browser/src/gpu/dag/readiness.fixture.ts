@@ -1,6 +1,7 @@
 import { createDagResidencyUpload } from './residencyUpload.ts';
-import { childBase, residentBase, residentFlags } from './layout.ts';
+import { childBase, residentBase } from './layout.ts';
 import type { PackedDag } from './types.ts';
+import { residentFlags } from './layout.fixture.ts';
 
 /** A device that takes the writes and keeps nothing: the host copy is what the kernel would read. */
 const NO_DEVICE = { queue: { writeBuffer() {} } } as unknown as GPUDevice;

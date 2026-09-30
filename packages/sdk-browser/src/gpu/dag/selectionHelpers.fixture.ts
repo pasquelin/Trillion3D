@@ -1,15 +1,13 @@
 import { createEngineCamera, readCameraWorld, type HostCamera } from '../../camera/world.ts';
 import { collectClusterPages, selectVisiblePages } from '../../page/selection/selection.ts';
 import { cameraSelectionUniforms } from '../core/selection.ts';
-import {
-  evaluateDagSelectionKernel,
-  packDagSelection,
-  packedWorldsToRenderOrigin,
-} from './selection.ts';
+import { packDagSelection } from './selection.ts';
 import { dagFixture, wideCamera } from '../../page/selection/dag.fixture.ts';
 import { mockDagDevice } from './selection.fixture.ts';
 import { ruleResidency } from './readiness.fixture.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
+import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts';
+import { packedWorldsToRenderOrigin } from './pack.fixture.ts';
 
 export const VIEWPORT: [number, number] = [1280, 720];
 export function packed(fixture: ReturnType<typeof dagFixture>) {

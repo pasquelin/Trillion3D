@@ -8,8 +8,8 @@ import type { EngineCamera } from '../../camera/world.ts';
 import type { createGeometryBudget } from './pool.ts';
 import { createAutonomousRequests } from './requests.ts';
 import type { HeldResidency } from '../../page/cut/held.ts';
-import type { WebglViewState } from './views.ts';
 import { createPageDraws, type PageDraws } from './pageDraws.ts';
+import { type WebglViewState } from './viewKeys.ts';
 
 /**
  * The cut of a WebGL2 image and what it asks the pool for. The cut is drawn at the host's

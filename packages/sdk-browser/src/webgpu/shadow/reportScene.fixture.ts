@@ -9,7 +9,8 @@ import { report } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.
 import * as G from '../../host/graph/graph.fixture.ts';
 import { createEngineCamera, readCameraWorld } from '../../camera/world.ts';
 import { settledRt } from '../frame/hold.fixture.ts';
-import { planShadowRegions, shadowViewpointOf } from '../pages/render/encodeShadows.ts';
+import { planShadowRegions } from '../pages/render/shadowRegions.ts';
+import { shadowViewpointOf } from '../pages/render/shadowViewpoint.ts';
 import { createWebgpuLightState } from '../pages/state/lights.ts';
 import { shadingReads, type Lit } from './shadingReads.fixture.ts';
 

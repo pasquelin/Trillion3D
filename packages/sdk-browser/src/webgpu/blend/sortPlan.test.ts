@@ -6,7 +6,8 @@ import { surfaceOf } from '../../page/surface.ts';
 import { orderBlendPasses } from './order.ts';
 import { buildBlendStatics, planItem, refreshBlendPlan } from './plan.ts';
 import { blendSceneOf } from './plan.fixture.ts';
-import { buildBlendRuns, resliceBlendRuns, RUN_WORDS } from './runs.ts';
+import { resliceBlendRuns, RUN_WORDS } from './runs.ts';
+import { buildBlendRuns } from './runSlicing.ts';
 import { precedes, sortPlanFarToNear } from './sortPlan.ts';
 import type { BlendGpuItem } from './state.ts';
 

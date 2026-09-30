@@ -6,7 +6,7 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/scene/core/environment.ts';
 import { filmic, type Rgba } from './blendModel.fixture.ts';
 import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from './displayFilter.ts';
-import { DISPLAY_FILTER_SHADER } from './displayFilterProgram.ts';
+import { DISPLAY_FILTER_SHADER } from './displayFilterWgsl.ts';
 
 /** The curve the routes are run with, the witness's. */
 export const ACES = TONE_MAPPING_RANK.aces;

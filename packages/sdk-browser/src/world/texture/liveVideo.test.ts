@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
 import { followVideoFrames } from './liveVideo.ts';
-import { pictureSize } from '../../texture/pictureSize.ts';
+import { pictureSize } from '../../texture/imageExtent.ts';
 
 /** A video element stand-in: its frame callbacks and `play` listeners, run by the test. */
 function video(options: { clock: boolean; paused: boolean }) {

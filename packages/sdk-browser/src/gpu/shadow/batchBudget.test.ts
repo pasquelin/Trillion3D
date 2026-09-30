@@ -8,8 +8,6 @@ import { LAYER_PAGES } from '../../../../sdk-core/src/scene/light-shadow/virtual
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { createLightCutRedraws } from '../dag/lightCutRedraws.ts';
 import { DAG_MAX_VIEWS } from '../dag/shader/viewsWgsl.ts';
-import { createCpuCasterLists } from '../../webgpu/shadow/cpuCasters.ts';
-import { SHADOW_HOST_BYTES, SHADOW_POOL_BYTES } from '../../residency/memoryBudget.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
 import { createGpuShadowCullCounts } from './cullCounts.ts';
 import { MAX_SHADOW_PAGES } from './recordPack.ts';
@@ -25,6 +23,8 @@ import {
   SHADOW_STAGING_BYTES,
   shadowBatchCapacity,
 } from './batchBudget.ts';
+import { SHADOW_HOST_BYTES, SHADOW_POOL_BYTES } from '../../residency/shadowBudgetBytes.ts';
+import { createCpuCasterLists } from '../../webgpu/shadow/cpuCasterLists.ts';
 
 const MiB = 1024 * 1024;
 

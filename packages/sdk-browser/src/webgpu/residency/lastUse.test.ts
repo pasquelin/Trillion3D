@@ -5,12 +5,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createCutDelta } from '../cut/delta.ts';
 import { createWebgpuPageTracking } from '../row/pageTracking.ts';
-import { LAST_USE_WINDOW as W, createWebgpuPinUpdater } from './pinUpdater.ts';
+import { createWebgpuPinUpdater } from './pinUpdater.ts';
 import { createPageAdmission } from './admission.ts';
 import { createWebgpuResidencySets } from './sets.ts';
 import { createGroupClosure } from '../../page/cut/groupClosure.ts';
 import { createRequestAdmission } from './requestAdmission.ts';
 import { lruCache, pageOf, placement } from './residentEnsurer.fixture.ts';
+import { LAST_USE_WINDOW as W } from './lastUseWindow.ts';
 
 const FULL = /ALL_PAGES_PINNED/;
 

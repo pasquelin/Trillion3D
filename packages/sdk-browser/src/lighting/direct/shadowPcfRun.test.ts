@@ -10,7 +10,7 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { hash } from './shadowPages.fixture.ts';
 import { SHADOW_SUBTEXELS } from './shadowSampleWgsl.ts';
 import { CONSTANTS, SHADOW_WGSL } from './sunRangeRead.fixture.ts';
-import { POISSON_16 } from './shadowWgsl.ts';
+import { POISSON_16 } from './pcfTaps.ts';
 
 type V = number[];
 type Pcf = (...args: [object, V, number, V, number, number, boolean]) => number;

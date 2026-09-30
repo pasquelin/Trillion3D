@@ -78,5 +78,3 @@ fn applyShadowWord(i:u32){
 @compute @workgroup_size(${WORDS_GROUP}) fn applyShadowWords(@builtin(global_invocation_id) id:vec3u){
  if(id.x<shadowWords.count){applyShadowWord(id.x);}
 }`;
-/** The host's table words of the ordinary window: what a pass compiled without a session reads. */
-export const SHADOW_WORDS_WGSL = shadowWordsWgsl();

@@ -4,8 +4,9 @@
 // pass's own jitter, filter weights, neighbour clamp and 1/k share (`../../taa/shaderWgsl.ts`).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TAA_SAMPLES, TAA_STILL_FRAMES, taaJitter } from '../../taa/jitter.ts';
+import { TAA_SAMPLES, taaJitter } from '../../taa/jitter.ts';
 import { taaWeightTable } from '../../taa/weights.ts';
+import { TAA_STILL_FRAMES } from '../../taa/stillFrames.fixture.ts';
 
 const SIDE = 24,
   THRESHOLD = 0.5,

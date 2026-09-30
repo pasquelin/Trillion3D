@@ -9,10 +9,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseDagOutput } from './uniforms.ts';
-import { OUT_AHEAD, OUT_AHEAD_PLACED, SELECTION_HEADER_WORDS } from './layout.ts';
+import { OUT_AHEAD_PLACED, SELECTION_HEADER_WORDS } from './layout.ts';
 import { REQUEST_AHEAD, packRequest } from './request.ts';
 import { referenceParseDagOutput } from '../../../../../bench/oracles/browser/residency.ts';
 import type { SelectionResult } from '../core/selection.ts';
+
+/** The ahead counter: the word before its placed count (`struct Output`, `shader/shader.ts`). */
+const OUT_AHEAD = OUT_AHEAD_PLACED - 1;
 
 /** The oracle's header: four words, those from before the totals. */
 const HEAD_ORACLE = 4;

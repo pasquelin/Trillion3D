@@ -10,17 +10,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   packRequest,
-  quantizeAheadPriority,
-  quantizeRequestPriority,
   REQUEST_PAGE_MAX,
   REQUEST_PRIORITY_MAX,
   REQUEST_PRIORITY_SCALE,
   REQUEST_STEP_MAX,
   requestPage,
-  requestRank,
   requestPriority,
 } from './request.ts';
-import { evaluateDagSelectionKernel } from './selection.ts';
 import { requestScene } from './requestScene.fixture.ts';
 import {
   clusterErrorPixels,
@@ -28,6 +24,8 @@ import {
   multiplyMatrix4,
   transformAffinePoint,
 } from '../../../../sdk-core/src/index.ts';
+import { quantizeAheadPriority, quantizeRequestPriority, requestRank } from './request.fixture.ts';
+import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts';
 
 test('the request word yields the page and the priority that were put in it', () => {
   for (const page of [0, 1, 4095, 1959791, REQUEST_PAGE_MAX - 1])
