@@ -67,8 +67,6 @@ export type PageRec = {
    *  WebGL2 residency's key, checked against the URL it names (`backend/autonomous/pageKeys.ts`).
    *  Residency and pinning without hashing. */
   keyIndex?: number;
-  /** WebGL placement control record, zero when the page is rigid. */
-  deformRecord?: number;
   /** True on a page of the group a root replaces: the minimum capacity holds it and admits it
    *  first (`../../residency/minimumCapacity.ts`). */
   rootChild?: boolean;
@@ -105,6 +103,9 @@ export type ClusterRoot<T> = {
    *  its packed rank, and its root is the one the layout ranked here. Posted by the layout, read
    *  by the cut (`page/cut/take.ts`) to publish the instances as packed ranks. */
   packedBase?: number;
+  /** WebGL placement control record, zero when the placement is rigid: per placement, so on the
+   *  root, never on its shared pages (#1235). */
+  deformRecord?: number;
   /** Compiled mesh number of its primitive (`Primitive.mesh`), the key the compiler bakes each
    *  `impostors` entry under: the runtime impostor switch looks the mesh up by exactly this number
    *  (#1239), never through a table of its own. */

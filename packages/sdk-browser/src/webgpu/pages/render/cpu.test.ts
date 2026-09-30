@@ -42,7 +42,6 @@ function banc(options: { ready: boolean; resident: boolean }) {
     drawnPacked: [] as number[],
     opaquePackedScratch: [] as number[],
     transparentPackedScratch: [] as number[],
-    culledPackedScratch: [] as number[],
     desired: [...tenue],
     drawn: [] as PageRec[],
     selectResult: createSelectionResult<PageRec>(),

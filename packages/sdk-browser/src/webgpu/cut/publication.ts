@@ -1,5 +1,4 @@
 import type { PageRec } from '../../page/selection/selection.ts';
-import { pageAddress } from '../row/pageSlots.ts';
 import { createCutDelta, type CutDelta } from './delta.ts';
 import { createCutPending } from './pending.ts';
 import { coverageWatcher } from './coverage.ts';
@@ -46,7 +45,7 @@ export function createWebgpuCutPublication(
   const drawnPages: PageRec[] = [];
   const drawnDelta = createCutDelta(packedPages, drawnPages);
   // The cache is asked for the cut closed over its groups; the image waits for what the pool took.
-  const rankOf = (rec: PageRec) => rows.pageIndicesByUrl.get(pageAddress(rec))?.[0] ?? -1;
+  const rankOf = (rec: PageRec) => rows.pageIndexOf(rec) ?? -1;
   const cutPending = createCutPending(
     packedPages,
     closure.delta,

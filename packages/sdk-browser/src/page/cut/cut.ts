@@ -64,12 +64,8 @@ export function selectVisiblePages<T extends PageRecord>(
   for (const root of roots) capacity += root.pages.length;
   result.shownPacked = fitPacked(result.shownPacked, capacity);
   result.wantedPacked = fitPacked(result.wantedPacked, capacity);
-  result.shownRoot = fitPacked(result.shownRoot, capacity);
-  result.wantedRoot = fitPacked(result.wantedRoot, capacity);
   const shownPacked = result.shownPacked,
-    wantedPacked = result.wantedPacked,
-    shownRoot = result.shownRoot,
-    wantedRoot = result.wantedRoot;
+    wantedPacked = result.wantedPacked;
   // Cut state is set on the reused object: a render image allocates nothing here.
   const state = selectionState<T>();
   state.cam = cam;
@@ -77,8 +73,6 @@ export function selectVisiblePages<T extends PageRecord>(
   state.shown = shown;
   state.wantedPacked = wantedPacked;
   state.shownPacked = shownPacked;
-  state.wantedRoot = wantedRoot;
-  state.shownRoot = shownRoot;
   state.light = options.light;
   state.held = held;
   state.pixelError = options.pixelError ?? 0;
@@ -89,7 +83,6 @@ export function selectVisiblePages<T extends PageRecord>(
   state.flatFocal = 1;
   state.flatExact = false;
   state.flatSound = false;
-  state.flatRootRank = -1;
   state.flatBase = -1;
   state.shownCount = 0;
   state.wantedCount = 0;
@@ -107,7 +100,6 @@ export function selectVisiblePages<T extends PageRecord>(
     // light's cut takes no root that casts no shadow. A switched root is drawn by its card
     // (`planImpostors`): its clusters are dropped here, in the same breath as the card it yields.
     if (root.parked || castsNoShadow(root.mark, state.light) || switched?.[rank]) continue;
-    state.flatRootRank = rank;
     const box = root.worldBox,
       // A deformation's reach, in the world: its units stretched by the root's placement (#357).
       g = root.reach ? root.reach * worldStretch(root) : 0;

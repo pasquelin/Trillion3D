@@ -10,13 +10,14 @@ export const rowPlacedAt = (roots: Roots, rank: number) => !!roots[rank]?.placem
 
 /** True when the record of instance `rank` is drawn instanced with the other rows of its page
  *  (`webglPageBatches.ts`). A transparent record placed by a row is drawn on its own, like a
- *  blended copy: the host orders blended by depth, never the instances of one draw. */
+ *  blended copy: the host orders blended by depth, never the instances of one draw. A deformed
+ *  placement (its root's `deformRecord`) is drawn on its own too. */
 export const drawnInstancedAt = (
   roots: Roots,
   rank: number,
   rec: PageRec,
   transparent = rec.transparent,
-) => rowPlacedAt(roots, rank) && !transparent && !rec.deformRecord;
+) => rowPlacedAt(roots, rank) && !transparent && !roots[rank]?.deformRecord;
 
 /** The host meshes `recs` hang on the WebGL2 path's display graph, which its page ceiling bounds:
  *  one per record drawn on its own, one per PAGE for records drawn instanced — ten thousand opaque

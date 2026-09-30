@@ -11,7 +11,7 @@ import { surfaceSide } from '../../../page/surface.ts';
 import { windingCw } from '../render/winding.ts';
 import type { WebgpuPagesCore } from '../runtime.ts';
 
-/** The roots a record's `placementIndex` ranks: the layout's selection roots. */
+/** The layout's selection roots, ranked by `rootOfPacked` (#1235). */
 type Roots = Parameters<typeof windingCw>[0];
 
 /** Order of layer-0 indirect slots: the three untested pipelines, then their Hi-Z-tested twins. */

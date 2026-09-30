@@ -13,7 +13,7 @@ import type { DeformedDraw } from '../../webgl/cluster/deformation.ts';
 
 type GeometryEnvironment = {
   scene: Scene;
-  /** The roots a record's `placementIndex` ranks: its pose and its row are its root's. */
+  /** The engine's roots: a page's pose and row are its root's, found by packed rank (#1235). */
   roots: readonly ClusterRoot<PageRec>[];
   allPages: PageRec[];
   bootstrap: PageRec[];

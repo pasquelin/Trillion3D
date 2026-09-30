@@ -60,7 +60,6 @@ export function createWebgpuRunState(clearColor = RASTER_BACKGROUND): WebgpuRunS
     drawnPacked: [],
     opaquePackedScratch: [],
     transparentPackedScratch: [],
-    culledPackedScratch: [],
     ...unmirroredDrawn(),
     pagesEntered: null,
     pagesExited: null,

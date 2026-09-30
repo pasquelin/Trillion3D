@@ -30,7 +30,7 @@ import type { PageDraws } from './pageDraws.ts';
 
 type ClassPagesEnvironment = {
   context: BackendContext;
-  /** The roots a record's `placementIndex` ranks: its world is its root's. */
+  /** The engine's roots: a page's world is its root's (#1235). */
   roots: readonly ClusterRoot<PageRec>[];
   /** The per-instance draw state: the last class change an instance followed is `turn` there. */
   draws: PageDraws;
@@ -58,16 +58,21 @@ const ownClass = (primitive: Primitive, blended: boolean) =>
 
 /** The largest world scale that places the records: the compiler's tile follows it, read over
  *  every placement of the primitive (`mesh_scales`), not only those a change moves. */
-const largestScale = (
+function largestScale(
   records: readonly PageRec[],
   roots: readonly ClusterRoot<PageRec>[],
-  rankOf: (rec: PageRec) => number,
+  draws: PageDraws,
   scratch = new Matrix4(),
-) =>
-  records.reduce((scale, rec) => {
-    const { elements } = rootOf(roots, rankOf(rec)).world;
-    return Math.max(scale, scratch.fromArray(elements).getMaxScaleOnAxis());
-  }, 0);
+) {
+  // Over every instance: one record serves every placement of its primitive (#1235).
+  let scale = 0;
+  for (const rec of new Set(records))
+    draws.forEachRank(rec, (packed) => {
+      const { elements } = rootOf(roots, draws.placement.rootOfPacked[packed]).world;
+      scale = Math.max(scale, scratch.fromArray(elements).getMaxScaleOnAxis());
+    });
+  return scale;
+}
 
 export function createClassPages(env: ClassPagesEnvironment) {
   const { context, draws, geometryStore } = env;
@@ -96,7 +101,7 @@ export function createClassPages(env: ClassPagesEnvironment) {
     if (ownClass(primitive, blended)) return null;
     // Read before the first wait: the cut holds no placement.
     const mesh = moved[0].sourceMesh as HostMesh,
-      scale = largestScale(placed, env.roots, draws.rootRankOf);
+      scale = largestScale(placed, env.roots, draws);
     const [vertices, corners] = await Promise.all([
       pagedGeometry(mesh).loadVertices(),
       Promise.all(primitive.pages.map((page) => context.readPage!(page.url))),

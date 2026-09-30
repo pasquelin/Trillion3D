@@ -40,13 +40,13 @@ export type PlacementIndex = {
 };
 
 /**
- * Posts each root's packed base from rank `from` on, and returns the two tables that resolve a
- * packed rank back to its root. What an engine does once its roots were laid out, grown, mounted or
- * removed, before any reader looks one up.
+ * Posts each root's packed base, and returns the two tables that resolve a packed rank back to its
+ * root. What an engine does once its roots were laid out, grown, mounted or removed, before any
+ * reader looks one up.
  */
-export function postPackedBases(roots: readonly Ranked[], from = 0): PlacementIndex {
-  let packed = from === 0 ? 0 : (roots[from - 1]?.packedBase ?? 0) + roots[from - 1].pages.length;
-  for (let rank = from; rank < roots.length; rank++) {
+export function postPackedBases(roots: readonly Ranked[]): PlacementIndex {
+  let packed = 0;
+  for (let rank = 0; rank < roots.length; rank++) {
     roots[rank].packedBase = packed;
     packed += roots[rank].pages.length;
   }
