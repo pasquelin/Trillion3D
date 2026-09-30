@@ -22,4 +22,13 @@ test('pages the GPU drew itself restart the still average, once each', () => {
   assert.equal(frame.stillFrames, 3, 'each landing restarts it once');
   restartTaaOnLanding(rt, 1 + gpuShadowPagesLanded(rt));
   assert.equal(frame.stillFrames, 0, 'a host page restarts it as before');
+  // A reseeded pool counts its listings from zero: a host page still restarts the average.
+  still(2);
+  gpu.drawn = 0;
+  restartTaaOnLanding(rt, 1 + gpuShadowPagesLanded(rt));
+  assert.equal(frame.stillFrames, 0, 'a reseed never cancels a host landing');
+  still(2);
+  gpu.drawn = 1;
+  restartTaaOnLanding(rt, gpuShadowPagesLanded(rt));
+  assert.equal(frame.stillFrames, 0, 'a page listed after the reseed lands');
 });

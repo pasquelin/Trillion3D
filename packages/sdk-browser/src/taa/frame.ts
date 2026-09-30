@@ -152,7 +152,8 @@ export function gpuShadowPagesLanded(rt: WebgpuPagesRuntime) {
   const drawn = rt.lights?.plan.gpu.drawn ?? 0,
     seen = gpuDrawnSeen.get(rt) ?? drawn;
   gpuDrawnSeen.set(rt, drawn);
-  return drawn - seen;
+  // A reseeded GPU pool counts its listings from zero again: all it shows is new.
+  return drawn >= seen ? drawn - seen : drawn;
 }
 /** The GPU's page listings each runtime last counted (`gpuShadowPagesLanded`). */
 const gpuDrawnSeen = new WeakMap<WebgpuPagesRuntime, number>();
