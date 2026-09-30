@@ -6,24 +6,25 @@ const REFRESH_WINDOW = 120,
   PAUSE_MS = 100;
 /** Share of the period an interval may stray from a whole number of periods (timer jitter), and
  *  the shortest period sought: no display refreshes faster than 500 Hz. */
-const GRID_TOLERANCE = 0.1,
-  SHORTEST_PERIOD_MS = 2;
+export const GRID_TOLERANCE = 0.1;
+const SHORTEST_PERIOD_MS = 2;
 /** Intervals that must sit together for their value to be a period — a lone late or early frame
  *  is none —, and the share of the window a period must hold on its grid. */
 const SUPPORT = 3,
   ON_GRID = 0.9;
 
 /** Whether `gap` is a whole number of `period`s, within the tolerance. */
-export function onGrid(gap: number, period: number) {
+function onGrid(gap: number, period: number) {
   const n = Math.max(1, Math.round(gap / period));
   return Math.abs(gap - n * period) <= GRID_TOLERANCE * period;
 }
 
-/** Whether nine in ten of the ascending `gaps` are a whole number of `period`s. */
+/** Whether nine in ten of the ascending `gaps` are a whole number of `period`s: a wrong period
+ *  stops at its first misses past the tenth, so a window no grid holds costs little. */
 function holds(gaps: Float64Array, period: number) {
-  let on = 0;
-  for (let i = 0; i < gaps.length; i++) if (onGrid(gaps[i], period)) on++;
-  return on >= ON_GRID * gaps.length;
+  let misses = (1 - ON_GRID) * gaps.length;
+  for (let i = 0; i < gaps.length; i++) if (!onGrid(gaps[i], period) && --misses < 0) return false;
+  return true;
 }
 
 /** The period of the ascending `gaps`: from the shortest group of `SUPPORT` intervals within the

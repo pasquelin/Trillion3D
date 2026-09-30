@@ -1,7 +1,5 @@
-import { onGrid } from './refreshClock.ts';
-import { HEADROOM, PERIOD, type createScaleController } from './scaleController.ts';
-
-type Controller = ReturnType<typeof createScaleController>;
+import { GRID_TOLERANCE } from './refreshClock.ts';
+import { HEADROOM, PERIOD, rescale, type ScaleController } from './scaleController.ts';
 
 /** Intervals in a row at the period before a probe, and the frames a probe lasts: the frames in
  *  flight, then the intervals the refresh clock needs to find a shorter period. */
@@ -23,39 +21,37 @@ export function createCadenceProbe() {
   let steady = 0,
     /** The period last probed, where the display's own cadence was found. */
     tried = Number.NaN,
-    probed = 0,
     from = 0,
     left = 0;
-  const probe = {
+  return {
     /** Whether a probe is running: the controller takes no step meanwhile. */
     get active() {
       return left > 0;
     },
-    /** Another display: its periods are probed again. */
+    /** Another display or controller: a running probe ends, and its periods are probed again. */
     reset() {
       tried = Number.NaN;
-      steady = 0;
+      steady = left = 0;
     },
     /**
      * A display frame began, `gap` ms after the last, the clock at `period`. `gpuMs`: the last
      * GPU time of an image at the controller's scale, null without GPU times (then the frame is
      * taken to cost the whole period). `moving`: the last image moved, so its scale may change.
      */
-    tick(c: Controller, gap: number, period: number, gpuMs: number | null, moving: boolean) {
+    tick(c: ScaleController, gap: number, period: number, gpuMs: number | null, moving: boolean) {
       if (left > 0) {
-        if (period < FOUND * probed) {
+        if (period < FOUND * tried) {
           left = 0;
-          c.ema = HEADROOM * c.budget;
-        } else if (--left === 0) c.s = from;
-        if (left === 0) c.since = 0;
+          rescale(c, c.s, true);
+        } else if (--left === 0) rescale(c, from);
         return;
       }
-      steady = onGrid(gap, period) && gap < 1.5 * period ? steady + 1 : 0;
+      steady = Math.abs(gap - period) <= GRID_TOLERANCE * period ? steady + 1 : 0;
       if (
         steady < STEADY ||
         !moving ||
         c.since < PERIOD ||
-        Math.abs(tried - period) <= 0.1 * period
+        Math.abs(tried - period) <= GRID_TOLERANCE * period
       )
         return;
       tried = period;
@@ -65,10 +61,8 @@ export function createCadenceProbe() {
       const to = Math.max(c.min, c.s * Math.sqrt(half / cost));
       if (to >= c.s) return;
       from = c.s;
-      c.s = to;
-      probed = period;
+      rescale(c, to);
       left = PROBE_FRAMES;
     },
   };
-  return probe;
 }
