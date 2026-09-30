@@ -5575,6 +5575,13 @@
   "SHADOW_PAGE": {
     "summary": "Lato di una pagina d’ombra, in texel: l’unità del pool, delle mappe virtuali e dell’invalidazione."
   },
+  "ShadowAsks": {
+    "summary": "Voci che l’host chiede all’allocatore GPU, accanto a ciò che chiedono i pixel (`floors`).",
+    "members": {
+      "entries": "Le voci richieste, al massimo le prime `count`.",
+      "count": "Quante di `entries` sono riempite."
+    }
+  },
   "ShadowAtlasDigest": {
     "summary": "Ciò che pubblica una lettura dell'atlante delle ombre: la sua dimensione, ciò che vi è scritto, la sua impronta.",
     "members": {
@@ -7630,6 +7637,17 @@
   },
   "SHADOW_RECORD_FLOATS": {
     "summary": "Float di un record d’ombra, quello che legge l’ombreggiatura di una luce: sei matrici di facce di lampada — lì, gli intervalli di profondità di un sole, `zNear, zFar` ciascuno (`recordPack.ts`) —, poi il riferimento del piano di luce del sole — `right, zNear`, `up, zFar`, `axis`, poi lo slot dell’intervallo corrente —, poi l’origine della finestra di ogni slot della clipmap in due interi, poi un’intestazione `vec4f`: facce (lampada) o livelli (sole), il semicampo tangente della lampada o il livello più fine del sole, il piano vicino della lampada e la prima voce del record nella tabella delle pagine."
+  },
+  "ShadowPoolSnapshot": {
+    "summary": "Il pool dell’allocatore GPU dopo l’allocazione di un frame (`webgpu/shadow/allocWgsl.ts`).",
+    "members": {
+      "owner": "La voce mappata da ogni pagina fisica, −1 per una pagina libera.",
+      "requested": "Il frame in cui ogni pagina è stata richiesta l’ultima volta.",
+      "allocated": "Pagine mappate da quel frame, e voci per cui non aveva una pagina.",
+      "refused": "Voci per cui quel frame non aveva una pagina.",
+      "drawn": "Pagine che quel frame ha elencato per la GPU da disegnare (`listDraw`).",
+      "listings": "Pagine elencate da ogni frame dall’inizio del pool: si muove con la lista di qualsiasi frame, persa o no la sua istantanea."
+    }
   },
   "ShadowRequestReport": {
     "summary": "Ciò che l’ombreggiatura ha letto in un fotogramma: le voci della tabella richieste, senza ordine.",
