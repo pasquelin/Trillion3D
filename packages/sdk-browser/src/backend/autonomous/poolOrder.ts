@@ -12,7 +12,7 @@ const IDLE_WINDOW = 1;
 /**
  * The pages the WebGL2 geometry pool holds (`pool.ts`), by the engine's one residency
  * (`../../residency/lastUse.ts`), fed as WebGPU feeds it; only released pages enter the order, and
- * leave it by last use once over `limit` (docs/ENGINE.md, the WebGL2 pool).
+ * leave it by last use once over `limit` (docs/RESIDENCY.md, the WebGL2 pool).
  */
 export function createResidentOrder(env: {
   state: { readonly allocationBytes: number };

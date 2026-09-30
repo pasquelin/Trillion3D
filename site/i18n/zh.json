@@ -1132,17 +1132,17 @@
     "memory-pools": {
       "title": "内存都去哪儿了",
       "description": "两块固定大小的 GPU 内存,一块给形状,一块给纹理;当某个视图需要更多时会发生什么。",
-      "html": "<p>引擎在 GPU 内存里维护两个 <em>池(pool)</em>:一个给形状的页面用,一个给纹理的图块用。你通过 <code>world.budget</code>(第 8 章)设置它们的大小;引擎永远不会去读取机器信息来猜测这个大小。</p>\n<ul>\n<li>每个模型最粗糙的版本始终保留在内,所以永远不会出现空洞。</li>\n<li>当一个视图需要的比池子容纳的多时,引擎会用更粗糙的碎片绘制,直到能装得下为止:细节变少,但绝不会缺少部分。</li>\n<li>在场景运行过程中调整池子大小时,还能装得下的部分会被保留,其余的会被释放。</li>\n</ul>\n<p>详见:<a href=\"https://github.com/pasquelin/Trillion3D/blob/develop/docs/ENGINE.md#memory\">docs/ENGINE.md</a>。</p>"
+      "html": "<p>引擎在 GPU 内存里维护两个 <em>池(pool)</em>:一个给形状的页面用,一个给纹理的图块用。你通过 <code>world.budget</code>(第 8 章)设置它们的大小;引擎永远不会去读取机器信息来猜测这个大小。</p>\n<ul>\n<li>每个模型最粗糙的版本始终保留在内,所以永远不会出现空洞。</li>\n<li>当一个视图需要的比池子容纳的多时,引擎会用更粗糙的碎片绘制,直到能装得下为止:细节变少,但绝不会缺少部分。</li>\n<li>在场景运行过程中调整池子大小时,还能装得下的部分会被保留,其余的会被释放。</li>\n</ul>\n<p>详见:<a href=\"https://github.com/pasquelin/Trillion3D/blob/develop/docs/RESIDENCY.md\">docs/RESIDENCY.md</a>。</p>"
     },
     "texture-compression": {
       "title": "让纹理变小",
       "description": "纹理会被切成图块,只加载画面需要的部分,并且只在不改变画面效果的前提下才会压缩。",
-      "html": "<p>纹理就是画在表面上的一张图像。编译器会把每一张纹理准备成从完整分辨率到极小尺寸的多个版本,并切成正方形的图块。浏览器只会加载画面实际显示的那些图块,并且只按显示所需的尺寸加载。</p>\n<p>编译器还可以把图块保存成 GPU 能直接读取的压缩格式,体积大约缩小到四分之一。只有在压缩版本看起来和原图一样时才会采用它,否则该图块就保持不压缩。还没到达的图块会先显示自己更小的版本,绝不会出现空洞。</p>\n<p>详见:<a href=\"https://github.com/pasquelin/Trillion3D/blob/develop/docs/ENGINE.md#virtual-textures\">docs/ENGINE.md</a>。</p>"
+      "html": "<p>纹理就是画在表面上的一张图像。编译器会把每一张纹理准备成从完整分辨率到极小尺寸的多个版本,并切成正方形的图块。浏览器只会加载画面实际显示的那些图块,并且只按显示所需的尺寸加载。</p>\n<p>编译器还可以把图块保存成 GPU 能直接读取的压缩格式,体积大约缩小到四分之一。只有在压缩版本看起来和原图一样时才会采用它,否则该图块就保持不压缩。还没到达的图块会先显示自己更小的版本,绝不会出现空洞。</p>\n<p>详见:<a href=\"https://github.com/pasquelin/Trillion3D/blob/develop/docs/RESIDENCY.md#virtual-textures\">docs/RESIDENCY.md</a>。</p>"
     },
     "shadow-pages": {
       "title": "被分块的阴影",
       "description": "为什么摄像机移动时只会重绘一小条阴影:阴影贴图和模型一样,也被切成了页面。",
-      "html": "<p>为了知道哪里在阴影里,每盏灯都会从自己的视角把场景渲染成一张 <em>阴影贴图(shadow map)</em>:一张记录距离的图像。引擎把这些贴图切成了页面。</p>\n<ul>\n<li>太阳光用几张贴图覆盖整个视野,靠近摄像机的部分精细,远处的部分粗糙。</li>\n<li>当摄像机移动一点点时,只有新进入视野的那一条页面会被重绘,其余的都会被保留。</li>\n<li>还没准备好的页面会先借用更粗糙的贴图,所以阴影永远不会缺失。</li>\n</ul>\n<p>详见:<a href=\"https://github.com/pasquelin/Trillion3D/blob/develop/docs/ENGINE.md#direct-lighting\">docs/ENGINE.md</a>。</p>"
+      "html": "<p>为了知道哪里在阴影里,每盏灯都会从自己的视角把场景渲染成一张 <em>阴影贴图(shadow map)</em>:一张记录距离的图像。引擎把这些贴图切成了页面。</p>\n<ul>\n<li>太阳光用几张贴图覆盖整个视野,靠近摄像机的部分精细,远处的部分粗糙。</li>\n<li>当摄像机移动一点点时,只有新进入视野的那一条页面会被重绘,其余的都会被保留。</li>\n<li>还没准备好的页面会先借用更粗糙的贴图,所以阴影永远不会缺失。</li>\n</ul>\n<p>详见:<a href=\"https://github.com/pasquelin/Trillion3D/blob/develop/docs/SHADOWS.md\">docs/SHADOWS.md</a>。</p>"
     },
     "IDENTITY_MATRIX4": {
       "description": "列优先的单位矩阵,只读、从不写入:表示没有姿态的节点或根节点的姿态。",
