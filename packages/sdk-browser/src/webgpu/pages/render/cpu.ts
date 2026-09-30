@@ -107,8 +107,9 @@ export function renderCpuCut(
     requested = run.requestedScratch;
   requested.clear();
   for (const url of bootstrapUrls) requested.add(url);
-  // The cut publishes packed ranks: a requested address is read back through the catalogue alone.
-  for (let i = 0; i < wantedIds.length; i++) {
+  // The cut publishes packed ranks, walked to the record list's length (the reused buffer is never
+  // truncated): a requested address is read back through the catalogue alone.
+  for (let i = 0; i < wanted.length; i++) {
     const rec = recordOf(wantedIds[i]);
     if (rec) requested.add(pageAddress(rec));
   }
@@ -144,7 +145,7 @@ export function renderCpuCut(
   // Here, and no earlier: the image has passed its guards and `shown` is final. The CPU cut then
   // publishes its own by the same delta as the GPU sample — once, and only once, for an image that
   // draws.
-  services.adoptCpuCut(wantedIds, selected.shownPacked);
+  services.adoptCpuCut(wantedIds, selected.shownPacked, wanted.length, selected.shown.length);
   services.residency.queueCutResidency();
   services.followEvictions(null);
   const queueEnd = performance.now();

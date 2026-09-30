@@ -37,6 +37,7 @@ function bench() {
     views: createWebgpuViews({ run, gpu, vis, setup } as unknown as WebgpuPagesRuntime),
     layout: {
       packedPages: scene.packed,
+      recordOf: (packed: number) => scene.packed[packed],
       gpuWanted: [],
       selectionRoots: [],
       rows: { watchTouched: () => {} },
