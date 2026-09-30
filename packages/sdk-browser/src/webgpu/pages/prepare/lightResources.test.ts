@@ -94,7 +94,7 @@ test('a frame with no shadow slot asks for the resolve with no shadow code (#124
 
 test('a frame with no rectangle light asks for the resolve with no rectangle code (#1369)', () => {
   const b = banc();
-  const rt = { ...b.rt, bounce: {}, sunFar: {} } as unknown as WebgpuPagesRuntime;
+  const rt = { ...b.rt, bounce: {}, sunFar: {}, vis: {}, gpu: {} } as unknown as WebgpuPagesRuntime;
   b.store.add({ ...LAMP });
   assert.equal(directLightResources(rt).rectless, true, 'a point lamp alone');
   const panel: SceneLight = {

@@ -95,7 +95,8 @@ fn sampledTileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:
   // An exact light is shaded once and the points it holds are spent; any other is drawn once per
   // point it holds. The last light takes the points rounding left behind: none is lost.
   let exact=weight*f32(LIGHT_SAMPLES)>=total;
-  if(exact&&used<LIGHT_SAMPLES){chosen[used]=index;used+=1u;}
+  // An exact light is kept past \`TILE_LIGHTS\`: the shading reads it back with no weight.
+  if(exact&&used<LIGHT_SAMPLES){chosen[used]=index+TILE_LIGHTS;used+=1u;}
   while(point<LIGHT_SAMPLES&&(next<running||index==last)){
    if(!exact&&used<LIGHT_SAMPLES){chosen[used]=index;used+=1u;}
    point+=1u;next=(f32(point)+offset)/f32(LIGHT_SAMPLES)*total;
@@ -103,12 +104,11 @@ fn sampledTileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:
  }
  var result=vec3f(0.0);
  for(var slot=0u;slot<used;slot++){
-  let light=directLights.items[tileLights[base+TILE_OPAQUE_BASE+chosen[slot]]];
+  let light=directLights.items[tileLights[base+TILE_OPAQUE_BASE+chosen[slot]%TILE_LIGHTS]];
   // An exact light counts once; a drawn one is divided by its probability, the points it holds
   // on average: its share of the total, times the points.
-  let weight=lightWeight(light,N,P);
   var factor=1.0;
-  if(weight*f32(LIGHT_SAMPLES)<total){factor=total/(f32(LIGHT_SAMPLES)*weight);}
+  if(chosen[slot]<TILE_LIGHTS){factor=total/(f32(LIGHT_SAMPLES)*lightWeight(light,N,P));}
   result+=declaredLight(light,rgb,metal,rough,N,V,P,ao)*factor;
  }
  return result;
