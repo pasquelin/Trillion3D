@@ -12,6 +12,8 @@
 //   `LIGHT_SAMPLES`.
 // - `shadows`: shadow reads, at most the shaded lights holding a slot that reach the pixel, each
 //   the PCF's sixteen depth gathers on both sides.
+// - `demand`: the lights holding a slot that reach the pixel, each marked by the shadow demand pass
+//   (`demandWgsl.ts`), whatever the draw shades.
 //
 //   node bench/runner/resolveWorkCount.ts [--width 3456] [--height 2234] [--slots 64]
 import { parseArgs } from 'node:util';
@@ -30,8 +32,9 @@ export type Work = {
   weights: number;
   shaded: number;
   shadows: number;
+  demand: number;
 };
-const zero = (): Work => ({ setup: 0, weights: 0, shaded: 0, shadows: 0 });
+const zero = (): Work => ({ setup: 0, weights: 0, shaded: 0, shadows: 0, demand: 0 });
 
 /** Sums over the covered pixels of `view`, `before` (develop) and `after`; `slotted[rank]` whether
  *  a light holds a shadow slot. */
@@ -57,6 +60,7 @@ export function countResolveWork(
       side.weights += drawn ? walks * L : 0;
       side.shaded += drawn ? SAMPLES : L;
       side.shadows += shadows;
+      side.demand += reaching;
     }
   });
   return sums;
