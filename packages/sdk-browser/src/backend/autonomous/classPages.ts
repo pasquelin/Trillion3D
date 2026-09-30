@@ -12,14 +12,14 @@
  */
 import type { Primitive } from '../../../../sdk-core/src/index.ts';
 import { drawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts';
-import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts';
 import { FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1 } from '../../cluster/format.ts';
 import { sendEngineDiagnostic } from '../../diagnostic/engineDiagnostic.ts';
 import { pagedGeometry } from '../../host/prepared/pagedSource.ts';
 import type { HostMesh } from '../../host/resources.ts';
 import { cutPagesOffThread } from '../../page/decode/host.ts';
-import { rootOf, type ClusterRoot, type PageRec } from '../../page/selection/selection.ts';
+import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts';
 import { blendMoves, type AlphaChange } from '../../placement/backendSceneUpdates.ts';
+import { largestScale } from '../../placement/placementQueries.ts';
 import { primitiveFinder } from '../../scene/primitiveLookup.ts';
 import { joinedCorners, withPlaced } from '../../world/page/placedVertices.ts';
 import { packDrawn } from '../../world/page/runtimeCut.ts';
@@ -30,7 +30,7 @@ import type { PageDraws } from './pageDraws.ts';
 
 type ClassPagesEnvironment = {
   context: BackendContext;
-  /** The roots a record's `placementIndex` ranks: its world is its root's. */
+  /** The engine's roots: a page's world is its root's (#1235). */
   roots: readonly ClusterRoot<PageRec>[];
   /** The per-instance draw state: the last class change an instance followed is `turn` there. */
   draws: PageDraws;
@@ -55,18 +55,6 @@ const finestError = (primitive: Primitive) =>
 /** Whether the class `blended` is the one the compiler cut `primitive` for. */
 const ownClass = (primitive: Primitive, blended: boolean) =>
   blended === (primitive.pass === 'clustered-blend');
-
-/** The largest world scale that places the records: the compiler's tile follows it, read over
- *  every placement of the primitive (`mesh_scales`), not only those a change moves. */
-const largestScale = (
-  records: readonly PageRec[],
-  roots: readonly ClusterRoot<PageRec>[],
-  scratch = new Matrix4(),
-) =>
-  records.reduce((scale, rec) => {
-    const { elements } = rootOf(roots, rec).world;
-    return Math.max(scale, scratch.fromArray(elements).getMaxScaleOnAxis());
-  }, 0);
 
 export function createClassPages(env: ClassPagesEnvironment) {
   const { context, draws, geometryStore } = env;
@@ -95,7 +83,7 @@ export function createClassPages(env: ClassPagesEnvironment) {
     if (ownClass(primitive, blended)) return null;
     // Read before the first wait: the cut holds no placement.
     const mesh = moved[0].sourceMesh as HostMesh,
-      scale = largestScale(placed, env.roots);
+      scale = largestScale(placed, env.roots, draws);
     const [vertices, corners] = await Promise.all([
       pagedGeometry(mesh).loadVertices(),
       Promise.all(primitive.pages.map((page) => context.readPage!(page.url))),

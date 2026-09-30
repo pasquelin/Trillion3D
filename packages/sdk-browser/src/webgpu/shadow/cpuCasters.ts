@@ -50,6 +50,8 @@ export function createCpuCasterLists(device: GPUDevice, pageCount: number) {
     shownPacked: [] as number[][],
     wantedPacked: [] as number[][],
     casters: [] as PageRec[],
+    /** The packed rank of each caster, rank by rank (#1235): one record serves many placements. */
+    castersPacked: [] as number[],
     /** Per catalogue page: the frame that last marked it, and its row that frame. */
     marks: new Uint32Array(pageCount),
     rowOf: new Int32Array(pageCount),
@@ -110,13 +112,16 @@ export function selectCpuCasters(rt: WebgpuPagesRuntime, device: GPUDevice, cam:
     lights.cpuCasters = createCpuCasterLists(device, pageCount);
   }
   const lists = lights.cpuCasters,
-    { casters, marks, shown, wanted, shownPacked, wantedPacked, camera, viewport } = lists,
+    { casters, castersPacked, marks, shown, wanted, shownPacked, wantedPacked, camera, viewport } =
+      lists,
     recordOf = layout.recordOf;
-  casters.length = 0;
+  casters.length = castersPacked.length = 0;
   const stamp = run.frame >>> 0 || 1;
-  for (const rec of run.drawn) {
-    const page = rows.pageIndexOf(rec);
-    if (page !== undefined) marks[page] = stamp;
+  // The drawn instances as the packed ranks the camera's cut published (#1235): one record serves
+  // every placement of its primitive, so the address's first rank no longer names the drawn one.
+  for (let i = 0; i < run.drawn.length; i++) {
+    const page = run.drawnPacked[i];
+    if (page >= 0) marks[page] = stamp;
   }
   lists.runs = 0;
   // Nothing loads or leaves while the faces select — what they want is offered after the last —:
@@ -157,7 +162,10 @@ export function selectCpuCasters(rt: WebgpuPagesRuntime, device: GPUDevice, cam:
         if (marks[page] === stamp) continue;
         marks[page] = stamp;
         const rec = recordOf(page);
-        if (rec) casters.push(rec);
+        if (rec) {
+          casters.push(rec);
+          castersPacked.push(page);
+        }
       }
       const asked = selected.wantedPacked,
         wantedIds = wantedPacked[at];

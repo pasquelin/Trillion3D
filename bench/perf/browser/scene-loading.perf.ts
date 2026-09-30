@@ -75,7 +75,6 @@ const recDe = (rec: PageRec) => ({
   renderOrder: rec.renderOrder,
   requestIndex: rec.requestIndex,
   keyIndex: rec.keyIndex,
-  packedIndex: rec.packedIndex,
 });
 
 const passeCollect =

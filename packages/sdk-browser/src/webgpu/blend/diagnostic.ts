@@ -24,6 +24,7 @@ export function writeBlendDiagnostic(
   blendState: BlendState,
   packedPages: readonly PageRec[],
   roots: readonly ClusterRoot<PageRec>[],
+  rootOfPacked: Int32Array,
   diagnostic: DiagnosticMode,
   cam: EngineCamera | undefined,
   viewport: readonly [number, number],
@@ -52,7 +53,7 @@ export function writeBlendDiagnostic(
       diagnostic === 'screen-error' && cam
         ? Math.round(
             screenErrorRatio(
-              projectedPageError(rec, rootOf(roots, rec).world, cam, viewport),
+              projectedPageError(rec, rootOf(roots, rootOfPacked[page]).world, cam, viewport),
               diagnosticPixelError,
             ) * 127,
           )

@@ -21,6 +21,11 @@ const roots = [0, 1].map((placement) => ({
 })) as unknown as ClusterRoot<PageRec>[];
 const packed = roots.flatMap((root) => root.pages);
 const n = dag.pages.length;
+/** The layout's per-placement tables: placement 0 owns packed `[0, n)`, placement 1 `[n, 2n)`. */
+const placement = {
+  baseOfRoot: Int32Array.from([0, n]),
+  rootOfPacked: Int32Array.from({ length: 2 * n }, (_, i) => (i < n ? 0 : 1)),
+};
 
 /** The pages page `p` of placement 0 closes over, by the definition. */
 function expected(p: number) {
@@ -47,7 +52,7 @@ const cutDelta = (entered: number[], exited: number[] = []) => ({
 });
 
 test('a leaf brings its group and every group above it, in its own placement only', () => {
-  const closure = createGroupClosure(roots, packed);
+  const closure = createGroupClosure(roots, placement, packed);
   const leaf = dag.pages.findIndex((p) => p.level === 0);
   closure.apply(cutDelta([leaf]));
   const held = new Set(closure.delta.entered.subarray(0, closure.delta.enteredCount));
@@ -66,7 +71,7 @@ test('a leaf brings its group and every group above it, in its own placement onl
 });
 
 test('pages shared by two cut pages stay held until the last one leaves', () => {
-  const closure = createGroupClosure(roots, packed);
+  const closure = createGroupClosure(roots, placement, packed);
   const [a, b] = dag.pages.map((_, p) => p).filter((p) => dag.pages[p].level === 0);
   closure.apply(cutDelta([a, b]));
   const both = closure.delta.enteredCount;
@@ -84,7 +89,7 @@ test('pages shared by two cut pages stay held until the last one leaves', () => 
 });
 
 test('a page leaving as its group-mate joins lets nothing go in between', () => {
-  const closure = createGroupClosure(roots, packed);
+  const closure = createGroupClosure(roots, placement, packed);
   const g = dag.pages[dag.pages.findIndex((p) => p.level === 0)].group!;
   const [a, b] = [...s.children.subarray(s.childOffsets[g], s.childOffsets[g] + 2)];
   closure.apply(cutDelta([a]));
@@ -93,13 +98,13 @@ test('a page leaving as its group-mate joins lets nothing go in between', () => 
 });
 
 test('the second placement closes over its own pages, at its packed ids', () => {
-  const closure = createGroupClosure(roots, packed);
+  const closure = createGroupClosure(roots, placement, packed);
   const leaf = dag.pages.findIndex((p) => p.level === 0);
   closure.apply(cutDelta([n + leaf]));
   const held = [...closure.delta.entered.subarray(0, closure.delta.enteredCount)];
   assert.deepEqual(new Set(held.map((id) => id - n)), expected(leaf));
   const visited: PageRec[] = [];
-  closure.closeOverRecords([roots[1].pages[leaf]], (_, rec) => visited.push(rec));
+  closure.closeOver([n + leaf], (_, rec) => visited.push(rec));
   assert.deepEqual(
     new Set(visited),
     new Set([...expected(leaf)].map((p) => roots[1].pages[p])),
@@ -108,7 +113,7 @@ test('the second placement closes over its own pages, at its packed ids', () => 
 });
 
 test('the closure holds what the cut closes over, and nothing once the cut has left', () => {
-  const closure = createGroupClosure(roots, packed);
+  const closure = createGroupClosure(roots, placement, packed);
   assert.equal(closure.hostBytes, 64, 'two empty difference lists');
   const leaves = dag.pages.map((_, p) => p).filter((p) => dag.pages[p].level === 0);
   closure.apply(cutDelta(leaves));
@@ -122,7 +127,7 @@ test('the closure holds what the cut closes over, and nothing once the cut has l
 });
 
 test('a walk whose visitor is full stops before the next page', () => {
-  const closure = createGroupClosure(roots, packed);
+  const closure = createGroupClosure(roots, placement, packed);
   const [a, b] = dag.pages.map((_, p) => p).filter((p) => dag.pages[p].level === 0);
   const visited = new Set<number>();
   closure.closeOver(
