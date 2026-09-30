@@ -152,6 +152,14 @@ with its reason. What still fails is `RESOURCE_HTTP_ERROR`, the address in its m
 `joltPhysics.wasm`; `PHYSICS_FAILED` stays for the simulation's own failures. `pageCodec.wasm` is
 read the same way; unreadable, the JavaScript decoder decodes the pages.
 
+The engine's optional families — physics, particles, transmission, deformation, effects, guides,
+diagnostics, measurement — are chunks of the bundle imported on first use, all through one
+on-demand loader with the same policy: an import that fails is tried once more at once. What still
+fails is `FAMILY_LOAD_FAILED` ([T3D-E090](messages/T3D-E090.md)), the family in `details.family`,
+on `world.diagnostic.error` (and `world.physics.error` for physics). The frames that draw with the
+family wait for it rather than draw without it, and it is not refused for good: the next use asks
+it again, ten seconds after the refusal at the soonest.
+
 ## API rule
 
 | Kind | Used for | Examples |

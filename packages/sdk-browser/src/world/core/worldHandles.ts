@@ -2,6 +2,7 @@ import { createWorldNotices } from '../diagnostic/worldNotices.ts';
 import { DIAGNOSTICS, type EngineError } from '../../../../sdk-core/src/index.ts';
 import type { MeasuredWorld } from '../session/explorer.ts';
 import { engineErrorOf } from '../../../../sdk-core/src/contracts/errorCodes.ts';
+import { familyRefusals } from '../../host/families.ts';
 
 export { worldControlsHandle } from './worldControlsHandle.ts';
 
@@ -21,7 +22,14 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
   let mode = 'beauty',
     sessions = 0,
     error: EngineError | null = null;
-  const said = new Set<string>();
+  const said = new Set<string>(),
+    notices = createWorldNotices();
+  // A family that could not load (`FAMILY_LOAD_FAILED`, `../../host/families.ts`), named here.
+  const refused = (cause: EngineError) => {
+    error = cause;
+    console.error('[trillion3d] An optional family did not load', cause);
+  };
+  familyRefusals.add(refused);
   const warn = (text: string) => {
     if (said.has(text)) return;
     said.add(text);
@@ -58,8 +66,9 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
       return sessions;
     },
     /** Why the last session could not open, as a named engine error: its `code` is one of those
-     *  documented on `EngineError` (`WEBGPU_LOST` when WebGPU lost its device), or
-     *  `SESSION_OPEN_FAILED` for a reason without one. An `EngineError` of a documented code is
+     *  documented on `EngineError` (`WEBGPU_LOST` when WebGPU lost its device, `FAMILY_LOAD_FAILED`
+     *  when an optional family did not load, then too), or `SESSION_OPEN_FAILED` for a reason
+     *  without one. An `EngineError` of a documented code is
      *  the one thrown; any other error is converted, and the error thrown is then in
      *  `details.cause`. `null` from the start of each opening, and when nothing is tried. */
     get error() {
@@ -76,7 +85,12 @@ export function worldDiagnostic(explorer: () => MeasuredWorld | null) {
     /** What the page holds: the view mode, read and written; the sessions opened and why the
      *  last one failed, read only. */
     handle,
-    notices: createWorldNotices(),
+    notices,
+    /** The world stopped: its notices close, and it hears no family refusal more. */
+    close() {
+      familyRefusals.delete(refused);
+      notices.close();
+    },
     /** Puts the mode on a session just opened; the world's own, never the page's. A mode this
      *  session refuses falls back to `beauty`, so an opening never fails on it. */
     apply(opened: MeasuredWorld) {
