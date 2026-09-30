@@ -2966,8 +2966,8 @@
       "disableRatio": "Onu kapatan maliyet oranı.",
       "enableRatio": "Onu tekrar açan maliyet oranı.",
       "consecutiveViolations": "Kapatmadan önce art arda kötü örnekler.",
-      "memoryBudgetBytes": "Bellek tavanı.",
-      "maxEvictionsPerSecond": "Saniye başına tahliye tavanı.",
+      "memoryBudgetBytes": "Bellek tavanı, sonlu ve en az 0.",
+      "maxEvictionsPerSecond": "Saniye başına tahliye tavanı, sonlu ve en az 0.",
       "requireGpuTiming": "GPU süresinin ölçülmesi gerekip gerekmediği."
     }
   },
