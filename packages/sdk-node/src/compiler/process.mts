@@ -1,52 +1,12 @@
-import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
-import { join } from 'node:path';
 import type { CompilerEvent } from './contracts.ts';
-import { sourceNewerThan } from './freshness.mts';
+import { currentCompilerExecutable } from './executable.mts';
+import { compilerError } from '../messages/catalogue.mts';
 
 /** Longest accepted single line on either stream; the compiler emits small JSON lines only. */
 export const COMPILER_LINE_LIMIT = 4 * 1024 * 1024;
 /** Grace period between a cooperative cancel request on stdin and a hard kill. */
 export const CANCEL_GRACE_MS = 5000;
-/** The crate this checkout builds the compiler from; absent from an installed package. */
-const CRATE = fileURLToPath(new URL('../../../../packages/asset-compiler-rust/', import.meta.url));
-const built = (crate: string, platform: NodeJS.Platform) =>
-  join(crate, `target/release/trillion3d-compiler${platform === 'win32' ? '.exe' : ''}`);
-/** Finds the native compiler program: the one asked for, else the one built in this checkout. */
-export function resolveCompilerExecutable(
-  explicit?: string,
-  environment: NodeJS.ProcessEnv = process.env,
-  platform = process.platform,
-) {
-  return explicit || environment.TRILLION3D_COMPILER_BIN || built(CRATE, platform);
-}
-const announced = new Set<string>();
-/**
- * The program a compile launches. A binary named by the caller or by `TRILLION3D_COMPILER_BIN` is
- * trusted — the variable's one is announced once on stderr; the checkout's own build is refused
- * while a crate source is newer than it, since its products would carry the previous build's key.
- */
-export function currentCompilerExecutable(
-  explicit?: string,
-  environment = process.env,
-  crate = CRATE,
-) {
-  const named = resolveCompilerExecutable(explicit, environment);
-  if (explicit) return named;
-  if (environment.TRILLION3D_COMPILER_BIN) {
-    if (!announced.has(named))
-      process.stderr.write(`compiler: ${named} (TRILLION3D_COMPILER_BIN)\n`);
-    announced.add(named);
-    return named;
-  }
-  const executable = built(crate, process.platform);
-  const newer = sourceNewerThan(executable, crate);
-  if (newer)
-    throw new Error(
-      `COMPILER_STALE: ${executable} is older than ${newer} — run \`pnpm run build:native\``,
-    );
-  return executable;
-}
 /** Line-oriented JSON reader shared by both streams; a line that never ends is a protocol violation. */
 function lineReader(onLine: (line: string) => void, onOverflow: () => void) {
   let pending = '';
@@ -94,7 +54,7 @@ export function runCompiler<T>(
     });
     let settled = false;
     let killTimer: ReturnType<typeof setTimeout> | null = null;
-    let lastError: string | null = null;
+    let lastError: Error | null = null;
     let stdout = '';
     const finish = <V,>(fn: (value: V) => void, value: V) => {
       if (settled) return;
@@ -134,7 +94,7 @@ export function runCompiler<T>(
     child.stderr.setEncoding('utf8');
     child.stdout.on('data', (chunk) => {
       stdout += chunk;
-      if (stdout.length > COMPILER_LINE_LIMIT) fail(new Error('COMPILER_LINE_LIMIT'));
+      if (stdout.length > COMPILER_LINE_LIMIT) fail(compilerError('COMPILER_LINE_LIMIT'));
     });
     child.stderr.on(
       'data',
@@ -144,31 +104,32 @@ export function runCompiler<T>(
           try {
             event = JSON.parse(line) as CompilerEvent;
           } catch {
-            lastError = line;
+            lastError = compilerError('COMPILER_EXIT', line);
             return;
           }
-          if (event.status === 'error') lastError = event.code ?? line;
+          if (event.status === 'error')
+            lastError = compilerError(event.code ?? 'COMPILER_EXIT', event.message ?? line);
           try {
             onEvent?.(event);
           } catch (error) {
             fail(error);
           }
         },
-        () => fail(new Error('COMPILER_LINE_LIMIT')),
+        () => fail(compilerError('COMPILER_LINE_LIMIT')),
       ),
     );
     child.on('error', (error: NodeJS.ErrnoException) =>
       fail(
         error.code === 'ENOENT'
-          ? new Error(`COMPILER_EXECUTABLE_MISSING: ${executable}`, { cause: error })
+          ? compilerError('COMPILER_EXECUTABLE_MISSING', executable, { cause: error })
           : error.code === 'EACCES'
-            ? new Error(`COMPILER_EXECUTABLE_NOT_EXECUTABLE: ${executable}`, { cause: error })
+            ? compilerError('COMPILER_EXECUTABLE_NOT_EXECUTABLE', executable, { cause: error })
             : error,
       ),
     );
     child.on('close', (code) => {
       if (options.signal?.aborted) {
-        finish(reject, new Error('CANCELLED'));
+        finish(reject, compilerError('CANCELLED'));
         return;
       }
       let output: T | null = null;
@@ -182,16 +143,17 @@ export function runCompiler<T>(
         return;
       }
       if (code !== 0) {
+        const refusal = output as { code?: string; message?: string } | null;
         finish(
           reject,
-          new Error(
-            (output as { code?: string } | null)?.code ?? lastError ?? `COMPILER_EXIT_${code}`,
-          ),
+          refusal?.code
+            ? compilerError(refusal.code, refusal.message)
+            : (lastError ?? compilerError('COMPILER_EXIT', `exit code ${code}`)),
         );
         return;
       }
       if (!output) {
-        finish(reject, new Error('COMPILER_NO_POINTER'));
+        finish(reject, compilerError('COMPILER_NO_POINTER'));
         return;
       }
       finish(resolve, output);

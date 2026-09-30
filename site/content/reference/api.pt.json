@@ -3694,7 +3694,8 @@
       "total": "Quantos jobs ao todo.",
       "stream": "Onde escrever.",
       "width": "Largura da barra.",
-      "interval": "Mínimo de milissegundos entre redesenhos."
+      "interval": "Mínimo de milissegundos entre redesenhos.",
+      "verbose": "Indica também os códigos de informação e cada ocorrência no resumo de fim de tarefa."
     }
   },
   "Texture-common": {
@@ -5045,13 +5046,14 @@
   "createTerminalProgress": {
     "summary": "Uma barra de progresso no terminal que segue os eventos do compilador.",
     "parameters": {
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}": "Como uma exibição de progresso no terminal se parece.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.label": "O nome do job.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.index": "O número do job.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.total": "Quantos jobs ao todo.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.stream": "Onde escrever.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.width": "Largura da barra.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.interval": "Mínimo de milissegundos entre redesenhos."
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}": "Como uma exibição de progresso no terminal se parece.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.label": "O nome do job.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.index": "O número do job.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.total": "Quantos jobs ao todo.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.stream": "Onde escrever.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.width": "Largura da barra.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.interval": "Mínimo de milissegundos entre redesenhos.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.verbose": "Indica também os códigos de informação e cada ocorrência no resumo de fim de tarefa."
     }
   },
   "createTransformTree": {
