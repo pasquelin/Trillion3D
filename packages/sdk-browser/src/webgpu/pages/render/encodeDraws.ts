@@ -1,4 +1,3 @@
-import { encodeDeformation } from '../../../deformation/encode.ts';
 import { wantsReflections } from '../../../reflections/gpu.ts';
 import { requestFrameTargets } from '../prepare/targetGrant.ts';
 import { selectCpuCasters, writeCpuCasters } from '../../shadow/cpuCasters.ts';
@@ -131,7 +130,7 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
     }
   }
   if (vis.deformationCompute)
-    encodeDeformation(rt, timing.frameEncoder ?? openFrameEncoder(rt, device));
+    vis.deformationCode!.encodeDeformation(rt, timing.frameEncoder ?? openFrameEncoder(rt, device));
   if (visReady(rt)) {
     try {
       return encodeVis(rt, device, cam);

@@ -3,9 +3,7 @@ import { PAGE_INFO_STRUCT_WGSL, VERT_NORMAL_WGSL } from '../visibility/shader/pa
 import { FLAG_CLUSTER_PAGE, FLAG_DYNAMIC } from '../visibility/types.ts';
 import { DEFORM_WGSL } from './deformWgsl.ts';
 import { DEFAULT_GROUP_WIDTH, dispatchGrid } from '../gpu/dag/shader/gridWgsl.ts';
-
-/** Timestamp label published by the existing per-frame GPU timing recorder. */
-export const DEFORMATION_PASS = 'Trillion3D deformation';
+import { DEFORMATION_PASS } from './pass.ts';
 
 /** One invocation per vertex, one group per resident placement; results share its cache slot. */
 export const DEFORMATION_COMPUTE_WGSL = `${PAGE_INFO_STRUCT_WGSL}

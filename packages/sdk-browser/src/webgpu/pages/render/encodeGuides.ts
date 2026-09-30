@@ -1,4 +1,4 @@
-import { createWebgpuGuidePass } from '../../../guides/guidePass.ts';
+import { families } from '../../../host/families.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
@@ -29,7 +29,11 @@ export function encodeWebgpuGuides(
 ) {
   const { gpu, context } = rt;
   if (!context.guides || !gpu.displayView || !gpu.depthView) return;
-  gpu.guides ??= createWebgpuGuidePass(device);
+  // Their code, which a frame that shows one waited for (`../../../host/families.ts`); a world
+  // that shows none fetches none, as WebGL2's composer (`compose.ts`).
+  if (!gpu.guides && !context.guides.visibleInstances()) return;
+  gpu.guides ??= families.guides.get()?.createWebgpuGuidePass(device);
+  if (!gpu.guides) return;
   // Over the display colour, at its size; the scene depth is the render one (`GUIDE_WGSL`).
   const { displayView, depthView, displaySize } = gpu;
   // The jitter the scene depth was drawn with: that of the image when it accumulates.

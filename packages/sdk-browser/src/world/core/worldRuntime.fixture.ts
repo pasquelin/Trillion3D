@@ -117,6 +117,8 @@ export function sessionStandIn() {
     removeLight: (id: string) =>
       void (written.lights = written.lights.filter((record) => record.id !== id)),
     render: () => ({}),
+    /** No optional family on its way: every frame draws (`../session/familyUse.ts`). */
+    familiesPending: (): Promise<void> | undefined => undefined,
     dispose() {},
   };
   return { session, written };
