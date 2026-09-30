@@ -1,4 +1,5 @@
 import { materialTilesOn } from './materialTiles.ts';
+import { MATERIAL_TILE_SIZE } from '../../visibility/shader/materialTilesWgsl.ts';
 
 /**
  * The classification's lists as the pass leaves them, on the CPU: for each slot, the tiles of a
