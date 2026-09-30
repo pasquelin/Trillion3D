@@ -1,6 +1,7 @@
 // The engine's shader texts as it builds them by default, one copy for every test: the wide
 // direct and bounce lighting (`contractLightingShader`), the TAA resolve, the blend, the shadow
-// page passes, the page model, the request claims, the water composite and the colour mips.
+// page passes, the page model, the request claims, the water composite, the colour mips and the
+// wide and narrow light tiles.
 import { contractLightingShader } from '../../lighting/deferred/shaders.ts';
 import { taaShader } from '../../taa/shaderWgsl.ts';
 import { blendShader } from '../../webgpu/blend/shader.ts';
@@ -12,6 +13,7 @@ import { pageModelWgsl } from '../../../../sdk-core/src/scene/light-shadow/pageM
 import { laneRequestWgsl, subgroupRequestWgsl } from '../../lighting/direct/requestLanesWgsl.ts';
 import { waterCompositeShader } from '../../webgpu/water/compositeWgsl.ts';
 import { mipShader } from '../../texture/mipsWgsl.ts';
+import { LIGHT_TILES_SHADERS } from '../../lighting/tiles/shader.ts';
 
 export const DIRECT_LIGHTING_SHADER = contractLightingShader(false, false);
 export const BOUNCE_LIGHTING_SHADER = contractLightingShader(true, false);
@@ -26,3 +28,7 @@ export const LANE_REQUEST_WGSL = laneRequestWgsl();
 export const SUBGROUP_REQUEST_WGSL = subgroupRequestWgsl();
 export const WATER_COMPOSITE_SHADER = waterCompositeShader();
 export const MIP_SHADER = mipShader(false);
+
+const lightTiles = new Map<string, string>(LIGHT_TILES_SHADERS);
+export const LIGHT_TILES_SHADER = lightTiles.get('LIGHT_TILES_SHADER')!;
+export const LIGHT_TILES_NARROW_SHADER = lightTiles.get('LIGHT_TILES_NARROW_SHADER')!;

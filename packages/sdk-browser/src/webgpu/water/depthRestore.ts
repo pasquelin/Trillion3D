@@ -2,7 +2,7 @@ import { scissorTo } from './bounds.ts';
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import { staticLayerEntries } from '../../gpu/shadow/staticLayer.ts';
 import { buildRenderPipeline } from '../../lighting/deferred/fullscreen.ts';
-import { WATER_DEPTH_RESTORE } from './depthRestorePass.ts';
+import { WATER_DEPTH_RESTORE } from './passLabels.ts';
 import { WATER_DEPTH_RESTORE_SHADER } from './depthRestoreShader.ts';
 
 /** WebGPU forbids cropped depth texture copies. Restore texels through the same fragment as
