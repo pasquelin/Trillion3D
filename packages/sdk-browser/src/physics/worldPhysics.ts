@@ -1,4 +1,4 @@
-import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
+import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import { WaterSurface, type WaterSpec } from '../../../sdk-core/src/fluids/index.ts';
 import { GRAVITY_PRESETS, physicsBudgetOf } from '../../../sdk-core/src/physics/index.ts';
 import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts';
@@ -6,6 +6,7 @@ import { listen } from '../../../sdk-core/src/world/math/observed.ts';
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { HostCpuProfile } from '../host/cpuProfile.ts';
+import { families } from '../host/families.ts';
 import { createJointList } from './jointList.ts';
 import { physicsLink } from './physicsLink.ts';
 import type { PhysicsSession } from './session.ts';
@@ -33,7 +34,6 @@ export function createWorldPhysics(
   const gravity = new Vector3();
   let session: PhysicsSession | null = null,
     wanted = false,
-    loading: Promise<typeof import('./session.ts')> | null = null,
     paused = false,
     timeScale = 1,
     range = simulationRangeOf(settings.simulationRange ?? null),
@@ -62,10 +62,10 @@ export function createWorldPhysics(
     // The simulation stopped: its session ends and sends nothing more; `enabled` reads false.
     if (fatal) handle.enabled = false;
   };
-  /** The session's code is fetched on the first use too: a world without physics loads none of it. */
-  const start = () => {
-    loading ??= import('./session.ts');
-    loading.then(
+  /** The session's code is a family on demand (`../host/families.ts`): a world without physics
+   *  loads none of it; one that could not load is `FAMILY_LOAD_FAILED`, asked again next time. */
+  const start = () =>
+    families.physics.load().then(
       ({ createPhysicsSession }) => {
         if (!wanted || session) return;
         const frozen = Object.freeze({ ...budget }); // sizes the session's arrays for its life
@@ -75,9 +75,8 @@ export function createWorldPhysics(
         clock();
         watcher?.();
       },
-      (cause) => failed(new EngineError('PHYSICS_FAILED', `Physics: ${cause}`), true),
+      (cause: EngineError) => failed(cause, true),
     );
-  };
   const handle = {
     ...joints.methods,
     /** Whether bodies are simulated. Turning it on fetches the physics the first time.
@@ -88,7 +87,7 @@ export function createWorldPhysics(
     set enabled(on: boolean) {
       if (on === wanted) return;
       wanted = on;
-      if (on) start();
+      if (on) void start();
       else {
         session?.dispose();
         session = null;
@@ -155,7 +154,7 @@ export function createWorldPhysics(
       return session?.stats ?? stopped;
     },
     /** The last error the physics raised (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`,
-     *  `PHYSICS_DIVERGED`, `RESOURCE_HTTP_ERROR`), or `null`. One that stopped the simulation turns `enabled` off. */
+     *  `PHYSICS_DIVERGED`, `RESOURCE_HTTP_ERROR`, `FAMILY_LOAD_FAILED`), or `null`. One that stopped the simulation turns `enabled` off. */
     get error() {
       return error;
     },
