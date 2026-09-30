@@ -35,10 +35,14 @@ test('with bounce, a smooth surface adds what its mirror direction meets in the 
     /rayRadiance\(P\+N\*proxy\.offsetMetres\+R\*proxy\.startMetres,R,reach\)/,
   );
   assert.match(reflected, /if\(hit\.w<reach\)\{return hit\.rgb;\}/);
-  assert.match(body(BOUNCE_LIGHTING_SHADER, 'rayRadiance'), /return vec4f\(surface\[texel\]\.rgb/);
+  // The cache is an atlas (#1410): the texel's row and column, read exactly.
+  assert.match(
+    body(BOUNCE_LIGHTING_SHADER, 'rayRadiance'),
+    /return vec4f\(textureLoad\(surface,vec2u\(texel%size\.x,texel\/size\.x\),0\)\.rgb/,
+  );
   assert.match(
     BOUNCE_LIGHTING_SHADER,
-    new RegExp(`@binding\\(${BOUNCE_SURFACE_BINDING}\\) var<storage,read> surface:array<vec4f>;`),
+    new RegExp(`@binding\\(${BOUNCE_SURFACE_BINDING}\\) var surface:texture_2d<f32>;`),
   );
 });
 
@@ -73,13 +77,13 @@ test('the direct base has no proxy fallback; the bounce variant binds its surfac
     const entries = Array.from(bindGroups.at(-1)!.entries);
     return entries.find((entry) => entry.binding === BOUNCE_SURFACE_BINDING)?.resource;
   };
-  const cache = buffer(),
-    bounce = { bounceGrid: buffer(), probes: buffer(), surfaceCache: cache };
+  const cache = {} as GPUTextureView,
+    bounce = { bounceGrid: buffer(), probes: {} as GPUTextureView, surfaceCache: cache };
   boundCache({});
   boundCache(bounce);
   await lighting.settle();
   assert.equal(boundCache({}), undefined);
-  assert.deepEqual(boundCache(bounce), { buffer: cache });
+  assert.equal(boundCache(bounce), cache, 'the cache atlas itself (#1410)');
   lighting.dispose();
 });
 

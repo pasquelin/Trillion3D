@@ -39,9 +39,9 @@ export const BOUNCE_PROBE_SHADER = `
 ${residentProxyWgsl(1)}
 @group(0) @binding(2) var<storage,read> directLights:DirectLights;
 @group(0) @binding(3) var<storage,read> probeQueue:array<u32>;
-@group(0) @binding(4) var<storage,read> probes:array<vec4f>;
-@group(0) @binding(5) var<storage,read_write> probesOut:array<vec4f>;
-@group(0) @binding(6) var<storage,read> surface:array<vec4f>;
+@group(0) @binding(4) var probes:texture_2d_array<f32>;
+@group(0) @binding(5) var probesOut:texture_storage_2d_array<rgba32float,write>;
+@group(0) @binding(6) var surface:texture_2d<f32>;
 ${DIRECT_LIGHT_WGSL}
 ${INVERSE_PI_WGSL}
 ${BOUNCE_GRID_WGSL}
@@ -54,6 +54,11 @@ const MOVING_RESIDUAL:f32=${BOUNCE_SETTINGS.movingResidual};
 const BOUNCE_BURIED:f32=${BOUNCE_SETTINGS.buriedFraction};
 const BOUNCE_SKY:f32=${BOUNCE_SETTINGS.skyFraction};
 const GOLDEN_ANGLE:f32=2.39996323;
+/** Writes the probe vector \`i\`, where \`probeAt\` reads it (\`atlas.ts\`). */
+fn probeStore(i:u32,value:vec4f){
+ let size=textureDimensions(probesOut);let perLayer=size.x*size.y;let local=i%perLayer;
+ textureStore(probesOut,vec2u(local%size.x,local/size.x),i/perLayer,value);
+}
 ${HASH_UNIT_WGSL}
 /** A direction of a Fibonacci spiral, offset on every update to cover the sphere. */
 fn rayDirection(slot:u32,jitter:f32,rotation:f32)->vec3f{
@@ -86,7 +91,7 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  let held=all(probeCell(slot)==cell);
  // A sleeping probe — buried in a surface or lost in open sky — fires no ray
  // as long as its cell does not change and no light has moved.
- if(held&&probes[slot+PROBE_IDLE].w==f32(bounce.frame.x)){return;}
+ if(held&&probeAt(slot+PROBE_IDLE).w==f32(bounce.frame.x)){return;}
  let spacing=bounce.levels[level].originSpacing.w;
  let origin=probeCentre(cell,spacing);
  let reach=bounce.reach.x;
@@ -132,8 +137,8 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  let usable=select(1.0,0.0,buried);
  // Monte-Carlo estimator over the whole sphere: 4π divided by the ray count.
  let scale=12.5663706/f32(RAYS_PER_PROBE);
- let updates=select(0.0,probes[slot].w,held);
- let previous=select(vec3f(0.0),probes[slot].xyz,held);
+ let updates=select(0.0,probeAt(slot).w,held);
+ let previous=select(vec3f(0.0),probeAt(slot).xyz,held);
  let fresh=sums[0]*scale;
  let change=length(fresh-previous)/(length(fresh)+length(previous)+1e-4);
  // Adaptive hysteresis. A new probe, or one that just changed cell, takes everything; a
@@ -143,21 +148,19 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  var count=updates+1.0;
  if(change>MOVING_RESIDUAL){blend=BLEND_MOVING;count=1.0;}
  if(updates<0.5){blend=1.0;count=1.0;}
+ // A texel is stored whole: each coefficient with the state its w lane carries, zero elsewhere.
+ var state=array<f32,9>();
+ state[0]=count;state[PROBE_CHANGE]=change;state[PROBE_VALID]=usable;
+ state[PROBE_CELL]=f32(cell.x);state[PROBE_CELL+1u]=f32(cell.y);state[PROBE_CELL+2u]=f32(cell.z);
+ state[PROBE_IDLE]=select(0.0,f32(bounce.frame.x),asleep);
  for(var k=0u;k<9u;k++){
-  let kept=select(vec3f(0.0),probes[slot+k].xyz,held);
-  probesOut[slot+k]=vec4f(mix(kept,sums[k]*scale*usable,blend),0.0);
+  let kept=select(vec3f(0.0),probeAt(slot+k).xyz,held);
+  probeStore(slot+k,vec4f(mix(kept,sums[k]*scale*usable,blend),state[k]));
  }
- probesOut[slot].w=count;
- probesOut[slot+PROBE_CHANGE].w=change;
- probesOut[slot+PROBE_VALID].w=usable;
- probesOut[slot+PROBE_CELL].w=f32(cell.x);
- probesOut[slot+PROBE_CELL+1u].w=f32(cell.y);
- probesOut[slot+PROBE_CELL+2u].w=f32(cell.z);
- probesOut[slot+PROBE_IDLE].w=select(0.0,f32(bounce.frame.x),asleep);
  let meanPositive=sums[9]/max(sums[10],vec3f(1e-6));
  let meanNegative=sums[11]/max(sums[12],vec3f(1e-6));
- let keptPositive=select(vec3f(0.0),probes[slot+PROBE_DISTANCE_POSITIVE].xyz,held);
- let keptNegative=select(vec3f(0.0),probes[slot+PROBE_DISTANCE_NEGATIVE].xyz,held);
- probesOut[slot+PROBE_DISTANCE_POSITIVE]=vec4f(mix(keptPositive,meanPositive,blend),0.0);
- probesOut[slot+PROBE_DISTANCE_NEGATIVE]=vec4f(mix(keptNegative,meanNegative,blend),0.0);
+ let keptPositive=select(vec3f(0.0),probeAt(slot+PROBE_DISTANCE_POSITIVE).xyz,held);
+ let keptNegative=select(vec3f(0.0),probeAt(slot+PROBE_DISTANCE_NEGATIVE).xyz,held);
+ probeStore(slot+PROBE_DISTANCE_POSITIVE,vec4f(mix(keptPositive,meanPositive,blend),0.0));
+ probeStore(slot+PROBE_DISTANCE_NEGATIVE,vec4f(mix(keptNegative,meanNegative,blend),0.0));
 }`;
