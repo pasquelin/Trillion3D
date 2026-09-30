@@ -20,7 +20,8 @@ export const groupBlockSide = (texels: number) => 2 ** Math.floor(Math.log2(texe
  * pool pass (`pagePlan`), every restored region with casters, keyed by its block word — a sun
  * page's block of the layer, a lamp page's whole layer (`GROUP_LAYER`), and whether its lists are
  * the occlusion test's —; each key held is a group, as the reference engine draws every page of a light in
- * batched draws: no restored page takes a draw of its own. The group table (`words`) names each
+ * batched draws: no restored page takes a draw of its own, but a lamp's on a device that cannot
+ * clip a caster to its page (`clipsLampGroups`). The group table (`words`) names each
  * region's group, then each group's pairs — its regions' lists whole, `capacity` rows each — and
  * block word, then `capacity`.
  */
@@ -33,13 +34,15 @@ export function createMovingGroupPlan() {
     /** Per pass: the group each block word took. */
     owners = new Int32Array(2 * GROUP_LAYER);
 
-  /** The block word of `region`, a restored page of the pass: −1 for a page with no caster. */
+  /** The block word of `region`, a restored page of the pass: −1 for a page with no caster, or a
+   *  lamp's where the device cannot clip its casters to it (`lamps`). */
   const blockWord = (rt: WebgpuPagesRuntime, region: number, tested: boolean, block: number) => {
-    const { regions, plan } = rt.lights,
+    const { regions, plan, shadows } = rt.lights,
       slice = plan.pool.slice[regions.pageOf(region)];
     if (regions.casterless(region)) return -1;
     const lists = regionTested(region, tested) ? GROUP_TESTED : 0;
-    if (plan.records.kind[slice] !== LIGHT_KIND.directional) return GROUP_LAYER | lists;
+    if (plan.records.kind[slice] !== LIGHT_KIND.directional)
+      return shadows?.groupDraws.lamps ? GROUP_LAYER | lists : -1;
     const right = regions.x(region) + SHADOW_PAGE > block ? 1 : 0,
       bottom = regions.y(region) + SHADOW_PAGE > block ? 2 : 0;
     return right | bottom | lists;
