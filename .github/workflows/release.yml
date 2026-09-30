@@ -5,14 +5,22 @@ name: Release
 # those very archives installed on macOS, Linux and Windows (`scripts/prove-installed-package.ts
 # --archives`: the package installed, `trillion3d-compile` run from its platform package on the
 # fixture, the browser bundle emitted), then dry-runs the six publications, the compilers first and
-# `trillion3d` last. A missing compiler, a failed proof or a version already published stops the
-# run before any publication.
+# `trillion3d` last. A missing compiler or a failed proof stops the run before any publication; a
+# package already on npm at this version is skipped, never published twice, so that a rerun of a
+# publication stopped halfway publishes the rest.
 #
 # Nothing is published until the maintainer's go: the real publication runs only on `main`, with the
 # repository variable `NPM_PUBLISH` set to `true`. It uses npm Trusted Publishing — GitHub's OIDC
 # token (`id-token: write`) with provenance — so no npm token exists in the repository, its secrets
 # or a log. A pull request runs this workflow only when it changes the release itself; the proof on
 # every other pull request stays Linux's, in `quality.yml`.
+#
+# Go-time steps, at the maintainer's go:
+#   1. Publish the first version by hand, from a clean checkout at the release tag: npm needs a
+#      package to exist before a trusted publisher can be set on it.
+#   2. On npmjs.com, register the trusted publisher (repository `pasquelin/Trillion3D`, workflow
+#      `release.yml`) on each of the six packages.
+#   3. Set the repository variable `NPM_PUBLISH` to `true`.
 on:
   push:
     branches: [main]
