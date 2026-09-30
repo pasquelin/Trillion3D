@@ -14,6 +14,10 @@ import {
 } from '../diagnostic/worldNotices.ts';
 import { noticeMaterialDegraded } from '../diagnostic/materialNotices.ts';
 import { createFrameComposer } from './compose.ts';
+import { families } from '../../host/families.ts';
+
+// The effects' and guides' code, which a frame that draws them waits for (`familyUse.ts`), arrived.
+await Promise.all([families.effects.load(), families.guides.load()]);
 
 const camera = G.perspectiveCamera();
 /** A context that renders half floats, as every desktop WebGL2 does. */

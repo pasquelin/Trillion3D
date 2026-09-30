@@ -1,6 +1,6 @@
 import { invertMatrix4 } from '../../../../../sdk-core/src/index.ts';
 import { updateScreenReflection } from '../../../reflections/frame.ts';
-import { drawParticles } from '../../../particles/webgpuParticles.ts';
+import { drawParticles } from '../../../particles/webgpuParticleFrame.ts';
 import { clearValueOf } from '../../../../../sdk-core/src/world/math/packedColour.ts';
 import { directTiles, encodeDirectLights } from './encodeLights.ts';
 import { encodeShadowReadback } from './encodeShadows.ts';
