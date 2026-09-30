@@ -5,7 +5,6 @@ import type { MatrixElements } from '../../math/matrixElements.ts';
 import type { NormalCone } from '../cone/cone.ts';
 import type { CullingLinks } from '../cut/links.ts';
 import type { PlacementOf } from '../../placement/rows.ts';
-import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
 export type PageRec = {
   id: number;
@@ -61,11 +60,6 @@ export type PageRec = {
   deformationOutput?: { from: number; count: number };
   sourceOrder?: number;
   renderOrder: number;
-  geometry?: Geometry;
-  /** The mesh of the engine's own graph the WebGL2 page path draws the page as. */
-  mesh?: HostMesh;
-  attached: boolean;
-  resident?: boolean;
   cone?: NormalCone;
   /** Rank of the request key, set once by `indexPageRequests`: deduplication without hashing. */
   requestIndex?: number;
