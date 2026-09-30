@@ -22,6 +22,21 @@ export function functionsOf(source: string, names: string[]) {
     .join('\n');
 }
 
+/** The functions `entry` reaches in `source`, itself included: the closure of its calls. */
+export function callsFrom(source: string, entry: string) {
+  const declared = new Set([...source.matchAll(/fn (\w+)\(/g)].map((match) => match[1]));
+  const seen = new Set<string>();
+  for (const stack = [entry]; stack.length;) {
+    const name = stack.pop()!;
+    if (seen.has(name)) continue;
+    seen.add(name);
+    const body = functionsOf(source, [name]).replace(/^[^{]*\{/, '');
+    for (const [, called] of body.matchAll(/(\w+)\(/g))
+      if (declared.has(called)) stack.push(called);
+  }
+  return seen;
+}
+
 /** Every scalar `const` of a WGSL text whose value is a literal — `f32`, `u32` or `i32` —, by
  *  name: what the shader compiles, not a copy of it. */
 export function wgslConstants(source: string) {

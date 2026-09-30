@@ -10,11 +10,8 @@ import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { IDENTITY_MATRIX4 } from '../../../../sdk-core/src/index.ts';
 import { settledRt } from './hold.fixture.ts';
 import { createReflectionHistory } from '../../reflections/historyRuntime.ts';
-import {
-  REFLECTION_LIGHTING_VERSIONS,
-  REFLECTION_PLACEMENT_VERSIONS,
-  type ReflectionHistoryFrame,
-} from '../../reflections/historyFrame.ts';
+import type { ReflectionHistoryFrame } from '../../reflections/historyFrame.ts';
+import { stillHistoryFrame } from '../../reflections/historyFrame.fixture.ts';
 
 installGpuGlobals();
 
@@ -43,19 +40,7 @@ function framesToRest(change: (frame: ReflectionHistoryFrame) => void) {
   });
   rt.gpu.reflection = { active: true, history } as unknown as NonNullable<typeof rt.gpu.reflection>;
   const current = gpu.device.createTexture({ size: [64, 32], format: 'rgba16float', usage: 1 });
-  const pages = {} as GPUBuffer;
-  const frame: ReflectionHistoryFrame = {
-    metadata: { depth: current, normal: current, ids: current },
-    ids: {} as GPUTextureView,
-    pages,
-    motion: pages,
-    eye: [0, 0, 0],
-    epoch: new Float64Array(REFLECTION_PLACEMENT_VERSIONS),
-    lighting: new Float64Array(REFLECTION_LIGHTING_VERSIONS),
-    seed: 1,
-    frame: 0,
-    camera: IDENTITY_MATRIX4,
-  };
+  const frame = stillHistoryFrame(current, 0);
   const pass = { setViewport() {}, setPipeline() {}, setBindGroup() {}, draw() {}, end() {} };
   const encoder = {
     ...gpu.device.createCommandEncoder(),
@@ -82,17 +67,19 @@ function framesToRest(change: (frame: ReflectionHistoryFrame) => void) {
   draw();
   assert.equal(history.settled, false, 'the change reopened the reflection window');
   let drawn = 1;
-  for (; drawn <= 100 && !holdWebgpuFrame(rt, gpu.device); drawn++) draw();
-  history.dispose();
+  try {
+    for (; drawn <= 100 && !holdWebgpuFrame(rt, gpu.device); drawn++) draw();
+  } finally {
+    history.dispose();
+  }
   return drawn;
 }
 
-test('#1346: a relit reflection rests within 20 frames', () => {
-  const drawn = framesToRest((frame) => frame.lighting[0]++);
-  assert.ok(drawn > 0 && drawn <= REST_FRAMES, `${drawn} frames drawn`);
-});
-
-test('#1346: a moved source the motion cannot follow rests within 20 frames', () => {
-  const drawn = framesToRest((frame) => frame.epoch[0]++);
-  assert.ok(drawn > 0 && drawn <= REST_FRAMES, `${drawn} frames drawn`);
-});
+for (const [name, change] of [
+  ['a relit reflection', (frame: ReflectionHistoryFrame) => frame.lighting[0]++],
+  ['a moved source the motion cannot follow', (frame: ReflectionHistoryFrame) => frame.epoch[0]++],
+] as const)
+  test(`#1346: ${name} rests within 20 frames`, () => {
+    const drawn = framesToRest(change);
+    assert.ok(drawn <= REST_FRAMES, `${drawn} frames drawn`);
+  });

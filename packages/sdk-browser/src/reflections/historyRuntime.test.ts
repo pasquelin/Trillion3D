@@ -3,11 +3,7 @@ import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts';
 import { createReflectionHistory } from './historyRuntime.ts';
-import {
-  REFLECTION_LIGHTING_VERSIONS,
-  REFLECTION_PLACEMENT_VERSIONS,
-  type ReflectionHistoryFrame,
-} from './historyFrame.ts';
+import { stillHistoryFrame } from './historyFrame.fixture.ts';
 import {
   REFLECTION_CHANGE_FRAMES,
   REFLECTION_CHANGE_WEIGHT,
@@ -22,20 +18,7 @@ test('first frame rejects history, replay consumes nothing, and a changed source
   const gpu = fakeDevice();
   const history = createReflectionHistory(gpu.device, 8, 8, kept);
   const current = gpu.device.createTexture({ size: [8, 8], format: 'rgba16float', usage: 1 });
-  // No live motion: the motion bound is the page table (`reflectionFrame.ts`).
-  const pages = {} as GPUBuffer;
-  const frame: ReflectionHistoryFrame = {
-    metadata: { depth: current, normal: current, ids: current },
-    ids: {} as GPUTextureView,
-    pages,
-    motion: pages,
-    eye: [0, 0, 0],
-    epoch: new Float64Array(REFLECTION_PLACEMENT_VERSIONS),
-    lighting: new Float64Array(REFLECTION_LIGHTING_VERSIONS),
-    seed: 1,
-    frame: 10,
-    camera: IDENTITY_MATRIX4,
-  };
+  const frame = stillHistoryFrame(current, 10);
   let draws = 0;
   let viewport: number[] = [];
   const encoder = {
