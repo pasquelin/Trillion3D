@@ -45,6 +45,9 @@ importers:
       '@webgpu/types':
         specifier: ^0.1.72
         version: 0.1.72
+      ajv:
+        specifier: ^8.20.0
+        version: 8.20.0
       codemirror:
         specifier: ^6.0.2
         version: 6.0.2

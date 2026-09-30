@@ -1,3 +1,4 @@
+import { explorerSwitch } from '../../../sdk-core/src/runtime/explorerSwitches.ts';
 import { EngineError, type ClusterManifest } from '../../../sdk-core/src/index.ts';
 import type { BackendFactory } from './types.ts';
 import { autonomousPagesBackend } from './autonomous/pages.ts';
@@ -38,7 +39,7 @@ export function chooseBackends(
   // `autonomous` is stated, never derived from the factory: a host list naming the autonomous
   // backend without `autonomousGeometry` keeps reading `source.gltf`, as it always has.
   const choice = (part: Decided): BackendChoice => ({ autonomous: false, ...part });
-  if (options.autonomousGeometry === true) {
+  if (explorerSwitch(options, 'autonomousGeometry')) {
     if (options.backends || !autonomousCacheReady(metadata))
       throw new EngineError(
         'AUTONOMOUS_SCENE_UNAVAILABLE',
