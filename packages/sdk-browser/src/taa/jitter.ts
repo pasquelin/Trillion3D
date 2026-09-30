@@ -23,7 +23,7 @@ export const upscalePhases = (render: number, display: number) =>
 
 /** The most still frames a held frame averages, at any render scale: the reference upscaler's
  *  (TSR's) history keeps about 16 samples a display pixel, whatever its jitter phases. */
-export const TAA_STILL_CAP = 2 * TAA_SAMPLES;
+const TAA_STILL_CAP = 2 * TAA_SAMPLES;
 
 /**
  * Still frames accumulated before a frame can be held, at `phases` jitter phases: two cycles, or

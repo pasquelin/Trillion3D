@@ -90,8 +90,9 @@ export function createShadowMirror(
      *  shadow contents' version as the GPU's own draws move it (`shadowEpoch.ts`), a frame whose
      *  snapshot is lost counted by the next. */
     drawn: previous?.drawn ?? 0,
-    /** The last frame the GPU's page draws ran (`drew`) that no snapshot has counted yet; none,
-     *  Infinity. */
+    /** The first frame the GPU's page draws ran (`drew`) since a snapshot last counted them;
+     *  none, Infinity. The first, not the latest: while draws run every frame (a moving view),
+     *  each snapshot comes back after a later draw, and would never count. */
     drewAt: previous?.drewAt ?? Infinity,
     /** Pages the latest snapshot's frame listed for the GPU to draw: while some are, the GPU's
      *  page draws run (`freshPass.ts`). */
@@ -115,7 +116,7 @@ export function createShadowMirror(
     },
     /** Frame `frame` ran the GPU's page draws (`freshPass.ts`): every page it listed is drawn. */
     drew(frame: number) {
-      mirror.drewAt = frame;
+      mirror.drewAt = Math.min(mirror.drewAt, frame);
     },
     /** A report came back: what its frame listed counts at once, read by the plan or not — an
      *  image does not hold on pages its GPU mapped and has not drawn (`shadowsUnsettled`, #1344).
