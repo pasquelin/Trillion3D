@@ -21,7 +21,7 @@ const HELD = {};
  *
  * A cut the pool holds whole is the queue itself, followed by difference. One it does not hold
  * keeps its coarsest levels whole and the finest it straddles in part, as the documented budget
- * says (docs/ENGINE.md, Memory): a complete cover plus as much detail as the slots carry, paid one
+ * says (docs/RESIDENCY.md): a complete cover plus as much detail as the slots carry, paid one
  * level at a time. A page is filed at the coarsest level a placement brings it at, a page of the
  * group a root replaces above every level: the minimum capacity holds it first
  * (`../../residency/minimumCapacity.ts`).
