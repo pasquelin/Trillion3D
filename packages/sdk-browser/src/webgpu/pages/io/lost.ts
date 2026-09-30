@@ -56,7 +56,9 @@ export function claimWebgpuDevice(
         kind: 'warning',
         message,
       }),
-    lost: (info) => markWebgpuLost(rt, info) || deviceCauseAfter(rt, info),
+    lost: (info) => {
+      if (!markWebgpuLost(rt, info)) deviceCauseAfter(rt, info);
+    },
   });
 }
 

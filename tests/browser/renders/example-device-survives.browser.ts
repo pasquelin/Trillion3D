@@ -2,8 +2,8 @@
 // `spin-an-astrolabe` and `orbit-around-a-clockwork` in Playwright's own headless shell, which
 // composites a WebGPU canvas it cannot read: "[Invalid Texture]" right after the first frame, the
 // device lost, no pass timed. The one launcher opens the system Chrome whatever it is asked
-// (`launchChrome`); this proof asks for the shell as the audit did, and each example must still
-// draw 600 frames on its device, `gpuFrameMs` reported, no loss named in its metrics.
+// (`launchChrome`, its unit test proves the override); here each example, headless, must draw
+// 600 frames on its device, `gpuFrameMs` reported, no loss named in its metrics.
 //
 //   pnpm run test:gpu tests/browser/renders/example-device-survives.browser.ts
 import assert from 'node:assert/strict';
@@ -27,8 +27,7 @@ const recording = (html: string) =>
   );
 
 const { server, port } = await startDocsServer();
-// The shell the audit opened: the launcher must give the system Chrome all the same.
-const browser = await launchChrome({ headless: true, channel: 'chromium' } as never);
+const browser = await launchChrome({ headless: true });
 const found: string[] = [];
 try {
   for (const id of EXAMPLES) {
@@ -43,16 +42,19 @@ try {
       await route.fulfill({ response, body });
     });
     await page.goto(`http://127.0.0.1:${port}/examples/${id}.html`);
-    // Until the frames are drawn, or one names the loss that would stop them.
-    await page.waitForFunction(
-      (frames) => {
-        const kept = (globalThis as { __kept?: Kept[] }).__kept ?? [];
-        return kept.length >= frames || kept.some((frame) => frame.lost !== null);
-      },
-      FRAMES,
-      { polling: 500, timeout: PATIENCE_MS },
-    );
-    const kept = await page.evaluate(() => (globalThis as unknown as { __kept: Kept[] }).__kept);
+    // Until the frames are drawn, or one names the loss that would stop them. A timeout is a
+    // finding like the others, so the console errors that say why are still reported.
+    await page
+      .waitForFunction(
+        (frames) => {
+          const kept = (globalThis as { __kept?: Kept[] }).__kept ?? [];
+          return kept.length >= frames || kept.some((frame) => frame.lost !== null);
+        },
+        FRAMES,
+        { polling: 500, timeout: PATIENCE_MS },
+      )
+      .catch(() => found.push(`${id}: fewer than ${FRAMES} frames in ${PATIENCE_MS} ms`));
+    const kept = await page.evaluate(() => (globalThis as { __kept?: Kept[] }).__kept ?? []);
     const lost = kept.find((frame) => frame.lost !== null)?.lost;
     const timed = kept.filter((frame) => typeof frame.gpu === 'number').length;
     console.log(`${id}: ${kept.length} frames, ${timed} with gpuFrameMs, lost: ${lost ?? 'no'}`);

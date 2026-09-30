@@ -9,6 +9,7 @@ function runtime() {
     run: {
       lost: false,
       frameHeld: true,
+      lostCause: undefined as string | undefined,
     },
     gpu: { presenter: { canvas: {}, disposed: 0, dispose() {} } },
     diag: {
@@ -70,9 +71,8 @@ test('the device lost after an error of its own keeps both causes, said on the c
   gpu.lose('unknown');
   await gpu.device.lost;
   await Promise.resolve();
-  const lostCause = (rt.run as { lostCause?: string }).lostCause;
   assert.equal(
-    lostCause,
+    rt.run.lostCause,
     'uncaptured-error: [Invalid Texture] is invalid due to a previous error.; ' +
       'then the device, unknown: unknown',
   );

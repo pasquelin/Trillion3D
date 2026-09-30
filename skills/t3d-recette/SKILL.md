@@ -21,7 +21,9 @@ code, merge or block a pull request; a thumbnail pull request is the one you ope
    the main checkout's `.mesure/assets/`; a narrowing checkpoint is built the same way. Copy the
    previous batch's scripts (player, A/B loop, capture harness, summaries) from
    `.worktrees/logs/recette-<its after>/` into `.worktrees/logs/recette-<after>/`; never rebuild
-   them. One headless Chrome at a time, killed by PID; each run has a fitting time limit.
+   them. One headless Chrome at a time, killed by PID; each run has a fitting time limit. Every
+   harness opens it through `launchChrome` (`bench/runner/chrome.ts`), never `chromium.launch`:
+   Playwright's own headless shell loses the WebGPU device after the first frame (#1364).
 2. **Time** first, with nothing else of the batch running (no build, no capture), each `to measure`
    issue, labelled `measuring` meanwhile: what its Proof names, before and after, same scene, camera
    and DPR (`bench/runner/README.md`), in the boss's case: 1728×1117 at DPR 2, uncapped, bodies
