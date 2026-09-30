@@ -75,7 +75,7 @@ export function planShadowRegions(
   const { residentFlags, residentOffsetWords } = rows;
   lights.residence.flush(residentFlags, residentOffsetWords, rt.run.gpuFrameActive, (page) => {
     residencyMoved = true;
-    noteResidenceChange(lights, roots, packedPages[page]);
+    noteResidenceChange(lights, roots, rt.layout.placement.rootOfPacked, page, packedPages[page]);
   });
   lights.shadowPages = 0;
   lights.shadowFaces = 0;

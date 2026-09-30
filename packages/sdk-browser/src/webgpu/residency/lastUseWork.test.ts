@@ -15,10 +15,9 @@ import { lruCache, pageOf } from './residentEnsurer.fixture.ts';
  *  resident. Returns an image driver and the work counter every cache and DAG read feeds. */
 function tree(leaves: number, room: number) {
   const packed = Array.from({ length: 2 * leaves - 1 }, (_, i) => pageOf(`p${i}`));
-  packed.forEach((page, index) => (page.packedIndex = index));
   const work = { reads: 0 };
   const parents = packed.map((_, i) => (i ? [packed[(i - 1) >> 1]] : []));
-  const parentsOf = (rec: PageRec) => (work.reads++, parents[rec.packedIndex!]);
+  const parentsOf = (rec: PageRec) => (work.reads++, parents[packed.indexOf(rec)]);
   const tracking = createWebgpuPageTracking(packed);
   const sets = createWebgpuResidencySets({
     tracking,
@@ -27,7 +26,11 @@ function tree(leaves: number, room: number) {
   });
   const cut = createCutDelta(packed, []),
     drawn = createCutDelta(packed, []);
-  const closure = createGroupClosure([], packed),
+  const closure = createGroupClosure(
+      [],
+      { baseOfRoot: new Int32Array(0), rootOfPacked: new Int32Array(0) },
+      packed,
+    ),
     admission = createRequestAdmission(sets, tracking, closure);
   const cache = lruCache(packed.length);
   for (const page of packed) void cache.load(page.url);

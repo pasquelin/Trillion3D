@@ -39,6 +39,9 @@ function growPlanes(planes: Float64Array, reach: number) {
 export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: ClusterRoot<T>) {
   const pages = root.pages;
   const { viewMatrix, clip, planes, pixelScale } = selectionScratch;
+  // The packed rank of this root's first page: what `take` adds to a page's index to name the
+  // instance, as the world below names its placement (#1235).
+  s.flatBase = root.packedBase ?? -1;
   s.flatWorld = root.world;
   s.flatElements = viewMatrix;
   s.flatStretch = worldStretch(root) * s.cameraStretch;

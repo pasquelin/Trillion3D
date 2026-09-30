@@ -34,7 +34,7 @@ import { cullingLinks, type CullingLinks } from '../cut/links.ts';
  * (`packages/asset-compiler-rust`, its golden fixtures) and not re-derived at every load by a
  * runtime that will soon have no source file to derive it from (#78, part 4c).
  */
-type Template = {
+export type Template = {
   pages: Array<{
     array: Uint32Array | undefined;
     cut: ReturnType<typeof clusterErrorFields>;

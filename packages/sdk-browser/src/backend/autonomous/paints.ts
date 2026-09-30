@@ -24,10 +24,12 @@ export function createPaints(colorMaterials: Map<HostMaterial, HostMaterial>, dr
     // Records wear `painted`, or the vertex-coloured twin a page with a colour attribute draws
     // with, taken from the shared cache the decoded pages read (`painted` if it reads colours).
     for (const rec of records) {
-      const draw = draws.drawing(rec);
-      draw.material = painted;
       wearDeclaration(rec, rec.attributes.color ? colouredTwin(colorMaterials, painted) : painted);
-      if (draw.mesh) setHostSurface(draw.mesh, rec.declaration);
+      // Every instance wears it: one record serves all its primitive's placements (#1235).
+      draws.forEachDraw(rec, (draw) => {
+        draw.material = painted;
+        if (draw.mesh) setHostSurface(draw.mesh, rec.declaration);
+      });
     }
   };
   return {

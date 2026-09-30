@@ -13,7 +13,8 @@ import {
 import { noteResidenceChange } from '../../../../packages/sdk-browser/src/webgpu/shadow/bounds.ts';
 import { createWebgpuLightState } from '../../../../packages/sdk-browser/src/webgpu/pages/state/lights.ts';
 import { shadowPoolSide } from '../../../../packages/sdk-core/src/scene/light-shadow/virtual.ts';
-import { pageRecFixture } from './pageRecFixture.ts';
+import type { PageLocations } from '../../../../packages/sdk-browser/src/page/selection/placements.ts';
+import type { PageRec } from '../../../../packages/sdk-browser/src/page/selection/selection.ts';
 import * as ancien from '../../../oracles/browser/core-math.ts';
 import { referenceOrder } from '../../../oracles/browser/core-math-priority.ts';
 import { affines, matrices, points } from './scenesCore.ts';
@@ -39,15 +40,20 @@ lumieres.store.add({
 });
 
 export async function lignesConsommateursBrowser() {
-  const { liste, roots, camera, echelle } = enregistrements;
+  const { liste, roots, ranks, camera, echelle } = enregistrements;
   // The engine order reads the camera it owns; the oracle keeps that of the host library.
   const vue = readCameraWorld(createEngineCamera(), camera);
   const paquets = [];
   for (let i = 0; i < liste.length; i += 30) paquets.push(liste.slice(i, i + 30));
-  // The page records are built once, outside the timed closure below: the compared subject is
-  // `windingCw` alone — before the conversion the line also paid one object literal per matrix.
-  const pagesHostiles = matrices.map((_, placementIndex) => pageRecFixture({ placementIndex })),
-    hostileRoots = matrices.map((e) => ({ world: new THREE.Matrix4().fromArray(e) }));
+  // Each batch's records, located by their original rank (#1235): a batch-local index no longer
+  // names the placement, one record may serve several.
+  const rootOfPacked = Int32Array.from({ length: roots.length }, (_, i) => i),
+    located = (batch: readonly PageRec[]): PageLocations => ({
+      roots,
+      packed: batch.map((rec) => ranks.get(rec) ?? 0),
+      rootOfPacked,
+    });
+  const hostileRoots = matrices.map((e) => ({ world: new THREE.Matrix4().fromArray(e) }));
   const attribut = new THREE.BufferAttribute(Float32Array.from(points.flat()), 3);
   // The compared subject is the projection of a vertex, not the read of a convention: the
   // view-projection/convention pairs are built once, outside the measured loops.
@@ -59,7 +65,7 @@ export async function lignesConsommateursBrowser() {
       'hostile records, in batches of 30',
       paquets,
       (l) => l.map((p) => essaie(() => referenceOrder(p, camera, echelle))),
-      (l) => l.map((p) => essaie(() => orderPendingUrls(p, roots, vue, echelle, []))),
+      (l) => l.map((p) => essaie(() => orderPendingUrls(p, located(p), vue, echelle, []))),
     ),
     await ligne(
       'world-space cluster sphere for shadows',
@@ -78,7 +84,7 @@ export async function lignesConsommateursBrowser() {
           lumieres.plan.representationChanged = (min, max) => {
             boite = [...Array.from(min), ...Array.from(max)];
           };
-          noteResidenceChange(lumieres, roots, r);
+          noteResidenceChange(lumieres, roots, rootOfPacked, ranks.get(r) ?? 0, r);
           return boite ?? [];
         }),
     ),
@@ -91,7 +97,7 @@ export async function lignesConsommateursBrowser() {
       (l) =>
         l.map((e, i) => {
           setWindingEpoch(i + 1);
-          return windingCw(hostileRoots, pagesHostiles[i]);
+          return windingCw(hostileRoots, i);
         }),
     ),
     await ligne(
