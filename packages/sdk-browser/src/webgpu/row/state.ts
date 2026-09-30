@@ -187,7 +187,7 @@ export function createWebgpuRowState(
       state.rowOfPage = widened(state.rowOfPage, new Int32Array(n), -1);
       state.blendRowOf = widened(state.blendRowOf, new Int32Array(n), -1);
       for (let page = first; page < n; page++) {
-        const sibling = pageIndicesByUrl.get(pageAddress(packedPages[page]))![0];
+        const sibling = pageIndicesByUrl.get(pageAddress(catalogue.recordOf(page)!))![0];
         state.residentOffsetWords[page] = state.residentOffsetWords[sibling];
         state.pagePositions[page] = state.pagePositions[sibling];
         state.touchPage(page);
