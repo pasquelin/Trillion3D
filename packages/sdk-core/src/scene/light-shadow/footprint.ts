@@ -14,9 +14,7 @@ import { PAGE_RANGE_MASK, PAGE_RANGE_SHIFT, SHADOW_PAGE } from './virtual.ts';
  */
 export const PAGE_FOOTPRINT_SHIFT = PAGE_RANGE_SHIFT + Math.log2(PAGE_RANGE_MASK + 1);
 export const PAGE_FOOTPRINT_EDGE_BITS = (32 - PAGE_FOOTPRINT_SHIFT) / 4;
-/** Cells a side of a page, `PAGE_FOOTPRINT_STEP` texels each: the grid a receiver's cell names. */
-export const PAGE_FOOTPRINT_CELLS = 2 ** PAGE_FOOTPRINT_EDGE_BITS;
-export const PAGE_FOOTPRINT_STEP = SHADOW_PAGE / PAGE_FOOTPRINT_CELLS;
+export const PAGE_FOOTPRINT_STEP = SHADOW_PAGE / 2 ** PAGE_FOOTPRINT_EDGE_BITS;
 /** A page drawn for all of it. */
 export const PAGE_FOOTPRINT_FULL = 0;
 /** A page no receiver has named yet: every edge a whole page in, the union's neutral. Drawn so,
@@ -31,15 +29,17 @@ export const SHADOW_REQUEST_MISS = 2 ** 31;
  *  session opens (`referenceSunWindow`) included, never only the ordinary one. */
 export const SHADOW_REQUEST_CELL_SHIFT = 26;
 export const SHADOW_REQUEST_CELL_MASK = 31;
-export const SHADOW_REQUEST_ENTRY_MASK = 2 ** SHADOW_REQUEST_CELL_SHIFT - 1;
+/** `2 ** SHADOW_REQUEST_CELL_SHIFT - 1`, written out: a literal a maths-only bundle drops. */
+export const SHADOW_REQUEST_ENTRY_MASK = 0x3ffffff;
 
 /** The footprint of the page-local cell `code` (1..16) a receiver marked: the 4×4 grid cell of
  *  `PAGE_FOOTPRINT_STEP` texels, one-based, zero for a claim that named no texel (whole page). */
 export function cellFootprint(code: number) {
-  if (code < 1 || code > PAGE_FOOTPRINT_CELLS ** 2) return PAGE_FOOTPRINT_FULL;
+  const cells = 2 ** PAGE_FOOTPRINT_EDGE_BITS;
+  if (code < 1 || code > cells ** 2) return PAGE_FOOTPRINT_FULL;
   const cell = code - 1,
-    x = cell % PAGE_FOOTPRINT_CELLS,
-    y = Math.floor(cell / PAGE_FOOTPRINT_CELLS),
+    x = cell % cells,
+    y = Math.floor(cell / cells),
     first = PAGE_FOOTPRINT_STEP;
   return pageFootprint(x * first, y * first, x * first + first - 1, y * first + first - 1);
 }
