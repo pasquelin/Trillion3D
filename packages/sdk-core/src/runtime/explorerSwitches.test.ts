@@ -2,12 +2,21 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { EXPLORER_SWITCHES, explorerSwitch, type ExplorerSwitch } from './explorerSwitches.ts';
 
-test('only the boolean opposite to its default moves a switch; anything else keeps the default', () => {
+test('a switch keeps its default when left out, and the boolean opposite to it moves it', () => {
   for (const key of Object.keys(EXPLORER_SWITCHES) as ExplorerSwitch[]) {
     const fallback = explorerSwitch({}, key);
-    assert.equal(explorerSwitch({ [key]: fallback }, key), fallback, key);
+    for (const same of [undefined, null, fallback])
+      assert.equal(explorerSwitch({ [key]: same as never }, key), fallback, `${key}: ${same}`);
     assert.equal(explorerSwitch({ [key]: !fallback }, key), !fallback, key);
-    for (const loose of [null, 0, 1, '', 'yes'])
-      assert.equal(explorerSwitch({ [key]: loose as never }, key), fallback, `${key}: ${loose}`);
   }
+});
+
+test('a non-boolean value reads as the engine always read it', () => {
+  // On by default: only `false` turns it off.
+  assert.equal(explorerSwitch({ temporalAntialiasing: 0 as never }, 'temporalAntialiasing'), true);
+  // Off by default and strict: only `true` turns it on.
+  assert.equal(explorerSwitch({ bounce: 'yes' as never }, 'bounce'), false);
+  // Off by default, read as truthy since before this owner existed.
+  assert.equal(explorerSwitch({ interactive: 1 as never }, 'interactive'), true);
+  assert.equal(explorerSwitch({ lodAdaptive: 1 as never }, 'lodAdaptive'), true);
 });
