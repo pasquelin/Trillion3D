@@ -22,6 +22,7 @@ on:
       - scripts/compiler-*.ts
       # What the scripts above run and read: the compile, the scenes, the platform names.
       - scripts/native-compiler.ts
+      - scripts/build-wasm.ts
       - scripts/site-caches.ts
       - packages/sdk-node/src/compiler/platform.mts
       - tests/fixtures/scenes/mountain-terrain/**

@@ -13,6 +13,13 @@ import {
 const CRATE = fileURLToPath(new URL('../../../../packages/asset-compiler-rust/', import.meta.url));
 const built = (crate: string, platform: NodeJS.Platform) =>
   join(crate, 'target/release', compilerFileName(platform));
+/** The installed platform package's compiler, looked up once per platform: an install does not
+ *  move under a running process. */
+const installedLookups = new Map<NodeJS.Platform, string | null>();
+function installedOnce(platform: NodeJS.Platform) {
+  if (!installedLookups.has(platform)) installedLookups.set(platform, installedCompiler(platform));
+  return installedLookups.get(platform) ?? null;
+}
 type Source = { path: string; from: 'explicit' | 'installed' | 'environment' } | null;
 /**
  * The compiler named rather than built here, in the order asked: the caller's, the installed
@@ -26,7 +33,7 @@ function namedCompiler(
   installed: string | null | undefined,
 ): Source {
   if (explicit) return { path: explicit, from: 'explicit' };
-  const found = installed === undefined ? installedCompiler(platform) : installed;
+  const found = installed === undefined ? installedOnce(platform) : installed;
   if (found) return { path: found, from: 'installed' };
   const variable = environment.TRILLION3D_COMPILER_BIN;
   return variable ? { path: variable, from: 'environment' } : null;
