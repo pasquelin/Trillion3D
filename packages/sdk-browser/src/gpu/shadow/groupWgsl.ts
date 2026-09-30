@@ -1,6 +1,8 @@
 import { KEPT_LISTS_WGSL } from './cullShader.ts';
 import { MAX_SHADOW_REGIONS, SHADOW_FACE_READ_BYTES } from './recordPack.ts';
 import {
+  GROUP_BLEND_COMMANDS,
+  GROUP_BLEND_FIRST_WORD,
   GROUP_CAPACITY_WORD,
   GROUP_TABLE_WORDS,
   GROUP_WORDS,
@@ -91,14 +93,9 @@ fn groupCaster(vertexIndex:u32,instance:u32,cutout:bool,blended:bool)->ShadowOut
  cutoutRequest(in,gx,gy);
  if(!shadowKeepAt(view.emitter,in,gx,gy)){discard;}
 }
-/** A blended caster's texel of the region's page, at the transmittance layer's half resolution,
- *  as \`shadow_blend_fs\` keeps and tints it. */
+/** A blended caster's texel of the region's page (\`pageBlendTexel\`, \`freshDrawsWgsl.ts\`). */
 @fragment fn shadow_group_blend_fs(in:ShadowOut,@builtin(front_facing) front:bool)->@location(0) vec4f{
- let gx=dpdx(in.uv);let gy=dpdy(in.uv);let view=groupViews[in.region].view;
- if(!pageHolds(view,in.position.xy*2.0)||!shadowKeepAt(view.emitter,in,gx,gy)||shadowHiddenByOpaque(in.position)){discard;}
- let caster=pages[in.instance];
- if(!volumeBoundary(caster,front)){discard;}
- return blendTransmittance(caster,in.uv,gx,gy,shadowBlendRay(view,in));
+ return pageBlendTexel(groupViews[in.region].view,in,front);
 }`;
 
 /**
@@ -107,6 +104,9 @@ fn groupCaster(vertexIndex:u32,instance:u32,cutout:bool,blended:bool)->ShadowOut
  * its first vertex the group —, then copies its places, the opaque list from the group's first pair
  * up, the cutout list from its end down: a group holds each region's `capacity` rows, so the two
  * never meet. The counts come from the cull's commands or the occlusion test's (`GROUP_TESTED`).
+ * A region whose opaque list keeps a blended caster — a row from `GROUP_BLEND_FIRST_WORD` on —
+ * stretches the group's blended command (`GROUP_BLEND_COMMANDS`) over its pairs: a group of opaque
+ * casters alone keeps it at no instance, so the transmittance layer runs none of them.
  */
 export const SHADOW_GROUP_PAIRS_WGSL = `${KEPT_LISTS_WGSL}
 @group(0) @binding(0) var<storage,read> table:array<u32,${GROUP_TABLE_WORDS}>;
@@ -114,13 +114,17 @@ export const SHADOW_GROUP_PAIRS_WGSL = `${KEPT_LISTS_WGSL}
 @group(0) @binding(2) var<storage,read> visible:array<u32>;
 @group(0) @binding(3) var<storage,read_write> args:array<atomic<u32>>;
 @group(0) @binding(4) var<storage,read_write> pairs:array<u32>;
+@group(0) @binding(5) var<storage,read> keptRows:array<u32>;
+@group(0) @binding(6) var<storage,read> visibleRows:array<u32>;
 var<workgroup> claimed:u32;
+var<workgroup> blended:atomic<u32>;
 @compute @workgroup_size(64) fn shadowGroupPairs(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) lane:u32){
  let region=wg.x;let word=table[region];
  if(word==0u){return;}
  let owner=word-1u;let head=${MAX_SHADOW_REGIONS}u+owner*${GROUP_WORDS}u;
  let first=table[head];let last=table[head+1u];let tested=(table[head+2u]&${GROUP_TESTED}u)!=0u;
- let capacity=table[${GROUP_CAPACITY_WORD}u];
+ let capacity=table[${GROUP_CAPACITY_WORD}u];let blendFirst=table[${GROUP_BLEND_FIRST_WORD}u];
+ var opaqueEnd=0u;
  for(var list=0u;list<2u;list++){
   let cutout=list==1u;let command=owner*8u+list*4u;
   let count=select(culled[keptCount(region,cutout)],visible[keptCount(region,cutout)],tested);
@@ -130,11 +134,19 @@ var<workgroup> claimed:u32;
    atomicStore(&args[command+2u],owner<<${GROUP_SHIFT}u);
   }
   let base=workgroupUniformLoad(&claimed);
+  if(!cutout){opaqueEnd=base+count;}
   for(var i=lane;i<count;i+=64u){
-   let at=base+i;
-   pairs[select(first+at,last-1u-at,cutout)]=keptAt(region,i,capacity,cutout);
+   let at=base+i;let place=keptAt(region,i,capacity,cutout);
+   pairs[select(first+at,last-1u-at,cutout)]=place;
+   if(!cutout&&select(keptRows[place],visibleRows[place],tested)>=blendFirst){atomicStore(&blended,1u);}
   }
   workgroupBarrier();
+ }
+ if(lane==0u&&atomicLoad(&blended)!=0u){
+  let command=${GROUP_BLEND_COMMANDS}u+owner*4u;
+  atomicMax(&args[command+1u],opaqueEnd);
+  atomicMax(&args[command],select(culled[keptCorners(region,false)],visible[keptCorners(region,false)],tested));
+  atomicStore(&args[command+2u],owner<<${GROUP_SHIFT}u);
  }
 }`;
 
@@ -144,7 +156,9 @@ var<workgroup> claimed:u32;
  * page quad's (`page_quad_vs`), `x/w` within `rect.x ∓ rect.z` — by four clip distances, as its
  * own viewport clipped it: no fragment is rasterized past the page, however far the caster reaches
  * (a caster near a lamp spans many pages). The distances are homogeneous, so a corner behind the
- * lamp (`w < 0`) is clipped too. A device without the feature draws lamp pages one by one.
+ * lamp (`w < 0`) is clipped too. A device without the feature draws them unclipped, from
+ * `shadow_group_vs`: the fragment's `pageHolds` keeps its page's texels alone all the same, the
+ * clip distances only sparing the overdraw.
  */
 export const SHADOW_GROUP_LAMP_WGSL = `
 struct GroupOut{@invariant @builtin(position) position:vec4f,@location(0) @interpolate(flat) instance:u32,@location(1) uv:vec2f,@location(2) fromEmitter:vec3f,@location(3) @interpolate(flat) region:u32,@builtin(clip_distances) clip:array<f32,4>,}
