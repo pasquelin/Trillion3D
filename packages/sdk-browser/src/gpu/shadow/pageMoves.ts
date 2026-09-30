@@ -1,48 +1,9 @@
-import { SHADOW_PAGE, pageOrigin } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
 import { buildRenderPipeline } from '../../lighting/deferred/fullscreen.ts';
 import { layerViews } from './layers.ts';
 import type { ShadowTransmittance } from './transmittance.ts';
-
-/** Words of one move: where the page was — its first texel, its layer, the page's texels a side —,
- *  then where it goes, the target's texels a side last. */
-const MOVE_WORDS = 8;
-
-/**
- * Each instance is one page moved: two triangles over its square of the target layer, whose
- * fragments write the depth of the texel at the same place of the page in the source — texel for
- * texel, as the restore does (`../core/depthRestoreWgsl.ts`), only shifted. WebGPU copies a depth
- * texture whole, never a region of it.
- */
-export const PAGE_MOVE_SHADER = `struct Move{was:vec4u,now:vec4u,}
-@group(0) @binding(0) var<storage,read> moves:array<Move>;
-@group(0) @binding(1) var pool:texture_depth_2d_array;
-struct Moved{@builtin(position) p:vec4f,@location(0) @interpolate(flat) shift:vec3i,}
-@vertex fn move_vs(@builtin(vertex_index) i:u32,@builtin(instance_index) k:u32)->Moved{
- let m=moves[k];
- let corner=vec2f(f32((0x32u>>i)&1u),f32((0x2cu>>i)&1u));
- let texel=(vec2f(m.now.xy)+corner*f32(m.was.w))/f32(m.now.w);
- return Moved(vec4f(texel.x*2.0-1.0,1.0-texel.y*2.0,0.0,1.0),vec3i(vec2i(m.was.xy)-vec2i(m.now.xy),i32(m.was.z)));
-}
-@fragment fn move_fs(v:Moved)->@builtin(frag_depth) f32{
- return textureLoad(pool,vec2i(v.p.xy)+v.shift.xy,v.shift.z,0);
-}`;
-
-/** The moves of every page `moved` names (`resizeShadowPool`), from a pool of `fromSide` pages a
- *  side to one of `toSide`, at `scale` of the pool's texels — ½ for the transmittance layer —, in
- *  the order of their target pages, so each target layer's moves are one run. */
-export function shadowPageMoves(moved: Int32Array, fromSide: number, toSide: number, scale = 1) {
-  const words: number[] = [],
-    page = SHADOW_PAGE * scale;
-  for (const [was, now] of moved.entries()) {
-    if (now < 0) continue;
-    const from = pageOrigin(was, fromSide),
-      to = pageOrigin(now, toSide);
-    words.push(from.x * scale, from.y * scale, from.layer, page);
-    words.push(to.x * scale, to.y * scale, to.layer, toSide * page);
-  }
-  return Uint32Array.from(words);
-}
+import { PAGE_MOVE_SHADER } from './pageWgsl.ts';
+import { MOVE_WORDS, shadowPageMoves } from './pageMoveWords.ts';
 
 /**
  * THE PAGES A RESIZED POOL KEEPS, MOVED TO THEIR NEW PLACE. Its pipeline is compiled first, off

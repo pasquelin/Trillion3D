@@ -1,19 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { sessionPools, worldBudget, worldPools, type Pools } from './worldBudget.ts';
-import { DEFAULT_TEXTURE_POOL_BUDGET } from '../../residency/pools.ts';
-import { DEFAULT_GEOMETRY_POOL_BUDGET } from '../../residency/pools.ts';
 import {
-  BOUNCE_PROBE_BYTES,
-  DEFAULT_CPU_BUDGET,
-  DEFAULT_GPU_BUDGET,
-  EFFECT_TARGET_BYTES,
-  SHADOW_HOST_BYTES,
-  SHADOW_POOL_BYTES,
-  SHADOW_ATLAS_BYTES,
-} from '../../residency/memoryBudget.ts';
+  DEFAULT_TEXTURE_POOL_BUDGET,
+  DEFAULT_GEOMETRY_POOL_BUDGET,
+} from '../../residency/pools.ts';
+import { DEFAULT_CPU_BUDGET } from '../../residency/memoryBudget.ts';
 import { SHADOW_BUFFER_BYTES } from '../../gpu/shadow/atlas.ts';
-import { shadowPoolFor } from '../../webgpu/shadow/poolSize.ts';
 import { SHADOW_BATCH_GPU_BYTES, SHADOW_BATCH_HOST_BYTES } from '../../gpu/shadow/batchBudget.ts';
 import { shadowTransmittanceBytes } from '../../gpu/shadow/transmittance.ts';
 import {
@@ -27,6 +20,14 @@ import { DEFAULT_PHYSICS_BUDGET } from '../../../../sdk-core/src/physics/index.t
 import { createBounceCascades, type FrameMetrics } from '../../../../sdk-core/src/index.ts';
 import { bounceProbeBytes } from '../../bounce/limits.ts';
 import type { WorldRenderer } from '../capability/worldReady.ts';
+import { shadowPoolFor } from '../../webgpu/shadow/poolFor.ts';
+import {
+  SHADOW_HOST_BYTES,
+  SHADOW_POOL_BYTES,
+  BOUNCE_PROBE_BYTES,
+  SHADOW_ATLAS_BYTES,
+} from '../../residency/shadowBudgetBytes.ts';
+import { DEFAULT_GPU_BUDGET, EFFECT_TARGET_BYTES } from '../../residency/budget.fixture.ts';
 
 const budget = (
   renderer: WorldRenderer | null,
@@ -69,7 +70,6 @@ test('raycastTrees reads and sets the raycast tree cache budget', () => {
   assert.equal(handle.raycastTrees, 1024);
   handle.raycastTrees = before;
 });
-
 const MiB = 1024 * 1024;
 
 test("the default totals split into each pool's own default", () => {

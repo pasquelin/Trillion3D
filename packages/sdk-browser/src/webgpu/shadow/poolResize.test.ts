@@ -10,15 +10,15 @@ import {
   sunFloor,
   sunPages,
 } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
-import { frameBatchCapacity } from '../pages/render/encodeShadowBatches.ts';
+import { frameBatchCapacity } from '../pages/render/frameBatchCapacity.ts';
 import { shadowBatchCapacity } from '../../gpu/shadow/batchBudget.ts';
 import { MAX_SHADOW_PAGES } from '../../gpu/shadow/recordPack.ts';
-import { shadowPageMoves } from '../../gpu/shadow/pageMoves.ts';
+import { shadowPageMoves } from '../../gpu/shadow/pageMoveWords.ts';
 import { shadowRequestBytes } from './pageRequests.ts';
 import { session } from './poolResize.fixture.ts';
 import { shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
-import { SHADOW_GRANT_BYTES } from '../../residency/memoryBudget.ts';
-import { SHRINK_REPORTS } from '../../../../sdk-core/src/scene/light-shadow/poolDemand.ts';
+import { SHRINK_REPORTS } from '../../../../sdk-core/src/scene/light-shadow/poolShrink.ts';
+import { SHADOW_GRANT_BYTES } from '../../residency/shadowBudgetBytes.ts';
 
 test('a demand larger then smaller re-sizes the pool, and every capacity follows it', async () => {
   const s = await session();

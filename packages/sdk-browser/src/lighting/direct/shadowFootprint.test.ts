@@ -6,16 +6,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PAGE_VALID } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
+import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelSignatures.ts';
 import { seeded } from '../../../../../site/examples/kit/random.ts';
 import { functionsOf } from '../../texture/shaderRule.fixture.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { contractLightingShader } from '../deferred/shaders.ts';
 import { reflectionSource } from '../../reflections/screenWgsl.ts';
-import { BLEND_SHADER } from '../../webgpu/blend/shader.ts';
-import { WATER_COMPOSITE_SHADER } from '../../webgpu/water/compositeWgsl.ts';
 import { CONSTANTS, SHADOW_WGSL } from './sunRangeRead.fixture.ts';
 import { DRAWN_BITS, footprintReads, type PageMap } from './shadowFootprint.fixture.ts';
+import { BLEND_SHADER, WATER_COMPOSITE_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
 
 type Read = (map: PageMap, p: number[], t: number[]) => number;
 /** The page table read, the pages asked for and those missed: swapped per read, the text

@@ -44,7 +44,7 @@ export type PageSurface = VisMaterial & MaterialRaster;
  * switches a surface to double-sided by writing `side` on the declaration it shares with its mesh,
  * without bumping any version, and the readers that answer with it decide what is drawn — the
  * pipelines and their face culling (`../webgpu/pages/prepare/pipelineFor.ts`), the cut's normal cones
- * (`../gpu/core/selection.ts`, `cone/cone.ts`, `../webgpu/pages/prepare/prepare.ts`) and the transparent plan. A front-only
+ * (`../gpu/core/selection.ts`, `cone/cone.ts`, `../webgpu/pages/prepare/preparePages.ts`) and the transparent plan. A front-only
  * page carries a closed cone; read a stale `front` on a surface the host has just opened and the
  * cone rejects the page — its faces leave the image.
  */

@@ -1,5 +1,4 @@
-import { AS_IS_FLAG } from '../../scene/surfaceModel.ts';
-import { FULLSCREEN_VERTEX } from './shaders.ts';
+import { AS_IS_SHARE_SHADER } from './asIsShareWgsl.ts';
 import { BLEND_EQUATIONS } from '../../scene/materialBlending.ts';
 
 /** Red, the as-is share; green, the reactive value (#833). */
@@ -18,12 +17,6 @@ export const SHARE_TARGET: GPUColorTargetState = {
  *  (`../../particles/webgpuParticleDraw.ts`, `../../webgpu/water/pipelines.ts`): the same, green
  *  alone (`GPUColorWrite.GREEN`). */
 export const REACTIVE_TARGET: GPUColorTargetState = { ...SHARE_TARGET, writeMask: 0x2 };
-
-export const AS_IS_SHARE_SHADER = `${FULLSCREEN_VERTEX}
-@group(0) @binding(0) var flags:texture_2d<u32>;
-@fragment fn seed(@builtin(position) pixel:vec4f)->@location(0) vec2f{
- return vec2f(f32(textureLoad(flags,vec2i(pixel.xy),0).r==${AS_IS_FLAG}u),0.0);
-}`;
 
 /**
  * The current image's debug-view share, seeded from opaque flags before transparents blend it, and

@@ -9,8 +9,8 @@ import {
   type TileView,
 } from '../../../../../bench/oracles/browser/gpuLightTileColumnOracle.ts';
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
-import { LIGHT_TILES_SHADER } from './shader.ts';
 import { NEAR, camera, pixelPoint, segmentDistance, type Vec3 } from './tileCamera.fixture.ts';
+import { LIGHT_TILES_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
 
 // #924 (OMB-03): a light is kept in a slice only if its range sphere meets the slice's box AND
 // the six planes of the tile's frustum. A light term is exactly zero at or past its range

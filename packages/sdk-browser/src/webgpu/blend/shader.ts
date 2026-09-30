@@ -197,4 +197,3 @@ fn blendFragment(in:VSOut,front:bool,masked:f32)->BlendOut{
 @fragment fn fs(in:VSOut,@builtin(front_facing) front:bool)->BlendOut{return blendFragment(in,front,0.0);}
 @fragment fn fsFiltered(in:VSOut,@builtin(front_facing) front:bool)->BlendOut{return blendFragment(in,front,maskAt(in.position));}
 `;
-export const BLEND_SHADER = blendShader();

@@ -1,12 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  SHADOW_STAGE_PASSES,
-  addGpuPasses,
-  directLightTimings,
-  gpuPassStageOf,
-  gpuShadowPartOf,
-} from './mapping.ts';
+import { addGpuPasses, directLightTimings, gpuPassStageOf } from './mapping.ts';
+import { PASSES, gpuShadowPartOf } from './passTable.ts';
 import { SHADOW_TRANSMITTANCE_CLEAR_PASS } from '../gpu/shadow/transmittance.ts';
 import { LIGHT_CUT_PASS } from '../gpu/dag/encode.ts';
 import { SHADOW_PASS } from '../gpu/shadow/atlas.ts';
@@ -15,6 +10,11 @@ import { LIGHT_TILES_PASS } from '../lighting/tiles/tiles.ts';
 import { DEFERRED_LIGHTING_PASS } from '../lighting/deferred/deferred.ts';
 import type { GpuPassTimings } from '../../../sdk-core/src/index.ts';
 import { referenceDirectLightTimings } from '../../../../bench/oracles/browser/stage-profile.ts';
+
+/** The passes of the table the Shadows stage counts, by the stage `gpuPassStageOf` gives them. */
+const SHADOW_STAGE_PASSES = Object.keys(PASSES).filter(
+  (name) => gpuPassStageOf(name) === 'shadows',
+);
 
 function sample(passes: GpuPassTimings['passes'], truncated = false): GpuPassTimings {
   return { frame: 1, totalMs: null, truncated, passes };

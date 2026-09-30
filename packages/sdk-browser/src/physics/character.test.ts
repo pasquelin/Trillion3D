@@ -7,7 +7,6 @@ import {
   PHYSICS_STEP,
   POSE_WORDS,
 } from '../../../sdk-core/src/physics/index.ts';
-import { gripOf } from '../../../sdk-core/src/collision/characterDrive.ts';
 import {
   HUMAN_BODY,
   type CharacterInput,
@@ -15,6 +14,7 @@ import {
 import { createCharacterDriver } from './characterDriver.ts';
 import { standCharacter, startModule, type Module } from './module.fixture.ts';
 import { body } from './records.fixture.ts';
+import { gripOf } from '../../../sdk-core/src/collision/grip.ts';
 
 const STILL: CharacterInput = { wishX: 0, wishZ: 0, sprint: false };
 const EAST: CharacterInput = { wishX: 1, wishZ: 0, sprint: false };

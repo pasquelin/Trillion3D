@@ -4,10 +4,10 @@ import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import {
   PREVIEW_ATLAS_COLOR,
-  PREVIEW_ATLAS_COVERAGE,
   PREVIEW_ATLAS_DATA,
   type TexturePreview,
 } from '../../../../sdk-core/src/index.ts';
+import { PREVIEW_ATLAS_COVERAGE } from '../../../../sdk-core/src/texture/previewFormat.ts';
 import { previewLevels } from '../../../../../tests/fixtures/manifestBinary.ts';
 import { previewsByAtlas, tileCatalogue } from './catalogue.ts';
 import { poolEncoding, WHITE_TAIL } from '../../texture/blockFormats.ts';

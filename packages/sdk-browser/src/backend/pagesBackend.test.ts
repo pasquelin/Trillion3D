@@ -15,7 +15,8 @@ import {
   frontCamera,
   quadRootsContext,
 } from './pagesBackendScenes.fixture.ts';
-import { drawPasses, submittedDraws } from '../cluster/batchMesh.ts';
+import { drawPasses } from '../cluster/batchMesh.ts';
+import { submittedDraws } from '../cluster/submissions.fixture.ts';
 
 test('transparent page batches preserve source order across exact and coarse cuts', () => {
   const { geometry, material, mesh, source, indices } = fanScene();

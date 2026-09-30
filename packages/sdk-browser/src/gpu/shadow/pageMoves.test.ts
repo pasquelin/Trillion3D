@@ -3,7 +3,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { PAGE_MOVE_SHADER, shadowPageMoves } from './pageMoves.ts';
+import { PAGE_MOVE_SHADER } from './pageWgsl.ts';
+import { shadowPageMoves } from './pageMoveWords.ts';
 
 test('a move names the old page, its layer and side, then the new one and its target', () => {
   const moved = new Int32Array([-1, -1, -1, 0, 9]);

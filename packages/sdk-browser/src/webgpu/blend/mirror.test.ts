@@ -7,7 +7,6 @@ import { SURFACE_MODEL } from '../../scene/surfaceModel.ts';
 import assert from 'node:assert/strict';
 import { voidStaleBlendGroups } from './identity.ts';
 import { createWebgpuBlendState } from './state.ts';
-import { BLEND_SHADER } from './shader.ts';
 import {
   blendBindEntries,
   type BlendBindResources,
@@ -16,7 +15,7 @@ import {
 import { BLEND_BINDINGS } from '../core/bindLayout.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { functionText } from '../../bounce/wgslBody.fixture.ts';
-import { BOUNCE_LIGHTING_SHADER } from '../../lighting/deferred/shaders.ts';
+import { BLEND_SHADER, BOUNCE_LIGHTING_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
 
 test('transparent mirrors use the opaque reflection model and bind its surface radiance', () => {
   for (const name of ['mirrorLighting', 'reflectedRadiance', 'rayRadiance'])

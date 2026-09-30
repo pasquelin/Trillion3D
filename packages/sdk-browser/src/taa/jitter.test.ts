@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import { IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts';
 import {
   TAA_SAMPLES,
-  TAA_STILL_FRAMES,
-  halton,
+  taaStillFrames,
   jitterViewProjection,
   taaJitter,
   upscaleMipBias,
   upscalePhases,
 } from './jitter.ts';
-import { renderExtent } from '../webgpu/pages/state/renderScale.ts';
+import { renderExtent } from '../frame/renderScaleOption.ts';
+import { halton } from './halton.ts';
 
 test('the Halton sequence starts with the known terms and stays in [0, 1)', () => {
   assert.deepEqual(
@@ -45,7 +45,7 @@ test('eight distinct jitters, centred in the pixel, deterministic and cyclic', (
   // The same rank yields the same jitter, and the cycle closes: that is what makes two runs
   // identical and the A/A witness possible.
   assert.deepEqual([...taaJitter(3, out)], [...taaJitter(3 + TAA_SAMPLES, new Float64Array(2))]);
-  assert.equal(TAA_STILL_FRAMES, 2 * TAA_SAMPLES);
+  assert.equal(taaStillFrames(TAA_SAMPLES), 2 * TAA_SAMPLES);
 });
 
 test('jitter is a translation in clip space, zero when the offset is zero', () => {

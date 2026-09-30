@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { spatialMipCounts, textureKinds } from './feedbackSpatial.ts';
+import { spatialMipCounts, textureKinds } from './spatialCounts.ts';
 
 const ranks = new Uint32Array(64 * 36);
 const [plain, cut, glass] = [{}, {}, {}];

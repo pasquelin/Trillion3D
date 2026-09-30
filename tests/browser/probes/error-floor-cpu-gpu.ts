@@ -17,11 +17,7 @@ import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.t
 import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.ts';
 import { cullingBounds } from '../../../packages/sdk-browser/src/page/cut/bounds.ts';
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
-import {
-  evaluateDagSelectionKernel,
-  packDagSelection,
-  packedWorldsToRenderOrigin,
-} from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
+import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import { descenteComptee } from '../../../packages/sdk-browser/src/gpu/dag/cutFrontier.fixture.ts';
 import {
   scenePages,
@@ -32,6 +28,8 @@ import { selectionGpu } from './selectionKernelGpu.ts';
 import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts';
 import type { SelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
+import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts';
+import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts';
 
 if (import.meta.main) {
   const VIEWPORT: [number, number] = [1280, 720];

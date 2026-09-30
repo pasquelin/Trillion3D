@@ -4,15 +4,11 @@ import { geometryPoolFor } from './pools.ts';
 import { laneCounts, poolEncoding } from '../texture/blockFormats.ts';
 import { TILES_PER_LAYER } from '../texture/tiles.ts';
 import { texturePoolFor } from '../webgpu/residency/memoryBudgets.ts';
-import {
-  DEFAULT_CPU_BUDGET,
-  DEFAULT_GPU_BUDGET,
-  SHADOW_POOL_BYTES,
-  BOUNCE_PROBE_BYTES,
-  splitMemoryBudget,
-} from './memoryBudget.ts';
+import { DEFAULT_CPU_BUDGET, splitMemoryBudget } from './memoryBudget.ts';
 import type { ActiveGpuMemory } from './activeMemory.ts';
 import { worldRootsFixture } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts';
+import { SHADOW_POOL_BYTES, BOUNCE_PROBE_BYTES } from './shadowBudgetBytes.ts';
+import { DEFAULT_GPU_BUDGET } from './budget.fixture.ts';
 
 // The million-page/300-root pool fixture of pools.test.ts, using the actual floor rule.
 const geometryMinimum = geometryPoolFor({

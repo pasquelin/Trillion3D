@@ -10,13 +10,13 @@ import {
   LAMP,
   SUN,
   VIEW,
+  SHADOW_TABLE_STRIDE,
 } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import type { ShadowRequestReport } from '../../../../sdk-core/src/scene/light-shadow/requests.ts';
 import {
   PAGE_INDEX_MASK,
   PAGE_MAPPED,
   PAGE_VALID,
-  SHADOW_TABLE_STRIDE,
   shadowRequestCap,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { gpuFrames } from './gpuFrames.fixture.ts';

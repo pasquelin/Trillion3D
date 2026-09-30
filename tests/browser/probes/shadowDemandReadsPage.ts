@@ -12,9 +12,7 @@ import { PAGES } from '../../../packages/sdk-core/src/scene/light-shadow/pageMod
 import {
   SHADOW_PAGE,
   SHADOW_TABLE_ENTRIES,
-  SHADOW_TABLE_STRIDE,
 } from '../../../packages/sdk-core/src/scene/light-shadow/virtual.ts';
-import { SHADOW_REQUEST_BITS } from '../../../packages/sdk-browser/src/lighting/direct/shadowRequestWgsl.ts';
 import { writeShadowRecords } from '../../../packages/sdk-browser/src/webgpu/shadow/pages.ts';
 import { createShadowRecordPack } from '../../../packages/sdk-browser/src/gpu/shadow/recordPack.ts';
 import { SHADOW_TABLE_OFFSET } from '../../../packages/sdk-browser/src/gpu/shadow/atlas.ts';
@@ -25,6 +23,14 @@ import {
 } from '../../../packages/sdk-browser/src/webgpu/pages/state/lightBuffer.ts';
 import { ASTROLABE, LAMP_RING, type DemandScene } from './shadowDemandScenes.ts';
 import { DEMAND, READ } from './shadowDemandReadsWgsl.ts';
+import {
+  shadowTableStride,
+  SUN_WINDOW,
+} from '../../../packages/sdk-core/src/scene/light-shadow/virtual.ts';
+import { shadowRequestBits } from '../../../packages/sdk-browser/src/lighting/direct/shadowRequestWgsl.ts';
+
+const SHADOW_TABLE_STRIDE = shadowTableStride(SUN_WINDOW);
+const SHADOW_REQUEST_BITS = shadowRequestBits();
 
 const MIN = [-50, 0, -50],
   MAX = [50, 10, 50],
