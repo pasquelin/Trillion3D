@@ -85,16 +85,15 @@ export async function onFreshPage<T>(
   watch?: (page: Page, browser: Browser) => void,
 ): Promise<T> {
   const browser = await launchChrome(launch);
-  const page = await browser.newPage({
-    viewport: { width: view.width, height: view.height },
-    deviceScaleFactor: view.dpr,
-  });
-  watch?.(page, browser);
-  await page.goto(view.url, { waitUntil: 'load' });
   try {
+    const page = await browser.newPage({
+      viewport: { width: view.width, height: view.height },
+      deviceScaleFactor: view.dpr,
+    });
+    watch?.(page, browser);
+    await page.goto(view.url, { waitUntil: 'load' });
     return await run(page);
   } finally {
-    await page.close();
     await browser.close();
   }
 }

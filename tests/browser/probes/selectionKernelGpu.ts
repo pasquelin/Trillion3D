@@ -31,7 +31,7 @@ async function executer({
   bindings,
 }: ExecuterEntree): Promise<ExecutionResultat> {
   const opened = await globalThis.openGpuModule(shader);
-  if (!('module' in opened)) return opened;
+  if (!opened.module) return opened;
   const { appareil, module } = opened;
   const { device, erreurs } = appareil;
   const layout = device.createBindGroupLayout({ entries: layoutEntries });
