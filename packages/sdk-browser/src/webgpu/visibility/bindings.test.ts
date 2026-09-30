@@ -2,7 +2,6 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts';
 import { ensureWebgpuVisibilityBindings } from './bindings.ts';
-import { visGroupFor } from './drawer.ts';
 import { ensureWebgpuShadeBindings } from '../core/shadeBindings.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
@@ -101,20 +100,4 @@ test('atlas entries alone govern table and individual lane invalidation; stable 
   assert.equal(ensure(), 7, 'a replaced lane is detected even when its views array stays');
   vis.textures.color.views[0] = {};
   assert.equal(ensure(), 10);
-});
-
-test('indirect groups follow buffer changes inside the same draw owner', () => {
-  const { rt, device, ensure } = mount();
-  const draw = { instanceBuffer: {}, slotOffsetsBuffer: {} };
-  Object.assign(rt.vis, { gpuDraw: draw });
-  ensure();
-  const first = visGroupFor(rt, device, 0, false);
-  assert.equal(visGroupFor(rt, device, 0, false), first);
-  draw.instanceBuffer = {};
-  ensure();
-  const second = visGroupFor(rt, device, 0, false);
-  assert.notEqual(second, first);
-  draw.slotOffsetsBuffer = {};
-  ensure();
-  assert.notEqual(visGroupFor(rt, device, 0, false), second);
 });

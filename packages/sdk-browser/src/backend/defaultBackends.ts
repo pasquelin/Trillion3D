@@ -17,7 +17,7 @@ export type BackendChoice = {
 };
 
 /** True when the cache carries what the autonomous WebGL2 path reads. */
-export function autonomousCacheReady(metadata: ClusterManifest) {
+function autonomousCacheReady(metadata: ClusterManifest) {
   return typeof metadata.autonomousScene === 'string' && metadata.autonomousScene.length > 0;
 }
 

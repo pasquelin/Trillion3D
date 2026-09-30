@@ -53,7 +53,7 @@ export const BLOOM_UP_TAPS: readonly BloomTap[] = [
  * times — a level is at least one texel. A declared value, not a measured one: it sets how far
  * the widest glow reaches, 2⁶ texels of the image per texel of the last level.
  */
-export const BLOOM_LEVELS = 6;
+const BLOOM_LEVELS = 6;
 
 /** Bytes per texel of every bloom target: `rgba16float`. */
 export const BLOOM_TEXEL_BYTES = 8;

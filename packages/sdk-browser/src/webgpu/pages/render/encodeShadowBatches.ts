@@ -21,7 +21,7 @@ function batchViews(rt: WebgpuPagesRuntime) {
 
 /** The views a batch of this frame runs, the batches it may draw and the staging they take, from
  *  the current pool, those views and the device's buffer limit (`shadowBatchCapacity`). */
-export function frameBatchCapacity(rt: WebgpuPagesRuntime) {
+function frameBatchCapacity(rt: WebgpuPagesRuntime) {
   const views = batchViews(rt),
     maxBufferSize = rt.gpu.device?.limits.maxBufferSize ?? Infinity;
   return { views, ...shadowBatchCapacity(rt.lights.plan.pool.pages, views, maxBufferSize) };

@@ -14,7 +14,7 @@ export interface ResidentPage {
   generation: number;
 }
 /** An eviction order, its keys read one at a time as victims are taken. */
-export type EvictionOrder = { readonly count: number; keyAt(at: number): string };
+type EvictionOrder = { readonly count: number; keyAt(at: number): string };
 export type GpuPageContext = {
   device: GPUDevice;
   pageBytes: number;

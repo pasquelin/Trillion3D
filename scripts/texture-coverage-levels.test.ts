@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { decodeManifestBinary } from '../packages/sdk-core/src/index.ts';
+import { decodeManifestBinary } from '../packages/sdk-core/src/manifest/binaryDecode.ts';
 import { encodeManifestBinary } from '../tests/fixtures/manifestBinaryEncode.ts';
 import { decodePng, encodePng } from '../packages/sdk-node/src/cutout/png.mts';
 import { manifest, sha, TEMPLATES } from '../tests/fixtures/manifestBinary.ts';

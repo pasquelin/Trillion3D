@@ -16,7 +16,7 @@ export type SpatialFeedback = { center: Region; periphery: Region };
 type Atlases = NonNullable<WebgpuPagesRuntime['vis']['textures']>;
 
 /** Blend wins over mask over opaque for a texture several surfaces share. */
-export function textureKinds(rt: Pick<WebgpuPagesRuntime, 'setup'>) {
+function textureKinds(rt: Pick<WebgpuPagesRuntime, 'setup'>) {
   const kinds = new Map<Texture, SurfaceKind>();
   const mark = (s: PageSurface, kind: SurfaceKind) => {
     for (const map of [s.map, s.emissiveMap, s.roughnessMap, s.metalnessMap, s.normalMap, s.aoMap])
@@ -29,7 +29,7 @@ export function textureKinds(rt: Pick<WebgpuPagesRuntime, 'setup'>) {
   return (texture: Texture | undefined): SurfaceKind => (texture && kinds.get(texture)) || 'opaque';
 }
 
-export function spatialMipCounts(
+function spatialMipCounts(
   ranks: Uint32Array,
   width: number,
   height: number,

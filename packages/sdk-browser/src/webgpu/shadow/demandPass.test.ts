@@ -15,9 +15,11 @@ import { dotVector3 } from '../../../../sdk-core/src/math/primitives/vector.ts';
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { shadowViewpointOf } from '../pages/render/encodeShadows.ts';
-import { SHADOW_DEMAND_WGSL } from './demandWgsl.ts';
 import { HEIGHT, cameraAt, reportScene } from './reportScene.fixture.ts';
 import { floorTiles, tileGrid } from './shadingReads.fixture.ts';
+import { shadowDemandWgsl } from './demandWgsl.ts';
+
+const SHADOW_DEMAND_WGSL = shadowDemandWgsl();
 
 type V = number[];
 type Demand = {

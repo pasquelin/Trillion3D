@@ -2,7 +2,6 @@ import { readFile } from 'node:fs/promises';
 import {
   CommandWriter,
   DEFAULT_PHYSICS_BUDGET,
-  JOLT_COMMIT,
   type CookedBody,
   type PhysicsBudget,
   type PhysicsHost,
@@ -11,6 +10,8 @@ import { Group, Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { createPhysicsBodies } from './bodies.ts';
 import { createPhysicsPoses } from './poses.ts';
 import { createTileStreamer } from './tiles.ts';
+
+const JOLT_COMMIT = 'e77f175595e64cb44218cc9d9d56fc365ad0e36a';
 
 /** The bytes of `tests/fixtures/physics/<name>`. */
 export const fixture = (name: string) =>

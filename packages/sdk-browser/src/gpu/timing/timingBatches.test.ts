@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixture } from '../../../../../tests/kit/gpu/timingDevice.ts';
 import { createGpuTiming } from './timing.ts';
-import { QUERY_COUNT, SHADOW_BATCH_PASSES, TIMED_PASSES } from './queries.ts';
+import { QUERY_COUNT, TIMED_PASSES } from './queries.ts';
 import { MAX_SHADOW_BATCHES } from '../shadow/batchBudget.ts';
 import { DAG_MAX_VIEWS } from '../dag/shader/viewsWgsl.ts';
 import { LIGHT_CUT_PASS } from '../dag/encode.ts';
@@ -10,6 +10,8 @@ import { SHADOW_PASS } from '../shadow/atlas.ts';
 import { SHADOW_LAYER_PASS } from '../shadow/staticLayer.ts';
 import { SHADOW_TRANSMITTANCE_PASS } from '../shadow/transmittance.ts';
 import { directLightTimings } from '../../stage/mapping.ts';
+
+const SHADOW_BATCH_PASSES = 3 + DAG_MAX_VIEWS + 5;
 
 // A frame draws every shadow page it marks, in as many batches as that takes (#489): the frame that
 // redraws the largest pool is timed whole — every batch's passes, the CPU cut's cull per face

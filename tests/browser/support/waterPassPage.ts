@@ -3,10 +3,6 @@
 // through the water pass and read at its centre; encoded labels prove the intended path.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
-import {
-  WATER_COMPOSITE_PASS,
-  WATER_SURFACE_PASS,
-} from '../../../packages/sdk-browser/src/webgpu/water/frame.ts';
 import { WATER_ATTACHMENT_BYTES } from './waterCostPage.ts';
 import {
   VIEWPORT,
@@ -21,6 +17,9 @@ import { difference, image } from './sceneImageProof.ts';
 import { executerAppareil } from './deviceProof.ts';
 import { BACKGROUND, CASES, GROUND, WATER, type WaterCase } from './waterPassCases.ts';
 import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backend/types.ts';
+
+const WATER_COMPOSITE_PASS = 'Trillion3D water composite';
+const WATER_SURFACE_PASS = 'Trillion3D water surfaces';
 
 function scene(pagine: boolean, kase: WaterCase): ScenePreparee {
   const bati = batisseur();

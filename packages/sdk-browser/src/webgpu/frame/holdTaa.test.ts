@@ -4,10 +4,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { holdWebgpuFrame, keepWebgpuFrame } from './hold.ts';
 import { createTaaFrameState } from '../../taa/frameState.ts';
-import { TAA_STILL_FRAMES } from '../../taa/jitter.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { settledRt } from './hold.fixture.ts';
+import { taaStillFrames, TAA_SAMPLES } from '../../taa/jitter.ts';
+
+const TAA_STILL_FRAMES = taaStillFrames(TAA_SAMPLES);
 
 installGpuGlobals();
 

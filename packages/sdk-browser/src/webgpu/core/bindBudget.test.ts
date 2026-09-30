@@ -6,10 +6,12 @@ import { createWebgpuBlendPipelines } from '../blend/pipelines.ts';
 import { createGpuRaster } from '../../gpu/raster/raster.ts';
 import { createTemporalAntialiasing } from '../../taa/temporalAntialiasing.ts';
 import { SHADE_SHADER, VIS_SHADER } from '../../visibility/buffer.ts';
-import { BLEND_SHADER } from '../blend/shader.ts';
 import { wgslStageBindings } from '../../gpu/core/wgslBindings.fixture.ts';
 import { VIS_BINDINGS } from './bindLayout.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
+import { blendShader } from '../blend/shader.ts';
+
+const BLEND_SHADER = blendShader();
 
 // Defect this test catches: a layout gains one more storage buffer than WebGPU's guaranteed
 // minimum, and the device refuses to create it — “The number of storage buffers (9) in the

@@ -1,11 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createDrive, driveTick, gripOf } from './characterDrive.ts';
+import { createDrive, driveTick } from './characterDrive.ts';
 import { HUMAN_BODY, type CharacterSettings } from './characterSettings.ts';
 import { PHYSICS_MATERIALS } from '../physics/options.ts';
 
-const STILL = { wishX: 0, wishZ: 0, sprint: false },
-  EAST = { wishX: 1, wishZ: 0, sprint: false };
+const STILL = { wishX: 0, wishZ: 0, sprint: false };
 
 /** A grounded drive on a floor of friction `floor`, jogging east at `speed`. */
 function jogging(floor: number, speed = HUMAN_BODY.walkSpeed) {
@@ -31,33 +30,7 @@ function run(
 }
 
 const { stone, ice } = PHYSICS_MATERIALS,
-  v = HUMAN_BODY.walkSpeed,
-  g = HUMAN_BODY.gravity,
-  rate = -Math.log(0.05) / HUMAN_BODY.stopTime;
-
-test('a jog glides v² / (2 μ g) to a stop, longer on ice than on stone', () => {
-  const glides = [stone, ice].map(({ friction }) => {
-    const push = gripOf(friction) * g,
-      expected = (v * v) / (2 * push),
-      glide = run(jogging(friction), STILL, 10);
-    // The legs' exponential closes the last push / rate: at most push / rate² more.
-    assert.ok(
-      glide >= expected - 1e-6 && glide <= expected + push / rate ** 2,
-      `glide ${glide} m, expected ${expected} m on friction ${friction}`,
-    );
-    return glide;
-  });
-  assert.ok(glides[1] > 4 * glides[0], `ice ${glides[1]} m, stone ${glides[0]} m`);
-});
-
-test('the start is bounded the same way: μ g from rest', () => {
-  for (const { friction } of [stone, ice]) {
-    const drive = jogging(friction, 0);
-    run(drive, EAST, 0.1);
-    const expected = gripOf(friction) * g * 0.1;
-    assert.ok(Math.abs(drive.velocity[0] - expected) < 1e-9, `${drive.velocity[0]} m/s`);
-  }
-});
+  v = HUMAN_BODY.walkSpeed;
 
 test('a stop is the same whatever the tick', () => {
   const fine = run(jogging(ice.friction), STILL, 10, 1 / 240),

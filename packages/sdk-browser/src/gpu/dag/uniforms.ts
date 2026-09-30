@@ -17,7 +17,7 @@ import { DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
 import { AHEAD_VIEW } from './shader/aheadWgsl.ts';
 
 /** Word of view 0's block that says what kind of view the cut serves (`shader/pagesWgsl.ts`). */
-export const VIEW_FLAGS_WORD = 54;
+const VIEW_FLAGS_WORD = 54;
 
 /** A light cut's views: how many it runs, how many it holds, its queues' bound, and whether it
  *  appends to the requests an earlier batch of the frame listed (`VIEW_APPEND`). */

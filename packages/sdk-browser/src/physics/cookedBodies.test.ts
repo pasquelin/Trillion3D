@@ -7,7 +7,6 @@ import {
   MOTION,
   OP,
   POSE_WORDS,
-  RESTORE_WORDS,
   SHAPE,
 } from '../../../sdk-core/src/physics/index.ts';
 import { createCookedBodies } from './cookedBodies.ts';
@@ -24,6 +23,8 @@ import {
   tile,
 } from './tiles.fixture.ts';
 import { body } from './records.fixture.ts';
+
+const RESTORE_WORDS = 3;
 
 /** The golden hull of a unit cube from the origin (`physics_cook/mass_tests.rs`). */
 const hull = async () => new Uint8Array(await fixture('cube-hull.bin'));

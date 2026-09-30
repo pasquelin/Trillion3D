@@ -6,7 +6,6 @@ import type { GeometryBlock } from '../row/pageRowMaterial.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 import type { SessionDeformation } from '../../deformation/session.ts';
 import { createVertexPool } from './geometryPool.ts';
-export { createVertexPool, type VertexPool } from './geometryPool.ts';
 type GeometryBlocks = Map<HostAttributes, GeometryBlock>;
 /** What a growth of the pool hands the runtime: the wider buffers and the re-placed block. */
 export type VertexPoolGrowth = {

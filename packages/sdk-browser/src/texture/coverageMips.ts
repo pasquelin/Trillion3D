@@ -5,7 +5,7 @@ import { levelSize } from './tiles.ts';
 /** Bytes of one level's 256 bins. */
 export const LEVEL_BIN_BYTES = 1024;
 /** Label of a chain's coverage-count compute pass. */
-export const TEXTURE_COVERAGE_PASS = 'Trillion3D texture coverage count';
+const TEXTURE_COVERAGE_PASS = 'Trillion3D texture coverage count';
 
 /**
  * The counts of the coverage rule (docs/FORMAT.md, "Coverage-preserving alpha"): `count` files the

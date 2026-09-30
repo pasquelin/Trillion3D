@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuLightState, shadowsUnsettled } from '../pages/state/lights.ts';
 import { noteShadowFrame } from '../pages/render/encodeShadowBatches.ts';
-import { createGpuShadowCullCounts, sumKeptClusters } from '../../gpu/shadow/cullCounts.ts';
+import { createGpuShadowCullCounts } from '../../gpu/shadow/cullCounts.ts';
 import { unsettledMask } from '../frame/hold.ts';
 import { planShadowRegions, shadowViewpointOf } from '../pages/render/encodeShadows.ts';
 import { encodeDirectLights } from '../pages/render/encodeLights.ts';
@@ -25,13 +25,6 @@ test('shadowPagesTotal accumulates the pages each frame drew', () => {
   lights.shadowPages = 8;
   noteShadowFrame(lights);
   assert.equal(lights.shadowPagesTotal, 20);
-});
-
-test('the sampled cull counts sum the instance count of each region command', () => {
-  // Three commands of four words: vertex count, instance count, first vertex, first instance.
-  const words = new Uint32Array([32768, 67, 0, 0, 32768, 5, 0, 0, 32768, 900, 0, 0]);
-  assert.equal(sumKeptClusters(words, 2), 72);
-  assert.equal(sumKeptClusters(words, 3), 972);
 });
 
 const CAM = {

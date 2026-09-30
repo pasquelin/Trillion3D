@@ -12,7 +12,7 @@ import { createPoolStates, refuseAll, usedSlots } from './poolStates.ts';
 import { createWebglParticleDraw } from './webglParticleDraw.ts';
 
 /** Particles per texture row, two texels each: position and age, then velocity and lifetime. */
-export const PARTICLE_ROW = 512;
+const PARTICLE_ROW = 512;
 const TEXELS = 2 * PARTICLE_ROW,
   FLOAT = { depth: false, float: true };
 

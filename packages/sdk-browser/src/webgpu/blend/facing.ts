@@ -32,54 +32,6 @@ export const FACING_DROP = 3;
 /** The mode the fragment applies rides above the water rank, in the same flat word. */
 export const FACING_SHIFT = WATER_RANK_SHIFT;
 
-type Corner = readonly [x: number, y: number, z: number, w: number];
-
-/**
- * CPU model of `vertexFacing`, on clip-space corners and the target size in pixels: 0 keeps the
- * triangle with nothing left to decide, `FACING_DROP` drops it, `cull` keeps it for the fragment
- * stage to decide.
- */
-export function vertexFacing(
-  cull: number,
-  corners: readonly [Corner, Corner, Corner],
-  viewport: readonly [width: number, height: number],
-): number {
-  const [a, b, c] = corners;
-  const terms = [
-    a[0] * b[1] * c[3],
-    -a[0] * c[1] * b[3],
-    -b[0] * a[1] * c[3],
-    b[0] * c[1] * a[3],
-    c[0] * a[1] * b[3],
-    -c[0] * b[1] * a[3],
-  ];
-  const area = terms.reduce((sum, term) => sum + term, 0);
-  const bound = terms.reduce((sum, term) => sum + Math.abs(term), 0);
-  const inside = corners.every(
-    ([x, y, z, w]) => w > 0 && Math.abs(x) <= w && Math.abs(y) <= w && z >= 0 && z <= w,
-  );
-  const [p0, p1, p2] = corners.map(([x, y, , w]) => [
-    ((x / w) * viewport[0]) / 2,
-    ((y / w) * viewport[1]) / 2,
-  ]);
-  const e1 = [p1[0] - p0[0], p1[1] - p0[1]],
-    e2 = [p2[0] - p0[0], p2[1] - p0[1]];
-  const pixels = Math.abs(e1[0] * e2[1] - e1[1] * e2[0]);
-  const edges = Math.abs(e1[0]) + Math.abs(e1[1]) + Math.abs(e2[0]) + Math.abs(e2[1]);
-  if (
-    !inside ||
-    !(Math.abs(area) > FACING_TOLERANCE * bound) ||
-    !(pixels > SNAP_STEP * (2 * edges + 8 * SNAP_STEP))
-  )
-    return cull;
-  if (cull === 1) return area >= 0 ? FACING_DROP : 0;
-  return area < 0 ? FACING_DROP : 0;
-}
-
-/** CPU model of `facingDiscarded`: the fragment of a doubtful triangle its side does not draw. */
-export const facingDiscarded = (mode: number, front: boolean) =>
-  (mode === 1 && front) || (mode === 2 && !front);
-
 /** The two functions in WGSL; the host shader declares the page geometry
  *  (`../../visibility/shader/pageGeometryWgsl.ts`) and `uni` first. `corners` are the
  *  triangle's local vertex indices (`pageTriangle`). */

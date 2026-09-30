@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { runtimeMaterials } from './runtimeMaterials.ts';
-import { RUNTIME_MAP_BYTES_CEILING } from './runtimeMaps.ts';
 import { bitmapFixture } from './bitmap.fixture.ts';
 import { refusal } from './materialApi.fixture.ts';
 import type { RenderBackend } from '../../backend/types.ts';
 import type { GraphSurface } from '../../host/graph/surface.ts';
+
+const RUNTIME_MAP_BYTES_CEILING = 64 * 1024 * 1024;
 
 function engine(admit: (surface: GraphSurface) => Promise<void> = async () => {}) {
   const released: GraphSurface[] = [];

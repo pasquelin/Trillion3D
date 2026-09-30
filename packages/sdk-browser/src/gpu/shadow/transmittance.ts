@@ -37,7 +37,7 @@ export const SHADOW_TRANSLUCENT_DEPTH_FORMAT: GPUTextureFormat = 'depth32float';
 export const shadowTransmittanceBytes = (poolSide: number, layers = 1) =>
   ((poolSide * SHADOW_PAGE) / 2) ** 2 * 8 * layers;
 /** What a texel holds where no translucent caster is: all the light. Its depth is `DEPTH_CLEAR`. */
-export const TRANSMITTANCE_CLEAR = { r: 1, g: 1, b: 1, a: 1 };
+const TRANSMITTANCE_CLEAR = { r: 1, g: 1, b: 1, a: 1 };
 export const TRANSMITTANCE_CLEAR_WGSL = `vec4f(${Object.values(TRANSMITTANCE_CLEAR).join(',')})`;
 /** Two translucent casters on one texel: their transmittances multiply. */
 const MULTIPLY: GPUBlendComponent = { operation: 'add', srcFactor: 'zero', dstFactor: 'src' };

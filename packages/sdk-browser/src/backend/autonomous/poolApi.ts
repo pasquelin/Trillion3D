@@ -21,7 +21,7 @@ import type { PageDraws } from './pageDraws.ts';
  * instance clones each record that owns its geometry and shares the rows' one (`instances.ts`):
  * the counts follow the instance count, and nothing is walked again after this.
  */
-export function pageCopies(
+function pageCopies(
   byUrl: ReadonlyMap<string, readonly PageRec[]>,
   /** Whether a record is placed by rows, read through its first instance (a per-page property). */
   placedByRow: (rec: PageRec) => boolean,

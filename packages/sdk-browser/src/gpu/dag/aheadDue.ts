@@ -11,7 +11,7 @@
  * camera frustum — asked for by the view ahead for its detail — is due now. Nothing is tuned: the
  * horizon and the sweep are the camera's own motion.
  *
- * One formula, in TypeScript for the oracle (`oracle/oracle.ts`) and in WGSL for the kernel
+ * One formula, in TypeScript for the oracle (`oracle/oracle.fixture.ts`) and in WGSL for the kernel
  * (`shader/aheadWgsl.ts`), each distance over its plane's normal length: a primitive's scale moves
  * no deadline.
  */

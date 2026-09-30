@@ -13,7 +13,7 @@ import { CLUSTER_LEVEL_SHIFT } from '../layout.ts';
 import type { ScreenErrorVariant } from '../../../../../sdk-core/src/index.ts';
 
 /** Declaration `withScreenErrorVariant` returns, written once for both. */
-export const REFERENCE_ERROR_DECL = 'const REFERENCE_ERROR:bool=false;';
+const REFERENCE_ERROR_DECL = 'const REFERENCE_ERROR:bool=false;';
 
 export const DAG_ERROR_WGSL = `
 ${REFERENCE_ERROR_DECL}

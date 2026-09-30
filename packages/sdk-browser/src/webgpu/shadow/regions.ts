@@ -7,8 +7,8 @@ import { CASTERS_ALL, CASTERS_MOVING, CASTERS_STATIC } from '../../gpu/shadow/cu
 
 /** Where a region draws, and what it starts from: the pool page cleared to far, the pool page
  *  restored from the static layer, or the static layer's page cleared to far. */
-export const REGION_CLEAR = 0,
-  REGION_RESTORE = 1,
+const REGION_CLEAR = 0;
+export const REGION_RESTORE = 1,
   REGION_STATIC = 2;
 
 /**

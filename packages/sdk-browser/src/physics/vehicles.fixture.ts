@@ -1,9 +1,7 @@
-import {
-  vehicle,
-  type VehicleInput,
-  type VehicleKind,
-  type VehicleOptions,
-} from '../../../sdk-core/src/physics/index.ts';
+import { vehicle } from '../../../sdk-core/src/physics/vehicle.ts';
+import { type VehicleInput } from '../../../sdk-core/src/physics/vehicle.ts';
+import { type VehicleKind } from '../../../sdk-core/src/physics/vehicle.ts';
+import { type VehicleOptions } from '../../../sdk-core/src/physics/vehicle.ts';
 import { box, cylinder } from '../../../sdk-core/src/world/geometry/basic.ts';
 import { Material } from '../../../sdk-core/src/world/material/material.ts';
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';

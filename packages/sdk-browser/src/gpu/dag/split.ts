@@ -32,7 +32,7 @@ export const ELEMENT_BYTES = { clusters: CLUSTER_WORDS * 4, nodes: DAG_NODE_FLOA
 
 /** `count` elements of `bytes` each in parts one binding of `cap` bytes holds; one element past
  *  the binding stays one part per element, which the fit rule then refuses (`pastBinding`). */
-export function splitTable(count: number, bytes: number, cap: number): TableSplit {
+function splitTable(count: number, bytes: number, cap: number): TableSplit {
   const per = Math.max(1, Math.floor(cap / bytes));
   if (count <= per) return { per: Math.max(1, count), parts: 1 };
   return { per, parts: Math.ceil(count / per) };
@@ -43,7 +43,7 @@ export function splitTable(count: number, bytes: number, cap: number): TableSpli
 export const PAGE_SECTIONS = 4;
 /** Sections of a camera cut's `flags`: queue 0, the four page sections, the other queues, then
  *  each page's last use (`shader/lastUseWgsl.ts`); a light cut has all but the last. */
-export const FLAG_SECTIONS = 1 + PAGE_SECTIONS + (LEVEL_QUEUES - 1) + 1;
+const FLAG_SECTIONS = 1 + PAGE_SECTIONS + (LEVEL_QUEUES - 1) + 1;
 /** The draw mask's section, and the candidate list's behind the cone words and the live list:
  *  what a reader outside the kernel binds. */
 export const MASK_SECTION = 1,
@@ -51,7 +51,7 @@ export const MASK_SECTION = 1,
 
 /** First word of section `s` of a `flags` of `queueCap` per queue over `pageCount` pages: the
  *  kernel's `queueBase` and page bases, as `shader/splitWgsl.ts` states them in WGSL. */
-export function flagSectionStart(s: number, queueCap: number, pageCount: number) {
+function flagSectionStart(s: number, queueCap: number, pageCount: number) {
   if (s === 0) return 0;
   if (s <= PAGE_SECTIONS) return queueCap + (s - 1) * pageCount;
   return (s - PAGE_SECTIONS) * queueCap + PAGE_SECTIONS * pageCount;
@@ -65,7 +65,7 @@ const sectionWords = (s: number, queueCap: number, pageCount: number) =>
  *  fit: each part as many whole sections as one binding of `cap` bytes holds. A section is never
  *  cut, so the draw mask and the drawn log each lie in one part; one past the binding is a part of
  *  its own, which the fit rule refuses. */
-export function flagCuts(queueCap: number, pageCount: number, cap: number) {
+function flagCuts(queueCap: number, pageCount: number, cap: number) {
   const cuts: number[] = [];
   let words = sectionWords(0, queueCap, pageCount);
   for (let s = 1; s < FLAG_SECTIONS; s++) {

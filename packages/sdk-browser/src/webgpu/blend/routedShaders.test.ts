@@ -8,10 +8,12 @@ import { close, display, srgb } from './blendModel.fixture.ts';
 import { ACES, ROUTE_FUNCTIONS, routeScope } from './displayRun.fixture.ts';
 import { PARTICLE_ROUTED_WGSL } from '../../particles/webgpuParticleDraw.ts';
 import { waterRoutedShader } from '../water/compositeWgsl.ts';
-import { BLEND_SHADER } from './shader.ts';
 import { FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts';
 import { FOG_FREE_MODEL_BIT, MODEL_SHIFT } from '../../scene/surfaceModel.ts';
 import { IDENTITY_MATRIX4 } from '../../../../sdk-core/src/index.ts';
+import { blendShader } from './shader.ts';
+
+const BLEND_SHADER = blendShader();
 
 type Layers = { color: number[]; tint: number[]; add: number[] };
 const layers = (color: number[], tint: number[], add: number[]): Layers => ({ color, tint, add });

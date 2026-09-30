@@ -30,7 +30,7 @@ export const createPresentClasses = (): PresentClasses => ({
  * be refused pixel by pixel, at the cost of a clear. The rows are walked again only when one was
  * written since (`writes`, `rowsMoved`); an image over the same rows reuses the keys.
  */
-export function markPresentClasses(
+function markPresentClasses(
   ints: Uint32Array,
   packedCount: number,
   into: PresentClasses,

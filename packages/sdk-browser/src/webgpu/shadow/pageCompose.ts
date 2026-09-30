@@ -7,7 +7,7 @@ import type { WebgpuLightState } from '../pages/state/lights.ts';
 
 /** Texels past its footprint a page's casters are culled to: every texel centre a filter reading
  *  inside it weighs lies within `PCF_REACH` of the texel it checks, on either axis. */
-export const FOOTPRINT_REACH = Math.ceil(PCF_REACH) + 1;
+const FOOTPRINT_REACH = Math.ceil(PCF_REACH) + 1;
 
 /**
  * Composes page `page`'s projection and cull volume into region `region`'s slots. Its casters are

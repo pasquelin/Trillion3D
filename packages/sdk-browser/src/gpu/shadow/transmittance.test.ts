@@ -6,7 +6,6 @@ import { BLEND_TRANSMITTANCE_WGSL } from './transmittanceWgsl.ts';
 import {
   SHADOW_TRANSLUCENT_DEPTH_FORMAT,
   TRANSMITTANCE_BLEND,
-  TRANSMITTANCE_CLEAR,
   castsBlendShadow,
 } from './transmittance.ts';
 import { SHADOW_DEPTH_SHADER } from './shader.ts';
@@ -16,6 +15,8 @@ import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { fromHalf, toHalf } from '../../../../sdk-core/src/lighting/ltcTable.ts';
 import { surfaceOpacity, type PageSurface } from '../../page/surface.ts';
+
+const TRANSMITTANCE_CLEAR = { r: 1, g: 1, b: 1, a: 1 };
 
 /** A texel of the layer: its transmittance and its translucent depth (reversed: nearer is more). */
 type Texel = { t: number; d: number };

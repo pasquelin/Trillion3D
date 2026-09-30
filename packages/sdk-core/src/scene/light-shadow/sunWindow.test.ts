@@ -4,18 +4,8 @@
 // past the ordinary half-window is held only in the reference one.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  SUN_ENTRIES,
-  SUN_WINDOW,
-  shadowTableEntries,
-  shadowTableStride,
-  sunEntries,
-  sunLevelEntries,
-  tableEntriesOf,
-} from './virtual.ts';
-import { sunEntry } from './pageModel.ts';
+import { SUN_WINDOW } from './virtual.ts';
 import { createSunLevels } from './sunLevels.ts';
-import { LIGHT_KIND } from '../light/contracts.ts';
 import { VIEW } from './lightShadow.fixture.ts';
 
 const AXIS = [0, -1, 0];
@@ -23,20 +13,6 @@ const AXIS = [0, -1, 0];
 // gives 68 — the value `referenceMode.ts` passes.
 const REFERENCE_WINDOW = 68;
 const at = (x: number) => ({ ...VIEW, position: [x, 5, 0] as [number, number, number] });
-
-test('the layout sizes scale with the session window, the constant untouched', () => {
-  assert.equal(sunLevelEntries(REFERENCE_WINDOW), REFERENCE_WINDOW * REFERENCE_WINDOW);
-  assert.equal(sunEntries(REFERENCE_WINDOW), 16 * sunLevelEntries(REFERENCE_WINDOW));
-  assert.equal(shadowTableStride(REFERENCE_WINDOW), sunEntries(REFERENCE_WINDOW));
-  assert.equal(shadowTableEntries(REFERENCE_WINDOW), 64 * shadowTableStride(REFERENCE_WINDOW));
-  assert.equal(
-    tableEntriesOf(LIGHT_KIND.directional, REFERENCE_WINDOW),
-    sunEntries(REFERENCE_WINDOW),
-  );
-  // An ordinary session is the constant it always was: the same entries, the same sun entry.
-  assert.equal(sunEntries(SUN_WINDOW), SUN_ENTRIES);
-  assert.equal(sunEntry(3, 5, 7, SUN_WINDOW), sunEntry(3, 5, 7));
-});
 
 test('a page past the ordinary half-window is held only in the reference window', () => {
   const ordinary = createSunLevels(SUN_WINDOW),

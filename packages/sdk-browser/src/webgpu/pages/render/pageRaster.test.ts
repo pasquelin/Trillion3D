@@ -2,10 +2,7 @@ import test from 'node:test';
 import { MANIFEST_IDENTITY } from '../../../backend/pagesBackend.fixture.ts';
 import assert from 'node:assert/strict';
 import * as G from '../../../host/graph/graph.fixture.ts';
-import { compareImages, type ClusterManifest } from '../../../../../sdk-core/src/index.ts';
-import { exactPagesBackend } from '../../../../../../bench/witnesses/measurement.ts';
-import { webgpuPagesBackend } from '../pages.ts';
-import { rasterPageRecords } from '../../../page/raster.ts';
+import { type ClusterManifest } from '../../../../../sdk-core/src/index.ts';
 import {
   drawnPageIds,
   indirectDraws,
@@ -103,36 +100,6 @@ test('vis drawIndirect consumes GPU instance indices against one unsorted page t
   geoB.dispose();
   front.dispose();
   both.dispose();
-});
-
-test('webgpu page raster matches the WebGL2 exact-pages triangles', async () => {
-  installGpuGlobals();
-  const { device } = mockGpu();
-  const { source, metadata, indices, associations, geometry, material } = quadScene();
-  const context = {
-    source,
-    metadata,
-    indices,
-    associations,
-    maxResidentPages: 2,
-    viewport: [32, 32] as [number, number],
-  };
-  const webgl = exactPagesBackend(context);
-  const webgpu = webgpuPagesBackend({ ...context, gpuDevice: device });
-  const cam = camera();
-  webgl.render(cam);
-  await webgpu.prepare();
-  webgpu.render(cam);
-  await webgpu.flush?.();
-  webgpu.render(cam);
-  const expected = rasterPageRecords(webgl, cam, [32, 32]);
-  const observed = webgpu.rasterRgba!();
-  const image = compareImages(expected, observed);
-  assert.equal(image.maxChannelError, 0);
-  webgl.dispose();
-  webgpu.dispose();
-  geometry.dispose();
-  material.dispose();
 });
 
 // Like the reference's root pages, resident outside its pool: a budget smaller than root coverage

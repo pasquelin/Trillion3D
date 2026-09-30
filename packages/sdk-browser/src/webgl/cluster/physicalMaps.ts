@@ -11,7 +11,7 @@ import type { Matrix3UniformCache } from './uniforms.ts';
 
 export const PHYSICAL_MAP_UNIT = 15;
 /** Allocation of native mip rectangles padded in the distinct images’ array layers; no source is resized. */
-export function physicalMapLayout(sizes: readonly (readonly [number, number])[], limit: number) {
+function physicalMapLayout(sizes: readonly (readonly [number, number])[], limit: number) {
   const width = Math.max(1, ...sizes.map((size) => size[0]));
   const height = Math.max(1, ...sizes.map((size) => size[1]));
   if (width > limit || height > limit) throw new Error('PHYSICAL_MAP_DEVICE_LIMIT');

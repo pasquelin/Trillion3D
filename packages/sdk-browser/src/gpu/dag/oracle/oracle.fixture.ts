@@ -1,30 +1,21 @@
-import type { PackedDag } from '../types.ts';
-import { CLUSTER_TRANSPARENT, clusterLevel } from '../layout.ts';
-import { bandError, boxInto, dagRecords, flagsOf, trianglesOf, worldOf } from '../records.ts';
-import { aheadDue } from '../aheadDue.ts';
-import type { SelectionResult } from '../../core/selection.ts';
-import type { DagViewUniforms } from '../types.ts';
+import { dagRecords, bandError, worldOf, boxInto, trianglesOf, flagsOf } from '../records.ts';
 import { dagViewFrames } from './math.ts';
-import { AHEAD_LEAF, dagOracleDescent } from './descent.ts';
+import { dagOracleDescent, AHEAD_LEAF } from './descent.ts';
+import { createDagOraclePredicates } from './predicates.ts';
+import { aheadDue } from '../aheadDue.ts';
 import {
-  firstAheadRequest,
   packRequest,
   quantizeAheadPriority,
   quantizeRequestPriority,
+  sortRequestWords,
+  firstAheadRequest,
   requestPage,
   requestPriority,
-  sortRequestWords,
 } from '../request.ts';
-import { createDagOraclePredicates } from './predicates.ts';
+import { CLUSTER_TRANSPARENT, clusterLevel } from '../layout.ts';
+import type { PackedDag, DagViewUniforms } from '../types.ts';
 import type { CutRuleAt } from './predicates.ts';
-
-/** The cut rule's residency, one entry per page: the bit sets its host uploads, read back
- *  (`../readiness.fixture.ts`). */
-export type DagCutResidency = { ready: ArrayLike<number>; childReady: ArrayLike<number> };
-
-/** What the oracle returns: the cut, and the request words in the order `dagWanted` stages them,
- *  before the GPU sorts them. */
-export type DagOracleResult = SelectionResult & { requestWords: number[] };
+import type { SelectionResult } from '../../core/selection.ts';
 
 /**
  * Node oracle for the kernel, in the same shape the shader uses. Not called by the renderer.
@@ -161,3 +152,11 @@ export function evaluateDagSelectionKernel(
     drawnTriangles: totaux.drawn,
   } as DagOracleResult;
 }
+
+/** The cut rule's residency, one entry per page: the bit sets its host uploads, read back
+ *  (`../readiness.fixture.ts`). */
+export type DagCutResidency = { ready: ArrayLike<number>; childReady: ArrayLike<number> };
+
+/** What the oracle returns: the cut, and the request words in the order `dagWanted` stages them,
+ *  before the GPU sorts them. */
+export type DagOracleResult = SelectionResult & { requestWords: number[] };

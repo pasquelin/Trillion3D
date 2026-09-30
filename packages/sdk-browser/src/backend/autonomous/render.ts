@@ -43,7 +43,7 @@ export const createAutonomousRenderState = (): AutonomousRenderState => ({
  * awaited — its arrival will change the image. A capture after a moving camera held the first
  * frame whose cut had not moved, pages missing, and its A/A drew what each run had loaded (#1016).
  */
-export const stillFrame = (requested: readonly Pick<PageRec, 'array'>[]) =>
+const stillFrame = (requested: readonly Pick<PageRec, 'array'>[]) =>
   requested.every((rec) => !!rec.array);
 
 /**

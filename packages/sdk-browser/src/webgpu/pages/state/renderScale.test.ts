@@ -4,7 +4,6 @@ import {
   drawFrameAt,
   frameSizeOf,
   imageScale,
-  renderExtent,
   renderMipBias,
   renderPixelRatio,
   type FrameSize,
@@ -12,6 +11,7 @@ import {
 import { createScaleControl } from '../../../frame/scaleControl.ts';
 import type { RenderScale } from '../../../frame/renderScaleOption.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { renderExtent } from '../../../frame/renderScaleOption.ts';
 
 const DISPLAY = [3456, 2234];
 

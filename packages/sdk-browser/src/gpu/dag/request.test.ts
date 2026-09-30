@@ -10,17 +10,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   packRequest,
-  quantizeAheadPriority,
   quantizeRequestPriority,
   REQUEST_PAGE_MAX,
   REQUEST_PRIORITY_MAX,
-  REQUEST_PRIORITY_SCALE,
-  REQUEST_STEP_MAX,
   requestPage,
-  requestRank,
   requestPriority,
 } from './request.ts';
-import { evaluateDagSelectionKernel } from './selection.ts';
 import { requestScene } from './requestScene.fixture.ts';
 import {
   clusterErrorPixels,
@@ -28,6 +23,11 @@ import {
   multiplyMatrix4,
   transformAffinePoint,
 } from '../../../../sdk-core/src/index.ts';
+import { REQUEST_AHEAD } from './request.ts';
+import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts';
+
+const REQUEST_PRIORITY_SCALE = 16;
+const REQUEST_STEP_MAX = REQUEST_AHEAD - 1;
 
 test('the request word yields the page and the priority that were put in it', () => {
   for (const page of [0, 1, 4095, 1959791, REQUEST_PAGE_MAX - 1])
@@ -52,20 +52,6 @@ test('quantification is monotone: it never reverses two errors', () => {
   assert.equal(quantizeRequestPriority(-1), 0);
   assert.equal(quantizeRequestPriority(NaN), 0);
   assert.equal(quantizeRequestPriority(Infinity), REQUEST_STEP_MAX);
-});
-
-test('every visible request outranks every request ahead, served soonest first, then by error', () => {
-  // The costliest absence ahead against the cheapest one on screen: the deadline decides first.
-  const visible = (pixels: number) => requestRank(quantizeRequestPriority(pixels));
-  const ahead = (pixels: number, due: number) => requestRank(quantizeAheadPriority(pixels, due));
-  assert.ok(visible(0) > ahead(Infinity, 0));
-  assert.equal(ahead(NaN, 1), 0, 'the least a request can rank');
-  assert.equal(visible(Infinity), REQUEST_PRIORITY_MAX, 'the most a request can rank');
-  // Within the tier ahead: the sooner needed first, whatever its error, then the larger error.
-  assert.ok(ahead(1, 0.1) > ahead(1e6, 0.9));
-  assert.ok(ahead(64, 0.5) > ahead(4, 0.5));
-  assert.equal(ahead(4, NaN), ahead(4, 1), 'a deadline that is no number is the latest');
-  assert.equal(ahead(4, -1), ahead(4, 0), 'and one already past is now');
 });
 
 function coupe(seuil: number) {

@@ -10,11 +10,14 @@ import { LAMP_SOFT_DISK_WGSL } from '../../../packages/sdk-browser/src/lighting/
 import {
   PCF_TAPS_WGSL,
   SHADOW_DATA_WGSL,
-  SHADOW_PAGE_READ_WGSL,
   directShadowWgsl,
 } from '../../../packages/sdk-browser/src/lighting/direct/shadowWgsl.ts';
-import { SHADOW_DEMAND_WGSL } from '../../../packages/sdk-browser/src/webgpu/shadow/demandWgsl.ts';
 import { functionsOf } from '../../../packages/sdk-browser/src/texture/shaderRule.fixture.ts';
+import { shadowPageReadWgsl } from '../../../packages/sdk-browser/src/lighting/direct/shadowWgsl.ts';
+import { shadowDemandWgsl } from '../../../packages/sdk-browser/src/webgpu/shadow/demandWgsl.ts';
+
+const SHADOW_PAGE_READ_WGSL = shadowPageReadWgsl();
+const SHADOW_DEMAND_WGSL = shadowDemandWgsl();
 
 /** Every lit point the kernel reads: its place and footprint, its normal. */
 const LITS = (binding: number) => `struct Lit{P:vec4f,N:vec4f,}

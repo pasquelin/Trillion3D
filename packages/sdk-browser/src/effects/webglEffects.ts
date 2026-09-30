@@ -40,7 +40,7 @@ export type WebglEffectKind<P> = {
 type Kinds = { [K in EffectKind]: WebglEffectKind<EffectPassOf<K>> };
 
 /** Each kind's WebGL2 implementation: the one place a new built-in or a custom pass plugs in. */
-export const WEBGL_KINDS: { [K in EffectKind]: (gl: WebGL2RenderingContext) => Kinds[K] } = {
+const WEBGL_KINDS: { [K in EffectKind]: (gl: WebGL2RenderingContext) => Kinds[K] } = {
   bloom: createWebglBloom,
 };
 

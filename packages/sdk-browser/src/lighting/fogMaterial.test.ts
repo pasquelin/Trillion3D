@@ -4,13 +4,17 @@ import * as G from '../host/graph/graph.fixture.ts';
 import { surfaceOf } from '../page/surface.ts';
 import { rowMaterial } from '../webgpu/row/pageRowMaterial.ts';
 import { BLEND_ITEM_WORDS, writeBlendItemRecord } from '../webgpu/blend/items.ts';
-import { BLEND_SHADER } from '../webgpu/blend/shader.ts';
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts';
-import { DIRECT_LIGHTING_SHADER } from './deferred/shaders.ts';
 import { prepared, device } from '../webgpu/water/pass.fixture.ts';
 import { writeVolumeRecords } from '../webgpu/transparent/transmission.ts';
-import { WATER_COMPOSITE_SHADER } from '../webgpu/water/compositeWgsl.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
+import { blendShader } from '../webgpu/blend/shader.ts';
+import { contractLightingShader } from './deferred/shaders.ts';
+import { waterCompositeShader } from '../webgpu/water/compositeWgsl.ts';
+
+const BLEND_SHADER = blendShader();
+const DIRECT_LIGHTING_SHADER = contractLightingShader(false, false);
+const WATER_COMPOSITE_SHADER = waterCompositeShader();
 
 test('a fog-free material reaches both the opaque flag and transparent shader', () => {
   const material = new G.GraphSurface('standard', { fog: false });

@@ -13,7 +13,7 @@ export const REFLECTION_RESOLVE_UNITS: [number, number] = [LTC_UNIT + 1, LTC_UNI
  * pixel budget its cost stops following the display. A mirror receiver whose image already fits the
  * budget keeps the image's own size, one trace a pixel, as before this pass.
  */
-export const REFLECTION_RESOLVE_PIXELS = 1 << 16;
+const REFLECTION_RESOLVE_PIXELS = 1 << 16;
 
 /** The pixel size the mirror resolve traces at for a `width` x `height` image: the image itself
  *  when it already fits the budget, the aspect-preserving largest size within it otherwise. */

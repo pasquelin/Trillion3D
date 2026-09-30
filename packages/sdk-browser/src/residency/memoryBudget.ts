@@ -31,11 +31,11 @@ export const SHADOW_GRANT_BYTES =
   shadowRequestBytes(SHADOW_POOL_PAGES);
 /** The shadows' GPU share: the grant, and what the most batches a frame draws add
  *  (`batchBudget.ts`). */
-export const SHADOW_POOL_BYTES = SHADOW_GRANT_BYTES + SHADOW_BATCH_GPU_BYTES;
+const SHADOW_POOL_BYTES = SHADOW_GRANT_BYTES + SHADOW_BATCH_GPU_BYTES;
 /** The shadows' host memory at that pool: the table's words and change flags, the pool's page
  *  records and eviction bits, the frame's list, as the three allocate them, and the batches' flag
  *  pages and CPU cut faces. */
-export const SHADOW_HOST_BYTES =
+const SHADOW_HOST_BYTES =
   shadowTableHostBytes(SHADOW_POOL_PAGES) +
   shadowPoolHostBytes(SHADOW_POOL_PAGES) +
   shadowAdmissionHostBytes(SHADOW_POOL_PAGES) +
@@ -45,7 +45,7 @@ export const SHADOW_HOST_BYTES =
  * the nine RGB coefficients, visibility and state of each, in both copies the pass binds (the
  * probes and the snapshot frozen before each update). Fixed whatever the scene.
  */
-export const BOUNCE_PROBE_BYTES =
+const BOUNCE_PROBE_BYTES =
   2 * bounceProbeBytes(BOUNCE_SETTINGS.cascadeLevels * BOUNCE_SETTINGS.cascadeSize ** 3);
 /** The largest canvas a budget declares: the effect chain's targets are reserved at its size. */
 export interface BudgetCanvas {
@@ -62,8 +62,6 @@ export const DEFAULT_BUDGET_CANVAS: BudgetCanvas = Object.freeze({ width: 3840, 
  * them with. Held only while a chain has a pass, as the targets follow the image's size.
  */
 const effectTargetReserve = ({ width, height }: BudgetCanvas) => effectChainBytesAt(width, height);
-/** The effect targets' reserve on the default canvas. */
-export const EFFECT_TARGET_BYTES = effectTargetReserve(DEFAULT_BUDGET_CANVAS);
 /**
  * Bytes by which a chain's targets on a `width × height` image pass the reserve of the declared
  * `canvas`, by the same rule; 0 within it. The chain still draws the whole image: the excess is
@@ -78,8 +76,6 @@ const fixedGpuBytes = (canvas: BudgetCanvas) =>
  *  defaults. */
 export const defaultGpuBudget = (canvas: BudgetCanvas = DEFAULT_BUDGET_CANVAS) =>
   fixedGpuBytes(canvas) + DEFAULT_GEOMETRY_POOL_BUDGET + DEFAULT_TEXTURE_POOL_BUDGET;
-/** The GPU total by default, on the default canvas. */
-export const DEFAULT_GPU_BUDGET = defaultGpuBudget();
 /** The CPU total by default: the shadow page table's host mirror, then the decoded-page cache's
  *  default, what a world's cache held before the mirror was counted. */
 export const DEFAULT_CPU_BUDGET = SHADOW_HOST_BYTES + DEFAULT_CACHED_BYTES;

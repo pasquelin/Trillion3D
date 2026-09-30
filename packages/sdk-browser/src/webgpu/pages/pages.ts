@@ -43,7 +43,6 @@ import { feedbackAbSpatial } from './diagnostic/feedbackSpatial.ts';
 import { claimWebgpuDevice, markWebgpuLost } from './io/lost.ts';
 import { webgpuAudits } from './io/audits.ts';
 import type { GpuDeviceClaim } from '../../gpu/core/deviceOwners.ts';
-export { outputColorDiagnostic } from './helpers.ts';
 /** WebGPU raster of cluster pages. GPU frustum + per-cluster error band when compute is available;
  *  `selectVisiblePages` remains the CPU oracle and the silent fallback. The state lives in the
  *  runtime; each method hands it to the module that owns that responsibility. */

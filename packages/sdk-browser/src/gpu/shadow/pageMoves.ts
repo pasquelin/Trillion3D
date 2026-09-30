@@ -31,7 +31,7 @@ struct Moved{@builtin(position) p:vec4f,@location(0) @interpolate(flat) shift:ve
 /** The moves of every page `moved` names (`resizeShadowPool`), from a pool of `fromSide` pages a
  *  side to one of `toSide`, at `scale` of the pool's texels — ½ for the transmittance layer —, in
  *  the order of their target pages, so each target layer's moves are one run. */
-export function shadowPageMoves(moved: Int32Array, fromSide: number, toSide: number, scale = 1) {
+function shadowPageMoves(moved: Int32Array, fromSide: number, toSide: number, scale = 1) {
   const words: number[] = [],
     page = SHADOW_PAGE * scale;
   for (const [was, now] of moved.entries()) {

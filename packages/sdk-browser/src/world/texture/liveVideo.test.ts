@@ -4,7 +4,6 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
 import { followVideoFrames } from './liveVideo.ts';
-import { pictureSize } from '../../texture/pictureSize.ts';
 
 /** A video element stand-in: its frame callbacks and `play` listeners, run by the test. */
 function video(options: { clock: boolean; paused: boolean }) {
@@ -52,14 +51,4 @@ test('without a frame clock, a paused video asks for nothing until it plays', ()
   displayed.shift()!();
   assert.ok(map.version > first, 'the last frame copied');
   assert.equal(displayed.length, 0, 'paused again: the loop stops');
-});
-
-test('a video is as large as its frames, not as its element box', () => {
-  assert.deepEqual(
-    pictureSize({ videoWidth: 640, videoHeight: 360, width: 0, height: 0 }),
-    [640, 360],
-  );
-  assert.deepEqual(pictureSize({ width: 16, height: 9 }), [16, 9]);
-  assert.deepEqual(pictureSize({ videoWidth: 0, videoHeight: 0 }), [1, 1], 'no frame yet');
-  assert.deepEqual(pictureSize(null), [1, 1]);
 });

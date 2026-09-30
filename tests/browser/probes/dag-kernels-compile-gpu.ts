@@ -15,9 +15,10 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/gpu/dag/shader/shader.ts';
 import { withScreenErrorVariant } from '../../../packages/sdk-browser/src/gpu/dag/shader/error.ts';
-import { SCREEN_ERROR_VARIANTS } from '../../../packages/sdk-core/src/lod/screenErrorVariant.ts';
 import { dansPageWebgpu, bundlePage } from './pageWebgpu.ts';
 import type { compileKernels, KernelText } from './dagKernelsCompilePage.ts';
+
+const SCREEN_ERROR_VARIANTS = ['certifiee', 'reference'] as const;
 
 declare global {
   var dagKernels: { compileKernels: typeof compileKernels };

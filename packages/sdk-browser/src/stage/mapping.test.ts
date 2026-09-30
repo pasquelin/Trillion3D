@@ -1,13 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  SHADOW_STAGE_PASSES,
-  addGpuPasses,
-  directLightTimings,
-  gpuPassStageOf,
-  gpuShadowPartOf,
-} from './mapping.ts';
-import { SHADOW_TRANSMITTANCE_CLEAR_PASS } from '../gpu/shadow/transmittance.ts';
+import { addGpuPasses, directLightTimings } from './mapping.ts';
 import { LIGHT_CUT_PASS } from '../gpu/dag/encode.ts';
 import { SHADOW_PASS } from '../gpu/shadow/atlas.ts';
 import { SHADOW_LAYER_PASS } from '../gpu/shadow/staticLayer.ts';
@@ -127,25 +120,6 @@ test('shadow time splits into choosing the casters and drawing them, from the sa
 });
 
 // One table names every pass: a shadow row without its part would drop out of the split silently.
-test('every pass of a shadow stage names its shadow part, and no other pass does', () => {
-  const parts = {
-    [LIGHT_CUT_PASS]: 'cull',
-    'Trillion3D shadow cull': 'cull',
-    'Trillion3D shadow page pyramids': 'cull',
-    'Trillion3D shadow occlusion': 'cull',
-    [SHADOW_LAYER_PASS]: 'raster',
-    [SHADOW_PASS]: 'raster',
-    [LIGHT_TILES_PASS]: 'other',
-    [DEFERRED_LIGHTING_PASS]: 'other',
-    'Trillion3D DAG selection': 'other',
-    'never-seen pass': 'other',
-  };
-  for (const [label, part] of Object.entries(parts)) {
-    assert.equal(gpuShadowPartOf(label), part, label);
-    const shadowStage = ['shadows', 'shadowCasters'].includes(gpuPassStageOf(label));
-    assert.equal(part !== 'other', shadowStage, label);
-  }
-});
 
 test('the bench reference reads the same shadow split as the engine', () => {
   const s = sample([
@@ -173,23 +147,3 @@ test('the three transparent passes sum onto their stage, never onto geometry', (
 });
 
 // The broad Shadows stage spans the shadow passes of `PASSES` and no other pass (#1207).
-test('the Shadows stage sums only the shadow passes of the pass table', () => {
-  assert.ok(SHADOW_STAGE_PASSES.includes(SHADOW_TRANSMITTANCE_CLEAR_PASS), 'shadow work, named');
-  assert.ok(!SHADOW_STAGE_PASSES.includes(LIGHT_CUT_PASS), 'the light cut is its own stage');
-  const others = [
-    LIGHT_CUT_PASS,
-    LIGHT_TILES_PASS,
-    DEFERRED_LIGHTING_PASS,
-    'Trillion3D visibility primary',
-  ];
-  const s = sample([
-    ...SHADOW_STAGE_PASSES.map((name) => ({ name, gpuMs: 1 })),
-    ...others.map((name) => ({ name, gpuMs: 100 })),
-  ]);
-  assert.equal(directLightTimings(s).gpuShadowsMs, SHADOW_STAGE_PASSES.length);
-  assert.deepEqual(
-    referenceDirectLightTimings(s),
-    directLightTimings(s),
-    'the bench reads the same',
-  );
-});

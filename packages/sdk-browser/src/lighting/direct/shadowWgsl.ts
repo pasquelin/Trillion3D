@@ -82,8 +82,6 @@ fn shadowNormalTexels(cosine:f32)->f32{
  return SHADOW_NORMAL_TEXELS+SHADOW_PCF_REACH*max(sqrt(1.0-cosine*cosine)-cosine,0.0);
 }`;
 }
-/** The page model of the ordinary window: what a pass compiled without a session window reads. */
-export const SHADOW_PAGE_READ_WGSL = shadowPageReadWgsl();
 
 /**
  * The virtual shadow read, shared by every pass that lights a surface: records and page table,

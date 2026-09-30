@@ -15,7 +15,7 @@ type Rows = ReturnType<typeof createWebgpuRowState>;
 type Writer = ReturnType<typeof createPageRowWriter>;
 
 /** The row-map word of a page that casts from no row: a rank no reader accepts. */
-export const NO_ROW = 0xffffffff;
+const NO_ROW = 0xffffffff;
 const ROW_WORDS = PAGE_INFO_STRIDE / 4;
 
 /** Where the GPU light cut finds each page's row (`../../gpu/draw/lightRows.ts`). */

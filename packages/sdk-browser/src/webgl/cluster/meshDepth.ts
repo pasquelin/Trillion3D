@@ -53,7 +53,7 @@ const placementSpheres = new WeakMap<
  * it, so the two orders sort on the same number. Recomputed only when the matrices or the count
  * change.
  */
-export const placementsCentre = (mesh: Instanced, geometry: { center: Centre; radius?: number }) =>
+const placementsCentre = (mesh: Instanced, geometry: { center: Centre; radius?: number }) =>
   placementsSphere(mesh, geometry).centre;
 
 /** The union of an instanced mesh's placement spheres, in its own space: what the depth sorts on

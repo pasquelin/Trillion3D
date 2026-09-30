@@ -41,7 +41,7 @@ export function createWebgpuBindIdentity(): WebgpuBindIdentity {
 }
 
 /** Reads exactly the resources and ranges supplied to createBindGroup, into reused storage. */
-export function entriesIdentity(entries: readonly GPUBindGroupEntry[], next: unknown[], at = 0) {
+function entriesIdentity(entries: readonly GPUBindGroupEntry[], next: unknown[], at = 0) {
   for (let i = 0; i < entries.length; i++) {
     const entry = entries[i],
       resource = entry.resource;
