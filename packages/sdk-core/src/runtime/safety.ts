@@ -1,3 +1,4 @@
+import { judgeEvidence } from './safetyEvidence.ts';
 /** How much of the engine a machine may run: everything, a reduced set, or the basics. */
 export type CapabilityTier = 'full' | 'degraded' | 'baseline';
 /** What the safety policy decided, and why. */
@@ -100,49 +101,12 @@ export function createSafetyPolicy(config: SafetyConfig) {
     observe(reference: MeasuredCosts, candidate: MeasuredCosts, now: number) {
       if (!Number.isFinite(now) || now < lastTime) throw new Error('INVALID_CLOCK');
       lastTime = now;
-      const valid = (value: number | null) =>
-        value === null || (Number.isFinite(value) && value >= 0);
-      if (
-        reference.provenance !== 'measured' ||
-        candidate.provenance !== 'measured' ||
-        reference.contextKey !== candidate.contextKey ||
-        ![reference, candidate].every((v) =>
-          [v.cpuMs, v.gpuMs, v.latencyMs, v.memoryBytes, v.evictionsPerSecond].every(valid),
-        )
-      ) {
+      const verdict = judgeEvidence(reference, candidate, config);
+      if ('veto' in verdict) {
         good = bad = 0;
-        return transition(false, 'Incomparable or invalid evidence', now);
+        return transition(false, verdict.veto, now);
       }
-      if (config.requireGpuTiming && (reference.gpuMs === null || candidate.gpuMs === null)) {
-        good = bad = 0;
-        return transition(false, 'GPU evidence unavailable', now);
-      }
-      if (config.memoryBudgetBytes !== undefined && candidate.memoryBytes === null) {
-        good = bad = 0;
-        return transition(false, 'Memory evidence unavailable', now);
-      }
-      const ratio = (a: number, b: number) => (b === 0 ? (a === 0 ? 1 : Infinity) : a / b);
-      const ratios = [
-        ratio(candidate.cpuMs, reference.cpuMs),
-        ratio(candidate.latencyMs, reference.latencyMs),
-      ];
-      if (candidate.gpuMs !== null && reference.gpuMs !== null)
-        ratios.push(ratio(candidate.gpuMs, reference.gpuMs));
-      // No ceiling is no limit. Memory is measured whenever it has a budget (refused above); an
-      // unmeasured eviction rate counts as none, so missing evidence never fabricates thrashing.
-      const pressure = (candidate.memoryBytes ?? 0) > (config.memoryBudgetBytes ?? Infinity);
-      const thrashing =
-        (candidate.evictionsPerSecond ?? 0) > (config.maxEvictionsPerSecond ?? Infinity);
-      if (pressure || thrashing) {
-        good = bad = 0;
-        return transition(
-          false,
-          pressure ? 'Circuit breaker: memory budget' : 'Circuit breaker: thrashing',
-          now,
-        );
-      }
-      const harmful = ratios.some((r) => r > config.disableRatio),
-        beneficial = ratios.every((r) => r <= config.enableRatio);
+      const { harmful, beneficial } = verdict;
       bad = harmful ? bad + 1 : 0;
       good = beneficial ? good + 1 : 0;
       if (now - decision.changedAt < config.minimumPeriodMs) return decision;
