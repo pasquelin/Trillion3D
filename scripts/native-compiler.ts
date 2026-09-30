@@ -66,5 +66,7 @@ export function compileFullCache({
   );
   if (result.error) throw result.error;
   if (result.status !== 0)
-    throw new Error(`The native compiler failed on ${source} (status ${result.status}).`);
+    throw new Error(
+      `The native compiler failed on ${source} (status ${result.status}, signal ${result.signal}).`,
+    );
 }
