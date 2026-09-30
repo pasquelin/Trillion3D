@@ -3355,6 +3355,7 @@
       "counts": "Những gì kế hoạch trước đã làm, tính theo trang.",
       "spent": "Số mili giây CPU mà kế hoạch gần nhất dùng để đọc báo cáo yêu cầu và chấp nhận trang.",
       "worldChanged": "Một nút đã di chuyển: hộp của nó làm cũ các trang nó phủ ở kế hoạch tiếp theo.",
+      "changeRoom": "Số hộp danh sách còn giữ riêng được trước khi tràn.",
       "representationChanged": "Cùng thế giới ở độ chính xác khác: hộp của nó chờ camera dừng.",
       "resting": "Camera đứng yên ở lần lập kế hoạch cuối: góc nhìn của nó giống lần trước đó.",
       "deferredChanges": "Đúng khi một thay đổi biểu diễn đang chờ camera dừng.",
