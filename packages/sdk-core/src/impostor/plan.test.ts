@@ -100,7 +100,7 @@ test('the switch is the CPU oracle over the baked numbers and the view', () => {
 
 test('the largest world scale of the placement moves R and the switch with it', () => {
   const [unity, scaled] = [1, 2].map((s) =>
-    planImpostors([{ mesh: 1, world: world(0, 0, -160, s) }], section, IDENTITY_VIEW, FOCAL),
+    planImpostors([{ mesh: 1, world: world(0, 0, -300, s) }], section, IDENTITY_VIEW, FOCAL),
   );
   assert.equal(unity.cards[0]?.radius, 4.2);
   assert.equal(scaled.cards[0]?.radius, 8.4);

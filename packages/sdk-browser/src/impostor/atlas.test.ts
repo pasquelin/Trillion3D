@@ -29,6 +29,7 @@ test('each atlas level is requested at its own url, level 0 first', () => {
 
 /** A reader that records what it was asked and answers a level of `bytes` bytes. */
 function fakeReader(store: ReturnType<typeof createTextureLevelStore>, bytes = 64) {
+  store.keepOnly('k1'); // as `createTextureLevelReader` does, so `take` holds its levels.
   const asked: TextureLevelRequest[] = [];
   const read = (async (request: TextureLevelRequest) => {
     asked.push(request);
@@ -63,5 +64,6 @@ test('the three maps of a card load through the same reader', async () => {
     [2, 2, 2],
   );
   assert.equal(asked.length, 6, 'six levels over three maps, one loader');
-  assert.equal(store.bytes, 48);
+  // The three maps carry the same two content addresses, held once: one budget, one copy.
+  assert.equal(store.bytes, 16);
 });

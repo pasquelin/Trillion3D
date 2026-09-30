@@ -868,7 +868,8 @@
       "worstStalls": "La table des blocages du compilateur : au plus dix primitives avec un groupe bloqué qui a gardé des racines au niveau 0, la pire d’abord. Absente d’un cache compilé avant elle.",
       "texturePreviews": "Une entrée par couple (texture, atlas) décodé, rangée par texture puis par atlas ; vide sans image décodable.",
       "textures": "Modèle des niveaux cuits, relatif au manifeste : {sha} l’empreinte de l’image source, {kind} le nom de l’atlas (PREVIEW_ATLAS_NAMES), {level} le rang du niveau. Absent d’un cache compilé avant les niveaux cuits, que ce lecteur refuse par la version du fichier annexe. `version` est celle des niveaux (`TEXTURE_PREVIEW_VERSION`) : un lecteur ne lit aucun niveau d’une autre.",
-      "proxy": "Où lire le proxy de scène résident et son BVH : la géométrie que touchent les rayons. Absent d’un cache compilé avant le rebond, qui reste lisible tel quel."
+      "proxy": "Où lire le proxy de scène résident et son BVH : la géométrie que touchent les rayons. Absent d’un cache compilé avant le rebond, qui reste lisible tel quel.",
+      "impostors": "Atlas d’imposteurs cuits par le compilateur, par maillage (#817) ; absents d’un cache compilé avant les imposteurs."
     }
   },
   "clusterSphereValid": {
@@ -5776,6 +5777,7 @@
       "texturePreviews": "Une entrée par couple (texture, atlas) décodé, rangée par texture puis par atlas ; vide sans image décodable.",
       "textures": "Modèle des niveaux cuits, relatif au manifeste : {sha} l’empreinte de l’image source, {kind} le nom de l’atlas (PREVIEW_ATLAS_NAMES), {level} le rang du niveau. Absent d’un cache compilé avant les niveaux cuits, que ce lecteur refuse par la version du fichier annexe. `version` est celle des niveaux (`TEXTURE_PREVIEW_VERSION`) : un lecteur ne lit aucun niveau d’une autre.",
       "proxy": "Où lire le proxy de scène résident et son BVH : la géométrie que touchent les rayons. Absent d’un cache compilé avant le rebond, qui reste lisible tel quel.",
+      "impostors": "Atlas d’imposteurs cuits par le compilateur, par maillage (#817) ; absents d’un cache compilé avant les imposteurs.",
       "binary": "Le fichier binaire.",
       "primitives": "Ses primitives.",
       "worstStalls": "La table des blocages du compilateur : au plus dix primitives avec un groupe bloqué qui a gardé des racines au niveau 0, la pire d’abord. Absente d’un cache compilé avant elle."
@@ -6329,6 +6331,7 @@
       "atlas": "Quel atlas.",
       "level": "Quel niveau.",
       "format": "Quel format.",
+      "url": "L’adresse propre du niveau, quand le cache en liste une — un niveau d’atlas d’imposteur (`maps.<name>.levels[k].url`, #1239). Lu par ce même lecteur, résolue contre `base`, à la place du modèle `textures.url` : un chargeur, un budget.",
       "range": "Les octets d’un niveau en blocs à lire seuls — l’enregistrement d’une tuile (`tileRecords.ts`) —, par une requête HTTP Range ; un serveur qui l’ignore répond le fichier entier."
     }
   },
