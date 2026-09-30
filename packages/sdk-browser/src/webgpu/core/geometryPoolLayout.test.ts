@@ -1,17 +1,19 @@
-// #1410: the shadow receiver offset reads the float pool's positions and normals through one
-// binding, so the deferred lighting holds its storage buffers within the eight WebGPU guarantees.
-// The normals ride in the position buffer, past the positions and the deformation block, at a
-// binding offset. Defects these tests catch: a normal written where the receiver does not read it
-// (its `vertN` then shades another normal than the resolve's), ranges that overlap (the deformation
-// stage, which writes the positions and reads the normals, is refused), a growth that leaves the
-// normals behind.
+// #1410: the float pool's normals and tangents ride in a float atlas (`floatAtlas.ts`), no storage
+// buffer, so the lighting with bounce and the shadow demand, which recompute the receiver offset
+// from them, hold the eight storage buffers WebGPU guarantees. Defects these tests catch: a normal
+// written where the passes do not read it (the offset then leaves another normal than the
+// resolve's), a growth that leaves the normals behind, and a pool that holds fewer vertices than
+// develop's three buffers did under the same `maxStorageBufferBindingSize`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
-import { fakeDevice, replayWrites } from '../../../../../tests/kit/gpu/fakeDevice.ts';
-import { shaderRun } from '../../texture/shaderRun.fixture.ts';
-import { vertNormalWgsl } from '../../visibility/shader/pageWgsl.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
+import { shaderRun, type Vec } from '../../texture/shaderRun.fixture.ts';
+import { VERT_NORMAL_WGSL } from '../../visibility/shader/pageWgsl.ts';
 import { createVertexPool } from './geometryPool.ts';
+import { poolFits, poolFloats } from './geometryPoolLayout.ts';
+import { FLOAT_ATLAS_ROWS } from './floatAtlas.ts';
+import { uvBufferFloats } from './vertexColors.ts';
 import type { HostAttributes } from '../../host/resources.ts';
 
 /** A triangle whose every normal and tangent component differs. */
@@ -25,72 +27,98 @@ function triangle() {
   geometry.setAttribute('tangent', G.floatAttribute([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], 4));
   return geometry.attributes as unknown as HostAttributes;
 }
-const TAIL = 5;
-type Vertex = { vertN: (base: number, idx: number) => number[] };
+type Vertex = {
+  vertN: (base: number, idx: number) => Vec;
+  vertT: (base: number, idx: number) => Vec;
+};
 
-test('the receiver reads, past the positions, the very normals the resolve reads from its range', () => {
-  const { device, writes } = fakeDevice();
-  const pool = createVertexPool(device, 6, false, new Map(), TAIL);
-  const first = triangle(),
-    second = triangle();
-  pool.place(first);
-  const block = pool.place(second)!;
-  const { positions, concatNrm, normalBase, concatPos } = pool;
-  assert.equal(normalBase % 64, 0, 'the normals start at a binding offset');
-  assert.ok(normalBase >= 6 * 3 + TAIL, 'past the positions and the deformation block');
-  assert.deepEqual(
-    [positions.buffer, positions.offset, positions.size],
-    [concatPos, 0, normalBase * 4],
-  );
-  assert.deepEqual(
-    [concatNrm.buffer, concatNrm.offset, concatNrm.size],
-    [concatPos, normalBase * 4, 6 * 28],
-    'the normals: a range of their own, after the positions, never over them',
-  );
-  const bytes = new ArrayBuffer(concatPos.size);
-  replayWrites(
-    bytes,
-    writes.filter((write) => write.buffer === concatPos),
-  );
-  const whole = new Float32Array(bytes),
-    range = whole.subarray(normalBase);
-  const resolve = shaderRun<Vertex>(vertNormalWgsl(), ['vertN'], { normals: range });
-  const receiver = shaderRun<Vertex>(vertNormalWgsl('positions', 'uni.normalBase+'), ['vertN'], {
-    positions: whole,
-    uni: { normalBase },
-  });
-  for (let vertex = 0; vertex < 3; vertex++) {
-    const read = resolve.vertN(block.vertexBase, vertex);
-    assert.deepEqual(receiver.vertN(block.vertexBase, vertex), read, `vertex ${vertex}`);
-    assert.deepEqual(
-      read.map((v) => Math.fround(v)),
-      Array.from(range.subarray(21 + vertex * 7, 24 + vertex * 7)),
-    );
+/** The atlas the texture writes left, as the shared text reads it (`VERT_NORMAL_WGSL`). */
+function replayAtlas(gpu: ReturnType<typeof fakeDevice>, texture: object, width: number) {
+  const texels = new Map<number, number>();
+  for (const { destination, data, layout, size } of gpu.texelWrites) {
+    if (destination.texture !== texture) continue;
+    const [x, y, layer] = destination.origin as number[];
+    const [w, h] = size as number[];
+    const floats = new Float32Array(data.buffer, data.byteOffset + (layout.offset ?? 0));
+    for (let r = 0; r < h; r++)
+      for (let c = 0; c < w; c++)
+        texels.set(
+          (layer * FLOAT_ATLAS_ROWS + y + r) * width + x + c,
+          floats[(r * (layout.bytesPerRow ?? 0)) / 4 + c],
+        );
   }
-  assert.ok(
-    receiver.vertN(block.vertexBase, 1).some((v) => v !== 0),
-    'a normal was written',
+  return {
+    normals: {},
+    textureDimensions: () => [width, FLOAT_ATLAS_ROWS],
+    textureLoad: (_: object, [x, y]: Vec, layer: number) => [
+      texels.get((Math.trunc(layer) * FLOAT_ATLAS_ROWS + Number(y)) * width + Number(x)) ?? 0,
+    ],
+  };
+}
+
+test('the passes read, from the normal atlas, the very normals and tangents the pool wrote', () => {
+  const gpu = fakeDevice();
+  const pool = createVertexPool(gpu.device, 6, false, new Map(), 5);
+  pool.place(triangle());
+  const block = pool.place(triangle())!;
+  const { texture, extent } = pool.normalAtlas;
+  const run = shaderRun<Vertex>(
+    VERT_NORMAL_WGSL,
+    ['normalAt', 'vertN', 'vertT'],
+    replayAtlas(gpu, texture, extent[0]),
   );
-  assert.equal(vertNormalWgsl(), vertNormalWgsl('normals', ''), 'the passes read as before');
+  const host = triangle();
+  for (let v = 0; v < 3; v++) {
+    const normal = [0, 1, 2].map((c) => Math.fround(host.normal!.getComponent(v, c)));
+    const tangent = [0, 1, 2, 3].map((c) => Math.fround(host.tangent!.getComponent(v, c)));
+    assert.deepEqual(run.vertN(block.vertexBase, v), normal, `normal ${v}, bit for bit`);
+    assert.deepEqual(run.vertT(block.vertexBase, v), tangent, `tangent ${v}, bit for bit`);
+  }
+  assert.equal(pool.concatNrm, pool.normalAtlas.view, 'the passes bind the atlas itself');
 });
 
-test('a growth carries the normals to where the wider buffer keeps them', () => {
-  const { device, copies } = fakeDevice();
-  const pool = createVertexPool(device, 3, false, new Map(), TAIL);
+test('a growth carries the normal atlas whole into the wider one', () => {
+  const gpu = fakeDevice();
+  const pool = createVertexPool(gpu.device, 3, false, new Map(), 5);
   pool.place(triangle());
-  const [before, base] = [pool.concatPos, pool.normalBase];
+  const before = pool.normalAtlas;
   pool.place(triangle()); // past the room: the pool doubles
-  const after = pool.concatPos;
-  assert.notEqual(after, before, 'a wider buffer');
-  const moved = copies.filter(({ from, to }) => from === before && to === after);
+  const after = pool.normalAtlas;
+  assert.notEqual(after.texture, before.texture, 'a new atlas');
+  const moved = gpu.textureCopies.filter(({ from }) => from.texture === before.texture);
   assert.deepEqual(
-    moved.map(({ fromOffset, toOffset, size }) => [fromOffset, toOffset, size]),
-    [
-      [0, 0, 3 * 12],
-      [3 * 12, 6 * 12, TAIL * 4],
-      [base * 4, pool.normalBase * 4, 3 * 28],
-    ],
-    'the positions, the deformation block after the wider room, then the normals',
+    moved.map(({ to, size }) => [to.texture, size]),
+    [[after.texture, before.extent]],
   );
-  assert.equal(pool.concatNrm.offset, pool.normalBase * 4, 'the range follows the growth');
+  assert.ok(gpu.destroyed.includes(before.texture as never), 'the narrower atlas freed');
+});
+
+test('under the same maxStorageBufferBindingSize, the pool holds at least the vertices develop held', () => {
+  const MiB = 2 ** 20;
+  /** Develop's pool (#1410's base): positions and deformation block, UVs, normals, three buffers
+   *  each under the storage binding cap. */
+  const developHolds = (n: number, tail: number, coloured: boolean, cap: number) =>
+    [n * 3 + tail, uvBufferFloats(n, coloured), n * 7].every((floats) => floats * 4 <= cap);
+  for (const cap of [128 * MiB, 1024 * MiB, 2 ** 32 - 4])
+    for (const tail of [0, 1000, 20 * MiB])
+      for (const coloured of [false, true]) {
+        const limits = {
+          maxStorageBufferBindingSize: cap,
+          maxBufferSize: cap,
+          maxTextureDimension2D: 8192,
+          maxTextureArrayLayers: 256,
+        } as GPUSupportedLimits;
+        let most = 0;
+        for (let step = 2 ** 32; step >= 1; step /= 2)
+          if (developHolds(most + step, tail, coloured, cap)) most += step;
+        assert.ok(most > 0, 'develop holds some vertices');
+        const at = `cap ${cap}, tail ${tail}, coloured ${coloured}: ${most} vertices`;
+        assert.ok(poolFits(poolFloats(most, tail, coloured), limits), at);
+      }
+  // A real pool opened at develop's ceiling for the guaranteed limits.
+  const ceiling = Math.floor((128 * MiB) / 28);
+  const { device } = fakeDevice({
+    limits: { maxStorageBufferBindingSize: 128 * MiB, maxBufferSize: 256 * MiB },
+  });
+  assert.doesNotThrow(() => createVertexPool(device, ceiling, false, new Map()));
 });

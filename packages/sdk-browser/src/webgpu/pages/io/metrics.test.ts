@@ -67,7 +67,7 @@ test("texture metrics are the streamer's, and `null` until it is built", () => {
 
   function scenario(
     positions: number[],
-    concat: (number | undefined)[], // the float pool's position and UV buffers
+    concat: (number | undefined)[],
     blend: (readonly [number | undefined, number | undefined, number | undefined])[],
   ) {
     const positionBuffers = new Map(positions.map((size, i) => [i, buffer(size)]));
@@ -75,11 +75,13 @@ test("texture metrics are the streamer's, and `null` until it is built", () => {
     const vis = {
       concatPos: concat[0] === undefined ? undefined : buffer(concat[0]),
       concatUv: concat[1] === undefined ? undefined : buffer(concat[1]),
+      // The float pool's normals ride in its atlas (#1410): its bytes.
+      vertexPool: concat[2] === undefined ? undefined : { normalBytes: concat[2] },
     } as unknown as Parameters<typeof vertexBytesOf>[1];
     const blendGpu = blend.map(([index, uv, normal]) => ({
       index: index === undefined ? undefined : buffer(index),
       uv: uv === undefined ? undefined : buffer(uv),
-      normal: normal === undefined ? undefined : buffer(normal),
+      normal: normal === undefined ? undefined : { bytes: normal },
     }));
     for (const [index, uv, normal] of blend) tally += (index ?? 0) + (uv ?? 0) + (normal ?? 0);
     const gpu = { positionBuffers, vertexBytes: tally } as unknown as Pick<
@@ -95,22 +97,21 @@ test("texture metrics are the streamer's, and `null` until it is built", () => {
   }
 
   test('no resident buffer, no transparent mesh: both are zero', () => {
-    scenario([], [undefined, undefined], []);
+    scenario([], [undefined, undefined, undefined], []);
   });
 
   test('resident position buffers alone, mixed sizes including zero', () => {
-    scenario([0, 4096, 12], [undefined, undefined], []);
+    scenario([0, 4096, 12], [undefined, undefined, undefined], []);
   });
 
-  test('the float pool buffers present or partly missing', () => {
-    scenario([1024], [2048, undefined], []);
-    scenario([1024], [undefined, 512], []);
+  test('the three concatenated visbuffer buffers present or partly missing', () => {
+    scenario([1024], [2048, undefined, 512], []);
   });
 
   test('transparent meshes with one missing channel each', () => {
     scenario(
       [],
-      [undefined, undefined],
+      [undefined, undefined, undefined],
       [
         [64, undefined, 32],
         [undefined, 128, undefined],
@@ -122,7 +123,7 @@ test("texture metrics are the streamer's, and `null` until it is built", () => {
   test('a complete sample with resident buffers, visbuffer and transparent meshes together', () => {
     scenario(
       [256, 0, 8192],
-      [4096, 2048],
+      [4096, 4096, 2048],
       [
         [64, 64, 64],
         [0, 0, 0],
@@ -132,7 +133,7 @@ test("texture metrics are the streamer's, and `null` until it is built", () => {
 
   test('sizes near Number.MAX_SAFE_INTEGER do not diverge between the two sums', () => {
     const big = Number.MAX_SAFE_INTEGER / 8;
-    scenario([big, big], [big, undefined], [[big, undefined, undefined]]);
+    scenario([big, big], [big, undefined, undefined], [[big, undefined, undefined]]);
   });
 }
 

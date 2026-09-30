@@ -8,14 +8,16 @@ export function referenceVertexBytes(
   vis: {
     concatPos?: { size: number };
     concatUv?: { size: number };
+    /** The float pool, whose normals ride in an atlas (#1410). */
+    vertexPool?: { normalBytes: number };
   },
   blendState: { blendGpu: BlendGpuItem[] },
 ) {
   let vertexBytes = 0;
   for (const buffer of gpu.positionBuffers.values()) vertexBytes += buffer.size;
-  // The float pool's two buffers: its normals ride in the position buffer (#1410).
-  vertexBytes += (vis.concatPos?.size ?? 0) + (vis.concatUv?.size ?? 0);
+  vertexBytes +=
+    (vis.concatPos?.size ?? 0) + (vis.concatUv?.size ?? 0) + (vis.vertexPool?.normalBytes ?? 0);
   for (const item of blendState.blendGpu)
-    vertexBytes += (item.index?.size ?? 0) + (item.uv?.size ?? 0) + (item.normal?.size ?? 0);
+    vertexBytes += (item.index?.size ?? 0) + (item.uv?.size ?? 0) + (item.normal?.bytes ?? 0);
   return vertexBytes;
 }

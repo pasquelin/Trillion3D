@@ -123,8 +123,12 @@ export function dropVis(rt: WebgpuPagesRuntime) {
   vis.gpuRaster = undefined;
   dropGpuDraw(rt);
   dropGpuHiz(rt);
-  vis.concatPos?.destroy();
-  vis.concatUv?.destroy();
+  // The pool frees its buffers and its normal atlas; without one, the buffers alone.
+  if (vis.vertexPool) vis.vertexPool.destroy();
+  else {
+    vis.concatPos?.destroy();
+    vis.concatUv?.destroy();
+  }
   vis.pageTable?.destroy();
   vis.shadeUniform?.destroy();
   vis.visUniform?.destroy();

@@ -11,7 +11,7 @@ import {
   BARY_WEIGHTS_WGSL,
   EDGE_WGSL,
   PAGE_INFO_STRUCT_WGSL,
-  VERT_NORMAL_WGSL,
+  normalAtlasWgsl,
 } from './pageWgsl.ts';
 import { PAGE_GEOMETRY_WGSL, PAGE_NORMAL_WGSL, PAGE_SCREEN_WGSL } from './pageGeometryWgsl.ts';
 import {
@@ -60,7 +60,7 @@ ${SHADE_UNI_WGSL}
 @group(0) @binding(${SHADE_BINDINGS.cache}) var<storage, read> indices:array<u32>;
 @group(0) @binding(${SHADE_BINDINGS.position}) var<storage, read> positions:array<f32>;
 @group(0) @binding(${SHADE_BINDINGS.uv}) var<storage, read> uvs:array<f32>;
-@group(0) @binding(${SHADE_BINDINGS.normal}) var<storage, read> normals:array<f32>;
+${normalAtlasWgsl(SHADE_BINDINGS.normal)}
 @group(0) @binding(${SHADE_BINDINGS.pageTable}) var<storage, read> pages:array<PageInfo>;
 ${tileDeclarations(SHADE_BINDINGS.color, 'color')}
 @group(0) @binding(${SHADE_BINDINGS.sampler}) var mapsSampler:sampler;
@@ -70,7 +70,6 @@ ${MATERIAL_CLASS_WGSL}
 ${TRIANGLE_PALETTE_WGSL}
 ${PAGE_GEOMETRY_WGSL}
 ${PAGE_SCREEN_WGSL}
-${VERT_NORMAL_WGSL}
 ${PAGE_NORMAL_WGSL}
 ${EDGE_WGSL}
 ${BARY_WEIGHTS_WGSL}

@@ -48,7 +48,12 @@ function blendLayout(device: GPUDevice) {
       ...atlasLayoutEntries(b.color),
       { binding: b.sampler, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
       ...atlasLayoutEntries(b.data),
-      { binding: b.normals, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+      // Every normal a transparent reads is a float atlas (`../core/floatAtlas.ts`, #1410).
+      {
+        binding: b.normals,
+        visibility: GPUShaderStage.VERTEX,
+        texture: { sampleType: 'unfilterable-float', viewDimension: '2d-array' },
+      },
       { binding: b.directLights, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
       { binding: b.clusterDiagnostic, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
       { binding: b.planInstances, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
