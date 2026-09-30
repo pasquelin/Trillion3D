@@ -6,15 +6,17 @@ import { createShadowTable } from '../../../../sdk-core/src/scene/light-shadow/t
 import {
   PAGE_FOOTPRINT_FULL,
   PAGE_FOOTPRINT_SHIFT,
-  pageFootprint,
 } from '../../../../sdk-core/src/scene/light-shadow/footprint.ts';
 import {
   LAMP_SIDE,
   SHADOW_PAGE,
-  SHADOW_TABLE_STRIDE,
   SUN_WINDOW,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { lampEntry, sunEntry } from '../../../../sdk-core/src/scene/light-shadow/pageModel.ts';
+import { shadowTableStride } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { pageFootprint } from '../../../../sdk-core/src/scene/light-shadow/footprint.fixture.ts';
+
+const SHADOW_TABLE_STRIDE = shadowTableStride(SUN_WINDOW);
 
 /** A map as `ShadowMap` lays it out: first entry, ring, pages per side, window origin. */
 export type PageMap = { base: number; ring: number; pages: number; ox: number; oy: number };

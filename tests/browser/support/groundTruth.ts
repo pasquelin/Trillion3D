@@ -15,7 +15,7 @@ import {
   linearToSrgb8,
   srgbToLinear,
 } from '../../../packages/sdk-core/src/math/primitives/color.ts';
-import { wrapLinear } from '../../../packages/sdk-browser/src/visibility/wrapModes.ts';
+import { wrapLinear } from '../../../packages/sdk-browser/src/visibility/wrapModes.fixture.ts';
 
 /** Reads along the minified axis of a pixel: converged to within one level on the foliage. */
 const SAMPLES = 32;

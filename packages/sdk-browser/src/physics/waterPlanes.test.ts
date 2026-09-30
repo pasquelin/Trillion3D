@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWater, type WaterSpec } from '../../../sdk-core/src/fluids/index.ts';
-import { waveRest } from '../../../sdk-core/src/fluids/surface.ts';
 import type { Waves } from '../../../sdk-core/src/fluids/waves.ts';
 import { OCEAN } from '../../../sdk-core/src/fluids/waves.fixture.ts';
 import { PLANE_WORDS, WATER_PIECE_WORDS } from '../../../sdk-core/src/physics/index.ts';
 import { random } from '../page/cut/cutRuleChecks.fixture.ts';
 import { startModule, type Module } from './module.fixture.ts';
+import { waveRest } from '../../../sdk-core/src/fluids/waveRest.ts';
 
 /** `wavePatch` as the page computed it before the module did: the frozen oracle, never edited. */
 function patch(

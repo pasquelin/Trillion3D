@@ -143,8 +143,8 @@ export function pumpResidentTiles(
 }
 
 export {
-  compilingContract,
   directLightResources,
+  litProgramPending,
   readsAsIs,
   wantsContractLighting,
 } from './contractLight.ts';

@@ -18,9 +18,14 @@
  * format. Both descents are launched from here so the difference is measured, not deduced.
  */
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts';
-import { dagNodeFloor, dagNodeVerdict, dagViewFrames, projectedError } from './oracle/math.ts';
-import { bandError, bandSphere, dagRecords, worldOf } from './records.ts';
-import { NODE_FIRST_CHILD, NODE_FIRST_PAGE, NODE_PAGE_COUNT } from './packNodes.ts';
+import {
+  dagNodeFloor,
+  dagNodeVerdict,
+  dagViewFrames,
+  projectedError,
+} from './oracle/math.fixture.ts';
+import { bandError, bandSphere, dagRecords, worldOf } from './records.fixture.ts';
+import { NODE_FIRST_CHILD, NODE_FIRST_PAGE, NODE_PAGE_COUNT } from './nodeLayout.ts';
 import type { SelectionUniforms } from '../core/selection.ts';
 
 export type Descente = {
@@ -53,7 +58,7 @@ export function descenteComptee(
 ): Descente {
   const { nodes } = packed;
   const ints = new Uint32Array(nodes.buffer);
-  // The per-primitive prologue and the per-node verdict come from `oracle/math.ts`, written
+  // The per-primitive prologue and the per-node verdict come from `oracle/math.fixture.ts`, written
   // once for the oracle and for this count: neither can drift from the kernel alone.
   const frames = dagViewFrames(packed, uniforms);
   const compte: Descente = {

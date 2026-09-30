@@ -1,4 +1,5 @@
 import type { DeformationCompute } from '../../../deformation/compute.ts';
+import type * as DeformationCode from '../../../deformation/deformationCode.ts';
 import type { SessionDeformation } from '../../../deformation/session.ts';
 import type { HostAttributes } from '../../../host/resources.ts';
 import type { Texture } from '../../../../../sdk-core/src/index.ts';
@@ -11,14 +12,17 @@ import type { GpuRestCompact } from '../../../gpu/raster/restCompact.ts';
 import { MAX_DRAW_SLOTS } from '../../../gpu/draw/draw.ts';
 import type { WebgpuTileStreamer } from '../../tile/streamer.ts';
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../../core/bindIdentity.ts';
-import { createPresentClasses, type PresentClasses } from '../../core/materialPasses.ts';
+import { createPresentClasses } from '../../core/materialPasses.ts';
 import type { GeometryBlock } from '../../row/pageRowMaterial.ts';
 import type { VertexPool } from '../../core/geometryPool.ts';
 import type { BlendModePipelines } from '../../blend/stagePipelines.ts';
+import { type PresentClasses } from '../../core/presentClasses.ts';
 
 /** GPU resources of the visibility-buffer path: raster and shade pipelines, their bind groups, the
  *  concatenated geometry, the page table and the material atlases. */
 export interface WebgpuVisState {
+  /** Deformation's code, loaded by a session that deforms (`../../../deformation/prepare.ts`). */
+  deformationCode?: typeof DeformationCode;
   deformationCompute?: DeformationCompute;
   wholeDeformation?: { table: GPUBuffer; count: number };
   visEnabled: boolean;

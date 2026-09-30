@@ -72,10 +72,11 @@ export function createPageInvalidation(
     views = 0,
     nowMs = 0,
     frame = 0;
-  /** Stales `page` at `level`, counted under `reason` (`STALE_BY`), withdrawn when `wrong`. */
+  /** Stales `page` at `level`, counted under `reason` (`STALE_BY`), withdrawn when `wrong`, the
+   *  GPU's own draw too (#1345). */
   const mark = (page: number, level: number, wrong: boolean, reason: number) => {
     if (pool.stale(page, nowMs, frame, level)) counts.staled(reason);
-    if (wrong) pool.withdraw(table, page);
+    if (wrong) pool.withdraw(table, page, true);
   };
   const within = (view: number, x: number, y: number) =>
     view >= 0 &&

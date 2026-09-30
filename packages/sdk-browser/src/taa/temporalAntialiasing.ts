@@ -10,8 +10,9 @@ import type { AccumulatedImage } from '../lighting/deferred/program.ts';
 
 /** A history target's attachment: cleared by the pass that writes it. */
 const CLEAR = { loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] } as const;
-/** Bytes per pixel of the two history targets: two `rgba16float`, and their two shares and tags. */
-export const TAA_HISTORY_BYTES_PER_PIXEL = 20;
+/** Bytes per pixel of the two history targets: two `rgba16float`, and their two shares, tags and
+ *  still weights (`SHARE_FORMAT`). */
+export const TAA_HISTORY_BYTES_PER_PIXEL = 24;
 
 /**
  * Temporal antialiasing pass: two history targets in ping-pong, each a colour and its as-is share,

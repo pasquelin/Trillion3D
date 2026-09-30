@@ -1,4 +1,4 @@
-import { DEFORMATION_PASS } from '../../../deformation/compute.ts';
+import { DEFORMATION_PASS } from '../../../deformation/pass.ts';
 import { dropGpuSelection, dropVis } from './drops.ts';
 import { releaseTargets } from '../prepare/targets.ts';
 import { dropBlendBuffers } from '../../blend/buffers.ts';
@@ -70,6 +70,7 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
       timing.lastGpuPassMs?.passes.find((pass) => pass.name === DEFORMATION_PASS)?.gpuMs ?? null,
     gpuFrameMs: timing.lastGpuFrameMs,
     gpuHostGapMs: timing.lastGpuHostGapMs,
+    gpuDeviceLost: run.lostCause ?? null,
     vramBytes: null,
     gpuAllocatedBytes: ledger?.bytes ?? null,
     gpuAllocatedByLabel: ledger?.byLabel ?? null,
@@ -178,6 +179,7 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   rt.sunFar.gpu?.dispose();
   rt.sunFar.gpu = undefined;
   rt.lights.cull?.dispose();
+  rt.lights.movingGroups?.dispose();
   rt.lights.pageQuads = undefined;
   rt.lights.cpuCasters?.source.destroy();
   rt.lights.cpuCasters?.indirect.destroy();

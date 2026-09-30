@@ -1,8 +1,12 @@
 # Package architecture — version 0.2.0
 
 This repository builds ESM JavaScript and TypeScript declarations into `dist/`, behind one public
-specifier, `trillion3d` ([SDK.md, "Entry points"](../docs/SDK.md#entry-points)). npm publication and
-cross-platform binary distribution are not configured.
+specifier, `trillion3d` ([SDK.md, "Entry points"](../docs/SDK.md#entry-points)). The compiler is built
+for five platforms, one package each (`compiler/<os>-<arch>`,
+[COMPILER.md](../docs/COMPILER.md#platform-packages)). The package is not on npm yet; from its first
+release, an application installs `trillion3d` and takes only its machine's compiler package; the
+portal's
+[Install page](https://www.trillion3d.com/#/en/learn/install) walks through it.
 
 | Package | Public API | Implementation |
 | --- | --- | --- |

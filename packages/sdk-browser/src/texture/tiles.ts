@@ -99,8 +99,6 @@ export function tileLayout(width: number, height: number): TileLayout {
 /** A pool slot: tile column, row and layer. */
 export type TilePlace = { x: number; y: number; layer: number };
 
-/** Rank of a slot in the pool, and the inverse. */
-export const placeIndex = (p: TilePlace) => p.layer * TILES_PER_LAYER + p.y * TILES_PER_ROW + p.x;
 export function placeOf(index: number): TilePlace {
   const layer = Math.floor(index / TILES_PER_LAYER),
     rest = index - layer * TILES_PER_LAYER;
@@ -116,8 +114,3 @@ const ENTRY_SERVED = 0x80000000;
 export const packEntry = (place: TilePlace, level: number) =>
   (ENTRY_SERVED | place.x | (place.y << 8) | (place.layer << 16) | (level << 24)) >>> 0;
 export const entryLevel = (word: number) => (word >>> 24) & 0x7f;
-export const entryPlace = (word: number): TilePlace => ({
-  x: word & 0xff,
-  y: (word >>> 8) & 0xff,
-  layer: (word >>> 16) & 0xff,
-});

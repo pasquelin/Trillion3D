@@ -8,6 +8,7 @@ export const sourcePattern = /\.(?:[cm]?ts|tsx)$/;
 export const formatPattern = /\.(?:[cm]?ts|tsx|json)$/;
 
 const markdown = /\.md$/;
+const MESSAGE_CATALOGUE = 'packages/sdk-node/src/messages/messages.json';
 // The notices ship in the package (`package.json` `files`): code, not documentation.
 const packaged = /^THIRD_PARTY_NOTICES\.md$/;
 const translation = /^site\/(?:content\/|examples\/)?i18n\/[^/]+\.json$/;
@@ -42,6 +43,7 @@ export type ChangedStep =
   | 'lint'
   | 'types'
   | 'duplicates'
+  | 'check:unused'
   | 'check:links'
   | 'check:i18n'
   | (typeof TREE_GATES)[number]
@@ -65,10 +67,14 @@ export function changedSteps(
   if (sources) steps.push('lint');
   if (code) steps.push('types');
   if (sources || existing.some((file) => file.endsWith('.rs'))) steps.push('duplicates');
+  // A deleted source can leave an export only its tests used: any code change, deletions included.
+  if (code) steps.push('check:unused');
   if (existing.some((file) => markdown.test(file))) steps.push('check:links');
   if (existing.some((file) => translation.test(file))) steps.push('check:i18n');
   steps.push(...TREE_GATES);
-  if (existing.some((file) => file.endsWith('.rs'))) steps.push('rust');
+  // The compiler embeds the message catalogue (`asset-compiler-rust/src/messages.rs`).
+  if (existing.some((file) => file.endsWith('.rs') || file === MESSAGE_CATALOGUE))
+    steps.push('rust');
   if (tests) steps.push('tests');
   return steps;
 }

@@ -11,7 +11,7 @@ import { SELECTION_LIST_CAP } from '../layout.ts';
  *
  * A page reaches its hot and cold records through `recordOf`: its index plus its placement's
  * shift, the third frame word (`../worlds.ts`). Ranks are those of `../layout.ts`, sole source of
- * the layout: the oracle rereads them through `../records.ts`, which keeps it bit-for-bit on the
+ * the layout: the oracle rereads them through `../records.fixture.ts`, which keeps it bit-for-bit on the
  * shader.
  */
 export const DAG_RECORD_WGSL = `const COLD:u32=13u;

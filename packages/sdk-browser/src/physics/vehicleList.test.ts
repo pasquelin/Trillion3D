@@ -1,12 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  DRIVE_WORDS,
-  OP,
-  VEHICLE_STATE_WORDS,
-  WHEEL_STATE_WORDS,
-  vehicle,
-} from '../../../sdk-core/src/physics/index.ts';
+import { OP, VEHICLE_STATE_WORDS, WHEEL_STATE_WORDS } from '../../../sdk-core/src/physics/index.ts';
 import { box, cylinder } from '../../../sdk-core/src/world/geometry/basic.ts';
 import { Camera } from '../../../sdk-core/src/world/camera/camera.ts';
 import { Material } from '../../../sdk-core/src/world/material/material.ts';
@@ -14,6 +8,8 @@ import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
 import { createWorldPhysics } from './worldPhysics.ts';
 import { fakeWorkers, loaded } from './worker.fixture.ts';
+import { vehicle } from '../../../sdk-core/src/physics/vehicle.ts';
+import { DRIVE_WORDS } from '../../../sdk-core/src/physics/wire.fixture.ts';
 
 test('world.physics.add makes the vehicle with its body; driving it, its state and its removal reach both sides', async () => {
   const { workers, restore } = fakeWorkers();

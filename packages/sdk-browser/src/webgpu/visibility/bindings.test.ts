@@ -2,10 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts';
 import { ensureWebgpuVisibilityBindings } from './bindings.ts';
-import { visGroupFor } from './drawer.ts';
 import { ensureWebgpuShadeBindings } from '../core/shadeBindings.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
+import { visGroupFor } from './visGroup.ts';
 
 /** A device that counts its groups, and a runtime holding every resource the groups name. */
 function mount() {

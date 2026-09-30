@@ -2,19 +2,20 @@
  * The backends the cut rule's tests drive on one synthetic DAG (`cutRule.fixture.ts`): each takes
  * the per-page residency and returns what it draws and what it wants, as page indices of the DAG.
  */
-import { packDagSelection, packedWorldsToRenderOrigin } from '../../gpu/dag/pack.ts';
-import { evaluateDagSelectionKernel } from '../../gpu/dag/selection.ts';
+import { packDagSelection } from '../../gpu/dag/pack.ts';
 import { cameraSelectionUniforms } from '../../gpu/core/selection.ts';
 import { createEngineCamera, writeEngineCamera } from '../../camera/engineCamera.ts';
 import { ruleResidency } from '../../gpu/dag/readiness.fixture.ts';
 import type { RuleDag } from './cutRule.fixture.ts';
-import { dagNodeFloor, dagViewFrames } from '../../gpu/dag/oracle/math.ts';
+import { dagNodeFloor, dagViewFrames } from '../../gpu/dag/oracle/math.fixture.ts';
 import { DAG_SELECTION_SHADER } from '../../gpu/dag/shader/shader.ts';
-import type { CutRuleAt } from '../../gpu/dag/oracle/predicates.ts';
+import type { CutRuleAt } from '../../gpu/dag/oracle/predicates.fixture.ts';
 import type { PackedDag } from '../../gpu/dag/types.ts';
 import { wgslScope } from './wgslPredicate.fixture.ts';
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import type { ClusterRoot, PageRec } from '../selection/types.ts';
+import { packedWorldsToRenderOrigin } from '../../gpu/dag/pack.fixture.ts';
+import { evaluateDagSelectionKernel } from '../../gpu/dag/oracle/oracle.fixture.ts';
 
 export type CutBackend = (resident: Uint8Array) => { drawn: number[]; wanted: number[] };
 
@@ -53,7 +54,7 @@ export function stripUniforms(dag: RuleDag, threshold: number) {
   return { packed, uniforms: cameraSelectionUniforms(cam, threshold, [1280, 720]) };
 }
 
-/** The GPU kernel's CPU model (`../../gpu/dag/oracle/oracle.ts`), on the residency its host
+/** The GPU kernel's CPU model (`../../gpu/dag/oracle/oracle.fixture.ts`), on the residency its host
  *  derives and uploads (`../../gpu/dag/residencyUpload.ts`), deciding with `rule`. */
 function kernelBackend(
   dag: RuleDag,

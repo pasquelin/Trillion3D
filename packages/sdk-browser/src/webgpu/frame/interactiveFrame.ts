@@ -1,4 +1,4 @@
-import { compilingContract, wantsContractLighting } from '../pages/prepare/lightResources.ts';
+import { wantsContractLighting } from '../pages/prepare/lightResources.ts';
 import { deviceAnswer } from './deviceAnswer.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
@@ -12,17 +12,9 @@ export async function pendingWebgpuFrame(rt: WebgpuPagesRuntime) {
     await answer;
     return true;
   }
-  if (run.frameHeld) {
-    // A held frame still waits for a contract program in flight: its arrival breaks the hold
-    // (`onReady`) but asks no frame, and a loop gone idle would stay unlit (#536). A failed
-    // compile announces nothing and changes nothing: the loop stays idle, no held frame redrawn.
-    const compiling = compilingContract(rt);
-    if (!compiling) return false;
-    const { revisions } = run.gate,
-      resources = revisions.resources;
-    await compiling.settle();
-    return revisions.resources !== resources;
-  }
+  // A held frame asks nothing more: what it waited for — the lit program among them — is answered
+  // above (`deviceAnswer`), and a failed compile leaves the loop idle.
+  if (run.frameHeld) return false;
   await gpu.device?.queue.onSubmittedWorkDone();
   await run.gpuSelection?.flush();
   if (gpu.deferred && wantsContractLighting(rt)) await gpu.deferred.settle();

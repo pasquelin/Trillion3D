@@ -6,8 +6,9 @@ import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { createGpuDagSelection } from './selection.ts';
 import { requestScene } from './requestScene.fixture.ts';
-import { KEY_PAGE_BITS, canonicalPage, listEvictions } from './evict.ts';
+import { KEY_PAGE_BITS, canonicalPage } from './evict.ts';
 import * as L from './layout.ts';
+import { listEvictions } from './evict.fixture.ts';
 
 /** Four placements of one page set, every page resident for the rule; `cut()` cuts, reads back. */
 async function residentCut(leaves = 256) {

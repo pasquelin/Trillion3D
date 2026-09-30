@@ -34,8 +34,7 @@
  */
 
 import { clipWeight } from '../math/primitives/camera.ts';
-/** Every screen-error variant; the setter refuses any other. */
-export const SCREEN_ERROR_VARIANTS = ['certifiee', 'reference'] as const;
+import { SCREEN_ERROR_VARIANTS } from './screenErrorVariants.ts';
 /** How a cluster's screen error is measured: the proven bound, or the reference formula. */
 export type ScreenErrorVariant = (typeof SCREEN_ERROR_VARIANTS)[number];
 

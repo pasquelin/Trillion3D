@@ -4,8 +4,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { REACTIVE_TARGET } from '../../lighting/deferred/asIsShare.ts';
-import { WATER_COMPOSITE_SHADER, waterRoutedShader } from './compositeWgsl.ts';
-import { WATER_ROUTED_TARGETS, waterCompositeTargets } from './pipelines.ts';
+import { waterRoutedShader } from './compositeWgsl.ts';
+import { WATER_COMPOSITE_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
+import { waterCompositeTargets } from './compositeTargets.ts';
 
 test('the water composite writes its coverage as the reactive value, green alone', () => {
   // The composite emits an extra output carrying 1 in green at its coverage `a`.
@@ -26,7 +27,6 @@ test('the water composite writes its coverage as the reactive value, green alone
   assert.equal(waterCompositeTargets(true, true).length, 4);
   for (const targets of [waterCompositeTargets(true), waterCompositeTargets(true, true)])
     assert.equal(targets.at(-1), REACTIVE_TARGET, 'the reactive target last');
-  assert.deepEqual(waterCompositeTargets(false, true), WATER_ROUTED_TARGETS);
   // The routed composite carries the reactive value too, an extra entry after `composeWaterRouted`.
   assert.match(waterRoutedShader(), /@fragment fn composeWaterRoutedReactive/);
   assert.equal(waterRoutedShader().split(/vec4f\(0\.0,1\.0,0\.0,c\.a\)/).length - 1, 2);

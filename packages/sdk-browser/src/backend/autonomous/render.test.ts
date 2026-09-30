@@ -3,7 +3,7 @@
 // sponza's `overview`). As on WebGPU, a frame is still only once nothing it asks is awaited.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { stillFrame } from './render.ts';
+import { stillFrame } from './stillFrame.ts';
 
 const loaded = { array: new Uint32Array(3) },
   awaited = { array: undefined };

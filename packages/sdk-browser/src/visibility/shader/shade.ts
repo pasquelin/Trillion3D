@@ -1,11 +1,11 @@
 import { RASTER_BACKGROUND } from '../../page/raster.ts';
-import { backgroundRgb, triangleAt, uvDerivatives } from '../math.ts';
+import { backgroundRgb } from '../math.ts';
 import { createVisibilityFrame } from '../frame.ts';
 import { shadePixel } from './shadePixel.ts';
-import { unpackVisibilityId, type VisPage } from '../types.ts';
+import { type VisPage } from '../types.ts';
 import type { EngineCamera } from '../../camera/world.ts';
 import { DEFAULT_PIXEL_RATIO } from '../../backend/common.ts';
-import { locationOf, type PageLocations } from '../../page/selection/placements.ts';
+import { type PageLocations } from '../../page/selection/placements.ts';
 
 /** Documented visbuffer beauty: MeshBasicMaterial = source color × map (same 8-bit path as rasterPages). MeshStandardMaterial = Cook-Torrance GGX microfacet BRDF with the explorer hemisphere/directional lights. */
 export function shadeVisibility(
@@ -32,37 +32,4 @@ export function shadeVisibility(
       pixels[p + 3] = 255;
     }
   return pixels;
-}
-
-/** Analytical UV derivatives of the winning triangle. Not a finite difference across visbuffer discontinuities. */
-export function visibilityUvDerivatives(
-  ids: Uint32Array,
-  pages: VisPage[],
-  locations: PageLocations,
-  cam: EngineCamera,
-  viewport: [number, number],
-  x: number,
-  y: number,
-  pixelRatio = DEFAULT_PIXEL_RATIO,
-) {
-  const [width, height] = viewport,
-    unpacked = unpackVisibilityId(ids[y * width + x]);
-  if (!unpacked) return null;
-  const page = pages[unpacked.pageIndex];
-  if (!page) return null;
-  const tri = triangleAt(
-    page,
-    locationOf(locations, unpacked.pageIndex).world,
-    unpacked.triangleIndex,
-    cam,
-    width,
-    height,
-    pixelRatio,
-  );
-  if (!tri) return null;
-  const uv = page.attributes.uv;
-  const uva: [number, number] = uv ? [uv.getX(tri.i0), uv.getY(tri.i0)] : [0, 0];
-  const uvb: [number, number] = uv ? [uv.getX(tri.i1), uv.getY(tri.i1)] : [0, 0];
-  const uvc: [number, number] = uv ? [uv.getX(tri.i2), uv.getY(tri.i2)] : [0, 0];
-  return uvDerivatives(tri.a, tri.b, tri.c, uva, uvb, uvc, x, y);
 }

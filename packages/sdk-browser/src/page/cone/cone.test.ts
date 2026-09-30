@@ -3,13 +3,8 @@ import { triangleCone } from '../../../../../tests/kit/cone.ts';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { surfaceOf } from '../surface.ts';
-import {
-  OPEN_CONE,
-  coneContextFor,
-  coneCullsPage,
-  coneCullsPageWith,
-  createConeContext,
-} from './cone.ts';
+import { OPEN_CONE, coneContextFor, coneCullsPageWith, createConeContext } from './cone.ts';
+import { coneCullsPage } from './cone.fixture.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 import { leafCone } from './cone.ts';
 import { coneSkipsPage } from '../selection/helpers.ts';

@@ -1,31 +1,11 @@
+import { preparedComputePipeline } from '../../lighting/deferred/fullscreen.ts';
 import { COMPUTE } from '../core/computeBindings.ts';
 import { oncePerDevice } from '../core/oncePerDevice.ts';
-import { DRAW_ITEM_WGSL, WORKGROUP } from './contract.ts';
+import { ROW_MAP_SHADER } from './lightRowsWgsl.ts';
+import { WORKGROUP } from './contract.ts';
 
-/**
- * Catalogue page → page-table row, on the card beside the draw records: how the pages a light cut
- * drew find the rows that hold them (`../shadow/cullShader.ts`, `SHADOW_LIGHT_CULL_SHADER`).
- *
- * The map is kept by the rows the table rewrites and by them alone (`markRows`, over the range the
- * camera's encode uploaded), so a frame where no page arrives, leaves or moves touches none of it.
- * A stale entry is never trusted: the row it names must still carry that page, or the reader
- * drops it.
- */
-export const ROW_MAP_SHADER = `${DRAW_ITEM_WGSL}
-struct Range{first:u32,last:u32,pad0:u32,pad1:u32,}
-@group(0) @binding(0) var<storage, read> items:array<DrawItem>;
-@group(0) @binding(1) var<uniform> range:Range;
-@group(0) @binding(2) var<storage, read_write> rowOf:array<u32>;
-@compute @workgroup_size(${WORKGROUP})
-fn mapRows(@builtin(global_invocation_id) id:vec3u){
- let row=range.first+id.x;
- if(row>range.last){return;}
- rowOf[items[row].selectionIndex]=row;
-}
-`;
-
-/** The map's kernel, compiled once a device: at prepare for a scene that casts shadows
- *  (`../../webgpu/pages/prepare/lights.ts`), never at the first light cut. */
+/** The map's kernel, once a device: compiled off the thread at prepare for a scene that casts
+ *  shadows (`../../webgpu/pages/prepare/lights.ts`), never at the first light cut. */
 export const lightRowMapPipeline = oncePerDevice((device) => {
   const module = device.createShaderModule({ code: ROW_MAP_SHADER });
   const kinds = [
@@ -36,7 +16,7 @@ export const lightRowMapPipeline = oncePerDevice((device) => {
   const bindLayout = device.createBindGroupLayout({
     entries: kinds.map((buffer, binding) => ({ binding, visibility: COMPUTE, buffer })),
   });
-  const pipeline = device.createComputePipeline({
+  const pipeline = preparedComputePipeline(device, {
     layout: device.createPipelineLayout({ bindGroupLayouts: [bindLayout] }),
     compute: { module, entryPoint: 'mapRows' },
   });
@@ -62,7 +42,7 @@ export function createLightRowMap(
   const rowOf = make(pages * 4, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
   const pinned = new Uint32Array(1);
   const uniforms = make(16, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
-  const { bindLayout, pipeline } = lightRowMapPipeline(device);
+  const { bindLayout, pipeline: mapRows } = lightRowMapPipeline(device);
   const bindGroup = device.createBindGroup({
     layout: bindLayout,
     entries: [itemsBuf, uniforms, rowOf].map((buffer, binding) => ({
@@ -102,7 +82,7 @@ export function createLightRowMap(
       range[0] = pendingFrom;
       range[1] = Math.min(pendingTo, rows - 1);
       device.queue.writeBuffer(uniforms, 0, range);
-      pass.setPipeline(pipeline);
+      pass.setPipeline(mapRows.get());
       pass.setBindGroup(0, bindGroup);
       pass.dispatchWorkgroups(Math.ceil((range[1] - range[0] + 1) / WORKGROUP));
       pendingFrom = Number.MAX_SAFE_INTEGER;
