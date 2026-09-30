@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { stageQuantiles, stageLabel, disabledStageProfile } from './stageProfile.ts';
+import { stageQuantiles, stageLabel, disabledStageProfile, STAGE_LABELS } from './stageProfile.ts';
+import { WEBGL_STAGES, WEBGPU_STAGES } from '../../../sdk-browser/src/stage/mapping.ts';
 
 test('stageQuantiles returns null for an empty series: unmeasured, not zero', () => {
   assert.equal(stageQuantiles([]), null);
@@ -16,21 +17,35 @@ test('stageQuantiles computes p50 and p95 from the series', () => {
   assert.deepEqual(stageQuantiles([10, 20, 30, 40, 60]), { p50: 30, p95: 60 });
 });
 
-test('stageLabel returns the known label and the stage as-is if it is unknown', () => {
-  assert.equal(stageLabel('hiZ'), 'Hi-Z (occlusion)');
-  assert.equal(stageLabel('etapeInconnue'), 'etapeInconnue');
+test('every stage an engine records reads as its own words, and every label names such a stage', () => {
+  const recorded = new Set<string>([...WEBGPU_STAGES, ...WEBGL_STAGES]);
+  const labels = [...recorded].map(stageLabel);
+  for (const [i, stage] of [...recorded].entries()) {
+    assert.notEqual(labels[i].trim(), '', `${stage} has words`);
+    assert.notEqual(labels[i], stage, `${stage} is not shown as its key`);
+  }
+  assert.equal(new Set(labels).size, labels.length, 'no two stages read the same');
+  assert.deepEqual(Object.keys(STAGE_LABELS).sort(), [...recorded].sort());
+  assert.ok(Object.isFrozen(STAGE_LABELS));
+});
+
+test('a stage no engine names is shown as it is', () => {
+  assert.equal(stageLabel('host-custom-stage'), 'host-custom-stage');
 });
 
 test('disabledStageProfile measures nothing: counters at zero, quantiles and method at null', () => {
   const profile = disabledStageProfile('webgl2', 'per-stage profile not requested by the host');
-  assert.equal(profile.enabled, false);
-  assert.equal(profile.backend, 'webgl2');
-  assert.equal(profile.cpuFrames, 0);
-  assert.equal(profile.gpuSamples, 0);
-  assert.equal(profile.windowFrames, 0);
-  assert.equal(profile.gpuMethod, null);
-  assert.equal(profile.gpuReason, 'per-stage profile not requested by the host');
-  assert.equal(profile.gpuImageMs, null);
-  assert.equal(profile.overheadMs, null);
-  assert.deepEqual(profile.stages, []);
+  assert.deepEqual(profile, {
+    version: 1,
+    enabled: false,
+    backend: 'webgl2',
+    cpuFrames: 0,
+    gpuSamples: 0,
+    windowFrames: 0,
+    gpuMethod: null,
+    gpuReason: 'per-stage profile not requested by the host',
+    gpuImageMs: null,
+    overheadMs: null,
+    stages: [],
+  });
 });
