@@ -1,9 +1,10 @@
 import type { PageRec } from '../../page/selection/selection.ts';
 import { createCutDelta, type CutDelta } from './delta.ts';
-import { createCutPending, type CutPending } from './pending.ts';
+import { createCutPending } from './pending.ts';
+import { coverageWatcher } from './coverage.ts';
 import { createWebgpuCutAdopter } from './adoption.ts';
 import type { GroupClosure } from '../../page/cut/groupClosure.ts';
-import { createHeldResidency, type HeldResidency } from '../../page/cut/held.ts';
+import { createHeldResidency } from '../../page/cut/held.ts';
 import { markDrawnMirrored } from '../pages/helpers.ts';
 import type { WebgpuResidencySets } from '../residency/sets.ts';
 import type { WebgpuPagesCore } from '../pages/runtime.ts';
@@ -11,17 +12,6 @@ import { createEvictionFeed } from '../residency/evictionFeed.ts';
 import type { ViewCut, WebgpuView } from '../pages/state/view.ts';
 import { captureDrawn } from '../../frame/viewTrade.ts';
 
-/**
- * What the rank journal notifies when a page changes coverage: the pending set, and the CPU cut's
- * readiness of its placement. Set outside publication so that nothing else is captured besides
- * what it touches: the journal keeps it as long as the engine, and a closure taken inside
- * publication would hold its whole context there.
- */
-const coverageWatcher =
-  (pending: CutPending, held: HeldResidency, packedPages: readonly PageRec[]) => (page: number) => {
-    pending.touch(page);
-    if (packedPages[page]) held.moved(packedPages[page]);
-  };
 /** The list ahead of a cut that has no view ahead, and the cut of a view let go. */
 const NO_IDS: readonly number[] = [];
 
@@ -48,7 +38,7 @@ export function createWebgpuCutPublication(
   poolHolds: (rec: PageRec) => boolean,
 ) {
   const { run, gpu, views, capture } = rt,
-    { rows, packedPages } = rt.layout,
+    { rows, packedPages, recordOf } = rt.layout,
     { ahead } = tiers;
   const cutDelta = createCutDelta(packedPages, run.desired);
   // The drawable cut writes its records itself, reading its sequence once: `run.shown` is then
@@ -69,7 +59,7 @@ export function createWebgpuCutPublication(
   held.track(rt.layout.selectionRoots);
   // The three ways a cluster's coverage flips — bytes received, bytes released, a cache slot taken
   // or given back — all go through the rank journal, which names them one by one.
-  rows.watchTouched(coverageWatcher(cutPending, held, packedPages));
+  rows.watchTouched(coverageWatcher(cutPending, held, recordOf));
   const publishCut = (cut: CutDelta) => {
     closure.apply(cut);
     residencySets.applyCut(closure.delta);
@@ -91,10 +81,16 @@ export function createWebgpuCutPublication(
     });
   /** A view publishes the cut it asks for, `wanted`, and the one it draws, `shown`, both as the
    *  packed ranks the CPU cut names its instances by. */
-  const adopt = (own: ViewCut, wanted: readonly number[], shown: readonly number[]) => {
-    own.asked.apply(wanted);
+  const adopt = (
+    own: ViewCut,
+    wanted: ArrayLike<number>,
+    shown: ArrayLike<number>,
+    wantedCount = wanted.length,
+    shownCount = shown.length,
+  ) => {
+    own.asked.apply(wanted, wantedCount);
     publishCut(own.asked);
-    own.drawn.apply(shown);
+    own.drawn.apply(shown, shownCount);
     residencySets.applyDrawn(own.drawn);
   };
   // Readback describes submitted work and future streaming requests. It never
@@ -175,11 +171,16 @@ export function createWebgpuCutPublication(
      * exit of the cut, as it does for the copy of `drawn` — so none of that is redone here.
      * Republishing it as-is changes nothing: the difference is empty.
      */
-    adoptCpuCut(wanted: readonly number[], shown: readonly number[]) {
+    adoptCpuCut(
+      wanted: ArrayLike<number>,
+      shown: ArrayLike<number>,
+      wantedCount = wanted.length,
+      shownCount = shown.length,
+    ) {
       // The CPU cut evaluates no view ahead: what the main view's last readback asked for ahead is
       // let go. The view ahead is the main view's own, so another view's cut leaves it.
       if (views.active === views.main) ahead.offerIds(NO_IDS);
-      adopt(activeCut(), wanted, shown);
+      adopt(activeCut(), wanted, shown, wantedCount, shownCount);
       // A capture is drawn alone, the others wait for it: its cut is ranked first under the one
       // budget, as when it replaced the main view's, so it keeps the detail pages it kept then
       // (#268). A persistent view and the main one rank the union, the same queue whichever is
