@@ -159,12 +159,16 @@ the page's `COLOR_0` when its material asks for vertex colours, as the transpare
 WebGL2 path do; geometry read as floats carries its colours at the tail of its UV buffer, which
 every page-geometry pass binds. A masked surface is cut at base map alpha times vertex alpha, as the
 reference cuts. Pipelines are compiled at preparation, never on the frame that first draws a class.
-Each frame the `Trillion3D material depth` pass writes every pixel's class as an exact depth value,
-then one full-screen triangle per present class runs under `depthCompare: 'equal'`, so the hardware
-keeps that class's pixels and its fragment stage reads only the maps it has. The
-`material-classes-ready` diagnostic lists the classes; the `materials` view colours each pixel by
-its class. Not done: screen tiles per class, so a class present anywhere costs one full-screen
-triangle.
+Each frame the `Trillion3D material depth` pass writes every pixel's class as an exact depth value;
+`Trillion3D material tiles`, a compute pass, reads the visibility buffer once and lists, for each
+of the first 64 present classes, the 32 × 32 screen tiles holding one of its pixels (Nanite's
+material classification, #1369); then each class draws, through one indirect draw, a quad per tile
+of its list at its depth under `depthCompare: 'equal'`, so the hardware keeps that class's pixels
+and its fragment stage reads only the maps it has. A class past the 64th, or on a device refusing
+the pass, draws every tile. A one-class image shades full screen, with no material depth. Counted
+on the atrium (`bench/runner/materialTileCount.ts`, 3456 × 2234, six classes): 1.11–1.16 fragments
+rasterised per pixel, where the full-screen triangles rasterised 6. The `material-classes-ready`
+diagnostic lists the classes; the `materials` view colours each pixel by its class.
 
 ## Temporal antialiasing
 
@@ -190,6 +194,9 @@ cost: when everything stops, edges stiffen for an image or two before reconvergi
 reaches the cut: selection, frustum and screen error read the unjittered camera. A surface capture
 and a diagnostic view render unjittered and unaccumulated. The pass's own timestamp means nothing on
 tile-based GPUs; its cost is read as an envelope difference with `temporalAntialiasing: false`.
+Its work is bounded per display pixel: a moving image's resolve reads 18 texels at the display's
+size and 27 reconstructing a frame drawn at half of it, 9 more on an uncovered pixel, each
+identifier it needs once (`bench/runner/taaFetchCount.ts`, #1369).
 
 **Render scale.** The options of `createWorld(canvas, { renderScale })` — a number, `'auto'` (the
 default) or `{ min, max }` within [0.5, 1], read back by `world.renderScale` — are
