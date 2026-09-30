@@ -140,16 +140,19 @@ cache (`splitMemoryBudget`). The batches' buffers (`gpu/shadow/batchBudget.ts`, 
   those mapped before that no draw has filled; the host's words list every page whose depth they
   take (withdrawn on a light move, or overwritten for another entry). One workgroup composes the
   listed pages into regions, every one of them, as Unreal's virtual shadow maps draw every page a
-  frame marks (#1363): a region whose pairs the list could not all hold is left short and waits,
-  unread, the reader on the coarser level, and the frame after such an overflow picks only as many
-  pages as the list holds every caster row of, so none waits forever (`webgpu/shadow/freshWgsl.ts`)
-  —, each view composed from its
-  light's record by the host's page view model (`pageViewModel.ts`: a lamp page is its face's clip
-  cropped to it, a sun page its view cropped by the orthography), its cull volume a lamp page's cone
-  or a sun page's box. The pair cull tests every caster row against every region
-  (`freshCullWgsl.ts`): the rows are every resident page of every caster, whatever the camera or a
-  light cut selected, so a caster the camera does not see still shades a receiver it sees; each kept
-  row is one `(region, row)` pair, never past capacity. The seal makes each page readable; each pool
+  frame marks (#1363) (`webgpu/shadow/freshWgsl.ts`) —, each view composed from its light's record
+  by the host's page view model (`pageViewModel.ts`: a lamp page is its face's clip cropped to it, a
+  sun page its view cropped by the orthography), its cull volume a lamp page's cone or a sun page's
+  box. The pair cull tests every caster row against every region (`freshCullWgsl.ts`): the rows are
+  every resident page of every caster, whatever the camera or a light cut selected, so a caster the
+  camera does not see still shades a receiver it sees; each kept row is one `(region, row)` pair.
+  It counts each region's pairs first, then admits whole regions in order while the list holds them
+  — one it cannot hold keeps no pair and waits, unread, for the next frame —, then lays each
+  admitted region's pairs in its place: no pair past the list, none drawn for a page left unread.
+  The list is sized to the need: the seal hands the pairs every region counted to the host in the
+  pool's snapshot, and the host grows the list to it under an out-of-memory scope (`freshPairs.ts`),
+  so it overflows only at the device's ceiling, as Unreal's page pool does. The seal makes each
+  admitted page readable; each pool
   layer's pass clears its pages and draws every pair in two indirect draws, casters placed on their
   page in the vertex stage and kept to it by the fragment, no viewport set (`freshPass.ts`,
   `freshDrawsWgsl.ts`); a tinted transmittance layer's pass does the same for blended casters. The
