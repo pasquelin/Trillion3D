@@ -114,7 +114,7 @@ function affectedTests(graph: Map<string, GraphNode>, changed: Set<string>): str
     }
   const reached = new Set(changed);
   const queue = [...changed];
-  for (let file = queue.shift(); file !== undefined; file = queue.shift())
+  for (const file of queue)
     for (const importer of importers.get(file) ?? []) {
       if (reached.has(importer)) continue;
       reached.add(importer);

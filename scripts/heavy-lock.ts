@@ -15,11 +15,6 @@ const HELD = 'TRILLION3D_HEAVY_LOCK';
 /** The niceness of a heavy step: the agents' editors and shells keep the machine's attention. */
 const LOW_PRIORITY = 10;
 
-/** Whether `env` is a local run, not the CI. */
-function isLocalRun(env: NodeJS.ProcessEnv): boolean {
-  return !env.CI;
-}
-
 /** The machine-wide lock file: under the main checkout, whichever worktree `cwd` is in; none
  *  outside a Git checkout. */
 export function heavyLockPath(cwd = process.cwd()): string | undefined {
@@ -93,7 +88,7 @@ export function acquireHeavyLock(path: string, step: string, pollMs = 500): () =
  * lock is released when `work` returns, or when the promise it returns settles.
  */
 export function heavyStep<T>(step: string, work: () => T, env = process.env): T {
-  const path = isLocalRun(env) && !env[HELD] ? heavyLockPath() : undefined;
+  const path = !env.CI && !env[HELD] ? heavyLockPath() : undefined;
   if (!path) return work();
   setPriority(Math.max(LOW_PRIORITY, getPriority()));
   const release = acquireHeavyLock(path, step);
@@ -102,14 +97,15 @@ export function heavyStep<T>(step: string, work: () => T, env = process.env): T 
     delete env[HELD];
     release();
   };
-  let result: T;
+  let pending = false;
   try {
-    result = work();
-  } catch (error) {
-    done();
-    throw error;
+    const result = work();
+    if (result instanceof Promise) {
+      pending = true;
+      return result.finally(done) as T;
+    }
+    return result;
+  } finally {
+    if (!pending) done();
   }
-  if (result instanceof Promise) return result.finally(done) as T;
-  done();
-  return result;
 }
