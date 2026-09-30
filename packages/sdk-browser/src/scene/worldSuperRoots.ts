@@ -16,37 +16,17 @@
 
 import type { DagRoot } from '../gpu/dag/types.ts';
 import type { ClusterGroup } from '../../../sdk-core/src/index.ts';
+import type { WorldRootsCluster } from '../../../sdk-core/src/manifest/worldRoots.ts';
 import { structureIndex } from '../page/selection/structure.ts';
 import { flatHierarchy } from '../gpu/dag/hierarchy.ts';
 import { cullingLinks } from '../page/cut/links.ts';
 import { IDENTITY_ELEMENTS } from '../math/matrixElements.ts';
 import { worldRootsPageAddress } from './worldRootsPage.ts';
 
-/** One cluster as the cook's `clusters` key publishes it (`worldRoots.json`, FORMAT.md), in rank
- *  order (`cluster` is its index, which the groups name): the fields the cut projects, plus where
- *  its page lives — a super-root's `bundle` and `offset` in the binary, an object root's `origin`
- *  (the placed instance whose own stream holds its page). Read with an internal type so the
- *  exported `WorldRoots` stays what the API reference translates. */
-type WorldRootsCookedCluster = {
-  cluster: number;
-  level: number;
-  lodError: number;
-  sphere: number[];
-  parentError: number | null;
-  parentSphere: number[] | null;
-  min: number[];
-  max: number[];
-  triangles: number;
-  material: number | null;
-  bundle: number | null;
-  offset: number | null;
-  origin: number | null;
-};
-
 /** The `clusters` and `groups` of a world-roots table, added by the cook without a version bump.
  *  A group's `children` and `outputs` name clusters by rank (`dag/levels.rs`, `merge.rs`). */
 export type WorldRootsDagTable = {
-  clusters?: readonly WorldRootsCookedCluster[];
+  clusters?: readonly WorldRootsCluster[];
   groups?: readonly ClusterGroup[];
   payload?: { url: string };
 };
