@@ -1,3 +1,4 @@
+import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts';
 import type { HostTexture } from '../../host/resources.ts';
 import { DEFAULT_CLEAR_COLOR, isCancelled, pixelRatioOf } from '../../backend/common.ts';
 import { referenceSunWindow } from '../../frame/referenceMode.ts';
@@ -43,7 +44,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
   // from its first frame that it has a source, and no engine prepares on an empty store that
   // would then have to be pushed. A cache without this product declares none, as before.
   let importedLightIds: string[] = [];
-  if (options.importedLights !== false) {
+  if (explorerSwitch(options, 'importedLights')) {
     const imported = await loadImportedLights(base, signal);
     importedLightIds = declareImportedLights(sceneLights, imported.lights);
     if (importedLightIds.length || Object.keys(imported.rejected).length)
@@ -91,7 +92,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     gpuCanvas: directGpu ? canvas : undefined,
     maxTextureTransferBytesPerFrame: options.maxTextureTransferBytesPerFrame,
     maxTextureUploadMsPerFrame: options.maxTextureUploadMsPerFrame,
-    temporalAntialiasing: options.temporalAntialiasing ?? true,
+    temporalAntialiasing: options.temporalAntialiasing,
     renderScale: options.renderScale,
     // A reference session reads the finest shadow level over its whole canvas and field.
     sunWindow: options.reference ? referenceSunWindow(viewport[1], options.fov) : undefined,
@@ -102,7 +103,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     geometryPoolCeilingBytes: options.geometryPoolCeilingBytes,
     texturePoolBytes: options.texturePoolBytes,
     textureCompression: options.textureCompression,
-    stageProfile: options.stageProfile === true,
+    stageProfile: options.stageProfile,
     feedbackTargetAB: options.feedbackTargetAB === true,
     // The diagnostic variant is checked here, once: outside `trace`, it is refused.
     diagnosticGpuVariant: resolveDiagnosticGpuVariant(
