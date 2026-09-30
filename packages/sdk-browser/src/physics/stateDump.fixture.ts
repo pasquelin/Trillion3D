@@ -40,11 +40,11 @@ function sortedEvents(words: Uint32Array) {
  * its pins, a rope swinging from its pin, a volume bouncing — stepped `steps` times at 60 Hz.
  * Two SHA-256 of every step's words, in order: `motion`, of its poses, its events as a set (so
  * order-independent by design) and the bodies its soft words name with their vertex counts; `full`,
- * of its poses, its events in the order the engine sent them (its canonical pair-key order) and
- * whole soft words.
+ * of its poses, its events in the order the engine sent them and whole soft words.
  * `motion` proves the poses, the soft words and the event set equal `develop`'s, not its event
- * order: the canonical order is the accepted route (boss's yes, 29 Sept.), Jolt's own callback
- * order being unreachable through the public API (#934). Two modules that simulate the scene alike
+ * order: the canonical order of the records the threads merge is the accepted route (boss's yes,
+ * 29 Sept.), Jolt's own callback order being unreachable through the public API (#934). Two modules
+ * that simulate the scene alike
  * give the same `motion`; `full` also holds the written-back vertices bit for bit, which a change
  * of their rounding alone moves (#975).
  */

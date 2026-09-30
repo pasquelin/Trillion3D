@@ -2,9 +2,11 @@
 // (`joltPhysicsThreads.wasm`), its pool's threads in workers, gives the single-thread module's
 // poses and contact events at every step of a pile of boxes, compounds and a cloth — the same
 // events, in the same order. The contact callbacks run on Jolt's threads; each keeps its record in
-// its own thread's list and the step replays them after `Update` in the engine's canonical pair-key
+// its own thread's list and the step merges them after `Update` in the engine's canonical pair-key
 // order, which no thread decides (`contacts.cpp`, route (b), the boss's yes of 29 Sept.), not
-// Jolt's callback order. Nothing is timed.
+// Jolt's callback order; a cloth's leaves and a removed body's are written outside that merge, so
+// the canonical promise holds on the merged records, while the whole step's events are identical
+// whatever the pool. Nothing is timed.
 //
 //   node tests/browser/renders/physics-threaded-contacts.browser.ts
 import assert from 'node:assert/strict';
@@ -47,5 +49,5 @@ assert.deepEqual(pooled, alone);
 assert.notDeepEqual(reversedStep(pooled), alone, "one step's events reversed is told apart");
 console.log(
   `${sent} events over ${pooled.length} steps on ${threads} threads: ` +
-    `the single thread's events, in the engine's canonical order, at every step`,
+    `the single thread's events, in the same order, at every step`,
 );
