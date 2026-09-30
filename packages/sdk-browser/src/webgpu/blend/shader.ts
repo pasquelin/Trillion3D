@@ -22,7 +22,7 @@ import { PAGE_GEOMETRY_WGSL, PAGE_NORMAL_WGSL } from '../../visibility/shader/pa
 import { BLEND_SURFACE_WGSL } from './shaderSurface.ts';
 import { LINE_CLIP_WGSL } from '../../visibility/shader/lineWgsl.ts';
 import { SPRITE_WGSL } from '../../visibility/shader/spriteWgsl.ts';
-import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from '../water/surfaceWgsl.ts';
+import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from '../water/rank.ts';
 import { INSTANCE_CULL_SHIFT, INSTANCE_ITEM_MASK } from './runs.ts';
 import { FACING_DROP, FACING_SHIFT, FACING_WGSL } from './facing.ts';
 import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from './displayFilter.ts';

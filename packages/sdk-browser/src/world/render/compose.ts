@@ -20,7 +20,7 @@ import {
 import { createWebglEffects, type WebglEffectOutput } from '../../effects/webglEffects.ts';
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
 import type { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts';
-import { createWebglParticles } from '../../particles/webglParticles.ts';
+import { webglParticleStep } from '../../fluids/particleCode.ts';
 import { anyMoving } from '../../particles/poolStates.ts';
 import { createComposeScale } from './renderScale.ts';
 
@@ -47,7 +47,7 @@ export type ComposedChain = {
  * the chain's included, before that copy is kept, at the host's `pixelRatio`; a change to them
  * spares no redraw. The world's `particles` step before, and draw over the engine's image before
  * the chain, on every image drawn here: when they move, the image is drawn, never kept
- * (`../../particles/webglParticles.ts`). A refusal never fails the session: the pools are refused
+ * (`../../fluids/particleCode.ts`). A refusal never fails the session: the pools are refused
  * by name, `particlesRefused` hearing why once, and the frame goes on without them. An engine with
  * a render scale draws both below the display, resampled before the chain (`./renderScale.ts`).
  * Nothing here belongs to a rendering library.
@@ -63,7 +63,7 @@ export function createFrameComposer(
 ) {
   const { effects: composed, particles = [] } = layers;
   const heldFrame = createHeldFrame(gl);
-  let stepped: ReturnType<typeof createWebglParticles> | undefined;
+  let stepped: ReturnType<typeof webglParticleStep>;
   const guideDraw = createWebglGuideDraw(gl);
   let guidesDrawn = layers.guides?.revision ?? 0;
   const present = createBackendPresenter(gl),
@@ -124,8 +124,8 @@ export function createFrameComposer(
     const { width, height } = bindWebglTarget(gl, target);
     if (present(backend)) return;
     const moved = anyMoving(particles);
-    // Made by the first pool, then run with none left too: it frees a released pool's targets.
-    if (particles.length) stepped ??= createWebglParticles(gl, layers.particlesRefused);
+    // Made by a pool once its code arrived, then run with none left: it frees a pool's targets.
+    if (particles.length) stepped ??= webglParticleStep(gl, particles, layers.particlesRefused);
     if (stepped?.run(particles)) bindWebglTarget(gl, target);
     const revision = composed?.chain.revision ?? 0;
     const guidesHeld = !layers.guides || layers.guides.revision === guidesDrawn,

@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { runInstalledBrowser } from './installed-package-browser.ts';
 import type { InstalledBrowserProof } from './installed-package-browser-result.ts';
 import { missingBeside } from './installed-package-beside.ts';
+import { familyChunks } from './bundle-fold.ts';
 import type { Run } from './installed-package-contracts.ts';
 
 /** Where the fixture server serves the unpacked archive, as a CDN serves a package's files. */
@@ -30,6 +31,17 @@ export function physicsFiles(dist: string): string[] {
   );
 }
 
+/** The bundle's fluids: the chunk of their code (`bundle-fold.ts`), the water pass and the
+ *  particle steps. A page with no transmissive surface and no particle pool requests none. */
+export const fluidFiles = (dist: string): string[] =>
+  familyChunks(dist, 'fluids').flatMap(({ chunk }) => (chunk ? [chunk] : []));
+
+/** The requests of a proof page among `files` of the bundle served at `CDN_PATH`. */
+const requested = (paths: string[], files: string[]) => {
+  const served = new Set(files.map((name) => `${CDN_PATH}/${name}`));
+  return paths.filter((path) => served.has(path));
+};
+
 /**
  * The packed archive unpacked under the fixture's `cdn/`, its `dist/` checked: the core module
  * and, beside each chunk, the workers and WebAssembly modules it names. Returns that `dist/`.
@@ -53,7 +65,7 @@ export function unpackCdn(fixture: string, run: Run): string {
 /**
  * The page on `127.0.0.1` loads the bundle through an `importmap` from `localhost`, another
  * origin, as it would from jsDelivr or unpkg: one import, the engine's workers started across
- * origins. No request reaches the installed `node_modules`, none the physics.
+ * origins. No request reaches the installed `node_modules`, none the physics nor the fluids.
  */
 export async function proveCdnBrowser({
   fixture,
@@ -66,7 +78,7 @@ export async function proveCdnBrowser({
   run: Run;
   manifestUrl: string;
   replayUrl: string;
-}): Promise<InstalledBrowserProof & { physicsRequests: string[] }> {
+}): Promise<InstalledBrowserProof & { physicsRequests: string[]; fluidRequests: string[] }> {
   const dist = unpackCdn(fixture, run);
   const html = (port: number) => {
     const imports = { [packageName]: `http://localhost:${port}${CDN_PATH}/trillion3d.module.js` };
@@ -81,11 +93,12 @@ export async function proveCdnBrowser({
     commonWorkerPath: '/common-worker.js',
     ...urls,
   });
-  const physics = new Set(physicsFiles(dist).map((name) => `${CDN_PATH}/${name}`));
-  const physicsRequests = proof.requests
-    .map(({ path }) => path)
-    .filter((path) => physics.has(path));
+  const paths = proof.requests.map(({ path }) => path);
+  const physicsRequests = requested(paths, physicsFiles(dist));
   if (physicsRequests.length)
     throw new Error(`a scene without physics fetched ${physicsRequests.join(', ')}`);
-  return { ...proof, physicsRequests };
+  const fluidRequests = requested(paths, fluidFiles(dist));
+  if (fluidRequests.length)
+    throw new Error(`a scene without fluids fetched ${fluidRequests.join(', ')}`);
+  return { ...proof, physicsRequests, fluidRequests };
 }

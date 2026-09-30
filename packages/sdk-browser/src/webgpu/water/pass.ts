@@ -1,34 +1,8 @@
+// The water pass's frame side: its bounds and its encoding, on the pass the blend stage built
+// once its code arrived (`waterPass.ts`).
 import { countBlendDraws } from '../blend/draw.ts';
-import type { BlendPipelines } from '../blend/stagePipelines.ts';
 import { beginWaterBounds } from './bounds.ts';
-import { createWaterFrame, type WaterFrame } from './frame.ts';
-import { createWaterSurfacePipelines } from './pipelines.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
-
-/** The water pass of a scene: its surface pipelines and its frame side, built at prepare. */
-export interface WaterPass {
-  surfaces: BlendPipelines;
-  frame: WaterFrame;
-}
-
-/**
- * Builds the pass for a scene that carries a transmissive item. `module` and `layout` are the
- * blend pass's: the surface stage is one more fragment entry of the same module, on the same bind
- * groups.
- */
-export async function createWaterPass(
-  device: GPUDevice,
-  module: GPUShaderModule,
-  layout: GPUBindGroupLayout,
-  feedback = true,
-  sunWindow?: number,
-): Promise<WaterPass> {
-  const [surfaces, frame] = await Promise.all([
-    createWaterSurfacePipelines(device, module, layout, feedback),
-    createWaterFrame(device, sunWindow),
-  ]);
-  return { surfaces, frame };
-}
 
 /** Whether this image composes water: a beauty view, no second-camera capture, a composition. */
 function composesWater(rt: WebgpuPagesRuntime, composes: boolean) {
