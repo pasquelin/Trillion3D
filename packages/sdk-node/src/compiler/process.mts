@@ -2,27 +2,10 @@ import { spawn } from 'node:child_process';
 import type { CompilerEvent } from './contracts.ts';
 import { currentCompilerExecutable } from './executable.mts';
 import { compilerError } from '../messages/catalogue.mts';
+import { COMPILER_LINE_LIMIT, lineReader } from './lines.mts';
 
-/** Longest accepted single line on either stream; the compiler emits small JSON lines only. */
-export const COMPILER_LINE_LIMIT = 4 * 1024 * 1024;
 /** Grace period between a cooperative cancel request on stdin and a hard kill. */
 export const CANCEL_GRACE_MS = 5000;
-/** Line-oriented JSON reader shared by both streams; a line that never ends is a protocol violation. */
-function lineReader(onLine: (line: string) => void, onOverflow: () => void) {
-  let pending = '';
-  return (chunk: string) => {
-    pending += chunk;
-    if (pending.length > COMPILER_LINE_LIMIT) {
-      onOverflow();
-      return;
-    }
-    const lines = pending.split('\n');
-    pending = lines.pop() ?? '';
-    for (const line of lines) {
-      if (line.trim()) onLine(line);
-    }
-  };
-}
 /**
  * A batch prints its summary whatever happened to its jobs: exit code 2 only says "not every job is
  * ready", and the summary says which ones were not. Reading the exit code alone turned a `partial`
