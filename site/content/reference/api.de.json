@@ -728,7 +728,8 @@
       "near": "Nächste gezeichnete Entfernung.",
       "far": "Fernste gezeichnete Entfernung.",
       "zoom": "Vergrößerung.",
-      "orthographic": "Das Sichtfeld einer orthografischen Kamera."
+      "orthographic": "Das Sichtfeld einer orthografischen Kamera.",
+      "viewTile": "Eine Kachel einer weiteren Ansicht, die diese Kamera zeichnet. Fehlt sie, wird die Ansicht ganz gezeichnet."
     }
   },
   "CameraParameters": {
@@ -5664,6 +5665,7 @@
       "receive": "Ein Anforderungsbericht kam zurück; der nächste Plan liest ihn. Ein neuerer ersetzt einen ungelesenen.",
       "commit": "Die Seiten `[from, to)` der Liste des Bildes wurden kodiert, Seite `from + i` in `modes[i]`: ihre Zeichnungen landen, bevor sie jemand liest. Der letzte Stapel schließt die Liste.",
       "resize": "Der Pool in anderer Größe, seine Seiten behalten, seine Arrays neu: gibt zurück, wohin jede Seite ging.",
+      "sunWindow": "Seiten pro Seite der Clipmap einer Sonne, mit der eine Sitzung läuft (`referenceMode.ts`).",
       "gpu": "Die Zuteilung der GPU (`mirror.ts`): ob sie die Seiten zuordnet und was der Host von ihr verlangt."
     }
   },

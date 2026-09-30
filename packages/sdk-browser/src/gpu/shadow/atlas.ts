@@ -24,9 +24,8 @@ export const SHADOW_PASS = 'Trillion3D shadow atlas v1';
 export const SHADOW_TABLE_OFFSET = MAX_SHADOW_SLICES * SHADOW_RECORD_FLOATS * 4;
 /** Bytes of the records then the page table, one buffer; the table sized to the session's window. */
 const dataBytesOf = (tableEntries: number) => SHADOW_TABLE_OFFSET + tableEntries * 4;
-/** Bytes of the buffers beside the pool — the faces, the records and page table: fixed by the
- *  light contract, the same on every screen, so the memory budget counts them. The ordinary
- *  window; a reference session raises the table (`referenceMode.ts`). */
+/** Bytes of the buffers beside the pool — faces, records, page table —, fixed by the light
+ *  contract; the ordinary window, a reference session raising it (`referenceMode.ts`). */
 export const SHADOW_BUFFER_BYTES =
   MAX_SHADOW_REGIONS * (FACE_STRIDE + 4) + dataBytesOf(SHADOW_TABLE_ENTRIES);
 /** Bytes of a pool of `layers` of `poolSide` pages a side: one 32-bit depth texel each. */
@@ -39,11 +38,9 @@ export type GpuShadowAtlas = Awaited<ReturnType<typeof createGpuShadowAtlas>>;
  * The shadow pool and what reads and fills it: a depth texture of `poolSide²` physical pages; one
  * buffer holding every light's record then the page table (`SHADOW_DATA_WGSL`); the buffer the
  * opaque resolve records the pages it read in; and the uniform of each page a frame draws, read
- * by dynamic offset.
- *
- * The texture waits for `sizePool`: its side is derived from the screen the first frame draws
- * (`shadowPoolSize`), which the world may not know when it prepares — until then no page exists
- * and the shading reads the placeholder.
+ * by dynamic offset. The texture waits for `sizePool`: its side comes from the first frame's
+ * screen (`shadowPoolSize`), which the world may not know when it prepares — until then no page
+ * exists and the shading reads the placeholder.
  */
 export async function createGpuShadowAtlas(
   device: GPUDevice,
@@ -123,10 +120,9 @@ export async function createGpuShadowAtlas(
       faceStride: FACE_STRIDE,
       allocationBytes: fixedBytes,
       makePool,
-      /** Takes the pool's texture — the one the device granted, or one made now — before the first
-       *  page is drawn; again at a resize (`../../webgpu/shadow/poolResize.ts`), with the
-       *  transmittance layer made for it when one is held. Returns what it held then, which the
-       *  caller copies from and destroys. */
+      /** Takes the pool's texture — granted or made now — before the first page is drawn; again at
+       *  a resize (`../../webgpu/shadow/poolResize.ts`), with its transmittance layer when one is
+       *  held. Returns what it held then, which the caller copies from and destroys. */
       sizePool(
         poolSide: number,
         layers = 1,
