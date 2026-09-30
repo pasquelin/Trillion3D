@@ -1,4 +1,4 @@
-import { WATER_RANK_SHIFT } from '../water/surfaceWgsl.ts';
+import { WATER_RANK_SHIFT } from '../water/rank.ts';
 import { refreshSurface } from '../../page/surface.ts';
 import type { TransmissionBackdrop, WebgpuGpuState } from '../pages/state/gpu.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';

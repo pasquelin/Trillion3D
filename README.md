@@ -110,6 +110,26 @@ process adapter and compilation jobs; a browser bundler adds `createWorld` and i
 `capability`, `capture`, `pose`, `batch`, …) — see
 [Installation and environment API](docs/SDK.md#installation-and-environment-api).
 
+Without a bundler, a page imports the browser entry built as one module, `trillion3d/module`
+(`dist/trillion3d.module.js`), with its workers, WebAssembly modules and source map beside it. A
+CDN serving the package's files (jsDelivr, unpkg) needs one `importmap` line; the workers start
+across origins. Each optional family is a chunk of its own, fetched with the scene that uses it and
+waited for as its other resources, so no frame is drawn without it: physics (its chunk, worker and
+WebAssembly, when a world enables it), particles, WebGPU transmission (glass and water), WebGPU
+deformation, the effect chain, guides, diagnostic views and the measurement's build provenance; a
+plain scene fetches none. Physics threads need a cross-origin isolated page (COOP/COEP); without it
+the single-thread physics runs, silently. `pnpm run check:bundle-size` holds the gzip core to its
+budget.
+
+```html
+<script type="importmap">
+  { "imports": { "trillion3d": "https://cdn.jsdelivr.net/npm/trillion3d/dist/trillion3d.module.js" } }
+</script>
+<script type="module">
+  import { createWorld } from 'trillion3d';
+</script>
+```
+
 An application owns the canvas, its resource URLs and controller disposal; the world owns its own
 loop by default (`interactive: false` + `world.render()` for a host-led loop instead). Node hosts
 own source/cache directories and process configuration. React and Electron integrations use these

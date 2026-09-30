@@ -8,6 +8,7 @@
  * documented thread model (a thread block per thread, set with `_emscripten_thread_init`).
  */
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
+import { startModuleWorker } from '../host/besideModule.ts';
 
 /** The exports of the threaded module a thread's set-up reads. */
 interface ThreadExports {
@@ -127,7 +128,7 @@ export function joltWorkerPool(
     const n = loads.length + 1;
     const named = (why: string) =>
       new EngineError('PHYSICS_FAILED', `Physics: pool thread ${n} ${why}`);
-    const thread = new Worker(url, { type: 'module' });
+    const thread = startModuleWorker(url);
     const load = new Promise<void>((loaded, refused) => {
       let up = false;
       const fault = (why: string) =>
