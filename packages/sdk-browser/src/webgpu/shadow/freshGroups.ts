@@ -50,18 +50,17 @@ export function shadowPageGroup(rt: WebgpuPagesRuntime, device: GPUDevice) {
 
 /**
  * The groups of the draws of the pages the GPU draws itself (`freshDraws.ts`): group 0, the page
- * rows (`shadowPageGroup`); group 2 into the pool — their views, the kept pairs (the region cull's
- * list, free once the host's batches are encoded) and the arguments —, and into each layer of the
+ * rows (`shadowPageGroup`); group 2 into the pool — their views, the kept `pairs`
+ * (`freshPairs.ts`) and the arguments —, and into each layer of the
  * transmittance layer the same after the pool's opaque depth of that layer. Made again only when
  * one of them changed identity; undefined while a resource is missing.
  */
-export function freshGroups(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  const { shadows, cull, pageRequests } = rt.lights,
+export function freshGroups(rt: WebgpuPagesRuntime, device: GPUDevice, pairs: GPUBuffer) {
+  const { shadows, pageRequests } = rt.lights,
     buffers = pageRequests?.allocation,
     page = shadowPageGroup(rt, device);
-  if (!shadows || !cull || !buffers || !page) return;
-  const pairs = cull.kept,
-    key = [page, pairs, shadows.targets, buffers.freshFaces, buffers.freshArgs];
+  if (!shadows || !buffers || !page) return;
+  const key = [page, pairs, shadows.targets, buffers.freshFaces, buffers.freshArgs];
   const cached = held.get(device);
   if (cached && cached.key.every((part, k) => part === key[k])) return cached;
   const { poolLayout, tintLayout } = shadows.freshDraws;
