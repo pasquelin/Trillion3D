@@ -1,9 +1,11 @@
+import { filteredRadianceShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts';
+
 /** GGX split-sum kernel moments for the existing order-2 radiance probes.
  * With z=N.L, its normalized density is z/(1+k+(k-1)z)^2, k=roughness^4.
  * Zonal convolution multiplies bands 0/1/2 by E[1], E[z], E[(3z²-1)/2].
  * This evaluates the probe's represented radiance, not a new ray budget or a
  * second environment representation. The mirror continues to trace the proxy. */
-export const PROBE_REFLECTION_FILTER_WGSL = `
+const REFLECTION_BANDS_WGSL = `
 fn reflectionProbeBands(rough:f32)->vec3f{
  let k=max(rough*rough*rough*rough,1e-8);
  let a=1.0+k;let b=k-1.0;let q=-b/a;
@@ -27,6 +29,20 @@ fn reflectionProbeBands(rough:f32)->vec3f{
  }
  return vec3f(1.0,moments.y/moments.x,0.5*(3.0*moments.z/moments.x-1.0));
 }
+`;
+
+/** The scene environment's order-2 radiance (\`directLights.environment\`) seen along R through
+ *  the same GGX lobe: the specular reflection every program falls back to where no screen hit and
+ *  no probe answers, never black (#1341). The diffuse term, \`environmentLighting\`, reads the
+ *  same coefficients through the cosine lobe. */
+export const ENVIRONMENT_REFLECTION_WGSL = `${REFLECTION_BANDS_WGSL}
+fn environmentReflection(R:vec3f,rough:f32)->vec3f{
+ let e=directLights.environment;
+ let bands=reflectionProbeBands(rough);
+ return max(vec3f(0.0),${filteredRadianceShader((k) => `e[${k}].rgb`, 'R', 'bands')});
+}`;
+
+export const PROBE_REFLECTION_FILTER_WGSL = `${ENVIRONMENT_REFLECTION_WGSL}
 fn filteredProbeReflection(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{
  return sampleProbeField(P,N,R,reflectionProbeBands(rough),true);
 }`;
