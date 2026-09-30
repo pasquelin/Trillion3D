@@ -5656,6 +5656,7 @@
       "counts": "Was der letzte Plan getan hat, in Seiten.",
       "spent": "CPU-Millisekunden, die der letzte Plan mit dem Lesen des Anforderungsberichts und dem Zulassen der Seiten verbracht hat.",
       "worldChanged": "Ein Knoten hat sich bewegt: seine Box macht beim nächsten Plan die Seiten ungültig, die sie bedeckt.",
+      "changeRoom": "Boxen, die die Liste vor dem Überlauf noch getrennt hält.",
       "representationChanged": "Dieselbe Welt mit anderer Genauigkeit: ihre Box wartet, bis die Kamera ruht.",
       "resting": "Die Kamera ruhte beim letzten Plan: ihre Ansicht war die des Plans davor.",
       "deferredChanges": "Wahr, solange eine Darstellungsänderung darauf wartet, dass die Kamera ruht.",
