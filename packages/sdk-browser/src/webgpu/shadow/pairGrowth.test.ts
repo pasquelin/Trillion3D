@@ -7,7 +7,7 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { MAX_SHADOW_REGIONS } from '../../gpu/shadow/recordPack.ts';
 import { growKeptList, keptList } from '../../gpu/shadow/keptList.ts';
 import { shadowTransmittanceBytes } from '../../gpu/shadow/transmittance.ts';
-import { SHADOW_GRANT_BYTES } from '../../residency/memoryBudget.ts';
+import { SHADOW_GRANT_BYTES } from '../../residency/shadowBudgetBytes.ts';
 import { createShadowMemory, shadowPoolHeld } from './memoryGrant.ts';
 import { growPairList, keptPairs } from './pairGrowth.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
