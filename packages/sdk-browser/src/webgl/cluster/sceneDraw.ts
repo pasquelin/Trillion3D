@@ -68,18 +68,17 @@ const NO_BATCHES: readonly never[] = [];
  * `renderOrder` and from the farthest to the nearest; the program splits them into its
  * transmission and blend passes. The lights come from the same lists, the background off the graph.
  *
- * `render(camera)` opens the frame: it zeroes the counters, so that a frame
- * the composer held — nothing drawn — publishes nothing, never the previous draw; `counters()` is
- * `null` before the first frame. The graph's matrices and lists (`drawLists.ts`: the matrices of
- * the subtrees that changed, the lists walked again only when the graph changed shape) are
- * brought up to date once per drawn image, at the first of
- * `host.linearRefusal` and `host.drawHostGeometry`: never on a held frame, and never in `render`,
- * which runs before the engine's frame writes the graph (`../../backend/autonomous/pages.ts`). Asked
- * first, that runs before `onBeforeRender`, whose one hook (`../../lighting/unlitAlbedo.ts`) writes
- * no field the lists read. Without a context (a session that never draws on the host
- * surface) the draw is refused by name. `pixelRatio`, read each frame, scales a line's CSS-pixel
- * width to the image's pixels; `materialDegraded` hears a surface drawn without a physical feature
- * or left out of the frame, said on `onDiagnostic` when the session gives no hearer.
+ * `render(camera)` opens the frame: it zeroes the counters, so that a frame the composer held — nothing
+ * drawn — publishes nothing, never the previous draw; `counters()` is `null` before the first frame.
+ * The graph's matrices and lists (`drawLists.ts`: the matrices of the subtrees that changed, the lists
+ * walked again only when the graph changed shape) are brought up to date once per drawn image, at the
+ * first of `host.linearRefusal` and `host.drawHostGeometry`: never on a held frame, and never in
+ * `render`, which runs before the engine's frame writes the graph
+ * (`../../backend/autonomous/pages.ts`). Asked first, that runs before `onBeforeRender`, whose one hook
+ * (`../../lighting/unlitAlbedo.ts`) writes no field the lists read. Without a context (a session that
+ * never draws on the host surface) the draw is refused by name. `pixelRatio`, read each frame, scales a
+ * line's CSS-pixel width to the image's pixels; `materialDegraded` hears a surface drawn without a
+ * physical feature or left out of the frame, said on `onDiagnostic` when the session gives no hearer.
  */
 export function createSceneDraw(
   gl: WebGL2RenderingContext | undefined,
@@ -147,6 +146,7 @@ export function createSceneDraw(
           opaque,
           seeThrough as readonly SceneCopy[],
           output.linear,
+          output.pass,
         );
       } finally {
         // A second draw of the same image — a capture — walks again, as every draw did.

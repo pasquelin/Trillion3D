@@ -1862,6 +1862,9 @@
       "gpuDeformationMs": "Duración GPU de la deformación para el fotograma de `gpuPassMs`; null antes de medir o sin soporte."
     }
   },
+  "FramePass": {
+    "summary": "Nombra las pasadas del fotograma que se dibuja; cada llamada cierra la anterior y abre la siguiente."
+  },
   "frameStatistics": {
     "summary": "Frecuencia y regularidad de los fotogramas a partir de los tiempos entre ellos."
   },
@@ -2529,7 +2532,8 @@
       "width": "Ancho en píxeles.",
       "height": "Alto en píxeles.",
       "displayWidth": "El ancho al que se muestra la imagen cuando se dibuja por debajo de él (`world.renderScale`): los niveles de textura y los anchos de línea siguen la proporción. `width` si falta.",
-      "linear": "Radiancia lineal, sin curva ni codificación, sobre negro transparente: la entrada de la cadena de efectos, cuyo alfa es la cobertura."
+      "linear": "Radiancia lineal, sin curva ni codificación, sobre negro transparente: la entrada de la cadena de efectos, cuyo alfa es la cobertura.",
+      "pass": "Nombra los pases de GPU de este dibujo para el temporizador de fotogramas, en orden, cuando uno está leyendo (`../core/frameTimer.ts`); ausente en un dibujo que nada mide."
     }
   },
   "HostMaterial": {
