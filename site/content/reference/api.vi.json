@@ -3632,7 +3632,6 @@
       "flags": "0 nền, 1 không chiếu sáng (có sương mù), 2 được đọc, 3 hiển thị nguyên trạng: một chẩn đoán, một góc nhìn pháp tuyến hoặc độ sâu. 4 và 5 là mô hình khuếch tán và toon (`./surfaceModel.ts`).",
       "views": "Các view kết cấu GPU của nó.",
       "dispose": "Giải phóng nó.",
-      "shadingOffset": "Độ lệch của bề mặt nhận bóng với độ chính xác đầy đủ, được ghi cùng G-buffer.",
       "subsurface": "Màu truyền sáng độc lập của bề mặt mỏng; dùng kết cấu 1×1 có giá trị bằng 0 khi tắt.",
       "subsurfaceView": "Khung nhìn kết cấu truyền sáng của bề mặt mỏng.",
       "hasSubsurface": "Cho biết truyền sáng qua bề mặt mỏng có đích đầy đủ kích thước hay không."

@@ -86,7 +86,8 @@ export interface WebgpuVisState {
   shadeIdentity: WebgpuBindIdentity;
   concatPos: GPUBuffer | undefined;
   concatUv: GPUBuffer | undefined;
-  concatNrm: GPUBuffer | undefined;
+  /** The normal atlas's view (`../../core/floatAtlas.ts`, #1410). */
+  concatNrm: GPUTextureView | undefined;
   /** The pool those three buffers are (`../../core/geometryPool.ts`). */
   vertexPool: VertexPool | undefined;
   pageTable: GPUBuffer | undefined;

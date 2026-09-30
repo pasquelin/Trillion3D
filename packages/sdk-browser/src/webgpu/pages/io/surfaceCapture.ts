@@ -80,13 +80,6 @@ function copySurfaces(
       options.width,
       options.height,
     ]);
-  encoder.copyBufferToBuffer(
-    gpu.surfaces.shadingOffset,
-    0,
-    owned.shadingOffset,
-    0,
-    owned.shadingOffset.size,
-  );
   encoder.copyTextureToTexture(
     { texture: gpu.surfaces.subsurface },
     { texture: owned.subsurface },

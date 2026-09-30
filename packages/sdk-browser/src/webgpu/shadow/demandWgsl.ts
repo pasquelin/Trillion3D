@@ -14,9 +14,12 @@ import {
 import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SUBSURFACE_FLAG } from '../../scene/subsurface.ts';
 import { AS_IS_FLAG, FOG_FREE_SURFACE_FLAG } from '../../scene/surfaceModel.ts';
+import { receiverOffsetWgsl } from '../../visibility/shader/receiverOffsetWgsl.ts';
 
 /** Pixels a side of a workgroup of the demand pass. */
 export const SHADOW_DEMAND_GROUP = 8;
+/** First binding of what the demand's receiver offset reads (`RECEIVER_BINDINGS`). */
+const DEMAND_RECEIVER_BINDING = 8;
 
 /**
  * THE PER-PIXEL DEMAND OF SHADOW PAGES (#1275): one invocation per pixel of the visibility buffer,
@@ -28,13 +31,13 @@ export const SHADOW_DEMAND_GROUP = 8;
  *
  * Every step is the shading's own: the view and the world point its resolve reconstructs
  * (`WORLD_AT_WGSL`, the deferred pass's view uniform), moved by the pixel's shading-point offset
- * (`shadowReceiverOffset`), its normal turned from a light behind a thin subsurface surface
- * (`declaredLight`), its tile slice, its light gate, its footprint and point unjittered
- * (`pixelLevel`), the turn of its taps (`shadowRotated`), and the page model (`pageModel.ts`) its
- * read takes the level, the map texel, the entry and the PCF's pages
- * from. Unlike the read, the demand never falls back: a page not drawn yet is the one it wants.
- * The layout it marks is the session's window (`referenceMode.ts`), the ordinary constant by
- * default.
+ * (`receiverOffset`, the lighting's, recomputed from the visibility buffer), its normal turned
+ * from a light behind a thin subsurface surface (`declaredLight`), its tile slice, its light gate,
+ * its footprint and point unjittered (`pixelLevel`), the turn of its taps (`shadowRotated`), and
+ * the page model (`pageModel.ts`) its read takes the level, the map texel, the entry and the PCF's
+ * pages from. Unlike the read, the demand never falls back: a page not drawn yet is the one it
+ * wants. The layout it marks is the session's window (`referenceMode.ts`), the ordinary constant
+ * by default.
  */
 export const shadowDemandWgsl = (pages = SUN_WINDOW) => `
 ${VIEW_WGSL}
@@ -47,7 +50,7 @@ ${VIEW_WGSL}
 ${SHADOW_DATA_WGSL}
 @group(0) @binding(6) var<storage,read> shadows:ShadowData;
 ${shadowRequestWgsl(7, pages)}
-@group(0) @binding(8) var<storage,read> shadingOffset:array<f32>;
+${receiverOffsetWgsl(DEMAND_RECEIVER_BINDING)}
 ${DIRECT_LIGHT_WGSL}
 ${TILE_SLICE_WGSL}
 ${shadowPageReadWgsl(pages)}
@@ -176,8 +179,7 @@ fn demandLight(light:DirectLight,at:vec3f,receiver:vec3f,N:vec3f,thin:bool,footp
  let at=worldAt(pixel,z);
  let level=pixelLevel(coord,pixel,z,at);shadowUnjitter=level.unjitter;shadowRotation=view.jitter.zw;
  // The point the shading reads the maps at (\`shadowReceiverOffset\`, \`surfaceWgsl.ts\`).
- let receiverAt=(id.y*u32(view.viewport.x)+id.x)*3u;
- let P=at+vec3f(shadingOffset[receiverAt],shadingOffset[receiverAt+1u],shadingOffset[receiverAt+2u]);
+ let P=at+receiverOffset(pixel);
  let N=normalize(textureLoad(normalRough,coord,0).xyz);
  let thin=(textureLoad(flags,coord,0).r&${SUBSURFACE_FLAG}u)!=0u;
  for(var index=0u;index<slice.y;index++){

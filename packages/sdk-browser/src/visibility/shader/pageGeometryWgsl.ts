@@ -32,11 +32,8 @@ const QUANTIZED = `(page.flags&${FLAG_CLUSTER_PAGE}u)!=0u`;
  * proof, compiles it as it is. What places a corner on the camera's screen is `PAGE_SCREEN_WGSL`,
  * which the camera passes add.
  */
-export const PAGE_GEOMETRY_WGSL = `${PAGE_VERTEX_WGSL}
-${PAGE_UV_WGSL}
-${LINE_DASH_WGSL}
-${clusterDecodeWgsl('indices')}
-fn pageHeader(page:PageInfo)->ClusterHeader{
+/** The corners, positions and deformed tail of a page, read from \`indices\` and \`positions\`. */
+const PAGE_POINT_WGSL = `fn pageHeader(page:PageInfo)->ClusterHeader{
  var h:ClusterHeader;
  if(${QUANTIZED}){h=clusterHeader(page.pageOffset);}
  else if((page.deformOutput&0x80000000u)!=0u){let at=page.packedBase-1u;h.flags=u32(positions[at]);h.morphCount=u32(positions[at+1u]);h.influences=(u32(positions[at+3u])-h.morphCount*6u)/2u;}
@@ -74,8 +71,10 @@ fn pageDeformed(page:PageInfo,vertex:u32,field:u32)->vec3f{
  let at=(page.deformOutput&0x7fffffffu)-1u+vertex*11u+field;
  if((page.deformOutput&0x80000000u)!=0u){return vec3f(positions[at],positions[at+1u],positions[at+2u]);}
  return vec3f(bitcast<f32>(indices[at]),bitcast<f32>(indices[at+1u]),bitcast<f32>(indices[at+2u]));
-}
-/** First texture coordinate of a page vertex. */
+}`;
+
+/** A page's texture coordinates, vertex colours and cutout alpha, read from \`uvs\`. */
+const PAGE_SURFACE_WGSL = `/** First texture coordinate of a page vertex. */
 fn pageUv(page:PageInfo,h:ClusterHeader,vertex:u32)->vec2f{
  if(${QUANTIZED}){return clusterUv(h,page.pageOffset,vertex);}
  return vertUv(page.vertexBase,vertex);
@@ -91,6 +90,21 @@ fn pageMaskAlpha(page:PageInfo,h:ClusterHeader,vertex:u32)->f32{
  if((page.flags&${FLAG_HAS_COLOR}u)!=0u){return pageColor(page,h,vertex).w;}
  return 1.0;
 }`;
+
+/** The page geometry every page-geometry pass reads (above). */
+export const PAGE_GEOMETRY_WGSL = `${PAGE_VERTEX_WGSL}
+${PAGE_UV_WGSL}
+${LINE_DASH_WGSL}
+${clusterDecodeWgsl('indices')}
+${PAGE_POINT_WGSL}
+${PAGE_SURFACE_WGSL}`;
+
+/** The page geometry without its surface attributes: corners, positions and the deformed tail,
+ *  which read \`indices\` and \`positions\` alone — what the shadow receiver offset decodes with
+ *  (\`receiverOffsetWgsl.ts\`), so its passes bind no \`uvs\`. */
+export const PAGE_POINTS_WGSL = `${PAGE_VERTEX_WGSL}
+${clusterDecodeWgsl('indices')}
+${PAGE_POINT_WGSL}`;
 
 /**
  * Vertex normal of a page, which the surface resolve and the transparent draw read: octahedral on the page,

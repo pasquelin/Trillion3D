@@ -7,8 +7,9 @@ import {
   createBounceOccupancy,
   type SceneProxy,
 } from '../../../sdk-core/src/index.ts';
-import { bounceGroup, bounceLayout } from './bindings.ts';
-import { bounceProbeBytes, ensureBounceFits } from './limits.ts';
+import { bounceGroup, bounceLayout, type BounceSlot } from './bindings.ts';
+import { atlasBytes, probeAtlasExtent } from './atlas.ts';
+import { ensureBounceFits } from './limits.ts';
 import { BOUNCE_PROBE_PASS, BOUNCE_PROBE_SHADER } from './probeWgsl.ts';
 import { createBounceSchedule } from './schedule.ts';
 import { createProbeStorage } from './probeStorage.ts';
@@ -16,15 +17,16 @@ import { createGpuBounceSurface, type GpuBounceSurface } from './surface.ts';
 import { syncBounceProbes } from './probeSync.ts';
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
 
-/** Proxy, lights, queue, frozen probes, output and canonical surface cache. */
-const PROBE_TYPES: (GPUBufferBindingType | null)[] = [
+/** Proxy, lights, queue, frozen probes, output and canonical surface cache: the three atlases
+ *  of `atlas.ts`. */
+const PROBE_TYPES: BounceSlot[] = [
   'uniform',
   'storage',
   'read-only-storage',
   'read-only-storage',
-  'read-only-storage',
-  'storage',
-  'read-only-storage',
+  'atlas-array',
+  'atlas-array-out',
+  'atlas',
 ];
 
 export type GpuBounceProbes = Awaited<ReturnType<typeof createGpuBounceProbes>>;
@@ -41,15 +43,17 @@ export async function createGpuBounceProbes(
   const occupancy = createBounceOccupancy(proxy, cascades);
   const schedule = createBounceSchedule(cascades, occupancy);
   const budget = createBounceBudget(budgetMs);
-  const probeBytes = bounceProbeBytes(cascades.reserveCount);
-  ensureBounceFits(device, proxy, probeBytes, schedule.queue.byteLength);
-  const { resident, uniform, queue, probes, snapshot } = createProbeStorage(
+  const extent = probeAtlasExtent(cascades.size, BOUNCE_SETTINGS.cascadeLevels);
+  ensureBounceFits(device, proxy, extent, schedule.queue.byteLength);
+  const { resident, uniform, queue, probes, snapshot, views, clearLevels } = createProbeStorage(
     device,
     proxy,
     cascades,
     schedule.queue.byteLength,
-    probeBytes,
+    extent,
   );
+  const probeBytes = atlasBytes(extent);
+  const { probes: probesView, snapshot: snapshotView } = views;
   const release = () => {
     queue.destroy();
     uniform.dispose();
@@ -64,19 +68,24 @@ export async function createGpuBounceProbes(
   let layout: GPUBindGroupLayout;
   /** The probe group, on the light buffer of the moment. */
   const bind = () =>
-    bounceGroup(device, layout, [
-      uniform.buffer,
-      resident.buffer,
-      (boundLights = lights()),
-      queue,
-      snapshot,
-      probes,
-      surface.buffer,
-    ]);
+    bounceGroup(
+      device,
+      layout,
+      [
+        uniform.buffer,
+        resident.buffer,
+        (boundLights = lights()),
+        queue,
+        snapshotView,
+        probesView,
+        surface.view,
+      ],
+      PROBE_TYPES,
+    );
   try {
     surface = await createGpuBounceSurface(device, resident, lights, {
       uniform: uniform.buffer,
-      snapshot,
+      snapshot: snapshotView,
     });
     const module = await createCheckedShaderModule(device, BOUNCE_PROBE_SHADER, 'BOUNCE_PROBE');
     layout = bounceLayout(device, PROBE_TYPES);
@@ -122,7 +131,10 @@ export async function createGpuBounceProbes(
     surface,
     proxy: resident,
     uniform: uniform.buffer,
-    probes,
+    /** The probes' atlas, one layer per level, which the lit passes read. */
+    probes: probesView,
+    /** What the probes' atlas weighs; the snapshot weighs as much. */
+    probeBytes,
     /** Frames of a full round, measured: that is the bound on convergence lag. */
     get sweepFrames() {
       return Math.max(schedule.sweepFrames, surface.sweepFrames, 1);
@@ -156,9 +168,7 @@ export async function createGpuBounceProbes(
      */
     encode(encoder: GPUCommandEncoder, lightsActive: number, viewpoint: ArrayLike<number>) {
       updates = 0;
-      const levelBytes = bounceProbeBytes(cascades.probesPerLevel);
-      for (let level = 0; level < BOUNCE_SETTINGS.cascadeLevels; level++)
-        if (clearOwed & (1 << level)) encoder.clearBuffer(probes, level * levelBytes, levelBytes);
+      clearLevels(encoder, clearOwed);
       clearOwed = 0;
       if (lights() !== boundLights) group = bind();
       // Stopped as the proxy counts it: motion slower than the frame rate rebuilds no map per cycle.
@@ -169,7 +179,7 @@ export async function createGpuBounceProbes(
       const groups = schedule.plan(batch());
       if (groups) device.queue.writeBuffer(queue, 0, schedule.queue, 0, groups);
       uniform.write(generation, groups, frame);
-      encoder.copyBufferToBuffer(probes, 0, snapshot, 0, probeBytes);
+      encoder.copyTextureToTexture({ texture: probes }, { texture: snapshot }, extent);
       surface.encode(encoder, budget.load);
       if (groups) {
         const pass = encoder.beginComputePass({ label: BOUNCE_PROBE_PASS });
