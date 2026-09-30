@@ -49,3 +49,23 @@ export function sessionFamilies(options: MeasuredWorldOptions, listened: boolean
   if (listened || frameCostAuditEnabled()) names.push('measurement');
   return familiesArriving(names);
 }
+
+/**
+ * A session without its own loop draws on each `invalidate`, as `develop` did; a frame that waits
+ * for a family on its way (`pending`) is drawn instead once it has arrived, once however many
+ * invalidations it heard meanwhile, and not at all by a session `closed` by then.
+ */
+export function drawnOnArrival(
+  pending: () => Promise<void> | undefined,
+  draw: () => unknown,
+  closed: () => boolean,
+) {
+  let waiting = false;
+  return function invalidate() {
+    const families = pending();
+    if (!families) return void draw();
+    if (waiting) return;
+    waiting = true;
+    void families.then(() => ((waiting = false), closed() || invalidate()));
+  };
+}

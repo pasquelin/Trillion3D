@@ -15,7 +15,9 @@ export type CaptureSize = {
 async function pixels(world: object, size: CaptureSize) {
   const session = sessionOf(world);
   const { width, height } = size;
-  // The scene's latest writes reach the session with a frame of the view, as the world draws it.
+  // A family the view draws with, still on its way, arrives first (`familyUse.ts`); then the
+  // scene's latest writes reach the session with a frame of the view, as the world draws it.
+  await session.familiesPending();
   (world as { render?: () => void }).render?.();
   const bottomUp = await session.captureView(width, height);
   const data = new Uint8Array(width * height * 4);
