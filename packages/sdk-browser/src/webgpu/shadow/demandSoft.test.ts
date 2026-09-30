@@ -55,8 +55,7 @@ const run: Run = shaderRun<Run>(
   [
     ...['demandLamp', 'demandPages', 'demandPage', 'demandSoftLamp', 'softPageExit'],
     ...['lampShadowFactor', 'pointSoftShadow', 'lampDiskSample', 'lampSoftDisk'],
-    ...['shadowPageEntry', 'shadowPageLocal', 'lampReadAt', 'shadowNormalTexels', 'pointFaceOf'],
-    'shadowRequestCell',
+    ...['shadowPageEntry', 'lampReadAt', 'shadowNormalTexels', 'pointFaceOf'],
     ...PAGE_MODEL_FUNCTIONS,
   ],
   {
@@ -68,7 +67,7 @@ const run: Run = shaderRun<Run>(
     shadowTransmission: [1, 1, 1],
     shadowAtlas: null,
     shadowTransmittance: null,
-    requestShadowPageAt: (entry: number) => live.marked.add(entry),
+    requestShadowPage: (entry: number) => live.marked.add(entry),
     // The shading's page read: every page it takes is readable and heard.
     shadowPageWord: (m: PageMap, p: V) => {
       live.read.add(run.shadowPageEntry(m, p));
