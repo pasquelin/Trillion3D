@@ -40,7 +40,8 @@ export function reflectionFrame(rt: WebgpuPagesRuntime): ReflectionHistoryFrame 
   frame.metadata.normal = gpu.surfaces.normalRough;
   frame.metadata.ids = vis.visTexture;
   frame.pages = vis.pageTable;
-  // The shared helper's motion branch is disabled: every source pose change invalidates.
+  // The shared helper's motion branch is disabled: a source pose change lowers the history's
+  // confidence instead (`REFLECTION_CHANGE_WEIGHT`).
   // No second placement table is created when the host has disabled TAA.
   frame.motion = gpu.temporal?.motion.buffer ?? vis.pageTable;
   const { epoch } = frame;
