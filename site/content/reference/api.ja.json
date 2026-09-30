@@ -2966,8 +2966,8 @@
       "disableRatio": "それをオフにするコスト比率。",
       "enableRatio": "それを再度オンにするコスト比率。",
       "consecutiveViolations": "オフにする前の、連続した悪いサンプル数。",
-      "memoryBudgetBytes": "メモリの上限。",
-      "maxEvictionsPerSecond": "1秒あたりの破棄の上限。",
+      "memoryBudgetBytes": "メモリの上限。有限で 0 以上。",
+      "maxEvictionsPerSecond": "1秒あたりの破棄の上限。有限で 0 以上。",
       "requireGpuTiming": "GPU時間を計測しなければならないかどうか。"
     }
   },

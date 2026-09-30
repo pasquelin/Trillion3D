@@ -2990,8 +2990,8 @@
       "disableRatio": "نسبة التكلفة التي تطفئها.",
       "enableRatio": "نسبة التكلفة التي تعيد تشغيلها.",
       "consecutiveViolations": "عيّنات سيّئة متتالية قبل الإطفاء.",
-      "memoryBudgetBytes": "سقف الذاكرة.",
-      "maxEvictionsPerSecond": "سقف الإخراج في الثانية.",
+      "memoryBudgetBytes": "سقف الذاكرة، محدود ولا يقل عن 0.",
+      "maxEvictionsPerSecond": "سقف الإخراج في الثانية، محدود ولا يقل عن 0.",
       "requireGpuTiming": "ما إذا وجب قياس وقت بطاقة الرسوميات."
     }
   },

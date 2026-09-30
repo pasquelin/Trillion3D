@@ -1,3 +1,4 @@
+import { judgeEvidence } from './safetyEvidence.ts';
 /** How much of the engine a machine may run: everything, a reduced set, or the basics. */
 export type CapabilityTier = 'full' | 'degraded' | 'baseline';
 /** What the safety policy decided, and why. */
@@ -42,9 +43,9 @@ export interface SafetyConfig {
   enableRatio: number;
   /** Bad samples in a row before turning off. */
   consecutiveViolations: number;
-  /** Memory ceiling. */
+  /** Memory ceiling, finite and at least 0. */
   memoryBudgetBytes?: number;
-  /** Eviction ceiling per second. */
+  /** Eviction ceiling per second, finite and at least 0. */
   maxEvictionsPerSecond?: number;
   /** Whether GPU time must be measured. */
   requireGpuTiming?: boolean;
@@ -61,7 +62,10 @@ export function createSafetyPolicy(config: SafetyConfig) {
     !Number.isFinite(config.enableRatio) ||
     config.enableRatio <= 0 ||
     !Number.isFinite(config.disableRatio) ||
-    config.enableRatio >= config.disableRatio
+    config.enableRatio >= config.disableRatio ||
+    ![config.memoryBudgetBytes, config.maxEvictionsPerSecond].every(
+      (ceiling) => ceiling === undefined || (Number.isFinite(ceiling) && ceiling >= 0),
+    )
   )
     throw new Error('INVALID_SAFETY_POLICY');
   let decision: SafetyDecision = {
@@ -74,8 +78,9 @@ export function createSafetyPolicy(config: SafetyConfig) {
     good = 0,
     bad = 0,
     lastTime = -Infinity;
+  // Each reason belongs to one state (only the benefit reason is enabled): comparing reasons is enough.
   const transition = (enabled: boolean, reason: string, now: number) => {
-    if (decision.enabled !== enabled || decision.reason !== reason)
+    if (decision.reason !== reason)
       decision = {
         tier: enabled ? 'full' : 'baseline',
         enabled,
@@ -96,52 +101,12 @@ export function createSafetyPolicy(config: SafetyConfig) {
     observe(reference: MeasuredCosts, candidate: MeasuredCosts, now: number) {
       if (!Number.isFinite(now) || now < lastTime) throw new Error('INVALID_CLOCK');
       lastTime = now;
-      const valid = (value: number | null) =>
-        value === null || (Number.isFinite(value) && value >= 0);
-      if (
-        reference.provenance !== 'measured' ||
-        candidate.provenance !== 'measured' ||
-        reference.contextKey !== candidate.contextKey ||
-        ![reference, candidate].every((v) =>
-          [v.cpuMs, v.gpuMs, v.latencyMs, v.memoryBytes, v.evictionsPerSecond].every(valid),
-        )
-      ) {
+      const verdict = judgeEvidence(reference, candidate, config);
+      if ('veto' in verdict) {
         good = bad = 0;
-        return transition(false, 'Incomparable or invalid evidence', now);
+        return transition(false, verdict.veto, now);
       }
-      if (config.requireGpuTiming && (reference.gpuMs === null || candidate.gpuMs === null)) {
-        good = bad = 0;
-        return transition(false, 'GPU evidence unavailable', now);
-      }
-      if (config.memoryBudgetBytes !== undefined && candidate.memoryBytes === null) {
-        good = bad = 0;
-        return transition(false, 'Memory evidence unavailable', now);
-      }
-      const ratio = (a: number, b: number) => (b === 0 ? (a === 0 ? 1 : Infinity) : a / b);
-      const ratios = [
-        ratio(candidate.cpuMs, reference.cpuMs),
-        ratio(candidate.latencyMs, reference.latencyMs),
-      ];
-      if (candidate.gpuMs !== null && reference.gpuMs !== null)
-        ratios.push(ratio(candidate.gpuMs, reference.gpuMs));
-      const pressure =
-        config.memoryBudgetBytes !== undefined &&
-        candidate.memoryBytes !== null &&
-        candidate.memoryBytes > config.memoryBudgetBytes;
-      const thrashing =
-        config.maxEvictionsPerSecond !== undefined &&
-        candidate.evictionsPerSecond !== null &&
-        candidate.evictionsPerSecond > config.maxEvictionsPerSecond;
-      if (pressure || thrashing) {
-        good = bad = 0;
-        return transition(
-          false,
-          pressure ? 'Circuit breaker: memory budget' : 'Circuit breaker: thrashing',
-          now,
-        );
-      }
-      const harmful = ratios.some((r) => r > config.disableRatio),
-        beneficial = ratios.every((r) => r <= config.enableRatio);
+      const { harmful, beneficial } = verdict;
       bad = harmful ? bad + 1 : 0;
       good = beneficial ? good + 1 : 0;
       if (now - decision.changedAt < config.minimumPeriodMs) return decision;
