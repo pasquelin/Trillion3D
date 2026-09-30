@@ -86,9 +86,7 @@ export async function createDeferredProgram(
   const lightingLayout = createDeferredLightingLayout(device, sources.direct, sources.bounce);
   const [light, reflection, compositions] = await Promise.all([
     makeFullscreenPipeline(device, lighting, lightingLayout, 'lightSurface', HDR),
-    sources.direct
-      ? reflectionPipelines(device, text, lightingLayout, !!sources.bounce)
-      : undefined,
+    sources.direct ? reflectionPipelines(device, text, lightingLayout) : undefined,
     createCompositions(device, sources.compose, sources.label),
   ]);
   /** What the light group names: rebuilt when one of them is replaced (`bindIdentity.ts`). */

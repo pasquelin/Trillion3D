@@ -114,8 +114,7 @@ export function createComposeScale(gl: WebGL2RenderingContext) {
       if (control.bounds.min >= 1 && held.alive()) held.current()!.release();
       const made = scale < 1 ? held.current() : null;
       if (made) drawn = scale;
-      control.drawn = drawn;
-      control.steered = control.bounds.auto && backend.frameHeld !== true && scale === drawn;
+      control.drew(drawn, control.bounds.auto && backend.frameHeld !== true && scale === drawn);
       if (!made) return false;
       const { width, height } = output,
         max = control.bounds.max;
