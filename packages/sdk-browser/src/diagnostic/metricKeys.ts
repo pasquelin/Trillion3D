@@ -36,6 +36,7 @@ export const BACKEND_METRIC_KEYS = [
   'gpuPassMs',
   'gpuFrameMs',
   'gpuHostGapMs',
+  'gpuDeviceLost',
   'vramBytes',
   'gpuAllocatedBytes',
   'gpuAllocatedByLabel',
