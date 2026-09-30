@@ -12,6 +12,7 @@ import {
 } from './gpu.ts';
 import { withScreenReflections } from './screenWgsl.ts';
 import { SCREEN_REFLECTION_CUTOFF as CUTOFF } from './modelShader.ts';
+import { coatedScreenReflects, screenReflects } from './eligible.ts';
 import { DEFERRED_LIGHTING_PASS } from '../lighting/deferred/deferred.ts';
 import { BOUNCE_LIGHTING_SHADER, DIRECT_LIGHTING_SHADER } from '../lighting/deferred/shaders.ts';
 import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts';
@@ -127,4 +128,12 @@ test('a missed or below-horizon sample returns the environment reflection, not b
   });
   const past = (program: typeof direct) => program.reflectedRadiance([0, 0, 0], UP, UP, 0.8);
   assert.deepEqual(past(bounce), past(direct));
+});
+
+test('a polished clear coat over a matte base keeps the WebGL2 screen trace', () => {
+  const coated = { ...physical(0.9), clearcoat: 1, clearcoatRoughness: 0.05 };
+  assert.equal(screenReflects(coated), false, 'the base lobe alone is matte');
+  assert.equal(coatedScreenReflects(coated), true, 'the coat lobe is traced');
+  assert.equal(coatedScreenReflects({ ...coated, clearcoatRoughness: CUTOFF }), false);
+  assert.equal(coatedScreenReflects({ ...coated, clearcoat: 0 }), false);
 });
