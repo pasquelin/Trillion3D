@@ -3189,6 +3189,13 @@
   "ScreenErrorVariant": {
     "summary": "Como o erro de tela de um cluster é medido: o limite provado, ou a fórmula de referência."
   },
+  "ShadowAsks": {
+    "summary": "Entradas que o host pede ao alocador de GPU, ao lado do que os píxeis pedem (`floors`).",
+    "members": {
+      "entries": "As entradas pedidas, no máximo as primeiras `count`.",
+      "count": "Quantas de `entries` estão preenchidas."
+    }
+  },
   "ShadowAtlasDigest": {
     "summary": "O que a leitura de um atlas de sombras publica: seu tamanho, o que está escrito ali, sua impressão digital.",
     "members": {
@@ -7630,6 +7637,17 @@
   },
   "SHADOW_RECORD_FLOATS": {
     "summary": "Floats de um registo de sombra, o que o sombreamento de uma luz lê: seis matrizes de faces de lâmpada — aí, os intervalos de profundidade de um sol, `zNear, zFar` cada um (`recordPack.ts`) —, depois o referencial do plano de luz do sol — `right, zNear`, `up, zFar`, `axis`, depois a posição do intervalo atual —, depois a origem da janela de cada posição do clipmap em dois inteiros, depois um cabeçalho `vec4f`: faces (lâmpada) ou níveis (sol), o semicampo tangente da lâmpada ou o nível mais fino do sol, o plano próximo da lâmpada e a primeira entrada do registo na tabela de páginas."
+  },
+  "ShadowPoolSnapshot": {
+    "summary": "O conjunto do alocador de GPU após a alocação de um quadro (`webgpu/shadow/allocWgsl.ts`).",
+    "members": {
+      "owner": "A entrada que cada página física mapeia, −1 para uma página livre.",
+      "requested": "O quadro em que cada página foi pedida pela última vez.",
+      "allocated": "Páginas que esse quadro mapeou, e entradas para as quais não tinha página.",
+      "refused": "Entradas para as quais esse quadro não tinha página.",
+      "drawn": "Páginas que esse quadro listou para a GPU desenhar (`listDraw`).",
+      "listings": "Páginas que cada quadro listou desde a semente do conjunto: move-se com a lista de qualquer quadro, tenha a sua própria captura se perdido ou não."
+    }
   },
   "ShadowRequestReport": {
     "summary": "O que o sombreamento leu num quadro: as entradas da tabela que pediu, sem ordem.",
