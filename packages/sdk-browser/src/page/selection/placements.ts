@@ -39,6 +39,19 @@ export type PlacementIndex = {
   readonly rootOfPacked: Int32Array;
 };
 
+/** The tables `read` returns at each lookup: a reader built once follows every layout, growth or
+ *  mount that replaces them, never a stale table. */
+export function livePlacementIndex(read: () => PlacementIndex): PlacementIndex {
+  return {
+    get baseOfRoot() {
+      return read().baseOfRoot;
+    },
+    get rootOfPacked() {
+      return read().rootOfPacked;
+    },
+  };
+}
+
 /**
  * Posts each root's packed base, and returns the two tables that resolve a packed rank back to its
  * root. What an engine does once its roots were laid out, grown, mounted or removed, before any

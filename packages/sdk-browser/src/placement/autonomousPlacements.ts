@@ -85,21 +85,15 @@ export function autonomousPlacements(env: Placements) {
     /** The growth contract (`growth.ts`): every table of this path is a list, so the
      *  new rows' roots and pages are appended to them, indexed like the ones collected. */
     growPlacements(from: PlacementRows, to: PlacementRows) {
-      const grown: Array<{ rec: PageRec; template: PageRec }> = [];
-      for (const { item: root, template } of growRowRoots(roots, from, to)) {
+      // A new row reads its primitive's own records (#1235): they are already catalogued and by URL.
+      // Its root joins, and its cover instances; the layout gives each new instance the geometry and
+      // surface its page's first instance wears (`pageDraws.ts`).
+      for (const { item: root } of growRowRoots(roots, from, to)) {
         roots.push(root);
-        root.pages.forEach((rec, rank) => {
-          allPages.push(rec);
-          grown.push({ rec, template: template.pages[rank] });
-          byUrl.get(rec.url)!.push(rec);
-        });
-        bootstrap.push(...autonomousBootstrap([root]));
+        for (const rec of autonomousBootstrap([root])) bootstrap.push(rec);
       }
       growBlendCopies(blendCopies, from, to, (copy) => scene.add(copy));
       changed();
-      // The grown instances take the material of the pages they copy, now that they are laid out.
-      for (const { rec, template } of grown)
-        draws.drawing(rec).material = draws.materialOf(template);
     },
     /** A resource is collected as the open collects one, its root cover read and decoded, and only
      *  then appended to the open's tables: never drawn before its cover is resident. */
@@ -126,7 +120,7 @@ export function autonomousPlacements(env: Placements) {
       draws.layOut(roots); // before the store writes its pages' geometry onto them
       for (const rec of collected.allPages) {
         allPages.push(rec);
-        draws.drawing(rec).material = rec.declaration;
+        draws.forEachDraw(rec, (draw) => (draw.material = rec.declaration));
         (byUrl.get(rec.url) ?? byUrl.set(rec.url, []).get(rec.url)!).push(rec);
       }
       for (const rec of cover) bootstrap.push(rec);

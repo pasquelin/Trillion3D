@@ -85,7 +85,8 @@ export function createPageStore(env: PageStoreEnvironment) {
       wearDeclaration(rec, geometry.attributes.color ? paint() : base);
       setArray(rec, data.indices);
       rec.attributes = geometry.attributes;
-      draws.drawing(rec).geometry = geometry;
+      // Every instance of the record draws it: rows placing it on their own share the geometry.
+      draws.forEachDraw(rec, (draw) => (draw.geometry = geometry));
       // Each geometry uploads its own buffers: counted as `release` gives them back.
       if (!shared) state.allocationBytes += hostPageBytes(geometry);
     }

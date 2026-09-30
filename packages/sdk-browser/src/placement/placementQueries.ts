@@ -1,4 +1,12 @@
-import type { PageRec, ClusterRoot } from '../page/selection/selection.ts';
+import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts';
+import { rootOf, type PageRec, type ClusterRoot } from '../page/selection/selection.ts';
+import type { PlacementIndex } from '../page/selection/placements.ts';
+
+/** What reads a record's instances: its packed ranks, and the root each rank belongs to. */
+type InstanceRanks = {
+  forEachRank(rec: PageRec, visit: (packed: number) => void): void;
+  readonly placement: PlacementIndex;
+};
 
 /** Addresses already counted, reused across calls: nothing is allocated to count a frame. */
 const counted = new Set<string>();
@@ -29,4 +37,22 @@ export function attachedPages(recs: readonly PageRec[], instanced: (rec: PageRec
     if (instanced(rec)) counted.add(rec.url);
     else own++;
   return own + counted.size;
+}
+
+/** The largest world scale that places the records: the compiler's tile follows it, read over
+ *  every placement of the primitive (`mesh_scales`), not only those a change moves. */
+export function largestScale(
+  records: readonly PageRec[],
+  roots: readonly ClusterRoot<PageRec>[],
+  draws: InstanceRanks,
+  scratch = new Matrix4(),
+) {
+  // Over every instance: one record serves every placement of its primitive (#1235).
+  let scale = 0;
+  for (const rec of new Set(records))
+    draws.forEachRank(rec, (packed) => {
+      const { elements } = rootOf(roots, draws.placement.rootOfPacked[packed]).world;
+      scale = Math.max(scale, scratch.fromArray(elements).getMaxScaleOnAxis());
+    });
+  return scale;
 }

@@ -115,7 +115,7 @@ export function createAutonomousPool(env: {
     coverRevision: () => heldFloor.revision,
     state,
     floorBytes: () => heldFloor.bytes() + fixedBytes(),
-    parentsOf: createPageParents(env.roots, env.draws.placement, env.draws.firstPacked),
+    parentsOf: createPageParents(env.roots, env.draws.livePlacement, env.draws.firstPacked),
     drop: residency.dropPage,
     others: env.views.others,
     captureDrawn: env.views.captureDrawn,

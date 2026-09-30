@@ -37,17 +37,7 @@ const released = new WeakSet<object>();
 export function createAutonomousGeometry(env: GeometryEnvironment) {
   const { scene, roots, allPages, byUrl, draws, colorMaterials } = env;
   const state = { allocationBytes: 0, submittedTriangles: 0, residentPages: 0 };
-  const held = createHeldResidency(
-    {},
-    {
-      get baseOfRoot() {
-        return draws.placement.baseOfRoot;
-      },
-      get rootOfPacked() {
-        return draws.placement.rootOfPacked;
-      },
-    },
-  );
+  const held = createHeldResidency({}, draws.livePlacement);
   /** The one writer of a record's residency, its index array: the cut's readiness follows it. Every
    *  instance of the record hears of the flip — one record serves all its primitive's placements. */
   const setArray = (rec: PageRec, array: Uint32Array | undefined) => {
@@ -120,15 +110,17 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
   };
   /** Detaches a record, frees its geometry once unless `keep` (an instance's rowed record). */
   const release = (rec: PageRec, keep = false) => {
-    const draw = draws.drawing(rec);
-    detach(draw);
-    const geometry = draw.geometry;
+    const geometry = draws.drawing(rec).geometry;
+    // Every instance's mesh leaves the scene: one record serves all its placements (#1235).
+    draws.forEachDraw(rec, (draw) => {
+      detach(draw);
+      draw.geometry = draw.mesh = undefined;
+    });
     if (!keep && geometry && !released.has(geometry)) {
       released.add(geometry);
       state.allocationBytes -= hostPageBytes(geometry);
       releaseHostGeometry(geometry);
     }
-    draw.geometry = draw.mesh = undefined;
     setArray(rec, undefined);
   };
   // An instance's or a mount's records (#572): a rowed geometry is freed with its last reader.
