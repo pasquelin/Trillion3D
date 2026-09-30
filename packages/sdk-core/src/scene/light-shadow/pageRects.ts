@@ -53,7 +53,7 @@ export function createPageRects() {
       const level = sun.finest[slice] + view;
       const ox = sun.originOf(slice, level, 0),
         oy = sun.originOf(slice, level, 1);
-      covered += setRect(view, 1 / sunPageMetres(level), 0, ox, oy, sun.window);
+      covered += setRect(view, 1 / sunPageMetres(level), 0, ox, oy, sun.windowPages);
     }
     return covered;
   }

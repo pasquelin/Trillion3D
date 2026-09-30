@@ -76,9 +76,9 @@ export const LAMP_FACE_ENTRIES = (() => {
   for (let mip = 0; mip < LAMP_MIPS; mip++) total += (LAMP_SIDE >> mip) ** 2;
   return total;
 })();
-/** The window is a session's, not the module's: a reference session raises it so every pixel of a
+/** The extent is a session's, not the module's: a reference session raises it so every pixel of a
  *  wide view reads the finest clipmap level (`referenceMode.ts`), an ordinary one keeps the
- *  constant. Every size a window implies is a function of its pages, the constant the default. */
+ *  constant. Every size an extent implies is a function of its pages, the constant the default. */
 export const sunLevelEntries = (pages: number) => pages * pages;
 export const sunEntries = (pages: number) => SUN_LEVELS * sunLevelEntries(pages);
 /** Words of the page table each slice owns: the largest range a light needs, a whole sun or a

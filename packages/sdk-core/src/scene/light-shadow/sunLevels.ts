@@ -42,8 +42,8 @@ export function createSunLevels(pages = SUN_WINDOW) {
     up = new Float64Array(3),
     ranges = createSunDepthRanges();
   return {
-    /** Pages a side of a clipmap level's extent around the camera: the session's window. */
-    window: pages,
+    /** Pages a side of a clipmap level's extent around the camera: the session's extent. */
+    windowPages: pages,
     frame,
     depth,
     finest,
