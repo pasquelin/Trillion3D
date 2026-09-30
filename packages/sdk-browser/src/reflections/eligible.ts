@@ -2,7 +2,7 @@ import type { PageSurface } from '../page/surface.ts';
 import { MIRROR_TRANSITION_END, SCREEN_REFLECTION_CUTOFF } from './modelShader.ts';
 
 /** Every lit physical surface has a specular lobe, including a fully rough dielectric. */
-export const reflects = (surface: PageSurface) => surface.lit && (surface.model ?? 0) === 0;
+const reflects = (surface: PageSurface) => surface.lit && (surface.model ?? 0) === 0;
 
 /** The receivers with a specular lobe under `limit` somewhere: a roughness map can lower any
  *  factor under it, so a mapped surface stays eligible and the shader cuts per pixel. */
