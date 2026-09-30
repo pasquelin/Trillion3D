@@ -26,7 +26,7 @@ const LIGHTS = (binding: number) =>
   `@group(0) @binding(${binding}) var<storage,read> directLights:DirectLights;`;
 const DEMANDED = [
   ...['demandPage', 'demandPages', 'demandSun', 'demandLamp', 'demandLight'],
-  ...['demandSoftLamp', 'softPageExit'],
+  ...['demandSoftLamp', 'demandSoftDisk'],
 ];
 
 /** The demand's own functions, run at every lit point for every light. */
