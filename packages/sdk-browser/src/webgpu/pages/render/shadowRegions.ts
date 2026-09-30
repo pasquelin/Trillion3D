@@ -58,6 +58,8 @@ export function planShadowRegions(
   ensureStaticLayer(rt);
   redrawShortPages(rt, frame, nowMs, residencyMoved);
   const count = plan.plan(store, view, box.min, box.max, frame, nowMs);
+  // The GPU table reaches every slice the plan claimed, before any of this frame's passes binds it.
+  shadows.holdTable(plan.table.heldEntries);
   lights.shadowSlots = writeShadowRecords(lights);
   lights.shadowsUpdated = plan.counts.lights;
   return count;
