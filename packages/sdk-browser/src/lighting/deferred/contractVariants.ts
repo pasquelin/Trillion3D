@@ -2,8 +2,13 @@ import { CONTRACT_COMPOSITIONS, contractLightingShader } from './shaders.ts';
 import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { createDeferredProgram, type DeferredBindings, type DeferredProgram } from './program.ts';
 
-/** A contract program: compiled, compiling, and whether a frame asked for it. */
-type Variant = { program?: DeferredProgram; pending?: Promise<unknown>; asked?: boolean };
+/** A contract program: compiled, compiling or failed, and whether a frame asked for it. */
+type Variant = {
+  program?: DeferredProgram;
+  pending?: Promise<unknown>;
+  asked?: boolean;
+  failed?: boolean;
+};
 
 /**
  * The contract programs, each compiled the first time a frame asks for it: with or without bounce,
@@ -14,22 +19,24 @@ type Variant = { program?: DeferredProgram; pending?: Promise<unknown>; asked?: 
  * A narrow program's wide twin compiles beside it, from the same frame: a scene that passes
  * `TILE_LIGHTS` lights finds its program ready as soon as a single program would have been, and
  * never falls back to the unlit view where one program would not. No frame waits for that twin
- * (`settle`) nor is redrawn at its arrival (`onReady`) until one asks for it.
+ * (`settle`) nor is redrawn at its arrival (`onReady`) until one asks for it. A failed compile is
+ * said (`onFailure`) once, never retried.
  */
 export function createContractVariants(
   device: GPUDevice,
   bindings: DeferredBindings,
   pages = SUN_WINDOW,
   onReady?: () => void,
+  reportFailure?: (error: unknown) => void,
 ) {
   /** `variants[+narrow][+bounce]`. */
   const variants: Variant[][] = [
     [{}, {}],
     [{}, {}],
   ];
-  const compile = (bounce: boolean, narrow: boolean, onFailure?: (error: unknown) => void) => {
+  const compile = (bounce: boolean, narrow: boolean, onFailure = reportFailure) => {
     const variant = variants[+narrow][+bounce];
-    if (variant.program || variant.pending) return;
+    if (variant.program || variant.pending || variant.failed) return;
     variant.pending = createDeferredProgram(
       device,
       {
@@ -47,21 +54,41 @@ export function createContractVariants(
         variant.pending = undefined;
         if (variant.asked) onReady?.();
       },
-      (error) => onFailure?.(error),
+      (error) => {
+        variant.pending = undefined;
+        variant.failed = true;
+        onFailure?.(error);
+      },
     );
     if (narrow) compile(bounce, false, onFailure);
   };
+  /** The best program ready to light a frame that asks for this one, if any. */
+  const lending = (bounce: boolean, narrow: boolean) =>
+    variants[+narrow][+bounce].program ??
+    variants[+narrow][0].program ??
+    variants[0][+bounce].program ??
+    variants[0][0].program;
   return {
     /** The program to light this frame with, compiling the asked one; `undefined` if none is ready. */
     pick(bounce: boolean, narrow: boolean, onFailure?: (error: unknown) => void) {
       variants[+narrow][+bounce].asked = true;
       compile(bounce, narrow, onFailure);
-      return (
-        variants[+narrow][+bounce].program ??
-        variants[+narrow][0].program ??
-        variants[0][+bounce].program ??
-        variants[0][0].program
-      );
+      return lending(bounce, narrow);
+    },
+    /** Starts a program before any frame asks for it (a narrow one with its wide twin), settled
+     *  once both landed or failed: prepare compiles the lit program beside the others. */
+    precompile(bounce: boolean, narrow: boolean) {
+      compile(bounce, narrow);
+      const started = [variants[+narrow][+bounce].pending, variants[0][+bounce].pending];
+      return Promise.all(started).then(() => {});
+    },
+    /** The compile a frame asking for this program must wait for: none while a ready program
+     *  lends itself, nor once it failed (the frame then falls back to the unlit view). */
+    awaited(bounce: boolean, narrow: boolean) {
+      if (lending(bounce, narrow)) return undefined;
+      variants[+narrow][+bounce].asked = true;
+      compile(bounce, narrow);
+      return variants[+narrow][+bounce].pending;
     },
     /** Waits for the programs a frame asked for, never a twin compiling beside them. */
     settle() {
