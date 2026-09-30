@@ -62,9 +62,11 @@ const seen = new Float64Array(4);
 export type ViewTile = {
   /** Scale of the projection's x and y axes (the full view's pixels over the tile's). */
   scaleX: number;
+  /** Scale of the projection's y axis; equal to `scaleX`, a tile's pixels being square. */
   scaleY: number;
   /** NDC translation applied after the scale, so the tile's centre lands on the target's. */
   offsetX: number;
+  /** NDC translation along y, applied after the scale like `offsetX` on the x axis. */
   offsetY: number;
 };
 /** The optics a camera declares: what the projection is composed from. An `orthographic` box
@@ -82,8 +84,17 @@ export type CameraOptics = {
   zoom: number;
   /** The view box of an orthographic camera. */
   orthographic?: OrthographicBox | null;
-  /** A tile of a wider view this camera draws. Absent draws the view whole. */
-  viewTile?: ViewTile | null;
+  /** A tile of a wider view this camera draws (`ViewTile`); absent draws the view whole. */
+  viewTile?: {
+    /** Scale of the projection's x and y axes (the full view's pixels over the tile's). */
+    scaleX: number;
+    /** Scale of the projection's y axis; equal to `scaleX`, a tile's pixels being square. */
+    scaleY: number;
+    /** NDC translation applied after the scale, so the tile's centre lands on the target's. */
+    offsetX: number;
+    /** NDC translation along y, applied after the scale like `offsetX` on the x axis. */
+    offsetY: number;
+  } | null;
 };
 
 /** Optics of a camera nobody has set: the fallback of oracles called before the first frame. */
@@ -146,10 +157,15 @@ function applyViewTile(
   const { scaleX, scaleY, offsetX, offsetY } = tile;
   projection[0] *= scaleX;
   projection[5] *= scaleY;
-  const x = orthographic ? 12 : 8,
-    y = orthographic ? 13 : 9;
-  projection[x] = projection[x] * scaleX + offsetX;
-  projection[y] = projection[y] * scaleY + offsetY;
+  // NDC' = scale · NDC − offset. A perspective column 2 is read at w = −z, so it takes +offset;
+  // an orthographic translation is read at w = 1, so it takes −offset.
+  if (orthographic) {
+    projection[12] = projection[12] * scaleX - offsetX;
+    projection[13] = projection[13] * scaleY - offsetY;
+  } else {
+    projection[8] = projection[8] * scaleX + offsetX;
+    projection[9] = projection[9] * scaleY + offsetY;
+  }
 }
 
 /** `perspective` and `viewPoint` of a camera whose world and eye are set: the eye, or the
