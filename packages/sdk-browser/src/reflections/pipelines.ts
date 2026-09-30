@@ -13,7 +13,7 @@ export async function reflectionPipelines(
   device: GPUDevice,
   shader: string,
   layout: GPUBindGroupLayout,
-  unboundedReflections = false,
+  { unboundedReflections = false }: { unboundedReflections?: boolean } = {},
 ) {
   const targets: GPUColorTargetState[] = [{ format: 'rgba16float' }];
   const resolveLayout = reflectionResolveLayout(device);

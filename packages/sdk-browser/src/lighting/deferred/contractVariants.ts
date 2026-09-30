@@ -25,13 +25,17 @@ type Variant = {
  * arrival (`onReady`) until one asks for it. A failed compile is said (`onFailure`) once, never
  * retried.
  */
+export type ContractVariantOptions = {
+  onFailure?: (error: unknown) => void;
+  /** A reference session's rough reflection trace, unbounded (`reflectionTrace`, #33). */
+  unboundedReflections?: boolean;
+};
 export function createContractVariants(
   device: GPUDevice,
   bindings: DeferredBindings,
   pages = SUN_WINDOW,
   onReady?: () => void,
-  reportFailure?: (error: unknown) => void,
-  unboundedReflections = false,
+  { onFailure: reportFailure, unboundedReflections }: ContractVariantOptions = {},
 ) {
   /** `variants[+narrow + 2 * unshadowed][+bounce]`. */
   const variants: Variant[][] = [0, 1, 2, 3].map(() => [{}, {}]);
