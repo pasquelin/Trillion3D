@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, sep } from 'node:path';
 
@@ -47,7 +47,8 @@ export function installedCompiler(
   } catch {
     return null;
   }
-  if (!manifest.split(sep).includes('node_modules')) return null;
+  // The real path: under `--preserve-symlinks` a workspace link would read as `node_modules`.
+  if (!realpathSync(manifest).split(sep).includes('node_modules')) return null;
   const binary = join(dirname(manifest), 'bin', compilerFileName(platform));
   return existsSync(binary) ? binary : null;
 }
