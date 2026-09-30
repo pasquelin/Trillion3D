@@ -3,7 +3,11 @@ import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts';
 import { createReflectionHistory, type ReflectionHistoryFrame } from './historyRuntime.ts';
-import { REFLECTION_CHANGE_WEIGHT, REFLECTION_HISTORY_WEIGHT } from './resolveWgsl.ts';
+import {
+  REFLECTION_CHANGE_FRAMES,
+  REFLECTION_CHANGE_WEIGHT,
+  REFLECTION_HISTORY_WEIGHT,
+} from './resolveWgsl.ts';
 
 test('first frame rejects history, replay consumes nothing, and a changed source lowers its confidence', () => {
   const gpu = fakeDevice();
@@ -69,10 +73,17 @@ test('first frame rejects history, replay consumes nothing, and a changed source
     assert.equal(history.reuse, false);
     encode();
     assert.equal(draws, 3);
-    for (let i = 1; i < REFLECTION_HISTORY_WEIGHT; i++) {
+    // The change weight holds until the stale share is gone, then a full window closes it: a held
+    // image keeps nothing of the old reflection.
+    for (let i = 1; i < REFLECTION_CHANGE_FRAMES + REFLECTION_HISTORY_WEIGHT; i++) {
       frame.frame++;
       history.prepare(frame, IDENTITY_MATRIX4);
       assert.equal(history.settled, false);
+      assert.equal(history.reuse, false, `frame ${i} still refines`);
+      assert.equal(
+        confidence(),
+        i < REFLECTION_CHANGE_FRAMES ? REFLECTION_CHANGE_WEIGHT : REFLECTION_HISTORY_WEIGHT,
+      );
       encode();
     }
     assert.equal(history.settled, true, 'the fixed work window is closed');

@@ -5,7 +5,7 @@ export const ROUGH_TRACE_READS = 16;
 /**
  * The rough trace's screen march. A mirror walks every pixel its ray crosses (`traceShader.ts`); a
  * rough sample is one of many a history averages, so it spends a fixed budget instead: one read per
- * pixel crossed while the segment is short, then the budget spread evenly over it, offset by the
+ * pixel of its major axis while the segment is short, then the budget spread evenly over it, offset by the
  * frame's `jitter` in (0, 1] so the history covers the gaps between reads. Each read tests the
  * ray's depth interval since the previous one, the same interval rule as the mirror's walk; the
  * adapters are the mirror's (`screenWgsl.ts`).
