@@ -31,7 +31,7 @@ export function existingChangedFiles(changed: Iterable<string>, root = process.c
 async function main(): Promise<void> {
   const base = process.env.TRILLION3D_BASE_REF ?? 'develop';
   const [diff, untracked, paths] = await Promise.all([
-    gitPaths(['diff', '--name-only', '-z', base, '--']),
+    gitPaths(['diff', '--name-only', '--no-renames', '-z', base, '--']),
     gitPaths(['ls-files', '--others', '--exclude-standard', '-z']),
     gitPaths(['ls-files', '-z']),
   ]);
