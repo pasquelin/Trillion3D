@@ -60,7 +60,7 @@ export function ensureBlendUvBuffer(
 }
 
 /** Normal and tangent of a transparent geometry, seven floats a vertex in the same order as
- *  before, in a float atlas fitted to them (`../core/floatAtlas.ts`, #1410): the pass reads every
+ *  before, in a float atlas of their bytes (`../core/floatAtlas.ts`, #1410): the pass reads every
  *  normal from an atlas, the float pool's or this one. */
 export function ensureBlendNormalAtlas(
   device: GPUDevice,
@@ -84,7 +84,7 @@ export function ensureBlendNormalAtlas(
         data[i * 7 + 6] = tangent.getW(i);
       }
     }
-    atlas = createFloatAtlas(device, 'Trillion3D transparent normals', data.length, true);
+    atlas = createFloatAtlas(device, 'Trillion3D transparent normals', data.length);
     writeFloatAtlas(device.queue, atlas, 0, data, 0, data.length);
     gpu.vertexBytes += atlas.bytes;
   }

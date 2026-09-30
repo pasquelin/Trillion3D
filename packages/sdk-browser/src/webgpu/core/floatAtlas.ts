@@ -5,21 +5,31 @@
  * the eight storage buffers WebGPU guarantees per stage; and it is bounded by the texture limits,
  * not by `maxStorageBufferBindingSize`, so it holds at least what a buffer held. Float `i` sits
  * at column `i % width` of row `i / width`, `FLOAT_ATLAS_ROWS` rows a layer: the same bits the
- * buffer held, read one texel each. A pool that grows keeps rows of `FLOAT_ATLAS_WIDTH`, so a
- * wider atlas copies it as it is; a list that never grows fits its rows to its floats.
+ * buffer held, read one texel each. Its rows divide its floats whenever a width of at most
+ * `FLOAT_ATLAS_WIDTH` allows it, so it weighs the very bytes the buffer did: the memory budgets
+ * the engine funds from them see no change.
  */
 export const FLOAT_ATLAS_WIDTH = 8192;
 export const FLOAT_ATLAS_ROWS = 8192;
+/** Layers every WebGPU device holds (`maxTextureArrayLayers`). */
+const FLOAT_ATLAS_LAYERS = 256;
 
-/** Width, rows and layers of an atlas of `floats` floats: rows of `FLOAT_ATLAS_WIDTH`, or, when
- *  `fitted`, the fewest rows filled evenly — under a float a row of padding —, a layer's rows at
- *  most. */
-export function floatAtlasExtent(floats: number, fitted = false): [number, number, number] {
-  const count = Math.max(1, floats);
-  const rows = Math.ceil(count / FLOAT_ATLAS_WIDTH);
-  const layers = Math.ceil(rows / FLOAT_ATLAS_ROWS);
-  const width = fitted && layers === 1 ? Math.ceil(count / rows) : FLOAT_ATLAS_WIDTH;
-  return [width, layers > 1 ? FLOAT_ATLAS_ROWS : rows, layers];
+/** Width, rows and layers of an atlas of `floats` floats: the fewest rows that divide them — a
+ *  layer's rows, or whole layers —; rows of `FLOAT_ATLAS_WIDTH`, padded, when none does. */
+export function floatAtlasExtent(floats: number): [number, number, number] {
+  const count = Math.max(1, floats),
+    least = Math.ceil(count / FLOAT_ATLAS_WIDTH);
+  for (let rows = least; rows <= FLOAT_ATLAS_ROWS; rows++)
+    if (count % rows === 0) return [count / rows, rows, 1];
+  const perLayer = FLOAT_ATLAS_ROWS;
+  for (
+    let layers = Math.max(2, Math.ceil(least / perLayer));
+    layers <= FLOAT_ATLAS_LAYERS;
+    layers++
+  )
+    if (count % (layers * perLayer) === 0) return [count / (layers * perLayer), perLayer, layers];
+  const layers = Math.ceil(least / perLayer);
+  return [FLOAT_ATLAS_WIDTH, layers > 1 ? perLayer : least, layers];
 }
 
 /** Whether a device of `limits` makes an atlas of `floats` floats: WebGPU's guaranteed limits
@@ -30,17 +40,13 @@ export function floatAtlasFits(
 ) {
   const [width, rows, layers] = floatAtlasExtent(floats);
   const side = limits?.maxTextureDimension2D ?? 8192;
-  return width <= side && rows <= side && layers <= (limits?.maxTextureArrayLayers ?? 256);
+  const most = limits?.maxTextureArrayLayers ?? FLOAT_ATLAS_LAYERS;
+  return width <= side && rows <= side && layers <= most;
 }
 
-/** Bytes of the atlas of `floats` floats: its whole rows. */
-export const floatAtlasBytes = (floats: number, fitted = false) =>
-  floatAtlasExtent(floats, fitted).reduce((product, side) => product * side, 4);
-
-/** A zeroed atlas of `floats` floats (`fitted`: see `floatAtlasExtent`) and its view, which the
- *  passes bind whole. */
-export function createFloatAtlas(device: GPUDevice, label: string, floats: number, fitted = false) {
-  const extent = floatAtlasExtent(floats, fitted);
+/** A zeroed atlas of `floats` floats and its view, which the passes bind whole. */
+export function createFloatAtlas(device: GPUDevice, label: string, floats: number) {
+  const extent = floatAtlasExtent(floats);
   const texture = device.createTexture({
     label,
     size: extent,
@@ -82,10 +88,6 @@ export function writeFloatAtlas(
     count -= written;
   }
 }
-
-/** Copies what `from` holds to the same floats of the wider `to`: its extent, at the origin. */
-export const copyFloatAtlas = (encoder: GPUCommandEncoder, from: FloatAtlas, to: FloatAtlas) =>
-  encoder.copyTextureToTexture({ texture: from.texture }, { texture: to.texture }, from.extent);
 
 /** `fn name(i:u32)->f32`: float `i` of the atlas bound as `texture` (`texture_2d_array<f32>`),
  *  its row width read from the texture. */
