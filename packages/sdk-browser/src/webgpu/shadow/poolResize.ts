@@ -6,7 +6,7 @@ import { shadowBufferBytes, type GpuShadowAtlas } from '../../gpu/shadow/atlas.t
 import { admitShadowBytes, noteShadowPressure, shadowPoolHeld } from './memoryGrant.ts';
 import { disposeStaticLayer, type WebgpuLightState } from '../pages/state/lights.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
-import { adoptShadowPool, askShadowPool } from './poolSize.ts';
+import { adoptShadowPool, askShadowPool, sayShadowCeiling } from './poolSize.ts';
 import {
   createPoolDemand,
   followDemand,
@@ -37,6 +37,11 @@ const demandOf = (lights: WebgpuLightState) => {
   }
   return demand;
 };
+
+/** Whether a report sized the pool: until then it is the budget's whole pool, granted up front
+ *  (`sizeShadowPool`), and the static layer waits for the size the report gives (`shadowRegions.ts`)
+ *  rather than double the budget for a few frames. */
+export const shadowPoolSized = (lights: WebgpuLightState) => demandOf(lights).sized;
 
 /**
  * The first frame whose asks no page need of frame `frame` evicts (`allocWgsl.ts`): this one, or,
@@ -76,7 +81,8 @@ export function followShadowDemand(rt: WebgpuPagesRuntime) {
   if (!atlas?.texture || !device || grantPending(lights.shadowGrant) || rt.capture.capturing)
     return;
   const demand = demandOf(lights),
-    wanted = followDemand(lights.plan, demand);
+    wanted = followDemand(lights.plan, demand, lights.plan.resting),
+    wasCeiling = demand.ceiling;
   if (!demand.over) demand.ceiling = false;
   if (wanted === undefined) return;
   const ask = askShadowPool(rt, atlas, device, wanted),
@@ -88,6 +94,7 @@ export function followShadowDemand(rt: WebgpuPagesRuntime) {
     held = pages === demand.asked || (side === pool.side && layers === pool.layers);
   // What the demand asks past the pool, it can no longer grow to: held at its ceiling.
   demand.ceiling = demand.over && held;
+  if (demand.ceiling && !wasCeiling) sayShadowCeiling(rt, wanted);
   if (held) return;
   demand.asked = pages;
   releaseStaticLayer(lights);
