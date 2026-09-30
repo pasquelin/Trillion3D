@@ -1,39 +1,24 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SCREEN_REFLECTION_WGSL, reflectionSource, withScreenReflections } from './screenWgsl.ts';
+import { reflectionSource, withScreenReflections } from './screenWgsl.ts';
+import { ENVIRONMENT, FILTERED, RAY, resolvedDisplay } from './receivers.fixture.ts';
 import { BOUNCE_LIGHTING_SHADER, DIRECT_LIGHTING_SHADER } from '../lighting/deferred/shaders.ts';
 import { functionText } from '../bounce/wgslBody.fixture.ts';
 
-const text = functionText(SCREEN_REFLECTION_WGSL, 'resolvedRadiance');
-const ray = functionText(SCREEN_REFLECTION_WGSL, 'resolvedReflectionRay');
-const traced = functionText(SCREEN_REFLECTION_WGSL, 'tracedRadiance');
-const fade = functionText(SCREEN_REFLECTION_WGSL, 'screenReflectionFade');
-const resolved = new Function(`
- const vec3f=x=>x,mix=(a,b,t)=>a*(1-t)+b*t,clamp=(x,a,b)=>Math.min(Math.max(x,a),b);
- return (enabled,hit,weight)=>{
-  let fallbackCalls=0;
-  const reflectionView={enabled:{x:enabled?1:0}},mirrorWeight=()=>weight;
-  const screenReflection=()=>({a:hit?1:0,rgb:7});
-  const reflectedRadiance=()=>{fallbackCalls++;return 3;};
-  function resolvedReflectionRay(P,N,R){${ray.slice(ray.indexOf('{') + 1)}}
-  const filteredResolvedReflection=(P,N,R)=>resolvedReflectionRay(P,N,R);
-  function screenReflectionFade(rough){${fade.slice(fade.indexOf('{') + 1)}}
-  function tracedRadiance(P,N,R,rough){${traced.slice(traced.indexOf('{') + 1)}}
-  function resolvedRadiance(P,N,R,rough){${text.slice(text.indexOf('{') + 1)}}
-  return {value:resolvedRadiance(0,0,0,0),fallbackCalls};
- };`)() as (
-  enabled: boolean,
-  hit: boolean,
-  weight: number,
-) => { value: number; fallbackCalls: number };
-
-test('a screen hit replaces proxy radiance; misses and disabled sources keep the proxy unchanged', () => {
-  assert.deepEqual(resolved(true, true, 1), { value: 7, fallbackCalls: 0 });
-  assert.deepEqual(resolved(true, false, 1), { value: 3, fallbackCalls: 1 });
-  assert.deepEqual(resolved(false, true, 1), { value: 3, fallbackCalls: 1 });
-  assert.deepEqual(resolved(true, true, 0), { value: 7, fallbackCalls: 0 });
-  assert.deepEqual(resolved(true, true, 0.5), { value: 7, fallbackCalls: 0 });
-  assert.deepEqual(resolved(true, false, 0), { value: 3, fallbackCalls: 1 });
+test('a screen hit replaces the fallback; a miss or a disabled pass reads it, once', () => {
+  const read = (options: Parameters<typeof resolvedDisplay>[0], rough: number) => {
+    const { calls, at } = resolvedDisplay(options);
+    return { value: at(rough), fallback: calls.fallback };
+  };
+  assert.deepEqual(read({}, 0), { value: RAY, fallback: 0 });
+  assert.deepEqual(read({ hit: false }, 0), { value: ENVIRONMENT, fallback: 1 });
+  assert.deepEqual(read({ enabled: 0 }, 0), { value: ENVIRONMENT, fallback: 1 });
+  assert.deepEqual(read({}, 0.2), { value: FILTERED, fallback: 0 });
+  assert.deepEqual(read({ hit: false }, 0.2), { value: ENVIRONMENT, fallback: 1 });
+  assert.deepEqual(read({ weight: () => 0.5 }, 0.2), { value: [6, 6, 6], fallback: 0 });
+  // In the roughness fade one read serves both the lobe share the trace left and the fade.
+  assert.deepEqual(read({}, 0.45), { value: [4, 4, 4], fallback: 1 });
+  assert.deepEqual(read({ hit: false }, 0.45), { value: ENVIRONMENT, fallback: 1 });
 });
 
 test('frozen source excludes mirror recursion and camera fog without dropping bounced diffuse light', () => {
@@ -42,9 +27,13 @@ test('frozen source excludes mirror recursion and camera fog without dropping bo
   assert.match(body, /bounceLighting/);
 });
 
-test('the final direct resolve adds screen reflections independently of proxy resources', () => {
+test('the final direct resolve adds screen reflections over the environment, with no proxy', () => {
   const shader = withScreenReflections(DIRECT_LIGHTING_SHADER, true);
   assert.match(functionText(shader, 'lightSurface'), /mirrorLighting/);
   assert.match(functionText(shader, 'mirrorLighting'), /resolvedRadiance/);
-  assert.match(functionText(shader, 'reflectedRadiance'), /return vec3f\(0.0\)/);
+  assert.match(
+    functionText(shader, 'reflectedRadiance'),
+    /return environmentReflection\(R,rough\)/,
+  );
+  assert.doesNotMatch(shader, /rayRadiance/);
 });
