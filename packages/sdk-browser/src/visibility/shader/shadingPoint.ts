@@ -11,10 +11,8 @@
 export const SHADING_POINT_WGSL = `
 fn shadingPointOffset(P:vec3f,bary:vec3f,p0:vec3f,p1:vec3f,p2:vec3f,n0:vec3f,n1:vec3f,n2:vec3f)->vec3f{
  let offset=-(n0*(bary.x*dot(P-p0,n0))+n1*(bary.y*dot(P-p1,n1))+n2*(bary.z*dot(P-p2,n2)));
- let a=p1-p0;let b=p2-p0;
- let face=vec3f(a.y*b.z-a.z*b.y,a.z*b.x-a.x*b.z,a.x*b.y-a.y*b.x);
- let front=face*select(-1.0,1.0,dot(face,n0+n1+n2)>=0.0);
- if(dot(offset,front)<=0.0){return vec3f(0.0);}
+ let face=cross(p1-p0,p2-p0);
+ if(dot(offset,face)*dot(face,n0+n1+n2)<=0.0){return vec3f(0.0);}
  return offset;
 }`;
 /** Eighth storage binding of the bounce resolve. Three scalar f32 values per pixel,

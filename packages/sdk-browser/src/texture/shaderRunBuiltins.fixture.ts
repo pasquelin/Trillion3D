@@ -1,5 +1,6 @@
 // The WGSL built-ins and operators `shaderRun` (`shaderRun.fixture.ts`) runs a shader with, in
 // JavaScript double precision.
+import { cross } from '../../../sdk-core/src/math/primitives/vectorTuple.ts';
 
 /** A vector: its components. A boolean vector holds booleans. */
 export type Vec = Array<number | boolean>;
@@ -122,5 +123,6 @@ export const builtins = {
   dot: (a: Value, b: Value) => vec(a).reduce((sum, x, i) => sum + x * vec(b)[i], 0),
   length: (v: Value) => (Array.isArray(v) ? Math.hypot(...vec(v)) : Math.abs(n(v as Scalar))),
   distance: (a: Value, b: Value) => Math.hypot(...vec(a).map((x, i) => x - vec(b)[i])),
+  cross: (a: Value, b: Value) => cross(vec(a) as Parameters<typeof cross>[0], vec(b) as Parameters<typeof cross>[1]),
   normalize: (v: Value) => vec(v).map((x) => x / Math.hypot(...vec(v))),
 };
