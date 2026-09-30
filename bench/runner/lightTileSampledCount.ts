@@ -74,7 +74,7 @@ export function countSampled(
   };
   const { contractLighting } = shaderFunctions<{ contractLighting: Contract }>(
     DIRECT_LIGHTING_WGSL,
-    ['contractLighting', 'tileShadowed', 'pixelTile'],
+    ['contractLighting', 'tileShadowed', 'sampledList', 'pixelTile'],
     {
       ...K,
       view: { lightParams: { x: lights.length, y: tilesX, z: tilesY }, viewport: { w: 1 } },

@@ -1148,6 +1148,7 @@
       "gpuPassMs": "このバックエンドの最新のGPUパスサンプル。デバイスがタイムスタンプクエリを公開しない場合はnull。",
       "gpuFrameMs": "`gpuPassMs.frame`が指す画像のGPU時間。`cpu*`フィールドに足されることは決してない。デバイスは数画像ごとに計測されるため、数値は数画像前のものであり得る。最初の計測の前、保持された画像からデバイスの次の計測まで、`timestamp-query`のないデバイス、`EXT_disjoint_timer_query_webgl2`のないWebGL2ではnull。",
       "gpuHostGapMs": "同じ画像が自身の2回の送信の間に費やしたCPU時間。1回しか送信しない場合はゼロ。これはホスト時間であってGPU時間ではないので、`gpuFrameMs`には含まれない。未計測のときはnull。",
+      "gpuDeviceLost": "GPU デバイスが失われた理由。保たれている間は null。",
       "uncoveredTriangles": "公開されたカットが名前を挙げているが、フレームが描画できない — 常駐ページも代わりとなる祖先もない — クラスターの三角形。画像の実際の穴であり、ゼロだけが健全な値。バックエンドが判断できない場合はnull(選択したカットをそのまま描くので、この状態は起こり得ない)。",
       "drawnTriangles": "**現在のフレーム**が描画に渡す三角形数: 階層の不透明・透過を合わせたクラスターカット。階層外の透過メッシュはここに含まれず(`transparentSubmittedTriangles`)、オクルージョンによる棄却も差し引かれない(`hizRejectedTriangles`)。カット採用時に数えられる: 非同期のGPU読み戻しを待つことはないので、`submittedTriangles`と違って、時間切れで`null`になることはない。",
       "cpuSelectMs": "このフレームのクラスターカットのCPU時間。選択処理単体を測ったもの。CPU上でカットを選ばないエンジンではnull。",
@@ -3693,7 +3694,8 @@
       "total": "ジョブの総数。",
       "stream": "どこに書き出すか。",
       "width": "バーの幅。",
-      "interval": "再描画の間の最小ミリ秒数。"
+      "interval": "再描画の間の最小ミリ秒数。",
+      "verbose": "ジョブ終了時の要約に、情報コードとすべての発生箇所も表示します。"
     }
   },
   "Texture-common": {
@@ -4323,6 +4325,7 @@
       "gpuPassMs": "このバックエンドの最新のGPUパスサンプル。デバイスがタイムスタンプクエリを公開しない場合はnull。",
       "gpuFrameMs": "`gpuPassMs.frame`が指す画像のGPU時間。`cpu*`フィールドに足されることは決してない。デバイスは数画像ごとに計測されるため、数値は数画像前のものであり得る。最初の計測の前、保持された画像からデバイスの次の計測まで、`timestamp-query`のないデバイス、`EXT_disjoint_timer_query_webgl2`のないWebGL2ではnull。",
       "gpuHostGapMs": "同じ画像が自身の2回の送信の間に費やしたCPU時間。1回しか送信しない場合はゼロ。これはホスト時間であってGPU時間ではないので、`gpuFrameMs`には含まれない。未計測のときはnull。",
+      "gpuDeviceLost": "GPU デバイスが失われた理由。保たれている間は null。",
       "uncoveredTriangles": "公開されたカットが名前を挙げているが、フレームが描画できない — 常駐ページも代わりとなる祖先もない — クラスターの三角形。画像の実際の穴であり、ゼロだけが健全な値。バックエンドが判断できない場合はnull(選択したカットをそのまま描くので、この状態は起こり得ない)。",
       "drawnTriangles": "**現在のフレーム**が描画に渡す三角形数: 階層の不透明・透過を合わせたクラスターカット。階層外の透過メッシュはここに含まれず(`transparentSubmittedTriangles`)、オクルージョンによる棄却も差し引かれない(`hizRejectedTriangles`)。カット採用時に数えられる: 非同期のGPU読み戻しを待つことはないので、`submittedTriangles`と違って、時間切れで`null`になることはない。",
       "cpuSelectMs": "このフレームのクラスターカットのCPU時間。選択処理単体を測ったもの。CPU上でカットを選ばないエンジンではnull。",
@@ -5043,13 +5046,14 @@
   "createTerminalProgress": {
     "summary": "コンパイラのイベントに追従する、ターミナル内の進捗バー。",
     "parameters": {
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}": "ターミナルの進捗表示の見た目。",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.label": "ジョブの名前。",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.index": "ジョブの番号。",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.total": "ジョブの総数。",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.stream": "どこに書き出すか。",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.width": "バーの幅。",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.interval": "再描画の間の最小ミリ秒数。"
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}": "ターミナルの進捗表示の見た目。",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.label": "ジョブの名前。",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.index": "ジョブの番号。",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.total": "ジョブの総数。",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.stream": "どこに書き出すか。",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.width": "バーの幅。",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.interval": "再描画の間の最小ミリ秒数。",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.verbose": "ジョブ終了時の要約に、情報コードとすべての発生箇所も表示します。"
     }
   },
   "createTransformTree": {

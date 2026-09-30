@@ -1,6 +1,7 @@
 import { existsSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, sep } from 'node:path';
+import { compilerError } from '../messages/catalogue.mts';
 
 /**
  * The platforms the compiler is built for, as Node names them (`process.platform`-`process.arch`):
@@ -62,8 +63,8 @@ export function requireSupportedPlatform(
   arch: string = process.arch,
 ): void {
   if (compilerPackage(platform, arch)) return;
-  throw new Error(
-    `COMPILER_PLATFORM_UNSUPPORTED: no compiler is built for ${platform}-${arch}; supported: ` +
-      `${COMPILER_PLATFORMS.join(', ')}. Build one and name it with TRILLION3D_COMPILER_BIN.`,
+  throw compilerError(
+    'COMPILER_PLATFORM_UNSUPPORTED',
+    `${platform}-${arch}; supported: ${COMPILER_PLATFORMS.join(', ')}`,
   );
 }
