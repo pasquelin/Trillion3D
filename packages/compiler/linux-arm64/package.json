@@ -15,5 +15,14 @@
   ],
   "files": [
     "bin"
-  ]
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pasquelin/Trillion3D.git",
+    "directory": "packages/compiler/linux-arm64"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
 }
