@@ -31,6 +31,21 @@ fn cellSlice(base:u32)->vec2u{
  return vec2u(first,select(tileLights[base]&~TILE_SHADOWED,directLights.count,first==TILE_NO_SLICE));
 }`;
 /**
+ * A pixel's cell of the light grid, read by the opaque resolve (`surfaceWgsl.ts`) and the shadow
+ * demand pass (`../../webgpu/shadow/demandWgsl.ts`), both on the deferred view (#1369). Without
+ * `shadowed`, the program with no shadow code: no cell reads a shadow.
+ */
+export const pixelCellWgsl = (shadowed = true) => `
+/** The record of the pixel's cell at depth \`z\`, \`TILE_NO_SLICE\` with no list: no light, or past
+ *  the grid. The surface reads it once, for its shadow setup and its lighting. */
+fn pixelCell(pixel:vec2f,z:f32)->u32{
+ if(u32(view.lightParams.x)==0u){return TILE_NO_SLICE;}
+ return gridCell(pixel,z,vec2u(view.lightParams.yz));
+}
+/** Whether a shadow is read in the cell: its list holds a light with a shadow slot, the high bit
+ *  of its count. */
+fn cellShadowed(cell:u32)->bool{${shadowed ? 'return cell!=TILE_NO_SLICE&&(tileLights[cell]&TILE_SHADOWED)!=0u;' : 'return false;'}}`;
+/**
  * Base of the two lighting passes: contract types, shadow reads, and the contribution of a
  * single declared light at the point, its shadow included — the engine's only lighting
  * formula. The two loops below differ only by the light list they walk, never by the
@@ -103,15 +118,7 @@ export const directLightingWgsl = (
 ) => `
 ${lightingBase(SUN_FAR_PROXY_BINDING, CONTRACT_SHADOW_BINDINGS.data, CONTRACT_SHADOW_BINDINGS.requests, CONTRACT_SHADOW_BINDINGS.transmittance, pages, narrow, shadowed, rects)}
 ${directLightSamplingWgsl(rects)}
-/** The record of the pixel's cell at depth \`z\`, \`TILE_NO_SLICE\` with no list: no light, or past
- *  the grid. The surface reads it once, for its shadow setup and its lighting (#1369). */
-fn pixelCell(pixel:vec2f,z:f32)->u32{
- if(u32(view.lightParams.x)==0u){return TILE_NO_SLICE;}
- return gridCell(pixel,z,vec2u(view.lightParams.yz));
-}
-/** Whether a shadow is read in the cell: its list holds a light with a shadow slot, the high bit
- *  of its count. Never in the program with no shadow code. */
-fn cellShadowed(cell:u32)->bool{${shadowed ? 'return cell!=TILE_NO_SLICE&&(tileLights[cell]&TILE_SHADOWED)!=0u;' : 'return false;'}}
+${pixelCellWgsl(shadowed)}
 /** Contribution of the contract lights to the pixel, light by light of its cell's list;
  *  \`shadowed\` is \`cellShadowed(cell)\`. The full sum has this one call site: a list the draw
  *  refuses — short, long, or with no room in the pool — takes it, as a still image does. */
