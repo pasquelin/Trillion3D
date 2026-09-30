@@ -125,8 +125,8 @@ export async function createDeferredLighting(
       awaited(direct: DirectLightResources) {
         return variants.awaited(...contractOf(direct));
       },
-      /** Draws the lighting, after the reflection source when the frame's program reflects; returns
-       *  the passes drawn, which the frame counts (#1157). */
+      /** Draws the lighting, after the reflection source when the frame's program reflects, the
+       *  next image's source then written beside it; returns the passes drawn (#1157). */
       light(
         encoder: GPUCommandEncoder,
         target: GPUTextureView,
@@ -136,12 +136,12 @@ export async function createDeferredLighting(
         if (!group) throw new Error('SURFACE_NOT_BOUND');
         const reflected = reflection?.active && active.reflection;
         if (reflected) encodeReflectionSource(encoder, target, reflection, reflected, group, drawn);
-        const pass = encoder.beginRenderPass({
-          label: DEFERRED_LIGHTING_PASS,
-          colorAttachments: [
-            { view: target, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] },
-          ],
-        });
+        const colorAttachments: GPURenderPassColorAttachment[] = [
+          { view: target, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] },
+        ];
+        const source = reflected && reflection.source?.target;
+        if (source) colorAttachments.push({ ...colorAttachments[0], view: source });
+        const pass = encoder.beginRenderPass({ label: DEFERRED_LIGHTING_PASS, colorAttachments });
         pass.setViewport(0, 0, drawn[0], drawn[1], 0, 1);
         pass.setPipeline(reflected ? reflected.final : active.light);
         if (reflected) pass.setBindGroup(1, reflection.group);

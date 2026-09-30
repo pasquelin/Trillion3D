@@ -75,7 +75,13 @@ export function mockGpu({
     features: new Set<string>(),
     createBuffer: (descriptor: { size: number; usage: number; label?: string }) =>
       createBuffer({ ...descriptor, label: untag(descriptor.label) }),
-    createTexture: ({ label: tagged, size, format, usage }: GPUTextureDescriptor) => {
+    createTexture: ({
+      label: tagged,
+      size,
+      format,
+      usage,
+      mipLevelCount = 1,
+    }: GPUTextureDescriptor) => {
       const views: Array<{ dimension?: string } | undefined> = [];
       // A GPUExtent3D, as a dictionary or a sequence.
       const [width, height = 1, depthOrArrayLayers = 1] =
@@ -87,6 +93,8 @@ export function mockGpu({
         depthOrArrayLayers,
         format,
         usage,
+        // A GPUTexture's own: a mip chain reads its level count back from the texture.
+        mipLevelCount,
         views,
         destroyed: false,
         destroy: () => void (tex.destroyed = true),

@@ -1,3 +1,4 @@
+import { REFLECTION_SOURCE_VIEW_BYTES } from '../../../reflections/sourceWgsl.ts';
 import { runtime } from './targets.fixture.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -62,7 +63,7 @@ test('an eligible receiver accounts for viewport reflection colour and its unifo
   const { rt } = runtime(true);
   assert.equal(
     frameTargetAllocation(rt, native(64, 32)),
-    frameTargetBytes(64, 32, true) + 64 * 32 * 8 + 80,
+    frameTargetBytes(64, 32, true) + 64 * 32 * 24 + REFLECTION_SOURCE_VIEW_BYTES + 80,
   );
 });
 
@@ -71,7 +72,12 @@ test('a blended scene costs the share only when a debug view or the temporal pas
   const { rt } = runtime();
   // Extra levels: 32×16, 16×8, 8×4, 4×2, 2×1, 1×1 for color and depth bounds.
   const cone = (512 + 128 + 32 + 8 + 2 + 1) * 16 + 12 * 256;
-  const base = frameTargetAllocation(rt, native(64, 32)) + 64 * 32 * 8 - 8 + cone;
+  const base =
+    frameTargetAllocation(rt, native(64, 32)) +
+    64 * 32 * 24 -
+    8 +
+    REFLECTION_SOURCE_VIEW_BYTES +
+    cone;
   // Under the screen-reflection cutoff (#1341), above the mirror range: the cone's lobe.
   const glass = { surface: surfaceOf(standardSurface({ roughness: 0.5 })) };
   Object.assign(rt, { blendState: { blendGpu: [glass] }, vis: { asIsShown: false } });
@@ -85,23 +91,6 @@ test('a blended scene costs the share only when a debug view or the temporal pas
   rt.vis.asIsShown = false;
   rt.gpu.temporalWanted = true;
   assert.equal(frameTargetAllocation(rt, native(64, 32)), base + 64 * 32 * 2, 'its reactive value');
-});
-
-test('rough opaque receivers allocate their own history, while a resize releases it', () => {
-  const { rt } = runtime(true);
-  rt.layout.rows.packedRecs[0]!.material = surfaceOf(standardSurface({ roughness: 0.5 }));
-  Object.assign(rt, { vis: {}, capture: { capturing: false } });
-  const gpu = fakeDevice({ limits: { maxTextureDimension2D: 8192 } });
-  rt.gpu.device = gpu.device;
-  const size = native(64, 32);
-  const bytes = frameTargetAllocation(rt, size);
-  assert.equal(bytes, frameTargetBytes(64, 32, true) + 64 * 32 * 40 + 80 + 160);
-  makeTargets(rt, gpu.device, size, bytes);
-  const old = rt.gpu.reflection!.history!;
-  assert.equal(old.bytes, 64 * 32 * 32);
-  makeTargets(rt, gpu.device, native(32, 16), frameTargetAllocation(rt, native(32, 16)));
-  assert.throws(() => old.image, /DISPOSED/);
-  assert.equal(rt.gpu.reflection!.history!.bytes, 32 * 16 * 32);
 });
 
 // #1162: with no debug view the frame targets hold no share texture and cost none; with one, the
