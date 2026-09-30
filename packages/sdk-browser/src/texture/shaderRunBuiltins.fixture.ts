@@ -92,6 +92,7 @@ export const builtins = {
   $ref: (get: Ref['get'], set: Ref['set']): Ref => ({ get, set }),
   atomicAdd: (p: Ref, value: number) => swap(p, p.get() + value),
   atomicMax: (p: Ref, value: number) => swap(p, Math.max(p.get(), value)),
+  atomicOr: (p: Ref, value: number) => swap(p, (p.get() | value) >>> 0),
   atomicLoad: (p: Ref) => p.get(),
   atomicStore: (p: Ref, value: number) => void p.set(value),
   vec2f: vector(2, float),
