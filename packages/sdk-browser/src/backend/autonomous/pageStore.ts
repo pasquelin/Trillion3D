@@ -9,7 +9,7 @@ import { colouredTwin, hostPageBytes, hostPageGeometry } from '../../host/pageOb
 import type { HostMaterial } from '../../host/resources.ts';
 import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
 import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts';
-import { rowPlaced } from '../../placement/autonomousPlacements.ts';
+import { rowPlacedAt } from '../../placement/autonomousPlacements.ts';
 import { wearDeclaration } from '../../page/surface.ts';
 import { assertWithinBox, itemSize, pageOf } from './pageData.ts';
 import { dynamicSource, sourcedPageGeometry } from './sourcedPages.ts';
@@ -57,7 +57,7 @@ export function createPageStore(env: PageStoreEnvironment) {
       return geometries.has(mine);
     };
     for (const rec of recs) {
-      const placed = rowPlaced(env.roots, rec);
+      const placed = rowPlacedAt(env.roots, env.draws.rootRankOf(rec));
       release(rec, placed && drawnByOthers(rec));
       const data = host ? read! : (replaced.get(rec.url) ?? pageOf(rec, read)),
         shared = placed ? rowed.get(data) : undefined,

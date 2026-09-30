@@ -67,8 +67,16 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   /** Time of the CPU cut alone; null on an image the GPU cut decided. */
   cpuSelectMs: number | null;
   shown: PageRec[];
+  /** The packed rank of each shown page, rank by rank (#1235): one record serves many placements. */
+  shownPacked: number[];
   desired: PageRec[];
   drawn: PageRec[];
+  /** The packed rank of each drawn page, rank by rank: what a per-instance reader of `drawn` reads. */
+  drawnPacked: number[];
+  /** Packed-rank scratch of the CPU cut's opaque and transparent partitions. */
+  opaquePackedScratch: number[];
+  transparentPackedScratch: number[];
+  culledPackedScratch: number[];
   /** True when `drawn` copies `shown` as-is; written only by the copies in `../helpers.ts`. */
   drawnMirrorsShown: boolean;
   /** Pages the residency path had to touch this image; null before a GPU cut reported one. */
@@ -165,8 +173,13 @@ export function createWebgpuRunState(clearColor = RASTER_BACKGROUND): WebgpuRunS
     selectResult: createSelectionResult(),
     cpuSelectMs: null,
     shown: [],
+    shownPacked: [],
     desired: [],
     drawn: [],
+    drawnPacked: [],
+    opaquePackedScratch: [],
+    transparentPackedScratch: [],
+    culledPackedScratch: [],
     ...unmirroredDrawn(),
     pagesEntered: null,
     pagesExited: null,

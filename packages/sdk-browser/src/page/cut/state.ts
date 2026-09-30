@@ -16,22 +16,27 @@ export interface PageRecord extends ClusterCut {
   cone?: NormalCone;
   material?: PageSurface;
   array?: Uint32Array;
-  /** Where a layout placed the record: its placement's rank, and its own among every placement's
-   *  pages (`./held.ts` routes a residency move by them). */
-  placementIndex?: number;
-  packedIndex?: number;
 }
 
 export interface SelectionState<T extends PageRecord> {
   cam: EngineCamera;
   wanted: T[];
   shown: T[];
-  /** The same two cuts by packed catalogue rank, rank by rank (`PageRecord.packedIndex`): what the
-   *  engines' consumers read, resolved back to a record through the catalogue (`recordOf`). The cut
-   *  still decides on the records above — a packed rank names the instance, never a record. Reused
-   *  `Int32Array`s preallocated to the cut's capacity (`fitPacked`). */
+  /** The same two cuts by packed catalogue rank, rank by rank (the root's `packedBase` plus the
+   *  page's index): what the engines' consumers read, resolved back to a record through the
+   *  catalogue (`recordOf`). The cut still decides on the records above — a packed rank names the
+   *  instance, never a record. Reused `Int32Array`s preallocated to the cut's capacity (`fitPacked`). */
   wantedPacked: Int32Array;
   shownPacked: Int32Array;
+  /** The same two cuts by ROOT rank, rank by rank: the placement that places each kept page. One
+   *  record serves every placement of its primitive, so a reader that has a kept page finds its
+   *  root here, never on the record (#1235). Reused `Int32Array`s (`fitPacked`). */
+  wantedRoot: Int32Array;
+  shownRoot: Int32Array;
+  /** Root rank and packed base of the root the cut is walking: set by `selectFlat` per root, like
+   *  `flatWorld`, so a kept page is named without a field on the shared record. */
+  flatRootRank: number;
+  flatBase: number;
   pixelError: number;
   frustumRejected: number;
   /** Hierarchy nodes popped by this image's cut. */
@@ -94,6 +99,10 @@ export interface SelectionResult<T> {
    *  `wanted`, rank by rank, so no stale tail is read. */
   shownPacked: Int32Array;
   wantedPacked: Int32Array;
+  /** The placement of each kept page, by root rank, parallel to `shown` and `wanted` rank by rank:
+   *  one record serves several placements, so the root travels beside the record, never on it. */
+  shownRoot: Int32Array;
+  wantedRoot: Int32Array;
   visible: number;
   selectedTriangles: number;
   displayedTriangles: number;
@@ -117,6 +126,8 @@ export function createSelectionResult<T>(): SelectionResult<T> {
     wanted: [],
     shownPacked: new Int32Array(0),
     wantedPacked: new Int32Array(0),
+    shownRoot: new Int32Array(0),
+    wantedRoot: new Int32Array(0),
     visible: 0,
     selectedTriangles: 0,
     displayedTriangles: 0,
@@ -165,6 +176,10 @@ const reusedState: SelectionState<PageRecord> = {
   shown: [],
   wantedPacked: new Int32Array(0),
   shownPacked: new Int32Array(0),
+  wantedRoot: new Int32Array(0),
+  shownRoot: new Int32Array(0),
+  flatRootRank: -1,
+  flatBase: -1,
   pixelError: 0,
   frustumRejected: 0,
   nodesTested: 0,

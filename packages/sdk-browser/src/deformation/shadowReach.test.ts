@@ -63,7 +63,7 @@ test('deformation refreshes only its caster rows and grows CPU/GPU light and occ
   const sphere = packClusterSpheres([rec], [root], new Float32Array(4), 0, 0);
   assert.ok(sphere[3] >= 101, 'the GPU cull and shadow occlusion sphere contains maximum reach');
   const box = new Float64Array([Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity]);
-  growClusterBox(rec, [root], box);
+  growClusterBox(rec, [root], box, 0);
   assert.ok(box[0] <= -101 && box[3] >= 101, 'CPU light selection contains the same displacement');
   assert.deepEqual(changed.at(-1), [-101, -101, -101, 101, 101, 101]);
   dirty.length = 0;

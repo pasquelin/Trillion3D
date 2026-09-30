@@ -59,8 +59,12 @@ export function selectVisiblePages<T extends PageRecord>(
   for (const root of roots) capacity += root.pages.length;
   result.shownPacked = fitPacked(result.shownPacked, capacity);
   result.wantedPacked = fitPacked(result.wantedPacked, capacity);
+  result.shownRoot = fitPacked(result.shownRoot, capacity);
+  result.wantedRoot = fitPacked(result.wantedRoot, capacity);
   const shownPacked = result.shownPacked,
-    wantedPacked = result.wantedPacked;
+    wantedPacked = result.wantedPacked,
+    shownRoot = result.shownRoot,
+    wantedRoot = result.wantedRoot;
   // Cut state is set on the reused object: a render image allocates nothing here.
   const state = selectionState<T>();
   state.cam = cam;
@@ -68,6 +72,8 @@ export function selectVisiblePages<T extends PageRecord>(
   state.shown = shown;
   state.wantedPacked = wantedPacked;
   state.shownPacked = shownPacked;
+  state.wantedRoot = wantedRoot;
+  state.shownRoot = shownRoot;
   state.light = options.light;
   state.held = held;
   state.pixelError = options.pixelError ?? 0;
@@ -78,6 +84,8 @@ export function selectVisiblePages<T extends PageRecord>(
   state.flatFocal = 1;
   state.flatExact = false;
   state.flatSound = false;
+  state.flatRootRank = -1;
+  state.flatBase = -1;
   state.shownCount = 0;
   state.wantedCount = 0;
   state.wantedTriangles = 0;
@@ -87,10 +95,12 @@ export function selectVisiblePages<T extends PageRecord>(
   state.nodesTested = 0;
   state.lodLevel = 0;
   state.complete = true;
-  for (const root of roots) {
+  for (let rank = 0; rank < roots.length; rank++) {
+    const root = roots[rank];
     // A parked instance-buffer row places nothing: its root waits in the tables, untested. A
     // light's cut takes no root that casts no shadow.
     if (root.parked || castsNoShadow(root.mark, state.light)) continue;
+    state.flatRootRank = rank;
     const box = root.worldBox,
       // A deformation's reach, in the world: its units stretched by the root's placement (#357).
       g = root.reach ? root.reach * worldStretch(root) : 0;

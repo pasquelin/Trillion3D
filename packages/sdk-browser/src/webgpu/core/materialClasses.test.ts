@@ -99,6 +99,7 @@ test('a cut-out cluster carries its alpha test into the visibility row', () => {
     { geometryBlocks: new Map(), mapLayer: new Map(), dataLayer: new Map(), asIsShown: false },
     () => {},
     collected.roots,
+    (packed) => packed,
   );
   // A page written as a row belongs to a placement: its collection ranked its root.
   const mask = collected.roots[0].pages[0];
@@ -133,6 +134,7 @@ test('a row carries its resolve class, the census of the scene knows it before a
     { geometryBlocks, ...layers, asIsShown: false },
     () => {},
     collected.roots,
+    (packed) => packed,
   );
   const floats = new Float32Array(PAGE_INFO_STRIDE / 2),
     ints = new Uint32Array(floats.buffer),
@@ -164,7 +166,12 @@ test('an opaque row showing a surface as-is tells the image its flags are read',
     ints = new Uint32Array(floats.buffer);
   const layers = { geometryBlocks: new Map(), mapLayer: new Map(), dataLayer: new Map() },
     vis = { ...layers, asIsShown: false };
-  const writeRow = createPageRowWriter(vis, () => {}, collected.roots);
+  const writeRow = createPageRowWriter(
+    vis,
+    () => {},
+    collected.roots,
+    (packed) => packed,
+  );
   const [opaque, blend] = collected.roots.map((root) => root.pages[0]);
   writeRow(opaque, 0, 0, 0, floats, ints);
   assert.equal(vis.asIsShown, false, 'a lit surface');

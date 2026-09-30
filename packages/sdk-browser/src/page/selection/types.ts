@@ -67,13 +67,6 @@ export type PageRec = {
    *  WebGL2 residency's key, checked against the URL it names (`backend/autonomous/pageKeys.ts`).
    *  Residency and pinning without hashing. */
   keyIndex?: number;
-  /** Rank of the page in a WebGPU engine's packed catalogue, set once. Another engine that
-   *  rewrites it fools nobody: the reader checks that the catalogue actually yields this page. */
-  packedIndex?: number;
-  /** Rank of its root — the placement — in its engine's roots: set at collection, laid out again
-   *  by each engine's layout. A record carries no placement value of its own: its world, its row
-   *  and its winding are its root's, found by this rank (`rootOf`, #1226). */
-  placementIndex?: number;
   /** WebGL placement control record, zero when the page is rigid. */
   deformRecord?: number;
   /** True on a page of the group a root replaces: the minimum capacity holds it and admits it
@@ -107,6 +100,11 @@ export type ClusterStructureIndex = {
 export type ClusterRoot<T> = {
   world: MatrixElements;
   pages: T[];
+  /** The packed rank of `pages[0]` in its engine's catalogue (#1235): every record is shared by
+   *  all the placements of its primitive, so an instance — a (placement, page) pair — is named by
+   *  its packed rank, and its root is the one the layout ranked here. Posted by the layout, read
+   *  by the cut (`page/cut/take.ts`) to publish the instances as packed ranks. */
+  packedBase?: number;
   /** `bounds`: per-node bounds derived from the nodes and the pages, once at prepare time.
    *  `links`: parent of each node and leaf node of each cluster, the same shared prepare. */
   culling?: {

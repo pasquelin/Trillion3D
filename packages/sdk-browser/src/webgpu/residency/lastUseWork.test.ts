@@ -27,7 +27,11 @@ function tree(leaves: number, room: number) {
   });
   const cut = createCutDelta(packed, []),
     drawn = createCutDelta(packed, []);
-  const closure = createGroupClosure([], packed),
+  const closure = createGroupClosure(
+      [],
+      { baseOfRoot: new Int32Array(0), rootOfPacked: new Int32Array(0) },
+      packed,
+    ),
     admission = createRequestAdmission(sets, tracking, closure);
   const cache = lruCache(packed.length);
   for (const page of packed) void cache.load(page.url);

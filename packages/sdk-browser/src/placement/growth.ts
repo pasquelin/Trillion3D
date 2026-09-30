@@ -30,7 +30,9 @@ function pose(root: ClusterRoot<PageRec>, placement: PlacementOf) {
 function rowRoot(template: ClusterRoot<PageRec>, rows: PlacementRows, index: number) {
   const root: ClusterRoot<PageRec> = {
     ...template,
-    pages: template.pages.map((page) => ({ ...page })),
+    // The primitive's pages are shared by every placement of it (#1235): the new row reads the
+    // same records as the root it was cloned from, never a copy.
+    pages: template.pages,
     worldBox: template.worldBox && new Float64Array(BOX_VALUES),
     stretch: undefined,
     stretchKey: undefined,

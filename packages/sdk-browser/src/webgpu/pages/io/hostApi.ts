@@ -3,6 +3,7 @@ import { collectPendingUrls, type PageRec } from '../../../page/selection/select
 import { awaitedPages } from '../../row/pageSlots.ts';
 import { withClosure } from '../../../page/selection/bundleDependencies.ts';
 import { rasterVisibilityIds, shadeVisibility } from '../../../visibility/buffer.ts';
+import type { VisPage } from '../../../visibility/types.ts';
 import { renderWebgpuPages } from '../render/render.ts';
 import { frameTargetsAwaited } from '../prepare/targetGrant.ts';
 import { defaultEngineCamera } from '../../../camera/world.ts';
@@ -77,11 +78,19 @@ export function captureImage(rt: WebgpuPagesRuntime) {
   return capture.capturedPixels;
 }
 
-/** The drawn opaque pages with their bytes, as the CPU raster oracle reads them. */
+/** The drawn opaque pages with their bytes, as the CPU raster oracle reads them, and the packed
+ *  rank of each — one record serves many placements (#1235). */
 function drawnOpaquePages(rt: WebgpuPagesRuntime) {
-  return rt.run.drawn
-    .filter((rec) => rec.array && !rec.transparent)
-    .map((rec) => ({ ...rec, array: rec.array! }));
+  const pages: VisPage[] = [],
+    packed: number[] = [];
+  for (let i = 0; i < rt.run.drawn.length; i++) {
+    const rec = rt.run.drawn[i];
+    if (rec.array && !rec.transparent) {
+      pages.push({ ...rec, array: rec.array });
+      packed.push(rt.run.drawnPacked[i]);
+    }
+  }
+  return { pages, packed };
 }
 
 /** Camera the oracles read: the last image's, or a fresh host camera's while no image has been
@@ -90,24 +99,31 @@ function engineCameraOf(rt: WebgpuPagesRuntime) {
   return rt.run.lastCamera ? rt.run.gate.cam : defaultEngineCamera();
 }
 
-/** What the CPU raster reads of the last image: its drawn pages, their roots, camera and size. */
-const rasterView = (rt: WebgpuPagesRuntime) => ({
-  pages: drawnOpaquePages(rt),
-  roots: rt.layout.selectionRoots,
-  cam: engineCameraOf(rt),
-  size: rt.setup.viewport ?? rt.gpu.targetSize,
-  pixelRatio: rt.setup.pixelRatio(),
-});
+/** What the CPU raster reads of the last image: its drawn pages, their locations, camera and size. */
+const rasterView = (rt: WebgpuPagesRuntime) => {
+  const { pages, packed } = drawnOpaquePages(rt);
+  return {
+    pages,
+    locations: {
+      roots: rt.layout.selectionRoots,
+      packed,
+      rootOfPacked: rt.layout.placement.rootOfPacked,
+    },
+    cam: engineCameraOf(rt),
+    size: rt.setup.viewport ?? rt.gpu.targetSize,
+    pixelRatio: rt.setup.pixelRatio(),
+  };
+};
 
 export function visibilityIds(rt: WebgpuPagesRuntime) {
-  const { pages, roots, cam, size, pixelRatio } = rasterView(rt);
-  return rasterVisibilityIds(pages, roots, cam, size, pixelRatio);
+  const { pages, locations, cam, size, pixelRatio } = rasterView(rt);
+  return rasterVisibilityIds(pages, locations, cam, size, pixelRatio);
 }
 
 export function rasterRgba(rt: WebgpuPagesRuntime) {
-  const { pages, roots, cam, size, pixelRatio } = rasterView(rt);
-  const ids = rasterVisibilityIds(pages, roots, cam, size, pixelRatio);
-  return shadeVisibility(ids, pages, roots, cam, size, rt.run.clearColor, pixelRatio);
+  const { pages, locations, cam, size, pixelRatio } = rasterView(rt);
+  const ids = rasterVisibilityIds(pages, locations, cam, size, pixelRatio);
+  return shadeVisibility(ids, pages, locations, cam, size, rt.run.clearColor, pixelRatio);
 }
 
 /**
