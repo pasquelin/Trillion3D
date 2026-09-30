@@ -1,9 +1,9 @@
 import type { ReflectionMetadata } from './historyTargets.ts';
 import {
   REFLECTION_CHANGE_FRAMES,
-  REFLECTION_CHANGE_WEIGHT,
-  REFLECTION_HISTORY_WEIGHT,
-  REFLECTION_MOVING_WEIGHT,
+  REFLECTION_CHANGE_KEPT,
+  REFLECTION_MOVING_KEPT,
+  REFLECTION_STILL_FRAMES,
 } from './resolveWgsl.ts';
 
 /** Versions that place a reflected source, and that light it (`reflectionFrame.ts`). */
@@ -31,10 +31,11 @@ export interface ReflectionHistoryFrame {
   camera: ArrayLike<number>;
 }
 
-/** The weight a history may keep this image: `REFLECTION_CHANGE_WEIGHT` for
- *  `REFLECTION_CHANGE_FRAMES` after a placement change the motion did not follow (#33),
- *  `REFLECTION_MOVING_WEIGHT` while its sources or camera move, the full window otherwise. */
+/** The frames of its own weight a history may keep this image (`resolveWgsl.ts`):
+ *  `REFLECTION_CHANGE_KEPT` for `REFLECTION_CHANGE_FRAMES` after a placement change the motion did
+ *  not follow (#33), `REFLECTION_MOVING_KEPT` while its sources or camera move, the still window
+ *  otherwise. */
 export function historyConfidence(followed: boolean, sinceChange: number, moving: boolean) {
-  if (!followed && sinceChange < REFLECTION_CHANGE_FRAMES) return REFLECTION_CHANGE_WEIGHT;
-  return moving ? REFLECTION_MOVING_WEIGHT : REFLECTION_HISTORY_WEIGHT;
+  if (!followed && sinceChange < REFLECTION_CHANGE_FRAMES) return REFLECTION_CHANGE_KEPT;
+  return moving ? REFLECTION_MOVING_KEPT : REFLECTION_STILL_FRAMES;
 }
