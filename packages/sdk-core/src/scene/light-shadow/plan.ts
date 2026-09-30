@@ -4,7 +4,6 @@ import { SHADOW_CHANGE_BOXES, createShadowChanges } from './changes.ts';
 import { createPageInvalidation } from './invalidate.ts';
 import { STALE_BY, createShadowCounts } from './counts.ts';
 import { createShadowAdmission } from './admit.ts';
-import { createDemandFootprints } from './demandFootprint.ts';
 import { planLights } from './planLights.ts';
 import { createShadowTable } from './table.ts';
 import { DRAW_ALL, createShadowPool } from './pool.ts';
@@ -37,7 +36,6 @@ export function createShadowPlan(poolSide: number, layers = 1, sunWindow = SUN_W
     posed = new Int32Array(records.taken.length),
     spent = { requestsMs: NaN, admissionMs: NaN },
     lightsState = { records, counts, sun, posed, invalidate };
-  const footprints = createDemandFootprints(table, pool);
   let requests = createShadowRequests(table, pool, records, sun),
     gpu = createShadowMirror(table, pool, records, sun),
     admission = createShadowAdmission(pool.pages),
@@ -133,14 +131,10 @@ export function createShadowPlan(poolSide: number, layers = 1, sunWindow = SUN_W
         const before = stampOf(store),
           read = report;
         report = null;
-        // The pool follows the GPU's snapshot first; a miss redraws its page (`demandFootprint.ts`).
+        // The pool follows the GPU's snapshot first.
         if (!gpu.on || gpu.follow(read, nowMs, frame)) {
-          footprints.widened = 0;
-          footprints.missed(read, nowMs, frame);
           requests.consume(read, nowMs, frame, held ?? frame);
-          counts.staled(STALE_BY.footprint, footprints.widened);
-          const settled = read.stamp === before && requests.complete && !footprints.widened;
-          if (settled) settledStamp = stampOf(store);
+          if (read.stamp === before && requests.complete) settledStamp = stampOf(store);
         }
       }
       const admitStart = performance.now();
