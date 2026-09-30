@@ -41,7 +41,8 @@ export function startInteractiveExplorer(
     request: view.requestAnimationFrame.bind(view),
     cancel: view.cancelAnimationFrame.bind(view),
     render: () => {
-      if (capturing) return;
+      // A frame that waits for a family on its way (`familyUse.ts`) is not drawn, nor stepped.
+      if (capturing || runtime.familiesPending()) return;
       original.beforeFrame?.();
       const metrics = explorer.render();
       pageLoads = metrics.pageLoads;
@@ -130,10 +131,12 @@ export function startInteractiveExplorer(
   options.signal?.addEventListener('abort', abort, { once: true });
   options.signal?.throwIfAborted();
   resize();
-  original.beforeFrame?.();
   // Drawn whether or not the host listens: `onFrame?.(render())` would skip the render itself.
-  const first = explorer.render();
-  original.onFrame?.(first);
+  if (!runtime.familiesPending()) {
+    original.beforeFrame?.();
+    const first = explorer.render();
+    original.onFrame?.(first);
+  }
   // A capture puts the view back without what frames build up (the effect chain, the temporal
   // accumulation, the water): the loop draws it again once it is over, gone idle or not.
   const aside = <T>(take: () => Promise<T>) => {
