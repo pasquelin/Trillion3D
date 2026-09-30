@@ -8,7 +8,7 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import type { WholeMesh } from '../../cluster/batchMesh.ts';
 import { clusterWebglCompatibility } from './compatibility.ts';
 
-test('WebGL reflection captures stay allocated for rough receivers and leave with the last specular lobe', () => {
+test('WebGL reflection captures leave with the last screen-traced receiver: a matte one reads the environment', () => {
   const context = createTestContext({ answers: { getExtension: () => ({}) } }),
     renderer = new WebglClusterRenderer(
       context.gl,
@@ -36,15 +36,17 @@ test('WebGL reflection captures stay allocated for rough receivers and leave wit
   material.roughness = 1;
   material.needsUpdate = true;
   draw();
-  assert.equal(renderer.backdropPasses, 1, 'rough physical receivers still reflect');
+  // A matte-only view allocates no reflection target and runs no reflection pass (#1341).
+  assert.equal(renderer.backdropPasses, 0, 'a rough receiver captures nothing');
   assert.equal(renderer.resolvePasses, 0, 'a rough receiver resolves nothing');
-  assert.equal(renderer.backdropBytes, sourceBytes);
-  assert.equal(renderer.triangles, 2);
-  mesh.material = new G.GraphSurface('lambert');
-  draw();
-  assert.equal(renderer.backdropPasses, 0);
-  assert.equal(renderer.resolvePasses, 0);
   assert.equal(renderer.backdropBytes, 0);
+  assert.equal(renderer.triangles, 1);
+  material.roughness = 0.2;
+  material.needsUpdate = true;
+  draw();
+  assert.equal(renderer.backdropPasses, 1, 'polished metal keeps its screen trace');
+  assert.equal(renderer.resolvePasses, 0);
+  assert.equal(renderer.backdropBytes, sourceBytes);
   renderer.dispose();
 });
 
@@ -53,10 +55,19 @@ test('a mirror missing half-float support is refused before drawing with a refle
     material = new G.GraphSurface('standard', { roughness: 0 });
   const copy = {
     material,
-    geometry: { attributes: { position: new G.BufferAttribute(new Float32Array(9), 3) } },
+    geometry: {
+      attributes: {
+        position: new G.BufferAttribute(new Float32Array(9), 3),
+        normal: new G.BufferAttribute(new Float32Array(9), 3),
+      },
+    },
   };
   assert.match(
     clusterWebglCompatibility(context.gl, [], [copy], { lights: [] })!,
     /reflections needs a half-float/,
   );
+  // A matte receiver reads the environment: no capture, so no half-float needed (#1341).
+  material.roughness = 1;
+  material.needsUpdate = true;
+  assert.equal(clusterWebglCompatibility(context.gl, [], [copy], { lights: [] }), undefined);
 });

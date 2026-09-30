@@ -35,8 +35,8 @@ function runtime() {
 
 const cam = { viewProjection: IDENTITY_MATRIX4, eye: [0, 0, 0] } as unknown as EngineCamera;
 
-// #832: a still image is today's, drawn at the display; a moving one at the controller's scale.
-test('a moving image draws at the controller, a quiet one at 1, a convergence at its image', () => {
+// #1343: a still image over budget is drawn below the display too, as a moving one.
+test('a moving and a quiet image draw at the controller, a convergence at its image', () => {
   const { rt, moving } = runtime();
   assert.ok(moving < 1);
   beginTaaFrame(rt, cam, false);
@@ -46,11 +46,11 @@ test('a moving image draws at the controller, a quiet one at 1, a convergence at
   rt.run.textureConverging = true;
   beginTaaFrame(rt, cam, true);
   assert.equal(rt.scale.drawn, moving, 'the convergence remakes the moving image at its scale');
+  assert.equal(rt.scale.steered, false, 'a convergence image is not measured');
   rt.run.textureConverging = false;
   beginTaaFrame(rt, cam, true);
-  assert.equal(rt.scale.drawn, 1);
-  assert.deepEqual(rt.gpu.targetSize, DISPLAY, 'the quiet image is drawn at the display');
-  assert.equal(rt.scale.steered, false, 'a still image, which shades every light, is not measured');
+  assert.equal(rt.scale.drawn, moving, 'the quiet image is drawn at the controller too');
+  assert.deepEqual([rt.scale.steered, rt.scale.still], [true, true], 'and measured, as still');
   rt.capture.capturing = true;
   beginTaaFrame(rt, cam, false);
   assert.deepEqual([rt.scale.drawn, rt.gpu.targetSize], [1, DISPLAY], 'no accumulation, no scale');
@@ -69,8 +69,7 @@ test("a capture's barrier converges at the still image's scale, phase after phas
   assert.equal(rt.scale.drawn, moving, 'a barrier that takes no picture replays the image');
   convergeStillPhase(rt, 0);
   beginTaaFrame(rt, cam, false);
-  assert.equal(rt.scale.drawn, 1);
-  assert.deepEqual(rt.gpu.targetSize, DISPLAY, 'the barrier reads what the held image will read');
+  assert.equal(rt.scale.drawn, moving, "the still image's scale is the controller's (#1343)");
   const replayed = [...frame.jitter];
   for (let phase = 1; phase < frame.phases; phase++) {
     convergeStillPhase(rt, phase);
@@ -100,4 +99,20 @@ test('a landing on a still image restarts its average; nothing landed, or moving
   beginTaaFrame(rt, cam, false);
   restartTaaOnLanding(rt, 4);
   assert.equal(frame.stillFrames, 0, 'a moving image has no still average to restart');
+});
+
+// #1343: a still average is of one scale; the controller lowering it restarts the average.
+test('a still image the controller lowers restarts its average at the new scale', () => {
+  const { rt, moving } = runtime();
+  const frame = rt.gpu.temporal!.frame;
+  for (let image = 0; image < 3; image++) beginTaaFrame(rt, cam, true);
+  assert.equal(frame.stillFrames, 3);
+  beginTaaFrame(rt, cam, true);
+  assert.equal(frame.stillFrames, 4, 'the same scale keeps the average');
+  rt.scale.observe(40, moving);
+  assert.ok(rt.scale.wanted() < moving, 'a still frame over budget lowers the scale');
+  frame.sample = 3;
+  beginTaaFrame(rt, cam, true);
+  assert.deepEqual([frame.stillFrames, frame.sample, frame.hasHistory], [1, 0, false]);
+  assert.equal(rt.scale.drawn, rt.scale.wanted());
 });

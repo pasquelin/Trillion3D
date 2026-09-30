@@ -97,10 +97,10 @@ if (import.meta.main)
       for (const narrow of [false, true]) {
         const shader = contractLightingShader(bounce, narrow);
         renders.push({
-          code: stochasticReflectionShader(shader, !bounce),
+          code: stochasticReflectionShader(shader),
           entry: 'traceRoughReflection',
         });
-        renders.push({ code: withScreenReflections(shader, !bounce, true), entry: 'lightSurface' });
+        renders.push({ code: withScreenReflections(shader, true), entry: 'lightSurface' });
       }
     const result = await dansPageWebgpu(
       diagnose,
