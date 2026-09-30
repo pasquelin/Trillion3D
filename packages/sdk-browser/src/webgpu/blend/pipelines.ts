@@ -106,11 +106,10 @@ export async function createWebgpuBlendPipelines(
   // the transmission slice draws as one more blend, the same fragment stage measured on all.
   const wantsWater = !variant && items.some((item) => item.transmissive);
   // Its code, transmission's, is imported by the first scene that transmits, glass or water, and
-  // awaited here as the scene's other resources are, before any frame (#1353). A refused import,
-  // as a refused pass, keeps the blends and says why.
-  const transmission = families.transmission;
-  const waterCode = wantsWater ? await transmission.load().catch(() => undefined) : undefined;
-  let waterRefused = wantsWater ? transmission.failed : undefined;
+  // awaited here as the scene's other resources are, before any frame (#1353). An import that
+  // could not load is the scene's refusal (`FAMILY_LOAD_FAILED`), never a scene without its water.
+  const waterCode = wantsWater ? await families.transmission.load() : undefined;
+  let waterRefused: Error | undefined;
   let code =
     blendShader(sunWindow) +
     (waterCode?.WATER_SURFACE_WGSL ?? '') +
