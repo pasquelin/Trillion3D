@@ -12,6 +12,7 @@ import {
   REFLECTION_CHANGE_FRAMES,
   REFLECTION_CHANGE_WEIGHT,
   REFLECTION_HISTORY_WEIGHT,
+  REFLECTION_STILL_FRAMES,
 } from './resolveWgsl.ts';
 
 // The last depth and identifiers are the reflection source's (`source.ts`).
@@ -88,7 +89,7 @@ test('first frame rejects history, replay consumes nothing, and a changed source
     assert.equal(draws, 3);
     // The change weight holds until the stale share is gone, then a full window closes it: a held
     // image keeps nothing of the old reflection.
-    for (let i = 1; i < REFLECTION_CHANGE_FRAMES + REFLECTION_HISTORY_WEIGHT; i++) {
+    for (let i = 1; i < REFLECTION_CHANGE_FRAMES + REFLECTION_STILL_FRAMES; i++) {
       frame.frame++;
       history.prepare(frame, IDENTITY_MATRIX4);
       assert.equal(history.settled, false);
