@@ -13,7 +13,7 @@ import {
  * Length beyond which insertion ceases to be the best sort: up to there an almost
  * ordered list moves nothing, beyond a disordered list would cost its square.
  */
-export const SORT_INSERTION_MAX = 64;
+const SORT_INSERTION_MAX = 64;
 
 /**
  * In-place increasing sort of a prefix of a page-index array.
@@ -76,8 +76,8 @@ export function planPageIntegration(
   for (let i = 0; i < count; i++) {
     const spec = i * PAGE_SPEC_STRIDE,
       offset = specs[spec + SPEC_STREAM_OFFSET],
-      page = specs[spec + SPEC_PAGE_INDEX];
-    const slice = i * PAGE_SLICE_STRIDE,
+      page = specs[spec + SPEC_PAGE_INDEX],
+      slice = i * PAGE_SLICE_STRIDE,
       whole = offset < 0;
     slices[slice + SLICE_OFFSET_WORDS] = whole ? 0 : offset / 4;
     slices[slice + SLICE_WORDS] = whole ? words : specs[spec + SPEC_TRIANGLES] * 3;

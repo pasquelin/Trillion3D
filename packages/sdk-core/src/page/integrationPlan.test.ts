@@ -1,131 +1,148 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  SORT_INSERTION_MAX,
-  createPageIntegrationPlan,
-  planPageIntegration,
-  sortPages,
-} from './integrationPlan.ts';
+  PAGE_SLICE_STRIDE,
+  PAGE_SPEC_STRIDE,
+  SLICE_OFFSET_WORDS,
+  SLICE_PAGE_INDEX,
+  SLICE_WORDS,
+  SPEC_PAGE_INDEX,
+  SPEC_STREAM_OFFSET,
+  SPEC_TRIANGLES,
+} from './integrationContracts.ts';
+import { createPageIntegrationPlan, planPageIntegration, sortPages } from './integrationPlan.ts';
+import type { PageIntegrationPlan } from './integrationPlan.ts';
 
-/** Counts the views taken on `pages`: a sort that allocates nothing takes none. */
-function countViews(pages: Int32Array) {
-  const taken = { views: 0 };
-  const subarray = pages.subarray.bind(pages);
-  Object.defineProperty(pages, 'subarray', {
-    value: (start?: number, end?: number) => {
-      taken.views++;
-      return subarray(start, end);
-    },
+/** A request sheet: per record, its byte offset in the pack (`-1`: a standalone page), its
+ *  triangles and its page rank (`-1`: out of the table). */
+function sheet(records: readonly (readonly [offset: number, triangles: number, page: number])[]) {
+  const specs = new Int32Array(records.length * PAGE_SPEC_STRIDE);
+  records.forEach(([offset, triangles, page], i) => {
+    const at = i * PAGE_SPEC_STRIDE;
+    specs[at + SPEC_STREAM_OFFSET] = offset;
+    specs[at + SPEC_TRIANGLES] = triangles;
+    specs[at + SPEC_PAGE_INDEX] = page;
   });
-  return taken;
+  return specs;
 }
+
+/** The plan's records: first word in the pack, words, page rank. */
+const slicesOf = (plan: PageIntegrationPlan) =>
+  Array.from({ length: plan.count }, (_, i) => {
+    const at = i * PAGE_SLICE_STRIDE;
+    return [
+      plan.slices[at + SLICE_OFFSET_WORDS],
+      plan.slices[at + SLICE_WORDS],
+      plan.slices[at + SLICE_PAGE_INDEX],
+    ];
+  });
+
+/** The plan's page ranks. */
+const pagesOf = (plan: PageIntegrationPlan) => [...plan.pages.subarray(0, plan.pageCount)];
 
 /** The ranks `0 .. count - 1`, in order. */
 const ascending = (count: number) => Array.from({ length: count }, (_, i) => i);
 
+/** Lengths well inside an insertion sort, and well past it. */
+const SHORT = [2, 8],
+  LONG = [256, 1024];
+
 test('a packed arrival preserves its record order and reports sorted catalogue pages', () => {
   const plan = createPageIntegrationPlan(4);
-  plan.slices.fill(-77);
-  plan.pages.fill(-77);
   const answer = planPageIntegration(
-    new Int32Array([24, 2, 7, 0, 3, 0, 60, 1, -1, 36, 2, 3]),
+    sheet([
+      [24, 2, 7],
+      [0, 3, 0],
+      [60, 1, -1],
+      [36, 2, 3],
+    ]),
     18,
     plan,
   );
   assert.equal(answer, plan);
-  assert.equal(answer.count, 4);
-  assert.equal(answer.pageCount, 3);
-  assert.deepEqual([...answer.slices], [6, 6, 7, 0, 9, 0, 15, 3, -1, 9, 6, 3]);
-  assert.deepEqual([...answer.pages.subarray(0, answer.pageCount)], [0, 3, 7]);
+  assert.deepEqual(slicesOf(plan), [
+    [6, 6, 7],
+    [0, 9, 0],
+    [15, 3, -1],
+    [9, 6, 3],
+  ]);
+  assert.deepEqual(pagesOf(plan), [0, 3, 7]);
 });
 
 test('a standalone page takes its entire pack, including page zero', () => {
-  const plan = createPageIntegrationPlan(1);
-  planPageIntegration(new Int32Array([-1, 2, 0]), 27, plan);
-  assert.equal(plan.count, 1);
-  assert.equal(plan.pageCount, 1);
-  assert.deepEqual([...plan.slices], [0, 27, 0]);
-  assert.deepEqual([...plan.pages], [0]);
+  const plan = planPageIntegration(sheet([[-1, 2, 0]]), 27, createPageIntegrationPlan(1));
+  assert.deepEqual(slicesOf(plan), [[0, 27, 0]]);
+  assert.deepEqual(pagesOf(plan), [0]);
 });
 
 test('a plan reused for a shorter arrival keeps its buffers and counts the new records', () => {
   const plan = createPageIntegrationPlan(3);
-  planPageIntegration(new Int32Array([0, 1, 2, 12, 2, 4, 36, 3, 6]), 18, plan);
+  planPageIntegration(
+    sheet([
+      [0, 1, 2],
+      [12, 2, 4],
+      [36, 3, 6],
+    ]),
+    18,
+    plan,
+  );
   const { slices, pages } = plan;
-  planPageIntegration(new Int32Array([8, 4, -1]), 14, plan);
+  planPageIntegration(sheet([[8, 4, -1]]), 14, plan);
   assert.equal(plan.slices, slices);
   assert.equal(plan.pages, pages);
-  assert.equal(plan.count, 1);
-  assert.equal(plan.pageCount, 0);
-  assert.deepEqual([...slices.subarray(0, 3)], [2, 12, -1]);
-  planPageIntegration(new Int32Array(), 0, plan);
-  assert.equal(plan.count, 0);
-  assert.equal(plan.pageCount, 0);
+  assert.deepEqual(slicesOf(plan), [[2, 12, -1]]);
+  assert.deepEqual(pagesOf(plan), []);
+  planPageIntegration(sheet([]), 0, plan);
+  assert.deepEqual(slicesOf(plan), []);
+  assert.deepEqual(pagesOf(plan), []);
 });
 
 test('an initially empty plan still has room for a later standalone arrival', () => {
   const plan = createPageIntegrationPlan(0);
-  assert.equal(plan.count, 0);
-  assert.equal(plan.pageCount, 0);
-  planPageIntegration(new Int32Array([-1, 1, 5]), 12, plan);
-  assert.deepEqual([...plan.slices], [0, 12, 5]);
-  assert.deepEqual([...plan.pages], [5]);
+  assert.deepEqual(slicesOf(plan), []);
+  assert.deepEqual(pagesOf(plan), []);
+  planPageIntegration(sheet([[-1, 1, 5]]), 12, plan);
+  assert.deepEqual(slicesOf(plan), [[0, 12, 5]]);
+  assert.deepEqual(pagesOf(plan), [5]);
 });
 
-test('an arrival whose ranks already come in order is not sorted again', () => {
-  // Longer than an insertion sort, so a sort would take a view; the first rank is page zero.
-  const records = SORT_INSERTION_MAX + 1,
-    plan = createPageIntegrationPlan(records),
-    specs = new Int32Array(records * 3);
-  for (let i = 0; i < records; i++) specs.set([-1, 1, i], i * 3);
-  const taken = countViews(plan.pages);
-  planPageIntegration(specs, 3, plan);
-  assert.equal(taken.views, 0);
-  assert.equal(plan.pageCount, records);
-  assert.deepEqual([...plan.pages], ascending(records));
-});
-
-test('sorting changes only the requested prefix for small and large arrivals', () => {
-  for (const count of [0, 1, 2, 8, SORT_INSERTION_MAX, SORT_INSERTION_MAX + 1, 130]) {
-    const input = Array.from({ length: count }, (_, i) => ((i * 37) % 131) - 60);
-    const pages = new Int32Array([...input, -999, 777]);
-    const expected = [...input].sort((a, b) => a - b);
-    sortPages(pages, count);
-    assert.deepEqual([...pages], [...expected, -999, 777]);
+test('a long arrival whose ranks already come in order, from page zero, is not sorted again', (t) => {
+  for (const records of LONG) {
+    const plan = createPageIntegrationPlan(records),
+      view = t.mock.method(plan.pages, 'subarray');
+    planPageIntegration(sheet(ascending(records).map((page) => [-1, 1, page])), 3, plan);
+    assert.equal(view.mock.callCount(), 0, `${records} records`);
+    assert.deepEqual([...plan.pages], ascending(records));
   }
 });
 
-test('a list up to the insertion bound is sorted in place, without a view', () => {
-  for (const count of [2, SORT_INSERTION_MAX]) {
-    const pages = new Int32Array(ascending(count).reverse()),
-      taken = countViews(pages);
-    sortPages(pages, count);
-    assert.equal(taken.views, 0, `${count} ranks`);
-    assert.deepEqual([...pages], ascending(count));
+test('a short list is sorted in place without a view, a long one through one view', (t) => {
+  for (const [lengths, views] of [
+    [SHORT, 0],
+    [LONG, 1],
+  ] as const) {
+    for (const count of lengths) {
+      const pages = new Int32Array(ascending(count).reverse()),
+        view = t.mock.method(pages, 'subarray');
+      sortPages(pages, count);
+      assert.equal(view.mock.callCount(), views, `${count} ranks`);
+      assert.deepEqual([...pages], ascending(count));
+    }
   }
 });
 
-test('a list past the insertion bound is sorted through one view of its prefix', () => {
-  for (const count of [SORT_INSERTION_MAX + 1, 4 * SORT_INSERTION_MAX]) {
-    const pages = new Int32Array(ascending(count).reverse()),
-      taken = countViews(pages);
-    sortPages(pages, count);
-    assert.equal(taken.views, 1, `${count} ranks`);
-    assert.deepEqual([...pages], ascending(count));
-  }
-});
-
-test('sorting preserves repeated ranks and already ordered lists', () => {
-  for (const input of [
+test('sorting orders only the requested prefix, repeated ranks kept', () => {
+  const lists = [
+    ...[0, 1, ...SHORT, ...LONG].map((count) =>
+      Array.from({ length: count }, (_, i) => ((i * 37) % 131) - 60),
+    ),
     [5, 3, 5, 0, 3],
     [-2, -1, 0, 1],
     [8, 7, 6, 5],
-  ]) {
-    const pages = new Int32Array(input);
-    sortPages(pages, pages.length);
-    assert.deepEqual(
-      [...pages],
-      [...input].sort((a, b) => a - b),
-    );
+  ];
+  for (const input of lists) {
+    const pages = new Int32Array([...input, -999, 777]);
+    sortPages(pages, input.length);
+    assert.deepEqual([...pages], [...input.sort((a, b) => a - b), -999, 777]);
   }
 });
