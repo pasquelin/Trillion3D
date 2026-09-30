@@ -116,6 +116,13 @@
   "dependencies": {
     "meshoptimizer": "~0.18.1"
   },
+  "optionalDependencies": {
+    "@trillion3d/compiler-darwin-arm64": "workspace:*",
+    "@trillion3d/compiler-darwin-x64": "workspace:*",
+    "@trillion3d/compiler-linux-arm64": "workspace:*",
+    "@trillion3d/compiler-linux-x64": "workspace:*",
+    "@trillion3d/compiler-win32-x64": "workspace:*"
+  },
   "devDependencies": {
     "@codemirror/lang-html": "^6.4.12",
     "@codemirror/language": "^6.12.4",

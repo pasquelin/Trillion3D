@@ -2806,8 +2806,8 @@
       "level": "error",
       "group": "Node adapter and CLI",
       "message": "The compiler program is missing.",
-      "cause": "No file at the executable the Node adapter resolved: `options.executable`, `TRILLION3D_COMPILER_BIN`, or the installed package's compiler.",
-      "action": "Reinstall `trillion3d`, or set `TRILLION3D_COMPILER_BIN` to the path of a compiler program."
+      "cause": "No compiler program where the Node adapter looked: `options.executable`, the installed platform package `@trillion3d/compiler-<platform>-<arch>` (an optional dependency of `trillion3d`; none serves a Linux on musl), or `TRILLION3D_COMPILER_BIN`.",
+      "action": "Reinstall `trillion3d` with its optional dependencies, or set `TRILLION3D_COMPILER_BIN` to the path of a compiler program."
     },
     {
       "id": "T3D-E081",

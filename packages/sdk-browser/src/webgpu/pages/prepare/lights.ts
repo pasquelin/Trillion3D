@@ -2,6 +2,7 @@ import { LIGHT_SETTINGS } from '../../../../../sdk-core/src/index.ts';
 import { createGpuLightTiles } from '../../../lighting/tiles/tiles.ts';
 import { createGpuShadowAtlas } from '../../../gpu/shadow/atlas.ts';
 import { createGpuShadowCull } from '../../../gpu/shadow/cull.ts';
+import { createShadowMovingGroups } from '../../shadow/movingGroups.ts';
 import { createShadowPageQuads } from '../../../gpu/shadow/pageQuads.ts';
 import { grantCapability } from '../io/drops.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
@@ -66,6 +67,13 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
     lights.shadowReason = `shadow atlas unavailable: ${String(error)}`;
     diag.diagnosticFailure('shadow-atlas-unavailable', error);
   }
+  // Without the moving groups, every restored page draws its moving casters alone.
+  if (lights.cull)
+    lights.movingGroups = await createShadowMovingGroups(device).catch((error) => {
+      if (isCancelled(rt.signal)) throw error;
+      diag.diagnosticFailure('shadow-moving-groups-unavailable', error);
+      return undefined;
+    });
   // Without the per-pixel demand the resolve's own requests still name every page it reads.
   if (lights.shadows)
     lights.demand = await createShadowDemand(device, lights.plan.sunWindow).catch((error) => {
@@ -111,6 +119,7 @@ export async function prepareShadowPipelines(rt: WebgpuPagesRuntime, device: GPU
   // pipeline made meanwhile would lay its error there. The rest opens no scope: compiled together.
   await createHizPipelines(device).catch(() => undefined);
   const work: Array<() => unknown> = [shadows.prepareDepth, () => shadowOcclusionPipeline(device)];
+  if (rt.lights.movingGroups) work.push(shadows.groupDraws.prepare);
   // The pages the GPU draws itself (#1275): its pool's draws, and its layer's with the host's.
   if (rt.lights.allocation) work.push(shadows.freshDraws.prepare);
   if (rt.vis.gpuDraw) work.push(() => lightRowMapPipeline(device).pipeline.prepare());

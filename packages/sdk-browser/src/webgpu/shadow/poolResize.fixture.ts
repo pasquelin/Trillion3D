@@ -1,12 +1,18 @@
-// The session the shadow pool resize tests run (#1208): a sun, a pool sized at a first frame, a
-// device that refuses what a limit says and records the page moves it is handed.
-import { shadowPoolSide } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { SUN } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
+// The session the shadow pool resize tests run (#1208, #1345): a sun, a pool seeded at a first
+// frame, reports that ask it pages, a device that refuses what a limit says and records the page
+// moves it is handed.
+import { SEED_POOL_SIDE } from '../../../../sdk-core/src/scene/light-shadow/poolDemand.ts';
+import {
+  SUN,
+  planFrame,
+  report,
+  sunPages,
+} from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { asWebgpuDevice } from '../../../../../tests/kit/gpu/webgpuDevice.ts';
-import { createWebgpuLightState } from '../pages/state/lights.ts';
+import { createWebgpuLightState, type WebgpuLightState } from '../pages/state/lights.ts';
 import { sizeShadowPool } from './poolSize.ts';
-import { followShadowView } from './poolResize.ts';
+import { followShadowDemand } from './poolResize.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 type Fake = { size: number[]; destroyed: boolean };
@@ -55,12 +61,22 @@ function device(limit: { bytes: number }) {
   return { device: gpu.device, passes, copies, moves };
 }
 
-/** A session with a sun, its pool sized at `viewport`; its atlas records what it takes. */
-export async function session(viewport: [number, number], transmittance = false) {
+/** `count` sun pages round the eye, forty a row, a level of 1 600 after another from the fourth
+ *  above the finest: all within the clipmap's extent. */
+function sunGrid(plan: WebgpuLightState['plan'], slice: number, count: number) {
+  const pages: number[][] = [];
+  for (let i = 0; i < count; i++) pages.push([(i % 40) - 20, (Math.floor(i / 40) % 40) - 20]);
+  return pages.flatMap((page, i) =>
+    sunPages(plan, slice, plan.sun.finest[slice] + 4 + Math.floor(i / 1600), [page]),
+  );
+}
+
+/** A session with a sun, its pool seeded; its atlas records what it takes. */
+export async function session(transmittance = false) {
   installGpuGlobals();
   const limit = { bytes: Infinity },
     gpu = device(limit),
-    lights = createWebgpuLightState(shadowPoolSide(300, 150)),
+    lights = createWebgpuLightState(SEED_POOL_SIDE),
     said: Array<[string, Record<string, unknown>]> = [];
   /** A transmittance layer: its two textures, as the mover reads them. */
   const make = (size: number[]) =>
@@ -93,7 +109,7 @@ export async function session(viewport: [number, number], transmittance = false)
   const rt = {
     lights,
     capture: { capturing: false },
-    setup: { viewport },
+    setup: { viewport: [1280, 720] },
     blendState: { blendGpu: [] },
     gpu: { device: gpu.device },
     run: { lost: false, frame: 0, gate: { resourcesChanged() {} } },
@@ -106,12 +122,23 @@ export async function session(viewport: [number, number], transmittance = false)
   } as unknown as WebgpuPagesRuntime;
   sizeShadowPool(rt);
   await lights.shadowGrant?.done;
-  /** A frame at `width × height`: the resize it asks, answered. */
-  const frame = async (width: number, height: number) => {
-    viewport[0] = width;
-    viewport[1] = height;
-    followShadowView(rt);
+  /** The pool follows the latest report read, the resize it asks answered. */
+  const follow = async () => {
+    followShadowDemand(rt);
     await lights.shadowGrant?.done;
   };
-  return { rt, lights, gpu, limit, said, frame, texture: () => texture };
+  let at = 0;
+  /** Two frames: the first reports `count` pages of the sun, the second's plan reads the report.
+   *  Then the pool follows the demand, the resize it asks answered. */
+  const ask = async (count: number) => {
+    const { plan, store } = lights;
+    planFrame(plan, store, at);
+    plan.commit();
+    report(plan, store, at, count ? sunGrid(plan, store.sliceOf(0), count) : []);
+    planFrame(plan, store, ++at);
+    plan.commit();
+    at++;
+    await follow();
+  };
+  return { rt, lights, gpu, limit, said, ask, follow, texture: () => texture };
 }

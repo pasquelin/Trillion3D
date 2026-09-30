@@ -7,6 +7,7 @@ import { SHADOW_FRESH_CULL_WGSL } from './freshCullWgsl.ts';
 import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { SHADOW_DEMAND_PASS, encodeShadowDemand } from './demandPass.ts';
+import { shadowKeptFrom } from './poolResize.ts';
 
 /** Labels of the allocation and of the host's table words, as a frame's passes are timed. */
 const SHADOW_ALLOC_PASS = 'Trillion3D shadow allocation v1';
@@ -101,7 +102,12 @@ function encodeShadowFloors(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) 
   }
   // The records it decodes entries with are this frame's, as every write lands before the pass.
   shadows.flushRecords();
-  buffers.writeParams(run.frame, plan.records.generation, plan.gpu.asks);
+  buffers.writeParams(
+    run.frame,
+    plan.records.generation,
+    plan.gpu.asks,
+    shadowKeptFrom(lights, run.frame),
+  );
   const bound = allocationBound(rt);
   if (bound) allocation.floors(encoder, bound, 1);
   return bound;
