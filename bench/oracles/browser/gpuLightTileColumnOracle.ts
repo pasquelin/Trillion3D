@@ -7,7 +7,7 @@
 import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/index.ts';
 import { DEPTH_NEAR } from '../../../packages/sdk-browser/src/camera/depthConvention.ts';
 
-type Vec3 = [number, number, number];
+export type Vec3 = [number, number, number];
 export type TileView = {
   inverseViewProjection: ArrayLike<number>;
   origin: ArrayLike<number>;
@@ -20,10 +20,10 @@ export type Box = { lo: Vec3; hi: Vec3 };
 const f = Math.fround;
 const map = (g: (a: number) => number): Vec3 => [g(0), g(1), g(2)];
 const add = (a: Vec3, b: Vec3) => map((i) => f(a[i] + b[i]));
-const sub = (a: Vec3, b: Vec3) => map((i) => f(a[i] - b[i]));
-const scale = (a: Vec3, s: number) => map((i) => f(a[i] * s));
-const dot = (a: Vec3, b: Vec3) => f(f(f(a[0] * b[0]) + f(a[1] * b[1])) + f(a[2] * b[2]));
-const cross = (a: Vec3, b: Vec3): Vec3 => [
+export const sub = (a: Vec3, b: Vec3) => map((i) => f(a[i] - b[i]));
+export const scale = (a: Vec3, s: number) => map((i) => f(a[i] * s));
+export const dot = (a: Vec3, b: Vec3) => f(f(f(a[0] * b[0]) + f(a[1] * b[1])) + f(a[2] * b[2]));
+export const cross = (a: Vec3, b: Vec3): Vec3 => [
   f(f(a[1] * b[2]) - f(a[2] * b[1])),
   f(f(a[2] * b[0]) - f(a[0] * b[2])),
   f(f(a[0] * b[1]) - f(a[1] * b[0])),
@@ -32,7 +32,7 @@ const cross = (a: Vec3, b: Vec3): Vec3 => [
 export const toTileFrame = (view: TileView, point: Vec3) =>
   map((i) => f(f(point[i]) - f(view.origin[i])));
 
-function unproject(m: ArrayLike<number>, x: number, y: number, z: number): Vec3 {
+export function unproject(m: ArrayLike<number>, x: number, y: number, z: number): Vec3 {
   const row = (r: number) =>
     f(f(f(f(f(m[r]) * x) + f(f(m[r + 4]) * y)) + f(f(m[r + 8]) * z)) + f(m[r + 12]));
   const w = row(3);
@@ -113,7 +113,13 @@ export function sphereTouchesBox(box: Box, centre: Vec3, radius: number) {
   return dot(clamped, clamped) <= f(radius * radius);
 }
 
-export type TileBounds = { opaqueBox: Box; blendBox: Box; column: Plane[]; slab: Plane[] };
+export type TileBounds = {
+  opaqueBox: Box;
+  blendBox: Box;
+  column: Plane[];
+  slab: Plane[];
+  corners: Vec3[];
+};
 
 /** What the tile's threads build for a tile whose opaque pixels span `front` to `back`. */
 export function tileBounds(view: TileView, tile: [number, number], front: number, back: number) {
@@ -124,6 +130,7 @@ export function tileBounds(view: TileView, tile: [number, number], front: number
     blendBox: tileBox(corners, ROW.near, ROW.back),
     column,
     slab: tileSlab(corners, column),
+    corners,
   };
 }
 

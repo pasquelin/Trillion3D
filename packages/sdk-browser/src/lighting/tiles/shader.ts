@@ -2,13 +2,15 @@ import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { DEPTH_CLEAR, DEPTH_NEAR } from '../../camera/depthConvention.ts';
 import { directLightWgsl } from '../direct/lightWgsl.ts';
 import { TILE_BOUNDS_WGSL, tileDepthBoundsWgsl } from './boundsWgsl.ts';
+import { TILE_DEPTH_MASK_WGSL, tileDepthBinsWgsl } from './depthMaskWgsl.ts';
 import { tileCompactResetWgsl, tileCompactStatementsWgsl, tileCompactWgsl } from './compactWgsl.ts';
 
 /**
  * Light lists per 16 × 16 pixel screen tile. One workgroup per tile: the 256 threads reduce the
- * tile's min and max depth, sixteen de-project its corners, thread zero derives its world
- * bounds from them, then the threads compact the lights that reach it into its lists, in
- * batches of 256 lights, and past its list into the view's pool (`./compactWgsl.ts`, #849).
+ * tile's min and max depth, sixteen de-project its corners, seven derive its world bounds from
+ * them while every pixel marks its depth bin (`./depthMaskWgsl.ts`, #1369), then the threads
+ * compact the lights that reach it into its lists, in batches of 256 lights, and past its list
+ * into the view's pool (`./compactWgsl.ts`, #849).
  *
  * **The masks and the light array follow the light count.** A scene of at most `TILE_LIGHTS`
  * lights runs the narrow pass: masks of one batch of that many lights, a light array that long,
@@ -16,8 +18,8 @@ import { tileCompactResetWgsl, tileCompactStatementsWgsl, tileCompactWgsl } from
  * (`./tiles.ts`).
  *
  * **Two lists per tile, two depth slices.** The opaque list covers the slice between the tile's
- * two depths — its box and the six planes of the tile's frustum —, and deferred resolve loses
- * neither a light nor a millisecond. The blend list covers what lies in front of the tile's
+ * two depths — its box, the six planes of the tile's frustum and the depth bins its pixels fill
+ * —, and deferred resolve loses neither a light nor a millisecond. The blend list covers what lies in front of the tile's
  * background: a blend surface is drawn **in front of** its pixel's opaque, and a box that starts
  * at its depth would strip declared lights. Where every pixel has an opaque behind it, that is
  * the slice from the near plane to the farthest opaque, cut by the same planes. Where a pixel
@@ -73,18 +75,31 @@ fn inwardPlane(normal:vec3f,point:vec3f,inside:vec3f)->vec4f{
  let facing=select(-n,n,dot(n,inside-point)>=0.0);
  return vec4f(facing,-dot(facing,point));
 }
-/** The tile's column from the near plane to infinity: four side planes, each through two
- *  neighbouring corner rays, and the near plane, all facing the column's inside. */
-fn tileColumn(){
+/** The \`i\`th plane of the tile's column from the near plane to infinity: below four a side
+ *  plane through two neighbouring corner rays, at four the near plane, each facing the column's
+ *  inside. */
+fn columnPlane(i:u32)->vec4f{
  let row=DEEP_ROW*4u; // the centre summed in the table's order, as before: the same bits
  let inside=(corners[row]+corners[row+1u]+corners[row+2u]+corners[row+3u])*0.25;
- for(var i=0u;i<4u;i++){
+ if(i<4u){
   let near=columnCorner(NEAR_ROW,i);
   let deep=columnCorner(DEEP_ROW,i);
-  column[i]=inwardPlane(cross(columnCorner(DEEP_ROW,(i+1u)%4u)-deep,deep-near),near,inside);
+  return inwardPlane(cross(columnCorner(DEEP_ROW,(i+1u)%4u)-deep,deep-near),near,inside);
  }
  let first=columnCorner(DEEP_ROW,0u);
- column[4]=inwardPlane(cross(columnCorner(DEEP_ROW,1u)-first,columnCorner(DEEP_ROW,3u)-first),columnCorner(NEAR_ROW,0u),inside);
+ return inwardPlane(cross(columnCorner(DEEP_ROW,1u)-first,columnCorner(DEEP_ROW,3u)-first),columnCorner(NEAR_ROW,0u),inside);
+}
+/** Lanes 0 to 6 build the tile's bounds at once, one each: the column's five planes, the slab
+ *  from the near one, the two boxes — the expressions thread zero ran one after the other, on the
+ *  same corners, so the same bits (#1369). The slab's lane reads the plane it wrote itself. */
+fn tileBoundsOfLane(lane:u32,hasOpaque:bool,seesSky:bool){
+ if(lane<5u){column[lane]=columnPlane(lane);}
+ if(hasOpaque){
+  if(lane==4u){tileSlab();}
+  if(lane==5u){opaqueBox=tileBox(FRONT_ROW,BACK_ROW);}
+  // A pixel that sees the sky has no back to its blend slice: the whole column, never a box.
+  if(lane==6u&&!seesSky){blendBox=tileBox(NEAR_ROW,BACK_ROW);}
+ }
 }
 fn sphereTouchesBox(box:Box,centre:vec3f,radius:f32)->bool{
  let outside=max(box.lo-centre,centre-box.hi);
@@ -92,6 +107,7 @@ fn sphereTouchesBox(box:Box,centre:vec3f,radius:f32)->bool{
  return dot(clamped,clamped)<=radius*radius;
 }
 ${TILE_BOUNDS_WGSL}
+${TILE_DEPTH_MASK_WGSL}
 ${tileCompactWgsl(words, !narrow)}
 @compute @workgroup_size(${LIGHT_SETTINGS.tileSize},${LIGHT_SETTINGS.tileSize},1)
 fn lightTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_index) lane:u32){
@@ -101,10 +117,11 @@ fn lightTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_index)
   atomicStore(&farthest,0xffffffffu);
   atomicStore(&covered,0u);
   atomicStore(&skyward,0u);
+  atomicStore(&depthBins,0u);
   lightCount=${narrow ? `min(lights.count,TILE_LIGHTS)` : 'lights.count'};
  }
 ${tileCompactResetWgsl(words, !narrow)}
- workgroupBarrier();
+ let count=workgroupUniformLoad(&lightCount);
  let pixel=vec2u(tile.x*TILE_SIZE+lane%TILE_SIZE,tile.y*TILE_SIZE+lane/TILE_SIZE);
  var z=${DEPTH_CLEAR}.0;
  let inside=pixel.x<u32(view.viewport.x)&&pixel.y<u32(view.viewport.y);
@@ -113,19 +130,15 @@ ${tileDepthBoundsWgsl(subgroups)}
  workgroupBarrier();
  tileCornerOfLane(tile.xy,lane);
  workgroupBarrier();
- if(lane==0u&&lightCount>0u){ // no light, no bounds to test it against
-  // The column's sides bound both slices: every tile builds it, before the depth planes.
-  tileColumn();
-  if(atomicLoad(&covered)==1u){
-   opaqueBox=tileBox(FRONT_ROW,BACK_ROW);tileSlab();
-   // A pixel that sees the sky has no back to its blend slice: the whole column, never a box.
-   if(atomicLoad(&skyward)==0u){blendBox=tileBox(NEAR_ROW,BACK_ROW);}
-  }
- }
- let count=workgroupUniformLoad(&lightCount);
  // What the tile's pixels saw, read once: the barrier above made it final.
  let hasOpaque=atomicLoad(&covered)==1u;
  let seesSky=atomicLoad(&skyward)==1u;
+ if(count>0u){ // no light, no bounds to test it against
+  tileBoundsOfLane(lane,hasOpaque,seesSky);
+  let covers=inside&&z>${DEPTH_CLEAR}.0;
+${tileDepthBinsWgsl(subgroups)}
+ }
+ workgroupBarrier();
 ${tileCompactStatementsWgsl(words, !narrow)}
 }`;
 };

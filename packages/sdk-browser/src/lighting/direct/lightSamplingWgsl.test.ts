@@ -38,19 +38,20 @@ test('deferred resolve samples a shadowed list on a ranked image and walks every
   assert.equal(occurrences(declaredLightingWgsl(11, 18, 26), 'sampledTileLighting'), 0);
 });
 
-test('a moving resolve reads the tile pass flag once, never the list, to choose the sum (#1249)', () => {
+test('a moving resolve reads the tile pass word once, never the list, to choose the sum (#1249, #1369)', () => {
   const layout = tileLayout(LIGHT_TILES_SHADER);
   const STRIDE = layout.stride,
     SHADOW = layout.shadowBase;
-  // Two tiles one pixel wide: the second tile's count and flag word decide the branch, alone.
+  // Two tiles one pixel wide: the second tile's word decides the branch, alone — whatever its
+  // count, which the depth mask may have taken to the sample budget or below (#1369).
   const run = (flag: number, kept = 8) => {
     const words = new Uint32Array(STRIDE * 2);
-    words[0] = 8; // tile 0: a list of 8, between LIGHT_SAMPLES and TILE_LIGHTS
+    words[0] = 8;
     words[STRIDE] = kept;
     words[STRIDE + SHADOW] = flag;
     const { contractLighting } = shaderFunctions<{
       contractLighting: (...args: unknown[]) => number;
-    }>(DIRECT_LIGHTING_WGSL, ['contractLighting', 'tileShadowed', 'sampledList', 'pixelTile'], {
+    }>(DIRECT_LIGHTING_WGSL, ['contractLighting', 'tileShadowed', 'pixelTile'], {
       ...wgslConstants(DIRECT_LIGHTING_WGSL),
       view: { lightParams: { x: 2, y: 2, z: 1 }, viewport: { w: 7 } },
       vec3f: () => 0,
@@ -60,33 +61,39 @@ test('a moving resolve reads the tile pass flag once, never the list, to choose 
     });
     return contractLighting(0, 0, 0, 0, 0, 0, 0, { x: 20.5, y: 0.5 });
   };
-  assert.equal(run(0), 1, 'no shadowed light: the exact full sum the still image shows');
-  assert.equal(run(1), 2, 'a shadowed light: the drawn resolve, unchanged');
-  // A list the drawn resolve would sum in full anyway takes the still image's call, as the list
-  // walk it replaces answered (#1290's image ko): within the sample budget, or past the list.
-  assert.equal(run(1, LIGHT_SETTINGS.samplesPerPixel), 1, 'within the budget: the full sum');
-  assert.equal(run(1, LIGHT_SETTINGS.tileLights + 1), 1, 'past the list: the full sum');
+  assert.equal(run(0), 1, 'not drawn: the exact full sum the still image shows');
+  assert.equal(run(1), 2, 'drawn: the drawn resolve, unchanged');
+  assert.equal(run(1, 2), 2, 'a list the mask shortened stays drawn');
+  assert.equal(run(0, 12), 1, 'a list the pass did not choose is summed in full');
 });
 
-test('the tile pass flag marks a list that holds a shadowed light (#1249)', () => {
+test('the tile pass word chooses on the list before the mask, as the list walk did (#1249, #1369)', () => {
   const layout = tileLayout(LIGHT_TILES_SHADER);
-  const flag = (shadowed: number[]) =>
-    compactTile(layout, { opaque: [1, 2, 3], blend: [], shadowed }, 4)[layout.shadowBase];
-  assert.equal(flag([2]), 1);
-  assert.equal(flag([9]), 0, 'a shadowed light outside the opaque list leaves it clear');
-  assert.equal(flag([]), 0);
+  const word = (listed: number[], shadowed: number[], opaque = listed) =>
+    compactTile(layout, { opaque, listed, blend: [], shadowed }, 300)[layout.shadowBase];
+  const eight = [1, 2, 3, 4, 5, 6, 7, 8];
+  assert.equal(word(eight, [2]), 1);
+  assert.equal(word(eight, [9]), 0, 'a shadowed light outside the opaque list leaves it clear');
+  assert.equal(word(eight, []), 0);
+  assert.equal(word(eight, [2], [2]), 1, 'the mask leaves one light: still drawn');
+  assert.equal(word(eight.slice(0, 4), [2]), 0, 'within the sample budget: summed in full');
+  const past = [...Array(layout.tileLights + 1).keys()];
+  assert.equal(word(past, [2], past.slice(0, 10)), 0, 'past the list: summed in full');
   assert.equal(compactTile(layout, { opaque: [], blend: [] }, 0)[layout.shadowBase], 0);
+  // The pass counts every light its opaque slice keeps before the mask, and writes the choice.
+  assert.match(
+    LIGHT_TILES_SHADER,
+    /tiles\[base\+TILE_SHADOW_BASE\]=select\(0u,1u,atomicLoad\(&shadowed\)!=0u&&sampledList\(atomicLoad\(&listed\)\)\);/,
+  );
 });
 
-test('the sample budget is the published setting, and a list within it is summed in full', () => {
+test('the sample budget is the published setting, and the full sum has one call site', () => {
   assert.match(
-    DIRECT_LIGHT_SAMPLING_WGSL,
+    DIRECT_LIGHTING_WGSL,
     new RegExp(`const LIGHT_SAMPLES:u32=${LIGHT_SETTINGS.samplesPerPixel}u;`),
   );
-  assert.match(
-    DIRECT_LIGHT_SAMPLING_WGSL,
-    /if\(!sampledList\(kept\)\)\{return tileLighting\(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE\);\}/,
-  );
+  // The full sum has one call site, the still image's: the drawn resolve never falls back on it.
+  assert.equal(occurrences(DIRECT_LIGHTING_WGSL, 'return tileLighting('), 1);
   // A light worth a sample's share is shaded exactly and leaves the pool; the drawn ones are
   // divided by their probability, copies counted.
   assert.match(DIRECT_LIGHT_SAMPLING_WGSL, /if\(weight\*f32\(LIGHT_SAMPLES\)>=total\)/);

@@ -56,7 +56,8 @@ for (const eye of [
 test('a tile with a sky pixel lights its blend list from the column, whatever opaque it holds', () => {
   const code = LIGHT_TILES_SHADER.replace(/\s+/g, '');
   assert.ok(code.includes('atomicStore(&skyward,1u);'));
-  assert.ok(code.includes('if(atomicLoad(&skyward)==0u){blendBox=tileBox(NEAR_ROW,BACK_ROW);}'));
+  assert.ok(code.includes('if(lane==6u&&!seesSky){blendBox=tileBox(NEAR_ROW,BACK_ROW);}'));
+  assert.ok(code.includes('letseesSky=atomicLoad(&skyward)==1u;'));
   assert.ok(!code.includes('1.0e30'), 'never the whole world');
 });
 
