@@ -26,6 +26,12 @@ export interface SelectionState<T extends PageRecord> {
   cam: EngineCamera;
   wanted: T[];
   shown: T[];
+  /** The same two cuts by packed catalogue rank, rank by rank (`PageRecord.packedIndex`): what the
+   *  engines' consumers read, resolved back to a record through the catalogue (`recordOf`). The cut
+   *  still decides on the records above — a packed rank names the instance, never a record. Reused
+   *  `Int32Array`s preallocated to the cut's capacity (`fitPacked`). */
+  wantedPacked: Int32Array;
+  shownPacked: Int32Array;
   pixelError: number;
   frustumRejected: number;
   /** Hierarchy nodes popped by this image's cut. */
@@ -81,6 +87,13 @@ export interface SelectionState<T extends PageRecord> {
 export interface SelectionResult<T> {
   shown: T[];
   wanted: T[];
+  /** The instances as packed catalogue ranks, parallel to `shown` and `wanted` rank by rank: the
+   *  identity the engines' consumers route by (a packed rank is the engine's per-placement page),
+   *  resolved back to a record through the catalogue (`recordOf(packed)`). Reused `Int32Array`s,
+   *  preallocated to the cut's capacity (`fitPacked`); their live ranks are those of `shown` and
+   *  `wanted`, rank by rank, so no stale tail is read. */
+  shownPacked: Int32Array;
+  wantedPacked: Int32Array;
   visible: number;
   selectedTriangles: number;
   displayedTriangles: number;
@@ -102,6 +115,8 @@ export function createSelectionResult<T>(): SelectionResult<T> {
   return {
     shown: [],
     wanted: [],
+    shownPacked: new Int32Array(0),
+    wantedPacked: new Int32Array(0),
     visible: 0,
     selectedTriangles: 0,
     displayedTriangles: 0,
@@ -112,6 +127,19 @@ export function createSelectionResult<T>(): SelectionResult<T> {
     uncoveredTriangles: 0,
     pixelError: 0,
   };
+}
+
+/**
+ * A packed list wide enough for `needed` ranks. The buffer is kept when it already holds them —
+ * `Int32Array.length` is getter-only in a module, so the list is never truncated; the cut's counts
+ * are the record lists' lengths, rank by rank — and replaced by a power-of-two-sized one otherwise:
+ * a cut that has been seen reuses its two lists for life, and a larger one allocates once.
+ */
+export function fitPacked(list: Int32Array, needed: number): Int32Array {
+  if (list.length >= needed) return list;
+  let size = Math.max(8, list.length);
+  while (size < needed) size <<= 1;
+  return new Int32Array(size);
 }
 
 export const IDENTITY_WORLD: MatrixElements = { elements: IDENTITY_ELEMENTS };
@@ -135,6 +163,8 @@ const reusedState: SelectionState<PageRecord> = {
   cam: undefined as unknown as EngineCamera,
   wanted: [],
   shown: [],
+  wantedPacked: new Int32Array(0),
+  shownPacked: new Int32Array(0),
   pixelError: 0,
   frustumRejected: 0,
   nodesTested: 0,
