@@ -65,8 +65,9 @@ pnpm test                # unit and integration tests (node --test)
 pnpm run test:native     # cargo test
 ```
 
-The package is private and consumed locally; it is not published to npm. Scene assets are supplied
-by the host and are not part of this repository.
+The package is private and consumed locally; it is not published to npm. A host supplies its own
+scenes; the bench's are fetched and cooked off git into `.mesure/assets/` by
+`node bench/runner/assets.ts` ([Assets](bench/runner/README.md#assets)).
 
 ```js
 import { createWorld, object, geometry, material, light } from 'trillion3d';
@@ -102,14 +103,12 @@ packages/asset-compiler-rust/target/release/trillion3d-compiler --jobs jobs.json
 
 ## Public SDK
 
-Every consumer imports `trillion3d`. Conditional exports provide common maths and contracts in
-all environments, rendering APIs to browser bundlers, and native preparation APIs to Node.
-
-| Environment | Available API |
-| --- | --- |
-| Common and worker | Versioned contracts, maths, jobs, diagnostics and safety policy |
-| Node | Common API plus native compiler process adapter and compilation jobs |
-| Browser bundler | Common API plus `createWorld` and its families (`geometry`, `material`, `light`, `camera`, `object`, `page`, `budget`, `metric`, `diagnostic`, `capability`, `capture`, `pose`, `batch`, …) |
+Every consumer imports `trillion3d`. Conditional exports give every environment (worker included)
+the versioned contracts, maths, jobs, diagnostics and safety policy; Node adds the native compiler
+process adapter and compilation jobs; a browser bundler adds `createWorld` and its families
+(`geometry`, `material`, `light`, `camera`, `object`, `page`, `budget`, `metric`, `diagnostic`,
+`capability`, `capture`, `pose`, `batch`, …) — see
+[Installation and environment API](docs/SDK.md#installation-and-environment-api).
 
 An application owns the canvas, its resource URLs and controller disposal; the world owns its own
 loop by default (`interactive: false` + `world.render()` for a host-led loop instead). Node hosts
@@ -155,7 +154,7 @@ Nothing is optimised before it is measured, and no claim outlives its measuremen
 node bench/runner/bench.ts --engine webgpu --before <git-ref|dist> --after <git-ref|dist> \
      --views overview,ground,street --images 60 --pixelError 0,1
 node bench/runner/campaign.ts        # the whole campaign
-node bench/runner/summaryGlobal.ts   # one HTML report
+node bench/runner/summaryGlobal.ts --id <campaign>   # its report data, for the portal
 ```
 
 - One harness, Playwright driving the machine's Chrome, nothing on disk beyond `.mesure/assets/`.
@@ -188,18 +187,9 @@ documentation, the code, its identifiers and this page are in English.
 ## Roadmap
 
 The geometry, the temporal antialiasing and the memory budgets are the foundation. What they are
-for is **real-time dynamic global illumination, reflections and shadows** — reached by
-stages, each measured before the next ([lighting strategy](docs/ENGINE.md#lighting-the-target-and-the-stages)):
-
-| Stage | Content | State |
-| --- | --- | --- |
-| L0 | Direct lighting and sun costed on the bench | done — the sun costs its shadow sampling, not its cascades |
-| L1 | Screen traces: reflections and short bounce from the rendered HDR, depth and normal | next |
-| L2 | Stochastic direct lighting denoised by TAA: dozens of lights at the price of one | planned |
-| L3 | Virtual shadow pages from the hardware raster, only the pages seen, cached | planned |
-| L4 | Cooked global distance field traversed in compute, reading a surface cache | planned |
-| L5 | World radiance probes in cascades | planned |
-| L6 | Reflections through the distance field reading the cache | planned |
+for is **real-time dynamic global illumination, reflections and shadows**, reached by stages L0–L6,
+each measured before the next; their content and state live in
+[Lighting: the target and the stages](docs/ENGINE.md#lighting-the-target-and-the-stages).
 
 Open tasks are tracked as [GitHub issues](https://github.com/pasquelin/Trillion3D/issues); an issue is closed once it is done.
 
@@ -211,12 +201,13 @@ Open tasks are tracked as [GitHub issues](https://github.com/pasquelin/Trillion3
 - Delivered simplification and page compression are those documented in
   [docs/FORMAT.md](docs/FORMAT.md); the compiler's RAM option is an admission estimate, not an
   enforced peak-memory limit.
-- Specular environment-map IBL, full device-loss recovery and cross-API fallback are not
-  implemented; a missing visbuffer format falls back to the untextured page raster with Hi-Z off.
+- Specular environment-map IBL and cross-API fallback are not implemented; a lost device is
+  recovered without reloading the page ([SDK](docs/SDK.md), `gpu-device-recovered`); a missing
+  visbuffer format falls back to the untextured page raster with Hi-Z off.
 - No N-API binding of the compiler, published packages, signed native distributions or
   cross-platform performance CI yet; WebAssembly serves the page decoder, three math kernels and
   the physics.
-- Physics ([docs/SDK.md](docs/SDK.md#physics)) steps Jolt on its thread pool when the page is
+- Physics ([docs/PHYSICS.md](docs/PHYSICS.md)) steps Jolt on its thread pool when the page is
   cross-origin isolated, on one worker elsewhere; what 10,000 boxes landing at once cost is
   measured there.
 

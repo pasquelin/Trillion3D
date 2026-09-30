@@ -1,9 +1,9 @@
 # Trillion3D SDK
 
-The public guide: what a page and a Node host write against. How the engine draws underneath —
-the internal session, the passes, the budgets' mechanics and the diagnostics — is
-[ENGINE.md](ENGINE.md); the compiler is [COMPILER.md](COMPILER.md); the cache is
-[FORMAT.md](FORMAT.md).
+The public guide: what a page and a Node host write against. How the engine draws underneath is
+[ENGINE.md](ENGINE.md), what stays in memory [RESIDENCY.md](RESIDENCY.md), the compiler
+[COMPILER.md](COMPILER.md), the cache [FORMAT.md](FORMAT.md), physics [PHYSICS.md](PHYSICS.md),
+the maths [MATHS.md](MATHS.md).
 
 Every public import uses `trillion3d`; conditional exports select the common, browser or Node
 API ([Entry points](#entry-points)). Do not import `packages/` internals. `SDK_VERSION` and
@@ -36,8 +36,7 @@ Trillion3D owns every package it builds under `packages/` ([package architecture
 
 ## Entry points
 
-Version 0.2.0 exposes one consumer specifier, `trillion3d`. The source facade has three
-environment branches:
+Version 0.2.0 exposes one consumer specifier, `trillion3d`, with three environment branches:
 
 | Resolver context | Source facade | Public surface | Declaration constraints |
 | --- | --- | --- | --- |
@@ -46,48 +45,36 @@ environment branches:
 | Worker or common code | `packages/sdk/index.ts` | Common maths and contracts | Compiles without DOM or WebGPU declarations. |
 | Unknown environment or fallback | `packages/sdk/index.ts` | Common maths and contracts | The safe default never exposes browser or Node APIs by accident. |
 
-SSR resolves the Node branch. It therefore exposes native and common APIs, and does not expose
-browser rendering APIs. Importing any branch has no startup action: it does not create a renderer,
-worker, DOM object, GPU object or compiler process.
+Conditional JavaScript and declarations: `browser` precedes the Node and generic import/default
+paths, the Node branch uses the standard `node` condition, the final default is the common branch.
+A resolver that ignores `browser` or has no platform condition gets the safe common facade — no DOM,
+WebGPU, filesystem or process API. SSR resolves the Node branch: native and common, no browser
+rendering. Importing any branch creates no renderer, worker, DOM object, GPU object or compiler
+process.
 
-A fourth branch exists beside these three, and it is not a `trillion3d` resolver condition: the
-measurement entry point, `packages/sdk-browser/src/measurement/measurement.ts`. It re-exports everything the
-browser branch does, plus `openMeasuredWorld`/`createMeasuredWorldJob` (the internal session a
-world opens on itself), the engine's own backend factories, `chooseBackends`/`autonomousCacheReady`
-and `replicateInstances`. `package.json`'s `exports` map has no subpath for it — the bench, the
-proofs and the comparison views import it by its source path inside this repository, never through
-the published `trillion3d` specifier, so none of it reaches a consumer of the package. The witness
-backend factories are not in it: they live beside the bench, and `bench/witnesses/measurement.ts`
-re-exports the measurement entry point with them added (built into `dist/witnesses/`, which the
-package leaves out).
+The measurement entry point (`packages/sdk-browser/src/measurement/measurement.ts`: the browser
+branch plus `openMeasuredWorld`/`createMeasuredWorldJob`, the backend factories,
+`chooseBackends`/`autonomousCacheReady`, `replicateInstances`; [ENGINE.md](ENGINE.md)) is no
+resolver condition: `package.json`'s `exports` map has no subpath for it, so it never reaches a
+package consumer. `bench/witnesses/measurement.ts` adds the witness factories (built into
+`dist/witnesses/`, left out of the package).
 
-The package maps these built files with conditional JavaScript and matching conditional
-declarations. The `browser` condition precedes the Node and generic import/default paths; the Node
-branch uses the standard `node` condition, and the final default remains the common branch.
-Resolvers that ignore `browser` therefore receive the safe common facade instead of browser code.
-
-`api-inventory.json` is generated with the TypeScript checker. It follows aliases and transitive
-star exports, records binding identity and lists every current entry point. It also records the
-documented source-path imports that the facade newly exposes. Experimental comparison and oracle
-bindings stay classified as experimental. The former N-dimensional `dot` is removed from the
-exports: write `dotVector3`, the one dot product, on three components.
+`site/data/api-inventory.json` is generated with the TypeScript checker: it follows aliases and
+transitive star exports, records binding identity, and lists every entry point and the documented
+source-path imports the facade newly exposes; experimental comparison and oracle bindings stay
+classified as experimental. `dotVector3` is the one dot product, on three components.
 
 Measured with esbuild 0.25.12 (ESM, browser platform, minification and tree shaking), a consumer
 importing only `hierarchyUpdateBatch` weighs 1,780 bytes from the common facade and 3,289 bytes from
-the browser facade, which keeps its public maths surface while shedding unrelated rendering code and
-every Node module. This is a bundle-content measurement, not a runtime-performance claim.
+the browser facade, which sheds unrelated rendering code and every Node module. Bundle content,
+not runtime performance.
 
 ## Create a world
 
 ```js
-const world = createWorld(canvas); // an element…
-const world = createWorld('viewer'); // …or the id of one
-```
-
-```js
 import { createWorld, object, geometry, material, light } from 'trillion3d';
 
-const world = createWorld('viewer');
+const world = createWorld('viewer'); // the id of a canvas, or the element itself
 
 const ground = object.mesh(geometry.plane(20, 20), material.meshStandard({ color: 0x8899aa }));
 const ball = object.mesh(
@@ -106,75 +93,67 @@ world.camera.lookAt(0, 1, 0);
 await world.scene.load('assets/city/manifest.json'); // a compiled model, added like the rest
 ```
 
-`world.ready` resolves once the renderer is prepared; an object added or a model loaded before it
-resolves is queued and drawn once it does. The SDK has no asset URL default: a host passes a real
-`manifestUrl` to `scene.load`. The default scope is `slice` (`scene.load(url, { scope: 'full' })`
-for a full cache); a pointer or manifest of another scope is rejected with `SCOPE_MISMATCH`.
+`world.ready` resolves once the renderer is prepared; earlier additions and loads are queued. There
+is no asset URL default: pass a real `manifestUrl` to `scene.load`. The default scope is `slice`
+(`scene.load(url, { scope: 'full' })` for a full cache); another scope's pointer or manifest is
+rejected with `SCOPE_MISMATCH`.
 
-`scene.load(url, { onProgress })` reports how far a load has got, with the `JobProgress` shape
-`createJob` uses. `{ phase: 'bytes', completed, total }` is heard from the moment the manifest is read:
-`total` is then every file the manifest declares, at once, and each chunk of every file the load
-reads adds to `completed`, whatever the server says of its length or compression. The share
-`completed / total` never goes down, and the last event, once the files the load did not need are
-dropped, has `completed === total`; a manifest that declares no file is heard once, whole, at the end. Between them come `{ phase: 'manifest' }` once the manifest is read,
-`{ phase: 'tables' }` once the scene tables are, then `{ phase: 'resources', completed, total }`
-as each file the scene reads lands. The first pages follow the load:
-`await world.awaitPages({ onProgress })` settles once the pages the view reads are resident. It
-reports `{ phase: 'session' }` first, while the session that draws the view opens, then
-`{ phase: 'pages', completed, total }`: `total` counts each page the view reads once — those the
-engine already holds, since the frames drawn before the wait may have read them all, and every page
-read for the view while the wait runs (a prefetch aside), whether the host reads it for the cut or the WebGPU engine for its own
-residency —, `completed` those resident, rising as each lands; the last event has
-`completed === total`. One callback given to both drives a progress bar from the first byte to
-the first pages (example `watch-a-world-load`). A session that closes during the wait — a lost
-device, an option it cannot take in place — never rejects it: the wait carries on with the session
-opened again.
+**Progress.** `scene.load(url, { onProgress })` reports with `createJob`'s `JobProgress` shape:
 
-A model's vertices stay on the server until something reads them: `scene.load` reads no vertex
-buffer (`source.bin`), the pages draw the model. The buffer is read once, on the first need: a
-cluster no geometry page covers, a see-through copy drawn whole, a witness renderer. A page that
-reads a loaded mesh's vertices itself awaits `geometry.loadVertices()` first; before it, `array`,
-`getX` and every synchronous read of them throw `VERTICES_NOT_LOADED`, never an empty array.
-`count` is known at once.
+| Phase | When |
+| --- | --- |
+| `{ phase: 'bytes', completed, total }` | from the manifest's read: `total` is every file it declares, at once; each chunk read adds to `completed`, whatever the server says of length or compression. `completed / total` never goes down; the last event, unneeded files dropped, has `completed === total`; a manifest declaring no file is heard once, whole, at the end |
+| `{ phase: 'manifest' }` | once the manifest is read |
+| `{ phase: 'tables' }` | once the scene tables are |
+| `{ phase: 'resources', completed, total }` | as each file the scene reads lands |
+
+`await world.awaitPages({ onProgress })` settles once the pages the view reads are resident:
+`{ phase: 'session' }` while the drawing session opens, then `{ phase: 'pages', completed, total }`
+— `total` each page the view reads, once (held already or read during the wait by the host's cut or
+the WebGPU residency, a prefetch aside), `completed` those resident, the last event
+`completed === total`. One callback for both drives a progress bar from first byte to first pages
+(example `watch-a-world-load`). A session closed during the wait (a lost device, an option it cannot
+take in place) never rejects it: the wait goes on with the reopened one.
+
+**Vertices.** `scene.load` reads no vertex buffer (`source.bin`): pages draw the model. The buffer
+is read once, on first need (a cluster no geometry page covers, a see-through copy drawn whole, a
+witness renderer). Before `geometry.loadVertices()` resolves, `array`, `getX` and every synchronous
+vertex read of a loaded mesh throw `VERTICES_NOT_LOADED`, never an empty array; `count` is known at
+once.
 
 ```ts
 await geometry.loadVertices(); // reads the model's buffer once, whichever mesh asks first
 const x = geometry.attributes.position.getX(0);
 ```
 
-A host that probes a cache before opening it — to enable a button, to tell a user to recompile —
-calls `assertCachePointer(pointer, scope)` and `assertCacheRoot(root, scope)` on the pointer and on
-`clusters.json`: the first returns the cache URL the pointer names, and both raise an `EngineError`
-(`INVALID_POINTER`, `CACHE_NOT_READY`, `SCOPE_MISMATCH`, `UNSUPPORTED_FORMAT`, `INVALID_CACHE`)
-otherwise. They are the checks `scene.load` runs first, and download no page.
+**Probing a cache.** `assertCachePointer(pointer, scope)` and `assertCacheRoot(root, scope)` run
+`scene.load`'s first checks on the pointer and `clusters.json`, downloading no page: the first
+returns the cache URL named; both raise an `EngineError` (`INVALID_POINTER`, `CACHE_NOT_READY`,
+`SCOPE_MISMATCH`, `UNSUPPORTED_FORMAT`, `INVALID_CACHE`) otherwise.
 
 ### Files over HTTP
 
-Every file of a model the engine reads over HTTP — the manifest, its tables and binary, images,
-lights, pages, cooked physics — goes through one loader. A failure that may pass — the network, a
-timeout (408), a rate limit (429), a server error (5xx) — is asked again once, after the wait its
-`Retry-After` asks (seconds or an HTTP date), or by the reader's own retry, without that wait: the
-page streamer's three attempts, the GPU page cache's two, a physics tile's next update. That wait
-is ten seconds at most: only a whole-file read waits, while a user watches the model load, some
-without an abort signal, and past ten seconds a named failure serves them better than an open wait.
-Another 4xx is never asked twice, and an aborted load asks nothing more and rejects with its
-reason. What still fails is `RESOURCE_HTTP_ERROR`, the address in its message and `details.url`,
-the status in `details.status` (`null` for the network). A file a cache may lack — `lights.json` and
-`physics.json`, of a model compiled before them — is absent on a 404, or on the 403 of a store that
-hides what it does not hold. A page read (`httpPageSource`) raises `RESOURCE_HTTP_ERROR` where it
-raised `Error('PAGE_HTTP_<status>')`; a cooked tile, a soft body's settings and the physics
-module (`joltPhysics.wasm`) where they raised `PHYSICS_FAILED`, which is kept for the simulation's
-own failures. The page codec module (`pageCodec.wasm`) is read the same way; one it cannot read
-still leaves the JavaScript decoder to decode the pages.
+Every model file read over HTTP — manifest, tables, binary, images, lights, pages, cooked physics —
+goes through one loader. A failure that may pass (the network, 408, 429, 5xx) is asked again once
+after its `Retry-After` wait (seconds or an HTTP date), or by the reader's own retry: the page
+streamer's three attempts, the GPU page cache's two, a physics tile's next update. The wait is ten
+seconds at most: only whole-file reads wait, while a user watches, some without an abort signal, and
+past that a named failure serves better. Other 4xx are never asked twice; an aborted load rejects
+with its reason. What still fails is `RESOURCE_HTTP_ERROR`, the address in its message and
+`details.url`, the status in `details.status` (`null` for the network). `lights.json` and
+`physics.json`, lacking in a cache compiled before them, are absent on a 404 or a hiding store's
+403. `RESOURCE_HTTP_ERROR` replaces `Error('PAGE_HTTP_<status>')` for a page read
+(`httpPageSource`), and `PHYSICS_FAILED` for a cooked tile, a soft body's settings and
+`joltPhysics.wasm`; `PHYSICS_FAILED` stays for the simulation's own failures. `pageCodec.wasm` is
+read the same way; unreadable, the JavaScript decoder decodes the pages.
 
 ## API rule
 
-State that is read and written is a **property** (`camera.near = 0.1`, `light.intensity = 2`,
-`world.exposure`, `world.pixelError`, `world.controls.kind`); a value with several components is an
-object with **`.set()`** (`position.set(0, 1, 0)`, `repeat.set(4, 4)`, `color.set(0xcc3344)`); a
-**method** is an action or a computation (`lookAt`, `add`, `load`, `invalidate`, `render`,
-`world.stageProfile()`, `world.awaitPages()`). A setter applies its own consequences — the
-projection update, the next frame — so a host never calls an update by hand.
+| Kind | Used for | Examples |
+| --- | --- | --- |
+| **property** | state that is read and written; a setter applies its own consequences — the projection update, the next frame — so a host never calls an update by hand | `camera.near = 0.1`, `light.intensity = 2`, `world.exposure`, `world.pixelError`, `world.controls.kind` |
+| object with **`.set()`** | a value with several components | `position.set(0, 1, 0)`, `repeat.set(4, 4)`, `color.set(0xcc3344)` |
+| **method** | an action or a computation | `lookAt`, `add`, `load`, `invalidate`, `render`, `world.stageProfile()`, `world.awaitPages()` |
 
 ## Naming rule
 
@@ -184,184 +163,55 @@ the thing (`geometry.box`); a member that sets up machinery is `create` + its na
 
 ## Families
 
-Thirteen families describe the scene; one example each:
+Thirteen families describe the scene:
 
-```js
-// geometry — the shape alone, with no matter
-const g = geometry.sphere(1, 64, 32);
-const floor = geometry.plane(20, 20);
-const pipe = geometry.tube(
-  math.path([
-    [0, 0, 0],
-    [2, 1, 0],
-    [4, 0, 2],
-  ]),
-  64,
-  0.2,
-);
-```
-
-```js
-// material — the matter alone, with no shape
-const steel = material.meshStandard({ color: 0x8899aa, metalness: 0.9, roughness: 0.15 });
-const glass = material.meshPhysical({ transmission: 1, ior: 1.5, thickness: 0.4 });
-```
-
-```js
-// object — shape and matter, placed in the scene
-const ball = object.mesh(geometry.sphere(1), steel);
-ball.position.set(0, 1, 0);
-const set = object.group();
-set.add(ball);
-world.scene.add(set);
-```
-
-```js
-// light
-world.scene.add(light.ambient({ intensity: 0.2 }));
-world.scene.add(light.directional({ intensity: 3, position: [5, 10, 2], castShadow: true }));
-world.scene.add(light.spot({ angle: 0.4, penumbra: 0.3, distance: 30, decay: 2 }));
-```
-
-```js
-// camera
-world.camera = camera.perspective({ fov: 55, near: 0.1, far: 500 });
-world.camera.position.set(0, 3, 8);
-world.camera.lookAt(0, 1, 0);
-```
-
-```js
-// math
-const axis = math.vector3(0, 1, 0);
-const turn = math.quaternion().setFromAxisAngle(axis, Math.PI / 4);
-const box = math.box3().setFromObject(set);
-```
-
-```js
-// texture + loader
-const albedo = await loader.texture('wood.jpg');
-albedo.wrap = wrap.repeat;
-albedo.repeat.set(4, 4);
-```
-
-```js
-// helper — the marks you work with
-world.scene.add(helper.grid(20, 20));
-world.scene.add(helper.axes(2));
-```
-
-```js
-// controls — handles that move an object with the mouse
-const gizmo = controls.transform(world).attach(ball);
-gizmo.addEventListener('dragEnd', () => history.push(ball.position.clone()));
-```
-
-```js
-// animation
-const mixer = animation.createMixer(set);
-const bob = animation.clip('bob', 2, [
-  animation.vectorTrack('.position', [0, 1, 2], [0, 1, 0, 0, 2, 0, 0, 1, 0]),
-]);
-mixer.play(bob);
-// poses the clip at 0.5 s now, playing or not (a stopped action keeps it until a playing one writes over it)
-mixer.clipAction(bob).seek(0.5);
-```
-
-```js
-// buffer — a geometry built by hand
-const g2 = geometry.createBuffer({
-  position: buffer.float32(vertices, 3),
-  index: buffer.uint32(indices),
-});
-```
-
-```js
-// the constants, each in its own family
-steel.side = side.double;
-glass.blending = blending.normal;
-world.toneMapping = toneMapping.aces;
-```
-
-| Family | Members |
-| --- | --- |
-| `geometry`, `material`, `light`, `effect`, `camera`, `object`, `math`, `texture`, `loader`, `helper`, `controls`, `animation`, `buffer`, and the constant families `blending`/`side`/`wrap`/`filter`/`colorSpace`/`toneMapping` | the scene-graph types, one factory per type (`geometry.box`, `material.meshStandard`, `light.directional`, `math.vector3`, …) and one named value per constant (`side.double`, `toneMapping.aces`) — the blocks above show each family in use |
-
-Eight families exist because geometry here is **cut into pages** the engine moves in and out of
-memory according to what the frame reads:
-
-```js
-// page — the geometry that enters and leaves according to what the frame reads
-const stream = page.createStreamer({ source: page.httpSource('assets/forest/'), workers: 4 });
-world.scene.load('assets/forest/manifest.json', { stream });
-```
-
-```js
-// budget — fixed envelopes, not wishes
-world.budget.geometryPool = 512 * 1024 * 1024;
-world.budget.texturePool = 256 * 1024 * 1024;
-```
-
-```js
-// metric — what the image cost, never estimated
-world.onFrame(({ metrics }) => console.log(metrics.selectedTriangles, metrics.residentPages));
-const profiler = metric.createProfiler(world);
-```
-
-```js
-// diagnostic — watching the engine work
-world.diagnostic.mode = 'clusters'; // or 'wireframe', 'triangles', 'beauty'
-```
-
-```js
-// capability — what the machine grants, before an image is promised
-const granted = await capability.detect();
-if (!granted.webgpu) showNotice('fallback rendering, without indirect lighting');
-```
-
-```js
-// capture — an image aside, without touching the view
-const png = await capture.surface(world, { width: 3840, height: 2160 });
-```
-
-```js
-// pose — framing, named poses, replaying a path
-world.camera.set(pose.fromBounds(math.box3().setFromObject(set)));
-```
-
-```js
-// batch — a thousand matrices at once instead of a loop
-batch.composeMatrix4(outputs, positions, quaternions, scales, 1000);
-```
-
-| Family | Members | What it does |
+| Family | What it is | Example |
 | --- | --- | --- |
-| `page` | `createStreamer`, `createCache`, `httpSource`, `decode` | geometry in pages: what enters and leaves memory according to what the frame reads |
-| `budget` | `memory`, `geometryPool`, `texturePool` | the fixed envelopes that are not exceeded |
-| `metric` | `frame`, `cpuSteps`, `gpuPasses`, `createProfiler` | what the image cost, never estimated |
-| `diagnostic` | `createChannel`, `presentationColor`, `partitionAudit`, `transparentOcclusion`, `shadowAtlas` | watching the engine work |
-| `capability` | `detect`, `lighting` | what the machine grants, before an image is promised |
-| `capture` | `surface`, `buffer` | an image taken aside, at another resolution, without touching the view |
-| `pose` | `fromBounds`, `runPath`, `pointOfInterest` | named poses, automatic framing, replaying a path |
-| `batch` | `transformPoints`, `composeMatrix4`, `frustumKeepsBox` | a thousand matrices at once instead of a loop |
+| `geometry` | the shape alone, with no matter | `geometry.sphere(1, 64, 32)`, `geometry.plane(20, 20)`, `geometry.tube(math.path([[0, 0, 0], [2, 1, 0], [4, 0, 2]]), 64, 0.2)` |
+| `material` | the matter alone, with no shape | `material.meshStandard({ color: 0x8899aa, metalness: 0.9, roughness: 0.15 })`, `material.meshPhysical({ transmission: 1, ior: 1.5, thickness: 0.4 })` |
+| `object` | shape and matter, placed in the scene | `const ball = object.mesh(geometry.sphere(1), steel)`, `object.group()`, `set.add(ball)`, `world.scene.add(set)` |
+| `light` | lights | `light.ambient({ intensity: 0.2 })`, `light.directional({ intensity: 3, position: [5, 10, 2], castShadow: true })`, `light.spot({ angle: 0.4, penumbra: 0.3, distance: 30, decay: 2 })` |
+| `camera` | cameras | `world.camera = camera.perspective({ fov: 55, near: 0.1, far: 500 })` |
+| `math` | vectors, quaternions, boxes, paths | `math.vector3(0, 1, 0)`, `math.quaternion().setFromAxisAngle(axis, Math.PI / 4)`, `math.box3().setFromObject(set)` |
+| `texture`, `loader` | pictures | `const albedo = await loader.texture('wood.jpg')`, `albedo.wrap = wrap.repeat`, `albedo.repeat.set(4, 4)` |
+| `helper` | the marks you work with | `helper.grid(20, 20)`, `helper.axes(2)` |
+| `controls` | handles that move an object with the mouse | `controls.transform(world).attach(ball)`, then `gizmo.addEventListener('dragEnd', () => history.push(ball.position.clone()))` |
+| `animation` | clips and mixers | `animation.createMixer(set)`, `animation.clip('bob', 2, [animation.vectorTrack('.position', [0, 1, 2], [0, 1, 0, 0, 2, 0, 0, 1, 0])])`, `mixer.play(bob)`; `mixer.clipAction(bob).seek(0.5)` poses the clip at 0.5 s now, playing or not (a stopped action keeps it until a playing one writes over it) |
+| `buffer` | a geometry built by hand | `geometry.createBuffer({ position: buffer.float32(vertices, 3), index: buffer.uint32(indices) })` |
+| `effect` | post-processing | [Canvas, camera and teardown](#canvas-camera-and-teardown) |
+| constants | `blending`, `side`, `wrap`, `filter`, `colorSpace`, `toneMapping`, one named value per constant | `steel.side = side.double`, `glass.blending = blending.normal`, `world.toneMapping = toneMapping.aces` |
+
+Eight more exist because geometry is **cut into pages** the engine moves in and out of memory
+according to what the frame reads:
+
+| Family | Members | What it does | Example |
+| --- | --- | --- | --- |
+| `page` | `createStreamer`, `createCache`, `httpSource`, `decode` | geometry in pages | `page.createStreamer({ source: page.httpSource('assets/forest/'), workers: 4 })`, passed as `scene.load(url, { stream })` |
+| `budget` | `memory`, `geometryPool`, `texturePool` | fixed envelopes, not wishes | `world.budget.geometryPool = 512 * 1024 * 1024` |
+| `metric` | `frame`, `cpuSteps`, `gpuPasses`, `createProfiler` | what the image cost, never estimated | `metrics.selectedTriangles`, `metrics.residentPages` in `world.onFrame`; `metric.createProfiler(world)` |
+| `diagnostic` | `createChannel`, `presentationColor`, `partitionAudit`, `transparentOcclusion`, `shadowAtlas` | watching the engine work | `world.diagnostic.mode = 'clusters'` (or `'wireframe'`, `'triangles'`, `'beauty'`) |
+| `capability` | `detect`, `lighting` | what the machine grants, before an image is promised | `(await capability.detect()).webgpu` |
+| `capture` | `surface`, `buffer` | an image aside, at another resolution, without touching the view | `capture.surface(world, { width: 3840, height: 2160 })` |
+| `pose` | `fromBounds`, `runPath`, `pointOfInterest` | named poses, automatic framing, replaying a path | `world.camera.set(pose.fromBounds(box))` |
+| `batch` | `transformPoints`, `composeMatrix4`, `frustumKeepsBox` | a thousand matrices at once instead of a loop | `batch.composeMatrix4(outputs, positions, quaternions, scales, 1000)` |
 
 The world is not a family: it is the object `createWorld` returns, carrying `scene`, `camera`,
-`budget`, `diagnostic`, `controls`, `onFrame`/`loop`, `render`, `invalidate` and `dispose`.
+`budget`, `diagnostic`, `controls`, `onFrame`/`loop`, `render`, `invalidate` and `dispose`. There is
+no level-of-detail object and no instanced or batched mesh type: one cut through a DAG per frame,
+instancing and draw grouping are native.
 
-There is no level-of-detail object and no instanced or batched mesh type: one cut through a DAG
-per frame, instancing and draw grouping are what the engine does natively.
-
-For compiled scenes, changing a node or parent pose also updates its resident lighting proxy,
-including the proxy used by distant sun shadows while bounce is off. Bounce probes restart their
-convergence against the new geometry; no separate lighting invalidation call is needed. This
-requires a version-3 proxy cache (recompile older caches). Motion preserves existing proxy surfaces;
-it cannot restore geometry already discarded during cooking. See [FORMAT.md](FORMAT.md#resident-lighting-proxy).
+In a compiled scene, moving a node or its parent updates its resident lighting proxy (the one
+distant sun shadows use while bounce is off included) and restarts bounce probe convergence, with no
+invalidation call. This needs a version-3 proxy cache (recompile older ones); motion keeps proxy
+surfaces but cannot restore geometry discarded while cooking
+([FORMAT.md](FORMAT.md#resident-lighting-proxy)).
 
 ## Loop
 
-The world owns the loop, and it stops when the image is stable: after 120 frames with nothing
-changing it pauses (`interactive-settle-limit`), and resumes on invalidation. A frame after which a
-page landed does not count: a streamed view is drawn as its pages arrive, to its last one. A still
-scene costs nothing. `onFrame` is the per-frame hook; `loop` is its alias.
+The world owns the loop and stops when the image is stable: after 120 frames with nothing changing
+it pauses (`interactive-settle-limit`), and resumes on invalidation. A frame after which a page
+landed does not count, so a streamed view is drawn to its last page. A still scene costs nothing.
+`onFrame` is the per-frame hook; `loop` is its alias.
 
 ```js
 // 1. The world leads; you give it work per frame.
@@ -380,22 +230,18 @@ function tick() {
 tick();
 ```
 
-`world.render()` runs the frame the world's loop would: clips, physics and `beforeFrame` hooks
-advance with it; only the camera's controller is left to the host.
-
-A value written directly on a node — `mesh.position.x = 100`, `mesh.visible = false`, a light's
-intensity, colour or pose — needs no call to be seen by the next frame, and a light added to or
-removed from the graph is picked up on the next frame too. A node the page keeps no handle to is
-moved by its name (`object.name`) instead: `world.setTransform(name, matrix)` writes its world
-pose, looked up on the scene and brought back into its parent's space, on the same name-indexed
-path WebGPU and WebGL2 take — the next frame draws it. An asynchronous render failure stops
-automatic work, emits `INTERACTIVE_RENDER_FAILED` as a diagnostic and reports the error to the
-page as an uncaught one is (`reportError`), so the page's own `error` listener sees it.
+`world.render()` runs the loop's frame — clips, physics and `beforeFrame` hooks advance; only the
+camera's controller is left to the host. A value written on a node (`mesh.position.x = 100`,
+`mesh.visible = false`, a light's intensity, colour or pose) and a light added or removed are seen
+by the next frame, with no call. A node the page holds no handle to is moved by its name
+(`object.name`): `world.setTransform(name, matrix)` writes its world pose, brought into its
+parent's space, on the name-indexed path WebGPU and WebGL2 share. An asynchronous render failure
+stops automatic work, emits `INTERACTIVE_RENDER_FAILED` as a diagnostic and reports the error as an
+uncaught one (`reportError`), so the page's `error` listener sees it.
 
 ## What draws: the renderer option
 
-One option, and saying nothing is the normal case — automatic is the absence of a choice, not a
-word to write, so there is no `auto` value:
+Saying nothing is the normal case; there is no `auto` value:
 
 ```js
 createWorld('viewer'); // the engine takes the best path the machine grants
@@ -403,51 +249,45 @@ createWorld('viewer', { renderer: 'webgpu' }); // forced; a machine without it i
 createWorld('viewer', { renderer: 'webgl2' });
 ```
 
-Forcing one and being served the other silently is the one outcome this must never produce. With
-nothing forced, a world draws through WebGPU when the machine grants a device, through the engine's
-WebGL2 page path otherwise, and raises `EngineError('NO_ENGINE_BACKEND')` when it grants neither
-(`NO_WEBGL2` from the capability probe before it). The decision is described in
-[ENGINE.md](ENGINE.md#which-backend-renders).
+Being served the other renderer silently is the one outcome this must never produce. Unforced,
+WebGPU draws when the machine grants a device, the engine's WebGL2 page path otherwise, and neither
+raises `EngineError('NO_ENGINE_BACKEND')` ([ENGINE.md](ENGINE.md#which-backend-renders)).
 
 ## Canvas, camera and teardown
 
-The canvas drawing buffer follows its CSS box, and `pixelRatio` follows the browser, including later
-DPR changes, unless set explicitly. `world.resize(width, height)` sets an explicit size — omitted
-arguments read the canvas's current CSS box. An initially hidden or zero-size canvas needs an
-explicit `resize()` or must be shown before creation; a canvas hidden later keeps its last
-dimensions until visible. The host keeps the canvas element and its CSS layout.
+The drawing buffer follows the canvas's CSS box, and `pixelRatio` the browser's (later DPR changes
+included), unless set; `world.resize(width, height)` sets a size, omitted arguments reading the CSS
+box. A canvas hidden or zero-size at creation needs an explicit `resize()` or showing first; one
+hidden later keeps its last size. The host keeps the canvas element and its layout.
 
 `world.pixelError` is the DAG cut's screen error in pixels (`0` by default, the exact leaves; a
-positive value selects coarser pages when the cache includes them). `pose.fromBounds(box)` frames a
-box; `pose.pointOfInterest(name, pose)` names one; `pose.runPath(world, poses, { images })` replays a
+positive value selects coarser pages when the cache has them). `pose.fromBounds(box)` frames a box;
+`pose.pointOfInterest(name, pose)` names one; `pose.runPath(world, poses, { images })` replays a
 path — an exact A/A image gate, then timed blocks, not a general performance verdict.
 
 `world.temporalAntialiasing` (`createWorld(target, { temporalAntialiasing })`, `true` by default)
-jitters each image by a fraction of a pixel and accumulates it over the previous ones; `false` draws
-each pixel at its centre with no history, what a pixel-exact capture asks. Written, it takes effect
-at the next frame, history dropped, no session reopened. Read, it is what the image carries: `false`
-on WebGL2, which has none (its capabilities list `temporal antialiasing` as unsupported).
+jitters each image by a sub-pixel offset and accumulates; `false` draws pixel centres with no
+history, as a pixel-exact capture needs. A write applies next frame, history dropped, no session
+reopened; a read says what the image carries: `false` on WebGL2 (`temporal antialiasing`
+unsupported).
 
-`world.renderScale` (`createWorld(target, { renderScale })`, `'auto'` by default) is the fraction
-of the display per axis the image is drawn at before temporal antialiasing rebuilds it: `'auto'` lets the frame budget, the display's refresh interval, choose it between 0.5 and 1,
-`{ min, max }` bounds that choice, a number fixes it; a still image is drawn at the maximum, the
-native image. Written, it takes effect at the next frame, no target remade by the controller's
-steps. Read, it is the scale of the last image drawn. WebGL2, which keeps no history, resamples the
-image to the display instead (Lanczos-2) and so never lowers it unless asked: its `'auto'` holds 1,
-and only a `{ min }` below 1 or a fixed scale draws below the display (its capabilities list
-`temporal upscaling` as unsupported).
+`world.renderScale` (`createWorld(target, { renderScale })`, `'auto'` by default) is the per-axis
+fraction of the display drawn before temporal antialiasing rebuilds the image: `'auto'` lets the
+frame budget (the display's refresh interval) choose between 0.5 and 1, `{ min, max }` bounds it, a
+number fixes it; a still image is drawn at the maximum. A write applies next frame, no target remade
+by the controller; a read is the last image's scale. WebGL2, without history, resamples to the
+display (Lanczos-2): its `'auto'` holds 1, only a `{ min }` below 1 or a fixed scale drawing below
+(`temporal upscaling` unsupported).
 
-`world.effects` is the ordered chain of passes drawn over the image after temporal antialiasing and
-before it reaches the canvas, on WebGPU and WebGL2. `effect.bloom({ intensity, radius })` makes a
-physically based glow on the linear image, before tone mapping, energy-conserving; `intensity` (0 to
-1, `0.04` by default) is the share of the image its glow replaces, `radius` (`1` by default) the
-spread at every level, in texels of that level. `world.effects.add(pass, index?)`,
-`remove(pass)` and `clear()` change the chain; a setting written on a pass shows at the next frame.
-An empty chain costs nothing, and a still image with a chain is post-processed once, then held.
-On WebGL2, a frame that draws a transparent surface blending in `multiply` or `subtractive` is drawn
-whole without the chain — its linear target cannot hold those modes; WebGPU draws both —, and the
-world's diagnostic channel says `effects-refused-blending` once; the chain comes back once no such
-surface is drawn.
+`world.effects` is the ordered chain of passes after temporal antialiasing, before the canvas, on
+both renderers. `effect.bloom({ intensity, radius })` is a physically based, energy-conserving glow
+on the linear image before tone mapping: `intensity` (0 to 1, `0.04` by default) the share of the
+image it replaces, `radius` (`1` by default) the spread per level, in that level's texels.
+`world.effects.add(pass, index?)`, `remove(pass)` and `clear()` change the chain; settings show next
+frame. An empty chain costs nothing; a still image is post-processed once. On WebGL2 a frame with a
+transparent surface in `multiply` or `subtractive` blending is drawn without the chain (its linear
+target cannot hold them; WebGPU can), said once as `effects-refused-blending`, the chain back once
+no such surface is drawn.
 
 ```js
 const glow = effect.bloom({ intensity: 0.08 });
@@ -455,17 +295,17 @@ world.effects.add(glow);
 glow.radius = 2;
 ```
 
-Dispose in the actual component or page teardown, **not immediately after startup**:
-`world.dispose()` removes owned controls, observers, queued frames and abort listeners and closes
-the engine, without removing the canvas. A page that wants job semantics around a load —
-cancellation, a status it can observe — wraps `scene.load(url, { signal, onProgress: progress })` with
-`createJob`, exported by `trillion3d` and by the portal's runtime: the job's progress is the load's.
+Dispose in the component or page teardown, **not immediately after startup**: `world.dispose()`
+removes owned controls, observers, queued frames and abort listeners and closes the engine, keeping
+the canvas. `createJob` (from `trillion3d` and the portal's runtime) wraps
+`scene.load(url, { signal, onProgress: progress })` for cancellation and an observable status, the
+job's progress being the load's.
 
 ### Camera controllers
 
-The engine owns its camera controllers: they read `PointerEvent`, `WheelEvent` and `KeyboardEvent`
-on the world's canvas and write the camera's pose. A world asks for one at creation and drives it
-through the live `world.controls` handle:
+The engine's controllers read `PointerEvent`, `WheelEvent` and `KeyboardEvent` on the world's canvas
+and write the camera's pose. A world asks for one at creation and drives it through the live
+`world.controls` handle:
 
 ```js
 const world = createWorld('viewer', { controls: 'orbit' }); // at creation
@@ -474,10 +314,15 @@ world.controls.enabled = false; // pause input
 world.controls.target.set(0, 1, 0); // orbit pivot
 ```
 
-Controls live on the world because they read input on the canvas it owns — a second listener would
-double the gestures — and they follow `world.camera` when it is replaced. Setting `kind` releases the
-previous controller and builds the next; `.enabled` turns the current one off without losing it.
-Live examples, one world per controller: [orbit](../site/examples/orbit-around-a-clockwork.html), [panZoom](../site/examples/a-game-board-seen-from-above.html), [trackball](../site/examples/spin-an-astrolabe.html), [fly](../site/examples/fly-over-a-model-town.html), [character](../site/examples/walk-through-a-temple.html) and [character with physics](../site/examples/walk-with-collisions.html); `firstPerson` is the same head without a body.
+They live on the world because they read its canvas — a second listener would double the gestures —
+and follow `world.camera` when it is replaced. Setting `kind` releases the previous controller and
+builds the next; `.enabled` pauses the current one. Live examples, one world per controller:
+[orbit](../site/examples/orbit-around-a-clockwork.html),
+[panZoom](../site/examples/a-game-board-seen-from-above.html),
+[trackball](../site/examples/spin-an-astrolabe.html),
+[fly](../site/examples/fly-over-a-model-town.html),
+[character](../site/examples/walk-through-a-temple.html) and [character with
+physics](../site/examples/walk-with-collisions.html); `firstPerson` is the same head without a body.
 
 | `world.controls.kind` | Motion | Gestures |
 | --- | --- | --- |
@@ -490,36 +335,32 @@ Live examples, one world per controller: [orbit](../site/examples/orbit-around-a
 | `'panZoom'` | planar view, no rotation | drag slides, wheel and pinch zoom, arrow keys pan |
 | `'none'` (default) | camera posed by the host | none |
 
-All of them publish `object.position`, `addEventListener('change')`, `removeEventListener` and
-`dispose()`; the three that keep a pivot add `target`, `minDistance`, `maxDistance`, `enableZoom`,
-`enablePan` and `update()`, which reads back a pose the host wrote and clamps it. A controller emits
-`change` only when the pose moved, so a still scene schedules nothing.
+All publish `object.position`, `addEventListener('change')`, `removeEventListener` and `dispose()`;
+the three with a pivot add `target`, `minDistance`, `maxDistance`, `enableZoom`, `enablePan` and
+`update()`, which reads back and clamps a pose the host wrote. `change` fires only when the pose
+moved, so a still scene schedules nothing.
 
-**The character's body.** `'character'` moves an upright capsule with the values of an adult human
+**The character's body.** `'character'` moves an upright capsule with an adult human's values
 (`HUMAN_BODY`: 1.75 m, a 3.5 m/s jog, a 0.5 m jump, 45° slopes, 0.5 m steps, 80 kg, a 250 N push),
-each one a setting of `world.controls`. What it collides with depends on the world:
+each a setting of `world.controls`. It collides with:
 
-- **Without physics**, the static triangles of `world.controls.colliders` (meshes, built into a
-  triangle tree once), or nothing: the body then walks level where it stands.
-- **With physics on** (`world.physics`), the body is the physics' own character, Jolt's virtual
-  character in the physics worker: it meets every body of the simulation, climbs steps and slopes,
-  rides a moving platform, pushes dynamic bodies with at most `pushStrength` newtons and is pushed
-  back. `colliders` is unused; give the level `mesh.physics = 'static'` instead. The keys reach the
-  worker's next fixed step, and the page draws the feet the worker last reported moved on by their
-  velocity, at most one step ahead.
+- **without physics**, the static triangles of `world.controls.colliders` (meshes, built into a
+  triangle tree once), or nothing: it walks level where it stands;
+- **with physics on** (`world.physics`, [PHYSICS.md](PHYSICS.md)), everything: it is Jolt's
+  virtual character in the physics worker, climbs steps and slopes, rides a moving platform, pushes
+  dynamic bodies with at most `pushStrength` newtons and is pushed back. `colliders` is unused; give
+  the level `mesh.physics = 'static'`. The keys reach the worker's next fixed step; the page draws
+  the feet it last reported, moved on by their velocity, at most one step ahead.
 
-Both bodies read the same drive (`characterDrive.ts`): speed gathered over `responseTime`, lost over
-`stopTime`, jumps with a coyote time and a jump buffer. No leg changes the ground speed faster than
-the floor's friction lets a sole push, `μ g`, `μ` a rubber sole's grip on the floor's matter (the
-geometric mean of the two frictions, the physics' own rule): with physics on, the matter of the body
-the feet stand on (`material.physics`, a body's `friction`); without, declared stone. A jog then
-gathers its pace in 0.45 s on stone and 2.2 s on ice, and glides `v² / (2 μ g)` to a stop, 0.8 m on
-stone and 3.8 m on ice; the two times only shape the last centimetres, and a longer one brakes more
-gently. The triangle body catches up every tick
-of a frame, however slow the page; only a stall past 0.25 s is dropped (`MAX_CHARACTER_DELTA`), and
-the body resumes where it stopped. Jolt's body steps on the physics worker's own clock, never on the
-page's frames: a slow page draws it late, never slower; a stalled worker drops what its catch-up
-ceiling cannot hold (`MAX_CATCH_UP_STEPS`), as every body of the simulation does.
+Both read one drive (`characterDrive.ts`): speed gathered over `responseTime`, lost over `stopTime`,
+jumps with a coyote time and a jump buffer. No leg changes ground speed faster than friction lets a
+sole push, `μ g`, `μ` a rubber sole's grip on the matter underfoot (the geometric mean of the two
+frictions, the physics' rule): with physics, that body's (`material.physics`, a body's `friction`);
+without, declared stone. A jog reaches pace in 0.45 s on stone, 2.2 s on ice, and glides
+`v² / (2 μ g)` to a stop, 0.8 m on stone, 3.8 m on ice; the two times only shape the last
+centimetres. The triangle body catches up every tick, dropping only a stall past 0.25 s
+(`MAX_CHARACTER_DELTA`); Jolt's steps on the worker's clock, drawn late but never slower by a slow
+page, a stalled worker dropping what its catch-up ceiling cannot hold (`MAX_CATCH_UP_STEPS`).
 
 ```js
 const world = createWorld('view', { controls: 'character', physics: true });
@@ -528,34 +369,29 @@ crate.physics = { type: 'dynamic', mass: 12 };
 world.controls.pushStrength = 400; // a stronger push
 ```
 
-**Vehicles.** `'vehicle'` maps the keys to a `VehicleInput` — `throttle`, `brake`, `steer`,
-`handbrake` — and hands it to `world.controls.vehicle.drive(input)` each time it changes. Any object
-with `drive` can be driven, the physics' own vehicles first (`vehicle.car`, see [Physics](#physics)).
-Setting `kind = 'vehicle'` while `vehicle` is `null` throws `NO_VEHICLE`. The controls do not move
-the camera: a page follows the vehicle with it.
+**Vehicles.** `'vehicle'` maps the keys to a `VehicleInput` (`throttle`, `brake`, `steer`,
+`handbrake`) and hands it to `world.controls.vehicle.drive(input)` on each change. Any object with
+`drive` can be driven, the physics' vehicles first (`vehicle.car`,
+[PHYSICS.md](PHYSICS.md#vehicles)). `kind = 'vehicle'` while `vehicle` is `null` throws
+`NO_VEHICLE`. The camera does not follow: the page moves it.
 
 ### Picking, moving and saving
 
-`world.raycast(at)` returns the nearest object under a canvas point — CSS pixels from its top-left
-corner, `event.offsetX`/`offsetY` — or along a world `Ray`, or `null`: the very node the page added,
-the world `point` and `normal` hit, the `distance` and the triangle rank `face`. It runs on the CPU
-over the scene's own geometry: triangle meshes are tested triangle by triangle, lines, points and
-sprites have no area and are never hit, a loaded model — its triangles live in GPU pages — is hit on
-its box where the ray enters it, or at the ray's origin (`distance` 0, `normal` facing back along
-the ray) when the ray starts inside it; hidden subtrees and `helper` marks are skipped, a root under
-a hidden ancestor too. A ray's direction is made a unit vector at the door, so `distance` is in
-world units whatever its length. A canvas point is read on the CSS box and aimed at the shape the
-frame is drawn at, the drawing buffer's. `{ objects }` limits the test to some
-subtrees; a canvas with no size refuses a point with `RAYCAST_NO_VIEW`. `raycast(roots, ray)` is
-the same test on any subtree, every hit nearest first, and `camera.rayThrough(x, y, aspect)` the
-ray through a point of the picture. An orthographic camera made with `fitAspect: true` keeps its
-box's height and centre and takes its width from the canvas's shape, in the frame drawn and in its
-rays alike, so a resized canvas never stretches the drawing; off by default, a declared or imported
-box is drawn as it is. A mesh's triangle tree is kept for the next ray, within
-`world.budget.raycastTrees` bytes (64 MiB by default, settable, shared by every world on the
-page): past it the tree cast at least
-recently is dropped, and `geometry.dispose()` drops its own at once. Live example:
-[click to pick](../site/examples/click-to-pick.html).
+`world.raycast(at)` returns the nearest object under a canvas point (CSS pixels,
+`event.offsetX`/`offsetY`) or along a world `Ray`, or `null`: the node the page added, world `point`
+and `normal`, `distance` (world units; the direction is normalised) and triangle rank `face`. It
+runs on the CPU over the scene's own geometry: meshes triangle by triangle; lines, points and
+sprites never; a loaded model (its triangles are GPU pages) on its box, or at the ray's origin from
+inside (`distance` 0, `normal` back along the ray); hidden subtrees and `helper` marks skipped. A
+canvas point is aimed at the drawing buffer's shape; `{ objects }` limits the subtrees; a sizeless
+canvas refuses a point with `RAYCAST_NO_VIEW`. `raycast(roots, ray)` returns every hit on any
+subtree, nearest first; `camera.rayThrough(x, y, aspect)` is the ray through a picture point; the
+exact raycast is [PHYSICS.md](PHYSICS.md#exact-raycast). An orthographic camera made with
+`fitAspect: true` (off by default) keeps its box's height and centre and takes its width from the
+canvas, in frame and rays. Triangle trees are kept within `world.budget.raycastTrees` bytes (64 MiB
+by default, settable, shared by every world on the page), the least recently cast dropped past it;
+`geometry.dispose()` drops its own. Live example: [click to
+pick](../site/examples/click-to-pick.html).
 
 ```js
 world.canvas.addEventListener('click', (event) => {
@@ -564,91 +400,83 @@ world.canvas.addEventListener('click', (event) => {
 });
 ```
 
-`controls.transform(world, options)` puts handles on one object that move, turn and scale it with
-the mouse: `attach(object)`, `detach()`, `setMode('translate' | 'rotate' | 'scale')`,
+`controls.transform(world, options)` puts move, turn and scale handles on one object:
+`attach(object)`, `detach()`, `setMode('translate' | 'rotate' | 'scale')`,
 `setSpace('world' | 'local')`, `snap = { translate, rotate, scale }`, events `change`, `dragStart`,
-`dragEnd` — one drag, one undo step. The handles are meshes of the `geometry` family in unlit
-materials, depth-tested like any object, kept at one share of the canvas height (`size`, a quarter by
-default) and marked as `helper`s. A press is picked on them before the camera controller hears it,
-so an orbit rests while a handle is dragged and resumes after, with no page code. A drag writes the
-object's local pose from the world pose it asks for, through its parents; a scale always follows the
-object's own axes. The centre cube scales uniformly by the drag up the screen, wherever it was
-pressed, in the handles' own length: up by that length multiplies the size by e, down divides it by
-e. `attach` or `detach` during a drag ends it first, with its `dragEnd`. The handles follow the view after each frame the world draws; a still scene
-draws none. Live example: [move, rotate, scale](../site/examples/move-rotate-scale-gizmo.html).
+`dragEnd` — one drag, one undo step. The handles are unlit, depth-tested `geometry` meshes at one
+share of the canvas height (`size`, a quarter by default), marked as `helper`s, picked before the
+camera controller hears the press, so an orbit rests during a drag. A drag writes the local pose
+from the world pose asked, through the parents; a scale follows the object's axes; the centre cube
+scales uniformly, up the screen by the handles' length multiplying the size by e, down dividing it
+by e. `attach` or `detach` mid-drag ends it with its `dragEnd`. The handles follow the view after
+each frame drawn. Live example: [move, rotate,
+scale](../site/examples/move-rotate-scale-gizmo.html).
 
-`scene.toJSON(camera)` writes the scene as plain, versioned JSON (`format: 'trillion3d-scene'`,
-`formatVersion: 2`; version 1, whose meshes' `castShadow` no renderer read, is refused): its hierarchy and poses, each shape by the family call that built it
-(`geometry.box(2, 1, 1)` is stored as that call; a shape changed after it was built, or written by
-hand, stores its vertices), each material by its parameters, each mesh's body as `physics`
-declared it (type, mass, shape, gravity scale, sensor, CCD, debris, matter overrides, damping; a
-soft body's settings; not its velocity: it comes back at rest), lights, background, fog and the
-camera's pose; shapes and materials worn by several meshes are stored once; a loaded model is
-stored by its manifest address, never inlined; `helper` marks are left out. A texture, a picture
-environment, a shader material or a body number JSON cannot hold (an `Infinity` other than a
-free bend's) cannot be stored and is refused by name (`SCENE_NOT_SAVABLE`).
-`await scene.fromJSON(json, camera)` replaces the content — the `helper` marks stay — loads the
-models again, and refuses another format or version (`UNSUPPORTED_SCENE_FORMAT`) before removing
-anything. Calls made while one is reading wait for it and run in order, each replacing what the one
-before left: two saved scenes never merge. A shape family builds at least the pieces it closes with
-(a box one slice per side, a sphere three around and two down) and its stored call says the count
-it built. Live example: [save the scene](../site/examples/save-the-scene.html).
-
-The portal's scene editor (`site/app/editor/`) is these three doors and nothing else: pick,
-move, recolour, save and open a scene, the frame's cost read live.
+`scene.toJSON(camera)` writes plain, versioned JSON (`format: 'trillion3d-scene'`,
+`formatVersion: 2`; version 1, whose meshes' `castShadow` no renderer read, is refused): hierarchy,
+poses, each shape by the call that built it (`geometry.box(2, 1, 1)`; one changed after, or
+hand-written, by its vertices), materials by parameters, bodies as `physics` declared them (type,
+mass, shape, gravity scale, sensor, CCD, debris, matter overrides, damping, a soft body's settings;
+at rest, no velocity), lights, background, fog, the camera's pose. Shared shapes and materials are
+stored once, a loaded model by its manifest address, `helper` marks left out. A texture, a picture
+environment, a shader material or a number JSON cannot hold (an `Infinity` other than a free bend's)
+is refused (`SCENE_NOT_SAVABLE`). `await scene.fromJSON(json, camera)` replaces the content
+(`helper` marks kept) and reloads the models; another format or version is refused
+(`UNSUPPORTED_SCENE_FORMAT`) before anything is removed. Calls during a read wait and run in order,
+each replacing the last: two saves never merge. A shape family builds at least the pieces it closes
+with (a box one slice per side, a sphere three around and two down), its stored call giving the
+count built. Live example: [save the scene](../site/examples/save-the-scene.html). The portal's
+scene editor (`site/app/editor/`) is these three doors and nothing else: pick, move, recolour, save
+and open a scene, the frame's cost read live.
 
 ### Live material values
 
-A material already placed, written on its values — `color`, `emissive`, `emissiveIntensity`,
-`metalness`, `roughness` — is repainted in place: the session rewrites the rows that read it and
-opens nothing (#335). A colour picker dragged for ten seconds keeps one session. A change the
-session cannot hold in place — a texture, a kind, a side, transparency, a material object whose
-values another material shares — is copied on write and opens the session again, once per burst.
-`world.diagnostic.sessions` counts the sessions a world has opened, so a page and a test see a
-reopen.
+A placed material written on `color`, `emissive`, `emissiveIntensity`, `metalness` or `roughness`
+is repainted in place: the session rewrites the rows that read it and opens nothing (#335); a
+colour picker dragged for ten seconds keeps one session. A change it cannot hold in place — a
+texture, a kind, a side, transparency, a material object whose values another shares — is copied on
+write and reopens the session, once per burst; `world.diagnostic.sessions` counts the sessions a
+world opened.
 
-`material.meshPhysical` accepts `anisotropy` (strength, 0–1), `anisotropyRotation`
-(direction, radians), `clearcoat` and `clearcoatRoughness`. WebGL2 draws these lobes,
-including `anisotropyMap`, `clearcoatMap`, `clearcoatRoughnessMap` and
-`clearcoatNormalMap` with `clearcoatNormalScale`. Each map keeps its native dimensions,
-filtering, wrap, UV channel and transform. The anisotropy map's RG direction and B strength,
-clearcoat R and roughness G are linear data. The brushed-metal and car-paint examples select
-WebGL2 explicitly; these physical extensions remain unsupported on the WebGPU page raster.
+`material.meshPhysical` accepts `anisotropy` (strength, 0–1), `anisotropyRotation` (direction,
+radians), `clearcoat` and `clearcoatRoughness`. WebGL2 draws these lobes with `anisotropyMap`,
+`clearcoatMap`, `clearcoatRoughnessMap` and `clearcoatNormalMap` with `clearcoatNormalScale`, each
+map keeping its native dimensions, filtering, wrap, UV channel and transform; the anisotropy map's
+RG direction and B strength, clearcoat R and roughness G are linear data. The brushed-metal and
+car-paint examples select WebGL2 explicitly; the WebGPU page raster does not support them.
 
 Lit materials can declare `subsurfaceColor` and an optional `subsurfaceMap` for thin
-**double-sided** surfaces, such as foliage. The color defaults to black (disabled), is independent
-of `color`, and tints light arriving through the back of the surface. The optional color texture
-multiplies it using its own UV transform. This is diffuse thin-surface transmission, not a volume
-random walk; use physical `transmission`, `thickness`, `attenuationColor` and
-`attenuationDistance` for a glass volume.
+**double-sided** surfaces such as foliage: the color (black, disabled, by default; independent of
+`color`) tints light arriving through the back, the texture multiplies it with its own UV
+transform. Diffuse thin-surface transmission, not a volume random walk: a glass volume uses
+physical `transmission`, `thickness`, `attenuationColor` and `attenuationDistance`.
 
-With `transparentShadow: true`, normally blended glass tints the existing shadow-transmittance
-layer by its base color and texture. A nonzero volume thickness applies Beer attenuation once
-at the entrance of a closed mesh, scaled to world units along the light ray. This follows the
-declared-thickness raster approximation, not geometric entry/exit ray tracing. Thin sheets keep
-independent front and back boundaries. Alpha-only blended shadows preserve their previous
-coverage behavior; BLEND/MASK classification remains in the compiler.
-
-A shadow-casting point light with positive `radius` uses contact-hardening PCSS: the penumbra
-widens with source radius and receiver separation. Radius zero retains the existing PCF path.
+With `transparentShadow: true`, normally blended glass tints the existing shadow-transmittance layer
+by its base color and texture. A nonzero volume thickness applies Beer attenuation once at the
+entrance of a closed mesh, scaled to world units along the light ray: the declared-thickness raster
+approximation, not geometric entry/exit ray tracing. Thin sheets keep independent front and back
+boundaries. Alpha-only blended shadows preserve their previous coverage behavior; BLEND/MASK
+classification remains in the compiler. A shadow-casting point light with positive `radius` uses
+contact-hardening PCSS, its penumbra widening with source radius and receiver separation; radius
+zero keeps the existing PCF path.
 
 ### Geometry rewritten every frame
 
-A shape a page rewrites every frame — a sea, a cloth, a flag, a procedural mesh, an editor handle —
-declares it: `geometry.usage = 'dynamic'`. Its triangles are cut into pages once, their index
-alone, and a written list (`attributes.position.needsUpdate = true`) uploads in place the vertices
-from the first changed to the last, the frame after, with no cut and no session opened again
-(#573). It is drawn by the same visibility, Hi-Z, resolve, shadows and lighting as every paged mesh,
-and a rewrite stales only the shadow pages its moved vertices cover. A geometry changed on two
-consecutive frames turns dynamic by itself, said under `geometry-dynamic`, naming the mesh. A soft
-body's geometry is dynamic, drawn where its last step left it; two soft bodies in one geometry are
-refused with `PHYSICS_FAILED` — give each its own (`geometry.clone()`).
+A shape rewritten every frame — a sea, a cloth, a flag, a procedural mesh, an editor handle —
+declares `geometry.usage = 'dynamic'`. Its triangles are cut into pages once, index alone, and a
+written list (`attributes.position.needsUpdate = true`) uploads in place the vertices from the first
+changed to the last, the frame after, with no cut and no session reopened (#573). It is drawn by the
+same visibility, Hi-Z, resolve, shadows and lighting as every paged mesh; a rewrite stales only the
+shadow pages its moved vertices cover. A geometry changed on two consecutive frames turns dynamic by
+itself, said under `geometry-dynamic` with the mesh named. A soft body's geometry is dynamic, drawn
+where its last step left it; two soft bodies in one geometry are refused with `PHYSICS_FAILED` —
+give each its own (`geometry.clone()`).
 
-Culling reads a box the vertices never leave: `geometry.maxBounds` when declared, else the first
-vertices' box widened by half its size; vertices that leave it serve the same pages in a larger
-box, and corners that change are cut anew. A frame sends at most `DYNAMIC_UPLOAD_BUDGET_BYTES`
-(4 MiB) — every buffer written counted, as `metrics.dynamicUploadBytes` reports it —; a rewrite
-past it waits for the next frame, in order, never dropped. Live example:
+Culling reads a box the vertices never leave: `geometry.maxBounds` if declared, else the first
+vertices' box widened by half its size; vertices leaving it serve the same pages in a larger box,
+and changed corners are cut anew. A frame sends at most `DYNAMIC_UPLOAD_BUDGET_BYTES` (4 MiB), every
+buffer written counted, as `metrics.dynamicUploadBytes` reports; a rewrite past it waits for the
+next frame, in order, never dropped. Live example:
 [floating crates](../site/examples/floating-crates.html).
 
 ```js
@@ -665,12 +493,10 @@ world.onFrame(({ metrics }) => {
 ### Guides: lines, points and helpers over the image
 
 `world.guides` draws what a page shows _about_ its scene — an axis, a grid, a box, a measured
-segment, a light's cone — without adding it to the scene. A guide is not cut into pages: it is
-drawn by a small pass of its own after the image is composed, as quads of a fixed width in CSS
-pixels — `width × pixelRatio` of the drawing buffer's, as every line of the engine counts it, with
-the engine's own line corner (`lineClip`) — hidden by whatever stands in front of it (the scene's
-depth is read, never written). It never enters temporal accumulation, so it does not smear
-behind a moving camera nor shimmer on a still one.
+segment, a light's cone — without adding it to the scene: not paged, drawn by its own pass after the
+image is composed, as quads of a fixed CSS-pixel width (`width × pixelRatio`, with the engine's line
+corner, `lineClip`), hidden by what stands in front (depth read, never written), outside temporal
+accumulation, so it neither smears nor shimmers.
 
 ```js
 const grid = world.guides.add(helper.grid(20, 20), { width: 1.5 }); // any helper; it follows it
@@ -682,36 +508,31 @@ grid.setTransform(model.matrixWorld); // placed by the page: it stops following 
 marks.remove();
 ```
 
-- `add(object, { width, size })` reads the line and point meshes of an object — every `helper`
-  builds them — in their material colours; triangles, like an arrow's head, are not guides. The
-  guide follows the object's world transform — for a light's or a camera's helper, that light's
-  or camera's — read at each image the world draws and moved only when it changed, so a page
-  never re-places it and a still view is still held. `setTransform` hands it back to the page.
-  `lines` takes two ends per segment, `points` one position per dot.
-- Every call answers a handle: `setVisible(on)`, `setTransform(matrix)` (sixteen column-major
-  numbers or a matrix), `remove()`. `world.guides.clear()` removes them all. Placing a guide
-  at the pose it already holds changes nothing, so a page may re-place it every frame and a still
-  view is still held.
-- The guides of a world hold at most `GUIDE_VERTEX_CEILING` (65,536) vertices, two per segment and
-  one per dot, hidden ones included; a call beyond it throws `EngineError` `GUIDE_CEILING` and
-  adds nothing. `world.guides.vertexCount` reads what is held.
-- Off by default and free when unused: while no guide is shown the pass is not built and not
-  encoded, and a still view is held as before. Changing a guide redraws one frame and leaves
-  temporal accumulation as it was.
-- Both paths draw them: WebGPU over its display target with the reversed depth, WebGL2 over the
-  composed frame with the forward depth. The WebGPU scene depth is drawn with the sub-pixel jitter
-  of temporal accumulation and the guides without it, so a guide lying on a surface is tested
-  with the depth that jitter moved there (the jitter times the surface's depth slope): a grid on
-  a floor or a box's edges stay whole on a still view. Positions are packed relative to the first guide, in
-  double precision, so a guide far from the origin keeps its detail.
-- Text labels are not guides yet (#264).
+- `add(object, { width, size })` reads an object's line and point meshes (every `helper` builds
+  them) in their material colours; triangles, like an arrow's head, are not guides. The guide
+  follows the object's world transform (a light's or camera's helper: that light's or camera's),
+  read at each image and moved only on change; `setTransform` hands it to the page. `lines` takes
+  two ends per segment, `points` one position per dot.
+- Each call answers a handle: `setVisible(on)`, `setTransform(matrix)` (sixteen column-major
+  numbers or a matrix), `remove()`; `world.guides.clear()` removes all. Re-placing a guide at its
+  pose changes nothing, so a page may do it every frame and a still view stays held.
+- A world's guides hold at most `GUIDE_VERTEX_CEILING` (65,536) vertices, two per segment, one per
+  dot, hidden ones included; a call beyond throws `EngineError` `GUIDE_CEILING` and adds nothing.
+  `world.guides.vertexCount` reads what is held.
+- Off by default and free unused: with no guide shown the pass is neither built nor encoded. A
+  guide change redraws one frame and leaves temporal accumulation as it was.
+- WebGPU draws them over its display target with the reversed depth, WebGL2 over the composed frame
+  with the forward depth. The WebGPU scene depth carries the temporal sub-pixel jitter and the
+  guides do not, so a guide on a surface is tested with the depth that jitter moved there (the
+  jitter times the surface's depth slope): a grid on a floor or a box's edges stay whole on a still
+  view. Positions are packed relative to the first guide, in double precision, so a guide far from
+  the origin keeps its detail.
+- Text labels are not guides and are not drawn; a public `addLabel` is #1200.
 
 ## Installation and environment API
 
-The package is private and installed from this repository or a local tarball; it is not published
-to npm. Browser bundlers must honour the standard `browser` export condition. Node ESM and NodeNext
-select the Node branch. A resolver with no platform condition receives the safe common branch, which
-contains no DOM, WebGPU, filesystem or process API.
+The package is private, installed from this repository or a local tarball, not published to npm;
+its export conditions are in [Entry points](#entry-points).
 
 | Task | Examples |
 | --- | --- |
@@ -719,9 +540,8 @@ contains no DOM, WebGPU, filesystem or process API.
 | Native preparation | `prepare`, `prepareMany`, `createCompilationJob`, `createTerminalProgress`, `createBatchProgress`, `reviewCutouts`, `getSdkProvenance`, the `trillion3d-compile` CLI |
 | Browser rendering | `createWorld` and the families it hands a page, plus `detectCapabilities` |
 
-For a strict browser TypeScript project, enable the `browser` condition explicitly; without it,
-Bundler resolution selects the platform-neutral common declarations, which do not contain
-`createWorld`.
+A strict browser TypeScript project enables the `browser` condition; without it, Bundler resolution
+selects the common declarations, which lack `createWorld`.
 
 ```jsonc
 {
@@ -751,39 +571,36 @@ checks the same output, each module beside the chunk that fetches it, without a 
 ### Install requirements: the package alone, the witnesses beside the bench
 
 A browser host installs `trillion3d` and, for its types, `@webgpu/types`; nothing else. The package
-declares no rendering library, ships none and pulls none: a clean install of the packed archive has
-no `three` in its tree (`tests/integration/installed-package.test.ts`), and the runtime build refuses
+declares, ships and pulls no rendering library: a clean install of the packed archive has no
+`three` in its tree (`tests/integration/installed-package.test.ts`), and the runtime build refuses
 an `engine.js` that folds one in (`scripts/docs/build-runtime.ts`). No public API takes or returns a
-Three.js object. The witnesses the bench compares the engine against live beside the bench
-(`bench/witnesses/`) and plug into the measurement seam through its backend list; `three` is a
-development dependency of this repository alone (#275).
+Three.js object. The witnesses live beside the bench (`bench/witnesses/`) and plug into the
+measurement seam through its backend list; `three` is a development dependency of this repository
+alone (#275).
 
 ## Compiling from Node
 
-`prepare(input, output, scope, budget, options)` and `prepareMany(jobs, options)` relay to the
-native executable; the `trillion3d-compile` CLI is the same relay on the command line. Arguments,
-events, the pointer, batch mode, cancellation, exit codes and the executable's selection
-(`options.executable`, then `TRILLION3D_COMPILER_BIN`, then the development build) are in
+`prepare(input, output, scope, budget, options)`, `prepareMany(jobs, options)` and the
+`trillion3d-compile` CLI relay to the native executable. Arguments, events, the pointer, batch mode,
+cancellation, exit codes and the executable's selection (`options.executable`, then
+`TRILLION3D_COMPILER_BIN`, then the development build) are in
 [COMPILER.md](COMPILER.md#using-it-from-node). An installed tarball ships neither the executable nor
-the Rust sources, so it needs one of the first two selections.
+the Rust sources, so it needs one of the first two.
 
 ## Scene hierarchy foundation
 
-`world.scene` is the graph a page writes into. Below it, `trillion3d` publishes the DOM-free
-transform foundation, scene-model version `SCENE_MODEL_VERSION` 1: `SceneRoot` and
-`createSceneRoot`, exported by the common facade, for a page that manages a transform tree of its
-own outside a world.
-
-A `SceneRoot` owns one transform hierarchy; nodes created by `root.createNode({ id, visible })`
-have stable, root-unique identifiers and are attached with `add` or `reparent`, which keep the local
-pose, or with `attach`, which keeps the node where it stands in the world: `shelf.attach(crate)`
-rewrites the crate's local pose from its world matrix seen from the shelf (a sheared result loses
-its shear, as with the reference), and an `Object3D`'s `position`, `rotation`, `quaternion` and
-`scale` follow. `remove` and `clear` detach live nodes, while `destroy` permanently invalidates a
-whole subtree. `clone` gives the new
-node a fresh identifier unless one is supplied; `copy` keeps the destination identifier. Both
-reproduce the local pose and optionally the descendants. Recursive copying from an ancestor into its
-descendant is rejected with `SCENE_COPY_OVERLAP` before either node changes.
+Below `world.scene`, the common facade publishes the DOM-free transform foundation, scene-model
+version `SCENE_MODEL_VERSION` 1: `SceneRoot` and `createSceneRoot`, for a tree kept outside a world.
+Nodes from `root.createNode({ id, visible })` have stable, root-unique ids; `add` and `reparent`
+keep the local pose, `attach` the world pose (`shelf.attach(crate)` rewrites the crate's local pose
+from its world matrix seen from the shelf; a sheared result loses its shear, as with the reference;
+an `Object3D`'s `position`, `rotation`, `quaternion` and `scale` follow). `remove` and `clear`
+detach; `destroy` permanently invalidates a subtree. `clone` gives a fresh id unless one is given,
+`copy` keeps the destination's; both reproduce the local pose and optionally the descendants.
+Copying an ancestor recursively into its descendant is rejected with `SCENE_COPY_OVERLAP`, nothing
+changed. Nodes of different roots never combine, duplicate ids are rejected, a cycle leaves the
+hierarchy unchanged. Setters mark the transform dirty: call `updateWorldMatrix()` before reading
+`worldMatrix`; the matrix views are read-only by contract.
 
 ```javascript
 import { createSceneRoot } from 'trillion3d';
@@ -795,303 +612,116 @@ scene.add(shelf);
 shelf.add(crate).updateWorldMatrix();
 ```
 
-Nodes from different roots cannot be combined, duplicate ids are rejected, and a cycle leaves the
-hierarchy unchanged. Pose setters mark the transform dirty; call `updateWorldMatrix()` before
-reading `worldMatrix`. The matrix views are read-only by contract; write through the setters.
+`TransformNode` (browser facade) reads that node through the reference's matrices: `matrix` and
+`matrixWorld` view its slot, `matrixAutoUpdate` and `matrixWorldNeedsUpdate` are its flags,
+`updateMatrixWorld(force)` the reference's rule. `Object3D` and the engine's graph extend it; each
+node lists its children, so an update or walk costs its subtree only. The objects share one
+hierarchy holding none of them: a dropped object frees its slot when collected, `destroy()` a
+subtree at once.
 
-`TransformNode`, exported by the browser facade, is that node read through the reference's
-matrices: `matrix` and `matrixWorld` are views of its slot, `matrixAutoUpdate` and
-`matrixWorldNeedsUpdate` its flags, and `updateMatrixWorld(force)` the reference's rule. `Object3D`
-and the engine's own graph nodes extend it. Each node lists its children, so an update or a walk
-costs the subtree it starts from, never the other nodes of the hierarchy. The scene objects share
-one hierarchy that holds none of them: a dropped object frees its slot when it is collected, and
-`destroy()` frees a subtree at once.
+The engine's graph uses the same classes — `Object3D`, `Group`, `Mesh` (or the core's instanced
+mesh), `Scene`, `Camera`, `Light` (read its `kind`; a `rectArea` for a rectangle, a `probe` with its
+27 coefficients in `sh`) — and every browser-facade function on graph nodes names `Object3D`. The
+engine numbers its scenes, cameras, meshes and lights in one count kept beside them, so a page's
+node carries none. A light hears its colours and target only while in a world. The WebGL2 cluster
+path draws directional, point, spot, rectangle, ambient and probe lights and refuses a `hemisphere`
+light by name (a world hands it the sky over a ground as the environment's irradiance). A `Scene`
+built with no loader, as the engine's own, refuses `load` (`UNSUPPORTED_SCENE_UPDATE`); its
+`onBeforeRender` and `onAfterRender` (none by default) run around each draw. A `Camera` publishes
+its projection in the reference's convention, finite far plane, as `projectionMatrix` (made at
+first read, recomposed at each optic write), and its world matrix's inverse as
+`matrixWorldInverse`.
 
-The engine's graph is built of the same classes: a bare node is an `Object3D`, a group a `Group`,
-a drawn node a `Mesh` (or the core's instanced mesh) wearing the engine's surfaces, its root a
-`Scene`, its eye a `Camera` and its lights `Light`s — a `rectArea` for a rectangle, a `probe`
-carrying its 27 coefficients in `sh` — and every function of the browser facade that takes or
-returns a node of that graph names `Object3D`. The engine numbers the scenes, cameras, meshes and
-lights it builds in one count, kept beside them, so a node a page builds carries none. A light
-hears its colours and its target only while it is in a world. The former light base `GraphNode`
-and its `GraphNodeKind` are removed from the exports: write `Light` and read its `kind`. The WebGL2
-cluster path draws the directional, point, spot, rectangle, ambient and probe lights, and refuses a
-`hemisphere` light by name: a world hands it the sky over a ground as the environment's
-irradiance. A `Scene` built with no loader, as the engine builds its own, refuses `load`
-(`UNSUPPORTED_SCENE_UPDATE`); its `onBeforeRender` and `onAfterRender`, none by default, are
-called around each draw of it. A `Camera` gives the projection its optics compose in the
-reference's convention, finite far plane, as `projectionMatrix`, made at its first read and
-composed again at each optic write, and the inverse of its world matrix as
-`matrixWorldInverse`: what a renderer keeping that convention reads.
+`clone(recursive)` returns the same class (`Group`, `Light`, `Camera`, a graph node its kind) with
+name, pose, matrices, flags, `userData`, and a `clone` of each child unless `recursive` is `false`;
+`copy(source, recursive)` writes the same into an existing node; a class whose constructor takes
+arguments says how an empty one is made (`blank`). A `Light` also keeps colours, intensity, range,
+cone, coefficients and target; a `Camera` its optics (`fov`, `near`, `far`, `aspect`, `zoom`, the
+orthographic box); a `Mesh` its primitive, sharing geometry and material. Cloning a `Scene` or
+`LoadedModel` throws `UNSUPPORTED_SCENE_UPDATE`. `cloneObject` is the deep copy, sharing nothing.
 
-`clone(recursive)` of an `Object3D` returns a node of the same class — a `Group` stays a `Group`, a
-`Light` a `Light`, a `Camera` a `Camera`, a graph node its own kind — holding the source's name,
-pose, matrices, flags and `userData`, and a `clone` of each child unless `recursive` is `false`;
-`copy(source, recursive)` writes the same values into an existing node. A class whose constructor
-takes arguments says how an empty one is made (`blank`). A `Light` also keeps its colours,
-intensity, range, cone, coefficients and target; a `Camera` its optics (`fov`, `near`, `far`,
-`aspect`, `zoom` and the orthographic box); a `Mesh` its primitive, and shares its geometry and
-material. A `Scene` and a `LoadedModel` cannot be cloned: `clone` throws `UNSUPPORTED_SCENE_UPDATE`.
-`cloneObject` stays the deep copy: it shares nothing with the source, a mesh's geometry and
-materials included. The former aliases of the node, `HostNode`,
-`HostTraversable` and `HostGraphNode`, are removed: write `Object3D`.
+Attributes are a `BufferAttribute` owning its numbers (a `BufferTypedArray`) or an
+`InterleavedBufferAttribute` viewing `itemSize` numbers at `offset` of each vertex of an
+`InterleavedBuffer`; `VertexAttribute` names either.
+`new BufferAttribute(array, itemSize, normalized)` reads and writes a normalised integer as its
+value over its type's largest; `needsUpdate = true` bumps `version` (the buffer's, for a view),
+compared before re-uploading; `addUpdateRange` limits the upload to the numbers written; `clone()`
+copies numbers, type, normalisation and name, a view's clone owning its numbers.
 
-The engine's geometries hold the same vertex attributes as a world's `Geometry`: a
-`BufferAttribute` owning its numbers, or an `InterleavedBufferAttribute` viewing `itemSize` numbers
-at `offset` of each vertex of an `InterleavedBuffer` (`VertexAttribute` names either).
-`new BufferAttribute(array, itemSize, normalized)` reads an integer attribute declared normalised
-as its value over the largest of its type, and writes it back the same way; `needsUpdate = true`
-bumps `version` (the buffer's, for a view), which the renderer compares before uploading the same
-bytes again, and `addUpdateRange` limits that upload to the numbers written. `clone()` copies the
-numbers, their type, normalisation and name; a view's clone owns its numbers. The former engine
-classes `GraphAttribute`, `GraphInterleavedBuffer`, `GraphInterleavedAttribute` and the types
-`GraphElements` and `GraphArray` are removed: write `BufferAttribute`, `InterleavedBuffer`,
-`InterleavedBufferAttribute`, `VertexAttribute` and `BufferTypedArray`.
-
-The engine draws a world's `Geometry` itself. Its `attributes` hold any `VertexAttribute`.
-`morphAttributes` lists one attribute per morph target for each morphed attribute, and
-`morphTargetsRelative` says that the targets hold displacements. `drawRange`, `name`, `userData`
-and `kind` (`'geometry'`) complete it. `computeBoundingBox()` and `computeBoundingSphere()` span
-every vertex and every shape a morph target gives it. A position is read, drawn, edged, moved and
-given normals at the value it stands for: a normalised integer is scaled back, and a position two
-numbers wide lies in the plane z = 0. The sphere is
-centred on the box and reaches the farthest vertex. Setting an attribute other than `position`, the
-index or a group keeps the bounds. `clone()` copies every list, morph target, group, range, data,
-bound and recipe. `toNonIndexed()` gives every corner a vertex of its own. `dispose()` runs each
-hook of `released` once. A geometry no mesh wears any more has its pages and GPU memory given back
-by the world on both backends, with no call; a page that replaces a mesh's geometry, as a slider
-does, disposes the former one too, so its raycast tree and host copies go at once. The former engine class `GraphGeometry` is removed: write `Geometry`.
+The engine draws a world's `Geometry` itself: `attributes` of any `VertexAttribute`,
+`morphAttributes` (one per morph target per morphed attribute), `morphTargetsRelative` (targets
+hold displacements), `drawRange`, `name`, `userData`, `kind` (`'geometry'`). `computeBoundingBox()`
+and `computeBoundingSphere()` span every vertex and morph shape, the sphere centred on the box and
+reaching the farthest vertex.
+Positions are used at the value they stand for: a normalised integer scaled back, a two-number
+position in the plane z = 0. Setting an attribute other than `position`, the index or a group keeps
+the bounds. `clone()` copies every list, morph target, group, range, data, bound and recipe;
+`toNonIndexed()` gives each corner its own vertex; `dispose()` runs each `released` hook once. A
+geometry no mesh wears gives back its pages and GPU memory on both backends, with no call; replacing
+a mesh's geometry, as a slider does, disposes the former, raycast tree and host copies included.
 
 ## Batch math for hosts
 
-A host that moves ten thousand instances or culls ten thousand boxes would otherwise write the loop
-itself, one object per call and a temporary per step. The engine's **batches** take `n` elements in
-one call: flat typed arrays, no allocation, the same formula as the unit function they repeat —
-which stays the oracle — and a count as the only return value.
-
-**Layout.** One element occupies a fixed number of consecutive values, each declared once:
-`MATRIX_VALUES` 16 (column-major, `[12..14]` the translation), `POSITION_VALUES` 3,
-`QUATERNION_VALUES` 4 (`x, y, z, w`), `SPHERE_VALUES` 4 (centre then radius) and
-`NORMAL_MATRIX_VALUES` 9 in `packages/sdk-core/src/math/batch/strides.ts`; `BOX_VALUES` 6 (min x, y,
-z then max x, y, z) in `packages/sdk-core/src/math/primitives/box.ts`; `FRUSTUM_PLANE_VALUES` 24 (six
-planes `a, b, c, d`, facing inward, in the order of `frustumPlanesFromMatrix`) in
-`packages/sdk-core/src/math/frustum/frustum.ts`. Flat inputs are read as `ArrayLike<number>`;
-outputs are `Float64Array` (or a `Uint8Array` of flags). Matrices read one at a time travel as
-**sub-views** of sixteen numbers (`buffer.subarray(i * 16, (i + 1) * 16)`), built once at load,
-never per frame: `multiplyMatrix4` reads its operands at constant indices, and a computed offset
-costs 6 % of the product.
-
-**Allocate once, reuse every frame.** Culling ten thousand boxes and bringing the survivors' centres
-into view space is two calls — this is `packages/sdk-core/src/math/batch/host.test.ts`, run by
-`pnpm test`:
-
-```javascript
-import {
-  BOX_VALUES,
-  IDENTITY_MATRIX4,
-  POSITION_VALUES,
-  SPHERE_VALUES,
-  createCameraFrame,
-  perspectiveProjection,
-  updateCameraFrame,
-  frustumKeepsBoxBatch,
-  sphereFromBoundsBatch,
-  transformPointsBatch,
-} from 'trillion3d';
-
-const N = 10_000;
-// Allocated once, at scene load.
-const boxes = new Float64Array(N * BOX_VALUES); // min x, y, z then max x, y, z, per box
-const kept = new Uint8Array(N); // 1 where the frustum keeps the box
-const spheres = new Float64Array(N * SPHERE_VALUES); // centre x, y, z then radius, per box
-const centres = new Float64Array(N * POSITION_VALUES); // survivors' centres, packed
-const viewCentres = new Float64Array(N * POSITION_VALUES); // the same, in view space
-const frame = createCameraFrame();
-const projection = new Float64Array(16);
-const cameraWorld = Float64Array.from(IDENTITY_MATRIX4); // the host's, moved between frames
-
-// Every frame: the frustum, one cull, the survivors packed, one transform.
-perspectiveProjection(projection, 60, 16 / 9, 0.1, 1);
-updateCameraFrame(frame, projection, cameraWorld, 100);
-const visible = frustumKeepsBoxBatch(kept, frame.planes, boxes, N);
-sphereFromBoundsBatch(spheres, boxes, N);
-let m = 0;
-for (let i = 0; i < N; i++) {
-  if (!kept[i]) continue;
-  const at = i * SPHERE_VALUES;
-  centres.set(spheres.subarray(at, at + POSITION_VALUES), m++ * POSITION_VALUES);
-}
-transformPointsBatch(viewCentres, frame.view, centres, m); // m === visible
-```
-
-Every batch, with its unit function, its measured ratio and the exceptions it declares, is listed
-once, in [Batch functions](#batch-functions).
-
-**Which path ran.** `hierarchyUpdateBatch`, `multiplyMatrix4Batch` and `boxTransformBatch` also
-exist as WebAssembly kernels (`packages/page-codec-wasm/src/math.rs`), bit-identical to the
-JavaScript loop, and a governor (`packages/sdk-core/src/math/path/governor.ts`) plays whichever it
-measured faster, operation by operation. `metric.frame(world).mathBatch` publishes
-`MathPathMetrics` (`MATH_PATH_CONTRACT` 1): `operations[name].path` is the path the next call
-plays, `jsNsPerElement` and `wasmNsPerElement` the sliding medians in nanoseconds per element
-(`null` while unmeasured — never zero), `switches` how many times the decision changed, `elements`
-the total processed; `clockCoarse` says the thread clock is too coarse to time one call (no
-cross-origin isolation), so the governor times pooled runs of ten clock steps instead (#919). A host
-that serves its page with the `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy`
-headers gets the fine clock back, one sample per call. The other batches have no kernel: a kernel
-is written only where a loop's share of the engine's own frame is measured above 0.1 ms, and none of
-their loops reaches it (#80).
-
-## Maths reference
-
-The maths the engine computes with, exported by `trillion3d`, `packages/sdk-core` and
-`packages/sdk-browser` alike. The public families a page writes against — `createWorld` and
-everything it hands out — are the sections above; this section lists the functions underneath them.
-Conventions shared by every entry:
-
-- **Column-major 4×4 matrices** in sixteen consecutive numbers, `[12..14]` the translation.
-- **Output first, allocation never.** A function writes into the `out` buffer it receives and
-  returns it; one that writes in place or fills several named buffers — `normalizeVector3`,
-  `decomposeMatrix4` — returns nothing, and its row says so. A call on a per-frame path allocates
-  nothing. `outAt`/`aAt` offsets let one large buffer hold many operands.
-- **`Float64Array` for what is computed**, `ArrayLike<number>` for what is only read: a host
-  matrix, a plain array or a `Float32Array` enters as-is.
-
-### Measured against the witness library
-
-Every row names the witness call it is measured against, and its proof. The proof is
-`pnpm run perf:core` (`bench/perf/core/three-vs-core-*.perf.ts`; how a line reads:
-[TESTS.md](TESTS.md#performance-benchmarks)): each line runs Three.js and the engine on the same
-seeded inputs, compares bit for bit and refuses an engine slower than the witness. The ratios are
-the engine's speed-up over the witness, best of three runs on one machine (19 and 20 Sept. 2026,
-Apple M2 Max, Node 26.8.2); they say where, not how much a frame gains. The declared exceptions are
-named on their line. A host arriving from Three.js reads the witness calls as its migration
-table.
-
-### Unit functions
-
-Each unit function has its page in the portal's
-[API reference](https://www.trillion3d.com/#/en/api): what it computes, the witness call it
-replaces and its proof, with the measured ratio. Those rows are written once, in
-`site/content/entries/` (`matrix.ts`, `vector.ts`, `camera.ts`), and never copied here. The
-functions live in `packages/sdk-core/src/math/matrix/` (matrices),
-`packages/sdk-core/src/math/primitives/` (vectors, colours, camera frame) and
-`packages/sdk-browser/src/camera/` (the engine camera).
-
-The engine composes its own projection from the declared optics — **reversed depth, infinite
-far plane**: `near` projects to 1, infinity to 0 (`depthConvention.ts`). This is a
-declared exception: the bench compares the x/y terms of the projection to the witness's,
-the depth terms are the engine's by design. `far` is still read for the frustum far plane,
-the adaptive threshold and the shadow range.
-
-#### Sides — `packages/sdk-browser/src/scene/materialSide.ts`
-
-| Function | Computes | Witness call | Proof |
-| --- | --- | --- | --- |
-| `type Side = 'front' \| 'back' \| 'double'` | which faces of a surface are drawn; every raster, cone, pipeline and blend-plan decision compares against it | `FrontSide`, `BackSide`, `DoubleSide` | `materialSide.test.ts` |
-| `sideOf(material)` | the `Side` a host material declares, the first of an array deciding, an empty array front — read once at the import boundary, the only place naming the host constants | the host's double-side test | `materialSide.test.ts` |
-| `materialSide(material)` | the host constant itself, for the diagnostic materials still built with the host library | — | `materialSide.test.ts` |
-
-### Batch functions
-
-`packages/sdk-core/src/math/batch/batch.ts` and the `mathBatch*.ts` beside it: `n` elements per call, flat
-typed arrays or sub-views of a fixed stride (`packages/sdk-core/src/math/batch/strides.ts`, `BOX_VALUES`,
-`FRUSTUM_PLANE_VALUES`), output first, no allocation, a count as the only return value. Each batch
-repeats its unit function, which stays the oracle; how to lay out and reuse the buffers is in the
-[Batch math for hosts](#batch-math-for-hosts). The proof is `pnpm run perf:core`
-(`three-vs-core-batch-*.perf.ts`). Ratios are the batch's speed-up over the witness's loop, rounded
-from the range of the per-run medians over three runs (PR #105); the three exceptions are declared
-on their line.
-
-| Function | Computes | Witness loop | Proof |
-| --- | --- | --- | --- |
-| `frustumKeepsBoxBatch(kept, planes, boxes, n)` | `kept[i]` 1 where `!frustumExcludesBox`, returns the count kept | `for … frustum.intersectsBox(box)` | bench `Frustum.intersectsBox batch` (×1.1) |
-| `sphereFromBoundsBatch(out, boxes, n)` | four values per box, `sphereFromBounds` | `for … box.getBoundingSphere(s)` | bench `Box3.getBoundingSphere batch` (×2.2) |
-| `boxUnionBatch(into, boxes, n)` | `into ∪ boxes[0] ∪ … ∪ boxes[n − 1]`, `boxUnion` | `for … box.union(b)` | bench `Box3.union batch` (×1.9) |
-| `boxTransformBatch(out, boxes, mats[], n)` | `out[i] = boxTransform(boxes[i], mats[i])` | `for … box.applyMatrix4(m)` | `packages/sdk-core/src/math/batch/batch.test.ts` against `boxTransform`; WebAssembly kernel bit-identical (`math.rs`, `packages/sdk-browser/src/math/batchRuntime.test.ts`) |
-| `boxTransformUnionBatch(into, boxes, mats[], n)` | transform then union, one pass, one scratch box | `Box3.setFromObject` | bench `Box3 transform and union batch` (×1.8) |
-| `multiplyMatrix4Batch(out[], a[], b[], n)` | `out[i] = a[i] · b[i]`, sub-views | `for … m.multiplyMatrices(a, b)` | `packages/sdk-core/src/math/batch/transforms.test.ts`; WebAssembly kernel bit-identical (`math.rs`, `packages/sdk-browser/src/math/batchRuntime.test.ts`) |
-| `invertMatrix4Batch(out[], mats[], n, singular?)` | `out[i] = mats[i]⁻¹`; a zero determinant writes the identity and sets `singular[i]` | `for … m.invert()` | bench `Matrix4.invert batch` (×0.9) — **declared exception**: the batch reads the determinant to flag singularity, the witness does less; ceiling 1.2 |
-| `normalMatrix3Batch(out, mats[], n)` | nine values per matrix, `normalMatrix3` | `for … n.getNormalMatrix(m)` | bench `NormalMatrix3 batch` (×0.5) — **declared exception**: the engine's singularity policy (`packages/sdk-core/src/math/matrix/singular.ts`) is kept; ceiling 2.2 |
-| `composeMatrix4Batch(out, positions, quaternions, scales, n)` | `T · R · S` per element, all flat or all sub-views | `for … m.compose(p, q, s)` | bench `Matrix4.compose batch` (×1.5) |
-| `decomposeMatrix4Batch(positions[], quaternions[], scales[], mats[], n)` | the reverse, `decomposeMatrix4` | `for … m.decompose(p, q, s)` | bench `Matrix4.decompose batch` (×1.1) |
-| `transformPointsBatch(out, m, points, n)` | `n` points by one affine matrix, `transformAffinePoint` | `for … v.applyMatrix4(m)` | bench `Vector3.applyMatrix4 batch` (×1.4) |
-| `transformPointsByMatricesBatch(out, mats[], points, n)` | `n` points, one matrix each | `for … v[i].applyMatrix4(mats[i])` | bench `Vector3.applyMatrix4 per-instance batch` (×1.9) |
-| `transformDirectionsBatch(out, m, dirs, n)` | upper 3×3 then normalize, `transformDirectionVector3` | `for … v.transformDirection(m)` | bench `Vector3.transformDirection batch` (×1.3) |
-| `srgbToLinearBatch(out, values, n)`, `linearToSrgbBatch(out, values, n)` | one channel per element, the exact curves of `packages/sdk-core/src/math/primitives/color.ts` | `for … color.convertSRGBToLinear()` | bench `Color.convertSRGBToLinear batch`, `convertLinearToSRGB batch` (×1.0) — **declared exception**: the curve, gap ≤ 1.1e-11 forward, ≤ 6.3e-6 back; ceiling 1.1 |
-| `hierarchyUpdateBatch(worldViews[], positions[], rotations[], scales[], parents, n, local)` | a whole hierarchy, parents before children, `composeMatrix4` then `multiplyMatrix4` | `Object3D.updateMatrixWorld` over a scene | `packages/sdk-browser/src/math/batchHierarchy.test.ts`: JavaScript, WebAssembly (`math_hierarchy.rs`) and the witness's `updateMatrixWorld`, same bits |
-
-No engine loop runs above 0.1 ms of the engine's own frame, so no batch replaces one yet (#80): the
-batches are for hosts until a measured share says otherwise.
+Unit and batch maths (`n` elements per call, flat typed arrays, no allocation), their witness
+ratios and declared exceptions: [MATHS.md](MATHS.md).
 
 ## Page materials
 
-A page can inspect and edit the materials of a loaded model through its `world`, after
-`await world.awaitPages()` has opened the drawing session. `world.materials()` lists the
-current materials in cache table order, followed by materials the page created. Each has
-an `id`, `name`, `baseColor`, `opacity`, `metalness`, `roughness`, `emissive`, `side`,
-`alphaMode`, `alphaCutoff` and `tiling` (`null` without a map). `world.material(id)` reads
-one by that listed ID. These reads return detached copies. `world.importedMaterials()`
-returns the source file's values even after the page changes them; created materials are
-not included. An unknown ID raises `UNKNOWN_MATERIAL`.
+Once `await world.awaitPages()` has opened the drawing session, a page reads and edits a loaded
+model's materials through its `world`:
 
-`world.setMaterial(id, patch)` updates every surface built from that table material for
-the next frame. A patch may name `baseColor` (three linear channels from 0 to 1),
-`opacity`, `metalness`, `roughness` and `alphaCutoff` (each 0 to 1), nonnegative linear
-`emissive` channels, `alphaMode` (`'opaque'`, `'mask'`, `'blend'`), or nonzero finite
-`tiling` coordinates. Tiling needs a map used by that material alone; a shared map is
-refused with `MATERIAL_TEXTURE_SHARED`. An invalid field or value raises
-`INVALID_MATERIAL` before any write. The return value is `true` if every renderer in
-the session took the edit in place, or `false` if another renderer needs a new session.
+| Call | Result |
+| --- | --- |
+| `world.materials()` | `SceneMaterial[]`: the current materials in cache table order, then the page's, as detached copies with `id`, `name`, `baseColor`, `opacity`, `metalness`, `roughness`, `emissive`, `side`, `alphaMode`, `alphaCutoff` and `tiling` (`null` without a map) |
+| `world.material(id)` | one by listed ID; an unknown ID raises `UNKNOWN_MATERIAL` |
+| `world.importedMaterials()` | the source file's values, whatever the page changed; created materials excluded |
+| `world.setMaterial(id, patch)` | every surface built from it, next frame; `true` if every renderer took it in place, `false` if one needs a new session |
+| `world.createMaterial(props?)` | a page-owned material, at most 256 per session (`MATERIAL_CEILING` past it, nothing created) |
+| `world.dropMaterial(id)` | releases an unused created material, its variants, map and accounted bytes |
+| `world.materialMapBytes()` | runtime map bytes held and pending, under the fixed 64 MiB ceiling |
+| `world.assignMaterial('mesh/primitive', id)` | a created material on a compiled primitive — `world.assignMaterial('mesh/primitive', created.id)`, numbers from `metadata.primitives`; unknown: `UNKNOWN_SCENE_NODE` |
 
-Changing between opaque, masked and blended also moves the material's drawables into
-the matching draw class. If a renderer cannot move that class in place, the call raises
-`MATERIAL_CLASS_CHANGE` before changing anything. The page can keep the old material
-and show that refusal; it should not assume every renderer accepts a class change.
+A patch sets `baseColor` (three linear channels, 0 to 1), `opacity`, `metalness`, `roughness`,
+`alphaCutoff` (0 to 1), nonnegative linear `emissive`, `alphaMode` (`'opaque'`, `'mask'`, `'blend'`)
+or nonzero finite `tiling`, which needs a map only that material uses (`MATERIAL_TEXTURE_SHARED`).
+An invalid field or value raises `INVALID_MATERIAL` before any write. Changing between opaque,
+masked and blended moves the drawables' draw class; a renderer unable to in place raises
+`MATERIAL_CLASS_CHANGE` first, so the page can keep the old material.
 
-`world.createMaterial({ name?, baseColor?, opacity?, metalness?, roughness?, emissive?,
-alphaMode?, alphaCutoff?, map? })` makes a material owned by the page and returns its listed
-record synchronously without a map. With an `ImageBitmap` `map`, it returns a promise:
-`const created = await world.createMaterial({ map: bitmap })`. Await it before assignment;
-failed uploads publish no material and return their reserved bytes. The bitmap is borrowed:
-decode with `premultiplyAlpha: 'none'` and `colorSpaceConversion: 'none'`, keep it open until
-the material is dropped or the session is disposed and pending creations have settled, then
-close it yourself. Each material owns its texture even when two borrow the same bitmap.
-Runtime maps have a fixed 64 MiB decoded RGBA ceiling, checked before allocation and refused
-with `TEXTURE_BUDGET`; `world.materialMapBytes()` reports held and pending bytes. Backend
-`material-texture-appended` diagnostics report actual upload bytes and CPU time, not GPU time.
-`world.dropMaterial(id)` releases an unused created material, its variants, map and accounted
-bytes. A still-assigned material refuses with `UNSUPPORTED_SCENE_UPDATE`: assign a replacement
-first. Dropped IDs are never reused. GPU pools retain reusable capacity within their budget.
-It can be read and edited by ID like an imported material; `tiling` remains a set-only field. The
-session holds at most 256 created materials; the next creation raises
-`MATERIAL_CEILING` without creating one. To draw it on a compiled primitive, call
-`world.assignMaterial('mesh/primitive', created.id)`, using the two numbers in that
-model's `metadata.primitives`. Unknown primitives raise `UNKNOWN_SCENE_NODE`. See the
-[live page-material example](../site/examples/page-materials.html).
+`world.createMaterial({ name?, baseColor?, opacity?, metalness?, roughness?, emissive?, alphaMode?, alphaCutoff?, map? })`
+returns its record synchronously; with an `ImageBitmap` `map`, a promise to await before assignment
+(`const created = await world.createMaterial({ map: bitmap })`), a failed upload publishing nothing
+and returning its reserved bytes. The bitmap is borrowed: decode with `premultiplyAlpha: 'none'` and
+`colorSpaceConversion: 'none'`, and close it yourself once the material is dropped or the session
+disposed and pending creations settled. Each material owns its texture, even two from one bitmap.
+Runtime maps have a fixed 64 MiB decoded RGBA ceiling, checked before allocation (`TEXTURE_BUDGET`);
+`material-texture-appended` reports upload bytes and CPU time, not GPU time. Created materials are
+read and edited by ID like imported ones, `tiling` set-only. Dropping an assigned material raises
+`UNSUPPORTED_SCENE_UPDATE`: assign a replacement first. Dropped IDs are never reused; GPU pools keep
+reusable capacity within budget. [Live page-material example](../site/examples/page-materials.html).
 
 ## Lights
 
-Nothing lights an opaque surface except a light the host declared. There is no fixed ambient term,
-no constant sky and no authored scene lighting: a surface no declared light reaches is exactly zero,
-so a windowless corridor stays black at noon. Emission is a material property and is always added.
-`world.exposure` sets the camera exposure, applied to linear radiance before tone mapping; it is not
-a light and cannot brighten a surface no light reaches. Debug views are untouched by both: a
-`material.meshNormal()` or `material.meshDepth()` surface is output as stored, with neither exposure
-nor `world.toneMapping`, on both renderers, as in the reference. A map a family's model never reads
-— a `meshToon` `gradientMap`, a `meshMatcap` `map`, the `normalMap` of a `meshMatcap` or `meshNormal`
-surface — is refused by name on both renderers, never dropped from the image; a `meshMatcap`,
-`meshNormal` or `meshDepth` surface ignores an `aoMap`, as the reference does. `scene.background` is the colour behind every
-object, `null` for the default; set, or written through its methods (`scene.background.setHSL(...)`,
-`set`, `setRGB`, `setHex`), it shows at the next frame on every renderer, the session kept. A direct
-write of `.r`, `.g` or `.b` is not heard: set `scene.background` again after one. A picture
+Only a light the host declared lights an opaque surface: no fixed ambient, constant sky or authored
+scene lighting; a windowless corridor stays black at noon. Emission, a material property, is always
+added. `world.exposure` is the camera exposure on linear radiance before tone mapping, not a light.
+`material.meshNormal()` and `material.meshDepth()` surfaces are output as stored, without exposure
+or `world.toneMapping`, as in the reference. A map a family's model never reads — a `meshToon`
+`gradientMap`, a `meshMatcap` `map`, the `normalMap` of a `meshMatcap` or `meshNormal` surface — is
+refused by name, never silently dropped; `meshMatcap`, `meshNormal` and `meshDepth` ignore an
+`aoMap`, as the reference does.
+
+`scene.background` is the colour behind every object (`null`: the default); set or written through
+its methods (`scene.background.setHSL(...)`, `set`, `setRGB`, `setHex`), it shows next frame,
+session kept; a direct `.r`, `.g` or `.b` write needs `scene.background` set again. A picture
 background, or any value without `getHex`, is refused (`UNSUPPORTED_SCENE_UPDATE`): no path draws
 one yet.
 
 ### Scene fog
 
-Set `world.scene.fog` to place distance or height fog over opaque and transparent surfaces on
-WebGPU and WebGL2. Its `color` is a `Color` in linear RGB; `null` (the default) removes fog.
-The distance is measured from the camera, and height uses the scene's positive Y direction:
+`world.scene.fog` places distance or height fog over opaque and transparent surfaces on WebGPU and
+WebGL2; its `color` is a linear-RGB `Color`, `null` (the default) none. Distance is from the camera;
+height uses the scene's positive Y:
 
 ```js
 import { Color } from 'trillion3d';
@@ -1103,305 +733,207 @@ world.scene.fog = { color, density: 0.02, heightFalloff: 0.15, baseHeight: 0 }; 
 world.scene.fog = null; // No fog.
 ```
 
-`near` and `far` must be finite with `0 ≤ near < far`. `density` and `heightFalloff` must be
-finite and nonnegative; `baseHeight` must be finite. The three colour components must be finite
-and nonnegative. Invalid settings throw `INVALID_SCENE_ENVIRONMENT`. Assigning a new fog or
-changing its colour with a `Color` method takes effect on the next frame. After changing `near`,
-`far`, `density`, `heightFalloff` or `baseHeight` directly, assign `scene.fog` again to notify the
-world. A material with `fog: false` keeps its unfogged colour on both renderers.
+`near` and `far` are finite with `0 ≤ near < far`; `density`, `heightFalloff` and the colour
+components finite and nonnegative; `baseHeight` finite; otherwise `INVALID_SCENE_ENVIRONMENT`. A
+new fog, or a colour changed by a `Color` method, applies next frame; after writing `near`, `far`,
+`density`, `heightFalloff` or `baseHeight` directly, assign `scene.fog` again. A `fog: false`
+material stays unfogged on both renderers. The scene contract's `SceneEnvironment.fog` takes a
+three-number linear colour and the same fields (omitted: no fog); `SavedScene.fog` stores the same
+`SceneFog`, or `null`. How the renderers apply it: [fog lighting law](ENGINE.md#fog).
 
-The lower-level scene contract uses `SceneEnvironment.fog` with a three-number linear colour and
-the same linear or exponential fields; omitting it means no fog. `SavedScene.fog` stores the same
-`SceneFog` value, or `null` when absent, so a saved scene restores the effect. See the
-[fog lighting law](ENGINE.md#fog) for how the renderers apply it.
+### Declared lights
 
-A world declares lights like any other object: `scene.add(light.point({ intensity: 2, position:
-[0, 3, 0] }))`, `light.intensity = 2` afterwards, `scene.remove(light)` to drop it. Underneath, every
-light is a `SceneLight` (version 2) of one of three kinds. `point` and `spot` carry `position` and
+Lights are declared like any object:
+`scene.add(light.point({ intensity: 2, position: [0, 3, 0] }))`, `light.intensity = 2` afterwards,
+`scene.remove(light)`. Each is a `SceneLight` (version 2): `point` and `spot` carry `position` and
 `range` in metres, `spot` also `direction` and a `coneAngle` half-angle; `directional` (sun,
-overcast sky) carries only `direction` — the propagation direction — and is refused if given a
-`position`, a `range` or a `coneAngle`. All three carry linear `color`, a positive radiometric
-`intensity` and `castsShadow`. Bounds: none on the count — the light table grows with the scene;
-a 16×16 screen tile lists up to 64 lights reaching it, and past that takes exactly the lights
-reaching it from a pool sized from the view (#849) —; 64 shadow slices,
-past which a caster lights without a shadow (`shadowCastersUnsliced`), and at most 24 shadow
-regions redrawn per frame. WebGL2 draws every light, each fragment only those whose range reaches its cell of a light grid (#835). The shadow pool is sized
-at the first frame that casts a shadow, from its screen and its shadowed lights: layers of
-128² pages as wide as the device draws, within the budget's shadow share; a canvas resized later
-resizes it by the same rule, every page it still holds kept as drawn (#1208); `metric.frame(world)`
-publishes its `shadowPoolBytes` and `shadowPoolLayers`, and its memory pressure by name
-(`shadowPeakBytes`, `shadowResolutionBias`, `shadowMemoryEvents`).
+overcast sky) only `direction`, the propagation direction, refused with a `position`, a `range` or a
+`coneAngle`. All carry linear `color`, a positive radiometric `intensity` and `castsShadow`.
+
+No bound on the count: a 16×16 screen tile lists up to 64 lights reaching it, past that exactly
+those reaching it from a pool sized from the view (#849); WebGL2 lights each fragment by the lights
+reaching its light-grid cell (#835). 64 shadow slices, past which a caster lights without a shadow
+(`shadowCastersUnsliced`); at most 24 shadow regions redrawn per frame. The shadow pool is sized at
+the first casting frame from its screen and shadowed lights — layers of 128² pages as wide as the
+device draws, within the shadow share — and resized with the canvas, held pages kept (#1208).
+`metric.frame(world)` publishes `shadowPoolBytes`, `shadowPoolLayers` and the pressure
+(`shadowPeakBytes`, `shadowResolutionBias`, `shadowMemoryEvents`); internals:
+[SHADOWS.md](SHADOWS.md).
 
 ### A lamp's range is authored, and no frame shortens it
 
-`range` is the lamp's attenuation radius, in metres — the reference engine `AttenuationRadius`: the light's
-influence ends there through the smooth window `(1 − (d/range)⁴)²` the shaders apply, and a `point`
-or `spot` shadow map is built to it. It is a first-class control the page sets (`light.distance`);
-left unset, the world derives one from the scene's own extent. Every path — the world, the lights a
-source file carries, `addLight` and `setLight` — writes it to the light store as-is: no exposure,
-curve or threshold shortens it (#958). A cut that pays moves lamp-pool edges visibly at night; one
-held under a display step pays under one per cent of the range.
+`range` is the lamp's attenuation radius in metres, the reference engine `AttenuationRadius`: influence ends
+there through the window `(1 − (d/range)⁴)²`, and a `point` or `spot` shadow map is built to it.
+The page sets it (`light.distance`); unset, the world derives one from the scene's extent. Every
+path — the world, a source file, `addLight`, `setLight` — stores it as-is: no exposure, curve or
+threshold shortens it (#958). A cut that pays moves lamp-pool edges visibly at night; one held under
+a display step pays under one per cent of the range.
 
 `capability.lighting(world)` reports what the **active** renderer applies — `{ sceneLights,
-lightingView, shadows, transforms, reason? }` — not what the contract accepts: a call the light
-store accepts is not proof of lighting. `reason` names in one sentence what is not applied.
+lightingView, shadows, transforms, reason? }` — not what the contract accepts; `reason` names in one
+sentence what is not applied.
 
 ### Every mesh casts a shadow unless it says `castShadow = false`
 
-Under a light that casts (`castShadow: true` on the light), every opaque mesh casts, as in the
-reference engine: `castShadow` is `true` on a mesh by default. `mesh.castShadow = false` opts it out
-of every shadow map; it still receives the shadows of others. A page writes it at any time: the
-shadow the mesh cast is drawn again without it, or with it. An outline drawn as a larger copy of its
-part wants it off: a copy wrapped round its part would put the part in its shade. A light's
-`castShadow` keeps its own meaning, and is `false` by default.
+Under a casting light (the light's `castShadow: true`, `false` by default), every opaque mesh
+casts, as in the reference engine (a mesh's `castShadow` defaults to `true`).
+`mesh.castShadow = false`, written any time, leaves every shadow map; the mesh still receives
+shadows. An outline drawn as a larger copy of its part wants it off, or it shades the part.
 
 ### A see-through surface casts no shadow unless it asks
 
-A blended material (`transparent: true`) lets the light pass by default, as glass, smoke and a beam
-of light do in the reference solution: it casts no shadow. `transparentShadow: true` asks for one,
-as dark as the surface is opaque: `material.meshStandard({ transparent: true, opacity: 0.5,
-transparentShadow: true })` casts half a shadow. An additive, transmissive or fully transparent
-surface casts none either way, and WebGL2 draws no shadow at all: its published capability says
-`shadows: false`, and a light set `castShadow: true` there — the sun, a point lamp or a spot, a
-world's or the loaded scene's own — is drawn unshadowed and named `shadows-refused` on the world's
-diagnostic channel, or on the session's `onDiagnostic` when no world opened it. `context.light`
-holds its store id, or its name in the loaded scene. It is said once per light, again only after
-it stopped casting (its `castShadow` off, the light removed or hidden, or the unlit view shown) and casts
-anew. WebGPU draws that shadow.
+A blended material (`transparent: true`) lets light pass, as glass, smoke and a light beam do in the
+reference solution. `transparentShadow: true` asks for a shadow as dark as the surface is opaque:
+`material.meshStandard({ transparent: true, opacity: 0.5, transparentShadow: true })` casts half a
+shadow. An additive, transmissive or fully transparent surface never casts.
+
+WebGL2 draws no shadow (`shadows: false` in its capability): a light set `castShadow: true` there —
+sun, point or spot, a world's or the loaded scene's — is drawn unshadowed and named
+`shadows-refused` on the world's diagnostic channel (the session's `onDiagnostic` when no world
+opened it), `context.light` its store id or scene name; said once per light, again only after it
+stopped casting (`castShadow` off, removed or hidden, the unlit view shown) and casts anew. WebGPU
+draws it.
 
 ### A luminaire does not block its own light
 
-A real light sits inside something — a lantern glass, a reflector, a shade — and that envelope is
-geometry that would enter its own light's shadow map and put the light out.
-`SceneLight.emitterRadius` (metres, strictly positive and strictly below `range`, point and spot
-only) declares the radius of that envelope: **that light's** shadow pass writes no depth for a
-surface closer to the light's centre than the radius. The excluded region is that sphere and
-nothing beyond it; the rejection is per fragment, so a wall crossing the envelope still occludes
-beyond it, and a receiver inside the envelope is lit. A light that declares no radius carries zero
-and nothing is rejected. It is a property of the light, never of a name, a scene or a material
-class.
-
-`lights.json` carries the field from two places, in that order. A source that declares a radius on
-the lamp puts it in the light's `extras.emitterRadius`; USD and Blender fill it from their own data
-(the `inputs:radius` of a `UsdLux` sphere or disk, the diagonal of a rect light, the `radius` of a
-Blender `Lamp`, the emitting surface of an area lamp), carried to world metres. glTF
-`KHR_lights_punctual` and FBX carry no size. Otherwise the compiler measures the luminaire: when the
-lamp's parent node, or one of its direct siblings, carries a mesh whose material emits, the radius
-is the greatest distance from the lamp's centre to one of that body's vertices — walked vertex by
-vertex, never by its bounding box, which would overrun by √3. Several emissive bodies: the tightest
-sphere wins. A radius that fails the contract is counted `light-emitter-radius-invalid` and
-omitted; a measured one is counted `light-emitter-radius-derived`.
+A lamp's envelope — a lantern glass, a reflector, a shade — would put its own light out.
+`SceneLight.emitterRadius` (metres, strictly positive, strictly below `range`, point and spot only)
+declares it: **that light's** shadow pass writes no depth closer to its centre. The rejection is per
+fragment, within that sphere only: a wall crossing it still occludes beyond, a receiver inside is
+lit. None declared means zero. It belongs to the light, never to a name, scene or material class.
+How an imported lamp gets it (`extras.emitterRadius`, source data, or the measured emissive body):
+[COMPILER.md](COMPILER.md#lightsjson--the-lamps-of-the-source-file).
 
 ### Lights imported from the source file
 
-The compiler writes the lights a source file declares beside the manifest as `lights.json`, a cache
-product of its own: the manifest format does not move, and a reader that ignores the file loads the
-cache as before. glTF lights come from `KHR_lights_punctual`; FBX lights through ufbx; USD lights
-from the `UsdLux` sphere, disk, rect and distant schemas; Blender lights from the `Lamp` blocks.
-OBJ declares none. Positions and directions are world space, after instancing: a light instanced by
-three nodes becomes three entries.
+The compiler writes a source file's lights beside the manifest as `lights.json`
+([COMPILER.md](COMPILER.md#lightsjson--the-lamps-of-the-source-file)): glTF from
+`KHR_lights_punctual`, FBX through ufbx, USD from the `UsdLux` sphere, disk, rect and distant
+schemas, Blender from `Lamp` blocks; OBJ declares none. Positions and directions are world space,
+after instancing: a light instanced by three nodes is three entries.
 
-**Unit conversion, chosen and published.** glTF is photometric — candela for `point` and `spot`,
-lux for `directional` — while the engine is radiometric, in W/sr and W/m². The compiler divides by
-**683 lm/W**, the SI constant that defines the candela; no spectrum is assumed and no hidden gain
-applied. A source whose image is then too dark or too bright is corrected by `world.exposure`, never
-by the import. FBX carries no photometric unit — its `Intensity` is a percentage — so two published
-settings convert it: **1000 lm / 4π ≈ 79.6 cd** for a point or spot, **10 000 lux** for a
-directional. A `point` or `spot` with no `range` gets `sqrt(I / 0.01 W·m⁻²)`, capped at 10 000 m.
-`innerConeAngle` has no equivalent; the engine softens a spot edge with its own `spotEdgeSoftness`.
-A light that does not hold the contract is counted in the file's `rejected` map and left out.
+**Unit conversion, chosen and published.** glTF is photometric (candela for `point` and `spot`, lux
+for `directional`), the engine radiometric (W/sr, W/m²): the compiler divides by **683 lm/W**, the
+SI constant defining the candela, with no spectrum assumed and no hidden gain; exposure, never the
+import, corrects a too dark or bright image (`world.exposure`). FBX's `Intensity` is a percentage,
+so two published settings convert it: **1000 lm / 4π ≈ 79.6 cd** for a point or spot, **10 000
+lux** for a directional. A `point` or `spot` without `range` gets `sqrt(I / 0.01 W·m⁻²)`, capped at
+10 000 m. `innerConeAngle` has no equivalent; the engine softens a spot edge with its own
+`spotEdgeSoftness`. A light breaking the contract is counted in the file's `rejected` map and left
+out.
 
-A light casts a shadow when the file says so (FBX carries the flag; glTF has none, so imported glTF
-lights cast one). Every light of the file is declared, however many: the `imported-lights`
-diagnostic counts them. A world
-reads them as `(await scene.load(url)).lights`, in cache order; each lamp is a child of the model,
-changed with `light.visible = false`, `model.remove(light)` or `light.intensity = …`. A cache
-without `lights.json` has none; one the server refuses otherwise fails the load
+A light casts when the file says so (FBX carries the flag; glTF none, so imported glTF lights
+cast). Every light is declared, however many (`imported-lights` counts them), read as
+`(await scene.load(url)).lights` in cache order; each lamp is a child of the model, changed with
+`light.visible = false`, `model.remove(light)` or `light.intensity = …`. A cache without
+`lights.json` has none; one the server refuses otherwise fails the load
 ([Files over HTTP](#files-over-http)).
 
 ## Memory budgets
 
-**Memory budgets are fixed reservoirs, never read from the machine.** Free memory changes every
-second — another application, another tab —, so a budget measured at start-up would be wrong five
-minutes later. The WebGPU engine keeps two byte-sized pools, both host-set and both 512 MiB by
-default: the geometry pool (cluster page slots, the root cover always resident) and the texture pool
-(virtual-texture tiles, every texture's tail always resident). A live texture — a video, a canvas
-redrawn every frame — keeps one working texture of its own size, and those bytes are texture memory
-too: the metric `textureLiveBytes` reports them, and they are taken out of the texture budget. The
-texture pool is drawn from the declared budget less `textureLiveBytes` — the pool a budget write
-reports carries that difference —, while the budget recorded stays the declared one: the pool is
-drawn again, tiles kept, when a texture turns live and at every budget written after. The WebGL2
-engine holds the same geometry budget, drawn by the same rule: its cut draws coarser beyond it, and
-the pages no frame keeps leave oldest first. While a view refines, the pool can go past its budget
-by at most the ancestors still drawn in place of the pages replacing them, and is back under it at
-the next cut once they arrived (`geometryAllocationBytes` shows it; no pool is reserved, so
-`geometryPoolAllocatedBytes` is `null`). It has no texture pool:
-`texturePoolBytes` is `null` in its metrics, and `world.budget.texturePool` reads `null`.
+**Memory budgets are fixed reservoirs, never read from the machine**: free memory changes every
+second (another application, another tab), so a budget measured at start-up would be wrong minutes
+later. The pools' mechanics are [RESIDENCY.md](RESIDENCY.md) and [ENGINE.md](ENGINE.md#memory);
+this is what a host sets and reads.
 
-**One GPU total, one CPU total.** `world.budget.gpu` is every GPU pool together, and
-`world.budget.cpu` what the world keeps in CPU memory. A fixed rule splits them, published
-as `world.budget.split`:
+| Setting | Default | What it is |
+| --- | --- | --- |
+| `world.budget.gpu` | 2 179 MiB | every GPU pool together, divided by `world.budget.split` |
+| `world.budget.cpu` | the shadow mirror plus the page cache's own default | what the world keeps in CPU memory |
+| `world.budget.geometryPool` | 512 MiB | cluster page slots, the root cover always resident; clamped to `geometryPoolCeiling`; the call a memory slider makes |
+| `world.budget.texturePool` | 512 MiB | virtual-texture tiles, every texture's tail always resident; clamped to `texturePoolCeiling`; `null` on WebGL2 |
+| `world.budget.canvas` | 3840 × 2160 | the largest drawing buffer, `{ width, height }` in pixels, the effect targets are reserved at (`{ width: 7680, height: 4320 }` for an 8K display) |
+| `world.budget.raycastTrees` | 64 MiB | [Picking](#picking-moving-and-saving) |
+| `world.budget.physics` | `DEFAULT_PHYSICS_BUDGET` | [PHYSICS.md](PHYSICS.md#budgets) |
 
-- GPU: before opening, the split reserves the shadow pool, bounce probes and effect targets at
-  their declared maxima, then the geometry and texture pools up to their ceilings. The default
-  total remains 2 179 MiB, including 512 MiB for each streaming pool. Once WebGPU has active
-  resources, the split reserves their actual descriptor bytes, including image targets, shared
-  caches and other live views, before dividing the remainder between geometry and textures.
-  Root coverage and texture-tail minima are mandatory; a total below them is refused as
-  `GPU_BUDGET_UNDER_MINIMUM`. Admission never changes resolution or increases the declared total.
-- CPU: the shadow page table's host mirror first (25.9 MiB, `SHADOW_HOST_BYTES`, fixed whatever the screen), then the
-  decoded-page cache takes the whole rest (`split.pageCache`); within it the session in place
-  reserves its manifest tables (a fixed reckoning per catalogue entry, not a measured heap size)
-  and its transfer queue, and the engine's cut tables (group closure, residency readiness, the
-  residency sets and the cut's differences), which follow what the view asks for and the pool
-  holds, never the size of the world, and are read each time the cache weighs itself. The scene's
-  resident proxy takes its announced size from the moment it is asked, and keeps it, never
-  evicted by a page, until another scene replaces it or the pages a frame keeps no longer fit
-  beside it: then it yields its bytes to them (`page-cache-kept-yielded`) and is read again after
-  a device loss. It is read on its own request, beside the page queue, and is not counted among
-  the pages read. The decoded baked texture levels take at most three quarters of the pages'
-  share (`split.textureLevels`, 192 MiB at the default total), the least recently read leaving
-  first, and yield first, before the proxy, to the pages a frame keeps
-  (`page-cache-levels-yielded`); a level that cannot fit beside them is not read, and its tile
-  stays at its coarser level until room comes back. A change applies at once: pages and levels
-  leave by last use until they fit, save the pages the frame keeps. The default total is the mirror
-  plus the cache's own default; a total not above the mirror is refused
-  (`CPU_BUDGET_UNDER_SHADOW_MIRROR`).
+- **Live textures.** A video or a canvas redrawn every frame keeps a working texture of its size,
+  `textureLiveBytes`, drawn from the texture budget: the pool (as a budget write reports it) is the
+  declared budget less `textureLiveBytes`, redrawn with tiles kept when a texture turns live and at
+  every later write; the recorded budget stays the declared one.
+- **WebGL2** holds the same geometry budget by the same rule: its cut draws coarser beyond it and
+  pages no frame keeps leave oldest first. While a view refines, the pool can pass its budget by at
+  most the ancestors still drawn for the pages replacing them, back under it at the next cut once
+  they arrived (`geometryAllocationBytes`; no pool reserved, so `geometryPoolAllocatedBytes` is
+  `null`). No texture pool: `texturePoolBytes` and `world.budget.texturePool` read `null`.
+- **GPU split.** Before opening, the shadow pool, bounce probes and effect targets are reserved at
+  their declared maxima, then the geometry and texture pools up to their ceilings (the 2 179 MiB
+  default includes 512 MiB for each streaming pool). Once WebGPU has active resources, their actual
+  descriptor bytes — image targets, shared caches and other live views included — are reserved
+  before the remainder is divided between geometry and textures. Root coverage and texture-tail
+  minima are mandatory. Admission never changes resolution or raises the declared total.
+- **CPU split.** The shadow page table's host mirror first (25.9 MiB, `SHADOW_HOST_BYTES`, whatever
+  the screen), then the decoded-page cache (`split.pageCache`). In it: the session's manifest
+  tables (a fixed reckoning per catalogue entry, not a measured heap) and transfer queue; the cut
+  tables (group closure, residency readiness, residency sets, the cut's differences), sized by the
+  view and the pool, never the world; the resident proxy, held from its request until another scene
+  replaces it or kept pages need its room (`page-cache-kept-yielded`; read again after a device
+  loss, on its own request, not counted among pages read); decoded baked texture levels, at most
+  three quarters of the pages' share (`split.textureLevels`, 192 MiB at the default), yielding
+  first to kept pages (`page-cache-levels-yielded`), a level that cannot fit left coarser. A change
+  applies at once: pages and levels leave by last use, save the pages the frame keeps.
+- **Canvas.** Declared larger, it grows the default total by the larger reserve, or takes room from
+  the pools under a page-set total. A canvas drawn past it is never shrunk: the chain renders at
+  full resolution, the diagnostics saying `effect targets over budget` with the bytes past the
+  reserve.
+- **Pools.** A read gives what the engine holds, not what was asked; a write is clamped to
+  `world.budget.geometryPoolCeiling` / `texturePoolCeiling` and to what `gpu` leaves beside the
+  shadows and the other pool, so pools never sum past the total, save a total below their floors
+  (the root cover, the texture tails), which they never go under. On WebGPU the geometry pool pays
+  first for the vertex buffers beside its slots (the float geometry no page covers, one placeholder
+  vertex at least): `geometryAllocationBytes`, counting both, never passes `geometryPool` above that
+  floor. Two writes before the next frame settle in one rebalance; pages and tiles are copied on the
+  GPU into the new pool and only what no longer fits is evicted, the image complete throughout. The
+  texture pool's floor, `minimum`, holds every tail (one tile per texture, 900 a layer) plus one
+  tile to stream into when the lane streams: a lane whose tails fill whole layers pays one layer
+  more (64 MiB lossless, a quarter of that in a block lane). A budget under the floor is raised to
+  it; a shrink never displaces a tail.
 
-**The largest canvas is declared.** `world.budget.canvas` (`{ width, height }`, in pixels of the
-drawing buffer, 3840 × 2160 by default) is the size the effect chain's targets are reserved at, by
-the one rule the renderers count them with. Declared larger, the default total grows by the larger
-reserve only; under a total set by the page, the pools make room for it. A canvas drawn past the
-declared one is never shrunk: the chain renders at full resolution, and the diagnostics say
-`effect targets over budget` with the bytes past the reserve. A size that is not a whole number of
-pixels above zero is refused (`INVALID_BUDGET_CANVAS`).
+The public low-level `createGpuPageCache` owns its pin priorities: `cache.pin(key, 'held')` for the
+root cover, `cache.pin(key)` (or `'pinned'`) for ordinary pins. `cache.resize(slots)` keeps held
+pages, then ordinary pins, then unpinned pages, newest first in each tier; pin as `'held'` what a
+`resize(slots, held)` call named. `cache.load(key, signal, 'held')` pins a page in the cache's queue
+as it arrives, so a resize queued behind never ranks it unpinned. Repinning never lowers a held
+page; `cache.unpin(key)` releases its pin and held tier.
 
-```js
-world.budget.canvas = { width: 7680, height: 4320 }; // an 8K display: its targets reserved
-world.budget.gpu = 1024 * 1024 * 1024; // one total: every pool redrawn by the split
-world.budget.cpu = 128 * 1024 * 1024;
-world.budget.geometryPool = 256 * 1024 * 1024; // the call a memory slider makes
-```
+**Coarser, never refused.** What a view asks beyond a pool is drawn coarser on both renderers: pages
+that do not fit stay out, their surface drawn by the nearest resident ancestor, finest detail given
+up first; a texture tile shows its coarser level. `coverageBudgetLimited` and
+`geometryPoolSaturated` (pages beyond the slots; lasting, the pool is too small for that view) say
+so. A value that cannot be held as given is brought to what can, `geometryPoolClamp` /
+`texturePoolClamp` naming why: `root-cover`, `scene`, `page-cap`, `minimum`, `device-limit`,
+`ceiling`, or `null`. Only this is refused, by name:
 
-Reading a pool back gives what the engine holds, not what was asked; a pool write is clamped to
-`world.budget.geometryPoolCeiling` / `texturePoolCeiling` and to what `gpu` leaves beside the
-shadows and the other pool, so the pools never sum past the total — save a total too small for
-their floors (the root cover, the texture tails), which they never go below. On WebGPU the
-geometry pool pays first for the vertex buffers held beside its page slots (the float geometry of
-what no page covers, one placeholder vertex at least): `geometryAllocationBytes`, which counts both,
-never passes `geometryPool` above that floor. Two writes before the next frame
-settle in one rebalance. The engine keeps what fits: pages and tiles are copied on the GPU into the
-new pool and only what no longer fits is evicted, so the image stays complete throughout.
+| Code | When |
+| --- | --- |
+| `INVALID_GPU_BUDGET`, `INVALID_CPU_BUDGET`, `INVALID_GEOMETRY_POOL_BUDGET`, `INVALID_TEXTURE_POOL_BUDGET` | a value that is not a whole number of bytes above zero |
+| `INVALID_BUDGET_CANVAS` | a declared canvas that is not a whole number of pixels above zero |
+| `GPU_BUDGET_UNDER_MINIMUM` | a GPU total below the root coverage and texture-tail minima |
+| `GPU_BUDGET_UNDER_SHADOW_POOL` | a GPU total under its fixed shadow share |
+| `CPU_BUDGET_UNDER_SHADOW_MIRROR` | a CPU total not above the shadow mirror |
+| `GEOMETRY_POOL_DEVICE_LIMIT` | a device whose limits cannot hold even the root cover |
+| `TEXTURE_POOL_DEVICE_LIMIT` | a device whose limits cannot hold the tails of one texture lane |
+| `WEBGPU_GEOMETRY_POOL_REFUSED` | the device refuses the root cover at prepare: the WebGPU backend fails, the world goes on with its others (`fallback`, `WEBGPU_UNAVAILABLE`); a GPU canvas rejects |
+| `WEBGPU_TEXTURE_POOL_REFUSED` | the device refuses the texture pool's floor at prepare: pages draw with the fallback pass; a GPU canvas fails with `WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE` |
+| `WEBGPU_FRAME_TARGETS_REFUSED` | frame targets the device refuses even without Hi-Z |
+| `GPU_BUDGET_EXCEEDED` | an allocation past the GPU total (or an unknown format): no new image is submitted, flush and capture reject; terminal for the session, reopened with enough budget (every session sharing the refused cache released first) |
+| `SURFACE_DEVICE_LIMIT` | a device dimension limit |
 
-The public low-level `createGpuPageCache` owns its pin priorities. Use `cache.pin(key, 'held')`
-for the root cover and `cache.pin(key)` (or `'pinned'`) for ordinary pins. `cache.resize(slots)`
-keeps held pages first, then ordinary pins, then unpinned pages, with the newest pages first
-within each tier. Replace the former `resize(slots, held)` call by pinning those pages as
-`'held'`; `cache.load(key, signal, 'held')` pins a page in the cache's own queue as it arrives, so a
-resize queued behind the load never ranks it as unpinned. Ordinary repinning does not lower a held page's priority;
-`cache.unpin(key)` releases both its pin and its held tier.
+### Out of memory is absorbed
 
-What a view asks beyond a pool is shown **coarser**, never refused: on WebGPU and WebGL2 alike the
-pages that do not fit stay out and their surface is drawn by its nearest resident ancestor, the
-finest detail given up first, and a texture tile shows its coarser level. The frame metrics say so
-— `coverageBudgetLimited`, `geometryPoolSaturated` (pages beyond the pool's slots; a lasting count
-says the pool is too small for that view). A value that cannot be held as given is brought to what can be, and
-`geometryPoolClamp` / `texturePoolClamp` name why: `root-cover`, `scene`, `page-cap`, `minimum`,
-`device-limit`, `ceiling`, or `null`. What is refused, by name, is only this:
-
-- a value that is not a whole number of bytes above zero: `INVALID_GPU_BUDGET`,
-  `INVALID_CPU_BUDGET`, `INVALID_GEOMETRY_POOL_BUDGET`, `INVALID_TEXTURE_POOL_BUDGET`;
-- a declared canvas that is not a whole number of pixels above zero: `INVALID_BUDGET_CANVAS`;
-- a total under its fixed share, above: `GPU_BUDGET_UNDER_SHADOW_POOL`,
-  `CPU_BUDGET_UNDER_SHADOW_MIRROR`;
-- a device whose limits cannot hold even the root cover: `GEOMETRY_POOL_DEVICE_LIMIT`, or the
-  tails of one texture lane: `TEXTURE_POOL_DEVICE_LIMIT`;
-- a pool floor the device refuses at prepare: `WEBGPU_GEOMETRY_POOL_REFUSED`,
-  `WEBGPU_TEXTURE_POOL_REFUSED`, below;
-- frame targets the device refuses even without Hi-Z: `WEBGPU_FRAME_TARGETS_REFUSED`, below.
-
-The texture pool's floor, `minimum`, holds every tail (one tile per texture, 900 a layer), as the
-geometry pool holds the root cover, and one tile more to stream into when the lane streams: a lane
-whose tails fill whole layers pays one layer more (64 MiB lossless, a quarter of that in a block
-lane) rather than stay at its tails. A budget under the floor is raised to it; a shrink never
-displaces a tail.
-
-**Out of memory is absorbed.** The browser may refuse an allocation the budget allows. Each pool is
-allocated under an out-of-memory check at prepare, and probed before every rebalance. When the
-device refuses it, the pool
-is drawn again at half its bytes, down to its floor (the root cover, the texture pool's `minimum`, the
-smallest screen's shadow pool). The shadow pool is granted the same way at the first frame that
-casts a shadow, and at each canvas resize, and that frame is held until the device answers: the previous image stays, or
-nothing yet, never an image without its shadows; a capture waits for the answer too. Its static layer is refused whole: shadow pages
-are then drawn with every caster. The pool in place is only ever replaced by one the device grants. The frame goes on,
-coarser where the smaller pool no longer holds the view, and no exception reaches the page. A resize the
-device refuses keeps the shadow pool in place, with every page it holds. When
-the device refuses even the smallest shadow pool at the first frame, the shadowed mode cannot be drawn: it is refused
-by a `shadows-off` error (`kind: 'error'`, `reason: 'gpu-out-of-memory'`), and the session goes on
-without shadows. Shadows are never lost silently.
-The `gpu-out-of-memory` diagnostic names the pool, the bytes asked (`requestedBytes`) and the bytes
-granted (`grantedBytes`, `null` when even the floor was refused and the pool in place stays).
-A geometry or texture budget set while prepare runs is the later word: it is granted in turn, and
-the setting's report waits for prepare and names the pools the device grants; its `durationMs`
-includes that wait.
-
-At prepare there is no pool in place to keep, so a floor the device refuses is refused by name,
-never allocated at the full request outside the check:
-
-- `WEBGPU_GEOMETRY_POOL_REFUSED` — the root cover itself was refused. The WebGPU backend's
-  preparation fails (`backend-preparation-error`): the world goes on with its other backends (a
-  `fallback` event, `WEBGPU_UNAVAILABLE`), and a world drawing straight to a GPU canvas rejects
-  with the code.
-- `WEBGPU_TEXTURE_POOL_REFUSED` — the texture pool's floor was refused. The material pipeline drops
-  (`material-pipeline-failed`, the code in `context.error`) and the pages draw with the fallback
-  pass; on a GPU canvas, which needs that pipeline, preparation fails with
-  `WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE`. The fallback pass draws every transparent blending mode
-  with the surface's alpha, cluster by cluster, and refuses two cases by name:
-  `FALLBACK_TRANSPARENT_LINES_UNSUPPORTED`, a transparent line it cannot widen, and
-  `FALLBACK_BLEND_WITHOUT_CPU_CUT`, a frame the GPU cut selected, which leaves it no cluster list.
-
-WebGL2 has no out-of-memory scope to allocate under, so the engine reads `gl.getError()` for its
-allocations instead — a buffer, a texture level or a target sized again, never an upload in place.
-The read never holds a frame: `getError` waits for the GPU process, so each allocation is only
-recorded with its pool, each frame's end fences what that frame allocated, and the errors are read
-before a later frame's first command, once the oldest fence is passed — a fence is kept until the
-GPU passes it, however many frames behind it runs. An `OUT_OF_MEMORY` marks the pools of every
-allocation not yet confirmed, each made again at its next use, and the next frame answers each
-pool as WebGPU's refusal does, published as `gpu-out-of-memory` with the pool named: `geometry`
-halves the geometry pool, and the residency lets the finest pages go one DAG level per image;
-`texture`, a map, is sent again at its next bind — a surface is never drawn without its picture,
-there is no coarser one to show instead —; `target`, a frame target or the frame's light data, is
-sized again at its next draw, nothing to halve. The pages' vertices and indices share one set of
-buffers per vertex layout, made again larger when full with every page laid out again; a growth
-the context refuses gives that set up, and its pages are placed again in a new one. A browser that
-answers by losing the context takes the WebGL2 context-loss path (`webglcontextlost`, then
-`webglcontextrestored`): nothing is drawn while the context is lost.
-
-WebGL2 uploads the maps of every declared surface ahead of the draws, within `texturePoolBytes`:
-the session's preparation sends them, then each frame what is left, only once the GPU ran the step
-before, and only the maps that fit what is left of `maxTextureTransferBytesPerFrame` (16 MiB) and
-`maxTextureUploadMsPerFrame` (1 ms) — one larger than the whole budget alone. A map not sent yet
-is uploaded by the first draw that binds it: a surface is never drawn without its picture.
-
-WebGPU frame targets follow the requested resolution and are admitted before allocation through
-that same GPU total; `gpuFrameTargetBytes` reports their descriptor bytes. The device ledger also
-checks later buffer and texture allocations, including shared caches, before calling WebGPU.
-A refusal (`GPU_BUDGET_EXCEEDED`, or an unknown format) prevents new image submission: the
-previous canvas image remains, and flush/capture rejects. It is a terminal admission failure for
-that session, which must be reopened with sufficient budget. Sessions sharing a refused cache
-must all release their admission before reopening. This bounds declared resource bytes, not
-unobservable driver overhead. Device dimension limits remain `SURFACE_DEVICE_LIMIT`.
-
-Out of memory on the frame targets is absorbed too: they are made under the pools' out-of-memory
-check, at prepare and when the view's size changes, and the frames are held meanwhile with nothing
-presented, so the canvas keeps the previous image; a capture waits. When the device refuses them,
-Hi-Z goes first, for the rest of the session: its absence costs time, never image
-(`gpu-out-of-memory`, `pool: 'frame-targets'`, `dropped: 'hi-z'`). Refused even then, the
-visibility targets included, they are refused by name and the mode is kept, never a lost device:
-`frame-targets-refused` (`code: 'WEBGPU_FRAME_TARGETS_REFUSED'`, `reason: 'gpu-out-of-memory'`, or
-`'gpu-error'` with its `error` when a creation throws, the size, `requestedBytes`); prepare, a
-capture and its restore reject with the code.
-How the pools are laid out, filled and rebalanced: [ENGINE.md](ENGINE.md#memory).
+The browser may refuse an allocation the budget allows; no exception reaches the page. A refused
+pool is drawn again at half its bytes, down to its floor (the root cover, the texture pool's
+`minimum`, the smallest screen's shadow pool), the frame going on coarser. A frame waiting on a
+shadow pool or frame targets is held — the canvas keeps its previous image, a capture waits — never
+drawn without its shadows. Even the smallest shadow pool refused at the first frame: a
+`shadows-off` error (`kind: 'error'`, `reason: 'gpu-out-of-memory'`), the session going on without
+shadows ([SHADOWS.md](SHADOWS.md#memory)). The `gpu-out-of-memory` diagnostic names the pool, bytes
+asked (`requestedBytes`) and granted (`grantedBytes`, `null` when even the floor was refused and the
+pool in place stays); for frame targets, Hi-Z goes first (`pool: 'frame-targets'`,
+`dropped: 'hi-z'`), then `frame-targets-refused` (`code: 'WEBGPU_FRAME_TARGETS_REFUSED'`,
+`reason: 'gpu-out-of-memory'`, or `'gpu-error'` with its `error`, the size, `requestedBytes`),
+rejecting prepare, a capture and its restore. A geometry or texture budget set during prepare is the
+later word, its report waiting for prepare, its `durationMs` including the wait. How WebGPU and
+WebGL2 (`OUT_OF_MEMORY`, by pool) detect and answer: [RESIDENCY.md](RESIDENCY.md#out-of-memory).
 
 ## Captures and image checks
 
@@ -1409,16 +941,15 @@ How the pools are laid out, filled and rebalanced: [ENGINE.md](ENGINE.md#memory)
 plain pixels taken aside from the view. For a deterministic image, a page calls
 `world.camera.set(pose)`, `await world.awaitPages()`, `world.render()`, then
 `await capture.buffer(world, { width, height })`. `awaitPages()` rejects a requested URL that failed
-to load; a failed background load is retried at most three times, then left until the world is
-reopened. It waits for pages, not for an image: it settles on a world whose loop redraws every
-frame, and the capture reads its own image.
+to load; a failed background load is retried at most three times, then left until the world
+reopens. It waits for pages, not an image: it settles on a world whose loop redraws every frame, and
+the capture reads its own image.
 
 ## Integration: web, Electron and Node
 
-- **Web**: `createWorld(canvasOrId)` owns the scene, the camera, the renderer and the loop;
-  `await world.scene.load(manifestUrl)` adds a compiled model to it like anything else. The
-  application owns canvas layout and disposal. With `interactive: false`, the host owns frame
-  scheduling (`world.render()`). See [Create a world](#create-a-world).
+- **Web**: `createWorld(canvasOrId)` and `await world.scene.load(manifestUrl)`
+  ([Create a world](#create-a-world)); the application owns canvas layout and disposal, and with
+  `interactive: false` frame scheduling (`world.render()`).
 - **Electron**: `prepare` in the main process, `createWorld` in the renderer process. No Electron
   import in the SDK ([hosts](../packages/README.md#hosts)).
 - **Node**: `prepare`, `prepareMany`, `createCompilationJob`, or the `trillion3d-compile` CLI
@@ -1429,263 +960,39 @@ frame, and the capture reads its own image.
 
 ## Migration from Three.js
 
-No Three.js adapter ships or is planned: a host that already writes Three.js code writes the same
-shapes with this engine's [families](#families) instead. The portal's
-[migration page](https://www.trillion3d.com/#/en/learn/three-migration) sets one
-complete Three.js program beside the engine program that draws the same scene
-([`site/examples/migrating-from-three.html`](../site/examples/migrating-from-three.html)); the
-maths map through the witness call each function's page of the
-[API reference](https://www.trillion3d.com/#/en/api) names.
-Three.js stays a comparison witness of the bench, never mixed with a published world (#79).
+No Three.js adapter ships or is planned: Three.js code is rewritten with the [families](#families).
+The portal's [migration page](https://www.trillion3d.com/#/en/learn/three-migration) sets a Three.js
+program beside its engine equivalent
+([`site/examples/migrating-from-three.html`](../site/examples/migrating-from-three.html)); each
+maths function's page of the [API reference](https://www.trillion3d.com/#/en/api) names its witness
+call. Three.js stays a bench witness, never mixed with a published world (#79).
 
 ## Physics
 
-Physics is an option of the world, not a second world: [Jolt Physics](https://github.com/jrouwe/JoltPhysics)
-runs in a worker, and every body is an ordinary mesh with `physics` set.
-
-```js
-const world = createWorld('view', { physics: true }); // or world.physics.enabled = true
-const floor = object.mesh(geometry.box(20, 1, 20), material.meshStandard({ physics: 'stone' }));
-floor.physics = 'static';
-const crate = object.mesh(geometry.box(1, 1, 1), material.meshStandard({ physics: 'wood' }));
-crate.physics = 'dynamic';
-crate.position.y = 5;
-world.scene.add(floor, crate);
-crate.physics.on('contact', ({ other, impulse }) => console.log(other?.name, impulse));
-```
-
-- **Loading.** A world without physics fetches no byte of Jolt, nor the page's code that drives
-  it. That code, the worker and its WebAssembly module are fetched the first time physics is
-  enabled; bodies set before then are queued.
-- **World.** `world.physics.enabled`, `gravity` (a live vector, or `'earth'`, `'moon'`, `'mars'`,
-  `'none'`), `paused`, `timeScale` (0.25 is slow motion, 0 stands still; a negative or infinite
-  scale throws `RangeError`), `simulationRange` (metres around the camera within which bodies
-  are simulated; `null`, the default, follows `camera.far`; anything but `null` or a finite
-  distance above 0 throws `RangeError`), `stats` and `error`. `world.physics.water = { level, waves, density,
-linearDrag, angularDrag, current }` (or `null`) is the water the bodies float in: each step, the
-  worker fits a plane of the waves to every piece under water and pushes it by the weight of the
-  water it displaces, so a body lighter than the water floats; the drags set how fast it settles,
-  never where; setting or removing it wakes every dynamic body. A wave out of range throws
-  `RangeError`. `world.physics.waterSurface` reads those same waves at the simulation's time, to
-  draw them (they run on while every body sleeps, and stand still when paused): `height(x, z)`, `point(x, z, out)` (where a rest point of a grid is carried),
-  `normal(x, z, out)`, and `wavesNow()`, the waves with their phases carried, so water set again
-  goes on from where it is. Its example, floating crates, waits for geometry written every frame
-  to be uploaded in place (#573).
-  `createWorld(canvas, { physics: { gravity, budget, simulationRange } })` sets them at creation.
-- **Bodies.** `mesh.physics = 'static' | 'dynamic' | 'kinematic'` or options `{ type, mass, shape,
-gravityScale, sensor, ccd, decorative, friction, restitution, damping }`. The shape is read from the
-  geometry: a box, sphere, capsule or cylinder is that exact primitive (scaled); any other mesh is
-  its triangles when static and its convex hull, computed in the worker, when it moves; a dynamic
-  body declared `{ type: 'triangles' }` is refused (no volume, no mass), and a shape the worker
-  cannot build fails that body alone (`PHYSICS_FAILED`, the mesh named).
-  `{ type: 'compound', parts }` makes one rigid body of primitives, each with its `position` and
-  `quaternion` in the object's frame; its scale must be the same positive one on all axes, a
-  stretched or mirrored compound being refused (`PHYSICS_FAILED`, the mesh named). A declared
-  `{ type: 'cylinder', halfHeight, radius, radiusBottom }` tapers from its top's `radius` to
-  `radiusBottom`, as `geometry.cylinder(radiusTop, radiusBottom, height)` draws it. A dynamic
-  body must be a direct child of the scene (`PHYSICS_NESTED`). `position.set` on a dynamic body
-  teleports it; on a kinematic one it drives it there over the next step, pushing what it meets.
-- **Mass and matter.** `mass` in kilograms, or the material's density times the shape's volume.
-  A material carries `physics: 'wood' | 'metal' | 'rubber' | 'ice' | 'stone' | 'glass'` and its own
-  `density`, `friction` and `restitution` over the preset; a body's `friction` and `restitution`
-  override both. `damping: { linear, angular }` is the share of its speed a body loses by itself
-  each second (`dv/dt = −c·v`, the simulation's 0.05 each when left out, 0 keeps every bit; a
-  negative one throws `RangeError`); set at creation, like `sensor`. A body declares its own air
-  and rolling loss there (live: [ride a roller coaster](../site/examples/ride-a-roller-coaster.html)).
-- **Motion and events.** `mesh.physics.velocity` (read as the last step left it, written to launch
-  the body), `applyImpulse(x, y, z)`, `wake()`, `asleep`, and `on('contact' | 'enter' | 'leave')`:
-  the other object, an impulse estimate (approach speed times the pair's reduced mass) and the
-  point. After `Update` the pool's contact records are merged in a canonical order no thread
-  decides: by the body pair's key (the lower engine index first), each pair's own events in the
-  order Jolt ran them. It is the engine's order, not Jolt's internal callback order. The `leave`
-  events a full buffer carried from the last step and a removed body's come before this merge, and
-  a soft body's after it, outside the pair-key order. A pool of any size gives the whole step's
-  events in the single thread's order (`contactThreads.test.ts`).
-- **Joints.** `joint.fixed | point | hinge | slider | distance | cone(a, b, options)` connects two
-  bodies, or a body and the world (`b` is `null`), with Jolt's own constraints; `world.physics.add(j)`
-  puts it in the simulation and `remove(j)` takes it out. It is made once both bodies are simulated,
-  taken out with either, and made again when the body returns. `anchor` (where they connect; the
-  end on `a` for a distance, `anchorB` the end on `b`) and `axis` (the hinge's pin, the slider's
-  rail, the cone's middle) are world points read when the joint is first made, then kept in each
-  body's frame. `limits: { min, max }` stop it — radians for a hinge (−π to π), metres for a slider
-  or a distance (whose default is its length), the half angle `max` for a cone —; `spring:
-{ frequency, damping }` makes the stop of a hinge, slider or distance soft. `motor: { mode:
-'velocity' | 'position', target, maxForce }` drives a hinge or a slider, the position measured
-  from where the joint was made; `j.motor` changes it at any time. `breakForce` is the pull in
-  newtons past which the joint breaks after a step: `j.broken` turns true, `j.on('break', fn)` is
-  called, and the bodies part. A tuning a kind lacks (a motor on a fixed joint) throws
-  `RangeError`. Live example: [hinges and joints](../site/examples/hinges-and-joints.html).
-- **Advanced joints.** The same entry holds Jolt's advanced constraints, with the same `add`,
-  `remove`, `breakForce` and `motor`. `joint.swingTwist` is a shoulder: `axis` swings within a
-  cone of half angle `limits.swing` and twists between `limits.min` and `max`; its motor drives
-  the twist. `joint.sixDof` has six axes — `x` along `axis`, `y` as near the world's up as it can,
-  and `turnX | turnY | turnZ` about them —, each locked unless `axes` frees it (`'free'`) or
-  limits it (`{ min, max }`); `spring` softens its slide limits and `motor.axis` names the axis
-  its motor drives. `joint.path(a, b, { path, loop, follow })` runs `a` along a smooth track
-  through the points of `path` (at least two, fixed to `b` or the world), turning with it unless
-  `follow` is `false`; its motor drives `a` at a speed along the track, or to a point of it (1.5:
-  halfway between the second and the third). A track fixed in the world does no work: its bends
-  turn `a` without slowing it, and a body with no damping keeps its energy along it to within one
-  step of gravity's work. Not on a track fixed to a moving body, nor for a body held off its centre
-  while it spins: there each bend still takes v²·dt / R² of its kinetic energy per second (v its
-  speed, R the bend's radius, dt the step). `joint.pulley(a, b, { over, ratio })` hangs `a` and
-  `b` on one rope over two wheels in the world, the rope from 0 up to its length unless `limits`
-  says otherwise. `joint.gear(a, b, { axis, axisB, ratio })` turns `b` `ratio` times per turn of
-  `a` (the teeth of `a` over those of `b`), the other way round; `joint.rackAndPinion(pinion,
-rack, { axis, axisB, ratio })` slides the rack along `axisB` by `1 / ratio` metres per radian
-  of the pinion (`ratio` is 1 / its radius). A gear, a pinion and a rack each still need their own
-  hinge or slider to hold them in place, the body as its `a`, about the same axis. Jolt reads
-  those to keep the teeth in the phase they were made in over any run: always for a rack and
-  pinion, and for a gear when one wheel has a whole multiple of the other's teeth (`ratio` or
-  `1 / ratio` whole — it wraps each hinge's angle to one turn); any other gear ties the speeds
-  only, and may slip by a fraction of a tooth under load. Live example:
-  [gears and pulleys](../site/examples/gears-and-pulleys.html).
-- **Vehicles.** `vehicle.car | motorcycle | tracked(body, { wheels, ...spec })` puts a dynamic
-  body on wheels with Jolt's own vehicle constraint — engine, automatic gearbox, differentials,
-  suspension and anti-roll bars — and `world.physics.add(v)` makes it once its body is simulated
-  (`remove(v)` takes it out, the body left without wheels). The wheels are meshes, children of the
-  body, placed at their centre as they rest on flat ground, the axle along the body's x; each one's
-  radius and width are read from its bounds, and the simulation turns, steers and lifts it on its
-  suspension every tick. As Jolt's own vehicle samples build theirs, the body's centre of mass is
-  lowered to the bottom of its shape, midway between its wheels, and given back when the vehicle
-  leaves. Its running gear is solid: a box over the wheels' footprint, from the body's bottom down
-  to their lowest point raised by the suspension's travel, joins its shape while it is a vehicle,
-  so another body never slips under it among its wheels, which Jolt only casts; its mass and
-  inertia stay its own shape's. The body faces −z: the forward wheels steer. A car has three wheels or
-  more, one differential per driven axle (`drive: 'front' | 'rear' | 'all'`) and the handbrake on
-  its rear wheels; a motorcycle two, driven at the rear, and it leans into a turn; a tracked
-  vehicle two or more a side, each track driven by its rearmost wheel, steered by slowing one
-  track and pivoting on the spot at a standstill. A vehicle is a `VehicleDriver`:
-  `world.controls.vehicle = v` drives it with the keys; `v.drive(input)` from code does the same.
-  The brake pedal stops it, then backs it up; the throttle stops one rolling back first. `v.speed`
-  (m/s forward), `v.gear` (−1 reverse, 0 neutral) and `v.rpm` read the last step. Each kind is a
-  real machine (`VEHICLE_SPECS`: a Corvette C5, a Yamaha XJ900, an M1 Abrams), every number
-  sourced in `vehicleSpec.ts`: the engine's torque per kilogram of the body (`torquePerKg`), its
-  torque curve, idle and redline, the gear ratios, shift points and final drive, the suspension's
-  frequency, damping and travel, the anti-roll bars, the turning radius the steering lock is read
-  from, the time a hand takes to full lock, the brakes' grip, a motorcycle's lean and a track's
-  turn; any of them is an option. A wheel that is not a child of the body, a wrong wheel count or
-  more than six gears throws `RangeError`, and so does an option its kind would ignore (a car's
-  `trackTurn` or `maxLean`; a motorcycle's `drive`, `trackTurn` or `antiRoll`; a tracked
-  vehicle's `clutch`, `drive`, `turnRadius`, `antiRoll` or `maxLean`) or a `suspensionTravel` not
-  longer than its sag, `9.81 / (2π suspensionFrequency)²`. Live example: [drive a car](../site/examples/drive-a-car.html).
-- **Soft bodies.** `mesh.physics = { type: 'cloth' | 'rope' | 'volume', pins, mass, stretch,
-bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth is its triangles;
-  a rope its vertices in order, each joined to the next; a volume its closed triangles, facing
-  out, held up by the gas inside (`pressure`, Pa above the air's at rest, rising as it is squeezed).
-  Vertices at one position are one (a sphere's seam never tears). `pins` are the geometry's vertex
-  indices held where they are. `mass` is spread over the vertices by the area (a rope: the length)
-  each holds; left out, a medium woven cotton (`SOFT_AREAL_DENSITY`, 0.2 kg/m²) or a 10 mm
-  polyamide rope (`SOFT_LINEAR_DENSITY`, 0.065 kg/m). `stretch` and `bend` are how much an edge
-  gives when pulled and a fold when bent (compliances, the inverse of stiffness; Jolt's own
-  defaults: 0 never stretches, `Infinity` folds freely). A volume's default pressure rests its
-  weight on a quarter of its mean cross-section (`SOFT_FOOTPRINT`, declared), or the most its skin
-  holds if less. A pressure past what its skin holds within a tenth of its rest volume is refused
-  with a `RangeError`: its edges give by their `stretch` and by the solver's own compliance, one
-  substep squared over a vertex's mass, so a light, finely cut skin holds less. `friction`,
-  `restitution`, `gravityScale` and `damping: { linear }` act as on a rigid body, on each vertex;
-  `shape`, `sensor`, `ccd`, `decorative` and an angular damping are refused with a `RangeError`
-  (its vertices do not turn). A soft body is a
-  direct child of the scene; moved by the page, it is carried there with its vertices, its
-  simulation kept; placed at another scale than it was made at, it is refused with
-  `PHYSICS_FAILED` and leaves the simulation until it is back at that scale (Jolt scales no soft
-  body once made), as a compiled model's cooked one does; hidden, its vertices are not sent. A
-  pinned cloth that never stretches (`stretch` 0) keeps each free vertex within its rest distance
-  of the nearest pin (Jolt's long range attachments), so a large one never stretches without end;
-  one given stretch keeps its give. A body, soft or rigid, whose
-  vertices or pose go non-finite sends none of them: it keeps its last finite one on screen and
-  leaves the simulation with `PHYSICS_DIVERGED` (the mesh named). It takes no velocity, impulse, joint or
-  vehicle. Rigid bodies and the character collide with its vertices: the
-  character is turned aside or stopped, never pushing it; a rigid body much heavier than the skin
-  it lands on can push between its vertices; soft bodies pass through each other (Jolt collides
-  them with rigid bodies only). `on('contact' | 'enter' | 'leave')` works on either side of a
-  soft body's pair, from Jolt's soft-body contact listener: the point is the mean of its vertices
-  that touched, the impulse is estimated from its mean velocity and their mass, and a pair stays
-  entered while both rest; a sensor reports it without stopping it. `mesh.physics.vertices` reads its
-  vertices as the last tick left them, `x, y, z` per geometry vertex in the geometry's frame. The
-  drawn mesh does not follow them yet: it waits for geometry written every frame to be uploaded
-  in place (#573).
-- **Stillness.** A body that sleeps sends nothing: once every body sleeps, the worker stops
-  ticking and the world draws no frame.
-- **Distance and view.** Beyond the simulation range (`world.physics.simulationRange`, else the
-  camera's draw distance `camera.far`), a body is frozen with its velocities kept, and thaws when
-  it returns. Out of view, or hidden, it sends no pose and keeps
-  falling; the pose it has when it falls asleep is sent all the same. `decorative` bodies meet the
-  static world only, are simulated only in range and in view, and leave the simulation once asleep:
-  their mesh stays where it came to rest (set `physics` again to simulate it anew), and their
-  joints break (`j.broken`, `'break'`).
-- **Budgets.** `world.budget.physics`, read when the physics starts: bodies, decorative bodies,
-  memory (a hard ceiling: the module's memory cannot grow past it; half of it holds the static
-  collision, a static triangle mesh past it refused naming `memoryBytes`), body pairs
-  and contacts per step, contact events per step, and threads (Jolt's thread pool, the worker's
-  included, when the page is cross-origin isolated; never more than the logical cores minus the
-  page's own; one elsewhere; the worker times its steps and splits them over fewer threads while
-  more only contend, and Jolt computes the same step on any count). The defaults are `DEFAULT_PHYSICS_BUDGET`; a key that is no budget (the removed `triangles`) is refused by name, `PHYSICS_BUDGET` from `createWorld`, a `TypeError` when added to `world.budget.physics`. A request past one is
-  refused with `PHYSICS_BUDGET` on `world.physics.error`; a step that finds more pairs or contacts
-  than its budget says so the same way, and an `enter` past the events budget is counted in
-  `stats.droppedEvents` (its `leave` is then never sent). `softVertices` bounds the vertices of
-  every soft body at once (default 16384, four cloths of 64 × 64). Each vertex is solved every
-  step, so the worker's step grows with them, linearly: the R&D audit measured 6.5–8.2 ms a step
-  at the default and 2.4–2.8 ms at 4096 (four of 32 × 32), natively on one thread (#975). A page
-  that needs fewer lowers it; a soft body past it is refused, `PHYSICS_BUDGET` naming
-  `softVertices`.
-- **Cost.** The `physics` CPU stage is the page's share (`stats.mainMs`); the worker's step is
-  `stats.stepMs` (the mean of the last tick's steps) and `stats.stepMaxMs` (its slowest), on its
-  own clock: the two are never added.
-- **Compiled models.** A model loaded with `scene.load()` collides with its own triangles once the
-  physics is on: the compiler cooked them (`physics.json`, [FORMAT.md](FORMAT.md)) and the physics
-  streams its tiles in, restored from Jolt's binary state, around every moving body and around the
-  eye up to the simulation range, nearest first, within half of `budget.physics.memoryBytes`, and releases
-  them as they move away (a tile stays until half as far again as it came in). A scene is never
-  refused for its size: a tile that does not fit waits, the farthest leaving for it. A file of another format or cooked by
-  another Jolt is refused (`PHYSICS_FORMAT`); a model compiled before the cook collides nowhere.
-  A tile or a soft body's settings the server refuses is `RESOURCE_HTTP_ERROR` on
-  `world.physics.error` ([Files over HTTP](#files-over-http)); a model that leaves the scene lets
-  go of its reads still on their way, which is no error.
-  Its tiles grip and bounce as the source's `KHR_physics_rigid_bodies` collider declares, else with
-  the default matter (`DEFAULT_MATTER`); every drawn node is static, as drawn, but one declaring a
-  `motion`: its body is restored as cooked (its implicit shape, or its hull fetched), counted
-  against `budget.physics`, with the mass, centre of mass and inertia its motion declares, else the
-  cooked ones (a cooked inertia moved to a declared centre); its tiles then leave, and so do those
-  of another node its collider is made from. A kinematic one follows its model, pushing what it
-  meets, or, under a dynamic one, its node as that body carries it; a dynamic one simulates: its node, with what hangs under it, is drawn where the simulation puts
-  it, the tiles of that subtree leave, and ground streams in around it as around any moving body;
-  its model or its node moved by the page, it is put where its node is then drawn. In a
-  partitioned model, whose cache numbers its nodes otherwise, it is held kinematic and asleep
-  where its node is drawn. A shape Jolt cannot make at the body's scale is `PHYSICS_FAILED` naming
-  its node, and the node stays static ground; a body refused at a rescale is made again once its
-  model is at another scale.
-- **Exact raycast.** `await world.raycast(at, { exact: true })` asks the physics: a compiled model
-  is hit on its cooked triangles (the hit names the model and the glTF `material` of the triangle),
-  any body on its shape. `{ shape: { type: 'sphere', radius } }` (or `box` with `halfExtents`,
-  `capsule` with `halfHeight` and `radius`) sweeps that shape instead; `maxDistance` defaults to
-  `camera.far`; `ignore` names a body the ray or shape passes through, the asker's own. Without
-  `exact` or `shape`, `world.raycast` answers at once, from the scene's own geometry, a model on
-  its box. With the physics off, an exact raycast throws `PHYSICS_OFF`.
-- **Character.** With physics on, `world.controls` `'character'` is the physics' own character
-  (see [Camera controllers](#camera-controllers)): it pushes, rides and is pushed.
+Jolt in a worker, every body an ordinary mesh with `physics` set: [PHYSICS.md](PHYSICS.md).
 
 ## GPU deformation
 
-Imported glTF and FBX animation clips are exposed as `model.animations`. A mixer binds tracks
-under that loaded model, including its morph weights. FBX imports translation, Euler rotation,
-scale and blend-weight clips through ufbx source evaluation. Original keys and the full playback
-span remain. Linear and cubic curves are subdivided by their Bezier control hull (scalar chord
-error at most 2.5e-7 source units, or radians for rotations); total Euler travel is limited to 15 degrees per initial
-interval so complete rotations cannot disappear between quaternion keys. The converter refines
-world-space TRS against ufbx at each interval's quarter, midpoint and three-quarter samples,
-using emitted float32 endpoints and a 2.5e-7 component threshold (relative above magnitude one).
-Regression oracles additionally check non-key times against a 1e-6 component bound. These are
-conversion checks, not a measured image-fidelity claim. Single linear skins and positive
-single-target blends retain non-unit full weights. Skins with unbound vertices or more than
-65,536 joints refuse explicitly. Stepped/extrapolated curves, intermediate
-shapes, layered/constrained animation and sheared world transforms remain explicit
-`IMPORT_UNSUPPORTED_ANIMATION` refusals. Conversion also refuses more than 36,000 distinct keys
-or times that collapse at float32 precision; it never truncates a clip. glTF retains its original
-interpolation contracts. Stored skin weights remain exact float32 source values; both GPU paths
-normalize their sum when blending joints, keeping the bind pose and conservative bounds intact.
-A deformed scene refuses the untextured WebGPU fallback when its material pipeline is unavailable,
-so backend selection can recover instead of displaying rest geometry:
+Imported glTF and FBX clips are `model.animations`. `animation.createMixer(root)` binds clips to
+names below `root` (a loaded model: its tracks and morph weights); `mixer.clipAction(clip)` has
+`play()`, `stop()`, `seek(seconds)`, `weight`, `timeScale` and `blendMode`;
+`animation.weightsTrack(path, times, values)` holds all morph weights at each key;
+`animation.skeleton(bones, inverseBindMatrices?)` without matrices uses the current bind pose. FBX
+translation, Euler rotation, scale and blend-weight clips go through ufbx source evaluation,
+original keys and full span kept: linear and cubic curves are subdivided by their Bezier control
+hull (scalar chord error at most 2.5e-7 source units, or radians), Euler travel limited to 15
+degrees per initial interval so whole turns cannot vanish between quaternion keys, world-space TRS
+refined against ufbx at each interval's quarter, midpoint and three-quarter samples (emitted float32
+endpoints, 2.5e-7 component threshold, relative above magnitude one), and regression oracles check
+non-key times within 1e-6 — conversion checks, not an image-fidelity measurement. Single linear
+skins and positive single-target blends keep non-unit full weights. `IMPORT_UNSUPPORTED_ANIMATION`
+refuses skins with unbound vertices or more than 65,536 joints, stepped/extrapolated curves,
+intermediate shapes, layered/constrained animation, sheared world transforms, more than 36,000
+distinct keys and times colliding at float32; a clip is never truncated. glTF keeps its
+interpolation contracts. Skin weights stay exact float32 source values, both GPU paths normalizing
+their sum when blending, bind pose and conservative bounds intact. A deformed scene refuses the
+untextured WebGPU fallback when its material pipeline is unavailable, so backend selection recovers
+instead of showing rest geometry:
 
 ```ts
 const model = await world.scene.load('/character/cache/native/full/manifest.json');
@@ -1699,70 +1006,56 @@ world.invalidate();
 ```
 
 A page-created mesh uses `mesh.skeleton = animation.skeleton(bones, inverseBindMatrices)` and
-four-component `skinIndex` / `skinWeight` geometry attributes. Morph displacements belong in
-`geometry.morphAttributes.position` (and optionally `.normal`), with
-`geometry.morphTargetsRelative = true`; absolute targets are accepted too. Call
-`mesh.updateMorphTargets()` after adding targets. Animate `node.morphTargetInfluences` through
-`animation.weightsTrack`, or write its weights directly. Geometry and its cut pages are shared;
-each placement reads its own palette, weights and water source.
+four-component `skinIndex` / `skinWeight` attributes; morph displacements go in
+`geometry.morphAttributes.position` (optionally `.normal`) with
+`geometry.morphTargetsRelative = true` (absolute targets work too), then
+`mesh.updateMorphTargets()`; `node.morphTargetInfluences` is animated by `animation.weightsTrack` or
+written. Geometry and its pages are shared; each placement reads its own palette, weights and water
+source.
 
-Actions blend by `weight`. Set `action.blendMode = 'additive'` to add its difference from the
-clip's first key over the normal blend. `animation.twoBoneIK(root, mid, end, target, pole, weight)`
-solves a bone chain; use it after sampling the clips. `animation.windClip(bones, options)` returns
-a looping bone animation with `direction: [x, z]`, `angle` in radians and `frequency` in Hz.
-Wind changes bones, not individual CPU vertices. A water mesh sets `mesh.waves` to the same
-`WaterSurface` whose `waveModel` buoyancy reads: rendering and physics share wave parameters.
+Actions blend by `weight`; `action.blendMode = 'additive'` adds the difference from the clip's first
+key. `animation.twoBoneIK(root, mid, end, target, pole?, weight?)` solves a bone chain after
+sampling; `animation.windClip(bones, options?)` loops bones (`direction: [x, z]`, `angle` in
+radians, `frequency` in Hz), never CPU vertices. A water mesh's `mesh.waves = waterSurface` is the
+`WaterSurface` whose `waveModel` buoyancy reads: rendering and physics share waves.
 
-WebGPU computes resident vertex positions, previous positions and normals before selection and
-rasterization. WebGL2 applies the same sources in its vertex stage. The engine expands culling
-bounds by the deformation reach and retains the previous pose for temporal reprojection;
-a stationary pose settles its previous values on the following frame. Cooked cloth uses its
-compiler-recorded simulation mapping; a page does not rebuild the cloth geometry.
-
-`metrics.gpuDeformationMs` is the latest measured WebGPU deformation stage time, or `null` when
-no timestamp sample is available. Zero is a measured zero, never a replacement for missing
-support. See [the walking character](../site/examples/a-character-that-walks.html),
-[the morph sample](../site/examples/a-shape-that-morphs.html), and
-[the crowd](../site/examples/a-crowd-of-characters.html). The crowd accepts `?count=1`, `10` or
-`100`; its fixed-time hook is for the recette's source-pose and frame-envelope comparisons.
+WebGPU computes resident positions, previous positions and normals before selection and
+rasterization; WebGL2 applies the same sources in its vertex stage. Culling bounds grow by the
+deformation reach; the previous pose feeds temporal reprojection and settles the frame after a pose
+stops. Cooked cloth uses its compiler-recorded simulation mapping. `metrics.gpuDeformationMs` is the
+latest measured WebGPU deformation time, `null` without a timestamp sample; zero is a measured zero.
+Examples: [the walking character](../site/examples/a-character-that-walks.html), [the morph
+sample](../site/examples/a-shape-that-morphs.html), [the
+crowd](../site/examples/a-crowd-of-characters.html) (`?count=1`, `10` or `100`; its fixed-time hook
+serves the recette's source-pose and frame-envelope comparisons). Internals:
+[ENGINE.md](ENGINE.md#gpu-deformation).
 
 ## Current limits
 
-- `scene.load` reads a versioned compiled manifest. Imported non-triangle primitives and
-  unsupported glTF extensions are refused by the compiler.
+- The compiler refuses imported non-triangle primitives and unsupported glTF extensions; `scene.load`
+  reads a versioned compiled manifest.
 - Specular environment-map IBL is not implemented. Screen reflections read camera-visible opaque
-  radiance; off-screen geometry requires the existing WebGPU bounce proxy/probe fallback when
-  bounce is enabled. Rough reflection filtering and its bounded history are described in
-  [ENGINE.md](ENGINE.md#light-that-bounces); this is not an off-screen geometry reconstruction.
-- WebGL2 draws physical transmission-volume factors, anisotropy and clearcoat (including their
-  maps). Its remaining unsupported extensions are sheen, iridescence, dispersion, a specular
-  factor, an IOR without transmission, their maps and the transmission and thickness maps. A surface declaring one
-  is drawn without it — the loop never stops — and the world's diagnostic channel says
-  `material-degraded` once per surface and feature (`context.material`, `context.feature`). The
-  WebGPU page raster lists material extensions among its unsupported capabilities and says nothing
-  per surface. A surface the WebGL2 program cannot draw at all (an environment, light, bump,
-  displacement or alpha map, wireframe, stencil writes, alpha hash, premultiplied alpha, alpha to
-  coverage, clipping planes, object-space normals) is left out of the frame while every other
-  object draws and the loop goes on; the channel says `material-refused` once per surface and
+  radiance; off-screen geometry needs the WebGPU bounce proxy/probe fallback, bounce enabled (rough
+  filtering and bounded history: [ENGINE.md](ENGINE.md#light-that-bounces)); no off-screen geometry
+  is reconstructed.
+- WebGL2 draws physical transmission-volume factors, anisotropy and clearcoat (their maps
+  included), but not sheen, iridescence, dispersion, a specular factor, an IOR without
+  transmission, their maps, or the transmission and thickness maps: such a surface is drawn without
+  the feature, the loop going on, and the channel says `material-degraded` once per surface and
+  feature (`context.material`, `context.feature`). The WebGPU page raster lists material extensions
+  among its unsupported capabilities and says nothing per surface. A surface the WebGL2 program
+  cannot draw at all (an environment, light, bump, displacement or alpha map, wireframe, stencil
+  writes, alpha hash, premultiplied alpha, alpha to coverage, clipping planes, object-space normals)
+  is left out while everything else draws; the channel says `material-refused` once per surface and
   reason (`context.material`, `context.reason`).
 - Transparent surfaces are lit from the source file's own light graph with a fixed ambient, not yet
   by the declared-light rule above.
-- A lost device is recovered, the page never reloaded: the world asks for a device again, reopens its
-  session on it and rebuilds from its decoded-page cache, fetching no page, bundle or resident proxy
-  it still holds (the proxy and the decoded texture levels are kept inside `world.budget.cpu`
-  unless they yielded to the pages). `gpu-device-recovered` says the time from the loss to the
-  first frame drawn after it (`recoveryMs`). Until then the canvas keeps the last image drawn.
-  Every reopen of a world's session is said once as `session-reopen`: its `cause` (`device-lost`,
-  `option`, or a content change — `defect: true`, a change the session should have taken in
-  place), `durationMs`, and `framesWithoutImage`, the display frames it showed no new image through. `lights.json` is read again, and cross-API fallback is
-  not implemented.
-- Frame targets the device refused are asked again only when the view's size changes, or by a
-  capture; until then the frames stay held on the previous image.
-- Physics, `ten-thousand-bodies` (10,000 boxes landing at once; headed Chrome, 1280×720, DPR 1,
-  cross-origin isolated, eight threads, 120 Hz display; load average 8–14, not a quiet machine;
-  commit f56d2dd57; three runs): the worker's step is 3.7–4.2 ms p50 and 20–25 ms p95 during the
-  landing, which then runs in slow motion for a short moment; the page's `physics` stage is
-  0.40 ms p50, 0.59–0.71 ms p95 a frame, and the rAF interval 8.8–10.4 ms p50, 10–13.4 ms p99.
-  The renderer's own work for 10,000 moved instances is measured apart (#432). Joints and cooked
-  colliders are here (above), not measured at this scale, nor are advanced joints and vehicles;
-  soft bodies arrive with #399.
+- A lost device is recovered without a reload: the world asks for a device, reopens its session on
+  it and rebuilds from its decoded-page cache, fetching no page, bundle or resident proxy it still
+  holds (proxy and decoded texture levels stay inside `world.budget.cpu` unless they yielded).
+  `gpu-device-recovered` gives the loss-to-first-frame time (`recoveryMs`); meanwhile the canvas
+  keeps its last image. Each session reopen is said once as `session-reopen`: `cause`
+  (`device-lost`, `option`, or a content change — `defect: true`, one the session should have taken
+  in place), `durationMs`, and `framesWithoutImage`, the display frames without a new image.
+  `lights.json` is read again; cross-API fallback is not implemented.
+- Physics: measured scale, and what remains (#399), in [PHYSICS.md](PHYSICS.md#measured-and-what-remains).

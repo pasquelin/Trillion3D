@@ -9,9 +9,8 @@ TRILLION3D_ASSETS=/path/to/this-repository/.mesure/assets \
   --out .mesure/out/41-gaze-network
 ```
 
-The `TRILLION3D_ASSETS` setting is only needed when running from a separate worktree whose
-`.mesure/assets/` directory has not been populated. Use the existing assets of this repository.
-The mode accepts the usual before and after sides for a branch comparison and writes
+`TRILLION3D_ASSETS` is needed only from a worktree whose `.mesure/assets/` is empty: point it at
+this repository's existing assets. The mode takes the usual before and after sides and writes
 `gazeNetwork` readings to `measure.json` and a table to `resume.md`.
 
 Each reading opens a fresh browser, plays the chosen trajectory at one pose per animation frame,
@@ -23,5 +22,4 @@ manifest, geometry, modules, and other traffic. Failed and unfinished requests, 
 whose transfer size Chrome did not report, are reported separately. Any nonzero count marks the
 byte reading incomplete; do not use it as a bandwidth verdict.
 
-This mode reports network transfer only. Run the ordinary benchmark and image proof separately
-for frame time and fidelity.
+Network transfer only: frame time and fidelity come from the ordinary benchmark and image proof.
