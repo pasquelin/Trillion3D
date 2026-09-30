@@ -8,7 +8,8 @@ import assert from 'node:assert/strict';
 import { DIRECT_LIGHTING_WGSL } from '../direct/lightingWgsl.ts';
 import { shaderFunctions, wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
-import { clusterSliceIndexWgsl, CLUSTER_SLICES } from './clusterWgsl.ts';
+import { CLUSTER_SLICES } from './clusterWgsl.ts';
+import { sliceMap } from './clusterSlices.fixture.ts';
 
 const K = wgslConstants(DIRECT_LIGHTING_WGSL);
 const f32 = (v: number) => Math.fround(v);
@@ -25,18 +26,7 @@ function record(
   nearPlane: number,
   clustered: boolean,
 ) {
-  const map = shaderFunctions<{
-    clusterSliceSpan: (
-      d: number,
-      r: number,
-      front: number,
-      back: number,
-    ) => { x: number; y: number };
-  }>(clusterSliceIndexWgsl, ['clusterSliceSpan', 'clusterSliceIndex'], {
-    CLUSTER_SLICES,
-    log: Math.log,
-    floor: Math.floor,
-  });
+  const map = sliceMap();
   const spans = lights.map((light) => map.clusterSliceSpan(light.axis, light.radius, front, back));
   const bins = [...Array(CLUSTER_SLICES).keys()].map((slice) =>
     lights.flatMap((_, rank) => (slice >= spans[rank].x && slice < spans[rank].y ? [rank] : [])),
@@ -59,7 +49,7 @@ function record(
     words.set(list, offset);
     offset += list.length;
   });
-  words[K.TILE_CLUSTER_FLAG] = clustered ? 1 : 0;
+  words[K.TILE_CLUSTER_FLAG] = 1;
   return words;
 }
 
