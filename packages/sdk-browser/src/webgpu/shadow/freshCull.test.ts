@@ -1,7 +1,8 @@
 // #1275: the cull of the pages the GPU draws itself (`freshCullWgsl.ts`) and their seal
 // (`sealShadowPages`), run from their shipped WGSL: a region keeps every caster row its volume
-// touches — the page table's and the blended casters' —, one pair each; no more pages are picked
-// than the pair list holds every row of, and the others wait, unread, for the next frame.
+// touches — the page table's and the blended casters' —, one pair each; every listed page is picked
+// and drawn when the pairs it keeps fit the list (#1363), and one the list leaves short waits,
+// unread and unclaimed, for the next frame.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -15,10 +16,12 @@ import { MOBILITY_CORNER_SHIFT } from '../../gpu/shadow/cullShader.ts';
 import { runShadowFresh, runShadowPairs } from './freshRun.fixture.ts';
 import {
   FRESH_ARG,
+  FRESH_CASTERS,
   FRESH_FACE_WORDS,
   FRESH_PARAMS,
   FRESH_REGION_PAGES,
   freshArgWords,
+  freshDrawWord,
 } from './freshLayout.ts';
 import { DRAWN_GPU, DRAWN_NONE, POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
 
@@ -77,12 +80,13 @@ test('a region keeps every caster row its volume touches, the blended ones too',
   assert.equal(args[FRESH_ARG.corners], 5, 'the most corners a kept row draws');
 });
 
-test('no more pages are picked than the pair list holds every row of; the rest wait, unread', () => {
-  // Six listed pages of a pool of sixteen, three caster rows, room for seven pairs: two regions.
+/** Six listed pages of a pool of sixteen, three caster rows, room for `capacity` pairs; each
+ *  region's volume holds the rows `holds(k)` says. The compose, the cull and the seal, run in
+ *  turn: the pages picked, the pairs kept, and which listed page is readable and claimed. */
+function frame(capacity: number, holds: (k: number) => number[]) {
   const pages = 16,
     listed = 6,
-    rows = 3,
-    capacity = 7;
+    rows = 3;
   const data = new Uint8Array(SHADOW_TABLE_OFFSET + SHADOW_TABLE_ENTRIES * 4),
     state = new Uint32Array(POOL_COUNTS.length + POOL_FIELDS.length * pages),
     table = new Uint32Array(data.buffer, SHADOW_TABLE_OFFSET),
@@ -108,22 +112,47 @@ test('no more pages are picked than the pair list holds every row of; the rest w
       ...[bytes(volumeFloats), bytes(args), bytes(params), new Uint8Array(12)],
     );
   fresh('composeShadowPages');
-  const regions = args[FRESH_ARG.regions];
-  assert.equal(regions, Math.floor(capacity / rows), 'as many regions as hold every row');
-  // Every region's volume holds every caster: the cull keeps a pair of each row for each.
+  const regions = args[FRESH_ARG.regions],
+    picked = [...args.subarray(FRESH_REGION_PAGES, FRESH_REGION_PAGES + regions)];
+  // Every region a box that holds every row; one holding row 0 alone is two metres wide on its
+  // right axis, where the other rows lie fifty metres out.
   for (let k = 0; k < regions; k++)
     volumeFloats.set(
       [0, 0, 0, 1e6, 0, 0, 1, -1, 1, 0, 0, 1e6, 0, 1, 0, 1e6],
       k * SHADOW_CULL_FLOATS,
     );
-  const spheres = new Float32Array(Array.from({ length: rows }, () => [0, 0, 0, 1]).flat()),
+  const spheres = new Float32Array(rows * 4),
     pairs = new Uint32Array(2 * capacity);
+  for (let k = 0; k < regions; k++)
+    if (holds(k).length < rows) volumeFloats[k * SHADOW_CULL_FLOATS + 11] = 1;
+  for (let row = 0; row < rows; row++) spheres.set([row === 0 ? 0 : 50, 0, 0, 1], row * 4);
   runShadowPairs(...[spheres, params, volumeFloats, pairs, args, new Uint32Array(rows)].map(bytes));
-  assert.equal(args[FRESH_ARG.pairs], regions * rows, 'every pair kept, none past the list');
+  const kept = args[FRESH_ARG.pairs];
   fresh('sealShadowPages');
-  for (let p = 0; p < listed; p++) {
-    const picked = [...args.subarray(FRESH_REGION_PAGES, FRESH_REGION_PAGES + regions)].includes(p);
-    assert.equal(table[40 + p] & PAGE_VALID, picked ? PAGE_VALID : 0, `page ${p}`);
-    assert.equal(drawnBy[p], picked ? DRAWN_GPU : DRAWN_NONE, `page ${p}`);
-  }
+  const drawn = Array.from({ length: listed }, (_, p) => ({
+    readable: (table[40 + p] & PAGE_VALID) !== 0,
+    claimed: drawnBy[p] === DRAWN_GPU,
+  }));
+  return { picked, kept, drawn, casters: args[freshDrawWord(0, FRESH_CASTERS) + 1] };
+}
+
+test('every listed page is drawn in the frame when the pairs it keeps fit, not only as many as hold every row', () => {
+  // Each region keeps one row: six pairs in a list of seven, where a pair of every row of each
+  // would have picked two pages.
+  const { picked, kept, drawn, casters } = frame(7, () => [0]);
+  assert.deepEqual(picked.sort(), [0, 1, 2, 3, 4, 5], 'every listed page picked');
+  assert.equal(kept, 6, 'one pair a region');
+  assert.equal(casters, 6, 'each layer draws the pairs kept');
+  assert.deepEqual(drawn, Array(6).fill({ readable: true, claimed: true }), 'all readable');
+});
+
+test('a region the pair list leaves short stays unread and unclaimed, the others readable', () => {
+  // Every region keeps every row: eighteen pairs for a list of seven.
+  const { picked, kept, drawn, casters } = frame(7, () => [0, 1, 2]);
+  assert.equal(picked.length, 6);
+  assert.ok(kept > 7, 'the cull counted past the list');
+  assert.equal(casters, 7, 'no draw past the list');
+  const whole = drawn.filter((d) => d.readable);
+  assert.ok(whole.length > 0 && whole.length <= 2, 'the regions whose three pairs landed');
+  for (const d of drawn) assert.equal(d.claimed, d.readable, 'a short page is claimed by none');
 });

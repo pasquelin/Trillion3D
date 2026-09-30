@@ -1,6 +1,7 @@
 // #1275: a point lamp with a radius shades through PCSS (`lampSoftWgsl.ts`), whose taps spread over
 // a disk that crosses pages and cube faces. The per-pixel demand, run from its shipped WGSL through
-// `shaderRun`, marks every page the shipped soft shading reads at the same point, in the same frame.
+// `shaderRun`, marks every page the shipped soft shading reads at the same point, in the same frame:
+// its disk turned or not by the jitter phase, the seams its bilinear taps split along too (#1363).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { SceneLight } from '../../../../sdk-core/src/index.ts';
@@ -45,6 +46,8 @@ const record = {
 };
 /** The pages marked and read, and the depth every atlas texel holds: a caster at one axial depth. */
 const live = { marked: new Set<number>(), read: new Set<number>(), maps: new Set<number>(), z: 0 };
+/** The disk's turn this phase (\`shadowRotation\`), set in place: unturned, then turned. */
+const TURN = [1, 0];
 const cross = (a: V, b: V) => [
   a[1] * b[2] - a[2] * b[1],
   a[2] * b[0] - a[0] * b[2],
@@ -55,6 +58,7 @@ const run: Run = shaderRun<Run>(
   [
     ...['demandLamp', 'demandPages', 'demandPage', 'demandSoftLamp', 'softPageExit'],
     ...['lampShadowFactor', 'pointSoftShadow', 'lampDiskSample', 'lampSoftDisk'],
+    ...['demandSoftAt', 'lampSoftCompare', 'shadowNeighbour', 'shadowRotated'],
     ...['shadowPageEntry', 'lampReadAt', 'shadowNormalTexels', 'pointFaceOf'],
     ...PAGE_MODEL_FUNCTIONS,
   ],
@@ -64,6 +68,9 @@ const run: Run = shaderRun<Run>(
     cross,
     shadows: { records: [record] },
     shadowFootprint: 0.004,
+    shadowUnjitter: [0, 0, 0],
+    shadowRotation: TURN,
+    shadowCompare: () => 0.5,
     shadowTransmission: [1, 1, 1],
     shadowAtlas: null,
     shadowTransmittance: null,
@@ -101,26 +108,35 @@ const run: Run = shaderRun<Run>(
   },
 );
 
+const FLOOR = [
+  ...[1.6, 1.8, 2, 2.2, 2.4].flatMap((x) => [-0.3, 0.4, 1.9].map((z) => [x, z])),
+  ...Array.from({ length: 21 }, (_, i) => [1.6 + i * 0.01, 1.9]),
+];
+
 test('the demand marks every page a wide point lamp soft shadow reads, across faces', () => {
   const light = { positionRange: [...lamp.position!, lamp.range!], shape: [0.5, 0, 0, 0] };
   // Casters at these axial depths, every one past the emitter's sphere, as a map holds them.
-  for (const axial of [0.6, 1.2, 1.8]) {
+  for (const [axial, angle] of [0.6, 1.2, 1.8].flatMap((a) => [
+    [a, 0],
+    [a, 1.1],
+  ])) {
+    TURN.splice(0, 2, Math.cos(angle), Math.sin(angle));
     live.z = (near * (far - axial)) / ((far - near) * axial);
-    // A floor 2 m under the lamp, its points near the edge of the down face and a side face.
-    for (let x = 1.6; x <= 2.4; x += 0.2)
-      for (const z of [-0.3, 0.4, 1.9]) {
-        const P = [x, -2, z],
-          N = [0, 1, 0],
-          radius = Math.hypot(...P),
-          L = P.map((c) => -c / radius);
-        live.read.clear();
-        live.marked.clear();
-        live.maps.clear();
-        run.demandLamp(0, light, P, N, L, 0.004);
-        assert.equal(run.lampShadowFactor(0, light, P, N, L, true), 1, 'the soft shadow answers');
-        assert.ok(live.maps.size > 1, `${P}: the taps read two faces or mips`);
-        const unmarked = [...live.read].filter((entry) => !live.marked.has(entry));
-        assert.deepEqual(unmarked, [], `${P}, caster at ${axial}: pages read and not marked`);
-      }
+    // A floor 2 m under the lamp, its points near the edge of the down face and a side face, and a
+    // row a centimetre apart, whose filter taps come within half a texel of a page's seam.
+    for (const [x, z] of FLOOR) {
+      const P = [x, -2, z],
+        N = [0, 1, 0],
+        radius = Math.hypot(...P),
+        L = P.map((c) => -c / radius);
+      live.read.clear();
+      live.marked.clear();
+      live.maps.clear();
+      run.demandLamp(0, light, P, N, L, 0.004);
+      assert.equal(run.lampShadowFactor(0, light, P, N, L, true), 1, 'the soft shadow answers');
+      assert.ok(live.maps.size > 1, `${P}: the taps read two faces or mips`);
+      const unmarked = [...live.read].filter((entry) => !live.marked.has(entry));
+      assert.deepEqual(unmarked, [], `${P}, caster at ${axial}: pages read and not marked`);
+    }
   }
 });

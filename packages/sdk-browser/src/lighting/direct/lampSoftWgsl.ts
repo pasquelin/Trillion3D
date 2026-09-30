@@ -20,12 +20,27 @@ fn lampSoftDisk(index:u32,light:DirectLight,P:vec3f)->LampDisk{
  * Each tap projects its own cube face and requests its virtual page. Receiver-plane
  * intersection, instead of a kernel-wide bias, keeps sloping surfaces from shadowing
  * themselves. This changes only point lights with a positive declared radius.
- * A filter tap is a bilinear comparison (`shadowCompare`), not one texel's: each tap's share
+ * A filter tap is a bilinear comparison (`lampSoftCompare`), not one texel's: each tap's share
  * fades over a texel as the edge crosses it, and the penumbra is a ramp, never sixteen steps. The
  * disk turns each jitter phase (`shadowRotated`) and the TAA's history averages the turns, as
  * Unreal's SMRT leaves its rays to the temporal filter (#1363). */
 export const LAMP_SOFT_WGSL = `${LAMP_SOFT_DISK_WGSL}
 struct LampSample{distance:f32,blocked:bool,through:vec3f,}
+/** \`shadowCompare\` at texel \`t\` of page \`home\` (\`word\`), its bilinear footprint split along the
+ *  one or two seams it crosses as \`shadowPcf\` splits a tap: each page's share read in that page,
+ *  a neighbour not readable read at the home page's nearest texel (\`shadowNeighbour\`). */
+fn lampSoftCompare(m:ShadowMap,t:vec2f,home:vec2i,word:u32,reference:f32)->f32{
+ let first=vec2f(home)*SHADOW_PAGE;let offset=shadowOffset(word,home);
+ let up=t-first>=vec2f(SHADOW_PAGE*0.5);let toward=select(vec2f(-1.0),vec2f(1.0),up);
+ let seam=first+select(vec2f(0.0),vec2f(SHADOW_PAGE),up);let w=saturate(0.5+(seam-t)*toward);
+ let h=clamp(t,first+0.5,first+SHADOW_PAGE-0.5);let n=select(min(t,seam-0.5),max(t,seam+0.5),up);
+ let step=vec2i(toward);
+ var lit=w.x*w.y*shadowCompare(offset,h,reference);
+ if(w.x<1.0){let a=shadowNeighbour(m,home+vec2i(step.x,0),offset,word,t);lit+=(1.0-w.x)*w.y*shadowCompare(a.xyz,vec2f(select(h.x,n.x,a.w>0.0),h.y),reference);}
+ if(w.y<1.0){let b=shadowNeighbour(m,home+vec2i(0,step.y),offset,word,t);lit+=w.x*(1.0-w.y)*shadowCompare(b.xyz,vec2f(h.x,select(h.y,n.y,b.w>0.0)),reference);}
+ if(w.x<1.0&&w.y<1.0){let c=shadowNeighbour(m,home+step,offset,word,t);lit+=(1.0-w.x)*(1.0-w.y)*shadowCompare(c.xyz,select(h,n,c.w>0.0),reference);}
+ return lit;
+}
 fn lampDiskSample(index:u32,light:DirectLight,P:vec3f,N:vec3f,delta:vec3f,mip0:u32,filtering:bool)->LampSample{
  let info=shadows.records[index].info;
  let ray=normalize(P-light.positionRange.xyz+delta);
@@ -43,8 +58,7 @@ fn lampDiskSample(index:u32,light:DirectLight,P:vec3f,N:vec3f,delta:vec3f,mip0:u
   if(word==0u){continue;}
   let offset=shadowOffset(word,home);let first=vec2f(home)*SHADOW_PAGE;
   if(filtering){
-   // The texels around \`t\` in its page, weighed bilinearly: a page's edge clamps them.
-   let lit=shadowCompare(offset,clamp(t,first+0.5,first+SHADOW_PAGE-0.5),reference);
+   let lit=lampSoftCompare(map,t,home,word,reference);
    var through=vec3f(lit);
    if(lit>0.0&&textureDimensions(shadowTransmittance).x>1u){through*=shadowThrough(offset+vec3f(first,0.0),t-first,reference);}
    return LampSample(0.0,lit<1.0,through);
