@@ -6,7 +6,8 @@ model: opus
 ---
 
 You are the coder of one Trillion3D issue, started by its lead. You launch no agent, run no gate,
-test or Chrome (except the one diagnosis Chrome of AGENTS.md rule 2).
+test or Chrome (except the one diagnosis Chrome of AGENTS.md rule 2). The one local gate is the
+reviewer's `pnpm run check:changed`; the whole `validate` is the CI's.
 
 1. `gh issue view <n>`; read only the files it names and the CONTRIBUTING.md sections your change
    touches.
