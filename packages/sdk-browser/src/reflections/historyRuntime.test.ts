@@ -6,8 +6,7 @@ import { createReflectionHistory } from './historyRuntime.ts';
 import { stillHistoryFrame } from './historyFrame.fixture.ts';
 import {
   REFLECTION_CHANGE_FRAMES,
-  REFLECTION_CHANGE_WEIGHT,
-  REFLECTION_HISTORY_WEIGHT,
+  REFLECTION_CHANGE_KEPT,
   REFLECTION_STILL_FRAMES,
 } from './resolveWgsl.ts';
 
@@ -59,18 +58,18 @@ test('first frame rejects history, replay consumes nothing, and a changed source
     assert.equal(history.rank, 1);
     assert.notEqual(encode(), first);
     assert.equal(draws, 2);
-    assert.equal(confidence(), REFLECTION_HISTORY_WEIGHT);
+    assert.equal(confidence(), REFLECTION_STILL_FRAMES);
     // Same displayed frame, but a reflected object or residency changed: never reuse its old mean,
-    // never restart from one sample either — the history keeps the change weight.
+    // never restart from one sample either — the history keeps the change cap.
     frame.epoch[0]++;
     history.prepare(frame, IDENTITY_MATRIX4);
     assert.equal(valid(), 1);
-    assert.equal(confidence(), REFLECTION_CHANGE_WEIGHT);
+    assert.equal(confidence(), REFLECTION_CHANGE_KEPT);
     assert.equal(history.rank, 2);
     assert.equal(history.reuse, false);
     encode();
     assert.equal(draws, 3);
-    // The change weight holds until the stale share is gone, then a full window closes it: a held
+    // The change cap holds until the stale share is gone, then a full window closes it: a held
     // image keeps nothing of the old reflection.
     for (let i = 1; i < REFLECTION_CHANGE_FRAMES + REFLECTION_STILL_FRAMES; i++) {
       frame.frame++;
@@ -79,7 +78,7 @@ test('first frame rejects history, replay consumes nothing, and a changed source
       assert.equal(history.reuse, false, `frame ${i} still refines`);
       assert.equal(
         confidence(),
-        i < REFLECTION_CHANGE_FRAMES ? REFLECTION_CHANGE_WEIGHT : REFLECTION_HISTORY_WEIGHT,
+        i < REFLECTION_CHANGE_FRAMES ? REFLECTION_CHANGE_KEPT : REFLECTION_STILL_FRAMES,
       );
       encode();
     }
