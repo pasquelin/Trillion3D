@@ -27,7 +27,8 @@ import { pcfPages } from '../../../../sdk-core/src/scene/light-shadow/pageModel.
 export const READ = [
   ' let texel0=shadowLampFinestTexel(info.y,radius);',
   ' let wanted=shadowLampReadMip(shadowFootprint,texel0);',
-  ' let t=vec2f(shadowLampMapTexel(ndc.x,side),shadowLampMapTexel(-ndc.y,side));',
+  ' return LampFacePoint(clip,ndc,vec2f(shadowLampMapTexel(ndc.x,side),shadowLampMapTexel(-ndc.y,side)));',
+  ' let f=lampFacePoint(index,face,Q,side);let clip=f.clip;let ndc=f.ndc;let t=f.t;',
   ' let home=clamp(vec2i(shadowPageOfTexel(t.x),shadowPageOfTexel(t.y)),vec2i(0),vec2i(i32(pages)-1));',
   ' for(var level=shadowSunReadLevel(shadowFootprint,finest);level<last;level++){',
   ' let t=vec2f(shadowSunMapTexel(dot(Q,right),origin.x,level),shadowSunMapTexel(-dot(Q,up),origin.y,level));',
