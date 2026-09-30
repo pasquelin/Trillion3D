@@ -13,5 +13,5 @@ export function createStepWords() {
     uints[5] = count;
     uints[6] = pool.capacity;
   };
-  return { buffer, uints, write };
+  return { buffer, write };
 }

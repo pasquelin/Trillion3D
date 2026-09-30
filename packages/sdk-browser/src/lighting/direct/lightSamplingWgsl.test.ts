@@ -9,15 +9,11 @@ import {
   compactTile,
   tileLayout,
 } from '../../../../../bench/oracles/browser/gpuLightTilesRankOracle.ts';
-import { LIGHT_TILES_SHADERS } from '../tiles/shader.ts';
 import {
   BOUNCE_LIGHTING_SHADER,
   DIRECT_LIGHTING_SHADER,
+  LIGHT_TILES_SHADER,
 } from '../../gpu/core/shaderTexts.fixture.ts';
-
-/** The light-tile shader texts the engine compiles, by name. */
-const LIGHT_TILES_SHADER_TEXTS = new Map<string, string>(LIGHT_TILES_SHADERS);
-const LIGHT_TILES_SHADER = LIGHT_TILES_SHADER_TEXTS.get('LIGHT_TILES_SHADER')!;
 
 const occurrences = (text: string, fragment: string) => text.split(fragment).length - 1;
 

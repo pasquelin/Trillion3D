@@ -8,7 +8,7 @@ import { reviewCutouts } from './review.mts';
 import { type Sheet } from './sheet.mts';
 import { leaf } from './cutout.fixture.ts';
 import type { CutoutModel, CutoutReviewSummary } from '../compiler/contracts.ts';
-import { SHEET_FILE } from './sheetFile.mts';
+import { CUTOUT_SHEET_FILE as SHEET_FILE } from '../../../sdk-core/src/index.ts';
 
 /** A compiled model with a sheet and nothing else: the pass must work without a cache to read. */
 async function model(id: string, textures: Sheet['textures']): Promise<CutoutModel> {

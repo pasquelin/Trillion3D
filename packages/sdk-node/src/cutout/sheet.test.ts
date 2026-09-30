@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { readSheet, pendingOf, answerSheet, type Sheet } from './sheet.mts';
 import { leaf as feuille } from './cutout.fixture.ts';
-import { SHEET_FILE } from './sheetFile.mts';
+import { CUTOUT_SHEET_FILE as SHEET_FILE } from '../../../sdk-core/src/index.ts';
 
 type SheetTexture = Sheet['textures'][string];
 
