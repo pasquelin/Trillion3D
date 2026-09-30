@@ -6,6 +6,7 @@ import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts';
 
 import { pageCopies } from './poolApi.ts';
 import { createHeldFloor } from './heldFloor.ts';
+import { createPageDraws } from './pageDraws.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
 /** A page geometry of `floats` position floats and three indices: `floats * 4 + 12` bytes. */
@@ -22,6 +23,7 @@ const rec = (url: string, extra: Partial<PageRec> = {}) =>
 const roots = [{}, { placement: {} }].map(
   (root) => ({ world: new G.Matrix4(), pages: [], ...root }) as ClusterRoot<PageRec>,
 );
+const world = { elements: new Float64Array(new G.Matrix4().toArray()) };
 
 test('page copies follow the records that own a geometry, and the classic instances', () => {
   let instances = 0;
@@ -50,13 +52,23 @@ test('page copies follow the records that own a geometry, and the classic instan
 test('the floor counts the root cover and the replaced pages, read again only once changed', () => {
   const shared = pageGeometry(9),
     replaced = pageGeometry(30);
-  const bootstrap = [rec('root', { geometry: shared }), rec('root', { geometry: shared })];
-  const byUrl = new Map([['page', [rec('page', { geometry: replaced })]]]);
+  const first = rec('root'),
+    second = rec('root'),
+    page = rec('page');
+  const bootstrap = [first, second];
+  const byUrl = new Map([['page', [page]]]);
+  const draws = createPageDraws([{ world, pages: [first, second, page] }]);
+  draws.drawing(first).geometry = shared;
+  draws.drawing(second).geometry = shared;
+  draws.drawing(page).geometry = replaced;
   const modifiedPages = new Set<string>();
-  const floor = createHeldFloor({ roots, bootstrap, modifiedPages, byUrl });
+  const floor = createHeldFloor({ roots, bootstrap, modifiedPages, byUrl, draws });
   assert.equal(floor.bytes(), 9 * 4 + 12, 'a geometry two records share counts once');
   // A pose or a material announces nothing: nothing is walked.
-  bootstrap.push(rec('root', { geometry: pageGeometry(3) }));
+  const extra = rec('root');
+  bootstrap.push(extra);
+  draws.layOut([{ world, pages: [...bootstrap, page] }]);
+  draws.drawing(extra).geometry = pageGeometry(3);
   assert.equal(floor.bytes(), 9 * 4 + 12);
   floor.changed();
   assert.equal(floor.bytes(), 9 * 4 + 12 + 3 * 4 + 12, 'every geometry counted afresh');
@@ -64,7 +76,7 @@ test('the floor counts the root cover and the replaced pages, read again only on
   floor.changed();
   assert.equal(floor.bytes(), 9 * 4 + 12 + 3 * 4 + 12 + 30 * 4 + 12);
   // The same page replaced again: the set of replaced pages keeps its size, the floor follows.
-  byUrl.get('page')![0].geometry = pageGeometry(60);
+  draws.drawing(page).geometry = pageGeometry(60);
   floor.changed();
   assert.equal(floor.bytes(), 9 * 4 + 12 + 3 * 4 + 12 + 60 * 4 + 12);
 });
@@ -75,6 +87,7 @@ test('a replaced page moves the cover, not the placements the requests lay out',
     bootstrap: [],
     modifiedPages: new Set(),
     byUrl: new Map(),
+    draws: createPageDraws([]),
   });
   const read = () => [floor.revision, floor.placements];
   floor.changed();
@@ -92,10 +105,17 @@ test('the floor counts every geometry the store counts: copies sharing their arr
   second.setIndex(new G.BufferAttribute(source.index!.array, 1));
   second.setAttribute('position', new G.BufferAttribute(source.attributes.position.array, 3));
   const clone = source.clone() as unknown as Geometry;
-  const bootstrap = [first, second as unknown as Geometry, clone].map((geometry) =>
-    rec('root', { geometry }),
-  );
-  const floor = createHeldFloor({ roots, bootstrap, modifiedPages: new Set(), byUrl: new Map() });
+  const geometries = [first, second as unknown as Geometry, clone];
+  const bootstrap = geometries.map(() => rec('root'));
+  const draws = createPageDraws([{ world, pages: bootstrap }]);
+  bootstrap.forEach((record, i) => (draws.drawing(record).geometry = geometries[i]));
+  const floor = createHeldFloor({
+    roots,
+    bootstrap,
+    modifiedPages: new Set(),
+    byUrl: new Map(),
+    draws,
+  });
   assert.equal(floor.bytes(), 3 * (9 * 4 + 12), 'three geometries held, three copies counted');
 });
 
