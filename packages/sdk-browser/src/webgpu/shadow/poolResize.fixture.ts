@@ -138,7 +138,7 @@ export async function session(transmittance = false, sized = true) {
    *  demand, the resize it asks answered. */
   const ask = async (count: number, moving = false) => {
     const { plan, store } = lights,
-      view = () => (moving ? { ...VIEW, position: [at * 1e-3, 5, 0] } : VIEW);
+      view = () => (moving ? { ...VIEW, position: [at * 1e-3, 5, 0] as const } : VIEW);
     planFrame(plan, store, at, view());
     plan.commit();
     report(plan, store, at, count ? sunGrid(plan, store.sliceOf(0), count) : []);
