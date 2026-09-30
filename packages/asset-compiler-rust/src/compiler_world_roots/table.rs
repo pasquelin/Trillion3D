@@ -18,7 +18,10 @@ pub(super) fn clusters(
         .map(|slot| {
             let cluster = &dag[slot];
             let (min, max) = cluster_bounds(&world.positions, &cluster.indices);
-            let parent = cluster.parent_error.is_finite().then_some(cluster.parent_error);
+            let parent = cluster
+                .parent_error
+                .is_finite()
+                .then_some(cluster.parent_error);
             let parent_sphere = cluster
                 .parent_error
                 .is_finite()

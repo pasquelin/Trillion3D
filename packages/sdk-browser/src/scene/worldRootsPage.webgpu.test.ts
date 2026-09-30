@@ -6,22 +6,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { installGpuGlobals } from '../../../../tests/kit/gpu/globals.ts';
 import { fakeDevice, replayWrites } from '../../../../tests/kit/gpu/fakeDevice.ts';
-import { worldRootsFixture } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts';
 import { createVertexPool } from '../webgpu/core/geometryPrepare.ts';
 import { createGpuPageCache } from '../gpu/page/pages.ts';
+import { worldRootsPageFixtureSource } from './worldRootsPage.fixture.ts';
 import {
   worldRootsAttributes,
   worldRootsBounds,
   worldRootsIndices,
   worldRootsPageAddress,
-  worldRootsPageSource,
 } from './worldRootsPage.ts';
-
-/** The cook's world binary, served as the runtime's ranged reader serves it. */
-function fixtureSource() {
-  const { table, bin } = worldRootsFixture();
-  return worldRootsPageSource(table, async (from, length) => bin.slice(from, from + length));
-}
 
 /** A device that keeps every queue write as `[buffer label, byte offset, floats]`. */
 function recordingDevice() {
@@ -45,7 +38,7 @@ test('its world positions land in the WebGPU float pool as they are (#1238)', as
   installGpuGlobals();
   const { device, writes } = recordingDevice(),
     address = worldRootsPageAddress('world-roots.bin', 1, 0),
-    page = await fixtureSource().page(address),
+    page = await worldRootsPageFixtureSource().page(address),
     attributes = worldRootsAttributes(page),
     { min, max } = worldRootsBounds(page);
   assert.equal(attributes.position.count, 3, 'three world-space vertices');
@@ -63,7 +56,7 @@ test('its world positions land in the WebGPU float pool as they are (#1238)', as
 test('its widened indices land in a GPU page slot as one triangle (#1238)', async () => {
   installGpuGlobals();
   const address = worldRootsPageAddress('world-roots.bin', 2, 0),
-    source = fixtureSource(),
+    source = worldRootsPageFixtureSource(),
     page = await source.page(address),
     indices = worldRootsIndices(page);
   assert.ok(indices instanceof Uint32Array && indices.length === 3, 'one 32-bit triangle');

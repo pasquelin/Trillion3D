@@ -6,9 +6,8 @@
  * LOCAL indices. Neither engine can upload it as it stands — the WebGPU pool and its shader index
  * an `array<u32>`, WebGL2's cluster draw hard-codes `UNSIGNED_INT`
  * (`webgl/cluster/submit.ts`) — so this module is the ONE detached page source that turns a page,
- * read at its world address (`${payload.url}#${bundle}:${offset}`, `scene/worldSuperRoots.ts`),
- * into the shape each engine already uploads, binds and draws, no second draw stack and no second
- * BVH (AGENTS.md rule 7):
+ * read at its world address (`worldRootsPageAddress`), into the shape each engine already uploads,
+ * binds and draws, no second draw stack and no second BVH (AGENTS.md rule 7):
  *
  *  - a `DecodedGeometryPage` — its `u16` indices widened one-to-one to `u32`, its world-space
  *    positions, no other attribute — for the WebGL2 geometry path (`hostPageGeometry`);
@@ -18,7 +17,12 @@
  * The world matrix stays the identity: the positions are already in world space, so a page is
  * bound and drawn as it was cooked, never placed by a per-cluster pose (#1238).
  */
-import { worldBundlePages, type WorldRoots, type WorldRootsPage } from '../../../sdk-core/src/manifest/worldRoots.ts';
+import {
+  WORLD_ROOTS_BIN,
+  worldBundlePages,
+  type WorldRoots,
+  type WorldRootsPage,
+} from '../../../sdk-core/src/manifest/worldRoots.ts';
 import type { DecodedGeometryPage } from '../page/decode/geometryPage.ts';
 import type { PageSource } from '../../../sdk-core/src/index.ts';
 import type { HostAttributes } from '../host/resources.ts';
@@ -28,16 +32,23 @@ import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 
 /** The world address of one page: its binary, its bundle and its byte offset inside that bundle. */
 export const worldRootsPageAddress = (payloadUrl: string, bundle: number, offset: number) =>
-  `${payloadUrl || 'world-roots.bin'}#${bundle}:${offset}`;
+  `${payloadUrl || WORLD_ROOTS_BIN}#${bundle}:${offset}`;
 
 /** The bundle and the offset inside it that a world page address names. */
-export function worldRootsPageLocation(address: string): { bundle: number; offset: number } {
+function worldRootsPageLocation(address: string): { bundle: number; offset: number } {
   const at = address.lastIndexOf('#'),
-    [bundle, offset] = address
-      .slice(at < 0 ? 0 : at + 1)
-      .split(':')
-      .map(Number);
-  if (!Number.isSafeInteger(bundle) || !Number.isSafeInteger(offset))
+    parts = address.slice(at < 0 ? 0 : at + 1).split(':'),
+    bundle = Number(parts[0]),
+    offset = Number(parts[1]);
+  if (
+    parts.length !== 2 ||
+    !parts[0] ||
+    !parts[1] ||
+    !Number.isSafeInteger(bundle) ||
+    !Number.isSafeInteger(offset) ||
+    bundle < 0 ||
+    offset < 0
+  )
     throw new Error(`WORLD_PAGE_ADDRESS: ${address}`);
   return { bundle, offset };
 }
@@ -80,6 +91,10 @@ export function worldRootsPageSource(
       known = read(range.offset, range.bytes, signal).then((bytes) =>
         worldBundlePages(bytes, range.count, bundle),
       );
+      // A failed read is not kept: the next request asks again, as the engine's loader retries.
+      void known.catch(() => {
+        if (bundles.get(bundle) === known) bundles.delete(bundle);
+      });
       bundles.set(bundle, known);
     }
     return known;
@@ -105,7 +120,7 @@ export function worldRootsPageSource(
 
 /** The engine's decoded shape of a world page: `u32` indices, a world-space position list, and no
  *  other attribute — the world page carries no normal, UV or colour. */
-export function decodedWorldRootsPage(page: WorldRootsPage): DecodedGeometryPage {
+function decodedWorldRootsPage(page: WorldRootsPage): DecodedGeometryPage {
   const indices = worldRootsIndices(page),
     positions = page.positions as Float32Array<ArrayBuffer>;
   return {

@@ -54,7 +54,7 @@ export function worldRootsFixture(sha256: (bytes: Uint8Array) => string = () => 
  *  its rank, the fields the runtime cut projects, and where its page lives — a super-root names
  *  its `bundle` and `offset` in the binary, an object root its `origin` (the placed instance). The
  *  test-only `units` names the leaf unit span it covers, so a coverage check can run. */
-export type WorldRootsCookedCluster = {
+type WorldRootsCookedCluster = {
   cluster: number;
   level: number;
   lodError: number;
@@ -71,7 +71,7 @@ export type WorldRootsCookedCluster = {
   units: [number, number];
 };
 /** One group of the world DAG, its children and outputs named by world rank. */
-export type WorldRootsCookedGroup = {
+type WorldRootsCookedGroup = {
   level: number;
   error: number;
   sphere: number[];
