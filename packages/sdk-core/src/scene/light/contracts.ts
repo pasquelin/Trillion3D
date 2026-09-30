@@ -74,12 +74,6 @@ export const LIGHT_SETTINGS = {
   /** Side in pixels of a screen tile of the light list. */
   tileSize: 16,
   /**
-   * Depth slices of a screen tile's light grid (#1249): each pixel walks only the lights of the
-   * slice its depth falls in, and a light is assigned to every slice its range sphere can reach,
-   * so no light that lights a pixel is ever dropped. A power of two from 4 to 64.
-   */
-  clusterSlices: 16,
-  /**
    * Lights shaded in full — shadow read included — per pixel of a MOVING image (X2): the
    * others are weighed without their shadow, and the shaded ones are drawn in proportion, so
    * the estimate is unbiased and temporal antialiasing averages it. A still image shades

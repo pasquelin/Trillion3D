@@ -37,26 +37,22 @@ const SHADE_WGSL = `
  if(shade<=0.0){return vec3f(0.0);}`;
 
 /**
- * The one loop that shades a pixel's lights in full: the lights of
- * a slice (`tileSlice`) — or, from `TILE_NO_SLICE`, every light of the scene — that its 64-bit
- * `mask` names (#1249), in increasing rank, each bit standing for `1 << clusterShift` consecutive
- * lights. A light is first rejected on its sphere alone, before its record is read in full, where
- * it lies past its range by a ten-thousandth of its squared range: there `directIncidence` would
- * have returned zero before any shading, shadow or page read, so the sum loses an exact zero only.
- * Timed on the resolve, it takes a third off a light out of range and adds an eighth to one in
- * range. The narrow resolve's slice is the list itself (#849), read at its listed rank.
+ * The one loop that shades a pixel's lights in full: the lights of a slice (`tileSlice`) — or,
+ * from `TILE_NO_SLICE`, every light of the scene — in increasing rank. A light is first rejected on
+ * its sphere alone, before its record is read in full, where it lies past its range by a
+ * ten-thousandth of its squared range (`RANGE_REJECT`): there `directIncidence` would have returned
+ * zero before any shading, shadow or page read, so the sum loses an exact zero only (#1249). Timed
+ * on the resolve (64 lamps, a million pixels), it takes 30 % off a light out of range for 13 % on
+ * one in range. The narrow resolve's slice is the list itself (#849), read at its listed rank.
  */
 export const sliceLightingWgsl = (narrow: boolean) => `
-fn sliceLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,slice:vec2u,mask:vec2u)->vec3f{
+fn sliceLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,slice:vec2u)->vec3f{
  var result=vec3f(0.0);
- let shift=clusterShift(slice.y);
  for(var index=0u;index<slice.y;index++){
-  let bit=index>>shift;
   ${narrow ? 'let light=tileLights[slice.x+index];' : 'var light=index;if(slice.x!=TILE_NO_SLICE){light=tileLights[slice.x+index];}'}
   let sphere=directLights.items[light].positionRange;
   let offset=sphere.xyz-P;
-  let far=abs(directLights.items[light].params.x-KIND_SUN)>=0.5&&dot(offset,offset)>sphere.w*sphere.w*RANGE_REJECT;
-  if((select(mask.x,mask.y,bit>=32u)&(1u<<(bit&31u)))==0u||far){continue;}
+  if(abs(directLights.items[light].params.x-KIND_SUN)>=0.5&&dot(offset,offset)>sphere.w*sphere.w*RANGE_REJECT){continue;}
   result+=declaredLight(directLights.items[light],rgb,metal,rough,N,V,P,ao);
  }
  return result;
