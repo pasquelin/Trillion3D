@@ -51,32 +51,49 @@ fn physics_cook(output: &Path) -> String {
         .to_string();
     assert_eq!(commit.len(), 40, "Jolt submodule has no commit");
     let build = output.join("physics-cook");
+    // The cook writes the same bytes on every platform (#1352): Jolt's cross-platform mode turns
+    // off every fused multiply-add (`-ffp-contract=off`, `/fp:precise`), and an x86-64 build stays
+    // on SSE 4.2, which every processor the compiler supports has, rather than assume AVX2. One
+    // configuration, `Distribution`, named for the multi-configuration generator of Windows, whose
+    // C++ runtime is the dynamic one Rust links.
     run(Command::new("cmake")
         .args(["-S", PHYSICS, "-B"])
         .arg(&build)
         .args([
             "-DCOOK=ON",
             "-DCMAKE_BUILD_TYPE=Distribution",
+            "-DCMAKE_CONFIGURATION_TYPES=Distribution",
             "-DCMAKE_POLICY_VERSION_MINIMUM=3.5",
-        ]));
+            "-DCROSS_PLATFORM_DETERMINISTIC=ON",
+            "-DUSE_STATIC_MSVC_RUNTIME_LIBRARY=OFF",
+        ])
+        .args(
+            ["AVX", "AVX2", "LZCNT", "TZCNT", "F16C", "FMADD"]
+                .map(|set| format!("-DUSE_{set}=OFF")),
+        ));
     run(Command::new("cmake").args(["--build"]).arg(&build).args([
+        "--config",
+        "Distribution",
         "--target",
         "joltCook",
         "--parallel",
     ]));
-    println!("cargo:rustc-link-search=native={}", build.display());
-    println!(
-        "cargo:rustc-link-search=native={}",
-        build.join("Jolt").display()
-    );
+    for directory in [build.clone(), build.join("Jolt")] {
+        println!("cargo:rustc-link-search=native={}", directory.display());
+        let configuration = directory.join("Distribution");
+        println!("cargo:rustc-link-search=native={}", configuration.display());
+    }
     println!("cargo:rustc-link-lib=static=joltCook");
     println!("cargo:rustc-link-lib=static=Jolt");
-    let cpp = if cfg!(target_os = "macos") {
-        "c++"
-    } else {
-        "stdc++"
-    };
-    println!("cargo:rustc-link-lib={cpp}");
+    // The target's C++ library, not the host's: MSVC links its own from the objects.
+    match (
+        env::var("CARGO_CFG_TARGET_OS").as_deref(),
+        env::var("CARGO_CFG_TARGET_ENV").as_deref(),
+    ) {
+        (_, Ok("msvc")) => {}
+        (Ok("macos"), _) => println!("cargo:rustc-link-lib=c++"),
+        _ => println!("cargo:rustc-link-lib=stdc++"),
+    }
     commit
 }
 

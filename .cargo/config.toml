@@ -2,7 +2,17 @@
 # Clang fuses a multiply and an add into one FMA wherever the target has one (arm64 always,
 # x86_64 never at its baseline), and the C++ of meshoptimizer, built by `cc`, then rounds
 # differently on a Mac than on a Linux runner (measured: a chalet cooked three faces apart, #415).
-# `cc` reads these for the host and for a cross target; CMake, which builds Jolt, does not.
+# `cc` reads these for the host and for a cross target; CMake, which builds Jolt, does not: its
+# flags are the build script's (`build.rs`, `CROSS_PLATFORM_DETERMINISTIC`). The C sources `cc`
+# builds (ufbx, mimalloc) are held to the same rule. Rust never fuses on its own.
 [env]
 HOST_CXXFLAGS = { value = "-ffp-contract=off", force = true }
 TARGET_CXXFLAGS = { value = "-ffp-contract=off", force = true }
+HOST_CFLAGS = { value = "-ffp-contract=off", force = true }
+TARGET_CFLAGS = { value = "-ffp-contract=off", force = true }
+
+# The macOS arm64 build assumes the Apple M1, the first Apple silicon, and nothing newer: every
+# such Mac runs it (#1352). The C and C++ compilers already assume it for this target. The x86-64
+# builds keep their baseline and choose AVX2 at run time (`shared_math::wide`).
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "target-cpu=apple-m1"]
