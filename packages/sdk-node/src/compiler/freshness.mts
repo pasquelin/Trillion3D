@@ -11,7 +11,7 @@ const BUILD_INPUTS = [
   'Cargo.toml',
   'Cargo.lock',
   'build.rs',
-  'messages.json',
+  '../sdk-node/src/messages/messages.json',
   'src',
   '../page-codec-wasm/Cargo.toml',
   '../page-codec-wasm/src',

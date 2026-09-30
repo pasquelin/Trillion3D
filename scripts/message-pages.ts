@@ -1,5 +1,5 @@
 /**
- * The documentation of the message catalogue (`packages/asset-compiler-rust/messages.json`): one
+ * The documentation of the message catalogue (`packages/sdk-node/src/messages/messages.json`): one
  * page per code under `docs/messages/`, the page each message links to, and the index
  * `docs/COMPILER_ERRORS.md`, one table per group. Both are generated, never edited:
  * `pnpm run generate:messages` writes them, `--check` fails when they lag the catalogue.
@@ -12,11 +12,11 @@ import {
   type CatalogueMessage,
 } from '../packages/sdk-node/src/messages/catalogue.mts';
 
-export const MESSAGES_DIRECTORY = 'docs/messages';
-export const MESSAGES_INDEX = 'docs/COMPILER_ERRORS.md';
+const MESSAGES_DIRECTORY = 'docs/messages';
+const MESSAGES_INDEX = 'docs/COMPILER_ERRORS.md';
 const LEVEL = { error: 'error', warn: 'warning', info: 'info' } as const;
 const GENERATED =
-  '<!-- Generated from packages/asset-compiler-rust/messages.json by scripts/message-pages.ts: edit the catalogue, then run `pnpm run generate:messages`. -->';
+  '<!-- Generated from packages/sdk-node/src/messages/messages.json by scripts/message-pages.ts: edit the catalogue, then run `pnpm run generate:messages`. -->';
 /** A cause written for `docs/` keeps its relative links working one folder down. */
 const fromSubfolder = (text: string) => text.replace(/\]\((?!https?:|#)/g, '](../');
 const cell = (text: string) => text.replaceAll('|', '\\|');
@@ -75,7 +75,7 @@ function index(messages: readonly CatalogueMessage[]) {
 }
 
 /** Every generated file, by path from the repository root. */
-export function messagePages(messages: readonly CatalogueMessage[] = catalogueMessages) {
+function messagePages(messages: readonly CatalogueMessage[] = catalogueMessages) {
   const files = new Map<string, string>([[MESSAGES_INDEX, index(messages)]]);
   for (const entry of messages) files.set(`${MESSAGES_DIRECTORY}/${entry.id}.md`, page(entry));
   return files;
