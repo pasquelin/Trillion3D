@@ -15,13 +15,13 @@ export interface CatalogueMessage {
 }
 
 /**
- * The catalogue the compiler embeds (`asset-compiler-rust/messages.json`): one source of truth for
- * the compiler, this adapter and the documentation. The build copies it beside `dist/sdk-node`, so
- * the same relative address serves the checkout and an installed package.
+ * The catalogue beside this module, which the compiler embeds too: one source of truth for the
+ * compiler, this adapter and the documentation. The build copies it beside the built module.
  */
-const CATALOGUE = JSON.parse(
-  readFileSync(new URL('../../../asset-compiler-rust/messages.json', import.meta.url), 'utf8'),
-) as { docs: string; messages: CatalogueMessage[] };
+const CATALOGUE = JSON.parse(readFileSync(new URL('./messages.json', import.meta.url), 'utf8')) as {
+  docs: string;
+  messages: CatalogueMessage[];
+};
 const BY_CODE = new Map(CATALOGUE.messages.map((entry) => [entry.code, entry]));
 
 /** Every catalogue entry, in id order within each level. */
@@ -42,7 +42,7 @@ export function describeMessage(code: string, detail?: string) {
 }
 
 /** A failure of the compiler or of this adapter, carrying its catalogue code. */
-export class CompilerMessageError extends Error {
+class CompilerMessageError extends Error {
   /** The public code, when the catalogue knows the name. */ readonly id?: string;
   /** The symbolic name. */ readonly code: string;
   constructor(code: string, detail?: string, options?: ErrorOptions) {

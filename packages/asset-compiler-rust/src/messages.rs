@@ -1,12 +1,12 @@
-//! The public message catalogue (`messages.json` at the crate root), the one source of truth the
-//! compiler, the Node adapter and the documentation read. Each entry gives a code its stable public
+//! The public message catalogue (`packages/sdk-node/src/messages/messages.json`), the one source of
+//! truth the compiler, the Node adapter and the documentation read. Each entry gives a code its stable public
 //! id (`T3D-Exxx` error, `T3D-Wxxx` warning, `T3D-Ixxx` info) and its documentation page. The
 //! compiler keeps writing its symbolic codes (`DAG_FLAT`, `blend-truncated`) in the cache; only the
 //! events it prints on stderr and stdout are decorated, so no cache byte depends on the catalogue.
 use serde_json::{json, Value};
 use std::{collections::HashMap, sync::OnceLock};
 
-const CATALOGUE: &str = include_str!("../messages.json");
+const CATALOGUE: &str = include_str!("../../sdk-node/src/messages/messages.json");
 
 struct Catalogue {
     docs: String,
