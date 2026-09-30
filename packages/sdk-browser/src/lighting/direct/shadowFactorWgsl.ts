@@ -103,6 +103,17 @@ fn shadowNeighbour(m:ShadowMap,p:vec2i,home:vec3f,homeWord:u32,t:vec2f)->vec4f{
  if(word==0u||((word^homeWord)>>PAGE_RANGE_SHIFT)!=0u){return vec4f(home,0.0);}
  return vec4f(shadowOffset(word,p),1.0);
 }
+/** The neighbours of page \`home\` a tap reads across the \`edge\` axes, toward \`step\`: along x,
+ *  along y and across the corner (\`shadowNeighbour\`). Shared by \`shadowPcf\` and the PCSS filter
+ *  (\`lampSoftCompare\`). */
+struct ShadowNeighbours{x:vec4f,y:vec4f,d:vec4f,}
+fn shadowNeighbours(m:ShadowMap,home:vec2i,step:vec2i,edge:vec2<bool>,offset:vec3f,word:u32,t:vec2f)->ShadowNeighbours{
+ var nx=vec4f(offset,0.0);var ny=nx;var nd=nx;
+ if(edge.x){nx=shadowNeighbour(m,home+vec2i(step.x,0),offset,word,t);}
+ if(edge.y){ny=shadowNeighbour(m,home+vec2i(0,step.y),offset,word,t);}
+ if(all(edge)){nd=shadowNeighbour(m,home+step,offset,word,t);}
+ return ShadowNeighbours(nx,ny,nd);
+}
 fn sunShadowFactor(index:u32,P:vec3f,N:vec3f,taps:bool)->f32{
  // Field by field: a record is six matrices wide, and the sun reads its depth ranges there alone.
  // The fourth floats of its frame: the current range, \`zNear, zFar\`, then its slot.
