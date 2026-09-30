@@ -19,7 +19,7 @@ allocating.
 | `INCOMPLETE_CLUSTER_PARTITION`, `INVALID_CLUSTER_PARTITION` | Internal consistency check failed on level-0 clusters |
 | `DAG_ERROR_NOT_MONOTONE`, `DAG_NORMAL_DEVIATION` | A cluster's error above its parent's, or a coarse cluster's normal deviation past its group's bound ([checks](COMPILER.md#invocation)) |
 | `PAGE_DEPENDENCY_BOUND` | A cluster whose parents alone span more bundles than `streams.dependencyBound` ([bundles](COMPILER.md#invocation)); names the mesh, the primitive and the page |
-| `INVALID_PAGE_DEPENDENCIES` | A bundle dependency list with a cycle, missing its pages' parents, not closed, not reaching the root cover, or not empty on a pinned bundle ([bundles](COMPILER.md#invocation)) |
+| `INVALID_PAGE_DEPENDENCIES` | A bundle dependency list with a cycle, missing its pages' parents, not closed, not reaching the root cover, or not empty on a pinned bundle; the message names the mesh and the primitive, then the page or the bundle ([bundles](COMPILER.md#invocation)) |
 | `CANCELLED` | Stopped on a cancel request |
 | `CACHE_LOCKED` | Another compilation holds `<cache>/native/.lock`, an operating-system file lock held for the whole compile. It follows the process, not the file: released when its owner ends, killed or not, so no cache stays blocked; the file is never deleted, only the hold counts. The newcomer waits 30 s (`TRILLION3D_CACHE_LOCK_WAIT_MS`) before this refusal; a cancel during the wait ends it with `CANCELLED` |
 | `IO_ERROR`, `THREAD_POOL_ERROR` | Filesystem or thread pool failure |

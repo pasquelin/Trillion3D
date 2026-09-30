@@ -191,7 +191,7 @@ four `three-vs-core-batch-*.perf.ts` — `volumes` (frustum, spheres, unions, po
 union), `colors` (the two curves) — pit the reference's `for` loop over 200 000 elements against one
 batch call. A line: both medians, the ratio, the verdict — bit for bit, or within the tolerance it
 declares once (the sRGB curves), and under a declared ceiling where the sides compute different
-things (`Matrix4.invert`, `NormalMatrix3`: the engine keeps its singularity policy). `docs/SDK.md` §
+things (`Matrix4.invert`, `NormalMatrix3`: the engine keeps its singularity policy). `docs/MATHS.md` §
 "Batch functions" carries the ratios of one published run.
 
 ## 3. Baselines and Report
