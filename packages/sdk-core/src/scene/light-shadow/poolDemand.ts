@@ -42,18 +42,8 @@ export const SHRINK_REPORTS = 60;
 
 /** What the pool follows between reports: the last report weighed, how many in a row asked for a
  *  pool half as large, the most they asked, and whether the last one asked more than the pool
- *  holds (`over`). The device's side (`webgpu/shadow/poolResize.ts`): the pages last asked of the
- *  device — a refused size is not asked again until the demand asks another —, whether the pool is
- *  held at its ceiling, and the frame the view came to rest, −1 while it moves. */
-export const createPoolDemand = () => ({
-  latest: -1,
-  low: 0,
-  peak: 0,
-  over: false,
-  asked: 0,
-  ceiling: false,
-  restFrom: -1,
-});
+ *  holds (`over`). */
+export const createPoolDemand = () => ({ latest: -1, low: 0, peak: 0, over: false });
 export type PoolDemand = ReturnType<typeof createPoolDemand>;
 
 /**
