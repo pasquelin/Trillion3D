@@ -47,10 +47,11 @@ const epochs = new WeakMap<object, number>();
 /**
  * THE PAGES THE GPU MAPPED AND NO DRAW HAS FILLED, DRAWN IN THE FRAME THAT ASKS FOR THEM (#1275),
  * after the host's batches and table words, before the resolve reads any page — every one, a page
- * whose pairs the list could not hold all of the next frame (#1363). One workgroup composes them into
- * regions (`freshWgsl.ts`); the pair cull keeps, for each, every caster row its page's light-space
- * volume touches (`freshCullWgsl.ts`) — the table's rows are every resident page of every caster,
- * the camera no part of it —; the seal makes each page readable; then each pool layer's pass clears its
+ * whose pairs the list could not hold all of the next frame (#1363). One workgroup composes them
+ * into regions (`freshWgsl.ts`); the pair cull keeps, for each, every caster row its page's
+ * light-space volume touches (`freshCullWgsl.ts`) — the table's rows are every resident page of
+ * every caster, the camera no part of it —; the seal makes readable each page that kept all its
+ * pairs; then each pool layer's pass clears its
  * pages' squares and draws every kept pair, in two indirect draws (`freshDrawsWgsl.ts`), and,
  * while a tinted layer is read, that layer's pass the same with the blended casters: no indirect
  * draw sets a viewport. The host draws a page again, with its light cut and static layer, once a
