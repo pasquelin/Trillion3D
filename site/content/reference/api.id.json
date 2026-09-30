@@ -538,7 +538,8 @@
       "worstStalls": "Tabel macet dari kompiler: paling banyak sepuluh primitif dengan grup macet yang menyisakan akar di level 0, yang terburuk lebih dulu. Tidak ada pada cache yang dikompilasi sebelumnya.",
       "texturePreviews": "Satu entri per (tekstur, atlas) yang terurai, diurutkan menurut tekstur lalu atlas; kosong tanpa gambar yang bisa diurai.",
       "textures": "Templat untuk tingkat yang sudah dipanggang, relatif terhadap manifest: {sha} digest gambar sumber, {kind} nama atlas (PREVIEW_ATLAS_NAMES), {level} peringkat tingkat. Tidak ada pada cache yang dikompilasi sebelum tingkat panggang, yang ditolak pembaca ini lewat versi sidecar. `version` adalah versi level (`TEXTURE_PREVIEW_VERSION`): pembaca tidak membaca level dari versi lain.",
-      "proxy": "Di mana membaca proxy scene yang tersimpan dan BVH-nya: geometri yang dikenai sinar. Tidak ada pada cache yang dikompilasi sebelum pantulan, yang tetap bisa dibaca apa adanya."
+      "proxy": "Di mana membaca proxy scene yang tersimpan dan BVH-nya: geometri yang dikenai sinar. Tidak ada pada cache yang dikompilasi sebelum pantulan, yang tetap bisa dibaca apa adanya.",
+      "impostors": "Atlas impostor per mesh yang dipanggang oleh kompilator (#817); tidak ada pada cache sebelum impostor."
     }
   },
   "ClusterStructure": {
@@ -1169,6 +1170,9 @@
       "gpuDeformationMs": "Durasi deformasi GPU untuk frame `gpuPassMs`; null sebelum pengukuran atau jika tidak didukung."
     }
   },
+  "FramePass": {
+    "summary": "Menamai tahapan bingkai yang sedang digambar; setiap panggilan menutup tahap sebelumnya dan membuka tahap berikutnya."
+  },
   "Frustum": {
     "summary": "Enam bidang, dibaca dari sebuah view-projection oleh inti (`math/frustum/frustum.ts`).",
     "members": {
@@ -1489,7 +1493,8 @@
       "width": "Lebar dalam piksel.",
       "height": "Tinggi dalam piksel.",
       "displayWidth": "Lebar tempat gambar ditampilkan saat digambar di bawahnya (`world.renderScale`): level tekstur dan lebar garis mengikuti rasionya. `width` bila tidak ada.",
-      "linear": "Radiansi linear, tanpa kurva dan tanpa pengodean, di atas hitam transparan: masukan rantai efek, yang alfanya adalah cakupan."
+      "linear": "Radiansi linear, tanpa kurva dan tanpa pengodean, di atas hitam transparan: masukan rantai efek, yang alfanya adalah cakupan.",
+      "pass": "Menamai pass GPU gambar ini untuk pengatur waktu frame, secara berurutan, saat ada yang membaca (`../core/frameTimer.ts`); tidak ada pada gambar yang tidak diukur apa pun."
     }
   },
   "HostMaterial": {
@@ -3269,6 +3274,13 @@
   "ScreenErrorVariant": {
     "summary": "Bagaimana galat layar sebuah cluster diukur: batas yang terbukti, atau rumus acuan."
   },
+  "ShadowAsks": {
+    "summary": "Entri yang diminta host kepada pengalokasi GPU, di samping apa yang diminta piksel (`floors`).",
+    "members": {
+      "entries": "Entri yang diminta, paling banyak `count` yang pertama.",
+      "count": "Berapa banyak dari `entries` yang terisi."
+    }
+  },
   "ShadowAtlasDigest": {
     "summary": "Yang dipublikasikan sebuah pembacaan atlas-bayangan: ukurannya, apa yang tertulis di sana, sidik jarinya.",
     "members": {
@@ -3424,6 +3436,7 @@
       "texturePreviews": "Satu entri per (tekstur, atlas) yang terurai, diurutkan menurut tekstur lalu atlas; kosong tanpa gambar yang bisa diurai.",
       "textures": "Templat untuk tingkat yang sudah dipanggang, relatif terhadap manifest: {sha} digest gambar sumber, {kind} nama atlas (PREVIEW_ATLAS_NAMES), {level} peringkat tingkat. Tidak ada pada cache yang dikompilasi sebelum tingkat panggang, yang ditolak pembaca ini lewat versi sidecar. `version` adalah versi level (`TEXTURE_PREVIEW_VERSION`): pembaca tidak membaca level dari versi lain.",
       "proxy": "Di mana membaca proxy scene yang tersimpan dan BVH-nya: geometri yang dikenai sinar. Tidak ada pada cache yang dikompilasi sebelum pantulan, yang tetap bisa dibaca apa adanya.",
+      "impostors": "Atlas impostor per mesh yang dipanggang oleh kompilator (#817); tidak ada pada cache sebelum impostor.",
       "binary": "Berkas binernya.",
       "primitives": "Primitifnya.",
       "worstStalls": "Tabel macet dari kompiler: paling banyak sepuluh primitif dengan grup macet yang menyisakan akar di level 0, yang terburuk lebih dulu. Tidak ada pada cache yang dikompilasi sebelumnya."
@@ -3877,6 +3890,7 @@
       "atlas": "Atlas mana.",
       "level": "Tingkat mana.",
       "format": "Format mana.",
+      "url": "Alamat level itu sendiri, saat cache mencantumkannya — sebuah level atlas impostor (`maps.<name>.levels[k].url`, #1239). Dibaca melalui pembaca yang sama ini, diselesaikan terhadap `base`, menggantikan templat `textures.url`: satu pemuat, satu anggaran.",
       "range": "Byte level blok yang dibaca sendiri — rekaman satu ubin (`tileRecords.ts`) —, lewat permintaan HTTP Range; server yang mengabaikannya menjawab dengan seluruh berkas."
     }
   },
@@ -7628,6 +7642,17 @@
   "SHADOW_RECORD_FLOATS": {
     "summary": "Float dari rekaman bayangan, yang dibaca shading sebuah cahaya: enam matriks muka lampu — di sana rentang kedalaman matahari, masing-masing `zNear, zFar` (`recordPack.ts`) —, lalu kerangka bidang cahaya matahari — `right, zNear`, `up, zFar`, `axis`, lalu slot rentang saat ini —, lalu asal jendela tiap slot clipmap sebagai dua bilangan bulat, lalu header `vec4f`: muka (lampu) atau level (matahari), setengah bidang tangen lampu atau level terhalus matahari, bidang dekat lampu, dan entri pertama rekaman di tabel halaman."
   },
+  "ShadowPoolSnapshot": {
+    "summary": "Kumpulan pengalokasi GPU setelah alokasi satu bingkai (`webgpu/shadow/allocWgsl.ts`).",
+    "members": {
+      "owner": "Entri yang dipetakan setiap halaman fisik, −1 untuk halaman bebas.",
+      "requested": "Bingkai tempat setiap halaman terakhir diminta.",
+      "allocated": "Halaman yang dipetakan bingkai itu, dan entri yang tidak mendapat halaman.",
+      "refused": "Entri yang tidak mendapat halaman pada bingkai itu.",
+      "drawn": "Halaman yang didaftar bingkai itu untuk digambar GPU (`listDraw`).",
+      "listings": "Halaman yang didaftar setiap bingkai sejak awal kumpulan: bergerak bersama daftar bingkai mana pun, hilang atau tidak cuplikannya sendiri."
+    }
+  },
   "ShadowRequestReport": {
     "summary": "Yang dibaca shading dalam satu bingkai: entri tabel yang dimintanya, tanpa urutan.",
     "members": {
@@ -8104,5 +8129,162 @@
       "nodeName": "`name` simpul yang dipindahkan.",
       "matrix": "Pose dunianya, enam belas float dalam urutan kolom."
     }
+  },
+  "IMPOSTOR_PI": {
+    "summary": "π, satu literal untuk oracle ini dan cermin WGSL, agar keduanya membulatkan bilangan yang sama."
+  },
+  "IMPOSTOR_VERSION": {
+    "summary": "Format bagian `impostors` yang dibaca runtime (#817 bagian 1, dipanggang oleh kompilator)."
+  },
+  "ImpostorCard": {
+    "summary": "Satu kartu menghadap kamera yang digambar runtime sebagai ganti cluster sebuah root yang disakelar.",
+    "members": {
+      "root": "Peringkat root yang digantikannya dalam `roots` rencana.",
+      "mesh": "Nomor mesh terkompilasinya.",
+      "world": "Matriks dunia root, sebagaimana diberikan.",
+      "centre": "Poros di ruang dunia, pusat bola pembatas di bawah dunia root.",
+      "radius": "Radius di ruang dunia `R = objectRadius × skala dunia root`.",
+      "frames": "Bingkai per sisi.",
+      "hemi": "Apakah bingkainya hemi-oktahedral atas.",
+      "maps": "Tiga peta yang disampel kartu: warna+cakupan, normal+kedalaman, ORM terpaket."
+    }
+  },
+  "ImpostorLevel": {
+    "summary": "Satu level tersimpan dari satu peta atlas: objek PNG tanpa kehilangan, satu per alamat konten.",
+    "members": {
+      "url": "Dari mana byte level dibaca.",
+      "sha256": "Sidik jari byte-nya.",
+      "bytes": "Ukurannya.",
+      "width": "Lebarnya dalam texel.",
+      "height": "Tingginya dalam texel."
+    }
+  },
+  "ImpostorMap": {
+    "summary": "Satu peta atlas dan rantai mip-nya, level 0 dulu.",
+    "members": {
+      "kind": "`coverage` untuk rantai warna, `data` untuk yang lain.",
+      "levels": "Setiap level yang disimpan pemanggangan."
+    }
+  },
+  "ImpostorMaps": {
+    "summary": "Tiga peta yang disampel sebuah kartu: warna dan cakupan, normal dan kedalaman, ORM terpaket.",
+    "members": {
+      "colourCoverage": "Warna dasar (sRGB) dan cakupan di alfa.",
+      "normalDepth": "Normal objek sebagai `n·½+½` dan kedalaman `D` di alfa.",
+      "orm": "Oklusi, kekasaran, dan metalik."
+    }
+  },
+  "ImpostorMesh": {
+    "summary": "Putusan kompiler atas satu mesh yang digambar: dipanggang, dengan atlasnya, atau ditolak, dengan alasannya.",
+    "members": {
+      "mesh": "Nomor mesh terkompilasinya.",
+      "sourceMesh": "Nomor mesh sumbernya.",
+      "name": "Namanya.",
+      "placements": "Berapa banyak node yang menempatkannya.",
+      "masked": "Apakah sebuah material mesh memotong cakupannya menjadi mask.",
+      "rootTriangles": "Segitiga akar DAG, dijumlahkan atas primitif mesh.",
+      "radius": "Radius pembatasnya dalam satuan dunia (radius objek dikali skala penempatan terbesar).",
+      "status": "`baked` atau `refused`.",
+      "coverage": "Cakupan rata-rata bingkai, pada entri `baked`: `c` dari sakelar.",
+      "hemi": "Apakah bingkainya hemi-oktahedral atas.",
+      "frames": "Bingkai per sisi.",
+      "frameSide": "Sisi bingkai dalam texel: `r_f` dari sakelar.",
+      "atlasSide": "Sisi atlas dalam texel (`frames · frameSide`).",
+      "centre": "Poros di ruang objek, pusat bola pembatas.",
+      "objectRadius": "Radius pembatas di ruang objek, sebelum skala penempatan.",
+      "bytes": "Byte setiap level tersimpan.",
+      "maps": "Ketiga peta, pada entri `baked`.",
+      "switchDepth": "Jarak acuan yang dipanggang.",
+      "reason": "Mengapa sebuah mesh ditolak: kodenya.",
+      "detail": "Satu kalimat yang memberi angka-angka yang menentukan penolakan."
+    }
+  },
+  "ImpostorPlan": {
+    "summary": "Putusan sakelar: kartu yang digambar, dan root yang cluster-nya ditindas.",
+    "members": {
+      "cards": "Satu kartu per root yang disakelar, dalam urutan root.",
+      "switched": "Peringkat root yang ditindas sakelar: 1 di root yang disakelar, 0 di tempat lain."
+    }
+  },
+  "ImpostorRoot": {
+    "summary": "Yang dibutuhkan rencana dari satu root: nomor mesh terkompilasinya dan matriks dunia yang menempatkannya.",
+    "members": {
+      "mesh": "Nomor mesh terkompilasi (`Primitive.mesh`); tidak ada pada root yang tidak boleh diganti impostor.",
+      "world": "Matriks dunia penempatan, kolom-mayor (`MatrixElements`)."
+    }
+  },
+  "ImpostorSection": {
+    "summary": "Bagian `impostors` dari manifest: putusan kompiler atas setiap mesh yang digambar.",
+    "members": {
+      "version": "Versi format.",
+      "frames": "Bingkai per sisi yang dipakai memanggang setiap atlas bagian ini.",
+      "focalPixels": "Panjang fokus dalam piksel yang dipakai pemanggangan menilai jarak.",
+      "textureLimit": "Sisi atlas terbesar yang dipegang kartu mana pun.",
+      "baked": "Berapa banyak mesh yang dipanggang.",
+      "refused": "Berapa banyak yang ditolak.",
+      "meshes": "Putusan setiap mesh, dalam urutan sumber."
+    }
+  },
+  "ImpostorSwitchDepth": {
+    "summary": "Dua jarak acuan yang dipanggang, dalam meter pada `focalPixels` manifest (#817).",
+    "members": {
+      "texel": "`z_tex`: dari sini bingkai paling banyak satu texel per piksel.",
+      "triangles": "`z_tri`: dari sini root melebihi jumlah piksel yang ditutupinya."
+    }
+  },
+  "ImpostorSwitchInput": {
+    "summary": "Empat angka yang dipanggang yang dibaca sakelar, plus skala penempatan.",
+    "members": {
+      "objectRadius": "Radius pembatas di ruang objek `objectRadius`.",
+      "rootTriangles": "Segitiga akar DAG `T`.",
+      "coverage": "Cakupan rata-rata yang dipanggang `c`.",
+      "frameSide": "Sisi bingkai dalam texel `r_f`.",
+      "maxWorldScale": "Skala dunia terbesar dari penempatan mesh; satu bila tidak diketahui."
+    }
+  },
+  "assertImpostorSection": {
+    "summary": "Melempar penolakan cache bernama yang dibawa bagian itu, atau mengembalikannya tanpa perubahan."
+  },
+  "cellWeights": {
+    "summary": "Tiga bingkai yang dicampur sebuah tampilan di posisi kisi `g`, dan bobot barisentriknya."
+  },
+  "drawsImpostor": {
+    "summary": "Apakah impostor menggambar pada `viewDepth`, kedalaman tampilan poros dalam meter."
+  },
+  "impostorBakedByMesh": {
+    "summary": "Mesh yang dipanggang dari bagian itu, dikunci menurut nomor mesh terkompilasinya; entri yang ditolak ditinggalkan."
+  },
+  "impostorMeshBaked": {
+    "summary": "Apakah sebuah entri mesh membawa atlas yang bisa digambar: `baked` dengan ketiga petanya dan sisi bingkai."
+  },
+  "impostorRadius": {
+    "summary": "`R`: radius di ruang objek pada skala dunia terbesar yang diberikan sebuah penempatan mesh kepadanya."
+  },
+  "impostorSwitchDepth": {
+    "summary": "`z_s = max(z_tex, z_tri)` dalam meter untuk panjang fokus `focalPixels` runtime."
+  },
+  "impostorSwitchOf": {
+    "summary": "Masukan sakelar yang dibawa entri manifest yang dipanggang, atau `undefined` ketika entri ditolak atau kehilangan salah satu dari empat angka.",
+    "description": "Sebuah objek memenuhi syarat hanya bila mesh-nya memiliki entri `baked`."
+  },
+  "impostorTexelDepth": {
+    "summary": "`z_tex`: kedalaman dari mana bingkai berukuran `frameSide` texel paling banyak satu texel per piksel."
+  },
+  "impostorTriangleDepth": {
+    "summary": "`z_tri`: kedalaman dari mana `rootTriangles` root melebihi piksel yang ditutupinya."
+  },
+  "octDecode": {
+    "summary": "Koordinat kisi `f ∈ [0, 1]²` kembali ke arah satuan, kebalikan dari `octEncode`."
+  },
+  "octEncode": {
+    "summary": "Arah `d` ke bidang `[-1, 1]²`: oktahedron penuh, atau hemi-oktahedron atas."
+  },
+  "planImpostors": {
+    "summary": "Merencanakan tingkat impostor untuk satu tampilan: setiap root yang mesh-nya punya entri dipanggang dan sakelarnya bertahan menghasilkan sebuah kartu dan ditandai ditindas.",
+    "description": "`view` memetakan dunia ke ruang tampilan (kolom-mayor) dan `focalPixels` adalah satu panjang fokus mesin dalam piksel di viewport gambar."
+  },
+  "validateImpostorSection": {
+    "summary": "Alasan singkat bagian itu tidak bisa dipakai, atau `null`.",
+    "description": "Bagian yang tidak ada bukanlah kesalahan: cache yang mendahuluinya menggambar setiap mesh secara utuh, seperti sebelumnya. Bagian yang ada ditolak seluruhnya ketika versinya tidak diketahui atau entri `baked` kehilangan angka yang dibutuhkan sakelar dan kartunya."
   }
 }

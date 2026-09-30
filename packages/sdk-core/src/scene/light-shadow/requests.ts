@@ -33,13 +33,11 @@ export interface ShadowRequestReport {
   pool?: ShadowPoolSnapshot;
 }
 
-/** Entries the host asks the GPU allocator for, beside what the pixels ask (`floors`). */
-export type ShadowAsks = {
-  /** The entries asked for, `count` of them at most. */
-  entries: Uint32Array;
-  /** How many entries are asked for. */
-  count: number;
-};
+/** Entries the host asks the GPU allocator for, beside what the pixels ask (`floors`).
+ *  @property entries - The entries asked for, the first `count` of them at most.
+ *  @property count - How many of `entries` are filled. */
+export type ShadowAsks = { entries: Uint32Array; count: number };
+
 /**
  * Reads a request report back: every page the shading asked for is either touched — mapped, it
  * becomes the most recently requested — or allocated. Allocation goes coarse first, then by
@@ -59,7 +57,8 @@ export function createShadowRequests(
   pool: ShadowPool,
   records: ShadowRecords,
   sun: SunLevels,
-  /** Entries read, allocated, refused for want of a page, and asked past the list (`unlisted`); a resized pool counts on where the old ones stopped. */
+  /** Entries read, allocated, refused for want of a page, and asked past the list (`unlisted`);
+   *  a resized pool's requests go on counting where the old ones stopped. */
   counts = { requested: 0, allocated: 0, refused: 0, unlisted: 0, latest: -1 },
 ) {
   const cap = shadowRequestCap(pool.pages),
