@@ -29,11 +29,12 @@ export const groupBlockSide = (texels: number) => 2 ** Math.floor(Math.log2(texe
  */
 export function createMovingGroupPlan() {
   const words = new Uint32Array(GROUP_TABLE_WORDS),
-    /** 1 for a region its group draws; each group's pass, block word and region count. */
-    grouped = new Uint8Array(MAX_SHADOW_REGIONS),
+    /** Each group's pass, block word and region count. */
     passOf = new Int32Array(MAX_SHADOW_REGIONS),
     bitsOf = new Uint32Array(MAX_SHADOW_REGIONS),
     sizeOf = new Int32Array(MAX_SHADOW_REGIONS),
+    /** Per entry of the pass order: its region's block word (`blockWord`). */
+    wordOf = new Int32Array(MAX_SHADOW_REGIONS),
     /** Per pass: regions per block word, then the group each block word took. */
     counts = new Int32Array(8),
     owners = new Int32Array(8);
@@ -50,8 +51,9 @@ export function createMovingGroupPlan() {
   };
 
   return {
+    /** Per region of the batch, its group plus one, 0 for a region no group draws, then the
+     *  groups' words. */
     words,
-    grouped,
     passOf,
     bitsOf,
     /** Groups the restored sun pages of each pool pass of the batch's `count` regions, whose lists
@@ -60,7 +62,6 @@ export function createMovingGroupPlan() {
       const block = groupBlockSide(rt.lights.plan.pool.side * SHADOW_PAGE),
         { order, first, clears, restores } = pagePlan;
       let groups = 0;
-      grouped.fill(0, 0, count);
       words.fill(0, 0, count);
       for (let k = pagePlan.layerPasses; k < pagePlan.passes; k++) {
         const from = first[k] + clears[k],
@@ -68,12 +69,12 @@ export function createMovingGroupPlan() {
         counts.fill(0);
         owners.fill(-1);
         for (let i = from; i < to; i++) {
-          const bits = blockWord(rt, order[i], tested, block);
+          const bits = (wordOf[i] = blockWord(rt, order[i], tested, block));
           if (bits >= 0) counts[bits]++;
         }
         for (let i = from; i < to; i++) {
           const region = order[i],
-            bits = blockWord(rt, region, tested, block);
+            bits = wordOf[i];
           if (bits < 0 || counts[bits] < GROUP_LEAST) continue;
           if (owners[bits] < 0) {
             owners[bits] = groups;
@@ -83,7 +84,6 @@ export function createMovingGroupPlan() {
           }
           sizeOf[owners[bits]]++;
           words[region] = owners[bits] + 1;
-          grouped[region] = 1;
         }
       }
       // Each group holds its regions' lists whole: its opaque pairs up, its cutout ones down.
