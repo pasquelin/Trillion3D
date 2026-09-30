@@ -70,6 +70,8 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   /** The packed rank of each shown page, rank by rank (#1235): one record serves many placements. */
   shownPacked: number[];
   desired: PageRec[];
+  /** The packed rank of each desired page, rank by rank. */
+  desiredPacked: number[];
   drawn: PageRec[];
   /** The packed rank of each drawn page, rank by rank: what a per-instance reader of `drawn` reads. */
   drawnPacked: number[];
@@ -175,6 +177,7 @@ export function createWebgpuRunState(clearColor = RASTER_BACKGROUND): WebgpuRunS
     shown: [],
     shownPacked: [],
     desired: [],
+    desiredPacked: [],
     drawn: [],
     drawnPacked: [],
     opaquePackedScratch: [],
