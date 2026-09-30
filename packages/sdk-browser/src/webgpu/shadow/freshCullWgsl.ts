@@ -68,7 +68,7 @@ ${LANE_SCAN_WGSL}@compute @workgroup_size(64) fn admitShadowPairs(@builtin(local
 }
 @compute @workgroup_size(${SHADOW_CULL_GROUP}) fn shadowCullPairs(@builtin(global_invocation_id) id:vec3u){
  let slot=freshRegionPairs(params.pages,id.y);
- if(!freshKeeps(id.y,id.x)||atomicLoad(&args[slot])==FRESH_SHORT){return;}
+ if(atomicLoad(&args[slot])==FRESH_SHORT||!freshKeeps(id.y,id.x)){return;}
  let row=u32(freshRow(id.x));let at=atomicAdd(&args[slot],1u);
  pairs[2u*at]=id.y;pairs[2u*at+1u]=row;
  atomicMax(&args[FRESH_CORNERS],mobility[row]>>${MOBILITY_CORNER_SHIFT}u);

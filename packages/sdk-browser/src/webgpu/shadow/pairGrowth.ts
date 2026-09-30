@@ -1,17 +1,24 @@
-import { MAX_SHADOW_REGIONS } from '../../gpu/shadow/recordPack.ts';
+import { KEPT_ROW_BYTES as ROW_BYTES } from '../../gpu/shadow/keptList.ts';
 import { deviceMade } from '../../gpu/core/errorScope.ts';
 import { pendingAll } from '../../gpu/core/tableGrowth.ts';
-import { SHADOW_GRANT_BYTES } from '../../residency/memoryBudget.ts';
 import { storageBufferCap } from '../../residency/pools.ts';
-import { admitShadowBytes, noteShadowPressure, shadowPoolHeld } from './memoryGrant.ts';
+import {
+  admitShadowBytes,
+  grantsShadowLayer,
+  noteShadowPressure,
+  shadowPoolHeld,
+} from './memoryGrant.ts';
+import { queueTableGrowth } from '../pages/prepare/growthQueue.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /** Bytes of a kept pair: its region, its row. */
-export const PAIR_BYTES = 8;
-/** Bytes of one row of every region of a kept list (`keptList.ts`). */
-const ROW_BYTES = 4 * MAX_SHADOW_REGIONS;
+const PAIR_BYTES = 8;
 /** Rows asked at once: a need growing pair by pair asks the device rarely. */
 const ROW_STEP = 64;
+const PAST_GRANT = 'The shadow pair list is past the grant';
+/** The rows each region cull asked and the device has not answered yet: asked once, not each
+ *  frame until it is in place. */
+const asking = new WeakMap<object, number>();
 
 /** Pairs a kept list of `rows` rows a region holds. */
 export const keptPairs = (rows: number) => Math.floor((rows * ROW_BYTES) / PAIR_BYTES);
@@ -23,12 +30,15 @@ export function keptRows(casterSlots: number, need: number, limits?: GPUSupporte
   return Math.max(casterSlots, Math.min(asked, Math.floor(storageBufferCap(limits) / ROW_BYTES)));
 }
 
+/** Bytes of `rows` rows of the kept lists: the cull's, and the occlusion test's that follows it. */
+const listBytes = (rows: number, occlusion: boolean) => rows * ROW_BYTES * (occlusion ? 2 : 1);
+
 /** The bytes the kept lists — the cull's, the occlusion test's alike — hold past the table's caster
  *  rows, the pairs' share the shadow grant holds (`shadowPoolHeld`): recounted after each growth. */
 export function followPairBytes(rt: WebgpuPagesRuntime) {
   const { cull, occlusion } = rt.lights,
     rows = cull ? Math.max(0, cull.capacity - rt.layout.rows.casterSlots) : 0;
-  rt.lights.memory.pairBytes = rows * ROW_BYTES * (occlusion ? 2 : 1);
+  rt.lights.memory.pairBytes = listBytes(rows, !!occlusion);
 }
 
 /**
@@ -36,8 +46,8 @@ export function followPairBytes(rt: WebgpuPagesRuntime) {
  * counted (`pairNeed`, the pool's `pairs` count) land in the region cull's kept list (`cull.kept`),
  * free once the host's batches are encoded. Past what it holds, it grows by the tables' own path
  * (`growKeptList`, `pendingBuffers`), the occlusion test's list with it, queued behind the tables'
- * growths (`growWebgpuTables`): asked of the shadow grant beside what the pool holds
- * (`admitShadowBytes`), then of the device under an out-of-memory scope, put in place between two
+ * growths (`queueTableGrowth`), asked once until answered: asked of the shadow grant beside what
+ * the pool holds (`grantsShadowLayer`), then of the device under an out-of-memory scope, put in place between two
  * images once granted. Past the grant (`pairs-over-grant`, under `shadow-memory`) or refused
  * (`pairs-refused`, under `gpu-out-of-memory`, never asked again), the list stays: the pair cull
  * admits the longest prefix of whole regions it holds, the others wait for the host.
@@ -49,25 +59,19 @@ export function growPairList(rt: WebgpuPagesRuntime) {
     need = lights.pageRequests?.allocation.pairNeed ?? 0;
   if (!cull || !device || memory.events.includes('pairs-refused')) return;
   const rows = keptRows(layout.rows.casterSlots, need, device.limits),
-    bytes = (rows - cull.capacity) * ROW_BYTES * (lights.occlusion ? 2 : 1);
-  if (bytes <= 0) return;
-  const heldBytes = shadowPoolHeld(lights);
-  if (!admitShadowBytes(memory, heldBytes, bytes)) {
-    if (memory.events.includes('pairs-over-grant')) return;
-    noteShadowPressure(memory, 'pairs-over-grant');
-    diag.engineDiagnostic('shadow-memory', 'The shadow pair list is past the grant', {
-      kind: 'warning',
-      pressure: 'pairs-over-grant',
-      requestedBytes: bytes,
-      heldBytes,
-      grantBytes: SHADOW_GRANT_BYTES,
-    });
-    return;
-  }
+    bytes = listBytes(rows - cull.capacity, !!lights.occlusion);
+  if (bytes <= 0 || rows <= (asking.get(cull) ?? 0)) return;
+  // Past the grant, said once: a later frame asks again, silently, what the grant may hold by then.
+  const admitted = memory.events.includes('pairs-over-grant')
+    ? admitShadowBytes(memory, shadowPoolHeld(lights), bytes)
+    : grantsShadowLayer(lights, diag.engineDiagnostic, 'pairs-over-grant', PAST_GRANT, bytes);
+  if (!admitted) return;
+  asking.set(cull, rows);
+  const { occlusion } = lights,
+    stale = () =>
+      run.lost || rt.signal.aborted || lights.cull !== cull || lights.occlusion !== occlusion;
   const grow = async () => {
-    await rt.setup.preparing;
-    const { occlusion } = lights;
-    if (lights.cull !== cull || rows <= cull.capacity || run.lost || rt.signal.aborted) return;
+    if (stale() || rows <= cull.capacity) return;
     let made = pendingAll([]);
     const granted = await deviceMade(
       device,
@@ -83,11 +87,10 @@ export function growPairList(rt: WebgpuPagesRuntime) {
       });
       return;
     }
-    if (run.lost || rt.signal.aborted || lights.cull !== cull || lights.occlusion !== occlusion)
-      return granted.destroy();
+    if (stale()) return granted.destroy();
     granted.commit();
     followPairBytes(rt);
     run.gate.resourcesChanged();
   };
-  layout.growing = (layout.growing ?? Promise.resolve()).then(grow, grow);
+  void queueTableGrowth(rt, () => grow().finally(() => asking.delete(cull)));
 }
