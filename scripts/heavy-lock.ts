@@ -1,5 +1,13 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, readFileSync, realpathSync, unlinkSync, writeFileSync } from 'node:fs';
+import {
+  linkSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { getPriority, setPriority } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
@@ -48,6 +56,28 @@ function holder(path: string): { pid: number; step: string; cwd: string } | unde
   }
 }
 
+/**
+ * Removes the lock at `path` of the dead process `dead`. The lock is first moved aside, which only
+ * one waiter can do to a given file; a lock that is no longer the dead one's (another waiter took
+ * it over first and was granted it) is put back, unless the lock was taken again meanwhile.
+ */
+export function takeOver(path: string, dead: number): void {
+  const aside = `${path}.${process.pid}.stale`;
+  try {
+    renameSync(path, aside);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
+    throw error;
+  }
+  try {
+    if (holder(aside)?.pid !== dead) linkSync(aside, path);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+  } finally {
+    unlinkSync(aside);
+  }
+}
+
 const pause = new Int32Array(new SharedArrayBuffer(4));
 
 /** Takes the lock at `path`, waiting while a live process holds it; returns the release. */
@@ -64,8 +94,7 @@ export function acquireHeavyLock(path: string, step: string, pollMs = 500): () =
     }
     const current = holder(path);
     if (current && !alive(current.pid)) {
-      // Taken over only if it is still the dead holder's: another waiter may have been first.
-      if (holder(path)?.pid === current.pid) unlinkSync(path);
+      takeOver(path, current.pid);
       continue;
     }
     if (!told && current) {
