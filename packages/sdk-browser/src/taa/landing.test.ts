@@ -6,9 +6,9 @@ import { restartTaaOnShadowLanding } from './frame.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 
 test('pages the GPU drew itself restart the still average, once each', () => {
-  const frame = { active: true, stillFrames: 0, hasHistory: true },
+  const frame = { active: true, stillFrames: 0, hasHistory: true, shadowsSeen: 0 },
     gpu = { drawn: 4 },
-    lights = { shadowPagesTotal: 0, shadowEpochSeen: 0, plan: { gpu } },
+    lights = { shadowPagesTotal: 0, plan: { gpu } },
     rt = { gpu: { temporal: { frame } }, lights } as never as WebgpuPagesRuntime;
   const land = () => restartTaaOnShadowLanding(rt);
   const still = (frames: number) => Object.assign(frame, { stillFrames: frames, hasHistory: true });
