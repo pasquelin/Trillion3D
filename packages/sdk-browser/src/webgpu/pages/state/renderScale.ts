@@ -45,10 +45,12 @@ export interface FrameSize {
 }
 
 /** The drawn view's frame size, written into `into`: its viewport, and that at the scale its
- *  targets are made at. The display colour is apart whenever a frame may be drawn below it. */
+ *  targets are made at — the drawn one, up to the next eighth (`ScaleControl.allocated`), so a
+ *  frame drawn at half the display allocates a quarter of its pixels (#1343). The display colour
+ *  is apart whenever a frame may be drawn below it. */
 export function frameSizeOf(rt: WebgpuPagesRuntime, into: FrameSize) {
   const bounds = scaledBounds(rt),
-    scale = bounds?.max ?? 1;
+    scale = bounds ? rt.scale.allocated() : 1;
   into.width = Math.max(1, rt.setup.viewport[0]);
   into.height = Math.max(1, rt.setup.viewport[1]);
   into.renderWidth = renderExtent(into.width, scale);
@@ -70,19 +72,14 @@ export const displayApart = (gpu: WebgpuPagesRuntime['gpu']) =>
   !!gpu.displayTexture && gpu.displayTexture !== gpu.colorTexture;
 
 /**
- * The scale this image is drawn at: a quiet image at the bounds' maximum — 1 unless the page
- * lowered it —, which the held image then is; a moving one at the controller's, or the fixed one.
- */
-export const imageScale = (rt: WebgpuPagesRuntime, quiet: boolean) => rt.scale.imageScale(quiet);
-
-/**
- * Draws this image at `scale` in the targets in place, which a scale change never remakes: they
- * are made at the bounds' maximum, and the image is drawn in their top-left `targetSize`. Where
- * the display colour is not apart, the targets' whole size. The Hi-Z pyramid is built over it
+ * Draws this image at `scale` in the targets in place, made at the controller's scale up to the
+ * next eighth (`frameSizeOf`): the image is drawn in their top-left `targetSize`. Where the display
+ * colour is not apart, the targets' whole size. The Hi-Z pyramid is built over it
  * (`GpuHiz.extent`); the last image's, of another size, no longer describes this one, as after a
- * moved view. `rt.scale.drawn` reads the scale back; `steered`, a moving image at the controller's.
+ * moved view. `rt.scale.drawn` reads the scale back; `steered`, an image the controller measures;
+ * `still`, a still one (`ScaleControl.drew`).
  */
-export function drawFrameAt(rt: WebgpuPagesRuntime, scale: number, steered = false) {
+export function drawFrameAt(rt: WebgpuPagesRuntime, scale: number, steered = false, still = false) {
   const { gpu } = rt,
     { allocatedSize, displaySize, targetSize } = gpu,
     apart = displayApart(gpu);
@@ -94,6 +91,5 @@ export function drawFrameAt(rt: WebgpuPagesRuntime, scale: number, steered = fal
   targetSize[0] = width;
   targetSize[1] = height;
   rt.vis.gpuHiz?.extent(width, height);
-  rt.scale.drawn = apart ? Math.min(scale, rt.scale.bounds.max) : 1;
-  rt.scale.steered = apart && steered;
+  rt.scale.drew(apart ? Math.min(scale, rt.scale.bounds.max) : 1, apart && steered, still);
 }
