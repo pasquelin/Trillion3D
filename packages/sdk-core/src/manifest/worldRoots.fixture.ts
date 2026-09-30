@@ -1,4 +1,5 @@
-import type { WorldRoots } from './worldRoots.ts';
+import type { WorldRoots, WorldRootsCluster } from './worldRoots.ts';
+import type { ClusterGroup } from '../contracts/geometry.ts';
 
 /** One super-root page as the cook writes it: a triangle of three vertices, `x` its offset. */
 export function worldPage(x: number) {
@@ -50,34 +51,9 @@ export function worldRootsFixture(sha256: (bytes: Uint8Array) => string = () => 
   return { table, bin };
 }
 
-/** One world cluster as the cook's `clusters` key publishes it (FORMAT.md, World super-roots):
- *  its rank, the fields the runtime cut projects, and where its page lives — a super-root names
- *  its `bundle` and `offset` in the binary, an object root its `origin` (the placed instance). The
- *  test-only `units` names the leaf unit span it covers, so a coverage check can run. */
-type WorldRootsCookedCluster = {
-  cluster: number;
-  level: number;
-  lodError: number;
-  sphere: number[];
-  parentError: number | null;
-  parentSphere: number[] | null;
-  min: number[];
-  max: number[];
-  triangles: number;
-  material: number | null;
-  bundle: number | null;
-  offset: number | null;
-  origin: number | null;
-  units: [number, number];
-};
-/** One group of the world DAG, its children and outputs named by world rank. */
-type WorldRootsCookedGroup = {
-  level: number;
-  error: number;
-  sphere: number[];
-  children: number[];
-  outputs: number[];
-};
+/** A world cluster (`WorldRootsCluster`) with the test-only `units`: the leaf unit span it
+ *  covers, so a coverage check can run. */
+type WorldRootsCookedCluster = WorldRootsCluster & { units: [number, number] };
 
 /**
  * A world of three cells along x, each four object roots (level 0, kept in the objects' own
@@ -93,7 +69,7 @@ export function worldRootsDag() {
     e1 = 0.05,
     e2 = 0.5;
   const clusters: WorldRootsCookedCluster[] = [];
-  const groups: WorldRootsCookedGroup[] = [];
+  const groups: ClusterGroup[] = [];
   for (let cell = 0; cell < cells; cell++)
     for (let i = 0; i < per; i++) {
       const u = cell * per + i;
