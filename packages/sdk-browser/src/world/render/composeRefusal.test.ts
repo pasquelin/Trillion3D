@@ -30,7 +30,7 @@ const MODES = [
 for (const [name, blending] of MODES) {
   test(`a pass added while a ${name} surface is drawn: every frame drawn, said once`, async () => {
     const scene = new Scene().add(
-      G.triangleMesh(new GraphSurface('standard')),
+      G.triangleMesh(new GraphSurface('standard', { roughness: 0.2 })),
       G.triangleMesh(blended(blending)),
     );
     const chain = new EffectChain();
@@ -45,7 +45,7 @@ for (const [name, blending] of MODES) {
   });
 
   test(`a ${name} surface entering a world with a pass: drawn, said once`, async () => {
-    const scene = new Scene().add(G.triangleMesh(new GraphSurface('standard')));
+    const scene = new Scene().add(G.triangleMesh(new GraphSurface('standard', { roughness: 0.2 })));
     const view = session(scene, new EffectChain().add(effect.bloom()));
     const glass = G.triangleMesh(blended(blending));
     const said = await heard(view, () => {
