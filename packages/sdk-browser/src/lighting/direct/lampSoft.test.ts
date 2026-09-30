@@ -1,19 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
+import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { LAMP_SOFT_WGSL } from './lampSoftWgsl.ts';
 import { PCF_TAPS_WGSL } from './shadowWgsl.ts';
 import { POISSON_16 } from './pcfTaps.ts';
 
 type V = number[];
-function sample(radius: number, receiver: number, blocker: number | null) {
+function sample(radius: number, receiver: number, blocker: number | null, texel0 = 0.001, mip = 0) {
   const search: V[] = [],
-    filter: V[] = [];
+    filter: V[] = [],
+    mips = { search: new Set<number>(), filter: new Set<number>() };
   const { pointSoftShadow } = shaderRun<{ pointSoftShadow: (...args: unknown[]) => number }>(
     LAMP_SOFT_WGSL + PCF_TAPS_WGSL,
-    ['pointSoftShadow', 'lampSoftDisk', 'shadowRotated'],
+    ['pointSoftShadow', 'lampSoftDisk', 'lampSoftMip', 'lampSoftCentre'],
     {
-      shadowRotation: [1, 0],
+      ...wgslConstants(LAMP_SOFT_WGSL),
+      LAMP_MIP_COUNT: 6,
       shadows: { records: [{ info: [6, 1, 0.1, 0] }] },
       PCF_TAPS: POISSON_16.length,
       POISSON: POISSON_16,
@@ -34,10 +37,11 @@ function sample(radius: number, receiver: number, blocker: number | null) {
         _p: V,
         _n: V,
         delta: V,
-        _mip: number,
+        mip: number,
         filtering: boolean,
       ) => {
         (filtering ? filter : search).push(delta);
+        mips[filtering ? 'filter' : 'search'].add(mip);
         return { distance: blocker ?? 0, blocked: blocker !== null, through: [0.5, 0.75, 1] };
       },
     },
@@ -48,8 +52,10 @@ function sample(radius: number, receiver: number, blocker: number | null) {
     [0, 0, receiver],
     [0, 0, -1],
     0,
+    texel0,
+    mip,
   );
-  return { result, search, filter };
+  return { result, search, filter, mips };
 }
 
 test('point PCSS has bounded existing tap count and contact-hardening from similar triangles', () => {
@@ -76,4 +82,17 @@ test('no blocker returns the existing PCF fallback without running the filter st
   assert.equal(value.result, -1);
   assert.equal(value.search.length, 16);
   assert.equal(value.filter.length, 0);
+});
+
+test('each PCSS stage reads the mip whose texels hold its disk within eight, never finer than the pixel’s', () => {
+  // A finest texel of 0.1 m: the search's 9.5 m and 9 m disks read mip 4 (0.8 m, 11.9 and 11.25
+  // texels at mip 3); the 0.5 m penumbra mip 0, the 1 m one mip 1 (1.25 texels at mip 0).
+  const a = sample(0.5, 10, 5, 0.1),
+    b = sample(1, 10, 5, 0.1);
+  assert.deepEqual([...a.mips.search, ...a.mips.filter], [4, 0]);
+  assert.deepEqual([...b.mips.search, ...b.mips.filter], [4, 1]);
+  // Never finer than the pixel's own mip.
+  assert.deepEqual([...sample(0.5, 10, 5, 0.1, 2).mips.filter], [2]);
+  // A disk past the chain's last mip reads the last.
+  assert.deepEqual([...sample(0.5, 10, 5).mips.search], [5]);
 });
