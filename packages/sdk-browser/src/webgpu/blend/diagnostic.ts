@@ -8,6 +8,7 @@ import {
 } from '../../page/selection/selection.ts';
 import { screenErrorRatio } from '../../diagnostic/colors.ts';
 import { clusterHash } from '../../visibility/buffer.ts';
+import { createPageCatalogue } from '../pages/prepare/catalogue.ts';
 import type { createWebgpuBlendState } from './state.ts';
 
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
@@ -30,8 +31,11 @@ export function writeBlendDiagnostic(
 ) {
   const { table, compaction } = blendState;
   if (!table || !compaction) return;
+  // The accessor is built after the guards: a beauty image, which reads no diagnostic, allocates
+  // nothing here.
   if (diagnostic !== 'clusters' && diagnostic !== 'lod' && diagnostic !== 'screen-error') return;
   if (blendState.diagnosticMode === diagnostic && diagnostic !== 'screen-error') return;
+  const { recordOf } = createPageCatalogue(packedPages);
   blendState.diagnosticMode = diagnostic;
   if (blendState.clusterIdentity.length < table.capacity)
     blendState.clusterIdentity = new Uint32Array(table.capacity);
@@ -42,7 +46,7 @@ export function writeBlendDiagnostic(
       identity[entry] = 0;
       continue;
     }
-    const rec = packedPages[page],
+    const rec = recordOf(page)!,
       hash = clusterHash(rec.clusterId) & 0x00ffffff;
     const ratio =
       diagnostic === 'screen-error' && cam

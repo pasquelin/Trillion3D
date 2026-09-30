@@ -13,6 +13,7 @@ import { createImageCut } from './imageCut.ts';
 import { createRefusalAnswer } from './refusals.ts';
 import type { createAutonomousResidency } from './residency.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
+import type { PageDraws } from './pageDraws.ts';
 import type { WebglViewState } from './views.ts';
 import type { WebglDeformation } from '../../deformation/webglFrame.ts';
 
@@ -56,6 +57,8 @@ export function createAutonomousRender(options: {
   gate: WebglFrameGate;
   lighting: ReturnType<typeof installSceneLighting>;
   roots: ClusterRoot<PageRec>[];
+  /** The per-instance draw state, keyed by packed index (`pageDraws.ts`): the record carries none. */
+  draws: PageDraws;
   /** The transparent copies the scene draws whole, hidden with their source node. */
   blendCopies: readonly BlendCopy[];
   /** The engine's world-matrix index, rebuilt once per scene revision. */
