@@ -4,39 +4,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { planImpostors, impostorBakedByMesh, type ImpostorRoot } from './plan.ts';
-import { impostorSwitchDepth, type ImpostorSwitchInput } from './switch.ts';
+import { impostorSwitchDepth } from './switch.ts';
+import { MAPS, bakedMesh } from './bakedMesh.fixture.ts';
 import type { ImpostorMesh, ImpostorSection } from '../contracts/impostor.ts';
 
 const FOCAL = 1117;
-const MAPS = {
-  colourCoverage: { kind: 'coverage', levels: [] },
-  normalDepth: { kind: 'data', levels: [] },
-  orm: { kind: 'data', levels: [] },
-};
-/** A baked entry with its atlas: tree and bush differ in radius, root triangles and frame side. */
-const bakedMesh = (
-  mesh: number,
-  name: string,
-  input: ImpostorSwitchInput,
-  hemi = false,
-): ImpostorMesh => ({
-  mesh,
-  sourceMesh: mesh,
-  name,
-  placements: 40,
-  masked: true,
-  rootTriangles: input.rootTriangles,
-  radius: input.objectRadius,
-  status: 'baked',
-  coverage: input.coverage,
-  hemi,
-  frames: 12,
-  frameSide: input.frameSide,
-  atlasSide: 12 * input.frameSide,
-  objectRadius: input.objectRadius,
-  switchDepth: { texel: 0, triangles: 0 },
-  maps: MAPS,
-});
 const TREE = { objectRadius: 4.2, rootTriangles: 2100, coverage: 0.43, frameSide: 128 };
 const BUSH = { objectRadius: 0.6, rootTriangles: 460, coverage: 0.66, frameSide: 64 };
 const REFUSED: ImpostorMesh = {
@@ -74,7 +46,7 @@ test('a switched root yields a card and its clusters are suppressed; a near root
   const [card] = cards;
   assert.deepEqual(
     [card.root, card.mesh, card.radius, card.frames, card.hemi],
-    [0, 1, 4.2, 12, false],
+    [0, 1, TREE.objectRadius, section.meshes[0].frames, false],
     'the card replaces the root it switched',
   );
   assert.deepEqual(card.centre, [0, 0, -200], 'the world pivot');
@@ -102,8 +74,8 @@ test('the largest world scale of the placement moves R and the switch with it', 
   const [unity, scaled] = [1, 2].map((s) =>
     planImpostors([{ mesh: 1, world: world(0, 0, -300, s) }], section, IDENTITY_VIEW, FOCAL),
   );
-  assert.equal(unity.cards[0]?.radius, 4.2);
-  assert.equal(scaled.cards[0]?.radius, 8.4);
+  assert.equal(unity.cards[0]?.radius, TREE.objectRadius);
+  assert.equal(scaled.cards[0]?.radius, 2 * TREE.objectRadius);
   // R doubled, the switch moves out: at one depth the scaled placement is still whole where the
   // unscaled one is already a card.
   const at = (s: number) =>
@@ -113,19 +85,20 @@ test('the largest world scale of the placement moves R and the switch with it', 
 });
 
 test('a refused entry, an unknown mesh and an absent section yield no card', () => {
-  const plan = planImpostors(
-    [
-      { mesh: 9, world: world(0, 0, -500) },
-      { mesh: 77, world: world(0, 0, -500) },
-      { world: world(0, 0, -500) },
-    ],
-    section,
-    IDENTITY_VIEW,
-    FOCAL,
-  );
-  assert.deepEqual([plan.cards.length, [...plan.switched]], [0, [0, 0, 0]]);
+  const far = world(0, 0, -500);
+  const noCard = { cards: [], switched: new Uint8Array(3) };
+  const roots = [{ mesh: 9, world: far }, { mesh: 77, world: far }, { world: far }];
+  assert.deepEqual(planImpostors(roots, section, IDENTITY_VIEW, FOCAL), noCard);
   assert.equal(impostorBakedByMesh(section).size, 2, 'refused entries stay out of the lookup');
-  assert.deepEqual(planImpostors([], undefined, IDENTITY_VIEW, FOCAL).cards, []);
+  assert.equal(impostorBakedByMesh(undefined).size, 0);
+  const tree = [{ mesh: 1, world: far }];
+  assert.equal(planImpostors(tree, section, IDENTITY_VIEW, FOCAL).cards.length, 1);
+  // The far tree that switches above draws whole once its section is absent or empty.
+  for (const absent of [undefined, { ...section, meshes: [] }])
+    assert.deepEqual(
+      planImpostors([...tree, ...tree, ...tree], absent, IDENTITY_VIEW, FOCAL),
+      noCard,
+    );
 });
 
 test('a far hemi card retains its projection kind, and incomplete switch data stays in geometry', () => {
@@ -138,7 +111,6 @@ test('a far hemi card retains its projection kind, and incomplete switch data st
     cards: [],
     switched: new Uint8Array([0]),
   });
-  assert.equal(impostorBakedByMesh(undefined).size, 0);
 });
 
 test('the baked lookup reads a section once and reuses it for subsequent views', () => {
