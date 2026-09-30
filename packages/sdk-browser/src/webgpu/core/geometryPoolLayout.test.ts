@@ -10,15 +10,18 @@ import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { shaderRun, type Vec } from '../../texture/shaderRun.fixture.ts';
-import { VERT_NORMAL_WGSL } from '../../visibility/shader/pageWgsl.ts';
+import { normalAtlasWgsl } from '../../visibility/shader/pageWgsl.ts';
+import { PORTABLE_TEXTURE_SIDE } from '../../frame/referenceTilePlacement.ts';
 import { createVertexPool } from './geometryPool.ts';
 import { poolFits, poolFloats } from './geometryPoolLayout.ts';
-import {
-  FLOAT_ATLAS_ROWS,
-  FLOAT_ATLAS_WIDTH,
-  floatAtlasExtent,
-  type FloatAtlas,
-} from './floatAtlas.ts';
+import { createFloatAtlas, type FloatAtlas } from './floatAtlas.ts';
+
+/** The atlas's row width bound and rows a layer: the portable texture side. */
+const FLOAT_ATLAS_ROWS = PORTABLE_TEXTURE_SIDE,
+  FLOAT_ATLAS_WIDTH = PORTABLE_TEXTURE_SIDE;
+/** Width, rows and layers of the atlas the pool makes for `floats` floats. */
+const floatAtlasExtent = (floats: number) =>
+  createFloatAtlas(fakeDevice().device, 'extent', floats).extent;
 import { uvBufferFloats } from './vertexColors.ts';
 import type { HostAttributes } from '../../host/resources.ts';
 
@@ -38,7 +41,7 @@ type Vertex = {
   vertT: (base: number, idx: number) => Vec;
 };
 
-/** The atlas the texture writes left, as the shared text reads it (`VERT_NORMAL_WGSL`). */
+/** The atlas the texture writes left, as the shared text reads it (`normalAtlasWgsl`). */
 function replayAtlas(gpu: ReturnType<typeof fakeDevice>, texture: object, width: number) {
   const texels = new Map<number, number>();
   for (const { destination, data, layout, size } of gpu.texelWrites) {
@@ -65,7 +68,7 @@ function replayAtlas(gpu: ReturnType<typeof fakeDevice>, texture: object, width:
 /** Checks that the shared text reads, at `base`, the triangle's normals and tangents bit for bit. */
 function assertNormals(gpu: ReturnType<typeof fakeDevice>, atlas: FloatAtlas, base: number) {
   const scope = replayAtlas(gpu, atlas.texture, atlas.extent[0]);
-  const run = shaderRun<Vertex>(VERT_NORMAL_WGSL, ['normalAt', 'vertN', 'vertT'], scope);
+  const run = shaderRun<Vertex>(normalAtlasWgsl(0), ['normalAt', 'vertN', 'vertT'], scope);
   const host = triangle();
   for (let v = 0; v < 3; v++) {
     const normal = [0, 1, 2].map((c) => Math.fround(host.normal!.getComponent(v, c)));
