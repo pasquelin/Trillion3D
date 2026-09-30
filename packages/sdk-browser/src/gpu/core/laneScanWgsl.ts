@@ -10,8 +10,9 @@
  * `laneRun` splits `len` items into 64 contiguous runs, one per lane: `[first, last)`.
  *
  * Shared by the draw prefix (`../draw/shader.ts`), the drawable-page prefix
- * (`../dag/shader/compactWgsl.ts`), the tested-half compaction (`../raster/restCompactWgsl.ts`) and
- * the blend expansion (`../../webgpu/blend/expandWgsl.ts`).
+ * (`../dag/shader/compactWgsl.ts`), the tested-half compaction (`../raster/restCompactWgsl.ts`),
+ * the blend expansion (`../../webgpu/blend/expandWgsl.ts`) and the GPU shadow pages' pair admission
+ * (`../../webgpu/shadow/freshCullWgsl.ts`).
  */
 export const LANE_SCAN_WGSL = `
 var<workgroup> laneSums:array<u32,128>;

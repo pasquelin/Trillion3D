@@ -80,6 +80,9 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
     snapshotBytes: snapshotWords(pages) * 4,
     /** True once the GPU pool holds the host's. */
     seeded: false,
+    /** Pairs the latest snapshot's frame counted, kept or not: what the kept list grows to
+     *  (`pairGrowth.ts`). */
+    pairNeed: 0,
     /** The GPU pool and its table as the host's `plan` holds them now: into `table` of `data`. */
     seed(plan: ShadowPlan, data: GPUBuffer, tableOffset: number) {
       const { pool, records, table } = plan,
@@ -166,6 +169,7 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
       into.refused = from[POOL_COUNTS.indexOf('refused')];
       into.drawn = from[POOL_COUNTS.indexOf('drawn')];
       into.listings = from[POOL_COUNTS.indexOf('listings')];
+      allocation.pairNeed = from[POOL_COUNTS.indexOf('pairs')];
       into.owner.set(signed.subarray(POOL_COUNTS.length, POOL_COUNTS.length + pages));
       into.requested.set(signed.subarray(POOL_COUNTS.length + pages));
     },
