@@ -30,6 +30,13 @@ import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d
 const moved = new Float64Array(BOX_VALUES),
   movedMin = moved.subarray(0, 3),
   movedMax = moved.subarray(3, 6);
+/** A moved node's box before its move and after it (`declareMove`). */
+const before = new Float64Array(BOX_VALUES),
+  beforeMin = before.subarray(0, 3),
+  beforeMax = before.subarray(3, 6),
+  after = new Float64Array(BOX_VALUES),
+  afterMin = after.subarray(0, 3),
+  afterMax = after.subarray(3, 6);
 /** Ranks of the roots under each moved node, node after node; where each node's ranks end; the
  *  distinct ranks of several nodes. */
 const movedList: number[] = [],
@@ -87,6 +94,20 @@ function declare(rt: WebgpuPagesRuntime, promoted: boolean) {
   rt.lights.plan.worldChanged(movedMin, movedMax, !promoted);
   staleTemporalBox(rt.run.temporalHizState, movedMin, movedMax);
 }
+/** A node's box before its move (`before`) and after it (`after`), each declared to the shadow
+ *  scheduler on its own: a caster stales the pages it left and those it lands in, never the ones
+ *  between them. The Hi-Z takes their union, `moved`. */
+function declareMove(rt: WebgpuPagesRuntime, promoted: boolean) {
+  moved.set(before);
+  boxUnionBatch(moved, after, 1);
+  if (boxIsEmpty(moved, 0)) return;
+  const { plan } = rt.lights;
+  let still = true;
+  for (let v = 0; v < BOX_VALUES; v++) still &&= before[v] === after[v];
+  if (!boxIsEmpty(before, 0)) plan.worldChanged(beforeMin, beforeMax, !promoted);
+  if (!boxIsEmpty(after, 0) && !still) plan.worldChanged(afterMin, afterMax, !promoted);
+  staleTemporalBox(rt.run.temporalHizState, movedMin, movedMax);
+}
 
 function passMoves(rt: WebgpuPagesRuntime) {
   const { lights, run, layout } = rt,
@@ -131,16 +152,17 @@ function passMoves(rt: WebgpuPagesRuntime) {
   run.gate.noteWorldsUpdated();
   let start = 0;
   for (let k = 0; k < nodeCount; k++) {
-    for (let v = 0; v < BOX_VALUES; v++) moved[v] = movedBoxes[k * BOX_VALUES + v];
+    for (let v = 0; v < BOX_VALUES; v++) before[v] = movedBoxes[k * BOX_VALUES + v];
+    boxEmpty(after, 0);
     let promoted = false;
     for (let j = start; j < movedEnds[k]; j++) {
       const root = roots[movedList[j]];
       if (!root.worldBox) continue;
       promoted = promotedRoots[movedList[j]] === 1 || promoted;
-      if (root.localBox) boxUnionBatch(moved, root.worldBox, 1);
+      if (root.localBox) boxUnionBatch(after, root.worldBox, 1);
     }
     start = movedEnds[k];
-    declare(rt, promoted);
+    declareMove(rt, promoted);
   }
 }
 

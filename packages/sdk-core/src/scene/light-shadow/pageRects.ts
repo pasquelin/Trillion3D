@@ -3,11 +3,20 @@ import { writeFace } from './faces.ts';
 import { sunBoxRect } from './math.ts';
 import type { SunLevels } from './sunLevels.ts';
 import { FULL_FACE } from './volume.ts';
-import { LAMP_MIPS, SUN_LEVELS, lampFacesOf, lampPagesAt } from './virtual.ts';
+import { LAMP_MIPS, SHADOW_PAGE, SUN_LEVELS, lampFacesOf, lampPagesAt } from './virtual.ts';
 import { sunPageMetres } from './pageModel.ts';
 
 /** Light views of one light: a sun's clipmap levels, a lamp face at each mip. */
 const VIEWS = Math.max(SUN_LEVELS, POINT_FACES * LAMP_MIPS);
+/** Sample points of a page per side: the depth texels' centres and the half-resolution
+ *  transmittance texels' (`gpu/shadow/transmittance.ts`) all lie on multiples of half a texel. */
+const SAMPLES = 2 * SHADOW_PAGE;
+/** How far a drawn corner may lie off its exact place, in pages: the sun snap's half subtexel and
+ *  the f32 of the page matrices, far below a sixteenth of a texel. */
+const SLACK = 1 / (16 * SHADOW_PAGE);
+/** Whether the span `[lo, hi]` of pages holds a sample point: a caster within it writes a texel. */
+const holdsSample = (lo: number, hi: number) =>
+  Math.ceil((lo - SLACK) * SAMPLES) <= Math.floor((hi + SLACK) * SAMPLES);
 
 /**
  * THE PAGES A WORLD BOX COVERS in each view of a shadow light — a sun's clipmap level, a lamp
@@ -27,14 +36,28 @@ export function createPageRects() {
   let faces = 0,
     near = 0;
 
-  /** Writes view `view`'s rectangle: the pages of `[x0, x0 + n) × [y0, y0 + n)` meeting `plane`
-   *  carried to pages, `(plane + offset) · scale`, edges included. Returns the pages covered. */
+  /**
+   * Writes view `view`'s rectangle: the pages of `[x0, x0 + n) × [y0, y0 + n)` meeting `plane`
+   * carried to pages, `(plane + offset) · scale`, edges included. Returns the pages covered. None
+   * when the rectangle holds no texel's sample point on an axis: whatever the box holds, before or
+   * after its change, lies between the samples of that view and writes no texel there, so none of
+   * its pages changed — a small caster keeps the coarse levels it is finer than a texel of.
+   */
   function setRect(view: number, scale: number, offset: number, x0: number, y0: number, n: number) {
-    const r = view * 4;
-    rects[r] = Math.max(x0, Math.ceil((plane[0] + offset) * scale) - 1);
-    rects[r + 1] = Math.min(x0 + n - 1, Math.floor((plane[1] + offset) * scale));
-    rects[r + 2] = Math.max(y0, Math.ceil((plane[2] + offset) * scale) - 1);
-    rects[r + 3] = Math.min(y0 + n - 1, Math.floor((plane[3] + offset) * scale));
+    const r = view * 4,
+      left = (plane[0] + offset) * scale,
+      right = (plane[1] + offset) * scale,
+      top = (plane[2] + offset) * scale,
+      bottom = (plane[3] + offset) * scale;
+    if (!holdsSample(left, right) || !holdsSample(top, bottom)) {
+      rects[r] = rects[r + 2] = 0;
+      rects[r + 1] = rects[r + 3] = -1;
+      return 0;
+    }
+    rects[r] = Math.max(x0, Math.ceil(left) - 1);
+    rects[r + 1] = Math.min(x0 + n - 1, Math.floor(right));
+    rects[r + 2] = Math.max(y0, Math.ceil(top) - 1);
+    rects[r + 3] = Math.min(y0 + n - 1, Math.floor(bottom));
     const columns = rects[r + 1] - rects[r] + 1,
       rows = rects[r + 3] - rects[r + 2] + 1;
     return columns > 0 && rows > 0 ? columns * rows : 0;
