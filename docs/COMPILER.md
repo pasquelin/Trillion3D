@@ -1005,11 +1005,27 @@ await prepare(source, cache, 'full', 150000, { resourceBaseUrl, onProgress: prog
 // ✔ 1/8 city 1,132,930 triangles, 412 primitives, 3395 ms 4.1s
 ```
 
-The executable is `options.executable`, else `TRILLION3D_COMPILER_BIN` (trusted, announced once on
-stderr), else `packages/asset-compiler-rust/target/release/`, refused with `COMPILER_STALE` while a
-crate source is newer than that build, so no cook publishes under the previous build's key (`pnpm
-run build:native` rebuilds it). Node never buffers a manifest: about 90 MB RSS whatever the model
-size.
+The executable is `options.executable`, else the one of the installed platform package, else
+`TRILLION3D_COMPILER_BIN` (trusted, announced once on stderr), else
+`packages/asset-compiler-rust/target/release/`, refused with `COMPILER_STALE` while a crate source is
+newer than that build, so no cook publishes under the previous build's key (`pnpm run build:native`
+rebuilds it). Outside a checkout, a platform none of them serves is refused with
+`COMPILER_PLATFORM_UNSUPPORTED` and the supported list. Node never buffers a manifest: about 90 MB
+RSS whatever the model size.
+
+### Platform packages
+
+The compiler is built for macOS arm64 and x64, Linux arm64 and x64 (glibc) and Windows x64, each
+shipped as its own package, `@trillion3d/compiler-<os>-<arch>` (`packages/compiler/`), declared in
+the `optionalDependencies` of `trillion3d`: an install takes only its machine's one. The `Compiler`
+workflow builds the five on their own runners (`scripts/compiler-dist.ts`): the release profile
+(fat LTO, abort on panic, stripped symbols), mimalloc as the allocator of the Rayon workers, and
+profile-guided optimisation trained on the two reference scenes (`scripts/compiler-hashes.ts`). The
+macOS arm64 build assumes the Apple M1; an x86-64 build keeps its baseline and runs the page
+quantizers in AVX2 where the processor has it (`shared_math::wide`). No fused multiply-add anywhere
+— Rust never fuses, C and C++ are built with `-ffp-contract=off`, Jolt in its cross-platform mode —,
+so every platform writes the same bytes: the workflow compiles the reference scenes with each binary
+and compares every cache file's SHA-256 with Linux x64's and, on a pull request, `develop`'s.
 
 ## Using it from any other host
 

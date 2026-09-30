@@ -10,6 +10,8 @@ import {
   proveInstalledBrowserModes,
 } from './installed-package-bundle.ts';
 import { compileInstalledScene, type CompiledScene } from './installed-package-scene.ts';
+import { packPlatformPackages } from './installed-package-platforms.ts';
+import { compilerFileName } from '../packages/sdk-node/src/compiler/platform.mts';
 import { proveInstalledRuntime } from './installed-package-runtime.ts';
 import { proveInstalledTypes } from './installed-package-types.ts';
 import {
@@ -34,6 +36,10 @@ try {
   const proveBundle = process.argv.includes('--bundle') && !proveBrowser;
   const proveNative = process.argv.includes('--native') || proveBrowser || proveBundle;
   if (proveNative) run(pnpm, ['run', 'build:native']);
+  // The compiler reaches the application in this machine's platform package (#1352).
+  const executable = proveNative
+    ? join(root, 'packages/asset-compiler-rust/target/release', compilerFileName(process.platform))
+    : null;
   const parsedPack = JSON.parse(run(pnpm, ['pack', '--json', '--pack-destination', fixture])) as
     PackResult | PackResult[];
   const packed: PackResult = Array.isArray(parsedPack) ? (parsedPack[0] ?? {}) : parsedPack;
@@ -64,6 +70,10 @@ try {
       2,
     )}\n`,
   );
+  write(
+    'pnpm-workspace.yaml',
+    packPlatformPackages({ root, fixture, run, pnpm, binary: executable }),
+  );
   run(pnpm, ['install', '--frozen-lockfile=false'], fixture);
   if (installedThree(fixture)) throw new Error('a clean install of the package pulls three');
   const packageName = source.name;
@@ -81,14 +91,9 @@ try {
   proveInstalledTypes({ fixture, packageName, run, write });
   let native: { primer: CompiledScene; replay: CompiledScene } | null = null;
   let compilerVersion: string | null = null;
-  if (proveNative) {
-    const executable = join(
-      root,
-      'packages/asset-compiler-rust/target/release',
-      `trillion3d-compiler${process.platform === 'win32' ? '.exe' : ''}`,
-    );
+  if (executable) {
     const compile = (name: string, variant: number) =>
-      compileInstalledScene({ fixture, executable, run, pnpm, name, variant });
+      compileInstalledScene({ fixture, run, pnpm, name, variant });
     compilerVersion = run(executable, ['--version']).trim();
     native = {
       primer: compile('primer', 0),
