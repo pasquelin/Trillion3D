@@ -99,8 +99,11 @@ export function createShadowPool(side: number, layers = 1, tableEntries = SHADOW
     },
     /** THE ONE WAY A PAGE IS READ NO MORE: it keeps its place and its requests, but its depth is
      *  wrong — not only coarser than the view wants — until it is drawn again, and a reader falls
-     *  back to the next coarser current page meanwhile. */
-    withdraw(table: ShadowTable, page: number) {
+     *  back to the next coarser current page meanwhile. `anyDraw`, what it holds changed in the
+     *  world: a draw the GPU made itself, which the host never saw (#1275), is withdrawn too
+     *  (`table.withdraw`). */
+    withdraw(table: ShadowTable, page: number, anyDraw = false) {
+      if (anyDraw && pool.owner[page] >= 0) table.withdraw(pool.owner[page]);
       if (!pool.valid[page]) return;
       pool.valid[page] = 0;
       table.write(pool.owner[page], page | PAGE_MAPPED);

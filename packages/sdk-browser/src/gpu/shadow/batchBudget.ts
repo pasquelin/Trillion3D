@@ -55,6 +55,14 @@ const EMPTY_COMMANDS = new Uint32Array(MAX_SHADOW_REGIONS * REGION_WORDS);
 export const emptyRegionCommands = (regions: number) =>
   EMPTY_COMMANDS.subarray(0, regions * REGION_WORDS);
 
+/** Words of a moving group's entry in the group table (`groupWgsl.ts`): the first word of its
+ *  pairs, the end of them, its block and whether its lists are the occlusion test's. The table: a
+ *  word per region — its group plus one, 0 when drawn alone —, every group's entry, then the rows
+ *  a region's lists hold (`GROUP_CAPACITY_WORD`). A batch holds a group per region at most. */
+export const GROUP_WORDS = 3,
+  GROUP_CAPACITY_WORD = MAX_SHADOW_REGIONS * (1 + GROUP_WORDS),
+  GROUP_TABLE_WORDS = GROUP_CAPACITY_WORD + 1;
+
 /** The WGSL struct `name` of `words` words: `fields`, one word each, then padding — the host's
  *  word count, never a literal twin of it. */
 export const wordStruct = (name: string, fields: readonly string[], words: number) =>
@@ -71,7 +79,8 @@ export const SHADOW_BATCH_WRITE_BYTES =
   OCCLUSION_UNIFORM_WORDS * 4 +
   MAX_SHADOW_PAGES * PAGE_BOUNDS_WORDS * 4 +
   MAX_SHADOW_REGIONS * 4 +
-  4;
+  4 +
+  GROUP_TABLE_WORDS * 4;
 /** The staging buffer at the grant: every batch but the first, which writes straight
  *  (`batchWrites.ts`). */
 export const SHADOW_STAGING_BYTES = (MAX_SHADOW_BATCHES - 1) * SHADOW_BATCH_WRITE_BYTES;

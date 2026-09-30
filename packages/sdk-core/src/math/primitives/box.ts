@@ -25,6 +25,12 @@ export function boxIsEmpty(box: ArrayLike<number>, o: number) {
   return box[o + 3] < box[o] || box[o + 4] < box[o + 1] || box[o + 5] < box[o + 2];
 }
 
+/** True when boxes `a` at `ao` and `b` at `bo` hold the same six values, bit for bit. */
+export function boxEquals(a: ArrayLike<number>, ao: number, b: ArrayLike<number>, bo: number) {
+  for (let v = 0; v < BOX_VALUES; v++) if (a[ao + v] !== b[bo + v]) return false;
+  return true;
+}
+
 /** Expands the box to contain a point. */
 export function boxExpandByPoint(out: Float64Array, o: number, x: number, y: number, z: number) {
   out[o] = Math.min(out[o], x);
