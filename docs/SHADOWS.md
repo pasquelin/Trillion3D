@@ -219,6 +219,19 @@ rejoining would cost two layer redraws per pause, static casters included, and a
 a scene-tuned constant; revisit only if falling boxes and a walker or car at 1728×1117 CSS, DPR 2,
 show a net gain beyond run spread, transition frames included.
 
+**Moving casters by group** (#1345, `webgpu/shadow/movingGroups.ts`). A restored page drew its
+moving casters in one draw of its own, in its page's viewport: 250 draws a frame for 35 turning
+antennas. The restored sun pages of one pass, in one block of the layer — a square of the layer's
+largest power of two of texels, at its start or its end on each axis, which holds every page — and
+with lists of one kind (the cull's, or the occlusion test's), are one group once two share it:
+after the cull and the occlusion test, a compute pass files each page's kept casters into its
+group's list and counts them into its two indirect commands, and the pass draws each group's
+opaque casters, then its cutout ones, in one instanced draw each. Each corner is carried from its
+page's viewport to the block's (`groupPlace`, `gpu/shadow/groupWgsl.ts`): the snapped sun corner
+and the power-of-two block make the rasterizer's f32 window position the one the page's own
+viewport gave, to the bit (`groupPlace.test.ts`), and the fragment keeps its page's texels alone.
+A lamp's perspective page, and a page alone in its block, keep their own draw.
+
 Every shadow pipeline — static layer, light-cut row map, page pyramids (the camera's Hi-Z kernels),
 occlusion test and, if blended surfaces cast, transmittance draws — is compiled at prepare, in its
 own step (`shadow pipelines`, `webgpu/pages/prepare/lights.ts`), except the draws of a blended
