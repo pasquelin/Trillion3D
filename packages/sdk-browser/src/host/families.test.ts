@@ -1,6 +1,5 @@
 import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
-import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import { Camera } from '../../../sdk-core/src/world/camera/camera.ts';
 import { EffectChain } from '../../../sdk-core/src/world/effect/chain.ts';
 import { effect } from '../../../sdk-core/src/world/effect/index.ts';
@@ -8,6 +7,7 @@ import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
 import { createWorldPhysics } from '../physics/worldPhysics.ts';
 import { worldDiagnostic } from '../world/core/worldHandles.ts';
 import { drawnOnArrival, frameWaits } from '../world/session/familyUse.ts';
+import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import { families, familyRefusals } from './families.ts';
 import { onDemand } from './onDemand.ts';
 
@@ -56,6 +56,8 @@ test('a family that never loads is named on the world, and no frame draws withou
   standIn(t, 'effects', () => Promise.reject(new Error('CHUNK_MISSING')));
   const diagnostic = worldDiagnostic(() => null);
   t.after(() => diagnostic.close());
+  const closed = worldDiagnostic(() => null);
+  closed.close();
   const { invalidate, drawn } = frames();
   invalidate();
   await turn();
@@ -65,8 +67,7 @@ test('a family that never loads is named on the world, and no frame draws withou
   assert.match(String(error?.message), /^T3D-E090 FAMILY_LOAD_FAILED: the effects family/);
   invalidate();
   assert.equal(drawn(), 0, 'the chain is never dropped: its frames wait');
-  diagnostic.close();
-  assert.equal(familyRefusals.size, 0, 'a closed world hears no more');
+  assert.equal(closed.handle.error, null, 'a closed world hears no more');
 });
 
 test('physics arrives through the same loader as the other families', async (t) => {

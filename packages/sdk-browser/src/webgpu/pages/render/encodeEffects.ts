@@ -31,7 +31,7 @@ export function encodeEffects(
   if (passes.length && (run.diagnostic !== 'beauty' || rt.capture.capturing)) return accumulated;
   const input = accumulated?.color ?? gpu.hdrView;
   if ((!passes.length && !gpu.effects) || !input) return accumulated;
-  // Its code, which the frame waited for (`../../../host/families.ts`); refused, no chain drawn.
+  // Its code, which the frame waited for (`../../../host/families.ts`), arrived.
   gpu.effects ??= families.effects
     .get()
     ?.createWebgpuEffects(device, (error) =>

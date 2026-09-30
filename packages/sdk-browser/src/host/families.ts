@@ -2,7 +2,7 @@ import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import { onDemand } from './onDemand.ts';
 
 /** Who hears a family's final refusal (`FAMILY_LOAD_FAILED`): each open world, on its error
- *  channel (`world.diagnostic.error`, `worldHandles.ts`). */
+ *  channel (`world.diagnostic.error`, `worldHandles.ts`), until it closes. */
 export const familyRefusals = new Set<(error: EngineError) => void>();
 const told = (error: EngineError) => familyRefusals.forEach((listener) => listener(error));
 /** One family of the table: its name, the one loader (`onDemand.ts`), its refusal told. */
