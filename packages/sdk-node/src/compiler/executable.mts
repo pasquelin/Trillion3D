@@ -4,10 +4,10 @@ import { fileURLToPath } from 'node:url';
 import { compilerError } from '../messages/catalogue.mts';
 import { sourceNewerThan } from './freshness.mts';
 import {
+  COMPILER_PLATFORMS,
   compilerFileName,
   compilerPackage,
   installedCompiler,
-  requireSupportedPlatform,
 } from './platform.mts';
 
 /** The crate this checkout builds the compiler from; absent from an installed package. */
@@ -57,9 +57,8 @@ export function resolveCompilerExecutable(
   explicit?: string,
   environment: NodeJS.ProcessEnv = process.env,
   platform = process.platform,
-  installed?: string | null,
 ) {
-  const host = { ...HERE, platform, installed };
+  const host = { ...HERE, platform };
   return namedCompiler(explicit, environment, host)?.path ?? built(CRATE, platform);
 }
 const announced = new Set<string>();
@@ -88,11 +87,13 @@ export function currentCompilerExecutable(
   }
   const { crate, platform, arch } = machine;
   if (!existsSync(join(crate, 'Cargo.toml'))) {
-    requireSupportedPlatform(platform, arch);
-    throw compilerError(
-      'COMPILER_EXECUTABLE_MISSING',
-      `${compilerPackage(platform, arch)} is not installed`,
-    );
+    const name = compilerPackage(platform, arch);
+    if (!name)
+      throw compilerError(
+        'COMPILER_PLATFORM_UNSUPPORTED',
+        `${platform}-${arch}; supported: ${COMPILER_PLATFORMS.join(', ')}`,
+      );
+    throw compilerError('COMPILER_EXECUTABLE_MISSING', `${name} is not installed`);
   }
   const executable = built(crate, platform);
   const newer = sourceNewerThan(executable, crate);
