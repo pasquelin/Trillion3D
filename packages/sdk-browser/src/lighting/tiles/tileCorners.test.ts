@@ -53,13 +53,13 @@ test('the corner table gives both boxes the corners of before, to the bit', () =
   }
 });
 
-test('sixteen threads de-project the corners between two barriers; thread zero calls none', () => {
+test('sixteen threads de-project the corners between two barriers, seven build the bounds', () => {
   const calls = LIGHT_TILES_SHADER.split('tileCorner(').length - 1;
   assert.equal(calls, 2, 'defined once, called once: by the thread that owns the corner');
   assert.match(LIGHT_TILES_SHADER, /corners\[lane\]=tileCorner\(tile,lane%4u,z\);/);
   assert.match(
     LIGHT_TILES_SHADER,
-    /workgroupBarrier\(\);\s*tileCornerOfLane\(tile\.xy,lane\);\s*workgroupBarrier\(\);\s*if\(lane==0u&&lightCount>0u\)\{/,
+    /workgroupBarrier\(\);\s*tileCornerOfLane\(tile\.xy,lane\);\s*workgroupBarrier\(\);/,
   );
   // The rows' depths, near, column, front, back: \`ROW\` and \`tileCorners\` of the oracle.
   assert.match(
@@ -68,8 +68,23 @@ test('sixteen threads de-project the corners between two barriers; thread zero c
   );
   for (const [name, row] of Object.entries(ROW))
     assert.match(LIGHT_TILES_SHADER, new RegExp(`const ${name.toUpperCase()}_ROW:u32=${row}u;`));
-  // Thread zero builds each bound from the rows: the boxes and the slab planes.
-  assert.match(LIGHT_TILES_SHADER, /opaqueBox=tileBox\(FRONT_ROW,BACK_ROW\);tileSlab\(\);/);
+  // Seven lanes build the bounds from the rows at once (#1369): the column's five planes, the slab
+  // from the near one, the two boxes.
+  assert.match(LIGHT_TILES_SHADER, /if\(count>0u\)\{[^\n]*\n\s*tileBoundsOfLane\(lane,hasOpaque,seesSky\);/);
+  assert.match(LIGHT_TILES_SHADER, /if\(lane<5u\)\{column\[lane\]=columnPlane\(lane\);\}/);
+  assert.match(LIGHT_TILES_SHADER, /if\(lane==4u\)\{tileSlab\(\);\}/);
+  // Each plane is the expression thread zero ran, the oracle's \`tileColumn\`: the same bits.
+  assert.ok(
+    LIGHT_TILES_SHADER.includes(
+      'return inwardPlane(cross(columnCorner(DEEP_ROW,(i+1u)%4u)-deep,deep-near),near,inside);',
+    ),
+  );
+  assert.ok(
+    LIGHT_TILES_SHADER.includes(
+      'return inwardPlane(cross(columnCorner(DEEP_ROW,1u)-first,columnCorner(DEEP_ROW,3u)-first),columnCorner(NEAR_ROW,0u),inside);',
+    ),
+  );
+  assert.match(LIGHT_TILES_SHADER, /if\(lane==5u\)\{opaqueBox=tileBox\(FRONT_ROW,BACK_ROW\);\}/);
   // The column walks the corners in turn, the oracle's order 0, 1, 3, 2: the Gray code of i.
   assert.match(LIGHT_TILES_SHADER, /return corners\[row\*4u\+\(i\^\(i>>1u\)\)\];/);
 });
