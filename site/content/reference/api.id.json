@@ -1169,6 +1169,9 @@
       "gpuDeformationMs": "Durasi deformasi GPU untuk frame `gpuPassMs`; null sebelum pengukuran atau jika tidak didukung."
     }
   },
+  "FramePass": {
+    "summary": "Menamai tahapan bingkai yang sedang digambar; setiap panggilan menutup tahap sebelumnya dan membuka tahap berikutnya."
+  },
   "Frustum": {
     "summary": "Enam bidang, dibaca dari sebuah view-projection oleh inti (`math/frustum/frustum.ts`).",
     "members": {
@@ -1489,7 +1492,8 @@
       "width": "Lebar dalam piksel.",
       "height": "Tinggi dalam piksel.",
       "displayWidth": "Lebar tempat gambar ditampilkan saat digambar di bawahnya (`world.renderScale`): level tekstur dan lebar garis mengikuti rasionya. `width` bila tidak ada.",
-      "linear": "Radiansi linear, tanpa kurva dan tanpa pengodean, di atas hitam transparan: masukan rantai efek, yang alfanya adalah cakupan."
+      "linear": "Radiansi linear, tanpa kurva dan tanpa pengodean, di atas hitam transparan: masukan rantai efek, yang alfanya adalah cakupan.",
+      "pass": "Menamai pass GPU gambar ini untuk pengatur waktu frame, secara berurutan, saat ada yang membaca (`../core/frameTimer.ts`); tidak ada pada gambar yang tidak diukur apa pun."
     }
   },
   "HostMaterial": {
