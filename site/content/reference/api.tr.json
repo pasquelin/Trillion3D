@@ -997,6 +997,7 @@
       "VERTICES_NOT_LOADED": "Yüklenmiş bir modelin köşeleri `await geometry.loadVertices()` öncesinde okundu: oturum onları ilk ihtiyaçta okur, asla önceden okumaz.",
       "SESSION_OPEN_FAILED": "Dünyanın oturumu, kendi kodu olmayan bir nedenle açılamadı (`world.diagnostic.error`): fırlatılan hata `details.cause` içindedir.",
       "WEBGPU_LOST": "WebGPU cihazını kaybetti ya da cihazdaki bir hata hiçbir şeyin çizemeyeceği bir durum bıraktı: `render`, `flush` ve cihaza ihtiyaç duyan okumalar tarafından fırlatılır, `gpu-device-lost` tanılamasıyla adlandırılır ve bu yüzden bir oturum açılamadığında `world.diagnostic.error` üzerinde görünür.",
+      "FAMILY_LOAD_FAILED": "Motorun isteğe bağlı bir ailesi (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement) önce içe aktarımı yeniden denendikten sonra yüklenemedi (`T3D-E090`): `details.family` onu `world.diagnostic.error` üzerinde adlandırır. Onunla çizen kareler onu bekler ve bir sonraki kullanımda yeniden istenir.",
       "UNSUPPORTED_SCENE_FORMAT": "Kaydedilmiş bir sahne başka bir biçimde ya da sürümde, veya kaydedilmiş bir sahnenin saklayamayacağı bir şey içeriyor.",
       "SCENE_NOT_SAVABLE": "Kaydedilmiş bir sahne başka bir biçimde ya da sürümde, veya kaydedilmiş bir sahnenin saklayamayacağı bir şey içeriyor.",
       "PHYSICS_BUDGET": "Fizikten sınırlarından birinin ötesi istendi (`world.budget.physics`: cisimler, dekoratif cisimler, bellek), ya da dinamik bir cisim sahnenin doğrudan çocuğu değildi (`PHYSICS_NESTED`), ya da fizik modülü başarısız oldu (`PHYSICS_FAILED`), ya da bir cismin konumu veya köşeleri sonlu olmaktan çıktı ve cisim simülasyondan ayrıldı (`PHYSICS_DIVERGED`): `world.physics.error` üzerinde.",
@@ -4220,7 +4221,7 @@
     "members": {
       "mode": "Görünüm modu: normal görsel için `'beauty'`, ya da motorun nasıl çalıştığını gösteren bir mod.",
       "sessions": "Dünyanın şimdiye kadar açtığı oturumlar: birini yeniden açan bir değişiklik burada görünür.",
-      "error": "Son oturumun neden açılamadığı, adlandırılmış bir motor hatası olarak: `code` değeri `EngineError` üzerinde belgelenenlerden biridir (WebGPU aygıtını kaybettiğinde `WEBGPU_LOST`) ya da kendi kodu olmayan bir neden için `SESSION_OPEN_FAILED`. Belgelenmiş kodlu bir `EngineError` fırlatılanın kendisidir; diğer her hata dönüştürülür ve fırlatılan hata o zaman `details.cause` içindedir. Her açılışın başından itibaren ve hiçbir şey denenmediğinde `null`.",
+      "error": "Son oturumun neden açılamadığı, adlandırılmış bir motor hatası olarak: `code` değeri `EngineError` üzerinde belgelenenlerden biridir (WebGPU aygıtını kaybettiğinde `WEBGPU_LOST`; isteğe bağlı bir aile yüklenmediğinde `FAMILY_LOAD_FAILED`, o zaman da) ya da kendi kodu olmayan bir neden için `SESSION_OPEN_FAILED`. Belgelenmiş kodlu bir `EngineError` fırlatılanın kendisidir; diğer her hata dönüştürülür ve fırlatılan hata o zaman `details.cause` içindedir. Her açılışın başından itibaren ve hiçbir şey denenmediğinde `null`.",
       "modes": "Mevcut render motorunun sunduğu her görünüm modu."
     }
   },
@@ -7425,7 +7426,7 @@
       "water": "Cisimlerin yüzdüğü su: seviyesi, dalgaları, yoğunluğu ve sürüklemeleri. Sudan hafif bir cisim, yer değiştirdiği suyun ağırlığıyla itilerek yüzer.",
       "waterSurface": "Simülasyon zamanındaki su yüzeyi, çizmek için: kaldırma kuvvetinin okuduğu dalgalar, aynı sayılar (`height`, `point`, `normal`).",
       "stats": "Sayımlar ve iki saat: adım başına worker milisaniyesi, kare başına sayfa milisaniyesi.",
-      "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır.",
+      "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`, `FAMILY_LOAD_FAILED`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır.",
       "add": "Bir eklem ekler (`joint.hinge(door, frame, …)` ve akrabaları): iki cismi de simüle edilir edilmez oluşturulur, çıkarılana ya da kırılana dek tutar.",
       "remove": "Bir eklemi çıkarır: tuttuğu cisimler serbestçe ayrılır."
     }
@@ -7633,7 +7634,7 @@
       "water": "Cisimlerin yüzdüğü su: seviyesi, dalgaları, yoğunluğu ve sürüklemeleri. Sudan hafif bir cisim, yer değiştirdiği suyun ağırlığıyla itilerek yüzer.",
       "waterSurface": "Simülasyon zamanındaki su yüzeyi, çizmek için: kaldırma kuvvetinin okuduğu dalgalar, aynı sayılar (`height`, `point`, `normal`).",
       "stats": "Sayımlar ve iki saat: adım başına worker milisaniyesi, kare başına sayfa milisaniyesi.",
-      "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır.",
+      "error": "Fiziğin son hatası (`PHYSICS_BUDGET`, `PHYSICS_NESTED`, `PHYSICS_FAILED`, `RESOURCE_HTTP_ERROR`, `FAMILY_LOAD_FAILED`) ya da `null`. Simülasyonu durduran bir hata `enabled` değerini kapatır.",
       "add": "Bir eklem ekler (`joint.hinge(door, frame, …)` ve akrabaları): iki cismi de simüle edilir edilmez oluşturulur, çıkarılana ya da kırılana dek tutar.",
       "remove": "Bir eklemi çıkarır: tuttuğu cisimler serbestçe ayrılır."
     }
