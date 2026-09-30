@@ -5,6 +5,7 @@ export const REFERENCE_APPROXIMATIONS = [
   'probeBudget',
   'shadowResolution',
   'supersampling',
+  'reflectionTrace',
 ] as const;
 
 /** The bounce target of the reference, in milliseconds: far past any frame, so the budget never

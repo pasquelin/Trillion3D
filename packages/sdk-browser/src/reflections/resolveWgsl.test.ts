@@ -1,7 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { shaderRun, Mat } from '../texture/shaderRun.fixture.ts';
-import { REFLECTION_RESOLVE_WGSL } from './resolveWgsl.ts';
+import {
+  REFLECTION_CHANGE_WEIGHT,
+  REFLECTION_HISTORY_WEIGHT,
+  REFLECTION_RESOLVE_WGSL,
+} from './resolveWgsl.ts';
 
 function fixture() {
   const samples: Record<string, number | number[]> = {
@@ -19,7 +23,7 @@ function fixture() {
     prevViewProj: identity,
     invViewProj: identity,
     viewport: [8, 8, 1 / 8, 1 / 8],
-    params: [1, 0, 0, 0],
+    params: [1, REFLECTION_HISTORY_WEIGHT, 0, 0],
   };
   const uv = [0.5, 0.5, 1];
   const { resolveRoughReflection } = shaderRun<{
@@ -78,4 +82,17 @@ test('first image, disocclusion, other identities and changed lobes reject stale
   const f = fixture();
   f.samples.ids = [0, 0, 0, 0];
   assert.deepEqual(f.resolve(), [0, 0, 0, 0]);
+});
+
+test('a changed source keeps its history at the change weight, never restarts from one sample', () => {
+  const f = fixture();
+  f.samples.historyColor = [10, 20, 30, REFLECTION_HISTORY_WEIGHT];
+  f.view.params[1] = REFLECTION_CHANGE_WEIGHT;
+  const share = 1 / (REFLECTION_CHANGE_WEIGHT + 1);
+  assert.deepEqual(f.resolve(), [
+    10 + (2 - 10) * share,
+    20 + (4 - 20) * share,
+    30 + (6 - 30) * share,
+    REFLECTION_CHANGE_WEIGHT + 1,
+  ]);
 });

@@ -5,6 +5,9 @@ import { settledRt } from '../webgpu/frame/hold.fixture.ts';
 import { createShadowPlan } from '../../../sdk-core/src/scene/light-shadow/plan.ts';
 import { reflectionFrame } from './reflectionFrame.ts';
 
+/** The source versions a frame carries, copied: the frame's own array is rewritten in place. */
+const epochOf = (rt: Parameters<typeof reflectionFrame>[0]) => [...reflectionFrame(rt)!.epoch];
+
 /** A settled runtime with every surface its reflection reads, 4 shadow pages drawn so far. */
 function reflectingRt() {
   const rt = settledRt();
@@ -19,27 +22,23 @@ function reflectingRt() {
 
 test('a shadow page landing changes the reflected source epoch without a host mutation', () => {
   const rt = reflectingRt();
-  const previous = reflectionFrame(rt)!.epoch;
+  const previous = epochOf(rt);
   const revisions = { ...rt.run.gate.revisions };
   rt.lights.shadowPages = 2;
   noteShadowFrame(rt.lights);
   assert.deepEqual(rt.run.gate.revisions, revisions);
-  assert.notEqual(reflectionFrame(rt)!.epoch, previous);
-  const landed = reflectionFrame(rt)!.epoch;
+  assert.notDeepEqual(epochOf(rt), previous);
+  const landed = epochOf(rt);
   rt.lights.shadowPages = 0;
   noteShadowFrame(rt.lights);
-  assert.equal(reflectionFrame(rt)!.epoch, landed, 'unchanged shadow contents permit convergence');
+  assert.deepEqual(epochOf(rt), landed, 'unchanged shadow contents permit convergence');
   const deformation = { revision: 1 };
   rt.vis.deformation = { frame: deformation } as NonNullable<typeof rt.vis.deformation>;
-  const pose = reflectionFrame(rt)!.epoch;
+  const pose = epochOf(rt);
   deformation.revision++;
-  assert.notEqual(
-    reflectionFrame(rt)!.epoch,
-    pose,
-    'a changed deformation invalidates the reflected source',
-  );
-  const current = reflectionFrame(rt)!.epoch;
-  assert.equal(reflectionFrame(rt)!.epoch, current, 'an unchanged pose permits convergence');
+  assert.notDeepEqual(epochOf(rt), pose, 'a changed deformation invalidates the reflected source');
+  const current = epochOf(rt);
+  assert.deepEqual(epochOf(rt), current, 'an unchanged pose permits convergence');
 });
 
 test('pages the GPU draws itself change the reflected source epoch, a lost snapshot included', () => {
@@ -51,20 +50,16 @@ test('pages the GPU draws itself change the reflected source epoch, a lost snaps
         frame: 0,
         pool: { owner: new Int32Array(0), requested: new Int32Array(0), drawn, listings },
       }) as unknown as Parameters<typeof plan.gpu.hear>[0];
-  const before = reflectionFrame(rt)!.epoch;
+  const before = epochOf(rt);
   plan.gpu.hear(snapshot(3, 3));
-  const landed = reflectionFrame(rt)!.epoch;
-  assert.notEqual(landed, before, 'the GPU drew pages the host never drew');
+  const landed = epochOf(rt);
+  assert.notDeepEqual(landed, before, 'the GPU drew pages the host never drew');
   plan.gpu.hear(snapshot(0, 3));
-  assert.equal(
-    reflectionFrame(rt)!.epoch,
-    landed,
-    'a snapshot that lists none permits convergence',
-  );
+  assert.deepEqual(epochOf(rt), landed, 'a snapshot that lists none permits convergence');
   // Frame 3 listed 2 pages; its snapshot never came back (every readback slot busy, or replaced).
   plan.gpu.hear(snapshot(0, 5));
-  const lost = reflectionFrame(rt)!.epoch;
-  assert.notEqual(lost, landed, 'the next snapshot shows the draw its lost one listed');
+  const lost = epochOf(rt);
+  assert.notDeepEqual(lost, landed, 'the next snapshot shows the draw its lost one listed');
   plan.resize(plan.pool.side, plan.pool.layers);
-  assert.equal(reflectionFrame(rt)!.epoch, lost, 'a resized pool keeps the count');
+  assert.deepEqual(epochOf(rt), lost, 'a resized pool keeps the count');
 });

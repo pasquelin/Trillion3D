@@ -5,12 +5,22 @@ import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts';
 /** A bounded effective weight, not an unbounded Monte Carlo counter. At this
  * scale binary16 has 1/32 weight spacing; RGB arithmetic remains binary32. */
 export const REFLECTION_HISTORY_WEIGHT = 64;
+/** The confidence a history keeps across a change of what it reflects (#33): a moved, relit or newly
+ *  resident source leaves its stale share at 4/5 per frame, halved in three frames, while a moving
+ *  view, which changes shadow pages and probes every frame, still averages five samples rather
+ *  than restarting from one, which flickers. */
+export const REFLECTION_CHANGE_WEIGHT = 4;
+/** Frames a changed source keeps the change weight: its stale share falls to (4/5)^24 < 1/200,
+ *  and the window's 64 samples after it dilute that below 1/2000, under a 1/255 step: a held
+ *  image keeps nothing of what a reflection showed before (#33). */
+export const REFLECTION_CHANGE_FRAMES = 24;
 export const REFLECTION_RESOLVE_VIEW_BYTES = 160;
 
 /** Dedicated ratio-estimator resolve. It shares only reprojection mathematics
  * with TAA: no neighbourhood clamp, colour transform or TAA history is involved.
- * Any scene/source change invalidates this history globally, including objects
- * seen in a reflection; placement motion is therefore disabled by the caller. */
+ * `params`: x whether a history exists, y the confidence it may keep — the full window, or
+ * `REFLECTION_CHANGE_WEIGHT` once a scene/source change reached objects seen in a reflection,
+ * which stands for placement motion: the caller disables that branch of the reprojection. */
 export const REFLECTION_RESOLVE_WGSL = `
 ${FULLSCREEN_VERTEX}
 ${PAGE_INFO_STRUCT_WGSL}
@@ -48,7 +58,7 @@ ${taaReprojectWgsl(false)}
    if(abs(oldDepth-expected)<=tolerance){history=textureLoad(historyColor,prior,0);}
   }
  }
- let kept=min(history.a,${REFLECTION_HISTORY_WEIGHT}.0);
+ let kept=min(history.a,view.params.y);
  let total=kept+current.a;
  if(total<=0.0){return vec4f(0.0);}
  let mean=history.rgb+(current.rgb-history.rgb)*(current.a/total);
