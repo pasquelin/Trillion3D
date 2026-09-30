@@ -12,7 +12,7 @@ export interface ShadowPoolSnapshot {
   owner: Int32Array;
   /** The frame each page was last asked for in. */
   requested: Int32Array;
-  /** Pages that frame mapped. */
+  /** Pages that frame mapped, and entries it had no page for. */
   allocated: number;
   /** Entries that frame had no page for. */
   refused: number;
