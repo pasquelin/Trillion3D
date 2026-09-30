@@ -526,8 +526,9 @@ Cook-time geometry eliminated by simplification is not reconstructed when an obj
 ## Impostor atlases
 
 `clusters.json` carries `impostors` (version 1, #817): the compiler's verdict on every drawn mesh,
-and for each eligible one an octahedral atlas that stands in for it far away. The runtime card
-that draws it, its switch and its crossfade are #483; this section fixes what the cache holds.
+and for each eligible one an octahedral atlas that stands in for it far away. The runtime switch
+and card that draw it are #1239; the crossfade and the shadow casting are #1240. This section fixes
+what the cache holds.
 
 **Capture.** A mesh is captured in its own object space, pivot at its bounding-sphere centre
 (`centre`, `objectRadius` R, the DAG's `bounding_sphere`), +Y up, from `frames`×`frames` = 12×12
