@@ -52,8 +52,10 @@ their columns' descriptor; an index page, `{ version: 10, pages }`, at most eigh
 are cut by the same pager from the primitives in order, halved: a region page is one primitive, or
 the primitives whose page fits 128 KiB (`PAGE_BYTES`), each with its own column file, written before
 the scene tables whose region pages name them (#792). What a run reports of itself
-(`reusedPages`, every `…Ms` metric, `peakRssBytes`) is in no page, so a rebuild writes the same bytes
-(#1370); an older head carrying `reusedPages` still reads, the field ignored. A reader checks the root (`assertCacheRoot`), reads the pages in parallel,
+(`reusedPages`, every `…Ms` metric, `peakRssBytes`) and of its settings (`threads`, `ramBudgetMb`,
+`admissionEstimatedBytes`, `compileWaves`) is in no page, so a rebuild writes the same bytes, on any
+threads and under any RAM budget (#1370, #1405); an older head carrying them still reads, the fields
+ignored. A reader checks the root (`assertCacheRoot`), reads the pages in parallel,
 each against its slot and column-file descriptor, and merges them (`readPagedManifest`). Rewriting a
 key folder removes, once the new root is written, every manifest page and column file it no longer
 names.
