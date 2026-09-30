@@ -6011,7 +6011,6 @@
       "flags": "0 sfondo, 1 non illuminato (nella nebbia), 2 letto, 3 mostrato così com’è: una diagnostica, una vista delle normali o della profondità. 4 e 5: modelli diffuso e toon (`./surfaceModel.ts`).",
       "views": "Le sue viste di texture GPU.",
       "dispose": "La libera.",
-      "shadingOffset": "Scostamento del ricevitore d’ombra a piena precisione, scritto accanto al G-buffer.",
       "subsurface": "Colore indipendente di trasmissione delle superfici sottili; texture di zeri 1×1 quando disattivato.",
       "subsurfaceView": "Vista della texture di trasmissione delle superfici sottili.",
       "hasSubsurface": "Indica se la trasmissione delle superfici sottili dispone di un target a dimensione piena."

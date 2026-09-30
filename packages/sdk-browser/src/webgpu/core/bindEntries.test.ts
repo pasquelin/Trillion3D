@@ -44,7 +44,7 @@ function stubVis(layouts: Record<string, unknown>) {
     ...layouts,
     concatPos: token(),
     concatUv: token(),
-    concatNrm: token(),
+    concatNrm: { buffer: token(), offset: 256, size: 28 },
     pageTable: { size: 3 * PAGE_INFO_STRIDE } as GPUBuffer,
     visUniform: token(),
     shadeUniform: token(),
@@ -96,7 +96,7 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
     vis,
     gpu: {
       cache: { buffer: {} },
-      surfaces: { shadingOffset: {}, subsurfaceView: {} },
+      surfaces: { subsurfaceView: {} },
       uniformBuffer: {},
       zeroUv: {},
       targetSize: [4, 4],

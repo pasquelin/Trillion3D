@@ -1,6 +1,10 @@
 import { SUBSURFACE_FLAG } from '../../scene/subsurface.ts';
 import { AS_IS_FLAG, FOG_FREE_SURFACE_FLAG, SURFACE_MODEL_MASK } from '../../scene/surfaceModel.ts';
 import { PIXEL_FOOTPRINT_WGSL } from './footprintWgsl.ts';
+import { receiverOffsetWgsl } from '../../visibility/shader/receiverOffsetWgsl.ts';
+
+/** First binding of what the resolve's receiver offset reads (`RECEIVER_BINDINGS`). */
+export const LIGHTING_RECEIVER_BINDING = 23;
 
 /** The lighting's entry, its camera fog and its mirror term: the texts the reflection source
  *  output finds in it (`reflections/sourceOutputWgsl.ts`). */
@@ -10,6 +14,7 @@ export const CAMERA_FOG_WGSL = `if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){
 export const MIRROR_TERM_WGSL = '+mirrorLighting(base.rgb,base.a,normal.a,N,V,P)';
 
 export const contractSurfaceBody = (bounce: string, diagnostic = '') => `${PIXEL_FOOTPRINT_WGSL}
+${receiverOffsetWgsl(LIGHTING_RECEIVER_BINDING)}
 ${LIGHT_SURFACE_ENTRY}
  let coord=vec2i(pixel.xy);let surfaceFlag=textureLoad(flags,coord,0).r;let flag=surfaceFlag&${SURFACE_MODEL_MASK}u;
  if(flag==0u){return vec4f(0.0);}
@@ -28,8 +33,7 @@ ${LIGHT_SURFACE_ENTRY}
  thinSubsurface=vec3f(0.0);
  if((surfaceFlag&${SUBSURFACE_FLAG}u)!=0u){thinSubsurface=textureLoad(subsurfaceColor,coord,0).rgb;}
  ${diagnostic}
- let receiverAt=(u32(pixel.y)*u32(view.viewport.x)+u32(pixel.x))*3u;
- shadowReceiverOffset=vec3f(shadingOffset[receiverAt],shadingOffset[receiverAt+1u],shadingOffset[receiverAt+2u]);
+ shadowReceiverOffset=receiverOffset(pixel.xy);
  let lit=contractLighting(base.rgb,base.a,normal.a,N,V,P,emissive.a,pixel.xy);
  var ambient=environmentLighting(base.rgb,base.a,N,emissive.a);
  if(any(thinSubsurface>vec3f(0.0))){ambient+=environmentLighting(thinSubsurface,0.0,-N,emissive.a);}
