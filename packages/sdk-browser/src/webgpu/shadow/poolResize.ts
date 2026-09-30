@@ -94,7 +94,8 @@ export function followShadowDemand(rt: WebgpuPagesRuntime) {
     held = pages === demand.asked || (side === pool.side && layers === pool.layers);
   // What the demand asks past the pool, it can no longer grow to: held at its ceiling.
   demand.ceiling = demand.over && held;
-  if (demand.ceiling && !wasCeiling) sayShadowCeiling(rt, wanted);
+  // At the budget's ceiling, said once; a size the device refused was said as it refused.
+  if (demand.ceiling && !wasCeiling && ask.target.clamp === 'ceiling') sayShadowCeiling(rt, wanted);
   if (held) return;
   demand.asked = pages;
   releaseStaticLayer(lights);
