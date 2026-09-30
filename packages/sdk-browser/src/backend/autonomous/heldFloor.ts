@@ -3,6 +3,7 @@ import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts';
 import { hostPageBytes } from '../../host/pageObjects.ts';
 import { attachedPages } from '../../placement/autonomousPlacements.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
+import type { PageDraws } from './pageDraws.ts';
 
 /**
  * Decoded bytes nothing may evict: the root cover and the pages the host replaced, counted as the
@@ -16,10 +17,12 @@ export function createHeldFloor(env: {
   bootstrap: readonly PageRec[];
   modifiedPages: ReadonlySet<string>;
   byUrl: ReadonlyMap<string, readonly PageRec[]>;
+  /** The per-instance draw state, keyed by packed index (`pageDraws.ts`): the record carries none. */
+  draws: PageDraws;
   /** The host's page ceiling, `Infinity` when it set none. */
   hostCeiling?: number;
 }) {
-  const { roots, bootstrap, modifiedPages, byUrl, hostCeiling = Infinity } = env;
+  const { roots, bootstrap, modifiedPages, byUrl, draws, hostCeiling = Infinity } = env;
   let revision = 0,
     placements = 0,
     read = -1,
@@ -54,7 +57,8 @@ export function createHeldFloor(env: {
       read = revision;
       bytes = 0;
       const seen = new Set<Geometry>();
-      const add = ({ geometry }: PageRec) => {
+      const add = (rec: PageRec) => {
+        const geometry = draws.geometryOf(rec);
         if (!geometry || seen.has(geometry)) return;
         seen.add(geometry);
         bytes += hostPageBytes(geometry);

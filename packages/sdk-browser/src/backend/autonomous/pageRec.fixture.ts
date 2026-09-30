@@ -1,10 +1,12 @@
 // A resident page record of the geometry store's tests, drawing one triangle, placed by the root
-// `root` of rank 0.
+// `root` of rank 0. Its per-instance draw state is nowhere on the record: the tests carry it in a
+// `PageDraws` table over these roots (`pageDraws.ts`, #1234).
 import * as G from '../../host/graph/graph.fixture.ts';
 import type { ClusterRoot, PageRec } from '../../page/selection/types.ts';
 import { surfaceOf } from '../../page/surface.ts';
+import { createPageDraws } from './pageDraws.ts';
 
-export function makeRec(id: number, triangles: number): Required<Pick<PageRec, 'mesh'>> & PageRec {
+export function makeRec(id: number, triangles: number): PageRec {
   return {
     id,
     url: `u${id}`,
@@ -20,17 +22,18 @@ export function makeRec(id: number, triangles: number): Required<Pick<PageRec, '
     declaration: {} as G.GraphSurface,
     placementIndex: 0,
     renderOrder: 0,
-    geometry: {} as G.Geometry,
-    // The oracle copies a host matrix; the engine reads the sixteen floats of the contract.
-    mesh: { matrix: { fromArray: () => {} } } as unknown as Required<PageRec>['mesh'],
-    attached: false,
   };
 }
 
 /** The root of rank 0 the records of `makeRec` rank: the identity, placed by a row if `row`. */
-export const recRoots = (row?: ClusterRoot<PageRec>['placement']): ClusterRoot<PageRec>[] => [
-  { world: new G.Matrix4(), pages: [], placement: row },
-];
+export const recRoots = (
+  row?: ClusterRoot<PageRec>['placement'],
+  pages: PageRec[] = [],
+): ClusterRoot<PageRec>[] => [{ world: new G.Matrix4(), pages, placement: row }];
+
+/** A draw table over `records`, all on the one root of rank 0: what the store's tests attach to. */
+export const recDraws = (records: PageRec[], row?: ClusterRoot<PageRec>['placement']) =>
+  createPageDraws(recRoots(row, records));
 
 /** The decoded triangle restored by the page ownership tests. */
 export const trianglePage = () => ({
