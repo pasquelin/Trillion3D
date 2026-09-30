@@ -15,6 +15,7 @@ import {
   SHADOW_TABLE_STRIDE,
 } from '../../../packages/sdk-core/src/scene/light-shadow/virtual.ts';
 import { SHADOW_REQUEST_BITS } from '../../../packages/sdk-browser/src/lighting/direct/shadowRequestWgsl.ts';
+import { SHADOW_REQUEST_ENTRY_MASK } from '../../../packages/sdk-core/src/scene/light-shadow/footprint.ts';
 import { writeShadowRecords } from '../../../packages/sdk-browser/src/webgpu/shadow/pages.ts';
 import { createShadowRecordPack } from '../../../packages/sdk-browser/src/gpu/shadow/recordPack.ts';
 import { SHADOW_TABLE_OFFSET } from '../../../packages/sdk-browser/src/gpu/shadow/atlas.ts';
@@ -83,7 +84,10 @@ async function runScene(device: GPUDevice, scene: DemandScene) {
     pass.end();
     device.queue.submit([encoder.finish()]);
     const listed = (await readGpuBuffer(device, requests, (1 + CAP) * 4)) ?? new Uint32Array(1);
-    return new Set(listed.slice(1, 1 + Math.min(listed[0], CAP)));
+    // The receiver's cell and a miss ride above the entry (`footprint.ts`): the entry is compared.
+    return new Set(
+      [...listed.slice(1, 1 + Math.min(listed[0], CAP))].map((e) => e & SHADOW_REQUEST_ENTRY_MASK),
+    );
   };
   const frames = [];
   for (let frame = 0; frame < FRAMES; frame++) {
