@@ -8,7 +8,7 @@ import { DRAW_FLOATS, writeDrawWords } from './drawWords.ts';
 import { createWebgpuParticleDraw } from './webgpuParticleDraw.ts';
 import { createWebgpuParticles } from './webgpuParticles.ts';
 import { PARTICLE_DRAW_PASS as P, encodeParticles } from './webgpuParticleFrame.ts';
-import { fluidCode } from '../fluids/particleCode.ts';
+import { families } from '../host/families.ts';
 
 const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 
@@ -122,7 +122,7 @@ test('WebGPU: the pools step once a frame, on the main view; another view draws 
   assert.equal(steps, 1);
 });
 
-test("WebGPU: the step's code is fetched on the first pool, and the pools wait for it (#1353)", async () => {
+test("WebGPU: the step is made on the particles' code the frame waited for (#1353)", async () => {
   const [smoke] = scene(),
     main = {},
     gpu: { particles?: object } = {},
@@ -132,9 +132,7 @@ test("WebGPU: the step's code is fetched on the first pool, and the pools wait f
   encode();
   assert.equal(gpu.particles, undefined, 'a world without pools makes no step');
   rt.context.particles = [smoke] as never;
+  await families.particles.load(); // what the frame that draws a pool waits for (`familyUse.ts`)
   encode();
-  assert.equal(gpu.particles, undefined, 'the first image with a pool asks for the code');
-  await fluidCode.settled();
-  encode();
-  assert.ok(gpu.particles, 'the step is made once the code has arrived');
+  assert.ok(gpu.particles, 'the step is made on the code that arrived');
 });

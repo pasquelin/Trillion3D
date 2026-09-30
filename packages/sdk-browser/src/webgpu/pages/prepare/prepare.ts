@@ -1,4 +1,3 @@
-import { createDeformationCompute } from '../../../deformation/compute.ts';
 import { createDeferredLighting } from '../../../lighting/deferred/deferred.ts';
 import { prepareTemporalAntialiasing } from '../../../taa/prepare.ts';
 import { createSceneLightContractBuffer } from '../state/lightBuffer.ts';
@@ -127,7 +126,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   throwIfStopped(rt);
   let geometryFailure: { error: unknown } | undefined;
   try {
-    prepareDeformationGeometry(rt, gpuDevice);
+    await prepareDeformationGeometry(rt, gpuDevice);
   } catch (error) {
     geometryFailure = { error };
   }
@@ -137,7 +136,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   ensureUniform(rt, gpuDevice, cap);
   vis.deformationCompute =
     allPages.some((page) => page.deformationOutput) || !!vis.wholeDeformation
-      ? await createDeformationCompute(gpuDevice)
+      ? await vis.deformationCode!.createDeformationCompute(gpuDevice)
       : undefined;
   try {
     if (geometryFailure) throw geometryFailure.error;

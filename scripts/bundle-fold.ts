@@ -7,12 +7,20 @@ import type { Plugin } from 'esbuild';
 export const CHUNK_PREFIX = 'trillion3d-';
 
 /** The modules that stay chunks of their own in the CDN bundle, fetched on first use: the optional
- *  families. Physics, whose session starts its worker and its WebAssembly (`worldPhysics.ts`);
- *  fluids, the water pass of a scene that transmits and the particle steps (`fluidCode.ts`), one
- *  module: a family of several would share code with the core in as many more chunks. */
+ *  families, each one module (`sdk-browser/src/host/families.ts`) — a family of several would
+ *  share code with the core in as many more chunks. Physics, whose session starts its worker and
+ *  its WebAssembly (`worldPhysics.ts`); particles; WebGPU transmission, glass and water; WebGPU
+ *  deformation; the effect chain; the guides; the diagnostic views; the measurement's build
+ *  provenance. A scene that uses none of them fetches none. */
 export const FAMILY_MODULES = {
   physics: ['sdk-browser/src/physics/session.js'],
-  fluids: ['sdk-browser/src/fluids/fluidCode.js'],
+  particles: ['sdk-browser/src/particles/particleCode.js'],
+  transmission: ['sdk-browser/src/webgpu/water/transmissionCode.js'],
+  deformation: ['sdk-browser/src/deformation/deformationCode.js'],
+  effects: ['sdk-browser/src/effects/effectCode.js'],
+  guides: ['sdk-browser/src/guides/guideCode.js'],
+  diagnostics: ['sdk-browser/src/diagnostic/viewCode.js'],
+  measurement: ['sdk-browser/src/measurement/buildProvenance.js'],
 };
 export type Family = keyof typeof FAMILY_MODULES;
 

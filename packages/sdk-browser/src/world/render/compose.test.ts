@@ -11,7 +11,7 @@ import { createFrameComposer } from './compose.ts';
 import { createWebglRenderTarget } from '../../webgl/core/renderTarget.ts';
 import { createTestContext } from '../../webgl/core/testContext.fixture.ts';
 import { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts';
-import { fluidCode } from '../../fluids/particleCode.ts';
+import { families } from '../../host/families.ts';
 import { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts';
 import { effect } from '../../../../sdk-core/src/world/effect/index.ts';
 
@@ -123,22 +123,8 @@ test('an engine that draws nothing on the host surface is refused by name', () =
   assert.throws(() => compose(backend, null), /HOST_DRAW_UNSUPPORTED:mute/);
 });
 
-/** The fluids' code, fetched on the first pool (`particleCode.ts`), arrived. */
-const particleCodeArrived = () => (fluidCode.get(), fluidCode.settled());
-
-test('a pool waits for its code, fetched on its first image, and the frame draws on meanwhile', async () => {
-  const { gl, names } = createTestContext({ answers: { getExtension: () => ({}) } });
-  const pool = new ParticlePool({ capacity: 8 });
-  const compose = createFrameComposer(gl, camera, { particles: [pool] });
-  const { backend, outputs } = engine();
-  pool.emit(0, 0, 0, 0, 1, 0, 2);
-  compose(backend, null);
-  assert.deepEqual([outputs.length, names().includes('drawArraysInstanced')], [1, false]);
-  await fluidCode.settled();
-  compose(backend, null);
-  assert.equal(outputs.length, 2);
-  assert.ok(names().includes('drawArraysInstanced'), 'once arrived, what it staged is drawn');
-});
+/** The particles' code, which the frame that draws a pool waits for (`familyUse.ts`), arrived. */
+const particleCodeArrived = () => families.particles.load();
 
 test('WebGL2 steps the pools ahead of the engine, which draws an image they moved in', async () => {
   await particleCodeArrived();
