@@ -50,7 +50,7 @@ test('#198: rows changed while the partition is absent reach the partition that 
     assert.equal(rows.tableEpoch, epoch, 'the table age did not change');
     const expected = new Float32Array(CORNER_VALUES);
     const rec = rows.packedRecs[0]!;
-    packPageCorners(expected, 0, rec, rootOf(rt.layout.selectionRoots, rec).world);
+    packPageCorners(expected, 0, rec, rootOf(rt.layout.selectionRoots, 0).world);
     assert.deepEqual(
       held.subarray(0, CORNER_VALUES),
       expected,

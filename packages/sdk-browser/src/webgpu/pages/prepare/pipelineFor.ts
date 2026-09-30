@@ -11,7 +11,7 @@ import { surfaceSide } from '../../../page/surface.ts';
 import { windingCw } from '../render/winding.ts';
 import type { WebgpuPagesCore } from '../runtime.ts';
 
-/** The roots a record's `placementIndex` ranks: the layout's selection roots. */
+/** The layout's selection roots, ranked by `rootOfPacked` (#1235). */
 type Roots = Parameters<typeof windingCw>[0];
 
 /** Order of layer-0 indirect slots: the three untested pipelines, then their Hi-Z-tested twins. */
@@ -24,18 +24,18 @@ const VIS_SLOTS = [
   'visHizRestFront',
 ] as const;
 
-export function pipelineFor(rt: WebgpuPagesCore, rec: PageRec) {
+export function pipelineFor(rt: WebgpuPagesCore, rec: PageRec, rank: number) {
   const side = surfaceSide(rec.material);
   if (side === 'double') return rt.gpu.pipelineNone;
-  return windingCw(rt.layout.selectionRoots, rec) ? rt.gpu.pipelineBackCw : rt.gpu.pipelineBack;
+  return windingCw(rt.layout.selectionRoots, rank) ? rt.gpu.pipelineBackCw : rt.gpu.pipelineBack;
 }
 
 /** Rank of a cluster's face mode in a layer set: back, none, front, inverted back, inverted front.
  *  The same order `LAYER_CULLS` builds. */
-const visCullSlot = (rec: PageRec, roots: Roots) => {
+const visCullSlot = (rec: PageRec, rootRank: number, roots: Roots) => {
   const side = surfaceSide(rec.material);
   if (side === 'double') return 1;
-  const cw = windingCw(roots, rec);
+  const cw = windingCw(roots, rootRank);
   if (side === 'back') return cw ? 4 : 2;
   return cw ? 3 : 0;
 };
@@ -52,25 +52,27 @@ export function visSlotPipeline(rt: WebgpuPagesCore, slot: number) {
 
 /** Pipeline of a cluster drawn WITHOUT indirect compaction. That path does not know the tested
  *  half: without compaction there is no partition, and the image fits in one pass. */
-export function visPipelineFor(rt: WebgpuPagesCore, rec: PageRec) {
+export function visPipelineFor(rt: WebgpuPagesCore, rec: PageRec, rank: number) {
   const { vis } = rt,
     roots = rt.layout.selectionRoots;
   const layer = Math.min(rec.depthLayer, vis.drawLayerSlots - 1);
   if (layer > 0)
-    return vis.visLayerPipelines[visLayerPipelineIndex(layer, false, visCullSlot(rec, roots))];
+    return vis.visLayerPipelines[
+      visLayerPipelineIndex(layer, false, visCullSlot(rec, rank, roots))
+    ];
   const side = surfaceSide(rec.material),
-    cw = windingCw(roots, rec);
+    cw = windingCw(roots, rank);
   if (side === 'double') return vis.visPipelineNone;
   if (side === 'back') return cw ? vis.visPipelineFrontCw : vis.visPipelineFront;
   return cw ? vis.visPipelineBackCw : vis.visPipelineBack;
 }
 
-export const visBin = (rec: PageRec, roots: Roots): 0 | 1 | 2 => {
+export const visBin = (rec: PageRec, rootRank: number, roots: Roots): 0 | 1 | 2 => {
   const side = surfaceSide(rec.material);
   if (side === 'double') return BIN_NONE;
   // Indirect pipelines share ccw front faces; a reflection swaps which side
   // must be culled instead of requiring three more draw slots.
-  return (side === 'back') !== windingCw(roots, rec) ? BIN_FRONT : BIN_BACK;
+  return (side === 'back') !== windingCw(roots, rootRank) ? BIN_FRONT : BIN_BACK;
 };
 
 /** Voids every fallback group when the layout or a resource their shared entries name changed
@@ -126,7 +128,7 @@ export function ensureUniform(rt: WebgpuPagesCore, device: GPUDevice, draws: num
   if (gpu.uniformPacked.byteLength < bytes) gpu.uniformPacked = new Float32Array(bytes / 4);
 }
 
-export function pageRgb(rt: WebgpuPagesCore, rec: PageRec): [number, number, number] {
+export function pageRgb(rt: WebgpuPagesCore, rec: PageRec, rank: number): [number, number, number] {
   const { run } = rt;
   if (run.diagnostic === 'beauty') return linearColor(rec.material);
   if (run.diagnostic === 'pages') return PAGES_GREEN;
@@ -138,7 +140,7 @@ export function pageRgb(rt: WebgpuPagesCore, rec: PageRec): [number, number, num
       ? screenErrorColor(
           projectedPageError(
             rec,
-            rootOf(rt.layout.selectionRoots, rec).world,
+            rootOf(rt.layout.selectionRoots, rank).world,
             run.gate.cam,
             rt.setup.viewport,
           ),

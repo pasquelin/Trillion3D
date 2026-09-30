@@ -65,8 +65,9 @@ export function drawVis(
   // pass, and the tested half does not exist.
   const group = vis.visBindGroup;
   if (rest || !group) return;
+  const rootOfPacked = rt.layout.placement.rootOfPacked;
   for (let i = 0; i < rows.packedCount; i++) {
-    const pipeline = visPipelineFor(rt, rows.packedRecs[i]!);
+    const pipeline = visPipelineFor(rt, rows.packedRecs[i]!, rootOfPacked[rows.packedPageIndex[i]]);
     if (!pipeline) continue;
     pass.setPipeline(pipeline);
     pass.setBindGroup(0, group);

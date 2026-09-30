@@ -51,17 +51,19 @@ export function mount(
   rows.pageTableInts = new Uint32Array(tampon);
   for (let i = 0; i < PAGES; i++) rows.pagePositions[i] = { slot: i } as unknown as GPUBuffer;
   const commit = fabriqueCommit(rows, ecrivain);
-  /** CPU cut of the image: it is the one, and the only one, that reaches `commitRows`. */
-  const coupe: PageRec[] = [];
+  /** CPU cut of the image: it is the one, and the only one, that reaches `commitRows`. The packed
+   *  rank of each drawn record travels beside it (#1235): one record may serve several placements. */
+  const coupe: PageRec[] = [],
+    coupePacked: number[] = [];
   const sync = createWebgpuRowSync(
     rows,
     { sync: () => {}, dirty: true },
     pages,
-    { drawn: coupe },
+    { drawn: coupe, drawnPacked: coupePacked },
     () => true,
     commit,
   );
-  return { rows, sync, pages, coupe, commit };
+  return { rows, sync, pages, coupe, coupePacked, commit };
 }
 
 export type Mount = ReturnType<typeof mount>;
@@ -74,7 +76,7 @@ export /**
  * the only one where F4 shows.
  */
 function image(mounted: Mount, plan: Plan) {
-  const { rows, pages, coupe } = mounted;
+  const { rows, pages, coupe, coupePacked } = mounted;
   for (let page = 0; page < plan.offsets.length; page++) {
     if (rows.residentOffsetWords[page] === plan.offsets[page]) continue;
     rows.residentOffsetWords[page] = plan.offsets[page];
@@ -86,9 +88,16 @@ function image(mounted: Mount, plan: Plan) {
     return;
   }
   coupe.length = 0;
+  coupePacked.length = 0;
   for (let page = 0; page < pages.length; page++)
-    if (rows.residentOffsetWords[page] >= 0 && pages[page].array) coupe.push(pages[page]);
-  if (plan.descendante) coupe.reverse();
+    if (rows.residentOffsetWords[page] >= 0 && pages[page].array) {
+      coupe.push(pages[page]);
+      coupePacked.push(page);
+    }
+  if (plan.descendante) {
+    coupe.reverse();
+    coupePacked.reverse();
+  }
   mounted.sync.syncRowsFromCut();
 }
 export function etatComplet(rows: ReturnType<typeof createWebgpuRowState>) {
