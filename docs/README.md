@@ -10,9 +10,13 @@ camera, the renderer and the loop.
 
 | Document | Role |
 | --- | --- |
-| [SDK guide](SDK.md) | The public API: principles, entry points, a world, its families, the loop, the renderer option, the maths reference, lights, scene fog, budgets, integration, current limits |
-| [API reference](API.md) | Compact list of public world material methods and their results |
+| [SDK guide](SDK.md) | The public API: principles, entry points, a world, its families, the loop, the renderer option, lights, scene fog, budgets, integration, current limits |
+| [API reference](API.md) | Index of the public API: each entry and the section that documents it |
+| [Maths](MATHS.md) | Batch and unit maths for hosts: conventions, layouts, the batch functions and their witness ratios |
+| [Physics](PHYSICS.md) | Jolt in the world: bodies, joints, vehicles, soft bodies, budgets, compiled colliders, exact raycast |
 | [Engine internals](ENGINE.md) | How a world draws: backend choice, page raster, surfaces, TAA, lighting, bounce, memory, diagnostics, and the lighting target and its stages |
+| [Residency](RESIDENCY.md) | What stays in memory: the cut rule, the geometry pool, out-of-memory answers, coverage counters, virtual textures |
+| [Shadows](SHADOWS.md) | Virtual shadow pages: the pool, its memory, clipmaps, invalidation, the static and transmittance layers, metrics |
 | [Native compiler](COMPILER.md) | `trillion3d-compiler`: arguments, events, pointer, batch mode, cancellation, imports, input formats, adding a format, error codes |
 | [Cache format](FORMAT.md) | Pointer, `clusters.json` and its pages, cluster DAG, pages, textures, prepared scene tables |
 | [Package architecture](../packages/README.md) | What each package owns, the native library, release work still required |
