@@ -4,13 +4,8 @@ import { mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from 'node
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { currentCompilerExecutable, resolveCompilerExecutable } from './executable.mts';
-import {
-  COMPILER_PLATFORMS,
-  compilerPackage,
-  installedCompiler,
-  requireSupportedPlatform,
-} from './platform.mts';
+import { currentCompilerExecutable } from './executable.mts';
+import { COMPILER_PLATFORMS, compilerPackage, installedCompiler } from './platform.mts';
 
 const ROOT = new URL('../../../../', import.meta.url);
 const readJson = async (path: string) =>
@@ -35,7 +30,6 @@ test('the installed platform package is the compiler, without TRILLION3D_COMPILE
       null,
       'another platform, not installed',
     );
-    assert.equal(resolveCompilerExecutable(undefined, {}, 'linux', found), binary);
     assert.equal(
       currentCompilerExecutable(
         undefined,
@@ -49,13 +43,16 @@ test('the installed platform package is the compiler, without TRILLION3D_COMPILE
         currentCompilerExecutable(
           undefined,
           {},
-          { crate: join(fixture, 'no-crate'), installed: null },
+          { crate: join(fixture, 'no-crate'), platform: 'linux', arch: 'x64', installed: null },
         ),
-      /^Error: T3D-E\d{3} COMPILER_(EXECUTABLE_MISSING: .*\(@trillion3d\/compiler-|PLATFORM_UNSUPPORTED: )/,
+      /^Error: T3D-E\d{3} COMPILER_EXECUTABLE_MISSING: .*\(@trillion3d\/compiler-linux-x64 /,
       'no package, no checkout: the package to install is named',
     );
     const named = { TRILLION3D_COMPILER_BIN: '/operator/compiler' };
-    assert.equal(resolveCompilerExecutable(undefined, named, 'linux', null), '/operator/compiler');
+    assert.equal(
+      currentCompilerExecutable(undefined, named, { installed: null }),
+      '/operator/compiler',
+    );
   } finally {
     await rm(fixture, { recursive: true, force: true });
   }
@@ -79,18 +76,11 @@ test('a workspace link to the platform package is not an installed compiler', as
   }
 });
 
-// Behaviour: a platform no compiler is built for is refused by its code, with the supported list.
-test('an unsupported platform is refused with the platforms a compiler is built for', () => {
+// Behaviour: only the five built platforms have a compiler package (the refusal: executable.test.ts).
+test('only a platform a compiler is built for has a package', () => {
   assert.equal(compilerPackage('linux', 'ia32'), null);
   assert.equal(compilerPackage('win32', 'x64'), '@trillion3d/compiler-win32-x64');
-  assert.throws(
-    () => requireSupportedPlatform('freebsd', 'x64'),
-    (error: Error) =>
-      /^T3D-E\d{3} COMPILER_PLATFORM_UNSUPPORTED: /.test(error.message) &&
-      error.message.includes('freebsd-x64') &&
-      COMPILER_PLATFORMS.every((platform) => error.message.includes(platform)),
-  );
-  assert.doesNotThrow(() => requireSupportedPlatform('darwin', 'arm64'));
+  assert.equal(compilerPackage('freebsd', 'x64'), null);
 });
 
 // Behaviour: `trillion3d` declares each platform package as optional, at its own version, and each

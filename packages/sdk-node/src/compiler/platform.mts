@@ -1,7 +1,6 @@
 import { existsSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, sep } from 'node:path';
-import { compilerError } from '../messages/catalogue.mts';
 
 /**
  * The platforms the compiler is built for, as Node names them (`process.platform`-`process.arch`):
@@ -36,8 +35,8 @@ export function compilerPackage(platform: string, arch: string): string | null {
  * would pass the checkout's own build unchecked for freshness, so it is ignored.
  */
 export function installedCompiler(
-  platform: NodeJS.Platform = process.platform,
-  arch: string = process.arch,
+  platform: NodeJS.Platform,
+  arch: string,
   from: string | URL = import.meta.url,
 ): string | null {
   const name = compilerPackage(platform, arch);
@@ -52,19 +51,4 @@ export function installedCompiler(
   if (!realpathSync(manifest).split(sep).includes('node_modules')) return null;
   const binary = join(dirname(manifest), 'bin', compilerFileName(platform));
   return existsSync(binary) ? binary : null;
-}
-
-/**
- * Refuses a platform no compiler package is built for, naming the supported ones; the caller asks
- * only when nothing else names a compiler (no `TRILLION3D_COMPILER_BIN`, no checkout build).
- */
-export function requireSupportedPlatform(
-  platform: string = process.platform,
-  arch: string = process.arch,
-): void {
-  if (compilerPackage(platform, arch)) return;
-  throw compilerError(
-    'COMPILER_PLATFORM_UNSUPPORTED',
-    `${platform}-${arch}; supported: ${COMPILER_PLATFORMS.join(', ')}`,
-  );
 }
