@@ -42,7 +42,8 @@ struct DirectLight{positionRange:vec4f,colorIntensity:vec4f,directionCone:vec4f,
  *  the scene holds. */
 struct DirectLights{count:u32,pad0:u32,pad1:u32,pad2:u32,environment:array<vec4f,${ENVIRONMENT_COEFFICIENTS}>,fog:array<vec4f,2>,ltc:array<vec4f,${LTC_SIZE * LTC_SIZE * 2}>,items:array<DirectLight${slots ? `,${slots}` : ''}>,}
 /** The type rank is a float in the buffer: a single place knows how to reread it. */
-fn isSun(light:DirectLight)->bool{return abs(light.params.x-KIND_SUN)<0.5;}
+fn isSunKind(kind:f32)->bool{return abs(kind-KIND_SUN)<0.5;}
+fn isSun(light:DirectLight)->bool{return isSunKind(light.params.x);}
 /** The range window at \`distance\` from a light's centre: one at the centre, zero at its range. */
 fn rangeWindow(distance:f32,range:f32)->f32{
  let ratio=distance/range;

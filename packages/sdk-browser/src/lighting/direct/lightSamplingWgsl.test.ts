@@ -47,7 +47,7 @@ test('a moving resolve reads the tile pass flag once, never the list, to choose 
     words[STRIDE + SHADOW] = flag;
     const { contractLighting } = shaderFunctions<{
       contractLighting: (...args: unknown[]) => number;
-    }>(DIRECT_LIGHTING_WGSL, ['contractLighting', 'tileShadowed', 'pixelTile'], {
+    }>(DIRECT_LIGHTING_WGSL, ['contractLighting', 'tileShadowed', 'sampledList', 'pixelTile'], {
       ...wgslConstants(DIRECT_LIGHTING_WGSL),
       view: { lightParams: { x: 2, y: 2, z: 1 }, viewport: { w: 7 } },
       vec3f: () => 0,
@@ -82,7 +82,7 @@ test('the sample budget is the published setting, and a list within it is summed
   );
   assert.match(
     DIRECT_LIGHT_SAMPLING_WGSL,
-    /if\(kept<=LIGHT_SAMPLES\|\|kept>TILE_LIGHTS\)\{return tileLighting\(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE\);\}/,
+    /if\(!sampledList\(kept\)\)\{return tileLighting\(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE\);\}/,
   );
   // A light worth a sample's share is shaded exactly and leaves the pool; the drawn ones are
   // divided by their probability, copies counted.
