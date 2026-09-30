@@ -38,12 +38,12 @@ Trillion3D owns every package it builds under `packages/` ([package architecture
 
 Version 0.2.0 exposes one consumer specifier, `trillion3d`, with three environment branches:
 
-| Resolver context | Source facade | Public surface | Declaration constraints |
-| --- | --- | --- | --- |
-| Node ESM with NodeNext | `packages/sdk/node.mts` | Common and native compilation | Node types are allowed; DOM and WebGPU types are not introduced by the common branch. |
-| Browser bundler with TypeScript Bundler | `packages/sdk/browser.ts` | Common and browser rendering | Browser and WebGPU declarations are allowed; no `node:*` module is reachable. |
-| Worker or common code | `packages/sdk/index.ts` | Common maths and contracts | Compiles without DOM or WebGPU declarations. |
-| Unknown environment or fallback | `packages/sdk/index.ts` | Common maths and contracts | The safe default never exposes browser or Node APIs by accident. |
+| Resolver context                        | Source facade             | Public surface                | Declaration constraints                                                               |
+| --------------------------------------- | ------------------------- | ----------------------------- | ------------------------------------------------------------------------------------- |
+| Node ESM with NodeNext                  | `packages/sdk/node.mts`   | Common and native compilation | Node types are allowed; DOM and WebGPU types are not introduced by the common branch. |
+| Browser bundler with TypeScript Bundler | `packages/sdk/browser.ts` | Common and browser rendering  | Browser and WebGPU declarations are allowed; no `node:*` module is reachable.         |
+| Worker or common code                   | `packages/sdk/index.ts`   | Common maths and contracts    | Compiles without DOM or WebGPU declarations.                                          |
+| Unknown environment or fallback         | `packages/sdk/index.ts`   | Common maths and contracts    | The safe default never exposes browser or Node APIs by accident.                      |
 
 Conditional JavaScript and declarations: `browser` precedes the Node and generic import/default
 paths, the Node branch uses the standard `node` condition, the final default is the common branch.
@@ -105,12 +105,12 @@ rejected with `SCOPE_MISMATCH`.
 
 **Progress.** `scene.load(url, { onProgress })` reports with `createJob`'s `JobProgress` shape:
 
-| Phase | When |
-| --- | --- |
-| `{ phase: 'bytes', completed, total }` | from the manifest's read: `total` is every file it declares, at once; each chunk read adds to `completed`, whatever the server says of length or compression. `completed / total` never goes down; the last event, unneeded files dropped, has `completed === total`; a manifest declaring no file is heard once, whole, at the end |
-| `{ phase: 'manifest' }` | once the manifest is read |
-| `{ phase: 'tables' }` | once the scene tables are |
-| `{ phase: 'resources', completed, total }` | as each file the scene reads lands |
+| Phase                                      | When                                                                                                                                                                                                                                                                                                                                |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `{ phase: 'bytes', completed, total }`     | from the manifest's read: `total` is every file it declares, at once; each chunk read adds to `completed`, whatever the server says of length or compression. `completed / total` never goes down; the last event, unneeded files dropped, has `completed === total`; a manifest declaring no file is heard once, whole, at the end |
+| `{ phase: 'manifest' }`                    | once the manifest is read                                                                                                                                                                                                                                                                                                           |
+| `{ phase: 'tables' }`                      | once the scene tables are                                                                                                                                                                                                                                                                                                           |
+| `{ phase: 'resources', completed, total }` | as each file the scene reads lands                                                                                                                                                                                                                                                                                                  |
 
 `await world.awaitPages({ onProgress })` settles once the pages the view reads are resident:
 `{ phase: 'session' }` while the drawing session opens, then `{ phase: 'pages', completed, total }`
@@ -146,19 +146,26 @@ seconds at most: only whole-file reads wait, while a user watches, some without 
 past that a named failure serves better. Other 4xx are never asked twice; an aborted load rejects
 with its reason. What still fails is `RESOURCE_HTTP_ERROR`, the address in its message and
 `details.url`, the status in `details.status` (`null` for the network). `lights.json` and
-`physics.json`, lacking in a cache compiled before them, are absent on a 404 or a hiding store's
-403. `RESOURCE_HTTP_ERROR` replaces `Error('PAGE_HTTP_<status>')` for a page read
+`physics.json`, lacking in a cache compiled before them, are absent on a 404 or a hiding store's 403. `RESOURCE_HTTP_ERROR` replaces `Error('PAGE_HTTP_<status>')` for a page read
 (`httpPageSource`), and `PHYSICS_FAILED` for a cooked tile, a soft body's settings and
 `joltPhysics.wasm`; `PHYSICS_FAILED` stays for the simulation's own failures. `pageCodec.wasm` is
 read the same way; unreadable, the JavaScript decoder decodes the pages.
 
+The engine's optional families — physics, particles, transmission, deformation, effects, guides,
+diagnostics, measurement — are chunks of the bundle imported on first use, all through one
+on-demand loader with the same policy: an import that fails is tried once more at once. What still
+fails is `FAMILY_LOAD_FAILED` ([T3D-E090](messages/T3D-E090.md)), the family in `details.family`,
+on `world.diagnostic.error` (and `world.physics.error` for physics). The frames that draw with the
+family wait for it rather than draw without it, and it is not refused for good: the next use asks
+it again, ten seconds after the refusal at the soonest.
+
 ## API rule
 
-| Kind | Used for | Examples |
-| --- | --- | --- |
-| **property** | state that is read and written; a setter applies its own consequences — the projection update, the next frame — so a host never calls an update by hand | `camera.near = 0.1`, `light.intensity = 2`, `world.exposure`, `world.pixelError`, `world.controls.kind` |
-| object with **`.set()`** | a value with several components | `position.set(0, 1, 0)`, `repeat.set(4, 4)`, `color.set(0xcc3344)` |
-| **method** | an action or a computation | `lookAt`, `add`, `load`, `invalidate`, `render`, `world.stageProfile()`, `world.awaitPages()` |
+| Kind                     | Used for                                                                                                                                                | Examples                                                                                                |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| **property**             | state that is read and written; a setter applies its own consequences — the projection update, the next frame — so a host never calls an update by hand | `camera.near = 0.1`, `light.intensity = 2`, `world.exposure`, `world.pixelError`, `world.controls.kind` |
+| object with **`.set()`** | a value with several components                                                                                                                         | `position.set(0, 1, 0)`, `repeat.set(4, 4)`, `color.set(0xcc3344)`                                      |
+| **method**               | an action or a computation                                                                                                                              | `lookAt`, `add`, `load`, `invalidate`, `render`, `world.stageProfile()`, `world.awaitPages()`           |
 
 ## Naming rule
 
@@ -170,35 +177,35 @@ the thing (`geometry.box`); a member that sets up machinery is `create` + its na
 
 Thirteen families describe the scene:
 
-| Family | What it is | Example |
-| --- | --- | --- |
-| `geometry` | the shape alone, with no matter | `geometry.sphere(1, 64, 32)`, `geometry.plane(20, 20)`, `geometry.tube(math.path([[0, 0, 0], [2, 1, 0], [4, 0, 2]]), 64, 0.2)` |
-| `material` | the matter alone, with no shape | `material.meshStandard({ color: 0x8899aa, metalness: 0.9, roughness: 0.15 })`, `material.meshPhysical({ transmission: 1, ior: 1.5, thickness: 0.4 })` |
-| `object` | shape and matter, placed in the scene | `const ball = object.mesh(geometry.sphere(1), steel)`, `object.group()`, `set.add(ball)`, `world.scene.add(set)` |
-| `light` | lights | `light.ambient({ intensity: 0.2 })`, `light.directional({ intensity: 3, position: [5, 10, 2], castShadow: true })`, `light.spot({ angle: 0.4, penumbra: 0.3, distance: 30, decay: 2 })` |
-| `camera` | cameras | `world.camera = camera.perspective({ fov: 55, near: 0.1, far: 500 })` |
-| `math` | vectors, quaternions, boxes, paths | `math.vector3(0, 1, 0)`, `math.quaternion().setFromAxisAngle(axis, Math.PI / 4)`, `math.box3().setFromObject(set)` |
-| `texture`, `loader` | pictures | `const albedo = await loader.texture('wood.jpg')`, `albedo.wrap = wrap.repeat`, `albedo.repeat.set(4, 4)` |
-| `helper` | the marks you work with | `helper.grid(20, 20)`, `helper.axes(2)` |
-| `controls` | handles that move an object with the mouse | `const gizmo = controls.transform(world).attach(ball)`, then `gizmo.addEventListener('dragEnd', () => history.push(ball.position.clone()))` |
-| `animation` | clips and mixers | `animation.createMixer(set)`, `animation.clip('bob', 2, [animation.vectorTrack('.position', [0, 1, 2], [0, 1, 0, 0, 2, 0, 0, 1, 0])])`, `mixer.play(bob)`; `mixer.clipAction(bob).seek(0.5)` poses the clip at 0.5 s now, playing or not (a stopped action keeps it until a playing one writes over it) |
-| `buffer` | a geometry built by hand | `geometry.createBuffer({ position: buffer.float32(vertices, 3), index: buffer.uint32(indices) })` |
-| `effect` | post-processing | [Canvas, camera and teardown](#canvas-camera-and-teardown) |
-| constants | `blending`, `side`, `wrap`, `filter`, `colorSpace`, `toneMapping`, one named value per constant | `steel.side = side.double`, `glass.blending = blending.normal`, `world.toneMapping = toneMapping.aces` |
+| Family              | What it is                                                                                      | Example                                                                                                                                                                                                                                                                                                 |
+| ------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `geometry`          | the shape alone, with no matter                                                                 | `geometry.sphere(1, 64, 32)`, `geometry.plane(20, 20)`, `geometry.tube(math.path([[0, 0, 0], [2, 1, 0], [4, 0, 2]]), 64, 0.2)`                                                                                                                                                                          |
+| `material`          | the matter alone, with no shape                                                                 | `material.meshStandard({ color: 0x8899aa, metalness: 0.9, roughness: 0.15 })`, `material.meshPhysical({ transmission: 1, ior: 1.5, thickness: 0.4 })`                                                                                                                                                   |
+| `object`            | shape and matter, placed in the scene                                                           | `const ball = object.mesh(geometry.sphere(1), steel)`, `object.group()`, `set.add(ball)`, `world.scene.add(set)`                                                                                                                                                                                        |
+| `light`             | lights                                                                                          | `light.ambient({ intensity: 0.2 })`, `light.directional({ intensity: 3, position: [5, 10, 2], castShadow: true })`, `light.spot({ angle: 0.4, penumbra: 0.3, distance: 30, decay: 2 })`                                                                                                                 |
+| `camera`            | cameras                                                                                         | `world.camera = camera.perspective({ fov: 55, near: 0.1, far: 500 })`                                                                                                                                                                                                                                   |
+| `math`              | vectors, quaternions, boxes, paths                                                              | `math.vector3(0, 1, 0)`, `math.quaternion().setFromAxisAngle(axis, Math.PI / 4)`, `math.box3().setFromObject(set)`                                                                                                                                                                                      |
+| `texture`, `loader` | pictures                                                                                        | `const albedo = await loader.texture('wood.jpg')`, `albedo.wrap = wrap.repeat`, `albedo.repeat.set(4, 4)`                                                                                                                                                                                               |
+| `helper`            | the marks you work with                                                                         | `helper.grid(20, 20)`, `helper.axes(2)`                                                                                                                                                                                                                                                                 |
+| `controls`          | handles that move an object with the mouse                                                      | `const gizmo = controls.transform(world).attach(ball)`, then `gizmo.addEventListener('dragEnd', () => history.push(ball.position.clone()))`                                                                                                                                                             |
+| `animation`         | clips and mixers                                                                                | `animation.createMixer(set)`, `animation.clip('bob', 2, [animation.vectorTrack('.position', [0, 1, 2], [0, 1, 0, 0, 2, 0, 0, 1, 0])])`, `mixer.play(bob)`; `mixer.clipAction(bob).seek(0.5)` poses the clip at 0.5 s now, playing or not (a stopped action keeps it until a playing one writes over it) |
+| `buffer`            | a geometry built by hand                                                                        | `geometry.createBuffer({ position: buffer.float32(vertices, 3), index: buffer.uint32(indices) })`                                                                                                                                                                                                       |
+| `effect`            | post-processing                                                                                 | [Canvas, camera and teardown](#canvas-camera-and-teardown)                                                                                                                                                                                                                                              |
+| constants           | `blending`, `side`, `wrap`, `filter`, `colorSpace`, `toneMapping`, one named value per constant | `steel.side = side.double`, `glass.blending = blending.normal`, `world.toneMapping = toneMapping.aces`                                                                                                                                                                                                  |
 
 Eight more exist because geometry is **cut into pages** the engine moves in and out of memory
 according to what the frame reads:
 
-| Family | Members | What it does | Example |
-| --- | --- | --- | --- |
-| `page` | `createStreamer`, `createCache`, `httpSource`, `decode` | geometry in pages | `page.createStreamer({ source: page.httpSource('assets/forest/'), workers: 4 })`, passed as `scene.load(url, { stream })` |
-| `budget` | `memory`, `geometryPool`, `texturePool` | fixed envelopes, not wishes | `world.budget.geometryPool = 512 * 1024 * 1024` |
-| `metric` | `frame`, `cpuSteps`, `gpuPasses`, `createProfiler` | what the image cost, never estimated | `metrics.selectedTriangles`, `metrics.residentPages` in `world.onFrame`; `metric.createProfiler(world)` |
-| `diagnostic` | `createChannel`, `presentationColor`, `partitionAudit`, `transparentOcclusion`, `shadowAtlas` | watching the engine work | `world.diagnostic.mode = 'clusters'` (or `'wireframe'`, `'triangles'`, `'beauty'`) |
-| `capability` | `detect`, `lighting` | what the machine grants, before an image is promised | `(await capability.detect()).webgpu` |
-| `capture` | `surface`, `buffer` | an image aside, at another resolution, without touching the view | `capture.surface(world, { width: 3840, height: 2160 })` |
-| `pose` | `fromBounds`, `runPath`, `pointOfInterest` | named poses, automatic framing, replaying a path | `world.camera.set(pose.fromBounds(math.box3().setFromObject(set)))` |
-| `batch` | `transformPoints`, `composeMatrix4`, `frustumKeepsBox` | a thousand matrices at once instead of a loop | `batch.composeMatrix4(outputs, positions, quaternions, scales, 1000)` |
+| Family       | Members                                                                                       | What it does                                                     | Example                                                                                                                   |
+| ------------ | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `page`       | `createStreamer`, `createCache`, `httpSource`, `decode`                                       | geometry in pages                                                | `page.createStreamer({ source: page.httpSource('assets/forest/'), workers: 4 })`, passed as `scene.load(url, { stream })` |
+| `budget`     | `memory`, `geometryPool`, `texturePool`                                                       | fixed envelopes, not wishes                                      | `world.budget.geometryPool = 512 * 1024 * 1024`                                                                           |
+| `metric`     | `frame`, `cpuSteps`, `gpuPasses`, `createProfiler`                                            | what the image cost, never estimated                             | `metrics.selectedTriangles`, `metrics.residentPages` in `world.onFrame`; `metric.createProfiler(world)`                   |
+| `diagnostic` | `createChannel`, `presentationColor`, `partitionAudit`, `transparentOcclusion`, `shadowAtlas` | watching the engine work                                         | `world.diagnostic.mode = 'clusters'` (or `'wireframe'`, `'triangles'`, `'beauty'`)                                        |
+| `capability` | `detect`, `lighting`                                                                          | what the machine grants, before an image is promised             | `(await capability.detect()).webgpu`                                                                                      |
+| `capture`    | `surface`, `buffer`                                                                           | an image aside, at another resolution, without touching the view | `capture.surface(world, { width: 3840, height: 2160 })`                                                                   |
+| `pose`       | `fromBounds`, `runPath`, `pointOfInterest`                                                    | named poses, automatic framing, replaying a path                 | `world.camera.set(pose.fromBounds(math.box3().setFromObject(set)))`                                                       |
+| `batch`      | `transformPoints`, `composeMatrix4`, `frustumKeepsBox`                                        | a thousand matrices at once instead of a loop                    | `batch.composeMatrix4(outputs, positions, quaternions, scales, 1000)`                                                     |
 
 The world is not a family: it is the object `createWorld` returns, carrying `scene`, `camera`,
 `budget`, `diagnostic`, `controls`, `onFrame`/`loop`, `render`, `invalidate` and `dispose`. There is
@@ -333,16 +340,16 @@ builds the next; `.enabled` pauses the current one. Live examples, one world per
 [character](../site/examples/walk-through-a-temple.html) and [character with
 physics](../site/examples/walk-with-collisions.html); `firstPerson` is the same head without a body.
 
-| `world.controls.kind` | Motion | Gestures |
-| --- | --- | --- |
-| `'orbit'` | orbit around `target`, world up kept | drag turns, secondary drag or two fingers pan, wheel and pinch zoom |
-| `'fly'` | six degrees of freedom | `W`/`S`, `A`/`D`, `R`/`F`, arrows, `Q`/`E` roll, drag to look |
-| `'firstPerson'` | pointer-locked walk, horizon level | pointer turns the head, `W`/`S`/`A`/`D`, `Space`/`Shift` |
-| `'character'` | a body that walks, runs, jumps and falls | pointer turns the head, `W`/`S`/`A`/`D`, `Shift` sprints, `Space` |
-| `'vehicle'` | none: drives `world.controls.vehicle` | `W` throttle, `S` brake, `A`/`D` steer, `Space` handbrake |
-| `'trackball'` | free spin about the screen axes, roll included | drag spins, secondary drag pans, wheel zooms |
-| `'panZoom'` | planar view, no rotation | drag slides, wheel and pinch zoom, arrow keys pan |
-| `'none'` (default) | camera posed by the host | none |
+| `world.controls.kind` | Motion                                         | Gestures                                                            |
+| --------------------- | ---------------------------------------------- | ------------------------------------------------------------------- |
+| `'orbit'`             | orbit around `target`, world up kept           | drag turns, secondary drag or two fingers pan, wheel and pinch zoom |
+| `'fly'`               | six degrees of freedom                         | `W`/`S`, `A`/`D`, `R`/`F`, arrows, `Q`/`E` roll, drag to look       |
+| `'firstPerson'`       | pointer-locked walk, horizon level             | pointer turns the head, `W`/`S`/`A`/`D`, `Space`/`Shift`            |
+| `'character'`         | a body that walks, runs, jumps and falls       | pointer turns the head, `W`/`S`/`A`/`D`, `Shift` sprints, `Space`   |
+| `'vehicle'`           | none: drives `world.controls.vehicle`          | `W` throttle, `S` brake, `A`/`D` steer, `Space` handbrake           |
+| `'trackball'`         | free spin about the screen axes, roll included | drag spins, secondary drag pans, wheel zooms                        |
+| `'panZoom'`           | planar view, no rotation                       | drag slides, wheel and pinch zoom, arrow keys pan                   |
+| `'none'` (default)    | camera posed by the host                       | none                                                                |
 
 All publish `object.position`, `addEventListener('change')`, `removeEventListener` and `dispose()`;
 the three with a pivot add `target`, `minDistance`, `maxDistance`, `enableZoom`, `enablePan` and
@@ -548,11 +555,11 @@ model. Its export conditions are in [Entry points](#entry-points). The licence i
 Noncommercial 1.0.0 ([LICENSE](../LICENSE)): free for noncommercial use; a commercial use needs a
 licence from the owner.
 
-| Task | Examples |
-| --- | --- |
-| Common API | `SDK_VERSION`, `FORMAT_VERSION`, `assertFormat`, `EngineError`, batch maths, hierarchy, camera calculations, diagnostics, lighting contracts, jobs and safety policy |
+| Task               | Examples                                                                                                                                                             |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Common API         | `SDK_VERSION`, `FORMAT_VERSION`, `assertFormat`, `EngineError`, batch maths, hierarchy, camera calculations, diagnostics, lighting contracts, jobs and safety policy |
 | Native preparation | `prepare`, `prepareMany`, `createCompilationJob`, `createTerminalProgress`, `createBatchProgress`, `reviewCutouts`, `getSdkProvenance`, the `trillion3d-compile` CLI |
-| Browser rendering | `createWorld` and the families it hands a page, plus `detectCapabilities` |
+| Browser rendering  | `createWorld` and the families it hands a page, plus `detectCapabilities`                                                                                            |
 
 A strict browser TypeScript project enables the `browser` condition; without it, Bundler resolution
 selects the common declarations, which lack `createWorld`.
@@ -691,16 +698,16 @@ ratios and declared exceptions: [MATHS.md](MATHS.md).
 Once `await world.awaitPages()` has opened the drawing session, a page reads and edits a loaded
 model's materials through its `world`:
 
-| Call | Result |
-| --- | --- |
-| `world.materials()` | `SceneMaterial[]`: the current materials in cache table order, then the page's, as detached copies with `id`, `name`, `baseColor`, `opacity`, `metalness`, `roughness`, `emissive`, `side`, `alphaMode`, `alphaCutoff` and `tiling` (`null` without a map) |
-| `world.material(id)` | one by listed ID; an unknown ID raises `UNKNOWN_MATERIAL` |
-| `world.importedMaterials()` | the source file's values, whatever the page changed; created materials excluded |
-| `world.setMaterial(id, patch)` | every surface built from it, next frame; `true` if every renderer took it in place, `false` if one needs a new session |
-| `world.createMaterial(props?)` | a page-owned material, at most 256 per session (`MATERIAL_CEILING` past it, nothing created) |
-| `world.dropMaterial(id)` | releases an unused created material, its variants, map and accounted bytes |
-| `world.materialMapBytes()` | runtime map bytes held and pending, under the fixed 64 MiB ceiling |
-| `world.assignMaterial('mesh/primitive', id)` | a created material on a compiled primitive — `world.assignMaterial('mesh/primitive', created.id)`, numbers from `metadata.primitives`; unknown: `UNKNOWN_SCENE_NODE` |
+| Call                                         | Result                                                                                                                                                                                                                                                     |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `world.materials()`                          | `SceneMaterial[]`: the current materials in cache table order, then the page's, as detached copies with `id`, `name`, `baseColor`, `opacity`, `metalness`, `roughness`, `emissive`, `side`, `alphaMode`, `alphaCutoff` and `tiling` (`null` without a map) |
+| `world.material(id)`                         | one by listed ID; an unknown ID raises `UNKNOWN_MATERIAL`                                                                                                                                                                                                  |
+| `world.importedMaterials()`                  | the source file's values, whatever the page changed; created materials excluded                                                                                                                                                                            |
+| `world.setMaterial(id, patch)`               | every surface built from it, next frame; `true` if every renderer took it in place, `false` if one needs a new session                                                                                                                                     |
+| `world.createMaterial(props?)`               | a page-owned material, at most 256 per session (`MATERIAL_CEILING` past it, nothing created)                                                                                                                                                               |
+| `world.dropMaterial(id)`                     | releases an unused created material, its variants, map and accounted bytes                                                                                                                                                                                 |
+| `world.materialMapBytes()`                   | runtime map bytes held and pending, under the fixed 64 MiB ceiling                                                                                                                                                                                         |
+| `world.assignMaterial('mesh/primitive', id)` | a created material on a compiled primitive — `world.assignMaterial('mesh/primitive', created.id)`, numbers from `metadata.primitives`; unknown: `UNKNOWN_SCENE_NODE`                                                                                       |
 
 A patch sets `baseColor` (three linear channels, 0 to 1), `opacity`, `metalness`, `roughness` and
 `alphaCutoff` (each 0 to 1), nonnegative linear `emissive`, `alphaMode` (`'opaque'`, `'mask'`, `'blend'`)
@@ -857,15 +864,15 @@ cast). Every light is declared, however many (`imported-lights` counts them), re
 second (another application, another tab), so a budget measured at start-up would be wrong minutes
 later. The pools' mechanics are [RESIDENCY.md](RESIDENCY.md); this is what a host sets and reads.
 
-| Setting | Default | What it is |
-| --- | --- | --- |
-| `world.budget.gpu` | 2 179 MiB | every GPU pool together, divided by `world.budget.split` |
-| `world.budget.cpu` | the shadow mirror plus the page cache's own default | what the world keeps in CPU memory |
-| `world.budget.geometryPool` | 512 MiB | cluster page slots, the root cover always resident; clamped to `geometryPoolCeiling`; the call a memory slider makes |
-| `world.budget.texturePool` | 512 MiB | virtual-texture tiles, every texture's tail always resident; clamped to `texturePoolCeiling`; `null` on WebGL2 |
-| `world.budget.canvas` | 3840 × 2160 | the largest drawing buffer, `{ width, height }` in pixels, the effect targets are reserved at (`{ width: 7680, height: 4320 }` for an 8K display) |
-| `world.budget.raycastTrees` | 64 MiB | [Picking](#picking-moving-and-saving) |
-| `world.budget.physics` | `DEFAULT_PHYSICS_BUDGET` | [PHYSICS.md](PHYSICS.md#budgets) |
+| Setting                     | Default                                             | What it is                                                                                                                                        |
+| --------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `world.budget.gpu`          | 2 179 MiB                                           | every GPU pool together, divided by `world.budget.split`                                                                                          |
+| `world.budget.cpu`          | the shadow mirror plus the page cache's own default | what the world keeps in CPU memory                                                                                                                |
+| `world.budget.geometryPool` | 512 MiB                                             | cluster page slots, the root cover always resident; clamped to `geometryPoolCeiling`; the call a memory slider makes                              |
+| `world.budget.texturePool`  | 512 MiB                                             | virtual-texture tiles, every texture's tail always resident; clamped to `texturePoolCeiling`; `null` on WebGL2                                    |
+| `world.budget.canvas`       | 3840 × 2160                                         | the largest drawing buffer, `{ width, height }` in pixels, the effect targets are reserved at (`{ width: 7680, height: 4320 }` for an 8K display) |
+| `world.budget.raycastTrees` | 64 MiB                                              | [Picking](#picking-moving-and-saving)                                                                                                             |
+| `world.budget.physics`      | `DEFAULT_PHYSICS_BUDGET`                            | [PHYSICS.md](PHYSICS.md#budgets)                                                                                                                  |
 
 - **Live textures.** A video or a canvas redrawn every frame keeps a working texture of its size,
   `textureLiveBytes`, drawn from the texture budget: the pool (as a budget write reports it) is the
@@ -924,20 +931,20 @@ so. A value that cannot be held as given is brought to what can, `geometryPoolCl
 `texturePoolClamp` naming why: `root-cover`, `scene`, `page-cap`, `minimum`, `device-limit`,
 `ceiling`, or `null`. Only this is refused, by name:
 
-| Code | When |
-| --- | --- |
-| `INVALID_GPU_BUDGET`, `INVALID_CPU_BUDGET`, `INVALID_GEOMETRY_POOL_BUDGET`, `INVALID_TEXTURE_POOL_BUDGET` | a value that is not a whole number of bytes above zero |
-| `INVALID_BUDGET_CANVAS` | a declared canvas that is not a whole number of pixels above zero |
-| `GPU_BUDGET_UNDER_MINIMUM` | a GPU total below the root coverage and texture-tail minima |
-| `GPU_BUDGET_UNDER_SHADOW_POOL` | a GPU total under its fixed shadow share |
-| `CPU_BUDGET_UNDER_SHADOW_MIRROR` | a CPU total not above the shadow mirror |
-| `GEOMETRY_POOL_DEVICE_LIMIT` | a device whose limits cannot hold even the root cover |
-| `TEXTURE_POOL_DEVICE_LIMIT` | a device whose limits cannot hold the tails of one texture lane |
-| `WEBGPU_GEOMETRY_POOL_REFUSED` | the device refuses the root cover at prepare: the WebGPU backend fails, the world goes on with its others (`fallback`, `WEBGPU_UNAVAILABLE`); a GPU canvas rejects |
-| `WEBGPU_TEXTURE_POOL_REFUSED` | the device refuses the texture pool's floor at prepare: pages draw with the fallback pass; a GPU canvas fails with `WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE` |
-| `WEBGPU_FRAME_TARGETS_REFUSED` | frame targets the device refuses even without Hi-Z |
-| `GPU_BUDGET_EXCEEDED` | an allocation past the GPU total (or an unknown format): no new image is submitted, flush and capture reject; terminal for the session, reopened with enough budget (every session sharing the refused cache released first) |
-| `SURFACE_DEVICE_LIMIT` | a device dimension limit |
+| Code                                                                                                      | When                                                                                                                                                                                                                         |
+| --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `INVALID_GPU_BUDGET`, `INVALID_CPU_BUDGET`, `INVALID_GEOMETRY_POOL_BUDGET`, `INVALID_TEXTURE_POOL_BUDGET` | a value that is not a whole number of bytes above zero                                                                                                                                                                       |
+| `INVALID_BUDGET_CANVAS`                                                                                   | a declared canvas that is not a whole number of pixels above zero                                                                                                                                                            |
+| `GPU_BUDGET_UNDER_MINIMUM`                                                                                | a GPU total below the root coverage and texture-tail minima                                                                                                                                                                  |
+| `GPU_BUDGET_UNDER_SHADOW_POOL`                                                                            | a GPU total under its fixed shadow share                                                                                                                                                                                     |
+| `CPU_BUDGET_UNDER_SHADOW_MIRROR`                                                                          | a CPU total not above the shadow mirror                                                                                                                                                                                      |
+| `GEOMETRY_POOL_DEVICE_LIMIT`                                                                              | a device whose limits cannot hold even the root cover                                                                                                                                                                        |
+| `TEXTURE_POOL_DEVICE_LIMIT`                                                                               | a device whose limits cannot hold the tails of one texture lane                                                                                                                                                              |
+| `WEBGPU_GEOMETRY_POOL_REFUSED`                                                                            | the device refuses the root cover at prepare: the WebGPU backend fails, the world goes on with its others (`fallback`, `WEBGPU_UNAVAILABLE`); a GPU canvas rejects                                                           |
+| `WEBGPU_TEXTURE_POOL_REFUSED`                                                                             | the device refuses the texture pool's floor at prepare: pages draw with the fallback pass; a GPU canvas fails with `WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE`                                                                    |
+| `WEBGPU_FRAME_TARGETS_REFUSED`                                                                            | frame targets the device refuses even without Hi-Z                                                                                                                                                                           |
+| `GPU_BUDGET_EXCEEDED`                                                                                     | an allocation past the GPU total (or an unknown format): no new image is submitted, flush and capture reject; terminal for the session, reopened with enough budget (every session sharing the refused cache released first) |
+| `SURFACE_DEVICE_LIMIT`                                                                                    | a device dimension limit                                                                                                                                                                                                     |
 
 ### Out of memory is absorbed
 
