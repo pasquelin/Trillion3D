@@ -18,14 +18,15 @@ test('the atrium is ray-cast with near and far surfaces, most of the view covere
   assert.ok(covered > 0.6 * depths.length && covered < depths.length, `${covered} covered`);
 });
 
-test('an unshadowed moving list costs its length, not three walks and four shades', () => {
+test('an unshadowed moving pixel walks its cluster, at most its tile list', () => {
   const s = countSampled(
     view,
     depths,
     lights,
     lights.map(() => -1),
   );
-  assert.equal(s.moving, s.list, 'L evaluations a pixel');
+  assert.ok(s.moving <= s.list, 'the cluster list is at most the tile list');
+  assert.ok(s.moving < s.list, 'and drops the lights that cannot reach the pixel depth');
   assert.ok(s.develop > 2.5 * s.list, `develop drew: ${s.develop} for ${s.list}`);
 });
 

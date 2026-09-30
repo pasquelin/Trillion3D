@@ -1,9 +1,7 @@
-// Light evaluations per covered pixel of a MOVING image (#1249): the shipped `contractLighting`
-// and `tileShadowed`, run as JavaScript on each tile's opaque list as the tile pass's oracle
-// builds it — a record whose last word the pass sets once, never a per-pixel walk. COUNTED,
-// never timed. A full sum walks its `L` lights once; `sampledTileLighting` walks a list of
-// `LIGHT_SAMPLES` to `TILE_LIGHTS` lights three times — its three `lightWeight` loops — then
-// shades `LIGHT_SAMPLES` of them: `3·L + LIGHT_SAMPLES`.
+// Light evaluations per covered pixel of a MOVING image (#1249). The shipped `contractLighting`,
+// `tileShadowed` and cluster slice mapping run as JavaScript on each tile's lists: a still or
+// unshadowed pixel reads its cluster list (`clusterLighting`), a shadowed one the sampled resolve
+// (`3·L + LIGHT_SAMPLES`). COUNTED, never timed.
 //
 //   node bench/runner/lightTileSampledCount.ts [--width 3456] [--height 2234]
 import { parseArgs } from 'node:util';
@@ -13,7 +11,15 @@ import {
   shaderFunctions,
   wgslConstants,
 } from '../../packages/sdk-browser/src/texture/shaderRule.fixture.ts';
-import { camera } from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
+import {
+  NEAR,
+  camera,
+  pixelPoint,
+} from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
+import {
+  clusterSliceIndexWgsl,
+  CLUSTER_SLICES,
+} from '../../packages/sdk-browser/src/lighting/tiles/clusterWgsl.ts';
 import {
   sliceHits,
   tileBounds,
@@ -26,30 +32,76 @@ import type { Light } from './lightTileCity.ts';
 const SIZE = LIGHT_SETTINGS.tileSize;
 const K = wgslConstants(DIRECT_LIGHTING_WGSL);
 type Contract = (...args: unknown[]) => unknown;
+/** The shipped slice mapping, run as JavaScript: the slice of an axis distance and the span of a
+ *  light on it, so the witness counts what the WGSL does, not a second algorithm. */
+type SliceMap = {
+  clusterSliceIndex: (d: number, front: number, back: number) => number;
+  clusterSliceSpan: (d: number, r: number, front: number, back: number) => { x: number; y: number };
+};
+const MAP = shaderFunctions<SliceMap>(
+  clusterSliceIndexWgsl,
+  ['clusterSliceIndex', 'clusterSliceSpan'],
+  { CLUSTER_SLICES, log: Math.log, floor: Math.floor },
+);
 
-/** Each tile's record, the opaque list only: its count, its lights in rank order, and the run's
- *  flag word — one when a kept light carries a shadow slot (`slots[rank] > -1`, #1249). */
+/** The view axis of the pass's frame: the centre ray's direction. */
+const axisOf = (view: TileView) => {
+  const [cx, cy] = [view.width / 2, view.height / 2];
+  const [near, deep] = [pixelPoint(view, cx, cy, 1), pixelPoint(view, cx, cy, NEAR / 1024)];
+  const d = [deep[0] - near[0], deep[1] - near[1], deep[2] - near[2]];
+  const len = Math.hypot(...d) || 1;
+  return d.map((v) => v / len);
+};
+
+/** Each tile's record, its opaque list, and the per-slice counts the tile pass's binning writes:
+ *  a light's view-axis span, in metres, binned into the cluster lists the resolve walks (#1249). */
 function tileRecords(view: TileView, depths: Float32Array, lights: Light[], slots: number[]) {
   const [tilesX, tilesY] = [Math.ceil(view.width / SIZE), Math.ceil(view.height / SIZE)];
   const records = new Uint32Array(tilesX * tilesY * K.TILE_STRIDE);
+  const axis = axisOf(view);
+  const counts: number[][] = [],
+    fronts: number[] = [],
+    backs: number[] = [];
   for (let ty = 0; ty < tilesY; ty++)
     for (let tx = 0; tx < tilesX; tx++) {
+      const index = ty * tilesX + tx;
       const zs: number[] = [];
       for (let y = ty * SIZE; y < Math.min((ty + 1) * SIZE, view.height); y++)
         for (let x = tx * SIZE; x < Math.min((tx + 1) * SIZE, view.width); x++)
           if (depths[y * view.width + x] > 0) zs.push(depths[y * view.width + x]);
+      counts[index] = Array<number>(CLUSTER_SLICES).fill(0);
+      fronts[index] = backs[index] = 0;
       if (!zs.length) continue;
       const bounds = tileBounds(view, [tx, ty], Math.max(...zs), Math.min(...zs));
       const kept = lights.flatMap(({ centre, radius }, rank) =>
         sliceHits(bounds, toTileFrame(view, centre), radius).opaque ? [rank] : [],
       );
-      const base = (ty * tilesX + tx) * K.TILE_STRIDE;
+      const base = index * K.TILE_STRIDE;
       records[base] = kept.length;
       records[base + K.TILE_SHADOW_BASE] = kept.some((rank) => slots[rank] > -1) ? 1 : 0;
-      // A list past `TILE_LIGHTS` lives in the pool: its count is all a full sum needs here.
       records.set(kept.slice(0, K.TILE_LIGHTS), base + K.TILE_OPAQUE_BASE);
+      // The tile's own depth range sets its slices: a light is binned where its sphere can reach.
+      const [zFront, zBack] = [Math.max(...zs), Math.min(...zs)];
+      const [front, back] = [NEAR / zFront, NEAR / zBack];
+      fronts[index] = front;
+      backs[index] = back;
+      for (const rank of kept) {
+        const { centre, radius } = lights[rank];
+        const at = [
+          centre[0] - view.origin[0],
+          centre[1] - view.origin[1],
+          centre[2] - view.origin[2],
+        ];
+        const span = MAP.clusterSliceSpan(
+          at[0] * axis[0] + at[1] * axis[1] + at[2] * axis[2],
+          radius,
+          front,
+          back,
+        );
+        for (let s = span.x; s < span.y; s++) counts[index][s]++;
+      }
     }
-  return { records, tilesX, tilesY };
+  return { records, counts, fronts, backs, tilesX, tilesY };
 }
 
 /**
@@ -63,14 +115,25 @@ export function countSampled(
   lights: Light[],
   slots: number[],
 ) {
-  const { records, tilesX, tilesY } = tileRecords(view, depths, lights, slots);
+  const { records, counts, fronts, backs, tilesX, tilesY } = tileRecords(
+    view,
+    depths,
+    lights,
+    slots,
+  );
   let evaluations = 0;
   const kept = (tile: { x: number; y: number }) =>
     records[(tile.y * tilesX + tile.x) * K.TILE_STRIDE];
-  const full = (...args: unknown[]) => (evaluations += kept(args[7] as { x: number; y: number }));
   const sampled = (...args: unknown[]) => {
     const L = kept(args[7] as { x: number; y: number });
     evaluations += L <= K.LIGHT_SAMPLES || L > K.TILE_LIGHTS ? L : 3 * L + K.LIGHT_SAMPLES;
+  };
+  const cluster = (...args: unknown[]) => {
+    const pixel = args[7] as { x: number; y: number };
+    const index = Math.floor(pixel.y / SIZE) * tilesX + Math.floor(pixel.x / SIZE);
+    const z = depths[Math.floor(pixel.y) * view.width + Math.floor(pixel.x)];
+    const slice = MAP.clusterSliceIndex(NEAR / z, fronts[index], backs[index]);
+    evaluations += counts[index][slice] ?? 0;
   };
   const { contractLighting } = shaderFunctions<{ contractLighting: Contract }>(
     DIRECT_LIGHTING_WGSL,
@@ -81,7 +144,7 @@ export function countSampled(
       vec3f: () => 0,
       tileLights: records,
       directLights: { items: slots.map((slot) => ({ params: { y: slot } })) },
-      tileLighting: full,
+      clusterLighting: cluster,
       sampledTileLighting: sampled,
     },
   );

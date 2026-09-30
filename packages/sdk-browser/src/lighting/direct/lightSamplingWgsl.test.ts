@@ -19,7 +19,7 @@ test('deferred resolve samples a shadowed list on a ranked image and walks every
   // moving tile whose list holds no shadowed light reads the tile pass's one-word flag (#1249).
   assert.match(
     DIRECT_LIGHTING_WGSL,
-    /let rank=u32\(view\.viewport\.w\);\s*if\(rank==0u\|\|!tileShadowed\(tile,tilesX\)\)\{return tileLighting\(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE\);\}\s*return sampledTileLighting\(/,
+    /let rank=u32\(view\.viewport\.w\);\s*if\(rank==0u\|\|!tileShadowed\(tile,tilesX\)\)\{return clusterLighting\(rgb,metal,rough,N,V,P,ao,pixel\);\}\s*return sampledTileLighting\(/,
   );
   // The flag is one read of the record, never a walk of its lights: no per-pixel loop remains.
   assert.match(
@@ -52,7 +52,7 @@ test('a moving resolve reads the tile pass flag once, never the list, to choose 
       view: { lightParams: { x: 2, y: 2, z: 1 }, viewport: { w: 7 } },
       vec3f: () => 0,
       tileLights: words,
-      tileLighting: () => 1,
+      clusterLighting: () => 1,
       sampledTileLighting: () => 2,
     });
     return contractLighting(0, 0, 0, 0, 0, 0, 0, { x: 20.5, y: 0.5 });
@@ -105,7 +105,9 @@ test('one loop shades the lights of a pixel in full: its list, its pool slice or
   );
   // One call to the shading in the full loop (\`sliceLighting\`), one in the sampled one: no walk
   // over the scene beside them, the no-tile fallback of the blend pass included.
-  assert.equal(occurrences(DIRECT_LIGHTING_WGSL, 'declaredLight(directLights.items['), 1);
+  // One loop shades the tile list, the cluster loop shades the pixel's slice: both read a light
+  // by rank, no walk over the scene beside them.
+  assert.equal(occurrences(DIRECT_LIGHTING_WGSL, 'declaredLight(directLights.items['), 2);
   assert.equal(occurrences(declaredLightingWgsl(11, 18, 26), 'declaredLight('), 2);
 });
 
