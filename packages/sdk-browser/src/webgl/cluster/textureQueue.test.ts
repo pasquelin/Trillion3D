@@ -8,6 +8,7 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import { createSceneDraw } from './sceneDraw.ts';
 import { createTestContext } from '../core/testContext.fixture.ts';
 import { createHostDrawCamera, type HostCamera } from '../../camera/world.ts';
+import { hostTextureWritten } from '../../host/textureImport.ts';
 import { sentBytes } from './textureQueue.ts';
 
 const output = { toneMapped: false, framebuffer: null, width: 8, height: 4 };
@@ -17,6 +18,8 @@ function draw(hosts: {
   maxTextureTransferBytesPerFrame?: number;
   maxTextureUploadMsPerFrame?: number;
   sides?: readonly number[];
+  /** Indices of `sides` whose picture is not there yet at the census (`missing`). */
+  missing?: readonly number[];
 }) {
   // The GPU runs the frames at once, unless the test holds it behind.
   const gpu = { behind: false };
@@ -32,7 +35,9 @@ function draw(hosts: {
   const pictures = (hosts.sides ?? [4, 8, 16]).map(
     (side) => ({ width: side, height: side }) as TexImageSource,
   );
-  const surfaces = pictures.map((image) => G.standardSurface({ map: new G.GraphTexture(image) }));
+  const surfaces = pictures.map((image, index) =>
+    G.standardSurface({ map: new G.GraphTexture(hosts.missing?.includes(index) ? null : image) }),
+  );
   const scene = new G.Scene();
   scene.add(G.mesh(G.boxGeometry(), surfaces[0])); // the pages not attached yet wear the others
   const sceneDraw = createSceneDraw(gl.gl, scene, [], hosts, () => surfaces);
@@ -49,7 +54,7 @@ function draw(hosts: {
     await sceneDraw.prepare();
     return sent();
   };
-  return { image, prepare, pictures, gpu };
+  return { image, prepare, pictures, surfaces, gpu };
 }
 
 /** The bytes the pictures `sent` send. */
@@ -101,6 +106,25 @@ test('the preparation sends the declared maps, a budget per task, before any fra
   });
   assert.deepEqual(await prepare(), pictures, 'every declared map, over several tasks');
   assert.deepEqual(image(), [], 'the first frame sends none');
+});
+
+// #1198 (re-scope of #840): a map whose picture was not yet there at the census was left to its
+// first draw, where the bind sent it while the GPU was held (sponza `rue`, 100–140 ms). It is now
+// held, and the first drain that finds its picture sends it ahead of the draw that would bind it.
+test('a map whose picture arrives after the census is sent ahead, not at its first draw', async () => {
+  const { image, prepare, pictures, surfaces } = draw({
+    sides: [4, 8],
+    missing: [1],
+    maxTextureTransferBytesPerFrame: sentBytes(8, 8),
+    maxTextureUploadMsPerFrame: 1e9,
+  });
+  assert.deepEqual(await prepare(), [pictures[0]], 'the census leaves the map with no picture out');
+  const late = surfaces[1].map as G.GraphTexture;
+  late.image = pictures[1];
+  late.needsUpdate = true;
+  hostTextureWritten();
+  assert.deepEqual(image(), [pictures[1]], 'its picture arrived: the frame sends it ahead');
+  assert.deepEqual(image(), [], 'sent once');
 });
 
 test('the queue stops at the texture pool: what it leaves uploads at its first draw', () => {
