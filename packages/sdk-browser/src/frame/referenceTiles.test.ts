@@ -80,6 +80,38 @@ test('a tile projection maps the tile’s region of the full view onto the targe
   }
 });
 
+test('an orthographic tile projection maps the same region, its translation read at w = 1', () => {
+  const plan = referenceTilePlan(BOSS.width, BOSS.height, BOSS.pixelRatio);
+  const tile = plan.tiles[0];
+  const box = { left: -4, right: 4, bottom: -3, top: 3, fitAspect: true };
+  const optics = { fov: 55, near: 0.1, far: 1000, zoom: 1, orthographic: box };
+  const full = writeEngineCamera(createEngineCamera(), {
+    ...optics,
+    aspect: plan.width / plan.height,
+  });
+  const part = writeEngineCamera(createEngineCamera(), {
+    ...optics,
+    aspect: tile.width / tile.height,
+    viewTile: tile,
+  });
+  const ndc = (p: Float64Array, x: number, y: number) => [
+    p[0] * x + p[4] * y + p[12],
+    p[1] * x + p[5] * y + p[13],
+  ];
+  const centerX = (2 * tile.x + tile.width) / plan.width - 1,
+    centerY = (2 * tile.y + tile.height) / plan.height - 1;
+  for (const [x, y] of [
+    [0, 0],
+    [1.3, -0.7],
+    [-2.5, 1.4],
+  ]) {
+    const [fx, fy] = ndc(full.projection, x, y),
+      [tx, ty] = ndc(part.projection, x, y);
+    assert.ok(Math.abs(tx - (plan.width / tile.width) * (fx - centerX)) < 1e-9);
+    assert.ok(Math.abs(ty - (plan.height / tile.height) * (fy - centerY)) < 1e-9);
+  }
+});
+
 test('the resolved tiles are placed at their output origin, bottom row first', () => {
   const plan = referenceTilePlan(32, 16, 1, 1, 64);
   const out = new Uint8Array(plan.width * plan.height * 4);

@@ -25,8 +25,8 @@ export const AGE_CAP = 255;
 export function pageKeyModel<V>(o: PageOps<V>, entrySpan = shadowEntrySpan(SHADOW_TABLE_ENTRIES)) {
   return {
     /** The order pages to map are served in: the coarsest first — a finer page falls back to it —,
-     *  then by table entry, never the order a report listed them in. The entry takes the window's
-     *  whole span (`shadowEntrySpan`), so a raised window's entries never reach the rank above. */
+     *  then by table entry, never the order a report listed them in. The entry takes the extent's
+     *  whole span (`shadowEntrySpan`), so a raised extent's entries never reach the rank above. */
     shadowNeedKey: (rank: V, entry: V) =>
       o.add(o.mul(o.sub(o.int(RANK_SPAN - 1), rank), o.int(entrySpan)), entry),
     /** The order mapped pages not asked for this frame are taken in: the least recently asked first
