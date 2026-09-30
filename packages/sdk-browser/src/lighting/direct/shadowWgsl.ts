@@ -65,7 +65,7 @@ struct ShadowData{records:array<ShadowRecord,${MAX_SHADOW_SLICES}>,table:array<u
  * (`../../webgpu/shadow/demandWgsl.ts`) —: the table's constants, the page model, the page word
  * read, and the offset along the normal a receiver is read at.
  */
-function shadowPageReadWgsl(window = SUN_WINDOW) {
+export function shadowPageReadWgsl(window = SUN_WINDOW) {
   return `
 const SHADOW_NORMAL_TEXELS:f32=${LIGHT_SETTINGS.shadowNormalOffsetTexels};
 const SHADOW_PCF_REACH:f32=${PCF_REACH};

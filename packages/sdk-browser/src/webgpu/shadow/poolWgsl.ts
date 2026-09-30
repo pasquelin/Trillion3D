@@ -2,9 +2,17 @@ import {
   PAGE_INDEX_MASK,
   PAGE_MAPPED,
   PAGE_VALID,
-  SHADOW_TABLE_ENTRIES,
-  SHADOW_TABLE_STRIDE,
+  SUN_WINDOW,
+  shadowTableEntries,
+  shadowTableStride,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+
+/** Mask of a listed request entry: every bit below the miss flag (`shadowRequestWgsl.ts`, bit 31),
+ *  which lies above the most a `pages`-window table addresses. The ordinary window's table is a
+ *  power of two, so this is its `entries - 1`, the mask it always was; a raised one is not, and the
+ *  next power is the mask that keeps every entry and still clears the flag. */
+export const shadowEntryMask = (pages: number) =>
+  2 ** Math.ceil(Math.log2(shadowTableEntries(pages))) - 1;
 
 /** A page's fields in the GPU pool, one array of `pages` words each after the counts: the entry
  *  it maps (−1 free) and the frame it was last asked in first, the words a snapshot reads back;
@@ -43,8 +51,9 @@ const countConsts = POOL_COUNTS.map((c, i) => `const COUNT_${c.toUpperCase()}:u3
 
 /** The GPU pool as every pass reads it — its counts, then one array per field —, where a page's
  *  field lies (\`poolAt\`: each pass binds \`shadowPool\` and says its pages, \`shadowPoolPages\`),
- *  and its counts' atomics. */
-export const SHADOW_POOL_WGSL = `
+ *  and its counts' atomics. The entry mask and the table stride are the session's window
+ *  (`referenceMode.ts`): the ordinary constant by default. */
+export const shadowPoolWgsl = (pages = SUN_WINDOW) => `
 ${fieldConsts}${countConsts}
 struct ShadowPool{counts:array<atomic<u32>,${POOL_COUNTS.length}>,pages:array<i32>,}
 fn poolAt(field:u32,p:u32)->u32{return field*shadowPoolPages()+p;}
@@ -58,8 +67,8 @@ const DRAWN_HOST:i32=${DRAWN_HOST};
 const DRAWN_NONE:i32=${DRAWN_NONE};
 const DRAWN_GPU:i32=${DRAWN_GPU};
 const PAGE_INDEX_MASK:u32=${PAGE_INDEX_MASK}u;
-const ENTRY_MASK:u32=${SHADOW_TABLE_ENTRIES - 1}u;
-const SHADOW_TABLE_STRIDE:u32=${SHADOW_TABLE_STRIDE}u;`;
+const ENTRY_MASK:u32=${shadowEntryMask(pages)}u;
+const SHADOW_TABLE_STRIDE:u32=${shadowTableStride(pages)}u;`;
 
 /** Page \`p\` joins the frame's draw list (\`freshWgsl.ts\`): mapped, not drawn since. The pass that
  *  lists binds \`drawList\`. */

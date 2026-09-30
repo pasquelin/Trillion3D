@@ -1,13 +1,14 @@
 import { MAX_SHADOW_SLICES } from '../../../../sdk-core/src/index.ts';
-import { PAGE_MODEL_WGSL } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
+import { pageModelWgsl } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
 import {
   LAMP_FACE_ENTRIES,
-  SUN_LEVEL_ENTRIES,
+  SUN_WINDOW,
+  sunLevelEntries,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SUN_ORIGIN_WGSL } from '../../lighting/direct/shadowFactorWgsl.ts';
 import { shadowRequestWgsl } from '../../lighting/direct/shadowRequestWgsl.ts';
 import { SHADOW_DATA_WGSL } from '../../lighting/direct/shadowWgsl.ts';
-import { POOL_FRAME_COUNTS, SHADOW_DRAW_LIST_WGSL, SHADOW_POOL_WGSL } from './poolWgsl.ts';
+import { POOL_FRAME_COUNTS, SHADOW_DRAW_LIST_WGSL, shadowPoolWgsl } from './poolWgsl.ts';
 
 /** Invocations of the one workgroup that allocates a frame's pages. */
 export const ALLOC_LANES = 256;
@@ -41,22 +42,23 @@ export const ALLOC_PARAM_WORDS = 8 + MAX_SHADOW_SLICES;
  *    the page listed to draw, what it names decoded by the page model (`shadowEntryPage`). A need
  *    past the candidates is refused: every page is one this frame asks for.
  *
- * Sorted, the order is the atomics' no more: the same frame maps the same pages.
+ * Sorted, the order is the atomics' no more: the same frame maps the same pages. The window is the
+ * session's (`referenceMode.ts`), the ordinary constant by default.
  */
-export const ALLOCATION_WGSL = `
+export const allocationWgsl = (pages = SUN_WINDOW) => `
 ${SHADOW_DATA_WGSL}
 @group(0) @binding(0) var<storage,read_write> shadows:ShadowData;
-${shadowRequestWgsl(1)}
+${shadowRequestWgsl(1, pages)}
 @group(0) @binding(2) var<storage,read_write> shadowPool:ShadowPool;
 @group(0) @binding(3) var<storage,read_write> keys:array<u32>;
 struct ShadowAllocParams{frame:i32,pages:u32,listCap:u32,asks:u32,candidateBase:u32,pad0:u32,pad1:u32,pad2:u32,generation:array<u32,${MAX_SHADOW_SLICES}>,entries:array<u32>,}
 @group(0) @binding(4) var<storage,read> params:ShadowAllocParams;
 @group(0) @binding(5) var<storage,read_write> drawList:array<u32>;
-${PAGE_MODEL_WGSL}
+${pageModelWgsl(pages)}
 ${SUN_ORIGIN_WGSL}
-${SHADOW_POOL_WGSL}
+${shadowPoolWgsl(pages)}
 const ALLOC_LANES:u32=${ALLOC_LANES}u;
-const SUN_LEVEL_ENTRIES:i32=${SUN_LEVEL_ENTRIES};
+const SUN_LEVEL_ENTRIES:i32=${sunLevelEntries(pages)};
 const LAMP_FACE_ENTRIES:i32=${LAMP_FACE_ENTRIES};
 const NO_KEY:u32=0xffffffffu;
 fn shadowPoolPages()->u32{return params.pages;}
@@ -176,6 +178,8 @@ var<workgroup> candidateCount:u32;
  for(var k=2u;k<=candidateSpan;k=k<<1u){for(var j=k>>1u;j>0u;j=j>>1u){sortStep(lane,params.candidateBase,candidateSpan,k,j);storageBarrier();}}
  assignPages(lane,needs,candidates);
 }`;
+/** The GPU allocation of the ordinary window: what a pass compiled without a session reads. */
+export const ALLOCATION_WGSL = allocationWgsl();
 
 /** The phases the allocation runs one after the other, a barrier between, once the floors are
  *  claimed (`beginAllocation`): what a test runs in order. */
