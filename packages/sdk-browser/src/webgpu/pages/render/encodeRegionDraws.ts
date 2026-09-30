@@ -75,7 +75,7 @@ export function drawRegionCasters(
   tested: boolean,
   scale: number,
   draws: readonly GPURenderPipeline[] | ShadowDepthDraws,
-  grouped?: Uint8Array,
+  grouped?: Uint32Array,
 ) {
   const { shadows, cull, regions, occlusion } = rt.lights,
     { order, first, clears, restores } = pagePlan,

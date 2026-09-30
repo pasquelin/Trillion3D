@@ -53,7 +53,7 @@ export function encodeShadowAtlas(
   const { order, layer, first, clears, restores, layerPasses } = pagePlan;
   quads.begin(count, order);
   const depthDraws = shadows.depthDraws();
-  let grouped: Uint8Array | undefined;
+  let grouped: Uint32Array | undefined;
   // Each pass of the static layer's (`inLayer`) or the pool's: its clears and restores, two
   // instanced draws, then each region's casters in its page's viewport.
   const draw = (passes: GPURenderPassDescriptor[], inLayer: boolean, tested: boolean) => {

@@ -56,7 +56,10 @@ test("a pass's restored sun pages are grouped by block; a lamp page and a lone o
   const { rt } = batch(),
     grouping = createMovingGroupPlan();
   assert.equal(grouping.plan(rt, PAGES.length, false, CAPACITY), 2);
-  assert.deepEqual([...grouping.grouped.subarray(0, 6)], [1, 1, 1, 1, 0, 0]);
+  assert.deepEqual(
+    [...grouping.words.subarray(0, 6)].map((w) => (w ? 1 : 0)),
+    [1, 1, 1, 1, 0, 0],
+  );
   assert.deepEqual([...grouping.words.subarray(0, 6)], [1, 1, 2, 2, 0, 0]);
   const head = MAX_SHADOW_REGIONS;
   assert.deepEqual([...grouping.words.subarray(head, head + 6)], [0, 20, 0, 20, 40, 1]);

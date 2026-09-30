@@ -1,4 +1,9 @@
-import { BOX_VALUES, boxTransform } from '../../../../../sdk-core/src/index.ts';
+import {
+  BOX_VALUES,
+  boxEquals,
+  boxTransform,
+  boxUnionBatch,
+} from '../../../../../sdk-core/src/index.ts';
 import { grown } from '../../../../../sdk-core/src/math/transform-tree/transformTree.ts';
 import type { PageRec } from '../../../page/selection/selection.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
@@ -42,13 +47,13 @@ let own = new Int32Array(0),
 /** Whether root `rank`, about to move, declares its own change: its last seen pose is the one its
  *  world box was made at, kept for the pass (`declareOwnMove`) until `forgetOwnMoves`. */
 export function noteOwnMove(rt: WebgpuPagesRuntime, rank: number) {
+  if (rank < own.length && own[rank]) return true;
   const roots = rt.layout.selectionRoots,
     { localBox, worldBox } = roots[rank],
     pose = rt.lights.mobility.poseOf(rank);
-  if (rank < own.length && own[rank]) return true;
   if (!localBox || !worldBox || !pose) return false;
   boxTransform(was, 0, localBox, 0, pose);
-  for (let v = 0; v < BOX_VALUES; v++) if (was[v] !== worldBox[v]) return false;
+  if (!boxEquals(was, 0, worldBox, 0)) return false;
   if (own.length < roots.length) own = grown(own, Int32Array, roots.length);
   if (kept === ranks.length) {
     ranks = grown(ranks, Int32Array, 2 * kept);
@@ -83,11 +88,7 @@ function declarePair(
   let meet = true;
   for (let axis = 0; axis < 3; axis++)
     meet &&= was[axis] <= now[axis + 3] && now[axis] <= was[axis + 3];
-  if (meet)
-    for (let axis = 0; axis < 3; axis++) {
-      was[axis] = Math.min(was[axis], now[axis]);
-      was[axis + 3] = Math.max(was[axis + 3], now[axis + 3]);
-    }
+  if (meet) boxUnionBatch(was, now, 1);
   plan.worldChanged(wasMin, wasMax, movingOnly);
   if (!meet) plan.worldChanged(nowMin, nowMax, movingOnly);
 }

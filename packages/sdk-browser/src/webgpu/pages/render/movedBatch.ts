@@ -4,6 +4,7 @@ import {
   boxEmpty,
   boxIsEmpty,
   boxTransform,
+  boxEquals,
   boxUnionBatch,
 } from '../../../../../sdk-core/src/index.ts';
 import { moveRootRows } from './movedRoot.ts';
@@ -98,8 +99,7 @@ export function finishMoves(rt: WebgpuPagesRuntime) {
 function declareMove(rt: WebgpuPagesRuntime, promoted: boolean) {
   if (boxIsEmpty(moved, 0)) return;
   const { plan } = rt.lights;
-  let still = true;
-  for (let v = 0; v < BOX_VALUES; v++) still &&= before[v] === after[v];
+  const still = boxEquals(before, 0, after, 0);
   if (!boxIsEmpty(before, 0)) plan.worldChanged(beforeMin, beforeMax, !promoted);
   if (!boxIsEmpty(after, 0) && !still) plan.worldChanged(afterMin, afterMax, !promoted);
   staleTemporalBox(rt.run.temporalHizState, movedMin, movedMax);
@@ -148,8 +148,10 @@ function passMoves(rt: WebgpuPagesRuntime) {
   run.gate.noteWorldsUpdated();
   let start = 0;
   for (let k = 0; k < nodeCount; k++) {
-    moved.set(movedBoxes.subarray(2 * k * BOX_VALUES, (2 * k + 1) * BOX_VALUES));
-    before.set(movedBoxes.subarray((2 * k + 1) * BOX_VALUES, (2 * k + 2) * BOX_VALUES));
+    for (let v = 0, a = 2 * k * BOX_VALUES; v < BOX_VALUES; v++) {
+      moved[v] = movedBoxes[a + v];
+      before[v] = movedBoxes[a + BOX_VALUES + v];
+    }
     boxEmpty(after, 0);
     let promoted = false;
     for (let j = start; j < movedEnds[k]; j++) {
