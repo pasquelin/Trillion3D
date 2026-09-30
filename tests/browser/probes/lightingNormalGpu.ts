@@ -78,8 +78,8 @@ async function executer({
 }: ExecutionEntree): Promise<ExecutionResultat> {
   const opened = await globalThis.openGpuModule(shader);
   if (!opened.module) return opened;
-  const { appareil, module } = opened;
-  const { device, erreurs } = appareil;
+  const { gpu, module } = opened;
+  const { device, erreurs } = gpu;
   const layout = device.createBindGroupLayout({
     entries: (['read-only-storage', 'storage'] as const).map((type, binding) => ({
       binding,
@@ -115,7 +115,7 @@ async function executer({
   await lecture.mapAsync(GPUMapMode.READ);
   const valeurs = Array.from(new Float32Array(lecture.getMappedRange().slice(0)));
   lecture.unmap();
-  const info = await appareil.fermer();
+  const info = await gpu.fermer();
   return { adaptateur: info.court, valeurs, erreurs };
 }
 
