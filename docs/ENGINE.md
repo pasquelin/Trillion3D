@@ -473,8 +473,11 @@ is created. A mixed session (measurement only) composes on a WebGL2 surface: the
 into a canvas of its own, publishes it as `presentedSurface`, and the host copies it with the
 engine's own full-screen program (`createBackendPresenter`). `presentedSurface` is withdrawn, and
 the canvas blanked, as soon as the device is lost; the loss is announced once by `gpu-device-lost`
-(`reason`: the device's own, `uncaptured-error`, `out-of-memory` or `residency`). Neither path
-reads the image back for presentation.
+(`reason`: the device's own, `uncaptured-error`, `out-of-memory` or `residency`). Every frame's
+metrics name it too (`gpuDeviceLost`, `reason: message`), with the device's own cause added, and
+said on the console, when it comes after the error that abandoned the device. Neither path reads
+the image back for presentation. Playwright's own headless shell loses the device of every
+WebGPU canvas after its first frame: `launchChrome` always opens the system Chrome (#1364).
 
 A world keeps its device across sessions, and each session creates through its own handle on it
 (`gpu/core/sessionHandle.ts`, `gpu/core/deviceOwners.ts`), which tags every label. `dispose`
