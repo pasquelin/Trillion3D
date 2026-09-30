@@ -1,15 +1,24 @@
 import { invertMatrix4 } from '../../../sdk-core/src/index.ts';
 import { createReflectionHistoryTargets, type ReflectionMetadata } from './historyTargets.ts';
-import { REFLECTION_RESOLVE_VIEW_BYTES, REFLECTION_HISTORY_WEIGHT } from './resolveWgsl.ts';
+import {
+  REFLECTION_CHANGE_FRAMES,
+  REFLECTION_CHANGE_WEIGHT,
+  REFLECTION_RESOLVE_VIEW_BYTES,
+  REFLECTION_HISTORY_WEIGHT,
+} from './resolveWgsl.ts';
 import { sameElements } from '../math/matrixElements.ts';
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts';
+
+/** Versions a reflected source is known by (`reflectionFrame.ts`). */
+export const REFLECTION_SOURCE_VERSIONS = 8;
 
 export interface ReflectionHistoryFrame {
   metadata: ReflectionMetadata;
   pages: GPUBuffer;
-  /** The existing placement motion buffer; unused when source changes invalidate history. */
+  /** The placement motion buffer, bound but unread: a moved source lowers the confidence instead. */
   motion: GPUBuffer;
-  epoch: string;
+  /** The source versions (`reflectionFrame.ts`), compared number by number: no string a frame. */
+  epoch: Float64Array;
   seed: number;
   frame: number;
   /** Unjittered camera; jitter must not reopen a completed filter window. */
@@ -36,13 +45,17 @@ export function createReflectionHistory(device: GPUDevice, width: number, height
   const previous = new Float64Array(16),
     camera = new Float64Array(16),
     inverse = new Float64Array(16);
-  let epoch = '',
-    frame = -1,
+  const epoch = new Float64Array(REFLECTION_SOURCE_VERSIONS).fill(NaN);
+  let frame = -1,
     written = false,
     rank = 0,
     reuse = false,
     disposed = false;
-  let stableFrames = 0;
+  let stableFrames = 0,
+    sinceChange = Infinity; // frames resolved since a source changed; none: Infinity
+  const complete = () =>
+    stableFrames >= REFLECTION_HISTORY_WEIGHT &&
+    sinceChange >= REFLECTION_CHANGE_FRAMES + REFLECTION_HISTORY_WEIGHT;
   let drawnWidth = width,
     drawnHeight = height;
   let current: ReflectionHistoryFrame | undefined;
@@ -62,18 +75,23 @@ export function createReflectionHistory(device: GPUDevice, width: number, height
     get reuse() {
       return reuse;
     },
-    /** The stationary filter window is complete; a new jitter still needs reprojection. */
+    /** The stationary filter window is complete, and no stale share of a changed source remains;
+     *  a new jitter still needs reprojection. */
     get settled() {
-      return stableFrames >= REFLECTION_HISTORY_WEIGHT;
+      return complete();
     },
-    /** Source epochs cover reflected movers too, not just receiver identity. */
+    /** Source epochs cover reflected movers too, not just receiver identity. A changed source
+     *  keeps its history at `REFLECTION_CHANGE_WEIGHT` for `REFLECTION_CHANGE_FRAMES`; only a new
+     *  drawn extent drops it. */
     prepare(
       next: ReflectionHistoryFrame,
       projection: ArrayLike<number>,
       drawn: readonly number[] = [width, height],
     ) {
       const resized = drawnWidth !== drawn[0] || drawnHeight !== drawn[1];
-      const changed = next.epoch !== epoch || resized;
+      let sourceChanged = false;
+      for (let i = 0; i < epoch.length; i++) sourceChanged ||= epoch[i] !== next.epoch[i];
+      const changed = sourceChanged || resized;
       drawnWidth = drawn[0];
       drawnHeight = drawn[1];
       const cameraChanged = !sameElements(camera, next.camera);
@@ -82,17 +100,21 @@ export function createReflectionHistory(device: GPUDevice, width: number, height
         !cameraChanged &&
         written &&
         sameElements(previous, projection) &&
-        (stableFrames >= REFLECTION_HISTORY_WEIGHT || frame === next.frame);
+        (complete() || frame === next.frame);
       if (reuse) return;
       if (changed || cameraChanged) stableFrames = 0;
-      if (changed) {
+      if (resized) {
         written = false;
         rank = 0;
-      } else if (written) rank = (rank + 1) >>> 0;
+        sinceChange = Infinity;
+      } else if (written) {
+        rank = (rank + 1) >>> 0;
+        if (sourceChanged) sinceChange = 0;
+      }
       current = next;
       camera.set(next.camera);
       matrix = projection;
-      epoch = next.epoch;
+      epoch.set(next.epoch);
       frame = next.frame;
       packed.set(written ? previous : projection, 0);
       invertMatrix4(inverse, projection);
@@ -101,8 +123,11 @@ export function createReflectionHistory(device: GPUDevice, width: number, height
       packed[33] = drawnHeight;
       packed[34] = 1 / drawnWidth;
       packed[35] = 1 / drawnHeight;
-      // params.z = 0: scene/motion changes invalidate the entire reflected source.
       packed[36] = written ? 1 : 0;
+      packed[37] =
+        sinceChange < REFLECTION_CHANGE_FRAMES
+          ? REFLECTION_CHANGE_WEIGHT
+          : REFLECTION_HISTORY_WEIGHT;
       device.queue.writeBuffer(uniform, 0, packed);
     },
     encode(
@@ -161,6 +186,7 @@ export function createReflectionHistory(device: GPUDevice, width: number, height
       previous.set(matrix);
       written = true;
       stableFrames++;
+      sinceChange++;
       return image;
     },
     dispose() {

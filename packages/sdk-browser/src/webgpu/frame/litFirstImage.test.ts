@@ -85,6 +85,9 @@ test('prepare precompiles the lit program only for a lit view, and says a failur
   Object.assign(rt.lights, { store: { count: 0, unlit: true } });
   assert.equal(litPrograms(rt).precompile, false, 'an unlit view compiles it only when asked');
   assert.equal(typeof litPrograms(rt).onFailure, 'function');
+  assert.equal(litPrograms(rt).unboundedReflections, false, 'rough samples keep their budget');
+  Object.assign(rt.context, { unboundedReflections: true });
+  assert.equal(litPrograms(rt).unboundedReflections, true, 'a reference session walks them whole');
 });
 
 test('a scene with no transparent object compiles no blend program', async () => {
