@@ -1010,7 +1010,9 @@ The executable is `options.executable`, else the one of the installed platform p
 `packages/asset-compiler-rust/target/release/`, refused with `COMPILER_STALE` while a crate source is
 newer than that build, so no cook publishes under the previous build's key (`pnpm run build:native`
 rebuilds it). Outside a checkout, a platform none of them serves is refused with
-`COMPILER_PLATFORM_UNSUPPORTED` and the supported list. Node never buffers a manifest: about 90 MB
+`COMPILER_PLATFORM_UNSUPPORTED` and the supported list, and a supported one whose package is not
+installed (optional dependencies omitted, a Linux on musl) with `COMPILER_EXECUTABLE_MISSING` and
+the package's name. Node never buffers a manifest: about 90 MB
 RSS whatever the model size.
 
 ### Platform packages
