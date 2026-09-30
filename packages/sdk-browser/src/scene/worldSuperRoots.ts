@@ -45,6 +45,24 @@ export type WorldSuperRootGroup = {
   outputs: number[];
 };
 
+/** One cluster as the cook's `clusters` key publishes it (`worldRoots.json`, FORMAT.md): the
+ *  fields above, plus where its page lives — a super-root's `bundle` and `offset` in the binary, an
+ *  object root's `origin` (the placed instance whose own stream holds its page). Read with an
+ *  internal type so the exported `WorldRoots` stays what the API reference translates. */
+export type WorldRootsCookedCluster = Omit<WorldSuperRootCluster, 'url'> & {
+  material: number | null;
+  bundle: number | null;
+  offset: number | null;
+  origin: number | null;
+};
+
+/** The `clusters` and `groups` of a world-roots table, added by the cook without a version bump. */
+export type WorldRootsDagTable = {
+  clusters?: readonly WorldRootsCookedCluster[];
+  groups?: readonly WorldSuperRootGroup[];
+  payload?: { url: string };
+};
+
 /**
  * The world DAG as one `DagRoot` (world-space, identity matrix): its clusters ordered by their
  * cook rank, a `ClusterStructureIndex` from its groups, and a flat culling hierarchy over them.
@@ -95,4 +113,21 @@ export function buildWorldSuperRootRoot(
     structure,
     culling: { ...culling, links: cullingLinks(culling, pages.length) },
   };
+}
+
+/** The world `DagRoot` of a world-roots table, its pages named where the cook wrote them: a
+ *  super-root by `payload.url` and its `bundle`/`offset`, an object root left to its own stream
+ *  (the cut reads its residency through the structure, its page through the placement). */
+export function worldRootDag(table: WorldRootsDagTable): DagRoot | undefined {
+  const clusters = table.clusters,
+    groups = table.groups;
+  if (!clusters?.length || !groups?.length) return undefined;
+  const url = table.payload?.url ?? 'world-roots.bin';
+  return buildWorldSuperRootRoot(
+    clusters.map(({ bundle, offset, ...cluster }) => ({
+      ...cluster,
+      url: bundle === null || offset === null ? '' : `${url}#${bundle}:${offset}`,
+    })),
+    groups,
+  );
 }
