@@ -2,6 +2,7 @@ import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts';
 import { createGroupClosure, type GroupClosure } from '../../page/cut/groupClosure.ts';
 import type { HeldResidency } from '../../page/cut/held.ts';
 import { floorFirst } from '../../residency/minimumCapacity.ts';
+import { createPageDraws, type PageDraws } from './pageDraws.ts';
 
 /**
  * What the WebGL2 pool is asked for: the wanted cut closed over its groups (`groupClosure.ts`),
@@ -23,6 +24,8 @@ export function createAutonomousRequests(
   revision: () => number,
   /** The cut's readiness, whose moves each layout routes again (`../../page/cut/held.ts`). */
   held?: HeldResidency,
+  /** The per-instance draw state, whose layout posts the placement and packed ranks (`pageDraws.ts`). */
+  draws: PageDraws = createPageDraws(roots),
 ) {
   let closure: GroupClosure | undefined,
     laidOut = -1,
@@ -31,13 +34,7 @@ export function createAutonomousRequests(
     requested: PageRec[] = [];
   const seen = new Set<string>();
   const layOut = () => {
-    let packed = 0;
-    roots.forEach((root, placement) => {
-      for (const page of root.pages) {
-        page.placementIndex = placement;
-        page.packedIndex = packed++;
-      }
-    });
+    draws.layOut(roots);
     closure = createGroupClosure(roots);
     held?.track(roots);
     laidOut = revision();

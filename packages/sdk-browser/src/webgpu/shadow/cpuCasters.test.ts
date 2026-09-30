@@ -9,7 +9,8 @@ import { dagFixture } from '../../page/selection/dag.fixture.ts';
 import { evaluateDagSelectionKernel, packedWorldsToRenderOrigin } from '../../gpu/dag/selection.ts';
 import { packed } from '../../gpu/dag/selectionHelpers.fixture.ts';
 import { sunRun } from './runs.fixture.ts';
-import { faceEngineCamera, writeCpuCasters } from './cpuCasters.ts';
+import { faceEngineCamera } from './cpuCasters.ts';
+import { writeCpuCasters } from './cpuCasterRows.ts';
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
@@ -58,7 +59,7 @@ test('the CPU cut lists a blended caster at its shadow-only row', () => {
     source: device.createBuffer({ size: 4, usage: 0 }),
     indirect: device.createBuffer({ size: 16, usage: 0 }),
     ...{ bases: list(1), lengths: list(1), commands: list(4), words: list(1) },
-    ...{ marks: list(3), rowOf: new Int32Array(3), shown: [pages] },
+    ...{ marks: list(3), rowOf: new Int32Array(3), shown: [pages], shownPacked: [[0, 1, 2]] },
   };
   const rt = {
     lights: { cpuCasters, plannedFrame: 9 },
