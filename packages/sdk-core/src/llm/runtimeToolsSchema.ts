@@ -3,8 +3,9 @@ import { EXPLORER_OPTIONS_SCHEMA } from './explorerOptionsSchema.ts';
 import { COMPILER_OPTIONS_SCHEMA } from './compilerOptionsSchema.ts';
 import { DIAGNOSTICS, type DiagnosticMode } from '../runtime/diagnostics.ts';
 
-/** The view modes this engine can show: the others `setDiagnostic` refuses. */
-const AVAILABLE_DIAGNOSTICS = (Object.keys(DIAGNOSTICS) as DiagnosticMode[]).filter(
+/** The view modes this engine can show: the others `setDiagnostic` refuses. Pure, so a bundle
+ *  that never reads the tools drops it. */
+const AVAILABLE_DIAGNOSTICS = /* @__PURE__ */ (Object.keys(DIAGNOSTICS) as DiagnosticMode[]).filter(
   (mode) => DIAGNOSTICS[mode].available,
 );
 
