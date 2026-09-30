@@ -1,7 +1,7 @@
 import { moveRootRows } from '../webgpu/pages/render/movedRoot.ts';
 import { updateWholeDeformationBounds } from './wholeBounds.ts';
 import { worldStretch } from '../page/cut/logic.ts';
-import { noteDeformed } from '../webgpu/pages/render/movedBatch.ts';
+import { noteDeformed } from '../webgpu/pages/render/movedGeometry.ts';
 import type { EngineCamera } from '../camera/world.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import { fromHalf, toHalf } from '../../../sdk-core/src/lighting/ltcTable.ts';

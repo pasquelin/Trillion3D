@@ -58,7 +58,8 @@ const moved = new Float64Array(BOX_VALUES),
  * pose —, and says whether it moved (`MOVE_*`). A root that began or stopped casting stales its box,
  * static casters included unless it moves as it flips, and is not made a moving caster for it.
  * `follow` names each root that reads a written row. `touched` hears, root by root, the box each
- * moved or flipped root left and entered, and whether it was moving already: a row of the range
+ * moved or flipped root left and entered, whether it was moving already, its rank, and whether it
+ * only moved — neither taken, parked nor turned to cast or not (`movedClusters.ts`): a row of the range
  * left where it stands — a pose written again unchanged, a row between two written ones — touches
  * nothing, and two roots far apart are two boxes, never the room between them (as far as the
  * plan's box list holds them apart, `changes.ts`). Returns whether a drawn root moved: a still
@@ -72,7 +73,13 @@ export function followPlacementRows<T>(
   flip?: (rank: number, root: ClusterRoot<T>) => void,
   posed?: (rank: number, world: ArrayLike<number>, forced: boolean) => number,
   follow?: (rank: number) => void,
-  touched?: (min: ArrayLike<number>, max: ArrayLike<number>, movingOnly: boolean) => void,
+  touched?: (
+    min: ArrayLike<number>,
+    max: ArrayLike<number>,
+    movingOnly: boolean,
+    rank: number,
+    moveOnly: boolean,
+  ) => void,
 ) {
   const list = rowRoots(roots, rows);
   let any = false;
@@ -100,7 +107,7 @@ export function followPlacementRows<T>(
     // shadow pages. One that moves as it flips is out of the static layer (`mobility.ts`).
     if ((move === MOVE_NONE && !cast) || boxIsEmpty(moved, 0)) continue;
     any = true;
-    touched?.(movedMin, movedMax, move === MOVE_MOVING);
+    touched?.(movedMin, movedMax, move === MOVE_MOVING, rank, !flipped && !cast);
   }
   return any;
 }

@@ -6,8 +6,8 @@ import {
   boxTransform,
   boxUnionBatch,
 } from '../../../../../sdk-core/src/index.ts';
-import { boxGrow } from '../../../../../sdk-core/src/math/primitives/box.ts';
 import { moveRootRows } from './movedRoot.ts';
+import { declareOwnMove, forgetOwnMoves, noteOwnMove, ownsMove } from './movedClusters.ts';
 import { staleTemporalBox } from '../../../hiz/staleRegions.ts';
 import { appendRootsUnder } from './movedNode.ts';
 import { transformRootBoxes } from '../../../math/batchBoxes.ts';
@@ -19,9 +19,11 @@ import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d
  * What the nodes of one move call leave to do, done once for the call (#971, CPU-19): the moved
  * roots' boxes reprojected in one pass, their rows alone rewritten (`movedRoot.ts`), the scene
  * revision bumped once, then each node's motion box declared to the shadow scheduler as its own
- * call would — two nodes far apart are two boxes, never the room between them. A root under two
- * moved nodes is passed once, at the pose it ends at. What a root does here depends on it alone
- * (rows marked in a bitmap, its own mobility and box), so the roots are passed in any order.
+ * call would — two nodes far apart are two boxes, never the room between them —, save the roots
+ * that declare their own, cluster by cluster (`movedClusters.ts`). The Hi-Z takes the node's box
+ * whole. A root under two moved nodes is passed once, at the pose it ends at. What a root does
+ * here depends on it alone (rows marked in a bitmap, its own mobility and box), so the roots are
+ * passed in any order.
  *
  * No allocation per call: every list is filled up to a count and never truncated — a truncated
  * array drops its storage — so it grows only for a call larger than any before it.
@@ -30,7 +32,7 @@ import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d
 const moved = new Float64Array(BOX_VALUES),
   movedMin = moved.subarray(0, 3),
   movedMax = moved.subarray(3, 6);
-/** A moved node's box before its move and after it (`declareMove`). */
+/** A moved node's box before its move and after it (`declareMove`), its own roots left out. */
 const before = new Float64Array(BOX_VALUES),
   beforeMin = before.subarray(0, 3),
   beforeMax = before.subarray(3, 6),
@@ -45,9 +47,10 @@ const movedList: number[] = [],
 let movedCount = 0,
   nodeCount = 0,
   distinctCount = 0;
-/** Each moved node's box before its move, `BOX_VALUES` per node. Per root: 1 once it is listed in
- *  `distinct`; 1 when its move in this call was its first. */
-let movedBoxes = new Float64Array(BOX_VALUES),
+/** Each moved node's boxes before its move, `BOX_VALUES` each: every root's (the Hi-Z's), then
+ *  those not declaring their own (the shadows'). Per root: 1 once it is listed in `distinct`; 1
+ *  when its move in this call was its first. */
+let movedBoxes = new Float64Array(2 * BOX_VALUES),
   listedRoots = new Uint8Array(0),
   promotedRoots = new Uint8Array(0);
 /** Below one moved root in this many, the moved boxes are transformed one by one rather than as
@@ -61,14 +64,18 @@ export function noteMoved(rt: WebgpuPagesRuntime, node: Object3D) {
   const from = movedCount;
   movedCount = appendRootsUnder(roots, node, movedList, from);
   boxEmpty(moved, 0);
+  boxEmpty(before, 0);
   for (let j = from; j < movedCount; j++) {
     const box = roots[movedList[j]].worldBox;
-    if (box) boxUnionBatch(moved, box, 1);
+    if (!box) continue;
+    boxUnionBatch(moved, box, 1);
+    if (!noteOwnMove(rt, movedList[j])) boxUnionBatch(before, box, 1);
   }
-  const at = nodeCount * BOX_VALUES;
-  if (at + BOX_VALUES > movedBoxes.length)
+  const at = nodeCount * 2 * BOX_VALUES;
+  if (at + 2 * BOX_VALUES > movedBoxes.length)
     movedBoxes = grown(movedBoxes, Float64Array, movedBoxes.length * 2);
   movedBoxes.set(moved, at);
+  movedBoxes.set(before, at + BOX_VALUES);
   movedEnds[nodeCount++] = movedCount;
 }
 
@@ -80,26 +87,15 @@ export function finishMoves(rt: WebgpuPagesRuntime) {
     passMoves(rt);
   } finally {
     for (let k = 0; k < distinctCount; k++) listedRoots[distinct[k]] = 0;
+    forgetOwnMoves();
     movedCount = nodeCount = distinctCount = 0;
   }
 }
 
-/** Root `rank` moved: whether it was its first move, the static shadow layer's to leave it out. */
-const promote = (rt: WebgpuPagesRuntime, rank: number) =>
-  rt.lights.mobility.move(rank, rt.layout.selectionRoots[rank].world.elements, true) ===
-  MOVE_PROMOTED;
-/** `moved` declared to the shadow scheduler and the Hi-Z: a first move stales its pages whole. */
-function declare(rt: WebgpuPagesRuntime, promoted: boolean) {
-  if (boxIsEmpty(moved, 0)) return;
-  rt.lights.plan.worldChanged(movedMin, movedMax, !promoted);
-  staleTemporalBox(rt.run.temporalHizState, movedMin, movedMax);
-}
 /** A node's box before its move (`before`) and after it (`after`), each declared to the shadow
  *  scheduler on its own: a caster stales the pages it left and those it lands in, never the ones
- *  between them. The Hi-Z takes their union, `moved`. */
+ *  between them. The Hi-Z takes the union of every root's, `moved`. */
 function declareMove(rt: WebgpuPagesRuntime, promoted: boolean) {
-  moved.set(before);
-  boxUnionBatch(moved, after, 1);
   if (boxIsEmpty(moved, 0)) return;
   const { plan } = rt.lights;
   let still = true;
@@ -152,48 +148,22 @@ function passMoves(rt: WebgpuPagesRuntime) {
   run.gate.noteWorldsUpdated();
   let start = 0;
   for (let k = 0; k < nodeCount; k++) {
-    for (let v = 0; v < BOX_VALUES; v++) before[v] = movedBoxes[k * BOX_VALUES + v];
+    moved.set(movedBoxes.subarray(2 * k * BOX_VALUES, (2 * k + 1) * BOX_VALUES));
+    before.set(movedBoxes.subarray((2 * k + 1) * BOX_VALUES, (2 * k + 2) * BOX_VALUES));
     boxEmpty(after, 0);
     let promoted = false;
     for (let j = start; j < movedEnds[k]; j++) {
-      const root = roots[movedList[j]];
+      const rank = movedList[j],
+        root = roots[rank];
       if (!root.worldBox) continue;
-      promoted = promotedRoots[movedList[j]] === 1 || promoted;
-      if (root.localBox) boxUnionBatch(after, root.worldBox, 1);
+      // A root whose change is its own declares it here, in its node's turn, once in the call.
+      if (ownsMove(rank)) declareOwnMove(rt, rank, promotedRoots[rank] === 1);
+      else promoted = promotedRoots[rank] === 1 || promoted;
+      if (!root.localBox) continue;
+      boxUnionBatch(moved, root.worldBox, 1);
+      if (!ownsMove(rank)) boxUnionBatch(after, root.worldBox, 1);
     }
     start = movedEnds[k];
     declareMove(rt, promoted);
   }
-}
-
-const local = new Float64Array(BOX_VALUES);
-/** A dynamic geometry's rewrite, its moved vertices within `box`, declared as a node's move: each
- *  root drawing `attributes` moves, and the world box of `box` stales its shadow pages (#573). */
-export function noteRewritten(rt: WebgpuPagesRuntime, attributes: object, box: Float64Array) {
-  const roots = rt.layout.selectionRoots;
-  let promoted = false;
-  boxEmpty(moved, 0);
-  for (let rank = 0; rank < roots.length; rank++) {
-    const root = roots[rank];
-    if (root.pages[0]?.attributes !== attributes) continue;
-    promoted = promote(rt, rank) || promoted;
-    boxTransform(local, 0, box, 0, root.world.elements);
-    boxUnionBatch(moved, local, 1);
-  }
-  declare(rt, promoted);
-}
-
-/** Root `rank`'s GPU deformation moved (#357): it moves, and its rest world box grown by `reach`
- *  world units — the most it reached this frame or the last — stales its shadow pages. */
-export function noteDeformed(rt: WebgpuPagesRuntime, rank: number, reach: number) {
-  const box = rt.layout.selectionRoots[rank].worldBox;
-  if (!box) return;
-  boxGrow(moved, 0, box, 0, reach);
-  declare(rt, promote(rt, rank));
-}
-
-/** A whole-copy deformation changed only this bounded world region. */
-export function noteDeformedBounds(rt: WebgpuPagesRuntime, box: Float64Array) {
-  moved.set(box);
-  declare(rt, false);
 }
