@@ -16,8 +16,11 @@ name: Release
 # every other pull request stays Linux's, in `quality.yml`.
 #
 # Go-time steps, at the maintainer's go:
-#   1. Publish the first version by hand, from a clean checkout at the release tag: npm needs a
-#      package to exist before a trusted publisher can be set on it.
+#   1. Publish the first version by hand: npm needs a package to exist before a trusted publisher
+#      can be set on it. A checkout alone cannot (its manifests are `private` and it holds no
+#      compiler): stage the five compilers of the `Compiler` workflow's artifacts, run
+#      `node scripts/release.ts pack <out> --publishable`, then `npm publish <archive>
+#      --provenance=false` for each archive, compilers first (provenance needs the CI's OIDC).
 #   2. On npmjs.com, register the trusted publisher (repository `pasquelin/Trillion3D`, workflow
 #      `release.yml`) on each of the six packages.
 #   3. Set the repository variable `NPM_PUBLISH` to `true`.
