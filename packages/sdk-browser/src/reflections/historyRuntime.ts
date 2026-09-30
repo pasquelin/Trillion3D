@@ -15,8 +15,7 @@ export const REFLECTION_SOURCE_VERSIONS = 8;
 export interface ReflectionHistoryFrame {
   metadata: ReflectionMetadata;
   pages: GPUBuffer;
-  /** The existing placement motion buffer, bound but unread: the resolve reprojects the camera
-   *  alone, and a moved source lowers the history's confidence instead (`REFLECTION_CHANGE_WEIGHT`). */
+  /** The placement motion buffer, bound but unread: a moved source lowers the confidence instead. */
   motion: GPUBuffer;
   /** The source versions (`reflectionFrame.ts`), compared number by number: no string a frame. */
   epoch: Float64Array;
@@ -52,10 +51,8 @@ export function createReflectionHistory(device: GPUDevice, width: number, height
     rank = 0,
     reuse = false,
     disposed = false;
-  let stableFrames = 0;
-  /** Frames resolved since a source change, none pending: the change weight holds while it is
-   *  below `REFLECTION_CHANGE_FRAMES`, and the window closes a full window after that. */
-  let sinceChange = Infinity;
+  let stableFrames = 0,
+    sinceChange = Infinity; // frames resolved since a source changed; none: Infinity
   const complete = () =>
     stableFrames >= REFLECTION_HISTORY_WEIGHT &&
     sinceChange >= REFLECTION_CHANGE_FRAMES + REFLECTION_HISTORY_WEIGHT;
