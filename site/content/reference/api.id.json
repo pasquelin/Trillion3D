@@ -3778,7 +3778,8 @@
       "total": "Berapa banyak pekerjaan secara keseluruhan.",
       "stream": "Tempat menulis.",
       "width": "Lebar bilah.",
-      "interval": "Milidetik minimum antara gambar ulang."
+      "interval": "Milidetik minimum antara gambar ulang.",
+      "verbose": "Juga menyebutkan kode info dan setiap kemunculan dalam ringkasan akhir tugas."
     }
   },
   "Texture": {
@@ -5015,13 +5016,14 @@
   "createTerminalProgress": {
     "summary": "Sebuah bar kemajuan di terminal yang mengikuti peristiwa kompiler.",
     "parameters": {
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}": "Bagaimana tampilan kemajuan terminal terlihat.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.label": "Nama pekerjaannya.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.index": "Nomor pekerjaannya.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.total": "Berapa banyak pekerjaan semuanya.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.stream": "Ke mana menulis.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.width": "Lebar bar.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.interval": "Milidetik minimum antar-gambar ulang."
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}": "Bagaimana tampilan kemajuan terminal terlihat.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.label": "Nama pekerjaannya.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.index": "Nomor pekerjaannya.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.total": "Berapa banyak pekerjaan semuanya.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.stream": "Ke mana menulis.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.width": "Lebar bar.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.interval": "Milidetik minimum antar-gambar ulang.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.verbose": "Juga menyebutkan kode info dan setiap kemunculan dalam ringkasan akhir tugas."
     }
   },
   "createTransformTree": {

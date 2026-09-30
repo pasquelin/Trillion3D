@@ -3694,7 +3694,8 @@
       "total": "Сколько задач всего.",
       "stream": "Куда писать.",
       "width": "Ширина полосы.",
-      "interval": "Минимум миллисекунд между перерисовками."
+      "interval": "Минимум миллисекунд между перерисовками.",
+      "verbose": "Также выводит информационные коды и каждое появление в итоговой сводке задачи."
     }
   },
   "Texture-common": {
@@ -5045,13 +5046,14 @@
   "createTerminalProgress": {
     "summary": "Полоса прогресса в терминале, следующая за событиями компилятора.",
     "parameters": {
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}": "Как выглядит отображение прогресса в терминале.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.label": "Имя задачи.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.index": "Номер задачи.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.total": "Сколько задач всего.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.stream": "Куда писать.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.width": "Ширина полосы.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.interval": "Минимум миллисекунд между перерисовками."
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}": "Как выглядит отображение прогресса в терминале.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.label": "Имя задачи.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.index": "Номер задачи.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.total": "Сколько задач всего.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.stream": "Куда писать.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.width": "Ширина полосы.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.interval": "Минимум миллисекунд между перерисовками.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.verbose": "Также выводит информационные коды и каждое появление в итоговой сводке задачи."
     }
   },
   "createTransformTree": {
