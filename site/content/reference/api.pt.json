@@ -3548,7 +3548,7 @@
       "baseMetal": "Cor base RGB, metalicidade A.",
       "normalRough": "Normal de mundo XYZ, aspereza A.",
       "emissiveAo": "Emissão RGB, oclusão ambiente A.",
-      "flags": "0 fundo, 1 não iluminado (com névoa), 2 lido, 3 mostrado como está: um diagnóstico, uma vista de normais ou de profundidade. 4 e 5: modelos difuso e toon (`./surfaceModel.ts`).",
+      "flags": "Três bits baixos: 0 fundo, 1 não iluminado (com névoa), 2 lido, 3 mostrado como está: um diagnóstico, uma vista de normais ou de profundidade. 4 e 5: modelos difuso e toon (`./surfaceModel.ts`). Acima, marcas: 16 um texel de emissão e oclusão diferente de (0, 0, 0, 1) (`./surfaceEmission.ts`), 32 uma transmissão fina, 128 sem névoa.",
       "views": "Suas views de textura de GPU.",
       "dispose": "A libera.",
       "subsurface": "Cor independente de transmissão de superfícies finas; textura de zeros de 1×1 quando desativada.",

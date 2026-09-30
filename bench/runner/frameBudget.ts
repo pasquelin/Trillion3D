@@ -28,7 +28,7 @@ import {
   hizAccesses,
 } from './frameBudgetRates.ts';
 
-export const DISPLAY = { width: 3456, height: 2234 };
+const DISPLAY = { width: 3456, height: 2234 };
 type Row = { stage: string; work: string; count: number; ms: number };
 
 /** Each stage's counted work at `width` × `height`, pose `pose`, and its modelled milliseconds. */
