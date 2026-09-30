@@ -113,7 +113,7 @@ export function createScaleControl(option: RenderScale | undefined, floor?: numb
       if (key !== display) {
         display = key;
         refresh.reset();
-        probe.reset();
+        probe.reset(controller);
       }
       const before = refresh.interval,
         gap = refresh.tick(now);

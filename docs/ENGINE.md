@@ -200,9 +200,9 @@ jittered sample, deringed and clamped to the YCoCg box, blended into the display
 (`taa/upscaleWgsl.ts`). The jitter runs `floor(8 · (W / w)²)` phases and texture reads add
 `log2(w / W)` to their level, so detail stays the display's. The controller follows the reference's
 dynamic resolution (`frame/scaleController.ts`): budget = the display's refresh interval, measured
-on the rAF timestamps' vsync grid over the last second, from a period several intervals share
-(`frame/refreshClock.ts`), a steady cadence probed once for a faster display
-(`frame/cadenceProbe.ts`), target 90 % of it, `s' = s · √(target / t)` on the whole-frame GPU time `t` (timestamp queries, one
+on the rAF timestamps' vsync grid over the last second, from a period several intervals share,
+a millisecond-rounded timer included (`frame/refreshClock.ts`), a steady cadence under 120 Hz
+probed once for a faster display (`frame/cadenceProbe.ts`), target 90 % of it, `s' = s · √(target / t)` on the whole-frame GPU time `t` (timestamp queries, one
 sample per image under `'auto'`), a step only past 5 % and 30 samples after the last, up only below
 80 % of the target, at once on a frame over 1.25 budgets; samples of an image drawn at another scale
 are discarded; without timestamp queries the frame interval is the cost. The render targets are made once at
