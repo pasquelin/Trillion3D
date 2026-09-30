@@ -35,7 +35,7 @@ import { withScreenReflections } from '../../reflections/screenWgsl.ts';
 import { withReflectionSourceOutput } from '../../reflections/sourceOutputWgsl.ts';
 import { REFLECTION_SOURCE_WGSL } from '../../reflections/sourceWgsl.ts';
 import { withSubgroupShadowRequests } from '../../lighting/direct/shadowRequestWgsl.ts';
-import { LIGHT_TILES_SHADERS } from '../../lighting/tiles/shader.ts';
+import { LIGHT_TILES_SHADER } from '../../lighting/tiles/shader.ts';
 import { taaShader } from '../../taa/shaderWgsl.ts';
 import { taaUpscaleShader } from '../../taa/upscaleWgsl.ts';
 import { COVERAGE_WGSL, mipShader } from '../../texture/mipsWgsl.ts';
@@ -157,7 +157,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   ...compositions('UNLIT_COMPOSE', UNLIT_COMPOSITIONS.plain),
   ...compositions('COMPOSE_BLOOM', CONTRACT_COMPOSITIONS.bloom),
   ...compositions('UNLIT_COMPOSE_BLOOM', UNLIT_COMPOSITIONS.bloom),
-  ...Object.fromEntries(LIGHT_TILES_SHADERS),
+  LIGHT_TILES_SHADER,
   TAA_SHADER,
   ALLOCATION_WGSL,
   SHADOW_WORDS_WGSL,

@@ -7,7 +7,7 @@ import {
   transformHomogeneousPoint,
 } from '../../../../sdk-core/src/index.ts';
 import { localTurnQuaternion } from '../../../../sdk-core/src/math/matrix/quaternion.ts';
-import type { TileView } from '../../../../../bench/oracles/browser/gpuLightTileColumnOracle.ts';
+import type { TileView } from '../../../../../bench/oracles/browser/gpuLightGridOracle.ts';
 import { tileViewInverse } from './tileFrame.ts';
 
 // The views and world points the tile-bounds tests draw lights around, in f64.
@@ -32,8 +32,9 @@ export function camera(
   const projection = perspectiveProjection(m4(), fov, width / height, NEAR, 1);
   const viewProjection = multiplyMatrix4(m4(), projection, invertMatrix4(m4(), world));
   const origin = new Float64Array(3);
-  const inverseViewProjection = tileViewInverse(m4(), origin, viewProjection, eye);
-  return { inverseViewProjection, origin, width, height, viewProjection, eye };
+  const depthRows = new Float64Array(8);
+  const inverseViewProjection = tileViewInverse(m4(), origin, viewProjection, eye, depthRows);
+  return { inverseViewProjection, origin, width, height, viewProjection, eye, depthRows };
 }
 
 /** The world point of a pixel centre at depth `z`, in f64: where the resolve shades. */

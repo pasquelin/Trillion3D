@@ -1,157 +1,110 @@
+import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
+
+/** Lanes of a column's workgroup: a batch of lights, one each. */
+export const GRID_LANES = 64;
+/** Runs a column keeps between its two walks: a column of more kept lights tests the rest again. */
+export const GRID_CACHE = 512;
+const SLICES = LIGHT_SETTINGS.gridSlices;
+
 /**
- * A tile's compaction (`./shader.ts`), `words` mask words a slice. A walk tests the lights a batch
- * at a time, one per thread; each kept one is written at what the batches before kept plus the
- * bit count before it: increasing, determined order. The first walk fills the lists and counts
- * true; with `pool`, a slice that counted more reserves room for all of them (one atomic add),
- * names its start in its list's first word, and the kept lights are written there in the same
- * order (#849). No room left: the overflow word is raised, the slice gets `TILE_NO_SLICE`.
- *
- * Without `pool` — the narrow pass, at most `TILE_LIGHTS` lights — there is one batch and no
- * room to track: each kept light is written straight at its rank, the shape of the pass before
- * any light count was taken (#822, #849).
+ * The lists of a column's cells (#1369), in two walks of its kept lights, each a batch of 64 at a
+ * time, one per lane, every lane in step: a lane marks the light's bit in the mask of each slice of
+ * its run, then each lane counts — in the first walk — or writes — in the second — the slices it
+ * owns, bit after bit, so each list holds its lights in increasing order, as a single-thread loop.
+ * Between the walks, lane zero takes the column's room in the view's pool (`./pool.ts`, one atomic
+ * add) and deals it out slice by slice; no room left: the overflow is raised and every cell of the
+ * column walks every light (`TILE_NO_SLICE`). The first walk keeps the runs it found, `GRID_CACHE`
+ * at most: the second walk reads them, and tests again only the lights past them.
  */
-export const tileCompactWgsl = (words: number, pool: boolean) => `
-/** One mask, two slices: the first ${words} words are the opaque list's, the next those of
- *  the blend list. One rank function knows how to read them, indexed by the start of its
- *  slice — no pointer into workgroup memory, which not every device takes as a parameter. */
-const OPAQUE_MASK:u32=0u;
-const BLEND_MASK:u32=${words}u;
-var<workgroup> hits:array<atomic<u32>,${2 * words}u>;
-/** One when any light kept in the OPAQUE slice reads a shadow slot (\`light.params.y>-1.0\`): the
- *  per-tile fact the moving resolve reads once, rather than walking the list a pixel at a time
- *  (#1249). A light of the blend slice alone never sets it. */
-var<workgroup> shadowed:atomic<u32>;
-/** Rank of a kept light: the number of kept bits before it in the same slice. */
-fn rankBefore(mask:u32,lane:u32)->u32{
- let word=mask+lane/32u;
- var rank=0u;
- for(var before=mask;before<word;before++){rank=rank+countOneBits(atomicLoad(&hits[before]));}
- return rank+countOneBits(atomicLoad(&hits[word])&((1u<<(lane%32u))-1u));
-}
-fn maskHolds(mask:u32,lane:u32)->bool{
- return (atomicLoad(&hits[mask+lane/32u])&(1u<<(lane%32u)))!=0u;
-}
-/** Kept bits of a slice's first \`words\` mask words: those a batch's lights fill. */
-fn maskTotal(mask:u32,words:u32)->u32{
- var total=0u;
- for(var w=0u;w<words;w++){total=total+countOneBits(atomicLoad(&hits[mask+w]));}
- return total;
-}
-/** Tests light \`index\` against the slices and sets its bit, thread \`lane\` of the batch. A
- *  directional light reaches everywhere: no tile bound can reject it. The others are kept only
- *  if their range sphere, brought into the pass's frame, touches the slice. */
-fn markLight(index:u32,lane:u32,hasOpaque:bool,seesSky:bool){
+export const GRID_COMPACT_WGSL = `
+const LANES:u32=${GRID_LANES}u;
+const CACHE:u32=${GRID_CACHE}u;
+/** A run \`first | last << 16\` that holds no slice. */
+const EMPTY_RUN:u32=0xffffu;
+/** \`resume\` before a batch past the cache's room. */
+const ALL_CACHED:u32=0xffffffffu;
+struct TilePool{start:u32,capacity:u32,head:atomic<u32>,overflow:atomic<u32>,}
+@group(0) @binding(3) var<storage,read_write> pool:TilePool;
+/** The batch: each lane's light, its shadow slot in the high bit, and its run. */
+var<workgroup> chunk:array<vec2u,LANES>;
+/** Per slice, the lanes of the batch whose run holds it; the lanes holding a shadow slot. */
+var<workgroup> masks:array<atomic<u32>,${2 * SLICES}u>;
+var<workgroup> slotted:array<atomic<u32>,2>;
+var<workgroup> keptLanes:array<atomic<u32>,2>;
+/** Per slice, its count (the high bit: a shadow slot listed), then where its list is written. */
+var<workgroup> counts:array<u32,GRID_SLICES>;
+var<workgroup> cursor:array<u32,GRID_SLICES>;
+var<workgroup> cache:array<vec2u,CACHE>;
+/** The runs cached; the first light the cache does not hold; the column's room. */
+var<workgroup> cached:u32;
+var<workgroup> resume:u32;
+var<workgroup> room:u32;
+/** The entry of light \`index\`: its run in this column, \`EMPTY_RUN\` when it meets no cell. A
+ *  directional light reaches every cell. */
+fn entryOf(column:Column,index:u32)->vec2u{
  let light=lights.items[index];
- var keep=vec2<bool>(hasOpaque,true);
- if(!isSun(light)){keep=sliceHits(light.positionRange.xyz-view.origin.xyz,light.positionRange.w,hasOpaque,seesSky);}
- let bit=1u<<(lane%32u);
- if(keep.x){atomicOr(&hits[OPAQUE_MASK+lane/32u],bit);if(light.params.y>-1.0){atomicOr(&shadowed,1u);}}
- if(keep.y){atomicOr(&hits[BLEND_MASK+lane/32u],bit);}
-}${pool ? batchedWalkWgsl(words) : NARROW_WALK_WGSL}`;
-
-/** The narrow pass's one batch: every light of the scene has its thread and its place. */
-const NARROW_WALK_WGSL = `
-/** Parallel compact, each light at its rank: increasing order, as a single-thread loop. */
-fn walkLights(lane:u32,count:u32,hasOpaque:bool,seesSky:bool,base:u32){
- if(lane<count){markLight(lane,lane,hasOpaque,seesSky);}
- workgroupBarrier();
- if(lane<count&&maskHolds(OPAQUE_MASK,lane)){tiles[base+TILE_OPAQUE_BASE+rankBefore(OPAQUE_MASK,lane)]=lane;}
- if(lane<count&&maskHolds(BLEND_MASK,lane)){tiles[base+TILE_BLEND_BASE+rankBefore(BLEND_MASK,lane)]=lane;}
-}`;
-
-/** The wide pass's walk, a batch at a time, then the view's pool (`./pool.ts`). */
-const batchedWalkWgsl = (words: number) => `
-/** What the batches before kept, and, per slice, where the walk writes and how many it has room
- *  for: its list, then its slice of the pool. */
-var<workgroup> kept:vec2u;
-var<workgroup> start:vec2u;
-var<workgroup> room:vec2u;
-/** Adds a full batch's totals to \`kept\` and clears its masks: thread zero, between batches. */
-fn clearedKept(){
- kept+=vec2u(maskTotal(OPAQUE_MASK,${words}u),maskTotal(BLEND_MASK,${words}u));
- for(var word=0u;word<${2 * words}u;word++){atomicStore(&hits[word],0u);}
+ let slot=select(0u,TILE_SHADOWED,light.params.y>-1.0);
+ if(isSun(light)){return vec2u(index|slot,(GRID_SLICES-1u)<<16u);}
+ let centre=light.positionRange.xyz-view.origin.xyz;
+ if(!sphereInColumn(column,centre,light.positionRange.w)){return vec2u(index,EMPTY_RUN);}
+ let run=lightRun(column,centre,light.positionRange.w);
+ if(run.x>run.y){return vec2u(index,EMPTY_RUN);}
+ return vec2u(index|slot,run.x|(run.y<<16u));
 }
-/** Parallel compact of the batch in the masks, thread \`lane\` holding light \`index\`, each kept
- *  light at its rank after what the batches before kept: increasing order, as a single-thread
- *  loop. A rank past the slice's room is not written. */
-fn writeBatch(index:u32,lane:u32,count:u32){
- if(index<count&&maskHolds(OPAQUE_MASK,lane)){let at=kept.x+rankBefore(OPAQUE_MASK,lane);if(at<room.x){tiles[start.x+at]=index;}}
- if(index<count&&maskHolds(BLEND_MASK,lane)){let at=kept.y+rankBefore(BLEND_MASK,lane);if(at<room.y){tiles[start.y+at]=index;}}
+/** Lane \`lane\` puts its entry in the batch and its bit in the masks of its run's slices. */
+fn markEntry(lane:u32,entry:vec2u){
+ chunk[lane]=entry;
+ let first=entry.y&0xffffu;let last=entry.y>>16u;
+ if(first>last){return;}
+ let bit=1u<<(lane%32u);let word=lane/32u;
+ atomicOr(&keptLanes[word],bit);
+ if((entry.x&TILE_SHADOWED)!=0u){atomicOr(&slotted[word],bit);}
+ for(var slice=first;slice<=last;slice++){atomicOr(&masks[slice*2u+word],bit);}
 }
-/** One walk over the scene's \`count\` lights, every thread in step. */
-fn walkLights(lane:u32,count:u32,hasOpaque:bool,seesSky:bool){
- for(var first=0u;first<count;first+=${words * 32}u){
-  let index=first+lane;
-  if(index<count){markLight(index,lane,hasOpaque,seesSky);}
-  workgroupBarrier();
-  writeBatch(index,lane,count);
-  // Another batch follows: thread zero counts what this one kept, then clears its mask.
-  if(first+${words * 32}u<count){workgroupBarrier();if(lane==0u){clearedKept();}workgroupBarrier();}
+/** The slices lane \`lane\` owns count the batch's lights in their mask, then clear it. */
+fn countSlices(lane:u32){
+ let shadow=vec2u(atomicLoad(&slotted[0]),atomicLoad(&slotted[1]));
+ for(var slice=lane;slice<GRID_SLICES;slice+=LANES){
+  let mask=vec2u(atomicLoad(&masks[slice*2u]),atomicLoad(&masks[slice*2u+1u]));
+  counts[slice]+=countOneBits(mask.x)+countOneBits(mask.y);
+  if(any((mask&shadow)!=vec2u(0u))){counts[slice]|=TILE_SHADOWED;}
+  atomicStore(&masks[slice*2u],0u);atomicStore(&masks[slice*2u+1u],0u);
  }
 }
-struct TilePool{start:u32,capacity:u32,head:atomic<u32>,overflow:atomic<u32>,}
-@group(0) @binding(4) var<storage,read_write> pool:TilePool;
-/** The two true counts, which thread zero hands to every thread after the first walk. */
-var<workgroup> counted:vec2u;
-/** Thread zero: a slice past its list takes room for its \`total\` lights and names its start in
- *  its first word \`slot\` — \`TILE_NO_SLICE\` and the overflow raised when the pool is full. */
-fn spill(slice:u32,total:u32,slot:u32){
- room[slice]=0u;
- if(total<=TILE_LIGHTS){return;}
+/** The slices lane \`lane\` owns write the batch's lights of their mask in increasing order. */
+fn writeSlices(lane:u32){
+ for(var slice=lane;slice<GRID_SLICES;slice+=LANES){
+  var at=cursor[slice];
+  for(var word=0u;word<2u;word++){
+   var mask=atomicLoad(&masks[slice*2u+word]);
+   while(mask!=0u){
+    tiles[at]=chunk[word*32u+firstTrailingBit(mask)].x&~TILE_SHADOWED;
+    at++;mask&=mask-1u;
+   }
+   atomicStore(&masks[slice*2u+word],0u);
+  }
+  cursor[slice]=at;
+ }
+}
+/** Lane \`lane\`'s entry, in order among the batch's kept ones, into the cache at \`cached\`. */
+fn cacheEntry(lane:u32,entry:vec2u){
+ let kept=vec2u(atomicLoad(&keptLanes[0]),atomicLoad(&keptLanes[1]));
+ let below=(1u<<(lane%32u))-1u;
+ let rank=select(countOneBits(kept.x&below),countOneBits(kept.x)+countOneBits(kept.y&below),lane>=32u);
+ if((entry.y&0xffffu)<=(entry.y>>16u)){cache[cached+rank]=entry;}
+}
+/** Lane zero: the column's room in the pool, dealt out slice by slice. */
+fn takeRoom(){
+ var total=0u;
+ for(var slice=0u;slice<GRID_SLICES;slice++){total+=counts[slice]&~TILE_SHADOWED;}
  // The count of what was asked stops at half the word's range: it never wraps back into room.
  var at=0xffffffffu;
- if(atomicLoad(&pool.head)<0x80000000u){at=atomicAdd(&pool.head,total);}
- var first=TILE_NO_SLICE;
- if(at<pool.capacity&&total<=pool.capacity-at){first=pool.start+at;room[slice]=total;}
- else{atomicStore(&pool.overflow,1u);}
- start[slice]=first;
- tiles[slot]=first;
-}`;
-
-/**
- * Thread zero's reset of the compaction, at the pass's start, and every thread's clearing of the
- * masks: the statements the pass runs before its first barrier, `base` its tile record.
- */
-export const tileCompactResetWgsl = (words: number, pool: boolean) =>
-  `${pool ? WALK_RESET_WGSL : ''} if(lane<${2 * words}u){atomicStore(&hits[lane],0u);}
- if(lane==0u){atomicStore(&shadowed,0u);}`;
-
-/** The wide pass's walk state: nothing kept, each slice writing its list, a list's room. */
-const WALK_RESET_WGSL = ` if(lane==0u){
-  kept=vec2u(0u);start=vec2u(base+TILE_OPAQUE_BASE,base+TILE_BLEND_BASE);room=vec2u(TILE_LIGHTS);
+ if(total>0u&&atomicLoad(&pool.head)<0x80000000u){at=atomicAdd(&pool.head,total);}
+ room=u32(total>0u&&at<pool.capacity&&total<=pool.capacity-at);
+ if(total>0u&&room==0u){atomicStore(&pool.overflow,1u);}
+ var next=pool.start+at;
+ for(var slice=0u;slice<GRID_SLICES;slice++){
+  cursor[slice]=select(TILE_NO_SLICE,next,room==1u);
+  next+=counts[slice]&~TILE_SHADOWED;
  }
-`;
-
-/** Thread zero's flag word of the record: `shadowed` is only ever zero or one. */
-const SHADOW_FLAG_WGSL = 'tiles[base+TILE_SHADOW_BASE]=atomicLoad(&shadowed);';
-
-/**
- * The compaction of the tile's `count` lights into its record at `base`, in uniform control flow:
- * the walk, the two true counts, and with `pool` the slices past their list (#849).
- */
-export const tileCompactStatementsWgsl = (words: number, pool: boolean) =>
-  pool
-    ? ` walkLights(lane,count,hasOpaque,seesSky);
- let live=(count-(max(count,1u)-1u)/${words * 32}u*${words * 32}u+31u)/32u; // the last batch's words
- if(lane==0u){
-  let total=kept+vec2u(maskTotal(OPAQUE_MASK,live),maskTotal(BLEND_MASK,live));
-  tiles[base]=total.x;tiles[base+1u]=total.y;${SHADOW_FLAG_WGSL}counted=total;
- }${spillWgsl(words)}`
-    : ` walkLights(lane,count,hasOpaque,seesSky,base);
- if(lane==0u){tiles[base]=maskTotal(OPAQUE_MASK,${words}u);tiles[base+1u]=maskTotal(BLEND_MASK,${words}u);${SHADOW_FLAG_WGSL}}`;
-
-/** The pool's walk of a tile a slice of which passed its list; nothing for any other tile. A
- *  scene of one batch keeps its masks whole: its kept lights are written again from them, never
- *  tested twice. A larger one walks its lights again, masks cleared. */
-const spillWgsl = (words: number) => `
- // A slice past its list: room in the pool, then its kept lights written there (#849).
- let total=workgroupUniformLoad(&counted);
- if(max(total.x,total.y)>TILE_LIGHTS){
-  let oneBatch=count<=${words * 32}u;
-  // The first walk's list writes land before thread zero names the slices over them.
-  storageBarrier();
-  if(!oneBatch&&lane<2u*BLEND_MASK){atomicStore(&hits[lane],0u);}
-  if(lane==0u){kept=vec2u(0u);spill(0u,total.x,base+TILE_OPAQUE_BASE);spill(1u,total.y,base+TILE_BLEND_BASE);}
-  workgroupBarrier();
-  if(oneBatch){writeBatch(lane,lane,count);}else{walkLights(lane,count,hasOpaque,seesSky);}
- }`;
+}`;

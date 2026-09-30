@@ -9,7 +9,7 @@ import {
   rayDepth,
   type Vec3,
 } from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
-import type { TileView } from '../oracles/browser/gpuLightTileColumnOracle.ts';
+import type { TileView } from '../oracles/browser/gpuLightGridOracle.ts';
 import { slab, type Light } from './lightTileCity.ts';
 
 type Box = { lo: Vec3; hi: Vec3 };

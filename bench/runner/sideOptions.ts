@@ -5,10 +5,7 @@ import { join, resolve } from 'node:path';
 import type { SideBase } from './dists.ts';
 import type { ScreenErrorVariant } from '../../packages/sdk-core/src/index.ts';
 import type { TextureCompression } from '../../packages/sdk-browser/src/texture/blockFormats.ts';
-import {
-  MIN_RENDER_SCALE,
-  type RenderScale,
-} from '../../packages/sdk-browser/src/frame/renderScaleOption.ts';
+import { MIN_RENDER_SCALE } from '../../packages/sdk-browser/src/frame/renderScaleOption.ts';
 
 // Benchmark Chromium flags: unbridled background rendering, enabled GPU benchmarking, WebGPU enabled.
 const BASE_FLAGS = [
@@ -42,9 +39,8 @@ export interface Side extends SideBase {
   compression: TextureCompression | null;
   errorMetric: ScreenErrorVariant | null;
   /** The fraction of the display per axis the WebGPU frame is drawn at before the temporal resolve
-   *  reconstructs it (`renderScale`, #816): `'auto'`, the page's default, lets the frame budget
-   *  pick it (#1369); `null` where no resolve reconstructs, the display. */
-  renderScale: RenderScale | null;
+   *  reconstructs it (`renderScale`, #816); `null` leaves the engine's, the display. */
+  renderScale: number | null;
 }
 
 // Standalone WebGL2 engine is the only one of the three decoding geometry pages itself.
@@ -125,20 +121,18 @@ export function equipSide(
   return equipped;
 }
 
-/** A side's render scale: `--scale-<side>`, otherwise `--scale` — `auto` or a number in the
- *  engine's [MIN_RENDER_SCALE, 1] —, otherwise `'auto'`, what `createWorld` gives a page: the frame
- *  drawn at the scale the frame budget picks, a still one at the display (#1369). Below one only
- *  where the WebGPU temporal resolve reconstructs the frame: elsewhere the engine draws the display,
- *  `null`, and a scale asked is refused, never reported as one no image was drawn at. */
+/** A side's render scale: `--scale-<side>`, otherwise `--scale`, in the engine's
+ *  [MIN_RENDER_SCALE, 1]; `null` without. Below one only where the WebGPU temporal resolve
+ *  reconstructs the frame: elsewhere the engine draws the display and the report would name a
+ *  scale no image was drawn at. */
 function scaleOf(flags: Map<string, string>, name: string, engine: EngineDescriptor) {
-  const value = sideFlag(flags, name, 'scale'),
-    reconstructs = engine.renderer === 'webgpu' && flags.get('antialiasing') !== 'off';
-  if (value === null) return reconstructs ? ('auto' as const) : null;
-  const scale = value === 'auto' ? 'auto' : Number(value);
-  if (scale !== 'auto' && !(scale >= MIN_RENDER_SCALE && scale <= 1))
-    throw new Error(`--scale-${name} must be auto or in [${MIN_RENDER_SCALE}, 1]`);
-  if (scale !== 1 && !reconstructs)
-    throw new Error(`--scale-${name} other than 1 needs the WebGPU engine and --antialiasing on`);
+  const value = sideFlag(flags, name, 'scale');
+  if (value === null) return null;
+  const scale = Number(value);
+  if (!(scale >= MIN_RENDER_SCALE && scale <= 1))
+    throw new Error(`--scale-${name} must be in [${MIN_RENDER_SCALE}, 1]`);
+  if (scale < 1 && (engine.renderer !== 'webgpu' || flags.get('antialiasing') === 'off'))
+    throw new Error(`--scale-${name} below 1 needs the WebGPU engine and --antialiasing on`);
   return scale;
 }
 

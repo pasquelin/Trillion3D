@@ -158,13 +158,13 @@ fn demandLight(light:DirectLight,at:vec3f,receiver:vec3f,N:vec3f,thin:bool,footp
  let coord=vec2i(id.xy);
  let flag=textureLoad(flags,coord,0).r&${FOG_FREE_SURFACE_FLAG - 1}u;
  if(flag<=1u||flag==${AS_IS_FLAG}u){return;}
- let tile=id.xy/TILE_SIZE;let tilesX=u32(view.lightParams.y);
- if(tile.x>=tilesX||tile.y>=u32(view.lightParams.z)){return;}
- // A tile without a light asks nothing: its pixels load no depth.
- let slice=tileSlice((tile.y*tilesX+tile.x)*TILE_STRIDE,0u,TILE_OPAQUE_BASE);
- if(slice.y==0u){return;}
- // The resolve's point and footprint, at the pixel's centre (\`surfaceWgsl.ts\`).
+ // The resolve's cell (\`pixelCell\`, \`surfaceWgsl.ts\`): a cell that lists no light with a shadow
+ // slot asks nothing, as the resolve sets up no shadow read there (\`cellShadowed\`).
  let z=textureLoad(depth,coord,0);let pixel=vec2f(id.xy)+0.5;
+ let cell=gridCell(pixel,z,vec2u(view.lightParams.yz));
+ if(cell==TILE_NO_SLICE||(tileLights[cell]&TILE_SHADOWED)==0u){return;}
+ let slice=cellSlice(cell);
+ // The resolve's point and footprint, at the pixel's centre (\`surfaceWgsl.ts\`).
  let at=worldAt(pixel,z);
  let level=pixelLevel(coord,pixel,z,at);shadowUnjitter=level.unjitter;
  // The point the shading reads the maps at (\`shadowReceiverOffset\`, \`surfaceWgsl.ts\`).

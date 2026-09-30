@@ -39,7 +39,7 @@ engines they are the union of both sides' requirements.
 | `--texture-budget <ms>` | engine's 1.0 ms | CPU ms a frame may copy texture tiles (`maxTextureUploadMsPerFrame`); tiles past it wait, showing their coarser level. Read on a cold traversal (`--warmup 0 --moving-camera --textures cache`) — a still pose's barrier lifts it: "Textures" stage p50/p95, `textureUploadPeakMs`, `textureTilesDeferred` |
 | `--compression auto\|bc7\|astc\|none`, `--compression-<side>` | `auto` | block family of the WebGPU texture pools under `--textures cache`³ |
 | `--antialiasing on\|off` | `on` | TAA jitter and accumulation |
-| `--scale auto\|<s>`, `--scale-<side>` (#816, #1369) | `auto` on WebGPU with antialiasing, else display | WebGPU frame drawn at `s` ∈ [0.5, 1] per axis, reconstructed by the temporal resolve⁴; `auto`, a page's default, lets the frame budget pick it (a still image at the display), `1` pins the display |
+| `--scale <s>`, `--scale-<side> <s>` (#816) | display | WebGPU frame drawn at `s` ∈ [0.5, 1] per axis, reconstructed by the temporal resolve⁴ |
 | `--reference` | off | class-2 image proof against the [reference image](#reference-images)⁵ |
 | `--profile on\|off` | `on` | per-stage timing; `off` for the beauty verdict |
 | `--profile-frames` | 120 | trailing measured frames in the per-stage profile, reset before that moving-window suffix (no still-pose loop substituted) |
