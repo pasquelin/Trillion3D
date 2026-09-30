@@ -76,11 +76,10 @@ async function executer({
   nombre,
   groupe,
 }: ExecutionEntree): Promise<ExecutionResultat> {
-  const appareil = await globalThis.ouvrirAppareil();
-  if (!appareil) return { indisponible: 'no WebGPU adapter' };
-  const { device, erreurs } = appareil;
-  const { module, compilation } = await appareil.compile(shader);
-  if (compilation.length) return { compilation, erreurs };
+  const opened = await globalThis.openGpuModule(shader);
+  if (!opened.module) return opened;
+  const { gpu, module } = opened;
+  const { device, erreurs } = gpu;
   const layout = device.createBindGroupLayout({
     entries: (['read-only-storage', 'storage'] as const).map((type, binding) => ({
       binding,
@@ -116,7 +115,7 @@ async function executer({
   await lecture.mapAsync(GPUMapMode.READ);
   const valeurs = Array.from(new Float32Array(lecture.getMappedRange().slice(0)));
   lecture.unmap();
-  const info = await appareil.fermer();
+  const info = await gpu.fermer();
   return { adaptateur: info.court, valeurs, erreurs };
 }
 

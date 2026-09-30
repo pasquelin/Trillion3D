@@ -39,14 +39,14 @@ export function createShadowNeeds(table: ShadowTable, pool: ShadowPool, capacity
       order[count] = count;
       count++;
     },
-    /** Maps every entry noted and still unmapped into pages no report of `reportFrame` or later
-     *  asked for; counts what it mapped and refused. */
+    /** Maps every entry noted and still unmapped into free pages, else pages `cycle` no longer
+     *  names (`pool.beginAllocation`); counts what it mapped and refused. */
     allocate(
       reportFrame: number,
       nowMs: number,
       frame: number,
       counts: { allocated: number; refused: number },
-      cycle = reportFrame,
+      cycle: number,
     ) {
       order.subarray(0, count).sort(coarsestFirst);
       pool.beginAllocation(cycle, reportFrame);

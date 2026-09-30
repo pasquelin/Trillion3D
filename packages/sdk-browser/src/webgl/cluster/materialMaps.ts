@@ -1,4 +1,5 @@
-import { PHYSICAL_MAP_FIELDS, PHYSICAL_MAP_UNIT } from './physicalMaps.ts';
+import { PHYSICAL_MAP_UNIT } from './physicalMaps.ts';
+import { PHYSICAL_MAP_FIELDS } from '../../visibility/materialType.ts';
 import { visMaterial } from '../../visibility/shader/material.ts';
 import { readsOcclusion } from '../../scene/surfaceModel.ts';
 import { importHostTexture } from '../../host/textureImport.ts';
@@ -18,7 +19,8 @@ const MAPS = [
   'emissiveMap',
   'subsurfaceMap',
 ] as const;
-export const SUBSURFACE_UNIT = 14;
+/** Past the deformation units 13 and 14 (`deformation.ts`) the vertex stage binds per draw. */
+export const SUBSURFACE_UNIT = PHYSICAL_MAP_UNIT + 2;
 export const MAP_UNIFORMS = ['baseUv', 'roughUv', 'metalUv', 'normalUv', 'aoUv', 'emissiveUv'];
 MAP_UNIFORMS[SUBSURFACE_UNIT] = 'subsurfaceUv';
 

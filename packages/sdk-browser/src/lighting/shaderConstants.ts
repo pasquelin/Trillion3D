@@ -11,6 +11,7 @@ export const shaderFloat = (value: number) => {
 };
 
 export const PI = shaderFloat(Math.PI);
+export const TWO_PI = shaderFloat(2 * Math.PI);
 /** The Lambert normalisation, 1/π. */
 export const INVERSE_PI = shaderFloat(1 / Math.PI);
 /** The vector form factor's normalisation, 1/(2π) (`direct/rectLightWgsl.ts`). */
