@@ -1,7 +1,8 @@
 import type { ShadowPool } from './pool.ts';
 import type { ShadowTable } from './table.ts';
-import { PAGES } from './pageModel.ts';
-import { PAGE_MAPPED } from './virtual.ts';
+import { NUMBERS } from './pageOps.ts';
+import { pageKeyModel } from './pageKeys.ts';
+import { PAGE_MAPPED, shadowEntrySpan } from './virtual.ts';
 
 /**
  * THE UNMAPPED PAGES A REQUEST ASKS FOR, and their allocation: each noted with the light, view,
@@ -19,7 +20,9 @@ export function createShadowNeeds(table: ShadowTable, pool: ShadowPool, capacity
     rank = new Float64Array(capacity),
     order = new Int32Array(capacity);
   let count = 0;
-  const key = (n: number) => PAGES.shadowNeedKey(rank[n], entry[n]);
+  // The key the GPU sorts by, over this table's entries: a raised window's reach past the ordinary.
+  const { shadowNeedKey } = pageKeyModel(NUMBERS, shadowEntrySpan(table.entries));
+  const key = (n: number) => shadowNeedKey(rank[n], entry[n]);
   const coarsestFirst = (a: number, b: number) => key(a) - key(b) || a - b;
   return {
     clear() {

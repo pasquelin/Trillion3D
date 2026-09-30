@@ -1,6 +1,5 @@
 import { BOUNCE_SETTINGS, type Texture } from '../../../../sdk-core/src/index.ts';
 import { SUN_WINDOW, shadowPoolSide } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { REFERENCE_SUN_WINDOW } from '../../frame/referenceMode.ts';
 import { TAA_CAPABILITIES } from '../../taa/capability.ts';
 import { BOUNCE_CAPABILITY } from './prepare/bounce.ts';
 import type { BackendCapabilities, BackendContext, RenderBackend } from '../../backend/types.ts';
@@ -124,7 +123,7 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
   // The sun clipmap window: the ordinary constant, raised for a reference session so every pixel
   // reads the finest level (`referenceMode.ts`); the plan, the table, the atlas and the shadow
   // shader all follow it.
-  const sunWindow = context.reference ? REFERENCE_SUN_WINDOW : SUN_WINDOW;
+  const sunWindow = context.sunWindow ?? SUN_WINDOW;
   const lights = createWebgpuLightState(
     shadowPoolSide(...setup.viewport),
     context.sceneLights,
