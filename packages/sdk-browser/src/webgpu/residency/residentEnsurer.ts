@@ -83,10 +83,10 @@ export function createWebgpuResidentEnsurer({
       return tracking.wanted.has(key) || bootstrapKey[key] || !hasBytes(rec);
     };
     const slots = cache.unpinnedSlots(),
-      live = still();
+      cap = still() ? slots : Infinity;
     let spare = slots;
-    for (let i = 0, kept = 0; i < lower.length && (!live || kept < slots); i++)
-      if (!skip(lower[i]) && (!live || ++kept) && cache.touch(pageAddress(lower[i]), true)) spare--;
+    for (let i = 0, kept = 0; i < lower.length && kept < cap; i++)
+      if (!skip(lower[i]) && ++kept && cache.touch(pageAddress(lower[i]), true)) spare--;
     readAhead?.(lower, spare, (rec) => !skip(rec), cache, reads, PRIORITY_PREFETCH);
     // The share, as the camera's burst: past it the job yields — and leaves if a camera cut asked
     // for pages meanwhile: the queue serves the camera first and runs the tiers again. A job only

@@ -57,7 +57,7 @@ struct VsOut{@builtin(position) position:vec4f,@location(0) fromEmitter:vec3f,}
 
   /** Run in the page: a depth-only pipeline, one triangle per case, the map read back. */
   async function executer({ shader, cas, size, triangle, depthCompare, depthClear }: ExecuterArgs) {
-    const appareil = await globalThis.ouvrirAppareil();
+    const appareil = await globalThis.openGpuDevice();
     if (!appareil) return { indisponible: 'no WebGPU adapter' };
     const { device, erreurs } = appareil;
     const { module, compilation } = await appareil.compile(shader);
