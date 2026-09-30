@@ -6,7 +6,7 @@
  */
 import { spawnSync, type StdioOptions } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { currentCompilerExecutable } from '../packages/sdk-node/src/compiler/process.mts';
+import { currentCompilerExecutable } from '../packages/sdk-node/src/compiler/executable.mts';
 
 /** The triangle budget of a `full` cache, the one every published and measured scene uses. */
 export const TRIANGLE_BUDGET = '150000';

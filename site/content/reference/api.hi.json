@@ -3778,7 +3778,8 @@
       "total": "कुल मिलाकर कितने काम।",
       "stream": "कहाँ लिखना है।",
       "width": "बार की चौड़ाई।",
-      "interval": "दोबारा बनाने के बीच कम से कम मिलीसेकंड।"
+      "interval": "दोबारा बनाने के बीच कम से कम मिलीसेकंड।",
+      "verbose": "कार्य के अंत के सारांश में सूचना कोड और हर घटना भी बताता है।"
     }
   },
   "Texture": {
@@ -5015,13 +5016,14 @@
   "createTerminalProgress": {
     "summary": "टर्मिनल में एक प्रगति पट्टी जो कंपाइलर की घटनाओं का अनुसरण करती है।",
     "parameters": {
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}": "टर्मिनल प्रगति प्रदर्शन कैसा दिखता है।",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.label": "job का नाम।",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.index": "job का नंबर।",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.total": "कुल कितनी jobs।",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.stream": "कहाँ लिखना है।",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.width": "पट्टी की चौड़ाई।",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.interval": "पुनः-आरेखणों के बीच न्यूनतम मिलीसेकंड।"
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}": "टर्मिनल प्रगति प्रदर्शन कैसा दिखता है।",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.label": "job का नाम।",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.index": "job का नंबर।",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.total": "कुल कितनी jobs।",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.stream": "कहाँ लिखना है।",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.width": "पट्टी की चौड़ाई।",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.interval": "पुनः-आरेखणों के बीच न्यूनतम मिलीसेकंड।",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.verbose": "कार्य के अंत के सारांश में सूचना कोड और हर घटना भी बताता है।"
     }
   },
   "createTransformTree": {

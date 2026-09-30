@@ -75,7 +75,10 @@ test('errors and cancellations close the line with a cross and the code', () => 
     code: 'EMPTY_SLICE',
     message: 'nothing fits',
   });
-  assert.match(out.text(), /✖ 1\/1 x EMPTY_SLICE nothing fits/);
+  assert.match(
+    out.text(),
+    /✖ 1\/1 x T3D-E\d{3} EMPTY_SLICE: .*\(nothing fits\) Raise the triangle budget/,
+  );
 });
 test('the ratio never goes backwards and is clamped to one', () => {
   const out = capture();
@@ -105,51 +108,81 @@ test('batch progress opens one line per job id and ignores batch-level lines', (
   assert.match(text, /2\/2 b/);
   assert.match(text, /✔ 1\/2 a 1 triangles/);
 });
-// Behaviour: DAG warnings carried by primitive events are counted and stated in one line at the
-// end of the job — per code, with the worst case — never one line per primitive.
-test('DAG warnings are summarised in one line when the job completes', () => {
+/** A primitive's DAG warning, its stall a locked seam. */
+const warning = (code: DagWarning['code'], roots: number, pages: number): DagWarning => ({
+  code,
+  roots,
+  pages,
+  groups: { seamLocked: 1 },
+  rootTriangles: 640,
+  ...{ cause: 'seam-locked', seamVertices: 30, lockedVertices: 4, uvIslands: 9 },
+});
+// Behaviour: warnings are counted while the job compiles and told once at its end — one line per
+// code, with its public code, count, worst case and documentation page — never one line per
+// primitive; an info code stays silent unless asked for.
+test('many flagged primitives are summarised in one line per code when the job completes', () => {
   const out = capture();
   const progress = createTerminalProgress({ label: 'village', stream: out.stream });
-  const warn = (mesh: number, warnings: DagWarning[]) =>
+  const primitive = (mesh: number, warnings: DagWarning[]) =>
     progress.event({
       event: 'progress',
       job: 'job',
       phase: 'primitive',
-      ratio: 0.5,
       mesh,
       primitive: 0,
       warnings,
     });
-  const stalls = {
-    cause: 'seam-locked' as const,
-    seamVertices: 30,
-    lockedVertices: 4,
-    uvIslands: 9,
-  };
-  warn(7, [
-    {
-      code: 'DAG_FLAT',
-      roots: 98,
-      pages: 98,
-      groups: { seamLocked: 4 },
-      rootTriangles: 12544,
-      ...stalls,
-    },
-  ]);
-  warn(9, [
-    {
-      code: 'DAG_ROOTS',
-      roots: 6,
-      pages: 27,
-      groups: { seamLocked: 1 },
-      rootTriangles: 640,
-      ...stalls,
-    },
-  ]);
+  progress.event({
+    event: 'progress',
+    job: 'job',
+    phase: 'import',
+    unsupported: { 'texture-missing': 3, 'node-hidden': 5 },
+  });
+  for (let mesh = 0; mesh < 40; mesh++)
+    primitive(mesh, [warning('DAG_FLAT', mesh === 7 ? 98 : 9, 98)]);
+  for (let mesh = 40; mesh < 43; mesh++) primitive(mesh, [warning('DAG_ROOTS', 6, 27)]);
   assert.doesNotMatch(out.text(), /⚠/, 'nothing is said before the end');
-  progress.event({ event: 'complete', job: 'job', ratio: 1, pointer: { primitives: 2 } });
+  progress.event({ event: 'complete', job: 'job', ratio: 1, pointer: { primitives: 43 } });
+  const told = out
+    .text()
+    .split('\n')
+    .filter((line) => line.startsWith('⚠'));
+  assert.equal(told.length, 3, told.join('\n'));
   assert.match(
-    out.text(),
-    /⚠ village: 2 primitive\(s\) without a unique root \(1 DAG_FLAT, 1 DAG_ROOTS\) ; worst mesh 7\/0: 98 roots out of 98 pages — detail in clusters.json\n✔ 1\/1 village/,
+    told[0],
+    /^⚠ village T3D-W\d{3} DAG_FLAT ×40: .* Worst: mesh 7\/0, 98 roots of 98 pages\. .*T3D-W\d{3}\.md$/,
   );
+  assert.match(told[1], /^⚠ village T3D-W\d{3} DAG_ROOTS ×3: /);
+  assert.match(told[2], /^⚠ village T3D-W\d{3} texture-missing ×3: /);
+  assert.doesNotMatch(out.text(), /node-hidden/);
+  assert.match(out.text(), /\n✔ 1\/1 village/);
+});
+// Behaviour: `verbose` tells each code once, then every occurrence under it, info codes included —
+// the head of a code is never printed twice.
+test('verbose adds the info codes and every occurrence under a single line per code', () => {
+  const out = capture();
+  const progress = createTerminalProgress({ label: 'yard', stream: out.stream, verbose: true });
+  progress.event({
+    event: 'progress',
+    job: 'job',
+    phase: 'import',
+    unsupported: { 'texture-missing': 2, 'node-hidden': 1 },
+  });
+  for (const mesh of [3, 4])
+    progress.event({
+      event: 'progress',
+      job: 'job',
+      phase: 'primitive',
+      mesh,
+      primitive: 0,
+      warnings: [warning('DAG_FLAT', mesh, 9)],
+    });
+  progress.event({ event: 'complete', job: 'job', ratio: 1, pointer: { primitives: 2 } });
+  const text = out.text();
+  assert.equal(text.match(/ DAG_FLAT ×/g)?.length, 1, text);
+  assert.match(
+    text,
+    /\n {4}DAG_FLAT mesh 3\/0: 3 roots of 9 pages \(cause seam-locked\)\n {4}DAG_FLAT mesh 4\/0: /,
+  );
+  assert.match(text, /ℹ yard T3D-I\d{3} node-hidden ×1: /);
 });

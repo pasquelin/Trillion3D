@@ -5,7 +5,8 @@ import type {
   TerminalProgress,
   TerminalProgressOptions,
 } from '../compiler/contracts.ts';
-import { dagWarningsTally } from './progressDag.mts';
+import { messageTally } from './messageTally.mts';
+import { describeMessage } from '../messages/catalogue.mts';
 
 /**
  * Terminal progress for compiler jobs: one live line per job on a TTY (spinner, bar, phase, elapsed),
@@ -65,6 +66,7 @@ export function createTerminalProgress({
   stream = process.stderr,
   width = 24,
   interval = 100,
+  verbose = false,
 }: TerminalProgressOptions = {}): TerminalProgress {
   const tty = Boolean(stream.isTTY);
   const started = performance.now();
@@ -117,7 +119,7 @@ export function createTerminalProgress({
   };
   // A line that stays: the bar is erased first on a terminal, written as-is elsewhere.
   const persist = (text: string) => stream.write(`${tty ? '\r\x1b[K' : ''}${text}\n`);
-  const dag = dagWarningsTally();
+  const messages = messageTally(verbose);
   const finish = (mark: string, summary: string) => {
     if (state.finished) return;
     stop();
@@ -131,13 +133,14 @@ export function createTerminalProgress({
   return {
     /** Feed every compiler event here; the line completes or fails by itself. */
     event(event: CompilerEvent) {
+      messages.record(event);
       if (event.event === 'complete') {
-        if (dag.count) persist(dag.line(label));
+        for (const line of messages.lines(label)) persist(line);
         finish('✔', summaryOf(event.pointer));
         return;
       }
       if (event.event === 'error' || event.event === 'cancelled') {
-        finish('✖', `${event.code ?? 'error'}${event.message ? ` ${event.message}` : ''}`);
+        finish('✖', describeMessage(event.code ?? 'COMPILER_EXIT', event.message));
         return;
       }
       if (typeof event.ratio === 'number')
@@ -145,9 +148,6 @@ export function createTerminalProgress({
       if (event.phase === 'import' && typeof event.primitives === 'number')
         state.primitivesTotal = event.primitives;
       if (event.phase === 'primitive') state.primitives += 1;
-      // A DAG the compiler did not raise: counted here, stated in one line at the end.
-      for (const warning of event.warnings ?? [])
-        dag.record(warning, `${event.mesh}/${event.primitive}`);
       state.phase = event.phase ?? event.event ?? '';
       const describe = PHASES[state.phase];
       if (describe) state.text = describe(event, state);

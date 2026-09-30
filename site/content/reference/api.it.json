@@ -1232,13 +1232,14 @@
   "createTerminalProgress": {
     "summary": "Una barra di avanzamento nel terminale che segue gli eventi del compilatore.",
     "parameters": {
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}": "L'aspetto di una visualizzazione di avanzamento nel terminale.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.label": "Il nome dell'attività.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.index": "Il numero dell'attività.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.total": "Quante attività in totale.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.stream": "Dove scrivere.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.width": "Larghezza della barra.",
-      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n}.interval": "Millisecondi minimi tra due disegni."
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}": "L'aspetto di una visualizzazione di avanzamento nel terminale.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.label": "Il nome dell'attività.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.index": "Il numero dell'attività.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.total": "Quante attività in totale.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.stream": "Dove scrivere.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.width": "Larghezza della barra.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.interval": "Millisecondi minimi tra due disegni.",
+      "{\n  label = 'job',\n  index = 0,\n  total = 1,\n  stream = process.stderr,\n  width = 24,\n  interval = 100,\n  verbose = false,\n}.verbose": "Indica anche i codici informativi e ogni occorrenza nel riepilogo di fine attività."
     }
   },
   "createTransformTree": {
@@ -6140,7 +6141,8 @@
       "total": "Quante attività in totale.",
       "stream": "Dove scrivere.",
       "width": "Larghezza della barra.",
-      "interval": "Millisecondi minimi tra due disegni."
+      "interval": "Millisecondi minimi tra due disegni.",
+      "verbose": "Indica anche i codici informativi e ogni occorrenza nel riepilogo di fine attività."
     }
   },
   "texture": {
