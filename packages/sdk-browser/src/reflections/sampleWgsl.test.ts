@@ -4,6 +4,7 @@ import { stochasticReflectionShader } from './sampleWgsl.ts';
 import { contractLightingShader } from '../lighting/deferred/shaders.ts';
 import { functionsOf } from '../texture/shaderRule.fixture.ts';
 import { MIRROR_TRANSITION_END } from './modelShader.ts';
+import { withSubgroupShadowRequests } from '../lighting/direct/shadowRequestWgsl.ts';
 
 const trace = (bounce: boolean, unbounded: boolean) =>
   functionsOf(stochasticReflectionShader(contractLightingShader(bounce, false), unbounded), [
@@ -47,4 +48,39 @@ test('the filtered reflection is the rough branch of the full one, without its p
   ]) {
     assert.ok(filtered.includes(line) && full.includes(line), line);
   }
+});
+
+/** The functions `entry` reaches in `source`, itself included. */
+function reached(source: string, entry: string) {
+  const declared = new Set([...source.matchAll(/fn (\w+)\(/g)].map((match) => match[1]));
+  const seen = new Set<string>();
+  for (const stack = [entry]; stack.length;) {
+    const name = stack.pop()!;
+    if (seen.has(name)) continue;
+    seen.add(name);
+    const body = functionsOf(source, [name]).replace(/^[^{]*\{/, '');
+    for (const [, called] of body.matchAll(/(\w+)\(/g))
+      if (declared.has(called)) stack.push(called);
+  }
+  return seen;
+}
+
+test('#1346: the rough trace asks no shadow page, so none of its own lands to restart the TAA history', () => {
+  for (const bounce of [false, true])
+    for (const unbounded of [false, true])
+      for (const subgroup of [false, true]) {
+        const lighting = contractLightingShader(bounce, false);
+        const shader = stochasticReflectionShader(
+          subgroup ? withSubgroupShadowRequests(lighting) : lighting,
+          unbounded,
+        );
+        const calls = reached(shader, 'traceRoughReflection');
+        assert.ok(calls.has('stochasticReflection'), 'the closure follows the calls');
+        for (const asks of ['requestShadowPage', 'shadowClaimPage'])
+          assert.ok(
+            !calls.has(asks),
+            `${asks} from the trace (${bounce}, ${unbounded}, ${subgroup})`,
+          );
+        assert.doesNotMatch(functionsOf(shader, ['traceRoughReflection']), /shadowRequesting/);
+      }
 });
