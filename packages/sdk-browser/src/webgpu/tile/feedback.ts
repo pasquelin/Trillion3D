@@ -10,7 +10,7 @@
  * The phase advances from one image to the next so the sixteen pixels of a square have all spoken in
  * sixteen images; a barrier that must converge asks for every pixel at once.
  */
-import { WRAP_MAP } from '../../visibility/wrapModes.ts';
+import { PICK_CYCLE } from './pickCycle.ts';
 
 /** Phase word: the `FEEDBACK_EVERY` bit asks for every pixel; otherwise the two low bits give the
  *  column and the next two the row of the speaking pixel in each `FEEDBACK_STRIDE` square, therefore
@@ -20,20 +20,6 @@ export const FEEDBACK_STRIDE = 4;
 export const FEEDBACK_EVERY = FEEDBACK_STRIDE * FEEDBACK_STRIDE;
 /** First bit above the phase and the `FEEDBACK_EVERY` bit. */
 export const PICK_SHIFT = Math.log2(FEEDBACK_EVERY) + 1;
-/** Number of maps a pixel can name: the rank of `WRAP_MAP`, written once. */
-export const MAP_CHOICES = Object.keys(WRAP_MAP).length;
-/** A pick is a map (or the masked sun level), one of two blend levels, one of three taps. */
-export const PICK_BLENDS = 2,
-  PICK_TAPS = 3;
-/**
- * Names a pixel's position picks among on an ordinary image (`requestPick`): one of the maps
- * (`WRAP_MAP`) or the sun level a masked pixel asks, one of the two blend levels, one of the three
- * anisotropic taps. A tile read by a sliver of pixels — the edge of a surface — can be named by none
- * of them, so the pick turns by one per whole phase round: a live view names the sliver's tile too,
- * each pixel stepping through the picks as it speaks. A convergence image names every pick of every
- * pixel at once (`everyPick`, `requestWgsl.ts`).
- */
-const PICK_CYCLE = (MAP_CHOICES + 1) * PICK_BLENDS * PICK_TAPS;
 
 export type WebgpuTileFeedback = {
   readonly buffer: GPUBuffer;

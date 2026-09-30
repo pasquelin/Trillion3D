@@ -13,7 +13,7 @@ import {
 } from '../../webgpu/tile/wgsl.ts';
 import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts';
 import { FEEDBACK_RULE_WGSL, tileRequestIndexWgsl } from '../../webgpu/tile/requestWgsl.ts';
-import { PICK_BLENDS } from '../../webgpu/tile/feedback.ts';
+import { PICK_BLENDS } from '../../webgpu/tile/pickCounts.ts';
 import {
   FLAG_BLEND_CASTER,
   FLAG_HAS_MAP,

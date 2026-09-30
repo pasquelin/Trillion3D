@@ -5,9 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MAX_SHADOW_SLICES } from '../light/contracts.ts';
 import { createShadowTable } from './table.ts';
-import { shadowTableStride, SUN_WINDOW } from './virtual.ts';
-
-const SHADOW_TABLE_STRIDE = shadowTableStride(SUN_WINDOW);
+import { SHADOW_TABLE_STRIDE } from './lightShadow.fixture.ts';
 
 test('a range starts at its slice span, and an entry names the slice whose range holds it', () => {
   const table = createShadowTable(1024);

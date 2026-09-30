@@ -2,12 +2,8 @@ import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { writeLampPage } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
 import { footprintDrawn } from '../../../../sdk-core/src/scene/light-shadow/footprint.ts';
 import { writeSunSquare } from '../../../../sdk-core/src/scene/light-shadow/sunFaces.ts';
-import { PCF_REACH } from '../../lighting/direct/shadowWgsl.ts';
 import type { WebgpuLightState } from '../pages/state/lights.ts';
-
-/** Texels past its footprint a page's casters are culled to: every texel centre a filter reading
- *  inside it weighs lies within `PCF_REACH` of the texel it checks, on either axis. */
-const FOOTPRINT_REACH = Math.ceil(PCF_REACH) + 1;
+import { FOOTPRINT_REACH } from './footprintReach.ts';
 
 /**
  * Composes page `page`'s projection and cull volume into region `region`'s slots. Its casters are

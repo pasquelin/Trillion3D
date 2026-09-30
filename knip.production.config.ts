@@ -11,11 +11,12 @@ const TEST_CODE = ['**/*.test.ts', '**/*.fixture.ts', '**/*.browser.ts', 'tests/
 const isTestCode = (pattern: string) =>
   /\.(?:test|fixture|browser)\.ts$|^tests\//.test(pattern.replace(/\{[^}]*\}$/, ''));
 
-/** The first pass: `knip.config.ts` exports an object, never a function. */
+/** The first pass: `knip.config.ts` exports an object, its root workspace the one with sources. */
 const base = config as Exclude<KnipConfig, (...args: never[]) => unknown>;
+const root = base.workspaces!['.'];
 
 const entries = [
-  ...(base.entry as string[]).filter((pattern) => !isTestCode(pattern)),
+  ...(root.entry as string[]).filter((pattern) => !isTestCode(pattern)),
   'bench/**/*.{ts,mts}',
   'scripts/**/*.{ts,mts}',
   'site/**/*.{ts,tsx}',
@@ -23,9 +24,15 @@ const entries = [
 
 const production: KnipConfig = {
   ...base,
-  // `!` marks a production pattern, which is all `--production` reads.
-  entry: [...entries.map((entry) => `${entry}!`), ...TEST_CODE.map((code) => `!${code}!`)],
-  project: ['packages/**/*.{ts,mts}!', ...TEST_CODE.map((code) => `!${code}!`)],
+  workspaces: {
+    ...base.workspaces,
+    '.': {
+      ...root,
+      // `!` marks a production pattern, which is all `--production` reads.
+      entry: [...entries.map((entry) => `${entry}!`), ...TEST_CODE.map((code) => `!${code}!`)],
+      project: ['packages/**/*.{ts,mts}!', ...TEST_CODE.map((code) => `!${code}!`)],
+    },
+  },
 };
 
 export default production;

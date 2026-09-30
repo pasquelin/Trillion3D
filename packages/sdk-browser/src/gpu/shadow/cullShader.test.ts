@@ -13,10 +13,8 @@ import { PAGE_FOOTPRINT_FULL } from '../../../../sdk-core/src/scene/light-shadow
 import { SHADOW_CULL_SHADER, SHADOW_LIGHT_CULL_SHADER } from './cullShader.ts';
 import { SHADER_BOX, keeps } from './cullBox.fixture.ts';
 import { SHADOW_FRESH_CULL_WGSL } from '../../webgpu/shadow/freshCullWgsl.ts';
-import { PCF_REACH } from '../../lighting/direct/shadowWgsl.ts';
+import { FOOTPRINT_REACH } from '../../webgpu/shadow/footprintReach.ts';
 import { pageFootprint } from '../../../../sdk-core/src/scene/light-shadow/footprint.fixture.ts';
-
-const FOOTPRINT_REACH = Math.ceil(PCF_REACH) + 1;
 
 test("every cull runs the box test this file restates, the GPU pages' too", () => {
   for (const shader of [SHADOW_CULL_SHADER, SHADOW_LIGHT_CULL_SHADER, SHADOW_FRESH_CULL_WGSL])

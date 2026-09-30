@@ -10,6 +10,7 @@ import {
   LAMP,
   SUN,
   VIEW,
+  SHADOW_TABLE_STRIDE,
 } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import type { ShadowRequestReport } from '../../../../sdk-core/src/scene/light-shadow/requests.ts';
 import {
@@ -20,12 +21,6 @@ import {
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { gpuFrames } from './gpuFrames.fixture.ts';
 import { floorTiles, tileGrid } from './shadingReads.fixture.ts';
-import {
-  shadowTableStride,
-  SUN_WINDOW,
-} from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-
-const SHADOW_TABLE_STRIDE = shadowTableStride(SUN_WINDOW);
 
 const tiles = floorTiles(tileGrid(-4, 4, -14, -6), 3);
 /** Frame `f`: the camera sliding sideways, looking down the floor, and the lamp turning over it. */

@@ -6,9 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { TAA_SAMPLES, taaJitter } from '../../taa/jitter.ts';
 import { taaWeightTable } from '../../taa/weights.ts';
-import { taaStillFrames } from '../../taa/jitter.ts';
-
-const TAA_STILL_FRAMES = taaStillFrames(TAA_SAMPLES);
+import { TAA_STILL_FRAMES } from '../../taa/stillFrames.fixture.ts';
 
 const SIDE = 24,
   THRESHOLD = 0.5,
