@@ -93,6 +93,14 @@ export const builtins = {
   atomicMax: (p: Ref, value: number) => swap(p, Math.max(p.get(), value)),
   atomicLoad: (p: Ref) => p.get(),
   atomicStore: (p: Ref, value: number) => void p.set(value),
+  atomicOr: (p: Ref, value: number) => swap(p, (p.get() | value) >>> 0),
+  atomicCompareExchangeWeak: (p: Ref, compare: number, value: number) => {
+    const old = p.get();
+    if (old === compare) p.set(value);
+    return { old_value: old, exchanged: old === compare };
+  },
+  /** A runtime-sized array's length, through the pointer `&array` gives. */
+  arrayLength: (p: { get: () => unknown }) => (p.get() as ArrayLike<unknown>).length,
   vec2f: vector(2, float),
   vec3f: vector(3, float),
   vec4f: vector(4, float),

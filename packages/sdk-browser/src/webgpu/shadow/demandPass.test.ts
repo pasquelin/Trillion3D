@@ -24,8 +24,13 @@ type Demand = {
   demandSun: (index: number, P: V, N: V, footprint: number) => void;
   demandLamp: (index: number, light: object, P: V, N: V, L: V, footprint: number) => void;
 };
-/** The records the demand reads and the entries it marks: swapped per light, compiled once. */
-const live = { records: [] as object[], marked: new Set<number>() };
+/** The records the demand reads and the entries and cells it marks: swapped per light, compiled
+ *  once. */
+const live = {
+  records: [] as object[],
+  marked: new Set<number>(),
+  cells: new Map<number, number>(),
+};
 const demand = shaderRun<Demand>(
   SHADOW_DEMAND_WGSL,
   [
@@ -34,17 +39,22 @@ const demand = shaderRun<Demand>(
     'demandPages',
     'demandPage',
     'shadowPageEntry',
+    'shadowPageLocal',
     'sunOrigin',
     'sunReadAt',
     'lampReadAt',
     'shadowNormalTexels',
+    'shadowRequestCell',
     'pointFaceOf',
     ...PAGE_MODEL_FUNCTIONS,
   ],
   {
     ...wgslConstants(SHADOW_DEMAND_WGSL),
     shadows: live,
-    requestShadowPage: (entry: number) => live.marked.add(entry),
+    requestShadowPageAt: (entry: number, cell: number) => {
+      live.marked.add(entry);
+      live.cells.set(entry, cell);
+    },
     ShadowAt: (map: object, t: V, home: V, Q: V, texel: number) => ({ map, t, home, Q, texel }),
     LampAt: (at: object, clip: V, ndc: V, face: number, side: number, inside: boolean) => ({
       ...{ at, clip, ndc },
@@ -100,6 +110,7 @@ test('the demand marks, at each lit point, the pages the shading reads there', (
     view = shadowViewpointOf(cam, HEIGHT),
     { plan, store } = scene;
   live.marked.clear();
+  live.cells.clear();
   for (let slot = 0; slot < store.count; slot++) {
     const light = store.light(store.ids[slot])!,
       slice = store.sliceOf(slot);
@@ -131,4 +142,7 @@ test('the demand marks, at each lit point, the pages the shading reads there', (
     [...live.marked].sort((a, b) => a - b),
     read,
   );
+  // Every marked page is marked for a cell of it (0..15), #1211: the footprint its receiver reads.
+  for (const [entry, cell] of live.cells)
+    assert.ok(cell >= 0 && cell < 16, `entry ${entry} cell ${cell}`);
 });
