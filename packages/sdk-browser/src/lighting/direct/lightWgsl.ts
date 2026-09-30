@@ -3,10 +3,13 @@ import { ENVIRONMENT_COEFFICIENTS } from '../../../../sdk-core/src/scene/core/en
 import { RECT_LIGHT_WGSL } from './rectLightWgsl.ts';
 import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts';
 
-/** Words of a tile record: the two counts, the two lists of `tileLights` each, then one word
- *  saying whether the opaque list holds a shadowed light — the per-tile fact the moving resolve
- *  reads once instead of walking the list a pixel at a time (#1249). */
-export const TILE_STRIDE_WORDS = LIGHT_SETTINGS.tileLights * 2 + 3;
+/** Words of a tile record: the two counts, the two lists of `tileLights` each, one word saying
+ *  whether the opaque list holds a shadowed light — the per-tile fact the moving resolve reads
+ *  once instead of walking the list a pixel at a time (#1249) —, then the clustered assignment
+ *  (#1249): one `(offset,count)` descriptor per log-Z slice, the tile's nearest and farthest
+ *  depth, and the flag a pixel reads to know whether its slice list is usable. */
+export const TILE_STRIDE_WORDS =
+  LIGHT_SETTINGS.tileLights * 2 + 6 + LIGHT_SETTINGS.clusterSlices * 2;
 
 /**
  * Structures shared by the light-list pass and deferred resolve: a single GPU-side
@@ -26,9 +29,19 @@ const TILE_LIGHTS:u32=${LIGHT_SETTINGS.tileLights}u;
 const TILE_STRIDE:u32=${TILE_STRIDE_WORDS}u;
 const TILE_OPAQUE_BASE:u32=2u;
 const TILE_BLEND_BASE:u32=${LIGHT_SETTINGS.tileLights + 2}u;
-/** The record's last word: one when the opaque list holds a light with a shadow slot, zero
+/** The record's shadow flag: one when the opaque list holds a light with a shadow slot, zero
  *  otherwise. The tile pass writes it; the moving resolve reads it once (#1249). */
 const TILE_SHADOW_BASE:u32=${LIGHT_SETTINGS.tileLights * 2 + 2}u;
+/** The clustered assignment (#1249): \`CLUSTER_SLICES\` \`(offset,count)\` descriptors, the tile's
+ *  nearest and farthest depth as their f32 bits, then one flag word — one when the tile's slice
+ *  lists are usable, zero when the tile keeps its whole opaque list (too many lights, or no room
+ *  in the pool). The tile pass writes them; the resolve reads the flag once, then the slice. The
+ *  stored depths are normalized, and the slice index is a ratio of them, so the pass's near-plane
+ *  distance cancels: the resolve never needs it. */
+const TILE_CLUSTER_BASE:u32=${LIGHT_SETTINGS.tileLights * 2 + 3}u;
+const TILE_DEPTH_BASE:u32=${LIGHT_SETTINGS.tileLights * 2 + 3 + LIGHT_SETTINGS.clusterSlices * 2}u;
+const TILE_CLUSTER_FLAG:u32=${LIGHT_SETTINGS.tileLights * 2 + 5 + LIGHT_SETTINGS.clusterSlices * 2}u;
+const CLUSTER_SLICES:u32=${LIGHT_SETTINGS.clusterSlices}u;
 const TILE_NO_SLICE:u32=0xffffffffu;
 const POINT_FACES:u32=${POINT_FACES}u;
 const SPOT_EDGE:f32=${LIGHT_SETTINGS.spotEdgeSoftness};

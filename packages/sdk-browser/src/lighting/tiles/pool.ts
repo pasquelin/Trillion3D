@@ -1,7 +1,9 @@
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { createGpuPeriodicReadback } from '../../gpu/core/periodicReadback.ts';
 
-/** Pool words per tile a view starts with once its scene holds more lights than a list. */
+/** Pool words per tile a view starts with once its scene holds more lights than a list: room for
+ *  the clusters a tile's lights are binned into (#1249) even when no tile passes its list, and
+ *  for the slices that do. A frame whose bins outgrow it names the overflow and grows it. */
 const START_WORDS_PER_TILE = LIGHT_SETTINGS.tileLights / 4;
 /** Pool words per tile the view grows to at most: its memory stays bounded by the view. */
 const MOST_WORDS_PER_TILE = LIGHT_SETTINGS.tileLights * 4;

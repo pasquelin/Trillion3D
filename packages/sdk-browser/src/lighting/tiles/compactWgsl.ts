@@ -131,11 +131,17 @@ export const tileCompactStatementsWgsl = (words: number, pool: boolean) =>
     ? ` walkLights(lane,count,hasOpaque,seesSky);
  let live=(count-(max(count,1u)-1u)/${words * 32}u*${words * 32}u+31u)/32u; // the last batch's words
  if(lane==0u){
-  let total=kept+vec2u(maskTotal(OPAQUE_MASK,live),maskTotal(BLEND_MASK,live));
-  tiles[base]=total.x;tiles[base+1u]=total.y;tiles[base+TILE_SHADOW_BASE]=select(0u,1u,atomicLoad(&shadowed)!=0u);counted=total;
- }${spillWgsl(words)}`
+   let total=kept+vec2u(maskTotal(OPAQUE_MASK,live),maskTotal(BLEND_MASK,live));
+   tiles[base]=total.x;tiles[base+1u]=total.y;tiles[base+TILE_SHADOW_BASE]=select(0u,1u,atomicLoad(&shadowed)!=0u);counted=total;
+  }${spillWgsl(words)}
+ // The clustered assignment, after the exact list (#1249): the tile's kept opaque lights binned
+ // by depth into the view's pool. A tile that keeps its list (flag zero) resolves as before.
+ clusterBins(base,lane);`
     : ` walkLights(lane,count,hasOpaque,seesSky,base);
- if(lane==0u){tiles[base]=maskTotal(OPAQUE_MASK,${words}u);tiles[base+1u]=maskTotal(BLEND_MASK,${words}u);tiles[base+TILE_SHADOW_BASE]=select(0u,1u,atomicLoad(&shadowed)!=0u);}`;
+ if(lane==0u){tiles[base]=maskTotal(OPAQUE_MASK,${words}u);tiles[base+1u]=maskTotal(BLEND_MASK,${words}u);tiles[base+TILE_SHADOW_BASE]=select(0u,1u,atomicLoad(&shadowed)!=0u);
+  // A scene within its lists runs no clustering (#1249): the flag stays zero, the resolve sums
+  // the tile's whole opaque list, exactly as before.
+  tiles[base+TILE_CLUSTER_FLAG]=0u;}`;
 
 /** The pool's walk of a tile a slice of which passed its list; nothing for any other tile. A
  *  scene of one batch keeps its masks whole: its kept lights are written again from them, never
