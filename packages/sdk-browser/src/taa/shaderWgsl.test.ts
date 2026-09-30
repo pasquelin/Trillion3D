@@ -61,8 +61,13 @@ test('the background, at zero depth, reprojects as a direction and not as a poin
   // infinite far plane — the product by the inverse yields a point at infinity, and
   // reprojection follows it without ever dividing before the previous matrix.
   assert.match(TAA_REPROJECT_WGSL, /view\.invViewProj\*vec4f\(ndc,depthValue,1\.0\)/);
-  // Nothing is read — neither identifier, nor record, nor matrix — until a placement has moved.
-  assert.match(TAA_REPROJECT_WGSL, /if\(view\.params\.z!=0\.0\)\{\s*let id=textureLoad\(ids/);
+  // Neither record nor matrix is read until a placement has moved; the identifier is the one the
+  // resolve read once for its tag (#1369).
+  assert.match(
+    TAA_REPROJECT_WGSL,
+    /if\(view\.params\.z!=0\.0&&id!=0u\)\{position=motion\[placementOf\(id\)\]\*position;\}/,
+  );
+  assert.doesNotMatch(TAA_REPROJECT_WGSL, /textureLoad\(ids/);
   assert.match(TAA_REPROJECT_WGSL, /if\(previous\.w<=0\.0\)\{return vec3f\(0\.0,0\.0,0\.0\);\}/);
 });
 

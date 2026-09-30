@@ -46,13 +46,12 @@ fn historyCatmullRom(uv:vec2f)->vec4f{
  * that share a tag only keep today's clamp.
  */
 export const PLACEMENT_TAG_WGSL = `
-fn placementTag(at:vec2i)->u32{
- let id=textureLoad(ids,at,0).r;
+fn tagOf(id:u32)->u32{
  if(id==0u){return 0u;}
  return placementOf(id)%255u+1u;
 }
-fn dynamicPixel(at:vec2i)->f32{
- let id=textureLoad(ids,at,0).r;
+fn placementTag(at:vec2i)->u32{return tagOf(textureLoad(ids,at,0).r);}
+fn dynamicPixel(id:u32)->f32{
  if(id==0u){return 0.0;}
  return select(0.0,1.0,(pages[(id>>8u)-1u].flags&${FLAG_DYNAMIC}u)!=0u&&pages[(id>>8u)-1u].deformOutput==0u);
 }
@@ -92,14 +91,19 @@ fn currentShare(alpha:f32,reach:f32,rho:f32,fresh:bool)->f32{
  * are about reprojection and stay in the moving branch. `still`, the upscaling resolve's: a still
  * pixel's share is set from the weights its average holds (`STILL_AVERAGE_WGSL`).
  */
-export const taaHistoryBlend = (asIs: boolean, filtered = false, still = false) => {
+export const taaHistoryBlend = (
+  asIs: boolean,
+  filtered = false,
+  still = false,
+  centreId = 'textureLoad(ids,centre,0).r',
+) => {
   const share = shareText(asIs);
   return ` if(previous.z==0.0){return ${layer.taaOut(asIs, filtered, false, still)};}
  var alpha=view.params.x;
  var read=vec4f(0.0);
  if(view.jitter.z!=0.0){
   read=historyCatmullRom(previous.xy);
-  let rho=max(textureLoad(reactive,min(centre,vec2i(textureDimensions(reactive))-vec2i(1)),0).g,dynamicPixel(centre));
+  let rho=max(textureLoad(reactive,min(centre,vec2i(textureDimensions(reactive))-vec2i(1)),0).g,dynamicPixel(${centreId}));
   alpha=currentShare(alpha,reach,rho,uncovered(previous.xy,centre,last,tag));
  }else{read=textureSampleLevel(history,historySampler,previous.xy,0.0);${still ? STILL_AVERAGE_WGSL : ''}}
  let clamped=clamp(vec4f(toYcocg(read.rgb),read.a),lo,hi);
