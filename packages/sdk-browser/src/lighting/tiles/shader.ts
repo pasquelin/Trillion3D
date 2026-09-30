@@ -2,15 +2,13 @@ import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { DEPTH_CLEAR, DEPTH_NEAR } from '../../camera/depthConvention.ts';
 import { directLightWgsl } from '../direct/lightWgsl.ts';
 import { TILE_BOUNDS_WGSL, tileDepthBoundsWgsl } from './boundsWgsl.ts';
-import { TILE_DEPTH_MASK_WGSL, tileDepthBinsWgsl } from './depthMaskWgsl.ts';
 import { tileCompactResetWgsl, tileCompactStatementsWgsl, tileCompactWgsl } from './compactWgsl.ts';
 
 /**
  * Light lists per 16 × 16 pixel screen tile. One workgroup per tile: the 256 threads reduce the
  * tile's min and max depth, sixteen de-project its corners, seven derive its world bounds from
- * them while every pixel marks its depth bin (`./depthMaskWgsl.ts`, #1369), then the threads
- * compact the lights that reach it into its lists, in batches of 256 lights, and past its list
- * into the view's pool (`./compactWgsl.ts`, #849).
+ * them at once (#1369), then the threads compact the lights that reach it into its lists, in
+ * batches of 256 lights, and past its list into the view's pool (`./compactWgsl.ts`, #849).
  *
  * **The masks and the light array follow the light count.** A scene of at most `TILE_LIGHTS`
  * lights runs the narrow pass: masks of one batch of that many lights, a light array that long,
@@ -18,8 +16,8 @@ import { tileCompactResetWgsl, tileCompactStatementsWgsl, tileCompactWgsl } from
  * (`./tiles.ts`).
  *
  * **Two lists per tile, two depth slices.** The opaque list covers the slice between the tile's
- * two depths — its box, the six planes of the tile's frustum and the depth bins its pixels fill
- * —, and deferred resolve loses neither a light nor a millisecond. The blend list covers what lies in front of the tile's
+ * two depths — its box and the six planes of the tile's frustum —, and deferred resolve loses
+ * neither a light nor a millisecond. The blend list covers what lies in front of the tile's
  * background: a blend surface is drawn **in front of** its pixel's opaque, and a box that starts
  * at its depth would strip declared lights. Where every pixel has an opaque behind it, that is
  * the slice from the near plane to the farthest opaque, cut by the same planes. Where a pixel
@@ -107,7 +105,6 @@ fn sphereTouchesBox(box:Box,centre:vec3f,radius:f32)->bool{
  return dot(clamped,clamped)<=radius*radius;
 }
 ${TILE_BOUNDS_WGSL}
-${TILE_DEPTH_MASK_WGSL}
 ${tileCompactWgsl(words, !narrow)}
 @compute @workgroup_size(${LIGHT_SETTINGS.tileSize},${LIGHT_SETTINGS.tileSize},1)
 fn lightTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_index) lane:u32){
@@ -117,11 +114,10 @@ fn lightTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_index)
   atomicStore(&farthest,0xffffffffu);
   atomicStore(&covered,0u);
   atomicStore(&skyward,0u);
-  atomicStore(&depthBins,0u);
   lightCount=${narrow ? `min(lights.count,TILE_LIGHTS)` : 'lights.count'};
  }
 ${tileCompactResetWgsl(words, !narrow)}
- let count=workgroupUniformLoad(&lightCount);
+ workgroupBarrier();
  let pixel=vec2u(tile.x*TILE_SIZE+lane%TILE_SIZE,tile.y*TILE_SIZE+lane/TILE_SIZE);
  var z=${DEPTH_CLEAR}.0;
  let inside=pixel.x<u32(view.viewport.x)&&pixel.y<u32(view.viewport.y);
@@ -133,12 +129,8 @@ ${tileDepthBoundsWgsl(subgroups)}
  // What the tile's pixels saw, read once: the barrier above made it final.
  let hasOpaque=atomicLoad(&covered)==1u;
  let seesSky=atomicLoad(&skyward)==1u;
- if(count>0u){ // no light, no bounds to test it against
-  tileBoundsOfLane(lane,hasOpaque,seesSky);
-  let covers=inside&&z>${DEPTH_CLEAR}.0;
-${tileDepthBinsWgsl(subgroups)}
- }
- workgroupBarrier();
+ if(lightCount>0u){tileBoundsOfLane(lane,hasOpaque,seesSky);} // no light, no bounds to test it against
+ let count=workgroupUniformLoad(&lightCount);
 ${tileCompactStatementsWgsl(words, !narrow)}
 }`;
 };

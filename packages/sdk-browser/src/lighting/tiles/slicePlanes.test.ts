@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
 import {
   sliceHits,
   sphereTouchesBox,
@@ -9,15 +8,8 @@ import {
   toTileFrame,
   type TileView,
 } from '../../../../../bench/oracles/browser/gpuLightTileColumnOracle.ts';
-import {
-  NEAR,
-  camera,
-  pixelPoint,
-  randomCase,
-  segmentDistance,
-  tilePixel,
-  type Vec3,
-} from './tileCamera.fixture.ts';
+import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
+import { NEAR, camera, pixelPoint, segmentDistance, type Vec3 } from './tileCamera.fixture.ts';
 import { LIGHT_TILES_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
 
 // #924 (OMB-03): a light is kept in a slice only if its range sphere meets the slice's box AND
@@ -32,6 +24,9 @@ const SIZE = LIGHT_SETTINGS.tileSize;
 type Light = { centre: Vec3; radius: number };
 type Counts = Record<'opaqueBefore' | 'opaque' | 'blendBefore' | 'blend', number>;
 const noCounts = (): Counts => ({ opaqueBefore: 0, opaque: 0, blendBefore: 0, blend: 0 });
+/** Pixel `i` of the tile, row by row. */
+const tilePixel = (tile: number[], i: number) =>
+  [tile[0] * SIZE + (i % SIZE), tile[1] * SIZE + Math.floor(i / SIZE)] as const;
 
 /** Checks each light of a tile with no sky pixel, counting what each list keeps, before and now. */
 function checkTile(
@@ -67,6 +62,42 @@ function checkTile(
     for (const key of Object.keys(kept) as (keyof Counts)[]) counts[key] += +kept[key];
   }
   return counts;
+}
+
+/** A random view, tile, depth field and lights near the tile's pixels. */
+function randomCase(seed: number, pitch: number) {
+  const r = random(seed),
+    u = (lo: number, hi: number) => lo + (hi - lo) * r();
+  const [width, height] = [Math.round(u(320, 1920)), Math.round(u(240, 1080))];
+  const far = seed % 4 === 0 ? 150_000 : 5000;
+  const eye: Vec3 = [u(-far, far), u(1.7, 2000), u(-far, far)];
+  const view = camera(eye, u(-Math.PI, Math.PI), pitch, u(30, 100), width, height);
+  const tile: [number, number] = [
+    Math.floor(r() * Math.ceil(width / SIZE)),
+    Math.floor(r() * Math.ceil(height / SIZE)),
+  ];
+  // A slanted surface, its distance growing across the tile, with a few pixels on nearer objects.
+  const [d0, dx, dy] = [Math.exp(u(Math.log(0.12), Math.log(3000))), u(-0.3, 0.3), u(-0.3, 0.3)];
+  const depths = [...Array(SIZE * SIZE).keys()].map((i) => {
+    const d =
+      d0 *
+      (1 + (dx * (i % SIZE) + dy * Math.floor(i / SIZE)) / SIZE) *
+      (r() < 0.05 ? u(0.2, 1) : 1);
+    return Math.fround(Math.min(1, NEAR / Math.max(d, NEAR)));
+  });
+  const lights = [...Array(60).keys()].map(() => {
+    const i = Math.floor(r() * depths.length);
+    const at = pixelPoint(view, ...tilePixel(tile, i), depths[i]);
+    const radius = Math.exp(u(Math.log(0.01), Math.log(200)));
+    const reach = u(0, 2) * radius;
+    const dir = [u(-1, 1), u(-1, 1), u(-1, 1)],
+      len = Math.hypot(...dir) || 1;
+    return {
+      centre: at.map((v, a) => Math.fround(v + (dir[a] / len) * reach)) as Vec3,
+      radius: Math.fround(radius),
+    };
+  });
+  return { view, tile, depths, lights };
 }
 
 test('random views: every light that reaches the slice is kept', () => {
@@ -124,6 +155,5 @@ test('edge cases: a flat tile, the near plane, the far distance, infinite and Na
 
 test('the pass tests each light in the frame of its planes', () => {
   const code = LIGHT_TILES_SHADER.replace(/\s+/g, '');
-  assert.ok(code.includes('letcentre=light.positionRange.xyz-view.origin.xyz;'));
-  assert.ok(code.includes('sliceHits(centre,light.positionRange.w,'));
+  assert.ok(code.includes('sliceHits(light.positionRange.xyz-view.origin.xyz,'));
 });

@@ -22,7 +22,6 @@ export type TileLayout = {
   opaqueBase: number;
   blendBase: number;
   shadowBase: number;
-  samples: number;
   opaqueMask: number;
   blendMask: number;
   words: number;
@@ -51,7 +50,6 @@ export function tileLayout(shader: string): TileLayout {
     opaqueBase: wgslConstant(shader, 'TILE_OPAQUE_BASE'),
     blendBase: wgslConstant(shader, 'TILE_BLEND_BASE'),
     shadowBase: wgslConstant(shader, 'TILE_SHADOW_BASE'),
-    samples: wgslConstant(shader, 'LIGHT_SAMPLES'),
     opaqueMask,
     blendMask,
     words: blendMask - opaqueMask,
@@ -85,13 +83,11 @@ function maskTotal(hits: Uint32Array, mask: number, words: number) {
   return total;
 }
 
-/** The lights each slice of the tile keeps, by rank in the scene: `listed` those the opaque
- *  slice kept before its depth mask (`opaque` by default), `shadowed` those that carry a shadow
- *  slot, so the record's flag word matches the pass's (#1249, #1369). */
+/** The lights each slice of the tile keeps, by rank in the scene: `shadowed` names those that
+ *  carry a shadow slot, so the record's flag word matches the pass's (#1249). */
 export type TileKeeps = {
   opaque: Iterable<number>;
   blend: Iterable<number>;
-  listed?: Iterable<number>;
   shadowed?: Iterable<number>;
 };
 
@@ -155,11 +151,8 @@ export function compactTile(
   );
   const total = kept.map((sum, slice) => sum + maskTotal(hits, masks[slice], live));
   [tiles[0], tiles[1]] = total;
-  // The record's last word: one when a moving image draws the list before the depth mask — within
-  // the sampled bound, a light with a shadow slot in it (`sampledList`, #1249, #1369).
-  const listed = [...(keeps.listed ?? opaque)];
-  const drawn = listed.length > layout.samples && listed.length <= layout.tileLights;
-  tiles[layout.shadowBase] = drawn && listed.some((rank) => shadow.has(rank)) ? 1 : 0;
+  // The record's last word: one when the opaque slice keeps a light with a shadow slot (#1249).
+  tiles[layout.shadowBase] = [...opaque].some((rank) => shadow.has(rank)) ? 1 : 0;
   if (Math.max(...total) <= layout.tileLights) return tiles;
   // `spill`, thread zero, then the slices written again.
   for (const slice of [0, 1]) {
