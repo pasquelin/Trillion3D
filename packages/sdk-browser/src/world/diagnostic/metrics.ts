@@ -61,6 +61,7 @@ export function createExplorerMetrics(
     gpuPassMs: null,
     gpuFrameMs: null,
     gpuHostGapMs: null,
+    gpuDeviceLost: null,
     uncoveredTriangles: null,
     drawnTriangles: null,
     lightsActive: null,
