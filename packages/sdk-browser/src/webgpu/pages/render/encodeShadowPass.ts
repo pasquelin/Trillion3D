@@ -15,7 +15,7 @@ import { feedbackPublished } from './encoder.ts';
  * pass per layer of the pool. In each pass, every region starts from its page cleared to far or
  * restored from the static layer — two instanced draws for the pass, whatever its regions
  * (`../../../gpu/shadow/pageQuads.ts`) —, then draws its casters: the moving casters of its
- * restored pages by group, one or two instanced draws each (`../../shadow/movingGroups.ts`).
+ * restored sun pages by group, one or two instanced draws each (`../../shadow/movingGroups.ts`).
  *
  * **The casters' viewport is the physical page, the matrix the virtual page's own projection.**
  * The page fills the clip square, so the rasterizer clips every caster at its edge and no other
