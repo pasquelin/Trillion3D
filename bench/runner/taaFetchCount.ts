@@ -29,8 +29,7 @@ export function countTaaFetches(scale: number, uncovered: boolean, asIs = false)
   };
   const run = upscaleRun(frame, asIs, false, scale === 1);
   let fetches = 0;
-  for (let y = 0; y < DISPLAY; y++)
-    for (let x = 0; x < DISPLAY; x++) fetches += run(x, y).fetches;
+  for (let y = 0; y < DISPLAY; y++) for (let x = 0; x < DISPLAY; x++) fetches += run(x, y).fetches;
   const pixels = DISPLAY * DISPLAY;
   return { fetches: fetches / pixels, ids: ids / pixels };
 }
