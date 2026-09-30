@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { contractLightingShader } from './shaders.ts';
 import { createDeferredLighting } from './deferred.ts';
-import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts';
+import { recorder } from './recorder.fixture.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
 test("the narrow resolve bounds its light array, the rest of its program the wide one's", () => {
@@ -22,30 +22,6 @@ test("the narrow resolve bounds its light array, the rest of its program the wid
     assert.equal(outside(narrow), outside(wide));
   }
 });
-
-/** The frames of `lighting`, each lit with `direct`, and the label of each program drawn with. */
-function recorder(lighting: Awaited<ReturnType<typeof createDeferredLighting>>) {
-  const labels: string[] = [];
-  const encoder = {
-    beginRenderPass: () => ({
-      setPipeline: (pipeline: GPURenderPipelineDescriptor) =>
-        labels.push(pipeline.fragment!.module.label),
-      setBindGroup() {},
-      setViewport() {},
-      draw() {},
-      end() {},
-    }),
-  } as unknown as GPUCommandEncoder;
-  const views = [0, 1, 2, 3].map(() => ({}) as GPUTextureView),
-    surface = { views: () => views } as unknown as SurfaceBuffer,
-    view = {} as GPUTextureView;
-  const draw = (direct: { narrow?: boolean; unshadowed?: boolean }) => {
-    lighting.bind(surface, view, view, true, { lights: {} as GPUBuffer, ...direct });
-    if (lighting.usesContract) lighting.light(encoder, view);
-    return lighting.usesContract;
-  };
-  return { labels, draw };
-}
 
 test('a narrow scene is lit by the narrow program, a wide one never is', async () => {
   const { device } = fakeDevice();
