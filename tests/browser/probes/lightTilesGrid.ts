@@ -7,7 +7,10 @@
  */
 import { LIGHT_TILES_SHADER } from '../../../packages/sdk-browser/src/lighting/tiles/shader.ts';
 import { wgslConstants } from '../../../packages/sdk-browser/src/texture/shaderRule.fixture.ts';
-import { sliceMap } from '../../../packages/sdk-browser/src/lighting/tiles/clusterSlices.fixture.ts';
+import {
+  clusterRun,
+  sliceMap,
+} from '../../../packages/sdk-browser/src/lighting/tiles/clusterSlices.fixture.ts';
 import {
   pixelPoint,
   type Vec3,
@@ -32,19 +35,24 @@ export function gridWalks(
     for (let x = 0; x < view.width; x++) {
       const z = depths[y * view.width + x];
       if (!z) continue;
-      const base = (Math.floor(y / K.TILE_SIZE) * tilesX + Math.floor(x / K.TILE_SIZE)) * K.TILE_STRIDE;
+      const base =
+        (Math.floor(y / K.TILE_SIZE) * tilesX + Math.floor(x / K.TILE_SIZE)) * K.TILE_STRIDE;
       const kept = words[base];
       const first = words[base + K.TILE_OPAQUE_BASE];
       const everyLight = kept > K.TILE_LIGHTS && first === K.TILE_NO_SLICE;
       const walked = everyLight ? lights.length : kept;
       const light = (i: number) =>
-        kept <= K.TILE_LIGHTS ? words[base + K.TILE_OPAQUE_BASE + i] : everyLight ? i : words[first + i];
+        kept <= K.TILE_LIGHTS
+          ? words[base + K.TILE_OPAQUE_BASE + i]
+          : everyLight
+            ? i
+            : words[first + i];
       const slice = MAP.clusterSliceIndex(
         distance(z),
         distance(unbits(words[base + K.TILE_DEPTH_BASE])),
         distance(unbits(words[base + K.TILE_DEPTH_BASE + 1])),
       );
-      const group = Math.max(Math.ceil(walked / 64), 1);
+      const group = clusterRun(walked);
       const named = new Set<number>();
       for (let i = 0; i < walked; i++) {
         const bit = Math.floor(i / group);

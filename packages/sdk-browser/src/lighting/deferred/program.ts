@@ -32,6 +32,8 @@ export interface DirectLightResources {
   proxy?: GPUBuffer;
   /** True when the narrow tile pass wrote the lists (`contractVariants.ts`, #849). */
   narrow?: boolean;
+  /** True when no light of the scene holds a shadow slot (`contractVariants.ts`, #1249). */
+  unshadowed?: boolean;
 }
 export interface DeferredSources {
   lighting: string;

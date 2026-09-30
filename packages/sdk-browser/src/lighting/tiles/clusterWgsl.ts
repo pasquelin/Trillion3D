@@ -54,7 +54,7 @@ const PART_SHIFT = Math.log2(PARTS);
 /**
  * The tile pass's grid, after its compaction, in uniform control flow — no atomic, no pool, no
  * copy of the list. Lane `l` settles slice `l / PARTS`, mask bits `PART_BITS` from
- * `(l % PARTS) * PART_BITS`: for each light of those bits' groups (`clusterGroup`) it tests the
+ * `(l % PARTS) * PART_BITS`: for each light of those bits' runs (`clusterShift`) it tests the
  * sphere's span once. Lanes `2 * CLUSTER_SLICES` then gather the bits into the record's words. The
  * walked slice is the resolve's own (`tileSlice`): the list, the pool past it, or every light.
  * A tile whose farthest surface is the background, or one with no light, writes full masks: its
@@ -106,7 +106,7 @@ fn clusterReaches(light:u32,slice:u32)->bool{
 fn clusterPartBits(base:u32,kept:u32,walked:u32,lane:u32)->u32{
  let slice=lane>>CLUSTER_PART_SHIFT;
  let first=(lane%CLUSTER_PARTS)*CLUSTER_PART_BITS;
- let group=clusterGroup(walked);
+ let group=1u<<clusterShift(walked);
  var bits=0u;
  for(var bit=0u;bit<CLUSTER_PART_BITS;bit++){
   let end=min((first+bit+1u)*group,walked);

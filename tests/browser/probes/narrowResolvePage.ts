@@ -45,7 +45,13 @@ const gridOff = (words: number[]) => {
 
 /** A tile record — its two counts, its lists, the pool after them — and the resolve reading it:
  *  \`contractLighting\`, or with \`drawn\` \`sampledTileLighting\` alone. */
-export type ResolveRecord = { narrow: boolean; words: number[]; drawn?: boolean };
+export type ResolveRecord = {
+  narrow: boolean;
+  words: number[];
+  drawn?: boolean;
+  /** Through the program with no shadow code (#1249). */
+  unshadowed?: boolean;
+};
 /** A scene; \`rank\` the view's sampled rank (0, a still image, by default), \`slots\` the shadow
  *  slot of some lights by their index. */
 export type ResolveScene = {
@@ -97,13 +103,19 @@ export async function run(scenes: ResolveScene[]) {
   });
   const compilation: string[] = [];
   const pipelines = new Map<string, GPUComputePipeline>();
-  for (const narrow of [false, true]) {
-    const { module, compilation: errors } = await opened.compile(narrowResolveHarness(narrow));
+  for (const [narrow, unshadowed] of [
+    [false, false],
+    [true, false],
+    [false, true],
+  ]) {
+    const { module, compilation: errors } = await opened.compile(
+      narrowResolveHarness(narrow, !unshadowed),
+    );
     compilation.push(...errors.map((error) => `${narrow ? 'narrow' : 'wide'}: ${error}`));
     if (!errors.length)
       for (const entryPoint of ['main', 'drawn'])
         pipelines.set(
-          `${narrow}${entryPoint}`,
+          `${narrow}${unshadowed}${entryPoint}`,
           device.createComputePipeline({
             layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
             compute: { module, entryPoint },
@@ -128,7 +140,9 @@ export async function run(scenes: ResolveScene[]) {
     const count = scene.samples.length / SAMPLE_FLOATS;
     const sceneRuns: number[][] = [];
     for (const record of scene.records) {
-      const pipeline = pipelines.get(`${record.narrow}${record.drawn ? 'drawn' : 'main'}`);
+      const pipeline = pipelines.get(
+        `${record.narrow}${!!record.unshadowed}${record.drawn ? 'drawn' : 'main'}`,
+      );
       if (!pipeline) continue;
       const tiles = storage(device, gridOff(record.words));
       const sums = storage(device, new Uint32Array(count * 4), true);
