@@ -70,6 +70,8 @@ export function createExplorerApi(inputs: Inputs) {
     backends,
     canvas,
     render,
+    /** The families the next frame draws with still on their way (`../session/familyUse.ts`). */
+    familiesPending: inputs.familiesPending,
     capture,
     /** The composed image at a size of its own, drawn offscreen, bottom row first. */
     captureView,
