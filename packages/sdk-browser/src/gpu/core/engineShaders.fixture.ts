@@ -42,7 +42,7 @@ import { DISPLAY_FILTER_SHADER } from '../../webgpu/blend/displayFilterWgsl.ts';
 import { SHADER as PREPARE_SHADER } from '../../webgpu/pages/prepare/shaders.ts';
 import { REDUCE_WGSL } from '../../webgpu/tile/reduceWgsl.ts';
 import { TRANSPARENT_COMPACT_SHADER } from '../../webgpu/transparent/shader.ts';
-import { waterRoutedShader } from '../../webgpu/water/compositeWgsl.ts';
+import { waterCompositeShader, waterRoutedShader } from '../../webgpu/water/compositeWgsl.ts';
 import { WATER_SURFACE_WGSL } from '../../webgpu/water/surfaceWgsl.ts';
 import {
   PARTICLES_WGSL,
@@ -59,7 +59,6 @@ import {
   SHADOW_WORDS_WGSL,
   SHADOW_FRESH_WGSL,
   SHADOW_DEMAND_WGSL,
-  WATER_COMPOSITE_SHADER,
   MIP_SHADER,
 } from './shaderTexts.fixture.ts';
 
@@ -183,7 +182,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   PREPARE_SHADER,
   REDUCE_WGSL,
   TRANSPARENT_COMPACT_SHADER,
-  WATER_COMPOSITE_SHADER,
+  WATER_COMPOSITE_SHADER: waterCompositeShader(),
   WATER_ROUTED: waterRoutedShader(),
   WATER_DEPTH_RESTORE_SHADER,
   PARTICLES_WGSL,
