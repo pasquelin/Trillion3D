@@ -122,7 +122,7 @@ function affectedTests(graph: Map<string, GraphNode>, changed: Set<string>): str
       if (role === 'barrel' || (role === 'aggregator' && !changed.has(file))) continue;
       queue.push(importer);
     }
-  const domains = [...changed].flatMap((file) => domainOf(file) ?? []);
+  const domains = [...changed].flatMap((file) => (isUnitTest(file) ? [] : (domainOf(file) ?? [])));
   const inventory = [...changed].some(movesInventory);
   return [...graph.keys()]
     .filter(
