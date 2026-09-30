@@ -14,8 +14,7 @@ export type DrawnDeformation = {
 /** Whether `g` carries a skin or morph targets: only then does a drawn vertex keep which source
  *  vertex it came from (`DrawnTriangles.sourceVertices`). */
 export const deforms = (g: Geometry) =>
-  !!g.morphAttributes.position?.length ||
-  Object.keys(g.attributes).some(isSkinIndex);
+  !!g.morphAttributes.position?.length || Object.keys(g.attributes).some(isSkinIndex);
 
 /** Setup-time extraction only: animation uploads palettes and weights, never these vertices. */
 export function drawnDeformation(g: Geometry, drawn: DrawnTriangles | null) {

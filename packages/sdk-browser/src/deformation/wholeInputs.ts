@@ -8,7 +8,11 @@ const SOFT_VERTICES = 65536;
 
 /** Throws `PHYSICS_FORMAT` unless `ids` names one simulated vertex below `softVertices` for each
  *  of `count` vertices. */
-export function checkSoftSourceIds(count: number, ids: readonly number[], softVertices = SOFT_VERTICES) {
+export function checkSoftSourceIds(
+  count: number,
+  ids: readonly number[],
+  softVertices = SOFT_VERTICES,
+) {
   if (
     ids.length !== count ||
     ids.some((id) => !Number.isInteger(id) || id < 0 || id >= softVertices)
